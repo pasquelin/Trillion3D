@@ -1,0 +1,16 @@
+{
+  "name": "@web-geometry/sdk-node",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./index.mjs",
+    "./cli": "./cli.mjs"
+  },
+  "files": [
+    "*.mjs"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  }
+}
