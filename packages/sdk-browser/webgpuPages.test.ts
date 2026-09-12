@@ -6,7 +6,7 @@ import {webgpuPagesBackend} from './webgpuPages.ts';
 import {rasterPageRecords} from './pageRaster.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
-import {evaluateDrawCompact,type DrawItem} from './gpuDraw.ts';
+import {evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
 import {rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
 
 function installGpuGlobals(){
@@ -24,7 +24,7 @@ function bytesOf(data:BufferSource){
 }
 
 function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
- const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;indirect?:boolean}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
+ const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;indirect?:boolean}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
  const passes:Array<{colorLoad?:string;depthLoad?:string;colorCount:number;formats:string[]}>=[];
  const computes:string[]=[];
@@ -62,7 +62,9 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
     draw(vertexCount:number,instanceCount=1,_firstVertex=0,firstInstance=0){draws.push({vertexCount,instanceCount,firstInstance});void currentBind;},
     drawIndirect(buffer:{data?:Uint8Array}, offset:number){
       const words=new Uint32Array(buffer.data!.buffer, buffer.data!.byteOffset+offset, 4);
-      draws.push({vertexCount:words[0], instanceCount:words[1], indirect:true});
+      const entries=(currentBind as {entries?:Array<{binding:number;resource:{offset?:number}}>} | undefined)?.entries;
+      const page=entries?.find(entry=>entry.binding===2);
+      draws.push({vertexCount:words[0], instanceCount:words[1], firstInstance:words[3], bindOffset:page?.resource?.offset??0, indirect:true});
     },
     end(){},
    };},
@@ -86,7 +88,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
       const instBytes=byBinding.get(2)!.data;
       new Uint32Array(instBytes.buffer,instBytes.byteOffset,instBytes.byteLength/4).set(result.instances);
       const indBytes=byBinding.get(3)!.data;
-      new Uint32Array(indBytes.buffer,indBytes.byteOffset,indBytes.byteLength/4).set(result.indirect);
+      new Uint32Array(indBytes.buffer,indBytes.byteOffset,indBytes.byteLength/4).set(indirectForDraw(result));
       return;
      }
      if(!packed||computePipeline?.entryPoint!=='resolveSelection'||!computeBind)return;
@@ -196,8 +198,47 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
  assert.equal(shade.reduce((n,d)=>n+d.vertexCount,0), 3);
  assert.ok(vis.length >= 1 && vis.length <= 6);
  assert.equal(vis.reduce((n,d)=>n+(d.instanceCount??0),0), 2);
+ assert.ok(vis.every(d=>d.firstInstance===0));
+ assert.ok(vis.every(d=>((d.bindOffset??0)%PAGE_BIND_ALIGN)===0));
  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'),false);
  backend.dispose();geometry.dispose();material.dispose();
+});
+
+function mixedBinScene(){
+ const geoA=new THREE.BufferGeometry();geoA.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0],3));geoA.setIndex([0,1,2]);
+ const geoB=new THREE.BufferGeometry();geoB.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,1,0,-1,1,0],3));geoB.setIndex([0,1,2]);
+ const front=new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.FrontSide}),both=new THREE.MeshBasicMaterial({color:0x00ff00,side:THREE.DoubleSide});
+ const meshA=new THREE.Mesh(geoA,front),meshB=new THREE.Mesh(geoB,both),source=new THREE.Group();source.add(meshA,meshB);
+ const pagesA=[{id:0,url:'0',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}];
+ const pagesB=[{id:0,url:'1',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}];
+ const metadata={primitives:[
+  {mesh:0,primitive:0,pass:'exact-clusters',pages:pagesA,hierarchy:{min:[-1,-1,0],max:[1,1,0],page:0}},
+  {mesh:1,primitive:0,pass:'exact-clusters',pages:pagesB,hierarchy:{min:[-1,-1,0],max:[1,1,0],page:0}},
+ ]};
+ const indices=new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,1,2])]]);
+ const associations=new Map([[meshA,{meshes:0,primitives:0}],[meshB,{meshes:1,primitives:0}]]);
+ return {geoA,geoB,front,both,source,metadata,indices,associations};
+}
+
+test('vis drawIndirect keeps firstInstance 0 with 256-aligned page-table binds per slot',async()=>{
+ installGpuGlobals();
+ const {source,metadata,indices,associations,geoA,geoB,front,both}=mixedBinScene();
+ const collected=collectClusterPages(source,metadata,indices,associations);
+ const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ await backend.prepare();
+ backend.render(camera());
+ await backend.flush?.();
+ backend.render(camera());
+ const vis=draws.filter(draw=>draw.indirect);
+ assert.ok(vis.length>=2&&vis.length<=6);
+ assert.equal(vis.reduce((n,draw)=>n+(draw.instanceCount??0),0),2);
+ assert.ok(vis.every(draw=>draw.firstInstance===0));
+ assert.ok(vis.every(draw=>((draw.bindOffset??0)%PAGE_BIND_ALIGN)===0));
+ const offsets=new Set(vis.map(draw=>draw.bindOffset??0));
+ assert.ok(offsets.has(0));
+ assert.ok(offsets.has(PAGE_BIND_ALIGN));
+ backend.dispose();geoA.dispose();geoB.dispose();front.dispose();both.dispose();
 });
 
 test('webgpu page raster matches the WebGL2 exact-pages triangles',async()=>{
@@ -554,7 +595,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
  const {source,metadata,indices,associations,geometry,material}=occluderScene();
  const viewport:[number,number]=[32,32];
  const collected=collectClusterPages(source,metadata,indices,associations);
- const {device,passes,computes,textures}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true);
+ const {device,passes,computes,textures,draws}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true);
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:4,viewport});
  const cam=camera();
  const cpu=selectVisiblePages(collected.roots,cam,{pixelError:0,viewport,frame:1});
@@ -578,6 +619,10 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
  assert.equal(compareImages(backend.rasterRgba(),shadeVisibility(rasterVisibilityIds(visPages,cam,viewport),visPages,cam,viewport)).maxChannelError,0);
  const drawn=new Set([...backend.visibilityIds()].flatMap(id=>{const unpacked=unpackVisibilityId(id);return unpacked?[unpacked.pageIndex]:[];}));
  assert.deepEqual([...drawn].sort(),[0]);
+ const vis=draws.filter(draw=>draw.indirect);
+ assert.ok(vis.length>=1&&vis.length<=6);
+ assert.ok(vis.every(draw=>draw.firstInstance===0));
+ assert.ok(vis.every(draw=>((draw.bindOffset??0)%PAGE_BIND_ALIGN)===0));
  backend.dispose();geometry.dispose();material.dispose();
 });
 
