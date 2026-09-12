@@ -1,6 +1,7 @@
 import {compact,exclusiveScan,packDrawIndirect} from '../sdk-core/index.ts';
 
 export const DRAW_INDIRECT_STRIDE=16;
+export const PAGE_BIND_ALIGN=256;
 export const BIN_BACK=0,BIN_NONE=1,BIN_FRONT=2;
 const SLOTS=6,ITEM_U32=3,UNIFORM_BYTES=16;
 
@@ -12,6 +13,11 @@ export type CompactResult={
  counts:[number,number,number,number,number,number]; // (bin + 3*rest)
  indirect:Uint32Array;       // 6 * 4 u32, one drawIndirect per (bin, rest)
  overflow:boolean;
+};
+export type SlotLayout={
+ offsets:[number,number,number,number,number,number];
+ rows:[number,number,number,number,number,number];
+ tableRows:number;
 };
 export type GpuDraw={
  encode(encoder:GPUCommandEncoder,items:DrawItem[],maxVertexCount:number):void;
@@ -57,6 +63,28 @@ export function evaluateDrawCompact(items:DrawItem[],maxVertexCount:number,slotC
  };
 }
 
+/** Pad each compact region so a storage bind offset is a multiple of `align` (WebGPU minStorageBufferOffsetAlignment). */
+export function compactSlotLayout(counts:ArrayLike<number>,stride:number,align=PAGE_BIND_ALIGN):SlotLayout{
+ const offsets:[number,number,number,number,number,number]=[0,0,0,0,0,0];
+ const rows:[number,number,number,number,number,number]=[0,0,0,0,0,0];
+ let bytes=0,used=0;
+ for(let s=0;s<SLOTS;s++){
+  if(bytes%align)bytes+=align-(bytes%align);
+  offsets[s]=bytes;
+  rows[s]=stride?bytes/stride:0;
+  bytes+=counts[s]*stride;
+  if(counts[s])used=bytes;
+ }
+ return {offsets,rows,tableRows:Math.max(1,stride?used/stride:1)};
+}
+
+/** DrawIndirect words with firstInstance=0. Compact still records exclusive-scan starts in word[3]. */
+export function indirectForDraw(compact:CompactResult):Uint32Array{
+ const words=compact.indirect.slice();
+ for(let s=0;s<SLOTS;s++)words[s*4+3]=0;
+ return words;
+}
+
 export const DRAW_SHADER=`struct DrawItem{pageIndex:u32,bin:u32,rest:u32,}
 struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,pad:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
@@ -76,25 +104,25 @@ fn scatter(slot:u32,start:u32){
   if(matches(item,slot)){instances[dst]=item.pageIndex;dst=dst+1u;}
  }
 }
-fn writeCmd(slot:u32,count:u32,start:u32){
+fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
  indirect[o]=uni.maxVertexCount;
  indirect[o+1u]=count;
  indirect[o+2u]=0u;
- indirect[o+3u]=start;
+ indirect[o+3u]=0u;
 }
 @compute @workgroup_size(1)
 fn compactDraws(){
  if(uni.count>uni.slotCap){
-  writeCmd(0u,0u,0u);writeCmd(1u,0u,0u);writeCmd(2u,0u,0u);
-  writeCmd(3u,0u,0u);writeCmd(4u,0u,0u);writeCmd(5u,0u,0u);
+  writeCmd(0u,0u);writeCmd(1u,0u);writeCmd(2u,0u);
+  writeCmd(3u,0u);writeCmd(4u,0u);writeCmd(5u,0u);
   return;
  }
  let c0=countSlot(0u);let c1=countSlot(1u);let c2=countSlot(2u);
  let c3=countSlot(3u);let c4=countSlot(4u);let c5=countSlot(5u);
  let s0=0u;let s1=s0+c0;let s2=s1+c1;let s3=s2+c2;let s4=s3+c3;let s5=s4+c4;
- writeCmd(0u,c0,s0);writeCmd(1u,c1,s1);writeCmd(2u,c2,s2);
- writeCmd(3u,c3,s3);writeCmd(4u,c4,s4);writeCmd(5u,c5,s5);
+ writeCmd(0u,c0);writeCmd(1u,c1);writeCmd(2u,c2);
+ writeCmd(3u,c3);writeCmd(4u,c4);writeCmd(5u,c5);
  scatter(0u,s0);scatter(1u,s1);scatter(2u,s2);
  scatter(3u,s3);scatter(4u,s4);scatter(5u,s5);
 }

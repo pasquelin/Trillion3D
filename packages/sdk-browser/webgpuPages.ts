@@ -6,7 +6,7 @@ import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {applyHiz,projectBoxToScreen,splitOccluders} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
-import {BIN_BACK,BIN_FRONT,BIN_NONE,createGpuDraw,evaluateDrawCompact,type DrawItem,type GpuDraw} from './gpuDraw.ts';
+import {BIN_BACK,BIN_FRONT,BIN_NONE,compactSlotLayout,createGpuDraw,evaluateDrawCompact,type DrawItem,type GpuDraw,type SlotLayout} from './gpuDraw.ts';
 import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_SHADER,clusterHash,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode} from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -314,13 +314,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const compact=evaluateDrawCompact(items,maxVertexCount,slots);
   const useIndirect=!!gpuDraw&&!compact.overflow;
   if(compact.overflow)dropGpuDraw();
-  const order=useIndirect?compact.instances:Uint32Array.from(packed.keys());
-  const tableBytes=Math.max(PAGE_INFO_STRIDE,Math.max(packed.length,order.length)*PAGE_INFO_STRIDE);
+  const layout:SlotLayout|undefined=useIndirect?compactSlotLayout(compact.counts,PAGE_INFO_STRIDE):undefined;
+  const tableRows=layout?.tableRows??packed.length;
+  const tableBytes=Math.max(PAGE_INFO_STRIDE,tableRows*PAGE_INFO_STRIDE);
   if(!pageTable||pageTable.size<tableBytes){pageTable?.destroy();shadeBindGroup=undefined;visBindGroup=undefined;visHizBindGroup=undefined;pageTable=device.createBuffer({size:tableBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});}
   const pageFloats=new Float32Array(tableBytes/4),pageInts=new Uint32Array(pageFloats.buffer);
-  for(let s=0;s<order.length;s++){
-   const item=packed[order[s]];if(!item)continue;
-   const base=s*(PAGE_INFO_STRIDE/4),mat=visMaterial(item.rec.material),geo=geometryBlocks.get(item.rec.attributes);
+  const writePage=(item:(typeof packed)[number],row:number)=>{
+   const base=row*(PAGE_INFO_STRIDE/4),mat=visMaterial(item.rec.material),geo=geometryBlocks.get(item.rec.attributes);
    const layer=mat.map&&mapLayer.has(mat.map)?mapLayer.get(mat.map)!:0,scale=uvScales[layer]??[1,1];
    pageFloats.set(item.rec.matrix.elements,base);
    pageFloats[base+16]=mat.baseColor[0];pageFloats[base+17]=mat.baseColor[1];pageFloats[base+18]=mat.baseColor[2];pageFloats[base+19]=mat.alphaTest>0?mat.alphaTest:1;
@@ -328,9 +328,19 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    let flags=0;if(mat.lit)flags|=FLAG_LIT;if(mat.doubleSided)flags|=FLAG_DOUBLE;if(geo?.hasUv)flags|=FLAG_HAS_UV;if(layer)flags|=FLAG_HAS_MAP;if(geo?.hasNormal)flags|=FLAG_HAS_NORMAL;if(mat.alphaTest>0)flags|=FLAG_MASK;if(mat.backSide)flags|=FLAG_BACK;
    if(mat.map&&mat.map.wrapS!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_S_REPEAT;
    if(mat.map&&mat.map.wrapT!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_T_REPEAT;
-   pageInts[base+22]=layer;pageInts[base+23]=flags;pageInts[base+24]=item.resident.offset/4;pageInts[base+25]=item.index.length;pageInts[base+26]=geo?.vertexBase??0;pageInts[base+27]=((s+1)<<16)>>>0;
+   pageInts[base+22]=layer;pageInts[base+23]=flags;pageInts[base+24]=item.resident.offset/4;pageInts[base+25]=item.index.length;pageInts[base+26]=geo?.vertexBase??0;pageInts[base+27]=((row+1)<<16)>>>0;
    pageFloats[base+28]=scale[0];pageFloats[base+29]=scale[1];pageInts[base+30]=clusterHash(item.rec.clusterId);
    pageInts[base+31]=restSlot.has(item.rec)?restSlot.get(item.rec)!:0xffffffff;
+  };
+  if(useIndirect&&layout){
+   let inst=0;
+   for(let slot=0;slot<6;slot++){
+    for(let i=0;i<compact.counts[slot];i++){
+     const item=packed[compact.instances[inst++]];if(item)writePage(item,layout.rows[slot]+i);
+    }
+   }
+  }else{
+   for(let s=0;s<packed.length;s++)writePage(packed[s],s);
   }
   device.queue.writeBuffer(pageTable,0,pageFloats);
   if(!visUniform)visUniform=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
@@ -338,7 +348,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   device.queue.writeBuffer(visUniform,0,visUniPacked);
   if(!shadeUniform)shadeUniform=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   shadeUniPacked.set(viewProj.elements,0);shadeUniPacked[16]=width;shadeUniPacked[17]=height;
-  const shadeInts=new Uint32Array(shadeUniPacked.buffer);shadeInts[20]=packed.length;shadeInts[21]=diagnostic==='wireframe'?1:diagnostic==='pages'?3:diagnostic==='beauty'?0:2;
+  const shadeInts=new Uint32Array(shadeUniPacked.buffer);shadeInts[20]=tableRows;shadeInts[21]=diagnostic==='wireframe'?1:diagnostic==='pages'?3:diagnostic==='beauty'?0:2;
   shadeUniPacked[24]=camera.position.x;shadeUniPacked[25]=camera.position.y;shadeUniPacked[26]=camera.position.z;shadeUniPacked[27]=1;
   const lLen=Math.hypot(1,3,2);shadeUniPacked[28]=1/lLen;shadeUniPacked[29]=3/lLen;shadeUniPacked[30]=2/lLen;shadeUniPacked[31]=2.5;
   shadeUniPacked[32]=2;shadeUniPacked[33]=2;shadeUniPacked[34]=2;shadeUniPacked[35]=1;
@@ -372,14 +382,25 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    return [ids,{view:gpuHiz.level0View,loadOp,storeOp:'store' as const,clearValue:{r:1,g:0,b:0,a:1}}];
   };
   const visSlots=[visPipelineBack,visPipelineNone,visPipelineFront,visHizRestBack,visHizRestNone,visHizRestFront];
+  const visGroupFor=(slot:number,rest:boolean)=>{
+   if(!visBindGroupLayout||!cache||!concatPos||!pageTable||!visUniform||!layout)return;
+   const flags=rest?gpuHiz?.flags:zeroFlags;if(!flags)return;
+   const offset=layout.offsets[slot],size=Math.max(PAGE_INFO_STRIDE,compact.counts[slot]*PAGE_INFO_STRIDE);
+   if(offset+size>pageTable.size)return;
+   const entries:GPUBindGroupEntry[]=[
+    {binding:0,resource:{buffer:cache.buffer}},{binding:1,resource:{buffer:concatPos}},
+    {binding:2,resource:{buffer:pageTable,offset,size}},{binding:3,resource:{buffer:flags}},
+    {binding:4,resource:{buffer:visUniform}},
+   ];
+   return device.createBindGroup({layout:visBindGroupLayout,entries});
+  };
   const drawVis=(pass:GPURenderPassEncoder,list:typeof packed,rest:boolean)=>{
    if(useIndirect){
-    const group=rest?visHizBindGroup:visBindGroup;
-    if(!group||!gpuDraw)return 0;
+    if(!gpuDraw||!layout)return 0;
     const start=rest?3:0;
     for(let s=start;s<start+3;s++){
      if(compact.counts[s]<=0)continue;
-     const pipeline=visSlots[s];if(!pipeline)continue;
+     const pipeline=visSlots[s],group=visGroupFor(s,rest);if(!pipeline||!group)continue;
      pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);
     }
     return list.reduce((n,item)=>n+item.index.length,0);
