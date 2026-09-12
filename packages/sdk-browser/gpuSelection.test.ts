@@ -4,7 +4,7 @@ import type {Tree} from '../sdk-core/index.ts';
 import {selectVisiblePages} from './pageSelection.ts';
 import {cameraSelectionUniforms,createGpuSelection,evaluateSelectionKernel,packSelectionForest,SELECTION_SHADER} from './gpuSelection.ts';
 
-type Rec={id:number;url:string;triangles:number;seen:number};
+type Rec={id:number;url:string;triangles:number;seen:number;cone?:{axis:[number,number,number];angle:number}};
 
 function installGpuGlobals(){
  Object.assign(globalThis,{
@@ -94,6 +94,16 @@ test('compute kernel keeps exact leaves when pixelError is 0',()=>{
 
 test('compute kernel page ids match the CPU nested LOD cut',()=>{
  assertSameCut(forest(nestedPages,nestedTree),cameraAt(0,0,5),10);
+});
+
+test('compute kernel cone-rejects a back-facing leaf the CPU also rejects', () => {
+  const pages = recs([{id:0,url:'front',count:3}]);
+  (pages[0] as Rec & {cone: {axis:[number,number,number]; angle:number}}).cone = {axis:[0,0,1], angle: Math.PI/6};
+  const tree: Tree = {min:[-0.1,-0.1,0],max:[0.1,0.1,0],page:0};
+  const behind = cameraAt(0,0,-5,0,0,0);
+  assertSameCut(forest(pages as Rec[], tree), behind, 0);
+  const gpu = gpuCut(forest(pages as Rec[], tree), behind, 0);
+  assert.equal(gpu.pageIds.length, 0);
 });
 
 test('compute kernel frustum-rejects a distant child the CPU also rejects',()=>{
@@ -238,7 +248,7 @@ function mockSelectionDevice(packed:ReturnType<typeof packSelectionForest>,optio
   createBindGroupLayout:()=>({}),
   createPipelineLayout:()=>({}),
   createComputePipeline:({compute}:{compute:{entryPoint:string}})=>compute,
-  createBindGroup:(desc:typeof bind)=>{bind=desc;return desc;},
+  createBindGroup:(desc:typeof bind)=>{if(!desc||desc.entries.length!==8)throw new Error('selection bind group requires 8 entries');bind=desc;return desc;},
   createCommandEncoder:()=>({
    beginComputePass:()=>({
     setPipeline(next:{entryPoint:string}){pipeline=next;},
@@ -275,5 +285,5 @@ function readUniforms(data:Uint8Array){
  const u32=new Uint32Array(data.buffer,data.byteOffset,data.byteLength/4);
  const planes=f32.slice(0,24);
  const view=f32.slice(24,40);
- return {planes,view,pixelScale:[f32[40],f32[41]] as [number,number],pixelError:f32[42],near:f32[43],nodeCount:u32[44],rootCount:u32[45]};
+ return {planes,view,pixelScale:[f32[40],f32[41]] as [number,number],pixelError:f32[42],near:f32[43],cameraWorld:[f32[48],f32[49],f32[50]] as [number,number,number],nodeCount:u32[44],rootCount:u32[45]};
 }
