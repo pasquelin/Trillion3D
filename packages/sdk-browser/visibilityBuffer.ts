@@ -252,31 +252,36 @@ export function visibilityUvDerivatives(ids:Uint32Array,pages:VisPage[],camera:T
  return uvDerivatives(tri.a,tri.b,tri.c,uva,uvb,uvc);
 }
 
-export const VIS_SHADER=`struct Uniforms{viewProj:mat4x4f,world:mat4x4f,packedBase:u32,pageOffset:u32,indexCount:u32,hizSlot:u32,}
+export const VIS_SHADER=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,}
+struct Uniforms{viewProj:mat4x4f,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read> positions:array<f32>;
-@group(0) @binding(2) var<uniform> uni:Uniforms;
+@group(0) @binding(2) var<storage, read> pages:array<PageInfo>;
 @group(0) @binding(3) var<storage, read> hizFlags:array<u32>;
+@group(0) @binding(4) var<uniform> uni:Uniforms;
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,}
-@vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
+fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}
+@vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
- if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,0.0,1.0);out.id=0u;return out;}
- let id=indices[uni.pageOffset+vertexIndex];
- let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
+ let page=pages[instanceIndex];
+ if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let id=indices[page.pageOffset+vertexIndex];
+ let p=vertPos(page.vertexBase,id);
+ let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
- out.id=uni.packedBase|((vertexIndex/3u)&0xffffu);
+ out.id=page.packedBase|((vertexIndex/3u)&0xffffu);
  return out;
 }
-@vertex fn vis_hiz_vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
+@vertex fn vis_hiz_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
- if(uni.hizSlot!=0xffffffffu&&uni.hizSlot<arrayLength(&hizFlags)&&hizFlags[uni.hizSlot]!=0u){
-  out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;
- }
- if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,0.0,1.0);out.id=0u;return out;}
- let id=indices[uni.pageOffset+vertexIndex];
- let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
+ let page=pages[instanceIndex];
+ if(page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]!=0u){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(vertexIndex>=page.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ let id=indices[page.pageOffset+vertexIndex];
+ let p=vertPos(page.vertexBase,id);
+ let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
- out.id=uni.packedBase|((vertexIndex/3u)&0xffffu);
+ out.id=page.packedBase|((vertexIndex/3u)&0xffffu);
  return out;
 }
 struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
