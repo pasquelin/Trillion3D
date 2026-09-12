@@ -1,0 +1,59 @@
+# Portable engine boundaries — version 0.1.0
+
+This standalone repository builds ESM JavaScript and TypeScript declarations into `dist/`, with explicit public SDK entry points. npm publication and cross-platform binary distribution are not yet configured.
+
+| Boundary | Public API | Current implementation |
+|---|---|---|
+| `sdk-core` | versioned contracts, jobs/progress/cancellation, image comparison, statistics and paths | pure TypeScript, no DOM/platform/UI imports |
+| `sdk-browser` | `createExplorer`, `runCameraPath`, backend factories | Three.js WebGL adapter; WebGPU page cache plus optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` compute, visibility buffer, source-material second pass and this-frame GPU Hi-Z; DOM, loading and controls live here |
+| `asset-compiler-core` | `compileAsset({source,cache,hash,...})` | pure JS reference compiler, injectable stores; correctness baseline, not the production large-scene path |
+| `sdk-node` | `prepare`, `createCompilationJob`, `filesystemStore`, CLI | native process/job adapter, explicit reference compiler, filesystem boundary |
+| `packages/asset-compiler-rust` | Rust `compile(options,strategy,progress)` and binary | native glTF import, exact clusters, hierarchy, SHA-addressed pages, Rayon pool |
+
+## Current native implementation
+
+Run `cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml` and `cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml`.
+
+The native library maps the source binary read-only and streams selected buffer views to output. The host must keep input files immutable during the call. Source JSON and binary names come from `manifest.runtime.file` and the glTF buffer URI. It verifies manifest/glTF/binary hashes, preserves source index order and material flags, and shares identical page objects by SHA256. It checks cached bytes before reuse. A completed manifest is published last under `native/<scope>/manifest.json`; the reference compiler publishes under `reference/<scope>/manifest.json`. These namespaces are deliberately incompatible and prevent either compiler from overwriting the other's pointer. Interrupted temporary files are not treated as cache hits. Progress events arrive from parallel workers and may be interleaved; output order and identities are deterministic for a given implementation and strategy.
+
+`ClusterStrategy` supplies versioned triangle clusters (`exact-source-order` by default, `greedy-adjacency` optional). Runtime coverage validation requires every source triangle exactly once; `exact-source-order` also requires source order. Import, hierarchy and page encoding are currently library functions, not independently injectable phase implementations. The native compiler (`simplification: 'qem-endpoints'`) bakes nested replacement regions with meshoptimizer (`LockBorder`, parent meshes from children). The JavaScript compiler remains a small-mesh QEM oracle and is not the production bake. A parent without a reduced mesh omits `coarsePages`. Compression is not implemented. Format 1 remains readable by the browser adapter; unknown versions are rejected. Cache keys include source manifest, binary hash, compiler version/implementation hash, strategy/version, scope, budget, resource URL and simplification.
+
+Thread count is enforced by a local Rayon pool. The RAM option is an admission estimate that includes the parsed glTF, selected views, page index bytes and per-thread scratch; it is not an OS-enforced peak RSS cap. Metrics distinguish mapping size from physical memory. OS timing/RSS are collected by the external benchmark harness, not invented inside the compiler. The compiler's cancellation token is checked between primitives/pages; the Node adapter cancels the subprocess via AbortSignal and bounds both stdout and stderr. A direct Rust caller supplies the atomic token.
+
+## Extension and release work still required
+
+The target pipeline is import → normalization → clustering → simplification → hierarchy → pages → compression → validation. Each production phase must gain its own replaceable/versioned input/output strategy, instrumentation and cache key. The current native library still contains filesystem operations; a Rust storage-port abstraction remains to be extracted. The JS reference compiler already has injected stores. Neither is described as a completed general-purpose virtualized engine.
+
+Node N-API bindings should wrap the same Rust library with explicit buffer ownership, async progress and cancellation, preserving the manifest contract. The current executable adapter is the working integration; no N-API or WASM binding is delivered. WASM is optional, not the intended large-scene production route.
+
+Release targets: macOS arm64/x64, Linux x64/arm64, Windows x64. Build/test on each native runner, retain Cargo.lock, sign platform artifacts, publish hashes and attach format compatibility fixtures. Only macOS arm64 has been compiled and executed here. No release or installer has been published.
+
+## Validation and contribution gates
+
+Use synthetic golden geometry, page/source index equality, exact image repeat/candidate comparisons and rejected malformed inputs. Keep raw measured before/after runs under ignored benchmark-runs. Compare the same source revision, scope, cache state, thread/RAM settings and machine. A single smoke run is not a speedup claim.
+
+Performance regression budgets require repeated runs on a stable runner and variance bounds. No numeric CI threshold has been invented from the first local baseline. Native compatibility tests and importer tests exist; a full cross-platform CI/performance gate remains pending.
+
+## Electron / external hosts
+
+The main process can call `sdk-node.prepare(sourceDirectory,cacheDirectory,'full',150000,{executable,resourceBaseUrl,signal,onProgress})`. Both directories, the source resource URL and executable are host configuration. Serve outputs and original texture resources through a host-owned URL/protocol, then pass the compiler-specific `manifestUrl` to the browser adapter. The renderer process owns the canvas and controller lifecycle. Forward progress through host-owned IPC; do not import Electron into a core package. No AI Desktop Studio code was modified.
+
+## SDK public contract
+
+`SDK_VERSION` is independent of `FORMAT_VERSION` and the native compiler version. Jobs expose immutable version-1 snapshots (`queued`, `running`, `completed`, `cancelled`, `failed`), progress, a result promise, cancellation and subscription. Observers and injected telemetry cannot change the outcome of work. `createCompilationJob` and `createExplorerJob` implement real environment boundaries; callers must dispose successful explorer results.
+
+`createGpuPageCache(device,pageSource,{pageBytes,slots})` is a real WebGPU buffer/queue adapter with bounded slot count, pins, serialized loads, a reusable staging buffer and eviction without a device-wide queue fence. `dispose()` aborts in-flight reads and waits for submitted work before `destroy()`. It reports allocation accounting, bytes read/uploaded and evictions; it does not measure physical VRAM. `PageSource` is injected; `httpPageSource(baseUrl)` is optional. `webgpuPagesBackend` consumes that cache: a compute pass runs frustum + `lodScore` and a one-thread resolve emits page IDs; `selectVisiblePages` remains the CPU oracle and the silent fallback when compute is missing or the readback is not yet current. The raster vertex-pulls indices from resident slots into a visibility buffer (packed page+triangle IDs). A second pass reconstructs attributes with analytical derivatives on the winning triangle and applies source glTF materials (baseColor, maps, metalness/roughness). That path is not MeshStandardMaterial pixel-perfect and does not include indirect draw. After this-frame's visbuffer of in-front occluders, a GPU Hi-Z pyramid is built from that pass's depth (background 1, max reduction) and the rest is retested; non-rejected pages are drawn with `loadOp: 'load'`, then shade once. Remaining ⊆ `selectVisiblePages`; a non-rejection is not an error. Previous-frame depth is not used as proof. Node tests do not execute WGSL. If compute Hi-Z is missing, CPU `applyHiz` remains the silent fallback. If the visbuffer pipeline cannot be created, the untextured page raster remains and Hi-Z stays off. The slot budget / pin rules of the cache apply. If WebGPU is absent, pipeline creation fails, or the device is lost, the backend is omitted or throws `WEBGPU_UNAVAILABLE` / `WEBGPU_LOST` so the explorer keeps the Three.js WebGL2 path without a user notice. Exact cluster pages attach only the visible set (capped by `maxResidentPages`, default at least the prepared page count so a single-copy home pose does not over-budget). A view that still exceeds the cap leaves an empty exact scene and falls back to the reference backend without throwing inside `render()`. Metrics report `residentPages` / `geometryAllocationBytes` / `selectedTriangles` from known allocations. Unknown metrics stay `null`. The shared CPU index map is dropped after backend construction. Shared source vertex attributes are unhooked before `geometry.dispose()` so three.js r174 does not `deleteBuffer` VBOs still owned by the source mesh.
+
+No empty `sdk-react` or `sdk-electron` package is created. React can consume stable job snapshots with useSyncExternalStore and own controls/canvas disposal. An Electron host can own the sdk-node job in main and forward versioned events/results through its validated IPC contract; renderer consumes sdk-browser. Implement those optional packages only when they carry actual lifecycle/IPC policy. No Electron dependency or sibling-project change is introduced.
+
+Public entry points compile and import in tests. JavaScript and declarations are generated locally; npm publication, N-API and a signed multi-platform release remain pending.
+
+## Safety and transparent fallback
+
+`createSafetyPolicy` accepts comparable measured reference/candidate costs, explicit caller budgets, minimum sample counts, hysteresis ratios and a minimum switching period. It starts at baseline, refuses invalid/incomparable evidence and trips immediately for errors, OOM, device loss, quality failures, memory pressure or measured thrashing. This is a decision policy, not an automatic measurement producer: callers must supply real measurements and the same context/quality key. No threshold is claimed to be experimentally calibrated by the SDK.
+
+`detectCapabilities('webgl',canvas)` never touches WebGPU. WebGPU probing is a separate explicit path. The explorer currently selects the compatible WebGL baseline and exposes `applySafetyDecision` for a measured policy decision. Its prepared reference can replace a failing optimization in the same render call. During measurement a failure rejects the campaign rather than silently recording baseline work under the candidate label.
+
+Normal UX must remain silent on recovered fallbacks. Versioned `RuntimeEvent` messages for capability negotiation, optimization and recovered errors have `audience:'diagnostic'`; route them to telemetry or an explicitly enabled developer view. `userNotice(event)` returns no notice for these. Only unrecoverable fatal events produce a localizable `scene-unavailable` / retry action, never low-level backend/driver text. No modal, console warning or DOM message is emitted by the SDK.
+
+A lost graphics context is not cured by switching a scene object. Full WebGPU→WebGL recreation, preserving a last good visible frame across context/device loss, and an automatic production decision sampler remain unimplemented. Do not advertise a complete cross-API fallback before physical validation. The current synchronous fallback is limited to a backend error while the WebGL context remains usable.
