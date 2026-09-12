@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile,readdir} from 'node:fs/promises';
+const core=new URL('../packages/sdk-core/',import.meta.url);
+test('sdk-core excludes browser, UI and filesystem dependencies',async()=>{for(const file of (await readdir(core)).filter(name=>name.endsWith('.ts')&&!name.endsWith('.test.ts'))){const text=await readFile(new URL(file,core),'utf8');assert.doesNotMatch(text,/from\s+['"](?:node:|react|electron|three|\.\.\/sdk-browser|\.\.\/sdk-node)/,file);assert.doesNotMatch(text,/\b(?:document|window|HTMLElement|HTMLCanvasElement|GPUDevice)\b/,file);}});
