@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {packDrawIndirect} from '../sdk-core/index.ts';
-import {BIN_BACK,BIN_FRONT,BIN_NONE,createGpuDraw,DRAW_INDIRECT_STRIDE,DRAW_SHADER,evaluateDrawCompact,type DrawItem} from './gpuDraw.ts';
+import {BIN_BACK,BIN_FRONT,BIN_NONE,compactSlotLayout,createGpuDraw,DRAW_INDIRECT_STRIDE,DRAW_SHADER,evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
+import {PAGE_INFO_STRIDE} from './visibilityBuffer.ts';
 
 test('compact keeps input order inside each bin and writes 16-byte indirects', () => {
   const items = [
@@ -59,6 +60,32 @@ test('draw shader compacts on one thread without atomics',()=>{
  assert.match(DRAW_SHADER,/fn compactDraws/);
  assert.doesNotMatch(DRAW_SHADER,/atomicAdd/);
  assert.match(DRAW_SHADER,/rest\s*\*\s*3u\s*\+\s*item\.bin/);
+ assert.match(DRAW_SHADER,/indirect\[o\+3u\]=0u/);
+});
+
+test('draw consumers zero firstInstance and pad slot binds to 256 bytes',()=>{
+ const items:DrawItem[]=[
+  {pageIndex:0,bin:BIN_BACK,rest:0},
+  {pageIndex:1,bin:BIN_NONE,rest:0},
+  {pageIndex:2,bin:BIN_BACK,rest:1},
+ ];
+ const result=evaluateDrawCompact(items,768,8);
+ assert.equal(result.indirect[3],0);
+ assert.equal(result.indirect[7],1);
+ assert.equal(result.indirect[3*4+3],2);
+ const drawn=indirectForDraw(result);
+ for(let s=0;s<6;s++)assert.equal(drawn[s*4+3],0);
+ assert.equal(drawn[1],1);
+ assert.equal(drawn[5],1);
+ assert.equal(drawn[3*4+1],1);
+ const layout=compactSlotLayout(result.counts,PAGE_INFO_STRIDE);
+ assert.equal(PAGE_BIND_ALIGN,256);
+ assert.equal(PAGE_INFO_STRIDE,128);
+ assert.equal(layout.offsets[0],0);
+ assert.equal(layout.offsets[1],256);
+ assert.equal(layout.offsets[3],512);
+ for(const offset of layout.offsets)assert.equal(offset%PAGE_BIND_ALIGN,0);
+ assert.equal(layout.tableRows,5);
 });
 
 test('a device without compute pipelines does not create GPU draw',async()=>{
@@ -92,11 +119,13 @@ test('GPU draw encode peeks the CPU compact and the mock kernel fills indirect+i
  assert.ok(peeked);
  assert.equal(peeked.overflow,false);
  assert.deepEqual([...peeked.instances],[4,7,1]);
+ const expectedNone=packDrawIndirect(768,1);expectedNone[3]=2;
+ assert.deepEqual([...peeked.indirect.subarray(4,8)],[...expectedNone]);
  const indirect=buffers.find(buffer=>buffer.usage&GPUBufferUsage.INDIRECT)!;
  const words=new Uint32Array(indirect.data.buffer,indirect.data.byteOffset,indirect.data.byteLength/4);
  assert.deepEqual([...words.subarray(0,4)],[...packDrawIndirect(768,2)]);
- const expectedNone=packDrawIndirect(768,1);expectedNone[3]=2;
- assert.deepEqual([...words.subarray(4,8)],[...expectedNone]);
+ assert.deepEqual([...words.subarray(4,8)],[...packDrawIndirect(768,1)]);
+ for(let s=0;s<6;s++)assert.equal(words[s*4+3],0);
  const instances=buffers.find(buffer=>buffer.size===8*4)!;
  const ids=new Uint32Array(instances.data.buffer,instances.data.byteOffset,instances.data.byteLength/4);
  assert.deepEqual([...ids.subarray(0,3)],[4,7,1]);
@@ -150,7 +179,7 @@ function mockDrawDevice(options:{failCompile?:boolean}={}){
      const instBytes=byBinding.get(2)!.data;
      new Uint32Array(instBytes.buffer,instBytes.byteOffset,instBytes.byteLength/4).set(result.instances);
      const indBytes=byBinding.get(3)!.data;
-     new Uint32Array(indBytes.buffer,indBytes.byteOffset,indBytes.byteLength/4).set(result.indirect);
+     new Uint32Array(indBytes.buffer,indBytes.byteOffset,indBytes.byteLength/4).set(indirectForDraw(result));
     },
     end(){},
    }),
