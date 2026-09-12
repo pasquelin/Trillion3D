@@ -1,7 +1,8 @@
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache,type ResidentPage} from './gpuPages.ts';
 import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
-import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
+import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type PackedForest,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
+import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {applyHiz,projectBoxToScreen,splitOccluders} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
@@ -103,9 +104,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
  let gpuSelection:GpuSelection|undefined;
- const packedForest=packSelectionForest(roots);
+ let packedForest:PackedForest|undefined;
  const packedPages:PageRec[]=roots.flatMap(root=>root.pages);
- const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1};
+ const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
  const untexturedMaterials='Untextured source color; double-sided when the material is';
  const visFeatures=['visibility buffer','textured PBR maps','occlusion culling'];
  const capabilities:BackendCapabilities={renderer:'WebGPU page raster',materials:untexturedMaterials,hierarchy:true,gpuDriven:false,simplification:false,eviction:true,unsupported:['indirect draw','occlusion culling','physical VRAM instrumentation','textured PBR maps','visibility buffer']};
@@ -538,7 +539,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='visibility buffer'&&item!=='textured PBR maps'&&item!=='occlusion culling');
      }else dropVis();
     }catch{dropVis();}
-    gpuSelection=await createGpuSelection(gpuDevice,packedForest);
+    for(const rec of allPages){
+     const array=rec.array,position=rec.attributes.position?.array;
+     if(!array||!position)continue;
+     rec.cone=visMaterial(rec.material).doubleSided?OPEN_CONE:triangleCone(position,array);
+    }
+    const packed=packSelectionForest(roots);
+    packedForest=packed;
+    gpuSelection=await createGpuSelection(gpuDevice,packed);
     capabilities.gpuDriven=!!gpuSelection;
    }catch(error){
     if(String(error).includes('WEBGPU')||String(error).includes('INVALID_PAGE_BUDGET'))throw error;

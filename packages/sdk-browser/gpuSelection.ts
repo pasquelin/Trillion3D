@@ -1,12 +1,13 @@
 import {lodScore, type Tree} from '../sdk-core/index.ts';
 import * as THREE from 'three';
+import {OPEN_CONE,coneCullsPage,type NormalCone} from './pageCone.ts';
 
-const NONE=0xFFFFFFFF,CULLED=1,COARSE=2,NODE_FLOATS=8,NODE_META=8,UNIFORM_BYTES=256,WORKGROUP=64;
+const NONE=0xFFFFFFFF,CULLED=1,COARSE=2,CONE_CULLED=4,NODE_FLOATS=8,NODE_META=8,UNIFORM_BYTES=256,WORKGROUP=64;
 const FLAG_HAS_ERROR=1;
 
-export type SelectionUniforms={planes:Float32Array;view:Float32Array;pixelScale:[number,number];pixelError:number;near:number};
+export type SelectionUniforms={planes:Float32Array;view:Float32Array;pixelScale:[number,number];pixelError:number;near:number;cameraWorld:[number,number,number]};
 export type PackedForest={
- nodes:Float32Array;meta:Uint32Array;extras:Uint32Array;worlds:Float32Array;
+ nodes:Float32Array;meta:Uint32Array;extras:Uint32Array;worlds:Float32Array;cones:Float32Array;
  nodeCount:number;rootCount:number;worldCount:number;childOffset:number;rootOffset:number;pageCount:number;pageUrls:string[];
 };
 export type SelectionResult={pageIds:number[];frustumRejected:number;lodLevel:number};
@@ -19,11 +20,11 @@ export type GpuSelection={
  dispose():void;
 };
 
-const scratch={box:new THREE.Box3(),min:new THREE.Vector3(),max:new THREE.Vector3(),corner:new THREE.Vector3(),world:new THREE.Matrix4(),view:new THREE.Matrix4(),viewMatrix:new THREE.Matrix4(),vp:new THREE.Matrix4(),frustum:new THREE.Frustum(),viewMin:[Infinity,Infinity,Infinity] as [number,number,number],viewMax:[-Infinity,-Infinity,-Infinity] as [number,number,number]};
+const scratch={box:new THREE.Box3(),min:new THREE.Vector3(),max:new THREE.Vector3(),corner:new THREE.Vector3(),world:new THREE.Matrix4(),view:new THREE.Matrix4(),viewMatrix:new THREE.Matrix4(),vp:new THREE.Matrix4(),frustum:new THREE.Frustum(),viewMin:[Infinity,Infinity,Infinity] as [number,number,number],viewMax:[-Infinity,-Infinity,-Infinity] as [number,number,number],cam:new THREE.PerspectiveCamera(),camPos:new THREE.Vector3(),cone:{axis:[0,0,1] as [number,number,number],angle:Math.PI},minArr:[0,0,0] as number[],maxArr:[0,0,0] as number[]};
 const planeScratch=new Float32Array(24),viewScratch=new Float32Array(16);
 
 export const SELECTION_SHADER=`struct Node{min:vec3f,errorObject:f32,max:vec3f,pad0:f32,page:u32,coarseStart:u32,coarseCount:u32,childStart:u32,childCount:u32,depth:u32,flags:u32,worldIndex:u32,}
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,nodeCount:u32,rootCount:u32,childOffset:u32,rootOffset:u32,}
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,nodeCount:u32,rootCount:u32,childOffset:u32,rootOffset:u32,cameraWorld:vec3f,}
 struct Output{count:u32,frustumRejected:u32,lodLevel:u32,overflow:u32,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> nodes:array<Node>;
 @group(0) @binding(1) var<storage, read> extras:array<u32>;
@@ -32,6 +33,7 @@ struct Output{count:u32,frustumRejected:u32,lodLevel:u32,overflow:u32,pages:arra
 @group(0) @binding(4) var<storage, read_write> out:Output;
 @group(0) @binding(5) var<storage, read_write> stack:array<u32>;
 @group(0) @binding(6) var<storage, read> worlds:array<mat4x4f>;
+@group(0) @binding(7) var<storage, read> cones:array<vec4f>;
 struct Bounds{min:vec3f,max:vec3f,}
 fn applyPoint(m:mat4x4f,p:vec3f)->vec3f{let v=m*vec4f(p,1.0);return v.xyz;}
 fn worldAabb(node:Node)->Bounds{
@@ -49,6 +51,30 @@ fn culled(node:Node)->bool{
   if(dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0){return true;}
  }
  return false;
+}
+fn coneCulled(node:Node,index:u32)->bool{
+ if(node.page==0xffffffffu){return false;}
+ let cone=cones[index];
+ if(cone.w>=1.57079632679){return false;}
+ let box=worldAabb(node);
+ let center=0.5*(box.min+box.max);
+ let cam=uni.cameraWorld;
+ let toCam=cam-center;
+ let dist=length(toCam);
+ if(dist==0.0){return false;}
+ let view=toCam/dist;
+ let world=worlds[node.worldIndex];
+ let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
+ let axis=transpose(inverse(m))*cone.xyz;
+ let al=length(axis);
+ if(!(al>0.0)){return false;}
+ let axisWorld=axis/al;
+ let e=0.5*(box.max-box.min);
+ let radius=length(e);
+ if(dist<=radius){return false;}
+ let spread=asin(clamp(radius/dist,0.0,1.0));
+ let d=dot(axisWorld,view);
+ return d<-sin(cone.w+spread)&&(cone.w+spread)<1.57079632679;
 }
 fn lodOk(node:Node)->bool{
  if(node.coarseCount==0u||(node.flags&1u)==0u||uni.pixelError<=0.0){return false;}
@@ -84,6 +110,7 @@ fn flagNodes(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=uni.nodeCount){return;}
  let node=nodes[i];
  if(culled(node)){flags[i]=1u;return;}
+ if(coneCulled(node,i)){flags[i]=4u;return;}
  flags[i]=select(0u,2u,lodOk(node));
 }
 @compute @workgroup_size(1)
@@ -96,6 +123,7 @@ fn resolveSelection(){
   let index=stack[sp];
   let node=nodes[index];
   if((flags[index]&1u)!=0u){out.frustumRejected=out.frustumRejected+1u;continue;}
+  if((flags[index]&4u)!=0u){continue;}
   if((flags[index]&2u)!=0u){out.lodLevel=max(out.lodLevel,node.depth);emitPages(node.coarseStart,node.coarseCount);continue;}
   if(node.page!=0xffffffffu){emitOne(node.page);continue;}
   var c=node.childCount;
@@ -106,17 +134,27 @@ fn resolveSelection(){
 
 export function sameSelectionUniforms(a:SelectionUniforms,b:SelectionUniforms){
  if(a.pixelError!==b.pixelError||a.near!==b.near||a.pixelScale[0]!==b.pixelScale[0]||a.pixelScale[1]!==b.pixelScale[1])return false;
+ if(a.cameraWorld[0]!==b.cameraWorld[0]||a.cameraWorld[1]!==b.cameraWorld[1]||a.cameraWorld[2]!==b.cameraWorld[2])return false;
  for(let i=0;i<16;i++)if(a.view[i]!==b.view[i])return false;
  for(let i=0;i<24;i++)if(a.planes[i]!==b.planes[i])return false;
  return true;
 }
 
 export function copySelectionUniforms(source:SelectionUniforms):SelectionUniforms{
- return {planes:source.planes.slice(),view:source.view.slice(),pixelScale:[source.pixelScale[0],source.pixelScale[1]],pixelError:source.pixelError,near:source.near};
+ return {planes:source.planes.slice(),view:source.view.slice(),pixelScale:[source.pixelScale[0],source.pixelScale[1]],pixelError:source.pixelError,near:source.near,cameraWorld:[source.cameraWorld[0],source.cameraWorld[1],source.cameraWorld[2]]};
 }
 
-export function packSelectionForest<T extends {url:string}>(roots:Array<{tree:Tree;world:THREE.Matrix4;pages:T[]}>):PackedForest{
- const pageUrls:string[]=[],packed:{min:number[];max:number[];errorObject:number;hasError:boolean;worldIndex:number;page:number;coarseStart:number;coarseCount:number;childStart:number;childCount:number;depth:number}[]=[],coarse:number[]=[],children:number[]=[],rootIds:number[]=[],worlds:number[][]=[];
+function leafCone(page:{cone?:NormalCone;material?:THREE.Material|THREE.Material[]}):NormalCone{
+ const material=page.material;
+ if(material){
+  const side=Array.isArray(material)?material[0]?.side:material.side;
+  if(side===THREE.DoubleSide)return OPEN_CONE;
+ }
+ return page.cone??OPEN_CONE;
+}
+
+export function packSelectionForest<T extends {url:string;cone?:NormalCone;material?:THREE.Material|THREE.Material[]}>(roots:Array<{tree:Tree;world:THREE.Matrix4;pages:T[]}>):PackedForest{
+ const pageUrls:string[]=[],packed:{min:number[];max:number[];errorObject:number;hasError:boolean;worldIndex:number;page:number;coarseStart:number;coarseCount:number;childStart:number;childCount:number;depth:number;cone:NormalCone}[]=[],coarse:number[]=[],children:number[]=[],rootIds:number[]=[],worlds:number[][]=[];
  for(const root of roots){
   const base=pageUrls.length,worldIndex=worlds.length;
   for(const rec of root.pages)pageUrls.push(rec.url);
@@ -126,9 +164,11 @@ export function packSelectionForest<T extends {url:string}>(roots:Array<{tree:Tr
    const childStart=children.length;for(const id of childIds)children.push(id);
    const coarseStart=coarse.length;let coarseCount=0;
    if(node.coarsePages)for(const id of node.coarsePages)if(root.pages[id]){coarse.push(base+id);coarseCount++;}
-   const page=node.page!==undefined&&root.pages[node.page]?base+node.page:NONE;
+   const rec=node.page!==undefined?root.pages[node.page]:undefined;
+   const page=rec?base+node.page!:NONE;
+   const cone=rec?leafCone(rec):OPEN_CONE;
    const index=packed.length;
-   packed.push({min:node.min,max:node.max,errorObject:node.errorObject??0,hasError:node.errorObject!=null,worldIndex,page,coarseStart,coarseCount,childStart,childCount:childIds.length,depth});
+   packed.push({min:node.min,max:node.max,errorObject:node.errorObject??0,hasError:node.errorObject!=null,worldIndex,page,coarseStart,coarseCount,childStart,childCount:childIds.length,depth,cone});
    return index;
   };
   rootIds.push(walk(root.tree,1));
@@ -137,22 +177,24 @@ export function packSelectionForest<T extends {url:string}>(roots:Array<{tree:Tr
  const extras=new Uint32Array(coarse.length+children.length+rootIds.length);
  extras.set(coarse,0);extras.set(children,childOffset);extras.set(rootIds,rootOffset);
  const nodeCount=packed.length,nodes=new Float32Array(Math.max(0,nodeCount)*NODE_FLOATS),meta=new Uint32Array(Math.max(0,nodeCount)*NODE_META);
+ const cones=new Float32Array(Math.max(0,nodeCount)*4);
  const worldCount=worlds.length,worldBuffer=new Float32Array(worldCount*16);
  for(let i=0;i<worldCount;i++)worldBuffer.set(worlds[i],i*16);
  for(let i=0;i<nodeCount;i++){
-  const node=packed[i],base=i*NODE_FLOATS,ints=i*NODE_META;
+  const node=packed[i],base=i*NODE_FLOATS,ints=i*NODE_META,coneBase=i*4;
   nodes[base]=node.min[0];nodes[base+1]=node.min[1];nodes[base+2]=node.min[2];nodes[base+3]=node.errorObject;
   nodes[base+4]=node.max[0];nodes[base+5]=node.max[1];nodes[base+6]=node.max[2];
   meta[ints]=node.page;meta[ints+1]=node.coarseStart;meta[ints+2]=node.coarseCount;
   meta[ints+3]=childOffset+node.childStart;meta[ints+4]=node.childCount;meta[ints+5]=node.depth;
   meta[ints+6]=node.hasError?FLAG_HAS_ERROR:0;meta[ints+7]=node.worldIndex;
+  cones[coneBase]=node.cone.axis[0];cones[coneBase+1]=node.cone.axis[1];cones[coneBase+2]=node.cone.axis[2];cones[coneBase+3]=node.cone.angle;
  }
- return {nodes,meta,extras,worlds:worldBuffer,nodeCount,rootCount:rootIds.length,worldCount,childOffset,rootOffset,pageCount:pageUrls.length,pageUrls};
+ return {nodes,meta,extras,worlds:worldBuffer,cones,nodeCount,rootCount:rootIds.length,worldCount,childOffset,rootOffset,pageCount:pageUrls.length,pageUrls};
 }
 
 export function cameraSelectionUniforms(camera:THREE.PerspectiveCamera,pixelError:number,viewport?:[number,number],into?:SelectionUniforms):SelectionUniforms{
  camera.updateMatrixWorld();
- const {vp,frustum}=scratch;
+ const {vp,frustum,camPos}=scratch;
  frustum.setFromProjectionMatrix(vp.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
  const planes=into?.planes??planeScratch;
  const view=into?.view??viewScratch;
@@ -162,8 +204,11 @@ export function cameraSelectionUniforms(camera:THREE.PerspectiveCamera,pixelErro
  const pixelScale:[number,number]=into?.pixelScale??[1,1];
  pixelScale[0]=width*Math.abs(camera.projectionMatrix.elements[0])/2;
  pixelScale[1]=height*Math.abs(camera.projectionMatrix.elements[5])/2;
- if(into){into.pixelError=pixelError;into.near=camera.near;return into;}
- return {planes:planes.slice(),view:view.slice(),pixelScale:[pixelScale[0],pixelScale[1]],pixelError,near:camera.near};
+ camera.getWorldPosition(camPos);
+ const cameraWorld:[number,number,number]=into?.cameraWorld??[camPos.x,camPos.y,camPos.z];
+ cameraWorld[0]=camPos.x;cameraWorld[1]=camPos.y;cameraWorld[2]=camPos.z;
+ if(into){into.pixelError=pixelError;into.near=camera.near;into.cameraWorld=cameraWorld;return into;}
+ return {planes:planes.slice(),view:view.slice(),pixelScale:[pixelScale[0],pixelScale[1]],pixelError,near:camera.near,cameraWorld:[cameraWorld[0],cameraWorld[1],cameraWorld[2]]};
 }
 
 function nodeWorld(packed:PackedForest,index:number){
@@ -194,7 +239,15 @@ function nodeFlags(packed:PackedForest,uniforms:SelectionUniforms,index:number){
   const px=nx>0?wmaxX:wminX,py=ny>0?wmaxY:wminY,pz=nz>0?wmaxZ:wminZ;
   if(nx*px+ny*py+nz*pz+c<0)return CULLED;
  }
- const ints=index*NODE_META,coarseCount=packed.meta[ints+2],hasError=packed.meta[ints+6]&FLAG_HAS_ERROR;
+ const ints=index*NODE_META;
+ if(packed.meta[ints]!==NONE){
+  const coneBase=index*4,{cone,minArr,maxArr,cam}=scratch;
+  cone.axis[0]=packed.cones[coneBase];cone.axis[1]=packed.cones[coneBase+1];cone.axis[2]=packed.cones[coneBase+2];cone.angle=packed.cones[coneBase+3];
+  minArr[0]=min.x;minArr[1]=min.y;minArr[2]=min.z;maxArr[0]=max.x;maxArr[1]=max.y;maxArr[2]=max.z;
+  const cw=uniforms.cameraWorld;
+  if(cw){cam.position.set(cw[0],cw[1],cw[2]);cam.updateMatrixWorld();if(coneCullsPage(cone,scratch.world,minArr,maxArr,cam))return CONE_CULLED;}
+ }
+ const coarseCount=packed.meta[ints+2],hasError=packed.meta[ints+6]&FLAG_HAS_ERROR;
  if(!coarseCount||!hasError||!(uniforms.pixelError>0))return 0;
  scratch.view.fromArray(uniforms.view);scratch.viewMatrix.multiplyMatrices(scratch.view,scratch.world);
  const ve=scratch.viewMatrix.elements;
@@ -219,6 +272,7 @@ export function evaluateSelectionKernel(packed:PackedForest,uniforms:SelectionUn
  for(let i=0;i<packed.nodeCount;i++)flags[i]=nodeFlags(packed,uniforms,i);
  const visit=(index:number)=>{
   if(flags[index]&CULLED){frustumRejected++;return;}
+  if(flags[index]&CONE_CULLED)return;
   const ints=index*NODE_META;
   if(flags[index]&COARSE){lodLevel=Math.max(lodLevel,packed.meta[ints+5]);const start=packed.meta[ints+1],count=packed.meta[ints+2];for(let k=0;k<count;k++)pageIds.push(packed.extras[start+k]);return;}
   const page=packed.meta[ints];
@@ -234,6 +288,7 @@ function writeUniforms(target:Float32Array,packed:PackedForest,uniforms:Selectio
  target.fill(0);target.set(uniforms.planes,0);target.set(uniforms.view,24);target[40]=uniforms.pixelScale[0];target[41]=uniforms.pixelScale[1];target[42]=uniforms.pixelError;target[43]=uniforms.near;
  const ints=new Uint32Array(target.buffer,target.byteOffset,target.length);
  ints[44]=packed.nodeCount;ints[45]=packed.rootCount;ints[46]=packed.childOffset;ints[47]=packed.rootOffset;
+ const cw=uniforms.cameraWorld;if(cw){target[48]=cw[0];target[49]=cw[1];target[50]=cw[2];}
 }
 
 function interleaveNodes(packed:PackedForest){
@@ -259,7 +314,7 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
  if(typeof device.createComputePipeline!=='function'||packed.nodeCount<1)return undefined;
  const pageCount=Math.max(1,packed.pageCount),nodeCount=packed.nodeCount;
  const extrasBytes=Math.max(4,packed.extras.byteLength),flagsBytes=Math.max(4,nodeCount*4),outputBytes=16+pageCount*4;
- const worldBytes=Math.max(64,packed.worlds.byteLength),stackBytes=Math.max(4,nodeCount*4);
+ const worldBytes=Math.max(64,packed.worlds.byteLength),stackBytes=Math.max(4,nodeCount*4),coneBytes=Math.max(16,packed.cones.byteLength);
  const uniformData=new Float32Array(UNIFORM_BYTES/4);
  let last:GpuCut|null=null,lastSubmitted:SelectionUniforms|undefined,pending:Promise<unknown>=Promise.resolve(),disposed=false,dead=false;
  const mapped=[false,false];let slot=0;
@@ -274,11 +329,12 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
   const output=device.createBuffer({size:outputBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
   const stack=device.createBuffer({size:stackBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
   const worlds=device.createBuffer({size:worldBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
+  const cones=device.createBuffer({size:coneBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
   const readback=[
    device.createBuffer({size:outputBytes,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),
    device.createBuffer({size:outputBytes,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),
   ];
-  buffers.push(nodes,extras,uniforms,flags,output,stack,worlds,...readback);
+  buffers.push(nodes,extras,uniforms,flags,output,stack,worlds,cones,...readback);
   if(typeof device.pushErrorScope==='function')device.pushErrorScope('validation');
   const layout=device.createBindGroupLayout({entries:[
    {binding:0,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
@@ -288,6 +344,7 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
    {binding:4,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
    {binding:5,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
    {binding:6,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
+   {binding:7,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
   ]});
   const module=device.createShaderModule({code:SELECTION_SHADER});
   if(typeof module.getCompilationInfo==='function'){
@@ -308,13 +365,15 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
   const bindGroup=device.createBindGroup({layout,entries:[
    {binding:0,resource:{buffer:nodes}},{binding:1,resource:{buffer:extras}},{binding:2,resource:{buffer:uniforms}},
    {binding:3,resource:{buffer:flags}},{binding:4,resource:{buffer:output}},{binding:5,resource:{buffer:stack}},
-   {binding:6,resource:{buffer:worlds}},
+   {binding:6,resource:{buffer:worlds}},{binding:7,resource:{buffer:cones}},
   ]});
   device.queue.writeBuffer(nodes,0,nodeBytes);
   const extrasCopy=new Uint8Array(extrasBytes);if(packed.extras.byteLength)extrasCopy.set(new Uint8Array(packed.extras.buffer,packed.extras.byteOffset,packed.extras.byteLength));
   device.queue.writeBuffer(extras,0,extrasCopy);
   const worldCopy=new Uint8Array(worldBytes);if(packed.worlds.byteLength)worldCopy.set(new Uint8Array(packed.worlds.buffer,packed.worlds.byteOffset,packed.worlds.byteLength));
   device.queue.writeBuffer(worlds,0,worldCopy);
+  const coneCopy=new Uint8Array(coneBytes);if(packed.cones.byteLength)coneCopy.set(new Uint8Array(packed.cones.buffer,packed.cones.byteOffset,packed.cones.byteLength));
+  device.queue.writeBuffer(cones,0,coneCopy);
   return {
    dispatch(next){
     if(disposed||dead)return;
