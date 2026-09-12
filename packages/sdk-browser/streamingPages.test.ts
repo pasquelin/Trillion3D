@@ -1,0 +1,32 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createPageStreamer} from './streamingPages.ts';
+test('streamer fetches only requested pages and counts hits',async()=>{
+ const bytes=new Uint8Array([1,0,0,0,2,0,0,0,3,0,0,0]);
+ const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+ const fetched:string[]=[];
+ globalThis.fetch=async(url)=>{fetched.push(String(url));return new Response(bytes,{status:200});};
+ const streamer=createPageStreamer([{url:'a.bin',bytes:bytes.byteLength,sha256:sha},{url:'b.bin',bytes:bytes.byteLength,sha256:sha}],'http://cache/');
+ await streamer.request(['a.bin']);
+ assert.deepEqual(fetched,['http://cache/a.bin']);
+ assert.equal(streamer.get('a.bin')?.[0],1);
+ assert.equal(streamer.get('b.bin'),undefined);
+ await streamer.request(['a.bin']);
+ assert.equal(streamer.stats().hits,1);
+ assert.equal(streamer.stats().loaded,1);
+ streamer.dispose();
+});
+test('streamer LRU evicts unpinned pages and retains pinned ones',async()=>{
+ const bytes=new Uint8Array([1,0,0,0,2,0,0,0,3,0,0,0]);
+ const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+ globalThis.fetch=async()=>new Response(bytes,{status:200});
+ const streamer=createPageStreamer([{url:'a.bin',bytes:bytes.byteLength,sha256:sha},{url:'b.bin',bytes:bytes.byteLength,sha256:sha},{url:'c.bin',bytes:bytes.byteLength,sha256:sha}],'http://cache/',undefined,2,2);
+ await streamer.request(['a.bin','b.bin']);
+ assert.equal(streamer.stats().resident,2);
+ streamer.retain(['a.bin']);
+ await streamer.request(['c.bin']);
+ assert.equal(streamer.has('a.bin'),true);
+ assert.equal(streamer.has('c.bin'),true);
+ assert.equal(streamer.has('b.bin'),false);
+ assert.ok(streamer.stats().evictions>=1);
+ streamer.dispose();
+});
