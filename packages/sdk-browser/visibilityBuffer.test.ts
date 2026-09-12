@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages} from '../sdk-core/index.ts';
 import {rasterPages} from './pageRaster.ts';
-import {packVisibilityId,unpackVisibilityId,rasterVisibilityIds,shadeVisibility,visibilityUvDerivatives,VIS_INVALID,type VisPage} from './visibilityBuffer.ts';
+import {packVisibilityId,unpackVisibilityId,rasterVisibilityIds,shadeVisibility,visibilityUvDerivatives,VIS_INVALID,VIS_SHADER,type VisPage} from './visibilityBuffer.ts';
 
 function camera(){
  const cam=new THREE.PerspectiveCamera(55,1,.1,100);cam.position.z=5;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;
@@ -152,4 +152,11 @@ test('MeshStandardMaterial visbuffer lighting is the documented Lambert+Blinn mo
  const lit=shadeVisibility(ids,litPages,cam,size);
  assert.ok(compareImages(unlit,lit).maxChannelError>0);
  geometry.dispose();basic.dispose();standard.dispose();
+});
+
+test('vis shader instances pages from the page table', () => {
+  assert.match(VIS_SHADER, /@builtin\(instance_index\)/);
+  assert.match(VIS_SHADER, /pages\s*:\s*array<PageInfo>/);
+  assert.match(VIS_SHADER, /vertexIndex\s*>=\s*page\.indexCount/);
+  assert.doesNotMatch(VIS_SHADER, /uni\.pageOffset/);
 });
