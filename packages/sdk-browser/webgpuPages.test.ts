@@ -188,7 +188,11 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
  assert.equal(backend.metrics().selectedTriangles,2);
  assert.equal(backend.metrics().residentPages,2);
  assert.ok(writes.length>=2);
- assert.equal(draws.reduce((n,d)=>n+d.vertexCount,0),9);
+ const vis = draws.filter(d => d.indirect);
+ const shade = draws.filter(d => !d.indirect);
+ assert.equal(shade.reduce((n,d)=>n+d.vertexCount,0), 3);
+ assert.ok(vis.length >= 1 && vis.length <= 6);
+ assert.equal(vis.reduce((n,d)=>n+(d.instanceCount??0),0), 2);
  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'),false);
  backend.dispose();geometry.dispose();material.dispose();
 });
