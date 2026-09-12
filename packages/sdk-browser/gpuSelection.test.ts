@@ -106,6 +106,23 @@ test('compute kernel cone-rejects a back-facing leaf the CPU also rejects', () =
   assert.equal(gpu.pageIds.length, 0);
 });
 
+test('compute kernel cone-rejects a back-facing coarse page the CPU also rejects', () => {
+  const pages = recs([
+    {id:0,url:'exact0',count:3},
+    {id:1,url:'exact1',count:3},
+    {id:2,url:'coarse',count:3},
+  ]);
+  (pages[2] as Rec & {cone: {axis:[number,number,number]; angle:number}}).cone = {axis:[0,0,1], angle: Math.PI/6};
+  const tree: Tree = {min:[-0.1,-0.1,0],max:[0.1,0.1,0],errorObject:0,coarsePages:[2],children:[
+    {min:[-0.1,-0.1,0],max:[0.1,0.1,0],page:0},
+    {min:[-0.1,-0.1,0],max:[0.1,0.1,0],page:1},
+  ]};
+  const behind = cameraAt(0,0,-5,0,0,0);
+  assertSameCut(forest(pages as Rec[], tree), behind, 10);
+  const gpu = gpuCut(forest(pages as Rec[], tree), behind, 10);
+  assert.equal(gpu.pageIds.length, 0);
+});
+
 test('compute kernel frustum-rejects a distant child the CPU also rejects',()=>{
  const pages=recs([
   {id:0,url:'near',count:3},
@@ -248,7 +265,7 @@ function mockSelectionDevice(packed:ReturnType<typeof packSelectionForest>,optio
   createBindGroupLayout:()=>({}),
   createPipelineLayout:()=>({}),
   createComputePipeline:({compute}:{compute:{entryPoint:string}})=>compute,
-  createBindGroup:(desc:typeof bind)=>{if(!desc||desc.entries.length!==8)throw new Error('selection bind group requires 8 entries');bind=desc;return desc;},
+  createBindGroup:(desc:typeof bind)=>{if(!desc||desc.entries.length!==9)throw new Error('selection bind group requires 9 entries');bind=desc;return desc;},
   createCommandEncoder:()=>({
    beginComputePass:()=>({
     setPipeline(next:{entryPoint:string}){pipeline=next;},
