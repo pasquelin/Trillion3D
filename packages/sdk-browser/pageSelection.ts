@@ -1,5 +1,6 @@
 import {adaptivePixelError,lodScore, type ClusterManifest, type Tree} from '../sdk-core/index.ts';
 import * as THREE from 'three';
+import {OPEN_CONE,coneCullsPage,type NormalCone} from './pageCone.ts';
 
 export type PageRec = {
  id:number;url:string;clusterId:string;array?:Uint32Array;triangles:number;indexBytes:number;
@@ -8,7 +9,20 @@ export type PageRec = {
  material:THREE.Material|THREE.Material[];
  matrix:THREE.Matrix4;renderOrder:number;
  geometry?:THREE.BufferGeometry;mesh?:THREE.Mesh;attached:boolean;seen:number;resident?:boolean;
+ cone?:NormalCone;
 };
+
+function pageIsDoubleSided(material:THREE.Material|THREE.Material[]|undefined){
+ if(!material)return false;
+ const side=Array.isArray(material)?material[0]?.side:material.side;
+ return side===THREE.DoubleSide;
+}
+
+function coneSkipsPage(rec:{cone?:NormalCone;min?:number[];max?:number[];material?:THREE.Material|THREE.Material[]},world:THREE.Matrix4,camera:THREE.PerspectiveCamera,fallbackMin:number[],fallbackMax:number[]){
+ if(pageIsDoubleSided(rec.material))return false;
+ const min=rec.min??fallbackMin,max=rec.max??fallbackMax;
+ return coneCullsPage(rec.cone??OPEN_CONE,world,min,max,camera);
+}
 
 function objects(source:THREE.Object3D){
  const meshes:THREE.Mesh[]=[];
@@ -100,8 +114,8 @@ export function collectPendingUrls<T extends {array?:Uint32Array;url:string}>(sh
  return into;
 }
 const selectionScratch={frustum:new THREE.Frustum(),matrix:new THREE.Matrix4(),viewMatrix:new THREE.Matrix4(),box:new THREE.Box3(),corner:new THREE.Vector3(),viewMin:[Infinity,Infinity,Infinity] as [number,number,number],viewMax:[-Infinity,-Infinity,-Infinity] as [number,number,number],pixelScale:[1,1] as [number,number]};
-/** CPU frustum + lodScore cut. */
-export function selectVisiblePages<T extends {triangles:number;seen:number}>(
+/** CPU frustum + lodScore + cone cut. */
+export function selectVisiblePages<T extends {triangles:number;seen:number;min?:number[];max?:number[];cone?:NormalCone;material?:THREE.Material|THREE.Material[]}>(
  roots:Array<{tree:Tree;world:THREE.Matrix4;pages:T[]}>,
  camera:THREE.PerspectiveCamera,
  options:{pixelError?:number;viewport?:[number,number];frame:number},
@@ -136,9 +150,9 @@ export function selectVisiblePages<T extends {triangles:number;seen:number}>(
     viewMax[0]=wcx+wex;viewMax[1]=wcy+wey;viewMax[2]=depthCenter+wez;
 
     const errorScale=Math.hypot(e[0],e[1],e[2],e[4],e[5],e[6],e[8],e[9],e[10]);
-    try{if(lodScore(node.errorObject,errorScale,viewMin,viewMax,pixelScale,'perspective',camera.near)<=pixelError){lodLevel=Math.max(lodLevel,depth);for(const id of node.coarsePages){const rec=pages[id];if(!rec)continue;visible++;selectedTriangles+=rec.triangles;rec.seen=frame;shown.push(rec);}return;}}catch{/* Keep the fine representation when the screen-error bound is undefined. */}
+    try{if(lodScore(node.errorObject,errorScale,viewMin,viewMax,pixelScale,'perspective',camera.near)<=pixelError){lodLevel=Math.max(lodLevel,depth);for(const id of node.coarsePages){const rec=pages[id];if(!rec||coneSkipsPage(rec,world,camera,node.min,node.max))continue;visible++;selectedTriangles+=rec.triangles;rec.seen=frame;shown.push(rec);}return;}}catch{/* Keep the fine representation when the screen-error bound is undefined. */}
    }
-  if(node.page!==undefined){const rec=pages[node.page];if(!rec)return;visible++;selectedTriangles+=rec.triangles;rec.seen=frame;shown.push(rec);}else{const children=node.children;if(children)for(let i=0;i<children.length;i++)visit(children[i],world,pages,depth+1);}
+  if(node.page!==undefined){const rec=pages[node.page];if(!rec||coneSkipsPage(rec,world,camera,node.min,node.max))return;visible++;selectedTriangles+=rec.triangles;rec.seen=frame;shown.push(rec);}else{const children=node.children;if(children)for(let i=0;i<children.length;i++)visit(children[i],world,pages,depth+1);}
  };
  for(const root of roots){
   viewMatrix.multiplyMatrices(camera.matrixWorldInverse,root.world);
