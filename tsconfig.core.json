@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["packages/sdk-core/**/*.ts"],
+  "exclude": ["packages/sdk-core/**/*.test.ts"]
+}
