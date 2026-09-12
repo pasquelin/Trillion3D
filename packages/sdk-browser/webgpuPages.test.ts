@@ -6,6 +6,7 @@ import {webgpuPagesBackend} from './webgpuPages.ts';
 import {rasterPageRecords} from './pageRaster.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
+import {evaluateDrawCompact,type DrawItem} from './gpuDraw.ts';
 import {rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
 
 function installGpuGlobals(){
@@ -23,10 +24,11 @@ function bytesOf(data:BufferSource){
 }
 
 function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false){
- const draws:Array<{vertexCount:number}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
+ const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;indirect?:boolean}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
  const passes:Array<{colorLoad?:string;depthLoad?:string;colorCount:number;formats:string[]}>=[];
  const computes:string[]=[];
+ const layouts:Array<{entries:Array<{binding:number;buffer?:{type?:string}}>}>=[];
  let lostResolve:((info:{reason:string;message:string})=>void)|undefined;
  const lost=new Promise<{reason:string;message:string}>(resolve=>{lostResolve=resolve;});
  let currentBind:unknown,computeBind:{entries:Array<{binding:number;resource:{buffer:{data:Uint8Array}}}>}|undefined,computePipeline:{entryPoint:string}|undefined,visPassFails=failVisPass;
@@ -43,7 +45,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   },
   createSampler:()=>({}),
   createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
-  createBindGroupLayout:()=>({}),
+  createBindGroupLayout:(desc:{entries:Array<{binding:number;buffer?:{type?:string}}>})=>{layouts.push(desc);return desc;},
   createPipelineLayout:()=>({}),
   createRenderPipeline:(desc:{fragment?:{targets?:Array<{format?:string}>}})=>{
    if(rejectR32&&desc.fragment?.targets?.[0]?.format==='r32uint')throw new Error('NO_R32UINT');
@@ -57,7 +59,11 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
     passes.push({colorLoad:colors[0]?.loadOp,depthLoad:desc?.depthStencilAttachment?.depthLoadOp,colorCount:colors.length,formats:colors.map(color=>color.view?.format??'')});
     return {
     setPipeline(){},setBindGroup(_i:number,group:unknown){currentBind=group;},setViewport(){},
-    draw(vertexCount:number){draws.push({vertexCount});void currentBind;},
+    draw(vertexCount:number,instanceCount=1,_firstVertex=0,firstInstance=0){draws.push({vertexCount,instanceCount,firstInstance});void currentBind;},
+    drawIndirect(buffer:{data?:Uint8Array}, offset:number){
+      const words=new Uint32Array(buffer.data!.buffer, buffer.data!.byteOffset+offset, 4);
+      draws.push({vertexCount:words[0], instanceCount:words[1], indirect:true});
+    },
     end(){},
    };},
    beginComputePass:()=>({
@@ -65,12 +71,31 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
     setBindGroup(_i:number,group:typeof computeBind){computeBind=group;},
     dispatchWorkgroups(){
      if(computePipeline?.entryPoint)computes.push(computePipeline.entryPoint);
+     if(computePipeline?.entryPoint==='compactDraws'&&computeBind){
+      const byBinding=new Map(computeBind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
+      const uniBytes=byBinding.get(1)!.data;
+      const uni=new Uint32Array(uniBytes.buffer,uniBytes.byteOffset,uniBytes.byteLength/4);
+      const count=uni[0],maxVertexCount=uni[1],slotCap=uni[2];
+      const itemBytes=byBinding.get(0)!.data;
+      const itemInts=new Uint32Array(itemBytes.buffer,itemBytes.byteOffset,itemBytes.byteLength/4);
+      const n=Math.min(count,slotCap);
+      const items:DrawItem[]=[];
+      for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*3],bin:itemInts[i*3+1] as 0|1|2,rest:itemInts[i*3+2] as 0|1});
+      const source=count>slotCap?items.concat(Array.from({length:count-n},()=>({pageIndex:0,bin:0 as const,rest:0 as const}))):items;
+      const result=evaluateDrawCompact(source,maxVertexCount,slotCap);
+      const instBytes=byBinding.get(2)!.data;
+      new Uint32Array(instBytes.buffer,instBytes.byteOffset,instBytes.byteLength/4).set(result.instances);
+      const indBytes=byBinding.get(3)!.data;
+      new Uint32Array(indBytes.buffer,indBytes.byteOffset,indBytes.byteLength/4).set(result.indirect);
+      return;
+     }
      if(!packed||computePipeline?.entryPoint!=='resolveSelection'||!computeBind)return;
      const byBinding=new Map(computeBind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
      const data=byBinding.get(2)!.data;
      const f32=new Float32Array(data.buffer,data.byteOffset,data.byteLength/4);
      const result=evaluateSelectionKernel(packed,{
       planes:f32.slice(0,24),view:f32.slice(24,40),pixelScale:[f32[40],f32[41]],pixelError:f32[42],near:f32[43],
+      cameraWorld:[f32[48],f32[49],f32[50]],
      });
      const out=byBinding.get(4)!.data;
      const ints=new Uint32Array(out.buffer,out.byteOffset,out.byteLength/4);
@@ -92,7 +117,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   },
  };
  if(packed||enableHiz)device.createComputePipeline=({compute}:{compute:{entryPoint:string}})=>compute;
- return {device:device as unknown as GPUDevice,draws,writes,textures,passes,computes,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
+ return {device:device as unknown as GPUDevice,draws,writes,textures,passes,computes,layouts,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
 }
 
 function quadScene(){
@@ -109,10 +134,49 @@ function camera(){
  const cam=new THREE.PerspectiveCamera(55,1,.1,100);cam.position.z=5;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;
 }
 
+test('vis pipeline layout stores the page table at binding 2',async()=>{
+ installGpuGlobals();
+ const {device,layouts}=mockGpu();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ await backend.prepare();
+ const visLayout=layouts.find(layout=>layout.entries.some(entry=>entry.binding===4&&entry.buffer?.type==='uniform')&&layout.entries.some(entry=>entry.binding===2&&entry.buffer?.type==='read-only-storage'));
+ assert.ok(visLayout);
+ assert.equal(visLayout.entries.find(entry=>entry.binding===2)?.buffer?.type,'read-only-storage');
+ assert.equal(visLayout.entries.find(entry=>entry.binding===4)?.buffer?.type,'uniform');
+ backend.dispose();geometry.dispose();material.dispose();
+});
+test('vis draws instance each packed page from the page table',async()=>{
+ installGpuGlobals();
+ const {device,draws}=mockGpu();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ await backend.prepare();
+ backend.render(camera());
+ await backend.flush?.();
+ backend.render(camera());
+ const instances=new Set(draws.map(draw=>draw.firstInstance));
+ assert.ok(instances.has(0));
+ assert.ok(instances.has(1));
+ backend.dispose();geometry.dispose();material.dispose();
+});
+test('webgpu map atlas is a Chrome copyExternalImageToTexture destination',async()=>{
+ installGpuGlobals();
+ const {device,textures}=mockGpu();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ await backend.prepare();
+ const atlas=textures.find(texture=>texture.depthOrArrayLayers>1);
+ assert.ok(atlas);
+ const need=GPUTextureUsage.COPY_DST|GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.RENDER_ATTACHMENT;
+ assert.equal((atlas.usage??0)&need,need);
+ backend.dispose();geometry.dispose();material.dispose();
+});
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page',async()=>{
  installGpuGlobals();
- const {device,draws,writes}=mockGpu();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const collected=collectClusterPages(source,metadata,indices,associations);
+ const {device,draws,writes}=mockGpu(undefined,packSelectionForest(collected.roots));
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  await backend.prepare();
  backend.render(camera());
