@@ -23,7 +23,7 @@ function bytesOf(data:BufferSource){
  return new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset,(data as ArrayBufferView).byteLength);
 }
 
-function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false){
+function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
  const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;indirect?:boolean}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
  const passes:Array<{colorLoad?:string;depthLoad?:string;colorCount:number;formats:string[]}>=[];
@@ -116,7 +116,10 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
    onSubmittedWorkDone:async()=>{},
   },
  };
- if(packed||enableHiz)device.createComputePipeline=({compute}:{compute:{entryPoint:string}})=>compute;
+ if(packed||enableHiz)device.createComputePipeline=({compute}:{compute:{entryPoint:string}})=>{
+  if(failCompact&&compute.entryPoint==='compactDraws')throw new Error('NO_COMPACT');
+  return compute;
+ };
  return {device:device as unknown as GPUDevice,draws,writes,textures,passes,computes,layouts,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
 }
 
@@ -578,5 +581,30 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
  backend.dispose();geometry.dispose();material.dispose();
 });
 
+test('a successful vis+compact pipeline drops indirect draw from unsupported',async()=>{
+ installGpuGlobals();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const collected=collectClusterPages(source,metadata,indices,associations);
+ const {device}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true);
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ await backend.prepare();
+ assert.equal(backend.capabilities.unsupported.includes('indirect draw'),false);
+ assert.equal(backend.capabilities.gpuDriven,true);
+ backend.dispose();geometry.dispose();material.dispose();
+});
 
+test('a compact pipeline failure keeps the per-page draw loop',async()=>{
+ installGpuGlobals();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const collected=collectClusterPages(source,metadata,indices,associations);
+ const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true,true);
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ await backend.prepare();
+ assert.equal(backend.capabilities.unsupported.includes('indirect draw'),true);
+ backend.render(camera());
+ await backend.flush?.();
+ backend.render(camera());
+ assert.equal(draws.filter(draw=>draw.indirect).length,0);
+ backend.dispose();geometry.dispose();material.dispose();
+});
 
