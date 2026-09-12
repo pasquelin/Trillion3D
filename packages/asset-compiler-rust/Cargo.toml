@@ -1,0 +1,23 @@
+[package]
+name = "web-geometry-compiler"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+[lib]
+name = "web_geometry_compiler"
+path = "src/lib.rs"
+[[bin]]
+name = "web-geometry-compiler"
+path = "src/main.rs"
+[[bin]]
+name = "rtl-asset-compiler"
+path = "src/main.rs"
+[dependencies]
+serde_json = "1"
+sha2 = "0.10"
+rayon = "1.10"
+memmap2 = "0.9"
+meshopt = "0.4"
+[profile.release]
+lto = "thin"
+codegen-units = 1
