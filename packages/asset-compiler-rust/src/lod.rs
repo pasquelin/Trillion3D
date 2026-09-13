@@ -1,4 +1,4 @@
-use crate::{qem::simplify_fast,Result};
+use crate::{qem::{simplify_fast,SimplifiedMesh},Result};
 use rayon::prelude::*;
 use serde_json::{json,Value};
 pub fn boundary_signature(indices:&[u32])->Option<Vec<(u32,u32,i32)>>{
@@ -140,7 +140,103 @@ fn combine_regions(mut regions:Vec<LodNode>)->LodNode{
  }
  regions.remove(0)
 }
-pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],triangle_neighbors:&[Vec<usize>])->Result<Option<LodNode>>{
+// Compare geometric coverage after welding positions only; attribute seams are not holes.
+// Degenerate triangles have no covered surface and cannot keep a component alive.
+struct CoarseCoverage{
+ canonical:Vec<u32>,components:Vec<u32>,required:std::collections::HashSet<u32>,
+ boundary:std::collections::HashSet<(u32,u32)>,
+}
+fn component_root(parent:&mut [u32],mut id:u32)->u32{
+ while parent[id as usize]!=id{parent[id as usize]=parent[parent[id as usize] as usize];id=parent[id as usize];}id
+}
+fn nondegenerate_face(positions:&[f32],tri:&[u32])->bool{
+ let point=|id:u32|{let i=id as usize*3;[positions[i] as f64,positions[i+1] as f64,positions[i+2] as f64]};
+ let a=point(tri[0]);let b=point(tri[1]);let c=point(tri[2]);
+ let ab=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];let ac=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+ ab[1]*ac[2]-ab[2]*ac[1]!=0.||ab[2]*ac[0]-ab[0]*ac[2]!=0.||ab[0]*ac[1]-ab[1]*ac[0]!=0.
+}
+fn geometric_boundary(positions:&[f32],indices:&[u32],canonical:&[u32])->std::collections::HashSet<(u32,u32)>{
+ let mut edges=std::collections::HashMap::<(u32,u32),(usize,(u32,u32))>::new();
+ for tri in indices.chunks_exact(3){
+  if !nondegenerate_face(positions,tri){continue;}
+  for k in 0..3{
+   let a=canonical[tri[k] as usize];let b=canonical[tri[(k+1)%3] as usize];
+   let entry=edges.entry((a.min(b),a.max(b))).or_insert((0,(a,b)));entry.0+=1;
+  }
+ }
+ edges.into_values().filter_map(|(count,edge)|if count==1{Some(edge)}else{None}).collect()
+}
+impl CoarseCoverage{
+ fn new(positions:&[f32],indices:&[u32])->Result<Self>{
+  if positions.len()%3!=0||indices.len()%3!=0{return Err(crate::invalid("Invalid LOD coverage geometry"));}
+  let mut canonical=vec![u32::MAX;positions.len()/3];
+  let mut welded=std::collections::HashMap::new();
+  for &id in indices{
+   if id as usize>=canonical.len(){return Err(crate::invalid("Invalid LOD coverage index"));}
+   if canonical[id as usize]!=u32::MAX{continue;}
+   let mut key=[0u32;3];
+   for a in 0..3{let value=positions[id as usize*3+a];if !value.is_finite(){return Err(crate::invalid("Nonfinite LOD coverage position"));}key[a]=if value==0.{0}else{value.to_bits()};}
+   canonical[id as usize]=*welded.entry(key).or_insert(id);
+  }
+  let mut components=(0..canonical.len() as u32).collect::<Vec<_>>();
+  for tri in indices.chunks_exact(3){
+   if !nondegenerate_face(positions,tri){continue;}
+   for k in 0..2{let a=component_root(&mut components,canonical[tri[k] as usize]);let b=component_root(&mut components,canonical[tri[k+1] as usize]);components[a as usize]=b;}
+  }
+  for i in 0..components.len(){components[i]=component_root(&mut components,i as u32);}
+  let required=indices.chunks_exact(3).filter(|tri|nondegenerate_face(positions,tri)).map(|tri|components[canonical[tri[0] as usize] as usize]).collect();
+  let boundary=geometric_boundary(positions,indices,&canonical);
+  Ok(Self{canonical,components,required,boundary})
+ }
+ fn accepts(&self,positions:&[f32],indices:&[u32])->bool{
+  if indices.iter().any(|&id|self.canonical.get(id as usize).copied().unwrap_or(u32::MAX)==u32::MAX){return false;}
+  let mut present=std::collections::HashSet::new();
+  for tri in indices.chunks_exact(3){
+   if !nondegenerate_face(positions,tri){continue;}
+   let component=self.components[self.canonical[tri[0] as usize] as usize];
+   if tri.iter().any(|&id|self.components[self.canonical[id as usize] as usize]!=component){return false;}
+   present.insert(component);
+  }
+  present==self.required&&geometric_boundary(positions,indices,&self.canonical)==self.boundary
+ }
+}
+const MAX_COARSE_LEVELS:usize=16;
+/// Extend a complete replacement mesh with the existing border-locked simplifier.
+/// Every level retains its predecessor as fallback and the complete source bounds' certified error.
+pub fn append_coarse_levels(positions:&[f32],initial_mesh:&[u32],certified_error:f64,checkpoint:&dyn Fn()->Result<()>)->Result<Vec<SimplifiedMesh>>{
+ if !certified_error.is_finite()||certified_error<0.0{return Err(crate::invalid("Invalid certified LOD error"));}
+ checkpoint()?;let coverage=CoarseCoverage::new(positions,initial_mesh)?;
+ let mut levels:Vec<SimplifiedMesh>=Vec::new();
+ for _ in 0..MAX_COARSE_LEVELS{
+  checkpoint()?;
+  let mesh=levels.last().map(|level|level.indices.as_slice()).unwrap_or(initial_mesh);
+  if mesh.len()<=3{break;}
+  let mut simplified=simplify_fast(positions,mesh,(mesh.len()/6).max(1))?;
+  if simplified.indices.len()>=mesh.len()||simplified.indices.is_empty(){break;}
+  if !preserves_boundary(mesh,&simplified.indices)||!coverage.accepts(positions,&simplified.indices){break;}
+  simplified.error_object=certified_error;
+  levels.push(simplified);
+ }
+ Ok(levels)
+}
+fn push_coarsest_mesh(out:&mut Vec<u32>,node:&LodNode,source:&[u32]){
+ match node{
+  LodNode::Leaf{..}=>push_mesh(out,node,source),
+  LodNode::Node{mesh,reduced,children,..}=>{
+   if *reduced&&!mesh.is_empty(){out.extend_from_slice(mesh);}
+   else{for child in children{push_coarsest_mesh(out,child,source);}}
+  }
+ }
+}
+fn extend_lod_tree(positions:&[f32],source:&[u32],mut root:LodNode,checkpoint:&dyn Fn()->Result<()>)->Result<LodNode>{
+ let mut cover=Vec::new();push_coarsest_mesh(&mut cover,&root,source);
+ let (min,max)=bounds_of(&root);
+ for level in append_coarse_levels(positions,&cover,certified_lod_error(min,max),checkpoint)?{
+  root=LodNode::Node{children:vec![root],mesh:level.indices,reduced:true,error_object:level.error_object,min,max};
+ }
+ Ok(root)
+}
+pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],triangle_neighbors:&[Vec<usize>],checkpoint:&dyn Fn()->Result<()>)->Result<Option<LodNode>>{
  if clusters.is_empty(){return Ok(None);}
  let cluster_adj=cluster_adjacency(clusters,triangle_neighbors);
  let mut regions:Vec<LodNode>=clusters.iter().enumerate().map(|(cluster_index,triangles)|{
@@ -149,6 +245,7 @@ pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],tri
  }).collect();
  let mut adjacency=cluster_adj.clone();
  while regions.len()>1{
+  checkpoint()?;
   let pairs=pair_regions(regions.len(),&adjacency);
   if pairs.iter().all(|pair|pair.len()==1){break;}
   let works:Vec<Option<PairWork>>=pairs.iter().map(|pair|{
@@ -179,9 +276,9 @@ pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],tri
   adjacency=region_adjacency(&next,&cluster_adj);
   regions=next;
  }
- if regions.is_empty(){Ok(None)}
- else if regions.len()==1{Ok(regions.into_iter().next())}
- else{Ok(Some(combine_regions(regions)))}
+ if regions.is_empty(){return Ok(None);}
+ let root=if regions.len()==1{regions.remove(0)}else{combine_regions(regions)};
+ Ok(Some(extend_lod_tree(positions,indices,root,checkpoint)?))
 }
 pub fn to_json(node:&LodNode,cluster_page_ids:&[usize],write_coarse:&mut dyn FnMut(&[u32])->Result<usize>)->Result<Value>{
  match node{
@@ -225,7 +322,7 @@ pub fn to_json(node:&LodNode,cluster_page_ids:&[usize],write_coarse:&mut dyn FnM
   let (positions,indices)=strip(4);
   let clusters=vec![vec![0],vec![1],vec![2],vec![3]];
   let topology=classify_topology(&indices,positions.len()/3).expect("topology");
-  let tree=build_lod_tree(&positions,&indices,&clusters,&topology.neighbors).expect("lod").expect("root");
+  let tree=build_lod_tree(&positions,&indices,&clusters,&topology.neighbors,&||Ok(())).expect("lod").expect("root");
   assert_eq!(count_leaves(&tree),4);
   assert_eq!(count_internal(&tree),3);
   match tree{LodNode::Node{mesh,error_object,..}=>{assert!(!mesh.is_empty());assert!(error_object>=0.0);}LodNode::Leaf{..}=>panic!("expected node")}
@@ -233,7 +330,7 @@ pub fn to_json(node:&LodNode,cluster_page_ids:&[usize],write_coarse:&mut dyn FnM
  #[test] fn single_cluster_stays_a_leaf(){
   let (positions,indices)=strip(2);
   let topology=classify_topology(&indices,positions.len()/3).expect("topology");
-  let tree=build_lod_tree(&positions,&indices,&[vec![0,1]],&topology.neighbors).expect("lod").expect("root");
+  let tree=build_lod_tree(&positions,&indices,&[vec![0,1]],&topology.neighbors,&||Ok(())).expect("lod").expect("root");
   match tree{LodNode::Leaf{cluster_index,..}=>assert_eq!(cluster_index,0),LodNode::Node{..}=>panic!("expected leaf")}
  }
  #[test] fn disconnected_clusters_preserve_all_leaves(){
@@ -248,11 +345,130 @@ pub fn to_json(node:&LodNode,cluster_page_ids:&[usize],write_coarse:&mut dyn FnM
   for idx in i2{indices.push(idx+offset);}
   let clusters=vec![vec![0],vec![1],vec![2],vec![3]];
   let topology=classify_topology(&indices,positions.len()/3).expect("topology");
-  let tree=build_lod_tree(&positions,&indices,&clusters,&topology.neighbors).expect("lod").expect("root");
+  let tree=build_lod_tree(&positions,&indices,&clusters,&topology.neighbors,&||Ok(())).expect("lod").expect("root");
   assert_eq!(count_leaves(&tree),4);
   match tree{
    LodNode::Node{reduced,mesh,..}=>{assert!(!reduced);assert!(mesh.is_empty());}
    LodNode::Leaf{..}=>panic!("disconnected components must join through a spatial BVH node"),
   }
  }
+ fn grid(nx:usize,ny:usize,offset:f32)->(Vec<f32>,Vec<u32>){
+  let positions=(0..=ny).flat_map(|y|(0..=nx).flat_map(move |x|[x as f32+offset,y as f32,0.])).collect();
+  let mut indices=Vec::new();let w=(nx+1) as u32;
+  for y in 0..ny as u32{for x in 0..nx as u32{let a=y*w+x;indices.extend([a,a+1,a+w,a+1,a+w+1,a+w]);}}
+  (positions,indices)
+ }
+ fn exact_leaf(positions:&[f32],indices:&[u32],cluster_index:usize,triangles:Vec<usize>)->LodNode{
+  let (min,max)=triangle_bounds(&triangles,indices,positions);
+  LodNode::Leaf{cluster_index,triangles,min,max}
+ }
+ #[test] fn root_extension_preserves_disconnected_exact_subtree(){
+  let (mut positions,mut indices)=grid(8,8,0.);
+  let (other_positions,other_indices)=grid(8,8,100.);
+  let vertex_offset=positions.len() as u32/3;let middle=indices.len()/3;
+  positions.extend(other_positions);indices.extend(other_indices.into_iter().map(|v|v+vertex_offset));
+  let left=exact_leaf(&positions,&indices,0,(0..middle).collect());
+  let right=exact_leaf(&positions,&indices,1,(middle..indices.len()/3).collect());
+  let (min,max)=union_bounds(&left,&right);
+  let original=LodNode::Node{children:vec![left,right],mesh:Vec::new(),reduced:false,error_object:0.,min,max};
+  let old_json=to_json(&original,&[0,1],&mut |_|panic!("exact tree")).expect("serialize original");
+  let expanded=extend_lod_tree(&positions,&indices,original,&||Ok(())).expect("extend");
+  let mut node=&expanded;let mut additional=0;
+  while let LodNode::Node{children,mesh,reduced,error_object,min:level_min,max:level_max,..}=node{
+   if children.len()!=1{break;}
+   assert!(*reduced);assert!(!mesh.is_empty());
+   assert_eq!(*error_object,11728_f64.sqrt(),"the complete replacement needs its root bounds, even when its unreduced child has zero error");
+   assert_eq!((*level_min,*level_max),(min,max));
+   assert!(mesh.iter().any(|&v|v<vertex_offset));
+   assert!(mesh.iter().any(|&v|v>=vertex_offset));
+   additional+=1;node=&children[0];
+  }
+  assert!(additional>0);assert_eq!(count_leaves(&expanded),2);
+  assert_eq!(to_json(node,&[0,1],&mut |_|panic!("exact tree")).expect("old subtree"),old_json);
+  let mut page_id=2;
+  to_json(&expanded,&[0,1],&mut |ids|{assert!(!ids.is_empty());assert!(ids.len()<=crate::CLUSTER_INDEX_COUNT);let id=page_id;page_id+=1;Ok(id)}).expect("page size");
+ }
+ #[test] fn complete_cover_uses_coarse_mesh_or_all_unreduced_children(){
+  let (positions,indices)=grid(2,2,0.);
+  let leaf=exact_leaf(&positions,&indices,0,(0..indices.len()/3).collect());
+  let (min,max)=bounds_of(&leaf);
+  let coarse=vec![0,1,3];
+  let root=LodNode::Node{children:vec![leaf],mesh:coarse.clone(),reduced:true,error_object:1.,min,max};
+  let mut cover=Vec::new();push_coarsest_mesh(&mut cover,&root,&indices);
+  assert_eq!(cover,coarse);
+ }
+ #[test] fn additional_levels_keep_the_certified_bound_and_stop_when_blocked(){
+  let (mut positions,indices)=grid(8,8,0.);
+  for point in positions.chunks_exact_mut(3){point[2]=point[0]*point[1]*0.01;}
+  let bound=129_f64.sqrt(); // Conservative bound for the 8 x 8 x 0.64 input.
+  let levels=append_coarse_levels(&positions,&indices,bound,&||Ok(())).expect("levels");
+  assert!(!levels.is_empty());assert!(levels.len()<=MAX_COARSE_LEVELS);
+  let mut triangles=indices.len()/3;
+  for level in levels{
+   assert!(level.triangles>0&&level.triangles<triangles);
+   assert_eq!(level.error_object,bound,"a complete replacement keeps its certified bound without accumulating the local QEM estimate");
+   assert!(preserves_boundary(&indices,&level.indices));
+   assert!(level.indices.iter().all(|&v|(v as usize)<positions.len()/3));
+   triangles=level.triangles;
+  }
+  assert!(append_coarse_levels(&positions,&[0,1,9],0.,&||Ok(())).expect("locked triangle").is_empty());
+ }
+ #[test] fn additional_levels_reject_nonmanifold_indexed_edges(){
+  let (positions,mut indices)=grid(8,8,0.);
+  indices.extend([0,1,9]);
+  assert!(boundary_signature(&indices).is_none());
+  assert!(append_coarse_levels(&positions,&indices,128_f64.sqrt(),&||Ok(())).expect("unsupported boundary").is_empty());
+ }
+ #[test] fn root_extension_can_refine_singleton_without_losing_its_leaf(){
+  let (positions,indices)=grid(8,8,0.);
+  let leaf=exact_leaf(&positions,&indices,0,(0..indices.len()/3).collect());
+  let expanded=extend_lod_tree(&positions,&indices,leaf,&||Ok(())).expect("extend");
+  assert_eq!(count_leaves(&expanded),1);
+  match expanded{LodNode::Node{mesh,..}=>assert!(mesh.len()<indices.len()),_=>panic!("coarse parent")}
+ }
+ #[test] fn additional_planar_levels_preserve_boundary_edges_and_covered_area(){
+  fn boundaries(ids:&[u32])->std::collections::BTreeSet<(u32,u32)>{
+   let mut counts=std::collections::BTreeMap::new();
+   for tri in ids.chunks_exact(3){for k in 0..3{let a=tri[k];let b=tri[(k+1)%3];*counts.entry((a.min(b),a.max(b))).or_insert(0usize)+=1;}}
+   counts.into_iter().filter_map(|(edge,n)|if n==1{Some(edge)}else{None}).collect()
+  }
+  fn area(positions:&[f32],ids:&[u32])->f64{
+   ids.chunks_exact(3).map(|tri|{let [a,b,c]=[tri[0] as usize*3,tri[1] as usize*3,tri[2] as usize*3];
+    let signed=((positions[b]-positions[a])*(positions[c+1]-positions[a+1])-(positions[b+1]-positions[a+1])*(positions[c]-positions[a])) as f64/2.;
+    assert!(signed>0.,"face orientation must remain positive");signed
+   }).sum()
+  }
+  let (positions,indices)=grid(8,8,0.);let old_border=boundaries(&indices);let old_area=area(&positions,&indices);
+  for level in append_coarse_levels(&positions,&indices,0.,&||Ok(())).expect("levels"){
+   assert!(preserves_boundary(&indices,&level.indices));
+   assert_eq!(boundaries(&level.indices),old_border);
+   assert!((area(&positions,&level.indices)-old_area).abs()<1e-9);
+  }
+ }
+ #[test] fn additional_levels_keep_small_closed_components_nondegenerate(){
+  let (mut positions,mut indices)=grid(8,8,0.);
+  for value in &mut positions{*value*=100.;}
+  let v=(positions.len()/3) as u32;
+  positions.extend([1000.,0.,0.,1000.1,0.,0.,1000.,0.1,0.,1000.,0.,0.1]);
+  indices.extend([v,v+2,v+1,v,v+1,v+3,v+1,v+2,v+3,v+2,v,v+3]);
+  for level in append_coarse_levels(&positions,&indices,0.,&||Ok(())).expect("levels"){
+   assert!(level.indices.chunks_exact(3).any(|tri|tri.iter().all(|&id|id>=v)&&nondegenerate_face(&positions,tri)),"small closed component disappeared");
+  }
+ }
+ #[test] fn coverage_rejects_a_component_flattened_to_distinct_coincident_indices(){
+  let positions=vec![0.,0.,0.,1.,0.,0.,0.,1.,0.,10.,0.,0.,11.,0.,0.,10.,1.,0.,10.,0.,0.];
+  let source=vec![0,1,2,3,4,5,3,4,6];
+  let coverage=CoarseCoverage::new(&positions,&source).expect("coverage");
+  assert_eq!(coverage.required.len(),2);
+  let flattened=vec![0,1,2,3,4,6];
+  assert!(!nondegenerate_face(&positions,&flattened[3..]));
+  assert!(!coverage.accepts(&positions,&flattened));
+  assert!(coverage.accepts(&positions,&[0,1,2,3,4,5]));
+ }
+ #[test] fn additional_levels_honor_cancellation_before_simplification(){
+  let (positions,indices)=grid(8,8,0.);
+  let error=append_coarse_levels(&positions,&indices,0.,&||Err(crate::invalid("cancelled"))).err().expect("cancelled");
+  assert!(error.to_string().contains("cancelled"));
+ }
+
 }
