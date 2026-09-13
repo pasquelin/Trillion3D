@@ -341,18 +341,21 @@ export class ClusterBatches{
  /** Capacité résidente des tampons d'index, en octets. Relue après une croissance éventuelle. */
  get indexBytes(){let bytes=0;for(let i=0;i<this.primitives.length;i++)bytes+=this.primitives[i].array.byteLength;return bytes;}
 
- /** Écrit la plage d'une page devenue résidente. Aucune autre partie du tampon n'est touchée. */
+ /** Écrit la plage d'une page devenue résidente. Aucune autre partie du tampon n'est touchée.
+  *  Une requête peut porter un paquet de streaming : chaque enregistrement a alors déjà reçu sa
+  *  propre vue à son offset dans ce paquet, et c'est cette vue — pas le paquet — qui est écrite. */
  acceptPage(recs:readonly BatchPage[],array:Uint32Array){
   for(const rec of recs){
    const group=this.groups[rec.renderOrder];
    if(!group)continue;
    const urlIndex=group.primitive.urlIndexByPage[rec.id];
    if(urlIndex<0||group.primitive.slots[urlIndex])continue;
+   const slice=rec.array??array;
    const capacity=group.primitive.array.byteLength;
-   group.primitive.reserve(urlIndex,array);
+   group.primitive.reserve(urlIndex,slice);
    this.indexCapacityBytes+=group.primitive.array.byteLength-capacity;
    this.stats.pageRangeWrites++;
-   this.stats.indexBytesWritten+=array.byteLength;
+   this.stats.indexBytesWritten+=slice.byteLength;
   }
  }
 
