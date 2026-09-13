@@ -37,5 +37,15 @@ test('GPU timing skips busy frames, bounds passes and survives readback failure'
  assert.equal(f.descriptors.filter(d=>d.timestampWrites).length,64);
  const busy=timer.createEncoder(61);busy.beginComputePass({label:'busy'});assert.equal(f.descriptors.at(-1).timestampWrites,undefined);
  f.buffers[1].mapAsync=async()=>{throw Error('MAP_FAILED');};timer.submitted(encoder,{frame:1});await timer.flush();
- const event=timer.drain()[0];assert.equal(event.sumPassMs,null);assert.match(String(event.error),/MAP_FAILED/);assert.equal(timer.supported,false);timer.dispose();
+ const event=timer.drain()[0];assert.equal(event.sumPassMs,null);assert.match(String(event.error),/MAP_FAILED/);assert.equal(timer.supported,false);assert.equal(timer.stats().droppedSamples,1);assert.equal(timer.stats().skippedFrames.busy,1);timer.dispose();
+});
+test('GPU timing reports sampled and dropped frames without blocking the render queue',async()=>{
+ const f=fixture(),timer=createGpuTiming(f.device,{sampleEveryFrames:1});
+ const encoder=timer.createEncoder(0);encoder.beginRenderPass({label:'opaque'}).end();encoder.finish();timer.submitted(encoder,{submission:1});await timer.flush();
+ const stats=timer.stats();assert.equal(stats.sampledFrames,1);assert.equal(stats.completedSamples,1);assert.equal(stats.droppedSamples,0);assert.equal(stats.pending,0);assert.equal(stats.sampleEveryFrames,1);timer.dispose();
+});
+test('trace cadence samples every frame through onSample without filling the retained ring',async()=>{
+ const f=fixture(),samples:any[]=[];const timer=createGpuTiming(f.device,{sampleEveryFrames:1,retainSamples:false,onSample(sample){samples.push(sample);throw new Error('OBSERVER_FAILURE');}});
+ for(let frame=0;frame<9;frame++){const encoder=timer.createEncoder(frame);encoder.beginComputePass({label:'opaque'}).end();encoder.finish();timer.submitted(encoder,{frame,submission:frame+1});await timer.flush();}
+ const stats=timer.stats();assert.equal(samples.length,9);assert.equal(stats.sampledFrames,9);assert.equal(stats.completedSamples,9);assert.equal(stats.droppedOutputSamples,0);assert.equal(stats.sampleCount,0);assert.equal(stats.skippedFrames.interval,0);timer.dispose();
 });
