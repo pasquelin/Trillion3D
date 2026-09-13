@@ -13,6 +13,7 @@ export type PackedForest={
 export type SelectionResult={pageIds:number[];frustumRejected:number;lodLevel:number};
 export type GpuCut={uniforms:SelectionUniforms;result:SelectionResult};
 export type GpuSelection={
+ updateWorlds(worldMatrices:Float32Array):boolean;
  dispatch(uniforms:SelectionUniforms):void;
  peek():GpuCut|null;
  failed():boolean;
@@ -375,7 +376,7 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
  const worldBytes=Math.max(64,packed.worlds.byteLength),stackBytes=Math.max(4,nodeCount*4),coneBytes=Math.max(16,packed.cones.byteLength);
  const pageConeBytes=Math.max(48,packed.pageCones.byteLength);
  const uniformData=new Float32Array(UNIFORM_BYTES/4);
- let last:GpuCut|null=null,lastSubmitted:SelectionUniforms|undefined,pending:Promise<unknown>=Promise.resolve(),disposed=false,dead=false;
+ let last:GpuCut|null=null,lastSubmitted:SelectionUniforms|undefined,pending:Promise<unknown>=Promise.resolve(),disposed=false,dead=false,worldRevision=0;
  const mapped=[false,false];let slot=0;
  const buffers:GPUBuffer[]=[];
  const nodeBytes=interleaveNodes(packed);
@@ -437,7 +438,17 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
   device.queue.writeBuffer(cones,0,coneCopy);
   const pageConeCopy=new Uint8Array(pageConeBytes);if(packed.pageCones.byteLength)pageConeCopy.set(new Uint8Array(packed.pageCones.buffer,packed.pageCones.byteOffset,packed.pageCones.byteLength));
   device.queue.writeBuffer(pageCones,0,pageConeCopy);
+  const previousWorlds=packed.worlds.slice();
   return {
+   updateWorlds(next){
+    if(disposed||dead)return false;
+    if(next.byteLength!==packed.worlds.byteLength)throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
+    let changed=false;for(let j=0;j<next.length;j++)if(previousWorlds[j]!==next[j]){changed=true;break;}
+    if(!changed)return false;
+    previousWorlds.set(next);packed.worlds.set(next);device.queue.writeBuffer(worlds,0,next.buffer as ArrayBuffer,next.byteOffset,next.byteLength);
+    worldRevision++;last=null;lastSubmitted=undefined;
+    return true;
+   },
    dispatch(next){
     if(disposed||dead)return;
     if(lastSubmitted&&sameSelectionUniforms(lastSubmitted,next))return;
@@ -450,7 +461,7 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
     pass.end();
     encoder.copyBufferToBuffer(output,0,readback[i],0,outputBytes);
     device.queue.submit([encoder.finish()]);
-    const captured=copySelectionUniforms(next);
+    const captured=copySelectionUniforms(next),capturedWorldRevision=worldRevision;
     lastSubmitted=captured;mapped[i]=true;slot^=1;
     pending=pending.catch(()=>{}).then(async()=>{
      try{
@@ -458,7 +469,7 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
       const parsed=parseOutput(readback[i].getMappedRange());
       readback[i].unmap();mapped[i]=false;
       if(!parsed){fail();return;}
-      last={uniforms:captured,result:parsed};
+      if(capturedWorldRevision===worldRevision)last={uniforms:captured,result:parsed};
      }catch{try{readback[i].unmap();}catch{/* Mapping may already be closed. */}mapped[i]=false;fail();}
     });
    },

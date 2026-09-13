@@ -44,7 +44,7 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
  for(const mesh of objects(source)){
   const association=associations.get(mesh),primitive=metadata.primitives.find(p=>p.mesh===association?.meshes&&p.primitive===(association?.primitives??0));
   if(!primitive)throw new Error(`Missing primitive association: ${mesh.name}`);
-  if(primitive.pass==='shared-blend'||isTransmissive(mesh.material)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.frustumCulled=mesh.frustumCulled;copy.renderOrder=order++;blendCopies.push(copy);continue;}
+  if(primitive.pass==='shared-blend'||isTransmissive(mesh.material)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.frustumCulled=mesh.frustumCulled;copy.renderOrder=order++;copy.userData.sourceMesh=mesh;blendCopies.push(copy);continue;}
   const sourceIndices=mesh.geometry.getIndex();if(!sourceIndices)throw new Error('Indexed source required');
   const src=sourceIndices.array as ArrayLike<number>;
   const ordered=(metadata.clusterStrategy??'exact-source-order')==='exact-source-order';
@@ -66,7 +66,7 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
    for(const [key,n] of fromSource)if(fromPages.get(key)!==n)throw new Error('Page/source index mismatch');
   }
   if(primitive.hierarchy){
-   const world=mesh.matrixWorld.clone();
+   const world=mesh.matrixWorld;
    roots.push({tree:primitive.hierarchy,world,pages});
    const referenced=new Set<number>();
    collectReferencedPages(primitive.hierarchy,referenced);
@@ -77,7 +77,7 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
     roots.push({tree:{min:rec.min,max:rec.max,page:0},world,pages:[rec]});
    }
   }else{
-   const world=mesh.matrixWorld.clone();
+   const world=mesh.matrixWorld;
    for(const rec of pages)if((rec.role??'exact')==='exact')roots.push({tree:{min:rec.min,max:rec.max,page:0},world,pages:[rec]});
   }
  }
