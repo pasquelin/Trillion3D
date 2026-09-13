@@ -10,6 +10,7 @@ import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTy
 import {createGpuPageCache,type ResidentPage} from './gpuPages.ts';
 import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
 import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
+import {createGpuDagSelection,packDagSelection,rootsAreFlat} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {applyTemporalHiz,projectBoxToScreen,sameHizView,splitOccluders,type HizBounds,type TemporalHizState} from './hiz.ts';
@@ -284,6 +285,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
  let gpuSelection:GpuSelection|undefined;
  const opaqueRoots=roots.filter(root=>!root.pages[0]?.transparent),transparentRoots=roots.filter(root=>root.pages[0]?.transparent);
+ /** Every cluster carries its own error band: the GPU cut is flat and the CPU cut needs the root cover. */
+ const flatSelection=rootsAreFlat(opaqueRoots),flatTransparent=rootsAreFlat(transparentRoots);
  const packedPages:PageRec[]=opaqueRoots.flatMap(root=>root.pages);
  const worldUpdates=new Float32Array(opaqueRoots.length*16);
  const residentFlags=new Uint32Array(packedPages.length);
@@ -882,7 +885,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
   adoptGpuCut();
   // Forward transparency has its own CPU cut; it is absent from the GPU forest.
-  const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>!!cache!.get(rec.url)}):undefined;
+  const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatTransparent,isResident:rec=>!!cache!.get(rec.url)}):undefined;
   const oldOpaque=shown.filter(page=>!page.transparent);
   shown.length=0;appendAll(shown,oldOpaque,transparent?.shown??[]);
   desired.length=0;appendAll(desired,gpuWanted,transparent?.wanted??[]);
@@ -897,7 +900,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   if(transparent?.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
   if(transparent&&!coverageBudgetLimited&&new Set([...requested,...transparent.shown.map(page=>page.url)]).size>slots){
-   const fallback=selectVisiblePages(transparentRoots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
+   const fallback=selectVisiblePages(transparentRoots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatTransparent,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
    if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE');
    shown.length=0;appendAll(shown,oldOpaque,fallback.shown);
   }
@@ -1251,8 +1254,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      if(!xyz){xyz=new Float32Array(attr.count*3);for(let i=0;i<attr.count;i++){xyz[i*3]=attr.getX(i);xyz[i*3+1]=attr.getY(i);xyz[i*3+2]=attr.getZ(i);}xyzCache.set(rec.attributes,xyz);}
      rec.cone=visMaterial(rec.material).doubleSided||visMaterial(rec.material).backSide?OPEN_CONE:triangleCone(xyz,array);
     }
-    const packed=packSelectionForest(opaqueRoots);
-    gpuSelection=gpuDraw?await createGpuSelection(gpuDevice,packed,{residentCut:true}):undefined;
+    // A cache whose clusters carry their own error band uses the flat cut; a tree cache keeps the
+    // forest kernel. A cache that mixes both keeps the CPU oracle rather than two GPU cuts per frame.
+    if(gpuDraw){
+     if(flatSelection)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true});
+     else if(!opaqueRoots.some(root=>root.flat))gpuSelection=await createGpuSelection(gpuDevice,packSelectionForest(opaqueRoots),{residentCut:true});
+    }
     capabilities.gpuDriven=!!gpuSelection;
     await ensureBootstrap();
     engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
@@ -1292,7 +1299,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    traceDiagnostic('gpu-selection-resolution','Résolution CPU du résultat de sélection GPU',()=>({frame,submission:imageRevision,scope:'cpu/gpu-selection-dispatch-peek',elapsedMs:gpuSelectionResolveEnd-selectionStarted,decision:gpuSelectionDecision,selectedFromGpu:!!selected}));
    if(!selected){
     const cpuSelectionStarted=performance.now();
-    selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>!!cache!.get(rec.url)},shown);
+    selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatSelection||flatTransparent,isResident:rec=>!!cache!.get(rec.url)},shown);
    const cpuSelectionEnd=performance.now(),chosen=selected;traceDiagnostic('cpu-selection','Sélection CPU de référence',()=>({frame,submission:imageRevision,scope:'cpu/selectVisiblePages',elapsedMs:cpuSelectionEnd-cpuSelectionStarted,shown:traceSet('selection.shown',chosen.shown.map(page=>page.url)),wanted:traceSet('selection.wanted',chosen.wanted?.map(page=>page.url)??chosen.shown.map(page=>page.url)),visible:chosen.visible,selectedTriangles:chosen.selectedTriangles,frustumRejected:chosen.frustumRejected,lodLevel:chosen.lodLevel,reason:gpuSelectionDecision.reason??'gpu-selection-unavailable'}));
    }
    else{shown.length=0;appendAll(shown,selected.shown);}
@@ -1314,7 +1321,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    // old detail slots if old and new refinements cannot coexist in the budget.
    const transitionStarted=performance.now(),transition=new Set([...requested,...shown.map(page=>page.url)]);
    if(!coverageBudgetLimited&&transition.size>slots){
-    const fallback=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
+    const fallback=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatSelection||flatTransparent,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
     if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE');
     shown.length=0;appendAll(shown,fallback.shown);lodLevel=fallback.lodLevel;
    }
