@@ -1,4 +1,4 @@
-import {assertCacheIdentity,assertFormat,assertManifestBinary,decodeManifestBinary,EngineError,isBinaryManifest,type AssetScope,type ClusterManifest,type SlimClusterManifest} from '../sdk-core/index.ts';
+import {assertCacheIdentity,assertCachePointer,assertCacheReady,assertManifestBinary,decodeManifestBinary,EngineError,isBinaryManifest,type AssetScope,type ClusterManifest,type SlimClusterManifest} from '../sdk-core/index.ts';
 import {checked} from './clusterPages.ts';
 
 export async function jsonResource(url:string,signal?:AbortSignal):Promise<{value:Record<string,unknown>;details:{url:string;status:number;contentType:string};bytes:number}>{
@@ -13,6 +13,14 @@ export async function jsonResource(url:string,signal?:AbortSignal):Promise<{valu
  return {value:value as Record<string,unknown>,details,bytes:Number.isFinite(declared)?declared:0};
 }
 
+/** The public checks know the format, not the response that carried it: this names the resource in
+ *  the message and keeps its HTTP details, which is what a host reads in a failure. */
+function located<T>(check:()=>T,details:{url:string;status:number;contentType:string}):T{
+ try{return check();}catch(error){
+  if(!(error instanceof EngineError))throw error;
+  throw new EngineError(error.code,`${details.url}: ${error.message}, HTTP ${details.status}, type ${details.contentType}`,{...error.details,...details});
+ }
+}
 /** What the manifest cost to obtain. Reported as a diagnostic so a campaign can measure it. */
 export interface ManifestTiming {format:'json'|'binary';jsonBytes:number;binaryBytes:number;pointerMs:number;jsonMs:number;binaryMs:number;decodeMs:number;totalMs:number}
 export interface LoadedManifest {pointer:Record<string,unknown>;metadata:ClusterManifest;metadataUrl:string;base:string;timing:ManifestTiming}
@@ -28,15 +36,13 @@ export async function loadClusterManifest(manifestUrl:string,scope:AssetScope,si
  const started=performance.now();
  const pointerResource=await jsonResource(manifestUrl,signal),pointer=pointerResource.value;
  const pointerMs=performance.now()-started;
- if(typeof pointer.status!=='string'||typeof pointer.url!=='string'||!pointer.url)throw new EngineError('INVALID_POINTER',`${manifestUrl}: manifeste sans status/url valides, HTTP ${pointerResource.details.status}, type ${pointerResource.details.contentType}`,pointerResource.details);
- if(pointer.status!=='ready')throw new EngineError('CACHE_NOT_READY','The preparation pointer is not ready');
- if(pointer.scope!==undefined&&pointer.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, pointer contains ${pointer.scope}`,{requestedScope:scope,pointerScope:pointer.scope});
- if(pointer.formatVersion!==undefined)assertFormat(pointer.formatVersion as number);
- const metadataUrl=new URL(pointer.url,new URL(manifestUrl,location.href)).href;
+ const pointerTarget=located(()=>assertCachePointer(pointer,scope),pointerResource.details);
+ const metadataUrl=new URL(pointerTarget,new URL(manifestUrl,location.href)).href;
  const jsonStart=performance.now();
  const metadataResource=await jsonResource(metadataUrl,signal),value=metadataResource.value;
  const jsonMs=performance.now()-jsonStart;
- if(!Array.isArray(value.primitives)||!Array.isArray(value.selectedNodes)||typeof value.selectedTriangles!=='number')throw new EngineError('INVALID_CACHE',`${metadataUrl}: schéma du cache invalide, HTTP ${metadataResource.details.status}, type ${metadataResource.details.contentType}`,metadataResource.details);
+ // Readiness, scope and format are settled before the columns are worth a request.
+ located(()=>assertCacheReady(value,scope),metadataResource.details);
  let metadata:ClusterManifest,binaryBytes=0,binaryMs=0,decodeMs=0,format:'json'|'binary'='json';
  if(isBinaryManifest(value)){
   format='binary';
@@ -51,11 +57,8 @@ export async function loadClusterManifest(manifestUrl:string,scope:AssetScope,si
   metadata=decodeManifestBinary(value as unknown as SlimClusterManifest,buffer);
   decodeMs=performance.now()-decodeStart;
  }else metadata=value as unknown as ClusterManifest;
- assertFormat(metadata.formatVersion??metadata.schema);
  assertCacheIdentity(metadata);
- if(metadata.status!=='ready')throw new EngineError('INVALID_CACHE','Unsupported Web Geometry cache');
- if(metadata.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, cache contains ${metadata.scope}`,{requestedScope:scope,cacheScope:metadata.scope});
- const base=new URL('.',new URL(pointer.url,new URL(manifestUrl,location.href))).href;
+ const base=new URL('.',metadataUrl).href;
  return {pointer,metadata,metadataUrl,base,
   timing:{format,jsonBytes:metadataResource.bytes,binaryBytes,pointerMs,jsonMs,binaryMs,decodeMs,totalMs:performance.now()-started}};
 }

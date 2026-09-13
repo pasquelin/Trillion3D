@@ -6,6 +6,8 @@ Build: `npm install`, `npm run build`, `npm test`. Native: `npm run build:native
 
 The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare` and `manifestUrl` to `createExplorer`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
 
+A host that probes a cache before opening it — to enable a button, to tell a user to recompile — calls `assertCachePointer(pointer, scope)` and `assertCacheReady(metadata, scope)` on the two JSON documents it fetched: the first returns the cache URL the pointer names, the second returns the selected triangle count, and both raise an `EngineError` (`INVALID_POINTER`, `CACHE_NOT_READY`, `SCOPE_MISMATCH`, `UNSUPPORTED_FORMAT`, `INVALID_CACHE`, `STALE_CACHE`) otherwise. These are the same checks `createExplorer` runs, so a host never has to read a format field itself. They deliberately require no cluster, and therefore no binary sidecar download; the identity of the clusters themselves is `assertCacheIdentity`, which the reader runs on the decoded manifest.
+
 The compiler publishes under `native/<scope>/manifest.json`. See [the cache format](docs/FORMAT.md).
 
 The compiler rejects selected accessors that cross their `bufferView`, invalid strides, malformed sparse ranges/indices and invalid POSITION/index component contracts before publishing a ready pointer. Simplification error is meshoptimizer's reported relative error scaled to object space; it is not a certified global Hausdorff bound. Cache keys include the executed compiler implementation and its dependency lock. Recompile prepared assets to use these corrections; source files are never overwritten.
@@ -14,7 +16,7 @@ The compiler rejects selected accessors that cross their `bufferView`, invalid s
 
 | Import | Symbols |
 |---|---|
-| `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
+| `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `assertCachePointer`, `assertCacheReady`, `assertCacheIdentity`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
 | `@web-geometry/sdk/node` | `prepare`, `createCompilationJob`, `getSdkProvenance`, CLI |
 | `@web-geometry/sdk/browser` | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
 

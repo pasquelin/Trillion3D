@@ -75,6 +75,44 @@ function cacheUsesLodError(metadata:ClusterManifest){
  return metadata.primitives.some(primitive=>primitive.pages.some(page=>(page.role??'exact')==='coarse')||primitive.hierarchy?.errorObject!=null);
 }
 function cacheUsesClusterErrors(metadata:ClusterManifest){return metadata.primitives.some(primitiveUsesClusterErrors);}
+/**
+ * What a host can check on a preparation pointer, before it knows anything about clusters: the
+ * preparation is finished, it carries the scope that was asked for, and its format is one this SDK
+ * reads. Returns the cache manifest URL the pointer names, to be resolved against the pointer URL.
+ * A host has no business reading these fields itself; this is the check the reader runs.
+ */
+export function assertCachePointer(pointer:unknown,scope:AssetScope):string{
+ if(!pointer||typeof pointer!=='object'||Array.isArray(pointer))throw new EngineError('INVALID_POINTER','preparation pointer is not a JSON object',{});
+ const value=pointer as Record<string,unknown>;
+ if(typeof value.status!=='string'||typeof value.url!=='string'||!value.url)throw new EngineError('INVALID_POINTER','preparation pointer carries no valid status/url',{status:value.status??null,url:value.url??null});
+ if(value.status!=='ready')throw new EngineError('CACHE_NOT_READY','The preparation pointer is not ready',{status:value.status});
+ if(value.scope!==undefined&&value.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, pointer contains ${value.scope}`,{requestedScope:scope,pointerScope:value.scope});
+ if(value.formatVersion!==undefined)assertFormat(value.formatVersion as number);
+ return value.url;
+}
+/**
+ * What a host can check on the cache manifest alone, whether its clusters are written inline or in a
+ * binary sidecar: the cache is ready, of the requested scope, in a format this SDK reads, and
+ * declares the geometry it selected. Returns that triangle count, so an availability probe needs to
+ * read nothing else and needs to know no field name.
+ *
+ * The identity of the clusters themselves is `assertCacheIdentity`: it reads the pages, so it runs
+ * on a decoded manifest, which a probe deliberately does not download.
+ */
+export function assertCacheReady(metadata:unknown,scope:AssetScope):number{
+ if(!metadata||typeof metadata!=='object'||Array.isArray(metadata))throw new EngineError('INVALID_CACHE','cache manifest is not a JSON object',{});
+ const value=metadata as Record<string,unknown>;
+ if(!Array.isArray(value.primitives)||!Array.isArray(value.selectedNodes)||typeof value.selectedTriangles!=='number'||!Number.isFinite(value.selectedTriangles))throw new EngineError('INVALID_CACHE','invalid cache schema',{});
+ const formatVersion=(value.formatVersion??value.schema) as number;
+ assertFormat(formatVersion);
+ if(value.schema!==formatVersion)throw new EngineError('UNSUPPORTED_FORMAT','Cache schema and formatVersion differ',{schema:value.schema,formatVersion});
+ if(value.status!=='ready')throw new EngineError('INVALID_CACHE','Unsupported Web Geometry cache',{status:value.status??null});
+ if(value.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, cache contains ${value.scope}`,{requestedScope:scope,cacheScope:value.scope});
+ // The one identity statement a slim manifest can make on its own: a DAG cache names the model its
+ // clusters were certified with. Older caches name neither and stay readable.
+ if(value.clusterStrategy==='dag-groups'&&value.errorModel!==DAG_ERROR_MODEL)throw new EngineError('STALE_CACHE',`Cache error model ${value.errorModel??'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,{errorModel:value.errorModel??null,expected:DAG_ERROR_MODEL});
+ return value.selectedTriangles;
+}
 /** Rejects caches compiled before the certified conservative error identity. */
 export function assertCacheIdentity(metadata:ClusterManifest){
  // A manifest with a binary sidecar describes its clusters in columns; identity is a property of
