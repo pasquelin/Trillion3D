@@ -33,7 +33,13 @@ test('transparent page batches preserve source order across exact and coarse cut
  const meshes=()=>backend.scene.children.filter(object=>(object as THREE.Mesh).isMesh) as THREE.Mesh[];
  const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);backend.render(camera);
  assert.equal(meshes().length,1);
- assert.equal(meshes()[0].material,material);
+ // Transparent double face : les deux passes que Three.js improviserait à chaque image sont figées en
+ // deux matériaux dos/face issus du matériau source, et deux groupes de géométrie les ordonnent.
+ const split=meshes()[0].material as THREE.Material[];
+ assert.ok(Array.isArray(split));
+ assert.deepEqual([split[0].side,split[1].side],[THREE.BackSide,THREE.FrontSide]);
+ assert.deepEqual(split.map(one=>(one as THREE.MeshBasicMaterial).color.getHex()),[material.color.getHex(),material.color.getHex()]);
+ assert.deepEqual(meshes()[0].geometry.groups.map(group=>group.materialIndex),[0,1]);
  assert.deepEqual(drawnIndices(meshes()[0]),[0,1,2,0,2,3,0,3,4]);
  context.pixelError=10;backend.render(camera);
  assert.equal(meshes().length,1);
