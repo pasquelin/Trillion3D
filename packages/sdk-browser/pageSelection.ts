@@ -175,6 +175,8 @@ export function collectPendingUrls<T extends {array?:Uint32Array;url:string}>(sh
 }
 const selectionScratch={frustum:new THREE.Frustum(),matrix:new THREE.Matrix4(),viewMatrix:new THREE.Matrix4(),box:new THREE.Box3(),corner:new THREE.Vector3(),viewMin:[Infinity,Infinity,Infinity] as [number,number,number],viewMax:[-Infinity,-Infinity,-Infinity] as [number,number,number],pixelScale:[1,1] as [number,number],clip:new THREE.Matrix4(),planes:new Float64Array(24),stack:new Int32Array(4096)};
 export type ClusterCut={lodError?:number;sphere?:number[];parentError?:number|null;parentSphere?:number[]|null};
+/** Rounds of ancestor escalation before the pinned root cover takes over; mirrors the GPU kernel. */
+export const FLAT_ESCALATION_ROUNDS=3;
 /** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`. */
 function projectedClusterError(error:number|null|undefined,sphere:ArrayLike<number>|null|undefined,offset:number,e:ArrayLike<number>,stretch:number,focal:number,near:number){
  // Exact geometry and clusters with no replacement need no projection at all, which is most of them.
@@ -245,10 +247,11 @@ function lodWantsCoarse(node:Tree,pixelError:number,viewMatrix:THREE.Matrix4,pix
 export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:number;level?:number;min?:number[];max?:number[];cone?:NormalCone;material?:THREE.Material|THREE.Material[];array?:Uint32Array}>(
  roots:Array<{tree:Tree;world:THREE.Matrix4;pages:T[];flat?:boolean;culling?:{nodes:Float64Array;stride:number};worldBox?:THREE.Box3;stretch?:number;stretchKey?:Float64Array}>,
  camera:THREE.PerspectiveCamera,
- options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean;isResident?:(page:T)=>boolean},
+ options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean;isResident?:(page:T)=>boolean;rootFallback?:boolean},
  into?:T[]
 ){
  const pixelError=options.pixelError??0,viewport=options.viewport,frame=options.frame,hold=!!options.holdResident;
+ const rootFallback=hold&&!!options.rootFallback;
  const pageResident=(rec:T)=>!hold||(options.isResident?options.isResident(rec):!!rec.array);
  const {frustum,matrix,viewMatrix,box}=selectionScratch;
  camera.updateMatrixWorld();
@@ -314,7 +317,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
  const {clip,planes,stack}=selectionScratch;
  let flatWorld=roots[0]?.world??new THREE.Matrix4(),flatStretch=1,flatFocal=1;
  let flatElements:ArrayLike<number>=flatWorld.elements;
- let flatInside=false;
+ let flatInside=false,flatMissing=false;
  const take=(rec:T)=>{
   if(!rec.min||!rec.max)return;
   if(!flatInside&&boxClip(planes,rec.min[0],rec.min[1],rec.min[2],rec.max[0],rec.max[1],rec.max[2])===0){frustumRejected++;return;}
@@ -322,7 +325,50 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
   if(rec.cone&&coneSkipsPage(rec,flatWorld,camera,rec.min,rec.max))return;
   wanted.push(rec);
   if(rec.level!==undefined&&rec.level>lodLevel)lodLevel=rec.level;
-  if(pageResident(rec)){rec.seen=frame;shown.push(rec);}else complete=false;
+  if(pageResident(rec)){rec.seen=frame;shown.push(rec);}
+  else if(rootFallback)flatMissing=true;
+  else complete=false;
+ };
+ const flatVisible=(rec:T)=>!!rec.min&&!!rec.max&&boxClip(planes,rec.min[0],rec.min[1],rec.min[2],rec.max[0],rec.max[1],rec.max[2])!==0;
+ const flatConeKeeps=(rec:T)=>!rec.cone||!coneSkipsPage(rec,flatWorld,camera,rec.min!,rec.max!);
+ /**
+  * A wanted cluster is still loading. Raise this primitive's budget to the replacement band of every
+  * missing cluster — which is exactly the band of the cluster that replaces it, so the coarser cover
+  * is selected in its place — and repeat while the replacement is itself missing. When nothing
+  * resident covers the gap, the primitive falls back to its pinned root clusters, which are never
+  * replaced and are always resident, so the published cut never has a hole.
+  */
+ const repairFlat=(pages:T[],start:number)=>{
+  const near=camera.near;
+  let threshold=pixelError,hard=false;
+  for(let round=0;round<=FLAT_ESCALATION_ROUNDS;round++){
+   let raised=false;
+   for(let i=0;i<pages.length;i++){
+    const rec=pages[i];
+    if(pageResident(rec)||!flatVisible(rec))continue;
+    if(!cutSelects(rec,flatElements,flatStretch,flatFocal,near,threshold)||!flatConeKeeps(rec))continue;
+    const parent=projectedClusterError(rec.parentError,rec.parentSphere??rec.sphere,0,flatElements,flatStretch,flatFocal,near);
+    if(parent>0&&Number.isFinite(parent)){if(parent>threshold){threshold=parent;raised=true;}}
+    else hard=true;
+   }
+   if(!raised)break;
+   if(round===FLAT_ESCALATION_ROUNDS)hard=true;
+  }
+  shown.length=start;
+  if(!hard)for(let i=0;i<pages.length;i++){
+   const rec=pages[i];
+   if(!flatVisible(rec)||!cutSelects(rec,flatElements,flatStretch,flatFocal,near,threshold)||!flatConeKeeps(rec))continue;
+   if(!pageResident(rec)){hard=true;break;}
+   rec.seen=frame;shown.push(rec);
+  }
+  if(!hard)return;
+  shown.length=start;
+  for(let i=0;i<pages.length;i++){
+   const rec=pages[i];
+   if(rec.parentError!=null||!flatVisible(rec)||!flatConeKeeps(rec))continue;
+   if(!pageResident(rec)){complete=false;continue;}
+   rec.seen=frame;shown.push(rec);
+  }
  };
  // The stretch of a world matrix rarely changes; recomputing it needs an arccosine, comparing it
  // needs nine numbers. The camera's own stretch (1 unless it is scaled) bounds the product.
@@ -340,10 +386,14 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
   flatWorld=world;flatElements=e;
   flatStretch=worldStretch(root)*cameraStretch;
   flatFocal=Math.max(selectionScratch.pixelScale[0],selectionScratch.pixelScale[1]);
-  const near=camera.near;
+  const near=camera.near,start=shown.length;
   extractPlanes(clip.multiplyMatrices(camera.projectionMatrix,viewMatrix),planes);
-  flatInside=false;
-  if(!culling){for(let i=0;i<pages.length;i++)take(pages[i]);return;}
+  flatInside=false;flatMissing=false;
+  if(!culling){
+   for(let i=0;i<pages.length;i++)take(pages[i]);
+   if(flatMissing)repairFlat(pages,start);
+   return;
+  }
   const {nodes,stride}=culling;
   // Stack entries carry the "already fully inside the frustum" flag in their low bit.
   let top=0;stack[top++]=0;
@@ -370,6 +420,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
    const firstPage=nodes[base+13],count=nodes[base+14];
    for(let i=0;i<count;i++)take(pages[firstPage+i]);
   }
+  if(flatMissing)repairFlat(pages,start);
  };
  for(const root of roots){
   // A whole instance out of frustum costs one box test, not one matrix setup.
