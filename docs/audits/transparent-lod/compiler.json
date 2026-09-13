@@ -1,0 +1,20 @@
+{
+  "createdAt": "2026-09-13T17:27:35.981334+00:00",
+  "priorProvenance": "compiler-provenance.json",
+  "priorCompilerLibSha256": "32ea72ee4f2728acfd2567ae39842dcfdebc924b5b6679087b9b163b49680818",
+  "versionGuardOnlyDifferenceVerified": true,
+  "files": {
+    "AGENTS.md": "7e3ef9ee4fb107bb9d6d3b06236e4b891eb9fbfd3c7fe2bb1cc911579c4aeec0",
+    "Cargo.lock": "b9b72f42530ba7867ea4af024b697ddc439d5200930d770a290e237a7d020b8c",
+    "Cargo.toml": "67f43a6ff969e52f1d82fdba2c1d261eba02f8a69ec9b62422fc42c207115596",
+    "src/accessor_validation.rs": "2c181b9643282de88f454dd0be446bc33d54842fb410f1f17cb94660d2a6f2f5",
+    "src/cluster.rs": "89d10831171cbb41c7e84fda8b265023801473b11708b19ca70deb9a83b96374",
+    "src/geometry_page.rs": "d7b5c0827624cc7d01d7c552ccbbc26bb2584f56e77691065dba6d4d8c81fcdb",
+    "src/lib.rs": "4bcbd8fa0d3b3b31af5a749020fb76e76122ce84cf6d23db8669fa83305d35df",
+    "src/lod.rs": "acc4de42f939f4183233c749645a6202012dc81f5a20a6a999bf64fd23deef54",
+    "src/main.rs": "c1646ee4b332416c797ba92a8ef4b34d7e31ce4eb98d6c06d4525bd62330916a",
+    "src/qem.rs": "f86ab24869e588bd24f8a6f64ae1fc7a3010bd86b1db12f6d5693cb4d1a48e25",
+    "src/topology.rs": "5ebd280248ee7f0176aad0979e5ae6da2a2dd5d7c01a0b9d696296c1d1bd2c98"
+  },
+  "patchSha256": "e8c3a4438678e7c3d7fbffe7d29c5cb929e6985c2b4128d28183970b52d8df0f"
+}
