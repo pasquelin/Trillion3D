@@ -9,28 +9,36 @@ type Job={
  promise:Promise<Uint8Array>;resolve:(value:Uint8Array)=>void;reject:(reason:unknown)=>void;
 };
 
-/** Bounded, prioritized and deduplicated reads. Obsolete requests abort once their last consumer leaves. */
-export function createPageStreamer(pages:readonly StreamPage[],base:string,signal?:AbortSignal,workerCount=8,maxPages?:number,onEvict?:(url:string)=>void,maxTransferBytes=8*1024*1024,onDiagnostic?:(diagnostic:BackendDiagnostic)=>void){
+/** Resident bytes kept by default. Streaming bundles are far larger than a single cluster page, so
+ *  a cache bounded only by entry count would hold hundreds of megabytes. */
+export const DEFAULT_CACHED_BYTES=256*1024*1024;
+/** Bounded, prioritized and deduplicated reads. Obsolete requests abort once their last consumer leaves.
+ *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
+ *  eviction, so a caller keeps its displayed cover by retaining it. */
+export function createPageStreamer(pages:readonly StreamPage[],base:string,signal?:AbortSignal,workerCount=8,maxPages?:number,onEvict?:(url:string)=>void,maxTransferBytes=8*1024*1024,onDiagnostic?:(diagnostic:BackendDiagnostic)=>void,maxCachedBytes=DEFAULT_CACHED_BYTES){
  const catalog=new Map(pages.map(page=>[page.url,page]));
  const cache=new Map<string,Uint8Array>(),jobs=new Map<string,Job>(),queue:Job[]=[];
  const pinned=new Set<string>(),failures=new Map<string,Error>(),abort=new AbortController();
  if(signal){if(signal.aborted)abort.abort(signal.reason);else signal.addEventListener('abort',()=>abort.abort(signal.reason),{once:true});}
  const limit=Number.isSafeInteger(workerCount)?Math.max(1,workerCount):1;
  if(!Number.isSafeInteger(maxTransferBytes)||maxTransferBytes<1)throw new Error('INVALID_PAGE_TRANSFER_BUDGET');
- let order=0,active=0,activeBytes=0,requested=0,hits=0,misses=0,bytesRead=0,loaded=0,evictions=0,admissionBlocked=0,disposed=false;
+ if(!Number.isSafeInteger(maxCachedBytes)||maxCachedBytes<1)throw new Error('INVALID_PAGE_CACHE_BUDGET');
+ let order=0,active=0,activeBytes=0,requested=0,hits=0,misses=0,bytesRead=0,loaded=0,evictions=0,admissionBlocked=0,disposed=false,cachedBytes=0;
  const emit=(phase:string,message:string,context:()=>Record<string,unknown>)=>{if(onDiagnostic)try{onDiagnostic({phase,message,context:context()});}catch{/* Observers cannot alter streaming. */}};
- emit('page-catalogue','Catalogue et configuration du streamer prêts',()=>({version:1,pages:catalog.size,workerCount:limit,maxPages:maxPages??null,maxTransferBytes,totalBytes:pages.reduce((sum,page)=>sum+page.bytes,0)}));
+ emit('page-catalogue','Catalogue et configuration du streamer prêts',()=>({version:1,pages:catalog.size,workerCount:limit,maxPages:maxPages??null,maxTransferBytes,maxCachedBytes,totalBytes:pages.reduce((sum,page)=>sum+page.bytes,0)}));
  const abortError=()=>new DOMException('Page request cancelled','AbortError');
- const touch=(url:string,array:Uint8Array)=>{cache.delete(url);cache.set(url,array);};
+ const touch=(url:string,array:Uint8Array)=>{const held=cache.get(url);if(held)cachedBytes-=held.byteLength;cache.delete(url);cache.set(url,array);cachedBytes+=array.byteLength;};
+ const over=()=>(maxPages&&maxPages>=1&&cache.size>maxPages)||cachedBytes>maxCachedBytes;
  const evict=()=>{
-  if(!maxPages||maxPages<1||cache.size<=maxPages)return;
+  if(!over())return;
   let evicted=false;
   for(const url of cache.keys()){
-   if(cache.size<=maxPages)break;
+   if(!over())break;
    if(pinned.has(url)||jobs.has(url))continue;
-   cache.delete(url);evictions++;evicted=true;emit('page-cache-eviction','Page retirée du cache LRU',()=>({version:1,url,reason:'capacity',drawDetached:false,resident:cache.size,maxPages}));onEvict?.(url);
+   const held=cache.get(url);if(held)cachedBytes-=held.byteLength;
+   cache.delete(url);evictions++;evicted=true;emit('page-cache-eviction','Page retirée du cache LRU',()=>({version:1,url,reason:'capacity',drawDetached:false,resident:cache.size,residentBytes:cachedBytes,maxPages:maxPages??null,maxCachedBytes}));onEvict?.(url);
   }
-  if(!evicted&&cache.size>maxPages){admissionBlocked++;emit('page-cache-admission-blocked','Aucune page évictable pour respecter le budget',()=>({version:1,resident:cache.size,maxPages,pinned:pinned.size,loading:active}));}
+  if(!evicted&&over()){admissionBlocked++;emit('page-cache-admission-blocked','Aucune page évictable pour respecter le budget',()=>({version:1,resident:cache.size,residentBytes:cachedBytes,maxPages:maxPages??null,maxCachedBytes,pinned:pinned.size,loading:active}));}
  };
  const loadOne=async(url:string,jobSignal:AbortSignal)=>{
   const page=catalog.get(url);if(!page)throw new Error('Unknown page '+url);
@@ -120,8 +128,8 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
    const unique=[...new Set(urls.filter(url=>catalog.has(url)))];requested+=unique.length;emit('page-request-batch','Demande groupée de pages reçue',()=>({version:1,requested:urls.length,unique:unique.length}));
    await Promise.all(unique.map(url=>subscribe(url,options.signal,options.priority??1)));
   },
-  stats(){return {requested,loaded,hits,misses,bytesRead,loading:active,queued:queue.length,transferInFlightBytes:activeBytes,resident:cache.size,evictions,cacheEvictions:evictions,drawDetaches:0,failed:failures.size,admissionBlocked};},
-  dispose(){if(disposed)return;disposed=true;emit('page-stream-dispose','Streamer de pages libéré',()=>({version:1,resident:cache.size,loading:active,failed:failures.size}));abort.abort(abortError());for(const job of jobs.values())job.controller.abort(abortError());jobs.clear();queue.length=0;cache.clear();pinned.clear();failures.clear();},
+  stats(){return {requested,loaded,hits,misses,bytesRead,loading:active,queued:queue.length,transferInFlightBytes:activeBytes,resident:cache.size,residentBytes:cachedBytes,maxCachedBytes,evictions,cacheEvictions:evictions,drawDetaches:0,failed:failures.size,admissionBlocked};},
+  dispose(){if(disposed)return;disposed=true;emit('page-stream-dispose','Streamer de pages libéré',()=>({version:1,resident:cache.size,loading:active,failed:failures.size}));abort.abort(abortError());for(const job of jobs.values())job.controller.abort(abortError());jobs.clear();queue.length=0;cache.clear();cachedBytes=0;pinned.clear();failures.clear();},
  };
 }
 export type PageStreamer=ReturnType<typeof createPageStreamer>;
