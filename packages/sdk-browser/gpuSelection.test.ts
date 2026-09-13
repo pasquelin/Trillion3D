@@ -224,6 +224,18 @@ test('unchanged uniforms skip a second GPU dispatch',async()=>{
  selection!.dispose();
 });
 
+test('updating an instance world matrix invalidates the old GPU cut',async()=>{
+ installGpuGlobals();
+ const packed=packSelectionForest(forest(quadPages,quadTree));
+ const {device}=mockSelectionDevice(packed),selection=await createGpuSelection(device,packed);assert.ok(selection);
+ const uniforms=cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]);
+ selection.dispatch(uniforms);assert.equal((await selection.flush())?.pageIds.length,2);
+ const moved=packed.worlds.slice();moved[12]=100;
+ assert.equal(selection.updateWorlds(moved),true);assert.equal(selection.peek(),null);
+ selection.dispatch(uniforms);assert.equal((await selection.flush())?.pageIds.length,0);
+ selection.dispose();
+});
+
 test('peek keeps the uniforms that produced the completed cut',async()=>{
  installGpuGlobals();
  const packed=packSelectionForest(forest(quadPages,quadTree));

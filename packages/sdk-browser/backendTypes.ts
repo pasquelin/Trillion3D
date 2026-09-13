@@ -75,6 +75,7 @@ export interface ExplorerOptions {
  signal?:AbortSignal;
  width?:number;height?:number;fov?:number;pixelRatio?:number;
  pageFetchWorkers?:number;
+ maxPageTransferBytes?:number;
  onPreparation?:(event:PreparationProgress)=>void;
  backends?:BackendFactory[];
  maxResidentPages?:number;

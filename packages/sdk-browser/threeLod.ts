@@ -22,7 +22,7 @@ export const threeLodBackend:BackendFactory=(context)=>{
  for(const mesh of meshes(context.source)){
   const association=context.associations.get(mesh);
   const primitive=context.metadata.primitives.find(p=>p.mesh===association?.meshes&&p.primitive===(association?.primitives??0));
-  const lod=new THREE.LOD();lod.matrixAutoUpdate=false;lod.matrix.copy(mesh.matrixWorld);
+  const lod=new THREE.LOD();lod.matrixAutoUpdate=false;lod.matrix.copy(mesh.matrixWorld);lod.userData.sourceMesh=mesh;
   const fine=new THREE.Mesh(mesh.geometry,mesh.material);fine.matrixAutoUpdate=false;fine.matrix.identity();fine.renderOrder=order;fine.frustumCulled=true;fine.userData.sourceGeometry=mesh.geometry;fine.userData.sourceMaterial=mesh.material;
   lod.addLevel(fine,0);allocationBytes+=geometryBytes(mesh.geometry,seen);
   if(primitive?.hierarchy&&primitive.pass!=='shared-blend'&&!isTransmissive(mesh.material)){
@@ -45,8 +45,8 @@ export const threeLodBackend:BackendFactory=(context)=>{
   setDiagnostic(mode){overlays.splice(0).forEach(m=>m.dispose());for(const lod of lods)for(const level of lod.levels){const mesh=level.object as THREE.Mesh;const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=mesh.userData.sourceMaterial as THREE.Material|THREE.Material[];mesh.geometry=sourceGeometry;mesh.material=sourceMaterial;if(mode==='wireframe'){mesh.geometry=triangleGeometry(sourceGeometry,triangleSalt(String(mesh.id)));const material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));overlays.push(material);mesh.material=material;}}},
   async prepare(){},
   refreshSceneLighting:()=>sceneLights.refresh(),
-  render(camera){sceneLights.update();camera.updateMatrixWorld();selectedTriangles=0;lodLevel=0;overBudget=false;
-   for(const lod of lods){lod.update(camera);const current=lod.getCurrentLevel();lodLevel=Math.max(lodLevel,current);const object=lod.levels[current]?.object as THREE.Mesh|undefined;if(!object)continue;const index=object.geometry.getIndex();selectedTriangles+=(index?index.count:object.geometry.getAttribute('position').count)/3;}},
+  render(camera){context.source.updateMatrixWorld(true);sceneLights.update();camera.updateMatrixWorld();selectedTriangles=0;lodLevel=0;overBudget=false;
+   for(const lod of lods){lod.matrix.copy((lod.userData.sourceMesh as THREE.Mesh).matrixWorld);lod.updateMatrixWorld(true);lod.update(camera);const current=lod.getCurrentLevel();lodLevel=Math.max(lodLevel,current);const object=lod.levels[current]?.object as THREE.Mesh|undefined;if(!object)continue;const index=object.geometry.getIndex();selectedTriangles+=(index?index.count:object.geometry.getAttribute('position').count)/3;}},
   metrics(){return {clusters:lods.length,selectedTriangles,residentPages:lods.length,geometryAllocationBytes:allocationBytes,pageEvictions:0,frustumRejected:0,lodLevel,submittedTriangles:selectedTriangles,drawCalls:lods.length};},
   dispose(){overlays.forEach(m=>m.dispose());for(const lod of lods){for(const level of lod.levels){const mesh=level.object as THREE.Mesh;const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry|undefined;if(sourceGeometry)disposeTriangleGeometry(sourceGeometry);if(mesh.geometry&&mesh.geometry!==(lod.levels[0]?.object as THREE.Mesh|undefined)?.geometry){for(const name of Object.keys(mesh.geometry.attributes))mesh.geometry.deleteAttribute(name);mesh.geometry.setIndex(null);mesh.geometry.dispose();}}lod.clear();}scene.clear();},
  };
