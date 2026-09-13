@@ -10,4 +10,4 @@ Source canonique des exigences d’architecture et de comportement du produit. C
 
 ## Propriété des sources et intégrations
 
-Web Geometry possède physiquement `asset-compiler-rust`, `asset-compiler-core`, `sdk-core`, `sdk-node` et `sdk-browser` dans `packages/`. Le SDK expose des points d’entrée publics et produit JavaScript et déclarations. Les adaptateurs React et Electron restent facultatifs et ne sont pas livrés comme packages dédiés. Les hôtes consomment les exports publics ; les interfaces de conception décrites dans `docs/vision/` ne sont pas des API livrées.
+Web Geometry possède physiquement `asset-compiler-rust`, `page-codec`, `sdk-core`, `sdk-node` et `sdk-browser` dans `packages/`. Le SDK expose des points d’entrée publics et produit JavaScript et déclarations. Les adaptateurs React et Electron restent facultatifs et ne sont pas livrés comme packages dédiés. Les hôtes consomment les exports publics ; les interfaces de conception décrites dans `docs/vision/` ne sont pas des API livrées.

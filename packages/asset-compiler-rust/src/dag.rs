@@ -11,7 +11,7 @@
 //! colours survive untouched, but they do not participate in the simplification error yet.
 use std::collections::HashMap;
 use crate::{invalid,Result};
-use crate::qem::simplify_with_locked_vertices;
+use crate::qem::{compact_region,simplify_with_locked_vertices};
 use rayon::prelude::*;
 use crate::perf::{PHASES,Timer};
 
@@ -98,39 +98,6 @@ pub fn enclosing_sphere(spheres:&[[f64;4]])->[f64;4]{
 }
 
 /// Local vertex buffer for a triangle region. Dense inputs use a direct table, sparse ones a map.
-fn compact_region(positions:&[f32],indices:&[u32])->(Vec<f32>,Vec<u32>,Vec<u32>){
- let vertex_count=positions.len()/3;
- let mut compact_pos=Vec::new();let mut remap=Vec::new();
- let mut compact_idx=Vec::with_capacity(indices.len());
- let push=|source:u32,compact_pos:&mut Vec<f32>,remap:&mut Vec<u32>|{
-  let i=source as usize*3;
-  if i+2<positions.len(){compact_pos.extend_from_slice(&positions[i..i+3]);}else{compact_pos.extend_from_slice(&[0.0,0.0,0.0]);}
-  remap.push(source);
- };
- if indices.len()*4>=vertex_count{
-  let mut table=vec![u32::MAX;vertex_count];
-  for &source in indices{
-   let slot=table.get_mut(source as usize);
-   let id=match slot{
-    Some(entry) if *entry!=u32::MAX=>*entry,
-    Some(entry)=>{let id=remap.len() as u32;*entry=id;push(source,&mut compact_pos,&mut remap);id}
-    None=>{let id=remap.len() as u32;push(source,&mut compact_pos,&mut remap);id}
-   };
-   compact_idx.push(id);
-  }
- }else{
-  let mut map=HashMap::with_capacity(indices.len());
-  for &source in indices{
-   let id=match map.get(&source){
-    Some(&id)=>id,
-    None=>{let id=remap.len() as u32;map.insert(source,id);push(source,&mut compact_pos,&mut remap);id}
-   };
-   compact_idx.push(id);
-  }
- }
- (compact_pos,compact_idx,remap)
-}
-
 /// Spatial clusters of at most `max_triangles` triangles, built with meshopt's meshlet builder.
 /// meshopt 0.4 exposes `build_meshlets`; it does not expose a cluster partitioner, so grouping
 /// below uses a local recursive bisection instead.
@@ -345,11 +312,6 @@ fn reduce_group(input:&GroupReductionInput,children:&[&DagCluster])->Result<std:
  Ok(Ok(GroupReduction{error,sphere,clusters,source_rank}))
 }
 
-/// Build the whole DAG. The returned clusters are ordered by level; level 0 covers the source
-/// triangles exactly once and the last level holds the roots.
-pub fn build_dag(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->Result<()>+Sync))->Result<Vec<DagCluster>>{
- Ok(build_dag_tallied(positions,indices,checkpoint)?.0)
-}
 /// Same build, plus the groups that produced it and the per-level tally.
 pub fn build_dag_tallied(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->Result<()>+Sync))->Result<(Vec<DagCluster>,Vec<DagGroup>,Vec<GroupTally>)>{
  checkpoint()?;
@@ -551,7 +513,7 @@ pub fn build_culling_bvh(positions:&[f32],clusters:&[DagCluster])->(Vec<usize>,V
 
  fn build(n:usize)->(Vec<f32>,Vec<u32>,Vec<DagCluster>){
   let (positions,indices)=grid(n);
-  let dag=build_dag(&positions,&indices,&||Ok(())).expect("dag");
+  let (dag,_,_)=build_dag_tallied(&positions,&indices,&||Ok(())).expect("dag");
   (positions,indices,dag)
  }
 
@@ -747,7 +709,7 @@ pub fn build_culling_bvh(positions:&[f32],clusters:&[DagCluster])->(Vec<usize>,V
   let positions:Vec<f32>=(0..w).flat_map(|y|(0..w).flat_map(move |x|[x as f32,y as f32,0.0])).collect();
   let mut indices=Vec::new();
   for y in 0..(w-1) as u32{for x in 0..(w-1) as u32{let a=y*w as u32+x;indices.extend([a,a+1,a+w as u32,a+1,a+1+w as u32,a+w as u32]);}}
-  let dag=build_dag(&positions,&indices,&||Ok(())).expect("dag");
+  let (dag,_,_)=build_dag_tallied(&positions,&indices,&||Ok(())).expect("dag");
   let leaves:usize=dag.iter().filter(|c|c.level==0).map(|c|c.triangles()).sum();
   assert_eq!(leaves,indices.len()/3,"level 0 must keep the exact cover even when every error is zero");
   assert!(dag.iter().any(|c|c.level>0),"a plane must still coarsen");
@@ -756,7 +718,7 @@ pub fn build_culling_bvh(positions:&[f32],clusters:&[DagCluster])->(Vec<usize>,V
 
  #[test] fn build_honours_cancellation(){
   let (positions,indices)=grid(32);
-  let error=build_dag(&positions,&indices,&||Err(invalid("cancelled"))).err().expect("cancelled");
+  let error=build_dag_tallied(&positions,&indices,&||Err(invalid("cancelled"))).err().expect("cancelled");
   assert!(error.to_string().contains("cancelled"));
  }
 

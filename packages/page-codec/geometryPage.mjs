@@ -1,9 +1,14 @@
+/**
+ * Reference encoder for the `.wgpg` geometry page. The compiler that ships pages is the native one
+ * in `asset-compiler-rust`; this independent implementation exists so the browser decoder in
+ * `sdk-browser/geometryPage.ts` is tested against something other than itself.
+ */
 import * as meshoptimizer from 'meshoptimizer';
 
-export const GEOMETRY_PAGE_VERSION=2;
-export const GEOMETRY_PAGE_MAGIC=0x32504757; // WGP2, little endian
-export const GEOMETRY_PAGE_STRIDE=72;
-export const GEOMETRY_ATTRIBUTES=[
+const GEOMETRY_PAGE_VERSION=2;
+const GEOMETRY_PAGE_MAGIC=0x32504757; // WGP2, little endian
+const GEOMETRY_PAGE_STRIDE=72;
+const GEOMETRY_ATTRIBUTES=[
  ['NORMAL',3,1],['TEXCOORD_0',2,2],['TANGENT',4,4],
  ['TEXCOORD_1',2,8],['COLOR_0',4,16],
 ];

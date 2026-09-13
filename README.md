@@ -15,7 +15,7 @@
 
 </div>
 
-Documentation : [spécifications de Web Geometry](docs/README.md) · [format 1](docs/FORMAT.md) · [exemple hôte](examples/minimal-webgl/README.md).
+Documentation : [spécifications de Web Geometry](docs/README.md) · [format de cache](docs/FORMAT.md).
 
 ---
 
@@ -23,7 +23,7 @@ Documentation : [spécifications de Web Geometry](docs/README.md) · [format 1](
 
 Web Geometry brings geometry preparation, versioned runtime contracts and browser adapters into one reusable SDK. Applications consume the public SDK entry points.
 
-The native compiler prepares exact geometry clusters, a spatial hierarchy and reusable cache pages. The browser adapter currently renders the prepared scene through Three.js and WebGL2, with a reference backend and an exact-cluster backend. When a WebGPU device is available, an optional page raster consumes the bounded WebGPU page cache and runs frustum + `lodScore` in compute; the CPU cut stays the A/A oracle and the silent fallback.
+The native compiler prepares a cluster DAG — small clusters of triangles, grouped and simplified level by level, each carrying the screen error that lets a runtime pick one cut through the graph — plus a culling hierarchy, streaming bundles and reusable SHA-addressed cache pages. The browser adapter currently renders the prepared scene through Three.js and WebGL2, with a reference backend and an exact-cluster backend. When a WebGPU device is available, an optional page raster consumes the bounded WebGPU page cache and runs frustum + `lodScore` in compute; the CPU cut stays the A/A oracle and the silent fallback.
 
 **The project is under active development.** The importer reads a versioned source manifest and the glTF it names. This is not yet a general-purpose virtualized geometry engine or an integrated WebGPU scene renderer.
 
@@ -41,7 +41,7 @@ npm test
 npm run test:native
 ```
 
-The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows; `rtl-asset-compiler` remains a compatibility alias).
+The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
 The package is currently private and consumed locally; it has not been published to npm. Build it before importing it from a host project. Scene assets are supplied by the host and are not included in this repository.
 
@@ -50,9 +50,8 @@ The package is currently private and consumed locally; it has not been published
 | Entry point | Purpose |
 |---|---|
 | `@web-geometry/sdk` or `@web-geometry/sdk/core` | Versioned contracts, jobs, progress, cancellation, diagnostics and safety policy |
-| `@web-geometry/sdk/node` | Native compiler process adapter, filesystem access and compilation jobs |
+| `@web-geometry/sdk/node` | Native compiler process adapter and compilation jobs |
 | `@web-geometry/sdk/browser` | Explorer lifecycle, rendering backends, camera paths and WebGPU page cache |
-| `@web-geometry/sdk/compiler-reference` | JavaScript reference compiler with injected source, cache and hashing |
 
 Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts own source/cache directories and process configuration. React and Electron integrations can use these boundaries without introducing framework dependencies into the core.
 
@@ -81,7 +80,7 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 | Directory | Responsibility |
 |---|---|
 | [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Production preparation library and native CLI |
-| [`packages/asset-compiler-core`](packages/asset-compiler-core) | JavaScript reference implementation |
+| [`packages/page-codec`](packages/page-codec) | Reference `.wgpg` page encoder used to test the browser decoder |
 | [`packages/sdk-core`](packages/sdk-core) | Platform-independent TypeScript contracts and policies |
 | [`packages/sdk-node`](packages/sdk-node) | Native process and filesystem integration |
 | [`packages/sdk-browser`](packages/sdk-browser) | Browser rendering and GPU resource adapters |
@@ -91,11 +90,11 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 
 | Area | Implemented scope |
 |---|---|
-| Native preparation | Verified source hashes, read-only binary mapping, exact index clusters, spatial hierarchy and bounded worker pool |
-| Cache | SHA-addressed shared pages, validation before reuse and manifest publication after preparation |
-| Browser rendering | Reference and exact-cluster WebGL2 backends, CPU hierarchy culling, source material preservation, optional WebGPU page raster with visbuffer, full glTF 2.0 Cook-Torrance GGX PBR specular + IBL environment reflection, and 2-phase Temporal Hi-Z |
+| Native preparation | Verified source hashes, read-only binary mapping, a cluster DAG with per-cluster screen errors, a flat culling hierarchy, streaming bundles and a bounded worker pool |
+| Cache | SHA-addressed shared page, geometry-page and bundle objects, validation before reuse and manifest publication after preparation |
+| Browser rendering | Reference and exact-cluster WebGL2 backends, CPU hierarchy culling, source material preservation, optional WebGPU page raster with visbuffer, glTF 2.0 Cook-Torrance GGX PBR specular with hemispherical diffuse ambient (no environment map), and 2-phase Hi-Z |
 | Diagnostics | Beauty, wireframe and cluster views where supported by the selected backend |
-| WebGPU resources | Page-cache API with uploads, pins, bounded slots and eviction; optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` selection plus conservative backface cones, 2-phase Temporal Hi-Z occlusion culling with depth reprojection, visbuffer encode of at most six non-indexed `drawIndirect` commands, and a CPU cut fallback |
+| WebGPU resources | Page-cache API with uploads, pins, bounded slots and eviction; optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` selection plus conservative backface cones, 2-phase Hi-Z occlusion culling, visbuffer encode of at most six non-indexed `drawIndirect` commands, and a CPU cut fallback |
 | Jobs | Immutable progress snapshots, subscriptions and cancellation |
 | Compatibility | Separate SDK and asset-format versions; explicit rejection of unsupported formats |
 | Recovery | Prepared reference fallback for backend errors while the WebGL context remains usable |
@@ -109,8 +108,8 @@ The test suites cover compiler behavior and public SDK contracts. A passing buil
 ## Current limits
 
 - The importer supports multiple buffers, sparse accessors (`accessor.sparse`), and routes skinned meshes, morph targets and animations to the `shared-blend` reference pass without pipeline failure. Non-triangle primitives and non-standard extensions remain unsupported.
-- Compression, VGE1 and independently replaceable native pipeline stages remain future work. QEM endpoint collapse (`simplification: 'qem-endpoints'`) is available on the JavaScript reference compiler and the native compiler.
-- GPU frustum + `lodScore` selection plus conservative backface cones (prepare-time page cones, `coneRejects` with perspective spread). Visbuffer encode instances resident pages from the page table and issues at most six non-indexed `drawIndirect` commands (cull mode × Hi-Z pass). `selectVisiblePages` and `applyTemporalHiz` remain the A/A oracles and the silent fallbacks. Compaction is a stable exclusive scan; overflow or a missing compact pipeline restores the per-page `draw()` loop and keeps `'indirect draw'` in `unsupported`. The visibility buffer pass evaluates full Cook-Torrance GGX specular + IBL environmental reflection (split-sum Karis approximation). 2-phase Temporal Hi-Z reprojects previous frame depth, tests occluders in Pass 1, builds current frame depth pyramid, and disoccludes revealed geometry in Pass 2. The WebGPU page raster falls back to WebGL2 if the device is missing or lost; a missing visbuffer format falls back to the untextured page raster and leaves Hi-Z off.
+- Compression and independently replaceable native pipeline stages remain future work. The compiler emits one hierarchy, the cluster DAG; the pair-tree hierarchy it used to emit is gone, and the browser adapter still reads caches that carry one.
+- GPU frustum + `lodScore` selection plus conservative backface cones (prepare-time page cones, `coneRejects` with perspective spread). Visbuffer encode instances resident pages from the page table and issues at most six non-indexed `drawIndirect` commands (cull mode × Hi-Z pass). `selectVisiblePages` and `applyTemporalHiz` remain the A/A oracles and the silent fallbacks. Compaction is a stable exclusive scan; overflow or a missing compact pipeline restores the per-page `draw()` loop and keeps `'indirect draw'` in `unsupported`. The visibility buffer pass evaluates Cook-Torrance GGX specular with a hemispherical diffuse ambient term; specular environment-map IBL is not implemented. 2-phase Hi-Z tests occluders in Pass 1, builds the current frame depth pyramid, and disoccludes revealed geometry in Pass 2; previous-frame depth is reused only while the view is unchanged and is never reprojected. The WebGPU page raster falls back to WebGL2 if the device is missing or lost; a missing visbuffer format falls back to the untextured page raster and leaves Hi-Z off.
 - The compiler RAM option is an admission estimate, not an enforced peak-memory limit.
 - Full graphics-device/context-loss recovery and cross-API fallback remain unimplemented.
 - N-API/WASM bindings, published packages, signed native distributions and cross-platform performance CI remain pending.

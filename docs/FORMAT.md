@@ -1,15 +1,12 @@
-# Cache formats 1 and 2 — currently read by the SDK
+# Cache formats 1 and 2 — produced and read by the SDK
 
 This is the on-disk contract implemented today. Design documents under [`vision/`](vision/README.md) describe a future virtualized engine; they do not replace this format.
 
-## Namespaces
+## Layout
 
-JavaScript reference and native Rust compilers publish **incompatible** pointers:
-
-| Compiler | Pointer | Payload |
-|---|---|---|
-| native Rust | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json`, `source.gltf`, `source.bin`, SHA-addressed `native/objects/<digest>.bin` |
-| JS reference | `reference/<scope>/manifest.json` | `reference/<scope>/<key>/clusters.json`, `source.gltf`, `source.bin`, per-primitive `pages/*.bin` |
+| Pointer | Payload |
+|---|---|
+| `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json`, `clusters.bin`, `source.gltf`, `source.bin`, and SHA-addressed objects under `native/objects/`: `<digest>.bin` index pages, `<digest>.wgpg` geometry pages, `<digest>.wgsb` streaming bundles |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
 
@@ -36,35 +33,61 @@ Required fields consumed by the browser adapter:
 - `status` — `ready`
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes`
-- `primitives[]` — `{ mesh, primitive, pass, pages, hierarchy }`
+- `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, hierarchy, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
-  - `clusterStrategy` optionally records the effective primitive strategy. Static BLEND always uses `exact-source-order` so exact pages preserve source triangle order even when the asset requests `greedy-adjacency`.
-  - `pages[]` — `{ id, url, sha256, bytes, count, min, max }`
-  - `hierarchy` — nested replacement regions (leaves hold `page` indices). With QEM, internal nodes also store `errorObject` and `coarsePages`.
+  - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
+  - `hierarchy` is `null`. A cluster that carries its own screen-error band needs no tree; the reader still accepts the pair-tree hierarchy of caches compiled before the DAG.
+  - `errorModel` is `dag-group-qem-v1`. A cache with coarse pages and no error model is rejected (`STALE_CACHE`) so a host recompiles; `bounds-diagonal-boundary-v1` identifies the older pair-tree model, which the reader still accepts and the compiler no longer produces.
+  - `simplification` is `true` when the compiler ran with `qem-endpoints`.
+- `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
-Optional fields consumed when present:
+### `clusters.bin`
 
-- `clusterStrategy` — `exact-source-order` (default) or `greedy-adjacency`
-- `simplification` — `true` when coarse QEM pages are included
-- `errorModel` — required when the cache includes coarse pages or `hierarchy.errorObject`. Current identity: `bounds-diagonal-boundary-v1`. A cache without this field is rejected (`STALE_CACHE`) so a host must recompile; it is not a scene name. The stored error is the diagonal of the exact source region's AABB, a conservative but loose two-way geometric distance bound; coarse pages are emitted only when the oriented boundary edges match.
-- `pages[].role` — `exact` (default) or `coarse`
-- `hierarchy.errorObject` / `hierarchy.coarsePages` / `hierarchy.children` — nested screen-error LOD cut. Selecting a node draws its `coarsePages` and skips children. Omitted fields keep the exact leaves.
+Per-cluster numbers are the bulk of a manifest: tens of thousands of clusters with a dozen values each. When `binary` is present the compiler writes them as typed-array columns instead, and `clusters.json` keeps only what a human or a tool reads — primitives, materials, passes, reports, and the counts needed to find each primitive's slice of the columns. Emerald Square falls from 48.4 MB of JSON to 387 KB plus a 17.0 MB sidecar, and the reader maps the columns instead of tokenizing them.
 
-Static BLEND geometry receives the same bounded exact pages and nested QEM replacement regions as opaque geometry, but retains its transparent forward pass, original material flags, vertex attributes and source mesh sorting. Exact pages preserve every triangle and its winding in source order. QEM changes indices only; it keeps existing vertices and locks geometry borders. A region that cannot be reduced retains its exact descendants. The positional QEM error does not bound texture-alpha or compositing error: `pixelError=0` is the exact-geometry comparison, and nonzero error settings require a visual check. Transmission remains unsplit because its refraction semantics are separate from alpha blending. These compiler changes create new implementation fingerprints and cache keys; existing `shared-blend` caches remain readable and must be recompiled to gain BLEND clusters.
+The file is little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `1`, `u32` column count `20`, `u32` reserved, then one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each starting on an 8-byte boundary. Lengths and spheres stay `f64` — they decide a cut, so truncating them would change the image. A digest is stored as its 64 ASCII hexadecimal characters, and an object URL is rebuilt from the `pageUrl` / `geometryUrl` / `bundleUrl` templates by substituting `{sha}`, which is why no URL is stored at all.
+
+Indices inside a column stay local to the primitive: a group names the pages of its primitive, a page names the bundle of its primitive. Each primitive declares only its own counts in `primitives[].binary` — `pages`, and the `culling`, `structure` and `streams` counts — and the reader derives its base offsets by prefix sum, so the small JSON carries no offset to maintain. A reader refuses a missing magic, an unknown version, a different column count, a column out of bounds, a column whose length contradicts the declared counts, or a file whose size does not match `bytes`; it refuses the version before fetching the columns.
+
+### Cluster DAG
+
+Level 0 partitions the source triangles into clusters of at most 128 triangles, each covering its triangles exactly once and in a spatial order. Every level after that groups 8 to 32 neighbouring clusters, simplifies the merged group with the vertices it shares with another group locked, and re-splits the result into clusters of the same size. A runtime picks a cut: draw cluster `c` when `parentError > threshold >= lodError`, which covers the surface exactly once because coarsening is a group-wide swap.
+
+`pages[]` entries carry, in addition to `{ id, url, sha256, bytes, count, min, max }`:
+
+- `role` — `exact` at level 0, `coarse` above it
+- `level` — DAG level, 0 for the source triangles
+- `lodError` / `sphere` — object-space error of the group that produced this cluster, and the `[x, y, z, radius]` sphere it is projected through
+- `parentError` / `parentSphere` — the same pair for the group that replaces this cluster; both `null` on a root, which is never replaced
+- `group` — index in `structure.groups` of the group that replaces this cluster, `null` on a root
+- `source` — index of the group that produced it, `null` at level 0
+- `start` — offset of the earliest source index this cluster descends from, which restores a transparent draw order
+- `stream` / `streamOffset` — streaming bundle holding this cluster and its byte offset inside it
+- `geometry` — the optional independently decodable `.wgpg` page described under [Pages](#pages)
+
+`structure` — `{ version, roots, groups[] }`. `roots` lists the clusters nothing replaces. Each group is `{ level, error, sphere, children, outputs }`, where `children` and `outputs` cover the same surface and are never both drawn.
+
+`culling` — `{ stride, count, nodes }`, a flat BVH over the primitive's clusters. `stride` is 15 numbers per node and node 0 is the root: `min[3]`, `max[3]`, `sphere[4]`, `maxParentError` (`-1` when the subtree holds a cluster with no replacement), `firstChild`, `childCount`, `firstPage`, `pageCount`. A leaf has `childCount` 0. Pages follow the culling order, so every node owns a contiguous page range.
+
+`streams` — `{ version, pinned, bundleBytes, pages[] }`. A bundle is `{ url, sha256, bytes, count }` and groups clusters of one level that the culling order already placed next to each other, targeting 128 KiB. The first `pinned` bundles hold exactly the root clusters, so keeping them resident guarantees a complete, if coarse, cover. Pinned bundles are then concatenated across primitives into shared objects of at most 1 MiB, so a first frame waits on a handful of requests instead of one per primitive; each entry names the shared object and every cluster keeps its own `streamOffset` inside it, unchanged for the reader. A cluster stays individually addressable through its own `url` and through `streamOffset` inside its bundle.
+
+`dag` — a report, not a contract: `{ depth, clusterTriangles, groupMin, groupMax, levels[], groups[] }`, where `groups[]` tallies why a group reduced or did not (`reduced`, `tooSmall`, `noCollapse`, `borderLost`, `unusableError`).
+
+Static BLEND geometry joins the DAG on the same terms as opaque geometry but keeps its transparent forward pass, original material flags, vertex attributes and source mesh sorting; `start` restores the source draw order that spatial clustering would otherwise scramble. Simplification changes indices only: it keeps existing vertices and locks every vertex shared with another group, so group borders stay watertight. A group that cannot be reduced keeps its children. The positional error does not bound texture-alpha or compositing error: `pixelError=0` is the exact-geometry comparison, and nonzero error settings require a visual check. Transmission remains unsplit because its refraction semantics are separate from alpha blending.
 
 The current reader explicitly accepts cache formats 1 and 2 and rejects unknown versions. Format 2 is required for `clustered-blend`: older SDK readers reject it instead of treating transparent pages as opaque. Both the pointer and the metadata advertise version 2. Source manifests and historical caches keep version 1; they do not require migration. `FORMAT_VERSION=1` remains the source/base format, while `CLUSTERED_BLEND_FORMAT_VERSION=2` identifies the newer cache semantics. SDK, compiler and cache versions are independent; the compiler fingerprint additionally changes the cache key.
 
-Both compilers validate selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The JS reference fingerprints the modules it actually executes (source modules in a checkout, built modules in an installed package), its Node adapter, shared default contract and package metadata; it also includes `package-lock.json` when present. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in either cache format or included in this geometry key; hosts own their resource identity.
+The compiler validates selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in either cache format or included in this geometry key; hosts own their resource identity.
 
 ## Pages
 
-Each page is a tightly packed little-endian `u32` index buffer covering 256 triangles (768 indices) in source order, except the last page of a primitive. The runtime verifies SHA-256 and byte length before attaching a page.
+Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A `.wgsb` streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
 Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable `meshopt` page with `formatVersion: 2`, URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate. This geometry-page version is independent of the outer cache version: the optional field and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 2. An autonomous reader rejects missing or unknown geometry-page versions. The legacy index pages remain available for existing backends.
 
 The geometry-page header is eight little-endian `u32` values: magic `WGP2` (`0x32504757`), version `2`, local vertex count, local index count, attribute flags, vertex stride `72`, compressed index byte count and compressed vertex byte count. The payload contains a meshoptimizer triangle index stream followed by a meshoptimizer vertex stream. Indices are local `u16` values. Vertices contain float32 POSITION, then optional NORMAL, TEXCOORD_0, TANGENT, TEXCOORD_1 and COLOR_0 at fixed offsets; absent attributes occupy zeroed slots. COLOR_0 RGB is extended with alpha 1. The data is lossless at float32 precision; integer normalized glTF attributes are converted to float32 according to glTF normalization before encoding. This does not quantize positions or guarantee a geometric error bound.
 
-When every selected primitive has autonomous pages, both compilers also publish `scene.gltf` and `scene.bin`. This light glTF retains node transforms, material declarations and images but replaces geometry accessors with a dummy triangle; the browser's `autonomousGeometry: true` backend builds real meshes only from verified `.wgpg` pages. It does not request the complete `source.bin` geometry. Embedded images and external textures are still loaded by glTFLoader at preparation time; progressive texture admission and transparent autonomous pages are not implemented. The initial complete root cover is loaded before the explorer becomes ready. `maxResidentPages` counts displayed page instances, while the streamer deduplicates URL transfers; neither limit measures physical VRAM or total application memory.
+When every selected primitive has autonomous pages, the compiler also publishes `scene.gltf` and `scene.bin`. This light glTF retains node transforms, material declarations and images but replaces geometry accessors with a dummy triangle; the browser's `autonomousGeometry: true` backend builds real meshes only from verified `.wgpg` pages. It does not request the complete `source.bin` geometry. Embedded images and external textures are still loaded by glTFLoader at preparation time; progressive texture admission and transparent autonomous pages are not implemented. The initial complete root cover is loaded before the explorer becomes ready. `maxResidentPages` counts displayed page instances, while the streamer deduplicates URL transfers; neither limit measures physical VRAM or total application memory.
 
 ## Source glTF
 
