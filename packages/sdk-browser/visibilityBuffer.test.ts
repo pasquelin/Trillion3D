@@ -1,3 +1,4 @@
+import {DEFERRED_LIGHTING_SHADER} from './deferredLighting.ts';
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages} from '../sdk-core/index.ts';
@@ -178,7 +179,7 @@ test('a metalness map B=0 keeps a dielectric; B=1 is a metal',()=>{
  assert.ok(visMaterial(a).metalnessMap);
  geometry.dispose();a.dispose();b.dispose();dielectric.dispose();metal.dispose();
 });
-test('a roughness map G channel changes Blinn exponent',()=>{
+test('a roughness map G channel changes the GGX highlight',()=>{
  const smooth=new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat);
  const rough=new THREE.DataTexture(new Uint8Array([0,255,0,255]),1,1,THREE.RGBAFormat);
  const a=new THREE.MeshStandardMaterial({color:0xffffff,metalness:1,roughness:1,roughnessMap:smooth});
@@ -208,20 +209,20 @@ test('MeshStandardMaterial visbuffer lighting implements Cook-Torrance GGX micro
  const unlit=shadeVisibility(ids,pages,cam,size);
  const lit=shadeVisibility(ids,litPages,cam,size);
  assert.ok(compareImages(unlit,lit).maxChannelError>0);
- assert.match(SHADE_SHADER, /alpha2\s*\/\s*\(3\.14159265/);
- assert.match(SHADE_SHADER, /let Vis=0\.5\/\(gV\+gL\+1e-7\)/);
- assert.match(SHADE_SHADER, /let specIBL=envRadiance\*envRough\*fEnv/);
+ assert.match(DEFERRED_LIGHTING_SHADER, /alpha2\s*\/\s*\(3\.14159265/);
+ assert.match(DEFERRED_LIGHTING_SHADER, /let Vis=0\.5\/\(gV\+gL\+1e-7\)/);
+
  geometry.dispose();basic.dispose();standard.dispose();
 });
 
-test('MeshStandardMaterial pure metal reflects ambient environment IBL without direct diffuse', () => {
+test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
  const metalMat=new THREE.MeshStandardMaterial({color:0xffd700,metalness:1.0,roughness:0.1});
  const {pages,geometry}=quadPages(metalMat);
  const cam=camera(),size:[number,number]=[16,16];
  const ids=rasterVisibilityIds(pages,cam,size);
  const shaded=shadeVisibility(ids,pages,cam,size);
  const o=(((16/2)|0)*16+((16/2)|0))*4;
- // Should produce non-zero metallic environment reflection with tinted gold baseColor
+ // The directional source still contributes a tinted specular highlight.
  assert.ok(shaded[o] > 0);
  assert.ok(shaded[o+1] > 0);
  geometry.dispose();metalMat.dispose();

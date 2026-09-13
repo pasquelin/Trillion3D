@@ -1,3 +1,4 @@
+import {installSceneLighting} from './sceneLighting.ts';
 import * as THREE from 'three';
 import type {BackendFactory,BackendContext} from './backendTypes.ts';
 import type {Page,Tree} from '../sdk-core/index.ts';
@@ -12,9 +13,7 @@ function buildIndex(pages:Page[],ids:number[],indices:Map<string,Uint32Array>){l
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend:BackendFactory=(context)=>{
  const scene=new THREE.Scene();
- scene.background=new THREE.Color(context.clearColor??0x171d28);
- scene.add(new THREE.HemisphereLight(0xffffff,0x495061,2));
- const light=new THREE.DirectionalLight(0xffffff,2.5);light.position.set(1,3,2);scene.add(light);
+ const sceneLights=installSceneLighting(scene,context.sceneLighting??context.source,context.clearColor??0x171d28);
  const lods:THREE.LOD[]=[];
  let levels=1,allocationBytes=0,selectedTriangles=0,lodLevel=0,overBudget=false;
  const overlays:THREE.Material[]=[];
@@ -45,7 +44,8 @@ export const threeLodBackend:BackendFactory=(context)=>{
   get overBudget(){return overBudget;},scene,
   setDiagnostic(mode){overlays.splice(0).forEach(m=>m.dispose());for(const lod of lods)for(const level of lod.levels){const mesh=level.object as THREE.Mesh;const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=mesh.userData.sourceMaterial as THREE.Material|THREE.Material[];mesh.geometry=sourceGeometry;mesh.material=sourceMaterial;if(mode==='wireframe'){mesh.geometry=triangleGeometry(sourceGeometry,triangleSalt(String(mesh.id)));const material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));overlays.push(material);mesh.material=material;}}},
   async prepare(){},
-  render(camera){camera.updateMatrixWorld();selectedTriangles=0;lodLevel=0;overBudget=false;
+  refreshSceneLighting:()=>sceneLights.refresh(),
+  render(camera){sceneLights.update();camera.updateMatrixWorld();selectedTriangles=0;lodLevel=0;overBudget=false;
    for(const lod of lods){lod.update(camera);const current=lod.getCurrentLevel();lodLevel=Math.max(lodLevel,current);const object=lod.levels[current]?.object as THREE.Mesh|undefined;if(!object)continue;const index=object.geometry.getIndex();selectedTriangles+=(index?index.count:object.geometry.getAttribute('position').count)/3;}},
   metrics(){return {clusters:lods.length,selectedTriangles,residentPages:lods.length,geometryAllocationBytes:allocationBytes,pageEvictions:0,frustumRejected:0,lodLevel,submittedTriangles:selectedTriangles,drawCalls:lods.length};},
   dispose(){overlays.forEach(m=>m.dispose());for(const lod of lods){for(const level of lod.levels){const mesh=level.object as THREE.Mesh;const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry|undefined;if(sourceGeometry)disposeTriangleGeometry(sourceGeometry);if(mesh.geometry&&mesh.geometry!==(lod.levels[0]?.object as THREE.Mesh|undefined)?.geometry){for(const name of Object.keys(mesh.geometry.attributes))mesh.geometry.deleteAttribute(name);mesh.geometry.setIndex(null);mesh.geometry.dispose();}}lod.clear();}scene.clear();},

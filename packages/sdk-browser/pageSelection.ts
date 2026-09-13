@@ -44,7 +44,7 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
  for(const mesh of objects(source)){
   const association=associations.get(mesh),primitive=metadata.primitives.find(p=>p.mesh===association?.meshes&&p.primitive===(association?.primitives??0));
   if(!primitive)throw new Error(`Missing primitive association: ${mesh.name}`);
-  if(primitive.pass==='shared-blend'||isTransmissive(mesh.material)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.renderOrder=order++;blendCopies.push(copy);continue;}
+  if(primitive.pass==='shared-blend'||isTransmissive(mesh.material)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.frustumCulled=mesh.frustumCulled;copy.renderOrder=order++;blendCopies.push(copy);continue;}
   const sourceIndices=mesh.geometry.getIndex();if(!sourceIndices)throw new Error('Indexed source required');
   const src=sourceIndices.array as ArrayLike<number>;
   const ordered=(metadata.clusterStrategy??'exact-source-order')==='exact-source-order';

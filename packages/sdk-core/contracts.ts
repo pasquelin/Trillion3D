@@ -11,6 +11,8 @@ export interface FrameMetrics {
  rafIntervalMs:number|null; cpuFrameMs:number; cpuSubmitMs:number|null; gpuMs:number|null; drawCalls:number; triangles:number; clusters:number|null; selectedTriangles:number|null; residentPages:number|null; submittedTriangles?:number|null;
  pageEvictions?:number|null; geometryAllocationBytes:number|null; vramBytes:number|null; pageLoads:number; pageBytesRead:number;
  pagesRequested?:number|null; pagesLoading?:number|null; cacheHits?:number|null; cacheMisses?:number|null; frustumRejected?:number|null; lodLevel?:number|null; hizRejected?:number|null;
+ /** WebGPU transparent submission counters, including both draws for two-pass materials. Null when unavailable. */
+ transparentMeshes?:number|null; transparentFrustumRejected?:number|null; transparentDrawCalls?:number|null; transparentSubmittedTriangles?:number|null;
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface Page { id:number; url:string; sha256:string; bytes:number; count:number; min:number[];max:number[];role?:'exact'|'coarse' }
