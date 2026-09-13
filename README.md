@@ -80,7 +80,7 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 | Directory | Responsibility |
 |---|---|
 | [`packages/asset-compiler-rust`](packages/asset-compiler-rust) | Production preparation library and native CLI |
-| [`packages/page-codec`](packages/page-codec) | Reference `.wgpg` page encoder used to test the browser decoder |
+| [`packages/page-codec`](packages/page-codec) | Reference geometry-page encoder used to test the browser decoder |
 | [`packages/sdk-core`](packages/sdk-core) | Platform-independent TypeScript contracts and policies |
 | [`packages/sdk-node`](packages/sdk-node) | Native process and filesystem integration |
 | [`packages/sdk-browser`](packages/sdk-browser) | Browser rendering and GPU resource adapters |
@@ -92,7 +92,7 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 |---|---|
 | Native preparation | Verified source hashes, read-only binary mapping, a cluster DAG with per-cluster screen errors, a flat culling hierarchy, streaming bundles and a bounded worker pool |
 | Cache | SHA-addressed shared page, geometry-page and bundle objects, validation before reuse and manifest publication after preparation |
-| Browser rendering | Reference and exact-cluster WebGL2 backends, CPU hierarchy culling, source material preservation, optional WebGPU page raster with visbuffer, glTF 2.0 Cook-Torrance GGX PBR specular with hemispherical diffuse ambient (no environment map), and 2-phase Hi-Z |
+| Browser rendering | Reference and exact-cluster WebGL2 backends, CPU culling over the flat cluster hierarchy, source material preservation, optional WebGPU page raster with visbuffer, glTF 2.0 Cook-Torrance GGX PBR specular with hemispherical diffuse ambient (no environment map), and 2-phase Hi-Z |
 | Diagnostics | Beauty, wireframe and cluster views where supported by the selected backend |
 | WebGPU resources | Page-cache API with uploads, pins, bounded slots and eviction; optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` selection plus conservative backface cones, 2-phase Hi-Z occlusion culling, visbuffer encode of at most six non-indexed `drawIndirect` commands, and a CPU cut fallback |
 | Jobs | Immutable progress snapshots, subscriptions and cancellation |

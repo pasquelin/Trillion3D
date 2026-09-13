@@ -13,7 +13,7 @@ export interface RenderBackend {
  render(camera:THREE.PerspectiveCamera):void;
  readonly overBudget:boolean;
  scene:THREE.Scene;
- metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'totalSubmittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'|'textureUploaded'|'texturePending'|'textureSkipped'>&{drawCalls?:number;batchRebuilds?:number;batchIndexBytesUpdated?:number;displayDetachments?:number;pageRangeWrites?:number;subDraws?:number};
+ metrics():Partial<Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pagesDetached'|'cacheEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'totalSubmittedTriangles'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'|'textureUploaded'|'texturePending'|'textureSkipped'>>&{drawCalls?:number;batchRebuilds?:number;batchIndexBytesUpdated?:number;displayDetachments?:number;pageRangeWrites?:number;subDraws?:number};
  pendingUrls?():string[];
  /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
   *  so a small camera move finds them already resident. */

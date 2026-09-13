@@ -122,17 +122,7 @@ export function splitOccluders<T extends HizPage>(pages:T[],camera:THREE.Perspec
  return {occluders:inFront.slice(0,mid).map(item=>item.page),rest:[...inFront.slice(mid),...crossing].map(item=>item.page)};
 }
 
-/** Apply this-frame Hi-Z to a selected cut. Remaining ⊆ selected. */
-export function applyHiz<T extends HizPage&VisPage>(selected:T[],camera:THREE.PerspectiveCamera,viewport:[number,number]){
- if(selected.length<2)return {shown:selected,hizRejected:0,occluders:selected};
- const {occluders,rest}=splitOccluders(selected,camera,viewport);
- if(!occluders.length||!rest.length)return {shown:selected,hizRejected:0,occluders};
- const vis=rasterVisibility(occluders,camera,viewport);
- const pyramid=buildHizPyramid(vis.depth,viewport[0],viewport[1]);
- const kept=filterUnoccluded(rest,pyramid,camera,viewport);
- return {shown:[...occluders,...kept],hizRejected:rest.length-kept.length,occluders};
-}
-
+/** Previous-frame depth kept for the two-pass occlusion test, and the view it was rendered from. */
 export type TemporalHizState = {
  pyramid?: HizPyramid;
  camera?: THREE.PerspectiveCamera;

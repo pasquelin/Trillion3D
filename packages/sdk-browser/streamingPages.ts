@@ -132,7 +132,7 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
    const unique=[...new Set(urls.filter(url=>catalog.has(url)))];requested+=unique.length;emit('page-request-batch','Demande groupée de pages reçue',()=>({version:1,requested:urls.length,unique:unique.length}));
    await Promise.all(unique.map(url=>subscribe(url,options.signal,options.priority??1)));
   },
-  stats(){return {requested,loaded,hits,misses,bytesRead,loading:active,queued:queue.length,transferInFlightBytes:activeBytes,resident:cache.size,residentBytes:cachedBytes,maxCachedBytes,evictions,cacheEvictions:evictions,drawDetaches:0,failed:failures.size,admissionBlocked};},
+  stats(){return {requested,loaded,hits,misses,bytesRead,loading:active,queued:queue.length,transferInFlightBytes:activeBytes,resident:cache.size,residentBytes:cachedBytes,maxCachedBytes,evictions,failed:failures.size,admissionBlocked};},
   dispose(){if(disposed)return;disposed=true;emit('page-stream-dispose','Streamer de pages libéré',()=>({version:1,resident:cache.size,loading:active,failed:failures.size}));abort.abort(abortError());for(const job of jobs.values())job.controller.abort(abortError());jobs.clear();queue.length=0;cache.clear();cachedBytes=0;pinned.clear();failures.clear();},
  };
 }

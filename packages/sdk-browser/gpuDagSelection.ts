@@ -21,7 +21,7 @@ import {
 const CLUSTER_FLOATS=16,DAG_NODE_FLOATS=16,FRAME_VEC4=7,CULL_STRIDE=15;
 const CLUSTER_ROOT=1,CLUSTER_NEVER=2;
 /** Rounds of ancestor escalation before the pinned root cover takes over. */
-export const DAG_ESCALATION_ROUNDS=3;
+const DAG_ESCALATION_ROUNDS=3;
 
 export type DagCluster={
  url:string;lodError?:number;parentError?:number|null;sphere?:number[];parentSphere?:number[]|null;level?:number;

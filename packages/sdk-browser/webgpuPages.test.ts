@@ -6,7 +6,7 @@ import {exactPagesBackend} from './index.ts';
 import {outputColorDiagnostic,webgpuPagesBackend} from './webgpuPages.ts';
 import {rasterPageRecords} from './pageRaster.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
-import {evaluateResidentSelectionKernel,evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
+import {evaluateDagSelectionKernel,packDagSelection,type PackedDag} from './gpuDagSelection.ts';
 import {evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
 import {rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
 import {createGpuTiming} from './gpuTiming.ts';
@@ -76,7 +76,7 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame',as
  const events:Array<{phase:string;message:string;context:Record<string,unknown>}> = [];
  const fixture=quadScene();
  const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- const {device}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const {device}=mockGpu(undefined,packDagSelection(collected.roots));
  const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],diagnosticDetail:'trace' as never,onDiagnostic:event=>events.push(event)} as never);
  try{
   await backend.prepare();
@@ -117,7 +117,7 @@ function bytesOf(data:BufferSource){
  return new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset,(data as ArrayBufferView).byteLength);
 }
 
-function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
+function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedDag,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
  const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;instanceBuffer?:unknown;slotOffsetsBuffer?:unknown;indirect?:boolean;entryPoint?:string}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
  const passes:Array<{label?:string;colorLoad?:string;colorClear?:GPUColor;depthLoad?:string;colorCount:number;formats:string[]}>=[];
@@ -193,28 +193,26 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
       new Uint32Array(indBytes.buffer,indBytes.byteOffset,indBytes.byteLength/4).set(indirectForDraw(result));
       return;
      }
-     if(!packed||computePipeline?.entryPoint!=='resolveSelection'||!computeBind)return;
+     if(!packed||computePipeline?.entryPoint!=='dagMask'||!computeBind)return;
      const byBinding=new Map(computeBind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
      const data=byBinding.get(2)!.data;
      const f32=new Float32Array(data.buffer,data.byteOffset,data.byteLength/4);
+     const uniInts=new Uint32Array(data.buffer);
      const uniforms={
       planes:f32.slice(0,24),view:f32.slice(24,40),pixelScale:[f32[40],f32[41]] as [number,number],pixelError:f32[42],near:f32[43],
-      cameraWorld:[f32[48],f32[49],f32[50]] as [number,number,number],
+      cameraWorld:[f32[48],f32[49],f32[50]] as [number,number,number],cameraStretch:f32[51],
      };
-     const result=evaluateSelectionKernel(packed,uniforms);
-     const uniInts=new Uint32Array(data.buffer);
-     let complete=true;
-     if(uniInts[51]){
-      const cones=new Float32Array(byBinding.get(8)!.data.buffer);
-      const resident=Uint32Array.from({length:packed.pageCount},(_,i)=>cones[i*12+11]);
-      const drawable=evaluateResidentSelectionKernel(packed,uniforms,resident);
+     const residentCut=!!uniInts[47];
+     const cones=new Float32Array(byBinding.get(8)!.data.buffer);
+     const resident=residentCut?Uint32Array.from({length:packed.pageCount},(_,i)=>cones[i*12+11]):undefined;
+     const result=evaluateDagSelectionKernel(packed,uniforms,resident);
+     if(residentCut){
       const flags=new Uint32Array(byBinding.get(3)!.data.buffer);flags.fill(0,packed.nodeCount);
-      for(const id of drawable.drawn.pageIds)flags[packed.nodeCount+id]=1;
-      complete=drawable.complete;
+      for(const id of result.drawablePageIds??[])flags[packed.nodeCount+id]=1;
      }
      const out=byBinding.get(4)!.data;
      const ints=new Uint32Array(out.buffer,out.byteOffset,out.byteLength/4);
-     ints[0]=result.pageIds.length;ints[1]=result.frustumRejected;ints[2]=result.lodLevel;ints[3]=complete?0:2;ints.set(result.pageIds,4);
+     ints[0]=result.pageIds.length;ints[1]=result.frustumRejected;ints[2]=result.lodLevel;ints[3]=result.complete===false?2:0;ints.set(result.pageIds,4);
     },
     end(){},
    }),
@@ -239,11 +237,34 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
  return {device:device as unknown as GPUDevice,draws,writes,textures,passes,computes,layouts,imageCopies,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
 }
 
+/** The screen-error band every cluster of a DAG cache carries, derived from its own box. */
+function clusterSphere(page:{min:number[];max:number[]}){
+ const c=[0,1,2].map(i=>(page.min[i]+page.max[i])/2);
+ return [...c,Math.hypot(...[0,1,2].map(i=>page.max[i]-c[i]))||1];
+}
+/** Level-0 clusters that nothing replaces: the smallest legal DAG, one root per cluster. */
+function dagRoots<T extends {id:number;min:number[];max:number[]}>(pages:T[]){
+ return pages.map(page=>({...page,role:'exact' as const,start:page.id*3,level:0,lodError:0,
+  sphere:clusterSphere(page),parentError:null,parentSphere:null,group:null,source:null}));
+}
+/** `leaves` replaced by one coarse cluster of error `error`: the smallest two-level DAG. */
+function dagLevel<T extends {id:number;min:number[];max:number[]}>(leaves:T[],coarse:T,error:number){
+ const sphere=clusterSphere(coarse);
+ return {
+  pages:[
+   ...leaves.map(page=>({...page,role:'exact' as const,start:page.id*3,level:0,lodError:0,
+    sphere:clusterSphere(page),parentError:error,parentSphere:sphere,group:0,source:null})),
+   {...coarse,role:'coarse' as const,start:0,level:1,lodError:error,sphere,parentError:null,parentSphere:null,group:null,source:0},
+  ],
+  structure:{version:1,roots:[coarse.id],groups:[{level:1,error,sphere,children:leaves.map(page=>page.id),outputs:[coarse.id]}]},
+ };
+}
+
 function quadScene(){
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
  const material=new THREE.MeshBasicMaterial({color:0xff0000}),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
- const pages=[0,1].map(id=>({id,url:String(id),count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}));
- const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,0],max:[1,1,0],children:pages.map(p=>({min:p.min,max:p.max,page:p.id}))}}]};
+ const pages=dagRoots([0,1].map(id=>({id,url:String(id),count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'})));
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,structure:{version:1,roots:[0,1],groups:[]}}]};
  const indices=new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,2,3])]]);
  const associations=new Map([[mesh,{meshes:0,primitives:0}]]);
  return {geometry,material,source,pages,metadata,indices,associations};
@@ -306,7 +327,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
  installGpuGlobals();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
- const {device,draws,writes}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const {device,draws,writes}=mockGpu(undefined,packDagSelection(collected.roots));
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  await backend.prepare();
  backend.render(camera());
@@ -334,11 +355,12 @@ function mixedBinScene(){
  const geoB=new THREE.BufferGeometry();geoB.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,1,0,-1,1,0],3));geoB.setIndex([0,1,2]);
  const front=new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.FrontSide}),both=new THREE.MeshBasicMaterial({color:0x00ff00,side:THREE.DoubleSide});
  const meshA=new THREE.Mesh(geoA,front),meshB=new THREE.Mesh(geoB,both),source=new THREE.Group();source.add(meshA,meshB);
- const pagesA=[{id:0,url:'0',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}];
- const pagesB=[{id:0,url:'1',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}];
- const metadata={primitives:[
-  {mesh:0,primitive:0,pass:'exact-clusters',pages:pagesA,hierarchy:{min:[-1,-1,0],max:[1,1,0],page:0}},
-  {mesh:1,primitive:0,pass:'exact-clusters',pages:pagesB,hierarchy:{min:[-1,-1,0],max:[1,1,0],page:0}},
+ const pagesA=dagRoots([{id:0,url:'0',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}]);
+ const pagesB=dagRoots([{id:0,url:'1',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}]);
+ const structure={version:1,roots:[0],groups:[]};
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[
+  {mesh:0,primitive:0,pass:'exact-clusters',pages:pagesA,structure},
+  {mesh:1,primitive:0,pass:'exact-clusters',pages:pagesB,structure},
  ]};
  const indices=new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,1,2])]]);
  const associations=new Map([[meshA,{meshes:0,primitives:0}],[meshB,{meshes:1,primitives:0}]]);
@@ -349,7 +371,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
  installGpuGlobals();
  const {source,metadata,indices,associations,geoA,geoB,front,both}=mixedBinScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
- const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const {device,draws}=mockGpu(undefined,packDagSelection(collected.roots));
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  await backend.prepare();
  backend.render(camera());
@@ -399,12 +421,12 @@ test('the initial cover also protects regions first discovered after a camera ju
  const {device}=mockGpu();
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0,100,-1,0,102,-1,0,102,1,0],3));geometry.setIndex([0,1,2,0,2,3,4,5,6]);
  const material=new THREE.MeshBasicMaterial(),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
- const pages=[
+ const pages=dagRoots([
   {id:0,url:'0',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'},
   {id:1,url:'1',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'},
   {id:2,url:'2',count:3,min:[100,-1,0] as number[],max:[102,1,0] as number[],bytes:12,sha256:'x'},
- ];
- const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,0],max:[102,1,0],children:pages.map(p=>({min:p.min,max:p.max,page:p.id}))}}]};
+ ]);
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,structure:{version:1,roots:[0,1,2],groups:[]}}]};
  const indices=new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,2,3])],['2',new Uint32Array([4,5,6])]]);
  const backend=webgpuPagesBackend({source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]]),gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
  await backend.prepare();
@@ -419,7 +441,7 @@ test('the initial cover also protects regions first discovered after a camera ju
  await backend.flush?.();
  backend.render(cam);
  assert.equal(backend.metrics().residentPages,1);
- assert.equal(backend.metrics().pageEvictions,0);
+ assert.equal(backend.metrics().cacheEvictions,0);
  assert.equal(backend.overBudget,false);
  backend.dispose();geometry.dispose();material.dispose();
 });
@@ -428,13 +450,10 @@ test('webgpu pages select the same coarse LOD cut as the WebGL2 exact backend',a
  installGpuGlobals();
  const {device}=mockGpu();
  const {source,metadata:base,indices,associations,geometry,material}=quadScene();
- const pages=[
-  {id:0,url:'0',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x',role:'exact' as const},
-  {id:1,url:'1',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x',role:'exact' as const},
-  {id:2,url:'2',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x',role:'coarse' as const},
- ];
- const hierarchy={min:[-1,-1,0],max:[1,1,0],errorObject:0,coarsePages:[2],children:[{min:[-1,-1,0],max:[1,1,0],page:0},{min:[-1,-1,0],max:[1,1,0],page:1}]};
- const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy}]};
+ const leaf=(id:number)=>({id,url:String(id),count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'});
+ // Screen error 0.001 on the coarse cluster: at pixelError 10 the coarse cover wins everywhere.
+ const level=dagLevel([leaf(0),leaf(1)],leaf(2),0.001);
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',...level}]};
  const allIndices=new Map([...indices,['2',new Uint32Array([0,1,2])]]);
  const context={source,metadata,indices:allIndices,associations,pixelError:10,viewport:[960,540] as [number,number]};
  const webgl=exactPagesBackend(context);
@@ -552,7 +571,7 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
  installGpuGlobals();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
- const packed=packSelectionForest(collected.roots);
+ const packed=packDagSelection(collected.roots);
  const {device}=mockGpu(undefined,packed);
  const viewport:[number,number]=[960,540];
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:4,viewport,pixelError:0});
@@ -572,17 +591,14 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
 test('webgpu compute selection matches the CPU coarse LOD cut',async()=>{
  installGpuGlobals();
  const {source,metadata:base,indices,associations,geometry,material}=quadScene();
- const pages=[
-  {id:0,url:'0',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x',role:'exact' as const},
-  {id:1,url:'1',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x',role:'exact' as const},
-  {id:2,url:'2',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x',role:'coarse' as const},
- ];
- const hierarchy={min:[-1,-1,0],max:[1,1,0],errorObject:0,coarsePages:[2],children:[{min:[-1,-1,0],max:[1,1,0],page:0},{min:[-1,-1,0],max:[1,1,0],page:1}]};
- const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy}]};
+ const leaf=(id:number)=>({id,url:String(id),count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'});
+ // Screen error 0.001 on the coarse cluster: at pixelError 10 the coarse cover wins everywhere.
+ const level=dagLevel([leaf(0),leaf(1)],leaf(2),0.001);
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',...level}]};
  const allIndices=new Map([...indices,['2',new Uint32Array([0,1,2])]]);
  const viewport:[number,number]=[960,540];
  const collected=collectClusterPages(source,metadata,allIndices,associations);
- const packed=packSelectionForest(collected.roots);
+ const packed=packDagSelection(collected.roots);
  const {device}=mockGpu(undefined,packed);
  const backend=webgpuPagesBackend({source,metadata,indices:allIndices,associations,gpuDevice:device,maxResidentPages:4,viewport,pixelError:10});
  const cam=camera();
@@ -604,16 +620,17 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages',a
  const geoA=new THREE.BufferGeometry();geoA.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0],3));geoA.setIndex([0,1,2]);
  const geoB=new THREE.BufferGeometry();geoB.setAttribute('position',new THREE.Float32BufferAttribute([8,-1,0,10,-1,0,10,1,0],3));geoB.setIndex([0,1,2]);
  const material=new THREE.MeshBasicMaterial(),meshA=new THREE.Mesh(geoA,material),meshB=new THREE.Mesh(geoB,material),source=new THREE.Group();source.add(meshA,meshB);
- const pagesA=[{id:0,url:'orphan',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}];
- const pagesB=[{id:0,url:'exact',count:3,min:[8,-1,0] as number[],max:[10,1,0] as number[],bytes:12,sha256:'x'}];
- const metadata={primitives:[
-  {mesh:0,primitive:0,pass:'exact-clusters',pages:pagesA,hierarchy:null},
-  {mesh:1,primitive:0,pass:'exact-clusters',pages:pagesB,hierarchy:{min:[8,-1,0],max:[10,1,0],page:0}},
+ const pagesA=dagRoots([{id:0,url:'orphan',count:3,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:12,sha256:'x'}]);
+ const pagesB=dagRoots([{id:0,url:'exact',count:3,min:[8,-1,0] as number[],max:[10,1,0] as number[],bytes:12,sha256:'x'}]);
+ const structure={version:1,roots:[0],groups:[]};
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[
+  {mesh:0,primitive:0,pass:'exact-clusters',pages:pagesA,structure},
+  {mesh:1,primitive:0,pass:'exact-clusters',pages:pagesB,structure},
  ]};
  const indices=new Map([['orphan',new Uint32Array([0,1,2])],['exact',new Uint32Array([0,1,2])]]);
  const associations=new Map([[meshA,{meshes:0,primitives:0}],[meshB,{meshes:1,primitives:0}]]);
  const collected=collectClusterPages(source,metadata,indices,associations);
- const packed=packSelectionForest(collected.roots);
+ const packed=packDagSelection(collected.roots);
  const {device}=mockGpu(undefined,packed);
  const viewport:[number,number]=[32,32];
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:4,viewport});
@@ -630,7 +647,7 @@ test('a failed GPU selection readback falls back to the CPU cut and clears gpuDr
  installGpuGlobals();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
- const packed=packSelectionForest(collected.roots);
+ const packed=packDagSelection(collected.roots);
  const {device}=mockGpu(undefined,packed,true);
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  await backend.prepare();
@@ -674,11 +691,11 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle',asy
  geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0,-0.2,-0.2,-2,0.2,-0.2,-2,0.2,0.2,-2,-0.2,0.2,-2],3));
  geometry.setIndex([0,1,2,0,2,3,4,5,6,4,6,7]);
  const material=new THREE.MeshBasicMaterial({color:0xff0000}),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
- const pages=[
+ const pages=dagRoots([
   {id:0,url:'front',count:6,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:24,sha256:'x'},
   {id:1,url:'back',count:6,min:[-0.2,-0.2,-2] as number[],max:[0.2,0.2,-2] as number[],bytes:24,sha256:'x'},
- ];
- const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,-2],max:[1,1,0],children:pages.map(p=>({min:p.min,max:p.max,page:p.id}))}}]};
+ ]);
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,structure:{version:1,roots:[0,1],groups:[]}}]};
  const indices=new Map([['front',new Uint32Array([0,1,2,0,2,3])],['back',new Uint32Array([4,5,6,4,6,7])]]);
  const associations=new Map([[mesh,{meshes:0,primitives:0}]]);
  const viewport:[number,number]=[32,32];
@@ -739,11 +756,11 @@ function occluderScene(){
  geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0,-0.2,-0.2,-2,0.2,-0.2,-2,0.2,0.2,-2,-0.2,0.2,-2],3));
  geometry.setIndex([0,1,2,0,2,3,4,5,6,4,6,7]);
  const material=new THREE.MeshBasicMaterial({color:0xff0000}),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
- const pages=[
+ const pages=dagRoots([
   {id:0,url:'front',count:6,min:[-1,-1,0] as number[],max:[1,1,0] as number[],bytes:24,sha256:'x'},
   {id:1,url:'back',count:6,min:[-0.2,-0.2,-2] as number[],max:[0.2,0.2,-2] as number[],bytes:24,sha256:'x'},
- ];
- const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,-2],max:[1,1,0],children:pages.map(p=>({min:p.min,max:p.max,page:p.id}))}}]};
+ ]);
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,structure:{version:1,roots:[0,1],groups:[]}}]};
  const indices=new Map([['front',new Uint32Array([0,1,2,0,2,3])],['back',new Uint32Array([4,5,6,4,6,7])]]);
  const associations=new Map([[mesh,{meshes:0,primitives:0}]]);
  return {geometry,material,source,metadata,indices,associations};
@@ -754,7 +771,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
  const {source,metadata,indices,associations,geometry,material}=occluderScene();
  const viewport:[number,number]=[32,32];
  const collected=collectClusterPages(source,metadata,indices,associations);
- const {device,passes,computes,textures,draws}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true);
+ const {device,passes,computes,textures,draws}=mockGpu(undefined,packDagSelection(collected.roots),false,false,false,true);
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:4,viewport});
  const cam=camera();
  const cpu=selectVisiblePages(collected.roots,cam,{pixelError:0,viewport,frame:1});
@@ -789,7 +806,7 @@ test('a successful vis+compact pipeline drops indirect draw from unsupported',as
  installGpuGlobals();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
- const {device}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true);
+ const {device}=mockGpu(undefined,packDagSelection(collected.roots),false,false,false,true);
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  await backend.prepare();
  assert.equal(backend.capabilities.unsupported.includes('indirect draw'),false);
@@ -801,7 +818,7 @@ test('a compact pipeline failure keeps the per-page draw loop',async()=>{
  installGpuGlobals();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
- const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots),false,false,false,true,true);
+ const {device,draws}=mockGpu(undefined,packDagSelection(collected.roots),false,false,false,true,true);
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  await backend.prepare();
  assert.equal(backend.capabilities.unsupported.includes('indirect draw'),true);
@@ -937,7 +954,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
  fixture.metadata.primitives.push(primitive);fixture.associations.set(mesh,{meshes:1,primitives:0});
  for(const [url,array] of blend.indices)fixture.indices.set(`blend-${url}`,array);
  const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- const {device}=mockGpu(undefined,packSelectionForest(collected.roots.filter(root=>!root.pages[0].transparent)));
+ const {device}=mockGpu(undefined,packDagSelection(collected.roots.filter(root=>!root.pages[0].transparent)));
  const backend=webgpuPagesBackend({...fixture,indices:new Map(),gpuDevice:device,maxResidentPages:4,viewport:[32,32]});
  try{
   await backend.prepare();assert.equal(backend.capabilities.gpuDriven,true);
@@ -1036,11 +1053,13 @@ test('clustered transparency switches LOD with resident coverage and retains bot
  }finally{await backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
 });
 
+/** The quad, with its two clusters replaced by a single coarse cluster of screen error 1. */
 function coarseQuadScene(){
  const fixture=quadScene();
- const coarse={...fixture.metadata.primitives[0].pages[0],id:2,url:'2',count:6,bytes:24,role:'coarse' as const};
- const hierarchy={...fixture.metadata.primitives[0].hierarchy,coarsePages:[2],errorObject:1};
- return {...fixture,metadata:{...fixture.metadata,primitives:[{...fixture.metadata.primitives[0],pages:[...fixture.metadata.primitives[0].pages,coarse],hierarchy}]},indices:new Map([...fixture.indices,['2',new Uint32Array([0,1,2,0,2,3])]] as [string,Uint32Array][])};
+ const leaves=fixture.metadata.primitives[0].pages;
+ const level=dagLevel(leaves,{...leaves[0],id:2,url:'2',count:6,bytes:24},1);
+ return {...fixture,metadata:{...fixture.metadata,primitives:[{...fixture.metadata.primitives[0],...level}]},
+  indices:new Map([...fixture.indices,['2',new Uint32Array([0,1,2,0,2,3])]] as [string,Uint32Array][])};
 }
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded',async()=>{
@@ -1124,7 +1143,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
   await backend.prepare();move(0);await backend.flush();move(0);assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);
   move(100);assert.deepEqual(backend.selectedPageIds(),['b2']);await backend.flush();move(100);assert.deepEqual(backend.selectedPageIds().sort(),['b0','b1']);
   for(let i=0;i<12;i++){move(i%2?100:0);await Promise.resolve();}
-  move(0);await backend.flush();move(0);assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);assert.ok(backend.metrics().pageEvictions!>0);
+  move(0);await backend.flush();move(0);assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);assert.ok(backend.metrics().cacheEvictions!>0);
  }finally{backend.dispose();a.geometry.dispose();a.material.dispose();b.geometry.dispose();b.material.dispose();}
 });
 
@@ -1148,8 +1167,10 @@ test('a host eviction deferred for coverage is applied once the page is no longe
 
 test('a leaf carrying its own coarse representation keeps that GPU fallback during exact-page loading',async()=>{
  installGpuGlobals();const fixture=coarseQuadScene(),{device}=mockGpu();
- const exact={...fixture.metadata.primitives[0].pages[0],count:6,bytes:24},coarse={...fixture.metadata.primitives[0].pages[2],id:1};
- const metadata={primitives:[{...fixture.metadata.primitives[0],pages:[exact,coarse],hierarchy:{min:exact.min,max:exact.max,page:0,coarsePages:[1],errorObject:1}}]};
+ // One cluster replaced by one coarser cluster: a group of a single child.
+ const leaf={...fixture.metadata.primitives[0].pages[0],count:6,bytes:24};
+ const level=dagLevel([leaf],{...fixture.metadata.primitives[0].pages[2],id:1},1);
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{...fixture.metadata.primitives[0],...level}]};
  const backend=webgpuPagesBackend({...fixture,metadata,indices:new Map(),readPage:async()=>fixture.indices.get('2')!,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  try{await backend.prepare();backend.render(camera());assert.deepEqual(backend.selectedPageIds(),['2']);backend.acceptPage!('0',fixture.indices.get('2')!);backend.render(camera());await backend.flush();backend.render(camera());assert.deepEqual(backend.selectedPageIds(),['0']);}
  finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
@@ -1167,7 +1188,7 @@ test('cancelling initial coverage loading cannot publish a ready backend',async(
 test('moving opaque cameras use the current GPU selection without CPU reselection',async()=>{
  installGpuGlobals();const fixture=quadScene();
  const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const {device,draws}=mockGpu(undefined,packDagSelection(collected.roots));
  const events:Array<{phase:string;context?:Record<string,unknown>}>=[];
  const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],onDiagnostic:event=>events.push(event)});
  try{
@@ -1189,7 +1210,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
  fixture.metadata.primitives[0].pages[2].count=3;fixture.metadata.primitives[0].pages[2].bytes=12;
  fixture.indices.set('2',new Uint32Array([0,1,2]));
  const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const {device,draws}=mockGpu(undefined,packDagSelection(collected.roots));
  const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async url=>fixture.indices.get(url)!,gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
  const render=()=>{draws.length=0;backend.render(camera());};
  try{
@@ -1216,7 +1237,7 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
  const primitive={...b.metadata.primitives[0],mesh:1,pages:b.metadata.primitives[0].pages.map(page=>({...page,url:'b'+page.url}))};
  const fixture={...a,metadata:{primitives:[...a.metadata.primitives,primitive]},indices:new Map([...a.indices,...[...b.indices].map(([url,bytes])=>['b'+url,bytes] as const)]),associations:new Map([...a.associations,[mesh,{meshes:1,primitives:0}]])};
  const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const {device,draws}=mockGpu(undefined,packDagSelection(collected.roots));
  const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:4,viewport:[32,32]});
  const cam=camera();
  try{
@@ -1230,6 +1251,6 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
    }
    assert.deepEqual(backend.selectedPageIds().sort(),x?['b0','b1']:['0','1']);
   }
-  assert.ok(backend.metrics().pageEvictions!>0);
+  assert.ok(backend.metrics().cacheEvictions!>0);
  }finally{await backend.dispose();a.geometry.dispose();a.material.dispose();b.geometry.dispose();b.material.dispose();}
 });

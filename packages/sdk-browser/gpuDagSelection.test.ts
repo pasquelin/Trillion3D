@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {clusterErrorPixels,maxStretch,type ClusterManifest} from '../sdk-core/index.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {cameraSelectionUniforms} from './gpuSelection.ts';
-import {evaluateDagSelectionKernel,packDagSelection,rootsAreFlat,DAG_SELECTION_SHADER} from './gpuDagSelection.ts';
+import {createGpuDagSelection,evaluateDagSelectionKernel,packDagSelection,DAG_SELECTION_SHADER,type PackedDag} from './gpuDagSelection.ts';
 
 /** Four source triangles in a row, replaced by two mid clusters, then by one root. */
 function dagFixture(){
@@ -26,7 +26,12 @@ function dagFixture(){
   {id:5,url:'mid-right',sha256:'mid-right',bytes:12,count:3,min:[0,-.5,0],max:[2,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:rightSphere,parentError:rootError,parentSphere:rootSphere},
   {id:6,url:'root',sha256:'root',bytes:12,count:3,min:[-2,-.5,0],max:[2,.5,0],role:'coarse' as const,level:2,lodError:rootError,sphere:rootSphere,parentError:null,parentSphere:null},
  ];
- const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',clusterStrategy:'dag-groups' as const,pages,hierarchy:null}]} as unknown as ClusterManifest;
+ const structure={version:1,roots:[6],groups:[
+  {level:1,error:midError,sphere:leftSphere,children:[0,1],outputs:[4]},
+  {level:1,error:midError,sphere:rightSphere,children:[2,3],outputs:[5]},
+  {level:2,error:rootError,sphere:rootSphere,children:[4,5],outputs:[6]},
+ ]};
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',clusterStrategy:'dag-groups' as const,pages,structure}]} as unknown as ClusterManifest;
  const indices=new Map<string,Uint32Array>(pages.map(page=>[page.url,new Uint32Array([0,1,2])]));
  for(let id=0;id<4;id++)indices.set(`leaf${id}`,new Uint32Array([id*3,id*3+1,id*3+2]));
  return {geometry,mesh,source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]])};
@@ -46,7 +51,6 @@ const VIEWPORT:[number,number]=[1280,720];
 function wideCamera(){const cam=new THREE.PerspectiveCamera(55,16/9,.1,1000);cam.position.set(0,0,5);cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;}
 function packed(fixture:ReturnType<typeof dagFixture>){
  const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- assert.ok(rootsAreFlat(roots),'the fixture must produce a flat cut');
  return {roots,dag:packDagSelection(roots)};
 }
 function kernelUrls(fixture:ReturnType<typeof dagFixture>,pixelError:number,cam:THREE.PerspectiveCamera,resident?:Uint32Array,field:'pageIds'|'drawablePageIds'='pageIds'){
@@ -120,4 +124,175 @@ test('a missing cluster is replaced by its nearest resident ancestor, not by the
  assert.equal(result.complete,true);
  assert.ok(!drawn.includes('root'),'the pinned cover is the last resort, not the first');
  fixture.geometry.dispose();
+});
+
+function installGpuGlobals(){
+ Object.assign(globalThis,{
+  GPUBufferUsage:{MAP_READ:1,MAP_WRITE:2,COPY_SRC:4,COPY_DST:8,INDEX:16,VERTEX:32,UNIFORM:64,STORAGE:128,INDIRECT:256,QUERY_RESOLVE:512},
+  GPUShaderStage:{VERTEX:1,FRAGMENT:2,COMPUTE:4},
+  GPUMapMode:{READ:1,WRITE:2},
+ });
+}
+
+/** Replays the WGSL kernel on the CPU behind a WebGPU device shape, so the buffer plumbing —
+ *  uniform writes, the readback ring, the drawable mask — is exercised without a real adapter. */
+function mockDagDevice(packed:PackedDag,options:{failMap?:boolean;mapGate?:Promise<void>}={}){
+ type Buf={size:number;usage:number;data:Uint8Array};
+ let bind:{entries:Array<{binding:number;resource:{buffer:Buf}}>}|undefined;
+ let pipeline:{entryPoint:string}|undefined,uniformWriteCount=0;
+ const readUniforms=(data:Uint8Array)=>{
+  const f32=new Float32Array(data.buffer,data.byteOffset,data.byteLength/4);
+  const u32=new Uint32Array(data.buffer,data.byteOffset,data.byteLength/4);
+  return {uniforms:{planes:f32.slice(0,24),view:f32.slice(24,40),pixelScale:[f32[40],f32[41]] as [number,number],
+   pixelError:f32[42],near:f32[43],cameraWorld:[f32[48],f32[49],f32[50]] as [number,number,number],cameraStretch:f32[51]},residentCut:!!u32[47]};
+ };
+ const device={
+  limits:{maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},
+  createBuffer:({size,usage}:{size:number;usage:number})=>({size,usage,data:new Uint8Array(size),destroy(){},
+   mapAsync:async function(this:Buf){if(options.failMap)throw new Error('MAP_FAILED');await options.mapGate;},
+   getMappedRange:function(this:Buf){return this.data.buffer;},unmap(){}}),
+  createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
+  createBindGroupLayout:()=>({}),
+  createPipelineLayout:()=>({}),
+  createComputePipeline:({compute}:{compute:{entryPoint:string}})=>compute,
+  createBindGroup:(desc:typeof bind)=>{if(!desc||desc.entries.length!==9)throw new Error('dag selection bind group requires 9 entries');bind=desc;return desc;},
+  createCommandEncoder:()=>({
+   beginComputePass:()=>({
+    setPipeline(next:{entryPoint:string}){pipeline=next;},
+    setBindGroup(_i:number,group:typeof bind){bind=group;},
+    dispatchWorkgroups(){
+     // The whole kernel is replayed once, on its last stage; the earlier stages still have to run.
+     if(pipeline?.entryPoint!=='dagMask'||!bind)return;
+     const byBinding=new Map(bind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
+     const {uniforms,residentCut}=readUniforms(byBinding.get(2)!.data);
+     const resident=residentCut?Uint32Array.from({length:packed.pageCount},(_,id)=>packed.pageCones[id*12+11]):undefined;
+     const result=evaluateDagSelectionKernel(packed,uniforms,resident);
+     const out=byBinding.get(4)!.data;
+     const ints=new Uint32Array(out.buffer,out.byteOffset,out.byteLength/4);
+     ints.fill(0);
+     ints[0]=result.pageIds.length;ints[1]=result.frustumRejected;ints[2]=result.lodLevel;ints[3]=result.complete===false?2:0;
+     ints.set(result.pageIds,4);
+     const flags=new Uint32Array(byBinding.get(3)!.data.buffer);flags.fill(0,packed.nodeCount);
+     for(const id of result.drawablePageIds??[])flags[packed.nodeCount+id]=1;
+    },
+    end(){},
+   }),
+   copyBufferToBuffer(src:Buf,s:number,dst:Buf,d:number,size:number){dst.data.set(src.data.subarray(s,s+size),d);},
+   finish:()=>({}),
+  }),
+  queue:{
+   writeBuffer(buffer:Buf,offset:number,data:BufferSource){
+    const bytes=data instanceof ArrayBuffer?new Uint8Array(data):new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset,(data as ArrayBufferView).byteLength);
+    buffer.data.set(bytes,offset);
+    if(buffer.size===256)uniformWriteCount++;
+   },
+   submit(){},
+   onSubmittedWorkDone:async()=>{},
+  },
+ };
+ return {device:device as unknown as GPUDevice,uniformWrites:()=>uniformWriteCount};
+}
+
+test('a device without compute pipelines keeps the CPU cut by not creating GPU selection',async()=>{
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const device={limits:{maxBufferSize:1<<20},createBuffer(){throw new Error('should not allocate');}} as unknown as GPUDevice;
+ assert.equal(await createGpuDagSelection(device,dag),undefined);
+ fixture.geometry.dispose();
+});
+
+test('an empty cluster set does not allocate a GPU selection',async()=>{
+ installGpuGlobals();
+ const dag=packDagSelection([]);
+ assert.equal(dag.pageCount,0);
+ assert.equal(await createGpuDagSelection(mockDagDevice(dag).device,dag),undefined);
+});
+
+test('GPU selection readback page ids match the CPU oracle for the same camera',async()=>{
+ installGpuGlobals();
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const cam=wideCamera();
+ const selection=await createGpuDagSelection(mockDagDevice(dag).device,dag);
+ assert.ok(selection);
+ selection.dispatch(cameraSelectionUniforms(cam,3.4,VIEWPORT));
+ const gpu=await selection.flush();
+ assert.ok(gpu);
+ assert.deepEqual(gpu.pageIds.map(id=>dag.pageUrls[id]).sort(),cpuUrls(fixture,3.4,cam));
+ assert.equal(selection.peek()?.uniforms.pixelError,3.4);
+ selection.dispose();fixture.geometry.dispose();
+});
+
+test('unchanged uniforms skip a second GPU dispatch',async()=>{
+ installGpuGlobals();
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const {device,uniformWrites}=mockDagDevice(dag);
+ const selection=await createGpuDagSelection(device,dag);assert.ok(selection);
+ const uniforms=cameraSelectionUniforms(wideCamera(),0,VIEWPORT);
+ selection.dispatch(uniforms);await selection.flush();
+ const afterFirst=uniformWrites();
+ selection.dispatch(uniforms);await selection.flush();
+ assert.equal(uniformWrites(),afterFirst);
+ selection.dispose();fixture.geometry.dispose();
+});
+
+test('updating an instance world matrix invalidates the old GPU cut',async()=>{
+ installGpuGlobals();
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const selection=await createGpuDagSelection(mockDagDevice(dag).device,dag);assert.ok(selection);
+ const uniforms=cameraSelectionUniforms(wideCamera(),0,VIEWPORT);
+ selection.dispatch(uniforms);assert.equal((await selection.flush())?.pageIds.length,4);
+ const moved=dag.worlds.slice();moved[12]=1000;
+ assert.equal(selection.updateWorlds(moved),true);assert.equal(selection.peek(),null);
+ selection.dispatch(uniforms);assert.equal((await selection.flush())?.pageIds.length,0);
+ selection.dispose();fixture.geometry.dispose();
+});
+
+test('the resident mask recomputes for residency changes with an unchanged camera',async()=>{
+ installGpuGlobals();
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const {device,uniformWrites}=mockDagDevice(dag);
+ const selection=await createGpuDagSelection(device,dag,{residentCut:true});assert.ok(selection);
+ const uniforms=cameraSelectionUniforms(wideCamera(),0,VIEWPORT);
+ const mask=()=>[...new Uint32Array((selection.maskBuffer as unknown as {data:Uint8Array}).data.buffer).slice(selection.maskOffset)]
+  .flatMap((flag,id)=>flag?[dag.pageUrls[id]]:[]).sort();
+ selection.updateResidency(Uint32Array.from(dag.pageUrls.map(url=>url==='root'?1:0)));
+ selection.dispatch(uniforms);
+ assert.deepEqual((await selection.flush())?.drawablePageIds?.map(id=>dag.pageUrls[id]),['root']);
+ assert.deepEqual(mask(),['root']);
+ selection.updateResidency(new Uint32Array(dag.pageCount).fill(1));
+ assert.equal(selection.peek(),null);
+ selection.dispatch(uniforms);
+ assert.deepEqual((await selection.flush())?.drawablePageIds?.map(id=>dag.pageUrls[id]).sort(),['leaf0','leaf1','leaf2','leaf3']);
+ assert.equal(uniformWrites(),2);
+ assert.deepEqual(mask(),['leaf0','leaf1','leaf2','leaf3']);
+ selection.dispose();fixture.geometry.dispose();
+});
+
+test('a failed readback marks GPU selection dead',async()=>{
+ installGpuGlobals();
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const selection=await createGpuDagSelection(mockDagDevice(dag,{failMap:true}).device,dag);assert.ok(selection);
+ selection.dispatch(cameraSelectionUniforms(wideCamera(),0,VIEWPORT));
+ assert.equal(await selection.flush(),null);
+ assert.equal(selection.failed(),true);
+ assert.equal(selection.peek(),null);
+ selection.dispose();fixture.geometry.dispose();
+});
+
+test('readback from an older resident cut cannot restore an invalidated drawable mask',async()=>{
+ installGpuGlobals();let release!:()=>void;
+ const gate=new Promise<void>(resolve=>{release=resolve;});
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const selection=await createGpuDagSelection(mockDagDevice(dag,{mapGate:gate}).device,dag,{residentCut:true});assert.ok(selection);
+ selection.updateResidency(Uint32Array.from(dag.pageUrls.map(url=>url==='root'?1:0)));
+ selection.dispatch(cameraSelectionUniforms(wideCamera(),0,VIEWPORT));
+ selection.updateResidency(new Uint32Array(dag.pageCount).fill(1));
+ release();assert.equal(await selection.flush(),null);assert.equal(selection.peek(),null);
+ selection.dispose();fixture.geometry.dispose();
 });

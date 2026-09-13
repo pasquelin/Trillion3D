@@ -6,7 +6,7 @@ This standalone repository builds ESM JavaScript and TypeScript declarations int
 |---|---|---|
 | `sdk-core` | versioned contracts, jobs/progress/cancellation, image comparison, statistics and paths | pure TypeScript, no DOM/platform/UI imports |
 | `sdk-browser` | `createExplorer`, `runCameraPath`, backend factories | Three.js WebGL adapter; WebGPU page cache plus optional page raster (`webgpu-page-raster`) with GPU frustum + `lodScore` compute, visibility buffer, source-material second pass and this-frame GPU Hi-Z; DOM, loading and controls live here |
-| `page-codec` | `encodeGeometryPage(indices,attributes)` | reference `.wgpg` encoder; exists so the browser decoder is tested against a second implementation, not a production path |
+| `page-codec` | `encodeGeometryPage(indices,attributes)` | reference geometry-page encoder; exists so the browser decoder is tested against a second implementation, not a production path |
 | `sdk-node` | `prepare`, `createCompilationJob`, CLI | native process/job adapter and its filesystem boundary |
 | `packages/asset-compiler-rust` | Rust `compile(options,progress)` and binary | native glTF import, cluster DAG, culling hierarchy, streaming bundles with shared pinned objects, binary manifest sidecar, SHA-addressed pages, Rayon pool |
 
@@ -52,7 +52,7 @@ Public entry points compile and import in tests. JavaScript and declarations are
 
 `createSafetyPolicy` accepts comparable measured reference/candidate costs, explicit caller budgets, minimum sample counts, hysteresis ratios and a minimum switching period. It starts at baseline, refuses invalid/incomparable evidence and trips immediately for errors, OOM, device loss, quality failures, memory pressure or measured thrashing. This is a decision policy, not an automatic measurement producer: callers must supply real measurements and the same context/quality key. No threshold is claimed to be experimentally calibrated by the SDK.
 
-`detectCapabilities('webgl',canvas)` never touches WebGPU. WebGPU probing is a separate explicit path. The explorer currently selects the compatible WebGL baseline and exposes `applySafetyDecision` for a measured policy decision. Its prepared reference can replace a failing optimization in the same render call. During measurement a failure rejects the campaign rather than silently recording baseline work under the candidate label.
+`detectCapabilities('webgl',canvas)` never touches WebGPU. WebGPU probing is a separate explicit path. The explorer currently selects the compatible WebGL baseline. Its prepared reference can replace a failing optimization in the same render call. During measurement a failure rejects the campaign rather than silently recording baseline work under the candidate label.
 
 Normal UX must remain silent on recovered fallbacks. Versioned `RuntimeEvent` messages for capability negotiation, optimization and recovered errors have `audience:'diagnostic'`; route them to telemetry or an explicitly enabled developer view. `userNotice(event)` returns no notice for these. Only unrecoverable fatal events produce a localizable `scene-unavailable` / retry action, never low-level backend/driver text. No modal, console warning or DOM message is emitted by the SDK.
 

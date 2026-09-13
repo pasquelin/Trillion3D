@@ -236,7 +236,7 @@ mod tests {
   page["parentError"]=json!(0.25);page["parentSphere"]=json!([1.,2.,3.,4.]);
   page["group"]=json!(0);page["source"]=Value::Null;page["stream"]=json!(0);page["streamOffset"]=json!(0);
   let mut geometry=json!({"bytes":32,"formatVersion":2,"codec":"meshopt","vertexCount":8,"indexCount":12,"flags":1,"uncompressedBytes":128});
-  geometry["url"]=json!(format!("../../objects/{}.wgpg",sha('b')));geometry["sha256"]=json!(sha('b'));
+  geometry["url"]=json!(format!("../../objects/{}.bin",sha('b')));geometry["sha256"]=json!(sha('b'));
   page["geometry"]=geometry;page
  }
  fn coarse_page()->Value{
@@ -248,7 +248,7 @@ mod tests {
  }
  fn sample()->Value{
   let mut bundle=json!({"bytes":96,"count":2});
-  bundle["url"]=json!(format!("../../objects/{}.wgsb",sha('c')));bundle["sha256"]=json!(sha('c'));
+  bundle["url"]=json!(format!("../../objects/{}.bin",sha('c')));bundle["sha256"]=json!(sha('c'));
   let mut primitive=json!({"mesh":0,"primitive":0,"pass":"exact-clusters","hierarchy":Value::Null});
   primitive["culling"]=json!({"stride":crate::CULLING_STRIDE,"count":1,"nodes":vec![0.5;crate::CULLING_STRIDE]});
   primitive["structure"]=json!({"version":1,"roots":[1],"groups":[{"level":1,"error":0.25,"sphere":[1.,2.,3.,4.],"children":[0],"outputs":[1]}]});
@@ -258,7 +258,7 @@ mod tests {
  }
  #[test]
  fn columns_declare_their_own_offsets_and_lengths(){
-  let templates=Templates{binary:"clusters.bin",page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.wgpg",bundle:"../../objects/{sha}.wgsb"};
+  let templates=Templates{binary:"clusters.bin",page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.bin",bundle:"../../objects/{sha}.bin"};
   let (slim,bytes)=split(&sample(),&templates).expect("split");
   assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()),MANIFEST_BINARY_MAGIC);
   assert_eq!(u32::from_le_bytes(bytes[4..8].try_into().unwrap()),MANIFEST_BINARY_VERSION);
@@ -289,7 +289,7 @@ mod tests {
  fn a_url_that_leaves_the_template_is_refused(){
   let mut manifest=sample();
   manifest["primitives"][0]["pages"][0]["url"]=json!("pages/0.bin");
-  let templates=Templates{binary:"clusters.bin",page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.wgpg",bundle:"../../objects/{sha}.wgsb"};
+  let templates=Templates{binary:"clusters.bin",page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.bin",bundle:"../../objects/{sha}.bin"};
   assert_eq!(split(&manifest,&templates).unwrap_err().code,"INVALID_MANIFEST");
  }
 }

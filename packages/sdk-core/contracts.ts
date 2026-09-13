@@ -2,8 +2,6 @@ export const SDK_VERSION='0.1.0';
 export const FORMAT_VERSION=1;
 /** Outer cache format required for clustered BLEND; source manifests remain format 1. */
 export const CLUSTERED_BLEND_FORMAT_VERSION=2;
-/** Cache identity for the conservative object-space LOD distance bound and boundary validation. */
-export const LOD_ERROR_MODEL='bounds-diagonal-boundary-v1';
 /** Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere. */
 export const DAG_ERROR_MODEL='dag-group-qem-v1';
 export const DEFAULT_SCOPE:AssetScope='slice';
@@ -15,8 +13,14 @@ export interface FrameMetrics {
  rafIntervalMs:number|null; cpuFrameMs:number; cpuSubmitMs:number|null; gpuMs:number|null; drawCalls:number; triangles:number; clusters:number|null; selectedTriangles:number|null; residentPages:number|null; submittedTriangles?:number|null;
  /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
  totalSubmittedTriangles?:number|null;
- pageEvictions?:number|null; geometryAllocationBytes:number|null; vramBytes:number|null; pageLoads:number; pageBytesRead:number;
- pagesRequested?:number|null; pagesLoading?:number|null; cacheHits?:number|null; cacheMisses?:number|null; frustumRejected?:number|null; lodLevel?:number|null; hizRejected?:number|null;
+ /** Clusters that left the drawn cut this session. A moving camera detaches clusters every frame;
+  *  this is not a cache pressure signal. Null on a backend that does not track a cut. */
+ pagesDetached?:number|null;
+ /** Pages actually evicted from the cache that feeds the drawn geometry: the backend's own GPU page
+  *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
+ cacheEvictions?:number|null;
+ geometryAllocationBytes:number|null; vramBytes:number|null; pageLoads:number; pageBytesRead:number;
+ pagesRequested?:number|null; pagesLoading?:number|null; cacheHits?:number|null; cacheMisses?:number|null; frustumRejected?:number|null; lodLevel?:number|null;
  /** WebGPU transparent submission counters, including both draws for two-pass materials. Null when unavailable. */
  transparentMeshes?:number|null; transparentFrustumRejected?:number|null; transparentDrawCalls?:number|null; transparentSubmittedTriangles?:number|null;
  /** Complete initial GPU fallback is available; null on backends without this guarantee. */
@@ -51,7 +55,6 @@ export function pageCarriesClusterError(page:Page){
 export function primitiveUsesClusterErrors(primitive:Pick<Primitive,'pages'>){
  return primitive.pages.length>0&&primitive.pages.every(pageCarriesClusterError);
 }
-export interface Tree { min:number[];max:number[];page?:number;children?:Tree[];errorObject?:number;coarsePages?:number[] }
 /** Flat culling hierarchy over a primitive's clusters. `stride` numbers per node, node 0 is the root:
  *  min[3], max[3], sphere[4], maxParentError (-1 when the subtree holds a cluster with no
  *  replacement), firstChild, childCount, firstPage, pageCount. A leaf has childCount 0. */
@@ -64,17 +67,13 @@ export interface StreamBundle {url:string;sha256:string;bytes:number;count:numbe
 /** Streaming bundles of a primitive. The first `pinned` bundles hold exactly the root clusters,
  *  so keeping them resident guarantees a complete, if coarse, cover of the primitive. */
 export interface StreamCatalogue {version:number;pinned:number;bundleBytes:number;pages:StreamBundle[]}
-export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'exact-source-order'|'greedy-adjacency'|'dag-groups';pages:Page[];hierarchy:Tree|null;culling?:CullingHierarchy|null;structure?:ClusterStructure|null;streams?:StreamCatalogue|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
+export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'dag-groups';pages:Page[];culling?:CullingHierarchy|null;structure?:ClusterStructure|null;streams?:StreamCatalogue|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
 export interface ClusterManifest {formatVersion?:number;compilerVersion?:string;errorModel?:string;simplification?:boolean;schema:number;status:string;key:string;scope:AssetScope;clusterStrategy?:string;sourceTriangles:number;selectedTriangles:number;selectedNodes:number[];totalNodes:number;autonomousScene?:string|null;primitives:Primitive[]}
 
 export class EngineError extends Error { readonly code:string; readonly details:Record<string,unknown>; constructor(code:string,message:string,details:Record<string,unknown>={}){super(message);this.name='EngineError';this.code=code;this.details=details;} }
 export interface PageSource {read(key:string,signal?:AbortSignal):Promise<Uint8Array>}
 export function assertFormat(formatVersion:number){if(formatVersion!==FORMAT_VERSION&&formatVersion!==CLUSTERED_BLEND_FORMAT_VERSION)throw new EngineError('UNSUPPORTED_FORMAT',`Expected cache format 1 or 2, received ${formatVersion}`,{formatVersion});}
-function cacheUsesLodError(metadata:ClusterManifest){
- if(metadata.simplification)return true;
- return metadata.primitives.some(primitive=>primitive.pages.some(page=>(page.role??'exact')==='coarse')||primitive.hierarchy?.errorObject!=null);
-}
-function cacheUsesClusterErrors(metadata:ClusterManifest){return metadata.primitives.some(primitiveUsesClusterErrors);}
+
 /**
  * What a host can check on a preparation pointer, before it knows anything about clusters: the
  * preparation is finished, it carries the scope that was asked for, and its format is one this SDK
@@ -113,7 +112,11 @@ export function assertCacheReady(metadata:unknown,scope:AssetScope):number{
  if(value.clusterStrategy==='dag-groups'&&value.errorModel!==DAG_ERROR_MODEL)throw new EngineError('STALE_CACHE',`Cache error model ${value.errorModel??'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,{errorModel:value.errorModel??null,expected:DAG_ERROR_MODEL});
  return value.selectedTriangles;
 }
-/** Rejects caches compiled before the certified conservative error identity. */
+/**
+ * Rejects any cache this runtime cannot draw. The runtime reads one geometry model: a DAG of
+ * clusters where every cluster carries its own screen-error band. A cache whose clusters carry no
+ * band — the old page tree — is refused by name here rather than half-read later.
+ */
 export function assertCacheIdentity(metadata:ClusterManifest){
  // A manifest with a binary sidecar describes its clusters in columns; identity is a property of
  // the decoded pages, so decoding comes first and strips the pointer.
@@ -121,10 +124,11 @@ export function assertCacheIdentity(metadata:ClusterManifest){
  const formatVersion=metadata.formatVersion??metadata.schema;assertFormat(formatVersion);
  if(metadata.schema!==formatVersion)throw new EngineError('UNSUPPORTED_FORMAT','Cache schema and formatVersion differ',{schema:metadata.schema,formatVersion});
  if(formatVersion!==CLUSTERED_BLEND_FORMAT_VERSION&&metadata.primitives.some(primitive=>primitive.pass==='clustered-blend'))throw new EngineError('UNSUPPORTED_FORMAT','clustered-blend requires cache format 2',{formatVersion});
- const dagPages=cacheUsesClusterErrors(metadata);
- if(!dagPages&&!cacheUsesLodError(metadata))return;
- const expected=dagPages?DAG_ERROR_MODEL:LOD_ERROR_MODEL;
- if(metadata.errorModel!==expected){
-  throw new EngineError('STALE_CACHE',`Cache error model ${metadata.errorModel??'absent'} cannot be used; recompile with ${expected}`,{errorModel:metadata.errorModel??null,expected});
+ const missing=metadata.primitives.findIndex(primitive=>!primitiveUsesClusterErrors(primitive));
+ if(missing>=0){
+  const primitive=metadata.primitives[missing];
+  throw new EngineError('STALE_CACHE',`Cache without a cluster DAG cannot be used: primitive ${primitive.mesh}/${primitive.primitive} has no per-cluster error band; recompile with ${DAG_ERROR_MODEL}`,
+   {mesh:primitive.mesh,primitive:primitive.primitive,errorModel:metadata.errorModel??null,expected:DAG_ERROR_MODEL});
  }
+ if(metadata.errorModel!==DAG_ERROR_MODEL)throw new EngineError('STALE_CACHE',`Cache error model ${metadata.errorModel??'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,{errorModel:metadata.errorModel??null,expected:DAG_ERROR_MODEL});
 }

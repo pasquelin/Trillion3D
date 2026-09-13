@@ -1,11 +1,11 @@
-import {adaptivePixelError,clusterErrorPixels,lodScore,maxStretch,pageCarriesClusterError,primitiveUsesClusterErrors, type ClusterManifest, type ClusterStructure, type CullingHierarchy, type Page, type Primitive, type StreamCatalogue, type Tree} from '../sdk-core/index.ts';
+import {adaptivePixelError,clusterErrorPixels,DAG_ERROR_MODEL,EngineError,maxStretch,pageCarriesClusterError,primitiveUsesClusterErrors, type ClusterManifest, type ClusterStructure, type CullingHierarchy, type Page, type Primitive, type StreamCatalogue} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import {OPEN_CONE,coneCullsPage,type NormalCone} from './pageCone.ts';
 import {isTransmissive} from './visibilityBuffer.ts';
 
 export type PageRec = {
  id:number;url:string;clusterId:string;array?:Uint32Array;triangles:number;indexBytes:number;
- min:number[];max:number[];role?:'exact'|'coarse';errorObject?:number;
+ min:number[];max:number[];role?:'exact'|'coarse';
  /** Flat DAG cut, copied from the page. Absent on caches without a per-cluster error. */
  level?:number;lodError?:number;sphere?:number[];parentError?:number|null;parentSphere?:number[]|null;
  /** Group that replaces this cluster, and group that produced it. */
@@ -127,29 +127,21 @@ function objects(source:THREE.Object3D){
  return meshes;
 }
 
-function collectReferencedPages(node:Tree,into:Set<number>){
- if(node.page!==undefined)into.add(node.page);
- if(node.children)for(let i=0;i<node.children.length;i++)collectReferencedPages(node.children[i],into);
-}
-
-/** Keep transparent coarse replacements at their first source leaf, including multi-page replacements. */
-export function sourcePageOrders(tree:Tree|null,pageCount:number):number[]{
- const order=Array.from({length:pageCount},(_,index)=>index);
- const visit=(node:Tree):number=>{
-  let first=node.page===undefined?Infinity:(order[node.page]??Infinity);
-  if(node.children)for(const child of node.children)first=Math.min(first,visit(child));
-  if(Number.isFinite(first)&&node.coarsePages)for(let i=0;i<node.coarsePages.length;i++){
-   const id=node.coarsePages[i];if(id<order.length)order[id]=first+i/(node.coarsePages.length+1);
-  }
-  return first;
- };
- if(tree)visit(tree);
- return order;
-}
+/**
+ * One primitive instance as the selection sees it: its clusters, the world matrix that places them,
+ * its flat culling hierarchy and its group links. There is no tree — every cluster carries its own
+ * screen-error band, and the hierarchy is only a traversal accelerator.
+ */
+export type ClusterRoot<T>={
+ world:THREE.Matrix4;pages:T[];
+ culling?:{nodes:Float64Array;stride:number};worldBox?:THREE.Box3;
+ stretch?:number;stretchKey?:Float64Array;
+ structure?:ClusterStructureIndex;forced?:Uint8Array;forcedList?:number[];
+};
 
 /** Build exact-cluster page records and validate coverage. Shared by WebGL and WebGPU backends. */
 export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManifest,indices:Map<string,Uint32Array>,associations:Map<THREE.Object3D,{meshes?:number;primitives?:number}>,options:{allowMissing?:boolean}={}){
- const roots:Array<{tree:Tree;world:THREE.Matrix4;pages:PageRec[];flat?:boolean;culling?:{nodes:Float64Array;stride:number};worldBox?:THREE.Box3;stretch?:number;stretchKey?:Float64Array;structure?:ClusterStructureIndex;forced?:Uint8Array;forcedList?:number[]}>=[],allPages:PageRec[]=[],blendCopies:THREE.Mesh[]=[],bootstrap:PageRec[]=[];
+ const roots:Array<ClusterRoot<PageRec>>=[],allPages:PageRec[]=[],blendCopies:THREE.Mesh[]=[],bootstrap:PageRec[]=[];
  const structures=new Map<Primitive,ClusterStructureIndex|undefined>();
  let order=0;
  for(const mesh of objects(source)){
@@ -158,17 +150,14 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
   if(primitive.pass==='shared-blend'||isTransmissive(mesh.material)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.frustumCulled=mesh.frustumCulled;copy.renderOrder=order++;copy.userData.sourceMesh=mesh;blendCopies.push(copy);continue;}
   const sourceIndices=mesh.geometry.getIndex();if(!sourceIndices)throw new Error('Indexed source required');
   const src=sourceIndices.array as ArrayLike<number>;
-  const ordered=(primitive.clusterStrategy??(primitive.pass==='clustered-blend'?'exact-source-order':metadata.clusterStrategy)??'exact-source-order')==='exact-source-order';
   const transparent=primitive.pass==='clustered-blend'||(Array.isArray(mesh.material)?mesh.material.some(material=>material.transparent):mesh.material.transparent);
   // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
-  const sourceOrder=!transparent?undefined
-   :primitiveUsesClusterErrors(primitive)?primitive.pages.map((page,index)=>page.start??index)
-   :sourcePageOrders(primitive.hierarchy,primitive.pages.length);
+  const sourceOrder=transparent?primitive.pages.map((page,index)=>page.start??index):undefined;
   const exactPages=primitive.pages.filter(page=>(page.role??'exact')!=='coarse');
   const placement=streamPlacement(primitive.streams,primitive.pages);
   let sourceOffset=0;
   const pages=primitive.pages.map((page,pageIndex)=>{const array=indices.get(page.url);if(!array&&!options.allowMissing&&indices.size)throw new Error('Missing page');
-   if(array&&(page.role??'exact')!=='coarse'){if(ordered){for(let i=0;i<array.length;i++)if(array[i]!==src[sourceOffset++])throw new Error('Page/source index mismatch');}else sourceOffset+=array.length;}
+   if(array&&(page.role??'exact')!=='coarse')sourceOffset+=array.length;
    else if(!array&&(page.role??'exact')!=='coarse')sourceOffset+=page.count;
    const cut=clusterErrorFields(page);
    const placed=placement?.[pageIndex];
@@ -180,40 +169,26 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
   order++;
   const complete=primitive.pages.every(page=>indices.has(page.url)||(page.role??'exact')==='coarse');
   if(complete&&sourceOffset!==sourceIndices.count)throw new Error('Incomplete cluster coverage');
-  if(complete&&!ordered){
+  // The DAG reorders triangles, so coverage is a multiset identity, never an order identity.
+  if(complete){
    const count=(arr:ArrayLike<number>)=>{const map=new Map<string,number>();for(let i=0;i<arr.length;i+=3){const key=`${arr[i]},${arr[i+1]},${arr[i+2]}`;map.set(key,(map.get(key)??0)+1);}return map;};
    const fromPages=count(exactPages.flatMap(page=>[...indices.get(page.url)!]));
    const fromSource=count(src);
    if(fromPages.size!==fromSource.size)throw new Error('Incomplete cluster coverage');
    for(const [key,n] of fromSource)if(fromPages.get(key)!==n)throw new Error('Page/source index mismatch');
   }
-  if(primitiveUsesClusterErrors(primitive)){
-   if(!structures.has(primitive))structures.set(primitive,structureIndex(primitive.structure,primitive.pages.length));
-   const structure=structures.get(primitive);
-   const culling=cullingNodes(primitive.culling,pages.length);
-   const local=new THREE.Box3();
-   if(culling)local.set(new THREE.Vector3(culling.nodes[0],culling.nodes[1],culling.nodes[2]),new THREE.Vector3(culling.nodes[3],culling.nodes[4],culling.nodes[5]));
-   else for(const page of primitive.pages)local.union(new THREE.Box3(new THREE.Vector3(...page.min as [number,number,number]),new THREE.Vector3(...page.max as [number,number,number])));
-   roots.push({tree:{min:local.min.toArray(),max:local.max.toArray(),page:0},world:mesh.matrixWorld,pages,flat:true,culling,worldBox:local.clone().applyMatrix4(mesh.matrixWorld),
-    structure,forced:structure?new Uint8Array(structure.groupCount):undefined,forcedList:structure?[]:undefined});
-   // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
-   // always has something to fall back on.
-   if(structure)for(const root of structure.roots)bootstrap.push(pages[root]);
-  }else if(primitive.hierarchy){
-   const world=mesh.matrixWorld;
-   roots.push({tree:primitive.hierarchy,world,pages});
-   const referenced=new Set<number>();
-   collectReferencedPages(primitive.hierarchy,referenced);
-   for(let i=0;i<pages.length;i++){
-    const rec=pages[i];
-    if((rec.role??'exact')==='coarse')continue;
-    if(referenced.has(i)||referenced.has(rec.id))continue;
-    roots.push({tree:{min:rec.min,max:rec.max,page:0},world,pages:[rec]});
-   }
-  }else{
-   const world=mesh.matrixWorld;
-   for(const rec of pages)if((rec.role??'exact')==='exact')roots.push({tree:{min:rec.min,max:rec.max,page:0},world,pages:[rec]});
-  }
+  if(!primitiveUsesClusterErrors(primitive))throw new EngineError('STALE_CACHE',`Primitive ${primitive.mesh}/${primitive.primitive}: clusters without a DAG error band; recompile with ${DAG_ERROR_MODEL}`,{mesh:primitive.mesh,primitive:primitive.primitive,expected:DAG_ERROR_MODEL});
+  if(!structures.has(primitive))structures.set(primitive,structureIndex(primitive.structure,primitive.pages.length));
+  const structure=structures.get(primitive);
+  const culling=cullingNodes(primitive.culling,pages.length);
+  const local=new THREE.Box3();
+  if(culling)local.set(new THREE.Vector3(culling.nodes[0],culling.nodes[1],culling.nodes[2]),new THREE.Vector3(culling.nodes[3],culling.nodes[4],culling.nodes[5]));
+  else for(const page of primitive.pages)local.union(new THREE.Box3(new THREE.Vector3(...page.min as [number,number,number]),new THREE.Vector3(...page.max as [number,number,number])));
+  roots.push({world:mesh.matrixWorld,pages,culling,worldBox:local.clone().applyMatrix4(mesh.matrixWorld),
+   structure,forced:structure?new Uint8Array(structure.groupCount):undefined,forcedList:structure?[]:undefined});
+  // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
+  // always has something to fall back on.
+  if(structure)for(const root of structure.roots)bootstrap.push(pages[root]);
  }
  return {roots,allPages,blendCopies,bootstrap,requestCount:indexPageRequests(allPages),prepared:metadata.primitives.reduce((n,p)=>n+p.pages.length,0)};
 }
@@ -231,18 +206,10 @@ export function resolvePixelError(context:{pixelError?:number;lodAdaptive?:boole
  if(!context.lodAdaptive||!(base>0))return base;
  return adaptivePixelError(base,speed,Math.max(camera.far*0.05,1));
 }
-export function trimToBudget<T extends {triangles:number}>(shown:T[],cap:number){
- let selectedTriangles=0;
- for(let i=0;i<shown.length;i++)selectedTriangles+=shown[i].triangles;
- if(shown.length<=cap)return {shown,overBudget:false,visible:shown.length,selectedTriangles};
- const kept=shown.slice().sort((a,b)=>a.triangles-b.triangles).slice(0,cap);
- selectedTriangles=0;for(let i=0;i<kept.length;i++)selectedTriangles+=kept[i].triangles;
- return {shown:kept,overBudget:true,visible:kept.length,selectedTriangles};
-}
 /** The request key of a record: its streaming bundle when the cache has one, its own page otherwise. */
 export function pageRequestUrl<T extends {url:string;streamUrl?:string}>(rec:T){return rec.streamUrl??rec.url;}
 /** Numérote les clés de requête distinctes une fois pour toutes ; renvoie leur nombre. */
-export function indexPageRequests<T extends {url:string;streamUrl?:string;requestIndex?:number}>(pages:readonly T[]){
+function indexPageRequests<T extends {url:string;streamUrl?:string;requestIndex?:number}>(pages:readonly T[]){
  const byKey=new Map<string,number>();
  for(let i=0;i<pages.length;i++){
   const key=pageRequestUrl(pages[i]);let rank=byKey.get(key);
@@ -298,10 +265,11 @@ export function acceptPageArray<T extends {array?:Uint32Array;indexBytes:number;
   rec.array=view;rec.indexBytes=view.byteLength;
  }
 }
+const IDENTITY_WORLD=new THREE.Matrix4();
 const selectionScratch={frustum:new THREE.Frustum(),matrix:new THREE.Matrix4(),viewMatrix:new THREE.Matrix4(),box:new THREE.Box3(),corner:new THREE.Vector3(),viewMin:[Infinity,Infinity,Infinity] as [number,number,number],viewMax:[-Infinity,-Infinity,-Infinity] as [number,number,number],pixelScale:[1,1] as [number,number],clip:new THREE.Matrix4(),planes:new Float64Array(24),stack:new Int32Array(4096)};
 export type ClusterCut={lodError?:number;sphere?:number[];parentError?:number|null;parentSphere?:number[]|null;group?:number|null;source?:number|null};
 /** Rounds of ancestor escalation before the pinned root cover takes over; mirrors the GPU kernel. */
-export const FLAT_ESCALATION_ROUNDS=3;
+const FLAT_ESCALATION_ROUNDS=3;
 /** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`. */
 function projectedClusterError(error:number|null|undefined,sphere:ArrayLike<number>|null|undefined,offset:number,e:ArrayLike<number>,stretch:number,focal:number,near:number){
  // Exact geometry and clusters with no replacement need no projection at all, which is most of them.
@@ -317,16 +285,6 @@ function projectedClusterError(error:number|null|undefined,sphere:ArrayLike<numb
 function cutSelects(rec:ClusterCut,e:ArrayLike<number>,stretch:number,focal:number,near:number,pixelError:number){
  if(projectedClusterError(rec.lodError??0,rec.sphere,0,e,stretch,focal,near)>pixelError)return false;
  return projectedClusterError(rec.parentError,rec.parentSphere??rec.sphere,0,e,stretch,focal,near)>pixelError;
-}
-/**
- * One cut of the cluster DAG: a cluster is drawn when its own error already fits the budget and the
- * coarser cluster that would replace it does not. Errors are monotone along a chain and a root has
- * no replacement, so every surface point is covered by exactly one drawn cluster.
- */
-export function clusterCutSelects(rec:ClusterCut,viewMatrix:THREE.Matrix4,pixelScale:readonly number[],near:number,pixelError:number){
- if(!rec.sphere)return true;
- const e=viewMatrix.elements;
- return cutSelects(rec,e,maxStretch(e),Math.max(pixelScale[0],pixelScale[1]),near,pixelError);
 }
 /** Six frustum planes of `clip`, inward-facing, unnormalised: a point is inside when every ax+by+cz+d >= 0.
  *  Taken in the space `clip` maps from, so the caller never transforms a box. Allocation free. */
@@ -354,23 +312,10 @@ function boxClip(planes:Float64Array,minX:number,minY:number,minZ:number,maxX:nu
  }
  return inside;
 }
-function lodWantsCoarse(node:Tree,pixelError:number,viewMatrix:THREE.Matrix4,pixelScale:[number,number],near:number){
- if(!node.coarsePages?.length||node.errorObject==null||!(pixelError>0))return false;
- const min=node.min,max=node.max,e=viewMatrix.elements;
- const cx=(min[0]+max[0])*0.5,cy=(min[1]+max[1])*0.5,cz=(min[2]+max[2])*0.5;
- const ex=(max[0]-min[0])*0.5,ey=(max[1]-min[1])*0.5,ez=(max[2]-min[2])*0.5;
- const wcx=e[0]*cx+e[4]*cy+e[8]*cz+e[12],wcy=e[1]*cx+e[5]*cy+e[9]*cz+e[13],wcz=e[2]*cx+e[6]*cy+e[10]*cz+e[14];
- const wex=Math.abs(e[0])*ex+Math.abs(e[4])*ey+Math.abs(e[8])*ez,wey=Math.abs(e[1])*ex+Math.abs(e[5])*ey+Math.abs(e[9])*ez,wez=Math.abs(e[2])*ex+Math.abs(e[6])*ey+Math.abs(e[10])*ez;
- const {viewMin,viewMax,pixelScale:scale}=selectionScratch;
- viewMin[0]=wcx-wex;viewMin[1]=wcy-wey;viewMin[2]=-wcz-wez;
- viewMax[0]=wcx+wex;viewMax[1]=wcy+wey;viewMax[2]=-wcz+wez;
- const errorScale=Math.hypot(e[0],e[1],e[2],e[4],e[5],e[6],e[8],e[9],e[10]);
- try{return lodScore(node.errorObject,errorScale,viewMin,viewMax,pixelScale??scale,'perspective',near)<=pixelError;}catch{return false;}
-}
-
-/** CPU frustum + lodScore + cone cut. holdResident keeps a complete cover until every replacement page is loaded. */
+/** CPU cut: frustum, per-cluster screen-error band and normal cone.
+ *  `holdResident` keeps a complete cover until every replacement cluster is loaded. */
 export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:number;level?:number;min?:number[];max?:number[];cone?:NormalCone;material?:THREE.Material|THREE.Material[];array?:Uint32Array}>(
- roots:Array<{tree:Tree;world:THREE.Matrix4;pages:T[];flat?:boolean;culling?:{nodes:Float64Array;stride:number};worldBox?:THREE.Box3;stretch?:number;stretchKey?:Float64Array;structure?:ClusterStructureIndex;forced?:Uint8Array;forcedList?:number[]}>,
+ roots:ReadonlyArray<ClusterRoot<T>>,
  camera:THREE.PerspectiveCamera,
  options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean;isResident?:(page:T)=>boolean;rootFallback?:boolean;pageBudget?:number},
  into?:T[]
@@ -385,7 +330,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
  const budget=options.pageBudget&&options.pageBudget>0?options.pageBudget:0;
  let pixelError=options.pixelError??0;
  const pageResident=(rec:T)=>!hold||(options.isResident?options.isResident(rec):!!rec.array);
- const {frustum,matrix,viewMatrix,box}=selectionScratch;
+ const {frustum,matrix,viewMatrix}=selectionScratch;
  camera.updateMatrixWorld();
  frustum.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
  const width=viewport?.[0]??1,height=viewport?.[1]??1;
@@ -393,61 +338,15 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
  const shown=into??[] as T[];shown.length=0;
  const wanted:T[]=[];
  let frustumRejected=0,lodLevel=0,complete=true;
- const emit=(rec:T,world:THREE.Matrix4,fallbackMin:number[],fallbackMax:number[])=>{
-  if(coneSkipsPage(rec,world,camera,fallbackMin,fallbackMax))return;
-  rec.seen=frame;shown.push(rec);
- };
- const fallback=(node:Tree,world:THREE.Matrix4,pages:T[],depth:number,start:number)=>{
-  if(!hold||!node.coarsePages?.length)return false;
-  const recs=node.coarsePages.map(id=>pages[id]).filter((rec):rec is T=>!!rec&&pageResident(rec));
-  if(recs.length!==node.coarsePages.length)return false;
-  shown.length=start;lodLevel=Math.max(lodLevel,depth);
-  for(const rec of recs)emit(rec,world,node.min,node.max);
-  return true;
- };
- const visit=(node:Tree,world:THREE.Matrix4,pages:T[],depth:number,collectWanted:boolean):boolean=>{
-  box.min.fromArray(node.min);box.max.fromArray(node.max);box.applyMatrix4(world);if(!frustum.intersectsBox(box)){frustumRejected++;return true;}
-  const wantCoarse=lodWantsCoarse(node,pixelError,viewMatrix,selectionScratch.pixelScale,camera.near);
-  const coarseRecs=wantCoarse&&node.coarsePages?node.coarsePages.map(id=>pages[id]).filter((rec):rec is T=>!!rec):[];
-  if(wantCoarse){
-   if(collectWanted)for(let i=0;i<coarseRecs.length;i++)wanted.push(coarseRecs[i]);
-   if(coarseRecs.length===node.coarsePages!.length&&coarseRecs.every(pageResident)){
-    lodLevel=Math.max(lodLevel,depth);
-    for(let i=0;i<coarseRecs.length;i++)emit(coarseRecs[i],world,node.min,node.max);
-    return true;
-   }
-  }
-  if(node.page!==undefined){
-   const rec=pages[node.page];
-   if(!rec||coneSkipsPage(rec,world,camera,node.min,node.max))return true;
-   if(collectWanted&&!wantCoarse)wanted.push(rec);
-   if(pageResident(rec)){rec.seen=frame;shown.push(rec);return true;}
-   return fallback(node,world,pages,depth,shown.length);
-  }
-  const children=node.children;
-  if(!children?.length)return true;
-  const start=shown.length;
-  let complete=true;
-  for(let i=0;i<children.length;i++)complete=visit(children[i],world,pages,depth+1,collectWanted&&!wantCoarse)&&complete;
-  if(!complete&&fallback(node,world,pages,depth,start))return true;
-  return complete;
- };
  /**
-  * Flat cut: every cluster carries its own screen-error band, so no tree is walked for the LOD.
-  * The culling hierarchy is only a traversal accelerator: a subtree is skipped when its box is out
-  * of frustum, or when the largest replacement error it holds already fits the budget, in which case
-  * no cluster below it can pass `parentError > pixelError`. Without a hierarchy the pages are scanned.
-  * Frustum planes are taken in the primitive's own space, so no page box is ever transformed.
-  */
- /**
-  * Flat cut: every cluster carries its own screen-error band, so no tree is walked for the LOD.
+  * The cut: every cluster carries its own screen-error band, so nothing walks a tree for the LOD.
   * The culling hierarchy is only a traversal accelerator: a subtree is skipped when its box is out
   * of frustum, or when the largest replacement error it holds already fits the budget, in which case
   * no cluster below it can pass `parentError > pixelError`. Without a hierarchy the pages are scanned.
   * Frustum planes are taken in the primitive's own space, so no page box is ever transformed.
   */
  const {clip,planes,stack}=selectionScratch;
- let flatWorld=roots[0]?.world??new THREE.Matrix4(),flatStretch=1,flatFocal=1;
+ let flatWorld=roots[0]?.world??IDENTITY_WORLD,flatStretch=1,flatFocal=1;
  let flatElements:ArrayLike<number>=flatWorld.elements;
  let flatStructure:ClusterStructureIndex|undefined;
  let flatForced:Uint8Array|undefined;
@@ -606,7 +505,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
   }
  };
  const fallbackQueue:T[]=[];
- const selectFlat=(root:{world:THREE.Matrix4;pages:T[];culling?:{nodes:Float64Array;stride:number};stretch?:number;stretchKey?:Float64Array;structure?:ClusterStructureIndex;forced?:Uint8Array;forcedList?:number[]})=>{
+ const selectFlat=(root:ClusterRoot<T>)=>{
   const pages=root.pages;
   flatWorld=root.world;flatElements=viewMatrix.elements;
   flatStretch=worldStretch(root)*cameraStretch;
@@ -657,10 +556,9 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
   shown.length=0;wanted.length=0;frustumRejected=0;lodLevel=0;complete=true;
   for(const root of roots){
    // A whole instance out of frustum costs one box test, not one matrix setup.
-   if(root.flat&&root.worldBox&&!frustum.intersectsBox(root.worldBox)){frustumRejected++;continue;}
+   if(root.worldBox&&!frustum.intersectsBox(root.worldBox)){frustumRejected++;continue;}
    viewMatrix.multiplyMatrices(camera.matrixWorldInverse,root.world);
-   if(root.flat){selectFlat(root);continue;}
-   complete=visit(root.tree,root.world,root.pages,1,true)&&complete;
+   selectFlat(root);
   }
  };
  sweep();
@@ -676,23 +574,13 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
 }
 
 /** Camera-independent minimal complete cover. Shared page URLs may serve multiple instances.
- *  For a flat DAG root the cover is the set of clusters that have no replacement. */
-export function rootCoverage<T extends {url:string;parentError?:number|null}>(roots:Array<{tree:Tree;pages:T[];flat?:boolean}>):T[]{
+ *  The cover is the set of clusters no other cluster replaces. */
+export function rootCoverage<T extends {url:string;parentError?:number|null}>(roots:ReadonlyArray<{pages:T[]}>):T[]{
  const unique=new Map<string,T>();
- const visit=(node:Tree,pages:T[])=>{
-  const ids=node.coarsePages?.length?node.coarsePages:node.page!==undefined?[node.page]:undefined;
-  if(ids){for(const id of ids){const page=pages[id];if(!page)throw new Error('INVALID_ROOT_COVERAGE');unique.set(page.url,page);}return;}
-  if(!node.children?.length)throw new Error('INVALID_ROOT_COVERAGE');
-  for(const child of node.children)visit(child,pages);
- };
  for(const root of roots){
-  if(root.flat){
-   let found=0;
-   for(const page of root.pages)if(page.parentError==null){unique.set(page.url,page);found++;}
-   if(!found)throw new Error('INVALID_ROOT_COVERAGE');
-   continue;
-  }
-  visit(root.tree,root.pages);
+  let found=0;
+  for(const page of root.pages)if(page.parentError==null){unique.set(page.url,page);found++;}
+  if(!found)throw new Error('INVALID_ROOT_COVERAGE');
  }
  return [...unique.values()];
 }

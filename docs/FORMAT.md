@@ -6,9 +6,11 @@ This is the on-disk contract implemented today. Design documents under [`vision/
 
 | Pointer | Payload |
 |---|---|
-| `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json`, `clusters.bin`, `source.gltf`, `source.bin`, and SHA-addressed objects under `native/objects/`: `<digest>.bin` index pages, `<digest>.wgpg` geometry pages, `<digest>.wgsb` streaming bundles |
+| `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json`, `clusters.bin`, `source.gltf`, `source.bin`, and SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
+
+Every served object carries the `.bin` extension and every object name is the SHA-256 of its content. A static file server needs no extension mapping, no MIME configuration and no rule of its own: `application/octet-stream` for `.bin` is what servers already do. The manifest names each object in full, so the extension carries no meaning the reader depends on.
 
 ## Pointer
 
@@ -33,11 +35,10 @@ Required fields consumed by the browser adapter:
 - `status` — `ready`
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes`
-- `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, hierarchy, culling, structure, streams, dag, topology }`
+- `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
-  - `hierarchy` is `null`. A cluster that carries its own screen-error band needs no tree; the reader still accepts the pair-tree hierarchy of caches compiled before the DAG.
-  - `errorModel` is `dag-group-qem-v1`. A cache with coarse pages and no error model is rejected (`STALE_CACHE`) so a host recompiles; `bounds-diagonal-boundary-v1` identifies the older pair-tree model, which the reader still accepts and the compiler no longer produces.
+  - `errorModel` is `dag-group-qem-v1`, the one model this runtime reads. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl }`, the descriptor of the [binary sidecar](#clustersbin). Absent from caches compiled before the sidecar, which carry every array inline; the reader accepts both.
 
@@ -63,7 +64,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 - `source` — index of the group that produced it, `null` at level 0
 - `start` — offset of the earliest source index this cluster descends from, which restores a transparent draw order
 - `stream` / `streamOffset` — streaming bundle holding this cluster and its byte offset inside it
-- `geometry` — the optional independently decodable `.wgpg` page described under [Pages](#pages)
+- `geometry` — the optional independently decodable geometry page described under [Pages](#pages)
 
 `structure` — `{ version, roots, groups[] }`. `roots` lists the clusters nothing replaces. Each group is `{ level, error, sphere, children, outputs }`, where `children` and `outputs` cover the same surface and are never both drawn.
 
@@ -81,13 +82,13 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 ## Pages
 
-Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A `.wgsb` streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
+Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
 Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable `meshopt` page with `formatVersion: 2`, URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate. This geometry-page version is independent of the outer cache version: the optional field and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 2. An autonomous reader rejects missing or unknown geometry-page versions. The legacy index pages remain available for existing backends.
 
 The geometry-page header is eight little-endian `u32` values: magic `WGP2` (`0x32504757`), version `2`, local vertex count, local index count, attribute flags, vertex stride `72`, compressed index byte count and compressed vertex byte count. The payload contains a meshoptimizer triangle index stream followed by a meshoptimizer vertex stream. Indices are local `u16` values. Vertices contain float32 POSITION, then optional NORMAL, TEXCOORD_0, TANGENT, TEXCOORD_1 and COLOR_0 at fixed offsets; absent attributes occupy zeroed slots. COLOR_0 RGB is extended with alpha 1. The data is lossless at float32 precision; integer normalized glTF attributes are converted to float32 according to glTF normalization before encoding. This does not quantize positions or guarantee a geometric error bound.
 
-When every selected primitive has autonomous pages, the compiler also publishes `scene.gltf` and `scene.bin`. This light glTF retains node transforms, material declarations and images but replaces geometry accessors with a dummy triangle; the browser's `autonomousGeometry: true` backend builds real meshes only from verified `.wgpg` pages. It does not request the complete `source.bin` geometry. Embedded images and external textures are still loaded by glTFLoader at preparation time; progressive texture admission and transparent autonomous pages are not implemented. The initial complete root cover is loaded before the explorer becomes ready. `maxResidentPages` counts displayed page instances, while the streamer deduplicates URL transfers; neither limit measures physical VRAM or total application memory.
+When every selected primitive has autonomous pages, the compiler also publishes `scene.gltf` and `scene.bin`. This light glTF retains node transforms, material declarations and images but replaces geometry accessors with a dummy triangle; the browser's `autonomousGeometry: true` backend builds real meshes only from verified geometry pages. It does not request the complete `source.bin` geometry. Embedded images and external textures are still loaded by glTFLoader at preparation time; progressive texture admission and transparent autonomous pages are not implemented. The initial complete root cover is loaded before the explorer becomes ready. `maxResidentPages` counts displayed page instances, while the streamer deduplicates URL transfers; neither limit measures physical VRAM or total application memory.
 
 ## Source glTF
 

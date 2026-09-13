@@ -15,84 +15,12 @@ export function dot(left: readonly number[], right: readonly number[]): number {
   return sum;
 }
 
-/** Majoration garantie de l'erreur projetée en pixels issue de la norme de la Jacobienne. */
-export function projectedErrorBound(
-  error: number,
-  minimum: readonly number[],
-  maximum: readonly number[],
-  focal: readonly number[],
-  near = 0.01
-): number {
-  if (minimum.length !== 3 || maximum.length !== 3 || focal.length !== 2) {
-    throw new Error('Dimensions de projection invalides');
-  }
-  const min0 = minimum[0], min1 = minimum[1], min2 = minimum[2];
-  const max0 = maximum[0], max1 = maximum[1], max2 = maximum[2];
-  const f0 = focal[0], f1 = focal[1];
-  if (
-    error < 0 ||
-    !Number.isFinite(error) ||
-    !Number.isFinite(near) ||
-    !Number.isFinite(min0) || !Number.isFinite(min1) || !Number.isFinite(min2) ||
-    !Number.isFinite(max0) || !Number.isFinite(max1) || !Number.isFinite(max2) ||
-    !Number.isFinite(f0) || !Number.isFinite(f1)
-  ) {
-    throw new Error('Valeur invalide');
-  }
-  if (min0 > max0 || min1 > max1 || min2 > max2 || near <= 0) {
-    throw new Error('Boite ou plan proche invalide');
-  }
-  if (min2 <= near) {
-    return Infinity;
-  }
-  const t0 = Math.max(Math.abs(min0), Math.abs(max0));
-  const t1 = Math.max(Math.abs(min1), Math.abs(max1));
-  const transverseSquared = t0 * t0 + t1 * t1;
-  const maxFocal = Math.max(Math.abs(f0), Math.abs(f1));
-  return ((error * maxFocal) / min2) * Math.sqrt(1 + transverseSquared / (min2 * min2));
-}
-
-/** Screen-pixel LOD score from the stored conservative object-space distance bound. */
-export function lodScore(
-  errorObject: number,
-  errorScale: number,
-  minimum: readonly number[],
-  maximum: readonly number[],
-  pixelScale: readonly number[],
-  projection: 'perspective' | 'orthographic',
-  near: number
-): number {
-  if (
-    !Number.isFinite(errorObject) || errorObject < 0 ||
-    !Number.isFinite(errorScale) || errorScale < 0 ||
-    !Number.isFinite(near) || near < 0 ||
-    pixelScale.length !== 2 ||
-    !Number.isFinite(pixelScale[0]) || pixelScale[0] <= 0 ||
-    !Number.isFinite(pixelScale[1]) || pixelScale[1] <= 0
-  ) {
-    throw new Error('Parametres LOD invalides');
-  }
-  const errorView = errorObject * errorScale;
-  if (!Number.isFinite(errorView)) {
-    throw new Error('Erreur transformee hors domaine');
-  }
-  if (projection === 'orthographic') {
-    return errorView * Math.max(pixelScale[0], pixelScale[1]);
-  }
-  if (projection === 'perspective') {
-    return projectedErrorBound(errorView, minimum, maximum, pixelScale, near);
-  }
-  throw new Error('Projection inconnue');
-}
-
 /**
  * Largest factor by which a 3x3 linear map can stretch a distance: its largest singular value,
  * obtained in closed form from the symmetric matrix A^T A. A rotation reports exactly 1.
  *
- * `lodScore` callers pass the Frobenius norm of the same block instead, which is an upper bound but
- * reports sqrt(3) for a rotation and so refines as if the pixel budget were 1.73 times smaller.
- * The cluster cut uses this exact stretch instead; `lodScore`'s own convention is left untouched so
- * the hierarchy error model keeps its published identity.
+ * The cluster cut projects every screen error through this exact stretch, so a rotated instance is
+ * refined against the pixel budget it actually asks for.
  *
  * `elements` is a column-major 4x4 as stored by a 3D library: indices 0,1,2 / 4,5,6 / 8,9,10.
  */
@@ -129,7 +57,7 @@ export function maxStretch(elements: readonly number[]): number {
  * is stretched by the same factor as the error.
  */
 export function clusterErrorPixels(
-  errorObject: number,
+  clusterError: number,
   stretch: number,
   centreX: number,
   centreY: number,
@@ -138,10 +66,10 @@ export function clusterErrorPixels(
   focal: number,
   near: number
 ): number {
-  if (errorObject === 0) return 0;
-  if (errorObject === Infinity) return Infinity;
+  if (clusterError === 0) return 0;
+  if (clusterError === Infinity) return Infinity;
   if (
-    !Number.isFinite(errorObject) || errorObject < 0 ||
+    !Number.isFinite(clusterError) || clusterError < 0 ||
     !Number.isFinite(stretch) || stretch < 0 ||
     !Number.isFinite(radius) || radius < 0 ||
     !Number.isFinite(focal) || focal <= 0 ||
@@ -152,7 +80,7 @@ export function clusterErrorPixels(
   }
   const distance = Math.sqrt(centreX * centreX + centreY * centreY + centreZ * centreZ) - radius * stretch;
   if (!(distance > near)) return Infinity;
-  return (errorObject * stretch * focal) / distance;
+  return (clusterError * stretch * focal) / distance;
 }
 
 /** Rejet de cône normal pour le culling de faces arrière. */

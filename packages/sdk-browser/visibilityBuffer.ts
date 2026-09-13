@@ -7,7 +7,7 @@ export const VIS_INVALID=0;
 /**
  * Visibility identifier layout: `(pageRow + 1) << 8 | triangleIndex`, zero meaning background.
  *
- * A page is one cluster, and a cluster holds at most 128 triangles in a DAG cache and 256 in a tree
+ * A page is one cluster, and a cluster holds at most 128 triangles in a DAG cache and 256 in an older
  * cache, so eight bits index a triangle and the twenty-four remaining bits address the page. That is
  * 16.7 M pages instead of the 65 535 a 16/16 split allowed, which a scene replicated a few times
  * exhausts immediately.

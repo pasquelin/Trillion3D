@@ -9,7 +9,7 @@ export function createGpuPageCache(device:GPUDevice,source:PageSource,options:{p
  const buffer=device.createBuffer({size,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
  const resident=new Map<string,ResidentPage>(),pins=new Set<string>(),free=Array.from({length:slots},(_,i)=>i),staging=new Uint8Array(pageBytes),abort=new AbortController();
  const fetches=new Map<string,Promise<Uint8Array>>();
- let pending:Promise<unknown>=Promise.resolve(),disposed=false,generation=0,bytesRead=0,uploadedBytes=0,evictions=0,drawDetaches=0;
+ let pending:Promise<unknown>=Promise.resolve(),disposed=false,generation=0,bytesRead=0,uploadedBytes=0,evictions=0;
  const report=typeof options.onDiagnostic==='function'?options.onDiagnostic:undefined;
  const emit=(phase:string,message:string,context:()=>Record<string,unknown>)=>{
   if(!report)return;
@@ -55,7 +55,7 @@ export function createGpuPageCache(device:GPUDevice,source:PageSource,options:{p
    }finally{if(abortListener)signal?.removeEventListener('abort',abortListener);fetches.delete(key);}});pending=operation.catch(()=>{});return operation;},
   get(key:string){return resident.get(key);},pin(key:string){check();const page=resident.get(key);if(!page){emit('gpu-page-pin-refused','Épinglage GPU refusé',()=>({version:1,key,reason:'not-resident'}));throw new Error('PAGE_NOT_RESIDENT');}const changed=!pins.has(key);pins.add(key);if(changed)emit('gpu-page-pin','Page GPU épinglée',()=>({version:1,key,slot:page.slot,generation:page.generation,changed,pinned:pins.size}));},unpin(key:string){const changed=pins.delete(key);if(changed)emit('gpu-page-unpin','Épinglage GPU retiré',()=>({version:1,key,changed,pinned:pins.size}));},
   unload(key:string){const page=resident.get(key);if(!page){emit('gpu-page-unload-refused','Déchargement GPU refusé',()=>({version:1,key,reason:'not-resident'}));return false;}if(pins.has(key)){emit('gpu-page-unload-refused','Déchargement GPU refusé',()=>({version:1,key,slot:page.slot,generation:page.generation,reason:'pinned'}));return false;}resident.delete(key);free.push(page.slot);evictions++;emit('gpu-page-eviction','Page retirée de la résidence GPU',()=>({version:1,key,slot:page.slot,generation:page.generation,bytes:page.bytes,reason:'explicit-unload',drawDetached:false}));return true;},
-  stats(){return {allocatedBytes:size,residentPages:resident.size,bytesRead,uploadedBytes,evictions,cacheEvictions:evictions,drawDetaches,physicalVramBytes:null};},
+  stats(){return {allocatedBytes:size,residentPages:resident.size,bytesRead,uploadedBytes,evictions,physicalVramBytes:null};},
   dispose(){if(disposed)return pending.then(()=>{});emit('gpu-page-dispose','Cache GPU libéré',()=>({version:1,resident:resident.size,loading:fetches.size,evictions}));disposed=true;abort.abort();resident.clear();pins.clear();pending=pending.catch(()=>{}).then(async()=>{try{await device.queue.onSubmittedWorkDone();}catch{/* Queue may already be lost. */}buffer.destroy();});return pending;},
  };
 }

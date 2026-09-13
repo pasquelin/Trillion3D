@@ -40,7 +40,7 @@ export function triangleCone(positions:ArrayLike<number>,indices:ArrayLike<numbe
  return {axis,angle};
 }
 
-export function mergeCones(left:NormalCone,right:NormalCone):NormalCone{
+function mergeCones(left:NormalCone,right:NormalCone):NormalCone{
  if(left.angle>=Math.PI||right.angle>=Math.PI)return OPEN_CONE;
  const ax=left.axis[0]+right.axis[0],ay=left.axis[1]+right.axis[1],az=left.axis[2]+right.axis[2];
  const len=Math.hypot(ax,ay,az);
@@ -53,7 +53,7 @@ export function mergeCones(left:NormalCone,right:NormalCone):NormalCone{
  return {axis,angle:Math.min(Math.PI,Math.max(child(left),child(right)))};
 }
 
-export function perspectiveSpread(center:[number,number,number],radius:number,cameraWorld:[number,number,number]):number{
+function perspectiveSpread(center:[number,number,number],radius:number,cameraWorld:[number,number,number]):number{
  const d=Math.hypot(cameraWorld[0]-center[0],cameraWorld[1]-center[1],cameraWorld[2]-center[2]);
  if(!(d>radius))return Math.PI;
  const t=radius/d;

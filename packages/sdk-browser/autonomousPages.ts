@@ -12,14 +12,13 @@ export const autonomousPagesBackend:BackendFactory=context=>{
  })}))};
  const {roots,allPages}=collectClusterPages(context.source,metadata,new Map(),context.associations,{allowMissing:true});
  const baseRoots=roots.slice(),basePages=allPages.slice();
+ // The clusters nothing replaces are the coarsest complete cover; the autonomous path pins them.
  const bootstrap:PageRec[]=[];
- const cover=(node:typeof roots[number]['tree'],pages:PageRec[])=>{
-  const ids=node.coarsePages?.length?node.coarsePages:node.page!==undefined?[node.page]:undefined;
-  if(ids){for(const id of ids){const page=pages[id];if(!page)throw new Error('INVALID_ROOT_COVERAGE');bootstrap.push(page);}return;}
-  if(!node.children?.length)throw new Error('INVALID_ROOT_COVERAGE');
-  for(const child of node.children)cover(child,pages);
- };
- for(const root of roots)cover(root.tree,root.pages);
+ for(const root of roots){
+  const before=bootstrap.length;
+  for(const page of root.pages)if(page.parentError==null)bootstrap.push(page);
+  if(bootstrap.length===before)throw new Error('INVALID_ROOT_COVERAGE');
+ }
  const baseBootstrap=bootstrap.slice();
  const byUrl=indexPagesByUrl(allPages),bootstrapUrls=new Set(bootstrap.map(page=>page.url));
  const descriptors=new Map(context.metadata.primitives.flatMap(primitive=>primitive.pages).filter(page=>!!page.geometry).map(page=>[page.geometry!.url,page.geometry!] as const));
@@ -29,7 +28,7 @@ export const autonomousPagesBackend:BackendFactory=context=>{
  const baseMaterials=new Map(allPages.map(rec=>[rec,rec.material] as const)),colorMaterials=new Map<THREE.Material,THREE.Material>();
  const instances=new Map<string,{roots:typeof roots;pages:PageRec[];bootstrap:PageRec[]}>();
  const modifiedPages=new Set<string>();
- let frame=0,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,evictions=0,overBudget=false,ready=false,allocationBytes=0;
+ let frame=0,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,cacheEvictions=0,overBudget=false,ready=false,allocationBytes=0;
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  const detach=(rec:PageRec)=>{if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}};
  const attach=(rec:PageRec)=>{if(!rec.geometry)return;
@@ -99,7 +98,7 @@ export const autonomousPagesBackend:BackendFactory=context=>{
     mapped.set(base,rec);allPages.push(rec);baseMaterials.set(rec,baseMaterials.get(base)!);
     let list=byUrl.get(rec.url);if(!list)byUrl.set(rec.url,list=[]);list.push(rec);
    }
-   const addedRoots=baseRoots.map(root=>({tree:root.tree,world:transform.clone().multiply(root.world),pages:root.pages.map(page=>mapped.get(page)!)}));
+   const addedRoots=baseRoots.map(root=>({...root,world:transform.clone().multiply(root.world),pages:root.pages.map(page=>mapped.get(page)!)}));
    const addedBootstrap=baseBootstrap.map(page=>mapped.get(page)!);
    roots.push(...addedRoots);bootstrap.push(...addedBootstrap);instances.set(id,{roots:addedRoots,pages:[...mapped.values()],bootstrap:addedBootstrap});
   },
@@ -124,9 +123,9 @@ export const autonomousPagesBackend:BackendFactory=context=>{
   pageUrls(){retained.length=0;const unique=new Set<string>([...bootstrapUrls,...modifiedPages]);for(const rec of shown)unique.add(rec.url);for(const rec of desired)unique.add(rec.url);retained.push(...unique);return retained;},
   acceptGeometryPage,
   replaceGeometryPage(url,data){if(!byUrl.has(url))throw new Error('AUTONOMOUS_PAGE_MISSING');storeGeometryPage(url,data);modifiedPages.add(url);},
-  dropPage(url){if(bootstrapUrls.has(url)||modifiedPages.has(url))return;const recs=byUrl.get(url);if(!recs)return;for(const rec of recs){detach(rec);if(rec.geometry){allocationBytes-=rec.geometry.getIndex()?.array.byteLength??0;for(const attr of Object.values(rec.geometry.attributes))allocationBytes-=attr.array.byteLength;rec.geometry.dispose();}rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;evictions++;}},
+  dropPage(url){if(bootstrapUrls.has(url)||modifiedPages.has(url))return;const recs=byUrl.get(url);if(!recs)return;for(const rec of recs){detach(rec);if(rec.geometry){allocationBytes-=rec.geometry.getIndex()?.array.byteLength??0;for(const attr of Object.values(rec.geometry.attributes))allocationBytes-=attr.array.byteLength;rec.geometry.dispose();}rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;cacheEvictions++;}},
   syncResident:sync,
-  metrics(){return {clusters:visible,selectedTriangles,residentPages:allPages.filter(rec=>!!rec.array).length,geometryAllocationBytes:allocationBytes,pageEvictions:evictions,frustumRejected,lodLevel,submittedTriangles,drawCalls:shown.length,coverageReady:ready,coverageBudgetLimited:overBudget};},
+  metrics(){return {clusters:visible,selectedTriangles,residentPages:allPages.filter(rec=>!!rec.array).length,geometryAllocationBytes:allocationBytes,cacheEvictions,frustumRejected,lodLevel,submittedTriangles,drawCalls:shown.length,coverageReady:ready,coverageBudgetLimited:overBudget};},
   dispose(){ready=false;for(const rec of allPages){detach(rec);rec.geometry?.dispose();rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;}for(const material of colorMaterials.values())material.dispose();scene.clear();},
  };
 };

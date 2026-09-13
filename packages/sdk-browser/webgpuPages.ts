@@ -9,8 +9,8 @@ import {createGpuTiming} from './gpuTiming.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache,type ResidentPage} from './gpuPages.ts';
 import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
-import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
-import {createGpuDagSelection,packDagSelection,rootsAreFlat} from './gpuDagSelection.ts';
+import {cameraSelectionUniforms,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
+import {createGpuDagSelection,packDagSelection} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {applyTemporalHiz,projectBoxToScreen,sameHizView,splitOccluders,type HizBounds,type TemporalHizState} from './hiz.ts';
@@ -170,13 +170,27 @@ function materialSide(material:THREE.Material|THREE.Material[]){return Array.isA
 
 export type WebgpuPagesBackend=RenderBackend&{flush():Promise<void>;rasterRgba():Uint8Array;selectedPageIds():string[];visibilityIds():Uint32Array};
 
-function shownFromGpu(pages:PageRec[],result:SelectionResult,frame:number){
- const shown:PageRec[]=[];let selectedTriangles=0;
- for(const id of result.pageIds){const rec=pages[id];if(!rec)continue;rec.seen=frame;shown.push(rec);selectedTriangles+=rec.triangles;}
- return {shown,visible:shown.length,selectedTriangles,frustumRejected:result.frustumRejected,lodLevel:result.lodLevel};
+/** Turns a GPU page-id list into records, into an array the caller owns: no per-frame allocation. */
+function shownFromGpu(pages:PageRec[],ids:readonly number[],frame:number,into:PageRec[]){
+ into.length=0;let selectedTriangles=0;
+ for(let i=0;i<ids.length;i++){const rec=pages[ids[i]];if(!rec)continue;rec.seen=frame;into.push(rec);selectedTriangles+=rec.triangles;}
+ return selectedTriangles;
+}
+/** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
+function triangleSum(pages:readonly PageRec[],transparent?:boolean){
+ let total=0;
+ for(let i=0;i<pages.length;i++)if(transparent===undefined||!!pages[i].transparent===transparent)total+=pages[i].triangles;
+ return total;
+}
+/** Copies the records of `source` whose transparency matches, into an array the caller owns. */
+function partitionByPass(source:readonly PageRec[],transparent:boolean,into:PageRec[]){
+ into.length=0;
+ for(let i=0;i<source.length;i++)if(!!source[i].transparent===transparent)into.push(source[i]);
+ return into;
 }
 
-/** WebGPU raster of Format 1 pages. GPU frustum + lodScore when compute is available; CPU selectVisiblePages remains the oracle and the silent fallback. */
+/** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
+ *  `selectVisiblePages` remains the CPU oracle and the silent fallback. */
 export const webgpuPagesBackend:BackendFactory=(context)=>{
  const {source,metadata,indices,associations,maxResidentPages,gpuDevice}=context;
  const viewport=context.viewport??[1,1];
@@ -248,7 +262,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let budgetPixelError=0;
  const deferredDrops=new Set<string>();
  let coverageBudgetEvent:Record<string,unknown>|undefined;
- let residencyWanted=new Set<string>(),queuedResidency:PageRec[]|undefined,residencyRunning=false;
+ const residencyWanted=new Set<string>(),queueSeen=new Set<string>(),residencyQueue:PageRec[]=[];
+ let residencyPending=false,residencyRunning=false;
  // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
  // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
  // cache below stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
@@ -288,19 +303,23 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let captureStreamingDeferrals=0,captureDeferralLogged=false;
  let lightState:{count:number;types:string[]}|undefined;
  let blendSubmittedTriangles=0,blendDrawCalls=0,blendFrustumRejected=0,gpuDrawCalls=0,lastProgressMs=0;
- let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,hizRejected=0,frame=0;
+ let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,frame=0;
  let diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
  let gpuSelection:GpuSelection|undefined;
  const opaqueRoots=roots.filter(root=>!root.pages[0]?.transparent),transparentRoots=roots.filter(root=>root.pages[0]?.transparent);
- /** Every cluster carries its own error band: the GPU cut is flat and the CPU cut needs the root cover. */
- const flatSelection=rootsAreFlat(opaqueRoots),flatTransparent=rootsAreFlat(transparentRoots);
  const packedPages:PageRec[]=opaqueRoots.flatMap(root=>root.pages);
  const worldUpdates=new Float32Array(opaqueRoots.length*16);
  const residentFlags=new Uint32Array(packedPages.length);
- const gpuCandidates:Array<{rec:PageRec;selectionIndex:number}>=[];
+ // Resident candidates as two parallel arrays: one object per resident cluster per frame was the
+ // last allocation left on the drawing path.
+ const gpuCandidateRecs:PageRec[]=[],gpuCandidateIndices:number[]=[];
  const gpuWanted:PageRec[]=bootstrap.filter(page=>!page.transparent);
+ // Reused by `renderGpuCut`; the cut changes every frame, the arrays and sets behind it do not.
+ const opaqueScratch:PageRec[]=[],transparentScratch:PageRec[]=[],drawableScratch:PageRec[]=[];
+ const requestedScratch=new Set<string>(),transitionScratch=new Set<string>();
+ const keepScratch=new Set<string>();
  const copiesByUrl=new Map<string,number>();let maxCopies=1;
  for(const page of packedPages){const n=(copiesByUrl.get(page.url)??0)+1;copiesByUrl.set(page.url,n);maxCopies=Math.max(maxCopies,n);}
  // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
@@ -521,17 +540,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   pass.end();
   transparentEncodeMs+=performance.now()-cpuStart;
-  traceDiagnostic('transparent-encoding','Transparents sélectionnés et encodés',()=>({frame,submission:imageRevision,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,encodeMs:transparentEncodeMs,passes:visibleBlend.length?2:0}));
+  if(traceEnabled)traceDiagnostic('transparent-encoding','Transparents sélectionnés et encodés',()=>({frame,submission:imageRevision,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,encodeMs:transparentEncodeMs,passes:visibleBlend.length?2:0}));
  };
  const packedDraws=()=>{
    const packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer;selectionIndex?:number}>=[];
    if(!cache)return packed;
-   const count=gpuFrameActive?gpuCandidates.length:drawn.length;
+   const count=gpuFrameActive?gpuCandidateRecs.length:drawn.length;
    for(let i=0;i<count;i++){
-    const rec=gpuFrameActive?gpuCandidates[i].rec:drawn[i];if(rec.transparent)continue;
+    const rec=gpuFrameActive?gpuCandidateRecs[i]:drawn[i];if(rec.transparent)continue;
     const resident=cache.get(rec.url),index=rec.array;if(!resident||!index)continue;
     const position=positionBuffers.get(rec.attributes);if(!position)continue;
-    packed.push({rec,resident,index,position,selectionIndex:gpuFrameActive?gpuCandidates[i].selectionIndex:undefined});
+    packed.push({rec,resident,index,position,selectionIndex:gpuFrameActive?gpuCandidateIndices[i]:undefined});
    }
    return packed;
   };
@@ -828,7 +847,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   * much detail as fits. A cut wider than the budget is coarsened by `budgetPixelError`, so this
   * bound only smooths the frames it takes that feedback to settle; it never truncates the drawn cut.
   */
- const residencyScratch:PageRec[]=[];
+ const residencyScratch:PageRec[]=[],culledScratch:PageRec[]=[];
  const budgetedResidency=(pages:readonly PageRec[])=>{
   const room=Math.max(0,slots-bootstrapUrls.size);
   residencyScratch.length=0;
@@ -839,10 +858,15 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   residencyScratch.length=room;
   return residencyScratch;
  };
+ const pinsBefore=new Set<string>();
  const updatePins=()=>{
   if(!cache)return;
-  const before=new Set(pins);
-  const keep=new Set([...bootstrapUrls,...shown.filter(page=>!gpuFrameActive||page.transparent).map(page=>page.url),...residencyWanted]);
+  // `added`/`removed` only feed the trace record, so the copy that computes them is taken only then.
+  if(traceEnabled){pinsBefore.clear();for(const key of pins)pinsBefore.add(key);}
+  const keep=keepScratch;keep.clear();
+  for(const key of bootstrapUrls)keep.add(key);
+  for(let i=0;i<shown.length;i++)if(!gpuFrameActive||shown[i].transparent)keep.add(shown[i].url);
+  for(const key of residencyWanted)keep.add(key);
   for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
   for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
   if(deferredDrops.size){
@@ -850,7 +874,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const keepRequests=requestUrlByPage?new Set([...keep].map(url=>requestUrlByPage.get(url)??url)):keep;
    for(const key of deferredDrops)if(!keepRequests.has(key))backend.dropPage!(key);
   }
-  const added=[...pins].filter(key=>!before.has(key)),removed=[...before].filter(key=>!pins.has(key));
+  if(!traceEnabled)return;
+  const added=[...pins].filter(key=>!pinsBefore.has(key)),removed=[...pinsBefore].filter(key=>!pins.has(key));
   if(added.length||removed.length)traceDiagnostic('residency-pins','Pins GPU mis à jour',()=>({frame,added:traceSet('pins.added',added),removed:traceSet('pins.removed',removed),pinned:traceSet('pins', [...pins]),bootstrap:traceSet('pins.bootstrap',[...bootstrapUrls]),wanted:traceSet('pins.wanted',[...residencyWanted]),shown:traceSet('pins.shown',shown.map(page=>page.url))}));
  };
  const ensureBootstrap=async()=>{
@@ -871,11 +896,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   })().catch(error=>{diagnosticFailure('coverage-bootstrap-failed',error);throw error;}).finally(()=>{bootstrapLoading=undefined;});
   return bootstrapLoading;
  };
- const ensureResident=async(wanted:PageRec[],jobFrame:number,jobId:number)=>{
+ const ensureResident=async(wanted:readonly PageRec[],jobFrame:number,jobId:number)=>{
   if(!cache)return;
-  const started=performance.now(),urls=wanted.map(page=>page.url);
+  const started=performance.now(),urls=traceEnabled?wanted.map(page=>page.url):[];
   traceDiagnostic('residency-ensure-start','Vérification de la résidence GPU demandée',()=>({frame:jobFrame,jobId,scope:'async-residency-ensure',pages:traceSet('ensure',urls),wanted:traceSet('ensure.wanted',urls),loaded:traceSet('ensure.loaded',urls.filter(url=>!!cache!.get(url))),queueWaitMs:null,elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));
-  for(const rec of wanted){
+  for(let i=0;i<wanted.length;i++){
+   const rec=wanted[i];
    if(!residencyWanted.has(rec.url))continue;
    context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');
    if(!hasBytes(rec)||cache.get(rec.url))continue;
@@ -888,12 +914,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const queueResident=(wanted:PageRec[])=>{
   const queuedAt=performance.now(),jobId=++residencyJob;
   const jobFrame=frame;
-  residencyWanted=new Set(wanted.map(page=>page.url));updatePins();
-  const queued=[...new Map(wanted.filter(hasBytes).map(page=>[page.url,page])).values()];queuedResidency=queued;
-  traceDiagnostic('residency-queue','Résidence GPU mise en file',()=>({frame,jobId,pages:traceSet('queue',queued.map(page=>page.url)),wanted:traceSet('wanted',[...residencyWanted]),loaded:traceSet('queue.loaded',queued.filter(page=>!!cache?.get(page.url)).map(page=>page.url)),queueDepth:queued.length,residentPages:cache?.stats().residentPages??null}));
+  // The wanted set and the upload queue are rebuilt in place. The running job reads the queue by
+  // index and re-checks `residencyWanted` for every entry, so it always works on the latest cut.
+  residencyWanted.clear();for(let i=0;i<wanted.length;i++)residencyWanted.add(wanted[i].url);
+  updatePins();
+  residencyQueue.length=0;queueSeen.clear();
+  for(let i=0;i<wanted.length;i++){const page=wanted[i];if(!hasBytes(page)||queueSeen.has(page.url))continue;queueSeen.add(page.url);residencyQueue.push(page);}
+  residencyPending=true;const queued=residencyQueue;
+  if(traceEnabled)traceDiagnostic('residency-queue','Résidence GPU mise en file',()=>({frame,jobId,pages:traceSet('queue',queued.map(page=>page.url)),wanted:traceSet('wanted',[...residencyWanted]),loaded:traceSet('queue.loaded',queued.filter(page=>!!cache?.get(page.url)).map(page=>page.url)),queueDepth:queued.length,residentPages:cache?.stats().residentPages??null}));
   if(residencyRunning)return;
   residencyRunning=true;
-  pending=Promise.resolve().then(async()=>{const started=performance.now();traceDiagnostic('residency-job-start','Job de résidence GPU démarré',()=>({frame:jobFrame,jobId,scope:'async-residency-job',queueWaitMs:started-queuedAt,pages:traceSet('job',queuedResidency?.map(page=>page.url)??[]),elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));try{while(queuedResidency){const next=queuedResidency;queuedResidency=undefined;await ensureResident(next,jobFrame,jobId);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;traceDiagnostic('residency-job-end','Job de résidence GPU terminé',()=>({frame:jobFrame,jobId,scope:'async-residency-job',durationMs:performance.now()-started,elapsedMs:performance.now()-queuedAt,pages:traceSet('job',[...residencyWanted]),loaded:traceSet('job.loaded',[...residencyWanted].filter(url=>!!cache?.get(url))),residentPages:cache?.stats().residentPages??null,queueWaitMs:started-queuedAt,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));}});
+  pending=Promise.resolve().then(async()=>{const started=performance.now();traceDiagnostic('residency-job-start','Job de résidence GPU démarré',()=>({frame:jobFrame,jobId,scope:'async-residency-job',queueWaitMs:started-queuedAt,pages:traceSet('job',residencyQueue.map(page=>page.url)),elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));try{while(residencyPending){residencyPending=false;await ensureResident(residencyQueue,jobFrame,jobId);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;traceDiagnostic('residency-job-end','Job de résidence GPU terminé',()=>({frame:jobFrame,jobId,scope:'async-residency-job',durationMs:performance.now()-started,elapsedMs:performance.now()-queuedAt,pages:traceSet('job',[...residencyWanted]),loaded:traceSet('job.loaded',[...residencyWanted].filter(url=>!!cache?.get(url))),residentPages:cache?.stats().residentPages??null,queueWaitMs:started-queuedAt,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));}});
   void pending.catch(()=>{});
  };
  // Readback describes submitted work and future streaming requests. It never
@@ -902,16 +933,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const cut=gpuSelection?.peek();
   if(!cut?.result.drawablePageIds)return;
   gpuWanted.length=0;for(const id of cut.result.pageIds){const rec=packedPages[id];if(rec)gpuWanted.push(rec);}
-  const transparentWanted=desired.filter(page=>page.transparent);
-  desired.length=0;appendAll(desired,gpuWanted,transparentWanted);
+  partitionByPass(desired,true,transparentScratch);
+  desired.length=0;appendAll(desired,gpuWanted,transparentScratch);
   if(!sameSelectionUniforms(cut.uniforms,selectionUniforms))return;
   if(cut.result.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
-  const actual=shownFromGpu(packedPages,{...cut.result,pageIds:cut.result.drawablePageIds},frame);
-  const transparent=shown.filter(page=>page.transparent);
-  shown.length=0;appendAll(shown,actual.shown,transparent);drawn.length=0;appendAll(drawn,shown);
-  visible=desired.length;selectedTriangles=desired.reduce((sum,page)=>sum+page.triangles,0);
-  submittedTriangles=actual.selectedTriangles+blendSubmittedTriangles;
-  frustumRejected=actual.frustumRejected;lodLevel=actual.lodLevel;gpuMetricsReady=true;
+  const drawnTriangles=shownFromGpu(packedPages,cut.result.drawablePageIds,frame,drawableScratch);
+  partitionByPass(shown,true,transparentScratch);
+  shown.length=0;appendAll(shown,drawableScratch,transparentScratch);drawn.length=0;appendAll(drawn,shown);
+  visible=desired.length;selectedTriangles=triangleSum(desired);
+  submittedTriangles=drawnTriangles+blendSubmittedTriangles;
+  frustumRejected=cut.result.frustumRejected;lodLevel=cut.result.lodLevel;gpuMetricsReady=true;
  };
  const renderGpuCut=(camera:THREE.PerspectiveCamera,pixelError:number,cpuStart:number,lightsEnd:number)=>{
   if(!gpuDevice||!cache||!gpuSelection)return;
@@ -922,14 +953,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const budgeted=Math.max(pixelError,budgetPixelError);
   cameraSelectionUniforms(camera,budgeted,viewport,selectionUniforms);
   adoptGpuCut();
-  // Forward transparency has its own CPU cut; it is absent from the GPU forest.
+  // Forward transparency has its own CPU cut; it is absent from the GPU cluster set.
   const transparentBudget=Math.max(1,slots-bootstrapUrls.size);
-  const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:flatTransparent,pageBudget:transparentBudget,isResident:rec=>!!cache!.get(rec.url)}):undefined;
-  const oldOpaque=shown.filter(page=>!page.transparent);
+  const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:true,pageBudget:transparentBudget,isResident:rec=>!!cache!.get(rec.url)}):undefined;
+  const oldOpaque=partitionByPass(shown,false,opaqueScratch);
   shown.length=0;appendAll(shown,oldOpaque,transparent?.shown??[]);
   desired.length=0;appendAll(desired,gpuWanted,transparent?.wanted??[]);
-  if(gpuMetricsReady){visible=desired.length;selectedTriangles=desired.reduce((sum,page)=>sum+page.triangles,0);}
-  const requested=new Set([...bootstrapUrls,...desired.map(page=>page.url)]);
+  if(gpuMetricsReady){visible=desired.length;selectedTriangles=triangleSum(desired);}
+  const requested=requestedScratch;requested.clear();
+  for(const url of bootstrapUrls)requested.add(url);
+  for(let i=0;i<desired.length;i++)requested.add(desired[i].url);
   const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requested.size>slots;
   // Coarsen until the wanted cut fits, and relax again once it fits with room to spare. Doubling
   // and halving with a gap between the two thresholds keeps the loop from oscillating every frame.
@@ -944,22 +977,27 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   // With the roots pinned the transparent cut always falls back to them, so an incomplete cut here
   // means a pinned root is itself absent from the cache, which is a bug and not a streaming state.
   if(transparent?.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE: a pinned transparent root cluster is not resident');
-  if(transparent&&!coverageBudgetLimited&&new Set([...requested,...transparent.shown.map(page=>page.url)]).size>slots){
-   const fallback=selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:flatTransparent,pageBudget:transparentBudget,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
+  transitionScratch.clear();
+  if(transparent&&!coverageBudgetLimited){
+   for(const url of requested)transitionScratch.add(url);
+   for(let i=0;i<transparent.shown.length;i++)transitionScratch.add(transparent.shown[i].url);
+  }
+  if(transparent&&!coverageBudgetLimited&&transitionScratch.size>slots){
+   const fallback=selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:true,pageBudget:transparentBudget,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
    if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE: the pinned transparent cover is not resident');
    shown.length=0;appendAll(shown,oldOpaque,fallback.shown);
   }
   queueResident(budgetedResidency(desired));
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
-  gpuCandidates.length=0;residentFlags.fill(0);
+  gpuCandidateRecs.length=0;gpuCandidateIndices.length=0;residentFlags.fill(0);
   for(let i=0;i<packedPages.length;i++){
    const rec=packedPages[i];
-   if(rec.array&&cache.get(rec.url)){residentFlags[i]=1;gpuCandidates.push({rec,selectionIndex:i});}
+   if(rec.array&&cache.get(rec.url)){residentFlags[i]=1;gpuCandidateRecs.push(rec);gpuCandidateIndices.push(i);}
   }
-  if(gpuCandidates.length>drawSlots){
+  if(gpuCandidateRecs.length>drawSlots){
    // The CPU fallback can still select a representable visible subset.
-   engineDiagnostic('gpu-selection-capacity','Sélection CPU requise par la capacité des identifiants de visibilité',{residentCandidates:gpuCandidates.length,maxCandidates:drawSlots});
+   engineDiagnostic('gpu-selection-capacity','Sélection CPU requise par la capacité des identifiants de visibilité',{residentCandidates:gpuCandidateRecs.length,maxCandidates:drawSlots});
    dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
   }
   if(gpuSelection.updateResidency(residentFlags))gpuMetricsReady=false;
@@ -970,17 +1008,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   drawn.length=0;appendAll(drawn,shown);
   const selectionEnd=performance.now();
   const [width,height]=viewport;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
-  if(!renderPathLogged){renderPathLogged=true;engineDiagnostic('first-render-path','Configuration du premier rendu WebGPU',{clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,targetSize,visibilityBuffer:true,selection:'current-frame-mask',residentCandidates:gpuCandidates.length});}
+  if(!renderPathLogged){renderPathLogged=true;engineDiagnostic('first-render-path','Configuration du premier rendu WebGPU',{clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,targetSize,visibilityBuffer:true,selection:'current-frame-mask',residentCandidates:gpuCandidateRecs.length});}
   const encodeStart=performance.now();
   try{encodeDraws(gpuDevice,camera);}catch(error){
    if(context.gpuCanvas)throw error;
    dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
   }
   const cpuEnd=performance.now();lastSubmitMs=cpuEnd-encodeStart;
-  if(gpuMetricsReady)submittedTriangles=shown.filter(page=>!page.transparent).reduce((sum,page)=>sum+page.triangles,0)+blendSubmittedTriangles;
+  if(gpuMetricsReady)submittedTriangles=triangleSum(shown,false)+blendSubmittedTriangles;
   cpuSample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:encodeStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
-  traceDiagnostic('gpu-selection-current-frame','Sélection GPU consommée par le dessin',()=>({frame,submission:imageRevision,source:'gpu',decision:'current-frame-mask',residentCandidates:gpuCandidates.length,readbackPurpose:'streaming-and-metrics',metricsReady:gpuMetricsReady}));
-  traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:'gpu',selection:{source:'gpu',decision:'current-frame-mask'},cpu:cpuSample,coverage:{loaded:traceSet('frame.loaded',gpuCandidates.map(item=>item.rec.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:gpuMetricsReady?traceSet('frame.shown',shown.map(page=>page.url)):null,ready:bootstrapReady},budget:{slots,limited:coverageBudgetLimited},selectedTriangles:gpuMetricsReady?selectedTriangles:null,submittedTriangles:gpuMetricsReady?submittedTriangles:null,drawCalls:gpuDrawCalls}));
+  if(traceEnabled)traceDiagnostic('gpu-selection-current-frame','Sélection GPU consommée par le dessin',()=>({frame,submission:imageRevision,source:'gpu',decision:'current-frame-mask',residentCandidates:gpuCandidateRecs.length,readbackPurpose:'streaming-and-metrics',metricsReady:gpuMetricsReady}));
+  if(traceEnabled)traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:'gpu',selection:{source:'gpu',decision:'current-frame-mask'},cpu:cpuSample,coverage:{loaded:traceSet('frame.loaded',gpuCandidateRecs.map(page=>page.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:gpuMetricsReady?traceSet('frame.shown',shown.map(page=>page.url)):null,ready:bootstrapReady},budget:{slots,limited:coverageBudgetLimited},selectedTriangles:gpuMetricsReady?selectedTriangles:null,submittedTriangles:gpuMetricsReady?submittedTriangles:null,drawCalls:gpuDrawCalls}));
  };
  const backend:WebgpuPagesBackend={
   id:'webgpu-page-raster',
@@ -1301,12 +1339,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      if(!xyz){xyz=new Float32Array(attr.count*3);for(let i=0;i<attr.count;i++){xyz[i*3]=attr.getX(i);xyz[i*3+1]=attr.getY(i);xyz[i*3+2]=attr.getZ(i);}xyzCache.set(rec.attributes,xyz);}
      rec.cone=visMaterial(rec.material).doubleSided||visMaterial(rec.material).backSide?OPEN_CONE:triangleCone(xyz,array);
     }
-    // A cache whose clusters carry their own error band uses the flat cut; a tree cache keeps the
-    // forest kernel. A cache that mixes both keeps the CPU oracle rather than two GPU cuts per frame.
-    if(gpuDraw){
-     if(flatSelection)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true});
-     else if(!opaqueRoots.some(root=>root.flat))gpuSelection=await createGpuSelection(gpuDevice,packSelectionForest(opaqueRoots),{residentCut:true});
-    }
+    // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
+    if(gpuDraw&&opaqueRoots.length)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true});
     capabilities.gpuDriven=!!gpuSelection;
     await ensureBootstrap();
     engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
@@ -1330,8 +1364,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const cpuStart=performance.now();
    lightState=lights?.update();
    const lightsEnd=performance.now();
-   lastCamera=camera;overBudget=false;submittedTriangles=0;blendSubmittedTriangles=0;blendDrawCalls=0;hizRejected=0;frame++;
-   traceDiagnostic('cpu-lights','Mise à jour CPU des lumières',()=>({frame,scope:'cpu/lights.update',elapsedMs:lightsEnd-cpuStart,lightState}));
+   lastCamera=camera;overBudget=false;submittedTriangles=0;blendSubmittedTriangles=0;blendDrawCalls=0;frame++;
+   if(traceEnabled)traceDiagnostic('cpu-lights','Mise à jour CPU des lumières',()=>({frame,scope:'cpu/lights.update',elapsedMs:lightsEnd-cpuStart,lightState}));
    const pixelError=resolvePixelError(context,camera,motion);
    gpuFrameActive=false;gpuMetricsReady=false;
    if(gpuSelection?.failed())dropGpuSelection();
@@ -1346,7 +1380,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    traceDiagnostic('gpu-selection-resolution','Résolution CPU du résultat de sélection GPU',()=>({frame,submission:imageRevision,scope:'cpu/gpu-selection-dispatch-peek',elapsedMs:gpuSelectionResolveEnd-selectionStarted,decision:gpuSelectionDecision,selectedFromGpu:!!selected}));
    if(!selected){
     const cpuSelectionStarted=performance.now();
-    selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatSelection||flatTransparent,isResident:rec=>!!cache!.get(rec.url)},shown);
+    selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:true,isResident:rec=>!!cache!.get(rec.url)},shown);
    const cpuSelectionEnd=performance.now(),chosen=selected;traceDiagnostic('cpu-selection','Sélection CPU de référence',()=>({frame,submission:imageRevision,scope:'cpu/selectVisiblePages',elapsedMs:cpuSelectionEnd-cpuSelectionStarted,shown:traceSet('selection.shown',chosen.shown.map(page=>page.url)),wanted:traceSet('selection.wanted',chosen.wanted?.map(page=>page.url)??chosen.shown.map(page=>page.url)),visible:chosen.visible,selectedTriangles:chosen.selectedTriangles,frustumRejected:chosen.frustumRejected,lodLevel:chosen.lodLevel,reason:gpuSelectionDecision.reason??'gpu-selection-unavailable'}));
    }
    else{shown.length=0;appendAll(shown,selected.shown);}
@@ -1368,7 +1402,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    // old detail slots if old and new refinements cannot coexist in the budget.
    const transitionStarted=performance.now(),transition=new Set([...requested,...shown.map(page=>page.url)]);
    if(!coverageBudgetLimited&&transition.size>slots){
-    const fallback=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatSelection||flatTransparent,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
+    const fallback=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:true,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
     if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE');
     shown.length=0;appendAll(shown,fallback.shown);lodLevel=fallback.lodLevel;
    }
@@ -1378,13 +1412,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    let culled:PageRec[]=readyScratch;
    if(visEnabled&&!gpuHiz&&readyScratch.length>=2&&readyScratch.every(page=>page.array)){
     try{
-     const cut=applyTemporalHiz(readyScratch.filter(page=>!page.transparent) as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState);
-     culled=[...cut.shown,...readyScratch.filter(page=>page.transparent)];hizRejected=cut.hizRejected;
+     const cut=applyTemporalHiz(partitionByPass(readyScratch,false,opaqueScratch) as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState);
+     culledScratch.length=0;appendAll(culledScratch,cut.shown,partitionByPass(readyScratch,true,transparentScratch));culled=culledScratch;
     }catch(error){diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
    }
    const selectionEnd=performance.now();
    const queueStarted=performance.now();queueResident(coverageBudgetLimited?[]:desired);const queueEnd=performance.now();
-   traceDiagnostic('residency-queue-reconstruct','Ensembles de résidence reconstruits',()=>({frame,scope:'cpu/residency-queue-reconstruct',elapsedMs:queueEnd-queueStarted,requested:traceSet('reconstruct.requested',desired.map(page=>page.url)),queued:traceSet('reconstruct.queued',queuedResidency?.map(page=>page.url)??[]),job:residencyJob}));
+   traceDiagnostic('residency-queue-reconstruct','Ensembles de résidence reconstruits',()=>({frame,scope:'cpu/residency-queue-reconstruct',elapsedMs:queueEnd-queueStarted,requested:traceSet('reconstruct.requested',desired.map(page=>page.url)),queued:traceSet('reconstruct.queued',residencyQueue.map(page=>page.url)),job:residencyJob}));
    const drawnVerifyStarted=performance.now();if(culled.some(page=>!cache!.get(page.url)))throw new Error('GPU_COVERAGE_INCOMPLETE');
    drawn.length=0;appendAll(drawn,culled);
    const drawnVerifyEnd=performance.now();traceDiagnostic('residency-drawn-verify','Couverture résidente vérifiée avant encodage',()=>({frame,scope:'cpu/residency-drawn-copy',elapsedMs:drawnVerifyEnd-drawnVerifyStarted,shown:traceSet('drawn.shown',shown.map(page=>page.url)),drawn:traceSet('drawn',drawn.map(page=>page.url)),loaded:traceSet('drawn.loaded',drawn.filter(page=>!!cache!.get(page.url)).map(page=>page.url))}));
@@ -1401,7 +1435,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const cpuEnd=performance.now();lastSubmitMs=cpuEnd-tStart;
    const sample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:tStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
    cpuSample=sample;
-   traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:gpuSelectionDecision.source,selection:gpuSelectionDecision,cpu:sample,coverage:{loaded:traceSet('frame.loaded',drawn.map(page=>page.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:traceSet('frame.shown',shown.map(page=>page.url)),bootstrap:traceSet('frame.bootstrap',bootstrap.map(page=>page.url)),ready:bootstrapReady},budget:{slots,requested:traceSet('frame.requested',[...new Set([...bootstrapUrls,...desired.map(page=>page.url)])]),limited:coverageBudgetLimited,frameBytes:frameBudget},gpuTiming:gpuTiming?.stats()??{supported:false,reason:'not-initialized'},transparent:{candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},hizRejected,drawCalls:gpuDrawCalls}));
+   if(traceEnabled)traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:gpuSelectionDecision.source,selection:gpuSelectionDecision,cpu:sample,coverage:{loaded:traceSet('frame.loaded',drawn.map(page=>page.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:traceSet('frame.shown',shown.map(page=>page.url)),bootstrap:traceSet('frame.bootstrap',bootstrap.map(page=>page.url)),ready:bootstrapReady},budget:{slots,requested:traceSet('frame.requested',[...new Set([...bootstrapUrls,...desired.map(page=>page.url)])]),limited:coverageBudgetLimited,frameBytes:frameBudget},gpuTiming:gpuTiming?.stats()??{supported:false,reason:'not-initialized'},transparent:{candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},drawCalls:gpuDrawCalls}));
 
   },
   syncResident(){
@@ -1535,7 +1569,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);

@@ -8,7 +8,7 @@ export function sceneLights(source:THREE.Object3D):THREE.Light[]{
  source.traverse(object=>{if((object as THREE.Light).isLight)lights.push(object as THREE.Light);});
  return lights;
 }
-export function defaultLights():THREE.Light[]{
+function defaultLights():THREE.Light[]{
  const hemi=new THREE.HemisphereLight(0xffffff,0x495061,2);
  const sun=new THREE.DirectionalLight(0xffffff,2.5);sun.position.set(1,3,2);
  hemi.updateMatrixWorld();sun.updateMatrixWorld();return [hemi,sun];
