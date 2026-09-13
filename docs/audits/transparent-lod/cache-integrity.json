@@ -1,0 +1,11 @@
+{
+  "createdAt": "2026-09-13T16:38:42.259198+00:00",
+  "afterMetadata": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/cache/native/full/a2eb09607499f39ffbd3722520e23a98619c982e20dcc1e316b54bc736601a87/clusters.json",
+  "metadataSha256": "c9c7370389264f761d50c487504a0668b2f33037bd40606ec667878033a805c8",
+  "entriesVerified": 25859,
+  "bytesRead": 165192956,
+  "opaqueIndexPagesComparedByteForByte": 6236,
+  "elapsedWallMs": 2922.251417010557,
+  "failures": [],
+  "valid": true
+}

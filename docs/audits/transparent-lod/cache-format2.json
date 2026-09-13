@@ -1,0 +1,63 @@
+{
+  "createdAt": "2026-09-13T17:28:21.289438+00:00",
+  "beforeKey": "a2eb09607499f39ffbd3722520e23a98619c982e20dcc1e316b54bc736601a87",
+  "afterKey": "9038f6aff551d3dd73e4d1d78d8325fef4d72ff3fe7f22ab61e135ec6b1ebb37",
+  "afterPointerPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/cache/native/full/manifest.json",
+  "afterMetadataPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/cache/native/full/9038f6aff551d3dd73e4d1d78d8325fef4d72ff3fe7f22ab61e135ec6b1ebb37/clusters.json",
+  "afterMetadataSha256": "18670ef2304c339b5eb86423d7e8a2c914274970fa9484007a509dbbcb79c974",
+  "pointerFormatVersion": 2,
+  "metadataFormatVersion": 2,
+  "metadataSchema": 2,
+  "sourceFiles": {
+    "source.gltf": {
+      "identical": true,
+      "sha256": "1777523c19da648b6737b9cbbc6923c20d4b739eb382e09cffa6267234513a6e"
+    },
+    "source.bin": {
+      "identical": true,
+      "sha256": "238f5d9449faba647258d14e80f1d6e6e9f9ca6fc67be068af9c3061bfb827a7"
+    }
+  },
+  "primitiveRenderMetadataIdentical": true,
+  "primitiveCount": 281,
+  "allHierarchyAndPageDescriptorsIdentical": true,
+  "sharedObjectPathsIdentical": true,
+  "objectsRehashed": 25859,
+  "integrityFailures": [],
+  "onlyOuterDifferences": [
+    "key",
+    "schema",
+    "formatVersion",
+    "metrics"
+  ],
+  "ignoredPrimitiveTelemetry": [
+    "reusedPages"
+  ],
+  "renderChanges": false,
+  "beforeMetrics": {
+    "admissionEstimatedBytes": 426413070,
+    "clusterHierarchyPagesMs": 8594.059667,
+    "cpuMs": null,
+    "diskBytesRead": null,
+    "importMs": 1195.065375,
+    "outputGeometryBytes": 195404028,
+    "peakRssBytes": null,
+    "ramBudgetMb": 512,
+    "sourceMappedBytes": 195404028,
+    "threads": 2,
+    "wallMs": 9789.235542
+  },
+  "afterMetrics": {
+    "admissionEstimatedBytes": 426413070,
+    "clusterHierarchyPagesMs": 5217.569417,
+    "cpuMs": null,
+    "diskBytesRead": null,
+    "importMs": 1160.506625,
+    "outputGeometryBytes": 195404028,
+    "peakRssBytes": null,
+    "ramBudgetMb": 512,
+    "sourceMappedBytes": 195404028,
+    "threads": 2,
+    "wallMs": 6378.183667
+  }
+}
