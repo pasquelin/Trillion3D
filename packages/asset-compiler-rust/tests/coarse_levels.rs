@@ -26,7 +26,7 @@ fn single_cluster_keeps_exact_page_and_continues_past_first_coarse_level() {
         "meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],
         "nodes":[{"mesh":0}], "materials":[], "images":[]
     })).unwrap()).unwrap();
-    let options = Options { source, cache:root.join("cache"), resource_base:"/assets/".into(), scope:"full".into(), triangle_budget:150000, threads:1, ram_budget_mb:64, simplification:"qem-endpoints".into(), cancelled:Arc::new(AtomicBool::new(false)) };
+    let options = Options { source, cache:root.join("cache"), resource_base:"/assets/".into(), scope:"full".into(), triangle_budget:150000, threads:1, ram_budget_mb:64, simplification:"qem-endpoints".into(), hierarchy:"tree".into(), cancelled:Arc::new(AtomicBool::new(false)) };
     let compiled = compile(&options, &Exact256, |_| {}).unwrap();
     let directory = options.cache.join("native/full").join(compiled["key"].as_str().unwrap());
     let primitive = &compiled["primitives"][0];
