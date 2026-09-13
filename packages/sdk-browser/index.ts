@@ -1,6 +1,6 @@
 import {replicateInstances} from './replicateInstances.ts';
 export {replicateInstances} from './replicateInstances.ts';
-import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,RequestStamps,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
 import {DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
 import {detectCapabilities} from './capabilities.ts';
 import {checked,loadClusterPages} from './clusterPages.ts';
@@ -70,10 +70,12 @@ export const referenceBackend:BackendFactory=({source,sceneLighting,clearColor=D
 };
 export const exactPagesBackend:BackendFactory=(context)=>{
  const {source,metadata,indices,associations,maxResidentPages,viewport,clearColor=DEFAULT_CLEAR_COLOR}=context;
- const {roots,allPages,blendCopies,bootstrap,prepared}=collectClusterPages(source,metadata,indices,associations);
+ const {roots,allPages,blendCopies,bootstrap,requestCount,prepared}=collectClusterPages(source,metadata,indices,associations);
  const cap=maxResidentPages??Math.max(1024,prepared),scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,context.sceneLighting??source);const shown:PageRec[]=[],desired:PageRec[]=[],attached:PageRec[]=[];
  const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[],missingRoots:PageRec[]=[];
- const bundled=allPages.some(rec=>rec.streamUrl!==undefined),requestSeen=new Set<string>();
+ const bundled=allPages.some(rec=>rec.streamUrl!==undefined),requestStamps=new RequestStamps(requestCount);
+ /** Ajoute à `urlScratch` les clés de requête que ce passage n'a pas encore vues. */
+ const markRequests=(list:readonly PageRec[])=>{for(let i=0;i<list.length;i++){const rec=list[i];if(requestStamps.first(rec.requestIndex))urlScratch.push(pageRequestUrl(rec));}};
  const prefetchScratch:string[]=[],prefetchShown:PageRec[]=[],pixelScaleScratch:number[]=[1,1];let lastCamera:THREE.PerspectiveCamera|undefined,lastPixelError=0;
  // Un tampon d'index résident par primitive : la coupe visible n'est plus qu'une liste de plages.
  const batches=new ClusterBatches(scene,allPages);
@@ -132,9 +134,9 @@ export const exactPagesBackend:BackendFactory=(context)=>{
    // The root cover is requested first and never dropped: it is what the cut falls back on.
    missingRoots.length=0;
    for(let i=0;i<bootstrap.length;i++)if(!bootstrap[i].array)missingRoots.push(bootstrap[i]);
-   if(missingRoots.length)return collectPendingUrls(missingRoots,pendingScratch);
+   if(missingRoots.length)return collectPendingUrls(missingRoots,pendingScratch,requestStamps);
    const waiting=desired.length?desired:shown;
-   if(!lastCamera)return collectPendingUrls(waiting,pendingScratch);
+   if(!lastCamera)return collectPendingUrls(waiting,pendingScratch,requestStamps);
    // Most costly absence first: what the viewer sees wrong the longest is fetched last, not first.
    return orderPendingUrls(waiting,lastCamera,pixelScaleOf(lastCamera,viewport,pixelScaleScratch),pendingScratch);
   },
@@ -149,11 +151,11 @@ export const exactPagesBackend:BackendFactory=(context)=>{
   pageUrls(){
    urlScratch.length=0;
    // A streaming bundle is shared between primitives and instances, so the per-primitive stamp table
-   // of the batches cannot deduplicate it; the deduplicated bundle list is two orders of magnitude
-   // shorter than the cut, so a Set costs nothing here. Without bundles the stamp table wins.
+   // of the batches cannot deduplicate it. Une estampille par rang de requête le fait sans table de
+   // hachage ni allocation, sur une coupe qui compte des milliers de pages à chaque image.
    if(bundled){
-    requestSeen.clear();
-    for(const list of [bootstrap,shown,desired])for(let i=0;i<list.length;i++){const url=pageRequestUrl(list[i]);if(requestSeen.has(url))continue;requestSeen.add(url);urlScratch.push(url);}
+    requestStamps.begin();
+    markRequests(bootstrap);markRequests(shown);markRequests(desired);
     return urlScratch;
    }
    urlStamp++;batches.markUrls(bootstrap,urlStamp,urlScratch);batches.markUrls(shown,urlStamp,urlScratch);batches.markUrls(desired,urlStamp,urlScratch);return urlScratch;
