@@ -7,7 +7,7 @@ import {generateMaterialMips} from './textureMips.ts';
 import {createGpuTiming} from './gpuTiming.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache,type ResidentPage} from './gpuPages.ts';
-import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
+import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
 import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
@@ -185,7 +185,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const inputColor={clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,value:clearColor,source:context.clearColor===undefined?'fallback moteur':'hôte'};
  engineDiagnostic('clear-color-input','Couleur de fond reçue par WebGeometry WebGPU',inputColor);
  if(typeof window!=='undefined')console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU',inputColor);
- const {roots,allPages,blendCopies,prepared}=collectClusterPages(source,metadata,indices,associations);
+ const {roots,allPages,blendCopies,prepared}=collectClusterPages(source,metadata,indices,associations,{allowMissing:true});
+ const bootstrap=rootCoverage(roots),bootstrapUrls=new Set(bootstrap.map(page=>page.url));
+ let bootstrapReady=false,bootstrapLoading:Promise<void>|undefined,coverageBudgetLimited=false;
+ const deferredDrops=new Set<string>();
+ let coverageBudgetEvent:Record<string,unknown>|undefined;
+ let residencyWanted=new Set<string>(),queuedResidency:PageRec[]|undefined,residencyRunning=false;
  const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[],readyScratch:PageRec[]=[];
  const cap=maxResidentPages??Math.max(1024,prepared);
  const uniquePages=Math.max(1,new Set(allPages.map(page=>page.url)).size);
@@ -663,25 +668,46 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   return vertices/3+blendSubmittedTriangles;
  };
  const hasBytes=(rec:PageRec)=>!!(rec.array||sourceBytes.has(rec.url));
+ const updatePins=()=>{
+  if(!cache)return;
+  const keep=new Set([...bootstrapUrls,...shown.map(page=>page.url),...residencyWanted]);
+  for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
+  for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
+  for(const key of deferredDrops)if(!keep.has(key))backend.dropPage!(key);
+ };
+ const ensureBootstrap=async()=>{
+  if(bootstrapReady)return;
+  if(bootstrapLoading)return bootstrapLoading;
+  if(bootstrap.some(page=>!hasBytes(page))&&!context.readPage)return;
+  bootstrapLoading=(async()=>{
+   engineDiagnostic('coverage-bootstrap-start','Chargement de la couverture complète de secours',{version:1,pages:bootstrap.length,slots});
+   let next=0;
+   const workers=Array.from({length:Math.min(8,bootstrap.length)},async()=>{while(next<bootstrap.length){const page=bootstrap[next++];context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');if(!hasBytes(page)){const array=await context.readPage!(page.url);context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');backend.acceptPage!(page.url,array);}}});
+   const results=await Promise.allSettled(workers);const failed=results.find(result=>result.status==='rejected');if(failed?.status==='rejected')throw failed.reason;
+   for(const page of bootstrap){context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');await cache!.load(page.url,context.signal);cache!.pin(page.url);pins.add(page.url);}
+   bootstrapReady=true;
+   engineDiagnostic('coverage-bootstrap-ready','Couverture complète disponible sur le GPU',{version:1,pages:bootstrap.length,slots});
+  })().catch(error=>{diagnosticFailure('coverage-bootstrap-failed',error);throw error;}).finally(()=>{bootstrapLoading=undefined;});
+  return bootstrapLoading;
+ };
  const ensureResident=async(wanted:PageRec[])=>{
   if(!cache)return;
-  const wantedKeys=new Set<string>();
-  for(const rec of wanted)if(hasBytes(rec))wantedKeys.add(rec.url);
-  for(const key of pins)if(!wantedKeys.has(key)){cache.unpin(key);pins.delete(key);}
-  const loads:Promise<void>[]=[];
   for(const rec of wanted){
-   if(!wantedKeys.has(rec.url))continue;
-   if(cache.get(rec.url)){cache.pin(rec.url);pins.add(rec.url);continue;}
-   loads.push(cache.load(rec.url).then(()=>{cache!.pin(rec.url);pins.add(rec.url);}));
+   if(!residencyWanted.has(rec.url))continue;
+   context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');
+   if(!hasBytes(rec)||cache.get(rec.url))continue;
+   try{await cache.load(rec.url,context.signal);}catch(error){if(!residencyWanted.has(rec.url)&&String(error).includes('ALL_PAGES_PINNED'))continue;throw error;}
+   if(lost||!cache)throw new Error('WEBGPU_LOST');
+   if(residencyWanted.has(rec.url)||bootstrapUrls.has(rec.url)){cache.pin(rec.url);pins.add(rec.url);}
   }
-  await Promise.all(loads);
  };
  const queueResident=(wanted:PageRec[])=>{
-  pending=pending.catch(()=>{}).then(()=>ensureResident(wanted)).catch(error=>{
-   const text=String(error);
-   if(/LOST|DISPOSED/i.test(text)){lost=true;return;}
-   throw error;
-  });
+  residencyWanted=new Set(wanted.map(page=>page.url));updatePins();
+  queuedResidency=[...new Map(wanted.filter(hasBytes).map(page=>[page.url,page])).values()];
+  if(residencyRunning)return;
+  residencyRunning=true;
+  pending=Promise.resolve().then(async()=>{try{while(queuedResidency){const next=queuedResidency;queuedResidency=undefined;await ensureResident(next);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;}});
+  void pending.catch(()=>{});
  };
  const backend:WebgpuPagesBackend={
   id:'webgpu-page-raster',
@@ -693,6 +719,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   async prepare(){
    context.signal?.throwIfAborted();
    if(!gpuDevice)throw new Error('WEBGPU_UNAVAILABLE');
+   if(bootstrap.length>slots)throw new Error(`INITIAL_COVERAGE_BUDGET: ${bootstrap.length} pages required, ${slots} slots`);
    gpuTiming=createGpuTiming(gpuDevice);
    engineDiagnostic('gpu-timing-status','Disponibilité des mesures GPU par passe',{version:1,available:gpuTiming.supported,method:'timestamp-query',sampleEveryFrames:60,maxPasses:64,maxPending:1,maxBufferAllocationBytes:2048,queryCount:128,gpuMs:null,scope:'render-passes-only'});
    gpuDevice.addEventListener?.('uncapturederror',onGpuError);
@@ -993,6 +1020,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     const packed=packSelectionForest(roots);
     gpuSelection=await createGpuSelection(gpuDevice,packed);
     capabilities.gpuDriven=!!gpuSelection;
+    await ensureBootstrap();
     engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
    }catch(error){
     diagnosticFailure('webgpu-prepare-failed',error);
@@ -1010,7 +1038,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const lightsEnd=performance.now();
    lastCamera=camera;overBudget=false;submittedTriangles=0;hizRejected=0;frame++;
    const pixelError=resolvePixelError(context,camera,motion);
-   let selected:{shown:PageRec[];wanted?:PageRec[];visible:number;selectedTriangles:number;frustumRejected:number;lodLevel:number}|undefined;
+   let selected:{complete?:boolean;shown:PageRec[];wanted?:PageRec[];visible:number;selectedTriangles:number;frustumRejected:number;lodLevel:number}|undefined;
    if(gpuSelection?.failed())dropGpuSelection();
    if(gpuSelection){
     cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
@@ -1018,16 +1046,28 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     const cut=gpuSelection?.peek();
     if(cut&&sameSelectionUniforms(cut.uniforms,selectionUniforms)){
      const gpuShown=shownFromGpu(packedPages,cut.result,frame);
-     if(gpuShown.shown.every(rec=>hasBytes(rec)))selected=gpuShown;
+     if(bootstrapReady&&gpuShown.shown.every(rec=>hasBytes(rec)&&!!cache!.get(rec.url)))selected=gpuShown;
     }
    }
-   if(!selected)selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true},shown);
+   if(!selected)selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>!!cache!.get(rec.url)},shown);
    else{shown.length=0;shown.push(...selected.shown);}
    desired.length=0;for(let i=0;i<(selected.wanted?.length??shown.length);i++)desired.push((selected.wanted??shown)[i]);
-   const trimmed=trimToBudget(shown,cap);
-   overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;
-   if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}
-   readyScratch.length=0;for(let i=0;i<shown.length;i++)if(hasBytes(shown[i]))readyScratch.push(shown[i]);
+   overBudget=false;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;
+   const requested=new Set([...bootstrapUrls,...desired.map(page=>page.url)]);
+   const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requested.size>slots;
+   if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requested.size,slots,fallbackRetained:bootstrapReady};
+   if(!bootstrapReady){drawn.length=0;submittedTriangles=0;gpuDrawCalls=0;return;}
+   if(selected.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
+   // A complete root cover is always pinned. Coarsen atomically before reclaiming
+   // old detail slots if old and new refinements cannot coexist in the budget.
+   const transition=new Set([...requested,...shown.map(page=>page.url)]);
+   if(!coverageBudgetLimited&&transition.size>slots){
+    const fallback=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
+    if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE');
+    shown.length=0;shown.push(...fallback.shown);lodLevel=fallback.lodLevel;
+   }
+   if(shown.some(page=>!hasBytes(page)))throw new Error('GPU_COVERAGE_BYTES_MISSING');
+   readyScratch.length=0;readyScratch.push(...shown);
    let culled:PageRec[]=readyScratch;
    if(visEnabled&&!gpuHiz&&readyScratch.length>=2&&readyScratch.every(page=>page.array)){
     try{
@@ -1036,8 +1076,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     }catch(error){diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
    }
    const selectionEnd=performance.now();
-   queueResident(culled);
-   drawn.length=0;for(let i=0;i<culled.length;i++)if(cache!.get(culled[i].url))drawn.push(culled[i]);
+   queueResident(coverageBudgetLimited?[]:desired);
+   if(culled.some(page=>!cache!.get(page.url)))throw new Error('GPU_COVERAGE_INCOMPLETE');
+   drawn.length=0;drawn.push(...culled);
    const [width,height]=viewport??targetSize;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
    if(!renderPathLogged){
     renderPathLogged=true;
@@ -1057,20 +1098,18 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    // Page bytes are already accepted. Keep the submitted image stable until its
    // explicit readback completes; the next render selects/uploads those bytes.
    if(capturePending){captureStreamingDeferrals++;return;}
-   readyScratch.length=0;for(let i=0;i<shown.length;i++)if(hasBytes(shown[i]))readyScratch.push(shown[i]);
-   queueResident(readyScratch);
-   drawn.length=0;for(let i=0;i<readyScratch.length;i++)if(cache.get(readyScratch[i].url))drawn.push(readyScratch[i]);
-   const [width,height]=viewport??targetSize;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
-   const tStart=performance.now();
-   submittedTriangles=encodeDraws(gpuDevice,lastCamera);
-   lastSubmitMs=performance.now()-tStart;
+   // A complete cut is reselected for the latest camera; CPU arrival alone
+   // never authorizes replacing any region's GPU fallback.
+   backend.render(lastCamera);
   },
   async flush(){
+   await ensureBootstrap();
    await pending;
+   if(coverageBudgetEvent){engineDiagnostic('coverage-budget','Admission de la coupe demandée',coverageBudgetEvent);coverageBudgetEvent=undefined;}
    await gpuTiming?.flush();
    for(const sample of gpuTiming?.drain()??[])engineDiagnostic(sample.error?'gpu-timing-unavailable':'gpu-timing',sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',sample);
    if(cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
-   if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
+   if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,coverage:{version:1,ready:bootstrapReady,bootstrapPages:bootstrap.length,budgetLimited:coverageBudgetLimited},lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
    if(gpuSelection){
     try{await gpuSelection.flush();if(gpuSelection.failed())dropGpuSelection();}
     catch(error){diagnosticFailure('gpu-selection-fallback',error);dropGpuSelection();}
@@ -1105,9 +1144,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     renderInternal(view);await pending;
     const missing=collectPendingUrls(desired,[]);
     if(missing.length)throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
-    if(overBudget)throw new Error('SURFACE_PAGE_BUDGET');
+    if(coverageBudgetLimited)throw new Error('SURFACE_PAGE_BUDGET');
     await ensureResident(shown);
-    drawn=shown.filter(page=>!!cache?.get(page.url));
+    if(shown.some(page=>!cache?.get(page.url)))throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');drawn=shown.slice();
     if(drawn.length!==shown.length)throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
     options.signal?.throwIfAborted();context.signal?.throwIfAborted();
     submittedTriangles=encodeDraws(gpuDevice,view);
@@ -1130,7 +1169,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     viewport[0]=savedSize[0];viewport[1]=savedSize[1];diagnostic=savedDiagnostic;clearHistory();Object.assign(motion,savedMotion);
     try{
      if(!lost&&!context.signal?.aborted){
-      renderInternal(main);await pending;await ensureResident(shown);drawn=shown.filter(page=>!!cache?.get(page.url));submittedTriangles=encodeDraws(gpuDevice,main);
+      renderInternal(main);await pending;await ensureResident(shown);if(shown.some(page=>!cache?.get(page.url)))throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');drawn=shown.slice();submittedTriangles=encodeDraws(gpuDevice,main);
       if(presenter&&colorTexture){const encoder=gpuDevice.createCommandEncoder();presenter.present(encoder,colorTexture,...targetSize);gpuDevice.queue.submit([encoder.finish()]);}
       if(canvasTexture)canvasTexture.needsUpdate=true;
       engineDiagnostic('surface-main-restored','Vue principale restaurée',{width:savedSize[0],height:savedSize[1]});
@@ -1158,17 +1197,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const size=viewport??targetSize,pages=drawn.filter(rec=>rec.array).map(rec=>({...rec,array:rec.array!})),cam=lastCamera??new THREE.PerspectiveCamera();
    return shadeVisibility(rasterVisibilityIds(pages,cam,size),pages,cam,size,clearColor);
   },
-  pendingUrls(){return collectPendingUrls(desired.length?desired:shown,pendingScratch);},
-  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [shown,desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
-  acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}sourceBytes.set(url,new Uint8Array(array.buffer,array.byteOffset,array.byteLength));},
-  dropPage(url){const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=undefined;recs[i].indexBytes=recs[i].triangles*12;}sourceBytes.delete(url);cache?.unload?.(url);pins.delete(url);},
+  pendingUrls(){return collectPendingUrls(!bootstrapReady?bootstrap:coverageBudgetLimited?[]:desired,pendingScratch);},
+  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [bootstrap,shown,coverageBudgetLimited?[]:desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
+  acceptPage(url,array){deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}sourceBytes.set(url,new Uint8Array(array.buffer,array.byteOffset,array.byteLength));},
+  dropPage(url){if(bootstrapUrls.has(url))return;if(pins.has(url)||residencyWanted.has(url)){deferredDrops.add(url);return;}deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=undefined;recs[i].indexBytes=recs[i].triangles*12;}sourceBytes.delete(url);cache?.unload?.(url);pins.delete(url);},
   metrics(){
    const stats=cache?.stats();
    let vertexBytes=0;for(const buffer of positionBuffers.values())vertexBytes+=buffer.size;
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {clusters:visible,selectedTriangles,residentPages:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:visible,selectedTriangles,residentPages:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);
