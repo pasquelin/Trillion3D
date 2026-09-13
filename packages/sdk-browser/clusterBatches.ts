@@ -174,6 +174,26 @@ function neutraliseBatchingShader(material:THREE.Material,restore:Map<THREE.Mate
  material.needsUpdate=true;
 }
 
+/**
+ * Three.js dessine un matériau transparent double face en deux passes : il bascule `side` sur
+ * `BackSide` puis `FrontSide` et pose `needsUpdate` avant chacune. Or `needsUpdate` incrémente la
+ * version du matériau, ce qui invalide le programme retenu : à l'objet suivant qui partage ce
+ * matériau, `setProgram` recalcule l'intégralité des paramètres de programme et leur clé. Le coût est
+ * donc de deux recalculs complets par objet transparent et par image.
+ *
+ * Les deux passes sont figées ici en deux matériaux (dos, puis face) et deux groupes de géométrie :
+ * Three.js émet les deux mêmes dessins, dans le même ordre, avec les mêmes programmes et le même état
+ * GL, mais ne touche plus à `side` ni à la version. Rien d'autre ne change : même objet, même
+ * `renderOrder`, même tri, même mélange.
+ */
+function sideSplit(material:THREE.Material|THREE.Material[]):[THREE.Material,THREE.Material]|undefined{
+ if(Array.isArray(material))return undefined;
+ if(material.transparent!==true||material.side!==THREE.DoubleSide||material.forceSinglePass===true)return undefined;
+ const back=material.clone(),front=material.clone();
+ back.side=THREE.BackSide;front.side=THREE.FrontSide;
+ return [back,front];
+}
+
 type PageSlot={offset:number;length:number};
 
 /**
@@ -266,6 +286,8 @@ class BatchGroup{
  touched=false;
  triangles=0;
  transparent=false;
+ /** Paire dos/face figée quand le matériau est transparent double face ; sinon indéfinie. */
+ split:[THREE.Material,THREE.Material]|undefined;
  pending:BatchPage[]=[];
  pendingCount=0;
  constructor(primitive:PrimitiveIndex){this.primitive=primitive;}
@@ -303,6 +325,8 @@ export class ClusterBatches{
  private matrices=identityMatrixTexture();
  private indirect:THREE.DataTexture;
  private shaderHooks=new Map<THREE.Material,ShaderHook>();
+ /** Clones dos/face créés ici : à libérer, contrairement aux matériaux de la scène. */
+ private splitMaterials:THREE.Material[]=[];
  private attributeBytes=0;
  private indexCapacityBytes=0;
  private stats:ClusterBatchStats={drawCalls:0,subDraws:0,submittedTriangles:0,allocationBytes:0,pageRangeWrites:0,indexBytesWritten:0,detachments:0};
@@ -310,7 +334,7 @@ export class ClusterBatches{
  constructor(scene:THREE.Scene,pages:readonly BatchPage[]){
   this.scene=scene;
   const drafts=new Map<THREE.BufferGeometry['attributes'],PrimitiveDraft>();
-  const groupDrafts:Array<{draft:PrimitiveDraft;transparent:boolean}|undefined>=[];
+  const groupDrafts:Array<{draft:PrimitiveDraft;transparent:boolean;material:THREE.Material|THREE.Material[]}|undefined>=[];
   let maxDraws=1;
   for(const page of pages){
    let draft=drafts.get(page.attributes);
@@ -326,7 +350,7 @@ export class ClusterBatches{
     if(page.max[axis]>draft.max[axis])draft.max[axis]=page.max[axis];
    }
    if(draft.pages>maxDraws)maxDraws=draft.pages;
-   if(!groupDrafts[page.renderOrder])groupDrafts[page.renderOrder]={draft,transparent:!!page.transparent};
+   if(!groupDrafts[page.renderOrder])groupDrafts[page.renderOrder]={draft,transparent:!!page.transparent,material:page.material};
   }
   this.indirect=zeroIndirectTexture(maxDraws);
   const built=new Map<PrimitiveDraft,PrimitiveIndex>();
@@ -352,7 +376,33 @@ export class ClusterBatches{
    group.transparent=entry.transparent;
    this.groups[order]=group;
   }
+  // Les deux passes du transparent double face sont figées par primitive : la géométrie est partagée
+  // par toutes les instances, donc les deux groupes ne peuvent être posés que si toutes les instances
+  // de cette primitive relèvent du même découpage.
+  const splitable=new Map<PrimitiveIndex,boolean>();
+  for(let order=0;order<groupDrafts.length;order++){
+   const entry=groupDrafts[order];if(!entry)continue;
+   const primitive=built.get(entry.draft)!;
+   const eligible=!Array.isArray(entry.material)&&entry.material.transparent===true&&entry.material.side===THREE.DoubleSide&&entry.material.forceSinglePass!==true;
+   splitable.set(primitive,(splitable.get(primitive)??true)&&eligible);
+  }
+  const splits=new Map<THREE.Material,[THREE.Material,THREE.Material]>();
+  for(let order=0;order<groupDrafts.length;order++){
+   const entry=groupDrafts[order],group=this.groups[order];
+   if(!entry||!group||!splitable.get(group.primitive))continue;
+   const original=entry.material as THREE.Material;
+   let pair=splits.get(original);
+   if(!pair){const made=sideSplit(original);if(!made)continue;pair=made;splits.set(original,pair);}
+   group.split=pair;
+  }
+  for(const primitive of this.primitives){
+   if(!splitable.get(primitive))continue;
+   primitive.geometry.addGroup(0,Infinity,0);
+   primitive.geometry.addGroup(0,Infinity,1);
+  }
+  this.splitMaterials=[...splits.values()].flat();
   for(const page of pages)for(const material of Array.isArray(page.material)?page.material:[page.material])neutraliseBatchingShader(material,this.shaderHooks);
+  for(const material of this.splitMaterials)neutraliseBatchingShader(material,this.shaderHooks);
   // Les pages déjà résidentes à la construction (cache complet en mémoire) reçoivent leur plage tout de suite.
   for(const page of pages)if(page.array)this.acceptPage([page],page.array);
   this.stats.allocationBytes=this.indexCapacityBytes+this.attributeBytes;
@@ -429,7 +479,11 @@ export class ClusterBatches{
    if(!group.transparent)continue;
    const pending=group.pending;
    pending.length=group.pendingCount;
-   pending.sort(bySourceOrder);
+   // La coupe arrive presque toujours déjà dans l'ordre source : la vérifier coûte un parcours, la
+   // trier coûte un tri par groupe transparent et par image.
+   let ordered=true;
+   for(let k=1;k<pending.length&&ordered;k++)if(bySourceOrder(pending[k-1],pending[k])>0)ordered=false;
+   if(!ordered)pending.sort(bySourceOrder);
    for(let k=0;k<pending.length;k++){
     const rec=pending[k];
     const slot=group.primitive.slots[group.primitive.urlIndexByPage[rec.id]]!;
@@ -449,13 +503,14 @@ export class ClusterBatches{
    group.touched=false;
    const sample=group.sample!;
    let mesh=group.mesh;
+   const material=group.split??sample.material;
    if(!mesh){
-    mesh=new ClusterDrawMesh(group.primitive.geometry,sample.material,group.ranges,this.matrices,this.indirect);
+    mesh=new ClusterDrawMesh(group.primitive.geometry,material,group.ranges,this.matrices,this.indirect);
     mesh.renderOrder=sample.renderOrder;
     mesh.userData.clusterId=String(sample.renderOrder);
     mesh.userData.lodRole='exact';
     group.mesh=mesh;
-   }else if(mesh.material!==sample.material)mesh.material=sample.material;
+   }else if(mesh.material!==material)mesh.material=material;
    mesh.matrix.copy(sample.matrix);
    // Les tableaux sont réutilisés ; leur identité ne change que lorsqu'ils ont dû grandir.
    mesh._multiDrawStarts=group.ranges.starts;
@@ -486,7 +541,9 @@ export class ClusterBatches{
   this.hideAll();
   for(const [material,previous] of this.shaderHooks){material.onBeforeCompile=previous as THREE.Material['onBeforeCompile'];delete (material as {customProgramCacheKey?:unknown}).customProgramCacheKey;material.needsUpdate=true;}
   this.shaderHooks.clear();
-  for(const group of this.groups)if(group)group.mesh=undefined;
+  for(const material of this.splitMaterials)material.dispose();
+  this.splitMaterials.length=0;
+  for(const group of this.groups)if(group){group.mesh=undefined;group.split=undefined;}
   for(const primitive of this.primitives)primitive.dispose();
   this.primitives.length=0;this.groups.length=0;
   this.matrices.dispose();this.indirect.dispose();
