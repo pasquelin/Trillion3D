@@ -23,8 +23,7 @@
   "include": [
     "packages/sdk-core/**/*.ts",
     "packages/sdk-browser/**/*.ts",
-    "packages/sdk-node/**/*.mjs",
-    "packages/asset-compiler-core/index.mjs"
+    "packages/sdk-node/**/*.mjs"
   ],
   "exclude": [
     "**/*.test.ts",

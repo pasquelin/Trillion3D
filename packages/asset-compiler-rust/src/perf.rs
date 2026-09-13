@@ -11,7 +11,6 @@ macro_rules! phases {
   impl Phases{
    /// Milliseconds per phase, as a flat object.
    pub fn report(&self)->Value{json!({$($label:(self.$field.load(Ordering::Relaxed) as f64)/1.0e6),*})}
-   #[allow(dead_code)] pub fn reset(&self){$(self.$field.store(0,Ordering::Relaxed);)*}
   }
  }
 }
