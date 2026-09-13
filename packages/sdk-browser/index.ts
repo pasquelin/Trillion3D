@@ -17,6 +17,7 @@ export {EngineProfiler,type TelemetryReport} from './telemetry.ts';
 
 import type {SafetyDecision,RuntimeEvent} from '../sdk-core/index.ts';
 import {nextFrame} from './scheduling.ts';
+import {awaitBackendPages} from './awaitBackendPages.ts';
 import { FlyControls } from 'three/addons/controls/FlyControls.js';
 import { frameStatistics, DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -348,7 +349,23 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const capture=()=>{check();if(directGpu&&active.capture)return active.capture();logVisiblePresentation();const previous=ownedRenderer.getRenderTarget();try{ownedRenderer.setRenderTarget(null);active.render(camera);ownedRenderer.render(active.scene,camera);const size=canvas.width*canvas.height*4;captureSlot=(captureSlot+1)%3;if(capturePool[captureSlot].length!==size)capturePool[captureSlot]=new Uint8Array(size);const pixels=capturePool[captureSlot];const gl=ownedRenderer.getContext();gl.readPixels(0,0,canvas.width,canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);if(!presentationDiagnostics.has(active.id)){presentationDiagnostics.add(active.id);diagnose('presentation-capture','Premier relevé de la composition finale WebGL',{kind:'presentation',engine:active.id,...presentationColorDiagnostic(pixels,canvas.width,canvas.height,options.clearColor??DEFAULT_CLEAR_COLOR,'default-webgl-framebuffer')});}return pixels;}finally{ownedRenderer.setRenderTarget(previous);}};
   const dispose=()=>{if(disposed)return;diagnose('dispose-start','Explorer disposal started',{kind:'lifecycle',scope,backend:active.id});diagnosticChannel.flushSync();disposed=true;profiler.dispose();hostedControls.splice(0).forEach(c=>{try{c.dispose();}catch{/* Hosted controls cannot block explorer teardown. */}});disposeTargets();pairTargetA?.dispose();pairTargetB?.dispose();compositor?.dispose();streamer.dispose();overlays.forEach(m=>m.dispose());backends.forEach(b=>b.dispose());disposeSource(source!);ownedRenderer?.dispose();ownedRenderer?.forceContextLoss();try{gpuDevice?.destroy();}catch{/* Device may already be lost. */}diagnose('dispose-complete','Explorer disposal completed',{kind:'lifecycle',scope});diagnosticChannel.flushSync();diagnosticChannel.close();};
   const flush=async()=>{check();if(streamingPromise)await streamingPromise;for(const backend of backends)await backend.flush?.();await diagnosticChannel.flush();};
-  const awaitPages=async()=>{check();if(streamingPromise)await streamingPromise;for(const backend of backends){backend.render(camera);const missing=backend.pendingUrls?.()??[];if(missing.length){await streamer.request(missing);for(const url of missing){if(geometryUrls.has(url)){const bytes=streamer.getBytes(url);if(bytes)backend.acceptGeometryPage?.(url,await decodeGeometryPage(bytes));}else{const array=streamer.get(url);if(array)backend.acceptPage?.(url,array);}}if(backend.syncResident)backend.syncResident();else backend.render(camera);}const urls=backend.pageUrls?.();if(urls)streamer.retain(urls);await backend.flush?.();}loaded=streamer.stats().loaded;pageBytesRead=streamer.stats().bytesRead;};
+  const awaitPages=async()=>{
+   check();if(streamingPromise)await streamingPromise;
+   for(const backend of backends){
+    await awaitBackendPages(backend,camera,async missing=>{
+     await streamer.request(missing);
+     for(const url of missing){
+      if(geometryUrls.has(url)){
+       const bytes=streamer.getBytes(url);if(bytes)backend.acceptGeometryPage?.(url,await decodeGeometryPage(bytes));
+      }else{
+       const array=streamer.get(url);if(array)backend.acceptPage?.(url,array);
+      }
+     }
+    });
+    const urls=backend.pageUrls?.();if(urls)streamer.retain(urls);
+   }
+   loaded=streamer.stats().loaded;pageBytesRead=streamer.stats().bytesRead;
+  };
   progress('ready',1,1,'Explorateur prêt');
   if(typeof window!=='undefined'){
    (window as unknown as {__webGeometry:unknown}).__webGeometry={
