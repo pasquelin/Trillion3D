@@ -155,6 +155,25 @@ class ClusterDrawMesh extends THREE.Mesh{
  }
 }
 
+type ShaderParameters={vertexShader:string;extensionMultiDraw?:boolean};
+type ShaderHook=(parameters:ShaderParameters,renderer:THREE.WebGLRenderer)=>void;
+const UNDEF_BATCHING='#undef USE_BATCHING\n';
+/** Annule USE_BATCHING : le vertex shader compilé redevient celui d'un THREE.Mesh ordinaire. */
+function neutraliseBatchingShader(material:THREE.Material,restore:Map<THREE.Material,ShaderHook>){
+ if(restore.has(material))return;
+ const previous=material.onBeforeCompile as ShaderHook;
+ restore.set(material,previous);
+ // Clé figée une fois pour toutes : Three.js la redemande à chaque matériau et à chaque image.
+ const key=material.customProgramCacheKey()+'|wgmd';
+ material.customProgramCacheKey=()=>key;
+ material.onBeforeCompile=((parameters:ShaderParameters,renderer:THREE.WebGLRenderer)=>{
+  previous?.call(material,parameters,renderer);
+  parameters.extensionMultiDraw=false;
+  if(!parameters.vertexShader.startsWith(UNDEF_BATCHING))parameters.vertexShader=UNDEF_BATCHING+parameters.vertexShader;
+ }) as THREE.Material['onBeforeCompile'];
+ material.needsUpdate=true;
+}
+
 type PageSlot={offset:number;length:number};
 
 /**
@@ -283,6 +302,7 @@ export class ClusterBatches{
  private touched:BatchGroup[]=[];
  private matrices=identityMatrixTexture();
  private indirect:THREE.DataTexture;
+ private shaderHooks=new Map<THREE.Material,ShaderHook>();
  private attributeBytes=0;
  private indexCapacityBytes=0;
  private stats:ClusterBatchStats={drawCalls:0,subDraws:0,submittedTriangles:0,allocationBytes:0,pageRangeWrites:0,indexBytesWritten:0,detachments:0};
@@ -332,6 +352,7 @@ export class ClusterBatches{
    group.transparent=entry.transparent;
    this.groups[order]=group;
   }
+  for(const page of pages)for(const material of Array.isArray(page.material)?page.material:[page.material])neutraliseBatchingShader(material,this.shaderHooks);
   // Les pages déjà résidentes à la construction (cache complet en mémoire) reçoivent leur plage tout de suite.
   for(const page of pages)if(page.array)this.acceptPage([page],page.array);
   this.stats.allocationBytes=this.indexCapacityBytes+this.attributeBytes;
@@ -460,6 +481,8 @@ export class ClusterBatches{
 
  dispose(){
   this.hideAll();
+  for(const [material,previous] of this.shaderHooks){material.onBeforeCompile=previous as THREE.Material['onBeforeCompile'];delete (material as {customProgramCacheKey?:unknown}).customProgramCacheKey;material.needsUpdate=true;}
+  this.shaderHooks.clear();
   for(const group of this.groups)if(group)group.mesh=undefined;
   for(const primitive of this.primitives)primitive.dispose();
   this.primitives.length=0;this.groups.length=0;
