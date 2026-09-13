@@ -7,6 +7,7 @@ mod dag;
 mod perf;
 mod accessor_validation;
 mod geometry_page;
+mod manifest_binary;
 use std::{collections::{BTreeMap,BTreeSet},fmt::{Display,Formatter},fs::{self,File},io::{Read,Write,BufWriter,Seek,SeekFrom},path::{Path,PathBuf},sync::{Arc,atomic::{AtomicBool,Ordering}},time::Instant};
 use serde_json::{Value,json};use sha2::{Sha256,Digest};use rayon::prelude::*;
 pub const FORMAT_VERSION:u32=1;pub const COMPILER_VERSION:&str=env!("CARGO_PKG_VERSION");
@@ -24,6 +25,12 @@ pub const CULLING_STRIDE:usize=15;
 /// object and through their offset inside the bundle.
 pub const STREAM_BUNDLE_BYTES:usize=128*1024;
 pub const STRUCTURE_VERSION:u32=1;
+/// Target size of one bootstrap object. The root clusters of every primitive share these objects,
+/// so the coarsest complete cover of a whole scene is a handful of large requests instead of one
+/// small request per primitive — which is what the first image waits on.
+pub const BOOTSTRAP_BUNDLE_BYTES:usize=1024*1024;
+/// Name of the binary sidecar beside `clusters.json`.
+pub const MANIFEST_BINARY_FILE:&str="clusters.bin";
 #[derive(Debug)] pub struct CompilerError {pub code:&'static str,pub message:String}
 impl CompilerError {fn new(code:&'static str,message:impl Into<String>)->Self{Self{code,message:message.into()}}}
 impl Display for CompilerError {fn fmt(&self,f:&mut Formatter<'_>)->std::fmt::Result{write!(f,"{}: {}",self.code,self.message)}}
@@ -262,6 +269,65 @@ fn store_object(path:&Path,data:&[u8])->Result<()>{
   Err(error)=>Err(error.into()),
  }
 }
+/// Merges the pinned root bundles of every primitive into a few shared bootstrap objects.
+///
+/// A bundle is built inside one primitive, so a scene of hundreds of primitives pays hundreds of
+/// small requests before it can show its fallback cover. Concatenating those payloads costs nothing
+/// at read time — a cluster is still read at its own offset — and turns the bootstrap into a handful
+/// of requests. Two primitives that share a root bundle share its slice, so instancing does not
+/// inflate the bootstrap. Every primitive keeps its own bundle entries; they now name a shared
+/// object and carry the offset of their slice inside it.
+fn share_bootstrap_bundles(o:&Options,primitives:&mut [Value])->Result<usize>{
+ let objects=o.cache.join("native").join("objects");
+ // (primitive, bundle) of every pinned bundle, in manifest order: the packing is deterministic.
+ let mut members:Vec<(usize,usize)>=Vec::new();
+ for (index,primitive) in primitives.iter().enumerate(){
+  let Some(streams)=primitive.get("streams").and_then(Value::as_object) else {continue};
+  let pinned=streams.get("pinned").and_then(Value::as_u64).unwrap_or(0) as usize;
+  let bundles=streams.get("pages").and_then(Value::as_array).map_or(0,Vec::len);
+  for bundle in 0..pinned.min(bundles){members.push((index,bundle));}
+ }
+ if members.len()<2{return Ok(members.len())}
+ let mut payloads:Vec<Vec<u8>>=Vec::new();let mut clusters:Vec<u64>=Vec::new();
+ let mut placed:BTreeMap<String,(usize,usize)>=BTreeMap::new();
+ let mut slots:Vec<(usize,usize)>=Vec::with_capacity(members.len());
+ for &(primitive,bundle) in &members{
+  let entry=&primitives[primitive]["streams"]["pages"][bundle];
+  let digest=entry["sha256"].as_str().ok_or_else(||invalid("Stream bundle has no digest"))?.to_string();
+  let bytes=entry["bytes"].as_u64().ok_or_else(||invalid("Stream bundle has no byte length"))? as usize;
+  let count=entry["count"].as_u64().unwrap_or(0);
+  if let Some(&slot)=placed.get(&digest){slots.push(slot);continue}
+  if payloads.last().is_none_or(|payload|!payload.is_empty()&&payload.len()+bytes>BOOTSTRAP_BUNDLE_BYTES){payloads.push(Vec::new());clusters.push(0);}
+  let chunk=payloads.len()-1;let offset=payloads[chunk].len();
+  let source=fs::read(objects.join(format!("{digest}.wgsb")))?;
+  if source.len()!=bytes{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","A stream bundle object does not match its declared size"))}
+  payloads[chunk].extend_from_slice(&source);clusters[chunk]+=count;
+  placed.insert(digest,(chunk,offset));slots.push((chunk,offset));
+ }
+ let mut names=Vec::with_capacity(payloads.len());
+ for payload in &payloads{
+  let digest=hash(payload);
+  let target=objects.join(format!("{digest}.wgsb"));
+  if !(target.exists()&&hash_file(&target)?==digest){store_object(&target,payload)?;}
+  names.push(digest);
+ }
+ // Patch every pinned entry and shift the offsets of the clusters it carries.
+ for (member,&(chunk,offset)) in members.iter().zip(slots.iter()){
+  let (primitive,bundle)=*member;
+  {
+   let entry=&mut primitives[primitive]["streams"]["pages"][bundle];
+   *entry=json!({"url":format!("../../objects/{}.wgsb",names[chunk]),"sha256":names[chunk],"bytes":payloads[chunk].len(),"count":clusters[chunk]});
+  }
+  if offset==0{continue}
+  let pages=primitives[primitive]["pages"].as_array_mut().ok_or_else(||invalid("primitive.pages is required"))?;
+  for page in pages{
+   if page.get("stream").and_then(Value::as_u64)!=Some(bundle as u64){continue}
+   let previous=page.get("streamOffset").and_then(Value::as_u64).ok_or_else(||invalid("A bundled cluster has no offset"))? as usize;
+   page["streamOffset"]=json!(previous+offset);
+  }
+ }
+ Ok(payloads.len())
+}
 fn check(o:&Options)->Result<()>{if o.cancelled.load(Ordering::Relaxed){return Err(CompilerError::new("CANCELLED","Compilation cancelled"))}Ok(())}
 struct SparseAccessor<'a>{count:usize,indices_bin:&'a [u8],indices_offset:usize,indices_component:usize,values_bin:&'a [u8],values_offset:usize}
 struct Accessor<'a>{bin:&'a [u8],base:usize,stride:usize,count:usize,component:usize,bytes:usize,width:usize,normalized:bool,has_buffer_view:bool,sparse:Option<SparseAccessor<'a>>}
@@ -437,7 +503,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let import_ms=started.elapsed().as_secs_f64()*1000.;progress(json!({"phase":"import","completed":1,"total":1,"ms":import_ms}));
   let cluster_start=Instant::now();let pool=rayon::ThreadPoolBuilder::new().num_threads(o.threads).build()?;
   // Compact per-page index storage is bounded independently from source size. Metadata is retained.
-  let primitives:Vec<Value>=pool.install(||jobs.par_iter().map(|(old,primitive)|->Result<Value>{check(o)?;let p=item(values(item(mesh_values,*old,"mesh")?,"primitives")?,*primitive,"primitive")?;if optional_index(p.get("mode"),"primitive.mode",4)?!=4{return Err(CompilerError::new("UNSUPPORTED_PRIMITIVE","Only static triangles are supported"))}
+  let mut primitives:Vec<Value>=pool.install(||jobs.par_iter().map(|(old,primitive)|->Result<Value>{check(o)?;let p=item(values(item(mesh_values,*old,"mesh")?,"primitives")?,*primitive,"primitive")?;if optional_index(p.get("mode"),"primitive.mode",4)?!=4{return Err(CompilerError::new("UNSUPPORTED_PRIMITIVE","Only static triangles are supported"))}
    let positions=accessor(g,bin,required_index(p.get("attributes").and_then(Value::as_object).and_then(|a|a.get("POSITION")),"primitive.attributes.POSITION")?)?;if positions.width!=3||positions.component!=5126{return Err(invalid("POSITION must be float VEC3"));}
    let (index_values,triangle_count)=if p.get("indices").is_some(){
     let ids=accessor(g,bin,required_index(p.get("indices"),"primitive.indices")?)?;
@@ -620,6 +686,8 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
     };
    }
    progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{DAG_CLUSTER_STRATEGY}else{primitive_strategy.id()},"hierarchy":tree,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
+  let bootstrap_bundles={let _t=perf::Timer::new(&perf::PHASES.page_write);share_bootstrap_bundles(o,&mut primitives)?};
+  progress(json!({"phase":"bootstrap","completed":bootstrap_bundles,"total":bootstrap_bundles}));
   let mut source=g.clone();let mut output_meshes=Vec::new();
   for id in &meshes{
    let mut mesh=item(values(&source,"meshes")?,*id,"mesh")?.clone();
@@ -691,7 +759,15 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let mut unsupported=vec!["hard RSS enforcement","N-API binding"];if o.simplification=="none"{unsupported.insert(0,"simplification");}
   let cache_format=if primitives.iter().any(|primitive|primitive["pass"]=="clustered-blend"){CLUSTERED_BLEND_FORMAT_VERSION}else{FORMAT_VERSION};
   let result=json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":error_model,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":if dag_hierarchy{DAG_CLUSTER_STRATEGY}else{strategy.id()},"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
- {let _t=perf::Timer::new(&perf::PHASES.manifest);atomic(&directory.join("clusters.json"),&serde_json::to_vec(&result)?)?;}atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
+ // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
+ // columns instead of tokenizing tens of megabytes before its first frame.
+ {let _t=perf::Timer::new(&perf::PHASES.manifest);
+  let templates=manifest_binary::Templates{binary:MANIFEST_BINARY_FILE,page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.wgpg",bundle:"../../objects/{sha}.wgsb"};
+  let (mut slim,binary)=manifest_binary::split(&result,&templates)?;
+  slim["binary"]["sha256"]=json!(hash(&binary));
+  atomic(&directory.join(MANIFEST_BINARY_FILE),&binary)?;
+  atomic(&directory.join("clusters.json"),&serde_json::to_vec(&slim)?)?;}
+ atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
 }
 #[cfg(test)] mod tests {use super::*;use std::time::{SystemTime,UNIX_EPOCH};use std::sync::atomic::AtomicU64;
  static NEXT_FIXTURE_ID:AtomicU64=AtomicU64::new(0);
