@@ -461,8 +461,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    }
    return packed;
   };
- const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number)=>{
-   if(presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
+ const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number,presented=false)=>{
+   if(!presented&&presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
    const command=encoder.finish();device.queue.submit([command]);imageRevision++;
    traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
    if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'render-passes-only',excludes:['GPU selection dispatch','uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
@@ -483,7 +483,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   deferred.update(viewProj.clone().invert().elements,camera.getWorldPosition(new THREE.Vector3()).toArray(),width,height,clearColor,diagnostic!=='beauty');
   deferred.light(encoder,hdrView);gpuDrawCalls++;
   encodeBlend(device,encoder,uniformBase);
-  gpuDrawCalls++;deferred.compose(encoder,colorView,{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1});
+  const presentation=secondaryCamera?undefined:presenter?.targetView(width,height);
+  gpuDrawCalls++;deferred.compose(encoder,colorView,{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1},presentation);
+  return !!presentation;
  };
  const encodeVis=(device:GPUDevice,camera:THREE.PerspectiveCamera,packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>)=>{
   if(!visBindGroupLayout||!cache||!concatPos||!colorView||!depthView||!visView||!visPipelineBack||!shadePipeline)return 0;
@@ -493,8 +495,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!surfaces)throw new Error('SURFACE_UNAVAILABLE');
    const encoder=createRenderEncoder(device);
    const pass=encoder.beginRenderPass({label:'WG empty surfaces',colorAttachments:surfaces.views().map(view=>({view,loadOp:'clear' as const,storeOp:'store' as const,clearValue:[0,0,0,0]})),depthStencilAttachment:{view:depthTarget,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'}});pass.end();
-   encodeSurfaceLighting(device,encoder,camera,0);
-   submitColorCopy(device,encoder,height,width);
+   const presented=encodeSurfaceLighting(device,encoder,camera,0);
+   submitColorCopy(device,encoder,height,width,presented);
    return blendSubmittedTriangles;
   }
   ensureUniform(device,Math.max(1,packed.length+blendGpu.length));
@@ -699,8 +701,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   shadePass.setViewport(0,0,width,height,0,1);
   if(shadeBindGroup){shadePass.setPipeline(shadePipeline);shadePass.setBindGroup(0,shadeBindGroup);shadePass.draw(3);gpuDrawCalls++;}
   shadePass.end();
-  encodeSurfaceLighting(device,encoder,camera,packed.length);
-  submitColorCopy(device,encoder,height,width);
+  const presented=encodeSurfaceLighting(device,encoder,camera,packed.length);
+  submitColorCopy(device,encoder,height,width,presented);
   return vertices/3+blendSubmittedTriangles;
  };
  const encodeDraws=(device:GPUDevice,camera:THREE.PerspectiveCamera)=>{
