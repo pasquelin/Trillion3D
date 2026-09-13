@@ -6,7 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve,sep} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
-import {prepareReference} from '../packages/sdk-node/index.mjs';
+import {prepare} from '../packages/sdk-node/index.mjs';
 
 const repo=resolve('.'),labRoot=process.env.LAB_ROOT??resolve('../render-tech-lab');
 const {chromium}=createRequire(join(labRoot,'package.json'))('playwright');
@@ -20,7 +20,7 @@ try{
  const gltf={asset:{version:'2.0'},buffers:[{uri:'mesh.bin',byteLength:binary.length}],bufferViews:[{buffer:0,byteOffset:0,byteLength:36},{buffer:0,byteOffset:36,byteLength:12}],accessors:[{bufferView:0,componentType:5126,type:'VEC3',count:3},{bufferView:1,componentType:5125,type:'SCALAR',count:3}],meshes:[{primitives:[{attributes:{POSITION:0},indices:1,material:0}]}],nodes:[{mesh:0}],scenes:[{nodes:[0]}],scene:0,materials:[{doubleSided:true,pbrMetallicRoughness:{baseColorFactor:[0.8,0.2,0.1,1]}}],images:[]};
  const json=Buffer.from(JSON.stringify(gltf));await writeFile(join(input,'mesh.gltf'),json);await writeFile(join(input,'mesh.bin'),binary);
  await writeFile(join(input,'manifest.json'),JSON.stringify({status:'ready',runtime:{file:'mesh.gltf',sha256:sha(json),sidecars:[{file:'mesh.bin',sha256:sha(binary)}],trianglesAcrossNodes:1,meshNodes:1}}));
- await prepareReference(input,cache,'full',1,{resourceBaseUrl:'/assets/'});
+ await prepare(input,cache,'full',1,{resourceBaseUrl:'/assets/'});
  const requested=[];
  dataServer=createServer(async(req,res)=>{try{
   const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname),file=resolve(cache,'.'+pathname);
@@ -46,7 +46,7 @@ try{
    let maxDifference=0,foreground=0;for(let i=0;i<baseline.length;i+=4){maxDifference=Math.max(maxDifference,Math.abs(baseline[i]-prepared[i]),Math.abs(baseline[i+1]-prepared[i+1]),Math.abs(baseline[i+2]-prepared[i+2]));if(prepared[i]>30&&prepared[i]>prepared[i+1]*1.5)foreground++;}
    return {maxDifference,foreground,metrics:autonomous.render(),backend:autonomous.backend,autonomousRequests:performance.getEntriesByType('resource').slice(before).map(entry=>entry.name)};
   }finally{reference.dispose();autonomous.dispose();}
- },`http://127.0.0.1:${dataAddress.port}/reference/full/manifest.json`);
+ },`http://127.0.0.1:${dataAddress.port}/native/full/manifest.json`);
  assert.deepEqual(errors,[]);assert.equal(result.backend,'autonomous-pages-webgl');assert.equal(result.metrics.coverageReady,true);assert.ok(result.foreground>50,String(result.foreground));assert.ok(result.maxDifference<=5,String(result.maxDifference));
  assert.ok(!result.autonomousRequests.some(url=>url.endsWith('/source.bin')),result.autonomousRequests.join(', '));
  console.log(JSON.stringify({status:'passed',foreground:result.foreground,maxDifference:result.maxDifference,sourceBinRequests:0}));
