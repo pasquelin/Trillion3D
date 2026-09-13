@@ -432,7 +432,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      let id=pages.len();pages.push(json!({"id":id,"url":name,"sha256":digest,"bytes":bytes.len(),"count":slice.len(),"start":0,"min":min,"max":max,"role":"coarse","geometry":geometry}));Ok(id)
     };
     tree=if o.simplification=="qem-endpoints"&&clusters.len()>=2{
-     match crate::lod::build_lod_tree(&pos,&index_values,&clusters,&topology.neighbors)?{
+     match crate::lod::build_lod_tree(&pos,&index_values,&clusters,&topology.neighbors,&||check(o))?{
       Some(node)=>crate::lod::to_json(&node,&cluster_page_ids,&mut |slice|write_coarse(slice,&mut pages,&mut reused))?,
       None=>hierarchy(&pages)?,
      }
@@ -443,7 +443,18 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
       if simplified.triangles*3<index_values.len()&&crate::lod::preserves_boundary(&index_values,&simplified.indices){
        let mut coarse_ids=Vec::new();let mut start=0usize;
        while start<simplified.indices.len(){let end=(start+CLUSTER_INDEX_COUNT).min(simplified.indices.len());coarse_ids.push(write_coarse(&simplified.indices[start..end],&mut pages,&mut reused)?);start=end;}
-       if !tree.is_null(){let min=tree["min"].as_array().ok_or_else(||invalid("Missing LOD bounds"))?;let max=tree["max"].as_array().ok_or_else(||invalid("Missing LOD bounds"))?;let bound=crate::lod::certified_lod_error([min[0].as_f64().unwrap_or(0.0),min[1].as_f64().unwrap_or(0.0),min[2].as_f64().unwrap_or(0.0)],[max[0].as_f64().unwrap_or(0.0),max[1].as_f64().unwrap_or(0.0),max[2].as_f64().unwrap_or(0.0)]);tree["errorObject"]=json!(bound);tree["coarsePages"]=json!(coarse_ids);}
+       if !tree.is_null(){
+        let min=tree["min"].as_array().ok_or_else(||invalid("Missing LOD bounds"))?;
+        let max=tree["max"].as_array().ok_or_else(||invalid("Missing LOD bounds"))?;
+        let bound=crate::lod::certified_lod_error([min[0].as_f64().unwrap_or(0.0),min[1].as_f64().unwrap_or(0.0),min[2].as_f64().unwrap_or(0.0)],[max[0].as_f64().unwrap_or(0.0),max[1].as_f64().unwrap_or(0.0),max[2].as_f64().unwrap_or(0.0)]);
+        tree["errorObject"]=json!(bound);tree["coarsePages"]=json!(coarse_ids);
+        for level in crate::lod::append_coarse_levels(&pos,&simplified.indices,bound,&||check(o))?{
+         let mut coarse_ids=Vec::new();
+         for slice in level.indices.chunks(CLUSTER_INDEX_COUNT){coarse_ids.push(write_coarse(slice,&mut pages,&mut reused)?);}
+         let min=tree["min"].clone();let max=tree["max"].clone();
+         tree=json!({"min":min,"max":max,"errorObject":level.error_object,"coarsePages":coarse_ids,"children":[tree]});
+        }
+       }
       }
      }
      tree
@@ -588,7 +599,9 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let result=compile(&options,&Exact256,|_|{}).expect("compile");
   let exact:Vec<_>=result["primitives"][0]["pages"].as_array().expect("pages").iter().filter(|p|p["role"]!="coarse").collect();
   assert_eq!(exact.len(),2);
-  let tree=&result["primitives"][0]["hierarchy"];
+  let mut tree=&result["primitives"][0]["hierarchy"];
+  // Added coarse ancestors keep the original binary replacement subtree intact.
+  while tree["children"].as_array().map(|children|children.len())==Some(1){tree=&tree["children"][0];}
   assert!(tree["children"].as_array().expect("children").len()>=2);
   assert!(tree["errorObject"].as_f64().expect("error")>=0.0);
   assert_eq!(result["errorModel"].as_str().expect("errorModel"),LOD_ERROR_MODEL);
