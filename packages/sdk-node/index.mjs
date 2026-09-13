@@ -65,7 +65,8 @@ function nativeCompilerPath(explicit){
 /** Native is the production path. The host selects a bundled executable or one on PATH. */
 export async function prepare(input,output,scope=DEFAULT_SCOPE,budget=150000,options={}){
  if(typeof options.resourceBaseUrl!=='string'||!options.resourceBaseUrl)throw new Error('resourceBaseUrl is required');
- const args=[input,output,scope,String(budget),String(options.threads??2),String(options.ramBudgetMb??256),options.resourceBaseUrl,options.simplification??'none'];
+ const args=[input,output,scope,String(budget),String(options.threads??2),String(options.ramBudgetMb??256),options.resourceBaseUrl,options.simplification??'none',options.hierarchy??'tree'];
+ if(!['tree','dag'].includes(options.hierarchy??'tree'))throw new Error('hierarchy must be tree or dag');
  return new Promise((resolve,reject)=>{const child=spawn(nativeCompilerPath(options.executable),args,{signal:options.signal,stdio:['ignore','pipe','pipe']});const chunks=[];let outputBytes=0,pending='',error='',stderrBytes=0,settled=false;
   const fail=err=>{if(settled)return;settled=true;try{child.kill();}catch{/* Child may already have exited. */}reject(err);};
   const succeed=value=>{if(settled)return;settled=true;resolve(value);};
