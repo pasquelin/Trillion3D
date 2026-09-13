@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {exactPagesBackend} from './index.ts';
+import {collectClusterPages} from './pageSelection.ts';
 test('exact pages report measured residency and keep only the visible set in the scene',()=>{
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
  const material=new THREE.MeshBasicMaterial(),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
@@ -9,7 +10,7 @@ test('exact pages report measured residency and keep only the visible set in the
  const meshes=()=>{const found:THREE.Mesh[]=[];backend.scene.traverse(o=>{if((o as THREE.Mesh).isMesh)found.push(o as THREE.Mesh);});return found;};
  assert.equal(meshes().length,0);
  const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);backend.render(camera);
- assert.equal(backend.metrics().clusters,2);assert.equal(backend.metrics().selectedTriangles,2);assert.equal(backend.metrics().residentPages,2);assert.equal(backend.metrics().geometryAllocationBytes,12*4+2*3*4);assert.equal(meshes().length,1);
+ assert.equal(backend.metrics().clusters,2);assert.equal(backend.metrics().selectedTriangles,2);assert.equal(backend.metrics().residentPages,2);assert.equal(backend.metrics().geometryAllocationBytes,12*4+2*3*4);assert.equal(meshes().length,1);assert.equal(backend.metrics().drawCalls,1);
  backend.setDiagnostic?.('pages');assert.equal(meshes().length,2);backend.setDiagnostic?.('beauty');assert.equal(meshes().length,1);
  camera.lookAt(0,0,10);backend.render(camera);assert.equal(backend.metrics().clusters,0);assert.equal(backend.metrics().selectedTriangles,0);assert.equal(backend.metrics().residentPages,0);assert.equal(meshes().length,0);
  backend.dispose();geometry.dispose();material.dispose();
@@ -170,5 +171,43 @@ test('exact pages keep replica meshes in separate batches despite shared glTF id
  const xs=meshes().map(mesh=>mesh.matrix.elements[12]).sort((a,b)=>a-b);
  assert.deepEqual(xs,[0,2]);
  backend.dispose();geometry.dispose();material.dispose();
+});
+test('a missing coarse page does not drop already resident exact triangles',()=>{
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
+ const material=new THREE.MeshBasicMaterial(),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
+ const pages=[
+  {id:0,url:'0',count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x',role:'exact' as const},
+  {id:1,url:'1',count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x',role:'exact' as const},
+  {id:2,url:'2',count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x',role:'coarse' as const},
+ ];
+ const hierarchy={min:[-1,-1,0],max:[1,1,0],errorObject:0,coarsePages:[2],children:[{min:[-1,-1,0],max:[1,1,0],page:0},{min:[-1,-1,0],max:[1,1,0],page:1}]};
+ const context={source,metadata:{primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy}]},indices:new Map(),associations:new Map([[mesh,{meshes:0,primitives:0}]]),pixelError:0,viewport:[960,540] as [number,number]};
+ const backend=exactPagesBackend(context);
+ const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);
+ backend.acceptPage?.('0',new Uint32Array([0,1,2]));
+ backend.acceptPage?.('1',new Uint32Array([0,2,3]));
+ backend.render(camera);
+ const triangles=()=>{let n=0;backend.scene.traverse(o=>{if((o as THREE.Mesh).isMesh)n+=(o as THREE.Mesh).geometry.index!.count/3;});return n;};
+ assert.equal(triangles(),2);
+ context.pixelError=1;backend.render(camera);
+ assert.equal(triangles(),2);
+ assert.deepEqual(backend.pendingUrls?.(),['2']);
+ assert.equal(backend.overBudget,false);
+ assert.equal(backend.metrics().selectedTriangles,1);
+ assert.equal(backend.metrics().submittedTriangles,2);
+ backend.acceptPage?.('2',new Uint32Array([0,1,2]));backend.render(camera);
+ assert.equal(triangles(),1);
+ backend.dispose();geometry.dispose();material.dispose();
+});
+test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters',()=>{
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0],3));geometry.setIndex([0,1,2]);
+ const material=new THREE.MeshPhysicalMaterial({transmission:1,thickness:0.02,roughness:0});
+ const mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
+ const pages=[{id:0,url:'0',count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x'}];
+ const collected=collectClusterPages(source,{primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,0],max:[1,1,0],page:0}}]},new Map([['0',new Uint32Array([0,1,2])]]),new Map([[mesh,{meshes:0,primitives:0}]]));
+ assert.equal(collected.allPages.length,0);
+ assert.equal(collected.blendCopies.length,1);
+ assert.equal(collected.blendCopies[0].material,material);
+ geometry.dispose();material.dispose();
 });
 

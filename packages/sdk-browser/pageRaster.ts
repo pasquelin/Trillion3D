@@ -5,6 +5,14 @@ import type {PageRec} from './pageSelection.ts';
 export const RASTER_BACKGROUND=0x171d28;
 const BACKGROUND=RASTER_BACKGROUND;
 
+/** Opaque image used before the first WebGPU readback and after every resize. */
+export function opaqueBackgroundRgba(width:number,height:number,background=RASTER_BACKGROUND){
+ const pixels=new Uint8Array(width*height*4);
+ const red=(background>>16)&255,green=(background>>8)&255,blue=background&255;
+ for(let index=0;index<pixels.length;index+=4){pixels[index]=red;pixels[index+1]=green;pixels[index+2]=blue;pixels[index+3]=255;}
+ return pixels;
+}
+
 function colorOf(material:THREE.Material|THREE.Material[]){
  const first=Array.isArray(material)?material[0]:material;
  const color='color' in first && first.color instanceof THREE.Color?first.color:new THREE.Color(0xffffff);
@@ -13,9 +21,7 @@ function colorOf(material:THREE.Material|THREE.Material[]){
 
 /** CPU raster of the meshes currently in a backend scene. Used as an oracle; not a GPU timestamp. */
 export function rasterPageRecords(backend:Pick<RenderBackend,'scene'>,camera:THREE.PerspectiveCamera,size:[number,number]){
- const [width,height]=size,pixels=new Uint8Array(width*height*4);
- const br=(BACKGROUND>>16)&255,bg=(BACKGROUND>>8)&255,bb=BACKGROUND&255;
- for(let i=0;i<pixels.length;i+=4){pixels[i]=br;pixels[i+1]=bg;pixels[i+2]=bb;pixels[i+3]=255;}
+ const [width,height]=size,pixels=opaqueBackgroundRgba(width,height,BACKGROUND);
  camera.updateMatrixWorld();const viewProj=new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
  const meshes:THREE.Mesh[]=[];backend.scene.traverse(o=>{if((o as THREE.Mesh).isMesh&&!(o as THREE.Mesh).userData.blit)meshes.push(o as THREE.Mesh);});
  for(const mesh of meshes){
@@ -32,9 +38,7 @@ export function rasterPageRecords(backend:Pick<RenderBackend,'scene'>,camera:THR
 
 /** CPU raster of cluster page records (the triangles the WebGPU path pulls). Same fill rule as rasterPageRecords. */
 export function rasterPages(pages:Array<Pick<PageRec,'array'|'attributes'|'matrix'|'material'>>,camera:THREE.PerspectiveCamera,viewport:[number,number],background=RASTER_BACKGROUND){
- const [width,height]=viewport,pixels=new Uint8Array(width*height*4);
- const br=(background>>16)&255,bg=(background>>8)&255,bb=background&255;
- for(let i=0;i<pixels.length;i+=4){pixels[i]=br;pixels[i+1]=bg;pixels[i+2]=bb;pixels[i+3]=255;}
+ const [width,height]=viewport,pixels=opaqueBackgroundRgba(width,height,background);
  camera.updateMatrixWorld();const viewProj=new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
  for(const page of pages){
   const position=page.attributes.position,index=page.array;if(!position||!index)continue;

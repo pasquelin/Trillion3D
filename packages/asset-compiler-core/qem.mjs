@@ -82,6 +82,8 @@ export function simplifyToEndpoints(positions,indices,{targetTriangles}={}){
  let errorObject=0;
  while(faces.length>targetTriangles){
   const locked=boundaryEdges(faces);
+  const lockedVerts=new Set();
+  for(const key of locked){const comma=key.indexOf(',');lockedVerts.add(Number(key.slice(0,comma)));lockedVerts.add(Number(key.slice(comma+1)));}
   const quadrics=Array.from({length:vertexCount},emptyQuadric);
   const vFaces=Array.from({length:vertexCount},()=>[]);
   for(let f=0;f<faces.length;f++){
@@ -99,13 +101,16 @@ export function simplifyToEndpoints(positions,indices,{targetTriangles}={}){
     const key=left<right?`${left},${right}`:`${right},${left}`;
     if(tried.has(key)||locked.has(key))continue;
     tried.add(key);
+    const lockedLeft=lockedVerts.has(left),lockedRight=lockedVerts.has(right);
+    if(lockedLeft&&lockedRight)continue;
     if(!linkCondition(vFaces,faces,left,right))continue;
     const combined=addQuadrics(quadrics[left],quadrics[right]);
     const costLeft=energy(combined,positionOf(positions,left));
     const costRight=energy(combined,positionOf(positions,right));
-    const keep=costLeft<=costRight?left:right;
-    const drop=keep===left?right:left;
-    const cost=keep===left?costLeft:costRight;
+    let keep,drop,cost;
+    if(lockedLeft){keep=left;drop=right;cost=costLeft;}
+    else if(lockedRight){keep=right;drop=left;cost=costRight;}
+    else{keep=costLeft<=costRight?left:right;drop=keep===left?right:left;cost=keep===left?costLeft:costRight;}
     if(!Number.isFinite(cost))continue;
     if(!best||cost<best.cost||(cost===best.cost&&drop<best.drop))best={cost,keep,drop};
    }
@@ -117,7 +122,7 @@ export function simplifyToEndpoints(positions,indices,{targetTriangles}={}){
    const tri=[a===best.drop?best.keep:a,b===best.drop?best.keep:b,c===best.drop?best.keep:c];
    if(tri[0]!==tri[1]&&tri[1]!==tri[2]&&tri[2]!==tri[0])next.push(tri);
   }
-  if(next.length>=faces.length)break;
+  if(next.length>=faces.length||(next.length===0&&faces.length>0))break;
   faces=next;
  }
  return {indices:faces.flat(),errorObject,triangles:faces.length};

@@ -156,6 +156,8 @@ test('selection shader walks the forest with an explicit stack',()=>{
  assert.match(SELECTION_SHADER,/while\s*\(\s*sp\s*>\s*0u\s*\)/);
  assert.doesNotMatch(SELECTION_SHADER,/\bfn visit\b/);
  assert.match(SELECTION_SHADER,/arrayLength\(\s*&out\.pages\s*\)/);
+ assert.match(SELECTION_SHADER,/fn inverseTranspose3\s*\(/);
+ assert.doesNotMatch(SELECTION_SHADER,/\binverse\s*\(/);
 });
 
 test('pack stores one world matrix per root',()=>{

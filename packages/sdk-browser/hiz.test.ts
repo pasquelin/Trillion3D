@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages,HIZ_BACKGROUND} from '../sdk-core/index.ts';
 import {rasterVisibilityIds,shadeVisibility,type VisPage} from './visibilityBuffer.ts';
-import {buildHizPyramid,filterUnoccluded,hizRejects,projectBoxToScreen,splitOccluders,visibilityDepth,type HizPage} from './hiz.ts';
+import {buildHizPyramid,filterUnoccluded,hizRejects,projectBoxToScreen,splitOccluders,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
 
 function cameraAt(z=5,near=.1){
  const cam=new THREE.PerspectiveCamera(55,1,near,100);cam.position.z=z;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;
@@ -109,5 +109,40 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
  const full=shadeVisibility(rasterVisibilityIds(selected,cam,size),selected,cam,size);
  const filtered=shadeVisibility(rasterVisibilityIds(remaining,cam,size),remaining,cam,size);
  assert.equal(compareImages(full,filtered).maxChannelError,0);
+ front.geometry.dispose();back.geometry.dispose();frontMat.dispose();backMat.dispose();
+});
+
+test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion smoothly',()=>{
+ const frontMat=new THREE.MeshBasicMaterial({color:0xff0000});
+ const backMat=new THREE.MeshBasicMaterial({color:0x00ff00});
+ const front=quad(frontMat,[-1,-1,0],[1,1,0],'front');
+ const back=quad(backMat,[-0.2,-0.2,-2],[0.2,0.2,-2],'back');
+ const size:[number,number]=[32,32];
+ const history:TemporalHizState={};
+
+ // Frame 0: Front directly occludes back. History is populated.
+ const cam0=cameraAt(5);
+ const res0=applyTemporalHiz([front.page,back.page],cam0,size,history);
+ assert.deepEqual(res0.shown.map(p=>p.url),['front']);
+ assert.equal(res0.hizRejected,1);
+ assert.ok(history.pyramid);
+ assert.ok(history.camera);
+
+ // Frame 1: Same camera pose. Front remains occluder, back remains rejected.
+ const res1=applyTemporalHiz([front.page,back.page],cam0,size,history);
+ assert.deepEqual(res1.shown.map(p=>p.url),['front']);
+ assert.equal(res1.hizRejected,1);
+
+ // Frame 2: Camera shifts to the side so back is no longer occluded by front.
+ const cam2=new THREE.PerspectiveCamera(55,1,0.1,100);
+ cam2.position.set(5,0,2);
+ cam2.lookAt(0,0,-1);
+ cam2.updateMatrixWorld();
+ const res2=applyTemporalHiz([front.page,back.page],cam2,size,history);
+ // Both front and back should be shown now (disoccluded!)
+ assert.ok(res2.shown.some(p=>p.url==='back'));
+ assert.ok(res2.shown.some(p=>p.url==='front'));
+ assert.equal(res2.hizRejected,0);
+
  front.geometry.dispose();back.geometry.dispose();frontMat.dispose();backMat.dispose();
 });

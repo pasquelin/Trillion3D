@@ -140,7 +140,7 @@ export function buildLodTree(positions,indices,clusters,triangleNeighbors){
     mesh:progressed?simplified.indices:indexList,
     reduced:progressed,
     coarseIndices:progressed?simplified.indices:[],
-    errorObject:progressed?Math.max(simplified.errorObject,left.errorObject??0,right.errorObject??0):Math.max(left.errorObject??0,right.errorObject??0),
+    errorObject:progressed?simplified.errorObject+Math.max(left.errorObject??0,right.errorObject??0):Math.max(left.errorObject??0,right.errorObject??0), // QEM energy accumulation, not a Hausdorff bound.
     min,max,
    });
   }

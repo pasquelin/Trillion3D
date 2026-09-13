@@ -30,3 +30,15 @@ test('streamer LRU evicts unpinned pages and retains pinned ones',async()=>{
  assert.ok(streamer.stats().evictions>=1);
  streamer.dispose();
 });
+test('streamer notifies consumers when a page is evicted',async()=>{
+ const bytes=new Uint8Array([1,0,0,0,2,0,0,0,3,0,0,0]);
+ const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+ globalThis.fetch=async()=>new Response(bytes,{status:200});
+ const dropped:string[]=[];
+ const streamer=createPageStreamer([{url:'a.bin',bytes:bytes.byteLength,sha256:sha},{url:'b.bin',bytes:bytes.byteLength,sha256:sha},{url:'c.bin',bytes:bytes.byteLength,sha256:sha}],'http://cache/',undefined,2,2,url=>dropped.push(url));
+ await streamer.request(['a.bin','b.bin']);
+ streamer.retain(['a.bin']);
+ await streamer.request(['c.bin']);
+ assert.ok(dropped.includes('b.bin'));
+ streamer.dispose();
+});
