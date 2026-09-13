@@ -3,7 +3,7 @@ import {compact,exclusiveScan,packDrawIndirect} from '../sdk-core/index.ts';
 export const DRAW_INDIRECT_STRIDE=16;
 export const PAGE_BIND_ALIGN=256;
 export const BIN_BACK=0,BIN_NONE=1,BIN_FRONT=2;
-const SLOTS=6,ITEM_U32=3,UNIFORM_BYTES=16;
+const SLOTS=6,ITEM_U32=3,UNIFORM_BYTES=16,WORKGROUP=64;
 
 export type DrawItem={pageIndex:number;bin:0|1|2;rest:0|1};
 export type CompactResult={
@@ -90,24 +90,14 @@ export function indirectForDraw(compact:CompactResult):Uint32Array{
 }
 
 export const DRAW_SHADER=`struct DrawItem{pageIndex:u32,bin:u32,rest:u32,}
-struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,pad:u32,}
+struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read_write> instances:array<u32>;
 @group(0) @binding(3) var<storage, read_write> indirect:array<u32>;
+@group(0) @binding(4) var<storage, read_write> groupCounts:array<u32>;
+@group(0) @binding(5) var<storage, read_write> groupOffsets:array<u32>;
 fn matches(item:DrawItem,slot:u32)->bool{return item.rest*3u+item.bin==slot;}
-fn countSlot(slot:u32)->u32{
- var n=0u;
- for(var i=0u;i<uni.count;i++){if(matches(items[i],slot)){n=n+1u;}}
- return n;
-}
-fn scatter(slot:u32,start:u32){
- var dst=start;
- for(var i=0u;i<uni.count;i++){
-  let item=items[i];
-  if(matches(item,slot)){instances[dst]=item.pageIndex;dst=dst+1u;}
- }
-}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
  indirect[o]=uni.maxVertexCount;
@@ -115,27 +105,53 @@ fn writeCmd(slot:u32,count:u32){
  indirect[o+2u]=0u;
  indirect[o+3u]=0u;
 }
+@compute @workgroup_size(64)
+fn countGroups(@builtin(global_invocation_id) id:vec3u){
+ let entry=id.x;
+ if(entry>=uni.groupCount*6u){return;}
+ let group=entry/6u;let slot=entry%6u;
+ var count=0u;
+ let begin=group*64u;let end=min(begin+64u,min(uni.count,uni.slotCap));
+ for(var i=begin;i<end;i++){if(matches(items[i],slot)){count=count+1u;}}
+ groupCounts[entry]=count;
+}
 @compute @workgroup_size(1)
-fn compactDraws(){
+fn prefixGroups(){
  if(uni.count>uni.slotCap){
   writeCmd(0u,0u);writeCmd(1u,0u);writeCmd(2u,0u);
   writeCmd(3u,0u);writeCmd(4u,0u);writeCmd(5u,0u);
   return;
  }
- let c0=countSlot(0u);let c1=countSlot(1u);let c2=countSlot(2u);
- let c3=countSlot(3u);let c4=countSlot(4u);let c5=countSlot(5u);
- let s0=0u;let s1=s0+c0;let s2=s1+c1;let s3=s2+c2;let s4=s3+c3;let s5=s4+c4;
- writeCmd(0u,c0);writeCmd(1u,c1);writeCmd(2u,c2);
- writeCmd(3u,c3);writeCmd(4u,c4);writeCmd(5u,c5);
- scatter(0u,s0);scatter(1u,s1);scatter(2u,s2);
- scatter(3u,s3);scatter(4u,s4);scatter(5u,s5);
+ var slotStart=0u;
+ for(var slot=0u;slot<6u;slot++){
+  var total=0u;
+  for(var group=0u;group<uni.groupCount;group++){total=total+groupCounts[group*6u+slot];}
+  var cursor=slotStart;
+  for(var group=0u;group<uni.groupCount;group++){
+   let entry=group*6u+slot;
+   groupOffsets[entry]=cursor;
+   cursor=cursor+groupCounts[entry];
+  }
+  writeCmd(slot,total);
+  slotStart=slotStart+total;
+ }
+}
+@compute @workgroup_size(64)
+fn scatterGroups(@builtin(global_invocation_id) id:vec3u){
+ let i=id.x;
+ if(i>=uni.count||uni.count>uni.slotCap){return;}
+ let item=items[i];let slot=item.rest*3u+item.bin;
+ let group=i/64u;let begin=group*64u;
+ var rank=0u;
+ for(var j=begin;j<i;j++){if(matches(items[j],slot)){rank=rank+1u;}}
+ instances[groupOffsets[group*6u+slot]+rank]=item.pageIndex;
 }
 `;
 
 /** Stable GPU compact into six drawIndirect commands. Missing compute returns undefined so the caller keeps the CPU draw loop. */
 export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<GpuDraw|undefined>{
  if(typeof device.createComputePipeline!=='function'||slotCap<1)return undefined;
- const itemBytes=slotCap*ITEM_U32*4,instanceBytes=slotCap*4,indirectBytes=SLOTS*DRAW_INDIRECT_STRIDE;
+ const itemBytes=slotCap*ITEM_U32*4,instanceBytes=slotCap*4,indirectBytes=SLOTS*DRAW_INDIRECT_STRIDE,groupCount=Math.ceil(slotCap/WORKGROUP),groupBytes=groupCount*SLOTS*4;
  const buffers:GPUBuffer[]=[];
  let last:CompactResult|null=null,disposed=false;
  try{
@@ -143,13 +159,17 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
   const uniforms=device.createBuffer({size:UNIFORM_BYTES,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const instanceBuffer=device.createBuffer({size:instanceBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
   const indirectBuffer=device.createBuffer({size:indirectBytes,usage:GPUBufferUsage.INDIRECT|GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
-  buffers.push(itemsBuf,uniforms,instanceBuffer,indirectBuffer);
+  const groupCounts=device.createBuffer({size:groupBytes,usage:GPUBufferUsage.STORAGE});
+  const groupOffsets=device.createBuffer({size:groupBytes,usage:GPUBufferUsage.STORAGE});
+  buffers.push(itemsBuf,uniforms,instanceBuffer,indirectBuffer,groupCounts,groupOffsets);
   if(typeof device.pushErrorScope==='function')device.pushErrorScope('validation');
   const layout=device.createBindGroupLayout({entries:[
    {binding:0,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
    {binding:1,visibility:GPUShaderStage.COMPUTE,buffer:{type:'uniform'}},
    {binding:2,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
    {binding:3,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
+   {binding:4,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
+   {binding:5,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
   ]});
   const module=device.createShaderModule({code:DRAW_SHADER});
   if(typeof module.getCompilationInfo==='function'){
@@ -161,7 +181,9 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
    }
   }
   const pipelineLayout=device.createPipelineLayout({bindGroupLayouts:[layout]});
-  const pipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'compactDraws'}});
+  const countPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'countGroups'}});
+  const prefixPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'prefixGroups'}});
+  const scatterPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'scatterGroups'}});
   if(typeof device.popErrorScope==='function'){
    const error=await device.popErrorScope();
    if(error){for(const buffer of buffers)buffer.destroy();return undefined;}
@@ -171,6 +193,8 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
    {binding:1,resource:{buffer:uniforms}},
    {binding:2,resource:{buffer:instanceBuffer}},
    {binding:3,resource:{buffer:indirectBuffer}},
+   {binding:4,resource:{buffer:groupCounts}},
+   {binding:5,resource:{buffer:groupOffsets}},
   ]});
   const uniData=new Uint32Array(UNIFORM_BYTES/4);
   return {
@@ -183,10 +207,13 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
      for(let i=0;i<n;i++){packed[i*ITEM_U32]=items[i].pageIndex;packed[i*ITEM_U32+1]=items[i].bin;packed[i*ITEM_U32+2]=items[i].rest;}
      device.queue.writeBuffer(itemsBuf,0,packed);
     }
-    uniData[0]=items.length;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=0;
+    uniData[0]=items.length;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=groupCount;
     device.queue.writeBuffer(uniforms,0,uniData);
     const pass=encoder.beginComputePass({label:'WG draw compaction'});
-    pass.setPipeline(pipeline);pass.setBindGroup(0,bindGroup);pass.dispatchWorkgroups(1);
+    pass.setBindGroup(0,bindGroup);
+    pass.setPipeline(countPipeline);pass.dispatchWorkgroups(Math.ceil(groupCount*SLOTS/WORKGROUP));
+    pass.setPipeline(prefixPipeline);pass.dispatchWorkgroups(1);
+    pass.setPipeline(scatterPipeline);pass.dispatchWorkgroups(Math.max(1,Math.ceil(n/WORKGROUP)));
     pass.end();
    },
    indirectBuffer,

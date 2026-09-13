@@ -7,7 +7,7 @@ Base : `b064ab0` (couverture GPU, audit et 310 tests Node vérifiés dans un arb
 | 1. Import glTF, QEM, identité des caches JS et Rust | Aucune | Partiel, `d0fd4f8` | Entrées invalides rejetées avant publication ; faces orientées ; changement de clé si l'algorithme change ; tests JS/Rust |
 | 2. Pages autonomes de géométrie et format versionné | 1 | À faire | Décodage et rendu sans `source.bin` intégral, frontière de pages, compression et précision |
 | 3. Streaming de géométrie et ressources matérielles | 2 | Partiel : file priorisée, transferts bornés, requêtes partagées et annulation | Résidence minimale, ressources matérielles, admission et éviction en chaîne réelle |
-| 4. Sélection et commandes courantes pilotées par GPU | 2–3 | À faire | Aucun readback CPU avant les commandes de l'image, oracle CPU et capture matérielle |
+| 4. Sélection et commandes courantes pilotées par GPU | 2–3 | Partiel : regroupement des dessins par groupes GPU parallèles | Aucun readback CPU avant les commandes de l'image, sélection parallèle et capture matérielle complète |
 | 5. Hi-Z et rasterisation hybride | 4 | Partiel : mip conservateur ; validation matérielle ouverte | Occlusion/révélation, routage et pixels/profondeur/ID comparés sur matériel |
 | 6. Scène dynamique, vues et surfaces pour GI | 3–5 | Partiel : transformations d'instances propagées aux chemins de rendu | Ajout/retrait et mutation des ressources, capture consommée et restauration de vue |
 | 7. Métriques communes, provenance et campagnes Lab | Tous | À faire | Quatre moteurs, scènes diverses, PNG, A/A puis référence, mesures bornées et limites explicites |
@@ -19,6 +19,11 @@ Les budgets de pages sont des allocations suivies, jamais une mesure de VRAM phy
 - Les lectures de pages partagent une file priorisée et dédupliquée. La concurrence et la somme des tailles déclarées en transfert sont bornées ; une page plus grande que la limite est admise seule pour éviter une attente permanente. Une annulation retire son demandeur et interrompt le transfert uniquement s'il n'en reste aucun. Les tests couvrent la priorité et une requête partagée annulée.
 - Les matrices d'instances existantes sont relues à chaque rendu dans les chemins de référence, exact, ThreeLOD et WebGPU. Une matrice modifiée invalide le résultat différé de sélection GPU ainsi que l'historique Hi-Z. Les tests couvrent les trois chemins CPU et l'invalidation de sélection GPU. L'ajout ou le retrait d'instances reste à construire.
 - Validation de ce lot : `npm run build`, `npm test` (322/322), `npm run check:structure`, `npm run check:dts`, `npm run check:links`. Aucune campagne matérielle ni comparaison d'images n'a été exécutée pour ce lot.
+
+## Regroupement GPU : preuve partielle
+
+- Le regroupement stable en six catégories calcule les comptes par groupes de 64 pages, leurs préfixes, puis distribue les pages en parallèle. La petite passe de préfixes par groupes reste séquentielle ; la sélection de hiérarchie et la préparation de la table de dessin passent encore par le CPU. Le regroupement seul ne constitue donc pas une chaîne de rendu entièrement pilotée par GPU.
+- Le shader réel a produit sur Chrome/WebGPU et Apple Metal (`metal-3`) les mêmes 130 identifiants ordonnés et six commandes indirectes que l'oracle CPU, y compris aux frontières des groupes. Commande : `LAB_ROOT=/Users/pasquelin/Applications/render-tech-lab node --experimental-strip-types test/webgpuDraw.browser.mjs`.
 
 ## Preuves du lot 1 et limites
 
