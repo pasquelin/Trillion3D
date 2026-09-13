@@ -135,6 +135,8 @@ fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,
 
 const viewProj=new THREE.Matrix4(),remap=new THREE.Matrix4().set(1,0,0,0,0,1,0,0,0,0,0.5,0.5,0,0,0,1),colorScratch=new THREE.Color();
 const PAGES_GREEN:[number,number,number]=[0.204,0.827,0.6];
+/** Ceiling on the screen error the GPU page budget may impose; past it the root cover is the cut. */
+const MAX_BUDGET_PIXEL_ERROR=4096;
 
 const rgbHex=(red:number,green:number,blue:number)=>`#${[red,green,blue].map(channel=>channel.toString(16).padStart(2,'0')).join('')}`;
 
@@ -242,6 +244,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  traceDiagnostic('page-catalog','Catalogue stable des pages WebGPU',{backend:'webgpu-page-raster',count:pageCatalog.length,urls:pageCatalog});
  const bootstrap=rootCoverage(roots),bootstrapUrls=new Set(bootstrap.map(page=>page.url));
  let bootstrapReady=false,bootstrapLoading:Promise<void>|undefined,coverageBudgetLimited=false;
+ /** Screen-error floor the GPU page budget imposes on the cut; 0 when the requested detail fits. */
+ let budgetPixelError=0;
  const deferredDrops=new Set<string>();
  let coverageBudgetEvent:Record<string,unknown>|undefined;
  let residencyWanted=new Set<string>(),queuedResidency:PageRec[]|undefined,residencyRunning=false;
@@ -818,6 +822,23 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   return vertices/3+blendSubmittedTriangles;
  };
  const hasBytes=(rec:PageRec)=>!!(rec.array||sourceBytes.has(rec.url));
+ /**
+  * Residency the GPU page budget can actually hold. The pinned roots come first and are never given
+  * up, then the wanted clusters coarsest first, so what survives is always a complete cover plus as
+  * much detail as fits. A cut wider than the budget is coarsened by `budgetPixelError`, so this
+  * bound only smooths the frames it takes that feedback to settle; it never truncates the drawn cut.
+  */
+ const residencyScratch:PageRec[]=[];
+ const budgetedResidency=(pages:readonly PageRec[])=>{
+  const room=Math.max(0,slots-bootstrapUrls.size);
+  residencyScratch.length=0;
+  for(let i=0;i<pages.length;i++)if(!bootstrapUrls.has(pages[i].url))residencyScratch.push(pages[i]);
+  if(residencyScratch.length<=room)return residencyScratch;
+  // Coarse clusters cover more surface per slot and are what the residency fallback steps back to.
+  residencyScratch.sort((a,b)=>(b.level??0)-(a.level??0));
+  residencyScratch.length=room;
+  return residencyScratch;
+ };
  const updatePins=()=>{
   if(!cache)return;
   const before=new Set(pins);
@@ -895,29 +916,40 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const renderGpuCut=(camera:THREE.PerspectiveCamera,pixelError:number,cpuStart:number,lightsEnd:number)=>{
   if(!gpuDevice||!cache||!gpuSelection)return;
   gpuFrameActive=true;
-  cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
+  // A cut wider than the GPU page budget is coarsened, never truncated: truncating a DAG cut punches
+  // holes, while a coarser threshold is still an exact partition of the surface. `budgetPixelError`
+  // carries the previous frame's verdict, the same feedback `pageBudget` applies on the CPU path.
+  const budgeted=Math.max(pixelError,budgetPixelError);
+  cameraSelectionUniforms(camera,budgeted,viewport,selectionUniforms);
   adoptGpuCut();
   // Forward transparency has its own CPU cut; it is absent from the GPU forest.
-  const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatTransparent,isResident:rec=>!!cache!.get(rec.url)}):undefined;
+  const transparentBudget=Math.max(1,slots-bootstrapUrls.size);
+  const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:flatTransparent,pageBudget:transparentBudget,isResident:rec=>!!cache!.get(rec.url)}):undefined;
   const oldOpaque=shown.filter(page=>!page.transparent);
   shown.length=0;appendAll(shown,oldOpaque,transparent?.shown??[]);
   desired.length=0;appendAll(desired,gpuWanted,transparent?.wanted??[]);
   if(gpuMetricsReady){visible=desired.length;selectedTriangles=desired.reduce((sum,page)=>sum+page.triangles,0);}
   const requested=new Set([...bootstrapUrls,...desired.map(page=>page.url)]);
   const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requested.size>slots;
-  if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requested.size,slots,fallbackRetained:bootstrapReady};
+  // Coarsen until the wanted cut fits, and relax again once it fits with room to spare. Doubling
+  // and halving with a gap between the two thresholds keeps the loop from oscillating every frame.
+  if(coverageBudgetLimited)budgetPixelError=Math.min(MAX_BUDGET_PIXEL_ERROR,budgetPixelError>0?budgetPixelError*2:Math.max(1,pixelError*2));
+  else if(budgetPixelError>0&&requested.size<slots*0.7)budgetPixelError=budgetPixelError>pixelError*2?budgetPixelError/2:0;
+  if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requested.size,slots,fallbackRetained:bootstrapReady,pixelError:budgeted};
   if(!bootstrapReady){
    gpuMetricsReady=false;
    traceDiagnostic('frame','Frame en attente de couverture GPU',{backend:'webgpu-page-raster',frame,submission:imageRevision,source:'gpu',coverage:{ready:false},selectedTriangles:null,submittedTriangles:null});
    return;
   }
-  if(transparent?.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
+  // With the roots pinned the transparent cut always falls back to them, so an incomplete cut here
+  // means a pinned root is itself absent from the cache, which is a bug and not a streaming state.
+  if(transparent?.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE: a pinned transparent root cluster is not resident');
   if(transparent&&!coverageBudgetLimited&&new Set([...requested,...transparent.shown.map(page=>page.url)]).size>slots){
-   const fallback=selectVisiblePages(transparentRoots,camera,{pixelError,viewport,frame,holdResident:true,rootFallback:flatTransparent,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
-   if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE');
+   const fallback=selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:flatTransparent,pageBudget:transparentBudget,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
+   if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE: the pinned transparent cover is not resident');
    shown.length=0;appendAll(shown,oldOpaque,fallback.shown);
   }
-  queueResident(coverageBudgetLimited?[]:desired);
+  queueResident(budgetedResidency(desired));
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   gpuCandidates.length=0;residentFlags.fill(0);
