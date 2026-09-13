@@ -57,9 +57,9 @@ function geometryBytes(geometry:THREE.BufferGeometry,seen:Set<ArrayBufferView>){
 export const referenceBackend:BackendFactory=({source,sceneLighting,clearColor=DEFAULT_CLEAR_COLOR})=>{
  const scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,sceneLighting??source);let order=0,residentPages=0,allocationBytes=0,selectedTriangles=0;const seen=new Set<ArrayBufferView>();
  const copies:THREE.Mesh[]=[];const overlays:THREE.Material[]=[];
- for(const mesh of objects(source)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.renderOrder=order++;copy.userData.sourceGeometry=mesh.geometry;copy.userData.sourceMaterial=mesh.material;scene.add(copy);copies.push(copy);residentPages++;allocationBytes+=geometryBytes(mesh.geometry,seen);}
+ for(const mesh of objects(source)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.renderOrder=order++;copy.userData.sourceMesh=mesh;copy.userData.sourceGeometry=mesh.geometry;copy.userData.sourceMaterial=mesh.material;scene.add(copy);copies.push(copy);residentPages++;allocationBytes+=geometryBytes(mesh.geometry,seen);}
  const applyDiagnostic=(mode:DiagnosticMode)=>{overlays.splice(0).forEach(m=>m.dispose());for(const mesh of copies){const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=mesh.userData.sourceMaterial as THREE.Material|THREE.Material[];mesh.geometry=sourceGeometry;mesh.material=sourceMaterial;if(mode==='wireframe'){mesh.geometry=triangleGeometry(sourceGeometry,triangleSalt(String(mesh.id)));const material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));overlays.push(material);mesh.material=material;}}};
- return {id:'three-webgl-reference',capabilities:baseCapabilities,overBudget:false,scene,setDiagnostic:applyDiagnostic,async prepare(){},refreshSceneLighting:()=>sceneLights.refresh(),render(){sceneLights.update();selectedTriangles=0;for(const mesh of copies){const index=mesh.geometry.getIndex();selectedTriangles+=(index?index.count:mesh.geometry.getAttribute('position').count)/3;}},metrics:()=>({clusters:null,selectedTriangles,residentPages:null,geometryAllocationBytes:allocationBytes,pageEvictions:null,frustumRejected:null,lodLevel:null,submittedTriangles:selectedTriangles}),dispose(){overlays.forEach(m=>m.dispose());for(const mesh of copies)disposeTriangleGeometry(mesh.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
+ return {id:'three-webgl-reference',capabilities:baseCapabilities,overBudget:false,scene,setDiagnostic:applyDiagnostic,async prepare(){},refreshSceneLighting:()=>sceneLights.refresh(),render(){source.updateMatrixWorld(true);sceneLights.update();selectedTriangles=0;for(const mesh of copies){mesh.matrix.copy((mesh.userData.sourceMesh as THREE.Mesh).matrixWorld);const index=mesh.geometry.getIndex();selectedTriangles+=(index?index.count:mesh.geometry.getAttribute('position').count)/3;}},metrics:()=>({clusters:null,selectedTriangles,residentPages:null,geometryAllocationBytes:allocationBytes,pageEvictions:null,frustumRejected:null,lodLevel:null,submittedTriangles:selectedTriangles}),dispose(){overlays.forEach(m=>m.dispose());for(const mesh of copies)disposeTriangleGeometry(mesh.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
 };
 type PageBatch={key:number;mesh?:THREE.Mesh;geometry?:THREE.BufferGeometry;index:Uint32Array;attr?:THREE.BufferAttribute;signature:number;attached:boolean};
 export const exactPagesBackend:BackendFactory=(context)=>{
@@ -86,7 +86,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  const paint=(mesh:THREE.Mesh,sourceGeometry:THREE.BufferGeometry,material:THREE.Material|THREE.Material[],salt=0)=>{mesh.material=material;mesh.geometry=diagnostic==='wireframe'?triangleGeometry(sourceGeometry,salt):sourceGeometry;};
  const paintBlend=()=>{for(const copy of blendCopies){const sourceGeometry=copy.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=copy.userData.sourceMaterial as THREE.Material|THREE.Material[];if(diagnostic==='wireframe'){const key=`blend:${copy.uuid}`;let material=diagnosticMaterials.get(key);if(!material){material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));diagnosticMaterials.set(key,material);}paint(copy,sourceGeometry,material,triangleSalt(copy.uuid));}else paint(copy,sourceGeometry,sourceMaterial);}};
  const release=(rec:PageRec)=>{if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}};
- const attach=(rec:PageRec)=>{if(!rec.array)return;if(!indexByUrl.has(rec.url))indexByUrl.set(rec.url,new THREE.BufferAttribute(rec.array,1));if(!rec.mesh){const geometry=new THREE.BufferGeometry();geometry.attributes={...rec.attributes};geometry.setIndex(indexByUrl.get(rec.url)!);minPoint.fromArray(rec.min);maxPoint.fromArray(rec.max);geometry.boundingBox=new THREE.Box3().set(minPoint,maxPoint);geometry.boundingSphere=new THREE.Sphere();geometry.boundingBox.getBoundingSphere(geometry.boundingSphere);const copy=new THREE.Mesh(geometry,materialFor(rec));copy.matrixAutoUpdate=false;copy.matrix.copy(rec.matrix);copy.frustumCulled=false;copy.renderOrder=rec.renderOrder;copy.userData.clusterId=rec.clusterId;copy.userData.lodRole=rec.role??'exact';rec.geometry=geometry;rec.mesh=copy;}else rec.mesh.material=materialFor(rec);if(rec.mesh&&rec.geometry)paint(rec.mesh,rec.geometry,rec.mesh.material,triangleSalt(rec.clusterId));if(!rec.attached){scene.add(rec.mesh!);rec.attached=true;}};
+ const attach=(rec:PageRec)=>{if(!rec.array)return;if(!indexByUrl.has(rec.url))indexByUrl.set(rec.url,new THREE.BufferAttribute(rec.array,1));if(!rec.mesh){const geometry=new THREE.BufferGeometry();geometry.attributes={...rec.attributes};geometry.setIndex(indexByUrl.get(rec.url)!);minPoint.fromArray(rec.min);maxPoint.fromArray(rec.max);geometry.boundingBox=new THREE.Box3().set(minPoint,maxPoint);geometry.boundingSphere=new THREE.Sphere();geometry.boundingBox.getBoundingSphere(geometry.boundingSphere);const copy=new THREE.Mesh(geometry,materialFor(rec));copy.matrixAutoUpdate=false;copy.matrix.copy(rec.matrix);copy.frustumCulled=false;copy.renderOrder=rec.renderOrder;copy.userData.clusterId=rec.clusterId;copy.userData.lodRole=rec.role??'exact';rec.geometry=geometry;rec.mesh=copy;}else rec.mesh.material=materialFor(rec);rec.mesh!.matrix.copy(rec.matrix);if(rec.mesh&&rec.geometry)paint(rec.mesh,rec.geometry,rec.mesh.material,triangleSalt(rec.clusterId));if(!rec.attached){scene.add(rec.mesh!);rec.attached=true;}};
  const disposeGeometry=(geometry:THREE.BufferGeometry)=>{
   disposeTriangleGeometry(geometry);
   for(const name of Object.keys(geometry.attributes))geometry.deleteAttribute(name);
@@ -119,6 +119,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
    }
    if(!batch.mesh){const copy=new THREE.Mesh(batch.geometry,materialFor(first));copy.matrixAutoUpdate=false;copy.matrix.copy(first.matrix);copy.frustumCulled=false;copy.renderOrder=first.renderOrder;copy.userData.clusterId=String(key);copy.userData.lodRole='exact';batch.mesh=copy;}
    else batch.mesh.material=materialFor(first);
+   batch.mesh.matrix.copy(first.matrix);
    paint(batch.mesh,batch.geometry,batch.mesh.material,triangleSalt(String(key)));
    if(!batch.attached){scene.add(batch.mesh);batch.attached=true;}
   }
@@ -144,7 +145,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  return {setDiagnostic(mode){diagnostic=mode;paintBlend();syncResident();},id:'exact-cluster-pages',capabilities:{...baseCapabilities,hierarchy:true,eviction:true,unsupported:baseCapabilities.unsupported.filter(item=>item!=='bounded GPU eviction')},scene,async prepare(){},
   get overBudget(){return overBudget;},
   refreshSceneLighting:()=>sceneLights.refresh(),
-  render(camera){sceneLights.update();overBudget=false;frame++;const selected=selectVisiblePages(roots,camera,{pixelError:resolvePixelError(context,camera,motion),viewport,frame,holdResident:true},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);const trimmed=trimToBudget(selected.shown,cap);overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}syncResident();},
+  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;const selected=selectVisiblePages(roots,camera,{pixelError:resolvePixelError(context,camera,motion),viewport,frame,holdResident:true},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);const trimmed=trimToBudget(selected.shown,cap);overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}syncResident();},
   pendingUrls(){return collectPendingUrls(desired.length?desired:shown,pendingScratch);},
   pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [shown,desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
   acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;if(!indexByUrl.has(url))indexByUrl.set(url,new THREE.BufferAttribute(array,1));for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}},
@@ -190,7 +191,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const preload=options.preload??'visible';
   const attachCap=options.maxResidentPages??Math.max(1024,exactPages.length*(options.replicaCount??1));
   const cacheCap=options.maxCachedPages??Math.max(8192,Math.min(attachCap,DEFAULT_CACHED_PAGES));
-  const streamer=createPageStreamer(pages,base,signal,options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,cacheCap,url=>{for(const b of backends)b.dropPage?.(url);},diagnosticChannel.detail==='trace'&&diagnosticChannel.enabled?diagnosticChannel.emit:undefined);
+  const streamer=createPageStreamer(pages,base,signal,options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,cacheCap,url=>{for(const b of backends)b.dropPage?.(url);},options.maxPageTransferBytes,diagnosticChannel.detail==='trace'&&diagnosticChannel.enabled?diagnosticChannel.emit:undefined);
   let loaded=0,pageBytesRead=0;
   const indices=new Map<string,Uint32Array>();
   if(preload==='all'){const all=await loadClusterPages(pages,base,signal,(completed,total)=>progress('pages',completed,total,'Lecture et vérification des pages exactes et LOD'),options.pageFetchWorkers??DEFAULT_PAGE_WORKERS);for(const [url,array] of all.indices)indices.set(url,array);loaded=all.loaded;pageBytesRead=all.pageBytesRead;}
@@ -242,7 +243,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const setPose=(pose:CameraPose)=>{camera.position.fromArray(pose.position);camera.fov=pose.fov;camera.near=pose.near;camera.far=pose.far;camera.lookAt(lookAtTarget.fromArray(pose.target));camera.updateProjectionMatrix();camera.updateMatrixWorld();};
   const fillMetrics=(backend:RenderBackend)=>{const backendMetrics=backend.metrics() as FrameMetrics;const stream=streamer.stats();metricsScratch.coverageReady=backendMetrics.coverageReady??null;metricsScratch.coverageBudgetLimited=backendMetrics.coverageBudgetLimited??null;metricsScratch.streamingError=streamingError;metricsScratch.clusters=backendMetrics.clusters;metricsScratch.selectedTriangles=backendMetrics.selectedTriangles;metricsScratch.residentPages=backendMetrics.residentPages;metricsScratch.pageEvictions=backendMetrics.pageEvictions??null;metricsScratch.geometryAllocationBytes=backendMetrics.geometryAllocationBytes;metricsScratch.frustumRejected=backendMetrics.frustumRejected??null;metricsScratch.lodLevel=backendMetrics.lodLevel??null;metricsScratch.submittedTriangles=backendMetrics.submittedTriangles??null;metricsScratch.hizRejected=backendMetrics.hizRejected??null;metricsScratch.transparentMeshes=backendMetrics.transparentMeshes??null;metricsScratch.transparentFrustumRejected=backendMetrics.transparentFrustumRejected??null;metricsScratch.transparentDrawCalls=backendMetrics.transparentDrawCalls??null;metricsScratch.transparentSubmittedTriangles=backendMetrics.transparentSubmittedTriangles??null;metricsScratch.pageLoads=stream.loaded||loaded;metricsScratch.pageBytesRead=stream.bytesRead||pageBytesRead;metricsScratch.pagesRequested=stream.requested;metricsScratch.pagesLoading=stream.loading;metricsScratch.cacheHits=stream.hits;metricsScratch.cacheMisses=stream.misses;metricsScratch.cpuSubmitMs=backendMetrics.cpuSubmitMs??null;metricsScratch.gpuMs=backendMetrics.gpuMs??null;metricsScratch.vramBytes=backendMetrics.vramBytes??null;metricsScratch.drawCalls=typeof backendMetrics.drawCalls==='number'?backendMetrics.drawCalls:-1;};
   let streamingError:string|null=null;
-  let streamingPromise:Promise<void>|null=null;const queuedFetch:string[]=[];
+  let streamingPromise:Promise<void>|null=null,backgroundFetchController:AbortController|undefined;const queuedFetch:string[]=[];
   const acceptCached=(backend:RenderBackend,missing:readonly string[])=>{
    let acceptedAny=false;
    for(let i=0;i<missing.length;i++){
@@ -254,17 +255,19 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   };
   const startFetch=(urls:string[])=>{
    if(!urls.length||measuring)return;
-   streamingPromise=streamer.request(urls).then(()=>{
+   const controller=new AbortController();backgroundFetchController=controller;
+   streamingPromise=streamer.request(urls,{signal:controller.signal}).then(()=>{
     for(const url of urls){
      const array=streamer.get(url);
      if(array)for(const b of backends)b.acceptPage?.(url,array);
     }
     for(const b of backends)b.syncResident?.();
     }).catch(error=>{
-    if(disposed||signal?.aborted)return;
+    if(disposed||signal?.aborted||controller.signal.aborted)return;
     const detail=String(error);
     if(streamingError!==detail){streamingError=detail;const recovered=active.metrics().coverageReady===true;emit(recovered?{eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'PAGE_STREAM_FAILED',detail}:{eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'PAGE_STREAM_FAILED',detail});diagnose('coverage-streaming-failed','Échec du chargement des pages ; couverture GPU de secours conservée si disponible',{kind:'error',version:1,error:detail,failedPages:streamer.stats().failed,maxAttemptsPerPage:3,coverageReady:active.metrics().coverageReady??null,recovered,scope});}
    }).finally(()=>{
+    if(backgroundFetchController===controller)backgroundFetchController=undefined;
     streamingPromise=null;
     if(queuedFetch.length&&!measuring){
      const next=queuedFetch.splice(0,queuedFetch.length).filter(url=>!streamer.has(url)&&!streamer.loading(url)&&!streamer.failed(url));
@@ -280,7 +283,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
     const needFetch=missing.filter(url=>!streamer.has(url)&&!streamer.loading(url)&&!streamer.failed(url));
     if(needFetch.length>0){
      if(!measuring&&!streamingPromise)startFetch(needFetch);
-     else if(!measuring&&streamingPromise)for(const url of needFetch)if(!queuedFetch.includes(url))queuedFetch.push(url);
+     else if(!measuring&&streamingPromise){for(const url of needFetch)if(!queuedFetch.includes(url))queuedFetch.push(url);backgroundFetchController?.abort(new DOMException('Camera request superseded','AbortError'));}
     }
    }
    const visibleUrls=backend.pageUrls?.();

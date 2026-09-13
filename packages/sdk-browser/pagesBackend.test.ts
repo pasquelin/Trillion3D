@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {exactPagesBackend} from './index.ts';
+import {exactPagesBackend,referenceBackend} from './index.ts';
+import {threeLodBackend} from './threeLod.ts';
 import {collectClusterPages} from './pageSelection.ts';
 test('exact pages report measured residency and keep only the visible set in the scene',()=>{
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
@@ -14,6 +15,20 @@ test('exact pages report measured residency and keep only the visible set in the
  backend.setDiagnostic?.('pages');assert.equal(meshes().length,2);backend.setDiagnostic?.('beauty');assert.equal(meshes().length,1);
  camera.lookAt(0,0,10);backend.render(camera);assert.equal(backend.metrics().clusters,0);assert.equal(backend.metrics().selectedTriangles,0);assert.equal(backend.metrics().residentPages,0);assert.equal(meshes().length,0);
  backend.dispose();geometry.dispose();material.dispose();
+});
+
+test('source instance transforms update all three WebGL backends without rebuilding pages',()=>{
+ for(const factory of [referenceBackend,exactPagesBackend,threeLodBackend]){
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,0,1,0],3));geometry.setIndex([0,1,2]);
+  const material=new THREE.MeshBasicMaterial(),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
+  const page={id:0,url:'0',count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x'};
+  const backend=factory({source,metadata:{primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages:[page],hierarchy:{min:page.min,max:page.max,page:0}}]},indices:new Map([['0',new Uint32Array([0,1,2])]]),associations:new Map([[mesh,{meshes:0,primitives:0}]])});
+  const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);
+  backend.render(camera);mesh.position.x=100;backend.render(camera);
+  if(backend.id==='exact-cluster-pages')assert.equal(backend.metrics().selectedTriangles,0);
+  else{const object=backend.scene.children.find(child=>child.type==='Mesh'||child.type==='LOD');assert.ok(object);assert.equal(object.matrix.elements[12],100);}
+  backend.dispose();geometry.dispose();material.dispose();
+ }
 });
 test('exact pages refuse an incomplete surface when the visible set exceeds the resident budget',()=>{
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
@@ -210,4 +225,3 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
  assert.equal(collected.blendCopies[0].material,material);
  geometry.dispose();material.dispose();
 });
-
