@@ -4,6 +4,8 @@ export const FORMAT_VERSION=1;
 export const CLUSTERED_BLEND_FORMAT_VERSION=2;
 /** Cache identity for the conservative object-space LOD distance bound and boundary validation. */
 export const LOD_ERROR_MODEL='bounds-diagonal-boundary-v1';
+/** Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere. */
+export const DAG_ERROR_MODEL='dag-group-qem-v1';
 export const DEFAULT_SCOPE:AssetScope='slice';
 export type AssetScope = 'slice' | 'full';
 export interface PreparationProgress { phase:string; completed:number; total:number; message:string }
@@ -27,9 +29,28 @@ export interface FrameMetrics {
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface GeometryPageDescriptor {url:string;sha256:string;bytes:number;formatVersion:2;codec:'meshopt';vertexCount:number;indexCount:number;flags:number;uncompressedBytes:number}
-export interface Page { id:number; url:string; sha256:string; bytes:number; count:number; min:number[];max:number[];role?:'exact'|'coarse';geometry?:GeometryPageDescriptor }
+export interface Page {
+ id:number; url:string; sha256:string; bytes:number; count:number; min:number[];max:number[];role?:'exact'|'coarse';geometry?:GeometryPageDescriptor;
+ /** Offset of the earliest source index this page descends from. Restores a transparent draw order. */
+ start?:number;
+ /** DAG cut, when the compiler emitted one. `lodError` is the object-space error of the group that
+  *  produced this cluster, projected through `sphere`; `parentError` is the error of the group that
+  *  replaces it, projected through `parentSphere`. Both are null on a root, which is never replaced. */
+ level?:number; lodError?:number; sphere?:number[]; parentError?:number|null; parentSphere?:number[]|null;
+}
+/** A cluster carrying its own screen-error band needs no hierarchy: selection is a flat per-page test. */
+export function pageCarriesClusterError(page:Page){
+ return typeof page.lodError==='number'&&Number.isFinite(page.lodError)&&page.lodError>=0&&Array.isArray(page.sphere)&&page.sphere.length===4&&page.sphere.every(value=>Number.isFinite(value))&&page.sphere[3]>=0;
+}
+export function primitiveUsesClusterErrors(primitive:Pick<Primitive,'pages'>){
+ return primitive.pages.length>0&&primitive.pages.every(pageCarriesClusterError);
+}
 export interface Tree { min:number[];max:number[];page?:number;children?:Tree[];errorObject?:number;coarsePages?:number[] }
-export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'exact-source-order'|'greedy-adjacency';pages:Page[];hierarchy:Tree|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
+/** Flat culling hierarchy over a primitive's clusters. `stride` numbers per node, node 0 is the root:
+ *  min[3], max[3], sphere[4], maxParentError (-1 when the subtree holds a cluster with no
+ *  replacement), firstChild, childCount, firstPage, pageCount. A leaf has childCount 0. */
+export interface CullingHierarchy {stride:number;count:number;nodes:number[]}
+export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'exact-source-order'|'greedy-adjacency'|'dag-groups';pages:Page[];hierarchy:Tree|null;culling?:CullingHierarchy|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
 export interface ClusterManifest {formatVersion?:number;compilerVersion?:string;errorModel?:string;simplification?:boolean;schema:number;status:string;key:string;scope:AssetScope;clusterStrategy?:string;sourceTriangles:number;selectedTriangles:number;selectedNodes:number[];totalNodes:number;autonomousScene?:string|null;primitives:Primitive[]}
 
 export class EngineError extends Error { readonly code:string; readonly details:Record<string,unknown>; constructor(code:string,message:string,details:Record<string,unknown>={}){super(message);this.name='EngineError';this.code=code;this.details=details;} }
@@ -39,13 +60,16 @@ function cacheUsesLodError(metadata:ClusterManifest){
  if(metadata.simplification)return true;
  return metadata.primitives.some(primitive=>primitive.pages.some(page=>(page.role??'exact')==='coarse')||primitive.hierarchy?.errorObject!=null);
 }
+function cacheUsesClusterErrors(metadata:ClusterManifest){return metadata.primitives.some(primitiveUsesClusterErrors);}
 /** Rejects caches compiled before the certified conservative error identity. */
 export function assertCacheIdentity(metadata:ClusterManifest){
  const formatVersion=metadata.formatVersion??metadata.schema;assertFormat(formatVersion);
  if(metadata.schema!==formatVersion)throw new EngineError('UNSUPPORTED_FORMAT','Cache schema and formatVersion differ',{schema:metadata.schema,formatVersion});
  if(formatVersion!==CLUSTERED_BLEND_FORMAT_VERSION&&metadata.primitives.some(primitive=>primitive.pass==='clustered-blend'))throw new EngineError('UNSUPPORTED_FORMAT','clustered-blend requires cache format 2',{formatVersion});
- if(!cacheUsesLodError(metadata))return;
- if(metadata.errorModel!==LOD_ERROR_MODEL){
-  throw new EngineError('STALE_CACHE',`Cache error model ${metadata.errorModel??'absent'} cannot be used; recompile with ${LOD_ERROR_MODEL}`,{errorModel:metadata.errorModel??null,expected:LOD_ERROR_MODEL});
+ const dagPages=cacheUsesClusterErrors(metadata);
+ if(!dagPages&&!cacheUsesLodError(metadata))return;
+ const expected=dagPages?DAG_ERROR_MODEL:LOD_ERROR_MODEL;
+ if(metadata.errorModel!==expected){
+  throw new EngineError('STALE_CACHE',`Cache error model ${metadata.errorModel??'absent'} cannot be used; recompile with ${expected}`,{errorModel:metadata.errorModel??null,expected});
  }
 }
