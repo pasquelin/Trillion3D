@@ -85,10 +85,22 @@ export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4
  return {minX:Math.floor(minX),minY:Math.floor(minY),maxX:Math.ceil(maxX),maxY:Math.ceil(maxY),nearestDepth:nearest,clipsNear:false};
 }
 
+/** Pick the first mip whose outward-rounded inclusive footprint fits the test kernel. */
+export function hizFootprintLevel(bounds:HizBounds,width:number,height:number,levels:number):number|undefined{
+ if(bounds.clipsNear||!Number.isInteger(bounds.minX)||!Number.isInteger(bounds.minY)||!Number.isInteger(bounds.maxX)||!Number.isInteger(bounds.maxY)||
+  bounds.minX<0||bounds.minY<0||bounds.maxX>=width||bounds.maxY>=height||bounds.maxX<bounds.minX||bounds.maxY<bounds.minY)return undefined;
+ for(let level=0;level<levels;level++){
+  const scale=2**level;
+  if(Math.floor(bounds.maxX/scale)-Math.floor(bounds.minX/scale)<16&&
+   Math.floor(bounds.maxY/scale)-Math.floor(bounds.minY/scale)<16)return level;
+ }
+ return undefined;
+}
+
 export function hizRejects(pyramid:HizPyramid,bounds:HizBounds,bias=0){
- if(bounds.clipsNear||bounds.maxX<bounds.minX||bounds.maxY<bounds.minY)return false;
- if(bounds.maxX-bounds.minX+1>16||bounds.maxY-bounds.minY+1>16)return false;
- const far=hizFootprintFar(pyramid.levels,bounds.minX,bounds.minY,bounds.maxX+1,bounds.maxY+1,0);
+ const level=hizFootprintLevel(bounds,pyramid.width,pyramid.height,pyramid.levels.length);
+ if(level===undefined)return false;
+ const far=hizFootprintFar(pyramid.levels,bounds.minX,bounds.minY,bounds.maxX+1,bounds.maxY+1,level);
  return hizOccluded(bounds.nearestDepth,far,bias);
 }
 
