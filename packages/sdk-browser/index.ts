@@ -1,10 +1,12 @@
 import {replicateInstances} from './replicateInstances.ts';
 export {replicateInstances} from './replicateInstances.ts';
 import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
-import {assertCacheIdentity,assertFormat,DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
+import {DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
 import {detectCapabilities} from './capabilities.ts';
 import {checked,loadClusterPages} from './clusterPages.ts';
 import {createPageStreamer} from './streamingPages.ts';
+import {loadClusterManifest} from './manifestLoad.ts';
+import {orderPendingUrls,pixelScaleOf,PRIORITY_PREFETCH,PRIORITY_VISIBLE} from './streamingPriority.ts';
 import {createComparisonCompositor, type ComparisonLayout} from './comparison.ts';
 import {threeLodBackend} from './threeLod.ts';
 import {webgpuPagesBackend} from './webgpuPages.ts';
@@ -43,7 +45,7 @@ export function framingFromBounds(radius:number,aspect:number){
  const near=radius/10000,far=radius*20,scale=radius*1.9/Math.min(1,aspect),len=Math.hypot(.85,.65,1);
  return {near,far,offset:[.85*scale/len,.65*scale/len,1*scale/len] as [number,number,number]};
 }
-const DEFAULT_FOV=55,DEFAULT_PIXEL_RATIO=1,DEFAULT_WIDTH=960,DEFAULT_HEIGHT=540,DEFAULT_PAGE_WORKERS=8,DEFAULT_CACHED_PAGES=16384,DEFAULT_CLEAR_COLOR=0x171d28;
+const DEFAULT_FOV=55,DEFAULT_PIXEL_RATIO=1,DEFAULT_WIDTH=960,DEFAULT_HEIGHT=540,DEFAULT_PAGE_WORKERS=32,PREFETCH_BATCH=64,PREFETCH_INTERVAL_MS=250,DEFAULT_CACHED_PAGES=16384,DEFAULT_CLEAR_COLOR=0x171d28;
 const rgbHex=(red:number,green:number,blue:number)=>`#${[red,green,blue].map(channel=>channel.toString(16).padStart(2,'0')).join('')}`;
 /** A bounded evidence record for the final WebGL composition used by captures and reports. */
 export function presentationColorDiagnostic(pixels:Uint8Array,width:number,height:number,clearColor:number,surface='webgl-capture-target'){
@@ -71,6 +73,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  const {roots,allPages,blendCopies,bootstrap,prepared}=collectClusterPages(source,metadata,indices,associations);
  const cap=maxResidentPages??Math.max(1024,prepared),scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,context.sceneLighting??source);const shown:PageRec[]=[],desired:PageRec[]=[],attached:PageRec[]=[];
  const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[],batches=new Map<number,PageBatch>();
+ const prefetchScratch:string[]=[],prefetchShown:PageRec[]=[],pixelScaleScratch:number[]=[1,1];let lastCamera:THREE.PerspectiveCamera|undefined,lastPixelError=0;
  const groups=new Map<number,PageRec[]>(),groupPool:PageRec[][]=[];
  for(const copy of blendCopies){copy.userData.sourceGeometry=copy.geometry;copy.userData.sourceMaterial=copy.material;scene.add(copy);}
  const indexByUrl=new Map<string,THREE.BufferAttribute>();
@@ -150,7 +153,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  return {setDiagnostic(mode){diagnostic=mode;paintBlend();syncResident();},id:'exact-cluster-pages',capabilities:{...baseCapabilities,hierarchy:true,eviction:true,unsupported:baseCapabilities.unsupported.filter(item=>item!=='bounded GPU eviction')},scene,async prepare(){},
   get overBudget(){return overBudget;},
   refreshSceneLighting:()=>sceneLights.refresh(),
-  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;const selected=selectVisiblePages(roots,camera,{pixelError:resolvePixelError(context,camera,motion),viewport,frame,holdResident:true,pageBudget:cap},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);// Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
+  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;lastCamera=camera;lastPixelError=resolvePixelError(context,camera,motion);const selected=selectVisiblePages(roots,camera,{pixelError:lastPixelError,viewport,frame,holdResident:true,pageBudget:cap},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);// Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
    // Selection already answered the budget with a coarser threshold, so the cover is kept whole and
    // only the flag is raised when even the coarsest cover exceeds the budget.
    const trimmed=bootstrap.length?{shown:selected.shown,overBudget:selected.shown.length>cap,visible:selected.shown.length,selectedTriangles:selected.selectedTriangles}:trimToBudget(selected.shown,cap);overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}syncResident();},
@@ -158,7 +161,18 @@ export const exactPagesBackend:BackendFactory=(context)=>{
    // The root cover is requested first and never dropped: it is what the cut falls back on.
    const missingRoots=bootstrap.filter(rec=>!rec.array);
    if(missingRoots.length)return collectPendingUrls(missingRoots,pendingScratch);
-   return collectPendingUrls(desired.length?desired:shown,pendingScratch);
+   const waiting=desired.length?desired:shown;
+   if(!lastCamera)return collectPendingUrls(waiting,pendingScratch);
+   // Most costly absence first: what the viewer sees wrong the longest is fetched last, not first.
+   return orderPendingUrls(waiting,lastCamera,pixelScaleOf(lastCamera,viewport,pixelScaleScratch),pendingScratch);
+  },
+  prefetchUrls(){
+   prefetchScratch.length=0;
+   if(!lastCamera||!bootstrap.length)return prefetchScratch;
+   // A ring around the cut: what a twice-finer threshold would select. Asked for only when nothing
+   // visible is missing, at a priority the visible cut always outranks.
+   const ring=selectVisiblePages(roots,lastCamera,{pixelError:lastPixelError>0?lastPixelError*0.5:0.5,viewport,frame,holdResident:false},prefetchShown);
+   return collectPendingUrls(ring.wanted?.length?ring.wanted:ring.shown,prefetchScratch);
   },
   pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [bootstrap,shown,desired])for(let i=0;i<list.length;i++){const url=pageRequestUrl(list[i]);if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
   acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;acceptPageArray(recs,array);},
@@ -171,14 +185,6 @@ export const exactPagesBackend:BackendFactory=(context)=>{
   dispose(){diagnosticMaterials.forEach(m=>m.dispose());for(const batch of batches.values())disposeBatch(batch);batches.clear();groups.clear();groupPool.length=0;for(const rec of allPages){if(rec.attached)release(rec);if(rec.geometry)disposeGeometry(rec.geometry);rec.geometry=undefined;rec.mesh=undefined;}for(const copy of blendCopies)disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
 };
 export const DEFAULT_BACKENDS:BackendFactory[]=[referenceBackend,exactPagesBackend,threeLodBackend];
-async function jsonResource(url:string,signal?:AbortSignal):Promise<{value:Record<string,unknown>;details:{url:string;status:number;contentType:string}}>{
- const response=await checked(url,signal),contentType=response.headers.get('content-type')??'';
- const details={url,status:response.status,contentType};
- if(!/^application\/(?:[\w.-]+\+)?json(?:;|$)/i.test(contentType))throw new EngineError('INVALID_JSON_RESPONSE',`${url}: JSON attendu, HTTP ${response.status}, type ${contentType||'absent'}`,details);
- let value:unknown;try{value=await response.json();}catch{throw new EngineError('INVALID_JSON_RESPONSE',`${url}: JSON invalide, HTTP ${response.status}, type ${contentType}`,details);}
- if(!value||typeof value!=='object'||Array.isArray(value))throw new EngineError('INVALID_JSON_RESPONSE',`${url}: objet JSON attendu, HTTP ${response.status}, type ${contentType}`,details);
- return {value:value as Record<string,unknown>,details};
-}
 function disposeSource(source:THREE.Object3D){const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();for(const mesh of objects(source)){geometries.add(mesh.geometry);for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material]){materials.add(material);for(const value of Object.values(material))if(value instanceof THREE.Texture)textures.add(value);}}geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>{t.dispose();const image=t.source.data as {close?:()=>void};image?.close?.();});}
 export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOptions){
  const diagnosticChannel=createDiagnosticChannel(options.onDiagnostic,{detail:options.diagnosticDetail??(options.onDiagnostic?'trace':'summary')});
@@ -186,15 +192,15 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
  const diagnose=(phase:string,message:string,context:Record<string,unknown>={})=>diagnosticChannel.emit({phase,message,context});
  const preparationStart=performance.now();const {signal}=options,scope=options.scope??DEFAULT_SCOPE;const progress=(phase:string,completed:number,total:number,message:string)=>{signal?.throwIfAborted();options.onPreparation?.({phase,completed,total,message});diagnose('preparation',message,{kind:'preparation',phase,completed,total,scope});};
  progress('manifest',0,1,'Lecture du cache');
- const {manifestUrl}=options;let pointerResource:{value:Record<string,unknown>;details:{url:string;status:number;contentType:string}};let pointer:Record<string,unknown>;let metadataUrl:string;let metadataResource:{value:Record<string,unknown>;details:{url:string;status:number;contentType:string}};let value:Record<string,unknown>;let metadata:ClusterManifest;
+ const {manifestUrl}=options;let pointer:Record<string,unknown>;let metadataUrl:string;let metadata:ClusterManifest;let loadedBase:string;
  try{
-  pointerResource=await jsonResource(manifestUrl,signal);pointer=pointerResource.value;if(typeof pointer.status!=='string'||typeof pointer.url!=='string'||!pointer.url)throw new EngineError('INVALID_POINTER',`${manifestUrl}: manifeste sans status/url valides, HTTP ${pointerResource.details.status}, type ${pointerResource.details.contentType}`,pointerResource.details);if(pointer.status!=='ready')throw new EngineError('CACHE_NOT_READY','The preparation pointer is not ready');if(pointer.scope!==undefined&&pointer.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, pointer contains ${pointer.scope}`,{requestedScope:scope,pointerScope:pointer.scope});
-  if(pointer.formatVersion!==undefined)assertFormat(pointer.formatVersion as number);
-  metadataUrl=new URL(pointer.url,new URL(manifestUrl,location.href)).href;metadataResource=await jsonResource(metadataUrl,signal);value=metadataResource.value;if(!Array.isArray(value.primitives)||!Array.isArray(value.selectedNodes)||typeof value.selectedTriangles!=='number')throw new EngineError('INVALID_CACHE',`${metadataUrl}: schéma du cache invalide, HTTP ${metadataResource.details.status}, type ${metadataResource.details.contentType}`,metadataResource.details);metadata=value as unknown as ClusterManifest;assertFormat(metadata.formatVersion??metadata.schema);assertCacheIdentity(metadata);if(metadata.status!=='ready')throw new EngineError('INVALID_CACHE','Unsupported Web Geometry cache');if(metadata.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, cache contains ${metadata.scope}`,{requestedScope:scope,cacheScope:metadata.scope});
+  const loaded=await loadClusterManifest(manifestUrl,scope,signal);
+  ({pointer,metadata,metadataUrl}=loaded);loadedBase=loaded.base;
+  diagnose('manifest','Manifeste lu',{kind:'preparation',phase:'manifest',scope,manifestUrl,metadataUrl,...loaded.timing});
  }catch(error){diagnose('error','Manifest or cache preparation failed',{kind:'error',phase:'manifest',error:String(error),scope,manifestUrl});diagnosticChannel.flushSync();diagnosticChannel.close();throw error;}
  const autonomous=options.autonomousGeometry===true;
  if(autonomous&&(!metadata.autonomousScene||options.backends))throw new EngineError('AUTONOMOUS_SCENE_UNAVAILABLE','Autonomous geometry requires a prepared static scene and the autonomous backend');
- const base=new URL('.',new URL(pointer.url,new URL(manifestUrl,location.href))).href;
+ const base=loadedBase;
  const sceneFile=autonomous?metadata.autonomousScene!:'source.gltf';
  let sceneLightingSource:THREE.Object3D|undefined,source:THREE.Object3D|undefined,renderer:THREE.WebGLRenderer|undefined,gpuDevice:GPUDevice|undefined,measurementTarget:THREE.WebGLRenderTarget|undefined;const backends:RenderBackend[]=[];
  const disposeTargets=()=>{measurementTarget?.dispose();measurementTarget=undefined;};
@@ -280,7 +286,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const check=()=>{if(disposed)throw new Error('Explorer disposed');if(capturingSurface)throw new Error('SURFACE_CAPTURE_BUSY');signal?.throwIfAborted();};
   const setPose=(pose:CameraPose)=>{camera.position.fromArray(pose.position);camera.fov=pose.fov;camera.near=pose.near;camera.far=pose.far;camera.lookAt(lookAtTarget.fromArray(pose.target));camera.updateProjectionMatrix();camera.updateMatrixWorld();};
   const fillMetrics=(backend:RenderBackend)=>{const backendMetrics=backend.metrics() as FrameMetrics;const stream=streamer.stats();metricsScratch.coverageReady=backendMetrics.coverageReady??null;metricsScratch.coverageBudgetLimited=backendMetrics.coverageBudgetLimited??null;metricsScratch.streamingError=streamingError;metricsScratch.clusters=backendMetrics.clusters;metricsScratch.selectedTriangles=backendMetrics.selectedTriangles;metricsScratch.residentPages=backendMetrics.residentPages;metricsScratch.pageEvictions=backendMetrics.pageEvictions??null;metricsScratch.geometryAllocationBytes=backendMetrics.geometryAllocationBytes;metricsScratch.frustumRejected=backendMetrics.frustumRejected??null;metricsScratch.lodLevel=backendMetrics.lodLevel??null;metricsScratch.submittedTriangles=backendMetrics.submittedTriangles??null;metricsScratch.hizRejected=backendMetrics.hizRejected??null;metricsScratch.transparentMeshes=backendMetrics.transparentMeshes??null;metricsScratch.transparentFrustumRejected=backendMetrics.transparentFrustumRejected??null;metricsScratch.transparentDrawCalls=backendMetrics.transparentDrawCalls??null;metricsScratch.transparentSubmittedTriangles=backendMetrics.transparentSubmittedTriangles??null;metricsScratch.totalSubmittedTriangles=backendMetrics.totalSubmittedTriangles??(backendMetrics.submittedTriangles==null?null:backendMetrics.submittedTriangles+(backendMetrics.transparentSubmittedTriangles??0));metricsScratch.pageLoads=stream.loaded||loaded;metricsScratch.pageBytesRead=stream.bytesRead||pageBytesRead;metricsScratch.pagesRequested=stream.requested;metricsScratch.pagesLoading=stream.loading;metricsScratch.cacheHits=stream.hits;metricsScratch.cacheMisses=stream.misses;metricsScratch.cpuSubmitMs=backendMetrics.cpuSubmitMs??null;metricsScratch.gpuMs=backendMetrics.gpuMs??null;metricsScratch.vramBytes=backendMetrics.vramBytes??null;metricsScratch.drawCalls=typeof backendMetrics.drawCalls==='number'?backendMetrics.drawCalls:-1;metricsScratch.textureUploaded=backendMetrics.textureUploaded??null;metricsScratch.texturePending=backendMetrics.texturePending??null;metricsScratch.textureSkipped=backendMetrics.textureSkipped??null;};
-  let streamingError:string|null=null;
+  let streamingError:string|null=null,lastPrefetch=0;
   let streamingPromise:Promise<void>|null=null,backgroundFetchController:AbortController|undefined;const queuedFetch:string[]=[];const decodeFailures=new Set<string>();
   const acceptCached=(backend:RenderBackend,missing:readonly string[])=>{
    let acceptedAny=false;
@@ -291,10 +297,10 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
    if(acceptedAny)backend.syncResident?.();
    return acceptedAny;
   };
-  const startFetch=(urls:string[])=>{
+  const startFetch=(urls:string[],priority=PRIORITY_VISIBLE)=>{
    if(!urls.length||measuring)return;
    const controller=new AbortController();backgroundFetchController=controller;
-   streamingPromise=streamer.request(urls,{signal:controller.signal}).then(async()=>{
+   streamingPromise=streamer.request(urls,{signal:controller.signal,priority}).then(async()=>{
     for(const url of urls){
      if(geometryUrls.has(url)){const bytes=streamer.getBytes(url);if(bytes){try{const decoded=await decodeGeometryPage(bytes);for(const b of backends)b.acceptGeometryPage?.(url,decoded);}catch(error){decodeFailures.add(url);throw error;}}continue;}
      const array=streamer.get(url);if(array)for(const b of backends)b.acceptPage?.(url,array);
@@ -322,6 +328,17 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
     if(needFetch.length>0){
      if(!measuring&&!streamingPromise)startFetch(needFetch);
      else if(!measuring&&streamingPromise){for(const url of needFetch)if(!queuedFetch.includes(url))queuedFetch.push(url);backgroundFetchController?.abort(new DOMException('Camera request superseded','AbortError'));}
+    }
+   }
+   else if(!measuring&&!streamingPromise&&!queuedFetch.length&&performance.now()-lastPrefetch>PREFETCH_INTERVAL_MS&&streamer.stats().loading===0){
+    // The network is idle and nothing visible is missing: pull the ring around the cut ahead of the
+    // camera, at a priority any visible request outranks. A second selection pass costs as much as
+    // the first, so it runs on a timer, never on every frame.
+    lastPrefetch=performance.now();
+    const ring=backend.prefetchUrls?.();
+    if(ring&&ring.length){
+     const cold=ring.filter(url=>!streamer.has(url)&&!streamer.loading(url)&&!streamer.failed(url)).slice(0,PREFETCH_BATCH);
+     if(cold.length)startFetch(cold,PRIORITY_PREFETCH);
     }
    }
    const visibleUrls=backend.pageUrls?.();

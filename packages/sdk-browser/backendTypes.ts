@@ -15,6 +15,9 @@ export interface RenderBackend {
  scene:THREE.Scene;
  metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'totalSubmittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'|'textureUploaded'|'texturePending'|'textureSkipped'>&{drawCalls?:number;batchRebuilds?:number;batchIndexBytesUpdated?:number;displayDetachments?:number};
  pendingUrls?():string[];
+ /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
+  *  so a small camera move finds them already resident. */
+ prefetchUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
  acceptGeometryPage?(url:string,data:import('./geometryPage.ts').DecodedGeometryPage):void;
