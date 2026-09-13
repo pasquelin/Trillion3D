@@ -111,3 +111,129 @@ test('shared blend and runtime transmission keep their full source fallback',()=
   fixture.geometry.dispose();fixture.material.dispose();
  }
 });
+
+/** Four source triangles in a row, replaced by two mid clusters, then by one root. */
+function dagFixture(){
+ const positions:number[]=[];
+ for(let t=0;t<4;t++){const x=-2+t;positions.push(x,-.5,0,x+1,-.5,0,x+.5,.5,0);}
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ geometry.setIndex([...Array(12).keys()]);
+ const mesh=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));
+ const source=new THREE.Group();source.add(mesh);
+ const leftSphere=[-1,0,0,1.2],rightSphere=[1,0,0,1.2],rootSphere=[0,0,0,2.3];
+ const midError=.02,rootError=.2;
+ const leaf=(id:number)=>({id,url:`leaf${id}`,sha256:`leaf${id}`,bytes:12,count:3,
+  min:[-2+id,-.5,0],max:[-1+id,.5,0],role:'exact' as const,level:0,lodError:0,
+  sphere:[-1.5+id,0,0,.6],parentError:midError,parentSphere:id<2?leftSphere:rightSphere});
+ const pages=[
+  leaf(0),leaf(1),leaf(2),leaf(3),
+  {id:4,url:'mid-left',sha256:'mid-left',bytes:12,count:3,min:[-2,-.5,0],max:[0,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:leftSphere,parentError:rootError,parentSphere:rootSphere},
+  {id:5,url:'mid-right',sha256:'mid-right',bytes:12,count:3,min:[0,-.5,0],max:[2,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:rightSphere,parentError:rootError,parentSphere:rootSphere},
+  {id:6,url:'root',sha256:'root',bytes:12,count:3,min:[-2,-.5,0],max:[2,.5,0],role:'coarse' as const,level:2,lodError:rootError,sphere:rootSphere,parentError:null,parentSphere:null},
+ ];
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',clusterStrategy:'dag-groups' as const,pages,hierarchy:null}]} as unknown as ClusterManifest;
+ const indices=new Map(pages.map(page=>[page.url,new Uint32Array([0,1,2])]));
+ for(let id=0;id<4;id++)indices.set(`leaf${id}`,new Uint32Array([id*3,id*3+1,id*3+2]));
+ return {geometry,mesh,source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]])};
+}
+function wideCamera(){const cam=new THREE.PerspectiveCamera(55,16/9,.1,1000);cam.position.set(0,0,5);cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;}
+function urls(fixture:ReturnType<typeof dagFixture>,pixelError:number,cam=wideCamera()){
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ return selectVisiblePages(roots,cam,{pixelError,viewport:[1280,720],frame:1,holdResident:true}).shown.map(page=>page.url).sort();
+}
+
+test('a flat cluster cut selects exactly one level per chain and covers the surface once',()=>{
+ const fixture=dagFixture();
+ assert.deepEqual(urls(fixture,0),['leaf0','leaf1','leaf2','leaf3']);
+ assert.deepEqual(urls(fixture,8),['mid-left','mid-right']);
+ assert.deepEqual(urls(fixture,200),['root']);
+ // Every threshold keeps exactly one cluster of each leaf-to-root chain.
+ const chains=[['leaf0','mid-left','root'],['leaf1','mid-left','root'],['leaf2','mid-right','root'],['leaf3','mid-right','root']];
+ for(const pixelError of [0,1,4,7.4,7.6,20,138,139,1e6]){
+  const shown=new Set(urls(fixture,pixelError));
+  for(const chain of chains)assert.equal(chain.filter(url=>shown.has(url)).length,1,`pixelError ${pixelError}: ${chain.join('>')}`);
+ }
+ fixture.geometry.dispose();
+});
+
+test('a flat cluster cut keeps the frustum cut and reports the root cover',()=>{
+ const fixture=dagFixture();
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ assert.deepEqual(rootCoverage(roots).map(page=>page.url),['root']);
+ const cam=new THREE.PerspectiveCamera(40,1,.1,1000);cam.position.set(-1.5,0,2);cam.lookAt(-1.5,0,0);cam.updateMatrixWorld();
+ const selected=selectVisiblePages(roots,cam,{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
+ assert.deepEqual(selected.shown.map(page=>page.url).sort(),['leaf0','leaf1']);
+ assert.ok(selected.frustumRejected>0);
+ fixture.geometry.dispose();
+});
+
+test('a flat cut reports an incomplete cover while a selected cluster is still loading',()=>{
+ const fixture=dagFixture();fixture.indices.delete('leaf0');
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations,{allowMissing:true});
+ const selected=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
+ assert.equal(selected.complete,false);
+ assert.deepEqual(selected.wanted.map(page=>page.url).sort(),['leaf0','leaf1','leaf2','leaf3']);
+ assert.deepEqual(selected.shown.map(page=>page.url).sort(),['leaf1','leaf2','leaf3']);
+ fixture.geometry.dispose();
+});
+
+test('a page whose replacement error sits below its own error is rejected at load time',()=>{
+ const fixture=dagFixture();
+ fixture.metadata.primitives[0].pages[4].parentError=0.001;
+ assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/parentError sous lodError/);
+ fixture.metadata.primitives[0].pages[4].parentError=0.2;
+ fixture.metadata.primitives[0].pages[4].parentSphere=null;
+ assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/parentError sans parentSphere/);
+ fixture.geometry.dispose();
+});
+
+/** Hand-built hierarchy over the fixture: leaves in one child, coarse levels in the other. */
+function dagCulling(){
+ const left=[-1,0,0,1.2],right=[1,0,0,1.2],rootSphere=[0,0,0,2.3];
+ const both=[0,0,0,2.2];
+ const whole=[-2,-.5,0,2,.5,0];
+ const node=(box:number[],sphere:number[],maxParent:number,firstChild:number,childCount:number,firstPage:number,pageCount:number)=>
+  [...box,...sphere,maxParent,firstChild,childCount,firstPage,pageCount];
+ return {stride:15,count:3,nodes:[
+  ...node(whole,rootSphere,-1,1,2,0,0),
+  ...node(whole,both,.02,0,0,0,4),
+  ...node(whole,rootSphere,-1,0,0,4,3),
+ ]};
+}
+
+test('the culling hierarchy accelerates the flat cut without changing it',()=>{
+ const plain=dagFixture(),accelerated=dagFixture();
+ accelerated.metadata.primitives[0].culling=dagCulling();
+ const cam=wideCamera();
+ for(const pixelError of [0,1,3.4,3.6,20,60,200,1e6]){
+  const a=urls(plain,pixelError,cam),b=urls(accelerated,pixelError,cam);
+  assert.deepEqual(b,a,`pixelError ${pixelError}`);
+ }
+ // The leaf subtree must actually be skipped once its replacement error fits the budget.
+ const {roots}=collectClusterPages(accelerated.source,accelerated.metadata,accelerated.indices,accelerated.associations);
+ assert.ok(roots[0].culling,'the hierarchy must be unpacked');
+ const coarse=selectVisiblePages(roots,cam,{pixelError:20,viewport:[1280,720],frame:1});
+ assert.deepEqual(coarse.shown.map(page=>page.url).sort(),['mid-left','mid-right']);
+ plain.geometry.dispose();accelerated.geometry.dispose();
+});
+
+test('a culling hierarchy that does not match its pages is rejected',()=>{
+ const fixture=dagFixture();
+ const broken=dagCulling();broken.nodes[15+13]=99; // the leaf child now claims pages past the end
+ fixture.metadata.primitives[0].culling=broken;
+ assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/culling/i);
+ const short=dagCulling();short.count=4;
+ fixture.metadata.primitives[0].culling=short;
+ assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/culling/i);
+ fixture.geometry.dispose();
+});
+
+test('transparent flat pages keep a draw order taken from their source rank',()=>{
+ const fixture=dagFixture();
+ fixture.mesh.material=new THREE.MeshBasicMaterial({transparent:true});
+ for(const page of fixture.metadata.primitives[0].pages)page.start=(6-page.id)*3;
+ const {allPages}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ assert.deepEqual(allPages.map(page=>page.sourceOrder),[18,15,12,9,6,3,0]);
+ fixture.geometry.dispose();
+});

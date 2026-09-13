@@ -91,7 +91,7 @@ fn preserves_surviving_faces(positions:&[f32],faces:&[[u32;3]],keep:u32,drop:u32
  }
  true
 }
-fn compact_region(positions:&[f32],indices:&[u32])->(Vec<f32>,Vec<u32>,Vec<u32>){
+pub(crate) fn compact_region(positions:&[f32],indices:&[u32])->(Vec<f32>,Vec<u32>,Vec<u32>){
  let mut map=HashMap::new();
  let mut compact_pos=Vec::new();
  let mut remap=Vec::new();
@@ -110,6 +110,11 @@ fn compact_region(positions:&[f32],indices:&[u32])->(Vec<f32>,Vec<u32>,Vec<u32>)
 }
 /// Fast appearance-preserving simplify. Locks the topological border so cluster seams stay watertight. Vertices stay in the source buffer.
 pub fn simplify_fast(positions:&[f32],indices:&[u32],target_triangles:usize)->Result<SimplifiedMesh>{
+ simplify_locked(positions,indices,target_triangles,0.01)
+}
+/// Border-locked simplify with an explicit relative error ceiling. `target_error` is meshopt's
+/// relative unit; pass a large value to reach the triangle target and read the achieved error back.
+pub fn simplify_locked(positions:&[f32],indices:&[u32],target_triangles:usize,target_error:f32)->Result<SimplifiedMesh>{
  if indices.len()<3||indices.len()%3!=0{return Err(invalid("Index count must be a positive multiple of three"));}
  if positions.len()%3!=0{return Err(invalid("POSITION count must be a multiple of three"));}
  let current=indices.len()/3;
@@ -118,7 +123,27 @@ pub fn simplify_fast(positions:&[f32],indices:&[u32],target_triangles:usize)->Re
  let bytes=unsafe{std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8,compact_pos.len()*4)};
  let vertices=VertexDataAdapter::new(bytes,12,0).map_err(|_|invalid("POSITION adapter"))?;
  let mut result_error=0.0_f32;
- let out=meshopt::simplify::simplify(&compact_idx,&vertices,(target_triangles.max(1))*3,0.01,SimplifyOptions::LockBorder,Some(&mut result_error));
+ let out=meshopt::simplify::simplify(&compact_idx,&vertices,(target_triangles.max(1))*3,target_error,SimplifyOptions::LockBorder,Some(&mut result_error));
+ let triangles=out.len()/3;
+ let progressed=triangles<current&&!out.is_empty();
+ let scale=meshopt::simplify::simplify_scale(&vertices) as f64;
+ let mapped=if progressed{out.into_iter().map(|i|remap.get(i as usize).copied().unwrap_or(i)).collect()}else{indices.to_vec()};
+ Ok(SimplifiedMesh{indices:mapped,triangles:if progressed{triangles}else{current},error_object:if progressed{(result_error as f64)*scale}else{0.0}})
+}
+/// Simplify a region with an explicit per-vertex lock table instead of a blanket border lock.
+/// `locked` is queried with source vertex indices. A vertex that no other region shares stays free,
+/// so the open boundary of a primitive keeps simplifying instead of pinning the whole region.
+pub fn simplify_with_locked_vertices(positions:&[f32],indices:&[u32],target_triangles:usize,target_error:f32,locked:&dyn Fn(u32)->bool)->Result<SimplifiedMesh>{
+ if indices.len()<3||indices.len()%3!=0{return Err(invalid("Index count must be a positive multiple of three"));}
+ if positions.len()%3!=0{return Err(invalid("POSITION count must be a multiple of three"));}
+ let current=indices.len()/3;
+ if current<=target_triangles.max(1){return Ok(SimplifiedMesh{indices:indices.to_vec(),error_object:0.0,triangles:current});}
+ let (compact_pos,compact_idx,remap)=compact_region(positions,indices);
+ let locks:Vec<bool>=remap.iter().map(|&source|locked(source)).collect();
+ let bytes=unsafe{std::slice::from_raw_parts(compact_pos.as_ptr() as *const u8,compact_pos.len()*4)};
+ let vertices=VertexDataAdapter::new(bytes,12,0).map_err(|_|invalid("POSITION adapter"))?;
+ let mut result_error=0.0_f32;
+ let out=meshopt::simplify::simplify_with_locks(&compact_idx,&vertices,&locks,(target_triangles.max(1))*3,target_error,SimplifyOptions::None,Some(&mut result_error));
  let triangles=out.len()/3;
  let progressed=triangles<current&&!out.is_empty();
  let scale=meshopt::simplify::simplify_scale(&vertices) as f64;
