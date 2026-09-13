@@ -292,7 +292,7 @@ fn share_bootstrap_bundles(o:&Options,primitives:&mut [Value])->Result<usize>{
   if let Some(&slot)=placed.get(&digest){slots.push(slot);continue}
   if payloads.last().is_none_or(|payload|!payload.is_empty()&&payload.len()+bytes>BOOTSTRAP_BUNDLE_BYTES){payloads.push(Vec::new());clusters.push(0);}
   let chunk=payloads.len()-1;let offset=payloads[chunk].len();
-  let source=fs::read(objects.join(format!("{digest}.wgsb")))?;
+  let source=fs::read(objects.join(format!("{digest}.bin")))?;
   if source.len()!=bytes{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","A stream bundle object does not match its declared size"))}
   payloads[chunk].extend_from_slice(&source);clusters[chunk]+=count;
   placed.insert(digest,(chunk,offset));slots.push((chunk,offset));
@@ -300,7 +300,7 @@ fn share_bootstrap_bundles(o:&Options,primitives:&mut [Value])->Result<usize>{
  let mut names=Vec::with_capacity(payloads.len());
  for payload in &payloads{
   let digest=hash(payload);
-  let target=objects.join(format!("{digest}.wgsb"));
+  let target=objects.join(format!("{digest}.bin"));
   if !(target.exists()&&hash_file(&target)?==digest){store_object(&target,payload)?;}
   names.push(digest);
  }
@@ -309,7 +309,7 @@ fn share_bootstrap_bundles(o:&Options,primitives:&mut [Value])->Result<usize>{
   let (primitive,bundle)=*member;
   {
    let entry=&mut primitives[primitive]["streams"]["pages"][bundle];
-   *entry=json!({"url":format!("../../objects/{}.wgsb",names[chunk]),"sha256":names[chunk],"bytes":payloads[chunk].len(),"count":clusters[chunk]});
+   *entry=json!({"url":format!("../../objects/{}.bin",names[chunk]),"sha256":names[chunk],"bytes":payloads[chunk].len(),"count":clusters[chunk]});
   }
   if offset==0{continue}
   let pages=primitives[primitive]["pages"].as_array_mut().ok_or_else(||invalid("primitive.pages is required"))?;
@@ -505,7 +505,7 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
    }}
    let store_packed=|slice:&[u32]|->Result<(Value,bool)>{
     let (data,flags,vertex_count)=geometry_page::encode(slice,&pos,&page_attributes)?;
-    let digest=hash(&data);let name=format!("../../objects/{}.wgpg",digest);let target=o.cache.join("native").join("objects").join(format!("{}.wgpg",digest));
+    let digest=hash(&data);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
     let reused=target.exists()&&hash_file(&target)?==digest;if !reused{store_object(&target,&data)?;}
     Ok((json!({"url":name,"sha256":digest,"bytes":data.len(),"formatVersion":2,"codec":"meshopt","vertexCount":vertex_count,"indexCount":slice.len(),"flags":flags,"uncompressedBytes":vertex_count*geometry_page::STRIDE+slice.len()*2}),reused))
    };
@@ -583,9 +583,9 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
        "stream":bundle_index,"streamOffset":offset})));
      }
      let digest={let _t=perf::Timer::new(&perf::PHASES.page_hash);hash(&payload)};
-     let target=o.cache.join("native").join("objects").join(format!("{}.wgsb",digest));
+     let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
      {let _t=perf::Timer::new(&perf::PHASES.page_write);if !(target.exists()&&hash_file(&target)?==digest){store_object(&target,&payload)?;}}
-     Ok(Bundle{url:format!("../../objects/{}.wgsb",digest),digest,bytes:payload.len(),count:members.len(),pages:emitted,reused})
+     Ok(Bundle{url:format!("../../objects/{}.bin",digest),digest,bytes:payload.len(),count:members.len(),pages:emitted,reused})
     }).collect::<Result<Vec<_>>>()?;
     let mut ordered:Vec<Option<Value>>=vec![None;order.len()];
     let mut streams=Vec::with_capacity(built.len());
@@ -694,7 +694,7 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
  // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
  // columns instead of tokenizing tens of megabytes before its first frame.
  {let _t=perf::Timer::new(&perf::PHASES.manifest);
-  let templates=manifest_binary::Templates{binary:MANIFEST_BINARY_FILE,page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.wgpg",bundle:"../../objects/{sha}.wgsb"};
+  let templates=manifest_binary::Templates{binary:MANIFEST_BINARY_FILE,page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.bin",bundle:"../../objects/{sha}.bin"};
   let (mut slim,binary)=manifest_binary::split(&result,&templates)?;
   slim["binary"]["sha256"]=json!(hash(&binary));
   atomic(&directory.join(MANIFEST_BINARY_FILE),&binary)?;

@@ -9,6 +9,14 @@ function quad(){
  return {geometry,material,mesh,source};
 }
 
+const DAG={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups' as const};
+/** Level-0 clusters nothing replaces: the smallest legal DAG the runtime reads. */
+function dagRoots<T extends {id:number;min:number[];max:number[]}>(pages:T[]){
+ const sphere=(page:T)=>{const c=[0,1,2].map(i=>(page.min[i]+page.max[i])/2);return [...c,Math.hypot(...[0,1,2].map(i=>page.max[i]-c[i]))||1];};
+ return {pages:pages.map(page=>({...page,role:'exact' as const,start:page.id*3,level:0,lodError:0,sphere:sphere(page),parentError:null,parentSphere:null,group:null,source:null})),
+  structure:{version:1,roots:pages.map((_,index)=>index),groups:[]}};
+}
+
 test('triangle diagnostic expands indexed geometry and assigns a color per submitted triangle',()=>{
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
  const expanded=triangleGeometry(geometry);
@@ -31,7 +39,7 @@ test('triangle material is a filled Lambert with vertex colors, not GL_LINES wir
 test('exact pages wireframe uses non-indexed submitted triangles',()=>{
  const {geometry,material,mesh,source}=quad();
  const pages=[0,1].map(id=>({id,url:String(id),count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x'}));
- const backend=exactPagesBackend({source,metadata:{primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,0],max:[1,1,0],children:pages.map(p=>({min:p.min,max:p.max,page:p.id}))}}]},indices:new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,2,3])]]),associations:new Map([[mesh,{meshes:0,primitives:0}]]),maxResidentPages:2});
+ const backend=exactPagesBackend({source,metadata:{...DAG,primitives:[{mesh:0,primitive:0,pass:'exact-clusters',...dagRoots(pages)}]},indices:new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,2,3])]]),associations:new Map([[mesh,{meshes:0,primitives:0}]]),maxResidentPages:2});
  const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);
  backend.render(camera);backend.setDiagnostic('wireframe');backend.render(camera);
  const drawn:THREE.Mesh[]=[];backend.scene.traverse(o=>{if((o as THREE.Mesh).isMesh)drawn.push(o as THREE.Mesh);});
