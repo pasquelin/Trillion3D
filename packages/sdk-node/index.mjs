@@ -1,8 +1,8 @@
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 import {existsSync} from 'node:fs';
-import {readFile,writeFile,mkdir,rename,rm} from 'node:fs/promises';
-import {resolve,dirname,sep} from 'node:path';
+import {readFile,writeFile,mkdir,rename,rm,stat,readdir} from 'node:fs/promises';
+import {resolve,dirname,sep,basename,join} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {compileAsset} from '../asset-compiler-core/index.mjs';
 import {DEFAULT_SCOPE} from '../sdk-core/index.ts';
@@ -14,10 +14,28 @@ export function filesystemStore(root){
  const created=new Set();
  return {read:async (key,signal)=>new Uint8Array(await readFile(path(key),{signal})),async writeAtomic(key,bytes){const target=path(key),dir=dirname(target),temp=target+'.'+randomUUID()+'.tmp';if(!created.has(dir)){await mkdir(dir,{recursive:true});created.add(dir);}try{await writeFile(temp,bytes);await rename(temp,target);}finally{await rm(temp,{force:true});}}};
 }
+function isSafeSourceName(name){
+ return typeof name==='string'&&name.length>0&&name.length<256&&name!=='.'&&name!=='..'&&!/[\\/]/.test(name)&&!name.includes('..')&&!name.includes('\0');
+}
+/** Directory with `manifest.json`, directory with exactly one `.gltf`/`.glb`, or a `.gltf`/`.glb` file. */
+export async function resolveCompileInput(input){
+ const resolved=resolve(input);
+ const info=await stat(resolved);
+ if(info.isFile()){
+  const file=basename(resolved);
+  if(!isSafeSourceName(file)||!/\.(gltf|glb)$/i.test(file))throw new Error('Source file must be a .gltf or .glb');
+  return {root:dirname(resolved),runtimeFile:file};
+ }
+ if(existsSync(join(resolved,'manifest.json')))return {root:resolved};
+ const models=(await readdir(resolved)).filter(name=>isSafeSourceName(name)&&/\.(gltf|glb)$/i.test(name));
+ if(models.length!==1)throw new Error('Source directory needs manifest.json or exactly one .gltf/.glb');
+ return {root:resolved,runtimeFile:models[0]};
+}
 export async function prepareReference(input,output,scope=DEFAULT_SCOPE,budget=150000,options={}){
  if(typeof options.resourceBaseUrl!=='string'||!options.resourceBaseUrl)throw new Error('resourceBaseUrl is required');
  const compilerHash=sha256(await readFile(new URL('../asset-compiler-core/index.mjs',import.meta.url)));
- return compileAsset({source:filesystemStore(input),cache:filesystemStore(output),hash:sha256,compilerHash,resourceBaseUrl:options.resourceBaseUrl,scope,budget,strategy:options.strategy??'exact-source-order',simplification:options.simplification??'none',signal:options.signal,onProgress:options.onProgress});
+ const source=await resolveCompileInput(input);
+ return compileAsset({source:filesystemStore(source.root),cache:filesystemStore(output),hash:sha256,compilerHash,resourceBaseUrl:options.resourceBaseUrl,scope,budget,strategy:options.strategy??'exact-source-order',simplification:options.simplification??'none',runtimeFile:source.runtimeFile,signal:options.signal,onProgress:options.onProgress});
 }
 
 function nativeCompilerPath(explicit){

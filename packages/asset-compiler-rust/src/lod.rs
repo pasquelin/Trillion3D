@@ -140,7 +140,7 @@ pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],tri
    let Some(work)=work else{return Ok(None);};
    let simplified=simplify_fast(positions,&work.index_list,(work.index_list.len()/6).max(1))?;
    let progressed=simplified.triangles*3<work.index_list.len();
-   let error=if progressed{simplified.error_object.max(work.err_left).max(work.err_right)}else{work.err_left.max(work.err_right)};
+   let error=if progressed{simplified.error_object+work.err_left.max(work.err_right)}else{work.err_left.max(work.err_right)}; // QEM energy accumulation, not a Hausdorff bound.
    Ok(Some((progressed,if progressed{simplified.indices}else{work.index_list},error)))
   }).collect();
   let simplified=simplified?;

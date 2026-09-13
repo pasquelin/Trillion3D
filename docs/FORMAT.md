@@ -37,7 +37,7 @@ Required fields consumed by the browser adapter:
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes`
 - `primitives[]` — `{ mesh, primitive, pass, pages, hierarchy }`
-  - `pass` is `exact-clusters` or `shared-blend` (BLEND materials stay unsplit)
+  - `pass` is `exact-clusters` or `shared-blend` (BLEND, `KHR_materials_transmission` with `transmissionFactor > 0`, skinned geometry (`skin` / `JOINTS_0`), and morph targets (`targets`) stay unsplit)
   - `pages[]` — `{ id, url, sha256, bytes, count, min, max }`
   - `hierarchy` — nested replacement regions (leaves hold `page` indices). With QEM, internal nodes also store `errorObject` and `coarsePages`.
 
@@ -45,6 +45,7 @@ Optional fields consumed when present:
 
 - `clusterStrategy` — `exact-source-order` (default) or `greedy-adjacency`
 - `simplification` — `true` when coarse QEM pages are included
+- `errorModel` — required when the cache includes coarse pages or `hierarchy.errorObject`. Current identity: `qem-local-plus-child-max`. A cache without this field is rejected (`STALE_CACHE`) so a host must recompile; it is not a scene name.
 - `pages[].role` — `exact` (default) or `coarse`
 - `hierarchy.errorObject` / `hierarchy.coarsePages` / `hierarchy.children` — nested screen-error LOD cut. Selecting a node draws its `coarsePages` and skips children. Omitted fields keep the exact leaves.
 
@@ -56,8 +57,20 @@ Each page is a tightly packed little-endian `u32` index buffer covering 256 tria
 
 ## Source glTF
 
-The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Image URIs are rewritten against the host `resourceBaseUrl`.
+The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Relative image URIs are rewritten against the host `resourceBaseUrl`. `images` may be omitted. Images that use `bufferView` (no `uri`) keep their view; the view is copied into `source.bin`. Sparse accessors (`accessor.sparse`) are decoded and their bufferViews are compacted and remapped. Skinned meshes (`skin`, `JOINTS_0`, `WEIGHTS_0`), morph targets (`targets`), and animations are preserved in `source.gltf` and routed to the `shared-blend` reference pass.
+
+## Visibility Buffer Shading & IBL
+
+The visibility buffer shading pass implements standard glTF 2.0 Cook-Torrance GGX microfacet PBR specular and diffuse reflection with $D_{\text{GGX}}$ (Trowbridge-Reitz), $V_{\text{Smith-Correlated}}$, $F_{\text{Schlick}}$, and strict energy conservation ($1 - F_0$). It includes Image-Based Lighting (IBL) with hemispherical diffuse irradiance and specular environment reflection based on the Karis/Schlick split-sum approximation, accompanied by direct directional lighting. Fully matching CPU and WGSL implementations ensure strict A/A parity.
+
+## Temporal Hi-Z Occlusion Culling
+
+The runtime implements a 2-phase Temporal Hi-Z occlusion culling pipeline:
+- **Pass 1 (Occluders)**: Geometry visible in the previous frame is tested against the previous depth pyramid ($V_{t-1} \times P_{t-1}$) and rendered first into the visibility buffer and depth target.
+- **Pyramid Construction**: The depth pyramid for the current frame $t$ is constructed via conservative ceil-2×2 max reduction compute shaders.
+- **Pass 2 (Disocclusion)**: Previously occluded or newly entering pages are tested against the fresh frame $t$ pyramid. Unoccluded pages are rasterized with `loadOp: 'load'`.
+- **History Reprojection**: The depth pyramid and camera matrices are copied to temporal history for frame $t+1$. Full CPU oracle parity is provided by `applyTemporalHiz`.
 
 ## Source files
 
-`manifest.runtime.file` names the glTF JSON. The first buffer URI names the sidecar binary. Both names must be a single relative path segment (no `/`, `\\`, or `..`). The compiler verifies SHA-256 of the glTF against `runtime.sha256` and of the binary against the matching `runtime.sidecars[]` entry. Unknown layouts, multiple buffers, data URIs and path escape are rejected.
+Input is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, or a `.gltf`/`.glb` file. When `manifest.json` is present, `manifest.runtime.file` names the glTF JSON or GLB. For `.gltf`, the first buffer URI names the sidecar binary. Both names must be a single relative path segment (no `/`, `\\`, or `..`). The compiler verifies SHA-256 of the glTF against `runtime.sha256` and of the sidecar against the matching `runtime.sidecars[]` entry. A GLB carries its BIN chunk; sidecar hashes are not required. Without a manifest, hashes are computed from the files. Multiple glTF buffers are concatenated into one `source.bin` (4-byte padded) and `bufferView.buffer` is remapped to 0. Unknown layouts, data URIs as buffer URIs, and path escape are rejected. Unindexed triangle lists (`POSITION` count a multiple of three, no `indices`) are indexed during clustering. In `slice` scope, if no mesh instance fits the triangle budget, the smallest overflowing instance is kept.

@@ -12,16 +12,18 @@ export interface RenderBackend {
  render(camera:THREE.PerspectiveCamera):void;
  readonly overBudget:boolean;
  scene:THREE.Scene;
- metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'>;
+ metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'>&{drawCalls?:number};
  pendingUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
+ dropPage?(url:string):void;
  syncResident?():void;
  flush?():Promise<void>;
  rasterRgba?():Uint8Array;
  visibilityIds?():Uint32Array;
  dispose():void;
 }
+export type BackendDiagnostic = { phase:string; message:string; context:Record<string,unknown> };
 export interface BackendContext {
  source:THREE.Object3D;
  metadata:ClusterManifest;
@@ -32,12 +34,17 @@ export interface BackendContext {
  maxCachedPages?:number;
  pixelError?:number;
  lodAdaptive?:boolean;
+ /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
+ clearColor?:number;
+ /** Bounded diagnostics emitted by a backend and owned by the host report. */
+ onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
  viewport?:[number,number];
  gpuDevice?:GPUDevice;
 }
 export type BackendFactory = (context:BackendContext)=>RenderBackend;
+export type PointOfInterest = {id:string;label:string;pose:CameraPose};
 export interface ExplorerOptions {
- replicaCount?:1|4|9;
+ replicaCount?:1|4|9|12;
  detail?:'source'|'maximum';
  onEvent?:(event:import('../sdk-core/index.ts').RuntimeEvent)=>void;
  manifestUrl:string;
@@ -51,8 +58,13 @@ export interface ExplorerOptions {
  maxCachedPages?:number;
  pixelError?:number;
  lodAdaptive?:boolean;
+ /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
+ clearColor?:number;
+ /** Bounded diagnostics emitted by a backend and owned by the host report. */
+ onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
  preload?:'visible'|'all';
  comparisonLayout?:ComparisonLayout;
  comparisonPair?:[string,string];
  gpu?:GPU;
+ pointsOfInterest?:PointOfInterest[];
 }

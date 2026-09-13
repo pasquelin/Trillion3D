@@ -1,8 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages} from '../sdk-core/index.ts';
+import {presentationColorDiagnostic} from './index.ts';
 import {exactPagesBackend} from './index.ts';
-import {webgpuPagesBackend} from './webgpuPages.ts';
+import {outputColorDiagnostic,webgpuPagesBackend} from './webgpuPages.ts';
 import {rasterPageRecords} from './pageRaster.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
@@ -18,6 +19,57 @@ function installGpuGlobals(){
  });
 }
 
+test('the GPU readback diagnostic distinguishes the requested clear color from the rendered pixels',()=>{
+ const pixels=new Uint8Array([
+  42,48,60,255, 1,2,3,255,
+  4,5,6,255, 7,8,9,255,
+ ]);
+ assert.deepEqual(outputColorDiagnostic(pixels,2,2,0x2a303c),{
+  clearColor:'#2a303c',
+  topLeft:'#2a303c',
+  center:'#070809',
+  matchesClearAtTopLeft:true,
+ });
+});
+
+test('the presentation diagnostic exposes the final capture pixel separately from the WebGPU target',()=>{
+ const pixels=new Uint8Array([
+  42,48,60,255, 1,2,3,255,
+  4,5,6,255, 7,8,9,255,
+ ]);
+ assert.deepEqual(presentationColorDiagnostic(pixels,2,2,0x2a303c),{
+  clearColor:'#2a303c',
+  topLeft:'#2a303c',
+  center:'#070809',
+  matchesClearAtTopLeft:true,
+  surface:'webgl-capture-target',
+ });
+});
+
+test('the presentation diagnostic identifies a pixel read from the visible WebGL framebuffer',()=>{
+ const pixels=new Uint8Array([42,48,60,255]);
+ assert.deepEqual(presentationColorDiagnostic(pixels,1,1,0x2a303c,'default-webgl-framebuffer'),{
+  clearColor:'#2a303c',
+  topLeft:'#2a303c',
+  center:'#2a303c',
+  matchesClearAtTopLeft:true,
+  surface:'default-webgl-framebuffer',
+ });
+});
+
+test('WebGPU forwards its internal color diagnostics to the host report sink',async()=>{
+ installGpuGlobals();
+ const events:Array<{phase:string;message:string;context:Record<string,unknown>}>=[];
+ const {device}=mockGpu();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32],clearColor:0x2a303c,onDiagnostic:event=>events.push(event)});
+ assert.deepEqual(events[0],{phase:'clear-color-input',message:'Couleur de fond reçue par WebGeometry WebGPU',context:{clearColor:'#2a303c',value:0x2a303c,source:'hôte'}});
+ await backend.prepare();
+ backend.render(camera());
+ assert.ok(events.some(event=>event.phase==='first-render-path'));
+ backend.dispose();geometry.dispose();material.dispose();
+});
+
 function bytesOf(data:BufferSource){
  if(data instanceof ArrayBuffer)return new Uint8Array(data);
  return new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset,(data as ArrayBufferView).byteLength);
@@ -26,7 +78,7 @@ function bytesOf(data:BufferSource){
 function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
  const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;indirect?:boolean}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
- const passes:Array<{colorLoad?:string;depthLoad?:string;colorCount:number;formats:string[]}>=[];
+ const passes:Array<{colorLoad?:string;colorClear?:GPUColor;depthLoad?:string;colorCount:number;formats:string[]}>=[];
  const computes:string[]=[];
  const layouts:Array<{entries:Array<{binding:number;buffer?:{type?:string}}>}>=[];
  let lostResolve:((info:{reason:string;message:string})=>void)|undefined;
@@ -53,10 +105,10 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   },
   createBindGroup:(desc:unknown)=>desc,
   createCommandEncoder:()=>({
-   beginRenderPass:(desc?:{colorAttachments?:Array<{loadOp?:string;view?:{format?:string}}>;depthStencilAttachment?:{depthLoadOp?:string}})=>{
+   beginRenderPass:(desc?:{colorAttachments?:Array<{loadOp?:string;clearValue?:GPUColor;view?:{format?:string}}>;depthStencilAttachment?:{depthLoadOp?:string}})=>{
     if(visPassFails){visPassFails=false;throw new Error('VIS_FAIL');}
     const colors=desc?.colorAttachments??[];
-    passes.push({colorLoad:colors[0]?.loadOp,depthLoad:desc?.depthStencilAttachment?.depthLoadOp,colorCount:colors.length,formats:colors.map(color=>color.view?.format??'')});
+    passes.push({colorLoad:colors[0]?.loadOp,colorClear:colors[0]?.clearValue,depthLoad:desc?.depthStencilAttachment?.depthLoadOp,colorCount:colors.length,formats:colors.map(color=>color.view?.format??'')});
     return {
     setPipeline(){},setBindGroup(_i:number,group:unknown){currentBind=group;},setViewport(){},
     draw(vertexCount:number,instanceCount=1,_firstVertex=0,firstInstance=0){draws.push({vertexCount,instanceCount,firstInstance});void currentBind;},
@@ -382,6 +434,35 @@ test('webgpu pages without a device fail prepare so the explorer can keep the Th
  backend.dispose();geometry.dispose();material.dispose();
 });
 
+test('the direct WebGPU fallback uses the scene background supplied by its host',async()=>{
+ installGpuGlobals();
+ const {device,passes}=mockGpu(undefined,undefined,false,true);
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32],clearColor:0x2d4059});
+ await backend.prepare();
+ backend.render(camera());
+ await backend.flush?.();
+ backend.render(camera());
+ const clear=passes.findLast(pass=>pass.colorLoad==='clear'&&pass.formats[0]==='rgba8unorm')?.colorClear;
+ assert.deepEqual(clear,{r:0x2d/255,g:0x40/255,b:0x59/255,a:1});
+ backend.dispose();geometry.dispose();material.dispose();
+});
+
+test('the visibility-buffer path also clears with the host scene background',async()=>{
+ installGpuGlobals();
+ const {device,passes}=mockGpu();
+ const {source,metadata,indices,associations,geometry,material}=quadScene();
+ const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:2,viewport:[32,32],clearColor:0x2d4059});
+ await backend.prepare();
+ backend.render(camera());
+ await backend.flush?.();
+ backend.render(camera());
+ const clears=passes.filter(pass=>pass.colorLoad==='clear'&&pass.formats[0]==='rgba8unorm').map(pass=>pass.colorClear);
+ assert.ok(clears.length>0);
+ assert.ok(clears.every(clear=>JSON.stringify(clear)===JSON.stringify({r:0x2d/255,g:0x40/255,b:0x59/255,a:1})));
+ backend.dispose();geometry.dispose();material.dispose();
+});
+
 test('webgpu pages without compute keep the CPU cut and report gpuDriven false',async()=>{
  installGpuGlobals();
  const {device}=mockGpu();
@@ -652,4 +733,3 @@ test('a compact pipeline failure keeps the per-page draw loop',async()=>{
  assert.equal(draws.filter(draw=>draw.indirect).length,0);
  backend.dispose();geometry.dispose();material.dispose();
 });
-

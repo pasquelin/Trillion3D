@@ -252,7 +252,7 @@ export function projectedErrorBound(
   return ((error * maxFocal) / min2) * Math.sqrt(1 + transverseSquared / (min2 * min2));
 }
 
-/** Évaluation du score de niveau de détail (LOD) en pixels d'écran. */
+/** Screen-pixel LOD score from a stored object-space error. The stored value is a QEM energy accumulation, not a certified Hausdorff distance. */
 export function lodScore(
   errorObject: number,
   errorScale: number,
