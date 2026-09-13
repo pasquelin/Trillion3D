@@ -1,0 +1,50 @@
+{
+  "developBase": "305d36f813ec40c7e763796c859020bb09f24d6d",
+  "featureCommit": "d96f95a",
+  "build": "passed",
+  "jsTsTests": {
+    "passed": 384,
+    "failed": 0
+  },
+  "rustTests": {
+    "unitPassed": 51,
+    "integrationPassed": 1,
+    "failed": 0
+  },
+  "docsLinks": "passed",
+  "preservedDevelopErrorModel": "bounds-diagonal-boundary-v1",
+  "hardwarePerformanceOfCombinedMerge": "not-run",
+  "sourceSha256": {
+    "packages/asset-compiler-core/importer.test.mjs": "b9dc2ec36b37a29b3bc61532c25aa4292c47e25ceef9e5b855db421ec5a2f80b",
+    "packages/asset-compiler-core/index.mjs": "53d0d6b36ee81ee4e478d59f0d9d81b7893f10723b2cc5900309dc631c1421e1",
+    "packages/asset-compiler-rust/src/lib.rs": "9bcab6df1b1091c348c9c6145c9f7b7fd0c663ad025b242812c2b336c28fe1c2",
+    "packages/sdk-browser/cacheFormat.test.ts": "75aeea568f8280c5823052b3fcc873cc41250a64b9dd0fac894fcd392ce2c586",
+    "packages/sdk-browser/index.ts": "804ca2ed70fb01a7b9d2c8c2b16e63da15cb318b249f341655d8401fad95a635",
+    "packages/sdk-browser/pageSelection.test.ts": "b33956b5cf022af4dd0adfa77241515a0e09dbb56717278c793176af6222de35",
+    "packages/sdk-browser/pageSelection.ts": "9d2ec4479c32945b39442e5eca5162a8fee8f21b2b04e26d4cfd382c98e701e1",
+    "packages/sdk-browser/pagesBackend.test.ts": "32a23235098eae2eef4f7961e4b363cf2a0f372752e0d9ffa1d51b3bf250ab45",
+    "packages/sdk-browser/threeLod.test.ts": "058391c959e85242d73528f9ccac25c87385a059bc8f8c10eae42234eef4fe48",
+    "packages/sdk-browser/threeLod.ts": "0821aa27078a9fe5c8ff644bd4c085526a0c52ad7b68e042d1b1d27c74d989d4",
+    "packages/sdk-browser/webgpuPages.test.ts": "7e26cd011af08cc81d7106bc38ae099f1e5651f772acdb5a3eaea071e70fceb0",
+    "packages/sdk-browser/webgpuPages.ts": "f240584a7ca44dff4a26846d6a28add9a2f239a8dc9bfb80bcc56c5855bd0dde",
+    "packages/sdk-core/compatibility.test.ts": "659b2f974e49c26d4551a7617c8caccfbfdc7a96c9a1ef928ff3a3ce49796223",
+    "packages/sdk-core/contracts.ts": "a60842d65039918b3a4ba7b3c29b4e3292799935d061df06b7d127b7b451b57e",
+    "packages/sdk-node/public.test.mjs": "22f795a01d4f0c56e9a431369333bae707fafa50580eb53ccf66ad0dedb1dbae",
+    "test/transparentLod.browser.mjs": "ca972b427ff47ceac62f8ed04138642b20b76387c119daa20dc8563ab57c5614",
+    "types/compiler-reference.d.mts": "c757f091c2a573777a9fb6fc7bc1c6396c2ade06b2accc989eb0d51723212a2e"
+  },
+  "logs": {
+    "build": {
+      "localArchive": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/validation/merged-build.log",
+      "sha256": "e337ff6b4d036e3c50b64b05d1bb548943f2e644e0e2b1995591862d4cf5311e"
+    },
+    "tests": {
+      "localArchive": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/validation/merged-tests.log",
+      "sha256": "d6e3a73547fb1f3e0a2bee73f3de6bdab42351215e7207250cd266ce23425d4f"
+    },
+    "rust": {
+      "localArchive": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/validation/merged-rust.log",
+      "sha256": "59ea1ae56deddd209eb74a9bbc9aca9ac63d7d518745ef1dfc13548f5dc6656e"
+    }
+  }
+}

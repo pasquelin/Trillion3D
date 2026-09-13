@@ -1,0 +1,2791 @@
+{
+  "createdAt": "2026-09-13T16:37:53.291094+00:00",
+  "evidence": "Real isolated native compiler execution and full exact BLEND source-index verification; camera-independent metadata counts, not GPU timing.",
+  "beforePath": "/Users/pasquelin/Applications/render-tech-lab/public/benchmark-assets/emerald-square-derived/native/full/019a531c875acb0168297ecf2feab131d7c5866a344a28048e0e99ae55ff5710/clusters.json",
+  "afterPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/cache/native/full/a2eb09607499f39ffbd3722520e23a98619c982e20dcc1e316b54bc736601a87/clusters.json",
+  "beforeMetadataSha256": "faea8c138a953b24da4eb4c04da8f5091e25ff1e6d0ca8ab7fb39fa0c4f5c1d2",
+  "afterMetadataSha256": "c9c7370389264f761d50c487504a0668b2f33037bd40606ec667878033a805c8",
+  "sourceGltfByteIdentical": true,
+  "sourceBinaryByteIdentical": true,
+  "opaqueInvariant": {
+    "primitivesVerified": 252,
+    "changed": 0,
+    "note": "Index page SHA256, URLs, counts, bounds, roles, starts and hierarchy are identical. New optional compressed geometry descriptors are present; ordinary source-backed WebGPU rendering uses the original index pages.",
+    "records": [
+      {
+        "mesh": 0,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 31
+      },
+      {
+        "mesh": 0,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 355
+      },
+      {
+        "mesh": 0,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 19
+      },
+      {
+        "mesh": 0,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 0,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 19
+      },
+      {
+        "mesh": 0,
+        "primitive": 5,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 19
+      },
+      {
+        "mesh": 1,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 1,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 57
+      },
+      {
+        "mesh": 1,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 2,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 30
+      },
+      {
+        "mesh": 2,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 3,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 3,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 4,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 4,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 5,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 6,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 7,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 7,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 8,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 9,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 7
+      },
+      {
+        "mesh": 10,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 12
+      },
+      {
+        "mesh": 11,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 65
+      },
+      {
+        "mesh": 11,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 9
+      },
+      {
+        "mesh": 11,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 7
+      },
+      {
+        "mesh": 11,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 12,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 10
+      },
+      {
+        "mesh": 12,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 12,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 10
+      },
+      {
+        "mesh": 12,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 196
+      },
+      {
+        "mesh": 13,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 12
+      },
+      {
+        "mesh": 13,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 13,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 129
+      },
+      {
+        "mesh": 13,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 19
+      },
+      {
+        "mesh": 13,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 14,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 205
+      },
+      {
+        "mesh": 14,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 15,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 16,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 17,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 18,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 19,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 20,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 13
+      },
+      {
+        "mesh": 21,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 22
+      },
+      {
+        "mesh": 22,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 22,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 23,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 23
+      },
+      {
+        "mesh": 24,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 24,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 150
+      },
+      {
+        "mesh": 25,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 25,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 150
+      },
+      {
+        "mesh": 26,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 29
+      },
+      {
+        "mesh": 26,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 27,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 101
+      },
+      {
+        "mesh": 27,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 28,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 28,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 29,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 30,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 31,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 32,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 33,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 34,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 42
+      },
+      {
+        "mesh": 35,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 52
+      },
+      {
+        "mesh": 36,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 47
+      },
+      {
+        "mesh": 37,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 37,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 38,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 39,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 11
+      },
+      {
+        "mesh": 39,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 40,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 41,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 42,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 43,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 44,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 45,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 46,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 46,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 51
+      },
+      {
+        "mesh": 47,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 17
+      },
+      {
+        "mesh": 47,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 48,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 49,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 50,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 51,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 52,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 95
+      },
+      {
+        "mesh": 53,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 53,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 54,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 6
+      },
+      {
+        "mesh": 55,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 17
+      },
+      {
+        "mesh": 56,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 7
+      },
+      {
+        "mesh": 57,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 205
+      },
+      {
+        "mesh": 57,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 58,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 22
+      },
+      {
+        "mesh": 59,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 59,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 17
+      },
+      {
+        "mesh": 61,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 7
+      },
+      {
+        "mesh": 62,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 23
+      },
+      {
+        "mesh": 63,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 63,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 150
+      },
+      {
+        "mesh": 64,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 30
+      },
+      {
+        "mesh": 64,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 65,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 34
+      },
+      {
+        "mesh": 65,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 66,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 341
+      },
+      {
+        "mesh": 66,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 67,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 68,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 69,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 70,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 70,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 70,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 71,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 72,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 30
+      },
+      {
+        "mesh": 73,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 74,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 64
+      },
+      {
+        "mesh": 75,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 42
+      },
+      {
+        "mesh": 76,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 52
+      },
+      {
+        "mesh": 77,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 47
+      },
+      {
+        "mesh": 78,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 78,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 95
+      },
+      {
+        "mesh": 79,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 11
+      },
+      {
+        "mesh": 79,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 80,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 81,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 82,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 83,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 84,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 85,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 86,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 86,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 51
+      },
+      {
+        "mesh": 87,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 17
+      },
+      {
+        "mesh": 87,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 88,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 89,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 90,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 91,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 92,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 95
+      },
+      {
+        "mesh": 93,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 93,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 191
+      },
+      {
+        "mesh": 94,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 95,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 16
+      },
+      {
+        "mesh": 96,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 50
+      },
+      {
+        "mesh": 96,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 6
+      },
+      {
+        "mesh": 96,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 96,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 7
+      },
+      {
+        "mesh": 97,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 16
+      },
+      {
+        "mesh": 97,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 372
+      },
+      {
+        "mesh": 97,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 34
+      },
+      {
+        "mesh": 97,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 98,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 150
+      },
+      {
+        "mesh": 98,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 98,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 20
+      },
+      {
+        "mesh": 98,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 98,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 35
+      },
+      {
+        "mesh": 98,
+        "primitive": 5,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 30
+      },
+      {
+        "mesh": 98,
+        "primitive": 6,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 9
+      },
+      {
+        "mesh": 98,
+        "primitive": 7,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 98,
+        "primitive": 8,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 256
+      },
+      {
+        "mesh": 98,
+        "primitive": 9,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 10
+      },
+      {
+        "mesh": 98,
+        "primitive": 10,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 67
+      },
+      {
+        "mesh": 98,
+        "primitive": 11,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 98,
+        "primitive": 12,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1953
+      },
+      {
+        "mesh": 99,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 205
+      },
+      {
+        "mesh": 99,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 100,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 101,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 101,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 102,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 23
+      },
+      {
+        "mesh": 103,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 103,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 150
+      },
+      {
+        "mesh": 104,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 29
+      },
+      {
+        "mesh": 104,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 105,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 105,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 106,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 107,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 108,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 109,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 110,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 111,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 52
+      },
+      {
+        "mesh": 112,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 47
+      },
+      {
+        "mesh": 113,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 11
+      },
+      {
+        "mesh": 113,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 114,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 115,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 116,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 117,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 118,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 119,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 120,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 120,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 51
+      },
+      {
+        "mesh": 121,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 17
+      },
+      {
+        "mesh": 121,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 122,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 123,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 124,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 125,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 126,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 127,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 54
+      },
+      {
+        "mesh": 127,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 6
+      },
+      {
+        "mesh": 127,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 127,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 7
+      },
+      {
+        "mesh": 128,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 33
+      },
+      {
+        "mesh": 128,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 49
+      },
+      {
+        "mesh": 128,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 6
+      },
+      {
+        "mesh": 128,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 146
+      },
+      {
+        "mesh": 128,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 128,
+        "primitive": 5,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 129,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 129,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 90
+      },
+      {
+        "mesh": 129,
+        "primitive": 2,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 161
+      },
+      {
+        "mesh": 129,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 11
+      },
+      {
+        "mesh": 129,
+        "primitive": 4,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 27
+      },
+      {
+        "mesh": 129,
+        "primitive": 5,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 130,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 205
+      },
+      {
+        "mesh": 130,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 131,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 132,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 5
+      },
+      {
+        "mesh": 133,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 133,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 1
+      },
+      {
+        "mesh": 134,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 23
+      },
+      {
+        "mesh": 135,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 135,
+        "primitive": 3,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 150
+      },
+      {
+        "mesh": 136,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 29
+      },
+      {
+        "mesh": 136,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 137,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 101
+      },
+      {
+        "mesh": 137,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 138,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 138,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 139,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 140,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 141,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 24
+      },
+      {
+        "mesh": 142,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 143,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 15
+      },
+      {
+        "mesh": 144,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 52
+      },
+      {
+        "mesh": 145,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 47
+      },
+      {
+        "mesh": 146,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 11
+      },
+      {
+        "mesh": 146,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 147,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 148,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 149,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 150,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 151,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 4
+      },
+      {
+        "mesh": 152,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 153,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 153,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 51
+      },
+      {
+        "mesh": 154,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 17
+      },
+      {
+        "mesh": 154,
+        "primitive": 1,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 3
+      },
+      {
+        "mesh": 155,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 156,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 157,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      },
+      {
+        "mesh": 158,
+        "primitive": 0,
+        "hierarchyAndIndexPagesIdentical": true,
+        "addedGeometryDescriptors": 2
+      }
+    ]
+  },
+  "blendCoverage": {
+    "primitivesVerified": 29,
+    "trianglesUniqueVerified": 1732416,
+    "records": [
+      {
+        "mesh": 7,
+        "primitive": 0,
+        "triangles": 1668,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "d24246ac76c50ba09dbe30c08e20b3b22d50387dc3b5441e24da172f2feb0eeb",
+        "compiledExactIndexSha256": "d24246ac76c50ba09dbe30c08e20b3b22d50387dc3b5441e24da172f2feb0eeb"
+      },
+      {
+        "mesh": 7,
+        "primitive": 1,
+        "triangles": 6432,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "de20e59cc553dfd2775bafa2b0820b39aafc5d1f93f0da36668193000bb851b1",
+        "compiledExactIndexSha256": "de20e59cc553dfd2775bafa2b0820b39aafc5d1f93f0da36668193000bb851b1"
+      },
+      {
+        "mesh": 7,
+        "primitive": 2,
+        "triangles": 6150,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "38c2f3d0db6870eaa93affa8792296e51a857af9b072c4f1fd07bbc850316927",
+        "compiledExactIndexSha256": "38c2f3d0db6870eaa93affa8792296e51a857af9b072c4f1fd07bbc850316927"
+      },
+      {
+        "mesh": 10,
+        "primitive": 0,
+        "triangles": 360,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "44d1858bc79b693f9f8c4d3a64b4825d4284cdfb948b3a10d896a9c29545847b",
+        "compiledExactIndexSha256": "44d1858bc79b693f9f8c4d3a64b4825d4284cdfb948b3a10d896a9c29545847b"
+      },
+      {
+        "mesh": 10,
+        "primitive": 1,
+        "triangles": 1540,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "de21858e28fa3e7a8bcb921a0ea7a7889de81f0c314590bb114a8c96764a787a",
+        "compiledExactIndexSha256": "de21858e28fa3e7a8bcb921a0ea7a7889de81f0c314590bb114a8c96764a787a"
+      },
+      {
+        "mesh": 24,
+        "primitive": 1,
+        "triangles": 2260,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b",
+        "compiledExactIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b"
+      },
+      {
+        "mesh": 24,
+        "primitive": 2,
+        "triangles": 2924,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529",
+        "compiledExactIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529"
+      },
+      {
+        "mesh": 25,
+        "primitive": 1,
+        "triangles": 2260,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b",
+        "compiledExactIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b"
+      },
+      {
+        "mesh": 25,
+        "primitive": 2,
+        "triangles": 2924,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529",
+        "compiledExactIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529"
+      },
+      {
+        "mesh": 53,
+        "primitive": 0,
+        "triangles": 1668,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "d24246ac76c50ba09dbe30c08e20b3b22d50387dc3b5441e24da172f2feb0eeb",
+        "compiledExactIndexSha256": "d24246ac76c50ba09dbe30c08e20b3b22d50387dc3b5441e24da172f2feb0eeb"
+      },
+      {
+        "mesh": 53,
+        "primitive": 1,
+        "triangles": 6432,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "de20e59cc553dfd2775bafa2b0820b39aafc5d1f93f0da36668193000bb851b1",
+        "compiledExactIndexSha256": "de20e59cc553dfd2775bafa2b0820b39aafc5d1f93f0da36668193000bb851b1"
+      },
+      {
+        "mesh": 53,
+        "primitive": 2,
+        "triangles": 6150,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "38c2f3d0db6870eaa93affa8792296e51a857af9b072c4f1fd07bbc850316927",
+        "compiledExactIndexSha256": "38c2f3d0db6870eaa93affa8792296e51a857af9b072c4f1fd07bbc850316927"
+      },
+      {
+        "mesh": 59,
+        "primitive": 2,
+        "triangles": 8504,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "8c959a5af53fd92224e5a9d681319886bbe76ef639fdf90c52591d5e354d3dde",
+        "compiledExactIndexSha256": "8c959a5af53fd92224e5a9d681319886bbe76ef639fdf90c52591d5e354d3dde"
+      },
+      {
+        "mesh": 59,
+        "primitive": 3,
+        "triangles": 7772,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "984ea610a6178c44283355174d982090d3fd95fe73a6d48b220e6ef593463dbd",
+        "compiledExactIndexSha256": "984ea610a6178c44283355174d982090d3fd95fe73a6d48b220e6ef593463dbd"
+      },
+      {
+        "mesh": 60,
+        "primitive": 0,
+        "triangles": 1615992,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "1331763bf611c6a64528d88548266c4f0aef019cb8956484eff348bcf85cf493",
+        "compiledExactIndexSha256": "1331763bf611c6a64528d88548266c4f0aef019cb8956484eff348bcf85cf493"
+      },
+      {
+        "mesh": 61,
+        "primitive": 1,
+        "triangles": 1536,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "de31b0569a2e775a00b4686220e783951f1a66009156548910147943a4a03fb2",
+        "compiledExactIndexSha256": "de31b0569a2e775a00b4686220e783951f1a66009156548910147943a4a03fb2"
+      },
+      {
+        "mesh": 61,
+        "primitive": 2,
+        "triangles": 3768,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "e6a6bfd73030d48a1bf5cc89bea3183e0d5e91e700b5dbef3059e341f9a22011",
+        "compiledExactIndexSha256": "e6a6bfd73030d48a1bf5cc89bea3183e0d5e91e700b5dbef3059e341f9a22011"
+      },
+      {
+        "mesh": 61,
+        "primitive": 3,
+        "triangles": 7432,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "07407c3e9875f6e222986fa42d9e64046f132078b4d05a1092931b7023dbbb45",
+        "compiledExactIndexSha256": "07407c3e9875f6e222986fa42d9e64046f132078b4d05a1092931b7023dbbb45"
+      },
+      {
+        "mesh": 63,
+        "primitive": 1,
+        "triangles": 2260,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b",
+        "compiledExactIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b"
+      },
+      {
+        "mesh": 63,
+        "primitive": 2,
+        "triangles": 2924,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529",
+        "compiledExactIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529"
+      },
+      {
+        "mesh": 78,
+        "primitive": 1,
+        "triangles": 92,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "544e079c23aafaf321d674b6f0b6d54e796b71f20be167ba9d9972f83d9ee79b",
+        "compiledExactIndexSha256": "544e079c23aafaf321d674b6f0b6d54e796b71f20be167ba9d9972f83d9ee79b"
+      },
+      {
+        "mesh": 78,
+        "primitive": 2,
+        "triangles": 3580,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "bff9bedb54a46d1383ce4188b1dfe7ce5eb493f2f21de7e89e5958c47c0b6249",
+        "compiledExactIndexSha256": "bff9bedb54a46d1383ce4188b1dfe7ce5eb493f2f21de7e89e5958c47c0b6249"
+      },
+      {
+        "mesh": 78,
+        "primitive": 3,
+        "triangles": 3420,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "f83a4de5de069356bfeb089d347153d7d46cdece82477b3667450c0cf15adfb5",
+        "compiledExactIndexSha256": "f83a4de5de069356bfeb089d347153d7d46cdece82477b3667450c0cf15adfb5"
+      },
+      {
+        "mesh": 93,
+        "primitive": 2,
+        "triangles": 12236,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "635d9f62cc6754b0411932b82805300fd7a063ce39295b403978d896c86af271",
+        "compiledExactIndexSha256": "635d9f62cc6754b0411932b82805300fd7a063ce39295b403978d896c86af271"
+      },
+      {
+        "mesh": 93,
+        "primitive": 3,
+        "triangles": 11764,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "2d938a22ccc6d4d0f67b602331232f260506c99c27122bfc06d737ae486c338e",
+        "compiledExactIndexSha256": "2d938a22ccc6d4d0f67b602331232f260506c99c27122bfc06d737ae486c338e"
+      },
+      {
+        "mesh": 103,
+        "primitive": 1,
+        "triangles": 2260,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b",
+        "compiledExactIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b"
+      },
+      {
+        "mesh": 103,
+        "primitive": 2,
+        "triangles": 2924,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529",
+        "compiledExactIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529"
+      },
+      {
+        "mesh": 135,
+        "primitive": 1,
+        "triangles": 2260,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b",
+        "compiledExactIndexSha256": "3336fd49ecdcd88dba734708a08430918d6156f1539876236e71b5fe67c3b79b"
+      },
+      {
+        "mesh": 135,
+        "primitive": 2,
+        "triangles": 2924,
+        "exactIndicesByteIdenticalToSource": true,
+        "sourceIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529",
+        "compiledExactIndexSha256": "b917fa65ae88042dcce3c6300f0706198cd7b35ddcc99aa063d24b4bca7ab529"
+      }
+    ]
+  },
+  "before": {
+    "counts": {
+      "primitives": 281,
+      "trianglesUnique": 2695054,
+      "trianglesInstanced": 10046405,
+      "exactPageInstances": 18874,
+      "coarsePageInstances": 27668,
+      "bootstrapPageInstances": 7363,
+      "bootstrapTrianglesInstanced": 7093278,
+      "exact-clustersPrimitives": 252,
+      "exact-clustersTrianglesInstanced": 4593541,
+      "exact-clustersBootstrapTrianglesInstanced": 1640414,
+      "shared-blendPrimitives": 29,
+      "shared-blendTrianglesInstanced": 5452864,
+      "shared-blendBootstrapTrianglesInstanced": 5452864,
+      "uniqueIndexPages": 6236,
+      "bootstrapUniqueIndexPages": 1597
+    },
+    "transparentPrimitives": [
+      {
+        "mesh": 7,
+        "primitive": 0,
+        "material": 17,
+        "name": "Pink_Flower.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 4,
+        "sourceTriangles": 1668,
+        "sourceTrianglesInstanced": 6672,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 1668,
+        "bootstrapTrianglesInstanced": 6672
+      },
+      {
+        "mesh": 7,
+        "primitive": 1,
+        "material": 18,
+        "name": "Azalea_Leaves_2.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 4,
+        "sourceTriangles": 6432,
+        "sourceTrianglesInstanced": 25728,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 6432,
+        "bootstrapTrianglesInstanced": 25728
+      },
+      {
+        "mesh": 7,
+        "primitive": 2,
+        "material": 19,
+        "name": "Azalea_Leaves_1.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 4,
+        "sourceTriangles": 6150,
+        "sourceTrianglesInstanced": 24600,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 6150,
+        "bootstrapTrianglesInstanced": 24600
+      },
+      {
+        "mesh": 10,
+        "primitive": 0,
+        "material": 24,
+        "name": "Boston_Fern_Fiddlehead.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 360,
+        "sourceTrianglesInstanced": 720,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 360,
+        "bootstrapTrianglesInstanced": 720
+      },
+      {
+        "mesh": 10,
+        "primitive": 1,
+        "material": 25,
+        "name": "Boston_Fern_Leaflets_1.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 1540,
+        "sourceTrianglesInstanced": 3080,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 1540,
+        "bootstrapTrianglesInstanced": 3080
+      },
+      {
+        "mesh": 24,
+        "primitive": 1,
+        "material": 50,
+        "name": "JapaneseMapleLeaf_1.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 24,
+        "primitive": 2,
+        "material": 51,
+        "name": "JapaneseMapleLeaf_2.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      },
+      {
+        "mesh": 25,
+        "primitive": 1,
+        "material": 54,
+        "name": "JapaneseMapleLeaf_1.DoubleSided4",
+        "pass": "shared-blend",
+        "instances": 36,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 81360,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 81360
+      },
+      {
+        "mesh": 25,
+        "primitive": 2,
+        "material": 55,
+        "name": "JapaneseMapleLeaf_2.DoubleSided4",
+        "pass": "shared-blend",
+        "instances": 36,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 105264,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 105264
+      },
+      {
+        "mesh": 53,
+        "primitive": 0,
+        "material": 77,
+        "name": "Pink_Flower.DoubleSided1",
+        "pass": "shared-blend",
+        "instances": 44,
+        "sourceTriangles": 1668,
+        "sourceTrianglesInstanced": 73392,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 1668,
+        "bootstrapTrianglesInstanced": 73392
+      },
+      {
+        "mesh": 53,
+        "primitive": 1,
+        "material": 78,
+        "name": "Azalea_Leaves_2.DoubleSided1",
+        "pass": "shared-blend",
+        "instances": 44,
+        "sourceTriangles": 6432,
+        "sourceTrianglesInstanced": 283008,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 6432,
+        "bootstrapTrianglesInstanced": 283008
+      },
+      {
+        "mesh": 53,
+        "primitive": 2,
+        "material": 79,
+        "name": "Azalea_Leaves_1.DoubleSided1",
+        "pass": "shared-blend",
+        "instances": 44,
+        "sourceTriangles": 6150,
+        "sourceTrianglesInstanced": 270600,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 6150,
+        "bootstrapTrianglesInstanced": 270600
+      },
+      {
+        "mesh": 59,
+        "primitive": 2,
+        "material": 90,
+        "name": "EuropeanLindenLeaf.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 8504,
+        "sourceTrianglesInstanced": 17008,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 8504,
+        "bootstrapTrianglesInstanced": 17008
+      },
+      {
+        "mesh": 59,
+        "primitive": 3,
+        "material": 91,
+        "name": "EuropeanLindenLeaf_2.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 7772,
+        "sourceTrianglesInstanced": 15544,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 7772,
+        "bootstrapTrianglesInstanced": 15544
+      },
+      {
+        "mesh": 60,
+        "primitive": 0,
+        "material": 92,
+        "name": "Grass_blades.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 1,
+        "sourceTriangles": 1615992,
+        "sourceTrianglesInstanced": 1615992,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 1615992,
+        "bootstrapTrianglesInstanced": 1615992
+      },
+      {
+        "mesh": 61,
+        "primitive": 1,
+        "material": 94,
+        "name": "Hedge_Base.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 201,
+        "sourceTriangles": 1536,
+        "sourceTrianglesInstanced": 308736,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 1536,
+        "bootstrapTrianglesInstanced": 308736
+      },
+      {
+        "mesh": 61,
+        "primitive": 2,
+        "material": 95,
+        "name": "Hedge_Leaves_1.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 201,
+        "sourceTriangles": 3768,
+        "sourceTrianglesInstanced": 757368,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 3768,
+        "bootstrapTrianglesInstanced": 757368
+      },
+      {
+        "mesh": 61,
+        "primitive": 3,
+        "material": 96,
+        "name": "Hedge_Leaves_3.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 201,
+        "sourceTriangles": 7432,
+        "sourceTrianglesInstanced": 1493832,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 7432,
+        "bootstrapTrianglesInstanced": 1493832
+      },
+      {
+        "mesh": 63,
+        "primitive": 1,
+        "material": 99,
+        "name": "JapaneseMapleLeaf_1.DoubleSided1",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 63,
+        "primitive": 2,
+        "material": 100,
+        "name": "JapaneseMapleLeaf_2.DoubleSided1",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      },
+      {
+        "mesh": 78,
+        "primitive": 1,
+        "material": 118,
+        "name": "Cards.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 92,
+        "sourceTrianglesInstanced": 184,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 92,
+        "bootstrapTrianglesInstanced": 184
+      },
+      {
+        "mesh": 78,
+        "primitive": 2,
+        "material": 119,
+        "name": "Leaves.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 3580,
+        "sourceTrianglesInstanced": 7160,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 3580,
+        "bootstrapTrianglesInstanced": 7160
+      },
+      {
+        "mesh": 78,
+        "primitive": 3,
+        "material": 120,
+        "name": "Leaves_2.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 2,
+        "sourceTriangles": 3420,
+        "sourceTrianglesInstanced": 6840,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 3420,
+        "bootstrapTrianglesInstanced": 6840
+      },
+      {
+        "mesh": 93,
+        "primitive": 2,
+        "material": 131,
+        "name": "White_Oak_Leaves_Hero_1.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 1,
+        "sourceTriangles": 12236,
+        "sourceTrianglesInstanced": 12236,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 12236,
+        "bootstrapTrianglesInstanced": 12236
+      },
+      {
+        "mesh": 93,
+        "primitive": 3,
+        "material": 132,
+        "name": "White_Oak_Leaves_Hero_3.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 1,
+        "sourceTriangles": 11764,
+        "sourceTrianglesInstanced": 11764,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 11764,
+        "bootstrapTrianglesInstanced": 11764
+      },
+      {
+        "mesh": 103,
+        "primitive": 1,
+        "material": 162,
+        "name": "JapaneseMapleLeaf_1.DoubleSided2",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 103,
+        "primitive": 2,
+        "material": 163,
+        "name": "JapaneseMapleLeaf_2.DoubleSided2",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      },
+      {
+        "mesh": 135,
+        "primitive": 1,
+        "material": 202,
+        "name": "JapaneseMapleLeaf_1.DoubleSided3",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 135,
+        "primitive": 2,
+        "material": 203,
+        "name": "JapaneseMapleLeaf_2.DoubleSided3",
+        "pass": "shared-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      }
+    ],
+    "grass": [
+      {
+        "mesh": 60,
+        "primitive": 0,
+        "material": 92,
+        "name": "Grass_blades.DoubleSided",
+        "pass": "shared-blend",
+        "instances": 1,
+        "sourceTriangles": 1615992,
+        "sourceTrianglesInstanced": 1615992,
+        "exactPages": 0,
+        "coarsePages": 0,
+        "bootstrapPages": 0,
+        "bootstrapTriangles": 1615992,
+        "bootstrapTrianglesInstanced": 1615992
+      }
+    ]
+  },
+  "after": {
+    "counts": {
+      "primitives": 281,
+      "trianglesUnique": 2695054,
+      "trianglesInstanced": 10046405,
+      "exactPageInstances": 40622,
+      "coarsePageInstances": 34621,
+      "bootstrapPageInstances": 28651,
+      "bootstrapTrianglesInstanced": 6858542,
+      "exact-clustersPrimitives": 252,
+      "exact-clustersTrianglesInstanced": 4593541,
+      "exact-clustersBootstrapTrianglesInstanced": 1640414,
+      "clustered-blendPrimitives": 29,
+      "clustered-blendTrianglesInstanced": 5452864,
+      "clustered-blendBootstrapTrianglesInstanced": 5218128,
+      "uniqueIndexPages": 12848,
+      "bootstrapUniqueIndexPages": 8099
+    },
+    "transparentPrimitives": [
+      {
+        "mesh": 7,
+        "primitive": 0,
+        "material": 17,
+        "name": "Pink_Flower.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 4,
+        "sourceTriangles": 1668,
+        "sourceTrianglesInstanced": 6672,
+        "exactPages": 7,
+        "coarsePages": 12,
+        "bootstrapPages": 6,
+        "bootstrapTriangles": 1390,
+        "bootstrapTrianglesInstanced": 5560
+      },
+      {
+        "mesh": 7,
+        "primitive": 1,
+        "material": 18,
+        "name": "Azalea_Leaves_2.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 4,
+        "sourceTriangles": 6432,
+        "sourceTrianglesInstanced": 25728,
+        "exactPages": 26,
+        "coarsePages": 38,
+        "bootstrapPages": 26,
+        "bootstrapTriangles": 5704,
+        "bootstrapTrianglesInstanced": 22816
+      },
+      {
+        "mesh": 7,
+        "primitive": 2,
+        "material": 19,
+        "name": "Azalea_Leaves_1.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 4,
+        "sourceTriangles": 6150,
+        "sourceTrianglesInstanced": 24600,
+        "exactPages": 25,
+        "coarsePages": 40,
+        "bootstrapPages": 25,
+        "bootstrapTriangles": 5378,
+        "bootstrapTrianglesInstanced": 21512
+      },
+      {
+        "mesh": 10,
+        "primitive": 0,
+        "material": 24,
+        "name": "Boston_Fern_Fiddlehead.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 360,
+        "sourceTrianglesInstanced": 720,
+        "exactPages": 2,
+        "coarsePages": 1,
+        "bootstrapPages": 1,
+        "bootstrapTriangles": 180,
+        "bootstrapTrianglesInstanced": 360
+      },
+      {
+        "mesh": 10,
+        "primitive": 1,
+        "material": 25,
+        "name": "Boston_Fern_Leaflets_1.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 1540,
+        "sourceTrianglesInstanced": 3080,
+        "exactPages": 7,
+        "coarsePages": 9,
+        "bootstrapPages": 3,
+        "bootstrapTriangles": 590,
+        "bootstrapTrianglesInstanced": 1180
+      },
+      {
+        "mesh": 24,
+        "primitive": 1,
+        "material": 50,
+        "name": "JapaneseMapleLeaf_1.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 9,
+        "coarsePages": 0,
+        "bootstrapPages": 9,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 24,
+        "primitive": 2,
+        "material": 51,
+        "name": "JapaneseMapleLeaf_2.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 12,
+        "coarsePages": 0,
+        "bootstrapPages": 12,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      },
+      {
+        "mesh": 25,
+        "primitive": 1,
+        "material": 54,
+        "name": "JapaneseMapleLeaf_1.DoubleSided4",
+        "pass": "clustered-blend",
+        "instances": 36,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 81360,
+        "exactPages": 9,
+        "coarsePages": 0,
+        "bootstrapPages": 9,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 81360
+      },
+      {
+        "mesh": 25,
+        "primitive": 2,
+        "material": 55,
+        "name": "JapaneseMapleLeaf_2.DoubleSided4",
+        "pass": "clustered-blend",
+        "instances": 36,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 105264,
+        "exactPages": 12,
+        "coarsePages": 0,
+        "bootstrapPages": 12,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 105264
+      },
+      {
+        "mesh": 53,
+        "primitive": 0,
+        "material": 77,
+        "name": "Pink_Flower.DoubleSided1",
+        "pass": "clustered-blend",
+        "instances": 44,
+        "sourceTriangles": 1668,
+        "sourceTrianglesInstanced": 73392,
+        "exactPages": 7,
+        "coarsePages": 12,
+        "bootstrapPages": 6,
+        "bootstrapTriangles": 1390,
+        "bootstrapTrianglesInstanced": 61160
+      },
+      {
+        "mesh": 53,
+        "primitive": 1,
+        "material": 78,
+        "name": "Azalea_Leaves_2.DoubleSided1",
+        "pass": "clustered-blend",
+        "instances": 44,
+        "sourceTriangles": 6432,
+        "sourceTrianglesInstanced": 283008,
+        "exactPages": 26,
+        "coarsePages": 38,
+        "bootstrapPages": 26,
+        "bootstrapTriangles": 5704,
+        "bootstrapTrianglesInstanced": 250976
+      },
+      {
+        "mesh": 53,
+        "primitive": 2,
+        "material": 79,
+        "name": "Azalea_Leaves_1.DoubleSided1",
+        "pass": "clustered-blend",
+        "instances": 44,
+        "sourceTriangles": 6150,
+        "sourceTrianglesInstanced": 270600,
+        "exactPages": 25,
+        "coarsePages": 40,
+        "bootstrapPages": 25,
+        "bootstrapTriangles": 5378,
+        "bootstrapTrianglesInstanced": 236632
+      },
+      {
+        "mesh": 59,
+        "primitive": 2,
+        "material": 90,
+        "name": "EuropeanLindenLeaf.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 8504,
+        "sourceTrianglesInstanced": 17008,
+        "exactPages": 34,
+        "coarsePages": 0,
+        "bootstrapPages": 34,
+        "bootstrapTriangles": 8504,
+        "bootstrapTrianglesInstanced": 17008
+      },
+      {
+        "mesh": 59,
+        "primitive": 3,
+        "material": 91,
+        "name": "EuropeanLindenLeaf_2.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 7772,
+        "sourceTrianglesInstanced": 15544,
+        "exactPages": 31,
+        "coarsePages": 0,
+        "bootstrapPages": 31,
+        "bootstrapTriangles": 7772,
+        "bootstrapTrianglesInstanced": 15544
+      },
+      {
+        "mesh": 60,
+        "primitive": 0,
+        "material": 92,
+        "name": "Grass_blades.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 1,
+        "sourceTriangles": 1615992,
+        "sourceTrianglesInstanced": 1615992,
+        "exactPages": 6313,
+        "coarsePages": 0,
+        "bootstrapPages": 6313,
+        "bootstrapTriangles": 1615992,
+        "bootstrapTrianglesInstanced": 1615992
+      },
+      {
+        "mesh": 61,
+        "primitive": 1,
+        "material": 94,
+        "name": "Hedge_Base.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 201,
+        "sourceTriangles": 1536,
+        "sourceTrianglesInstanced": 308736,
+        "exactPages": 6,
+        "coarsePages": 13,
+        "bootstrapPages": 4,
+        "bootstrapTriangles": 804,
+        "bootstrapTrianglesInstanced": 161604
+      },
+      {
+        "mesh": 61,
+        "primitive": 2,
+        "material": 95,
+        "name": "Hedge_Leaves_1.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 201,
+        "sourceTriangles": 3768,
+        "sourceTrianglesInstanced": 757368,
+        "exactPages": 15,
+        "coarsePages": 0,
+        "bootstrapPages": 15,
+        "bootstrapTriangles": 3768,
+        "bootstrapTrianglesInstanced": 757368
+      },
+      {
+        "mesh": 61,
+        "primitive": 3,
+        "material": 96,
+        "name": "Hedge_Leaves_3.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 201,
+        "sourceTriangles": 7432,
+        "sourceTrianglesInstanced": 1493832,
+        "exactPages": 30,
+        "coarsePages": 0,
+        "bootstrapPages": 30,
+        "bootstrapTriangles": 7432,
+        "bootstrapTrianglesInstanced": 1493832
+      },
+      {
+        "mesh": 63,
+        "primitive": 1,
+        "material": 99,
+        "name": "JapaneseMapleLeaf_1.DoubleSided1",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 9,
+        "coarsePages": 0,
+        "bootstrapPages": 9,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 63,
+        "primitive": 2,
+        "material": 100,
+        "name": "JapaneseMapleLeaf_2.DoubleSided1",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 12,
+        "coarsePages": 0,
+        "bootstrapPages": 12,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      },
+      {
+        "mesh": 78,
+        "primitive": 1,
+        "material": 118,
+        "name": "Cards.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 92,
+        "sourceTrianglesInstanced": 184,
+        "exactPages": 1,
+        "coarsePages": 0,
+        "bootstrapPages": 1,
+        "bootstrapTriangles": 92,
+        "bootstrapTrianglesInstanced": 184
+      },
+      {
+        "mesh": 78,
+        "primitive": 2,
+        "material": 119,
+        "name": "Leaves.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 3580,
+        "sourceTrianglesInstanced": 7160,
+        "exactPages": 14,
+        "coarsePages": 0,
+        "bootstrapPages": 14,
+        "bootstrapTriangles": 3580,
+        "bootstrapTrianglesInstanced": 7160
+      },
+      {
+        "mesh": 78,
+        "primitive": 3,
+        "material": 120,
+        "name": "Leaves_2.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 2,
+        "sourceTriangles": 3420,
+        "sourceTrianglesInstanced": 6840,
+        "exactPages": 14,
+        "coarsePages": 0,
+        "bootstrapPages": 14,
+        "bootstrapTriangles": 3420,
+        "bootstrapTrianglesInstanced": 6840
+      },
+      {
+        "mesh": 93,
+        "primitive": 2,
+        "material": 131,
+        "name": "White_Oak_Leaves_Hero_1.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 1,
+        "sourceTriangles": 12236,
+        "sourceTrianglesInstanced": 12236,
+        "exactPages": 48,
+        "coarsePages": 0,
+        "bootstrapPages": 48,
+        "bootstrapTriangles": 12236,
+        "bootstrapTrianglesInstanced": 12236
+      },
+      {
+        "mesh": 93,
+        "primitive": 3,
+        "material": 132,
+        "name": "White_Oak_Leaves_Hero_3.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 1,
+        "sourceTriangles": 11764,
+        "sourceTrianglesInstanced": 11764,
+        "exactPages": 46,
+        "coarsePages": 0,
+        "bootstrapPages": 46,
+        "bootstrapTriangles": 11764,
+        "bootstrapTrianglesInstanced": 11764
+      },
+      {
+        "mesh": 103,
+        "primitive": 1,
+        "material": 162,
+        "name": "JapaneseMapleLeaf_1.DoubleSided2",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 9,
+        "coarsePages": 0,
+        "bootstrapPages": 9,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 103,
+        "primitive": 2,
+        "material": 163,
+        "name": "JapaneseMapleLeaf_2.DoubleSided2",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 12,
+        "coarsePages": 0,
+        "bootstrapPages": 12,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      },
+      {
+        "mesh": 135,
+        "primitive": 1,
+        "material": 202,
+        "name": "JapaneseMapleLeaf_1.DoubleSided3",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2260,
+        "sourceTrianglesInstanced": 36160,
+        "exactPages": 9,
+        "coarsePages": 0,
+        "bootstrapPages": 9,
+        "bootstrapTriangles": 2260,
+        "bootstrapTrianglesInstanced": 36160
+      },
+      {
+        "mesh": 135,
+        "primitive": 2,
+        "material": 203,
+        "name": "JapaneseMapleLeaf_2.DoubleSided3",
+        "pass": "clustered-blend",
+        "instances": 16,
+        "sourceTriangles": 2924,
+        "sourceTrianglesInstanced": 46784,
+        "exactPages": 12,
+        "coarsePages": 0,
+        "bootstrapPages": 12,
+        "bootstrapTriangles": 2924,
+        "bootstrapTrianglesInstanced": 46784
+      }
+    ],
+    "grass": [
+      {
+        "mesh": 60,
+        "primitive": 0,
+        "material": 92,
+        "name": "Grass_blades.DoubleSided",
+        "pass": "clustered-blend",
+        "instances": 1,
+        "sourceTriangles": 1615992,
+        "sourceTrianglesInstanced": 1615992,
+        "exactPages": 6313,
+        "coarsePages": 0,
+        "bootstrapPages": 6313,
+        "bootstrapTriangles": 1615992,
+        "bootstrapTrianglesInstanced": 1615992
+      }
+    ]
+  },
+  "execution": {
+    "startedAt": "2026-09-13T16:34:30.564892+00:00",
+    "steps": [
+      {
+        "name": "build",
+        "command": [
+          "cargo",
+          "build",
+          "--release",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler/Cargo.toml",
+          "--target-dir",
+          "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler/target",
+          "--bin",
+          "web-geometry-compiler"
+        ],
+        "exitCode": 1,
+        "elapsedWallMs": 12646.322957996745,
+        "maximumResidentSetBytes": null,
+        "stdoutPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler-build.stdout.log",
+        "stderrPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler-build.stderr.log",
+        "note": "Compiler build completed, but /usr/bin/time -l failed because sandbox sysctl kern.clockrate is unavailable. Retrying direct command, with wait4 process usage."
+      },
+      {
+        "name": "build-verified",
+        "command": [
+          "cargo",
+          "build",
+          "--release",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler/Cargo.toml",
+          "--target-dir",
+          "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler/target",
+          "--bin",
+          "web-geometry-compiler"
+        ],
+        "exitCode": 0,
+        "elapsedWallMs": 214.59770802175626,
+        "maximumResidentSetBytes": 40599552,
+        "userCpuMs": 21.655,
+        "systemCpuMs": 25.223,
+        "resourceMeasurement": "os.wait4 per child rusage; maximum RSS is measured, not enforced",
+        "stdoutPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler-build-verified.stdout.log",
+        "stderrPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler-build-verified.stderr.log"
+      },
+      {
+        "name": "bake",
+        "command": [
+          "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler/target/release/web-geometry-compiler",
+          "/Users/pasquelin/Applications/render-tech-lab/public/benchmark-assets/emerald-square",
+          "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/cache",
+          "full",
+          "150000",
+          "2",
+          "512",
+          "/benchmark-assets/emerald-square/",
+          "qem-endpoints"
+        ],
+        "exitCode": 0,
+        "elapsedWallMs": 10180.857125029434,
+        "maximumResidentSetBytes": 780500992,
+        "userCpuMs": 6083.539,
+        "systemCpuMs": 5831.352,
+        "resourceMeasurement": "os.wait4 per child rusage; maximum RSS is measured, not enforced",
+        "stdoutPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler-bake.stdout.log",
+        "stderrPath": "/Users/pasquelin/Applications/webGeometry/benchmark-runs/transparent-lod/compiler-bake.stderr.log"
+      }
+    ],
+    "toolVersions": {
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)"
+    },
+    "binarySha256": "2a9072dcaa9fc5c850de3de4e0fda35dca62e0c9cbd30c2961375593c06dfb45"
+  }
+}

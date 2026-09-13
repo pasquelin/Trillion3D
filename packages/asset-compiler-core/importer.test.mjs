@@ -252,13 +252,60 @@ test('Importer leaves transmissive materials unsplit',async()=>{
   const input=join(root,'source'),output=join(root,'cache');await mkdir(input);
   const positions=[0,0,0,1,0,0,0,1,0],indices=[0,1,2];
   const posBytes=packPositions(positions),indexBytes=packIndices(indices),bin=Buffer.concat([posBytes,indexBytes]);
-  const g={asset:{version:'2.0'},buffers:[{uri:'mesh.bin',byteLength:bin.length}],bufferViews:[{buffer:0,byteOffset:0,byteLength:posBytes.length},{buffer:0,byteOffset:posBytes.length,byteLength:indexBytes.length}],accessors:[{bufferView:0,componentType:5126,type:'VEC3',count:3},{bufferView:1,componentType:5125,type:'SCALAR',count:3}],meshes:[{primitives:[{attributes:{POSITION:0},indices:1,material:0}]}],nodes:[{mesh:0}],materials:[{extensions:{KHR_materials_transmission:{transmissionFactor:1},KHR_materials_volume:{thicknessFactor:0.02,attenuationColor:[0.2,0.8,0.3],attenuationDistance:0.1}}}]};
+  const g={asset:{version:'2.0'},buffers:[{uri:'mesh.bin',byteLength:bin.length}],bufferViews:[{buffer:0,byteOffset:0,byteLength:posBytes.length},{buffer:0,byteOffset:posBytes.length,byteLength:indexBytes.length}],accessors:[{bufferView:0,componentType:5126,type:'VEC3',count:3},{bufferView:1,componentType:5125,type:'SCALAR',count:3}],meshes:[{primitives:[{attributes:{POSITION:0},indices:1,material:0}]}],nodes:[{mesh:0}],materials:[{alphaMode:'BLEND',extensions:{KHR_materials_transmission:{transmissionFactor:1},KHR_materials_volume:{thicknessFactor:0.02,attenuationColor:[0.2,0.8,0.3],attenuationDistance:0.1}}}]};
   const json=Buffer.from(JSON.stringify(g));
   await writeFile(join(input,'mesh.gltf'),json);await writeFile(join(input,'mesh.bin'),bin);
   await writeFile(join(input,'manifest.json'),JSON.stringify({status:'ready',runtime:{file:'mesh.gltf',sha256:hash(json),sidecars:[{file:'mesh.bin',sha256:hash(bin)}],trianglesAcrossNodes:1,meshNodes:1}}));
   const result=await prepare(input,output,'full',150000,{resourceBaseUrl:'/assets/'});
   assert.equal(result.primitives[0].pass,'shared-blend');
   assert.equal(result.primitives[0].pages.length,0);
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+test('Importer gives BLEND source-ordered exact pages and LOD without changing material or vertex attributes',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'gltf-blend-lod-'));try{
+  const input=join(root,'source'),output=join(root,'cache');await mkdir(input);
+  const positions=[],uv=[],indices=[];
+  for(let y=0;y<=10;y++)for(let x=0;x<=16;x++){positions.push(x,y,0);uv.push(x/16,y/10);}
+  for(let y=0;y<10;y++)for(let x=0;x<16;x++){const a=y*17+x;indices.push(a,a+1,a+17,a+1,a+18,a+17);}
+  await writeNamedSource(input,{gltfName:'mesh.gltf',binName:'mesh.bin',positions,indices});
+  const gltf=JSON.parse(await readFile(join(input,'mesh.gltf'),'utf8')),original=await readFile(join(input,'mesh.bin'));
+  const uvBytes=packPositions(uv),bin=Buffer.concat([original,uvBytes]);
+  const material={alphaMode:'BLEND',doubleSided:true,pbrMetallicRoughness:{baseColorFactor:[.2,.8,.3,.45]}};
+  gltf.materials=[material];gltf.meshes[0].primitives[0].material=0;gltf.meshes[0].primitives[0].attributes.TEXCOORD_0=2;
+  gltf.bufferViews.push({buffer:0,byteOffset:original.length,byteLength:uvBytes.length});
+  gltf.accessors.push({bufferView:2,componentType:5126,type:'VEC2',count:uv.length/2});gltf.buffers[0].byteLength=bin.length;
+  await writeFile(join(input,'mesh.gltf'),JSON.stringify(gltf));await writeFile(join(input,'mesh.bin'),bin);await rm(join(input,'manifest.json'));
+  for(const strategy of ['exact-source-order','greedy-adjacency']){
+   const result=await prepare(input,output,'full',150000,{resourceBaseUrl:'/assets/',strategy,simplification:'qem-endpoints'}),primitive=result.primitives[0];
+   assert.equal(primitive.pass,'clustered-blend');assert.equal(primitive.clusterStrategy,'exact-source-order');
+   const directory=join(output,'reference','full',result.key),exact=primitive.pages.filter(page=>page.role==='exact');
+   assert.deepEqual(exact.map(page=>page.count),[768,192]);
+   const covered=[];for(const page of exact){const bytes=await readFile(join(directory,page.url));for(let i=0;i<bytes.length;i+=4)covered.push(bytes.readUInt32LE(i));}
+   assert.deepEqual(covered,indices);assert.ok(primitive.hierarchy.children.length>=2);
+   assert.ok(primitive.pages.some(page=>page.role==='coarse'));assert.ok(primitive.hierarchy.errorObject>=0);
+   const source=JSON.parse(await readFile(join(directory,'source.gltf'),'utf8'));
+   assert.deepEqual(source.materials[0],material);
+   const packed=await readFile(join(directory,'source.bin')),attribute=source.accessors[source.meshes[0].primitives[0].attributes.TEXCOORD_0],view=source.bufferViews[attribute.bufferView];
+   assert.deepEqual(packed.subarray(view.byteOffset,view.byteOffset+view.byteLength),uvBytes);
+   assert.ok(!result.autonomousScene,'forward BLEND still needs original source vertices');
+  }
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+test('a source format 1 asset emits format 2 pointers and metadata only when it contains clustered BLEND',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'gltf-blend-format-'));try{
+  const input=join(root,'source'),output=join(root,'cache');await mkdir(input);
+  await writeNamedSource(input,{gltfName:'mesh.gltf',binName:'mesh.bin',positions:[0,0,0,1,0,0,0,1,0],indices:[0,1,2]});
+  const opaque=await prepare(input,output,'full',150000,{resourceBaseUrl:'/assets/'});
+  assert.equal(opaque.formatVersion,1);assert.equal(JSON.parse(await readFile(join(output,'reference/full/manifest.json'),'utf8')).formatVersion,1);
+  const gltf=JSON.parse(await readFile(join(input,'mesh.gltf'),'utf8'));gltf.materials=[{alphaMode:'BLEND'}];gltf.meshes[0].primitives[0].material=0;
+  const bytes=Buffer.from(JSON.stringify(gltf));await writeFile(join(input,'mesh.gltf'),bytes);
+  const manifest=JSON.parse(await readFile(join(input,'manifest.json'),'utf8'));manifest.runtime.sha256=hash(bytes);const sourceManifest=JSON.stringify(manifest);await writeFile(join(input,'manifest.json'),sourceManifest);
+  const blend=await prepare(input,output,'full',150000,{resourceBaseUrl:'/assets/'}),pointer=JSON.parse(await readFile(join(output,'reference/full/manifest.json'),'utf8'));
+  assert.equal(blend.schema,2);assert.equal(blend.formatVersion,2);assert.equal(pointer.formatVersion,2);
+  assert.equal(await readFile(join(input,'manifest.json'),'utf8'),sourceManifest);assert.equal(manifest.formatVersion,1);
+  // Frozen format guard from the pre-BLEND SDK (93bb666): new output must fail closed.
+  const oldAssertFormat=version=>{if(version!==1)throw new Error('UNSUPPORTED_FORMAT');};
+  assert.throws(()=>oldAssertFormat(pointer.formatVersion),/UNSUPPORTED_FORMAT/);assert.throws(()=>oldAssertFormat(blend.formatVersion),/UNSUPPORTED_FORMAT/);
  }finally{await rm(root,{recursive:true,force:true});}
 });
 test('Importer concatenates multiple glTF buffers and remaps bufferViews',async()=>{

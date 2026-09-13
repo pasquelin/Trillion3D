@@ -1,0 +1,355 @@
+{
+  "createdAt": "2026-09-13T17:19:01.082Z",
+  "status": "measured-with-gpu-variability",
+  "beforeResult": "control-original-v2-final-20260913/result.json",
+  "afterResult": "after-v2-final-20260913/result.json",
+  "afterRevalidation": "after-v2-final-20260913/revalidation.json",
+  "sameRuntimeHashes": true,
+  "runtimeHashes": {
+    "dist/sdk-browser/autonomousPages.js": "a3634f6787e7953fae1bd293f0828569d8f149733c62043ab7fb56a7ecec3b34",
+    "dist/sdk-browser/backendTypes.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "dist/sdk-browser/buildProvenance.js": "4e22c32819dc693143f6b55627374ea41253210d099db703760e0a673838c54b",
+    "dist/sdk-browser/capabilities.js": "0ebeacb918898b2c15b9842b3d87d55be1a341ddd3b943844fb54b8703e5550e",
+    "dist/sdk-browser/clusterPages.js": "8745eb2f3709e33677270a15fcf0a807ce313824a4f06b9a13c3b640363a6ce9",
+    "dist/sdk-browser/comparison.js": "e1d828b8dacdade888ade5e6eee8f20727328e914c6bf81e477878eca5a2af1f",
+    "dist/sdk-browser/deferredLighting.js": "a3483d876f072bf6cfd183b8eafe40388152d6b39c1dc2d7f76b203c50946fbf",
+    "dist/sdk-browser/diagnosticChannel.js": "cffc69ac73f9701cfb6945a0ce0dbdafce3775df925b9188b0a7446ce643850c",
+    "dist/sdk-browser/geometryPage.js": "1eb02f559a85d67415134c471349239d396fe542bb296efe5204037144298e4b",
+    "dist/sdk-browser/gpuDraw.js": "45d8a6c1c09e79c32a37ff29c18d345003b98b4b278a42f9d6c949f60ced29ee",
+    "dist/sdk-browser/gpuHiz.js": "4d9dab31eadb468ddd20f601f623b78aa7027ffe2380f436bbcef2325aaec4e7",
+    "dist/sdk-browser/gpuPages.js": "866dd349effe2eae8f9c39813c322dd8f1fd51de8a87d468e3aee10d32edd0e9",
+    "dist/sdk-browser/gpuPresentation.js": "7673441f640d7044b5d158312ddbb2e427f1f3d9b30822ad6b1cb0bee72b1ede",
+    "dist/sdk-browser/gpuSelection.js": "74c0bbbacff604b2d0b4b79e758b99dc3aad0c678f6679cd745a2421bf4bed45",
+    "dist/sdk-browser/gpuTiming.js": "abf46d331cbd252f28cb3635c1d1bcf030bc7fff2907c4fa52f827817542c081",
+    "dist/sdk-browser/hiz.js": "c507fe2839a2ee02dc01d08e1605b157e71c1fb7fc74102761de3735260e7bac",
+    "dist/sdk-browser/index.js": "eba78a248bd7c69d019cac3d80074e661f73a8b5b3655c56d1cc0a2bbb4aa25c",
+    "dist/sdk-browser/pageCone.js": "71f0dc12d001dda16a08ae13b8bdd82a883d7e797180c134807223cb3e3fc770",
+    "dist/sdk-browser/pageRaster.js": "eaaa44ffc43044ff40268b11598f2cf6ff31dba409da6288c00be3b539d621da",
+    "dist/sdk-browser/pageSelection.js": "458a2c4ac505cbb1d6dc4d7493f5948e6631a177e255c1d1c1897cc50554a15c",
+    "dist/sdk-browser/replicateInstances.js": "10030ab3c5ce3173a4a728bc750f6bfe685a84b6d26ec57ac1ab8b6ce7018adf",
+    "dist/sdk-browser/sceneLighting.js": "a5d021568b1034dfdc63d011b79c0ab46e46c259935f65ceae7dd11d8726f4f9",
+    "dist/sdk-browser/scheduling.js": "c28302876ce2bd4c22b5102ba5cca46cf7cedf894f1260b9860b48c9a8ddffa6",
+    "dist/sdk-browser/standardLighting.js": "4b337730793055a4358765f1da45850582e6f71087ea785611cc0c7ce9126979",
+    "dist/sdk-browser/streamingPages.js": "9939192833cab74caec8332a46b89ee17cc8488fbb2af4fd0f8610437ad654c8",
+    "dist/sdk-browser/surfaceBuffer.js": "2a266875cac03e8814d370bf0898d1d945ba98287edf30e80a1da7e4a34684e5",
+    "dist/sdk-browser/telemetry.js": "4a191268567e5622a43f6c7b5cf17b47e35006fa07aa84cebb08aa03bd5ef78d",
+    "dist/sdk-browser/textureMips.js": "010aa5a1d986568df5b558bcd773da02afa8fa8ef24959644b7c0b942422f3a1",
+    "dist/sdk-browser/threeLod.js": "2be7f835e9e914442c58664dff642da0f4449760af5516d683a377de707d70da",
+    "dist/sdk-browser/triangleDiagnostic.js": "677e5b3bb45c6b30c6f1b109bfa6e3faecc69bad4788629c66528b90a7e87fd8",
+    "dist/sdk-browser/visibilityBuffer.js": "62a6d662907c54a290b02da41d658987967b2156f00768446873a04c26d9ecff",
+    "dist/sdk-browser/webgpuPages.js": "ca7fc0a07ec88f0db2674df36756a9fc3ab36154603b16bdeaa2e217c74efcbb",
+    "dist/sdk-core/competitors.js": "0251fc92fc30e6059ab7e113b59d769afa4ff94b8ebf3bff60ed306ec7fffb21",
+    "dist/sdk-core/contracts.js": "ca4c3a0693e754d8f8b108e3c28f9af94097b9167e65967945116aa7a776dd08",
+    "dist/sdk-core/diagnostics.js": "0e27fb24b0cfb455df2a2da93796cd8eecdbfde388cd12673e839015fbb8a7d7",
+    "dist/sdk-core/events.js": "9e70049f89330520c6d1cfb57c1b6f943f5b7477c62c6696fee49b8539898e0d",
+    "dist/sdk-core/index.js": "8e61e4efe780b84393ef72c54c029693747e7f8f8cfa8f636cc861ec2c7e52b5",
+    "dist/sdk-core/jobs.js": "677390eccf7ed52c4f7cf7ac3c35f57ee55b9f96bd20e0b00883a9da68668767",
+    "dist/sdk-core/lodPolicy.js": "a7ce541320211ec5a8a87f91af7e4d1ede9bea7091b91bce813f3f5780668475",
+    "dist/sdk-core/oracles.js": "4665aba0e925b55ba4a54950d9536c1df03c87ddcc4ae93c9d9c5d23573757a3",
+    "dist/sdk-core/paths.js": "636a7c893bd0ee7f22d3024195ba781ddbefbf0b2526bd109bc3024ab629bb4b",
+    "dist/sdk-core/safety.js": "4854ee0eec80aa0197360c759d3fe9e20262f9ea3ff0f8ce6ada8ba88e8a1b35",
+    "dist/sdk-core/stats.js": "ef8f7cecbb16df63dfa0a38e3406ffe2fa4520f3ad861466c15de75046ece1b6",
+    "lab/15-virtualized-integration/implementation/engines.ts": "d1597d1d0109b2cb5fe33f51fb1410e57ea7243ee86e05b59b4523bf4ba699fa",
+    "lab/src/lab/modelCampaign.ts": "2e16ecaf82644e22e25cb4847277246812a19896b8d659ccd8b659863cf7c32d"
+  },
+  "configuration": {
+    "width": 1246,
+    "height": 1000,
+    "pixelError": 1,
+    "lodQuality": "high",
+    "maxResidentPages": 100000,
+    "diagnosticDetail": "summary",
+    "warmupFrames": 60,
+    "timestampSamplesPerView": 60,
+    "segments": [
+      0,
+      3,
+      8
+    ],
+    "clearColor": 2764860
+  },
+  "gpu": [
+    {
+      "vendorId": 4203,
+      "deviceId": 0,
+      "vendorString": "Google Inc. (Apple)",
+      "deviceString": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Max, Version 26.6.2 (Build 25G83))",
+      "driverVendor": "Apple",
+      "driverVersion": "26.6.2"
+    }
+  ],
+  "cacheKeys": {
+    "before": "019a531c875acb0168297ecf2feab131d7c5866a344a28048e0e99ae55ff5710",
+    "after": "a2eb09607499f39ffbd3722520e23a98619c982e20dcc1e316b54bc736601a87"
+  },
+  "cacheReconstruction": "original-cache/reconstruction.json",
+  "sourceGltfSha256": "1777523c19da648b6737b9cbbc6923c20d4b739eb382e09cffa6267234513a6e",
+  "textureCounts": {
+    "color": 114,
+    "data": 222
+  },
+  "rowMetricPolicy": "Per-view nearest-rank p50/p95; GPU values are real pass timestamps, not frame latency or FPS. GPU gains are not robust under observed variation.",
+  "rows": [
+    {
+      "segment": 0,
+      "name": "Vue générale du modèle",
+      "before": {
+        "transparentGpuMs": {
+          "count": 60,
+          "min": 8.51968,
+          "p50": 8.650752,
+          "p95": 13.1072,
+          "max": 13.172736
+        },
+        "cpuFrameMs": {
+          "count": 3600,
+          "min": 14.699999988079071,
+          "p50": 15.299999952316284,
+          "p95": 16.30000001192093,
+          "max": 32.200000047683716
+        },
+        "cpuSubmitMs": {
+          "count": 3600,
+          "min": 12.299999952316284,
+          "p50": 12.700000047683716,
+          "p95": 13.699999988079071,
+          "max": 28.200000047683716
+        },
+        "transparentSubmittedTriangles": 10905728,
+        "transparentDrawCalls": {
+          "count": 60,
+          "min": 1928,
+          "p50": 1928,
+          "p95": 1928,
+          "max": 1928
+        },
+        "grassSubmittedTriangles": null
+      },
+      "after": {
+        "transparentGpuMs": {
+          "count": 60,
+          "min": 8.126464,
+          "p50": 8.323072,
+          "p95": 8.650752,
+          "max": 9.043968
+        },
+        "cpuFrameMs": {
+          "count": 3600,
+          "min": 16.899999976158142,
+          "p50": 19,
+          "p95": 21.19999998807907,
+          "max": 46
+        },
+        "cpuSubmitMs": {
+          "count": 3600,
+          "min": 7.800000011920929,
+          "p50": 8.800000011920929,
+          "p95": 10,
+          "max": 23
+        },
+        "transparentSubmittedTriangles": 10436256,
+        "transparentDrawCalls": {
+          "count": 60,
+          "min": 1928,
+          "p50": 1928,
+          "p95": 1928,
+          "max": 1928
+        },
+        "grassSubmittedTriangles": 3231984
+      },
+      "triangleReductionPercent": 4.30482036595815,
+      "pixelsBeforeAfter": {
+        "mae": 0.00000294275013376137,
+        "maxChannelError": 1,
+        "differentPixelsExact": 6,
+        "differentPixelsAbove2": 0
+      },
+      "pixelsAfterVsEarlierCapture": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      },
+      "pixelsOriginalControlVsInitialBefore": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      }
+    },
+    {
+      "segment": 3,
+      "name": "Matériaux et transparences",
+      "before": {
+        "transparentGpuMs": {
+          "count": 60,
+          "min": 11.665408,
+          "p50": 12.976128,
+          "p95": 13.697024,
+          "max": 16.646144
+        },
+        "cpuFrameMs": {
+          "count": 3600,
+          "min": 6,
+          "p50": 7.100000023841858,
+          "p95": 7.599999964237213,
+          "max": 12
+        },
+        "cpuSubmitMs": {
+          "count": 3600,
+          "min": 4.099999964237213,
+          "p50": 5,
+          "p95": 5.300000011920929,
+          "max": 9.5
+        },
+        "transparentSubmittedTriangles": 4004080,
+        "transparentDrawCalls": {
+          "count": 60,
+          "min": 232,
+          "p50": 232,
+          "p95": 232,
+          "max": 232
+        },
+        "grassSubmittedTriangles": null
+      },
+      "after": {
+        "transparentGpuMs": {
+          "count": 60,
+          "min": 3.735552,
+          "p50": 9.17504,
+          "p95": 11.79648,
+          "max": 13.369344
+        },
+        "cpuFrameMs": {
+          "count": 3600,
+          "min": 8.199999988079071,
+          "p50": 9.099999964237213,
+          "p95": 10.300000011920929,
+          "max": 15.399999976158142
+        },
+        "cpuSubmitMs": {
+          "count": 3600,
+          "min": 3.799999952316284,
+          "p50": 4.300000011920929,
+          "p95": 4.899999976158142,
+          "max": 7.799999952316284
+        },
+        "transparentSubmittedTriangles": 1423804,
+        "transparentDrawCalls": {
+          "count": 60,
+          "min": 232,
+          "p50": 232,
+          "p95": 232,
+          "max": 232
+        },
+        "grassSubmittedTriangles": 663552
+      },
+      "triangleReductionPercent": 64.44117000659327,
+      "pixelsBeforeAfter": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      },
+      "pixelsAfterVsEarlierCapture": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      },
+      "pixelsOriginalControlVsInitialBefore": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      }
+    },
+    {
+      "segment": 8,
+      "name": "Forte pression de pages",
+      "before": {
+        "transparentGpuMs": {
+          "count": 60,
+          "min": 11.4688,
+          "p50": 12.648448,
+          "p95": 13.500416,
+          "max": 13.76256
+        },
+        "cpuFrameMs": {
+          "count": 3600,
+          "min": 14.800000011920929,
+          "p50": 15.399999976158142,
+          "p95": 16.899999976158142,
+          "max": 34.10000002384186
+        },
+        "cpuSubmitMs": {
+          "count": 3600,
+          "min": 12.199999988079071,
+          "p50": 12.699999988079071,
+          "p95": 13.899999976158142,
+          "max": 29.80000001192093
+        },
+        "transparentSubmittedTriangles": 10791680,
+        "transparentDrawCalls": {
+          "count": 60,
+          "min": 1884,
+          "p50": 1884,
+          "p95": 1884,
+          "max": 1884
+        },
+        "grassSubmittedTriangles": null
+      },
+      "after": {
+        "transparentGpuMs": {
+          "count": 60,
+          "min": 7.86432,
+          "p50": 13.172736,
+          "p95": 15.597568,
+          "max": 16.05632
+        },
+        "cpuFrameMs": {
+          "count": 3600,
+          "min": 16.30000001192093,
+          "p50": 18.100000023841858,
+          "p95": 20.5,
+          "max": 39.69999998807907
+        },
+        "cpuSubmitMs": {
+          "count": 3600,
+          "min": 7.600000023841858,
+          "p50": 8.600000023841858,
+          "p95": 10,
+          "max": 24.19999998807907
+        },
+        "transparentSubmittedTriangles": 10314824,
+        "transparentDrawCalls": {
+          "count": 60,
+          "min": 1884,
+          "p50": 1884,
+          "p95": 1884,
+          "max": 1884
+        },
+        "grassSubmittedTriangles": 3231984
+      },
+      "triangleReductionPercent": 4.418737397698969,
+      "pixelsBeforeAfter": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      },
+      "pixelsAfterVsEarlierCapture": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      },
+      "pixelsOriginalControlVsInitialBefore": {
+        "mae": 0,
+        "maxChannelError": 0,
+        "differentPixelsExact": 0,
+        "differentPixelsAbove2": 0
+      }
+    }
+  ]
+}
