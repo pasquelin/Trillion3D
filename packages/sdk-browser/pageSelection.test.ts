@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type {ClusterManifest} from '../sdk-core/index.ts';
-import {collectClusterPages,rootCoverage,selectVisiblePages} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,rootCoverage,selectVisiblePages} from './pageSelection.ts';
 import {cameraSelectionUniforms,evaluateSelectionKernel,packSelectionForest} from './gpuSelection.ts';
 
 function blendFixture(material:THREE.Material=new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide})){
@@ -125,14 +125,19 @@ function dagFixture(){
  const midError=.02,rootError=.2;
  const leaf=(id:number)=>({id,url:`leaf${id}`,sha256:`leaf${id}`,bytes:12,count:3,
   min:[-2+id,-.5,0],max:[-1+id,.5,0],role:'exact' as const,level:0,lodError:0,
-  sphere:[-1.5+id,0,0,.6],parentError:midError,parentSphere:id<2?leftSphere:rightSphere});
+  sphere:[-1.5+id,0,0,.6],parentError:midError,parentSphere:id<2?leftSphere:rightSphere,group:id<2?0:1,source:null});
  const pages=[
   leaf(0),leaf(1),leaf(2),leaf(3),
-  {id:4,url:'mid-left',sha256:'mid-left',bytes:12,count:3,min:[-2,-.5,0],max:[0,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:leftSphere,parentError:rootError,parentSphere:rootSphere},
-  {id:5,url:'mid-right',sha256:'mid-right',bytes:12,count:3,min:[0,-.5,0],max:[2,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:rightSphere,parentError:rootError,parentSphere:rootSphere},
-  {id:6,url:'root',sha256:'root',bytes:12,count:3,min:[-2,-.5,0],max:[2,.5,0],role:'coarse' as const,level:2,lodError:rootError,sphere:rootSphere,parentError:null,parentSphere:null},
+  {id:4,url:'mid-left',sha256:'mid-left',bytes:12,count:3,min:[-2,-.5,0],max:[0,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:leftSphere,parentError:rootError,parentSphere:rootSphere,group:2,source:0},
+  {id:5,url:'mid-right',sha256:'mid-right',bytes:12,count:3,min:[0,-.5,0],max:[2,.5,0],role:'coarse' as const,level:1,lodError:midError,sphere:rightSphere,parentError:rootError,parentSphere:rootSphere,group:2,source:1},
+  {id:6,url:'root',sha256:'root',bytes:12,count:3,min:[-2,-.5,0],max:[2,.5,0],role:'coarse' as const,level:2,lodError:rootError,sphere:rootSphere,parentError:null,parentSphere:null,group:null,source:2},
  ];
- const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',clusterStrategy:'dag-groups' as const,pages,hierarchy:null}]} as unknown as ClusterManifest;
+ const structure={version:1,roots:[6],groups:[
+  {level:1,error:midError,sphere:leftSphere,children:[0,1],outputs:[4]},
+  {level:1,error:midError,sphere:rightSphere,children:[2,3],outputs:[5]},
+  {level:2,error:rootError,sphere:rootSphere,children:[4,5],outputs:[6]},
+ ]};
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'exact-clusters',clusterStrategy:'dag-groups' as const,pages,hierarchy:null,structure}]} as unknown as ClusterManifest;
  const indices=new Map(pages.map(page=>[page.url,new Uint32Array([0,1,2])]));
  for(let id=0;id<4;id++)indices.set(`leaf${id}`,new Uint32Array([id*3,id*3+1,id*3+2]));
  return {geometry,mesh,source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]])};
@@ -168,13 +173,71 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover',()=>{
  fixture.geometry.dispose();
 });
 
-test('a flat cut reports an incomplete cover while a selected cluster is still loading',()=>{
+/** One representation per group: either every child, or the coarse output, never both, never none. */
+function assertOneRepresentationPerGroup(shown:readonly string[]){
+ const drawn=new Set(shown);
+ const regions=[
+  {children:['leaf0','leaf1'],output:'mid-left'},
+  {children:['leaf2','leaf3'],output:'mid-right'},
+  {children:['mid-left','mid-right'],output:'root'},
+ ];
+ for(const region of regions){
+  const fine=region.children.filter(url=>drawn.has(url)).length;
+  const coarse=drawn.has(region.output)?1:0;
+  // A region is covered by its own output, by its children, or by something coarser above it.
+  assert.ok(!(coarse&&fine),`${region.output}: covered twice`);
+ }
+ // Exactly one representation of the whole surface.
+ const leftCovered=drawn.has('root')||drawn.has('mid-left')||(drawn.has('leaf0')&&drawn.has('leaf1'));
+ const rightCovered=drawn.has('root')||drawn.has('mid-right')||(drawn.has('leaf2')&&drawn.has('leaf3'));
+ assert.ok(leftCovered&&rightCovered,`hole in ${[...drawn].join(',')}`);
+}
+
+test('a missing cluster steps its whole group back to the coarse representation, never leaving a hole',()=>{
  const fixture=dagFixture();fixture.indices.delete('leaf0');
  const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations,{allowMissing:true});
  const selected=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
- assert.equal(selected.complete,false);
- assert.deepEqual(selected.wanted.map(page=>page.url).sort(),['leaf0','leaf1','leaf2','leaf3']);
- assert.deepEqual(selected.shown.map(page=>page.url).sort(),['leaf1','leaf2','leaf3']);
+ const shown=selected.shown.map(page=>page.url).sort();
+ assert.deepEqual(shown,['leaf2','leaf3','mid-left'],'the left half falls back, the right half stays fine');
+ assertOneRepresentationPerGroup(shown);
+ assert.deepEqual(selected.wanted.map(page=>page.url).sort(),['leaf0','leaf1','leaf2','leaf3'],'the finer cut is still requested');
+ assert.equal(selected.complete,false,'the cut is not resident yet, even though the frame has no hole');
+ assert.equal(selected.displayedTriangles,3,'every displayed cluster is drawable');
+ fixture.geometry.dispose();
+});
+
+test('a missing coarse cluster keeps stepping back until the pinned root covers everything',()=>{
+ const fixture=dagFixture();fixture.indices.delete('leaf0');fixture.indices.delete('mid-left');
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations,{allowMissing:true});
+ const selected=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
+ const shown=selected.shown.map(page=>page.url).sort();
+ assert.deepEqual(shown,['root'],'the whole primitive falls back to its root');
+ assertOneRepresentationPerGroup(shown);
+ fixture.geometry.dispose();
+});
+
+test('the fallback covers the surface once for every residency pattern',()=>{
+ const urlsByBit=['leaf0','leaf1','leaf2','leaf3','mid-left','mid-right'];
+ for(let mask=0;mask<64;mask++){
+  const fixture=dagFixture();
+  for(let bit=0;bit<urlsByBit.length;bit++)if(mask&(1<<bit))fixture.indices.delete(urlsByBit[bit]);
+  const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations,{allowMissing:true});
+  for(const pixelError of [0,4,20]){
+   const selected=selectVisiblePages(roots,wideCamera(),{pixelError,viewport:[1280,720],frame:1,holdResident:true});
+   const shown=selected.shown.map(page=>page.url).sort();
+   assert.ok(shown.length>0,`mask ${mask} px ${pixelError}: nothing drawn`);
+   assertOneRepresentationPerGroup(shown);
+   assert.ok(selected.shown.every(page=>!!page.array),`mask ${mask}: a missing page was drawn`);
+  }
+  fixture.geometry.dispose();
+ }
+});
+
+test('the root cover is what stays pinned for a flat cut',()=>{
+ const fixture=dagFixture();
+ const {roots,bootstrap}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ assert.deepEqual(bootstrap.map(page=>page.url),['root']);
+ assert.deepEqual(rootCoverage(roots).map(page=>page.url),['root']);
  fixture.geometry.dispose();
 });
 
@@ -235,5 +298,72 @@ test('transparent flat pages keep a draw order taken from their source rank',()=
  for(const page of fixture.metadata.primitives[0].pages)page.start=(6-page.id)*3;
  const {allPages}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
  assert.deepEqual(allPages.map(page=>page.sourceOrder),[18,15,12,9,6,3,0]);
+ fixture.geometry.dispose();
+});
+
+/** Two bundles: the roots on their own, then the rest. Offsets are the page order inside each. */
+function withBundles(fixture:ReturnType<typeof dagFixture>){
+ const pages=fixture.metadata.primitives[0].pages;
+ const rootPages=pages.filter(page=>page.parentError==null),rest=pages.filter(page=>page.parentError!=null);
+ const layout=(list:typeof pages,stream:number)=>{
+  let offset=0;
+  for(const page of list){page.stream=stream;page.streamOffset=offset;offset+=page.count*4;}
+  return offset;
+ };
+ const rootBytes=layout(rootPages,0),restBytes=layout(rest,1);
+ fixture.metadata.primitives[0].streams={version:1,pinned:1,bundleBytes:65536,pages:[
+  {url:'bundle-roots',sha256:'roots',bytes:rootBytes,count:rootPages.length},
+  {url:'bundle-rest',sha256:'rest',bytes:restBytes,count:rest.length},
+ ]};
+ const pack=(list:typeof pages)=>{
+  const array=new Uint32Array(list.reduce((sum,page)=>sum+page.count,0));
+  let at=0;for(const page of list){array.set(fixture.indices.get(page.url)??new Uint32Array(page.count),at);at+=page.count;}
+  return array;
+ };
+ return {roots:pack(rootPages),rest:pack(rest)};
+}
+
+test('a streaming bundle is one request that makes every cluster it carries drawable',()=>{
+ const fixture=dagFixture();
+ const bundled=withBundles(fixture);
+ const {roots,allPages}=collectClusterPages(fixture.source,fixture.metadata,new Map(),fixture.associations,{allowMissing:true});
+ const byUrl=indexPagesByUrl(allPages);
+ assert.deepEqual([...byUrl.keys()].sort(),['bundle-rest','bundle-roots'],'residency is a property of the bundle');
+ const pending=collectPendingUrls(allPages,[]);
+ assert.deepEqual(pending.sort(),['bundle-rest','bundle-roots'],'seven clusters cost two requests');
+ acceptPageArray(byUrl.get('bundle-rest')!,bundled.rest);
+ acceptPageArray(byUrl.get('bundle-roots')!,bundled.roots);
+ for(const rec of allPages){
+  assert.ok(rec.array,`${rec.url} not resident after its bundle arrived`);
+  assert.equal(rec.array!.length,rec.triangles*3);
+  assert.deepEqual([...rec.array!],[...(fixture.indices.get(rec.url) as Uint32Array)],`${rec.url} reads the wrong slice of its bundle`);
+ }
+ const selected=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
+ assert.deepEqual(selected.shown.map(page=>page.url).sort(),['leaf0','leaf1','leaf2','leaf3']);
+ fixture.geometry.dispose();
+});
+
+test('only the root bundle resident still covers the surface once',()=>{
+ const fixture=dagFixture();
+ const bundled=withBundles(fixture);
+ const {roots,allPages,bootstrap}=collectClusterPages(fixture.source,fixture.metadata,new Map(),fixture.associations,{allowMissing:true});
+ assert.deepEqual(bootstrap.map(page=>pageRequestUrl(page)),['bundle-roots']);
+ acceptPageArray(indexPagesByUrl(allPages).get('bundle-roots')!,bundled.roots);
+ const selected=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
+ assert.deepEqual(selected.shown.map(page=>page.url),['root'],'the pinned root covers the frame on its own');
+ assert.deepEqual(selected.wanted.map(page=>page.url).sort(),['leaf0','leaf1','leaf2','leaf3'],'the finer cut keeps driving the streamer');
+ assert.ok(collectPendingUrls(selected.wanted,[]).includes('bundle-rest'),'the missing bundle is what gets requested');
+ fixture.geometry.dispose();
+});
+
+test('a cut wider than the page budget is answered by a coarser cut, not by dropped clusters',()=>{
+ const fixture=dagFixture();
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const full=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:1,holdResident:true});
+ assert.equal(full.shown.length,4);
+ const tight=selectVisiblePages(roots,wideCamera(),{pixelError:0,viewport:[1280,720],frame:2,holdResident:true,pageBudget:3});
+ assert.ok(tight.shown.length<=3);
+ assertOneRepresentationPerGroup(tight.shown.map(page=>page.url));
+ assert.ok(tight.pixelError>0,'the threshold was raised instead of truncating the cut');
  fixture.geometry.dispose();
 });

@@ -53,6 +53,8 @@ export interface BackendContext {
  signal?:AbortSignal;
  maxResidentPages?:number;
  maxCachedPages?:number;
+ /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
+ maxCachedBytes?:number;
  pixelError?:number;
  lodAdaptive?:boolean;
  /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
@@ -90,6 +92,8 @@ export interface ExplorerOptions {
  backends?:BackendFactory[];
  maxResidentPages?:number;
  maxCachedPages?:number;
+ /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
+ maxCachedBytes?:number;
  pixelError?:number;
  lodAdaptive?:boolean;
  /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
