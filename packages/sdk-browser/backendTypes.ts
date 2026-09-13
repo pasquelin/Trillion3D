@@ -13,11 +13,17 @@ export interface RenderBackend {
  render(camera:THREE.PerspectiveCamera):void;
  readonly overBudget:boolean;
  scene:THREE.Scene;
- metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'>&{drawCalls?:number;batchRebuilds?:number;batchIndexBytesUpdated?:number;displayDetachments?:number};
+ metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'totalSubmittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'|'textureUploaded'|'texturePending'|'textureSkipped'>&{drawCalls?:number;batchRebuilds?:number;batchIndexBytesUpdated?:number;displayDetachments?:number};
  pendingUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
  acceptGeometryPage?(url:string,data:import('./geometryPage.ts').DecodedGeometryPage):void;
+ replaceGeometryPage?(url:string,data:import('./geometryPage.ts').DecodedGeometryPage):void;
+ /** Additional prepared-scene instance; supported by backends that own mutable scene records. */
+ addInstance?(id:string,transform:THREE.Matrix4):void;
+ updateInstance?(id:string,transform:THREE.Matrix4):void;
+ removeInstance?(id:string):void;
+ updateMaterial?(primitive:string,material:THREE.Material):void;
  dropPage?(url:string):void;
  syncResident?():void;
  flush?():Promise<void>;
@@ -61,6 +67,8 @@ export interface BackendContext {
  gpuCanvas?:HTMLCanvasElement;
  /** WebGPU frame targets, Hi-Z pyramids, one surface capture and async image staging; excludes scene assets and WebGL diagnostic capture. */
  maxFrameAllocationBytes?:number;
+ /** Maximum source texture bytes admitted to GPU upload per frame. */
+ maxTextureTransferBytesPerFrame?:number;
  sceneLighting?:THREE.Object3D;
  /** Host-owned, validated page reader for the initial complete GPU fallback. */
  readPage?:(url:string)=>Promise<Uint32Array>;
@@ -98,6 +106,7 @@ export interface ExplorerOptions {
  gpu?:GPU;
  pointsOfInterest?:PointOfInterest[];
  maxFrameAllocationBytes?:number;
+ maxTextureTransferBytesPerFrame?:number;
  sceneLighting?:THREE.Object3D;
  logInterval?:number;
 }
