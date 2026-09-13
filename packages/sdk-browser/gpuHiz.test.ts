@@ -49,6 +49,30 @@ test('an integer-edge max is inclusive so a hole on that pixel cannot hide',()=>
  assert.deepEqual([...evaluateHizTest(packed,[bounds])],[0]);
 });
 
+test('a covered 33 by 19 footprint can reject through a reduced Hi-Z level',()=>{
+ const depth=new Float32Array(33*19);depth.fill(0.2);
+ const pyramid=buildHizPyramid(depth,33,19);
+ const bounds:HizBounds={minX:0,minY:0,maxX:32,maxY:18,nearestDepth:0.8,clipsNear:false};
+ assert.equal(hizRejects(pyramid,bounds),true);
+ assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[bounds])],[1]);
+});
+
+test('a background pixel at the far edge of a large footprint prevents rejection',()=>{
+ const depth=new Float32Array(33*19);depth.fill(0.2);depth[18*33+32]=HIZ_BACKGROUND;
+ const pyramid=buildHizPyramid(depth,33,19);
+ const bounds:HizBounds={minX:0,minY:0,maxX:32,maxY:18,nearestDepth:0.8,clipsNear:false};
+ assert.equal(hizRejects(pyramid,bounds),false);
+ assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[bounds])],[0]);
+});
+
+test('a footprint extending outside the depth target is not rejected',()=>{
+ const depth=new Float32Array(33*19);depth.fill(0.2);
+ const pyramid=buildHizPyramid(depth,33,19);
+ const bounds:HizBounds={minX:0,minY:0,maxX:33,maxY:18,nearestDepth:0.8,clipsNear:false};
+ assert.equal(hizRejects(pyramid,bounds),false);
+ assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[bounds])],[0]);
+});
+
 test('Hi-Z compute shader declares this-frame max reduction with background 1',()=>{
  assert.match(HIZ_SHADER,/@compute[\s\S]*fn copyDepth/);
  assert.match(HIZ_SHADER,/@compute[\s\S]*fn reduceHiz/);
@@ -91,18 +115,32 @@ test('a Hi-Z resize replaces the this-frame level-0 depth target',async()=>{
  hiz.dispose();
 });
 
-test('GPU Hi-Z manages temporal history buffer lifecycle and copy',()=>{
- let copied=false;
- const encoder={
-  copyBufferToBuffer(src:unknown,srcOffset:number,dst:unknown,dstOffset:number,size:number){
-   copied=true;
-   assert.equal(srcOffset,0);
-   assert.equal(dstOffset,0);
-   assert.ok(size>0);
-  },
- } as unknown as GPUCommandEncoder;
+test('GPU Hi-Z encodes a large bound into its reduced level',async()=>{
+ const writes:Array<{size:number;data:ArrayBuffer}>=[];
  const device={
   createBuffer:({size}:{size:number})=>({size,destroy(){}}),
+  createTexture:({format}:{format?:string})=>({format,destroy(){},createView(){return {format};}}),
+  createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
+  createBindGroupLayout:()=>({}),createPipelineLayout:()=>({}),
+  createComputePipeline:({compute}:{compute:{entryPoint:string}})=>compute,
+  createBindGroup:()=>({}),
+  queue:{writeBuffer(buffer:{size:number},_offset:number,data:ArrayBuffer,_start:number,length:number){
+   writes.push({size:buffer.size,data:data.slice(0,length)});
+  }},
+ } as unknown as GPUDevice;
+ const encoder={beginComputePass(){return {setPipeline(){},setBindGroup(){},dispatchWorkgroups(){},end(){}};}} as unknown as GPUCommandEncoder;
+ const hiz=await createGpuHiz(device,33,19,1);assert.ok(hiz);
+ hiz.encodeTest(device,encoder,[{minX:0,minY:0,maxX:32,maxY:18,nearestDepth:0.8,clipsNear:false}]);
+ const write=writes.find(item=>item.size===32);assert.ok(write);
+ assert.deepEqual([...new Int32Array(write.data).slice(0,4)],[0,0,8,4]);
+ assert.deepEqual([...new Uint32Array(write.data).slice(5,8)],[0,797,9]);
+ hiz.dispose();
+});
+
+test('GPU Hi-Z allocates only the current pyramid and releases it on resize',async()=>{
+ const buffers:Array<{size:number;destroyed:boolean}>=[];
+ const device={
+  createBuffer:({size}:{size:number})=>{const buffer={size,destroyed:false,destroy(){buffer.destroyed=true;}};buffers.push(buffer);return buffer;},
   createTexture:({format}:{format?:string})=>({format,destroy(){},createView(){return {format};}}),
   createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
   createBindGroupLayout:()=>({}),
@@ -111,15 +149,11 @@ test('GPU Hi-Z manages temporal history buffer lifecycle and copy',()=>{
   createBindGroup:()=>({}),
   queue:{writeBuffer(){}},
  } as unknown as GPUDevice;
- createGpuHiz(device,16,16,4).then(hiz=>{
-  assert.ok(hiz);
-  assert.equal(hiz.hasHistory(),false);
-  hiz.encodeCopyHistory(encoder);
-  assert.equal(copied,true);
-  assert.equal(hiz.hasHistory(),true);
-  hiz.resize(device,32,32);
-  assert.equal(hiz.hasHistory(),false);
-  hiz.dispose();
-  assert.equal(hiz.hasHistory(),false);
- });
+ const hiz=await createGpuHiz(device,16,16,4);assert.ok(hiz);
+ assert.equal(buffers.length,4);
+ const firstPyramid=buffers[3];
+ assert.equal(hiz.resize(device,32,32),true);
+ assert.equal(firstPyramid.destroyed,true);
+ hiz.dispose();
+ assert.ok(buffers.every(buffer=>buffer.destroyed));
 });

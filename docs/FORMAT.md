@@ -67,7 +67,7 @@ The WebGPU visibility path reconstructs material surfaces, then shades them with
 
 ## Hi-Z Occlusion Status
 
-The current renderer builds a max-depth pyramid and has occluder and disocclusion passes. Its GPU cull tests are limited to the level-zero footprint; the retained history copies do not yet feed a reprojection consumer. `applyTemporalHiz` is a CPU reference, not proof of GPU parity. Until conservative mip selection, camera-cut invalidation and reveal tests pass on hardware, temporal occlusion is an incomplete capability.
+The current renderer builds a max-depth pyramid and has occluder and disocclusion passes. CPU and GPU tests choose the first mip whose outward-rounded inclusive footprint fits 16×16 samples; bounds extending outside the target or crossing the near plane are kept. The GPU uses previous-frame page URLs only to choose initial occluders, then tests the remaining pages against this frame's depth. It does not reproject previous-frame depth; the former history buffer copy had no reader and was removed. `applyTemporalHiz` is a CPU reference, not proof of GPU parity. Camera-cut/reveal behavior and GPU pixel/depth/ID parity still require hardware captures before temporal occlusion can be claimed complete.
 
 ## Source files
 
