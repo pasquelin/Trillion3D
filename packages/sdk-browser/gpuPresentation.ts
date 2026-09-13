@@ -13,10 +13,14 @@ export function createGpuPresenter(device:GPUDevice,canvas:HTMLCanvasElement){
   const module=device.createShaderModule({code:PRESENT_SHADER});
   const pipeline=device.createRenderPipeline({layout:device.createPipelineLayout({bindGroupLayouts:[layout]}),vertex:{module,entryPoint:'fullscreen'},fragment:{module,entryPoint:'present',targets:[{format}]},primitive:{topology:'triangle-list'}});
   let texture:GPUTexture|undefined,group:GPUBindGroup|undefined;
-  return {canvas,present(encoder:GPUCommandEncoder,image:GPUTexture,width:number,height:number){
+  const targetView=(width:number,height:number)=>{
    if(canvas.width!==width)canvas.width=width;if(canvas.height!==height)canvas.height=height;
+   return context.getCurrentTexture().createView();
+  };
+  return {canvas,targetView,present(encoder:GPUCommandEncoder,image:GPUTexture,width:number,height:number){
+   const view=targetView(width,height);
    if(texture!==image){texture=image;group=device.createBindGroup({layout,entries:[{binding:0,resource:image.createView()}]});}
-   const pass=encoder.beginRenderPass({label:'WG direct present',colorAttachments:[{view:context.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',clearValue:[0,0,0,1]}]});
+   const pass=encoder.beginRenderPass({label:'WG direct present',colorAttachments:[{view,loadOp:'clear',storeOp:'store',clearValue:[0,0,0,1]}]});
    pass.setPipeline(pipeline);pass.setBindGroup(0,group!);pass.draw(3);pass.end();
   },dispose(){context.unconfigure();group=undefined;texture=undefined;}};
  }catch(error){context.unconfigure();throw error;}
