@@ -37,6 +37,12 @@ export interface Page {
   *  produced this cluster, projected through `sphere`; `parentError` is the error of the group that
   *  replaces it, projected through `parentSphere`. Both are null on a root, which is never replaced. */
  level?:number; lodError?:number; sphere?:number[]; parentError?:number|null; parentSphere?:number[]|null;
+ /** Group that replaces this cluster (null on a root) and group that produced it (null at level 0).
+  *  Coarsening is a group-wide swap, so a runtime short of memory needs both links. */
+ group?:number|null; source?:number|null;
+ /** Streaming bundle holding this cluster and its byte offset inside it. One request serves dozens
+  *  of clusters; the cluster stays readable on its own through `url`. */
+ stream?:number; streamOffset?:number;
 }
 /** A cluster carrying its own screen-error band needs no hierarchy: selection is a flat per-page test. */
 export function pageCarriesClusterError(page:Page){
@@ -50,7 +56,15 @@ export interface Tree { min:number[];max:number[];page?:number;children?:Tree[];
  *  min[3], max[3], sphere[4], maxParentError (-1 when the subtree holds a cluster with no
  *  replacement), firstChild, childCount, firstPage, pageCount. A leaf has childCount 0. */
 export interface CullingHierarchy {stride:number;count:number;nodes:number[]}
-export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'exact-source-order'|'greedy-adjacency'|'dag-groups';pages:Page[];hierarchy:Tree|null;culling?:CullingHierarchy|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
+/** One reduction of the cluster DAG. `children` and `outputs` cover the same surface, never both. */
+export interface ClusterGroup {level:number;error:number;sphere:number[];children:number[];outputs:number[]}
+/** Group links of a primitive, plus the clusters that nothing replaces. */
+export interface ClusterStructure {version:number;roots:number[];groups:ClusterGroup[]}
+export interface StreamBundle {url:string;sha256:string;bytes:number;count:number}
+/** Streaming bundles of a primitive. The first `pinned` bundles hold exactly the root clusters,
+ *  so keeping them resident guarantees a complete, if coarse, cover of the primitive. */
+export interface StreamCatalogue {version:number;pinned:number;bundleBytes:number;pages:StreamBundle[]}
+export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'exact-source-order'|'greedy-adjacency'|'dag-groups';pages:Page[];hierarchy:Tree|null;culling?:CullingHierarchy|null;structure?:ClusterStructure|null;streams?:StreamCatalogue|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
 export interface ClusterManifest {formatVersion?:number;compilerVersion?:string;errorModel?:string;simplification?:boolean;schema:number;status:string;key:string;scope:AssetScope;clusterStrategy?:string;sourceTriangles:number;selectedTriangles:number;selectedNodes:number[];totalNodes:number;autonomousScene?:string|null;primitives:Primitive[]}
 
 export class EngineError extends Error { readonly code:string; readonly details:Record<string,unknown>; constructor(code:string,message:string,details:Record<string,unknown>={}){super(message);this.name='EngineError';this.code=code;this.details=details;} }

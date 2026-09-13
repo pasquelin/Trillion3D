@@ -8,7 +8,7 @@ import {createGpuSmallTriangles,type GpuSmallTriangles} from './gpuSmallTriangle
 import {createGpuTiming} from './gpuTiming.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache,type ResidentPage} from './gpuPages.ts';
-import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
 import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
 import {createGpuDagSelection,packDagSelection,rootsAreFlat} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
@@ -245,7 +245,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const deferredDrops=new Set<string>();
  let coverageBudgetEvent:Record<string,unknown>|undefined;
  let residencyWanted=new Set<string>(),queuedResidency:PageRec[]|undefined,residencyRunning=false;
+ // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
+ // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
+ // cache below stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
  const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[],readyScratch:PageRec[]=[];
+ const bundledPages=allPages.some(page=>page.streamUrl!==undefined);
+ const requestUrlByPage=bundledPages?new Map(allPages.map(page=>[page.url,pageRequestUrl(page)] as const)):undefined;
  const cap=maxResidentPages??Math.max(1024,prepared);
  const uniquePages=Math.max(1,new Set(allPages.map(page=>page.url)).size);
  const slots=Math.max(1,Math.min(cap,uniquePages));
@@ -815,7 +820,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const keep=new Set([...bootstrapUrls,...shown.filter(page=>!gpuFrameActive||page.transparent).map(page=>page.url),...residencyWanted]);
   for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
   for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
-  for(const key of deferredDrops)if(!keep.has(key))backend.dropPage!(key);
+  if(deferredDrops.size){
+   // `keep` holds cluster keys; a deferred drop names the request that carries them.
+   const keepRequests=requestUrlByPage?new Set([...keep].map(url=>requestUrlByPage.get(url)??url)):keep;
+   for(const key of deferredDrops)if(!keepRequests.has(key))backend.dropPage!(key);
+  }
   const added=[...pins].filter(key=>!before.has(key)),removed=[...before].filter(key=>!pins.has(key));
   if(added.length||removed.length)traceDiagnostic('residency-pins','Pins GPU mis à jour',()=>({frame,added:traceSet('pins.added',added),removed:traceSet('pins.removed',removed),pinned:traceSet('pins', [...pins]),bootstrap:traceSet('pins.bootstrap',[...bootstrapUrls]),wanted:traceSet('pins.wanted',[...residencyWanted]),shown:traceSet('pins.shown',shown.map(page=>page.url))}));
  };
@@ -828,7 +837,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    engineDiagnostic('coverage-bootstrap-start','Chargement de la couverture complète de secours',{version:1,pages:bootstrap.length,slots});
    traceDiagnostic('coverage-bootstrap-start','Chargement de la couverture complète de secours',()=>({frame,pages:bootstrap.length,pageIds:pageRefs(bootstrap.map(page=>page.url)),slots,queueWaitMs:0}));
    let next=0;
-   const workers=Array.from({length:Math.min(8,bootstrap.length)},async()=>{while(next<bootstrap.length){const page=bootstrap[next++];context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');if(!hasBytes(page)){const array=await context.readPage!(page.url);context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');backend.acceptPage!(page.url,array);}}});
+   const workers=Array.from({length:Math.min(8,bootstrap.length)},async()=>{while(next<bootstrap.length){const page=bootstrap[next++];context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');if(!hasBytes(page)){const key=pageRequestUrl(page);const array=await context.readPage!(key);context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');backend.acceptPage!(key,array);}}});
    const results=await Promise.allSettled(workers);const failed=results.find(result=>result.status==='rejected');if(failed?.status==='rejected')throw failed.reason;
    for(const page of bootstrap){context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');await cache!.load(page.url,context.signal);cache!.pin(page.url);pins.add(page.url);}
    bootstrapReady=true;
@@ -1466,9 +1475,22 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    return shadeVisibility(rasterVisibilityIds(pages,cam,size),pages,cam,size,clearColor);
   },
   pendingUrls(){return collectPendingUrls(!bootstrapReady?bootstrap:coverageBudgetLimited?[]:desired,pendingScratch);},
-  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [bootstrap,shown,coverageBudgetLimited?[]:desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
-  acceptPage(url,array){deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}sourceBytes.set(url,new Uint8Array(array.buffer,array.byteOffset,array.byteLength));traceDiagnostic('page-accepted','Page CPU acceptée pour résidence GPU',{frame,url,bytes:array.byteLength,bootstrap:bootstrapUrls.has(url),wanted:residencyWanted.has(url),pinned:pins.has(url)});},
-  dropPage(url){if(bootstrapUrls.has(url)){traceDiagnostic('page-drop-deferred','Abandon de page bootstrap ignoré pour préserver la couverture',{frame,url,reason:'bootstrap-pinned'});return;}if(pins.has(url)||residencyWanted.has(url)){deferredDrops.add(url);traceDiagnostic('page-drop-deferred','Abandon de page différé pendant la transition de couverture',{frame,url,reason:pins.has(url)?'pinned':'wanted',pinned:pins.has(url),wanted:residencyWanted.has(url),deferred:[...deferredDrops]});return;}deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=undefined;recs[i].indexBytes=recs[i].triangles*12;}sourceBytes.delete(url);cache?.unload?.(url);pins.delete(url);traceDiagnostic('page-dropped','Page CPU/GPU libérée',{frame,url,reason:'host-request',deferred:false});},
+  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [bootstrap,shown,coverageBudgetLimited?[]:desired])for(let i=0;i<list.length;i++){const url=pageRequestUrl(list[i]);if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
+  acceptPage(url,array){deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;
+   // One request can carry a whole bundle: each cluster takes the view at its own offset, and that
+   // view — not the bundle — is what the GPU cache uploads under the cluster key.
+   acceptPageArray(recs,array);
+   for(let i=0;i<recs.length;i++){const rec=recs[i],view=rec.array!;sourceBytes.set(rec.url,new Uint8Array(view.buffer,view.byteOffset,view.byteLength));}
+   traceDiagnostic('page-accepted','Page CPU acceptée pour résidence GPU',{frame,url,bytes:array.byteLength,clusters:recs.length,bootstrap:recs.some(rec=>bootstrapUrls.has(rec.url)),wanted:recs.some(rec=>residencyWanted.has(rec.url)),pinned:recs.some(rec=>pins.has(rec.url))});},
+  dropPage(url){const recs=byUrl.get(url);if(!recs)return;
+   // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
+   // cluster is enough to refuse or defer the drop.
+   if(recs.some(rec=>bootstrapUrls.has(rec.url))){traceDiagnostic('page-drop-deferred','Abandon de page bootstrap ignoré pour préserver la couverture',{frame,url,reason:'bootstrap-pinned'});return;}
+   const pinned=recs.some(rec=>pins.has(rec.url)),wanted=recs.some(rec=>residencyWanted.has(rec.url));
+   if(pinned||wanted){deferredDrops.add(url);traceDiagnostic('page-drop-deferred','Abandon de page différé pendant la transition de couverture',{frame,url,reason:pinned?'pinned':'wanted',pinned,wanted,deferred:[...deferredDrops]});return;}
+   deferredDrops.delete(url);
+   for(let i=0;i<recs.length;i++){const rec=recs[i];rec.array=undefined;rec.indexBytes=rec.triangles*12;sourceBytes.delete(rec.url);cache?.unload?.(rec.url);pins.delete(rec.url);}
+   traceDiagnostic('page-dropped','Page CPU/GPU libérée',{frame,url,clusters:recs.length,reason:'host-request',deferred:false});},
   metrics(){
    const stats=cache?.stats();
    let vertexBytes=0;for(const buffer of positionBuffers.values())vertexBytes+=buffer.size;

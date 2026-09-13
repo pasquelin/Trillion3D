@@ -1,4 +1,3 @@
-use std::collections::{HashMap,HashSet};
 use crate::{invalid,Result};
 #[derive(Debug,Clone,PartialEq)]
 pub struct TopologyReport {
@@ -14,34 +13,62 @@ pub struct TopologyReport {
  pub neighbors:Vec<Vec<usize>>,
 }
 fn edge_key(a:u32,b:u32)->(u32,u32){if a<b{(a,b)}else{(b,a)}}
-fn add_link(adj:&mut HashMap<u32,HashSet<u32>>,a:u32,b:u32){if a==b{return;}adj.entry(a).or_default().insert(b);adj.entry(b).or_default().insert(a);}
-fn component_count(adj:&HashMap<u32,HashSet<u32>>)->usize{
- let mut seen=HashSet::new();let mut count=0;
- for start in adj.keys().copied(){
-  if seen.contains(&start){continue;}
-  count+=1;let mut stack=vec![start];
-  while let Some(node)=stack.pop(){
-   if !seen.insert(node){continue;}
-   if let Some(next)=adj.get(&node){stack.extend(next.iter().copied().filter(|n|!seen.contains(n)));}
+/// Vertex class from its link: the edges of the faces around it, as (end, opposite) pairs.
+///
+/// A manifold interior vertex has a closed link, a boundary vertex an open one; anything else is
+/// locked. Degrees never exceed two in either case, so the link is walked in place instead of being
+/// materialised as a map per vertex.
+fn classify_link(links:&[(u32,u32)])->&'static str{
+ let mut ids:Vec<u32>=Vec::new();
+ let mut neighbours:Vec<[u32;2]>=Vec::new();
+ let mut degree:Vec<u8>=Vec::new();
+ let mut slot=|ids:&mut Vec<u32>,neighbours:&mut Vec<[u32;2]>,degree:&mut Vec<u8>,vertex:u32|->usize{
+  match ids.iter().position(|&id|id==vertex){
+   Some(index)=>index,
+   None=>{ids.push(vertex);neighbours.push([u32::MAX;2]);degree.push(0);ids.len()-1}
+  }
+ };
+ for &(a,b) in links{
+  if a==b{continue;}
+  for (from,to) in [(a,b),(b,a)]{
+   let index=slot(&mut ids,&mut neighbours,&mut degree,from);
+   let held=degree[index] as usize;
+   if (held>=1&&neighbours[index][0]==to)||(held>=2&&neighbours[index][1]==to){continue;}
+   if held>=2{return "locked";}
+   neighbours[index][held]=to;degree[index]=(held+1) as u8;
   }
  }
- count
-}
-fn classify_vertex(adj:&HashMap<u32,HashSet<u32>>)->&'static str{
- if adj.is_empty(){return "locked";}
+ if ids.is_empty(){return "locked";}
  let mut degree_one=0;let mut degree_two=0;
- for neighbours in adj.values(){
-  match neighbours.len(){1=>degree_one+=1,2=>degree_two+=1,_=>return "locked"}
+ for &held in &degree{match held{1=>degree_one+=1,2=>degree_two+=1,_=>return "locked"}}
+ let mut seen=vec![false;ids.len()];
+ let mut components=0;let mut stack=Vec::new();
+ for start in 0..ids.len(){
+  if seen[start]{continue;}
+  components+=1;
+  if components>1{return "locked";}
+  stack.push(start);
+  while let Some(node)=stack.pop(){
+   if seen[node]{continue;}
+   seen[node]=true;
+   for k in 0..degree[node] as usize{
+    let neighbour=neighbours[node][k];
+    if let Some(index)=ids.iter().position(|&id|id==neighbour){if !seen[index]{stack.push(index);}}
+   }
+  }
  }
- if component_count(adj)!=1{return "locked";}
- if degree_one==0&&degree_two==adj.len(){"interior"}else if degree_one==2&&degree_two==adj.len()-2{"boundary"}else{"locked"}
+ if degree_one==0&&degree_two==ids.len(){"interior"}else if degree_one==2&&degree_two==ids.len()-2{"boundary"}else{"locked"}
 }
-pub fn classify_topology(indices:&[u32],vertex_count:usize)->Result<TopologyReport>{
+pub fn classify_topology(indices:&[u32],vertex_count:usize)->Result<TopologyReport>{classify(indices,vertex_count,true)}
+/// Same report without the triangle adjacency, which the cluster DAG does not use. Building it
+/// means one vector per triangle, so skipping it saves both the allocations and their memory.
+pub fn classify_topology_without_neighbors(indices:&[u32],vertex_count:usize)->Result<TopologyReport>{classify(indices,vertex_count,false)}
+fn classify(indices:&[u32],vertex_count:usize,want_neighbors:bool)->Result<TopologyReport>{
  if indices.len()%3!=0||indices.is_empty(){return Err(invalid("Index count must be a positive multiple of three"));}
  let triangle_count=indices.len()/3;
  let mut halves=Vec::with_capacity(triangle_count*3);
- let mut links=vec![Vec::new();vertex_count];
- let mut incident=vec![0usize;vertex_count];
+ let mut incident=vec![0u32;vertex_count];
+ let mut link_count=vec![0u32;vertex_count];
  for face in 0..triangle_count{
   let tri=[indices[face*3],indices[face*3+1],indices[face*3+2]];
   for vertex in tri{if vertex as usize>=vertex_count{return Err(invalid("Invalid index"));}}
@@ -50,12 +77,27 @@ pub fn classify_topology(indices:&[u32],vertex_count:usize)->Result<TopologyRepo
    let key=edge_key(start,end);
    halves.push((key.0,key.1,start,end,face));
    incident[start as usize]+=1;
-   if start!=end{links[start as usize].push((end,other));}
+   if start!=end{link_count[start as usize]+=1;}
+   let _=other;
+  }
+ }
+ // Compressed links: one flat array with a per-vertex offset, instead of a vector per vertex.
+ let mut offsets=vec![0u32;vertex_count+1];
+ for vertex in 0..vertex_count{offsets[vertex+1]=offsets[vertex]+link_count[vertex];}
+ let mut cursor=offsets.clone();
+ let mut links=vec![(0u32,0u32);offsets[vertex_count] as usize];
+ for face in 0..triangle_count{
+  let tri=[indices[face*3],indices[face*3+1],indices[face*3+2]];
+  for e in 0..3{
+   let start=tri[e];let end=tri[(e+1)%3];let other=tri[(e+2)%3];
+   if start==end{continue;}
+   let at=&mut cursor[start as usize];
+   links[*at as usize]=(end,other);*at+=1;
   }
  }
  halves.sort_unstable_by(|left,right|left.0.cmp(&right.0).then(left.1.cmp(&right.1)).then(left.4.cmp(&right.4)));
  let mut boundary=0;let mut manifold=0;let mut non_manifold=0;
- let mut neighbors=vec![Vec::new();triangle_count];
+ let mut neighbors=if want_neighbors{vec![Vec::new();triangle_count]}else{Vec::new()};
  let mut cursor=0usize;
  while cursor<halves.len(){
   let mut end=cursor+1;
@@ -64,8 +106,10 @@ pub fn classify_topology(indices:&[u32],vertex_count:usize)->Result<TopologyRepo
   if n==1{boundary+=1;}
   else if n==2&&halves[cursor].2==halves[cursor+1].3&&halves[cursor].3==halves[cursor+1].2{
    manifold+=1;
-   neighbors[halves[cursor].4].push(halves[cursor+1].4);
-   neighbors[halves[cursor+1].4].push(halves[cursor].4);
+   if want_neighbors{
+    neighbors[halves[cursor].4].push(halves[cursor+1].4);
+    neighbors[halves[cursor+1].4].push(halves[cursor].4);
+   }
   }else{non_manifold+=1;}
   cursor=end;
  }
@@ -73,9 +117,7 @@ pub fn classify_topology(indices:&[u32],vertex_count:usize)->Result<TopologyRepo
  let mut interior=0;let mut boundary_vertices=0;let mut locked=0;let mut unused=0;
  for vertex in 0..vertex_count{
   if incident[vertex]==0{unused+=1;continue;}
-  let mut adj=HashMap::new();
-  for &(a,b) in &links[vertex]{add_link(&mut adj,a,b);}
-  match classify_vertex(&adj){
+  match classify_link(&links[offsets[vertex] as usize..offsets[vertex+1] as usize]){
    "interior"=>interior+=1,
    "boundary"=>boundary_vertices+=1,
    _=>locked+=1,
