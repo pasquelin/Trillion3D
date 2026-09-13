@@ -2,7 +2,14 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages,HIZ_BACKGROUND} from '../sdk-core/index.ts';
 import {rasterVisibilityIds,shadeVisibility,type VisPage} from './visibilityBuffer.ts';
-import {buildHizPyramid,filterUnoccluded,hizRejects,projectBoxToScreen,splitOccluders,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
+import {buildHizPyramid,filterUnoccluded,hizRejects,projectBoxToScreen,sameHizView,splitOccluders,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
+
+test('Hi-Z history is invalidated by camera motion and projection cuts',()=>{
+ const previous=cameraAt(),current=previous.clone();
+ assert.equal(sameHizView(previous,current),true);
+ current.position.x=1;current.updateMatrixWorld();assert.equal(sameHizView(previous,current),false);
+ current.position.x=0;current.fov=75;current.updateProjectionMatrix();current.updateMatrixWorld();assert.equal(sameHizView(previous,current),false);
+});
 
 function cameraAt(z=5,near=.1){
  const cam=new THREE.PerspectiveCamera(55,1,near,100);cam.position.z=z;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;

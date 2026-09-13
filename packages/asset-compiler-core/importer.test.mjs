@@ -46,7 +46,7 @@ test('compiler identity matches the package version and 256-triangle clusters',a
  assert.equal(COMPILER_VERSION,pkg.version);
  assert.equal(CLUSTER_INDEX_COUNT,768);
  assert.equal(CLUSTER_TRIANGLES,256);
- assert.equal(LOD_ERROR_MODEL,'qem-local-plus-child-max');
+ assert.equal(LOD_ERROR_MODEL,'bounds-diagonal-boundary-v1');
 });
 function packPositions(positions){
  const bin=Buffer.alloc(positions.length*4);

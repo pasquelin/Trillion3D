@@ -1,12 +1,12 @@
 import {classifyTopology} from './topology.mjs';
 import {exactClusters,greedyClusters} from './cluster.mjs';
 import {simplifyToEndpoints} from './qem.mjs';
-import {buildLodTree} from './lod.mjs';
+import {buildLodTree,certifiedLodError,preservesBoundary} from './lod.mjs';
 import {validateAccessor} from './accessors.mjs';
 import {encodeGeometryPage,GEOMETRY_ATTRIBUTES} from './geometryPage.mjs';
 export const COMPILER_VERSION='0.1.0';
 export const FORMAT_VERSION=1;
-export const LOD_ERROR_MODEL='qem-local-plus-child-max';
+export const LOD_ERROR_MODEL='bounds-diagonal-boundary-v1';
 export const CLUSTER_INDEX_COUNT=768;
 export const CLUSTER_TRIANGLES=256;
 export class CompilerError extends Error {constructor(code,message,details={}){super(message);this.name='CompilerError';this.code=code;this.details=details;}}
@@ -333,10 +333,10 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
    tree=hierarchy(pages.filter(page=>page.role!=='coarse'));
    if(!blend&&simplification==='qem-endpoints'&&indices.length>=6){
     const simplified=simplifyToEndpoints(positions,indices,{targetTriangles:Math.max(1,Math.floor(indices.length/12))});
-    if(simplified.triangles*3<indices.length){
+    if(simplified.triangles*3<indices.length&&preservesBoundary(indices,simplified.indices)){
      const coarseIds=[];
      for(let start=0;start<simplified.indices.length;start+=CLUSTER_INDEX_COUNT)coarseIds.push(await writePage(simplified.indices.slice(start,start+CLUSTER_INDEX_COUNT),'coarse',start));
-     if(tree){tree.errorObject=simplified.errorObject;tree.coarsePages=coarseIds;}
+     if(tree){tree.errorObject=certifiedLodError(tree.min,tree.max);tree.coarsePages=coarseIds;}
     }
    }
   }
