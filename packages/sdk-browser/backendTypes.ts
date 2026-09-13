@@ -17,6 +17,7 @@ export interface RenderBackend {
  pendingUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
+ acceptGeometryPage?(url:string,data:import('./geometryPage.ts').DecodedGeometryPage):void;
  dropPage?(url:string):void;
  syncResident?():void;
  flush?():Promise<void>;
@@ -63,6 +64,7 @@ export interface BackendContext {
  sceneLighting?:THREE.Object3D;
  /** Host-owned, validated page reader for the initial complete GPU fallback. */
  readPage?:(url:string)=>Promise<Uint32Array>;
+ readGeometryPage?:(url:string)=>Promise<Uint8Array>;
 }
 export type BackendFactory = (context:BackendContext)=>RenderBackend;
 export type PointOfInterest = {id:string;label:string;pose:CameraPose};
@@ -89,6 +91,8 @@ export interface ExplorerOptions {
  /** Summary suppresses per-frame trace records; trace is the default with an observer. */
  diagnosticDetail?:DiagnosticDetail;
  preload?:'visible'|'all';
+ /** Render static prepared pages without requesting the full source geometry buffer. */
+ autonomousGeometry?:boolean;
  comparisonLayout?:ComparisonLayout;
  comparisonPair?:[string,string];
  gpu?:GPU;
