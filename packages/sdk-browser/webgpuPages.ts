@@ -1,13 +1,20 @@
+import {createSurfaceBuffer,checkSurfaceSize,frameTargetBytes,SURFACE_FORMATS,type SurfaceBuffer,type SurfaceCapture} from './surfaceBuffer.ts';
+import {createSceneLightBuffer,SCENE_LIGHTING_WGSL} from './sceneLighting.ts';
+import {createDeferredLighting} from './deferredLighting.ts';
+import {createGpuPresenter,readGpuImage,createSynchronousCanvasCapture} from './gpuPresentation.ts';
+import {STANDARD_LIGHTING_WGSL,NORMAL_TRANSFORM_WGSL} from './standardLighting.ts';
+import {generateMaterialMips} from './textureMips.ts';
+import {createGpuTiming} from './gpuTiming.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache,type ResidentPage} from './gpuPages.ts';
 import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
-import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type PackedForest,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
+import {cameraSelectionUniforms,createGpuSelection,packSelectionForest,sameSelectionUniforms,type GpuSelection,type SelectionResult,type SelectionUniforms} from './gpuSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
-import {opaqueBackgroundRgba,RASTER_BACKGROUND} from './pageRaster.ts';
-import {applyHiz,applyTemporalHiz,buildHizPyramid,projectBoxToScreen,splitOccluders,type HizBounds,type TemporalHizState} from './hiz.ts';
+import {RASTER_BACKGROUND} from './pageRaster.ts';
+import {applyTemporalHiz,projectBoxToScreen,splitOccluders,type HizBounds,type TemporalHizState} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
 import {BIN_BACK,BIN_FRONT,BIN_NONE,compactSlotLayout,createGpuDraw,evaluateDrawCompact,type DrawItem,type GpuDraw,type SlotLayout} from './gpuDraw.ts';
-import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_SHADER,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
+import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_SHADER,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
@@ -47,14 +54,21 @@ fn hashColor(id:u32)->vec3f{let x=f32(id);return fract(sin(vec3f(x,x*1.37,x*2.17
 }
 `;
 
-const BLEND_SHADER=`struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,pad:vec2f,camPos:vec4f,lightDir:vec4f,}
+const BLEND_SHADER=`struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,lightDir:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read> positions:array<f32>;
 @group(0) @binding(2) var<storage, read> uvs:array<f32>;
 @group(0) @binding(3) var<uniform> uni:Uniforms;
 @group(0) @binding(4) var maps:texture_2d_array<f32>;
 @group(0) @binding(5) var mapsSampler:sampler;
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,}
+@group(0) @binding(6) var dataMaps:texture_2d_array<f32>;
+@group(0) @binding(7) var<storage,read> normals:array<f32>;
+@group(0) @binding(8) var<storage,read> scales:array<vec4f>;
+${STANDARD_LIGHTING_WGSL}
+${SCENE_LIGHTING_WGSL}
+@group(0) @binding(9) var<storage,read> sceneLights:SceneLights;
+${NORMAL_TRANSFORM_WGSL}
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
 fn aces(color:vec3f)->vec3f{
  var c=color/0.6;
@@ -66,27 +80,52 @@ fn aces(color:vec3f)->vec3f{
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
  var out:VSOut;
- if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);return out;}
+ if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);return out;}
  let id=indices[uni.pageOffset+vertexIndex];
  let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;
+ out.normal=vec3f(0.0);
+ if((uni.flags&16u)!=0u){out.normal=xformNormal(uni.world,vec3f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u]));}
+ out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);
+ if((uni.flags&256u)!=0u){out.normal=-out.normal;}
+ if((uni.flags&2048u)!=0u){
+  out.tangent=normalize((uni.world*vec4f(normals[id*7u+3u],normals[id*7u+4u],normals[id*7u+5u],0.0)).xyz);
+  if((uni.flags&256u)!=0u){out.tangent=-out.tangent;}
+  out.bitangent=normalize(cross(out.normal,out.tangent)*normals[id*7u+6u]);
+ }
  let i=id*2u;out.uv=vec2f(uvs[i],uvs[i+1u]);
  return out;
 }
-@fragment fn fs(in:VSOut)->@location(0) vec4f{
- var n=normalize(cross(dpdx(in.view),dpdy(in.view)));
- if(dot(n,normalize(uni.camPos.xyz-in.view))<0.0){n=-n;}
- let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u))*uni.uvScale;
- let sample=textureSampleLevel(maps,mapsSampler,wrapped,i32(uni.mapIndex),0.0);
- var rgb=in.color.xyz*sample.xyz;
+@fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
+ let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
+ let q0=dpdx(in.view);let q1=dpdy(in.view);
+ var N=normalize(-cross(q0,q1));
+ if((uni.flags&16u)!=0u){N=normalize(in.normal);}
+ let face=select(-1.0,1.0,front);
+ if((uni.flags&2u)!=0u){N*=face;}
+ let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
+ let sample=textureSampleGrad(maps,mapsSampler,wrapped*uni.uvScale,i32(uni.mapIndex),gradX*uni.uvScale,gradY*uni.uvScale);
  let alpha=sample.w*in.color.w;
- if(alpha<0.1){discard;}
- let L=normalize(uni.lightDir.xyz);
- let NdotL=max(dot(n,L),0.0);
- let up=n.y*0.5+0.5;
- let hemi=mix(vec3f(0.57,0.63,0.76),vec3f(2.0),up);
- rgb=rgb*(hemi+vec3f(uni.lightDir.w*NdotL));
- return vec4f(linearToSrgb(aces(rgb)),alpha);
+ var rgb=in.color.xyz*sample.xyz;
+ var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
+ if(uni.roughIndex!=0u){let scale=scales[uni.roughIndex].xy;rough*=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.roughIndex),gradX*scale,gradY*scale).g;}
+ if(uni.metalIndex!=0u){let scale=scales[uni.metalIndex].xy;metal*=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.metalIndex),gradX*scale,gradY*scale).b;}
+ if(uni.aoIndex!=0u){let scale=scales[uni.aoIndex].xy;ao+=uni.aoIntensity*(textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.aoIndex),gradX*scale,gradY*scale).r-1.0);}
+ if(uni.normalIndex!=0u){
+  let scale=scales[uni.normalIndex].xy;
+  let mapN=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.normalIndex),gradX*scale,gradY*scale).xyz*2.0-vec3f(1.0);
+  var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
+  var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
+  if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}
+  if((uni.flags&2u)!=0u){T*=face;B*=face;}
+  let tbnScale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
+  N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
+ }
+ var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
+ if(uni.emissiveIndex!=0u){let scale=scales[uni.emissiveIndex].zw;emissive*=textureSampleGrad(maps,mapsSampler,wrapped*scale,i32(uni.emissiveIndex),gradX*scale,gradY*scale).rgb;}
+ if(alpha<uni.alphaTest){discard;}
+ if((uni.flags&1u)!=0u){rgb=sceneLighting(rgb,clamp(metal,0.0,1.0),clamp(rough,0.0525,1.0),N,normalize(uni.camPos.xyz-in.view),in.view,ao)+emissive;}
+ return vec4f(rgb,alpha);
 }
 `;
 
@@ -96,8 +135,8 @@ const PAGES_GREEN:[number,number,number]=[0.204,0.827,0.6];
 const rgbHex=(red:number,green:number,blue:number)=>`#${[red,green,blue].map(channel=>channel.toString(16).padStart(2,'0')).join('')}`;
 
 /** First GPU readback evidence: requested clear versus two actual pixels from the color target. */
-export function outputColorDiagnostic(pixels:Uint8Array,width:number,height:number,clearColor:number){
- const pixel=(x:number,y:number)=>{const offset=(y*width+x)*4;return rgbHex(pixels[offset]??0,pixels[offset+1]??0,pixels[offset+2]??0);};
+export function outputColorDiagnostic(pixels:Uint8Array,width:number,height:number,clearColor:number,origin:'top-left'|'bottom-left'='top-left'){
+ const pixel=(x:number,y:number)=>{const offset=((origin==='bottom-left'?height-1-y:y)*width+x)*4;return rgbHex(pixels[offset]??0,pixels[offset+1]??0,pixels[offset+2]??0);};
  const clearHex=`#${clearColor.toString(16).padStart(6,'0')}`;
  const topLeft=pixel(0,0),center=pixel(Math.floor(width/2),Math.floor(height/2));
  return {clearColor:clearHex,topLeft,center,matchesClearAtTopLeft:topLeft===clearHex};
@@ -122,7 +161,6 @@ function clusterRgb(id:string):[number,number,number]{
  return [colorScratch.r,colorScratch.g,colorScratch.b];
 }
 function materialSide(material:THREE.Material|THREE.Material[]){return Array.isArray(material)?material[0].side:material.side;}
-function rowBytes(width:number){return Math.ceil(width*4/256)*256;}
 
 export type WebgpuPagesBackend=RenderBackend&{flush():Promise<void>;rasterRgba():Uint8Array;selectedPageIds():string[];visibilityIds():Uint32Array};
 
@@ -134,9 +172,16 @@ function shownFromGpu(pages:PageRec[],result:SelectionResult,frame:number){
 
 /** WebGPU raster of Format 1 pages. GPU frustum + lodScore when compute is available; CPU selectVisiblePages remains the oracle and the silent fallback. */
 export const webgpuPagesBackend:BackendFactory=(context)=>{
- const {source,metadata,indices,associations,maxResidentPages,viewport,gpuDevice}=context;
+ const {source,metadata,indices,associations,maxResidentPages,gpuDevice}=context;
+ const viewport=context.viewport??[1,1];
  const clearColor=context.clearColor??RASTER_BACKGROUND;
- const engineDiagnostic=(phase:string,message:string,details:Record<string,unknown>)=>context.onDiagnostic?.({phase,message,context:details});
+ const engineDiagnostic=(phase:string,message:string,details:Record<string,unknown>)=>{try{context.onDiagnostic?.({phase,message,context:{pipelineVersion:1,...details}});}catch{/* Observers do not control rendering. */}};
+ const loggedFailures=new Set<string>();
+ const diagnosticFailure=(phase:string,error:unknown)=>{
+  if(loggedFailures.has(phase))return;loggedFailures.add(phase);
+  engineDiagnostic(phase,'Échec du chemin WebGPU',{error:error&&typeof error==='object'&&'message' in error?String(error.message):String(error),backend:'webgpu-page-raster'});
+ };
+ const onGpuError=(event:GPUUncapturedErrorEvent)=>{diagnosticFailure('gpu-uncaptured-error',event.error);lost=true;};
  const inputColor={clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,value:clearColor,source:context.clearColor===undefined?'fallback moteur':'hôte'};
  engineDiagnostic('clear-color-input','Couleur de fond reçue par WebGeometry WebGPU',inputColor);
  if(typeof window!=='undefined')console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU',inputColor);
@@ -149,26 +194,42 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const pageBytes=Math.max(4,...allPages.map(page=>{const n=page.array?.byteLength??page.indexBytes;return n+(n%4?4-n%4:0);}));
  const sourceBytes=new Map(allPages.flatMap(page=>page.array?[[page.url,new Uint8Array(page.array.buffer,page.array.byteOffset,page.array.byteLength)] as const]:[]));
  let cache:ReturnType<typeof createGpuPageCache>|undefined,bindGroupLayout:GPUBindGroupLayout|undefined;
- let pipelineBack:GPURenderPipeline|undefined,pipelineBackCw:GPURenderPipeline|undefined,pipelineNone:GPURenderPipeline|undefined,pipelineBlend:GPURenderPipeline|undefined,pipelineBlendTextured:GPURenderPipeline|undefined;
+ let pipelineBack:GPURenderPipeline|undefined,pipelineBackCw:GPURenderPipeline|undefined,pipelineNone:GPURenderPipeline|undefined,pipelineBlend:GPURenderPipeline|undefined,pipelineBlendTextured:GPURenderPipeline|undefined,pipelineBlendFront:GPURenderPipeline|undefined,pipelineBlendBack:GPURenderPipeline|undefined;
  let colorTexture:GPUTexture|undefined,depthTexture:GPUTexture|undefined,colorView:GPUTextureView|undefined,depthView:GPUTextureView|undefined;
  const positionBuffers=new Map<THREE.BufferGeometry['attributes'],GPUBuffer>(),positionIds=new WeakMap<GPUBuffer,number>();
  let nextPositionId=1;
- const UNIFORM_STRIDE=256,STAGING_COUNT=3;
+ const UNIFORM_STRIDE=256;
  let uniformBuffer:GPUBuffer|undefined,uniformPacked=new Float32Array(UNIFORM_STRIDE/4);
  const bindGroups=new Map<number,GPUBindGroup>(),pins=new Set<string>(),clusterRgbCache=new Map<string,[number,number,number]>();
- const staging:Array<GPUBuffer|undefined>=[undefined,undefined,undefined];
- const stagingBusy=[false,false,false];
- let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,hizRejected=0,frame=0,stagingIndex=0,bytesPerRow=256;
+ let synchronousCapture:ReturnType<typeof createSynchronousCanvasCapture>|undefined;
+ let presenter:ReturnType<typeof createGpuPresenter>|undefined;
+ let canvasTexture:THREE.CanvasTexture|undefined,blitMaterial:THREE.ShaderMaterial|undefined,blit:THREE.Mesh|undefined;
+ let surfaces:SurfaceBuffer|undefined,hdrTexture:GPUTexture|undefined,hdrView:GPUTextureView|undefined;
+ let deferred:Awaited<ReturnType<typeof createDeferredLighting>>|undefined,lights:ReturnType<typeof createSceneLightBuffer>|undefined;
+ const frameBudget=context.maxFrameAllocationBytes??256*1024*1024;
+ const reserveHiz=typeof gpuDevice?.createComputePipeline==='function';
+ const checkFrameBudget=(width:number,height:number,additional=0)=>{
+  if(!gpuDevice)throw new Error('WEBGPU_UNAVAILABLE');
+  checkSurfaceSize(gpuDevice,width,height,frameBudget,1);
+  const bytes=frameTargetBytes(width,height,reserveHiz)+additional;
+  if(bytes>frameBudget)throw new Error(`SURFACE_BUDGET: ${bytes} > ${frameBudget}`);
+  return bytes;
+ };
+ let captureAllocationBytes=0,surfaceCapture:SurfaceCapture|undefined,secondaryCamera:THREE.PerspectiveCamera|undefined;
+ let surfaceRenderAllowed=false,imageRevision=0,capturedRevision=-1,capturedPixels:Uint8Array|undefined,capturePending:Promise<void>|undefined;
+ let captureStreamingDeferrals=0,captureDeferralLogged=false;
+ let lightState:{count:number;types:string[]}|undefined;
+ let blendSubmittedTriangles=0,blendDrawCalls=0,blendFrustumRejected=0,gpuDrawCalls=0,lastProgressMs=0;
+ let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,hizRejected=0,frame=0;
  let diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
  let gpuSelection:GpuSelection|undefined;
- let packedForest:PackedForest|undefined;
  const packedPages:PageRec[]=roots.flatMap(root=>root.pages);
  const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
  const untexturedMaterials='Untextured source color; double-sided when the material is';
  const visFeatures=['visibility buffer','textured PBR maps','occlusion culling','temporal occlusion culling'];
- const capabilities:BackendCapabilities={renderer:'WebGPU page raster',materials:untexturedMaterials,hierarchy:true,gpuDriven:false,simplification:false,eviction:true,unsupported:['indirect draw','occlusion culling','temporal occlusion culling','physical VRAM instrumentation','textured PBR maps','visibility buffer','direct WebGPU present']};
+ const capabilities:BackendCapabilities={renderer:'WebGPU page raster',materials:untexturedMaterials,hierarchy:true,gpuDriven:false,simplification:false,eviction:true,unsupported:['material extensions, skinning and morph targets in WebGPU','per-texture transforms, UV channels and sampler modes','environment maps, light shadows, area lights and light probes','indirect draw','occlusion culling','temporal occlusion culling','physical VRAM instrumentation','global illumination, surface cache and motion vectors','textured PBR maps','visibility buffer','direct WebGPU present']};
  const dropGpuSelection=()=>{gpuSelection?.dispose();gpuSelection=undefined;capabilities.gpuDriven=false;};
  let visEnabled=false,visTexture:GPUTexture|undefined,visView:GPUTextureView|undefined;
  let visPipelineBack:GPURenderPipeline|undefined,visPipelineBackCw:GPURenderPipeline|undefined,visPipelineNone:GPURenderPipeline|undefined,visPipelineFront:GPURenderPipeline|undefined,visPipelineFrontCw:GPURenderPipeline|undefined,shadePipeline:GPURenderPipeline|undefined;
@@ -178,12 +239,15 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let gpuDraw:GpuDraw|undefined;
  let shadeBindGroupLayout:GPUBindGroupLayout|undefined,shadeBindGroup:GPUBindGroup|undefined;
  const visSlotGroups=new Map<string,GPUBindGroup>();
- let concatPos:GPUBuffer|undefined,concatUv:GPUBuffer|undefined,concatNrm:GPUBuffer|undefined,pageTable:GPUBuffer|undefined,shadeUniform:GPUBuffer|undefined,mapsTexture:GPUTexture|undefined,dataMapsTexture:GPUTexture|undefined,mapsSampler:GPUSampler|undefined;
- const shadeUniPacked=new Float32Array(64),visUniPacked=new Float32Array(16),geometryBlocks=new Map<THREE.BufferGeometry['attributes'],{vertexBase:number;count:number;hasUv:boolean;hasNormal:boolean}>(),mapLayer=new Map<THREE.Texture,number>(),dataLayer=new Map<THREE.Texture,number>();
+ let concatPos:GPUBuffer|undefined,concatUv:GPUBuffer|undefined,concatNrm:GPUBuffer|undefined,pageTable:GPUBuffer|undefined,shadeUniform:GPUBuffer|undefined,mapsTexture:GPUTexture|undefined,dataMapsTexture:GPUTexture|undefined,mapsSampler:GPUSampler|undefined,materialScales:GPUBuffer|undefined;
+ const shadeUniPacked=new Float32Array(64),visUniPacked=new Float32Array(16),geometryBlocks=new Map<THREE.BufferGeometry['attributes'],{vertexBase:number;count:number;hasUv:boolean;hasNormal:boolean;hasTangent:boolean}>(),mapLayer=new Map<THREE.Texture,number>(),dataLayer=new Map<THREE.Texture,number>();
  const uvScales:Array<[number,number]>=[[1,1]],dataUvScales:Array<[number,number]>=[[1,1]];
  const previouslyDrawnUrls=new Set<string>();
  const temporalHizState:TemporalHizState={};
  let lastSubmitMs:number|null=null;
+ let gpuTiming:ReturnType<typeof createGpuTiming>|undefined;
+ let cpuSample:Record<string,unknown>|undefined,transparentEncodeMs=0,lastCpuLogFrame=-1;
+ const createRenderEncoder=(device:GPUDevice)=>gpuTiming&&!secondaryCamera?gpuTiming.createEncoder(frame):device.createCommandEncoder();
  const dropGpuHiz=()=>{
   gpuHiz?.dispose();gpuHiz=undefined;visHizBindGroup=undefined;
   visHizRestBack=undefined;visHizRestBackCw=undefined;visHizRestNone=undefined;visHizRestFront=undefined;visHizRestFrontCw=undefined;
@@ -199,20 +263,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   for(const item of blendGpu)item.group=undefined;
   visSlotGroups.clear();
   dropGpuDraw();dropGpuHiz();
-  concatPos?.destroy();concatUv?.destroy();concatNrm?.destroy();pageTable?.destroy();shadeUniform?.destroy();visUniform?.destroy();zeroFlags?.destroy();mapsTexture?.destroy();dataMapsTexture?.destroy();
+  concatPos?.destroy();concatUv?.destroy();concatNrm?.destroy();pageTable?.destroy();shadeUniform?.destroy();visUniform?.destroy();zeroFlags?.destroy();mapsTexture?.destroy();dataMapsTexture?.destroy();materialScales?.destroy();materialScales=undefined;
   concatPos=concatUv=concatNrm=pageTable=shadeUniform=visUniform=zeroFlags=mapsTexture=dataMapsTexture=undefined;
   capabilities.materials=untexturedMaterials;
   for(const item of visFeatures)if(!capabilities.unsupported.includes(item))capabilities.unsupported.push(item);
  };
- let blitPixels=opaqueBackgroundRgba(1,1,clearColor);
- let blitTexture=new THREE.DataTexture(blitPixels,1,1,THREE.RGBAFormat);blitTexture.needsUpdate=true;blitTexture.colorSpace=THREE.SRGBColorSpace;blitTexture.flipY=false;
- const blitMaterial=new THREE.ShaderMaterial({uniforms:{image:{value:blitTexture}},vertexShader:'void main(){gl_Position=vec4(position.xy,0.0,1.0);}',fragmentShader:`uniform sampler2D image;
- void main(){
-  ivec2 sz=textureSize(image,0);
-  gl_FragColor=texelFetch(image,ivec2(int(gl_FragCoord.x),sz.y-1-int(gl_FragCoord.y)),0);
-  #include <colorspace_fragment>
- }`,depthTest:false,depthWrite:false,toneMapped:false});
- const blit=new THREE.Mesh(new THREE.PlaneGeometry(2,2),blitMaterial);blit.frustumCulled=false;blit.renderOrder=-1;blit.userData.blit=true;scene.add(blit);
  const pageSource={read:async(key:string)=>{const bytes=sourceBytes.get(key);if(!bytes)throw new Error('Missing page');return bytes;}};
  let lastCamera:THREE.PerspectiveCamera|undefined;
  const pageRgb=(rec:PageRec):[number,number,number]=>{
@@ -220,28 +275,22 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(diagnostic==='pages')return PAGES_GREEN;
   let rgb=clusterRgbCache.get(rec.clusterId);if(!rgb){rgb=clusterRgb(rec.clusterId);clusterRgbCache.set(rec.clusterId,rgb);}return rgb;
  };
- const ensureBlit=(width:number,height:number)=>{
-  if(blitTexture.image.width===width&&blitTexture.image.height===height)return;
-  blitTexture.dispose();
-  blitPixels=opaqueBackgroundRgba(width,height,clearColor);
-  blitTexture=new THREE.DataTexture(blitPixels,width,height,THREE.RGBAFormat);blitTexture.needsUpdate=true;blitTexture.colorSpace=THREE.SRGBColorSpace;blitTexture.flipY=false;
-  blitMaterial.uniforms.image.value=blitTexture;
- };
- const destroyStaging=()=>{for(let i=0;i<staging.length;i++){staging[i]?.destroy();staging[i]=undefined;stagingBusy[i]=false;}};
  const ensureTargets=(device:GPUDevice,width:number,height:number)=>{
-  if(colorTexture&&targetSize[0]===width&&targetSize[1]===height&&(!visEnabled||visTexture)&&(!gpuHiz||gpuHiz.width===width&&gpuHiz.height===height))return;
-  colorTexture?.destroy();depthTexture?.destroy();visTexture?.destroy();visTexture=undefined;visView=undefined;shadeBindGroup=undefined;visBindGroup=undefined;visHizBindGroup=undefined;destroyStaging();
-  colorTexture=device.createTexture({size:{width,height},format:'rgba8unorm',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
-  depthTexture=device.createTexture({size:{width,height},format:'depth24plus',usage:GPUTextureUsage.RENDER_ATTACHMENT});
-  colorView=colorTexture.createView();depthView=depthTexture.createView();targetSize=[width,height];
-  try{
-   visTexture=device.createTexture({size:{width,height},format:'r32uint',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});
-   visView=visTexture.createView();
-  }catch{visTexture=undefined;visView=undefined;}
+  if(colorTexture&&targetSize[0]===width&&targetSize[1]===height&&surfaces&&(!visEnabled||visTexture)&&(!gpuHiz||gpuHiz.width===width&&gpuHiz.height===height))return;
+  const allocationBytes=checkFrameBudget(width,height,captureAllocationBytes);
+  colorTexture?.destroy();depthTexture?.destroy();visTexture?.destroy();hdrTexture?.destroy();surfaces?.dispose();
+  visTexture=undefined;visView=undefined;shadeBindGroup=undefined;visBindGroup=undefined;visHizBindGroup=undefined;
+  capturedPixels=undefined;capturedRevision=-1;
+  const usage=GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_SRC;
+  colorTexture=device.createTexture({label:'WG display color',size:{width,height},format:'rgba8unorm',usage});
+  depthTexture=device.createTexture({label:'WG opaque depth',size:{width,height},format:'depth32float',usage:usage|GPUTextureUsage.COPY_DST});
+  hdrTexture=device.createTexture({label:'WG HDR lighting',size:{width,height},format:'rgba16float',usage});
+  surfaces=createSurfaceBuffer(device,width,height,frameBudget-captureAllocationBytes);
+  colorView=colorTexture.createView();depthView=depthTexture.createView();hdrView=hdrTexture.createView();targetSize=[width,height];
+  try{visTexture=device.createTexture({label:'WG visibility',size:{width,height},format:'r32uint',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});visView=visTexture.createView();}
+  catch(error){diagnosticFailure('visibility-target-failed',error);}
   if(gpuHiz&&!gpuHiz.resize(device,width,height))dropGpuHiz();
-  bytesPerRow=rowBytes(width);const stagingBytes=bytesPerRow*height;
-  for(let i=0;i<STAGING_COUNT;i++){stagingBusy[i]=false;staging[i]=device.createBuffer({size:stagingBytes,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});}
-  ensureBlit(width,height);
+  engineDiagnostic('frame-allocation','Cibles GPU allouées',{width,height,allocationBytes,captureAllocationBytes,budgetBytes:frameBudget,physicalVramBytes:null,surfaceVersion:1});
  };
  const windingCw=(rec:PageRec)=>{
   const e=rec.matrix.elements;
@@ -276,66 +325,54 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   if(uniformPacked.byteLength<bytes)uniformPacked=new Float32Array(bytes/4);
  };
- const copyRows=(src:Uint8Array,width:number,height:number,stride:number)=>{
-  const row=width*4;
-  if(stride===row&&(src.byteOffset&3)===0){blitPixels.set(src.subarray(0,row*height));return;}
-  for(let y=0;y<height;y++)blitPixels.set(src.subarray(y*stride,y*stride+row),y*row);
- };
- let readbackInProgress=false,outputDiagnosticLogged=false,renderPathLogged=false;
-  const readback=async(device:GPUDevice,index:number,buffer:GPUBuffer,w:number,h:number,stride:number)=>{
-   if(readbackInProgress){stagingBusy[index]=false;return;}
-   readbackInProgress=true;
-   if(!buffer||typeof buffer.mapAsync!=='function'){stagingBusy[index]=false;readbackInProgress=false;return;}
-   try{
-    await buffer.mapAsync(GPUMapMode.READ);
-    if(blitPixels.byteLength===w*h*4&&blitTexture.image.width===w&&blitTexture.image.height===h){
-     copyRows(new Uint8Array(buffer.getMappedRange()),w,h,stride);
-     blitTexture.needsUpdate=true;
-     if(!outputDiagnosticLogged){
-      outputDiagnosticLogged=true;
-      const details=outputColorDiagnostic(blitPixels,w,h,clearColor);
-      engineDiagnostic('first-readback','Premier readback de la cible WebGPU',details);
-      if(typeof window!=='undefined')console.info('[web-geometry] premier readback WebGPU',details);
-     }
-    }
-    buffer.unmap();
-   }catch{if(typeof buffer.unmap==='function')try{buffer.unmap();}catch{/* Mapping may already be closed. */}}
-   finally{stagingBusy[index]=false;readbackInProgress=false;}
-  };
-  const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;count:number;matrix:THREE.Matrix4;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup}>=[];
+ let outputDiagnosticLogged=false,renderPathLogged=false;
+ const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup}>=[];
+ const visibleBlend:typeof blendGpu=[],blendFrustum=new THREE.Frustum();
  const encodeBlend=(device:GPUDevice,encoder:GPUCommandEncoder,uniformBase:number)=>{
-  if(!pipelineBlend||!blendGpu.length||!colorView||!depthView||!uniformBuffer)return;
-  const textured=!!(blendBindGroupLayout&&pipelineBlendTextured&&mapsTexture&&mapsSampler&&zeroUv);
+  if(!pipelineBlend||!visibleBlend.length||!colorView||!depthView||!uniformBuffer)return;
+  const textured=!!(blendBindGroupLayout&&pipelineBlendTextured&&mapsTexture&&mapsSampler&&dataMapsTexture&&materialScales&&zeroUv);
   if(!textured&&!bindGroupLayout)return;
-  ensureUniform(device,uniformBase+blendGpu.length);
+  const cpuStart=performance.now();
+  ensureUniform(device,uniformBase+visibleBlend.length);
   const packedInts=new Uint32Array(uniformPacked.buffer,uniformPacked.byteOffset,uniformPacked.length);
   const cam=lastCamera?.position;
   const lLen=Math.hypot(1,3,2);
-  for(let i=0;i<blendGpu.length;i++){
-   const item=blendGpu[i],base=(uniformBase+i)*(UNIFORM_STRIDE/4);
+  for(let i=0;i<visibleBlend.length;i++){
+   const item=visibleBlend[i],base=(uniformBase+i)*(UNIFORM_STRIDE/4),mat=visMaterial(item.material);
    const layer=item.map&&mapLayer.has(item.map)?mapLayer.get(item.map)!:0,scale=uvScales[layer]??[1,1];
    uniformPacked.set(viewProj.elements,base);uniformPacked.set(item.matrix.elements,base+16);
    uniformPacked[base+32]=item.rgba[0];uniformPacked[base+33]=item.rgba[1];uniformPacked[base+34]=item.rgba[2];uniformPacked[base+35]=item.rgba[3];
    packedInts[base+36]=0;packedInts[base+37]=item.count;packedInts[base+38]=layer;packedInts[base+39]=item.flags;
    uniformPacked[base+40]=scale[0];uniformPacked[base+41]=scale[1];
+   packedInts[base+42]=mat.emissiveMap?mapLayer.get(mat.emissiveMap)??0:0;uniformPacked[base+43]=mat.alphaTest;
+   uniformPacked[base+52]=mat.roughness;uniformPacked[base+53]=mat.metalness;uniformPacked[base+54]=mat.normalScale;uniformPacked[base+55]=mat.normalScaleY;
+   packedInts[base+56]=mat.roughnessMap?dataLayer.get(mat.roughnessMap)??0:0;packedInts[base+57]=mat.metalnessMap?dataLayer.get(mat.metalnessMap)??0:0;
+   packedInts[base+58]=mat.normalMap?dataLayer.get(mat.normalMap)??0:0;packedInts[base+59]=mat.aoMap?dataLayer.get(mat.aoMap)??0:0;
+   uniformPacked[base+60]=mat.aoIntensity;uniformPacked.set(mat.emissive,base+61);
    uniformPacked[base+44]=cam?.x??0;uniformPacked[base+45]=cam?.y??0;uniformPacked[base+46]=cam?.z??0;uniformPacked[base+47]=1;
    uniformPacked[base+48]=1/lLen;uniformPacked[base+49]=3/lLen;uniformPacked[base+50]=2/lLen;uniformPacked[base+51]=2.5;
   }
-  device.queue.writeBuffer(uniformBuffer,(uniformBase*UNIFORM_STRIDE),uniformPacked.subarray(uniformBase*(UNIFORM_STRIDE/4),(uniformBase+blendGpu.length)*(UNIFORM_STRIDE/4)));
+  device.queue.writeBuffer(uniformBuffer,(uniformBase*UNIFORM_STRIDE),uniformPacked.subarray(uniformBase*(UNIFORM_STRIDE/4),(uniformBase+visibleBlend.length)*(UNIFORM_STRIDE/4)));
   const pass=encoder.beginRenderPass({
-   colorAttachments:[{view:colorView,loadOp:'load',storeOp:'store'}],
+   label:'WG transparents',
+   colorAttachments:[{view:visEnabled&&hdrView?hdrView:colorView,loadOp:'load',storeOp:'store'}],
    depthStencilAttachment:{view:depthView,depthLoadOp:'load',depthStoreOp:'store'},
   });
   pass.setViewport(0,0,targetSize[0],targetSize[1],0,1);
-  for(let i=0;i<blendGpu.length;i++){
-   const item=blendGpu[i];
+  for(let i=0;i<visibleBlend.length;i++){
+   const item=visibleBlend[i];
    if(!item.group){
-    if(textured)item.group=device.createBindGroup({layout:blendBindGroupLayout!,entries:[{binding:0,resource:{buffer:item.index}},{binding:1,resource:{buffer:item.position}},{binding:2,resource:{buffer:item.uv??zeroUv!}},{binding:3,resource:{buffer:uniformBuffer,size:UNIFORM_STRIDE}},{binding:4,resource:mapsTexture!.createView({dimension:'2d-array'})},{binding:5,resource:mapsSampler!}]});
+    if(textured)item.group=device.createBindGroup({layout:blendBindGroupLayout!,entries:[{binding:0,resource:{buffer:item.index}},{binding:1,resource:{buffer:item.position}},{binding:2,resource:{buffer:item.uv??zeroUv!}},{binding:3,resource:{buffer:uniformBuffer,size:UNIFORM_STRIDE}},{binding:4,resource:mapsTexture!.createView({dimension:'2d-array'})},{binding:5,resource:mapsSampler!},{binding:6,resource:dataMapsTexture!.createView({dimension:'2d-array'})},{binding:7,resource:{buffer:item.normal??zeroUv!}},{binding:8,resource:{buffer:materialScales!}},{binding:9,resource:{buffer:lights!.buffer}}]});
     else item.group=device.createBindGroup({layout:bindGroupLayout!,entries:[{binding:0,resource:{buffer:item.index}},{binding:1,resource:{buffer:item.position}},{binding:2,resource:{buffer:uniformBuffer,size:UNIFORM_STRIDE}}]});
    }
-   pass.setPipeline(textured?pipelineBlendTextured!:pipelineBlend);pass.setBindGroup(0,item.group,[(uniformBase+i)*UNIFORM_STRIDE]);pass.draw(item.count);
+   pass.setBindGroup(0,item.group,[(uniformBase+i)*UNIFORM_STRIDE]);
+   const material=Array.isArray(item.material)?item.material[0]:item.material;
+   const front=item.matrix.determinant()<0?pipelineBlendFront:pipelineBlendBack,back=item.matrix.determinant()<0?pipelineBlendBack:pipelineBlendFront;
+   if(textured&&material.side===THREE.DoubleSide&&!material.forceSinglePass&&front&&back){pass.setPipeline(back);pass.draw(item.count);pass.setPipeline(front);pass.draw(item.count);gpuDrawCalls+=2;blendDrawCalls+=2;blendSubmittedTriangles+=2*item.count/3;}
+   else{pass.setPipeline(textured?(material.side===THREE.FrontSide?front!:material.side===THREE.BackSide?back!:pipelineBlendTextured!):pipelineBlend);pass.draw(item.count);gpuDrawCalls++;blendDrawCalls++;blendSubmittedTriangles+=item.count/3;}
   }
   pass.end();
+  transparentEncodeMs+=performance.now()-cpuStart;
  };
  const packedDraws=()=>{
    const packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>=[];
@@ -348,37 +385,39 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    return packed;
   };
   const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number)=>{
-    let destIndex=-1;
-    if(!readbackInProgress){
-     for(let k=0;k<STAGING_COUNT;k++){const idx=(stagingIndex+k)%STAGING_COUNT;if(staging[idx]&&!stagingBusy[idx]){destIndex=idx;break;}}
-    }
-   const copyBuffer=destIndex>=0?staging[destIndex]:undefined;
-   if(copyBuffer&&colorTexture)encoder.copyTextureToBuffer({texture:colorTexture},{buffer:copyBuffer,bytesPerRow,rowsPerImage:height},{width,height,depthOrArrayLayers:1});
-   device.queue.submit([encoder.finish()]);
-   if(destIndex>=0&&copyBuffer){
-    stagingBusy[destIndex]=true;
-    stagingIndex=(destIndex+1)%STAGING_COUNT;
-    const stride=bytesPerRow;
-    pending=pending.catch(()=>{}).then(()=>readback(device,destIndex,copyBuffer,width,height,stride));
-   }
+   if(presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
+   device.queue.submit([encoder.finish()]);imageRevision++;
+   if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'render-passes-only',excludes:['GPU selection dispatch','uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
+   if(canvasTexture&&!secondaryCamera)canvasTexture.needsUpdate=true;
   };
  const encodeClear=(device:GPUDevice,encoder:GPUCommandEncoder)=>{
   const pass=encoder.beginRenderPass({
+   label:'WG clear',
    colorAttachments:[{view:colorView!,loadOp:'clear',storeOp:'store',clearValue:{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1}}],
    depthStencilAttachment:{view:depthView!,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'},
   });
   pass.end();
+ };
+ const encodeSurfaceLighting=(device:GPUDevice,encoder:GPUCommandEncoder,camera:THREE.PerspectiveCamera,uniformBase:number)=>{
+  if(!surfaces||!deferred||!hdrView||!depthView||!colorView)throw new Error('DEFERRED_UNAVAILABLE');
+  const [width,height]=targetSize;
+  deferred.bind(surfaces,depthView,hdrView);
+  deferred.update(viewProj.clone().invert().elements,camera.getWorldPosition(new THREE.Vector3()).toArray(),width,height,clearColor,diagnostic!=='beauty');
+  deferred.light(encoder,hdrView);gpuDrawCalls++;
+  encodeBlend(device,encoder,uniformBase);
+  gpuDrawCalls++;deferred.compose(encoder,colorView,{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1});
  };
  const encodeVis=(device:GPUDevice,camera:THREE.PerspectiveCamera,packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>)=>{
   if(!visBindGroupLayout||!cache||!concatPos||!colorView||!depthView||!visView||!visPipelineBack||!shadePipeline)return 0;
   const idsView=visView,depthTarget=depthView;
   const [width,height]=targetSize;
   if(!packed.length){
-   const encoder=device.createCommandEncoder();
-   encodeClear(device,encoder);
-   encodeBlend(device,encoder,0);
+   if(!surfaces)throw new Error('SURFACE_UNAVAILABLE');
+   const encoder=createRenderEncoder(device);
+   const pass=encoder.beginRenderPass({label:'WG empty surfaces',colorAttachments:surfaces.views().map(view=>({view,loadOp:'clear' as const,storeOp:'store' as const,clearValue:[0,0,0,0]})),depthStencilAttachment:{view:depthTarget,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'}});pass.end();
+   encodeSurfaceLighting(device,encoder,camera,0);
    submitColorCopy(device,encoder,height,width);
-   return 0;
+   return blendSubmittedTriangles;
   }
   ensureUniform(device,Math.max(1,packed.length+blendGpu.length));
   let occluderPacked=packed,restPacked=packed.slice(0,0),twoPass=false;
@@ -435,7 +474,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    pageFloats.set(item.rec.matrix.elements,base);
    pageFloats[base+16]=mat.baseColor[0];pageFloats[base+17]=mat.baseColor[1];pageFloats[base+18]=mat.baseColor[2];pageFloats[base+19]=mat.alphaTest>0?mat.alphaTest:1;
    pageFloats[base+20]=mat.metalness;pageFloats[base+21]=mat.roughness;
-   let flags=0;if(mat.lit)flags|=FLAG_LIT;if(mat.doubleSided)flags|=FLAG_DOUBLE;if(geo?.hasUv)flags|=FLAG_HAS_UV;if(layer)flags|=FLAG_HAS_MAP;if(geo?.hasNormal)flags|=FLAG_HAS_NORMAL;if(mat.alphaTest>0)flags|=FLAG_MASK;if(mat.backSide)flags|=FLAG_BACK;
+   let flags=0;if(mat.lit)flags|=FLAG_LIT;if(mat.doubleSided)flags|=FLAG_DOUBLE;if(geo?.hasUv)flags|=FLAG_HAS_UV;if(layer)flags|=FLAG_HAS_MAP;if(geo?.hasNormal)flags|=FLAG_HAS_NORMAL;if(geo?.hasTangent)flags|=FLAG_HAS_TANGENT;if(mat.alphaTest>0)flags|=FLAG_MASK;if(mat.backSide)flags|=FLAG_BACK;
    if(roughLayer||metalLayer)flags|=FLAG_HAS_ORM;if(nrmLayer)flags|=FLAG_HAS_NORMAL_MAP;
    if(mat.map&&mat.map.wrapS!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_S_REPEAT;
    if(mat.map&&mat.map.wrapT!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_T_REPEAT;
@@ -450,7 +489,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const aoScale=dataUvScales[aoLayer]??[1,1],emissiveScale=uvScales[emissiveLayer]??[1,1];
    pageInts[base+42]=aoLayer;pageFloats[base+43]=mat.aoIntensity;
    pageFloats[base+44]=aoScale[0];pageFloats[base+45]=aoScale[1];pageInts[base+46]=emissiveLayer;
-   pageFloats.set(mat.emissive,base+48);pageFloats[base+52]=emissiveScale[0];pageFloats[base+53]=emissiveScale[1];
+   pageFloats.set(mat.emissive,base+48);pageFloats[base+52]=emissiveScale[0];pageFloats[base+53]=emissiveScale[1];pageFloats[base+54]=mat.normalScaleY;
   };
   if(useIndirect&&layout){
    let inst=0;
@@ -469,11 +508,6 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(!shadeUniform)shadeUniform=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   shadeUniPacked.set(viewProj.elements,0);shadeUniPacked[16]=width;shadeUniPacked[17]=height;
   const shadeInts=new Uint32Array(shadeUniPacked.buffer);shadeInts[20]=tableRows;shadeInts[21]=diagnostic==='wireframe'?1:diagnostic==='pages'?3:diagnostic==='beauty'?0:2;
-  shadeUniPacked[24]=camera.position.x;shadeUniPacked[25]=camera.position.y;shadeUniPacked[26]=camera.position.z;shadeUniPacked[27]=1;
-  const lLen=Math.hypot(1,3,2);shadeUniPacked[28]=1/lLen;shadeUniPacked[29]=3/lLen;shadeUniPacked[30]=2/lLen;shadeUniPacked[31]=2.5;
-  shadeUniPacked[32]=2;shadeUniPacked[33]=2;shadeUniPacked[34]=2;shadeUniPacked[35]=1;
-  colorScratch.setHex(0x495061);shadeUniPacked[36]=colorScratch.r*2;shadeUniPacked[37]=colorScratch.g*2;shadeUniPacked[38]=colorScratch.b*2;shadeUniPacked[39]=1;
-  shadeUniPacked[40]=(clearColor>>16)/255;shadeUniPacked[41]=((clearColor>>8)&255)/255;shadeUniPacked[42]=(clearColor&255)/255;shadeUniPacked[43]=1;
   device.queue.writeBuffer(shadeUniform,0,shadeUniPacked);
   if(!shadeBindGroup&&shadeBindGroupLayout&&visView&&pageTable&&concatPos&&concatUv&&concatNrm&&mapsTexture&&dataMapsTexture&&mapsSampler&&shadeUniform&&cache){
    shadeBindGroup=device.createBindGroup({layout:shadeBindGroupLayout,entries:[
@@ -498,7 +532,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     {binding:6,resource:visMaps},{binding:7,resource:mapsSampler},
    ]});
   }
-  const encoder=device.createCommandEncoder();
+  const encoder=createRenderEncoder(device);
   if(useIndirect)gpuDraw!.encode(encoder,items,maxVertexCount);
   const visColors=(loadOp:'clear'|'load')=>{
    const ids:{view:GPUTextureView;loadOp:'clear'|'load';storeOp:'store';clearValue?:GPUColor}={view:idsView,loadOp,storeOp:'store',clearValue:{r:0,g:0,b:0,a:1}};
@@ -533,7 +567,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     for(let s=start;s<start+3;s++){
      if(compact.counts[s]<=0)continue;
      const pipeline=visSlots[s],group=visGroupFor(s,rest);if(!pipeline||!group)continue;
-     pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);
+     pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);gpuDrawCalls++;
     }
     return list.reduce((n,item)=>n+item.index.length,0);
    }
@@ -544,11 +578,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     const item=packed[i];if(!list.includes(item))continue;
     const pipeline=visPipelineFor(item.rec,rest);
     if(!pipeline)continue;
-    pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.draw(item.index.length,1,0,i);vertices+=item.index.length;
+    pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.draw(item.index.length,1,0,i);gpuDrawCalls++;vertices+=item.index.length;
    }
    return vertices;
   };
   const visPass=encoder.beginRenderPass({
+   label:'WG visibility primary',
    colorAttachments:visColors('clear'),
    depthStencilAttachment:{view:depthTarget,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'},
   });
@@ -559,6 +594,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    gpuHiz.encodePyramid(encoder);
    gpuHiz.encodeTest(device,encoder,restPacked.map(item=>boundsCache.get(item.rec)??projectBoxToScreen(item.rec.min,item.rec.max,item.rec.matrix,camera,[width,height])));
    const restPass=encoder.beginRenderPass({
+    label:'WG visibility secondary',
     colorAttachments:visColors('load'),
     depthStencilAttachment:{view:depthTarget,depthLoadOp:'load',depthStoreOp:'store'},
    });
@@ -571,29 +607,34 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    previouslyDrawnUrls.clear();
    for(let i=0;i<occluderPacked.length;i++)previouslyDrawnUrls.add(occluderPacked[i].rec.url);
   }
-  const shadePass=encoder.beginRenderPass({colorAttachments:[{view:colorView,loadOp:'clear',storeOp:'store',clearValue:{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1}}]});
+  if(!surfaces||!deferred||!hdrView)throw new Error('DEFERRED_UNAVAILABLE');
+  const shadePass=encoder.beginRenderPass({label:'WG material surfaces v1',colorAttachments:surfaces.views().map(view=>({view,loadOp:'clear' as const,storeOp:'store' as const,clearValue:[0,0,0,0]}))});
   shadePass.setViewport(0,0,width,height,0,1);
-  if(shadeBindGroup){shadePass.setPipeline(shadePipeline);shadePass.setBindGroup(0,shadeBindGroup);shadePass.draw(3);}
+  if(shadeBindGroup){shadePass.setPipeline(shadePipeline);shadePass.setBindGroup(0,shadeBindGroup);shadePass.draw(3);gpuDrawCalls++;}
   shadePass.end();
-  encodeBlend(device,encoder,packed.length);
+  encodeSurfaceLighting(device,encoder,camera,packed.length);
   submitColorCopy(device,encoder,height,width);
-  return vertices/3;
+  return vertices/3+blendSubmittedTriangles;
  };
  const encodeDraws=(device:GPUDevice,camera:THREE.PerspectiveCamera)=>{
+  gpuDrawCalls=0;blendSubmittedTriangles=0;blendDrawCalls=0;blendFrustumRejected=0;visibleBlend.length=0;transparentEncodeMs=0;
   if(!bindGroupLayout||!cache||!colorView||!depthView)return 0;
   const [width,height]=targetSize;
-  viewProj.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);viewProj.premultiply(remap);
+  viewProj.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+  blendFrustum.setFromProjectionMatrix(viewProj,camera.coordinateSystem);
+  for(const item of blendGpu){if(item.bounds&&!blendFrustum.intersectsBox(item.bounds))blendFrustumRejected++;else visibleBlend.push(item);}
+  viewProj.premultiply(remap);
   const packed=packedDraws();
   if(visEnabled&&visPipelineBack&&shadePipeline&&visView){
-   try{return encodeVis(device,camera,packed);}catch{dropVis();}
+   try{return encodeVis(device,camera,packed);}catch(error){gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera)throw error;}
   }
   if(!pipelineBack)return 0;
   if(!packed.length){
-   const encoder=device.createCommandEncoder();
+   const encoder=createRenderEncoder(device);
    encodeClear(device,encoder);
    encodeBlend(device,encoder,0);
    submitColorCopy(device,encoder,height,width);
-   return 0;
+   return blendSubmittedTriangles;
   }
   ensureUniform(device,Math.max(1,packed.length+blendGpu.length));
   const packedInts=new Uint32Array(uniformPacked.buffer,uniformPacked.byteOffset,uniformPacked.length);
@@ -604,8 +645,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    packedInts[base+36]=item.resident.offset/4;packedInts[base+37]=item.index.length;packedInts[base+38]=diagnostic==='wireframe'?1:0;
   }
   if(packed.length&&uniformBuffer)device.queue.writeBuffer(uniformBuffer,0,uniformPacked.subarray(0,packed.length*(UNIFORM_STRIDE/4)));
-  const encoder=device.createCommandEncoder();
+  const encoder=createRenderEncoder(device);
   const pass=encoder.beginRenderPass({
+   label:'WG opaque fallback',
    colorAttachments:[{view:colorView,loadOp:'clear',storeOp:'store',clearValue:{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1}}],
    depthStencilAttachment:{view:depthView,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'},
   });
@@ -613,12 +655,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   let vertices=0;
   for(let i=0;i<packed.length;i++){
    const item=packed[i],group=bindGroupFor(device,item.position),pipeline=pipelineFor(item.rec);if(!group||!pipeline)continue;
-   pass.setPipeline(pipeline);pass.setBindGroup(0,group,[i*UNIFORM_STRIDE]);pass.draw(item.index.length);vertices+=item.index.length;
+   pass.setPipeline(pipeline);pass.setBindGroup(0,group,[i*UNIFORM_STRIDE]);pass.draw(item.index.length);gpuDrawCalls++;vertices+=item.index.length;
   }
   pass.end();
   encodeBlend(device,encoder,packed.length);
   submitColorCopy(device,encoder,height,width);
-  return vertices/3;
+  return vertices/3+blendSubmittedTriangles;
  };
  const hasBytes=(rec:PageRec)=>!!(rec.array||sourceBytes.has(rec.url));
  const ensureResident=async(wanted:PageRec[])=>{
@@ -647,10 +689,29 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   scene,
   get overBudget(){return overBudget;},
   setDiagnostic(mode){diagnostic=mode;},
+  refreshSceneLighting(){lights?.refresh();lightState=lights?.update();capturedRevision=-1;engineDiagnostic('scene-lighting','Inventaire des lumières actualisé',{version:1,...lightState,shadows:false,globalIllumination:false});},
   async prepare(){
+   context.signal?.throwIfAborted();
    if(!gpuDevice)throw new Error('WEBGPU_UNAVAILABLE');
-   gpuDevice.lost.then(()=>{lost=true;}).catch(()=>{lost=true;});
+   gpuTiming=createGpuTiming(gpuDevice);
+   engineDiagnostic('gpu-timing-status','Disponibilité des mesures GPU par passe',{version:1,available:gpuTiming.supported,method:'timestamp-query',sampleEveryFrames:60,maxPasses:64,maxPending:1,maxBufferAllocationBytes:2048,queryCount:128,gpuMs:null,scope:'render-passes-only'});
+   gpuDevice.addEventListener?.('uncapturederror',onGpuError);
+   gpuDevice.lost.then(info=>{if(!lost)engineDiagnostic('gpu-device-lost','Périphérique WebGPU perdu',{reason:info.reason,message:info.message});lost=true;}).catch(error=>{if(!lost)diagnosticFailure('gpu-device-lost',error);lost=true;});
    try{
+    lights=createSceneLightBuffer(gpuDevice,context.sceneLighting??source);lightState=lights.update();
+    engineDiagnostic('scene-lighting','Lumières de la scène actives',{version:1,...lightState,shadows:false,globalIllumination:false});
+    deferred=await createDeferredLighting(gpuDevice,lights.buffer);context.signal?.throwIfAborted();
+    const outputCanvas=context.gpuCanvas??(typeof document!=='undefined'?document.createElement('canvas'):undefined);
+    if(outputCanvas){
+     presenter=createGpuPresenter(gpuDevice,outputCanvas);
+     capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='direct WebGPU present');
+     if(!context.gpuCanvas){
+      canvasTexture=new THREE.CanvasTexture(outputCanvas);canvasTexture.colorSpace=THREE.SRGBColorSpace;canvasTexture.flipY=false;canvasTexture.generateMipmaps=false;canvasTexture.minFilter=THREE.NearestFilter;canvasTexture.magFilter=THREE.NearestFilter;
+      blitMaterial=new THREE.ShaderMaterial({uniforms:{image:{value:canvasTexture}},vertexShader:'void main(){gl_Position=vec4(position.xy,0.0,1.0);}',fragmentShader:'uniform sampler2D image;void main(){ivec2 sz=textureSize(image,0);gl_FragColor=texelFetch(image,ivec2(int(gl_FragCoord.x),sz.y-1-int(gl_FragCoord.y)),0);\n#include <colorspace_fragment>\n}',depthTest:false,depthWrite:false,toneMapped:false});
+      blit=new THREE.Mesh(new THREE.PlaneGeometry(2,2),blitMaterial);blit.frustumCulled=false;blit.userData.blit=true;scene.add(blit);
+     }
+    }
+    engineDiagnostic('gpu-presentation','Présentation GPU initialisée',{mode:context.gpuCanvas?'direct-canvas':presenter?'gpu-canvas-webgl-composition':'texture-only',imageReadbackDuringRender:false});
     cache=createGpuPageCache(gpuDevice,pageSource,{pageBytes,slots});
     bindGroupLayout=gpuDevice.createBindGroupLayout({entries:[
      {binding:0,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
@@ -660,11 +721,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     const module=gpuDevice.createShaderModule({code:SHADER});
     const layout=gpuDevice.createPipelineLayout({bindGroupLayouts:[bindGroupLayout]});
     const fragment={module,entryPoint:'fs',targets:[{format:'rgba8unorm' as GPUTextureFormat}]};
-    const depthStencil={format:'depth24plus' as GPUTextureFormat,depthWriteEnabled:true,depthCompare:'less' as GPUCompareFunction};
+    const depthStencil={format:'depth32float' as GPUTextureFormat,depthWriteEnabled:true,depthCompare:'less' as GPUCompareFunction};
     pipelineBack=gpuDevice.createRenderPipeline({layout,vertex:{module,entryPoint:'vs'},fragment,primitive:{topology:'triangle-list',cullMode:'back',frontFace:'ccw'},depthStencil});
     pipelineBackCw=gpuDevice.createRenderPipeline({layout,vertex:{module,entryPoint:'vs'},fragment,primitive:{topology:'triangle-list',cullMode:'back',frontFace:'cw'},depthStencil});
     pipelineNone=gpuDevice.createRenderPipeline({layout,vertex:{module,entryPoint:'vs'},fragment,primitive:{topology:'triangle-list',cullMode:'none',frontFace:'ccw'},depthStencil});
-    pipelineBlend=gpuDevice.createRenderPipeline({layout,vertex:{module,entryPoint:'vs'},fragment:{module,entryPoint:'fs',targets:[{format:'rgba8unorm' as GPUTextureFormat,blend:{color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'},alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha',operation:'add'}}}]},primitive:{topology:'triangle-list',cullMode:'none',frontFace:'ccw'},depthStencil:{format:'depth24plus',depthWriteEnabled:false,depthCompare:'less'}});
+    pipelineBlend=gpuDevice.createRenderPipeline({layout,vertex:{module,entryPoint:'vs'},fragment:{module,entryPoint:'fs',targets:[{format:'rgba8unorm' as GPUTextureFormat,blend:{color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'},alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha',operation:'add'}}}]},primitive:{topology:'triangle-list',cullMode:'none',frontFace:'ccw'},depthStencil:{format:'depth32float',depthWriteEnabled:false,depthCompare:'less'}});
     for(const rec of allPages){
      if(positionBuffers.has(rec.attributes))continue;
      const attr=rec.attributes.position;if(!attr)continue;
@@ -676,7 +737,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     zeroUv=gpuDevice.createBuffer({size:8,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
     gpuDevice.queue.writeBuffer(zeroUv,0,new Float32Array([0,0]));
     for(const copy of blendCopies){
-     if(isTransmissive(copy.material))continue;
+     if(isTransmissive(copy.material)){if(context.gpuCanvas)throw new Error('UNSUPPORTED_TRANSMISSION');continue;}
      const mat=visMaterial(copy.material);
      const attr=copy.geometry.attributes.position,idx=copy.geometry.getIndex();if(!attr||!idx)continue;
      let position=positionBuffers.get(copy.geometry.attributes);
@@ -694,9 +755,19 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       uv=gpuDevice.createBuffer({size:Math.max(8,uvData.byteLength),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
       gpuDevice.queue.writeBuffer(uv,0,uvData.buffer as ArrayBuffer,uvData.byteOffset,uvData.byteLength);
      }
+     const normalAttr=copy.geometry.attributes.normal,tangentAttr=copy.geometry.attributes.tangent;let normal:GPUBuffer|undefined;
+     if(normalAttr){const data=new Float32Array(normalAttr.count*7);for(let i=0;i<normalAttr.count;i++){data[i*7]=normalAttr.getX(i);data[i*7+1]=normalAttr.getY(i);data[i*7+2]=normalAttr.getZ(i);if(tangentAttr){data[i*7+3]=tangentAttr.getX(i);data[i*7+4]=tangentAttr.getY(i);data[i*7+5]=tangentAttr.getZ(i);data[i*7+6]=tangentAttr.getW(i);}}normal=gpuDevice.createBuffer({size:Math.max(12,data.byteLength),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});gpuDevice.queue.writeBuffer(normal,0,data);}
      const opacity=Array.isArray(copy.material)?(copy.material[0] as THREE.MeshBasicMaterial).opacity??1:(copy.material as THREE.MeshBasicMaterial).opacity??1;
-     let flags=0;if(mat.map&&mat.map.wrapS!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_S_REPEAT;if(mat.map&&mat.map.wrapT!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_T_REPEAT;
-     blendGpu.push({position,index,uv,count:idx.count,matrix:copy.matrix,rgba:[mat.baseColor[0],mat.baseColor[1],mat.baseColor[2],opacity],map:mat.map,flags});
+     let flags=0;if(mat.lit)flags|=FLAG_LIT;if(mat.doubleSided)flags|=FLAG_DOUBLE;if(normal)flags|=FLAG_HAS_NORMAL;if(tangentAttr)flags|=FLAG_HAS_TANGENT;if(mat.backSide)flags|=FLAG_BACK;if(mat.map&&mat.map.wrapS!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_S_REPEAT;if(mat.map&&mat.map.wrapT!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_T_REPEAT;
+     // Static source transforms are baked for this backend. World AABBs remain
+     // conservative under rotation, mirroring, nonuniform scale and shear.
+     let bounds:THREE.Box3|undefined;
+     if(copy.frustumCulled){
+      if(!copy.geometry.boundingBox)copy.geometry.computeBoundingBox();
+      const box=copy.geometry.boundingBox?.clone().applyMatrix4(copy.matrix);
+      if(box&&!box.isEmpty()&&[...box.min.toArray(),...box.max.toArray()].every(Number.isFinite))bounds=box;
+     }
+     blendGpu.push({position,index,uv,normal,material:copy.material,count:idx.count,matrix:copy.matrix,bounds,rgba:[mat.baseColor[0],mat.baseColor[1],mat.baseColor[2],opacity],map:mat.map,flags});
      scene.remove(copy);
     }
     const [width,height]=viewport??[1,1];ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
@@ -707,19 +778,20 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      for(const rec of allPages){
       if(geometryBlocks.has(rec.attributes))continue;
       const n=rec.attributes.position?.count??0;
-      geometryBlocks.set(rec.attributes,{vertexBase:vertexCount,count:n,hasUv:!!rec.attributes.uv,hasNormal:!!rec.attributes.normal});
+      geometryBlocks.set(rec.attributes,{vertexBase:vertexCount,count:n,hasUv:!!rec.attributes.uv,hasNormal:!!rec.attributes.normal,hasTangent:!!rec.attributes.tangent});
       vertexCount+=n;
      }
      vertexCount=Math.max(1,vertexCount);
-     const pos=new Float32Array(vertexCount*3),uv=new Float32Array(vertexCount*2),nrm=new Float32Array(vertexCount*3),filled=new Set<THREE.BufferGeometry['attributes']>();
+     const pos=new Float32Array(vertexCount*3),uv=new Float32Array(vertexCount*2),nrm=new Float32Array(vertexCount*7),filled=new Set<THREE.BufferGeometry['attributes']>();
      for(const rec of allPages){
       if(filled.has(rec.attributes))continue;filled.add(rec.attributes);
-      const block=geometryBlocks.get(rec.attributes)!;const p=rec.attributes.position,u=rec.attributes.uv,n=rec.attributes.normal;
+      const block=geometryBlocks.get(rec.attributes)!;const p=rec.attributes.position,u=rec.attributes.uv,n=rec.attributes.normal,t=rec.attributes.tangent;
       for(let i=0;i<block.count;i++){
        const o=block.vertexBase+i;
        if(p){pos[o*3]=p.getX(i);pos[o*3+1]=p.getY(i);pos[o*3+2]=p.getZ(i);}
        if(u){uv[o*2]=u.getX(i);uv[o*2+1]=u.getY(i);}
-       if(n){nrm[o*3]=n.getX(i);nrm[o*3+1]=n.getY(i);nrm[o*3+2]=n.getZ(i);}
+       if(t){nrm[o*7+3]=t.getX(i);nrm[o*7+4]=t.getY(i);nrm[o*7+5]=t.getZ(i);nrm[o*7+6]=t.getW(i);}
+       if(n){nrm[o*7]=n.getX(i);nrm[o*7+1]=n.getY(i);nrm[o*7+2]=n.getZ(i);}
       }
      }
      const upload=(data:Float32Array)=>{const buffer=gpuDevice.createBuffer({size:Math.max(4,data.byteLength),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});gpuDevice.queue.writeBuffer(buffer,0,data.buffer as ArrayBuffer,data.byteOffset,data.byteLength);return buffer;};
@@ -729,10 +801,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      const addData=(texture?:THREE.Texture)=>{if(texture&&!dataLayer.has(texture)){dataLayer.set(texture,dataMaps.length+1);dataMaps.push(texture);}};
      for(const rec of allPages){const mat=visMaterial(rec.material);addColor(mat.map);addColor(mat.emissiveMap);addData(mat.roughnessMap);addData(mat.metalnessMap);addData(mat.normalMap);addData(mat.aoMap);}
      for(const copy of blendCopies){const mat=visMaterial(copy.material);addColor(mat.map);addColor(mat.emissiveMap);addData(mat.roughnessMap);addData(mat.metalnessMap);addData(mat.normalMap);addData(mat.aoMap);}
+     engineDiagnostic('material-textures','Textures nécessaires au rendu',{colorTextures:maps.length,dataTextures:dataMaps.length,materials:new Set(allPages.map(page=>page.material)).size,opaquePages:allPages.length,forwardMeshes:blendCopies.length,geometryWithTangents:[...geometryBlocks.values()].filter(block=>block.hasTangent).length,geometryWithoutTangents:[...geometryBlocks.values()].filter(block=>!block.hasTangent).length});
+     const textureStarted=performance.now();
      let maxW=1,maxH=1;
      const rgbaMaps=maps.map(texture=>{const rgba=textureRgba(texture);if(rgba){maxW=Math.max(maxW,rgba.width);maxH=Math.max(maxH,rgba.height);}else{const image=texture.image as {width?:number;height?:number}|undefined;if(image?.width&&image.height){maxW=Math.max(maxW,image.width);maxH=Math.max(maxH,image.height);}}return rgba;});
      const layers=Math.max(2,maps.length+1);
-     mapsTexture=gpuDevice.createTexture({size:{width:maxW,height:maxH,depthOrArrayLayers:layers},format:'rgba8unorm-srgb',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+     mapsTexture=gpuDevice.createTexture({size:{width:maxW,height:maxH,depthOrArrayLayers:layers},format:'rgba8unorm-srgb',mipLevelCount:1+Math.floor(Math.log2(Math.max(maxW,maxH))),usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
      const white=new Uint8Array(maxW*maxH*4);white.fill(255);
      gpuDevice.queue.writeTexture({texture:mapsTexture,origin:[0,0,0]},white,{bytesPerRow:maxW*4,rowsPerImage:maxH},{width:maxW,height:maxH});
      for(let i=0;i<maps.length;i++){
@@ -744,19 +818,20 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
        uvScales[layer]=[rgba.width/maxW,rgba.height/maxH];
       }else{
        const image=maps[i].image as GPUCopyExternalImageSource|undefined;
-       if(image&&typeof gpuDevice.queue.copyExternalImageToTexture==='function'){
+       if(!image||typeof gpuDevice.queue.copyExternalImageToTexture!=='function')throw new Error('MATERIAL_COLOR_TEXTURE_UNAVAILABLE');
+       {
         try{
          const w='width' in image?(image as ImageBitmap).width:maxW,h='height' in image?(image as ImageBitmap).height:maxH;
          gpuDevice.queue.copyExternalImageToTexture({source:image},{texture:mapsTexture,origin:[0,0,layer]},[w,h]);
          uvScales[layer]=[w/maxW,h/maxH];
-        }catch{/* Keep the white layer when the host image cannot be copied. */}
+        }catch(error){diagnosticFailure('color-texture-upload-failed',error);throw error;}
        }
       }
      }
      let dataW=1,dataH=1;
      const rgbaData=dataMaps.map(texture=>{const rgba=textureRgba(texture);if(rgba){dataW=Math.max(dataW,rgba.width);dataH=Math.max(dataH,rgba.height);}else{const image=texture.image as {width?:number;height?:number}|undefined;if(image?.width&&image.height){dataW=Math.max(dataW,image.width);dataH=Math.max(dataH,image.height);}}return rgba;});
      const dataLayers=Math.max(2,dataMaps.length+1);
-     dataMapsTexture=gpuDevice.createTexture({size:{width:dataW,height:dataH,depthOrArrayLayers:dataLayers},format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+     dataMapsTexture=gpuDevice.createTexture({size:{width:dataW,height:dataH,depthOrArrayLayers:dataLayers},format:'rgba8unorm',mipLevelCount:1+Math.floor(Math.log2(Math.max(dataW,dataH))),usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
      const dataWhite=new Uint8Array(dataW*dataH*4);dataWhite.fill(255);
      gpuDevice.queue.writeTexture({texture:dataMapsTexture,origin:[0,0,0]},dataWhite,{bytesPerRow:dataW*4,rowsPerImage:dataH},{width:dataW,height:dataH});
      for(let i=0;i<dataMaps.length;i++){
@@ -774,7 +849,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
        dataUvScales[layer]=[w/dataW,h/dataH];
       }
      }
-     mapsSampler=gpuDevice.createSampler({magFilter:'linear',minFilter:'linear'});
+     await generateMaterialMips(gpuDevice,mapsTexture,'rgba8unorm-srgb',maxW,maxH,uvScales);
+     await generateMaterialMips(gpuDevice,dataMapsTexture,'rgba8unorm',dataW,dataH,dataUvScales);
+     const scales=new Float32Array(Math.max(uvScales.length,dataUvScales.length)*4);
+     for(let i=0;i<scales.length/4;i++){scales.set(dataUvScales[i]??[1,1],i*4);scales.set(uvScales[i]??[1,1],i*4+2);}
+     materialScales=gpuDevice.createBuffer({size:scales.byteLength,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});gpuDevice.queue.writeBuffer(materialScales,0,scales);
+     engineDiagnostic('material-textures-ready','Textures et filtrage prêts',{color:{count:maps.length,size:[maxW,maxH],mipLevels:1+Math.floor(Math.log2(Math.max(maxW,maxH))),format:'rgba8unorm-srgb'},data:{count:dataMaps.length,size:[dataW,dataH],mipLevels:1+Math.floor(Math.log2(Math.max(dataW,dataH))),format:'rgba8unorm'},preparationMs:performance.now()-textureStarted,lighting:'GGX direct + diffuse hemisphere; no environment map',display:'ACES once, sRGB once'});
+     mapsSampler=gpuDevice.createSampler({magFilter:'linear',minFilter:'linear',mipmapFilter:'linear'});
      try{
       blendBindGroupLayout=gpuDevice.createBindGroupLayout({entries:[
        {binding:0,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
@@ -783,17 +864,22 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
        {binding:3,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'uniform',hasDynamicOffset:true,minBindingSize:UNIFORM_STRIDE}},
        {binding:4,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'float',viewDimension:'2d-array'}},
        {binding:5,visibility:GPUShaderStage.FRAGMENT,sampler:{type:'filtering'}},
+       {binding:6,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'float',viewDimension:'2d-array'}},
+       {binding:7,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
+       {binding:8,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
+      {binding:9,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
       ]});
       const blendModule=gpuDevice.createShaderModule({code:BLEND_SHADER});
-      pipelineBlendTextured=gpuDevice.createRenderPipeline({
+      const makeBlend=(cullMode:GPUCullMode)=>{const descriptor:GPURenderPipelineDescriptor={
        layout:gpuDevice.createPipelineLayout({bindGroupLayouts:[blendBindGroupLayout]}),
        vertex:{module:blendModule,entryPoint:'vs'},
-       fragment:{module:blendModule,entryPoint:'fs',targets:[{format:'rgba8unorm' as GPUTextureFormat,blend:{color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'},alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha',operation:'add'}}}]},
-       primitive:{topology:'triangle-list',cullMode:'none',frontFace:'ccw'},
-       depthStencil:{format:'depth24plus',depthWriteEnabled:false,depthCompare:'less'},
-      });
+       fragment:{module:blendModule,entryPoint:'fs',targets:[{format:'rgba16float' as GPUTextureFormat,blend:{color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'},alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha',operation:'add'}}}]},
+       primitive:{topology:'triangle-list',cullMode,frontFace:'ccw'},
+       depthStencil:{format:'depth32float',depthWriteEnabled:false,depthCompare:'less'},
+      };return gpuDevice.createRenderPipelineAsync?gpuDevice.createRenderPipelineAsync(descriptor):Promise.resolve(gpuDevice.createRenderPipeline(descriptor));};
       for(const item of blendGpu)item.group=undefined;
-     }catch{blendBindGroupLayout=undefined;pipelineBlendTextured=undefined;}
+      pipelineBlendTextured=await makeBlend('none');pipelineBlendFront=await makeBlend('front');pipelineBlendBack=await makeBlend('back');
+     }catch(error){diagnosticFailure('forward-material-pipeline-failed',error);blendBindGroupLayout=undefined;pipelineBlendTextured=undefined;}
      shadeUniform=gpuDevice.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
      visBindGroupLayout=gpuDevice.createBindGroupLayout({entries:[
       {binding:0,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
@@ -816,10 +902,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      }
      if(typeof shadeModule.getCompilationInfo==='function'){
       const shadeInfo=await shadeModule.getCompilationInfo();
-      if(shadeInfo.messages.some(message=>message.type==='error'))throw new Error('SHADE_SHADER');
+      if(shadeInfo.messages.some(message=>message.type==='error'))throw new Error('SHADE_SHADER: '+shadeInfo.messages.filter(message=>message.type==='error').map(message=>message.message).join(' | '));
      }
      const visLayout=gpuDevice.createPipelineLayout({bindGroupLayouts:[visBindGroupLayout]});
-     const visDepth={format:'depth24plus' as GPUTextureFormat,depthWriteEnabled:true,depthCompare:'less' as GPUCompareFunction};
+     const visDepth={format:'depth32float' as GPUTextureFormat,depthWriteEnabled:true,depthCompare:'less' as GPUCompareFunction};
      const makeVis=(layout:GPUPipelineLayout,vertex:string,fragment:string,targets:GPUColorTargetState[],cull:GPUCullMode,frontFace:GPUFrontFace='ccw')=>gpuDevice.createRenderPipeline({layout,vertex:{module:visModule,entryPoint:vertex},fragment:{module:visModule,entryPoint:fragment,targets},primitive:{topology:'triangle-list',cullMode:cull,frontFace},depthStencil:visDepth});
      const oneTarget:GPUColorTargetState[]=[{format:'r32uint'}];
      gpuHiz=await createGpuHiz(gpuDevice,Math.max(1,width),Math.max(1,height),cap);
@@ -845,8 +931,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
        visHizRestBackCw=makeVis(visLayout,'vis_hiz_vs','vis_hiz_fs',twoTarget,'back','cw');
        visHizRestFrontCw=makeVis(visLayout,'vis_hiz_vs','vis_hiz_fs',twoTarget,'front','cw');
       });
-     }catch{
-      dropGpuHiz();
+     }catch(error){
+      diagnosticFailure('hiz-pipeline-fallback',error);dropGpuHiz();
       await scoped(()=>{
        visPipelineBack=makeVis(visLayout,'vis_vs','vis_fs',oneTarget,'back');
        visPipelineBackCw=makeVis(visLayout,'vis_vs','vis_fs',oneTarget,'back','cw');
@@ -871,7 +957,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       shadePipeline=gpuDevice.createRenderPipeline({
        layout:gpuDevice.createPipelineLayout({bindGroupLayouts:[shadeBindGroupLayout]}),
        vertex:{module:shadeModule,entryPoint:'shade_vs'},
-       fragment:{module:shadeModule,entryPoint:'shade_fs',targets:[{format:'rgba8unorm' as GPUTextureFormat}]},
+       fragment:{module:shadeModule,entryPoint:'shade_fs',targets:SURFACE_FORMATS.map(format=>({format}))},
        primitive:{topology:'triangle-list',cullMode:'none'},
       });
      });
@@ -886,12 +972,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      }
      visEnabled=!!visTexture&&!!shadeBindGroup&&!!shadePipeline&&!!visPipelineBack;
      if(visEnabled){
+      engineDiagnostic('material-surfaces-ready','Surfaces et éclairage séparés',{surfaceVersion:1,formats:SURFACE_FORMATS,bytesPerPixel:28,lighting:'HDR',globalIllumination:false,motionVectors:false});
       capabilities.materials='Source glTF via GGX direct specular and hemisphere diffuse lighting with visibility buffer; double-sided when the material is';
       capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='visibility buffer'&&item!=='textured PBR maps'&&item!=='occlusion culling'&&item!=='temporal occlusion culling');
       gpuDraw=await createGpuDraw(gpuDevice,slots);
       if(gpuDraw)capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='indirect draw');
      }else dropVis();
-    }catch{dropVis();}
+    }catch(error){diagnosticFailure('material-pipeline-failed',error);dropVis();}
+    if(blendGpu.length&&!pipelineBlendTextured)dropVis();
+    if(context.gpuCanvas&&!visEnabled)throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
+    if(context.gpuCanvas&&blendGpu.length&&!pipelineBlendTextured)throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
     const xyzCache=new WeakMap<THREE.BufferGeometry['attributes'],Float32Array>();
     for(const rec of allPages){
      const array=rec.array,attr=rec.attributes.position;
@@ -901,24 +991,30 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      rec.cone=visMaterial(rec.material).doubleSided||visMaterial(rec.material).backSide?OPEN_CONE:triangleCone(xyz,array);
     }
     const packed=packSelectionForest(roots);
-    packedForest=packed;
     gpuSelection=await createGpuSelection(gpuDevice,packed);
     capabilities.gpuDriven=!!gpuSelection;
+    engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
    }catch(error){
+    diagnosticFailure('webgpu-prepare-failed',error);
     if(String(error).includes('WEBGPU')||String(error).includes('INVALID_PAGE_BUDGET'))throw error;
-    throw new Error('WEBGPU_UNAVAILABLE');
+    throw error;
    }
   },
   render(camera){
+   if(secondaryCamera&&!surfaceRenderAllowed)throw new Error('SURFACE_CAPTURE_BUSY');
+   if(context.signal?.aborted)context.signal.throwIfAborted();
    if(lost)throw new Error('WEBGPU_LOST');
    if(!gpuDevice||!cache)throw new Error('WEBGPU_UNAVAILABLE');
+   const cpuStart=performance.now();
+   lightState=lights?.update();
+   const lightsEnd=performance.now();
    lastCamera=camera;overBudget=false;submittedTriangles=0;hizRejected=0;frame++;
    const pixelError=resolvePixelError(context,camera,motion);
    let selected:{shown:PageRec[];wanted?:PageRec[];visible:number;selectedTriangles:number;frustumRejected:number;lodLevel:number}|undefined;
    if(gpuSelection?.failed())dropGpuSelection();
    if(gpuSelection){
     cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
-    try{gpuSelection.dispatch(selectionUniforms);}catch{dropGpuSelection();}
+    try{gpuSelection.dispatch(selectionUniforms);}catch(error){diagnosticFailure('gpu-selection-fallback',error);dropGpuSelection();}
     const cut=gpuSelection?.peek();
     if(cut&&sameSelectionUniforms(cut.uniforms,selectionUniforms)){
      const gpuShown=shownFromGpu(packedPages,cut.result,frame);
@@ -937,8 +1033,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     try{
      const cut=applyTemporalHiz(readyScratch as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState);
      culled=cut.shown;hizRejected=cut.hizRejected;
-    }catch{/* Keep the selected cut when this-frame Hi-Z cannot run. */}
+    }catch(error){diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
    }
+   const selectionEnd=performance.now();
    queueResident(culled);
    drawn.length=0;for(let i=0;i<culled.length;i++)if(cache!.get(culled[i].url))drawn.push(culled[i]);
    const [width,height]=viewport??targetSize;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
@@ -949,12 +1046,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     if(typeof window!=='undefined')console.info('[web-geometry] configuration du premier rendu WebGPU',details);
    }
    const tStart=performance.now();
-   if(!drawn.length){submittedTriangles=encodeDraws(gpuDevice,camera);lastSubmitMs=performance.now()-tStart;return;}
    submittedTriangles=encodeDraws(gpuDevice,camera);
-   lastSubmitMs=performance.now()-tStart;
+   const cpuEnd=performance.now();lastSubmitMs=cpuEnd-tStart;
+   cpuSample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:tStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
+
   },
   syncResident(){
+   if(secondaryCamera)return;
    if(lost||!gpuDevice||!cache||!lastCamera)return;
+   // Page bytes are already accepted. Keep the submitted image stable until its
+   // explicit readback completes; the next render selects/uploads those bytes.
+   if(capturePending){captureStreamingDeferrals++;return;}
    readyScratch.length=0;for(let i=0;i<shown.length;i++)if(hasBytes(shown[i]))readyScratch.push(shown[i]);
    queueResident(readyScratch);
    drawn.length=0;for(let i=0;i<readyScratch.length;i++)if(cache.get(readyScratch[i].url))drawn.push(readyScratch[i]);
@@ -965,10 +1067,87 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   },
   async flush(){
    await pending;
+   await gpuTiming?.flush();
+   for(const sample of gpuTiming?.drain()??[])engineDiagnostic(sample.error?'gpu-timing-unavailable':'gpu-timing',sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',sample);
+   if(cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
+   if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
    if(gpuSelection){
     try{await gpuSelection.flush();if(gpuSelection.failed())dropGpuSelection();}
-    catch{dropGpuSelection();}
+    catch(error){diagnosticFailure('gpu-selection-fallback',error);dropGpuSelection();}
    }
+   if(gpuDevice&&colorTexture&&!secondaryCamera&&imageRevision>0&&capturedRevision!==imageRevision){
+    if(!capturePending){const revision=imageRevision,[width,height]=targetSize,texture=colorTexture;
+     checkFrameBudget(width,height,captureAllocationBytes+Math.ceil(width*4/256)*256*height);
+     capturePending=readGpuImage(gpuDevice,texture,width,height,context.signal).then(pixels=>{if(!lost&&revision===imageRevision){capturedPixels=pixels;capturedRevision=revision;if(!outputDiagnosticLogged){outputDiagnosticLogged=true;engineDiagnostic('first-readback','Premier relevé explicite de la cible WebGPU',{width,height,origin:'bottom-left',...outputColorDiagnostic(pixels,width,height,clearColor,'bottom-left')});engineDiagnostic('presentation-capture','Capture explicite du rendu WebGPU',{width,height,origin:'bottom-left',imageRevision:revision,surface:'webgpu-color-target',...outputColorDiagnostic(pixels,width,height,clearColor,'bottom-left')});}}}).finally(()=>{capturePending=undefined;});
+    }
+    await capturePending;
+    if(lost)throw new Error('WEBGPU_LOST');
+    if(capturedRevision!==imageRevision)throw new Error('CAPTURE_CHANGED_DURING_FLUSH');
+    if(captureStreamingDeferrals&&!captureDeferralLogged){captureDeferralLogged=true;engineDiagnostic('capture-streaming-deferred','Mise à jour du streaming reportée au rendu suivant pendant la capture',{imageRevision:capturedRevision,deferredUpdates:captureStreamingDeferrals,pagesRetained:true});}
+   }
+  },
+  async captureSurfaceView(camera,options){
+   context.signal?.throwIfAborted();options.signal?.throwIfAborted();
+   if(secondaryCamera||surfaceCapture)throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first');
+   if(lost||!gpuDevice||!visEnabled||!lastCamera)throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
+   const reserve=checkSurfaceSize(gpuDevice,options.width,options.height,frameBudget,32);
+   checkFrameBudget(viewport[0],viewport[1],reserve);checkFrameBudget(options.width,options.height,reserve);
+   const main=lastCamera,savedSize:[number,number]=[viewport[0],viewport[1]],savedDiagnostic=diagnostic,savedMotion={...motion};
+   const view=camera.clone();view.aspect=options.width/options.height;view.updateProjectionMatrix();view.updateMatrixWorld();
+   const started=performance.now();let result:SurfaceCapture|undefined;
+   secondaryCamera=view;captureAllocationBytes=reserve;
+   const renderInternal=(camera:THREE.PerspectiveCamera)=>{surfaceRenderAllowed=true;try{backend.render(camera);}finally{surfaceRenderAllowed=false;}};
+   const clearHistory=()=>{previouslyDrawnUrls.clear();temporalHizState.pyramid=undefined;temporalHizState.camera=undefined;temporalHizState.viewport=undefined;};
+   engineDiagnostic('surface-capture-start','Capture GPU depuis une seconde caméra',{width:options.width,height:options.height,allocationBytes:reserve});
+   try{
+    await pending;await gpuDevice.queue.onSubmittedWorkDone();options.signal?.throwIfAborted();context.signal?.throwIfAborted();
+    viewport[0]=options.width;viewport[1]=options.height;diagnostic='beauty';clearHistory();motion.last=undefined;motion.lastMs=undefined;
+    renderInternal(view);await pending;
+    const missing=collectPendingUrls(desired,[]);
+    if(missing.length)throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
+    if(overBudget)throw new Error('SURFACE_PAGE_BUDGET');
+    await ensureResident(shown);
+    drawn=shown.filter(page=>!!cache?.get(page.url));
+    if(drawn.length!==shown.length)throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
+    options.signal?.throwIfAborted();context.signal?.throwIfAborted();
+    submittedTriangles=encodeDraws(gpuDevice,view);
+    if(!visEnabled||!surfaces||!depthTexture)throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
+    const owned=createSurfaceBuffer(gpuDevice,options.width,options.height,reserve);
+    let depth:GPUTexture;
+    try{depth=gpuDevice.createTexture({label:'WG owned surface depth',size:{width:options.width,height:options.height},format:'depth32float',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.COPY_SRC});}catch(error){owned.dispose();throw error;}
+    let released=false;
+    result={...owned,allocationBytes:reserve,depth,inverseViewProjection:viewProj.clone().invert().elements.slice(),cameraWorld:view.getWorldPosition(new THREE.Vector3()).toArray() as [number,number,number],selectedTriangles,
+     dispose(){if(released)return;released=true;owned.dispose();depth.destroy();captureAllocationBytes=0;surfaceCapture=undefined;engineDiagnostic('surface-capture-released','Capture GPU libérée',{allocationBytes:reserve});}};
+    const encoder=gpuDevice.createCommandEncoder();
+    const from=[surfaces.baseMetal,surfaces.normalRough,surfaces.emissiveAo,surfaces.flags,depthTexture],to=[owned.baseMetal,owned.normalRough,owned.emissiveAo,owned.flags,depth];
+    for(let i=0;i<from.length;i++)encoder.copyTextureToTexture({texture:from[i]},{texture:to[i]},[options.width,options.height]);
+    gpuDevice.queue.submit([encoder.finish()]);await gpuDevice.queue.onSubmittedWorkDone();
+    options.signal?.throwIfAborted();context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');
+    surfaceCapture=result;
+    engineDiagnostic('surface-capture-ready','Surface GPU disponible',{surfaceVersion:1,width:options.width,height:options.height,selectedTriangles,allocationBytes:reserve,durationMs:performance.now()-started,imageReadback:false});
+   }catch(error){result?.dispose();captureAllocationBytes=0;diagnosticFailure('surface-capture-failed',error);throw error;}
+   finally{
+    viewport[0]=savedSize[0];viewport[1]=savedSize[1];diagnostic=savedDiagnostic;clearHistory();Object.assign(motion,savedMotion);
+    try{
+     if(!lost&&!context.signal?.aborted){
+      renderInternal(main);await pending;await ensureResident(shown);drawn=shown.filter(page=>!!cache?.get(page.url));submittedTriangles=encodeDraws(gpuDevice,main);
+      if(presenter&&colorTexture){const encoder=gpuDevice.createCommandEncoder();presenter.present(encoder,colorTexture,...targetSize);gpuDevice.queue.submit([encoder.finish()]);}
+      if(canvasTexture)canvasTexture.needsUpdate=true;
+      engineDiagnostic('surface-main-restored','Vue principale restaurée',{width:savedSize[0],height:savedSize[1]});
+     }
+    }catch(error){result?.dispose();diagnosticFailure('surface-restore-failed',error);throw error;}
+    finally{secondaryCamera=undefined;surfaceRenderAllowed=false;}
+   }
+
+   return result!;
+  },
+  capture(){
+   if(lost)throw new Error('WEBGPU_LOST');
+   if(capturedPixels&&capturedRevision===imageRevision)return capturedPixels;
+   if(!presenter||!gpuDevice||!colorTexture||secondaryCamera)throw new Error('CAPTURE_NOT_READY: render then await flush before capture');
+   const encoder=gpuDevice.createCommandEncoder();presenter.present(encoder,colorTexture,...targetSize);gpuDevice.queue.submit([encoder.finish()]);
+   if(!synchronousCapture){synchronousCapture=createSynchronousCanvasCapture();engineDiagnostic('capture-synchronous','Lecture synchrone demandée par l’hôte',{outsideBeauty:true,prefer:'await flush(); capture()'});}
+   capturedPixels=synchronousCapture.read(presenter.canvas);capturedRevision=imageRevision;return capturedPixels;
   },
   selectedPageIds(){return shown.map(rec=>rec.url);},
   visibilityIds(){
@@ -984,23 +1163,22 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}sourceBytes.set(url,new Uint8Array(array.buffer,array.byteOffset,array.byteLength));},
   dropPage(url){const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=undefined;recs[i].indexBytes=recs[i].triangles*12;}sourceBytes.delete(url);cache?.unload?.(url);pins.delete(url);},
   metrics(){
-   const stats=cache?.stats(),seen=new Set<ArrayBufferView>();
-   let vertexBytes=0;
-   for(const rec of drawn){const array=rec.attributes.position?.array;if(!array||seen.has(array))continue;seen.add(array);vertexBytes+=array.byteLength;}
-   const stagingBytes=bytesPerRow*targetSize[1]*STAGING_COUNT;
-   const renderTargetBytes=targetSize[0]*targetSize[1]*4*3;
-   const hizBytes=gpuHiz?gpuHiz.width*gpuHiz.height*4*2:0;
-   const totalVramBytes=(stats?.allocatedBytes??0)+vertexBytes+(pageTable?.size??0)+(visUniform?.size??0)+(shadeUniform?.size??0)+(uniformBuffer?.size??0)+stagingBytes+renderTargetBytes+hizBytes;
-   return {clusters:visible,selectedTriangles,residentPages:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:totalVramBytes};
+   const stats=cache?.stats();
+   let vertexBytes=0;for(const buffer of positionBuffers.values())vertexBytes+=buffer.size;
+   vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
+   for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
+
+   return {clusters:visible,selectedTriangles,residentPages:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
-   lost=true;pending=pending.catch(()=>{});dropGpuSelection();dropVis();
+   gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);
+   lost=true;pending=pending.catch(()=>{});gpuTiming?.dispose();dropGpuSelection();dropVis();
    visTexture?.destroy();visTexture=undefined;visView=undefined;
    for(const buffer of positionBuffers.values())buffer.destroy();
-   for(const item of blendGpu)item.index.destroy();blendGpu.length=0;
+   for(const item of blendGpu){item.index.destroy();item.uv?.destroy();item.normal?.destroy();}blendGpu.length=0;
    uniformBuffer?.destroy();uniformBuffer=undefined;
-   destroyStaging();colorTexture?.destroy();depthTexture?.destroy();
-   blitTexture.dispose();blitMaterial.dispose();blit.geometry.dispose();
+   colorTexture?.destroy();depthTexture?.destroy();hdrTexture?.destroy();surfaces?.dispose();surfaceCapture?.dispose();deferred?.dispose();lights?.dispose();presenter?.dispose();synchronousCapture?.dispose();
+   canvasTexture?.dispose();blitMaterial?.dispose();blit?.geometry.dispose();
    const closing=cache?.dispose();cache=undefined;scene.clear();
    return closing;
   },
