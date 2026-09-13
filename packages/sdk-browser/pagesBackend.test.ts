@@ -3,6 +3,25 @@ import * as THREE from 'three';
 import {exactPagesBackend,referenceBackend} from './index.ts';
 import {threeLodBackend} from './threeLod.ts';
 import {collectClusterPages} from './pageSelection.ts';
+
+/** Indices réellement dessinés par un objet, dans l'ordre de dessin : plages multi-draw ou tampon entier. */
+function drawnIndices(mesh:THREE.Mesh){
+ const index=mesh.geometry.getIndex();if(!index)return [];
+ const batch=mesh as THREE.Mesh&{isBatchedMesh?:boolean;_multiDrawStarts?:Int32Array;_multiDrawCounts?:Int32Array;_multiDrawCount?:number};
+ if(!batch.isBatchedMesh||!batch._multiDrawStarts)return Array.from(index.array);
+ const out:number[]=[];
+ for(let draw=0;draw<(batch._multiDrawCount??0);draw++){
+  const first=batch._multiDrawStarts[draw]/Uint32Array.BYTES_PER_ELEMENT,length=batch._multiDrawCounts![draw];
+  for(let i=first;i<first+length;i++)out.push(index.getX(i));
+ }
+ return out;
+}
+/** Triangles réellement soumis par la scène d'un backend. */
+function drawnTriangles(scene:THREE.Object3D){
+ let total=0;
+ scene.traverse(object=>{if((object as THREE.Mesh).isMesh)total+=drawnIndices(object as THREE.Mesh).length/3;});
+ return total;
+}
 test('transparent page batches preserve source order across exact and coarse cuts',()=>{
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0,-1,0,0],3));geometry.setIndex([0,1,2,0,2,3,0,3,4]);
  const material=new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
@@ -15,10 +34,10 @@ test('transparent page batches preserve source order across exact and coarse cut
  const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);backend.render(camera);
  assert.equal(meshes().length,1);
  assert.equal(meshes()[0].material,material);
- assert.deepEqual(Array.from(meshes()[0].geometry.index!.array),[0,1,2,0,2,3,0,3,4]);
+ assert.deepEqual(drawnIndices(meshes()[0]),[0,1,2,0,2,3,0,3,4]);
  context.pixelError=10;backend.render(camera);
  assert.equal(meshes().length,1);
- assert.deepEqual(Array.from(meshes()[0].geometry.index!.array),[0,1,3,1,2,3,0,3,4]);
+ assert.deepEqual(drawnIndices(meshes()[0]),[0,1,3,1,2,3,0,3,4]);
  backend.dispose();geometry.dispose();material.dispose();
 });
 test('exact pages report measured residency and keep only the visible set in the scene',()=>{
@@ -220,7 +239,7 @@ test('a missing coarse page does not drop already resident exact triangles',()=>
  backend.acceptPage?.('0',new Uint32Array([0,1,2]));
  backend.acceptPage?.('1',new Uint32Array([0,2,3]));
  backend.render(camera);
- const triangles=()=>{let n=0;backend.scene.traverse(o=>{if((o as THREE.Mesh).isMesh)n+=(o as THREE.Mesh).geometry.index!.count/3;});return n;};
+ const triangles=()=>drawnTriangles(backend.scene);
  assert.equal(triangles(),2);
  context.pixelError=1;backend.render(camera);
  assert.equal(triangles(),2);
