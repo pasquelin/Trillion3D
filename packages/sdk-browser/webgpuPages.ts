@@ -1075,6 +1075,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      let maxW=1,maxH=1;
      const rgbaMaps=maps.map(texture=>{const rgba=textureRgba(texture);if(rgba){maxW=Math.max(maxW,rgba.width);maxH=Math.max(maxH,rgba.height);}else{const image=texture.image as {width?:number;height?:number}|undefined;if(image?.width&&image.height){maxW=Math.max(maxW,image.width);maxH=Math.max(maxH,image.height);}}return rgba;});
      const layers=Math.max(2,maps.length+1);
+     if(layers>gpuDevice.limits.maxTextureArrayLayers)throw new Error(`TEXTURE_ATLAS_LAYERS: ${layers} texture layers exceed the device limit ${gpuDevice.limits.maxTextureArrayLayers}`);
      mapsTexture=gpuDevice.createTexture({size:{width:maxW,height:maxH,depthOrArrayLayers:layers},format:'rgba8unorm-srgb',mipLevelCount:1+Math.floor(Math.log2(Math.max(maxW,maxH))),usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
      const fallbackEncoder=gpuDevice.createCommandEncoder();
      const clearLayer=(texture:GPUTexture,layer:number,color:{r:number;g:number;b:number;a:number})=>{
@@ -1100,6 +1101,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      let dataW=1,dataH=1;
      const rgbaData=dataMaps.map(texture=>{const rgba=textureRgba(texture);if(rgba){dataW=Math.max(dataW,rgba.width);dataH=Math.max(dataH,rgba.height);}else{const image=texture.image as {width?:number;height?:number}|undefined;if(image?.width&&image.height){dataW=Math.max(dataW,image.width);dataH=Math.max(dataH,image.height);}}return rgba;});
      const dataLayers=Math.max(2,dataMaps.length+1);
+     if(dataLayers>gpuDevice.limits.maxTextureArrayLayers)throw new Error(`TEXTURE_ATLAS_LAYERS: ${dataLayers} texture layers exceed the device limit ${gpuDevice.limits.maxTextureArrayLayers}`);
      dataMapsTexture=gpuDevice.createTexture({size:{width:dataW,height:dataH,depthOrArrayLayers:dataLayers},format:'rgba8unorm',mipLevelCount:1+Math.floor(Math.log2(Math.max(dataW,dataH))),usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
      for(let layer=0;layer<dataLayers;layer++)clearLayer(dataMapsTexture,layer,normalMaps.has(dataMaps[layer-1])?{r:128/255,g:128/255,b:1,a:1}:{r:1,g:1,b:1,a:1});
      gpuDevice.queue.submit([fallbackEncoder.finish()]);
