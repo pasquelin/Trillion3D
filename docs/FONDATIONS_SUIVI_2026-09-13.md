@@ -1,18 +1,20 @@
 # Fondations WebGeometry — suivi de réalisation
 
-Base : `b064ab0` (couverture GPU, audit et 310 tests Node vérifiés dans un arbre isolé). Cette branche de travail est `codex/virtualized-foundations`. Le répertoire principal contient d'autres modifications concurrentes ; seuls les commits de cette branche décrivent le présent chantier. Aucun résultat d'une campagne antérieure ne valide automatiquement ce code.
+Base actuelle : `bffee67` (diagnostics et provenance intégrés sur `main`). Cette branche de travail est `codex/virtualized-foundations`. Les commits de cette branche décrivent le présent chantier ; `main` reste inchangé par ces travaux. Aucun résultat d'une campagne antérieure ne valide automatiquement ce code.
 
 | Lot | Dépendance | État | Preuve requise |
 | --- | --- | --- | --- |
-| 1. Import glTF, QEM, identité des caches JS et Rust | Aucune | Partiel, `d0fd4f8` | Entrées invalides rejetées avant publication ; faces orientées ; changement de clé si l'algorithme change ; tests JS/Rust |
+| 1. Import glTF, QEM, identité des caches JS et Rust | Aucune | Partiel, `77fbbb7` | Entrées invalides rejetées avant publication ; faces orientées ; changement de clé si l'algorithme change ; tests JS/Rust |
 | 2. Pages autonomes de géométrie et format versionné | 1 | À faire | Décodage et rendu sans `source.bin` intégral, frontière de pages, compression et précision |
 | 3. Streaming de géométrie et ressources matérielles | 2 | Partiel : file priorisée, transferts bornés, requêtes partagées et annulation | Résidence minimale, ressources matérielles, admission et éviction en chaîne réelle |
 | 4. Sélection et commandes courantes pilotées par GPU | 2–3 | Partiel : regroupement des dessins par groupes GPU parallèles | Aucun readback CPU avant les commandes de l'image, sélection parallèle et capture matérielle complète |
 | 5. Hi-Z et rasterisation hybride | 4 | Partiel : mip conservateur ; validation matérielle ouverte | Occlusion/révélation, routage et pixels/profondeur/ID comparés sur matériel |
 | 6. Scène dynamique, vues et surfaces pour GI | 3–5 | Partiel : transformations d'instances propagées aux chemins de rendu | Ajout/retrait et mutation des ressources, capture consommée et restauration de vue |
-| 7. Métriques communes, provenance et campagnes Lab | Tous | À faire | Quatre moteurs, scènes diverses, PNG, A/A puis référence, mesures bornées et limites explicites |
+| 7. Métriques communes, provenance et campagnes Lab | Tous | Partiel : diagnostics et empreinte de build sur `main` | Quatre moteurs, scènes diverses, PNG, A/A puis référence, mesures bornées et limites explicites |
 
 Les budgets de pages sont des allocations suivies, jamais une mesure de VRAM physique. Les statuts « À faire » ne sont ni simulés ni déclarés livrés. Le portage de Lumen et l'optimisation fine restent ultérieurs.
+
+Après intégration de `main`, `npm run build`, `npm test` (336/336), `npm run check:structure`, `npm run check:dts` et `npm run check:links` réussissent. Le test matériel du regroupement GPU a réussi sur Apple Metal. Ces validations ne remplacent pas les campagnes d'images complètes du Lab.
 
 ## Streaming et transformations : preuve partielle
 
@@ -34,6 +36,6 @@ Les budgets de pages sont des allocations suivies, jamais une mesure de VRAM phy
 
 ## Preuves partielles du lot 5 et limites
 
-- Les empreintes 33×19 entièrement couvertes peuvent désormais être rejetées par un mip réduit. Un pixel de fond au bord et une empreinte hors cible empêchent ce rejet ; la conversion des bornes en coordonnées de mip et en décalage du buffer GPU est contrôlée par test. Le même choix de niveau sert à l'oracle CPU et à l'encodage GPU. Le shader GPU lui-même n'a pas encore été validé par capture matérielle.
+- Les empreintes 33×19 entièrement couvertes peuvent désormais être rejetées par un mip réduit. Un pixel de fond au bord et une empreinte hors cible empêchent ce rejet ; la conversion des bornes en coordonnées de mip et en décalage du buffer GPU est contrôlée par test. Le même choix de niveau sert à l'oracle CPU et à l'encodage GPU. Le shader de rejet a été exercé sur Apple Metal ; la capture complète de l'image reste ouverte.
 - Une copie intégrale de la pyramide précédente était allouée et écrite sans être jamais lue : elle a été retirée. Le jeu d'URL de pages visibles antérieurement reste consommé uniquement pour choisir les occludeurs de la première passe, qui produit une pyramide de l'image courante. Cela ne constitue pas une reprojection temporelle de la profondeur.
 - Validation locale de ce lot : `npm run build`, `npm test` (318/318), `npm run check:structure`, `npm run check:dts`, `npm run check:links`. `LAB_ROOT=/Users/pasquelin/Applications/render-tech-lab node --experimental-strip-types test/webgpuHiz.browser.mjs` exécute le shader réel sur Chrome/WebGPU et l'adaptateur Apple Metal (`metal-3`) : zone 33×19 couverte → rejet, trou au bord → conservation, plan proche coupé → conservation, sans erreur GPU. Le rapport local `benchmark-runs/webgpu-hiz/result.json` contient l'empreinte SHA-256 `4ce3ffe0e3ebc1262ac2720f8fb2fc48366c6fd4941bb9effec6a49289a52ab2` du shader exécuté. La construction de la pyramide GPU, la coupure de caméra, la révélation et la parité pixels/profondeurs/ID du Lab restent ouvertes.
