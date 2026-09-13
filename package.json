@@ -21,10 +21,6 @@
       "types": "./types/browser.d.ts",
       "import": "./dist/sdk-browser/index.js"
     },
-    "./compiler-reference": {
-      "types": "./types/compiler-reference.d.mts",
-      "import": "./dist/asset-compiler-core/index.mjs"
-    },
     "./package.json": "./package.json"
   },
   "bin": {
@@ -44,7 +40,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.mjs && node scripts/write-build-provenance.mjs",
     "build:native": "cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
-    "test": "node --experimental-strip-types --test packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs packages/asset-compiler-core/*.test.mjs test/*.test.mjs",
+    "test": "node --experimental-strip-types --test packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs test/*.test.mjs",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "check:structure": "node --test test/engineStructure.test.mjs && tsc -p tsconfig.core.json --noEmit",
     "check:links": "python3 docs/check-links.py",

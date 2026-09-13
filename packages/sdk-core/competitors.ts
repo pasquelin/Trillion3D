@@ -14,8 +14,3 @@ export const COMPARISON_LIBRARIES: readonly CompetitorRecord[] = [
  {id:'nexus',name:'VCG Nexus',status:'abandoned',license:'GPL-2.0',maintained:'low — last meaningful web activity stale',scope:'Multiresolution batched meshes',reason:'GPL plus a distinct .nxs format; not a drop-in glTF/Three.js adapter',homepage:'https://github.com/cnr-isti-vclab/nexus'},
  {id:'playcanvas-lod',name:'PlayCanvas mesh LOD',status:'not-comparable',license:'MIT',maintained:'yes',scope:'PlayCanvas engine LOD',reason:'Different engine; no equitable shared-camera protocol with Three.js WebGL2',homepage:'https://github.com/playcanvas/engine'},
 ];
-export function comparisonLibrary(id: string) {
- const row = COMPARISON_LIBRARIES.find(item => item.id === id);
- if (!row) throw new Error(`Unknown comparison library: ${id}`);
- return row;
-}

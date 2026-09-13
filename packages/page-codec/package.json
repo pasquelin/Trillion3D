@@ -1,10 +1,10 @@
 {
-  "name": "@web-geometry/asset-compiler-core",
+  "name": "@web-geometry/page-codec",
   "version": "0.1.0",
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./index.mjs"
+    ".": "./geometryPage.mjs"
   },
   "files": [
     "*.mjs"
