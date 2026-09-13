@@ -13,7 +13,7 @@ export interface RenderBackend {
  render(camera:THREE.PerspectiveCamera):void;
  readonly overBudget:boolean;
  scene:THREE.Scene;
- metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'>&{drawCalls?:number};
+ metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'>&{drawCalls?:number};
  pendingUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
@@ -49,6 +49,8 @@ export interface BackendContext {
  /** WebGPU frame targets, Hi-Z pyramids, one surface capture and async image staging; excludes scene assets and WebGL diagnostic capture. */
  maxFrameAllocationBytes?:number;
  sceneLighting?:THREE.Object3D;
+ /** Host-owned, validated page reader for the initial complete GPU fallback. */
+ readPage?:(url:string)=>Promise<Uint32Array>;
 }
 export type BackendFactory = (context:BackendContext)=>RenderBackend;
 export type PointOfInterest = {id:string;label:string;pose:CameraPose};

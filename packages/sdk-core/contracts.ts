@@ -13,6 +13,12 @@ export interface FrameMetrics {
  pagesRequested?:number|null; pagesLoading?:number|null; cacheHits?:number|null; cacheMisses?:number|null; frustumRejected?:number|null; lodLevel?:number|null; hizRejected?:number|null;
  /** WebGPU transparent submission counters, including both draws for two-pass materials. Null when unavailable. */
  transparentMeshes?:number|null; transparentFrustumRejected?:number|null; transparentDrawCalls?:number|null; transparentSubmittedTriangles?:number|null;
+ /** Complete initial GPU fallback is available; null on backends without this guarantee. */
+ coverageReady?:boolean|null;
+ /** Requested detail cannot coexist with the pinned fallback within the GPU page budget. */
+ coverageBudgetLimited?:boolean|null;
+ /** Sticky loading error; failed URLs require an explorer reload after three attempts. */
+ streamingError?:string|null;
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface Page { id:number; url:string; sha256:string; bytes:number; count:number; min:number[];max:number[];role?:'exact'|'coarse' }
