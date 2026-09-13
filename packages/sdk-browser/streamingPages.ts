@@ -12,7 +12,8 @@ type Job={
 /** Resident bytes kept by default. Streaming bundles are far larger than a single cluster page, so
  *  a cache bounded only by entry count would hold hundreds of megabytes. */
 export const DEFAULT_CACHED_BYTES=256*1024*1024;
-/** Bounded, prioritized and deduplicated reads. Obsolete requests abort once their last consumer leaves.
+/** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
+ *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
  *  eviction, so a caller keeps its displayed cover by retaining it. */
 export function createPageStreamer(pages:readonly StreamPage[],base:string,signal?:AbortSignal,workerCount=8,maxPages?:number,onEvict?:(url:string)=>void,maxTransferBytes=8*1024*1024,onDiagnostic?:(diagnostic:BackendDiagnostic)=>void,maxCachedBytes=DEFAULT_CACHED_BYTES){
@@ -102,9 +103,12 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
    let settled=false;
    const finish=(ok:boolean,value:Uint8Array|unknown)=>{
     if(settled)return;settled=true;combined.removeEventListener('abort',onAbort);shared.consumers.delete(token);
-    if(shared.consumers.size===0&&jobs.get(url)===shared){
-     jobs.delete(url);shared.controller.abort(abortError());emit('page-stream-abort','Dernière demande annulée',()=>({version:1,url}));
-     if(shared.state==='queued'){const at=queue.indexOf(shared);if(at>=0)queue.splice(at,1);}
+    // A transfer that has already started is paid for: letting it land in the cache costs nothing
+    // more and keeps a superseded camera from throwing away bytes it is about to ask for again.
+    // Only a request still waiting in the queue is dropped.
+    if(shared.consumers.size===0&&jobs.get(url)===shared&&shared.state==='queued'){
+     jobs.delete(url);shared.controller.abort(abortError());emit('page-stream-abort','Demande en attente annulée',()=>({version:1,url}));
+     const at=queue.indexOf(shared);if(at>=0)queue.splice(at,1);
     }
     if(ok)resolve(value as Uint8Array);else reject(value);
    };
