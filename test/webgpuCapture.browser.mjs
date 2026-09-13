@@ -131,7 +131,8 @@ try{
   assert.ok(!result.events.some(event=>event.phase==='gpu-timing-unavailable'),'timestamp readback failed');
   assert.ok(timings.every(event=>event.context.passes.every(pass=>pass.gpuMs===null?pass.reason==='invalid-timestamps':Number.isFinite(pass.gpuMs)&&pass.gpuMs>=0)));
   assert.ok(timings.some(event=>event.context.sumPassMs!==null),'at least one complete GPU sample required');
-  for(const label of ['WG visibility primary','WG material surfaces v1','WG deferred lighting','WG transparents','WG HDR composition','WG direct present'])assert.ok(timings.some(event=>event.context.passes.some(pass=>pass.name===label&&pass.gpuMs!==null)),label+' valid timestamp missing');
+  for(const label of ['WG visibility primary','WG material surfaces v1','WG deferred lighting','WG transparents','WG HDR composition + present'])assert.ok(timings.some(event=>event.context.passes.some(pass=>pass.name===label&&pass.gpuMs!==null)),label+' valid timestamp missing');
+  assert.ok(timings.every(event=>!event.context.passes.some(pass=>pass.name==='WG direct present')),'normal rendering must not copy the composed image in a second presentation pass');
   console.log('PASS: '+timings.length+' real GPU pass timing samples');
  }
  assert.ok(result.events.some(event=>event.stage==='emerald'&&event.phase==='cpu-timing'),'CPU stages required');
