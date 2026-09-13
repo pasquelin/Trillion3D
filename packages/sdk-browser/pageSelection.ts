@@ -8,6 +8,7 @@ export type PageRec = {
  min:number[];max:number[];role?:'exact'|'coarse';errorObject?:number;
  attributes:THREE.BufferGeometry['attributes'];
  material:THREE.Material|THREE.Material[];
+ transparent?:boolean;sourceMesh?:THREE.Mesh;sourceOrder?:number;
  matrix:THREE.Matrix4;renderOrder:number;
  geometry?:THREE.BufferGeometry;mesh?:THREE.Mesh;attached:boolean;seen:number;resident?:boolean;
  cone?:NormalCone;
@@ -37,6 +38,21 @@ function collectReferencedPages(node:Tree,into:Set<number>){
  if(node.children)for(let i=0;i<node.children.length;i++)collectReferencedPages(node.children[i],into);
 }
 
+/** Keep transparent coarse replacements at their first source leaf, including multi-page replacements. */
+export function sourcePageOrders(tree:Tree|null,pageCount:number):number[]{
+ const order=Array.from({length:pageCount},(_,index)=>index);
+ const visit=(node:Tree):number=>{
+  let first=node.page===undefined?Infinity:(order[node.page]??Infinity);
+  if(node.children)for(const child of node.children)first=Math.min(first,visit(child));
+  if(Number.isFinite(first)&&node.coarsePages)for(let i=0;i<node.coarsePages.length;i++){
+   const id=node.coarsePages[i];if(id<order.length)order[id]=first+i/(node.coarsePages.length+1);
+  }
+  return first;
+ };
+ if(tree)visit(tree);
+ return order;
+}
+
 /** Build exact-cluster page records and validate coverage. Shared by WebGL and WebGPU backends. */
 export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManifest,indices:Map<string,Uint32Array>,associations:Map<THREE.Object3D,{meshes?:number;primitives?:number}>,options:{allowMissing?:boolean}={}){
  const roots:Array<{tree:Tree;world:THREE.Matrix4;pages:PageRec[]}>=[],allPages:PageRec[]=[],blendCopies:THREE.Mesh[]=[];
@@ -47,13 +63,15 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
   if(primitive.pass==='shared-blend'||isTransmissive(mesh.material)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.frustumCulled=mesh.frustumCulled;copy.renderOrder=order++;copy.userData.sourceMesh=mesh;blendCopies.push(copy);continue;}
   const sourceIndices=mesh.geometry.getIndex();if(!sourceIndices)throw new Error('Indexed source required');
   const src=sourceIndices.array as ArrayLike<number>;
-  const ordered=(metadata.clusterStrategy??'exact-source-order')==='exact-source-order';
+  const ordered=(primitive.clusterStrategy??(primitive.pass==='clustered-blend'?'exact-source-order':metadata.clusterStrategy)??'exact-source-order')==='exact-source-order';
+  const transparent=primitive.pass==='clustered-blend'||(Array.isArray(mesh.material)?mesh.material.some(material=>material.transparent):mesh.material.transparent);
+  const sourceOrder=transparent?sourcePageOrders(primitive.hierarchy,primitive.pages.length):undefined;
   const exactPages=primitive.pages.filter(page=>(page.role??'exact')!=='coarse');
   let sourceOffset=0;
-  const pages=primitive.pages.map(page=>{const array=indices.get(page.url);if(!array&&!options.allowMissing&&indices.size)throw new Error('Missing page');
+  const pages=primitive.pages.map((page,pageIndex)=>{const array=indices.get(page.url);if(!array&&!options.allowMissing&&indices.size)throw new Error('Missing page');
    if(array&&(page.role??'exact')!=='coarse'){if(ordered){for(let i=0;i<array.length;i++)if(array[i]!==src[sourceOffset++])throw new Error('Page/source index mismatch');}else sourceOffset+=array.length;}
    else if(!array&&(page.role??'exact')!=='coarse')sourceOffset+=page.count;
-   const rec:PageRec={id:page.id,url:page.url,clusterId:`${primitive.mesh}/${primitive.primitive}/${page.id}`,array,triangles:page.count/3,indexBytes:array?.byteLength??page.bytes,min:page.min,max:page.max,role:page.role,attributes:mesh.geometry.attributes,material:mesh.material,matrix:mesh.matrixWorld,renderOrder:order,attached:false,seen:0};
+   const rec:PageRec={id:page.id,url:page.url,clusterId:`${primitive.mesh}/${primitive.primitive}/${page.id}`,array,triangles:page.count/3,indexBytes:array?.byteLength??page.bytes,min:page.min,max:page.max,role:page.role,attributes:mesh.geometry.attributes,material:mesh.material,transparent,sourceMesh:mesh,sourceOrder:sourceOrder?.[pageIndex]??pageIndex,matrix:mesh.matrixWorld,renderOrder:order,attached:false,seen:0};
    allPages.push(rec);return rec;});
   order++;
   const complete=primitive.pages.every(page=>indices.has(page.url)||(page.role??'exact')==='coarse');

@@ -8,6 +8,7 @@ mod geometry_page;
 use std::{collections::{BTreeMap,BTreeSet},fmt::{Display,Formatter},fs::{self,File},io::{Read,Write,BufWriter,Seek,SeekFrom},path::{Path,PathBuf},sync::{Arc,atomic::{AtomicBool,Ordering}},time::Instant};
 use serde_json::{Value,json};use sha2::{Sha256,Digest};use rayon::prelude::*;
 pub const FORMAT_VERSION:u32=1;pub const COMPILER_VERSION:&str=env!("CARGO_PKG_VERSION");
+pub const CLUSTERED_BLEND_FORMAT_VERSION:u32=2;
 pub const LOD_ERROR_MODEL:&str="bounds-diagonal-boundary-v1";
 #[derive(Debug)] pub struct CompilerError {pub code:&'static str,pub message:String}
 impl CompilerError {fn new(code:&'static str,message:impl Into<String>)->Self{Self{code,message:message.into()}}}
@@ -101,7 +102,6 @@ fn discover_model(dir:&Path)->Result<String>{
 }
 fn unsplit_material(material:Option<&Value>)->bool{
  let Some(material)=material else {return false};
- if material.get("alphaMode").and_then(Value::as_str)==Some("BLEND"){return true;}
  material.get("extensions").and_then(|e|e.get("KHR_materials_transmission")).and_then(|t|t.get("transmissionFactor")).and_then(Value::as_f64).map(|v|v>0.0).unwrap_or(false)
 }
 fn relative_image_uri(uri:&str)->bool{!uri.is_empty()&&!uri.starts_with("data:")&&!uri.starts_with('/')&&!uri.contains("://")}
@@ -406,10 +406,14 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
    };
    let pos=positions.collect_f32()?;let topology=crate::topology::classify_topology(&index_values,positions.count)?;
    let is_skinned_or_morph=p.get("targets").is_some()||skinned_meshes.contains(old)||p.get("attributes").and_then(Value::as_object).map(|a|a.contains_key("JOINTS_0")||a.contains_key("WEIGHTS_0")).unwrap_or(false);
-   let blend=is_skinned_or_morph||if let Some(material)=p.get("material"){let id=required_index(Some(material),"primitive.material")?;unsplit_material(values(g,"materials")?.get(id))}else{false};
+   let material=if let Some(material)=p.get("material"){let id=required_index(Some(material),"primitive.material")?;values(g,"materials")?.get(id)}else{None};
+   let unsplit=is_skinned_or_morph||unsplit_material(material);
+   let clustered_blend=!unsplit&&material.and_then(|m|m.get("alphaMode")).and_then(Value::as_str)==Some("BLEND");
+   // BLEND exact pages must retain source triangle order, including with a greedy strategy.
+   let primitive_strategy:&dyn ClusterStrategy=if clustered_blend{&Exact256}else{strategy};
    let mesh=*mesh_map.get(old).ok_or_else(||invalid("Missing mesh mapping"))?;let mut pages=Vec::new();let mut reused:i32=0;let mut tree=Value::Null;
    let mut page_attributes=Vec::<geometry_page::Attribute>::new();
-   if !blend{for (name,width,offset,flag) in [("NORMAL",3,12,1),("TEXCOORD_0",2,24,2),("TANGENT",4,32,4),("TEXCOORD_1",2,48,8),("COLOR_0",4,56,16)]{
+   if !unsplit{for (name,width,offset,flag) in [("NORMAL",3,12,1),("TEXCOORD_0",2,24,2),("TANGENT",4,32,4),("TEXCOORD_1",2,48,8),("COLOR_0",4,56,16)]{
     if let Some(id)=p.get("attributes").and_then(Value::as_object).and_then(|attributes|attributes.get(name)){
      let a=accessor(g,bin,required_index(Some(id),name)?)?;
      if a.count!=positions.count||(a.width!=width&&!(name=="COLOR_0"&&a.width==3)){return Err(CompilerError::new("INVALID_PAGE_ATTRIBUTE",format!("{name} count or width differs from POSITION")));}
@@ -422,7 +426,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
     let reused=target.exists()&&hash_file(&target)?==digest;if !reused{atomic(&target,&data)?;}
     Ok((json!({"url":name,"sha256":digest,"bytes":data.len(),"formatVersion":2,"codec":"meshopt","vertexCount":vertex_count,"indexCount":slice.len(),"flags":flags,"uncompressedBytes":vertex_count*geometry_page::STRIDE+slice.len()*2}),reused))
    };
-   if !blend{let clusters=strategy.clusters(&index_values,&topology.neighbors)?;let mut seen=vec![false;index_values.len()/3];let mut cluster_page_ids=Vec::new();for cluster in &clusters{check(o)?;if cluster.is_empty(){return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}let mut bytes=Vec::with_capacity(cluster.len()*12);let mut page_indices=Vec::with_capacity(cluster.len()*3);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];for &triangle in cluster{if triangle>=seen.len()||seen[triangle]{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}seen[triangle]=true;for k in 0..3{let id=index_values[triangle*3+k] as usize;if id*3+2>=pos.len(){return Err(invalid("Invalid index"));}page_indices.push(id as u32);bytes.extend_from_slice(&(id as u32).to_le_bytes());for a in 0..3{let value=pos[id*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
+   if !unsplit{let clusters=primitive_strategy.clusters(&index_values,&topology.neighbors)?;let mut seen=vec![false;index_values.len()/3];let mut cluster_page_ids=Vec::new();for cluster in &clusters{check(o)?;if cluster.is_empty(){return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}let mut bytes=Vec::with_capacity(cluster.len()*12);let mut page_indices=Vec::with_capacity(cluster.len()*3);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];for &triangle in cluster{if triangle>=seen.len()||seen[triangle]{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}seen[triangle]=true;for k in 0..3{let id=index_values[triangle*3+k] as usize;if id*3+2>=pos.len(){return Err(invalid("Invalid index"));}page_indices.push(id as u32);bytes.extend_from_slice(&(id as u32).to_le_bytes());for a in 0..3{let value=pos[id*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
     let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{atomic(&target,&bytes)?;}let (geometry,packed_reused)=store_packed(&page_indices)?;if packed_reused{reused+=1;}cluster_page_ids.push(pages.len());pages.push(json!({"id":pages.len(),"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.len()*3,"start":cluster[0]*3,"min":min,"max":max,"role":"exact","geometry":geometry}));}if seen.iter().any(|flag|!*flag){return Err(CompilerError::new("INCOMPLETE_CLUSTER_PARTITION","Cluster partitions omitted source indices"))}
     let write_coarse=|slice:&[u32],pages:&mut Vec<Value>,reused:&mut i32|->Result<usize>{
      check(o)?;let mut bytes=Vec::with_capacity(slice.len()*4);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
@@ -460,7 +464,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      tree
     };
    }
-   progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if blend{"shared-blend"}else{"exact-clusters"},"hierarchy":tree,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
+   progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":primitive_strategy.id(),"hierarchy":tree,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
   let mut source=g.clone();let mut output_meshes=Vec::new();
   for id in &meshes{
    let mut mesh=item(values(&source,"meshes")?,*id,"mesh")?.clone();
@@ -530,8 +534,9 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
    atomic(&directory.join("scene.bin"),&scene_bytes)?;atomic(&directory.join("scene.gltf"),&serde_json::to_vec(&scene)?)?;autonomous_scene=json!("scene.gltf");
   }
   let mut unsupported=vec!["hard RSS enforcement","N-API binding"];if o.simplification=="none"{unsupported.insert(0,"simplification");}
-  let result=json!({"schema":FORMAT_VERSION,"formatVersion":FORMAT_VERSION,"compilerVersion":COMPILER_VERSION,"errorModel":LOD_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":strategy.id(),"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
- atomic(&directory.join("clusters.json"),&serde_json::to_vec(&result)?)?;atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":FORMAT_VERSION,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
+  let cache_format=if primitives.iter().any(|primitive|primitive["pass"]=="clustered-blend"){CLUSTERED_BLEND_FORMAT_VERSION}else{FORMAT_VERSION};
+  let result=json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":LOD_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":strategy.id(),"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+ atomic(&directory.join("clusters.json"),&serde_json::to_vec(&result)?)?;atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
 }
 #[cfg(test)] mod tests {use super::*;use std::time::{SystemTime,UNIX_EPOCH};use std::sync::atomic::AtomicU64;
  static NEXT_FIXTURE_ID:AtomicU64=AtomicU64::new(0);
@@ -703,7 +708,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let(root,options)=fixture();
   let gltf_path=options.source.join("mesh.gltf");
   let mut gltf:Value=serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
-  gltf["materials"]=json!([{"extensions":{"KHR_materials_transmission":{"transmissionFactor":1.0},"KHR_materials_volume":{"thicknessFactor":0.02}}}]);
+  gltf["materials"]=json!([{"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":1.0},"KHR_materials_volume":{"thicknessFactor":0.02}}}]);
   gltf["meshes"][0]["primitives"][0]["material"]=json!(0);
   let gltf_bytes=serde_json::to_vec(&gltf).expect("encode");
   fs::write(&gltf_path,&gltf_bytes).expect("write");
@@ -714,6 +719,47 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let result=compile(&options,&Exact256,|_|{}).expect("compile");
   assert_eq!(result["primitives"][0]["pass"],"shared-blend");
   assert!(result["primitives"][0]["pages"].as_array().expect("pages").is_empty());
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn compile_source_v1_emits_blend_cache_v2(){
+  let(root,options)=fixture();
+  let opaque=compile(&options,&Exact256,|_|{}).expect("opaque compile");assert_eq!(opaque["formatVersion"],1);
+  let gltf_path=options.source.join("mesh.gltf");let manifest_path=options.source.join("manifest.json");
+  let mut gltf:Value=serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+  gltf["materials"]=json!([{"alphaMode":"BLEND"}]);gltf["meshes"][0]["primitives"][0]["material"]=json!(0);
+  let bytes=serde_json::to_vec(&gltf).expect("encode");fs::write(&gltf_path,&bytes).expect("write");
+  let mut manifest:Value=serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
+  assert_eq!(manifest["formatVersion"],1);manifest["runtime"]["sha256"]=json!(hash(&bytes));
+  let source_manifest=serde_json::to_vec(&manifest).expect("encode");fs::write(&manifest_path,&source_manifest).expect("write");
+  let blend=compile(&options,&Exact256,|_|{}).expect("blend compile");
+  assert_eq!(blend["schema"],2);assert_eq!(blend["formatVersion"],2);
+  let pointer:Value=serde_json::from_slice(&fs::read(options.cache.join("native/slice/manifest.json")).expect("pointer")).expect("json");
+  assert_eq!(pointer["formatVersion"],2);assert_eq!(fs::read(&manifest_path).expect("unchanged source"),source_manifest);
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn compile_blend_preserves_exact_source_order_and_material_with_lod(){
+  let(root,options)=grid_fixture(16,10);
+  let gltf_path=options.source.join("grid.gltf");
+  let mut gltf:Value=serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+  let material=json!({"alphaMode":"BLEND","doubleSided":true,"pbrMetallicRoughness":{"baseColorFactor":[0.2,0.8,0.3,0.45]}});
+  gltf["materials"]=json!([material.clone()]);gltf["meshes"][0]["primitives"][0]["material"]=json!(0);
+  fs::write(&gltf_path,serde_json::to_vec(&gltf).expect("encode")).expect("write");
+  fs::remove_file(options.source.join("manifest.json")).expect("direct source");
+  let source_bin=fs::read(options.source.join("grid.bin")).expect("source binary");
+  let source_offset=gltf["bufferViews"][1]["byteOffset"].as_u64().expect("index offset") as usize;
+  for strategy in [&Exact256 as &dyn ClusterStrategy,&crate::GreedyAdjacency as &dyn ClusterStrategy]{
+   let result=compile(&options,strategy,|_|{}).expect("compile");
+   let primitive=&result["primitives"][0];assert_eq!(primitive["pass"],"clustered-blend");assert_eq!(primitive["clusterStrategy"],"exact-source-order");
+   let directory=options.cache.join("native/full").join(result["key"].as_str().expect("key"));
+   let pages=primitive["pages"].as_array().expect("pages");
+   let exact:Vec<_>=pages.iter().filter(|page|page["role"]=="exact").collect();assert_eq!(exact.len(),2);
+   let mut covered=Vec::new();for page in exact{covered.extend(fs::read(directory.join(page["url"].as_str().expect("page URL"))).expect("page"));}
+   assert_eq!(covered,&source_bin[source_offset..]);
+   assert!(pages.iter().any(|page|page["role"]=="coarse"));
+   assert!(primitive["hierarchy"]["errorObject"].as_f64().expect("error")>=0.0);
+   let source:Value=serde_json::from_slice(&fs::read(directory.join("source.gltf")).expect("source")).expect("json");
+   assert_eq!(source["materials"][0],material);assert!(result["autonomousScene"].is_null());
+  }
   fs::remove_dir_all(root).expect("cleanup");
  }
  #[test] fn compile_concatenates_multiple_buffers(){

@@ -1,5 +1,7 @@
 export const SDK_VERSION='0.1.0';
 export const FORMAT_VERSION=1;
+/** Outer cache format required for clustered BLEND; source manifests remain format 1. */
+export const CLUSTERED_BLEND_FORMAT_VERSION=2;
 /** Cache identity for the conservative object-space LOD distance bound and boundary validation. */
 export const LOD_ERROR_MODEL='bounds-diagonal-boundary-v1';
 export const DEFAULT_SCOPE:AssetScope='slice';
@@ -27,19 +29,21 @@ export interface BackendCapabilities { renderer:string; materials:string; hierar
 export interface GeometryPageDescriptor {url:string;sha256:string;bytes:number;formatVersion:2;codec:'meshopt';vertexCount:number;indexCount:number;flags:number;uncompressedBytes:number}
 export interface Page { id:number; url:string; sha256:string; bytes:number; count:number; min:number[];max:number[];role?:'exact'|'coarse';geometry?:GeometryPageDescriptor }
 export interface Tree { min:number[];max:number[];page?:number;children?:Tree[];errorObject?:number;coarsePages?:number[] }
-export interface Primitive {mesh:number;primitive:number;pass:string;pages:Page[];hierarchy:Tree|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
+export interface Primitive {mesh:number;primitive:number;pass:string;clusterStrategy?:'exact-source-order'|'greedy-adjacency';pages:Page[];hierarchy:Tree|null;topology?:{triangles:number;edges:{boundary:number;manifold:number;nonManifold:number};vertices:{interior:number;boundary:number;locked:number;unused:number};manifold:boolean}}
 export interface ClusterManifest {formatVersion?:number;compilerVersion?:string;errorModel?:string;simplification?:boolean;schema:number;status:string;key:string;scope:AssetScope;clusterStrategy?:string;sourceTriangles:number;selectedTriangles:number;selectedNodes:number[];totalNodes:number;autonomousScene?:string|null;primitives:Primitive[]}
 
 export class EngineError extends Error { readonly code:string; readonly details:Record<string,unknown>; constructor(code:string,message:string,details:Record<string,unknown>={}){super(message);this.name='EngineError';this.code=code;this.details=details;} }
 export interface PageSource {read(key:string,signal?:AbortSignal):Promise<Uint8Array>}
-export function assertFormat(formatVersion:number){if(formatVersion!==FORMAT_VERSION)throw new EngineError('UNSUPPORTED_FORMAT',`Expected format ${FORMAT_VERSION}, received ${formatVersion}`,{formatVersion});}
+export function assertFormat(formatVersion:number){if(formatVersion!==FORMAT_VERSION&&formatVersion!==CLUSTERED_BLEND_FORMAT_VERSION)throw new EngineError('UNSUPPORTED_FORMAT',`Expected cache format 1 or 2, received ${formatVersion}`,{formatVersion});}
 function cacheUsesLodError(metadata:ClusterManifest){
  if(metadata.simplification)return true;
  return metadata.primitives.some(primitive=>primitive.pages.some(page=>(page.role??'exact')==='coarse')||primitive.hierarchy?.errorObject!=null);
 }
 /** Rejects caches compiled before the certified conservative error identity. */
 export function assertCacheIdentity(metadata:ClusterManifest){
- assertFormat(metadata.formatVersion??metadata.schema);
+ const formatVersion=metadata.formatVersion??metadata.schema;assertFormat(formatVersion);
+ if(metadata.schema!==formatVersion)throw new EngineError('UNSUPPORTED_FORMAT','Cache schema and formatVersion differ',{schema:metadata.schema,formatVersion});
+ if(formatVersion!==CLUSTERED_BLEND_FORMAT_VERSION&&metadata.primitives.some(primitive=>primitive.pass==='clustered-blend'))throw new EngineError('UNSUPPORTED_FORMAT','clustered-blend requires cache format 2',{formatVersion});
  if(!cacheUsesLodError(metadata))return;
  if(metadata.errorModel!==LOD_ERROR_MODEL){
   throw new EngineError('STALE_CACHE',`Cache error model ${metadata.errorModel??'absent'} cannot be used; recompile with ${LOD_ERROR_MODEL}`,{errorModel:metadata.errorModel??null,expected:LOD_ERROR_MODEL});
