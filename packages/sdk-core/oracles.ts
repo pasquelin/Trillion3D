@@ -252,7 +252,7 @@ export function projectedErrorBound(
   return ((error * maxFocal) / min2) * Math.sqrt(1 + transverseSquared / (min2 * min2));
 }
 
-/** Screen-pixel LOD score from a stored object-space error. The stored value is a QEM energy accumulation, not a certified Hausdorff distance. */
+/** Screen-pixel LOD score from the stored conservative object-space distance bound. */
 export function lodScore(
   errorObject: number,
   errorScale: number,

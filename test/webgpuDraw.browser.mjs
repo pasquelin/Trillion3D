@@ -80,9 +80,9 @@ try{
   const visPipelines=['vis_vs','vis_hiz_vs'].map(entryPoint=>device.createRenderPipeline({layout:visPipelineLayout,vertex:{module:visModule,entryPoint},fragment:{module:visModule,entryPoint:'vis_fs',targets:[{format:'r32uint'}]},primitive:{topology:'triangle-list',cullMode:'none'}}));
   const visGroups=[];
   for(let slot=0;slot<7;slot++){
-   const bytes=new ArrayBuffer(80),f32=new Float32Array(bytes),u32=new Uint32Array(bytes);
-   f32.set([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);u32[16]=slot%6;u32[17]=slot<6?1:0;
-   const visUniform=makeBuffer(80,GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST);device.queue.writeBuffer(visUniform,0,bytes);
+   const bytes=new ArrayBuffer(96),f32=new Float32Array(bytes),u32=new Uint32Array(bytes);
+   f32.set([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);u32[20]=slot%6;u32[21]=slot<6?1:0;
+   const visUniform=makeBuffer(96,GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST);device.queue.writeBuffer(visUniform,0,bytes);
    visGroups.push(device.createBindGroup({layout:visLayout,entries:[
     ...[indices,positions,pageTable,flags,visUniform,uvs].map((buffer,binding)=>({binding,resource:{buffer}})),
     {binding:6,resource:mapsView},{binding:7,resource:sampler},
