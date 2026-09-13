@@ -102,37 +102,36 @@ test('a compact shader compilation error leaves GPU draw undefined',async()=>{
  assert.equal(await createGpuDraw(device,8),undefined);
 });
 
-test('GPU draw encode peeks the CPU compact and the mock kernel fills indirect+instances',async()=>{
+test('GPU draw uploads each item once without a CPU compact and exposes GPU slot offsets',async()=>{
  installGpuGlobals();
  const {device,buffers}=mockDrawDevice();
  const gpu=await createGpuDraw(device,8);
  assert.ok(gpu);
  assert.equal(gpu.indirectBuffer.size,6*DRAW_INDIRECT_STRIDE);
  assert.equal(gpu.indirectBuffer.usage&(GPUBufferUsage.INDIRECT|GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC),GPUBufferUsage.INDIRECT|GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC);
- assert.equal(gpu.peek(),null);
+
  const items:DrawItem[]=[
   {pageIndex:4,bin:BIN_BACK,rest:0},
   {pageIndex:1,bin:BIN_NONE,rest:0},
   {pageIndex:7,bin:BIN_BACK,rest:0},
  ];
+ let binReads=0;
+ const observed=items.map(item=>({...item,get bin(){binReads++;return item.bin;}}));
  const encoder=device.createCommandEncoder();
- gpu.encode(encoder,items,768);
- const peeked=gpu.peek();
- assert.ok(peeked);
- assert.equal(peeked.overflow,false);
- assert.deepEqual([...peeked.instances],[4,7,1]);
- const expectedNone=packDrawIndirect(768,1);expectedNone[3]=2;
- assert.deepEqual([...peeked.indirect.subarray(4,8)],[...expectedNone]);
+ gpu.encode(encoder,observed,768);
+ assert.equal(binReads,items.length,'CPU only serializes input; compaction belongs to the GPU');
  const indirect=buffers.find(buffer=>buffer.usage&GPUBufferUsage.INDIRECT)!;
  const words=new Uint32Array(indirect.data.buffer,indirect.data.byteOffset,indirect.data.byteLength/4);
  assert.deepEqual([...words.subarray(0,4)],[...packDrawIndirect(768,2)]);
  assert.deepEqual([...words.subarray(4,8)],[...packDrawIndirect(768,1)]);
  for(let s=0;s<6;s++)assert.equal(words[s*4+3],0);
- const instances=buffers.find(buffer=>buffer.size===8*4)!;
+ const instances=gpu.instanceBuffer as unknown as {data:Uint8Array};
  const ids=new Uint32Array(instances.data.buffer,instances.data.byteOffset,instances.data.byteLength/4);
  assert.deepEqual([...ids.subarray(0,3)],[4,7,1]);
+ const offsets=gpu.slotOffsetsBuffer as unknown as {data:Uint8Array};
+ assert.deepEqual([...new Uint32Array(offsets.data.buffer).subarray(0,6)],[0,2,3,3,3,3]);
  gpu.dispose();
- assert.equal(gpu.peek(),null);
+
 });
 
 function installGpuGlobals(){
@@ -175,9 +174,11 @@ function mockDrawDevice(options:{failCompile?:boolean}={}){
      const itemInts=new Uint32Array(itemBytes.buffer,itemBytes.byteOffset,itemBytes.byteLength/4);
      const n=Math.min(count,slotCap);
      const items:DrawItem[]=[];
-     for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*3],bin:itemInts[i*3+1] as 0|1|2,rest:itemInts[i*3+2] as 0|1});
+     for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*4],bin:itemInts[i*4+1] as 0|1|2,rest:itemInts[i*4+2] as 0|1});
      const source=count>slotCap?items.concat(Array.from({length:count-n},()=>({pageIndex:0,bin:0 as const,rest:0 as const}))):items;
      const result=evaluateDrawCompact(source,maxVertexCount,slotCap);
+     const offsets=byBinding.get(5)!.data;
+     new Uint32Array(offsets.buffer).set(Array.from({length:6},(_,slot)=>result.indirect[slot*4+3]));
      const instBytes=byBinding.get(2)!.data;
      new Uint32Array(instBytes.buffer,instBytes.byteOffset,instBytes.byteLength/4).set(result.instances);
      const indBytes=byBinding.get(3)!.data;
