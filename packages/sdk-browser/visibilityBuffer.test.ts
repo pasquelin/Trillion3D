@@ -7,7 +7,7 @@ import {opaqueBackgroundRgba,rasterPages} from './pageRaster.ts';
 test('the WebGPU display buffer starts with the shared opaque scene background',()=>{
  assert.deepEqual([...opaqueBackgroundRgba(2,1)],[0x17,0x1d,0x28,255,0x17,0x1d,0x28,255]);
 });
-import {packVisibilityId,unpackVisibilityId,rasterVisibilityIds,shadeVisibility,visibilityUvDerivatives,visMaterial,isTransmissive,VIS_INVALID,VIS_SHADER,SHADE_SHADER,type VisPage} from './visibilityBuffer.ts';
+import {packVisibilityId,unpackVisibilityId,rasterVisibilityIds,shadeVisibility,visibilityUvDerivatives,visMaterial,isTransmissive,VIS_INVALID,VIS_MAX_PAGES,VIS_MAX_PAGE_TRIANGLES,VIS_SHADER,VIS_TRIANGLE_MASK,assertVisibilityPageTriangles,SHADE_SHADER,type VisPage} from './visibilityBuffer.ts';
 
 function camera(){
  const cam=new THREE.PerspectiveCamera(55,1,.1,100);cam.position.z=5;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;
@@ -52,6 +52,25 @@ test('visibility ids pack a page and triangle and reserve 0 for the background',
  assert.deepEqual(unpackVisibilityId(packVisibilityId(2,7)),{pageIndex:2,triangleIndex:7});
  assert.notEqual(packVisibilityId(0,1),packVisibilityId(1,0));
  assert.throws(()=>packVisibilityId(-1,0));
+});
+test('a visibility id addresses 16.7 M pages and refuses a page of more than 256 triangles',()=>{
+ // Eight bits of triangle, twenty-four of page: a scene replicated nine times needs 394 254 rows,
+ // far past the 65 535 a 16/16 split allowed.
+ assert.equal(VIS_MAX_PAGE_TRIANGLES,256);
+ assert.ok(VIS_MAX_PAGES>=9*43806);
+ for(const page of [0,1,65535,65536,394253,VIS_MAX_PAGES-1]){
+  for(const triangle of [0,1,127,VIS_TRIANGLE_MASK]){
+   const id=packVisibilityId(page,triangle);
+   assert.ok(id>0&&id<=0xffffffff,`id out of range for ${page}/${triangle}`);
+   assert.deepEqual(unpackVisibilityId(id),{pageIndex:page,triangleIndex:triangle},`${page}/${triangle}`);
+  }
+ }
+ // Neighbouring rows must never share an identifier.
+ assert.equal(packVisibilityId(1,0)-packVisibilityId(0,VIS_TRIANGLE_MASK),1);
+ assert.throws(()=>packVisibilityId(VIS_MAX_PAGES,0),/VISIBILITY_ID_RANGE/);
+ assert.throws(()=>packVisibilityId(0,VIS_MAX_PAGE_TRIANGLES),/VISIBILITY_ID_RANGE/);
+ assert.equal(assertVisibilityPageTriangles(VIS_MAX_PAGE_TRIANGLES),VIS_MAX_PAGE_TRIANGLES);
+ assert.throws(()=>assertVisibilityPageTriangles(VIS_MAX_PAGE_TRIANGLES+1,'cluster.bin'),/VISIBILITY_PAGE_TRIANGLES: 257 .*cluster\.bin/);
 });
 
 test('visibility ids are stable for the same pose and differ per triangle',()=>{

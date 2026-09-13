@@ -16,7 +16,7 @@ import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {applyTemporalHiz,projectBoxToScreen,sameHizView,splitOccluders,type HizBounds,type TemporalHizState} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
 import {BIN_BACK,BIN_FRONT,BIN_NONE,createGpuDraw,type DrawItem,type GpuDraw} from './gpuDraw.ts';
-import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_SHADER,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
+import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_MAX_PAGES,VIS_MAX_PAGE_TRIANGLES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
@@ -299,8 +299,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const gpuWanted:PageRec[]=bootstrap.filter(page=>!page.transparent);
  const copiesByUrl=new Map<string,number>();let maxCopies=1;
  for(const page of packedPages){const n=(copiesByUrl.get(page.url)??0)+1;copiesByUrl.set(page.url,n);maxCopies=Math.max(maxCopies,n);}
- // Visibility IDs reserve 16 bits for row+1 (zero means background).
- const drawSlots=Math.max(1,Math.min(0xffff,packedPages.length,slots*maxCopies));
+ // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
+ const drawSlots=Math.max(1,Math.min(VIS_MAX_PAGES,packedPages.length,slots*maxCopies));
  let gpuFrameActive=false,gpuMetricsReady=false;
  const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
  const untexturedMaterials='Untextured source color; double-sided when the material is';
@@ -611,7 +611,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const maxVertexCount=Math.max(1,pageBytes/4);
   const useIndirect=!!gpuDraw&&items.length<=drawSlots;
   const tableRows=packed.length;
-  if(tableRows>0xffff)throw new Error('VISIBILITY_ID_RANGE');
+  if(tableRows>VIS_MAX_PAGES)throw new Error(`VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`);
   const tableBytes=Math.max(PAGE_INFO_STRIDE,tableRows*PAGE_INFO_STRIDE);
   if(!pageTable||pageTable.size<tableBytes){pageTable?.destroy();shadeBindGroup=undefined;visBindGroup=undefined;visHizBindGroup=undefined;visSlotGroups.clear();pageTable=device.createBuffer({size:tableBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});}
   const pageFloats=new Float32Array(tableBytes/4),pageInts=new Uint32Array(pageFloats.buffer);
@@ -628,7 +628,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(roughLayer||metalLayer)flags|=FLAG_HAS_ORM;if(nrmLayer)flags|=FLAG_HAS_NORMAL_MAP;
    if(mat.map&&mat.map.wrapS!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_S_REPEAT;
    if(mat.map&&mat.map.wrapT!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_T_REPEAT;
-   pageInts[base+22]=layer;pageInts[base+23]=flags;pageInts[base+24]=item.resident.offset/4;pageInts[base+25]=item.index.length;pageInts[base+26]=geo?.vertexBase??0;pageInts[base+27]=((row+1)<<16)>>>0;
+   // A page holding more triangles than the identifier's eight low bits would alias the next page.
+   assertVisibilityPageTriangles(item.index.length/3,item.rec.url);
+   pageInts[base+22]=layer;pageInts[base+23]=flags;pageInts[base+24]=item.resident.offset/4;pageInts[base+25]=item.index.length;pageInts[base+26]=geo?.vertexBase??0;pageInts[base+27]=((row+1)<<VIS_TRIANGLE_BITS)>>>0;
    pageFloats[base+28]=scale[0];pageFloats[base+29]=scale[1];pageInts[base+30]=clusterHash(item.rec.clusterId);
    pageInts[base+31]=restSlot.has(item.rec)?restSlot.get(item.rec)!:0xffffffff;
    pageInts[base+32]=roughLayer;pageInts[base+33]=metalLayer;pageInts[base+34]=nrmLayer;pageFloats[base+35]=mat.normalScale;
@@ -649,6 +651,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const base=slot*64;
    visUniPacked.set(viewProj.elements,base);
    visUniPacked[base+16]=width;visUniPacked[base+17]=height;visUniPacked[base+18]=gpuSmall?7:0;
+   // The compute raster splits the page row over two dispatch dimensions; it needs the live count.
+   visInts[base+19]=tableRows;
    visInts[base+20]=Math.max(0,slot-1);visInts[base+21]=slot===0?0:1;
    visInts[base+22]=gpuFrameActive?(gpuSelection?.maskOffset??0):0;visInts[base+23]=gpuFrameActive?1:0;
   }
