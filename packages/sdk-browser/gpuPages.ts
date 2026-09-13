@@ -26,6 +26,7 @@ export function createGpuPageCache(device:GPUDevice,source:PageSource,options:{p
     const page={key,slot,offset:slot*pageBytes,bytes:bytes.byteLength,generation:++generation};resident.set(key,page);return page;
    }finally{fetches.delete(key);}});pending=operation.catch(()=>{});return operation;},
   get(key:string){return resident.get(key);},pin(key:string){check();if(!resident.has(key))throw new Error('PAGE_NOT_RESIDENT');pins.add(key);},unpin(key:string){pins.delete(key);},
+  unload(key:string){const page=resident.get(key);if(!page||pins.has(key))return false;resident.delete(key);free.push(page.slot);evictions++;return true;},
   stats(){return {allocatedBytes:size,residentPages:resident.size,bytesRead,uploadedBytes,evictions,physicalVramBytes:null};},
   dispose(){if(disposed)return pending.then(()=>{});disposed=true;abort.abort();resident.clear();pins.clear();pending=pending.catch(()=>{}).then(async()=>{try{await device.queue.onSubmittedWorkDone();}catch{/* Queue may already be lost. */}buffer.destroy();});return pending;},
  };

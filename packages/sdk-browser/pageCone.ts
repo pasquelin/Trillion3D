@@ -60,12 +60,27 @@ export function perspectiveSpread(center:[number,number,number],radius:number,ca
  return Math.asin(t<0?0:t>1?1:t);
 }
 
-export function coneCullsPage(cone:NormalCone,world:THREE.Matrix4,min:number[],max:number[],camera:THREE.PerspectiveCamera):boolean{
+export function isConformal(world:THREE.Matrix4){
+ const e=world.elements;
+ const lx2=e[0]*e[0]+e[1]*e[1]+e[2]*e[2],ly2=e[4]*e[4]+e[5]*e[5]+e[6]*e[6],lz2=e[8]*e[8]+e[9]*e[9]+e[10]*e[10];
+ const maxl=Math.max(lx2,ly2,lz2),minl=Math.min(lx2,ly2,lz2);
+ if(maxl>minl*1.0001+1e-12)return false;
+ const eps=maxl*1e-4+1e-12;
+ return Math.abs(e[0]*e[4]+e[1]*e[5]+e[2]*e[6])<=eps&&Math.abs(e[0]*e[8]+e[1]*e[9]+e[2]*e[10])<=eps&&Math.abs(e[4]*e[8]+e[5]*e[9]+e[6]*e[10])<=eps;
+}
+
+export function coneCullsPage(cone:NormalCone,world:THREE.Matrix4,min:number[],max:number[],camera:THREE.PerspectiveCamera,material?:THREE.Material|THREE.Material[]):boolean{
+ if(material){
+  const side=Array.isArray(material)?material[0]?.side:material.side;
+  if(side===THREE.DoubleSide||side===THREE.BackSide)return false;
+ }
+ if(!isConformal(world))return false;
  if(cone.angle>=Math.PI/2)return false;
- const {box,normal,axis,center,cam}=scratch;
- box.min.fromArray(min);box.max.fromArray(max);box.applyMatrix4(world);
- center.addVectors(box.min,box.max).multiplyScalar(0.5);
- const radius=Math.hypot((box.max.x-box.min.x)*0.5,(box.max.y-box.min.y)*0.5,(box.max.z-box.min.z)*0.5);
+ const {normal,axis,center,cam}=scratch;
+ const e=world.elements;
+ const scale=Math.hypot(e[0],e[1],e[2]);
+ center.set((min[0]+max[0])*0.5,(min[1]+max[1])*0.5,(min[2]+max[2])*0.5).applyMatrix4(world);
+ const radius=Math.hypot((max[0]-min[0])*0.5,(max[1]-min[1])*0.5,(max[2]-min[2])*0.5)*scale;
  camera.updateMatrixWorld();
  camera.getWorldPosition(cam);
  const spread=perspectiveSpread([center.x,center.y,center.z],radius,[cam.x,cam.y,cam.z]);
