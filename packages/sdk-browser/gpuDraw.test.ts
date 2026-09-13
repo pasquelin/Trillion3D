@@ -55,9 +55,11 @@ test('overflow zeros instance counts in every indirect slot',()=>{
  assert.equal(result.instances.length,0);
 });
 
-test('draw shader compacts on one thread without atomics',()=>{
+test('draw shader counts and scatters page groups in parallel with stable order',()=>{
  assert.match(DRAW_SHADER,/@compute @workgroup_size\(1\)/);
- assert.match(DRAW_SHADER,/fn compactDraws/);
+ assert.match(DRAW_SHADER,/@compute @workgroup_size\(64\)\s*fn countGroups/);
+ assert.match(DRAW_SHADER,/@compute @workgroup_size\(64\)\s*fn scatterGroups/);
+ assert.match(DRAW_SHADER,/fn prefixGroups/);
  assert.doesNotMatch(DRAW_SHADER,/atomicAdd/);
  assert.match(DRAW_SHADER,/rest\s*\*\s*3u\s*\+\s*item\.bin/);
  assert.match(DRAW_SHADER,/indirect\[o\+3u\]=0u/);
@@ -164,7 +166,7 @@ function mockDrawDevice(options:{failCompile?:boolean}={}){
     setPipeline(next:{entryPoint:string}){pipeline=next;},
     setBindGroup(_i:number,group:typeof bind){bind=group;},
     dispatchWorkgroups(){
-     if(pipeline?.entryPoint!=='compactDraws'||!bind)return;
+     if(pipeline?.entryPoint!=='scatterGroups'||!bind)return;
      const byBinding=new Map(bind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
      const uniBytes=byBinding.get(1)!.data;
      const uni=new Uint32Array(uniBytes.buffer,uniBytes.byteOffset,uniBytes.byteLength/4);

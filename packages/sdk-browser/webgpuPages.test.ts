@@ -169,7 +169,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
     setBindGroup(_i:number,group:typeof computeBind){computeBind=group;},
     dispatchWorkgroups(){
      if(computePipeline?.entryPoint)computes.push(computePipeline.entryPoint);
-     if(computePipeline?.entryPoint==='compactDraws'&&computeBind){
+     if(computePipeline?.entryPoint==='scatterGroups'&&computeBind){
       const byBinding=new Map(computeBind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
       const uniBytes=byBinding.get(1)!.data;
       const uni=new Uint32Array(uniBytes.buffer,uniBytes.byteOffset,uniBytes.byteLength/4);
@@ -216,7 +216,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   },
  };
  if(packed||enableHiz)device.createComputePipeline=({compute}:{compute:{entryPoint:string}})=>{
-  if(failCompact&&compute.entryPoint==='compactDraws')throw new Error('NO_COMPACT');
+  if(failCompact&&compute.entryPoint==='scatterGroups')throw new Error('NO_COMPACT');
   return compute;
  };
  return {device:device as unknown as GPUDevice,draws,writes,textures,passes,computes,layouts,imageCopies,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
