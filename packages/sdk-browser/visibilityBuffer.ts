@@ -1,12 +1,18 @@
+import {NORMAL_TRANSFORM_WGSL} from './standardLighting.ts';
 import * as THREE from 'three';
 import {HIZ_BACKGROUND} from '../sdk-core/index.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 
 export const VIS_INVALID=0;
 export const PAGE_INFO_STRIDE=256;
-export const FLAG_LIT=1,FLAG_DOUBLE=2,FLAG_HAS_UV=4,FLAG_HAS_MAP=8,FLAG_HAS_NORMAL=16,FLAG_WRAP_S_REPEAT=32,FLAG_WRAP_T_REPEAT=64,FLAG_MASK=128,FLAG_BACK=256,FLAG_HAS_ORM=512,FLAG_HAS_NORMAL_MAP=1024;
+export const FLAG_LIT=1,FLAG_DOUBLE=2,FLAG_HAS_UV=4,FLAG_HAS_MAP=8,FLAG_HAS_NORMAL=16,FLAG_WRAP_S_REPEAT=32,FLAG_WRAP_T_REPEAT=64,FLAG_MASK=128,FLAG_BACK=256,FLAG_HAS_ORM=512,FLAG_HAS_NORMAL_MAP=1024,FLAG_HAS_TANGENT=2048;
 const normalScratch=new THREE.Matrix3();
 const projectScratch=new THREE.Vector3();
+// CPU diagnostic oracle: reuse its tangent frame instead of allocating per pixel.
+const frameNormals=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
+const frameTangents=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
+const frameBitangents=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()];
+const frameN=new THREE.Vector3(),frameT=new THREE.Vector3(),frameB=new THREE.Vector3(),frameQ=new THREE.Vector3();
 
 export type VisPage={
  array:Uint32Array;
@@ -29,6 +35,7 @@ export type VisMaterial={
  roughnessMap?:THREE.Texture;
  normalMap?:THREE.Texture;
  normalScale:number;
+ normalScaleY:number;
  aoMap?:THREE.Texture;
  aoIntensity:number;
  emissive:[number,number,number];
@@ -67,6 +74,7 @@ export function visMaterial(material:THREE.Material|THREE.Material[]):VisMateria
   roughnessMap:lit&&std.roughnessMap?std.roughnessMap:undefined,
   normalMap:lit&&std.normalMap?std.normalMap:undefined,
   normalScale:lit&&std.normalScale?std.normalScale.x:1,
+  normalScaleY:lit&&std.normalScale?std.normalScale.y:1,
   aoMap:lit&&std.aoMap?std.aoMap:undefined,
   aoIntensity:lit?std.aoMapIntensity:1,
   emissive:lit?[std.emissive.r*std.emissiveIntensity,std.emissive.g*std.emissiveIntensity,std.emissive.b*std.emissiveIntensity]:[0,0,0],
@@ -262,31 +270,38 @@ function shadePixel(id:number,pages:VisPage[],camera:THREE.PerspectiveCamera,vie
   let nx=tri.b.worldX-tri.a.worldX,ny=tri.b.worldY-tri.a.worldY,nz=tri.b.worldZ-tri.a.worldZ;
   const cx=tri.c.worldX-tri.a.worldX,cy=tri.c.worldY-tri.a.worldY,cz=tri.c.worldZ-tri.a.worldZ;
   let Nx=ny*cz-nz*cy,Ny=nz*cx-nx*cz,Nz=nx*cy-ny*cx;
-  const nAttr=page.attributes.normal?attr3(page.attributes.normal,tri.i0,tri.i1,tri.i2,bary.w0,bary.w1,bary.w2):null;
-  if(nAttr&&(nAttr[0]||nAttr[1]||nAttr[2])){
-   normalScratch.getNormalMatrix(page.matrix);
-   const e=normalScratch.elements;
-   Nx=e[0]*nAttr[0]+e[3]*nAttr[1]+e[6]*nAttr[2];Ny=e[1]*nAttr[0]+e[4]*nAttr[1]+e[7]*nAttr[2];Nz=e[2]*nAttr[0]+e[5]*nAttr[1]+e[8]*nAttr[2];
-  }
-  let nLen=Math.hypot(Nx,Ny,Nz);if(nLen===0)nLen=1;Nx/=nLen;Ny/=nLen;Nz/=nLen;
+  const screenFace=affine.area*tri.a.invW*tri.b.invW*tri.c.invW<0?1:-1;
+  const face=screenFace*(page.matrix.determinant()<0?-1:1),side=mat.backSide?-1:1;
+  const normalAttr=page.attributes.normal,tangentAttr=page.attributes.tangent;
+  normalScratch.getNormalMatrix(page.matrix);
+  const vertexNormals=normalAttr?frameNormals:null;
+  if(normalAttr)for(let j=0;j<3;j++)frameNormals[j].fromBufferAttribute(normalAttr,j===0?tri.i0:j===1?tri.i1:tri.i2).applyMatrix3(normalScratch).normalize().multiplyScalar(side);
+  if(vertexNormals){
+   const n=frameN.copy(vertexNormals[0]).multiplyScalar(bary.w0).addScaledVector(vertexNormals[1],bary.w1).addScaledVector(vertexNormals[2],bary.w2).normalize();
+   if(mat.doubleSided)n.multiplyScalar(face);Nx=n.x;Ny=n.y;Nz=n.z;
+  }else{const length=Math.hypot(Nx,Ny,Nz)||1;Nx*=screenFace/length;Ny*=screenFace/length;Nz*=screenFace/length;}
   if(mat.normalMap){
    const nrm=sampleLinear(mat.normalMap,uv[0],uv[1]);
-   const mapN=[(nrm[0]*2-1)*mat.normalScale, (nrm[1]*2-1)*mat.normalScale, nrm[2]*2-1];
-   const uva=attr2(page.attributes.uv,tri.i0,tri.i1,tri.i2,1,0,0),uvb=attr2(page.attributes.uv,tri.i0,tri.i1,tri.i2,0,1,0),uvc=attr2(page.attributes.uv,tri.i0,tri.i1,tri.i2,0,0,1);
-   const du1=uvb[0]-uva[0],dv1=uvb[1]-uva[1],du2=uvc[0]-uva[0],dv2=uvc[1]-uva[1],det=du1*dv2-du2*dv1;
-   if(det!==0){
-    const inv=1/det;
-    let Tx=(nx*dv2-cx*dv1)*inv,Ty=(ny*dv2-cy*dv1)*inv,Tz=(nz*dv2-cz*dv1)*inv;
-    const tLen=Math.hypot(Tx,Ty,Tz)||1;Tx/=tLen;Ty/=tLen;Tz/=tLen;
-    let Bx=Ny*Tz-Nz*Ty,By=Nz*Tx-Nx*Tz,Bz=Nx*Ty-Ny*Tx;
-    const bLen=Math.hypot(Bx,By,Bz)||1;Bx/=bLen;By/=bLen;Bz/=bLen;
-    Nx=Tx*mapN[0]+Bx*mapN[1]+Nx*mapN[2];Ny=Ty*mapN[0]+By*mapN[1]+Ny*mapN[2];Nz=Tz*mapN[0]+Bz*mapN[1]+Nz*mapN[2];
-    nLen=Math.hypot(Nx,Ny,Nz)||1;Nx/=nLen;Ny/=nLen;Nz/=nLen;
+   const mapN=[(nrm[0]*2-1)*mat.normalScale,(nrm[1]*2-1)*mat.normalScaleY,nrm[2]*2-1];
+   let T:THREE.Vector3,B:THREE.Vector3;
+   if(tangentAttr&&vertexNormals){
+    const tangents=frameTangents,bitangents=frameBitangents;
+    for(let j=0;j<3;j++){const i=j===0?tri.i0:j===1?tri.i1:tri.i2;tangents[j].fromBufferAttribute(tangentAttr,i).transformDirection(page.matrix).multiplyScalar(side);bitangents[j].crossVectors(vertexNormals[j],tangents[j]).multiplyScalar(tangentAttr.getW(i)).normalize();}
+    T=frameT.copy(tangents[0]).multiplyScalar(bary.w0).addScaledVector(tangents[1],bary.w1).addScaledVector(tangents[2],bary.w2).normalize();
+    B=frameB.copy(bitangents[0]).multiplyScalar(bary.w0).addScaledVector(bitangents[1],bary.w1).addScaledVector(bitangents[2],bary.w2).normalize();
+   }else{
+    const uva=attr2(page.attributes.uv,tri.i0,tri.i1,tri.i2,1,0,0),uvb=attr2(page.attributes.uv,tri.i0,tri.i1,tri.i2,0,1,0),uvc=attr2(page.attributes.uv,tri.i0,tri.i1,tri.i2,0,0,1);
+    const du1=uvb[0]-uva[0],dv1=uvb[1]-uva[1],du2=uvc[0]-uva[0],dv2=uvc[1]-uva[1];
+    const q1=frameN.set(cy*Nz-cz*Ny,cz*Nx-cx*Nz,cx*Ny-cy*Nx);
+    const q0=frameQ.set(Ny*nz-Nz*ny,Nz*nx-Nx*nz,Nx*ny-Ny*nx);
+    T=frameT.copy(q1).multiplyScalar(du1).addScaledVector(q0,du2);B=frameB.copy(q1).multiplyScalar(dv1).addScaledVector(q0,dv2);
+    const scale=screenFace/Math.sqrt(Math.max(T.lengthSq(),B.lengthSq(),1e-20));T.multiplyScalar(scale);B.multiplyScalar(scale);
    }
+   if(mat.doubleSided&&normalAttr){T.multiplyScalar(face);B.multiplyScalar(face);}
+   const n=T.multiplyScalar(mapN[0]).addScaledVector(B,mapN[1]).addScaledVector(frameN.set(Nx,Ny,Nz),mapN[2]).normalize();Nx=n.x;Ny=n.y;Nz=n.z;
   }
   const vx=camera.position.x-world[0],vy=camera.position.y-world[1],vz=camera.position.z-world[2],vLen=Math.hypot(vx,vy,vz)||1;
   const V=[vx/vLen,vy/vLen,vz/vLen];
-  if(Nx*V[0]+Ny*V[1]+Nz*V[2]<0){Nx=-Nx;Ny=-Ny;Nz=-Nz;}
   const Lraw=[1,3,2],lLen=Math.hypot(Lraw[0],Lraw[1],Lraw[2]),L=[Lraw[0]/lLen,Lraw[1]/lLen,Lraw[2]/lLen];
   const NdotL=Math.max(0,Nx*L[0]+Ny*L[1]+Nz*L[2]),up=Ny*0.5+0.5;
   const groundColor=new THREE.Color(0x495061);
@@ -344,7 +359,7 @@ export function visibilityUvDerivatives(ids:Uint32Array,pages:VisPage[],camera:T
  return uvDerivatives(tri.a,tri.b,tri.c,uva,uvb,uvc,x,y);
 }
 
-export const VIS_SHADER=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,pad0:u32,emissive:vec4f,emissiveUvScale:vec2f,pad1:vec2f,pad4:vec4f,pad5:vec4f,}
+export const VIS_SHADER=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,pad0:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,pad5:vec4f,}
 struct Uniforms{viewProj:mat4x4f,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read> positions:array<f32>;
@@ -403,8 +418,8 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 }
 `;
 
-export const SHADE_SHADER=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,pad0:u32,emissive:vec4f,emissiveUvScale:vec2f,pad1:vec2f,pad4:vec4f,pad5:vec4f,}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,camPos:vec4f,lightDir:vec4f,hemiSky:vec4f,hemiGround:vec4f,background:vec4f,pad2:vec4f,pad3:vec4f,pad4:vec4f,pad5:vec4f,pad6:vec4f,}
+export const SHADE_SHADER=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,pad0:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,pad5:vec4f,}
+struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,padding:array<vec4f,10>,}
 @group(0) @binding(0) var vis:texture_2d<u32>;
 @group(0) @binding(1) var<storage, read> indices:array<u32>;
 @group(0) @binding(2) var<storage, read> positions:array<f32>;
@@ -415,29 +430,17 @@ struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,
 @group(0) @binding(7) var mapsSampler:sampler;
 @group(0) @binding(8) var<uniform> uni:ShadeUni;
 @group(0) @binding(9) var dataMaps:texture_2d_array<f32>;
-fn aces(color:vec3f)->vec3f{
- var c=color/0.6;
- c=mat3x3f(vec3f(0.59719,0.07600,0.02840),vec3f(0.35458,0.90834,0.13383),vec3f(0.04823,0.01566,0.83777))*c;
- let a=c*(c+0.0245786)-0.000090537;let b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
- c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
- return clamp(c,vec3f(0.0),vec3f(1.0));
-}
-fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
 fn hashColor(id:u32)->vec3f{let x=f32(id);return fract(sin(vec3f(x,x*1.37,x*2.17)*vec3f(12.9898,78.233,45.164))*43758.5453);}
 fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}
 fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
-fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
+fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
+fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let a=m[0];let b=m[1];let c=m[2];
- let det=dot(a,cross(b,c));
- if(abs(det)<1e-20){return v;}
- return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
-}
-fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return normalize(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
-}
+${NORMAL_TRANSFORM_WGSL}
+struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,}
+fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u);}
+fn diagnosticSurface(color:vec3f)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u);}
 fn framebuffer(clip:vec4f)->vec3f{
  let ndc=clip.xyz/clip.w;
  return vec3f((ndc.x*0.5+0.5)*uni.viewport.x,(-ndc.y*0.5+0.5)*uni.viewport.y,ndc.z);
@@ -445,14 +448,14 @@ fn framebuffer(clip:vec4f)->vec3f{
 @vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
  let x=f32(i32(i&1u)*4-1);let y=f32(i32(i>>1u)*4-1);return vec4f(x,y,0.0,1.0);
 }
-@fragment fn shade_fs(@builtin(position) pos:vec4f)->@location(0) vec4f{
+@fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  let coord=vec2<i32>(i32(pos.x),i32(pos.y));
  let id=textureLoad(vis,coord,0).r;
- if(id==0u){return uni.background;}
+ if(id==0u){return emptySurface();}
  let pageIndex=(id>>16u)-1u;let tri=id&0xffffu;
- if(pageIndex>=uni.pageCount){return uni.background;}
+ if(pageIndex>=uni.pageCount){return emptySurface();}
  let page=pages[pageIndex];
- if(tri*3u+2u>=page.indexCount){return uni.background;}
+ if(tri*3u+2u>=page.indexCount){return emptySurface();}
  let base=page.pageOffset+tri*3u;
  let i0=indices[base];let i1=indices[base+1u];let i2=indices[base+2u];
  let p0=vertPos(page.vertexBase,i0);let p1=vertPos(page.vertexBase,i1);let p2=vertPos(page.vertexBase,i2);
@@ -476,7 +479,7 @@ fn framebuffer(clip:vec4f)->vec3f{
  if((page.flags&4u)!=0u){
   uv=vertUv(page.vertexBase,i0)*bary.x+vertUv(page.vertexBase,i1)*bary.y+vertUv(page.vertexBase,i2)*bary.z;
  }
- if((page.flags&8u)!=0u){
+ if((page.flags&4u)!=0u){
   let uva=vertUv(page.vertexBase,i0);let uvb=vertUv(page.vertexBase,i1);let uvc=vertUv(page.vertexBase,i2);
   let dxb=s1.x-s0.x;let dyb=s1.y-s0.y;let dxc=s2.x-s0.x;let dyc=s2.y-s0.y;let det=dxb*dyc-dxc*dyb;
   if(det!=0.0){
@@ -506,61 +509,48 @@ fn framebuffer(clip:vec4f)->vec3f{
  if(page.normalIndex!=0u){nrmSample=textureSampleGrad(dataMaps,mapsSampler,wrapD*page.normalUvScale,i32(page.normalIndex),ddx*page.normalUvScale,ddy*page.normalUvScale);}
  if((page.flags&8u)!=0u){
   rgb=rgb*sample.xyz;
-  if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return uni.background;}
+  if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return emptySurface();}
  }
  if(uni.mode==1u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
-  return vec4f(mix(hashColor(id)*0.7,vec3f(0.04,0.05,0.07),edgeW),1.0);
+  return diagnosticSurface(mix(hashColor(id)*0.7,vec3f(0.04,0.05,0.07),edgeW));
  }
- if(uni.mode==2u){return vec4f(hashColor(page.clusterHash),1.0);}
- if(uni.mode==3u){return vec4f(0.204,0.827,0.6,1.0);}
+ if(uni.mode==2u){return diagnosticSurface(hashColor(page.clusterHash));}
+ if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6));}
  var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,0.0525,1.0);
- if((page.flags&1u)!=0u){
-  var N=normalize(cross((w1-w0).xyz,(w2-w0).xyz));
+ // Original vertices may straddle the near plane; recover the clipped winding.
+  let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
+  let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
+  let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
+  let side=select(1.0,-1.0,(page.flags&256u)!=0u);
+  var n0=xformNormal(page.world,vertN(page.vertexBase,i0))*side;
+  var n1=xformNormal(page.world,vertN(page.vertexBase,i1))*side;
+  var n2=xformNormal(page.world,vertN(page.vertexBase,i2))*side;
+  var N=normalize(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if((page.flags&16u)!=0u){
-   let na=vertN(page.vertexBase,i0)*bary.x+vertN(page.vertexBase,i1)*bary.y+vertN(page.vertexBase,i2)*bary.z;
-   if(dot(na,na)>0.0){N=xformNormal(page.world,na);}
+   N=normalize(n0*bary.x+n1*bary.y+n2*bary.z);
+   if((page.flags&2u)!=0u){N*=face;}
   }
   if(page.normalIndex!=0u){
    let nrm=nrmSample.xyz*2.0-vec3f(1.0);
-   let mapN=vec3f(nrm.x*page.normalScale,nrm.y*page.normalScale,nrm.z);
-   let e1=(w1-w0).xyz;let e2=(w2-w0).xyz;
-   let uva=vertUv(page.vertexBase,i0);let uvb=vertUv(page.vertexBase,i1);let uvc=vertUv(page.vertexBase,i2);
-   let duv1=uvb-uva;let duv2=uvc-uva;let det=duv1.x*duv2.y-duv2.x*duv1.y;
-   if(abs(det)>1e-12){
-    let T=normalize((e1*duv2.y-e2*duv1.y)/det);
-    let B=normalize(cross(N,T));
-    N=normalize(T*mapN.x+B*mapN.y+N*mapN.z);
+   let mapN=vec3f(nrm.x*page.normalScale,nrm.y*page.normalScaleY,nrm.z);
+   var T=vec3f(0.0);var B=vec3f(0.0);
+   if((page.flags&2048u)!=0u){
+    let ta=vertT(page.vertexBase,i0);let tb=vertT(page.vertexBase,i1);let tc=vertT(page.vertexBase,i2);
+    let t0=normalize(world3*ta.xyz)*side;let t1=normalize(world3*tb.xyz)*side;let t2=normalize(world3*tc.xyz)*side;
+    T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
+    B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
+   }else{
+    let e1=(w1-w0).xyz;let e2=(w2-w0).xyz;
+    let uva=vertUv(page.vertexBase,i0);let uvb=vertUv(page.vertexBase,i1);let uvc=vertUv(page.vertexBase,i2);
+    let duv1=uvb-uva;let duv2=uvc-uva;
+    T=(cross(e2,N)*duv1.x+cross(N,e1)*duv2.x)*screenFace;
+    B=(cross(e2,N)*duv1.y+cross(N,e1)*duv2.y)*screenFace;
+    let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));T*=scale;B*=scale;
    }
+   if((page.flags&2u)!=0u&&(page.flags&16u)!=0u){T*=face;B*=face;}
+   N=normalize(T*mapN.x+B*mapN.y+N*mapN.z);
   }
-  let world=w0.xyz*bary.x+w1.xyz*bary.y+w2.xyz*bary.z;
-  let V=normalize(uni.camPos.xyz-world);
-  if(dot(N,V)<0.0){N=-N;}
-  let L=normalize(uni.lightDir.xyz);
-  let NdotL=max(dot(N,L),0.0);
-  let NdotV=max(dot(N,V),1e-4);
-  let up=N.y*0.5+0.5;
-  let hemi=mix(uni.hemiGround.xyz,uni.hemiSky.xyz,up);
-  let direct=uni.lightDir.w*NdotL;
-  let H=normalize(L+V);
-  let NdotH=max(dot(N,H),0.0);
-  let VdotH=max(dot(V,H),0.0);
-  let alpha=max(rough*rough,0.001);
-  let alpha2=alpha*alpha;
-  let dDenom=(NdotH*NdotH*(alpha2-1.0)+1.0);
-  let D=alpha2/(3.14159265*dDenom*dDenom);
-  let gV=NdotL*sqrt(NdotV*NdotV*(1.0-alpha2)+alpha2);
-  let gL=NdotV*sqrt(NdotL*NdotL*(1.0-alpha2)+alpha2);
-  let Vis=0.5/(gV+gL+1e-7);
-  let f0=mix(vec3f(0.04),rgb,metal);
-  let F=f0+(vec3f(1.0)-f0)*pow(clamp(1.0-VdotH,0.0,1.0),5.0);
-  let spec=D*Vis*F;
-  // Same punctual and hemispherical irradiance contract as Three.js MeshStandardMaterial.
-  // A hemisphere light contributes diffuse irradiance, not an environment reflection.
-  let diffuse=rgb*(1.0-metal)/3.14159265;
-  rgb=diffuse*(hemi*ao+vec3f(direct))+spec*direct+emissive;
-  return vec4f(linearToSrgb(aces(rgb)),1.0);
- }
- return vec4f(linearToSrgb(aces(rgb)),1.0);
+ return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),select(1u,2u,(page.flags&1u)!=0u));
 }
 `;

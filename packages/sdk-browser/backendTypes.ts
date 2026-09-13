@@ -8,17 +8,21 @@ export type {AssetScope,PreparationProgress,CameraPose,FrameMetrics,BackendCapab
 export interface RenderBackend {
  id:string; capabilities:BackendCapabilities;
  setDiagnostic?(mode:DiagnosticMode):void;
+ refreshSceneLighting?():void;
  prepare():Promise<void>;
  render(camera:THREE.PerspectiveCamera):void;
  readonly overBudget:boolean;
  scene:THREE.Scene;
- metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'>&{drawCalls?:number};
+ metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'>&{drawCalls?:number};
  pendingUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
  dropPage?(url:string):void;
  syncResident?():void;
  flush?():Promise<void>;
+ /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
+ capture?():Uint8Array;
+ captureSurfaceView?(camera:THREE.PerspectiveCamera,options:{width:number;height:number;signal?:AbortSignal}):Promise<import('./surfaceBuffer.ts').SurfaceCapture>;
  rasterRgba?():Uint8Array;
  visibilityIds?():Uint32Array;
  dispose():void;
@@ -40,6 +44,11 @@ export interface BackendContext {
  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
  viewport?:[number,number];
  gpuDevice?:GPUDevice;
+ /** A host canvas dedicated to this WebGPU backend. */
+ gpuCanvas?:HTMLCanvasElement;
+ /** WebGPU frame targets, Hi-Z pyramids, one surface capture and async image staging; excludes scene assets and WebGL diagnostic capture. */
+ maxFrameAllocationBytes?:number;
+ sceneLighting?:THREE.Object3D;
 }
 export type BackendFactory = (context:BackendContext)=>RenderBackend;
 export type PointOfInterest = {id:string;label:string;pose:CameraPose};
@@ -67,4 +76,7 @@ export interface ExplorerOptions {
  comparisonPair?:[string,string];
  gpu?:GPU;
  pointsOfInterest?:PointOfInterest[];
+ maxFrameAllocationBytes?:number;
+ sceneLighting?:THREE.Object3D;
+ logInterval?:number;
 }

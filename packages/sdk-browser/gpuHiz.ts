@@ -213,7 +213,7 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
     encodePyramid(encoder){
      if(disposed||!bindGroup||!pyramid)return;
      writeUni(device,uniforms,uniData,[gpu.width,gpu.height,0],0);
-     const copy=encoder.beginComputePass();
+     const copy=encoder.beginComputePass({label:'WG HiZ depth copy'});
      copy.setPipeline(copyPipeline);copy.setBindGroup(0,bindGroup,[0]);
      copy.dispatchWorkgroups(Math.max(1,Math.ceil(gpu.width/WORKGROUP)),Math.max(1,Math.ceil(gpu.height/WORKGROUP)));
      copy.end();
@@ -222,7 +222,7 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
       let srcOffset=0;for(let k=0;k<i;k++)srcOffset+=sizes[k][0]*sizes[k][1];
       const dstOffset=srcOffset+srcW*srcH;
       writeUni(device,uniforms,uniData,[srcOffset,srcW,srcH,dstOffset,dstW,dstH],(i+1)*UNIFORM_BYTES);
-      const reduce=encoder.beginComputePass();
+      const reduce=encoder.beginComputePass({label:'WG HiZ reduction'});
       reduce.setPipeline(reducePipeline);reduce.setBindGroup(0,bindGroup,[(i+1)*UNIFORM_BYTES]);
       reduce.dispatchWorkgroups(Math.max(1,Math.ceil(dstW/WORKGROUP)),Math.max(1,Math.ceil(dstH/WORKGROUP)));
       reduce.end();
@@ -242,7 +242,7 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
      const biasBits=new Uint32Array(new Float32Array([0]).buffer)[0];
      const testSlot=MAX_LEVELS+1;
      writeUni(queueDevice,uniforms,uniData,[gpu.width,gpu.height,count,biasBits],testSlot*UNIFORM_BYTES);
-     const pass=encoder.beginComputePass();
+     const pass=encoder.beginComputePass({label:'WG HiZ test'});
      pass.setPipeline(testPipeline);pass.setBindGroup(0,bindGroup,[testSlot*UNIFORM_BYTES]);
      pass.dispatchWorkgroups(Math.max(1,Math.ceil(count/TEST_WORKGROUP)));
      pass.end();
