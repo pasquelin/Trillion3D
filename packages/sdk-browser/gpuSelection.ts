@@ -2,7 +2,7 @@ import {lodScore, type Tree} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import {OPEN_CONE,coneCullsPage,type NormalCone} from './pageCone.ts';
 
-const NONE=0xFFFFFFFF,CULLED=1,COARSE=2,CONE_CULLED=4,NODE_FLOATS=8,NODE_META=8,PAGE_CONE_FLOATS=12,UNIFORM_BYTES=256,WORKGROUP=64;
+const NONE=0xFFFFFFFF,CULLED=1,COARSE=2,CONE_CULLED=4,COVERED=8,NODE_FLOATS=8,NODE_META=8,PAGE_CONE_FLOATS=12,UNIFORM_BYTES=256,WORKGROUP=64;
 const FLAG_HAS_ERROR=1;
 
 export type SelectionUniforms={planes:Float32Array;view:Float32Array;pixelScale:[number,number];pixelError:number;near:number;cameraWorld:[number,number,number]};
@@ -10,10 +10,16 @@ export type PackedForest={
  nodes:Float32Array;meta:Uint32Array;extras:Uint32Array;worlds:Float32Array;cones:Float32Array;pageCones:Float32Array;
  nodeCount:number;rootCount:number;worldCount:number;childOffset:number;rootOffset:number;pageCount:number;pageUrls:string[];
 };
-export type SelectionResult={pageIds:number[];frustumRejected:number;lodLevel:number};
+export type SelectionResult={pageIds:number[];frustumRejected:number;lodLevel:number;complete?:boolean;drawablePageIds?:number[]};
 export type GpuCut={uniforms:SelectionUniforms;result:SelectionResult};
 export type GpuSelection={
+ readonly residentCut:boolean;
+ readonly maskBuffer:GPUBuffer;
+ /** Index in u32 words of the current-frame drawable page mask. */
+ readonly maskOffset:number;
+ readonly pageCount:number;
  updateWorlds(worldMatrices:Float32Array):boolean;
+ updateResidency(resident:Uint32Array):boolean;
  dispatch(uniforms:SelectionUniforms):void;
  peek():GpuCut|null;
  failed():boolean;
@@ -25,7 +31,7 @@ const scratch={box:new THREE.Box3(),min:new THREE.Vector3(),max:new THREE.Vector
 const planeScratch=new Float32Array(24),viewScratch=new Float32Array(16);
 
 export const SELECTION_SHADER=`struct Node{min:vec3f,errorObject:f32,max:vec3f,pad0:f32,page:u32,coarseStart:u32,coarseCount:u32,childStart:u32,childCount:u32,depth:u32,flags:u32,worldIndex:u32,}
-struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,nodeCount:u32,rootCount:u32,childOffset:u32,rootOffset:u32,cameraWorld:vec3f,}
+struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,nodeCount:u32,rootCount:u32,childOffset:u32,rootOffset:u32,cameraWorld:vec3f,residentCut:u32,}
 struct Output{count:u32,frustumRejected:u32,lodLevel:u32,overflow:u32,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> nodes:array<Node>;
 @group(0) @binding(1) var<storage, read> extras:array<u32>;
@@ -35,7 +41,7 @@ struct Output{count:u32,frustumRejected:u32,lodLevel:u32,overflow:u32,pages:arra
 @group(0) @binding(5) var<storage, read_write> stack:array<u32>;
 @group(0) @binding(6) var<storage, read> worlds:array<mat4x4f>;
 @group(0) @binding(7) var<storage, read> cones:array<vec4f>;
-struct PageCone{cone:vec4f,min:vec3f,hasBox:f32,max:vec3f,pad:f32,}
+struct PageCone{cone:vec4f,min:vec3f,hasBox:f32,max:vec3f,resident:f32,}
 @group(0) @binding(8) var<storage, read> pageCones:array<PageCone>;
 struct Bounds{min:vec3f,max:vec3f,}
 fn applyPoint(m:mat4x4f,p:vec3f)->vec3f{let v=m*vec4f(p,1.0);return v.xyz;}
@@ -126,6 +132,21 @@ fn emitOne(page:u32){
  out.pages[slot]=page;out.count=slot+1u;
 }
 fn emitPages(node:Node){for(var k=0u;k<node.coarseCount;k++){let page=extras[node.coarseStart+k];if(pageConeCulled(page,node)){continue;}emitOne(page);}}
+fn coarseResident(node:Node)->bool{
+ if(node.coarseCount==0u){return false;}
+ for(var k=0u;k<node.coarseCount;k++){if(pageCones[extras[node.coarseStart+k]].resident==0.0){return false;}}
+ return true;
+}
+fn childrenCovered(node:Node)->bool{
+ for(var k=0u;k<node.childCount;k++){if((flags[extras[node.childStart+k]]&8u)==0u){return false;}}
+ return true;
+}
+fn maskCoarse(node:Node){
+ for(var k=0u;k<node.coarseCount;k++){
+  let page=extras[node.coarseStart+k];
+  if(!pageConeCulled(page,node)){flags[uni.nodeCount+page]=1u;}
+ }
+}
 fn push(value:u32,sp:ptr<function,u32>)->bool{
  let cap=arrayLength(&stack);
  if(*sp>=cap){out.overflow=1u;return false;}
@@ -142,6 +163,7 @@ fn flagNodes(@builtin(global_invocation_id) id:vec3u){
 @compute @workgroup_size(1)
 fn resolveSelection(){
  out.count=0u;out.frustumRejected=0u;out.lodLevel=0u;out.overflow=0u;
+ if(uni.residentCut!=0u){for(var page=0u;page<arrayLength(&pageCones);page++){flags[uni.nodeCount+page]=0u;}}
  var sp=0u;
  for(var r=0u;r<uni.rootCount;r++){if(!push(extras[uni.rootOffset+r],&sp)){return;}}
  while(sp>0u){
@@ -152,6 +174,37 @@ fn resolveSelection(){
   if((flags[index]&4u)!=0u){continue;}
   if((flags[index]&2u)!=0u){out.lodLevel=max(out.lodLevel,node.depth);emitPages(node);continue;}
   if(node.page!=0xffffffffu){emitOne(node.page);continue;}
+  var c=node.childCount;
+  while(c>0u){c=c-1u;if(!push(extras[node.childStart+c],&sp)){return;}}
+ }
+ if(uni.residentCut==0u){return;}
+ // Children precede parents in the packed forest. Establish full resident
+ // coverage before emitting any page so a missing child replaces its siblings.
+ for(var i=0u;i<uni.nodeCount;i++){
+  let node=nodes[i];let f=flags[i];
+  var covered=(f&5u)!=0u;
+  if(!covered){
+   if(node.page!=0xffffffffu){covered=pageCones[node.page].resident!=0.0||coarseResident(node);}
+   else{covered=childrenCovered(node)||coarseResident(node);}
+  }
+  if(covered){flags[i]=f|8u;}
+ }
+ for(var r=0u;r<uni.rootCount;r++){
+  if((flags[extras[uni.rootOffset+r]]&8u)==0u){out.overflow=out.overflow|2u;return;}
+ }
+ sp=0u;
+ for(var r=0u;r<uni.rootCount;r++){if(!push(extras[uni.rootOffset+r],&sp)){return;}}
+ while(sp>0u){
+  sp=sp-1u;let index=stack[sp];let node=nodes[index];let f=flags[index];
+  if((f&5u)!=0u){continue;}
+  let coarse=coarseResident(node);
+  if((f&2u)!=0u&&coarse){maskCoarse(node);continue;}
+  if(node.page!=0xffffffffu){
+   if(pageCones[node.page].resident!=0.0){flags[uni.nodeCount+node.page]=1u;}
+   else if(coarse){maskCoarse(node);}
+   continue;
+  }
+  if(!childrenCovered(node)&&coarse){maskCoarse(node);continue;}
   var c=node.childCount;
   while(c>0u){c=c-1u;if(!push(extras[node.childStart+c],&sp)){return;}}
  }
@@ -343,11 +396,58 @@ export function evaluateSelectionKernel(packed:PackedForest,uniforms:SelectionUn
  return {pageIds,frustumRejected,lodLevel};
 }
 
-function writeUniforms(target:Float32Array,packed:PackedForest,uniforms:SelectionUniforms){
+/** CPU oracle for the same-frame resident mask; the renderer does not call this. */
+export function evaluateResidentSelectionKernel(packed:PackedForest,uniforms:SelectionUniforms,resident:Uint32Array){
+ if(resident.length!==packed.pageCount)throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
+ const wanted=evaluateSelectionKernel(packed,uniforms),flags=new Uint32Array(packed.nodeCount),pageIds:number[]=[];
+ const coarseResident=(index:number)=>{
+  const ints=index*NODE_META,start=packed.meta[ints+1],count=packed.meta[ints+2];
+  if(!count)return false;
+  for(let k=0;k<count;k++)if(!resident[packed.extras[start+k]])return false;
+  return true;
+ };
+ const childrenCovered=(index:number)=>{
+  const ints=index*NODE_META,start=packed.meta[ints+3],count=packed.meta[ints+4];
+  for(let k=0;k<count;k++)if(!(flags[packed.extras[start+k]]&COVERED))return false;
+  return true;
+ };
+ for(let i=0;i<packed.nodeCount;i++){
+  const flag=nodeFlags(packed,uniforms,i),page=packed.meta[i*NODE_META];
+  const covered=!!(flag&(CULLED|CONE_CULLED))||(page!==NONE?!!resident[page]:childrenCovered(i))||coarseResident(i);
+  flags[i]=flag|(covered?COVERED:0);
+ }
+ let complete=true;
+ for(let r=0;r<packed.rootCount;r++)if(!(flags[packed.extras[packed.rootOffset+r]]&COVERED))complete=false;
+ let lodLevel=0;
+ const emitCoarse=(index:number)=>{
+  const ints=index*NODE_META,start=packed.meta[ints+1],count=packed.meta[ints+2];
+  lodLevel=Math.max(lodLevel,packed.meta[ints+5]);nodeWorld(packed,index);
+  const min=[scratch.min.x,scratch.min.y,scratch.min.z],max=[scratch.max.x,scratch.max.y,scratch.max.z];
+  for(let k=0;k<count;k++){
+   const page=packed.extras[start+k];
+   if(!pageEmitCulled(packed,uniforms,page,scratch.world,min,max))pageIds.push(page);
+  }
+ };
+ const visit=(index:number)=>{
+  const f=flags[index];if(f&(CULLED|CONE_CULLED))return;
+  const ints=index*NODE_META,coarse=coarseResident(index);
+  if((f&COARSE)&&coarse){emitCoarse(index);return;}
+  const page=packed.meta[ints];
+  if(page!==NONE){if(resident[page])pageIds.push(page);else if(coarse)emitCoarse(index);return;}
+  if(!childrenCovered(index)&&coarse){emitCoarse(index);return;}
+  const start=packed.meta[ints+3],count=packed.meta[ints+4];
+  for(let k=0;k<count;k++)visit(packed.extras[start+k]);
+ };
+ if(complete)for(let r=0;r<packed.rootCount;r++)visit(packed.extras[packed.rootOffset+r]);
+ return {wanted,drawn:{pageIds,frustumRejected:wanted.frustumRejected,lodLevel},complete};
+}
+
+function writeUniforms(target:Float32Array,packed:PackedForest,uniforms:SelectionUniforms,residentCut=false){
  target.fill(0);target.set(uniforms.planes,0);target.set(uniforms.view,24);target[40]=uniforms.pixelScale[0];target[41]=uniforms.pixelScale[1];target[42]=uniforms.pixelError;target[43]=uniforms.near;
  const ints=new Uint32Array(target.buffer,target.byteOffset,target.length);
  ints[44]=packed.nodeCount;ints[45]=packed.rootCount;ints[46]=packed.childOffset;ints[47]=packed.rootOffset;
  const cw=uniforms.cameraWorld;if(cw){target[48]=cw[0];target[49]=cw[1];target[50]=cw[2];}
+ ints[51]=residentCut?1:0;
 }
 
 function interleaveNodes(packed:PackedForest){
@@ -361,26 +461,34 @@ function interleaveNodes(packed:PackedForest){
  return bytes;
 }
 
-function parseOutput(bytes:ArrayBufferLike,byteOffset=0,byteLength=bytes.byteLength):SelectionResult|null{
+function parseOutput(bytes:ArrayBufferLike,byteOffset=0,byteLength=bytes.byteLength,maskPageCount=0):SelectionResult|null{
  const ints=new Uint32Array(bytes,byteOffset,Math.floor(byteLength/4));
- if((ints[3]??0)!==0)return null;
- const count=Math.min(ints[0]??0,Math.max(0,ints.length-4));
- return {pageIds:[...ints.subarray(4,4+count)],frustumRejected:ints[1]??0,lodLevel:ints[2]??0};
+ if(((ints[3]??0)&1)!==0)return null;
+ const count=Math.min(ints[0]??0,Math.max(0,ints.length-4-maskPageCount));
+ const result:SelectionResult={pageIds:[...ints.subarray(4,4+count)],frustumRejected:ints[1]??0,lodLevel:ints[2]??0,complete:((ints[3]??0)&2)===0};
+ if(maskPageCount){
+  result.drawablePageIds=[];
+  const offset=ints.length-maskPageCount;
+  for(let i=0;i<maskPageCount;i++)if(ints[offset+i])result.drawablePageIds.push(i);
+ }
+ return result;
 }
 
 /** WebGPU frustum + lodScore cut. Returns undefined so the caller keeps the CPU oracle silently. */
-export async function createGpuSelection(device:GPUDevice,packed:PackedForest):Promise<GpuSelection|undefined>{
+export async function createGpuSelection(device:GPUDevice,packed:PackedForest,options:{residentCut?:boolean}={}):Promise<GpuSelection|undefined>{
  if(typeof device.createComputePipeline!=='function'||packed.nodeCount<1)return undefined;
  const pageCount=Math.max(1,packed.pageCount),nodeCount=packed.nodeCount;
- const extrasBytes=Math.max(4,packed.extras.byteLength),flagsBytes=Math.max(4,nodeCount*4),outputBytes=16+pageCount*4;
+ const residentCut=!!options.residentCut;
+ const extrasBytes=Math.max(4,packed.extras.byteLength),flagsBytes=Math.max(4,(nodeCount+(residentCut?packed.pageCount:0))*4),outputBytes=16+pageCount*4;
+ const readbackBytes=outputBytes+(residentCut?packed.pageCount*4:0);
  const worldBytes=Math.max(64,packed.worlds.byteLength),stackBytes=Math.max(4,nodeCount*4),coneBytes=Math.max(16,packed.cones.byteLength);
  const pageConeBytes=Math.max(48,packed.pageCones.byteLength);
  const uniformData=new Float32Array(UNIFORM_BYTES/4);
- let last:GpuCut|null=null,lastSubmitted:SelectionUniforms|undefined,pending:Promise<unknown>=Promise.resolve(),disposed=false,dead=false,worldRevision=0;
+ let last:GpuCut|null=null,lastSubmitted:SelectionUniforms|undefined,lastReadback:SelectionUniforms|undefined,pending:Promise<unknown>=Promise.resolve(),disposed=false,dead=false,worldRevision=0,residencyRevision=0,submittedResidencyRevision=-1,readbackResidencyRevision=-1;
  const mapped=[false,false];let slot=0;
  const buffers:GPUBuffer[]=[];
  const nodeBytes=interleaveNodes(packed);
- const fail=()=>{dead=true;last=null;lastSubmitted=undefined;};
+ const fail=()=>{dead=true;last=null;lastSubmitted=undefined;lastReadback=undefined;};
  try{
   const nodes=device.createBuffer({size:nodeBytes.byteLength,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
   const extras=device.createBuffer({size:extrasBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
@@ -392,8 +500,8 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
   const cones=device.createBuffer({size:coneBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
   const pageCones=device.createBuffer({size:pageConeBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
   const readback=[
-   device.createBuffer({size:outputBytes,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),
-   device.createBuffer({size:outputBytes,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),
+   device.createBuffer({size:readbackBytes,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),
+   device.createBuffer({size:readbackBytes,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),
   ];
   buffers.push(nodes,extras,uniforms,flags,output,stack,worlds,cones,pageCones,...readback);
   if(typeof device.pushErrorScope==='function')device.pushErrorScope('validation');
@@ -439,45 +547,79 @@ export async function createGpuSelection(device:GPUDevice,packed:PackedForest):P
   const pageConeCopy=new Uint8Array(pageConeBytes);if(packed.pageCones.byteLength)pageConeCopy.set(new Uint8Array(packed.pageCones.buffer,packed.pageCones.byteOffset,packed.pageCones.byteLength));
   device.queue.writeBuffer(pageCones,0,pageConeCopy);
   const previousWorlds=packed.worlds.slice();
-  return {
+  const selection:GpuSelection={
+   residentCut,maskBuffer:flags,maskOffset:nodeCount,pageCount:packed.pageCount,
    updateWorlds(next){
     if(disposed||dead)return false;
     if(next.byteLength!==packed.worlds.byteLength)throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
     let changed=false;for(let j=0;j<next.length;j++)if(previousWorlds[j]!==next[j]){changed=true;break;}
     if(!changed)return false;
     previousWorlds.set(next);packed.worlds.set(next);device.queue.writeBuffer(worlds,0,next.buffer as ArrayBuffer,next.byteOffset,next.byteLength);
-    worldRevision++;last=null;lastSubmitted=undefined;
+    worldRevision++;last=null;lastSubmitted=undefined;lastReadback=undefined;
+    return true;
+   },
+   updateResidency(next){
+    if(disposed||dead||!residentCut)return false;
+    if(next.length!==packed.pageCount)throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
+    let changed=false;
+    for(let j=0;j<next.length;j++){
+     const index=j*PAGE_CONE_FLOATS+11,value=next[j]?1:0;
+     if(packed.pageCones[index]!==value){packed.pageCones[index]=value;changed=true;}
+    }
+    if(!changed)return false;
+    device.queue.writeBuffer(pageCones,0,packed.pageCones as Float32Array<ArrayBuffer>);
+    residencyRevision++;last=null;
     return true;
    },
    dispatch(next){
     if(disposed||dead)return;
-    if(lastSubmitted&&sameSelectionUniforms(lastSubmitted,next))return;
-    const i=slot;if(mapped[i])return;
-    writeUniforms(uniformData,packed,next);device.queue.writeBuffer(uniforms,0,uniformData);
+    const compute=!lastSubmitted||!sameSelectionUniforms(lastSubmitted,next)||submittedResidencyRevision!==residencyRevision;
+    const needsReadback=!lastReadback||!sameSelectionUniforms(lastReadback,next)||readbackResidencyRevision!==residencyRevision;
+    const i=!mapped[slot]?slot:!mapped[slot^1]?slot^1:-1;
+    const copy=needsReadback&&i>=0;
+    if((!compute&&!copy)||(!residentCut&&i<0))return;
     const encoder=device.createCommandEncoder();
-    const pass=encoder.beginComputePass();
-    pass.setPipeline(flagPipeline);pass.setBindGroup(0,bindGroup);pass.dispatchWorkgroups(Math.max(1,Math.ceil(packed.nodeCount/WORKGROUP)));
-    pass.setPipeline(resolvePipeline);pass.setBindGroup(0,bindGroup);pass.dispatchWorkgroups(1);
-    pass.end();
-    encoder.copyBufferToBuffer(output,0,readback[i],0,outputBytes);
+    if(compute){
+     writeUniforms(uniformData,packed,next,residentCut);device.queue.writeBuffer(uniforms,0,uniformData);
+     const pass=encoder.beginComputePass();
+     pass.setPipeline(flagPipeline);pass.setBindGroup(0,bindGroup);pass.dispatchWorkgroups(Math.max(1,Math.ceil(packed.nodeCount/WORKGROUP)));
+     pass.setPipeline(resolvePipeline);pass.setBindGroup(0,bindGroup);pass.dispatchWorkgroups(1);
+     pass.end();
+     lastSubmitted=copySelectionUniforms(next);submittedResidencyRevision=residencyRevision;
+    }
+    if(copy){
+     encoder.copyBufferToBuffer(output,0,readback[i],0,outputBytes);
+     if(residentCut)encoder.copyBufferToBuffer(flags,nodeCount*4,readback[i],outputBytes,packed.pageCount*4);
+    }
     device.queue.submit([encoder.finish()]);
-    const captured=copySelectionUniforms(next),capturedWorldRevision=worldRevision;
-    lastSubmitted=captured;mapped[i]=true;slot^=1;
+    if(!copy)return;
+    const captured=copySelectionUniforms(next),capturedWorldRevision=worldRevision,capturedResidencyRevision=residencyRevision;
+    lastReadback=captured;readbackResidencyRevision=residencyRevision;mapped[i]=true;slot=i^1;
     pending=pending.catch(()=>{}).then(async()=>{
      try{
       await readback[i].mapAsync(GPUMapMode.READ);
-      const parsed=parseOutput(readback[i].getMappedRange());
+      const bytes=readback[i].getMappedRange();
+      const parsed=parseOutput(bytes,0,bytes.byteLength,residentCut?packed.pageCount:0);
       readback[i].unmap();mapped[i]=false;
       if(!parsed){fail();return;}
-      if(capturedWorldRevision===worldRevision)last={uniforms:captured,result:parsed};
+      if(capturedWorldRevision===worldRevision&&capturedResidencyRevision===residencyRevision)last={uniforms:captured,result:parsed};
      }catch{try{readback[i].unmap();}catch{/* Mapping may already be closed. */}mapped[i]=false;fail();}
     });
    },
    peek(){return dead?null:last;},
    failed(){return dead;},
-   async flush(){await pending;return dead?null:last?.result??null;},
+   async flush(){
+    await pending;
+    // The mask is always current, but a busy ring may have skipped its copy.
+    // A flush can now copy that completed output without dispatching it again.
+    if(residentCut&&!dead&&lastSubmitted&&submittedResidencyRevision===residencyRevision&&(!lastReadback||!sameSelectionUniforms(lastReadback,lastSubmitted)||readbackResidencyRevision!==residencyRevision)){
+     selection.dispatch(lastSubmitted);await pending;
+    }
+    return dead?null:last?.result??null;
+   },
    dispose(){disposed=true;dead=true;pending=pending.catch(()=>{});for(const buffer of buffers)buffer.destroy();},
   };
+  return selection;
  }catch{
   if(typeof device.popErrorScope==='function')await device.popErrorScope().catch(()=>{});
   for(const buffer of buffers)try{buffer.destroy();}catch{/* Partial GPU selection setup must not leak. */}

@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import type {Tree} from '../sdk-core/index.ts';
 import {selectVisiblePages} from './pageSelection.ts';
-import {cameraSelectionUniforms,createGpuSelection,evaluateSelectionKernel,packSelectionForest,SELECTION_SHADER} from './gpuSelection.ts';
+import {cameraSelectionUniforms,createGpuSelection,evaluateSelectionKernel,evaluateResidentSelectionKernel,packSelectionForest,SELECTION_SHADER} from './gpuSelection.ts';
 
 type Rec={id:number;url:string;triangles:number;seen:number;cone?:{axis:[number,number,number];angle:number}};
 
@@ -264,7 +264,133 @@ test('a failed readback marks GPU selection dead',async()=>{
  selection!.dispose();
 });
 
-function mockSelectionDevice(packed:ReturnType<typeof packSelectionForest>,options:{failMap?:boolean}={}){
+test('resident GPU cut keeps the complete coarse cover until all visible fine pages arrive',()=>{
+ const packed=packSelectionForest(forest(lodPages,lodTree));
+ const uniforms=cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]);
+ const partial=evaluateResidentSelectionKernel(packed,uniforms,new Uint32Array([1,0,1]));
+ assert.deepEqual(partial.wanted.pageIds,[0,1]);
+ assert.deepEqual(partial.drawn.pageIds,[2]);
+ assert.equal(partial.complete,true);
+ const ready=evaluateResidentSelectionKernel(packed,uniforms,new Uint32Array([1,1,1]));
+ assert.deepEqual(ready.drawn.pageIds,[0,1]);
+});
+
+test('resident GPU cut updates visibility with the current camera even when wanted readback is old',()=>{
+ const pages=recs([{id:0,url:'left',count:3},{id:1,url:'right',count:3}]);
+ const tree:Tree={min:[-1,-1,0],max:[102,1,0],children:[
+  {min:[-1,-1,0],max:[1,1,0],page:0},
+  {min:[100,-1,0],max:[102,1,0],page:1},
+ ]};
+ const packed=packSelectionForest(forest(pages,tree)),resident=new Uint32Array([1,1]);
+ const home=evaluateResidentSelectionKernel(packed,cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]),resident);
+ const away=evaluateResidentSelectionKernel(packed,cameraSelectionUniforms(cameraAt(101,0,5,101,0,0),0,[960,540]),resident);
+ assert.deepEqual(home.drawn.pageIds,[0]);
+ assert.deepEqual(away.drawn.pageIds,[1]);
+});
+
+test('resident GPU cut never submits a partial root when no complete replacement is resident',()=>{
+ const packed=packSelectionForest(forest(lodPages,lodTree));
+ const cut=evaluateResidentSelectionKernel(packed,cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]),new Uint32Array([1,0,0]));
+ assert.deepEqual(cut.wanted.pageIds,[0,1]);
+ assert.deepEqual(cut.drawn.pageIds,[]);
+ assert.equal(cut.complete,false);
+});
+
+test('resident GPU cut matches complete CPU fallback cuts across residency and LOD transitions',()=>{
+ const roots=forest(lodPages,lodTree),packed=packSelectionForest(roots);
+ for(const pixelError of [0,10,1000])for(const cam of [cameraAt(0,0,5),cameraAt(0,0,50),cameraAt(0,0,5,0,0,10)]){
+  for(let bits=0;bits<8;bits++){
+   const resident=Uint32Array.from({length:3},(_,i)=>(bits>>i)&1);
+   const cpu=selectVisiblePages(roots,cam,{pixelError,viewport:[960,540],frame:1,holdResident:true,isResident:page=>!!resident[page.id]});
+   const gpu=evaluateResidentSelectionKernel(packed,cameraSelectionUniforms(cam,pixelError,[960,540]),resident);
+   assert.equal(gpu.complete,cpu.complete,`coverage mismatch: ${bits}/${pixelError}`);
+   if(cpu.complete)assert.deepEqual(gpu.drawn.pageIds.map(id=>packed.pageUrls[id]).sort(),cpu.shown.map(page=>page.url).sort(),`cut mismatch: ${bits}/${pixelError}`);
+  }
+ }
+});
+
+test('resident GPU masks preserve separate page identities for repeated geometry instances',()=>{
+ const pages=recs([{id:0,url:'shared',count:3}]);
+ const tree:Tree={min:[-1,-1,0],max:[1,1,0],page:0};
+ const packed=packSelectionForest([{tree,world:identityWorld(),pages},{tree,world:new THREE.Matrix4().setPosition(100,0,0),pages}]);
+ const resident=new Uint32Array([1,1]);
+ const left=evaluateResidentSelectionKernel(packed,cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]),resident);
+ const right=evaluateResidentSelectionKernel(packed,cameraSelectionUniforms(cameraAt(100,0,5,100,0,0),0,[960,540]),resident);
+ assert.deepEqual(left.drawn.pageIds,[0]);assert.deepEqual(right.drawn.pageIds,[1]);
+});
+
+test('resident GPU coverage chooses the nearest complete ancestor without drawing sibling overlap',()=>{
+ const pages=recs(Array.from({length:5},(_,id)=>({id,url:String(id),count:3})));
+ const tree:Tree={min:[-2,-1,0],max:[2,1,0],coarsePages:[4],errorObject:1,children:[
+  {min:[-2,-1,0],max:[0,1,0],coarsePages:[3],errorObject:0.01,children:[
+   {min:[-2,-1,0],max:[-1,1,0],page:0},
+   {min:[-1,-1,0],max:[0,1,0],page:1},
+  ]},
+  {min:[0,-1,0],max:[2,1,0],page:2},
+ ]};
+ const roots=forest(pages,tree),packed=packSelectionForest(roots),camera=cameraAt(0,0,5);
+ const uniforms=cameraSelectionUniforms(camera,0,[960,540]);
+ for(let bits=0;bits<32;bits++){
+  const resident=Uint32Array.from({length:5},(_,id)=>(bits>>id)&1);
+  const cpu=selectVisiblePages(roots,camera,{pixelError:0,viewport:[960,540],frame:1,holdResident:true,isResident:page=>!!resident[page.id]});
+  const gpu=evaluateResidentSelectionKernel(packed,uniforms,resident);
+  assert.equal(gpu.complete,cpu.complete);
+  if(cpu.complete)assert.deepEqual([...gpu.drawn.pageIds].sort(),cpu.shown.map(page=>page.id).sort());
+ }
+ assert.deepEqual(evaluateResidentSelectionKernel(packed,uniforms,new Uint32Array([1,0,1,1,1])).drawn.pageIds,[3,2]);
+ assert.deepEqual(evaluateResidentSelectionKernel(packed,uniforms,new Uint32Array([1,0,1,0,1])).drawn.pageIds,[4]);
+});
+
+test('resident GPU mask changes for each camera even while both readback slots are busy',async()=>{
+ installGpuGlobals();
+ let release!:()=>void;
+ const gate=new Promise<void>(resolve=>{release=resolve;});
+ const packed=packSelectionForest(forest(quadPages,quadTree));
+ const {device,uniformWrites}=mockSelectionDevice(packed,{mapGate:gate});
+ const selection=await createGpuSelection(device,packed,{residentCut:true});assert.ok(selection);
+ selection.updateResidency(new Uint32Array([1,1]));
+ selection.dispatch(cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]));
+ selection.dispatch(cameraSelectionUniforms(cameraAt(0,0,5,0,0,10),0,[960,540]));
+ selection.dispatch(cameraSelectionUniforms(cameraAt(0,0,6),0,[960,540]));
+ assert.equal(uniformWrites(),3);
+ const mask=new Uint32Array((selection.maskBuffer as unknown as {data:Uint8Array}).data.buffer).slice(selection.maskOffset);
+ assert.deepEqual([...mask],[1,1]);
+ release();await selection.flush();
+ assert.equal(selection.peek()?.uniforms.cameraWorld[2],6);
+ assert.equal(uniformWrites(),3,'catching readback up copies the mask without repeating selection');
+ selection.dispose();
+});
+
+test('resident GPU mask recomputes for residency changes with an unchanged camera',async()=>{
+ installGpuGlobals();
+ const packed=packSelectionForest(forest(lodPages,lodTree));
+ const {device,uniformWrites}=mockSelectionDevice(packed);
+ const selection=await createGpuSelection(device,packed,{residentCut:true});assert.ok(selection);
+ const uniforms=cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]);
+ selection.updateResidency(new Uint32Array([1,0,1]));selection.dispatch(uniforms);
+ assert.deepEqual((await selection.flush())?.drawablePageIds,[2]);
+ const mask=()=>[...new Uint32Array((selection.maskBuffer as unknown as {data:Uint8Array}).data.buffer).slice(selection.maskOffset)];
+ assert.deepEqual(mask(),[0,0,1]);
+ selection.updateResidency(new Uint32Array([1,1,1]));assert.equal(selection.peek(),null);selection.dispatch(uniforms);
+ assert.deepEqual((await selection.flush())?.drawablePageIds,[0,1]);
+ assert.equal(uniformWrites(),2);assert.deepEqual(mask(),[1,1,0]);
+ selection.dispose();
+});
+
+test('readback from an older resident cut cannot restore invalidated drawable page diagnostics',async()=>{
+ installGpuGlobals();let release!:()=>void;
+ const gate=new Promise<void>(resolve=>{release=resolve;});
+ const packed=packSelectionForest(forest(lodPages,lodTree));
+ const {device}=mockSelectionDevice(packed,{mapGate:gate});
+ const selection=await createGpuSelection(device,packed,{residentCut:true});assert.ok(selection);
+ selection.updateResidency(new Uint32Array([1,0,1]));
+ selection.dispatch(cameraSelectionUniforms(cameraAt(0,0,5),0,[960,540]));
+ selection.updateResidency(new Uint32Array([1,1,1]));
+ release();assert.equal(await selection.flush(),null);assert.equal(selection.peek(),null);
+ selection.dispose();
+});
+
+function mockSelectionDevice(packed:ReturnType<typeof packSelectionForest>,options:{failMap?:boolean;mapGate?:Promise<void>}={}){
  const buffers:Array<{size:number;usage:number;data:Uint8Array}>=[];
  let bind:{entries:Array<{binding:number;resource:{buffer:(typeof buffers)[number]}}>} | undefined;
  let pipeline:{entryPoint:string}|undefined,uniformWriteCount=0;
@@ -272,7 +398,7 @@ function mockSelectionDevice(packed:ReturnType<typeof packSelectionForest>,optio
   limits:{maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},
   createBuffer:({size,usage}:{size:number;usage:number})=>{
    const data=new Uint8Array(size);
-   const buffer={size,usage,data,destroy(){},mapAsync:async()=>{if(options.failMap)throw new Error('MAP_FAILED');},getMappedRange:()=>data.buffer,unmap(){}};
+   const buffer={size,usage,data,destroy(){},mapAsync:async()=>{if(options.failMap)throw new Error('MAP_FAILED');await options.mapGate;},getMappedRange:()=>data.buffer,unmap(){}};
    buffers.push(buffer);return buffer;
   },
   createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
@@ -292,6 +418,13 @@ function mockSelectionDevice(packed:ReturnType<typeof packSelectionForest>,optio
      const ints=new Uint32Array(out.buffer,out.byteOffset,out.byteLength/4);
      ints[0]=result.pageIds.length;ints[1]=result.frustumRejected;ints[2]=result.lodLevel;ints[3]=0;
      ints.set(result.pageIds,4);
+     if(new Uint32Array(byBinding.get(2)!.data.buffer)[51]){
+      const resident=Uint32Array.from({length:packed.pageCount},(_,id)=>packed.pageCones[id*12+11]);
+      const cut=evaluateResidentSelectionKernel(packed,readUniforms(byBinding.get(2)!.data),resident);
+      const flags=new Uint32Array(byBinding.get(3)!.data.buffer);flags.fill(0,packed.nodeCount);
+      for(const id of cut.drawn.pageIds)flags[packed.nodeCount+id]=1;
+      if(!cut.complete)ints[3]|=2;
+     }
     },
     end(){},
    }),

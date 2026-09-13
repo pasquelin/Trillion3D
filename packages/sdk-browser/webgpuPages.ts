@@ -13,7 +13,7 @@ import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {applyTemporalHiz,projectBoxToScreen,splitOccluders,type HizBounds,type TemporalHizState} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
-import {BIN_BACK,BIN_FRONT,BIN_NONE,compactSlotLayout,createGpuDraw,evaluateDrawCompact,type DrawItem,type GpuDraw,type SlotLayout} from './gpuDraw.ts';
+import {BIN_BACK,BIN_FRONT,BIN_NONE,createGpuDraw,type DrawItem,type GpuDraw} from './gpuDraw.ts';
 import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_SHADER,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode} from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -272,6 +272,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let gpuSelection:GpuSelection|undefined;
  const packedPages:PageRec[]=roots.flatMap(root=>root.pages);
  const worldUpdates=new Float32Array(roots.length*16);
+ const residentFlags=new Uint32Array(packedPages.length);
+ const gpuCandidates:Array<{rec:PageRec;selectionIndex:number}>=[];
+ const gpuWanted:PageRec[]=[...bootstrap];
+ const copiesByUrl=new Map<string,number>();let maxCopies=1;
+ for(const page of packedPages){const n=(copiesByUrl.get(page.url)??0)+1;copiesByUrl.set(page.url,n);maxCopies=Math.max(maxCopies,n);}
+ // Visibility IDs reserve 16 bits for row+1 (zero means background).
+ const drawSlots=Math.max(1,Math.min(0xffff,packedPages.length,slots*maxCopies));
+ let gpuFrameActive=false,gpuMetricsReady=false;
  const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
  const untexturedMaterials='Untextured source color; double-sided when the material is';
  const visFeatures=['visibility buffer','textured PBR maps','occlusion culling','temporal occlusion culling'];
@@ -286,7 +294,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let shadeBindGroupLayout:GPUBindGroupLayout|undefined,shadeBindGroup:GPUBindGroup|undefined;
  const visSlotGroups=new Map<string,GPUBindGroup>();
  let concatPos:GPUBuffer|undefined,concatUv:GPUBuffer|undefined,concatNrm:GPUBuffer|undefined,pageTable:GPUBuffer|undefined,shadeUniform:GPUBuffer|undefined,mapsTexture:GPUTexture|undefined,dataMapsTexture:GPUTexture|undefined,mapsSampler:GPUSampler|undefined,materialScales:GPUBuffer|undefined;
- const shadeUniPacked=new Float32Array(64),visUniPacked=new Float32Array(16),geometryBlocks=new Map<THREE.BufferGeometry['attributes'],{vertexBase:number;count:number;hasUv:boolean;hasNormal:boolean;hasTangent:boolean}>(),mapLayer=new Map<THREE.Texture,number>(),dataLayer=new Map<THREE.Texture,number>();
+ const shadeUniPacked=new Float32Array(64),visUniPacked=new Float32Array(7*64),geometryBlocks=new Map<THREE.BufferGeometry['attributes'],{vertexBase:number;count:number;hasUv:boolean;hasNormal:boolean;hasTangent:boolean}>(),mapLayer=new Map<THREE.Texture,number>(),dataLayer=new Map<THREE.Texture,number>();
  const uvScales:Array<[number,number]>=[[1,1]],dataUvScales:Array<[number,number]>=[[1,1]];
  const previouslyDrawnUrls=new Set<string>();
  const temporalHizState:TemporalHizState={};
@@ -427,19 +435,21 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   traceDiagnostic('transparent-encoding','Transparents sélectionnés et encodés',()=>({frame,submission:imageRevision,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,encodeMs:transparentEncodeMs,passes:visibleBlend.length?2:0}));
  };
  const packedDraws=()=>{
-   const packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>=[];
+   const packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer;selectionIndex?:number}>=[];
    if(!cache)return packed;
-   for(let i=0;i<drawn.length;i++){
-    const rec=drawn[i],resident=cache.get(rec.url),index=rec.array;if(!resident||!index)continue;
+   const count=gpuFrameActive?gpuCandidates.length:drawn.length;
+   for(let i=0;i<count;i++){
+    const rec=gpuFrameActive?gpuCandidates[i].rec:drawn[i];
+    const resident=cache.get(rec.url),index=rec.array;if(!resident||!index)continue;
     const position=positionBuffers.get(rec.attributes);if(!position)continue;
-    packed.push({rec,resident,index,position});
+    packed.push({rec,resident,index,position,selectionIndex:gpuFrameActive?gpuCandidates[i].selectionIndex:undefined});
    }
    return packed;
   };
  const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number)=>{
    if(presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
    const command=encoder.finish();device.queue.submit([command]);imageRevision++;
-   traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
+   traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:gpuFrameActive&&!gpuMetricsReady?null:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
    if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'render-passes-only',excludes:['GPU selection dispatch','uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
    if(canvasTexture&&!secondaryCamera)canvasTexture.needsUpdate=true;
   };
@@ -460,7 +470,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   encodeBlend(device,encoder,uniformBase);
   gpuDrawCalls++;deferred.compose(encoder,colorView,{r:(clearColor>>16)/255,g:((clearColor>>8)&255)/255,b:(clearColor&255)/255,a:1});
  };
- const encodeVis=(device:GPUDevice,camera:THREE.PerspectiveCamera,packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>)=>{
+ const encodeVis=(device:GPUDevice,camera:THREE.PerspectiveCamera,packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer;selectionIndex?:number}>)=>{
   if(!visBindGroupLayout||!cache||!concatPos||!colorView||!depthView||!visView||!visPipelineBack||!shadePipeline)return 0;
   const idsView=visView,depthTarget=depthView;
   const [width,height]=targetSize;
@@ -501,21 +511,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const visBin=(rec:PageRec):0|1|2=>{
    const side=materialSide(rec.material);
    if(side===THREE.DoubleSide)return BIN_NONE;
-   if(side===THREE.BackSide)return BIN_FRONT;
-   return BIN_BACK;
+   // Indirect pipelines share ccw front faces; a reflection swaps which side
+   // must be culled instead of requiring three more draw slots.
+   return (side===THREE.BackSide)!==windingCw(rec)?BIN_FRONT:BIN_BACK;
   };
-  const items:DrawItem[]=[];
-  const addItems=(list:typeof packed,rest:0|1)=>{
-   const members=list===packed?undefined:new Set(list);
-   for(let i=0;i<packed.length;i++){if(members&&!members.has(packed[i]))continue;items.push({pageIndex:i,bin:visBin(packed[i].rec),rest});}
-  };
-  if(twoPass){addItems(occluderPacked,0);addItems(restPacked,1);}else addItems(packed,0);
-  const maxVertexCount=Math.max(1,...allPages.map(page=>page.array?.length??page.triangles*3),...packed.map(item=>item.index.length));
-  const compact=evaluateDrawCompact(items,maxVertexCount,slots);
-  const useIndirect=!!gpuDraw&&!compact.overflow;
-  if(compact.overflow)dropGpuDraw();
-  const layout:SlotLayout|undefined=useIndirect?compactSlotLayout(compact.counts,PAGE_INFO_STRIDE):undefined;
-  const tableRows=layout?.tableRows??packed.length;
+  const items:DrawItem[]=[],restMembers=twoPass?new Set(restPacked):undefined;
+  for(let i=0;i<packed.length;i++)items.push({pageIndex:i,bin:visBin(packed[i].rec),rest:restMembers?.has(packed[i])?1:0,selectionIndex:packed[i].selectionIndex});
+  const maxVertexCount=Math.max(1,pageBytes/4);
+  const useIndirect=!!gpuDraw&&items.length<=drawSlots;
+  const tableRows=packed.length;
+  if(tableRows>0xffff)throw new Error('VISIBILITY_ID_RANGE');
   const tableBytes=Math.max(PAGE_INFO_STRIDE,tableRows*PAGE_INFO_STRIDE);
   if(!pageTable||pageTable.size<tableBytes){pageTable?.destroy();shadeBindGroup=undefined;visBindGroup=undefined;visHizBindGroup=undefined;visSlotGroups.clear();pageTable=device.createBuffer({size:tableBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});}
   const pageFloats=new Float32Array(tableBytes/4),pageInts=new Uint32Array(pageFloats.buffer);
@@ -545,19 +550,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    pageFloats[base+44]=aoScale[0];pageFloats[base+45]=aoScale[1];pageInts[base+46]=emissiveLayer;
    pageFloats.set(mat.emissive,base+48);pageFloats[base+52]=emissiveScale[0];pageFloats[base+53]=emissiveScale[1];pageFloats[base+54]=mat.normalScaleY;
   };
-  if(useIndirect&&layout){
-   let inst=0;
-   for(let slot=0;slot<6;slot++){
-    for(let i=0;i<compact.counts[slot];i++){
-     const item=packed[compact.instances[inst++]];if(item)writePage(item,layout.rows[slot]+i);
-    }
-   }
-  }else{
-   for(let s=0;s<packed.length;s++)writePage(packed[s],s);
-  }
+  for(let s=0;s<packed.length;s++)writePage(packed[s],s);
   device.queue.writeBuffer(pageTable,0,pageFloats);
-  if(!visUniform)visUniform=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-  visUniPacked.set(viewProj.elements);
+  if(!visUniform)visUniform=device.createBuffer({size:7*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const visInts=new Uint32Array(visUniPacked.buffer);
+  for(let slot=0;slot<7;slot++){
+   visUniPacked.set(viewProj.elements,slot*64);
+   visInts[slot*64+16]=Math.max(0,slot-1);visInts[slot*64+17]=slot===0?0:1;
+  }
   device.queue.writeBuffer(visUniform,0,visUniPacked);
   if(!shadeUniform)shadeUniform=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   shadeUniPacked.set(viewProj.elements,0);shadeUniPacked[16]=width;shadeUniPacked[17]=height;
@@ -576,18 +576,20 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!visBindGroup)visBindGroup=device.createBindGroup({layout:visBindGroupLayout,entries:[
     {binding:0,resource:{buffer:cache.buffer}},{binding:1,resource:{buffer:concatPos}},
     {binding:2,resource:{buffer:pageTable}},{binding:3,resource:{buffer:zeroFlags}},
-    {binding:4,resource:{buffer:visUniform}},{binding:5,resource:{buffer:concatUv}},
+    {binding:4,resource:{buffer:visUniform,offset:0,size:80}},{binding:5,resource:{buffer:concatUv}},
     {binding:6,resource:visMaps},{binding:7,resource:mapsSampler},
+    {binding:8,resource:{buffer:zeroFlags}},{binding:9,resource:{buffer:zeroFlags}},
    ]});
    if(!visHizBindGroup&&gpuHiz)visHizBindGroup=device.createBindGroup({layout:visBindGroupLayout,entries:[
     {binding:0,resource:{buffer:cache.buffer}},{binding:1,resource:{buffer:concatPos}},
     {binding:2,resource:{buffer:pageTable}},{binding:3,resource:{buffer:gpuHiz.flags}},
-    {binding:4,resource:{buffer:visUniform}},{binding:5,resource:{buffer:concatUv}},
+    {binding:4,resource:{buffer:visUniform,offset:0,size:80}},{binding:5,resource:{buffer:concatUv}},
     {binding:6,resource:visMaps},{binding:7,resource:mapsSampler},
+    {binding:8,resource:{buffer:zeroFlags}},{binding:9,resource:{buffer:zeroFlags}},
    ]});
   }
   const encoder=createRenderEncoder(device);
-  if(useIndirect)gpuDraw!.encode(encoder,items,maxVertexCount);
+  if(useIndirect)gpuDraw!.encode(encoder,items,maxVertexCount,gpuFrameActive?gpuSelection:undefined);
   const visColors=(loadOp:'clear'|'load')=>{
    const ids:{view:GPUTextureView;loadOp:'clear'|'load';storeOp:'store';clearValue?:GPUColor}={view:idsView,loadOp,storeOp:'store',clearValue:{r:0,g:0,b:0,a:1}};
    if(!gpuHiz)return [ids];
@@ -596,19 +598,18 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   let visMaps:GPUTextureView|undefined;
   const visSlots=[visPipelineBack,visPipelineNone,visPipelineFront,visHizRestBack,visHizRestNone,visHizRestFront];
   const visGroupFor=(slot:number,rest:boolean)=>{
-   if(!visBindGroupLayout||!cache||!concatPos||!concatUv||!pageTable||!visUniform||!mapsTexture||!mapsSampler||!layout)return;
+   if(!visBindGroupLayout||!cache||!concatPos||!concatUv||!pageTable||!visUniform||!mapsTexture||!mapsSampler||!gpuDraw)return;
    const flags=rest?gpuHiz?.flags:zeroFlags;if(!flags)return;
-   const offset=layout.offsets[slot],size=Math.max(PAGE_INFO_STRIDE,compact.counts[slot]*PAGE_INFO_STRIDE);
-   if(offset+size>pageTable.size)return;
-   const key=`${slot}:${offset}:${size}:${rest}`;
+   const key=`${slot}:${rest}`;
    let group=visSlotGroups.get(key);
    if(!group){
     if(!visMaps)visMaps=mapsTexture.createView({dimension:'2d-array'});
     group=device.createBindGroup({layout:visBindGroupLayout,entries:[
      {binding:0,resource:{buffer:cache.buffer}},{binding:1,resource:{buffer:concatPos}},
-     {binding:2,resource:{buffer:pageTable,offset,size}},{binding:3,resource:{buffer:flags}},
-     {binding:4,resource:{buffer:visUniform}},{binding:5,resource:{buffer:concatUv}},
+     {binding:2,resource:{buffer:pageTable}},{binding:3,resource:{buffer:flags}},
+     {binding:4,resource:{buffer:visUniform,offset:(slot+1)*256,size:80}},{binding:5,resource:{buffer:concatUv}},
      {binding:6,resource:visMaps},{binding:7,resource:mapsSampler},
+     {binding:8,resource:{buffer:gpuDraw.instanceBuffer}},{binding:9,resource:{buffer:gpuDraw.slotOffsetsBuffer}},
     ]});
     visSlotGroups.set(key,group);
    }
@@ -616,10 +617,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   };
   const drawVis=(pass:GPURenderPassEncoder,list:typeof packed,rest:boolean)=>{
    if(useIndirect){
-    if(!gpuDraw||!layout)return 0;
+    if(!gpuDraw)return 0;
     const start=rest?3:0;
     for(let s=start;s<start+3;s++){
-     if(compact.counts[s]<=0)continue;
      const pipeline=visSlots[s],group=visGroupFor(s,rest);if(!pipeline||!group)continue;
      pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);gpuDrawCalls++;
     }
@@ -679,7 +679,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   viewProj.premultiply(remap);
   const packed=packedDraws();
   if(visEnabled&&visPipelineBack&&shadePipeline&&visView){
-   try{return encodeVis(device,camera,packed);}catch(error){gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera)throw error;}
+   try{return encodeVis(device,camera,packed);}catch(error){gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera||gpuFrameActive)throw error;}
   }
   if(!pipelineBack)return 0;
   if(!packed.length){
@@ -719,7 +719,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const updatePins=()=>{
   if(!cache)return;
   const before=new Set(pins);
-  const keep=new Set([...bootstrapUrls,...shown.map(page=>page.url),...residencyWanted]);
+  const keep=new Set([...bootstrapUrls,...(gpuFrameActive?[]:shown.map(page=>page.url)),...residencyWanted]);
   for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
   for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
   for(const key of deferredDrops)if(!keep.has(key))backend.dropPage!(key);
@@ -768,6 +768,69 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   residencyRunning=true;
   pending=Promise.resolve().then(async()=>{const started=performance.now();traceDiagnostic('residency-job-start','Job de résidence GPU démarré',()=>({frame:jobFrame,jobId,scope:'async-residency-job',queueWaitMs:started-queuedAt,pages:traceSet('job',queuedResidency?.map(page=>page.url)??[]),elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));try{while(queuedResidency){const next=queuedResidency;queuedResidency=undefined;await ensureResident(next,jobFrame,jobId);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;traceDiagnostic('residency-job-end','Job de résidence GPU terminé',()=>({frame:jobFrame,jobId,scope:'async-residency-job',durationMs:performance.now()-started,elapsedMs:performance.now()-queuedAt,pages:traceSet('job',[...residencyWanted]),loaded:traceSet('job.loaded',[...residencyWanted].filter(url=>!!cache?.get(url))),residentPages:cache?.stats().residentPages??null,queueWaitMs:started-queuedAt,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));}});
   void pending.catch(()=>{});
+ };
+ // Readback describes submitted work and future streaming requests. It never
+ // decides the cut drawn for a moving camera; the current GPU mask does that.
+ const adoptGpuCut=()=>{
+  const cut=gpuSelection?.peek();
+  if(!cut?.result.drawablePageIds)return;
+  gpuWanted.length=0;for(const id of cut.result.pageIds){const rec=packedPages[id];if(rec)gpuWanted.push(rec);}
+  desired.length=0;desired.push(...gpuWanted);
+  if(!sameSelectionUniforms(cut.uniforms,selectionUniforms))return;
+  if(cut.result.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
+  const actual=shownFromGpu(packedPages,{...cut.result,pageIds:cut.result.drawablePageIds},frame);
+  shown.length=0;shown.push(...actual.shown);drawn.length=0;drawn.push(...shown);
+  visible=desired.length;selectedTriangles=desired.reduce((sum,page)=>sum+page.triangles,0);
+  submittedTriangles=actual.selectedTriangles+blendSubmittedTriangles;
+  frustumRejected=actual.frustumRejected;lodLevel=actual.lodLevel;gpuMetricsReady=true;
+ };
+ const renderGpuCut=(camera:THREE.PerspectiveCamera,pixelError:number,cpuStart:number,lightsEnd:number)=>{
+  if(!gpuDevice||!cache||!gpuSelection)return;
+  gpuFrameActive=true;
+  cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
+  adoptGpuCut();
+  desired.length=0;desired.push(...gpuWanted);
+  if(gpuMetricsReady){visible=desired.length;selectedTriangles=desired.reduce((sum,page)=>sum+page.triangles,0);}
+  const requested=new Set([...bootstrapUrls,...desired.map(page=>page.url)]);
+  const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requested.size>slots;
+  if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requested.size,slots,fallbackRetained:bootstrapReady};
+  if(!bootstrapReady){
+   gpuMetricsReady=false;
+   traceDiagnostic('frame','Frame en attente de couverture GPU',{backend:'webgpu-page-raster',frame,submission:imageRevision,source:'gpu',coverage:{ready:false},selectedTriangles:null,submittedTriangles:null});
+   return;
+  }
+  queueResident(coverageBudgetLimited?[]:desired);
+  // Enumerate the bounded resident candidates once. GPU selection and compaction
+  // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
+  gpuCandidates.length=0;residentFlags.fill(0);
+  for(let i=0;i<packedPages.length;i++){
+   const rec=packedPages[i];
+   if(rec.array&&cache.get(rec.url)){residentFlags[i]=1;gpuCandidates.push({rec,selectionIndex:i});}
+  }
+  if(gpuCandidates.length>drawSlots){
+   // The CPU fallback can still select a representable visible subset.
+   engineDiagnostic('gpu-selection-capacity','Sélection CPU requise par la capacité des identifiants de visibilité',{residentCandidates:gpuCandidates.length,maxCandidates:drawSlots});
+   dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
+  }
+  if(gpuSelection.updateResidency(residentFlags))gpuMetricsReady=false;
+  try{gpuSelection.dispatch(selectionUniforms);}catch(error){
+   diagnosticFailure('gpu-selection-dispatch-failed',error);dropGpuSelection();gpuFrameActive=false;
+   backend.render(camera);return;
+  }
+  drawn.length=0;drawn.push(...shown);
+  const selectionEnd=performance.now();
+  const [width,height]=viewport;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
+  if(!renderPathLogged){renderPathLogged=true;engineDiagnostic('first-render-path','Configuration du premier rendu WebGPU',{clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,targetSize,visibilityBuffer:true,selection:'current-frame-mask',residentCandidates:gpuCandidates.length});}
+  const encodeStart=performance.now();
+  try{encodeDraws(gpuDevice,camera);}catch(error){
+   if(context.gpuCanvas)throw error;
+   dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
+  }
+  const cpuEnd=performance.now();lastSubmitMs=cpuEnd-encodeStart;
+  if(gpuMetricsReady)submittedTriangles=shown.reduce((sum,page)=>sum+page.triangles,0)+blendSubmittedTriangles;
+  cpuSample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:encodeStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
+  traceDiagnostic('gpu-selection-current-frame','Sélection GPU consommée par le dessin',()=>({frame,submission:imageRevision,source:'gpu',decision:'current-frame-mask',residentCandidates:gpuCandidates.length,readbackPurpose:'streaming-and-metrics',metricsReady:gpuMetricsReady}));
+  traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:'gpu',selection:{source:'gpu',decision:'current-frame-mask'},cpu:cpuSample,coverage:{loaded:traceSet('frame.loaded',gpuCandidates.map(item=>item.rec.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:gpuMetricsReady?traceSet('frame.shown',shown.map(page=>page.url)):null,ready:bootstrapReady},budget:{slots,limited:coverageBudgetLimited},selectedTriangles:gpuMetricsReady?selectedTriangles:null,submittedTriangles:gpuMetricsReady?submittedTriangles:null,drawCalls:gpuDrawCalls}));
  };
  const backend:WebgpuPagesBackend={
   id:'webgpu-page-raster',
@@ -975,14 +1038,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       {binding:1,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
       {binding:2,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
       {binding:3,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
-      {binding:4,visibility:GPUShaderStage.VERTEX,buffer:{type:'uniform',minBindingSize:64}},
+      {binding:4,visibility:GPUShaderStage.VERTEX,buffer:{type:'uniform',minBindingSize:80}},
       {binding:5,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
       {binding:6,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'float',viewDimension:'2d-array'}},
       {binding:7,visibility:GPUShaderStage.FRAGMENT,sampler:{type:'filtering'}},
+      {binding:8,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
+      {binding:9,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
      ]});
      zeroFlags=gpuDevice.createBuffer({size:4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
      gpuDevice.queue.writeBuffer(zeroFlags,0,new Uint32Array([0]));
-     visUniform=gpuDevice.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+     visUniform=gpuDevice.createBuffer({size:7*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
      const visModule=gpuDevice.createShaderModule({code:VIS_SHADER});
      const shadeModule=gpuDevice.createShaderModule({code:SHADE_SHADER});
      if(typeof visModule.getCompilationInfo==='function'){
@@ -1064,7 +1129,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       engineDiagnostic('material-surfaces-ready','Surfaces et éclairage séparés',{surfaceVersion:1,formats:SURFACE_FORMATS,bytesPerPixel:28,lighting:'HDR',globalIllumination:false,motionVectors:false});
       capabilities.materials='Source glTF via GGX direct specular and hemisphere diffuse lighting with visibility buffer; double-sided when the material is';
       capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='visibility buffer'&&item!=='textured PBR maps'&&item!=='occlusion culling'&&item!=='temporal occlusion culling');
-      gpuDraw=await createGpuDraw(gpuDevice,slots);
+      gpuDraw=await createGpuDraw(gpuDevice,drawSlots);
       if(gpuDraw)capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='indirect draw');
      }else dropVis();
     }catch(error){diagnosticFailure('material-pipeline-failed',error);dropVis();}
@@ -1080,7 +1145,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      rec.cone=visMaterial(rec.material).doubleSided||visMaterial(rec.material).backSide?OPEN_CONE:triangleCone(xyz,array);
     }
     const packed=packSelectionForest(roots);
-    gpuSelection=await createGpuSelection(gpuDevice,packed);
+    gpuSelection=gpuDraw?await createGpuSelection(gpuDevice,packed,{residentCut:true}):undefined;
     capabilities.gpuDriven=!!gpuSelection;
     await ensureBootstrap();
     engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
@@ -1105,28 +1170,15 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    lastCamera=camera;overBudget=false;submittedTriangles=0;hizRejected=0;frame++;
    traceDiagnostic('cpu-lights','Mise à jour CPU des lumières',()=>({frame,scope:'cpu/lights.update',elapsedMs:lightsEnd-cpuStart,lightState}));
    const pixelError=resolvePixelError(context,camera,motion);
+   gpuFrameActive=false;gpuMetricsReady=false;
+   if(gpuSelection?.failed())dropGpuSelection();
+   if(!secondaryCamera&&gpuSelection?.residentCut&&gpuDraw&&visEnabled){
+    renderGpuCut(camera,pixelError,cpuStart,lightsEnd);
+    return;
+   }
    const selectionStarted=lightsEnd;
    let selected:{complete?:boolean;shown:PageRec[];wanted?:PageRec[];visible:number;selectedTriangles:number;frustumRejected:number;lodLevel:number}|undefined;
-   let gpuPeekUrls:string[]=[];
-   let gpuSelectionDecision:{source:'gpu'|'cpu';decision:string;reason?:string;pageIds?:Array<string|number>;uniformsMatch?:boolean}={source:'cpu',decision:'not-attempted'};
-   if(gpuSelection?.failed()){gpuSelectionDecision={source:'cpu',decision:'fallback',reason:'gpu-selection-marked-failed'};traceDiagnostic('gpu-selection-dispatch','Sélection GPU indisponible, fallback CPU',{frame,submission:imageRevision,reason:gpuSelectionDecision.reason});dropGpuSelection();}
-   if(gpuSelection){
-    cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
-    traceDiagnostic('gpu-selection-dispatch','Dispatch de sélection GPU',()=>({frame,submission:imageRevision,pixelError,viewport:viewport.slice(),cameraWorld:selectionUniforms.cameraWorld,source:'gpu-selection'}));
-    try{gpuSelection.dispatch(selectionUniforms);}catch(error){diagnosticFailure('gpu-selection-dispatch-failed',error);gpuSelectionDecision={source:'cpu',decision:'fallback',reason:'dispatch-failed'};dropGpuSelection();}
-    const cut=gpuSelection?.peek();
-    const uniformsMatch=!!cut&&sameSelectionUniforms(cut.uniforms,selectionUniforms);
-    if(cut&&uniformsMatch){
-     const gpuShown=shownFromGpu(packedPages,cut.result,frame);
-     gpuPeekUrls=gpuShown.shown.map(rec=>rec.url);
-     const missing=gpuShown.shown.filter(rec=>!hasBytes(rec)||!cache!.get(rec.url)).map(rec=>rec.url);
-     if(bootstrapReady&&!missing.length){selected=gpuShown;gpuSelectionDecision={source:'gpu',decision:'accepted',uniformsMatch:true};}
-     else gpuSelectionDecision={source:'cpu',decision:'rejected',reason:!bootstrapReady?'coverage-not-ready':'selected-pages-not-resident',uniformsMatch:true};
-    }else if(gpuSelection){
-     gpuSelectionDecision={source:'cpu',decision:'rejected',reason:cut?'stale-selection-uniforms':'no-selection-result',uniformsMatch:false};
-    }
-     traceDiagnostic('gpu-selection-peek','Décision de la sélection GPU',()=>({frame,submission:imageRevision,...gpuSelectionDecision,selected:traceSet(`gpu-selection.${gpuSelectionDecision.decision}`,gpuPeekUrls),peekPageCount:cut?.result.pageIds.length??0}));
-   }
+   const gpuSelectionDecision={source:'cpu' as const,decision:'fallback',reason:secondaryCamera?'surface-capture':'gpu-selection-unavailable'};
    const gpuSelectionResolveEnd=performance.now();
    traceDiagnostic('gpu-selection-resolution','Résolution CPU du résultat de sélection GPU',()=>({frame,submission:imageRevision,scope:'cpu/gpu-selection-dispatch-peek',elapsedMs:gpuSelectionResolveEnd-selectionStarted,decision:gpuSelectionDecision,selectedFromGpu:!!selected}));
    if(!selected){
@@ -1209,7 +1261,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!traceEnabled&&cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
    if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,coverage:{version:1,ready:bootstrapReady,bootstrapPages:bootstrap.length,budgetLimited:coverageBudgetLimited},lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
    if(gpuSelection){
-    try{await gpuSelection.flush();if(gpuSelection.failed())dropGpuSelection();}
+    try{await gpuSelection.flush();if(gpuSelection.failed())dropGpuSelection();else if(gpuFrameActive)adoptGpuCut();}
     catch(error){diagnosticFailure('gpu-selection-fallback',error);dropGpuSelection();}
    }
    if(gpuDevice&&colorTexture&&!secondaryCamera&&imageRevision>0&&capturedRevision!==imageRevision){
@@ -1306,7 +1358,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:visible,selectedTriangles,residentPages:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,pageEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,hizRejected:visEnabled?hizRejected:null,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);

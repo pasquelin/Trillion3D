@@ -6,7 +6,7 @@ import {exactPagesBackend} from './index.ts';
 import {outputColorDiagnostic,webgpuPagesBackend} from './webgpuPages.ts';
 import {rasterPageRecords} from './pageRaster.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
-import {evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
+import {evaluateResidentSelectionKernel,evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
 import {evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
 import {rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
 import {createGpuTiming} from './gpuTiming.ts';
@@ -87,9 +87,9 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame',as
   assert.deepEqual(frames.map(event=>event.context.frame),[1,2]);
   assert.ok(frames.every(event=>typeof event.context.submission==='number'));
   assert.ok(frames.every(event=>event.context.coverage&&typeof event.context.coverage==='object'));
-  assert.ok(events.some(event=>event.phase==='cpu-selection'));
+  assert.equal(events.filter(event=>event.phase==='cpu-selection').length,0);
   assert.ok(events.some(event=>event.phase==='residency-queue'));
-  for(const phase of ['cpu-lights','gpu-selection-resolution','residency-admission','residency-transition','residency-queue-reconstruct','residency-drawn-verify','targets-ensure'])assert.ok(events.some(event=>event.phase===phase),phase);
+  for(const phase of ['cpu-lights','gpu-selection-current-frame'])assert.ok(events.some(event=>event.phase===phase),phase);
  }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
 });
 
@@ -118,7 +118,7 @@ function bytesOf(data:BufferSource){
 }
 
 function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
- const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;indirect?:boolean;entryPoint?:string}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
+ const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;instanceBuffer?:unknown;slotOffsetsBuffer?:unknown;indirect?:boolean;entryPoint?:string}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
  const passes:Array<{colorLoad?:string;colorClear?:GPUColor;depthLoad?:string;colorCount:number;formats:string[]}>=[];
  const computes:string[]=[];
@@ -160,7 +160,8 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
       const words=new Uint32Array(buffer.data!.buffer, buffer.data!.byteOffset+offset, 4);
       const entries=(currentBind as {entries?:Array<{binding:number;resource:{offset?:number}}>} | undefined)?.entries;
       const page=entries?.find(entry=>entry.binding===2);
-      draws.push({vertexCount:words[0], instanceCount:words[1], firstInstance:words[3], bindOffset:page?.resource?.offset??0, indirect:true,entryPoint:currentRenderEntry});
+      const instances=entries?.find(entry=>entry.binding===8),offsets=entries?.find(entry=>entry.binding===9);
+      draws.push({vertexCount:words[0], instanceCount:words[1], firstInstance:words[3], bindOffset:page?.resource?.offset??0, instanceBuffer:instances?.resource,slotOffsetsBuffer:offsets?.resource, indirect:true,entryPoint:currentRenderEntry});
     },
     end(){},
    };},
@@ -178,9 +179,14 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
       const itemInts=new Uint32Array(itemBytes.buffer,itemBytes.byteOffset,itemBytes.byteLength/4);
       const n=Math.min(count,slotCap);
       const items:DrawItem[]=[];
-      for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*3],bin:itemInts[i*3+1] as 0|1|2,rest:itemInts[i*3+2] as 0|1});
+      for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*4],bin:itemInts[i*4+1] as 0|1|2,rest:itemInts[i*4+2] as 0|1});
       const source=count>slotCap?items.concat(Array.from({length:count-n},()=>({pageIndex:0,bin:0 as const,rest:0 as const}))):items;
-      const result=evaluateDrawCompact(source,maxVertexCount,slotCap);
+      const maskBytes=byBinding.get(6)?.data;
+      const mask=maskBytes?new Uint32Array(maskBytes.buffer):undefined;
+      const filtered=uni[4]&&mask?source.filter((_,i)=>mask[uni[5]+itemInts[i*4+3]]!==0):source;
+      const result=evaluateDrawCompact(count>slotCap?source:filtered,maxVertexCount,slotCap);
+      const offsets=byBinding.get(5)!.data;
+      new Uint32Array(offsets.buffer).set(Array.from({length:6},(_,slot)=>result.indirect[slot*4+3]));
       const instBytes=byBinding.get(2)!.data;
       new Uint32Array(instBytes.buffer,instBytes.byteOffset,instBytes.byteLength/4).set(result.instances);
       const indBytes=byBinding.get(3)!.data;
@@ -191,13 +197,24 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
      const byBinding=new Map(computeBind.entries.map(entry=>[entry.binding,entry.resource.buffer]));
      const data=byBinding.get(2)!.data;
      const f32=new Float32Array(data.buffer,data.byteOffset,data.byteLength/4);
-     const result=evaluateSelectionKernel(packed,{
-      planes:f32.slice(0,24),view:f32.slice(24,40),pixelScale:[f32[40],f32[41]],pixelError:f32[42],near:f32[43],
-      cameraWorld:[f32[48],f32[49],f32[50]],
-     });
+     const uniforms={
+      planes:f32.slice(0,24),view:f32.slice(24,40),pixelScale:[f32[40],f32[41]] as [number,number],pixelError:f32[42],near:f32[43],
+      cameraWorld:[f32[48],f32[49],f32[50]] as [number,number,number],
+     };
+     const result=evaluateSelectionKernel(packed,uniforms);
+     const uniInts=new Uint32Array(data.buffer);
+     let complete=true;
+     if(uniInts[51]){
+      const cones=new Float32Array(byBinding.get(8)!.data.buffer);
+      const resident=Uint32Array.from({length:packed.pageCount},(_,i)=>cones[i*12+11]);
+      const drawable=evaluateResidentSelectionKernel(packed,uniforms,resident);
+      const flags=new Uint32Array(byBinding.get(3)!.data.buffer);flags.fill(0,packed.nodeCount);
+      for(const id of drawable.drawn.pageIds)flags[packed.nodeCount+id]=1;
+      complete=drawable.complete;
+     }
      const out=byBinding.get(4)!.data;
      const ints=new Uint32Array(out.buffer,out.byteOffset,out.byteLength/4);
-     ints[0]=result.pageIds.length;ints[1]=result.frustumRejected;ints[2]=result.lodLevel;ints[3]=0;ints.set(result.pageIds,4);
+     ints[0]=result.pageIds.length;ints[1]=result.frustumRejected;ints[2]=result.lodLevel;ints[3]=complete?0:2;ints.set(result.pageIds,4);
     },
     end(){},
    }),
@@ -317,7 +334,7 @@ function mixedBinScene(){
  return {geoA,geoB,front,both,source,metadata,indices,associations};
 }
 
-test('vis drawIndirect keeps firstInstance 0 with 256-aligned page-table binds per slot',async()=>{
+test('vis drawIndirect consumes GPU instance indices against one unsorted page table',async()=>{
  installGpuGlobals();
  const {source,metadata,indices,associations,geoA,geoB,front,both}=mixedBinScene();
  const collected=collectClusterPages(source,metadata,indices,associations);
@@ -334,7 +351,8 @@ test('vis drawIndirect keeps firstInstance 0 with 256-aligned page-table binds p
  assert.ok(vis.every(draw=>((draw.bindOffset??0)%PAGE_BIND_ALIGN)===0));
  const offsets=new Set(vis.map(draw=>draw.bindOffset??0));
  assert.ok(offsets.has(0));
- assert.ok(offsets.has(PAGE_BIND_ALIGN));
+ assert.deepEqual([...offsets],[0],'all bins share the original page table');
+ assert.ok(vis.every(draw=>draw.instanceBuffer&&draw.slotOffsetsBuffer),'GPU redistribution is bound to the vertex shader');
  backend.dispose();geoA.dispose();geoB.dispose();front.dispose();both.dispose();
 });
 
@@ -733,7 +751,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'),false);
  assert.ok(textures.some(texture=>texture.format==='r32float'));
  backend.render(cam);await backend.flush();
- backend.render(cam);
+ draws.length=0;backend.render(cam);
  const visPasses=passes.filter(pass=>pass.depthLoad);
  assert.ok(visPasses.length>=2);
  assert.equal(visPasses[visPasses.length-2]?.colorLoad,'clear');
@@ -1026,4 +1044,75 @@ test('cancelling initial coverage loading cannot publish a ready backend',async(
  const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async url=>{reading();await gate;return fixture.indices.get(url)!;},signal:controller.signal,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  try{const preparing=backend.prepare();await started;controller.abort();release();await assert.rejects(preparing,{name:'AbortError'});assert.equal(backend.metrics().coverageReady,false);assert.equal(draws.length,0);}
  finally{release();backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+
+test('moving opaque cameras use the current GPU selection without CPU reselection',async()=>{
+ installGpuGlobals();const fixture=quadScene();
+ const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const events:Array<{phase:string;context?:Record<string,unknown>}>=[];
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],onDiagnostic:event=>events.push(event)});
+ try{
+  await backend.prepare();const cam=camera();
+  for(const target of [100,0,100,0]){
+   cam.lookAt(target,0,target?5:0);cam.updateMatrixWorld();draws.length=0;
+   backend.render(cam);
+   assert.equal(draws.filter(draw=>draw.indirect).reduce((sum,draw)=>sum+(draw.instanceCount??0),0),target?0:2);
+   await backend.flush();
+  }
+  assert.equal(events.filter(event=>event.phase==='cpu-selection').length,0,'GPU camera motion must not trigger a duplicate CPU cut');
+  assert.ok(events.some(event=>event.phase==='gpu-selection-current-frame'));
+ }finally{await backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+
+test('GPU streaming exposes wanted pages after readback and draws an atomic resident fallback',async()=>{
+ installGpuGlobals();const fixture=coarseQuadScene();
+ fixture.metadata.primitives[0].pages[2].count=3;fixture.metadata.primitives[0].pages[2].bytes=12;
+ fixture.indices.set('2',new Uint32Array([0,1,2]));
+ const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async url=>fixture.indices.get(url)!,gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
+ const render=()=>{draws.length=0;backend.render(camera());};
+ try{
+  await backend.prepare();render();
+  assert.equal(backend.metrics().submittedTriangles,null,'do not report candidate counts as GPU results');
+  await backend.flush();
+  assert.deepEqual(backend.pendingUrls?.().sort(),['0','1'],'async desired cut is visible to streaming immediately');
+  assert.deepEqual(backend.selectedPageIds(),['2']);
+  assert.equal(backend.metrics().selectedTriangles,2);assert.equal(backend.metrics().submittedTriangles,1);
+  backend.acceptPage!('0',fixture.indices.get('0')!);render();await backend.flush();render();await backend.flush();
+  assert.deepEqual(backend.selectedPageIds(),['2']);
+  assert.equal(draws.filter(draw=>draw.indirect).reduce((sum,draw)=>sum+(draw.instanceCount??0),0),1);
+  backend.acceptPage!('1',fixture.indices.get('1')!);render();await backend.flush();render();await backend.flush();
+  assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);
+  assert.equal(backend.metrics().submittedTriangles,2);
+  assert.equal(draws.filter(draw=>draw.indirect).reduce((sum,draw)=>sum+(draw.instanceCount??0),0),2,'coarse is absent once all fine pages are drawable');
+ }finally{await backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+
+test('GPU camera jumps reclaim detail slots while preserving pinned coarse coverage',async()=>{
+ installGpuGlobals();const a=coarseQuadScene(),b=coarseQuadScene();
+ const mesh=b.source.children[0] as THREE.Mesh;mesh.position.x=100;a.source.add(mesh);
+ const primitive={...b.metadata.primitives[0],mesh:1,pages:b.metadata.primitives[0].pages.map(page=>({...page,url:'b'+page.url}))};
+ const fixture={...a,metadata:{primitives:[...a.metadata.primitives,primitive]},indices:new Map([...a.indices,...[...b.indices].map(([url,bytes])=>['b'+url,bytes] as const)]),associations:new Map([...a.associations,[mesh,{meshes:1,primitives:0}]])};
+ const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const {device,draws}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:4,viewport:[32,32]});
+ const cam=camera();
+ try{
+  await backend.prepare();
+  for(const x of [0,100,0,100]){
+   cam.position.set(x,0,5);cam.lookAt(x,0,0);cam.updateMatrixWorld();
+   for(let step=0;step<3;step++){
+    draws.length=0;backend.render(cam);
+    assert.ok(draws.filter(draw=>draw.indirect).some(draw=>!!draw.instanceCount),'current cut must retain visible coverage');
+    await backend.flush();assert.equal(backend.metrics().submittedTriangles,2);
+   }
+   assert.deepEqual(backend.selectedPageIds().sort(),x?['b0','b1']:['0','1']);
+  }
+  assert.ok(backend.metrics().pageEvictions!>0);
+ }finally{await backend.dispose();a.geometry.dispose();a.material.dispose();b.geometry.dispose();b.material.dispose();}
 });

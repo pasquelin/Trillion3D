@@ -9,7 +9,7 @@ const labRoot=process.env.LAB_ROOT??resolve('../render-tech-lab');
 const {chromium}=createRequire(resolve(labRoot,'package.json'))('playwright');
 const out=resolve('benchmark-runs/webgpu-capture',process.argv[2]??new Date().toISOString().replaceAll(':','-'));
 await mkdir(out,{recursive:true});
-const hashes={};for(const name of ['index','webgpuPages','pageSelection','streamingPages','gpuPages','gpuPresentation','visibilityBuffer','deferredLighting','surfaceBuffer','sceneLighting','gpuTiming','gpuHiz','gpuDraw'])hashes[name]=createHash('sha256').update(await readFile(resolve('dist/sdk-browser',name+'.js'))).digest('hex');
+const hashes={};for(const name of ['index','webgpuPages','pageSelection','gpuSelection','awaitBackendPages','streamingPages','gpuPages','gpuPresentation','visibilityBuffer','deferredLighting','surfaceBuffer','sceneLighting','gpuTiming','gpuHiz','gpuDraw'])hashes[name]=createHash('sha256').update(await readFile(resolve('dist/sdk-browser',name+'.js'))).digest('hex');
 const pageBudget=Number(process.env.GPU_PAGE_SLOTS??100000);
 assert.ok(Number.isSafeInteger(pageBudget)&&pageBudget>0);
 const stableCaptures=process.env.STABLE_CAPTURE==='1',unculledControl=process.env.UNCULLED_CONTROL==='1';
@@ -134,7 +134,11 @@ try{
   for(const label of ['WG visibility primary','WG material surfaces v1','WG deferred lighting','WG transparents','WG HDR composition','WG direct present'])assert.ok(timings.some(event=>event.context.passes.some(pass=>pass.name===label&&pass.gpuMs!==null)),label+' valid timestamp missing');
   console.log('PASS: '+timings.length+' real GPU pass timing samples');
  }
- assert.ok(result.events.some(event=>event.stage==='emerald'&&event.phase==='cpu-timing'),'CPU stages required');
+ const cpuSamples=result.events.filter(event=>event.stage==='emerald').flatMap(event=>event.phase==='cpu-timing'?[event.context]:event.phase==='frame'&&event.context?.cpu?[event.context.cpu]:[]);
+ assert.ok(cpuSamples.length,'CPU stages required in trace frames or summary timing events');
+ for(const sample of cpuSamples)for(const field of ['totalMs','lightsMs','selectionMs','residencyScheduleAndTargetsMs','encodeSubmitMs','transparentEncodeMs']){
+  assert.ok(Number.isFinite(sample[field])&&sample[field]>=0,`CPU ${field} must be a measured nonnegative duration`);
+ }
  result.status='passed';console.log('PASS: GPU overlap, 10 A/A controls, 600 Emerald frames, 10 captures');
 }catch(error){result.status='failed';result.error=String(error);throw error;}
 finally{result.finishedAt=new Date().toISOString();await writeFile(resolve(out,'result.json'),JSON.stringify(result,null,2));await browser.close();}
