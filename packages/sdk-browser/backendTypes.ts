@@ -18,6 +18,7 @@ export interface RenderBackend {
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
  acceptGeometryPage?(url:string,data:import('./geometryPage.ts').DecodedGeometryPage):void;
+ replaceGeometryPage?(url:string,data:import('./geometryPage.ts').DecodedGeometryPage):void;
  /** Additional prepared-scene instance; supported by backends that own mutable scene records. */
  addInstance?(id:string,transform:THREE.Matrix4):void;
  updateInstance?(id:string,transform:THREE.Matrix4):void;

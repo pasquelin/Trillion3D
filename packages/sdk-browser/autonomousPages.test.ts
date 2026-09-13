@@ -26,7 +26,10 @@ test('autonomous pages add, move and remove an instance while keeping page cover
   const replacement=new THREE.MeshBasicMaterial({color:0xff0000,side:THREE.DoubleSide});
   backend.updateMaterial?.('0/0',replacement);
   assert.ok(copies.every(copy=>copy.material===replacement));
-  backend.acceptGeometryPage?.('triangle.wgpg',await decodeGeometryPage(encoded.data));backend.render(camera);
+  const replacementPage=await decodeGeometryPage(encoded.data);replacementPage.attributes.position[0]=-.25;
+  backend.replaceGeometryPage?.('triangle.wgpg',replacementPage);backend.acceptGeometryPage?.('triangle.wgpg',await decodeGeometryPage(encoded.data));backend.dropPage?.('triangle.wgpg');backend.render(camera);
+  const updated=backend.scene.children.find(o=>(o as THREE.Mesh).isMesh) as THREE.Mesh;
+  assert.equal(updated.geometry.getAttribute('position').getX(0),-.25);
   assert.equal(backend.metrics().submittedTriangles,2);
   backend.removeInstance?.('copy');backend.render(camera);assert.equal(backend.metrics().submittedTriangles,1);
   replacement.dispose();
