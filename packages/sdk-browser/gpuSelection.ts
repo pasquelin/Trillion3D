@@ -1,11 +1,13 @@
-import {lodScore, type Tree} from '../sdk-core/index.ts';
+import {lodScore,maxStretch, type Tree} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import {OPEN_CONE,coneCullsPage,type NormalCone} from './pageCone.ts';
 
-const NONE=0xFFFFFFFF,CULLED=1,COARSE=2,CONE_CULLED=4,COVERED=8,NODE_FLOATS=8,NODE_META=8,PAGE_CONE_FLOATS=12,UNIFORM_BYTES=256,WORKGROUP=64;
+const NONE=0xFFFFFFFF,CULLED=1,COARSE=2,CONE_CULLED=4,COVERED=8,NODE_FLOATS=8,NODE_META=8,UNIFORM_BYTES=256,WORKGROUP=64;
+export const PAGE_CONE_FLOATS=12,SELECTION_NONE=NONE,SELECTION_UNIFORM_BYTES=UNIFORM_BYTES,SELECTION_WORKGROUP=WORKGROUP;
 const FLAG_HAS_ERROR=1;
 
-export type SelectionUniforms={planes:Float32Array;view:Float32Array;pixelScale:[number,number];pixelError:number;near:number;cameraWorld:[number,number,number]};
+/** `cameraStretch` is the camera half of the flat cut's object-to-view stretch; tree caches ignore it. */
+export type SelectionUniforms={planes:Float32Array;view:Float32Array;pixelScale:[number,number];pixelError:number;near:number;cameraWorld:[number,number,number];cameraStretch?:number};
 export type PackedForest={
  nodes:Float32Array;meta:Uint32Array;extras:Uint32Array;worlds:Float32Array;cones:Float32Array;pageCones:Float32Array;
  nodeCount:number;rootCount:number;worldCount:number;childOffset:number;rootOffset:number;pageCount:number;pageUrls:string[];
@@ -220,10 +222,10 @@ export function sameSelectionUniforms(a:SelectionUniforms,b:SelectionUniforms){
 }
 
 export function copySelectionUniforms(source:SelectionUniforms):SelectionUniforms{
- return {planes:source.planes.slice(),view:source.view.slice(),pixelScale:[source.pixelScale[0],source.pixelScale[1]],pixelError:source.pixelError,near:source.near,cameraWorld:[source.cameraWorld[0],source.cameraWorld[1],source.cameraWorld[2]]};
+ return {planes:source.planes.slice(),view:source.view.slice(),pixelScale:[source.pixelScale[0],source.pixelScale[1]],pixelError:source.pixelError,near:source.near,cameraWorld:[source.cameraWorld[0],source.cameraWorld[1],source.cameraWorld[2]],cameraStretch:source.cameraStretch};
 }
 
-function leafCone(page:{cone?:NormalCone;material?:THREE.Material|THREE.Material[]}):NormalCone{
+export function leafCone(page:{cone?:NormalCone;material?:THREE.Material|THREE.Material[]}):NormalCone{
  const material=page.material;
  if(material){
   const side=Array.isArray(material)?material[0]?.side:material.side;
@@ -293,8 +295,10 @@ export function cameraSelectionUniforms(camera:THREE.PerspectiveCamera,pixelErro
  camera.getWorldPosition(camPos);
  const cameraWorld:[number,number,number]=into?.cameraWorld??[camPos.x,camPos.y,camPos.z];
  cameraWorld[0]=camPos.x;cameraWorld[1]=camPos.y;cameraWorld[2]=camPos.z;
- if(into){into.pixelError=pixelError;into.near=camera.near;into.cameraWorld=cameraWorld;return into;}
- return {planes:planes.slice(),view:view.slice(),pixelScale:[pixelScale[0],pixelScale[1]],pixelError,near:camera.near,cameraWorld:[cameraWorld[0],cameraWorld[1],cameraWorld[2]]};
+ // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
+ const cameraStretch=maxStretch(camera.matrixWorldInverse.elements);
+ if(into){into.pixelError=pixelError;into.near=camera.near;into.cameraWorld=cameraWorld;into.cameraStretch=cameraStretch;return into;}
+ return {planes:planes.slice(),view:view.slice(),pixelScale:[pixelScale[0],pixelScale[1]],pixelError,near:camera.near,cameraWorld:[cameraWorld[0],cameraWorld[1],cameraWorld[2]],cameraStretch};
 }
 
 function nodeWorld(packed:PackedForest,index:number){
