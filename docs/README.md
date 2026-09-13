@@ -12,6 +12,7 @@ Le SDK livré est décrit par [packages/README.md](../packages/README.md), le [g
 | [Principes](architecture/PRINCIPES_DU_PRODUIT.md) | Exigences de comportement |
 | [Architecture SDK](../packages/README.md) | Ce qui est implémenté, limites ouvertes |
 | [Exemple hôte](../examples/minimal-webgl/README.md) | Canvas + `manifestUrl` |
+| [Niveaux grossiers Emerald](audits/2026-09-13-coarse-lod.md) | Correction native, mesures avant/après et limites de la comparaison visuelle |
 
 ## Spécifications de conception (non livrées)
 
