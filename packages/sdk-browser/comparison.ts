@@ -35,4 +35,3 @@ export function createComparisonCompositor(renderer:THREE.WebGLRenderer){
   dispose(){material.dispose();mesh.geometry.dispose();},
  };
 }
-export type ComparisonCompositor=ReturnType<typeof createComparisonCompositor>;

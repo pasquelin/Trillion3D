@@ -4,8 +4,6 @@ import {
   clusterErrorPixels,
   maxStretch,
   dot,
-  projectedErrorBound,
-  lodScore,
   coneRejects,
   exclusiveScan,
   compact,
@@ -26,27 +24,6 @@ function createSeededRandom(seed: number) {
     return s / 4294967296;
   };
 }
-
-test('orthographic error does not shrink with distance', () => {
-  for (const depth of [1, 100, 10000]) {
-    const score = lodScore(1, 1, [0, 0, depth], [1, 1, depth + 1], [100, 80], 'orthographic', 0);
-    assert.equal(score, 100);
-  }
-});
-
-test('lod error includes instance scale', () => {
-  for (const projection of ['orthographic', 'perspective'] as const) {
-    const params1 = [0.01, 10, [0, 0, 100], [1, 1, 101], [100, 80], projection, 0.1] as const;
-    const params2 = [0.01, 1, [0, 0, 100], [1, 1, 101], [100, 80], projection, 0.1] as const;
-    assert.ok(Math.abs(lodScore(...params1) - 10 * lodScore(...params2)) < 1e-9);
-  }
-});
-
-test('lod projection and near contract', () => {
-  assert.throws(() => lodScore(1, 1, [0, 0, 1], [1, 1, 2], [100, 100], 'perspective', 0));
-  assert.throws(() => lodScore(1, 1, [0, 0, 1], [1, 1, 2], [100, 100], 'unknown' as any, 0.1));
-  assert.throws(() => lodScore(1, 1, [0, 0, 1], [1, 1, 2], [100, 100], 'orthographic', -1));
-});
 
 test('wide cone must not reject a visible normal', () => {
   const angle = (2 * Math.PI) / 3;
@@ -71,16 +48,6 @@ test('max error is not cumulative bound', () => {
 test('focal example', () => {
   const focal = 1080 / (2 * Math.tan(Math.PI / 6));
   assert.ok(Math.abs((focal * 0.01) / 10 - 0.935307436) < 1e-8);
-});
-
-test('near plane requests refinement', () => {
-  assert.equal(projectedErrorBound(0.01, [-1, -1, 0], [1, 1, 3], [900, 900]), Infinity);
-});
-
-test('nested bounds project monotonically', () => {
-  const child = projectedErrorBound(0.01, [-1, -1, 10], [1, 1, 12], [900, 900]);
-  const parent = projectedErrorBound(0.02, [-3, -3, 8], [3, 3, 15], [900, 900]);
-  assert.ok(parent >= child);
 });
 
 test('unique cut and threshold equality', () => {

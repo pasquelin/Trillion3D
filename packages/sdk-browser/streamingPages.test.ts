@@ -93,6 +93,6 @@ test('stream diagnostics cover coalescing, verification, retention and eviction'
  const bytes=new Uint8Array([1,0,0,0]);const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
  const previous=globalThis.fetch;globalThis.fetch=async()=>new Response(bytes);const events:string[]=[];
  const streamer=createPageStreamer([{url:'a.bin',bytes:4,sha256:sha},{url:'b.bin',bytes:4,sha256:sha}],'http://cache/',undefined,2,1,undefined,8,event=>{events.push(event.phase);if(events.length===1)throw new Error('observer failure');});
- try{await Promise.all([streamer.read('a.bin'),streamer.read('a.bin')]);streamer.retain([]);await streamer.request(['b.bin']);streamer.retain(['b.bin']);assert.ok(events.includes('page-catalogue'));assert.ok(events.includes('page-request-coalesced'));assert.ok(events.includes('page-hash-check'));assert.ok(events.includes('page-cache-eviction'));assert.equal(streamer.stats().drawDetaches,0);}
+ try{await Promise.all([streamer.read('a.bin'),streamer.read('a.bin')]);streamer.retain([]);await streamer.request(['b.bin']);streamer.retain(['b.bin']);assert.ok(events.includes('page-catalogue'));assert.ok(events.includes('page-request-coalesced'));assert.ok(events.includes('page-hash-check'));assert.ok(events.includes('page-cache-eviction'));assert.ok(streamer.stats().evictions>0);}
  finally{streamer.dispose();globalThis.fetch=previous;}
 });

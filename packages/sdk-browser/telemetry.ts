@@ -21,7 +21,6 @@ export interface TelemetryReport {
     total: number;
     visible: number | null;
     frustumCulled: number | null;
-    hizCulled: number | null;
   };
   streaming: {
     residentPages: number | null;
@@ -123,7 +122,6 @@ export class EngineProfiler {
         total: this.totalClusters || m?.clusters || 0,
         visible: m?.clusters ?? null,
         frustumCulled: m?.frustumRejected ?? null,
-        hizCulled: m?.hizRejected ?? null,
       },
       streaming: {
         residentPages: m?.residentPages ?? null,
@@ -153,7 +151,6 @@ export class EngineProfiler {
 
     const visClust = r.clusters.visible ?? '-';
     const totClust = r.clusters.total || '-';
-    const hizCulled = r.clusters.hizCulled ?? 0;
     const frustumCulled = r.clusters.frustumCulled ?? 0;
 
     return [
@@ -163,7 +160,7 @@ export class EngineProfiler {
       ` ⏱️  CADENCE FRAME : P50: ${p50Str} | P95: ${p95Str} | P99: ${p99Str} | Saccades: ${r.stutters ?? 0}`,
       ` 💻 CPU FRAME     : ${r.cpuFrameMs} ms | Soumission WebGPU: ${r.cpuSubmitMs != null ? r.cpuSubmitMs + ' ms' : '-'}`,
       ` 🔺 GÉOMÉTRIE     : ${sourceTriStr} source → ${selTriStr} LOD → ${subTriStr} soumis (${cullStr})`,
-      ` 📦 CLUSTERS      : ${visClust} visibles / ${totClust} totaux (Frustum: ${frustumCulled}, Hi-Z: ${hizCulled})`,
+      ` 📦 CLUSTERS      : ${visClust} visibles / ${totClust} totaux (Frustum: ${frustumCulled})`,
       ` 💾 VRAM & PAGES  : ${vramStr} VRAM | Pages résidentes: ${r.streaming.residentPages ?? '-'}`,
       ` 🌐 STREAMING     : ${r.streaming.pageLoads} pages chargées (${r.streaming.pageBytesReadMb} Mo) | En vol: ${r.streaming.pagesLoading ?? 0} | Hit: ${r.streaming.cacheHitRate != null ? r.streaming.cacheHitRate + '%' : '-'}`,
       ` 🎯 ÉTAT SYSTÈME  : ${r.bottleneckMessage}`,

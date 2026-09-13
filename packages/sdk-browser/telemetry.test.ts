@@ -30,7 +30,6 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
     residentPages: 150,
     submittedTriangles: 25000,
     frustumRejected: 300,
-    hizRejected: 50,
     pageLoads: 150,
     pageBytesRead: 1024 * 1024 * 5,
     vramBytes: 1024 * 1024 * 32,
@@ -54,7 +53,6 @@ test('EngineProfiler records frames and produces accurate statistics and bottlen
   assert.equal(report.triangles.cullingRatePercent, 97.5);
   assert.equal(report.clusters.total, 500);
   assert.equal(report.clusters.visible, 150);
-  assert.equal(report.clusters.hizCulled, 50);
   assert.equal(report.bottleneck, 'healthy');
 
   const text = profiler.formatReport();
