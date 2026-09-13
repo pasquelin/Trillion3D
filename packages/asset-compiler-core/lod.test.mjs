@@ -1,6 +1,14 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {classifyTopology} from './topology.mjs';
-import {buildLodTree,clusterAdjacency} from './lod.mjs';
+import {buildLodTree,clusterAdjacency,certifiedLodError,preservesBoundary} from './lod.mjs';
+
+test('LOD replacement keeps the exact oriented border and a conservative distance bound',()=>{
+ const quad=[0,1,2,0,2,3];
+ assert.equal(preservesBoundary(quad,quad),true);
+ assert.equal(preservesBoundary(quad,[0,1,2]),false);
+ assert.equal(preservesBoundary(quad,[0,2,1,0,2,3]),false);
+ assert.equal(certifiedLodError([0,0,0],[2,3,6]),7);
+});
 
 function manifoldStrip(triangles){
  const indices=[];
@@ -72,4 +80,3 @@ test('disconnected clusters preserve all leaves in lod tree',()=>{
  assert.equal(tree.reduced,false);
  assert.equal(tree.mesh.length,0);
 });
-

@@ -8,7 +8,7 @@ mod geometry_page;
 use std::{collections::{BTreeMap,BTreeSet},fmt::{Display,Formatter},fs::{self,File},io::{Read,Write,BufWriter,Seek,SeekFrom},path::{Path,PathBuf},sync::{Arc,atomic::{AtomicBool,Ordering}},time::Instant};
 use serde_json::{Value,json};use sha2::{Sha256,Digest};use rayon::prelude::*;
 pub const FORMAT_VERSION:u32=1;pub const COMPILER_VERSION:&str=env!("CARGO_PKG_VERSION");
-pub const LOD_ERROR_MODEL:&str="qem-local-plus-child-max";
+pub const LOD_ERROR_MODEL:&str="bounds-diagonal-boundary-v1";
 #[derive(Debug)] pub struct CompilerError {pub code:&'static str,pub message:String}
 impl CompilerError {fn new(code:&'static str,message:impl Into<String>)->Self{Self{code,message:message.into()}}}
 impl Display for CompilerError {fn fmt(&self,f:&mut Formatter<'_>)->std::fmt::Result{write!(f,"{}: {}",self.code,self.message)}}
@@ -440,10 +440,10 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      let mut tree=hierarchy(&pages)?;
      if o.simplification=="qem-endpoints"&&index_values.len()>=6{
       let simplified=crate::qem::simplify_fast(&pos,&index_values,(index_values.len()/12).max(1))?;
-      if simplified.triangles*3<index_values.len(){
+      if simplified.triangles*3<index_values.len()&&crate::lod::preserves_boundary(&index_values,&simplified.indices){
        let mut coarse_ids=Vec::new();let mut start=0usize;
        while start<simplified.indices.len(){let end=(start+CLUSTER_INDEX_COUNT).min(simplified.indices.len());coarse_ids.push(write_coarse(&simplified.indices[start..end],&mut pages,&mut reused)?);start=end;}
-       if !tree.is_null(){tree["errorObject"]=json!(simplified.error_object);tree["coarsePages"]=json!(coarse_ids);}
+       if !tree.is_null(){let min=tree["min"].as_array().ok_or_else(||invalid("Missing LOD bounds"))?;let max=tree["max"].as_array().ok_or_else(||invalid("Missing LOD bounds"))?;let bound=crate::lod::certified_lod_error([min[0].as_f64().unwrap_or(0.0),min[1].as_f64().unwrap_or(0.0),min[2].as_f64().unwrap_or(0.0)],[max[0].as_f64().unwrap_or(0.0),max[1].as_f64().unwrap_or(0.0),max[2].as_f64().unwrap_or(0.0)]);tree["errorObject"]=json!(bound);tree["coarsePages"]=json!(coarse_ids);}
       }
      }
      tree

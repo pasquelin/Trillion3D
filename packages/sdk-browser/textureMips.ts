@@ -1,6 +1,6 @@
 /** Generate material mip levels once during preparation, averaging in the texture's
  * declared color space. Clamp to each layer's image rather than its padded area. */
-export async function generateMaterialMips(device:GPUDevice,texture:GPUTexture,format:GPUTextureFormat,width:number,height:number,scales:readonly (readonly [number,number])[]){
+export async function generateMaterialMips(device:GPUDevice,texture:GPUTexture,format:GPUTextureFormat,width:number,height:number,scales:readonly (readonly [number,number])[],selectedLayers?:readonly number[]){
  const levels=1+Math.floor(Math.log2(Math.max(width,height)));
  if(levels===1)return;
  const layout=device.createBindGroupLayout({entries:[
@@ -30,7 +30,7 @@ export async function generateMaterialMips(device:GPUDevice,texture:GPUTexture,f
  try{
   device.queue.writeBuffer(uniforms,0,packed);
   const encoder=device.createCommandEncoder();
-  for(let layer=0;layer<scales.length;layer++)for(let level=1;level<levels;level++){
+  for(const layer of selectedLayers??scales.map((_,index)=>index))for(let level=1;level<levels;level++){
    const group=device.createBindGroup({layout,entries:[
     {binding:0,resource:texture.createView({dimension:'2d',baseArrayLayer:layer,arrayLayerCount:1,baseMipLevel:level-1,mipLevelCount:1})},
     {binding:1,resource:{buffer:uniforms,offset:(layer*(levels-1)+level-1)*stride,size:16}},

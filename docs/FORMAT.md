@@ -45,7 +45,7 @@ Optional fields consumed when present:
 
 - `clusterStrategy` — `exact-source-order` (default) or `greedy-adjacency`
 - `simplification` — `true` when coarse QEM pages are included
-- `errorModel` — required when the cache includes coarse pages or `hierarchy.errorObject`. Current identity: `qem-local-plus-child-max`. A cache without this field is rejected (`STALE_CACHE`) so a host must recompile; it is not a scene name.
+- `errorModel` — required when the cache includes coarse pages or `hierarchy.errorObject`. Current identity: `bounds-diagonal-boundary-v1`. A cache without this field is rejected (`STALE_CACHE`) so a host must recompile; it is not a scene name. The stored error is the diagonal of the exact source region's AABB, a conservative but loose two-way geometric distance bound; coarse pages are emitted only when the oriented boundary edges match.
 - `pages[].role` — `exact` (default) or `coarse`
 - `hierarchy.errorObject` / `hierarchy.coarsePages` / `hierarchy.children` — nested screen-error LOD cut. Selecting a node draws its `coarsePages` and skips children. Omitted fields keep the exact leaves.
 

@@ -131,3 +131,5 @@ LAB_ROOT=../render-tech-lab node --experimental-strip-types test/debugLogging.ar
 ```
 
 This check compares every journal event and capture against the original compressed report, verifies hashes, diagnostic sequences and measured sample counts. It does not rerun the campaign.
+
+For prepared WebGPU scenes, `maxTextureTransferBytesPerFrame` bounds source texture uploads; missing layers use white or neutral-normal fallbacks. Frame metrics expose `textureUploaded`, `texturePending`, `textureSkipped` and `totalSubmittedTriangles`. `createExplorer` exposes `renderViews(poses)` for successive captures. Its `addInstance`, `updateInstance`, `removeInstance`, `updateMaterial` and `replaceGeometryPage` methods currently require the autonomous WebGL2 backend; other backends return `UNSUPPORTED_SCENE_UPDATE`.

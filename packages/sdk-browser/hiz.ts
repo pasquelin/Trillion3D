@@ -139,6 +139,14 @@ export type TemporalHizState = {
  viewport?: [number, number];
 };
 
+/** Reuse depth only for an identical view. Any camera movement, cut or projection change starts a new history. */
+export function sameHizView(previous:THREE.PerspectiveCamera|undefined,current:THREE.PerspectiveCamera){
+ if(!previous)return false;
+ previous.updateMatrixWorld();current.updateMatrixWorld();
+ const equal=(a:readonly number[],b:readonly number[])=>a.length===b.length&&a.every((value,i)=>Math.abs(value-b[i])<=1e-7);
+ return equal(previous.matrixWorldInverse.elements,current.matrixWorldInverse.elements)&&equal(previous.projectionMatrix.elements,current.projectionMatrix.elements);
+}
+
 /**
  * Apply Temporal Hi-Z occlusion culling using previous frame's depth pyramid reprojection.
  * Candidate pages are tested against the previous frame's Hi-Z pyramid.
@@ -158,7 +166,7 @@ export function applyTemporalHiz<T extends HizPage&VisPage>(
   history.viewport = [viewport[0], viewport[1]];
   return { shown: selected, hizRejected: 0, occluders: selected, history };
  }
- const hasPrev = !!(history.pyramid && history.camera && history.viewport &&
+ const hasPrev = !!(history.pyramid && history.camera && sameHizView(history.camera,camera) && history.viewport &&
   history.viewport[0] === viewport[0] && history.viewport[1] === viewport[1]);
 
  let occluders: T[], rest: T[];

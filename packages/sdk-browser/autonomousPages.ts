@@ -11,6 +11,7 @@ export const autonomousPagesBackend:BackendFactory=context=>{
   return {...page,url:page.geometry.url,bytes:page.geometry.bytes,sha256:page.geometry.sha256};
  })}))};
  const {roots,allPages}=collectClusterPages(context.source,metadata,new Map(),context.associations,{allowMissing:true});
+ const baseRoots=roots.slice(),basePages=allPages.slice();
  const bootstrap:PageRec[]=[];
  const cover=(node:typeof roots[number]['tree'],pages:PageRec[])=>{
   const ids=node.coarsePages?.length?node.coarsePages:node.page!==undefined?[node.page]:undefined;
@@ -19,12 +20,14 @@ export const autonomousPagesBackend:BackendFactory=context=>{
   for(const child of node.children)cover(child,pages);
  };
  for(const root of roots)cover(root.tree,root.pages);
+ const baseBootstrap=bootstrap.slice();
  const byUrl=indexPagesByUrl(allPages),bootstrapUrls=new Set(bootstrap.map(page=>page.url));
  const descriptors=new Map(context.metadata.primitives.flatMap(primitive=>primitive.pages).filter(page=>!!page.geometry).map(page=>[page.geometry!.url,page.geometry!] as const));
  const cap=context.maxResidentPages??Math.max(1024,bootstrapUrls.size),scene=new THREE.Scene();
  const lighting=installSceneLighting(scene,context.sceneLighting??context.source,context.clearColor??0x171d28);
  const shown:PageRec[]=[],desired:PageRec[]=[],pending:string[]=[],retained:string[]=[];
  const baseMaterials=new Map(allPages.map(rec=>[rec,rec.material] as const)),colorMaterials=new Map<THREE.Material,THREE.Material>();
+ const instances=new Map<string,{roots:typeof roots;pages:PageRec[];bootstrap:PageRec[]}>();
  let frame=0,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,evictions=0,overBudget=false,ready=false,allocationBytes=0;
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  const detach=(rec:PageRec)=>{if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}};
@@ -37,6 +40,17 @@ export const autonomousPagesBackend:BackendFactory=context=>{
   const keep=new Set(display);
   for(const rec of allPages)if(rec.attached&&!keep.has(rec))detach(rec);
   submittedTriangles=0;for(const rec of display){if(!rec.array)throw new Error('AUTONOMOUS_COVERAGE_MISSING');attach(rec);submittedTriangles+=rec.triangles;}
+ };
+ const geometryBytes=(geometry:THREE.BufferGeometry)=>{
+  let bytes=geometry.getIndex()?.array.byteLength??0;for(const attr of Object.values(geometry.attributes))bytes+=attr.array.byteLength;return bytes;
+ };
+ const removeRecords=(records:PageRec[])=>{
+  const removed=new Set(records);
+  for(const rec of records){detach(rec);if(rec.geometry){allocationBytes-=geometryBytes(rec.geometry);rec.geometry.dispose();}rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;
+   const list=byUrl.get(rec.url);if(list){const index=list.indexOf(rec);if(index>=0)list.splice(index,1);}
+   baseMaterials.delete(rec);
+  }
+  for(const list of [allPages,bootstrap,shown,desired])for(let i=list.length-1;i>=0;i--)if(removed.has(list[i]))list.splice(i,1);
  };
  const acceptGeometryPage=(url:string,data:DecodedGeometryPage)=>{const recs=byUrl.get(url);if(!recs)return;
   const descriptor=descriptors.get(url);if(!descriptor||data.vertexCount!==descriptor.vertexCount||data.indices.length!==descriptor.indexCount||data.flags!==descriptor.flags)throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
@@ -71,6 +85,37 @@ export const autonomousPagesBackend:BackendFactory=context=>{
    desired.length=0;desired.push(...selected.wanted);visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;
    overBudget=shown.length>cap;if(overBudget){shown.length=0;shown.push(...bootstrap);}
    sync();
+  },
+  addInstance(id,transform){
+   if(instances.has(id)||!id)throw new Error('AUTONOMOUS_INSTANCE_ID');
+   if(bootstrap.length+baseBootstrap.length>cap)throw new Error('AUTONOMOUS_ROOT_BUDGET');
+   const mapped=new Map<PageRec,PageRec>();
+   for(const base of basePages){
+    const geometry=base.geometry?.clone();
+    const rec:PageRec={...base,clusterId:`${id}/${base.clusterId}`,matrix:transform.clone().multiply(base.matrix),geometry,attributes:geometry?.attributes??base.attributes,mesh:undefined,attached:false};
+    if(geometry)allocationBytes+=geometryBytes(geometry);
+    mapped.set(base,rec);allPages.push(rec);baseMaterials.set(rec,baseMaterials.get(base)!);
+    let list=byUrl.get(rec.url);if(!list)byUrl.set(rec.url,list=[]);list.push(rec);
+   }
+   const addedRoots=baseRoots.map(root=>({tree:root.tree,world:transform.clone().multiply(root.world),pages:root.pages.map(page=>mapped.get(page)!)}));
+   const addedBootstrap=baseBootstrap.map(page=>mapped.get(page)!);
+   roots.push(...addedRoots);bootstrap.push(...addedBootstrap);instances.set(id,{roots:addedRoots,pages:[...mapped.values()],bootstrap:addedBootstrap});
+  },
+  updateInstance(id,transform){
+   const instance=instances.get(id);if(!instance)throw new Error('AUTONOMOUS_INSTANCE_MISSING');
+   const mapped=new Map(basePages.map((base,i)=>[instance.pages[i],base] as const));
+   for(let i=0;i<instance.roots.length;i++)instance.roots[i].world.copy(transform).multiply(baseRoots[i].world);
+   for(const rec of instance.pages){rec.matrix.copy(transform).multiply(mapped.get(rec)!.matrix);if(rec.mesh)rec.mesh.matrix.copy(rec.matrix);}
+  },
+  removeInstance(id){
+   const instance=instances.get(id);if(!instance)throw new Error('AUTONOMOUS_INSTANCE_MISSING');
+   const removed=new Set(instance.roots);for(let i=roots.length-1;i>=0;i--)if(removed.has(roots[i]))roots.splice(i,1);
+   removeRecords(instance.pages);instances.delete(id);sync();
+  },
+  updateMaterial(primitive,material){
+   const records=allPages.filter(rec=>rec.clusterId.startsWith(`${primitive}/`)||rec.clusterId.includes(`/${primitive}/`));
+   if(!records.length)throw new Error('AUTONOMOUS_PRIMITIVE_MISSING');
+   for(const rec of records){baseMaterials.set(rec,material);rec.material=rec.attributes.color?(()=>{let clone=colorMaterials.get(material);if(!clone){clone=material.clone();(clone as THREE.MeshStandardMaterial).vertexColors=true;colorMaterials.set(material,clone);}return clone;})():material;if(rec.mesh)rec.mesh.material=rec.material;}
   },
   refreshSceneLighting(){lighting.refresh();},
   pendingUrls(){pending.length=0;for(const rec of desired)if(!rec.array&&!pending.includes(rec.url))pending.push(rec.url);return pending;},

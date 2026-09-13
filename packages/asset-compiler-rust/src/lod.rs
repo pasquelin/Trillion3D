@@ -1,6 +1,27 @@
 use crate::{qem::simplify_fast,Result};
 use rayon::prelude::*;
 use serde_json::{json,Value};
+pub fn boundary_signature(indices:&[u32])->Option<Vec<(u32,u32,i32)>>{
+ if indices.len()%3!=0{return None;}
+ let mut edges=std::collections::BTreeMap::<(u32,u32),(usize,i32)>::new();
+ for tri in indices.chunks_exact(3){for k in 0..3{
+  let a=tri[k];let b=tri[(k+1)%3];
+  let entry=edges.entry((a.min(b),a.max(b))).or_insert((0,0));entry.0+=1;entry.1+=if a<b{1}else{-1};
+ }}
+ let mut boundary=Vec::new();
+ for ((a,b),(count,winding)) in edges{
+  if count==1{boundary.push((a,b,winding));}
+  else if count!=2||winding!=0{return None;}
+ }
+ Some(boundary)
+}
+pub fn preserves_boundary(before:&[u32],after:&[u32])->bool{
+ let Some(signature)=boundary_signature(before) else{return false;};
+ boundary_signature(after).as_ref()==Some(&signature)
+}
+pub fn certified_lod_error(min:[f64;3],max:[f64;3])->f64{
+ ((max[0]-min[0]).powi(2)+(max[1]-min[1]).powi(2)+(max[2]-min[2]).powi(2)).sqrt()
+}
 #[derive(Clone)]
 pub enum LodNode {
  Leaf { cluster_index:usize, triangles:Vec<usize>, min:[f64;3], max:[f64;3] },
@@ -139,8 +160,8 @@ pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],tri
   let simplified:Result<Vec<Option<(bool,Vec<u32>,f64)>>>=works.into_par_iter().map(|work|->Result<Option<(bool,Vec<u32>,f64)>>{
    let Some(work)=work else{return Ok(None);};
    let simplified=simplify_fast(positions,&work.index_list,(work.index_list.len()/6).max(1))?;
-   let progressed=simplified.triangles*3<work.index_list.len();
-   let error=if progressed{simplified.error_object+work.err_left.max(work.err_right)}else{work.err_left.max(work.err_right)}; // QEM energy accumulation, not a Hausdorff bound.
+   let progressed=simplified.triangles*3<work.index_list.len()&&preserves_boundary(&work.index_list,&simplified.indices);
+   let error=work.err_left.max(work.err_right);
    Ok(Some((progressed,if progressed{simplified.indices}else{work.index_list},error)))
   }).collect();
   let simplified=simplified?;
@@ -152,7 +173,7 @@ pub fn build_lod_tree(positions:&[f32],indices:&[u32],clusters:&[Vec<usize>],tri
    let left=slots[pair[0]].take().expect("lod left");let right=slots[pair[1]].take().expect("lod right");
    let (progressed,mesh,error)=result.expect("lod pair work");
    let (min,max)=union_bounds(&left,&right);
-   next.push(LodNode::Node{error_object:error,mesh,reduced:progressed,children:vec![left,right],min,max});
+   next.push(LodNode::Node{error_object:if progressed{certified_lod_error(min,max)}else{error},mesh,reduced:progressed,children:vec![left,right],min,max});
   }
   if next.len()>=prev_len{regions=next;break;}
   adjacency=region_adjacency(&next,&cluster_adj);
@@ -183,6 +204,13 @@ pub fn to_json(node:&LodNode,cluster_page_ids:&[usize],write_coarse:&mut dyn FnM
 #[cfg(test)] mod tests{
  use super::*;
  use crate::topology::classify_topology;
+ #[test] fn replacement_requires_the_same_oriented_boundary(){
+  let quad=[0,1,2,0,2,3];
+  assert!(preserves_boundary(&quad,&quad));
+  assert!(!preserves_boundary(&quad,&[0,1,2]));
+  assert!(!preserves_boundary(&quad,&[0,2,1,0,2,3]));
+  assert_eq!(certified_lod_error([0.0,0.0,0.0],[2.0,3.0,6.0]),7.0);
+ }
  fn strip(triangles:usize)->(Vec<f32>,Vec<u32>){
   let mut indices=Vec::new();
   for i in 0..triangles as u32{
