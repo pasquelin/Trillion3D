@@ -175,17 +175,57 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const {source,metadata,indices,associations,maxResidentPages,gpuDevice}=context;
  const viewport=context.viewport??[1,1];
  const clearColor=context.clearColor??RASTER_BACKGROUND;
+ const diagnosticDetail=(context as typeof context&{diagnosticDetail?:'summary'|'trace'}).diagnosticDetail;
+ const traceEnabled=!!context.onDiagnostic&&diagnosticDetail!=='summary';
+ type TraceDiagnostic={phase:string;message:string;context:Record<string,unknown>};
+ const traceQueue:TraceDiagnostic[]=[];
+ const maxTraceQueue=65536;
+ let droppedTraceDiagnostics=0,traceLossPending=0;
+ let traceScheduled=false;
+ const drainTraceNow=()=>{
+  const batch=traceQueue.splice(0);
+  for(const event of batch){try{context.onDiagnostic?.(event);}catch{/* Host collectors do not control rendering. */}}
+  if(traceLossPending){const dropped=traceLossPending;traceLossPending=0;try{context.onDiagnostic?.({phase:'diagnostic-loss',message:'Diagnostics trace supprimés pour respecter la borne mémoire',context:{pipelineVersion:1,backend:'webgpu-page-raster',dropped,queueLimit:maxTraceQueue}});}catch{/* Host collectors do not control rendering. */}}
+ };
+ const flushTraceQueue=()=>{
+  if(traceScheduled||!traceQueue.length)return;
+  traceScheduled=true;
+  queueMicrotask(()=>{
+   traceScheduled=false;
+   drainTraceNow();
+   if(traceQueue.length)flushTraceQueue();
+  });
+ };
+ const traceDiagnostic=(phase:string,message:string,details:Record<string,unknown>|(()=>Record<string,unknown>))=>{
+  if(!traceEnabled)return;
+  if(traceQueue.length>=maxTraceQueue){droppedTraceDiagnostics++;traceLossPending++;return;}
+  const payload=typeof details==='function'?details():details;
+  traceQueue.push({phase,message,context:{pipelineVersion:1,createdAt:Date.now(),...payload,droppedDiagnostics:droppedTraceDiagnostics||undefined}});flushTraceQueue();
+ };
  const engineDiagnostic=(phase:string,message:string,details:Record<string,unknown>)=>{try{context.onDiagnostic?.({phase,message,context:{pipelineVersion:1,...details}});}catch{/* Observers do not control rendering. */}};
- const loggedFailures=new Set<string>();
+ const loggedFailures=new Set<string>(),failureOccurrences=new Map<string,number>();
  const diagnosticFailure=(phase:string,error:unknown)=>{
-  if(loggedFailures.has(phase))return;loggedFailures.add(phase);
-  engineDiagnostic(phase,'Échec du chemin WebGPU',{error:error&&typeof error==='object'&&'message' in error?String(error.message):String(error),backend:'webgpu-page-raster'});
+  const objectError=error&&typeof error==='object'?error as {message?:unknown;name?:unknown;stack?:unknown;cause?:unknown}:undefined;
+  const details={error:objectError?.message!==undefined?String(objectError.message):String(error),backend:'webgpu-page-raster'};
+  const occurrence=(failureOccurrences.get(phase)??0)+1;failureOccurrences.set(phase,occurrence);
+  if(traceEnabled){traceDiagnostic(phase,'Échec du chemin WebGPU',()=>({...details,name:objectError?.name?String(objectError.name):undefined,stack:objectError?.stack?String(objectError.stack).slice(0,8192):undefined,cause:objectError?.cause===undefined?undefined:String(objectError.cause).slice(0,2048),occurrence}));return;}
+  if(loggedFailures.has(phase))return;loggedFailures.add(phase);engineDiagnostic(phase,'Échec du chemin WebGPU',details);
  };
  const onGpuError=(event:GPUUncapturedErrorEvent)=>{diagnosticFailure('gpu-uncaptured-error',event.error);lost=true;};
  const inputColor={clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,value:clearColor,source:context.clearColor===undefined?'fallback moteur':'hôte'};
  engineDiagnostic('clear-color-input','Couleur de fond reçue par WebGeometry WebGPU',inputColor);
  if(typeof window!=='undefined')console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU',inputColor);
  const {roots,allPages,blendCopies,prepared}=collectClusterPages(source,metadata,indices,associations,{allowMissing:true});
+ const pageCatalog=[...new Set(allPages.map(page=>page.url))],pageCatalogIds=new Map(pageCatalog.map((url,index)=>[url,index]));
+ const pageRefs=(urls:string[])=>urls.map(url=>pageCatalogIds.get(url)??url);
+ const traceSets=new Map<string,{revision:number;urls:string[]}>();
+ const traceSet=(name:string,urls:string[])=>{
+  const previous=traceSets.get(name);
+  if(previous&&previous.urls.length===urls.length&&previous.urls.every((url,index)=>url===urls[index]))return {revision:previous.revision,changed:false};
+  const next={revision:(previous?.revision??0)+1,urls:[...urls]};traceSets.set(name,next);
+  return {revision:next.revision,changed:true,pageIds:pageRefs(urls)};
+ };
+ traceDiagnostic('page-catalog','Catalogue stable des pages WebGPU',{backend:'webgpu-page-raster',count:pageCatalog.length,urls:pageCatalog});
  const bootstrap=rootCoverage(roots),bootstrapUrls=new Set(bootstrap.map(page=>page.url));
  let bootstrapReady=false,bootstrapLoading:Promise<void>|undefined,coverageBudgetLimited=false;
  const deferredDrops=new Set<string>();
@@ -252,6 +292,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let lastSubmitMs:number|null=null;
  let gpuTiming:ReturnType<typeof createGpuTiming>|undefined;
  let cpuSample:Record<string,unknown>|undefined,transparentEncodeMs=0,lastCpuLogFrame=-1;
+ let residencyJob=0;
+ const cameraPose=(camera:THREE.PerspectiveCamera)=>({position:camera.getWorldPosition(new THREE.Vector3()).toArray(),quaternion:camera.getWorldQuaternion(new THREE.Quaternion()).toArray()});
  const createRenderEncoder=(device:GPUDevice)=>gpuTiming&&!secondaryCamera?gpuTiming.createEncoder(frame):device.createCommandEncoder();
  const dropGpuHiz=()=>{
   gpuHiz?.dispose();gpuHiz=undefined;visHizBindGroup=undefined;
@@ -282,6 +324,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  };
  const ensureTargets=(device:GPUDevice,width:number,height:number)=>{
   if(colorTexture&&targetSize[0]===width&&targetSize[1]===height&&surfaces&&(!visEnabled||visTexture)&&(!gpuHiz||gpuHiz.width===width&&gpuHiz.height===height))return;
+  traceDiagnostic('targets-request','Demande de cibles GPU pour la frame',()=>({frame,width,height,previousSize:targetSize.slice(),additionalBytes:captureAllocationBytes,budgetBytes:frameBudget,hiZReserved:reserveHiz}));
   const allocationBytes=checkFrameBudget(width,height,captureAllocationBytes);
   colorTexture?.destroy();depthTexture?.destroy();visTexture?.destroy();hdrTexture?.destroy();surfaces?.dispose();
   visTexture=undefined;visView=undefined;shadeBindGroup=undefined;visBindGroup=undefined;visHizBindGroup=undefined;
@@ -295,7 +338,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   try{visTexture=device.createTexture({label:'WG visibility',size:{width,height},format:'r32uint',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});visView=visTexture.createView();}
   catch(error){diagnosticFailure('visibility-target-failed',error);}
   if(gpuHiz&&!gpuHiz.resize(device,width,height))dropGpuHiz();
-  engineDiagnostic('frame-allocation','Cibles GPU allouées',{width,height,allocationBytes,captureAllocationBytes,budgetBytes:frameBudget,physicalVramBytes:null,surfaceVersion:1});
+  const allocation={frame,width,height,allocationBytes,captureAllocationBytes,budgetBytes:frameBudget,physicalVramBytes:null,surfaceVersion:1};
+  traceDiagnostic('targets-transition','Cibles GPU allouées après transition',()=>allocation);
+  engineDiagnostic('frame-allocation','Cibles GPU allouées',allocation);
  };
  const windingCw=(rec:PageRec)=>{
   const e=rec.matrix.elements;
@@ -378,6 +423,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   pass.end();
   transparentEncodeMs+=performance.now()-cpuStart;
+  traceDiagnostic('transparent-encoding','Transparents sélectionnés et encodés',()=>({frame,submission:imageRevision,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,encodeMs:transparentEncodeMs,passes:visibleBlend.length?2:0}));
  };
  const packedDraws=()=>{
    const packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>=[];
@@ -389,9 +435,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    }
    return packed;
   };
-  const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number)=>{
+ const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number)=>{
    if(presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
-   device.queue.submit([encoder.finish()]);imageRevision++;
+   const command=encoder.finish();device.queue.submit([command]);imageRevision++;
+   traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
    if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'render-passes-only',excludes:['GPU selection dispatch','uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
    if(canvasTexture&&!secondaryCamera)canvasTexture.needsUpdate=true;
   };
@@ -670,28 +717,36 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const hasBytes=(rec:PageRec)=>!!(rec.array||sourceBytes.has(rec.url));
  const updatePins=()=>{
   if(!cache)return;
+  const before=[...pins];
   const keep=new Set([...bootstrapUrls,...shown.map(page=>page.url),...residencyWanted]);
   for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
   for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
   for(const key of deferredDrops)if(!keep.has(key))backend.dropPage!(key);
+  const added=[...pins].filter(key=>!before.includes(key)),removed=before.filter(key=>!pins.has(key));
+  if(added.length||removed.length)traceDiagnostic('residency-pins','Pins GPU mis à jour',()=>({frame,added:traceSet('pins.added',added),removed:traceSet('pins.removed',removed),pinned:traceSet('pins', [...pins]),bootstrap:traceSet('pins.bootstrap',[...bootstrapUrls]),wanted:traceSet('pins.wanted',[...residencyWanted]),shown:traceSet('pins.shown',shown.map(page=>page.url))}));
  };
  const ensureBootstrap=async()=>{
   if(bootstrapReady)return;
   if(bootstrapLoading)return bootstrapLoading;
   if(bootstrap.some(page=>!hasBytes(page))&&!context.readPage)return;
   bootstrapLoading=(async()=>{
+   const started=performance.now();
    engineDiagnostic('coverage-bootstrap-start','Chargement de la couverture complète de secours',{version:1,pages:bootstrap.length,slots});
+   traceDiagnostic('coverage-bootstrap-start','Chargement de la couverture complète de secours',()=>({frame,pages:bootstrap.length,pageIds:pageRefs(bootstrap.map(page=>page.url)),slots,queueWaitMs:0}));
    let next=0;
    const workers=Array.from({length:Math.min(8,bootstrap.length)},async()=>{while(next<bootstrap.length){const page=bootstrap[next++];context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');if(!hasBytes(page)){const array=await context.readPage!(page.url);context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');backend.acceptPage!(page.url,array);}}});
    const results=await Promise.allSettled(workers);const failed=results.find(result=>result.status==='rejected');if(failed?.status==='rejected')throw failed.reason;
    for(const page of bootstrap){context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');await cache!.load(page.url,context.signal);cache!.pin(page.url);pins.add(page.url);}
    bootstrapReady=true;
    engineDiagnostic('coverage-bootstrap-ready','Couverture complète disponible sur le GPU',{version:1,pages:bootstrap.length,slots});
+   traceDiagnostic('coverage-bootstrap-ready','Couverture complète disponible sur le GPU',()=>({frame,pages:bootstrap.length,bootstrap:traceSet('bootstrap',[...bootstrapUrls]),slots,durationMs:performance.now()-started,loaded:traceSet('bootstrap.loaded',bootstrap.map(page=>page.url)),wanted:traceSet('bootstrap.wanted',bootstrap.map(page=>page.url))}));
   })().catch(error=>{diagnosticFailure('coverage-bootstrap-failed',error);throw error;}).finally(()=>{bootstrapLoading=undefined;});
   return bootstrapLoading;
  };
- const ensureResident=async(wanted:PageRec[])=>{
+ const ensureResident=async(wanted:PageRec[],jobFrame:number,jobId:number)=>{
   if(!cache)return;
+  const started=performance.now(),urls=wanted.map(page=>page.url);
+  traceDiagnostic('residency-ensure-start','Vérification de la résidence GPU demandée',()=>({frame:jobFrame,jobId,scope:'async-residency-ensure',pages:traceSet('ensure',urls),wanted:traceSet('ensure.wanted',urls),loaded:traceSet('ensure.loaded',urls.filter(url=>!!cache!.get(url))),queueWaitMs:null,elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));
   for(const rec of wanted){
    if(!residencyWanted.has(rec.url))continue;
    context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');
@@ -700,13 +755,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(lost||!cache)throw new Error('WEBGPU_LOST');
    if(residencyWanted.has(rec.url)||bootstrapUrls.has(rec.url)){cache.pin(rec.url);pins.add(rec.url);}
   }
+  traceDiagnostic('residency-ensure-end','Résidence GPU vérifiée',()=>({frame:jobFrame,jobId,scope:'async-residency-ensure',pages:traceSet('ensure',urls),loaded:traceSet('ensure.loaded',urls.filter(url=>!!cache!.get(url))),durationMs:performance.now()-started,elapsedMs:performance.now()-started,cpuWorkIncluded:true,gpuQueueWaitIncluded:false,pinned:traceSet('pins',[...pins])}));
  };
  const queueResident=(wanted:PageRec[])=>{
+  const queuedAt=performance.now(),jobId=++residencyJob;
+  const jobFrame=frame;
   residencyWanted=new Set(wanted.map(page=>page.url));updatePins();
-  queuedResidency=[...new Map(wanted.filter(hasBytes).map(page=>[page.url,page])).values()];
+  const queued=[...new Map(wanted.filter(hasBytes).map(page=>[page.url,page])).values()];queuedResidency=queued;
+  traceDiagnostic('residency-queue','Résidence GPU mise en file',()=>({frame,jobId,pages:traceSet('queue',queued.map(page=>page.url)),wanted:traceSet('wanted',[...residencyWanted]),loaded:traceSet('queue.loaded',queued.filter(page=>!!cache?.get(page.url)).map(page=>page.url)),queueDepth:queued.length,residentPages:cache?.stats().residentPages??null}));
   if(residencyRunning)return;
   residencyRunning=true;
-  pending=Promise.resolve().then(async()=>{try{while(queuedResidency){const next=queuedResidency;queuedResidency=undefined;await ensureResident(next);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;}});
+  pending=Promise.resolve().then(async()=>{const started=performance.now();traceDiagnostic('residency-job-start','Job de résidence GPU démarré',()=>({frame:jobFrame,jobId,scope:'async-residency-job',queueWaitMs:started-queuedAt,pages:traceSet('job',queuedResidency?.map(page=>page.url)??[]),elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));try{while(queuedResidency){const next=queuedResidency;queuedResidency=undefined;await ensureResident(next,jobFrame,jobId);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;traceDiagnostic('residency-job-end','Job de résidence GPU terminé',()=>({frame:jobFrame,jobId,scope:'async-residency-job',durationMs:performance.now()-started,elapsedMs:performance.now()-queuedAt,pages:traceSet('job',[...residencyWanted]),loaded:traceSet('job.loaded',[...residencyWanted].filter(url=>!!cache?.get(url))),residentPages:cache?.stats().residentPages??null,queueWaitMs:started-queuedAt,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));}});
   void pending.catch(()=>{});
  };
  const backend:WebgpuPagesBackend={
@@ -720,8 +779,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    context.signal?.throwIfAborted();
    if(!gpuDevice)throw new Error('WEBGPU_UNAVAILABLE');
    if(bootstrap.length>slots)throw new Error(`INITIAL_COVERAGE_BUDGET: ${bootstrap.length} pages required, ${slots} slots`);
-   gpuTiming=createGpuTiming(gpuDevice);
-   engineDiagnostic('gpu-timing-status','Disponibilité des mesures GPU par passe',{version:1,available:gpuTiming.supported,method:'timestamp-query',sampleEveryFrames:60,maxPasses:64,maxPending:1,maxBufferAllocationBytes:2048,queryCount:128,gpuMs:null,scope:'render-passes-only'});
+   gpuTiming=createGpuTiming(gpuDevice,{sampleEveryFrames:traceEnabled?1:60,retainSamples:!traceEnabled,onSample:traceEnabled?sample=>traceDiagnostic(sample.error?'gpu-timing-unavailable':'gpu-timing',sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',()=>({backend:'webgpu-page-raster',submission:sample.submission??null,scope:'render-passes-only',...sample,frame:sample.frame})):undefined});
+   const timingStats=gpuTiming.stats();
+   engineDiagnostic('gpu-timing-status','Disponibilité des mesures GPU par passe',{version:1,available:gpuTiming.supported,reason:gpuTiming.supported?null:'timestamp-query-unavailable',method:'timestamp-query',sampleEveryFrames:timingStats.sampleEveryFrames,maxPasses:64,maxPending:1,maxBufferAllocationBytes:2048,queryCount:128,gpuMs:null,scope:'render-passes-only',stats:timingStats});
    gpuDevice.addEventListener?.('uncapturederror',onGpuError);
    gpuDevice.lost.then(info=>{if(!lost)engineDiagnostic('gpu-device-lost','Périphérique WebGPU perdu',{reason:info.reason,message:info.message});lost=true;}).catch(error=>{if(!lost)diagnosticFailure('gpu-device-lost',error);lost=true;});
    try{
@@ -739,7 +799,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      }
     }
     engineDiagnostic('gpu-presentation','Présentation GPU initialisée',{mode:context.gpuCanvas?'direct-canvas':presenter?'gpu-canvas-webgl-composition':'texture-only',imageReadbackDuringRender:false});
-    cache=createGpuPageCache(gpuDevice,pageSource,{pageBytes,slots});
+    const cacheOptions=(traceEnabled?{pageBytes,slots,onDiagnostic:(event:{phase:string;message:string;context:Record<string,unknown>})=>traceDiagnostic(`cache-${event.phase}`,event.message,()=>({...event.context,frame}))}:{pageBytes,slots}) as Parameters<typeof createGpuPageCache>[2];
+    cache=createGpuPageCache(gpuDevice,pageSource,cacheOptions);
     bindGroupLayout=gpuDevice.createBindGroupLayout({entries:[
      {binding:0,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
      {binding:1,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
@@ -1037,35 +1098,61 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    lightState=lights?.update();
    const lightsEnd=performance.now();
    lastCamera=camera;overBudget=false;submittedTriangles=0;hizRejected=0;frame++;
+   traceDiagnostic('cpu-lights','Mise à jour CPU des lumières',()=>({frame,scope:'cpu/lights.update',elapsedMs:lightsEnd-cpuStart,lightState}));
    const pixelError=resolvePixelError(context,camera,motion);
+   const selectionStarted=lightsEnd;
    let selected:{complete?:boolean;shown:PageRec[];wanted?:PageRec[];visible:number;selectedTriangles:number;frustumRejected:number;lodLevel:number}|undefined;
-   if(gpuSelection?.failed())dropGpuSelection();
+   let gpuPeekUrls:string[]=[];
+   let gpuSelectionDecision:{source:'gpu'|'cpu';decision:string;reason?:string;pageIds?:Array<string|number>;uniformsMatch?:boolean}={source:'cpu',decision:'not-attempted'};
+   if(gpuSelection?.failed()){gpuSelectionDecision={source:'cpu',decision:'fallback',reason:'gpu-selection-marked-failed'};traceDiagnostic('gpu-selection-dispatch','Sélection GPU indisponible, fallback CPU',{frame,submission:imageRevision,reason:gpuSelectionDecision.reason});dropGpuSelection();}
    if(gpuSelection){
     cameraSelectionUniforms(camera,pixelError,viewport,selectionUniforms);
-    try{gpuSelection.dispatch(selectionUniforms);}catch(error){diagnosticFailure('gpu-selection-fallback',error);dropGpuSelection();}
+    traceDiagnostic('gpu-selection-dispatch','Dispatch de sélection GPU',()=>({frame,submission:imageRevision,pixelError,viewport:viewport.slice(),cameraWorld:selectionUniforms.cameraWorld,source:'gpu-selection'}));
+    try{gpuSelection.dispatch(selectionUniforms);}catch(error){diagnosticFailure('gpu-selection-dispatch-failed',error);gpuSelectionDecision={source:'cpu',decision:'fallback',reason:'dispatch-failed'};dropGpuSelection();}
     const cut=gpuSelection?.peek();
-    if(cut&&sameSelectionUniforms(cut.uniforms,selectionUniforms)){
+    const uniformsMatch=!!cut&&sameSelectionUniforms(cut.uniforms,selectionUniforms);
+    if(cut&&uniformsMatch){
      const gpuShown=shownFromGpu(packedPages,cut.result,frame);
-     if(bootstrapReady&&gpuShown.shown.every(rec=>hasBytes(rec)&&!!cache!.get(rec.url)))selected=gpuShown;
+     gpuPeekUrls=gpuShown.shown.map(rec=>rec.url);
+     const missing=gpuShown.shown.filter(rec=>!hasBytes(rec)||!cache!.get(rec.url)).map(rec=>rec.url);
+     if(bootstrapReady&&!missing.length){selected=gpuShown;gpuSelectionDecision={source:'gpu',decision:'accepted',uniformsMatch:true};}
+     else gpuSelectionDecision={source:'cpu',decision:'rejected',reason:!bootstrapReady?'coverage-not-ready':'selected-pages-not-resident',uniformsMatch:true};
+    }else if(gpuSelection){
+     gpuSelectionDecision={source:'cpu',decision:'rejected',reason:cut?'stale-selection-uniforms':'no-selection-result',uniformsMatch:false};
     }
+     traceDiagnostic('gpu-selection-peek','Décision de la sélection GPU',()=>({frame,submission:imageRevision,...gpuSelectionDecision,selected:traceSet(`gpu-selection.${gpuSelectionDecision.decision}`,gpuPeekUrls),peekPageCount:cut?.result.pageIds.length??0}));
    }
-   if(!selected)selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>!!cache!.get(rec.url)},shown);
+   const gpuSelectionResolveEnd=performance.now();
+   traceDiagnostic('gpu-selection-resolution','Résolution CPU du résultat de sélection GPU',()=>({frame,submission:imageRevision,scope:'cpu/gpu-selection-dispatch-peek',elapsedMs:gpuSelectionResolveEnd-selectionStarted,decision:gpuSelectionDecision,selectedFromGpu:!!selected}));
+   if(!selected){
+    const cpuSelectionStarted=performance.now();
+    selected=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>!!cache!.get(rec.url)},shown);
+   const cpuSelectionEnd=performance.now(),chosen=selected;traceDiagnostic('cpu-selection','Sélection CPU de référence',()=>({frame,submission:imageRevision,scope:'cpu/selectVisiblePages',elapsedMs:cpuSelectionEnd-cpuSelectionStarted,shown:traceSet('selection.shown',chosen.shown.map(page=>page.url)),wanted:traceSet('selection.wanted',chosen.wanted?.map(page=>page.url)??chosen.shown.map(page=>page.url)),visible:chosen.visible,selectedTriangles:chosen.selectedTriangles,frustumRejected:chosen.frustumRejected,lodLevel:chosen.lodLevel,reason:gpuSelectionDecision.reason??'gpu-selection-unavailable'}));
+   }
    else{shown.length=0;shown.push(...selected.shown);}
    desired.length=0;for(let i=0;i<(selected.wanted?.length??shown.length);i++)desired.push((selected.wanted??shown)[i]);
    overBudget=false;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;
-   const requested=new Set([...bootstrapUrls,...desired.map(page=>page.url)]);
+   const admissionStarted=performance.now(),requested=new Set([...bootstrapUrls,...desired.map(page=>page.url)]);
    const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requested.size>slots;
    if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requested.size,slots,fallbackRetained:bootstrapReady};
-   if(!bootstrapReady){drawn.length=0;submittedTriangles=0;gpuDrawCalls=0;return;}
+   traceDiagnostic('residency-admission','Admission des ensembles demandés',()=>({frame,scope:'cpu/residency-admission',elapsedMs:performance.now()-admissionStarted,requested:traceSet('admission.requested',[...requested]),wanted:traceSet('admission.wanted',desired.map(page=>page.url)),loaded:traceSet('admission.loaded',drawn.map(page=>page.url)),slots,limited:coverageBudgetLimited}));
+   if(!bootstrapReady){
+    drawn.length=0;submittedTriangles=0;gpuDrawCalls=0;
+    const loadingEnd=performance.now(),sample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:loadingEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:loadingEnd-lightsEnd,residencyScheduleAndTargetsMs:null,encodeSubmitMs:null,transparentEncodeMs:0,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
+    cpuSample=sample;
+    traceDiagnostic('frame','Snapshot de frame en attente de couverture GPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:gpuSelectionDecision.source,selection:gpuSelectionDecision,cpu:sample,coverage:{loaded:traceSet('frame.loaded',[]),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:traceSet('frame.shown',[]),bootstrap:traceSet('frame.bootstrap',bootstrap.map(page=>page.url)),ready:false},budget:{slots,requested:traceSet('frame.requested',[...bootstrapUrls,...desired.map(page=>page.url)]),limited:coverageBudgetLimited},gpuTiming:gpuTiming?.stats()??{supported:false,reason:'not-initialized'}}));
+    return;
+   }
    if(selected.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
    // A complete root cover is always pinned. Coarsen atomically before reclaiming
    // old detail slots if old and new refinements cannot coexist in the budget.
-   const transition=new Set([...requested,...shown.map(page=>page.url)]);
+   const transitionStarted=performance.now(),transition=new Set([...requested,...shown.map(page=>page.url)]);
    if(!coverageBudgetLimited&&transition.size>slots){
     const fallback=selectVisiblePages(roots,camera,{pixelError,viewport,frame,holdResident:true,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
     if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE');
     shown.length=0;shown.push(...fallback.shown);lodLevel=fallback.lodLevel;
    }
+   traceDiagnostic('residency-transition','Transition de couverture calculée',()=>({frame,scope:'cpu/residency-transition',elapsedMs:performance.now()-transitionStarted,from:traceSet('transition.from',drawn.map(page=>page.url)),to:traceSet('transition.to',shown.map(page=>page.url)),requested:traceSet('transition.requested',[...requested]),transition:traceSet('transition.all',[...transition]),slots}));
    if(shown.some(page=>!hasBytes(page)))throw new Error('GPU_COVERAGE_BYTES_MISSING');
    readyScratch.length=0;readyScratch.push(...shown);
    let culled:PageRec[]=readyScratch;
@@ -1076,10 +1163,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     }catch(error){diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
    }
    const selectionEnd=performance.now();
-   queueResident(coverageBudgetLimited?[]:desired);
-   if(culled.some(page=>!cache!.get(page.url)))throw new Error('GPU_COVERAGE_INCOMPLETE');
+   const queueStarted=performance.now();queueResident(coverageBudgetLimited?[]:desired);const queueEnd=performance.now();
+   traceDiagnostic('residency-queue-reconstruct','Ensembles de résidence reconstruits',()=>({frame,scope:'cpu/residency-queue-reconstruct',elapsedMs:queueEnd-queueStarted,requested:traceSet('reconstruct.requested',desired.map(page=>page.url)),queued:traceSet('reconstruct.queued',queuedResidency?.map(page=>page.url)??[]),job:residencyJob}));
+   const drawnVerifyStarted=performance.now();if(culled.some(page=>!cache!.get(page.url)))throw new Error('GPU_COVERAGE_INCOMPLETE');
    drawn.length=0;drawn.push(...culled);
-   const [width,height]=viewport??targetSize;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
+   const drawnVerifyEnd=performance.now();traceDiagnostic('residency-drawn-verify','Couverture résidente vérifiée avant encodage',()=>({frame,scope:'cpu/residency-drawn-copy',elapsedMs:drawnVerifyEnd-drawnVerifyStarted,shown:traceSet('drawn.shown',shown.map(page=>page.url)),drawn:traceSet('drawn',drawn.map(page=>page.url)),loaded:traceSet('drawn.loaded',drawn.filter(page=>!!cache!.get(page.url)).map(page=>page.url))}));
+   const [width,height]=viewport??targetSize,targetStarted=performance.now();ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
+   traceDiagnostic('targets-ensure','Cibles GPU assurées',()=>({frame,scope:'cpu/ensureTargets',elapsedMs:performance.now()-targetStarted,width,height}));
    if(!renderPathLogged){
     renderPathLogged=true;
     const details={clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,targetSize,visibilityBuffer:visEnabled,visibilityReady:!!(visPipelineBack&&shadePipeline&&visView),selectedPages:shown.length,drawnPages:drawn.length};
@@ -1089,7 +1179,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const tStart=performance.now();
    submittedTriangles=encodeDraws(gpuDevice,camera);
    const cpuEnd=performance.now();lastSubmitMs=cpuEnd-tStart;
-   cpuSample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:tStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
+   const sample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:tStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
+   cpuSample=sample;
+   traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:gpuSelectionDecision.source,selection:gpuSelectionDecision,cpu:sample,coverage:{loaded:traceSet('frame.loaded',drawn.map(page=>page.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:traceSet('frame.shown',shown.map(page=>page.url)),bootstrap:traceSet('frame.bootstrap',bootstrap.map(page=>page.url)),ready:bootstrapReady},budget:{slots,requested:traceSet('frame.requested',[...new Set([...bootstrapUrls,...desired.map(page=>page.url)])]),limited:coverageBudgetLimited,frameBytes:frameBudget},gpuTiming:gpuTiming?.stats()??{supported:false,reason:'not-initialized'},transparent:{candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},hizRejected,drawCalls:gpuDrawCalls}));
 
   },
   syncResident(){
@@ -1103,12 +1195,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    backend.render(lastCamera);
   },
   async flush(){
+   await Promise.resolve();
    await ensureBootstrap();
    await pending;
    if(coverageBudgetEvent){engineDiagnostic('coverage-budget','Admission de la coupe demandée',coverageBudgetEvent);coverageBudgetEvent=undefined;}
    await gpuTiming?.flush();
-   for(const sample of gpuTiming?.drain()??[])engineDiagnostic(sample.error?'gpu-timing-unavailable':'gpu-timing',sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',sample);
-   if(cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
+   for(const sample of gpuTiming?.drain()??[]){const phase=sample.error?'gpu-timing-unavailable':'gpu-timing';engineDiagnostic(phase,sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',sample);if(traceEnabled)traceDiagnostic(phase,sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',()=>({backend:'webgpu-page-raster',submission:sample.submission??null,scope:'render-passes-only',...sample,frame:sample.frame}));}
+   if(!traceEnabled&&cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
    if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,coverage:{version:1,ready:bootstrapReady,bootstrapPages:bootstrap.length,budgetLimited:coverageBudgetLimited},lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
    if(gpuSelection){
     try{await gpuSelection.flush();if(gpuSelection.failed())dropGpuSelection();}
@@ -1124,6 +1217,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     if(capturedRevision!==imageRevision)throw new Error('CAPTURE_CHANGED_DURING_FLUSH');
     if(captureStreamingDeferrals&&!captureDeferralLogged){captureDeferralLogged=true;engineDiagnostic('capture-streaming-deferred','Mise à jour du streaming reportée au rendu suivant pendant la capture',{imageRevision:capturedRevision,deferredUpdates:captureStreamingDeferrals,pagesRetained:true});}
    }
+   await Promise.resolve();
   },
   async captureSurfaceView(camera,options){
    context.signal?.throwIfAborted();options.signal?.throwIfAborted();
@@ -1145,7 +1239,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     const missing=collectPendingUrls(desired,[]);
     if(missing.length)throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
     if(coverageBudgetLimited)throw new Error('SURFACE_PAGE_BUDGET');
-    await ensureResident(shown);
+    await ensureResident(shown,frame,++residencyJob);
     if(shown.some(page=>!cache?.get(page.url)))throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');drawn=shown.slice();
     if(drawn.length!==shown.length)throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
     options.signal?.throwIfAborted();context.signal?.throwIfAborted();
@@ -1169,7 +1263,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     viewport[0]=savedSize[0];viewport[1]=savedSize[1];diagnostic=savedDiagnostic;clearHistory();Object.assign(motion,savedMotion);
     try{
      if(!lost&&!context.signal?.aborted){
-      renderInternal(main);await pending;await ensureResident(shown);if(shown.some(page=>!cache?.get(page.url)))throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');drawn=shown.slice();submittedTriangles=encodeDraws(gpuDevice,main);
+      renderInternal(main);await pending;await ensureResident(shown,frame,++residencyJob);if(shown.some(page=>!cache?.get(page.url)))throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');drawn=shown.slice();submittedTriangles=encodeDraws(gpuDevice,main);
       if(presenter&&colorTexture){const encoder=gpuDevice.createCommandEncoder();presenter.present(encoder,colorTexture,...targetSize);gpuDevice.queue.submit([encoder.finish()]);}
       if(canvasTexture)canvasTexture.needsUpdate=true;
       engineDiagnostic('surface-main-restored','Vue principale restaurée',{width:savedSize[0],height:savedSize[1]});
@@ -1199,8 +1293,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   },
   pendingUrls(){return collectPendingUrls(!bootstrapReady?bootstrap:coverageBudgetLimited?[]:desired,pendingScratch);},
   pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [bootstrap,shown,coverageBudgetLimited?[]:desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
-  acceptPage(url,array){deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}sourceBytes.set(url,new Uint8Array(array.buffer,array.byteOffset,array.byteLength));},
-  dropPage(url){if(bootstrapUrls.has(url))return;if(pins.has(url)||residencyWanted.has(url)){deferredDrops.add(url);return;}deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=undefined;recs[i].indexBytes=recs[i].triangles*12;}sourceBytes.delete(url);cache?.unload?.(url);pins.delete(url);},
+  acceptPage(url,array){deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}sourceBytes.set(url,new Uint8Array(array.buffer,array.byteOffset,array.byteLength));traceDiagnostic('page-accepted','Page CPU acceptée pour résidence GPU',{frame,url,bytes:array.byteLength,bootstrap:bootstrapUrls.has(url),wanted:residencyWanted.has(url),pinned:pins.has(url)});},
+  dropPage(url){if(bootstrapUrls.has(url)){traceDiagnostic('page-drop-deferred','Abandon de page bootstrap ignoré pour préserver la couverture',{frame,url,reason:'bootstrap-pinned'});return;}if(pins.has(url)||residencyWanted.has(url)){deferredDrops.add(url);traceDiagnostic('page-drop-deferred','Abandon de page différé pendant la transition de couverture',{frame,url,reason:pins.has(url)?'pinned':'wanted',pinned:pins.has(url),wanted:residencyWanted.has(url),deferred:[...deferredDrops]});return;}deferredDrops.delete(url);const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){recs[i].array=undefined;recs[i].indexBytes=recs[i].triangles*12;}sourceBytes.delete(url);cache?.unload?.(url);pins.delete(url);traceDiagnostic('page-dropped','Page CPU/GPU libérée',{frame,url,reason:'host-request',deferred:false});},
   metrics(){
    const stats=cache?.stats();
    let vertexBytes=0;for(const buffer of positionBuffers.values())vertexBytes+=buffer.size;
@@ -1219,7 +1313,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    colorTexture?.destroy();depthTexture?.destroy();hdrTexture?.destroy();surfaces?.dispose();surfaceCapture?.dispose();deferred?.dispose();lights?.dispose();presenter?.dispose();synchronousCapture?.dispose();
    canvasTexture?.dispose();blitMaterial?.dispose();blit?.geometry.dispose();
    const closing=cache?.dispose();cache=undefined;scene.clear();
-   return closing;
+   drainTraceNow();
+   const traceClosing=Promise.resolve();
+   return Promise.all([Promise.resolve(closing),traceClosing]).then(()=>{});
   },
  };
  return backend;

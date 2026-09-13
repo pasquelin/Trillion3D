@@ -25,6 +25,11 @@ import type {AssetScope,PreparationProgress,CameraPose,StablePreview,FrameMetric
 export type {AssetScope,PreparationProgress,CameraPose,StablePreview,FrameMetrics,BackendCapabilities,ClusterManifest} from '../sdk-core/index.ts';
 import type {RenderBackend,BackendContext,BackendFactory,BackendDiagnostic,ExplorerOptions,PointOfInterest} from './backendTypes.ts';
 export type {RenderBackend,BackendContext,BackendFactory,BackendDiagnostic,ExplorerOptions,PointOfInterest} from './backendTypes.ts';
+export type {DiagnosticDetail} from './backendTypes.ts';
+import {createDiagnosticChannel} from './diagnosticChannel.ts';
+import {SDK_BUILD_PROVENANCE} from './buildProvenance.ts';
+export {createDiagnosticChannel} from './diagnosticChannel.ts';
+export type {DiagnosticChannel,DiagnosticChannelOptions,DiagnosticObserver} from './diagnosticChannel.ts';
 export type {SurfaceBuffer,SurfaceCapture} from './surfaceBuffer.ts';
 import {installSceneLighting} from './sceneLighting.ts';
 /** Perspective framing from a bounding-sphere radius. `near` scales with the asset; there is no absolute centimetre floor. */
@@ -66,7 +71,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  for(const copy of blendCopies){copy.userData.sourceGeometry=copy.geometry;copy.userData.sourceMaterial=copy.material;scene.add(copy);}
  const indexByUrl=new Map<string,THREE.BufferAttribute>();
  for(const rec of allPages)if(rec.array&&!indexByUrl.has(rec.url))indexByUrl.set(rec.url,new THREE.BufferAttribute(rec.array,1));
- let visible=0,selectedTriangles=0,frame=0,evictions=0,overBudget=false,frustumRejected=0,lodLevel=0,diagnostic:DiagnosticMode='beauty';
+ let visible=0,selectedTriangles=0,frame=0,evictions=0,overBudget=false,frustumRejected=0,lodLevel=0,batchRebuilds=0,batchIndexBytesUploaded=0,displayDetachments=0,diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  const diagnosticMaterials=new Map<string,THREE.Material>();
  const materialFor=(rec:PageRec)=>{if(diagnostic==='beauty')return rec.material;
@@ -110,7 +115,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
     minPoint.fromArray(first.min);maxPoint.fromArray(first.max);
     for(let i=1;i<recs.length;i++){const rec=recs[i];minPoint.x=Math.min(minPoint.x,rec.min[0]);minPoint.y=Math.min(minPoint.y,rec.min[1]);minPoint.z=Math.min(minPoint.z,rec.min[2]);maxPoint.x=Math.max(maxPoint.x,rec.max[0]);maxPoint.y=Math.max(maxPoint.y,rec.max[1]);maxPoint.z=Math.max(maxPoint.z,rec.max[2]);}
     batch.geometry.boundingBox!.set(minPoint,maxPoint);batch.geometry.boundingBox!.getBoundingSphere(batch.geometry.boundingSphere!);
-    batch.signature=signature;
+    batch.signature=signature;batchRebuilds++;batchIndexBytesUploaded+=total*Uint32Array.BYTES_PER_ELEMENT;
    }
    if(!batch.mesh){const copy=new THREE.Mesh(batch.geometry,materialFor(first));copy.matrixAutoUpdate=false;copy.matrix.copy(first.matrix);copy.frustumCulled=false;copy.renderOrder=first.renderOrder;copy.userData.clusterId=String(key);copy.userData.lodRole='exact';batch.mesh=copy;}
    else batch.mesh.material=materialFor(first);
@@ -125,7 +130,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
   let write=0;
   for(let i=0;i<attached.length;i++){
    const rec=attached[i];
-   if(!rec.resident){if(rec.attached)release(rec);evictions++;continue;}
+   if(!rec.resident){if(rec.attached){release(rec);displayDetachments++;}evictions++;continue;}
    rec.resident=false;attached[write++]=rec;
   }
   attached.length=write;
@@ -147,7 +152,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
   syncResident,
   metrics(){metricsSeen.clear();let bytes=0;if(diagnostic==='beauty'){for(const batch of batches.values())if(batch.geometry)bytes+=geometryBytes(batch.geometry,metricsSeen);}else{for(const rec of attached)if(rec.geometry)bytes+=geometryBytes(rec.geometry,metricsSeen);}
    let draws=blendCopies.length,submitted=0;if(diagnostic==='beauty'){for(const batch of batches.values())if(batch.attached){draws++;submitted+=(batch.geometry?.drawRange.count??0)/3;}}else{for(let i=0;i<attached.length;i++)if(attached[i].attached){draws++;submitted+=attached[i].triangles;}}
-   return {clusters:visible,selectedTriangles,residentPages:attached.length,pageEvictions:evictions,geometryAllocationBytes:bytes,frustumRejected,lodLevel,submittedTriangles:submitted,drawCalls:draws};},
+   return {clusters:visible,selectedTriangles,residentPages:attached.length,pageEvictions:evictions,geometryAllocationBytes:bytes,frustumRejected,lodLevel,submittedTriangles:submitted,drawCalls:draws,batchRebuilds,batchIndexBytesUpdated:batchIndexBytesUploaded,displayDetachments};},
   dispose(){diagnosticMaterials.forEach(m=>m.dispose());for(const batch of batches.values())disposeBatch(batch);batches.clear();groups.clear();groupPool.length=0;for(const rec of allPages){if(rec.attached)release(rec);if(rec.geometry)disposeGeometry(rec.geometry);rec.geometry=undefined;rec.mesh=undefined;}for(const copy of blendCopies)disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
 };
 export const DEFAULT_BACKENDS:BackendFactory[]=[referenceBackend,exactPagesBackend,threeLodBackend];
@@ -161,32 +166,38 @@ async function jsonResource(url:string,signal?:AbortSignal):Promise<{value:Recor
 }
 function disposeSource(source:THREE.Object3D){const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();for(const mesh of objects(source)){geometries.add(mesh.geometry);for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material]){materials.add(material);for(const value of Object.values(material))if(value instanceof THREE.Texture)textures.add(value);}}geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>{t.dispose();const image=t.source.data as {close?:()=>void};image?.close?.();});}
 export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOptions){
+ const diagnosticChannel=createDiagnosticChannel(options.onDiagnostic,{detail:options.diagnosticDetail??(options.onDiagnostic?'trace':'summary')});
  const emit=(event:RuntimeEvent)=>{try{options.onEvent?.(event);}catch{/* Diagnostic observers cannot interrupt rendering. */}};
- const preparationStart=performance.now();const {signal}=options,scope=options.scope??DEFAULT_SCOPE;const progress=(phase:string,completed:number,total:number,message:string)=>{signal?.throwIfAborted();options.onPreparation?.({phase,completed,total,message});};
+ const diagnose=(phase:string,message:string,context:Record<string,unknown>={})=>diagnosticChannel.emit({phase,message,context});
+ const preparationStart=performance.now();const {signal}=options,scope=options.scope??DEFAULT_SCOPE;const progress=(phase:string,completed:number,total:number,message:string)=>{signal?.throwIfAborted();options.onPreparation?.({phase,completed,total,message});diagnose('preparation',message,{kind:'preparation',phase,completed,total,scope});};
  progress('manifest',0,1,'Lecture du cache');
- const {manifestUrl}=options;const pointerResource=await jsonResource(manifestUrl,signal),pointer=pointerResource.value;if(typeof pointer.status!=='string'||typeof pointer.url!=='string'||!pointer.url)throw new EngineError('INVALID_POINTER',`${manifestUrl}: manifeste sans status/url valides, HTTP ${pointerResource.details.status}, type ${pointerResource.details.contentType}`,pointerResource.details);if(pointer.status!=='ready')throw new EngineError('CACHE_NOT_READY','The preparation pointer is not ready');if(pointer.scope!==undefined&&pointer.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, pointer contains ${pointer.scope}`,{requestedScope:scope,pointerScope:pointer.scope});
- const metadataUrl=new URL(pointer.url,new URL(manifestUrl,location.href)).href;const metadataResource=await jsonResource(metadataUrl,signal),value=metadataResource.value;if(!Array.isArray(value.primitives)||!Array.isArray(value.selectedNodes)||typeof value.selectedTriangles!=='number')throw new EngineError('INVALID_CACHE',`${metadataUrl}: schéma du cache invalide, HTTP ${metadataResource.details.status}, type ${metadataResource.details.contentType}`,metadataResource.details);const metadata=value as unknown as ClusterManifest;assertFormat(metadata.formatVersion??metadata.schema);assertCacheIdentity(metadata);if(metadata.schema!==1||metadata.status!=='ready')throw new EngineError('INVALID_CACHE','Unsupported Web Geometry cache');if(metadata.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, cache contains ${metadata.scope}`,{requestedScope:scope,cacheScope:metadata.scope});
+ const {manifestUrl}=options;let pointerResource:{value:Record<string,unknown>;details:{url:string;status:number;contentType:string}};let pointer:Record<string,unknown>;let metadataUrl:string;let metadataResource:{value:Record<string,unknown>;details:{url:string;status:number;contentType:string}};let value:Record<string,unknown>;let metadata:ClusterManifest;
+ try{
+  pointerResource=await jsonResource(manifestUrl,signal);pointer=pointerResource.value;if(typeof pointer.status!=='string'||typeof pointer.url!=='string'||!pointer.url)throw new EngineError('INVALID_POINTER',`${manifestUrl}: manifeste sans status/url valides, HTTP ${pointerResource.details.status}, type ${pointerResource.details.contentType}`,pointerResource.details);if(pointer.status!=='ready')throw new EngineError('CACHE_NOT_READY','The preparation pointer is not ready');if(pointer.scope!==undefined&&pointer.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, pointer contains ${pointer.scope}`,{requestedScope:scope,pointerScope:pointer.scope});
+  metadataUrl=new URL(pointer.url,new URL(manifestUrl,location.href)).href;metadataResource=await jsonResource(metadataUrl,signal);value=metadataResource.value;if(!Array.isArray(value.primitives)||!Array.isArray(value.selectedNodes)||typeof value.selectedTriangles!=='number')throw new EngineError('INVALID_CACHE',`${metadataUrl}: schéma du cache invalide, HTTP ${metadataResource.details.status}, type ${metadataResource.details.contentType}`,metadataResource.details);metadata=value as unknown as ClusterManifest;assertFormat(metadata.formatVersion??metadata.schema);assertCacheIdentity(metadata);if(metadata.schema!==1||metadata.status!=='ready')throw new EngineError('INVALID_CACHE','Unsupported Web Geometry cache');if(metadata.scope!==scope)throw new EngineError('SCOPE_MISMATCH',`Requested ${scope}, cache contains ${metadata.scope}`,{requestedScope:scope,cacheScope:metadata.scope});
+ }catch(error){diagnose('error','Manifest or cache preparation failed',{kind:'error',phase:'manifest',error:String(error),scope,manifestUrl});diagnosticChannel.flushSync();diagnosticChannel.close();throw error;}
  const base=new URL('.',new URL(pointer.url,new URL(manifestUrl,location.href))).href;
  let sceneLightingSource:THREE.Object3D|undefined,source:THREE.Object3D|undefined,renderer:THREE.WebGLRenderer|undefined,gpuDevice:GPUDevice|undefined,measurementTarget:THREE.WebGLRenderTarget|undefined;const backends:RenderBackend[]=[];
  const disposeTargets=()=>{measurementTarget?.dispose();measurementTarget=undefined;};
  try{
   progress('scene',0,1,`Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`);
-  const manager=new THREE.LoadingManager();manager.onProgress=(_url,loaded,total)=>{if(!signal?.aborted)options.onPreparation?.({phase:'resources',completed:loaded,total,message:`Ressource chargée : ${decodeURIComponent(_url.split('/').at(-1) ?? _url)}`});};
+  const manager=new THREE.LoadingManager();manager.onProgress=(_url,loaded,total)=>{if(!signal?.aborted){const message=`Ressource chargée : ${decodeURIComponent(_url.split('/').at(-1) ?? _url)}`;options.onPreparation?.({phase:'resources',completed:loaded,total,message});diagnose('preparation',message,{kind:'preparation',phase:'resources',completed:loaded,total,resource:_url,scope});}};
   // GLTFLoader has no AbortSignal in this Three version; dispose late results after loading settles.
   const gltf=await new GLTFLoader(manager).loadAsync(new URL('source.gltf',base).href);source=gltf.scene;sceneLightingSource=options.sceneLighting??source;signal?.throwIfAborted();source=replicateInstances(source,gltf.parser.associations as BackendContext['associations'],options.replicaCount??1);
   const pages=[...new Map(metadata.primitives.flatMap(p=>p.pages).map(p=>[p.url,p])).values()];
+  const pageIdByUrl=new Map(pages.map(page=>[page.url,page.id]));
   const exactPages=pages.filter(page=>(page.role??'exact')!=='coarse');
   const preload=options.preload??'visible';
   const attachCap=options.maxResidentPages??Math.max(1024,exactPages.length*(options.replicaCount??1));
   const cacheCap=options.maxCachedPages??Math.max(8192,Math.min(attachCap,DEFAULT_CACHED_PAGES));
-  const streamer=createPageStreamer(pages,base,signal,options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,cacheCap,url=>{for(const b of backends)b.dropPage?.(url);});
+  const streamer=createPageStreamer(pages,base,signal,options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,cacheCap,url=>{for(const b of backends)b.dropPage?.(url);},diagnosticChannel.detail==='trace'&&diagnosticChannel.enabled?diagnosticChannel.emit:undefined);
   let loaded=0,pageBytesRead=0;
   const indices=new Map<string,Uint32Array>();
   if(preload==='all'){const all=await loadClusterPages(pages,base,signal,(completed,total)=>progress('pages',completed,total,'Lecture et vérification des pages exactes et LOD'),options.pageFetchWorkers??DEFAULT_PAGE_WORKERS);for(const [url,array] of all.indices)indices.set(url,array);loaded=all.loaded;pageBytesRead=all.pageBytesRead;}
   else progress('pages',0,pages.length,'Hiérarchie prête · pages à la demande');
-  const capabilities=await detectCapabilities('webgl',canvas);if(!capabilities.renderer){emit({eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'NO_WEBGL2',detail:capabilities.reason});throw new Error(capabilities.reason);}emit({eventVersion:1,type:'capability',audience:'diagnostic',recovered:true,code:'WEBGL2_BASELINE',detail:capabilities.reason});
+  const capabilities=await detectCapabilities('webgl',canvas);if(!capabilities.renderer){emit({eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'NO_WEBGL2',detail:capabilities.reason});diagnose('error','WebGL2 capability check failed',{kind:'error',code:'NO_WEBGL2',reason:capabilities.reason,scope});throw new Error(capabilities.reason);}emit({eventVersion:1,type:'capability',audience:'diagnostic',recovered:true,code:'WEBGL2_BASELINE',detail:capabilities.reason});diagnose('capability','WebGL2 capability detected',{kind:'capability',backend:'webgl',reason:capabilities.reason,scope});
   const wantsWebgpu=!options.backends||options.backends.includes(webgpuPagesBackend);
-  try{if(wantsWebgpu){const gpu=options.gpu??(typeof navigator==='undefined'?undefined:navigator.gpu);if(gpu){const gpuCaps=await detectCapabilities('webgpu',canvas,{gpu});if(gpuCaps.renderer)emit({eventVersion:1,type:'capability',audience:'diagnostic',recovered:true,code:'WEBGPU_AVAILABLE',detail:gpuCaps.reason});if(gpuCaps.adapter){const features:GPUFeatureName[]=[];if(gpuCaps.adapter.features.has('indirect-first-instance'))features.push('indirect-first-instance');if(gpuCaps.adapter.features.has('timestamp-query'))features.push('timestamp-query');gpuDevice=await gpuCaps.adapter.requestDevice(features.length?{requiredFeatures:features}:undefined);}}}}catch{/* WebGPU stays optional; the WebGL2 backends remain the default path. */}
+  try{if(wantsWebgpu){const gpu=options.gpu??(typeof navigator==='undefined'?undefined:navigator.gpu);if(gpu){const gpuCaps=await detectCapabilities('webgpu',canvas,{gpu});if(gpuCaps.renderer){emit({eventVersion:1,type:'capability',audience:'diagnostic',recovered:true,code:'WEBGPU_AVAILABLE',detail:gpuCaps.reason});diagnose('capability','WebGPU capability detected',{kind:'capability',backend:'webgpu',reason:gpuCaps.reason,scope});}if(gpuCaps.adapter){const features:GPUFeatureName[]=[];if(gpuCaps.adapter.features.has('indirect-first-instance'))features.push('indirect-first-instance');if(gpuCaps.adapter.features.has('timestamp-query'))features.push('timestamp-query');gpuDevice=await gpuCaps.adapter.requestDevice(features.length?{requiredFeatures:features}:undefined);}}}}catch(error){diagnose('fallback','WebGPU setup unavailable; WebGL path retained',{kind:'fallback',backend:'webgpu',error:String(error),scope});/* WebGPU stays optional; the WebGL2 backends remain the default path. */}
   const directGpu=!!gpuDevice&&options.backends?.length===1&&options.backends[0]===webgpuPagesBackend;
   if(!directGpu){
   renderer=new THREE.WebGLRenderer({canvas,antialias:false,alpha:false,preserveDrawingBuffer:false});renderer.setPixelRatio(options.pixelRatio??DEFAULT_PIXEL_RATIO);renderer.setSize(options.width??DEFAULT_WIDTH,options.height??DEFAULT_HEIGHT,false);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
@@ -194,16 +205,19 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
    canvas.width=Math.floor((options.width??DEFAULT_WIDTH)*(options.pixelRatio??DEFAULT_PIXEL_RATIO));
    canvas.height=Math.floor((options.height??DEFAULT_HEIGHT)*(options.pixelRatio??DEFAULT_PIXEL_RATIO));
   }
+  diagnose('configuration','Active explorer configuration',{kind:'configuration',scope,detail:diagnosticChannel.detail,backendMode:directGpu?'webgpu-direct':'webgl-composed',limits:{maxResidentPages:attachCap,maxCachedPages:cacheCap,pageFetchWorkers:options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,maxFrameAllocationBytes:options.maxFrameAllocationBytes??null},pageCatalogue:pages.map(page=>({id:page.id,url:page.url,bytes:page.bytes,role:page.role??'exact'})),provenance:{sdk:SDK_BUILD_PROVENANCE,manifestUrl,metadataUrl,formatVersion:metadata.formatVersion??metadata.schema,schema:metadata.schema,compilerVersion:metadata.compilerVersion??null,sourceGltfUrl:new URL('source.gltf',base).href}});
   if(options.detail==='maximum'&&renderer){const maximum=renderer.capabilities.getMaxAnisotropy();for(const mesh of objects(source))for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])for(const value of Object.values(material))if(value instanceof THREE.Texture){value.anisotropy=maximum;value.needsUpdate=true;}}
   const viewport:[number,number]=[canvas.width,canvas.height];
-  const context:BackendContext={source,metadata,indices,readPage:url=>streamer.read(url),associations:gltf.parser.associations as BackendContext['associations'],signal,maxResidentPages:attachCap,maxCachedPages:cacheCap,pixelError:options.pixelError??0,lodAdaptive:options.lodAdaptive,clearColor:options.clearColor??DEFAULT_CLEAR_COLOR,onDiagnostic:options.onDiagnostic,viewport,gpuDevice,gpuCanvas:directGpu?canvas:undefined,maxFrameAllocationBytes:options.maxFrameAllocationBytes,sceneLighting:sceneLightingSource};
+  const context:BackendContext={source,metadata,indices,readPage:url=>streamer.read(url),associations:gltf.parser.associations as BackendContext['associations'],signal,maxResidentPages:attachCap,maxCachedPages:cacheCap,pixelError:options.pixelError??0,lodAdaptive:options.lodAdaptive,clearColor:options.clearColor??DEFAULT_CLEAR_COLOR,onDiagnostic:diagnosticChannel.enabled?diagnosticChannel.emit:undefined,diagnosticDetail:diagnosticChannel.detail,viewport,gpuDevice,gpuCanvas:directGpu?canvas:undefined,maxFrameAllocationBytes:options.maxFrameAllocationBytes,sceneLighting:sceneLightingSource};
   const factories=options.backends??(gpuDevice?[...DEFAULT_BACKENDS,webgpuPagesBackend]:DEFAULT_BACKENDS);
   for(const factory of factories){
    const backend=factory(context);if(backends.some(b=>b.id===backend.id))throw new Error('Duplicate backend id');
-   try{await backend.prepare();backends.push(backend);}
+   diagnose('backend-preparation-start','Backend preparation started',{kind:'preparation',backend:backend.id,scope});
+   try{await backend.prepare();backends.push(backend);diagnose('backend-preparation-complete','Backend preparation completed',{kind:'preparation',backend:backend.id,scope});}
    catch(error){
+    diagnose('backend-preparation-error','Backend preparation failed',{kind:'error',backend:backend.id,error:String(error),scope});
     backend.dispose();
-    if(backend.id==='webgpu-page-raster'&&!directGpu){emit({eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'WEBGPU_UNAVAILABLE',detail:String(error)});continue;}
+    if(backend.id==='webgpu-page-raster'&&!directGpu){emit({eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'WEBGPU_UNAVAILABLE',detail:String(error)});diagnose('fallback','WebGPU backend unavailable; continue with other backends',{kind:'fallback',backend:backend.id,error:String(error),scope});continue;}
     throw error;
    }
   }
@@ -214,7 +228,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const framing=framingFromBounds(radius,canvas.width/canvas.height);
   const camera=new THREE.PerspectiveCamera(options.fov??DEFAULT_FOV,canvas.width/canvas.height,framing.near,framing.far);const homeOffset=new THREE.Vector3().fromArray(framing.offset);camera.position.copy(center).add(homeOffset);camera.lookAt(center);camera.updateMatrixWorld();
   let fallbackReason:string|null=null;const baseline=backends.find(b=>b.id==='three-webgl-reference')??backends[0];const optimized=backends.find(b=>b.id==='exact-cluster-pages')??backends.find(b=>b.id==='webgpu-page-raster')??baseline;let active=optimized,disposed=false,diagnostic:DiagnosticMode='beauty';const beautyMaterials=new Map<THREE.Mesh,THREE.Material|THREE.Material[]>(),overlays:THREE.Material[]=[],hostedControls:{dispose():void}[]=[];const ownedRenderer=renderer!;let capturingSurface=false,measuring=false;const capturePool=[new Uint8Array(0),new Uint8Array(0),new Uint8Array(0)];let captureSlot=0;
-  const lookAtTarget=new THREE.Vector3();
+  const lookAtTarget=new THREE.Vector3().copy(center);let hostFrame=0;
   let comparisonLayout:ComparisonLayout=options.comparisonLayout??'single',comparisonPair:[string,string]=options.comparisonPair??[baseline.id,backends.find(b=>b.id==='exact-cluster-pages')?.id??backends[backends.length-1].id],wipe=.5,toggle:0|1=0;
   if(directGpu&&comparisonLayout!=='single')throw new Error('SINGLE_BACKEND_COMPARISON');
   let pairTargetA:THREE.WebGLRenderTarget|undefined,pairTargetB:THREE.WebGLRenderTarget|undefined;const compositor=directGpu?undefined:createComparisonCompositor(ownedRenderer);
@@ -249,7 +263,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
     }).catch(error=>{
     if(disposed||signal?.aborted)return;
     const detail=String(error);
-    if(streamingError!==detail){streamingError=detail;emit(active.metrics().coverageReady===true?{eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'PAGE_STREAM_FAILED',detail}:{eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'PAGE_STREAM_FAILED',detail});try{options.onDiagnostic?.({phase:'coverage-streaming-failed',message:'Échec du chargement des pages ; couverture GPU de secours conservée si disponible',context:{version:1,error:detail,failedPages:streamer.stats().failed,maxAttemptsPerPage:3,coverageReady:active.metrics().coverageReady??null}});}catch{/* Observers do not control rendering. */}}
+    if(streamingError!==detail){streamingError=detail;const recovered=active.metrics().coverageReady===true;emit(recovered?{eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'PAGE_STREAM_FAILED',detail}:{eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'PAGE_STREAM_FAILED',detail});diagnose('coverage-streaming-failed','Échec du chargement des pages ; couverture GPU de secours conservée si disponible',{kind:'error',version:1,error:detail,failedPages:streamer.stats().failed,maxAttemptsPerPage:3,coverageReady:active.metrics().coverageReady??null,recovered,scope});}
    }).finally(()=>{
     streamingPromise=null;
     if(queuedFetch.length&&!measuring){
@@ -273,11 +287,11 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
    if(visibleUrls)streamer.retain(visibleUrls);
    if(directGpu){if(backend.overBudget)throw new EngineError('PAGE_BUDGET','Visible pages exceed the resident budget');return;}
    ownedRenderer.setRenderTarget(target);
-   if(backend.overBudget&&backend!==baseline){if(measuring)throw new EngineError('PAGE_BUDGET','Visible pages exceed the resident budget; no incomplete surface is rendered');fallbackReason='Visible pages exceed resident budget';active=baseline;baseline.render(camera);ownedRenderer.render(baseline.scene,camera);emit({eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'PAGE_BUDGET',detail:fallbackReason});return;}
+   if(backend.overBudget&&backend!==baseline){if(measuring)throw new EngineError('PAGE_BUDGET','Visible pages exceed the resident budget; no incomplete surface is rendered');fallbackReason='Visible pages exceed resident budget';active=baseline;baseline.render(camera);ownedRenderer.render(baseline.scene,camera);emit({eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'PAGE_BUDGET',detail:fallbackReason});diagnose('fallback','Visible pages exceed resident budget',{kind:'fallback',reason:fallbackReason,from:backend.id,to:baseline.id,scope});return;}
    ownedRenderer.render(backend.scene,camera);
   };
   const render=(pose?:CameraPose):FrameMetrics=>{
-   check();const start=performance.now();if(pose)setPose(pose);
+   check();const frameNumber=++hostFrame;const start=performance.now();if(pose)setPose(pose);
    try{
     if(comparisonLayout==='single'||measuring)drawBackend(active,measuring&&!directGpu?(measurementTarget=ensureTarget(measurementTarget)):null);
     else{
@@ -288,20 +302,27 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
     }
    }catch(error){
     if(measuring||diagnostic!=='beauty')throw error;
-    if(ownedRenderer?.getContext().isContextLost()){fallbackReason='Context lost: host must retain a stable preview and recreate the renderer';emit({eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'CONTEXT_LOST',detail:fallbackReason});throw error;}
+    if(ownedRenderer?.getContext().isContextLost()){fallbackReason='Context lost: host must retain a stable preview and recreate the renderer';emit({eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'CONTEXT_LOST',detail:fallbackReason});diagnose('error','WebGL context lost',{kind:'error',error:String(error),code:'CONTEXT_LOST',backend:active.id,scope});throw error;}
     if(active===baseline)throw error;
     fallbackReason=`Backend error: ${String(error)}`;active=baseline;
     try{active.render(camera);ownedRenderer.render(active.scene,camera);}
-    catch(fatal){emit({eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'BASELINE_FAILED',detail:String(fatal)});throw fatal;}
-    emit({eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'BACKEND_ERROR',detail:fallbackReason});
+    catch(fatal){emit({eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'BASELINE_FAILED',detail:String(fatal)});diagnose('error','Baseline backend failed after fallback',{kind:'error',error:String(fatal),code:'BASELINE_FAILED',scope});throw fatal;}
+    emit({eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'BACKEND_ERROR',detail:fallbackReason});diagnose('fallback','Active backend failed; baseline rendered',{kind:'fallback',error:String(error),from:active.id,to:baseline.id,scope});
    }
-   fillMetrics(active);metricsScratch.cpuFrameMs=performance.now()-start;if(metricsScratch.drawCalls<0)metricsScratch.drawCalls=ownedRenderer?.info.render.calls??0;metricsScratch.triangles=metricsScratch.submittedTriangles??ownedRenderer?.info.render.triangles??0;profiler.record(metricsScratch);return metricsScratch;
+   fillMetrics(active);const frameEnd=performance.now();metricsScratch.cpuFrameMs=frameEnd-start;if(metricsScratch.drawCalls<0)metricsScratch.drawCalls=ownedRenderer?.info.render.calls??0;metricsScratch.triangles=metricsScratch.submittedTriangles??ownedRenderer?.info.render.triangles??0;profiler.record(metricsScratch);
+   // Snapshot construction and enqueueing happen after cpuFrameMs is closed;
+   // the channel defers all observer work to a later microtask.
+   if(diagnosticChannel.enabled&&diagnosticChannel.detail==='trace'){
+    const pendingUrls=[...(active.pendingUrls?.()??[])],protectedOrRequestedPageIds=[...new Set([...pendingUrls,...(active.pageUrls?.()??[])].map(url=>pageIdByUrl.get(url)??url))],stream=streamer.stats(),backendReport=active.metrics();
+    diagnose('frame','Rendered frame',{kind:'frame',nature:measuring?'measurement':'beauty',timingScope:'host-render',scope,frame:frameNumber,backend:active.id,camera:{position:camera.position.toArray(),target:lookAtTarget.toArray(),fov:camera.fov,near:camera.near,far:camera.far},timestamp:Date.now(),metrics:{...metricsScratch},selection:{clusters:metricsScratch.clusters,selectedTriangles:metricsScratch.selectedTriangles,frustumRejected:metricsScratch.frustumRejected,lodLevel:metricsScratch.lodLevel},display:{protectedOrRequestedPageIds,selectedTriangles:metricsScratch.selectedTriangles,submittedTriangles:metricsScratch.submittedTriangles},cache:{residentPages:metricsScratch.residentPages,cacheResident:stream.resident,cacheEvictions:stream.cacheEvictions,reason:'cache-eviction-is-separate-from-display-detachment'},reportedDrawStats:{drawCalls:metricsScratch.drawCalls,submittedTriangles:metricsScratch.submittedTriangles,geometryAllocationBytes:metricsScratch.geometryAllocationBytes,batchRebuilds:backendReport.batchRebuilds??null,batchIndexBytesUpdated:backendReport.batchIndexBytesUpdated??null,displayDetachments:backendReport.displayDetachments??null}});
+   }
+   return metricsScratch;
   };
   const presentationDiagnostics=new Set<string>(),visiblePresentationDiagnostics=new Set<string>();
-  const logVisiblePresentation=()=>{if(visiblePresentationDiagnostics.has(active.id)||ownedRenderer.getRenderTarget()!==null)return;visiblePresentationDiagnostics.add(active.id);const pixel=new Uint8Array(4);try{const gl=ownedRenderer.getContext();gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);options.onDiagnostic?.({phase:'visible-presentation',message:'Premier relevé du framebuffer WebGL visible',context:{engine:active.id,...presentationColorDiagnostic(pixel,1,1,options.clearColor??DEFAULT_CLEAR_COLOR,'default-webgl-framebuffer')}});}catch(error){options.onDiagnostic?.({phase:'visible-presentation',message:'Lecture du framebuffer WebGL visible indisponible',context:{engine:active.id,error:String(error),surface:'default-webgl-framebuffer'}});}};
-  const capture=()=>{check();if(directGpu&&active.capture)return active.capture();logVisiblePresentation();const previous=ownedRenderer.getRenderTarget();try{ownedRenderer.setRenderTarget(null);active.render(camera);ownedRenderer.render(active.scene,camera);const size=canvas.width*canvas.height*4;captureSlot=(captureSlot+1)%3;if(capturePool[captureSlot].length!==size)capturePool[captureSlot]=new Uint8Array(size);const pixels=capturePool[captureSlot];const gl=ownedRenderer.getContext();gl.readPixels(0,0,canvas.width,canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);if(!presentationDiagnostics.has(active.id)){presentationDiagnostics.add(active.id);options.onDiagnostic?.({phase:'presentation-capture',message:'Premier relevé de la composition finale WebGL',context:{engine:active.id,...presentationColorDiagnostic(pixels,canvas.width,canvas.height,options.clearColor??DEFAULT_CLEAR_COLOR,'default-webgl-framebuffer')}});}return pixels;}finally{ownedRenderer.setRenderTarget(previous);}};
-  const dispose=()=>{if(disposed)return;disposed=true;profiler.dispose();hostedControls.splice(0).forEach(c=>{try{c.dispose();}catch{/* Hosted controls cannot block explorer teardown. */}});disposeTargets();pairTargetA?.dispose();pairTargetB?.dispose();compositor?.dispose();streamer.dispose();overlays.forEach(m=>m.dispose());backends.forEach(b=>b.dispose());disposeSource(source!);ownedRenderer?.dispose();ownedRenderer?.forceContextLoss();try{gpuDevice?.destroy();}catch{/* Device may already be lost. */}};
-  const flush=async()=>{check();if(streamingPromise)await streamingPromise;for(const backend of backends)await backend.flush?.();};
+  const logVisiblePresentation=()=>{if(visiblePresentationDiagnostics.has(active.id)||ownedRenderer.getRenderTarget()!==null)return;visiblePresentationDiagnostics.add(active.id);const pixel=new Uint8Array(4);try{const gl=ownedRenderer.getContext();gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);diagnose('visible-presentation','Premier relevé du framebuffer WebGL visible',{kind:'presentation',engine:active.id,...presentationColorDiagnostic(pixel,1,1,options.clearColor??DEFAULT_CLEAR_COLOR,'default-webgl-framebuffer')});}catch(error){diagnose('visible-presentation','Lecture du framebuffer WebGL visible indisponible',{kind:'error',engine:active.id,error:String(error),surface:'default-webgl-framebuffer'});}};
+  const capture=()=>{check();if(directGpu&&active.capture)return active.capture();logVisiblePresentation();const previous=ownedRenderer.getRenderTarget();try{ownedRenderer.setRenderTarget(null);active.render(camera);ownedRenderer.render(active.scene,camera);const size=canvas.width*canvas.height*4;captureSlot=(captureSlot+1)%3;if(capturePool[captureSlot].length!==size)capturePool[captureSlot]=new Uint8Array(size);const pixels=capturePool[captureSlot];const gl=ownedRenderer.getContext();gl.readPixels(0,0,canvas.width,canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);if(!presentationDiagnostics.has(active.id)){presentationDiagnostics.add(active.id);diagnose('presentation-capture','Premier relevé de la composition finale WebGL',{kind:'presentation',engine:active.id,...presentationColorDiagnostic(pixels,canvas.width,canvas.height,options.clearColor??DEFAULT_CLEAR_COLOR,'default-webgl-framebuffer')});}return pixels;}finally{ownedRenderer.setRenderTarget(previous);}};
+  const dispose=()=>{if(disposed)return;diagnose('dispose-start','Explorer disposal started',{kind:'lifecycle',scope,backend:active.id});diagnosticChannel.flushSync();disposed=true;profiler.dispose();hostedControls.splice(0).forEach(c=>{try{c.dispose();}catch{/* Hosted controls cannot block explorer teardown. */}});disposeTargets();pairTargetA?.dispose();pairTargetB?.dispose();compositor?.dispose();streamer.dispose();overlays.forEach(m=>m.dispose());backends.forEach(b=>b.dispose());disposeSource(source!);ownedRenderer?.dispose();ownedRenderer?.forceContextLoss();try{gpuDevice?.destroy();}catch{/* Device may already be lost. */}diagnose('dispose-complete','Explorer disposal completed',{kind:'lifecycle',scope});diagnosticChannel.flushSync();diagnosticChannel.close();};
+  const flush=async()=>{check();if(streamingPromise)await streamingPromise;for(const backend of backends)await backend.flush?.();await diagnosticChannel.flush();};
   const awaitPages=async()=>{check();if(streamingPromise)await streamingPromise;for(const backend of backends){backend.render(camera);const missing=backend.pendingUrls?.()??[];if(missing.length){await streamer.request(missing);for(const url of missing){const array=streamer.get(url);if(array)backend.acceptPage?.(url,array);}if(backend.syncResident)backend.syncResident();else backend.render(camera);}const urls=backend.pageUrls?.();if(urls)streamer.retain(urls);await backend.flush?.();}loaded=streamer.stats().loaded;pageBytesRead=streamer.stats().bytesRead;};
   progress('ready',1,1,'Explorateur prêt');
   if(typeof window!=='undefined'){
@@ -322,8 +343,8 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
    get comparison(){return {layout:comparisonLayout,pair:comparisonPair,wipe,toggle};},
    setPixelError(value:number){check();if(!Number.isFinite(value)||value<0)throw new Error('Invalid pixelError');context.pixelError=value;},
    pointsOfInterest():Array<PointOfInterest>{const home=this.homePose();const extras=(options.pointsOfInterest??[]).filter(point=>point&&typeof point.id==='string'&&typeof point.label==='string'&&point.pose);return [{id:'home',label:'Home',pose:home},...extras];},
-   resetHome(){check();camera.position.copy(center).add(homeOffset);camera.lookAt(center);camera.updateMatrixWorld();},
-   restoreAfterCampaign(id:string,saved:THREE.PerspectiveCamera){if(disposed)return;measuring=false;ownedRenderer?.setRenderTarget(null);active=backends.find(b=>b.id===id)!;camera.copy(saved);},
+   resetHome(){check();camera.position.copy(center).add(homeOffset);lookAtTarget.copy(center);camera.lookAt(center);camera.updateMatrixWorld();},
+   restoreAfterCampaign(id:string,saved:THREE.PerspectiveCamera){if(disposed)return;measuring=false;ownedRenderer?.setRenderTarget(null);active=backends.find(b=>b.id===id)!;camera.copy(saved);lookAtTarget.copy(center);},
    setMeasurementSurface(enabled:boolean){check();measuring=enabled;if(!enabled)ownedRenderer?.setRenderTarget(null);},
    get backend(){return active.id;},
    get diagnostic(){return diagnostic;},
@@ -343,7 +364,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
    enableAutoLog(intervalSeconds=2){return profiler.startAutoLog(intervalSeconds);},
    disableAutoLog(){profiler.stopAutoLog();},
   };
- }catch(error){disposeTargets();backends.forEach(b=>b.dispose());if(source)disposeSource(source);renderer?.dispose();try{gpuDevice?.destroy();}catch{/* Device may already be lost. */}throw error;}
+ }catch(error){diagnose('error','Explorer preparation failed',{kind:'error',error:String(error),scope,manifestUrl});disposeTargets();backends.forEach(b=>b.dispose());if(source)disposeSource(source);renderer?.dispose();try{gpuDevice?.destroy();}catch{/* Device may already be lost. */}diagnosticChannel.flushSync();diagnosticChannel.close();throw error;}
 }
 export type Explorer=Awaited<ReturnType<typeof createExplorer>>;
 /** Caller supplies immutable poses: every backend gets exactly the same trajectory. */

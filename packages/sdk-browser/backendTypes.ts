@@ -13,7 +13,7 @@ export interface RenderBackend {
  render(camera:THREE.PerspectiveCamera):void;
  readonly overBudget:boolean;
  scene:THREE.Scene;
- metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'>&{drawCalls?:number};
+ metrics():Pick<FrameMetrics,'clusters'|'selectedTriangles'|'residentPages'|'geometryAllocationBytes'|'pageEvictions'|'frustumRejected'|'lodLevel'|'submittedTriangles'|'hizRejected'|'transparentMeshes'|'transparentFrustumRejected'|'transparentDrawCalls'|'transparentSubmittedTriangles'|'coverageReady'|'coverageBudgetLimited'>&{drawCalls?:number;batchRebuilds?:number;batchIndexBytesUpdated?:number;displayDetachments?:number};
  pendingUrls?():string[];
  pageUrls?():string[];
  acceptPage?(url:string,array:Uint32Array):void;
@@ -27,7 +27,17 @@ export interface RenderBackend {
  visibilityIds?():Uint32Array;
  dispose():void;
 }
-export type BackendDiagnostic = { phase:string; message:string; context:Record<string,unknown> };
+export type DiagnosticDetail = 'summary'|'trace';
+export type BackendDiagnostic = {
+ phase:string;
+ message:string;
+ context:Record<string,unknown>;
+ /** Added by the host collector; optional for standalone backend consumers. */
+ sequence?:number;
+ sessionId?:string;
+ queuedAt?:number;
+ createdAt?:number;
+};
 export interface BackendContext {
  source:THREE.Object3D;
  metadata:ClusterManifest;
@@ -42,6 +52,8 @@ export interface BackendContext {
  clearColor?:number;
  /** Bounded diagnostics emitted by a backend and owned by the host report. */
  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+ /** Summary suppresses per-frame trace records; trace is the default with an observer. */
+ diagnosticDetail?:DiagnosticDetail;
  viewport?:[number,number];
  gpuDevice?:GPUDevice;
  /** A host canvas dedicated to this WebGPU backend. */
@@ -73,6 +85,8 @@ export interface ExplorerOptions {
  clearColor?:number;
  /** Bounded diagnostics emitted by a backend and owned by the host report. */
  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+ /** Summary suppresses per-frame trace records; trace is the default with an observer. */
+ diagnosticDetail?:DiagnosticDetail;
  preload?:'visible'|'all';
  comparisonLayout?:ComparisonLayout;
  comparisonPair?:[string,string];

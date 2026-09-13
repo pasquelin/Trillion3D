@@ -44,10 +44,10 @@ test('streamer notifies consumers when a page is evicted',async()=>{
 });
 
 test('page failures stop after three attempts and remain observable without a per-frame retry loop',async()=>{
- let attempts=0;const previous=globalThis.fetch;
+ let attempts=0;const previous=globalThis.fetch;const phases:string[]=[];
  globalThis.fetch=async()=>{attempts++;return new Response('',{status:503});};
- const streamer=createPageStreamer([{url:'bad.bin',bytes:12,sha256:'invalid'}],'http://cache/');
- try{await assert.rejects(streamer.request(['bad.bin']),/PAGE_STREAM_FAILED.*bad.bin/);assert.equal(attempts,3);for(let i=0;i<10;i++)await assert.rejects(streamer.request(['bad.bin']),/PAGE_STREAM_FAILED/);assert.equal(attempts,3);assert.equal(streamer.failed('bad.bin'),true);assert.equal(streamer.stats().failed,1);}
+ const streamer=createPageStreamer([{url:'bad.bin',bytes:12,sha256:'invalid'}],'http://cache/',undefined,8,undefined,undefined,event=>phases.push(event.phase));
+ try{await assert.rejects(streamer.request(['bad.bin']),/PAGE_STREAM_FAILED.*bad.bin/);assert.equal(attempts,3);for(let i=0;i<10;i++)await assert.rejects(streamer.request(['bad.bin']),/PAGE_STREAM_FAILED/);assert.equal(attempts,3);assert.equal(streamer.failed('bad.bin'),true);assert.equal(streamer.stats().failed,1);assert.equal(phases.filter(phase=>phase==='page-retry').length,2);assert.ok(phases.includes('page-error'));}
  finally{streamer.dispose();globalThis.fetch=previous;}
 });
 
@@ -65,4 +65,12 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
  const streamer=createPageStreamer([{url:'a.bin',bytes:12,sha256:'unused'}],'http://cache/',controller.signal);
  try{const job=streamer.read('a.bin');controller.abort();release();await assert.rejects(job,{name:'AbortError'});assert.equal(attempts,1);assert.equal(streamer.stats().failed,0);assert.equal(streamer.stats().resident,0);}
  finally{release();streamer.dispose();globalThis.fetch=previous;}
+});
+
+test('stream diagnostics cover coalescing, verification, retention and eviction',async()=>{
+ const bytes=new Uint8Array([1,0,0,0]);const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+ const previous=globalThis.fetch;globalThis.fetch=async()=>new Response(bytes);const events:string[]=[];
+ const streamer=createPageStreamer([{url:'a.bin',bytes:4,sha256:sha},{url:'b.bin',bytes:4,sha256:sha}],'http://cache/',undefined,2,1,undefined,event=>{events.push(event.phase);if(events.length===1)throw new Error('observer failure');});
+ try{await Promise.all([streamer.read('a.bin'),streamer.read('a.bin')]);streamer.retain([]);await streamer.request(['b.bin']);streamer.retain(['b.bin']);assert.ok(events.includes('page-catalogue'));assert.ok(events.includes('page-request-coalesced'));assert.ok(events.includes('page-hash-check'));assert.ok(events.includes('page-cache-eviction'));assert.equal(streamer.stats().drawDetaches,0);}
+ finally{streamer.dispose();globalThis.fetch=previous;}
 });

@@ -9,6 +9,7 @@ import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {evaluateSelectionKernel,packSelectionForest,type PackedForest} from './gpuSelection.ts';
 import {evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
 import {rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
+import {createGpuTiming} from './gpuTiming.ts';
 
 function installGpuGlobals(){
  Object.assign(globalThis,{
@@ -68,6 +69,47 @@ test('WebGPU forwards its internal color diagnostics to the host report sink',as
  backend.render(camera());
  assert.ok(events.some(event=>event.phase==='first-render-path'));
  backend.dispose();geometry.dispose();material.dispose();
+});
+
+test('trace diagnostics retain one bounded snapshot for every rendered frame',async()=>{
+ installGpuGlobals();
+ const events:Array<{phase:string;message:string;context:Record<string,unknown>}> = [];
+ const fixture=quadScene();
+ const collected=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const {device}=mockGpu(undefined,packSelectionForest(collected.roots));
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],diagnosticDetail:'trace' as never,onDiagnostic:event=>events.push(event)} as never);
+ try{
+  await backend.prepare();
+  backend.render(camera());await backend.flush();
+  backend.render(camera());await backend.flush();
+  const frames=events.filter(event=>event.phase==='frame');
+  assert.equal(frames.length,2);
+  assert.deepEqual(frames.map(event=>event.context.frame),[1,2]);
+  assert.ok(frames.every(event=>typeof event.context.submission==='number'));
+  assert.ok(frames.every(event=>event.context.coverage&&typeof event.context.coverage==='object'));
+  assert.ok(events.some(event=>event.phase==='cpu-selection'));
+  assert.ok(events.some(event=>event.phase==='residency-queue'));
+  for(const phase of ['cpu-lights','gpu-selection-resolution','residency-admission','residency-transition','residency-queue-reconstruct','residency-drawn-verify','targets-ensure'])assert.ok(events.some(event=>event.phase===phase),phase);
+ }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('summary diagnostics keep frame traces disabled',async()=>{
+ installGpuGlobals();
+ const events:Array<{phase:string;message:string;context:Record<string,unknown>}> = [];
+ const fixture=quadScene();
+ const {device}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],diagnosticDetail:'summary' as never,onDiagnostic:event=>events.push(event)} as never);
+ try{await backend.prepare();backend.render(camera());await backend.flush();assert.equal(events.some(event=>event.phase==='frame'),false);}
+ finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('trace failure diagnostics retain bounded stack and cause context',async()=>{
+ installGpuGlobals();
+ const events:Array<{phase:string;message:string;context:Record<string,unknown>}> = [];
+ const fixture=quadScene(),{device}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async()=>{throw new Error('PAGE_STREAM_FAILED',{cause:new Error('NETWORK_ROOT')});},gpuDevice:device,maxResidentPages:2,viewport:[32,32],onDiagnostic:event=>events.push(event)} as never);
+ try{await assert.rejects(backend.prepare(),/PAGE_STREAM_FAILED/);await Promise.resolve();const failure=events.find(event=>event.phase==='coverage-bootstrap-failed');assert.ok(failure);assert.match(String(failure.context.stack),/Error: PAGE_STREAM_FAILED/);assert.match(String(failure.context.cause),/NETWORK_ROOT/);}
+ finally{await backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
 });
 
 function bytesOf(data:BufferSource){
