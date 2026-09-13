@@ -4,6 +4,7 @@ import type {BackendFactory,BackendContext} from './backendTypes.ts';
 import type {Page,Tree} from '../sdk-core/index.ts';
 import {createTriangleDiagnosticMaterial,disposeTriangleGeometry,materialSide,triangleGeometry,triangleSalt} from './triangleDiagnostic.ts';
 import {isTransmissive} from './visibilityBuffer.ts';
+import {sourcePageOrders} from './pageSelection.ts';
 
 function meshes(source:THREE.Object3D){const found:THREE.Mesh[]=[];source.updateMatrixWorld(true);source.traverse(o=>{if((o as THREE.Mesh).isMesh)found.push(o as THREE.Mesh);});return found;}
 function geometryBytes(geometry:THREE.BufferGeometry,seen:Set<ArrayBufferView>){let bytes=0;const index=geometry.getIndex();if(index&&!seen.has(index.array)){seen.add(index.array);bytes+=index.array.byteLength;}for(const name in geometry.attributes){const attr=geometry.attributes[name];if(!attr||seen.has(attr.array))continue;seen.add(attr.array);bytes+=attr.array.byteLength;}return bytes;}
@@ -27,7 +28,10 @@ export const threeLodBackend:BackendFactory=(context)=>{
   lod.addLevel(fine,0);allocationBytes+=geometryBytes(mesh.geometry,seen);
   if(primitive?.hierarchy&&primitive.pass!=='shared-blend'&&!isTransmissive(mesh.material)){
    const coarseIds:number[]=[];collectCover(primitive.hierarchy,primitive.pages,coarseIds);
-   const index=buildIndex(primitive.pages,coarseIds,context.indices);
+   if(primitive.pass==='clustered-blend'||(Array.isArray(mesh.material)?mesh.material.some(material=>material.transparent):mesh.material.transparent)){
+    const order=sourcePageOrders(primitive.hierarchy,primitive.pages.length);coarseIds.sort((a,b)=>order[a]-order[b]);
+   }
+   const index=coarseIds.some(id=>primitive.pages[id].role==='coarse')?buildIndex(primitive.pages,coarseIds,context.indices):null;
    if(index&&index.length>=3){
     const geometry=new THREE.BufferGeometry();geometry.attributes={...mesh.geometry.attributes};geometry.setIndex(new THREE.BufferAttribute(index,1));
     const box=new THREE.Box3();if(primitive.hierarchy.min&&primitive.hierarchy.max){box.min.fromArray(primitive.hierarchy.min);box.max.fromArray(primitive.hierarchy.max);geometry.boundingBox=box.clone();geometry.boundingSphere=new THREE.Sphere();box.getBoundingSphere(geometry.boundingSphere);}

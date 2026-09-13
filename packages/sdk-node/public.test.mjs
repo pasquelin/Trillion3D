@@ -3,7 +3,7 @@ import {mkdtemp,mkdir,writeFile,readFile,readdir,copyFile,cp,chmod,rm} from 'nod
 import {prepare,createCompilationJob,filesystemStore,DEFAULT_SCOPE,COMPILER_OUTPUT_LIMIT,getSdkProvenance,getReferenceCompilerHash} from './index.mjs';
 test('Node SDK public API imports without executing a compiler or depending on UI',()=>{assert.equal(typeof prepare,'function');assert.equal(typeof createCompilationJob,'function');assert.equal(typeof filesystemStore,'function');assert.equal(typeof getSdkProvenance,'function');});
 test('Compilation jobs expose the shared slice default',()=>{assert.equal(DEFAULT_SCOPE,'slice');});
-test('reference compiler fingerprint changes with QEM implementation and dependency lock',async()=>{
+test('reference compiler fingerprint changes with material routing, QEM implementation and dependency lock',async()=>{
  const root=await mkdtemp(join(tmpdir(),'web-geometry-fingerprint-'));
  try{
   const source=new URL('../../',import.meta.url),core=join(root,'packages/asset-compiler-core'),node=join(root,'packages/sdk-node');
@@ -14,8 +14,10 @@ test('reference compiler fingerprint changes with QEM implementation and depende
    await copyFile(new URL(name,source),join(root,name));
   }
   const base=await getReferenceCompilerHash(pathToFileURL(`${root}/`));
+  const compiler=join(core,'index.mjs');await writeFile(compiler,Buffer.concat([await readFile(compiler),Buffer.from('\n// changed material routing\n')]));
+  const changedRouting=await getReferenceCompilerHash(pathToFileURL(`${root}/`));assert.notEqual(changedRouting,base);
   const qem=join(core,'qem.mjs');await writeFile(qem,Buffer.concat([await readFile(qem),Buffer.from('\n// changed algorithm\n')]));
-  const changedQem=await getReferenceCompilerHash(pathToFileURL(`${root}/`));assert.notEqual(changedQem,base);
+  const changedQem=await getReferenceCompilerHash(pathToFileURL(`${root}/`));assert.notEqual(changedQem,changedRouting);
   const lock=join(root,'package-lock.json');await writeFile(lock,Buffer.concat([await readFile(lock),Buffer.from('\n')]));
   assert.notEqual(await getReferenceCompilerHash(pathToFileURL(`${root}/`)),changedQem);
  }finally{await rm(root,{recursive:true,force:true});}
