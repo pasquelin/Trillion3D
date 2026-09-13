@@ -1,6 +1,6 @@
-export const STUTTER_MS = 50;
+const STUTTER_MS = 50;
 
-export function quantile(sorted: readonly number[], p: number) {
+function quantile(sorted: readonly number[], p: number) {
   if (!sorted.length) return undefined;
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(p * sorted.length) - 1))];
 }

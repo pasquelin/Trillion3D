@@ -1,23 +1,22 @@
 # Web Geometry SDK
 
-Standalone compiler/runtime. Public imports are `@web-geometry/sdk` (core), `/node`, `/browser` and `/compiler-reference`. Do not import `packages/` internals.
+Standalone compiler/runtime. Public imports are `@web-geometry/sdk` (core), `/node` and `/browser`. Do not import `packages/` internals.
 
 Build: `npm install`, `npm run build`, `npm test`. Native: `npm run build:native` and `npm run test:native`. `SDK_VERSION` and `FORMAT_VERSION` are independent.
 
-The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare`/`prepareReference` and `manifestUrl` to `createExplorer`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
+The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare` and `manifestUrl` to `createExplorer`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
 
-JavaScript reference and native Rust caches use separate roots: `reference/<scope>/manifest.json` and `native/<scope>/manifest.json`. See [Format 1](docs/FORMAT.md).
+The compiler publishes under `native/<scope>/manifest.json`. See [the cache format](docs/FORMAT.md).
 
-Both compilers now reject selected accessors that cross their `bufferView`, invalid strides, malformed sparse ranges/indices and invalid POSITION/index component contracts before publishing a ready pointer. The QEM endpoint test rejects a reproduced concave-face inversion; it does not certify a global Hausdorff error bound or all mesh topologies. Cache keys include the executed compiler implementation; Rust embeds its dependency lock, and the JS source checkout includes its lock when present. Recompile prepared assets to use these corrections; source files are never overwritten.
+The compiler rejects selected accessors that cross their `bufferView`, invalid strides, malformed sparse ranges/indices and invalid POSITION/index component contracts before publishing a ready pointer. Simplification error is meshoptimizer's reported relative error scaled to object space; it is not a certified global Hausdorff bound. Cache keys include the executed compiler implementation and its dependency lock. Recompile prepared assets to use these corrections; source files are never overwritten.
 
 ## Entry points
 
 | Import | Symbols |
 |---|---|
 | `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
-| `@web-geometry/sdk/node` | `prepare`, `prepareReference`, `createCompilationJob`, `filesystemStore`, `getSdkProvenance`, CLI |
+| `@web-geometry/sdk/node` | `prepare`, `createCompilationJob`, `getSdkProvenance`, CLI |
 | `@web-geometry/sdk/browser` | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
-| `@web-geometry/sdk/compiler-reference` | `compileAsset`, `hierarchy`, `CLUSTER_INDEX_COUNT` |
 
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
 
@@ -29,9 +28,9 @@ web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_U
 
 `SOURCE` is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, or a `.gltf`/`.glb` file.
 
-Writes the final JSON result to stdout and progress JSON lines to stderr. `WEB_GEOMETRY_COMPILER_BIN` selects a native executable; `RTL_ASSET_COMPILER_BIN` remains a compatibility alias.
+Writes the final JSON result to stdout and progress JSON lines to stderr. `WEB_GEOMETRY_COMPILER_BIN` selects a native executable.
 
-The native binary is `web-geometry-compiler` (alias `rtl-asset-compiler`). Direct invocation accepts five, seven or eight arguments:
+The native binary is `web-geometry-compiler`. Direct invocation accepts five, seven or eight arguments:
 
 ```
 web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
@@ -51,7 +50,7 @@ web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] R
 
 The `wireframe` diagnostic is a filled unique color per submitted triangle, not `MeshBasicMaterial.wireframe` / GL_LINES. Cluster, page and LOD diagnostics stay on the selected backend's actual cut.
 
-`createGpuPageCache` is a bounded WebGPU buffer/queue adapter. `webgpuPagesBackend` (`webgpu-page-raster`) still consumes the same Format 1 pages, hierarchy and LOD settings. For opaque pages, selection computes the current camera's drawable resident cut on the GPU, retaining complete coarse coverage until every required child is resident. Draw compaction consumes that mask, counts and scatters in parallel groups, and the visibility shader consumes the resulting instance indices and slot offsets against the original page table. No CPU compaction or CPU opaque selection repeats that work. Asynchronous selection readback serves streaming requests and diagnostics; busy readbacks do not block current-camera selection. Selection/submission counters stay `null` until the matching GPU result is available. Transparency keeps its existing forward path; secondary-camera surface captures and unsupported GPU paths retain the CPU selection fallback. `capabilities.gpuDriven` denotes this opaque selection-to-draw path, not a completely GPU-autonomous engine. The visibility path issues at most six geometry `drawIndirect` commands (cull mode × Hi-Z pass); material, lighting, transparency and presentation add their own draw commands.
+`createGpuPageCache` is a bounded WebGPU buffer/queue adapter. `webgpuPagesBackend` (`webgpu-page-raster`) consumes the same pages and LOD settings. For opaque pages, selection computes the current camera's drawable resident cut on the GPU, retaining complete coarse coverage until every required child is resident. Draw compaction consumes that mask, counts and scatters in parallel groups, and the visibility shader consumes the resulting instance indices and slot offsets against the original page table. No CPU compaction or CPU opaque selection repeats that work. Asynchronous selection readback serves streaming requests and diagnostics; busy readbacks do not block current-camera selection. Selection/submission counters stay `null` until the matching GPU result is available. Transparency keeps its existing forward path; secondary-camera surface captures and unsupported GPU paths retain the CPU selection fallback. `capabilities.gpuDriven` denotes this opaque selection-to-draw path, not a completely GPU-autonomous engine. The visibility path issues at most six geometry `drawIndirect` commands (cull mode × Hi-Z pass); material, lighting, transparency and presentation add their own draw commands.
 
 ### Separated surfaces and lighting (pipeline version 1)
 

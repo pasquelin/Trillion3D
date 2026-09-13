@@ -1,6 +1,6 @@
 # Documentation de Web Geometry
 
-Le SDK livré est décrit par [packages/README.md](../packages/README.md), le [guide SDK](../SDK.md) et le [format 1 actuel](FORMAT.md). Les documents de ce dossier qui ne sont pas listés ci-dessous sont des **spécifications de conception**, pas des fonctionnalités livrées.
+Le SDK livré est décrit par [packages/README.md](../packages/README.md), le [guide SDK](../SDK.md) et le [format de cache actuel](FORMAT.md). Les documents de ce dossier qui ne sont pas listés ci-dessous sont des **spécifications de conception**, pas des fonctionnalités livrées.
 
 [Principes du produit](architecture/PRINCIPES_DU_PRODUIT.md) : core portable, capacités, propriété des sources et repli.
 
@@ -8,11 +8,9 @@ Le SDK livré est décrit par [packages/README.md](../packages/README.md), le [g
 
 | Document | Rôle |
 |---|---|
-| [Format 1 actuel](FORMAT.md) | Pointeur, `clusters.json`, pages SHA, namespaces `native/` vs `reference/` |
+| [Format de cache actuel](FORMAT.md) | Pointeur, `clusters.json`, DAG de clusters, hiérarchie de culling, paquets de streaming, objets SHA sous `native/` |
 | [Principes](architecture/PRINCIPES_DU_PRODUIT.md) | Exigences de comportement |
 | [Architecture SDK](../packages/README.md) | Ce qui est implémenté, limites ouvertes |
-| [Exemple hôte](../examples/minimal-webgl/README.md) | Canvas + `manifestUrl` |
-| [Niveaux grossiers Emerald](audits/2026-09-13-coarse-lod.md) | Correction native, mesures avant/après et limites de la comparaison visuelle |
 
 ## Spécifications de conception (non livrées)
 

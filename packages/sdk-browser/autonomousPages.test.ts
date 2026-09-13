@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {encodeGeometryPage} from '../asset-compiler-core/geometryPage.mjs';
+import {encodeGeometryPage} from '../page-codec/geometryPage.mjs';
 import {decodeGeometryPage} from './geometryPage.ts';
 import {autonomousPagesBackend} from './autonomousPages.ts';
 import type {ClusterManifest} from '../sdk-core/index.ts';
