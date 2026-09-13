@@ -28,6 +28,7 @@ export const autonomousPagesBackend:BackendFactory=context=>{
  const shown:PageRec[]=[],desired:PageRec[]=[],pending:string[]=[],retained:string[]=[];
  const baseMaterials=new Map(allPages.map(rec=>[rec,rec.material] as const)),colorMaterials=new Map<THREE.Material,THREE.Material>();
  const instances=new Map<string,{roots:typeof roots;pages:PageRec[];bootstrap:PageRec[]}>();
+ const modifiedPages=new Set<string>();
  let frame=0,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,evictions=0,overBudget=false,ready=false,allocationBytes=0;
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  const detach=(rec:PageRec)=>{if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}};
@@ -52,7 +53,7 @@ export const autonomousPagesBackend:BackendFactory=context=>{
   }
   for(const list of [allPages,bootstrap,shown,desired])for(let i=list.length-1;i>=0;i--)if(removed.has(list[i]))list.splice(i,1);
  };
- const acceptGeometryPage=(url:string,data:DecodedGeometryPage)=>{const recs=byUrl.get(url);if(!recs)return;
+ const storeGeometryPage=(url:string,data:DecodedGeometryPage)=>{const recs=byUrl.get(url);if(!recs)return;
   const descriptor=descriptors.get(url);if(!descriptor||data.vertexCount!==descriptor.vertexCount||data.indices.length!==descriptor.indexCount||data.flags!==descriptor.flags)throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
   for(const rec of recs){detach(rec);if(rec.geometry){allocationBytes-=rec.geometry.getIndex()?.array.byteLength??0;for(const attr of Object.values(rec.geometry.attributes))allocationBytes-=attr.array.byteLength;rec.geometry.dispose();}
    const positions=data.attributes.position;for(let i=0;i<positions.length;i++){const axis=i%3;if(positions[i]<rec.min[axis]-1e-5||positions[i]>rec.max[axis]+1e-5)throw new Error('AUTONOMOUS_PAGE_BOUNDS');}
@@ -65,6 +66,7 @@ export const autonomousPagesBackend:BackendFactory=context=>{
    allocationBytes+=data.indices.byteLength;for(const array of Object.values(data.attributes))allocationBytes+=array.byteLength;
   }
  };
+ const acceptGeometryPage=(url:string,data:DecodedGeometryPage)=>{if(!modifiedPages.has(url))storeGeometryPage(url,data);};
  return {
   id:'autonomous-pages-webgl',scene,
   capabilities:{renderer:'WebGL2 autonomous prepared pages',materials:'glTF opaque and alpha-mask materials; independent positions, normals, UVs, tangents and colors',hierarchy:true,gpuDriven:false,simplification:!!context.metadata.simplification,eviction:true,unsupported:['BLEND and transmission in autonomous mode','GPU-driven selection and indirect drawing','physical VRAM instrumentation','global illumination']},
@@ -119,9 +121,10 @@ export const autonomousPagesBackend:BackendFactory=context=>{
   },
   refreshSceneLighting(){lighting.refresh();},
   pendingUrls(){pending.length=0;for(const rec of desired)if(!rec.array&&!pending.includes(rec.url))pending.push(rec.url);return pending;},
-  pageUrls(){retained.length=0;const unique=new Set<string>(bootstrapUrls);for(const rec of shown)unique.add(rec.url);for(const rec of desired)unique.add(rec.url);retained.push(...unique);return retained;},
+  pageUrls(){retained.length=0;const unique=new Set<string>([...bootstrapUrls,...modifiedPages]);for(const rec of shown)unique.add(rec.url);for(const rec of desired)unique.add(rec.url);retained.push(...unique);return retained;},
   acceptGeometryPage,
-  dropPage(url){if(bootstrapUrls.has(url))return;const recs=byUrl.get(url);if(!recs)return;for(const rec of recs){detach(rec);if(rec.geometry){allocationBytes-=rec.geometry.getIndex()?.array.byteLength??0;for(const attr of Object.values(rec.geometry.attributes))allocationBytes-=attr.array.byteLength;rec.geometry.dispose();}rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;evictions++;}},
+  replaceGeometryPage(url,data){if(!byUrl.has(url))throw new Error('AUTONOMOUS_PAGE_MISSING');storeGeometryPage(url,data);modifiedPages.add(url);},
+  dropPage(url){if(bootstrapUrls.has(url)||modifiedPages.has(url))return;const recs=byUrl.get(url);if(!recs)return;for(const rec of recs){detach(rec);if(rec.geometry){allocationBytes-=rec.geometry.getIndex()?.array.byteLength??0;for(const attr of Object.values(rec.geometry.attributes))allocationBytes-=attr.array.byteLength;rec.geometry.dispose();}rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;evictions++;}},
   syncResident:sync,
   metrics(){return {clusters:visible,selectedTriangles,residentPages:allPages.filter(rec=>!!rec.array).length,geometryAllocationBytes:allocationBytes,pageEvictions:evictions,frustumRejected,lodLevel,submittedTriangles,drawCalls:shown.length,coverageReady:ready,coverageBudgetLimited:overBudget};},
   dispose(){ready=false;for(const rec of allPages){detach(rec);rec.geometry?.dispose();rec.geometry=undefined;rec.mesh=undefined;rec.array=undefined;}for(const material of colorMaterials.values())material.dispose();scene.clear();},
