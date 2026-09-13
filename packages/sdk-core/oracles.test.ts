@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  clusterErrorPixels,
+  maxStretch,
   dot,
   norm,
   quadricFromPlanes,
@@ -913,4 +915,35 @@ test('perspective uniform object split is not screen uniform', () => {
   const end = 2 / 2;
   assert.equal(Math.ceil((end - start) / 0.5), 2);
   assert.ok(middle - start > 0.5);
+});
+
+test('the stretch of a linear map is its largest singular value, not its Frobenius norm', () => {
+  const rotation = new Array(16).fill(0);
+  const angle = 0.7, c = Math.cos(angle), s = Math.sin(angle);
+  rotation[0] = c; rotation[1] = s; rotation[4] = -s; rotation[5] = c; rotation[10] = 1; rotation[15] = 1;
+  assert.ok(Math.abs(maxStretch(rotation) - 1) < 1e-12, 'a rotation stretches nothing');
+  const uniform = rotation.map((value, index) => index < 12 ? value * 3 : value);
+  uniform[15] = 1;
+  assert.ok(Math.abs(maxStretch(uniform) - 3) < 1e-12, 'a uniform scale reports its factor');
+  const anisotropic = new Array(16).fill(0);
+  anisotropic[0] = 2; anisotropic[5] = 5; anisotropic[10] = 0.5; anisotropic[15] = 1;
+  assert.ok(Math.abs(maxStretch(anisotropic) - 5) < 1e-12, 'a diagonal map reports its largest axis');
+  const identity = new Array(16).fill(0);
+  identity[0] = identity[5] = identity[10] = identity[15] = 1;
+  assert.equal(maxStretch(identity), 1);
+  assert.throws(() => maxStretch([1, 2, 3]), /Matrice invalide/);
+});
+
+test('a cluster error projects as error x stretch x focal over the distance to its sphere', () => {
+  // Sphere of radius 1 centred 10 in front: the nearest point is 9 away.
+  assert.ok(Math.abs(clusterErrorPixels(0.5, 1, 0, 0, 10, 1, 600, 0.1) - (0.5 * 600 / 9)) < 1e-9);
+  assert.ok(Math.abs(clusterErrorPixels(0.5, 2, 0, 0, 10, 0, 600, 0.1) - (0.5 * 2 * 600 / 10)) < 1e-9);
+  assert.equal(clusterErrorPixels(0, 1, 0, 0, 0.05, 1, 600, 0.1), 0, 'exact geometry never needs refining');
+  assert.equal(clusterErrorPixels(Infinity, 1, 0, 0, 10, 1, 600, 0.1), Infinity, 'a cluster with no replacement always wins');
+  assert.equal(clusterErrorPixels(0.5, 1, 0, 0, 1, 1, 600, 0.1), Infinity, 'a sphere reaching the near plane refines');
+  assert.throws(() => clusterErrorPixels(-1, 1, 0, 0, 10, 1, 600, 0.1), /invalides/);
+  // Monotone in the error and in an enclosing sphere, which is what keeps one cut per chain.
+  const small = clusterErrorPixels(0.5, 1, 0, 0, 10, 1, 600, 0.1);
+  assert.ok(clusterErrorPixels(0.6, 1, 0, 0, 10, 1, 600, 0.1) > small);
+  assert.ok(clusterErrorPixels(0.5, 1, 0, 0, 10, 2, 600, 0.1) > small);
 });
