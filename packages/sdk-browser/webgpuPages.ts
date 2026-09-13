@@ -475,7 +475,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   let occluderPacked=packed,restPacked=packed.slice(0,0),twoPass=false;
   const boundsCache=new Map<PageRec,HizBounds>();
   if(gpuHiz&&packed.length>=2){
-   if(gpuHiz.hasHistory()&&previouslyDrawnUrls.size>0){
+   if(previouslyDrawnUrls.size>0){
     occluderPacked=packed.filter(item=>previouslyDrawnUrls.has(item.rec.url));
     restPacked=packed.filter(item=>!previouslyDrawnUrls.has(item.rec.url));
     if(!occluderPacked.length||!restPacked.length){
@@ -655,7 +655,6 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    restPass.end();
   }
   if(gpuHiz){
-   gpuHiz.encodeCopyHistory(encoder);
    previouslyDrawnUrls.clear();
    for(let i=0;i<occluderPacked.length;i++)previouslyDrawnUrls.add(occluderPacked[i].rec.url);
   }
