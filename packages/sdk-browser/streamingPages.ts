@@ -6,13 +6,13 @@ const digest=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.su
 
 type Job={
  url:string;priority:number;order:number;controller:AbortController;state:'queued'|'active';consumers:Set<symbol>;
- promise:Promise<Uint32Array>;resolve:(value:Uint32Array)=>void;reject:(reason:unknown)=>void;
+ promise:Promise<Uint8Array>;resolve:(value:Uint8Array)=>void;reject:(reason:unknown)=>void;
 };
 
 /** Bounded, prioritized and deduplicated reads. Obsolete requests abort once their last consumer leaves. */
 export function createPageStreamer(pages:readonly StreamPage[],base:string,signal?:AbortSignal,workerCount=8,maxPages?:number,onEvict?:(url:string)=>void,maxTransferBytes=8*1024*1024,onDiagnostic?:(diagnostic:BackendDiagnostic)=>void){
  const catalog=new Map(pages.map(page=>[page.url,page]));
- const cache=new Map<string,Uint32Array>(),jobs=new Map<string,Job>(),queue:Job[]=[];
+ const cache=new Map<string,Uint8Array>(),jobs=new Map<string,Job>(),queue:Job[]=[];
  const pinned=new Set<string>(),failures=new Map<string,Error>(),abort=new AbortController();
  if(signal){if(signal.aborted)abort.abort(signal.reason);else signal.addEventListener('abort',()=>abort.abort(signal.reason),{once:true});}
  const limit=Number.isSafeInteger(workerCount)?Math.max(1,workerCount):1;
@@ -21,7 +21,7 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
  const emit=(phase:string,message:string,context:()=>Record<string,unknown>)=>{if(onDiagnostic)try{onDiagnostic({phase,message,context:context()});}catch{/* Observers cannot alter streaming. */}};
  emit('page-catalogue','Catalogue et configuration du streamer prêts',()=>({version:1,pages:catalog.size,workerCount:limit,maxPages:maxPages??null,maxTransferBytes,totalBytes:pages.reduce((sum,page)=>sum+page.bytes,0)}));
  const abortError=()=>new DOMException('Page request cancelled','AbortError');
- const touch=(url:string,array:Uint32Array)=>{cache.delete(url);cache.set(url,array);};
+ const touch=(url:string,array:Uint8Array)=>{cache.delete(url);cache.set(url,array);};
  const evict=()=>{
   if(!maxPages||maxPages<1||cache.size<=maxPages)return;
   let evicted=false;
@@ -45,13 +45,13 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
     const bytes=await(await checked(new URL(url,base).href,combined)).arrayBuffer();
     emit('page-read-end','Lecture de page terminée',()=>({version:1,url,attempt,actualBytes:bytes.byteLength,expectedBytes:page.bytes,durationMs:onDiagnostic?performance.now()-attemptStart:null}));
     combined.throwIfAborted();
-    const sizeMatches=bytes.byteLength===page.bytes&&bytes.byteLength%4===0;
+    const sizeMatches=bytes.byteLength===page.bytes;
     const actualHash=sizeMatches?await digest(bytes):undefined;
     const hashMatches=sizeMatches&&actualHash===page.sha256;
     emit('page-hash-check',hashMatches?'Hash et taille de page vérifiés':'Échec de vérification de page',()=>({version:1,url,attempt,expectedBytes:page.bytes,actualBytes:bytes.byteLength,expectedHash:page.sha256,actualHash:actualHash??null,sizeMatches,hashMatches}));
     if(!hashMatches){emit('page-corruption','Page corrompue ou de taille inattendue',()=>({version:1,url,attempt}));throw new Error('Corrupt cluster page');}
     combined.throwIfAborted();
-    const array=new Uint32Array(bytes);touch(url,array);bytesRead+=bytes.byteLength;loaded++;emit('page-attempt-end','Tentative de lecture réussie',()=>({version:1,url,attempt,actualBytes:bytes.byteLength,durationMs:onDiagnostic?performance.now()-attemptStart:null,resident:cache.size}));return array;
+    const array=new Uint8Array(bytes);touch(url,array);bytesRead+=bytes.byteLength;loaded++;emit('page-attempt-end','Tentative de lecture réussie',()=>({version:1,url,attempt,actualBytes:bytes.byteLength,durationMs:onDiagnostic?performance.now()-attemptStart:null,resident:cache.size}));return array;
    }catch(error){emit('page-attempt-end','Tentative de lecture échouée',()=>({version:1,url,attempt,error:String(error),durationMs:onDiagnostic?performance.now()-attemptStart:null}));combined.throwIfAborted();cause=error;if(attempt<3)emit('page-retry','Nouvelle tentative après échec de lecture',()=>({version:1,url,attempt,nextAttempt:attempt+1,error:String(error)}));}
   }
   const error=new Error('PAGE_STREAM_FAILED: '+url+' after 3 attempts: '+String(cause),{cause});
@@ -72,7 +72,7 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
    });
   }
  };
- const subscribe=(url:string,requestSignal?:AbortSignal,priority=1):Promise<Uint32Array>=>{
+ const subscribe=(url:string,requestSignal?:AbortSignal,priority=1):Promise<Uint8Array>=>{
   emit('page-request','Demande de page reçue',()=>({version:1,url,priority}));
   if(disposed||abort.signal.aborted)return Promise.reject(abort.signal.reason??abortError());
   if(requestSignal?.aborted)return Promise.reject(requestSignal.reason??abortError());
@@ -82,23 +82,23 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
   misses++;emit('page-cache-miss','Page absente du cache',()=>({version:1,url,resident:cache.size}));
   let job=jobs.get(url);
   if(!job){
-   let resolve!:(value:Uint32Array)=>void,reject!:(reason:unknown)=>void;
-   const promise=new Promise<Uint32Array>((yes,no)=>{resolve=yes;reject=no;});
+   let resolve!:(value:Uint8Array)=>void,reject!:(reason:unknown)=>void;
+   const promise=new Promise<Uint8Array>((yes,no)=>{resolve=yes;reject=no;});
    job={url,priority,order:order++,controller:new AbortController(),state:'queued',consumers:new Set(),promise,resolve,reject};
    jobs.set(url,job);queue.push(job);
   }else{job.priority=Math.min(job.priority,priority);emit('page-request-coalesced','Demande jointe à une lecture en cours',()=>({version:1,url,loading:jobs.size}));}
   const shared=job,token=Symbol(url);
   shared.consumers.add(token);
   const combined=requestSignal?AbortSignal.any([abort.signal,requestSignal]):abort.signal;
-  const result=new Promise<Uint32Array>((resolve,reject)=>{
+  const result=new Promise<Uint8Array>((resolve,reject)=>{
    let settled=false;
-   const finish=(ok:boolean,value:Uint32Array|unknown)=>{
+   const finish=(ok:boolean,value:Uint8Array|unknown)=>{
     if(settled)return;settled=true;combined.removeEventListener('abort',onAbort);shared.consumers.delete(token);
     if(shared.consumers.size===0&&jobs.get(url)===shared){
      jobs.delete(url);shared.controller.abort(abortError());emit('page-stream-abort','Dernière demande annulée',()=>({version:1,url}));
      if(shared.state==='queued'){const at=queue.indexOf(shared);if(at>=0)queue.splice(at,1);}
     }
-    if(ok)resolve(value as Uint32Array);else reject(value);
+    if(ok)resolve(value as Uint8Array);else reject(value);
    };
    const onAbort=()=>finish(false,combined.reason??abortError());
    combined.addEventListener('abort',onAbort,{once:true});
@@ -107,10 +107,14 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
   });
   pump();return result;
  };
+ const indexViews=new WeakMap<Uint8Array,Uint32Array>();
+ const asIndices=(bytes:Uint8Array)=>{if(bytes.byteLength%4!==0)throw new Error('INVALID_INDEX_PAGE_SIZE');let view=indexViews.get(bytes);if(!view){view=new Uint32Array(bytes.buffer,bytes.byteOffset,bytes.byteLength/4);indexViews.set(bytes,view);}return view;};
  return {
-  get(url:string){const array=cache.get(url);if(array)touch(url,array);return array;},
+  get(url:string){const array=cache.get(url);if(array)touch(url,array);return array?asIndices(array):undefined;},
+  getBytes(url:string){const array=cache.get(url);if(array)touch(url,array);return array;},
   has(url:string){return cache.has(url);},loading(url:string){return jobs.has(url);},failed(url:string){return failures.has(url);},
-  read(url:string,requestSignal?:AbortSignal){requested++;return subscribe(url,requestSignal,0);},
+  read(url:string,requestSignal?:AbortSignal){requested++;return subscribe(url,requestSignal,0).then(asIndices);},
+  readBytes(url:string,requestSignal?:AbortSignal){requested++;return subscribe(url,requestSignal,0);},
   retain(urls:readonly string[]){const before=onDiagnostic?new Set(pinned):undefined;pinned.clear();for(const url of urls)if(catalog.has(url))pinned.add(url);emit('page-retain','Épingles de pages mises à jour',()=>({version:1,requested:urls.length,retained:pinned.size,added:[...pinned].filter(url=>!before?.has(url)),removed:[...(before??[])].filter(url=>!pinned.has(url))}));evict();},
   async request(urls:readonly string[],options:{signal?:AbortSignal;priority?:number}={}){
    const unique=[...new Set(urls.filter(url=>catalog.has(url)))];requested+=unique.length;emit('page-request-batch','Demande groupée de pages reçue',()=>({version:1,requested:urls.length,unique:unique.length}));

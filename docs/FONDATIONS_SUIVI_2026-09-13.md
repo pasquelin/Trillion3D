@@ -5,7 +5,7 @@ Base actuelle : `bffee67` (diagnostics et provenance intégrés sur `main`). Cet
 | Lot | Dépendance | État | Preuve requise |
 | --- | --- | --- | --- |
 | 1. Import glTF, QEM, identité des caches JS et Rust | Aucune | Partiel, `77fbbb7` | Entrées invalides rejetées avant publication ; faces orientées ; changement de clé si l'algorithme change ; tests JS/Rust |
-| 2. Pages autonomes de géométrie et format versionné | 1 | À faire | Décodage et rendu sans `source.bin` intégral, frontière de pages, compression et précision |
+| 2. Pages autonomes de géométrie et format versionné | 1 | Parcours WebGL2 statique intégré, preuve bornée | Décodage et rendu sans `source.bin` intégral, frontière de pages, compression et précision |
 | 3. Streaming de géométrie et ressources matérielles | 2 | Partiel : file priorisée, transferts bornés, requêtes partagées et annulation | Résidence minimale, ressources matérielles, admission et éviction en chaîne réelle |
 | 4. Sélection et commandes courantes pilotées par GPU | 2–3 | Partiel : regroupement des dessins par groupes GPU parallèles | Aucun readback CPU avant les commandes de l'image, sélection parallèle et capture matérielle complète |
 | 5. Hi-Z et rasterisation hybride | 4 | Partiel : mip conservateur ; validation matérielle ouverte | Occlusion/révélation, routage et pixels/profondeur/ID comparés sur matériel |
@@ -13,6 +13,8 @@ Base actuelle : `bffee67` (diagnostics et provenance intégrés sur `main`). Cet
 | 7. Métriques communes, provenance et campagnes Lab | Tous | Partiel : diagnostics et empreinte de build sur `main` | Quatre moteurs, scènes diverses, PNG, A/A puis référence, mesures bornées et limites explicites |
 
 Les budgets de pages sont des allocations suivies, jamais une mesure de VRAM physique. Les statuts « À faire » ne sont ni simulés ni déclarés livrés. Le portage de Lumen et l'optimisation fine restent ultérieurs.
+
+Le lot 2 ajoute des pages `WGP2` compressées et autonomes aux deux compilateurs, une scène légère qui conserve les matériaux, et un parcours WebGL2 qui charge les racines puis le détail à la demande sans `source.bin`. Les accessors entiers normalisés sont convertis dans les deux compilateurs. `npm run build`, `npm test` (337/337), `npm run check:structure`, `npm run check:dts`, `npm run check:links` et `cargo test --release --locked` (39/39) passent. Le parcours Chrome `LAB_ROOT=/Users/pasquelin/Applications/render-tech-lab node test/autonomousGeometry.browser.mjs` compare quatre instances à la référence WebGL2 : différence maximale 0 sur cette scène synthétique, couverture initiale prête, aucune requête `source.bin` par le mode autonome. Cette preuve ne couvre pas toutes les frontières de pages, les LOD, les masques alpha ni le Lab multi-scènes. Les textures restent chargées en entier à l'ouverture, le mode autonome exclut BLEND/skinning/morphing, et les lots GPU C/E restent ouverts.
 
 Après intégration de `main`, `npm run build`, `npm test` (336/336), `npm run check:structure`, `npm run check:dts` et `npm run check:links` réussissent. Le test matériel du regroupement GPU a réussi sur Apple Metal. Ces validations ne remplacent pas les campagnes d'images complètes du Lab.
 

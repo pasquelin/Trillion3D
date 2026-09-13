@@ -86,7 +86,7 @@ export async function getSdkProvenance(){
  const {readdir}=await import('node:fs/promises');const root=new URL('../../',import.meta.url),files={};
  async function visit(relative){for(const entry of (await readdir(new URL(relative,root),{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){const name=relative+entry.name;if(entry.isDirectory())await visit(name+'/');else if(/\.(js|mjs)$/.test(entry.name)){const text=await readFile(new URL(name,root),'utf8');files[name]={sha256:sha256(text)};}}}
  await visit('dist/');
- for(const name of ['packages/asset-compiler-rust/src/lib.rs','packages/asset-compiler-rust/src/main.rs','packages/asset-compiler-rust/src/topology.rs','packages/asset-compiler-rust/src/cluster.rs','packages/asset-compiler-rust/src/qem.rs','packages/asset-compiler-rust/src/lod.rs','packages/asset-compiler-rust/Cargo.lock']){const text=await readFile(new URL(name,root),'utf8');files[name]={sha256:sha256(text)};}
+ for(const name of ['packages/asset-compiler-rust/src/lib.rs','packages/asset-compiler-rust/src/main.rs','packages/asset-compiler-rust/src/topology.rs','packages/asset-compiler-rust/src/cluster.rs','packages/asset-compiler-rust/src/qem.rs','packages/asset-compiler-rust/src/lod.rs','packages/asset-compiler-rust/src/geometry_page.rs','packages/asset-compiler-rust/Cargo.lock']){const text=await readFile(new URL(name,root),'utf8');files[name]={sha256:sha256(text)};}
  const pkg=JSON.parse(await readFile(new URL('package.json',root),'utf8'));
  return {sdkVersion:pkg.version,scope:'Installed SDK files at archive time; loaded binary equality not established',files};
 }
