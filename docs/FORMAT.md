@@ -1,4 +1,4 @@
-# Format 1 — cache currently read by the SDK
+# Cache formats 1 and 2 — currently read by the SDK
 
 This is the on-disk contract implemented today. Design documents under [`vision/`](vision/README.md) describe a future virtualized engine; they do not replace this format.
 
@@ -26,18 +26,19 @@ JavaScript reference and native Rust compilers publish **incompatible** pointers
 }
 ```
 
-`status` must be `ready`. `url` is resolved relative to the pointer.
+`status` must be `ready`. `url` is resolved relative to the pointer. A cache containing `clustered-blend` uses `formatVersion: 2` in both this pointer and its metadata. Other caches remain format 1.
 
 ## `clusters.json`
 
 Required fields consumed by the browser adapter:
 
-- `schema` / `formatVersion` — must equal `1`
+- `schema` / `formatVersion` — must agree: `2` when the cache contains `clustered-blend`, otherwise `1`
 - `status` — `ready`
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes`
 - `primitives[]` — `{ mesh, primitive, pass, pages, hierarchy }`
-  - `pass` is `exact-clusters` or `shared-blend` (BLEND, `KHR_materials_transmission` with `transmissionFactor > 0`, skinned geometry (`skin` / `JOINTS_0`), and morph targets (`targets`) stay unsplit)
+  - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
+  - `clusterStrategy` optionally records the effective primitive strategy. Static BLEND always uses `exact-source-order` so exact pages preserve source triangle order even when the asset requests `greedy-adjacency`.
   - `pages[]` — `{ id, url, sha256, bytes, count, min, max }`
   - `hierarchy` — nested replacement regions (leaves hold `page` indices). With QEM, internal nodes also store `errorObject` and `coarsePages`.
 
@@ -49,15 +50,17 @@ Optional fields consumed when present:
 - `pages[].role` — `exact` (default) or `coarse`
 - `hierarchy.errorObject` / `hierarchy.coarsePages` / `hierarchy.children` — nested screen-error LOD cut. Selecting a node draws its `coarsePages` and skips children. Omitted fields keep the exact leaves.
 
-Unknown `formatVersion` values are rejected. `SDK_VERSION`, `FORMAT_VERSION` and the compiler version are independent. The browser still requires format 1; extra fields are additive.
+Static BLEND geometry receives the same bounded exact pages and nested QEM replacement regions as opaque geometry, but retains its transparent forward pass, original material flags, vertex attributes and source mesh sorting. Exact pages preserve every triangle and its winding in source order. QEM changes indices only; it keeps existing vertices and locks geometry borders. A region that cannot be reduced retains its exact descendants. The positional QEM error does not bound texture-alpha or compositing error: `pixelError=0` is the exact-geometry comparison, and nonzero error settings require a visual check. Transmission remains unsplit because its refraction semantics are separate from alpha blending. These compiler changes create new implementation fingerprints and cache keys; existing `shared-blend` caches remain readable and must be recompiled to gain BLEND clusters.
 
-Both compilers validate selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The JS reference fingerprints the modules it actually executes (source modules in a checkout, built modules in an installed package), its Node adapter, shared default contract and package metadata; it also includes `package-lock.json` when present. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in format 1 or included in this geometry key; hosts own their resource identity.
+The current reader explicitly accepts cache formats 1 and 2 and rejects unknown versions. Format 2 is required for `clustered-blend`: older SDK readers reject it instead of treating transparent pages as opaque. Both the pointer and the metadata advertise version 2. Source manifests and historical caches keep version 1; they do not require migration. `FORMAT_VERSION=1` remains the source/base format, while `CLUSTERED_BLEND_FORMAT_VERSION=2` identifies the newer cache semantics. SDK, compiler and cache versions are independent; the compiler fingerprint additionally changes the cache key.
+
+Both compilers validate selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The JS reference fingerprints the modules it actually executes (source modules in a checkout, built modules in an installed package), its Node adapter, shared default contract and package metadata; it also includes `package-lock.json` when present. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in either cache format or included in this geometry key; hosts own their resource identity.
 
 ## Pages
 
 Each page is a tightly packed little-endian `u32` index buffer covering 256 triangles (768 indices) in source order, except the last page of a primitive. The runtime verifies SHA-256 and byte length before attaching a page.
 
-Static opaque and alpha-mask primitives can additionally carry `pages[].geometry`: an independently decodable `meshopt` page with `formatVersion: 2`, URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate. The outer cache remains format 1 because this field and `autonomousScene` are additive; an autonomous reader rejects missing or unknown geometry-page versions. The legacy index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable `meshopt` page with `formatVersion: 2`, URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate. This geometry-page version is independent of the outer cache version: the optional field and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 2. An autonomous reader rejects missing or unknown geometry-page versions. The legacy index pages remain available for existing backends.
 
 The geometry-page header is eight little-endian `u32` values: magic `WGP2` (`0x32504757`), version `2`, local vertex count, local index count, attribute flags, vertex stride `72`, compressed index byte count and compressed vertex byte count. The payload contains a meshoptimizer triangle index stream followed by a meshoptimizer vertex stream. Indices are local `u16` values. Vertices contain float32 POSITION, then optional NORMAL, TEXCOORD_0, TANGENT, TEXCOORD_1 and COLOR_0 at fixed offsets; absent attributes occupy zeroed slots. COLOR_0 RGB is extended with alpha 1. The data is lossless at float32 precision; integer normalized glTF attributes are converted to float32 according to glTF normalization before encoding. This does not quantize positions or guarantee a geometric error bound.
 

@@ -216,6 +216,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  engineDiagnostic('clear-color-input','Couleur de fond reçue par WebGeometry WebGPU',inputColor);
  if(typeof window!=='undefined')console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU',inputColor);
  const {roots,allPages,blendCopies,prepared}=collectClusterPages(source,metadata,indices,associations,{allowMissing:true});
+ // Transparent pages share selection/residency with opaque pages, but retain
+ // one forward draw per source mesh (all back faces, then all front faces).
+ const pagedBlendCopies=new Map<THREE.Mesh,THREE.Mesh>();
+ for(const rec of allPages)if(rec.transparent&&rec.sourceMesh&&!pagedBlendCopies.has(rec.sourceMesh)){
+  const mesh=rec.sourceMesh,copy=new THREE.Mesh(mesh.geometry,mesh.material);
+  copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.renderOrder=rec.renderOrder;
+  copy.userData.sourceMesh=mesh;copy.userData.pagedBlend=true;
+  pagedBlendCopies.set(mesh,copy);blendCopies.push(copy);
+ }
+ blendCopies.sort((a,b)=>a.renderOrder-b.renderOrder);
  const pageCatalog=[...new Set(allPages.map(page=>page.url))],pageCatalogIds=new Map(pageCatalog.map((url,index)=>[url,index]));
  const pageRefs=(urls:string[])=>urls.map(url=>pageCatalogIds.get(url)??url);
  const traceSets=new Map<string,{revision:number;urls:string[]}>();
@@ -377,8 +387,47 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(uniformPacked.byteLength<bytes)uniformPacked=new Float32Array(bytes/4);
  };
  let outputDiagnosticLogged=false,renderPathLogged=false;
- const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;sourceMesh?:THREE.Mesh;sourceGeometry:THREE.BufferGeometry;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup}>=[];
+ const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;sourceMesh?:THREE.Mesh;sourceGeometry:THREE.BufferGeometry;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup;paged?:boolean;cut?:PageRec[];packed?:Uint32Array<ArrayBuffer>}>=[];
+ const pagedBlendGpu=new Map<THREE.Mesh,(typeof blendGpu)[number]>();
+ const blendCuts=new Map<(typeof blendGpu)[number],PageRec[]>(),blendDrawnPages:PageRec[]=[];
  const visibleBlend:typeof blendGpu=[],blendFrustum=new THREE.Frustum();
+ const selectBlend=(device:GPUDevice)=>{
+  if(pagedBlendGpu.size){
+   const previousLength=blendDrawnPages.length;let count=0,changed=false;
+   for(const rec of drawn){
+    if(!rec.transparent)continue;
+    if(blendDrawnPages[count]!==rec)changed=true;
+    blendDrawnPages[count++]=rec;
+   }
+   blendDrawnPages.length=count;
+   if(changed||count!==previousLength){
+    blendCuts.clear();
+    for(const rec of blendDrawnPages){
+     const item=rec.sourceMesh&&pagedBlendGpu.get(rec.sourceMesh);if(!item)continue;
+     let cut=blendCuts.get(item);if(!cut)blendCuts.set(item,cut=[]);cut.push(rec);
+    }
+   }
+  }
+  for(const item of blendGpu){
+   if(!item.paged){if(item.bounds&&!blendFrustum.intersectsBox(item.bounds))blendFrustumRejected++;else visibleBlend.push(item);continue;}
+   const cut=blendCuts.get(item);
+   if(!cut?.length){blendFrustumRejected++;continue;}
+   if(cut!==item.cut){
+    cut.sort((a,b)=>(a.sourceOrder??a.id)-(b.sourceOrder??b.id));
+    if(item.cut&&cut.length===item.cut.length&&cut.every((rec,i)=>rec===item.cut![i]))blendCuts.set(item,item.cut);
+    else{
+     let count=0;for(const rec of cut){if(!rec.array||!cache?.get(rec.url))throw new Error('GPU_TRANSPARENT_COVERAGE_INCOMPLETE');count+=rec.array.length;}
+     const bytes=count*4;
+     if(bytes>Math.min(device.limits.maxBufferSize,device.limits.maxStorageBufferBindingSize))throw new Error('GPU_TRANSPARENT_INDEX_BUDGET');
+     if(!item.packed||item.packed.length<count)item.packed=new Uint32Array(count);
+     let offset=0;for(const rec of cut){item.packed.set(rec.array!,offset);offset+=rec.array!.length;}
+     if(item.index.size<bytes){item.index.destroy();item.index=device.createBuffer({label:'WG transparent selected indices',size:Math.max(4,bytes),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});item.group=undefined;}
+     device.queue.writeBuffer(item.index,0,item.packed.subarray(0,count));item.count=count;item.cut=cut;
+    }
+   }
+   visibleBlend.push(item);
+  }
+ };
  const encodeBlend=(device:GPUDevice,encoder:GPUCommandEncoder,uniformBase:number)=>{
   if(!pipelineBlend||!visibleBlend.length||!colorView||!depthView||!uniformBuffer)return;
   const textured=!!(blendBindGroupLayout&&pipelineBlendTextured&&mapsTexture&&mapsSampler&&dataMapsTexture&&materialScales&&zeroUv);
@@ -430,7 +479,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const packed:Array<{rec:PageRec;resident:ResidentPage;index:Uint32Array;position:GPUBuffer}>=[];
    if(!cache)return packed;
    for(let i=0;i<drawn.length;i++){
-    const rec=drawn[i],resident=cache.get(rec.url),index=rec.array;if(!resident||!index)continue;
+    const rec=drawn[i];if(rec.transparent)continue;
+    const resident=cache.get(rec.url),index=rec.array;if(!resident||!index)continue;
     const position=positionBuffers.get(rec.attributes);if(!position)continue;
     packed.push({rec,resident,index,position});
    }
@@ -675,7 +725,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const [width,height]=targetSize;
   viewProj.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
   blendFrustum.setFromProjectionMatrix(viewProj,camera.coordinateSystem);
-  for(const item of blendGpu){if(item.bounds&&!blendFrustum.intersectsBox(item.bounds))blendFrustumRejected++;else visibleBlend.push(item);}
+  selectBlend(device);
   viewProj.premultiply(remap);
   const packed=packedDraws();
   if(visEnabled&&visPipelineBack&&shadePipeline&&visView){
@@ -834,9 +884,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       const xyz=new Float32Array(attr.count*3);for(let i=0;i<attr.count;i++){xyz[i*3]=attr.getX(i);xyz[i*3+1]=attr.getY(i);xyz[i*3+2]=attr.getZ(i);}
       position=gpuDevice.createBuffer({size:xyz.byteLength,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});gpuDevice.queue.writeBuffer(position,0,xyz.buffer);positionBuffers.set(copy.geometry.attributes,position);
      }
-     const src=idx.array,indexData=src instanceof Uint32Array?src:new Uint32Array(src as ArrayLike<number>);
+     const paged=!!copy.userData.pagedBlend;
+     const src=idx.array,indexData=paged?new Uint32Array(0):src instanceof Uint32Array?src:new Uint32Array(src as ArrayLike<number>);
      const index=gpuDevice.createBuffer({size:Math.max(4,indexData.byteLength),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
-     gpuDevice.queue.writeBuffer(index,0,indexData.buffer,indexData.byteOffset,indexData.byteLength);
+     if(indexData.byteLength)gpuDevice.queue.writeBuffer(index,0,indexData.buffer,indexData.byteOffset,indexData.byteLength);
      const uvAttr=copy.geometry.attributes.uv;
      let uv:GPUBuffer|undefined;
      if(uvAttr){
@@ -856,7 +907,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       const box=copy.geometry.boundingBox?.clone().applyMatrix4(copy.matrix);
       if(box&&!box.isEmpty()&&[...box.min.toArray(),...box.max.toArray()].every(Number.isFinite))bounds=box;
      }
-     blendGpu.push({position,index,uv,normal,material:copy.material,count:idx.count,matrix:copy.matrix,sourceMesh:copy.userData.sourceMesh as THREE.Mesh|undefined,sourceGeometry:copy.geometry,bounds,rgba:[mat.baseColor[0],mat.baseColor[1],mat.baseColor[2],opacity],map:mat.map,flags});
+     const item={position,index,uv,normal,material:copy.material,count:paged?0:idx.count,matrix:copy.matrix,sourceMesh:copy.userData.sourceMesh as THREE.Mesh|undefined,sourceGeometry:copy.geometry,bounds,rgba:[mat.baseColor[0],mat.baseColor[1],mat.baseColor[2],opacity] as [number,number,number,number],map:mat.map,flags,paged};
+     blendGpu.push(item);if(paged&&item.sourceMesh)pagedBlendGpu.set(item.sourceMesh,item);
      scene.remove(copy);
     }
     const [width,height]=viewport??[1,1];ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
@@ -865,7 +917,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      geometryBlocks.clear();mapLayer.clear();dataLayer.clear();uvScales.length=0;uvScales.push([1,1]);dataUvScales.length=0;dataUvScales.push([1,1]);
      let vertexCount=0;
      for(const rec of allPages){
-      if(geometryBlocks.has(rec.attributes))continue;
+      if(rec.transparent||geometryBlocks.has(rec.attributes))continue;
       const n=rec.attributes.position?.count??0;
       geometryBlocks.set(rec.attributes,{vertexBase:vertexCount,count:n,hasUv:!!rec.attributes.uv,hasNormal:!!rec.attributes.normal,hasTangent:!!rec.attributes.tangent});
       vertexCount+=n;
@@ -873,7 +925,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      vertexCount=Math.max(1,vertexCount);
      const pos=new Float32Array(vertexCount*3),uv=new Float32Array(vertexCount*2),nrm=new Float32Array(vertexCount*7),filled=new Set<THREE.BufferGeometry['attributes']>();
      for(const rec of allPages){
-      if(filled.has(rec.attributes))continue;filled.add(rec.attributes);
+      if(rec.transparent||filled.has(rec.attributes))continue;filled.add(rec.attributes);
       const block=geometryBlocks.get(rec.attributes)!;const p=rec.attributes.position,u=rec.attributes.uv,n=rec.attributes.normal,t=rec.attributes.tangent;
       for(let i=0;i<block.count;i++){
        const o=block.vertexBase+i;
@@ -1163,8 +1215,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    let culled:PageRec[]=readyScratch;
    if(visEnabled&&!gpuHiz&&readyScratch.length>=2&&readyScratch.every(page=>page.array)){
     try{
-     const cut=applyTemporalHiz(readyScratch as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState);
-     culled=cut.shown;hizRejected=cut.hizRejected;
+     const cut=applyTemporalHiz(readyScratch.filter(page=>!page.transparent) as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState);
+     culled=[...cut.shown,...readyScratch.filter(page=>page.transparent)];hizRejected=cut.hizRejected;
     }catch(error){diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
    }
    const selectionEnd=performance.now();
@@ -1289,11 +1341,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   },
   selectedPageIds(){return shown.map(rec=>rec.url);},
   visibilityIds(){
-   const size=viewport??targetSize,pages=drawn.filter(rec=>rec.array).map(rec=>({...rec,array:rec.array!}));
+   const size=viewport??targetSize,pages=drawn.filter(rec=>rec.array&&!rec.transparent).map(rec=>({...rec,array:rec.array!}));
    return rasterVisibilityIds(pages,lastCamera??new THREE.PerspectiveCamera(),size);
   },
   rasterRgba(){
-   const size=viewport??targetSize,pages=drawn.filter(rec=>rec.array).map(rec=>({...rec,array:rec.array!})),cam=lastCamera??new THREE.PerspectiveCamera();
+   const size=viewport??targetSize,pages=drawn.filter(rec=>rec.array&&!rec.transparent).map(rec=>({...rec,array:rec.array!})),cam=lastCamera??new THREE.PerspectiveCamera();
    return shadeVisibility(rasterVisibilityIds(pages,cam,size),pages,cam,size,clearColor);
   },
   pendingUrls(){return collectPendingUrls(!bootstrapReady?bootstrap:coverageBudgetLimited?[]:desired,pendingScratch);},
@@ -1314,6 +1366,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    visTexture?.destroy();visTexture=undefined;visView=undefined;
    for(const buffer of positionBuffers.values())buffer.destroy();
    for(const item of blendGpu){item.index.destroy();item.uv?.destroy();item.normal?.destroy();}blendGpu.length=0;
+   pagedBlendGpu.clear();pagedBlendCopies.clear();blendCuts.clear();blendDrawnPages.length=0;visibleBlend.length=0;
    uniformBuffer?.destroy();uniformBuffer=undefined;
    colorTexture?.destroy();depthTexture?.destroy();hdrTexture?.destroy();surfaces?.dispose();surfaceCapture?.dispose();deferred?.dispose();lights?.dispose();presenter?.dispose();synchronousCapture?.dispose();
    canvasTexture?.dispose();blitMaterial?.dispose();blit?.geometry.dispose();

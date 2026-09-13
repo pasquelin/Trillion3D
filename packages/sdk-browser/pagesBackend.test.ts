@@ -3,6 +3,24 @@ import * as THREE from 'three';
 import {exactPagesBackend,referenceBackend} from './index.ts';
 import {threeLodBackend} from './threeLod.ts';
 import {collectClusterPages} from './pageSelection.ts';
+test('transparent page batches preserve source order across exact and coarse cuts',()=>{
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0,-1,0,0],3));geometry.setIndex([0,1,2,0,2,3,0,3,4]);
+ const material=new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide}),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
+ const pages=[0,1,2,3,4].map(id=>({id,url:String(id),count:3,min:[-1,-1,0],max:[1,1,0],bytes:12,sha256:'x',role:id<3?'exact' as const:'coarse' as const}));
+ const leaf=(id:number)=>({min:pages[id].min,max:pages[id].max,page:id});
+ const hierarchy={min:[-1,-1,0],max:[1,1,0],children:[leaf(2),{min:[-1,-1,0],max:[1,1,0],errorObject:0,coarsePages:[3,4],children:[leaf(1),leaf(0)]}]};
+ const context={source,metadata:{primitives:[{mesh:0,primitive:0,pass:'clustered-blend',pages,hierarchy}]},indices:new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,2,3])],['2',new Uint32Array([0,3,4])],['3',new Uint32Array([0,1,3])],['4',new Uint32Array([1,2,3])]]),associations:new Map([[mesh,{meshes:0,primitives:0}]]),pixelError:0,viewport:[960,540] as [number,number]};
+ const backend=exactPagesBackend(context);
+ const meshes=()=>backend.scene.children.filter(object=>(object as THREE.Mesh).isMesh) as THREE.Mesh[];
+ const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=5;camera.lookAt(0,0,0);backend.render(camera);
+ assert.equal(meshes().length,1);
+ assert.equal(meshes()[0].material,material);
+ assert.deepEqual(Array.from(meshes()[0].geometry.index!.array),[0,1,2,0,2,3,0,3,4]);
+ context.pixelError=10;backend.render(camera);
+ assert.equal(meshes().length,1);
+ assert.deepEqual(Array.from(meshes()[0].geometry.index!.array),[0,1,3,1,2,3,0,3,4]);
+ backend.dispose();geometry.dispose();material.dispose();
+});
 test('exact pages report measured residency and keep only the visible set in the scene',()=>{
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0],3));geometry.setIndex([0,1,2,0,2,3]);
  const material=new THREE.MeshBasicMaterial(),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);

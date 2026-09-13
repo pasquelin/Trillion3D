@@ -6,6 +6,7 @@ import {validateAccessor} from './accessors.mjs';
 import {encodeGeometryPage,GEOMETRY_ATTRIBUTES} from './geometryPage.mjs';
 export const COMPILER_VERSION='0.1.0';
 export const FORMAT_VERSION=1;
+export const CLUSTERED_BLEND_FORMAT_VERSION=2;
 export const LOD_ERROR_MODEL='qem-local-plus-child-max';
 export const CLUSTER_INDEX_COUNT=768;
 export const CLUSTER_TRIANGLES=256;
@@ -115,7 +116,6 @@ async function concatGltfBuffers(readSource,hash,g,embeddedBin,expected){
 }
 function unsplitMaterial(material){
  if(!material)return false;
- if((material.alphaMode??'OPAQUE')==='BLEND')return true;
  const factor=material.extensions?.KHR_materials_transmission?.transmissionFactor;
  return typeof factor==='number'&&factor>0;
 }
@@ -294,11 +294,14 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   const positions=read(p.attributes.POSITION),indices=p.indices===undefined?Uint32Array.from({length:positions.length/3},(_,i)=>i):read(p.indices);
   if(positions.some(value=>!Number.isFinite(value)))invalid('POSITION contains nonfinite values',{mesh,primitive});
   const isSkinnedOrMorph=Boolean(p.targets||skinnedMeshes.has(id)||p.attributes?.JOINTS_0!==undefined||p.attributes?.WEIGHTS_0!==undefined);
-  const blend=unsplitMaterial(g.materials?.[p.material])||isSkinnedOrMorph;
+  const material=g.materials?.[p.material],unsplit=unsplitMaterial(material)||isSkinnedOrMorph;
+  const clusteredBlend=!unsplit&&material?.alphaMode==='BLEND';
+  // Exact BLEND pages retain source triangle order even with adjacency clustering enabled.
+  const clusterStrategy=clusteredBlend?'exact-source-order':strategy;
   const pageAttributes={POSITION:{array:positions,itemSize:3}};
-  if(!blend)for(const [name,size] of GEOMETRY_ATTRIBUTES){const accessorId=p.attributes[name];if(accessorId===undefined)continue;const accessor=accessorAt(accessorId,name);const itemSize=accessor.type==='VEC3'&&name==='COLOR_0'?3:size;if(accessor.type!==`VEC${itemSize}`)invalid('Invalid page attribute shape',{mesh,primitive,name});pageAttributes[name]={array:read(accessorId),itemSize};}
+  if(!unsplit)for(const [name,size] of GEOMETRY_ATTRIBUTES){const accessorId=p.attributes[name];if(accessorId===undefined)continue;const accessor=accessorAt(accessorId,name);const itemSize=accessor.type==='VEC3'&&name==='COLOR_0'?3:size;if(accessor.type!==`VEC${itemSize}`)invalid('Invalid page attribute shape',{mesh,primitive,name});pageAttributes[name]={array:read(accessorId),itemSize};}
   const topology=classifyTopology(indices,positions.length/3);
-  const clusters=strategy==='greedy-adjacency'?greedyClusters(indices,topology.neighbors):exactClusters(indices.length);
+  const clusters=clusterStrategy==='greedy-adjacency'?greedyClusters(indices,topology.neighbors):exactClusters(indices.length);
   const pages=[];
   const writePage=async(indexList,role,start)=>{
    const values=new Uint32Array(indexList.length),data=new Uint8Array(values.buffer),min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
@@ -306,7 +309,7 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
    const name=`pages/${mesh}-${primitive}-${pages.length}.bin`,sha256=hash(data);let exists=false;try{exists=hash(await cache.read(join(directory,name)))===sha256;}catch{}
    if(!exists){await atomic(join(directory,name),data);bytesWritten+=data.length;}else reusedPages++;
    let geometry;
-   if(!blend){const packed=await encodeGeometryPage(indexList,pageAttributes),geometryName=`pages/${mesh}-${primitive}-${pages.length}.wgpg`,geometrySha256=hash(packed.data);let reused=false;try{reused=hash(await cache.read(join(directory,geometryName)))===geometrySha256;}catch{}
+   if(!unsplit){const packed=await encodeGeometryPage(indexList,pageAttributes),geometryName=`pages/${mesh}-${primitive}-${pages.length}.wgpg`,geometrySha256=hash(packed.data);let reused=false;try{reused=hash(await cache.read(join(directory,geometryName)))===geometrySha256;}catch{}
     if(!reused){await atomic(join(directory,geometryName),packed.data);bytesWritten+=packed.data.length;}else reusedPages++;
     geometry={url:geometryName,sha256:geometrySha256,bytes:packed.data.length,formatVersion:2,codec:'meshopt',vertexCount:packed.vertexCount,indexCount:packed.indexCount,flags:packed.flags,uncompressedBytes:packed.uncompressedBytes};}
    const id=pages.length;
@@ -314,7 +317,7 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
    return id;
   };
   const clusterPageIds=[];
-  if(!blend)for(const cluster of clusters){const indexList=[];for(let t=0;t<cluster.length;t++)for(let k=0;k<3;k++)indexList.push(indices[cluster[t]*3+k]);clusterPageIds.push(await writePage(indexList,'exact',cluster[0]*3));}
+  if(!unsplit)for(const cluster of clusters){const indexList=[];for(let t=0;t<cluster.length;t++)for(let k=0;k<3;k++)indexList.push(indices[cluster[t]*3+k]);clusterPageIds.push(await writePage(indexList,'exact',cluster[0]*3));}
   const materializeLod=async node=>{
    if(node.type==='leaf')return {min:node.min,max:node.max,page:clusterPageIds[node.clusterIndex]};
    const children=[];
@@ -326,12 +329,12 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
    return {min:node.min,max:node.max,errorObject:node.errorObject,coarsePages,children};
   };
   let tree=null;
-  if(!blend&&simplification==='qem-endpoints'&&clusters.length>=2){
+  if(!unsplit&&simplification==='qem-endpoints'&&clusters.length>=2){
    const lod=buildLodTree(positions,indices,clusters,topology.neighbors);
    tree=lod?await materializeLod(lod):hierarchy(pages.filter(page=>page.role!=='coarse'));
   }else{
    tree=hierarchy(pages.filter(page=>page.role!=='coarse'));
-   if(!blend&&simplification==='qem-endpoints'&&indices.length>=6){
+   if(!unsplit&&simplification==='qem-endpoints'&&indices.length>=6){
     const simplified=simplifyToEndpoints(positions,indices,{targetTriangles:Math.max(1,Math.floor(indices.length/12))});
     if(simplified.triangles*3<indices.length){
      const coarseIds=[];
@@ -340,11 +343,12 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
     }
    }
   }
-  primitives.push({mesh,primitive,material:p.material,triangles:indices.length/3,pass:blend?'shared-blend':'exact-clusters',pages,hierarchy:tree,topology:{triangles:topology.triangles,edges:topology.edges,vertices:topology.vertices,manifold:topology.manifold}});emit('clusterize',++completed,total);
+  primitives.push({mesh,primitive,material:p.material,triangles:indices.length/3,pass:unsplit?'shared-blend':clusteredBlend?'clustered-blend':'exact-clusters',clusterStrategy,pages,hierarchy:tree,topology:{triangles:topology.triangles,edges:topology.edges,vertices:topology.vertices,manifold:topology.manifold}});emit('clusterize',++completed,total);
  }
  const sourceBinary=concat(chunks);await atomic(join(directory,'source.bin'),sourceBinary);await atomic(join(directory,'source.gltf'),JSON.stringify(source));
  let autonomousScene;
  if(primitives.length&&primitives.every(primitive=>primitive.pass==='exact-clusters')){const compact=minimalScene(source,sourceBinary);await atomic(join(directory,'scene.bin'),compact.data);await atomic(join(directory,'scene.gltf'),JSON.stringify(compact.scene));bytesWritten+=compact.data.byteLength;autonomousScene='scene.gltf';}
- const result={schema:FORMAT_VERSION,formatVersion:FORMAT_VERSION,compilerVersion:COMPILER_VERSION,compilerHash,errorModel:LOD_ERROR_MODEL,status:'ready',key,scope,clusterStrategy:strategy,sourceSha256:loaded.sourceSha256,sourceBinarySha256:loaded.sourceBinarySha256,sourceTriangles,selectedTriangles:triangles,selectedNodes:[...chosen],totalNodes:meshNodes,clusterTriangles:CLUSTER_TRIANGLES,simplification:simplification!=='none',gpuDriven:false,materials:'glTF preserved; BLEND and transmission remain unsplit',autonomousScene,primitives,bytesWritten,reusedPages};
- await atomic(join(directory,'clusters.json'),JSON.stringify(result));await atomic(join('reference',scope,'manifest.json'),JSON.stringify({status:'ready',formatVersion:FORMAT_VERSION,compiler:'reference-js',key,scope,url:`${key}/clusters.json`}));emit('complete',total,total);return result;
+ const formatVersion=primitives.some(primitive=>primitive.pass==='clustered-blend')?CLUSTERED_BLEND_FORMAT_VERSION:FORMAT_VERSION;
+ const result={schema:formatVersion,formatVersion,compilerVersion:COMPILER_VERSION,compilerHash,errorModel:LOD_ERROR_MODEL,status:'ready',key,scope,clusterStrategy:strategy,sourceSha256:loaded.sourceSha256,sourceBinarySha256:loaded.sourceBinarySha256,sourceTriangles,selectedTriangles:triangles,selectedNodes:[...chosen],totalNodes:meshNodes,clusterTriangles:CLUSTER_TRIANGLES,simplification:simplification!=='none',gpuDriven:false,materials:'glTF preserved; static BLEND has source-ordered clusters; transmission remains unsplit',autonomousScene,primitives,bytesWritten,reusedPages};
+ await atomic(join(directory,'clusters.json'),JSON.stringify(result));await atomic(join('reference',scope,'manifest.json'),JSON.stringify({status:'ready',formatVersion,compiler:'reference-js',key,scope,url:`${key}/clusters.json`}));emit('complete',total,total);return result;
 }
