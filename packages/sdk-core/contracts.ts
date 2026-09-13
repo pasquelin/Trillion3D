@@ -77,6 +77,9 @@ function cacheUsesLodError(metadata:ClusterManifest){
 function cacheUsesClusterErrors(metadata:ClusterManifest){return metadata.primitives.some(primitiveUsesClusterErrors);}
 /** Rejects caches compiled before the certified conservative error identity. */
 export function assertCacheIdentity(metadata:ClusterManifest){
+ // A manifest with a binary sidecar describes its clusters in columns; identity is a property of
+ // the decoded pages, so decoding comes first and strips the pointer.
+ if((metadata as unknown as {binary?:unknown}).binary)throw new EngineError('INVALID_CACHE','A manifest with a binary sidecar must be decoded before its identity is checked',{});
  const formatVersion=metadata.formatVersion??metadata.schema;assertFormat(formatVersion);
  if(metadata.schema!==formatVersion)throw new EngineError('UNSUPPORTED_FORMAT','Cache schema and formatVersion differ',{schema:metadata.schema,formatVersion});
  if(formatVersion!==CLUSTERED_BLEND_FORMAT_VERSION&&metadata.primitives.some(primitive=>primitive.pass==='clustered-blend'))throw new EngineError('UNSUPPORTED_FORMAT','clustered-blend requires cache format 2',{formatVersion});
