@@ -66,6 +66,19 @@ function pairRegions(count,adjacency){
 function unionBounds(a,b){
  return {min:[Math.min(a.min[0],b.min[0]),Math.min(a.min[1],b.min[1]),Math.min(a.min[2],b.min[2])],max:[Math.max(a.max[0],b.max[0]),Math.max(a.max[1],b.max[1]),Math.max(a.max[2],b.max[2])]};
 }
+/** Exact indexed boundary, including winding. An invalid or non-manifold cover is never simplified. */
+export function boundarySignature(indices){
+ const edges=new Map();
+ for(let i=0;i<indices.length;i+=3)for(let k=0;k<3;k++){
+  const a=indices[i+k],b=indices[i+(k+1)%3],key=a<b?`${a},${b}`:`${b},${a}`;
+  const item=edges.get(key)??{count:0,winding:0};item.count++;item.winding+=a<b?1:-1;edges.set(key,item);
+ }
+ const boundary=[];
+ for(const [key,{count,winding}] of edges){if(count===1)boundary.push(`${key}:${winding}`);else if(count!==2||winding!==0)return null;}
+ return boundary.sort().join('|');
+}
+export function certifiedLodError(min,max){return Math.hypot(max[0]-min[0],max[1]-min[1],max[2]-min[2]);}
+export function preservesBoundary(before,after){const signature=boundarySignature(before);return signature!==null&&signature===boundarySignature(after);}
 function meshOf(node,indices){
  if(node.type==='leaf')return flattenTriangles(node.triangles,indices);
  return (node.mesh??node.coarseIndices??[]).slice();
@@ -131,7 +144,7 @@ export function buildLodTree(positions,indices,clusters,triangleNeighbors){
    const left=regions[pair[0]],right=regions[pair[1]];
    const indexList=meshOf(left,indices).concat(meshOf(right,indices));
    const simplified=simplifyToEndpoints(positions,indexList,{targetTriangles:Math.max(1,Math.floor(indexList.length/6))});
-   const progressed=simplified.triangles<indexList.length/3;
+   const progressed=simplified.triangles<indexList.length/3&&preservesBoundary(indexList,simplified.indices);
    const {min,max}=unionBounds(left,right);
    next.push({
     type:'node',
@@ -140,7 +153,8 @@ export function buildLodTree(positions,indices,clusters,triangleNeighbors){
     mesh:progressed?simplified.indices:indexList,
     reduced:progressed,
     coarseIndices:progressed?simplified.indices:[],
-    errorObject:progressed?simplified.errorObject+Math.max(left.errorObject??0,right.errorObject??0):Math.max(left.errorObject??0,right.errorObject??0), // QEM energy accumulation, not a Hausdorff bound.
+    // Both surfaces lie inside the original region bounds, so the diagonal is a conservative two-way distance bound.
+    errorObject:progressed?certifiedLodError(min,max):Math.max(left.errorObject??0,right.errorObject??0),
     min,max,
    });
   }

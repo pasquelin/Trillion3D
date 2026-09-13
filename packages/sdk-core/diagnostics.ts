@@ -4,7 +4,7 @@ export interface DiagnosticCapability {available:boolean;reason:string}
 export type DiagnosticCapabilities=Record<DiagnosticMode,DiagnosticCapability>;
 export const DIAGNOSTICS:DiagnosticCapabilities={
  beauty:{available:true,reason:'glTF materials'},wireframe:{available:true,reason:'Filled unique color per submitted triangle, not GL_LINES wireframe'},clusters:{available:true,reason:'Stable primitive/page ID, exact-cluster backend only'},
- lod:{available:true,reason:'Exact leaves vs coarse QEM pages actually selected this frame'},'screen-error':{available:true,reason:'Projected QEM accumulation used for the cut when errorObject exists; not a certified 1 px Hausdorff bound'},
+ lod:{available:true,reason:'Exact leaves vs coarse QEM pages actually selected this frame'},'screen-error':{available:true,reason:'Projected conservative object-space distance bound used for the cut when errorObject exists'},
  visibility:{available:true,reason:'CPU frustum: selected pages vs rejected hierarchy nodes'},pages:{available:true,reason:'Attached index pages; yellow = requested/loading; not physical VRAM'},
  'texture-mip':{available:false,reason:'Texture mip residency not instrumented'},overdraw:{available:false,reason:'No fragment counter'},
 };

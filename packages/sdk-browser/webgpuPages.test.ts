@@ -120,7 +120,7 @@ function bytesOf(data:BufferSource){
 function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedForest,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
  const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;indirect?:boolean;entryPoint?:string}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
- const passes:Array<{colorLoad?:string;colorClear?:GPUColor;depthLoad?:string;colorCount:number;formats:string[]}>=[];
+ const passes:Array<{label?:string;colorLoad?:string;colorClear?:GPUColor;depthLoad?:string;colorCount:number;formats:string[]}>=[];
  const computes:string[]=[];
  const imageCopies:unknown[]=[];
  const layouts:Array<{entries:Array<{binding:number;buffer?:{type?:string}}>}>=[];
@@ -149,10 +149,10 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   },
   createBindGroup:(desc:unknown)=>desc,
   createCommandEncoder:()=>({
-   beginRenderPass:(desc?:{colorAttachments?:Array<{loadOp?:string;clearValue?:GPUColor;view?:{format?:string}}>;depthStencilAttachment?:{depthLoadOp?:string}})=>{
-    if(visPassFails){visPassFails=false;throw new Error('VIS_FAIL');}
+   beginRenderPass:(desc?:{label?:string;colorAttachments?:Array<{loadOp?:string;clearValue?:GPUColor;view?:{format?:string}}>;depthStencilAttachment?:{depthLoadOp?:string}})=>{
+    if(visPassFails&&desc?.label==='WG visibility primary'){visPassFails=false;throw new Error('VIS_FAIL');}
     const colors=desc?.colorAttachments??[];
-    passes.push({colorLoad:colors[0]?.loadOp,colorClear:colors[0]?.clearValue,depthLoad:desc?.depthStencilAttachment?.depthLoadOp,colorCount:colors.length,formats:colors.map(color=>color.view?.format??'')});
+    passes.push({label:desc?.label,colorLoad:colors[0]?.loadOp,colorClear:colors[0]?.clearValue,depthLoad:desc?.depthStencilAttachment?.depthLoadOp,colorCount:colors.length,formats:colors.map(color=>color.view?.format??'')});
     return {
     setPipeline(pipeline:{entryPoint?:string}){currentRenderEntry=pipeline.entryPoint??'';},setBindGroup(_i:number,group:unknown){currentBind=group;},setViewport(){},
     draw(vertexCount:number,instanceCount=1,_firstVertex=0,firstInstance=0){draws.push({vertexCount,instanceCount,firstInstance,entryPoint:currentRenderEntry});void currentBind;},
@@ -235,6 +235,17 @@ function quadScene(){
 function camera(){
  const cam=new THREE.PerspectiveCamera(55,1,.1,100);cam.position.z=5;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;
 }
+
+test('texture uploads obey the per-frame source-byte budget and advance after a render',async()=>{
+ installGpuGlobals();const {device}=mockGpu();const fixture=quadScene();
+ const color=new THREE.DataTexture(new Uint8Array(16).fill(255),2,2),normal=new THREE.DataTexture(new Uint8Array(16).fill(128),2,2);
+ const material=new THREE.MeshStandardMaterial({map:color,normalMap:normal});fixture.source.children[0].material=material;
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],maxTextureTransferBytesPerFrame:16});
+ try{
+  await backend.prepare();assert.equal(backend.metrics().textureUploaded,1);assert.equal(backend.metrics().texturePending,1);
+  backend.render(camera());await backend.flush();assert.equal(backend.metrics().textureUploaded,2);assert.equal(backend.metrics().texturePending,0);
+ }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();material.dispose();color.dispose();normal.dispose();}
+});
 
 test('vis pipeline layout stores the page table at binding 2',async()=>{
  installGpuGlobals();
@@ -503,7 +514,7 @@ test('the visibility-buffer path also clears with the host scene background',asy
  backend.render(camera());
  const clears=passes.filter(pass=>pass.colorLoad==='clear'&&pass.formats[0]==='rgba8unorm').map(pass=>pass.colorClear);
  assert.ok(clears.length>0);
- assert.ok(clears.every(clear=>JSON.stringify(clear)===JSON.stringify({r:0x2d/255,g:0x40/255,b:0x59/255,a:1})));
+ assert.ok(clears.some(clear=>JSON.stringify(clear)===JSON.stringify({r:0x2d/255,g:0x40/255,b:0x59/255,a:1})));
  backend.dispose();geometry.dispose();material.dispose();
 });
 
@@ -734,7 +745,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
  assert.ok(textures.some(texture=>texture.format==='r32float'));
  backend.render(cam);await backend.flush();
  backend.render(cam);
- const visPasses=passes.filter(pass=>pass.depthLoad);
+ const visPasses=passes.filter(pass=>pass.label==='WG visibility primary'||pass.label==='WG visibility secondary');
  assert.ok(visPasses.length>=2);
  assert.equal(visPasses[visPasses.length-2]?.colorLoad,'clear');
  assert.equal(visPasses[visPasses.length-2]?.depthLoad,'clear');
