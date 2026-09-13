@@ -1,4 +1,6 @@
 export * from './contracts.ts';
+export {MANIFEST_BINARY_MAGIC,MANIFEST_BINARY_VERSION,assertManifestBinary,decodeManifestBinary,encodeManifestBinary,isBinaryManifest,manifestBinaryRanges} from './manifestBinary.ts';
+export type {ManifestBinaryDescriptor,SlimClusterManifest,SlimPrimitive,SlimPrimitiveBinary} from './manifestBinary.ts';
 export * from './diagnostics.ts';
 export {LOD_QUALITY,lodQuality,adaptivePixelError} from './lodPolicy.ts';
 export type {LodQualityId} from './lodPolicy.ts';
