@@ -3,6 +3,7 @@ mod topology;
 mod cluster;
 mod qem;
 mod lod;
+mod dag;
 mod accessor_validation;
 mod geometry_page;
 use std::{collections::{BTreeMap,BTreeSet},fmt::{Display,Formatter},fs::{self,File},io::{Read,Write,BufWriter,Seek,SeekFrom},path::{Path,PathBuf},sync::{Arc,atomic::{AtomicBool,Ordering}},time::Instant};
@@ -10,6 +11,12 @@ use serde_json::{Value,json};use sha2::{Sha256,Digest};use rayon::prelude::*;
 pub const FORMAT_VERSION:u32=1;pub const COMPILER_VERSION:&str=env!("CARGO_PKG_VERSION");
 pub const CLUSTERED_BLEND_FORMAT_VERSION:u32=2;
 pub const LOD_ERROR_MODEL:&str="bounds-diagonal-boundary-v1";
+/// Per-cluster DAG identity: group QEM error projected through the group bounding sphere.
+pub const DAG_ERROR_MODEL:&str="dag-group-qem-v1";
+pub const DAG_CLUSTER_STRATEGY:&str="dag-groups";
+/// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
+/// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
+pub const CULLING_STRIDE:usize=15;
 #[derive(Debug)] pub struct CompilerError {pub code:&'static str,pub message:String}
 impl CompilerError {fn new(code:&'static str,message:impl Into<String>)->Self{Self{code,message:message.into()}}}
 impl Display for CompilerError {fn fmt(&self,f:&mut Formatter<'_>)->std::fmt::Result{write!(f,"{}: {}",self.code,self.message)}}
@@ -18,7 +25,7 @@ impl From<std::io::Error> for CompilerError {fn from(value:std::io::Error)->Self
 impl From<serde_json::Error> for CompilerError {fn from(value:serde_json::Error)->Self{Self::new("INVALID_JSON",value.to_string())}}
 impl From<rayon::ThreadPoolBuildError> for CompilerError {fn from(value:rayon::ThreadPoolBuildError)->Self{Self::new("THREAD_POOL_ERROR",value.to_string())}}
 pub type Result<T> = std::result::Result<T,CompilerError>;
-#[derive(Clone)] pub struct Options {pub source:PathBuf,pub cache:PathBuf,pub resource_base:String,pub scope:String,pub triangle_budget:usize,pub threads:usize,pub ram_budget_mb:usize,pub simplification:String,pub cancelled:Arc<AtomicBool>}
+#[derive(Clone)] pub struct Options {pub source:PathBuf,pub cache:PathBuf,pub resource_base:String,pub scope:String,pub triangle_budget:usize,pub threads:usize,pub ram_budget_mb:usize,pub simplification:String,pub hierarchy:String,pub cancelled:Arc<AtomicBool>}
 pub trait ClusterStrategy:Send+Sync {fn id(&self)->&str;fn version(&self)->u32;fn clusters(&self,indices:&[u32],neighbors:&[Vec<usize>])->Result<Vec<Vec<usize>>>;}
 pub const CLUSTER_INDEX_COUNT:usize=768;
 pub const CLUSTER_TRIANGLES:usize=256;
@@ -285,6 +292,18 @@ impl Accessor<'_>{
   Ok(out)
  }
 }
+/// Order-independent multiset fingerprint of a triangle list. Detects a partition that drops,
+/// duplicates or alters a triangle without holding every triangle in memory.
+fn triangle_fingerprint<'a>(triangles:impl Iterator<Item=&'a [u32]>)->u64{
+ let mut total=0u64;
+ for tri in triangles{
+  let mut corners=[tri[0],tri[1],tri[2]];corners.sort_unstable();
+  let mut hash=0x9e37_79b9_7f4a_7c15u64;
+  for corner in corners{hash=(hash^corner as u64).wrapping_mul(0x100_0000_01b3);hash^=hash>>29;}
+  total=total.wrapping_add(hash);
+ }
+ total
+}
 fn hierarchy(pages:&[Value])->Result<Value>{
  #[derive(Clone,Copy)] struct PageBound{id:usize,min:[f64;3],max:[f64;3]}
  fn coordinate(page:&Value,bound:&str,axis:usize)->Result<f64>{page.get(bound).and_then(Value::as_array).and_then(|v|v.get(axis)).and_then(Value::as_f64).ok_or_else(||invalid(format!("page.{bound}[{axis}] is required")))}
@@ -302,18 +321,22 @@ fn hierarchy(pages:&[Value])->Result<Value>{
 }
 pub fn parse_compiler_args(args:&[String],cancelled:Arc<AtomicBool>)->std::result::Result<Options,String>{
  fn number(value:Option<&String>,default:usize,name:&str)->std::result::Result<usize,String>{match value{Some(raw)=>raw.parse::<usize>().ok().filter(|v|*v>0).ok_or_else(||format!("{name} must be a positive integer")),None=>Ok(default)}}
- let (scope,triangle_budget,threads,ram_budget_mb,resource_base,simplification)=match args.len(){
-  5=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,2,256,args[4].clone(),"none".into()),
-  7=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),"none".into()),
-  8=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),args[7].clone()),
-  _=>return Err("Usage: web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints]\n       SOURCE is a .gltf/.glb file or a directory".into()),
+ let (scope,triangle_budget,threads,ram_budget_mb,resource_base,simplification,hierarchy)=match args.len(){
+  5=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,2,256,args[4].clone(),"none".into(),"tree".into()),
+  7=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),"none".into(),"tree".into()),
+  8=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),args[7].clone(),"tree".into()),
+  9=>(args[2].clone(),number(Some(&args[3]),150000,"triangles")?,number(Some(&args[4]),2,"threads")?,number(Some(&args[5]),256,"RAM_MB")?,args[6].clone(),args[7].clone(),args[8].clone()),
+  _=>return Err("Usage: web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL\n       web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [tree|dag]\n       SOURCE is a .gltf/.glb file or a directory".into()),
  };
  if !["none","qem-endpoints"].contains(&simplification.as_str()){return Err("simplification must be none or qem-endpoints".into());}
- Ok(Options{source:PathBuf::from(&args[0]),cache:PathBuf::from(&args[1]),resource_base,scope,triangle_budget,threads,ram_budget_mb,simplification,cancelled})
+ if !["tree","dag"].contains(&hierarchy.as_str()){return Err("hierarchy must be tree or dag".into());}
+ Ok(Options{source:PathBuf::from(&args[0]),cache:PathBuf::from(&args[1]),resource_base,scope,triangle_budget,threads,ram_budget_mb,simplification,hierarchy,cancelled})
 }
 /// Library entry point: strategy, cancellation, storage roots and progress are supplied by the host.
 pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+Sync)->Result<Value>{
- check(o)?;if !["slice","full"].contains(&o.scope.as_str())||o.triangle_budget==0||o.threads==0||o.threads>64||o.ram_budget_mb<64||o.resource_base.is_empty()||!["none","qem-endpoints"].contains(&o.simplification.as_str()){return Err(CompilerError::new("INVALID_OPTIONS","scope, budgets, threads, resource_base and simplification must be valid"))}
+ check(o)?;if !["slice","full"].contains(&o.scope.as_str())||o.triangle_budget==0||o.threads==0||o.threads>64||o.ram_budget_mb<64||o.resource_base.is_empty()||!["none","qem-endpoints"].contains(&o.simplification.as_str())||!["tree","dag"].contains(&o.hierarchy.as_str()){return Err(CompilerError::new("INVALID_OPTIONS","scope, budgets, threads, resource_base, simplification and hierarchy must be valid"))}
+ let dag_hierarchy=o.hierarchy=="dag";
+ let error_model=if dag_hierarchy{DAG_ERROR_MODEL}else{LOD_ERROR_MODEL};
  let started=Instant::now();
  let loaded=load_runtime(o)?;
  let bin=loaded.binary.bytes();
@@ -321,8 +344,8 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
  let g_bytes=&loaded.g_bytes;
  let manifest=&loaded.manifest;
  let bin_hash=&loaded.bin_hash;
- let mut implementation=Sha256::new();implementation.update(include_bytes!("lib.rs"));implementation.update(include_bytes!("main.rs"));implementation.update(include_bytes!("topology.rs"));implementation.update(include_bytes!("cluster.rs"));implementation.update(include_bytes!("qem.rs"));implementation.update(include_bytes!("lod.rs"));implementation.update(include_bytes!("accessor_validation.rs"));implementation.update(include_bytes!("geometry_page.rs"));implementation.update(include_bytes!("../Cargo.toml"));implementation.update(include_bytes!("../Cargo.lock"));
- let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":format!("{:x}",implementation.finalize()),"strategy":strategy.id(),"strategyVersion":strategy.version(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":LOD_ERROR_MODEL}))?.as_bytes());
+ let mut implementation=Sha256::new();implementation.update(include_bytes!("lib.rs"));implementation.update(include_bytes!("main.rs"));implementation.update(include_bytes!("topology.rs"));implementation.update(include_bytes!("cluster.rs"));implementation.update(include_bytes!("qem.rs"));implementation.update(include_bytes!("lod.rs"));implementation.update(include_bytes!("dag.rs"));implementation.update(include_bytes!("accessor_validation.rs"));implementation.update(include_bytes!("geometry_page.rs"));implementation.update(include_bytes!("../Cargo.toml"));implementation.update(include_bytes!("../Cargo.lock"));
+ let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":format!("{:x}",implementation.finalize()),"strategy":strategy.id(),"strategyVersion":strategy.version(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"hierarchy":o.hierarchy,"errorModel":error_model}))?.as_bytes());
   let nodes=values(g,"nodes")?;let mesh_values=values(g,"meshes")?;let accessor_values=values(g,"accessors")?;let view_values=values(g,"bufferViews")?;let mut chosen=BTreeSet::new();let mut selected_triangles=0;let mut overflowing=Vec::new();
   let mut skinned_meshes=BTreeSet::new();
   for (i,n) in nodes.iter().enumerate(){
@@ -426,7 +449,58 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
     let reused=target.exists()&&hash_file(&target)?==digest;if !reused{atomic(&target,&data)?;}
     Ok((json!({"url":name,"sha256":digest,"bytes":data.len(),"formatVersion":2,"codec":"meshopt","vertexCount":vertex_count,"indexCount":slice.len(),"flags":flags,"uncompressedBytes":vertex_count*geometry_page::STRIDE+slice.len()*2}),reused))
    };
-   if !unsplit{let clusters=primitive_strategy.clusters(&index_values,&topology.neighbors)?;let mut seen=vec![false;index_values.len()/3];let mut cluster_page_ids=Vec::new();for cluster in &clusters{check(o)?;if cluster.is_empty(){return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}let mut bytes=Vec::with_capacity(cluster.len()*12);let mut page_indices=Vec::with_capacity(cluster.len()*3);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];for &triangle in cluster{if triangle>=seen.len()||seen[triangle]{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}seen[triangle]=true;for k in 0..3{let id=index_values[triangle*3+k] as usize;if id*3+2>=pos.len(){return Err(invalid("Invalid index"));}page_indices.push(id as u32);bytes.extend_from_slice(&(id as u32).to_le_bytes());for a in 0..3{let value=pos[id*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
+   // Transparent primitives join the DAG too: their draw order is restored at runtime from the
+   // recorded source rank, so spatial clustering no longer scrambles the blend order.
+   let dag_primitive=dag_hierarchy&&!unsplit;
+   let mut dag_report=Value::Null;let mut culling_report=Value::Null;
+   if dag_primitive{
+    let (dag,tallies)=crate::dag::build_dag_tallied(&pos,&index_values,&||check(o))?;
+    if dag.iter().filter(|c|c.level==0).map(|c|c.triangles()).sum::<usize>()!=index_values.len()/3{
+     return Err(CompilerError::new("INCOMPLETE_CLUSTER_PARTITION","Level 0 clusters do not cover the source triangles"));
+    }
+    if triangle_fingerprint(index_values.chunks_exact(3))!=triangle_fingerprint(dag.iter().filter(|c|c.level==0).flat_map(|c|c.indices.chunks_exact(3))){
+     return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Level 0 clusters are not the source triangles"));
+    }
+    let depth=dag.iter().map(|c|c.level).max().unwrap_or(0);
+    let mut level_stats=Vec::new();
+    for level in 0..=depth{
+     let mut errors:Vec<f64>=Vec::new();let mut triangles=0usize;let mut roots=0usize;
+     for cluster in dag.iter().filter(|c|c.level==level){errors.push(cluster.lod_error);triangles+=cluster.triangles();if cluster.is_root(){roots+=1;}}
+     if errors.is_empty(){continue;}
+     errors.sort_by(f64::total_cmp);
+     level_stats.push(json!({"level":level,"clusters":errors.len(),"triangles":triangles,"roots":roots,"errorMin":errors[0],"errorMedian":errors[errors.len()/2],"errorMax":errors[errors.len()-1]}));
+    }
+    let groups:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
+    dag_report=json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":level_stats,"groups":groups});
+    // Pages follow the culling order so every hierarchy node owns a contiguous page range.
+    let (order,culling)=crate::dag::build_culling_bvh(&pos,&dag);
+    for &slot in &order{
+     let cluster=&dag[slot];
+     check(o)?;
+     let mut bytes=Vec::with_capacity(cluster.indices.len()*4);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
+     for &id in &cluster.indices{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid cluster index"));}bytes.extend_from_slice(&id.to_le_bytes());for a in 0..3{let value=pos[index*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}
+     let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
+     if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{atomic(&target,&bytes)?;}
+     let (geometry,packed_reused)=store_packed(&cluster.indices)?;if packed_reused{reused+=1;}
+     let finite_parent=cluster.parent_error.is_finite();
+     pages.push(json!({"id":pages.len(),"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
+      "role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
+      "lodError":cluster.lod_error,"sphere":cluster.sphere,
+      "parentError":if finite_parent{json!(cluster.parent_error)}else{Value::Null},
+      "parentSphere":if finite_parent{json!(cluster.parent_sphere)}else{Value::Null}}));
+    }
+    // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
+    let mut flat=Vec::with_capacity(culling.len()*CULLING_STRIDE);
+    for node in &culling{
+     for a in 0..3{flat.push(json!(node.min[a]));}
+     for a in 0..3{flat.push(json!(node.max[a]));}
+     for a in 0..4{flat.push(json!(node.sphere[a]));}
+     flat.push(if node.max_parent_error.is_finite(){json!(node.max_parent_error)}else{json!(-1.0)});
+     flat.push(json!(node.first_child));flat.push(json!(node.child_count));
+     flat.push(json!(node.first_cluster));flat.push(json!(node.cluster_count));
+    }
+    culling_report=json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
+   }else if !unsplit{let clusters=primitive_strategy.clusters(&index_values,&topology.neighbors)?;let mut seen=vec![false;index_values.len()/3];let mut cluster_page_ids=Vec::new();for cluster in &clusters{check(o)?;if cluster.is_empty(){return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}let mut bytes=Vec::with_capacity(cluster.len()*12);let mut page_indices=Vec::with_capacity(cluster.len()*3);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];for &triangle in cluster{if triangle>=seen.len()||seen[triangle]{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}seen[triangle]=true;for k in 0..3{let id=index_values[triangle*3+k] as usize;if id*3+2>=pos.len(){return Err(invalid("Invalid index"));}page_indices.push(id as u32);bytes.extend_from_slice(&(id as u32).to_le_bytes());for a in 0..3{let value=pos[id*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
     let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{atomic(&target,&bytes)?;}let (geometry,packed_reused)=store_packed(&page_indices)?;if packed_reused{reused+=1;}cluster_page_ids.push(pages.len());pages.push(json!({"id":pages.len(),"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.len()*3,"start":cluster[0]*3,"min":min,"max":max,"role":"exact","geometry":geometry}));}if seen.iter().any(|flag|!*flag){return Err(CompilerError::new("INCOMPLETE_CLUSTER_PARTITION","Cluster partitions omitted source indices"))}
     let write_coarse=|slice:&[u32],pages:&mut Vec<Value>,reused:&mut i32|->Result<usize>{
      check(o)?;let mut bytes=Vec::with_capacity(slice.len()*4);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
@@ -435,14 +509,16 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      let (geometry,packed_reused)=store_packed(slice)?;if packed_reused{*reused+=1;}
      let id=pages.len();pages.push(json!({"id":id,"url":name,"sha256":digest,"bytes":bytes.len(),"count":slice.len(),"start":0,"min":min,"max":max,"role":"coarse","geometry":geometry}));Ok(id)
     };
-    tree=if o.simplification=="qem-endpoints"&&clusters.len()>=2{
+    // One cache carries one error model: in DAG mode only DAG primitives carry a LOD.
+    let tree_lod=o.simplification=="qem-endpoints"&&!dag_hierarchy;
+    tree=if tree_lod&&clusters.len()>=2{
      match crate::lod::build_lod_tree(&pos,&index_values,&clusters,&topology.neighbors,&||check(o))?{
       Some(node)=>crate::lod::to_json(&node,&cluster_page_ids,&mut |slice|write_coarse(slice,&mut pages,&mut reused))?,
       None=>hierarchy(&pages)?,
      }
     }else{
      let mut tree=hierarchy(&pages)?;
-     if o.simplification=="qem-endpoints"&&index_values.len()>=6{
+     if tree_lod&&index_values.len()>=6{
       let simplified=crate::qem::simplify_fast(&pos,&index_values,(index_values.len()/12).max(1))?;
       if simplified.triangles*3<index_values.len()&&crate::lod::preserves_boundary(&index_values,&simplified.indices){
        let mut coarse_ids=Vec::new();let mut start=0usize;
@@ -464,7 +540,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      tree
     };
    }
-   progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":primitive_strategy.id(),"hierarchy":tree,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
+   progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{DAG_CLUSTER_STRATEGY}else{primitive_strategy.id()},"hierarchy":tree,"dag":dag_report,"culling":culling_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
   let mut source=g.clone();let mut output_meshes=Vec::new();
   for id in &meshes{
    let mut mesh=item(values(&source,"meshes")?,*id,"mesh")?.clone();
@@ -535,16 +611,16 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   }
   let mut unsupported=vec!["hard RSS enforcement","N-API binding"];if o.simplification=="none"{unsupported.insert(0,"simplification");}
   let cache_format=if primitives.iter().any(|primitive|primitive["pass"]=="clustered-blend"){CLUSTERED_BLEND_FORMAT_VERSION}else{FORMAT_VERSION};
-  let result=json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":LOD_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":strategy.id(),"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+  let result=json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":error_model,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":if dag_hierarchy{DAG_CLUSTER_STRATEGY}else{strategy.id()},"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
  atomic(&directory.join("clusters.json"),&serde_json::to_vec(&result)?)?;atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
 }
 #[cfg(test)] mod tests {use super::*;use std::time::{SystemTime,UNIX_EPOCH};use std::sync::atomic::AtomicU64;
  static NEXT_FIXTURE_ID:AtomicU64=AtomicU64::new(0);
  fn fixture()->(PathBuf,Options){fixture_named("mesh.gltf","mesh.bin")}
- fn fixture_named(gltf_name:&str,bin_name:&str)->(PathBuf,Options){let root=std::env::temp_dir().join(format!("web-geometry-{}-{}-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos(),NEXT_FIXTURE_ID.fetch_add(1,Ordering::Relaxed),gltf_name));let source=root.join("source");let cache=root.join("cache");fs::create_dir_all(&source).expect("source");let mut bin=Vec::new();for value in [0f32,0.,0.,1.,0.,0.,0.,1.,0.]{bin.extend_from_slice(&value.to_le_bytes())}for value in [0u32,1,2]{bin.extend_from_slice(&value.to_le_bytes())}let gltf=json!({"asset":{"version":"2.0"},"buffers":[{"uri":bin_name,"byteLength":48}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36},{"buffer":0,"byteOffset":36,"byteLength":12}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":3}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0},{"mesh":0}],"materials":[],"images":[]});let gltf_bytes=serde_json::to_vec(&gltf).expect("gltf");fs::write(source.join(gltf_name),&gltf_bytes).expect("gltf write");fs::write(source.join(bin_name),&bin).expect("bin write");fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":gltf_name,"sha256":hash(&gltf_bytes),"sidecars":[{"file":bin_name,"sha256":hash(&bin)}],"trianglesAcrossNodes":2,"meshNodes":2}})).expect("manifest")).expect("manifest write");let options=Options{source,cache,resource_base:"/assets/".into(),scope:"slice".into(),triangle_budget:1,threads:1,ram_budget_mb:64,simplification:"none".into(),cancelled:Arc::new(AtomicBool::new(false))};(root,options)}
+ fn fixture_named(gltf_name:&str,bin_name:&str)->(PathBuf,Options){let root=std::env::temp_dir().join(format!("web-geometry-{}-{}-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos(),NEXT_FIXTURE_ID.fetch_add(1,Ordering::Relaxed),gltf_name));let source=root.join("source");let cache=root.join("cache");fs::create_dir_all(&source).expect("source");let mut bin=Vec::new();for value in [0f32,0.,0.,1.,0.,0.,0.,1.,0.]{bin.extend_from_slice(&value.to_le_bytes())}for value in [0u32,1,2]{bin.extend_from_slice(&value.to_le_bytes())}let gltf=json!({"asset":{"version":"2.0"},"buffers":[{"uri":bin_name,"byteLength":48}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36},{"buffer":0,"byteOffset":36,"byteLength":12}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":3}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0},{"mesh":0}],"materials":[],"images":[]});let gltf_bytes=serde_json::to_vec(&gltf).expect("gltf");fs::write(source.join(gltf_name),&gltf_bytes).expect("gltf write");fs::write(source.join(bin_name),&bin).expect("bin write");fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":gltf_name,"sha256":hash(&gltf_bytes),"sidecars":[{"file":bin_name,"sha256":hash(&bin)}],"trianglesAcrossNodes":2,"meshNodes":2}})).expect("manifest")).expect("manifest write");let options=Options{source,cache,resource_base:"/assets/".into(),scope:"slice".into(),triangle_budget:1,threads:1,ram_budget_mb:64,simplification:"none".into(),hierarchy:"tree".into(),cancelled:Arc::new(AtomicBool::new(false))};(root,options)}
  #[test] fn hierarchy_has_every_leaf_once(){let leaves:Vec<Value>=(0..9).map(|i|json!({"id":i,"min":[i,0,0],"max":[i+1,1,1]})).collect();fn walk(v:&Value,ids:&mut Vec<usize>){if let Some(id)=v.get("page"){ids.push(id.as_u64().expect("id") as usize)}else{for c in v["children"].as_array().expect("children"){walk(c,ids)}}}let tree=hierarchy(&leaves).expect("hierarchy");let mut ids=Vec::new();walk(&tree,&mut ids);ids.sort();assert_eq!(ids,(0..9).collect::<Vec<_>>());assert_eq!(tree["min"],json!([0.0,0.0,0.0]));assert_eq!(tree["max"],json!([9.0,1.0,1.0]));}
  #[test] fn hierarchy_tie_breaks_equal_centers_by_page_id(){let leaves=vec![json!({"id":2,"min":[0,0,0],"max":[1,1,1]}),json!({"id":1,"min":[0,0,0],"max":[1,1,1]})];let tree=hierarchy(&leaves).expect("hierarchy");assert_eq!(tree["children"][0]["page"],1);assert_eq!(tree["children"][1]["page"],2);}
- #[test] fn parse_accepts_five_or_seven_args(){let cancelled=Arc::new(AtomicBool::new(false));let five=parse_compiler_args(&["s".into(),"c".into(),"slice".into(),"12".into(),"/assets/".into()],cancelled.clone()).expect("five");assert_eq!(five.threads,2);assert_eq!(five.ram_budget_mb,256);assert_eq!(five.simplification,"none");let seven=parse_compiler_args(&["s".into(),"c".into(),"full".into(),"12".into(),"4".into(),"128".into(),"/a/".into()],cancelled.clone()).expect("seven");assert_eq!(seven.threads,4);assert_eq!(seven.ram_budget_mb,128);let eight=parse_compiler_args(&["s".into(),"c".into(),"full".into(),"12".into(),"4".into(),"128".into(),"/a/".into(),"qem-endpoints".into()],cancelled).expect("eight");assert_eq!(eight.simplification,"qem-endpoints");}
+ #[test] fn parse_accepts_five_to_nine_args(){let cancelled=Arc::new(AtomicBool::new(false));let five=parse_compiler_args(&["s".into(),"c".into(),"slice".into(),"12".into(),"/assets/".into()],cancelled.clone()).expect("five");assert_eq!(five.threads,2);assert_eq!(five.ram_budget_mb,256);assert_eq!(five.simplification,"none");let seven=parse_compiler_args(&["s".into(),"c".into(),"full".into(),"12".into(),"4".into(),"128".into(),"/a/".into()],cancelled.clone()).expect("seven");assert_eq!(seven.threads,4);assert_eq!(seven.ram_budget_mb,128);let eight=parse_compiler_args(&["s".into(),"c".into(),"full".into(),"12".into(),"4".into(),"128".into(),"/a/".into(),"qem-endpoints".into()],cancelled).expect("eight");assert_eq!(eight.simplification,"qem-endpoints");assert_eq!(eight.hierarchy,"tree");let nine=parse_compiler_args(&["s".into(),"c".into(),"full".into(),"12".into(),"4".into(),"128".into(),"/a/".into(),"qem-endpoints".into(),"dag".into()],Arc::new(AtomicBool::new(false))).expect("nine");assert_eq!(nine.hierarchy,"dag");assert!(parse_compiler_args(&["s".into(),"c".into(),"full".into(),"12".into(),"4".into(),"128".into(),"/a/".into(),"qem-endpoints".into(),"bvh".into()],Arc::new(AtomicBool::new(false))).is_err());}
  #[test] fn hierarchy_scales_without_cloning_page_json_per_level(){let leaves:Vec<Value>=(0..4096).map(|i|json!({"id":i,"min":[i,0,0],"max":[i+1,1,1]})).collect();let tree=hierarchy(&leaves).expect("hierarchy");assert_eq!(tree["min"],json!([0.0,0.0,0.0]));assert_eq!(tree["max"],json!([4096.0,1.0,1.0]));}
  #[test] fn malformed_accessor_is_rejected(){let g=json!({"accessors":[{"bufferView":0,"componentType":5125,"type":"SCALAR","count":1}],"bufferViews":[{"buffer":0,"byteLength":4}]});assert!(accessor(&g,&[],0).is_err());}
  #[test] fn accessor_cannot_read_past_its_buffer_view(){let g=json!({"accessors":[{"bufferView":0,"componentType":5125,"type":"SCALAR","count":2}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":4}]});assert!(accessor(&g,&[0u8;8],0).is_err());}
@@ -565,8 +641,102 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let gltf_bytes=serde_json::to_vec(&gltf).expect("gltf");
   fs::write(source.join("cube.gltf"),&gltf_bytes).expect("gltf write");fs::write(source.join("cube.bin"),&bin).expect("bin write");
   fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":"cube.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"cube.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":12,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-  let options=Options{source,cache,resource_base:"/assets/".into(),scope:"full".into(),triangle_budget:150000,threads:1,ram_budget_mb:64,simplification:"qem-endpoints".into(),cancelled:Arc::new(AtomicBool::new(false))};
+  let options=Options{source,cache,resource_base:"/assets/".into(),scope:"full".into(),triangle_budget:150000,threads:1,ram_budget_mb:64,simplification:"qem-endpoints".into(),hierarchy:"tree".into(),cancelled:Arc::new(AtomicBool::new(false))};
   (root,options)
+ }
+ #[test] fn compile_dag_emits_a_flat_per_cluster_cut(){
+  let (root,mut options)=grid_fixture_displaced(100,100,3.0);
+  options.hierarchy="dag".into();
+  let result=compile(&options,&Exact256,|_|{}).expect("compile");
+  assert_eq!(result["errorModel"],DAG_ERROR_MODEL);
+  assert_eq!(result["clusterStrategy"],DAG_CLUSTER_STRATEGY);
+  let primitive=&result["primitives"][0];
+  assert_eq!(primitive["clusterStrategy"],DAG_CLUSTER_STRATEGY);
+  assert!(primitive["hierarchy"].is_null(),"the DAG cut needs no hierarchy tree");
+  let depth=primitive["dag"]["depth"].as_u64().expect("depth");
+  assert!(depth>=2,"a 20 000 triangle grid must coarsen more than once, got depth {depth}");
+  let pages=primitive["pages"].as_array().expect("pages");
+  let mut exact_indices=0usize;let mut roots=0usize;let mut coarse=0usize;
+  for page in pages{
+   let level=page["level"].as_u64().expect("level");
+   let lod=page["lodError"].as_f64().expect("lodError");
+   let sphere=page["sphere"].as_array().expect("sphere");
+   assert_eq!(sphere.len(),4);
+   assert!(sphere[3].as_f64().expect("radius")>=0.0);
+   assert!(lod>=0.0);
+   if level==0{assert_eq!(page["role"],"exact");assert_eq!(lod,0.0);exact_indices+=page["count"].as_u64().expect("count") as usize;}
+   else{assert_eq!(page["role"],"coarse");assert!(lod>0.0);coarse+=1;}
+   assert!(page["count"].as_u64().expect("count")<=(crate::dag::DAG_CLUSTER_TRIANGLES*3) as u64);
+   match page["parentError"].as_f64(){
+    Some(parent)=>{
+     assert!(parent>=lod,"parent error {parent} below LOD error {lod}");
+     let parent_sphere=page["parentSphere"].as_array().expect("parentSphere");
+     let centre=|v:&Vec<Value>,i:usize|v[i].as_f64().expect("coordinate");
+     let distance=((centre(sphere,0)-centre(parent_sphere,0)).powi(2)+(centre(sphere,1)-centre(parent_sphere,1)).powi(2)+(centre(sphere,2)-centre(parent_sphere,2)).powi(2)).sqrt();
+     assert!(distance+centre(sphere,3)<=centre(parent_sphere,3)+1e-6,"parent bounds must enclose the cluster bounds");
+    }
+    None=>{assert!(page["parentSphere"].is_null());roots+=1;}
+   }
+  }
+  assert_eq!(exact_indices,20000*3,"level 0 pages must cover the source index buffer once");
+  assert!(coarse>0);assert!(roots>0);
+  // The culling hierarchy must own every page exactly once and bound it.
+  let culling=&primitive["culling"];
+  assert_eq!(culling["stride"],CULLING_STRIDE);
+  let count=culling["count"].as_u64().expect("count") as usize;
+  let nodes=culling["nodes"].as_array().expect("nodes");
+  assert_eq!(nodes.len(),count*CULLING_STRIDE);
+  assert!(count>1,"a 20 000 triangle grid must need interior nodes");
+  let number=|index:usize|nodes[index].as_f64().expect("culling number");
+  let mut covered=vec![0usize;pages.len()];
+  for node in 0..count{
+   let base=node*CULLING_STRIDE;
+   let children=number(base+12) as usize;
+   let page_count=number(base+14) as usize;
+   if children>0{assert_eq!(page_count,0);assert!(number(base+11) as usize+children<=count);continue;}
+   let first=number(base+13) as usize;
+   assert!(page_count>0&&first+page_count<=pages.len());
+   for id in first..first+page_count{
+    covered[id]+=1;
+    for axis in 0..3{
+     assert!(pages[id]["min"][axis].as_f64().expect("min")>=number(base+axis)-1e-6,"page outside its node box");
+     assert!(pages[id]["max"][axis].as_f64().expect("max")<=number(base+3+axis)+1e-6,"page outside its node box");
+    }
+    let parent=pages[id]["parentError"].as_f64();
+    let bound=number(base+10);
+    assert!(bound<0.0||parent.map(|value|value<=bound+1e-9).unwrap_or(false),"node error bound below a page it owns");
+   }
+  }
+  assert!(covered.iter().all(|&n|n==1),"every page belongs to exactly one culling leaf");
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn compile_dag_covers_transparent_primitives_and_records_their_source_rank(){
+  let (root,mut options)=grid_fixture_displaced(80,80,3.0);
+  options.hierarchy="dag".into();
+  let gltf_path=options.source.join("grid.gltf");
+  let mut gltf:Value=serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+  let material=json!({"alphaMode":"BLEND","doubleSided":true,"pbrMetallicRoughness":{"baseColorFactor":[0.2,0.8,0.3,0.45]}});
+  gltf["materials"]=json!([material.clone()]);gltf["meshes"][0]["primitives"][0]["material"]=json!(0);
+  let gltf_bytes=serde_json::to_vec(&gltf).expect("encode");fs::write(&gltf_path,&gltf_bytes).expect("write");
+  fs::remove_file(options.source.join("manifest.json")).expect("direct source");
+  let result=compile(&options,&Exact256,|_|{}).expect("compile");
+  let primitive=&result["primitives"][0];
+  assert_eq!(primitive["pass"],"clustered-blend","the material stays blended, it is never turned into a mask");
+  assert_eq!(primitive["clusterStrategy"],DAG_CLUSTER_STRATEGY,"a transparent primitive now gets its own DAG");
+  let directory=options.cache.join("native/full").join(result["key"].as_str().expect("key"));
+  let source:Value=serde_json::from_slice(&fs::read(directory.join("source.gltf")).expect("source")).expect("json");
+  assert_eq!(source["materials"][0],material);
+  let pages=primitive["pages"].as_array().expect("pages");
+  let exact:Vec<&Value>=pages.iter().filter(|page|page["role"]=="exact").collect();
+  assert_eq!(exact.iter().map(|page|page["count"].as_u64().expect("count")).sum::<u64>(),80*80*2*3);
+  // Source ranks must span the index buffer so the runtime can restore a blend order.
+  let mut starts:Vec<u64>=exact.iter().map(|page|page["start"].as_u64().expect("start")).collect();
+  starts.sort_unstable();
+  assert_eq!(starts[0],0);
+  assert!(starts.last().copied().expect("start")>0);
+  assert!(starts.windows(2).all(|pair|pair[0]<=pair[1]));
+  assert!(starts.iter().collect::<std::collections::BTreeSet<_>>().len()>starts.len()/2,"source ranks must discriminate pages");
+  fs::remove_dir_all(root).expect("cleanup");
  }
  #[test] fn compile_qem_endpoints_attaches_coarse_lod(){
   let(root,options)=cube_fixture();
@@ -581,11 +751,13 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let _=coarse;
   fs::remove_dir_all(root).expect("cleanup");
  }
- fn grid_fixture(nx:usize,ny:usize)->(PathBuf,Options){
+ fn grid_fixture(nx:usize,ny:usize)->(PathBuf,Options){grid_fixture_displaced(nx,ny,0.0)}
+ /// Planar at amplitude zero; a curved sheet otherwise, so simplification has a real error to report.
+ fn grid_fixture_displaced(nx:usize,ny:usize,amplitude:f32)->(PathBuf,Options){
   let root=std::env::temp_dir().join(format!("web-geometry-grid-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos()));
   let source=root.join("source");let cache=root.join("cache");fs::create_dir_all(&source).expect("source");
   let mut positions=Vec::new();
-  for y in 0..=ny{for x in 0..=nx{positions.extend([x as f32,y as f32,0.0]);}}
+  for y in 0..=ny{for x in 0..=nx{positions.extend([x as f32,y as f32,(x as f32*0.31).sin()*(y as f32*0.27).cos()*amplitude]);}}
   let mut indices=Vec::new();let width=(nx+1) as u32;
   for y in 0..ny as u32{for x in 0..nx as u32{let i=y*width+x;indices.extend([i,i+1,i+width,i+1,i+1+width,i+width]);}}
   let mut bin=Vec::new();
@@ -596,7 +768,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   let gltf_bytes=serde_json::to_vec(&gltf).expect("gltf");
   fs::write(source.join("grid.gltf"),&gltf_bytes).expect("gltf");fs::write(source.join("grid.bin"),&bin).expect("bin");
   fs::write(source.join("manifest.json"),serde_json::to_vec(&json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":"grid.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"grid.bin","sha256":hash(&bin)}],"trianglesAcrossNodes":indices.len()/3,"meshNodes":1}})).expect("manifest")).expect("manifest write");
-  let options=Options{source,cache,resource_base:"/assets/".into(),scope:"full".into(),triangle_budget:150000,threads:1,ram_budget_mb:64,simplification:"qem-endpoints".into(),cancelled:Arc::new(AtomicBool::new(false))};
+  let options=Options{source,cache,resource_base:"/assets/".into(),scope:"full".into(),triangle_budget:150000,threads:1,ram_budget_mb:64,simplification:"qem-endpoints".into(),hierarchy:"tree".into(),cancelled:Arc::new(AtomicBool::new(false))};
   (root,options)
  }
  #[test] fn compile_qem_builds_nested_lod_for_two_clusters(){

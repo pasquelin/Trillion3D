@@ -5,7 +5,7 @@ export function sha256(bytes:import('node:crypto').BinaryLike):string;
 export interface ByteStore {read(key:string,signal?:AbortSignal):Promise<Uint8Array>;writeAtomic(key:string,bytes:Uint8Array):Promise<void>}
 export function filesystemStore(root:string):ByteStore;
 export function resolveCompileInput(input:string):Promise<{root:string;runtimeFile?:string}>;
-export interface PrepareOptions {resourceBaseUrl:string;executable?:string;threads?:number;ramBudgetMb?:number;strategy?:'exact-source-order'|'greedy-adjacency';simplification?:'none'|'qem-endpoints';signal?:AbortSignal;onProgress?:(event:PreparationProgress&Record<string,unknown>)=>void}
+export interface PrepareOptions {hierarchy?:'tree'|'dag';resourceBaseUrl:string;executable?:string;threads?:number;ramBudgetMb?:number;strategy?:'exact-source-order'|'greedy-adjacency';simplification?:'none'|'qem-endpoints';signal?:AbortSignal;onProgress?:(event:PreparationProgress&Record<string,unknown>)=>void}
 export interface CompilationResult {schema:number;formatVersion?:number;compilerVersion:string;status:'ready';key:string;scope:AssetScope;selectedTriangles:number;selectedNodes:number[];primitives:unknown[];[key:string]:unknown}
 export function prepareReference(input:string,output:string,scope?:AssetScope,budget?:number,options?:PrepareOptions):Promise<CompilationResult>;
 export function prepare(input:string,output:string,scope?:AssetScope,budget?:number,options?:PrepareOptions):Promise<CompilationResult>;
