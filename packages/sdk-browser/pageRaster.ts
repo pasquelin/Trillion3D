@@ -27,6 +27,19 @@ export function rasterPageRecords(backend:Pick<RenderBackend,'scene'>,camera:THR
  for(const mesh of meshes){
   const geometry=mesh.geometry,index=geometry.getIndex(),position=geometry.getAttribute('position');if(!position)continue;
   const rgb=colorOf(mesh.material);
+  // Un lot multi-draw ne dessine que ses plages : l'oracle doit suivre la même coupe, pas tout le tampon.
+  const batch=mesh as THREE.Mesh&{isBatchedMesh?:boolean;_multiDrawStarts?:Int32Array;_multiDrawCounts?:Int32Array;_multiDrawCount?:number};
+  const draws=batch.isBatchedMesh&&batch._multiDrawStarts&&batch._multiDrawCounts?batch._multiDrawCount??0:-1;
+  if(draws>=0){
+   for(let draw=0;draw<draws;draw++){
+    const first=batch._multiDrawStarts![draw]/Uint32Array.BYTES_PER_ELEMENT,length=batch._multiDrawCounts![draw];
+    for(let i=first;i<first+length;i+=3){
+     project(mesh,position,index,i,viewProj,width,height,pa);project(mesh,position,index,i+1,viewProj,width,height,pb);project(mesh,position,index,i+2,viewProj,width,height,pc);
+     fillTriangle(pixels,width,height,pa,pb,pc,rgb);
+    }
+   }
+   continue;
+  }
   const count=index?index.count:position.count;
   for(let i=0;i<count;i+=3){
    project(mesh,position,index,i,viewProj,width,height,pa);project(mesh,position,index,i+1,viewProj,width,height,pb);project(mesh,position,index,i+2,viewProj,width,height,pc);
