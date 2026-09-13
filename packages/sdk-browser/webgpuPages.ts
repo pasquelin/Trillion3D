@@ -271,6 +271,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
  let gpuSelection:GpuSelection|undefined;
  const packedPages:PageRec[]=roots.flatMap(root=>root.pages);
+ const worldUpdates=new Float32Array(roots.length*16);
  const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
  const untexturedMaterials='Untextured source color; double-sided when the material is';
  const visFeatures=['visibility buffer','textured PBR maps','occlusion culling','temporal occlusion culling'];
@@ -376,7 +377,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(uniformPacked.byteLength<bytes)uniformPacked=new Float32Array(bytes/4);
  };
  let outputDiagnosticLogged=false,renderPathLogged=false;
- const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup}>=[];
+ const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;sourceMesh?:THREE.Mesh;sourceGeometry:THREE.BufferGeometry;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup}>=[];
  const visibleBlend:typeof blendGpu=[],blendFrustum=new THREE.Frustum();
  const encodeBlend=(device:GPUDevice,encoder:GPUCommandEncoder,uniformBase:number)=>{
   if(!pipelineBlend||!visibleBlend.length||!colorView||!depthView||!uniformBuffer)return;
@@ -854,7 +855,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       const box=copy.geometry.boundingBox?.clone().applyMatrix4(copy.matrix);
       if(box&&!box.isEmpty()&&[...box.min.toArray(),...box.max.toArray()].every(Number.isFinite))bounds=box;
      }
-     blendGpu.push({position,index,uv,normal,material:copy.material,count:idx.count,matrix:copy.matrix,bounds,rgba:[mat.baseColor[0],mat.baseColor[1],mat.baseColor[2],opacity],map:mat.map,flags});
+     blendGpu.push({position,index,uv,normal,material:copy.material,count:idx.count,matrix:copy.matrix,sourceMesh:copy.userData.sourceMesh as THREE.Mesh|undefined,sourceGeometry:copy.geometry,bounds,rgba:[mat.baseColor[0],mat.baseColor[1],mat.baseColor[2],opacity],map:mat.map,flags});
      scene.remove(copy);
     }
     const [width,height]=viewport??[1,1];ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
@@ -1093,6 +1094,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(context.signal?.aborted)context.signal.throwIfAborted();
    if(lost)throw new Error('WEBGPU_LOST');
    if(!gpuDevice||!cache)throw new Error('WEBGPU_UNAVAILABLE');
+   source.updateMatrixWorld(true);
+   for(let i=0;i<roots.length;i++)worldUpdates.set(roots[i].world.elements,i*16);
+   if(gpuSelection?.updateWorlds(worldUpdates)){previouslyDrawnUrls.clear();temporalHizState.pyramid=undefined;temporalHizState.camera=undefined;}
+   for(const item of blendGpu)if(item.sourceMesh){item.matrix.copy(item.sourceMesh.matrixWorld);if(item.bounds&&item.sourceGeometry.boundingBox)item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);}
    const cpuStart=performance.now();
    lightState=lights?.update();
    const lightsEnd=performance.now();
