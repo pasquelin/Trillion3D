@@ -33,9 +33,25 @@ export async function resolveCompileInput(input){
 }
 export async function prepareReference(input,output,scope=DEFAULT_SCOPE,budget=150000,options={}){
  if(typeof options.resourceBaseUrl!=='string'||!options.resourceBaseUrl)throw new Error('resourceBaseUrl is required');
- const compilerHash=sha256(await readFile(new URL('../asset-compiler-core/index.mjs',import.meta.url)));
+ const compilerHash=await getReferenceCompilerHash();
  const source=await resolveCompileInput(input);
  return compileAsset({source:filesystemStore(source.root),cache:filesystemStore(output),hash:sha256,compilerHash,resourceBaseUrl:options.resourceBaseUrl,scope,budget,strategy:options.strategy??'exact-source-order',simplification:options.simplification??'none',runtimeFile:source.runtimeFile,signal:options.signal,onProgress:options.onProgress});
+}
+
+/** Fingerprint every local compiler module and pinned dependency used by the reference path. */
+export async function getReferenceCompilerHash(root=new URL('../../',import.meta.url)){
+ const prefix=import.meta.url.includes('/dist/sdk-node/')?'dist':'packages';
+ const directory=new URL(`${prefix}/asset-compiler-core/`,root);
+ const modules=(await readdir(directory)).filter(name=>name.endsWith('.mjs')&&!name.endsWith('.test.mjs')).sort();
+ const names=[...modules.map(name=>`${prefix}/asset-compiler-core/${name}`),`${prefix}/sdk-node/index.mjs`,`${prefix}/sdk-core/contracts.${prefix==='dist'?'js':'ts'}`,'package.json'];
+ if(prefix==='packages')names.push('packages/asset-compiler-core/package.json','packages/sdk-node/package.json');
+ if(existsSync(fileURLToPath(new URL('package-lock.json',root))))names.push('package-lock.json');
+ const digest=createHash('sha256');
+ for(const name of names){
+  const bytes=await readFile(new URL(name,root));
+  digest.update(name);digest.update('\0');digest.update(sha256(bytes));digest.update('\0');
+ }
+ return digest.digest('hex');
 }
 
 function nativeCompilerPath(explicit){

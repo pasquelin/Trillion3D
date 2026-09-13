@@ -27,3 +27,19 @@ test('QEM keeps a two-triangle square when asked for one triangle',()=>{
  assert.equal(result.indices.length,result.triangles*3);
  assert.ok(result.triangles===2||result.errorObject>0);
 });
+
+test('QEM never flips or collapses a surviving face of a concave planar fan',()=>{
+ const points=[[2,0],[2,1],[1,1],[1,2],[0,2],[0,0],[0.5,0.5]];
+ const positions=points.flatMap(([x,y])=>[x,y,0]);
+ const indices=[];for(let i=0;i<6;i++)indices.push(6,i,(i+1)%6);
+ const reduced=simplifyToEndpoints(positions,indices,{targetTriangles:4});
+ const signedArea=(a,b,c)=>{
+  const ax=positions[a*3],ay=positions[a*3+1],bx=positions[b*3],by=positions[b*3+1],cx=positions[c*3],cy=positions[c*3+1];
+  return ((bx-ax)*(cy-ay)-(by-ay)*(cx-ax))/2;
+ };
+ for(let i=0;i<reduced.indices.length;i+=3){
+  const area=signedArea(...reduced.indices.slice(i,i+3));
+  assert.ok(area>1e-9,`surviving face ${i/3} flipped or degenerated: ${area}`);
+ }
+ assert.ok(Number.isFinite(reduced.errorObject));
+});

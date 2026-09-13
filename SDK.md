@@ -1,5 +1,20 @@
 # Web Geometry SDK
 
+## Matrice de réalisation des fondations (13 septembre 2026)
+
+`Obs.` désigne un mécanisme lu dans les copies locales du code Unreal, `Doc.` une exigence des spécifications publiées, et `Choix` une adaptation WebGeometry à vérifier. Les copies `en vrac/NaniteBuilder/Private/ClusterDAG.cpp` et `NaniteBuilder/Private/ClusterDAG.cpp` ont le même SHA-256 (`3b8982d56c1e…`), comme les deux `NaniteEncode.cpp` (`379566c7627b…`) et les deux `NaniteRasterizer.usf` (`f7c291aff40f…`). Leur origine exacte et leur version Unreal ne sont pas établies : ces copies guident la comparaison, sans servir de contrat binaire.
+
+| Mécanisme de référence | Fichiers examinés | État au départ | Adaptation retenue | Preuve attendue |
+| --- | --- | --- | --- | --- |
+| Groupes enfants, simplification de leur union, erreur transmise aux parents (`Obs.`) | `ClusterDAG.cpp` (`ReduceGroup`), `packages/asset-compiler-core/{lod,qem}.mjs`, `packages/asset-compiler-rust/src/{lod,qem}.rs` | Arbres et QEM présents ; inversion de face JS reproduite ; modèle d'erreur non géométriquement borné | Rejeter les contractions qui retournent ou dégénèrent une face ; garder une coupe complète et documenter la portée de l'erreur | Fixtures ouvertes/fermées/concaves, partition et images aux transitions, tests JS et Rust distincts |
+| Validation des accessors et données sparse (`Doc.` glTF 2.0) | [spécification glTF](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html), `packages/asset-compiler-core/index.mjs`, `packages/asset-compiler-rust/src/lib.rs` | Bornes du buffer global vérifiées, borne locale du `bufferView` manquante | Valider vues, strides, alignements, indices sparse et valeurs avant la publication du manifeste | Entrées malformées rejetées sur chaque compilateur, sans manifeste prêt |
+| Pages encodées et résidence de secours (`Obs.`) | `NaniteEncode.cpp`, `NaniteStreamingManager.cpp`, `packages/sdk-browser/{streamingPages,webgpuPages}.ts` | Pages d'indices, secours GPU complet épinglé ; géométrie source encore entière | Versionner un format de pages géométriques autonome, avec décodage, admission et compatibilité explicites | Rendu depuis les seules pages préparées, cache froid/chaud, frontières, erreurs et budget refusé |
+| Parcours, Hi-Z, binning et rasterisation hybride (`Obs.`) | `NaniteCullRaster.cpp`, `NaniteRasterizer.usf`, `packages/sdk-browser/{gpuSelection,gpuHiz,gpuDraw,visibilityBuffer}.ts` | Sélection GPU relue par le CPU ; compaction sérielle ; raster matériel seulement | Faire produire la coupe résidente et les commandes par le GPU ; conserver CPU comme oracle identifié | Capture GPU réelle, comparaison de coupe/ID/profondeur, mouvement de caméra et occlusion/révélation |
+| Surface capturée pour l'éclairage global (`Obs.` et `Doc.`) | `NaniteShading.cpp` (`DispatchLumenMeshCapturePass`), [Lumen Technical Details](https://dev.epicgames.com/documentation/unreal-engine/lumen-technical-details-in-unreal-engine), `packages/sdk-browser/{surfaceBuffer,webgpuPages}.ts` | Capture de surfaces opaques depuis une seconde vue déjà consommable ; pas de Surface Cache ni de cards | Stabiliser propriété/durée de vie et mises à jour des instances ; tester un consommateur de capture | Capture secondaire, restauration de la vue principale, mutation de scène, test d'intégration |
+| Contraintes de l'API (`Doc.`) | [WebGPU](https://gpuweb.github.io/gpuweb/), [WGSL](https://gpuweb.github.io/gpuweb/wgsl/) | `drawIndirect` disponible ; pas de commande multi-draw portable ni d'atomiques directement sur une texture de profondeur | Garder des commandes indirectes bornées par bins et une résolution déterministe sur buffers de stockage | Compilation WGSL et exécution navigateur sur matériel, sans retour CPU dans l'image courante |
+
+Les fichiers Lumen inclus par `NaniteShading.cpp` (dont `LumenSceneCardCapture.h`) ne figurent pas dans les copies locales examinées. Le contrat de futur éclairage global reste donc limité aux surfaces et captures que WebGeometry peut réellement produire ; la construction des cards, les traces et le cache d'éclairage sont hors de cette fondation.
+
 Standalone compiler/runtime. Public imports are `@web-geometry/sdk` (core), `/node`, `/browser` and `/compiler-reference`. Do not import `packages/` internals.
 
 Build: `npm install`, `npm run build`, `npm test`. Native: `npm run build:native` and `npm run test:native`. `SDK_VERSION` and `FORMAT_VERSION` are independent.
@@ -7,6 +22,8 @@ Build: `npm install`, `npm run build`, `npm test`. Native: `npm run build:native
 The generic SDK has no asset URL defaults. Hosts must pass `resourceBaseUrl` to `prepare`/`prepareReference` and `manifestUrl` to `createExplorer`. The shared default scope is `slice`. Pointers and compiled manifests with another scope are rejected with `SCOPE_MISMATCH`.
 
 JavaScript reference and native Rust caches use separate roots: `reference/<scope>/manifest.json` and `native/<scope>/manifest.json`. See [Format 1](docs/FORMAT.md).
+
+Both compilers now reject selected accessors that cross their `bufferView`, invalid strides, malformed sparse ranges/indices and invalid POSITION/index component contracts before publishing a ready pointer. The QEM endpoint test rejects a reproduced concave-face inversion; it does not certify a global Hausdorff error bound or all mesh topologies. Cache keys include the executed compiler implementation; Rust embeds its dependency lock, and the JS source checkout includes its lock when present. Recompile prepared assets to use these corrections; source files are never overwritten.
 
 ## Entry points
 

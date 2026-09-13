@@ -51,6 +51,8 @@ Optional fields consumed when present:
 
 Unknown `formatVersion` values are rejected. `SDK_VERSION`, `FORMAT_VERSION` and the compiler version are independent. The browser still requires format 1; extra fields are additive.
 
+Both compilers validate selected accessors against their own `bufferView` length, including stride and sparse index/value ranges, before publishing a ready pointer. Sparse indices must be strictly increasing and within the accessor count. The JS reference fingerprints the modules it actually executes (source modules in a checkout, built modules in an installed package), its Node adapter, shared default contract and package metadata; it also includes `package-lock.json` when present. The Rust fingerprint includes its source modules, `Cargo.toml` and `Cargo.lock` at build time. Source JSON, declared sidecars, geometry bytes, compilation options and the error-model identity also participate in the cache key. Changes create a new key and leave source assets untouched. External image bytes referred to by URI are not embedded in format 1 or included in this geometry key; hosts own their resource identity.
+
 ## Pages
 
 Each page is a tightly packed little-endian `u32` index buffer covering 256 triangles (768 indices) in source order, except the last page of a primitive. The runtime verifies SHA-256 and byte length before attaching a page.
@@ -59,17 +61,13 @@ Each page is a tightly packed little-endian `u32` index buffer covering 256 tria
 
 The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Relative image URIs are rewritten against the host `resourceBaseUrl`. `images` may be omitted. Images that use `bufferView` (no `uri`) keep their view; the view is copied into `source.bin`. Sparse accessors (`accessor.sparse`) are decoded and their bufferViews are compacted and remapped. Skinned meshes (`skin`, `JOINTS_0`, `WEIGHTS_0`), morph targets (`targets`), and animations are preserved in `source.gltf` and routed to the `shared-blend` reference pass.
 
-## Visibility Buffer Shading & IBL
+## Visibility Buffer Shading
 
-The visibility buffer shading pass implements standard glTF 2.0 Cook-Torrance GGX microfacet PBR specular and diffuse reflection with $D_{\text{GGX}}$ (Trowbridge-Reitz), $V_{\text{Smith-Correlated}}$, $F_{\text{Schlick}}$, and strict energy conservation ($1 - F_0$). It includes Image-Based Lighting (IBL) with hemispherical diffuse irradiance and specular environment reflection based on the Karis/Schlick split-sum approximation, accompanied by direct directional lighting. Fully matching CPU and WGSL implementations ensure strict A/A parity.
+The WebGPU visibility path reconstructs material surfaces, then shades them with its deferred lighting pass. It does not implement specular environment-map IBL or complete glTF material parity. The CPU shading oracle and WGSL path are distinct implementations; exact A/A within one path does not establish parity between them. Compare lossless captures against the Three reference at identical settings before claiming visual fidelity.
 
-## Temporal Hi-Z Occlusion Culling
+## Hi-Z Occlusion Status
 
-The runtime implements a 2-phase Temporal Hi-Z occlusion culling pipeline:
-- **Pass 1 (Occluders)**: Geometry visible in the previous frame is tested against the previous depth pyramid ($V_{t-1} \times P_{t-1}$) and rendered first into the visibility buffer and depth target.
-- **Pyramid Construction**: The depth pyramid for the current frame $t$ is constructed via conservative ceil-2×2 max reduction compute shaders.
-- **Pass 2 (Disocclusion)**: Previously occluded or newly entering pages are tested against the fresh frame $t$ pyramid. Unoccluded pages are rasterized with `loadOp: 'load'`.
-- **History Reprojection**: The depth pyramid and camera matrices are copied to temporal history for frame $t+1$. Full CPU oracle parity is provided by `applyTemporalHiz`.
+The current renderer builds a max-depth pyramid and has occluder and disocclusion passes. Its GPU cull tests are limited to the level-zero footprint; the retained history copies do not yet feed a reprojection consumer. `applyTemporalHiz` is a CPU reference, not proof of GPU parity. Until conservative mip selection, camera-cut invalidation and reveal tests pass on hardware, temporal occlusion is an incomplete capability.
 
 ## Source files
 

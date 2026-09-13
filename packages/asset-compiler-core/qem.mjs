@@ -67,9 +67,28 @@ function boundaryEdges(faces){
  }
  return locked;
 }
+function faceNormal(positions,face){
+ const a=positionOf(positions,face[0]),b=positionOf(positions,face[1]),c=positionOf(positions,face[2]);
+ const ab=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],ac=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+ return [ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]];
+}
+function preservesSurvivingFaces(positions,faces,incident,keep,drop){
+ for(const faceId of incident){
+  const face=faces[faceId];
+  if(face.includes(keep))continue;
+  const next=face.map(v=>v===drop?keep:v);
+  const before=faceNormal(positions,face),after=faceNormal(positions,next);
+  const oldArea2=before[0]**2+before[1]**2+before[2]**2;
+  const newArea2=after[0]**2+after[1]**2+after[2]**2;
+  if(!(oldArea2>0)||!(newArea2>oldArea2*1e-12))return false;
+  if(!(before[0]*after[0]+before[1]*after[1]+before[2]*after[2]>1e-6*Math.sqrt(oldArea2*newArea2)))return false;
+ }
+ return true;
+}
 /** Garland-Heckbert endpoint contraction. Boundary edges stay locked. New vertices are not created. */
 export function simplifyToEndpoints(positions,indices,{targetTriangles}={}){
  if(!Number.isSafeInteger(targetTriangles)||targetTriangles<0)throw new Error('targetTriangles is required');
+ if(positions.length%3!==0||indices.length%3!==0||positions.some(v=>!Number.isFinite(v)))throw new Error('Invalid geometry');
  const vertexCount=positions.length/3;
  let faces=[];
  for(let i=0;i<indices.length;i+=3){
@@ -112,6 +131,7 @@ export function simplifyToEndpoints(positions,indices,{targetTriangles}={}){
     else if(lockedRight){keep=right;drop=left;cost=costRight;}
     else{keep=costLeft<=costRight?left:right;drop=keep===left?right:left;cost=keep===left?costLeft:costRight;}
     if(!Number.isFinite(cost))continue;
+    if(!preservesSurvivingFaces(positions,faces,vFaces[drop],keep,drop))continue;
     if(!best||cost<best.cost||(cost===best.cost&&drop<best.drop))best={cost,keep,drop};
    }
   }
