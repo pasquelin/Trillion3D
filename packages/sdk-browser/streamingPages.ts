@@ -9,6 +9,7 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
  const cache=new Map<string,Uint32Array>();
  const inflight=new Map<string,Promise<Uint32Array>>();
  const pinned=new Set<string>();
+ const failures=new Map<string,Error>();
  const abort=new AbortController();
  const combined=signal?AbortSignal.any([signal,abort.signal]):abort.signal;
  let requested=0,hits=0,misses=0,bytesRead=0,loaded=0,evictions=0;
@@ -28,17 +29,30 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
   if(bytes.byteLength!==page.bytes||await digest(bytes)!==page.sha256)throw new Error('Corrupt cluster page');
   const array=new Uint32Array(bytes);touch(url,array);bytesRead+=bytes.byteLength;loaded++;evict();return array;
  };
+ const loadWithRetries=async(url:string)=>{
+  let cause:unknown;
+  for(let attempt=1;attempt<=3;attempt++){
+   combined.throwIfAborted();
+   try{return await loadOne(url);}catch(error){combined.throwIfAborted();cause=error;}
+  }
+  const error=new Error(`PAGE_STREAM_FAILED: ${url} after 3 attempts: ${String(cause)}`,{cause});
+  failures.set(url,error);throw error;
+ };
  const enqueue=(url:string)=>{
+  if(combined.aborted)return Promise.reject(combined.reason);
+  const failure=failures.get(url);if(failure)return Promise.reject(failure);
   const cached=cache.get(url);if(cached){hits++;touch(url,cached);return Promise.resolve(cached);}
   misses++;
   let job=inflight.get(url);
-  if(!job){job=loadOne(url).finally(()=>inflight.delete(url));inflight.set(url,job);}
+  if(!job){job=loadWithRetries(url).finally(()=>inflight.delete(url));inflight.set(url,job);}
   return job;
  };
  return {
   get(url:string){const array=cache.get(url);if(array)touch(url,array);return array;},
   has(url:string){return cache.has(url);},
   loading(url:string){return inflight.has(url);},
+  failed(url:string){return failures.has(url);},
+  read(url:string){requested++;return enqueue(url);},
   retain(urls:readonly string[]){pinned.clear();for(const url of urls)if(catalog.has(url))pinned.add(url);evict();},
   async request(urls:readonly string[]){
    const unique=[...new Set(urls.filter(url=>catalog.has(url)))];
@@ -46,10 +60,11 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
    const limit=Math.min(Math.max(1,workerCount),Math.max(1,unique.length));
    let next=0;
    const workers=Array.from({length:limit},async()=>{while(next<unique.length){combined.throwIfAborted();await enqueue(unique[next++]);}});
-   await Promise.all(workers);
+   const settled=await Promise.allSettled(workers);
+   const failure=settled.find(result=>result.status==='rejected');if(failure?.status==='rejected')throw failure.reason;
   },
-  stats(){return {requested,loaded,hits,misses,bytesRead,loading:inflight.size,resident:cache.size,evictions};},
-  dispose(){abort.abort();cache.clear();inflight.clear();pinned.clear();},
+  stats(){return {requested,loaded,hits,misses,bytesRead,loading:inflight.size,resident:cache.size,evictions,failed:failures.size};},
+  dispose(){abort.abort();cache.clear();inflight.clear();pinned.clear();failures.clear();},
  };
 }
 export type PageStreamer=ReturnType<typeof createPageStreamer>;

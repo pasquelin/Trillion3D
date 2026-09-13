@@ -196,7 +196,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   }
   if(options.detail==='maximum'&&renderer){const maximum=renderer.capabilities.getMaxAnisotropy();for(const mesh of objects(source))for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])for(const value of Object.values(material))if(value instanceof THREE.Texture){value.anisotropy=maximum;value.needsUpdate=true;}}
   const viewport:[number,number]=[canvas.width,canvas.height];
-  const context:BackendContext={source,metadata,indices,associations:gltf.parser.associations as BackendContext['associations'],signal,maxResidentPages:attachCap,maxCachedPages:cacheCap,pixelError:options.pixelError??0,lodAdaptive:options.lodAdaptive,clearColor:options.clearColor??DEFAULT_CLEAR_COLOR,onDiagnostic:options.onDiagnostic,viewport,gpuDevice,gpuCanvas:directGpu?canvas:undefined,maxFrameAllocationBytes:options.maxFrameAllocationBytes,sceneLighting:sceneLightingSource};
+  const context:BackendContext={source,metadata,indices,readPage:url=>streamer.read(url),associations:gltf.parser.associations as BackendContext['associations'],signal,maxResidentPages:attachCap,maxCachedPages:cacheCap,pixelError:options.pixelError??0,lodAdaptive:options.lodAdaptive,clearColor:options.clearColor??DEFAULT_CLEAR_COLOR,onDiagnostic:options.onDiagnostic,viewport,gpuDevice,gpuCanvas:directGpu?canvas:undefined,maxFrameAllocationBytes:options.maxFrameAllocationBytes,sceneLighting:sceneLightingSource};
   const factories=options.backends??(gpuDevice?[...DEFAULT_BACKENDS,webgpuPagesBackend]:DEFAULT_BACKENDS);
   for(const factory of factories){
    const backend=factory(context);if(backends.some(b=>b.id===backend.id))throw new Error('Duplicate backend id');
@@ -226,7 +226,8 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const ensureTarget=(current:THREE.WebGLRenderTarget|undefined)=>current??new THREE.WebGLRenderTarget(canvas.width,canvas.height,targetOptions);
   const check=()=>{if(disposed)throw new Error('Explorer disposed');if(capturingSurface)throw new Error('SURFACE_CAPTURE_BUSY');signal?.throwIfAborted();};
   const setPose=(pose:CameraPose)=>{camera.position.fromArray(pose.position);camera.fov=pose.fov;camera.near=pose.near;camera.far=pose.far;camera.lookAt(lookAtTarget.fromArray(pose.target));camera.updateProjectionMatrix();camera.updateMatrixWorld();};
-  const fillMetrics=(backend:RenderBackend)=>{const backendMetrics=backend.metrics() as FrameMetrics;const stream=streamer.stats();metricsScratch.clusters=backendMetrics.clusters;metricsScratch.selectedTriangles=backendMetrics.selectedTriangles;metricsScratch.residentPages=backendMetrics.residentPages;metricsScratch.pageEvictions=backendMetrics.pageEvictions??null;metricsScratch.geometryAllocationBytes=backendMetrics.geometryAllocationBytes;metricsScratch.frustumRejected=backendMetrics.frustumRejected??null;metricsScratch.lodLevel=backendMetrics.lodLevel??null;metricsScratch.submittedTriangles=backendMetrics.submittedTriangles??null;metricsScratch.hizRejected=backendMetrics.hizRejected??null;metricsScratch.transparentMeshes=backendMetrics.transparentMeshes??null;metricsScratch.transparentFrustumRejected=backendMetrics.transparentFrustumRejected??null;metricsScratch.transparentDrawCalls=backendMetrics.transparentDrawCalls??null;metricsScratch.transparentSubmittedTriangles=backendMetrics.transparentSubmittedTriangles??null;metricsScratch.pageLoads=stream.loaded||loaded;metricsScratch.pageBytesRead=stream.bytesRead||pageBytesRead;metricsScratch.pagesRequested=stream.requested;metricsScratch.pagesLoading=stream.loading;metricsScratch.cacheHits=stream.hits;metricsScratch.cacheMisses=stream.misses;metricsScratch.cpuSubmitMs=backendMetrics.cpuSubmitMs??null;metricsScratch.gpuMs=backendMetrics.gpuMs??null;metricsScratch.vramBytes=backendMetrics.vramBytes??null;metricsScratch.drawCalls=typeof backendMetrics.drawCalls==='number'?backendMetrics.drawCalls:-1;};
+  const fillMetrics=(backend:RenderBackend)=>{const backendMetrics=backend.metrics() as FrameMetrics;const stream=streamer.stats();metricsScratch.coverageReady=backendMetrics.coverageReady??null;metricsScratch.coverageBudgetLimited=backendMetrics.coverageBudgetLimited??null;metricsScratch.streamingError=streamingError;metricsScratch.clusters=backendMetrics.clusters;metricsScratch.selectedTriangles=backendMetrics.selectedTriangles;metricsScratch.residentPages=backendMetrics.residentPages;metricsScratch.pageEvictions=backendMetrics.pageEvictions??null;metricsScratch.geometryAllocationBytes=backendMetrics.geometryAllocationBytes;metricsScratch.frustumRejected=backendMetrics.frustumRejected??null;metricsScratch.lodLevel=backendMetrics.lodLevel??null;metricsScratch.submittedTriangles=backendMetrics.submittedTriangles??null;metricsScratch.hizRejected=backendMetrics.hizRejected??null;metricsScratch.transparentMeshes=backendMetrics.transparentMeshes??null;metricsScratch.transparentFrustumRejected=backendMetrics.transparentFrustumRejected??null;metricsScratch.transparentDrawCalls=backendMetrics.transparentDrawCalls??null;metricsScratch.transparentSubmittedTriangles=backendMetrics.transparentSubmittedTriangles??null;metricsScratch.pageLoads=stream.loaded||loaded;metricsScratch.pageBytesRead=stream.bytesRead||pageBytesRead;metricsScratch.pagesRequested=stream.requested;metricsScratch.pagesLoading=stream.loading;metricsScratch.cacheHits=stream.hits;metricsScratch.cacheMisses=stream.misses;metricsScratch.cpuSubmitMs=backendMetrics.cpuSubmitMs??null;metricsScratch.gpuMs=backendMetrics.gpuMs??null;metricsScratch.vramBytes=backendMetrics.vramBytes??null;metricsScratch.drawCalls=typeof backendMetrics.drawCalls==='number'?backendMetrics.drawCalls:-1;};
+  let streamingError:string|null=null;
   let streamingPromise:Promise<void>|null=null;const queuedFetch:string[]=[];
   const acceptCached=(backend:RenderBackend,missing:readonly string[])=>{
    let acceptedAny=false;
@@ -245,10 +246,14 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
      if(array)for(const b of backends)b.acceptPage?.(url,array);
     }
     for(const b of backends)b.syncResident?.();
-   }).catch(()=>{/* Retried on next frame */}).finally(()=>{
+    }).catch(error=>{
+    if(disposed||signal?.aborted)return;
+    const detail=String(error);
+    if(streamingError!==detail){streamingError=detail;emit(active.metrics().coverageReady===true?{eventVersion:1,type:'fallback',audience:'diagnostic',recovered:true,code:'PAGE_STREAM_FAILED',detail}:{eventVersion:1,type:'fatal',audience:'blocking',recovered:false,code:'PAGE_STREAM_FAILED',detail});try{options.onDiagnostic?.({phase:'coverage-streaming-failed',message:'Échec du chargement des pages ; couverture GPU de secours conservée si disponible',context:{version:1,error:detail,failedPages:streamer.stats().failed,maxAttemptsPerPage:3,coverageReady:active.metrics().coverageReady??null}});}catch{/* Observers do not control rendering. */}}
+   }).finally(()=>{
     streamingPromise=null;
     if(queuedFetch.length&&!measuring){
-     const next=queuedFetch.splice(0,queuedFetch.length).filter(url=>!streamer.has(url)&&!streamer.loading(url));
+     const next=queuedFetch.splice(0,queuedFetch.length).filter(url=>!streamer.has(url)&&!streamer.loading(url)&&!streamer.failed(url));
      if(next.length)startFetch(next);
     }
    });
@@ -258,7 +263,7 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
    let missing=backend.pendingUrls?.()??[];
    if(missing.length>0){
     if(acceptCached(backend,missing))missing=backend.pendingUrls?.()??[];
-    const needFetch=missing.filter(url=>!streamer.has(url)&&!streamer.loading(url));
+    const needFetch=missing.filter(url=>!streamer.has(url)&&!streamer.loading(url)&&!streamer.failed(url));
     if(needFetch.length>0){
      if(!measuring&&!streamingPromise)startFetch(needFetch);
      else if(!measuring&&streamingPromise)for(const url of needFetch)if(!queuedFetch.includes(url))queuedFetch.push(url);
