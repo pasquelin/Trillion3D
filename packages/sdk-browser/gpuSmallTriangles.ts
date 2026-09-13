@@ -1,6 +1,8 @@
 /** Compute raster for sub-eight-pixel opaque triangles. Hardware renders the complementary set. */
 const PAGE_INFO=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,pad5:vec4f,}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pad:f32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+/** Workgroups per dispatch dimension guaranteed by WebGPU; the page row is split across y and z. */
+export const DISPATCH_SPAN=65535;
 const RASTER=`${PAGE_INFO}
 @group(0) @binding(0) var<storage,read> indices:array<u32>;
 @group(0) @binding(1) var<storage,read> positions:array<f32>;
@@ -53,11 +55,14 @@ fn rasterPixel(triangle:u32,pageIndex:u32,lane:vec2u,writeId:bool){
  if(depth<0.0||depth>=1.0){return;}
  if((page.flags&128u)!=0u){let inv=wa/ca.w+wb/cb.w+wc/cc.w;let tc=(uv(page,ia)*(wa/ca.w)+uv(page,ib)*(wb/cb.w)+uv(page,ic)*(wc/cc.w))/inv;if(!keepMask(page,tc)){return;}}
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);let bits=bitcast<u32>(depth);
- if(writeId){if(atomicLoad(&depths[offset])==bits){atomicMin(&ids[offset],page.packedBase|(triangle&0xffffu));}}
+ if(writeId){if(atomicLoad(&depths[offset])==bits){atomicMin(&ids[offset],page.packedBase|(triangle&0xffu));}}
  else{atomicMin(&depths[offset],bits);}
 }
-@compute @workgroup_size(8,8) fn depthPass(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){rasterPixel(group.x,group.y,lane.xy,false);}
-@compute @workgroup_size(8,8) fn idPass(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){rasterPixel(group.x,group.y,lane.xy,true);}`;
+// A dispatch dimension tops out at 65 535 groups, far below the page count a replicated scene
+// reaches, so the page row is split over y and z and bounded against the live row count.
+fn pageRow(group:vec3u)->u32{return group.y+group.z*${DISPATCH_SPAN}u;}
+@compute @workgroup_size(8,8) fn depthPass(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){let row=pageRow(group);if(row>=uni.pageCount){return;}rasterPixel(group.x,row,lane.xy,false);}
+@compute @workgroup_size(8,8) fn idPass(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){let row=pageRow(group);if(row>=uni.pageCount){return;}rasterPixel(group.x,row,lane.xy,true);}`;
 const RESOLVE=`${PAGE_INFO}
 @group(0) @binding(0) var<storage,read> depths:array<u32>;
 @group(0) @binding(1) var<storage,read> ids:array<u32>;
@@ -98,7 +103,8 @@ export function createGpuSmallTriangles(device:GPUDevice,width:number,height:num
   encode(encoder:GPUCommandEncoder,input:{indices:GPUBuffer;positions:GPUBuffer;pages:GPUBuffer;hizFlags:GPUBuffer;uniform:GPUBuffer;uvs:GPUBuffer;maps:GPUTextureView;sampler:GPUSampler;pageRows:number;maxTriangles:number;idsView:GPUTextureView;depthView:GPUTextureView;hizView?:GPUTextureView;selection?:{maskBuffer:GPUBuffer;maskOffset:number}}){
    const compute=device.createBindGroup({layout:computeLayout,entries:[{binding:0,resource:{buffer:input.indices}},{binding:1,resource:{buffer:input.positions}},{binding:2,resource:{buffer:input.pages}},{binding:3,resource:{buffer:input.hizFlags}},{binding:4,resource:{buffer:input.uniform,offset:0,size:96}},{binding:5,resource:{buffer:input.uvs}},{binding:6,resource:input.maps},{binding:7,resource:input.sampler},{binding:8,resource:{buffer:depth}},{binding:9,resource:{buffer:ids}},{binding:10,resource:{buffer:input.selection?.maskBuffer??input.hizFlags}}]});
    const pass=encoder.beginComputePass({label:'WG small triangle clear'});pass.setPipeline(clear);pass.setBindGroup(0,compute);pass.dispatchWorkgroups(Math.ceil(width*height/64));pass.end();
-   for(const pipeline of [rasterDepth,rasterId]){const raster=encoder.beginComputePass({label:pipeline===rasterDepth?'WG small triangle depth':'WG small triangle ids'});raster.setPipeline(pipeline);raster.setBindGroup(0,compute);raster.dispatchWorkgroups(input.maxTriangles,input.pageRows);raster.end();}
+   const rows=Math.max(1,input.pageRows),spanY=Math.min(rows,DISPATCH_SPAN),spanZ=Math.ceil(rows/DISPATCH_SPAN);
+   for(const pipeline of [rasterDepth,rasterId]){const raster=encoder.beginComputePass({label:pipeline===rasterDepth?'WG small triangle depth':'WG small triangle ids'});raster.setPipeline(pipeline);raster.setBindGroup(0,compute);raster.dispatchWorkgroups(input.maxTriangles,spanY,spanZ);raster.end();}
    const resolved=device.createBindGroup({layout:resolveLayout,entries:[{binding:0,resource:{buffer:depth}},{binding:1,resource:{buffer:ids}},{binding:2,resource:{buffer:input.uniform,offset:0,size:96}}]});
    const view=input.hizView;const output=encoder.beginRenderPass({label:'WG hybrid visibility resolve',colorAttachments:[{view:input.idsView,loadOp:'load',storeOp:'store'},...(view?[{view,loadOp:'load' as const,storeOp:'store' as const}]:[])],depthStencilAttachment:{view:input.depthView,depthLoadOp:'load',depthStoreOp:'store'}});
    output.setViewport(0,0,width,height,0,1);output.setPipeline(view?two:one);output.setBindGroup(0,resolved);output.draw(3);output.end();

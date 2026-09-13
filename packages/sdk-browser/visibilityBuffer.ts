@@ -4,6 +4,26 @@ import {HIZ_BACKGROUND} from '../sdk-core/index.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 
 export const VIS_INVALID=0;
+/**
+ * Visibility identifier layout: `(pageRow + 1) << 8 | triangleIndex`, zero meaning background.
+ *
+ * A page is one cluster, and a cluster holds at most 128 triangles in a DAG cache and 256 in a tree
+ * cache, so eight bits index a triangle and the twenty-four remaining bits address the page. That is
+ * 16.7 M pages instead of the 65 535 a 16/16 split allowed, which a scene replicated a few times
+ * exhausts immediately.
+ */
+export const VIS_TRIANGLE_BITS=8;
+export const VIS_TRIANGLE_MASK=(1<<VIS_TRIANGLE_BITS)-1;
+/** Largest triangle count a page may carry; one more would collide with the next page's rows. */
+export const VIS_MAX_PAGE_TRIANGLES=VIS_TRIANGLE_MASK+1;
+/** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
+export const VIS_MAX_PAGES=0xfffffe;
+/** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
+export function assertVisibilityPageTriangles(triangles:number,page?:string){
+ if(!Number.isInteger(triangles)||triangles<0||triangles>VIS_MAX_PAGE_TRIANGLES)
+  throw new Error(`VISIBILITY_PAGE_TRIANGLES: ${triangles} triangles exceed the ${VIS_MAX_PAGE_TRIANGLES} a visibility identifier addresses${page?` (${page})`:''}`);
+ return triangles;
+}
 export const PAGE_INFO_STRIDE=256;
 export const FLAG_LIT=1,FLAG_DOUBLE=2,FLAG_HAS_UV=4,FLAG_HAS_MAP=8,FLAG_HAS_NORMAL=16,FLAG_WRAP_S_REPEAT=32,FLAG_WRAP_T_REPEAT=64,FLAG_MASK=128,FLAG_BACK=256,FLAG_HAS_ORM=512,FLAG_HAS_NORMAL_MAP=1024,FLAG_HAS_TANGENT=2048;
 const normalScratch=new THREE.Matrix3();
@@ -46,13 +66,14 @@ export type VisMaterial={
 export type UnpackedVisibility={pageIndex:number;triangleIndex:number};
 
 export function packVisibilityId(pageIndex:number,triangleIndex:number){
- if(!Number.isInteger(pageIndex)||pageIndex<0||pageIndex>0xfffe||!Number.isInteger(triangleIndex)||triangleIndex<0||triangleIndex>0xffff)throw new Error('VISIBILITY_ID_RANGE');
- return ((pageIndex+1)<<16)|(triangleIndex&0xffff);
+ if(!Number.isInteger(pageIndex)||pageIndex<0||pageIndex>=VIS_MAX_PAGES||!Number.isInteger(triangleIndex)||triangleIndex<0||triangleIndex>VIS_TRIANGLE_MASK)throw new Error('VISIBILITY_ID_RANGE');
+ // The page field reaches past 2^31, so the shift is done in floating point and forced unsigned.
+ return ((pageIndex+1)*VIS_MAX_PAGE_TRIANGLES+(triangleIndex&VIS_TRIANGLE_MASK))>>>0;
 }
 
 export function unpackVisibilityId(id:number):UnpackedVisibility|null{
  if(id===VIS_INVALID)return null;
- return {pageIndex:(id>>>16)-1,triangleIndex:id&0xffff};
+ return {pageIndex:(id>>>VIS_TRIANGLE_BITS)-1,triangleIndex:id&VIS_TRIANGLE_MASK};
 }
 
 export function visMaterial(material:THREE.Material|THREE.Material[]):VisMaterial{
@@ -216,11 +237,11 @@ export function rasterVisibility(pages:VisPage[],camera:THREE.PerspectiveCamera,
  depth.fill(Infinity);
  camera.updateMatrixWorld();
  const viewProj=new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
- for(let pageIndex=0;pageIndex<pages.length&&pageIndex<=0xfffe;pageIndex++){
+ for(let pageIndex=0;pageIndex<pages.length&&pageIndex<VIS_MAX_PAGES;pageIndex++){
   const page=pages[pageIndex],index=page.array;if(!page.attributes.position)continue;
   const side=visMaterial(page.material).doubleSided?THREE.DoubleSide:(Array.isArray(page.material)?page.material[0].side:page.material.side);
-  const triangles=Math.min((index.length/3)|0,0xffff+1);
-  for(let t=0;t<triangles&&t<=0xffff;t++){
+  const triangles=assertVisibilityPageTriangles((index.length/3)|0);
+  for(let t=0;t<triangles&&t<=VIS_TRIANGLE_MASK;t++){
    const tri=triangleAt(page,t,viewProj,width,height);if(!tri)continue;
    const area=(tri.b.x-tri.a.x)*(tri.c.y-tri.a.y)-(tri.c.x-tri.a.x)*(tri.b.y-tri.a.y);
    if(side!==THREE.DoubleSide){
@@ -408,7 +429,7 @@ fn computeTriangle(page:PageInfo,triangle:u32)->bool{
  let p=vertPos(page.vertexBase,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
- out.id=page.packedBase|((vertexIndex/3u)&0xffffu);
+ out.id=page.packedBase|((vertexIndex/3u)&0xffu);
  if((page.flags&4u)!=0u){out.uv=vertUv(page.vertexBase,id);}
  return out;
 }
@@ -423,7 +444,7 @@ fn computeTriangle(page:PageInfo,triangle:u32)->bool{
  let p=vertPos(page.vertexBase,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
- out.id=page.packedBase|((vertexIndex/3u)&0xffffu);
+ out.id=page.packedBase|((vertexIndex/3u)&0xffu);
  if((page.flags&4u)!=0u){out.uv=vertUv(page.vertexBase,id);}
  return out;
 }
@@ -473,7 +494,7 @@ fn framebuffer(clip:vec4f)->vec3f{
  let coord=vec2<i32>(i32(pos.x),i32(pos.y));
  let id=textureLoad(vis,coord,0).r;
  if(id==0u){return emptySurface();}
- let pageIndex=(id>>16u)-1u;let tri=id&0xffffu;
+ let pageIndex=(id>>8u)-1u;let tri=id&0xffu;
  if(pageIndex>=uni.pageCount){return emptySurface();}
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
