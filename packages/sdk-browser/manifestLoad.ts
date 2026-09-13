@@ -1,7 +1,7 @@
 import {assertCacheIdentity,assertCachePointer,assertCacheReady,assertManifestBinary,decodeManifestBinary,EngineError,isBinaryManifest,type AssetScope,type ClusterManifest,type SlimClusterManifest} from '../sdk-core/index.ts';
 import {checked} from './clusterPages.ts';
 
-export async function jsonResource(url:string,signal?:AbortSignal):Promise<{value:Record<string,unknown>;details:{url:string;status:number;contentType:string};bytes:number}>{
+async function jsonResource(url:string,signal?:AbortSignal):Promise<{value:Record<string,unknown>;details:{url:string;status:number;contentType:string};bytes:number}>{
  const response=await checked(url,signal),contentType=response.headers.get('content-type')??'';
  const details={url,status:response.status,contentType};
  if(!/^application\/(?:[\w.-]+\+)?json(?:;|$)/i.test(contentType))throw new EngineError('INVALID_JSON_RESPONSE',`${url}: JSON attendu, HTTP ${response.status}, type ${contentType||'absent'}`,details);

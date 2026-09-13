@@ -1,20 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import type {ClusterManifest} from '../sdk-core/index.ts';
+import {EngineError,type ClusterManifest} from '../sdk-core/index.ts';
 import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,rootCoverage,selectVisiblePages} from './pageSelection.ts';
-import {cameraSelectionUniforms,evaluateSelectionKernel,packSelectionForest} from './gpuSelection.ts';
+import {cameraSelectionUniforms} from './gpuSelection.ts';
+import {evaluateDagSelectionKernel,packDagSelection} from './gpuDagSelection.ts';
 
 function blendFixture(material:THREE.Material=new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide})){
  const geometry=new THREE.BufferGeometry();
  geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,0,1,0,99,-1,0,101,-1,0,100,1,0],3));
  geometry.setIndex([0,1,2,3,4,5]);
  const mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);
+ // Two level-0 clusters that nothing replaces: the smallest legal DAG, so both are root clusters.
  const pages=[
-  {id:0,url:'near',count:3,bytes:12,sha256:'near',min:[-1,-1,0],max:[1,1,0],role:'exact' as const},
-  {id:1,url:'far',count:3,bytes:12,sha256:'far',min:[99,-1,0],max:[101,1,0],role:'exact' as const},
+  {id:0,url:'near',count:3,bytes:12,sha256:'near',min:[-1,-1,0],max:[1,1,0],role:'exact' as const,start:0,
+   level:0,lodError:0,sphere:[0,0,0,1.5],parentError:null,parentSphere:null,group:null,source:null},
+  {id:1,url:'far',count:3,bytes:12,sha256:'far',min:[99,-1,0],max:[101,1,0],role:'exact' as const,start:3,
+   level:0,lodError:0,sphere:[100,0,0,1.5],parentError:null,parentSphere:null,group:null,source:null},
  ];
- const metadata={clusterStrategy:'spatial-morton',primitives:[{mesh:0,primitive:0,pass:'clustered-blend',pages,hierarchy:{min:[-1,-1,0],max:[101,1,0],children:pages.map(page=>({min:page.min,max:page.max,page:page.id}))}}]} as ClusterManifest;
+ const metadata={errorModel:'dag-group-qem-v1',clusterStrategy:'dag-groups',primitives:[{mesh:0,primitive:0,pass:'clustered-blend',clusterStrategy:'dag-groups' as const,pages,
+  structure:{version:1,roots:[0,1],groups:[]}}]} as unknown as ClusterManifest;
  const indices=new Map([['near',new Uint32Array([0,1,2])],['far',new Uint32Array([3,4,5])]]);
  const associations=new Map([[mesh,{meshes:0,primitives:0}]]);
  return {geometry,material,mesh,source,metadata,indices,associations};
@@ -36,33 +41,6 @@ test('clustered blend pages retain their source and only select the intersecting
  fixture.geometry.dispose();fixture.material.dispose();
 });
 
-test('clustered blend validates source order even with a spatial strategy for opaque pages',()=>{
- const fixture=blendFixture();
- fixture.indices.set('near',new Uint32Array([3,4,5]));fixture.indices.set('far',new Uint32Array([0,1,2]));
- assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/Page\/source index mismatch/);
- fixture.metadata.primitives[0].pass='exact-clusters';
- assert.doesNotThrow(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations));
- fixture.geometry.dispose();fixture.material.dispose();
-});
-
-test('primitive cluster strategy overrides the scene strategy for exact index validation',()=>{
- const fixture=blendFixture();fixture.metadata.primitives[0].pass='exact-clusters';
- fixture.metadata.primitives[0].clusterStrategy='exact-source-order';
- fixture.indices.set('near',new Uint32Array([3,4,5]));fixture.indices.set('far',new Uint32Array([0,1,2]));
- assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/Page\/source index mismatch/);
- fixture.geometry.dispose();fixture.material.dispose();
-});
-
-test('coarse transparent pages inherit source order and retain their own page sequence',()=>{
- const fixture=blendFixture();const primitive=fixture.metadata.primitives[0];
- primitive.pages.push({...primitive.pages[0],id:2,url:'coarse-a',role:'coarse'},{...primitive.pages[0],id:3,url:'coarse-b',role:'coarse'});
- primitive.hierarchy!.coarsePages=[2,3];primitive.hierarchy!.errorObject=0;
- fixture.indices.set('coarse-a',new Uint32Array([0,1,2]));fixture.indices.set('coarse-b',new Uint32Array([3,4,5]));
- const {allPages}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
- assert.deepEqual(allPages.map(page=>page.sourceOrder),[0,1,0,1/3]);
- fixture.geometry.dispose();fixture.material.dispose();
-});
-
 test('clustered blend never reports missing exact coverage as resident',()=>{
  const fixture=blendFixture();fixture.indices.delete('near');
  const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations,{allowMissing:true});
@@ -77,9 +55,9 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
  const fixture=blendFixture();
  const {roots,allPages}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
  allPages[0].cone={axis:[0,0,-1],angle:0};
- const cam=camera(),packed=packSelectionForest(roots);
+ const cam=camera(),packed=packDagSelection(roots);
  const cpu=selectVisiblePages(roots,cam,{frame:1});
- const gpu=evaluateSelectionKernel(packed,cameraSelectionUniforms(cam,0,[960,540]));
+ const gpu=evaluateDagSelectionKernel(packed,cameraSelectionUniforms(cam,0,[960,540]));
  assert.deepEqual(cpu.shown.map(page=>page.url),['near']);
  assert.deepEqual(gpu.pageIds.map(id=>packed.pageUrls[id]),['near']);
  fixture.geometry.dispose();fixture.material.dispose();
@@ -386,5 +364,13 @@ test('budget pressure down to the pinned roots still publishes a complete, coars
  assert.deepEqual(starved.shown.map(page=>page.url),['root']);
  // The wanted cut is untouched, so streaming still asks the detail back.
  assert.deepEqual(starved.wanted.map(page=>page.url).sort(),['leaf0','leaf1','leaf2','leaf3']);
+ fixture.geometry.dispose();
+});
+
+test('a primitive whose clusters carry no DAG error band is refused by name, not half-read',()=>{
+ const fixture=dagFixture();
+ for(const page of fixture.metadata.primitives[0].pages)delete (page as {lodError?:number}).lodError;
+ assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),
+  (error:unknown)=>error instanceof EngineError&&error.code==='STALE_CACHE'&&/without a DAG error band/.test(error.message));
  fixture.geometry.dispose();
 });
