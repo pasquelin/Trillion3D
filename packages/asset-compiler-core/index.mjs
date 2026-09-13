@@ -3,6 +3,7 @@ import {exactClusters,greedyClusters} from './cluster.mjs';
 import {simplifyToEndpoints} from './qem.mjs';
 import {buildLodTree} from './lod.mjs';
 import {validateAccessor} from './accessors.mjs';
+import {encodeGeometryPage,GEOMETRY_ATTRIBUTES} from './geometryPage.mjs';
 export const COMPILER_VERSION='0.1.0';
 export const FORMAT_VERSION=1;
 export const LOD_ERROR_MODEL='qem-local-plus-child-max';
@@ -73,6 +74,17 @@ function rewriteImages(images,resourceBaseUrl,viewMap){
   }
   return copy;
  });
+}
+function minimalScene(source,sourceBinary){
+ const position=new Uint8Array(36),indices=new Uint8Array(new Uint16Array([0,1,2]).buffer),chunks=[position,indices,new Uint8Array(2)];
+ const views=[{buffer:0,byteOffset:0,byteLength:36},{buffer:0,byteOffset:36,byteLength:6}];
+ const images=source.images?.map(image=>{if(image.bufferView===undefined)return image;const original=source.bufferViews[image.bufferView];if(!original)invalid('Scene image bufferView missing');const offset=chunks.reduce((n,part)=>n+part.byteLength,0),pad=(4-offset%4)%4;if(pad)chunks.push(new Uint8Array(pad));const at=offset+pad;chunks.push(sourceBinary.subarray(original.byteOffset,original.byteOffset+original.byteLength));const id=views.length;views.push({buffer:0,byteOffset:at,byteLength:original.byteLength});return {...image,bufferView:id};});
+ const data=concat(chunks);
+ const scene={...source,buffers:[{uri:'scene.bin',byteLength:data.byteLength}],bufferViews:views,
+  accessors:[{bufferView:0,componentType:5126,type:'VEC3',count:3,min:[0,0,0],max:[0,0,0]},{bufferView:1,componentType:5123,type:'SCALAR',count:3}],
+  meshes:source.meshes.map(mesh=>({...mesh,primitives:mesh.primitives.map(primitive=>({mode:4,material:primitive.material,attributes:{POSITION:0},indices:1}))})),
+  nodes:source.nodes.map(({skin,weights,...node})=>node),images,skins:undefined,animations:undefined};
+ return {scene,data};
 }
 async function readOptional(readSource,key){
  try{return await readSource(key);}catch(error){if(error&&(error.code==='ENOENT'||error.cause?.code==='ENOENT'))return null;throw error;}
@@ -232,23 +244,28 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   nodes:g.nodes.map((n,i)=>{const copy={...n};if(copy.mesh!==undefined){if(chosen.has(i))copy.mesh=meshMap.get(copy.mesh);else delete copy.mesh;}return copy;}),
   images:rewriteImages(g.images,resourceBaseUrl,viewMap)};
  const view=new DataView(bin.buffer,bin.byteOffset,bin.byteLength);
- const read=(id)=>{const a=accessorAt(id,'primitive');if(a.normalized)throw new Error('Normalized accessor unsupported');const widths={SCALAR:1,VEC2:2,VEC3:3,VEC4:4},bytes={5121:1,5123:2,5125:4,5126:4};
+ const read=(id)=>{const a=accessorAt(id,'primitive');const widths={SCALAR:1,VEC2:2,VEC3:3,VEC4:4},bytes={5120:1,5121:1,5122:2,5123:2,5125:4,5126:4};
   const w=widths[a.type],b=bytes[a.componentType];if(!w||!b)throw new Error('Accessor unsupported');
+  if(a.normalized&&a.componentType===5126)invalid('FLOAT accessor cannot be normalized',{accessor:id});
   const count=a.count*w;let values;
+  const empty=()=>a.componentType===5126?new Float32Array(count):a.componentType===5120?new Int8Array(count):a.componentType===5122?new Int16Array(count):b===1?new Uint8Array(count):b===2?new Uint16Array(count):new Uint32Array(count);
+  const componentAt=o=>a.componentType===5120?view.getInt8(o):a.componentType===5121?view.getUint8(o):a.componentType===5122?view.getInt16(o,true):a.componentType===5123?view.getUint16(o,true):a.componentType===5125?view.getUint32(o,true):view.getFloat32(o,true);
   if(a.bufferView===undefined){
-   values=a.componentType===5126?new Float32Array(count):b===1?new Uint8Array(count):b===2?new Uint16Array(count):new Uint32Array(count);
+   values=empty();
   }else{
    const v=g.bufferViews[a.bufferView];if(!v)invalid('Accessor bufferView is required',{accessor:id});
    const base=(v.byteOffset??0)+(a.byteOffset??0),stride=v.byteStride??w*b;
    if(stride===w*b&&(bin.byteOffset+base)%b===0&&bin.byteOffset+base+count*b<=bin.buffer.byteLength){
     const offset=bin.byteOffset+base;
     if(a.componentType===5126)values=new Float32Array(bin.buffer,offset,count).slice();
-    else if(b===1)values=new Uint8Array(bin.buffer,offset,count).slice();
-    else if(b===2)values=new Uint16Array(bin.buffer,offset,count).slice();
+    else if(a.componentType===5120)values=new Int8Array(bin.buffer,offset,count).slice();
+    else if(a.componentType===5121)values=new Uint8Array(bin.buffer,offset,count).slice();
+    else if(a.componentType===5122)values=new Int16Array(bin.buffer,offset,count).slice();
+    else if(a.componentType===5123)values=new Uint16Array(bin.buffer,offset,count).slice();
     else values=new Uint32Array(bin.buffer,offset,count).slice();
    }else{
-    values=a.componentType===5126?new Float32Array(count):b===1?new Uint8Array(count):b===2?new Uint16Array(count):new Uint32Array(count);
-    for(let i=0;i<a.count;i++)for(let j=0;j<w;j++){const o=base+i*stride+j*b;values[i*w+j]=a.componentType===5126?view.getFloat32(o,true):b===1?bin[o]:b===2?view.getUint16(o,true):view.getUint32(o,true);}
+    values=empty();
+    for(let i=0;i<a.count;i++)for(let j=0;j<w;j++)values[i*w+j]=componentAt(base+i*stride+j*b);
    }
   }
   if(a.sparse){
@@ -259,12 +276,13 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
     const idx=indComp===5121?bin[io]:indComp===5123?view.getUint16(io,true):view.getUint32(io,true);
     for(let c=0;c<w;c++){
      const vo=valBase+(k*w+c)*b;
-     const val=a.componentType===5126?view.getFloat32(vo,true):b===1?bin[vo]:b===2?view.getUint16(vo,true):view.getUint32(vo,true);
-     values[idx*w+c]=val;
+     values[idx*w+c]=componentAt(vo);
     }
    }
   }
-  return values;
+  if(!a.normalized)return values;
+  const scale=a.componentType===5120?127:a.componentType===5121?255:a.componentType===5122?32767:a.componentType===5123?65535:4294967295;
+  return Float32Array.from(values,value=>a.componentType===5120||a.componentType===5122?Math.max(-1,value/scale):value/scale);
  };
  const skinnedMeshes=new Set(g.nodes.filter(n=>n.mesh!==undefined&&n.skin!==undefined).map(n=>n.mesh));
  const primitives=[];let completed=0,total=meshIds.reduce((s,id)=>s+g.meshes[id].primitives.length,0),bytesWritten=0,reusedPages=0;
@@ -272,11 +290,13 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   check();if((p.mode??4)!==4)throw new Error('Only static triangles supported');
   const positionAccessor=accessorAt(p.attributes.POSITION,'POSITION');
   if(positionAccessor.type!=='VEC3'||positionAccessor.componentType!==5126)invalid('POSITION must be float VEC3',{mesh,primitive});
-  if(p.indices!==undefined){const indexAccessor=accessorAt(p.indices,'indices');if(indexAccessor.type!=='SCALAR'||![5121,5123,5125].includes(indexAccessor.componentType))invalid('indices component must be unsigned SCALAR',{mesh,primitive});}
+  if(p.indices!==undefined){const indexAccessor=accessorAt(p.indices,'indices');if(indexAccessor.type!=='SCALAR'||indexAccessor.normalized||![5121,5123,5125].includes(indexAccessor.componentType))invalid('indices component must be unsigned SCALAR',{mesh,primitive});}
   const positions=read(p.attributes.POSITION),indices=p.indices===undefined?Uint32Array.from({length:positions.length/3},(_,i)=>i):read(p.indices);
   if(positions.some(value=>!Number.isFinite(value)))invalid('POSITION contains nonfinite values',{mesh,primitive});
   const isSkinnedOrMorph=Boolean(p.targets||skinnedMeshes.has(id)||p.attributes?.JOINTS_0!==undefined||p.attributes?.WEIGHTS_0!==undefined);
   const blend=unsplitMaterial(g.materials?.[p.material])||isSkinnedOrMorph;
+  const pageAttributes={POSITION:{array:positions,itemSize:3}};
+  if(!blend)for(const [name,size] of GEOMETRY_ATTRIBUTES){const accessorId=p.attributes[name];if(accessorId===undefined)continue;const accessor=accessorAt(accessorId,name);const itemSize=accessor.type==='VEC3'&&name==='COLOR_0'?3:size;if(accessor.type!==`VEC${itemSize}`)invalid('Invalid page attribute shape',{mesh,primitive,name});pageAttributes[name]={array:read(accessorId),itemSize};}
   const topology=classifyTopology(indices,positions.length/3);
   const clusters=strategy==='greedy-adjacency'?greedyClusters(indices,topology.neighbors):exactClusters(indices.length);
   const pages=[];
@@ -285,8 +305,12 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
    for(let i=0;i<indexList.length;i++){const index=indexList[i];if(!Number.isSafeInteger(index)||index<0||index*3+2>=positions.length)invalid('Invalid index',{mesh,primitive,index});values[i]=index;for(let a=0;a<3;a++){const v=positions[index*3+a];if(!Number.isFinite(v))invalid('Invalid position',{mesh,primitive,index});if(v<min[a])min[a]=v;if(v>max[a])max[a]=v;}}
    const name=`pages/${mesh}-${primitive}-${pages.length}.bin`,sha256=hash(data);let exists=false;try{exists=hash(await cache.read(join(directory,name)))===sha256;}catch{}
    if(!exists){await atomic(join(directory,name),data);bytesWritten+=data.length;}else reusedPages++;
+   let geometry;
+   if(!blend){const packed=await encodeGeometryPage(indexList,pageAttributes),geometryName=`pages/${mesh}-${primitive}-${pages.length}.wgpg`,geometrySha256=hash(packed.data);let reused=false;try{reused=hash(await cache.read(join(directory,geometryName)))===geometrySha256;}catch{}
+    if(!reused){await atomic(join(directory,geometryName),packed.data);bytesWritten+=packed.data.length;}else reusedPages++;
+    geometry={url:geometryName,sha256:geometrySha256,bytes:packed.data.length,formatVersion:2,codec:'meshopt',vertexCount:packed.vertexCount,indexCount:packed.indexCount,flags:packed.flags,uncompressedBytes:packed.uncompressedBytes};}
    const id=pages.length;
-   pages.push({id,url:name,sha256,bytes:data.length,count:values.length,start,min,max,role});
+   pages.push({id,url:name,sha256,bytes:data.length,count:values.length,start,min,max,role,geometry});
    return id;
   };
   const clusterPageIds=[];
@@ -318,7 +342,9 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   }
   primitives.push({mesh,primitive,material:p.material,triangles:indices.length/3,pass:blend?'shared-blend':'exact-clusters',pages,hierarchy:tree,topology:{triangles:topology.triangles,edges:topology.edges,vertices:topology.vertices,manifold:topology.manifold}});emit('clusterize',++completed,total);
  }
- await atomic(join(directory,'source.bin'),concat(chunks));await atomic(join(directory,'source.gltf'),JSON.stringify(source));
- const result={schema:FORMAT_VERSION,formatVersion:FORMAT_VERSION,compilerVersion:COMPILER_VERSION,compilerHash,errorModel:LOD_ERROR_MODEL,status:'ready',key,scope,clusterStrategy:strategy,sourceSha256:loaded.sourceSha256,sourceBinarySha256:loaded.sourceBinarySha256,sourceTriangles,selectedTriangles:triangles,selectedNodes:[...chosen],totalNodes:meshNodes,clusterTriangles:CLUSTER_TRIANGLES,simplification:simplification!=='none',gpuDriven:false,materials:'glTF preserved; BLEND and transmission remain unsplit',primitives,bytesWritten,reusedPages};
+ const sourceBinary=concat(chunks);await atomic(join(directory,'source.bin'),sourceBinary);await atomic(join(directory,'source.gltf'),JSON.stringify(source));
+ let autonomousScene;
+ if(primitives.length&&primitives.every(primitive=>primitive.pass==='exact-clusters')){const compact=minimalScene(source,sourceBinary);await atomic(join(directory,'scene.bin'),compact.data);await atomic(join(directory,'scene.gltf'),JSON.stringify(compact.scene));bytesWritten+=compact.data.byteLength;autonomousScene='scene.gltf';}
+ const result={schema:FORMAT_VERSION,formatVersion:FORMAT_VERSION,compilerVersion:COMPILER_VERSION,compilerHash,errorModel:LOD_ERROR_MODEL,status:'ready',key,scope,clusterStrategy:strategy,sourceSha256:loaded.sourceSha256,sourceBinarySha256:loaded.sourceBinarySha256,sourceTriangles,selectedTriangles:triangles,selectedNodes:[...chosen],totalNodes:meshNodes,clusterTriangles:CLUSTER_TRIANGLES,simplification:simplification!=='none',gpuDriven:false,materials:'glTF preserved; BLEND and transmission remain unsplit',autonomousScene,primitives,bytesWritten,reusedPages};
  await atomic(join(directory,'clusters.json'),JSON.stringify(result));await atomic(join('reference',scope,'manifest.json'),JSON.stringify({status:'ready',formatVersion:FORMAT_VERSION,compiler:'reference-js',key,scope,url:`${key}/clusters.json`}));emit('complete',total,total);return result;
 }
