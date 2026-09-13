@@ -2,6 +2,7 @@ import {classifyTopology} from './topology.mjs';
 import {exactClusters,greedyClusters} from './cluster.mjs';
 import {simplifyToEndpoints} from './qem.mjs';
 import {buildLodTree} from './lod.mjs';
+import {validateAccessor} from './accessors.mjs';
 export const COMPILER_VERSION='0.1.0';
 export const FORMAT_VERSION=1;
 export const LOD_ERROR_MODEL='qem-local-plus-child-max';
@@ -78,7 +79,7 @@ async function readOptional(readSource,key){
 }
 async function concatGltfBuffers(readSource,hash,g,embeddedBin,expected){
  if(!Array.isArray(g.buffers)||!g.buffers.length)throw new Error('glTF buffers are required');
- const chunks=[],offsets=[];let offset=0;
+ const chunks=[],offsets=[],lengths=[];let offset=0;
  for(const [i,buffer] of g.buffers.entries()){
   const pad=(4-offset%4)%4;if(pad){chunks.push(new Uint8Array(pad));offset+=pad;}
   offsets.push(offset);
@@ -93,9 +94,12 @@ async function concatGltfBuffers(readSource,hash,g,embeddedBin,expected){
    }
   }else if(i===0&&embeddedBin){bytes=embeddedBin;}
   else throw new Error('glTF buffer uri is required');
+  const declared=buffer?.byteLength;
+  if(!Number.isSafeInteger(declared)||declared<0||declared>bytes.byteLength)invalid('glTF buffer byteLength exceeds source bytes',{buffer:i,declared,actual:bytes.byteLength});
+  lengths.push(declared);
   chunks.push(bytes);offset+=bytes.byteLength;
  }
- return {bin:concat(chunks),offsets};
+ return {bin:concat(chunks),offsets,lengths};
 }
 function unsplitMaterial(material){
  if(!material)return false;
@@ -103,13 +107,15 @@ function unsplitMaterial(material){
  const factor=material.extensions?.KHR_materials_transmission?.transmissionFactor;
  return typeof factor==='number'&&factor>0;
 }
-function flattenBufferViews(g,offsets,binLength){
+function flattenBufferViews(g,offsets,lengths,binLength){
  if(!Array.isArray(g.bufferViews))invalid('Required glTF arrays are missing');
  g.bufferViews=g.bufferViews.map((v,id)=>{
-  const buffer=Number.isInteger(v.buffer)?v.buffer:0;
+  if(!v||typeof v!=='object')invalid('bufferView is required',{bufferView:id});
+  const buffer=v.buffer===undefined?0:v.buffer;
+  if(!Number.isSafeInteger(buffer))invalid('bufferView.buffer is invalid',{bufferView:id,buffer});
   if(buffer<0||buffer>=offsets.length)invalid('bufferView.buffer is out of bounds',{bufferView:id,buffer});
-  const start=offsets[buffer]+(v.byteOffset??0),len=v.byteLength??0,end=start+len;
-  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(len)||start<0||len<0||end>binLength)invalid('glTF buffer view exceeds binary bounds',{bufferView:id,start,byteLength:len,binaryBytes:binLength});
+  const local=v.byteOffset??0,len=v.byteLength,start=offsets[buffer]+local,end=start+len;
+  if(!Number.isSafeInteger(local)||!Number.isSafeInteger(len)||local<0||len<0||!Number.isSafeInteger(end)||local+len>lengths[buffer]||end>binLength)invalid('glTF buffer view exceeds declared buffer bounds',{bufferView:id,start,byteLength:len,bufferBytes:lengths[buffer]});
   return {...v,buffer:0,byteOffset:start};
  });
  g.buffers=[{byteLength:binLength}];
@@ -120,13 +126,14 @@ async function loadGltfDocument(readSource,hash,fileName,expected){
  if(expected?.sha256&&hash(bytes)!==expected.sha256)throw new Error('Source glTF hash mismatch');
  const parsed=isGlb(bytes)?parseGlb(bytes):{json:JSON.parse(new TextDecoder().decode(bytes)),bin:null};
  const g=parsed.json;
- const {bin,offsets}=await concatGltfBuffers(readSource,hash,g,parsed.bin,expected);
- flattenBufferViews(g,offsets,bin.byteLength);
+ const {bin,offsets,lengths}=await concatGltfBuffers(readSource,hash,g,parsed.bin,expected);
+ flattenBufferViews(g,offsets,lengths,bin.byteLength);
  return {g,jsonBytes:bytes,bin,sourceSha256:hash(bytes),sourceBinarySha256:hash(bin)};
 }
 /** Compiler ports operate on relative logical keys, with no filesystem or browser dependencies. */
 export async function compileAsset({source:sourceStore,cache,hash,compilerHash,resourceBaseUrl,scope='slice',budget=150000,strategy='exact-source-order',simplification='none',runtimeFile,signal,onProgress=()=>{}}) {
  const check=()=>signal?.throwIfAborted();check();
+ if(typeof compilerHash!=='string'||!/^[a-f0-9]{64}$/.test(compilerHash))throw new Error('compilerHash SHA-256 is required for cache identity');
  if(!resourceBaseUrl||typeof resourceBaseUrl!=='string')throw new Error('resourceBaseUrl is required');
  const readFile=async key=>{check();return sourceStore.read(key);};
  const atomic=async(key,bytes)=>{check();await cache.writeAtomic(key,typeof bytes==='string'?new TextEncoder().encode(bytes):bytes);};
@@ -149,7 +156,7 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   manifest={status:'ready',runtime:{file:runtimeFile,sha256:loaded.sourceSha256,sidecars:[],trianglesAcrossNodes:null,meshNodes:null}};
  }
  const {g,jsonBytes,bin}=loaded;
- const key=hash(concat([manifestBytes??encode(''),jsonBytes,encode(hash(bin)),encode(compilerHash??COMPILER_VERSION),encode(`${scope}:${budget}:${resourceBaseUrl}:${strategy}:${simplification}:${LOD_ERROR_MODEL}`)]));
+ const key=hash(concat([manifestBytes??encode(''),jsonBytes,encode(hash(bin)),encode(compilerHash),encode(`${scope}:${budget}:${resourceBaseUrl}:${strategy}:${simplification}:${LOD_ERROR_MODEL}`)]));
  const directory=join('reference',scope,key);
  const emit=(phase,completed,total)=>(check(),onProgress({phase,completed,total,scope,key}));
  const chosen=new Set();let triangles=0,sourceTriangles=0,meshNodes=0;
@@ -182,8 +189,8 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   chosen.add(overflowing[0].i);triangles=overflowing[0].count;
  }
  const meshIds=[...new Set([...chosen].map(i=>g.nodes[i].mesh))],meshMap=new Map(meshIds.map((id,i)=>[id,i]));
- const skinAccessors=(Array.isArray(g.skins)?g.skins:[]).flatMap(skin=>Number.isInteger(skin.inverseBindMatrices)?[skin.inverseBindMatrices]:[]);
- const animAccessors=(Array.isArray(g.animations)?g.animations:[]).flatMap(anim=>Array.isArray(anim.samplers)?anim.samplers.flatMap(s=>[s.input,s.output].filter(Number.isInteger)):[]);
+ const skinAccessors=(Array.isArray(g.skins)?g.skins:[]).flatMap(skin=>skin.inverseBindMatrices===undefined?[]:[(accessorAt(skin.inverseBindMatrices,'skin.inverseBindMatrices'),skin.inverseBindMatrices)]);
+ const animAccessors=(Array.isArray(g.animations)?g.animations:[]).flatMap(anim=>Array.isArray(anim.samplers)?anim.samplers.flatMap(s=>[s.input,s.output].filter(id=>id!==undefined).map(id=>(accessorAt(id,'animation sampler'),id))):[]);
  const accessorIds=[...new Set([
   ...meshIds.flatMap(id=>g.meshes[id].primitives.flatMap((p,primitive)=>{
    if(p.attributes?.POSITION===undefined)invalid('Primitive POSITION accessor is required',{mesh:id,primitive});
@@ -195,6 +202,7 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   ...skinAccessors,
   ...animAccessors
  ])];
+ for(const id of accessorIds)validateAccessor(g,bin,id);
  const accessMap=new Map(accessorIds.map((id,i)=>[id,i]));
  const accessorViews=accessorIds.flatMap(id=>{
   const a=g.accessors[id];const res=[];
@@ -205,7 +213,7 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   }
   return res;
  });
- const imageViews=(Array.isArray(g.images)?g.images:[]).flatMap(image=>Number.isInteger(image.bufferView)?[image.bufferView]:[]);
+ const imageViews=(Array.isArray(g.images)?g.images:[]).flatMap((image,id)=>{if(image?.bufferView===undefined)return [];if(!Number.isSafeInteger(image.bufferView)||image.bufferView<0||!g.bufferViews[image.bufferView])invalid('image.bufferView is invalid',{image:id});return [image.bufferView];});
  const viewIds=[...new Set([...accessorViews,...imageViews])],viewMap=new Map(viewIds.map((id,i)=>[id,i]));
  let offset=0;const chunks=[],views=[];
  for(const id of viewIds){const v=g.bufferViews[id];if(!v||v.buffer!==0)throw new Error('Multiple buffers unsupported');const start=v.byteOffset??0,end=start+v.byteLength;if(!Number.isSafeInteger(start)||!Number.isSafeInteger(v.byteLength)||start<0||v.byteLength<0||end>bin.byteLength)invalid('glTF buffer view exceeds binary bounds',{bufferView:id,start,byteLength:v.byteLength,binaryBytes:bin.byteLength});const pad=(4-offset%4)%4;chunks.push(new Uint8Array(pad));offset+=pad;chunks.push(bin.subarray(start,end));views.push({...v,byteOffset:offset});offset+=v.byteLength;}
@@ -262,7 +270,11 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
  const primitives=[];let completed=0,total=meshIds.reduce((s,id)=>s+g.meshes[id].primitives.length,0),bytesWritten=0,reusedPages=0;
  for(const [mesh,id] of meshIds.entries())for(const [primitive,p] of g.meshes[id].primitives.entries()){
   check();if((p.mode??4)!==4)throw new Error('Only static triangles supported');
+  const positionAccessor=accessorAt(p.attributes.POSITION,'POSITION');
+  if(positionAccessor.type!=='VEC3'||positionAccessor.componentType!==5126)invalid('POSITION must be float VEC3',{mesh,primitive});
+  if(p.indices!==undefined){const indexAccessor=accessorAt(p.indices,'indices');if(indexAccessor.type!=='SCALAR'||![5121,5123,5125].includes(indexAccessor.componentType))invalid('indices component must be unsigned SCALAR',{mesh,primitive});}
   const positions=read(p.attributes.POSITION),indices=p.indices===undefined?Uint32Array.from({length:positions.length/3},(_,i)=>i):read(p.indices);
+  if(positions.some(value=>!Number.isFinite(value)))invalid('POSITION contains nonfinite values',{mesh,primitive});
   const isSkinnedOrMorph=Boolean(p.targets||skinnedMeshes.has(id)||p.attributes?.JOINTS_0!==undefined||p.attributes?.WEIGHTS_0!==undefined);
   const blend=unsplitMaterial(g.materials?.[p.material])||isSkinnedOrMorph;
   const topology=classifyTopology(indices,positions.length/3);
@@ -270,7 +282,7 @@ export async function compileAsset({source:sourceStore,cache,hash,compilerHash,r
   const pages=[];
   const writePage=async(indexList,role,start)=>{
    const values=new Uint32Array(indexList.length),data=new Uint8Array(values.buffer),min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
-   for(let i=0;i<indexList.length;i++){const index=indexList[i];if(index*3+2>=positions.length)throw new Error('Invalid index');values[i]=index;for(let a=0;a<3;a++){const v=positions[index*3+a];if(!Number.isFinite(v))throw new Error('Invalid position');if(v<min[a])min[a]=v;if(v>max[a])max[a]=v;}}
+   for(let i=0;i<indexList.length;i++){const index=indexList[i];if(!Number.isSafeInteger(index)||index<0||index*3+2>=positions.length)invalid('Invalid index',{mesh,primitive,index});values[i]=index;for(let a=0;a<3;a++){const v=positions[index*3+a];if(!Number.isFinite(v))invalid('Invalid position',{mesh,primitive,index});if(v<min[a])min[a]=v;if(v>max[a])max[a]=v;}}
    const name=`pages/${mesh}-${primitive}-${pages.length}.bin`,sha256=hash(data);let exists=false;try{exists=hash(await cache.read(join(directory,name)))===sha256;}catch{}
    if(!exists){await atomic(join(directory,name),data);bytesWritten+=data.length;}else reusedPages++;
    const id=pages.length;

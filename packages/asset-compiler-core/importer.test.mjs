@@ -1,8 +1,11 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {createHash} from 'node:crypto';
 import {prepareReference as prepare} from '../sdk-node/index.mjs';
-import {hierarchy,COMPILER_VERSION,CLUSTER_INDEX_COUNT,CLUSTER_TRIANGLES,LOD_ERROR_MODEL} from './index.mjs';
+import {hierarchy,compileAsset,COMPILER_VERSION,CLUSTER_INDEX_COUNT,CLUSTER_TRIANGLES,LOD_ERROR_MODEL} from './index.mjs';
 const hash=b=>createHash('sha256').update(b).digest('hex');
+test('direct reference compilation requires a complete implementation fingerprint',async()=>{
+ await assert.rejects(compileAsset({source:{read:async()=>{throw new Error('unexpected read');}},cache:{writeAtomic:async()=>{}},hash,resourceBaseUrl:'/assets/'}),/compilerHash SHA-256/);
+});
 test('Importer preserves full triangle coverage, limits the slice, repairs corrupt cached pages and rejects changed sources',async()=>{
  const root=await mkdtemp(join(tmpdir(),'gltf-pages-'));try{
   const input=join(root,'source'),output=join(root,'cache');await mkdir(input);const bin=Buffer.alloc(48);[0,0,0,1,0,0,0,1,0].forEach((v,i)=>bin.writeFloatLE(v,i*4));[0,1,2].forEach((v,i)=>bin.writeUInt32LE(v,36+i*4));
@@ -23,6 +26,13 @@ test('Importer rejects malformed primitive contracts and out-of-bounds buffer vi
   const noPosition=structuredClone(base);delete noPosition.meshes[0].primitives[0].attributes.POSITION;await assert.rejects(run(noPosition),/POSITION/);
   const partial=structuredClone(base);partial.accessors[1].count=2;await assert.rejects(run(partial),/multiple of three/);
   const outside=structuredClone(base);outside.bufferViews[1].byteOffset=44;outside.bufferViews[1].byteLength=12;await assert.rejects(run(outside),/buffer view.*bounds/i);
+  const local=structuredClone(base);local.bufferViews[0].byteLength=24;await assert.rejects(run(local),/accessor.*bufferView/i);
+  const stride=structuredClone(base);stride.bufferViews[0].byteStride=8;await assert.rejects(run(stride),/stride/i);
+  const sparseCount=structuredClone(base);sparseCount.accessors[0].sparse={count:4,indices:{bufferView:1,componentType:5121},values:{bufferView:0}};await assert.rejects(run(sparseCount),/sparse.count/i);
+  const sparseDuplicate=structuredClone(base);sparseDuplicate.accessors[0].sparse={count:2,indices:{bufferView:1,componentType:5121},values:{bufferView:0}};await assert.rejects(run(sparseDuplicate),/sparse indices/i);
+  const declared=structuredClone(base);declared.buffers[0].byteLength=32;await assert.rejects(run(declared),/buffer view.*buffer/i);
+  const floatIndices=structuredClone(base);floatIndices.accessors[1].componentType=5126;await assert.rejects(run(floatIndices),/indices.*component/i);
+  await assert.rejects(readFile(join(output,'reference','slice','manifest.json')),/ENOENT/);
  }finally{await rm(root,{recursive:true,force:true});}
 });
 test('Hierarchy bounds tens of thousands of leaves without spreading into Math.min',()=>{

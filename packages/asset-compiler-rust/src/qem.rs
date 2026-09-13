@@ -74,6 +74,23 @@ fn boundary_edges(faces:&[[u32;3]])->HashSet<(u32,u32)>{
  }
  locked
 }
+fn face_normal(positions:&[f32],face:[u32;3])->[f64;3]{
+ let a=position(positions,face[0]);let b=position(positions,face[1]);let c=position(positions,face[2]);
+ let ab=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];let ac=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+ [ab[1]*ac[2]-ab[2]*ac[1],ab[2]*ac[0]-ab[0]*ac[2],ab[0]*ac[1]-ab[1]*ac[0]]
+}
+fn preserves_surviving_faces(positions:&[f32],faces:&[[u32;3]],keep:u32,drop:u32)->bool{
+ for &face in faces{
+  if !face.contains(&drop)||face.contains(&keep){continue;}
+  let after=face.map(|v|if v==drop{keep}else{v});
+  let old=face_normal(positions,face);let new=face_normal(positions,after);
+  let old2=old.iter().map(|v|v*v).sum::<f64>();let new2=new.iter().map(|v|v*v).sum::<f64>();
+  if !(old2>0.0&&new2>old2*1e-12){return false;}
+  let dot=old.iter().zip(new).map(|(a,b)|a*b).sum::<f64>();
+  if !(dot>1e-6*(old2*new2).sqrt()){return false;}
+ }
+ true
+}
 fn compact_region(positions:&[f32],indices:&[u32])->(Vec<f32>,Vec<u32>,Vec<u32>){
  let mut map=HashMap::new();
  let mut compact_pos=Vec::new();
@@ -153,6 +170,7 @@ pub fn simplify_to_endpoints(positions:&[f32],indices:&[u32],target_triangles:us
     let cost_right=energy(&combined,position(positions,right));
     let (keep,drop,cost)=if locked_left{(left,right,cost_left)}else if locked_right{(right,left,cost_right)}else if cost_left<=cost_right{(left,right,cost_left)}else{(right,left,cost_right)};
     if !cost.is_finite(){continue;}
+    if !preserves_surviving_faces(positions,&faces,keep,drop){continue;}
     let better=match best{None=>true,Some((best_cost,_,best_drop))=>cost<best_cost||(cost==best_cost&&drop<best_drop)};
     if better{best=Some((cost,keep,drop));}
    }
@@ -199,5 +217,13 @@ pub fn simplify_to_endpoints(positions:&[f32],indices:&[u32],target_triangles:us
   let result=simplify_to_endpoints(&CUBE_POSITIONS,&CUBE_INDICES,6).expect("cube");
   assert!(result.error_object.is_finite());
   assert_eq!(result.indices.len(),result.triangles*3);
+ }
+ #[test] fn concave_fan_preserves_face_orientation(){
+  let xy=[[2.,0.],[2.,1.],[1.,1.],[1.,2.],[0.,2.],[0.,0.],[0.5,0.5]];
+  let positions:Vec<f32>=xy.iter().flat_map(|p|[p[0],p[1],0.]).collect();
+  let mut indices=Vec::new();for i in 0..6u32{indices.extend([6,i,(i+1)%6]);}
+  for reduced in [simplify_to_endpoints(&positions,&indices,4).expect("endpoints"),simplify_fast(&positions,&indices,4).expect("meshopt")] {
+   for tri in reduced.indices.chunks_exact(3){let a=position(&positions,tri[0]);let b=position(&positions,tri[1]);let c=position(&positions,tri[2]);let area=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);assert!(area>1e-9,"flipped or degenerate face: {tri:?}");}
+  }
  }
 }
