@@ -4,6 +4,7 @@ mod cluster;
 mod qem;
 mod lod;
 mod dag;
+mod perf;
 mod accessor_validation;
 mod geometry_page;
 use std::{collections::{BTreeMap,BTreeSet},fmt::{Display,Formatter},fs::{self,File},io::{Read,Write,BufWriter,Seek,SeekFrom},path::{Path,PathBuf},sync::{Arc,atomic::{AtomicBool,Ordering}},time::Instant};
@@ -17,6 +18,12 @@ pub const DAG_CLUSTER_STRATEGY:&str="dag-groups";
 /// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
 /// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
 pub const CULLING_STRIDE:usize=15;
+/// Target size of one streaming bundle. A bundle is a single request that carries dozens of
+/// clusters of the same level that sit next to each other, so filling a cut costs hundreds of
+/// requests instead of tens of thousands. Clusters stay individually addressable through their own
+/// object and through their offset inside the bundle.
+pub const STREAM_BUNDLE_BYTES:usize=128*1024;
+pub const STRUCTURE_VERSION:u32=1;
 #[derive(Debug)] pub struct CompilerError {pub code:&'static str,pub message:String}
 impl CompilerError {fn new(code:&'static str,message:impl Into<String>)->Self{Self{code,message:message.into()}}}
 impl Display for CompilerError {fn fmt(&self,f:&mut Formatter<'_>)->std::fmt::Result{write!(f,"{}: {}",self.code,self.message)}}
@@ -241,6 +248,20 @@ fn load_runtime(o:&Options)->Result<RuntimeSource>{
  load_model_file(&o.source,&name,None)
 }
 fn atomic(path:&Path,data:&[u8])->Result<()>{let temp=path.with_extension(format!("tmp-{}-{:?}",std::process::id(),std::thread::current().id()));fs::write(&temp,data)?;fs::rename(temp,path)?;Ok(())}
+/// Content-addressed object store write.
+///
+/// The file name is the SHA-256 of its bytes, so a name always holds the same content. Creating the
+/// file exclusively never truncates an object another process already finished, and `clusters.json`
+/// — the only file that names an object — is published atomically once every object is on disk, so
+/// no reader can learn of an object before it is complete. Dropping the temp-file rename halves the
+/// directory work, which dominates a cache made of tens of thousands of small objects.
+fn store_object(path:&Path,data:&[u8])->Result<()>{
+ match fs::OpenOptions::new().write(true).create_new(true).open(path){
+  Ok(mut file)=>{file.write_all(data)?;Ok(())}
+  Err(error) if error.kind()==std::io::ErrorKind::AlreadyExists=>atomic(path,data),
+  Err(error)=>Err(error.into()),
+ }
+}
 fn check(o:&Options)->Result<()>{if o.cancelled.load(Ordering::Relaxed){return Err(CompilerError::new("CANCELLED","Compilation cancelled"))}Ok(())}
 struct SparseAccessor<'a>{count:usize,indices_bin:&'a [u8],indices_offset:usize,indices_component:usize,values_bin:&'a [u8],values_offset:usize}
 struct Accessor<'a>{bin:&'a [u8],base:usize,stride:usize,count:usize,component:usize,bytes:usize,width:usize,normalized:bool,has_buffer_view:bool,sparse:Option<SparseAccessor<'a>>}
@@ -427,7 +448,9 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
     if positions.count==0||positions.count%3!=0{return Err(invalid("Unindexed POSITION count must be a positive multiple of three"));}
     ((0..positions.count as u32).collect(),positions.count/3)
    };
-   let pos=positions.collect_f32()?;let topology=crate::topology::classify_topology(&index_values,positions.count)?;
+   let pos={let _t=perf::Timer::new(&perf::PHASES.decode);positions.collect_f32()?};
+   // The triangle adjacency only feeds the tree hierarchy; the DAG builds its own cluster graph.
+   let topology={let _t=perf::Timer::new(&perf::PHASES.topology);if dag_hierarchy{crate::topology::classify_topology_without_neighbors(&index_values,positions.count)?}else{crate::topology::classify_topology(&index_values,positions.count)?}};
    let is_skinned_or_morph=p.get("targets").is_some()||skinned_meshes.contains(old)||p.get("attributes").and_then(Value::as_object).map(|a|a.contains_key("JOINTS_0")||a.contains_key("WEIGHTS_0")).unwrap_or(false);
    let material=if let Some(material)=p.get("material"){let id=required_index(Some(material),"primitive.material")?;values(g,"materials")?.get(id)}else{None};
    let unsplit=is_skinned_or_morph||unsplit_material(material);
@@ -446,15 +469,15 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
    let store_packed=|slice:&[u32]|->Result<(Value,bool)>{
     let (data,flags,vertex_count)=geometry_page::encode(slice,&pos,&page_attributes)?;
     let digest=hash(&data);let name=format!("../../objects/{}.wgpg",digest);let target=o.cache.join("native").join("objects").join(format!("{}.wgpg",digest));
-    let reused=target.exists()&&hash_file(&target)?==digest;if !reused{atomic(&target,&data)?;}
+    let reused=target.exists()&&hash_file(&target)?==digest;if !reused{store_object(&target,&data)?;}
     Ok((json!({"url":name,"sha256":digest,"bytes":data.len(),"formatVersion":2,"codec":"meshopt","vertexCount":vertex_count,"indexCount":slice.len(),"flags":flags,"uncompressedBytes":vertex_count*geometry_page::STRIDE+slice.len()*2}),reused))
    };
    // Transparent primitives join the DAG too: their draw order is restored at runtime from the
    // recorded source rank, so spatial clustering no longer scrambles the blend order.
    let dag_primitive=dag_hierarchy&&!unsplit;
-   let mut dag_report=Value::Null;let mut culling_report=Value::Null;
+   let mut dag_report=Value::Null;let mut culling_report=Value::Null;let mut structure_report=Value::Null;let mut stream_report=Value::Null;
    if dag_primitive{
-    let (dag,tallies)=crate::dag::build_dag_tallied(&pos,&index_values,&||check(o))?;
+    let (dag,groups,tallies)=crate::dag::build_dag_tallied(&pos,&index_values,&||check(o))?;
     if dag.iter().filter(|c|c.level==0).map(|c|c.triangles()).sum::<usize>()!=index_values.len()/3{
      return Err(CompilerError::new("INCOMPLETE_CLUSTER_PARTITION","Level 0 clusters do not cover the source triangles"));
     }
@@ -470,25 +493,81 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      errors.sort_by(f64::total_cmp);
      level_stats.push(json!({"level":level,"clusters":errors.len(),"triangles":triangles,"roots":roots,"errorMin":errors[0],"errorMedian":errors[errors.len()/2],"errorMax":errors[errors.len()-1]}));
     }
-    let groups:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
-    dag_report=json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":level_stats,"groups":groups});
+    let group_stats:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
+    dag_report=json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":level_stats,"groups":group_stats});
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
-    let (order,culling)=crate::dag::build_culling_bvh(&pos,&dag);
-    for &slot in &order{
-     let cluster=&dag[slot];
-     check(o)?;
-     let mut bytes=Vec::with_capacity(cluster.indices.len()*4);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
-     for &id in &cluster.indices{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid cluster index"));}bytes.extend_from_slice(&id.to_le_bytes());for a in 0..3{let value=pos[index*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}
-     let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
-     if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{atomic(&target,&bytes)?;}
-     let (geometry,packed_reused)=store_packed(&cluster.indices)?;if packed_reused{reused+=1;}
-     let finite_parent=cluster.parent_error.is_finite();
-     pages.push(json!({"id":pages.len(),"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
-      "role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
-      "lodError":cluster.lod_error,"sphere":cluster.sphere,
-      "parentError":if finite_parent{json!(cluster.parent_error)}else{Value::Null},
-      "parentSphere":if finite_parent{json!(cluster.parent_sphere)}else{Value::Null}}));
+    let (order,culling)={let _t=perf::Timer::new(&perf::PHASES.culling);crate::dag::build_culling_bvh(&pos,&dag)};
+    let base_id=pages.len();
+    let mut page_of=vec![0usize;dag.len()];
+    for (rank,&slot) in order.iter().enumerate(){page_of[slot]=base_id+rank;}
+    // Bundles group clusters of one level that the culling order already placed next to each other.
+    // Root clusters come first and form their own bundles, so the coarsest complete cover of the
+    // primitive is a handful of pinned requests.
+    let mut bundle_order:Vec<usize>=(0..order.len()).collect();
+    bundle_order.sort_by_key(|&rank|{let cluster=&dag[order[rank]];(if cluster.is_root(){0u8}else{1u8},cluster.level,rank)});
+    let mut bundles:Vec<Vec<usize>>=Vec::new();
+    {
+     let mut current:Vec<usize>=Vec::new();let mut held=0usize;let mut key=None;
+     for &rank in &bundle_order{
+      let cluster=&dag[order[rank]];
+      let next_key=(cluster.is_root(),cluster.level);
+      let size=cluster.indices.len()*4;
+      if !current.is_empty()&&(key!=Some(next_key)||held+size>STREAM_BUNDLE_BYTES){bundles.push(std::mem::take(&mut current));held=0;}
+      key=Some(next_key);current.push(rank);held+=size;
+     }
+     if !current.is_empty(){bundles.push(current);}
     }
+    let pinned_bundles=bundles.iter().take_while(|bundle|dag[order[bundle[0]]].is_root()).count();
+    struct Bundle{url:String,digest:String,bytes:usize,count:usize,pages:Vec<(usize,Value)>,reused:i32}
+    let built:Vec<Bundle>=bundles.par_iter().enumerate().map(|(bundle_index,members)|->Result<Bundle>{
+     check(o)?;
+     let mut payload=Vec::new();
+     let mut emitted=Vec::with_capacity(members.len());
+     let mut reused=0i32;
+     for &rank in members{
+      let cluster=&dag[order[rank]];
+      let offset=payload.len();
+      let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
+      {let _t=perf::Timer::new(&perf::PHASES.page_bytes);
+       for &id in &cluster.indices{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid cluster index"));}payload.extend_from_slice(&id.to_le_bytes());for a in 0..3{let value=pos[index*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
+      let bytes=&payload[offset..];
+      let digest={let _t=perf::Timer::new(&perf::PHASES.page_hash);hash(bytes)};
+      let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
+      {let _t=perf::Timer::new(&perf::PHASES.page_write);if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{store_object(&target,bytes)?;}}
+      let (geometry,packed_reused)={let _t=perf::Timer::new(&perf::PHASES.page_packed);store_packed(&cluster.indices)?};if packed_reused{reused+=1;}
+      let finite_parent=cluster.parent_error.is_finite();
+      emitted.push((base_id+rank,json!({"id":base_id+rank,"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
+       "role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
+       "lodError":cluster.lod_error,"sphere":cluster.sphere,
+       "parentError":if finite_parent{json!(cluster.parent_error)}else{Value::Null},
+       "parentSphere":if finite_parent{json!(cluster.parent_sphere)}else{Value::Null},
+       "group":match cluster.group{Some(index)=>json!(index),None=>Value::Null},
+       "source":match cluster.source{Some(index)=>json!(index),None=>Value::Null},
+       "stream":bundle_index,"streamOffset":offset})));
+     }
+     let digest={let _t=perf::Timer::new(&perf::PHASES.page_hash);hash(&payload)};
+     let target=o.cache.join("native").join("objects").join(format!("{}.wgsb",digest));
+     {let _t=perf::Timer::new(&perf::PHASES.page_write);if !(target.exists()&&hash_file(&target)?==digest){store_object(&target,&payload)?;}}
+     Ok(Bundle{url:format!("../../objects/{}.wgsb",digest),digest,bytes:payload.len(),count:members.len(),pages:emitted,reused})
+    }).collect::<Result<Vec<_>>>()?;
+    let mut ordered:Vec<Option<Value>>=vec![None;order.len()];
+    let mut streams=Vec::with_capacity(built.len());
+    for bundle in built{
+     reused+=bundle.reused;
+     streams.push(json!({"url":bundle.url,"sha256":bundle.digest,"bytes":bundle.bytes,"count":bundle.count}));
+     for (id,page) in bundle.pages{ordered[id-base_id]=Some(page);}
+    }
+    pages.reserve(ordered.len());
+    for page in ordered{pages.push(page.ok_or_else(||CompilerError::new("INVALID_CLUSTER_PARTITION","A cluster was not bundled"))?);}
+    stream_report=json!({"version":STRUCTURE_VERSION,"pinned":pinned_bundles,"bundleBytes":STREAM_BUNDLE_BYTES,"pages":streams});
+    let mut roots:Vec<usize>=dag.iter().enumerate().filter(|(_,cluster)|cluster.is_root()).map(|(slot,_)|page_of[slot]).collect();
+    roots.sort_unstable();
+    let structure_groups:Vec<Value>=groups.iter().map(|group|json!({
+     "level":group.level,"error":group.error,"sphere":group.sphere,
+     "children":group.children.iter().map(|&slot|page_of[slot]).collect::<Vec<_>>(),
+     "outputs":group.outputs.iter().map(|&slot|page_of[slot]).collect::<Vec<_>>(),
+    })).collect();
+    structure_report=json!({"version":STRUCTURE_VERSION,"roots":roots,"groups":structure_groups});
     // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
     let mut flat=Vec::with_capacity(culling.len()*CULLING_STRIDE);
     for node in &culling{
@@ -501,11 +580,11 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
     }
     culling_report=json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
    }else if !unsplit{let clusters=primitive_strategy.clusters(&index_values,&topology.neighbors)?;let mut seen=vec![false;index_values.len()/3];let mut cluster_page_ids=Vec::new();for cluster in &clusters{check(o)?;if cluster.is_empty(){return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}let mut bytes=Vec::with_capacity(cluster.len()*12);let mut page_indices=Vec::with_capacity(cluster.len()*3);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];for &triangle in cluster{if triangle>=seen.len()||seen[triangle]{return Err(CompilerError::new("INVALID_CLUSTER_PARTITION","Cluster partitions must cover ordered triangles exactly"))}seen[triangle]=true;for k in 0..3{let id=index_values[triangle*3+k] as usize;if id*3+2>=pos.len(){return Err(invalid("Invalid index"));}page_indices.push(id as u32);bytes.extend_from_slice(&(id as u32).to_le_bytes());for a in 0..3{let value=pos[id*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
-    let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{atomic(&target,&bytes)?;}let (geometry,packed_reused)=store_packed(&page_indices)?;if packed_reused{reused+=1;}cluster_page_ids.push(pages.len());pages.push(json!({"id":pages.len(),"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.len()*3,"start":cluster[0]*3,"min":min,"max":max,"role":"exact","geometry":geometry}));}if seen.iter().any(|flag|!*flag){return Err(CompilerError::new("INCOMPLETE_CLUSTER_PARTITION","Cluster partitions omitted source indices"))}
+    let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{store_object(&target,&bytes)?;}let (geometry,packed_reused)=store_packed(&page_indices)?;if packed_reused{reused+=1;}cluster_page_ids.push(pages.len());pages.push(json!({"id":pages.len(),"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.len()*3,"start":cluster[0]*3,"min":min,"max":max,"role":"exact","geometry":geometry}));}if seen.iter().any(|flag|!*flag){return Err(CompilerError::new("INCOMPLETE_CLUSTER_PARTITION","Cluster partitions omitted source indices"))}
     let write_coarse=|slice:&[u32],pages:&mut Vec<Value>,reused:&mut i32|->Result<usize>{
      check(o)?;let mut bytes=Vec::with_capacity(slice.len()*4);let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
      for &id in slice{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid coarse index"));}bytes.extend_from_slice(&id.to_le_bytes());for a in 0..3{let value=pos[index*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}
-     let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));if target.exists()&&hash_file(&target)?==digest{*reused+=1;}else{atomic(&target,&bytes)?;}
+     let digest=hash(&bytes);let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));if target.exists()&&hash_file(&target)?==digest{*reused+=1;}else{store_object(&target,&bytes)?;}
      let (geometry,packed_reused)=store_packed(slice)?;if packed_reused{*reused+=1;}
      let id=pages.len();pages.push(json!({"id":id,"url":name,"sha256":digest,"bytes":bytes.len(),"count":slice.len(),"start":0,"min":min,"max":max,"role":"coarse","geometry":geometry}));Ok(id)
     };
@@ -540,7 +619,7 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
      tree
     };
    }
-   progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{DAG_CLUSTER_STRATEGY}else{primitive_strategy.id()},"hierarchy":tree,"dag":dag_report,"culling":culling_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
+   progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));Ok(json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{DAG_CLUSTER_STRATEGY}else{primitive_strategy.id()},"hierarchy":tree,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}))}).collect::<Result<Vec<_>>>())?;
   let mut source=g.clone();let mut output_meshes=Vec::new();
   for id in &meshes{
    let mut mesh=item(values(&source,"meshes")?,*id,"mesh")?.clone();
@@ -611,8 +690,8 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
   }
   let mut unsupported=vec!["hard RSS enforcement","N-API binding"];if o.simplification=="none"{unsupported.insert(0,"simplification");}
   let cache_format=if primitives.iter().any(|primitive|primitive["pass"]=="clustered-blend"){CLUSTERED_BLEND_FORMAT_VERSION}else{FORMAT_VERSION};
-  let result=json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":error_model,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":if dag_hierarchy{DAG_CLUSTER_STRATEGY}else{strategy.id()},"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
- atomic(&directory.join("clusters.json"),&serde_json::to_vec(&result)?)?;atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
+  let result=json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":error_model,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":if dag_hierarchy{DAG_CLUSTER_STRATEGY}else{strategy.id()},"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+ {let _t=perf::Timer::new(&perf::PHASES.manifest);atomic(&directory.join("clusters.json"),&serde_json::to_vec(&result)?)?;}atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
 }
 #[cfg(test)] mod tests {use super::*;use std::time::{SystemTime,UNIX_EPOCH};use std::sync::atomic::AtomicU64;
  static NEXT_FIXTURE_ID:AtomicU64=AtomicU64::new(0);
@@ -708,6 +787,81 @@ pub fn compile(o:&Options,strategy:&dyn ClusterStrategy,progress:impl Fn(Value)+
    }
   }
   assert!(covered.iter().all(|&n|n==1),"every page belongs to exactly one culling leaf");
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn compile_dag_bundles_clusters_for_streaming_and_names_their_group(){
+  let (root,mut options)=grid_fixture_displaced(100,100,3.0);
+  options.hierarchy="dag".into();
+  let result=compile(&options,&Exact256,|_|{}).expect("compile");
+  let primitive=&result["primitives"][0];
+  let directory=options.cache.join("native/full").join(result["key"].as_str().expect("key"));
+  let pages=primitive["pages"].as_array().expect("pages");
+  let streams=&primitive["streams"];
+  assert_eq!(streams["version"],STRUCTURE_VERSION);
+  let bundles=streams["pages"].as_array().expect("bundles");
+  assert!(bundles.len()>1,"a 20 000 triangle grid must need several bundles");
+  assert!(bundles.len()*30<pages.len(),"a bundle must carry dozens of clusters");
+  let pinned=streams["pinned"].as_u64().expect("pinned") as usize;
+  assert!(pinned>=1&&pinned<=bundles.len());
+  // Every page sits in exactly one bundle, at the recorded offset, and bundles stay homogeneous.
+  let mut members:Vec<Vec<usize>>=vec![Vec::new();bundles.len()];
+  for (id,page) in pages.iter().enumerate(){
+   let bundle=page["stream"].as_u64().expect("stream") as usize;
+   assert!(bundle<bundles.len());
+   members[bundle].push(id);
+  }
+  assert_eq!(members.iter().map(Vec::len).sum::<usize>(),pages.len());
+  for (index,bundle) in bundles.iter().enumerate(){
+   assert!(!members[index].is_empty());
+   let level=pages[members[index][0]]["level"].clone();
+   let is_root=pages[members[index][0]]["parentError"].is_null();
+   assert_eq!(index<pinned,is_root,"pinned bundles are exactly the ones holding the coarsest cover");
+   let payload=fs::read(directory.join(bundle["url"].as_str().expect("bundle URL"))).expect("bundle");
+   assert_eq!(payload.len() as u64,bundle["bytes"].as_u64().expect("bytes"));
+   assert_eq!(bundle["count"].as_u64().expect("count") as usize,members[index].len());
+   let mut covered=0usize;
+   for &id in &members[index]{
+    assert_eq!(pages[id]["level"],level,"a bundle holds one level");
+    assert_eq!(pages[id]["parentError"].is_null(),is_root);
+    let offset=pages[id]["streamOffset"].as_u64().expect("offset") as usize;
+    let length=pages[id]["count"].as_u64().expect("count") as usize*4;
+    let single=fs::read(directory.join(pages[id]["url"].as_str().expect("page URL"))).expect("page");
+    assert_eq!(single.len(),length);
+    assert_eq!(&payload[offset..offset+length],&single[..],"a cluster must be readable at its offset in the bundle");
+    covered+=length;
+   }
+   assert_eq!(covered,payload.len(),"a bundle is exactly its clusters");
+  }
+  // The structure links every cluster to the group that replaces it and lists the coarse cover.
+  let structure=&primitive["structure"];
+  assert_eq!(structure["version"],STRUCTURE_VERSION);
+  let roots=structure["roots"].as_array().expect("roots");
+  assert!(!roots.is_empty());
+  for entry in roots{assert!(pages[entry.as_u64().expect("root id") as usize]["parentError"].is_null());}
+  let groups=structure["groups"].as_array().expect("groups");
+  assert!(!groups.is_empty());
+  let mut owned=vec![0usize;pages.len()];
+  for (index,group) in groups.iter().enumerate(){
+   let children=group["children"].as_array().expect("children");
+   let outputs=group["outputs"].as_array().expect("outputs");
+   assert!(!children.is_empty()&&!outputs.is_empty());
+   for child in children{
+    let id=child.as_u64().expect("child id") as usize;owned[id]+=1;
+    assert_eq!(pages[id]["group"].as_u64().expect("group") as usize,index);
+    assert_eq!(pages[id]["parentError"],group["error"]);
+    assert_eq!(pages[id]["parentSphere"],group["sphere"]);
+   }
+   for output in outputs{
+    let id=output.as_u64().expect("output id") as usize;
+    assert_eq!(pages[id]["lodError"],group["error"]);
+    assert_eq!(pages[id]["sphere"],group["sphere"]);
+    assert_eq!(pages[id]["source"].as_u64().expect("source") as usize,index);
+   }
+  }
+  for (id,page) in pages.iter().enumerate(){
+   assert_eq!(owned[id],if page["parentError"].is_null(){0}else{1});
+   assert_eq!(page["source"].is_null(),page["level"]==0,"only level 0 has no producing group");
+  }
   fs::remove_dir_all(root).expect("cleanup");
  }
  #[test] fn compile_dag_covers_transparent_primitives_and_records_their_source_rank(){

@@ -1,6 +1,6 @@
 import {replicateInstances} from './replicateInstances.ts';
 export {replicateInstances} from './replicateInstances.ts';
-import {collectClusterPages,collectPendingUrls,indexPagesByUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,trimToBudget,type PageRec} from './pageSelection.ts';
 import {assertCacheIdentity,assertFormat,DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
 import {detectCapabilities} from './capabilities.ts';
 import {checked,loadClusterPages} from './clusterPages.ts';
@@ -68,7 +68,7 @@ export const referenceBackend:BackendFactory=({source,sceneLighting,clearColor=D
 type PageBatch={key:number;mesh?:THREE.Mesh;geometry?:THREE.BufferGeometry;index:Uint32Array;attr?:THREE.BufferAttribute;signature:number;attached:boolean};
 export const exactPagesBackend:BackendFactory=(context)=>{
  const {source,metadata,indices,associations,maxResidentPages,viewport,clearColor=DEFAULT_CLEAR_COLOR}=context;
- const {roots,allPages,blendCopies,prepared}=collectClusterPages(source,metadata,indices,associations);
+ const {roots,allPages,blendCopies,bootstrap,prepared}=collectClusterPages(source,metadata,indices,associations);
  const cap=maxResidentPages??Math.max(1024,prepared),scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,context.sceneLighting??source);const shown:PageRec[]=[],desired:PageRec[]=[],attached:PageRec[]=[];
  const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[],batches=new Map<number,PageBatch>();
  const groups=new Map<number,PageRec[]>(),groupPool:PageRec[][]=[];
@@ -150,11 +150,19 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  return {setDiagnostic(mode){diagnostic=mode;paintBlend();syncResident();},id:'exact-cluster-pages',capabilities:{...baseCapabilities,hierarchy:true,eviction:true,unsupported:baseCapabilities.unsupported.filter(item=>item!=='bounded GPU eviction')},scene,async prepare(){},
   get overBudget(){return overBudget;},
   refreshSceneLighting:()=>sceneLights.refresh(),
-  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;const selected=selectVisiblePages(roots,camera,{pixelError:resolvePixelError(context,camera,motion),viewport,frame,holdResident:true},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);const trimmed=trimToBudget(selected.shown,cap);overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}syncResident();},
-  pendingUrls(){return collectPendingUrls(desired.length?desired:shown,pendingScratch);},
-  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [shown,desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
-  acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;if(!indexByUrl.has(url))indexByUrl.set(url,new THREE.BufferAttribute(array,1));for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}},
-  dropPage(url){const recs=byUrl.get(url);if(!recs)return;indexByUrl.delete(url);for(let i=0;i<recs.length;i++){const rec=recs[i];rec.array=undefined;rec.indexBytes=rec.triangles*12;if(rec.geometry){disposeGeometry(rec.geometry);rec.geometry=undefined;}if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}rec.mesh=undefined;}},
+  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;const selected=selectVisiblePages(roots,camera,{pixelError:resolvePixelError(context,camera,motion),viewport,frame,holdResident:true,pageBudget:cap},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);// Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
+   // Selection already answered the budget with a coarser threshold, so the cover is kept whole and
+   // only the flag is raised when even the coarsest cover exceeds the budget.
+   const trimmed=bootstrap.length?{shown:selected.shown,overBudget:selected.shown.length>cap,visible:selected.shown.length,selectedTriangles:selected.selectedTriangles}:trimToBudget(selected.shown,cap);overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}syncResident();},
+  pendingUrls(){
+   // The root cover is requested first and never dropped: it is what the cut falls back on.
+   const missingRoots=bootstrap.filter(rec=>!rec.array);
+   if(missingRoots.length)return collectPendingUrls(missingRoots,pendingScratch);
+   return collectPendingUrls(desired.length?desired:shown,pendingScratch);
+  },
+  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [bootstrap,shown,desired])for(let i=0;i<list.length;i++){const url=pageRequestUrl(list[i]);if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
+  acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;acceptPageArray(recs,array);},
+  dropPage(url){const recs=byUrl.get(url);if(!recs)return;for(let i=0;i<recs.length;i++){const rec=recs[i];indexByUrl.delete(rec.url);rec.array=undefined;rec.indexBytes=rec.triangles*12;if(rec.geometry){disposeGeometry(rec.geometry);rec.geometry=undefined;}if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}rec.mesh=undefined;}},
   syncResident,
   metrics(){metricsSeen.clear();let bytes=0;if(diagnostic==='beauty'){for(const batch of batches.values())if(batch.geometry)bytes+=geometryBytes(batch.geometry,metricsSeen);}else{for(const rec of attached)if(rec.geometry)bytes+=geometryBytes(rec.geometry,metricsSeen);}
    let draws=blendCopies.length,submitted=0;if(diagnostic==='beauty'){for(const batch of batches.values())if(batch.attached){draws++;submitted+=(batch.geometry?.drawRange.count??0)/3;}}else{for(let i=0;i<attached.length;i++)if(attached[i].attached){draws++;submitted+=attached[i].triangles;}}
@@ -209,9 +217,13 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
   const pageIdByUrl=new Map([...pages.map(page=>[page.url,page.id] as const),...metadata.primitives.flatMap(p=>p.pages).filter(page=>!!page.geometry).map(page=>[page.geometry!.url,page.id] as const)]);
   const exactPages=pages.filter(page=>(page.role??'exact')!=='coarse');
   const preload=options.preload??'visible';
-  const attachCap=options.maxResidentPages??Math.max(1024,exactPages.length*(options.replicaCount??1));
-  const cacheCap=options.maxCachedPages??Math.max(8192,Math.min(attachCap,DEFAULT_CACHED_PAGES));
-  const streamer=createPageStreamer([...pages,...geometryPages],base,signal,options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,cacheCap,url=>{for(const b of backends)b.dropPage?.(url);},options.maxPageTransferBytes,diagnosticChannel.detail==='trace'&&diagnosticChannel.enabled?diagnosticChannel.emit:undefined);
+  // A cluster DAG cuts far below its exact page count, but the cut moves every frame: the resident
+  // set must be a superset of it or the cache thrashes. Twice the expected cut, floored at 32768.
+  const bundles=[...new Map(metadata.primitives.flatMap(p=>p.streams?.pages??[]).map(bundle=>[bundle.url,bundle])).values()];
+  const dagPages=bundles.length>0;
+  const attachCap=options.maxResidentPages??(dagPages?Math.max(32768,exactPages.length*2*(options.replicaCount??1)):Math.max(1024,exactPages.length*(options.replicaCount??1)));
+  const cacheCap=options.maxCachedPages??(dagPages?Math.max(8192,bundles.length*2):Math.max(8192,Math.min(attachCap,DEFAULT_CACHED_PAGES)));
+  const streamer=createPageStreamer([...pages,...geometryPages,...bundles],base,signal,options.pageFetchWorkers??DEFAULT_PAGE_WORKERS,cacheCap,url=>{for(const b of backends)b.dropPage?.(url);},options.maxPageTransferBytes,diagnosticChannel.detail==='trace'&&diagnosticChannel.enabled?diagnosticChannel.emit:undefined,options.maxCachedBytes);
   let loaded=0,pageBytesRead=0;
   const indices=new Map<string,Uint32Array>();
   if(preload==='all'&&!autonomous){const all=await loadClusterPages(pages,base,signal,(completed,total)=>progress('pages',completed,total,'Lecture et vérification des pages exactes et LOD'),options.pageFetchWorkers??DEFAULT_PAGE_WORKERS);for(const [url,array] of all.indices)indices.set(url,array);loaded=all.loaded;pageBytesRead=all.pageBytesRead;}

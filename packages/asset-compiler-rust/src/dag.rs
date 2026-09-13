@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use crate::{invalid,Result};
 use crate::qem::simplify_with_locked_vertices;
 use rayon::prelude::*;
+use crate::perf::{PHASES,Timer};
 
 /// Triangles per cluster. Matches the page budget used by the exact path.
 pub const DAG_CLUSTER_TRIANGLES:usize=128;
@@ -43,6 +44,11 @@ pub struct DagCluster{
  /// Earliest source triangle this cluster descends from. Keeps a transparent draw order close to
  /// the source order, which spatial clustering would otherwise scramble.
  pub source_rank:u32,
+ /// Group that replaces this cluster, `None` for a root. The runtime swaps a whole group at once.
+ pub group:Option<usize>,
+ /// Group whose simplification produced this cluster, `None` at level 0. Coarsening a group means
+ /// coarsening every group that produced its children, so the runtime needs both links.
+ pub source:Option<usize>,
 }
 impl DagCluster{
  pub fn triangles(&self)->usize{self.indices.len()/3}
@@ -276,6 +282,19 @@ pub fn level_locks(weld:&[u32],clusters:&[&[u32]],groups:&[Vec<usize>])->Vec<boo
 }
 
 struct GroupReduction{error:f64,sphere:[f64;4],clusters:Vec<Vec<u32>>,source_rank:u32}
+/// One reduction of the DAG, kept so the runtime can swap a whole group at once.
+///
+/// `children` is the fine representation of the group's surface, `outputs` the coarse one its
+/// simplification produced. Either one covers the group exactly, never both, so a runtime that
+/// cannot show every child can fall back to the outputs without a hole and without drawing twice.
+#[derive(Clone,Debug)]
+pub struct DagGroup{
+ pub level:usize,
+ pub error:f64,
+ pub sphere:[f64;4],
+ pub children:Vec<usize>,
+ pub outputs:Vec<usize>,
+}
 /// Why a group did not produce a coarser level. Its clusters then become roots.
 #[derive(Clone,Copy,PartialEq,Eq,Debug)]
 pub enum GroupOutcome{Reduced,TooSmall,NoCollapse,BorderLost,UnusableError}
@@ -311,7 +330,7 @@ fn reduce_group(input:&GroupReductionInput,children:&[&DagCluster])->Result<std:
  let triangles=merged.len()/3;
  if triangles<2{return Ok(Err(GroupOutcome::TooSmall));}
  let locks=input.locks;
- let simplified=simplify_with_locked_vertices(positions,&merged,triangles/2,SIMPLIFY_ERROR_CEILING,&|vertex|locks.get(vertex as usize).copied().unwrap_or(true))?;
+ let simplified={let _t=Timer::new(&PHASES.simplify);simplify_with_locked_vertices(positions,&merged,triangles/2,SIMPLIFY_ERROR_CEILING,&|vertex|locks.get(vertex as usize).copied().unwrap_or(true))?};
  if simplified.triangles>=triangles||simplified.indices.is_empty(){return Ok(Err(GroupOutcome::NoCollapse));}
  // Every vertex shared with another group must survive, or the two groups no longer meet.
  let weld=input.weld;
@@ -322,7 +341,7 @@ fn reduce_group(input:&GroupReductionInput,children:&[&DagCluster])->Result<std:
  }
  let error=simplified.error_object.max(child_error);
  if !error.is_finite(){return Ok(Err(GroupOutcome::UnusableError));}
- let clusters=cluster_triangles(positions,&simplified.indices,DAG_CLUSTER_TRIANGLES)?;
+ let clusters={let _t=Timer::new(&PHASES.resplit);cluster_triangles(positions,&simplified.indices,DAG_CLUSTER_TRIANGLES)?};
  Ok(Ok(GroupReduction{error,sphere,clusters,source_rank}))
 }
 
@@ -331,10 +350,10 @@ fn reduce_group(input:&GroupReductionInput,children:&[&DagCluster])->Result<std:
 pub fn build_dag(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->Result<()>+Sync))->Result<Vec<DagCluster>>{
  Ok(build_dag_tallied(positions,indices,checkpoint)?.0)
 }
-/// Same build, plus the per-level group tally.
-pub fn build_dag_tallied(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->Result<()>+Sync))->Result<(Vec<DagCluster>,Vec<GroupTally>)>{
+/// Same build, plus the groups that produced it and the per-level tally.
+pub fn build_dag_tallied(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->Result<()>+Sync))->Result<(Vec<DagCluster>,Vec<DagGroup>,Vec<GroupTally>)>{
  checkpoint()?;
- let weld=weld_positions(positions,indices);
+ let weld={let _t=Timer::new(&PHASES.weld);weld_positions(positions,indices)};
  // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
  let mut first_use=vec![u32::MAX;positions.len()/3];
  for (offset,&vertex) in indices.iter().enumerate(){
@@ -342,22 +361,24 @@ pub fn build_dag_tallied(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->
   if slot<first_use.len()&&first_use[slot]==u32::MAX{first_use[slot]=(offset/3) as u32;}
  }
  let mut dag:Vec<DagCluster>=Vec::new();
- for cluster in cluster_triangles(positions,indices,DAG_CLUSTER_TRIANGLES)?{
+ let level0={let _t=Timer::new(&PHASES.cluster_level0);cluster_triangles(positions,indices,DAG_CLUSTER_TRIANGLES)?};
+ for cluster in level0{
   let sphere=bounding_sphere(positions,&cluster);
   let source_rank=cluster.iter().map(|&v|first_use.get(v as usize).copied().unwrap_or(u32::MAX)).min().unwrap_or(0);
-  dag.push(DagCluster{indices:cluster,level:0,lod_error:0.0,parent_error:f64::INFINITY,sphere,parent_sphere:sphere,replacement:None,source_rank});
+  dag.push(DagCluster{indices:cluster,level:0,lod_error:0.0,parent_error:f64::INFINITY,sphere,parent_sphere:sphere,replacement:None,source_rank,group:None,source:None});
  }
  let mut tallies:Vec<GroupTally>=Vec::new();
+ let mut reductions_kept:Vec<DagGroup>=Vec::new();
  let mut current:Vec<usize>=(0..dag.len()).collect();
  for level in 1..=DAG_MAX_LEVELS{
   checkpoint()?;
   if current.len()<2{break;}
   let lists:Vec<&[u32]>=current.iter().map(|&id|dag[id].indices.as_slice()).collect();
-  let adjacency_by_slot=cluster_adjacency(&lists);
+  let adjacency_by_slot={let _t=Timer::new(&PHASES.adjacency);cluster_adjacency(&lists)};
   let centres:Vec<[f64;3]>=current.iter().map(|&id|{let s=dag[id].sphere;[s[0],s[1],s[2]]}).collect();
-  let groups=group_clusters(&centres,&adjacency_by_slot,DAG_GROUP_MAX);
+  let groups={let _t=Timer::new(&PHASES.grouping);group_clusters(&centres,&adjacency_by_slot,DAG_GROUP_MAX)};
   if groups.len()>=current.len(){break;}
-  let locks=level_locks(&weld,&lists,&groups);
+  let locks={let _t=Timer::new(&PHASES.locks);level_locks(&weld,&lists,&groups)};
   let input=GroupReductionInput{positions,locks:&locks,weld:&weld};
   let reductions:Vec<std::result::Result<GroupReduction,GroupOutcome>>=groups.par_iter().map(|group|->Result<std::result::Result<GroupReduction,GroupOutcome>>{
    checkpoint()?;
@@ -369,16 +390,23 @@ pub fn build_dag_tallied(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->
   for (group,reduction) in groups.iter().zip(reductions){
    let reduction=match reduction{Ok(reduction)=>{tally.record(GroupOutcome::Reduced);reduction}Err(outcome)=>{tally.record(outcome);continue}};
    let first_parent=dag.len();
+   let group_index=reductions_kept.len();
+   let mut children=Vec::with_capacity(group.len());
    for &slot in group{
     let id=current[slot];
     dag[id].parent_error=reduction.error;
     dag[id].parent_sphere=reduction.sphere;
     dag[id].replacement=Some(first_parent);
+    dag[id].group=Some(group_index);
+    children.push(id);
    }
+   let mut outputs=Vec::with_capacity(reduction.clusters.len());
    for cluster in reduction.clusters{
+    outputs.push(dag.len());
     next.push(dag.len());
-    dag.push(DagCluster{indices:cluster,level,lod_error:reduction.error,parent_error:f64::INFINITY,sphere:reduction.sphere,parent_sphere:reduction.sphere,replacement:None,source_rank:reduction.source_rank});
+    dag.push(DagCluster{indices:cluster,level,lod_error:reduction.error,parent_error:f64::INFINITY,sphere:reduction.sphere,parent_sphere:reduction.sphere,replacement:None,source_rank:reduction.source_rank,group:None,source:Some(group_index)});
    }
+   reductions_kept.push(DagGroup{level,error:reduction.error,sphere:reduction.sphere,children,outputs});
   }
   tallies.push(tally);
   if next.is_empty(){break;}
@@ -386,32 +414,7 @@ pub fn build_dag_tallied(positions:&[f32],indices:&[u32],checkpoint:&(dyn Fn()->
   current=next;
   if !progressed{break;}
  }
- Ok((prune_never_drawn(dag),tallies))
-}
-
-/// A cluster whose replacement carries the same error and the same bounds is never drawn: its band
-/// `lodError <= t < parentError` is empty. Its children keep the very same band boundary, so it can
-/// be dropped without touching the cut. Halves the pages a stalled group would otherwise emit.
-fn prune_never_drawn(dag:Vec<DagCluster>)->Vec<DagCluster>{
- // Level 0 always stays: it is the exact cover of the source triangles, drawn or not.
- let dead:Vec<bool>=dag.iter().map(|c|c.level>0&&c.parent_error.is_finite()&&c.parent_error==c.lod_error&&c.parent_sphere==c.sphere).collect();
- if !dead.iter().any(|flag|*flag){return dag;}
- let mut mapped=vec![usize::MAX;dag.len()];
- let mut kept=0usize;
- for (id,is_dead) in dead.iter().enumerate(){if !is_dead{mapped[id]=kept;kept+=1;}}
- let resolve=|start:usize|->Option<usize>{
-  let mut id=start;
-  for _ in 0..=dag.len(){
-   if !dead[id]{return Some(mapped[id]);}
-   id=dag[id].replacement?;
-  }
-  None
- };
- dag.iter().enumerate().filter(|(id,_)|!dead[*id]).map(|(_,cluster)|{
-  let mut kept=cluster.clone();
-  kept.replacement=cluster.replacement.and_then(resolve);
-  kept
- }).collect()
+ Ok((dag,reductions_kept,tallies))
 }
 
 // ---------------------------------------------------------------- culling hierarchy
@@ -651,7 +654,7 @@ pub fn build_culling_bvh(positions:&[f32],clusters:&[DagCluster])->(Vec<usize>,V
 
   let children:Vec<DagCluster>=clusters.iter().enumerate().map(|(i,indices)|{
    let sphere=bounding_sphere(&positions,indices);
-   DagCluster{indices:indices.clone(),level:0,lod_error:0.0,parent_error:f64::INFINITY,sphere,parent_sphere:sphere,replacement:None,source_rank:i as u32}
+   DagCluster{indices:indices.clone(),level:0,lod_error:0.0,parent_error:f64::INFINITY,sphere,parent_sphere:sphere,replacement:None,source_rank:i as u32,group:None,source:None}
   }).collect();
   let group:Vec<&DagCluster>=groups[0].iter().map(|&slot|&children[slot]).collect();
   let merged:Vec<u32>=group.iter().flat_map(|c|c.indices.iter().copied()).collect();
@@ -678,7 +681,7 @@ pub fn build_culling_bvh(positions:&[f32],clusters:&[DagCluster])->(Vec<usize>,V
   assert!(locks.iter().all(|&locked|!locked),"a single group locks nothing");
   let children:Vec<DagCluster>=clusters.iter().map(|indices|{
    let sphere=bounding_sphere(&positions,indices);
-   DagCluster{indices:indices.clone(),level:0,lod_error:0.0,parent_error:f64::INFINITY,sphere,parent_sphere:sphere,replacement:None,source_rank:0}
+   DagCluster{indices:indices.clone(),level:0,lod_error:0.0,parent_error:f64::INFINITY,sphere,parent_sphere:sphere,replacement:None,source_rank:0,group:None,source:None}
   }).collect();
   let group:Vec<&DagCluster>=children.iter().collect();
   let input=GroupReductionInput{positions:&positions,locks:&locks,weld:&weld};
@@ -687,11 +690,54 @@ pub fn build_culling_bvh(positions:&[f32],clusters:&[DagCluster])->(Vec<usize>,V
   assert!(produced<=indices.len()/6,"an unlocked sheet must reach the 50% target, got {produced}");
  }
 
- #[test] fn a_cluster_that_could_never_be_drawn_is_not_kept(){
-  let (_,_,dag)=build(160);
-  for cluster in &dag{
-   if cluster.level==0{continue;}
-   assert!(!(cluster.parent_error.is_finite()&&cluster.parent_error==cluster.lod_error&&cluster.parent_sphere==cluster.sphere),"a cluster with an empty selection band survived");
+ #[test] fn every_group_owns_its_children_and_its_coarse_replacement(){
+  let (positions,indices)=grid(160);
+  let (dag,groups,_)=build_dag_tallied(&positions,&indices,&||Ok(())).expect("dag");
+  assert!(!groups.is_empty());
+  let mut owned=vec![0usize;dag.len()];
+  let mut produced=vec![0usize;dag.len()];
+  for (index,group) in groups.iter().enumerate(){
+   assert!(!group.children.is_empty()&&!group.outputs.is_empty());
+   for &child in &group.children{
+    owned[child]+=1;
+    assert_eq!(dag[child].group,Some(index),"a cluster must name the group that replaces it");
+    assert_eq!(dag[child].parent_error,group.error);
+    assert_eq!(dag[child].parent_sphere,group.sphere);
+   }
+   for &output in &group.outputs{
+    produced[output]+=1;
+    assert_eq!(dag[output].lod_error,group.error,"an output carries the error of the group that made it");
+    assert_eq!(dag[output].sphere,group.sphere);
+    assert_eq!(dag[output].level,group.level);
+    assert_eq!(dag[output].source,Some(index),"an output must name the group that made it");
+   }
+  }
+  for (index,cluster) in dag.iter().enumerate(){
+   assert_eq!(owned[index],if cluster.is_root(){0}else{1},"a cluster belongs to exactly one group unless it is a root");
+   assert!(produced[index]<=1,"a cluster is produced by at most one group");
+   assert_eq!(produced[index]==0,cluster.level==0,"only level 0 has no producing group");
+  }
+ }
+
+ #[test] fn a_group_and_its_replacement_cover_the_same_triangles_once(){
+  // Fallback safety: swapping a group's children for its outputs must not leave or duplicate area.
+  let (positions,indices)=grid(160);
+  let (dag,groups,_)=build_dag_tallied(&positions,&indices,&||Ok(())).expect("dag");
+  let area=|ids:&[u32]|->f64{
+   ids.chunks_exact(3).map(|tri|{
+    let p=|id:u32|{let i=id as usize*3;[positions[i] as f64,positions[i+1] as f64,positions[i+2] as f64]};
+    let (a,b,c)=(p(tri[0]),p(tri[1]),p(tri[2]));
+    let u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];let v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+    let n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+    (n[0]*n[0]+n[1]*n[1]+n[2]*n[2]).sqrt()/2.0
+   }).sum()
+  };
+  for group in &groups{
+   let fine:f64=group.children.iter().map(|&id|area(&dag[id].indices)).sum();
+   let coarse:f64=group.outputs.iter().map(|&id|area(&dag[id].indices)).sum();
+   assert!(fine>0.0&&coarse>0.0);
+   // A planar-ish sheet keeps its area; a curved one loses a little to the flattening.
+   assert!(coarse<=fine*1.05&&coarse>=fine*0.80,"group area {fine} became {coarse}");
   }
  }
 
