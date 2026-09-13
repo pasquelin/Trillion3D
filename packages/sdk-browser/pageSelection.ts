@@ -76,6 +76,9 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
     if(referenced.has(i)||referenced.has(rec.id))continue;
     roots.push({tree:{min:rec.min,max:rec.max,page:0},world,pages:[rec]});
    }
+  }else{
+   const world=mesh.matrixWorld.clone();
+   for(const rec of pages)if((rec.role??'exact')==='exact')roots.push({tree:{min:rec.min,max:rec.max,page:0},world,pages:[rec]});
   }
  }
  return {roots,allPages,blendCopies,prepared:metadata.primitives.reduce((n,p)=>n+p.pages.length,0)};
@@ -129,16 +132,15 @@ function lodWantsCoarse(node:Tree,pixelError:number,viewMatrix:THREE.Matrix4,pix
  try{return lodScore(node.errorObject,errorScale,viewMin,viewMax,pixelScale??scale,'perspective',near)<=pixelError;}catch{return false;}
 }
 
-function pageResident<T extends {array?:Uint32Array}>(rec:T,hold:boolean){return !hold||!!rec.array;}
-
 /** CPU frustum + lodScore + cone cut. holdResident keeps a complete cover until every replacement page is loaded. */
 export function selectVisiblePages<T extends {triangles:number;seen:number;min?:number[];max?:number[];cone?:NormalCone;material?:THREE.Material|THREE.Material[];array?:Uint32Array}>(
  roots:Array<{tree:Tree;world:THREE.Matrix4;pages:T[]}>,
  camera:THREE.PerspectiveCamera,
- options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean},
+ options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean;isResident?:(page:T)=>boolean},
  into?:T[]
 ){
  const pixelError=options.pixelError??0,viewport=options.viewport,frame=options.frame,hold=!!options.holdResident;
+ const pageResident=(rec:T)=>!hold||(options.isResident?options.isResident(rec):!!rec.array);
  const {frustum,matrix,viewMatrix,box}=selectionScratch;
  camera.updateMatrixWorld();
  frustum.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
@@ -151,13 +153,21 @@ export function selectVisiblePages<T extends {triangles:number;seen:number;min?:
   if(coneSkipsPage(rec,world,camera,fallbackMin,fallbackMax))return;
   rec.seen=frame;shown.push(rec);
  };
+ const fallback=(node:Tree,world:THREE.Matrix4,pages:T[],depth:number,start:number)=>{
+  if(!hold||!node.coarsePages?.length)return false;
+  const recs=node.coarsePages.map(id=>pages[id]).filter((rec):rec is T=>!!rec&&pageResident(rec));
+  if(recs.length!==node.coarsePages.length)return false;
+  shown.length=start;lodLevel=Math.max(lodLevel,depth);
+  for(const rec of recs)emit(rec,world,node.min,node.max);
+  return true;
+ };
  const visit=(node:Tree,world:THREE.Matrix4,pages:T[],depth:number,collectWanted:boolean):boolean=>{
   box.min.fromArray(node.min);box.max.fromArray(node.max);box.applyMatrix4(world);if(!frustum.intersectsBox(box)){frustumRejected++;return true;}
   const wantCoarse=lodWantsCoarse(node,pixelError,viewMatrix,selectionScratch.pixelScale,camera.near);
   const coarseRecs=wantCoarse&&node.coarsePages?node.coarsePages.map(id=>pages[id]).filter((rec):rec is T=>!!rec):[];
   if(wantCoarse){
    if(collectWanted)for(let i=0;i<coarseRecs.length;i++)wanted.push(coarseRecs[i]);
-   if(coarseRecs.length===node.coarsePages!.length&&coarseRecs.every(rec=>pageResident(rec,hold))){
+   if(coarseRecs.length===node.coarsePages!.length&&coarseRecs.every(pageResident)){
     lodLevel=Math.max(lodLevel,depth);
     for(let i=0;i<coarseRecs.length;i++)emit(coarseRecs[i],world,node.min,node.max);
     return true;
@@ -167,32 +177,38 @@ export function selectVisiblePages<T extends {triangles:number;seen:number;min?:
    const rec=pages[node.page];
    if(!rec||coneSkipsPage(rec,world,camera,node.min,node.max))return true;
    if(collectWanted&&!wantCoarse)wanted.push(rec);
-   if(pageResident(rec,hold)){rec.seen=frame;shown.push(rec);return true;}
-   return false;
+   if(pageResident(rec)){rec.seen=frame;shown.push(rec);return true;}
+   return fallback(node,world,pages,depth,shown.length);
   }
   const children=node.children;
   if(!children?.length)return true;
   const start=shown.length;
   let complete=true;
   for(let i=0;i<children.length;i++)complete=visit(children[i],world,pages,depth+1,collectWanted&&!wantCoarse)&&complete;
-  if(hold&&!wantCoarse&&!complete&&node.coarsePages?.length){
-   const fallback=node.coarsePages.map(id=>pages[id]).filter((rec):rec is T=>!!rec?.array);
-   if(fallback.length===node.coarsePages.length){
-    shown.length=start;
-    lodLevel=Math.max(lodLevel,depth);
-    for(let i=0;i<fallback.length;i++)emit(fallback[i],world,node.min,node.max);
-    return true;
-   }
-  }
+  if(!complete&&fallback(node,world,pages,depth,start))return true;
   return complete;
  };
+ let complete=true;
  for(const root of roots){
   viewMatrix.multiplyMatrices(camera.matrixWorldInverse,root.world);
-  visit(root.tree,root.world,root.pages,1,true);
+  complete=visit(root.tree,root.world,root.pages,1,true)&&complete;
  }
  let selectedTriangles=0,displayedTriangles=0;
  for(let i=0;i<wanted.length;i++)selectedTriangles+=wanted[i].triangles;
  for(let i=0;i<shown.length;i++)displayedTriangles+=shown[i].triangles;
  if(!wanted.length)selectedTriangles=displayedTriangles;
- return {shown,wanted,visible:wanted.length||shown.length,selectedTriangles,displayedTriangles,frustumRejected,lodLevel};
+ return {shown,wanted,visible:wanted.length||shown.length,selectedTriangles,displayedTriangles,frustumRejected,lodLevel,complete};
+}
+
+/** Camera-independent minimal complete cover. Shared page URLs may serve multiple instances. */
+export function rootCoverage<T extends {url:string}>(roots:Array<{tree:Tree;pages:T[]}>):T[]{
+ const unique=new Map<string,T>();
+ const visit=(node:Tree,pages:T[])=>{
+  const ids=node.coarsePages?.length?node.coarsePages:node.page!==undefined?[node.page]:undefined;
+  if(ids){for(const id of ids){const page=pages[id];if(!page)throw new Error('INVALID_ROOT_COVERAGE');unique.set(page.url,page);}return;}
+  if(!node.children?.length)throw new Error('INVALID_ROOT_COVERAGE');
+  for(const child of node.children)visit(child,pages);
+ };
+ for(const root of roots)visit(root.tree,root.pages);
+ return [...unique.values()];
 }

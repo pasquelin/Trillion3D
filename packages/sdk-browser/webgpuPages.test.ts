@@ -241,7 +241,7 @@ test('webgpu pages raster consumes the GPU cache and does not attach a mesh per 
  await backend.prepare();
  backend.render(camera());
  await backend.flush?.();
- backend.render(camera());
+ draws.length=0;backend.render(camera());
  let pageMeshes=0;backend.scene.traverse(o=>{if((o as THREE.Mesh).isMesh&&!(o as THREE.Mesh).userData.blit)pageMeshes++;});
  assert.equal(pageMeshes,0);
  assert.equal(backend.metrics().clusters,2);
@@ -284,7 +284,7 @@ test('vis drawIndirect keeps firstInstance 0 with 256-aligned page-table binds p
  await backend.prepare();
  backend.render(camera());
  await backend.flush?.();
- backend.render(camera());
+ draws.length=0;backend.render(camera());
  const vis=draws.filter(draw=>draw.indirect);
  assert.ok(vis.length>=2&&vis.length<=6);
  assert.equal(vis.reduce((n,draw)=>n+(draw.instanceCount??0),0),2);
@@ -318,17 +318,12 @@ test('webgpu pages refuse an incomplete surface when the visible set exceeds the
  const {device,draws}=mockGpu();
  const {source,metadata,indices,associations,geometry,material}=quadScene();
  const backend=webgpuPagesBackend({source,metadata,indices,associations,gpuDevice:device,maxResidentPages:1,viewport:[32,32]});
- await backend.prepare();
- backend.render(camera());
- await backend.flush?.();
- backend.render(camera());
- assert.equal(backend.overBudget,true);
- assert.equal(backend.metrics().residentPages,1);
- assert.ok(draws.length>=1);
+ await assert.rejects(backend.prepare(),/INITIAL_COVERAGE_BUDGET/);
+ assert.equal(draws.length,0);
  backend.dispose();geometry.dispose();material.dispose();
 });
 
-test('pinned visible pages are not evicted when another page is loaded',async()=>{
+test('the initial cover also protects regions first discovered after a camera jump',async()=>{
  installGpuGlobals();
  const {device}=mockGpu();
  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute([-1,-1,0,1,-1,0,1,1,0,-1,1,0,100,-1,0,102,-1,0,102,1,0],3));geometry.setIndex([0,1,2,0,2,3,4,5,6]);
@@ -340,7 +335,7 @@ test('pinned visible pages are not evicted when another page is loaded',async()=
  ];
  const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:[-1,-1,0],max:[102,1,0],children:pages.map(p=>({min:p.min,max:p.max,page:p.id}))}}]};
  const indices=new Map([['0',new Uint32Array([0,1,2])],['1',new Uint32Array([0,2,3])],['2',new Uint32Array([4,5,6])]]);
- const backend=webgpuPagesBackend({source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]]),gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ const backend=webgpuPagesBackend({source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]]),gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
  await backend.prepare();
  const cam=camera();
  backend.render(cam);
@@ -352,7 +347,8 @@ test('pinned visible pages are not evicted when another page is loaded',async()=
  backend.render(cam);
  await backend.flush?.();
  backend.render(cam);
- assert.ok((backend.metrics().residentPages??0)<=2);
+ assert.equal(backend.metrics().residentPages,1);
+ assert.equal(backend.metrics().pageEvictions,0);
  assert.equal(backend.overBudget,false);
  backend.dispose();geometry.dispose();material.dispose();
 });
@@ -394,7 +390,7 @@ test('a lost WebGPU device fails the backend without throwing from dispose',asyn
  geometry.dispose();material.dispose();
 });
 
-test('webgpu pages draw the resident subset before every visible page is loaded',async()=>{
+test('webgpu pages never publish an incomplete initial cover',async()=>{
  installGpuGlobals();
  const {device,draws}=mockGpu();
  const {source,metadata,associations,geometry,material}=quadScene();
@@ -407,8 +403,11 @@ test('webgpu pages draw the resident subset before every visible page is loaded'
  await backend.flush?.();
  backend.render(camera());
  assert.equal(backend.metrics().clusters,2);
- assert.equal(backend.metrics().residentPages,1);
- assert.ok(draws.reduce((n,d)=>n+d.vertexCount,0)>=3);
+ assert.equal(backend.metrics().residentPages,0);
+ assert.equal(backend.metrics().coverageReady,false);
+ assert.equal(draws.length,0);
+ backend.acceptPage?.('1',new Uint32Array([0,2,3]));await backend.flush();backend.render(camera());
+ assert.equal(backend.metrics().coverageReady,true);assert.equal(backend.metrics().residentPages,2);
  backend.dispose();geometry.dispose();material.dispose();
 });
 test('webgpu pages prepare without resident bytes and stream the visible set',async()=>{
@@ -658,7 +657,7 @@ test('a missing r32uint vis target keeps the page raster and lists visibility bu
  await backend.prepare();
  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'),true);
  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'),true);
- backend.render(camera());await backend.flush();backend.render(camera());
+ backend.render(camera());await backend.flush();draws.length=0;backend.render(camera());
  assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);
  assert.equal(draws.reduce((n,d)=>n+d.vertexCount,0),6);
  backend.dispose();geometry.dispose();material.dispose();
@@ -860,15 +859,51 @@ test('transparent selection follows each camera without retaining an old rejecte
  finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
 });
 
+function coarseQuadScene(){
+ const fixture=quadScene();
+ const coarse={...fixture.metadata.primitives[0].pages[0],id:2,url:'2',count:6,bytes:24,role:'coarse' as const};
+ const hierarchy={...fixture.metadata.primitives[0].hierarchy,coarsePages:[2],errorObject:1};
+ return {...fixture,metadata:{...fixture.metadata,primitives:[{...fixture.metadata.primitives[0],pages:[...fixture.metadata.primitives[0].pages,coarse],hierarchy}]},indices:new Map([...fixture.indices,['2',new Uint32Array([0,1,2,0,2,3])]] as [string,Uint32Array][])};
+}
+
+test('detail replaces the complete GPU fallback only after every replacement is uploaded',async()=>{
+ installGpuGlobals();const fixture=coarseQuadScene(),{device}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async url=>fixture.indices.get(url)!,gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
+ try{
+  await backend.prepare();backend.render(camera());assert.deepEqual(backend.selectedPageIds(),['2']);
+  backend.acceptPage!('0',fixture.indices.get('0')!);backend.syncResident!();await backend.flush();backend.render(camera());
+  assert.deepEqual(backend.selectedPageIds(),['2'],'one GPU detail page cannot replace the full fallback');
+  backend.dropPage!('2');backend.dropPage!('0');
+  backend.acceptPage!('1',fixture.indices.get('1')!);backend.syncResident!();
+  assert.deepEqual(backend.selectedPageIds(),['2'],'CPU arrival is not GPU residency');
+  await backend.flush();backend.render(camera());assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);
+  assert.equal(backend.metrics().submittedTriangles,2);
+ }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('a refinement exceeding the GPU budget retains the complete fallback and reports the limit',async()=>{
+ installGpuGlobals();const fixture=coarseQuadScene(),{device}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ try{await backend.prepare();for(let i=0;i<4;i++){backend.render(camera());await backend.flush();assert.deepEqual(backend.selectedPageIds(),['2']);assert.equal(backend.metrics().submittedTriangles,2);assert.equal(backend.metrics().coverageBudgetLimited,true);assert.deepEqual(backend.pendingUrls!(),[]);}}
+ finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('a failed initial page reader rejects preparation before exposing a partial scene',async()=>{
+ installGpuGlobals();const fixture=quadScene(),{device,draws}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async()=>{throw new Error('PAGE_STREAM_FAILED');},gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ try{await assert.rejects(backend.prepare(),/PAGE_STREAM_FAILED/);assert.equal(draws.length,0);assert.equal(backend.metrics().coverageReady,false);}
+ finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
 test('streaming completion during image readback preserves the captured frame and resumes on render',async()=>{
  installGpuGlobals();
- const fixture=quadScene(),{device,passes,imageCopies}=mockGpu();
+ const fixture=coarseQuadScene(),{device,passes,imageCopies}=mockGpu();
  const createBuffer=device.createBuffer.bind(device);
  let mapped!:()=>void,release!:()=>void;
  const mapping=new Promise<void>(resolve=>{mapped=resolve;});
  const gate=new Promise<void>(resolve=>{release=resolve;});
  device.createBuffer=descriptor=>{const buffer=createBuffer(descriptor);if(descriptor.label==='WG explicit capture')buffer.mapAsync=async()=>{mapped();await gate;};return buffer;};
- const backend=webgpuPagesBackend({...fixture,indices:new Map(),gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async url=>fixture.indices.get(url)!,gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
  try{
   await backend.prepare();backend.render(camera());
   const flushing=backend.flush();await mapping;
@@ -900,4 +935,53 @@ test('a failed transparent material pipeline cannot leave an HDR pass with an rg
  const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
  try{await backend.prepare();assert.equal(backend.capabilities.unsupported.includes('visibility buffer'),true);backend.render(camera());assert.equal(backend.metrics().submittedTriangles,2);}
  finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('camera jumps and obsolete uploads preserve coverage while detail slots are reclaimed',async()=>{
+ installGpuGlobals();const a=coarseQuadScene(),b=coarseQuadScene(),{device}=mockGpu();
+ const mesh=b.source.children[0] as THREE.Mesh;mesh.position.x=100;a.source.add(mesh);
+ const primitive={...b.metadata.primitives[0],mesh:1,pages:b.metadata.primitives[0].pages.map(page=>({...page,url:'b'+page.url}))};
+ const backend=webgpuPagesBackend({...a,metadata:{primitives:[...a.metadata.primitives,primitive]},indices:new Map([...a.indices,...[...b.indices].map(([url,bytes])=>['b'+url,bytes] as const)]),associations:new Map([...a.associations,[mesh,{meshes:1,primitives:0}]]),gpuDevice:device,maxResidentPages:4,viewport:[32,32]});
+ const cam=camera(),move=(x:number)=>{cam.position.set(x,0,5);cam.lookAt(x,0,0);cam.updateMatrixWorld();backend.render(cam);assert.equal(backend.metrics().submittedTriangles,2);};
+ try{
+  await backend.prepare();move(0);await backend.flush();move(0);assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);
+  move(100);assert.deepEqual(backend.selectedPageIds(),['b2']);await backend.flush();move(100);assert.deepEqual(backend.selectedPageIds().sort(),['b0','b1']);
+  for(let i=0;i<12;i++){move(i%2?100:0);await Promise.resolve();}
+  move(0);await backend.flush();move(0);assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);assert.ok(backend.metrics().pageEvictions!>0);
+ }finally{backend.dispose();a.geometry.dispose();a.material.dispose();b.geometry.dispose();b.material.dispose();}
+});
+
+test('a visible opaque primitive without a hierarchy still has complete exact-page coverage',async()=>{
+ installGpuGlobals();const fixture=quadScene(),{device}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,metadata:{primitives:[{...fixture.metadata.primitives[0],hierarchy:null}]},gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ try{await backend.prepare();backend.render(camera());assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);assert.equal(backend.metrics().submittedTriangles,2);}
+ finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('a host eviction deferred for coverage is applied once the page is no longer pinned',async()=>{
+ installGpuGlobals();const fixture=coarseQuadScene(),{device}=mockGpu();
+ const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:3,viewport:[32,32]});
+ try{
+  await backend.prepare();backend.render(camera());await backend.flush();backend.render(camera());backend.dropPage!('0');
+  assert.deepEqual(backend.selectedPageIds().sort(),['0','1']);
+  const cam=camera();cam.lookAt(0,0,10);backend.render(cam);await backend.flush();backend.render(camera());
+  assert.deepEqual(backend.selectedPageIds(),['2']);assert.deepEqual(backend.pendingUrls!(),['0']);
+ }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('a leaf carrying its own coarse representation keeps that GPU fallback during exact-page loading',async()=>{
+ installGpuGlobals();const fixture=coarseQuadScene(),{device}=mockGpu();
+ const exact={...fixture.metadata.primitives[0].pages[0],count:6,bytes:24},coarse={...fixture.metadata.primitives[0].pages[2],id:1};
+ const metadata={primitives:[{...fixture.metadata.primitives[0],pages:[exact,coarse],hierarchy:{min:exact.min,max:exact.max,page:0,coarsePages:[1],errorObject:1}}]};
+ const backend=webgpuPagesBackend({...fixture,metadata,indices:new Map(),readPage:async()=>fixture.indices.get('2')!,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ try{await backend.prepare();backend.render(camera());assert.deepEqual(backend.selectedPageIds(),['2']);backend.acceptPage!('0',fixture.indices.get('2')!);backend.render(camera());await backend.flush();backend.render(camera());assert.deepEqual(backend.selectedPageIds(),['0']);}
+ finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
+});
+
+test('cancelling initial coverage loading cannot publish a ready backend',async()=>{
+ installGpuGlobals();const fixture=quadScene(),{device,draws}=mockGpu(),controller=new AbortController();let reading!:()=>void,release!:()=>void;
+ const started=new Promise<void>(resolve=>{reading=resolve;}),gate=new Promise<void>(resolve=>{release=resolve;});
+ const backend=webgpuPagesBackend({...fixture,indices:new Map(),readPage:async url=>{reading();await gate;return fixture.indices.get(url)!;},signal:controller.signal,gpuDevice:device,maxResidentPages:2,viewport:[32,32]});
+ try{const preparing=backend.prepare();await started;controller.abort();release();await assert.rejects(preparing,{name:'AbortError'});assert.equal(backend.metrics().coverageReady,false);assert.equal(draws.length,0);}
+ finally{release();backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
 });

@@ -42,3 +42,27 @@ test('streamer notifies consumers when a page is evicted',async()=>{
  assert.ok(dropped.includes('b.bin'));
  streamer.dispose();
 });
+
+test('page failures stop after three attempts and remain observable without a per-frame retry loop',async()=>{
+ let attempts=0;const previous=globalThis.fetch;
+ globalThis.fetch=async()=>{attempts++;return new Response('',{status:503});};
+ const streamer=createPageStreamer([{url:'bad.bin',bytes:12,sha256:'invalid'}],'http://cache/');
+ try{await assert.rejects(streamer.request(['bad.bin']),/PAGE_STREAM_FAILED.*bad.bin/);assert.equal(attempts,3);for(let i=0;i<10;i++)await assert.rejects(streamer.request(['bad.bin']),/PAGE_STREAM_FAILED/);assert.equal(attempts,3);assert.equal(streamer.failed('bad.bin'),true);assert.equal(streamer.stats().failed,1);}
+ finally{streamer.dispose();globalThis.fetch=previous;}
+});
+
+test('the bootstrap reader verifies pages and shares in-flight requests',async()=>{
+ const bytes=new Uint32Array([0,1,2]);const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+ let attempts=0;const previous=globalThis.fetch;globalThis.fetch=async()=>{attempts++;return new Response(bytes);};
+ const streamer=createPageStreamer([{url:'a.bin',bytes:12,sha256:sha}],'http://cache/');
+ try{const [a,b]=await Promise.all([streamer.read('a.bin'),streamer.read('a.bin')]);assert.deepEqual([...a],[0,1,2]);assert.equal(a,b);assert.equal(attempts,1);}
+ finally{streamer.dispose();globalThis.fetch=previous;}
+});
+
+test('cancellation stops outstanding loads without retrying or recording a source failure',async()=>{
+ const controller=new AbortController();let attempts=0,release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
+ const previous=globalThis.fetch;globalThis.fetch=async()=>{attempts++;await gate;return new Response(new Uint32Array([0,1,2]));};
+ const streamer=createPageStreamer([{url:'a.bin',bytes:12,sha256:'unused'}],'http://cache/',controller.signal);
+ try{const job=streamer.read('a.bin');controller.abort();release();await assert.rejects(job,{name:'AbortError'});assert.equal(attempts,1);assert.equal(streamer.stats().failed,0);assert.equal(streamer.stats().resident,0);}
+ finally{release();streamer.dispose();globalThis.fetch=previous;}
+});
