@@ -89,6 +89,7 @@ fn reduceHiz(@builtin(global_invocation_id) id:vec3u){
 }
 fn footprintFar(x0:i32,y0:i32,x1:i32,y1:i32)->f32{
  if(x1<=x0||y1<=y0){return 1.0;}
+ if(x1-x0>16||y1-y0>16){return 1.0;}
  var far=-1.0e30;var hit=false;
  let w=i32(uni.a);let h=i32(uni.b);
  for(var y=y0;y<y1;y++){
@@ -121,6 +122,8 @@ export type GpuHiz={
  flags:GPUBuffer;
  encodePyramid(encoder:GPUCommandEncoder):void;
  encodeTest(device:GPUDevice,encoder:GPUCommandEncoder,bounds:HizBounds[]):number;
+ encodeCopyHistory(encoder:GPUCommandEncoder):void;
+ hasHistory():boolean;
  resize(device:GPUDevice,width:number,height:number):boolean;
  dispose():void;
 };
@@ -145,126 +148,138 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
  const cap=Math.max(1,maxBounds);
  const uniData=new Float32Array(UNIFORM_BYTES/4);
  const buffers:GPUBuffer[]=[];
- let disposed=false,level0:GPUTexture|undefined,level0View:GPUTextureView|undefined,pyramid:GPUBuffer|undefined,bindGroup:GPUBindGroup|undefined;
- let sizes:Array<[number,number]>=[];
- try{
-  if(typeof device.pushErrorScope==='function')device.pushErrorScope('validation');
-  const layout=device.createBindGroupLayout({entries:[
-   {binding:0,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
-   {binding:1,visibility:GPUShaderStage.COMPUTE,texture:{sampleType:'unfilterable-float'}},
-   {binding:2,visibility:GPUShaderStage.COMPUTE,buffer:{type:'uniform',hasDynamicOffset:true,minBindingSize:UNIFORM_BYTES}},
-   {binding:3,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
-   {binding:4,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
-  ]});
-  const module=device.createShaderModule({code:HIZ_SHADER});
-  if(typeof module.getCompilationInfo==='function'){
-   const info=await module.getCompilationInfo();
-   if(info.messages.some(message=>message.type==='error')){
-    if(typeof device.popErrorScope==='function')await device.popErrorScope().catch(()=>{});
+  let disposed=false,level0:GPUTexture|undefined,level0View:GPUTextureView|undefined,pyramid:GPUBuffer|undefined,historyPyramid:GPUBuffer|undefined,bindGroup:GPUBindGroup|undefined;
+  let hasHistory=false,currentPyramidBytes=0;
+  let sizes:Array<[number,number]>=[];
+  try{
+   if(typeof device.pushErrorScope==='function')device.pushErrorScope('validation');
+   const layout=device.createBindGroupLayout({entries:[
+    {binding:0,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
+    {binding:1,visibility:GPUShaderStage.COMPUTE,texture:{sampleType:'unfilterable-float'}},
+    {binding:2,visibility:GPUShaderStage.COMPUTE,buffer:{type:'uniform',hasDynamicOffset:true,minBindingSize:UNIFORM_BYTES}},
+    {binding:3,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
+    {binding:4,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
+   ]});
+   const module=device.createShaderModule({code:HIZ_SHADER});
+   if(typeof module.getCompilationInfo==='function'){
+    const info=await module.getCompilationInfo();
+    if(info.messages.some(message=>message.type==='error')){
+     if(typeof device.popErrorScope==='function')await device.popErrorScope().catch(()=>{});
+     return undefined;
+    }
+   }
+   const pipelineLayout=device.createPipelineLayout({bindGroupLayouts:[layout]});
+   const copyPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'copyDepth'}});
+   const reducePipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'reduceHiz'}});
+   const testPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'testHiz'}});
+   if(typeof device.popErrorScope==='function'){
+    const error=await device.popErrorScope();
+    if(error)return undefined;
+   }
+   const uniformSlots=MAX_LEVELS+2;
+   const uniforms=device.createBuffer({size:UNIFORM_BYTES*uniformSlots,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+   const bounds=device.createBuffer({size:Math.max(32,cap*32),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
+   const flags=device.createBuffer({size:Math.max(4,cap*4),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
+   buffers.push(uniforms,bounds,flags);
+   const bind=(nextPyramid:GPUBuffer,nextView:GPUTextureView)=>{
+    bindGroup=device.createBindGroup({layout,entries:[
+     {binding:0,resource:{buffer:nextPyramid}},
+     {binding:1,resource:nextView},
+     {binding:2,resource:{buffer:uniforms,size:UNIFORM_BYTES}},
+     {binding:3,resource:{buffer:bounds}},
+     {binding:4,resource:{buffer:flags}},
+    ]});
+   };
+   const alloc=(w:number,h:number)=>{
+    const packed=pyramidBytes(w,h);
+    sizes=packed.sizes;
+    currentPyramidBytes=packed.bytes;
+    hasHistory=false;
+    level0?.destroy();pyramid?.destroy();historyPyramid?.destroy();
+    level0=device.createTexture({size:{width:w,height:h},format:'r32float',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});
+    level0View=level0.createView();
+    pyramid=device.createBuffer({size:packed.bytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
+    historyPyramid=device.createBuffer({size:packed.bytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
+    bind(pyramid,level0View);
+    return true;
+   };
+   if(!alloc(width,height)||!level0||!level0View||!pyramid||!bindGroup){
+    for(const buffer of buffers)buffer.destroy();
+    level0?.destroy();pyramid?.destroy();historyPyramid?.destroy();
     return undefined;
    }
-  }
-  const pipelineLayout=device.createPipelineLayout({bindGroupLayouts:[layout]});
-  const copyPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'copyDepth'}});
-  const reducePipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'reduceHiz'}});
-  const testPipeline=device.createComputePipeline({layout:pipelineLayout,compute:{module,entryPoint:'testHiz'}});
-  if(typeof device.popErrorScope==='function'){
-   const error=await device.popErrorScope();
-   if(error)return undefined;
-  }
-  const uniformSlots=MAX_LEVELS+2;
-  const uniforms=device.createBuffer({size:UNIFORM_BYTES*uniformSlots,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-  const bounds=device.createBuffer({size:Math.max(32,cap*32),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
-  const flags=device.createBuffer({size:Math.max(4,cap*4),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
-  buffers.push(uniforms,bounds,flags);
-  const bind=(nextPyramid:GPUBuffer,nextView:GPUTextureView)=>{
-   bindGroup=device.createBindGroup({layout,entries:[
-    {binding:0,resource:{buffer:nextPyramid}},
-    {binding:1,resource:nextView},
-    {binding:2,resource:{buffer:uniforms,size:UNIFORM_BYTES}},
-    {binding:3,resource:{buffer:bounds}},
-    {binding:4,resource:{buffer:flags}},
-   ]});
-  };
-  const alloc=(w:number,h:number)=>{
-   const packed=pyramidBytes(w,h);
-   sizes=packed.sizes;
-   level0?.destroy();pyramid?.destroy();
-   level0=device.createTexture({size:{width:w,height:h},format:'r32float',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.TEXTURE_BINDING});
-   level0View=level0.createView();
-   pyramid=device.createBuffer({size:packed.bytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
-   bind(pyramid,level0View);
-   return true;
-  };
-  if(!alloc(width,height)||!level0||!level0View||!pyramid||!bindGroup){
-   for(const buffer of buffers)buffer.destroy();
-   level0?.destroy();pyramid?.destroy();
+   const gpu:GpuHiz={
+    width,height,level0,level0View,flags,
+    encodePyramid(encoder){
+     if(disposed||!bindGroup||!pyramid)return;
+     writeUni(device,uniforms,uniData,[gpu.width,gpu.height,0],0);
+     const copy=encoder.beginComputePass();
+     copy.setPipeline(copyPipeline);copy.setBindGroup(0,bindGroup,[0]);
+     copy.dispatchWorkgroups(Math.max(1,Math.ceil(gpu.width/WORKGROUP)),Math.max(1,Math.ceil(gpu.height/WORKGROUP)));
+     copy.end();
+     for(let i=0;i<sizes.length-1;i++){
+      const [srcW,srcH]=sizes[i],[dstW,dstH]=sizes[i+1];
+      let srcOffset=0;for(let k=0;k<i;k++)srcOffset+=sizes[k][0]*sizes[k][1];
+      const dstOffset=srcOffset+srcW*srcH;
+      writeUni(device,uniforms,uniData,[srcOffset,srcW,srcH,dstOffset,dstW,dstH],(i+1)*UNIFORM_BYTES);
+      const reduce=encoder.beginComputePass();
+      reduce.setPipeline(reducePipeline);reduce.setBindGroup(0,bindGroup,[(i+1)*UNIFORM_BYTES]);
+      reduce.dispatchWorkgroups(Math.max(1,Math.ceil(dstW/WORKGROUP)),Math.max(1,Math.ceil(dstH/WORKGROUP)));
+      reduce.end();
+     }
+    },
+    encodeTest(queueDevice,encoder,next){
+     if(disposed||!bindGroup)return 0;
+     const count=Math.min(next.length,cap);
+     const bytes=new ArrayBuffer(Math.max(32,count*32));
+     const f32=new Float32Array(bytes),i32=new Int32Array(bytes),u32=new Uint32Array(bytes);
+     for(let i=0;i<count;i++){
+      const b=next[i],base=i*8;
+      i32[base]=b.minX;i32[base+1]=b.minY;i32[base+2]=b.maxX;i32[base+3]=b.maxY;
+      f32[base+4]=b.nearestDepth;u32[base+5]=b.clipsNear?1:0;
+     }
+     if(count)queueDevice.queue.writeBuffer(bounds,0,bytes,0,count*32);
+     const biasBits=new Uint32Array(new Float32Array([0]).buffer)[0];
+     const testSlot=MAX_LEVELS+1;
+     writeUni(queueDevice,uniforms,uniData,[gpu.width,gpu.height,count,biasBits],testSlot*UNIFORM_BYTES);
+     const pass=encoder.beginComputePass();
+     pass.setPipeline(testPipeline);pass.setBindGroup(0,bindGroup,[testSlot*UNIFORM_BYTES]);
+     pass.dispatchWorkgroups(Math.max(1,Math.ceil(count/TEST_WORKGROUP)));
+     pass.end();
+     return count;
+    },
+    encodeCopyHistory(encoder){
+     if(disposed||!pyramid||!historyPyramid||currentPyramidBytes<=0)return;
+     encoder.copyBufferToBuffer(pyramid,0,historyPyramid,0,currentPyramidBytes);
+     hasHistory=true;
+    },
+    hasHistory(){
+     return hasHistory&&!disposed;
+    },
+    resize(nextDevice,nextWidth,nextHeight){
+     if(disposed||!nextDevice||nextWidth<1||nextHeight<1)return false;
+     if(nextWidth===gpu.width&&nextHeight===gpu.height&&level0)return true;
+     try{
+      if(!alloc(nextWidth,nextHeight)||!level0||!level0View)return false;
+      gpu.width=nextWidth;gpu.height=nextHeight;gpu.level0=level0;gpu.level0View=level0View;
+      return true;
+     }catch{return false;}
+    },
+    dispose(){
+     disposed=true;
+     hasHistory=false;
+     for(const buffer of buffers)buffer.destroy();
+     level0?.destroy();pyramid?.destroy();historyPyramid?.destroy();
+     level0=undefined;level0View=undefined;pyramid=undefined;historyPyramid=undefined;bindGroup=undefined;
+    },
+   };
+   return gpu;
+  }catch{
+   if(typeof device.popErrorScope==='function')await device.popErrorScope().catch(()=>{});
+   for(const buffer of buffers)try{buffer.destroy();}catch{/* Partial Hi-Z setup must not leak. */}
+   try{level0?.destroy();}catch{/* */}
+   try{pyramid?.destroy();}catch{/* */}
+   try{historyPyramid?.destroy();}catch{/* */}
    return undefined;
   }
-  const gpu:GpuHiz={
-   width,height,level0,level0View,flags,
-   encodePyramid(encoder){
-    if(disposed||!bindGroup||!pyramid)return;
-    writeUni(device,uniforms,uniData,[gpu.width,gpu.height,0],0);
-    const copy=encoder.beginComputePass();
-    copy.setPipeline(copyPipeline);copy.setBindGroup(0,bindGroup,[0]);
-    copy.dispatchWorkgroups(Math.max(1,Math.ceil(gpu.width/WORKGROUP)),Math.max(1,Math.ceil(gpu.height/WORKGROUP)));
-    copy.end();
-    for(let i=0;i<sizes.length-1;i++){
-     const [srcW,srcH]=sizes[i],[dstW,dstH]=sizes[i+1];
-     let srcOffset=0;for(let k=0;k<i;k++)srcOffset+=sizes[k][0]*sizes[k][1];
-     const dstOffset=srcOffset+srcW*srcH;
-     writeUni(device,uniforms,uniData,[srcOffset,srcW,srcH,dstOffset,dstW,dstH],(i+1)*UNIFORM_BYTES);
-     const reduce=encoder.beginComputePass();
-     reduce.setPipeline(reducePipeline);reduce.setBindGroup(0,bindGroup,[(i+1)*UNIFORM_BYTES]);
-     reduce.dispatchWorkgroups(Math.max(1,Math.ceil(dstW/WORKGROUP)),Math.max(1,Math.ceil(dstH/WORKGROUP)));
-     reduce.end();
-    }
-   },
-   encodeTest(queueDevice,encoder,next){
-    if(disposed||!bindGroup)return 0;
-    const count=Math.min(next.length,cap);
-    const bytes=new ArrayBuffer(Math.max(32,count*32));
-    const f32=new Float32Array(bytes),i32=new Int32Array(bytes),u32=new Uint32Array(bytes);
-    for(let i=0;i<count;i++){
-     const b=next[i],base=i*8;
-     i32[base]=b.minX;i32[base+1]=b.minY;i32[base+2]=b.maxX;i32[base+3]=b.maxY;
-     f32[base+4]=b.nearestDepth;u32[base+5]=b.clipsNear?1:0;
-    }
-    if(count)queueDevice.queue.writeBuffer(bounds,0,bytes,0,count*32);
-    const biasBits=new Uint32Array(new Float32Array([0]).buffer)[0];
-    const testSlot=MAX_LEVELS+1;
-    writeUni(queueDevice,uniforms,uniData,[gpu.width,gpu.height,count,biasBits],testSlot*UNIFORM_BYTES);
-    const pass=encoder.beginComputePass();
-    pass.setPipeline(testPipeline);pass.setBindGroup(0,bindGroup,[testSlot*UNIFORM_BYTES]);
-    pass.dispatchWorkgroups(Math.max(1,Math.ceil(count/TEST_WORKGROUP)));
-    pass.end();
-    return count;
-   },
-   resize(nextDevice,nextWidth,nextHeight){
-    if(disposed||!nextDevice||nextWidth<1||nextHeight<1)return false;
-    if(nextWidth===gpu.width&&nextHeight===gpu.height&&level0)return true;
-    try{
-     if(!alloc(nextWidth,nextHeight)||!level0||!level0View)return false;
-     gpu.width=nextWidth;gpu.height=nextHeight;gpu.level0=level0;gpu.level0View=level0View;
-     return true;
-    }catch{return false;}
-   },
-   dispose(){
-    disposed=true;
-    for(const buffer of buffers)buffer.destroy();
-    level0?.destroy();pyramid?.destroy();
-    level0=undefined;level0View=undefined;pyramid=undefined;bindGroup=undefined;
-   },
-  };
-  return gpu;
- }catch{
-  if(typeof device.popErrorScope==='function')await device.popErrorScope().catch(()=>{});
-  for(const buffer of buffers)try{buffer.destroy();}catch{/* Partial Hi-Z setup must not leak. */}
-  try{level0?.destroy();}catch{/* */}
-  try{pyramid?.destroy();}catch{/* */}
-  return undefined;
- }
 }
-
-

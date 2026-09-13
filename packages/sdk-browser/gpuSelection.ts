@@ -54,8 +54,23 @@ fn culled(node:Node)->bool{
  }
  return false;
 }
+fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
+ let a=m[0];let b=m[1];let c=m[2];
+ let det=dot(a,cross(b,c));
+ if(abs(det)<1e-20){return v;}
+ return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
+}
+fn isConformal(m:mat3x3f)->bool{
+ let lx2=dot(m[0],m[0]);let ly2=dot(m[1],m[1]);let lz2=dot(m[2],m[2]);
+ let maxl=max(lx2,max(ly2,lz2));let minl=min(lx2,min(ly2,lz2));
+ if(maxl>minl*1.0001+1e-12){return false;}
+ let eps=maxl*1e-4+1e-12;
+ return abs(dot(m[0],m[1]))<=eps&&abs(dot(m[0],m[2]))<=eps&&abs(dot(m[1],m[2]))<=eps;
+}
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(cone.w>=1.57079632679){return false;}
+ let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
+ if(!isConformal(m)){return false;}
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let wc=(world*vec4f(c,1.0)).xyz;
  let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
@@ -66,8 +81,7 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  let dist=length(toCam);
  if(dist==0.0){return false;}
  let view=toCam/dist;
- let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
- let axis=transpose(inverse(m))*cone.xyz;
+ let axis=inverseTranspose3(m,cone.xyz);
  let al=length(axis);
  if(!(al>0.0)){return false;}
  let axisWorld=axis/al;
@@ -159,7 +173,7 @@ function leafCone(page:{cone?:NormalCone;material?:THREE.Material|THREE.Material
  const material=page.material;
  if(material){
   const side=Array.isArray(material)?material[0]?.side:material.side;
-  if(side===THREE.DoubleSide)return OPEN_CONE;
+  if(side===THREE.DoubleSide||side===THREE.BackSide)return OPEN_CONE;
  }
  return page.cone??OPEN_CONE;
 }

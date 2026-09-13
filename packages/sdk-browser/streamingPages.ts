@@ -4,7 +4,7 @@ export interface StreamPage {url:string;bytes:number;sha256:string}
 const digest=async(bytes:ArrayBuffer)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
 
 /** On-demand SHA-verified index pages. Hierarchy culling does not need the bytes; attach does. */
-export function createPageStreamer(pages:readonly StreamPage[],base:string,signal?:AbortSignal,workerCount=8,maxPages?:number){
+export function createPageStreamer(pages:readonly StreamPage[],base:string,signal?:AbortSignal,workerCount=8,maxPages?:number,onEvict?:(url:string)=>void){
  const catalog=new Map(pages.map(page=>[page.url,page]));
  const cache=new Map<string,Uint32Array>();
  const inflight=new Map<string,Promise<Uint32Array>>();
@@ -18,7 +18,7 @@ export function createPageStreamer(pages:readonly StreamPage[],base:string,signa
   for(const url of cache.keys()){
    if(cache.size<=maxPages)break;
    if(pinned.has(url)||inflight.has(url))continue;
-   cache.delete(url);evictions++;
+   cache.delete(url);evictions++;onEvict?.(url);
   }
  };
  const loadOne=async(url:string)=>{

@@ -17,6 +17,6 @@ test('competitor inventory never claims unintegrated libraries as covered',()=>{
  assert.equal(comparisonLibrary('three-webgl-reference').status,'integrated');
  assert.equal(comparisonLibrary('three-lod').status,'integrated');
  assert.ok(COMPARISON_LIBRARIES.some(row=>row.status==='not-comparable'));
- assert.ok(COMPARISON_LIBRARIES.some(row=>row.id==='nanite-webgpu'&&row.status==='incompatible'));
+ assert.ok(COMPARISON_LIBRARIES.some(row=>row.status==='abandoned'));
  assert.throws(()=>comparisonLibrary('made-up'));
 });

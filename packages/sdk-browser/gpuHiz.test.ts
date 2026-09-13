@@ -90,3 +90,36 @@ test('a Hi-Z resize replaces the this-frame level-0 depth target',async()=>{
  assert.ok(textures.filter(texture=>texture.format==='r32float').length>=2);
  hiz.dispose();
 });
+
+test('GPU Hi-Z manages temporal history buffer lifecycle and copy',()=>{
+ let copied=false;
+ const encoder={
+  copyBufferToBuffer(src:unknown,srcOffset:number,dst:unknown,dstOffset:number,size:number){
+   copied=true;
+   assert.equal(srcOffset,0);
+   assert.equal(dstOffset,0);
+   assert.ok(size>0);
+  },
+ } as unknown as GPUCommandEncoder;
+ const device={
+  createBuffer:({size}:{size:number})=>({size,destroy(){}}),
+  createTexture:({format}:{format?:string})=>({format,destroy(){},createView(){return {format};}}),
+  createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
+  createBindGroupLayout:()=>({}),
+  createPipelineLayout:()=>({}),
+  createComputePipeline:({compute}:{compute:{entryPoint:string}})=>compute,
+  createBindGroup:()=>({}),
+  queue:{writeBuffer(){}},
+ } as unknown as GPUDevice;
+ createGpuHiz(device,16,16,4).then(hiz=>{
+  assert.ok(hiz);
+  assert.equal(hiz.hasHistory(),false);
+  hiz.encodeCopyHistory(encoder);
+  assert.equal(copied,true);
+  assert.equal(hiz.hasHistory(),true);
+  hiz.resize(device,32,32);
+  assert.equal(hiz.hasHistory(),false);
+  hiz.dispose();
+  assert.equal(hiz.hasHistory(),false);
+ });
+});

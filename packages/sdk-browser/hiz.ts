@@ -22,7 +22,6 @@ function rowsOf(depth:Float32Array,width:number,height:number){
  }
  return rows;
 }
-
 /** Standard Hi-Z pyramid from visbuffer depth (background 1, max reduction). */
 export function buildHizPyramid(depth:Float32Array,width:number,height:number):HizPyramid{
  if(width<1||height<1||depth.length<width*height)throw new Error('HIZ_DEPTH_SIZE');
@@ -88,6 +87,7 @@ export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4
 
 export function hizRejects(pyramid:HizPyramid,bounds:HizBounds,bias=0){
  if(bounds.clipsNear||bounds.maxX<bounds.minX||bounds.maxY<bounds.minY)return false;
+ if(bounds.maxX-bounds.minX+1>16||bounds.maxY-bounds.minY+1>16)return false;
  const far=hizFootprintFar(pyramid.levels,bounds.minX,bounds.minY,bounds.maxX+1,bounds.maxY+1,0);
  return hizOccluded(bounds.nearestDepth,far,bias);
 }
@@ -97,9 +97,10 @@ export function filterUnoccluded<T extends HizPage>(pages:T[],pyramid:HizPyramid
 }
 
 /** In-front closer half becomes this-frame occluders. Near-plane crossings stay in rest so they cannot hide others. */
-export function splitOccluders<T extends HizPage>(pages:T[],camera:THREE.PerspectiveCamera,viewport:[number,number]){
+export function splitOccluders<T extends HizPage>(pages:T[],camera:THREE.PerspectiveCamera,viewport:[number,number],boundsMap?:Map<T,HizBounds>){
  const ranked=pages.map((page,index)=>{
-  const bounds=projectBoxToScreen(page.min,page.max,page.matrix,camera,viewport);
+  const bounds=boundsMap?.get(page)??projectBoxToScreen(page.min,page.max,page.matrix,camera,viewport);
+  if(boundsMap)boundsMap.set(page,bounds);
   return {page,index,nearest:bounds.nearestDepth,clipsNear:bounds.clipsNear};
  });
  ranked.sort((a,b)=>a.nearest-b.nearest||a.index-b.index);
@@ -118,4 +119,71 @@ export function applyHiz<T extends HizPage&VisPage>(selected:T[],camera:THREE.Pe
  const pyramid=buildHizPyramid(vis.depth,viewport[0],viewport[1]);
  const kept=filterUnoccluded(rest,pyramid,camera,viewport);
  return {shown:[...occluders,...kept],hizRejected:rest.length-kept.length,occluders};
+}
+
+export type TemporalHizState = {
+ pyramid?: HizPyramid;
+ camera?: THREE.PerspectiveCamera;
+ viewport?: [number, number];
+};
+
+/**
+ * Apply Temporal Hi-Z occlusion culling using previous frame's depth pyramid reprojection.
+ * Candidate pages are tested against the previous frame's Hi-Z pyramid.
+ * Previously visible pages form Pass 1 occluders; current frame pyramid is built, then occluded
+ * or newly disoccluded pages are tested in Pass 2.
+ */
+export function applyTemporalHiz<T extends HizPage&VisPage>(
+ selected: T[],
+ camera: THREE.PerspectiveCamera,
+ viewport: [number, number],
+ history: TemporalHizState = {}
+): { shown: T[]; hizRejected: number; occluders: T[]; history: TemporalHizState } {
+ if (selected.length < 2) {
+  const vis = rasterVisibility(selected, camera, viewport);
+  history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
+  history.camera = camera.clone();
+  history.viewport = [viewport[0], viewport[1]];
+  return { shown: selected, hizRejected: 0, occluders: selected, history };
+ }
+ const hasPrev = !!(history.pyramid && history.camera && history.viewport &&
+  history.viewport[0] === viewport[0] && history.viewport[1] === viewport[1]);
+
+ let occluders: T[], rest: T[];
+ if (hasPrev) {
+  const prevCam = history.camera!;
+  const unoccludedInPrev = filterUnoccluded(selected, history.pyramid!, prevCam, viewport);
+  const unoccludedSet = new Set(unoccludedInPrev);
+  occluders = selected.filter(p => unoccludedSet.has(p));
+  rest = selected.filter(p => !unoccludedSet.has(p));
+  if (!occluders.length || !rest.length) {
+   const split = splitOccluders(selected, camera, viewport);
+   occluders = split.occluders;
+   rest = split.rest;
+  }
+ } else {
+  const split = splitOccluders(selected, camera, viewport);
+  occluders = split.occluders;
+  rest = split.rest;
+ }
+
+ if (!occluders.length || !rest.length) {
+  const vis = rasterVisibility(selected, camera, viewport);
+  history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
+  history.camera = camera.clone();
+  history.viewport = [viewport[0], viewport[1]];
+  return { shown: selected, hizRejected: 0, occluders, history };
+ }
+
+ const visPass1 = rasterVisibility(occluders, camera, viewport);
+ const currentPyramid = buildHizPyramid(visPass1.depth, viewport[0], viewport[1]);
+ const disoccluded = filterUnoccluded(rest, currentPyramid, camera, viewport);
+ const shown = [...occluders, ...disoccluded];
+
+ const fullVis = rasterVisibility(shown, camera, viewport);
+ history.pyramid = buildHizPyramid(fullVis.depth, viewport[0], viewport[1]);
+ history.camera = camera.clone();
+ history.viewport = [viewport[0], viewport[1]];
+
+ return { shown, hizRejected: rest.length - disoccluded.length, occluders, history };
 }

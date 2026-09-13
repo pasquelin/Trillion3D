@@ -39,15 +39,9 @@ function emptyCompact(maxVertexCount:number,overflow:boolean):CompactResult{
 /** Stable exclusive-scan compact into six (bin + 3*rest) drawIndirect slots. Overflow zeros instance counts. */
 export function evaluateDrawCompact(items:DrawItem[],maxVertexCount:number,slotCap:number):CompactResult{
  if(items.length>slotCap)return emptyCompact(maxVertexCount,true);
+ const n=items.length;
  const counts:[number,number,number,number,number,number]=[0,0,0,0,0,0];
- const compacted:DrawItem[]=[];
- const flags=new Array<number>(items.length);
- for(let slot=0;slot<SLOTS;slot++){
-  for(let i=0;i<items.length;i++)flags[i]=slotOf(items[i])===slot?1:0;
-  const part=compact(items,flags);
-  counts[slot]=part.length;
-  compacted.push(...part);
- }
+ for(let i=0;i<n;i++)counts[slotOf(items[i])]++;
  const [starts]=exclusiveScan(counts);
  const indirect=new Uint32Array(SLOTS*4);
  for(let s=0;s<SLOTS;s++){
@@ -55,10 +49,20 @@ export function evaluateDrawCompact(items:DrawItem[],maxVertexCount:number,slotC
   words[3]=starts[s];
   indirect.set(words,s*4);
  }
+ const instances=new Uint32Array(n);
+ const bins=new Uint32Array(n);
+ const rests=new Uint32Array(n);
+ const writePos=[starts[0],starts[1],starts[2],starts[3],starts[4],starts[5]];
+ for(let i=0;i<n;i++){
+  const item=items[i];
+  const slot=slotOf(item);
+  const dst=writePos[slot]++;
+  instances[dst]=item.pageIndex;
+  bins[dst]=item.bin;
+  rests[dst]=item.rest;
+ }
  return {
-  instances:Uint32Array.from(compacted.map(item=>item.pageIndex)),
-  bins:Uint32Array.from(compacted.map(item=>item.bin)),
-  rests:Uint32Array.from(compacted.map(item=>item.rest)),
+  instances,bins,rests,
   counts,indirect,overflow:false,
  };
 }

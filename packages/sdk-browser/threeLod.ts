@@ -2,16 +2,17 @@ import * as THREE from 'three';
 import type {BackendFactory,BackendContext} from './backendTypes.ts';
 import type {Page,Tree} from '../sdk-core/index.ts';
 import {createTriangleDiagnosticMaterial,disposeTriangleGeometry,materialSide,triangleGeometry,triangleSalt} from './triangleDiagnostic.ts';
+import {isTransmissive} from './visibilityBuffer.ts';
 
 function meshes(source:THREE.Object3D){const found:THREE.Mesh[]=[];source.updateMatrixWorld(true);source.traverse(o=>{if((o as THREE.Mesh).isMesh)found.push(o as THREE.Mesh);});return found;}
 function geometryBytes(geometry:THREE.BufferGeometry,seen:Set<ArrayBufferView>){let bytes=0;const index=geometry.getIndex();if(index&&!seen.has(index.array)){seen.add(index.array);bytes+=index.array.byteLength;}for(const name in geometry.attributes){const attr=geometry.attributes[name];if(!attr||seen.has(attr.array))continue;seen.add(attr.array);bytes+=attr.array.byteLength;}return bytes;}
-function collectCoarse(node:Tree|null,pages:Page[],out:number[]){if(!node)return;if(node.coarsePages?.length){for(const id of node.coarsePages)if(pages[id]&&(pages[id].role??'exact')==='coarse')out.push(id);return;}if(node.children)for(const child of node.children)collectCoarse(child,pages,out);}
+function collectCover(node:Tree|null,pages:Page[],out:number[]){if(!node)return;if(node.coarsePages?.length){for(const id of node.coarsePages)if(pages[id])out.push(id);return;}if(node.page!==undefined){out.push(node.page);return;}if(node.children)for(const child of node.children)collectCover(child,pages,out);}
 function buildIndex(pages:Page[],ids:number[],indices:Map<string,Uint32Array>){let count=0;for(const id of ids){const array=indices.get(pages[id].url);if(!array)return null;count+=array.length;}const out=new Uint32Array(count);let offset=0;for(const id of ids){const array=indices.get(pages[id].url)!;out.set(array,offset);offset+=array.length;}return out;}
 
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend:BackendFactory=(context)=>{
  const scene=new THREE.Scene();
- scene.background=new THREE.Color(0x171d28);
+ scene.background=new THREE.Color(context.clearColor??0x171d28);
  scene.add(new THREE.HemisphereLight(0xffffff,0x495061,2));
  const light=new THREE.DirectionalLight(0xffffff,2.5);light.position.set(1,3,2);scene.add(light);
  const lods:THREE.LOD[]=[];
@@ -25,8 +26,8 @@ export const threeLodBackend:BackendFactory=(context)=>{
   const lod=new THREE.LOD();lod.matrixAutoUpdate=false;lod.matrix.copy(mesh.matrixWorld);
   const fine=new THREE.Mesh(mesh.geometry,mesh.material);fine.matrixAutoUpdate=false;fine.matrix.identity();fine.renderOrder=order;fine.frustumCulled=true;fine.userData.sourceGeometry=mesh.geometry;fine.userData.sourceMaterial=mesh.material;
   lod.addLevel(fine,0);allocationBytes+=geometryBytes(mesh.geometry,seen);
-  if(primitive?.hierarchy&&primitive.pass!=='shared-blend'){
-   const coarseIds:number[]=[];collectCoarse(primitive.hierarchy,primitive.pages,coarseIds);
+  if(primitive?.hierarchy&&primitive.pass!=='shared-blend'&&!isTransmissive(mesh.material)){
+   const coarseIds:number[]=[];collectCover(primitive.hierarchy,primitive.pages,coarseIds);
    const index=buildIndex(primitive.pages,coarseIds,context.indices);
    if(index&&index.length>=3){
     const geometry=new THREE.BufferGeometry();geometry.attributes={...mesh.geometry.attributes};geometry.setIndex(new THREE.BufferAttribute(index,1));
@@ -46,7 +47,7 @@ export const threeLodBackend:BackendFactory=(context)=>{
   async prepare(){},
   render(camera){camera.updateMatrixWorld();selectedTriangles=0;lodLevel=0;overBudget=false;
    for(const lod of lods){lod.update(camera);const current=lod.getCurrentLevel();lodLevel=Math.max(lodLevel,current);const object=lod.levels[current]?.object as THREE.Mesh|undefined;if(!object)continue;const index=object.geometry.getIndex();selectedTriangles+=(index?index.count:object.geometry.getAttribute('position').count)/3;}},
-  metrics(){return {clusters:lods.length,selectedTriangles,residentPages:lods.length,geometryAllocationBytes:allocationBytes,pageEvictions:0,frustumRejected:0,lodLevel,submittedTriangles:selectedTriangles};},
+  metrics(){return {clusters:lods.length,selectedTriangles,residentPages:lods.length,geometryAllocationBytes:allocationBytes,pageEvictions:0,frustumRejected:0,lodLevel,submittedTriangles:selectedTriangles,drawCalls:lods.length};},
   dispose(){overlays.forEach(m=>m.dispose());for(const lod of lods){for(const level of lod.levels){const mesh=level.object as THREE.Mesh;const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry|undefined;if(sourceGeometry)disposeTriangleGeometry(sourceGeometry);if(mesh.geometry&&mesh.geometry!==(lod.levels[0]?.object as THREE.Mesh|undefined)?.geometry){for(const name of Object.keys(mesh.geometry.attributes))mesh.geometry.deleteAttribute(name);mesh.geometry.setIndex(null);mesh.geometry.dispose();}}lod.clear();}scene.clear();},
  };
 };

@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {OPEN_CONE,triangleCone,mergeCones,perspectiveSpread,coneCullsPage} from './pageCone.ts';
-import {coneRejects} from '../sdk-core/index.ts';
 
 test('a single front-facing triangle has a narrow cone along +z', () => {
   const cone = triangleCone([0,0,0, 1,0,0, 0,1,0], [0,1,2]);
@@ -44,4 +43,24 @@ test('mergeCones of identical cones is the same cone', () => {
   const a = {axis:[0,0,1] as [number,number,number], angle:0.1};
   const m = mergeCones(a, a);
   assert.ok(Math.abs(m.angle - 0.1) < 1e-6);
+});
+
+test('an anisotropic scale does not reject a still-visible cone member', () => {
+  const cone = {axis:[0,0,1] as [number,number,number], angle: Math.PI/4};
+  const world = new THREE.Matrix4().makeScale(.1,1,1);
+  const cam = new THREE.PerspectiveCamera(55,1,.1,200);
+  cam.position.set(60,0,-80); cam.lookAt(0,0,0); cam.updateMatrixWorld();
+  const visible = new THREE.Vector3(1,0,1).normalize().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(world));
+  assert.ok(visible.dot(cam.position.clone().normalize()) > 0);
+  assert.equal(coneCullsPage(cone, world, [-.01,-.01,-.01], [.01,.01,.01], cam), false);
+});
+
+test('BackSide materials are not cone-culled from behind', () => {
+  const cone = {axis:[0,0,1] as [number,number,number], angle: Math.PI/6};
+  const world = new THREE.Matrix4();
+  const behind = new THREE.PerspectiveCamera(55,1,.1,100);
+  behind.position.set(0,0,-5); behind.lookAt(0,0,0); behind.updateMatrixWorld();
+  const material = new THREE.MeshBasicMaterial({side: THREE.BackSide});
+  assert.equal(coneCullsPage(cone, world, [-0.1,-0.1,0], [0.1,0.1,0], behind, material), false);
+  material.dispose();
 });

@@ -80,12 +80,12 @@ test('draw consumers zero firstInstance and pad slot binds to 256 bytes',()=>{
  assert.equal(drawn[3*4+1],1);
  const layout=compactSlotLayout(result.counts,PAGE_INFO_STRIDE);
  assert.equal(PAGE_BIND_ALIGN,256);
- assert.equal(PAGE_INFO_STRIDE,128);
+ assert.equal(PAGE_INFO_STRIDE,256);
  assert.equal(layout.offsets[0],0);
  assert.equal(layout.offsets[1],256);
  assert.equal(layout.offsets[3],512);
  for(const offset of layout.offsets)assert.equal(offset%PAGE_BIND_ALIGN,0);
- assert.equal(layout.tableRows,5);
+ assert.equal(layout.tableRows,3);
 });
 
 test('a device without compute pipelines does not create GPU draw',async()=>{

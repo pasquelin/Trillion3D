@@ -19,3 +19,11 @@ test('QEM error is finite when a closed cube is simplified',()=>{
  assert.ok(Number.isFinite(result.errorObject));
  assert.equal(result.indices.length,result.triangles*3);
 });
+
+test('QEM keeps a two-triangle square when asked for one triangle',()=>{
+ const positions=[-1,-1,0,1,-1,0,1,1,0,-1,1,0];
+ const result=simplifyToEndpoints(positions,[0,1,2,0,2,3],{targetTriangles:1});
+ assert.ok(result.triangles>=1);
+ assert.equal(result.indices.length,result.triangles*3);
+ assert.ok(result.triangles===2||result.errorObject>0);
+});
