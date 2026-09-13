@@ -463,7 +463,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
    }
   }
  };
- let flatInside=false,flatUseForcing=false,flatMissing=false;
+ let flatInside=false,flatUseForcing=false,flatMissing=false,flatShort=false;
  /**
   * `wanted` is the cut the camera asks for and drives streaming; `shown` is what can actually be
   * drawn right now. The residency pass rebuilds `shown` alone, so a coarse fallback never hides the
@@ -484,14 +484,31 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
    if(rec.level!==undefined&&rec.level>lodLevel)lodLevel=rec.level;
    if(!pageResident(rec)){flatMissing=true;if(!rootFallback)complete=false;return;}
   }else if(!pageResident(rec)){
-   // Nothing coarser covers this region: the repaired cut really is short of a cluster.
-   if(rootFallback)complete=false;
+   // Nothing coarser covers this region; the pinned root cover is the last resort, taken by the caller.
+   flatShort=true;
+   if(!rootFallback)complete=false;
    return;
   }
   rec.seen=frame;shown.push(rec);
  };
  const flatVisible=(rec:T)=>!!rec.min&&!!rec.max&&boxClip(planes,rec.min[0],rec.min[1],rec.min[2],rec.max[0],rec.max[1],rec.max[2])!==0;
  const flatConeKeeps=(rec:T)=>!rec.cone||!coneSkipsPage(rec,flatWorld,camera,rec.min!,rec.max!);
+ /**
+  * Last resort for one primitive: draw the clusters no other cluster replaces. They are the pinned
+  * bootstrap cover, so this always terminates on a complete cut. Returns false only when a root is
+  * itself missing, which is the one case a caller may legitimately report as an incomplete frame.
+  */
+ const rootCoverInto=(pages:T[],start:number)=>{
+  shown.length=start;
+  let whole=true;
+  for(let i=0;i<pages.length;i++){
+   const rec=pages[i];
+   if(rec.parentError!=null||!flatVisible(rec)||!flatConeKeeps(rec))continue;
+   if(!pageResident(rec)){whole=false;continue;}
+   rec.seen=frame;shown.push(rec);
+  }
+  return whole;
+ };
  /**
   * Repair without a group structure. A wanted cluster is still loading: raise this primitive's
   * budget to the replacement band of every missing cluster — which is exactly the band of the
@@ -524,13 +541,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
    rec.seen=frame;shown.push(rec);
   }
   if(!hard)return;
-  shown.length=start;
-  for(let i=0;i<pages.length;i++){
-   const rec=pages[i];
-   if(rec.parentError!=null||!flatVisible(rec)||!flatConeKeeps(rec))continue;
-   if(!pageResident(rec)){complete=false;continue;}
-   rec.seen=frame;shown.push(rec);
-  }
+  if(!rootCoverInto(pages,start))complete=false;
  };
  const traverse=(pages:T[],culling?:{nodes:Float64Array;stride:number})=>{
   flatInside=false;
@@ -599,14 +610,16 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
    for(let i=flatStructure.outputOffsets[own];i<flatStructure.outputOffsets[own+1];i++)fallbackQueue.push(pages[flatStructure.outputs[i]]);
   }
   if(!forcedAny){
-   // Nothing could step back. Either the cut is fully resident, or what is missing is a root
-   // cluster that nothing replaces, and that gap is a real hole in the frame.
-   if(rootFallback&&flatMissing)complete=false;
+   // Nothing could step back: what is missing has no resident replacement below the roots, so the
+   // primitive publishes its pinned root cover rather than a cut with a hole.
+   if(rootFallback&&flatMissing&&!rootCoverInto(pages,startShown))complete=false;
    flatUseForcing=false;return;
   }
-  shown.length=startShown;
+  shown.length=startShown;flatShort=false;
   traverse(pages,root.culling);
   flatUseForcing=false;
+  // A group walk that still leaves a region uncovered ends on the same pinned root cover.
+  if(rootFallback&&flatShort&&!rootCoverInto(pages,startShown))complete=false;
  };
  const sweep=()=>{
   shown.length=0;wanted.length=0;frustumRejected=0;lodLevel=0;complete=true;
