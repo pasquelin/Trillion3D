@@ -185,7 +185,7 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
     }
     uniData[0]=items.length;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=0;
     device.queue.writeBuffer(uniforms,0,uniData);
-    const pass=encoder.beginComputePass();
+    const pass=encoder.beginComputePass({label:'WG draw compaction'});
     pass.setPipeline(pipeline);pass.setBindGroup(0,bindGroup);pass.dispatchWorkgroups(1);
     pass.end();
    },
