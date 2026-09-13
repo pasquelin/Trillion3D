@@ -506,7 +506,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   };
   const items:DrawItem[]=[];
   const addItems=(list:typeof packed,rest:0|1)=>{
-   for(let i=0;i<packed.length;i++){if(!list.includes(packed[i]))continue;items.push({pageIndex:i,bin:visBin(packed[i].rec),rest});}
+   const members=list===packed?undefined:new Set(list);
+   for(let i=0;i<packed.length;i++){if(members&&!members.has(packed[i]))continue;items.push({pageIndex:i,bin:visBin(packed[i].rec),rest});}
   };
   if(twoPass){addItems(occluderPacked,0);addItems(restPacked,1);}else addItems(packed,0);
   const maxVertexCount=Math.max(1,...allPages.map(page=>page.array?.length??page.triangles*3),...packed.map(item=>item.index.length));
@@ -717,12 +718,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const hasBytes=(rec:PageRec)=>!!(rec.array||sourceBytes.has(rec.url));
  const updatePins=()=>{
   if(!cache)return;
-  const before=[...pins];
+  const before=new Set(pins);
   const keep=new Set([...bootstrapUrls,...shown.map(page=>page.url),...residencyWanted]);
   for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
   for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
   for(const key of deferredDrops)if(!keep.has(key))backend.dropPage!(key);
-  const added=[...pins].filter(key=>!before.includes(key)),removed=before.filter(key=>!pins.has(key));
+  const added=[...pins].filter(key=>!before.has(key)),removed=[...before].filter(key=>!pins.has(key));
   if(added.length||removed.length)traceDiagnostic('residency-pins','Pins GPU mis à jour',()=>({frame,added:traceSet('pins.added',added),removed:traceSet('pins.removed',removed),pinned:traceSet('pins', [...pins]),bootstrap:traceSet('pins.bootstrap',[...bootstrapUrls]),wanted:traceSet('pins.wanted',[...residencyWanted]),shown:traceSet('pins.shown',shown.map(page=>page.url))}));
  };
  const ensureBootstrap=async()=>{
