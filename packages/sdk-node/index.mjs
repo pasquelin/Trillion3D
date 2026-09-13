@@ -7,7 +7,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {compileAsset} from '../asset-compiler-core/index.mjs';
 import {DEFAULT_SCOPE} from '../sdk-core/index.ts';
 export {DEFAULT_SCOPE};
-export const COMPILER_OUTPUT_LIMIT=64*1024*1024;
+export const COMPILER_OUTPUT_LIMIT=256*1024*1024;
 export const sha256=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function filesystemStore(root){
  const base=resolve(root);const path=key=>{const result=resolve(base,key);if(!result.startsWith(base+sep))throw new Error('Cache/source key escapes root');return result;};
