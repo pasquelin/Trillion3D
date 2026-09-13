@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
-export function replicateInstances(source: THREE.Object3D, associations: Map<THREE.Object3D, {meshes?:number;primitives?:number}>, count: 1|4|9|12) {
+export function replicateInstances(source: THREE.Object3D, associations: Map<THREE.Object3D, {meshes?:number;primitives?:number}>, count: 1|4|9|12, preparedBounds?:THREE.Box3) {
  if (![1,4,9,12].includes(count)) throw new Error('Replica count must be 1, 4, 9 or 12');
  source.updateMatrixWorld(true);
- const bounds=new THREE.Box3().setFromObject(source),size=bounds.getSize(new THREE.Vector3());
+ const bounds=preparedBounds??new THREE.Box3().setFromObject(source),size=bounds.getSize(new THREE.Vector3());
  if(count===1)return source;
  const [columns,rows]=count===12?[4,3]:[Math.sqrt(count),Math.sqrt(count)],group=new THREE.Group(),meshes:THREE.Mesh[]=[];
  source.traverse(object=>{if((object as THREE.Mesh).isMesh)meshes.push(object as THREE.Mesh);});

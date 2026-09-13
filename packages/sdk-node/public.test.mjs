@@ -25,6 +25,7 @@ test('packaged reference compiler fingerprints its shipped runtime without sourc
  try{
   await cp(new URL('../../dist/',import.meta.url),join(root,'dist'),{recursive:true});
   await copyFile(new URL('../../package.json',import.meta.url),join(root,'package.json'));
+  await cp(new URL('../../node_modules/meshoptimizer/',import.meta.url),join(root,'node_modules/meshoptimizer'),{recursive:true});
   const {getReferenceCompilerHash:shippedHash}=await import(pathToFileURL(join(root,'dist/sdk-node/index.mjs')).href);
   assert.match(await shippedHash(),/^[a-f0-9]{64}$/);
  }finally{await rm(root,{recursive:true,force:true});}

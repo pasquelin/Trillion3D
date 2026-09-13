@@ -53,6 +53,9 @@
   "peerDependencies": {
     "three": "^0.174.0"
   },
+  "dependencies": {
+    "meshoptimizer": "~0.18.1"
+  },
   "devDependencies": {
     "typescript": "^5.8.0",
     "three": "^0.174.0",
