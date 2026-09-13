@@ -12,6 +12,7 @@ import {autonomousPagesBackend} from './autonomousPages.ts';
 import {decodeGeometryPage} from './geometryPage.ts';
 export {autonomousPagesBackend} from './autonomousPages.ts';
 import {createTriangleDiagnosticMaterial,disposeTriangleGeometry,materialSide,triangleGeometry,triangleSalt} from './triangleDiagnostic.ts';
+import {ClusterBatches} from './clusterBatches.ts';
 import {EngineProfiler,type TelemetryReport} from './telemetry.ts';
 export {EngineProfiler,type TelemetryReport} from './telemetry.ts';
 
@@ -65,17 +66,17 @@ export const referenceBackend:BackendFactory=({source,sceneLighting,clearColor=D
  const applyDiagnostic=(mode:DiagnosticMode)=>{overlays.splice(0).forEach(m=>m.dispose());for(const mesh of copies){const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=mesh.userData.sourceMaterial as THREE.Material|THREE.Material[];mesh.geometry=sourceGeometry;mesh.material=sourceMaterial;if(mode==='wireframe'){mesh.geometry=triangleGeometry(sourceGeometry,triangleSalt(String(mesh.id)));const material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));overlays.push(material);mesh.material=material;}}};
  return {id:'three-webgl-reference',capabilities:baseCapabilities,overBudget:false,scene,setDiagnostic:applyDiagnostic,async prepare(){},refreshSceneLighting:()=>sceneLights.refresh(),render(){source.updateMatrixWorld(true);sceneLights.update();selectedTriangles=0;for(const mesh of copies){mesh.matrix.copy((mesh.userData.sourceMesh as THREE.Mesh).matrixWorld);const index=mesh.geometry.getIndex();selectedTriangles+=(index?index.count:mesh.geometry.getAttribute('position').count)/3;}},metrics:()=>({clusters:null,selectedTriangles,residentPages:null,geometryAllocationBytes:allocationBytes,pageEvictions:null,frustumRejected:null,lodLevel:null,submittedTriangles:selectedTriangles}),dispose(){overlays.forEach(m=>m.dispose());for(const mesh of copies)disposeTriangleGeometry(mesh.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
 };
-type PageBatch={key:number;mesh?:THREE.Mesh;geometry?:THREE.BufferGeometry;index:Uint32Array;attr?:THREE.BufferAttribute;signature:number;attached:boolean};
 export const exactPagesBackend:BackendFactory=(context)=>{
  const {source,metadata,indices,associations,maxResidentPages,viewport,clearColor=DEFAULT_CLEAR_COLOR}=context;
  const {roots,allPages,blendCopies,prepared}=collectClusterPages(source,metadata,indices,associations);
  const cap=maxResidentPages??Math.max(1024,prepared),scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,context.sceneLighting??source);const shown:PageRec[]=[],desired:PageRec[]=[],attached:PageRec[]=[];
- const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[],batches=new Map<number,PageBatch>();
- const groups=new Map<number,PageRec[]>(),groupPool:PageRec[][]=[];
+ const byUrl=indexPagesByUrl(allPages),pendingScratch:string[]=[],urlScratch:string[]=[];
+ // Un tampon d'index résident par primitive : la coupe visible n'est plus qu'une liste de plages.
+ const batches=new ClusterBatches(scene,allPages);
  for(const copy of blendCopies){copy.userData.sourceGeometry=copy.geometry;copy.userData.sourceMaterial=copy.material;scene.add(copy);}
  const indexByUrl=new Map<string,THREE.BufferAttribute>();
  for(const rec of allPages)if(rec.array&&!indexByUrl.has(rec.url))indexByUrl.set(rec.url,new THREE.BufferAttribute(rec.array,1));
- let visible=0,selectedTriangles=0,frame=0,evictions=0,overBudget=false,frustumRejected=0,lodLevel=0,batchRebuilds=0,batchIndexBytesUploaded=0,displayDetachments=0,diagnostic:DiagnosticMode='beauty';
+ let visible=0,selectedTriangles=0,frame=0,evictions=0,overBudget=false,frustumRejected=0,lodLevel=0,urlStamp=0,displayDetachments=0,diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  const diagnosticMaterials=new Map<string,THREE.Material>();
  const materialFor=(rec:PageRec)=>{if(diagnostic==='beauty')return rec.material;
@@ -96,71 +97,45 @@ export const exactPagesBackend:BackendFactory=(context)=>{
   for(const name of Object.keys(geometry.attributes))geometry.deleteAttribute(name);
   geometry.dispose();
  };
- const hideBatch=(batch:PageBatch)=>{if(batch.attached&&batch.mesh){scene.remove(batch.mesh);batch.attached=false;}};
- const disposeBatch=(batch:PageBatch)=>{hideBatch(batch);if(batch.geometry)disposeGeometry(batch.geometry);batch.geometry=undefined;batch.mesh=undefined;batch.attr=undefined;};
  const displayList=()=>shown.length?shown:desired;
- const rebuildBatches=()=>{
-  for(const list of groups.values()){list.length=0;groupPool.push(list);}
-  groups.clear();
-  const display=displayList();
-  for(let i=0;i<display.length;i++){const rec=display[i];if(!rec.array)continue;const key=rec.renderOrder;let list=groups.get(key);if(!list){list=groupPool.pop()??[];groups.set(key,list);}list.push(rec);}
-  for(const [key,batch] of batches)if(!groups.has(key)){disposeBatch(batch);batches.delete(key);}
-  for(const [key,recs] of groups){
-   if(recs[0].transparent)recs.sort((a,b)=>(a.sourceOrder??a.id)-(b.sourceOrder??b.id));
-   const first=recs[0];let signature=(2166136261^recs.length)>>>0;for(let i=0;i<recs.length;i++){signature=(Math.imul(signature^recs[i].id,16777619)^(recs[i].array?.length??0))>>>0;}
-   let batch=batches.get(key);if(!batch){batch={key,index:new Uint32Array(0),signature:0,attached:false};batches.set(key,batch);}
-   if(!batch.geometry){const geometry=new THREE.BufferGeometry();geometry.attributes={...first.attributes};geometry.boundingBox=new THREE.Box3();geometry.boundingSphere=new THREE.Sphere();batch.geometry=geometry;}
-   if(batch.signature!==signature){
-    let total=0;for(let i=0;i<recs.length;i++)total+=recs[i].array!.length;
-    if(batch.index.length<total){batch.index=new Uint32Array(Math.max(total,batch.index.length<<1||total));batch.attr=undefined;}
-    let offset=0;for(let i=0;i<recs.length;i++){const array=recs[i].array!;batch.index.set(array,offset);offset+=array.length;}
-    if(!batch.attr||batch.attr.array.length!==total){batch.attr=new THREE.BufferAttribute(batch.index.subarray(0,total),1);batch.geometry.setIndex(batch.attr);}
-    else{batch.attr.needsUpdate=true;}
-    batch.geometry.setDrawRange(0,total);
-    minPoint.fromArray(first.min);maxPoint.fromArray(first.max);
-    for(let i=1;i<recs.length;i++){const rec=recs[i];minPoint.x=Math.min(minPoint.x,rec.min[0]);minPoint.y=Math.min(minPoint.y,rec.min[1]);minPoint.z=Math.min(minPoint.z,rec.min[2]);maxPoint.x=Math.max(maxPoint.x,rec.max[0]);maxPoint.y=Math.max(maxPoint.y,rec.max[1]);maxPoint.z=Math.max(maxPoint.z,rec.max[2]);}
-    batch.geometry.boundingBox!.set(minPoint,maxPoint);batch.geometry.boundingBox!.getBoundingSphere(batch.geometry.boundingSphere!);
-    batch.signature=signature;batchRebuilds++;batchIndexBytesUploaded+=total*Uint32Array.BYTES_PER_ELEMENT;
-   }
-   if(!batch.mesh){const copy=new THREE.Mesh(batch.geometry,materialFor(first));copy.matrixAutoUpdate=false;copy.matrix.copy(first.matrix);copy.frustumCulled=false;copy.renderOrder=first.renderOrder;copy.userData.clusterId=String(key);copy.userData.lodRole='exact';batch.mesh=copy;}
-   else batch.mesh.material=materialFor(first);
-   batch.mesh.matrix.copy(first.matrix);
-   paint(batch.mesh,batch.geometry,batch.mesh.material,triangleSalt(String(key)));
-   if(!batch.attached){scene.add(batch.mesh);batch.attached=true;}
-  }
- };
  const syncResident=()=>{
   const display=displayList();
-  for(let i=0;i<attached.length;i++)attached[i].resident=false;
+  // La coupe est parcourue une fois : marquage des pages résidentes, comptage des sorties, reconstruction
+  // de la liste des pages affichées. Aucun balayage de l'ensemble des pages de la scène.
   for(let i=0;i<display.length;i++)if(display[i].array)display[i].resident=true;
-  let write=0;
   for(let i=0;i<attached.length;i++){
    const rec=attached[i];
-   if(!rec.resident){if(rec.attached){release(rec);displayDetachments++;}evictions++;continue;}
-   rec.resident=false;attached[write++]=rec;
+   if(rec.resident)continue;
+   if(rec.attached){release(rec);displayDetachments++;}
+   evictions++;
   }
-  attached.length=write;
+  attached.length=0;
   for(let i=0;i<display.length;i++){
    const rec=display[i];if(!rec.array)continue;
-   if(rec.resident){rec.resident=false;attached.push(rec);}
+   rec.resident=false;attached.push(rec);
    if(diagnostic==='beauty'){if(rec.attached)release(rec);}else attach(rec);
   }
-  if(diagnostic==='beauty')rebuildBatches();else for(const batch of batches.values())hideBatch(batch);
+  if(diagnostic==='beauty')batches.update(display);else batches.hideAll();
  };
  return {setDiagnostic(mode){diagnostic=mode;paintBlend();syncResident();},id:'exact-cluster-pages',capabilities:{...baseCapabilities,hierarchy:true,eviction:true,unsupported:baseCapabilities.unsupported.filter(item=>item!=='bounded GPU eviction')},scene,async prepare(){},
   get overBudget(){return overBudget;},
   refreshSceneLighting:()=>sceneLights.refresh(),
   render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;const selected=selectVisiblePages(roots,camera,{pixelError:resolvePixelError(context,camera,motion),viewport,frame,holdResident:true},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);const trimmed=trimToBudget(selected.shown,cap);overBudget=trimmed.overBudget;visible=selected.visible;selectedTriangles=selected.selectedTriangles;frustumRejected=selected.frustumRejected;lodLevel=selected.lodLevel;if(trimmed.shown!==shown){shown.length=0;shown.push(...trimmed.shown);}syncResident();},
   pendingUrls(){return collectPendingUrls(desired.length?desired:shown,pendingScratch);},
-  pageUrls(){urlScratch.length=0;const seen=new Set<string>();for(const list of [shown,desired])for(let i=0;i<list.length;i++){const url=list[i].url;if(seen.has(url))continue;seen.add(url);urlScratch.push(url);}return urlScratch;},
-  acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;if(!indexByUrl.has(url))indexByUrl.set(url,new THREE.BufferAttribute(array,1));for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}},
-  dropPage(url){const recs=byUrl.get(url);if(!recs)return;indexByUrl.delete(url);for(let i=0;i<recs.length;i++){const rec=recs[i];rec.array=undefined;rec.indexBytes=rec.triangles*12;if(rec.geometry){disposeGeometry(rec.geometry);rec.geometry=undefined;}if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}rec.mesh=undefined;}},
+  pageUrls(){urlScratch.length=0;urlStamp++;batches.markUrls(shown,urlStamp,urlScratch);batches.markUrls(desired,urlStamp,urlScratch);return urlScratch;},
+  acceptPage(url,array){const recs=byUrl.get(url);if(!recs)return;if(!indexByUrl.has(url))indexByUrl.set(url,new THREE.BufferAttribute(array,1));for(let i=0;i<recs.length;i++){recs[i].array=array;recs[i].indexBytes=array.byteLength;}batches.acceptPage(recs,array);},
+  dropPage(url){const recs=byUrl.get(url);if(!recs)return;indexByUrl.delete(url);batches.dropPage(recs);for(let i=0;i<recs.length;i++){const rec=recs[i];rec.array=undefined;rec.indexBytes=rec.triangles*12;if(rec.geometry){disposeGeometry(rec.geometry);rec.geometry=undefined;}if(rec.attached&&rec.mesh){scene.remove(rec.mesh);rec.attached=false;}rec.mesh=undefined;}},
   syncResident,
-  metrics(){metricsSeen.clear();let bytes=0;if(diagnostic==='beauty'){for(const batch of batches.values())if(batch.geometry)bytes+=geometryBytes(batch.geometry,metricsSeen);}else{for(const rec of attached)if(rec.geometry)bytes+=geometryBytes(rec.geometry,metricsSeen);}
-   let draws=blendCopies.length,submitted=0;if(diagnostic==='beauty'){for(const batch of batches.values())if(batch.attached){draws++;submitted+=(batch.geometry?.drawRange.count??0)/3;}}else{for(let i=0;i<attached.length;i++)if(attached[i].attached){draws++;submitted+=attached[i].triangles;}}
+  metrics(){const batched=batches.metrics;
+   // Mode beauté : les compteurs viennent des lots, sans parcourir les géométries. Mode diagnostic :
+   // une géométrie par page, on retombe sur le comptage détaillé.
+   let bytes=batched.allocationBytes,draws=blendCopies.length+batched.drawCalls,submitted=batched.submittedTriangles;
+   if(diagnostic!=='beauty'){metricsSeen.clear();bytes=0;submitted=0;draws=blendCopies.length;
+    for(const rec of attached)if(rec.geometry)bytes+=geometryBytes(rec.geometry,metricsSeen);
+    for(let i=0;i<attached.length;i++)if(attached[i].attached){draws++;submitted+=attached[i].triangles;}}
    const transparentSubmittedTriangles=blendCopies.reduce((sum,copy)=>sum+(copy.geometry.getIndex()?.count??copy.geometry.getAttribute('position').count)/3,0);
-   return {clusters:visible,selectedTriangles,residentPages:attached.length,pageEvictions:evictions,geometryAllocationBytes:bytes,frustumRejected,lodLevel,submittedTriangles:submitted,totalSubmittedTriangles:submitted+transparentSubmittedTriangles,transparentMeshes:blendCopies.length,transparentSubmittedTriangles,transparentDrawCalls:blendCopies.length,drawCalls:draws,batchRebuilds,batchIndexBytesUpdated:batchIndexBytesUploaded,displayDetachments};},
-  dispose(){diagnosticMaterials.forEach(m=>m.dispose());for(const batch of batches.values())disposeBatch(batch);batches.clear();groups.clear();groupPool.length=0;for(const rec of allPages){if(rec.attached)release(rec);if(rec.geometry)disposeGeometry(rec.geometry);rec.geometry=undefined;rec.mesh=undefined;}for(const copy of blendCopies)disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
+   return {clusters:visible,selectedTriangles,residentPages:attached.length,pageEvictions:evictions,geometryAllocationBytes:bytes,frustumRejected,lodLevel,submittedTriangles:submitted,totalSubmittedTriangles:submitted+transparentSubmittedTriangles,transparentMeshes:blendCopies.length,transparentSubmittedTriangles,transparentDrawCalls:blendCopies.length,drawCalls:draws,batchRebuilds:batched.pageRangeWrites,batchIndexBytesUpdated:batched.indexBytesWritten,displayDetachments:displayDetachments+batched.detachments,pageRangeWrites:batched.pageRangeWrites,subDraws:batched.subDraws};},
+  dispose(){diagnosticMaterials.forEach(m=>m.dispose());batches.dispose();for(const rec of allPages){if(rec.attached)release(rec);if(rec.geometry)disposeGeometry(rec.geometry);rec.geometry=undefined;rec.mesh=undefined;}for(const copy of blendCopies)disposeTriangleGeometry(copy.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
 };
 export const DEFAULT_BACKENDS:BackendFactory[]=[referenceBackend,exactPagesBackend,threeLodBackend];
 async function jsonResource(url:string,signal?:AbortSignal):Promise<{value:Record<string,unknown>;details:{url:string;status:number;contentType:string}}>{
