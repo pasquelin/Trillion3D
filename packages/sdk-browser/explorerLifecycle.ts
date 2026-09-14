@@ -1,32 +1,21 @@
 import * as THREE from 'three';
-import type { AssetScope } from '../sdk-core/index.ts';
 import { awaitBackendPages } from './awaitBackendPages.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createComparisonCompositor } from './comparison.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { ExplorerHostState } from './explorerHostState.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { EngineProfiler } from './telemetry.ts';
 
 type Inputs = {
   check: () => void;
-  state: () => {
-    disposed: boolean;
-    active: RenderBackend;
-    left?: THREE.WebGLRenderTarget;
-    right?: THREE.WebGLRenderTarget;
-    gpuDevice?: GPUDevice;
-  };
-  setDisposed: () => void;
-  setPageStats: (loaded: number, bytesRead: number) => void;
-  scope: AssetScope;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
+  state: ExplorerHostState;
+  gpuDevice?: GPUDevice;
   profiler: EngineProfiler;
   hostedControls: { dispose(): void }[];
-  disposeTargets: () => void;
   compositor?: ReturnType<typeof createComparisonCompositor>;
   streamer: ReturnType<typeof createPageStreamer>;
   streaming: ReturnType<typeof createExplorerStreaming>;
@@ -38,18 +27,14 @@ type Inputs = {
   geometryUrls: Set<string>;
 };
 
-export function createExplorerLifecycle(inputs: Inputs) {
+export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs) {
+  const { scope, diagnosticChannel, diagnose } = session;
   const {
     check,
     state,
-    setDisposed,
-    setPageStats,
-    scope,
-    diagnose,
-    diagnosticChannel,
+    gpuDevice,
     profiler,
     hostedControls,
-    disposeTargets,
     compositor,
     streamer,
     streaming,
@@ -61,14 +46,14 @@ export function createExplorerLifecycle(inputs: Inputs) {
     geometryUrls,
   } = inputs;
   const dispose = () => {
-    if (state().disposed) return;
+    if (state.disposed) return;
     diagnose('dispose-start', 'Explorer disposal started', {
       kind: 'lifecycle',
       scope,
-      backend: state().active.id,
+      backend: state.active.id,
     });
     diagnosticChannel.flushSync();
-    setDisposed();
+    state.disposed = true;
     profiler.dispose();
     hostedControls.splice(0).forEach((control) => {
       try {
@@ -77,9 +62,10 @@ export function createExplorerLifecycle(inputs: Inputs) {
         /* Hosted controls cannot block explorer teardown. */
       }
     });
-    disposeTargets();
-    state().left?.dispose();
-    state().right?.dispose();
+    state.measurementTarget?.dispose();
+    state.measurementTarget = undefined;
+    state.pairTargetA?.dispose();
+    state.pairTargetB?.dispose();
     compositor?.dispose();
     streamer.dispose();
     overlays.forEach((material) => material.dispose());
@@ -88,7 +74,7 @@ export function createExplorerLifecycle(inputs: Inputs) {
     renderer?.dispose();
     renderer?.forceContextLoss();
     try {
-      state().gpuDevice?.destroy();
+      gpuDevice?.destroy();
     } catch {
       /* Device may already be lost. */
     }
@@ -121,7 +107,8 @@ export function createExplorerLifecycle(inputs: Inputs) {
       const urls = backend.pageUrls?.();
       if (urls) streamer.retain(urls);
     }
-    setPageStats(streamer.stats().loaded, streamer.stats().bytesRead);
+    state.loaded = streamer.stats().loaded;
+    state.pageBytesRead = streamer.stats().bytesRead;
   };
   return { dispose, flush, awaitPages };
 }
