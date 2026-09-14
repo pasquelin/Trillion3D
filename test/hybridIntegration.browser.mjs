@@ -17,7 +17,7 @@ try{
   const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages:[
    {id:0,url:'0',count:3,min:[-.2,-.2,0],max:[.2,.2,0],bytes:12,sha256:'x'},
    {id:1,url:'coarse',count:3,min:[-1,-.2,0],max:[-.6,.2,0],bytes:12,sha256:'c',role:'coarse'},
-  ],hierarchy:{min:[-1,-.2,0],max:[.2,.2,0],errorObject:1,coarsePages:[1],children:[{min:[-.2,-.2,0],max:[.2,.2,0],page:0}]}}]};
+  ]}]};
   const events=[];const backend=webgpuPagesBackend({source,metadata,indices:new Map([['0',new Uint32Array([0,1,2])],['coarse',new Uint32Array([3,4,5])]]),associations:new Map([[mesh,{meshes:0,primitives:0}]]),gpuDevice:device,maxResidentPages:2,pixelError:1,viewport:[32,32],clearColor:0x171d28,maxTextureTransferBytesPerFrame:16,onDiagnostic:event=>events.push(event)});
   const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=3;camera.lookAt(0,0,0);camera.updateMatrixWorld();
   await backend.prepare();const initialTextureMetrics=backend.metrics();for(let i=0;i<3;i++){backend.render(camera);await backend.flush();}
