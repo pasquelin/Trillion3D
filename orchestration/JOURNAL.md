@@ -850,3 +850,38 @@ seulement ; ici, à 300 images, l'échec réapparaît au même point (quatrième
 à la consigne. Détail complet, chemins et tableau étendu :
 `orchestration/phase-1-mesure-lot-4.md` du worktree `webgeometry-sans-threejs-9f889d`.
 `render-tech-lab/` non modifié ; port 5174 non touché ; réglages système non touchés.
+
+## 2026-09-14 20:40 — Mesure lot 4, vues `sol` et `rue` : un processus neuf par vue, succès
+
+Mesure seule depuis ce worktree, HEAD `19db28f` (un commit de journal au-dessus de `d477179`,
+aucun code changé : `git diff d477179..HEAD --stat` = 1 fichier, `orchestration/JOURNAL.md`), aucun
+code modifié, aucun test lancé, aucune fusion. Contournement de l'échec documenté ci-dessus (second
+contexte WebGL2 dans un même processus) : un processus Node par vue, deux commandes successives en
+avant-plan, chacune attendue jusqu'au bout, aucune relance.
+
+```
+node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179 --vues sol --images 300 --pixelError 0,1 --max-pages 100000
+node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179 --vues rue --images 300 --pixelError 0,1 --max-pages 100000
+```
+
+`uptime` avant `sol` : charge 4,60 ; avant `rue` : charge 6,43 (au-dessus du seuil de 6, relevé
+sans être jugé) ; après `rue` : charge 6,07.
+
+| mesure (e0) | vue | avant | après | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50/p95 | sol | `null` | 1,500 / 1,800 ms | OK |
+| cpuFrameMs p50/p95 | sol | 4,200 / 5,000 ms | 3,600 / 4,500 ms | stable |
+| hash de coupe avant vs après | sol | `4b4097aac673…` | `4b4097aac673…` | identique |
+| pixels différents 0 px / 1 px | sol | — | 0 / 0 | OK |
+| témoin A/A | sol | — | identique à `après` | OK |
+| cpuSelectMs p50/p95 | rue | `null` | 1,600 / 2,000 ms | OK |
+| cpuFrameMs p50/p95 | rue | 3,700 / 4,600 ms | 3,700 / 4,900 ms | stable |
+| hash de coupe avant vs après | rue | `e99456030cb7…` | `e99456030cb7…` | identique |
+| pixels différents 0 px / 1 px | rue | — | 0 / 0 | OK |
+| témoin A/A | rue | — | identique à `après` | OK |
+
+`uncoveredTriangles` : non mesuré (non affiché en console par le harnais) pour les deux vues, comme
+pour `generale`. Les deux vues sont couvertes aux deux seuils `pixelError` (0 et 1) ; détail complet
+(p95, seuil 1, chemins `mesure.json`/`resume.md`) dans `orchestration/phase-1-mesure-lot-4.md` du
+worktree `webgeometry-sans-threejs-9f889d`. `render-tech-lab/` non modifié ; port 5174 non touché ;
+réglages système non touchés.
