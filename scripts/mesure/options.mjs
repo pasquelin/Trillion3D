@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 export const LAB = '/Users/pasquelin/Applications/render-tech-lab';
-export const ASSETS = join(LAB, 'public/benchmark-assets');
+// Le cache du banc, en lecture seule. `WG_ASSETS` laisse un agent pointer une copie figée hors du
+// Lab : la mesure lit alors ses propres octets, et le Lab n'est ni lu ni touché pendant la série.
+export const ASSETS = process.env.WG_ASSETS
+  ? resolve(process.env.WG_ASSETS)
+  : join(LAB, 'public/benchmark-assets');
 export const SCENE = 'emerald-square';
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 

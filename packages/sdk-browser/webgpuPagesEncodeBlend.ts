@@ -4,6 +4,11 @@ import { writeBlendUniforms } from './webgpuBlendUniforms.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
+import {
+  directLightResources,
+  encodeDirectLights,
+  wantsContractLighting,
+} from './webgpuPagesEncodeLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const inverseViewProj = new THREE.Matrix4(),
@@ -68,8 +73,17 @@ export function encodeSurfaceLighting(
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
-  gpu.deferred.bind(gpu.surfaces, gpu.depthView, gpu.hdrView);
   inverseViewProj.copy(viewProj).invert();
+  // Les ombres et les listes de lampes s'encodent avant la résolution : elles en sont les entrées.
+  const direct = encodeDirectLights(rt, device, encoder, camera, inverseViewProj.elements);
+  gpu.deferred.bind(
+    gpu.surfaces,
+    gpu.depthView,
+    gpu.hdrView,
+    wantsContractLighting(rt),
+    directLightResources(rt),
+    (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
+  );
   camera.getWorldPosition(cameraWorldScratch);
   cameraWorldArray[0] = cameraWorldScratch.x;
   cameraWorldArray[1] = cameraWorldScratch.y;
@@ -81,6 +95,7 @@ export function encodeSurfaceLighting(
     height,
     clearColor,
     run.diagnostic !== 'beauty',
+    direct,
   );
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;

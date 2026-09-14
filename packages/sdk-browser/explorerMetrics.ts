@@ -41,6 +41,11 @@ export function createExplorerMetrics(
     gpuFrameMs: null,
     gpuHostGapMs: null,
     uncoveredTriangles: null,
+    lightsActive: null,
+    shadowsUpdated: null,
+    gpuLightListsMs: null,
+    gpuShadowsMs: null,
+    gpuLightingMs: null,
   };
   const profiler = new EngineProfiler();
   profiler.setMetadata(metadata);
@@ -97,6 +102,11 @@ export function createExplorerMetrics(
     metricsScratch.textureUploaded = backendMetrics.textureUploaded ?? null;
     metricsScratch.texturePending = backendMetrics.texturePending ?? null;
     metricsScratch.textureSkipped = backendMetrics.textureSkipped ?? null;
+    metricsScratch.lightsActive = backendMetrics.lightsActive ?? null;
+    metricsScratch.shadowsUpdated = backendMetrics.shadowsUpdated ?? null;
+    metricsScratch.gpuLightListsMs = backendMetrics.gpuLightListsMs ?? null;
+    metricsScratch.gpuShadowsMs = backendMetrics.gpuShadowsMs ?? null;
+    metricsScratch.gpuLightingMs = backendMetrics.gpuLightingMs ?? null;
   };
   return { metricsScratch, profiler, fillMetrics };
 }

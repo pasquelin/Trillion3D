@@ -983,3 +983,131 @@ du journal en cause.
 - Harnais : `distribution` → `summarize` et `imageDiff` → `compareImages` de `sdk-core` (importé en `.ts` sous Node 26), `machineLoad` → `os.loadavg()` (plus de binaire `uptime`, `ignoreBinaries` retiré de knip), CRC du PNG → `zlib.crc32`. Le champ `maxParCanal` du rapport devient `maxCanal` (un seul maximum, celui du SDK).
 - Gardés tels quels, à dessein : `maxStretch` déplié (lot 4, « sélection CPU sans allocation ») ; l'état de coupe réutilisé `reusedState` (même décision).
 - `npm run validate` vert : 363/363 tests JS, Rust ok, aucun test adapté. `check:links` a exigé un lien vers `benchmark-runs/` de la copie principale, absent du worktree (dossier ignoré). Preuve navigateur non refaite : refactor à comportement identique.
+
+## 2026-09-14 23:30 — Éclairage direct différé : lampes, ombres, mode nuit, déplacement d'objets
+
+Chantier livré dans un worktree isolé depuis `develop` `33c5a0c`. Contrat `SceneLight` versionné,
+listes de lampes par tuile d'écran, atlas d'ombres de profondeur, mode nuit et `setTransform` par nom
+de nœud. Aucun test ajouté (consigne) ; les 403 tests existants restent verts.
+
+### Ce qui est livré
+
+**`sdk-core`** — `sceneLightContracts.ts` (contrat `SceneLight`, `SceneEnvironment`, réglages publiés
+`LIGHT_SETTINGS`, validation), `sceneLightStore.ts` (magasin à capacité fixe, tampon de 64 lampes
+alloué une fois, zéro allocation par image), `sceneLightShadowFaces.ts` (matrices de face, six axes
+d'une ponctuelle dans un ordre qui est le contrat), `sceneLightShadowAtlas.ts` (placement par blocs
+alignés dans une grille de 32 × 32 cellules de 128 texels, part d'atlas par lampe), 
+`sceneLightShadowSlices.ts` (table des tranches et fraîcheur), `sceneLightShadowPlan.ts`
+(ordonnanceur : au plus quatre lampes redessinées par image, priorité = influence écran × changement).
+
+**`sdk-browser`, WebGPU** — `gpuLightTiles*` (compute 16 × 16, profondeur min/max par tuile, boîte
+monde de la tuile, test de sphère par lampe, liste ordonnée donc déterministe, 32 lampes par tuile),
+`gpuShadowAtlas` + `gpuShadowShader` (atlas 4096² de profondeur, une passe de rendu pour toutes les
+faces de l'image, cadre et ciseaux par tranche, remise au fond par tranche, dessin indirect et
+sélection de clusters de l'image principale réutilisés tels quels), `directLight*Wgsl`
+(atténuation physique fenêtrée par la portée, cône adouci, PCF 16 prises, biais en mètres),
+`webgpuPagesEncodeShadows` / `webgpuPagesEncodeLights` (ordonnancement et encodage),
+`explorerLightApi` (`addLight`, `setLight`, `removeLight`, `setEnvironment`, `setTransform`),
+`webgpuPagesTransform` (déplacement d'un nœud nommé, boîtes monde reprojetées, boîte du mouvement
+déclarée à l'ordonnanceur d'ombres).
+
+**Métriques ajoutées à `metrics()`** : `lightsActive`, `shadowsUpdated`, `gpuLightListsMs`,
+`gpuShadowsMs`, `gpuLightingMs`, lues par étiquette de passe dans le relevé d'horodatage, `null`
+sans horodatage et `null` quand la passe n'a pas eu lieu — une lampe immobile dans une scène
+immobile ne redessine pas sa tranche, donc `gpuShadowsMs` vaut honnêtement `null`.
+
+**WebGL2** : hors périmètre. Les appels du contrat existent au niveau de l'hôte et n'échouent pas ;
+`baseCapabilities.unsupported` déclare `contract scene lights with shadow atlas` et
+`named node transforms`.
+
+### Deux programmes différés, et pourquoi
+
+La première version compilait l'éclairage du contrat dans le même module WGSL que l'éclairage de la
+scène écrite. Résultat mesuré : **1 pixel sur `sol`, 2 sur `rue`**, un cran d'écart sur un canal,
+alors que le témoin A/A valait 0 et qu'un `develop` recompilé face à lui-même valait 0 aussi. Cause
+établie par expérience : le même calcul, recompilé au milieu de cinq liaisons de plus, ne contracte
+pas ses produits au même endroit. Correctif : **deux programmes**. Celui de la scène écrite est le
+texte d'avant au caractère près ; celui du contrat n'est compilé qu'à la première image qui porte une
+lampe ou un environnement déclaré. Une scène sans lampe exécute donc le programme d'avant, et non
+seulement la même formule. `flush()` attend cette compilation et redessine la pose avant toute
+lecture. Après correctif : **0 pixel sur les trois vues**.
+
+### Biais d'ombre en mètres, et pourquoi
+
+La première version portait un biais constant en profondeur normalisée (0,0015). Avec un plan proche
+à `portée/1000`, la profondeur projetée d'une tranche est si peu linéaire que deux points distants de
+trois mètres ne diffèrent que de 0,0011 : le biais avalait toute l'ombre, et aucune ombre n'était
+visible. Correctif : le biais est **en mètres** (2 cm constant, 8 cm par unité de pente, plafond
+50 cm), ramené en profondeur au point considéré par `near·far/((far−near)·d²)` ; le plan proche passe
+à `max(5 cm, portée/200)` ; un décalage du point de lecture d'un texel et demi le long de la normale,
+divisé par le cosinus d'incidence, referme la couture entre faces et supprime l'acné rasante.
+
+### Fidélité, banc 15 sur Emerald, WebGPU, sans lampe ni nuit
+
+Cache Emerald figé recopié hors du Lab (`scratchpad/lumiere-assets`, lecture seule) ; le harnais
+commun accepte désormais `WG_ASSETS` pour pointer une copie. `--avant 33c5a0c`, 60 images par série,
+`pixelError 0`, 1280 × 720.
+
+| vue | témoin A/A | avant vs après | hash de coupe | `uncoveredTriangles` | erreurs de page |
+|---|---|---|---|---|---|
+| generale | 0 px | **0 px**, max canal 0 | identique | 0 | 0 |
+| sol | 0 px | **0 px**, max canal 0 | identique | 0 | 0 |
+| rue | 0 px | **0 px**, max canal 0 | identique | 0 | 0 |
+
+Témoin de contrôle : `develop` construit deux fois indépendamment, comparé à lui-même, **0 px** —
+c'est ce qui a permis d'attribuer les 1 et 2 pixels de la première version au changement et non au
+bruit. Charge machine entre 6,2 et 7,5 pendant ces séries : au-dessus du seuil de 6, donc **aucune
+durée de cette campagne n'est une mesure de performance** ; seuls les pixels, les hash et les comptes
+sont retenus.
+
+### Fonctionnel, scène de contrôle (deux boîtes et un sol, 7 008 triangles, compilateur natif du dépôt)
+
+1280 × 720, 180 images en boucle serrée pour le CPU, 90 images vidées pour le GPU par passe (les
+relevés d'horodatage ne reviennent qu'au retour à la boucle d'événements). Machine chargée.
+
+| cas | CPU/image p50 | GPU image p50 | listes | ombres | éclairage | tranches maj |
+|---|---:|---:|---:|---:|---:|---:|
+| 0 lampe | 0,10 ms | 1,13 ms | `null` | `null` | 0,52 ms | 0 |
+| 1 lampe, ombres | 0,10 ms | 1,07 ms | 0,31 ms | `null` | 0,70 ms | 0 |
+| 1 lampe, sans ombres | 0,10 ms | 1,33 ms | 0,42 ms | `null` | 0,83 ms | 0 |
+| 3 lampes, ombres | 0,10 ms | 3,38 ms | 0,45 ms | `null` | 1,67 ms | 0 |
+| 3 lampes, sans ombres | 0,10 ms | 1,42 ms | 0,41 ms | `null` | 0,94 ms | 0 |
+| 10 lampes, ombres | 0,10 ms | 2,66 ms | 0,35 ms | `null` | 2,05 ms | 0 |
+| 10 lampes, sans ombres | 0,10 ms | 1,97 ms | 0,50 ms | `null` | 1,33 ms | 0 |
+| 30 lampes, ombres | 0,10 ms | 4,09 ms | 0,22 ms | `null` | 3,71 ms | 0 |
+| 30 lampes, sans ombres | 0,10 ms | 3,07 ms | 0,61 ms | `null` | 2,33 ms | 0 |
+| 10 lampes, nuit | 0,10 ms | 1,86 ms | 0,20 ms | `null` | 1,39 ms | 0 |
+| 4 lampes, une mobile | 0,10 ms | 2,27 ms | 0,42 ms | **0,17 ms** | 1,74 ms | 1/image |
+
+`ombres = null` sur les scènes immobiles n'est pas une mesure manquante : la passe n'a pas lieu, les
+tranches restent en cache (X5). La colonne devient un nombre dès qu'une lampe bouge. CPU et GPU ne
+sont jamais additionnés. Captures archivées dans le scratchpad de l'agent.
+
+**Preuves visuelles** : projecteur oblique unique en mode nuit, ombres portées nettes des deux boîtes
+sur le sol ; dix lampes colorées de nuit, cônes et chutes en carré inverse ; `setTransform('boiteB')`
+de trois mètres, l'ombre suit l'objet à l'image suivante.
+
+**Ordonnanceur, 30 lampes à ombre** : 0 tranche refusée, 26 en attente, vidées à quatre par image ;
+l'atlas occupe 640 cellules sur 1 024 parce que chaque lampe ne demande jamais plus que sa part.
+
+### Défauts connus, nommés
+
+- Un matériau à masque d'opacité projette la silhouette entière de son cluster : la passe de
+  profondeur n'a pas d'étage de fragment. Déclaré dans le diagnostic `direct-lighting`.
+- Coutures faibles entre deux faces d'une ponctuelle, visibles sur un sol uniforme très éclairé. Le
+  décalage le long de la normale les atténue sans les supprimer.
+- La priorité de l'ordonnanceur utilise un rayon angulaire, pas un adjoint (LR2 non atteint).
+- WebGL2 : lampes ignorées, capacité déclarée manquante.
+
+### Portes
+
+`build`, `build:native`, `check:structure`, `check:dts`, `check:lines`, `check:duplicates` (0 clone),
+`check:unused` (knip, 0), `format:check`, `eslint`, `cargo clippy`, `cargo fmt` : **vertes**.
+`npm test` : **403 tests, 0 échec**, aucun ajouté ; le harnais de `deferredLighting.test.ts` a suivi
+la nouvelle signature (second tampon, `GPUTextureUsage`, `createTexture`, `createSampler`) sans
+qu'aucun cas de test change. `check:links` : rouge sur cinq liens de `RD_ECLAIRAGE_DIAGNOSTIC.md`
+vers `benchmark-runs/`, dossier ignoré par git qui n'existe que dans le dépôt principal — rouge
+d'environnement connu, identique avant ce lot.
+
+`render-tech-lab/` non modifié et lu en lecture seule ; port 5174 non touché ; aucun `eslint-disable`
+ajouté ; `node_modules` (lien symbolique) non committé.

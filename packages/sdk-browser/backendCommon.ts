@@ -24,6 +24,9 @@ export const baseCapabilities: BackendCapabilities = {
   simplification: false,
   eviction: false,
   unsupported: [
+    // Les appels du contrat de lampes existent côté hôte et n'échouent pas ici : ils sont ignorés.
+    'contract scene lights with shadow atlas',
+    'named node transforms',
     'general mesh LOD simplification',
     'GPU-driven selection/indirect draw',
     'occlusion culling',

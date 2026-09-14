@@ -83,3 +83,27 @@ export {
 } from './lightingExperimentScene.ts';
 export type { Vec3, Surface, Patch, Scene, LightingSceneLight } from './lightingExperimentScene.ts';
 export { createTransport, solveTransportOracle } from './lightingTransport.ts';
+export {
+  LIGHT_SETTINGS,
+  MAX_SHADOW_SLICES,
+  POINT_FACES,
+  SCENE_LIGHT_BUFFER_FLOATS,
+  SCENE_LIGHT_FLOATS,
+  SCENE_LIGHT_HEADER_FLOATS,
+  SCENE_LIGHT_VERSION,
+  validateSceneEnvironment,
+  validateSceneLight,
+} from './sceneLightContracts.ts';
+export type { SceneEnvironment, SceneLight, SceneLightMode } from './sceneLightContracts.ts';
+export { LIGHT_FIELD, createSceneLightStore } from './sceneLightStore.ts';
+export type { SceneLightStore } from './sceneLightStore.ts';
+export {
+  POINT_FACE_AXES,
+  SHADOW_FACE_FLOATS,
+  SHADOW_SLICE_FLOATS,
+  faceCountOf,
+  writeFaceMatrix,
+} from './sceneLightShadowFaces.ts';
+export { SHADOW_FACE_SIDES, desiredFaceSide } from './sceneLightShadowAtlas.ts';
+export { RECTS_PER_SLICE, createShadowPlan } from './sceneLightShadowPlan.ts';
+export type { ShadowPlan, ShadowViewpoint } from './sceneLightShadowPlan.ts';

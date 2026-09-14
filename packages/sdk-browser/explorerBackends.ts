@@ -3,6 +3,7 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { createSceneLightStore } from '../sdk-core/index.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
@@ -53,6 +54,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxFrameAllocationBytes: options.maxFrameAllocationBytes,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     sceneLighting: sceneLightingSource,
+    // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
+    sceneLights: createSceneLightStore(),
   };
   const factories = autonomous
     ? [autonomousPagesBackend]

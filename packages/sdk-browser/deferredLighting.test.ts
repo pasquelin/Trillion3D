@@ -5,8 +5,9 @@ import type { SurfaceBuffer } from './surfaceBuffer.ts';
 
 function gpuHarness() {
   Object.assign(globalThis, {
-    GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8 },
+    GPUBufferUsage: { UNIFORM: 64, COPY_DST: 8, STORAGE: 128 },
     GPUShaderStage: { FRAGMENT: 2 },
+    GPUTextureUsage: { TEXTURE_BINDING: 4, RENDER_ATTACHMENT: 16 },
   });
   const pipelines = new Map<GPURenderPipeline, GPURenderPipelineDescriptor>();
   const passes: {
@@ -31,6 +32,12 @@ function gpuHarness() {
     },
     createBindGroupLayout() {
       return {} as GPUBindGroupLayout;
+    },
+    createTexture() {
+      return { createView: () => ({}) as GPUTextureView, destroy() {} } as unknown as GPUTexture;
+    },
+    createSampler() {
+      return {} as GPUSampler;
     },
     createPipelineLayout() {
       return {} as GPUPipelineLayout;
@@ -90,7 +97,7 @@ function gpuHarness() {
 
 test('composition presents and preserves the capture target in one fullscreen draw', async () => {
   const h = gpuHarness(),
-    lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer, {} as GPUBuffer);
   const capture = h.view(),
     presentation = h.view(),
     clear: GPUColor = [0.1, 0.2, 0.3, 1];
@@ -122,7 +129,7 @@ test('composition presents and preserves the capture target in one fullscreen dr
 
 test('composition without presentation keeps its capture-only output and clear color', async () => {
   const h = gpuHarness(),
-    lighting = await createDeferredLighting(h.device, {} as GPUBuffer);
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer, {} as GPUBuffer);
   const capture = h.view(),
     clear: GPUColor = [0.1, 0.2, 0.3, 1];
   lighting.bind(h.surface, h.view(), h.view());
@@ -143,7 +150,7 @@ test('composition without presentation keeps its capture-only output and clear c
 
 test('diagnostic composition retains the display-space flag and unbound calls fail before encoding', async () => {
   const h = gpuHarness(),
-    lighting = await createDeferredLighting(h.device, {} as GPUBuffer),
+    lighting = await createDeferredLighting(h.device, {} as GPUBuffer, {} as GPUBuffer),
     target = h.view();
   assert.throws(
     () => lighting.compose(h.encoder, target, [0, 0, 0, 1], h.view()),

@@ -1,72 +1,62 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
-import { DEFERRED_LIGHTING_SHADER, COMPOSE_SHADER } from './deferredLightingShaders.ts';
+import {
+  COMPOSE_SHADER,
+  DEFERRED_LIGHTING_SHADER,
+  DIRECT_COMPOSE_SHADER,
+  DIRECT_LIGHTING_SHADER,
+} from './deferredLightingShaders.ts';
+import { createDeferredPlaceholders } from './deferredLightingSetup.ts';
+import {
+  createDeferredProgram,
+  type DeferredProgram,
+  type DirectLightResources,
+} from './deferredLightingProgram.ts';
 export { FULLSCREEN_VERTEX, DEFERRED_LIGHTING_SHADER } from './deferredLightingShaders.ts';
 
-export async function createDeferredLighting(device: GPUDevice, lights: GPUBuffer) {
+/** Étiquette de la passe mesurée ; `gpuLightingMs` est lu sous ce nom. */
+export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
+/** Sans lampe ni environnement déclaré : zéro lampe, zéro tuile, mode écrit, ciel noir, exposition 1. */
+const ZERO_DIRECT = [0, 0, 0, 0, 0, 0, 0, 1] as const;
+
+/**
+ * Le rassemblement différé. Deux programmes vivent ici : celui de la scène telle qu'elle est écrite,
+ * identique au caractère près à celui d'avant l'éclairage direct, et celui du contrat. Le second
+ * n'est compilé qu'à la première image qui porte une lampe ou un environnement déclaré : une scène
+ * qui n'en a pas ne le paie jamais et exécute exactement le programme d'avant.
+ */
+export async function createDeferredLighting(
+  device: GPUDevice,
+  lights: GPUBuffer,
+  directLights: GPUBuffer,
+) {
   const uniform = device.createBuffer({
     label: 'WG deferred view v1',
-    size: 112,
+    size: 160,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const modules = [DEFERRED_LIGHTING_SHADER, COMPOSE_SHADER].map((code) =>
-    device.createShaderModule({ code }),
-  );
+  const placeholders = createDeferredPlaceholders(device);
+  const bindings = { uniform, sceneLights: lights, directLights, placeholders };
   try {
-    for (const module of modules) {
-      const info = await module.getCompilationInfo?.();
-      const errors = info?.messages.filter((message) => message.type === 'error');
-      if (errors?.length) throw new Error(errors.map((error) => error.message).join('\n'));
-    }
-    const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
-      binding,
-      visibility: GPUShaderStage.FRAGMENT,
-      texture: {
-        sampleType: binding === 3 ? 'uint' : binding === 4 ? 'depth' : 'unfilterable-float',
+    const authored = await createDeferredProgram(
+      device,
+      {
+        lighting: DEFERRED_LIGHTING_SHADER,
+        compose: COMPOSE_SHADER,
+        label: 'DEFERRED',
+        direct: false,
       },
-    }));
-    entries.push(
-      { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      bindings,
     );
-    const lightingLayout = device.createBindGroupLayout({ entries });
-    const compositionLayout = device.createBindGroupLayout({
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: { sampleType: 'unfilterable-float' },
-        },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-      ],
-    });
-    const make = (
-      module: GPUShaderModule,
-      bind: GPUBindGroupLayout,
-      entryPoint: string,
-      formats: GPUTextureFormat[],
-    ) => {
-      const descriptor: GPURenderPipelineDescriptor = {
-        layout: device.createPipelineLayout({ bindGroupLayouts: [bind] }),
-        vertex: { module, entryPoint: 'fullscreen' },
-        fragment: { module, entryPoint, targets: formats.map((format) => ({ format })) },
-        primitive: { topology: 'triangle-list' },
-      };
-      return device.createRenderPipelineAsync
-        ? device.createRenderPipelineAsync(descriptor)
-        : Promise.resolve(device.createRenderPipeline(descriptor));
-    };
-    const light = await make(modules[0], lightingLayout, 'lightSurface', ['rgba16float']),
-      compose = await make(modules[1], compositionLayout, 'compose', ['rgba8unorm']);
-    const composePresent = await make(modules[1], compositionLayout, 'composePresent', [
-      'rgba8unorm',
-      'bgra8unorm',
-    ]);
-    let boundSurface: SurfaceBuffer | undefined,
-      lightGroup: GPUBindGroup | undefined,
-      composeGroup: GPUBindGroup | undefined;
-    const packed = new Float32Array(28);
+    let contract: DeferredProgram | undefined,
+      contractPending: Promise<unknown> | undefined,
+      active: DeferredProgram = authored;
+    const packed = new Float32Array(36);
     return {
       uniform,
+      /** Vrai quand l'image en cours est rendue par le programme du contrat. */
+      get usesContract() {
+        return active !== authored;
+      },
       update(
         inverseViewProjection: readonly number[],
         camera: readonly number[],
@@ -74,6 +64,7 @@ export async function createDeferredLighting(device: GPUDevice, lights: GPUBuffe
         height: number,
         clearColor: number,
         diagnostic: boolean,
+        direct: ArrayLike<number> = ZERO_DIRECT,
       ) {
         packed.set(inverseViewProjection, 0);
         packed.set(camera, 16);
@@ -82,38 +73,55 @@ export async function createDeferredLighting(device: GPUDevice, lights: GPUBuffe
           [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
           24,
         );
+        // Lampes du contrat, tuiles en X et Y, mode ; puis couleur de ciel linéaire et exposition.
+        packed.set(direct as number[], 28);
         device.queue.writeBuffer(uniform, 0, packed);
       },
-      bind(surface: SurfaceBuffer, depth: GPUTextureView, hdr: GPUTextureView) {
-        if (boundSurface === surface) return;
-        boundSurface = surface;
-        lightGroup = device.createBindGroup({
-          layout: lightingLayout,
-          entries: [
-            ...surface.views().map((resource, binding) => ({ binding, resource })),
-            { binding: 4, resource: depth },
-            { binding: 5, resource: { buffer: uniform } },
-            { binding: 6, resource: { buffer: lights } },
-          ],
-        });
-        composeGroup = device.createBindGroup({
-          layout: compositionLayout,
-          entries: [
-            { binding: 0, resource: hdr },
-            { binding: 1, resource: { buffer: uniform } },
-          ],
-        });
+      /**
+       * Choisit le programme de l'image et lie ses ressources. `wantsContract` reste faux tant que
+       * l'hôte n'a déclaré ni lampe ni environnement ; la compilation du second programme est lancée
+       * à la première demande et l'image d'avant reste correcte pendant qu'elle se termine.
+       */
+      bind(
+        surface: SurfaceBuffer,
+        depth: GPUTextureView,
+        hdr: GPUTextureView,
+        wantsContract: boolean,
+        direct: DirectLightResources = {},
+        onFailure?: (error: unknown) => void,
+      ) {
+        if (wantsContract && !contract && !contractPending)
+          contractPending = createDeferredProgram(
+            device,
+            {
+              lighting: DIRECT_LIGHTING_SHADER,
+              compose: DIRECT_COMPOSE_SHADER,
+              label: 'DIRECT',
+              direct: true,
+            },
+            bindings,
+          ).then(
+            (program) => (contract = program),
+            (error) => onFailure?.(error),
+          );
+        active = wantsContract && contract ? contract : authored;
+        active.bind(surface, depth, hdr, direct);
+      },
+      /** Attend la compilation du programme du contrat, quand une est en cours. */
+      settle() {
+        return Promise.resolve(contractPending).then(() => {});
       },
       light(encoder: GPUCommandEncoder, target: GPUTextureView) {
-        if (!lightGroup) throw new Error('SURFACE_NOT_BOUND');
+        const group = active.lightGroup;
+        if (!group) throw new Error('SURFACE_NOT_BOUND');
         const pass = encoder.beginRenderPass({
-          label: 'WG deferred lighting',
+          label: DEFERRED_LIGHTING_PASS,
           colorAttachments: [
             { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
           ],
         });
-        pass.setPipeline(light);
-        pass.setBindGroup(0, lightGroup);
+        pass.setPipeline(active.light);
+        pass.setBindGroup(0, group);
         pass.draw(3);
         pass.end();
       },
@@ -123,7 +131,8 @@ export async function createDeferredLighting(device: GPUDevice, lights: GPUBuffe
         clear: GPUColor,
         presentation?: GPUTextureView,
       ) {
-        if (!composeGroup) throw new Error('SURFACE_NOT_BOUND');
+        const group = active.composeGroup;
+        if (!group) throw new Error('SURFACE_NOT_BOUND');
         // Both UNORM targets receive the same display value. Keep the persistent
         // capture image while avoiding a separate fullscreen read and presentation.
         const colorAttachments: GPURenderPassColorAttachment[] = [
@@ -140,19 +149,21 @@ export async function createDeferredLighting(device: GPUDevice, lights: GPUBuffe
           label: presentation ? 'WG HDR composition + present' : 'WG HDR composition',
           colorAttachments,
         });
-        pass.setPipeline(presentation ? composePresent : compose);
-        pass.setBindGroup(0, composeGroup);
+        pass.setPipeline(presentation ? active.composePresent : active.compose);
+        pass.setBindGroup(0, group);
         pass.draw(3);
         pass.end();
       },
       dispose() {
         uniform.destroy();
-        boundSurface = undefined;
-        lightGroup = composeGroup = undefined;
+        placeholders.dispose();
+        authored.release();
+        contract?.release();
       },
     };
   } catch (error) {
     uniform.destroy();
+    placeholders.dispose();
     throw error;
   }
 }
