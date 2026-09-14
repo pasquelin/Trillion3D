@@ -64,6 +64,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
     () => renderState.frame,
+    context.stageProfile === true,
+    () => renderState.cpuSelectMs,
   );
   const materials = createExactPagesMaterials({
     blendCopies,

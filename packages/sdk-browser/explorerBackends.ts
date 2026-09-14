@@ -53,6 +53,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     gpuCanvas: directGpu ? canvas : undefined,
     maxFrameAllocationBytes: options.maxFrameAllocationBytes,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
+    stageProfile: options.stageProfile === true,
     sceneLighting: sceneLightingSource,
     // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
     sceneLights: createSceneLightStore(),

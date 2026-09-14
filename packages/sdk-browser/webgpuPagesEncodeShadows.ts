@@ -41,6 +41,7 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
   lights.shadowsPending = 0;
   lights.shadowFaces = 0;
   lights.shadowDraws = 0;
+  lights.shadowDrawCalls = 0;
   if (!shadows || !store.count) return 0;
   const updates = plan.plan(store, shadowViewpointOf(camera));
   lights.shadowsDenied = plan.denied;
@@ -101,6 +102,7 @@ export function encodeShadowAtlas(
   const first = slots ? visGroupFor(rt, device, drawSlots[0], false) : undefined;
   lights.shadowDraws = first ? slots : 0;
   if (!first) return false;
+  const drawsBefore = run.gpuDrawCalls;
   const pass = encoder.beginRenderPass({
     label: SHADOW_PASS,
     colorAttachments: [],
@@ -128,5 +130,6 @@ export function encodeShadowAtlas(
     }
   }
   pass.end();
+  lights.shadowDrawCalls = run.gpuDrawCalls - drawsBefore;
   return true;
 }
