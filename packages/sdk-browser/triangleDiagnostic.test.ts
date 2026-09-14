@@ -7,52 +7,10 @@ import {
   triangleSalt,
 } from './triangleDiagnostic.ts';
 import { exactPagesBackend, referenceBackend } from './index.ts';
-
-function quad() {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
-  return { geometry, material, mesh, source };
-}
-
-const DAG = { errorModel: 'dag-group-qem-v1', clusterStrategy: 'dag-groups' as const };
-/** Level-0 clusters nothing replaces: the smallest legal DAG the runtime reads. */
-function dagRoots<T extends { id: number; min: number[]; max: number[] }>(pages: T[]) {
-  const sphere = (page: T) => {
-    const c = [0, 1, 2].map((i) => (page.min[i] + page.max[i]) / 2);
-    return [...c, Math.hypot(...[0, 1, 2].map((i) => page.max[i] - c[i])) || 1];
-  };
-  return {
-    pages: pages.map((page) => ({
-      ...page,
-      role: 'exact' as const,
-      start: page.id * 3,
-      level: 0,
-      lodError: 0,
-      sphere: sphere(page),
-      parentError: null,
-      parentSphere: null,
-      group: null,
-      source: null,
-    })),
-    structure: { version: 1, roots: pages.map((_, index) => index), groups: [] },
-  };
-}
+import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 
 test('triangle diagnostic expands indexed geometry and assigns a color per submitted triangle', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  const { geometry } = quadScene();
   const expanded = triangleGeometry(geometry);
   assert.equal(expanded.getIndex(), null);
   assert.equal(expanded.getAttribute('position').count, 6);
@@ -72,32 +30,9 @@ test('triangle material is filled and unlit with vertex colors', () => {
 });
 
 test('exact pages wireframe uses non-indexed submitted triangles', () => {
-  const { geometry, material, mesh, source } = quad();
-  const pages = [0, 1].map((id) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  }));
-  const backend = exactPagesBackend({
-    source,
-    metadata: {
-      ...DAG,
-      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
-    },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-    ]),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
-    maxResidentPages: 2,
-  });
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
+  const { geometry, material, context } = quadRootsContext(true, { maxResidentPages: 2 });
+  const backend = exactPagesBackend(context);
+  const camera = frontCamera();
   backend.render(camera);
   backend.setDiagnostic('wireframe');
   backend.render(camera);
@@ -122,7 +57,7 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
 });
 
 test('reference backend wireframe expands source triangles instead of MeshBasicMaterial.wireframe', () => {
-  const { geometry, material, source } = quad();
+  const { geometry, material, source } = quadScene();
   const backend = referenceBackend({
     source,
     metadata: {

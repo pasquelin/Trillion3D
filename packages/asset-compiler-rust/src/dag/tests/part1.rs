@@ -38,19 +38,7 @@ fn level_zero_clusters_respect_the_triangle_budget_and_cover_the_source_once() {
 #[test]
 fn every_level_above_zero_uses_groups_of_eight_to_thirty_two_clusters() {
     // Grouping is exercised directly: the builder feeds it the live cluster graph each level.
-    let (positions, indices) = grid(160);
-    let clusters =
-        cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
-    let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
-    let adjacency = cluster_adjacency(&lists);
-    let centres: Vec<[f64; 3]> = clusters
-        .iter()
-        .map(|c| {
-            let s = bounding_sphere(&positions, c);
-            [s[0], s[1], s[2]]
-        })
-        .collect();
-    let groups = group_clusters(&centres, &adjacency, DAG_GROUP_MAX);
+    let (_, _, clusters, groups) = grouped(160);
     assert!(groups.len() > 1);
     let mut seen = vec![false; clusters.len()];
     for group in &groups {
