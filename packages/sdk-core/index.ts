@@ -70,3 +70,10 @@ export { createSafetyPolicy } from './safety.ts';
 export type { CapabilityTier, SafetyDecision, MeasuredCosts, SafetyConfig } from './safety.ts';
 export { userNotice } from './events.ts';
 export type { RuntimeEvent, UserNotice } from './events.ts';
+export {
+  createLightingScene,
+  exportLightingGltf,
+  createDefaultLightingSceneLights,
+} from './lightingExperimentScene.ts';
+export type { Vec3, Surface, Patch, Scene, LightingSceneLight } from './lightingExperimentScene.ts';
+export { createTransport, solveTransportOracle } from './lightingTransport.ts';

@@ -1,5 +1,14 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-14 — R&D éclairage : prototype et diagnostic, aucune intégration
+
+- Essai isolé depuis `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`, branche `codex/light-transport-experiment`. Deux pièces, porte mobile, trois sources colorées réglables, miroirs et sphère. Rendu expérimental Three/WebGL2 via les API publiques ; maillages source dessinés, pas les pages de clusters ni le runner du banc 15. Lab et assets inchangés, aucun commit/fusion.
+- Deux défauts de départ corrigés : auto-intersection de la sphère et mélange de l’ombre directe avec le cache indirect grossier. Les bandes des ombres sont remplacées par un échantillonnage stratifié déterministe ; du bruit reste visible. Qualité générale et gain de performances non validés.
+- Preuve navigateur : 14 états avec égalité exacte des matrices, radiances et images entre recalcul et réutilisation ; aucune erreur navigateur. 330 tests Node, build, structure et déclarations passent.
+- À la demande utilisateur, arrêt des ajouts fonctionnels pour comprendre l’orientation technique. Profil CPU : environ 9,5 ms pour une couleur, 40,1 ms pour la porte avec réutilisation. Contrôle graphique sur cinq images isolées : 370–498 ms GPU. Worker/WASM seuls ne résoudront donc pas la lenteur de ce dessin expérimental.
+- Une preuve numérique confirme la recombinaison des contributions des trois lampes à géométrie fixe (40 608 octets de bases, erreur proche de l’arrondi Float64). Amortissement et invalidation dynamique non mesurés. Aucun BVH, worker, port WASM ni cache de bases persistant ajouté au moteur.
+- Détails, preuves et expériences suivantes proposées : [Diagnostic et orientation R&D](RD_ECLAIRAGE_DIAGNOSTIC.md). L’ancien plan d’essai est clos et supprimé.
+
 ## 2026-09-14 01:25 — état de passation (session d'audit)
 
 - `develop` = 791245b : DAG de clusters, paquets de streaming, manifeste binaire, sélection GPU DAG, clusterBatches WebGL, transparents double face pré-scindés, limites de device, identifiants 24/8 bits, repli racines sous pression de budget. 330 tests Node, 46 tests Rust verts.
@@ -404,6 +413,26 @@
 - Réutilisable : `material_ranges()`, table `materialRanges`, `vertexBases`, page en plusieurs lots sur tampon d'index partagé, monotonie. À refaire : l'attribution des rangs (conserver le rang de parcours de scène de chaque primitive membre).
 - Verdict NO-GO inchangé (plancher par maillage). Mon agent a quitté le worktree ; les modifications non commises de `dag.rs`/`lib.rs` (élagage, sloppy, `WG_NO_*`) ne sont pas de lui et sont laissées intactes. Worktree rendu à la session a4.
 
+## 2026-09-14 16:40 — [session sans-threejs] phase 1, lot 2 (rejet Hi-Z) rendu ; lot 4 mesure non faite
+
+- Lot 2, branche lot1-hiz-compteurs (d6693a8, fusion develop eab2bfa incluse, rien fusionné dans develop). Défaut trouvé : tout rectangle écran débordant du cadre rendait `undefined`, donc jamais rejeté ; corrigé (découpe au viewport, source unique `hizTestRect` GPU/CPU). Rejets Hi-Z avant → après (Emerald 1280×720, 1 px, MAX_PAGES=100000) : vue générale 758 → 758 clusters ; sol 424 → 447 (+5,4 %). Gain marginal : les clusters de 128 tri débordent rarement. Trous 0, `selectedTriangles` inchangé. Durées polluées (load 4,3–5,1), preuves pixel non faites (load > 4 au moment de décider). Rejet hiérarchique des nœuds : ne peut pas augmenter les rejets (boîte englobante, profondeur jamais plus loin), seulement du temps GPU, à chiffrer avant d'écrire. Vrai verrou : seule la moitié « rest » des lignes est testée, l'autre est dessinée sans test. Lint : 14 → 2 erreurs, les 2 préexistantes sur develop (`no-unsafe-finally`, webgpuPages.ts). Tests non écrits (consigne : Haiku).
+- Lot 4 : mesure tentée par Haiku, harnais laissé par l'agent incompatible (métriques WebGPU, pas `cpuSelectMs`), non faite, journal a327d0e.
+- Aucun agent vivant. Reprise sur mot de l'utilisateur.
+
+
+## 2026-09-14 — Livraison du prototype éclairage dans le banc 16
+
+- Revue indépendante et corrections de livraison terminées : porte initiale, ressources, archives persistantes et erreurs de préparation. Code éclairage isolé des backends ordinaires ; aucun nouveau choix d'architecture validé.
+- Lab : validation complète réussie. SDK : tests éclairage 12/12, build et contrats réussis, Rust 57/57 ; global Node 336/337 et portes qualité héritées encore rouges (détails dans `RD_ECLAIRAGE_DIAGNOSTIC.md`). Fusion explicitement redemandée après signalement ; aucune prétention de validation globale verte.
+- Même image brute/BVH sur les 14 états de la scène, qualité inchangée. Le gain mesuré reste insuffisant pour rendre ce prototype fluide.
+
+## 2026-09-14 — [session quality-finish] backend WebGPU découpé, doublons à zéro
+
+- `packages/sdk-browser/webgpuPages.ts` : 3 170 → 107 lignes. État réparti dans un objet d'exécution typé (`webgpuPagesRuntime.ts` : `setup`, `layout`, `gpu`, `vis`, `run`, `capture`, `timing`, `services`, `hooks`) et 30 modules de responsabilité (`webgpuPages*.ts`), tous ≤ 200 lignes. Repli GPU → CPU par valeur de retour de `renderGpuCut` ; pipelines de fusion texturés regroupés dans `vis` et libérés ensemble par `dropVis`.
+- `npm run check:duplicates` : 31 → 0 clones (fixtures partagées `pagesBackendScenes.ts`, `webgpuPagesTestOccluder.ts`, Rust `tests/base.rs` et `dag/tests/mod.rs`).
+- `npm run validate` vert : 337/337 tests JS, 57/57 Rust, format, lint, knip, build TS et natif, structure, liens (liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` résolus avec `benchmark-runs/` du dépôt principal).
+- Non fait : preuve navigateur (trous et fidélité Emerald) et revue indépendante finale ; fusion sur `develop` local demandée par l'utilisateur, rien poussé sur `origin`.
+
 ## 2026-09-14 — Phase 1, lot 1 `lot1-hiz-compteurs` (opus, worktree depuis develop 6ca7fae)
 
 - Objet : **compter** ce que la pyramide Hi-Z élimine, sans aucune optimisation. Aucune ligne du chemin de rendu n'a changé.
@@ -478,3 +507,15 @@ polluées** ; comptes, hash et pixels restent valables. Série complète en 2 mi
 
 Détails, commande complète, chemins des JSON/PNG/resume.md produits :
 `orchestration/phase-1-mesure-lots-2-4.md` du worktree `webgeometry-sans-threejs-9f889d`.
+
+## 2026-09-14 — Phase 1, lot 2, fusion de develop 7491682 dans `lot1-hiz-compteurs`
+
+- Develop a découpé `index.ts`, `visibilityBuffer.ts` et `webgpuPages.ts` en barils de réexport et réparti le code dans de nouveaux modules ; les fichiers Hi-Z du lot (`hizOcclusion.ts`, `hizTemporal.ts`, `hizCounts.ts`, `gpuHiz*.ts`, `metricsContracts.ts`) n'ont pas été touchés par develop et se sont fusionnés seuls.
+- Cinq conflits, tranchés ainsi :
+  - `packages/sdk-browser/index.ts` — conflit de fichier entier (baril contre module). Version de develop prise ; les sept champs Hi-Z de `FrameMetrics` (`hizTestedClusters`, `hizRejectedClusters`, `hizOversizedClusters`, `hizTestedTriangles`, `hizRejectedTriangles`, `hizOversizedTriangles`, `hizCountedFrame`) reportés dans `explorerMetrics.ts`, où `metricsScratch` et `fillMetrics` ont migré. Aucun doublon : le baril ne contient plus de logique.
+  - `packages/sdk-browser/visibilityBuffer.ts` — conflit de fichier entier. Version de develop prise ; les deux seules corrections du lot (suppression de `attr3` mort, `let nx` → `const nx`) sont déjà faites dans `visibilityShade.ts` chez develop, rien à reporter.
+  - `packages/sdk-browser/webgpuPages.ts` — conflit de fichier entier. Version de develop prise, puis les six apports du lot reportés un par un dans le module qui a hérité de la responsabilité : `hizTestedTriangles` et `hizCountSample` dans `webgpuPagesLayout.ts` (dimensionnés une fois, comme les lignes à côté) ; l'écriture du compte de triangles dans `webgpuVisibilityItems.ts` ; le passage de l'échantillon à `encodeTest` dans `webgpuVisibilityPasses.ts`, avec le plombage dans `webgpuPagesEncodeVis.ts` qui pose aussi `hizCountSample.frame` ; `countsSubmitted()` juste après `device.queue.submit` dans `webgpuPagesEncoder.ts` ; `cpuHizCounts`/`cpuHizCounted` dans l'état d'exécution `webgpuPagesStateRun.ts` et leur alimentation par `applyTemporalHiz` dans `webgpuPagesRenderCpu.ts` (remise à zéro sur repli) ; les sept champs de sortie dans `webgpuPagesMetrics.ts`, `counts()` appelé une seule fois.
+  - `packages/sdk-browser/triangleDiagnostic.test.ts` — même intention des deux côtés (Lambert → non éclairé) ; titre de develop gardé, l'assertion `MeshBasicMaterial` est la même.
+  - `orchestration/JOURNAL.md` — les deux blocs conservés, celui de develop (16:40) avant celui du lot, ordre chronologique.
+- Dette du lot soldée dans la foulée, les portes étant rouges à l'arrivée : `hiz.test.ts` faisait 290 lignes → scindé en `hiz.test.ts` (145) et `hizTestRect.test.ts` (158, les 12 tests `hizTestRect` et compteurs du lot) ; `gpuHizFactory.ts` faisait 203 lignes → table des uniformes par niveau extraite dans `writeHizLevelUniforms` (`gpuHizUniforms.ts`) ; exports morts retirés (`hizFootprintLevelFlat`, dont `hizTestRectFlat` a repris le seul appelant, et les réexports non lus `hizTestRect`, `HIZ_KERNEL_TEXELS`, `hizOversized` du baril `hiz.ts`, `COUNT_EVERY_IMAGES` rendu privé).
+- Portes vertes sur le résultat : `npm run build` (tsc + rewrite-dts + provenance), `eslint .`, `prettier --check`, `check:lines`, `check:duplicates` (0 clone), `check:unused` (knip, 0), `check:structure`. Tests non lancés ici (consigne : rejoués par un autre agent).

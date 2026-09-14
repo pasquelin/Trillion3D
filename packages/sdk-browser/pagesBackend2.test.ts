@@ -4,6 +4,14 @@ import * as THREE from 'three';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { threeLodBackend } from './threeLod.ts';
 import { dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
+import {
+  quadScene,
+  quadPages,
+  quadCluster,
+  quadIndices,
+  frontCamera,
+  assertSingleCoarseCluster,
+} from './pagesBackendScenes.ts';
 
 test('source instance transforms update all three WebGL backends without rebuilding pages', () => {
   for (const factory of [referenceBackend, exactPagesBackend, threeLodBackend]) {
@@ -56,41 +64,19 @@ test('source instance transforms update all three WebGL backends without rebuild
 });
 
 test('a cut over the resident budget raises the flag and still covers the surface once', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
-  const pages = [0, 1].map((id) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  }));
+  const { geometry, material, mesh, source } = quadScene();
+  const pages = quadPages();
   const backend = exactPagesBackend({
     source,
     metadata: {
       ...DAG,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
     },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-    ]),
+    indices: quadIndices(),
     associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
     maxResidentPages: 1,
   });
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
+  const camera = frontCamera();
   backend.render(camera);
   // A DAG cut is a partition: truncating it would punch a hole, so the cover stays whole and only
   // the flag is raised. Both clusters are still drawn, in one batch.
@@ -107,25 +93,8 @@ test('a cut over the resident budget raises the flag and still covers the surfac
 });
 
 test('exact pages select coarse LOD when the screen error is under the pixel threshold', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
-  const cluster = (id: number) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  });
+  const { geometry, material, mesh, source } = quadScene();
+  const cluster = quadCluster;
   // Two clusters replaced by one coarser cluster whose screen error clears a 10 px budget.
   const level = dagLevel([cluster(0), cluster(1)], [cluster(2)], 0.001);
   const backend = exactPagesBackend({
@@ -140,14 +109,5 @@ test('exact pages select coarse LOD when the screen error is under the pixel thr
     pixelError: 10,
     viewport: [960, 540],
   });
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
-  backend.render(camera);
-  assert.equal(backend.metrics().clusters, 1);
-  assert.equal(backend.metrics().selectedTriangles, 1);
-  assert.equal(backend.metrics().lodLevel, 1);
-  backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  assertSingleCoarseCluster(backend, { geometry, material });
 });

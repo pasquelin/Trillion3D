@@ -96,21 +96,6 @@ export function hizTestRectFlat(
   );
 }
 
-const levelScratch = new Int32Array(HIZ_TEST_VALUES);
-
-/** The mip `hizTestRect` picked, over the flat bounds layout `projectBoxesFlat` writes. */
-export function hizFootprintLevelFlat(
-  bounds: Float64Array,
-  base: number,
-  width: number,
-  height: number,
-  levels: number,
-): number | undefined {
-  return hizTestRectFlat(bounds, base, width, height, levels, levelScratch)
-    ? levelScratch[0]
-    : undefined;
-}
-
 const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
 
 export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
