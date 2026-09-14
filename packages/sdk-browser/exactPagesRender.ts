@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {
+  createSelectionResult,
   resolvePixelError,
   selectVisiblePages,
   type PageRec,
@@ -18,6 +19,9 @@ export type ExactPagesRenderState = {
   lodLevel: number;
   lastCamera: THREE.PerspectiveCamera | undefined;
   lastPixelError: number;
+  /** Temps de la coupe de clusters seule, entre l'appel de sélection et son retour : ni le seuil
+   *  adaptatif, ni la résidence, ni les rangs, ni la soumission. */
+  cpuSelectMs: number;
 };
 
 export function createExactPagesRender(
@@ -35,6 +39,16 @@ export function createExactPagesRender(
   syncResident: () => void,
   cpuProfile: ReturnType<typeof createCpuStepProfile>,
 ) {
+  // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout.
+  const selectOptions = {
+    pixelError: 0,
+    viewport,
+    frame: 0,
+    holdResident: true,
+    pageBudget: cap,
+    wanted: desired,
+    result: createSelectionResult<PageRec>(),
+  };
   return (camera: THREE.PerspectiveCamera) => {
     const worldStart = performance.now();
     source.updateMatrixWorld(true);
@@ -47,19 +61,14 @@ export function createExactPagesRender(
     state.frame++;
     state.lastCamera = camera;
     state.lastPixelError = resolvePixelError(context, camera, motion);
-    const selected = selectVisiblePages(
-      roots,
-      camera,
-      {
-        pixelError: state.lastPixelError,
-        viewport,
-        frame: state.frame,
-        holdResident: true,
-        pageBudget: cap,
-        wanted: desired,
-      },
-      shown,
-    );
+    // La demande de coupe est posée une fois pour toutes : l'image de rendu n'alloue rien.
+    selectOptions.pixelError = state.lastPixelError;
+    selectOptions.frame = state.frame;
+    // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif, le numéro
+    // d'image et la caméra sont posés avant cette borne ; la résidence et la soumission sont après.
+    const cutStart = performance.now();
+    const selected = selectVisiblePages(roots, camera, selectOptions, shown);
+    state.cpuSelectMs = performance.now() - cutStart;
     // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
     // Selection already answered the budget with a coarser threshold, so the cover is kept whole and
     // only the flag is raised when even the coarsest cover exceeds the budget.
@@ -74,6 +83,7 @@ export function createExactPagesRender(
     const row = cpuProfile.row;
     row[0] = lightsStart - worldStart;
     row[1] = selectStart - lightsStart;
+    // L'étape `selectMs` du profil garde ses bornes larges : la somme des étapes reste l'image.
     row[2] = syncStart - selectStart;
     row[3] = syncEnd - syncStart;
     row[5] = 0;

@@ -57,6 +57,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     lodLevel: 0,
     lastCamera: undefined as THREE.PerspectiveCamera | undefined,
     lastPixelError: 0,
+    cpuSelectMs: 0,
   };
   const motion: { last?: THREE.Vector3; lastMs?: number } = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
@@ -142,6 +143,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     },
     get lodLevel() {
       return renderState.lodLevel;
+    },
+    get cpuSelectMs() {
+      return renderState.cpuSelectMs;
     },
   });
   const renderFrame = createExactPagesRender(

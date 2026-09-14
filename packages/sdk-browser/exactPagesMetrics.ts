@@ -21,6 +21,7 @@ type MetricsContext = {
   readonly selectedTriangles: number;
   readonly frustumRejected: number;
   readonly lodLevel: number;
+  readonly cpuSelectMs: number;
 };
 
 export function createExactPagesMetrics(ctx: MetricsContext) {
@@ -64,6 +65,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         0,
       );
       return {
+        cpuSelectMs: ctx.cpuSelectMs,
         clusters: ctx.visible,
         selectedTriangles: ctx.selectedTriangles,
         residentPages: attached.length,
