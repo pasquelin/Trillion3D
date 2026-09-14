@@ -2,6 +2,7 @@ import type { PageRec } from './pageSelection.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
 import { createKeyUnion, createRefreshedKeys } from './webgpuKeyUnion.ts';
+import { createBudgetRanking } from './webgpuBudgetRanking.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -32,7 +33,7 @@ export function createWebgpuResidencySets(options: {
     leaving = createDenseKeySet(keyCount);
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(keyCount, desiredPages);
-  const capScratch: PageRec[] = [];
+  const ranking = createBudgetRanking({ keyCount, bootstrapKey, keyOf });
   let followsDesired = true;
   const requested = createKeyUnion({
     members: desired,
@@ -76,10 +77,9 @@ export function createWebgpuResidencySets(options: {
   /** Keys the opaque cut holds, counted per key: several placements of one page share one key. */
   const opaqueRefs = new Int32Array(keyCount);
   const opaqueHeld = createDenseKeySet(keyCount);
-  /** Records of the opaque cut the page budget weighs — one per placement, cover excluded. */
-  let opaqueRecords = 0;
-  const dropOpaque = (key: number) => {
-    if (!bootstrapKey[key]) opaqueRecords--;
+  const dropOpaque = (id: number) => {
+    const key = keyOfPageId[id];
+    ranking.remove(packedPages[id]);
     if (--opaqueRefs[key] > 0) return;
     opaqueHeld.remove(key);
     dropAsk(key);
@@ -91,7 +91,7 @@ export function createWebgpuResidencySets(options: {
       dropAsk(key);
     }
     opaqueHeld.clear();
-    opaqueRecords = 0;
+    ranking.clear();
   };
   /** Empties the queue, releasing every hold it placed. */
   const emptyQueue = () => {
@@ -116,11 +116,11 @@ export function createWebgpuResidencySets(options: {
     },
     /** Applies one GPU cut difference: only the pages that entered and left are touched. */
     applyCut(delta: CutDelta) {
-      for (let i = 0; i < delta.exitedCount; i++) dropOpaque(keyOfPageId[delta.exited[i]]);
+      for (let i = 0; i < delta.exitedCount; i++) dropOpaque(delta.exited[i]);
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = delta.entered[i],
           key = keyOfPageId[id];
-        if (!bootstrapKey[key]) opaqueRecords++;
+        ranking.add(packedPages[id]);
         if (opaqueRefs[key]++ > 0) continue;
         opaqueHeld.add(key);
         askFor(key, packedPages[id]);
@@ -156,23 +156,20 @@ export function createWebgpuResidencySets(options: {
      * cut to `room`: coarse clusters cover more surface per slot, so what survives is a complete
      * cover plus as much detail as fits, never a truncated cut of the surface. Ranking needs the cut
      * in the order the readback published it, which is the order `desiredNow` is written in.
+     *
+     * A cut that ranks to the queue already held changes nothing, so nothing is written: the ranking
+     * is recomputed from the records themselves every image, never assumed from the cut standing
+     * still, and the queue is rebuilt only where the two differ.
      */
     applyBudget(room: number, desiredNow: readonly PageRec[], transparentNow: readonly PageRec[]) {
-      let records = opaqueRecords;
-      for (let i = 0; i < transparentNow.length; i++)
-        if (!bootstrapKey[keyOf(transparentNow[i])]) records++;
-      if (records <= room) {
+      if (ranking.rank(room, desiredNow, transparentNow) <= room) {
         if (!followsDesired) restoreWanted();
         return false;
       }
       followsDesired = false;
-      capScratch.length = 0;
-      for (let i = 0; i < desiredNow.length; i++)
-        if (!bootstrapKey[keyOf(desiredNow[i])]) capScratch.push(desiredNow[i]);
-      capScratch.sort((a, b) => (b.level ?? 0) - (a.level ?? 0));
-      capScratch.length = Math.max(0, room);
+      if (ranking.matches(wanted.list, wanted.count, wantedPages)) return true;
       emptyQueue();
-      for (let i = 0; i < capScratch.length; i++) enqueue(keyOf(capScratch[i]), capScratch[i]);
+      for (let i = 0; i < ranking.length; i++) enqueue(ranking.keys[i], ranking.ranked[i]);
       return true;
     },
     wantedPages,
