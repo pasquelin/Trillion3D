@@ -1,10 +1,5 @@
-import {
-  slotCount,
-  DRAW_ITEM_U32,
-  UNIFORM_BYTES,
-  WORKGROUP,
-  DRAW_INDIRECT_STRIDE,
-} from './gpuDrawContract.ts';
+import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './gpuDrawContract.ts';
+import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
 import { drawShader } from './gpuDrawShader.ts';
 
@@ -19,59 +14,14 @@ export async function createGpuDraw(
   layerSlots = 1,
 ): Promise<GpuDraw | undefined> {
   if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined;
-  const SLOTS = slotCount(layerSlots);
-  const itemBytes = slotCap * DRAW_ITEM_U32 * 4,
-    restBytes = Math.max(4, Math.ceil(slotCap / 32) * 4),
-    instanceBytes = slotCap * 4,
-    indirectBytes = SLOTS * DRAW_INDIRECT_STRIDE,
-    groupCount = Math.ceil(slotCap / WORKGROUP),
-    groupBytes = groupCount * SLOTS * 4;
   const buffers: GPUBuffer[] = [];
   let disposed = false;
   try {
-    const itemsBuf = device.createBuffer({
-      size: itemBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    const restBuf = device.createBuffer({
-      size: restBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    const uniforms = device.createBuffer({
-      size: UNIFORM_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-    const instanceBuffer = device.createBuffer({
-      size: instanceBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
-    const indirectBuffer = device.createBuffer({
-      size: indirectBytes,
-      usage:
-        GPUBufferUsage.INDIRECT |
-        GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_DST |
-        GPUBufferUsage.COPY_SRC,
-    });
-    const groupCounts = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
-    const groupOffsets = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
-    // Ce que le CPU a compté par slot avant la compaction. Tout à un tant que personne ne le dit :
-    // un appelant qui ne fournit rien paie la compaction complète, comme avant.
-    const slotUsedBuf = device.createBuffer({
-      size: SLOTS * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    device.queue.writeBuffer(slotUsedBuf, 0, new Uint32Array(SLOTS).fill(1));
-    buffers.push(
-      itemsBuf,
-      restBuf,
-      uniforms,
-      instanceBuffer,
-      indirectBuffer,
-      groupCounts,
-      groupOffsets,
-      slotUsedBuf,
-    );
+    const allocated = createGpuDrawBuffers(device, slotCap, layerSlots);
+    const SLOTS = allocated.slots;
+    const { itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer } = allocated;
+    const { groupCounts, groupOffsets, slotUsedBuf } = allocated;
+    buffers.push(...allocated.all);
     if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
     const layout = device.createBindGroupLayout({
       entries: [
