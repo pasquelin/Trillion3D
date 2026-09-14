@@ -7,6 +7,7 @@ import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './webgpuPagesSet
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLayout.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import { createWebgpuVisState, type WebgpuVisState } from './webgpuPagesStateVis.ts';
+import { createWebgpuLightState, type WebgpuLightState } from './webgpuPagesStateLights.ts';
 import {
   createWebgpuCaptureState,
   createWebgpuRunState,
@@ -43,6 +44,8 @@ export interface WebgpuPagesRuntime {
   layout: WebgpuPagesLayout;
   gpu: WebgpuGpuState;
   vis: WebgpuVisState;
+  /** Les lampes du contrat, leurs listes par tuile et leur atlas d'ombres. */
+  lights: WebgpuLightState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
   timing: WebgpuTimingState;
@@ -79,7 +82,8 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     unsupported: [
       'material extensions, skinning and morph targets in WebGPU',
       'per-texture transforms, UV channels and sampler modes',
-      'environment maps, light shadows, area lights and light probes',
+      'environment maps, area lights and light probes',
+      'contract scene lights with shadow atlas',
       'indirect draw',
       'occlusion culling',
       'temporal occlusion culling',
@@ -98,6 +102,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     layout,
     gpu: createWebgpuGpuState(setup.viewport),
     vis,
+    lights: createWebgpuLightState(context.sceneLights),
     run: createWebgpuRunState(),
     capture: createWebgpuCaptureState(),
     timing: createWebgpuTimingState(),
