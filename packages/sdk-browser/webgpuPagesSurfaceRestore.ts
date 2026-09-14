@@ -1,0 +1,76 @@
+import type * as THREE from 'three';
+import { appendAll } from './webgpuPagesHelpers.ts';
+import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
+import { resetHizHistory } from './webgpuPagesDrops.ts';
+import { renderWebgpuPages } from './webgpuPagesRender.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+/** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
+export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+  rt.capture.surfaceRenderAllowed = true;
+  try {
+    renderWebgpuPages(rt, camera);
+  } finally {
+    rt.capture.surfaceRenderAllowed = false;
+  }
+}
+
+/** Waits until every page the current cut shows is resident, then draws it for `camera`. The hooks
+ *  let a capture refuse a cut the budget or the host aborted before any upload or draw. */
+export async function drawResidentCut(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  camera: THREE.PerspectiveCamera,
+  hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
+) {
+  const { run, gpu, services } = rt;
+  await services.residency.pending;
+  hooks.admitted?.();
+  await services.ensureResident(run.shown, run.frame, services.residency.nextJobId());
+  if (run.shown.some((page) => !gpu.cache?.get(page.url)))
+    throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
+  run.drawn.length = 0;
+  appendAll(run.drawn, run.shown);
+  hooks.beforeEncode?.();
+  run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
+}
+
+export type SavedView = {
+  main: THREE.PerspectiveCamera;
+  size: [number, number];
+  diagnostic: WebgpuPagesRuntime['run']['diagnostic'];
+  motion: WebgpuPagesRuntime['run']['motion'];
+};
+
+/** Puts the main view back after a surface capture, presenting it again when the host shows one. */
+export async function restoreMainView(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice,
+  saved: SavedView,
+) {
+  const { run, gpu, capture, context, diag } = rt,
+    { viewport } = rt.setup;
+  viewport[0] = saved.size[0];
+  viewport[1] = saved.size[1];
+  run.diagnostic = saved.diagnostic;
+  resetHizHistory(run);
+  Object.assign(run.motion, saved.motion);
+  try {
+    if (run.lost || context.signal?.aborted) return;
+    renderForCapture(rt, saved.main);
+    await drawResidentCut(rt, gpuDevice, saved.main);
+    if (gpu.presenter && gpu.colorTexture) {
+      const encoder = gpuDevice.createCommandEncoder();
+      gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);
+      gpuDevice.queue.submit([encoder.finish()]);
+    }
+    if (gpu.canvasTexture) gpu.canvasTexture.needsUpdate = true;
+    diag.engineDiagnostic('surface-main-restored', 'Vue principale restaurée', {
+      width: saved.size[0],
+      height: saved.size[1],
+    });
+  } finally {
+    capture.secondaryCamera = undefined;
+    capture.surfaceRenderAllowed = false;
+  }
+}

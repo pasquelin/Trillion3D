@@ -21,6 +21,7 @@ export interface SelectionState<T extends PageRecord> {
   rootFallback: boolean;
   wanted: T[];
   shown: T[];
+  isResident?: (page: T) => boolean;
   pageResident: (page: T) => boolean;
   pixelError: number;
   frustumRejected: number;
@@ -40,6 +41,19 @@ export interface SelectionState<T extends PageRecord> {
   flatShort: boolean;
 }
 
+/** Résultat de la coupe, rempli en place : l'appelant fournit l'objet, l'image n'en alloue aucun. */
+export interface SelectionResult<T> {
+  shown: T[];
+  wanted: T[];
+  visible: number;
+  selectedTriangles: number;
+  displayedTriangles: number;
+  frustumRejected: number;
+  lodLevel: number;
+  complete: boolean;
+  pixelError: number;
+}
+
 export const IDENTITY_WORLD = new THREE.Matrix4();
 /** Synchronous selection reuses these buffers between frames without allocating a new cut. */
 export const selectionScratch = {
@@ -57,3 +71,36 @@ export const selectionScratch = {
 };
 export const fallbackScratch: unknown[] = [];
 export const forceScratch: number[] = [];
+
+/** L'état d'une coupe, posé une seule fois. La sélection est synchrone et non réentrante, comme
+ *  `selectionScratch` : réutiliser cet état retire la dernière allocation par image. */
+const reusedState: SelectionState<PageRecord> = {
+  camera: undefined as unknown as THREE.PerspectiveCamera,
+  frame: 0,
+  hold: false,
+  rootFallback: false,
+  wanted: [],
+  shown: [],
+  isResident: undefined,
+  pageResident: (rec) =>
+    !reusedState.hold ||
+    (reusedState.isResident ? reusedState.isResident(rec) : !!(rec as PageRecord).array),
+  pixelError: 0,
+  frustumRejected: 0,
+  lodLevel: 0,
+  complete: true,
+  cameraStretch: 1,
+  flatWorld: IDENTITY_WORLD,
+  flatElements: IDENTITY_WORLD.elements,
+  flatStretch: 1,
+  flatFocal: 1,
+  flatInside: false,
+  flatUseForcing: false,
+  flatMissing: false,
+  flatShort: false,
+};
+
+/** L'état réutilisé, vu au type de pages demandé. */
+export function selectionState<T extends PageRecord>(): SelectionState<T> {
+  return reusedState as unknown as SelectionState<T>;
+}

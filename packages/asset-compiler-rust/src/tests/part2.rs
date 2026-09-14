@@ -3,24 +3,12 @@ use super::*;
 #[test]
 fn compile_indexes_unindexed_triangles() {
     let (root, options) = fixture();
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf["meshes"][0]["primitives"][0]
         .as_object_mut()
         .expect("primitive")
         .remove("indices");
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &gltf_bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, None);
     let result = compile(&options, |_| {}).expect("compile");
     assert_eq!(result["selectedTriangles"], 1);
     assert_eq!(result["primitives"][0]["pages"][0]["count"], 3);

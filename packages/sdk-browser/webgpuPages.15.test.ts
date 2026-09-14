@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
-import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
+import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
 
 test('surface capture keeps external renders blocked until main-view restoration has finished', async () => {
   installGpuGlobals();
@@ -80,25 +79,10 @@ test('a failed transparent material pipeline cannot leave an HDR pass with an rg
 
 test('camera jumps and obsolete uploads preserve coverage while detail slots are reclaimed', async () => {
   installGpuGlobals();
-  const a = coarseQuadScene(),
-    b = coarseQuadScene(),
-    { device } = mockGpu();
-  const mesh = b.source.children[0] as THREE.Mesh;
-  mesh.position.x = 100;
-  a.source.add(mesh);
-  const primitive = {
-    ...b.metadata.primitives[0],
-    mesh: 1,
-    pages: b.metadata.primitives[0].pages.map((page) => ({ ...page, url: 'b' + page.url })),
-  };
+  const { device } = mockGpu(),
+    fixture = twoCoarseQuadsScene();
   const backend = webgpuPagesBackend({
-    ...a,
-    metadata: { primitives: [...a.metadata.primitives, primitive] },
-    indices: new Map([
-      ...a.indices,
-      ...[...b.indices].map(([url, bytes]) => ['b' + url, bytes] as const),
-    ]),
-    associations: new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]]),
+    ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
     viewport: [32, 32],
@@ -133,10 +117,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     assert.ok(backend.metrics().cacheEvictions! > 0);
   } finally {
     backend.dispose();
-    a.geometry.dispose();
-    a.material.dispose();
-    b.geometry.dispose();
-    b.material.dispose();
+    fixture.dispose();
   }
 });
 

@@ -4,7 +4,7 @@ import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 
 /** Build requested and drawable cuts separately; a resident fallback never hides a missing request. */
-export function take<T extends PageRecord>(s: SelectionState<T>, rec: T) {
+function take<T extends PageRecord>(s: SelectionState<T>, rec: T) {
   if (!rec.min || !rec.max) return;
   if (
     !s.flatInside &&
