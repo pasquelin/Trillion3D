@@ -1,5 +1,5 @@
 import {hizBuildPyramid,hizReduceCeil} from '../sdk-core/index.ts';
-import {HIZ_BOUNDS_VALUES,createHizCounts,hizFootprintLevelFlat,hizOversizedFlat,hizRejects,type HizBounds,type HizCounts,type HizPyramid} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,HIZ_TEST_VALUES,createHizCounts,hizOversizedFlat,hizRejects,hizTestRectFlat,type HizBounds,type HizCounts,type HizPyramid} from './hiz.ts';
 
 const WORKGROUP=8,TEST_WORKGROUP=64,UNIFORM_BYTES=256,MAX_LEVELS=16;
 /**
@@ -177,6 +177,8 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
  const uniData=new Float32Array(UNIFORM_BYTES/4);
  // Reused across frames: the test path must not allocate a byte per image.
  let testBytes=new ArrayBuffer(32),testF32=new Float32Array(testBytes),testI32=new Int32Array(testBytes),testU32=new Uint32Array(testBytes);
+ // The level and clipped rectangle of the box being written, reused by every box of every image.
+ const testRect=new Int32Array(HIZ_TEST_VALUES);
  // Counter state, all of it sized once. `counted` describes the last image whose verdicts came back;
  // `sampled*` hold the image being read, because the caller's own arrays are rewritten by the next one.
  const counted=createHizCounts() as HizCounts&{frame:number};counted.frame=-1;
@@ -294,12 +296,15 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
      let tested=0,oversized=0,oversizedTriangles=0,testedTriangles=0;
      for(let i=0;i<count;i++){
       const base=i*8,at=i*HIZ_BOUNDS_VALUES;
-      const level=hizFootprintLevelFlat(next,at,gpu.width,gpu.height,sizes.length);
-      const scale=level===undefined?1:2**level;
-      testI32[base]=Math.floor(next[at]/scale);testI32[base+1]=Math.floor(next[at+1]/scale);
-      testI32[base+2]=Math.floor(next[at+2]/scale);testI32[base+3]=Math.floor(next[at+3]/scale);
-      testF32[base+4]=next[at+4];testU32[base+5]=((rows[i]<<1)|(level===undefined?1:0))>>>0;
-      testU32[base+6]=level===undefined?0:offsets[level];testU32[base+7]=level===undefined?gpu.width:sizes[level][0];
+      // The rectangle handed to the kernel is the one clipped to the viewport, in texels of the mip
+      // that covers it exactly; `hizTestRectFlat` is the same call the CPU oracle makes, so the two
+      // read the same texels of the same level.
+      const testable=hizTestRectFlat(next,at,gpu.width,gpu.height,sizes.length,testRect);
+      const level=testable?testRect[0]:0,scale=2**level;
+      testI32[base]=testable?Math.floor(testRect[1]/scale):0;testI32[base+1]=testable?Math.floor(testRect[2]/scale):0;
+      testI32[base+2]=testable?Math.floor(testRect[3]/scale):0;testI32[base+3]=testable?Math.floor(testRect[4]/scale):0;
+      testF32[base+4]=next[at+4];testU32[base+5]=((rows[i]<<1)|(testable?0:1))>>>0;
+      testU32[base+6]=testable?offsets[level]:0;testU32[base+7]=testable?sizes[level][0]:gpu.width;
       if(!due)continue;
       const triangles=sample!.triangles[i]??0;
       tested++;testedTriangles+=triangles;
