@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
-import { cameraPose, publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */
@@ -54,7 +55,7 @@ export function traceGpuCutWaiting(rt: WebgpuPagesRuntime) {
 
 /** The per-frame trace records of a GPU-cut image; both are built lazily and only when tracing. */
 export function traceGpuCutFrame(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
-  const { run, timing, diag } = rt,
+  const { run, diag } = rt,
     { rows } = rt.layout,
     { tracking, slots } = rt.setup;
   if (!diag.traceEnabled) return;
@@ -71,35 +72,35 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, camera: THREE.Perspecti
       metricsReady: run.gpuMetricsReady,
     }),
   );
-  diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () => ({
-    backend: 'webgpu-page-raster',
-    frame: run.frame,
-    submission: run.imageRevision,
-    pose: cameraPose(camera),
-    source: 'gpu',
-    selection: { source: 'gpu', decision: 'current-frame-mask' },
-    cpu: timing.cpuSample,
-    coverage: {
-      loaded: tracking.traceSet(
-        'frame.loaded',
-        rows.packedRecs.slice(0, rows.packedCount).map((page) => page!.url),
-      ),
-      wanted: tracking.traceSet(
-        'frame.wanted',
-        run.desired.map((page) => page.url),
-      ),
-      shown: run.gpuMetricsReady
-        ? tracking.traceSet(
-            'frame.shown',
-            run.shown.map((page) => page.url),
-          )
-        : null,
-      ready: rt.services.bootstrapState.ready,
-    },
-    budget: { slots, limited: run.coverageBudgetLimited },
-    selectedTriangles: run.selectedTriangles,
-    uncoveredTriangles: run.uncoveredTriangles,
-    submittedTriangles: run.gpuMetricsReady ? run.submittedTriangles : null,
-    drawCalls: run.gpuDrawCalls,
-  }));
+  diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
+    frameTraceSnapshot(
+      rt,
+      camera,
+      { source: 'gpu', decision: 'current-frame-mask' },
+      {
+        coverage: {
+          loaded: tracking.traceSet(
+            'frame.loaded',
+            rows.packedRecs.slice(0, rows.packedCount).map((page) => page!.url),
+          ),
+          wanted: tracking.traceSet(
+            'frame.wanted',
+            run.desired.map((page) => page.url),
+          ),
+          shown: run.gpuMetricsReady
+            ? tracking.traceSet(
+                'frame.shown',
+                run.shown.map((page) => page.url),
+              )
+            : null,
+          ready: rt.services.bootstrapState.ready,
+        },
+        budget: { slots, limited: run.coverageBudgetLimited },
+        selectedTriangles: run.selectedTriangles,
+        uncoveredTriangles: run.uncoveredTriangles,
+        submittedTriangles: run.gpuMetricsReady ? run.submittedTriangles : null,
+        drawCalls: run.gpuDrawCalls,
+      },
+    ),
+  );
 }

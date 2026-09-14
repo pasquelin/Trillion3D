@@ -1,10 +1,12 @@
 import * as THREE from 'three';
-import { EngineError, type AssetScope, type RuntimeEvent } from '../sdk-core/index.ts';
+import { EngineError } from '../sdk-core/index.ts';
 import { PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
+import type { ExplorerHostState } from './explorerHostState.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
   camera: THREE.PerspectiveCamera;
@@ -14,30 +16,15 @@ type Inputs = {
   directGpu: boolean;
   renderer: THREE.WebGLRenderer;
   baseline: RenderBackend;
-  scope: AssetScope;
-  state: () => { measuring: boolean };
-  onFallback: (reason: string) => void;
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
+  state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
 };
 
-export function createExplorerDraw(inputs: Inputs) {
-  const {
-    camera,
-    geometryUrls,
-    streamer,
-    streaming,
-    directGpu,
-    renderer: ownedRenderer,
-    baseline,
-    scope,
-    state,
-    onFallback,
-    emit,
-    diagnose,
-  } = inputs;
+export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
+  const { scope, emit, diagnose } = session;
+  const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
+  const ownedRenderer = inputs.renderer;
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
-    const { measuring } = state();
+    const { measuring } = state;
     const steps = backend as {
       cpuStep?: (index: number, ms: number) => void;
       cpuFrameEnd?: () => void;
@@ -102,7 +89,8 @@ export function createExplorerDraw(inputs: Inputs) {
           'Visible pages exceed the resident budget; no incomplete surface is rendered',
         );
       const fallbackReason = 'Visible pages exceed resident budget';
-      onFallback(fallbackReason);
+      state.fallbackReason = fallbackReason;
+      state.active = baseline;
       baseline.render(camera);
       ownedRenderer.render(baseline.scene, camera);
       emit({

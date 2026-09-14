@@ -32,21 +32,28 @@ export function createWebgpuResidentEnsurer({
     if (!cache) return;
     const started = performance.now(),
       urls = traceEnabled ? wanted.map((page) => page.url) : [];
-    traceDiagnostic('residency-ensure-start', 'Vérification de la résidence GPU demandée', () => ({
+    const loaded = () =>
+      tracking.traceSet(
+        'ensure.loaded',
+        urls.filter((url) => !!cache!.get(url)),
+      );
+    const payload = <T extends object>(extra: T) => ({
       frame: jobFrame,
       jobId,
       scope: 'async-residency-ensure',
       pages: tracking.traceSet('ensure', urls),
-      wanted: tracking.traceSet('ensure.wanted', urls),
-      loaded: tracking.traceSet(
-        'ensure.loaded',
-        urls.filter((url) => !!cache!.get(url)),
-      ),
-      queueWaitMs: null,
-      elapsedMs: null,
+      ...extra,
       cpuWorkIncluded: true,
       gpuQueueWaitIncluded: false,
-    }));
+    });
+    traceDiagnostic('residency-ensure-start', 'Vérification de la résidence GPU demandée', () =>
+      payload({
+        wanted: tracking.traceSet('ensure.wanted', urls),
+        loaded: loaded(),
+        queueWaitMs: null,
+        elapsedMs: null,
+      }),
+    );
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
         key = tracking.keyOf(rec);
@@ -72,18 +79,11 @@ export function createWebgpuResidentEnsurer({
       }
     }
     traceDiagnostic('residency-ensure-end', 'Résidence GPU vérifiée', () => ({
-      frame: jobFrame,
-      jobId,
-      scope: 'async-residency-ensure',
-      pages: tracking.traceSet('ensure', urls),
-      loaded: tracking.traceSet(
-        'ensure.loaded',
-        urls.filter((url) => !!cache!.get(url)),
-      ),
-      durationMs: performance.now() - started,
-      elapsedMs: performance.now() - started,
-      cpuWorkIncluded: true,
-      gpuQueueWaitIncluded: false,
+      ...payload({
+        loaded: loaded(),
+        durationMs: performance.now() - started,
+        elapsedMs: performance.now() - started,
+      }),
       pinned: tracking.traceSet('pins', tracking.pinnedUrls()),
     }));
   };

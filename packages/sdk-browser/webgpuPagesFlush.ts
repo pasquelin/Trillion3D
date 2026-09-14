@@ -1,4 +1,4 @@
-import { readGpuImage } from './gpuPresentation.ts';
+import { readGpuImage, readbackBytesPerRow } from './gpuPresentation.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
@@ -50,7 +50,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       rt,
       width,
       height,
-      capture.captureAllocationBytes + Math.ceil((width * 4) / 256) * 256 * height,
+      capture.captureAllocationBytes + readbackBytesPerRow(width) * height,
     );
     capture.capturePending = readGpuImage(gpuDevice, texture, width, height, context.signal)
       .then((pixels) => {
