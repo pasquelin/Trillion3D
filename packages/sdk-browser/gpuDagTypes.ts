@@ -10,7 +10,7 @@ export const CLUSTER_ROOT = 1,
 /** Rounds of ancestor escalation before the pinned root cover takes over. */
 export const DAG_ESCALATION_ROUNDS = 3;
 
-export type DagCluster = {
+type DagCluster = {
   url: string;
   lodError?: number;
   parentError?: number | null;

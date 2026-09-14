@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEPTH_LAYER_BIAS_UNITS,
-  MAX_DEPTH_LAYER,
   depthLayerBias,
   biasedDepthBits,
 } from './depthLayer.ts';
@@ -58,17 +57,11 @@ test('assertFormat accepts format version 4', () => {
 });
 
 test('assertFormat rejects format version 1', () => {
-  assert.throws(
-    () => assertFormat(1),
-    /cache format/i
-  );
+  assert.throws(() => assertFormat(1), /cache format/i);
 });
 
 test('assertFormat rejects format version 2', () => {
-  assert.throws(
-    () => assertFormat(2),
-    /cache format/i
-  );
+  assert.throws(() => assertFormat(2), /cache format/i);
 });
 
 test('assertFormat rejects unknown versions', () => {

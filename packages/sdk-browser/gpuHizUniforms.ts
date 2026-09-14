@@ -25,3 +25,37 @@ export function writeUni(
     packed.byteLength,
   );
 }
+
+/**
+ * Every level's source and destination are a function of the target size alone, so the whole uniform
+ * array is written once per allocation and no image uploads a byte to build the pyramid. Slot 0 holds
+ * the level-0 size; slot i+1 the offsets and sizes the reduction of level i reads and writes.
+ */
+export function writeHizLevelUniforms(
+  device: GPUDevice,
+  uniforms: GPUBuffer,
+  levelWords: Uint32Array<ArrayBuffer>,
+  sizes: Array<[number, number]>,
+  offsets: number[],
+  width: number,
+  height: number,
+  maxLevels: number,
+  uniformBytes: number,
+) {
+  levelWords.fill(0);
+  levelWords[0] = width;
+  levelWords[1] = height;
+  levelWords[2] = 0;
+  for (let i = 0; i < sizes.length - 1 && i + 1 < maxLevels; i++) {
+    const [srcW, srcH] = sizes[i],
+      [dstW, dstH] = sizes[i + 1],
+      base = (i + 1) * (uniformBytes / 4);
+    levelWords[base] = offsets[i];
+    levelWords[base + 1] = srcW;
+    levelWords[base + 2] = srcH;
+    levelWords[base + 3] = offsets[i + 1];
+    levelWords[base + 4] = dstW;
+    levelWords[base + 5] = dstH;
+  }
+  device.queue.writeBuffer(uniforms, 0, levelWords);
+}
