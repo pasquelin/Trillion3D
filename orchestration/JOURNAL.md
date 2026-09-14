@@ -1134,3 +1134,8 @@ série `generale` seule (elle a échoué même seule ici, pas en tête de triple
 
 Détail complet, commandes, charge machine et chemins :
 `orchestration/phase-1-mesure-lot-4b.md` (worktree `webgeometry-sans-threejs-9f889d`).
+
+## 2026-09-14 — [session sans-threejs] fusion lot 4b (coupe hiérarchique WebGL2)
+
+- develop avancé en avance rapide sur lot4b-coupe-hierarchique. Preuve au harnais commun (navigateur neuf par série, 60 images, MAX_PAGES=100000, 3 vues × pixelError 0 et 1) : 0 px avant/après et témoin A/A 0 px partout, hash de coupe identiques. cpuSelectMs p50 : générale 11,4 → 5,2 ms (0 px) et 2,9 → 2,5 ms (1 px) ; sol 1,5 → 0,8 ; rue 1,5 → 0,8. Nœuds testés en vue générale 13 541 (cible ≤ 15 000). 410 tests, 0 échec. Cible < 2 ms en vue générale non atteinte : reste à traiter en lot 4c (le coût restant est dans projectedClusterError et cutSelects sur les nœuds indécis).
+- Harnais : `fix(mesure)` navigateur neuf par série (le processus GPU gardait la mémoire d'Emerald, troisième série sans contexte WebGL2) ; preuves de fusion à 60 images, 300 réservé aux campagnes.
