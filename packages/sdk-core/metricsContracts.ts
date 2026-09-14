@@ -119,6 +119,12 @@ export interface FrameMetrics {
   gpuLightListsMs?: number | null;
   gpuShadowsMs?: number | null;
   gpuLightingMs?: number | null;
+  /** Nœuds de hiérarchie sur lesquels la coupe de cette image a posé un test — tronc de vision ou
+   *  décision de niveau de détail. Un nœud déjà tranché et entièrement visible n'en reçoit aucun :
+   *  il est traversé, pas testé. C'est la mesure du travail réel d'une coupe hiérarchique ; une
+   *  coupe à plat en teste zéro et parcourt tous les clusters.
+   *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur, ou qui ne le compte pas. */
+  cpuSelectNodesTested?: number | null;
 }
 export interface BackendCapabilities {
   renderer: string;

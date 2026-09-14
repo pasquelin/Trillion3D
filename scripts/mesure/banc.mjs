@@ -3,7 +3,7 @@
 // Banc de mesure commun à tous les lots. Une commande, aucun serveur à lancer à la main :
 //
 //   node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
-//        --vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000
+//        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 //
 // `--moteur` vaut `webgl` (exact-cluster-pages) ou `webgpu` (webgpu-page-raster) ; le moteur
 // choisit aussi les drapeaux de Chromium, copiés de `render-tech-lab/scripts/headless/`.
@@ -77,16 +77,16 @@ async function main() {
   const port = server.address().port;
   report.settings = { ...settings, port };
   const { chromium } = createRequire(join(options.LAB, 'package.json'))('playwright');
-  const browser = await chromium.launch({
-    headless: true,
-    executablePath: options.CHROME,
-    args: ENGINE.flags,
-  });
-  // Une page neuve par série, fermée aussitôt après. Une scène Emerald laisse plusieurs centaines
-  // de mégaoctets vivants dans la page qui l'a jouée ; en rejouant série après série sur la même
-  // page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error creating WebGL
-  // context »). Fermer la page rend au navigateur le contexte WebGL et le tas de la série passée.
+  // Un navigateur neuf par série, fermé aussitôt après. Une scène Emerald laisse plusieurs
+  // centaines de mégaoctets dans le processus GPU de Chromium ; fermer seulement la page ne les
+  // rend pas, et la troisième série n'obtient plus de contexte (« WebGL2 unavailable »). Relancer
+  // le navigateur libère le processus GPU entre deux séries.
   const onFreshPage = async (run) => {
+    const browser = await chromium.launch({
+      headless: true,
+      executablePath: options.CHROME,
+      args: ENGINE.flags,
+    });
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
@@ -105,6 +105,7 @@ async function main() {
       return await run(page);
     } finally {
       await page.close();
+      await browser.close();
     }
   };
   try {
@@ -152,7 +153,6 @@ async function main() {
           avant && apres ? avant.selection.sha256 === apres.selection.sha256 : null;
       }
   } finally {
-    await browser.close();
     await new Promise((done) => server.close(done));
   }
 
