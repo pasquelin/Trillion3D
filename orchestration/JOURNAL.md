@@ -412,3 +412,16 @@
 - Commit ccdc39b sur test/dag-materiaux (journal seul). Cause : l'ORDRE DE DESSIN, pas la géométrie. `pageSelection.ts:255` enregistre les instances fusionnées dans une seconde boucle après le parcours de scène, `pageSelection.ts:213` consomme un rang par matériau au lieu d'un par primitive, `clusterBatches.ts:534` dessine au rang du matériau → 903 maillages sur 2 479 (36 %) changent de rang. À 0 px, 100 % des pixels différents sont surface contre surface, 0 pixel de silhouette : surfaces coplanaires, `depthFunc` LESS, le premier dessiné gagne (cf. mémoire « coplanaires Emerald »). Hypothèse « niveau 0 modifié » réfutée : même multiensemble de triangles sur 150 membres, 0 discordance de plage.
 - Réutilisable : `material_ranges()`, table `materialRanges`, `vertexBases`, page en plusieurs lots sur tampon d'index partagé, monotonie. À refaire : l'attribution des rangs (conserver le rang de parcours de scène de chaque primitive membre).
 - Verdict NO-GO inchangé (plancher par maillage). Mon agent a quitté le worktree ; les modifications non commises de `dag.rs`/`lib.rs` (élagage, sloppy, `WG_NO_*`) ne sont pas de lui et sont laissées intactes. Worktree rendu à la session a4.
+
+## 2026-09-14 16:40 — [session sans-threejs] phase 1, lot 2 (rejet Hi-Z) rendu ; lot 4 mesure non faite
+
+- Lot 2, branche lot1-hiz-compteurs (d6693a8, fusion develop eab2bfa incluse, rien fusionné dans develop). Défaut trouvé : tout rectangle écran débordant du cadre rendait `undefined`, donc jamais rejeté ; corrigé (découpe au viewport, source unique `hizTestRect` GPU/CPU). Rejets Hi-Z avant → après (Emerald 1280×720, 1 px, MAX_PAGES=100000) : vue générale 758 → 758 clusters ; sol 424 → 447 (+5,4 %). Gain marginal : les clusters de 128 tri débordent rarement. Trous 0, `selectedTriangles` inchangé. Durées polluées (load 4,3–5,1), preuves pixel non faites (load > 4 au moment de décider). Rejet hiérarchique des nœuds : ne peut pas augmenter les rejets (boîte englobante, profondeur jamais plus loin), seulement du temps GPU, à chiffrer avant d'écrire. Vrai verrou : seule la moitié « rest » des lignes est testée, l'autre est dessinée sans test. Lint : 14 → 2 erreurs, les 2 préexistantes sur develop (`no-unsafe-finally`, webgpuPages.ts). Tests non écrits (consigne : Haiku).
+- Lot 4 : mesure tentée par Haiku, harnais laissé par l'agent incompatible (métriques WebGPU, pas `cpuSelectMs`), non faite, journal a327d0e.
+- Aucun agent vivant. Reprise sur mot de l'utilisateur.
+
+
+## 2026-09-14 — Livraison du prototype éclairage dans le banc 16
+
+- Revue indépendante et corrections de livraison terminées : porte initiale, ressources, archives persistantes et erreurs de préparation. Code éclairage isolé des backends ordinaires ; aucun nouveau choix d'architecture validé.
+- Lab : validation complète réussie. SDK : tests éclairage 12/12, build et contrats réussis, Rust 57/57 ; global Node 336/337 et portes qualité héritées encore rouges (détails dans `RD_ECLAIRAGE_DIAGNOSTIC.md`). Fusion explicitement redemandée après signalement ; aucune prétention de validation globale verte.
+- Même image brute/BVH sur les 14 états de la scène, qualité inchangée. Le gain mesuré reste insuffisant pour rendre ce prototype fluide.
