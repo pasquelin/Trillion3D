@@ -3,18 +3,10 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "lib": [
-      "ES2023",
-      "DOM"
-    ],
-    "types": [
-      "node",
-      "@webgpu/types"
-    ],
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "@webgpu/types"],
     "strict": true,
     "skipLibCheck": true,
-    "allowJs": true,
-    "checkJs": false,
     "declaration": true,
     "rewriteRelativeImportExtensions": true,
     "rootDir": "packages",
@@ -23,11 +15,7 @@
   "include": [
     "packages/sdk-core/**/*.ts",
     "packages/sdk-browser/**/*.ts",
-    "packages/sdk-node/**/*.mjs"
+    "packages/sdk-node/**/*.mts"
   ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.test.mjs",
-    "**/target/**"
-  ]
+  "exclude": ["**/*.test.ts", "**/*.test.mjs", "**/target/**"]
 }

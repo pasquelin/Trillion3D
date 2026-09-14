@@ -1,6 +1,6 @@
 /** Shared opaque/forward lighting. Match the explorer's Three.js standard
  * material with punctual light and hemisphere irradiance, without an envMap. */
-export const STANDARD_LIGHTING_WGSL=`
+export const STANDARD_LIGHTING_WGSL = `
 fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f,sky:vec3f,ground:vec3f,ao:f32)->vec3f{
  let L=normalize(light.xyz);
  let NdotL=max(dot(N,L),0.0);
@@ -22,7 +22,7 @@ fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f,sk
  return diffuse*(hemi*ao+vec3f(direct))+D*Vis*F*direct;
 }`;
 
-export const NORMAL_TRANSFORM_WGSL=`
+export const NORMAL_TRANSFORM_WGSL = `
 fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
  let a=m[0];let b=m[1];let c=m[2];let det=dot(a,cross(b,c));
  if(abs(det)<1e-20){return v;}
