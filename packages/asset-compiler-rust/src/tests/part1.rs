@@ -90,21 +90,9 @@ fn accessor_cannot_read_past_its_buffer_view() {
 #[test]
 fn compile_rejects_local_accessor_overflow_before_publication() {
     let (root, options) = fixture_named("mesh.gltf", "mesh.bin");
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf["bufferViews"][0]["byteLength"] = json!(24);
-    let bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&bytes));
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, None);
     assert_eq!(
         compile(&options, |_| {}).expect_err("accessor").code,
         "INVALID_GLTF"
