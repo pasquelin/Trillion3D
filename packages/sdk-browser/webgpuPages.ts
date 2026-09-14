@@ -6,6 +6,7 @@ import {STANDARD_LIGHTING_WGSL,NORMAL_TRANSFORM_WGSL} from './standardLighting.t
 import {generateMaterialMips} from './textureMips.ts';
 import {createGpuSmallTriangles,type GpuSmallTriangles} from './gpuSmallTriangles.ts';
 import {createGpuTiming} from './gpuTiming.ts';
+import {createCpuStepProfile} from './cpuProfile.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache} from './gpuPages.ts';
 import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
@@ -13,7 +14,7 @@ import {cameraSelectionUniforms,sameSelectionUniforms,type GpuSelection,type Sel
 import {createGpuDagSelection,packDagSelection} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
-import {HIZ_BOUNDS_VALUES,applyTemporalHiz,projectBoxesFlat,sameHizView,splitOccludersFlat,type TemporalHizState} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,applyTemporalHiz,createBoxCorners,projectBoxesFlat,sameHizView,splitOccludersFlat,type TemporalHizState} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
 import {BIN_BACK,BIN_FRONT,BIN_NONE,DRAW_ITEM_U32,createGpuDraw,type GpuDraw} from './gpuDraw.ts';
 import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_MAX_PAGES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
@@ -349,17 +350,29 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const smallTriangleCapacity=drawSlots*Math.ceil(Math.max(1,pageBytes/4)/3);
  /**
   * A page-table row is the rank of a cluster in the drawable set, in catalogue order. A row therefore
-  * never outlives its occupant: an arrival or an eviction rewrites the rows it shifts, instead of
-  * handing a newcomer a row another cluster still describes. That also keeps the visibility identifier
-  * — the row plus one — a function of the drawable set alone, which is what makes the image
-  * reproducible from one process to the next. What the frame no longer pays for is the table itself:
-  * a settled drawable set writes and uploads nothing at all.
+  * never outlives its occupant: an arrival or an eviction moves the rows it shifts, instead of handing a
+  * newcomer a row another cluster still describes. That also keeps the visibility identifier — the row
+  * plus one — a function of the drawable set alone, which is what makes the image reproducible from one
+  * process to the next. What the frame no longer pays for is the table itself: a settled drawable set
+  * writes and uploads nothing at all, and an admission moves the ranks it displaces rather than
+  * rebuilding them.
   */
  const residentOffsetWords=new Int32Array(packedPages.length).fill(-1);
  /** What each row currently describes: its occupant, the slot offset written, and the input epoch. */
  const rowPageIndex=new Int32Array(drawSlots).fill(-1),rowOffsetWords=new Int32Array(drawSlots).fill(-1),rowEpoch=new Int32Array(drawSlots);
  /** Catalogue index of the page each drawn row carries, for the occluder history of the next image. */
  const packedPageIndex=new Int32Array(drawSlots);
+ /**
+  * The rank an image gives each page, and where the previous image had already written that page.
+  * A page admitted in the middle of the catalogue shifts every following rank by one, and the bytes of
+  * a shifted row are the bytes of the row it comes from except for the two words that are the rank
+  * itself — so the frame moves ranges instead of rebuilding rows, and the ranks stay the baseline's.
+  */
+ const newRowPage=new Int32Array(drawSlots),newRowSource=new Int32Array(drawSlots);
+ /** The two words of a row that are its rank and nothing else: the visibility identifier base and the Hi-Z slot. */
+ const ROW_ID_BASE_WORD=27,ROW_HIZ_SLOT_WORD=31;
+ const rowOfPage=new Int32Array(packedPages.length).fill(-1);
+ const rowRewrites=new Int32Array(drawSlots);
  let rowCount=0,tableEpoch=1;
  /**
   * Resident cluster keys the change journal has accounted for but the row table never carries — the
@@ -379,6 +392,12 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  /** Vertex buffer of each page, by page index. Built once with the buffers, so a frame looks up nothing. */
  const pagePositions:Array<GPUBuffer|undefined>=new Array(packedPages.length).fill(undefined);
  let packedCount=0,rowsChanged=true;
+ /**
+  * World-space corners of every page's box, kept across images and rebuilt only when the epoch of the
+  * shared inputs changes — the same epoch a row is rewritten on. A moving camera reprojects them every
+  * image; it no longer retransforms them.
+  */
+ const boxCorners=createBoxCorners(packedPages.length);
  const hizBounds=new Float64Array(drawSlots*HIZ_BOUNDS_VALUES);
  const hizTestedBounds=new Float64Array(drawSlots*HIZ_BOUNDS_VALUES);
  const hizTestedRows=new Uint32Array(drawSlots);
@@ -430,9 +449,26 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const temporalHizState:TemporalHizState={};
  let previousHizView:THREE.PerspectiveCamera|undefined;
  let lastSubmitMs:number|null=null;
- let gpuTiming:ReturnType<typeof createGpuTiming>|undefined,lastGpuPassMs:GpuPassTimings|null=null;
+ let gpuTiming:ReturnType<typeof createGpuTiming>|undefined,lastGpuPassMs:GpuPassTimings|null=null,lastGpuFrameMs:number|null=null;
  /** True only while the image being encoded dispatches selection, so its pass joins that image's sample. */
  let selectionInImage=false;
+ // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
+ let lastProjectMs=0,lastPartitionMs=0,lastItemsMs=0,rowsSyncedFrame=-1;
+ const CPU_STEPS=['adoptCutMs','transparentSelectMs','admissionMs','residencyQueueMs','syncRowsMs','residencyUploadMs','selectionDispatchMs','projectBoxesMs','partitionMs','itemsMs','encodeRestMs','encodeSubmitMs','totalMs'] as const;
+ const cpuProfile=createCpuStepProfile(CPU_STEPS);
+ let lastCpuLogMs=0;
+ /**
+  * Publishes where the image's CPU time went, on the cadence of the progress diagnostic. It is called
+  * by both render paths: a measured loop renders without ever flushing, and the profile is exactly what
+  * such a loop needs.
+  */
+ const publishCpuProfile=()=>{
+  if(traceEnabled||!cpuSample||frame===lastCpuLogFrame)return;
+  const now=performance.now();
+  if(now-lastCpuLogMs<2000)return;
+  lastCpuLogMs=now;lastCpuLogFrame=frame;
+  engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',{...cpuSample,steps:cpuProfile.summary()});
+ };
  let cpuSample:Record<string,unknown>|undefined,transparentEncodeMs=0,lastCpuLogFrame=-1;
  let residencyJob=0;
  const cameraPose=(camera:THREE.PerspectiveCamera)=>({position:camera.getWorldPosition(new THREE.Vector3()).toArray(),quaternion:camera.getWorldQuaternion(new THREE.Quaternion()).toArray()});
@@ -642,11 +678,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(mat.map&&mat.map.wrapT!==THREE.ClampToEdgeWrapping)flags|=FLAG_WRAP_T_REPEAT;
   // A page holding more triangles than the identifier's eight low bits would alias the next page.
   assertVisibilityPageTriangles(index.length/3,rec.url);
-  ints[base+22]=layer;ints[base+23]=flags;ints[base+24]=offsetWords;ints[base+25]=index.length;ints[base+26]=geo?.vertexBase??0;ints[base+27]=((row+1)<<VIS_TRIANGLE_BITS)>>>0;
+  ints[base+22]=layer;ints[base+23]=flags;ints[base+24]=offsetWords;ints[base+25]=index.length;ints[base+26]=geo?.vertexBase??0;ints[base+ROW_ID_BASE_WORD]=((row+1)<<VIS_TRIANGLE_BITS)>>>0;
   floats[base+28]=scale[0];floats[base+29]=scale[1];ints[base+30]=clusterHash(rec.clusterId);
   // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
   // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
-  ints[base+31]=row;
+  ints[base+ROW_HIZ_SLOT_WORD]=row;
   ints[base+32]=roughLayer;ints[base+33]=metalLayer;ints[base+34]=nrmLayer;floats[base+35]=mat.normalScale;
   const roughScale=dataUvScales[roughLayer]??[1,1],metalScale=dataUvScales[metalLayer]??[1,1],nrmScale=dataUvScales[nrmLayer]??[1,1];
   floats[base+36]=roughScale[0];floats[base+37]=roughScale[1];floats[base+38]=metalScale[0];floats[base+39]=metalScale[1];
@@ -656,7 +692,6 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   ints[base+42]=aoLayer;floats[base+43]=mat.aoIntensity;
   floats[base+44]=aoScale[0];floats[base+45]=aoScale[1];ints[base+46]=emissiveLayer;ints[base+47]=pageIndex;
   floats.set(mat.emissive,base+48);floats[base+52]=emissiveScale[0];floats[base+53]=emissiveScale[1];floats[base+54]=mat.normalScaleY;
-  rowOffsetWords[row]=offsetWords;rowEpoch[row]=tableEpoch;
   markRowDirty(row);
  };
  /**
@@ -690,15 +725,75 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
  };
  /**
+  * Turns the ranks an image just decided into table rows. A row whose occupant kept its slot and epoch
+  * is not rebuilt: it is moved. Ranks only ever shift as a block — one admission pushes every later
+  * rank up by one — so `newRowSource` describes runs of constant displacement, and the whole run travels
+  * in one `copyWithin`, followed by the two words of each row that *are* the rank. What remains to
+  * build word by word is one row per page that arrived, changed GPU slot, or lost its epoch.
+  *
+  * The displacement is non-decreasing along the rows — both orders walk the pages ascending, so a
+  * source row advances by at least one per row — which is what makes moving in place safe: the runs
+  * that pull from below are applied from the last row down, the runs that pull from above from the
+  * first row up, and neither can overwrite a source the other still has to read. A cut whose order is
+  * not the catalogue's breaks that property, and `monotone` then rebuilds every row instead.
+  */
+ const commitRows=(count:number,monotone:boolean)=>{
+  const floats=pageTableFloats!,ints=pageTableInts!,rowWords=PAGE_INFO_STRIDE/4;
+  let rewrites=0,moved=0;
+  /** Moves rows `[start..end]` from `[start+delta..end+delta]`, then restamps the rank each row is. */
+  const move=(start:number,end:number,delta:number)=>{
+   floats.copyWithin(start*rowWords,(start+delta)*rowWords,(end+delta+1)*rowWords);
+   for(let row=start;row<=end;row++){const base=row*rowWords;ints[base+ROW_ID_BASE_WORD]=((row+1)<<VIS_TRIANGLE_BITS)>>>0;ints[base+ROW_HIZ_SLOT_WORD]=row;}
+   markRowDirty(start);markRowDirty(end);moved+=end-start+1;
+  };
+  if(monotone)for(let pass=0;pass<2;pass++){
+   // Runs pulling from below travel from the last row down, runs pulling from above from the first row
+   // up: neither can then overwrite a source a pending run still has to read.
+   const negative=pass===0;
+   let start=-1,end=-1,delta=0;
+   const flush=()=>{if(start>=0)move(start,end,delta);start=-1;};
+   for(let step=0;step<count;step++){
+    const row=negative?count-1-step:step;
+    const source=newRowSource[row],d=source>=0?source-row:0;
+    const keep=source>=0&&(negative?d<0:d>0);
+    if(keep&&start>=0&&d===delta&&row===(negative?start-1:end+1)){if(negative)start=row;else end=row;continue;}
+    flush();
+    if(keep){start=row;end=row;delta=d;}
+   }
+   flush();
+  }
+  for(let row=0;row<count;row++)if(!(monotone&&newRowSource[row]>=0))rowRewrites[rewrites++]=row;
+  // The rebuilds come last: a row a run still had to read cannot already hold its new occupant.
+  for(let r=0;r<rewrites;r++){
+   const row=rowRewrites[r],pageIndex=newRowPage[row],rec=packedRecs[row]!;
+   writePageRow(rec,pageIndex,row,residentOffsetWords[pageIndex],rec.array!);
+  }
+  if(rewrites||moved)rowsChanged=true;
+  for(let row=0;row<count;row++){
+   const pageIndex=newRowPage[row];
+   rowPageIndex[row]=pageIndex;rowOffsetWords[row]=residentOffsetWords[pageIndex];rowEpoch[row]=tableEpoch;
+   rowOfPage[pageIndex]=row;
+  }
+  // A shorter drawable set leaves the rows past it unread: `tableRows` bounds every pass that walks
+  // the table, so they are not cleared, only forgotten.
+  if(count!==rowCount)rowsChanged=true;
+  rowCount=count;packedCount=count;
+ };
+ /** Where the previous image wrote this page, or -1 when its row cannot be reused as it stands. */
+ const sourceRowOf=(pageIndex:number,offsetWords:number)=>{
+  const source=rowOfPage[pageIndex];
+  if(source<0||source>=rowCount||rowPageIndex[source]!==pageIndex)return -1;
+  return rowOffsetWords[source]===offsetWords&&rowEpoch[source]===tableEpoch?source:-1;
+ };
+ /**
   * Rows for the drawable set. `residentFlags` keeps `pageSelection`'s predicate — CPU bytes present and
   * the cluster resident — read fresh from every page, so what may be drawn is never carried over from
-  * an earlier image. A row is rewritten only when its occupant, that occupant's GPU slot, or the epoch
-  * of the inputs every row shares has changed.
+  * an earlier image.
   */
  const syncRows=()=>{
   if(!cache||!pageTableFloats)return;
   syncResidencyMirror();
-  let count=0,candidates=0,overflow=0;
+  let count=0,candidates=0,overflow=0,lastSource=-1,monotone=true;
   for(let i=0;i<packedPages.length;i++){
    const offsetWords=residentOffsetWords[i],rec=packedPages[i],index=rec.array;
    const resident=offsetWords>=0&&!!index;
@@ -710,35 +805,31 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!position)continue;
    if(count>=drawSlots){overflow++;continue;}
    const row=count++;
-   if(rowPageIndex[row]!==i||rowOffsetWords[row]!==offsetWords||rowEpoch[row]!==tableEpoch){
-    rowPageIndex[row]=i;writePageRow(rec,i,row,offsetWords,index!);rowsChanged=true;
-   }
+   const source=sourceRowOf(i,offsetWords);
+   if(source>=0){if(source<=lastSource)monotone=false;lastSource=source;}
+   newRowPage[row]=i;newRowSource[row]=source;
    packedRecs[row]=rec;packedPositions[row]=position;packedPageIndex[row]=i;
   }
-  // A shorter drawable set leaves the rows past it unread: `tableRows` bounds every pass that walks
-  // the table, so they are not cleared, only forgotten.
-  if(count!==rowCount)rowsChanged=true;
-  rowCount=count;packedCount=count;
+  commitRows(count,monotone);
   candidateCount=candidates;candidateOverflow=overflow+Math.max(0,candidates-drawSlots);
  };
  /** The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame. */
  const syncRowsFromCut=()=>{
   if(!cache||!pageTableFloats)return;
   syncResidencyMirror();
-  let count=0;
+  let count=0,lastSource=-1,monotone=true;
   for(let i=0;i<drawn.length&&count<drawSlots;i++){
    const rec=drawn[i];if(rec.transparent)continue;
    const pageIndex=pageIndexByRec.get(rec);if(pageIndex===undefined)continue;
    const offsetWords=residentOffsetWords[pageIndex],index=rec.array,position=pagePositions[pageIndex];
    if(offsetWords<0||!index||!position)continue;
    const row=count++;
-   if(rowPageIndex[row]!==pageIndex||rowOffsetWords[row]!==offsetWords||rowEpoch[row]!==tableEpoch){
-    rowPageIndex[row]=pageIndex;writePageRow(rec,pageIndex,row,offsetWords,index);rowsChanged=true;
-   }
+   const source=sourceRowOf(pageIndex,offsetWords);
+   if(source>=0){if(source<=lastSource)monotone=false;lastSource=source;}
+   newRowPage[row]=pageIndex;newRowSource[row]=source;
    packedRecs[row]=rec;packedPositions[row]=position;packedPageIndex[row]=pageIndex;
   }
-  if(count!==rowCount)rowsChanged=true;
-  rowCount=count;packedCount=count;
+  commitRows(count,monotone);
  };
  /** Uploads the span of rows whose bytes changed, and nothing when none did. */
  const uploadDirtyRows=(device:GPUDevice)=>{
@@ -805,6 +896,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   // partition and the Hi-Z test, projected with the view-projection built once for the batch rather
   // than once per page and once again per tested page.
   let occluders=0,twoPass=false,boundsForAll=false;
+  const worldBoxes={corners:boxCorners,pageIndex:packedPageIndex,epoch:tableEpoch};
+  lastProjectMs=0;lastPartitionMs=0;lastItemsMs=0;
+  const partitionStart=performance.now();
   hizRest.fill(0,0,packedCount);
   if(gpuHiz&&packedCount>=2){
    if(!noOccluderHistory){
@@ -813,35 +907,38 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      hizRest[i]=rest;if(!rest)occluders++;
     }
     if(!occluders||occluders===packedCount){
-     projectBoxesFlat(packedRecs,packedCount,camera,[width,height],hizBounds);
+     projectBoxesFlat(packedRecs,packedCount,camera,[width,height],hizBounds,undefined,worldBoxes);
      occluders=splitOccludersFlat(packedCount,hizBounds,hizRest);boundsForAll=true;
     }
    }else{
-    projectBoxesFlat(packedRecs,packedCount,camera,[width,height],hizBounds);
+    projectBoxesFlat(packedRecs,packedCount,camera,[width,height],hizBounds,undefined,worldBoxes);
     occluders=splitOccludersFlat(packedCount,hizBounds,hizRest);boundsForAll=true;
    }
    twoPass=occluders>0&&occluders<packedCount&&!!visHizRestBack;
   }
   if(!twoPass){hizRest.fill(0,0,packedCount);occluders=packedCount;}
+  lastPartitionMs=performance.now()-partitionStart;
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
-  if(twoPass&&!boundsForAll)projectBoxesFlat(packedRecs,packedCount,camera,[width,height],hizBounds,hizRest);
+  const projectStart=performance.now();
+  if(twoPass&&!boundsForAll)projectBoxesFlat(packedRecs,packedCount,camera,[width,height],hizBounds,hizRest,worldBoxes);
+  lastProjectMs=performance.now()-projectStart;
   const maxVertexCount=Math.max(1,pageBytes/4);
   const useIndirect=!!gpuDraw&&packedCount<=drawSlots;
   // The table holds every row ever claimed, so a row a page keeps stays valid across frames.
   const tableRows=rowCount;
   if(tableRows>VIS_MAX_PAGES)throw new Error(`VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`);
-  const rowWords=PAGE_INFO_STRIDE/4;
   let occluderVertices=0,restVertices=0,testedCount=0;
   drawRestBits.fill(0,0,Math.ceil(Math.max(1,packedCount)/32));
+  const itemsStart=performance.now();
   for(let i=0;i<packedCount;i++){
    const row=i,rest=hizRest[i];
    if(itemsDirty){
     const word=i*DRAW_ITEM_U32;
     drawItemWords[word]=row;drawItemWords[word+1]=visBin(packedRecs[i]!);
-    drawItemWords[word+2]=pageTableInts[row*rowWords+47];drawItemWords[word+3]=0;
+    drawItemWords[word+2]=packedPageIndex[i];drawItemWords[word+3]=0;
    }
    if(rest)drawRestBits[i>>5]|=1<<(i&31);
-   const count=pageTableInts[row*rowWords+25];
+   const count=packedRecs[i]!.array!.length;
    if(rest)restVertices+=count;else occluderVertices+=count;
    // Only the tested half travels to the GPU, each box naming the flag row it answers for.
    if(twoPass&&rest){
@@ -850,6 +947,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     hizTestedRows[testedCount++]=row;
    }
   }
+  lastItemsMs=performance.now()-itemsStart;
   uploadDirtyRows(device);
   if(!visUniform)visUniform=device.createBuffer({size:7*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const visInts=new Uint32Array(visUniPacked.buffer);
@@ -936,7 +1034,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     if(twoPass&&(hizRest[i]!==0)!==rest)continue;
     const pipeline=visPipelineFor(packedRecs[i]!,rest);
     if(!pipeline)continue;
-    pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.draw(pageTableInts![i*rowWords+25],1,0,i);gpuDrawCalls++;
+    pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.draw(packedRecs[i]!.array!.length,1,0,i);gpuDrawCalls++;
    }
   };
   const visPass=encoder.beginRenderPass({
@@ -993,7 +1091,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   selectBlend(device);
   viewProj.premultiply(remap);
   ensurePageTable(device);
-  if(gpuFrameActive)syncRows();else syncRowsFromCut();
+  if(!gpuFrameActive)syncRowsFromCut();else if(rowsSyncedFrame!==frame){syncRows();rowsSyncedFrame=frame;}
   const itemsDirty=rowsChanged;
   if(visEnabled&&visPipelineBack&&shadePipeline&&visView){
    try{return encodeVis(device,camera,itemsDirty);}catch(error){gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera||gpuFrameActive)throw error;}
@@ -1149,9 +1247,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const budgeted=Math.max(pixelError,budgetPixelError);
   cameraSelectionUniforms(camera,budgeted,viewport,selectionUniforms);
   adoptGpuCut();
+  const adoptEnd=performance.now();
   // Forward transparency has its own CPU cut; it is absent from the GPU cluster set.
   const transparentBudget=Math.max(1,slots-bootstrapUrls.size);
   const transparent=transparentRoots.length?selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:true,pageBudget:transparentBudget,isResident:rec=>!!cache!.get(rec.url)}):undefined;
+  const transparentSelectEnd=performance.now();
   const oldOpaque=partitionByPass(shown,false,opaqueScratch);
   shown.length=0;appendAll(shown,oldOpaque,transparent?.shown??[]);
   desired.length=0;appendAll(desired,gpuWanted,transparent?.wanted??[]);
@@ -1183,17 +1283,21 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE: the pinned transparent cover is not resident');
    shown.length=0;appendAll(shown,oldOpaque,fallback.shown);
   }
+  const admissionEnd=performance.now();
   queueResident(budgetedResidency(desired));
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
+  const queueEnd=performance.now();
   ensurePageTable(gpuDevice);
-  syncRows();
+  syncRows();rowsSyncedFrame=frame;
+  const rowsEnd=performance.now();
   if(candidateOverflow){
    // The CPU fallback can still select a representable visible subset.
    engineDiagnostic('gpu-selection-capacity','Sélection CPU requise par la capacité des identifiants de visibilité',{residentCandidates:candidateCount+candidateOverflow,maxCandidates:drawSlots});
    dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
   }
   if(gpuSelection.updateResidency(residentFlags))gpuMetricsReady=false;
+  const residencyUploadEnd=performance.now();
   selectionInImage=true;
   try{gpuSelection.dispatch(selectionUniforms);}catch(error){
    selectionInImage=false;
@@ -1212,7 +1316,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   const cpuEnd=performance.now();lastSubmitMs=cpuEnd-encodeStart;
   if(gpuMetricsReady)submittedTriangles=triangleSum(shown,false)+blendSubmittedTriangles;
+  const steps=cpuProfile.row;
+  steps[0]=adoptEnd-lightsEnd;steps[1]=transparentSelectEnd-adoptEnd;steps[2]=admissionEnd-transparentSelectEnd;
+  steps[3]=queueEnd-admissionEnd;steps[4]=rowsEnd-queueEnd;steps[5]=residencyUploadEnd-rowsEnd;
+  steps[6]=selectionEnd-residencyUploadEnd;steps[7]=lastProjectMs;steps[8]=lastPartitionMs;steps[9]=lastItemsMs;
+  steps[10]=lastSubmitMs-lastProjectMs-lastPartitionMs-lastItemsMs;steps[11]=lastSubmitMs;steps[12]=cpuEnd-cpuStart;
+  cpuProfile.record(frame,cpuEnd-cpuStart);
   cpuSample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:encodeStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
+  publishCpuProfile();
   if(traceEnabled)traceDiagnostic('gpu-selection-current-frame','Sélection GPU consommée par le dessin',()=>({frame,submission:imageRevision,source:'gpu',decision:'current-frame-mask',residentCandidates:candidateCount,readbackPurpose:'streaming-and-metrics',metricsReady:gpuMetricsReady}));
   if(traceEnabled)traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:'gpu',selection:{source:'gpu',decision:'current-frame-mask'},cpu:cpuSample,coverage:{loaded:traceSet('frame.loaded',packedRecs.slice(0,packedCount).map(page=>page!.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:gpuMetricsReady?traceSet('frame.shown',shown.map(page=>page.url)):null,ready:bootstrapReady},budget:{slots,limited:coverageBudgetLimited},selectedTriangles:gpuMetricsReady?selectedTriangles:null,submittedTriangles:gpuMetricsReady?submittedTriangles:null,drawCalls:gpuDrawCalls}));
  };
@@ -1227,9 +1338,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    context.signal?.throwIfAborted();
    if(!gpuDevice)throw new Error('WEBGPU_UNAVAILABLE');
    if(bootstrap.length>slots)throw new Error(`INITIAL_COVERAGE_BUDGET: ${bootstrap.length} pages required, ${slots} slots`);
-   gpuTiming=createGpuTiming(gpuDevice,{sampleEveryFrames:traceEnabled?1:60,onSample:sample=>{
+   gpuTiming=createGpuTiming(gpuDevice,{sampleEveryFrames:traceEnabled?1:12,onSample:sample=>{
     // The public metric carries the contract's fields only; the diagnostic keeps the full context.
-    lastGpuPassMs={frame:sample.frame,totalMs:sample.totalMs,passes:sample.passes,truncated:sample.truncated,...(sample.error?{error:sample.error}:{})};
+    lastGpuPassMs={frame:sample.frame,totalMs:sample.totalMs,passes:sample.passes,truncated:sample.truncated,...(sample.error?{error:sample.error}:{})};lastGpuFrameMs=sample.frameMs;
     const phase=sample.error?'gpu-timing-unavailable':'gpu-timing',message=sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe';
     engineDiagnostic(phase,message,sample);
     if(traceEnabled)traceDiagnostic(phase,message,()=>({backend:'webgpu-page-raster',submission:sample.submission??null,...sample}));
@@ -1642,6 +1753,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const cpuEnd=performance.now();lastSubmitMs=cpuEnd-tStart;
    const sample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:tStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
    cpuSample=sample;
+   publishCpuProfile();
    if(traceEnabled)traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:gpuSelectionDecision.source,selection:gpuSelectionDecision,cpu:sample,coverage:{loaded:traceSet('frame.loaded',drawn.map(page=>page.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:traceSet('frame.shown',shown.map(page=>page.url)),bootstrap:traceSet('frame.bootstrap',bootstrap.map(page=>page.url)),ready:bootstrapReady},budget:{slots,requested:traceSet('frame.requested',[...new Set([...bootstrapUrls,...desired.map(page=>page.url)])]),limited:coverageBudgetLimited,frameBytes:frameBudget},gpuTiming:gpuTiming?.stats()??{supported:false,reason:'not-initialized'},transparent:{candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},drawCalls:gpuDrawCalls}));
 
   },
@@ -1667,7 +1779,6 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    await pending;
    if(coverageBudgetEvent){engineDiagnostic('coverage-budget','Admission de la coupe demandée',coverageBudgetEvent);coverageBudgetEvent=undefined;}
    await gpuTiming?.flush();
-   if(!traceEnabled&&cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
    if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,coverage:{version:1,ready:bootstrapReady,bootstrapPages:bootstrap.length,budgetLimited:coverageBudgetLimited},lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
    if(gpuSelection){
     try{await gpuSelection.flush();if(gpuSelection.failed())dropGpuSelection();else if(gpuFrameActive)adoptGpuCut();}
@@ -1780,7 +1891,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,gpuFrameMs:lastGpuFrameMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);
