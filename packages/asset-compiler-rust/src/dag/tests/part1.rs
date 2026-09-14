@@ -38,7 +38,9 @@ fn level_zero_clusters_respect_the_triangle_budget_and_cover_the_source_once() {
 #[test]
 fn every_level_above_zero_uses_groups_of_eight_to_thirty_two_clusters() {
     // Grouping is exercised directly: the builder feeds it the live cluster graph each level.
-    let (_, _, clusters, groups) = grouped(160);
+    let Grouped {
+        clusters, groups, ..
+    } = grouped(160);
     assert!(groups.len() > 1);
     let mut seen = vec![false; clusters.len()];
     for group in &groups {
