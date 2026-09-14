@@ -142,8 +142,8 @@ export type ClusterRoot<T>={
  culling?:{nodes:Float64Array;stride:number};worldBox?:THREE.Box3;
  stretch?:number;stretchKey?:Float64Array;
  structure?:ClusterStructureIndex;forced?:Uint8Array;forcedList?:number[];
- /** Table plate des clusters, construite à la première coupe et valable pour toutes les suivantes. */
- table?:ClusterCutTable;
+ /** Table plate des clusters, construite une fois avec la primitive. */
+ table:ClusterCutTable;
 };
 
 /** Build exact-cluster page records and validate coverage. Shared by WebGL and WebGPU backends. */
@@ -191,7 +191,7 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
   const local=new THREE.Box3();
   if(culling)local.set(new THREE.Vector3(culling.nodes[0],culling.nodes[1],culling.nodes[2]),new THREE.Vector3(culling.nodes[3],culling.nodes[4],culling.nodes[5]));
   else for(const page of primitive.pages)local.union(new THREE.Box3(new THREE.Vector3(...page.min as [number,number,number]),new THREE.Vector3(...page.max as [number,number,number])));
-  roots.push({world:mesh.matrixWorld,pages,culling,worldBox:local.clone().applyMatrix4(mesh.matrixWorld),
+  roots.push({world:mesh.matrixWorld,pages,culling,worldBox:local.clone().applyMatrix4(mesh.matrixWorld),table:clusterCutTable(pages),
    structure,forced:structure?new Uint8Array(structure.groupCount):undefined,forcedList:structure?[]:undefined});
   // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
   // always has something to fall back on.
@@ -602,7 +602,7 @@ function selectFlat(root:ClusterRoot<CutPage>,cameraStretch:number){
  const {clip,viewMatrix}=selectionScratch;
  const pages=root.pages;
  cut.pages=pages;
- cut.table=root.table??(root.table=clusterCutTable(pages));
+ cut.table=root.table;
  cut.world=root.world;cut.elements=viewMatrix.elements;
  cut.stretch=worldStretch(root)*cameraStretch;
  cut.focal=Math.max(selectionScratch.pixelScale[0],selectionScratch.pixelScale[1]);
