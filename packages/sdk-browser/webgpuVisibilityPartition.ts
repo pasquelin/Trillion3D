@@ -43,26 +43,14 @@ export function partitionWebgpuVisibility({
   const partitionStart = performance.now();
   hizRest.fill(0, 0, rows.packedCount);
   if (hasHiz && rows.packedCount >= 2) {
-    if (!noOccluderHistory) {
+    if (!noOccluderHistory)
       for (let i = 0; i < rows.packedCount; i++) {
         const rest = drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] ? 0 : 1;
         hizRest[i] = rest;
         if (!rest) occluders++;
       }
-      if (!occluders || occluders === rows.packedCount) {
-        projectBoxesFlat(
-          rows.packedRecs,
-          rows.packedCount,
-          camera,
-          [width, height],
-          hizBounds,
-          undefined,
-          worldBoxes,
-        );
-        occluders = splitOccludersFlat(rows.packedCount, hizBounds, hizRest);
-        boundsForAll = true;
-      }
-    } else {
+    // Without history, or when history keeps or rejects every page, split on projected bounds.
+    if (noOccluderHistory || !occluders || occluders === rows.packedCount) {
       projectBoxesFlat(
         rows.packedRecs,
         rows.packedCount,

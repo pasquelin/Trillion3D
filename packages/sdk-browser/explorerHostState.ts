@@ -6,6 +6,26 @@ import type { prepareExplorer } from './explorerPrepare.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 
+/** The mutable state of one explorer host; every service reads and writes this same object. */
+export type ExplorerHostState = {
+  fallbackReason: string | null;
+  active: RenderBackend;
+  disposed: boolean;
+  diagnostic: DiagnosticMode;
+  capturingSurface: boolean;
+  measuring: boolean;
+  hostFrame: number;
+  comparisonLayout: ComparisonLayout;
+  comparisonPair: [string, string];
+  wipe: number;
+  toggle: 0 | 1;
+  pairTargetA?: THREE.WebGLRenderTarget;
+  pairTargetB?: THREE.WebGLRenderTarget;
+  measurementTarget?: THREE.WebGLRenderTarget;
+  loaded: number;
+  pageBytesRead: number;
+};
+
 export function createExplorerHostState(
   prepared: Prepared,
   options: ExplorerOptions,
@@ -21,24 +41,7 @@ export function createExplorerHostState(
     backends.find((backend) => backend.id === 'exact-cluster-pages') ??
     backends.find((backend) => backend.id === 'webgpu-page-raster') ??
     baseline;
-  const state: {
-    fallbackReason: string | null;
-    active: RenderBackend;
-    disposed: boolean;
-    diagnostic: DiagnosticMode;
-    capturingSurface: boolean;
-    measuring: boolean;
-    hostFrame: number;
-    comparisonLayout: ComparisonLayout;
-    comparisonPair: [string, string];
-    wipe: number;
-    toggle: 0 | 1;
-    pairTargetA?: THREE.WebGLRenderTarget;
-    pairTargetB?: THREE.WebGLRenderTarget;
-    measurementTarget?: THREE.WebGLRenderTarget;
-    loaded: number;
-    pageBytesRead: number;
-  } = {
+  const state: ExplorerHostState = {
     fallbackReason: null,
     active: optimized,
     disposed: false,

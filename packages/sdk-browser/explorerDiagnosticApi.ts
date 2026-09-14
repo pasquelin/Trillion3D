@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { DIAGNOSTICS, type DiagnosticMode } from '../sdk-core/index.ts';
-import { clusterColor } from './backendCommon.ts';
+import { clusterColor, hashId } from './backendCommon.ts';
 import {
   createTriangleDiagnosticMaterial,
   materialSide,
   triangleGeometry,
-  triangleSalt,
 } from './triangleDiagnostic.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
@@ -50,7 +49,7 @@ export function createExplorerDiagnosticApi(inputs: Inputs) {
           if (mode === 'wireframe') {
             mesh.geometry = triangleGeometry(
               mesh.userData.sourceGeometry as THREE.BufferGeometry,
-              triangleSalt(String(mesh.userData.clusterId ?? mesh.id)),
+              hashId(String(mesh.userData.clusterId ?? mesh.id)),
             );
             const material = createTriangleDiagnosticMaterial(materialSide(mesh.material));
             overlays.push(material);

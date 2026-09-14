@@ -1,17 +1,18 @@
 import * as THREE from 'three';
 import { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { ExplorerOptions } from './backendTypes.ts';
+import type { ExplorerHostState } from './explorerHostState.ts';
+import type { ExplorerEmitters } from './explorerSession.ts';
 
-type Inputs = {
+type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   canvas: HTMLCanvasElement;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
   options: ExplorerOptions;
   directGpu: boolean;
-  state: () => { active: RenderBackend };
+  state: Pick<ExplorerHostState, 'active'>;
   check: () => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
 export function createExplorerCapture(inputs: Inputs) {
@@ -30,7 +31,7 @@ export function createExplorerCapture(inputs: Inputs) {
   const presentationDiagnostics = new Set<string>(),
     visiblePresentationDiagnostics = new Set<string>();
   const logVisiblePresentation = () => {
-    const active = state().active;
+    const active = state.active;
     if (visiblePresentationDiagnostics.has(active.id) || ownedRenderer.getRenderTarget() !== null)
       return;
     visiblePresentationDiagnostics.add(active.id);
@@ -60,7 +61,7 @@ export function createExplorerCapture(inputs: Inputs) {
   };
   const capture = () => {
     check();
-    const active = state().active;
+    const active = state.active;
     if (directGpu && active.capture) return active.capture();
     logVisiblePresentation();
     const previous = ownedRenderer.getRenderTarget();
