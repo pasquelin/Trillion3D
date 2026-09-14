@@ -40,16 +40,26 @@ export interface Page {
   stream?: number;
   streamOffset?: number;
 }
+/** A bounding sphere an error band can be projected through: four finite values, a radius of at
+ *  least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */
+export function clusterSphereValid(sphere: unknown): sphere is number[] {
+  return (
+    Array.isArray(sphere) &&
+    sphere.length === 4 &&
+    Number.isFinite(sphere[0]) &&
+    Number.isFinite(sphere[1]) &&
+    Number.isFinite(sphere[2]) &&
+    Number.isFinite(sphere[3]) &&
+    sphere[3] >= 0
+  );
+}
 /** A cluster carrying its own screen-error band needs no hierarchy: selection is a flat per-page test. */
 export function pageCarriesClusterError(page: Page) {
   return (
     typeof page.lodError === 'number' &&
     Number.isFinite(page.lodError) &&
     page.lodError >= 0 &&
-    Array.isArray(page.sphere) &&
-    page.sphere.length === 4 &&
-    page.sphere.every((value) => Number.isFinite(value)) &&
-    page.sphere[3] >= 0
+    clusterSphereValid(page.sphere)
   );
 }
 export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) {
