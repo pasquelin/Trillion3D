@@ -63,3 +63,8 @@ export async function createExplorerJob(
 }
 
 export { detectCapabilities } from './capabilities.ts';
+export { createLightingExperimentBackend } from './lightingExperimentBackend.ts';
+export type {
+  LightingExperimentRenderState,
+  LightingExperimentRayDiagnostics,
+} from './lightingExperimentBackend.ts';
