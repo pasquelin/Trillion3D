@@ -24,3 +24,7 @@ These rules supplement repository-wide instructions; they do not replace them.
 - Target constrained machines too. Bound worker counts and allocation; distinguish admission estimates from enforced RSS limits.
 - New pipeline stages need versioned contracts, cancellation, observable work and failure semantics. Do not bury algorithms in the CLI or UI.
 - All generic Rust library/CLI code belongs under packages/, never inside a numbered benchmark. `test/engineStructure.test.mjs` enforces the core/adapters import restrictions in the normal test suite; `npm run check:structure` also type-checks sdk-core without DOM libraries.
+
+## Règles du compilateur natif (`packages/asset-compiler-rust`)
+
+Keep the CLI thin. Algorithms belong in the library behind versioned strategy/stage contracts. Check cancellation at bounded work boundaries, preserve triangle/material identity, validate every persisted cache entry, and retain golden fixtures and raw before/after timing evidence. Do not claim unimplemented simplification, compression, hard memory enforcement, N-API bindings or a platform release as delivered.
