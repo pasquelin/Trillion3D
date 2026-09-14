@@ -168,3 +168,32 @@ test('une bande de cluster invalide est refusée à la préparation, pas au mili
  assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/Parametres de cluster invalides/);
  fixture.geometry.dispose();fixture.material.dispose();
 });
+
+test('deux appels successifs avec la même caméra sélectionnent le même ensemble de clusters',()=>{
+ const fixture=blendFixture();
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const cam=camera();
+ const shown1:PageRec[]=[];
+ const first=selectVisiblePages(roots,cam,{pixelError:100,viewport:[960,540],frame:1,holdResident:true},shown1);
+ const shown2:PageRec[]=[];
+ const second=selectVisiblePages(roots,cam,{pixelError:100,viewport:[960,540],frame:2,holdResident:true},shown2);
+ assert.deepEqual(first.shown.map(p=>p.url),second.shown.map(p=>p.url),'même ensemble montré');
+ assert.deepEqual(first.wanted.map(p=>p.url),second.wanted.map(p=>p.url),'même ensemble voulu');
+ assert.equal(first.frustumRejected,second.frustumRejected,'même rejet frustum');
+ assert.equal(first.lodLevel,second.lodLevel,'même niveau LOD');
+ fixture.geometry.dispose();fixture.material.dispose();
+});
+
+test('les tableaux de travail de la sélection sont réutilisés d\'une image à l\'autre',()=>{
+ const fixture=blendFixture();
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const cam=camera(),ask={pixelError:100,viewport:[960,540] as [number,number],frame:0,holdResident:true};
+ const hint:PageRec[]=[];
+ const first=selectVisiblePages(roots,cam,ask,hint);
+ ask.frame=1;
+ const second=selectVisiblePages(roots,cam,ask,hint);
+ assert.deepEqual(first.shown.map(p=>p.url),second.shown.map(p=>p.url),'même ensemble montré');
+ assert.deepEqual(first.wanted.map(p=>p.url),second.wanted.map(p=>p.url),'même ensemble voulu');
+ assert.equal(first.frustumRejected,second.frustumRejected,'même rejet frustum');
+ fixture.geometry.dispose();fixture.material.dispose();
+});
