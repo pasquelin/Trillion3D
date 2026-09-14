@@ -130,10 +130,10 @@ export function orderPendingUrls(
   return into;
 }
 /** Pixels per unit of view-space extent at unit depth, from a camera and its viewport. */
-export function pixelScaleOf(
+export function pixelScaleOf<T extends number[]>(
   camera: { projectionMatrix: THREE.Matrix4 },
   viewport: readonly number[] | undefined,
-  into: number[],
+  into: T,
 ) {
   const width = viewport?.[0] ?? 1,
     height = viewport?.[1] ?? 1;

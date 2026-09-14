@@ -21,12 +21,6 @@ function hashColor(id: number) {
   return [channel(0), channel(2 / 3), channel(1 / 3)] as const;
 }
 
-export function triangleSalt(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
-  return h;
-}
-
 export function triangleGeometry(geometry: THREE.BufferGeometry, salt = 0) {
   const key = geometry;
   let copy = cache.get(key);
