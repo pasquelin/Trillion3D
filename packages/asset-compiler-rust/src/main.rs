@@ -71,12 +71,14 @@ fn parse_batch(spec:&Value,cancellation:&Cancellation)->Result<(usize,Vec<(Strin
  let default_ram=(ram_total/workers).max(64);
  let jobs=spec.get("jobs").and_then(Value::as_array).ok_or("jobs must be an array")?;
  if jobs.is_empty(){return Err("jobs must not be empty".into());}
- let mut parsed=Vec::new();let mut seen=std::collections::HashSet::new();
+ let mut parsed=Vec::new();let mut seen=std::collections::HashSet::new();let mut caches=std::collections::HashSet::new();
  for (i,job) in jobs.iter().enumerate(){
   let id=text(job.get("id"),"").to_string();let id=if id.is_empty(){format!("job-{i}")}else{id};
   if !seen.insert(id.clone()){return Err(format!("duplicate job id {id}"));}
   let source=text(job.get("source"),"");let cache=text(job.get("cache"),"");let resource_base=text(job.get("resourceBaseUrl"),"");
   if source.is_empty()||cache.is_empty()||resource_base.is_empty(){return Err(format!("job {id}: source, cache and resourceBaseUrl are required"));}
+  // One cache holds one pointer per scope and prunes itself after each job: two concurrent jobs in it would destroy each other's output.
+  if !caches.insert(std::fs::canonicalize(cache).unwrap_or_else(|_|std::path::PathBuf::from(cache))){return Err(format!("job {id}: cache {cache} is already used by another job of this batch"));}
   let args=vec![source.to_string(),cache.to_string(),text(job.get("scope"),"full").to_string(),number(job.get("triangles"),150000)?.to_string(),number(job.get("threads"),default_threads)?.to_string(),number(job.get("ramBudgetMb"),default_ram)?.to_string(),resource_base.to_string(),text(job.get("simplification"),"none").to_string()];
   let options=parse_compiler_args(&args,cancellation.flag(&id)).map_err(|e|format!("job {id}: {e}"))?;
   parsed.push((id,options));
@@ -86,7 +88,7 @@ fn parse_batch(spec:&Value,cancellation:&Cancellation)->Result<(usize,Vec<(Strin
 
 fn run_batch(spec_path:&str,cancellation:Arc<Cancellation>)->Result<i32,String>{
  let started=Instant::now();
- let text=if spec_path=="-"{let mut s=String::new();std::io::stdin().lock().read_line(&mut s).map_err(|e|e.to_string())?;s}else{std::fs::read_to_string(spec_path).map_err(|e|format!("{spec_path}: {e}"))?};
+ let text=if spec_path=="-"{let mut s=String::new();std::io::Read::read_to_string(&mut std::io::stdin().lock(),&mut s).map_err(|e|e.to_string())?;s}else{std::fs::read_to_string(spec_path).map_err(|e|format!("{spec_path}: {e}"))?};
  let spec:Value=serde_json::from_str(&text).map_err(|e|format!("batch JSON: {e}"))?;
  let (workers,jobs)=parse_batch(&spec,&cancellation)?;
  if spec_path!="-"{listen_stdin(cancellation.clone());}
