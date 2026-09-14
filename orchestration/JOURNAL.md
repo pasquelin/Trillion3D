@@ -1,5 +1,14 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-14 — R&D éclairage : prototype et diagnostic, aucune intégration
+
+- Essai isolé depuis `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`, branche `codex/light-transport-experiment`. Deux pièces, porte mobile, trois sources colorées réglables, miroirs et sphère. Rendu expérimental Three/WebGL2 via les API publiques ; maillages source dessinés, pas les pages de clusters ni le runner du banc 15. Lab et assets inchangés, aucun commit/fusion.
+- Deux défauts de départ corrigés : auto-intersection de la sphère et mélange de l’ombre directe avec le cache indirect grossier. Les bandes des ombres sont remplacées par un échantillonnage stratifié déterministe ; du bruit reste visible. Qualité générale et gain de performances non validés.
+- Preuve navigateur : 14 états avec égalité exacte des matrices, radiances et images entre recalcul et réutilisation ; aucune erreur navigateur. 330 tests Node, build, structure et déclarations passent.
+- À la demande utilisateur, arrêt des ajouts fonctionnels pour comprendre l’orientation technique. Profil CPU : environ 9,5 ms pour une couleur, 40,1 ms pour la porte avec réutilisation. Contrôle graphique sur cinq images isolées : 370–498 ms GPU. Worker/WASM seuls ne résoudront donc pas la lenteur de ce dessin expérimental.
+- Une preuve numérique confirme la recombinaison des contributions des trois lampes à géométrie fixe (40 608 octets de bases, erreur proche de l’arrondi Float64). Amortissement et invalidation dynamique non mesurés. Aucun BVH, worker, port WASM ni cache de bases persistant ajouté au moteur.
+- Détails, preuves et expériences suivantes proposées : [Diagnostic et orientation R&D](RD_ECLAIRAGE_DIAGNOSTIC.md). L’ancien plan d’essai est clos et supprimé.
+
 ## 2026-09-14 01:25 — état de passation (session d'audit)
 
 - `develop` = 791245b : DAG de clusters, paquets de streaming, manifeste binaire, sélection GPU DAG, clusterBatches WebGL, transparents double face pré-scindés, limites de device, identifiants 24/8 bits, repli racines sous pression de budget. 330 tests Node, 46 tests Rust verts.
@@ -403,3 +412,16 @@
 - Commit ccdc39b sur test/dag-materiaux (journal seul). Cause : l'ORDRE DE DESSIN, pas la géométrie. `pageSelection.ts:255` enregistre les instances fusionnées dans une seconde boucle après le parcours de scène, `pageSelection.ts:213` consomme un rang par matériau au lieu d'un par primitive, `clusterBatches.ts:534` dessine au rang du matériau → 903 maillages sur 2 479 (36 %) changent de rang. À 0 px, 100 % des pixels différents sont surface contre surface, 0 pixel de silhouette : surfaces coplanaires, `depthFunc` LESS, le premier dessiné gagne (cf. mémoire « coplanaires Emerald »). Hypothèse « niveau 0 modifié » réfutée : même multiensemble de triangles sur 150 membres, 0 discordance de plage.
 - Réutilisable : `material_ranges()`, table `materialRanges`, `vertexBases`, page en plusieurs lots sur tampon d'index partagé, monotonie. À refaire : l'attribution des rangs (conserver le rang de parcours de scène de chaque primitive membre).
 - Verdict NO-GO inchangé (plancher par maillage). Mon agent a quitté le worktree ; les modifications non commises de `dag.rs`/`lib.rs` (élagage, sloppy, `WG_NO_*`) ne sont pas de lui et sont laissées intactes. Worktree rendu à la session a4.
+
+## 2026-09-14 16:40 — [session sans-threejs] phase 1, lot 2 (rejet Hi-Z) rendu ; lot 4 mesure non faite
+
+- Lot 2, branche lot1-hiz-compteurs (d6693a8, fusion develop eab2bfa incluse, rien fusionné dans develop). Défaut trouvé : tout rectangle écran débordant du cadre rendait `undefined`, donc jamais rejeté ; corrigé (découpe au viewport, source unique `hizTestRect` GPU/CPU). Rejets Hi-Z avant → après (Emerald 1280×720, 1 px, MAX_PAGES=100000) : vue générale 758 → 758 clusters ; sol 424 → 447 (+5,4 %). Gain marginal : les clusters de 128 tri débordent rarement. Trous 0, `selectedTriangles` inchangé. Durées polluées (load 4,3–5,1), preuves pixel non faites (load > 4 au moment de décider). Rejet hiérarchique des nœuds : ne peut pas augmenter les rejets (boîte englobante, profondeur jamais plus loin), seulement du temps GPU, à chiffrer avant d'écrire. Vrai verrou : seule la moitié « rest » des lignes est testée, l'autre est dessinée sans test. Lint : 14 → 2 erreurs, les 2 préexistantes sur develop (`no-unsafe-finally`, webgpuPages.ts). Tests non écrits (consigne : Haiku).
+- Lot 4 : mesure tentée par Haiku, harnais laissé par l'agent incompatible (métriques WebGPU, pas `cpuSelectMs`), non faite, journal a327d0e.
+- Aucun agent vivant. Reprise sur mot de l'utilisateur.
+
+
+## 2026-09-14 — Livraison du prototype éclairage dans le banc 16
+
+- Revue indépendante et corrections de livraison terminées : porte initiale, ressources, archives persistantes et erreurs de préparation. Code éclairage isolé des backends ordinaires ; aucun nouveau choix d'architecture validé.
+- Lab : validation complète réussie. SDK : tests éclairage 12/12, build et contrats réussis, Rust 57/57 ; global Node 336/337 et portes qualité héritées encore rouges (détails dans `RD_ECLAIRAGE_DIAGNOSTIC.md`). Fusion explicitement redemandée après signalement ; aucune prétention de validation globale verte.
+- Même image brute/BVH sur les 14 états de la scène, qualité inchangée. Le gain mesuré reste insuffisant pour rendre ce prototype fluide.

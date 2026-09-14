@@ -519,3 +519,5 @@ export async function createExplorerJob(id:string,canvas:HTMLCanvasElement,optio
 }
 
 export {detectCapabilities} from './capabilities.ts';
+export {createLightingExperimentBackend} from './lightingExperimentBackend.ts';
+export type {LightingExperimentRenderState,LightingExperimentRayDiagnostics} from './lightingExperimentBackend.ts';
