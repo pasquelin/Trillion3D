@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createExplorer } from './index.ts';
-import { EngineError } from '../sdk-core/index.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION, EngineError, FORMAT_VERSION } from '../sdk-core/index.ts';
 
-for (const version of [1, 2])
+for (const version of [FORMAT_VERSION, CLUSTERED_BLEND_FORMAT_VERSION])
   test(`explorer accepts format ${version} pointer and metadata before loading the source`, async (t) => {
     const prior = Object.getOwnPropertyDescriptor(globalThis, 'location');
     Object.defineProperty(globalThis, 'location', {
@@ -66,12 +66,12 @@ test('explorer rejects an unsupported pointer format before requesting metadata'
     return new Response(
       JSON.stringify(
         reads === 1
-          ? { status: 'ready', scope: 'full', formatVersion: 3, url: 'clusters.json' }
+          ? { status: 'ready', scope: 'full', formatVersion: 1, url: 'clusters.json' }
           : {
               status: 'ready',
               scope: 'full',
-              schema: 3,
-              formatVersion: 3,
+              schema: 1,
+              formatVersion: 1,
               selectedNodes: [],
               selectedTriangles: 0,
               errorModel: 'dag-group-qem-v1',
