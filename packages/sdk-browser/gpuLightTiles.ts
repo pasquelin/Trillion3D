@@ -1,15 +1,13 @@
 import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
 import { LIGHT_TILES_SHADER } from './gpuLightTilesShader.ts';
+import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Mots par tuile : le nombre retenu, le nombre demandé, deux mots de réserve, puis les rangs. */
 const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLightsPerTile + 4;
 /** Étiquette de la passe mesurée ; `gpuLightListsMs` est lu sous ce nom, pas par son rang. */
 export const LIGHT_TILES_PASS = 'WG light tiles v1';
-const tileCountsOf = (width: number, height: number) =>
-  [
-    Math.max(1, Math.ceil(width / LIGHT_SETTINGS.tileSize)),
-    Math.max(1, Math.ceil(height / LIGHT_SETTINGS.tileSize)),
-  ] as const;
+/** Tuiles sur un axe : la liste couvre toujours la cible entière, jamais une tuile de moins. */
+const tilesOn = (pixels: number) => Math.max(1, Math.ceil(pixels / LIGHT_SETTINGS.tileSize));
 export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
 
 /**
@@ -17,10 +15,7 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>;
  * réalloué seulement quand elle change de taille ; l'encodage n'alloue rien.
  */
 export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) {
-  const module = device.createShaderModule({ code: LIGHT_TILES_SHADER });
-  const info = await module.getCompilationInfo?.();
-  const errors = info?.messages.filter((message) => message.type === 'error');
-  if (errors?.length) throw new Error(`LIGHT_TILES_SHADER: ${errors[0].message}`);
+  const module = await createCheckedShaderModule(device, LIGHT_TILES_SHADER, 'LIGHT_TILES_SHADER');
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, texture: { sampleType: 'depth' } },
@@ -55,12 +50,16 @@ export async function createGpuLightTiles(device: GPUDevice, lights: GPUBuffer) 
     get buffer() {
       return tiles;
     },
-    get tileCounts() {
-      return [tilesX, tilesY] as const;
+    get tilesX() {
+      return tilesX;
+    },
+    get tilesY() {
+      return tilesY;
     },
     /** Assure le tampon de la cible et le groupe de liaison ; rend `true` si la passe est prête. */
     ensure(width: number, height: number, depth: GPUTextureView) {
-      const [wantedX, wantedY] = tileCountsOf(width, height);
+      const wantedX = tilesOn(width),
+        wantedY = tilesOn(height);
       if (!tiles || wantedX !== tilesX || wantedY !== tilesY) {
         tiles?.destroy();
         tilesX = wantedX;

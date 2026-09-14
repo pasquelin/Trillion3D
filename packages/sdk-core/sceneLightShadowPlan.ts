@@ -35,16 +35,16 @@ export function createShadowPlan() {
   let worldEpoch = 1,
     denied = 0,
     pending = 0;
+  /** Écart d'une coordonnée à l'intervalle de la boîte déplacée, nul à l'intérieur. */
+  const outside = (value: number, axis: number) =>
+    Math.max(moved.min[axis] - value, value - moved.max[axis], 0);
   /** Sphère d'influence de la lampe contre la boîte déplacée : un test analytique, pas un rayon. */
   const touchesMoved = (x: number, y: number, z: number, range: number) => {
     if (!moved.valid) return false;
-    const centre = [x, y, z];
-    let distance = 0;
-    for (let axis = 0; axis < 3; axis++) {
-      const outside = Math.max(moved.min[axis] - centre[axis], centre[axis] - moved.max[axis], 0);
-      distance += outside * outside;
-    }
-    return distance <= range * range;
+    const dx = outside(x, 0),
+      dy = outside(y, 1),
+      dz = outside(z, 2);
+    return dx * dx + dy * dy + dz * dz <= range * range;
   };
   /** Rayon angulaire de la sphère d'influence rapporté au demi-champ : approximation nommée (P5). */
   const screenCoverage = (

@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { encodeShadowAtlas, planShadowFaces } from './webgpuPagesEncodeShadows.ts';
+import type { DirectLightResources } from './deferredLightingProgram.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Les huit flottants que la passe différée relit : lampes, tuiles, mode, ciel et exposition. */
@@ -40,37 +41,39 @@ export function encodeDirectLights(
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
   if (!tiles.encode(encoder)) return directParams;
-  const [tilesX, tilesY] = tiles.tileCounts;
   directParams[0] = active;
-  directParams[1] = tilesX;
-  directParams[2] = tilesY;
-  logFirstDirectFrame(rt, tilesX, tilesY, faces);
+  directParams[1] = tiles.tilesX;
+  directParams[2] = tiles.tilesY;
+  logFirstDirectFrame(rt);
   return directParams;
 }
 
 /** La configuration de la première image éclairée par le contrat, journalisée une seule fois. */
-function logFirstDirectFrame(
-  rt: WebgpuPagesRuntime,
-  tilesX: number,
-  tilesY: number,
-  faces: number,
-) {
+function logFirstDirectFrame(rt: WebgpuPagesRuntime) {
   const { lights, diag } = rt;
   if (lights.firstFrameLogged) return;
   lights.firstFrameLogged = true;
   diag.engineDiagnostic('direct-lighting-frame', 'Première image éclairée par le contrat', {
     version: 1,
-    lights: lights.lightsActive,
+    tiles: [lights.tiles?.tilesX ?? 0, lights.tiles?.tilesY ?? 0],
+    ...directLightingState(rt),
+  });
+}
+
+/** L'état de l'éclairage direct, tel que les diagnostics de l'image et du suivi le publient. */
+export function directLightingState(rt: WebgpuPagesRuntime) {
+  const { lights } = rt;
+  return {
+    contractLights: lights.lightsActive,
     mode: lights.store.mode,
-    tiles: [tilesX, tilesY],
     shadowsUpdated: lights.shadowsUpdated,
-    shadowFaces: faces,
+    shadowFaces: lights.shadowFaces,
     shadowDraws: lights.shadowDraws,
-    shadowsDenied: lights.shadowsDenied,
     shadowsPending: lights.shadowsPending,
+    shadowsDenied: lights.shadowsDenied,
     atlasCells: lights.shadows ? lights.plan.slices.atlas.occupancy() : null,
     unavailable: lights.shadowReason,
-  });
+  };
 }
 
 /** Vrai dès que l'hôte a déclaré une lampe ou un environnement : le programme du contrat s'impose. */
@@ -79,13 +82,15 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   return store.count > 0 || !!store.environment;
 }
 
-/** Les ressources du contrat que la passe différée lie, ou rien quand elles n'existent pas. */
+const contractResources: DirectLightResources = {};
+
+/** Les ressources du contrat que la passe différée lie, ou rien quand elles n'existent pas.
+ *  L'objet est réutilisé d'une image à l'autre : la passe n'en alloue aucun. */
 export function directLightResources(rt: WebgpuPagesRuntime) {
-  const { lights } = rt;
-  if (!wantsContractLighting(rt)) return {};
-  return {
-    tiles: lights.tiles?.buffer,
-    slices: lights.shadows?.sliceBuffer,
-    atlas: lights.shadows?.view,
-  };
+  const { lights } = rt,
+    active = wantsContractLighting(rt);
+  contractResources.tiles = active ? lights.tiles?.buffer : undefined;
+  contractResources.slices = active ? lights.shadows?.sliceBuffer : undefined;
+  contractResources.atlas = active ? lights.shadows?.view : undefined;
+  return contractResources;
 }

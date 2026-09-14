@@ -3,7 +3,7 @@ import { collectPendingUrls } from './pageSelection.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { dropGpuSelection } from './webgpuPagesDrops.ts';
-import { wantsContractLighting } from './webgpuPagesEncodeLights.ts';
+import { directLightingState, wantsContractLighting } from './webgpuPagesEncodeLights.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -20,18 +20,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
       budgetLimited: run.coverageBudgetLimited,
     },
     lights: run.lightState,
-    directLighting: {
-      version: 1,
-      contractLights: rt.lights.lightsActive,
-      mode: rt.lights.store.mode,
-      shadowsUpdated: rt.lights.shadowsUpdated,
-      shadowFaces: rt.lights.shadowFaces,
-      shadowDraws: rt.lights.shadowDraws,
-      shadowsPending: rt.lights.shadowsPending,
-      shadowsDenied: rt.lights.shadowsDenied,
-      atlasCells: rt.lights.shadows ? rt.lights.plan.slices.atlas.occupancy() : null,
-      unavailable: rt.lights.shadowReason,
-    },
+    directLighting: { version: 1, ...directLightingState(rt) },
     selectedPages: run.shown.length,
     residentPages: run.drawn.length,
     selectedTriangles: run.selectedTriangles,
