@@ -1,0 +1,124 @@
+import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
+import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
+import {
+  createWebgpuShadePipeline,
+  createWebgpuVisibilityRasterPipelines,
+} from './webgpuVisibilityPipelines.ts';
+import { createGpuHiz } from './gpuHiz.ts';
+import { createGpuDraw } from './gpuDraw.ts';
+import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
+import { SURFACE_FORMATS } from './surfaceBuffer.ts';
+import { dropGpuHiz, dropVis } from './webgpuPagesDrops.ts';
+import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+/** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
+ *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
+export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+  const { vis, gpu, capabilities, diag, blendState } = rt,
+    { drawSlots } = rt.layout,
+    [width, height] = rt.setup.viewport;
+  try {
+    ({
+      blendBindGroupLayout: vis.blendBindGroupLayout,
+      pipelineBlendTextured: gpu.pipelineBlendTextured,
+      pipelineBlendFront: gpu.pipelineBlendFront,
+      pipelineBlendBack: gpu.pipelineBlendBack,
+    } = await createWebgpuBlendPipelines(gpuDevice, blendState.blendGpu));
+  } catch (error) {
+    diag.diagnosticFailure('forward-material-pipeline-failed', error);
+    vis.blendBindGroupLayout = undefined;
+    gpu.pipelineBlendTextured = undefined;
+  }
+  const shaders = await createWebgpuVisibilityShaders(gpuDevice, drawSlots);
+  vis.shadeUniform = shaders.shadeUniform;
+  vis.visBindGroupLayout = shaders.visBindGroupLayout;
+  vis.zeroFlags = shaders.zeroFlags;
+  vis.visUniform = shaders.visUniform;
+  const { visModule, shadeModule } = shaders;
+  vis.gpuHiz = await createGpuHiz(gpuDevice, Math.max(1, width), Math.max(1, height), drawSlots);
+  let rasterPipelines;
+  try {
+    if (!vis.gpuHiz || !vis.visBindGroupLayout) throw new Error('HIZ_UNAVAILABLE');
+    rasterPipelines = await createWebgpuVisibilityRasterPipelines(
+      gpuDevice,
+      visModule,
+      vis.visBindGroupLayout,
+      true,
+    );
+  } catch (error) {
+    diag.diagnosticFailure('hiz-pipeline-fallback', error);
+    dropGpuHiz(rt);
+    rasterPipelines = await createWebgpuVisibilityRasterPipelines(
+      gpuDevice,
+      visModule,
+      vis.visBindGroupLayout!,
+      false,
+    );
+  }
+  ({
+    visPipelineBack: vis.visPipelineBack,
+    visPipelineBackCw: vis.visPipelineBackCw,
+    visPipelineNone: vis.visPipelineNone,
+    visPipelineFront: vis.visPipelineFront,
+    visPipelineFrontCw: vis.visPipelineFrontCw,
+    visHizRestBack: vis.visHizRestBack,
+    visHizRestBackCw: vis.visHizRestBackCw,
+    visHizRestNone: vis.visHizRestNone,
+    visHizRestFront: vis.visHizRestFront,
+    visHizRestFrontCw: vis.visHizRestFrontCw,
+  } = rasterPipelines);
+  ({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadePipeline: vis.shadePipeline } =
+    await createWebgpuShadePipeline(gpuDevice, shadeModule));
+  if (!vis.pageTable)
+    vis.pageTable = gpuDevice.createBuffer({
+      size: PAGE_INFO_STRIDE,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+  if (
+    vis.visView &&
+    gpu.cache &&
+    vis.concatPos &&
+    vis.concatUv &&
+    vis.concatNrm &&
+    vis.mapsTexture &&
+    vis.dataMapsTexture &&
+    vis.mapsSampler &&
+    vis.shadeUniform &&
+    vis.shadeBindGroupLayout
+  ) {
+    vis.shadeBindGroup = gpuDevice.createBindGroup({
+      layout: vis.shadeBindGroupLayout,
+      entries: [
+        { binding: 0, resource: vis.visView },
+        { binding: 1, resource: { buffer: gpu.cache.buffer } },
+        { binding: 2, resource: { buffer: vis.concatPos } },
+        { binding: 3, resource: { buffer: vis.concatUv } },
+        { binding: 4, resource: { buffer: vis.concatNrm } },
+        { binding: 5, resource: { buffer: vis.pageTable } },
+        { binding: 6, resource: vis.mapsTexture.createView({ dimension: '2d-array' }) },
+        { binding: 7, resource: vis.mapsSampler },
+        { binding: 8, resource: { buffer: vis.shadeUniform } },
+        { binding: 9, resource: vis.dataMapsTexture.createView({ dimension: '2d-array' }) },
+      ],
+    });
+  }
+  vis.visEnabled =
+    !!vis.visTexture && !!vis.shadeBindGroup && !!vis.shadePipeline && !!vis.visPipelineBack;
+  if (!vis.visEnabled) return dropVis(rt);
+  diag.engineDiagnostic('material-surfaces-ready', 'Surfaces et éclairage séparés', {
+    surfaceVersion: 1,
+    formats: SURFACE_FORMATS,
+    bytesPerPixel: 28,
+    lighting: 'HDR',
+    globalIllumination: false,
+    motionVectors: false,
+  });
+  capabilities.materials =
+    'Source glTF via GGX direct specular and hemisphere diffuse lighting with visibility buffer; double-sided when the material is';
+  capabilities.unsupported = capabilities.unsupported.filter(
+    (item) => !VIS_FEATURES.includes(item),
+  );
+  vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots);
+  if (vis.gpuDraw)
+    capabilities.unsupported = capabilities.unsupported.filter((item) => item !== 'indirect draw');
+}
