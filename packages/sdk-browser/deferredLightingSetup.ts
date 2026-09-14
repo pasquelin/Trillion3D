@@ -79,29 +79,3 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     },
   };
 }
-
-/** Construit un pipeline plein écran, en asynchrone quand l'appareil le propose. */
-export function makeFullscreenPipeline(
-  device: GPUDevice,
-  module: GPUShaderModule,
-  bind: GPUBindGroupLayout,
-  entryPoint: string,
-  formats: GPUTextureFormat[],
-) {
-  const descriptor: GPURenderPipelineDescriptor = {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bind] }),
-    vertex: { module, entryPoint: 'fullscreen' },
-    fragment: { module, entryPoint, targets: formats.map((format) => ({ format })) },
-    primitive: { topology: 'triangle-list' },
-  };
-  return device.createRenderPipelineAsync
-    ? device.createRenderPipelineAsync(descriptor)
-    : Promise.resolve(device.createRenderPipeline(descriptor));
-}
-
-/** Refuse un module dont la compilation a produit une erreur, en nommant la première. */
-export async function assertShaderModule(module: GPUShaderModule, label: string) {
-  const info = await module.getCompilationInfo?.();
-  const errors = info?.messages.filter((message) => message.type === 'error');
-  if (errors?.length) throw new Error(`${label}: ${errors.map((e) => e.message).join('\n')}`);
-}

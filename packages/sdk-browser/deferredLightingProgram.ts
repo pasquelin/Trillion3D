@@ -1,9 +1,25 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
-import {
-  assertShaderModule,
-  createDeferredLayouts,
-  makeFullscreenPipeline,
-} from './deferredLightingSetup.ts';
+import { createDeferredLayouts } from './deferredLightingSetup.ts';
+import { createCheckedShaderModule } from './gpuShaderModule.ts';
+
+/** Construit un pipeline plein écran, en asynchrone quand l'appareil le propose. */
+function makeFullscreenPipeline(
+  device: GPUDevice,
+  module: GPUShaderModule,
+  bind: GPUBindGroupLayout,
+  entryPoint: string,
+  formats: GPUTextureFormat[],
+) {
+  const descriptor: GPURenderPipelineDescriptor = {
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bind] }),
+    vertex: { module, entryPoint: 'fullscreen' },
+    fragment: { module, entryPoint, targets: formats.map((format) => ({ format })) },
+    primitive: { topology: 'triangle-list' },
+  };
+  return device.createRenderPipelineAsync
+    ? device.createRenderPipelineAsync(descriptor)
+    : Promise.resolve(device.createRenderPipeline(descriptor));
+}
 
 /** Les ressources du contrat d'éclairage direct que la passe relit ; absentes, elles sont remplacées. */
 export interface DirectLightResources {
@@ -41,11 +57,10 @@ export async function createDeferredProgram(
   sources: DeferredSources,
   bindings: DeferredBindings,
 ) {
-  const modules = [sources.lighting, sources.compose].map((code) =>
-    device.createShaderModule({ code }),
-  );
-  await assertShaderModule(modules[0], `${sources.label}_LIGHTING`);
-  await assertShaderModule(modules[1], `${sources.label}_COMPOSE`);
+  const modules = [
+    await createCheckedShaderModule(device, sources.lighting, `${sources.label}_LIGHTING`),
+    await createCheckedShaderModule(device, sources.compose, `${sources.label}_COMPOSE`),
+  ];
   const layouts = createDeferredLayouts(device, sources.direct);
   const make = makeFullscreenPipeline;
   const light = await make(device, modules[0], layouts.lighting, 'lightSurface', ['rgba16float']);

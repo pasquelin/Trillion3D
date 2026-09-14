@@ -5,9 +5,9 @@ import {
   RECTS_PER_SLICE,
   SHADOW_FACE_FLOATS,
   SHADOW_SLICE_FLOATS,
-  type ShadowPlan,
 } from '../sdk-core/index.ts';
 import { SHADOW_DEPTH_SHADER } from './gpuShadowShader.ts';
+import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Étiquette de la passe mesurée ; `gpuShadowsMs` est lu sous ce nom. */
 export const SHADOW_PASS = 'WG shadow atlas v1';
@@ -50,10 +50,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     sliceBuffer.destroy();
   };
   try {
-    const module = device.createShaderModule({ code: SHADOW_DEPTH_SHADER });
-    const info = await module.getCompilationInfo?.();
-    const errors = info?.messages.filter((message) => message.type === 'error');
-    if (errors?.length) throw new Error(`SHADOW_DEPTH_SHADER: ${errors[0].message}`);
+    const module = await createCheckedShaderModule(device, SHADOW_DEPTH_SHADER, 'SHADOW_DEPTH');
     const faceLayout = device.createBindGroupLayout({
       entries: [
         {
@@ -98,33 +95,43 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceGroup,
       faceStride: FACE_STRIDE,
       allocationBytes: shadowAtlasBytes() + faceUniform.size + sliceBuffer.size,
-      /** Rectangle d'une face en texels : ce que la passe met en cadre et en ciseaux. */
-      faceRect(plan: ShadowPlan, slice: number, face: number) {
-        const base = slice * RECTS_PER_SLICE + face * 3;
-        return [plan.slices.rects[base], plan.slices.rects[base + 1], plan.slices.rects[base + 2]];
-      },
-      /** Écrit la matrice d'une face à son décalage dynamique ; rend ce décalage. */
-      writeFace(index: number, matrix: Float32Array, rect: number[]) {
-        const base = (index * FACE_STRIDE) / 4;
-        facePacked.set(matrix.subarray(0, 16), base);
-        facePacked[base + 16] = rect[0] / size;
-        facePacked[base + 17] = rect[1] / size;
-        facePacked[base + 18] = rect[2] / size;
-        facePacked[base + 19] = rect[2];
-        return index * FACE_STRIDE;
+      /**
+       * Écrit une face dans les deux tampons : celui des matrices de l'image, lu par décalage
+       * dynamique, et celui des tranches, relu par la résolution différée. `matrices` porte la
+       * matrice à `matrixBase` ; rien n'est copié dans un tableau intermédiaire.
+       */
+      writeFace(
+        index: number,
+        slice: number,
+        face: number,
+        matrices: Float32Array,
+        matrixBase: number,
+        rects: Int32Array,
+      ) {
+        const rect = slice * RECTS_PER_SLICE + face * 3,
+          x = rects[rect] / size,
+          y = rects[rect + 1] / size,
+          side = rects[rect + 2];
+        const uniform = (index * FACE_STRIDE) / 4,
+          entry = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS;
+        for (let i = 0; i < 16; i++) {
+          facePacked[uniform + i] = matrices[matrixBase + i];
+          slicePacked[entry + i] = matrices[matrixBase + i];
+        }
+        const span = side / size;
+        facePacked[uniform + 16] = x;
+        facePacked[uniform + 17] = y;
+        facePacked[uniform + 18] = span;
+        facePacked[uniform + 19] = side;
+        slicePacked[entry + 16] = x;
+        slicePacked[entry + 17] = y;
+        slicePacked[entry + 18] = span;
+        slicePacked[entry + 19] = side > 0 ? 1 : 0;
+        return side;
       },
       flushFaces(count: number) {
         if (count)
           device.queue.writeBuffer(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);
-      },
-      /** Une face de tranche, telle que la résolution différée la relira. */
-      writeSlice(slice: number, face: number, matrix: Float32Array, rect: number[]) {
-        const base = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS;
-        slicePacked.set(matrix.subarray(0, 16), base);
-        slicePacked[base + 16] = rect[0] / size;
-        slicePacked[base + 17] = rect[1] / size;
-        slicePacked[base + 18] = rect[2] / size;
-        slicePacked[base + 19] = rect[2] > 0 ? 1 : 0;
       },
       /** L'entête d'une tranche : faces, demi-ouverture tangente, côté en texels, plan proche. */
       writeSliceInfo(slice: number, faces: number, tanHalfFov: number, side: number, near: number) {
