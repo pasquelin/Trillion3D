@@ -710,7 +710,44 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
   slim["binary"]["sha256"]=json!(hash(&binary));
   atomic(&directory.join(MANIFEST_BINARY_FILE),&binary)?;
   atomic(&directory.join("clusters.json"),&serde_json::to_vec(&slim)?)?;}
- atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
+ atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;let pruned=prune_cache(o,&key,&result,&progress)?;progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));Ok(result)
+}
+/// Objects a manifest references, read from its serialized JSON (`objects/<sha>.bin` URLs).
+fn referenced_objects(text:&str,into:&mut BTreeSet<String>){
+ let needle="objects/";let mut rest=text;
+ while let Some(at)=rest.find(needle){let after=&rest[at+needle.len()..];let digest:String=after.chars().take_while(|c|c.is_ascii_hexdigit()).collect();let len=digest.len();if len==64&&after[len..].starts_with(".bin"){into.insert(digest);}rest=&after[len.min(after.len())..];}
+}
+/// After a successful compile, remove the other keys of this scope and every object no surviving
+/// manifest references. Objects are shared across scopes, so the other scope's manifest is read too.
+/// Hosts therefore never need to wipe a cache before recompiling: the cache converges on its own.
+fn prune_cache(o:&Options,key:&str,result:&Value,progress:&(impl Fn(Value)+Sync))->Result<Value>{
+ let native=o.cache.join("native");
+ let mut keep=BTreeSet::new();referenced_objects(&serde_json::to_string(result)?,&mut keep);
+ let mut removed_keys=0usize;
+ for scope in ["slice","full"]{
+  let dir=native.join(scope);let Ok(entries)=fs::read_dir(&dir) else {continue};
+  for entry in entries{let entry=entry?;if !entry.file_type()?.is_dir(){continue;}let name=entry.file_name();let Some(name)=name.to_str() else {continue};
+   if scope==o.scope&&name==key{continue;}
+   if scope==o.scope{fs::remove_dir_all(entry.path())?;removed_keys+=1;continue;}
+   // The other scope keeps only the key its pointer names; anything else is stale.
+   let current=fs::read(dir.join("manifest.json")).ok().and_then(|b|serde_json::from_slice::<Value>(&b).ok()).and_then(|p|p["key"].as_str().map(str::to_owned));
+   if current.as_deref()!=Some(name){fs::remove_dir_all(entry.path())?;removed_keys+=1;continue;}
+   if let Ok(text)=fs::read_to_string(entry.path().join("clusters.json")){referenced_objects(&text,&mut keep);}
+   if let Ok(bytes)=fs::read(entry.path().join(MANIFEST_BINARY_FILE)){referenced_objects(&String::from_utf8_lossy(&bytes),&mut keep);}
+  }
+ }
+ // Stale FBX/OBJ imports: keep the one this compile read, drop the others.
+ let imports=native.join("imports");
+ if o.source.starts_with(&imports){if let Ok(entries)=fs::read_dir(&imports){for entry in entries{let entry=entry?;if entry.file_type()?.is_dir()&&entry.path()!=o.source{fs::remove_dir_all(entry.path())?;removed_keys+=1;}}}}
+ let mut removed_objects=0usize;let mut removed_bytes=0u64;let mut kept_objects=0usize;
+ if let Ok(entries)=fs::read_dir(native.join("objects")){
+  for entry in entries{let entry=entry?;let name=entry.file_name();let Some(name)=name.to_str() else {continue};let digest=name.trim_end_matches(".bin");
+   if keep.contains(digest){kept_objects+=1;}else{removed_bytes+=entry.metadata().map(|m|m.len()).unwrap_or(0);fs::remove_file(entry.path())?;removed_objects+=1;}
+  }
+ }
+ let summary=json!({"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes,"keptObjects":kept_objects});
+ if removed_keys>0||removed_objects>0{progress(json!({"phase":"prune","completed":1,"total":1,"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes}));}
+ Ok(summary)
 }
 #[cfg(test)] mod tests {use super::*;use std::time::{SystemTime,UNIX_EPOCH};use std::sync::atomic::AtomicU64;
  static NEXT_FIXTURE_ID:AtomicU64=AtomicU64::new(0);
@@ -1186,6 +1223,22 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
   let result=compile(&options,|_|{}).expect("compile dir");
   assert_eq!(result["selectedTriangles"],4);
   assert_eq!(result["selectedNodes"].as_array().map(|a|a.len()),Some(2));
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn recompiling_prunes_stale_keys_and_orphan_objects(){
+  let (root,options)=obj_fixture("quad.obj",false);
+  let first=compile(&options,|_|{}).expect("first");
+  let other=Options{simplification:"qem-endpoints".into(),..options.clone()};
+  let second=compile(&other,|_|{}).expect("second");
+  assert_ne!(first["key"],second["key"]);
+  let keys:Vec<_>=fs::read_dir(options.cache.join("native/full")).expect("scope").filter_map(|e|e.ok()).filter(|e|e.file_type().map(|t|t.is_dir()).unwrap_or(false)).collect();
+  assert_eq!(keys.len(),1,"only the latest key survives");
+  let mut referenced=BTreeSet::new();referenced_objects(&serde_json::to_string(&second).unwrap(),&mut referenced);
+  let objects:BTreeSet<String>=fs::read_dir(options.cache.join("native/objects")).expect("objects").filter_map(|e|e.ok()).map(|e|e.file_name().to_string_lossy().trim_end_matches(".bin").to_string()).collect();
+  assert_eq!(objects,referenced,"every remaining object is referenced by the surviving manifest");
+  // The pointer still resolves after pruning.
+  let pointer:Value=serde_json::from_slice(&fs::read(options.cache.join("native/full/manifest.json")).unwrap()).unwrap();
+  assert!(options.cache.join("native/full").join(pointer["url"].as_str().unwrap()).exists());
   fs::remove_dir_all(root).expect("cleanup");
  }
  #[test] fn gltf_sources_never_go_through_the_importer(){
