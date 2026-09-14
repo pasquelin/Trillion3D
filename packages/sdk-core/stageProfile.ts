@@ -24,8 +24,11 @@ export interface StageProfileEntry {
 export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2';
 
 /**
- * Le profil complet, sur une fenêtre glissante d'images. `gpuImageMs` n'existe que sur un moteur qui
- * sait chronométrer l'image entière sans savoir la découper en passes ; il ne remplace aucune ligne.
+ * Le profil complet, sur une fenêtre glissante d'images. `gpuImageMs` est l'enveloppe de l'image
+ * côté carte graphique : du début de sa première passe à la fin de sa dernière. Les durées par étape
+ * ne s'y additionnent PAS — un appareil qui fait se chevaucher deux passes les compte deux fois dans
+ * une somme, jamais dans l'enveloppe. C'est aussi la seule mesure d'un moteur WebGL2, qui ne sait pas
+ * découper une image en passes.
  */
 export interface StageProfile {
   version: 1;

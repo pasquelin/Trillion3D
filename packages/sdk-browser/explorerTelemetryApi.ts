@@ -20,6 +20,10 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
         disabledStageProfile(backend.id, 'ce moteur ne chronomètre pas ses étapes')
       );
     },
+    /** Vide la fenêtre du profil du moteur actif, pour ne mesurer que ce qui vient ensuite. */
+    resetStageProfile() {
+      active().resetStageProfile?.();
+    },
     printReport() {
       profiler.printReport();
     },

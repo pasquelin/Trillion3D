@@ -21,6 +21,10 @@ function createRing(capacity: number) {
       filled = Math.min(capacity, filled + 1);
     },
     values: () => Array.from(data.subarray(0, filled)),
+    clear() {
+      cursor = 0;
+      filled = 0;
+    },
     get count() {
       return filled;
     },
@@ -101,6 +105,15 @@ export function createStageProfiler(options: {
     setGpuMethod(method: GpuTimingMethod | null, reason: string | null) {
       gpuMethod = method;
       gpuReason = reason;
+    },
+    /** Oublie la fenêtre : ce qui précède (chauffe, premières images) ne pèse plus sur les quantiles. */
+    reset() {
+      for (const ring of cpu.values()) ring.clear();
+      for (const ring of gpu.values()) ring.clear();
+      overhead.clear();
+      image.clear();
+      cpuFrames = 0;
+      gpuSamples = 0;
     },
     profile(): StageProfile {
       const stages: StageProfileEntry[] = [];

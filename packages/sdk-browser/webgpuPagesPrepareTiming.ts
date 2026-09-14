@@ -21,7 +21,12 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       timing.lastGpuFrameMs = sample.submittedMs;
       timing.lastGpuHostGapMs = sample.hostGapMs;
       // Le relevé décrit une image déjà passée : il est rangé par étape sans jamais bloquer celle-ci.
-      timing.stages?.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add));
+      // L'enveloppe de l'image est publiée à part : sur un appareil qui fait se chevaucher les passes,
+      // la somme des étapes dépasse l'image, et c'est l'enveloppe qui dit la vérité sur sa durée.
+      if (timing.stages) {
+        timing.stages.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add));
+        if (sample.submittedMs !== null) timing.stages.pushImageGpu(sample.submittedMs);
+      }
       const phase = sample.error ? 'gpu-timing-unavailable' : 'gpu-timing',
         message = sample.error ? 'Mesure GPU indisponible' : 'Durées GPU mesurées par passe';
       diag.engineDiagnostic(phase, message, sample);

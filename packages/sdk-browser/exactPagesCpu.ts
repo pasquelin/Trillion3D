@@ -57,6 +57,9 @@ export function createExactPagesCpu(
         if (ms !== null) stages.pushImageGpu(ms);
       }
     },
+    resetStageProfile() {
+      stages?.reset();
+    },
     /** Le profil public : « non mesuré » partout où rien n'a été relevé, jamais un zéro. */
     stageProfile() {
       return (
