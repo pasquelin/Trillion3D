@@ -70,14 +70,15 @@ impl<'a> TextureTable<'a>{
   candidates.push(self.source_dir.join(&name));candidates.push(self.source_dir.join("textures").join(&name));
   let mut siblings=Vec::new();
   for candidate in &candidates{for ext in SIBLING_EXTENSIONS{siblings.push(candidate.with_extension(ext));}}
+  let mut outside=false;
   for candidate in candidates.iter().chain(siblings.iter()){
    if !candidate.is_file(){continue;}
    let Some(mime)=Self::mime(candidate.to_str().unwrap_or("")) else {continue};
-   let Ok(relative)=normalise(candidate).strip_prefix(&self.canonical_dir).map(Path::to_path_buf) else {self.report.add("texture-outside-source");return None};
+   let Ok(relative)=normalise(candidate).strip_prefix(&self.canonical_dir).map(Path::to_path_buf) else {outside=true;continue};
    let uri=relative.components().map(|c|c.as_os_str().to_string_lossy().to_string()).collect::<Vec<_>>().join("/");
    return Some(json!({"name":name,"mimeType":mime,"uri":uri}));
   }
-  self.report.add(if Self::mime(&name).is_some(){"texture-missing"}else{"texture-format"});
+  self.report.add(if outside{"texture-outside-source"}else if Self::mime(&name).is_some(){"texture-missing"}else{"texture-format"});
   None
  }
  fn texture(&mut self,texture:&ufbx::Texture)->Option<usize>{
