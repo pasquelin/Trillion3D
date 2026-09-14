@@ -1358,3 +1358,123 @@ qu'avant ce lot — rouge d'environnement connu, dossier ignoré par git.
 
 - develop avancé en avance rapide sur lot3-residence. Admission et file de résidence incrémentales (pages entrées/sorties depuis la coupe GPU, ensembles persistants en index denses), métriques residencyPagesEntered/Exited. Preuve harnais commun (60 images, MAX_PAGES=100000, 3 vues × pixelError 0 et 1) : 0 px avant/après, A/A 0, hash identique 6/6, uncoveredTriangles 0. cpuFrameMs p50 à 0 px : générale 27,1 → 21,6 ms, sol 7,9 → 6,2, rue 9,1 → 6,1 ; à 1 px : 6,6 → 4,3, 4,1 → 2,9, 4,1 → 2,9. Étapes générale : admission 5,2 → 1,4, file 4,3 → 2,5, adoption 1,6 → 0,8. 421 tests, 0 échec.
 - Constat : le budget de pages pèse des placements (~78 000 pour ~37 400 places) et range la coupe entière à chaque image, même à 0 page entrée/sortie ; c'est la prochaine cible (tri par comptage), avec les transparents sur CPU (7,6 ms) et la projection des boîtes (3,2 ms).
+
+## 2026-09-15 — [session sans-threejs] lot 3b, CPU par image WebGPU (Emerald, vue générale)
+
+Worktree `lot-3b-residence`, branche `lot/3b-residence` sur `develop` (`ea032f4`). Quatre commits :
+`fe2be87` (rang par comptage du budget de pages), `933954a` (coupe transparente tenue), `ea054a9`
+(reprojection des seules boîtes qui ont bougé), `90f47ad` (tests, retrait des exports inutilisés).
+
+### Les trois étapes
+
+**1. File de résidence — rang par comptage, incrémental.** Le budget de pages rangeait la coupe
+entière à chaque image : filtrage des ~78 000 placements, tri par comparaison, vidage puis
+remplissage des ~37 400 places, même à 0 page entrée/sortie. Le rang est désormais obtenu par
+comptage (`webgpuBudgetRanking.ts`) : les placements de la coupe opaque sont comptés par niveau une
+fois puis déplacés par la seule différence de coupe, seule la queue transparente est relue, et une
+passe unique écrit le préfixe gardé sans jamais matérialiser les niveaux que le budget n'atteint
+pas. La file n'est réécrite que là où le rang diffère de ce qu'elle tient déjà — mais le rang, lui,
+est recalculé sur les enregistrements à chaque image, jamais supposé d'une coupe immobile : c'est
+exactement ce qui manquait à la tentative retirée du lot 3a (témoin A/A à 752 px). Ensemble résident
+et ordre strictement identiques : même filtre de couverture, même ordre niveau décroissant, même
+ordre de publication à niveau égal, même déduplication par première occurrence.
+
+**2. Transparents — la coupe tenue d'une image à l'autre.** *Ce n'est pas le passage en sélection
+GPU que le lot demandait ; voir « Ce qui reste ».* La coupe des clusters transparents est le seul
+parcours de DAG qu'une image garde sur le CPU. Elle est fonction de six entrées et de rien d'autre :
+vue et projection de la caméra, seuil d'erreur retenu par le budget, fenêtre, époque des matrices
+monde, identité et révision de résidence du cache de pages. Le numéro d'image qu'elle reçoit en plus
+ne fait qu'y estampiller `seen`, que rien ne relit dans le dépôt. Une image dont ces six entrées
+sont celles de la coupe tenue lit la réponse ; la moindre qui bouge reparcourt tout, et le parcours
+réécrit les tableaux mêmes où la coupe tenue vit — l'aval ne peut pas distinguer les deux cas. Le
+cache de pages publie pour cela `residencyRevision`, qui augmente strictement à chaque changement
+d'appartenance de la résidence et à rien d'autre (une arrivée estampille une génération, un départ
+compte une éviction, le rafraîchissement LRU d'une page déjà résidente ne fait ni l'un ni l'autre).
+La coupe de l'image n'alloue plus ni résultat ni listes.
+
+**3. Projection des boîtes — ne reprojeter que ce qui a bougé.** Un rectangle écran est fonction des
+coins monde de la boîte — déjà tenus par page, reconstruits sur leur propre époque — et de la vue,
+et de rien d'autre. La vue est commune à toutes les lignes : elle bouge d'un cheveu et tous les
+rectangles sont retirés d'un coup ; elle ne bouge pas et chaque ligne garde le sien tant qu'elle
+désigne la même page. Ce que la partition projette est l'intersection de ce qu'elle demande avec ce
+qui n'est plus courant, écrit par la même arithmétique dans le même tableau.
+
+### Mesure
+
+`node scripts/mesure/banc.mjs --moteur webgpu --avant ea032f4 --apres <commit> --vues
+generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000`, une exécution par étape plus une
+sur la tête. Verrou `mesure.lock` pris puis libéré à chaque fois.
+
+| étape | commit | cpuFrameMs p50 générale, pixelError 0 | écart px | A/A | hash | trous |
+|---|---|---|---|---|---|---|
+| départ (`develop`) | `ea032f4` | 21,5 | — | — | — | 0 |
+| 1 file de résidence | `fe2be87` | 21,5 → **20,4** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
+| 2 transparents | `933954a` | 21,2 → **13,0** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
+| 3 projection | `ea054a9` | 24,0 → **10,8** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
+| tête (tests inclus) | `90f47ad` | 27,4 → **10,7** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
+
+`uncoveredTriangles` 0 des deux côtés partout, `selectedTriangles` identiques série par série, aucune
+erreur de page. Le côté `avant` varie de 21,2 à 27,4 ms d'une exécution à l'autre : la charge machine
+est montée de 4,6 à 12,1 au fil de la journée, et c'est elle, pas le code, qui bouge de ce côté. Les
+verdicts pixel, eux, ne dépendent pas de la charge. L'exécution la plus calme (étape 3, charge 5,0)
+donne les deux côtés dans les mêmes conditions : **24,0 → 10,8 ms**.
+
+Les autres vues et l'autre seuil, exécution de l'étape 3 (p50, avant → après) : sol 0 px 6,1 → 4,4 ;
+rue 0 px 6,2 → 4,1 ; générale 1 px 4,7 → 3,0 ; sol 1 px 3,2 → 2,2 ; rue 1 px 3,0 → 2,1. p95 de la
+vue générale à 0 px : 25,0 → 12,0.
+
+Étapes internes `cpu-timing` (vue générale, pixelError 0, script de profil du scratchpad, jamais
+committé ; le harnais du banc ne rend pas ces étapes), même session, `ea032f4` contre `ea054a9` :
+
+| étape | p50 avant → après |
+|---|---|
+| Adopter la coupe GPU | 0,6 → 0,6 |
+| **Sélection CPU des transparents** | 6,8 → **0,0** |
+| Admission | 1,2 → 1,3 |
+| **File de résidence** | 2,1 → **0,8** |
+| Synchroniser / envoyer la résidence / lancer la sélection | 0,5 → 0,5 |
+| Partition Hi-Z | 0,5 → 0,5 |
+| **Projection des boîtes** | 3,0 → **0,2** |
+| Construire les items de dessin | 1,2 → 1,3 |
+| Reste de l'encodage et soumission | 2,6 → 2,8 |
+| **total moteur** | 18,7 → **8,8** |
+
+### Ce qui reste
+
+- **La cible `< 4 ms` n'est pas atteinte** : 10,7 ms de `cpuFrameMs`, dont 8,8 dans le moteur.
+- **Encodage et soumission**, 4,9 ms p50 après ce lot (7,3 avant : la projection des boîtes y était
+  comptée). Ce qui reste est proportionnel au nombre de lignes dessinables — ~48 000 dans la vue
+  générale à seuil nul — et non aux pixels : ~1,3 ms à construire une fiche de dessin par ligne et
+  ~2,8 ms à mettre à jour la table des rangs, encoder les passes et soumettre la file. Seuls une
+  coupe plus grossière, ou une compaction qui écrirait les fiches directement sur GPU, l'enlèvent.
+  Hors périmètre de ce lot.
+- **Écart entre `cpuFrameMs` (10,7) et le total moteur (8,8)** : les deux listes que l'hôte demande
+  après le rendu (pages manquantes, pages visibles), déjà chiffrées à 0,8 et 1,3 ms par le profil du
+  14 septembre.
+- **Adoption de la coupe GPU (0,6 ms)** : non traitée. Elle relit la liste des identifiants
+  dessinables à chaque image, y compris quand la relecture est celle déjà tenue. La sauter
+  exactement demande de couvrir `residentOffsetWords` **et** `rec.array`, que l'hôte pose hors du
+  cache GPU : la révision de résidence du cache ne suffit pas à les garantir. 0,6 ms ne valait pas
+  ce risque dans ce lot.
+- **Transparents en sélection GPU** : non fait. `packedPages`, la table des rangs, le tampon de
+  visibilité, le Hi-Z, les fiches de dessin, la résidence et la différence de coupe sont tous bâtis
+  sur les seuls clusters opaques ; les transparents sont dessinés en avant, triés, hors du tampon de
+  visibilité. Les y faire entrer demande une seconde table de clusters et une seconde relecture, et
+  l'ordre de mélange est critique au pixel. Hors de portée d'une session ; la coupe tenue prend les
+  6,8 ms sans y toucher, mais une caméra qui bouge les repaie en entier — c'est là que le passage en
+  sélection GPU reste le seul vrai levier.
+
+### Portes
+
+`format:check`, `check:duplicates` (0 clone), `lint`, `check:unused` (knip, 0), `build`,
+`build:native`, `check:structure`, `check:dts`, `test:native` : **vertes**. `npm test` : **432 tests,
+0 échec**, dont 11 ajoutés (`webgpuBudgetRanking.test.ts`, `webgpuTransparentCut.test.ts`,
+`hizProjectionHold.test.ts`). Deux rouges **d'avant ce lot**, vérifiés sur `develop` à `ea032f4` :
+`check:lines` sur `scripts/mesure/options.mjs` (208 lignes, ajoutées par `ea032f4`), qui arrête
+`npm run validate` avant les autres portes — elles ont donc été jouées une par une ; et
+`check:links` sur les cinq mêmes liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`,
+dossier ignoré par git.
+
+`render-tech-lab/` non modifié et lu en lecture seule ; port 5174 non touché ; aucun `eslint-disable`
+ajouté ; `node_modules` (lien symbolique) non committé ; scripts de profil dans le scratchpad, jamais
+committés ; `sauvegarde/lot-4c` non touchée.
