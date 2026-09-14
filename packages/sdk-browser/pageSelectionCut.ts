@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
   IDENTITY_WORLD,
+  createSelectionResult,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -91,17 +92,7 @@ export function selectVisiblePages<T extends PageRecord>(
   for (let i = 0; i < shown.length; i++) displayedTriangles += shown[i].triangles;
   if (!wanted.length) selectedTriangles = displayedTriangles;
   // Le résultat est écrit dans l'objet de l'appelant quand il en fournit un : rien n'est alloué.
-  const result: SelectionResult<T> = options.result ?? {
-    shown,
-    wanted,
-    visible: 0,
-    selectedTriangles: 0,
-    displayedTriangles: 0,
-    frustumRejected: 0,
-    lodLevel: 0,
-    complete: true,
-    pixelError: 0,
-  };
+  const result = options.result ?? createSelectionResult<T>();
   result.shown = shown;
   result.wanted = wanted;
   result.visible = wanted.length || shown.length;

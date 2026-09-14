@@ -3,7 +3,7 @@
 // captures RGBA que la page lui poste.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { deflateSync } from 'node:zlib';
+import { crc32, deflateSync } from 'node:zlib';
 import http from 'node:http';
 
 const MIME = {
@@ -87,21 +87,6 @@ export function startServer({ port, mounts, captures }) {
   return new Promise((done) => server.listen(port, '127.0.0.1', () => done(server)));
 }
 
-let CRC;
-function crc32(buf) {
-  if (!CRC) {
-    CRC = new Int32Array(256);
-    for (let n = 0; n < 256; n++) {
-      let c = n;
-      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-      CRC[n] = c;
-    }
-  }
-  let c = -1;
-  for (let i = 0; i < buf.length; i++) c = CRC[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return c ^ -1;
-}
-
 /** RGBA d'origine bas-gauche, comme `capture()` le rend, vers un PNG 8 bits sans perte. */
 export function pngFromRgba(rgba, w, h) {
   const stride = w * 4,
@@ -113,7 +98,7 @@ export function pngFromRgba(rgba, w, h) {
     length.writeUInt32BE(data.length);
     const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
     const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(body) >>> 0);
+    crc.writeUInt32BE(crc32(body));
     return Buffer.concat([length, body, crc]);
   };
   const ihdr = Buffer.alloc(13);

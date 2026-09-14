@@ -19,7 +19,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   // image whose flags came back, or the CPU oracle's own image where no GPU test runs. Null when
   // neither has counted one, never a number standing in for an unmeasured one.
   const gpuHizCounts = vis.gpuHiz?.counts();
-  const hiz = vis.gpuHiz ? gpuHizCounts : run.cpuHizCounted ? run.cpuHizCounts : undefined;
+  const [hiz, hizCountedFrame] = vis.gpuHiz
+    ? [gpuHizCounts, gpuHizCounts?.frame ?? null]
+    : run.cpuHizCounted
+      ? [run.cpuHizCounts, run.frame]
+      : [undefined, null];
   return {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
@@ -52,11 +56,8 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     hizTestedTriangles: hiz?.testedTriangles ?? null,
     hizRejectedTriangles: hiz?.rejectedTriangles ?? null,
     hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
-    hizCountedFrame: vis.gpuHiz
-      ? (gpuHizCounts?.frame ?? null)
-      : run.cpuHizCounted
-        ? run.frame
-        : null,
+    hizCountedFrame,
+    cpuSelectMs: run.cpuSelectMs,
   };
 }
 
