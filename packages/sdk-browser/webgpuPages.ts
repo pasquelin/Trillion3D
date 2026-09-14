@@ -10,7 +10,7 @@ import {createCpuStepProfile} from './cpuProfile.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache} from './gpuPages.ts';
 import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
-import {cameraSelectionUniforms,sameSelectionUniforms,type GpuSelection,type SelectionUniforms} from './gpuSelection.ts';
+import {cameraSelectionUniforms,sameSelectionUniforms,type GpuSelection,type SelectionSubmission,type SelectionUniforms} from './gpuSelection.ts';
 import {createGpuDagSelection,packDagSelection} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
@@ -172,10 +172,21 @@ function materialSide(material:THREE.Material|THREE.Material[]){return Array.isA
 export type WebgpuPagesBackend=RenderBackend&{flush():Promise<void>;rasterRgba():Uint8Array;selectedPageIds():string[];visibilityIds():Uint32Array};
 
 /** Turns a GPU page-id list into records, into an array the caller owns: no per-frame allocation. */
-function shownFromGpu(pages:PageRec[],ids:readonly number[],frame:number,into:PageRec[]){
- into.length=0;let selectedTriangles=0;
- for(let i=0;i<ids.length;i++){const rec=pages[ids[i]];if(!rec)continue;rec.seen=frame;into.push(rec);selectedTriangles+=rec.triangles;}
- return selectedTriangles;
+/**
+ * The cut the GPU published, and what of it the frame cannot draw: a cluster whose page left the
+ * cache between the selection's view of residency and now has no row, and no ancestor took its place
+ * — that is a hole in the image, and `uncovered` is the only honest way to say so.
+ */
+const gpuCutCounts={drawnTriangles:0,uncoveredTriangles:0};
+function shownFromGpu(pages:PageRec[],ids:readonly number[],frame:number,into:PageRec[],residentOffsetWords:Int32Array){
+ into.length=0;let drawnTriangles=0,uncovered=0;
+ for(let i=0;i<ids.length;i++){
+  const id=ids[i],rec=pages[id];if(!rec)continue;
+  rec.seen=frame;into.push(rec);drawnTriangles+=rec.triangles;
+  if(residentOffsetWords[id]<0||!rec.array)uncovered+=rec.triangles;
+ }
+ gpuCutCounts.drawnTriangles=drawnTriangles;gpuCutCounts.uncoveredTriangles=uncovered;
+ return gpuCutCounts;
 }
 /** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
 function triangleSum(pages:readonly PageRec[],transparent?:boolean){
@@ -249,6 +260,35 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  blendCopies.sort((a,b)=>a.renderOrder-b.renderOrder);
  const pageCatalog=[...new Set(allPages.map(page=>page.url))],pageCatalogIds=new Map(pageCatalog.map((url,index)=>[url,index]));
  const pageRefs=(urls:string[])=>urls.map(url=>pageCatalogIds.get(url)??url);
+ /**
+  * The residency path — wanted sets, queue, pinning — works by key rank, not by string: a walk posts
+  * some twenty thousand of them per image, and hashing that many strings cost more than the whole
+  * schedule around them. The rank is set once on the record, the sets become buffers stamped with an
+  * epoch, and the pinned set a compact list that a drop can leave in O(1).
+  */
+ const keyCount=Math.max(1,pageCatalog.length);
+ for(let i=0;i<allPages.length;i++)allPages[i].keyIndex=pageCatalogIds.get(allPages[i].url);
+ const keyOf=(rec:PageRec)=>{
+  const key=rec.keyIndex??pageCatalogIds.get(rec.url);
+  if(key===undefined)throw new Error(`RESIDENCY_KEY_UNKNOWN: ${rec.url}`);
+  rec.keyIndex=key;return key;
+ };
+ const keepStamp=new Int32Array(keyCount),keepList=new Int32Array(keyCount);
+ const wantedStamp=new Int32Array(keyCount),wantedList=new Int32Array(keyCount);
+ const queuedStamp=new Int32Array(keyCount);
+ const requestedStamp=new Int32Array(keyCount),requestedList=new Int32Array(keyCount);
+ const transitionStamp=new Int32Array(keyCount);
+ /** Where each pinned key sits in the compact list, so unpinning one is a swap and not a search. */
+ const pinnedAt=new Int32Array(keyCount).fill(-1),pinnedList=new Int32Array(keyCount);
+ let keepEpoch=0,keepCount=0,wantedEpoch=0,wantedCount=0,queuedEpoch=0;
+ let requestedEpoch=0,requestedCount=0,transitionEpoch=0,transitionCount=0,pinnedCount=0;
+ const markPinned=(key:number)=>{if(pinnedAt[key]<0){pinnedAt[key]=pinnedCount;pinnedList[pinnedCount++]=key;}};
+ const unmarkPinned=(key:number)=>{
+  const at=pinnedAt[key];if(at<0)return;
+  const last=pinnedList[--pinnedCount];pinnedList[at]=last;pinnedAt[last]=at;pinnedAt[key]=-1;
+ };
+ const pinnedUrls=()=>{const urls:string[]=[];for(let i=0;i<pinnedCount;i++)urls.push(pageCatalog[pinnedList[i]]);return urls;};
+ const wantedUrls=()=>{const urls:string[]=[];for(let i=0;i<wantedCount;i++)urls.push(pageCatalog[wantedList[i]]);return urls;};
  const traceSets=new Map<string,{revision:number;urls:string[]}>();
  const traceSet=(name:string,urls:string[])=>{
   const previous=traceSets.get(name);
@@ -258,12 +298,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  };
  traceDiagnostic('page-catalog','Catalogue stable des pages WebGPU',{backend:'webgpu-page-raster',count:pageCatalog.length,urls:pageCatalog});
  const bootstrap=rootCoverage(roots),bootstrapUrls=new Set(bootstrap.map(page=>page.url));
+ const bootstrapKeys=new Int32Array(bootstrap.length),bootstrapKey=new Uint8Array(keyCount);
+ for(let i=0;i<bootstrap.length;i++){bootstrapKeys[i]=keyOf(bootstrap[i]);bootstrapKey[bootstrapKeys[i]]=1;}
  let bootstrapReady=false,bootstrapLoading:Promise<void>|undefined,coverageBudgetLimited=false;
  /** Screen-error floor the GPU page budget imposes on the cut; 0 when the requested detail fits. */
  let budgetPixelError=0;
  const deferredDrops=new Set<string>();
  let coverageBudgetEvent:Record<string,unknown>|undefined;
- const residencyWanted=new Set<string>(),queueSeen=new Set<string>(),residencyQueue:PageRec[]=[];
+ const residencyQueue:PageRec[]=[];
  let residencyPending=false,residencyRunning=false;
  // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
  // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
@@ -284,7 +326,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let nextPositionId=1;
  const UNIFORM_STRIDE=256;
  let uniformBuffer:GPUBuffer|undefined,uniformPacked=new Float32Array(UNIFORM_STRIDE/4);
- const bindGroups=new Map<number,GPUBindGroup>(),pins=new Set<string>(),clusterRgbCache=new Map<string,[number,number,number]>();
+ const bindGroups=new Map<number,GPUBindGroup>(),clusterRgbCache=new Map<string,[number,number,number]>();
  let synchronousCapture:ReturnType<typeof createSynchronousCanvasCapture>|undefined;
  let presenter:ReturnType<typeof createGpuPresenter>|undefined;
  let canvasTexture:THREE.CanvasTexture|undefined,blitMaterial:THREE.ShaderMaterial|undefined,blit:THREE.Mesh|undefined;
@@ -304,7 +346,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let captureStreamingDeferrals=0,captureDeferralLogged=false;
  let lightState:{count:number;types:string[]}|undefined;
  let blendSubmittedTriangles=0,blendDrawCalls=0,blendFrustumRejected=0,gpuDrawCalls=0,lastProgressMs=0;
- let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,frustumRejected=0,lodLevel=0,frame=0;
+ let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,uncoveredTriangles=0,frustumRejected=0,lodLevel=0,frame=0;
  let diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
  let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
@@ -340,8 +382,6 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const gpuWanted:PageRec[]=bootstrap.filter(page=>!page.transparent);
  // Reused by `renderGpuCut`; the cut changes every frame, the arrays and sets behind it do not.
  const opaqueScratch:PageRec[]=[],transparentScratch:PageRec[]=[],drawableScratch:PageRec[]=[];
- const requestedScratch=new Set<string>(),transitionScratch=new Set<string>();
- const keepScratch=new Set<string>();
  const copiesByUrl=new Map<string,number>();let maxCopies=1;
  for(const page of packedPages){const n=(copiesByUrl.get(page.url)??0)+1;copiesByUrl.set(page.url,n);maxCopies=Math.max(maxCopies,n);}
  // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
@@ -382,6 +422,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const residentOutsideTable=new Set<string>();
  let journalResident=0;
  const residencyKeys:string[]=[],residencySlots:number[]=[];
+ /**
+  * Whether anything the rank of a row depends on has moved since the rows were decided: a cluster
+  * arrived or left, or a shared input changed epoch. Nothing else can change a rank — the drawable
+  * set is the resident opaque pages in catalogue order — so an image that sees neither re-decides
+  * nothing and reads none of the forty thousand catalogue entries.
+  */
+ let residencyDirty=true,rowsEpoch=0;
  /** The rows changed since the last upload, as one span: ranks shift upward, never scatter. */
  let dirtyFrom=drawSlots,dirtyTo=-1;
  const markRowDirty=(row:number)=>{if(row<dirtyFrom)dirtyFrom=row;if(row>dirtyTo)dirtyTo=row;};
@@ -404,6 +451,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const hizRest=new Uint8Array(drawSlots);
  const drawItemWords=new Uint32Array(drawSlots*DRAW_ITEM_U32);
  const drawRestBits=new Uint32Array(Math.max(1,Math.ceil(drawSlots/32)));
+ /** Rows per indirect bin (pipeline, then half): a bin nothing fills is not worth a draw call. */
+ const binInstances=new Uint32Array(6);
  let pageTableFloats:Float32Array|undefined,pageTableInts:Uint32Array|undefined;
  let gpuFrameActive=false,gpuMetricsReady=false;
  const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
@@ -449,9 +498,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const temporalHizState:TemporalHizState={};
  let previousHizView:THREE.PerspectiveCamera|undefined;
  let lastSubmitMs:number|null=null;
- let gpuTiming:ReturnType<typeof createGpuTiming>|undefined,lastGpuPassMs:GpuPassTimings|null=null,lastGpuFrameMs:number|null=null;
- /** True only while the image being encoded dispatches selection, so its pass joins that image's sample. */
- let selectionInImage=false;
+ let gpuTiming:ReturnType<typeof createGpuTiming>|undefined,lastGpuPassMs:GpuPassTimings|null=null,lastGpuFrameMs:number|null=null,lastGpuHostGapMs:number|null=null;
  // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
  let lastProjectMs=0,lastPartitionMs=0,lastItemsMs=0,rowsSyncedFrame=-1;
  const CPU_STEPS=['adoptCutMs','transparentSelectMs','admissionMs','residencyQueueMs','syncRowsMs','residencyUploadMs','selectionDispatchMs','projectBoxesMs','partitionMs','itemsMs','encodeRestMs','encodeSubmitMs','totalMs'] as const;
@@ -472,7 +519,22 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let cpuSample:Record<string,unknown>|undefined,transparentEncodeMs=0,lastCpuLogFrame=-1;
  let residencyJob=0;
  const cameraPose=(camera:THREE.PerspectiveCamera)=>({position:camera.getWorldPosition(new THREE.Vector3()).toArray(),quaternion:camera.getWorldQuaternion(new THREE.Quaternion()).toArray()});
- const createRenderEncoder=(device:GPUDevice)=>gpuTiming&&!secondaryCamera?gpuTiming.createEncoder(frame):device.createCommandEncoder();
+ /**
+  * One image, one command buffer. A frame that drives the GPU cut opens it before the selection and
+  * every pass it encodes lands in it, so the driver validates one buffer instead of two and the
+  * enclosing GPU span has no host gap left to hold. The buffer the image drops must be settled, not
+  * merely forgotten: the selection's readback copy would never run and its slot would stay mapped.
+  */
+ let frameEncoder:GPUCommandEncoder|undefined,frameSelection:SelectionSubmission|undefined;
+ const newEncoder=(device:GPUDevice)=>gpuTiming&&!secondaryCamera?gpuTiming.createEncoder(frame):device.createCommandEncoder();
+ const createRenderEncoder=(device:GPUDevice)=>frameEncoder??newEncoder(device);
+ const openFrameEncoder=(device:GPUDevice)=>frameEncoder=newEncoder(device);
+ const abandonFrameEncoder=()=>{
+  if(!frameEncoder)return;
+  frameEncoder=undefined;
+  const settle=frameSelection;frameSelection=undefined;settle?.(false);
+  gpuTiming?.cancelUnsubmitted();
+ };
  const dropGpuHiz=()=>{
   gpuHiz?.dispose();gpuHiz=undefined;visHizBindGroup=undefined;
   visHizRestBack=undefined;visHizRestBackCw=undefined;visHizRestNone=undefined;visHizRestFront=undefined;visHizRestFrontCw=undefined;
@@ -705,6 +767,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(!cache)return;
   residencyKeys.length=0;residencySlots.length=0;
   cache.drainResidencyChanges(residencyKeys,residencySlots);
+  if(residencyKeys.length)residencyDirty=true;
   for(let c=0;c<residencyKeys.length;c++){
    const key=residencyKeys[c],offsetWords=residencySlots[c],pages=pageIndicesByUrl.get(key);
    const was=pages?residentOffsetWords[pages[0]]>=0:residentOutsideTable.has(key);
@@ -715,7 +778,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const resident=cache.stats().residentPages;
   if(journalResident===resident)return;
   engineDiagnostic('gpu-residency-mirror-rebuilt','Miroir de résidence reconstruit depuis le cache',{frame,journal:journalResident,resident});
-  journalResident=0;residentOutsideTable.clear();
+  residencyDirty=true;journalResident=0;residentOutsideTable.clear();
   for(let c=0;c<pageCatalog.length;c++){
    const url=pageCatalog[c],page=cache.get(url),pages=pageIndicesByUrl.get(url);
    if(page)journalResident++;
@@ -793,6 +856,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const syncRows=()=>{
   if(!cache||!pageTableFloats)return;
   syncResidencyMirror();
+  if(!residencyDirty&&rowsEpoch===tableEpoch)return;
+  residencyDirty=false;rowsEpoch=tableEpoch;
   let count=0,candidates=0,overflow=0,lastSource=-1,monotone=true;
   for(let i=0;i<packedPages.length;i++){
    const offsetWords=residentOffsetWords[i],rec=packedPages[i],index=rec.array;
@@ -817,6 +882,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const syncRowsFromCut=()=>{
   if(!cache||!pageTableFloats)return;
   syncResidencyMirror();
+  // The CPU cut names its own rows, so this path never skips: `residencyDirty` belongs to the ranks.
+  residencyDirty=true;
   let count=0,lastSource=-1,monotone=true;
   for(let i=0;i<drawn.length&&count<drawSlots;i++){
    const rec=drawn[i];if(rec.transparent)continue;
@@ -840,7 +907,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  };
  const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number,presented=false)=>{
    if(!presented&&presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
+   const owned=encoder===frameEncoder;
    const command=encoder.finish();device.queue.submit([command]);imageRevision++;
+   if(owned){frameEncoder=undefined;const settle=frameSelection;frameSelection=undefined;settle?.(true);}
    traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:gpuFrameActive&&!gpuMetricsReady?null:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
    if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'selection-and-render-passes',excludes:['uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
    if(canvasTexture&&!secondaryCamera)canvasTexture.needsUpdate=true;
@@ -930,13 +999,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   let occluderVertices=0,restVertices=0,testedCount=0;
   drawRestBits.fill(0,0,Math.ceil(Math.max(1,packedCount)/32));
   const itemsStart=performance.now();
+  binInstances.fill(0);
   for(let i=0;i<packedCount;i++){
-   const row=i,rest=hizRest[i];
+   const row=i,rest=hizRest[i],word=i*DRAW_ITEM_U32;
    if(itemsDirty){
-    const word=i*DRAW_ITEM_U32;
     drawItemWords[word]=row;drawItemWords[word+1]=visBin(packedRecs[i]!);
     drawItemWords[word+2]=packedPageIndex[i];drawItemWords[word+3]=0;
    }
+   binInstances[drawItemWords[word+1]+(rest?3:0)]++;
    if(rest)drawRestBits[i>>5]|=1<<(i&31);
    const count=packedRecs[i]!.array!.length;
    if(rest)restVertices+=count;else occluderVertices+=count;
@@ -1023,6 +1093,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
     if(!gpuDraw)return;
     const start=rest?3:0;
     for(let s=start;s<start+3;s++){
+     if(!binInstances[s])continue;
      const pipeline=visSlots[s],group=visGroupFor(s,rest);if(!pipeline||!group)continue;
      pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);gpuDrawCalls++;
     }
@@ -1094,7 +1165,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(!gpuFrameActive)syncRowsFromCut();else if(rowsSyncedFrame!==frame){syncRows();rowsSyncedFrame=frame;}
   const itemsDirty=rowsChanged;
   if(visEnabled&&visPipelineBack&&shadePipeline&&visView){
-   try{return encodeVis(device,camera,itemsDirty);}catch(error){gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera||gpuFrameActive)throw error;}
+   try{return encodeVis(device,camera,itemsDirty);}catch(error){abandonFrameEncoder();gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera||gpuFrameActive)throw error;}
   }
   if(!pipelineBack)return 0;
   uploadDirtyRows(device);
@@ -1145,7 +1216,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const budgetedResidency=(pages:readonly PageRec[])=>{
   const room=Math.max(0,slots-bootstrapUrls.size);
   residencyScratch.length=0;
-  for(let i=0;i<pages.length;i++)if(!bootstrapUrls.has(pages[i].url))residencyScratch.push(pages[i]);
+  for(let i=0;i<pages.length;i++)if(!bootstrapKey[keyOf(pages[i])])residencyScratch.push(pages[i]);
   if(residencyScratch.length<=room)return residencyScratch;
   // Coarse clusters cover more surface per slot and are what the residency fallback steps back to.
   residencyScratch.sort((a,b)=>(b.level??0)-(a.level??0));
@@ -1156,21 +1227,37 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const updatePins=()=>{
   if(!cache)return;
   // `added`/`removed` only feed the trace record, so the copy that computes them is taken only then.
-  if(traceEnabled){pinsBefore.clear();for(const key of pins)pinsBefore.add(key);}
-  const keep=keepScratch;keep.clear();
-  for(const key of bootstrapUrls)keep.add(key);
-  for(let i=0;i<shown.length;i++)if(!gpuFrameActive||shown[i].transparent)keep.add(shown[i].url);
-  for(const key of residencyWanted)keep.add(key);
-  for(const key of pins)if(!keep.has(key)){cache.unpin(key);pins.delete(key);}
-  for(const key of keep)if(cache.get(key)&&!pins.has(key)){cache.pin(key);pins.add(key);}
+  if(traceEnabled){pinsBefore.clear();for(const url of pinnedUrls())pinsBefore.add(url);}
+  keepEpoch++;keepCount=0;
+  const keep=(key:number)=>{if(keepStamp[key]!==keepEpoch){keepStamp[key]=keepEpoch;keepList[keepCount++]=key;}};
+  for(let i=0;i<bootstrapKeys.length;i++)keep(bootstrapKeys[i]);
+  for(let i=0;i<shown.length;i++)if(!gpuFrameActive||shown[i].transparent)keep(keyOf(shown[i]));
+  for(let i=0;i<wantedCount;i++)keep(wantedList[i]);
+  // Walking the pinned list from the top down makes a removal a swap with an entry already decided.
+  for(let i=pinnedCount-1;i>=0;i--){
+   const key=pinnedList[i];
+   if(keepStamp[key]===keepEpoch)continue;
+   cache.unpin(pageCatalog[key]);unmarkPinned(key);
+  }
+  // Residency is asked of the cache only for a key that is not pinned yet, which is a handful per
+  // image once the cut has settled instead of one lookup per kept key.
+  for(let i=0;i<keepCount;i++){
+   const key=keepList[i];
+   if(pinnedAt[key]>=0)continue;
+   const url=pageCatalog[key];
+   if(!cache.get(url))continue;
+   cache.pin(url);markPinned(key);
+  }
   if(deferredDrops.size){
-   // `keep` holds cluster keys; a deferred drop names the request that carries them.
-   const keepRequests=requestUrlByPage?new Set([...keep].map(url=>requestUrlByPage.get(url)??url)):keep;
+   // The kept keys are clusters; a deferred drop names the request that carries them.
+   const keepUrls=new Set<string>();for(let i=0;i<keepCount;i++)keepUrls.add(pageCatalog[keepList[i]]);
+   const keepRequests=requestUrlByPage?new Set([...keepUrls].map(url=>requestUrlByPage.get(url)??url)):keepUrls;
    for(const key of deferredDrops)if(!keepRequests.has(key))backend.dropPage!(key);
   }
   if(!traceEnabled)return;
-  const added=[...pins].filter(key=>!pinsBefore.has(key)),removed=[...pinsBefore].filter(key=>!pins.has(key));
-  if(added.length||removed.length)traceDiagnostic('residency-pins','Pins GPU mis à jour',()=>({frame,added:traceSet('pins.added',added),removed:traceSet('pins.removed',removed),pinned:traceSet('pins', [...pins]),bootstrap:traceSet('pins.bootstrap',[...bootstrapUrls]),wanted:traceSet('pins.wanted',[...residencyWanted]),shown:traceSet('pins.shown',shown.map(page=>page.url))}));
+  const pinned=pinnedUrls(),pinnedSet=new Set(pinned);
+  const added=pinned.filter(url=>!pinsBefore.has(url)),removed=[...pinsBefore].filter(url=>!pinnedSet.has(url));
+  if(added.length||removed.length)traceDiagnostic('residency-pins','Pins GPU mis à jour',()=>({frame,added:traceSet('pins.added',added),removed:traceSet('pins.removed',removed),pinned:traceSet('pins',pinned),bootstrap:traceSet('pins.bootstrap',[...bootstrapUrls]),wanted:traceSet('pins.wanted',wantedUrls()),shown:traceSet('pins.shown',shown.map(page=>page.url))}));
  };
  const ensureBootstrap=async()=>{
   if(bootstrapReady)return;
@@ -1183,7 +1270,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    let next=0;
    const workers=Array.from({length:Math.min(8,bootstrap.length)},async()=>{while(next<bootstrap.length){const page=bootstrap[next++];context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');if(!hasBytes(page)){const key=pageRequestUrl(page);const array=await context.readPage!(key);context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');backend.acceptPage!(key,array);}}});
    const results=await Promise.allSettled(workers);const failed=results.find(result=>result.status==='rejected');if(failed?.status==='rejected')throw failed.reason;
-   for(const page of bootstrap){context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');await cache!.load(page.url,context.signal);cache!.pin(page.url);pins.add(page.url);}
+   for(const page of bootstrap){context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');await cache!.load(page.url,context.signal);cache!.pin(page.url);markPinned(keyOf(page));}
    bootstrapReady=true;
    engineDiagnostic('coverage-bootstrap-ready','Couverture complète disponible sur le GPU',{version:1,pages:bootstrap.length,slots});
    traceDiagnostic('coverage-bootstrap-ready','Couverture complète disponible sur le GPU',()=>({frame,pages:bootstrap.length,bootstrap:traceSet('bootstrap',[...bootstrapUrls]),slots,durationMs:performance.now()-started,loaded:traceSet('bootstrap.loaded',bootstrap.map(page=>page.url)),wanted:traceSet('bootstrap.wanted',bootstrap.map(page=>page.url))}));
@@ -1195,30 +1282,31 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const started=performance.now(),urls=traceEnabled?wanted.map(page=>page.url):[];
   traceDiagnostic('residency-ensure-start','Vérification de la résidence GPU demandée',()=>({frame:jobFrame,jobId,scope:'async-residency-ensure',pages:traceSet('ensure',urls),wanted:traceSet('ensure.wanted',urls),loaded:traceSet('ensure.loaded',urls.filter(url=>!!cache!.get(url))),queueWaitMs:null,elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));
   for(let i=0;i<wanted.length;i++){
-   const rec=wanted[i];
-   if(!residencyWanted.has(rec.url))continue;
+   const rec=wanted[i],key=keyOf(rec);
+   if(wantedStamp[key]!==wantedEpoch)continue;
    context.signal?.throwIfAborted();if(lost)throw new Error('WEBGPU_LOST');
    if(!hasBytes(rec)||cache.get(rec.url))continue;
-   try{await cache.load(rec.url,context.signal);}catch(error){if(!residencyWanted.has(rec.url)&&String(error).includes('ALL_PAGES_PINNED'))continue;throw error;}
+   try{await cache.load(rec.url,context.signal);}catch(error){if(wantedStamp[key]!==wantedEpoch&&String(error).includes('ALL_PAGES_PINNED'))continue;throw error;}
    if(lost||!cache)throw new Error('WEBGPU_LOST');
-   if(residencyWanted.has(rec.url)||bootstrapUrls.has(rec.url)){cache.pin(rec.url);pins.add(rec.url);}
+   if(wantedStamp[key]===wantedEpoch||bootstrapKey[key]){cache.pin(rec.url);markPinned(key);}
   }
-  traceDiagnostic('residency-ensure-end','Résidence GPU vérifiée',()=>({frame:jobFrame,jobId,scope:'async-residency-ensure',pages:traceSet('ensure',urls),loaded:traceSet('ensure.loaded',urls.filter(url=>!!cache!.get(url))),durationMs:performance.now()-started,elapsedMs:performance.now()-started,cpuWorkIncluded:true,gpuQueueWaitIncluded:false,pinned:traceSet('pins',[...pins])}));
+  traceDiagnostic('residency-ensure-end','Résidence GPU vérifiée',()=>({frame:jobFrame,jobId,scope:'async-residency-ensure',pages:traceSet('ensure',urls),loaded:traceSet('ensure.loaded',urls.filter(url=>!!cache!.get(url))),durationMs:performance.now()-started,elapsedMs:performance.now()-started,cpuWorkIncluded:true,gpuQueueWaitIncluded:false,pinned:traceSet('pins',pinnedUrls())}));
  };
  const queueResident=(wanted:PageRec[])=>{
   const queuedAt=performance.now(),jobId=++residencyJob;
   const jobFrame=frame;
   // The wanted set and the upload queue are rebuilt in place. The running job reads the queue by
-  // index and re-checks `residencyWanted` for every entry, so it always works on the latest cut.
-  residencyWanted.clear();for(let i=0;i<wanted.length;i++)residencyWanted.add(wanted[i].url);
+  // index and re-checks the wanted stamp of every entry, so it always works on the latest cut.
+  wantedEpoch++;wantedCount=0;
+  for(let i=0;i<wanted.length;i++){const key=keyOf(wanted[i]);if(wantedStamp[key]!==wantedEpoch){wantedStamp[key]=wantedEpoch;wantedList[wantedCount++]=key;}}
   updatePins();
-  residencyQueue.length=0;queueSeen.clear();
-  for(let i=0;i<wanted.length;i++){const page=wanted[i];if(!hasBytes(page)||queueSeen.has(page.url))continue;queueSeen.add(page.url);residencyQueue.push(page);}
+  residencyQueue.length=0;queuedEpoch++;
+  for(let i=0;i<wanted.length;i++){const page=wanted[i],key=keyOf(page);if(!hasBytes(page)||queuedStamp[key]===queuedEpoch)continue;queuedStamp[key]=queuedEpoch;residencyQueue.push(page);}
   residencyPending=true;const queued=residencyQueue;
-  if(traceEnabled)traceDiagnostic('residency-queue','Résidence GPU mise en file',()=>({frame,jobId,pages:traceSet('queue',queued.map(page=>page.url)),wanted:traceSet('wanted',[...residencyWanted]),loaded:traceSet('queue.loaded',queued.filter(page=>!!cache?.get(page.url)).map(page=>page.url)),queueDepth:queued.length,residentPages:cache?.stats().residentPages??null}));
+  if(traceEnabled)traceDiagnostic('residency-queue','Résidence GPU mise en file',()=>({frame,jobId,pages:traceSet('queue',queued.map(page=>page.url)),wanted:traceSet('wanted',wantedUrls()),loaded:traceSet('queue.loaded',queued.filter(page=>!!cache?.get(page.url)).map(page=>page.url)),queueDepth:queued.length,residentPages:cache?.stats().residentPages??null}));
   if(residencyRunning)return;
   residencyRunning=true;
-  pending=Promise.resolve().then(async()=>{const started=performance.now();traceDiagnostic('residency-job-start','Job de résidence GPU démarré',()=>({frame:jobFrame,jobId,scope:'async-residency-job',queueWaitMs:started-queuedAt,pages:traceSet('job',residencyQueue.map(page=>page.url)),elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));try{while(residencyPending){residencyPending=false;await ensureResident(residencyQueue,jobFrame,jobId);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;traceDiagnostic('residency-job-end','Job de résidence GPU terminé',()=>({frame:jobFrame,jobId,scope:'async-residency-job',durationMs:performance.now()-started,elapsedMs:performance.now()-queuedAt,pages:traceSet('job',[...residencyWanted]),loaded:traceSet('job.loaded',[...residencyWanted].filter(url=>!!cache?.get(url))),residentPages:cache?.stats().residentPages??null,queueWaitMs:started-queuedAt,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));}});
+  pending=Promise.resolve().then(async()=>{const started=performance.now();traceDiagnostic('residency-job-start','Job de résidence GPU démarré',()=>({frame:jobFrame,jobId,scope:'async-residency-job',queueWaitMs:started-queuedAt,pages:traceSet('job',residencyQueue.map(page=>page.url)),elapsedMs:null,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));try{while(residencyPending){residencyPending=false;await ensureResident(residencyQueue,jobFrame,jobId);}}catch(error){diagnosticFailure('coverage-upload-failed',error);if(/LOST|DISPOSED/i.test(String(error)))lost=true;throw error;}finally{residencyRunning=false;traceDiagnostic('residency-job-end','Job de résidence GPU terminé',()=>({frame:jobFrame,jobId,scope:'async-residency-job',durationMs:performance.now()-started,elapsedMs:performance.now()-queuedAt,pages:traceSet('job',wantedUrls()),loaded:traceSet('job.loaded',wantedUrls().filter(url=>!!cache?.get(url))),residentPages:cache?.stats().residentPages??null,queueWaitMs:started-queuedAt,cpuWorkIncluded:true,gpuQueueWaitIncluded:false}));}});
   void pending.catch(()=>{});
  };
  // Readback describes submitted work and future streaming requests. It never
@@ -1231,11 +1319,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   desired.length=0;appendAll(desired,gpuWanted,transparentScratch);
   if(!sameSelectionUniforms(cut.uniforms,selectionUniforms))return;
   if(cut.result.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE');
-  const drawnTriangles=shownFromGpu(packedPages,cut.result.drawablePageIds,frame,drawableScratch);
+  const counts=shownFromGpu(packedPages,cut.result.drawablePageIds,frame,drawableScratch,residentOffsetWords);
   partitionByPass(shown,true,transparentScratch);
   shown.length=0;appendAll(shown,drawableScratch,transparentScratch);drawn.length=0;appendAll(drawn,shown);
-  visible=desired.length;selectedTriangles=triangleSum(desired);
-  submittedTriangles=drawnTriangles+blendSubmittedTriangles;
+  // `selectedTriangles` is the cut this image publishes, after every fallback, which is the question
+  // the WebGL backend answers too. The wanted cut is `desired`, and it is not what gets drawn.
+  visible=desired.length;selectedTriangles=triangleSum(shown);uncoveredTriangles=counts.uncoveredTriangles;
+  submittedTriangles=counts.drawnTriangles+blendSubmittedTriangles;
   frustumRejected=cut.result.frustumRejected;lodLevel=cut.result.lodLevel;gpuMetricsReady=true;
  };
  const renderGpuCut=(camera:THREE.PerspectiveCamera,pixelError:number,cpuStart:number,lightsEnd:number)=>{
@@ -1255,16 +1345,17 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const oldOpaque=partitionByPass(shown,false,opaqueScratch);
   shown.length=0;appendAll(shown,oldOpaque,transparent?.shown??[]);
   desired.length=0;appendAll(desired,gpuWanted,transparent?.wanted??[]);
-  if(gpuMetricsReady){visible=desired.length;selectedTriangles=triangleSum(desired);}
-  const requested=requestedScratch;requested.clear();
-  for(const url of bootstrapUrls)requested.add(url);
-  for(let i=0;i<desired.length;i++)requested.add(desired[i].url);
-  const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requested.size>slots;
+  if(gpuMetricsReady)visible=desired.length;
+  requestedEpoch++;requestedCount=0;
+  const request=(key:number)=>{if(requestedStamp[key]!==requestedEpoch){requestedStamp[key]=requestedEpoch;requestedList[requestedCount++]=key;}};
+  for(let i=0;i<bootstrapKeys.length;i++)request(bootstrapKeys[i]);
+  for(let i=0;i<desired.length;i++)request(keyOf(desired[i]));
+  const wasLimited=coverageBudgetLimited;coverageBudgetLimited=requestedCount>slots;
   // Coarsen until the wanted cut fits, and relax again once it fits with room to spare. Doubling
   // and halving with a gap between the two thresholds keeps the loop from oscillating every frame.
   if(coverageBudgetLimited)budgetPixelError=Math.min(MAX_BUDGET_PIXEL_ERROR,budgetPixelError>0?budgetPixelError*2:Math.max(1,pixelError*2));
-  else if(budgetPixelError>0&&requested.size<slots*0.7)budgetPixelError=budgetPixelError>pixelError*2?budgetPixelError/2:0;
-  if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requested.size,slots,fallbackRetained:bootstrapReady,pixelError:budgeted};
+  else if(budgetPixelError>0&&requestedCount<slots*0.7)budgetPixelError=budgetPixelError>pixelError*2?budgetPixelError/2:0;
+  if(wasLimited!==coverageBudgetLimited)coverageBudgetEvent={version:1,limited:coverageBudgetLimited,requiredSlots:requestedCount,slots,fallbackRetained:bootstrapReady,pixelError:budgeted};
   if(!bootstrapReady){
    gpuMetricsReady=false;
    traceDiagnostic('frame','Frame en attente de couverture GPU',{backend:'webgpu-page-raster',frame,submission:imageRevision,source:'gpu',coverage:{ready:false},selectedTriangles:null,submittedTriangles:null});
@@ -1273,16 +1364,18 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   // With the roots pinned the transparent cut always falls back to them, so an incomplete cut here
   // means a pinned root is itself absent from the cache, which is a bug and not a streaming state.
   if(transparent?.complete===false)throw new Error('GPU_COVERAGE_INCOMPLETE: a pinned transparent root cluster is not resident');
-  transitionScratch.clear();
+  transitionEpoch++;transitionCount=0;
   if(transparent&&!coverageBudgetLimited){
-   for(const url of requested)transitionScratch.add(url);
-   for(let i=0;i<transparent.shown.length;i++)transitionScratch.add(transparent.shown[i].url);
+   const transition=(key:number)=>{if(transitionStamp[key]!==transitionEpoch){transitionStamp[key]=transitionEpoch;transitionCount++;}};
+   for(let i=0;i<requestedCount;i++)transition(requestedList[i]);
+   for(let i=0;i<transparent.shown.length;i++)transition(keyOf(transparent.shown[i]));
   }
-  if(transparent&&!coverageBudgetLimited&&transitionScratch.size>slots){
+  if(transparent&&!coverageBudgetLimited&&transitionCount>slots){
    const fallback=selectVisiblePages(transparentRoots,camera,{pixelError:budgeted,viewport,frame,holdResident:true,rootFallback:true,pageBudget:transparentBudget,isResident:rec=>bootstrapUrls.has(rec.url)&&!!cache!.get(rec.url)});
    if(!fallback.complete)throw new Error('GPU_COVERAGE_INCOMPLETE: the pinned transparent cover is not resident');
    shown.length=0;appendAll(shown,oldOpaque,fallback.shown);
   }
+  selectedTriangles=triangleSum(shown);
   const admissionEnd=performance.now();
   queueResident(budgetedResidency(desired));
   // Enumerate the bounded resident candidates once. GPU selection and compaction
@@ -1298,22 +1391,23 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   if(gpuSelection.updateResidency(residentFlags))gpuMetricsReady=false;
   const residencyUploadEnd=performance.now();
-  selectionInImage=true;
-  try{gpuSelection.dispatch(selectionUniforms);}catch(error){
-   selectionInImage=false;
+  try{frameSelection=gpuSelection.dispatch(selectionUniforms,openFrameEncoder(gpuDevice));}catch(error){
+   abandonFrameEncoder();
    diagnosticFailure('gpu-selection-dispatch-failed',error);dropGpuSelection();gpuFrameActive=false;
    backend.render(camera);return;
   }
-  selectionInImage=false;
   drawn.length=0;appendAll(drawn,shown);
   const selectionEnd=performance.now();
   const [width,height]=viewport;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
   if(!renderPathLogged){renderPathLogged=true;engineDiagnostic('first-render-path','Configuration du premier rendu WebGPU',{clearColor:`#${clearColor.toString(16).padStart(6,'0')}`,targetSize,visibilityBuffer:true,selection:'current-frame-mask',residentCandidates:candidateCount});}
   const encodeStart=performance.now();
   try{encodeDraws(gpuDevice,camera);}catch(error){
+   abandonFrameEncoder();
    if(context.gpuCanvas)throw error;
    dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
   }
+  // An encode path that returned without submitting would strand the selection's readback slot.
+  abandonFrameEncoder();
   const cpuEnd=performance.now();lastSubmitMs=cpuEnd-encodeStart;
   if(gpuMetricsReady)submittedTriangles=triangleSum(shown,false)+blendSubmittedTriangles;
   const steps=cpuProfile.row;
@@ -1325,7 +1419,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   cpuSample={version:1,frame,submission:imageRevision,scope:'backend-render-call',totalMs:cpuEnd-cpuStart,lightsMs:lightsEnd-cpuStart,selectionMs:selectionEnd-lightsEnd,residencyScheduleAndTargetsMs:encodeStart-selectionEnd,encodeSubmitMs:lastSubmitMs,transparentEncodeMs,transparentIncludedIn:'encodeSubmitMs',asyncResidencyWaitMs:null};
   publishCpuProfile();
   if(traceEnabled)traceDiagnostic('gpu-selection-current-frame','Sélection GPU consommée par le dessin',()=>({frame,submission:imageRevision,source:'gpu',decision:'current-frame-mask',residentCandidates:candidateCount,readbackPurpose:'streaming-and-metrics',metricsReady:gpuMetricsReady}));
-  if(traceEnabled)traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:'gpu',selection:{source:'gpu',decision:'current-frame-mask'},cpu:cpuSample,coverage:{loaded:traceSet('frame.loaded',packedRecs.slice(0,packedCount).map(page=>page!.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:gpuMetricsReady?traceSet('frame.shown',shown.map(page=>page.url)):null,ready:bootstrapReady},budget:{slots,limited:coverageBudgetLimited},selectedTriangles:gpuMetricsReady?selectedTriangles:null,submittedTriangles:gpuMetricsReady?submittedTriangles:null,drawCalls:gpuDrawCalls}));
+  if(traceEnabled)traceDiagnostic('frame','Snapshot complet de la frame WebGPU',()=>({backend:'webgpu-page-raster',frame,submission:imageRevision,pose:cameraPose(camera),source:'gpu',selection:{source:'gpu',decision:'current-frame-mask'},cpu:cpuSample,coverage:{loaded:traceSet('frame.loaded',packedRecs.slice(0,packedCount).map(page=>page!.url)),wanted:traceSet('frame.wanted',desired.map(page=>page.url)),shown:gpuMetricsReady?traceSet('frame.shown',shown.map(page=>page.url)):null,ready:bootstrapReady},budget:{slots,limited:coverageBudgetLimited},selectedTriangles,uncoveredTriangles,submittedTriangles:gpuMetricsReady?submittedTriangles:null,drawCalls:gpuDrawCalls}));
  };
  const backend:WebgpuPagesBackend={
   id:'webgpu-page-raster',
@@ -1340,7 +1434,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(bootstrap.length>slots)throw new Error(`INITIAL_COVERAGE_BUDGET: ${bootstrap.length} pages required, ${slots} slots`);
    gpuTiming=createGpuTiming(gpuDevice,{sampleEveryFrames:traceEnabled?1:12,onSample:sample=>{
     // The public metric carries the contract's fields only; the diagnostic keeps the full context.
-    lastGpuPassMs={frame:sample.frame,totalMs:sample.totalMs,passes:sample.passes,truncated:sample.truncated,...(sample.error?{error:sample.error}:{})};lastGpuFrameMs=sample.frameMs;
+    lastGpuPassMs={frame:sample.frame,totalMs:sample.totalMs,passes:sample.passes,truncated:sample.truncated,...(sample.error?{error:sample.error}:{})};lastGpuFrameMs=sample.submittedMs;lastGpuHostGapMs=sample.hostGapMs;
     const phase=sample.error?'gpu-timing-unavailable':'gpu-timing',message=sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe';
     engineDiagnostic(phase,message,sample);
     if(traceEnabled)traceDiagnostic(phase,message,()=>({backend:'webgpu-page-raster',submission:sample.submission??null,...sample}));
@@ -1656,7 +1750,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      rec.cone=visMaterial(rec.material).doubleSided||visMaterial(rec.material).backSide?OPEN_CONE:triangleCone(xyz,array);
     }
     // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
-    if(gpuDraw&&opaqueRoots.length)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true,createEncoder:()=>selectionInImage?createRenderEncoder(gpuDevice!):gpuDevice!.createCommandEncoder()});
+    if(gpuDraw&&opaqueRoots.length)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true});
     capabilities.gpuDriven=!!gpuSelection;
     await ensureBootstrap();
     engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
@@ -1739,6 +1833,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    traceDiagnostic('residency-queue-reconstruct','Ensembles de résidence reconstruits',()=>({frame,scope:'cpu/residency-queue-reconstruct',elapsedMs:queueEnd-queueStarted,requested:traceSet('reconstruct.requested',desired.map(page=>page.url)),queued:traceSet('reconstruct.queued',residencyQueue.map(page=>page.url)),job:residencyJob}));
    const drawnVerifyStarted=performance.now();if(culled.some(page=>!cache!.get(page.url)))throw new Error('GPU_COVERAGE_INCOMPLETE');
    drawn.length=0;appendAll(drawn,culled);
+   // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
+   uncoveredTriangles=0;
    const drawnVerifyEnd=performance.now();traceDiagnostic('residency-drawn-verify','Couverture résidente vérifiée avant encodage',()=>({frame,scope:'cpu/residency-drawn-copy',elapsedMs:drawnVerifyEnd-drawnVerifyStarted,shown:traceSet('drawn.shown',shown.map(page=>page.url)),drawn:traceSet('drawn',drawn.map(page=>page.url)),loaded:traceSet('drawn.loaded',drawn.filter(page=>!!cache!.get(page.url)).map(page=>page.url))}));
    const [width,height]=viewport??targetSize,targetStarted=performance.now();ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
    traceDiagnostic('targets-ensure','Cibles GPU assurées',()=>({frame,scope:'cpu/ensureTargets',elapsedMs:performance.now()-targetStarted,width,height}));
@@ -1875,15 +1971,15 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    // view — not the bundle — is what the GPU cache uploads under the cluster key.
    acceptPageArray(recs,array);
    for(let i=0;i<recs.length;i++){const rec=recs[i],view=rec.array!;sourceBytes.set(rec.url,new Uint8Array(view.buffer,view.byteOffset,view.byteLength));}
-   traceDiagnostic('page-accepted','Page CPU acceptée pour résidence GPU',{frame,url,bytes:array.byteLength,clusters:recs.length,bootstrap:recs.some(rec=>bootstrapUrls.has(rec.url)),wanted:recs.some(rec=>residencyWanted.has(rec.url)),pinned:recs.some(rec=>pins.has(rec.url))});},
+   traceDiagnostic('page-accepted','Page CPU acceptée pour résidence GPU',{frame,url,bytes:array.byteLength,clusters:recs.length,bootstrap:recs.some(rec=>bootstrapUrls.has(rec.url)),wanted:recs.some(rec=>wantedStamp[keyOf(rec)]===wantedEpoch),pinned:recs.some(rec=>pinnedAt[keyOf(rec)]>=0)});},
   dropPage(url){const recs=byUrl.get(url);if(!recs)return;
    // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
    // cluster is enough to refuse or defer the drop.
    if(recs.some(rec=>bootstrapUrls.has(rec.url))){traceDiagnostic('page-drop-deferred','Abandon de page bootstrap ignoré pour préserver la couverture',{frame,url,reason:'bootstrap-pinned'});return;}
-   const pinned=recs.some(rec=>pins.has(rec.url)),wanted=recs.some(rec=>residencyWanted.has(rec.url));
+   const pinned=recs.some(rec=>pinnedAt[keyOf(rec)]>=0),wanted=recs.some(rec=>wantedStamp[keyOf(rec)]===wantedEpoch);
    if(pinned||wanted){deferredDrops.add(url);traceDiagnostic('page-drop-deferred','Abandon de page différé pendant la transition de couverture',{frame,url,reason:pinned?'pinned':'wanted',pinned,wanted,deferred:[...deferredDrops]});return;}
    deferredDrops.delete(url);
-   for(let i=0;i<recs.length;i++){const rec=recs[i];rec.array=undefined;rec.indexBytes=rec.triangles*12;sourceBytes.delete(rec.url);cache?.unload?.(rec.url);pins.delete(rec.url);}
+   for(let i=0;i<recs.length;i++){const rec=recs[i];rec.array=undefined;rec.indexBytes=rec.triangles*12;sourceBytes.delete(rec.url);cache?.unload?.(rec.url);unmarkPinned(keyOf(rec));}
    traceDiagnostic('page-dropped','Page CPU/GPU libérée',{frame,url,clusters:recs.length,reason:'host-request',deferred:false});},
   metrics(){
    const stats=cache?.stats();
@@ -1891,7 +1987,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,gpuFrameMs:lastGpuFrameMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles,uncoveredTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,gpuFrameMs:lastGpuFrameMs,gpuHostGapMs:lastGpuHostGapMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);
