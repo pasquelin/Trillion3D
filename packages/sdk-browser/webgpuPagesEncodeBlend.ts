@@ -27,7 +27,7 @@ export function encodeBlend(
     return;
   const textured = !!(
     vis.blendBindGroupLayout &&
-    gpu.pipelineBlendTextured &&
+    vis.pipelineBlendTextured &&
     vis.mapsTexture &&
     vis.mapsSampler &&
     vis.dataMapsTexture &&
@@ -73,9 +73,9 @@ export function encodeBlend(
     lightBuffer: gpu.lights?.buffer,
     bindGroupLayout: gpu.bindGroupLayout,
     pipelineBlend: gpu.pipelineBlend!,
-    pipelineBlendTextured: gpu.pipelineBlendTextured,
-    pipelineBlendFront: gpu.pipelineBlendFront,
-    pipelineBlendBack: gpu.pipelineBlendBack,
+    pipelineBlendTextured: vis.pipelineBlendTextured,
+    pipelineBlendFront: vis.pipelineBlendFront,
+    pipelineBlendBack: vis.pipelineBlendBack,
   });
   run.gpuDrawCalls += result.drawCalls;
   run.blendDrawCalls += result.drawCalls;

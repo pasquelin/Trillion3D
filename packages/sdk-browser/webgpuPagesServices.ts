@@ -9,13 +9,14 @@ import { createWebgpuBootstrap } from './webgpuBootstrap.ts';
 import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
-import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
 
 /** The residency machinery: the row table sync, the bootstrap cover, the pin updater, the upload
  *  queue and the GPU cut adopter. Each reads the runtime lazily, so none holds a stale frame. */
-export function createWebgpuPagesServices(rt: WebgpuPagesRuntime) {
+export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots, gpuWanted } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKeys, bootstrapKey, slots } = rt.setup,
@@ -77,9 +78,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesRuntime) {
     diag.traceDiagnostic,
   );
   const updatePins = () =>
-    pinUpdater(gpu.cache, run.shown, run.gpuFrameActive, run.frame, (key) =>
-      rt.backend.dropPage!(key),
-    );
+    pinUpdater(gpu.cache, run.shown, run.gpuFrameActive, run.frame, (key) => dropPage(rt, key));
   const bootstrapState = createWebgpuBootstrap({
     pages: bootstrap,
     urls: bootstrapUrls,
@@ -87,7 +86,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesRuntime) {
     tracking,
     signal: context.signal,
     readPage: context.readPage,
-    acceptPage: (key, data) => rt.backend.acceptPage!(key, data),
+    acceptPage: (key, data) => acceptPage(rt, key, data),
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
     isLost: () => run.lost,
