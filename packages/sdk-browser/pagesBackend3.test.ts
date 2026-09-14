@@ -1,29 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
 import { clusterSphere, dagLevel, DAG } from './pagesBackendFixture.ts';
+import {
+  quadScene,
+  quadCluster,
+  frontCamera,
+  assertSingleCoarseCluster,
+} from './pagesBackendScenes.ts';
 
 test('pixelError is read from the context each frame', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
-  const cluster = (id: number) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  });
+  const { geometry, material, mesh, source } = quadScene();
+  const cluster = quadCluster;
   // Two clusters replaced by one coarser cluster whose screen error clears a 10 px budget.
   const level = dagLevel([cluster(0), cluster(1)], [cluster(2)], 0.001);
   const context = {
@@ -39,9 +27,7 @@ test('pixelError is read from the context each frame', () => {
     viewport: [960, 540] as [number, number],
   };
   const backend = exactPagesBackend(context);
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
+  const camera = frontCamera();
   backend.render(camera);
   assert.equal(backend.metrics().clusters, 2);
   context.pixelError = 10;
@@ -53,26 +39,9 @@ test('pixelError is read from the context each frame', () => {
 });
 
 test('a three-level DAG picks the middle reduction and skips the one above it', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
+  const { geometry, material, mesh, source } = quadScene();
   // Three levels: clusters 0+1 reduce to 2, which reduces to 3. At 10 px only the middle level fits.
-  const cluster = (id: number) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  });
+  const cluster = quadCluster;
   const mid = 0.001,
     top = 1e6,
     sphere = clusterSphere(cluster(2));
@@ -138,14 +107,5 @@ test('a three-level DAG picks the middle reduction and skips the one above it', 
     pixelError: 10,
     viewport: [960, 540],
   });
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
-  backend.render(camera);
-  assert.equal(backend.metrics().clusters, 1);
-  assert.equal(backend.metrics().selectedTriangles, 1);
-  assert.equal(backend.metrics().lodLevel, 1);
-  backend.dispose();
-  geometry.dispose();
-  material.dispose();
+  assertSingleCoarseCluster(backend, { geometry, material });
 });
