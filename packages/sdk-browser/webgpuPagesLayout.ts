@@ -1,6 +1,7 @@
 import type { PageRec } from './pageSelection.ts';
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { HIZ_BOUNDS_VALUES, createBoxCorners } from './hiz.ts';
+import { createProjectionHold } from './hizProjectionHold.ts';
 import type { HizCountSample } from './gpuHiz.ts';
 import { DRAW_ITEM_U32, MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
@@ -54,6 +55,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
    */
   const boxCorners = createBoxCorners(packedPages.length);
   const hizBounds = new Float64Array(drawSlots * HIZ_BOUNDS_VALUES);
+  /** Which of those rectangles still describe the image, and which the next one must reproject. */
+  const hizProjection = createProjectionHold(drawSlots);
   const hizTestedBounds = new Float64Array(drawSlots * HIZ_BOUNDS_VALUES);
   const hizTestedRows = new Uint32Array(drawSlots);
   /** Triangles of each tested cluster, in the order the boxes are handed to the test: what the
@@ -80,6 +83,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     smallTriangleCapacity,
     boxCorners,
     hizBounds,
+    hizProjection,
     hizTestedBounds,
     hizTestedRows,
     hizTestedTriangles,
