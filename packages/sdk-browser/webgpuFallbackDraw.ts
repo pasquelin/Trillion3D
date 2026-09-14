@@ -1,5 +1,6 @@
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
+import { clearValueOf } from './webgpuPagesEncoder.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from './visibilityBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import type { PageRec } from './pageSelection.ts';
@@ -75,12 +76,7 @@ export function drawWebgpuFallback({
         view: colorView,
         loadOp: 'clear',
         storeOp: 'store',
-        clearValue: {
-          r: (clearColor >> 16) / 255,
-          g: ((clearColor >> 8) & 255) / 255,
-          b: (clearColor & 255) / 255,
-          a: 1,
-        },
+        clearValue: clearValueOf(clearColor),
       },
     ],
     depthStencilAttachment: {
