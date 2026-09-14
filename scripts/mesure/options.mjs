@@ -109,6 +109,20 @@ export function poseAt(bounds, index) {
 
 const buildDist = (dir) => execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'inherit' });
 
+/**
+ * Le cache d'un côté. La valeur nomme le dossier « derived » — celui qui contient `native/full` —
+ * ou directement `native/full` ; c'est le dossier derived qui est rendu, parce que le manifeste
+ * compilé désigne ses paquets par `../../objects/`, hors de `native/full`. Sans valeur, le côté
+ * garde le cache du Lab.
+ */
+export function resolveCache(value) {
+  if (!value) return undefined;
+  const dir = resolve(value);
+  for (const candidate of [dir, join(dir, '../..')])
+    if (existsSync(join(candidate, 'native/full/manifest.json'))) return resolve(candidate);
+  throw new Error(`cache sans native/full/manifest.json : ${dir}`);
+}
+
 /** Les côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
 export function resolveSides({ apres, avant, root }) {
   const target = apres ?? join(root, 'dist');

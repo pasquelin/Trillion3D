@@ -9,6 +9,9 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   drapeaux de Chromium, copiés de `render-tech-lab/scripts/headless/lib.mjs` et `shots.mjs`.
 - `--avant` / `--apres` : un dossier `dist/` construit, ou une référence git, extraite hors du dépôt
   et construite. Sans `--avant`, un seul côté est mesuré ; `--apres` vaut le `dist/` du dépôt.
+- `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient
+  `native/full`), pour comparer deux compilateurs sur la même scène. Sans l'option, le côté lit le
+  cache du Lab. Chaque cache nommé est rendu sous `/cache/<côté>/`.
 - `--vues` parmi `generale`, `sol`, `rue`, `detail` (banc 15, pathVersion 5, vérifiée contre le Lab à
   chaque exécution) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut, jamais 5174).
 

@@ -50,12 +50,21 @@ async function main() {
     avant: flags.get('avant'),
     root: ROOT,
   });
+  // `--cache-avant` / `--cache-apres` : chaque côté peut jouer son propre cache compilé, rendu sous
+  // son propre préfixe. Sans l'option, les deux côtés lisent le cache du Lab, comme avant.
+  for (const side of sides) {
+    side.cache = options.resolveCache(flags.get(`cache-${side.name}`));
+    side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
+  }
   const captures = new Map();
   const mounts = [
     { prefix: '/vendor/three/', dir: join(ROOT, 'node_modules/three') },
     { prefix: '/vendor/meshoptimizer/', dir: join(ROOT, 'node_modules/meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: options.ASSETS },
     ...sides.map((side) => ({ prefix: `/sdk/${side.name}/`, dir: side.dist })),
+    ...sides
+      .filter((side) => side.cache)
+      .map((side) => ({ prefix: `/cache/${side.name}/`, dir: side.cache })),
   ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 
   const report = {
@@ -68,7 +77,9 @@ async function main() {
     pathVersion: options.PATH_VERSION,
     settings,
     flags: ENGINE.flags,
-    sides: Object.fromEntries(sides.map((s) => [s.name, { dist: s.dist, from: s.from }])),
+    sides: Object.fromEntries(
+      sides.map((s) => [s.name, { dist: s.dist, from: s.from, cache: s.cache ?? null }]),
+    ),
     series: [],
     errors: [],
   };
@@ -112,7 +123,7 @@ async function main() {
     report.bounds = await onFreshPage((page) =>
       page.evaluate(readBounds, {
         sdkUrl: `/sdk/${sides[0].name}/sdk-browser/index.js`,
-        manifestUrl: MANIFEST,
+        manifestUrl: sides[0].manifestUrl,
       }),
     );
     for (const pixelError of settings.pixelErrors)

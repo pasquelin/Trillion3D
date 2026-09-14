@@ -13,7 +13,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
   const debut = machineLoad();
   const result = await page.evaluate(measureView, {
     sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
-    manifestUrl: MANIFEST,
+    manifestUrl: side.manifestUrl ?? MANIFEST,
     backend: ENGINE.backend,
     engineId: ENGINE.id,
     pose,
