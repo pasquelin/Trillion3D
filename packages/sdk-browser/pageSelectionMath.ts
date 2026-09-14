@@ -125,3 +125,38 @@ export function boxClip(
   }
   return inside;
 }
+/**
+ * Plancher de l'erreur projetée d'un sous-arbre : l'erreur la plus faible qu'il porte, vue du point
+ * le plus lointain que sa sphère englobante autorise. Jamais au-dessus de la valeur vraie d'un de
+ * ses clusters, donc utilisable pour décider d'un sous-arbre entier sans le descendre.
+ *
+ * Preuve de la borne : une sphère (c_i, r_i) contenue dans (C, R) vérifie |c_i − C| ≤ R, donc après
+ * une transformation qui étire d'au plus `stretch`, |vue(c_i)| ≤ |vue(C)| + R·stretch. La distance
+ * qu'utilise `clusterErrorPixels` vaut |vue(c_i)| − r_i·stretch ≤ |vue(C)| + R·stretch, et l'erreur
+ * projetée décroît avec la distance : diviser l'erreur minimale par cette distance maximale ne peut
+ * pas dépasser la plus petite erreur projetée du sous-arbre.
+ */
+export function projectedErrorFloor(
+  error: number,
+  sphere: ArrayLike<number>,
+  offset: number,
+  e: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+) {
+  if (error === 0) return 0;
+  if (error === Infinity) return Infinity;
+  const radius = sphere[offset + 3];
+  // Sans sphère englobante, aucune borne à opposer : le plancher ne certifie rien.
+  if (!(error > 0) || !(radius >= 0)) return 0;
+  const cx = sphere[offset],
+    cy = sphere[offset + 1],
+    cz = sphere[offset + 2];
+  const vx = e[0] * cx + e[4] * cy + e[8] * cz + e[12];
+  const vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13];
+  const vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
+  const far = Math.sqrt(vx * vx + vy * vy + vz * vz) + radius * stretch;
+  // Tout le sous-arbre est alors sur la caméra ou derrière : son erreur projetée est infinie.
+  if (!(far > 0)) return Infinity;
+  return (error * stretch * focal) / far;
+}
