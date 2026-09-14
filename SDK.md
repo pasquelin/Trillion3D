@@ -17,7 +17,7 @@ The compiler rejects selected accessors that cross their `bufferView`, invalid s
 | Import | Symbols |
 |---|---|
 | `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `assertCachePointer`, `assertCacheReady`, `assertCacheIdentity`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
-| `@web-geometry/sdk/node` | `prepare`, `createCompilationJob`, `getSdkProvenance`, CLI |
+| `@web-geometry/sdk/node` | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `getSdkProvenance`, CLI |
 | `@web-geometry/sdk/browser` | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
 
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
@@ -25,22 +25,33 @@ The compiler rejects selected accessors that cross their `bufferView`, invalid s
 ## CLI
 
 ```
-web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL
+web-geometry-compile SOURCE CACHE [slice|full] [triangle-budget] RESOURCE_BASE_URL [threads] [RAM_MB] [none|qem-endpoints]
 ```
 
-`SOURCE` is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, or a `.gltf`/`.glb` file.
+`SOURCE` is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, a `.gltf`/`.glb` file, a `.fbx`/`.obj` file, or a directory of `.fbx`/`.obj` files (merged into one scene). `WEB_GEOMETRY_COMPILER_BIN` (or `PrepareOptions.executable`) selects the native executable.
 
-Writes the final JSON result to stdout and progress JSON lines to stderr. `WEB_GEOMETRY_COMPILER_BIN` selects a native executable.
+### Native executable
 
-The native binary is `web-geometry-compiler`. Direct invocation accepts five, seven or eight arguments:
+`web-geometry-compiler` is the only place work happens; Node, Electron or any other host just launches it and relays what it says. It has no runtime dependency: FBX and OBJ are read by ufbx compiled into the binary, so no Blender or converter is required.
 
 ```
 web-geometry-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
-web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL
 web-geometry-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints]
+web-geometry-compiler --jobs FILE|-
+web-geometry-compiler --version
 ```
 
-`prepare()` always sends the eight-argument form (defaults: 2 threads, 256 MB admission, `none` simplification).
+Three streams, nothing else:
+
+- **stderr**: one JSON object per line, `{"event": ..., "job": ...}` with `event` in `queued`, `accepted`, `progress` (with `phase`, `completed`, `total`), `complete` (with `pointer`), `cancelled`, `error` (with `code`, `message`), plus `batch` and `done` for `--jobs`.
+- **stdout**: for one job, the pointer only (`status`, `key`, `scope`, `url`, `pointer` path, `cache`, headline counts and `metrics`); for `--jobs`, a summary `{status, completed, failed, cancelled, jobs:[...]}`. The compiled manifest is never printed: it is on disk at `<cache>/native/<scope>/<key>/clusters.json` (+ `clusters.bin`), and `<cache>/native/<scope>/manifest.json` points at it.
+- **stdin**: a JSON line `{"cancel":"*"}` or `{"cancel":"<job>"}` cancels cooperatively; the process exits with the job marked `CANCELLED`. Killing the process is also safe because every file is written atomically.
+
+Exit code 0 when every job is ready, 2 otherwise. `--jobs` reads `{"workers":N,"ramBudgetMb":total,"threads":default,"jobs":[{"id","source","cache","resourceBaseUrl","scope","triangles","threads","ramBudgetMb","simplification"}]}` and runs `workers` jobs at a time, each with `ramBudgetMb/workers` unless the job says otherwise.
+
+FBX/OBJ sources are first imported into `<cache>/native/imports/<key>/` as `model.gltf` + `model.bin` + `manifest.json` (keyed by the input hashes and the importer version, reused when unchanged); the import manifest lists what the importer could not carry (`unsupported`) and ufbx warnings (`notes`). Units are converted to metres and axes to glTF (right-handed, Y up); geometry is copied as-is; materials map to `pbrMetallicRoughness` (a bound texture replaces the colour); textures resolve to PNG/JPEG files inside the source directory (served under `RESOURCE_BASE_URL`) or to embedded bytes; punctual lights become `KHR_lights_punctual`. Animation, skinning, blend shapes, cameras and GPU-only texture formats are not carried.
+
+`prepare()` always sends the eight-argument form (defaults: 2 threads, 256 MB admission, `none` simplification), reads the pointer from stdout and returns the manifest read from disk. `prepareMany(jobs, {workers, ramBudgetMb, threads, onEvent})` runs one `--jobs` process and returns its summary (pointers only).
 
 ## Browser explorer
 
