@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {DEFAULT_SCOPE} from '../sdk-core/index.ts';
 export {DEFAULT_SCOPE};
+export {createTerminalProgress,createBatchProgress} from './progress.mjs';
 /** Longest accepted single line on either stream; the compiler emits small JSON lines only. */
 export const COMPILER_LINE_LIMIT=4*1024*1024;
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
