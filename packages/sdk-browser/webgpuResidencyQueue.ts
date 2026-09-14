@@ -2,15 +2,18 @@ import type { PageRec } from './pageSelection.ts';
 import type { createGpuPageCache } from './gpuPages.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
+import type { WebgpuResidencySets } from './webgpuResidencySets.ts';
 
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>;
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 type QueueOptions = {
   tracking: Tracking;
+  sets: WebgpuResidencySets;
+  room: number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
-  hasBytes: (page: PageRec) => boolean;
+  getShown: () => readonly PageRec[];
   updatePins: () => void;
   ensureResident: (wanted: readonly PageRec[], frame: number, jobId: number) => Promise<void>;
   markLost: () => void;
@@ -19,48 +22,22 @@ type QueueOptions = {
   diagnosticFailure: Diagnostics['diagnosticFailure'];
 };
 
-/** Rebuilds wanted ranks in place and lets one asynchronous uploader follow the latest cut. */
+/** Follows the wanted set with one asynchronous uploader, and never rebuilds that set to do it. */
 export function createWebgpuResidencyQueue(options: QueueOptions) {
-  const {
-    tracking,
-    getCache,
-    getFrame,
-    hasBytes,
-    updatePins,
-    ensureResident,
-    markLost,
-    traceEnabled,
-    traceDiagnostic,
-    diagnosticFailure,
-  } = options;
-  const items: PageRec[] = [];
+  const { tracking, sets, getCache, getFrame, updatePins, ensureResident } = options;
+  const { markLost, traceEnabled, traceDiagnostic, diagnosticFailure } = options;
+  /** The pages of the wanted set, one record per key: the queue is that set, not a copy of it. */
+  const items = tracking.wantedPages;
   let pending: Promise<unknown> = Promise.resolve();
   let scheduled = false,
     running = false,
     job = 0;
 
-  const queueResident = (wanted: PageRec[]) => {
+  const follow = () => {
     const queuedAt = performance.now(),
       jobId = ++job,
       jobFrame = getFrame();
-    tracking.wantedEpoch++;
-    tracking.wantedCount = 0;
-    for (const page of wanted) {
-      const key = tracking.keyOf(page);
-      if (tracking.wantedStamp[key] !== tracking.wantedEpoch) {
-        tracking.wantedStamp[key] = tracking.wantedEpoch;
-        tracking.wantedList[tracking.wantedCount++] = key;
-      }
-    }
     updatePins();
-    items.length = 0;
-    tracking.queuedEpoch++;
-    for (const page of wanted) {
-      const key = tracking.keyOf(page);
-      if (!hasBytes(page) || tracking.queuedStamp[key] === tracking.queuedEpoch) continue;
-      tracking.queuedStamp[key] = tracking.queuedEpoch;
-      items.push(page);
-    }
     scheduled = true;
     if (traceEnabled)
       traceDiagnostic('residency-queue', 'Résidence GPU mise en file', () => ({
@@ -129,7 +106,16 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
 
   return {
     items,
-    queueResident,
+    /** The CPU cut hands its wanted and drawn lists over whole; it owns no difference to give. */
+    queueResident(wanted: readonly PageRec[]) {
+      sets.refreshCpu(wanted, options.getShown());
+      follow();
+    },
+    /** The GPU cut already applied its difference; only the page budget is left to enforce. */
+    queueCutResidency() {
+      sets.applyBudget(options.room);
+      follow();
+    },
     nextJobId: () => ++job,
     quietPending: () => {
       pending = pending.catch(() => {});

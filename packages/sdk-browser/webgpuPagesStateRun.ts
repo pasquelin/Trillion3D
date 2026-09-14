@@ -54,6 +54,21 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
+  /**
+   * How many leading entries of `shown` and `desired` are the opaque cut, which the GPU readback
+   * maintains from one image to the next; the transparent tail after them is the only part an image
+   * rewrites. -1 says the CPU cut wrote the array and the split is unknown.
+   */
+  shownOpaque: number;
+  desiredOpaque: number;
+  /** Triangles of that opaque head of `shown`; -1 when it was not counted. */
+  shownOpaqueTriangles: number;
+  /** The transparent cut of the image: the GPU cut never selects it, so the CPU re-reads it whole. */
+  transparentWanted: PageRec[];
+  transparentShown: PageRec[];
+  /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
+  pagesEntered: number | null;
+  pagesExited: number | null;
   // Reused by the cut every image; the cut changes, the arrays behind it do not.
   opaqueScratch: PageRec[];
   transparentScratch: PageRec[];
@@ -127,6 +142,13 @@ export function createWebgpuRunState(): WebgpuRunState {
     shown: [],
     desired: [],
     drawn: [],
+    shownOpaque: -1,
+    desiredOpaque: -1,
+    shownOpaqueTriangles: -1,
+    transparentWanted: [],
+    transparentShown: [],
+    pagesEntered: null,
+    pagesExited: null,
     opaqueScratch: [],
     transparentScratch: [],
     drawableScratch: [],
