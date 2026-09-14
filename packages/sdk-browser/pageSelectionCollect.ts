@@ -14,6 +14,7 @@ import {
   structureIndex,
   cullingNodes,
 } from './pageSelectionHelpers.ts';
+import { cullingBounds } from './pageSelectionCutBounds.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
 import type { PageRec, ClusterRoot, ClusterStructureIndex } from './pageSelectionTypes.ts';
 
@@ -154,7 +155,7 @@ export function collectClusterPages(
     roots.push({
       world: mesh.matrixWorld,
       pages,
-      culling,
+      culling: culling && { ...culling, bounds: cullingBounds(culling, pages) },
       worldBox: local.clone().applyMatrix4(mesh.matrixWorld),
       localBox: local.clone(),
       structure,
