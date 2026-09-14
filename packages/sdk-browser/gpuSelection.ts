@@ -17,6 +17,8 @@ export const PAGE_CONE_FLOATS=12,SELECTION_NONE=NONE,SELECTION_UNIFORM_BYTES=UNI
 export type SelectionUniforms={planes:Float32Array;view:Float32Array;pixelScale:[number,number];pixelError:number;near:number;cameraWorld:[number,number,number];cameraStretch?:number};
 export type SelectionResult={pageIds:number[];frustumRejected:number;lodLevel:number;complete?:boolean;drawablePageIds?:number[]};
 export type GpuCut={uniforms:SelectionUniforms;result:SelectionResult};
+/** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
+export type SelectionSubmission=(submitted:boolean)=>void;
 export type GpuSelection={
  readonly residentCut:boolean;
  readonly maskBuffer:GPUBuffer;
@@ -25,7 +27,12 @@ export type GpuSelection={
  readonly pageCount:number;
  updateWorlds(worldMatrices:Float32Array):boolean;
  updateResidency(resident:Uint32Array):boolean;
- dispatch(uniforms:SelectionUniforms):void;
+ /**
+  * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
+  * buffer — and takes back the settlement it must call: `true` once that buffer is on the queue,
+  * `false` when the image abandons it. Nothing is read back before the settlement says submitted.
+  */
+ dispatch(uniforms:SelectionUniforms,shared?:GPUCommandEncoder):SelectionSubmission|undefined;
  peek():GpuCut|null;
  failed():boolean;
  flush():Promise<SelectionResult|null>;

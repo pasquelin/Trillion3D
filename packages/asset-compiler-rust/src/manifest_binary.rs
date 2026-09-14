@@ -225,6 +225,24 @@ pub fn split(manifest:&Value,templates:&Templates)->Result<(Value,Vec<u8>)>{
  Ok((Value::Object(slim),bytes))
 }
 
+/// Every object digest a binary sidecar names: the PAGE, GEOMETRY and BUNDLE sha columns, 64 ASCII
+/// characters per entry. Reads the header written by `split`; a foreign or truncated file is refused.
+pub fn digests(bytes:&[u8])->Result<Vec<String>>{
+ let word=|at:usize|->Result<usize>{Ok(u32::from_le_bytes(bytes.get(at..at+4).ok_or_else(||bad("Manifest binary is truncated"))?.try_into().expect("four bytes")) as usize)};
+ if word(0)?!=MANIFEST_BINARY_MAGIC as usize{return Err(bad("Manifest binary magic mismatch"))}
+ if word(4)?!=MANIFEST_BINARY_VERSION as usize{return Err(bad("Manifest binary version mismatch"))}
+ let columns=word(8)?;
+ let mut out=Vec::new();
+ for index in [PAGE_SHA,GEOMETRY_SHA,BUNDLE_SHA]{
+  if index>=columns{continue;}
+  let at=(HEADER_WORDS+index*2)*4;let (offset,length)=(word(at)?,word(at+4)?);
+  let column=bytes.get(offset..offset+length).ok_or_else(||bad("Manifest binary column exceeds the file"))?;
+  if length%64!=0{return Err(bad("Digest column length is not a multiple of 64"))}
+  // A page without its own geometry leaves a zero-filled slot in the geometry column.
+  for entry in column.chunks(64).filter(|e|e[0]!=0){out.push(std::str::from_utf8(entry).map_err(|_|bad("Digest column is not ASCII"))?.to_string());}
+ }
+ Ok(out)
+}
 #[cfg(test)]
 mod tests {
  use super::*;
@@ -255,6 +273,15 @@ mod tests {
   primitive["streams"]=json!({"version":1,"pinned":1,"bundleBytes":131072,"pages":[bundle]});
   primitive["pages"]=json!([exact_page(),coarse_page()]);
   json!({"schema":2,"formatVersion":2,"status":"ready","primitives":[primitive]})
+ }
+ #[test]
+ fn digests_reads_back_every_sha_column(){
+  let manifest=sample();let templates=Templates{binary:"clusters.bin",page:"../../objects/{sha}.bin",geometry:"../../objects/{sha}.bin",bundle:"../../objects/{sha}.bin"};
+  let (_,bytes)=split(&manifest,&templates).expect("split");
+  let mut found=digests(&bytes).expect("digests");found.sort();found.dedup();
+  let mut expected=vec![sha('a'),sha('b'),sha('c'),sha('d')];expected.sort();
+  assert_eq!(found,expected);
+  assert!(digests(&bytes[..12]).is_err());
  }
  #[test]
  fn columns_declare_their_own_offsets_and_lengths(){

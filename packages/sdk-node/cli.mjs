@@ -8,6 +8,6 @@ if(!Number.isSafeInteger(triangleBudget)||triangleBudget<1)throw new Error('tria
 const controller=new AbortController();process.once('SIGINT',()=>controller.abort());
 // A terminal gets a live bar; a pipe (CI, another program) gets the raw JSON events.
 const progress=process.stderr.isTTY&&!process.env.WEB_GEOMETRY_RAW_EVENTS?createTerminalProgress({label:input}):null;
-const result=await prepare(input,output,scope,triangleBudget,{executable:process.env.WEB_GEOMETRY_COMPILER_BIN,resourceBaseUrl,threads:Number(threads),ramBudgetMb:Number(ramBudgetMb),simplification,signal:controller.signal,onProgress:event=>progress?progress.event(event):process.stderr.write(`${JSON.stringify(event)}\n`)});
+const result=await prepare(input,output,scope,triangleBudget,{executable:process.env.WEB_GEOMETRY_COMPILER_BIN,resourceBaseUrl,threads:Number(threads),ramBudgetMb:Number(ramBudgetMb),simplification,signal:controller.signal,onProgress:event=>progress?progress.event(event):process.stderr.write(`${JSON.stringify(event)}\n`)}).catch(error=>{progress?.fail(String(error.message??error));throw error;});
 const {status,key,scope:resultScope,url,pointer,cache,selectedTriangles,sourceTriangles,metrics,unsupported}=result;
 process.stdout.write(`${JSON.stringify({status,key,scope:resultScope,url,pointer,cache,selectedTriangles,sourceTriangles,metrics,unsupported})}\n`);

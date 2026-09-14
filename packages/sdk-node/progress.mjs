@@ -22,11 +22,12 @@ export function createTerminalProgress({label='job',index=0,total=1,stream=proce
  const state={ratio:0,phase:'',text:'waiting',primitives:0,primitivesTotal:0,frame:0,lastKey:'',timer:null,finished:false};
  const elapsed=()=>`${((performance.now()-started)/1000).toFixed(1)}s`;
  const bar=()=>{const filled=Math.round(state.ratio*width);return `[${'█'.repeat(filled)}${'░'.repeat(width-filled)}] ${String(Math.round(state.ratio*100)).padStart(3)}%`;};
- const line=()=>`${SPINNER[state.frame++%SPINNER.length]} ${index+1}/${total} ${label} ${bar()} ${state.text} ${elapsed()}`;
- const draw=()=>{if(state.finished)return;const text=line();if(tty)stream.write(`\r\x1b[K${clip(text,Math.max(20,(stream.columns??80)-1))}`);else{const key=`${state.phase}:${state.text.split(' ')[0]}`;if(key!==state.lastKey){stream.write(`${text}\n`);state.lastKey=key;}}};
+ // Fixed parts (spinner, index, bar, elapsed) always fit; only the phase text yields to a narrow terminal.
+ const line=width=>{const head=`${SPINNER[state.frame++%SPINNER.length]} ${index+1}/${total} ${label} ${bar()} `;const tail=` ${elapsed()}`;return head+clip(state.text,Math.max(1,width-[...head].length-[...tail].length))+tail;};
+ const draw=()=>{if(state.finished)return;if(tty)stream.write(`\r\x1b[K${line(Math.max(20,(stream.columns??80)-1))}`);else{const key=`${state.phase}:${state.text.split(' ')[0]}`;if(key!==state.lastKey){stream.write(`${line(Infinity)}\n`);state.lastKey=key;}}};
  const stop=()=>{if(state.timer){clearInterval(state.timer);state.timer=null;}};
  const finish=(mark,summary)=>{if(state.finished)return;stop();state.finished=true;stream.write(`${tty?'\r\x1b[K':''}${mark} ${index+1}/${total} ${label} ${summary} ${elapsed()}\n`);};
- if(tty)state.timer=setInterval(draw,interval);
+ if(tty){state.timer=setInterval(draw,interval);state.timer.unref?.();}
  return {
   /** Feed every compiler event here; the line completes or fails by itself. */
   event(event){
@@ -42,9 +43,7 @@ export function createTerminalProgress({label='job',index=0,total=1,stream=proce
   },
   /** Host-side step happening before or between compiler events (a manifest check, a copy...). */
   note(text){state.text=text;state.phase='host';draw();},
-  done(summary){finish('✔',summary);},
   fail(message){finish('✖',message);},
-  get primitives(){return state.primitives;},
  };
 }
 /** Batch companion for `prepareMany({onEvent})`: one line per job id, in arrival order. */

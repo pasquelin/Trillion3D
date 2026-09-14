@@ -33,7 +33,7 @@
     "packages/asset-compiler-rust/Cargo.lock",
     "packages/asset-compiler-rust/src",
     "README.md",
-    "SDK.md",
+    "docs/SDK.md",
     "LICENSE",
     "packages/README.md"
   ],
@@ -43,7 +43,7 @@
     "test": "node --experimental-strip-types --test packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs test/*.test.mjs",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "check:structure": "node --test test/engineStructure.test.mjs && tsc -p tsconfig.core.json --noEmit",
-    "check:links": "python3 docs/check-links.py",
+    "check:links": "node scripts/check-links.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check"
   },
   "peerDependencies": {

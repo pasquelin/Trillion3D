@@ -19,12 +19,13 @@ export interface GpuPassTiming { name:string; gpuMs:number|null; reason?:string 
  */
 export interface GpuPassTimings { frame:number; totalMs:number|null; passes:GpuPassTiming[]; truncated:boolean; error?:string }
 /**
- * Enclosing GPU duration of one image: the earliest pass beginning to the latest pass end of every
- * command buffer the image submitted, from one pair of the device's own timestamps. Passes that the
- * device runs concurrently are inside this span once, so — unlike `gpuPassMs.totalMs`, a sum — it
- * never counts the same nanosecond twice. It is a span, so it also holds any host gap between two
- * submissions of the same image; `gpuPassMs` names the spans per submission. Null when a pass of the
- * image went unmeasured, the list was truncated, or the device exposes no timestamp query.
+ * GPU duration of one image: the sum of its per-submission spans, each span being the earliest pass
+ * beginning to the latest pass end of one command buffer, from the device's own timestamps. A
+ * submission is one contiguous GPU execution, so passes the device runs concurrently are inside its
+ * span once — unlike `gpuPassMs.totalMs`, a sum of passes, which counts an overlap twice. The host
+ * time between two submissions of the same image is NOT in here; `gpuHostGapMs` carries it alone.
+ * Null when a pass of the image went unmeasured, the list was truncated, or the device exposes no
+ * timestamp query.
  */
 export type GpuFrameMs=number|null;
 export interface FrameMetrics {
@@ -64,8 +65,15 @@ export interface FrameMetrics {
  hizCountedFrame?:number|null;
  /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
  gpuPassMs?:GpuPassTimings|null;
- /** Enclosing GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
+ /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
  gpuFrameMs?:GpuFrameMs;
+ /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
+  *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
+ gpuHostGapMs?:number|null;
+ /** Triangles of clusters the published cut names but the frame cannot draw — no resident page and no
+  *  covering ancestor. A real hole in the image: zero is the only healthy value. Null when a backend
+  *  cannot tell (it draws the cut it selected, so it never has one). */
+ uncoveredTriangles?:number|null;
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface GeometryPageDescriptor {url:string;sha256:string;bytes:number;formatVersion:2;codec:'meshopt';vertexCount:number;indexCount:number;flags:number;uncompressedBytes:number}
