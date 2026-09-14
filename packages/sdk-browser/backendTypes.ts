@@ -6,6 +6,7 @@ import type {
   FrameMetrics,
   BackendCapabilities,
   ClusterManifest,
+  SceneLightStore,
 } from '../sdk-core/index.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { ComparisonLayout } from './comparison.ts';
@@ -17,6 +18,10 @@ export interface RenderBackend {
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
   refreshSceneLighting?(): void;
+  /** Le magasin de lampes du contrat a changé : l'image suivante le relira. Absent = lampes ignorées. */
+  refreshSceneLights?(): void;
+  /** Déplace un nœud nommé de la scène préparée ; appliqué à l'image suivante, sans allocation (R8). */
+  setTransform?(nodeName: string, matrix: Float32Array): void;
   prepare(): Promise<void>;
   render(camera: THREE.PerspectiveCamera): void;
   readonly overBudget: boolean;
@@ -43,6 +48,11 @@ export interface RenderBackend {
       | 'textureUploaded'
       | 'texturePending'
       | 'textureSkipped'
+      | 'lightsActive'
+      | 'shadowsUpdated'
+      | 'gpuLightListsMs'
+      | 'gpuShadowsMs'
+      | 'gpuLightingMs'
     >
   > & {
     drawCalls?: number;
@@ -116,6 +126,8 @@ export interface BackendContext {
   /** Maximum source texture bytes admitted to GPU upload per frame. */
   maxTextureTransferBytesPerFrame?: number;
   sceneLighting?: THREE.Object3D;
+  /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
+  sceneLights?: SceneLightStore;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
