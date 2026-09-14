@@ -7,9 +7,7 @@ export type HizBounds={minX:number;minY:number;maxX:number;maxY:number;nearestDe
 export type HizPyramid={levels:number[][][];width:number;height:number};
 
 const projectScratch=new THREE.Vector3();
-const viewScratch=new THREE.Vector3();
 const viewProjScratch=new THREE.Matrix4();
-const worldCorner=new THREE.Vector3();
 
 export {HIZ_BACKGROUND};
 
@@ -62,17 +60,24 @@ export function visibilityDepth(ids:Uint32Array,pages:VisPage[],camera:THREE.Per
  return depth;
 }
 
-/** Conservative screen AABB. min/max are inclusive integer samples (fillIds last pixel is ceil(max)). Near-plane crossings never reject. */
-export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4,camera:THREE.PerspectiveCamera,viewport:[number,number]):HizBounds{
- const [width,height]=viewport;
- camera.updateMatrixWorld();
- const viewProj=viewProjScratch.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+/** Values per box in the flat bounds layout: minX,minY,maxX,maxY,nearestDepth,clipsNear. */
+export const HIZ_BOUNDS_VALUES=6;
+
+/**
+ * Conservative screen AABB of one box into `into` at `base`. min/max are inclusive integer samples
+ * (fillIds last pixel is ceil(max)). Near-plane crossings never reject. The caller passes the view
+ * and view-projection elements, so a batch builds them once instead of once per box; the arithmetic
+ * is `Matrix4`/`Vector3.applyMatrix4` term for term, so the flat and object forms agree bit for bit.
+ */
+function projectBoxInto(min:readonly number[],max:readonly number[],world:THREE.Matrix4,viewElements:ArrayLike<number>,viewProjElements:ArrayLike<number>,near:number,width:number,height:number,into:Float64Array,base:number){
  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,nearest=Infinity,clipsNear=false,projected=0;
+ const m=world.elements,v=viewElements,e=viewProjElements;
  for(let i=0;i<8;i++){
-  worldCorner.set(i&1?max[0]:min[0],i&2?max[1]:min[1],i&4?max[2]:min[2]).applyMatrix4(world);
-  viewScratch.copy(worldCorner).applyMatrix4(camera.matrixWorldInverse);
-  if(-viewScratch.z<=camera.near)clipsNear=true;
-  const e=viewProj.elements,x=worldCorner.x,y=worldCorner.y,z=worldCorner.z;
+  const lx=i&1?max[0]:min[0],ly=i&2?max[1]:min[1],lz=i&4?max[2]:min[2];
+  const mw=1/(m[3]*lx+m[7]*ly+m[11]*lz+m[15]);
+  const x=(m[0]*lx+m[4]*ly+m[8]*lz+m[12])*mw,y=(m[1]*lx+m[5]*ly+m[9]*lz+m[13])*mw,z=(m[2]*lx+m[6]*ly+m[10]*lz+m[14])*mw;
+  const vw=1/(v[3]*x+v[7]*y+v[11]*z+v[15]);
+  if(-((v[2]*x+v[6]*y+v[10]*z+v[14])*vw)<=near)clipsNear=true;
   const cw=e[3]*x+e[7]*y+e[11]*z+e[15];
   if(cw<=0||!Number.isFinite(cw)){clipsNear=true;continue;}
   const ndcX=(e[0]*x+e[4]*y+e[8]*z+e[12])/cw,ndcY=(e[1]*x+e[5]*y+e[9]*z+e[13])/cw,ndcZ=(e[2]*x+e[6]*y+e[10]*z+e[14])/cw;
@@ -81,20 +86,56 @@ export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4
   if(sz<nearest)nearest=sz;
   projected++;
  }
- if(!projected||clipsNear)return {minX:0,minY:0,maxX:0,maxY:0,nearestDepth:0,clipsNear:true};
- return {minX:Math.floor(minX),minY:Math.floor(minY),maxX:Math.ceil(maxX),maxY:Math.ceil(maxY),nearestDepth:nearest,clipsNear:false};
+ if(!projected||clipsNear){into[base]=0;into[base+1]=0;into[base+2]=0;into[base+3]=0;into[base+4]=0;into[base+5]=1;return;}
+ into[base]=Math.floor(minX);into[base+1]=Math.floor(minY);into[base+2]=Math.ceil(maxX);into[base+3]=Math.ceil(maxY);into[base+4]=nearest;into[base+5]=0;
+}
+
+/**
+ * Screen AABBs of `count` pages into `into`, with the view-projection built once for the batch rather
+ * than once per page. Nothing is allocated: `into` holds `HIZ_BOUNDS_VALUES` per page and is the
+ * caller's.
+ */
+export function projectBoxesFlat(pages:ArrayLike<HizPage|undefined>,count:number,camera:THREE.PerspectiveCamera,viewport:[number,number],into:Float64Array,only?:Uint8Array){
+ const [width,height]=viewport;
+ camera.updateMatrixWorld();
+ const viewProj=viewProjScratch.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+ const view=camera.matrixWorldInverse.elements,elements=viewProj.elements,near=camera.near;
+ for(let i=0;i<count;i++){
+  if(only&&!only[i])continue;
+  const page=pages[i];if(!page)continue;
+  projectBoxInto(page.min,page.max,page.matrix,view,elements,near,width,height,into,i*HIZ_BOUNDS_VALUES);
+ }
+}
+
+const boundsScratch=new Float64Array(HIZ_BOUNDS_VALUES);
+/** Conservative screen AABB. min/max are inclusive integer samples (fillIds last pixel is ceil(max)). Near-plane crossings never reject. */
+export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4,camera:THREE.PerspectiveCamera,viewport:[number,number]):HizBounds{
+ camera.updateMatrixWorld();
+ const viewProj=viewProjScratch.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+ projectBoxInto(min,max,world,camera.matrixWorldInverse.elements,viewProj.elements,camera.near,viewport[0],viewport[1],boundsScratch,0);
+ const b=boundsScratch;
+ if(b[5]!==0)return {minX:0,minY:0,maxX:0,maxY:0,nearestDepth:0,clipsNear:true};
+ return {minX:b[0],minY:b[1],maxX:b[2],maxY:b[3],nearestDepth:b[4],clipsNear:false};
+}
+
+function footprintLevel(minX:number,minY:number,maxX:number,maxY:number,clipsNear:boolean,width:number,height:number,levels:number):number|undefined{
+ if(clipsNear||!Number.isInteger(minX)||!Number.isInteger(minY)||!Number.isInteger(maxX)||!Number.isInteger(maxY)||
+  minX<0||minY<0||maxX>=width||maxY>=height||maxX<minX||maxY<minY)return undefined;
+ for(let level=0;level<levels;level++){
+  const scale=2**level;
+  if(Math.floor(maxX/scale)-Math.floor(minX/scale)<16&&Math.floor(maxY/scale)-Math.floor(minY/scale)<16)return level;
+ }
+ return undefined;
 }
 
 /** Pick the first mip whose outward-rounded inclusive footprint fits the test kernel. */
 export function hizFootprintLevel(bounds:HizBounds,width:number,height:number,levels:number):number|undefined{
- if(bounds.clipsNear||!Number.isInteger(bounds.minX)||!Number.isInteger(bounds.minY)||!Number.isInteger(bounds.maxX)||!Number.isInteger(bounds.maxY)||
-  bounds.minX<0||bounds.minY<0||bounds.maxX>=width||bounds.maxY>=height||bounds.maxX<bounds.minX||bounds.maxY<bounds.minY)return undefined;
- for(let level=0;level<levels;level++){
-  const scale=2**level;
-  if(Math.floor(bounds.maxX/scale)-Math.floor(bounds.minX/scale)<16&&
-   Math.floor(bounds.maxY/scale)-Math.floor(bounds.minY/scale)<16)return level;
- }
- return undefined;
+ return footprintLevel(bounds.minX,bounds.minY,bounds.maxX,bounds.maxY,bounds.clipsNear,width,height,levels);
+}
+
+/** `hizFootprintLevel` over the flat bounds layout `projectBoxesFlat` writes. */
+export function hizFootprintLevelFlat(bounds:Float64Array,base:number,width:number,height:number,levels:number):number|undefined{
+ return footprintLevel(bounds[base],bounds[base+1],bounds[base+2],bounds[base+3],bounds[base+5]!==0,width,height,levels);
 }
 
 export function hizRejects(pyramid:HizPyramid,bounds:HizBounds,bias=0){
@@ -106,6 +147,46 @@ export function hizRejects(pyramid:HizPyramid,bounds:HizBounds,bias=0){
 
 export function filterUnoccluded<T extends HizPage>(pages:T[],pyramid:HizPyramid,camera:THREE.PerspectiveCamera,viewport:[number,number],bias=0){
  return pages.filter(page=>!hizRejects(pyramid,projectBoxToScreen(page.min,page.max,page.matrix,camera,viewport),bias));
+}
+
+let splitLow=new Uint32Array(0),splitHigh=new Uint32Array(0),splitOrder=new Uint32Array(0),splitScratch=new Uint32Array(0);
+const splitCounts=new Uint32Array(256);
+const splitKeyDouble=new Float64Array(1),splitKeyWords=new Uint32Array(splitKeyDouble.buffer);
+/**
+ * `splitOccluders` over the flat bounds `projectBoxesFlat` wrote, without allocating and without any
+ * frame history: `rest[i]` becomes 0 for an occluder and 1 otherwise, and the occluder count is
+ * returned. The order is the sorting twin's to the bit — a stable radix over the orderable image of
+ * the double `nearestDepth`, so equal depths fall back to the candidate order exactly as
+ * `a.nearest-b.nearest||a.index-b.index` does.
+ */
+export function splitOccludersFlat(count:number,bounds:Float64Array,rest:Uint8Array){
+ if(splitLow.length<count){splitLow=new Uint32Array(count);splitHigh=new Uint32Array(count);splitOrder=new Uint32Array(count);splitScratch=new Uint32Array(count);}
+ let inFront=0;
+ for(let i=0;i<count;i++){
+  rest[i]=1;
+  if(bounds[i*HIZ_BOUNDS_VALUES+5]!==0)continue;
+  splitKeyDouble[0]=bounds[i*HIZ_BOUNDS_VALUES+4];
+  const low=splitKeyWords[0],high=splitKeyWords[1];
+  // Orderable image of a double: flip every bit of a negative, set the sign bit of a positive.
+  const negative=(high&0x80000000)!==0;
+  splitLow[i]=negative?~low>>>0:low;splitHigh[i]=negative?~high>>>0:(high^0x80000000)>>>0;
+  splitOrder[inFront++]=i;
+ }
+ if(!inFront)return 0;
+ let order=splitOrder,scratch=splitScratch;
+ for(let pass=0;pass<8;pass++){
+  const keys=pass<4?splitLow:splitHigh,shift=(pass&3)*8;
+  splitCounts.fill(0);
+  for(let i=0;i<inFront;i++)splitCounts[(keys[order[i]]>>>shift)&255]++;
+  let total=0;
+  for(let digit=0;digit<256;digit++){const n=splitCounts[digit];splitCounts[digit]=total;total+=n;}
+  for(let i=0;i<inFront;i++){const index=order[i];scratch[splitCounts[(keys[index]>>>shift)&255]++]=index;}
+  const swap=order;order=scratch;scratch=swap;
+ }
+ splitOrder=order;splitScratch=scratch;
+ const occluders=Math.max(1,Math.floor(inFront/2));
+ for(let i=0;i<occluders;i++)rest[order[i]]=0;
+ return occluders;
 }
 
 /** In-front closer half becomes this-frame occluders. Near-plane crossings stay in rest so they cannot hide others. */

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {packDrawIndirect} from '../sdk-core/index.ts';
-import {BIN_BACK,BIN_FRONT,BIN_NONE,compactSlotLayout,createGpuDraw,DRAW_INDIRECT_STRIDE,DRAW_SHADER,evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
+import {BIN_BACK,BIN_FRONT,BIN_NONE,compactSlotLayout,createGpuDraw,DRAW_INDIRECT_STRIDE,DRAW_ITEM_U32,DRAW_SHADER,evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
 import {PAGE_INFO_STRIDE} from './visibilityBuffer.ts';
 
 test('compact keeps input order inside each bin and writes 16-byte indirects', () => {
@@ -61,7 +61,8 @@ test('draw shader counts and scatters page groups in parallel with stable order'
  assert.match(DRAW_SHADER,/@compute @workgroup_size\(64\)\s*fn scatterGroups/);
  assert.match(DRAW_SHADER,/fn prefixGroups/);
  assert.doesNotMatch(DRAW_SHADER,/atomicAdd/);
- assert.match(DRAW_SHADER,/rest\s*\*\s*3u\s*\+\s*item\.bin/);
+ assert.match(DRAW_SHADER,/restAt\(i\)\s*\*\s*3u\s*\+\s*item\.bin/);
+ assert.match(DRAW_SHADER,/fn restAt\(i:u32\)->u32\{return \(restBits\[i>>5u\]>>\(i&31u\)\)&1u;\}/);
  assert.match(DRAW_SHADER,/indirect\[o\+3u\]=0u/);
 });
 
@@ -104,22 +105,22 @@ test('a compact shader compilation error leaves GPU draw undefined',async()=>{
 
 test('GPU draw uploads each item once without a CPU compact and exposes GPU slot offsets',async()=>{
  installGpuGlobals();
- const {device,buffers}=mockDrawDevice();
+ const {device,buffers,writes}=mockDrawDevice();
  const gpu=await createGpuDraw(device,8);
  assert.ok(gpu);
  assert.equal(gpu.indirectBuffer.size,6*DRAW_INDIRECT_STRIDE);
  assert.equal(gpu.indirectBuffer.usage&(GPUBufferUsage.INDIRECT|GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC),GPUBufferUsage.INDIRECT|GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC);
 
- const items:DrawItem[]=[
-  {pageIndex:4,bin:BIN_BACK,rest:0},
-  {pageIndex:1,bin:BIN_NONE,rest:0},
-  {pageIndex:7,bin:BIN_BACK,rest:0},
- ];
- let binReads=0;
- const observed=items.map(item=>({...item,get bin(){binReads++;return item.bin;}}));
+ // Packed rows of {pageIndex,bin,selectionIndex,pad}: only the occluder/rest bits travel per image.
+ const items=new Uint32Array([4,BIN_BACK,0,0, 1,BIN_NONE,0,0, 7,BIN_BACK,0,0]);
+ const rest=new Uint32Array(1);
  const encoder=device.createCommandEncoder();
- gpu.encode(encoder,observed,768);
- assert.equal(binReads,items.length,'CPU only serializes input; compaction belongs to the GPU');
+ gpu.encode(encoder,items,3,true,rest,768);
+ const itemWrites=writes.filter(write=>write.size===3*DRAW_ITEM_U32*4).length;
+ assert.equal(itemWrites,1,'the item rows are uploaded once');
+ writes.length=0;
+ gpu.encode(encoder,items,3,false,rest,768);
+ assert.equal(writes.some(write=>write.size===3*DRAW_ITEM_U32*4),false,'an unchanged drawable set re-uploads no item row');
  const indirect=buffers.find(buffer=>buffer.usage&GPUBufferUsage.INDIRECT)!;
  const words=new Uint32Array(indirect.data.buffer,indirect.data.byteOffset,indirect.data.byteLength/4);
  assert.deepEqual([...words.subarray(0,4)],[...packDrawIndirect(768,2)]);
@@ -143,7 +144,7 @@ function installGpuGlobals(){
 }
 
 function mockDrawDevice(options:{failCompile?:boolean}={}){
- const buffers:Array<{size:number;usage:number;data:Uint8Array}>=[];
+ const buffers:Array<{size:number;usage:number;data:Uint8Array}>=[],writes:Array<{offset:number;size:number}>=[];
  let bind:{entries:Array<{binding:number;resource:{buffer:(typeof buffers)[number]}}>} | undefined;
  let pipeline:{entryPoint:string}|undefined;
  const device={
@@ -173,8 +174,10 @@ function mockDrawDevice(options:{failCompile?:boolean}={}){
      const itemBytes=byBinding.get(0)!.data;
      const itemInts=new Uint32Array(itemBytes.buffer,itemBytes.byteOffset,itemBytes.byteLength/4);
      const n=Math.min(count,slotCap);
+     const restBytes=byBinding.get(7)!.data;
+     const restInts=new Uint32Array(restBytes.buffer,restBytes.byteOffset,restBytes.byteLength/4);
      const items:DrawItem[]=[];
-     for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*4],bin:itemInts[i*4+1] as 0|1|2,rest:itemInts[i*4+2] as 0|1});
+     for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*4],bin:itemInts[i*4+1] as 0|1|2,rest:((restInts[i>>5]>>(i&31))&1) as 0|1});
      const source=count>slotCap?items.concat(Array.from({length:count-n},()=>({pageIndex:0,bin:0 as const,rest:0 as const}))):items;
      const result=evaluateDrawCompact(source,maxVertexCount,slotCap);
      const offsets=byBinding.get(5)!.data;
@@ -189,12 +192,13 @@ function mockDrawDevice(options:{failCompile?:boolean}={}){
    finish:()=>({}),
   }),
   queue:{
-   writeBuffer(buffer:{size:number;data:Uint8Array},offset:number,data:BufferSource){
-    const bytes=data instanceof ArrayBuffer?new Uint8Array(data):new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset,(data as ArrayBufferView).byteLength);
-    buffer.data.set(bytes,offset);
+   writeBuffer(buffer:{size:number;data:Uint8Array},offset:number,data:BufferSource,dataOffset=0,size?:number){
+    const view=data instanceof ArrayBuffer?new Uint8Array(data,dataOffset,size??data.byteLength-dataOffset)
+     :new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset+dataOffset,size??(data as ArrayBufferView).byteLength-dataOffset);
+    writes.push({offset,size:view.byteLength});buffer.data.set(view,offset);
    },
    submit(){},
   },
  };
- return {device:device as unknown as GPUDevice,buffers};
+ return {device:device as unknown as GPUDevice,buffers,writes};
 }

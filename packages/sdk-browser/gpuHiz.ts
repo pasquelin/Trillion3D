@@ -1,5 +1,5 @@
 import {hizBuildPyramid,hizReduceCeil} from '../sdk-core/index.ts';
-import {hizFootprintLevel,hizRejects,type HizBounds,type HizPyramid} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,hizFootprintLevelFlat,hizRejects,type HizBounds,type HizPyramid} from './hiz.ts';
 
 const WORKGROUP=8,TEST_WORKGROUP=64,UNIFORM_BYTES=256,MAX_LEVELS=16;
 
@@ -63,7 +63,7 @@ export function evaluateHizTest(packed:PackedHiz,bounds:HizBounds[],bias=0){
 }
 
 export const HIZ_SHADER=`struct Uni{a:u32,b:u32,c:u32,d:u32,e:u32,f:u32,g:u32,h:u32,}
-struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,clipsNear:u32,pad0:u32,pad1:u32,}
+struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
 @group(0) @binding(1) var level0:texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
@@ -101,14 +101,17 @@ fn footprintFar(b:Bounds)->f32{
  if(!hit){return 1.0;}
  return far;
 }
+// Only the boxes tested this frame travel to the GPU, so each carries the flag row it answers for;
+// the rows the frame does not test were cleared to zero before this pass.
 @compute @workgroup_size(64)
 fn testHiz(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=uni.c){return;}
  let b=bounds[i];
- if(b.clipsNear!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[i]=0u;return;}
+ let row=b.rowAndClip>>1u;
+ if((b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=0u;return;}
  let far=footprintFar(b);
  let bias=bitcast<f32>(uni.d);
- flags[i]=select(0u,1u,b.nearest>far+bias);
+ flags[row]=select(0u,1u,b.nearest>far+bias);
 }
 `;
 
@@ -119,7 +122,12 @@ export type GpuHiz={
  level0View:GPUTextureView;
  flags:GPUBuffer;
  encodePyramid(encoder:GPUCommandEncoder):void;
- encodeTest(device:GPUDevice,encoder:GPUCommandEncoder,bounds:HizBounds[]):number;
+ /**
+  * Tests `count` boxes from the flat layout `projectBoxesFlat` writes; `rows[i]` names the `flags`
+  * entry box `i` answers for. `flagRows` entries are cleared first, so a row this frame does not test
+  * reads 0 instead of the verdict of an earlier frame.
+  */
+ encodeTest(device:GPUDevice,encoder:GPUCommandEncoder,bounds:Float64Array,rows:Uint32Array,count:number,flagRows:number):number;
  resize(device:GPUDevice,width:number,height:number):boolean;
  dispose():void;
 };
@@ -143,6 +151,8 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
  if(typeof device.createComputePipeline!=='function'||width<1||height<1)return undefined;
  const cap=Math.max(1,maxBounds);
  const uniData=new Float32Array(UNIFORM_BYTES/4);
+ // Reused across frames: the test path must not allocate a byte per image.
+ let testBytes=new ArrayBuffer(32),testF32=new Float32Array(testBytes),testI32=new Int32Array(testBytes),testU32=new Uint32Array(testBytes);
  const buffers:GPUBuffer[]=[];
   let disposed=false,level0:GPUTexture|undefined,level0View:GPUTextureView|undefined,pyramid:GPUBuffer|undefined,bindGroup:GPUBindGroup|undefined;
   let sizes:Array<[number,number]>=[],offsets:number[]=[];
@@ -221,21 +231,22 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
       reduce.end();
      }
     },
-    encodeTest(queueDevice,encoder,next){
+    encodeTest(queueDevice,encoder,next,rows,boundsCount,flagRows){
      if(disposed||!bindGroup)return 0;
-     const count=Math.min(next.length,cap);
-     const bytes=new ArrayBuffer(Math.max(32,count*32));
-     const f32=new Float32Array(bytes),i32=new Int32Array(bytes),u32=new Uint32Array(bytes);
+     const count=Math.min(boundsCount,cap);
+     if(flagRows>0)encoder.clearBuffer(flags,0,Math.min(cap,flagRows)*4);
+     const need=Math.max(32,count*32);
+     if(testBytes.byteLength<need){testBytes=new ArrayBuffer(need);testF32=new Float32Array(testBytes);testI32=new Int32Array(testBytes);testU32=new Uint32Array(testBytes);}
      for(let i=0;i<count;i++){
-     const b=next[i],base=i*8;
-      const level=hizFootprintLevel(b,gpu.width,gpu.height,sizes.length);
+      const base=i*8,at=i*HIZ_BOUNDS_VALUES;
+      const level=hizFootprintLevelFlat(next,at,gpu.width,gpu.height,sizes.length);
       const scale=level===undefined?1:2**level;
-      i32[base]=Math.floor(b.minX/scale);i32[base+1]=Math.floor(b.minY/scale);
-      i32[base+2]=Math.floor(b.maxX/scale);i32[base+3]=Math.floor(b.maxY/scale);
-      f32[base+4]=b.nearestDepth;u32[base+5]=level===undefined?1:0;
-      u32[base+6]=level===undefined?0:offsets[level];u32[base+7]=level===undefined?gpu.width:sizes[level][0];
+      testI32[base]=Math.floor(next[at]/scale);testI32[base+1]=Math.floor(next[at+1]/scale);
+      testI32[base+2]=Math.floor(next[at+2]/scale);testI32[base+3]=Math.floor(next[at+3]/scale);
+      testF32[base+4]=next[at+4];testU32[base+5]=((rows[i]<<1)|(level===undefined?1:0))>>>0;
+      testU32[base+6]=level===undefined?0:offsets[level];testU32[base+7]=level===undefined?gpu.width:sizes[level][0];
      }
-     if(count)queueDevice.queue.writeBuffer(bounds,0,bytes,0,count*32);
+     if(count)queueDevice.queue.writeBuffer(bounds,0,testBytes,0,count*32);
      const biasBits=new Uint32Array(new Float32Array([0]).buffer)[0];
      const testSlot=MAX_LEVELS+1;
      writeUni(queueDevice,uniforms,uniData,[gpu.width,gpu.height,count,biasBits],testSlot*UNIFORM_BYTES);

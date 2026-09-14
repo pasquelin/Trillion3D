@@ -8,7 +8,7 @@ import {rasterPageRecords} from './pageRaster.ts';
 import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {evaluateDagSelectionKernel,packDagSelection,type PackedDag} from './gpuDagSelection.ts';
 import {evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
-import {rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
+import {PAGE_INFO_STRIDE,rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
 import {createGpuTiming} from './gpuTiming.ts';
 
 function installGpuGlobals(){
@@ -112,13 +112,19 @@ test('trace failure diagnostics retain bounded stack and cause context',async()=
  finally{await backend.dispose();fixture.geometry.dispose();fixture.material.dispose();}
 });
 
-function bytesOf(data:BufferSource){
- if(data instanceof ArrayBuffer)return new Uint8Array(data);
- return new Uint8Array((data as ArrayBufferView).buffer,(data as ArrayBufferView).byteOffset,(data as ArrayBufferView).byteLength);
+/** `writeBuffer`'s window: `dataOffset` and `size` count elements of `data`, bytes for an ArrayBuffer. */
+function bytesOf(data:BufferSource,dataOffset=0,size?:number){
+ if(data instanceof ArrayBuffer)return new Uint8Array(data,dataOffset,size??data.byteLength-dataOffset);
+ const view=data as ArrayBufferView,element=(view as {BYTES_PER_ELEMENT?:number}).BYTES_PER_ELEMENT??1;
+ const start=view.byteOffset+dataOffset*element;
+ return new Uint8Array(view.buffer,start,size===undefined?view.byteLength-dataOffset*element:size*element);
 }
 
 function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBufferBindingSize:1<<20},packed?:PackedDag,failMap=false,rejectR32=false,failVisPass=false,enableHiz=false,failCompact=false){
- const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;instanceBuffer?:unknown;slotOffsetsBuffer?:unknown;indirect?:boolean;entryPoint?:string}>=[],writes:Array<{offset:number;bytes:Uint8Array}>=[];
+ const draws:Array<{vertexCount:number;instanceCount?:number;firstInstance?:number;bindOffset?:number;instanceBuffer?:unknown;slotOffsetsBuffer?:unknown;indirect?:boolean;entryPoint?:string}>=[],writes:Array<{offset:number;bytes:Uint8Array;label?:string;seq:number}>=[];
+ // One counter over writes and submits: a row has to reach the GPU before the image that reads it.
+ const buffers:Array<{label?:string;size:number;data:Uint8Array}>=[],submits:number[]=[];
+ let seq=0;
  const textures:Array<{format?:string;usage?:number;depthOrArrayLayers:number;views:Array<{dimension?:string}|undefined>}>=[];
  const passes:Array<{label?:string;colorLoad?:string;colorClear?:GPUColor;depthLoad?:string;colorCount:number;formats:string[]}>=[];
  const computes:string[]=[];
@@ -132,7 +138,8 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   limits,lost,
   createBuffer:({size,usage,label}:{size:number;usage:number;label?:string})=>{
    const data=new Uint8Array(size);
-   return {size,usage,data,destroy(){},mapAsync:async()=>{if(failMap&&label!=='WG explicit capture')throw new Error('MAP_FAILED');},getMappedRange:()=>data.buffer,unmap(){}};
+   const buffer={size,usage,label,data,destroy(){},mapAsync:async()=>{if(failMap&&label!=='WG explicit capture')throw new Error('MAP_FAILED');},getMappedRange:()=>data.buffer,unmap(){}};
+   buffers.push(buffer);return buffer;
   },
   createTexture:({size,format,usage}:{size:{width:number;height:number;depthOrArrayLayers?:number};format?:string;usage?:number})=>{
    const views:Array<{dimension?:string}|undefined>=[];
@@ -178,12 +185,15 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
       const itemBytes=byBinding.get(0)!.data;
       const itemInts=new Uint32Array(itemBytes.buffer,itemBytes.byteOffset,itemBytes.byteLength/4);
       const n=Math.min(count,slotCap);
+      const restBytes=byBinding.get(7)!.data;
+      const restInts=new Uint32Array(restBytes.buffer,restBytes.byteOffset,restBytes.byteLength/4);
+      const restAt=(i:number)=>((restInts[i>>5]>>(i&31))&1) as 0|1;
       const items:DrawItem[]=[];
-      for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*4],bin:itemInts[i*4+1] as 0|1|2,rest:itemInts[i*4+2] as 0|1});
+      for(let i=0;i<n;i++)items.push({pageIndex:itemInts[i*4],bin:itemInts[i*4+1] as 0|1|2,rest:restAt(i)});
       const source=count>slotCap?items.concat(Array.from({length:count-n},()=>({pageIndex:0,bin:0 as const,rest:0 as const}))):items;
       const maskBytes=byBinding.get(6)?.data;
       const mask=maskBytes?new Uint32Array(maskBytes.buffer):undefined;
-      const filtered=uni[4]&&mask?source.filter((_,i)=>mask[uni[5]+itemInts[i*4+3]]!==0):source;
+      const filtered=uni[4]&&mask?source.filter((_,i)=>mask[uni[5]+itemInts[i*4+2]]!==0):source;
       const result=evaluateDrawCompact(count>slotCap?source:filtered,maxVertexCount,slotCap);
       const offsets=byBinding.get(5)!.data;
       new Uint32Array(offsets.buffer).set(Array.from({length:6},(_,slot)=>result.indirect[slot*4+3]));
@@ -216,17 +226,18 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
     },
     end(){},
    }),
+   clearBuffer(buffer:{data?:Uint8Array},offset=0,size?:number){buffer.data?.fill(0,offset,size===undefined?buffer.data.length:offset+size);},
    copyBufferToBuffer(src:{data?:Uint8Array},s:number,dst:{data?:Uint8Array},d:number,size:number){if(src.data&&dst.data)dst.data.set(src.data.subarray(s,s+size),d);},
    copyTextureToBuffer(...args:unknown[]){imageCopies.push(args);},
    copyTextureToTexture(){},
    finish:()=>({}),
   }),
   queue:{
-   writeBuffer(buffer:{data?:Uint8Array},offset:number,data:BufferSource){
-    const bytes=bytesOf(data);writes.push({offset,bytes:new Uint8Array(bytes)});buffer.data?.set(bytes,offset);
+   writeBuffer(buffer:{data?:Uint8Array;label?:string},offset:number,data:BufferSource,dataOffset?:number,size?:number){
+    const bytes=bytesOf(data,dataOffset,size);writes.push({offset,bytes:new Uint8Array(bytes),label:buffer.label,seq:seq++});buffer.data?.set(bytes,offset);
    },
    writeTexture(){},
-   submit(){},
+   submit(){submits.push(seq++);},
    onSubmittedWorkDone:async()=>{},
   },
  };
@@ -234,7 +245,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
   if(failCompact&&compute.entryPoint==='scatterGroups')throw new Error('NO_COMPACT');
   return compute;
  };
- return {device:device as unknown as GPUDevice,draws,writes,textures,passes,computes,layouts,imageCopies,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
+ return {device:device as unknown as GPUDevice,draws,writes,buffers,submits,textures,passes,computes,layouts,imageCopies,lose:(reason='destroyed')=>lostResolve?.({reason,message:reason})};
 }
 
 /** The screen-error band every cluster of a DAG cache carries, derived from its own box. */
@@ -1258,4 +1269,44 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   }
   assert.ok(backend.metrics().cacheEvictions!>0);
  }finally{await backend.dispose();a.geometry.dispose();a.material.dispose();b.geometry.dispose();b.material.dispose();}
+});
+
+test('a recycled page-table row describes its new cluster and reaches the GPU before the image reads it',async()=>{
+ installGpuGlobals();
+ const a=coarseQuadScene(),b=coarseQuadScene(),{device,writes,buffers,submits}=mockGpu();
+ const mesh=b.source.children[0] as THREE.Mesh;mesh.position.x=100;a.source.add(mesh);
+ const primitive={...b.metadata.primitives[0],mesh:1,pages:b.metadata.primitives[0].pages.map(page=>({...page,url:'b'+page.url}))};
+ // Six clusters share four rows, so every jump between the two primitives recycles rows on eviction.
+ const backend=webgpuPagesBackend({...a,metadata:{primitives:[...a.metadata.primitives,primitive]},
+  indices:new Map([...a.indices,...[...b.indices].map(([url,bytes])=>['b'+url,bytes] as const)]),
+  associations:new Map([...a.associations,[mesh,{meshes:1,primitives:0}]]),gpuDevice:device,maxResidentPages:4,viewport:[32,32]});
+ const view=camera(),words=PAGE_INFO_STRIDE/4;
+ const look=(x:number)=>{view.position.set(x,0,5);view.lookAt(x,0,0);view.updateMatrixWorld();backend.render(view);};
+ try{
+  await backend.prepare();
+  for(let round=0;round<6;round++){look(round%2?100:0);await backend.flush();look(round%2?100:0);}
+  assert.ok(backend.metrics().cacheEvictions!>0,'the run has to recycle rows');
+  const table=buffers.find(buffer=>buffer.label==='WG page table');
+  assert.ok(table,'the page table is allocated once');
+  const rows=new Uint32Array(table.data.buffer,table.data.byteOffset,table.data.byteLength/4);
+  const seen=new Set<number>(),slots=new Set<number>();
+  for(let row=0;row<table.size/PAGE_INFO_STRIDE;row++){
+   const base=row*words,indexCount=rows[base+25];
+   if(!indexCount)continue;
+   // A live row names itself, so a recycled row cannot be read through the identifier of its predecessor.
+   assert.equal(rows[base+27],(row+1)<<8,`row ${row} identifier`);
+   // Its index range is one of the fixture's clusters, and no two live rows claim the same cluster or
+   // the same GPU slot: a row still describing the cluster it was recycled from would do both.
+   assert.ok(indexCount===3||indexCount===6,`row ${row} index count ${indexCount}`);
+   assert.equal(seen.has(rows[base+47]),false,`row ${row} duplicates cluster ${rows[base+47]}`);
+   assert.equal(slots.has(rows[base+24]),false,`row ${row} duplicates slot ${rows[base+24]}`);
+   seen.add(rows[base+47]);slots.add(rows[base+24]);
+  }
+  // A leaked row would show up as a live row beyond the four the table holds, and a lost row as fewer
+  // live rows than the image drew.
+  assert.ok(seen.size<=4&&seen.size>=backend.metrics().residentPages!,`live rows ${seen.size}`);
+  const lastRowWrite=writes.filter(write=>write.label==='WG page table').at(-1);
+  assert.ok(lastRowWrite,'rows are uploaded');
+  assert.ok(lastRowWrite.seq<submits.at(-1)!,'a row is uploaded before the image that reads it is submitted');
+ }finally{backend.dispose();a.geometry.dispose();a.material.dispose();b.geometry.dispose();b.material.dispose();}
 });
