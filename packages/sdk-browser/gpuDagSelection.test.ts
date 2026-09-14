@@ -223,6 +223,28 @@ test('GPU selection readback page ids match the CPU oracle for the same camera',
  selection.dispose();fixture.geometry.dispose();
 });
 
+test('a shared command buffer is the caller\'s to submit, and abandoning it gives everything back',async()=>{
+ installGpuGlobals();
+ const fixture=dagFixture();
+ const {dag}=packed(fixture);
+ const {device}=mockDagDevice(dag);
+ const queue=(device as unknown as {queue:{submit:()=>void}}).queue,submitted=queue.submit;
+ let submits=0;queue.submit=()=>{submits++;submitted.call(queue);};
+ const selection=await createGpuDagSelection(device,dag);assert.ok(selection);
+ const uniforms=cameraSelectionUniforms(wideCamera(),0,VIEWPORT);
+ const abandoned=selection.dispatch(uniforms,device.createCommandEncoder());
+ assert.equal(typeof abandoned,'function','a shared buffer hands back its settlement');
+ assert.equal(submits,0,'the selection does not submit a buffer it does not own');
+ abandoned!(false);
+ // Nothing ran, so nothing may be remembered as run: the next image recomputes and reads back.
+ const settle=selection.dispatch(uniforms,device.createCommandEncoder());
+ assert.equal(typeof settle,'function');
+ settle!(true);
+ assert.equal((await selection.flush())?.pageIds.length,4);
+ assert.equal(submits,0,'the image submits its own buffer');
+ selection.dispose();fixture.geometry.dispose();
+});
+
 test('unchanged uniforms skip a second GPU dispatch',async()=>{
  installGpuGlobals();
  const fixture=dagFixture();

@@ -429,7 +429,7 @@ function parseDagOutput(bytes:ArrayBufferLike,byteOffset:number,byteLength:numbe
 }
 
 /** WebGPU flat cluster cut. Returns undefined so the caller silently keeps the CPU oracle. */
-export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,options:{residentCut?:boolean;createEncoder?:()=>GPUCommandEncoder}={}):Promise<GpuSelection|undefined>{
+export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,options:{residentCut?:boolean}={}):Promise<GpuSelection|undefined>{
  if(typeof device.createComputePipeline!=='function'||packed.pageCount<1)return undefined;
  const STORAGE=GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST;
  const residentCut=!!options.residentCut,pageCount=packed.pageCount,nodeCount=packed.nodeCount,worldCount=Math.max(1,packed.worldCount);
@@ -535,14 +535,19 @@ export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,op
     residencyRevision++;last=null;
     return true;
    },
-   dispatch(next){
+   dispatch(next,shared){
     if(disposed||dead)return;
     const compute=!lastSubmitted||!sameSelectionUniforms(lastSubmitted,next)||submittedResidencyRevision!==residencyRevision;
     const needsReadback=!lastReadback||!sameSelectionUniforms(lastReadback,next)||readbackResidencyRevision!==residencyRevision;
     const i=!mapped[slot]?slot:!mapped[slot^1]?slot^1:-1;
     const copy=needsReadback&&i>=0;
     if((!compute&&!copy)||(!residentCut&&i<0))return;
-    const encoder=options.createEncoder?.()??device.createCommandEncoder();
+    const encoder=shared??device.createCommandEncoder();
+    // What this call is about to claim, so an abandoned command buffer can give it all back: a copy
+    // that never runs would leave its readback slot mapped forever and freeze the cut on its last
+    // result, and a compute pass that never runs must not be remembered as submitted.
+    const undoSubmitted=lastSubmitted,undoSubmittedRevision=submittedResidencyRevision;
+    const undoReadback=lastReadback,undoReadbackRevision=readbackResidencyRevision,undoSlot=slot;
     if(compute){
      writeDagUniforms(uniformData,packed,next,residentCut);device.queue.writeBuffer(uniforms,0,uniformData);
      const pass=encoder.beginComputePass({label:'WG DAG selection'});
@@ -564,20 +569,36 @@ export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,op
      encoder.copyBufferToBuffer(output,0,readback[i],0,outputBytes);
      if(residentCut)encoder.copyBufferToBuffer(flags,nodeCount*4,readback[i],outputBytes,pageCount*4);
     }
+    const captured=copy?copySelectionUniforms(next):undefined;
+    const capturedWorldRevision=worldRevision,capturedResidencyRevision=residencyRevision;
+    if(captured){lastReadback=captured;readbackResidencyRevision=residencyRevision;mapped[i]=true;slot=i^1;}
+    const read=()=>{
+     if(!captured)return;
+     pending=pending.catch(()=>{}).then(async()=>{
+      try{
+       await readback[i].mapAsync(GPUMapMode.READ);
+       const bytes=readback[i].getMappedRange();
+       const parsed=parseDagOutput(bytes,0,bytes.byteLength,residentCut?pageCount:0);
+       readback[i].unmap();mapped[i]=false;
+       if(!parsed){fail();return;}
+       if(capturedWorldRevision===worldRevision&&capturedResidencyRevision===residencyRevision)last={uniforms:captured,result:parsed};
+      }catch{try{readback[i].unmap();}catch{/* Mapping may already be closed. */}mapped[i]=false;fail();}
+     });
+    };
+    if(shared){
+     let settled=false;
+     return (submitted:boolean)=>{
+      if(settled)return;
+      settled=true;
+      if(submitted){read();return;}
+      lastSubmitted=undoSubmitted;submittedResidencyRevision=undoSubmittedRevision;
+      lastReadback=undoReadback;readbackResidencyRevision=undoReadbackRevision;
+      if(captured){mapped[i]=false;slot=undoSlot;}
+     };
+    }
     device.queue.submit([encoder.finish()]);
-    if(!copy)return;
-    const captured=copySelectionUniforms(next),capturedWorldRevision=worldRevision,capturedResidencyRevision=residencyRevision;
-    lastReadback=captured;readbackResidencyRevision=residencyRevision;mapped[i]=true;slot=i^1;
-    pending=pending.catch(()=>{}).then(async()=>{
-     try{
-      await readback[i].mapAsync(GPUMapMode.READ);
-      const bytes=readback[i].getMappedRange();
-      const parsed=parseDagOutput(bytes,0,bytes.byteLength,residentCut?pageCount:0);
-      readback[i].unmap();mapped[i]=false;
-      if(!parsed){fail();return;}
-      if(capturedWorldRevision===worldRevision&&capturedResidencyRevision===residencyRevision)last={uniforms:captured,result:parsed};
-     }catch{try{readback[i].unmap();}catch{/* Mapping may already be closed. */}mapped[i]=false;fail();}
-    });
+    read();
+    return undefined;
    },
    peek(){return dead?null:last;},
    failed(){return dead;},
