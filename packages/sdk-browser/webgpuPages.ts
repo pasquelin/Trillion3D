@@ -14,8 +14,8 @@ import {cameraSelectionUniforms,sameSelectionUniforms,type GpuSelection,type Sel
 import {createGpuDagSelection,packDagSelection} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
-import {HIZ_BOUNDS_VALUES,applyTemporalHiz,createBoxCorners,projectBoxesFlat,sameHizView,splitOccludersFlat,type TemporalHizState} from './hiz.ts';
-import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
+import {HIZ_BOUNDS_VALUES,applyTemporalHiz,createBoxCorners,createHizCounts,projectBoxesFlat,resetHizCounts,sameHizView,splitOccludersFlat,type HizCounts,type TemporalHizState} from './hiz.ts';
+import {createGpuHiz,type GpuHiz,type HizCountSample} from './gpuHiz.ts';
 import {BIN_BACK,BIN_FRONT,BIN_NONE,DRAW_ITEM_U32,createGpuDraw,type GpuDraw} from './gpuDraw.ts';
 import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_MAX_PAGES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode,GpuPassTimings} from '../sdk-core/index.ts';
@@ -401,6 +401,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const hizBounds=new Float64Array(drawSlots*HIZ_BOUNDS_VALUES);
  const hizTestedBounds=new Float64Array(drawSlots*HIZ_BOUNDS_VALUES);
  const hizTestedRows=new Uint32Array(drawSlots);
+ /** Triangles of each tested cluster, in the order the boxes are handed to the test: what the
+  *  elimination counters weigh a rejected cluster by. Sized once, like the rows beside it. */
+ const hizTestedTriangles=new Uint32Array(drawSlots);
+ const hizCountSample:HizCountSample={triangles:hizTestedTriangles,frame:0};
+ /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
+ const cpuHizCounts:HizCounts=createHizCounts();
+ let cpuHizCounted=false;
  const hizRest=new Uint8Array(drawSlots);
  const drawItemWords=new Uint32Array(drawSlots*DRAW_ITEM_U32);
  const drawRestBits=new Uint32Array(Math.max(1,Math.ceil(drawSlots/32)));
@@ -841,6 +848,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const submitColorCopy=(device:GPUDevice,encoder:GPUCommandEncoder,height:number,width:number,presented=false)=>{
    if(!presented&&presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
    const command=encoder.finish();device.queue.submit([command]);imageRevision++;
+   // The verdicts of a sampled image can only be mapped once the image that copied them is submitted.
+   gpuHiz?.countsSubmitted();
    traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:gpuFrameActive&&!gpuMetricsReady?null:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
    if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'selection-and-render-passes',excludes:['uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
    if(canvasTexture&&!secondaryCamera)canvasTexture.needsUpdate=true;
@@ -944,6 +953,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(twoPass&&rest){
     const from=i*HIZ_BOUNDS_VALUES,to=testedCount*HIZ_BOUNDS_VALUES;
     for(let k=0;k<HIZ_BOUNDS_VALUES;k++)hizTestedBounds[to+k]=hizBounds[from+k];
+    hizTestedTriangles[testedCount]=count/3;
     hizTestedRows[testedCount++]=row;
    }
   }
@@ -1048,7 +1058,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   let vertices=twoPass?occluderVertices:occluderVertices+restVertices;
   if(twoPass&&gpuHiz){
    gpuHiz.encodePyramid(encoder);
-   gpuHiz.encodeTest(device,encoder,hizTestedBounds,hizTestedRows,testedCount,tableRows);
+   hizCountSample.frame=frame;
+   gpuHiz.encodeTest(device,encoder,hizTestedBounds,hizTestedRows,testedCount,tableRows,hizCountSample);
    const restPass=encoder.beginRenderPass({
     label:'WG visibility secondary',
     colorAttachments:visColors('load'),
@@ -1730,9 +1741,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    let culled:PageRec[]=readyScratch;
    if(visEnabled&&!gpuHiz&&readyScratch.length>=2&&readyScratch.every(page=>page.array)){
     try{
-     const cut=applyTemporalHiz(partitionByPass(readyScratch,false,opaqueScratch) as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState);
+     const cut=applyTemporalHiz(partitionByPass(readyScratch,false,opaqueScratch) as Array<PageRec&{array:Uint32Array}>,camera,viewport??targetSize,temporalHizState,cpuHizCounts);
+     cpuHizCounted=true;
      culledScratch.length=0;appendAll(culledScratch,cut.shown,partitionByPass(readyScratch,true,transparentScratch));culled=culledScratch;
-    }catch(error){diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
+    }catch(error){resetHizCounts(cpuHizCounts);cpuHizCounted=false;diagnosticFailure('hiz-frame-fallback',error);/* Keep the selected cut. */}
    }
    const selectionEnd=performance.now();
    const queueStarted=performance.now();queueResident(coverageBudgetLimited?[]:desired);const queueEnd=performance.now();
@@ -1887,11 +1899,15 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    traceDiagnostic('page-dropped','Page CPU/GPU libérée',{frame,url,clusters:recs.length,reason:'host-request',deferred:false});},
   metrics(){
    const stats=cache?.stats();
+   // What the occlusion test eliminated, from the path that ran it: the GPU verdicts of the last
+   // image whose flags came back, or the CPU oracle's own image where no GPU test runs. Null when
+   // neither has counted one, never a number standing in for an unmeasured one.
+   const hiz=gpuHiz?gpuHiz.counts():cpuHizCounted?cpuHizCounts:undefined;
    let vertexBytes=0;for(const buffer of positionBuffers.values())vertexBytes+=buffer.size;
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,gpuFrameMs:lastGpuFrameMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,gpuFrameMs:lastGpuFrameMs,vramBytes:null,drawCalls:gpuDrawCalls,hizTestedClusters:hiz?.tested??null,hizRejectedClusters:hiz?.rejected??null,hizOversizedClusters:hiz?.oversized??null,hizTestedTriangles:hiz?.testedTriangles??null,hizRejectedTriangles:hiz?.rejectedTriangles??null,hizOversizedTriangles:hiz?.oversizedTriangles??null};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);

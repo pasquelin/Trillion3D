@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {HIZ_BACKGROUND,hizBuildPyramid,hizReduceCeil} from '../sdk-core/index.ts';
-import {buildHizPyramid,hizRejects,type HizBounds} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,buildHizPyramid,createHizCounts,hizOversized,hizRejects,type HizBounds} from './hiz.ts';
 import {createGpuHiz,evaluateHizReduce,evaluateHizTest,hizLevelSizes,HIZ_SHADER,packHizPyramid} from './gpuHiz.ts';
 
 test('Hi-Z level sizes reduce by ceil 2 until a single texel',()=>{
@@ -162,4 +162,94 @@ test('GPU Hi-Z allocates only the current pyramid and releases it on resize',asy
  assert.equal(firstPyramid.destroyed,true);
  hiz.dispose();
  assert.ok(buffers.every(buffer=>buffer.destroyed));
+});
+
+/**
+ * A device that answers the counter readback with the verdicts the kernel's JS twin computes for the
+ * same boxes. The counting machinery is what is under test: fed the GPU's own verdicts, it must
+ * report exactly what the CPU oracle counts over the same fixed image.
+ */
+function countingDevice(verdicts:Uint32Array){
+ const copies:Array<{bytes:number}>=[];
+ const device={
+  createBuffer:({size,label}:{size:number;label?:string})=>label==='WG HiZ counts readback'
+   ?{size,label,destroy(){},async mapAsync(){},getMappedRange(offset:number,length:number){return verdicts.buffer.slice(offset,offset+length);},unmap(){}}
+   :{size,label,destroy(){}},
+  createTexture:({format}:{format?:string})=>({format,destroy(){},createView(){return {format};}}),
+  createShaderModule:()=>({getCompilationInfo:async()=>({messages:[]})}),
+  createBindGroupLayout:()=>({}),createPipelineLayout:()=>({}),
+  createComputePipeline:({compute}:{compute:{entryPoint:string}})=>compute,
+  createBindGroup:()=>({}),
+  queue:{writeBuffer(){}},
+ } as unknown as GPUDevice;
+ const encoder={
+  clearBuffer(){},
+  copyBufferToBuffer(_src:unknown,_srcOffset:number,_dst:unknown,_dstOffset:number,bytes:number){copies.push({bytes});},
+  beginComputePass(){return {setPipeline(){},setBindGroup(){},dispatchWorkgroups(){},end(){}};},
+ } as unknown as GPUCommandEncoder;
+ return {device,encoder,copies};
+}
+
+test('GPU Hi-Z counters report the same clusters and triangles as the CPU oracle on a fixed image',async()=>{
+ const depth=new Float32Array(33*19);depth.fill(0.2);
+ const pyramid=buildHizPyramid(depth,33,19);
+ // A wide covered box, a box that crosses the near plane, and a small covered one.
+ const boxes:HizBounds[]=[
+  {minX:0,minY:0,maxX:32,maxY:18,nearestDepth:0.8,clipsNear:false},
+  {minX:0,minY:0,maxX:0,maxY:0,nearestDepth:0.8,clipsNear:true},
+  {minX:4,minY:4,maxX:5,maxY:5,nearestDepth:0.8,clipsNear:false},
+ ];
+ const triangles=[128,64,32],rows=new Uint32Array([2,0,1]);
+ const flat=new Float64Array(boxes.length*HIZ_BOUNDS_VALUES);
+ boxes.forEach((box,i)=>{
+  const at=i*HIZ_BOUNDS_VALUES;
+  flat[at]=box.minX;flat[at+1]=box.minY;flat[at+2]=box.maxX;flat[at+3]=box.maxY;
+  flat[at+4]=box.nearestDepth;flat[at+5]=box.clipsNear?1:0;
+ });
+ // The CPU oracle over the same fixed image, box by box.
+ const oracle=createHizCounts();
+ const kernel=evaluateHizTest(packHizPyramid(pyramid.levels[0]),boxes);
+ boxes.forEach((box,i)=>{
+  oracle.tested++;oracle.testedTriangles+=triangles[i];
+  if(hizOversized(box.minX,box.minY,box.maxX,box.maxY,box.clipsNear)){oracle.oversized++;oracle.oversizedTriangles+=triangles[i];}
+  if(hizRejects(pyramid,box)){oracle.rejected++;oracle.rejectedTriangles+=triangles[i];}
+ });
+ assert.deepEqual([...kernel],boxes.map(box=>hizRejects(pyramid,box)?1:0));
+ assert.equal(oracle.rejected,2);
+ assert.equal(oracle.oversized,1);
+ // The kernel writes its verdict at the row each box answers for, not at the box's rank.
+ const verdicts=new Uint32Array(4);
+ boxes.forEach((_,i)=>{verdicts[rows[i]]=kernel[i];});
+ const {device,encoder,copies}=countingDevice(verdicts);
+ const hiz=await createGpuHiz(device,33,19,8);assert.ok(hiz);
+ assert.equal(hiz.counts(),undefined);
+ hiz.encodeTest(device,encoder,flat,rows,boxes.length,4,{triangles,frame:0});
+ assert.deepEqual(copies,[{bytes:16}]);
+ hiz.countsSubmitted();
+ await new Promise(resolve=>setTimeout(resolve,0));
+ const counts=hiz.counts();assert.ok(counts);
+ assert.equal(counts.frame,0);
+ assert.deepEqual({tested:counts.tested,rejected:counts.rejected,oversized:counts.oversized,
+  testedTriangles:counts.testedTriangles,rejectedTriangles:counts.rejectedTriangles,oversizedTriangles:counts.oversizedTriangles},oracle);
+ hiz.dispose();
+});
+
+test('an image that hands no count sample copies nothing back and keeps the last counted image',async()=>{
+ const {device,encoder,copies}=countingDevice(new Uint32Array([1,0,0,0]));
+ const hiz=await createGpuHiz(device,33,19,8);assert.ok(hiz);
+ const flat=new Float64Array(HIZ_BOUNDS_VALUES);flat[2]=1;flat[3]=1;flat[4]=0.8;
+ hiz.encodeTest(device,encoder,flat,new Uint32Array([0]),1,4);
+ assert.deepEqual(copies,[]);
+ assert.equal(hiz.counts(),undefined);
+ hiz.countsSubmitted();
+ assert.equal(hiz.counts(),undefined);
+ // The interval gates the next sample: the image right after a counted one copies nothing.
+ hiz.encodeTest(device,encoder,flat,new Uint32Array([0]),1,4,{triangles:[7],frame:0});
+ hiz.countsSubmitted();
+ await new Promise(resolve=>setTimeout(resolve,0));
+ assert.equal(copies.length,1);
+ hiz.encodeTest(device,encoder,flat,new Uint32Array([0]),1,4,{triangles:[7],frame:1});
+ assert.equal(copies.length,1);
+ assert.equal(hiz.counts()?.frame,0);
+ hiz.dispose();
 });

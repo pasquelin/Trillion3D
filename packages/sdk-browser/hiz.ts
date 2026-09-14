@@ -157,14 +157,41 @@ export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4
  return {minX:b[0],minY:b[1],maxX:b[2],maxY:b[3],nearestDepth:b[4],clipsNear:false};
 }
 
+/** Side of the test kernel, in texels of the mip it reads. A wider footprint answers from a coarser level. */
+export const HIZ_KERNEL_TEXELS=16;
+
 function footprintLevel(minX:number,minY:number,maxX:number,maxY:number,clipsNear:boolean,width:number,height:number,levels:number):number|undefined{
  if(clipsNear||!Number.isInteger(minX)||!Number.isInteger(minY)||!Number.isInteger(maxX)||!Number.isInteger(maxY)||
   minX<0||minY<0||maxX>=width||maxY>=height||maxX<minX||maxY<minY)return undefined;
  for(let level=0;level<levels;level++){
   const scale=2**level;
-  if(Math.floor(maxX/scale)-Math.floor(minX/scale)<16&&Math.floor(maxY/scale)-Math.floor(minY/scale)<16)return level;
+  if(Math.floor(maxX/scale)-Math.floor(minX/scale)<HIZ_KERNEL_TEXELS&&Math.floor(maxY/scale)-Math.floor(minY/scale)<HIZ_KERNEL_TEXELS)return level;
  }
  return undefined;
+}
+
+/**
+ * What one image's occlusion test did, counted in clusters and in the triangles those clusters carry.
+ * `tested` is what the test was handed, `rejected` what it eliminated, `oversized` those whose level-0
+ * screen footprint is wider than the test kernel and which therefore answer from a coarser mip. Every
+ * field is a count of one image; nothing is deduced from another field.
+ */
+export type HizCounts={tested:number;rejected:number;oversized:number;testedTriangles:number;rejectedTriangles:number;oversizedTriangles:number};
+
+export function createHizCounts():HizCounts{
+ return {tested:0,rejected:0,oversized:0,testedTriangles:0,rejectedTriangles:0,oversizedTriangles:0};
+}
+export function resetHizCounts(counts:HizCounts){
+ counts.tested=0;counts.rejected=0;counts.oversized=0;
+ counts.testedTriangles=0;counts.rejectedTriangles=0;counts.oversizedTriangles=0;
+}
+/** A screen rectangle the level-0 kernel cannot cover. A near-plane crossing carries no rectangle. */
+export function hizOversized(minX:number,minY:number,maxX:number,maxY:number,clipsNear:boolean){
+ return !clipsNear&&(maxX-minX>=HIZ_KERNEL_TEXELS||maxY-minY>=HIZ_KERNEL_TEXELS);
+}
+/** `hizOversized` over the flat bounds layout `projectBoxesFlat` writes. */
+export function hizOversizedFlat(bounds:Float64Array,base:number){
+ return hizOversized(bounds[base],bounds[base+1],bounds[base+2],bounds[base+3],bounds[base+5]!==0);
 }
 
 /** Pick the first mip whose outward-rounded inclusive footprint fits the test kernel. */
@@ -186,6 +213,24 @@ export function hizRejects(pyramid:HizPyramid,bounds:HizBounds,bias=0){
 
 export function filterUnoccluded<T extends HizPage>(pages:T[],pyramid:HizPyramid,camera:THREE.PerspectiveCamera,viewport:[number,number],bias=0){
  return pages.filter(page=>!hizRejects(pyramid,projectBoxToScreen(page.min,page.max,page.matrix,camera,viewport),bias));
+}
+
+/**
+ * `filterUnoccluded` that also says what the test did: `counts` gains the clusters it was handed, the
+ * clusters it eliminated and the clusters too wide for the level-0 kernel, each with the triangles
+ * those clusters carry. This is the oracle the GPU counters are read against on a fixed image.
+ */
+export function countUnoccluded<T extends HizPage&{array?:ArrayLike<number>}>(pages:T[],pyramid:HizPyramid,camera:THREE.PerspectiveCamera,viewport:[number,number],counts:HizCounts,bias=0){
+ const kept:T[]=[];
+ for(const page of pages){
+  const bounds=projectBoxToScreen(page.min,page.max,page.matrix,camera,viewport);
+  const triangles=page.array?Math.floor(page.array.length/3):0;
+  counts.tested++;counts.testedTriangles+=triangles;
+  if(hizOversized(bounds.minX,bounds.minY,bounds.maxX,bounds.maxY,bounds.clipsNear)){counts.oversized++;counts.oversizedTriangles+=triangles;}
+  if(hizRejects(pyramid,bounds,bias)){counts.rejected++;counts.rejectedTriangles+=triangles;continue;}
+  kept.push(page);
+ }
+ return kept;
 }
 
 let splitLow=new Uint32Array(0),splitHigh=new Uint32Array(0),splitOrder=new Uint32Array(0),splitScratch=new Uint32Array(0);
@@ -268,13 +313,16 @@ export function applyTemporalHiz<T extends HizPage&VisPage>(
  camera: THREE.PerspectiveCamera,
  viewport: [number, number],
  history: TemporalHizState = {}
-): { shown: T[]; hizRejected: number; occluders: T[]; history: TemporalHizState } {
+,
+ counts: HizCounts = createHizCounts()
+): { shown: T[]; hizRejected: number; occluders: T[]; history: TemporalHizState; counts: HizCounts } {
+ resetHizCounts(counts);
  if (selected.length < 2) {
   const vis = rasterVisibility(selected, camera, viewport);
   history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
   history.camera = camera.clone();
   history.viewport = [viewport[0], viewport[1]];
-  return { shown: selected, hizRejected: 0, occluders: selected, history };
+  return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
  }
  const hasPrev = !!(history.pyramid && history.camera && sameHizView(history.camera,camera) && history.viewport &&
   history.viewport[0] === viewport[0] && history.viewport[1] === viewport[1]);
@@ -302,12 +350,12 @@ export function applyTemporalHiz<T extends HizPage&VisPage>(
   history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
   history.camera = camera.clone();
   history.viewport = [viewport[0], viewport[1]];
-  return { shown: selected, hizRejected: 0, occluders, history };
+  return { shown: selected, hizRejected: 0, occluders, history, counts };
  }
 
  const visPass1 = rasterVisibility(occluders, camera, viewport);
  const currentPyramid = buildHizPyramid(visPass1.depth, viewport[0], viewport[1]);
- const disoccluded = filterUnoccluded(rest, currentPyramid, camera, viewport);
+ const disoccluded = countUnoccluded(rest, currentPyramid, camera, viewport, counts);
  const shown = [...occluders, ...disoccluded];
 
  const fullVis = rasterVisibility(shown, camera, viewport);
@@ -315,5 +363,5 @@ export function applyTemporalHiz<T extends HizPage&VisPage>(
  history.camera = camera.clone();
  history.viewport = [viewport[0], viewport[1]];
 
- return { shown, hizRejected: rest.length - disoccluded.length, occluders, history };
+ return { shown, hizRejected: rest.length - disoccluded.length, occluders, history, counts };
 }
