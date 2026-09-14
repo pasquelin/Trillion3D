@@ -16,7 +16,7 @@ import { createDagRuntime } from './gpuDagRuntime.ts';
 export { packDagSelection } from './gpuDagPack.ts';
 export { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 export { evaluateDagSelectionKernel } from './gpuDagOracle.ts';
-export type { DagRoot, PackedDag } from './gpuDagTypes.ts';
+export type { PackedDag } from './gpuDagTypes.ts';
 
 export async function createGpuDagSelection(
   device: GPUDevice,

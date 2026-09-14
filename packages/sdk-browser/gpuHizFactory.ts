@@ -1,5 +1,5 @@
 import { encodeHizPyramid } from './gpuHizPyramid.ts';
-import { pyramidBytes, writeUni } from './gpuHizUniforms.ts';
+import { pyramidBytes, writeHizLevelUniforms, writeUni } from './gpuHizUniforms.ts';
 import { createHizBoundsPacker } from './gpuHizTest.ts';
 import { cleanupFailedHiz, createHizPipelines } from './gpuHizPipelines.ts';
 import { createHizCounters } from './gpuHizCounters.ts';
@@ -60,8 +60,6 @@ export async function createGpuHiz(
         ],
       });
     };
-    // Every level's source and destination are a function of the target size alone, so the whole
-    // uniform array is written once per allocation and no image uploads a byte to build the pyramid.
     const levelWords = new Uint32Array((MAX_LEVELS + 1) * (UNIFORM_BYTES / 4));
     const alloc = (w: number, h: number) => {
       const packed = pyramidBytes(w, h);
@@ -85,22 +83,17 @@ export async function createGpuHiz(
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
       bind(pyramid, level0View);
-      levelWords.fill(0);
-      levelWords[0] = w;
-      levelWords[1] = h;
-      levelWords[2] = 0;
-      for (let i = 0; i < sizes.length - 1 && i + 1 < MAX_LEVELS; i++) {
-        const [srcW, srcH] = sizes[i],
-          [dstW, dstH] = sizes[i + 1],
-          base = (i + 1) * (UNIFORM_BYTES / 4);
-        levelWords[base] = offsets[i];
-        levelWords[base + 1] = srcW;
-        levelWords[base + 2] = srcH;
-        levelWords[base + 3] = offsets[i + 1];
-        levelWords[base + 4] = dstW;
-        levelWords[base + 5] = dstH;
-      }
-      device.queue.writeBuffer(uniforms, 0, levelWords);
+      writeHizLevelUniforms(
+        device,
+        uniforms,
+        levelWords,
+        sizes,
+        offsets,
+        w,
+        h,
+        MAX_LEVELS,
+        UNIFORM_BYTES,
+      );
       return true;
     };
     if (!alloc(width, height) || !level0 || !level0View || !pyramid || !bindGroup) {
