@@ -1,15 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compareImages } from '../sdk-core/index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
 import { PAGE_BIND_ALIGN } from './gpuDraw.ts';
-import { rasterVisibilityIds, shadeVisibility, unpackVisibilityId } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
-import { occluderScene } from './webgpuPagesTestOccluder.ts';
+import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
 
 test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals();
@@ -55,23 +53,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   assert.ok(computes.includes('reduceHiz'));
   assert.ok(computes.includes('testHiz'));
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort());
-  const visPages = cpu.shown
-    .filter((page) => page.array)
-    .map((page) => ({ ...page, array: page.array! }));
-  assert.equal(
-    compareImages(
-      backend.rasterRgba(),
-      shadeVisibility(rasterVisibilityIds(visPages, cam, viewport), visPages, cam, viewport),
-    ).maxChannelError,
-    0,
-  );
-  const drawn = new Set(
-    [...backend.visibilityIds()].flatMap((id) => {
-      const unpacked = unpackVisibilityId(id);
-      return unpacked ? [unpacked.pageIndex] : [];
-    }),
-  );
-  assert.deepEqual([...drawn].sort(), [0]);
+  assertOccluderImage(backend, cpu.shown, cam, viewport);
   const vis = draws.filter((draw) => draw.indirect);
   assert.ok(vis.length >= 1 && vis.length <= 6);
   assert.ok(vis.every((draw) => draw.firstInstance === 0));

@@ -3,42 +3,29 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
 import { drawnTriangles, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
+import {
+  quadScene,
+  quadPages,
+  quadCluster,
+  quadIndices,
+  frontCamera,
+} from './pagesBackendScenes.ts';
 
 test('exact pages keep replica meshes in separate batches despite shared glTF ids', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial();
-  const m1 = new THREE.Mesh(geometry, material),
-    m2 = new THREE.Mesh(geometry, material);
+  const { geometry, material, mesh: m1, source } = quadScene();
+  const m2 = new THREE.Mesh(geometry, material);
   m2.matrixAutoUpdate = false;
   m2.matrix.elements[12] = 2;
   m2.updateMatrixWorld(true);
-  const source = new THREE.Group();
-  source.add(m1);
   source.add(m2);
-  const pages = [0, 1].map((id) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  }));
+  const pages = quadPages();
   const backend = exactPagesBackend({
     source,
     metadata: {
       ...DAG,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(pages) }],
     },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-    ]),
+    indices: quadIndices(),
     associations: new Map([
       [m1, { meshes: 0, primitives: 0 }],
       [m2, { meshes: 0, primitives: 0 }],
@@ -68,25 +55,8 @@ test('exact pages keep replica meshes in separate batches despite shared glTF id
 });
 
 test('a missing replacement keeps the resident coarse cover rather than leaving a hole', () => {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial(),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
-  const cluster = (id: number) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
-    bytes: 12,
-    sha256: 'x',
-  });
+  const { geometry, material, mesh, source } = quadScene();
+  const cluster = quadCluster;
   // Two clusters replaced by one coarser cluster whose screen error clears a 10 px budget.
   const level = dagLevel([cluster(0), cluster(1)], [cluster(2)], 0.001);
   const context = {
@@ -98,9 +68,7 @@ test('a missing replacement keeps the resident coarse cover rather than leaving 
     viewport: [960, 540] as [number, number],
   };
   const backend = exactPagesBackend(context);
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
+  const camera = frontCamera();
   // The pinned root cluster is the only one resident: it covers the frame on its own.
   backend.acceptPage?.('2', new Uint32Array([0, 1, 2]));
   backend.render(camera);
