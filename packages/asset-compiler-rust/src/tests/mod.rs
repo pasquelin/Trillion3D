@@ -11,3 +11,7 @@ mod part5;
 mod part6;
 mod part7;
 mod coplanar;
+mod coplanar_collect;
+mod coplanar_overlap;
+mod coplanar_assign;
+mod coplanar_golden;
