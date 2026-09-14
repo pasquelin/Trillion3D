@@ -5,7 +5,7 @@ import { HIZ_BOUNDS_VALUES, createHizCounts, hizOversizedFlat, type HizCounts } 
  * what they eliminated costs one copy of the flag rows and one mapping; both are kept off the images
  * in between, and neither ever blocks an image.
  */
-export const COUNT_EVERY_IMAGES = 15;
+const COUNT_EVERY_IMAGES = 15;
 
 /**
  * Per-image inputs the counters need and the test does not: the triangles each tested box carries, in
