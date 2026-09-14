@@ -429,7 +429,7 @@ function parseDagOutput(bytes:ArrayBufferLike,byteOffset:number,byteLength:numbe
 }
 
 /** WebGPU flat cluster cut. Returns undefined so the caller silently keeps the CPU oracle. */
-export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,options:{residentCut?:boolean}={}):Promise<GpuSelection|undefined>{
+export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,options:{residentCut?:boolean;createEncoder?:()=>GPUCommandEncoder}={}):Promise<GpuSelection|undefined>{
  if(typeof device.createComputePipeline!=='function'||packed.pageCount<1)return undefined;
  const STORAGE=GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST;
  const residentCut=!!options.residentCut,pageCount=packed.pageCount,nodeCount=packed.nodeCount,worldCount=Math.max(1,packed.worldCount);
@@ -542,10 +542,10 @@ export async function createGpuDagSelection(device:GPUDevice,packed:PackedDag,op
     const i=!mapped[slot]?slot:!mapped[slot^1]?slot^1:-1;
     const copy=needsReadback&&i>=0;
     if((!compute&&!copy)||(!residentCut&&i<0))return;
-    const encoder=device.createCommandEncoder();
+    const encoder=options.createEncoder?.()??device.createCommandEncoder();
     if(compute){
      writeDagUniforms(uniformData,packed,next,residentCut);device.queue.writeBuffer(uniforms,0,uniformData);
-     const pass=encoder.beginComputePass();
+     const pass=encoder.beginComputePass({label:'WG DAG selection'});
      pass.setBindGroup(0,bindGroup);
      const run=(pipeline:GPUComputePipeline,count:number)=>{pass.setPipeline(pipeline);pass.dispatchWorkgroups(groups(count));};
      run(resetPipeline,worldCount);
