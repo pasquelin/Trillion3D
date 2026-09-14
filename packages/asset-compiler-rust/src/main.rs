@@ -41,6 +41,7 @@ impl Ratio{
    Some("import")=>{self.primitives_total=event["primitives"].as_u64().unwrap_or(0) as usize;0.35}
    Some("primitive")=>{self.primitives_done+=1;if self.primitives_total>0{0.35+0.60*(self.primitives_done as f64/self.primitives_total as f64).min(1.0)}else{0.35}}
    Some("bootstrap")=>0.95+0.04*frac(event),
+   Some("prune")=>0.99,
    Some("complete")=>1.0,
    _=>0.0,
   }
