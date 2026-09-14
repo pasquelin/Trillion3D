@@ -26,6 +26,7 @@ export type { LodQualityId } from './lodPolicy.ts';
 export * from './competitors.ts';
 export * from './paths.ts';
 export * from './stats.ts';
+export * from './stageProfile.ts';
 export * from './oracles.ts';
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)
