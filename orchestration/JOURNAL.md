@@ -983,3 +983,117 @@ du journal en cause.
 - Harnais : `distribution` → `summarize` et `imageDiff` → `compareImages` de `sdk-core` (importé en `.ts` sous Node 26), `machineLoad` → `os.loadavg()` (plus de binaire `uptime`, `ignoreBinaries` retiré de knip), CRC du PNG → `zlib.crc32`. Le champ `maxParCanal` du rapport devient `maxCanal` (un seul maximum, celui du SDK).
 - Gardés tels quels, à dessein : `maxStretch` déplié (lot 4, « sélection CPU sans allocation ») ; l'état de coupe réutilisé `reusedState` (même décision).
 - `npm run validate` vert : 363/363 tests JS, Rust ok, aucun test adapté. `check:links` a exigé un lien vers `benchmark-runs/` de la copie principale, absent du worktree (dossier ignoré). Preuve navigateur non refaite : refactor à comportement identique.
+
+## 2026-09-14 — Phase 1, lot 4b (coupe hiérarchique, worktree `lot4b-coupe-hierarchique`)
+
+Branche partie de develop `6685222`, puis `git merge develop` sur **`7632696`** (couches de
+profondeur coplanaires) une fois la consigne reçue. Deux conflits, tous deux sur la même refonte
+de develop : le résultat de coupe passe par `createSelectionResult()`. Forme de develop prise
+telle quelle, `nodesTested` reposé dans la fabrique, aucun littéral réintroduit.
+
+### L'invariant, et pourquoi il tient
+
+Le test par cluster (`cutSelects`) retient un cluster **assez fin** (`projErr(lodError) ≤ seuil`)
+que **son remplaçant ne couvre plus** (`projErr(parentError) > seuil`). Deux membres : décider un
+sous-arbre sans le descendre demande donc, par nœud, un encadrement de chacun.
+
+Borne haute d'un sous-arbre : avec `S = (C, R)` englobant les sphères `(c_i, r_i)` du sous-arbre,
+`|c_i − C| ≤ R − r_i`, donc après une transformation qui étire d'au plus `stretch`,
+`dist_i = |vue(c_i)| − r_i·stretch ≥ |vue(C)| − R·stretch`. L'erreur projetée décroît avec la
+distance : `errMax·stretch·focal / (|vue(C)| − R·stretch)` majore chaque `projErr_i`, et vaut
+l'infini dès que cette distance tombe sous `near` — le cas où la majoration ne certifie rien.
+Borne basse, symétrique : `dist_i ≤ |vue(C)| + R·stretch`, donc
+`errMin·stretch·focal / (|vue(C)| + R·stretch)` minore chaque `projErr_i`
+(`projectedErrorFloor`, `pageSelectionMath.ts`).
+
+D'où les trois décisions, toutes démontrées, jamais heuristiques :
+- **rejet** si le plafond de l'erreur de remplacement est sous le seuil (aucun remplaçant encore
+  trop grossier : second membre faux partout) — c'est le rejet que develop posait déjà, gardé mot
+  pour mot, avec les bornes du manifeste, sur les deux passes ;
+- **rejet** si le plancher de l'erreur propre est au-dessus du seuil (aucun cluster assez fin :
+  premier membre faux partout) ;
+- **acceptation** si le plafond de l'erreur propre est sous le seuil **et** le plancher de
+  l'erreur de remplacement au-dessus (les deux membres vrais partout).
+Entre les deux on descend. Les bornes d'un nœud encadrant celles de tous ses descendants, la
+décision prise en haut est celle qu'aurait rendue la descente complète : la coupe est la même.
+
+Ce que la descente garde par cluster, même sous un nœud accepté : le tronc de vision dès que le
+nœud n'est pas entièrement dedans, le cône de normales, la résidence, l'estampille, la demande.
+Un nœud tranché n'est plus *testé*, il est seulement *traversé*, et ses feuilles émettent leurs
+clusters **dans l'ordre exact de la descente d'avant ce lot** : l'ordre de dessin ne bouge pas.
+Le repli par forçage ne teste pas la coupe mais le groupe forcé ; les bornes de coupe ne le
+certifient pas, il garde la descente d'avant, à l'identique.
+
+### Ce que le manifeste porte, et ce qu'il ne porte pas
+
+Par nœud, `CullingHierarchy` porte la boîte, une sphère englobant les sphères de **remplacement**
+du sous-arbre, et `maxParentError`. C'est exactement de quoi poser le premier rejet, et rien de
+plus. Manquent : le **plancher** et le **plafond de l'erreur propre**, la sphère englobant les
+sphères **propres**, et le **plancher de l'erreur de remplacement**.
+
+Ces bornes se réduisent des pages elles-mêmes, que le manifeste porte déjà par cluster, et les
+plages de clusters des feuilles sont déjà contiguës : **aucun changement de format n'est
+nécessaire**, la réduction est faite à la préparation, une fois par primitive, en un balayage
+descendant du tableau plat (les enfants y suivent toujours leur parent), 11 nombres par nœud
+(`pageSelectionCutBounds.ts`). Le compilateur pourrait les pré-calculer — quatre nombres de plus
+par nœud, `CULLING_STRIDE` 15 → 19 — et cela **épargnerait seulement le balayage de préparation** ;
+ce n'est pas un préalable, et le format n'a pas été touché.
+
+### Essai du harnais — résultat, et ce qu'il reste à refaire
+
+Essais joués **avant** la fusion, sur `--avant 6685222 --apres <tête du lot>`, vue `generale`,
+Emerald, WebGL2, 1280×720, pixelError 0, 20 images, budget 100 000 pages. Machine chargée
+(`loadavg` 9 à 12) : les durées ne valent rien comme mesure, seuls les comptes et les hash sont
+retenus.
+
+| mesure | avant | après |
+|---|---|---|
+| clusters sélectionnés | 80 153 | 80 153 |
+| `selectedTriangles` | 10 046 405 | 10 046 405 |
+| hash de coupe | `4f03157d6ecb` | **`4f03157d6ecb` — identique** |
+| `cpuSelectNodesTested` | — (absent) | **13 541**, cible ≤ 15 000 : tenue |
+| `cpuSelectMs` p50 (indicatif) | 10,9 ms | 3,9 ms |
+| témoin A/A | 0 px | 0 px |
+
+**Non résolu : l'écart avant/après de cet essai n'était pas nul — 581 px sur 921 600, max canal
+185/185/185/0**, des pixels sombres isolés (valeurs 0 à 30) éparpillés dans une boîte
+[208..1052]×[83..538]. Ce qui a été établi, et ce qui ne l'est pas :
+- la coupe n'est pas en cause. Sonde cumulée sur **toutes** les images : **zéro** cluster émis par
+  l'acceptation en bloc que `cutSelects` n'aurait pas retenu, et somme des tailles de coupe
+  (`shown` et `wanted`) **identique** au chiffre près entre acceptation active et désactivée ;
+- l'ordre d'émission n'est pas en cause non plus : deux ordres différents (plages ascendantes,
+  puis ordre de descente restauré) donnent la **même image, octet pour octet** ;
+- le seul relevé qui bouge est `pagesDetached` : 11 287 contre 11 066. Et il **ne dépend pas que du
+  code** — la même tête donne 11 066, et l'image de `develop` octet pour octet, quand la série est
+  jouée seule au lieu de l'être en tête d'un triplet. La trajectoire de résidence dépend donc de
+  l'horloge (`explorerDraw.ts` déclenche sa prélecture sur `PREFETCH_INTERVAL_MS`), ce qui change
+  le rangement des index dans le tampon, donc l'ordre des triangles d'un même sous-dessin, donc le
+  départage des surfaces coplanaires d'Emerald. Le témoin A/A ne peut pas le voir : il compare la
+  première et la troisième série, jamais la deuxième.
+
+Cette piste tombe exactement sur ce que `7632696` vient de traiter (couches de profondeur
+coplanaires). **L'essai doit être rejoué sur la tête fusionnée, `--avant 7632696`, avec le cache
+d'Emerald recompilé par ce compilateur** ; il ne l'a pas été ici, la consigne étant de ne rien
+lancer pendant la recompilation des modèles. Tant qu'il ne l'est pas, le lot n'a pas sa preuve
+« 0 pixel » : hash de coupe identique oui, pixels non prouvés.
+
+### Portes
+
+`build`, `tsc`, `eslint`, `cargo clippy`, `prettier --check`, `cargo fmt --check`, `check:lines`,
+`check:dts`, `check:structure`, `check:duplicates` (0 clone), `check:unused` (knip, 0) :
+**vertes** après fusion. `check:links` : rouge sur les liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers
+`benchmark-runs/`, dossier ignoré par git qui n'existe que dans le dépôt principal — rouge
+d'environnement connu, antérieur au lot. Aucun test lancé (interdit par la consigne, un agent
+dédié s'en charge). Aucun `eslint-disable` ; `render-tech-lab/` non modifié ; port 5174 non
+touché ; verrou `.claude/mesure.lock` pris et rendu à chaque essai ; `node_modules` (lien
+symbolique) non committé.
+
+### Ce qui reste
+
+1. Rejouer l'essai sur la tête fusionnée avec le cache recompilé, et conclure sur les 581 px.
+2. Mesurer `sol` et `rue` : leur coupe est petite, le gain y sera faible, la fidélité doit tenir.
+3. `cpuSelectMs` reste au-dessus de 2 ms sur `generale` (≈ 4 ms sur machine chargée). Ce qui
+   domine désormais n'est plus le test de coupe mais la retenue par cluster — demande, résidence,
+   estampille, `shown.push` — et la descente de tronc de vision sous les nœuds acceptés. Le levier
+   suivant est celui que le diagnostic du lot 4 numérotait 1 : ranger les clusters en tableaux
+   typés, puis émettre des plages jusqu'au consommateur.
