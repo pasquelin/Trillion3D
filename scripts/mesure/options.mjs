@@ -121,6 +121,12 @@ export function readOptions(argv, root) {
     width: number('largeur', 1280),
     height: number('hauteur', 720),
     port: number('port', 0),
+    // `--profil off` rejoue la même série sans le chronométrage par étape : c'est la porte de
+    // fidélité, deux exécutions dont seule cette option diffère.
+    stageProfile: (flags.get('profil') ?? 'on') !== 'off',
+    // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
+    // vraie fenêtre quand la cadence compte.
+    visible: flags.get('visible') === 'true',
   };
   if (settings.port === 5174)
     throw new Error("le port 5174 appartient au serveur de l'utilisateur");

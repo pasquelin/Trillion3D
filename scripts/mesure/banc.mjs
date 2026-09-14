@@ -94,7 +94,7 @@ async function main() {
   // le navigateur libère le processus GPU entre deux séries.
   const onFreshPage = async (run) => {
     const browser = await chromium.launch({
-      headless: true,
+      headless: !settings.visible,
       executablePath: options.CHROME,
       args: ENGINE.flags,
     });
