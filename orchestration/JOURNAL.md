@@ -824,3 +824,29 @@ build, tsc, eslint, prettier, `check:lines`, `check:dts`, `check:structure`, `ch
 `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git qui n'existe que dans le
 dépôt principal — rouge d'environnement, identique avant la fusion. Aucun test lancé (interdit par
 la consigne) ; aucun `eslint-disable` ; `render-tech-lab/` non modifié ; port 5174 non touché.
+
+## 2026-09-14 20:34 — Mesure lot 4, trois vues (harnais commun) : interrompue après `generale`
+
+Mesure seule depuis ce worktree, HEAD `d477179`, aucun code modifié, aucun test lancé, aucune
+fusion. Commande : `node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179
+--vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000`. `uptime` avant série :
+charge 4,85 — sous le seuil de 6, durées non polluées a priori.
+
+| mesure | vue | avant | après | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50 | generale | `null` (absent sur develop, attendu) | 10,90 ms | OK |
+| cpuFrameMs p50 | generale | 30,50 ms | 30,30 ms | stable |
+| hash de coupe avant vs après | generale | `5aef42e4…` | `5aef42e4…` | identique |
+| pixels différents 0 px / 1 px | generale | — | 0 / 0 | OK |
+| témoin A/A (coupe + PNG) | generale | — | identique à `après` | OK |
+| p95 (cpuSelect/cpuFrame), uncoveredTriangles | generale | `null` | `null` | non mesuré (`mesure.json` jamais écrit) |
+| toutes mesures | sol | — | — | ÉCHEC — `WebGL2 unavailable` dès la première série (`avant`) |
+| toutes mesures | rue | — | — | NON MESURÉE — vue jamais atteinte |
+
+Même symptôme que l'incident déjà documenté plus haut (tas de la page épuisé après plusieurs séries
+`generale` à 80 153 clusters), corrigé par `fix(mesure)` `0db5afc` et vérifié alors avec 6 images
+seulement ; ici, à 300 images, l'échec réapparaît au même point (quatrième série, première de
+`sol`). Aucune investigation ni correction faite ici — une exécution, aucune reprise, conformément
+à la consigne. Détail complet, chemins et tableau étendu :
+`orchestration/phase-1-mesure-lot-4.md` du worktree `webgeometry-sans-threejs-9f889d`.
+`render-tech-lab/` non modifié ; port 5174 non touché ; réglages système non touchés.
