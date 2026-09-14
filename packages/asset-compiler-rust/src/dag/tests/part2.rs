@@ -3,7 +3,12 @@ use std::collections::HashSet;
 
 #[test]
 fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
-    let (positions, indices, clusters, groups) = grouped(64);
+    let Grouped {
+        positions,
+        indices,
+        clusters,
+        groups,
+    } = grouped(64);
     let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
     assert!(
         groups.len() > 1,
