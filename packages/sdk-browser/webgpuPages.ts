@@ -373,7 +373,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,uncoveredTriangles=0,frustumRejected=0,lodLevel=0,frame=0;
  let diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
- let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
+ const shown:PageRec[]=[],desired:PageRec[]=[];
+ let pending:Promise<unknown>=Promise.resolve(),drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
  let gpuSelection:GpuSelection|undefined;
  const opaqueRoots=roots.filter(root=>!root.pages[0]?.transparent),transparentRoots=roots.filter(root=>root.pages[0]?.transparent);
  const packedPages:PageRec[]=opaqueRoots.flatMap(root=>root.pages);

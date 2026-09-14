@@ -174,11 +174,6 @@ function attr2(attribute:THREE.BufferAttribute|THREE.InterleavedBufferAttribute|
  return [attribute.getX(i0)*w0+attribute.getX(i1)*w1+attribute.getX(i2)*w2,attribute.getY(i0)*w0+attribute.getY(i1)*w1+attribute.getY(i2)*w2];
 }
 
-function attr3(attribute:THREE.BufferAttribute|THREE.InterleavedBufferAttribute|undefined,i0:number,i1:number,i2:number,w0:number,w1:number,w2:number):[number,number,number]{
- if(!attribute)return [0,0,0];
- return [attribute.getX(i0)*w0+attribute.getX(i1)*w1+attribute.getX(i2)*w2,attribute.getY(i0)*w0+attribute.getY(i1)*w1+attribute.getY(i2)*w2,attribute.getZ(i0)*w0+attribute.getZ(i1)*w1+attribute.getZ(i2)*w2];
-}
-
 function wrapTexel(t:number,size:number,wrap:THREE.Wrapping){
  const scaled=wrap===THREE.ClampToEdgeWrapping?Math.min(1,Math.max(0,t)):t-Math.floor(t);
  return Math.min(size-1,Math.max(0,Math.floor(scaled*size)));
@@ -305,7 +300,7 @@ function shadePixel(id:number,pages:VisPage[],camera:THREE.PerspectiveCamera,vie
  const encode=(c:[number,number,number]):[number,number,number]=>mat.map||mat.lit?[linearToSrgb8(c[0]),linearToSrgb8(c[1]),linearToSrgb8(c[2])]:[Math.max(0,Math.min(255,c[0]*255))|0,Math.max(0,Math.min(255,c[1]*255))|0,Math.max(0,Math.min(255,c[2]*255))|0];
  if(mat.lit){
   const world:[number,number,number]=[tri.a.worldX*bary.w0+tri.b.worldX*bary.w1+tri.c.worldX*bary.w2,tri.a.worldY*bary.w0+tri.b.worldY*bary.w1+tri.c.worldY*bary.w2,tri.a.worldZ*bary.w0+tri.b.worldZ*bary.w1+tri.c.worldZ*bary.w2];
-  let nx=tri.b.worldX-tri.a.worldX,ny=tri.b.worldY-tri.a.worldY,nz=tri.b.worldZ-tri.a.worldZ;
+  const nx=tri.b.worldX-tri.a.worldX,ny=tri.b.worldY-tri.a.worldY,nz=tri.b.worldZ-tri.a.worldZ;
   const cx=tri.c.worldX-tri.a.worldX,cy=tri.c.worldY-tri.a.worldY,cz=tri.c.worldZ-tri.a.worldZ;
   let Nx=ny*cz-nz*cy,Ny=nz*cx-nx*cz,Nz=nx*cy-ny*cx;
   const screenFace=affine.area*tri.a.invW*tri.b.invW*tri.c.invW<0?1:-1;
