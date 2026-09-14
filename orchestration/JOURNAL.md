@@ -1,5 +1,9 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-14 — Spec éclairage, version 0
+
+- Nouveau document `orchestration/SPEC_ECLAIRAGE.md` : besoin (GI dynamique, aucune lumière cuite), principe « cadence fixe, convergence variable, même image finale », exigences numérotées (physique, compilateur, runtime, contrat d'erreur, plateformes, banc, exécution des calculs), budgets GPU par composant et tolérance de retard (cible 100 ms, limite 250 ms, 500 ms sur GPU intégré) comme réglages révisables, phases E0 à E6. Aucune implémentation ; la phase E0 (quatre mesures) peut s'intercaler, E1 à E6 attendent la fin des phases 1 à 3 de la spec géométrie.
+
 ## 2026-09-14 — R&D éclairage : prototype et diagnostic, aucune intégration
 
 - Essai isolé depuis `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`, branche `codex/light-transport-experiment`. Deux pièces, porte mobile, trois sources colorées réglables, miroirs et sphère. Rendu expérimental Three/WebGL2 via les API publiques ; maillages source dessinés, pas les pages de clusters ni le runner du banc 15. Lab et assets inchangés, aucun commit/fusion.
