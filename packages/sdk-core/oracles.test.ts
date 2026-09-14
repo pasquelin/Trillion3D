@@ -9,6 +9,7 @@ import {
   edge,
   barycentric,
   packDrawIndirect,
+  maxStretch,
 } from './index.ts';
 
 function createSeededRandom(seed: number) {
@@ -164,4 +165,27 @@ test('a cluster error projects as error x stretch x focal over the distance to i
   const small = clusterErrorPixels(0.5, 1, 0, 0, 10, 1, 600, 0.1);
   assert.ok(clusterErrorPixels(0.6, 1, 0, 0, 10, 1, 600, 0.1) > small);
   assert.ok(clusterErrorPixels(0.5, 1, 0, 0, 10, 2, 600, 0.1) > small);
+});
+
+test('maxStretch rejects non-finite matrix elements', () => {
+  const withNaN = [NaN, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0];
+  assert.throws(() => maxStretch(withNaN), /Matrice invalide/);
+
+  const withInfinityPos = [1, 0, 0, 0, Infinity, 0, 0, 0, 1, 0, 0];
+  assert.throws(() => maxStretch(withInfinityPos), /Matrice invalide/);
+
+  const withInfinityNeg = [1, 0, 0, 0, 1, 0, 0, 0, -Infinity, 0, 0];
+  assert.throws(() => maxStretch(withInfinityNeg), /Matrice invalide/);
+});
+
+test('maxStretch accepts all finite matrix elements and returns finite positive stretch', () => {
+  const matrix1 = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0];
+  const stretch1 = maxStretch(matrix1);
+  assert.ok(Number.isFinite(stretch1), 'stretch is finite for standard matrix');
+  assert.ok(stretch1 > 0, 'stretch is positive');
+
+  const matrix2 = [2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0];
+  const stretch2 = maxStretch(matrix2);
+  assert.ok(Number.isFinite(stretch2), 'scale 2 stretch is finite');
+  assert.ok(stretch2 > 0, 'scale 2 stretch is positive');
 });
