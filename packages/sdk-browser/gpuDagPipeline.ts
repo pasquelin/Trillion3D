@@ -1,0 +1,81 @@
+import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+
+type DagBuffers = {
+  clusters: GPUBuffer;
+  nodes: GPUBuffer;
+  uniforms: GPUBuffer;
+  flags: GPUBuffer;
+  output: GPUBuffer;
+  work: GPUBuffer;
+  worlds: GPUBuffer;
+  frames: GPUBuffer;
+  pageCones: GPUBuffer;
+};
+
+export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
+  const { clusters, nodes, uniforms, flags, output, work, worlds, frames, pageCones } = buffers;
+  if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+  const storage = { type: 'storage' } as const,
+    readOnly = { type: 'read-only-storage' } as const;
+  const layout = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
+      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
+      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: storage },
+      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: storage },
+      { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: storage },
+      { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
+      { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: storage },
+      { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
+    ],
+  });
+  const module = device.createShaderModule({ code: DAG_SELECTION_SHADER });
+  if (typeof module.getCompilationInfo === 'function') {
+    const info = await module.getCompilationInfo();
+    if (info.messages.some((message) => message.type === 'error')) {
+      if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+      return undefined;
+    }
+  }
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+  const stage = (entryPoint: string) =>
+    device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+  const resetPipeline = stage('dagReset'),
+    planePipeline = stage('dagPlanes'),
+    nodePipeline = stage('dagNodes');
+  const wantedPipeline = stage('dagWanted'),
+    escalatePipeline = stage('dagEscalate'),
+    checkPipeline = stage('dagCheck'),
+    maskPipeline = stage('dagMask');
+  if (typeof device.popErrorScope === 'function') {
+    const error = await device.popErrorScope();
+    if (error) {
+      return undefined;
+    }
+  }
+  const bindGroup = device.createBindGroup({
+    layout,
+    entries: [
+      { binding: 0, resource: { buffer: clusters } },
+      { binding: 1, resource: { buffer: nodes } },
+      { binding: 2, resource: { buffer: uniforms } },
+      { binding: 3, resource: { buffer: flags } },
+      { binding: 4, resource: { buffer: output } },
+      { binding: 5, resource: { buffer: work } },
+      { binding: 6, resource: { buffer: worlds } },
+      { binding: 7, resource: { buffer: frames } },
+      { binding: 8, resource: { buffer: pageCones } },
+    ],
+  });
+  return {
+    resetPipeline,
+    planePipeline,
+    nodePipeline,
+    wantedPipeline,
+    escalatePipeline,
+    checkPipeline,
+    maskPipeline,
+    bindGroup,
+  };
+}
