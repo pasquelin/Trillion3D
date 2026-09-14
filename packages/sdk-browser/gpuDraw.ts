@@ -3,7 +3,10 @@ import {exclusiveScan,packDrawIndirect} from '../sdk-core/index.ts';
 export const DRAW_INDIRECT_STRIDE=16;
 export const PAGE_BIND_ALIGN=256;
 export const BIN_BACK=0,BIN_NONE=1,BIN_FRONT=2;
-const SLOTS=6,ITEM_U32=4,UNIFORM_BYTES=32,WORKGROUP=64;
+const SLOTS=6,UNIFORM_BYTES=32,WORKGROUP=64;
+/** u32 per packed draw item: pageIndex (the page-table row), bin, selectionIndex, padding. */
+export const DRAW_ITEM_U32=4;
+const ITEM_U32=DRAW_ITEM_U32;
 
 export type DrawItem={pageIndex:number;bin:0|1|2;rest:0|1;selectionIndex?:number};
 export type CompactResult={
@@ -20,7 +23,12 @@ export type SlotLayout={
  tableRows:number;
 };
 export type GpuDraw={
- encode(encoder:GPUCommandEncoder,items:DrawItem[],maxVertexCount:number,selection?:{maskBuffer:GPUBuffer;maskOffset:number}):void;
+ /**
+  * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,pad} and is uploaded only when
+  * `itemsDirty`, because those three are properties of the page-table row and not of the frame.
+  * `restBits` is the frame's occluder/rest partition, one bit per item; nothing here allocates.
+  */
+ encode(encoder:GPUCommandEncoder,items:Uint32Array,count:number,itemsDirty:boolean,restBits:Uint32Array,maxVertexCount:number,selection?:{maskBuffer:GPUBuffer;maskOffset:number}):void;
  indirectBuffer:GPUBuffer;   // 6 * 16 bytes
  instanceBuffer:GPUBuffer;   // slotCap u32 page indices, ordered
  slotOffsetsBuffer:GPUBuffer; // first six group offsets locate each slot in instanceBuffer
@@ -89,7 +97,7 @@ export function indirectForDraw(compact:CompactResult):Uint32Array{
  return words;
 }
 
-export const DRAW_SHADER=`struct DrawItem{pageIndex:u32,bin:u32,rest:u32,selectionIndex:u32,}
+export const DRAW_SHADER=`struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,pad0:u32,}
 struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
@@ -98,11 +106,14 @@ struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,selectio
 @group(0) @binding(4) var<storage, read_write> groupCounts:array<u32>;
 @group(0) @binding(5) var<storage, read_write> groupOffsets:array<u32>;
 @group(0) @binding(6) var<storage, read> selectionMask:array<u32>;
+@group(0) @binding(7) var<storage, read> restBits:array<u32>;
+// The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
+fn restAt(i:u32)->u32{return (restBits[i>>5u]>>(i&31u))&1u;}
 fn selected(item:DrawItem)->bool{
  if(uni.selectionEnabled==0u){return true;}
  return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
 }
-fn matches(item:DrawItem,slot:u32)->bool{return item.rest*3u+item.bin==slot&&selected(item);}
+fn matches(i:u32,slot:u32)->bool{let item=items[i];return restAt(i)*3u+item.bin==slot&&selected(item);}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
  indirect[o]=uni.maxVertexCount;
@@ -117,7 +128,7 @@ fn countGroups(@builtin(global_invocation_id) id:vec3u){
  let group=entry/6u;let slot=entry%6u;
  var count=0u;
  let begin=group*64u;let end=min(begin+64u,min(uni.count,uni.slotCap));
- for(var i=begin;i<end;i++){if(matches(items[i],slot)){count=count+1u;}}
+ for(var i=begin;i<end;i++){if(matches(i,slot)){count=count+1u;}}
  groupCounts[entry]=count;
 }
 @compute @workgroup_size(1)
@@ -145,10 +156,10 @@ fn prefixGroups(){
 fn scatterGroups(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
  if(i>=uni.count||uni.count>uni.slotCap){return;}
- let item=items[i];if(!selected(item)){return;}let slot=item.rest*3u+item.bin;
+ let item=items[i];if(!selected(item)){return;}let slot=restAt(i)*3u+item.bin;
  let group=i/64u;let begin=group*64u;
  var rank=0u;
- for(var j=begin;j<i;j++){if(matches(items[j],slot)){rank=rank+1u;}}
+ for(var j=begin;j<i;j++){if(matches(j,slot)){rank=rank+1u;}}
  instances[groupOffsets[group*6u+slot]+rank]=item.pageIndex;
 }
 `;
@@ -156,17 +167,18 @@ fn scatterGroups(@builtin(global_invocation_id) id:vec3u){
 /** Stable GPU compact into six drawIndirect commands. Missing compute returns undefined so the caller keeps the CPU draw loop. */
 export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<GpuDraw|undefined>{
  if(typeof device.createComputePipeline!=='function'||slotCap<1)return undefined;
- const itemBytes=slotCap*ITEM_U32*4,instanceBytes=slotCap*4,indirectBytes=SLOTS*DRAW_INDIRECT_STRIDE,groupCount=Math.ceil(slotCap/WORKGROUP),groupBytes=groupCount*SLOTS*4;
+ const itemBytes=slotCap*ITEM_U32*4,restBytes=Math.max(4,Math.ceil(slotCap/32)*4),instanceBytes=slotCap*4,indirectBytes=SLOTS*DRAW_INDIRECT_STRIDE,groupCount=Math.ceil(slotCap/WORKGROUP),groupBytes=groupCount*SLOTS*4;
  const buffers:GPUBuffer[]=[];
  let disposed=false;
  try{
   const itemsBuf=device.createBuffer({size:itemBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
+  const restBuf=device.createBuffer({size:restBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
   const uniforms=device.createBuffer({size:UNIFORM_BYTES,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const instanceBuffer=device.createBuffer({size:instanceBytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
   const indirectBuffer=device.createBuffer({size:indirectBytes,usage:GPUBufferUsage.INDIRECT|GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
   const groupCounts=device.createBuffer({size:groupBytes,usage:GPUBufferUsage.STORAGE});
   const groupOffsets=device.createBuffer({size:groupBytes,usage:GPUBufferUsage.STORAGE});
-  buffers.push(itemsBuf,uniforms,instanceBuffer,indirectBuffer,groupCounts,groupOffsets);
+  buffers.push(itemsBuf,restBuf,uniforms,instanceBuffer,indirectBuffer,groupCounts,groupOffsets);
   if(typeof device.pushErrorScope==='function')device.pushErrorScope('validation');
   const layout=device.createBindGroupLayout({entries:[
    {binding:0,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
@@ -176,6 +188,7 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
    {binding:4,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
    {binding:5,visibility:GPUShaderStage.COMPUTE,buffer:{type:'storage'}},
    {binding:6,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
+   {binding:7,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
   ]});
   const module=device.createShaderModule({code:DRAW_SHADER});
   if(typeof module.getCompilationInfo==='function'){
@@ -202,19 +215,17 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
    {binding:4,resource:{buffer:groupCounts}},
    {binding:5,resource:{buffer:groupOffsets}},
    {binding:6,resource:{buffer:maskBuffer}},
+   {binding:7,resource:{buffer:restBuf}},
   ]});
   let boundMask=itemsBuf,bindGroup=makeBindGroup(boundMask);
   const uniData=new Uint32Array(UNIFORM_BYTES/4);
   return {
-   encode(encoder,items,maxVertexCount,selection){
+   encode(encoder,items,count,itemsDirty,restBits,maxVertexCount,selection){
     if(disposed)return;
-    const n=Math.min(items.length,slotCap);
-    if(n){
-     const packed=new Uint32Array(n*ITEM_U32);
-     for(let i=0;i<n;i++){packed[i*ITEM_U32]=items[i].pageIndex;packed[i*ITEM_U32+1]=items[i].bin;packed[i*ITEM_U32+2]=items[i].rest;packed[i*ITEM_U32+3]=items[i].selectionIndex??0;}
-     device.queue.writeBuffer(itemsBuf,0,packed);
-    }
-    uniData[0]=items.length;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=groupCount;
+    const n=Math.min(count,slotCap);
+    if(n&&itemsDirty)device.queue.writeBuffer(itemsBuf,0,items.buffer as ArrayBuffer,items.byteOffset,n*ITEM_U32*4);
+    if(n)device.queue.writeBuffer(restBuf,0,restBits.buffer as ArrayBuffer,restBits.byteOffset,Math.ceil(n/32)*4);
+    uniData[0]=count;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=groupCount;
     uniData[4]=selection?1:0;uniData[5]=selection?.maskOffset??0;
     const mask=selection?.maskBuffer??itemsBuf;
     if(mask!==boundMask){boundMask=mask;bindGroup=makeBindGroup(mask);}
