@@ -20,7 +20,9 @@ mod primitive;
 mod tests;
 use format::*;
 
-pub const MANIFEST_BINARY_VERSION: u32 = 1;
+/// Version 2 adds the per-cluster coplanar depth layer column. A reader of version 1 refuses this
+/// file outright rather than reading twenty of its twenty-one columns.
+pub const MANIFEST_BINARY_VERSION: u32 = 2;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -45,7 +47,8 @@ const GROUP_OUTPUT: usize = 16;
 const STRUCTURE_ROOT: usize = 17;
 const BUNDLE_U32: usize = 18;
 const BUNDLE_SHA: usize = 19;
-const COLUMNS: usize = 20;
+const PAGE_DEPTH_LAYER: usize = 20;
+const COLUMNS: usize = 21;
 
 const FLAG_ROLE: u32 = 1;
 const FLAG_COARSE: u32 = 2;

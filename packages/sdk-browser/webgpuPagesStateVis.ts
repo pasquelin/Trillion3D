@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
+import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { TextureJob } from './webgpuAtlasCommon.ts';
 
 type GeometryBlock = {
@@ -32,6 +33,14 @@ export interface WebgpuVisState {
   visHizRestNone: GPURenderPipeline | undefined;
   visHizRestFront: GPURenderPipeline | undefined;
   visHizRestFrontCw: GPURenderPipeline | undefined;
+  /**
+   * Pipelines des couches coplanaires au-dessus de 0 : mêmes modules et mêmes états que la couche 0,
+   * plus le décalage de profondeur de la couche en unités matérielles. Une scène sans surface
+   * coplanaire empilée n'en crée aucun et dessine exactement comme avant.
+   */
+  visLayerPipelines: Array<GPURenderPipeline | undefined>;
+  /** Une de plus que la couche coplanaire la plus profonde de la scène ; 1 quand il n'y en a pas. */
+  drawLayerSlots: number;
   visBindGroupLayout: GPUBindGroupLayout | undefined;
   visBindGroup: GPUBindGroup | undefined;
   visHizBindGroup: GPUBindGroup | undefined;
@@ -45,8 +54,8 @@ export interface WebgpuVisState {
   gpuDraw: GpuDraw | undefined;
   shadeBindGroupLayout: GPUBindGroupLayout | undefined;
   shadeBindGroup: GPUBindGroup | undefined;
-  // Six raster slots × tested-or-not, and the small-triangle groups by flag source × selection:
-  // both sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
+  // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection: both
+  // sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
   visSlotGroups: Array<GPUBindGroup | undefined>;
   smallGroups: Array<unknown>;
   concatPos: GPUBuffer | undefined;
@@ -91,6 +100,8 @@ export function createWebgpuVisState(): WebgpuVisState {
     visHizRestNone: undefined,
     visHizRestFront: undefined,
     visHizRestFrontCw: undefined,
+    visLayerPipelines: [],
+    drawLayerSlots: 1,
     visBindGroupLayout: undefined,
     visBindGroup: undefined,
     visHizBindGroup: undefined,
@@ -103,7 +114,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     gpuDraw: undefined,
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,
-    visSlotGroups: new Array(12).fill(undefined),
+    visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
     smallGroups: new Array(8).fill(undefined),
     concatPos: undefined,
     concatUv: undefined,

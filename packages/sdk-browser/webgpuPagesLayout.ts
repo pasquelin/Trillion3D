@@ -2,7 +2,7 @@ import type { PageRec } from './pageSelection.ts';
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { HIZ_BOUNDS_VALUES, createBoxCorners } from './hiz.ts';
 import type { HizCountSample } from './gpuHiz.ts';
-import { DRAW_ITEM_U32 } from './gpuDraw.ts';
+import { DRAW_ITEM_U32, MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
 
@@ -64,8 +64,9 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   const hizRest = new Uint8Array(drawSlots);
   const drawItemWords = new Uint32Array(drawSlots * DRAW_ITEM_U32);
   const drawRestBits = new Uint32Array(Math.max(1, Math.ceil(drawSlots / 32)));
-  /** Rows per indirect bin (pipeline, then half): a bin nothing fills is not worth a draw call. */
-  const binInstances = new Uint32Array(6);
+  /** Lignes par slot indirect (pipeline, moitié, puis couche coplanaire) : un slot que rien ne
+   *  remplit ne vaut pas un appel de dessin. Dimensionné pour toutes les couches nommables. */
+  const binInstances = new Uint32Array(MAX_DRAW_SLOTS);
   return {
     opaqueRoots,
     transparentRoots,
