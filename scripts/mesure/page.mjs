@@ -93,6 +93,9 @@ export async function measureView(options) {
     for (let i = 0; i < options.profileFrames; i++) {
       explorer.render(pose);
       await explorer.flush();
+      // Une vraie limite d'image : le navigateur ne rend un compteur d'horodatage WebGL2 lisible
+      // qu'après une frontière d'image, et c'est aussi ce que fait une application réelle.
+      await new Promise((done) => requestAnimationFrame(done));
     }
     stageProfile = explorer.stageProfile();
   }

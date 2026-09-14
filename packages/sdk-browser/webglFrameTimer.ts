@@ -14,13 +14,14 @@ type TimerExtension = {
 
 export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefined) {
   const ext = gl?.getExtension('EXT_disjoint_timer_query_webgl2') as TimerExtension | null;
+  const reason = 'EXT_disjoint_timer_query_webgl2 absent de cet appareil';
   if (!gl || !ext)
     return {
       supported: false,
-      reason: 'EXT_disjoint_timer_query_webgl2 absent de cet appareil',
+      reason,
       begin() {},
       end() {},
-      poll: (): number | null => null,
+      poll: () => ({ ms: null as number | null, reason }),
     };
   let open: WebGLQuery | null = null;
   const pending: WebGLQuery[] = [];
@@ -40,18 +41,24 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       gl.endQuery(ext.TIME_ELAPSED_EXT);
       pending.push(open);
       open = null;
+      // Sans présentation à l'écran, le flot de commandes peut rester chez le pilote et la requête
+      // n'être jamais prête. `flush` le pousse sans jamais l'attendre — ce n'est pas un `finish`.
+      gl.flush();
     },
-    /** La durée en millisecondes d'une image déjà passée, ou `null` si aucune n'est prête. */
-    poll(): number | null {
-      if (!pending.length) return null;
+    /** La durée d'une image déjà passée, ou la raison pour laquelle aucune n'est publiable. */
+    poll(): { ms: number | null; reason: string | null } {
+      if (!pending.length) return { ms: null, reason: 'aucune requête en attente' };
       const query = pending[0];
-      if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) return null;
+      if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE))
+        return { ms: null, reason: 'résultat pas encore prêt' };
       pending.shift();
       const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
       const nanoseconds = gl.getQueryParameter(query, gl.QUERY_RESULT) as number;
       gl.deleteQuery(query);
-      if (disjoint || !Number.isFinite(nanoseconds)) return null;
-      return nanoseconds / 1e6;
+      if (disjoint)
+        return { ms: null, reason: 'le pilote a interrompu la mesure (GPU_DISJOINT_EXT)' };
+      if (!Number.isFinite(nanoseconds)) return { ms: null, reason: 'durée illisible' };
+      return { ms: nanoseconds / 1e6, reason: null };
     },
   };
 }
