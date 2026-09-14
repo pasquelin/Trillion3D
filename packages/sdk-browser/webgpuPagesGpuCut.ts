@@ -8,8 +8,8 @@ import { encodeDraws, ensurePageTable } from './webgpuPagesEncodeDraws.ts';
 import {
   admitGpuCut,
   opaqueTriangles,
-  selectTransparentCut,
   transitionGpuCut,
+  transparentCutOf,
 } from './webgpuPagesGpuCutAdmission.ts';
 import {
   recordGpuCutTiming,
@@ -53,9 +53,7 @@ export function renderGpuCut(
   run.pagesExited = 0;
   services.adoptGpuCut();
   marks.adoptEnd = performance.now();
-  const transparent = transparentRoots.length
-    ? selectTransparentCut(rt, camera, budgeted, false)
-    : undefined;
+  const transparent = transparentRoots.length ? transparentCutOf(rt, camera, budgeted) : undefined;
   marks.transparentSelectEnd = performance.now();
   // The opaque head of both cuts is the one the readback maintains from image to image; only the
   // transparent tail, which no GPU cut selects, is rewritten here.
