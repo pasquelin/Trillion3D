@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createSceneLightBuffer } from './sceneLighting.ts';
 import { createDeferredLighting } from './deferredLighting.ts';
+import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
 import { prepareWebgpuPresentation } from './webgpuPresentationSetup.ts';
 import { createGpuPageCache } from './gpuPages.ts';
 import { createWebgpuPagesPipelines } from './webgpuPagesPipelines.ts';
@@ -15,6 +16,7 @@ import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { dropVis } from './webgpuPagesDrops.ts';
 import { prepareWebgpuTextures } from './webgpuPagesPrepareTextures.ts';
 import { prepareWebgpuVisibility } from './webgpuPagesPrepareVisibility.ts';
+import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open. */
@@ -70,13 +72,15 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     { packedPages, opaqueRoots, rows } = rt.layout;
   gpu.lights = createSceneLightBuffer(gpuDevice, context.sceneLighting ?? rt.setup.source);
   run.lightState = gpu.lights.update();
+  rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
   diag.engineDiagnostic('scene-lighting', 'Lumières de la scène actives', {
     version: 1,
     ...run.lightState,
+    contractLights: rt.lights.store.count,
     shadows: false,
     globalIllumination: false,
   });
-  gpu.deferred = await createDeferredLighting(gpuDevice, gpu.lights.buffer);
+  gpu.deferred = await createDeferredLighting(gpuDevice, gpu.lights.buffer, rt.lights.buffer);
   context.signal?.throwIfAborted();
   ({
     presenter: gpu.presenter,
@@ -135,6 +139,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.pipelineBlendTextured)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
+  await prepareDirectLights(rt, gpuDevice);
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
   if (vis.gpuDraw && opaqueRoots.length)
@@ -146,6 +151,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   diag.engineDiagnostic('render-capabilities', 'Chemins de rendu prêts', {
     surfaceVersion: gpu.surfaces?.version ?? null,
     deferredLighting: !!gpu.deferred,
+    directLightTiles: !!rt.lights.tiles,
+    shadowAtlas: rt.lights.shadows ? rt.lights.shadows.size : null,
+    shadowUnavailable: rt.lights.shadowReason,
     frameBudgetBytes: frameBudget,
     imageReadbackDuringRender: false,
     visibilityBuffer: vis.visEnabled,

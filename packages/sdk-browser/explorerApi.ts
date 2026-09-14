@@ -7,6 +7,7 @@ import { createExplorerSceneApi } from './explorerSceneApi.ts';
 import { createExplorerSelectionApi } from './explorerSelectionApi.ts';
 import { createExplorerViewportApi } from './explorerViewportApi.ts';
 import { createExplorerTelemetryApi } from './explorerTelemetryApi.ts';
+import { createExplorerLightApi } from './explorerLightApi.ts';
 
 type Inputs = ExplorerRuntimeSurface & {
   capabilities: Awaited<ReturnType<typeof configureExplorer>>['capabilities'];
@@ -138,6 +139,7 @@ export function createExplorerApi(inputs: Inputs) {
       overlays,
       setMode: setDiagnostic,
     }),
+    ...createExplorerLightApi({ check, store: context.sceneLights, backends }),
     ...createExplorerTelemetryApi(profiler),
   };
 }

@@ -3,6 +3,8 @@ import { collectPendingUrls } from './pageSelection.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { dropGpuSelection } from './webgpuPagesDrops.ts';
+import { directLightingState, wantsContractLighting } from './webgpuPagesEncodeLights.ts';
+import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 function reportProgress(rt: WebgpuPagesRuntime) {
@@ -18,6 +20,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
       budgetLimited: run.coverageBudgetLimited,
     },
     lights: run.lightState,
+    directLighting: { version: 1, ...directLightingState(rt) },
     selectedPages: run.shown.length,
     residentPages: run.drawn.length,
     selectedTriangles: run.selectedTriangles,
@@ -103,6 +106,13 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, capture, timing, diag, services } = rt,
     { gpuDevice } = rt.setup;
   await Promise.resolve();
+  // Le programme du contrat d'éclairage se compile hors de l'image. Si une lampe l'attendait, la
+  // pose est redessinée avec lui avant toute lecture : une pose vidée est une pose éclairée.
+  if (gpu.deferred && wantsContractLighting(rt) && !gpu.deferred.usesContract) {
+    await gpu.deferred.settle();
+    if (run.lastCamera && !capture.secondaryCamera && !run.lost)
+      renderWebgpuPages(rt, run.lastCamera);
+  }
   // Material texture layers are part of readiness, not a per-frame decoration: a page drawn before
   // its layer lands is shaded from layer 0, so the image of one camera keeps changing while the
   // queue drains. `render` still admits at most `textureBudget` bytes per frame; the explicit

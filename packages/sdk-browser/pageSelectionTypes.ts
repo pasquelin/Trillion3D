@@ -76,6 +76,8 @@ export type ClusterRoot<T> = {
   /** `bounds` : bornes par nœud dérivées des nœuds et des pages, une fois à la préparation. */
   culling?: { nodes: Float64Array; stride: number; bounds: Float64Array };
   worldBox?: THREE.Box3;
+  /** La boîte locale dont `worldBox` est l'image : ce qu'un déplacement de nœud reprojette (R8). */
+  localBox?: THREE.Box3;
   stretch?: number;
   stretchKey?: Float64Array;
   structure?: ClusterStructureIndex;

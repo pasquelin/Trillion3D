@@ -157,6 +157,7 @@ export function collectClusterPages(
       pages,
       culling: culling && { ...culling, bounds: cullingBounds(culling, pages) },
       worldBox: local.clone().applyMatrix4(mesh.matrixWorld),
+      localBox: local.clone(),
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,
       forcedList: structure ? [] : undefined,

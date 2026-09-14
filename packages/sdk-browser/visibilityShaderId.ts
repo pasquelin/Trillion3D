@@ -1,21 +1,24 @@
-export const VIS_SHADER = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pad:f32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}
-@group(0) @binding(0) var<storage, read> indices:array<u32>;
-@group(0) @binding(1) var<storage, read> positions:array<f32>;
-@group(0) @binding(2) var<storage, read> pages:array<PageInfo>;
+import {
+  PAGE_BINDING,
+  PAGE_INFO_WGSL,
+  PAGE_LOOKUP_WGSL,
+  PAGE_VERTEX_WGSL,
+} from './visibilityPageWgsl.ts';
+
+export const VIS_SHADER = `${PAGE_INFO_WGSL}
+${PAGE_BINDING.indices}
+${PAGE_BINDING.positions}
+${PAGE_BINDING.pages}
 @group(0) @binding(3) var<storage, read> hizFlags:array<u32>;
-@group(0) @binding(4) var<uniform> uni:Uniforms;
+${PAGE_BINDING.uniforms}
 @group(0) @binding(5) var<storage, read> uvs:array<f32>;
 @group(0) @binding(6) var maps:texture_2d_array<f32>;
 @group(0) @binding(7) var mapsSampler:sampler;
-@group(0) @binding(8) var<storage, read> instances:array<u32>;
-@group(0) @binding(9) var<storage, read> slotOffsets:array<u32>;
-fn drawPage(instanceIndex:u32)->u32{
- if(uni.indirect!=0u){return instances[slotOffsets[uni.drawSlot]+instanceIndex];}
- return instanceIndex;
-}
+${PAGE_BINDING.instances}
+${PAGE_BINDING.slotOffsets}
+${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
-fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}
+${PAGE_VERTEX_WGSL}
 fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
 fn maskKeep(page:PageInfo,uv:vec2f)->bool{
