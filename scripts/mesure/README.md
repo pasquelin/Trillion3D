@@ -18,6 +18,10 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
   donnent la porte de fidélité et le coût du profil.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
+- `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
+  mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les
+  relevés d'horodatage reviennent par une promesse : une boucle qui n'attend jamais n'en récupère
+  presque aucun. La fenêtre du profil est vidée avant cette boucle.
 
 Sorties dans `--out` (par défaut `.mesure/out/<moteur>-<horodatage>/`, hors de git et du lint) :
 `mesure.json`, `resume.md`, et par vue, par seuil et par côté un `.png`, un `.coupe.txt` et une ligne
