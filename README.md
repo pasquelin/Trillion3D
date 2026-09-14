@@ -11,7 +11,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-page%20cache-005A9C?logo=webgpu&logoColor=white)](#current-capabilities)
 [![Status](https://img.shields.io/badge/status-in%20development-d29922)](#current-limits)
 
-**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](SDK.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
+**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](SDK.md)** · **[Compiler](docs/COMPILER.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
 
 </div>
 
@@ -44,6 +44,17 @@ npm run test:native
 The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
 The package is currently private and consumed locally; it has not been published to npm. Build it before importing it from a host project. Scene assets are supplied by the host and are not included in this repository.
+
+## Native compiler
+
+All preparation work happens in one executable, `web-geometry-compiler`, built by `npm run build:native`. It reads glTF, GLB, **FBX and OBJ** (the reader is compiled in; no Blender or other tool is needed), writes the cache to disk and talks to its host through three streams only: JSON events on stderr, a small pointer on stdout, cancel requests on stdin.
+
+```sh
+packages/asset-compiler-rust/target/release/web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
+packages/asset-compiler-rust/target/release/web-geometry-compiler --jobs jobs.json   # many models, bounded workers, one process
+```
+
+`@web-geometry/sdk/node` (`prepare`, `prepareMany`) is a thin relay over it; any other host (Electron, a CI script, another language) can drive it the same way. Full reference: [docs/COMPILER.md](docs/COMPILER.md).
 
 ## Public SDK
 
