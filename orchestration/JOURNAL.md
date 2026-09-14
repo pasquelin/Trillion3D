@@ -1,5 +1,14 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-14 — R&D éclairage : prototype et diagnostic, aucune intégration
+
+- Essai isolé depuis `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`, branche `codex/light-transport-experiment`. Deux pièces, porte mobile, trois sources colorées réglables, miroirs et sphère. Rendu expérimental Three/WebGL2 via les API publiques ; maillages source dessinés, pas les pages de clusters ni le runner du banc 15. Lab et assets inchangés, aucun commit/fusion.
+- Deux défauts de départ corrigés : auto-intersection de la sphère et mélange de l’ombre directe avec le cache indirect grossier. Les bandes des ombres sont remplacées par un échantillonnage stratifié déterministe ; du bruit reste visible. Qualité générale et gain de performances non validés.
+- Preuve navigateur : 14 états avec égalité exacte des matrices, radiances et images entre recalcul et réutilisation ; aucune erreur navigateur. 330 tests Node, build, structure et déclarations passent.
+- À la demande utilisateur, arrêt des ajouts fonctionnels pour comprendre l’orientation technique. Profil CPU : environ 9,5 ms pour une couleur, 40,1 ms pour la porte avec réutilisation. Contrôle graphique sur cinq images isolées : 370–498 ms GPU. Worker/WASM seuls ne résoudront donc pas la lenteur de ce dessin expérimental.
+- Une preuve numérique confirme la recombinaison des contributions des trois lampes à géométrie fixe (40 608 octets de bases, erreur proche de l’arrondi Float64). Amortissement et invalidation dynamique non mesurés. Aucun BVH, worker, port WASM ni cache de bases persistant ajouté au moteur.
+- Détails, preuves et expériences suivantes proposées : [Diagnostic et orientation R&D](RD_ECLAIRAGE_DIAGNOSTIC.md). L’ancien plan d’essai est clos et supprimé.
+
 ## 2026-09-14 01:25 — état de passation (session d'audit)
 
 - `develop` = 791245b : DAG de clusters, paquets de streaming, manifeste binaire, sélection GPU DAG, clusterBatches WebGL, transparents double face pré-scindés, limites de device, identifiants 24/8 bits, repli racines sous pression de budget. 330 tests Node, 46 tests Rust verts.
@@ -404,6 +413,19 @@
 - Réutilisable : `material_ranges()`, table `materialRanges`, `vertexBases`, page en plusieurs lots sur tampon d'index partagé, monotonie. À refaire : l'attribution des rangs (conserver le rang de parcours de scène de chaque primitive membre).
 - Verdict NO-GO inchangé (plancher par maillage). Mon agent a quitté le worktree ; les modifications non commises de `dag.rs`/`lib.rs` (élagage, sloppy, `WG_NO_*`) ne sont pas de lui et sont laissées intactes. Worktree rendu à la session a4.
 
+## 2026-09-14 16:40 — [session sans-threejs] phase 1, lot 2 (rejet Hi-Z) rendu ; lot 4 mesure non faite
+
+- Lot 2, branche lot1-hiz-compteurs (d6693a8, fusion develop eab2bfa incluse, rien fusionné dans develop). Défaut trouvé : tout rectangle écran débordant du cadre rendait `undefined`, donc jamais rejeté ; corrigé (découpe au viewport, source unique `hizTestRect` GPU/CPU). Rejets Hi-Z avant → après (Emerald 1280×720, 1 px, MAX_PAGES=100000) : vue générale 758 → 758 clusters ; sol 424 → 447 (+5,4 %). Gain marginal : les clusters de 128 tri débordent rarement. Trous 0, `selectedTriangles` inchangé. Durées polluées (load 4,3–5,1), preuves pixel non faites (load > 4 au moment de décider). Rejet hiérarchique des nœuds : ne peut pas augmenter les rejets (boîte englobante, profondeur jamais plus loin), seulement du temps GPU, à chiffrer avant d'écrire. Vrai verrou : seule la moitié « rest » des lignes est testée, l'autre est dessinée sans test. Lint : 14 → 2 erreurs, les 2 préexistantes sur develop (`no-unsafe-finally`, webgpuPages.ts). Tests non écrits (consigne : Haiku).
+- Lot 4 : mesure tentée par Haiku, harnais laissé par l'agent incompatible (métriques WebGPU, pas `cpuSelectMs`), non faite, journal a327d0e.
+- Aucun agent vivant. Reprise sur mot de l'utilisateur.
+
+
+## 2026-09-14 — Livraison du prototype éclairage dans le banc 16
+
+- Revue indépendante et corrections de livraison terminées : porte initiale, ressources, archives persistantes et erreurs de préparation. Code éclairage isolé des backends ordinaires ; aucun nouveau choix d'architecture validé.
+- Lab : validation complète réussie. SDK : tests éclairage 12/12, build et contrats réussis, Rust 57/57 ; global Node 336/337 et portes qualité héritées encore rouges (détails dans `RD_ECLAIRAGE_DIAGNOSTIC.md`). Fusion explicitement redemandée après signalement ; aucune prétention de validation globale verte.
+- Même image brute/BVH sur les 14 états de la scène, qualité inchangée. Le gain mesuré reste insuffisant pour rendre ce prototype fluide.
+
 ## 2026-09-14 — Phase 1, lot 4, mesure (agent lot4, Haiku)
 
 - Charge système (uptime) : 3.42 / 5.75 / 8.24 ; load1 < 4 → mesure autorisée.
@@ -411,3 +433,24 @@
 - lot4.mjs en scratchpad, conçu pour mesurer cpuSelectMs (sélection CPU par image, p50/p95) sur les deux vues (général, sol) en ABBA 4 blocs. Fichiers JSON de données (before-views.json, after-views.json) détectés en scratchpad mais contiennent des métriques WebGPU (cpuFrameMs, GPU pass ms), non le cpuSelectMs requis. Harness incompatible : lot4.mjs exige un serveur Lab pour émettre le SDK dist et charge Chromium, entièrement absent de la configuration trouvée.
 - Diagnostic : harnais préparé par agent précédent destiné à une autre mesure (WebGPU performance globale) ; aucun setup Lab, aucun script de lancement, aucune trace de run lot4.mjs. Reprise en 10+ min impossible sans redémarrer Lab, compiler le SDK sur cette branche, lancer Chromium : excède le budget.
 - Verrou libéré. Mesure non faite.
+
+## 2026-09-14 — Phase 1, lot 4, fusion et harnais (agent lot4-webgl2-selection)
+
+- Fusions. `develop` a bougé deux fois pendant le lot : eab2bfa (outillage qualité, découpage des gros modules, lot 2e WebGPU) puis 249438f (expérience d'éclairage du banc 16). Les deux sont dans la branche, dans cet ordre. Six fichiers en conflit à la première, un seul à la seconde.
+  - `contracts.ts` et `oracles.ts` : develop les a réduits à des barils de réexport. Côté develop pris tel quel, mes deux changements reportés dans les nouveaux modules — `cpuSelectMs` dans `metricsContracts.ts`, la vérification de finitude sans tableau temporaire dans `projectionOracles.ts`. Rien de dupliqué.
+  - `index.ts` : squelette de chronométrage CPU de develop (`worldStart`/`lightsStart`/`selectStart`/`syncStart`) gardé ; `cpuSelectMs` lit désormais **les mêmes horodatages** que `cpuProfile.row[2]`, donc aucun `performance.now()` en plus par image ; la demande de coupe reste posée une fois pour toutes (`selectOptions`). `metricsScratch` et `fillMetrics` portent les champs des deux côtés (`gpuHostGapMs`, `uncoveredTriangles`, `cpuSelectMs`).
+  - `pageSelection.ts` : `pageSelection.ts` n'a **pas** été découpé sur develop (les modules `pageSelectionCut*` y existent mais personne ne les importe). `projectSphere` du lot 4 gardé ; `projectedPageError`, ajouté par develop pour le diagnostic `screen-error`, réécrit dessus, sur le chemin diagnostic seul.
+  - `pageSelection.test.ts` : develop a sorti la fixture dans `pageSelectionBlendFixture.ts` et éclaté les cas en `pageSelection2..5.test.ts`. Fixture de develop adoptée, les deux tests du lot 4 gardés tels quels, sans recopier la fixture.
+  - `orchestration/JOURNAL.md` : les deux historiques conservés, celui de develop d'abord.
+- Portes : `npx tsc --noEmit` et `npm run build` verts. Tests non lancés (consigne : un autre agent s'en charge).
+- Lint. `npm run lint` comptait **13** erreurs après la première fusion, et non 2 : les 13 sont présentes telles quelles sur develop eab2bfa (vérifié en lintant une archive de ce commit), **aucune ne vient du lot 4**. Les onze qui ne sont pas les `no-unsafe-finally` tolérées sont corrigées sans changer un comportement : imports morts et compteur mort dans `index.ts`, fonction morte `attr3` et trois `let` dans `visibilityBuffer.ts`, deux `let` dans `webgpuPages.ts`. Il ne reste que les **2 `no-unsafe-finally` de `webgpuPages.ts`**, préexistantes et tolérées.
+- Harnais de mesure. **Commande exacte, depuis la racine de ce worktree, sans aucun serveur à lancer à la main :**
+
+      node .mesure/lot4.mjs --avant eab2bfa --images 300
+
+  `--avant` prend un dossier `dist/` déjà construit **ou une référence git**, qu'il extrait et construit dans un dossier séparé ; sans lui un seul côté est mesuré. `--apres` vaut le `dist/` de ce worktree, construit s'il manque. Le harnais monte un serveur statique local sur un port libre choisi par le système (jamais 5174), sert la scène Emerald et les deux SDK, pilote Chromium sans fenêtre, joue les trois vues du banc — vue générale, sol (« Déplacement au niveau de référence »), gros plan — et arrête tout à la fin, y compris sur erreur. Il écrit dans `--out` (par défaut `.mesure/out/<horodatage>/`, ignoré par git) : `mesure.json` (par côté et par vue `cpuSelectMs` p50/p95/p99/min/max, le hash SHA-256 de l'ensemble sélectionné, les métriques de l'image, et le verdict d'identité quand les deux côtés sont là), `<côté>-<vue>.png` à pixelError 0 et MAX_PAGES 100000, et `<côté>-<vue>.clusters.txt`.
+  - L'ensemble sélectionné est lu **sans API ajoutée pour la mesure** : en mode diagnostic le moteur attache un maillage par cluster affiché et y dépose son `clusterId`.
+  - `render-tech-lab/` n'est **pas modifié** : il est lu pour ses assets Emerald, son Playwright et sa trajectoire. La copie de `urbanPath` (pathVersion 5) est vérifiée contre la source à chaque exécution ; le harnais refuse de mesurer si elle a bougé.
+  - Quatre fichiers pour une seule commande (`lot4.mjs`, `banc.mjs`, `serveur.mjs`, `page.mjs`) afin de tenir la limite de 200 lignes par fichier source ; aucun d'eux n'ajoute de violation à `npm run check:lines` (les 7 restantes sont celles de develop).
+  - **Essai de bout en bout fait une fois**, une vue, 8 images : JSON et PNG 1280×720 produits, 80 153 clusters sélectionnés, 10 046 405 triangles, `cpuSelectMs` relevé. Tout a été arrêté ensuite.
+- Reste à mesurer : la comparaison avant/après elle-même, sur les trois vues et un nombre d'images sérieux, machine calme. **Aucun chiffre de durée de ce lot n'est exploitable** : la charge de la machine était de 17 pendant l'essai, et l'essai ne prouve que le bon fonctionnement du harnais.

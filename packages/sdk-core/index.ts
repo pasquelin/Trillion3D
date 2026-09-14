@@ -64,9 +64,13 @@ export function compareImages(a: Uint8Array, b: Uint8Array) {
 }
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */
-export { createJob } from './jobs.ts';
-export type { JobStatus, JobProgress, JobSnapshot } from './jobs.ts';
-export { createSafetyPolicy } from './safety.ts';
-export type { CapabilityTier, SafetyDecision, MeasuredCosts, SafetyConfig } from './safety.ts';
-export { userNotice } from './events.ts';
-export type { RuntimeEvent, UserNotice } from './events.ts';
+export {createJob} from './jobs.ts';
+export type {JobStatus,JobProgress,JobSnapshot} from './jobs.ts';
+export {createSafetyPolicy} from './safety.ts';
+export type {CapabilityTier,SafetyDecision,MeasuredCosts,SafetyConfig} from './safety.ts';
+export {userNotice} from './events.ts';
+export type {RuntimeEvent,UserNotice} from './events.ts';
+export {createLightingScene,exportLightingGltf,createDefaultLightingSceneLights} from './lightingExperimentScene.ts';
+export type {Vec3,Surface,Patch,Scene,LightingSceneLight} from './lightingExperimentScene.ts';
+export {createTransport,solveTransportOracle} from './lightingTransport.ts';
+
