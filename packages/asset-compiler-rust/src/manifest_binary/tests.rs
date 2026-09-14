@@ -167,7 +167,6 @@ fn split_accepts_a_depth_layer_at_the_four_bit_limit_and_writes_it_in_its_column
     let first_page_layer = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
     assert_eq!(first_page_layer, 15);
     // La seconde page (coarse_page) ne porte pas depthLayer : la colonne y reste à zéro.
-    let second_page_layer =
-        u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap());
+    let second_page_layer = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap());
     assert_eq!(second_page_layer, 0);
 }

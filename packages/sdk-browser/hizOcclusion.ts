@@ -1,9 +1,34 @@
 import * as THREE from 'three';
 import { hizFootprintFar, hizOccluded } from '../sdk-core/index.ts';
 import { projectBoxToScreen } from './hizProjection.ts';
+import { HIZ_KERNEL_TEXELS, hizOversized, type HizCounts } from './hizCounts.ts';
 import type { HizBounds, HizPage, HizPyramid } from './hizTypes.ts';
 
-function footprintLevel(
+/**
+ * Values `hizTestRect` writes: the mip the box answers from, then the level-0 rectangle that mip is
+ * read over, inclusive on both ends.
+ */
+export const HIZ_TEST_VALUES = 5;
+
+/**
+ * The part of a screen rectangle that can ever paint a pixel, and the mip that covers it exactly.
+ *
+ * The rectangle is clipped to the viewport: what falls outside it reaches no pixel, so the depth of
+ * the clipped part alone is what the box competes against. That is strictly safe — the depth the test
+ * compares is still the nearest corner of the *whole* box, no farther than the nearest corner of its
+ * clipped part, so a box kept before clipping is still kept. It is also what makes a box straddling an
+ * edge testable at all: before clipping, any box reaching past the viewport answered `undefined` and
+ * was never rejected, however deeply buried it was. That mattered little for a cluster, which is small
+ * on screen, but it is what would stop a group or ancestor box — large, and therefore almost always
+ * touching an edge — from ever rejecting a subtree.
+ *
+ * The mip is the finest one whose outward-rounded footprint fits the test kernel, so the depth read is
+ * the tightest the pyramid can give: a coarser mip takes the maximum over pixels the box does not
+ * cover and rejects less. Writes `into[0]` = level and `into[1..4]` = the clipped level-0 rectangle;
+ * returns false for a box that must never be rejected (near-plane crossing, empty rectangle, or a
+ * rectangle wholly outside the viewport).
+ */
+export function hizTestRect(
   minX: number,
   minY: number,
   maxX: number,
@@ -12,60 +37,53 @@ function footprintLevel(
   width: number,
   height: number,
   levels: number,
-): number | undefined {
+  into: Int32Array,
+): boolean {
   if (
     clipsNear ||
     !Number.isInteger(minX) ||
     !Number.isInteger(minY) ||
     !Number.isInteger(maxX) ||
     !Number.isInteger(maxY) ||
-    minX < 0 ||
-    minY < 0 ||
-    maxX >= width ||
-    maxY >= height ||
     maxX < minX ||
-    maxY < minY
+    maxY < minY ||
+    width < 1 ||
+    height < 1 ||
+    levels < 1
   )
-    return undefined;
+    return false;
+  const x0 = minX < 0 ? 0 : minX,
+    y0 = minY < 0 ? 0 : minY,
+    x1 = maxX > width - 1 ? width - 1 : maxX,
+    y1 = maxY > height - 1 ? height - 1 : maxY;
+  if (x1 < x0 || y1 < y0) return false;
   for (let level = 0; level < levels; level++) {
     const scale = 2 ** level;
     if (
-      Math.floor(maxX / scale) - Math.floor(minX / scale) < 16 &&
-      Math.floor(maxY / scale) - Math.floor(minY / scale) < 16
-    )
-      return level;
+      Math.floor(x1 / scale) - Math.floor(x0 / scale) < HIZ_KERNEL_TEXELS &&
+      Math.floor(y1 / scale) - Math.floor(y0 / scale) < HIZ_KERNEL_TEXELS
+    ) {
+      into[0] = level;
+      into[1] = x0;
+      into[2] = y0;
+      into[3] = x1;
+      into[4] = y1;
+      return true;
+    }
   }
-  return undefined;
+  return false;
 }
 
-/** Pick the first mip whose outward-rounded inclusive footprint fits the test kernel. */
-function hizFootprintLevel(
-  bounds: HizBounds,
-  width: number,
-  height: number,
-  levels: number,
-): number | undefined {
-  return footprintLevel(
-    bounds.minX,
-    bounds.minY,
-    bounds.maxX,
-    bounds.maxY,
-    bounds.clipsNear,
-    width,
-    height,
-    levels,
-  );
-}
-
-/** `hizFootprintLevel` over the flat bounds layout `projectBoxesFlat` writes. */
-export function hizFootprintLevelFlat(
+/** `hizTestRect` over the flat bounds layout `projectBoxesFlat` writes. */
+export function hizTestRectFlat(
   bounds: Float64Array,
   base: number,
   width: number,
   height: number,
   levels: number,
-): number | undefined {
-  return footprintLevel(
+  into: Int32Array,
+): boolean {
+  return hizTestRect(
     bounds[base],
     bounds[base + 1],
     bounds[base + 2],
@@ -74,19 +92,34 @@ export function hizFootprintLevelFlat(
     width,
     height,
     levels,
+    into,
   );
 }
 
+const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
+
 export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
-  const level = hizFootprintLevel(bounds, pyramid.width, pyramid.height, pyramid.levels.length);
-  if (level === undefined) return false;
+  if (
+    !hizTestRect(
+      bounds.minX,
+      bounds.minY,
+      bounds.maxX,
+      bounds.maxY,
+      bounds.clipsNear,
+      pyramid.width,
+      pyramid.height,
+      pyramid.levels.length,
+      rejectScratch,
+    )
+  )
+    return false;
   const far = hizFootprintFar(
     pyramid.levels,
-    bounds.minX,
-    bounds.minY,
-    bounds.maxX + 1,
-    bounds.maxY + 1,
-    level,
+    rejectScratch[1],
+    rejectScratch[2],
+    rejectScratch[3] + 1,
+    rejectScratch[4] + 1,
+    rejectScratch[0],
   );
   return hizOccluded(bounds.nearestDepth, far, bias);
 }
@@ -106,4 +139,37 @@ export function filterUnoccluded<T extends HizPage>(
         bias,
       ),
   );
+}
+
+/**
+ * `filterUnoccluded` that also says what the test did: `counts` gains the clusters it was handed, the
+ * clusters it eliminated and the clusters too wide for the level-0 kernel, each with the triangles
+ * those clusters carry. This is the oracle the GPU counters are read against on a fixed image.
+ */
+export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
+  pages: T[],
+  pyramid: HizPyramid,
+  camera: THREE.PerspectiveCamera,
+  viewport: [number, number],
+  counts: HizCounts,
+  bias = 0,
+) {
+  const kept: T[] = [];
+  for (const page of pages) {
+    const bounds = projectBoxToScreen(page.min, page.max, page.matrix, camera, viewport);
+    const triangles = page.array ? Math.floor(page.array.length / 3) : 0;
+    counts.tested++;
+    counts.testedTriangles += triangles;
+    if (hizOversized(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, bounds.clipsNear)) {
+      counts.oversized++;
+      counts.oversizedTriangles += triangles;
+    }
+    if (hizRejects(pyramid, bounds, bias)) {
+      counts.rejected++;
+      counts.rejectedTriangles += triangles;
+      continue;
+    }
+    kept.push(page);
+  }
+  return kept;
 }

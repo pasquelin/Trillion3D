@@ -3,34 +3,11 @@ use super::*;
 #[test]
 fn compile_omits_images_when_the_gltf_has_none() {
     let (root, options) = fixture();
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf.as_object_mut().expect("object").remove("images");
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &gltf_bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, None);
     let result = compile(&options, |_| {}).expect("compile");
-    let key = result["key"].as_str().expect("key");
-    let written: Value = serde_json::from_slice(
-        &fs::read(
-            options
-                .cache
-                .join("native/slice")
-                .join(key)
-                .join("source.gltf"),
-        )
-        .expect("source"),
-    )
-    .expect("json");
+    let written = written_gltf(&options, result["key"].as_str().expect("key"));
     assert!(
         written.get("images").is_none()
             || written["images"]
@@ -47,40 +24,16 @@ fn compile_keeps_buffer_view_images_without_uri() {
     let image_offset = bin.len();
     bin.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
     fs::write(options.source.join("mesh.bin"), &bin).expect("bin write");
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf["buffers"][0]["byteLength"] = json!(bin.len());
     gltf["bufferViews"]
         .as_array_mut()
         .expect("views")
         .push(json!({"buffer":0,"byteOffset":image_offset,"byteLength":8}));
     gltf["images"] = json!([{"bufferView":2,"mimeType":"image/png"}]);
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &gltf_bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
-    manifest["runtime"]["sidecars"] = json!([{"file":"mesh.bin","sha256":hash(&bin)}]);
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, Some(&bin));
     let result = compile(&options, |_| {}).expect("compile");
-    let key = result["key"].as_str().expect("key");
-    let written: Value = serde_json::from_slice(
-        &fs::read(
-            options
-                .cache
-                .join("native/slice")
-                .join(key)
-                .join("source.gltf"),
-        )
-        .expect("source"),
-    )
-    .expect("json");
+    let written = written_gltf(&options, result["key"].as_str().expect("key"));
     assert!(written["images"][0].get("uri").is_none());
     assert_eq!(written["images"][0]["bufferView"], 2);
     assert_eq!(written["images"][0]["mimeType"], "image/png");
@@ -126,22 +79,10 @@ fn compile_accepts_glb_without_manifest() {
 #[test]
 fn compile_leaves_transmission_unsplit() {
     let (root, options) = fixture();
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf["materials"] = json!([{"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":1.0},"KHR_materials_volume":{"thicknessFactor":0.02}}}]);
     gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &gltf_bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, None);
     let result = compile(&options, |_| {}).expect("compile");
     assert_eq!(result["primitives"][0]["pass"], "shared-blend");
     assert!(result["primitives"][0]["pages"]
@@ -155,20 +96,15 @@ fn compile_opaque_source_emits_the_base_cache_and_blend_the_next_format() {
     let (root, options) = fixture();
     let opaque = compile(&options, |_| {}).expect("opaque compile");
     assert_eq!(opaque["formatVersion"], json!(FORMAT_VERSION));
-    let gltf_path = options.source.join("mesh.gltf");
     let manifest_path = options.source.join("manifest.json");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    assert_eq!(
+        read_json(&manifest_path)["formatVersion"],
+        json!(SOURCE_FORMAT_VERSION)
+    );
+    let mut gltf = read_gltf(&options);
     gltf["materials"] = json!([{"alphaMode":"BLEND"}]);
     gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
-    let bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &bytes).expect("write");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    assert_eq!(manifest["formatVersion"], json!(SOURCE_FORMAT_VERSION));
-    manifest["runtime"]["sha256"] = json!(hash(&bytes));
-    let source_manifest = serde_json::to_vec(&manifest).expect("encode");
-    fs::write(&manifest_path, &source_manifest).expect("write");
+    let source_manifest = write_gltf(&options, &gltf, None);
     let blend = compile(&options, |_| {}).expect("blend compile");
     assert_eq!(blend["schema"], json!(CLUSTERED_BLEND_FORMAT_VERSION));
     assert_eq!(

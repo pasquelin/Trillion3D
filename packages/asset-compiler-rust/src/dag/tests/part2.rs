@@ -3,19 +3,13 @@ use std::collections::HashSet;
 
 #[test]
 fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
-    let (positions, indices) = grid(64);
-    let clusters =
-        cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
+    let Grouped {
+        positions,
+        indices,
+        clusters,
+        groups,
+    } = grouped(64);
     let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
-    let adjacency = cluster_adjacency(&lists);
-    let centres: Vec<[f64; 3]> = clusters
-        .iter()
-        .map(|c| {
-            let s = bounding_sphere(&positions, c);
-            [s[0], s[1], s[2]]
-        })
-        .collect();
-    let groups = group_clusters(&centres, &adjacency, DAG_GROUP_MAX);
     assert!(
         groups.len() > 1,
         "the test needs at least two groups for a shared seam"

@@ -45,3 +45,35 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
     };
     (root, options)
 }
+
+pub(super) fn read_json(path: &Path) -> Value {
+    serde_json::from_slice(&fs::read(path).expect("read")).expect("json")
+}
+/// The fixture's glTF as JSON, for a test that alters it before writing it back.
+pub(super) fn read_gltf(options: &Options) -> Value {
+    read_json(&options.source.join("mesh.gltf"))
+}
+/// Writes the altered glTF back and restamps the manifest hashes; `bin` when the sidecar changed too.
+pub(super) fn write_gltf(options: &Options, gltf: &Value, bin: Option<&[u8]>) -> Vec<u8> {
+    let gltf_bytes = serde_json::to_vec(gltf).expect("encode");
+    fs::write(options.source.join("mesh.gltf"), &gltf_bytes).expect("write");
+    let manifest_path = options.source.join("manifest.json");
+    let mut manifest = read_json(&manifest_path);
+    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
+    if let Some(bin) = bin {
+        manifest["runtime"]["sidecars"][0]["sha256"] = json!(hash(bin));
+    }
+    let manifest_bytes = serde_json::to_vec(&manifest).expect("encode");
+    fs::write(&manifest_path, &manifest_bytes).expect("write");
+    manifest_bytes
+}
+/// The glTF the compiler copied into the cache slice it wrote under `key`.
+pub(super) fn written_gltf(options: &Options, key: &str) -> Value {
+    read_json(
+        &options
+            .cache
+            .join("native/slice")
+            .join(key)
+            .join("source.gltf"),
+    )
+}

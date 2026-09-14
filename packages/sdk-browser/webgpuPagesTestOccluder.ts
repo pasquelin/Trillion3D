@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import assert from 'node:assert/strict';
+import { compareImages } from '../sdk-core/index.ts';
+import type { PageRec } from './pageSelection.ts';
+import { rasterVisibilityIds, shadeVisibility, unpackVisibilityId } from './visibilityBuffer.ts';
+import type { webgpuPagesBackend } from './webgpuPages.ts';
 import { dagLevel, dagRoots } from './webgpuPagesTestDag.ts';
 import { quadScene } from './webgpuPagesTestScenes.ts';
 
@@ -60,11 +65,11 @@ export function occluderScene() {
   return { geometry, material, source, metadata, indices, associations };
 }
 
-/** The quad, with its two clusters replaced by a single coarse cluster of screen error 1. */
-export function coarseQuadScene() {
+/** The quad, with its two clusters replaced by a single coarse cluster of the given screen error. */
+export function coarseQuadScene(error = 1) {
   const fixture = quadScene();
   const leaves = fixture.metadata.primitives[0].pages;
-  const level = dagLevel(leaves, { ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }, 1);
+  const level = dagLevel(leaves, { ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }, error);
   return {
     ...fixture,
     metadata: {
@@ -75,5 +80,68 @@ export function coarseQuadScene() {
       string,
       Uint32Array,
     ][]),
+  };
+}
+
+/** The GPU image of the occluder scene equals the CPU raster of the cut, and only the front page
+ *  survives in the visibility identifiers. */
+export function assertOccluderImage(
+  backend: ReturnType<typeof webgpuPagesBackend> & {
+    rasterRgba(): Uint8Array;
+    visibilityIds(): Uint32Array;
+  },
+  shown: PageRec[],
+  cam: THREE.PerspectiveCamera,
+  viewport: [number, number],
+) {
+  const visPages = shown
+    .filter((page) => page.array)
+    .map((page) => ({ ...page, array: page.array! }));
+  assert.equal(
+    compareImages(
+      backend.rasterRgba(),
+      shadeVisibility(rasterVisibilityIds(visPages, cam, viewport), visPages, cam, viewport),
+    ).maxChannelError,
+    0,
+  );
+  const drawn = new Set(
+    [...backend.visibilityIds()].flatMap((id) => {
+      const unpacked = unpackVisibilityId(id);
+      return unpacked ? [unpacked.pageIndex] : [];
+    }),
+  );
+  assert.deepEqual([...drawn].sort(), [0]);
+}
+
+/** Two coarse quads a hundred units apart, as two primitives of one source: six clusters that share
+ *  the resident slots, so a camera jump between them evicts and recycles rows. */
+export function twoCoarseQuadsScene() {
+  const a = coarseQuadScene(),
+    b = coarseQuadScene();
+  const mesh = b.source.children[0] as THREE.Mesh;
+  mesh.position.x = 100;
+  a.source.add(mesh);
+  const primitive = {
+    ...b.metadata.primitives[0],
+    mesh: 1,
+    pages: b.metadata.primitives[0].pages.map((page: { url: string }) => ({
+      ...page,
+      url: 'b' + page.url,
+    })),
+  };
+  return {
+    source: a.source,
+    metadata: { primitives: [...a.metadata.primitives, primitive] },
+    indices: new Map([
+      ...a.indices,
+      ...[...b.indices].map(([url, bytes]) => ['b' + url, bytes] as const),
+    ]),
+    associations: new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]]),
+    dispose() {
+      for (const scene of [a, b]) {
+        scene.geometry.dispose();
+        scene.material.dispose();
+      }
+    },
   };
 }

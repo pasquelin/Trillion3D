@@ -1,0 +1,165 @@
+import type * as THREE from 'three';
+import { selectVisiblePages, type PageRec } from './pageSelection.ts';
+import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
+import { appendAll, partitionByPass } from './webgpuPagesHelpers.ts';
+import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { ensureTargets } from './webgpuPagesTargets.ts';
+import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
+import {
+  traceCpuFrame,
+  traceCpuFrameWaiting,
+  traceCpuSelection,
+} from './webgpuPagesRenderTrace.ts';
+import {
+  cpuSampleOf,
+  logFirstCpuRenderPath,
+  traceAdmission,
+  traceDrawnVerify,
+  traceQueueReconstruct,
+  traceTargetsEnsured,
+  traceTransition,
+} from './webgpuPagesRenderSteps.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+function selectCpuCut(
+  rt: WebgpuPagesRuntime,
+  camera: THREE.PerspectiveCamera,
+  pixelError: number,
+  pinnedOnly: boolean,
+) {
+  const { roots, viewport, bootstrapUrls } = rt.setup,
+    cache = rt.gpu.cache!;
+  return selectVisiblePages(
+    roots,
+    camera,
+    {
+      pixelError,
+      viewport,
+      frame: rt.run.frame,
+      holdResident: true,
+      rootFallback: true,
+      isResident: pinnedOnly
+        ? (rec) => bootstrapUrls.has(rec.url) && !!cache.get(rec.url)
+        : (rec) => !!cache.get(rec.url),
+    },
+    pinnedOnly ? undefined : rt.run.shown,
+  );
+}
+
+/** Drops the occluded half of a complete CPU cut when the temporal pyramid can vouch for it. */
+function cullWithTemporalHiz(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+  const { run, vis, diag } = rt,
+    ready = run.readyScratch;
+  ready.length = 0;
+  appendAll(ready, run.shown);
+  if (!vis.visEnabled || vis.gpuHiz || ready.length < 2 || !ready.every((page) => page.array))
+    return ready;
+  try {
+    const cut = applyTemporalHiz(
+      partitionByPass(ready, false, run.opaqueScratch) as Array<PageRec & { array: Uint32Array }>,
+      camera,
+      rt.setup.viewport ?? rt.gpu.targetSize,
+      run.temporalHizState,
+      run.cpuHizCounts,
+    );
+    run.cpuHizCounted = true;
+    run.culledScratch.length = 0;
+    appendAll(run.culledScratch, cut.shown, partitionByPass(ready, true, run.transparentScratch));
+    return run.culledScratch;
+  } catch (error) {
+    resetHizCounts(run.cpuHizCounts);
+    run.cpuHizCounted = false;
+    diag.diagnosticFailure('hiz-frame-fallback', error); /* Keep the selected cut. */
+    return ready;
+  }
+}
+
+/** One image driven by the CPU reference cut, drawn only once the cut is entirely resident. */
+export function renderCpuCut(
+  rt: WebgpuPagesRuntime,
+  camera: THREE.PerspectiveCamera,
+  pixelError: number,
+  cpuStart: number,
+  lightsEnd: number,
+) {
+  const { run, gpu, timing, services } = rt,
+    { bootstrapUrls, slots, viewport } = rt.setup,
+    gpuDevice = rt.setup.gpuDevice!,
+    cache = gpu.cache!;
+  const cpuSelectionStarted = performance.now();
+  const selected = selectCpuCut(rt, camera, pixelError, false);
+  traceCpuSelection(rt, selected, performance.now() - cpuSelectionStarted);
+  run.desired.length = 0;
+  appendAll(run.desired, selected.wanted ?? run.shown);
+  run.overBudget = false;
+  run.visible = selected.visible;
+  run.selectedTriangles = selected.selectedTriangles;
+  run.frustumRejected = selected.frustumRejected;
+  run.lodLevel = selected.lodLevel;
+  const admissionStarted = performance.now(),
+    requested = new Set([...bootstrapUrls, ...run.desired.map((page) => page.url)]);
+  const wasLimited = run.coverageBudgetLimited;
+  run.coverageBudgetLimited = requested.size > slots;
+  if (wasLimited !== run.coverageBudgetLimited)
+    run.coverageBudgetEvent = {
+      version: 1,
+      limited: run.coverageBudgetLimited,
+      requiredSlots: requested.size,
+      slots,
+      fallbackRetained: services.bootstrapState.ready,
+    };
+  traceAdmission(rt, requested, admissionStarted);
+  if (!services.bootstrapState.ready) {
+    run.drawn.length = 0;
+    run.submittedTriangles = 0;
+    run.gpuDrawCalls = 0;
+    const loadingEnd = performance.now();
+    timing.cpuSample = cpuSampleOf(
+      rt,
+      { cpuStart, lightsEnd, selectionEnd: loadingEnd },
+      loadingEnd,
+    );
+    traceCpuFrameWaiting(rt, camera, requested);
+    return;
+  }
+  if (selected.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
+  // A complete root cover is always pinned. Coarsen atomically before reclaiming
+  // old detail slots if old and new refinements cannot coexist in the budget.
+  const transitionStarted = performance.now(),
+    transition = new Set([...requested, ...run.shown.map((page) => page.url)]);
+  if (!run.coverageBudgetLimited && transition.size > slots) {
+    const fallback = selectCpuCut(rt, camera, pixelError, true);
+    if (!fallback.complete) throw new Error('GPU_COVERAGE_INCOMPLETE');
+    run.shown.length = 0;
+    appendAll(run.shown, fallback.shown);
+    run.lodLevel = fallback.lodLevel;
+  }
+  traceTransition(rt, requested, transition, transitionStarted);
+  if (run.shown.some((page) => !services.hasBytes(page)))
+    throw new Error('GPU_COVERAGE_BYTES_MISSING');
+  const culled = cullWithTemporalHiz(rt, camera);
+  const selectionEnd = performance.now();
+  const queueStarted = performance.now();
+  services.queueResident(run.coverageBudgetLimited ? [] : run.desired);
+  const queueEnd = performance.now();
+  traceQueueReconstruct(rt, queueEnd - queueStarted);
+  const drawnVerifyStarted = performance.now();
+  if (culled.some((page) => !cache.get(page.url))) throw new Error('GPU_COVERAGE_INCOMPLETE');
+  run.drawn.length = 0;
+  appendAll(run.drawn, culled);
+  // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
+  run.uncoveredTriangles = 0;
+  traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);
+  const [width, height] = viewport ?? gpu.targetSize,
+    targetStarted = performance.now();
+  ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
+  traceTargetsEnsured(rt, width, height, targetStarted);
+  logFirstCpuRenderPath(rt);
+  const encodeStart = performance.now();
+  run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
+  const cpuEnd = performance.now();
+  timing.lastSubmitMs = cpuEnd - encodeStart;
+  timing.cpuSample = cpuSampleOf(rt, { cpuStart, lightsEnd, selectionEnd, encodeStart }, cpuEnd);
+  publishCpuProfile(timing, run, rt.diag);
+  traceCpuFrame(rt, camera);
+}

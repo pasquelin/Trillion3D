@@ -5,8 +5,8 @@ import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { dagLevel } from './webgpuPagesTestDag.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
 
 test('webgpu pages without compute keep the CPU cut and report gpuDriven false', async () => {
   installGpuGlobals();
@@ -64,24 +64,15 @@ test('webgpu compute selection page ids match the CPU oracle for the same camera
 
 test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
   installGpuGlobals();
-  const { source, metadata: base, indices, associations, geometry, material } = quadScene();
-  const leaf = (id: number) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0] as number[],
-    max: [1, 1, 0] as number[],
-    bytes: 12,
-    sha256: 'x',
-  });
   // Screen error 0.001 on the coarse cluster: at pixelError 10 the coarse cover wins everywhere.
-  const level = dagLevel([leaf(0), leaf(1)], leaf(2), 0.001);
-  const metadata = {
-    errorModel: 'dag-group-qem-v1',
-    clusterStrategy: 'dag-groups',
-    primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }],
-  };
-  const allIndices = new Map([...indices, ['2', new Uint32Array([0, 1, 2])]]);
+  const {
+    source,
+    metadata,
+    indices: allIndices,
+    associations,
+    geometry,
+    material,
+  } = coarseQuadScene(0.001);
   const viewport: [number, number] = [960, 540];
   const collected = collectClusterPages(source, metadata, allIndices, associations);
   const packed = packDagSelection(collected.roots);
@@ -109,5 +100,4 @@ test('webgpu compute selection matches the CPU coarse LOD cut', async () => {
   backend.dispose();
   geometry.dispose();
   material.dispose();
-  void base;
 });

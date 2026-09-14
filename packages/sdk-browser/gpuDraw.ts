@@ -6,6 +6,7 @@ export {
   BIN_NONE,
   BIN_FRONT,
   DRAW_ITEM_U32,
+  MAX_DRAW_SLOTS,
   slotCount,
 } from './gpuDrawContract.ts';
 export type { DrawItem, GpuDraw } from './gpuDrawContract.ts';
