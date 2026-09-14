@@ -4,7 +4,7 @@ import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,p
 import {screenErrorColor} from './diagnosticColors.ts';
 import {DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
 import {detectCapabilities} from './capabilities.ts';
-import {checked,loadClusterPages} from './clusterPages.ts';
+import {loadClusterPages} from './clusterPages.ts';
 import {createPageStreamer} from './streamingPages.ts';
 import {loadClusterManifest} from './manifestLoad.ts';
 import {orderPendingUrls,pixelScaleOf,PRIORITY_PREFETCH,PRIORITY_VISIBLE} from './streamingPriority.ts';
@@ -31,9 +31,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { compareImages, summarize } from '../sdk-core/index.ts';
 
-import type {AssetScope,PreparationProgress,CameraPose,StablePreview,FrameMetrics,BackendCapabilities,ClusterManifest} from '../sdk-core/index.ts';
+import type {PreparationProgress,CameraPose,StablePreview,FrameMetrics,BackendCapabilities,ClusterManifest} from '../sdk-core/index.ts';
 export type {AssetScope,PreparationProgress,CameraPose,StablePreview,FrameMetrics,BackendCapabilities,ClusterManifest} from '../sdk-core/index.ts';
-import type {RenderBackend,BackendContext,BackendFactory,BackendDiagnostic,ExplorerOptions,PointOfInterest} from './backendTypes.ts';
+import type {RenderBackend,BackendContext,BackendFactory,ExplorerOptions,PointOfInterest} from './backendTypes.ts';
 export type {RenderBackend,BackendContext,BackendFactory,BackendDiagnostic,ExplorerOptions,PointOfInterest} from './backendTypes.ts';
 export type {DiagnosticDetail} from './backendTypes.ts';
 import {createDiagnosticChannel} from './diagnosticChannel.ts';
@@ -65,9 +65,9 @@ function lighting(scene:THREE.Scene,clearColor:number,source:THREE.Object3D){ret
 function objects(source:THREE.Object3D){const meshes:THREE.Mesh[]=[];source.updateMatrixWorld(true);source.traverse(o=>{if((o as THREE.Mesh).isMesh)meshes.push(o as THREE.Mesh);});return meshes;}
 function geometryBytes(geometry:THREE.BufferGeometry,seen:Set<ArrayBufferView>){let bytes=0;const index=geometry.getIndex();if(index&&!seen.has(index.array)){seen.add(index.array);bytes+=index.array.byteLength;}for(const name in geometry.attributes){const attr=geometry.attributes[name];if(!attr||seen.has(attr.array))continue;seen.add(attr.array);bytes+=attr.array.byteLength;}return bytes;}
 export const referenceBackend:BackendFactory=({source,sceneLighting,clearColor=DEFAULT_CLEAR_COLOR})=>{
- const scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,sceneLighting??source);let order=0,residentPages=0,allocationBytes=0,selectedTriangles=0;const seen=new Set<ArrayBufferView>();
+ const scene=new THREE.Scene();const sceneLights=lighting(scene,clearColor,sceneLighting??source);let order=0,allocationBytes=0,selectedTriangles=0;const seen=new Set<ArrayBufferView>();
  const copies:THREE.Mesh[]=[];const overlays:THREE.Material[]=[];
- for(const mesh of objects(source)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.renderOrder=order++;copy.userData.sourceMesh=mesh;copy.userData.sourceGeometry=mesh.geometry;copy.userData.sourceMaterial=mesh.material;scene.add(copy);copies.push(copy);residentPages++;allocationBytes+=geometryBytes(mesh.geometry,seen);}
+ for(const mesh of objects(source)){const copy=new THREE.Mesh(mesh.geometry,mesh.material);copy.matrixAutoUpdate=false;copy.matrix.copy(mesh.matrixWorld);copy.renderOrder=order++;copy.userData.sourceMesh=mesh;copy.userData.sourceGeometry=mesh.geometry;copy.userData.sourceMaterial=mesh.material;scene.add(copy);copies.push(copy);allocationBytes+=geometryBytes(mesh.geometry,seen);}
  const applyDiagnostic=(mode:DiagnosticMode)=>{overlays.splice(0).forEach(m=>m.dispose());for(const mesh of copies){const sourceGeometry=mesh.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=mesh.userData.sourceMaterial as THREE.Material|THREE.Material[];mesh.geometry=sourceGeometry;mesh.material=sourceMaterial;if(mode==='wireframe'){mesh.geometry=triangleGeometry(sourceGeometry,triangleSalt(String(mesh.id)));const material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));overlays.push(material);mesh.material=material;}}};
  return {id:'three-webgl-reference',capabilities:baseCapabilities,overBudget:false,scene,setDiagnostic:applyDiagnostic,async prepare(){},refreshSceneLighting:()=>sceneLights.refresh(),render(){source.updateMatrixWorld(true);sceneLights.update();selectedTriangles=0;for(const mesh of copies){mesh.matrix.copy((mesh.userData.sourceMesh as THREE.Mesh).matrixWorld);const index=mesh.geometry.getIndex();selectedTriangles+=(index?index.count:mesh.geometry.getAttribute('position').count)/3;}},metrics:()=>({clusters:null,selectedTriangles,residentPages:null,geometryAllocationBytes:allocationBytes,pagesDetached:null,frustumRejected:null,lodLevel:null,submittedTriangles:selectedTriangles}),dispose(){overlays.forEach(m=>m.dispose());for(const mesh of copies)disposeTriangleGeometry(mesh.userData.sourceGeometry as THREE.BufferGeometry);scene.clear();}};
 };
@@ -222,10 +222,10 @@ export async function createExplorer(canvas:HTMLCanvasElement,options:ExplorerOp
  const diagnose=(phase:string,message:string,context:Record<string,unknown>={})=>diagnosticChannel.emit({phase,message,context});
  const preparationStart=performance.now();const {signal}=options,scope=options.scope??DEFAULT_SCOPE;const progress=(phase:string,completed:number,total:number,message:string)=>{signal?.throwIfAborted();options.onPreparation?.({phase,completed,total,message});diagnose('preparation',message,{kind:'preparation',phase,completed,total,scope});};
  progress('manifest',0,1,'Lecture du cache');
- const {manifestUrl}=options;let pointer:Record<string,unknown>;let metadataUrl:string;let metadata:ClusterManifest;let loadedBase:string;
+ const {manifestUrl}=options;let metadataUrl:string;let metadata:ClusterManifest;let loadedBase:string;
  try{
   const loaded=await loadClusterManifest(manifestUrl,scope,signal);
-  ({pointer,metadata,metadataUrl}=loaded);loadedBase=loaded.base;
+  ({metadata,metadataUrl}=loaded);loadedBase=loaded.base;
   diagnose('manifest','Manifeste lu',{kind:'preparation',phase:'manifest',scope,manifestUrl,metadataUrl,...loaded.timing});
  }catch(error){diagnose('error','Manifest or cache preparation failed',{kind:'error',phase:'manifest',error:String(error),scope,manifestUrl});diagnosticChannel.flushSync();diagnosticChannel.close();throw error;}
  const autonomous=options.autonomousGeometry===true;
