@@ -124,7 +124,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     steps.cpuStep?.(7, performance.now() - retainEnd);
     if (gpuTimer) {
       // Une requête relue quelques images plus tard : la lecture ne bloque jamais l'image en cours.
-      steps.gpuImageMs?.(gpuTimer.poll(), gpuTimer.supported, gpuTimer.reason);
+      const read = gpuTimer.poll();
+      steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
     }
     steps.cpuFrameEnd?.();
   };
