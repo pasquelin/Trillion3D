@@ -3,14 +3,14 @@ import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 
-export type GeometryBlock = {
+type GeometryBlock = {
   vertexBase: number;
   count: number;
   hasUv: boolean;
   hasNormal: boolean;
   hasTangent: boolean;
 };
-export type TextureJob = {
+type TextureJob = {
   kind: 'color' | 'data';
   layer: number;
   bytes: number;
