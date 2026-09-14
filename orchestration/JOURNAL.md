@@ -1353,3 +1353,8 @@ qu'avant ce lot — rouge d'environnement connu, dossier ignoré par git.
 
 `render-tech-lab/` non modifié ; port 5174 non touché ; aucun `eslint-disable` ; `node_modules`
 (lien symbolique) non committé ; scripts de mesure et de profil dans le scratchpad, jamais committés.
+
+## 2026-09-15 — [session sans-threejs] fusion lot 3a (résidence incrémentale WebGPU)
+
+- develop avancé en avance rapide sur lot3-residence. Admission et file de résidence incrémentales (pages entrées/sorties depuis la coupe GPU, ensembles persistants en index denses), métriques residencyPagesEntered/Exited. Preuve harnais commun (60 images, MAX_PAGES=100000, 3 vues × pixelError 0 et 1) : 0 px avant/après, A/A 0, hash identique 6/6, uncoveredTriangles 0. cpuFrameMs p50 à 0 px : générale 27,1 → 21,6 ms, sol 7,9 → 6,2, rue 9,1 → 6,1 ; à 1 px : 6,6 → 4,3, 4,1 → 2,9, 4,1 → 2,9. Étapes générale : admission 5,2 → 1,4, file 4,3 → 2,5, adoption 1,6 → 0,8. 421 tests, 0 échec.
+- Constat : le budget de pages pèse des placements (~78 000 pour ~37 400 places) et range la coupe entière à chaque image, même à 0 page entrée/sortie ; c'est la prochaine cible (tri par comptage), avec les transparents sur CPU (7,6 ms) et la projection des boîtes (3,2 ms).
