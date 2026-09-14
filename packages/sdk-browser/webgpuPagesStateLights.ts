@@ -32,6 +32,9 @@ export interface WebgpuLightState {
   /** Faces planifiées et slots de dessin indirect réellement encodés par la dernière passe. */
   shadowFaces: number;
   shadowDraws: number;
+  /** Appels de dessin réellement encodés par la passe d'ombres : une remise au fond et un dessin
+   *  indirect par couche, pour chaque face redessinée. C'est le coût par lampe à ombre. */
+  shadowDrawCalls: number;
   /** Pourquoi l'atlas d'ombres n'existe pas, quand il n'existe pas. */
   shadowReason: string | null;
   /** La configuration de la première image éclairée par le contrat n'est journalisée qu'une fois. */
@@ -53,6 +56,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     shadowsPending: 0,
     shadowFaces: 0,
     shadowDraws: 0,
+    shadowDrawCalls: 0,
     shadowReason: null,
     firstFrameLogged: false,
   };

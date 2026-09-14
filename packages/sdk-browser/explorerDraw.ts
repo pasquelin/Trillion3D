@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
+import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -23,11 +24,18 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
   const ownedRenderer = inputs.renderer;
+  // WebGL2 ne sait pas horodater une passe : le chronomètre entoure la soumission de l'image entière,
+  // et n'est monté que si l'hôte a demandé le profil par étape.
+  const gpuTimer =
+    session.options.stageProfile === true && !directGpu && ownedRenderer
+      ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
+      : null;
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as {
       cpuStep?: (index: number, ms: number) => void;
       cpuFrameEnd?: () => void;
+      gpuImageMs?: (ms: number | null, supported: boolean, reason: string | null) => void;
     };
     backend.render(camera);
     const renderEnd = performance.now();
@@ -110,8 +118,14 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
+    gpuTimer?.begin();
     ownedRenderer.render(backend.scene, camera);
+    gpuTimer?.end();
     steps.cpuStep?.(7, performance.now() - retainEnd);
+    if (gpuTimer) {
+      // Une requête relue quelques images plus tard : la lecture ne bloque jamais l'image en cours.
+      steps.gpuImageMs?.(gpuTimer.poll(), gpuTimer.supported, gpuTimer.reason);
+    }
     steps.cpuFrameEnd?.();
   };
   return drawBackend;

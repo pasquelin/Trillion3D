@@ -116,6 +116,10 @@ export interface FrameMetrics {
    * l'appareil n'expose pas d'horodatage, que le relevé a été tronqué, ou que la passe n'a pas eu
    * lieu — une image sans lampe ne lance ni listes ni ombres. Jamais additionnées à un `cpu*`.
    */
+  /** Ce que la passe d'ombres a redessiné : faces (vues) et appels de dessin réellement encodés.
+   *  C'est le coût par lampe à ombre, séparé du reste. Null sur un moteur qui ne dessine pas d'ombre. */
+  shadowFacesDrawn?: number | null;
+  shadowDrawCalls?: number | null;
   gpuLightListsMs?: number | null;
   gpuShadowsMs?: number | null;
   gpuLightingMs?: number | null;

@@ -3,10 +3,13 @@ import type { GpuPassTimings } from '../sdk-core/index.ts';
 import type { createGpuTiming } from './gpuTiming.ts';
 import type { SelectionSubmission } from './gpuSelection.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
+import { createStageProfiler, type StageProfiler } from './stageProfiler.ts';
+import { WEBGPU_STAGES } from './stageMapping.ts';
 import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
 import type { WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 
 const CPU_STEPS = [
+  'lightsMs',
   'adoptCutMs',
   'transparentSelectMs',
   'admissionMs',
@@ -18,9 +21,28 @@ const CPU_STEPS = [
   'partitionMs',
   'itemsMs',
   'encodeRestMs',
+  'queueSubmitMs',
   'encodeSubmitMs',
   'totalMs',
 ] as const;
+/** L'étape publique de chaque borne ci-dessus ; `null` pour les sommes, qui ne se déposent pas. */
+export const CPU_STEP_STAGES: ReadonlyArray<string | null> = [
+  'lights',
+  'selection',
+  'transparents',
+  'residency',
+  'residency',
+  'uploads',
+  'uploads',
+  'selection',
+  'encode',
+  'encode',
+  'encode',
+  'encode',
+  'submit',
+  null,
+  null,
+];
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
 /** The timestamps of one GPU-cut image, written in place as each step ends. */
@@ -45,6 +67,10 @@ export interface WebgpuTimingState {
   lastGpuFrameMs: number | null;
   lastGpuHostGapMs: number | null;
   lastSubmitMs: number | null;
+  /** Durée du seul `queue.submit` de l'image : l'encodage ne la porte pas. */
+  lastQueueSubmitMs: number;
+  /** Profil par étape publié par `stageProfile()` ; absent quand l'hôte ne l'a pas demandé. */
+  stages: StageProfiler | undefined;
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
   lastProjectMs: number;
   lastPartitionMs: number;
@@ -65,13 +91,29 @@ export interface WebgpuTimingState {
   frameSelection: SelectionSubmission | undefined;
 }
 
-export function createWebgpuTimingState(): WebgpuTimingState {
+/** Le profil par étape du moteur WebGPU, monté seulement quand l'hôte l'a demandé. */
+export function createWebgpuStageProfiler(): StageProfiler {
+  const stages = createStageProfiler({
+    backend: 'webgpu-page-raster',
+    stages: WEBGPU_STAGES,
+    gpuMethod: 'timestamp-query',
+  });
+  stages.setReason('coplanar', {
+    cpu: 'décidées par la coupe, sans borne propre',
+    gpu: 'dessinées dans les passes de géométrie, sans passe propre',
+  });
+  return stages;
+}
+
+export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingState {
   return {
     gpuTiming: undefined,
     lastGpuPassMs: null,
     lastGpuFrameMs: null,
     lastGpuHostGapMs: null,
     lastSubmitMs: null,
+    lastQueueSubmitMs: 0,
+    stages,
     lastProjectMs: 0,
     lastPartitionMs: 0,
     lastItemsMs: 0,

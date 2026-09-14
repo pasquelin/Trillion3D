@@ -59,6 +59,8 @@ export async function measureView(options) {
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
+    // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
+    stageProfile: true,
   });
   const pose = options.pose;
   explorer.setPose(pose);
@@ -79,6 +81,9 @@ export async function measureView(options) {
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
   }
   await explorer.flush();
+  // Le profil par étape de la fenêtre glissante, relevé après les images mesurées : durées
+  // processeur et carte graphique séparées, `null` pour ce qui n'a pas été mesuré.
+  const stageProfile = explorer.stageProfile();
 
   // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
   const rgba = explorer.capture();
@@ -121,6 +126,7 @@ export async function measureView(options) {
     cpuFrameMs,
     cpuSelectMs,
     gpuFrameMs,
+    stageProfile,
     selection,
     metrics,
     size,
