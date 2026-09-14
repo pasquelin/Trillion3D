@@ -1,6 +1,6 @@
 # Cache formats 1 and 2 — produced and read by the SDK
 
-This is the on-disk contract implemented today. Design documents under [`vision/`](vision/README.md) describe a future virtualized engine; they do not replace this format.
+This is the on-disk contract implemented today. Design documents under
 
 ## Layout
 
