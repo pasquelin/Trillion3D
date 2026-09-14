@@ -63,7 +63,7 @@ test('triangle diagnostic expands indexed geometry and assigns a color per submi
   geometry.dispose();
 });
 
-test('triangle material is a filled Lambert with vertex colors, not GL_LINES wireframe', () => {
+test('triangle material is a filled unlit with vertex colors, not GL_LINES wireframe', () => {
   const material = createTriangleDiagnosticMaterial(THREE.FrontSide, triangleSalt('0/0/1'));
   assert.equal(material.wireframe, false);
   assert.equal(material.vertexColors, true);
@@ -109,7 +109,7 @@ test('exact pages wireframe uses non-indexed submitted triangles', () => {
   assert.ok(
     drawn.every(
       (item) =>
-        item.material instanceof THREE.MeshLambertMaterial &&
+        item.material instanceof THREE.MeshBasicMaterial &&
         item.material.vertexColors &&
         !item.material.wireframe,
     ),
