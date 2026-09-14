@@ -38,7 +38,7 @@ try{
   const ids=device.createTexture({size:[32,32],format:'r32uint',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
   const depth=device.createTexture({size:[32,32],format:'depth32float',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
   device.pushErrorScope('validation');
-  const raster=createGpuSmallTriangles(device,32,32);
+  const raster=createGpuSmallTriangles(device,32,32,2);
   const row=256,readback=device.createBuffer({size:row*32,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
   const depthReadback=device.createBuffer({size:row*32,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
   const samples=[];
@@ -55,7 +55,7 @@ try{
    device.queue.writeBuffer(uniform,0,uniformData);
    const encoder=device.createCommandEncoder();
    const clear=encoder.beginRenderPass({colorAttachments:[{view:ids.createView(),loadOp:'clear',storeOp:'store',clearValue:[0,0,0,0]}],depthStencilAttachment:{view:depth.createView(),depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'}});clear.end();
-   raster.encode(encoder,{indices,positions,pages,hizFlags:flags,uniform,uvs,maps:maps.createView({dimension:'2d-array'}),sampler:device.createSampler(),pageRows:sample.pageRows,maxTriangles:1,idsView:ids.createView(),depthView:depth.createView(),selection:sample.enabled?{maskBuffer:mask,maskOffset}:undefined});
+   raster.encode(encoder,{indices,positions,pages,hizFlags:flags,uniform,uvs,maps:maps.createView({dimension:'2d-array'}),sampler:device.createSampler(),pageRows:sample.pageRows,maxTriangles:1,idsView:ids.createView(),depthView:depth.createView(),selection:sample.enabled?{maskBuffer:mask,maskOffset}:undefined,groups:new Array(8),groupKey:0});
    encoder.copyTextureToBuffer({texture:ids},{buffer:readback,bytesPerRow:row},[32,32]);
    encoder.copyTextureToBuffer({texture:depth},{buffer:depthReadback,bytesPerRow:row},[32,32]);
    device.queue.submit([encoder.finish()]);await device.queue.onSubmittedWorkDone();
