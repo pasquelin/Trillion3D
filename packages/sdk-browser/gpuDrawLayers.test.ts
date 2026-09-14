@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execSync } from 'node:child_process';
 import {
   BIN_BACK,
   BIN_FRONT,
@@ -10,6 +9,7 @@ import {
   type DrawItem,
 } from './gpuDraw.ts';
 import { drawShader } from './gpuDrawShader.ts';
+import { PRE_LAYERS_GPU_DRAW_SHADER_SOURCE } from '../../test/fixtures/gpuDrawShaderPreLayers.ts';
 
 // Comportement 16 : un item de couche n va au slot bin + 3·rest + 6·n, et layerSlots = 1
 // (une scène sans couche coplanaire empilée) reproduit exactement les six slots d'avant.
@@ -49,10 +49,10 @@ test('layerSlots = 1 collapses every layer into the original six slots', () => {
 });
 
 // Comportement 17 : drawShader(k) ouvre exactement 6k slots dans son propre texte, et drawShader(1)
-// est comparé à la version d'avant le lot, récupérée par `git show` sur le commit 5ae3b83, le
-// dernier à avoir touché ce fichier avant les couches. Un commit fixe, pas la branche `develop` :
-// une fois le lot fusionné, `develop` porterait la version d'après et le test se comparerait à
-// lui-même.
+// est comparé à la version d'avant le lot, figée dans `test/fixtures/gpuDrawShaderPreLayers.ts` (le
+// texte du commit 5ae3b83, le dernier à avoir touché ce fichier avant les couches). Une fixture
+// versionnée plutôt que `git show` sur ce commit : une fois le lot fusionné, `develop` porterait la
+// version d'après et un `git show` sur la branche se comparerait à lui-même.
 test('drawShader(k) opens exactly 6k slots for several k', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
@@ -62,18 +62,8 @@ test('drawShader(k) opens exactly 6k slots for several k', () => {
   }
 });
 
-const BEFORE_LAYERS = '5ae3b83';
 test('drawShader(1) matches the pre-layer shader: same slot count, same order, same bin/rest arithmetic', () => {
-  const developSource = execSync(
-    `git show ${BEFORE_LAYERS}:packages/sdk-browser/gpuDrawShader.ts`,
-    {
-      encoding: 'utf8',
-      cwd: import.meta.dirname,
-    },
-  );
-  const literal = /`([^`]*)`/s.exec(developSource);
-  assert.ok(literal, 'the develop file has one template-literal shader');
-  const developShader = literal![1];
+  const developShader = PRE_LAYERS_GPU_DRAW_SHADER_SOURCE;
   const currentShader = drawShader(1);
 
   // Même nombre de slots (six) et mêmes trois passes, dans le même ordre : compte, préfixe, éparpille.
