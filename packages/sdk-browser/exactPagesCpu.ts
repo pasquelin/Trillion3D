@@ -52,9 +52,10 @@ export function createExactPagesCpu(
     gpuImageMs(ms: number | null, supported: boolean, reason: string | null) {
       if (!stages) return;
       if (!supported) stages.setGpuMethod(null, reason);
+      else if (ms === null) stages.setGpuMethod('EXT_disjoint_timer_query_webgl2', reason);
       else {
         stages.setGpuMethod('EXT_disjoint_timer_query_webgl2', null);
-        if (ms !== null) stages.pushImageGpu(ms);
+        stages.pushImageGpu(ms);
       }
     },
     resetStageProfile() {
