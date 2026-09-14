@@ -55,6 +55,13 @@ export async function createGpuDraw(
     });
     const groupCounts = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
     const groupOffsets = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
+    // Ce que le CPU a compté par slot avant la compaction. Tout à un tant que personne ne le dit :
+    // un appelant qui ne fournit rien paie la compaction complète, comme avant.
+    const slotUsedBuf = device.createBuffer({
+      size: SLOTS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(slotUsedBuf, 0, new Uint32Array(SLOTS).fill(1));
     buffers.push(
       itemsBuf,
       restBuf,
@@ -63,6 +70,7 @@ export async function createGpuDraw(
       indirectBuffer,
       groupCounts,
       groupOffsets,
+      slotUsedBuf,
     );
     if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
     const layout = device.createBindGroupLayout({
@@ -75,6 +83,7 @@ export async function createGpuDraw(
         { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
         { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       ],
     });
     const module = device.createShaderModule({ code: drawShader(layerSlots) });
@@ -119,15 +128,24 @@ export async function createGpuDraw(
           { binding: 5, resource: { buffer: groupOffsets } },
           { binding: 6, resource: { buffer: maskBuffer } },
           { binding: 7, resource: { buffer: restBuf } },
+          { binding: 8, resource: { buffer: slotUsedBuf } },
         ],
       });
     let boundMask = itemsBuf,
       bindGroup = makeBindGroup(boundMask);
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
     return {
-      encode(encoder, items, count, itemsDirty, restBits, maxVertexCount, selection) {
+      encode(encoder, items, count, itemsDirty, restBits, maxVertexCount, selection, slotItems) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
+        if (slotItems)
+          device.queue.writeBuffer(
+            slotUsedBuf,
+            0,
+            slotItems.buffer as ArrayBuffer,
+            slotItems.byteOffset,
+            SLOTS * 4,
+          );
         if (n && itemsDirty)
           device.queue.writeBuffer(
             itemsBuf,
