@@ -52,7 +52,8 @@ fn run_job(id:&str,options:&Options)->Result<Value,CompilerError>{
  emit(json!({"event":"accepted","ratio":0.0,"source":options.source.to_string_lossy(),"cache":options.cache.to_string_lossy(),"scope":options.scope,"triangles":options.triangle_budget,"threads":options.threads,"ramBudgetMb":options.ram_budget_mb,"simplification":options.simplification}),id);
  let job=id.to_string();
  let ratio=Mutex::new(Ratio::default());
- let result=compile(options,|mut event|{let value=ratio.lock().unwrap().update(&event);if let Some(object)=event.as_object_mut(){object.insert("event".into(),json!("progress"));object.insert("ratio".into(),json!((value*1000.0).round()/1000.0));}emit(event,&job)});
+ // Progress arrives from several threads; counting and writing under one lock keeps ratios monotone on the wire.
+ let result=compile(options,|mut event|{let mut guard=ratio.lock().unwrap();let value=guard.update(&event);if let Some(object)=event.as_object_mut(){object.insert("event".into(),json!("progress"));object.insert("ratio".into(),json!((value*1000.0).round()/1000.0));}emit(event,&job);drop(guard);});
  match result{
   Ok(result)=>{let pointer=pointer(&result,&options.cache);emit(json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":started.elapsed().as_secs_f64()*1000.0}),id);Ok(pointer)}
   Err(error)=>{let mut event=error_value(&error);event["event"]=json!(if error.code=="CANCELLED"{"cancelled"}else{"error"});event["ms"]=json!(started.elapsed().as_secs_f64()*1000.0);emit(event,id);Err(error)}
