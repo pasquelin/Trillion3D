@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
-import { drawnIndices, dagLevel, DAG } from './pagesBackendFixture.ts';
+import { drawnIndices, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
