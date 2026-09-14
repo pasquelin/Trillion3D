@@ -83,6 +83,16 @@ export function clusterErrorFields(page: Page): {
     throw new Error(`Page ${page.id}: parentError sans parentSphere`);
   if (parent !== null && parent < page.lodError!)
     throw new Error(`Page ${page.id}: parentError sous lodError`);
+  // `pageCarriesClusterError` valide la sphere propre de la page ; celle du remplacant ne l'etait
+  // nulle part. Une bande projetable porte une sphere finie de rayon positif : refusee ici, a la
+  // preparation, jamais au milieu d'une image. Une erreur nulle ne projette rien et ne lit pas sa
+  // sphere, elle n'a rien a valider.
+  if (
+    parent !== null &&
+    parent > 0 &&
+    !(page.parentSphere!.every((value) => Number.isFinite(value)) && page.parentSphere![3] >= 0)
+  )
+    throw new Error('Parametres de cluster invalides');
   return {
     level: page.level,
     lodError: page.lodError,
