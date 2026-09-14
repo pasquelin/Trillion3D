@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
+import { clusterHue } from './backendCommon.ts';
 
 export const viewProj = new THREE.Matrix4();
 export const remap = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
@@ -45,9 +46,7 @@ export function linearColor(material: THREE.Material | THREE.Material[]): [numbe
   return [colorScratch.r, colorScratch.g, colorScratch.b];
 }
 export function clusterRgb(id: string): [number, number, number] {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (Math.imul(hash, 31) + id.charCodeAt(i)) >>> 0;
-  colorScratch.setHSL((hash * 0.61803398875) % 1, 0.75, 0.55);
+  colorScratch.setHSL(clusterHue(id), 0.75, 0.55);
   if (THREE.ColorManagement.enabled) colorScratch.convertSRGBToLinear();
   return [colorScratch.r, colorScratch.g, colorScratch.b];
 }

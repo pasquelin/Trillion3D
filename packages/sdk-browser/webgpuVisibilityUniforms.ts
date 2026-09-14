@@ -1,40 +1,23 @@
-import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
-type UniformOptions = {
-  device: GPUDevice;
-  visUniform?: GPUBuffer;
-  shadeUniform?: GPUBuffer;
-  visUniPacked: Float32Array<ArrayBuffer>;
-  shadeUniPacked: Float32Array<ArrayBuffer>;
-  width: number;
-  height: number;
-  hasGpuSmall: boolean;
-  tableRows: number;
-  gpuFrameActive: boolean;
-  maskOffset: number;
-  diagnostic: DiagnosticMode;
-};
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Uploads visibility and material resolve uniforms for the current cut. */
-export function writeWebgpuVisibilityUniforms({
-  device,
-  visUniform,
-  shadeUniform,
-  visUniPacked,
-  shadeUniPacked,
-  width,
-  height,
-  hasGpuSmall,
-  tableRows,
-  gpuFrameActive,
-  maskOffset,
-  diagnostic,
-}: UniformOptions) {
-  if (!visUniform)
-    visUniform = device.createBuffer({
-      size: 7 * 256,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
+/** Uploads visibility and material resolve uniforms for the current cut, creating the two uniform
+ *  buffers on `rt.vis` the first time. */
+export function writeWebgpuVisibilityUniforms(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  tableRows: number,
+) {
+  const { vis, run } = rt,
+    { visUniPacked, shadeUniPacked } = vis,
+    [width, height] = rt.gpu.targetSize,
+    hasGpuSmall = !!vis.gpuSmall,
+    { gpuFrameActive, diagnostic } = run,
+    maskOffset = run.gpuSelection?.maskOffset ?? 0;
+  const visUniform = (vis.visUniform ??= device.createBuffer({
+    size: 7 * 256,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  }));
   const visInts = new Uint32Array(visUniPacked.buffer);
   for (let slot = 0; slot < 7; slot++) {
     const base = slot * 64;
@@ -50,11 +33,10 @@ export function writeWebgpuVisibilityUniforms({
     visInts[base + 23] = gpuFrameActive ? 1 : 0;
   }
   device.queue.writeBuffer(visUniform, 0, visUniPacked);
-  if (!shadeUniform)
-    shadeUniform = device.createBuffer({
-      size: 256,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
+  const shadeUniform = (vis.shadeUniform ??= device.createBuffer({
+    size: 256,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  }));
   shadeUniPacked.set(viewProj.elements, 0);
   shadeUniPacked[16] = width;
   shadeUniPacked[17] = height;
@@ -75,5 +57,4 @@ export function writeWebgpuVisibilityUniforms({
                 ? 5
                 : 6;
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked);
-  return { visUniform, shadeUniform };
 }

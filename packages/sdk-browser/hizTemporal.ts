@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { rasterVisibility, type VisPage } from './visibilityBuffer.ts';
 import { buildHizPyramid } from './hizDepth.ts';
-import { filterUnoccluded } from './hizOcclusion.ts';
+import { countUnoccluded, filterUnoccluded } from './hizOcclusion.ts';
+import { createHizCounts, resetHizCounts, type HizCounts } from './hizCounts.ts';
 import { splitOccluders } from './hizSplit.ts';
 import type { HizPage, HizPyramid } from './hizTypes.ts';
 
@@ -38,13 +39,21 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   camera: THREE.PerspectiveCamera,
   viewport: [number, number],
   history: TemporalHizState = {},
-): { shown: T[]; hizRejected: number; occluders: T[]; history: TemporalHizState } {
+  counts: HizCounts = createHizCounts(),
+): {
+  shown: T[];
+  hizRejected: number;
+  occluders: T[];
+  history: TemporalHizState;
+  counts: HizCounts;
+} {
+  resetHizCounts(counts);
   if (selected.length < 2) {
     const vis = rasterVisibility(selected, camera, viewport);
     history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
     history.camera = camera.clone();
     history.viewport = [viewport[0], viewport[1]];
-    return { shown: selected, hizRejected: 0, occluders: selected, history };
+    return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
   }
   const hasPrev = !!(
     history.pyramid &&
@@ -78,12 +87,12 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
     history.camera = camera.clone();
     history.viewport = [viewport[0], viewport[1]];
-    return { shown: selected, hizRejected: 0, occluders, history };
+    return { shown: selected, hizRejected: 0, occluders, history, counts };
   }
 
   const visPass1 = rasterVisibility(occluders, camera, viewport);
   const currentPyramid = buildHizPyramid(visPass1.depth, viewport[0], viewport[1]);
-  const disoccluded = filterUnoccluded(rest, currentPyramid, camera, viewport);
+  const disoccluded = countUnoccluded(rest, currentPyramid, camera, viewport, counts);
   const shown = [...occluders, ...disoccluded];
 
   const fullVis = rasterVisibility(shown, camera, viewport);
@@ -91,5 +100,5 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   history.camera = camera.clone();
   history.viewport = [viewport[0], viewport[1]];
 
-  return { shown, hizRejected: rest.length - disoccluded.length, occluders, history };
+  return { shown, hizRejected: rest.length - disoccluded.length, occluders, history, counts };
 }

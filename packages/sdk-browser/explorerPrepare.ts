@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import type { RenderBackend } from './backendTypes.ts';
 import { configureExplorer } from './explorerCapabilities.ts';
 import { prepareExplorerBackends } from './explorerBackends.ts';
 import { createExplorerCamera } from './explorerCamera.ts';
 import { createExplorerPageSources } from './explorerPageSources.ts';
 import { loadPreparedScene } from './explorerScene.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 
 export type ExplorerResources = {
   source?: THREE.Object3D;
@@ -15,43 +14,20 @@ export type ExplorerResources = {
 };
 
 type Inputs = {
-  canvas: HTMLCanvasElement;
-  options: ExplorerOptions;
-  metadata: ClusterManifest;
   manifestUrl: string;
   metadataUrl: string;
   sceneFile: string;
   base: string;
-  scope: AssetScope;
   autonomous: boolean;
-  signal?: AbortSignal;
   backends: RenderBackend[];
   resources: ExplorerResources;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
   progress: (phase: string, completed: number, total: number, message: string) => void;
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
-export async function prepareExplorer(inputs: Inputs) {
-  const {
-    canvas,
-    options,
-    metadata,
-    manifestUrl,
-    metadataUrl,
-    sceneFile,
-    base,
-    scope,
-    autonomous,
-    signal,
-    backends,
-    resources,
-    diagnosticChannel,
-    progress,
-    emit,
-    diagnose,
-  } = inputs;
+export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
+  const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session;
+  const { manifestUrl, metadataUrl, sceneFile, base, autonomous, backends, resources, progress } =
+    inputs;
   progress(
     'scene',
     0,
@@ -83,42 +59,27 @@ export async function prepareExplorer(inputs: Inputs) {
     diagnosticChannel,
     progress,
   );
-  const configured = await configureExplorer({
-    canvas,
-    options,
-    scope,
+  const configured = await configureExplorer(session, {
     autonomous,
-    metadata,
     manifestUrl,
     metadataUrl,
     sceneFile,
     base,
     source,
     pageSources,
-    diagnosticChannel,
     resources,
-    emit,
-    diagnose,
   });
   resources.renderer = configured.renderer;
   resources.gpuDevice = configured.gpuDevice;
-  const { viewport, context } = await prepareExplorerBackends({
-    canvas,
-    options,
-    scope,
-    metadata,
+  const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
-    signal,
     pageSources,
-    diagnosticChannel,
     gpuDevice: resources.gpuDevice,
     directGpu: configured.directGpu,
     autonomous,
     backends,
-    emit,
-    diagnose,
   });
   const cameraState = createExplorerCamera(
     source,

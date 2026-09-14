@@ -4,8 +4,38 @@ import { meshes as objects } from './sceneMeshes.ts';
 import { replicateInstances } from './replicateInstances.ts';
 import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
 import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
+import type { ExplorerEmitters } from './explorerSession.ts';
 
-type Diagnose = (phase: string, message: string, context?: Record<string, unknown>) => void;
+/** World bounds of the exact pages of every mesh of `source`; `onMissing` decides what a mesh
+ *  without a prepared primitive does, and the mesh is skipped once it returns. */
+export function exactPagesBounds(
+  source: THREE.Object3D,
+  associations: BackendContext['associations'],
+  metadata: ClusterManifest,
+  onMissing: (mesh: THREE.Mesh) => void,
+  into = new THREE.Box3(),
+) {
+  for (const mesh of objects(source)) {
+    const association = associations.get(mesh);
+    const primitive = metadata.primitives.find(
+      (item) =>
+        item.mesh === association?.meshes && item.primitive === (association?.primitives ?? 0),
+    );
+    if (!primitive) {
+      onMissing(mesh);
+      continue;
+    }
+    for (const page of primitive.pages)
+      if ((page.role ?? 'exact') === 'exact')
+        into.union(
+          new THREE.Box3(
+            new THREE.Vector3().fromArray(page.min),
+            new THREE.Vector3().fromArray(page.max),
+          ).applyMatrix4(mesh.matrixWorld),
+        );
+  }
+  return into;
+}
 
 export async function loadPreparedScene(
   options: ExplorerOptions,
@@ -15,7 +45,7 @@ export async function loadPreparedScene(
   scope: string,
   autonomous: boolean,
   signal: AbortSignal | undefined,
-  diagnose: Diagnose,
+  diagnose: ExplorerEmitters['diagnose'],
   registerSource: (source: THREE.Object3D) => void,
 ) {
   const manager = new THREE.LoadingManager();
@@ -39,39 +69,15 @@ export async function loadPreparedScene(
   registerSource(source);
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
-  let preparedBounds: THREE.Box3 | undefined;
-  if (autonomous) {
-    preparedBounds = new THREE.Box3();
-    for (const mesh of objects(source)) {
-      const association = (gltf.parser.associations as BackendContext['associations']).get(mesh);
-      const primitive = metadata.primitives.find(
-        (item) =>
-          item.mesh === association?.meshes && item.primitive === (association?.primitives ?? 0),
-      );
-      if (!primitive)
+  const associations = gltf.parser.associations as BackendContext['associations'];
+  const preparedBounds = autonomous
+    ? exactPagesBounds(source, associations, metadata, () => {
         throw new EngineError(
           'AUTONOMOUS_ASSOCIATION_MISSING',
           'Prepared scene primitive has no geometry pages',
         );
-      for (const page of primitive.pages)
-        if ((page.role ?? 'exact') === 'exact')
-          preparedBounds.union(
-            new THREE.Box3(
-              new THREE.Vector3().fromArray(page.min),
-              new THREE.Vector3().fromArray(page.max),
-            ).applyMatrix4(mesh.matrixWorld),
-          );
-    }
-  }
-  source = replicateInstances(
-    source,
-    gltf.parser.associations as BackendContext['associations'],
-    options.replicaCount ?? 1,
-    preparedBounds,
-  );
-  return {
-    source,
-    sceneLightingSource,
-    associations: gltf.parser.associations as BackendContext['associations'],
-  };
+      })
+    : undefined;
+  source = replicateInstances(source, associations, options.replicaCount ?? 1, preparedBounds);
+  return { source, sceneLightingSource, associations };
 }

@@ -1,11 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {
-  createTriangleDiagnosticMaterial,
-  triangleGeometry,
-  triangleSalt,
-} from './triangleDiagnostic.ts';
+import { createTriangleDiagnosticMaterial, triangleGeometry } from './triangleDiagnostic.ts';
+import { hashId } from './backendCommon.ts';
 import { exactPagesBackend, referenceBackend } from './index.ts';
 import { quadScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 
@@ -22,7 +19,7 @@ test('triangle diagnostic expands indexed geometry and assigns a color per submi
 });
 
 test('triangle material is filled and unlit with vertex colors', () => {
-  const material = createTriangleDiagnosticMaterial(THREE.FrontSide, triangleSalt('0/0/1'));
+  const material = createTriangleDiagnosticMaterial(THREE.FrontSide, hashId('0/0/1'));
   assert.ok(material instanceof THREE.MeshBasicMaterial);
   assert.equal(material.wireframe, false);
   assert.equal(material.vertexColors, true);

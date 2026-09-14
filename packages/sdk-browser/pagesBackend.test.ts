@@ -109,7 +109,10 @@ test('cpuSelectMs mesure le temps de sélection, fini et non-négatif', () => {
   });
   const context = {
     source,
-    metadata: { ...DAG, primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([cluster(0, 0)]) }] },
+    metadata: {
+      ...DAG,
+      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([cluster(0, 0)]) }],
+    },
     indices: new Map([['0', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
     associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
     maxResidentPages: 1,
