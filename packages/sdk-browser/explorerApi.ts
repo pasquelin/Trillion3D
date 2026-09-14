@@ -140,6 +140,6 @@ export function createExplorerApi(inputs: Inputs) {
       setMode: setDiagnostic,
     }),
     ...createExplorerLightApi({ check, store: context.sceneLights, backends }),
-    ...createExplorerTelemetryApi(profiler),
+    ...createExplorerTelemetryApi(profiler, () => state.active),
   };
 }
