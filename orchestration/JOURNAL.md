@@ -1,5 +1,9 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-14 — Spec éclairage, version 0
+
+- Nouveau document `orchestration/SPEC_ECLAIRAGE.md` : besoin (GI dynamique, aucune lumière cuite), principe « cadence fixe, convergence variable, même image finale », exigences numérotées (physique, compilateur, runtime, contrat d'erreur, plateformes, banc, exécution des calculs), budgets GPU par composant et tolérance de retard (cible 100 ms, limite 250 ms, 500 ms sur GPU intégré) comme réglages révisables, phases E0 à E6. Aucune implémentation ; la phase E0 (quatre mesures) peut s'intercaler, E1 à E6 attendent la fin des phases 1 à 3 de la spec géométrie.
+
 ## 2026-09-14 — R&D éclairage : prototype et diagnostic, aucune intégration
 
 - Essai isolé depuis `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`, branche `codex/light-transport-experiment`. Deux pièces, porte mobile, trois sources colorées réglables, miroirs et sphère. Rendu expérimental Three/WebGL2 via les API publiques ; maillages source dessinés, pas les pages de clusters ni le runner du banc 15. Lab et assets inchangés, aucun commit/fusion.
@@ -433,6 +437,12 @@
 - `npm run validate` vert : 337/337 tests JS, 57/57 Rust, format, lint, knip, build TS et natif, structure, liens (liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` résolus avec `benchmark-runs/` du dépôt principal).
 - Non fait : preuve navigateur (trous et fidélité Emerald) et revue indépendante finale ; fusion sur `develop` local demandée par l'utilisateur, rien poussé sur `origin`.
 
+## 2026-09-14 — [session simplify] passe /simplify sur la dernière fusion de `develop`
+
+- Périmètre : fusion 7491682 (découpage WebGPU, 12 000 lignes), pas l'écart complet main…develop. Quatre relecteurs Sonnet en lecture seule (réutilisation, simplification, efficacité, altitude) : 24 constats bruts, 19 correctifs dédoublonnés, tous appliqués par un seul agent Opus, tests lancés par Haiku.
+- Fusion 2445b61 (`--no-ff`, 4 commits, 62 fichiers, +869 / −1766) : helpers partagés (`mipLevelCountFor`, `pixelScaleOf`, `clearValueOf`, octets de relecture, hash→teinte unique, `boxClipRec`, bornes « exact » communes avec `onMissing`), atlas couleur et data fusionnés dans `webgpuAtlasCommon.ts`, chemin chaud WebGPU sur `rt: WebgpuPagesRuntime` au lieu de sacs d'options reconstruits par image (`rt.hooks` supprimé), état hôte mutable partagé par les services `explorer*` (plus d'accesseurs `state()` allouants), casts `as unknown as` retirés (`quadRootsContext` typé).
+- `npm run validate` vert après suppression de `.claude/a28/dist-*` (copies A/B périmées d'un agent, non suivies) et ajout de `.claude/` au `.gitignore`. Tests JS 337/337 sans aucun test adapté. Preuve navigateur non refaite : refactor à comportement identique. Worktree `simplify-develop-e59aef` supprimé.
+
 ## 2026-09-14 — Phase 1, lot 1 `lot1-hiz-compteurs` (opus, worktree depuis develop 6ca7fae)
 
 - Objet : **compter** ce que la pyramide Hi-Z élimine, sans aucune optimisation. Aucune ligne du chemin de rendu n'a changé.
@@ -519,3 +529,14 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
   - `orchestration/JOURNAL.md` — les deux blocs conservés, celui de develop (16:40) avant celui du lot, ordre chronologique.
 - Dette du lot soldée dans la foulée, les portes étant rouges à l'arrivée : `hiz.test.ts` faisait 290 lignes → scindé en `hiz.test.ts` (145) et `hizTestRect.test.ts` (158, les 12 tests `hizTestRect` et compteurs du lot) ; `gpuHizFactory.ts` faisait 203 lignes → table des uniformes par niveau extraite dans `writeHizLevelUniforms` (`gpuHizUniforms.ts`) ; exports morts retirés (`hizFootprintLevelFlat`, dont `hizTestRectFlat` a repris le seul appelant, et les réexports non lus `hizTestRect`, `HIZ_KERNEL_TEXELS`, `hizOversized` du baril `hiz.ts`, `COUNT_EVERY_IMAGES` rendu privé).
 - Portes vertes sur le résultat : `npm run build` (tsc + rewrite-dts + provenance), `eslint .`, `prettier --check`, `check:lines`, `check:duplicates` (0 clone), `check:unused` (knip, 0), `check:structure`. Tests non lancés ici (consigne : rejoués par un autre agent).
+
+## 2026-09-14 — Phase 1, lot 2, fusion de develop 4d61304 dans `lot1-hiz-compteurs`
+
+- Develop avait avancé de 8 commits depuis 7491682 (passe `/simplify`, fusion 2445b61), rendant l'avance rapide impossible sur le dépôt principal. Seconde fusion, même méthode que la première.
+- Trois conflits de source, exactement les trois modules où le plombage des compteurs avait été reporté à la fusion précédente. Develop y a remplacé les sacs d'options par le passage direct de `rt: WebgpuPagesRuntime` ; version de develop prise à chaque fois, puis apport du lot reposé sur la forme simplifiée :
+  - `webgpuVisibilityItems.ts` — `hizTestedTriangles` lu depuis `rt.layout` avec les autres tableaux de lignes, et le compte de triangles écrit à côté de la ligne testée.
+  - `webgpuVisibilityPasses.ts` — `hizCountSample` lu depuis `rt.layout` ; `hizCountSample.frame = run.frame` posé juste avant `encodeTest`, qui reçoit l'échantillon. Le module lisant déjà `rt`, le plombage explicite ajouté à la fusion précédente disparaît au lieu d'être reporté.
+  - `webgpuPagesEncodeVis.ts` — version de develop prise telle quelle : les lignes de plombage qu'elle portait n'ont plus de raison d'être. Aucune duplication, aucun sac d'options résiduel.
+- `orchestration/JOURNAL.md` — les deux blocs conservés, celui de develop (passe `/simplify`) avant celui du lot.
+- Le reste du lot a fusionné seul : `hiz*.ts`, `gpuHiz*.ts`, `metricsContracts.ts`, `explorerMetrics.ts`, `webgpuPagesLayout.ts`, `webgpuPagesStateRun.ts`, `webgpuPagesRenderCpu.ts`, `webgpuPagesEncoder.ts`, `webgpuPagesMetrics.ts`. Vérifié après coup : chaque maillon des compteurs est présent une fois et une seule.
+- Portes vertes : `npm run build`, `eslint .`, `prettier --check`, `check:lines`, `check:duplicates` (0 clone), `check:unused` (knip, 0), `check:structure`, `check:dts`. `check:links` est rouge dans tout worktree et le reste ici : `orchestration/RD_ECLAIRAGE_DIAGNOSTIC.md` (venu de develop, 249c3c3) pointe vers `benchmark-runs/`, répertoire ignoré par git et présent seulement dans le dépôt principal — sans rapport avec cette fusion. Tests non lancés ici (consigne : rejoués par un autre agent).

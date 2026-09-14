@@ -1,3 +1,8 @@
+/** Full mip chain length for a texture of the given size. */
+export function mipLevelCountFor(width: number, height: number) {
+  return 1 + Math.floor(Math.log2(Math.max(width, height)));
+}
+
 /** Generate material mip levels once during preparation, averaging in the texture's
  * declared color space. Clamp to each layer's image rather than its padded area. */
 export async function generateMaterialMips(
@@ -9,7 +14,7 @@ export async function generateMaterialMips(
   scales: readonly (readonly [number, number])[],
   selectedLayers?: readonly number[],
 ) {
-  const levels = 1 + Math.floor(Math.log2(Math.max(width, height)));
+  const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
   const layout = device.createBindGroupLayout({
     entries: [
