@@ -1,43 +1,24 @@
-import type * as THREE from 'three';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { visMaterial } from './visibilityBuffer.ts';
 import { writeBlendDiagnostic } from './webgpuBlendDiagnostic.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export const UNIFORM_STRIDE = 256;
-type BlendUniformOptions = {
-  device: GPUDevice;
-  items: BlendGpuItem[];
-  uniformBase: number;
-  uniformPacked: Float32Array<ArrayBuffer>;
-  uniformBuffer: GPUBuffer;
-  diagnostic: DiagnosticMode;
-  lastCamera: THREE.PerspectiveCamera | undefined;
-  viewport: readonly [number, number];
-  diagnosticPixelError: number;
-  mapLayer: Map<THREE.Texture, number>;
-  dataLayer: Map<THREE.Texture, number>;
-  uvScales: Array<[number, number]>;
-  textured: boolean;
-};
 
 /** Populates and uploads the transparent draw uniforms for one image. */
-export function writeBlendUniforms({
-  device,
-  items,
-  uniformBase,
-  uniformPacked,
-  uniformBuffer,
-  diagnostic,
-  lastCamera,
-  viewport,
-  diagnosticPixelError,
-  mapLayer,
-  dataLayer,
-  uvScales,
-  textured,
-}: BlendUniformOptions) {
+export function writeBlendUniforms(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  uniformBase: number,
+  textured: boolean,
+) {
+  const { run, vis } = rt,
+    items = rt.blendState.visibleBlend,
+    { uniformPacked } = rt.gpu,
+    uniformBuffer = rt.gpu.uniformBuffer!,
+    { diagnostic, lastCamera, diagnosticPixelError } = run,
+    { viewport } = rt.setup,
+    { mapLayer, dataLayer, uvScales } = vis;
   const packedInts = new Uint32Array(
     uniformPacked.buffer,
     uniformPacked.byteOffset,
