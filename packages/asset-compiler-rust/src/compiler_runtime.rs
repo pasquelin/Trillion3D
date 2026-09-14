@@ -11,7 +11,7 @@ pub fn runtime_manifest(
         .iter()
         .map(|(file, sha)| json!({"file":file,"sha256":sha}))
         .collect();
-    json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":file,"sha256":sha256,"sidecars":sidecars,"trianglesAcrossNodes":triangles,"meshNodes":mesh_nodes}})
+    json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":file,"sha256":sha256,"sidecars":sidecars,"trianglesAcrossNodes":triangles,"meshNodes":mesh_nodes}})
 }
 pub(super) fn load_model_file(
     dir: &Path,

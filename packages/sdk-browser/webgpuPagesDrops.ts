@@ -53,6 +53,8 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visPipelineNone = undefined;
   vis.visPipelineFront = undefined;
   vis.visPipelineFrontCw = undefined;
+  vis.visLayerPipelines.length = 0;
+  vis.drawLayerSlots = 1;
   vis.shadePipeline = undefined;
   vis.shadeBindGroup = undefined;
   vis.shadeBindGroupLayout = undefined;
