@@ -147,5 +147,16 @@ pub(super) fn encode_page(
         }
     }
     columns[PAGE_U32].u32(flags);
+    // Layer 0 is the untouched draw, so a cache with no coplanar surface writes a column of zeros.
+    columns[PAGE_DEPTH_LAYER].u32(match item.get("depthLayer") {
+        None => 0,
+        Some(value) => {
+            let layer = as_u32(integer(Some(value), "page.depthLayer")?, "page.depthLayer")?;
+            if layer > 15 {
+                return Err(bad(format!("page.depthLayer {layer} exceeds four bits")));
+            }
+            layer
+        }
+    });
     Ok(())
 }

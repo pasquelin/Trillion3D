@@ -132,3 +132,41 @@ fn a_url_that_leaves_the_template_is_refused() {
         "INVALID_MANIFEST"
     );
 }
+// Comportement 10 (Rust) : l'encodage refuse un depthLayer qui dépasse les quatre bits (> 15).
+#[test]
+fn split_rejects_a_depth_layer_that_exceeds_four_bits() {
+    let templates = Templates {
+        binary: "clusters.bin",
+        page: "../../objects/{sha}.bin",
+        geometry: "../../objects/{sha}.bin",
+        bundle: "../../objects/{sha}.bin",
+    };
+    let mut manifest = sample();
+    manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(16);
+    let error = split(&manifest, &templates).unwrap_err();
+    assert_eq!(error.code, "INVALID_MANIFEST");
+    assert!(
+        error.message.contains("depthLayer"),
+        "le message doit nommer le champ en cause : {}",
+        error.message
+    );
+}
+#[test]
+fn split_accepts_a_depth_layer_at_the_four_bit_limit_and_writes_it_in_its_column() {
+    let templates = Templates {
+        binary: "clusters.bin",
+        page: "../../objects/{sha}.bin",
+        geometry: "../../objects/{sha}.bin",
+        bundle: "../../objects/{sha}.bin",
+    };
+    let mut manifest = sample();
+    manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(15);
+    let (_, bytes) = split(&manifest, &templates).expect("split");
+    let at = (HEADER_WORDS + PAGE_DEPTH_LAYER * 2) * 4;
+    let offset = u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+    let first_page_layer = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
+    assert_eq!(first_page_layer, 15);
+    // La seconde page (coarse_page) ne porte pas depthLayer : la colonne y reste à zéro.
+    let second_page_layer = u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap());
+    assert_eq!(second_page_layer, 0);
+}
