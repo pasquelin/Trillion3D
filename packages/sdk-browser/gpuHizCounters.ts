@@ -1,5 +1,8 @@
 import { HIZ_BOUNDS_VALUES, createHizCounts, hizOversizedFlat, type HizCounts } from './hiz.ts';
 
+/** One image's counts and the number of that image. */
+export type HizCountsFrame = HizCounts & { frame: number };
+
 /**
  * Images between two readbacks of the test verdicts. The verdicts are written by the GPU, so counting
  * what they eliminated costs one copy of the flag rows and one mapping; both are kept off the images
@@ -24,8 +27,7 @@ const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMo
  * never reports counts.
  */
 export function createHizCounters(cap: number) {
-  const counted = createHizCounts() as HizCounts & { frame: number };
-  counted.frame = -1;
+  const counted: HizCountsFrame = { ...createHizCounts(), frame: -1 };
   let countedReady = false;
   const sampledRows = new Uint32Array(cap),
     sampledTriangles = new Uint32Array(cap);
@@ -61,6 +63,40 @@ export function createHizCounters(cap: number) {
     } catch {
       return false;
     }
+  };
+
+  // The mapping's handlers, made once: a sampled image allocates no closure to read its verdicts.
+  const onMapped = () => {
+    if (disposed || !readback) return;
+    const rowsRead = readbackRows;
+    const verdicts = new Uint32Array(readback.getMappedRange(0, rowsRead * 4));
+    let rejected = 0,
+      rejectedTriangles = 0;
+    for (let i = 0; i < sampledCount; i++) {
+      const row = sampledRows[i];
+      if (row < rowsRead && verdicts[row]) {
+        rejected++;
+        rejectedTriangles += sampledTriangles[i];
+      }
+    }
+    counted.frame = sampledFrame;
+    counted.tested = sampledTested;
+    counted.oversized = sampledOversized;
+    counted.testedTriangles = sampledTestedTriangles;
+    counted.oversizedTriangles = sampledOversizedTriangles;
+    counted.rejected = rejected;
+    counted.rejectedTriangles = rejectedTriangles;
+    countedReady = true;
+  };
+  /** A device loss or a disposal cancels a mapping; the counters keep their last image. */
+  const onMapFailed = () => {};
+  const onSettled = () => {
+    try {
+      readback?.unmap();
+    } catch {
+      /* Already unmapped by a disposal. */
+    }
+    mapping = false;
   };
 
   return {
@@ -115,44 +151,12 @@ export function createHizCounters(cap: number) {
      * use a mapped buffer. A no-op on every image that encoded no copy.
      */
     submitted() {
-      const buffer = readback;
-      if (!copyEncoded || !buffer || disposed) return;
+      if (!copyEncoded || !readback || disposed) return;
       copyEncoded = false;
       mapping = true;
-      const rowsRead = readbackRows;
-      Promise.resolve(buffer.mapAsync(mapRead(), 0, rowsRead * 4))
-        .then(() => {
-          if (disposed) return;
-          const verdicts = new Uint32Array(buffer.getMappedRange(0, rowsRead * 4));
-          let rejected = 0,
-            rejectedTriangles = 0;
-          for (let i = 0; i < sampledCount; i++) {
-            const row = sampledRows[i];
-            if (row < rowsRead && verdicts[row]) {
-              rejected++;
-              rejectedTriangles += sampledTriangles[i];
-            }
-          }
-          counted.frame = sampledFrame;
-          counted.tested = sampledTested;
-          counted.oversized = sampledOversized;
-          counted.testedTriangles = sampledTestedTriangles;
-          counted.oversizedTriangles = sampledOversizedTriangles;
-          counted.rejected = rejected;
-          counted.rejectedTriangles = rejectedTriangles;
-          countedReady = true;
-        })
-        .catch(() => {
-          /* A device loss or a disposal cancels a mapping; the counters keep their last image. */
-        })
-        .finally(() => {
-          try {
-            buffer.unmap();
-          } catch {
-            /* Already unmapped by a disposal. */
-          }
-          mapping = false;
-        });
+      Promise.resolve(readback.mapAsync(mapRead(), 0, readbackRows * 4))
+        .then(onMapped, onMapFailed)
+        .finally(onSettled);
     },
     /**
      * Counts of the last image whose verdicts came back, and the number of that image. Undefined
