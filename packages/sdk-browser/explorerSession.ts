@@ -1,7 +1,23 @@
 import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
-import type { RuntimeEvent } from '../sdk-core/index.ts';
+import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
 import type { ExplorerOptions } from './backendTypes.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
+
+/** The two observer outlets every explorer module reports through. */
+export type ExplorerEmitters = {
+  emit: (event: RuntimeEvent) => void;
+  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
+};
+
+/** What one explorer shares from its manifest onwards; built once and handed to each module as is. */
+export type ExplorerSession = ExplorerEmitters & {
+  canvas: HTMLCanvasElement;
+  options: ExplorerOptions;
+  metadata: ClusterManifest;
+  scope: AssetScope;
+  signal?: AbortSignal;
+  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
+};
 
 export function createExplorerSession(options: ExplorerOptions) {
   const diagnosticChannel = createDiagnosticChannel(options.onDiagnostic, {

@@ -1,36 +1,20 @@
-type VisibilityBindingOptions = {
-  device: GPUDevice;
-  layout?: GPUBindGroupLayout;
-  cacheBuffer?: GPUBuffer;
-  concatPos?: GPUBuffer;
-  concatUv?: GPUBuffer;
-  pageTable?: GPUBuffer;
-  visUniform?: GPUBuffer;
-  zeroFlags?: GPUBuffer;
-  mapsTexture?: GPUTexture;
-  mapsSampler?: GPUSampler;
-  hizFlags?: GPUBuffer;
-  mapsArrayView?: GPUTextureView;
-  visBindGroup?: GPUBindGroup;
-  visHizBindGroup?: GPUBindGroup;
-};
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Binds row visibility inputs once for untested and Hi-Z-tested passes. */
-export function ensureWebgpuVisibilityBindings(options: VisibilityBindingOptions) {
-  let { mapsArrayView, visBindGroup, visHizBindGroup } = options;
-  const {
-    device,
-    layout,
-    cacheBuffer,
-    concatPos,
-    concatUv,
-    pageTable,
-    visUniform,
-    zeroFlags,
-    mapsTexture,
-    mapsSampler,
-    hizFlags,
-  } = options;
+/** Binds row visibility inputs once for untested and Hi-Z-tested passes, on `rt.vis`. */
+export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { vis } = rt,
+    cacheBuffer = rt.gpu.cache?.buffer,
+    hizFlags = vis.gpuHiz?.flags,
+    {
+      visBindGroupLayout: layout,
+      concatPos,
+      concatUv,
+      pageTable,
+      visUniform,
+      zeroFlags,
+      mapsTexture,
+      mapsSampler,
+    } = vis;
   if (
     layout &&
     cacheBuffer &&
@@ -42,7 +26,7 @@ export function ensureWebgpuVisibilityBindings(options: VisibilityBindingOptions
     mapsTexture &&
     mapsSampler
   ) {
-    mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' });
+    const mapsArrayView = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     const make = (flags: GPUBuffer) =>
       device.createBindGroup({
         layout,
@@ -53,14 +37,13 @@ export function ensureWebgpuVisibilityBindings(options: VisibilityBindingOptions
           { binding: 3, resource: { buffer: flags } },
           { binding: 4, resource: { buffer: visUniform, offset: 0, size: 96 } },
           { binding: 5, resource: { buffer: concatUv } },
-          { binding: 6, resource: mapsArrayView! },
+          { binding: 6, resource: mapsArrayView },
           { binding: 7, resource: mapsSampler },
           { binding: 8, resource: { buffer: zeroFlags } },
           { binding: 9, resource: { buffer: zeroFlags } },
         ],
       });
-    visBindGroup ??= make(zeroFlags);
-    if (hizFlags) visHizBindGroup ??= make(hizFlags);
+    vis.visBindGroup ??= make(zeroFlags);
+    if (hizFlags) vis.visHizBindGroup ??= make(hizFlags);
   }
-  return { mapsArrayView, visBindGroup, visHizBindGroup };
 }

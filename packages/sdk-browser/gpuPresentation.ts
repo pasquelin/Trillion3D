@@ -65,6 +65,11 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
   }
 }
 
+/** Row pitch of a readback buffer: RGBA8 rows padded to WebGPU's 256-byte alignment. */
+export function readbackBytesPerRow(width: number) {
+  return Math.ceil((width * 4) / 256) * 256;
+}
+
 /** Explicit diagnostic capture only. Copies WebGPU top-left rows to the SDK's bottom-left convention. */
 export async function readGpuImage(
   device: GPUDevice,
@@ -74,7 +79,7 @@ export async function readGpuImage(
   signal?: AbortSignal,
 ) {
   signal?.throwIfAborted();
-  const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
+  const bytesPerRow = readbackBytesPerRow(width);
   const buffer = device.createBuffer({
     label: 'WG explicit capture',
     size: bytesPerRow * height,

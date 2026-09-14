@@ -5,7 +5,6 @@ import { BIN_BACK, BIN_FRONT, BIN_NONE } from './gpuDraw.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { PAGES_GREEN, clusterRgb, linearColor, materialSide } from './webgpuPagesHelpers.ts';
-import { createRenderEncoder } from './webgpuPagesEncoder.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 const windingCw = (rec: PageRec) => {
@@ -18,13 +17,13 @@ const windingCw = (rec: PageRec) => {
   );
 };
 
-function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
+export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const side = materialSide(rec.material);
   if (side === THREE.DoubleSide) return rt.gpu.pipelineNone;
   return windingCw(rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
 
-function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec, rest: boolean) {
+export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec, rest: boolean) {
   const { vis } = rt;
   const side = materialSide(rec.material),
     cw = windingCw(rec);
@@ -54,7 +53,7 @@ export const visBin = (rec: PageRec): 0 | 1 | 2 => {
   return (side === THREE.BackSide) !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
 };
 
-function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
+export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
   const { gpu } = rt;
   let id = gpu.positionIds.get(position);
   if (!id) {
@@ -91,7 +90,7 @@ export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: num
   if (gpu.uniformPacked.byteLength < bytes) gpu.uniformPacked = new Float32Array(bytes / 4);
 }
 
-function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, number] {
+export function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, number] {
   const { run } = rt;
   if (run.diagnostic === 'beauty') return linearColor(rec.material);
   if (run.diagnostic === 'pages') return PAGES_GREEN;
@@ -111,17 +110,4 @@ function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, number] {
     rt.gpu.clusterRgbCache.set(rec.clusterId, rgb);
   }
   return rgb;
-}
-
-export type WebgpuPagesHooks = ReturnType<typeof createWebgpuPagesHooks>;
-
-/** The per-record callbacks the draw helpers take, bound to the runtime once. */
-export function createWebgpuPagesHooks(rt: WebgpuPagesCore) {
-  return {
-    pipelineFor: (rec: PageRec) => pipelineFor(rt, rec),
-    visPipelineFor: (rec: PageRec, rest: boolean) => visPipelineFor(rt, rec, rest),
-    bindGroupFor: (device: GPUDevice, position: GPUBuffer) => bindGroupFor(rt, device, position),
-    pageRgb: (rec: PageRec) => pageRgb(rt, rec),
-    createRenderEncoder: (device: GPUDevice) => createRenderEncoder(rt, device),
-  };
 }

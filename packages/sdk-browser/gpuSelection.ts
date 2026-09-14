@@ -8,6 +8,7 @@
 import { maxStretch } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
+import { pixelScaleOf } from './streamingPriority.ts';
 
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
@@ -133,11 +134,11 @@ export function cameraSelectionUniforms(
     planes[i * 4 + 3] = plane.constant;
   }
   view.set(camera.matrixWorldInverse.elements);
-  const width = viewport?.[0] ?? 1,
-    height = viewport?.[1] ?? 1;
-  const pixelScale: [number, number] = into?.pixelScale ?? [1, 1];
-  pixelScale[0] = (width * Math.abs(camera.projectionMatrix.elements[0])) / 2;
-  pixelScale[1] = (height * Math.abs(camera.projectionMatrix.elements[5])) / 2;
+  const pixelScale = pixelScaleOf(
+    camera,
+    viewport,
+    into?.pixelScale ?? ([1, 1] as [number, number]),
+  );
   camera.getWorldPosition(camPos);
   const cameraWorld: [number, number, number] = into?.cameraWorld ?? [camPos.x, camPos.y, camPos.z];
   cameraWorld[0] = camPos.x;

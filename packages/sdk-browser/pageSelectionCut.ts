@@ -8,6 +8,7 @@ import {
   type SelectionState,
 } from './pageSelectionCutState.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
+import { pixelScaleOf } from './streamingPriority.ts';
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -33,10 +34,7 @@ export function selectVisiblePages<T extends PageRecord>(
   frustum.setFromProjectionMatrix(
     matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
   );
-  const width = viewport?.[0] ?? 1,
-    height = viewport?.[1] ?? 1;
-  selectionScratch.pixelScale[0] = (width * Math.abs(camera.projectionMatrix.elements[0])) / 2;
-  selectionScratch.pixelScale[1] = (height * Math.abs(camera.projectionMatrix.elements[5])) / 2;
+  pixelScaleOf(camera, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
   shown.length = 0;
   const wanted = options.wanted ?? ([] as T[]);
