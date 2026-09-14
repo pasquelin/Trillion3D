@@ -1,15 +1,10 @@
 import {
-  EngineError,
   type ClusterManifest,
-  type ClusterGroup,
-  type ClusterStructure,
-  type CullingHierarchy,
   type GeometryPageDescriptor,
   type Page,
   type Primitive,
-  type StreamBundle,
-  type StreamCatalogue,
 } from './contracts.ts';
+import { decodeCulling, decodeStreams, decodeStructure } from './manifestBinaryDecodeParts.ts';
 import * as format from './manifestBinaryFormat.ts';
 import { readManifestColumns } from './manifestBinaryRead.ts';
 import type { SlimClusterManifest } from './manifestBinaryTypes.ts';
@@ -28,6 +23,7 @@ export function decodeManifestBinary(
       geometryWords,
       pageShaText,
       geometryShaText,
+      pageDepthLayer,
     },
     groups: {
       groupLevel,
@@ -43,13 +39,18 @@ export function decodeManifestBinary(
     cullingNodes,
     urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   } = readManifestColumns(slim, buffer);
-  let page = 0,
-    node = 0,
-    group = 0,
-    child = 0,
-    output = 0,
-    root = 0,
-    bundle = 0;
+  const groupColumns = {
+    groupLevel,
+    groupError,
+    groupSphere,
+    groupChildCount,
+    groupOutputCount,
+    groupChild,
+    groupOutput,
+    structureRoot,
+  };
+  const cursors = { node: 0, group: 0, child: 0, output: 0, root: 0, bundle: 0 };
+  let page = 0;
   const primitives: Primitive[] = slim.primitives.map((entry) => {
     const binary = entry.binary;
     const pages: Page[] = new Array(binary.pages);
@@ -112,82 +113,19 @@ export function decodeManifestBinary(
         item.stream = ints[base + format.INT_STREAM];
         item.streamOffset = ints[base + format.INT_STREAM_OFFSET];
       }
+      // Layer 0 is the untouched draw; leaving the field out keeps one shape for every page record.
+      if (pageDepthLayer[page] > 0) item.depthLayer = pageDepthLayer[page];
       pages[i] = item;
     }
-    let culling: CullingHierarchy | null | undefined;
-    if (binary.culling !== undefined) {
-      if (binary.culling === null) culling = null;
-      else {
-        const { stride, count } = binary.culling;
-        if (stride !== 15)
-          throw new EngineError(
-            'UNSUPPORTED_FORMAT',
-            'Manifest binary culling stride differs from this version',
-            { stride },
-          );
-        culling = {
-          stride,
-          count,
-          nodes: Array.from(cullingNodes.subarray(node * 15, (node + count) * 15)),
-        };
-        node += count;
-      }
-    }
-    let structure: ClusterStructure | null | undefined;
-    if (binary.structure !== undefined) {
-      if (binary.structure === null) structure = null;
-      else {
-        const groups: ClusterGroup[] = new Array(binary.structure.groups);
-        for (let g = 0; g < binary.structure.groups; g++, group++) {
-          const children = Array.from(groupChild.subarray(child, child + groupChildCount[group]));
-          child += groupChildCount[group];
-          const outputs = Array.from(
-            groupOutput.subarray(output, output + groupOutputCount[group]),
-          );
-          output += groupOutputCount[group];
-          groups[g] = {
-            level: groupLevel[group],
-            error: groupError[group],
-            sphere: [
-              groupSphere[group * 4],
-              groupSphere[group * 4 + 1],
-              groupSphere[group * 4 + 2],
-              groupSphere[group * 4 + 3],
-            ],
-            children,
-            outputs,
-          };
-        }
-        structure = {
-          version: binary.structure.version,
-          roots: Array.from(structureRoot.subarray(root, root + binary.structure.roots)),
-          groups,
-        };
-        root += binary.structure.roots;
-      }
-    }
-    let streams: StreamCatalogue | null | undefined;
-    if (binary.streams !== undefined) {
-      if (binary.streams === null) streams = null;
-      else {
-        const list: StreamBundle[] = new Array(binary.streams.pages);
-        for (let b = 0; b < binary.streams.pages; b++, bundle++) {
-          const sha = bundleShaText.substring(bundle * 64, bundle * 64 + 64);
-          list[b] = {
-            url: bundlePrefix + sha + bundleSuffix,
-            sha256: sha,
-            bytes: bundleWords[bundle * 2],
-            count: bundleWords[bundle * 2 + 1],
-          };
-        }
-        streams = {
-          version: binary.streams.version,
-          pinned: binary.streams.pinned,
-          bundleBytes: binary.streams.bundleBytes,
-          pages: list,
-        };
-      }
-    }
+    const culling = decodeCulling(binary, cullingNodes, cursors);
+    const structure = decodeStructure(binary, groupColumns, cursors);
+    const streams = decodeStreams(
+      binary,
+      bundleWords,
+      bundleShaText,
+      { prefix: bundlePrefix, suffix: bundleSuffix },
+      cursors,
+    );
     const { binary: _ignored, ...rest } = entry;
     const result = { ...rest, pages } as Primitive;
     if (culling !== undefined) result.culling = culling;

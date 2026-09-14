@@ -79,3 +79,43 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
         { key, template: descriptor[key] },
       );
 }
+
+/** The counts and constants a primitive needs to find its own slice of every column. */
+export function slimBinaryOf(primitive: {
+  pages: { length: number };
+  culling?: { stride: number; count: number } | null;
+  structure?: { version: number; groups: { length: number }; roots: { length: number } } | null;
+  streams?: {
+    version: number;
+    pinned: number;
+    bundleBytes: number;
+    pages: { length: number };
+  } | null;
+}): SlimPrimitiveBinary {
+  const slim: SlimPrimitiveBinary = { pages: primitive.pages.length };
+  if (primitive.culling !== undefined)
+    slim.culling =
+      primitive.culling === null
+        ? null
+        : { stride: primitive.culling.stride, count: primitive.culling.count };
+  if (primitive.structure !== undefined)
+    slim.structure =
+      primitive.structure === null
+        ? null
+        : {
+            version: primitive.structure.version,
+            groups: primitive.structure.groups.length,
+            roots: primitive.structure.roots.length,
+          };
+  if (primitive.streams !== undefined)
+    slim.streams =
+      primitive.streams === null
+        ? null
+        : {
+            version: primitive.streams.version,
+            pinned: primitive.streams.pinned,
+            bundleBytes: primitive.streams.bundleBytes,
+            pages: primitive.streams.pages.length,
+          };
+  return slim;
+}

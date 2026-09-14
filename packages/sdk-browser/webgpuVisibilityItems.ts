@@ -1,5 +1,5 @@
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
-import { DRAW_ITEM_U32 } from './gpuDraw.ts';
+import { BASE_SLOTS, DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { visBin } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -35,9 +35,10 @@ export function buildWebgpuVisibilityItems(
       drawItemWords[word] = row;
       drawItemWords[word + 1] = visBin(rows.packedRecs[i]!);
       drawItemWords[word + 2] = rows.packedPageIndex[i];
-      drawItemWords[word + 3] = 0;
+      // La couche coplanaire appartient à la ligne de la table, pas à l'image : elle voyage avec l'item.
+      drawItemWords[word + 3] = Math.min(rows.packedRecs[i]!.depthLayer, rt.vis.drawLayerSlots - 1);
     }
-    binInstances[drawItemWords[word + 1] + (rest ? 3 : 0)]++;
+    binInstances[drawItemWords[word + 1] + (rest ? 3 : 0) + BASE_SLOTS * drawItemWords[word + 3]]++;
     if (rest) drawRestBits[i >> 5] |= 1 << (i & 31);
     const count = rows.packedRecs[i]!.array!.length;
     if (rest) restVertices += count;

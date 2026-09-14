@@ -1,0 +1,82 @@
+use super::*;
+
+/// The self-contained glTF a host loads when it draws the cache without the source: same nodes,
+/// same materials, same images, but every primitive reduced to a single degenerate triangle. The
+/// geometry itself comes from the cluster pages. `Value::Null` when the cache is not eligible.
+pub(super) fn write_autonomous_scene(
+    directory: &Path,
+    source: &Value,
+    primitives: &[Value],
+    output_views: &[Value],
+) -> Result<Value> {
+    if !primitives.is_empty()
+        && primitives
+            .iter()
+            .all(|primitive| primitive["pass"] == "exact-clusters")
+    {
+        let mut scene = source.clone();
+        let mut scene_bytes = vec![0u8; 44];
+        for (i, value) in [0u16, 1, 2].iter().enumerate() {
+            scene_bytes[36 + i * 2..38 + i * 2].copy_from_slice(&value.to_le_bytes());
+        }
+        let mut scene_views = vec![
+            json!({"buffer":0,"byteOffset":0,"byteLength":36}),
+            json!({"buffer":0,"byteOffset":36,"byteLength":6}),
+        ];
+        let mut source_binary = File::open(directory.join("source.bin"))?;
+        if let Some(images) = scene.get_mut("images").and_then(Value::as_array_mut) {
+            for image in images {
+                if let Some(old) = image.get("bufferView") {
+                    let id = required_index(Some(old), "image.bufferView")?;
+                    let view = item(output_views, id, "image bufferView")?;
+                    let start = required_index(view.get("byteOffset"), "image.byteOffset")?;
+                    let length = required_index(view.get("byteLength"), "image.byteLength")?;
+                    while !scene_bytes.len().is_multiple_of(4) {
+                        scene_bytes.push(0);
+                    }
+                    let at = scene_bytes.len();
+                    let end = at
+                        .checked_add(length)
+                        .ok_or_else(|| invalid("Image view too large"))?;
+                    scene_bytes.resize(end, 0);
+                    source_binary.seek(SeekFrom::Start(start as u64))?;
+                    source_binary.read_exact(&mut scene_bytes[at..end])?;
+                    image["bufferView"] = json!(scene_views.len());
+                    scene_views.push(json!({"buffer":0,"byteOffset":at,"byteLength":length}));
+                }
+            }
+        }
+        scene["buffers"] = json!([{"uri":"scene.bin","byteLength":scene_bytes.len()}]);
+        scene["bufferViews"] = Value::Array(scene_views);
+        scene["accessors"] = json!([{"bufferView":0,"componentType":5126,"type":"VEC3","count":3,"min":[0,0,0],"max":[0,0,0]},{"bufferView":1,"componentType":5123,"type":"SCALAR","count":3}]);
+        if let Some(meshes) = scene.get_mut("meshes").and_then(Value::as_array_mut) {
+            for mesh in meshes {
+                if let Some(parts) = mesh.get_mut("primitives").and_then(Value::as_array_mut) {
+                    for part in parts {
+                        let material = part.get("material").cloned();
+                        *part = json!({"mode":4,"attributes":{"POSITION":0},"indices":1});
+                        if let Some(material) = material {
+                            part["material"] = material;
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(object) = scene.as_object_mut() {
+            object.remove("skins");
+            object.remove("animations");
+        }
+        if let Some(nodes) = scene.get_mut("nodes").and_then(Value::as_array_mut) {
+            for node in nodes {
+                if let Some(object) = node.as_object_mut() {
+                    object.remove("skin");
+                    object.remove("weights");
+                }
+            }
+        }
+        atomic(&directory.join("scene.bin"), &scene_bytes)?;
+        atomic(&directory.join("scene.gltf"), &serde_json::to_vec(&scene)?)?;
+        return Ok(json!("scene.gltf"));
+    }
+    Ok(Value::Null)
+}
