@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { BatchGroup } from './clusterBatchPrimitive.ts';
 import { ClusterDrawMesh } from './clusterBatchMesh.ts';
+import { groupForPage } from './clusterBatchLayers.ts';
 import type { ClusterBatchStats } from './clusterBatches.ts';
 
 const bySourceOrder = (a: BatchPage, b: BatchPage) =>
@@ -10,6 +11,8 @@ const bySourceOrder = (a: BatchPage, b: BatchPage) =>
 type BatchUpdateState = {
   scene: THREE.Scene;
   groups: Array<BatchGroup | undefined>;
+  /** Lots jumeaux des couches coplanaires, par `renderOrder` puis par couche. */
+  layerGroups: Array<Map<number, BatchGroup> | undefined>;
   active: BatchGroup[];
   touched: BatchGroup[];
   matrices: THREE.DataTexture;
@@ -26,7 +29,8 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
   for (let i = 0; i < display.length; i++) {
     const rec = display[i];
     if (!rec.array) continue;
-    const group = state.groups[rec.renderOrder];
+    // Un cluster d'une couche coplanaire supérieure à 0 rejoint le lot jumeau qui porte le biais.
+    const group = groupForPage(state.groups, state.layerGroups, rec);
     if (!group) continue;
     const urlIndex = group.primitive.urlIndexByPage[rec.id];
     if (urlIndex < 0) continue;
@@ -82,7 +86,7 @@ export function updateClusterBatches(state: BatchUpdateState, display: readonly 
     group.touched = false;
     const sample = group.sample!;
     let mesh = group.mesh;
-    const material = group.split ?? sample.material;
+    const material = group.biased ?? group.split ?? sample.material;
     if (!mesh) {
       mesh = new ClusterDrawMesh(
         group.primitive.geometry,

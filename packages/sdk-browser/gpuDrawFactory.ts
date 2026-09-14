@@ -1,19 +1,25 @@
 import {
-  SLOTS,
+  slotCount,
   DRAW_ITEM_U32,
   UNIFORM_BYTES,
   WORKGROUP,
   DRAW_INDIRECT_STRIDE,
 } from './gpuDrawContract.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
-import { DRAW_SHADER } from './gpuDrawShader.ts';
+import { drawShader } from './gpuDrawShader.ts';
 
-/** Stable GPU compact into six drawIndirect commands. Missing compute returns undefined so the caller keeps the CPU draw loop. */
+/**
+ * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
+ * coplanar layer the scene carries, so a scene with none asks for the six slots this path has
+ * always had and pays nothing. Missing compute returns undefined so the caller keeps the CPU loop.
+ */
 export async function createGpuDraw(
   device: GPUDevice,
   slotCap: number,
+  layerSlots = 1,
 ): Promise<GpuDraw | undefined> {
   if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined;
+  const SLOTS = slotCount(layerSlots);
   const itemBytes = slotCap * DRAW_ITEM_U32 * 4,
     restBytes = Math.max(4, Math.ceil(slotCap / 32) * 4),
     instanceBytes = slotCap * 4,
@@ -71,7 +77,7 @@ export async function createGpuDraw(
         { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       ],
     });
-    const module = device.createShaderModule({ code: DRAW_SHADER });
+    const module = device.createShaderModule({ code: drawShader(layerSlots) });
     if (typeof module.getCompilationInfo === 'function') {
       const info = await module.getCompilationInfo();
       if (info.messages.some((message) => message.type === 'error')) {
@@ -166,6 +172,7 @@ export async function createGpuDraw(
       indirectBuffer,
       instanceBuffer,
       slotOffsetsBuffer: groupOffsets,
+      slots: SLOTS,
       dispose() {
         disposed = true;
         for (const buffer of buffers) buffer.destroy();

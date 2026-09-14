@@ -14,6 +14,8 @@ export type BatchPage = {
   sourceOrder?: number;
   matrix: THREE.Matrix4;
   renderOrder: number;
+  /** Coplanar depth layer, 0 for a cluster the compiler left alone. */
+  depthLayer?: number;
 };
 
 export type FreeRange = { offset: number; length: number };

@@ -1,0 +1,23 @@
+{
+  "case": "Une surface opaque et, exactement dessus, une surface transparente (alphaMode BLEND).",
+  "rule": "Un transparent n'entre jamais dans l'étape : sa primitive est compilée en clustered-blend et garde son ordre. Le cache passe au format 4 parce qu'il contient du clustered-blend, pas à cause des couches.",
+  "formatVersion": 4,
+  "manifestBinaryVersion": 2,
+  "coplanar": {
+    "stage": "coplanar-depth-layers-v1",
+    "surfaces": 1,
+    "planes": 1,
+    "candidatePlanes": 0,
+    "overlaps": 0,
+    "overlapArea": 0.0,
+    "layeredClusters": 0,
+    "layerOverflow": 0,
+    "instanceConflicts": 0,
+    "unreadSurfaces": 0,
+    "skippedPairs": 0,
+    "droppedPlanes": 0,
+    "layeredPages": 0
+  },
+  "depthLayerPerPage": [0, 0],
+  "layeredObjects": []
+}

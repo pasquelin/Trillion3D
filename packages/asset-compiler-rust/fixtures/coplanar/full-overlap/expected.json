@@ -1,0 +1,32 @@
+{
+  "case": "Deux surfaces opaques exactement coplanaires, même contour, deux matériaux, deux triangulations.",
+  "rule": "Aires égales (16 et 16) : l'ordre de la source départage, le maillage le plus tardif passe dessus.",
+  "formatVersion": 3,
+  "manifestBinaryVersion": 2,
+  "coplanar": {
+    "stage": "coplanar-depth-layers-v1",
+    "surfaces": 2,
+    "planes": 1,
+    "candidatePlanes": 1,
+    "overlaps": 1,
+    "overlapArea": 16.0,
+    "layeredClusters": 1,
+    "layerOverflow": 0,
+    "instanceConflicts": 0,
+    "unreadSurfaces": 0,
+    "skippedPairs": 0,
+    "droppedPlanes": 0,
+    "layeredPages": 1
+  },
+  "depthLayerPerPage": [0, 1],
+  "layeredObjects": [
+    {
+      "node": 1,
+      "mesh": 1,
+      "primitive": 1,
+      "material": 1,
+      "layer": 1,
+      "area": 16.0
+    }
+  ]
+}

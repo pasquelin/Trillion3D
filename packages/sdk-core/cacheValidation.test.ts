@@ -4,8 +4,11 @@ import {
   assertCacheIdentity,
   assertCachePointer,
   assertCacheReady,
+  CLUSTERED_BLEND_FORMAT_VERSION,
   DAG_ERROR_MODEL,
   EngineError,
+  FORMAT_VERSION,
+  MANIFEST_BINARY_VERSION,
   pageCarriesClusterError,
   primitiveUsesClusterErrors,
 } from './index.ts';
@@ -33,7 +36,7 @@ test('a cache whose pages carry their own cluster errors requires the DAG error 
     parentSphere,
   });
   const metadata = {
-    schema: 1,
+    schema: FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full' as const,
@@ -72,7 +75,12 @@ test('a cache whose pages carry their own cluster errors requires the DAG error 
 test('a host checks a pointer and a cache through the SDK, without naming a single format field', () => {
   assert.equal(
     assertCachePointer(
-      { status: 'ready', scope: 'full', formatVersion: 2, url: 'key/clusters.json' },
+      {
+        status: 'ready',
+        scope: 'full',
+        formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
+        url: 'key/clusters.json',
+      },
       'full',
     ),
     'key/clusters.json',
@@ -87,7 +95,7 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     ['not an object', 'INVALID_POINTER'],
     [{ status: 'pending', url: 'a' }, 'CACHE_NOT_READY'],
     [{ status: 'ready', scope: 'slice', url: 'a' }, 'SCOPE_MISMATCH'],
-    [{ status: 'ready', url: 'a', formatVersion: 3 }, 'UNSUPPORTED_FORMAT'],
+    [{ status: 'ready', url: 'a', formatVersion: 1 }, 'UNSUPPORTED_FORMAT'],
   ] as [unknown, string][])
     assert.throws(
       () => assertCachePointer(pointer, 'full'),
@@ -98,19 +106,25 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
   const slim = {
     status: 'ready',
     scope: 'full',
-    schema: 2,
-    formatVersion: 2,
+    schema: CLUSTERED_BLEND_FORMAT_VERSION,
+    formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     clusterStrategy: 'dag-groups',
     errorModel: DAG_ERROR_MODEL,
     selectedNodes: [0],
     selectedTriangles: 10046405,
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters' }],
-    binary: { version: 1, url: 'clusters.bin', sha256: 'x', bytes: 8 },
+    binary: { version: MANIFEST_BINARY_VERSION, url: 'clusters.bin', sha256: 'x', bytes: 8 },
   };
   assert.equal(assertCacheReady(slim, 'full'), 10046405);
   assert.equal(
     assertCacheReady(
-      { ...slim, schema: 1, formatVersion: 1, clusterStrategy: undefined, errorModel: undefined },
+      {
+        ...slim,
+        schema: FORMAT_VERSION,
+        formatVersion: FORMAT_VERSION,
+        clusterStrategy: undefined,
+        errorModel: undefined,
+      },
       'full',
     ),
     10046405,
@@ -121,8 +135,11 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     [{ ...slim, selectedTriangles: 'many' }, 'INVALID_CACHE'],
     [{ ...slim, status: 'pending' }, 'INVALID_CACHE'],
     [{ ...slim, scope: 'slice' }, 'SCOPE_MISMATCH'],
-    [{ ...slim, schema: 1, formatVersion: 2 }, 'UNSUPPORTED_FORMAT'],
-    [{ ...slim, schema: 3, formatVersion: 3 }, 'UNSUPPORTED_FORMAT'],
+    [
+      { ...slim, schema: FORMAT_VERSION, formatVersion: CLUSTERED_BLEND_FORMAT_VERSION },
+      'UNSUPPORTED_FORMAT',
+    ],
+    [{ ...slim, schema: 1, formatVersion: 1 }, 'UNSUPPORTED_FORMAT'],
     [{ ...slim, errorModel: 'bounds-diagonal-boundary-v1' }, 'STALE_CACHE'],
     [{ ...slim, errorModel: undefined }, 'STALE_CACHE'],
   ] as [unknown, string][])
