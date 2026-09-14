@@ -432,3 +432,9 @@
 - `npm run check:duplicates` : 31 → 0 clones (fixtures partagées `pagesBackendScenes.ts`, `webgpuPagesTestOccluder.ts`, Rust `tests/base.rs` et `dag/tests/mod.rs`).
 - `npm run validate` vert : 337/337 tests JS, 57/57 Rust, format, lint, knip, build TS et natif, structure, liens (liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` résolus avec `benchmark-runs/` du dépôt principal).
 - Non fait : preuve navigateur (trous et fidélité Emerald) et revue indépendante finale ; fusion sur `develop` local demandée par l'utilisateur, rien poussé sur `origin`.
+
+## 2026-09-14 — [session simplify] passe /simplify sur la dernière fusion de `develop`
+
+- Périmètre : fusion 7491682 (découpage WebGPU, 12 000 lignes), pas l'écart complet main…develop. Quatre relecteurs Sonnet en lecture seule (réutilisation, simplification, efficacité, altitude) : 24 constats bruts, 19 correctifs dédoublonnés, tous appliqués par un seul agent Opus, tests lancés par Haiku.
+- Fusion 2445b61 (`--no-ff`, 4 commits, 62 fichiers, +869 / −1766) : helpers partagés (`mipLevelCountFor`, `pixelScaleOf`, `clearValueOf`, octets de relecture, hash→teinte unique, `boxClipRec`, bornes « exact » communes avec `onMissing`), atlas couleur et data fusionnés dans `webgpuAtlasCommon.ts`, chemin chaud WebGPU sur `rt: WebgpuPagesRuntime` au lieu de sacs d'options reconstruits par image (`rt.hooks` supprimé), état hôte mutable partagé par les services `explorer*` (plus d'accesseurs `state()` allouants), casts `as unknown as` retirés (`quadRootsContext` typé).
+- `npm run validate` vert après suppression de `.claude/a28/dist-*` (copies A/B périmées d'un agent, non suivies) et ajout de `.claude/` au `.gitignore`. Tests JS 337/337 sans aucun test adapté. Preuve navigateur non refaite : refactor à comportement identique. Worktree `simplify-develop-e59aef` supprimé.
