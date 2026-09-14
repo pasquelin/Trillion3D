@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
+import type { TextureJob } from './webgpuAtlasCommon.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -9,12 +10,6 @@ type GeometryBlock = {
   hasUv: boolean;
   hasNormal: boolean;
   hasTangent: boolean;
-};
-type TextureJob = {
-  kind: 'color' | 'data';
-  layer: number;
-  bytes: number;
-  upload: () => void;
 };
 
 /** GPU resources of the visibility-buffer path: raster and shade pipelines, their bind groups, the
