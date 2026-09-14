@@ -274,15 +274,20 @@ function camera(){
  const cam=new THREE.PerspectiveCamera(55,1,.1,100);cam.position.z=5;cam.lookAt(0,0,0);cam.updateMatrixWorld();return cam;
 }
 
-test('texture uploads obey the per-frame source-byte budget and advance after a render',async()=>{
+test('texture uploads obey the per-frame source-byte budget, and a flush settles the whole queue',async()=>{
  installGpuGlobals();const {device}=mockGpu();const fixture=quadScene();
  const color=new THREE.DataTexture(new Uint8Array(16).fill(255),2,2),normal=new THREE.DataTexture(new Uint8Array(16).fill(128),2,2);
- const material=new THREE.MeshStandardMaterial({map:color,normalMap:normal});fixture.source.children[0].material=material;
+ const rough=new THREE.DataTexture(new Uint8Array(16).fill(64),2,2),emissive=new THREE.DataTexture(new Uint8Array(16).fill(32),2,2);
+ const material=new THREE.MeshStandardMaterial({map:color,normalMap:normal,roughnessMap:rough,emissiveMap:emissive});fixture.source.children[0].material=material;
  const backend=webgpuPagesBackend({...fixture,gpuDevice:device,maxResidentPages:2,viewport:[32,32],maxTextureTransferBytesPerFrame:16});
  try{
-  await backend.prepare();assert.equal(backend.metrics().textureUploaded,1);assert.equal(backend.metrics().texturePending,1);
-  backend.render(camera());await backend.flush();assert.equal(backend.metrics().textureUploaded,2);assert.equal(backend.metrics().texturePending,0);
- }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();material.dispose();color.dispose();normal.dispose();}
+  // One layer per frame is the budget a render is allowed to spend; it advances by exactly one.
+  await backend.prepare();assert.equal(backend.metrics().textureUploaded,1);assert.equal(backend.metrics().texturePending,3);
+  // The readiness barrier drains the rest, so two renders of one camera cannot differ because a
+  // material layer landed between them.
+  backend.render(camera());await backend.flush();
+  assert.equal(backend.metrics().texturePending,0);assert.equal(backend.metrics().textureUploaded,4);
+ }finally{backend.dispose();fixture.geometry.dispose();fixture.material.dispose();material.dispose();color.dispose();normal.dispose();rough.dispose();emissive.dispose();}
 });
 
 test('vis pipeline layout stores the page table at binding 2',async()=>{
