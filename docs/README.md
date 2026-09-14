@@ -8,6 +8,7 @@ Le SDK livré est décrit par [packages/README.md](../packages/README.md), le [g
 
 | Document | Rôle |
 |---|---|
+| [Compilateur natif](COMPILER.md) | `web-geometry-compiler` : arguments, événements, pointeur, mode lot, annulation, import FBX/OBJ, codes d'erreur, usage depuis Node ou tout autre hôte |
 | [Format de cache actuel](FORMAT.md) | Pointeur, `clusters.json` et son annexe binaire `clusters.bin`, DAG de clusters, hiérarchie de culling, paquets de streaming, objets SHA sous `native/` |
 | [Principes](architecture/PRINCIPES_DU_PRODUIT.md) | Exigences de comportement |
 | [Architecture SDK](../packages/README.md) | Ce qui est implémenté, limites ouvertes |
