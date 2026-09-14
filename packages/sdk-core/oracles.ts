@@ -29,7 +29,11 @@ export function maxStretch(elements: readonly number[]): number {
   const a = elements[0], b = elements[4], c = elements[8];
   const d = elements[1], e = elements[5], f = elements[9];
   const g = elements[2], h = elements[6], i = elements[10];
-  if (![a, b, c, d, e, f, g, h, i].every(Number.isFinite)) throw new Error('Matrice invalide');
+  if (
+    !Number.isFinite(a) || !Number.isFinite(b) || !Number.isFinite(c) ||
+    !Number.isFinite(d) || !Number.isFinite(e) || !Number.isFinite(f) ||
+    !Number.isFinite(g) || !Number.isFinite(h) || !Number.isFinite(i)
+  ) throw new Error('Matrice invalide');
   const m00 = a * a + d * d + g * g, m11 = b * b + e * e + h * h, m22 = c * c + f * f + i * i;
   const m01 = a * b + d * e + g * h, m02 = a * c + d * f + g * i, m12 = b * c + e * f + h * i;
   const offDiagonal = m01 * m01 + m02 * m02 + m12 * m12;

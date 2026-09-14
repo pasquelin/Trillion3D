@@ -1,6 +1,6 @@
 import {replicateInstances} from './replicateInstances.ts';
 export {replicateInstances} from './replicateInstances.ts';
-import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,RequestStamps,resolvePixelError,selectVisiblePages,type PageRec} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,RequestStamps,resolvePixelError,selectVisiblePages,type PageRec,type SelectionResult} from './pageSelection.ts';
 import {DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
 import {detectCapabilities} from './capabilities.ts';
 import {checked,loadClusterPages} from './clusterPages.ts';
@@ -77,6 +77,9 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  /** Ajoute à `urlScratch` les clés de requête que ce passage n'a pas encore vues. */
  const markRequests=(list:readonly PageRec[])=>{for(let i=0;i<list.length;i++){const rec=list[i];if(requestStamps.first(rec.requestIndex))urlScratch.push(pageRequestUrl(rec));}};
  const prefetchScratch:string[]=[],prefetchShown:PageRec[]=[],pixelScaleScratch:number[]=[1,1];let lastCamera:THREE.PerspectiveCamera|undefined,lastPixelError=0;
+ // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout.
+ const selectOptions={pixelError:0,viewport,frame:0,holdResident:true,pageBudget:cap,wanted:desired,result:undefined as SelectionResult<PageRec>|undefined};
+ selectOptions.result={shown,wanted:desired,visible:0,selectedTriangles:0,displayedTriangles:0,frustumRejected:0,lodLevel:0,complete:true,pixelError:0};
  // Un tampon d'index résident par primitive : la coupe visible n'est plus qu'une liste de plages.
  const batches=new ClusterBatches(scene,allPages);
  for(const copy of blendCopies){copy.userData.sourceGeometry=copy.geometry;copy.userData.sourceMaterial=copy.material;scene.add(copy);}
@@ -128,7 +131,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  return {setDiagnostic(mode){diagnostic=mode;paintBlend();syncResident();},id:'exact-cluster-pages',capabilities:{...baseCapabilities,hierarchy:true,eviction:true,unsupported:baseCapabilities.unsupported.filter(item=>item!=='bounded GPU eviction')},scene,async prepare(){},
   get overBudget(){return overBudget;},
   refreshSceneLighting:()=>sceneLights.refresh(),
-  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;lastCamera=camera;lastPixelError=resolvePixelError(context,camera,motion);const selectStart=performance.now();const selected=selectVisiblePages(roots,camera,{pixelError:lastPixelError,viewport,frame,holdResident:true,pageBudget:cap,wanted:desired},shown);cpuSelectMs=performance.now()-selectStart;
+  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;lastCamera=camera;lastPixelError=resolvePixelError(context,camera,motion);selectOptions.pixelError=lastPixelError;selectOptions.frame=frame;const selectStart=performance.now();const selected=selectVisiblePages(roots,camera,selectOptions,shown);cpuSelectMs=performance.now()-selectStart;
    // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
    // Selection already answered the budget with a coarser threshold, so the cover is kept whole and
    // only the flag is raised when even the coarsest cover exceeds the budget.
