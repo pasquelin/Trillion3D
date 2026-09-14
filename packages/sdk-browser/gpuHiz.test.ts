@@ -128,12 +128,18 @@ test('GPU Hi-Z encodes a large bound into its reduced level',async()=>{
    writes.push({size:buffer.size,data:data.slice(0,length)});
   }},
  } as unknown as GPUDevice;
- const encoder={beginComputePass(){return {setPipeline(){},setBindGroup(){},dispatchWorkgroups(){},end(){}};}} as unknown as GPUCommandEncoder;
- const hiz=await createGpuHiz(device,33,19,1);assert.ok(hiz);
- hiz.encodeTest(device,encoder,[{minX:0,minY:0,maxX:32,maxY:18,nearestDepth:0.8,clipsNear:false}]);
- const write=writes.find(item=>item.size===32);assert.ok(write);
+ const cleared:Array<{size:number;bytes:number}>=[];
+ const encoder={clearBuffer(buffer:{size:number},_offset:number,size:number){cleared.push({size:buffer.size,bytes:size});},
+  beginComputePass(){return {setPipeline(){},setBindGroup(){},dispatchWorkgroups(){},end(){}};}} as unknown as GPUCommandEncoder;
+ const hiz=await createGpuHiz(device,33,19,2);assert.ok(hiz);
+ // Flat bounds, and the box answers for row 1: the verdict lands at the row, not at its rank.
+ const bounds=new Float64Array([0,0,32,18,0.8,0]);
+ hiz.encodeTest(device,encoder,bounds,new Uint32Array([1]),1,2);
+ // The rows the frame does not test are cleared first, so none of them keeps an earlier verdict.
+ assert.deepEqual(cleared,[{size:8,bytes:8}]);
+ const write=writes.find(item=>item.size===64);assert.ok(write);
  assert.deepEqual([...new Int32Array(write.data).slice(0,4)],[0,0,8,4]);
- assert.deepEqual([...new Uint32Array(write.data).slice(5,8)],[0,797,9]);
+ assert.deepEqual([...new Uint32Array(write.data).slice(5,8)],[2,797,9]);
  hiz.dispose();
 });
 
