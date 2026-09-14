@@ -1,10 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  DEPTH_LAYER_BIAS_UNITS,
-  depthLayerBias,
-  biasedDepthBits,
-} from './depthLayer.ts';
+import { DEPTH_LAYER_BIAS_UNITS, depthLayerBias, biasedDepthBits } from './depthLayer.ts';
 import { assertFormat } from './cacheContracts.ts';
 
 // Comportement 14 : depthLayerBias rend 0 pour 0/undefined/négatif et −16 × couche sinon
