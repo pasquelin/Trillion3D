@@ -1,0 +1,22 @@
+import { spawnSync } from 'node:child_process';
+
+const steps = [
+  'format:check',
+  'check:lines',
+  'check:duplicates',
+  'lint',
+  'check:unused',
+  'build',
+  'build:native',
+  'check:structure',
+  'check:dts',
+  'check:links',
+  'test',
+  'test:native',
+];
+
+for (const step of steps) {
+  const result = spawnSync('npm', ['run', step], { stdio: 'inherit' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
