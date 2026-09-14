@@ -419,12 +419,18 @@
 - Lot 4 : mesure tentée par Haiku, harnais laissé par l'agent incompatible (métriques WebGPU, pas `cpuSelectMs`), non faite, journal a327d0e.
 - Aucun agent vivant. Reprise sur mot de l'utilisateur.
 
-
 ## 2026-09-14 — Livraison du prototype éclairage dans le banc 16
 
 - Revue indépendante et corrections de livraison terminées : porte initiale, ressources, archives persistantes et erreurs de préparation. Code éclairage isolé des backends ordinaires ; aucun nouveau choix d'architecture validé.
 - Lab : validation complète réussie. SDK : tests éclairage 12/12, build et contrats réussis, Rust 57/57 ; global Node 336/337 et portes qualité héritées encore rouges (détails dans `RD_ECLAIRAGE_DIAGNOSTIC.md`). Fusion explicitement redemandée après signalement ; aucune prétention de validation globale verte.
 - Même image brute/BVH sur les 14 états de la scène, qualité inchangée. Le gain mesuré reste insuffisant pour rendre ce prototype fluide.
+
+## 2026-09-14 — [session quality-finish] backend WebGPU découpé, doublons à zéro
+
+- `packages/sdk-browser/webgpuPages.ts` : 3 170 → 107 lignes. État réparti dans un objet d'exécution typé (`webgpuPagesRuntime.ts` : `setup`, `layout`, `gpu`, `vis`, `run`, `capture`, `timing`, `services`, `hooks`) et 30 modules de responsabilité (`webgpuPages*.ts`), tous ≤ 200 lignes. Repli GPU → CPU par valeur de retour de `renderGpuCut` ; pipelines de fusion texturés regroupés dans `vis` et libérés ensemble par `dropVis`.
+- `npm run check:duplicates` : 31 → 0 clones (fixtures partagées `pagesBackendScenes.ts`, `webgpuPagesTestOccluder.ts`, Rust `tests/base.rs` et `dag/tests/mod.rs`).
+- `npm run validate` vert : 337/337 tests JS, 57/57 Rust, format, lint, knip, build TS et natif, structure, liens (liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` résolus avec `benchmark-runs/` du dépôt principal).
+- Non fait : preuve navigateur (trous et fidélité Emerald) et revue indépendante finale ; fusion sur `develop` local demandée par l'utilisateur, rien poussé sur `origin`.
 
 ## 2026-09-14 — Phase 1, lot 4, mesure (agent lot4, Haiku)
 

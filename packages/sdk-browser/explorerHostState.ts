@@ -1,0 +1,96 @@
+import * as THREE from 'three';
+import type { CameraPose, DiagnosticMode } from '../sdk-core/index.ts';
+import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts';
+import type { prepareExplorer } from './explorerPrepare.ts';
+
+type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
+
+export function createExplorerHostState(
+  prepared: Prepared,
+  options: ExplorerOptions,
+  backends: RenderBackend[],
+  canvas: HTMLCanvasElement,
+  renderer: THREE.WebGLRenderer | undefined,
+  signal?: AbortSignal,
+) {
+  const { camera, center } = prepared;
+  const baseline =
+    backends.find((backend) => backend.id === 'three-webgl-reference') ?? backends[0];
+  const optimized =
+    backends.find((backend) => backend.id === 'exact-cluster-pages') ??
+    backends.find((backend) => backend.id === 'webgpu-page-raster') ??
+    baseline;
+  const state: {
+    fallbackReason: string | null;
+    active: RenderBackend;
+    disposed: boolean;
+    diagnostic: DiagnosticMode;
+    capturingSurface: boolean;
+    measuring: boolean;
+    hostFrame: number;
+    comparisonLayout: ComparisonLayout;
+    comparisonPair: [string, string];
+    wipe: number;
+    toggle: 0 | 1;
+    pairTargetA?: THREE.WebGLRenderTarget;
+    pairTargetB?: THREE.WebGLRenderTarget;
+    measurementTarget?: THREE.WebGLRenderTarget;
+    loaded: number;
+    pageBytesRead: number;
+  } = {
+    fallbackReason: null,
+    active: optimized,
+    disposed: false,
+    diagnostic: 'beauty',
+    capturingSurface: false,
+    measuring: false,
+    hostFrame: 0,
+    comparisonLayout: options.comparisonLayout ?? 'single',
+    comparisonPair: options.comparisonPair ?? [
+      baseline.id,
+      backends.find((backend) => backend.id === 'exact-cluster-pages')?.id ??
+        backends[backends.length - 1].id,
+    ],
+    wipe: 0.5,
+    toggle: 0,
+    loaded: prepared.pageSources.loaded,
+    pageBytesRead: prepared.pageSources.pageBytesRead,
+  };
+  if (prepared.directGpu && state.comparisonLayout !== 'single')
+    throw new Error('SINGLE_BACKEND_COMPARISON');
+  const beautyMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+  const overlays: THREE.Material[] = [];
+  const hostedControls: { dispose(): void }[] = [];
+  const lookAtTarget = new THREE.Vector3().copy(center);
+  const compositor = prepared.directGpu ? undefined : createComparisonCompositor(renderer!);
+  const targetOptions = { type: THREE.UnsignedByteType, colorSpace: THREE.SRGBColorSpace };
+  const ensureTarget = (current?: THREE.WebGLRenderTarget) =>
+    current ?? new THREE.WebGLRenderTarget(canvas.width, canvas.height, targetOptions);
+  const check = () => {
+    if (state.disposed) throw new Error('Explorer disposed');
+    if (state.capturingSurface) throw new Error('SURFACE_CAPTURE_BUSY');
+    signal?.throwIfAborted();
+  };
+  const setPose = (pose: CameraPose) => {
+    camera.position.fromArray(pose.position);
+    camera.fov = pose.fov;
+    camera.near = pose.near;
+    camera.far = pose.far;
+    camera.lookAt(lookAtTarget.fromArray(pose.target));
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
+  };
+  return {
+    state,
+    baseline,
+    beautyMaterials,
+    overlays,
+    hostedControls,
+    lookAtTarget,
+    compositor,
+    ensureTarget,
+    check,
+    setPose,
+  };
+}

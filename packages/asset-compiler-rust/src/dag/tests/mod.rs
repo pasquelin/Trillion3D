@@ -34,6 +34,37 @@ pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
     (positions, indices, dag)
 }
 
+/// A grid's positions and indices, its level-zero clusters, and the groups made of them.
+pub(super) struct Grouped {
+    pub positions: Vec<f32>,
+    pub indices: Vec<u32>,
+    pub clusters: Vec<Vec<u32>>,
+    pub groups: Vec<Vec<usize>>,
+}
+
+/// The level-zero clusters of a grid and the groups the builder makes of them at every level.
+pub(super) fn grouped(n: usize) -> Grouped {
+    let (positions, indices) = grid(n);
+    let clusters =
+        cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
+    let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
+    let adjacency = cluster_adjacency(&lists);
+    let centres: Vec<[f64; 3]> = clusters
+        .iter()
+        .map(|c| {
+            let s = bounding_sphere(&positions, c);
+            [s[0], s[1], s[2]]
+        })
+        .collect();
+    let groups = group_clusters(&centres, &adjacency, DAG_GROUP_MAX);
+    Grouped {
+        positions,
+        indices,
+        clusters,
+        groups,
+    }
+}
+
 mod part1;
 mod part2;
 mod part3;
