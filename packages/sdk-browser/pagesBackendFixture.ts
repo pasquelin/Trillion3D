@@ -68,7 +68,7 @@ export function dagLevel(
   error: number,
   roots: Cluster[] = [],
 ) {
-  const sphere = clusterSphere(coarse[0]);
+  const sphere = coarse.length ? clusterSphere(coarse[0]) : [0, 0, 0, 1];
   const byId = (page: Cluster) => page.id;
   return {
     pages: [
@@ -112,7 +112,9 @@ export function dagLevel(
     structure: {
       version: 1,
       roots: [...coarse, ...roots].map(byId),
-      groups: [{ level: 1, error, sphere, children: leaves.map(byId), outputs: coarse.map(byId) }],
+      groups: coarse.length
+        ? [{ level: 1, error, sphere, children: leaves.map(byId), outputs: coarse.map(byId) }]
+        : [],
     },
   };
 }

@@ -1,5 +1,6 @@
 import { SCENE_LIGHTING_WGSL } from './sceneLighting.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
+import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -11,7 +12,8 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,0.0,1.0);out.color=vec4f(0.0);out.bary=vec3f(0.0);out.view=vec3f(0.0);out.tri=0u;return out;}
  let id=indices[uni.pageOffset+vertexIndex];
  let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
- out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;out.tri=vertexIndex/3u+uni.pageOffset;
+ out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;out.tri=0u;
+ if(uni.mode==1u){out.tri=stableTriangleId(uni.pad1,vertexIndex/3u);}
  let corner=vertexIndex%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  return out;
@@ -24,14 +26,12 @@ fn aces(color:vec3f)->vec3f{
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
-fn hashColor(id:u32)->vec3f{let x=f32(id);return fract(sin(vec3f(x,x*1.37,x*2.17)*vec3f(12.9898,78.233,45.164))*43758.5453);}
+${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut)->@location(0) vec4f{
  if(uni.mode==1u){
-  let n=normalize(cross(dpdx(in.view),dpdy(in.view)));
-  let wrap=0.28+0.72*max(0.0,abs(n.z));
   let width=fwidth(in.bary);
   let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
-  return vec4f(mix(hashColor(in.tri)*wrap,vec3f(0.04,0.05,0.07),edge),1.0);
+  return vec4f(mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge),1.0);
  }
  return vec4f(linearToSrgb(aces(in.color.xyz)),1.0);
 }
@@ -50,8 +50,9 @@ export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,colo
 ${STANDARD_LIGHTING_WGSL}
 ${SCENE_LIGHTING_WGSL}
 @group(0) @binding(9) var<storage,read> sceneLights:SceneLights;
+@group(0) @binding(10) var<storage,read> triangleDiagnostic:array<u32>;
 ${NORMAL_TRANSFORM_WGSL}
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,}
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
 fn aces(color:vec3f)->vec3f{
  var c=color/0.6;
@@ -61,12 +62,23 @@ fn aces(color:vec3f)->vec3f{
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
+${TRIANGLE_PALETTE_WGSL}
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
  var out:VSOut;
- if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);return out;}
+ if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let id=indices[uni.pageOffset+vertexIndex];
  let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;
+ out.tri=0u;
+ out.diagId=0u;
+ if((uni.flags&0x1c000000u)!=0u){out.diagId=triangleDiagnostic[vertexIndex/3u];}
+ if((uni.flags&0x20000000u)!=0u){
+  let triangle=(vertexIndex/3u)*3u;
+  let a=triangleHash(indices[triangle]);let b=triangleHash(indices[triangle+1u]);let c=triangleHash(indices[triangle+2u]);
+  out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
+ }
+ let corner=vertexIndex%3u;
+ out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  out.normal=vec3f(0.0);
  if((uni.flags&16u)!=0u){out.normal=xformNormal(uni.world,vec3f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u]));}
  out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);
@@ -89,6 +101,18 @@ fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,
  let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
  let sample=textureSampleGrad(maps,mapsSampler,wrapped*uni.uvScale,i32(uni.mapIndex),gradX*uni.uvScale,gradY*uni.uvScale);
  let alpha=sample.w*in.color.w;
+ if((uni.flags&0x40000000u)!=0u){
+  if(alpha<=0.01||alpha<uni.alphaTest){discard;}
+  var color=vec3f(0.204,0.827,0.6);
+  if((uni.flags&0x20000000u)!=0u){
+   let width=fwidth(in.bary);
+   let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
+   color=mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge);
+  }else if((uni.flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
+  else if((uni.flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
+  else if((uni.flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
+  return vec4f(color,1.0);
+ }
  var rgb=in.color.xyz*sample.xyz;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
  if(uni.roughIndex!=0u){let scale=scales[uni.roughIndex].xy;rough*=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.roughIndex),gradX*scale,gradY*scale).g;}

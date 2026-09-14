@@ -5,8 +5,9 @@ import { exactPagesBackend } from './index.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { dagRoots, dagLevel } from './webgpuPagesTestDag.ts';
+import { dagRoots } from './webgpuPagesTestDag.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals();
@@ -104,24 +105,15 @@ test('the initial cover also protects regions first discovered after a camera ju
 test('webgpu pages select the same coarse LOD cut as the WebGL2 exact backend', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
-  const { source, metadata: base, indices, associations, geometry, material } = quadScene();
-  const leaf = (id: number) => ({
-    id,
-    url: String(id),
-    count: 3,
-    min: [-1, -1, 0] as number[],
-    max: [1, 1, 0] as number[],
-    bytes: 12,
-    sha256: 'x',
-  });
   // Screen error 0.001 on the coarse cluster: at pixelError 10 the coarse cover wins everywhere.
-  const level = dagLevel([leaf(0), leaf(1)], leaf(2), 0.001);
-  const metadata = {
-    errorModel: 'dag-group-qem-v1',
-    clusterStrategy: 'dag-groups',
-    primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }],
-  };
-  const allIndices = new Map([...indices, ['2', new Uint32Array([0, 1, 2])]]);
+  const {
+    source,
+    metadata,
+    indices: allIndices,
+    associations,
+    geometry,
+    material,
+  } = coarseQuadScene(0.001);
   const context = {
     source,
     metadata,
@@ -144,7 +136,6 @@ test('webgpu pages select the same coarse LOD cut as the WebGL2 exact backend', 
   webgpu.dispose();
   geometry.dispose();
   material.dispose();
-  void base;
 });
 
 test('a lost WebGPU device fails the backend without throwing from dispose', async () => {
