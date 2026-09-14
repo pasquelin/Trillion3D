@@ -30,6 +30,7 @@ phases! {
  page_hash=>"pageHashMs",
  page_write=>"pageWriteMs",
  page_packed=>"pagePackedMs",
+ coplanar=>"coplanarMs",
  manifest=>"manifestMs",
 }
 

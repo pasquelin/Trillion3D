@@ -1,7 +1,11 @@
 import { SHADE_SHADER, VIS_SHADER } from './visibilityBuffer.ts';
 
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
-export async function createWebgpuVisibilityShaders(device: GPUDevice, drawSlots: number) {
+export async function createWebgpuVisibilityShaders(
+  device: GPUDevice,
+  drawSlots: number,
+  uniformSlots = 7,
+) {
   const shadeUniform = device.createBuffer({
     size: 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -39,7 +43,7 @@ export async function createWebgpuVisibilityShaders(device: GPUDevice, drawSlots
     usage: GPUBufferUsage.STORAGE,
   });
   const visUniform = device.createBuffer({
-    size: 7 * 256,
+    size: uniformSlots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const visModule = device.createShaderModule({ code: VIS_SHADER });

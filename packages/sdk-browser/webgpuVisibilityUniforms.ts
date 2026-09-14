@@ -1,5 +1,11 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
+import { slotCount } from './gpuDraw.ts';
+import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+/** Une entrée par slot de dessin indirect, plus celle du chemin direct. La taille suit le nombre de
+ *  couches coplanaires de la scène : sans couche, c'est exactement le tampon d'avant. */
+export const visUniformSlots = (vis: WebgpuVisState) => slotCount(vis.drawLayerSlots) + 1;
 
 /** Uploads visibility and material resolve uniforms for the current cut, creating the two uniform
  *  buffers on `rt.vis` the first time. */
@@ -9,17 +15,19 @@ export function writeWebgpuVisibilityUniforms(
   tableRows: number,
 ) {
   const { vis, run } = rt,
-    { visUniPacked, shadeUniPacked } = vis,
+    slots = visUniformSlots(vis);
+  if (vis.visUniPacked.length !== slots * 64) vis.visUniPacked = new Float32Array(slots * 64);
+  const { visUniPacked, shadeUniPacked } = vis,
     [width, height] = rt.gpu.targetSize,
     hasGpuSmall = !!vis.gpuSmall,
     { gpuFrameActive, diagnostic } = run,
     maskOffset = run.gpuSelection?.maskOffset ?? 0;
   const visUniform = (vis.visUniform ??= device.createBuffer({
-    size: 7 * 256,
+    size: slots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }));
   const visInts = new Uint32Array(visUniPacked.buffer);
-  for (let slot = 0; slot < 7; slot++) {
+  for (let slot = 0; slot < slots; slot++) {
     const base = slot * 64;
     visUniPacked.set(viewProj.elements, base);
     visUniPacked[base + 16] = width;

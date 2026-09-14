@@ -23,7 +23,7 @@ export function assertFormat(formatVersion: number) {
   if (formatVersion !== FORMAT_VERSION && formatVersion !== CLUSTERED_BLEND_FORMAT_VERSION)
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
-      `Expected cache format 1 or 2, received ${formatVersion}`,
+      `Expected cache format ${FORMAT_VERSION} or ${CLUSTERED_BLEND_FORMAT_VERSION}, received ${formatVersion}`,
       { formatVersion },
     );
 }

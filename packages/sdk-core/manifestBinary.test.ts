@@ -2,12 +2,14 @@ import { TEMPLATES, sha, manifest } from '../../test/fixtures/manifestBinary.ts'
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  assertManifestBinary,
   decodeManifestBinary,
   encodeManifestBinary,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
 } from './manifestBinary.ts';
-import { assertCacheIdentity, EngineError } from './contracts.ts';
+import { assertCacheIdentity, EngineError, type ClusterManifest } from './contracts.ts';
+import { MAX_DEPTH_LAYER } from './depthLayer.ts';
 
 test('a manifest survives the binary columns unchanged, field by field', () => {
   const source = manifest();
@@ -83,4 +85,61 @@ test('a cluster url that does not follow the manifest template is refused at enc
     () => encodeManifestBinary(source, TEMPLATES),
     (error: EngineError) => error.code === 'INVALID_CACHE',
   );
+});
+
+// Comportement 10 : l'encodage TypeScript refuse un depthLayer qui dépasse les quatre bits (> 15)
+// et accepte la valeur limite.
+test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-bit limit', () => {
+  const tooDeep = manifest();
+  tooDeep.primitives[0].pages[0].depthLayer = MAX_DEPTH_LAYER + 1;
+  assert.throws(
+    () => encodeManifestBinary(tooDeep, TEMPLATES),
+    (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE',
+  );
+  const atLimit = manifest();
+  atLimit.primitives[0].pages[0].depthLayer = MAX_DEPTH_LAYER;
+  assert.doesNotThrow(() => encodeManifestBinary(atLimit, TEMPLATES));
+});
+
+// Comportement 11 : pageDepthLayer fait l'aller-retour par les colonnes binaires ; la couche 0
+// laisse le champ absent, pour qu'une page garde une seule forme après décodage.
+test('depthLayer round-trips through the binary columns, and layer 0 leaves the field absent', () => {
+  const source = manifest();
+  source.primitives[0].pages[0].depthLayer = 7;
+  const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES);
+  slim.binary.sha256 = sha('f');
+  const decoded = decodeManifestBinary(
+    JSON.parse(JSON.stringify(slim)),
+    binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength),
+  );
+  assert.equal(decoded.primitives[0].pages[0].depthLayer, 7);
+  assert.equal(
+    'depthLayer' in decoded.primitives[0].pages[1],
+    false,
+    'la seconde page (couche 0) ne porte aucun champ depthLayer après décodage',
+  );
+  assert.equal(
+    'depthLayer' in decoded.primitives[1].pages[0],
+    false,
+    'aucune couche déclarée dans la source : toujours absent après décodage',
+  );
+});
+
+// Comportement 13 : assertManifestBinary refuse tout sidecar dont la version n'est pas 2.
+test('assertManifestBinary accepts version 2 and refuses every other version', () => {
+  const descriptor = {
+    version: MANIFEST_BINARY_VERSION,
+    url: 'clusters.bin',
+    sha256: 'a'.repeat(64),
+    bytes: 8,
+    pageUrl: '../../objects/{sha}.bin',
+    geometryUrl: '../../objects/{sha}.bin',
+    bundleUrl: '../../objects/{sha}.bin',
+  };
+  assert.doesNotThrow(() => assertManifestBinary(descriptor));
+  for (const version of [0, 1, 3, 999])
+    assert.throws(
+      () => assertManifestBinary({ ...descriptor, version }),
+      (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
+    );
 });

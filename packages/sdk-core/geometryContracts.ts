@@ -39,6 +39,10 @@ export interface Page {
    *  of clusters; the cluster stays readable on its own through `url`. */
   stream?: number;
   streamOffset?: number;
+  /** Coplanar depth layer, 0 for every cluster the compiler left alone. A cluster of layer n draws
+   *  with a depth bias of n whole layer steps, which is what decides the winner between two opaque
+   *  surfaces that share a plane exactly. Absent and 0 mean the same thing: the untouched draw. */
+  depthLayer?: number;
 }
 /** A bounding sphere an error band can be projected through: four finite values, a radius of at
  *  least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */

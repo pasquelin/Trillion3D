@@ -1,63 +1,27 @@
-import {
-  SLOTS,
-  DRAW_ITEM_U32,
-  UNIFORM_BYTES,
-  WORKGROUP,
-  DRAW_INDIRECT_STRIDE,
-} from './gpuDrawContract.ts';
+import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './gpuDrawContract.ts';
+import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
-import { DRAW_SHADER } from './gpuDrawShader.ts';
+import { drawShader } from './gpuDrawShader.ts';
 
-/** Stable GPU compact into six drawIndirect commands. Missing compute returns undefined so the caller keeps the CPU draw loop. */
+/**
+ * Stable GPU compact into one drawIndirect command per slot. `layerSlots` is one plus the deepest
+ * coplanar layer the scene carries, so a scene with none asks for the six slots this path has
+ * always had and pays nothing. Missing compute returns undefined so the caller keeps the CPU loop.
+ */
 export async function createGpuDraw(
   device: GPUDevice,
   slotCap: number,
+  layerSlots = 1,
 ): Promise<GpuDraw | undefined> {
   if (typeof device.createComputePipeline !== 'function' || slotCap < 1) return undefined;
-  const itemBytes = slotCap * DRAW_ITEM_U32 * 4,
-    restBytes = Math.max(4, Math.ceil(slotCap / 32) * 4),
-    instanceBytes = slotCap * 4,
-    indirectBytes = SLOTS * DRAW_INDIRECT_STRIDE,
-    groupCount = Math.ceil(slotCap / WORKGROUP),
-    groupBytes = groupCount * SLOTS * 4;
   const buffers: GPUBuffer[] = [];
   let disposed = false;
   try {
-    const itemsBuf = device.createBuffer({
-      size: itemBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    const restBuf = device.createBuffer({
-      size: restBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    const uniforms = device.createBuffer({
-      size: UNIFORM_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
-    const instanceBuffer = device.createBuffer({
-      size: instanceBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
-    const indirectBuffer = device.createBuffer({
-      size: indirectBytes,
-      usage:
-        GPUBufferUsage.INDIRECT |
-        GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_DST |
-        GPUBufferUsage.COPY_SRC,
-    });
-    const groupCounts = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
-    const groupOffsets = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE });
-    buffers.push(
-      itemsBuf,
-      restBuf,
-      uniforms,
-      instanceBuffer,
-      indirectBuffer,
-      groupCounts,
-      groupOffsets,
-    );
+    const allocated = createGpuDrawBuffers(device, slotCap, layerSlots);
+    const SLOTS = allocated.slots;
+    const { itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer } = allocated;
+    const { groupCounts, groupOffsets, slotUsedBuf } = allocated;
+    buffers.push(...allocated.all);
     if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
     const layout = device.createBindGroupLayout({
       entries: [
@@ -69,9 +33,10 @@ export async function createGpuDraw(
         { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
         { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
         { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+        { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       ],
     });
-    const module = device.createShaderModule({ code: DRAW_SHADER });
+    const module = device.createShaderModule({ code: drawShader(layerSlots) });
     if (typeof module.getCompilationInfo === 'function') {
       const info = await module.getCompilationInfo();
       if (info.messages.some((message) => message.type === 'error')) {
@@ -113,15 +78,24 @@ export async function createGpuDraw(
           { binding: 5, resource: { buffer: groupOffsets } },
           { binding: 6, resource: { buffer: maskBuffer } },
           { binding: 7, resource: { buffer: restBuf } },
+          { binding: 8, resource: { buffer: slotUsedBuf } },
         ],
       });
     let boundMask = itemsBuf,
       bindGroup = makeBindGroup(boundMask);
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
     return {
-      encode(encoder, items, count, itemsDirty, restBits, maxVertexCount, selection) {
+      encode(encoder, items, count, itemsDirty, restBits, maxVertexCount, selection, slotItems) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
+        if (slotItems)
+          device.queue.writeBuffer(
+            slotUsedBuf,
+            0,
+            slotItems.buffer as ArrayBuffer,
+            slotItems.byteOffset,
+            SLOTS * 4,
+          );
         if (n && itemsDirty)
           device.queue.writeBuffer(
             itemsBuf,
@@ -166,6 +140,7 @@ export async function createGpuDraw(
       indirectBuffer,
       instanceBuffer,
       slotOffsetsBuffer: groupOffsets,
+      slots: SLOTS,
       dispose() {
         disposed = true;
         for (const buffer of buffers) buffer.destroy();

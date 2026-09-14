@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
+import { depthLayerBias } from '../sdk-core/index.ts';
 import {
   assertVisibilityPageTriangles,
   clusterHash,
@@ -130,6 +131,9 @@ export function createPageRowWriter({
     floats[base + 54] = mat.normalScaleY;
     floats[base + 55] = rec.role === 'coarse' ? 1 : 0;
     floats[base + 56] = 0;
+    // Unités de profondeur à retrancher pour la couche coplanaire de ce cluster : zéro pour la
+    // couche 0, une seule source de calcul pour le chemin matériel comme pour le raster logiciel.
+    ints[base + 60] = -depthLayerBias(rec.depthLayer);
     markRowDirty(row);
   };
 }

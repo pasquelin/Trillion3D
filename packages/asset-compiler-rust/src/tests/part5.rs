@@ -10,7 +10,7 @@ fn compile_concatenates_multiple_buffers() {
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"pos.bin","byteLength":36},{"uri":"idx.bin","byteLength":12}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":36},{"buffer":1,"byteOffset":0,"byteLength":12}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":3}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0},{"mesh":0}],"materials":[]});
     let gltf_bytes = serde_json::to_vec(&gltf).expect("gltf");
     fs::write(options.source.join("mesh.gltf"), &gltf_bytes).expect("write");
-    let manifest = json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":"mesh.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"pos.bin","sha256":hash(&positions)},{"file":"idx.bin","sha256":hash(&indices)}],"trianglesAcrossNodes":2,"meshNodes":2}});
+    let manifest = json!({"status":"ready","formatVersion":SOURCE_FORMAT_VERSION,"runtime":{"file":"mesh.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"pos.bin","sha256":hash(&positions)},{"file":"idx.bin","sha256":hash(&indices)}],"trianglesAcrossNodes":2,"meshNodes":2}});
     fs::write(
         options.source.join("manifest.json"),
         serde_json::to_vec(&manifest).expect("manifest"),

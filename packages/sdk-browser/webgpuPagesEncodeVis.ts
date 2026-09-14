@@ -73,6 +73,7 @@ export function encodeVis(
       layout.drawRestBits,
       maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
+      layout.binInstances,
     );
     rows.rowsChanged = false;
   }
