@@ -4,11 +4,11 @@
   "type": "module",
   "private": true,
   "exports": {
-    ".": "./index.mjs",
-    "./cli": "./cli.mjs"
+    ".": "./index.mts",
+    "./cli": "./cli.mts"
   },
   "files": [
-    "*.mjs"
+    "*.mts"
   ],
   "engines": {
     "node": ">=22.18"

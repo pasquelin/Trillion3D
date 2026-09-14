@@ -18,6 +18,23 @@ export const VIS_TRIANGLE_MASK=(1<<VIS_TRIANGLE_BITS)-1;
 export const VIS_MAX_PAGE_TRIANGLES=VIS_TRIANGLE_MASK+1;
 /** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
 export const VIS_MAX_PAGES=0xfffffe;
+/** Bright, stable display colors derived from integer triangle IDs; diagnostic rendering is unlit. */
+export const TRIANGLE_PALETTE_WGSL=`
+fn triangleHash(id:u32)->u32{
+ var x=id+0x9e3779b9u;
+ x=(x^(x>>16u))*0x7feb352du;
+ x=(x^(x>>15u))*0x846ca68bu;
+ return x^(x>>16u);
+}
+fn stableTriangleId(cluster:u32,triangle:u32)->u32{return cluster^triangleHash(triangle);}
+fn hashColor(id:u32)->vec3f{
+ let h=triangleHash(id);
+ let hue=f32(h&65535u)/65535.0;
+ let saturation=0.65+0.25*f32((h>>16u)&255u)/255.0;
+ let value=0.78+0.20*f32((h>>24u)&255u)/255.0;
+ let channels=abs(fract(vec3f(hue,hue+0.6666667,hue+0.3333333))*6.0-vec3f(3.0));
+ return value*mix(vec3f(1.0),clamp(channels-vec3f(1.0),vec3f(0.0),vec3f(1.0)),saturation);
+}`;
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
 export function assertVisibilityPageTriangles(triangles:number,page?:string){
  if(!Number.isInteger(triangles)||triangles<0||triangles>VIS_MAX_PAGE_TRIANGLES)
@@ -157,10 +174,6 @@ function attr2(attribute:THREE.BufferAttribute|THREE.InterleavedBufferAttribute|
  return [attribute.getX(i0)*w0+attribute.getX(i1)*w1+attribute.getX(i2)*w2,attribute.getY(i0)*w0+attribute.getY(i1)*w1+attribute.getY(i2)*w2];
 }
 
-function attr3(attribute:THREE.BufferAttribute|THREE.InterleavedBufferAttribute|undefined,i0:number,i1:number,i2:number,w0:number,w1:number,w2:number):[number,number,number]{
- if(!attribute)return [0,0,0];
- return [attribute.getX(i0)*w0+attribute.getX(i1)*w1+attribute.getX(i2)*w2,attribute.getY(i0)*w0+attribute.getY(i1)*w1+attribute.getY(i2)*w2,attribute.getZ(i0)*w0+attribute.getZ(i1)*w1+attribute.getZ(i2)*w2];
-}
 
 function wrapTexel(t:number,size:number,wrap:THREE.Wrapping){
  const scaled=wrap===THREE.ClampToEdgeWrapping?Math.min(1,Math.max(0,t)):t-Math.floor(t);
@@ -288,7 +301,7 @@ function shadePixel(id:number,pages:VisPage[],camera:THREE.PerspectiveCamera,vie
  const encode=(c:[number,number,number]):[number,number,number]=>mat.map||mat.lit?[linearToSrgb8(c[0]),linearToSrgb8(c[1]),linearToSrgb8(c[2])]:[Math.max(0,Math.min(255,c[0]*255))|0,Math.max(0,Math.min(255,c[1]*255))|0,Math.max(0,Math.min(255,c[2]*255))|0];
  if(mat.lit){
   const world:[number,number,number]=[tri.a.worldX*bary.w0+tri.b.worldX*bary.w1+tri.c.worldX*bary.w2,tri.a.worldY*bary.w0+tri.b.worldY*bary.w1+tri.c.worldY*bary.w2,tri.a.worldZ*bary.w0+tri.b.worldZ*bary.w1+tri.c.worldZ*bary.w2];
-  let nx=tri.b.worldX-tri.a.worldX,ny=tri.b.worldY-tri.a.worldY,nz=tri.b.worldZ-tri.a.worldZ;
+  const nx=tri.b.worldX-tri.a.worldX,ny=tri.b.worldY-tri.a.worldY,nz=tri.b.worldZ-tri.a.worldZ;
   const cx=tri.c.worldX-tri.a.worldX,cy=tri.c.worldY-tri.a.worldY,cz=tri.c.worldZ-tri.a.worldZ;
   let Nx=ny*cz-nz*cy,Ny=nz*cx-nx*cz,Nz=nx*cy-ny*cx;
   const screenFace=affine.area*tri.a.invW*tri.b.invW*tri.c.invW<0?1:-1;
@@ -472,7 +485,7 @@ struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,
 @group(0) @binding(7) var mapsSampler:sampler;
 @group(0) @binding(8) var<uniform> uni:ShadeUni;
 @group(0) @binding(9) var dataMaps:texture_2d_array<f32>;
-fn hashColor(id:u32)->vec3f{let x=f32(id);return fract(sin(vec3f(x,x*1.37,x*2.17)*vec3f(12.9898,78.233,45.164))*43758.5453);}
+${TRIANGLE_PALETTE_WGSL}
 fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}
 fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
@@ -555,10 +568,13 @@ fn framebuffer(clip:vec4f)->vec3f{
  }
  if(uni.mode==1u){
   let edgeW=1.0-min(min(smoothstep(0.0,width.x*1.2,bary.x),smoothstep(0.0,width.y*1.2,bary.y)),smoothstep(0.0,width.z*1.2,bary.z));
-  return diagnosticSurface(mix(hashColor(id)*0.7,vec3f(0.04,0.05,0.07),edgeW));
+  return diagnosticSurface(mix(hashColor(stableTriangleId(page.clusterHash,tri)),vec3f(0.04,0.05,0.07),edgeW));
  }
  if(uni.mode==2u){return diagnosticSurface(hashColor(page.clusterHash));}
  if(uni.mode==3u){return diagnosticSurface(vec3f(0.204,0.827,0.6));}
+ if(uni.mode==4u){return diagnosticSurface(select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),page.pad1>0.5));}
+ if(uni.mode==5u){return diagnosticSurface(vec3f(0.204,0.827,0.6));}
+ if(uni.mode==6u){let ratio=clamp(page.pad4.x,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12));}
  var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,0.0525,1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
