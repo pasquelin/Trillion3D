@@ -1,4 +1,4 @@
-// Serveur statique du harnais et encodage PNG, pour `lot4.mjs`. Rien n'est écrit ici : le serveur
+// Serveur statique du harnais et encodage PNG, pour `banc.mjs`. Rien n'est écrit ici : le serveur
 // lit les dists, les dépendances du navigateur et les assets Emerald du Lab, et encaisse les
 // captures RGBA que la page lui poste.
 import { createReadStream, existsSync, statSync } from 'node:fs';
@@ -19,7 +19,7 @@ const MIME = {
 };
 
 /** La page du harnais : une carte d'imports, et rien d'autre. Tout le reste vient de `evaluate`. */
-const PAGE = `<!doctype html><meta charset="utf-8"><title>mesure lot 4</title>
+const PAGE = `<!doctype html><meta charset="utf-8"><title>banc de mesure WebGeometry</title>
 <script type="importmap">{"imports":{
  "three":"/vendor/three/build/three.module.js",
  "three/addons/":"/vendor/three/examples/jsm/",
