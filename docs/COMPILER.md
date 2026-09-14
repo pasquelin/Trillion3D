@@ -120,7 +120,7 @@ A cache never needs to be wiped before recompiling: after every successful job t
 
 ## Batch mode
 
-`--jobs FILE` (or `--jobs -` to read one line from stdin) runs many jobs in one process:
+`--jobs FILE` (or `--jobs -` to read the whole batch from stdin; cancellation is then unavailable) runs many jobs in one process. Every job needs its own `cache` (a cache holds one pointer per scope and prunes itself, so two jobs sharing one would destroy each other's output):
 
 ```json
 {
@@ -239,7 +239,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 
 ## Using it from Node
 
-`@web-geometry/sdk/node` is a thin relay over the executable ([`packages/sdk-node/index.mjs`](../packages/sdk-node/index.mjs)):
+`@web-geometry/sdk/node` is a thin relay over the executable ([`packages/sdk-node/index.mts`](../packages/sdk-node/index.mts)):
 
 ```js
 import {prepare, prepareMany} from '@web-geometry/sdk/node';
@@ -258,7 +258,7 @@ const summary = await prepareMany(jobs, {workers: 4, ramBudgetMb: 32768, threads
 summary.jobs[0].pointer;   // pointers only; nothing is read from disk
 ```
 
-Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. The `web-geometry-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`WEB_GEOMETRY_RAW_EVENTS=1` forces raw events).
+Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. `progress.note(text)` shows a host-side step (a copy, a manifest check) on the same line before the compiler starts. The `web-geometry-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`WEB_GEOMETRY_RAW_EVENTS=1` forces raw events).
 
 ```js
 const progress = createTerminalProgress({label: 'city', index: 0, total: 8});
