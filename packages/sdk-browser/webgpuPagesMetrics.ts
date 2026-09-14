@@ -1,8 +1,9 @@
 import { dropGpuSelection, dropVis } from './webgpuPagesDrops.ts';
+import { directLightTimings } from './webgpuLightMetrics.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export function metricsOf(rt: WebgpuPagesRuntime) {
-  const { run, gpu, vis, timing, blendState, services } = rt;
+  const { run, gpu, vis, timing, blendState, services, lights } = rt;
   const stats = gpu.cache?.stats();
   let vertexBytes = 0;
   for (const buffer of gpu.positionBuffers.values()) vertexBytes += buffer.size;
@@ -58,6 +59,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
     hizCountedFrame,
     cpuSelectMs: run.cpuSelectMs,
+    lightsActive: lights.lightsActive,
+    shadowsUpdated: lights.shadowsUpdated,
+    ...directLightTimings(timing.lastGpuPassMs),
   };
 }
 
@@ -99,6 +103,10 @@ export function disposeWebgpuPages(
   capture.surfaceCapture?.dispose();
   gpu.deferred?.dispose();
   gpu.lights?.dispose();
+  rt.lights.tiles?.dispose();
+  rt.lights.shadows?.dispose();
+  rt.lights.buffer?.destroy();
+  rt.lights.plan.reset();
   gpu.presenter?.dispose();
   gpu.synchronousCapture?.dispose();
   gpu.canvasTexture?.dispose();
