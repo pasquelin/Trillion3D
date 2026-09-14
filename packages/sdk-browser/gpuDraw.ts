@@ -225,16 +225,19 @@ export async function createGpuDraw(device:GPUDevice,slotCap:number):Promise<Gpu
     const n=Math.min(count,slotCap);
     if(n&&itemsDirty)device.queue.writeBuffer(itemsBuf,0,items.buffer as ArrayBuffer,items.byteOffset,n*ITEM_U32*4);
     if(n)device.queue.writeBuffer(restBuf,0,restBits.buffer as ArrayBuffer,restBits.byteOffset,Math.ceil(n/32)*4);
-    uniData[0]=count;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=groupCount;
+    // Only the groups the frame's items reach are counted and prefixed. The groups past them hold zero
+    // by construction and nothing reads them, so bounding the serial prefix by the live count is exact.
+    const liveGroups=Math.max(1,Math.ceil(n/WORKGROUP));
+    uniData[0]=count;uniData[1]=maxVertexCount;uniData[2]=slotCap;uniData[3]=liveGroups;
     uniData[4]=selection?1:0;uniData[5]=selection?.maskOffset??0;
     const mask=selection?.maskBuffer??itemsBuf;
     if(mask!==boundMask){boundMask=mask;bindGroup=makeBindGroup(mask);}
     device.queue.writeBuffer(uniforms,0,uniData);
     const pass=encoder.beginComputePass({label:'WG draw compaction'});
     pass.setBindGroup(0,bindGroup);
-    pass.setPipeline(countPipeline);pass.dispatchWorkgroups(Math.ceil(groupCount*SLOTS/WORKGROUP));
+    pass.setPipeline(countPipeline);pass.dispatchWorkgroups(Math.ceil(liveGroups*SLOTS/WORKGROUP));
     pass.setPipeline(prefixPipeline);pass.dispatchWorkgroups(1);
-    pass.setPipeline(scatterPipeline);pass.dispatchWorkgroups(Math.max(1,Math.ceil(n/WORKGROUP)));
+    pass.setPipeline(scatterPipeline);pass.dispatchWorkgroups(liveGroups);
     pass.end();
    },
    indirectBuffer,
