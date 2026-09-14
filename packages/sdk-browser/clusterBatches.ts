@@ -28,6 +28,7 @@ import { type BatchPage } from './clusterBatchRange.ts';
 import { PrimitiveIndex, BatchGroup } from './clusterBatchPrimitive.ts';
 import { identityMatrixTexture, type ShaderHook } from './clusterBatchMesh.ts';
 import { setupClusterBatches } from './clusterBatchSetup.ts';
+import { everyGroup } from './clusterBatchLayers.ts';
 import { updateClusterBatches } from './clusterBatchUpdate.ts';
 export { IndexRangeAllocator, DrawRanges } from './clusterBatchRange.ts';
 export type { BatchPage } from './clusterBatchRange.ts';
@@ -47,13 +48,14 @@ export class ClusterBatches {
   private scene: THREE.Scene;
   private primitives: PrimitiveIndex[] = [];
   private groups: Array<BatchGroup | undefined> = [];
+  private layerGroups: Array<Map<number, BatchGroup> | undefined> = [];
   private active: BatchGroup[] = [];
   private touched: BatchGroup[] = [];
   private matrices = identityMatrixTexture();
   private indirect: THREE.DataTexture;
   private shaderHooks = new Map<THREE.Material, ShaderHook>();
-  /** Clones dos/face créés ici : à libérer, contrairement aux matériaux de la scène. */
-  private splitMaterials: THREE.Material[] = [];
+  /** Clones créés ici — dos/face des transparents, matériaux biaisés : à libérer, pas ceux de la scène. */
+  private ownedMaterials: THREE.Material[] = [];
   private attributeBytes = 0;
   private indexCapacityBytes = 0;
   private stats: ClusterBatchStats = {
@@ -71,9 +73,10 @@ export class ClusterBatches {
     const setup = setupClusterBatches(pages);
     this.primitives = setup.primitives;
     this.groups = setup.groups;
+    this.layerGroups = setup.layerGroups;
     this.indirect = setup.indirect;
     this.shaderHooks = setup.shaderHooks;
-    this.splitMaterials = setup.splitMaterials;
+    this.ownedMaterials = setup.ownedMaterials;
     this.attributeBytes = setup.attributeBytes;
     this.indexCapacityBytes = setup.indexCapacityBytes;
     for (const page of pages) if (page.array) this.acceptPage([page], page.array);
@@ -144,6 +147,7 @@ export class ClusterBatches {
       groups: this.groups,
       active: this.active,
       touched: this.touched,
+      layerGroups: this.layerGroups,
       matrices: this.matrices,
       indirect: this.indirect,
       stats: this.stats,
@@ -179,16 +183,17 @@ export class ClusterBatches {
       material.needsUpdate = true;
     }
     this.shaderHooks.clear();
-    for (const material of this.splitMaterials) material.dispose();
-    this.splitMaterials.length = 0;
-    for (const group of this.groups)
-      if (group) {
-        group.mesh = undefined;
-        group.split = undefined;
-      }
+    for (const material of this.ownedMaterials) material.dispose();
+    this.ownedMaterials.length = 0;
+    for (const group of everyGroup(this.groups, this.layerGroups)) {
+      group.mesh = undefined;
+      group.split = undefined;
+      group.biased = undefined;
+    }
     for (const primitive of this.primitives) primitive.dispose();
     this.primitives.length = 0;
     this.groups.length = 0;
+    this.layerGroups.length = 0;
     this.matrices.dispose();
     this.indirect.dispose();
   }

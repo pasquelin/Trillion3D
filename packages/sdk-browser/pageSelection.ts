@@ -13,6 +13,9 @@ export type PageRec = {
  /** Streaming bundle that carries this cluster, and its byte offset inside it. Residency is a
   *  property of the bundle: one request makes dozens of clusters drawable at once. */
  streamUrl?:string;streamOffset?:number;
+ /** Coplanar depth layer, 0 for every cluster the compiler left alone. Always present, never
+  *  undefined, so a page record keeps one shape through the selection loop. */
+ depthLayer:number;
  attributes:THREE.BufferGeometry['attributes'];
  material:THREE.Material|THREE.Material[];
  transparent?:boolean;sourceMesh?:THREE.Mesh;sourceOrder?:number;
@@ -166,7 +169,7 @@ export function collectClusterPages(source:THREE.Object3D,metadata:ClusterManife
    const placed=placement?.[pageIndex];
    const rec:PageRec={id:page.id,url:page.url,clusterId:`${primitive.mesh}/${primitive.primitive}/${page.id}`,array,triangles:page.count/3,indexBytes:array?.byteLength??page.bytes,min:page.min,max:page.max,role:page.role,
     level:cut.level,lodError:cut.lodError,sphere:cut.sphere,parentError:cut.parentError,parentSphere:cut.parentSphere,group:cut.group,source:cut.source,
-    streamUrl:placed?.url,streamOffset:placed?.offset,
+    streamUrl:placed?.url,streamOffset:placed?.offset,depthLayer:page.depthLayer??0,
     attributes:mesh.geometry.attributes,material:mesh.material,transparent,sourceMesh:mesh,sourceOrder:sourceOrder?.[pageIndex]??pageIndex,matrix:mesh.matrixWorld,renderOrder:order,attached:false,seen:0,cone:undefined,geometry:undefined,mesh:undefined,resident:false};
    allPages.push(rec);return rec;});
   order++;

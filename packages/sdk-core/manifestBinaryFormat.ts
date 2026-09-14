@@ -16,7 +16,9 @@
  * Columns are fixed by version: their order, element type and stride are the format. Reading one
  * is `new Float64Array(buffer, offset, length/8)`, so decoding costs no parse at all.
  */
-export const MANIFEST_BINARY_VERSION = 1;
+/** Version 2 adds `pageDepthLayer`. A file of another version is refused whole: a reader that
+ *  skipped the column would draw the wrong surface on top and never know. */
+export const MANIFEST_BINARY_VERSION = 2;
 /** 'W','G','M','B' read as a little-endian u32. */
 export const MANIFEST_BINARY_MAGIC = 0x424d4757;
 export const MANIFEST_BINARY_HEADER_WORDS = 4;
@@ -42,6 +44,7 @@ export const COLUMN_NAMES = [
   'structureRoot',
   'bundleU32',
   'bundleSha',
+  'pageDepthLayer',
 ] as const;
 export type ColumnName = (typeof COLUMN_NAMES)[number];
 export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8';
@@ -66,6 +69,7 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   structureRoot: 'i32',
   bundleU32: 'u32',
   bundleSha: 'u8',
+  pageDepthLayer: 'u32',
 };
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
@@ -90,6 +94,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   structureRoot: 1,
   bundleU32: 2,
   bundleSha: 64,
+  pageDepthLayer: 1,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
 
