@@ -19,7 +19,8 @@ export type ExactPagesRenderState = {
   lodLevel: number;
   lastCamera: THREE.PerspectiveCamera | undefined;
   lastPixelError: number;
-  /** Temps de la coupe seule : le seul poste que ce moteur choisit sur le processeur. */
+  /** Temps de la coupe de clusters seule, entre l'appel de sélection et son retour : ni le seuil
+   *  adaptatif, ni la résidence, ni les rangs, ni la soumission. */
   cpuSelectMs: number;
 };
 
@@ -73,7 +74,11 @@ export function createExactPagesRender(
     // La demande de coupe est posée une fois pour toutes : l'image de rendu n'alloue rien.
     selectOptions.pixelError = state.lastPixelError;
     selectOptions.frame = state.frame;
+    // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif, le numéro
+    // d'image et la caméra sont posés avant cette borne ; la résidence et la soumission sont après.
+    const cutStart = performance.now();
     const selected = selectVisiblePages(roots, camera, selectOptions, shown);
+    state.cpuSelectMs = performance.now() - cutStart;
     // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
     // Selection already answered the budget with a coarser threshold, so the cover is kept whole and
     // only the flag is raised when even the coarsest cover exceeds the budget.
@@ -85,11 +90,11 @@ export function createExactPagesRender(
     const syncStart = performance.now();
     syncResident();
     const syncEnd = performance.now();
-    state.cpuSelectMs = syncStart - selectStart;
     const row = cpuProfile.row;
     row[0] = lightsStart - worldStart;
     row[1] = selectStart - lightsStart;
-    row[2] = state.cpuSelectMs;
+    // L'étape `selectMs` du profil garde ses bornes larges : la somme des étapes reste l'image.
+    row[2] = syncStart - selectStart;
     row[3] = syncEnd - syncStart;
     row[5] = 0;
     row[6] = 0;
