@@ -435,7 +435,6 @@
 - Lot 4 : mesure tentée par Haiku, harnais laissé par l'agent incompatible (métriques WebGPU, pas `cpuSelectMs`), non faite, journal a327d0e.
 - Aucun agent vivant. Reprise sur mot de l'utilisateur.
 
-
 ## 2026-09-14 — Livraison du prototype éclairage dans le banc 16
 
 - Revue indépendante et corrections de livraison terminées : porte initiale, ressources, archives persistantes et erreurs de préparation. Code éclairage isolé des backends ordinaires ; aucun nouveau choix d'architecture validé.
@@ -561,3 +560,416 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
 - Preuve de fidélité du lot, au harnais commun, Emerald 1280×720 : **0 pixel différent à 0 px et à 1 px sur les trois vues** (écart canal max 0/0/0/0), **témoin A/A 0 px** aux deux seuils, **trous 0**, `selectedTriangles` inchangé. Rejets Hi-Z avant → après : vue générale 758 → 758 clusters, sol 424 → 447 (+5,4 %) ; gain marginal, les clusters de 128 triangles débordent rarement du cadre. Durées `gpuFrameMs` polluées (machine chargée), informatives seulement, à remesurer machine calme.
 - Tests rejoués sur 6301d07 par un agent dédié : **349 tests, 0 échec**, arbre propre. Portes de qualité vertes sur la tête : build, eslint, prettier, `check:lines`, `check:duplicates` (0 clone), `check:unused` (knip, 0), `check:structure`, `check:dts`.
 - Vrai verrou restant, inchangé : seule la moitié « rest » des lignes est testée par la Hi-Z, l'autre est dessinée sans test. Le rejet hiérarchique des nœuds ne peut pas augmenter les rejets (boîte englobante, profondeur jamais plus loin) et ne coûterait que du temps GPU : à chiffrer avant d'écrire.
+
+## 2026-09-14 — Phase 1, lot 4, mesure (agent lot4, Haiku)
+
+- Charge système (uptime) : 3.42 / 5.75 / 8.24 ; load1 < 4 → mesure autorisée.
+- Verrou acquis, .mesure/avant et .mesure/apres trouvés (SDK dist pré-placés par agent précédent).
+- lot4.mjs en scratchpad, conçu pour mesurer cpuSelectMs (sélection CPU par image, p50/p95) sur les deux vues (général, sol) en ABBA 4 blocs. Fichiers JSON de données (before-views.json, after-views.json) détectés en scratchpad mais contiennent des métriques WebGPU (cpuFrameMs, GPU pass ms), non le cpuSelectMs requis. Harness incompatible : lot4.mjs exige un serveur Lab pour émettre le SDK dist et charge Chromium, entièrement absent de la configuration trouvée.
+- Diagnostic : harnais préparé par agent précédent destiné à une autre mesure (WebGPU performance globale) ; aucun setup Lab, aucun script de lancement, aucune trace de run lot4.mjs. Reprise en 10+ min impossible sans redémarrer Lab, compiler le SDK sur cette branche, lancer Chromium : excède le budget.
+- Verrou libéré. Mesure non faite.
+
+## 2026-09-14 — Phase 1, lot 4, fusion et harnais (agent lot4-webgl2-selection)
+
+- Fusions. `develop` a bougé deux fois pendant le lot : eab2bfa (outillage qualité, découpage des gros modules, lot 2e WebGPU) puis 249438f (expérience d'éclairage du banc 16). Les deux sont dans la branche, dans cet ordre. Six fichiers en conflit à la première, un seul à la seconde.
+  - `contracts.ts` et `oracles.ts` : develop les a réduits à des barils de réexport. Côté develop pris tel quel, mes deux changements reportés dans les nouveaux modules — `cpuSelectMs` dans `metricsContracts.ts`, la vérification de finitude sans tableau temporaire dans `projectionOracles.ts`. Rien de dupliqué.
+  - `index.ts` : squelette de chronométrage CPU de develop (`worldStart`/`lightsStart`/`selectStart`/`syncStart`) gardé ; `cpuSelectMs` lit désormais **les mêmes horodatages** que `cpuProfile.row[2]`, donc aucun `performance.now()` en plus par image ; la demande de coupe reste posée une fois pour toutes (`selectOptions`). `metricsScratch` et `fillMetrics` portent les champs des deux côtés (`gpuHostGapMs`, `uncoveredTriangles`, `cpuSelectMs`).
+  - `pageSelection.ts` : `pageSelection.ts` n'a **pas** été découpé sur develop (les modules `pageSelectionCut*` y existent mais personne ne les importe). `projectSphere` du lot 4 gardé ; `projectedPageError`, ajouté par develop pour le diagnostic `screen-error`, réécrit dessus, sur le chemin diagnostic seul.
+  - `pageSelection.test.ts` : develop a sorti la fixture dans `pageSelectionBlendFixture.ts` et éclaté les cas en `pageSelection2..5.test.ts`. Fixture de develop adoptée, les deux tests du lot 4 gardés tels quels, sans recopier la fixture.
+  - `orchestration/JOURNAL.md` : les deux historiques conservés, celui de develop d'abord.
+- Portes : `npx tsc --noEmit` et `npm run build` verts. Tests non lancés (consigne : un autre agent s'en charge).
+- Lint. `npm run lint` comptait **13** erreurs après la première fusion, et non 2 : les 13 sont présentes telles quelles sur develop eab2bfa (vérifié en lintant une archive de ce commit), **aucune ne vient du lot 4**. Les onze qui ne sont pas les `no-unsafe-finally` tolérées sont corrigées sans changer un comportement : imports morts et compteur mort dans `index.ts`, fonction morte `attr3` et trois `let` dans `visibilityBuffer.ts`, deux `let` dans `webgpuPages.ts`. Il ne reste que les **2 `no-unsafe-finally` de `webgpuPages.ts`**, préexistantes et tolérées.
+- Harnais de mesure. **Commande exacte, depuis la racine de ce worktree, sans aucun serveur à lancer à la main :**
+
+      node .mesure/lot4.mjs --avant eab2bfa --images 300
+
+  `--avant` prend un dossier `dist/` déjà construit **ou une référence git**, qu'il extrait et construit dans un dossier séparé ; sans lui un seul côté est mesuré. `--apres` vaut le `dist/` de ce worktree, construit s'il manque. Le harnais monte un serveur statique local sur un port libre choisi par le système (jamais 5174), sert la scène Emerald et les deux SDK, pilote Chromium sans fenêtre, joue les trois vues du banc — vue générale, sol (« Déplacement au niveau de référence »), gros plan — et arrête tout à la fin, y compris sur erreur. Il écrit dans `--out` (par défaut `.mesure/out/<horodatage>/`, ignoré par git) : `mesure.json` (par côté et par vue `cpuSelectMs` p50/p95/p99/min/max, le hash SHA-256 de l'ensemble sélectionné, les métriques de l'image, et le verdict d'identité quand les deux côtés sont là), `<côté>-<vue>.png` à pixelError 0 et MAX_PAGES 100000, et `<côté>-<vue>.clusters.txt`.
+  - L'ensemble sélectionné est lu **sans API ajoutée pour la mesure** : en mode diagnostic le moteur attache un maillage par cluster affiché et y dépose son `clusterId`.
+  - `render-tech-lab/` n'est **pas modifié** : il est lu pour ses assets Emerald, son Playwright et sa trajectoire. La copie de `urbanPath` (pathVersion 5) est vérifiée contre la source à chaque exécution ; le harnais refuse de mesurer si elle a bougé.
+  - Quatre fichiers pour une seule commande (`lot4.mjs`, `banc.mjs`, `serveur.mjs`, `page.mjs`) afin de tenir la limite de 200 lignes par fichier source ; aucun d'eux n'ajoute de violation à `npm run check:lines` (les 7 restantes sont celles de develop).
+  - **Essai de bout en bout fait une fois**, une vue, 8 images : JSON et PNG 1280×720 produits, 80 153 clusters sélectionnés, 10 046 405 triangles, `cpuSelectMs` relevé. Tout a été arrêté ensuite.
+- Reste à mesurer : la comparaison avant/après elle-même, sur les trois vues et un nombre d'images sérieux, machine calme. **Aucun chiffre de durée de ce lot n'est exploitable** : la charge de la machine était de 17 pendant l'essai, et l'essai ne prouve que le bon fonctionnement du harnais.
+
+## 2026-09-14 — Phase 1, mesure lots 2 et 4 (agent de mesure, worktree en lecture seule)
+
+- Objet : exécuter la comparaison avant/après documentée ci-dessus. Aucun code source modifié,
+  aucun test lancé, aucune fusion. Verrou `mesure.lock` pris pour toute la session.
+- Charge avant la série (`uptime`) : `load averages: 7.67 4.95 4.06` → moyenne 1 min ≥ 6,
+  durées de cette série à considérer polluées si elles avaient été produites.
+- Commande exacte, une seule exécution : `node .mesure/lot4.mjs --avant 249438f --images 300`
+  (249438f = develop fusionné dans cette branche, cf. section précédente).
+
+| mesure | avant | après | seuil | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50/p95 (3 vues) | — | — | — | **non mesuré** |
+| hash ensemble sélectionné | — | — | identité attendue | **non mesuré** |
+| pixels différents (pixelError 0) | — | — | 0 attendu | **non mesuré** |
+| allocations/image | — | — | — | **non mesuré** |
+
+- **Résultat : échec.** Le build du côté « avant » a réussi, puis le rendu du côté « après » a
+  levé une exception non rattrapée en plein `page.evaluate` (`TypeError: Cannot read properties
+  of null (reading 'trim')`, dans `three.module.js` → `WebGLProgram.getUniforms` →
+  `onFirstUse`, appelée depuis `drawBackend`/`sdk/apres/sdk-browser/index.js`). Échec de lecture
+  de log de compilation de shader en contexte WebGL headless, avant toute capture. `EXIT_CODE=1`.
+  Aucun `mesure.json`, aucun PNG, aucun `.clusters.txt` produits ; seul l'arbre source extrait du
+  commit « avant » a été écrit dans `.mesure/out/2026-09-14T16-59-47-363Z/` (ignoré par git).
+- Conformément à la consigne « une seule exécution par série, pas de reprise », pas de nouvel
+  essai dans cette session.
+- Détail complet, tableau, chemins des artefacts et log : voir
+  `orchestration/phase-1-mesure-lots-2-4.md` dans le worktree
+  `webgeometry-sans-threejs-9f889d`.
+
+## 2026-09-14 — Phase 1, lot 4 : fusion de develop, cause du plantage, harnais commun
+
+- **Fusion `develop` 7491682** (63d501a). develop a réduit `index.ts`, `pageSelection.ts`,
+  `visibilityBuffer.ts` et `webgpuPages.ts` à des barils de réexport et réparti leur contenu dans
+  des modules ≤ 200 lignes. Côté develop pris tel quel pour les quatre, apports du lot 4 reportés
+  dans les nouveaux modules : `SelectionResult<T>` et l'état de coupe réutilisé
+  (`selectionState()`) dans `pageSelectionCutState.ts`, l'écriture en place du résultat dans
+  `pageSelectionCut.ts`, `selectOptions` posé une fois et `cpuSelectMs` dans `exactPagesRender.ts`,
+  publication jusqu'à `FrameMetrics` via `exactPagesBackend/Metrics` et `explorerMetrics.ts`. Les
+  onze corrections de lint du lot 4 sont sans objet : le découpage a supprimé ce code. `npm run
+  lint` est **entièrement vert**, y compris les deux `no-unsafe-finally` autrefois tolérées.
+  Vérification fonctionnelle : la coupe d'Emerald vue générale est inchangée après fusion
+  (80 153 clusters, hash 4f03157d6ecb, identique avant fusion).
+- **Cause du `TypeError … .trim()`** du run `--avant 249438f --images 300` (9ebf03b) : **ni
+  develop, ni la résolution de fusion du lot 4 — le harnais lui-même**. 249438f n'ajoute que des
+  fichiers et deux réexports, il ne touche aucun chemin de dessin. Preuves : (a) au réglage exact
+  qui plante mais 8 images, le hash de coupe est le même avant (7223146) et après (a4fd278) la
+  fusion ; (b) le plantage se reproduit **sans `--avant`**, un seul côté, en 19 s ; (c) sonde
+  instrumentée : la seule étape qui échoue est `setDiagnostic('clusters')` puis `render()` du
+  harnais, la page répondant `Shader Error 0 - VALIDATE_STATUS false` sur un `MeshBasicMaterial`
+  puis `useProgram: program not valid`. Le mode `clusters` teinte chaque page de sa couleur, donc
+  un matériau et un programme de nuanceur **par cluster** : 80 153 sur Emerald. Après 300 images le
+  pilote refuse d'en lier un de plus, Chrome renvoie `null` pour `getProgramInfoLog` et three.js
+  appelle `.trim()` dessus. Correctif : lire la coupe en mode `pages` (deux matériaux, mêmes
+  maillages, mêmes `clusterId`) sans dessiner d'image. 300 images passent en 24 s, même hash.
+- **Harnais commun** (4bd52c8), commis dans `scripts/mesure/`, plus dans `.mesure/` :
+
+      node scripts/mesure/banc.mjs --moteur webgl|webgpu --avant <ref-git|dist> --apres <ref-git|dist> \
+           --vues generale,sol,rue --images N --pixelError 0,1 --max-pages 100000
+
+  Les deux moteurs, les drapeaux Chromium copiés de `render-tech-lab/scripts/headless/` (le Lab
+  n'est pas modifié), une liste de seuils, `mesure.json` + `resume.md` + un PNG et une coupe par
+  vue, seuil et côté. Relevés : `cpuFrameMs` et `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU),
+  `selectedTriangles`, `uncoveredTriangles`, compteurs Hi-Z, hash de l'ensemble sélectionné,
+  budget de pages, charge machine au début et à la fin, témoin A/A et écart avant/après par canal.
+  `null` quand non mesuré, jamais déduit. Tout ce qu'il lance, il l'arrête. README de 20 lignes.
+- **Essai court fait deux fois**, une vue, 6 images, ce worktree contre lui-même : WebGL — coupe
+  80 153 (clusterId, 4f03157d6ecb), témoin A/A **0 px**, écart avant/après 0 px ; WebGPU — coupe
+  47 890 (selectedPageIds, e6141303ab48), `gpuFrameMs` p50 20,17 ms, `uncoveredTriangles` 0,
+  témoin A/A **0 px**. C'est la seule preuve produite ici.
+- **Compteurs Hi-Z : `null`.** Le moteur ne les publie pas dans ses métriques ; le harnais les lira
+  dès qu'ils y seront, il ne les invente pas.
+- **Aucun chiffre de durée de cette session n'est exploitable** : charge machine relevée entre 3,8
+  et 6,3 pendant les essais, et 6 images ne mesurent rien. Reste à faire : la comparaison
+  avant/après elle-même, machine calme, et les tests (un autre agent s'en charge).
+
+
+## 2026-09-14 — Phase 1, mesure lot 4 (harnais commun, session de mesure seule)
+
+Mesure seule, aucun code modifié, aucun test lancé. Verrou `mesure.lock` pris. Commande, une
+seule exécution :
+
+```
+node scripts/mesure/banc.mjs --moteur webgl --avant 7491682 --apres 6b9341b \
+     --vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000
+```
+
+| mesure | vue | avant | après | seuil | verdict |
+|---|---|---|---|---|---|
+| cpuSelectMs p50 (n=300) | générale | — (absent avant lot 4) | 11.40 ms | < 2 ms | **ÉCHEC** (5,7× le seuil) |
+| cpuFrameMs p50 (n=300) | générale | 30.30 ms | 30.30 ms | — | égal |
+| hash coupe (clusterId) | générale | identique (coupe.txt byte-identique, PNG sha256 identique) | idem | identité attendue | OK |
+| pixels différents (0 px) | générale | 0 (PNG identiques) | idem | 0 attendu | OK |
+| tout le reste (sol, rue, A/A, uncoveredTriangles) | sol/rue | — | — | — | **NON MESURÉ** : `Error creating WebGL context` au passage à la vue `sol` (côté après), série arrêtée sans reprise |
+
+Charge avant la série (`uptime`) : `2.95 3.22 3.60`, non polluée. Détails, commande complète,
+chemins des fichiers produits : `orchestration/phase-1-mesure-lots-2-4.md` du worktree
+`webgeometry-sans-threejs-9f889d`.
+
+## 2026-09-14 — Phase 1, lot 4, diagnostic (worktree `lot4-webgl2-selection`)
+
+### Fusion de `develop`
+
+`git merge develop` avec `develop` à **04fa5f0** (`git rev-parse --short develop` au moment du
+merge ; ca73fa0 plus `chore: verrou de dépendances pnpm régénéré`). Commit `merge` 05162df, second
+parent 04fa5f0. Deux conflits seulement, `.gitignore` (`.mesure/` + `.claude/`) et ce journal
+(entrées des deux côtés gardées). Trois fichiers fusionnés automatiquement ont été relus à la main :
+`pageSelectionCut.ts` garde la forme de develop (`pixelScaleOf` partagé) avec, reposés dessus,
+l'état réutilisé et le résultat rempli en place du lot 4 ; `metricsContracts.ts` et
+`explorerMetrics.ts` reçoivent `cpuSelectMs` dans les champs de develop. Zéro duplication.
+
+Dette du lot 4 soldée dans le même commit pour rendre les portes : `pageSelection.test.ts` (285
+lignes une fois formaté) scindé, ses quatre tests du lot 4 dans `pageSelection6.test.ts` ;
+`scripts/mesure/banc.mjs` déclaré point d'entrée dans `knip.config.js` (ses cinq modules étaient
+signalés inutilisés) et `uptime` déclaré binaire système ; `BASE_FLAGS`/`WEBGPU_FLAGS` désexportés ;
+sept fichiers du lot 4 jamais formatés passés à prettier.
+
+### (a) Ce que mesure `cpuSelectMs`, et où passent les 11 ms
+
+**Bornes avant correctif** : de juste après `sceneLights.update()` jusqu'à juste avant
+`syncResident()`. Étaient donc dedans, en plus de la coupe : le seuil adaptatif
+(`resolvePixelError`), l'incrément du numéro d'image, la pose de la caméra et les cinq lectures du
+résultat. Étaient déjà dehors : la mise à jour des matrices monde, l'éclairage, la **résidence**,
+les **rangs** de requête et la **soumission** — chacun a son étape dans le profil CPU
+(`worldMs`, `lightsMs`, `syncMs`, `arrivalsMs`, `pendingMs`, `retainMs`, `submitMs`).
+
+Ces postes en trop sont tous O(1) et restent sous le seuil d'échantillonnage du profileur, mais la
+métrique disait plus que son nom : bornes resserrées autour du seul appel de sélection,
+commit `fix(metrics)` 2107074. Deux `performance.now()` par image (~100 ns) contre 11 ms de coupe.
+L'étape `selectMs` du profil garde ses bornes larges pour que la somme des étapes reste l'image.
+Effet sur le chiffre : générale 11,0 ms au lieu de 11,4 — rien n'a été gagné, la mesure est juste
+exacte.
+
+**Décomposition.** Profileur de Chrome branché par CDP autour des seules images mesurées
+(échantillonnage 50 µs), Emerald, vue générale, WebGL2, 1280×720, pixelError 0, 20 images,
+80 153 clusters sélectionnés / 10 046 405 triangles. Le profileur gonfle l'image (`cpuSelectMs`
+p50 13,0 ms sous profileur contre 11,0 sans) : lire les parts, pas les valeurs absolues.
+
+| étape | ms/image | allocation par image |
+|---|---|---|
+| `resolvePixelError` + pose de la demande (hors bornes depuis le correctif) | < 0,02 (sous le seuil) | non |
+| `selectVisiblePages` : frustum, échelle pixel, état réutilisé, sommes de triangles, écriture du résultat | ≤ 0,19 | non |
+| balayage des racines et `selectFlat` (dont `extractPlanes` 0,21, `worldStretch`, remise à zéro du forçage, file de repli) | 1,00 | non |
+| `traverse` : pile BVH et `take` (`boxClip` inliné par V8) | 5,14 | non |
+| `cutSelects` : seuil par cluster | 2,46 | non |
+| `projectedClusterError` : erreur projetée, nœuds BVH et clusters | 3,06 | non |
+| **total `cpuSelectMs`** | **12,2 sous profileur, 11,0 sans** | **non** |
+
+Aucune étape de la coupe n'alloue par image : état, tampons et résultat sont posés une fois
+(lot 4). Le profil relève 0,25 ms/image de ramasse-miettes sur **toute** l'image, imputables au
+chemin de rendu et de streaming, pas à la coupe.
+
+Pour situer, hors des bornes et sur la même image : `syncResident` 13,5 ms (dont
+`updateClusterBatches` 10,2), `WebGLRenderer.render` 8,4, `arrivalQueue.drain` 7,0,
+`markRequests`/`pageUrls` 1,6. `cpuFrameMs` p50 31,4 ms : la coupe n'est pas le seul verrou CPU.
+
+### (a bis) Plan chiffré pour passer sous 2 ms
+
+Deux points d'ancrage mesurés, même moteur, même image : générale 80 153 clusters → 11,0 ms
+(137 ns/cluster) ; sol 12 106 clusters → 1,5 ms (124 ns/cluster). **Le coût est linéaire en taille
+de coupe**, ~130 ns par cluster sélectionné, et le seuil de 2 ms est déjà tenu sur `sol`. Tenir
+2 ms sur la générale demande ≤ 25 ns par cluster, soit 5,5×.
+
+Ce que vaut chaque levier, chiffré :
+
+1. **Ranger les clusters en tableaux typés (SoA).** Aujourd'hui `take` lit `rec.min`, `rec.max`,
+   `rec.sphere`, `rec.cone`, `rec.level`, `rec.triangles` sur 80 153 objets JS distincts : une
+   course de pointeurs par cluster. Les nœuds du BVH, eux, sont déjà en `Float64Array`
+   (`culling.nodes`) et leur test de boîte tourne au même endroit pour environ moitié moins cher.
+   Gain attendu : **~2×, soit 11,0 → ~5,5 ms**. Insuffisant seul.
+2. **wasm SIMD.** Sur des données déjà en SoA, `boxClip` + erreur projetée en 4 voies : ~4× sur
+   l'arithmétique, mais il faut rendre `shown` à JS. Gain attendu : **11,0 → ~3 ms**, et seulement
+   après le point 1, qui est l'essentiel du travail. **Ne suffit pas non plus.**
+3. **Arrêter la descente au nœud et émettre des plages, pas des clusters.** C'est le seul levier
+   qui change l'ordre de grandeur. À pixelError 0 la condition d'arrêt du BVH
+   (`projectedClusterError(bound, …) <= pixelError`) n'est jamais vraie : la descente va jusqu'à
+   chaque feuille et pousse 80 153 entrées. Or le consommateur, `updateClusterBatches`, retransforme
+   immédiatement `shown` en plages d'index (`slot.offset`, `slot.length`) : la liste par cluster est
+   un intermédiaire dont personne n'a besoin. Un nœud entièrement dans le frustum dont tout le
+   sous-arbre est sélectionné peut pousser **une** plage. Condition de passage du seuil, chiffrée :
+   la coupe doit se terminer en **≤ 15 000 tests de nœud** par image pour la vue générale
+   (2 ms ÷ 137 ns), soit ≥ 5,3 clusters acceptés par test. Chiffre manquant à lire avant d'écrire
+   la moindre ligne : taille moyenne de feuille (`nodes[base+14]`) et hauteur de l'arbre sur
+   Emerald — la sonde prévue pour les relever a échoué sur l'incident `node_modules` ci-dessous et
+   n'a pas été relancée. Bénéfice second : `updateClusterBatches` recevrait des plages toutes
+   faites, donc une bonne part de ses 10,2 ms tombe aussi.
+4. **Réutilisation temporelle** (ne retester que les clusters proches du seuil, plus 1/k du reste
+   par image). Pour 11,0 → 2 ms il faut k ≈ 6, donc un rafraîchissement complet toutes les six
+   images. Introduit un retard de LOD et un risque de trous que la conception refuse aujourd'hui
+   explicitement. À ne considérer qu'après le point 3, et seulement avec une borne prouvée sur la
+   dérive de l'erreur projetée en fonction de la vitesse caméra.
+
+**Verdict : < 2 ms est atteignable, mais pas en rendant le test par cluster plus rapide.** Ni le
+SoA seul (~5,5 ms), ni le SoA plus wasm SIMD (~3 ms) ne passent : tant qu'il y a un test par
+cluster sélectionné et par image, 80 153 clusters coûtent plus de 2 ms. Il faut arrêter la descente
+au nœud et sortir des plages (point 3), avec le SoA (point 1) comme préalable naturel. Rien n'a été
+codé : ce diagnostic s'arrête au plan.
+
+Note : le seuil ne sauve pas non plus. La vue générale à pixelError 0 sélectionne tout le niveau le
+plus fin du modèle visible (10,05 M triangles) ; à pixelError 1 la mesure WebGPU du 14 septembre
+donnait 3,2× moins de triangles sur la même vue, ce qui placerait la coupe vers 3,4 ms — encore
+au-dessus de 2.
+
+### (b) `Error creating WebGL context` entre deux vues
+
+**Cause.** Le harnais rejouait toutes ses séries dans **une seule page Playwright**. Sonde écrite
+pour ce diagnostic (six séries Emerald enchaînées, relevé après chaque `explorer.dispose()`) : les
+contextes WebGL sont bien rendus — zéro canvas restant, un contexte 1280×720 neuf s'obtient
+toujours —, mais le **tas de la page** reste entre 553 et 1 330 Mo et ne redescend jamais au
+niveau de départ. Avec une page neuve par série, la même sonde donne 336 à 671 Mo : pic divisé par
+deux. Ce qui manquait n'était pas un contexte libre mais la mémoire pour en gréer un de plus après
+trois vues générales à 80 153 clusters — d'où l'échec sur la quatrième série, la première de `sol`.
+Le côté SDK est hors de cause : `explorer.dispose()` appelle bien `renderer.dispose()` puis
+`renderer.forceContextLoss()`, et la sonde le confirme.
+
+**Correctif** : `fix(mesure)` 0db5afc. `onFreshPage` ouvre une page, y branche les trois
+observateurs d'erreur, charge la carte d'imports, joue la série, puis **ferme la page**, y compris
+sur erreur. `readBounds`, chaque côté et le témoin A/A passent par lui. Rien d'autre ne change.
+
+**Preuve, essai deux vues.** `--moteur webgl --avant <dist de HEAD> --vues generale,sol --images 6
+--chauffe 4 --pixelError 0 --max-pages 100000`, avant = après = HEAD 0db5afc, six séries jouées
+sans interruption, sortie complète :
+
+| vue | coupe | `selectedTriangles` | témoin A/A | avant vs après | hash coupe |
+|---|---|---|---|---|---|
+| generale | 80 153 clusters | 10 046 405 | **0 px**, max canal 0/0/0/0 | **0 px**, max canal 0/0/0/0 | identique (4f03157d6ecb) |
+| sol | 12 106 clusters | 1 509 411 | **0 px**, max canal 0/0/0/0 | **0 px**, max canal 0/0/0/0 | identique (4b4097aac673) |
+
+`mesure.json` et `resume.md` écrits, quatre PNG plus deux captures A/A et six `.coupe.txt` produits,
+liste d'erreurs de page vide. Les durées de cet essai ne valent rien comme mesure : la charge
+machine est montée à 8,69 en cours de route (le harnais la relève, il ne la juge pas) ; seuls les
+comptes, les hash et les pixels sont retenus ici.
+
+### Incident d'environnement
+
+`node_modules` de ce worktree était un lien symbolique vers le worktree `lot1-hiz-compteurs`, que
+quelqu'un a supprimé pendant la session : lien mort, `three` et `meshoptimizer` en 404, le harnais
+échouant sur `Failed to fetch dynamically imported module`. Lien repointé vers le `node_modules` du
+dépôt principal, toutes les portes rejouées vertes ensuite. Le lien n'est pas suivi par git.
+
+### Portes
+
+build, tsc, eslint, prettier, `check:lines`, `check:dts`, `check:structure`, `check:duplicates`
+(0 clone), `check:unused` (knip, 0) : **vertes**. `check:links` : rouge sur un lien de
+`RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git qui n'existe que dans le
+dépôt principal — rouge d'environnement, identique avant la fusion. Aucun test lancé (interdit par
+la consigne) ; aucun `eslint-disable` ; `render-tech-lab/` non modifié ; port 5174 non touché.
+
+## 2026-09-14 20:34 — Mesure lot 4, trois vues (harnais commun) : interrompue après `generale`
+
+Mesure seule depuis ce worktree, HEAD `d477179`, aucun code modifié, aucun test lancé, aucune
+fusion. Commande : `node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179
+--vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000`. `uptime` avant série :
+charge 4,85 — sous le seuil de 6, durées non polluées a priori.
+
+| mesure | vue | avant | après | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50 | generale | `null` (absent sur develop, attendu) | 10,90 ms | OK |
+| cpuFrameMs p50 | generale | 30,50 ms | 30,30 ms | stable |
+| hash de coupe avant vs après | generale | `5aef42e4…` | `5aef42e4…` | identique |
+| pixels différents 0 px / 1 px | generale | — | 0 / 0 | OK |
+| témoin A/A (coupe + PNG) | generale | — | identique à `après` | OK |
+| p95 (cpuSelect/cpuFrame), uncoveredTriangles | generale | `null` | `null` | non mesuré (`mesure.json` jamais écrit) |
+| toutes mesures | sol | — | — | ÉCHEC — `WebGL2 unavailable` dès la première série (`avant`) |
+| toutes mesures | rue | — | — | NON MESURÉE — vue jamais atteinte |
+
+Même symptôme que l'incident déjà documenté plus haut (tas de la page épuisé après plusieurs séries
+`generale` à 80 153 clusters), corrigé par `fix(mesure)` `0db5afc` et vérifié alors avec 6 images
+seulement ; ici, à 300 images, l'échec réapparaît au même point (quatrième série, première de
+`sol`). Aucune investigation ni correction faite ici — une exécution, aucune reprise, conformément
+à la consigne. Détail complet, chemins et tableau étendu :
+`orchestration/phase-1-mesure-lot-4.md` du worktree `webgeometry-sans-threejs-9f889d`.
+`render-tech-lab/` non modifié ; port 5174 non touché ; réglages système non touchés.
+
+## 2026-09-14 20:40 — Mesure lot 4, vues `sol` et `rue` : un processus neuf par vue, succès
+
+Mesure seule depuis ce worktree, HEAD `19db28f` (un commit de journal au-dessus de `d477179`,
+aucun code changé : `git diff d477179..HEAD --stat` = 1 fichier, `orchestration/JOURNAL.md`), aucun
+code modifié, aucun test lancé, aucune fusion. Contournement de l'échec documenté ci-dessus (second
+contexte WebGL2 dans un même processus) : un processus Node par vue, deux commandes successives en
+avant-plan, chacune attendue jusqu'au bout, aucune relance.
+
+```
+node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179 --vues sol --images 300 --pixelError 0,1 --max-pages 100000
+node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179 --vues rue --images 300 --pixelError 0,1 --max-pages 100000
+```
+
+`uptime` avant `sol` : charge 4,60 ; avant `rue` : charge 6,43 (au-dessus du seuil de 6, relevé
+sans être jugé) ; après `rue` : charge 6,07.
+
+| mesure (e0) | vue | avant | après | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50/p95 | sol | `null` | 1,500 / 1,800 ms | OK |
+| cpuFrameMs p50/p95 | sol | 4,200 / 5,000 ms | 3,600 / 4,500 ms | stable |
+| hash de coupe avant vs après | sol | `4b4097aac673…` | `4b4097aac673…` | identique |
+| pixels différents 0 px / 1 px | sol | — | 0 / 0 | OK |
+| témoin A/A | sol | — | identique à `après` | OK |
+| cpuSelectMs p50/p95 | rue | `null` | 1,600 / 2,000 ms | OK |
+| cpuFrameMs p50/p95 | rue | 3,700 / 4,600 ms | 3,700 / 4,900 ms | stable |
+| hash de coupe avant vs après | rue | `e99456030cb7…` | `e99456030cb7…` | identique |
+| pixels différents 0 px / 1 px | rue | — | 0 / 0 | OK |
+| témoin A/A | rue | — | identique à `après` | OK |
+
+`uncoveredTriangles` : non mesuré (non affiché en console par le harnais) pour les deux vues, comme
+pour `generale`. Les deux vues sont couvertes aux deux seuils `pixelError` (0 et 1) ; détail complet
+(p95, seuil 1, chemins `mesure.json`/`resume.md`) dans `orchestration/phase-1-mesure-lot-4.md` du
+worktree `webgeometry-sans-threejs-9f889d`. `render-tech-lab/` non modifié ; port 5174 non touché ;
+réglages système non touchés.
+
+## 2026-09-14 20:42 — Phase 1, lot 4, verdict
+
+Clôture du lot 4 (sélection de clusters côté CPU, moteur WebGL2). `git rev-parse --short develop` =
+`04fa5f0` : develop n'a pas bougé depuis la fusion `05162df`, **aucune fusion à faire**, aucun
+conflit, aucun code touché par cette entrée. Aucun test lancé (interdit par la consigne).
+
+| mesure | vue | valeur | cible | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50 | generale | 10,9 ms | < 2 ms | **non atteinte** |
+| cpuSelectMs p50 | sol | 1,5 ms | < 2 ms | atteinte |
+| cpuSelectMs p50 | rue | 1,6 ms | < 2 ms | atteinte |
+| hash de coupe avant vs après | les trois | identiques | identiques | OK |
+| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px | OK |
+| témoin A/A | les trois | 0 | 0 | OK |
+| allocations par image | les trois | aucune | aucune | OK |
+
+**Cause du dépassement sur `generale`** : la sélection parcourt à plat les 80 153 clusters de la
+scène, à ~130 ns par cluster, soit les ~10,9 ms mesurés. Les vues `sol` et `rue` passent parce que
+leur tronc de vision élimine l'essentiel des clusters avant le coût par cluster, pas parce que le
+parcours est moins cher. Le correctif n'est pas un réglage : il faut supprimer le parcours à plat.
+
+**Plan lot 4b** : coupe hiérarchique sur l'arbre de clusters — descente depuis la racine, rejet ou
+acceptation d'un sous-arbre entier en un test de nœud, budget visé **≤ 15 000 tests de nœud** par
+image sur `generale` (contre 80 153 tests de cluster aujourd'hui), ce qui ramène la vue générale
+sous les 2 ms au même coût unitaire.
+
+**Harnais commun livré** : `scripts/mesure/` (`banc.mjs`, `options.mjs`, `page.mjs`, `serie.mjs`,
+`serveur.mjs`, `rapport.mjs`, `README.md`), commun aux lots et réutilisable tel quel par le lot 4b.
+
+**Défaut connu du harnais** : au-delà d'une vue à 300 images dans un même processus, la création du
+second contexte WebGL2 échoue (`WebGL2 unavailable`). Non corrigé. Contournement retenu et appliqué
+pour toutes les mesures ci-dessus : **une commande par vue**, un processus Node neuf à chaque fois.
+
+`render-tech-lab/` non modifié ; port 5174 non touché ; réglages système non touchés ; aucun
+`eslint-disable` ; `node_modules` (lien symbolique) non committé.
+
+### Portes
+
+`build`, `lint` (eslint + clippy), `format:check`, `check:lines`, `check:dts`, `check:structure`,
+`check:duplicates` (0 clone), `check:unused` (knip, 0) : **vertes**. `check:links` : rouge sur deux
+liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git qui n'existe
+que dans le dépôt principal — rouge d'environnement connu, identique avant cette entrée, aucun lien
+du journal en cause.
+
+## 2026-09-14 — [session sans-threejs] fusion lot 4
+
+- `develop` avancé en **avance rapide** sur `lot4-webgl2-selection` : `04fa5f0` → **b0a0fff**, 25 fichiers, +1704 / −49. `main` avancé en avance rapide sur `develop` : les deux têtes sont identiques à `b0a0fff`. Aucune fusion forcée, aucun `--no-ff`, rien poussé sur `origin` (qui reste à `04fa5f0`).
+- Rien à fusionner en sens inverse : `develop` n'avait pas bougé depuis la fusion `05162df` faite dans le lot, l'avance rapide était donc directe.
+- Contenu livré : lot 4 (sélection de clusters côté CPU pour le moteur WebGL2, `cpuSelectMs` au contrat de métriques, coupe sans allocation par image) et le **harnais de mesure commun `scripts/mesure/`** (`banc.mjs`, `options.mjs`, `page.mjs`, `serie.mjs`, `serveur.mjs`, `rapport.mjs`, `README.md`), réutilisable tel quel par les lots suivants.
+- Tests rejoués sur `d477179` par un agent dédié : **363 tests, 0 échec**. `b0a0fff` n'ajoute que `orchestration/JOURNAL.md` au-dessus de ce commit, le code est donc couvert.
+- Portes sur la tête du lot : `build`, `lint` (eslint + clippy), `format:check`, `check:lines`, `check:dts`, `check:structure`, `check:duplicates` (0 clone), `check:unused` (knip, 0) **vertes** ; `check:links` rouge sur deux liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git — rouge d'environnement connu, antérieur au lot.
+
+### Verdict du lot 4 (Emerald, WebGL2, 300 images par vue)
+
+| mesure | vue | valeur | cible | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50 | generale | 10,9 ms | < 2 ms | **non atteinte** |
+| cpuSelectMs p50 | sol | 1,5 ms | < 2 ms | atteinte |
+| cpuSelectMs p50 | rue | 1,6 ms | < 2 ms | atteinte |
+| hash de coupe avant vs après | les trois | identiques | identiques | OK |
+| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px | OK |
+| témoin A/A | les trois | 0 | 0 | OK |
+| allocations par image | les trois | aucune | aucune | OK |
+
+- **Cause du dépassement sur `generale`** : la sélection parcourt à plat les 80 153 clusters de la scène, à ~130 ns par cluster, soit les ~10,9 ms mesurés. `sol` et `rue` passent parce que leur tronc de vision élimine l'essentiel des clusters avant le coût par cluster, pas parce que le parcours est moins cher.
+- **Plan lot 4b** : coupe hiérarchique sur l'arbre de clusters — descente depuis la racine, rejet ou acceptation d'un sous-arbre entier en un test de nœud, budget visé **≤ 15 000 tests de nœud** par image sur `generale` contre 80 153 tests de cluster aujourd'hui.
+- **Défaut connu du harnais** : au-delà d'une vue à 300 images dans un même processus, la création du second contexte WebGL2 échoue (`WebGL2 unavailable`). Non corrigé ; contournement retenu et appliqué pour toutes les mesures ci-dessus : **une commande par vue**, un processus Node neuf à chaque fois.
+
+## 2026-09-14 — [session simplify] passe /simplify sur l'écart `2445b61…develop`
+
+- Périmètre : ce que la passe du 14 septembre n'avait pas couvert — lots 1, 2, 4 et harnais `scripts/mesure` (43 fichiers, +2042 / −136). Quatre relecteurs Sonnet en lecture seule (réutilisation, simplification, efficacité, altitude) : 20 constats bruts, 14 correctifs dédoublonnés appliqués par un seul agent Opus, en worktree.
+- Moteur : `clusterSphereValid` partagé entre `pageCarriesClusterError` et `clusterErrorFields` (une seule règle de sphère, sans fermeture) ; `createSelectionResult` unique, résultat de coupe réutilisé aussi par le chemin CPU WebGPU (`run.selectResult`), qui publie désormais `cpuSelectMs` comme le chemin WebGL ; compteurs Hi-Z relevés dans la passe de `packBounds` au lieu d'un second parcours des boîtes, une seule branche `testable`, type `HizCountsFrame`, gestionnaires de la relecture posés une fois ; `filterUnoccluded` délègue à `countUnoccluded` ; double ternaire de `webgpuPagesMetrics` fondu.
+- Harnais : `distribution` → `summarize` et `imageDiff` → `compareImages` de `sdk-core` (importé en `.ts` sous Node 26), `machineLoad` → `os.loadavg()` (plus de binaire `uptime`, `ignoreBinaries` retiré de knip), CRC du PNG → `zlib.crc32`. Le champ `maxParCanal` du rapport devient `maxCanal` (un seul maximum, celui du SDK).
+- Gardés tels quels, à dessein : `maxStretch` déplié (lot 4, « sélection CPU sans allocation ») ; l'état de coupe réutilisé `reusedState` (même décision).
+- `npm run validate` vert : 363/363 tests JS, Rust ok, aucun test adapté. `check:links` a exigé un lien vers `benchmark-runs/` de la copie principale, absent du worktree (dossier ignoré). Preuve navigateur non refaite : refactor à comportement identique.

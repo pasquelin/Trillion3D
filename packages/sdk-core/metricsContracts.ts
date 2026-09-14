@@ -101,6 +101,9 @@ export interface FrameMetrics {
    *  covering ancestor. A real hole in the image: zero is the only healthy value. Null when a backend
    *  cannot tell (it draws the cut it selected, so it never has one). */
   uncoveredTriangles?: number | null;
+  /** Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule.
+   *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
+  cpuSelectMs?: number | null;
 }
 export interface BackendCapabilities {
   renderer: string;
