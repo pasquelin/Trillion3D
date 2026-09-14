@@ -1,7 +1,7 @@
 import { disabledStageProfile } from '../sdk-core/index.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler } from './stageProfiler.ts';
-import { WEBGL_STAGES } from './stageMapping.ts';
+import { addCpuSteps, WEBGL_STAGES } from './stageMapping.ts';
 import type { BackendContext } from './backendTypes.ts';
 
 /** L'étape publique de chaque borne du moteur WebGL2 ; `null` pour la somme, qui ne se dépose pas. */
@@ -51,12 +51,12 @@ export function createExactPagesCpu(
     /** La durée carte graphique de l'image entière, relevée par l'extension quand elle existe. */
     gpuImageMs(ms: number | null, supported: boolean, reason: string | null) {
       if (!stages) return;
-      if (!supported) stages.setGpuMethod(null, reason);
-      else if (ms === null) stages.setGpuMethod('EXT_disjoint_timer_query_webgl2', reason);
-      else {
-        stages.setGpuMethod('EXT_disjoint_timer_query_webgl2', null);
-        stages.pushImageGpu(ms);
-      }
+      // La raison n'accompagne que l'absence de durée : une mesure publiée n'en a pas besoin.
+      stages.setGpuMethod(
+        supported ? 'EXT_disjoint_timer_query_webgl2' : null,
+        ms === null ? reason : null,
+      );
+      if (ms !== null) stages.pushImageGpu(ms);
     },
     resetStageProfile() {
       stages?.reset();
@@ -81,10 +81,7 @@ export function createExactPagesCpu(
       row[CPU_STEPS.length - 1] = total;
       cpuProfile.record(frame, total);
       stages?.frameCpu((add) => {
-        for (let i = 0; i < STEP_STAGES.length; i++) {
-          const stage = STEP_STAGES[i];
-          if (stage) add(stage, row[i]);
-        }
+        addCpuSteps(STEP_STAGES, row, add);
         // La coupe hiérarchique est bornée à l'intérieur de `selectMs` par le moteur lui-même.
         add('hierarchyCut', getCutMs());
         add('frame', total);

@@ -3,6 +3,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { LAB, VIEWS } from './poses.mjs';
+
+export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
 
 // Le cache du banc, en lecture seule. `WG_ASSETS` laisse un agent pointer une copie figée hors du
 // Lab : la mesure lit alors ses propres octets, et le Lab n'est ni lu ni touché pendant la série.
@@ -26,9 +29,6 @@ export const ENGINES = {
   webgl: { backend: 'exactPagesBackend', id: 'exact-cluster-pages', flags: BASE_FLAGS },
   webgpu: { backend: 'webgpuPagesBackend', id: 'webgpu-page-raster', flags: WEBGPU_FLAGS },
 };
-
-import { LAB, VIEWS } from './poses.mjs';
-export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
 
 const buildDist = (dir) => execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'inherit' });
 

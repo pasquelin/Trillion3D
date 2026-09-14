@@ -5,10 +5,13 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
 export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { timing, diag } = rt;
+  // La trace relève chaque image ; le profil par étape a besoin d'assez de relevés pour un p95
+  // honnête ; sans l'un ni l'autre, la cadence d'origine est conservée telle quelle.
+  let sampleEveryFrames = 12;
+  if (diag.traceEnabled) sampleEveryFrames = 1;
+  else if (timing.stages) sampleEveryFrames = 3;
   const gpuTiming = createGpuTiming(gpuDevice, {
-    // Le profil par étape a besoin d'assez de relevés pour un p95 honnête ; sans lui, la cadence
-    // d'origine est conservée telle quelle.
-    sampleEveryFrames: diag.traceEnabled ? 1 : timing.stages ? 3 : 12,
+    sampleEveryFrames,
     onSample: (sample) => {
       // The public metric carries the contract's fields only; the diagnostic keeps the full context.
       timing.lastGpuPassMs = {
