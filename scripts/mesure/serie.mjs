@@ -40,6 +40,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
     gpuFrameMs: settings.engine === 'webgpu' ? distribution(result.gpuFrameMs) : null,
+    // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
+    profilParEtape: result.stageProfile ?? null,
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
     // Compteurs Hi-Z : le moteur ne les publie pas encore dans ses métriques. `null`, jamais déduit.
