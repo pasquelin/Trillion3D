@@ -6,6 +6,7 @@ mod perf;
 mod accessor_validation;
 mod geometry_page;
 mod manifest_binary;
+pub mod import;
 use std::{collections::{BTreeMap,BTreeSet},fmt::{Display,Formatter},fs::{self,File},io::{Read,Write,BufWriter,Seek,SeekFrom},path::{Path,PathBuf},sync::{Arc,atomic::{AtomicBool,Ordering}},time::Instant};
 use serde_json::{Value,json};use sha2::{Sha256,Digest};use rayon::prelude::*;
 pub const FORMAT_VERSION:u32=1;pub const COMPILER_VERSION:&str=env!("CARGO_PKG_VERSION");
@@ -111,7 +112,7 @@ fn discover_model(dir:&Path)->Result<String>{
   let lower=name.to_ascii_lowercase();
   if lower.ends_with(".gltf")||lower.ends_with(".glb"){found.push(name.to_string());}
  }
- if found.len()!=1{return Err(invalid("Source directory needs manifest.json or exactly one .gltf/.glb"));}
+ if found.len()!=1{return Err(invalid("Source directory needs manifest.json, exactly one .gltf/.glb or .fbx/.obj files"));}
  Ok(found.pop().unwrap())
 }
 fn unsplit_material(material:Option<&Value>)->bool{
@@ -133,6 +134,14 @@ fn rewrite_images(source:&mut Value,resource_base:&str,view_map:&BTreeMap<usize,
   }
  }
  Ok(())
+}
+/// A file with an import extension, or a directory holding importable files and neither a manifest nor a glTF.
+fn needs_import(source:&Path)->Result<bool>{
+ if source.is_file(){return Ok(source.file_name().and_then(|s|s.to_str()).map(import::is_import_source).unwrap_or(false));}
+ if source.join("manifest.json").exists(){return Ok(false);}
+ let mut gltf=0;let mut importable=0;
+ for entry in fs::read_dir(source)?{let entry=entry?;let name=entry.file_name();let Some(name)=name.to_str() else {continue};let lower=name.to_ascii_lowercase();if lower.ends_with(".gltf")||lower.ends_with(".glb"){gltf+=1;}else if import::is_import_source(name){importable+=1;}}
+ Ok(gltf==0&&importable>0)
 }
 fn validate_manifest(manifest:&Value)->Result<()>{
  if manifest.get("status").and_then(Value::as_str)!=Some("ready"){return Err(CompilerError::new("SOURCE_NOT_READY","Source manifest is not ready"));}
@@ -399,13 +408,15 @@ pub fn parse_compiler_args(args:&[String],cancelled:Arc<AtomicBool>)->std::resul
 pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
  check(o)?;if !["slice","full"].contains(&o.scope.as_str())||o.triangle_budget==0||o.threads==0||o.threads>64||o.ram_budget_mb<64||o.resource_base.is_empty()||!["none","qem-endpoints"].contains(&o.simplification.as_str()){return Err(CompilerError::new("INVALID_OPTIONS","scope, budgets, threads, resource_base and simplification must be valid"))}
  let started=Instant::now();
+ // FBX/OBJ sources are first turned into a glTF pair inside the cache; everything below reads glTF only.
+ let imported;let o=if needs_import(&o.source)?{imported=Options{source:import::import_source(&o.source,&o.cache,&o.cancelled,&progress)?,..o.clone()};&imported}else{o};
  let loaded=load_runtime(o)?;
  let bin=loaded.binary.bytes();
  let g=&loaded.g;
  let g_bytes=&loaded.g_bytes;
  let manifest=&loaded.manifest;
  let bin_hash=&loaded.bin_hash;
- let mut implementation=Sha256::new();implementation.update(include_bytes!("lib.rs"));implementation.update(include_bytes!("main.rs"));implementation.update(include_bytes!("topology.rs"));implementation.update(include_bytes!("qem.rs"));implementation.update(include_bytes!("dag.rs"));implementation.update(include_bytes!("accessor_validation.rs"));implementation.update(include_bytes!("geometry_page.rs"));implementation.update(include_bytes!("manifest_binary.rs"));implementation.update(include_bytes!("../Cargo.toml"));implementation.update(include_bytes!("../Cargo.lock"));
+ let mut implementation=Sha256::new();implementation.update(include_bytes!("lib.rs"));implementation.update(include_bytes!("main.rs"));implementation.update(include_bytes!("topology.rs"));implementation.update(include_bytes!("qem.rs"));implementation.update(include_bytes!("dag.rs"));implementation.update(include_bytes!("accessor_validation.rs"));implementation.update(include_bytes!("geometry_page.rs"));implementation.update(include_bytes!("manifest_binary.rs"));implementation.update(include_bytes!("import.rs"));implementation.update(include_bytes!("../Cargo.toml"));implementation.update(include_bytes!("../Cargo.lock"));
  let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":format!("{:x}",implementation.finalize()),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
   let nodes=values(g,"nodes")?;let mesh_values=values(g,"meshes")?;let accessor_values=values(g,"accessors")?;let view_values=values(g,"bufferViews")?;let mut chosen=BTreeSet::new();let mut selected_triangles=0;let mut overflowing=Vec::new();
   let mut skinned_meshes=BTreeSet::new();
@@ -1128,6 +1139,65 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
   let source_gltf:Value=serde_json::from_slice(&fs::read(options.cache.join("native/slice").join(key).join("source.gltf")).expect("read source")).expect("json");
   assert!(source_gltf.get("skins").is_some());
   assert!(source_gltf["meshes"][0]["primitives"][0].get("targets").is_some());
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+
+ fn obj_fixture(name:&str,mtl:bool)->(PathBuf,Options){
+  let (root,mut options)=fixture();
+  let source=root.join("obj");fs::create_dir_all(&source).expect("obj dir");
+  let mut obj=String::from("v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 1 0\nvn 0 0 1\nvt 0 0\nvt 1 0\nvt 0 1\nvt 1 1\n");
+  if mtl{obj.push_str("mtllib quad.mtl\nusemtl painted\n");fs::write(source.join("quad.mtl"),"newmtl painted\nKd 0.2 0.4 0.6\nd 0.5\nmap_Kd textures/paint.png\n").expect("mtl");fs::create_dir_all(source.join("textures")).expect("textures");fs::write(source.join("textures/paint.png"),b"\x89PNG\r\n\x1a\nnot-a-real-png").expect("png");}
+  obj.push_str("f 1/1/1 2/2/1 4/4/1 3/3/1\n");
+  fs::write(source.join(name),obj).expect("obj write");
+  options.source=source.join(name);options.scope="full".into();options.triangle_budget=150000;
+  (root,options)
+ }
+ #[test] fn obj_source_is_imported_into_the_cache_then_compiled(){
+  let (root,options)=obj_fixture("quad.obj",true);
+  let events=std::sync::Mutex::new(Vec::new());
+  let result=compile(&options,|e|events.lock().unwrap().push(e)).expect("compile obj");
+  assert_eq!(result["selectedTriangles"],2);
+  let imports=options.cache.join("native/imports");
+  let entries:Vec<_>=fs::read_dir(&imports).expect("imports").map(|e|e.expect("entry").path()).collect();
+  assert_eq!(entries.len(),1);
+  let manifest:Value=serde_json::from_slice(&fs::read(entries[0].join("manifest.json")).expect("manifest")).expect("json");
+  assert_eq!(manifest["status"],"ready");assert_eq!(manifest["source"]["importer"],import::IMPORTER_VERSION);assert_eq!(manifest["runtime"]["trianglesAcrossNodes"],2);assert_eq!(manifest["runtime"]["meshNodes"],1);
+  let gltf:Value=serde_json::from_slice(&fs::read(entries[0].join("model.gltf")).expect("gltf")).expect("json");
+  assert_eq!(gltf["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"][3],0.5);
+  assert_eq!(gltf["materials"][0]["alphaMode"],"BLEND");
+  assert_eq!(gltf["images"][0]["uri"],"textures/paint.png");
+  assert_eq!(gltf["meshes"][0]["primitives"][0]["attributes"]["TEXCOORD_0"].as_u64().is_some(),true);
+  let steps:Vec<String>=events.lock().unwrap().iter().filter(|e|e["phase"]=="import-source").map(|e|e["step"].as_str().unwrap_or("").to_string()).collect();
+  assert!(steps.contains(&"complete".to_string()),"{steps:?}");
+  // A second run reuses the import and only recompiles when the compile key changed (it did not).
+  let events=std::sync::Mutex::new(Vec::new());
+  let again=compile(&options,|e|events.lock().unwrap().push(e)).expect("compile again");
+  assert_eq!(again["key"],result["key"]);
+  let steps:Vec<String>=events.lock().unwrap().iter().filter(|e|e["phase"]=="import-source").map(|e|e["step"].as_str().unwrap_or("").to_string()).collect();
+  assert_eq!(steps,vec!["reused".to_string()]);
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn directory_of_importable_files_is_merged_into_one_scene(){
+  let (root,options)=obj_fixture("a.obj",false);
+  let dir=options.source.parent().expect("dir").to_path_buf();
+  fs::copy(dir.join("a.obj"),dir.join("b.obj")).expect("copy");
+  let options=Options{source:dir.clone(),..options};
+  assert!(needs_import(&dir).expect("needs import"));
+  let result=compile(&options,|_|{}).expect("compile dir");
+  assert_eq!(result["selectedTriangles"],4);
+  assert_eq!(result["selectedNodes"].as_array().map(|a|a.len()),Some(2));
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn gltf_sources_never_go_through_the_importer(){
+  let (root,options)=fixture();
+  assert!(!needs_import(&options.source).expect("manifest dir"));
+  assert!(!needs_import(&options.source.join("mesh.gltf")).expect("gltf file"));
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn cancelled_import_reports_cancelled(){
+  let (root,options)=obj_fixture("quad.obj",false);
+  options.cancelled.store(true,Ordering::Relaxed);
+  assert_eq!(compile(&options,|_|{}).expect_err("cancelled").code,"CANCELLED");
   fs::remove_dir_all(root).expect("cleanup");
  }
 }
