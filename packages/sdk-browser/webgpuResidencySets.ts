@@ -60,8 +60,7 @@ export function createWebgpuResidencySets(options: {
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
   /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   const enqueue = (key: number, page?: PageRec) => {
-    wanted.add(key, page);
-    keep.retain(key);
+    if (wanted.add(key, page)) keep.retain(key);
   };
   const dequeue = (key: number) => {
     if (wanted.remove(key)) keep.release(key);
@@ -77,7 +76,10 @@ export function createWebgpuResidencySets(options: {
   /** Keys the opaque cut holds, counted per key: several placements of one page share one key. */
   const opaqueRefs = new Int32Array(keyCount);
   const opaqueHeld = createDenseKeySet(keyCount);
+  /** Records of the opaque cut the page budget weighs — one per placement, cover excluded. */
+  let opaqueRecords = 0;
   const dropOpaque = (key: number) => {
+    if (!bootstrapKey[key]) opaqueRecords--;
     if (--opaqueRefs[key] > 0) return;
     opaqueHeld.remove(key);
     dropAsk(key);
@@ -89,6 +91,7 @@ export function createWebgpuResidencySets(options: {
       dropAsk(key);
     }
     opaqueHeld.clear();
+    opaqueRecords = 0;
   };
   /** Empties the queue, releasing every hold it placed. */
   const emptyQueue = () => {
@@ -119,6 +122,7 @@ export function createWebgpuResidencySets(options: {
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = delta.entered[i],
           key = keyOfPageId[id];
+        if (!bootstrapKey[key]) opaqueRecords++;
         if (opaqueRefs[key]++ > 0) continue;
         opaqueHeld.add(key);
         askFor(key, packedPages[id]);
@@ -149,18 +153,24 @@ export function createWebgpuResidencySets(options: {
       cpuShown.clear();
     },
     /**
-     * The upload queue can hold `room` pages. A desired set that fits is the queue; one that does not
-     * is ranked coarsest first and cut to `room`, which is a complete cover plus what detail fits —
-     * never a truncated cut of the surface.
+     * The upload queue holds `room` records. A cut that fits is the queue, and the incremental set
+     * already is that queue — nothing is walked. A cut that does not fit is ranked coarsest first and
+     * cut to `room`: coarse clusters cover more surface per slot, so what survives is a complete
+     * cover plus as much detail as fits, never a truncated cut of the surface. Ranking needs the cut
+     * in the order the readback published it, which is the order `desiredNow` is written in.
      */
-    applyBudget(room: number) {
-      if (desired.count <= room) {
+    applyBudget(room: number, desiredNow: readonly PageRec[], transparentNow: readonly PageRec[]) {
+      let records = opaqueRecords;
+      for (let i = 0; i < transparentNow.length; i++)
+        if (!bootstrapKey[keyOf(transparentNow[i])]) records++;
+      if (records <= room) {
         if (!followsDesired) restoreWanted();
         return false;
       }
       followsDesired = false;
       capScratch.length = 0;
-      for (let i = 0; i < desired.count; i++) capScratch.push(desiredPages[i]);
+      for (let i = 0; i < desiredNow.length; i++)
+        if (!bootstrapKey[keyOf(desiredNow[i])]) capScratch.push(desiredNow[i]);
       capScratch.sort((a, b) => (b.level ?? 0) - (a.level ?? 0));
       capScratch.length = Math.max(0, room);
       emptyQueue();

@@ -48,6 +48,9 @@ export function renderGpuCut(
   // on the CPU path.
   const budgeted = Math.max(pixelError, run.budgetPixelError);
   cameraSelectionUniforms(camera, budgeted, viewport, run.selectionUniforms);
+  // An image that adopts no readback moves no page; the adoption reports what it actually moved.
+  run.pagesEntered = 0;
+  run.pagesExited = 0;
   services.adoptGpuCut();
   marks.adoptEnd = performance.now();
   const transparent = transparentRoots.length
@@ -73,7 +76,7 @@ export function renderGpuCut(
   }
   transitionGpuCut(rt, camera, budgeted, transparent);
   marks.admissionEnd = performance.now();
-  services.queueCutResidency();
+  services.queueCutResidency(run.desired, run.transparentWanted);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();

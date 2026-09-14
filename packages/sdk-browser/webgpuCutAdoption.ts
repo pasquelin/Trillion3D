@@ -29,6 +29,8 @@ export function createWebgpuCutAdopter(options: {
   residentOffsetWords: Int32Array;
   frame: () => number;
   delta: CutDelta;
+  /** Called once per readback, and only there: the difference is applied exactly once. */
+  onCutDelta: (delta: CutDelta) => void;
   onCutPages: (count: number) => void;
   onDrawnPages: (count: number, triangles: number) => void;
 }) {
@@ -51,6 +53,9 @@ export function createWebgpuCutAdopter(options: {
       delta.apply(cut.result.pageIds);
       lastCut = cut;
     }
+    // A difference is applied where it is computed. An image that adopts nothing — no readback has
+    // landed — must not replay the previous one, which would count every page twice.
+    options.onCutDelta(delta);
     options.onCutPages(delta.count);
     appendPages(desired, options.transparentWanted);
     metrics.visible = desired.length;

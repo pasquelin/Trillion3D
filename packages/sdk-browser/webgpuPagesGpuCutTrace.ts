@@ -37,6 +37,9 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     transparentEncodeMs: timing.transparentEncodeMs,
     transparentIncludedIn: 'encodeSubmitMs',
     asyncResidencyWaitMs: null,
+    /** Pages the residency path had to touch: the cut's difference, not its size. */
+    residencyPagesEntered: run.pagesEntered,
+    residencyPagesExited: run.pagesExited,
   };
   publishCpuProfile(timing, run, rt.diag);
 }

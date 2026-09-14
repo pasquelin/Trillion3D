@@ -141,6 +141,11 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     residentOffsetWords: rows.residentOffsetWords,
     frame: () => run.frame,
     delta: cutDelta,
+    onCutDelta: (delta) => {
+      residencySets.applyCut(delta);
+      run.pagesEntered = delta.enteredCount;
+      run.pagesExited = delta.exitedCount;
+    },
     onCutPages: (count) => {
       run.desiredOpaque = count;
     },
@@ -164,16 +169,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.gpuMetricsReady = metrics.ready;
   };
   /**
-   * Admits the cut the image just adopted: the opaque difference, then the transparent cut, which the
-   * GPU never selects and the image therefore re-reads whole. Answers what the image asks the cache
-   * for, and how many pages that took.
+   * Admits the transparent cut, which no GPU readback describes and the image therefore re-reads
+   * whole; the opaque difference was applied the moment the readback was adopted. Answers what the
+   * image asks the cache for.
    */
   const admitCut = () => {
     residencySets.releaseCpu();
-    residencySets.applyCut(cutDelta);
     residencySets.refreshTransparentWanted(run.transparentWanted);
-    run.pagesEntered = cutDelta.enteredCount;
-    run.pagesExited = cutDelta.exitedCount;
     return residencySets.requestedCount;
   };
   return {
