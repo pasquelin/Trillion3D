@@ -1,40 +1,23 @@
-type ShadeBindingOptions = {
-  device: GPUDevice;
-  group?: GPUBindGroup;
-  layout?: GPUBindGroupLayout;
-  visView?: GPUTextureView;
-  cacheBuffer?: GPUBuffer;
-  concatPos?: GPUBuffer;
-  concatUv?: GPUBuffer;
-  concatNrm?: GPUBuffer;
-  pageTable?: GPUBuffer;
-  mapsTexture?: GPUTexture;
-  dataMapsTexture?: GPUTexture;
-  mapsSampler?: GPUSampler;
-  shadeUniform?: GPUBuffer;
-  mapsArrayView?: GPUTextureView;
-  dataMapsArrayView?: GPUTextureView;
-};
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Reuses the material resolve bindings until their underlying buffers change. */
-export function ensureWebgpuShadeBindings(options: ShadeBindingOptions) {
-  let { group, mapsArrayView, dataMapsArrayView } = options;
-  const {
-    device,
-    layout,
-    visView,
-    cacheBuffer,
-    concatPos,
-    concatUv,
-    concatNrm,
-    pageTable,
-    mapsTexture,
-    dataMapsTexture,
-    mapsSampler,
-    shadeUniform,
-  } = options;
+/** Reuses the material resolve bindings on `rt.vis` until their underlying buffers change. */
+export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { vis } = rt,
+    cacheBuffer = rt.gpu.cache?.buffer,
+    {
+      shadeBindGroupLayout: layout,
+      visView,
+      concatPos,
+      concatUv,
+      concatNrm,
+      pageTable,
+      mapsTexture,
+      dataMapsTexture,
+      mapsSampler,
+      shadeUniform,
+    } = vis;
   if (
-    !group &&
+    !vis.shadeBindGroup &&
     layout &&
     visView &&
     cacheBuffer &&
@@ -47,9 +30,11 @@ export function ensureWebgpuShadeBindings(options: ShadeBindingOptions) {
     mapsSampler &&
     shadeUniform
   ) {
-    mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' });
-    dataMapsArrayView ??= dataMapsTexture.createView({ dimension: '2d-array' });
-    group = device.createBindGroup({
+    const mapsArrayView = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
+    const dataMapsArrayView = (vis.dataMapsArrayView ??= dataMapsTexture.createView({
+      dimension: '2d-array',
+    }));
+    vis.shadeBindGroup = device.createBindGroup({
       layout,
       entries: [
         { binding: 0, resource: visView },
@@ -65,5 +50,4 @@ export function ensureWebgpuShadeBindings(options: ShadeBindingOptions) {
       ],
     });
   }
-  return { shadeBindGroup: group, mapsArrayView, dataMapsArrayView };
 }

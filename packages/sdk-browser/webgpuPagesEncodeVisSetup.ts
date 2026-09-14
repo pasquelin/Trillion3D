@@ -65,63 +65,9 @@ export function ensureGpuSmall(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /** Writes the image's uniforms and rebuilds the shade and raster bind groups a resource change voided. */
 export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tableRows: number) {
-  const { vis, gpu, run } = rt,
-    [width, height] = gpu.targetSize;
-  ({ visUniform: vis.visUniform, shadeUniform: vis.shadeUniform } = writeWebgpuVisibilityUniforms({
-    device,
-    visUniform: vis.visUniform,
-    shadeUniform: vis.shadeUniform,
-    visUniPacked: vis.visUniPacked,
-    shadeUniPacked: vis.shadeUniPacked,
-    width,
-    height,
-    hasGpuSmall: !!vis.gpuSmall,
-    tableRows,
-    gpuFrameActive: run.gpuFrameActive,
-    maskOffset: run.gpuSelection?.maskOffset ?? 0,
-    diagnostic: run.diagnostic,
-  }));
-  ({
-    shadeBindGroup: vis.shadeBindGroup,
-    mapsArrayView: vis.mapsArrayView,
-    dataMapsArrayView: vis.dataMapsArrayView,
-  } = ensureWebgpuShadeBindings({
-    device,
-    group: vis.shadeBindGroup,
-    layout: vis.shadeBindGroupLayout,
-    visView: vis.visView,
-    pageTable: vis.pageTable,
-    cacheBuffer: gpu.cache?.buffer,
-    concatPos: vis.concatPos,
-    concatUv: vis.concatUv,
-    concatNrm: vis.concatNrm,
-    mapsTexture: vis.mapsTexture,
-    dataMapsTexture: vis.dataMapsTexture,
-    mapsSampler: vis.mapsSampler,
-    shadeUniform: vis.shadeUniform,
-    mapsArrayView: vis.mapsArrayView,
-    dataMapsArrayView: vis.dataMapsArrayView,
-  }));
-  ({
-    mapsArrayView: vis.mapsArrayView,
-    visBindGroup: vis.visBindGroup,
-    visHizBindGroup: vis.visHizBindGroup,
-  } = ensureWebgpuVisibilityBindings({
-    device,
-    layout: vis.visBindGroupLayout,
-    cacheBuffer: gpu.cache?.buffer,
-    concatPos: vis.concatPos,
-    concatUv: vis.concatUv,
-    pageTable: vis.pageTable,
-    visUniform: vis.visUniform,
-    zeroFlags: vis.zeroFlags,
-    mapsTexture: vis.mapsTexture,
-    mapsSampler: vis.mapsSampler,
-    hizFlags: vis.gpuHiz?.flags,
-    mapsArrayView: vis.mapsArrayView,
-    visBindGroup: vis.visBindGroup,
-    visHizBindGroup: vis.visHizBindGroup,
-  }));
+  writeWebgpuVisibilityUniforms(rt, device, tableRows);
+  ensureWebgpuShadeBindings(rt, device);
+  ensureWebgpuVisibilityBindings(rt, device);
 }
 
 /** Rasterises the small triangles the raster passes skipped, when the compute path is available. */

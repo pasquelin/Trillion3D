@@ -1,92 +1,58 @@
 import * as THREE from 'three';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-type DrawOptions = {
-  device: GPUDevice;
-  encoder: GPUCommandEncoder;
-  uniformBase: number;
-  items: BlendGpuItem[];
-  textured: boolean;
-  visEnabled: boolean;
-  hdrView?: GPUTextureView;
-  colorView: GPUTextureView;
-  depthView: GPUTextureView;
-  targetSize: [number, number];
-  uniformBuffer: GPUBuffer;
-  blendBindGroupLayout?: GPUBindGroupLayout;
-  mapsTexture?: GPUTexture;
-  mapsSampler?: GPUSampler;
-  dataMapsTexture?: GPUTexture;
-  materialScales?: GPUBuffer;
-  zeroUv?: GPUBuffer;
-  lightBuffer?: GPUBuffer;
-  bindGroupLayout?: GPUBindGroupLayout;
-  pipelineBlend: GPURenderPipeline;
-  pipelineBlendTextured?: GPURenderPipeline;
-  pipelineBlendFront?: GPURenderPipeline;
-  pipelineBlendBack?: GPURenderPipeline;
-};
-
-/** Encodes the transparent back/front passes in source order. */
-export function drawBlendPass({
-  device,
-  encoder,
-  uniformBase,
-  items,
-  textured,
-  visEnabled,
-  hdrView,
-  colorView,
-  depthView,
-  targetSize,
-  uniformBuffer,
-  blendBindGroupLayout,
-  mapsTexture,
-  mapsSampler,
-  dataMapsTexture,
-  materialScales,
-  zeroUv,
-  lightBuffer,
-  bindGroupLayout,
-  pipelineBlend,
-  pipelineBlendTextured,
-  pipelineBlendFront,
-  pipelineBlendBack,
-}: DrawOptions) {
+/** Encodes the transparent back/front passes in source order and counts them on `rt.run`. */
+export function drawBlendPass(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  uniformBase: number,
+  textured: boolean,
+) {
+  const { gpu, vis, run } = rt,
+    items = rt.blendState.visibleBlend,
+    uniformBuffer = gpu.uniformBuffer!,
+    pipelineBlend = gpu.pipelineBlend!,
+    lightBuffer = gpu.lights?.buffer,
+    { pipelineBlendTextured, pipelineBlendFront, pipelineBlendBack } = vis;
   let drawCalls = 0,
     submittedTriangles = 0;
   const pass = encoder.beginRenderPass({
     label: 'WG transparents',
     colorAttachments: [
-      { view: visEnabled && hdrView ? hdrView : colorView, loadOp: 'load', storeOp: 'store' },
+      {
+        view: vis.visEnabled && gpu.hdrView ? gpu.hdrView : gpu.colorView!,
+        loadOp: 'load',
+        storeOp: 'store',
+      },
     ],
-    depthStencilAttachment: { view: depthView, depthLoadOp: 'load', depthStoreOp: 'store' },
+    depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
-  pass.setViewport(0, 0, targetSize[0], targetSize[1], 0, 1);
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (!item.group) {
       if (textured)
         item.group = device.createBindGroup({
-          layout: blendBindGroupLayout!,
+          layout: vis.blendBindGroupLayout!,
           entries: [
             { binding: 0, resource: { buffer: item.index } },
             { binding: 1, resource: { buffer: item.position } },
-            { binding: 2, resource: { buffer: item.uv ?? zeroUv! } },
+            { binding: 2, resource: { buffer: item.uv ?? gpu.zeroUv! } },
             { binding: 3, resource: { buffer: uniformBuffer, size: UNIFORM_STRIDE } },
-            { binding: 4, resource: mapsTexture!.createView({ dimension: '2d-array' }) },
-            { binding: 5, resource: mapsSampler! },
-            { binding: 6, resource: dataMapsTexture!.createView({ dimension: '2d-array' }) },
-            { binding: 7, resource: { buffer: item.normal ?? zeroUv! } },
-            { binding: 8, resource: { buffer: materialScales! } },
+            { binding: 4, resource: vis.mapsTexture!.createView({ dimension: '2d-array' }) },
+            { binding: 5, resource: vis.mapsSampler! },
+            { binding: 6, resource: vis.dataMapsTexture!.createView({ dimension: '2d-array' }) },
+            { binding: 7, resource: { buffer: item.normal ?? gpu.zeroUv! } },
+            { binding: 8, resource: { buffer: vis.materialScales! } },
             { binding: 9, resource: { buffer: lightBuffer! } },
-            { binding: 10, resource: { buffer: item.diagnosticBuffer ?? zeroUv! } },
+            { binding: 10, resource: { buffer: item.diagnosticBuffer ?? gpu.zeroUv! } },
           ],
         });
       else
         item.group = device.createBindGroup({
-          layout: bindGroupLayout!,
+          layout: gpu.bindGroupLayout!,
           entries: [
             { binding: 0, resource: { buffer: item.index } },
             { binding: 1, resource: { buffer: item.position } },
@@ -127,5 +93,7 @@ export function drawBlendPass({
     }
   }
   pass.end();
-  return { drawCalls, submittedTriangles };
+  run.gpuDrawCalls += drawCalls;
+  run.blendDrawCalls += drawCalls;
+  run.blendSubmittedTriangles += submittedTriangles;
 }

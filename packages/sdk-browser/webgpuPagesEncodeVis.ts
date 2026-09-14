@@ -2,9 +2,8 @@ import type * as THREE from 'three';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
-import { createWebgpuVisibilityDrawer } from './webgpuVisibilityDrawer.ts';
 import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
-import { ensureUniform, visBin } from './webgpuPagesPipelineFor.ts';
+import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import { uploadDirtyRows } from './webgpuPagesEncodeDraws.ts';
@@ -49,23 +48,8 @@ export function encodeVis(
   // half by depth when there is no history or the history splits nothing. The boxes feed both the
   // partition and the Hi-Z test, projected with the view-projection built once for the batch rather
   // than once per page and once again per tested page.
-  const partition = partitionWebgpuVisibility({
-    rows,
-    camera,
-    width,
-    height,
-    boxCorners: layout.boxCorners,
-    hizBounds: layout.hizBounds,
-    hizRest: layout.hizRest,
-    drawnOccluderUrls: layout.drawnOccluderUrls,
-    urlIndexOfPage: layout.urlIndexOfPage,
-    noOccluderHistory: run.noOccluderHistory,
-    hasHiz: !!vis.gpuHiz,
-    hasRestPipeline: !!vis.visHizRestBack,
-  });
-  const { occluders, twoPass } = partition;
-  timing.lastPartitionMs = partition.partitionMs;
-  timing.lastProjectMs = partition.projectMs;
+  const partition = partitionWebgpuVisibility(rt, camera);
+  const { twoPass } = partition;
   timing.lastItemsMs = 0;
   const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
   const useIndirect = !!vis.gpuDraw && rows.packedCount <= drawSlots;
@@ -75,21 +59,7 @@ export function encodeVis(
     throw new Error(
       `VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`,
     );
-  const itemBatch = buildWebgpuVisibilityItems({
-    rows,
-    hizRest: layout.hizRest,
-    twoPass,
-    itemsDirty,
-    drawItemWords: layout.drawItemWords,
-    binInstances: layout.binInstances,
-    drawRestBits: layout.drawRestBits,
-    hizTestedBounds: layout.hizTestedBounds,
-    hizBounds: layout.hizBounds,
-    hizTestedRows: layout.hizTestedRows,
-    visBin,
-  });
-  const { occluderVertices, restVertices, testedCount } = itemBatch;
-  timing.lastItemsMs = itemBatch.itemsMs;
+  const items = buildWebgpuVisibilityItems(rt, twoPass, itemsDirty);
   uploadDirtyRows(rt, device);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);
@@ -106,65 +76,15 @@ export function encodeVis(
     );
     rows.rowsChanged = false;
   }
-  const visDrawer = createWebgpuVisibilityDrawer({
-    device,
-    rows,
-    visSlots: [
-      vis.visPipelineBack,
-      vis.visPipelineNone,
-      vis.visPipelineFront,
-      vis.visHizRestBack,
-      vis.visHizRestNone,
-      vis.visHizRestFront,
-    ],
-    visSlotGroups: vis.visSlotGroups,
-    visBindGroupLayout: vis.visBindGroupLayout,
-    cacheBuffer: gpu.cache?.buffer,
-    concatPos: vis.concatPos,
-    concatUv: vis.concatUv,
-    pageTable: vis.pageTable,
-    visUniform: vis.visUniform,
-    mapsTexture: vis.mapsTexture,
-    mapsSampler: vis.mapsSampler,
-    zeroFlags: vis.zeroFlags,
-    hizFlags: vis.gpuHiz?.flags,
-    gpuDraw: vis.gpuDraw,
-    mapsArrayView: vis.mapsArrayView,
-    visBindGroup: vis.visBindGroup,
-    visHizBindGroup: vis.visHizBindGroup,
-    useIndirect,
-    binInstances: layout.binInstances,
-    twoPass,
-    hizRest: layout.hizRest,
-    visPipelineFor: rt.hooks.visPipelineFor,
-  });
-  const raster = encodeWebgpuVisibilityPasses({
+  const vertices = encodeWebgpuVisibilityPasses(
+    rt,
     device,
     encoder,
-    idsView,
-    depthTarget,
-    width,
-    height,
-    gpuHiz: vis.gpuHiz,
-    visDrawer,
-    twoPass,
-    occluderVertices,
-    restVertices,
-    hizTestedBounds: layout.hizTestedBounds,
-    hizTestedRows: layout.hizTestedRows,
-    testedCount,
+    partition,
+    items,
     tableRows,
-    rows,
-    hizRest: layout.hizRest,
-    drawnOccluderUrls: layout.drawnOccluderUrls,
-    urlIndexOfPage: layout.urlIndexOfPage,
-    occluders,
-    noOccluderHistory: run.noOccluderHistory,
-  });
-  const vertices = raster.vertices;
-  run.noOccluderHistory = raster.noOccluderHistory;
-  vis.mapsArrayView = visDrawer.mapsArrayView;
-  run.gpuDrawCalls += visDrawer.drawCalls;
+    useIndirect,
+  );
   encodeSmallTriangles(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
   const shadePass = encoder.beginRenderPass({
