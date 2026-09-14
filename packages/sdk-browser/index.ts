@@ -1,6 +1,7 @@
 import {replicateInstances} from './replicateInstances.ts';
 export {replicateInstances} from './replicateInstances.ts';
-import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,RequestStamps,resolvePixelError,selectVisiblePages,type PageRec} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,projectedPageError,RequestStamps,resolvePixelError,selectVisiblePages,type PageRec} from './pageSelection.ts';
+import {screenErrorColor} from './diagnosticColors.ts';
 import {DEFAULT_SCOPE,EngineError} from '../sdk-core/index.ts';
 import {detectCapabilities} from './capabilities.ts';
 import {checked,loadClusterPages} from './clusterPages.ts';
@@ -95,11 +96,13 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  const materialFor=(rec:PageRec)=>{if(diagnostic==='beauty')return rec.material;
   const side=Array.isArray(rec.material)?rec.material[0].side:rec.material.side;
   if(diagnostic==='wireframe'){const key=`wireframe:${rec.clusterId}`;let material=diagnosticMaterials.get(key);if(!material){material=createTriangleDiagnosticMaterial(side);diagnosticMaterials.set(key,material);}return material;}
-  const key=diagnostic==='pages'?(rec.array?'resident':'loading'):diagnostic==='lod'?(rec.role==='coarse'?'coarse':'exact'):diagnostic==='visibility'?'visible':rec.clusterId;
+  const key=diagnostic==='pages'?(rec.array?'resident':'loading'):diagnostic==='lod'?(rec.role==='coarse'?'coarse':'exact'):diagnostic==='visibility'?'visible':diagnostic==='screen-error'?`error:${rec.clusterId}`:rec.clusterId;
   let material=diagnosticMaterials.get(key);if(!material){
-   const color=diagnostic==='pages'?(rec.array?0x34d399:0xfbbf24):diagnostic==='lod'?(rec.role==='coarse'?0xf59e0b:0x38bdf8):diagnostic==='visibility'?0x34d399:diagnostic==='screen-error'?0xf472b6:clusterColor(key,.75);
+   const color=diagnostic==='pages'?(rec.array?0x34d399:0xfbbf24):diagnostic==='lod'?(rec.role==='coarse'?0xf59e0b:0x38bdf8):diagnostic==='visibility'?0x34d399:diagnostic==='screen-error'?0x00ff1f:clusterColor(key,.75);
    material=new THREE.MeshBasicMaterial({color,side});diagnosticMaterials.set(key,material);
-  }return material;};
+  }
+  if(diagnostic==='screen-error'&&lastCamera){const color=screenErrorColor(projectedPageError(rec,lastCamera,viewport??[1,1]),lastPixelError);(material as THREE.MeshBasicMaterial).color.setRGB(...color);}
+  return material;};
  const minPoint=new THREE.Vector3(),maxPoint=new THREE.Vector3(),metricsSeen=new Set<ArrayBufferView>();
  const paint=(mesh:THREE.Mesh,sourceGeometry:THREE.BufferGeometry,material:THREE.Material|THREE.Material[],salt=0)=>{mesh.material=material;mesh.geometry=diagnostic==='wireframe'?triangleGeometry(sourceGeometry,salt):sourceGeometry;};
  const paintBlend=()=>{for(const copy of blendCopies){const sourceGeometry=copy.userData.sourceGeometry as THREE.BufferGeometry;const sourceMaterial=copy.userData.sourceMaterial as THREE.Material|THREE.Material[];if(diagnostic==='wireframe'){const key=`blend:${copy.uuid}`;let material=diagnosticMaterials.get(key);if(!material){material=createTriangleDiagnosticMaterial(materialSide(sourceMaterial));diagnosticMaterials.set(key,material);}paint(copy,sourceGeometry,material,triangleSalt(copy.uuid));}else paint(copy,sourceGeometry,sourceMaterial);}};

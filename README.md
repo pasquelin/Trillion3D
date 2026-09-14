@@ -41,6 +41,8 @@ npm test
 npm run test:native
 ```
 
+During development, `npm run check:changed` checks the line limit, formatting, lint and duplicated blocks in modified files, then runs unit tests connected to them by imports. `npm run test:changed` runs just those tests, and `npm run test:watch` watches unit tests while editing. Every maintained source file has a strict 200-line maximum; `npm run check:lines` checks the whole repository with no legacy exceptions. `npm run check:duplicates` detects repeated JS, TS and Rust blocks of at least 12 lines and 100 tokens. Before integration, run `npm run validate` once for the complete line-limit, duplication, format, lint, unused-code, build and test gates. Browser rendering still needs the visual proof described below.
+
 The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
 The package is currently private and consumed locally; it has not been published to npm. Build it before importing it from a host project. Scene assets are supplied by the host and are not included in this repository.

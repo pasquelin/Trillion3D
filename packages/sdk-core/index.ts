@@ -1,16 +1,32 @@
 export * from './contracts.ts';
-export {MANIFEST_BINARY_MAGIC,MANIFEST_BINARY_VERSION,assertManifestBinary,decodeManifestBinary,encodeManifestBinary,isBinaryManifest,manifestBinaryRanges} from './manifestBinary.ts';
-export type {ManifestBinaryDescriptor,SlimClusterManifest,SlimPrimitive,SlimPrimitiveBinary} from './manifestBinary.ts';
+export {
+  MANIFEST_BINARY_MAGIC,
+  MANIFEST_BINARY_VERSION,
+  assertManifestBinary,
+  decodeManifestBinary,
+  encodeManifestBinary,
+  isBinaryManifest,
+  manifestBinaryRanges,
+} from './manifestBinary.ts';
+export type {
+  ManifestBinaryDescriptor,
+  SlimClusterManifest,
+  SlimPrimitive,
+  SlimPrimitiveBinary,
+} from './manifestBinary.ts';
 export * from './diagnostics.ts';
-export {LOD_QUALITY,lodQuality,adaptivePixelError} from './lodPolicy.ts';
-export type {LodQualityId} from './lodPolicy.ts';
+export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lodPolicy.ts';
+export type { LodQualityId } from './lodPolicy.ts';
 export * from './competitors.ts';
 export * from './paths.ts';
 export * from './stats.ts';
 export * from './oracles.ts';
 export function compareImages(a: Uint8Array, b: Uint8Array) {
-  if (!a.length || a.length !== b.length || a.length % 4 !== 0) throw new Error('Invalid RGBA images');
-  let differentPixels = 0, maxChannelError = 0, squared = 0;
+  if (!a.length || a.length !== b.length || a.length % 4 !== 0)
+    throw new Error('Invalid RGBA images');
+  let differentPixels = 0,
+    maxChannelError = 0,
+    squared = 0;
   const isAlignedA = (a.byteOffset & 3) === 0;
   const isAlignedB = (b.byteOffset & 3) === 0;
   if (isAlignedA && isAlignedB) {
@@ -57,3 +73,4 @@ export type {RuntimeEvent,UserNotice} from './events.ts';
 export {createLightingScene,exportLightingGltf,createDefaultLightingSceneLights} from './lightingExperimentScene.ts';
 export type {Vec3,Surface,Patch,Scene,LightingSceneLight} from './lightingExperimentScene.ts';
 export {createTransport,solveTransportOracle} from './lightingTransport.ts';
+
