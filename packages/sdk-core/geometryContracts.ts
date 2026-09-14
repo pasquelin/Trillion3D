@@ -39,6 +39,23 @@ export interface Page {
    *  of clusters; the cluster stays readable on its own through `url`. */
   stream?: number;
   streamOffset?: number;
+  /** Coplanar depth layer, 0 for every cluster the compiler left alone. A cluster of layer n draws
+   *  with a depth bias of n whole layer steps, which is what decides the winner between two opaque
+   *  surfaces that share a plane exactly. Absent and 0 mean the same thing: the untouched draw. */
+  depthLayer?: number;
+}
+/** A bounding sphere an error band can be projected through: four finite values, a radius of at
+ *  least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */
+export function clusterSphereValid(sphere: unknown): sphere is number[] {
+  return (
+    Array.isArray(sphere) &&
+    sphere.length === 4 &&
+    Number.isFinite(sphere[0]) &&
+    Number.isFinite(sphere[1]) &&
+    Number.isFinite(sphere[2]) &&
+    Number.isFinite(sphere[3]) &&
+    sphere[3] >= 0
+  );
 }
 /** A cluster carrying its own screen-error band needs no hierarchy: selection is a flat per-page test. */
 export function pageCarriesClusterError(page: Page) {
@@ -46,10 +63,7 @@ export function pageCarriesClusterError(page: Page) {
     typeof page.lodError === 'number' &&
     Number.isFinite(page.lodError) &&
     page.lodError >= 0 &&
-    Array.isArray(page.sphere) &&
-    page.sphere.length === 4 &&
-    page.sphere.every((value) => Number.isFinite(value)) &&
-    page.sphere[3] >= 0
+    clusterSphereValid(page.sphere)
   );
 }
 export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) {

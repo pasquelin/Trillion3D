@@ -114,6 +114,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
   const groupOutput = column('groupOutput', (b, o, n) => new Int32Array(b, o, n));
   const structureRoot = column('structureRoot', (b, o, n) => new Int32Array(b, o, n));
   const bundleWords = column('bundleU32', (b, o, n) => new Uint32Array(b, o, n));
+  const pageDepthLayer = column('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n));
   const decoder = new TextDecoder('latin1');
   const pageShaText = decoder.decode(column('pageSha', (b, o, n) => new Uint8Array(b, o, n)));
   const geometryShaText = decoder.decode(
@@ -134,6 +135,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
       geometryWords,
       pageShaText,
       geometryShaText,
+      pageDepthLayer,
     },
     groups: {
       groupLevel,

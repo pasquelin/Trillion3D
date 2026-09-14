@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
-import type { PageRec } from './pageSelection.ts';
+import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
 import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
@@ -47,6 +47,10 @@ export interface WebgpuRunState {
   lightState: { count: number; types: string[] } | undefined;
   motion: { last?: THREE.Vector3; lastMs?: number };
   selectionUniforms: SelectionUniforms;
+  /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
+  selectResult: SelectionResult<PageRec>;
+  /** Time of the CPU cut alone; null on an image the GPU cut decided. */
+  cpuSelectMs: number | null;
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
@@ -118,6 +122,8 @@ export function createWebgpuRunState(): WebgpuRunState {
       near: 0.1,
       cameraWorld: [0, 0, 0],
     },
+    selectResult: createSelectionResult(),
+    cpuSelectMs: null,
     shown: [],
     desired: [],
     drawn: [],

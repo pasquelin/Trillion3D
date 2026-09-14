@@ -1,7 +1,10 @@
 export const SDK_VERSION = '0.1.0';
-export const FORMAT_VERSION = 1;
-/** Outer cache format required for clustered BLEND; source manifests remain format 1. */
-export const CLUSTERED_BLEND_FORMAT_VERSION = 2;
+/** Cache format this runtime reads. Format 3 carries the per-cluster coplanar depth layer, which
+ *  decides which of two exactly coplanar opaque surfaces draws on top; formats 1 and 2 have no such
+ *  column and are refused rather than half-read. */
+export const FORMAT_VERSION = 3;
+/** Outer cache format required for clustered BLEND; source manifests keep their own format. */
+export const CLUSTERED_BLEND_FORMAT_VERSION = 4;
 /** Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere. */
 export const DAG_ERROR_MODEL = 'dag-group-qem-v1';
 export const DEFAULT_SCOPE: AssetScope = 'slice';

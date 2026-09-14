@@ -19,8 +19,6 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // `uptime` is a system binary the harness reads the machine load from, not an npm dependency.
-  ignoreBinaries: ['uptime'],
   // These specifiers are Vite/Render Tech Lab runtime URLs, not local Node modules.
   ignoreUnresolved: [
     '/.vite/deps/three.js',

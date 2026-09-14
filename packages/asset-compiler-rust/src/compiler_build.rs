@@ -59,16 +59,27 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         mesh_map: &mesh_map,
         progress: &progress,
     };
-    let mut primitives: Vec<Value> = pool.install(|| {
+    let compiled: Vec<CompiledPrimitive> = pool.install(|| {
         jobs.par_iter()
             .map(|(old, primitive)| compile_primitive(&primitive_inputs, old, primitive))
             .collect::<Result<Vec<_>>>()
     })?;
+    let (mut primitives, cluster_planes) = compiler_coplanar::split_compiled(compiled);
     let bootstrap_bundles = {
         let _t = perf::Timer::new(&perf::PHASES.page_write);
         share_bootstrap_bundles(o, &mut primitives)?
     };
     progress(json!({"phase":"bootstrap","completed":bootstrap_bundles,"total":bootstrap_bundles}));
+    let scene = compiler_coplanar::DepthLayerScene {
+        o,
+        g,
+        bin,
+        chosen: &chosen,
+        mesh_map: &mesh_map,
+        cluster_planes: &cluster_planes,
+    };
+    let coplanar_report =
+        compiler_coplanar::stage_depth_layers(&scene, &mut primitives, &progress)?;
     let source = write_source_scene(SourceSceneInputs {
         g,
         o,
@@ -82,76 +93,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
-    let mut autonomous_scene = Value::Null;
-    if !primitives.is_empty()
-        && primitives
-            .iter()
-            .all(|primitive| primitive["pass"] == "exact-clusters")
-    {
-        let mut scene = source.clone();
-        let mut scene_bytes = vec![0u8; 44];
-        for (i, value) in [0u16, 1, 2].iter().enumerate() {
-            scene_bytes[36 + i * 2..38 + i * 2].copy_from_slice(&value.to_le_bytes());
-        }
-        let mut scene_views = vec![
-            json!({"buffer":0,"byteOffset":0,"byteLength":36}),
-            json!({"buffer":0,"byteOffset":36,"byteLength":6}),
-        ];
-        let mut source_binary = File::open(directory.join("source.bin"))?;
-        if let Some(images) = scene.get_mut("images").and_then(Value::as_array_mut) {
-            for image in images {
-                if let Some(old) = image.get("bufferView") {
-                    let id = required_index(Some(old), "image.bufferView")?;
-                    let view = item(&output_views, id, "image bufferView")?;
-                    let start = required_index(view.get("byteOffset"), "image.byteOffset")?;
-                    let length = required_index(view.get("byteLength"), "image.byteLength")?;
-                    while !scene_bytes.len().is_multiple_of(4) {
-                        scene_bytes.push(0);
-                    }
-                    let at = scene_bytes.len();
-                    let end = at
-                        .checked_add(length)
-                        .ok_or_else(|| invalid("Image view too large"))?;
-                    scene_bytes.resize(end, 0);
-                    source_binary.seek(SeekFrom::Start(start as u64))?;
-                    source_binary.read_exact(&mut scene_bytes[at..end])?;
-                    image["bufferView"] = json!(scene_views.len());
-                    scene_views.push(json!({"buffer":0,"byteOffset":at,"byteLength":length}));
-                }
-            }
-        }
-        scene["buffers"] = json!([{"uri":"scene.bin","byteLength":scene_bytes.len()}]);
-        scene["bufferViews"] = Value::Array(scene_views);
-        scene["accessors"] = json!([{"bufferView":0,"componentType":5126,"type":"VEC3","count":3,"min":[0,0,0],"max":[0,0,0]},{"bufferView":1,"componentType":5123,"type":"SCALAR","count":3}]);
-        if let Some(meshes) = scene.get_mut("meshes").and_then(Value::as_array_mut) {
-            for mesh in meshes {
-                if let Some(parts) = mesh.get_mut("primitives").and_then(Value::as_array_mut) {
-                    for part in parts {
-                        let material = part.get("material").cloned();
-                        *part = json!({"mode":4,"attributes":{"POSITION":0},"indices":1});
-                        if let Some(material) = material {
-                            part["material"] = material;
-                        }
-                    }
-                }
-            }
-        }
-        if let Some(object) = scene.as_object_mut() {
-            object.remove("skins");
-            object.remove("animations");
-        }
-        if let Some(nodes) = scene.get_mut("nodes").and_then(Value::as_array_mut) {
-            for node in nodes {
-                if let Some(object) = node.as_object_mut() {
-                    object.remove("skin");
-                    object.remove("weights");
-                }
-            }
-        }
-        atomic(&directory.join("scene.bin"), &scene_bytes)?;
-        atomic(&directory.join("scene.gltf"), &serde_json::to_vec(&scene)?)?;
-        autonomous_scene = json!("scene.gltf");
-    }
+    let autonomous_scene = compiler_autonomous::write_autonomous_scene(
+        &directory,
+        &source,
+        &primitives,
+        &output_views,
+    )?;
     let mut unsupported = vec!["hard RSS enforcement", "N-API binding"];
     if o.simplification == "none" {
         unsupported.insert(0, "simplification");
@@ -164,7 +111,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     } else {
         FORMAT_VERSION
     };
-    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
     // columns instead of tokenizing tens of megabytes before its first frame.
     {

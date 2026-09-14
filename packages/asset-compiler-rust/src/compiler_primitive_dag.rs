@@ -3,6 +3,9 @@ use super::*;
 #[derive(Default)]
 pub(super) struct DagResult {
     pub pages: Vec<Value>,
+    /// The plane each cluster lies in, by page index, when it lies in one. Read by the coplanar
+    /// stage once every primitive is compiled; never written to the cache on its own.
+    pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
     pub reused: i32,
     pub dag_report: Value,
     pub culling_report: Value,
@@ -80,6 +83,18 @@ pub(super) fn build_dag_primitive(
     }
     let (pages, reused, stream_report) =
         bundle_dag_pages(o, &dag, &order, base_id, pos, store_packed)?;
+    // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
+    // and the only place the partition and the positions are both in hand.
+    let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order
+        .par_iter()
+        .map(|&slot| {
+            crate::coplanar::plane::plane_of_triangles(
+                &dag[slot].indices,
+                pos,
+                crate::coplanar::CoplanarBounds::default().flatness_ratio,
+            )
+        })
+        .collect();
     let mut roots: Vec<usize> = dag
         .iter()
         .enumerate()
@@ -124,6 +139,7 @@ pub(super) fn build_dag_primitive(
     let culling_report = json!({"stride":CULLING_STRIDE,"count":culling.len(),"nodes":flat});
     Ok(DagResult {
         pages,
+        cluster_planes,
         reused,
         dag_report,
         culling_report,

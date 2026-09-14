@@ -1,5 +1,11 @@
 export * from './contracts.ts';
 export {
+  DEPTH_LAYER_BIAS_UNITS,
+  MAX_DEPTH_LAYER,
+  depthLayerBias,
+  biasedDepthBits,
+} from './depthLayer.ts';
+export {
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
   assertManifestBinary,

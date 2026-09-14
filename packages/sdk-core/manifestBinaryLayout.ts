@@ -62,6 +62,7 @@ export function columnElements(name: ColumnName, counts: Counts) {
     case 'pageSha':
     case 'geometrySha':
     case 'geometryU32':
+    case 'pageDepthLayer':
       return counts.pages;
     case 'cullingNodes':
       return counts.cullingNodes;

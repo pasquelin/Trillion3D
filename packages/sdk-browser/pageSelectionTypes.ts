@@ -25,6 +25,9 @@ export type PageRec = {
    *  property of the bundle: one request makes dozens of clusters drawable at once. */
   streamUrl?: string;
   streamOffset?: number;
+  /** Coplanar depth layer, 0 for every cluster the compiler left alone. Always present, never
+   *  undefined, so a page record keeps one shape through the selection loop. */
+  depthLayer: number;
   attributes: THREE.BufferGeometry['attributes'];
   material: THREE.Material | THREE.Material[];
   transparent?: boolean;

@@ -10,11 +10,18 @@ pub(super) struct PrimitiveInputs<'a> {
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
+/// A compiled primitive and, beside it, the plane of each of its clusters. The planes never reach
+/// the cache on their own: the coplanar stage reads them once every primitive is done.
+pub(super) struct CompiledPrimitive {
+    pub value: Value,
+    pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
+}
+
 pub(super) fn compile_primitive(
     inputs: &PrimitiveInputs<'_>,
     old: &usize,
     primitive: &usize,
-) -> Result<Value> {
+) -> Result<CompiledPrimitive> {
     let PrimitiveInputs {
         o,
         g,
@@ -158,6 +165,7 @@ pub(super) fn compile_primitive(
     let dag_primitive = !unsplit;
     let DagResult {
         pages,
+        cluster_planes,
         reused,
         dag_report,
         culling_report,
@@ -169,7 +177,8 @@ pub(super) fn compile_primitive(
         DagResult::default()
     };
     progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));
-    Ok(
-        json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
-    )
+    Ok(CompiledPrimitive {
+        cluster_planes,
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+    })
 }

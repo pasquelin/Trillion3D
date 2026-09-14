@@ -1,15 +1,6 @@
-import { visPipelineFor } from './webgpuPagesPipelineFor.ts';
+import { visPipelineFor, visSlotPipeline } from './webgpuPagesPipelineFor.ts';
+import { BASE_SLOTS } from './gpuDraw.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-
-/** Indirect bin order: the three untested pipelines, then their Hi-Z-tested counterparts. */
-const VIS_SLOTS = [
-  'visPipelineBack',
-  'visPipelineNone',
-  'visPipelineFront',
-  'visHizRestBack',
-  'visHizRestNone',
-  'visHizRestFront',
-] as const;
 
 /** The bind group of one indirect slot, cached on `rt.vis` until a resource change voids it. */
 function visGroupFor(rt: WebgpuPagesRuntime, device: GPUDevice, slot: number, rest: boolean) {
@@ -71,16 +62,20 @@ export function drawVis(
   if (useIndirect) {
     const { gpuDraw } = vis;
     if (!gpuDraw) return;
-    const start = rest ? 3 : 0;
-    for (let s = start; s < start + 3; s++) {
-      if (!binInstances[s]) continue;
-      const pipeline = vis[VIS_SLOTS[s]],
-        group = visGroupFor(rt, device, s, rest);
-      if (!pipeline || !group) continue;
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, group);
-      pass.drawIndirect(gpuDraw.indirectBuffer, s * 16);
-      run.gpuDrawCalls++;
+    // Une couche coplanaire est un jeu de slots de plus, dessiné dans le même ordre : ses clusters
+    // portent le décalage de profondeur de leur pipeline, ceux de la couche 0 ne changent pas.
+    for (let layer = 0; layer < vis.drawLayerSlots; layer++) {
+      const start = layer * BASE_SLOTS + (rest ? 3 : 0);
+      for (let s = start; s < start + 3; s++) {
+        if (!binInstances[s]) continue;
+        const pipeline = visSlotPipeline(rt, s),
+          group = visGroupFor(rt, device, s, rest);
+        if (!pipeline || !group) continue;
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, group);
+        pass.drawIndirect(gpuDraw.indirectBuffer, s * 16);
+        run.gpuDrawCalls++;
+      }
     }
     return;
   }

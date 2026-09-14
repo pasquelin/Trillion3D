@@ -1,3 +1,4 @@
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../packages/sdk-core/contractsBase.ts';
 import type { ClusterManifest } from '../../packages/sdk-core/contracts.ts';
 
 export const TEMPLATES = {
@@ -82,8 +83,8 @@ export function manifest(): ClusterManifest {
     },
   ];
   return {
-    schema: 2,
-    formatVersion: 2,
+    schema: CLUSTERED_BLEND_FORMAT_VERSION,
+    formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full',

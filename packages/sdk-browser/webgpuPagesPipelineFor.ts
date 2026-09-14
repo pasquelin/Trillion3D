@@ -1,11 +1,23 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { projectedPageError } from './pageSelection.ts';
-import { BIN_BACK, BIN_FRONT, BIN_NONE } from './gpuDraw.ts';
+import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from './gpuDraw.ts';
+import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { PAGES_GREEN, clusterRgb, linearColor, materialSide } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
+
+/** Ordre des slots indirects de la couche 0 : les trois pipelines non testés, puis leurs jumeaux
+ *  testés par la Hi-Z. */
+const VIS_SLOTS = [
+  'visPipelineBack',
+  'visPipelineNone',
+  'visPipelineFront',
+  'visHizRestBack',
+  'visHizRestNone',
+  'visHizRestFront',
+] as const;
 
 const windingCw = (rec: PageRec) => {
   const e = rec.matrix.elements;
@@ -23,8 +35,29 @@ export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   return windingCw(rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
 
+/** Rang du mode de face d'un cluster dans un jeu de couche : dos, aucune, face, dos inversé, face
+ *  inversée. Le même ordre que `LAYER_CULLS` construit. */
+const visCullSlot = (rec: PageRec) => {
+  const side = materialSide(rec.material);
+  if (side === THREE.DoubleSide) return 1;
+  if (side === THREE.BackSide) return windingCw(rec) ? 4 : 2;
+  return windingCw(rec) ? 3 : 0;
+};
+
+/** Le pipeline d'un slot indirect : la couche 0 garde les siens, chaque couche suivante a les mêmes
+ *  états plus son décalage de profondeur. Le rang de face d'un slot est son `bin`. */
+export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
+  const { vis } = rt;
+  const layer = Math.floor(slot / BASE_SLOTS),
+    within = slot % BASE_SLOTS;
+  if (layer === 0) return vis[VIS_SLOTS[within]];
+  return vis.visLayerPipelines[visLayerPipelineIndex(layer, within >= 3, within % 3)];
+}
+
 export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec, rest: boolean) {
   const { vis } = rt;
+  const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);
+  if (layer > 0) return vis.visLayerPipelines[visLayerPipelineIndex(layer, rest, visCullSlot(rec))];
   const side = materialSide(rec.material),
     cw = windingCw(rec);
   if (side === THREE.DoubleSide) return rest ? vis.visHizRestNone : vis.visPipelineNone;

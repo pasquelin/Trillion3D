@@ -7,6 +7,7 @@ import {
   sideSplit,
   type ShaderHook,
 } from './clusterBatchMesh.ts';
+import { buildLayerGroups } from './clusterBatchLayers.ts';
 
 type PrimitiveDraft = {
   attributes: THREE.BufferGeometry['attributes'];
@@ -22,8 +23,9 @@ export function setupClusterBatches(pages: readonly BatchPage[]) {
   const state = {
     primitives: [] as PrimitiveIndex[],
     groups: [] as Array<BatchGroup | undefined>,
+    layerGroups: [] as Array<Map<number, BatchGroup> | undefined>,
     shaderHooks: new Map<THREE.Material, ShaderHook>(),
-    splitMaterials: [] as THREE.Material[],
+    ownedMaterials: [] as THREE.Material[],
     attributeBytes: 0,
     indexCapacityBytes: 0,
   };
@@ -139,11 +141,13 @@ export function setupClusterBatches(pages: readonly BatchPage[]) {
     primitive.geometry.addGroup(0, Infinity, 0);
     primitive.geometry.addGroup(0, Infinity, 1);
   }
-  state.splitMaterials = [...splits.values()].flat();
+  const layered = buildLayerGroups(pages, state.groups);
+  state.layerGroups = layered.layerGroups;
+  state.ownedMaterials = [...splits.values()].flat().concat(layered.materials);
   for (const page of pages)
     for (const material of Array.isArray(page.material) ? page.material : [page.material])
       neutraliseBatchingShader(material, state.shaderHooks);
-  for (const material of state.splitMaterials)
+  for (const material of state.ownedMaterials)
     neutraliseBatchingShader(material, state.shaderHooks);
   return { ...state, indirect };
 }

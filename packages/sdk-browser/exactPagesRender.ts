@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import {
+  createSelectionResult,
   resolvePixelError,
   selectVisiblePages,
   type PageRec,
   type ClusterRoot,
-  type SelectionResult,
 } from './pageSelection.ts';
 import type { BackendContext } from './backendTypes.ts';
 import { lighting } from './backendCommon.ts';
@@ -49,18 +49,7 @@ export function createExactPagesRender(
     holdResident: true,
     pageBudget: cap,
     wanted: desired,
-    result: {
-      shown,
-      wanted: desired,
-      visible: 0,
-      selectedTriangles: 0,
-      displayedTriangles: 0,
-      frustumRejected: 0,
-      nodesTested: 0,
-      lodLevel: 0,
-      complete: true,
-      pixelError: 0,
-    } as SelectionResult<PageRec>,
+    result: createSelectionResult<PageRec>(),
   };
   return (camera: THREE.PerspectiveCamera) => {
     const worldStart = performance.now();

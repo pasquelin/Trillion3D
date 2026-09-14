@@ -1,9 +1,12 @@
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import {
+  createWebgpuCoplanarLayerPipelines,
   createWebgpuShadePipeline,
   createWebgpuVisibilityRasterPipelines,
 } from './webgpuVisibilityPipelines.ts';
+import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
+import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
@@ -29,7 +32,13 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     vis.blendBindGroupLayout = undefined;
     vis.pipelineBlendTextured = undefined;
   }
-  const shaders = await createWebgpuVisibilityShaders(gpuDevice, drawSlots);
+  // La profondeur de l'empilement coplanaire fixe le nombre de slots de dessin, donc la taille de
+  // l'uniforme de visibilité et celle de la compaction indirecte : elle se lit avant de les créer.
+  let maxDepthLayer = 0;
+  for (const rec of rt.setup.allPages)
+    if (rec.depthLayer > maxDepthLayer) maxDepthLayer = rec.depthLayer;
+  vis.drawLayerSlots = 1 + Math.min(maxDepthLayer, MAX_DEPTH_LAYER);
+  const shaders = await createWebgpuVisibilityShaders(gpuDevice, drawSlots, visUniformSlots(vis));
   vis.shadeUniform = shaders.shadeUniform;
   vis.visBindGroupLayout = shaders.visBindGroupLayout;
   vis.zeroFlags = shaders.zeroFlags;
@@ -67,6 +76,26 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     visHizRestFront: vis.visHizRestFront,
     visHizRestFrontCw: vis.visHizRestFrontCw,
   } = rasterPipelines);
+  vis.visLayerPipelines.length = 0;
+  if (vis.drawLayerSlots > 1)
+    try {
+      vis.visLayerPipelines = await createWebgpuCoplanarLayerPipelines(
+        gpuDevice,
+        visModule,
+        vis.visBindGroupLayout!,
+        !!vis.gpuHiz && !!vis.visHizRestBack,
+        vis.drawLayerSlots,
+      );
+      diag.engineDiagnostic('coplanar-layers-ready', 'Couches coplanaires prêtes', {
+        layers: vis.drawLayerSlots - 1,
+        pipelines: vis.visLayerPipelines.length,
+        biasUnitsPerLayer: -depthLayerBias(1),
+      });
+    } catch (error) {
+      diag.diagnosticFailure('coplanar-layer-pipelines-failed', error);
+      vis.visLayerPipelines = [];
+      vis.drawLayerSlots = 1;
+    }
   ({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadePipeline: vis.shadePipeline } =
     await createWebgpuShadePipeline(gpuDevice, shadeModule));
   if (!vis.pageTable)
@@ -118,7 +147,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   capabilities.unsupported = capabilities.unsupported.filter(
     (item) => !VIS_FEATURES.includes(item),
   );
-  vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots);
+  vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots);
   if (vis.gpuDraw)
     capabilities.unsupported = capabilities.unsupported.filter((item) => item !== 'indirect draw');
 }

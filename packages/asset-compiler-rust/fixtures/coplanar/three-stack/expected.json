@@ -1,0 +1,40 @@
+{
+  "case": "Trois surfaces opaques empilées sur un plan ; la troisième n'y arrive que par la translation de son nœud.",
+  "rule": "Aires 36, 16 et 4 : la plus petite passe au-dessus. Trois paires se recouvrent (16 + 4 + 4 = 24).",
+  "formatVersion": 3,
+  "manifestBinaryVersion": 2,
+  "coplanar": {
+    "stage": "coplanar-depth-layers-v1",
+    "surfaces": 3,
+    "planes": 1,
+    "candidatePlanes": 1,
+    "overlaps": 3,
+    "overlapArea": 24.0,
+    "layeredClusters": 2,
+    "layerOverflow": 0,
+    "instanceConflicts": 0,
+    "unreadSurfaces": 0,
+    "skippedPairs": 0,
+    "droppedPlanes": 0,
+    "layeredPages": 2
+  },
+  "depthLayerPerPage": [0, 1, 2],
+  "layeredObjects": [
+    {
+      "node": 1,
+      "mesh": 1,
+      "primitive": 1,
+      "material": 1,
+      "layer": 1,
+      "area": 16.0
+    },
+    {
+      "node": 2,
+      "mesh": 2,
+      "primitive": 2,
+      "material": 2,
+      "layer": 2,
+      "area": 4.0
+    }
+  ]
+}

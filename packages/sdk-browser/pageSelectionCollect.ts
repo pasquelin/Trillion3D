@@ -88,6 +88,7 @@ export function collectClusterPages(
         source: cut.source,
         streamUrl: placed?.url,
         streamOffset: placed?.offset,
+        depthLayer: page.depthLayer ?? 0,
         attributes: mesh.geometry.attributes,
         material: mesh.material,
         transparent,

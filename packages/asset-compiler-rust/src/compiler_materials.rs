@@ -48,10 +48,10 @@ pub(super) fn validate_manifest(manifest: &Value) -> Result<()> {
         ));
     }
     if let Some(version) = manifest.get("formatVersion").and_then(Value::as_u64) {
-        if version != FORMAT_VERSION as u64 {
+        if version != SOURCE_FORMAT_VERSION as u64 {
             return Err(CompilerError::new(
                 "UNSUPPORTED_FORMAT",
-                format!("Expected {FORMAT_VERSION}, received {version}"),
+                format!("Expected {SOURCE_FORMAT_VERSION}, received {version}"),
             ));
         }
     }
