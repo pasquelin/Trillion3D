@@ -23,5 +23,10 @@ export default {
     '/.vite/deps/three.js',
     '/15-virtualized-integration/implementation/engines.ts',
     '/src/lab/modelCampaign.ts',
+    '/__wg-fixture/presentationRun.mjs',
+    '/__wg-fixture/smallTrianglesRun.mjs',
+    '/__wg-fixture/beautyRun.mjs',
+    '/__wg-fixture/captureRun.mjs',
+    '/__wg-fixture/drawRun.mjs',
   ],
 };
