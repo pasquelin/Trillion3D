@@ -9,7 +9,7 @@ import {collectClusterPages,selectVisiblePages} from './pageSelection.ts';
 import {evaluateDagSelectionKernel,packDagSelection,type PackedDag} from './gpuDagSelection.ts';
 import {evaluateDrawCompact,indirectForDraw,PAGE_BIND_ALIGN,type DrawItem} from './gpuDraw.ts';
 import {PAGE_INFO_STRIDE,rasterVisibilityIds,shadeVisibility,unpackVisibilityId} from './visibilityBuffer.ts';
-import {createGpuTiming} from './gpuTiming.ts';
+
 
 function installGpuGlobals(){
  Object.assign(globalThis,{
@@ -175,6 +175,7 @@ function mockGpu(limits:Record<string,number>={maxBufferSize:1<<20,maxStorageBuf
    beginComputePass:()=>({
     setPipeline(next:{entryPoint:string}){computePipeline=next;},
     setBindGroup(_i:number,group:typeof computeBind){computeBind=group;},
+    dispatchWorkgroupsIndirect(){if(computePipeline?.entryPoint)computes.push(computePipeline.entryPoint);},
     dispatchWorkgroups(){
      if(computePipeline?.entryPoint)computes.push(computePipeline.entryPoint);
      if(computePipeline?.entryPoint==='scatterGroups'&&computeBind){
