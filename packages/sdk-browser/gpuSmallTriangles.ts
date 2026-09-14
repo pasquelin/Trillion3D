@@ -98,14 +98,20 @@ export function createGpuSmallTriangles(device:GPUDevice,width:number,height:num
  const resolvePipelineLayout=device.createPipelineLayout({bindGroupLayouts:[resolveLayout]});
  const makeResolve=(two:boolean)=>device.createRenderPipeline({layout:resolvePipelineLayout,vertex:{module:resolveModule,entryPoint:'vs'},fragment:{module:resolveModule,entryPoint:two?'two':'one',targets:two?[{format:'r32uint'},{format:'r32float'}]:[{format:'r32uint'}]},primitive:{topology:'triangle-list'},depthStencil:{format:'depth32float',depthWriteEnabled:true,depthCompare:'less'}});
  const one=makeResolve(false),two=makeResolve(true);
+ let resolveGroup:GPUBindGroup|undefined;
  return {
   width,height,
-  encode(encoder:GPUCommandEncoder,input:{indices:GPUBuffer;positions:GPUBuffer;pages:GPUBuffer;hizFlags:GPUBuffer;uniform:GPUBuffer;uvs:GPUBuffer;maps:GPUTextureView;sampler:GPUSampler;pageRows:number;maxTriangles:number;idsView:GPUTextureView;depthView:GPUTextureView;hizView?:GPUTextureView;selection?:{maskBuffer:GPUBuffer;maskOffset:number}}){
-   const compute=device.createBindGroup({layout:computeLayout,entries:[{binding:0,resource:{buffer:input.indices}},{binding:1,resource:{buffer:input.positions}},{binding:2,resource:{buffer:input.pages}},{binding:3,resource:{buffer:input.hizFlags}},{binding:4,resource:{buffer:input.uniform,offset:0,size:96}},{binding:5,resource:{buffer:input.uvs}},{binding:6,resource:input.maps},{binding:7,resource:input.sampler},{binding:8,resource:{buffer:depth}},{binding:9,resource:{buffer:ids}},{binding:10,resource:{buffer:input.selection?.maskBuffer??input.hizFlags}}]});
+  encode(encoder:GPUCommandEncoder,input:{indices:GPUBuffer;positions:GPUBuffer;pages:GPUBuffer;hizFlags:GPUBuffer;uniform:GPUBuffer;uvs:GPUBuffer;maps:GPUTextureView;sampler:GPUSampler;pageRows:number;maxTriangles:number;idsView:GPUTextureView;depthView:GPUTextureView;hizView?:GPUTextureView;selection?:{maskBuffer:GPUBuffer;maskOffset:number};groups?:Array<unknown>;groupKey?:number}){
+   // Every resource here outlives the frame, so the caller keeps the groups and names which one this
+   // combination of flag source and selection uses instead of building one per image.
+   const cached=input.groups&&input.groupKey!==undefined?input.groups[input.groupKey] as GPUBindGroup|undefined:undefined;
+   const compute=cached??device.createBindGroup({layout:computeLayout,entries:[{binding:0,resource:{buffer:input.indices}},{binding:1,resource:{buffer:input.positions}},{binding:2,resource:{buffer:input.pages}},{binding:3,resource:{buffer:input.hizFlags}},{binding:4,resource:{buffer:input.uniform,offset:0,size:96}},{binding:5,resource:{buffer:input.uvs}},{binding:6,resource:input.maps},{binding:7,resource:input.sampler},{binding:8,resource:{buffer:depth}},{binding:9,resource:{buffer:ids}},{binding:10,resource:{buffer:input.selection?.maskBuffer??input.hizFlags}}]});
+   if(input.groups&&input.groupKey!==undefined)input.groups[input.groupKey]=compute;
    const pass=encoder.beginComputePass({label:'WG small triangle clear'});pass.setPipeline(clear);pass.setBindGroup(0,compute);pass.dispatchWorkgroups(Math.ceil(width*height/64));pass.end();
    const rows=Math.max(1,input.pageRows),spanY=Math.min(rows,DISPATCH_SPAN),spanZ=Math.ceil(rows/DISPATCH_SPAN);
    for(const pipeline of [rasterDepth,rasterId]){const raster=encoder.beginComputePass({label:pipeline===rasterDepth?'WG small triangle depth':'WG small triangle ids'});raster.setPipeline(pipeline);raster.setBindGroup(0,compute);raster.dispatchWorkgroups(input.maxTriangles,spanY,spanZ);raster.end();}
-   const resolved=device.createBindGroup({layout:resolveLayout,entries:[{binding:0,resource:{buffer:depth}},{binding:1,resource:{buffer:ids}},{binding:2,resource:{buffer:input.uniform,offset:0,size:96}}]});
+   resolveGroup??=device.createBindGroup({layout:resolveLayout,entries:[{binding:0,resource:{buffer:depth}},{binding:1,resource:{buffer:ids}},{binding:2,resource:{buffer:input.uniform,offset:0,size:96}}]});
+   const resolved=resolveGroup;
    const view=input.hizView;const output=encoder.beginRenderPass({label:'WG hybrid visibility resolve',colorAttachments:[{view:input.idsView,loadOp:'load',storeOp:'store'},...(view?[{view,loadOp:'load' as const,storeOp:'store' as const}]:[])],depthStencilAttachment:{view:input.depthView,depthLoadOp:'load',depthStoreOp:'store'}});
    output.setViewport(0,0,width,height,0,1);output.setPipeline(view?two:one);output.setBindGroup(0,resolved);output.draw(3);output.end();
   },
