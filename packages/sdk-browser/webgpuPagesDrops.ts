@@ -37,7 +37,7 @@ export function dropGpuHiz(rt: WebgpuPagesRuntime) {
   resetHizHistory(rt.run);
 }
 
-export function dropGpuDraw(rt: WebgpuPagesRuntime) {
+function dropGpuDraw(rt: WebgpuPagesRuntime) {
   rt.vis.gpuDraw?.dispose();
   rt.vis.gpuDraw = undefined;
   if (!rt.capabilities.unsupported.includes('indirect draw'))

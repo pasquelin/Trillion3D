@@ -7,7 +7,7 @@ import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { PAGES_GREEN, clusterRgb, linearColor, materialSide } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-export const windingCw = (rec: PageRec) => {
+const windingCw = (rec: PageRec) => {
   const e = rec.matrix.elements;
   return (
     e[0] * (e[5] * e[10] - e[6] * e[9]) -
