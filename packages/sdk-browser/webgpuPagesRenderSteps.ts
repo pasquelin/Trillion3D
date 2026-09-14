@@ -129,5 +129,9 @@ export function cpuSampleOf(
     transparentEncodeMs: drew ? timing.transparentEncodeMs : 0,
     transparentIncludedIn: 'encodeSubmitMs',
     asyncResidencyWaitMs: null,
+    /** Pages the residency path had to touch: the cut's difference, not its size. Null on a CPU cut,
+     *  which owns no difference and rebuilds its sets whole. */
+    residencyPagesEntered: run.pagesEntered,
+    residencyPagesExited: run.pagesExited,
   };
 }

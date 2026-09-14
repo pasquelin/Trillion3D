@@ -1,25 +1,36 @@
-import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
+import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { sameSelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
-import { partitionByPass, shownFromGpu, triangleSum } from './webgpuPagesHelpers.ts';
+import { shownFromGpu, triangleSum } from './webgpuPagesHelpers.ts';
+import type { CutDelta } from './webgpuCutDelta.ts';
 
 function appendPages(target: PageRec[], ...sources: readonly (readonly PageRec[])[]) {
   for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);
 }
 
-/** Applies a completed readback without letting it decide the current-frame draw mask. */
+/**
+ * Applies a completed readback without letting it decide the current-frame draw mask.
+ *
+ * The readback is taken as a difference: a cut this adopter has already seen enters and leaves no
+ * page at all, and a cut that moved names only what moved. `desired` keeps that difference as its
+ * opaque head and the transparent cut as its tail, so the steps that follow read a set that survived
+ * the previous image rather than one rebuilt from fifteen thousand records.
+ */
 export function createWebgpuCutAdopter(options: {
   selection: () => GpuSelection | undefined;
   packedPages: PageRec[];
   desired: PageRec[];
   shown: PageRec[];
   drawn: PageRec[];
-  wanted: PageRec[];
-  transparentScratch: PageRec[];
+  transparentWanted: readonly PageRec[];
+  transparentShown: readonly PageRec[];
   drawableScratch: PageRec[];
   uniforms: SelectionUniforms;
   residentOffsetWords: Int32Array;
   frame: () => number;
+  delta: CutDelta;
+  onCutPages: (count: number) => void;
+  onDrawnPages: (count: number, triangles: number) => void;
 }) {
   const metrics = {
     ready: false,
@@ -30,19 +41,19 @@ export function createWebgpuCutAdopter(options: {
     frustumRejected: 0,
     lodLevel: 0,
   };
+  let lastCut: GpuCut | null = null;
   const adopt = () => {
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
-    const { packedPages, desired, shown, drawn, wanted, transparentScratch, drawableScratch } =
-      options;
-    wanted.length = 0;
-    for (const id of cut.result.pageIds) {
-      const rec = packedPages[id];
-      if (rec) wanted.push(rec);
+    const { packedPages, desired, shown, drawn, drawableScratch, delta } = options;
+    if (cut === lastCut) delta.hold();
+    else {
+      delta.apply(cut.result.pageIds);
+      lastCut = cut;
     }
-    partitionByPass(desired, true, transparentScratch);
-    desired.length = 0;
-    appendPages(desired, wanted, transparentScratch);
+    options.onCutPages(delta.count);
+    appendPages(desired, options.transparentWanted);
+    metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
     const counts = shownFromGpu(
@@ -52,19 +63,23 @@ export function createWebgpuCutAdopter(options: {
       drawableScratch,
       options.residentOffsetWords,
     );
-    partitionByPass(shown, true, transparentScratch);
     shown.length = 0;
-    appendPages(shown, drawableScratch, transparentScratch);
+    appendPages(shown, drawableScratch, options.transparentShown);
+    options.onDrawnPages(drawableScratch.length, counts.drawnTriangles);
     drawn.length = 0;
     appendPages(drawn, shown);
     metrics.ready = true;
-    metrics.visible = desired.length;
-    metrics.selectedTriangles = triangleSum(shown);
+    metrics.selectedTriangles = counts.drawnTriangles + triangleSum(options.transparentShown);
     metrics.uncoveredTriangles = counts.uncoveredTriangles;
     metrics.drawnTriangles = counts.drawnTriangles;
     metrics.frustumRejected = cut.result.frustumRejected;
     metrics.lodLevel = cut.result.lodLevel;
     return true;
   };
-  return { adopt, metrics };
+  /** Forgets the cut held: the CPU cut rewrote the arrays this adopter maintains. */
+  const invalidate = () => {
+    lastCut = null;
+    options.delta.invalidate();
+  };
+  return { adopt, metrics, invalidate };
 }

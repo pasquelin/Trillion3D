@@ -2,8 +2,13 @@ import type * as THREE from 'three';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { MAX_BUDGET_PIXEL_ERROR, appendAll, triangleSum } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
 
 export type TransparentCut = ReturnType<typeof selectVisiblePages<PageRec>> | undefined;
+
+/** Triangles of the opaque cut, counted when the readback was adopted and not counted again. */
+export const opaqueTriangles = (run: WebgpuRunState) =>
+  run.shownOpaqueTriangles >= 0 ? run.shownOpaqueTriangles : triangleSum(run.shown, false);
 
 /** The forward transparents have their own CPU cut; they are absent from the GPU cluster set. */
 export function selectTransparentCut(
@@ -32,22 +37,16 @@ export function selectTransparentCut(
  * Counts what the frame asks the cache for, and moves the page budget's error floor. A cut wider than
  * the GPU page budget is coarsened, never truncated: truncating a DAG cut punches holes, while a
  * coarser threshold is still an exact partition of the surface.
+ *
+ * The count comes from the set the previous image left, moved by the pages that entered and left it:
+ * no image rebuilds the requested set, whatever the cut is worth.
  */
 export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted: number) {
-  const { run } = rt,
-    { tracking, bootstrapKeys, slots } = rt.setup;
-  tracking.requestedEpoch++;
-  tracking.requestedCount = 0;
-  const request = (key: number) => {
-    if (tracking.requestedStamp[key] !== tracking.requestedEpoch) {
-      tracking.requestedStamp[key] = tracking.requestedEpoch;
-      tracking.requestedList[tracking.requestedCount++] = key;
-    }
-  };
-  for (let i = 0; i < bootstrapKeys.length; i++) request(bootstrapKeys[i]);
-  for (let i = 0; i < run.desired.length; i++) request(tracking.keyOf(run.desired[i]));
+  const { run, services } = rt,
+    { slots } = rt.setup;
+  const requested = services.admitCut();
   const wasLimited = run.coverageBudgetLimited;
-  run.coverageBudgetLimited = tracking.requestedCount > slots;
+  run.coverageBudgetLimited = requested > slots;
   // Coarsen until the wanted cut fits, and relax again once it fits with room to spare. Doubling
   // and halving with a gap between the two thresholds keeps the loop from oscillating every frame.
   if (run.coverageBudgetLimited)
@@ -55,13 +54,13 @@ export function admitGpuCut(rt: WebgpuPagesRuntime, pixelError: number, budgeted
       MAX_BUDGET_PIXEL_ERROR,
       run.budgetPixelError > 0 ? run.budgetPixelError * 2 : Math.max(1, pixelError * 2),
     );
-  else if (run.budgetPixelError > 0 && tracking.requestedCount < slots * 0.7)
+  else if (run.budgetPixelError > 0 && requested < slots * 0.7)
     run.budgetPixelError = run.budgetPixelError > pixelError * 2 ? run.budgetPixelError / 2 : 0;
   if (wasLimited !== run.coverageBudgetLimited)
     run.coverageBudgetEvent = {
       version: 1,
       limited: run.coverageBudgetLimited,
-      requiredSlots: tracking.requestedCount,
+      requiredSlots: requested,
       slots,
       fallbackRetained: rt.services.bootstrapState.ready,
       pixelError: budgeted,
@@ -78,31 +77,25 @@ export function transitionGpuCut(
   camera: THREE.PerspectiveCamera,
   budgeted: number,
   transparent: TransparentCut,
-  oldOpaque: PageRec[],
 ) {
-  const { run } = rt,
-    { tracking, slots } = rt.setup;
+  const { run, services } = rt,
+    { slots } = rt.setup,
+    sets = services.residencySets;
   if (transparent?.complete === false)
     throw new Error('GPU_COVERAGE_INCOMPLETE: a pinned transparent root cluster is not resident');
-  tracking.transitionEpoch++;
-  tracking.transitionCount = 0;
-  if (transparent && !run.coverageBudgetLimited) {
-    const transition = (key: number) => {
-      if (tracking.transitionStamp[key] !== tracking.transitionEpoch) {
-        tracking.transitionStamp[key] = tracking.transitionEpoch;
-        tracking.transitionCount++;
-      }
-    };
-    for (let i = 0; i < tracking.requestedCount; i++) transition(tracking.requestedList[i]);
-    for (let i = 0; i < transparent.shown.length; i++)
-      transition(tracking.keyOf(transparent.shown[i]));
-  }
-  if (transparent && !run.coverageBudgetLimited && tracking.transitionCount > slots) {
+  sets.refreshTransparentShown(run.transparentShown);
+  // What the image asks for plus what it draws: the kept set already is that union, held across
+  // images, so the transition costs the transparent cut and nothing else.
+  const transition = transparent && !run.coverageBudgetLimited ? sets.keepCount : 0;
+  if (transition > slots) {
     const fallback = selectTransparentCut(rt, camera, budgeted, true);
     if (!fallback.complete)
       throw new Error('GPU_COVERAGE_INCOMPLETE: the pinned transparent cover is not resident');
-    run.shown.length = 0;
-    appendAll(run.shown, oldOpaque, fallback.shown);
+    run.transparentShown.length = 0;
+    appendAll(run.transparentShown, fallback.shown);
+    run.shown.length = run.shownOpaque;
+    appendAll(run.shown, run.transparentShown);
+    sets.refreshTransparentShown(run.transparentShown);
   }
-  run.selectedTriangles = triangleSum(run.shown);
+  run.selectedTriangles = opaqueTriangles(run) + triangleSum(run.transparentShown);
 }

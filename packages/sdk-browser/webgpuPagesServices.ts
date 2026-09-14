@@ -3,7 +3,8 @@ import { createWebgpuResidencyMirror } from './webgpuResidencyMirror.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
-import { createBudgetedResidency } from './webgpuBudgetedResidency.ts';
+import { createCutDelta } from './webgpuCutDelta.ts';
+import { createWebgpuResidencySets } from './webgpuResidencySets.ts';
 import { createWebgpuPinUpdater } from './webgpuPinUpdater.ts';
 import { createWebgpuBootstrap } from './webgpuBootstrap.ts';
 import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
@@ -19,7 +20,7 @@ export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
 export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots, gpuWanted } = rt.layout,
-    { tracking, bootstrap, bootstrapUrls, bootstrapKeys, bootstrapKey, slots } = rt.setup,
+    { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
     { sourceBytes, requestUrlByPage } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
@@ -67,18 +68,22 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     },
   };
   const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
-  const budgetedResidency = createBudgetedResidency(tracking, bootstrapKey, bootstrapUrls, slots);
-  const pinUpdater = createWebgpuPinUpdater(
+  /**
+   * The sets residency is decided with, and the difference the GPU readback is read as. Both outlive
+   * the image: an image that moves no page touches neither.
+   */
+  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
+  const cutDelta = createCutDelta(packedPages, run.desired);
+  const pinUpdater = createWebgpuPinUpdater({
     tracking,
-    bootstrapKeys,
+    sets: residencySets,
     bootstrapUrls,
-    run.deferredDrops,
+    deferredDrops: run.deferredDrops,
     requestUrlByPage,
-    diag.traceEnabled,
-    diag.traceDiagnostic,
-  );
-  const updatePins = () =>
-    pinUpdater(gpu.cache, run.shown, run.gpuFrameActive, run.frame, (key) => dropPage(rt, key));
+    traceEnabled: diag.traceEnabled,
+    traceDiagnostic: diag.traceDiagnostic,
+  });
+  const updatePins = () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key));
   const bootstrapState = createWebgpuBootstrap({
     pages: bootstrap,
     urls: bootstrapUrls,
@@ -107,9 +112,11 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
+    sets: residencySets,
+    room: Math.max(0, slots - bootstrapUrls.size),
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    hasBytes,
+    getShown: () => run.shown,
     updatePins,
     ensureResident,
     markLost: () => {
@@ -127,13 +134,24 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     desired: run.desired,
     shown: run.shown,
     drawn: run.drawn,
-    wanted: gpuWanted,
-    transparentScratch: run.transparentScratch,
+    transparentWanted: run.transparentWanted,
+    transparentShown: run.transparentShown,
     drawableScratch: run.drawableScratch,
     uniforms: run.selectionUniforms,
     residentOffsetWords: rows.residentOffsetWords,
     frame: () => run.frame,
+    delta: cutDelta,
+    onCutPages: (count) => {
+      run.desiredOpaque = count;
+    },
+    onDrawnPages: (count, triangles) => {
+      run.shownOpaque = count;
+      run.shownOpaqueTriangles = triangles;
+    },
   });
+  // Before the first readback the image asks the cache for the pinned cover and nothing else.
+  if (!run.desired.length)
+    for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
   const adoptGpuCut = () => {
     if (!cutAdopter.adopt()) return;
     const metrics = cutAdopter.metrics;
@@ -145,16 +163,32 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.lodLevel = metrics.lodLevel;
     run.gpuMetricsReady = metrics.ready;
   };
+  /**
+   * Admits the cut the image just adopted: the opaque difference, then the transparent cut, which the
+   * GPU never selects and the image therefore re-reads whole. Answers what the image asks the cache
+   * for, and how many pages that took.
+   */
+  const admitCut = () => {
+    residencySets.releaseCpu();
+    residencySets.applyCut(cutDelta);
+    residencySets.refreshTransparentWanted(run.transparentWanted);
+    run.pagesEntered = cutDelta.enteredCount;
+    run.pagesExited = cutDelta.exitedCount;
+    return residencySets.requestedCount;
+  };
   return {
     syncRows,
     syncRowsFromCut,
     pageSource,
     hasBytes,
-    budgetedResidency,
+    residencySets,
+    admitCut,
+    invalidateCut: cutAdopter.invalidate,
     bootstrapState,
     ensureResident,
     residency,
     queueResident: residency.queueResident,
+    queueCutResidency: residency.queueCutResidency,
     adoptGpuCut,
   };
 }

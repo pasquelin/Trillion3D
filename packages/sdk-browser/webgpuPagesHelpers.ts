@@ -99,6 +99,21 @@ export function partitionByPass(source: readonly PageRec[], transparent: boolean
     if (!!source[i].transparent === transparent) into.push(source[i]);
   return into;
 }
+/**
+ * Keeps the opaque head of a cut in place and drops its transparent tail, so an image that only
+ * re-reads the transparent cut rewrites only the transparent cut. `head` is what the GPU readback
+ * last left there; -1 means nobody knows, and the head is separated out once more.
+ */
+export function keepOpaqueHead(list: PageRec[], head: number, scratch: PageRec[]) {
+  if (head >= 0 && head <= list.length) {
+    list.length = head;
+    return head;
+  }
+  const opaque = partitionByPass(list, false, scratch);
+  list.length = 0;
+  appendAll(list, opaque);
+  return list.length;
+}
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
 export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
   for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);

@@ -22,8 +22,8 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
     bytes: array.byteLength,
     clusters: recs.length,
     bootstrap: recs.some((rec) => bootstrapUrls.has(rec.url)),
-    wanted: recs.some((rec) => tracking.wantedStamp[tracking.keyOf(rec)] === tracking.wantedEpoch),
-    pinned: recs.some((rec) => tracking.pinnedAt[tracking.keyOf(rec)] >= 0),
+    wanted: recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec))),
+    pinned: recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
   });
 }
 
@@ -43,8 +43,8 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     );
     return;
   }
-  const pinned = recs.some((rec) => tracking.pinnedAt[tracking.keyOf(rec)] >= 0),
-    wanted = recs.some((rec) => tracking.wantedStamp[tracking.keyOf(rec)] === tracking.wantedEpoch);
+  const pinned = recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
+    wanted = recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec)));
   if (pinned || wanted) {
     run.deferredDrops.add(url);
     diag.traceDiagnostic(

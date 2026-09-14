@@ -1,12 +1,13 @@
 import type * as THREE from 'three';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
-import { appendAll, partitionByPass, triangleSum } from './webgpuPagesHelpers.ts';
+import { appendAll, keepOpaqueHead } from './webgpuPagesHelpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './webgpuPagesEncoder.ts';
 import { dropGpuSelection } from './webgpuPagesDrops.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws, ensurePageTable } from './webgpuPagesEncodeDraws.ts';
 import {
   admitGpuCut,
+  opaqueTriangles,
   selectTransparentCut,
   transitionGpuCut,
 } from './webgpuPagesGpuCutAdmission.ts';
@@ -35,7 +36,7 @@ export function renderGpuCut(
   lightsEnd: number,
 ) {
   const { run, gpu, diag, context, services } = rt,
-    { rows, transparentRoots, gpuWanted } = rt.layout,
+    { rows, transparentRoots } = rt.layout,
     { gpuDevice, viewport, clearColor } = rt.setup,
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) return true;
@@ -53,11 +54,16 @@ export function renderGpuCut(
     ? selectTransparentCut(rt, camera, budgeted, false)
     : undefined;
   marks.transparentSelectEnd = performance.now();
-  const oldOpaque = partitionByPass(run.shown, false, run.opaqueScratch);
-  run.shown.length = 0;
-  appendAll(run.shown, oldOpaque, transparent?.shown ?? []);
-  run.desired.length = 0;
-  appendAll(run.desired, gpuWanted, transparent?.wanted ?? []);
+  // The opaque head of both cuts is the one the readback maintains from image to image; only the
+  // transparent tail, which no GPU cut selects, is rewritten here.
+  run.transparentShown.length = 0;
+  appendAll(run.transparentShown, transparent?.shown ?? []);
+  run.transparentWanted.length = 0;
+  appendAll(run.transparentWanted, transparent?.wanted ?? []);
+  run.shownOpaque = keepOpaqueHead(run.shown, run.shownOpaque, run.opaqueScratch);
+  appendAll(run.shown, run.transparentShown);
+  run.desiredOpaque = keepOpaqueHead(run.desired, run.desiredOpaque, run.opaqueScratch);
+  appendAll(run.desired, run.transparentWanted);
   if (run.gpuMetricsReady) run.visible = run.desired.length;
   admitGpuCut(rt, pixelError, budgeted);
   if (!services.bootstrapState.ready) {
@@ -65,9 +71,9 @@ export function renderGpuCut(
     traceGpuCutWaiting(rt);
     return true;
   }
-  transitionGpuCut(rt, camera, budgeted, transparent, oldOpaque);
+  transitionGpuCut(rt, camera, budgeted, transparent);
   marks.admissionEnd = performance.now();
-  services.queueResident(services.budgetedResidency(run.desired));
+  services.queueCutResidency();
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();
@@ -126,7 +132,7 @@ export function renderGpuCut(
   abandonFrameEncoder(rt);
   marks.cpuEnd = performance.now();
   if (run.gpuMetricsReady)
-    run.submittedTriangles = triangleSum(run.shown, false) + run.blendSubmittedTriangles;
+    run.submittedTriangles = opaqueTriangles(run) + run.blendSubmittedTriangles;
   recordGpuCutTiming(rt);
   traceGpuCutFrame(rt, camera);
   return true;

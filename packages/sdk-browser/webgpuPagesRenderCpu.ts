@@ -90,6 +90,14 @@ export function renderCpuCut(
     { bootstrapUrls, slots, viewport } = rt.setup,
     gpuDevice = rt.setup.gpuDevice!,
     cache = gpu.cache!;
+  // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
+  // and the GPU cut re-seeds from nothing when it takes the image back.
+  services.invalidateCut();
+  run.shownOpaque = -1;
+  run.desiredOpaque = -1;
+  run.shownOpaqueTriangles = -1;
+  run.pagesEntered = null;
+  run.pagesExited = null;
   const cpuSelectionStarted = performance.now();
   const selected = selectCpuCut(rt, camera, pixelError, false);
   run.cpuSelectMs = performance.now() - cpuSelectionStarted;
