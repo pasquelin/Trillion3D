@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {EngineError,type ClusterManifest} from '../sdk-core/index.ts';
-import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,rootCoverage,selectVisiblePages} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,rootCoverage,selectVisiblePages,type PageRec,type SelectionResult} from './pageSelection.ts';
 import {cameraSelectionUniforms} from './gpuSelection.ts';
 import {evaluateDagSelectionKernel,packDagSelection} from './gpuDagSelection.ts';
 
@@ -373,4 +373,31 @@ test('a primitive whose clusters carry no DAG error band is refused by name, not
  assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),
   (error:unknown)=>error instanceof EngineError&&error.code==='STALE_CACHE'&&/without a DAG error band/.test(error.message));
  fixture.geometry.dispose();
+});
+
+test('une image de coupe réutilise sa table plate, son résultat et ses tableaux : elle n\'alloue rien',()=>{
+ const fixture=blendFixture();
+ const {roots}=collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations);
+ const table=roots[0].table,shown:PageRec[]=[],wanted:PageRec[]=[];
+ const result:SelectionResult<PageRec>={shown,wanted,visible:0,selectedTriangles:0,displayedTriangles:0,frustumRejected:0,lodLevel:0,complete:true,pixelError:0};
+ const cam=camera(),ask={pixelError:100,viewport:[960,540] as [number,number],frame:1,holdResident:true,wanted,result};
+ const first=selectVisiblePages(roots,cam,ask,shown);
+ ask.frame=2;
+ const second=selectVisiblePages(roots,cam,ask,shown);
+ assert.equal(second,first,'le résultat rendu est celui fourni, image après image');
+ assert.equal(second,result);
+ assert.equal(second.shown,shown);
+ assert.equal(second.wanted,wanted);
+ assert.equal(roots[0].table,table,'la table plate est construite avec la primitive, jamais par image');
+ assert.deepEqual(second.shown.map(page=>page.url),['near']);
+ fixture.geometry.dispose();fixture.material.dispose();
+});
+
+test('une bande de cluster invalide est refusée à la préparation, pas au milieu d\'une image',()=>{
+ const fixture=blendFixture();
+ // La sphère propre est déjà validée au chargement ; celle du remplaçant ne l'était nulle part.
+ const page=fixture.metadata.primitives[0].pages[0] as {parentError:number|null;parentSphere:number[]|null};
+ page.parentError=1;page.parentSphere=[0,0,0,-1];
+ assert.throws(()=>collectClusterPages(fixture.source,fixture.metadata,fixture.indices,fixture.associations),/Parametres de cluster invalides/);
+ fixture.geometry.dispose();fixture.material.dispose();
 });
