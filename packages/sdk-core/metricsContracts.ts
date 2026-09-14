@@ -104,6 +104,21 @@ export interface FrameMetrics {
   /** Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule.
    *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
   cpuSelectMs?: number | null;
+  /** Lampes du contrat `SceneLight` que l'image a éclairées. Null sur un moteur qui les ignore. */
+  lightsActive?: number | null;
+  /** Tranches d'ombre redessinées par cette image, au plus le plafond publié de l'ordonnanceur.
+   *  Zéro est la valeur normale d'une scène immobile : une lampe fixe garde sa tranche. */
+  shadowsUpdated?: number | null;
+  /**
+   * Durées GPU des trois passes de l'éclairage direct, lues par leur étiquette dans le même relevé
+   * d'horodatage que `gpuPassMs` : listes de lampes par tuile, atlas d'ombres, résolution différée.
+   * Elles décrivent donc l'image de `gpuPassMs.frame`, pas l'image courante, et vaut `null` dès que
+   * l'appareil n'expose pas d'horodatage, que le relevé a été tronqué, ou que la passe n'a pas eu
+   * lieu — une image sans lampe ne lance ni listes ni ombres. Jamais additionnées à un `cpu*`.
+   */
+  gpuLightListsMs?: number | null;
+  gpuShadowsMs?: number | null;
+  gpuLightingMs?: number | null;
 }
 export interface BackendCapabilities {
   renderer: string;

@@ -11,10 +11,12 @@ import {
   pendingUrls,
   rasterRgba,
   refreshSceneLighting,
+  refreshSceneLights,
   syncResident,
   visibilityIds,
 } from './webgpuPagesHostApi.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
 export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 
@@ -40,6 +42,12 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     refreshSceneLighting() {
       refreshSceneLighting(rt);
+    },
+    refreshSceneLights() {
+      refreshSceneLights(rt);
+    },
+    setTransform(nodeName, matrix) {
+      setWebgpuTransform(rt, nodeName, matrix);
     },
     async prepare() {
       context.signal?.throwIfAborted();
