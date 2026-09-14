@@ -288,6 +288,16 @@ function projectedClusterError(error:number|null|undefined,sphere:ArrayLike<numb
  const vz=e[2]*cx+e[6]*cy+e[10]*cz+e[14];
  return clusterErrorPixels(error,stretch,vx,vy,vz,sphere[offset+3],focal,near);
 }
+const diagnosticErrorView=new THREE.Matrix4();
+/** The same projected cluster error used by the cut, evaluated for a displayed page. */
+export function projectedPageError(rec:Pick<PageRec,'lodError'|'sphere'|'matrix'>,camera:THREE.PerspectiveCamera,viewport:readonly [number,number]){
+ if((rec.lodError??0)===0)return 0;
+ camera.updateMatrixWorld();
+ const view=diagnosticErrorView.multiplyMatrices(camera.matrixWorldInverse,rec.matrix);
+ const stretch=maxStretch(rec.matrix.elements)*maxStretch(camera.matrixWorldInverse.elements);
+ const focal=Math.max(viewport[0]*Math.abs(camera.projectionMatrix.elements[0]),viewport[1]*Math.abs(camera.projectionMatrix.elements[5]))/2;
+ return projectedClusterError(rec.lodError,rec.sphere,0,view.elements,stretch,focal,camera.near);
+}
 function cutSelects(rec:ClusterCut,e:ArrayLike<number>,stretch:number,focal:number,near:number,pixelError:number){
  if(projectedClusterError(rec.lodError??0,rec.sphere,0,e,stretch,focal,near)>pixelError)return false;
  return projectedClusterError(rec.parentError,rec.parentSphere??rec.sphere,0,e,stretch,focal,near)>pixelError;
