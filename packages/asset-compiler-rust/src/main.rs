@@ -6,7 +6,7 @@
 //! because every output file is written atomically.
 use web_geometry_compiler::{compile,parse_compiler_args,Options,CompilerError,COMPILER_VERSION,FORMAT_VERSION};
 use web_geometry_compiler::import::IMPORTER_VERSION;
-use std::{collections::{HashMap,VecDeque},io::{BufRead,Write},path::Path,sync::{Arc,Mutex,atomic::{AtomicBool,Ordering}},time::Instant};
+use std::{collections::{HashMap,VecDeque},io::{BufRead,Write},path::{Path,PathBuf},sync::{Arc,Mutex,atomic::{AtomicBool,Ordering}},time::Instant};
 use serde_json::{Value,json};
 
 fn emit(mut event:Value,job:&str){if let Some(object)=event.as_object_mut(){object.insert("job".into(),json!(job));}let stderr=std::io::stderr();let mut lock=stderr.lock();let _=writeln!(lock,"{event}");}
@@ -29,38 +29,18 @@ impl Cancellation{
 /// stdin is optional: a host that ignores it gets EOF at once and the listener ends.
 fn listen_stdin(cancellation:Arc<Cancellation>){std::thread::spawn(move||{let stdin=std::io::stdin();for line in stdin.lock().lines(){let Ok(line)=line else {break};if let Ok(value)=serde_json::from_str::<Value>(&line){if let Some(target)=value.get("cancel"){match target{Value::String(s)=>cancellation.cancel(s),Value::Bool(true)=>cancellation.cancel("*"),_=>{}}}}}});}
 
-/// Whole-job completion estimate carried by every progress event, so a host shows one bar without
-/// knowing the phases. Weights: source import (FBX/OBJ only) up to 0.30, glTF import 0.35, clustering
-/// 0.35–0.95 (per primitive, total announced by the `import` event), root bundles 0.95–0.99, pointer 1.
-#[derive(Default)] struct Ratio{primitives_total:usize,primitives_done:usize}
-impl Ratio{
- fn update(&mut self,event:&Value)->f64{
-  let frac=|e:&Value|{let total=e["total"].as_f64().unwrap_or(0.0);if total>0.0{(e["completed"].as_f64().unwrap_or(0.0)/total).clamp(0.0,1.0)}else{0.0}};
-  match event["phase"].as_str(){
-   Some("import-source")=>match event["step"].as_str(){Some("parse")=>{let files=event["files"].as_f64().unwrap_or(1.0).max(1.0);let index=event["index"].as_f64().unwrap_or(0.0);0.20*((index+frac(event))/files)}Some("meshes")=>0.20+0.08*frac(event),Some("write")=>0.29,_=>0.30},
-   Some("import")=>{self.primitives_total=event["primitives"].as_u64().unwrap_or(0) as usize;0.35}
-   Some("primitive")=>{self.primitives_done+=1;if self.primitives_total>0{0.35+0.60*(self.primitives_done as f64/self.primitives_total as f64).min(1.0)}else{0.35}}
-   Some("bootstrap")=>0.95+0.04*frac(event),
-   Some("prune")=>0.99,
-   Some("complete")=>1.0,
-   _=>0.0,
-  }
- }
-}
 fn run_job(id:&str,options:&Options)->Result<Value,CompilerError>{
  let started=Instant::now();
  emit(json!({"event":"accepted","ratio":0.0,"source":options.source.to_string_lossy(),"cache":options.cache.to_string_lossy(),"scope":options.scope,"triangles":options.triangle_budget,"threads":options.threads,"ramBudgetMb":options.ram_budget_mb,"simplification":options.simplification}),id);
  let job=id.to_string();
- let ratio=Mutex::new(Ratio::default());
- // Progress arrives from several threads; counting and writing under one lock keeps ratios monotone on the wire.
- let result=compile(options,|mut event|{let mut guard=ratio.lock().unwrap();let value=guard.update(&event);if let Some(object)=event.as_object_mut(){object.insert("event".into(),json!("progress"));object.insert("ratio".into(),json!((value*1000.0).round()/1000.0));}emit(event,&job);drop(guard);});
+ let result=compile(options,|mut event|{if let Some(object)=event.as_object_mut(){object.insert("event".into(),json!("progress"));}emit(event,&job)});
  match result{
   Ok(result)=>{let pointer=pointer(&result,&options.cache);emit(json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":started.elapsed().as_secs_f64()*1000.0}),id);Ok(pointer)}
   Err(error)=>{let mut event=error_value(&error);event["event"]=json!(if error.code=="CANCELLED"{"cancelled"}else{"error"});event["ms"]=json!(started.elapsed().as_secs_f64()*1000.0);emit(event,id);Err(error)}
  }
 }
 
-fn number(value:Option<&Value>,default:usize)->Result<usize,String>{match value{None|Some(Value::Null)=>Ok(default),Some(v)=>v.as_u64().filter(|n|*n>0).map(|n|n as usize).ok_or_else(||format!("{v} must be a positive integer"))}}
+fn number(value:Option<&Value>,default:usize)->Result<usize,String>{match value{None|Some(Value::Null)=>Ok(default),Some(v)=>v.as_u64().filter(|n|*n>0).map(|n|n as usize).ok_or_else(||format!("{v} is not a positive integer"))}}
 fn text<'a>(value:Option<&'a Value>,default:&'a str)->&'a str{value.and_then(Value::as_str).unwrap_or(default)}
 /// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangles":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..}]}`.
 /// Per-job RAM defaults to the batch budget divided by the number of workers.
@@ -79,8 +59,8 @@ fn parse_batch(spec:&Value,cancellation:&Cancellation)->Result<(usize,Vec<(Strin
   if source.is_empty()||cache.is_empty()||resource_base.is_empty(){return Err(format!("job {id}: source, cache and resourceBaseUrl are required"));}
   // One cache holds one pointer per scope and prunes itself after each job: two concurrent jobs in it would destroy each other's output.
   if !caches.insert(std::fs::canonicalize(cache).unwrap_or_else(|_|std::path::PathBuf::from(cache))){return Err(format!("job {id}: cache {cache} is already used by another job of this batch"));}
-  let args=vec![source.to_string(),cache.to_string(),text(job.get("scope"),"full").to_string(),number(job.get("triangles"),150000)?.to_string(),number(job.get("threads"),default_threads)?.to_string(),number(job.get("ramBudgetMb"),default_ram)?.to_string(),resource_base.to_string(),text(job.get("simplification"),"none").to_string()];
-  let options=parse_compiler_args(&args,cancellation.flag(&id)).map_err(|e|format!("job {id}: {e}"))?;
+  let field=|name:&str,default:usize|number(job.get(name),default).map_err(|e|format!("job {id}: {name} {e}"));
+  let options=Options{source:PathBuf::from(source),cache:PathBuf::from(cache),resource_base:resource_base.to_string(),scope:text(job.get("scope"),"full").to_string(),triangle_budget:field("triangles",150000)?,threads:field("threads",default_threads)?,ram_budget_mb:field("ramBudgetMb",default_ram)?,simplification:text(job.get("simplification"),"none").to_string(),cancelled:cancellation.flag(&id)};
   parsed.push((id,options));
  }
  Ok((workers,parsed))
