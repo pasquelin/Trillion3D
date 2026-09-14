@@ -1267,3 +1267,89 @@ d'environnement connu, identique avant ce lot.
 
 `render-tech-lab/` non modifié et lu en lecture seule ; port 5174 non touché ; aucun `eslint-disable`
 ajouté ; `node_modules` (lien symbolique) non committé.
+
+## Lot 3a, résidence incrémentale (15 sept. 2026)
+
+Worktree `lot3-residence`, branche `lot3-residence` sur `develop` (6824e4e). Trois commits :
+`c3cdae5` (ensembles incrémentaux), `5597814` (différence appliquée une seule fois, budget de pages
+conservé à l'identique), `0c44aa3` (tests). Rien n'est fusionné.
+
+### Ce qui change
+
+La relecture de la coupe GPU est désormais lue comme une **différence** : les pages entrées et
+sorties depuis l'image précédente. Les ensembles que l'image décidait en les reconstruisant page par
+page — demandé, gardé, en file, épinglé — vivent d'une image à l'autre dans des tableaux typés
+denses, dimensionnés une fois, et ne bougent que des pages qui ont bougé. Une image qui n'adopte
+aucune relecture, ou qui adopte la coupe qu'elle tient déjà, ne touche aucun ensemble.
+
+Quatre modules neufs : `webgpuDenseKeys` (appartenance dense, ajout/retrait en O(1), rien d'alloué
+après construction), `webgpuCutDelta` (la coupe opaque comme différence), `webgpuKeyUnion` (union à
+compteurs, plus les sources que l'image relit en entier), `webgpuResidencySets` (les ensembles de
+résidence et le budget de pages). `webgpuBudgetedResidency` disparaît, absorbé par le dernier.
+Les têtes opaques de `shown` et `desired` sont conservées d'une image à l'autre ; seule la queue
+transparente, que la coupe GPU ne sélectionne jamais, est réécrite.
+
+### Mesure
+
+`node scripts/mesure/banc.mjs --moteur webgpu --avant develop --apres HEAD --vues generale,sol,rue
+--images 60 --pixelError 0,1 --max-pages 100000`. Verrou `mesure.lock` pris puis libéré.
+Charge machine : 4,97 / 7,44 / 6,63 au début, 12,50 / 8,88 / 7,23 à la fin — machine **chargée**,
+les proportions valent mieux que les valeurs absolues.
+
+| vue | seuil | cpuFrameMs p50 avant → après | p95 avant → après | hash | écart px | A/A |
+|---|---|---|---|---|---|---|
+| générale | 0 | 27,1 → **21,6** | 28,5 → 22,5 | identique | 0 | 0 |
+| sol | 0 | 7,9 → **6,2** | 8,5 → 6,5 | identique | 0 | 0 |
+| rue | 0 | 9,1 → **6,1** | 9,8 → 7,0 | identique | 0 | 0 |
+| générale | 1 | 6,6 → **4,3** | 7,9 → 4,7 | identique | 0 | 0 |
+| sol | 1 | 4,1 → **2,9** | 4,4 → 3,2 | identique | 0 | 0 |
+| rue | 1 | 4,1 → **2,9** | 4,5 → 3,2 | identique | 0 | 0 |
+
+`uncoveredTriangles` 0 des deux côtés partout ; `selectedTriangles` et `residentPages` identiques
+série par série ; aucune erreur de page consignée.
+
+Étapes internes `cpu-timing` (vue générale, pixelError 0, script de profil du scratchpad, jamais
+committé ; le harnais du banc ne rend pas ces étapes) :
+
+| étape | p50 avant → après | p95 avant → après |
+|---|---|---|
+| Adopter la coupe GPU | 1,6 → **0,8** | 2,4 → 1,0 |
+| Sélection CPU des transparents | 8,3 → 8,1 | 9,2 → 8,8 |
+| **Admission** | 5,2 → **1,4** | 5,8 → 1,6 |
+| **File de résidence** | 4,3 → **2,5** | 5,1 → 3,2 |
+| Projection des boîtes | 3,1 → 3,1 | 3,3 → 3,3 |
+| Encodage et soumission | 7,8 → 7,8 | 8,2 → 8,3 |
+| total moteur | 27,6 → **21,2** | 29,9 → 23,2 |
+
+Nouvelle métrique, publiée par le diagnostic `cpu-timing` des deux chemins de rendu :
+`residencyPagesEntered` / `residencyPagesExited` — les pages que la résidence a dû traiter dans
+l'image. Sur les vues du banc, caméra immobile : **0 et 0**, médiane comme p95. `null` sur la coupe
+CPU, qui ne possède aucune différence à donner.
+
+### Le budget de pages, tel qu'il est
+
+La file de résidence ne descend pas plus bas parce que le budget de pages de `develop` **pèse des
+placements, pas des pages** : sur Emerald en vue générale à pixelError 0, la coupe demande ~78 000
+placements pour ~37 400 places, donc chaque image range la coupe du plus grossier au plus fin et la
+coupe à la taille du budget. Cette sémantique décide l'ensemble résident, donc l'image : la
+reproduire à l'identique était la condition du zéro écart. Elle est reproduite littéralement —
+mêmes placements, même ordre de publication de la relecture, même tri stable — et c'est elle qui
+reste, seule, dans les 2,5 ms. Un premier essai qui comptait des clés au lieu des placements
+donnait une résidence plus riche, une coupe plus fine de 14 661 pages au lieu de 47 890 et
+48 735 pixels d'écart : régression corrigée avant de continuer, pas contournée.
+
+Une tentative de sauter la reconstruction du budget quand la relecture republie la même coupe a été
+**retirée** : elle faisait basculer le système vers l'autre point fixe (résidence plus riche, coupe
+plus fine) et rendait l'image non déterministe (témoin A/A à 752 pixels). Piste à reprendre avec un
+tri par comptage sur le niveau, à sémantique strictement égale.
+
+### Portes
+
+`build`, `tsc --noEmit`, `eslint`, `format:check`, `check:lines`, `check:duplicates` (0 clone),
+`check:unused` (knip, 0), `check:structure`, `check:dts` : **vertes**. `npm test` : **421 tests,
+0 échec**, du premier coup, dont 12 ajoutés (`webgpuCutDelta.test.ts`, `webgpuResidencySets.test.ts`).
+`check:links` : rouge sur les cinq mêmes liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`
+qu'avant ce lot — rouge d'environnement connu, dossier ignoré par git.
+
+`render-tech-lab/` non modifié ; port 5174 non touché ; aucun `eslint-disable` ; `node_modules`
+(lien symbolique) non committé ; scripts de mesure et de profil dans le scratchpad, jamais committés.
