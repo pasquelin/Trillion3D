@@ -57,23 +57,19 @@ export function createWebgpuResidentEnsurer({
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
         key = tracking.keyOf(rec);
-      if (tracking.wantedStamp[key] !== tracking.wantedEpoch) continue;
+      if (!tracking.wanted.has(key)) continue;
       signal?.throwIfAborted();
       if (isLost()) throw new Error('WEBGPU_LOST');
       if (!hasBytes(rec) || cache.get(rec.url)) continue;
       try {
         await cache.load(rec.url, signal);
       } catch (error) {
-        if (
-          tracking.wantedStamp[key] !== tracking.wantedEpoch &&
-          String(error).includes('ALL_PAGES_PINNED')
-        )
-          continue;
+        if (!tracking.wanted.has(key) && String(error).includes('ALL_PAGES_PINNED')) continue;
         throw error;
       }
       cache = getCache();
       if (isLost() || !cache) throw new Error('WEBGPU_LOST');
-      if (tracking.wantedStamp[key] === tracking.wantedEpoch || bootstrapKey[key]) {
+      if (tracking.wanted.has(key) || bootstrapKey[key]) {
         cache.pin(rec.url);
         tracking.markPinned(key);
       }
