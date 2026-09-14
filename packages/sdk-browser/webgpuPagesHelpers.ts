@@ -100,3 +100,7 @@ export function partitionByPass(source: readonly PageRec[], transparent: boolean
     if (!!source[i].transparent === transparent) into.push(source[i]);
   return into;
 }
+/** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
+export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
+  for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);
+}
