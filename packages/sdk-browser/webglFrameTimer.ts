@@ -7,6 +7,9 @@
  * La lecture ne bloque jamais : une requête est relue quelques images plus tard, et une requête
  * marquée « disjointe » par le pilote est jetée au lieu d'être publiée.
  */
+/** Requêtes relues plus tard : au-delà, l'appareil ne suit pas et on cesse d'en ouvrir. */
+const MAX_PENDING = 4;
+
 type TimerExtension = {
   TIME_ELAPSED_EXT: number;
   GPU_DISJOINT_EXT: number;
@@ -30,7 +33,7 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
     reason: null as string | null,
     /** Ouvre l'intervalle ; une seule requête à la fois, la spécification n'en autorise pas deux. */
     begin() {
-      if (open || pending.length > 4) return;
+      if (open || pending.length > MAX_PENDING) return;
       const query = gl.createQuery();
       if (!query) return;
       open = query;

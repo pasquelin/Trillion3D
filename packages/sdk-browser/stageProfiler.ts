@@ -25,9 +25,6 @@ function createRing(capacity: number) {
       cursor = 0;
       filled = 0;
     },
-    get count() {
-      return filled;
-    },
   };
 }
 type Ring = ReturnType<typeof createRing>;

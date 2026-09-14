@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { addCpuSteps } from './stageMapping.ts';
 import { CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -8,13 +9,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights } = rt,
     stages = timing.stages;
   if (!stages) return;
-  const row = timing.cpuProfile.row;
-  stages.frameCpu((add) => {
-    for (let i = 0; i < CPU_STEP_STAGES.length; i++) {
-      const stage = CPU_STEP_STAGES[i];
-      if (stage) add(stage, row[i]);
-    }
-  });
+  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
   // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées.
   stages.setCounts('shadows', {
     lampesAOmbre: lights.shadowsUpdated,
