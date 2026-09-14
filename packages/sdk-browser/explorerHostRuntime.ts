@@ -1,41 +1,21 @@
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { RenderBackend } from './backendTypes.ts';
 import { createExplorerCapture } from './explorerCapture.ts';
 import { createExplorerHostState } from './explorerHostState.ts';
 import { createExplorerHostFrame } from './explorerHostFrame.ts';
 import { createExplorerLifecycle } from './explorerLifecycle.ts';
 import type { ExplorerResources, prepareExplorer } from './explorerPrepare.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 type Inputs = {
-  canvas: HTMLCanvasElement;
-  options: ExplorerOptions;
-  metadata: ClusterManifest;
   prepared: Prepared;
   resources: ExplorerResources;
   backends: RenderBackend[];
-  scope: AssetScope;
-  signal?: AbortSignal;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
-export function createExplorerHostRuntime(inputs: Inputs) {
-  const {
-    canvas,
-    options,
-    metadata,
-    prepared,
-    resources,
-    backends,
-    scope,
-    signal,
-    diagnosticChannel,
-    emit,
-    diagnose,
-  } = inputs;
+export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inputs) {
+  const { canvas, options, metadata, scope, signal, diagnose } = session;
+  const { prepared, resources, backends } = inputs;
   const {
     source,
     pageSources,
@@ -62,18 +42,11 @@ export function createExplorerHostRuntime(inputs: Inputs) {
     check,
     setPose,
   } = host;
-  const { render, profiler, streaming } = createExplorerHostFrame({
-    options,
-    metadata,
+  const { render, profiler, streaming } = createExplorerHostFrame(session, {
     prepared,
     resources,
     host,
     backends,
-    scope,
-    signal,
-    diagnosticChannel,
-    emit,
-    diagnose,
   });
   const capture = createExplorerCapture({
     canvas,
@@ -81,35 +54,16 @@ export function createExplorerHostRuntime(inputs: Inputs) {
     renderer: renderer!,
     options,
     directGpu,
-    state: () => ({ active: state.active }),
+    state,
     check,
     diagnose,
   });
-  const { dispose, flush, awaitPages } = createExplorerLifecycle({
+  const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     check,
-    state: () => ({
-      disposed: state.disposed,
-      active: state.active,
-      left: state.pairTargetA,
-      right: state.pairTargetB,
-      gpuDevice,
-    }),
-    setDisposed: () => {
-      state.disposed = true;
-    },
-    setPageStats: (loaded, bytesRead) => {
-      state.loaded = loaded;
-      state.pageBytesRead = bytesRead;
-    },
-    scope,
-    diagnose,
-    diagnosticChannel,
+    state,
+    gpuDevice,
     profiler,
     hostedControls,
-    disposeTargets: () => {
-      state.measurementTarget?.dispose();
-      state.measurementTarget = undefined;
-    },
     compositor,
     streamer,
     streaming,
@@ -147,19 +101,7 @@ export function createExplorerHostRuntime(inputs: Inputs) {
     beautyMaterials,
     overlays,
     profiler,
-    state: () => ({
-      active: state.active,
-      fallbackReason: state.fallbackReason,
-      diagnostic: state.diagnostic,
-      comparisonLayout: state.comparisonLayout,
-      comparisonPair: state.comparisonPair,
-      wipe: state.wipe,
-      toggle: state.toggle,
-      disposed: state.disposed,
-      measurementTarget: state.measurementTarget,
-      pairTargetA: state.pairTargetA,
-      pairTargetB: state.pairTargetB,
-    }),
+    state,
     setActive: (backend: RenderBackend) => {
       state.active = backend;
     },
@@ -185,3 +127,6 @@ export function createExplorerHostRuntime(inputs: Inputs) {
     },
   };
 }
+
+/** What the host runtime hands the public API: one alias types both ends. */
+export type ExplorerRuntimeSurface = ReturnType<typeof createExplorerHostRuntime>;

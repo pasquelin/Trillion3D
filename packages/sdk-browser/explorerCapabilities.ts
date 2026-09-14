@@ -10,47 +10,24 @@ import {
   DEFAULT_WIDTH,
   WEBGPU_REQUIRED_LIMITS,
 } from './backendCommon.ts';
-import type { ExplorerOptions } from './backendTypes.ts';
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
-  canvas: HTMLCanvasElement;
-  options: ExplorerOptions;
-  scope: AssetScope;
   autonomous: boolean;
-  metadata: ClusterManifest;
   manifestUrl: string;
   metadataUrl: string;
   sceneFile: string;
   base: string;
   source: THREE.Object3D;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
   resources: { renderer?: THREE.WebGLRenderer; gpuDevice?: GPUDevice };
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
-export async function configureExplorer(inputs: Inputs) {
-  const {
-    canvas,
-    options,
-    scope,
-    autonomous,
-    metadata,
-    manifestUrl,
-    metadataUrl,
-    sceneFile,
-    base,
-    source,
-    pageSources,
-    diagnosticChannel,
-    resources,
-    emit,
-    diagnose,
-  } = inputs;
+export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
+  const { canvas, options, scope, metadata, diagnosticChannel, emit, diagnose } = session;
+  const { autonomous, manifestUrl, metadataUrl, sceneFile, base, source, pageSources, resources } =
+    inputs;
   const { pages, geometryPages, attachCap, cacheCap } = pageSources;
   let gpuDevice: GPUDevice | undefined;
   let renderer: THREE.WebGLRenderer | undefined;

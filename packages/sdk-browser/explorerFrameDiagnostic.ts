@@ -3,8 +3,9 @@ import type { AssetScope, FrameMetrics } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { ExplorerEmitters } from './explorerSession.ts';
 
-type Inputs = {
+type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
   active: RenderBackend;
   camera: THREE.PerspectiveCamera;
@@ -15,7 +16,6 @@ type Inputs = {
   measuring: boolean;
   scope: AssetScope;
   frameNumber: number;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
 export function emitExplorerFrameDiagnostic(inputs: Inputs) {

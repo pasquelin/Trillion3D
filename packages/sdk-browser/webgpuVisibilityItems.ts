@@ -1,36 +1,25 @@
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { DRAW_ITEM_U32 } from './gpuDraw.ts';
-import type { PageRec } from './pageSelection.ts';
-import type { createWebgpuRowState } from './webgpuRowState.ts';
-type Rows = ReturnType<typeof createWebgpuRowState>;
-type ItemOptions = {
-  rows: Rows;
-  hizRest: Uint8Array;
-  twoPass: boolean;
-  itemsDirty: boolean;
-  drawItemWords: Uint32Array;
-  binInstances: Uint32Array;
-  drawRestBits: Uint32Array;
-  hizTestedBounds: Float64Array;
-  hizBounds: Float64Array;
-  hizTestedRows: Uint32Array;
-  visBin: (rec: PageRec) => 0 | 1 | 2;
-};
+import { visBin } from './webgpuPagesPipelineFor.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Builds stable indirect draw items and the tested half's compact Hi-Z bounds. */
-export function buildWebgpuVisibilityItems({
-  rows,
-  hizRest,
-  twoPass,
-  itemsDirty,
-  drawItemWords,
-  binInstances,
-  drawRestBits,
-  hizTestedBounds,
-  hizBounds,
-  hizTestedRows,
-  visBin,
-}: ItemOptions) {
+/** Builds stable indirect draw items and the tested half's compact Hi-Z bounds; the time it took
+ *  lands in `rt.timing.lastItemsMs`. */
+export function buildWebgpuVisibilityItems(
+  rt: WebgpuPagesRuntime,
+  twoPass: boolean,
+  itemsDirty: boolean,
+) {
+  const {
+    rows,
+    hizRest,
+    drawItemWords,
+    binInstances,
+    drawRestBits,
+    hizTestedBounds,
+    hizBounds,
+    hizTestedRows,
+  } = rt.layout;
   let occluderVertices = 0,
     restVertices = 0,
     testedCount = 0;
@@ -60,6 +49,6 @@ export function buildWebgpuVisibilityItems({
       hizTestedRows[testedCount++] = row;
     }
   }
-  const itemsMs = performance.now() - itemsStart;
-  return { occluderVertices, restVertices, testedCount, itemsMs };
+  rt.timing.lastItemsMs = performance.now() - itemsStart;
+  return { occluderVertices, restVertices, testedCount };
 }
