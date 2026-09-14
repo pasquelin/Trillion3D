@@ -8,8 +8,7 @@ import { packDagSelection } from './gpuDagSelection.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { dagRoots } from './webgpuPagesTestDag.ts';
-import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera, rootPage, twoPrimitives } from './webgpuPagesTestScenes.ts';
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals();
@@ -30,45 +29,12 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
     meshB = new THREE.Mesh(geoB, material),
     source = new THREE.Group();
   source.add(meshA, meshB);
-  const pagesA = dagRoots([
-    {
-      id: 0,
-      url: 'orphan',
-      count: 3,
-      min: [-1, -1, 0] as number[],
-      max: [1, 1, 0] as number[],
-      bytes: 12,
-      sha256: 'x',
-    },
-  ]);
-  const pagesB = dagRoots([
-    {
-      id: 0,
-      url: 'exact',
-      count: 3,
-      min: [8, -1, 0] as number[],
-      max: [10, 1, 0] as number[],
-      bytes: 12,
-      sha256: 'x',
-    },
-  ]);
-  const structure = { version: 1, roots: [0], groups: [] };
-  const metadata = {
-    errorModel: 'dag-group-qem-v1',
-    clusterStrategy: 'dag-groups',
-    primitives: [
-      { mesh: 0, primitive: 0, pass: 'exact-clusters', pages: pagesA, structure },
-      { mesh: 1, primitive: 0, pass: 'exact-clusters', pages: pagesB, structure },
-    ],
-  };
-  const indices = new Map([
-    ['orphan', new Uint32Array([0, 1, 2])],
-    ['exact', new Uint32Array([0, 1, 2])],
-  ]);
-  const associations = new Map([
-    [meshA, { meshes: 0, primitives: 0 }],
-    [meshB, { meshes: 1, primitives: 0 }],
-  ]);
+  const { metadata, indices, associations } = twoPrimitives(
+    meshA,
+    meshB,
+    rootPage('orphan', [-1, -1, 0], [1, 1, 0]),
+    rootPage('exact', [8, -1, 0], [10, 1, 0]),
+  );
   const collected = collectClusterPages(source, metadata, indices, associations);
   const packed = packDagSelection(collected.roots);
   const { device } = mockGpu(undefined, packed);

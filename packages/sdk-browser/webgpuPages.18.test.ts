@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
@@ -8,29 +7,11 @@ import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { camera } from './webgpuPagesTestScenes.ts';
-import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
+import { twoCoarseQuadsScene } from './webgpuPagesTestOccluder.ts';
 
 test('GPU camera jumps reclaim detail slots while preserving pinned coarse coverage', async () => {
   installGpuGlobals();
-  const a = coarseQuadScene(),
-    b = coarseQuadScene();
-  const mesh = b.source.children[0] as THREE.Mesh;
-  mesh.position.x = 100;
-  a.source.add(mesh);
-  const primitive = {
-    ...b.metadata.primitives[0],
-    mesh: 1,
-    pages: b.metadata.primitives[0].pages.map((page) => ({ ...page, url: 'b' + page.url })),
-  };
-  const fixture = {
-    ...a,
-    metadata: { primitives: [...a.metadata.primitives, primitive] },
-    indices: new Map([
-      ...a.indices,
-      ...[...b.indices].map(([url, bytes]) => ['b' + url, bytes] as const),
-    ]),
-    associations: new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]]),
-  };
+  const fixture = twoCoarseQuadsScene();
   const collected = collectClusterPages(
     fixture.source,
     fixture.metadata,
@@ -66,35 +47,17 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
     assert.ok(backend.metrics().cacheEvictions! > 0);
   } finally {
     await backend.dispose();
-    a.geometry.dispose();
-    a.material.dispose();
-    b.geometry.dispose();
-    b.material.dispose();
+    fixture.dispose();
   }
 });
 
 test('a recycled page-table row describes its new cluster and reaches the GPU before the image reads it', async () => {
   installGpuGlobals();
-  const a = coarseQuadScene(),
-    b = coarseQuadScene(),
-    { device, writes, buffers, submits } = mockGpu();
-  const mesh = b.source.children[0] as THREE.Mesh;
-  mesh.position.x = 100;
-  a.source.add(mesh);
-  const primitive = {
-    ...b.metadata.primitives[0],
-    mesh: 1,
-    pages: b.metadata.primitives[0].pages.map((page) => ({ ...page, url: 'b' + page.url })),
-  };
+  const { device, writes, buffers, submits } = mockGpu(),
+    fixture = twoCoarseQuadsScene();
   // Six clusters share four rows, so every jump between the two primitives recycles rows on eviction.
   const backend = webgpuPagesBackend({
-    ...a,
-    metadata: { primitives: [...a.metadata.primitives, primitive] },
-    indices: new Map([
-      ...a.indices,
-      ...[...b.indices].map(([url, bytes]) => ['b' + url, bytes] as const),
-    ]),
-    associations: new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]]),
+    ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
     viewport: [32, 32],
@@ -160,9 +123,6 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
     );
   } finally {
     backend.dispose();
-    a.geometry.dispose();
-    a.material.dispose();
-    b.geometry.dispose();
-    b.material.dispose();
+    fixture.dispose();
   }
 });
