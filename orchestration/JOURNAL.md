@@ -489,3 +489,50 @@
 - Détail complet, tableau, chemins des artefacts et log : voir
   `orchestration/phase-1-mesure-lots-2-4.md` dans le worktree
   `webgeometry-sans-threejs-9f889d`.
+
+## 2026-09-14 — Phase 1, lot 4 : fusion de develop, cause du plantage, harnais commun
+
+- **Fusion `develop` 7491682** (63d501a). develop a réduit `index.ts`, `pageSelection.ts`,
+  `visibilityBuffer.ts` et `webgpuPages.ts` à des barils de réexport et réparti leur contenu dans
+  des modules ≤ 200 lignes. Côté develop pris tel quel pour les quatre, apports du lot 4 reportés
+  dans les nouveaux modules : `SelectionResult<T>` et l'état de coupe réutilisé
+  (`selectionState()`) dans `pageSelectionCutState.ts`, l'écriture en place du résultat dans
+  `pageSelectionCut.ts`, `selectOptions` posé une fois et `cpuSelectMs` dans `exactPagesRender.ts`,
+  publication jusqu'à `FrameMetrics` via `exactPagesBackend/Metrics` et `explorerMetrics.ts`. Les
+  onze corrections de lint du lot 4 sont sans objet : le découpage a supprimé ce code. `npm run
+  lint` est **entièrement vert**, y compris les deux `no-unsafe-finally` autrefois tolérées.
+  Vérification fonctionnelle : la coupe d'Emerald vue générale est inchangée après fusion
+  (80 153 clusters, hash 4f03157d6ecb, identique avant fusion).
+- **Cause du `TypeError … .trim()`** du run `--avant 249438f --images 300` (9ebf03b) : **ni
+  develop, ni la résolution de fusion du lot 4 — le harnais lui-même**. 249438f n'ajoute que des
+  fichiers et deux réexports, il ne touche aucun chemin de dessin. Preuves : (a) au réglage exact
+  qui plante mais 8 images, le hash de coupe est le même avant (7223146) et après (a4fd278) la
+  fusion ; (b) le plantage se reproduit **sans `--avant`**, un seul côté, en 19 s ; (c) sonde
+  instrumentée : la seule étape qui échoue est `setDiagnostic('clusters')` puis `render()` du
+  harnais, la page répondant `Shader Error 0 - VALIDATE_STATUS false` sur un `MeshBasicMaterial`
+  puis `useProgram: program not valid`. Le mode `clusters` teinte chaque page de sa couleur, donc
+  un matériau et un programme de nuanceur **par cluster** : 80 153 sur Emerald. Après 300 images le
+  pilote refuse d'en lier un de plus, Chrome renvoie `null` pour `getProgramInfoLog` et three.js
+  appelle `.trim()` dessus. Correctif : lire la coupe en mode `pages` (deux matériaux, mêmes
+  maillages, mêmes `clusterId`) sans dessiner d'image. 300 images passent en 24 s, même hash.
+- **Harnais commun** (4bd52c8), commis dans `scripts/mesure/`, plus dans `.mesure/` :
+
+      node scripts/mesure/banc.mjs --moteur webgl|webgpu --avant <ref-git|dist> --apres <ref-git|dist> \
+           --vues generale,sol,rue --images N --pixelError 0,1 --max-pages 100000
+
+  Les deux moteurs, les drapeaux Chromium copiés de `render-tech-lab/scripts/headless/` (le Lab
+  n'est pas modifié), une liste de seuils, `mesure.json` + `resume.md` + un PNG et une coupe par
+  vue, seuil et côté. Relevés : `cpuFrameMs` et `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU),
+  `selectedTriangles`, `uncoveredTriangles`, compteurs Hi-Z, hash de l'ensemble sélectionné,
+  budget de pages, charge machine au début et à la fin, témoin A/A et écart avant/après par canal.
+  `null` quand non mesuré, jamais déduit. Tout ce qu'il lance, il l'arrête. README de 20 lignes.
+- **Essai court fait deux fois**, une vue, 6 images, ce worktree contre lui-même : WebGL — coupe
+  80 153 (clusterId, 4f03157d6ecb), témoin A/A **0 px**, écart avant/après 0 px ; WebGPU — coupe
+  47 890 (selectedPageIds, e6141303ab48), `gpuFrameMs` p50 20,17 ms, `uncoveredTriangles` 0,
+  témoin A/A **0 px**. C'est la seule preuve produite ici.
+- **Compteurs Hi-Z : `null`.** Le moteur ne les publie pas dans ses métriques ; le harnais les lira
+  dès qu'ils y seront, il ne les invente pas.
+- **Aucun chiffre de durée de cette session n'est exploitable** : charge machine relevée entre 3,8
+  et 6,3 pendant les essais, et 6 images ne mesurent rien. Reste à faire : la comparaison
+  avant/après elle-même, machine calme, et les tests (un autre agent s'en charge).
+
