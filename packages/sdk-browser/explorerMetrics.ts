@@ -17,6 +17,7 @@ export function createExplorerMetrics(
     rafIntervalMs: null,
     cpuFrameMs: 0,
     cpuSelectMs: null,
+    cpuSelectNodesTested: null,
     cpuSubmitMs: null,
     gpuMs: null,
     drawCalls: 0,
@@ -86,6 +87,7 @@ export function createExplorerMetrics(
     metricsScratch.cacheHits = stream.hits;
     metricsScratch.cacheMisses = stream.misses;
     metricsScratch.cpuSelectMs = backendMetrics.cpuSelectMs ?? null;
+    metricsScratch.cpuSelectNodesTested = backendMetrics.cpuSelectNodesTested ?? null;
     metricsScratch.cpuSubmitMs = backendMetrics.cpuSubmitMs ?? null;
     metricsScratch.gpuMs = backendMetrics.gpuMs ?? null;
     metricsScratch.gpuPassMs = backendMetrics.gpuPassMs ?? null;

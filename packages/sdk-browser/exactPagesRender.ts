@@ -22,6 +22,8 @@ export type ExactPagesRenderState = {
   /** Temps de la coupe de clusters seule, entre l'appel de sélection et son retour : ni le seuil
    *  adaptatif, ni la résidence, ni les rangs, ni la soumission. */
   cpuSelectMs: number;
+  /** Nœuds de hiérarchie que la coupe a dépilés pour cette image. */
+  cpuSelectNodesTested: number;
 };
 
 export function createExactPagesRender(
@@ -54,6 +56,7 @@ export function createExactPagesRender(
       selectedTriangles: 0,
       displayedTriangles: 0,
       frustumRejected: 0,
+      nodesTested: 0,
       lodLevel: 0,
       complete: true,
       pixelError: 0,
@@ -86,6 +89,7 @@ export function createExactPagesRender(
     state.visible = selected.visible;
     state.selectedTriangles = selected.selectedTriangles;
     state.frustumRejected = selected.frustumRejected;
+    state.cpuSelectNodesTested = selected.nodesTested;
     state.lodLevel = selected.lodLevel;
     const syncStart = performance.now();
     syncResident();
