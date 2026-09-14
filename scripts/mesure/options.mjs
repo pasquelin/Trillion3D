@@ -1,12 +1,28 @@
-// Trajectoire du banc, résolution des dists et statistiques, pour `lot4.mjs`.
+// Options, vues du banc et résolution des dists, pour `banc.mjs`.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 export const LAB = '/Users/pasquelin/Applications/render-tech-lab';
 export const ASSETS = join(LAB, 'public/benchmark-assets');
 export const SCENE = 'emerald-square';
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
+// Drapeaux copiés littéralement de `render-tech-lab/scripts/headless/lib.mjs` (BASE_FLAGS) et de
+// `shots.mjs` (`--enable-unsafe-webgpu`). Le Lab n'est pas modifié ; ces lignes en sont la copie.
+export const BASE_FLAGS = [
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding',
+  '--disable-background-timer-throttling',
+  '--enable-gpu-benchmarking',
+];
+export const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
+
+export const ENGINES = {
+  webgl: { backend: 'exactPagesBackend', id: 'exact-cluster-pages', flags: BASE_FLAGS },
+  webgpu: { backend: 'webgpuPagesBackend', id: 'webgpu-page-raster', flags: WEBGPU_FLAGS },
+};
 
 // Copie littérale de `urbanPath` / `streetLevel` de `render-tech-lab/src/lab/modelCampaign.ts`
 // (pathVersion 5). Le Lab n'est pas importable ici : son module est en TypeScript et tire tout le
@@ -30,10 +46,12 @@ const POINTS = [
 const FRAMES_PER_SEGMENT = 60;
 export { PATH_VERSION };
 
-/** Les trois vues du banc que ce lot mesure, par indice dans la trajectoire. */
+/** Les vues du banc que ce harnais sait jouer, par indice dans la trajectoire. */
 export const VIEWS = {
   generale: { index: 0, segment: 'Vue générale du modèle' },
   sol: { index: 2 * FRAMES_PER_SEGMENT, segment: 'Déplacement au niveau de référence' },
+  // Même segment que `sol`, au point le plus bas de la trajectoire : caméra dans la rue.
+  rue: { index: 2 * FRAMES_PER_SEGMENT + 30, segment: 'Déplacement au niveau de référence' },
   detail: { index: 4 * FRAMES_PER_SEGMENT, segment: 'Gros plan sur une géométrie détaillée' },
 };
 
@@ -87,18 +105,19 @@ export function poseAt(bounds, index) {
 
 const buildDist = (dir) => execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'inherit' });
 
-/** Les deux côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
-export function resolveSides({ apres, avant, root, out }) {
+/** Les côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
+export function resolveSides({ apres, avant, root }) {
   const target = apres ?? join(root, 'dist');
   if (target === join(root, 'dist') && !existsSync(join(target, 'sdk-browser/index.js')))
     buildDist(root);
-  const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root, out) }];
-  if (avant) sides.push({ name: 'avant', ...resolveDist(avant, 'avant', root, out) });
+  const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root) }];
+  if (avant) sides.push({ name: 'avant', ...resolveDist(avant, 'avant', root) });
   return sides;
 }
 
-/** Résout un côté : un dossier `dist` existant, ou une référence git extraite puis construite. */
-function resolveDist(value, label, root, out) {
+/** Résout un côté : un dossier `dist` existant, ou une référence git extraite puis construite.
+ *  L'arbre extrait va hors du dépôt : un second `tsconfig.json` sous la racine casserait le lint. */
+function resolveDist(value, label, root) {
   if (existsSync(join(value, 'sdk-browser/index.js')))
     return { dist: resolve(value), from: 'dossier' };
   if (existsSync(join(value, 'dist/sdk-browser/index.js')))
@@ -106,7 +125,9 @@ function resolveDist(value, label, root, out) {
   const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
     encoding: 'utf8',
   }).trim();
-  const dir = join(out, `arbre-${label}-${ref.slice(0, 12)}`);
+  const dir = join(tmpdir(), 'web-geometry-mesure', `${label}-${ref.slice(0, 12)}`);
+  if (existsSync(join(dir, 'dist/sdk-browser/index.js')))
+    return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (réutilisé)` };
   mkdirSync(dir, { recursive: true });
   execFileSync('/bin/sh', ['-c', `git -C '${root}' archive ${ref} | tar -x -C '${dir}'`]);
   execFileSync('ln', ['-sfn', join(root, 'node_modules'), join(dir, 'node_modules')]);
@@ -128,7 +149,7 @@ function parseArgs(argv) {
   return flags;
 }
 
-/** Les options du harnais, validées : ses drapeaux, ses réglages de mesure, son dossier de sortie. */
+/** Les options du harnais, validées : moteur, vues, seuils d'erreur, réglages, dossier de sortie. */
 export function readOptions(argv, root) {
   const flags = parseArgs(argv);
   const number = (name, fallback) => {
@@ -136,34 +157,31 @@ export function readOptions(argv, root) {
     if (!Number.isFinite(value)) throw new Error(`--${name} doit être un nombre`);
     return value;
   };
+  const engine = flags.get('moteur') ?? 'webgl';
+  if (!ENGINES[engine]) throw new Error(`--moteur doit valoir ${Object.keys(ENGINES).join(' ou ')}`);
+  const views = (flags.get('vues') ?? 'generale,sol,rue').split(',').filter(Boolean);
+  for (const view of views) if (!VIEWS[view]) throw new Error(`vue inconnue : ${view}`);
+  const pixelErrors = String(flags.get('pixelError') ?? '0')
+    .split(',')
+    .filter(Boolean)
+    .map((value) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--pixelError invalide : ${value}`);
+      return parsed;
+    });
   const settings = {
-    frames: number('images', 300),
+    engine,
+    frames: number('images', 60),
     warmup: number('chauffe', 8),
-    pixelError: number('pixel-error', 0),
+    pixelErrors,
     maxPages: number('max-pages', 100000),
     width: number('largeur', 1280),
     height: number('hauteur', 720),
     port: number('port', 0),
   };
-  if (settings.port === 5174)
-    throw new Error("le port 5174 appartient au serveur de l'utilisateur");
+  if (settings.port === 5174) throw new Error("le port 5174 appartient au serveur de l'utilisateur");
   if (settings.frames < 1) throw new Error('--images doit être un entier positif');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const out = resolve(flags.get('out') ?? join(root, '.mesure/out', stamp));
-  return { flags, settings, OUT: out };
-}
-
-const quantile = (s, p) => s[Math.min(s.length - 1, Math.ceil(s.length * p) - 1)];
-/** p50/p95/p99 d'une série, ou null si elle est vide. */
-export function distribution(values) {
-  const s = values.filter((v) => Number.isFinite(v) && v >= 0).sort((a, b) => a - b);
-  if (!s.length) return null;
-  return {
-    n: s.length,
-    p50: quantile(s, 0.5),
-    p95: quantile(s, 0.95),
-    p99: quantile(s, 0.99),
-    min: s[0],
-    max: s.at(-1),
-  };
+  const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
+  return { flags, settings, views, out };
 }
