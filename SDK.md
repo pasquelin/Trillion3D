@@ -17,7 +17,7 @@ The compiler rejects selected accessors that cross their `bufferView`, invalid s
 | Import | Symbols |
 |---|---|
 | `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `assertCachePointer`, `assertCacheReady`, `assertCacheIdentity`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
-| `@web-geometry/sdk/node` | `prepare`, `createCompilationJob`, `getSdkProvenance`, CLI |
+| `@web-geometry/sdk/node` | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `getSdkProvenance`, CLI |
 | `@web-geometry/sdk/browser` | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
 
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
