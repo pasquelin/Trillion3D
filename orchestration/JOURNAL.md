@@ -885,3 +885,47 @@ pour `generale`. Les deux vues sont couvertes aux deux seuils `pixelError` (0 et
 (p95, seuil 1, chemins `mesure.json`/`resume.md`) dans `orchestration/phase-1-mesure-lot-4.md` du
 worktree `webgeometry-sans-threejs-9f889d`. `render-tech-lab/` non modifié ; port 5174 non touché ;
 réglages système non touchés.
+
+## 2026-09-14 20:42 — Phase 1, lot 4, verdict
+
+Clôture du lot 4 (sélection de clusters côté CPU, moteur WebGL2). `git rev-parse --short develop` =
+`04fa5f0` : develop n'a pas bougé depuis la fusion `05162df`, **aucune fusion à faire**, aucun
+conflit, aucun code touché par cette entrée. Aucun test lancé (interdit par la consigne).
+
+| mesure | vue | valeur | cible | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50 | generale | 10,9 ms | < 2 ms | **non atteinte** |
+| cpuSelectMs p50 | sol | 1,5 ms | < 2 ms | atteinte |
+| cpuSelectMs p50 | rue | 1,6 ms | < 2 ms | atteinte |
+| hash de coupe avant vs après | les trois | identiques | identiques | OK |
+| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px | OK |
+| témoin A/A | les trois | 0 | 0 | OK |
+| allocations par image | les trois | aucune | aucune | OK |
+
+**Cause du dépassement sur `generale`** : la sélection parcourt à plat les 80 153 clusters de la
+scène, à ~130 ns par cluster, soit les ~10,9 ms mesurés. Les vues `sol` et `rue` passent parce que
+leur tronc de vision élimine l'essentiel des clusters avant le coût par cluster, pas parce que le
+parcours est moins cher. Le correctif n'est pas un réglage : il faut supprimer le parcours à plat.
+
+**Plan lot 4b** : coupe hiérarchique sur l'arbre de clusters — descente depuis la racine, rejet ou
+acceptation d'un sous-arbre entier en un test de nœud, budget visé **≤ 15 000 tests de nœud** par
+image sur `generale` (contre 80 153 tests de cluster aujourd'hui), ce qui ramène la vue générale
+sous les 2 ms au même coût unitaire.
+
+**Harnais commun livré** : `scripts/mesure/` (`banc.mjs`, `options.mjs`, `page.mjs`, `serie.mjs`,
+`serveur.mjs`, `rapport.mjs`, `README.md`), commun aux lots et réutilisable tel quel par le lot 4b.
+
+**Défaut connu du harnais** : au-delà d'une vue à 300 images dans un même processus, la création du
+second contexte WebGL2 échoue (`WebGL2 unavailable`). Non corrigé. Contournement retenu et appliqué
+pour toutes les mesures ci-dessus : **une commande par vue**, un processus Node neuf à chaque fois.
+
+`render-tech-lab/` non modifié ; port 5174 non touché ; réglages système non touchés ; aucun
+`eslint-disable` ; `node_modules` (lien symbolique) non committé.
+
+### Portes
+
+`build`, `lint` (eslint + clippy), `format:check`, `check:lines`, `check:dts`, `check:structure`,
+`check:duplicates` (0 clone), `check:unused` (knip, 0) : **vertes**. `check:links` : rouge sur deux
+liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git qui n'existe
+que dans le dépôt principal — rouge d'environnement connu, identique avant cette entrée, aucun lien
+du journal en cause.
