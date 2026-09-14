@@ -1,5 +1,4 @@
-import type { HizCounts } from './hiz.ts';
-import type { HizCountSample } from './gpuHizCounters.ts';
+import type { HizCountSample, HizCountsFrame } from './gpuHizCounters.ts';
 
 export type GpuHiz = {
   width: number;
@@ -32,7 +31,7 @@ export type GpuHiz = {
    * Counts of the last image whose verdicts came back, and the number of that image. Undefined until
    * one has: nothing here is deduced, and a device that cannot map a buffer never reports counts.
    */
-  counts(): (HizCounts & { frame: number }) | undefined;
+  counts(): HizCountsFrame | undefined;
   resize(device: GPUDevice, width: number, height: number): boolean;
   dispose(): void;
 };
