@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import { faceCountOf, writeFaceMatrix, type ShadowViewpoint } from '../sdk-core/index.ts';
+import {
+  RECTS_PER_SLICE,
+  faceCountOf,
+  writeFaceMatrix,
+  type ShadowViewpoint,
+} from '../sdk-core/index.ts';
 import { BASE_SLOTS } from './gpuDraw.ts';
 import { MAX_FACES_PER_FRAME, SHADOW_PASS } from './gpuShadowAtlas.ts';
 import { visGroupFor } from './webgpuVisibilityDrawer.ts';
@@ -47,8 +52,8 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
     if (!light) continue;
     const count = faceCountOf(light);
     for (let face = 0; face < count && faces < MAX_FACES_PER_FRAME; face++) {
-      const rect = shadows.faceRect(plan, slice, face),
-        base = faces * 16;
+      const base = faces * 16,
+        rect = slice * RECTS_PER_SLICE + face * 3;
       const planes = writeFaceMatrix(faceMatrices, base, light, face);
       if (!face)
         shadows.writeSliceInfo(
@@ -58,12 +63,10 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
           plan.slices.side[slice],
           planes.near,
         );
-      const matrix = faceMatrices.subarray(base, base + 16);
-      shadows.writeFace(faces, matrix, rect);
-      shadows.writeSlice(slice, face, matrix, rect);
-      faceRects[faces * 3] = rect[0];
-      faceRects[faces * 3 + 1] = rect[1];
-      faceRects[faces * 3 + 2] = rect[2];
+      shadows.writeFace(faces, slice, face, faceMatrices, base, plan.slices.rects);
+      faceRects[faces * 3] = plan.slices.rects[rect];
+      faceRects[faces * 3 + 1] = plan.slices.rects[rect + 1];
+      faceRects[faces * 3 + 2] = plan.slices.rects[rect + 2];
       faces++;
     }
   }
