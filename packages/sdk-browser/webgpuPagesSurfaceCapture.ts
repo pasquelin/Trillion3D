@@ -156,18 +156,20 @@ export async function captureSurfaceView(
     diag.diagnosticFailure('surface-capture-failed', error);
     captureError = { error };
   }
+  let restoreError: { error: unknown } | undefined;
   try {
     await restoreMainView(rt, gpuDevice, saved);
   } catch (error) {
     result?.dispose();
     diag.diagnosticFailure('surface-restore-failed', error);
-    if (captureError)
-      throw new AggregateError(
-        [captureError.error, error],
-        'Surface capture and main view restoration failed',
-      );
-    throw error;
+    restoreError = { error };
   }
+  if (restoreError && captureError)
+    throw new AggregateError(
+      [captureError.error, restoreError.error],
+      'Surface capture and main view restoration failed',
+    );
+  if (restoreError) throw restoreError.error;
   if (captureError) throw captureError.error;
   return result!;
 }
