@@ -58,6 +58,10 @@ export interface FrameMetrics {
   */
  hizTestedClusters?:number|null; hizRejectedClusters?:number|null; hizOversizedClusters?:number|null;
  hizTestedTriangles?:number|null; hizRejectedTriangles?:number|null; hizOversizedTriangles?:number|null;
+ /** The image the six counters above describe. It is the current image where the oracle counts on the
+  *  CPU, and an earlier one on the GPU path, whose verdicts are read back; without it a reader cannot
+  *  tell a count of this image from a count the last tested image left behind. Null when none. */
+ hizCountedFrame?:number|null;
  /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
  gpuPassMs?:GpuPassTimings|null;
  /** Enclosing GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
