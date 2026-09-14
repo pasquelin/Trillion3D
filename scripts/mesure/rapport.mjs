@@ -1,56 +1,27 @@
 // Statistiques, écarts d'images, charge machine et `resume.md`, pour `banc.mjs`.
-import { execFileSync } from 'node:child_process';
-
-const quantile = (s, p) => s[Math.min(s.length - 1, Math.ceil(s.length * p) - 1)];
+// Les calculs sont ceux du SDK : mêmes quantiles, même comparaison d'images que le Lab.
+import { loadavg } from 'node:os';
+import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
 
 /** p50/p95/p99 d'une série, ou `null` si elle est vide : rien n'est déduit d'une série absente. */
-export function distribution(values) {
-  const s = (values ?? []).filter((v) => Number.isFinite(v) && v >= 0).sort((a, b) => a - b);
-  if (!s.length) return null;
-  return {
-    n: s.length,
-    p50: quantile(s, 0.5),
-    p95: quantile(s, 0.95),
-    p99: quantile(s, 0.99),
-    min: s[0],
-    max: s.at(-1),
-  };
-}
+export const distribution = (values) => summarize(values ?? []);
 
 /** Les trois moyennes de charge du système, lues telles quelles. */
-export function machineLoad() {
-  const line = execFileSync('uptime', { encoding: 'utf8' });
-  const match = line.match(/load averages?:\s*([\d.,]+)[\s,]+([\d.,]+)[\s,]+([\d.,]+)/);
-  if (!match) return null;
-  return match.slice(1, 4).map((value) => Number(value.replace(',', '.')));
-}
+export const machineLoad = () => loadavg();
 
-/** Écart entre deux captures RGBA : pixels différents et écart maximal par canal. */
+/** Écart entre deux captures RGBA : pixels différents et écart maximal sur un canal. */
 export function imageDiff(a, b) {
   if (!a || !b) return null;
   if (a.w !== b.w || a.h !== b.h)
     return { erreur: `tailles différentes ${a.w}×${a.h} / ${b.w}×${b.h}` };
-  const left = a.body,
-    right = b.body;
-  if (left.length !== right.length) return { erreur: 'longueurs de tampon différentes' };
-  const maxParCanal = [0, 0, 0, 0];
-  let pixels = 0;
-  for (let i = 0; i < left.length; i += 4) {
-    let differe = false;
-    for (let c = 0; c < 4; c++) {
-      const delta = Math.abs(left[i + c] - right[i + c]);
-      if (delta > maxParCanal[c]) maxParCanal[c] = delta;
-      if (delta) differe = true;
-    }
-    if (differe) pixels++;
-  }
-  return { pixels, maxParCanal, total: left.length / 4 };
+  const diff = compareImages(a.body, b.body);
+  return { pixels: diff.differentPixels, maxCanal: diff.maxChannelError, total: a.w * a.h };
 }
 
 const ms = (d, key) => (d ? d[key].toFixed(3) : '—');
 const num = (value) => (value == null ? '—' : String(value));
 const diffText = (d) =>
-  !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max canal ${d.maxParCanal.join('/')}`;
+  !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max canal ${d.maxCanal}`;
 
 /** Le tableau de la série : une ligne par vue, par seuil et par côté. */
 function rows(report) {

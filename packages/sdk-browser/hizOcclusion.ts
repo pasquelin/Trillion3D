@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { hizFootprintFar, hizOccluded } from '../sdk-core/index.ts';
 import { projectBoxToScreen } from './hizProjection.ts';
-import { HIZ_KERNEL_TEXELS, hizOversized, type HizCounts } from './hizCounts.ts';
+import {
+  HIZ_KERNEL_TEXELS,
+  createHizCounts,
+  hizOversized,
+  resetHizCounts,
+  type HizCounts,
+} from './hizCounts.ts';
 import type { HizBounds, HizPage, HizPyramid } from './hizTypes.ts';
 
 /**
@@ -124,6 +130,9 @@ export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
   return hizOccluded(bounds.nearestDepth, far, bias);
 }
 
+/** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
+const discardedCounts = createHizCounts();
+
 export function filterUnoccluded<T extends HizPage>(
   pages: T[],
   pyramid: HizPyramid,
@@ -131,20 +140,14 @@ export function filterUnoccluded<T extends HizPage>(
   viewport: [number, number],
   bias = 0,
 ) {
-  return pages.filter(
-    (page) =>
-      !hizRejects(
-        pyramid,
-        projectBoxToScreen(page.min, page.max, page.matrix, camera, viewport),
-        bias,
-      ),
-  );
+  resetHizCounts(discardedCounts);
+  return countUnoccluded(pages, pyramid, camera, viewport, discardedCounts, bias);
 }
 
 /**
- * `filterUnoccluded` that also says what the test did: `counts` gains the clusters it was handed, the
- * clusters it eliminated and the clusters too wide for the level-0 kernel, each with the triangles
- * those clusters carry. This is the oracle the GPU counters are read against on a fixed image.
+ * The pages the test keeps, and what it did: `counts` gains the clusters it was handed, the clusters
+ * it eliminated and the clusters too wide for the level-0 kernel, each with the triangles those
+ * clusters carry. This is the oracle the GPU counters are read against on a fixed image.
  */
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
