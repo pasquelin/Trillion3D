@@ -1,3 +1,5 @@
+import { MAX_DEPTH_LAYER } from '../sdk-core/index.ts';
+
 export const DRAW_INDIRECT_STRIDE = 16;
 export const PAGE_BIND_ALIGN = 256;
 export const BIN_BACK = 0,
@@ -16,6 +18,10 @@ export const DRAW_ITEM_U32 = 4;
  * pipeline that carries their depth bias, and the clusters of layer 0 keep the order they had.
  */
 export const slotCount = (layerSlots: number) => BASE_SLOTS * Math.max(1, layerSlots);
+/** Slots que la compaction peut avoir à nommer : toutes les couches que le format de cache décrit.
+ *  Les tableaux dimensionnés une fois pour toutes s'y réfèrent ; cela coûte quelques centaines
+ *  d'octets et évite de réallouer quand une scène porte des couches. */
+export const MAX_DRAW_SLOTS = slotCount(1 + MAX_DEPTH_LAYER);
 
 export type DrawItem = {
   pageIndex: number;
