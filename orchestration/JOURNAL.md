@@ -536,3 +536,25 @@
   et 6,3 pendant les essais, et 6 images ne mesurent rien. Reste à faire : la comparaison
   avant/après elle-même, machine calme, et les tests (un autre agent s'en charge).
 
+
+## 2026-09-14 — Phase 1, mesure lot 4 (harnais commun, session de mesure seule)
+
+Mesure seule, aucun code modifié, aucun test lancé. Verrou `mesure.lock` pris. Commande, une
+seule exécution :
+
+```
+node scripts/mesure/banc.mjs --moteur webgl --avant 7491682 --apres 6b9341b \
+     --vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000
+```
+
+| mesure | vue | avant | après | seuil | verdict |
+|---|---|---|---|---|---|
+| cpuSelectMs p50 (n=300) | générale | — (absent avant lot 4) | 11.40 ms | < 2 ms | **ÉCHEC** (5,7× le seuil) |
+| cpuFrameMs p50 (n=300) | générale | 30.30 ms | 30.30 ms | — | égal |
+| hash coupe (clusterId) | générale | identique (coupe.txt byte-identique, PNG sha256 identique) | idem | identité attendue | OK |
+| pixels différents (0 px) | générale | 0 (PNG identiques) | idem | 0 attendu | OK |
+| tout le reste (sol, rue, A/A, uncoveredTriangles) | sol/rue | — | — | — | **NON MESURÉ** : `Error creating WebGL context` au passage à la vue `sol` (côté après), série arrêtée sans reprise |
+
+Charge avant la série (`uptime`) : `2.95 3.22 3.60`, non polluée. Détails, commande complète,
+chemins des fichiers produits : `orchestration/phase-1-mesure-lots-2-4.md` du worktree
+`webgeometry-sans-threejs-9f889d`.
