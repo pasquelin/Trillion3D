@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
+import { createTransparentCutHold, type TransparentCutHold } from './webgpuTransparentCut.ts';
 import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
@@ -63,9 +64,11 @@ export interface WebgpuRunState {
   desiredOpaque: number;
   /** Triangles of that opaque head of `shown`; -1 when it was not counted. */
   shownOpaqueTriangles: number;
-  /** The transparent cut of the image: the GPU cut never selects it, so the CPU re-reads it whole. */
+  /** The transparent cut of the image: the GPU cut never selects it, so the CPU cuts it itself. */
   transparentWanted: PageRec[];
   transparentShown: PageRec[];
+  /** That cut and the inputs it was cut from, held from one image to the next. */
+  transparentHold: TransparentCutHold;
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null;
   pagesExited: number | null;
@@ -147,6 +150,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     shownOpaqueTriangles: -1,
     transparentWanted: [],
     transparentShown: [],
+    transparentHold: createTransparentCutHold(),
     pagesEntered: null,
     pagesExited: null,
     opaqueScratch: [],

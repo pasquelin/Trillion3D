@@ -98,6 +98,15 @@ export function createGpuPageCache(
     get(key: string) {
       return resident.get(key);
     },
+    /**
+     * Strictly increases on every membership change of the residency and on nothing else: an arrival
+     * stamps a new generation, a departure counts an eviction, and the LRU touch of a page already
+     * resident does neither. A caller that held a verdict derived from `get` can compare this one
+     * number instead of asking again page by page.
+     */
+    get residencyRevision() {
+      return state.generation + state.evictions;
+    },
     /** Moves the pending residency changes into the caller's arrays, then empties the log. */
     drainResidencyChanges(keys: string[], slots: number[]) {
       for (let i = 0; i < changeKeys.length; i++) {
