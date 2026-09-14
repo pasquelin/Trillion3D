@@ -1097,3 +1097,40 @@ symbolique) non committé.
    estampille, `shown.push` — et la descente de tronc de vision sous les nœuds acceptés. Le levier
    suivant est celui que le diagnostic du lot 4 numérotait 1 : ranger les clusters en tableaux
    typés, puis émettre des plages jusqu'au consommateur.
+
+## 2026-09-14 — Phase 1, mesure lot 4b : rejeu sur la tête fusionnée, `sol`/`rue` au vert, `generale` interrompue
+
+Session de mesure seule (harnais commun `scripts/mesure/banc.mjs`), sur HEAD `9c78402b9a08`
+(`develop` `7632696` déjà fusionné, cache Emerald recompilé au format 3/4 par l'utilisateur avant
+la session). Aucun code modifié, aucun test lancé, aucun `prepare:models`. Trois commandes, une
+par vue, chacune attendue jusqu'au bout, aucune reprise.
+
+| mesure | vue | avant | après | seuil | verdict |
+|---|---|---|---|---|---|
+| cpuSelectMs p50/p95 | sol e0 | 1,40 / 1,60 | 0,70 / 0,90 | < 2 ms | OK |
+| cpuSelectMs p50/p95 | sol e1 | 0,90 / 1,10 | 0,80 / 0,90 | < 2 ms | OK |
+| cpuSelectMs p50/p95 | rue e0 | 1,40 / 1,60 | 0,70 / 0,90 | < 2 ms | OK |
+| cpuSelectMs p50/p95 | rue e1 | 0,90 / 1,10 | 0,80 / 1,00 | < 2 ms | OK |
+| cpuSelectNodesTested (après) | sol e0 / e1 | — | 3 831 / 4 927 | ≤ 15 000 | OK |
+| cpuSelectNodesTested (après) | rue e0 / e1 | — | 3 801 / 4 921 | ≤ 15 000 | OK |
+| hash de coupe identique | sol, rue (e0 et e1) | — | — | oui, les quatre fois | OK |
+| pixels différents (0 px / 1 px) | sol, rue (e0 et e1) | — | 0 / 921 600 | 0 attendu | OK |
+| témoin A/A | sol, rue (e0 et e1) | — | 0 px, max canal 0 | 0 attendu | OK |
+| pagesDetached avant/après | sol e0/e1, rue e0/e1 | 3005/1220/2904/1200 | identiques | — | identique |
+
+**`generale` (point 1 laissé ouvert par la session précédente, les 581 px) : toujours pas
+tranché.** Trois séries jouées (après e0 5,70 ms, avant e0 11,20 ms, après e0 rejoué 5,70 ms — même
+nombre de clusters, 80 153, aux deux côtés), puis plantage avant la capture du témoin A/A :
+`page.evaluate: Error: WebGL2 unavailable` (`explorerCapabilities.js:29`, via `serie.mjs:14` →
+`banc.mjs:132`). Aucun `mesure.json` écrit pour cette vue, donc aucun hash ni écart pixel
+disponible — ni confirmation ni infirmation des 581 px. Charge relevée avant lancement : 5,63 /
+5,41 / 6,07 (15 min ≥ 6, durées de cette série déjà déclarées polluées indépendamment du plantage).
+Pas de reprise (consigne : une exécution par vue).
+
+Points 1 et 2 de la liste « Ce qui reste » de l'entrée précédente : point 2 (`sol`/`rue`) est
+maintenant fait et vert ; point 1 (`generale`, 581 px) reste à rejouer, cette fois en isolant la
+série `generale` seule (elle a échoué même seule ici, pas en tête de triplet — piste `pagesDetached`
+/ horloge de prélecture de l'entrée précédente non retestée par cette session).
+
+Détail complet, commandes, charge machine et chemins :
+`orchestration/phase-1-mesure-lot-4b.md` (worktree `webgeometry-sans-threejs-9f889d`).
