@@ -11,7 +11,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-page%20cache-005A9C?logo=webgpu&logoColor=white)](#current-capabilities)
 [![Status](https://img.shields.io/badge/status-in%20development-d29922)](#current-limits)
 
-**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](SDK.md)** · **[Compiler](docs/COMPILER.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
+**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](docs/SDK.md)** · **[Compiler](docs/COMPILER.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
 
 </div>
 
@@ -66,7 +66,7 @@ packages/asset-compiler-rust/target/release/web-geometry-compiler --jobs jobs.js
 
 Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts own source/cache directories and process configuration. React and Electron integrations can use these boundaries without introducing framework dependencies into the core.
 
-See the [SDK guide](SDK.md) and [architecture notes](packages/README.md) for lifecycle, compatibility and fallback contracts. Consumers should use public exports rather than internal source paths.
+See the [SDK guide](docs/SDK.md) and [architecture notes](packages/README.md) for lifecycle, compatibility and fallback contracts. Consumers should use public exports rather than internal source paths.
 
 ## Architecture
 

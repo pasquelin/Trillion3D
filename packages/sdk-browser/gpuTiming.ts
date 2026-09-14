@@ -7,8 +7,10 @@ import type {GpuFrameMs,GpuPassTimings} from '../sdk-core/index.ts';
  * describes. `totalMs` sums the listed passes and nothing else; it is never added to a CPU duration.
  * `frameMs` is the enclosing span instead — earliest beginning to latest end over every part — so a
  * device that runs passes concurrently, where the sum overcounts, still yields one honest duration.
+ * `submittedMs` is the GPU time proper: the sum of the per-submission spans, without the host gap a
+ * span between two submissions of the same image would otherwise carry.
  */
-export type GpuTimingSample=GpuPassTimings&{frameMs:GpuFrameMs;[key:string]:unknown};
+export type GpuTimingSample=GpuPassTimings&{frameMs:GpuFrameMs;submittedMs:GpuFrameMs;hostGapMs:number|null;[key:string]:unknown};
 /** Query slots per encoder part, and parts per image: the query set holds `PARTS × PART_QUERIES`. */
 const PART_QUERIES=128,PARTS=4;
 export function createGpuTiming(device:GPUDevice,options:{sampleEveryFrames?:number;onSample:(sample:GpuTimingSample)=>void}){
@@ -41,7 +43,7 @@ export function createGpuTiming(device:GPUDevice,options:{sampleEveryFrames?:num
       resolve=device.createBuffer({label:'WG timestamp resolve',size:bytes,usage:GPUBufferUsage.QUERY_RESOLVE|GPUBufferUsage.COPY_SRC});
       read=device.createBuffer({label:'WG timestamp readback',size:bytes,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
      }
-    }catch(error){enabled=false;destroy();emit({frame,totalMs:null,frameMs:null,passes:[],truncated:false,error:String(error)});return encoder;}
+    }catch(error){enabled=false;destroy();emit({frame,totalMs:null,frameMs:null,submittedMs:null,hostGapMs:null,passes:[],truncated:false,error:String(error)});return encoder;}
     active={frame,parts:new Map(),truncated:false};lastFrame=frame;sampledFrames++;
    }
    const state=active;
@@ -110,9 +112,12 @@ export function createGpuTiming(device:GPUDevice,options:{sampleEveryFrames?:num
      const total=truncated||passes.some(pass=>pass.gpuMs===null)?null:passes.reduce((sum,pass)=>sum+pass.gpuMs!,0);
      const frameMs=truncated||!spanValid||firstBegin===0n?null:Number(lastEnd-firstBegin)/1e6;
      const submissions=[...submissionSpans].sort((a,b)=>a[0]-b[0]).map(([part,span])=>({part,passes:span.passes,spanMs:Number(span.endNs-span.beginNs)/1e6}));
-     const hostGapMs=frameMs===null?null:frameMs-submissions.reduce((sum,span)=>sum+span.spanMs,0);
-     emit({...metadata,frame:state.frame,totalMs:total,frameMs,submissions,hostGapMs,passes,truncated});completedSamples++;
-    }catch(error){if(!disposed){enabled=false;emit({...metadata,frame:state.frame,totalMs:null,frameMs:null,passes:[],truncated,error:String(error)});completedSamples++;}}
+     // A submission is one contiguous GPU execution, so the image's GPU time is the sum of the
+     // submission spans — not `frameMs`, which also holds the host time between two submissions.
+     const submittedMs=frameMs===null?null:submissions.reduce((sum,span)=>sum+span.spanMs,0);
+     const hostGapMs=frameMs===null||submittedMs===null?null:frameMs-submittedMs;
+     emit({...metadata,frame:state.frame,totalMs:total,frameMs,submittedMs,hostGapMs,submissions,passes,truncated});completedSamples++;
+    }catch(error){if(!disposed){enabled=false;emit({...metadata,frame:state.frame,totalMs:null,frameMs:null,submittedMs:null,hostGapMs:null,passes:[],truncated,error:String(error)});completedSamples++;}}
     finally{try{staging.unmap();}catch{/* Disposal or device loss can cancel a mapping. */}}
    })().finally(()=>{pending=undefined;});
   },
