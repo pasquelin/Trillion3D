@@ -11,7 +11,7 @@
 [![WebGPU](https://img.shields.io/badge/WebGPU-page%20cache-005A9C?logo=webgpu&logoColor=white)](#current-capabilities)
 [![Status](https://img.shields.io/badge/status-in%20development-d29922)](#current-limits)
 
-**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](SDK.md)** · **[Compiler](docs/COMPILER.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
+**[Product principles](docs/architecture/PRINCIPES_DU_PRODUIT.md)** · **[Quick start](#quick-start)** · **[SDK](docs/SDK.md)** · **[Compiler](docs/COMPILER.md)** · **[Architecture](packages/README.md)** · **[Current limits](#current-limits)**
 
 </div>
 
@@ -41,6 +41,8 @@ npm test
 npm run test:native
 ```
 
+During development, `npm run check:changed` checks the line limit, formatting, lint and duplicated blocks in modified files, then runs unit tests connected to them by imports. `npm run test:changed` runs just those tests, and `npm run test:watch` watches unit tests while editing. Every maintained source file has a strict 200-line maximum; `npm run check:lines` checks the whole repository with no legacy exceptions. `npm run check:duplicates` detects repeated JS, TS and Rust blocks of at least 12 lines and 100 tokens. Before integration, run `npm run validate` once for the complete line-limit, duplication, format, lint, unused-code, build and test gates. Browser rendering still needs the visual proof described below.
+
 The TypeScript build emits ESM JavaScript and declarations into `dist/`. The native build produces `packages/asset-compiler-rust/target/release/web-geometry-compiler` (`.exe` on Windows).
 
 The package is currently private and consumed locally; it has not been published to npm. Build it before importing it from a host project. Scene assets are supplied by the host and are not included in this repository.
@@ -66,7 +68,7 @@ packages/asset-compiler-rust/target/release/web-geometry-compiler --jobs jobs.js
 
 Applications own their canvas, animation loop, resource URLs and controller disposal. Node hosts own source/cache directories and process configuration. React and Electron integrations can use these boundaries without introducing framework dependencies into the core.
 
-See the [SDK guide](SDK.md) and [architecture notes](packages/README.md) for lifecycle, compatibility and fallback contracts. Consumers should use public exports rather than internal source paths.
+See the [SDK guide](docs/SDK.md) and [architecture notes](packages/README.md) for lifecycle, compatibility and fallback contracts. Consumers should use public exports rather than internal source paths.
 
 ## Architecture
 

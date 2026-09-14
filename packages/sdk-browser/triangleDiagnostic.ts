@@ -2,24 +2,28 @@ import * as THREE from 'three';
 
 const cache=new WeakMap<THREE.BufferGeometry,THREE.BufferGeometry>();
 
-function fract(value:number){return value-Math.floor(value);}
+function triangleHash(id:number){
+ let value=(id+0x9e3779b9)>>>0;
+ value=Math.imul(value^(value>>>16),0x7feb352d);
+ value=Math.imul(value^(value>>>15),0x846ca68b);
+ return (value^(value>>>16))>>>0;
+}
 function hashColor(id:number){
- return [fract(Math.sin(id*12.9898)*43758.5453),fract(Math.sin(id*78.233)*43758.5453),fract(Math.sin(id*45.164)*43758.5453)] as const;
+ const h=triangleHash(id);
+ const hue=(h&65535)/65535,saturation=.65+.25*((h>>>16)&255)/255,value=.78+.20*(h>>>24)/255;
+ const channel=(offset:number)=>{const k=((hue+offset)%1)*6;const component=Math.max(0,Math.min(1,Math.abs(k-3)-1));return value*(1-saturation+saturation*component);};
+ return [channel(0),channel(2/3),channel(1/3)] as const;
 }
 
 export function triangleSalt(id:string){
  let h=0;for(let i=0;i<id.length;i++)h=(Math.imul(h,31)+id.charCodeAt(i))>>>0;
- return (h%100000)/10;
+ return h;
 }
 
 export function triangleGeometry(geometry:THREE.BufferGeometry,salt=0){
- if(!geometry.index){
-  if(!geometry.getAttribute('color'))colorTriangles(geometry,salt);
-  return geometry;
- }
  const key=geometry;
  let copy=cache.get(key);
- if(!copy){copy=geometry.toNonIndexed();colorTriangles(copy,salt);cache.set(key,copy);}
+ if(!copy){copy=geometry.index?geometry.toNonIndexed():geometry.clone();colorTriangles(copy,salt);cache.set(key,copy);}
  return copy;
 }
 
@@ -27,7 +31,7 @@ function colorTriangles(geometry:THREE.BufferGeometry,salt:number){
  const count=geometry.getAttribute('position').count;
  const colors=new Float32Array(count*3);
  for(let i=0;i<count;i+=3){
-  const [r,g,b]=hashColor(i/3+salt);
+  const [r,g,b]=hashColor((salt^triangleHash(i/3))>>>0);
   for(let corner=0;corner<3;corner++){
    const offset=(i+corner)*3;
    colors[offset]=r;colors[offset+1]=g;colors[offset+2]=b;
@@ -37,7 +41,7 @@ function colorTriangles(geometry:THREE.BufferGeometry,salt:number){
 }
 
 export function createTriangleDiagnosticMaterial(side:THREE.Side,_salt=0){
- return new THREE.MeshLambertMaterial({vertexColors:true,side,toneMapped:false,fog:false});
+ return new THREE.MeshBasicMaterial({vertexColors:true,side,toneMapped:false,fog:false});
 }
 
 export function materialSide(material:THREE.Material|THREE.Material[]){
