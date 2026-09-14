@@ -124,6 +124,7 @@ export function readOptions(argv, root) {
     // `--profil off` rejoue la même série sans le chronométrage par étape : c'est la porte de
     // fidélité, deux exécutions dont seule cette option diffère.
     stageProfile: (flags.get('profil') ?? 'on') !== 'off',
+    profileFrames: number('images-profil', 120),
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.
     visible: flags.get('visible') === 'true',
