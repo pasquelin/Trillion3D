@@ -4,13 +4,12 @@
 //! embedded as buffer views when the file carries their bytes. Nothing is written next to the source.
 use std::{collections::{BTreeMap,HashMap},fs,path::{Path,PathBuf},sync::atomic::{AtomicBool,Ordering}};
 use serde_json::{Value,json};
-use crate::{CompilerError,Result,FORMAT_VERSION,hash,hash_file,atomic};
+use crate::{CompilerError,Result,hash,atomic,runtime_manifest};
 
 /// Bumping this invalidates cached imports (they are keyed by source hashes + importer version).
 pub const IMPORTER_VERSION:&str="ufbx-0.11.3-gltf-1";
 const PROGRESS_INTERVAL_BYTES:u64=8*1024*1024;
 const IMAGE_EXTENSIONS:[(&str,&str);3]=[("png","image/png"),("jpg","image/jpeg"),("jpeg","image/jpeg")];
-const SIBLING_EXTENSIONS:[&str;3]=["png","jpg","jpeg"];
 
 pub fn is_import_source(name:&str)->bool{let lower=name.to_ascii_lowercase();lower.ends_with(".fbx")||lower.ends_with(".obj")}
 fn import_error(error:&ufbx::Error)->CompilerError{
@@ -19,15 +18,6 @@ fn import_error(error:&ufbx::Error)->CompilerError{
  CompilerError::new(code,format!("{} {}",&*error.description,error.info()).trim().to_string())
 }
 
-/// Every source file that takes part in one import, in a stable order.
-pub fn import_inputs(source:&Path)->Result<Vec<PathBuf>>{
- if source.is_file(){return Ok(vec![source.to_path_buf()]);}
- let mut found=Vec::new();
- for entry in fs::read_dir(source)?{let entry=entry?;let name=entry.file_name();let Some(name)=name.to_str() else {continue};if is_import_source(name)&&crate::is_safe_source_name(name){found.push(entry.path());}}
- found.sort();
- if found.is_empty(){return Err(CompilerError::new("INVALID_GLTF","Source directory needs manifest.json, exactly one .gltf/.glb or .fbx/.obj files"));}
- Ok(found)
-}
 
 /// Multiplicative hash for the (position, normal, uv, colour) corner keys: SipHash dominated mesh conversion.
 #[derive(Default,Clone,Copy)] struct CornerHasher(u64);
@@ -55,13 +45,13 @@ struct TextureTable<'a>{source_dir:&'a Path,canonical_dir:PathBuf,bin:&'a mut Bi
 impl<'a> TextureTable<'a>{
  fn wrap(mode:ufbx::WrapMode)->u32{match mode{ufbx::WrapMode::Clamp=>33071,_=>10497}}
  fn sampler(&mut self,texture:&ufbx::Texture)->usize{let key=(Self::wrap(texture.wrap_u),Self::wrap(texture.wrap_v));if let Some(id)=self.sampler_ids.get(&key){return *id;}self.samplers.push(json!({"magFilter":9729,"minFilter":9987,"wrapS":key.0,"wrapT":key.1}));let id=self.samplers.len()-1;self.sampler_ids.insert(key,id);id}
- fn mime(name:&str)->Option<&'static str>{let lower=name.to_ascii_lowercase();IMAGE_EXTENSIONS.iter().find(|(ext,_)|lower.ends_with(&format!(".{ext}"))).map(|(_,mime)|*mime)}
+ fn mime(path:&Path)->Option<&'static str>{let ext=path.extension()?.to_str()?.to_ascii_lowercase();IMAGE_EXTENSIONS.iter().find(|(e,_)|*e==ext).map(|(_,mime)|*mime)}
  /// Finds a decodable image for a texture: embedded bytes first, then the declared paths inside the
  /// source directory, then a sibling PNG/JPEG next to a GPU-only format (DDS, TGA...).
  fn resolve(&mut self,texture:&ufbx::Texture)->Option<Value>{
   let name=Path::new(&*texture.filename).file_name().and_then(|s|s.to_str()).filter(|s|!s.is_empty()).or_else(||Path::new(&*texture.relative_filename).file_name().and_then(|s|s.to_str())).unwrap_or("texture").to_string();
   if !texture.content.is_empty(){
-   let Some(mime)=Self::mime(&name) else {self.report.add("texture-embedded-format");return None};
+   let Some(mime)=Self::mime(Path::new(&name)) else {self.report.add("texture-embedded-format");return None};
    let view=self.bin.view(&texture.content,None);
    return Some(json!({"name":name,"mimeType":mime,"bufferView":view}));
   }
@@ -69,16 +59,16 @@ impl<'a> TextureTable<'a>{
   for declared in [&*texture.absolute_filename,&*texture.relative_filename,&*texture.filename]{if declared.is_empty(){continue;}let path=Path::new(declared);candidates.push(if path.is_absolute(){path.to_path_buf()}else{self.source_dir.join(path)});}
   candidates.push(self.source_dir.join(&name));candidates.push(self.source_dir.join("textures").join(&name));
   let mut siblings=Vec::new();
-  for candidate in &candidates{for ext in SIBLING_EXTENSIONS{siblings.push(candidate.with_extension(ext));}}
+  for candidate in &candidates{for (ext,_) in IMAGE_EXTENSIONS{siblings.push(candidate.with_extension(ext));}}
   let mut outside=false;
   for candidate in candidates.iter().chain(siblings.iter()){
    if !candidate.is_file(){continue;}
-   let Some(mime)=Self::mime(candidate.to_str().unwrap_or("")) else {continue};
+   let Some(mime)=Self::mime(candidate) else {continue};
    let Ok(relative)=normalise(candidate).strip_prefix(&self.canonical_dir).map(Path::to_path_buf) else {outside=true;continue};
    let uri=relative.components().map(|c|c.as_os_str().to_string_lossy().to_string()).collect::<Vec<_>>().join("/");
    return Some(json!({"name":name,"mimeType":mime,"uri":uri}));
   }
-  self.report.add(if outside{"texture-outside-source"}else if Self::mime(&name).is_some(){"texture-missing"}else{"texture-format"});
+  self.report.add(if outside{"texture-outside-source"}else if Self::mime(Path::new(&name)).is_some(){"texture-missing"}else{"texture-format"});
   None
  }
  fn texture(&mut self,texture:&ufbx::Texture)->Option<usize>{
@@ -185,25 +175,24 @@ fn light_matrix(node:&ufbx::Node,direction:ufbx::Vec3)->Vec<f64>{
  vec![cx[0],cx[1],cx[2],0.0,cy[0],cy[1],cy[2],0.0,cz[0],cz[1],cz[2],0.0,n.m03,n.m13,n.m23,1.0]
 }
 
-struct Importer<'a>{hashes:Vec<String>,nodes:Vec<Value>,meshes:Vec<Value>,mesh_triangles:Vec<usize>,materials:Vec<Value>,accessors:Vec<Value>,images:Vec<Value>,samplers:Vec<Value>,textures:Vec<Value>,sampler_ids:HashMap<(u32,u32),usize>,lights:Vec<Value>,bin:Bin,report:Report,triangles:usize,mesh_nodes:usize,files:Vec<Value>,cancelled:&'a AtomicBool,progress:&'a (dyn Fn(Value)+Sync)}
+struct Importer<'a>{nodes:Vec<Value>,meshes:Vec<Value>,mesh_triangles:Vec<usize>,materials:Vec<Value>,accessors:Vec<Value>,images:Vec<Value>,samplers:Vec<Value>,textures:Vec<Value>,sampler_ids:HashMap<(u32,u32),usize>,lights:Vec<Value>,bin:Bin,report:Report,triangles:usize,mesh_nodes:usize,files:Vec<Value>,cancelled:&'a AtomicBool,progress:&'a (dyn Fn(Value)+Sync)}
 impl<'a> Importer<'a>{
  fn check(&self)->Result<()>{if self.cancelled.load(Ordering::Relaxed){return Err(CompilerError::new("CANCELLED","Import cancelled"));}Ok(())}
- fn load(&mut self,file:&Path,index:usize,total:usize)->Result<()>{
+ fn load(&mut self,file:&Path,mapped:&[u8],digest:&str,index:usize,total:usize)->Result<()>{
   let started=std::time::Instant::now();
   let file_name=file.file_name().and_then(|s|s.to_str()).unwrap_or("source").to_string();
   let source_dir=file.parent().filter(|p|!p.as_os_str().is_empty()).map(Path::to_path_buf).unwrap_or_else(||PathBuf::from("."));
   let canonical_dir=normalise(&source_dir);
   let progress=self.progress;let cancelled=self.cancelled;let label=file_name.clone();
   let callback=move|p:&ufbx::Progress|->ufbx::ProgressResult{if cancelled.load(Ordering::Relaxed){return ufbx::ProgressResult::Cancel;}progress(json!({"phase":"import-source","step":"parse","file":label,"index":index,"files":total,"completed":p.bytes_read,"total":p.bytes_total}));ufbx::ProgressResult::Continue};
-  let path=file.to_str().ok_or_else(||CompilerError::new("IMPORT_IO_ERROR","Source path is not valid UTF-8"))?;
-  let opts=ufbx::LoadOpts{
+  let opts=ufbx::LoadOpts{filename:ufbx::StringOpt::Ref(file.to_str().unwrap_or("")),
    ignore_animation:true,load_external_files:true,ignore_missing_external_files:true,generate_missing_normals:true,normalize_normals:true,
    target_axes:ufbx::CoordinateAxes::right_handed_y_up(),target_unit_meters:1.0,space_conversion:ufbx::SpaceConversion::TransformRoot,
    geometry_transform_handling:ufbx::GeometryTransformHandling::Preserve,inherit_mode_handling:ufbx::InheritModeHandling::Preserve,pivot_handling:ufbx::PivotHandling::Retain,
    index_error_handling:ufbx::IndexErrorHandling::Clamp,progress_cb:ufbx::ProgressCb::Ref(&callback),progress_interval_hint:PROGRESS_INTERVAL_BYTES,
    obj_search_mtl_by_filename:true,obj_unit_meters:1.0,obj_axes:ufbx::CoordinateAxes::right_handed_y_up(),
    ..Default::default()};
-  let scene=ufbx::load_file(path,opts).map_err(|e|import_error(&e))?;
+  let scene=ufbx::load_memory(mapped,opts).map_err(|e|import_error(&e))?;
   let parse_ms=started.elapsed().as_secs_f64()*1000.0;
   for warning in &scene.metadata.warnings{self.report.notes.push(format!("{file_name}: {} (x{})",&*warning.description,warning.count));}
   // Element ids restart in every file: material and mesh lookups are per file, table indices are global.
@@ -237,7 +226,7 @@ impl<'a> Importer<'a>{
   }
   self.report.add_count("node-hidden",hidden);
   self.mesh_nodes+=file_nodes;self.triangles+=file_triangles;
-  self.files.push(json!({"file":file_name,"bytes":fs::metadata(file)?.len(),"sha256":self.hashes[index],"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":started.elapsed().as_secs_f64()*1000.0}));
+  self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":started.elapsed().as_secs_f64()*1000.0}));
   Ok(())
  }
  fn push_light(&mut self,node:&ufbx::Node,light:&ufbx::Light){
@@ -253,19 +242,21 @@ impl<'a> Importer<'a>{
 
 /// Imports every FBX/OBJ in `source` into `<cache>/native/imports/<key>/` and returns that directory.
 /// The key hashes the input bytes and the importer version, so unchanged sources are reused.
-pub fn import_source(source:&Path,cache:&Path,cancelled:&AtomicBool,progress:&(dyn Fn(Value)+Sync))->Result<PathBuf>{
+pub fn import_source(inputs:&[PathBuf],cache:&Path,cancelled:&AtomicBool,progress:&(dyn Fn(Value)+Sync))->Result<PathBuf>{
  let started=std::time::Instant::now();
- let inputs=import_inputs(source)?;
- let hashes=inputs.iter().map(|input|hash_file(input)).collect::<Result<Vec<_>>>()?;
+ let source=inputs.first().and_then(|f|if inputs.len()==1{Some(f.as_path())}else{f.parent()}).unwrap_or(Path::new("."));
+ // Map every input once: the mapping hashes now and feeds the parser later without a second read.
+ let mapped=inputs.iter().map(|input|Ok(unsafe{memmap2::MmapOptions::new().map(&fs::File::open(input)?)?})).collect::<Result<Vec<memmap2::Mmap>>>()?;
+ let hashes:Vec<String>=mapped.iter().map(|m|hash(m)).collect();
  let mut key_material=String::from(IMPORTER_VERSION);
  for (input,digest) in inputs.iter().zip(&hashes){key_material.push('\n');key_material.push_str(input.file_name().and_then(|s|s.to_str()).unwrap_or(""));key_material.push(':');key_material.push_str(digest);}
  let key=hash(key_material.as_bytes());
  let directory=cache.join("native").join("imports").join(&key);
  let manifest_path=directory.join("manifest.json");
  if let Ok(bytes)=fs::read(&manifest_path){if let Ok(existing)=serde_json::from_slice::<Value>(&bytes){if existing["status"]=="ready"&&existing["source"]["importer"]==IMPORTER_VERSION&&directory.join("model.gltf").is_file()&&directory.join("model.bin").is_file(){progress(json!({"phase":"import-source","step":"reused","key":key,"files":inputs.len()}));return Ok(directory);}}}
- let mut importer=Importer{hashes,nodes:Vec::new(),meshes:Vec::new(),mesh_triangles:Vec::new(),materials:Vec::new(),accessors:Vec::new(),images:Vec::new(),samplers:Vec::new(),textures:Vec::new(),sampler_ids:HashMap::new(),lights:Vec::new(),bin:Bin{bytes:Vec::new(),views:Vec::new()},report:Report::default(),triangles:0,mesh_nodes:0,files:Vec::new(),cancelled,progress};
+ let mut importer=Importer{nodes:Vec::new(),meshes:Vec::new(),mesh_triangles:Vec::new(),materials:Vec::new(),accessors:Vec::new(),images:Vec::new(),samplers:Vec::new(),textures:Vec::new(),sampler_ids:HashMap::new(),lights:Vec::new(),bin:Bin{bytes:Vec::new(),views:Vec::new()},report:Report::default(),triangles:0,mesh_nodes:0,files:Vec::new(),cancelled,progress};
  let total=inputs.len();
- for (index,input) in inputs.iter().enumerate(){importer.check()?;importer.load(input,index,total)?;}
+ for (index,input) in inputs.iter().enumerate(){importer.check()?;importer.load(input,&mapped[index],&hashes[index],index,total)?;}
  if importer.mesh_nodes==0{return Err(CompilerError::new("IMPORT_EMPTY","No visible mesh instance in the source"));}
  let Importer{nodes,meshes,materials,accessors,images,samplers,textures,lights,bin,report,triangles,mesh_nodes,files,..}=importer;
  let bin_len=bin.bytes.len();
@@ -278,10 +269,10 @@ pub fn import_source(source:&Path,cache:&Path,cancelled:&AtomicBool,progress:&(d
  progress(json!({"phase":"import-source","step":"write","bytes":bin_len+gltf_bytes.len()}));
  atomic(&directory.join("model.bin"),&bin.bytes)?;
  atomic(&directory.join("model.gltf"),&gltf_bytes)?;
- let manifest=json!({"status":"ready","formatVersion":FORMAT_VERSION,
-  "runtime":{"file":"model.gltf","sha256":hash(&gltf_bytes),"sidecars":[{"file":"model.bin","sha256":hash(&bin.bytes)}],"trianglesAcrossNodes":triangles,"meshNodes":mesh_nodes,"bytes":gltf_bytes.len()},
-  "source":{"importer":IMPORTER_VERSION,"path":source.to_string_lossy(),"files":files,"key":key,"meshes":mesh_count,"materials":material_count,"images":image_count,"lights":light_count,"importMs":started.elapsed().as_secs_f64()*1000.0},
-  "unsupported":report.unsupported,"notes":report.notes});
+ let mut manifest=runtime_manifest("model.gltf",&hash(&gltf_bytes),&[("model.bin".to_string(),hash(&bin.bytes))],mesh_nodes,triangles);
+ manifest["runtime"]["bytes"]=json!(gltf_bytes.len());
+ manifest["source"]=json!({"importer":IMPORTER_VERSION,"path":source.to_string_lossy(),"files":files,"key":key,"meshes":mesh_count,"materials":material_count,"images":image_count,"lights":light_count,"importMs":started.elapsed().as_secs_f64()*1000.0});
+ manifest["unsupported"]=json!(report.unsupported);manifest["notes"]=json!(report.notes);
  atomic(&manifest_path,&serde_json::to_vec_pretty(&manifest)?)?;
  progress(json!({"phase":"import-source","step":"complete","key":key,"triangles":triangles,"meshNodes":mesh_nodes,"ms":started.elapsed().as_secs_f64()*1000.0}));
  Ok(directory)
