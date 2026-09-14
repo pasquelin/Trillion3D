@@ -27,6 +27,11 @@ test('an image spanning two encoders yields one sample whose passes carry their 
  assert.equal(samples[0].frame,1);assert.equal(samples[0].submission,7);assert.equal(samples[0].truncated,false);
  assert.deepEqual(samples[0].passes,[{name:'selection',gpuMs:2},{name:'lighting',gpuMs:3}]);
  assert.equal(samples[0].totalMs,5);
+ // The enclosing duration is the first beginning to the last end — 1 ms to 7 ms — of which 2 ms and
+ // 3 ms are the two submissions and the remaining 1 ms is the host between them, never GPU work.
+ assert.equal(samples[0].frameMs,6);
+ assert.deepEqual(samples[0].submissions,[{part:0,passes:1,spanMs:2},{part:1,passes:1,spanMs:3}]);
+ assert.equal(samples[0].hostGapMs,1);
  timer.dispose();assert.equal(f.destroys(),3);
 });
 test('unsupported timestamps allocate nothing and report no sample',()=>{

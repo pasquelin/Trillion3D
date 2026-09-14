@@ -18,6 +18,15 @@ export interface GpuPassTiming { name:string; gpuMs:number|null; reason?:string 
  * which lags the current one because the readback never blocks an image.
  */
 export interface GpuPassTimings { frame:number; totalMs:number|null; passes:GpuPassTiming[]; truncated:boolean; error?:string }
+/**
+ * Enclosing GPU duration of one image: the earliest pass beginning to the latest pass end of every
+ * command buffer the image submitted, from one pair of the device's own timestamps. Passes that the
+ * device runs concurrently are inside this span once, so — unlike `gpuPassMs.totalMs`, a sum — it
+ * never counts the same nanosecond twice. It is a span, so it also holds any host gap between two
+ * submissions of the same image; `gpuPassMs` names the spans per submission. Null when a pass of the
+ * image went unmeasured, the list was truncated, or the device exposes no timestamp query.
+ */
+export type GpuFrameMs=number|null;
 export interface FrameMetrics {
  rafIntervalMs:number|null; cpuFrameMs:number; cpuSubmitMs:number|null; gpuMs:number|null; drawCalls:number; triangles:number; clusters:number|null; selectedTriangles:number|null; residentPages:number|null; submittedTriangles?:number|null;
  /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
@@ -41,6 +50,8 @@ export interface FrameMetrics {
  textureUploaded?:number|null;texturePending?:number|null;textureSkipped?:number|null;
  /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
  gpuPassMs?:GpuPassTimings|null;
+ /** Enclosing GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
+ gpuFrameMs?:GpuFrameMs;
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface GeometryPageDescriptor {url:string;sha256:string;bytes:number;formatVersion:2;codec:'meshopt';vertexCount:number;indexCount:number;flags:number;uncompressedBytes:number}
