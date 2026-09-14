@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages,HIZ_BACKGROUND} from '../sdk-core/index.ts';
 import {rasterVisibilityIds,shadeVisibility,type VisPage} from './visibilityBuffer.ts';
-import {HIZ_BOUNDS_VALUES,buildHizPyramid,createBoxCorners,filterUnoccluded,hizRejects,projectBoxToScreen,projectBoxesFlat,sameHizView,splitOccluders,splitOccludersFlat,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,buildHizPyramid,countUnoccluded,createBoxCorners,createHizCounts,filterUnoccluded,hizOversized,hizRejects,projectBoxToScreen,projectBoxesFlat,sameHizView,splitOccluders,splitOccludersFlat,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
 
 test('Hi-Z history is invalidated by camera motion and projection cuts',()=>{
  const previous=cameraAt(),current=previous.clone();
@@ -191,4 +191,43 @@ test('flat projection and split reproduce the object forms to the bit, including
  assert.equal(occluders,reference.occluders.length);
  const referenceOccluders=new Set(reference.occluders.map(page=>page.tag));
  for(let i=0;i<pages.length;i++)assert.equal(rest[i]===0,referenceOccluders.has(i),`page ${i}`);
+});
+
+test('the CPU occlusion oracle counts the clusters and the triangles it eliminated',()=>{
+ const frontMat=new THREE.MeshBasicMaterial({color:0xff0000});
+ const backMat=new THREE.MeshBasicMaterial({color:0x00ff00});
+ const front=quad(frontMat,[-1,-1,0],[1,1,0],'front');
+ const back=quad(backMat,[-0.2,-0.2,-2],[0.2,0.2,-2],'back');
+ // Close enough that the near quad is wider than the test kernel and answers from a coarser mip.
+ const cam=cameraAt(2.2),size:[number,number]=[32,32];
+ const frontBounds=projectBoxToScreen(front.page.min,front.page.max,front.page.matrix,cam,size);
+ assert.equal(hizOversized(frontBounds.minX,frontBounds.minY,frontBounds.maxX,frontBounds.maxY,frontBounds.clipsNear),true);
+ const ids=rasterVisibilityIds([front.page],cam,size);
+ const pyramid=buildHizPyramid(visibilityDepth(ids,[front.page],cam,size),32,32);
+ const counts=createHizCounts();
+ const kept=countUnoccluded([front.page,back.page],pyramid,cam,size,counts);
+ assert.deepEqual(kept.map(page=>page.url),['front']);
+ // Two clusters of two triangles each: the covered one is eliminated, the wide occluder is not.
+ assert.deepEqual(counts,{tested:2,rejected:1,oversized:1,testedTriangles:4,rejectedTriangles:2,oversizedTriangles:2});
+ front.geometry.dispose();back.geometry.dispose();frontMat.dispose();backMat.dispose();
+});
+
+test('the temporal Hi-Z fallback reports the counts of the image it just cut',()=>{
+ const frontMat=new THREE.MeshBasicMaterial({color:0xff0000});
+ const backMat=new THREE.MeshBasicMaterial({color:0x00ff00});
+ const front=quad(frontMat,[-1,-1,0],[1,1,0],'front');
+ const back=quad(backMat,[-0.2,-0.2,-2],[0.2,0.2,-2],'back');
+ const size:[number,number]=[32,32],history:TemporalHizState={},counts=createHizCounts();
+ const cut=applyTemporalHiz([front.page,back.page],cameraAt(5),size,history,counts);
+ assert.equal(cut.counts,counts);
+ assert.equal(counts.rejected,cut.hizRejected);
+ assert.equal(counts.tested,1);
+ assert.equal(counts.rejected,1);
+ assert.equal(counts.rejectedTriangles,2);
+ assert.equal(counts.testedTriangles,2);
+ // A second image over the same counters restates that image alone instead of accumulating.
+ applyTemporalHiz([front.page,back.page],cameraAt(5),size,history,counts);
+ assert.equal(counts.tested,1);
+ assert.equal(counts.rejected,1);
+ front.geometry.dispose();back.geometry.dispose();frontMat.dispose();backMat.dispose();
 });

@@ -48,6 +48,16 @@ export interface FrameMetrics {
  /** Sticky loading error; failed URLs require an explorer reload after three attempts. */
  streamingError?:string|null;
  textureUploaded?:number|null;texturePending?:number|null;textureSkipped?:number|null;
+ /**
+  * What the Hi-Z occlusion test did on one image: clusters handed to it, clusters it eliminated, and
+  * clusters whose level-0 screen footprint is wider than the 16-texel test kernel and which therefore
+  * answer from a coarser mip. `hiz*Triangles` are the triangles those same clusters carry. The GPU
+  * path reads its verdicts back, so its counters describe an earlier image than the one that returned
+  * them, the way `gpuPassMs` does. Null on a backend that runs no occlusion test, on a device whose
+  * verdicts cannot be read back, and before the first image has been counted.
+  */
+ hizTestedClusters?:number|null; hizRejectedClusters?:number|null; hizOversizedClusters?:number|null;
+ hizTestedTriangles?:number|null; hizRejectedTriangles?:number|null; hizOversizedTriangles?:number|null;
  /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
  gpuPassMs?:GpuPassTimings|null;
  /** Enclosing GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */

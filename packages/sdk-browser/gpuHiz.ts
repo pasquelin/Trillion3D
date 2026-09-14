@@ -1,7 +1,13 @@
 import {hizBuildPyramid,hizReduceCeil} from '../sdk-core/index.ts';
-import {HIZ_BOUNDS_VALUES,hizFootprintLevelFlat,hizRejects,type HizBounds,type HizPyramid} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,createHizCounts,hizFootprintLevelFlat,hizOversizedFlat,hizRejects,type HizBounds,type HizCounts,type HizPyramid} from './hiz.ts';
 
 const WORKGROUP=8,TEST_WORKGROUP=64,UNIFORM_BYTES=256,MAX_LEVELS=16;
+/**
+ * Images between two readbacks of the test verdicts. The verdicts are written by the GPU, so counting
+ * what they eliminated costs one copy of the flag rows and one mapping; both are kept off the images
+ * in between, and neither ever blocks an image.
+ */
+const COUNT_EVERY_IMAGES=15;
 
 export type PackedHiz={data:Float32Array;sizes:Array<[number,number]>;offsets:number[]};
 
@@ -115,6 +121,13 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
 }
 `;
 
+/**
+ * Per-image inputs the counters need and the test does not: the triangles each tested box carries, in
+ * the order the boxes are handed over, and the image those boxes belong to. One object, reused by the
+ * caller from image to image, so counting allocates nothing per image.
+ */
+export type HizCountSample={triangles:ArrayLike<number>;frame:number};
+
 export type GpuHiz={
  width:number;
  height:number;
@@ -127,7 +140,18 @@ export type GpuHiz={
   * entry box `i` answers for. `flagRows` entries are cleared first, so a row this frame does not test
   * reads 0 instead of the verdict of an earlier frame.
   */
- encodeTest(device:GPUDevice,encoder:GPUCommandEncoder,bounds:Float64Array,rows:Uint32Array,count:number,flagRows:number):number;
+ encodeTest(device:GPUDevice,encoder:GPUCommandEncoder,bounds:Float64Array,rows:Uint32Array,count:number,flagRows:number,sample?:HizCountSample):number;
+ /**
+  * Hands the verdicts of the sampled image to the mapping. Called once the image that `encodeTest`
+  * encoded the copy into has been submitted: a mapping requested before the submission would make
+  * that submission use a mapped buffer. A no-op on every image that encoded no copy.
+  */
+ countsSubmitted():void;
+ /**
+  * Counts of the last image whose verdicts came back, and the number of that image. Undefined until
+  * one has: nothing here is deduced, and a device that cannot map a buffer never reports counts.
+  */
+ counts():(HizCounts&{frame:number})|undefined;
  resize(device:GPUDevice,width:number,height:number):boolean;
  dispose():void;
 };
@@ -153,6 +177,13 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
  const uniData=new Float32Array(UNIFORM_BYTES/4);
  // Reused across frames: the test path must not allocate a byte per image.
  let testBytes=new ArrayBuffer(32),testF32=new Float32Array(testBytes),testI32=new Int32Array(testBytes),testU32=new Uint32Array(testBytes);
+ // Counter state, all of it sized once. `counted` describes the last image whose verdicts came back;
+ // `sampled*` hold the image being read, because the caller's own arrays are rewritten by the next one.
+ const counted=createHizCounts() as HizCounts&{frame:number};counted.frame=-1;
+ let countedReady=false;
+ const sampledRows=new Uint32Array(cap),sampledTriangles=new Uint32Array(cap);
+ let sampledCount=0,sampledFrame=-1,sampledTested=0,sampledOversized=0,sampledTestedTriangles=0,sampledOversizedTriangles=0;
+ let readback:GPUBuffer|undefined,readbackRows=0,copyEncoded=false,mapping=false,lastCountedFrame=-COUNT_EVERY_IMAGES;
  const buffers:GPUBuffer[]=[];
   let disposed=false,level0:GPUTexture|undefined,level0View:GPUTextureView|undefined,pyramid:GPUBuffer|undefined,bindGroup:GPUBindGroup|undefined;
   let sizes:Array<[number,number]>=[],offsets:number[]=[];
@@ -222,6 +253,18 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
     level0?.destroy();pyramid?.destroy();
     return undefined;
    }
+   /** `GPUMapMode.READ`, or the value it holds where a stub device leaves the enum undefined. */
+   const mapRead=()=>(globalThis as {GPUMapMode?:{READ:number}}).GPUMapMode?.READ??1;
+   /** Staging buffer for the verdicts, made on the first sampled image and never once per image. */
+   const ensureReadback=(target:GPUDevice)=>{
+    if(readback)return true;
+    if(typeof target.createBuffer!=='function')return false;
+    try{
+     const buffer=target.createBuffer({label:'WG HiZ counts readback',size:Math.max(4,cap*4),usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+     if(typeof buffer.mapAsync!=='function'||typeof buffer.getMappedRange!=='function'){buffer.destroy();return false;}
+     readback=buffer;return true;
+    }catch{return false;}
+   };
    const gpu:GpuHiz={
     width,height,level0,level0View,flags,
     // One compute pass builds the whole pyramid: consecutive dispatches inside a pass already see each
@@ -239,12 +282,16 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
      }
      pass.end();
     },
-    encodeTest(queueDevice,encoder,next,rows,boundsCount,flagRows){
+    encodeTest(queueDevice,encoder,next,rows,boundsCount,flagRows,sample){
      if(disposed||!bindGroup)return 0;
      const count=Math.min(boundsCount,cap);
      if(flagRows>0)encoder.clearBuffer(flags,0,Math.min(cap,flagRows)*4);
      const need=Math.max(32,count*32);
      if(testBytes.byteLength<need){testBytes=new ArrayBuffer(need);testF32=new Float32Array(testBytes);testI32=new Int32Array(testBytes);testU32=new Uint32Array(testBytes);}
+     // A sample is due when no mapping is in flight and the interval has elapsed; the rows and their
+     // triangles are copied out here because the caller rewrites its own arrays on the next image.
+     const due=!!sample&&!mapping&&!copyEncoded&&flagRows>0&&sample.frame-lastCountedFrame>=COUNT_EVERY_IMAGES&&ensureReadback(queueDevice);
+     let tested=0,oversized=0,oversizedTriangles=0,testedTriangles=0;
      for(let i=0;i<count;i++){
       const base=i*8,at=i*HIZ_BOUNDS_VALUES;
       const level=hizFootprintLevelFlat(next,at,gpu.width,gpu.height,sizes.length);
@@ -253,6 +300,11 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
       testI32[base+2]=Math.floor(next[at+2]/scale);testI32[base+3]=Math.floor(next[at+3]/scale);
       testF32[base+4]=next[at+4];testU32[base+5]=((rows[i]<<1)|(level===undefined?1:0))>>>0;
       testU32[base+6]=level===undefined?0:offsets[level];testU32[base+7]=level===undefined?gpu.width:sizes[level][0];
+      if(!due)continue;
+      const triangles=sample!.triangles[i]??0;
+      tested++;testedTriangles+=triangles;
+      sampledRows[i]=rows[i];sampledTriangles[i]=triangles;
+      if(hizOversizedFlat(next,at)){oversized++;oversizedTriangles+=triangles;}
      }
      if(count)queueDevice.queue.writeBuffer(bounds,0,testBytes,0,count*32);
      const biasBits=new Uint32Array(new Float32Array([0]).buffer)[0];
@@ -262,8 +314,36 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
      pass.setPipeline(testPipeline);pass.setBindGroup(0,bindGroup,[testSlot*UNIFORM_BYTES]);
      pass.dispatchWorkgroups(Math.max(1,Math.ceil(count/TEST_WORKGROUP)));
      pass.end();
+     if(due&&readback){
+      sampledCount=count;sampledFrame=sample!.frame;
+      sampledTested=tested;sampledOversized=oversized;sampledTestedTriangles=testedTriangles;sampledOversizedTriangles=oversizedTriangles;
+      readbackRows=Math.min(cap,flagRows);
+      encoder.copyBufferToBuffer(flags,0,readback,0,readbackRows*4);
+      copyEncoded=true;lastCountedFrame=sample!.frame;
+     }
      return count;
     },
+    countsSubmitted(){
+     const buffer=readback;
+     if(!copyEncoded||!buffer||disposed)return;
+     copyEncoded=false;mapping=true;
+     const rowsRead=readbackRows;
+     Promise.resolve(buffer.mapAsync(mapRead(),0,rowsRead*4)).then(()=>{
+      if(disposed)return;
+      const verdicts=new Uint32Array(buffer.getMappedRange(0,rowsRead*4));
+      let rejected=0,rejectedTriangles=0;
+      for(let i=0;i<sampledCount;i++){
+       const row=sampledRows[i];
+       if(row<rowsRead&&verdicts[row]){rejected++;rejectedTriangles+=sampledTriangles[i];}
+      }
+      counted.frame=sampledFrame;counted.tested=sampledTested;counted.oversized=sampledOversized;
+      counted.testedTriangles=sampledTestedTriangles;counted.oversizedTriangles=sampledOversizedTriangles;
+      counted.rejected=rejected;counted.rejectedTriangles=rejectedTriangles;
+      countedReady=true;
+     }).catch(()=>{/* A device loss or a disposal cancels a mapping; the counters keep their last image. */})
+      .finally(()=>{try{buffer.unmap();}catch{/* Already unmapped by a disposal. */}mapping=false;});
+    },
+    counts(){return countedReady?counted:undefined;},
     resize(nextDevice,nextWidth,nextHeight){
      if(disposed||!nextDevice||nextWidth<1||nextHeight<1)return false;
      if(nextWidth===gpu.width&&nextHeight===gpu.height&&level0)return true;
@@ -274,7 +354,8 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
      }catch{return false;}
     },
     dispose(){
-     disposed=true;
+     disposed=true;countedReady=false;copyEncoded=false;
+     readback?.destroy();readback=undefined;
      for(const buffer of buffers)buffer.destroy();
      level0?.destroy();pyramid?.destroy();
      level0=undefined;level0View=undefined;pyramid=undefined;bindGroup=undefined;
