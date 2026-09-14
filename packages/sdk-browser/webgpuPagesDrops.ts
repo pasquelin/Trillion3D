@@ -107,6 +107,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   rows.candidateCount = 0;
   rows.packedCount = 0;
   rows.rowsChanged = true;
+  rt.layout.hizProjection.invalidate();
   capabilities.materials = UNTEXTURED_MATERIALS;
   vis.textureJobs.length = 0;
   for (const item of VIS_FEATURES)
