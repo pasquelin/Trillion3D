@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { NormalCone } from './pageCone.ts';
-import type { CullingBounds } from './pageSelectionCutBounds.ts';
 
 export type PageRec = {
   id: number;
@@ -74,9 +73,8 @@ export type ClusterStructureIndex = {
 export type ClusterRoot<T> = {
   world: THREE.Matrix4;
   pages: T[];
-  culling?: { nodes: Float64Array; stride: number };
-  /** Bornes par nœud dérivées de `culling` et des pages, une fois à la préparation. */
-  bounds?: CullingBounds;
+  /** `bounds` : bornes par nœud dérivées des nœuds et des pages, une fois à la préparation. */
+  culling?: { nodes: Float64Array; stride: number; bounds: Float64Array };
   worldBox?: THREE.Box3;
   stretch?: number;
   stretchKey?: Float64Array;

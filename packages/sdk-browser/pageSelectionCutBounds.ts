@@ -22,19 +22,14 @@ export const OWN_FLOOR = 0,
   OWN_SPHERE = 3,
   PARENT_SPHERE = 7;
 
-/** Bornes de chaque nœud, `BOUND_STRIDE` nombres par nœud. */
-export type CullingBounds = { values: Float64Array };
-
-/** Étend une sphère englobante pour couvrir une seconde. Rayon négatif : accumulateur encore vide. */
-function growSphere(
-  into: Float64Array,
-  at: number,
-  cx: number,
-  cy: number,
-  cz: number,
-  radius: number,
-) {
+/** Étend la sphère englobante rangée en `at` pour couvrir celle lue en `from`.
+ *  Rayon négatif : accumulateur encore vide. */
+function growSphere(into: Float64Array, at: number, sphere: ArrayLike<number>, from: number) {
+  const radius = sphere[from + 3];
   if (!(radius >= 0)) return;
+  const cx = sphere[from],
+    cy = sphere[from + 1],
+    cz = sphere[from + 2];
   const held = into[at + 3];
   if (!(held >= 0)) {
     into[at] = cx;
@@ -77,13 +72,13 @@ function foldPage<T extends PageRecord>(values: Float64Array, at: number, rec: T
     if (own > 0 && !sphere) values[at + OWN_CEIL] = Infinity;
     else if (own > values[at + OWN_CEIL]) values[at + OWN_CEIL] = own;
   }
-  if (sphere) growSphere(values, at + OWN_SPHERE, sphere[0], sphere[1], sphere[2], sphere[3]);
+  if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0);
   // Un cluster que rien ne remplace se projette à l'infini : il ne baisse aucun plancher.
   const parent = rec.parentError;
   if (parent === undefined || parent === null) return;
   if (parent < values[at + PARENT_FLOOR]) values[at + PARENT_FLOOR] = parent;
   const band = rec.parentSphere ?? sphere;
-  if (band) growSphere(values, at + PARENT_SPHERE, band[0], band[1], band[2], band[3]);
+  if (band) growSphere(values, at + PARENT_SPHERE, band, 0);
 }
 
 /** Réduit un nœud enfant dans les bornes de son parent. */
@@ -94,34 +89,19 @@ function foldChild(values: Float64Array, at: number, from: number) {
     values[at + OWN_CEIL] = values[from + OWN_CEIL];
   if (values[from + PARENT_FLOOR] < values[at + PARENT_FLOOR])
     values[at + PARENT_FLOOR] = values[from + PARENT_FLOOR];
-  growSphere(
-    values,
-    at + OWN_SPHERE,
-    values[from + OWN_SPHERE],
-    values[from + OWN_SPHERE + 1],
-    values[from + OWN_SPHERE + 2],
-    values[from + OWN_SPHERE + 3],
-  );
-  growSphere(
-    values,
-    at + PARENT_SPHERE,
-    values[from + PARENT_SPHERE],
-    values[from + PARENT_SPHERE + 1],
-    values[from + PARENT_SPHERE + 2],
-    values[from + PARENT_SPHERE + 3],
-  );
+  growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE);
+  growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE);
 }
 
 /**
- * Bornes de chaque nœud, calculées une fois par primitive. Les enfants d'un nœud sont toujours
- * rangés après lui dans le tableau plat : un seul balayage descendant suffit à remonter les bornes.
+ * Bornes de chaque nœud, `BOUND_STRIDE` nombres par nœud, calculées une fois par primitive. Les
+ * enfants d'un nœud sont toujours rangés après lui dans le tableau plat : un seul balayage
+ * descendant suffit à remonter les bornes.
  */
 export function cullingBounds<T extends PageRecord>(
-  culling: { nodes: Float64Array; stride: number } | undefined,
+  { nodes, stride }: { nodes: Float64Array; stride: number },
   pages: readonly T[],
-): CullingBounds | undefined {
-  if (!culling) return undefined;
-  const { nodes, stride } = culling;
+) {
   const count = (nodes.length / stride) | 0;
   const values = new Float64Array(count * BOUND_STRIDE);
   for (let node = count - 1; node >= 0; node--) {
@@ -143,5 +123,5 @@ export function cullingBounds<T extends PageRecord>(
       pageCount = nodes[base + 14];
     for (let i = 0; i < pageCount; i++) foldPage(values, at, pages[firstPage + i]);
   }
-  return { values };
+  return values;
 }
