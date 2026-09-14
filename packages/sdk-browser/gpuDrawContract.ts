@@ -48,6 +48,10 @@ export type GpuDraw = {
    * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,layer} and is uploaded only
    * when `itemsDirty`, because those four are properties of the page-table row and not of the frame.
    * `restBits` is the frame's occluder/rest partition, one bit per item; nothing here allocates.
+   *
+   * `slotItems` is what the caller counted per slot for this image — at least `slots` entries. A
+   * slot it counted at zero is skipped entirely by the compaction, so a coplanar layer no cluster
+   * of this batch or of this half reaches costs nothing. Omit it and every slot is compacted.
    */
   encode(
     encoder: GPUCommandEncoder,
@@ -57,6 +61,7 @@ export type GpuDraw = {
     restBits: Uint32Array,
     maxVertexCount: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
+    slotItems?: Uint32Array,
   ): void;
   indirectBuffer: GPUBuffer; // slots × 16 bytes
   instanceBuffer: GPUBuffer; // slotCap u32 page indices, ordered
