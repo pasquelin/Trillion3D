@@ -1,11 +1,10 @@
-import { clusterColor } from './backendCommon.ts';
+import { clusterColor, hashId } from './backendCommon.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import {
   createTriangleDiagnosticMaterial,
   materialSide,
   triangleGeometry,
-  triangleSalt,
 } from './triangleDiagnostic.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -95,7 +94,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
           material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
           diagnosticMaterials.set(key, material);
         }
-        paint(copy, sourceGeometry, material, triangleSalt(copy.uuid));
+        paint(copy, sourceGeometry, material, hashId(copy.uuid));
       } else paint(copy, sourceGeometry, sourceMaterial);
     }
   };

@@ -2,22 +2,20 @@ import { createArrivalQueue } from './arrivalQueue.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { PRIORITY_VISIBLE } from './streamingPriority.ts';
 import type { RenderBackend } from './backendTypes.ts';
-import type { RuntimeEvent, AssetScope } from '../sdk-core/index.ts';
+import type { ExplorerHostState } from './explorerHostState.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 
 type Inputs = {
   streamer: ReturnType<typeof createPageStreamer>;
   geometryUrls: Set<string>;
   backends: RenderBackend[];
-  signal?: AbortSignal;
-  scope: AssetScope;
-  state: () => { disposed: boolean; measuring: boolean; active: RenderBackend };
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
+  state: Pick<ExplorerHostState, 'disposed' | 'measuring' | 'active'>;
 };
 
-export function createExplorerStreaming(inputs: Inputs) {
-  const { streamer, geometryUrls, backends, signal, scope, state, emit, diagnose } = inputs;
+export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs) {
+  const { signal, scope, emit, diagnose } = session;
+  const { streamer, geometryUrls, backends, state } = inputs;
   let streamingError: string | null = null,
     lastPrefetch = 0;
   let streamingPromise: Promise<void> | null = null,
@@ -37,7 +35,7 @@ export function createExplorerStreaming(inputs: Inputs) {
     }
   };
   const startFetch = (urls: string[], priority = PRIORITY_VISIBLE) => {
-    if (!urls.length || state().measuring) return;
+    if (!urls.length || state.measuring) return;
     const controller = new AbortController();
     backgroundFetchController = controller;
     streamingPromise = streamer
@@ -62,11 +60,11 @@ export function createExplorerStreaming(inputs: Inputs) {
         }
       })
       .catch((error) => {
-        if (state().disposed || signal?.aborted || controller.signal.aborted) return;
+        if (state.disposed || signal?.aborted || controller.signal.aborted) return;
         const detail = String(error);
         if (streamingError !== detail) {
           streamingError = detail;
-          const recovered = state().active.metrics().coverageReady === true;
+          const recovered = state.active.metrics().coverageReady === true;
           emit(
             recovered
               ? {
@@ -95,7 +93,7 @@ export function createExplorerStreaming(inputs: Inputs) {
               error: detail,
               failedPages: streamer.stats().failed,
               maxAttemptsPerPage: 3,
-              coverageReady: state().active.metrics().coverageReady ?? null,
+              coverageReady: state.active.metrics().coverageReady ?? null,
               recovered,
               scope,
             },
@@ -105,7 +103,7 @@ export function createExplorerStreaming(inputs: Inputs) {
       .finally(() => {
         if (backgroundFetchController === controller) backgroundFetchController = undefined;
         streamingPromise = null;
-        if (queuedFetch.length && !state().measuring) {
+        if (queuedFetch.length && !state.measuring) {
           const next = queuedFetch
             .splice(0, queuedFetch.length)
             .filter(

@@ -1,40 +1,18 @@
 import * as THREE from 'three';
-import {
-  type CameraPose,
-  type FrameMetrics,
-  type RuntimeEvent,
-  type AssetScope,
-} from '../sdk-core/index.ts';
+import { type CameraPose, type FrameMetrics } from '../sdk-core/index.ts';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import { handleExplorerRenderError } from './explorerRenderFallback.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { ExplorerHostState } from './explorerHostState.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { createPageStreamer } from './streamingPages.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
 import type { EngineProfiler } from './telemetry.ts';
 import type { ComparisonLayout } from './comparison.ts';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
 
-type State = {
-  measuring: boolean;
-  diagnostic: DiagnosticMode;
-  comparisonLayout: ComparisonLayout;
-  comparisonPair: [string, string];
-  wipe: number;
-  toggle: 0 | 1;
-  pairTargetA?: THREE.WebGLRenderTarget;
-  pairTargetB?: THREE.WebGLRenderTarget;
-  measurementTarget?: THREE.WebGLRenderTarget;
-};
 type Inputs = {
   check: () => void;
-  nextFrame: () => number;
-  state: () => State;
-  getActive: () => RenderBackend;
-  setActive: (backend: RenderBackend) => void;
-  setFallbackReason: (reason: string) => void;
-  setMeasurementTarget: (target: THREE.WebGLRenderTarget) => THREE.WebGLRenderTarget;
-  setPairTargets: (left: THREE.WebGLRenderTarget, right: THREE.WebGLRenderTarget) => void;
+  state: ExplorerHostState;
   camera: THREE.PerspectiveCamera;
   lookAtTarget: THREE.Vector3;
   setPose: (pose: CameraPose) => void;
@@ -57,24 +35,15 @@ type Inputs = {
   fillMetrics: (backend: RenderBackend) => void;
   metricsScratch: FrameMetrics;
   profiler: EngineProfiler;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
   pageIdByUrl: Map<string, number>;
   streamer: ReturnType<typeof createPageStreamer>;
-  scope: AssetScope;
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
-export function createExplorerRender(inputs: Inputs) {
+export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
+  const { scope, diagnosticChannel, emit, diagnose } = session;
   const {
     check,
-    nextFrame,
     state,
-    getActive,
-    setActive,
-    setFallbackReason,
-    setMeasurementTarget,
-    setPairTargets,
     camera,
     lookAtTarget,
     setPose,
@@ -89,50 +58,32 @@ export function createExplorerRender(inputs: Inputs) {
     fillMetrics,
     metricsScratch,
     profiler,
-    diagnosticChannel,
     pageIdByUrl,
     streamer,
-    scope,
-    emit,
-    diagnose,
   } = inputs;
   const render = (pose?: CameraPose): FrameMetrics => {
-    const {
-      measuring,
-      diagnostic,
-      comparisonLayout,
-      comparisonPair,
-      wipe,
-      toggle,
-      pairTargetA: initialPairTargetA,
-      pairTargetB: initialPairTargetB,
-      measurementTarget,
-    } = state();
-    let pairTargetA = initialPairTargetA,
-      pairTargetB = initialPairTargetB;
+    const { measuring, diagnostic, comparisonLayout, comparisonPair, wipe, toggle } = state;
     check();
-    const frameNumber = nextFrame();
+    const frameNumber = ++state.hostFrame;
     const start = performance.now();
     if (pose) setPose(pose);
     // Drain unique des arrivées, hors de l'image qu'elles auraient allongée.
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
-    (getActive() as { cpuStep?: (index: number, ms: number) => void }).cpuStep?.(
+    (state.active as { cpuStep?: (index: number, ms: number) => void }).cpuStep?.(
       4,
       performance.now() - arrivalStart,
     );
     try {
-      if (comparisonLayout === 'single' || measuring)
-        drawBackend(
-          getActive(),
-          measuring && !directGpu ? setMeasurementTarget(ensureTarget(measurementTarget)) : null,
-        );
-      else {
-        const left = backends.find((b) => b.id === comparisonPair[0]) ?? getActive(),
-          right = backends.find((b) => b.id === comparisonPair[1]) ?? getActive();
-        pairTargetA = ensureTarget(pairTargetA);
-        pairTargetB = ensureTarget(pairTargetB);
-        setPairTargets(pairTargetA, pairTargetB);
+      if (comparisonLayout === 'single' || measuring) {
+        if (measuring && !directGpu)
+          state.measurementTarget = ensureTarget(state.measurementTarget);
+        drawBackend(state.active, measuring && !directGpu ? state.measurementTarget! : null);
+      } else {
+        const left = backends.find((b) => b.id === comparisonPair[0]) ?? state.active,
+          right = backends.find((b) => b.id === comparisonPair[1]) ?? state.active;
+        const pairTargetA = (state.pairTargetA = ensureTarget(state.pairTargetA)),
+          pairTargetB = (state.pairTargetB = ensureTarget(state.pairTargetB));
         drawBackend(left, pairTargetA);
         drawBackend(right, pairTargetB);
         compositor!.render(
@@ -150,15 +101,13 @@ export function createExplorerRender(inputs: Inputs) {
         renderer: ownedRenderer,
         camera,
         baseline,
-        getActive,
-        setActive,
-        setFallbackReason,
+        state,
         scope,
         emit,
         diagnose,
       });
     }
-    fillMetrics(getActive());
+    fillMetrics(state.active);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
     if (metricsScratch.drawCalls < 0)
@@ -168,7 +117,7 @@ export function createExplorerRender(inputs: Inputs) {
     profiler.record(metricsScratch);
     emitExplorerFrameDiagnostic({
       diagnosticChannel,
-      active: getActive(),
+      active: state.active,
       camera,
       lookAtTarget,
       metricsScratch,
