@@ -26,7 +26,7 @@ export function createTerminalProgress({label='job',index=0,total=1,stream=proce
  const draw=()=>{if(state.finished)return;const text=line();if(tty)stream.write(`\r\x1b[K${clip(text,Math.max(20,(stream.columns??80)-1))}`);else{const key=`${state.phase}:${state.text.split(' ')[0]}`;if(key!==state.lastKey){stream.write(`${text}\n`);state.lastKey=key;}}};
  const stop=()=>{if(state.timer){clearInterval(state.timer);state.timer=null;}};
  const finish=(mark,summary)=>{if(state.finished)return;stop();state.finished=true;stream.write(`${tty?'\r\x1b[K':''}${mark} ${index+1}/${total} ${label} ${summary} ${elapsed()}\n`);};
- if(tty)state.timer=setInterval(draw,interval);
+ if(tty){state.timer=setInterval(draw,interval);state.timer.unref?.();}
  return {
   /** Feed every compiler event here; the line completes or fails by itself. */
   event(event){
@@ -44,7 +44,6 @@ export function createTerminalProgress({label='job',index=0,total=1,stream=proce
   note(text){state.text=text;state.phase='host';draw();},
   done(summary){finish('✔',summary);},
   fail(message){finish('✖',message);},
-  get primitives(){return state.primitives;},
  };
 }
 /** Batch companion for `prepareMany({onEvent})`: one line per job id, in arrival order. */
