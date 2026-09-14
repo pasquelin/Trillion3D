@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
+import { urlsOf } from './webgpuPagesHelpers.ts';
 import { cameraPose } from './webgpuPagesStateTiming.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -11,8 +12,6 @@ function cpuSelectionDecision(rt: WebgpuPagesRuntime) {
     reason: rt.capture.secondaryCamera ? 'surface-capture' : 'gpu-selection-unavailable',
   };
 }
-
-const urls = (pages: readonly PageRec[]) => pages.map((page) => page.url);
 
 export function traceCpuSelection(
   rt: WebgpuPagesRuntime,
@@ -33,8 +32,8 @@ export function traceCpuSelection(
     submission: run.imageRevision,
     scope: 'cpu/selectVisiblePages',
     elapsedMs,
-    shown: tracking.traceSet('selection.shown', urls(chosen.shown)),
-    wanted: tracking.traceSet('selection.wanted', urls(chosen.wanted ?? chosen.shown)),
+    shown: tracking.traceSet('selection.shown', urlsOf(chosen.shown)),
+    wanted: tracking.traceSet('selection.wanted', urlsOf(chosen.wanted ?? chosen.shown)),
     visible: chosen.visible,
     selectedTriangles: chosen.selectedTriangles,
     frustumRejected: chosen.frustumRejected,
@@ -61,9 +60,9 @@ export function traceCpuFrameWaiting(
     cpu: timing.cpuSample,
     coverage: {
       loaded: tracking.traceSet('frame.loaded', []),
-      wanted: tracking.traceSet('frame.wanted', urls(run.desired)),
+      wanted: tracking.traceSet('frame.wanted', urlsOf(run.desired)),
       shown: tracking.traceSet('frame.shown', []),
-      bootstrap: tracking.traceSet('frame.bootstrap', urls(bootstrap)),
+      bootstrap: tracking.traceSet('frame.bootstrap', urlsOf(bootstrap)),
       ready: false,
     },
     budget: {
@@ -89,16 +88,16 @@ export function traceCpuFrame(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveC
     selection: cpuSelectionDecision(rt),
     cpu: timing.cpuSample,
     coverage: {
-      loaded: tracking.traceSet('frame.loaded', urls(run.drawn)),
-      wanted: tracking.traceSet('frame.wanted', urls(run.desired)),
-      shown: tracking.traceSet('frame.shown', urls(run.shown)),
-      bootstrap: tracking.traceSet('frame.bootstrap', urls(bootstrap)),
+      loaded: tracking.traceSet('frame.loaded', urlsOf(run.drawn)),
+      wanted: tracking.traceSet('frame.wanted', urlsOf(run.desired)),
+      shown: tracking.traceSet('frame.shown', urlsOf(run.shown)),
+      bootstrap: tracking.traceSet('frame.bootstrap', urlsOf(bootstrap)),
       ready: rt.services.bootstrapState.ready,
     },
     budget: {
       slots,
       requested: tracking.traceSet('frame.requested', [
-        ...new Set([...bootstrapUrls, ...urls(run.desired)]),
+        ...new Set([...bootstrapUrls, ...urlsOf(run.desired)]),
       ]),
       limited: run.coverageBudgetLimited,
       frameBytes: frameBudget,

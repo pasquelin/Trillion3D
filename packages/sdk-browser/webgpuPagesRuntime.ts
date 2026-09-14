@@ -1,4 +1,6 @@
 import type { BackendCapabilities, BackendContext, RenderBackend } from './backendTypes.ts';
+import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPagesServices.ts';
+import { createWebgpuPagesHooks, type WebgpuPagesHooks } from './webgpuPagesPipelineFor.ts';
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
@@ -14,7 +16,6 @@ import {
 } from './webgpuPagesStateRun.ts';
 import { createWebgpuTimingState, type WebgpuTimingState } from './webgpuPagesStateTiming.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
-import type { WebgpuPagesServices } from './webgpuPagesServices.ts';
 
 export type WebgpuPagesBackend = RenderBackend & {
   flush(): Promise<void>;
@@ -22,6 +23,9 @@ export type WebgpuPagesBackend = RenderBackend & {
   selectedPageIds(): string[];
   visibilityIds(): Uint32Array;
 };
+
+/** The runtime before its services exist: what the service and hook factories are handed. */
+export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services' | 'hooks'>;
 
 export const UNTEXTURED_MATERIALS = 'Untextured source color; double-sided when the material is';
 export const VIS_FEATURES = [
@@ -48,8 +52,8 @@ export interface WebgpuPagesRuntime {
   texturePump: ReturnType<typeof createWebgpuTexturePump>;
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices;
-  /** The backend object itself, assigned once it exists: services re-enter it for fallbacks. */
-  backend: WebgpuPagesBackend;
+  /** Per-record callbacks bound once, so no image allocates them again. */
+  hooks: WebgpuPagesHooks;
 }
 
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
@@ -92,7 +96,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'direct WebGPU present',
     ],
   };
-  return {
+  const core: WebgpuPagesCore = {
     context,
     diag,
     setup,
@@ -105,7 +109,10 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     capabilities,
     blendState: createWebgpuBlendState(),
     texturePump,
-    services: undefined as unknown as WebgpuPagesServices,
-    backend: undefined as unknown as WebgpuPagesBackend,
+  };
+  return {
+    ...core,
+    services: createWebgpuPagesServices(core),
+    hooks: createWebgpuPagesHooks(core),
   };
 }

@@ -20,14 +20,14 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   try {
     ({
       blendBindGroupLayout: vis.blendBindGroupLayout,
-      pipelineBlendTextured: gpu.pipelineBlendTextured,
-      pipelineBlendFront: gpu.pipelineBlendFront,
-      pipelineBlendBack: gpu.pipelineBlendBack,
+      pipelineBlendTextured: vis.pipelineBlendTextured,
+      pipelineBlendFront: vis.pipelineBlendFront,
+      pipelineBlendBack: vis.pipelineBlendBack,
     } = await createWebgpuBlendPipelines(gpuDevice, blendState.blendGpu));
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
-    gpu.pipelineBlendTextured = undefined;
+    vis.pipelineBlendTextured = undefined;
   }
   const shaders = await createWebgpuVisibilityShaders(gpuDevice, drawSlots);
   vis.shadeUniform = shaders.shadeUniform;

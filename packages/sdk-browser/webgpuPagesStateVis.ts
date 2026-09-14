@@ -42,7 +42,11 @@ export interface WebgpuVisState {
   visHizBindGroup: GPUBindGroup | undefined;
   visUniform: GPUBuffer | undefined;
   zeroFlags: GPUBuffer | undefined;
+  // The textured forward pipelines share the visibility path's atlases and fall with it.
   blendBindGroupLayout: GPUBindGroupLayout | undefined;
+  pipelineBlendTextured: GPURenderPipeline | undefined;
+  pipelineBlendFront: GPURenderPipeline | undefined;
+  pipelineBlendBack: GPURenderPipeline | undefined;
   gpuDraw: GpuDraw | undefined;
   shadeBindGroupLayout: GPUBindGroupLayout | undefined;
   shadeBindGroup: GPUBindGroup | undefined;
@@ -98,6 +102,9 @@ export function createWebgpuVisState(): WebgpuVisState {
     visUniform: undefined,
     zeroFlags: undefined,
     blendBindGroupLayout: undefined,
+    pipelineBlendTextured: undefined,
+    pipelineBlendFront: undefined,
+    pipelineBlendBack: undefined,
     gpuDraw: undefined,
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,

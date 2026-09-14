@@ -1,8 +1,8 @@
 import { acceptPageArray } from './pageSelection.ts';
-import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 /** Takes the bytes of one request; each cluster it carries gets its own view at its own offset. */
-export function acceptPage(rt: WebgpuPagesRuntime, url: string, array: Uint32Array) {
+export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array) {
   const { run, diag } = rt,
     { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
   run.deferredDrops.delete(url);
@@ -28,7 +28,7 @@ export function acceptPage(rt: WebgpuPagesRuntime, url: string, array: Uint32Arr
 }
 
 /** Releases one request, unless a cluster it carries is pinned, wanted or part of the bootstrap. */
-export function dropPage(rt: WebgpuPagesRuntime, url: string) {
+export function dropPage(rt: WebgpuPagesCore, url: string) {
   const { run, gpu, diag } = rt,
     { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
   const recs = byUrl.get(url);

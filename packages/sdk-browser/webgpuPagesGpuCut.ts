@@ -17,15 +17,16 @@ import {
 } from './webgpuPagesGpuCutTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Falls back to the CPU cut for this image after the GPU selection let it down. */
-function renderWithoutGpuSelection(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+/** Gives the image up to the CPU cut after the GPU selection let it down. */
+function withoutGpuSelection(rt: WebgpuPagesRuntime) {
   dropGpuSelection(rt);
   rt.run.gpuFrameActive = false;
-  rt.backend.render(camera);
+  return false;
 }
 
 /** One image driven by the GPU cluster cut: the mask of the current frame decides the draw, the
- *  readback of the previous one decides streaming and metrics. */
+ *  readback of the previous one decides streaming and metrics. Returns false when the caller must
+ *  render the image again through the CPU cut. */
 export function renderGpuCut(
   rt: WebgpuPagesRuntime,
   camera: THREE.PerspectiveCamera,
@@ -35,19 +36,22 @@ export function renderGpuCut(
 ) {
   const { run, gpu, diag, context, services } = rt,
     { rows, transparentRoots, gpuWanted } = rt.layout,
-    { gpuDevice, viewport, clearColor } = rt.setup;
-  if (!gpuDevice || !gpu.cache || !run.gpuSelection) return;
+    { gpuDevice, viewport, clearColor } = rt.setup,
+    marks = rt.timing.marks;
+  if (!gpuDevice || !gpu.cache || !run.gpuSelection) return true;
   run.gpuFrameActive = true;
+  marks.cpuStart = cpuStart;
+  marks.lightsEnd = lightsEnd;
   // `budgetPixelError` carries the previous frame's verdict, the same feedback `pageBudget` applies
   // on the CPU path.
   const budgeted = Math.max(pixelError, run.budgetPixelError);
   cameraSelectionUniforms(camera, budgeted, viewport, run.selectionUniforms);
   services.adoptGpuCut();
-  const adoptEnd = performance.now();
+  marks.adoptEnd = performance.now();
   const transparent = transparentRoots.length
     ? selectTransparentCut(rt, camera, budgeted, false)
     : undefined;
-  const transparentSelectEnd = performance.now();
+  marks.transparentSelectEnd = performance.now();
   const oldOpaque = partitionByPass(run.shown, false, run.opaqueScratch);
   run.shown.length = 0;
   appendAll(run.shown, oldOpaque, transparent?.shown ?? []);
@@ -58,18 +62,18 @@ export function renderGpuCut(
   if (!services.bootstrapState.ready) {
     run.gpuMetricsReady = false;
     traceGpuCutWaiting(rt);
-    return;
+    return true;
   }
   transitionGpuCut(rt, camera, budgeted, transparent, oldOpaque);
-  const admissionEnd = performance.now();
+  marks.admissionEnd = performance.now();
   services.queueResident(services.budgetedResidency(run.desired));
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
-  const queueEnd = performance.now();
+  marks.queueEnd = performance.now();
   ensurePageTable(rt, gpuDevice);
   services.syncRows();
   run.rowsSyncedFrame = run.frame;
-  const rowsEnd = performance.now();
+  marks.rowsEnd = performance.now();
   if (rows.candidateOverflow) {
     // The CPU fallback can still select a representable visible subset.
     diag.engineDiagnostic(
@@ -80,10 +84,10 @@ export function renderGpuCut(
         maxCandidates: rt.layout.drawSlots,
       },
     );
-    return renderWithoutGpuSelection(rt, camera);
+    return withoutGpuSelection(rt);
   }
   if (run.gpuSelection.updateResidency(rows.residentFlags)) run.gpuMetricsReady = false;
-  const residencyUploadEnd = performance.now();
+  marks.residencyUploadEnd = performance.now();
   try {
     rt.timing.frameSelection = run.gpuSelection.dispatch(
       run.selectionUniforms,
@@ -92,11 +96,11 @@ export function renderGpuCut(
   } catch (error) {
     abandonFrameEncoder(rt);
     diag.diagnosticFailure('gpu-selection-dispatch-failed', error);
-    return renderWithoutGpuSelection(rt, camera);
+    return withoutGpuSelection(rt);
   }
   run.drawn.length = 0;
   appendAll(run.drawn, run.shown);
-  const selectionEnd = performance.now();
+  marks.selectionEnd = performance.now();
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   if (!run.renderPathLogged) {
@@ -109,31 +113,20 @@ export function renderGpuCut(
       residentCandidates: rows.candidateCount,
     });
   }
-  const encodeStart = performance.now();
+  marks.encodeStart = performance.now();
   try {
     encodeDraws(rt, gpuDevice, camera);
   } catch (error) {
     abandonFrameEncoder(rt);
     if (context.gpuCanvas) throw error;
-    return renderWithoutGpuSelection(rt, camera);
+    return withoutGpuSelection(rt);
   }
   // An encode path that returned without submitting would strand the selection's readback slot.
   abandonFrameEncoder(rt);
-  const cpuEnd = performance.now();
+  marks.cpuEnd = performance.now();
   if (run.gpuMetricsReady)
     run.submittedTriangles = triangleSum(run.shown, false) + run.blendSubmittedTriangles;
-  recordGpuCutTiming(rt, {
-    cpuStart,
-    lightsEnd,
-    adoptEnd,
-    transparentSelectEnd,
-    admissionEnd,
-    queueEnd,
-    rowsEnd,
-    residencyUploadEnd,
-    selectionEnd,
-    encodeStart,
-    cpuEnd,
-  });
+  recordGpuCutTiming(rt);
   traceGpuCutFrame(rt, camera);
+  return true;
 }
