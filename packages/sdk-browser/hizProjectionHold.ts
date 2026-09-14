@@ -82,5 +82,3 @@ export function createProjectionHold(slots: number) {
     },
   };
 }
-
-export type ProjectionHold = ReturnType<typeof createProjectionHold>;

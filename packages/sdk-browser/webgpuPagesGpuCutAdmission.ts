@@ -11,7 +11,7 @@ export const opaqueTriangles = (run: WebgpuRunState) =>
   run.shownOpaqueTriangles >= 0 ? run.shownOpaqueTriangles : triangleSum(run.shown, false);
 
 /** The forward transparents have their own CPU cut; they are absent from the GPU cluster set. */
-export function selectTransparentCut(
+function selectTransparentCut(
   rt: WebgpuPagesRuntime,
   camera: THREE.PerspectiveCamera,
   budgeted: number,
