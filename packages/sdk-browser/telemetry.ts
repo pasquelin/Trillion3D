@@ -1,38 +1,7 @@
+import type { TelemetryReport } from './telemetryTypes.ts';
+export type { TelemetryReport } from './telemetryTypes.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 import { frameStatistics } from '../sdk-core/index.ts';
-
-export interface TelemetryReport {
-  timestamp: number;
-  fps: number | null;
-  p50Ms: number | null;
-  p95Ms: number | null;
-  p99Ms: number | null;
-  stutters: number | null;
-  cpuFrameMs: number;
-  cpuSubmitMs: number | null;
-  vramMb: number | null;
-  triangles: {
-    source: number;
-    selected: number | null;
-    submitted: number | null;
-    cullingRatePercent: number | null;
-  };
-  clusters: {
-    total: number;
-    visible: number | null;
-    frustumCulled: number | null;
-  };
-  streaming: {
-    residentPages: number | null;
-    pageLoads: number;
-    pageBytesReadMb: number;
-    pagesRequested: number | null;
-    pagesLoading: number | null;
-    cacheHitRate: number | null;
-  };
-  bottleneck: 'healthy' | 'cpu_bound' | 'gpu_submit_bound' | 'streaming_bound' | 'memory_pressure';
-  bottleneckMessage: string;
-}
 
 export class EngineProfiler {
   private readonly intervals: number[] = [];
@@ -72,13 +41,14 @@ export class EngineProfiler {
     const sourceTri = this.sourceTriangles || m?.triangles || 0;
     const selectedTri = m?.selectedTriangles ?? null;
     const submittedTri = m?.submittedTriangles ?? m?.triangles ?? null;
-    const cullingRate = (sourceTri > 0 && submittedTri != null)
-      ? Math.max(0, Math.min(100, (1 - submittedTri / sourceTri) * 100))
-      : null;
+    const cullingRate =
+      sourceTri > 0 && submittedTri != null
+        ? Math.max(0, Math.min(100, (1 - submittedTri / sourceTri) * 100))
+        : null;
 
     const hits = m?.cacheHits ?? 0;
     const misses = m?.cacheMisses ?? 0;
-    const cacheHitRate = (hits + misses) > 0 ? (hits / (hits + misses)) * 100 : null;
+    const cacheHitRate = hits + misses > 0 ? (hits / (hits + misses)) * 100 : null;
 
     const cpuFrameMs = m?.cpuFrameMs ?? 0;
     const cpuSubmitMs = m?.cpuSubmitMs ?? null;
@@ -126,7 +96,9 @@ export class EngineProfiler {
       streaming: {
         residentPages: m?.residentPages ?? null,
         pageLoads: m?.pageLoads ?? 0,
-        pageBytesReadMb: m?.pageBytesRead ? Math.round((m.pageBytesRead / (1024 * 1024)) * 10) / 10 : 0,
+        pageBytesReadMb: m?.pageBytesRead
+          ? Math.round((m.pageBytesRead / (1024 * 1024)) * 10) / 10
+          : 0,
         pagesRequested: m?.pagesRequested ?? null,
         pagesLoading: m?.pagesLoading ?? null,
         cacheHitRate: cacheHitRate != null ? Math.round(cacheHitRate * 10) / 10 : null,
@@ -143,7 +115,8 @@ export class EngineProfiler {
     const p95Str = r.p95Ms != null ? `${r.p95Ms} ms` : '-';
     const p99Str = r.p99Ms != null ? `${r.p99Ms} ms` : '-';
     const vramStr = r.vramMb != null ? `${r.vramMb} Mo` : '-';
-    const cullStr = r.triangles.cullingRatePercent != null ? `${r.triangles.cullingRatePercent}% culled` : '-';
+    const cullStr =
+      r.triangles.cullingRatePercent != null ? `${r.triangles.cullingRatePercent}% culled` : '-';
 
     const sourceTriStr = r.triangles.source.toLocaleString();
     const selTriStr = r.triangles.selected != null ? r.triangles.selected.toLocaleString() : '-';
@@ -176,9 +149,12 @@ export class EngineProfiler {
 
   startAutoLog(intervalSeconds = 2): () => void {
     this.stopAutoLog();
-    this.autoLogTimer = setInterval(() => {
-      this.printReport();
-    }, Math.max(0.5, intervalSeconds) * 1000);
+    this.autoLogTimer = setInterval(
+      () => {
+        this.printReport();
+      },
+      Math.max(0.5, intervalSeconds) * 1000,
+    );
     return () => this.stopAutoLog();
   }
 
