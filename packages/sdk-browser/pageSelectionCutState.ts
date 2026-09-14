@@ -54,6 +54,22 @@ export interface SelectionResult<T> {
   pixelError: number;
 }
 
+/** Un résultat de coupe vide, à poser une fois par appelant chaud puis à réutiliser d'image en image :
+ *  `selectVisiblePages` réécrit chaque champ, seule l'identité de l'objet compte. */
+export function createSelectionResult<T>(): SelectionResult<T> {
+  return {
+    shown: [],
+    wanted: [],
+    visible: 0,
+    selectedTriangles: 0,
+    displayedTriangles: 0,
+    frustumRejected: 0,
+    lodLevel: 0,
+    complete: true,
+    pixelError: 0,
+  };
+}
+
 export const IDENTITY_WORLD = new THREE.Matrix4();
 /** Synchronous selection reuses these buffers between frames without allocating a new cut. */
 export const selectionScratch = {
@@ -83,8 +99,7 @@ const reusedState: SelectionState<PageRecord> = {
   shown: [],
   isResident: undefined,
   pageResident: (rec) =>
-    !reusedState.hold ||
-    (reusedState.isResident ? reusedState.isResident(rec) : !!(rec as PageRecord).array),
+    !reusedState.hold || (reusedState.isResident ? reusedState.isResident(rec) : !!rec.array),
   pixelError: 0,
   frustumRejected: 0,
   lodLevel: 0,
