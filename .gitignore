@@ -3,3 +3,4 @@ dist/
 **/target/
 benchmark-runs/
 .idea/
+.mesure/out/
