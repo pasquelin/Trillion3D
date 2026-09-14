@@ -4,7 +4,7 @@ import { cameraPose } from './webgpuPagesStateTiming.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** The CPU path never consults a GPU readback; every trace of it says so with the same reason. */
-export function cpuSelectionDecision(rt: WebgpuPagesRuntime) {
+function cpuSelectionDecision(rt: WebgpuPagesRuntime) {
   return {
     source: 'cpu' as const,
     decision: 'fallback',
