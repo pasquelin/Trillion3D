@@ -65,12 +65,26 @@ test('a background pixel at the far edge of a large footprint prevents rejection
  assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[bounds])],[0]);
 });
 
-test('a footprint extending outside the depth target is not rejected',()=>{
+test('a footprint straddling the edge is judged on the part that can paint a pixel',()=>{
  const depth=new Float32Array(33*19);depth.fill(0.2);
  const pyramid=buildHizPyramid(depth,33,19);
- const bounds:HizBounds={minX:0,minY:0,maxX:33,maxY:18,nearestDepth:0.8,clipsNear:false};
- assert.equal(hizRejects(pyramid,bounds),false);
- assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[bounds])],[0]);
+ // Columns 33 and beyond do not exist, so they cannot show this box: what is inside decides.
+ const covered:HizBounds={minX:-4,minY:0,maxX:40,maxY:18,nearestDepth:0.8,clipsNear:false};
+ assert.equal(hizRejects(pyramid,covered),true);
+ assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[covered])],[1]);
+ // A hole inside the viewport still forbids the rejection, edge or no edge.
+ const holed=new Float32Array(33*19);holed.fill(0.2);holed[18*33+32]=HIZ_BACKGROUND;
+ const holedPyramid=buildHizPyramid(holed,33,19);
+ assert.equal(hizRejects(holedPyramid,covered),false);
+ assert.deepEqual([...evaluateHizTest(packHizPyramid(holedPyramid.levels[0]),[covered])],[0]);
+});
+
+test('a footprint wholly outside the depth target is never rejected',()=>{
+ const depth=new Float32Array(33*19);depth.fill(0.2);
+ const pyramid=buildHizPyramid(depth,33,19);
+ const outside:HizBounds={minX:40,minY:0,maxX:48,maxY:18,nearestDepth:0.8,clipsNear:false};
+ assert.equal(hizRejects(pyramid,outside),false);
+ assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]),[outside])],[0]);
 });
 
 test('Hi-Z compute shader declares this-frame max reduction with background 1',()=>{

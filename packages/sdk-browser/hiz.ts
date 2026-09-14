@@ -160,14 +160,45 @@ export function projectBoxToScreen(min:number[],max:number[],world:THREE.Matrix4
 /** Side of the test kernel, in texels of the mip it reads. A wider footprint answers from a coarser level. */
 export const HIZ_KERNEL_TEXELS=16;
 
-function footprintLevel(minX:number,minY:number,maxX:number,maxY:number,clipsNear:boolean,width:number,height:number,levels:number):number|undefined{
+/**
+ * Values `hizTestRectFlat` writes: the mip the box answers from, then the level-0 rectangle that mip
+ * is read over, inclusive on both ends.
+ */
+export const HIZ_TEST_VALUES=5;
+
+/**
+ * The part of a screen rectangle that can ever paint a pixel, and the mip that covers it exactly.
+ *
+ * The rectangle is clipped to the viewport: what falls outside it reaches no pixel, so reading the
+ * depth of the clipped part alone is what the box is actually competing against. That is strictly
+ * safe — the depth the test compares is still the nearest corner of the *whole* box, which is no
+ * farther than the nearest corner of its clipped part, so a box kept today is still kept. It is also
+ * what makes a box straddling an edge testable at all: before clipping, any box reaching past the
+ * viewport answered `undefined` and was never rejected, however deeply buried it was.
+ *
+ * The mip is the finest one whose outward-rounded footprint fits the test kernel, so the depth read
+ * is the tightest the pyramid can give: a coarser mip would take the maximum over pixels the box does
+ * not cover and reject less. Writes `into[0]` = level and `into[1..4]` = the clipped level-0
+ * rectangle; returns false for a box that must never be rejected (near-plane crossing, empty
+ * rectangle, or a rectangle wholly outside the viewport).
+ */
+export function hizTestRect(minX:number,minY:number,maxX:number,maxY:number,clipsNear:boolean,width:number,height:number,levels:number,into:Int32Array):boolean{
  if(clipsNear||!Number.isInteger(minX)||!Number.isInteger(minY)||!Number.isInteger(maxX)||!Number.isInteger(maxY)||
-  minX<0||minY<0||maxX>=width||maxY>=height||maxX<minX||maxY<minY)return undefined;
+  maxX<minX||maxY<minY||width<1||height<1||levels<1)return false;
+ const x0=minX<0?0:minX,y0=minY<0?0:minY,x1=maxX>width-1?width-1:maxX,y1=maxY>height-1?height-1:maxY;
+ if(x1<x0||y1<y0)return false;
  for(let level=0;level<levels;level++){
   const scale=2**level;
-  if(Math.floor(maxX/scale)-Math.floor(minX/scale)<HIZ_KERNEL_TEXELS&&Math.floor(maxY/scale)-Math.floor(minY/scale)<HIZ_KERNEL_TEXELS)return level;
+  if(Math.floor(x1/scale)-Math.floor(x0/scale)<HIZ_KERNEL_TEXELS&&Math.floor(y1/scale)-Math.floor(y0/scale)<HIZ_KERNEL_TEXELS){
+   into[0]=level;into[1]=x0;into[2]=y0;into[3]=x1;into[4]=y1;return true;
+  }
  }
- return undefined;
+ return false;
+}
+
+const levelScratch=new Int32Array(HIZ_TEST_VALUES);
+function footprintLevel(minX:number,minY:number,maxX:number,maxY:number,clipsNear:boolean,width:number,height:number,levels:number):number|undefined{
+ return hizTestRect(minX,minY,maxX,maxY,clipsNear,width,height,levels,levelScratch)?levelScratch[0]:undefined;
 }
 
 /**
@@ -204,10 +235,15 @@ export function hizFootprintLevelFlat(bounds:Float64Array,base:number,width:numb
  return footprintLevel(bounds[base],bounds[base+1],bounds[base+2],bounds[base+3],bounds[base+5]!==0,width,height,levels);
 }
 
+/** `hizTestRect` over the flat bounds layout `projectBoxesFlat` writes. */
+export function hizTestRectFlat(bounds:Float64Array,base:number,width:number,height:number,levels:number,into:Int32Array):boolean{
+ return hizTestRect(bounds[base],bounds[base+1],bounds[base+2],bounds[base+3],bounds[base+5]!==0,width,height,levels,into);
+}
+
+const rejectScratch=new Int32Array(HIZ_TEST_VALUES);
 export function hizRejects(pyramid:HizPyramid,bounds:HizBounds,bias=0){
- const level=hizFootprintLevel(bounds,pyramid.width,pyramid.height,pyramid.levels.length);
- if(level===undefined)return false;
- const far=hizFootprintFar(pyramid.levels,bounds.minX,bounds.minY,bounds.maxX+1,bounds.maxY+1,level);
+ if(!hizTestRect(bounds.minX,bounds.minY,bounds.maxX,bounds.maxY,bounds.clipsNear,pyramid.width,pyramid.height,pyramid.levels.length,rejectScratch))return false;
+ const far=hizFootprintFar(pyramid.levels,rejectScratch[1],rejectScratch[2],rejectScratch[3]+1,rejectScratch[4]+1,rejectScratch[0]);
  return hizOccluded(bounds.nearestDepth,far,bias);
 }
 
