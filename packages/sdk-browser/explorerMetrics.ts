@@ -30,6 +30,13 @@ export function createExplorerMetrics(
     pageBytesRead,
     pagesDetached: null,
     cacheEvictions: null,
+    hizCountedFrame: null,
+    hizTestedClusters: null,
+    hizRejectedClusters: null,
+    hizOversizedClusters: null,
+    hizTestedTriangles: null,
+    hizRejectedTriangles: null,
+    hizOversizedTriangles: null,
     gpuPassMs: null,
     gpuFrameMs: null,
     gpuHostGapMs: null,
@@ -53,6 +60,13 @@ export function createExplorerMetrics(
     metricsScratch.cacheEvictions = backendMetrics.cacheEvictions ?? stream.evictions;
     metricsScratch.geometryAllocationBytes = backendMetrics.geometryAllocationBytes;
     metricsScratch.frustumRejected = backendMetrics.frustumRejected ?? null;
+    metricsScratch.hizTestedClusters = backendMetrics.hizTestedClusters ?? null;
+    metricsScratch.hizRejectedClusters = backendMetrics.hizRejectedClusters ?? null;
+    metricsScratch.hizOversizedClusters = backendMetrics.hizOversizedClusters ?? null;
+    metricsScratch.hizTestedTriangles = backendMetrics.hizTestedTriangles ?? null;
+    metricsScratch.hizRejectedTriangles = backendMetrics.hizRejectedTriangles ?? null;
+    metricsScratch.hizOversizedTriangles = backendMetrics.hizOversizedTriangles ?? null;
+    metricsScratch.hizCountedFrame = backendMetrics.hizCountedFrame ?? null;
     metricsScratch.lodLevel = backendMetrics.lodLevel ?? null;
     metricsScratch.submittedTriangles = backendMetrics.submittedTriangles ?? null;
     metricsScratch.transparentMeshes = backendMetrics.transparentMeshes ?? null;

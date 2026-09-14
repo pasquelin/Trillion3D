@@ -1,6 +1,7 @@
 import type { PageRec } from './pageSelection.ts';
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { HIZ_BOUNDS_VALUES, createBoxCorners } from './hiz.ts';
+import type { HizCountSample } from './gpuHiz.ts';
 import { DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
@@ -55,6 +56,11 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   const hizBounds = new Float64Array(drawSlots * HIZ_BOUNDS_VALUES);
   const hizTestedBounds = new Float64Array(drawSlots * HIZ_BOUNDS_VALUES);
   const hizTestedRows = new Uint32Array(drawSlots);
+  /** Triangles of each tested cluster, in the order the boxes are handed to the test: what the
+   *  elimination counters weigh a rejected cluster by. Sized once, like the rows beside it. */
+  const hizTestedTriangles = new Uint32Array(drawSlots);
+  /** What the GPU test reads the triangles of a verdict from, and the image those verdicts belong to. */
+  const hizCountSample: HizCountSample = { triangles: hizTestedTriangles, frame: 0 };
   const hizRest = new Uint8Array(drawSlots);
   const drawItemWords = new Uint32Array(drawSlots * DRAW_ITEM_U32);
   const drawRestBits = new Uint32Array(Math.max(1, Math.ceil(drawSlots / 32)));
@@ -75,6 +81,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     hizBounds,
     hizTestedBounds,
     hizTestedRows,
+    hizTestedTriangles,
+    hizCountSample,
     hizRest,
     drawItemWords,
     drawRestBits,

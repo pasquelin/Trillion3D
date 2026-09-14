@@ -50,16 +50,24 @@ export function frontCamera() {
 /** A backend context over the quad's two root clusters; `resident` hands the indices over up front. */
 export function quadRootsContext(resident: boolean, extra: Partial<BackendContext> = {}) {
   const scene = quadScene();
-  const context = {
+  const context: BackendContext = {
     source: scene.source,
     metadata: {
       ...DAG,
+      schema: 1,
+      status: 'ready',
+      key: 'quad',
+      scope: 'slice',
+      sourceTriangles: 2,
+      selectedTriangles: 2,
+      selectedNodes: [],
+      totalNodes: 0,
       primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(quadPages()) }],
     },
     indices: resident ? quadIndices() : new Map<string, Uint32Array>(),
     associations: new Map([[scene.mesh, { meshes: 0, primitives: 0 }]]),
     ...extra,
-  } as unknown as BackendContext;
+  };
   return { ...scene, context };
 }
 

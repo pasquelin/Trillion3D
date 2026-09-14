@@ -1,42 +1,23 @@
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
-import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { RenderBackend } from './backendTypes.ts';
 import { createExplorerDraw } from './explorerDraw.ts';
 import type { createExplorerHostState } from './explorerHostState.ts';
 import { createExplorerMetrics } from './explorerMetrics.ts';
 import type { ExplorerResources, prepareExplorer } from './explorerPrepare.ts';
 import { createExplorerRender } from './explorerRender.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 import { createExplorerStreaming } from './explorerStreaming.ts';
 
 type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
 type Inputs = {
-  options: ExplorerOptions;
-  metadata: ClusterManifest;
   prepared: Prepared;
   resources: ExplorerResources;
   host: ReturnType<typeof createExplorerHostState>;
   backends: RenderBackend[];
-  scope: AssetScope;
-  signal?: AbortSignal;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
-export function createExplorerHostFrame(inputs: Inputs) {
-  const {
-    options,
-    metadata,
-    prepared,
-    resources,
-    host,
-    backends,
-    scope,
-    signal,
-    diagnosticChannel,
-    emit,
-    diagnose,
-  } = inputs;
+export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
+  const { options, metadata } = session;
+  const { prepared, resources, host, backends } = inputs;
   const { camera, directGpu, pageSources } = prepared;
   const { geometryUrls, pageIdByUrl, streamer } = pageSources;
   const renderer = resources.renderer;
@@ -53,17 +34,8 @@ export function createExplorerHostFrame(inputs: Inputs) {
       streamingError: streaming.error,
     }),
   );
-  const streaming = createExplorerStreaming({
-    streamer,
-    geometryUrls,
-    backends,
-    signal,
-    scope,
-    state: () => ({ disposed: state.disposed, measuring: state.measuring, active: state.active }),
-    emit,
-    diagnose,
-  });
-  const drawBackend = createExplorerDraw({
+  const streaming = createExplorerStreaming(session, { streamer, geometryUrls, backends, state });
+  const drawBackend = createExplorerDraw(session, {
     camera,
     geometryUrls,
     streamer,
@@ -71,41 +43,11 @@ export function createExplorerHostFrame(inputs: Inputs) {
     directGpu,
     renderer: renderer!,
     baseline,
-    scope,
-    state: () => ({ measuring: state.measuring }),
-    onFallback: (reason) => {
-      state.fallbackReason = reason;
-      state.active = baseline;
-    },
-    emit,
-    diagnose,
+    state,
   });
-  const render = createExplorerRender({
+  const render = createExplorerRender(session, {
     check,
-    nextFrame: () => ++state.hostFrame,
-    state: () => ({
-      measuring: state.measuring,
-      diagnostic: state.diagnostic,
-      comparisonLayout: state.comparisonLayout,
-      comparisonPair: state.comparisonPair,
-      wipe: state.wipe,
-      toggle: state.toggle,
-      pairTargetA: state.pairTargetA,
-      pairTargetB: state.pairTargetB,
-      measurementTarget: state.measurementTarget,
-    }),
-    getActive: () => state.active,
-    setActive: (backend) => {
-      state.active = backend;
-    },
-    setFallbackReason: (reason) => {
-      state.fallbackReason = reason;
-    },
-    setMeasurementTarget: (target) => (state.measurementTarget = target),
-    setPairTargets: (left, right) => {
-      state.pairTargetA = left;
-      state.pairTargetB = right;
-    },
+    state,
     camera,
     lookAtTarget,
     setPose,
@@ -120,12 +62,8 @@ export function createExplorerHostFrame(inputs: Inputs) {
     fillMetrics,
     metricsScratch,
     profiler,
-    diagnosticChannel,
     pageIdByUrl,
     streamer,
-    scope,
-    emit,
-    diagnose,
   });
   return { render, profiler, streaming };
 }
