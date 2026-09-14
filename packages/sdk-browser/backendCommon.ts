@@ -31,13 +31,18 @@ export const baseCapabilities: BackendCapabilities = {
     'physical VRAM instrumentation',
   ],
 };
-function hashId(id: string) {
+/** Stable 32-bit hash of a cluster or mesh id, used as a colour seed. */
+export function hashId(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
   return h;
 }
+/** Golden-ratio hue of an id, so neighbouring ids get distant colours. */
+export function clusterHue(id: string) {
+  return (hashId(id) * 0.61803398875) % 1;
+}
 export function clusterColor(id: string, saturation = 0.75) {
-  return new THREE.Color().setHSL((hashId(id) * 0.61803398875) % 1, saturation, 0.55);
+  return new THREE.Color().setHSL(clusterHue(id), saturation, 0.55);
 }
 export function lighting(scene: THREE.Scene, clearColor: number, source: THREE.Object3D) {
   return installSceneLighting(scene, source, clearColor);
