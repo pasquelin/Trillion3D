@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
-import { triangleSalt } from './triangleDiagnostic.ts';
+import { hashId } from './backendCommon.ts';
 
 export function createExactPagesAttachment(
   scene: THREE.Scene,
@@ -45,7 +45,7 @@ export function createExactPagesAttachment(
     } else rec.mesh.material = materialFor(rec);
     rec.mesh!.matrix.copy(rec.matrix);
     if (rec.mesh && rec.geometry)
-      paint(rec.mesh, rec.geometry, rec.mesh.material, triangleSalt(rec.clusterId));
+      paint(rec.mesh, rec.geometry, rec.mesh.material, hashId(rec.clusterId));
     if (!rec.attached) {
       scene.add(rec.mesh!);
       rec.attached = true;
