@@ -15,6 +15,8 @@
 //
 // Le harnais écrit `mesure.json`, `resume.md` et un PNG par vue, par seuil et par côté, plus la
 // capture du témoin A/A. Un champ vaut `null` quand il n'a pas été mesuré : rien n'est déduit.
+// Chaque série est jouée dans une page neuve, fermée ensuite : le contexte WebGL et le tas de la
+// série précédente sont rendus au navigateur avant que la suivante n'en demande un.
 // Tout ce qu'il lance — serveur statique, Chromium — il l'arrête, y compris sur erreur.
 //
 // AUCUN CHRONOMÉTRAGE SÉRIEUX N'EST PROMIS ICI : le harnais relève les durées et la charge de la
@@ -80,7 +82,11 @@ async function main() {
     executablePath: options.CHROME,
     args: ENGINE.flags,
   });
-  try {
+  // Une page neuve par série, fermée aussitôt après. Une scène Emerald laisse plusieurs centaines
+  // de mégaoctets vivants dans la page qui l'a jouée ; en rejouant série après série sur la même
+  // page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error creating WebGL
+  // context »). Fermer la page rend au navigateur le contexte WebGL et le tas de la série passée.
+  const onFreshPage = async (run) => {
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
@@ -95,10 +101,19 @@ async function main() {
         report.errors.push({ kind: 'console', message: m.text().slice(0, 400) });
     });
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-    report.bounds = await page.evaluate(readBounds, {
-      sdkUrl: `/sdk/${sides[0].name}/sdk-browser/index.js`,
-      manifestUrl: MANIFEST,
-    });
+    try {
+      return await run(page);
+    } finally {
+      await page.close();
+    }
+  };
+  try {
+    report.bounds = await onFreshPage((page) =>
+      page.evaluate(readBounds, {
+        sdkUrl: `/sdk/${sides[0].name}/sdk-browser/index.js`,
+        manifestUrl: MANIFEST,
+      }),
+    );
     for (const pixelError of settings.pixelErrors)
       for (const view of views) {
         const pose = options.poseAt(report.bounds, options.VIEWS[view].index);
@@ -113,20 +128,16 @@ async function main() {
         report.series.push(serie);
         const files = {};
         for (const side of sides) {
-          const { row, captureFile } = await runSerie(
-            CTX,
-            page,
-            side,
-            view,
-            pixelError,
-            pose,
-            captures,
+          const { row, captureFile } = await onFreshPage((page) =>
+            runSerie(CTX, page, side, view, pixelError, pose, captures),
           );
           serie.sides[side.name] = row;
           files[side.name] = captureFile;
         }
         // Témoin A/A : le même côté joué deux fois, comparé à lui-même. Il dit ce que vaut zéro.
-        const temoin = await runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa');
+        const temoin = await onFreshPage((page) =>
+          runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
+        );
         serie.sides[`${sides[0].name}-aa`] = temoin.row;
         serie.temoinAA = imageDiff(
           captures.get(files[sides[0].name]),

@@ -18,3 +18,9 @@ de relevés — `cpuFrameMs` et `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU)
 et non couverts, compteurs Hi-Z, hash de l'ensemble sélectionné, budget de pages, charge machine au
 début et à la fin —, plus le témoin A/A (même côté joué deux fois) et l'écart avant/après en pixels
 et par canal. `null` = non mesuré, jamais déduit ; tout ce qui est lancé est arrêté, même sur erreur.
+
+Chaque série est jouée dans une page neuve, fermée juste après. Une scène Emerald laisse plusieurs
+centaines de mégaoctets vivants dans la page qui l'a jouée : en enchaînant les séries sur une seule
+page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error creating WebGL
+context », relevé au passage de la vue `generale` à `sol` le 14 septembre 2026). Fermer la page rend
+au navigateur le contexte WebGL et le tas de la série précédente.
