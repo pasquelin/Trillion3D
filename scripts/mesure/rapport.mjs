@@ -28,7 +28,8 @@ export function machineLoad() {
 /** Écart entre deux captures RGBA : pixels différents et écart maximal par canal. */
 export function imageDiff(a, b) {
   if (!a || !b) return null;
-  if (a.w !== b.w || a.h !== b.h) return { erreur: `tailles différentes ${a.w}×${a.h} / ${b.w}×${b.h}` };
+  if (a.w !== b.w || a.h !== b.h)
+    return { erreur: `tailles différentes ${a.w}×${a.h} / ${b.w}×${b.h}` };
   const left = a.body,
     right = b.body;
   if (left.length !== right.length) return { erreur: 'longueurs de tampon différentes' };
@@ -95,7 +96,8 @@ export function resume(report) {
     '| vue | pixelError | témoin A/A (même côté, deux captures) | avant vs après |',
     '|---|---|---|---|',
     ...report.series.map(
-      (s) => `| ${s.view} | ${s.pixelError} | ${diffText(s.temoinAA)} | ${diffText(s.ecartAvantApres)} |`,
+      (s) =>
+        `| ${s.view} | ${s.pixelError} | ${diffText(s.temoinAA)} | ${diffText(s.ecartAvantApres)} |`,
     ),
     '',
     '## Charge machine',

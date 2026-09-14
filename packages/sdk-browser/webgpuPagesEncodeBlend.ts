@@ -37,49 +37,8 @@ export function encodeBlend(
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
   ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
-  writeBlendUniforms({
-    device,
-    items: blendState.visibleBlend,
-    uniformBase,
-    uniformPacked: gpu.uniformPacked,
-    uniformBuffer: gpu.uniformBuffer!,
-    diagnostic: run.diagnostic,
-    lastCamera: run.lastCamera,
-    viewport: rt.setup.viewport,
-    diagnosticPixelError: run.diagnosticPixelError,
-    mapLayer: vis.mapLayer,
-    dataLayer: vis.dataLayer,
-    uvScales: vis.uvScales,
-    textured,
-  });
-  const result = drawBlendPass({
-    device,
-    encoder,
-    uniformBase,
-    items: blendState.visibleBlend,
-    textured,
-    visEnabled: vis.visEnabled,
-    hdrView: gpu.hdrView,
-    colorView: gpu.colorView!,
-    depthView: gpu.depthView!,
-    targetSize: gpu.targetSize,
-    uniformBuffer: gpu.uniformBuffer!,
-    blendBindGroupLayout: vis.blendBindGroupLayout,
-    mapsTexture: vis.mapsTexture,
-    mapsSampler: vis.mapsSampler,
-    dataMapsTexture: vis.dataMapsTexture,
-    materialScales: vis.materialScales,
-    zeroUv: gpu.zeroUv,
-    lightBuffer: gpu.lights?.buffer,
-    bindGroupLayout: gpu.bindGroupLayout,
-    pipelineBlend: gpu.pipelineBlend!,
-    pipelineBlendTextured: vis.pipelineBlendTextured,
-    pipelineBlendFront: vis.pipelineBlendFront,
-    pipelineBlendBack: vis.pipelineBlendBack,
-  });
-  run.gpuDrawCalls += result.drawCalls;
-  run.blendDrawCalls += result.drawCalls;
-  run.blendSubmittedTriangles += result.submittedTriangles;
+  writeBlendUniforms(rt, device, uniformBase, textured);
+  drawBlendPass(rt, device, encoder, uniformBase, textured);
   timing.transparentEncodeMs += performance.now() - cpuStart;
   if (diag.traceEnabled)
     diag.traceDiagnostic('transparent-encoding', 'Transparents sélectionnés et encodés', () => ({

@@ -62,7 +62,7 @@ export function encodeDraws(
 ) {
   const { gpu, vis, run, timing, blendState, capture, context, diag } = rt,
     { rows } = rt.layout,
-    { viewport, clearColor } = rt.setup;
+    { viewport } = rt.setup;
   run.gpuDrawCalls = 0;
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
@@ -116,24 +116,7 @@ export function encodeDraws(
     return run.blendSubmittedTriangles;
   }
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
-  const fallback = drawWebgpuFallback({
-    device,
-    rows,
-    uniformPacked: gpu.uniformPacked,
-    uniformBuffer: gpu.uniformBuffer,
-    diagnostic: run.diagnostic,
-    pageRgb: rt.hooks.pageRgb,
-    createRenderEncoder: rt.hooks.createRenderEncoder,
-    colorView: gpu.colorView,
-    depthView: gpu.depthView,
-    width,
-    height,
-    clearColor,
-    bindGroupFor: rt.hooks.bindGroupFor,
-    pipelineFor: rt.hooks.pipelineFor,
-  });
-  const { encoder, vertices } = fallback;
-  run.gpuDrawCalls += fallback.drawCalls;
+  const { encoder, vertices } = drawWebgpuFallback(rt, device);
   encodeBlend(rt, device, encoder, rows.packedCount);
   submitColorCopy(rt, device, encoder, height, width);
   return vertices / 3 + run.blendSubmittedTriangles;
