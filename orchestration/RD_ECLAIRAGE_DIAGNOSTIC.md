@@ -2,7 +2,7 @@
 
 Date : 14 septembre 2026. Le livrable recherché est une orientation technique étayée par des expériences, pas une intégration progressive improvisée dans le moteur. Les ajouts fonctionnels au prototype sont arrêtés après le diagnostic ci-dessous.
 
-## Conclusion actuelle
+## Diagnostic historique, avant le banc 16
 
 Le prototype révèle surtout un algorithme de dessin trop coûteux. Déplacer le calcul CPU dans un worker ou le porter en WebAssembly ne résout pas ce blocage graphique. La piste à étudier associe une recherche spatiale des obstacles, un cache de transport lumineux réutilisable et une séparation entre interaction, calcul et dessin. Le choix du langage vient après la validation de ces idées.
 
@@ -59,7 +59,7 @@ Les workers exécutent des tâches dans un contexte séparé et communiquent par
 
 WebAssembly est un format d’exécution complémentaire à JavaScript ; ce n’est pas une promesse de gain sur ce noyau. Comparer exactement le même calcul, précision, données et sorties, en incluant initialisation et transferts. [FAQ officielle WebAssembly](https://webassembly.org/docs/faq/)
 
-## Expériences suivantes proposées, non engagées
+## Expériences proposées à la date du diagnostic
 
 1. **Obstacles :** comparer recherche exhaustive et structure spatiale sur la même image. Même nombre de rayons, mêmes sources, même résolution ; conserver les cas de coins, surfaces fines et mouvements. Critère : image identique et coût GPU diminué, coût de mise à jour inclus.
 2. **Contributions des sources :** comparer recalcul et recombinaison des bases sur des variations lumineuses, puis introduire des mouvements de porte. Mesurer construction, mélange, invalidation, erreur et mémoire pour déterminer quand conserver les bases est rentable.
@@ -68,6 +68,19 @@ WebAssembly est un format d’exécution complémentaire à JavaScript ; ce n’
 
 Un prototype qui n’est pas encore fluide sur M2 Max ne permet aucun verdict sur machine modeste. Windows, Linux, autres navigateurs, iGPU moins puissant et rendu CPU seul restent non exécutés. Worker, WebAssembly, BVH et bases persistantes ne sont pas livrés au moteur.
 
-## État du travail
+## État lors du diagnostic initial
 
 Travail isolé sur `codex/light-transport-experiment`, base SDK `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`. Aucun commit, aucune fusion ni modification des assets du Lab. 330 tests Node, build TypeScript, structure et déclarations passent. Le compilateur natif existant a été construit et utilisé ; aucune modification Rust. Images, vidéos, sources servies et données de comparaison sont conservées avec leurs empreintes dans les dossiers d’essais.
+
+
+## Livraison revue du banc 16, 14 septembre 2026
+
+Le diagnostic ci-dessus est historique. Le banc `16-lighting-transport` existe désormais dans le Lab avec préparation publique, exploration, comparaison exhaustive/BVH et archives persistantes. Le rendu demeure expérimental : les clusters préparés ne servent pas au dessin. Aucun Worker ni noyau WebAssembly ajouté.
+
+Revue indépendante : pose initiale de porte alignée avec la source préparée ; nettoyage après erreur ; erreurs et arrêts, y compris pendant initialisation, archivés ; historique rechargeable de cinq tentatives avec dernier résultat valide protégé. Les 44 modules éclairage et fixtures respectent le découpage requis. Le découpage conserve les shaders assemblés à l'octet près.
+
+Vérification navigateur dans le Lab : 14 états, A/A et exhaustive/BVH à zéro pixel différent, 4 158 triangles sélectionnés et soumis ; même résolution 1280 × 720, DPR 1, trois sources, budgets 16 directs et 8 reflets. Première campagne persistée `2026-09-14T14-19-00-913Z` du worktree Lab : médianes GPU isolées 239,852 ms exhaustive et 197,028 ms BVH (10 dessins par variante), intervalles rAF 316,6 et 237,5 ms (24 dessins par variante). Le test navigateur a alors terminé sur une assertion liée au favicon 404, sans erreur de rendu ; cette ressource accessoire est désormais exclue des erreurs fonctionnelles. Ce gain local laisse le prototype lent et ne vaut pas prévision sur une autre scène.
+
+Validation : Lab `npm run validate` passe après corrections de revue. SDK : 12 tests éclairage, build TypeScript, natif, structure, déclarations, liens et 57 tests Rust passent. Suite Node complète : 336/337 ; échec préexistant `triangleDiagnostic.test.ts` sur le matériau du mode filaire. La validation globale reste rouge dans le develop hérité : format, 7 fichiers au-delà de 200 lignes, doublons, lint et éléments inutilisés. Les fichiers concernés appartiennent à la tâche qualité concurrente. La navigation du banc 04 présente aussi une exception préexistante lors de son initialisation ; elle est distincte du banc 16. Ces échecs ne sont pas présentés comme corrigés.
+
+Après signalement de ces limites, l'utilisateur a renouvelé explicitement la demande de fusion et de maintien des dossiers principaux sur develop. Les modifications préexistantes de navigation et de journal sont conservées. Aucun push distant demandé.
