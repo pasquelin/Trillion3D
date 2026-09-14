@@ -21,6 +21,9 @@ export type PageRec = {
  cone?:NormalCone;
  /** Rang de la clé de requête, posé une fois par `indexPageRequests` : dédoublonnage sans hachage. */
  requestIndex?:number;
+ /** Rang de la clé de cluster dans le catalogue de l'hôte, posé une fois : résidence et épinglage sans
+  *  hachage. L'hôte le pose, personne d'autre ne le lit. */
+ keyIndex?:number;
 };
 
 function pageIsDoubleSided(material:THREE.Material|THREE.Material[]|undefined){
@@ -358,6 +361,24 @@ function projectSphere(error:number,sphere:ArrayLike<number>,offset:number,e:Arr
  const distance=Math.sqrt(vx*vx+vy*vy+vz*vz)-sphere[offset+3]*stretch;
  if(!(distance>near))return Infinity;
  return (error*stretch*focal)/distance;
+}
+const diagnosticErrorView=new THREE.Matrix4();
+/**
+ * The same projected cluster error used by the cut, evaluated for one displayed page. Diagnostic
+ * path only : elle repasse par `clusterErrorPixels`, qui revalide, là où la coupe lit la table plate.
+ */
+export function projectedPageError(rec:Pick<PageRec,'lodError'|'sphere'|'matrix'>,camera:THREE.PerspectiveCamera,viewport:readonly [number,number]){
+ if((rec.lodError??0)===0)return 0;
+ if(!rec.sphere)return Infinity;
+ camera.updateMatrixWorld();
+ const view=diagnosticErrorView.multiplyMatrices(camera.matrixWorldInverse,rec.matrix);
+ const stretch=maxStretch(rec.matrix.elements)*maxStretch(camera.matrixWorldInverse.elements);
+ const focal=Math.max(viewport[0]*Math.abs(camera.projectionMatrix.elements[0]),viewport[1]*Math.abs(camera.projectionMatrix.elements[5]))/2;
+ const e=view.elements,sphere=rec.sphere;
+ const vx=e[0]*sphere[0]+e[4]*sphere[1]+e[8]*sphere[2]+e[12];
+ const vy=e[1]*sphere[0]+e[5]*sphere[1]+e[9]*sphere[2]+e[13];
+ const vz=e[2]*sphere[0]+e[6]*sphere[1]+e[10]*sphere[2]+e[14];
+ return clusterErrorPixels(rec.lodError as number,stretch,vx,vy,vz,sphere[3],focal,camera.near);
 }
 /** Six frustum planes of `clip`, inward-facing, unnormalised: a point is inside when every ax+by+cz+d >= 0.
  *  Taken in the space `clip` maps from, so the caller never transforms a box. Allocation free. */
