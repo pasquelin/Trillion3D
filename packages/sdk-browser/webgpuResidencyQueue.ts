@@ -112,8 +112,8 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       follow();
     },
     /** The GPU cut already applied its difference; only the page budget is left to enforce. */
-    queueCutResidency() {
-      sets.applyBudget(options.room);
+    queueCutResidency(desired: readonly PageRec[], transparent: readonly PageRec[]) {
+      sets.applyBudget(options.room, desired, transparent);
       follow();
     },
     nextJobId: () => ++job,
