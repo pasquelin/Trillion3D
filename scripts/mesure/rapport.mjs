@@ -47,21 +47,25 @@ function rows(report) {
 /** `p50 / p95` d'une étape, ou « non mesuré » : un tiret ne serait pas distinct d'un zéro. */
 const etape = (q) => (q ? `${q.p50.toFixed(3)} / ${q.p95.toFixed(3)}` : 'non mesuré');
 
+/** Les compteurs d'une étape, sur une seule ligne ; vide quand l'étape n'en porte pas. */
+const compteurs = (counts) =>
+  Object.entries(counts ?? {})
+    .map(([nom, valeur]) => `${nom} ${valeur}`)
+    .join(', ');
+
 /** Le découpage par étape d'une série : une ligne par étape, processeur et carte graphique séparés. */
 function etapes(report) {
   const lines = [];
   for (const serie of report.series)
-    for (const [side, r] of Object.entries(serie.sides)) {
-      const profile = r.profilParEtape;
+    for (const [side, resultat] of Object.entries(serie.sides)) {
+      const titre = `### ${serie.view} · e${serie.pixelError} · ${side}`;
+      const profile = resultat.profilParEtape;
       if (!profile || !profile.enabled) {
-        lines.push(
-          `### ${serie.view} · e${serie.pixelError} · ${side} : profil par étape absent`,
-          '',
-        );
+        lines.push(`${titre} : profil par étape absent`, '');
         continue;
       }
       lines.push(
-        `### ${serie.view} · e${serie.pixelError} · ${side}`,
+        titre,
         '',
         `- Moteur \`${profile.backend}\`, ${profile.cpuFrames} images processeur, ` +
           `${profile.gpuSamples} relevés carte graphique sur une fenêtre de ${profile.windowFrames}`,
@@ -77,13 +81,7 @@ function etapes(report) {
         ...profile.stages.map(
           (stage) =>
             `| ${stage.label} | ${etape(stage.cpuMs)} | ${etape(stage.gpuMs)} ` +
-            `| ${
-              stage.counts
-                ? Object.entries(stage.counts)
-                    .map(([k, v]) => `${k} ${v}`)
-                    .join(', ')
-                : ''
-            } |`,
+            `| ${compteurs(stage.counts)} |`,
         ),
         '',
       );

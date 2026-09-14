@@ -5,9 +5,10 @@ import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import type { StageAdd } from './stageProfiler.ts';
 
 /**
- * L'étape à laquelle appartient chaque passe GPU, lue par l'étiquette que la passe porte déjà — le
- * même mécanisme que `directLightTimings`, généralisé à toute l'image. Une étiquette inconnue n'est
- * pas rangée d'office ailleurs : elle rejoint `geometry`, la seule étape qui dessine sans nom propre.
+ * L'étape à laquelle appartient chaque passe GPU, lue par l'étiquette que la passe porte déjà. C'est
+ * l'unique lecture des étiquettes du dépôt : les durées de l'éclairage direct et le profil par étape
+ * la partagent. Une étiquette inconnue n'est pas rangée d'office ailleurs : elle rejoint `geometry`,
+ * la seule étape qui dessine sans nom propre.
  */
 const PASS_STAGES: Readonly<Record<string, string>> = Object.freeze({
   'WG DAG selection': 'selection',
@@ -64,17 +65,48 @@ export const WEBGL_STAGES = [
 ] as const;
 
 /**
- * Ventile un relevé d'horodatage sur les étapes. Un relevé tronqué ne dépose rien : une somme
- * partielle passerait pour une mesure. Une passe sans durée utilisable ne dépose rien non plus.
+ * La durée carte graphique de chaque étape d'un relevé, en un seul parcours. `null` pour une étape
+ * dont une passe n'a pas de durée utilisable : une somme partielle passerait pour une mesure. Un
+ * relevé tronqué ou absent ne donne aucune étape, pour la même raison.
  */
-export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: StageAdd) {
-  if (!sample || sample.truncated) return false;
-  const totals = new Map<string, number>();
+function gpuStageTotals(sample: GpuPassTimings | null | undefined) {
+  const totals = new Map<string, number | null>();
+  if (!sample || sample.truncated) return totals;
   for (const pass of sample.passes) {
-    if (pass.gpuMs === null) continue;
     const stage = PASS_STAGES[pass.name] ?? 'geometry';
-    totals.set(stage, (totals.get(stage) ?? 0) + pass.gpuMs);
+    const total = totals.get(stage);
+    if (total === null) continue;
+    totals.set(stage, pass.gpuMs === null ? null : (total ?? 0) + pass.gpuMs);
   }
-  for (const [stage, ms] of totals) add(stage, ms);
-  return totals.size > 0;
+  return totals;
+}
+
+/** Ventile un relevé sur les étapes du profil : ce qui n'est pas mesuré n'y est pas déposé. */
+export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: StageAdd) {
+  for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms);
+}
+
+/** Les trois durées de l'éclairage direct de l'image, lues dans le même relevé par étiquette. */
+export function directLightTimings(sample: GpuPassTimings | null | undefined) {
+  const totals = gpuStageTotals(sample);
+  return {
+    gpuLightListsMs: totals.get('lightLists') ?? null,
+    gpuShadowsMs: totals.get('shadows') ?? null,
+    gpuLightingMs: totals.get('lighting') ?? null,
+  };
+}
+
+/**
+ * Dépose les bornes processeur d'une image sur leurs étapes. `null` marque une borne qui ne se
+ * dépose pas : une somme, qui compterait une seconde fois ce que ses parties ont déjà déposé.
+ */
+export function addCpuSteps(
+  stages: ReadonlyArray<string | null>,
+  row: ArrayLike<number>,
+  add: StageAdd,
+) {
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    if (stage) add(stage, row[i]);
+  }
 }
