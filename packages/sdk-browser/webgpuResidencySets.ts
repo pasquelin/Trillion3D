@@ -114,8 +114,6 @@ export function createWebgpuResidencySets(options: {
     get keepCount() {
       return tracking.keep.count;
     },
-    /** Pages of the desired set, one record per key — what the budget ranks. */
-    desiredCount: () => desired.count,
     /** Applies one GPU cut difference: only the pages that entered and left are touched. */
     applyCut(delta: CutDelta) {
       for (let i = 0; i < delta.exitedCount; i++) dropOpaque(keyOfPageId[delta.exited[i]]);

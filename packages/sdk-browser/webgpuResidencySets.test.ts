@@ -154,13 +154,16 @@ test('an image that moves no page touches no set at all', () => {
   frame(world, ids, transparent, transparent, 64);
   const wantedBefore = [...tracking.wanted.list.subarray(0, tracking.wanted.count)];
   const listBefore = tracking.wanted.list;
+  // The pin step drains these; nothing else may add to them once the cut stops moving.
+  const entering = sets.entering.count,
+    leaving = sets.leaving.count;
   for (let image = 0; image < 100; image++) {
     frame(world, ids, transparent, transparent, 64);
     assert.equal(delta.enteredCount, 0);
     assert.equal(delta.exitedCount, 0);
   }
-  assert.equal(sets.entering.count, 0);
-  assert.equal(sets.leaving.count, 0);
+  assert.equal(sets.entering.count, entering);
+  assert.equal(sets.leaving.count, leaving);
   // Same backing array, same members, in the same places: nothing was rebuilt or reallocated.
   assert.equal(tracking.wanted.list, listBefore);
   assert.deepEqual([...tracking.wanted.list.subarray(0, tracking.wanted.count)], wantedBefore);
