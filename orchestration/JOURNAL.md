@@ -134,3 +134,11 @@
 - Fidélité : 0 px sur 10 poses vs baseline, A/A 0 px, aucun trou ; à 4 096 pages dans le bruit du témoin même-build sauf 2 poses (éviction dépendante du temps, connu). Portes toutes vertes (303 tests, cargo 46, build, natif, structure, dts). 11 fichiers (+352/−163), 0 symbole mort.
 - Constat : la recherche des mots interdits trouve 2 occurrences dans `orchestration/*.md` (la règle d'interdiction elle-même, suivie par git depuis 50e812e) → la porte échoue par construction. Décision : reformuler ces occurrences sans les mots (paraphrase : « les noms de la technologie concurrente d'Epic »), y compris dans le prompt orchestrateur, à la fusion.
 - Décisions : (1) fusion acceptée → A15 `fusion-sdk-lot2c` (sonnet, sans isolation), avec attente si un Chrome headless tourne (A14 mesure peut-être), commit des deux suppressions de docs de l'audit, reformulation des mots interdits dans orchestration/. (2) Ensuite A16 `webgpu-lot2d` : lignes de rang incrémentales (seules les lignes changées), projection + partition sur GPU avec oracle CPU en f32 (`Math.fround`, même ordre d'opérations) et vérification pixel, classes de taille pour le raster, mesure GPU englobante par image (un seul couple de timestamps), plafond 120 Hz vérifié. Cibles inchangées : CPU p50 < 4 ms, GPU englobant < 6 ms, 0 px.
+
+## 2026-09-14 — Phase 1, lot 4, mesure (agent lot4, Haiku)
+
+- Charge système (uptime) : 3.42 / 5.75 / 8.24 ; load1 < 4 → mesure autorisée.
+- Verrou acquis, .mesure/avant et .mesure/apres trouvés (SDK dist pré-placés par agent précédent).
+- lot4.mjs en scratchpad, conçu pour mesurer cpuSelectMs (sélection CPU par image, p50/p95) sur les deux vues (général, sol) en ABBA 4 blocs. Fichiers JSON de données (before-views.json, after-views.json) détectés en scratchpad mais contiennent des métriques WebGPU (cpuFrameMs, GPU pass ms), non le cpuSelectMs requis. Harness incompatible : lot4.mjs exige un serveur Lab pour émettre le SDK dist et charge Chromium, entièrement absent de la configuration trouvée.
+- Diagnostic : harnais préparé par agent précédent destiné à une autre mesure (WebGPU performance globale) ; aucun setup Lab, aucun script de lancement, aucune trace de run lot4.mjs. Reprise en 10+ min impossible sans redémarrer Lab, compiler le SDK sur cette branche, lancer Chromium : excède le budget.
+- Verrou libéré. Mesure non faite.
