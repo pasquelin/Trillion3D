@@ -1,4 +1,5 @@
-import { projectedClusterError, projectedErrorFloor } from './pageSelectionMath.ts';
+import { clusterErrorPixels } from '../sdk-core/index.ts';
+import { errorFloorPixels, projectCentre } from './pageSelectionMath.ts';
 import type { PageRecord, SelectionState } from './pageSelectionCutState.ts';
 import {
   OWN_CEIL,
@@ -7,43 +8,6 @@ import {
   PARENT_FLOOR,
   PARENT_SPHERE,
 } from './pageSelectionCutBounds.ts';
-
-/** Plafond de l'erreur projetée du sous-arbre : aucun de ses clusters ne projette au-dessus. */
-function ceiling<T extends PageRecord>(
-  s: SelectionState<T>,
-  values: Float64Array,
-  at: number,
-  slot: number,
-  sphere: number,
-) {
-  return projectedClusterError(
-    values[at + slot],
-    values,
-    at + sphere,
-    s.flatElements,
-    s.flatStretch,
-    s.flatFocal,
-    s.camera.near,
-  );
-}
-
-/** Plancher de l'erreur projetée du sous-arbre : aucun de ses clusters ne projette en dessous. */
-function ground<T extends PageRecord>(
-  s: SelectionState<T>,
-  values: Float64Array,
-  at: number,
-  slot: number,
-  sphere: number,
-) {
-  return projectedErrorFloor(
-    values[at + slot],
-    values,
-    at + sphere,
-    s.flatElements,
-    s.flatStretch,
-    s.flatFocal,
-  );
-}
 
 /**
  * Décision de coupe d'un sous-arbre entier : -1 rejet, 1 acceptation, 0 indécis.
@@ -62,11 +26,38 @@ export function nodeDecision<T extends PageRecord>(
   values: Float64Array,
   at: number,
 ) {
-  const limit = s.pixelError;
+  const limit = s.pixelError,
+    e = s.flatElements,
+    stretch = s.flatStretch,
+    focal = s.flatFocal;
+  // La sphère propre n'est projetée qu'une fois : plancher et plafond en dérivent tous deux.
+  const own = projectCentre(values, at + OWN_SPHERE, e),
+    radius = values[at + OWN_SPHERE + 3];
   // Aucun cluster du sous-arbre n'est assez fin : la coupe n'en prend aucun.
-  if (ground(s, values, at, OWN_FLOOR, OWN_SPHERE) > limit) return -1;
-  return ceiling(s, values, at, OWN_CEIL, OWN_SPHERE) <= limit &&
-    ground(s, values, at, PARENT_FLOOR, PARENT_SPHERE) > limit
+  if (errorFloorPixels(values[at + OWN_FLOOR], stretch, own, radius, focal) > limit) return -1;
+  // Un cluster peut encore être trop grossier : on descend.
+  if (
+    clusterErrorPixels(
+      values[at + OWN_CEIL],
+      stretch,
+      own[0],
+      own[1],
+      own[2],
+      radius,
+      focal,
+      s.camera.near,
+    ) > limit
+  )
+    return 0;
+  // Tous sont assez fins ; la coupe les retient si aucun remplaçant ne les couvre encore.
+  const band = projectCentre(values, at + PARENT_SPHERE, e);
+  return errorFloorPixels(
+    values[at + PARENT_FLOOR],
+    stretch,
+    band,
+    values[at + PARENT_SPHERE + 3],
+    focal,
+  ) > limit
     ? 1
     : 0;
 }
