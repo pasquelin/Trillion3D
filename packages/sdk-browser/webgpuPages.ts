@@ -1450,6 +1450,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   },
   async flush(){
    await Promise.resolve();
+   // Material texture layers are part of readiness, not a per-frame decoration: a page drawn before
+   // its layer lands is shaded from layer 0, so the image of one camera keeps changing while the
+   // queue drains. `render` still admits at most `textureBudget` bytes per frame; the explicit
+   // barrier drains the rest here, outside the measured loop, so a flushed pose is settled.
+   while(gpuDevice&&textureJobs.length)await pumpTextures();
    await texturePump;
    await ensureBootstrap();
    await pending;
