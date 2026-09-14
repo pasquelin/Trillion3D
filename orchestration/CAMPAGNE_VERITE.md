@@ -24,6 +24,12 @@ Règles de lecture non négociables :
 - CPU et GPU ne sont **jamais** additionnés. `cpuFrameMs` (appel synchrone de rendu) et
   `cpuSubmitMs` (soumission) sont deux distributions séparées.
 - Ce qui n'est pas mesuré vaut `null` : aujourd'hui la durée GPU par image et la VRAM physique.
+- **FPS et « Images > 8,33 ms » ne se jugent qu'en mode visible** (`HEADLESS=0`,
+  `scripts/headless/README.md`) : Chrome headless plafonne vers 60 Hz quels que soient les
+  drapeaux GPU posés, donc son rAF ne peut jamais démontrer ni infirmer une cible à 120 FPS. Le
+  headless reste le mode de preuve de fidélité (captures, trous, §5) et de mesure relative
+  (`cpuFrameMs`, `cpuSubmitMs`, `gpuFrameMs` du moteur quand il l'expose) : ces distributions-là
+  comparent des moteurs entre eux sans dépendre du rafraîchissement de l'écran.
 - Le plafond du navigateur se déclare à côté de chaque FPS. Un FPS collé au plafond ne démontre
   rien d'autre que le plafond.
 - Le rapport du Lab déclare lui-même que son contrôle visuel ne vaut pas verdict de performance
@@ -73,6 +79,9 @@ et `lsof -i :5174` (port du bloc) ne doivent montrer que le Chrome et le serveur
 agent qui construit, teste ou mesure. Puis `waitForQuiet(3)` (`load1 ≤ 3`, plus strict que le défaut
 8 : au-delà, le plafond rAF dérive, comme les 75,8 Hz mesurés un jour de charge, ni 60 ni 120 Hz).
 Rejeter le bloc, sans le consigner, si `refreshCeiling.hz` vaut `null` ou `load1` > 3 ; relancer au calme. Aucun `prepare:models` ni autre mesure pendant un bloc ; charge toujours jointe.
+Le bloc de verdict se joue en **mode visible** (`HEADLESS=0`) : session macOS ouverte, fenêtre
+Chrome au premier plan, veille et économiseur d'écran désactivés, machine non utilisée pendant la
+mesure (`scripts/headless/README.md`, section « Mode visible »).
 
 **Serveur.** `cd /Users/pasquelin/Applications/render-tech-lab && pnpm dev` sert le Lab sur
 **5174** (`vite.config.ts`, `server.port`). Vite y écoute en IPv6 : utiliser `http://localhost:5174`,
@@ -127,11 +136,15 @@ bloc, **une dizaine d'heures de machine dédiée** pour les 32 blocs — aucune 
 8. Exécuter les captures de fidélité du bloc (§5), puis consigner commit SDK, charge machine, DPR,
    pixelError, résolutions CSS et physique, plafond navigateur constaté, chemins d'archive.
 
-Voie headless, qui joue le bloc entier sans interface :
+Voie headless, qui joue le bloc entier sans interface — **verdict de performance** (FPS, rAF,
+images > 8,33 ms) : ajouter `HEADLESS=0` pour ouvrir Chrome stable visible, seul mode où le
+rafraîchissement mesuré peut dépasser le plafond ~60 Hz du headless (§1, §7) ; prérequis de session
+au §2 « Machine ». Sans `HEADLESS=0`, la même commande reste valide pour la fidélité (§5) et les
+mesures relatives (`cpuFrameMs`, `cpuSubmitMs`) mais son rAF ne vaut pas verdict :
 
 ```bash
 cd /Users/pasquelin/Applications/render-tech-lab
-CAMPAIGN=verite-emerald-square-1i-dpr1 SCENE=emerald-square PRELOAD=all DETAIL=summary \
+HEADLESS=0 CAMPAIGN=verite-emerald-square-1i-dpr1 SCENE=emerald-square PRELOAD=all DETAIL=summary \
   PIXEL_ERROR=1 node scripts/headless/walk.mjs
 ```
 
@@ -139,7 +152,8 @@ CAMPAIGN=verite-emerald-square-1i-dpr1 SCENE=emerald-square PRELOAD=all DETAIL=s
 pour en choisir d'autres —, imprime une ligne JSON par passe (moteur, sens, taille du canvas,
 erreurs, diagnostics) puis `{report, refreshCeiling, aggregates}`, et écrit son rapport sous
 `reports/15-virtualized-integration/<CAMPAIGN>/walk-<scène>-<8 hex>.json` avec l'index `latest.json`
-du dossier. `REPLICAS=9` et `DPR=2` couvrent les trois autres étendues de la matrice ; `WIDTH`,
+du dossier — le champ `environment` du rapport consigne le mode joué (`headless` ou `visible`).
+`REPLICAS=9` et `DPR=2` couvrent les trois autres étendues de la matrice ; `WIDTH`,
 `HEIGHT`, `FRAMES`, `SLOW_FRAME_MS`, `MAX_PAGES`, `LAB_URL` (`localhost`, §2) et `SDK_DIST`
 complètent le réglage — `PIXEL_ERROR=1` est obligatoire (§3), jamais son défaut `0`. Catalogue des
 variables et défauts : `scripts/headless/README.md`.
@@ -175,14 +189,26 @@ node scripts/headless/pngdiff.mjs \
 
 `shots.mjs` écrit ses PNG dans
 `scripts/headless/shots/<TAG><scène>-<moteur>-e<pixelError>-f<image>.png`, imprime par pose
-`selected`, `tri`, `draws`, `resident` et `trous` (`selectedTriangles` moins `triangles`), et écrit
-son rapport de campagne à côté de celui de `walk.mjs`. `pngdiff.mjs` rend `{pixels, differing,
-pct, maxChannelError, buckets, rowsTouched, worstRow}`.
+`selected`, `submitted`, `transparent`, `draws`, `resident` et `trous`, et écrit son rapport de
+campagne à côté de celui de `walk.mjs`. `pngdiff.mjs` rend `{pixels, differing, pct,
+maxChannelError, buckets, rowsTouched, worstRow}`.
 
 Critères d'acceptation, tous obligatoires :
 
-- **Aucun trou** : `tri == selected` à chaque pose. Une différence signale de la géométrie
-  sélectionnée mais non dessinée : la case est rejetée.
+- **Aucun trou** : `holes.value == 0` à chaque pose (`computeHoles`, `shared/campaign/
+  truthReport.ts` du Lab ; `selectedTriangles` moins le cut opaque effectivement soumis une seule
+  fois — `submittedTriangles` seul pour `exact-cluster-pages`/`three-lod`/`three-webgl-reference`,
+  moins `transparentSubmittedTriangles` pour `webgpu-page-raster`). Sur ces trois premiers moteurs
+  la mesure est exacte (même sélection résidente pour `selectedTriangles` et `submittedTriangles`) ;
+  sur `webgpu-page-raster`, `holes.value` reste une **approximation documentée** en `holes.method` —
+  son `selectedTriangles` public est le cut idéal avant repli vers un ancêtre résident, alors que
+  le cut opaque isolé ici vient du cut après repli réellement dessiné, donc l'écart mélange repli
+  LOD ordinaire et trou réel et reste positif même à résidence non plafonnée (constaté sur
+  `emerald-square`) : un `trous` positif sur ce seul moteur ne prouve pas à lui seul un défaut de
+  résidence saturée. `holes.value` vaut `null` — jamais un chiffre trompeur — dès qu'une métrique
+  requise manque pour le moteur. Un `holes.value` non nul (exact ou approximatif) signale de la
+  géométrie sélectionnée mais non dessinée : la case est rejetée, sauf mention contraire écrite
+  pour `webgpu-page-raster` compte tenu de l'approximation ci-dessus.
 - **Pixels différents = 0**, ou au plus le plancher A/A mesuré sur ce même bloc.
 - **Erreur max ≤ 2 par canal.** Tout écart restant est expliqué par écrit, pose par pose ; un écart
   non expliqué vaut échec.
@@ -223,8 +249,10 @@ sont copiés sous `fidelite/`.
 ## 7. Ce qui manque pour lancer
 
 Le chantier banc 15 a fermé dans le code les six manques relevés à la rédaction :
-`--disable-frame-rate-limit` et `--disable-gpu-vsync` sont dans les drapeaux Chrome de **tous** les
-scripts (`BASE_FLAGS`, `lib.mjs`) ; `DPR`, `WIDTH` et `HEIGHT` sont des variables de campagne et des
+`--disable-gpu-vsync` (inoffensif) est dans les drapeaux Chrome de **tous** les scripts
+(`BASE_FLAGS`, `lib.mjs`) ; `--disable-frame-rate-limit` en a été retiré (il dégrade le headless à
+54,6 Hz et désynchronise le visible du vsync réel) et le commutateur `HEADLESS` (défaut headless,
+`HEADLESS=0` = visible) y a été ajouté ; `DPR`, `WIDTH` et `HEIGHT` sont des variables de campagne et des
 champs de l'interface ; `REPLICAS` est lu par tous les scripts ; le rapport
 `banc15-truth-campaign/v1` (`shared/campaign/truthReport.ts`) porte DPR, `pixelError`, résolutions
 CSS et physique, plafond rAF calibré, commit SDK avec drapeau dirty, charge machine par passe, ordre
