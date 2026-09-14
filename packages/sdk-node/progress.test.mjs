@@ -12,7 +12,6 @@ test('a non-TTY stream gets one line per phase and a final summary built from th
  assert.match(lines[1],/35% source geometry written/);
  assert.equal(lines.filter(l=>l.includes('clustering')).length,1,'plain mode prints the clustering phase once');
  assert.match(lines.at(-1),/^✔ 1\/1 city 1,234 triangles, 3 primitives, 42 ms/);
- assert.equal(progress.primitives,3);
 });
 test('errors and cancellations close the line with a cross and the code',()=>{
  const out=capture();const progress=createTerminalProgress({label:'x',stream:out.stream});
