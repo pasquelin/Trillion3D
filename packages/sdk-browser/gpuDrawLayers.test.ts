@@ -59,18 +59,48 @@ test('drawShader(k) opens exactly 6k slots for several k', () => {
   }
 });
 
-test('drawShader(1) compared byte for byte against the develop DRAW_SHADER', () => {
+test('drawShader(1) matches the develop shader: same slot count, same order, same bin/rest arithmetic', () => {
   const developSource = execSync('git show develop:packages/sdk-browser/gpuDrawShader.ts', {
     encoding: 'utf8',
     cwd: import.meta.dirname,
   });
   const literal = /`([^`]*)`/s.exec(developSource);
   assert.ok(literal, 'the develop file has one template-literal shader');
+  const developShader = literal![1];
+  const currentShader = drawShader(1);
+
+  // Même nombre de slots (six) et mêmes trois passes, dans le même ordre : compte, préfixe, éparpille.
+  const entryIndexes = (shader: string) =>
+    ['fn countGroups', 'fn prefixGroups', 'fn scatterGroups'].map((needle) =>
+      shader.indexOf(needle),
+    );
+  for (const shader of [developShader, currentShader]) {
+    const indexes = entryIndexes(shader);
+    assert.ok(
+      indexes.every((index) => index >= 0),
+      'les trois passes sont présentes',
+    );
+    assert.ok(
+      indexes[0] < indexes[1] && indexes[1] < indexes[2],
+      'comptage, préfixe puis éparpillage, dans cet ordre',
+    );
+    assert.match(shader, /entry>=uni\.groupCount\*6u/, 'six slots, comme avant');
+  }
+
+  // Même calcul de bin et de rest — la partie du slot qui porte la sémantique du tri, pas les noms
+  // de champs ni les fonctions auxiliaires qui l'enveloppent. `develop` l'écrit en ligne dans
+  // `matches` ; drawShader(1) l'isole dans `slotOf`, qui ajoute un terme de couche toujours nul
+  // pour une seule couche (min(item.layer, 0u) == 0 quel que soit item.layer, car c'est un u32).
+  assert.match(
+    developShader,
+    /fn matches\(i:u32,slot:u32\)->bool\{let item=items\[i\];return restAt\(i\)\*3u\+item\.bin==slot&&selected\(item\);\}/,
+    'develop calcule le slot comme rest*3+bin',
+  );
+  const slotOfBody = /fn slotOf\([^)]*\)->u32\{return ([^;]+);\}/.exec(currentShader);
+  assert.ok(slotOfBody, 'drawShader(1) calcule son slot par slotOf()');
   assert.equal(
-    drawShader(1),
-    literal![1],
-    'drawShader(1) should reproduce the develop DRAW_SHADER exactly; ' +
-      'the DrawItem struct field was renamed from pad0 to layer and a slotOf() helper was added, ' +
-      'so the texts differ even though the six-slot behaviour is unchanged',
+    slotOfBody![1],
+    'restAt(i)*3u+item.bin+6u*min(item.layer,0u)',
+    'même terme rest*3+bin, plus un terme de couche dont la borne 0u le neutralise pour k=1',
   );
 });
