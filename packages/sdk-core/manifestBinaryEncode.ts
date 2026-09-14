@@ -1,11 +1,12 @@
 import { EngineError, type ClusterManifest } from './contracts.ts';
+import { MAX_DEPTH_LAYER } from './depthLayer.ts';
 import * as format from './manifestBinaryFormat.ts';
 import { countManifest, hexDigits, manifestBinaryRanges } from './manifestBinaryLayout.ts';
+import { slimBinaryOf } from './manifestBinaryTypes.ts';
 import type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
   SlimPrimitive,
-  SlimPrimitiveBinary,
 } from './manifestBinaryTypes.ts';
 
 /** Splits a manifest into the small JSON a reader parses and the columns it maps. The returned
@@ -56,6 +57,7 @@ export function encodeManifestBinary(
   const structureRoot = view('structureRoot', (b, o, n) => new Int32Array(b, o, n));
   const bundleWords = view('bundleU32', (b, o, n) => new Uint32Array(b, o, n)),
     bundleSha = view('bundleSha', (b, o, n) => new Uint8Array(b, o, n));
+  const pageDepthLayer = view('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n));
   const writeSha = (target: Uint8Array, slot: number, sha: string) => {
     const text = hexDigits(sha);
     for (let i = 0; i < 64; i++) target[slot * 64 + i] = text.charCodeAt(i);
@@ -131,6 +133,17 @@ export function encodeManifestBinary(
         geometryWords[page * 5 + 4] = item.geometry.uncompressedBytes;
       }
       words[page * 2 + format.U32_FLAGS] = flags;
+      if (item.depthLayer !== undefined) {
+        if (
+          !Number.isInteger(item.depthLayer) ||
+          item.depthLayer < 0 ||
+          item.depthLayer > MAX_DEPTH_LAYER
+        )
+          throw new EngineError('INVALID_CACHE', 'A cluster depth layer does not fit four bits', {
+            depthLayer: item.depthLayer,
+          });
+        pageDepthLayer[page] = item.depthLayer;
+      }
       page++;
     }
     if (primitive.culling) {
@@ -160,29 +173,14 @@ export function encodeManifestBinary(
       bundleWords[bundle * 2 + 1] = item.count;
       bundle++;
     }
-    const { pages, culling, structure, streams, ...rest } = primitive;
-    const slim: SlimPrimitiveBinary = { pages: pages.length };
-    if (culling !== undefined)
-      slim.culling = culling === null ? null : { stride: culling.stride, count: culling.count };
-    if (structure !== undefined)
-      slim.structure =
-        structure === null
-          ? null
-          : {
-              version: structure.version,
-              groups: structure.groups.length,
-              roots: structure.roots.length,
-            };
-    if (streams !== undefined)
-      slim.streams =
-        streams === null
-          ? null
-          : {
-              version: streams.version,
-              pinned: streams.pinned,
-              bundleBytes: streams.bundleBytes,
-              pages: streams.pages.length,
-            };
+    const {
+      pages: _pages,
+      culling: _culling,
+      structure: _structure,
+      streams: _streams,
+      ...rest
+    } = primitive;
+    const slim = slimBinaryOf(primitive);
     return { ...rest, binary: slim } as SlimPrimitive;
   });
   const { primitives: _ignored, ...top } = manifest;

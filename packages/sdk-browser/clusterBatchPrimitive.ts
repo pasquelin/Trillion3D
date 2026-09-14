@@ -123,6 +123,11 @@ export class BatchGroup {
   transparent = false;
   /** Paire dos/face figée quand le matériau est transparent double face ; sinon indéfinie. */
   split: [THREE.Material, THREE.Material] | undefined;
+  /** Matériau à biais de profondeur figé, sur les sous-lots d'une couche coplanaire supérieure à 0.
+   *  Indéfini sur le lot de couche 0, qui dessine exactement comme avant. */
+  biased: THREE.Material | undefined;
+  /** Couche coplanaire de ce lot. 0 = le lot ordinaire. */
+  layer = 0;
   pending: BatchPage[] = [];
   pendingCount = 0;
   constructor(primitive: PrimitiveIndex) {

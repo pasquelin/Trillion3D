@@ -1,5 +1,6 @@
 //! Native exact-cluster compiler. Rendering, UI and platform IPC do not belong here.
 mod accessor_validation;
+pub mod coplanar;
 mod dag;
 mod geometry_page;
 pub mod import;
@@ -22,9 +23,9 @@ use std::{
     },
     time::Instant,
 };
-pub const FORMAT_VERSION: u32 = 1;
+mod compiler_format;
+pub use compiler_format::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, SOURCE_FORMAT_VERSION};
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const CLUSTERED_BLEND_FORMAT_VERSION: u32 = 2;
 /// Per-cluster DAG identity: group QEM error projected through the group bounding sphere.
 pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v1";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
@@ -138,7 +139,8 @@ fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sync {
                     0.35
                 }
             }
-            Some("bootstrap") => 0.95 + 0.04 * frac(&event),
+            Some("bootstrap") => 0.95 + 0.02 * frac(&event),
+            Some("coplanar") => 0.97 + 0.02 * frac(&event),
             Some("prune") => 0.99,
             Some("complete") => 1.0,
             _ => 0.0,
@@ -153,9 +155,11 @@ mod compiler_accessor_create;
 mod compiler_accessor_decode;
 mod compiler_accessor_types;
 mod compiler_args;
+mod compiler_autonomous;
 mod compiler_buffers;
 mod compiler_build;
 mod compiler_bundles;
+mod compiler_coplanar;
 mod compiler_copy;
 mod compiler_materials;
 mod compiler_nodes;
@@ -170,6 +174,7 @@ mod compiler_source;
 mod compiler_storage;
 mod compiler_types;
 mod compiler_validate;
+mod compiler_world;
 #[cfg(test)]
 mod tests;
 use compiler_accessor_create::*;

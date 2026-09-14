@@ -17,7 +17,8 @@ import {OPEN_CONE,triangleCone} from './pageCone.ts';
 import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {HIZ_BOUNDS_VALUES,applyTemporalHiz,createBoxCorners,projectBoxesFlat,sameHizView,splitOccludersFlat,type TemporalHizState} from './hiz.ts';
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
-import {BIN_BACK,BIN_FRONT,BIN_NONE,DRAW_ITEM_U32,createGpuDraw,type GpuDraw} from './gpuDraw.ts';
+import {BASE_SLOTS,BIN_BACK,BIN_FRONT,BIN_NONE,DRAW_ITEM_U32,createGpuDraw,slotCount,type GpuDraw} from './gpuDraw.ts';
+import {MAX_DEPTH_LAYER,depthLayerBias} from '../sdk-core/index.ts';
 import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,TRIANGLE_PALETTE_WGSL,VIS_MAX_PAGES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode,GpuPassTimings} from '../sdk-core/index.ts';
 import * as THREE from 'three';
@@ -475,8 +476,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const hizRest=new Uint8Array(drawSlots);
  const drawItemWords=new Uint32Array(drawSlots*DRAW_ITEM_U32);
  const drawRestBits=new Uint32Array(Math.max(1,Math.ceil(drawSlots/32)));
- /** Rows per indirect bin (pipeline, then half): a bin nothing fills is not worth a draw call. */
- const binInstances=new Uint32Array(6);
+ /** Rows per indirect slot (pipeline, half, then coplanar layer): a slot nothing fills is not worth
+  *  a draw call. Sized for every layer the cache format can name, which costs a few hundred bytes. */
+ const MAX_DRAW_SLOTS=slotCount(1+MAX_DEPTH_LAYER);
+ const binInstances=new Uint32Array(MAX_DRAW_SLOTS);
  let pageTableFloats:Float32Array|undefined,pageTableInts:Uint32Array|undefined;
  let gpuFrameActive=false,gpuMetricsReady=false;
  const selectionUniforms:SelectionUniforms={planes:new Float32Array(24),view:new Float32Array(16),pixelScale:[1,1],pixelError:0,near:0.1,cameraWorld:[0,0,0]};
@@ -489,17 +492,29 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let gpuHiz:GpuHiz|undefined;
  let gpuSmall:GpuSmallTriangles|undefined,hybridUnavailable=false;
  let visHizRestBack:GPURenderPipeline|undefined,visHizRestBackCw:GPURenderPipeline|undefined,visHizRestNone:GPURenderPipeline|undefined,visHizRestFront:GPURenderPipeline|undefined,visHizRestFrontCw:GPURenderPipeline|undefined;
+ /**
+  * Pipelines des couches coplanaires supérieures à 0 : mêmes modules, mêmes états, plus le décalage
+  * de profondeur de la couche en unités matérielles. Index : `(couche-1)*10 + (testé?5:0) + face`,
+  * face dans l'ordre dos, aucune, face, dos inversé, face inversée. Une scène sans surface
+  * coplanaire empilée n'en crée aucun et dessine exactement comme avant.
+  */
+ const visLayerPipelines:Array<GPURenderPipeline|undefined>=[];
+ let drawLayerSlots=1;
  let visBindGroupLayout:GPUBindGroupLayout|undefined,visBindGroup:GPUBindGroup|undefined,visHizBindGroup:GPUBindGroup|undefined,visUniform:GPUBuffer|undefined,zeroFlags:GPUBuffer|undefined,zeroUv:GPUBuffer|undefined,blendBindGroupLayout:GPUBindGroupLayout|undefined;
  let gpuDraw:GpuDraw|undefined;
  let shadeBindGroupLayout:GPUBindGroupLayout|undefined,shadeBindGroup:GPUBindGroup|undefined;
- // Six raster slots × tested-or-not, and the small-triangle groups by flag source × selection:
+ // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection:
  // both sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
- const visSlotGroups:Array<GPUBindGroup|undefined>=new Array(12).fill(undefined);
+ const visSlotGroups:Array<GPUBindGroup|undefined>=new Array(MAX_DRAW_SLOTS*2).fill(undefined);
  const smallGroups:Array<unknown>=new Array(8).fill(undefined);
  let concatPos:GPUBuffer|undefined,concatUv:GPUBuffer|undefined,concatNrm:GPUBuffer|undefined,pageTable:GPUBuffer|undefined,shadeUniform:GPUBuffer|undefined,mapsTexture:GPUTexture|undefined,dataMapsTexture:GPUTexture|undefined,mapsSampler:GPUSampler|undefined,materialScales:GPUBuffer|undefined;
  let mapsArrayView:GPUTextureView|undefined,dataMapsArrayView:GPUTextureView|undefined;
  const inverseViewProj=new THREE.Matrix4(),cameraWorldScratch=new THREE.Vector3(),cameraWorldArray:[number,number,number]=[0,0,0];
- const shadeUniPacked=new Float32Array(64),visUniPacked=new Float32Array(7*64),geometryBlocks=new Map<THREE.BufferGeometry['attributes'],{vertexBase:number;count:number;hasUv:boolean;hasNormal:boolean;hasTangent:boolean}>(),mapLayer=new Map<THREE.Texture,number>(),dataLayer=new Map<THREE.Texture,number>();
+ // Une entrée par slot de dessin indirect, plus celle du chemin direct. La taille suit le nombre de
+ // couches coplanaires que la scène porte : sans couche, c'est exactement le tampon d'avant.
+ const visUniformSlots=()=>slotCount(drawLayerSlots)+1;
+ let visUniPacked=new Float32Array(visUniformSlots()*64);
+ const shadeUniPacked=new Float32Array(64),geometryBlocks=new Map<THREE.BufferGeometry['attributes'],{vertexBase:number;count:number;hasUv:boolean;hasNormal:boolean;hasTangent:boolean}>(),mapLayer=new Map<THREE.Texture,number>(),dataLayer=new Map<THREE.Texture,number>();
  const uvScales:Array<[number,number]>=[[1,1]],dataUvScales:Array<[number,number]>=[[1,1]];
  const textureJobs:Array<{kind:'color'|'data';layer:number;bytes:number;upload:()=>void}>=[];
  const textureBudget=Math.max(1,Number.isFinite(context.maxTextureTransferBytesPerFrame)?context.maxTextureTransferBytesPerFrame!:16*1024*1024);
@@ -573,6 +588,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   visEnabled=false;visPipelineBack=undefined;visPipelineBackCw=undefined;visPipelineNone=undefined;visPipelineFront=undefined;visPipelineFrontCw=undefined;shadePipeline=undefined;shadeBindGroup=undefined;shadeBindGroupLayout=undefined;visBindGroupLayout=undefined;visBindGroup=undefined;visHizBindGroup=undefined;mapsSampler=undefined;blendBindGroupLayout=undefined;pipelineBlendTextured=undefined;
   for(const item of blendGpu)item.group=undefined;
   visSlotGroups.fill(undefined);smallGroups.fill(undefined);
+  visLayerPipelines.length=0;drawLayerSlots=1;
   gpuSmall?.dispose();gpuSmall=undefined;
   dropGpuDraw();dropGpuHiz();
   concatPos?.destroy();concatUv?.destroy();concatNrm?.destroy();pageTable?.destroy();shadeUniform?.destroy();visUniform?.destroy();zeroFlags?.destroy();mapsTexture?.destroy();dataMapsTexture?.destroy();materialScales?.destroy();materialScales=undefined;
@@ -625,7 +641,16 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(side===THREE.DoubleSide)return pipelineNone;
   return windingCw(rec)?pipelineBackCw:pipelineBack;
  };
+ /** Rang de la variante de face dans un jeu de couche : dos, aucune, face, dos inversé, face inversée. */
+ const visCullSlot=(rec:PageRec)=>{
+  const side=materialSide(rec.material),cw=windingCw(rec);
+  if(side===THREE.DoubleSide)return 1;
+  if(side===THREE.BackSide)return cw?4:2;
+  return cw?3:0;
+ };
  const visPipelineFor=(rec:PageRec,rest:boolean)=>{
+  const layer=Math.min(rec.depthLayer,drawLayerSlots-1);
+  if(layer>0)return visLayerPipelines[(layer-1)*10+(rest?5:0)+visCullSlot(rec)];
   const side=materialSide(rec.material),cw=windingCw(rec);
   if(side===THREE.DoubleSide)return rest?visHizRestNone:visPipelineNone;
   if(side===THREE.BackSide)return rest?(cw?visHizRestFrontCw:visHizRestFront):(cw?visPipelineFrontCw:visPipelineFront);
@@ -794,6 +819,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   floats[base+44]=aoScale[0];floats[base+45]=aoScale[1];ints[base+46]=emissiveLayer;ints[base+47]=pageIndex;
   floats.set(mat.emissive,base+48);floats[base+52]=emissiveScale[0];floats[base+53]=emissiveScale[1];floats[base+54]=mat.normalScaleY;
   floats[base+55]=rec.role==='coarse'?1:0;floats[base+56]=0;
+  // Unités de profondeur à retrancher pour la couche coplanaire de ce cluster : zéro pour la
+  // couche 0, une seule source de calcul pour le chemin matériel comme pour le raster logiciel.
+  ints[base+60]=-depthLayerBias(rec.depthLayer);
   markRowDirty(row);
  };
  /**
@@ -1044,9 +1072,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const row=i,rest=hizRest[i],word=i*DRAW_ITEM_U32;
    if(itemsDirty){
     drawItemWords[word]=row;drawItemWords[word+1]=visBin(packedRecs[i]!);
-    drawItemWords[word+2]=packedPageIndex[i];drawItemWords[word+3]=0;
+    drawItemWords[word+2]=packedPageIndex[i];
+    // La couche coplanaire appartient à la ligne de la table, pas à l'image : elle voyage avec l'item.
+    drawItemWords[word+3]=Math.min(packedRecs[i]!.depthLayer,drawLayerSlots-1);
    }
-   binInstances[drawItemWords[word+1]+(rest?3:0)]++;
+   binInstances[drawItemWords[word+1]+(rest?3:0)+BASE_SLOTS*drawItemWords[word+3]]++;
    if(rest)drawRestBits[i>>5]|=1<<(i&31);
    const count=packedRecs[i]!.array!.length;
    if(rest)restVertices+=count;else occluderVertices+=count;
@@ -1059,9 +1089,10 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   lastItemsMs=performance.now()-itemsStart;
   uploadDirtyRows(device);
-  if(!visUniform)visUniform=device.createBuffer({size:7*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  if(visUniPacked.length!==visUniformSlots()*64)visUniPacked=new Float32Array(visUniformSlots()*64);
+  if(!visUniform)visUniform=device.createBuffer({size:visUniformSlots()*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   const visInts=new Uint32Array(visUniPacked.buffer);
-  for(let slot=0;slot<7;slot++){
+  for(let slot=0;slot<visUniformSlots();slot++){
    const base=slot*64;
    visUniPacked.set(viewProj.elements,base);
    visUniPacked[base+16]=width;visUniPacked[base+17]=height;visUniPacked[base+18]=gpuSmall?7:0;
@@ -1109,6 +1140,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    return [ids,{view:gpuHiz.level0View,loadOp,storeOp:'store' as const,clearValue:{r:1,g:0,b:0,a:1}}];
   };
   const visSlots=[visPipelineBack,visPipelineNone,visPipelineFront,visHizRestBack,visHizRestNone,visHizRestFront];
+  /** Le pipeline d'un slot : la couche 0 garde les siens, chaque couche suivante a les mêmes états
+   *  plus son décalage de profondeur. Le rang de face d'un slot est son `bin`, dos, aucune, face. */
+  const visSlotPipeline=(slot:number)=>{
+   const layer=Math.floor(slot/BASE_SLOTS),within=slot%BASE_SLOTS;
+   if(layer===0)return visSlots[within];
+   return visLayerPipelines[(layer-1)*10+(within>=3?5:0)+(within%3)];
+  };
   const visGroupFor=(slot:number,rest:boolean)=>{
    if(!visBindGroupLayout||!cache||!concatPos||!concatUv||!pageTable||!visUniform||!mapsTexture||!mapsSampler||!gpuDraw)return;
    const flags=rest?gpuHiz?.flags:zeroFlags;if(!flags)return;
@@ -1131,11 +1169,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const drawVis=(pass:GPURenderPassEncoder,rest:boolean)=>{
    if(useIndirect){
     if(!gpuDraw)return;
-    const start=rest?3:0;
-    for(let s=start;s<start+3;s++){
-     if(!binInstances[s])continue;
-     const pipeline=visSlots[s],group=visGroupFor(s,rest);if(!pipeline||!group)continue;
-     pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);gpuDrawCalls++;
+    for(let layer=0;layer<drawLayerSlots;layer++){
+     const start=layer*BASE_SLOTS+(rest?3:0);
+     for(let s=start;s<start+3;s++){
+      if(!binInstances[s])continue;
+      const pipeline=visSlotPipeline(s),group=visGroupFor(s,rest);if(!pipeline||!group)continue;
+      pass.setPipeline(pipeline);pass.setBindGroup(0,group);pass.drawIndirect(gpuDraw.indirectBuffer,s*16);gpuDrawCalls++;
+     }
     }
     return;
    }
@@ -1684,6 +1724,11 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       for(const item of blendGpu)item.group=undefined;
       pipelineBlendTextured=await makeBlend('none');pipelineBlendFront=await makeBlend('front');pipelineBlendBack=await makeBlend('back');
      }catch(error){diagnosticFailure('forward-material-pipeline-failed',error);blendBindGroupLayout=undefined;pipelineBlendTextured=undefined;}
+     // La profondeur de l'empilement coplanaire fixe le nombre de slots de dessin, donc la taille de
+     // l'uniforme de visibilité et celle de la compaction indirecte : elle se lit avant de les créer.
+     let maxDepthLayer=0;
+     for(const rec of allPages)if(rec.depthLayer>maxDepthLayer)maxDepthLayer=rec.depthLayer;
+     drawLayerSlots=1+Math.min(maxDepthLayer,MAX_DEPTH_LAYER);
      shadeUniform=gpuDevice.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
      visBindGroupLayout=gpuDevice.createBindGroupLayout({entries:[
       {binding:0,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
@@ -1700,7 +1745,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans
      // the row table; WebGPU hands back a zeroed buffer and nothing ever writes to this one.
      zeroFlags=gpuDevice.createBuffer({size:Math.max(4,drawSlots*4),usage:GPUBufferUsage.STORAGE});
-     visUniform=gpuDevice.createBuffer({size:7*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+     visUniform=gpuDevice.createBuffer({size:visUniformSlots()*256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
      const visModule=gpuDevice.createShaderModule({code:VIS_SHADER});
      const shadeModule=gpuDevice.createShaderModule({code:SHADE_SHADER});
      if(typeof visModule.getCompilationInfo==='function'){
@@ -1713,7 +1758,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      }
      const visLayout=gpuDevice.createPipelineLayout({bindGroupLayouts:[visBindGroupLayout]});
      const visDepth={format:'depth32float' as GPUTextureFormat,depthWriteEnabled:true,depthCompare:'less' as GPUCompareFunction};
-     const makeVis=(layout:GPUPipelineLayout,vertex:string,fragment:string,targets:GPUColorTargetState[],cull:GPUCullMode,frontFace:GPUFrontFace='ccw')=>gpuDevice.createRenderPipeline({layout,vertex:{module:visModule,entryPoint:vertex},fragment:{module:visModule,entryPoint:fragment,targets},primitive:{topology:'triangle-list',cullMode:cull,frontFace},depthStencil:visDepth});
+     // Une couche coplanaire n'est qu'un décalage de profondeur entier sur le même pipeline : même
+     // module, même état, même ordre de dessin. La couche 0 garde le pipeline d'avant, sans biais.
+     const makeVis=(layout:GPUPipelineLayout,vertex:string,fragment:string,targets:GPUColorTargetState[],cull:GPUCullMode,frontFace:GPUFrontFace='ccw',layer=0)=>gpuDevice.createRenderPipeline({layout,vertex:{module:visModule,entryPoint:vertex},fragment:{module:visModule,entryPoint:fragment,targets},primitive:{topology:'triangle-list',cullMode:cull,frontFace},depthStencil:layer>0?{...visDepth,depthBias:depthLayerBias(layer)}:visDepth});
      const oneTarget:GPUColorTargetState[]=[{format:'r32uint'}];
      // A row indexes its own Hi-Z verdict, so the flag array spans the rows, not the resident pages.
      gpuHiz=await createGpuHiz(gpuDevice,Math.max(1,width),Math.max(1,height),drawSlots);
@@ -1749,6 +1796,28 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
        visPipelineFrontCw=makeVis(visLayout,'vis_vs','vis_fs',oneTarget,'front','cw');
       });
      }
+     visLayerPipelines.length=0;
+     if(drawLayerSlots>1){
+      // Un jeu par couche : cinq modes de face, en occulteur puis en testé, dans l'ordre que
+      // `visCullSlot` et le slot indirect indexent. Les cibles et les entrées suivent celles que la
+      // couche 0 a retenues, Hi-Z compris, pour que les deux passes écrivent les mêmes attachements.
+      const hizActive=!!gpuHiz&&!!visHizRestBack;
+      const layerTargets:GPUColorTargetState[]=hizActive?[{format:'r32uint'},{format:'r32float'}]:oneTarget;
+      const layerFragment=hizActive?'vis_hiz_fs':'vis_fs';
+      const layerCulls:Array<[GPUCullMode,GPUFrontFace]>=[['back','ccw'],['none','ccw'],['front','ccw'],['back','cw'],['front','cw']];
+      try{
+       await scoped(()=>{
+        for(let layer=1;layer<drawLayerSlots;layer++)
+         for(const rest of [false,true])
+          for(const [cull,face] of layerCulls)
+           visLayerPipelines.push(makeVis(visLayout,rest&&hizActive?'vis_hiz_vs':'vis_vs',layerFragment,layerTargets,cull,face,layer));
+       });
+       engineDiagnostic('coplanar-layers-ready','Couches coplanaires prêtes',{layers:drawLayerSlots-1,pipelines:visLayerPipelines.length,biasUnitsPerLayer:-depthLayerBias(1)});
+      }catch(error){
+       diagnosticFailure('coplanar-layer-pipelines-failed',error);
+       visLayerPipelines.length=0;drawLayerSlots=1;
+      }
+     }
      shadeBindGroupLayout=gpuDevice.createBindGroupLayout({entries:[
       {binding:0,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'uint'}},
       {binding:1,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
@@ -1783,7 +1852,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
       engineDiagnostic('material-surfaces-ready','Surfaces et éclairage séparés',{surfaceVersion:1,formats:SURFACE_FORMATS,bytesPerPixel:28,lighting:'HDR',globalIllumination:false,motionVectors:false});
       capabilities.materials='Source glTF via GGX direct specular and hemisphere diffuse lighting with visibility buffer; double-sided when the material is';
       capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='visibility buffer'&&item!=='textured PBR maps'&&item!=='occlusion culling'&&item!=='temporal occlusion culling');
-      gpuDraw=await createGpuDraw(gpuDevice,drawSlots);
+      gpuDraw=await createGpuDraw(gpuDevice,drawSlots,drawLayerSlots);
       if(gpuDraw)capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='indirect draw');
      }else dropVis();
     }catch(error){diagnosticFailure('material-pipeline-failed',error);dropVis();}
