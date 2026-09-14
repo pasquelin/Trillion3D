@@ -26,6 +26,7 @@ test("une image de coupe réutilise sa table plate, son résultat et ses tableau
     selectedTriangles: 0,
     displayedTriangles: 0,
     frustumRejected: 0,
+    nodesTested: 0,
     lodLevel: 0,
     complete: true,
     pixelError: 0,

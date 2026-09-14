@@ -25,6 +25,8 @@ export interface SelectionState<T extends PageRecord> {
   pageResident: (page: T) => boolean;
   pixelError: number;
   frustumRejected: number;
+  /** Nœuds de hiérarchie dépilés par la coupe de cette image. */
+  nodesTested: number;
   lodLevel: number;
   complete: boolean;
   cameraStretch: number;
@@ -49,6 +51,8 @@ export interface SelectionResult<T> {
   selectedTriangles: number;
   displayedTriangles: number;
   frustumRejected: number;
+  /** Nœuds de hiérarchie dépilés par la coupe, ce que la sélection a réellement testé. */
+  nodesTested: number;
   lodLevel: number;
   complete: boolean;
   pixelError: number;
@@ -64,6 +68,7 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     selectedTriangles: 0,
     displayedTriangles: 0,
     frustumRejected: 0,
+    nodesTested: 0,
     lodLevel: 0,
     complete: true,
     pixelError: 0,
@@ -102,6 +107,7 @@ const reusedState: SelectionState<PageRecord> = {
     !reusedState.hold || (reusedState.isResident ? reusedState.isResident(rec) : !!rec.array),
   pixelError: 0,
   frustumRejected: 0,
+  nodesTested: 0,
   lodLevel: 0,
   complete: true,
   cameraStretch: 1,
