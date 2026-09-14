@@ -1,4 +1,5 @@
 import {
+  clusterSphereValid,
   pageCarriesClusterError,
   type CullingHierarchy,
   type Page,
@@ -83,6 +84,11 @@ export function clusterErrorFields(page: Page): {
     throw new Error(`Page ${page.id}: parentError sans parentSphere`);
   if (parent !== null && parent < page.lodError!)
     throw new Error(`Page ${page.id}: parentError sous lodError`);
+  // La sphère du remplaçant passe par la même règle que la sphère propre de la page : refusée ici,
+  // à la préparation, jamais au milieu d'une image. Une erreur nulle ne projette rien et ne lit
+  // pas sa sphère, elle n'a rien à valider.
+  if (parent !== null && parent > 0 && !clusterSphereValid(page.parentSphere))
+    throw new Error('Parametres de cluster invalides');
   return {
     level: page.level,
     lodError: page.lodError,

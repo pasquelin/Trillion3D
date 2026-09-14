@@ -10,6 +10,8 @@ export {
   acceptPageArray,
 } from './pageSelectionRequests.ts';
 export type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
+export { createSelectionResult } from './pageSelectionCutState.ts';
+export type { SelectionResult } from './pageSelectionCutState.ts';
 
 /** Camera-independent minimal complete cover. Shared page URLs may serve multiple instances.
  *  The cover is the set of clusters no other cluster replaces. */

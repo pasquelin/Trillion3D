@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { exactPagesBackend } from './index.ts';
-import { drawnIndices, dagLevel, DAG } from './pagesBackendFixture.ts';
+import { drawnIndices, dagRoots, dagLevel, DAG } from './pagesBackendFixture.ts';
 import { quadCluster, fanScene, frontCamera, quadRootsContext } from './pagesBackendScenes.ts';
 
 test('transparent page batches preserve source order across exact and coarse cuts', () => {
@@ -81,6 +81,58 @@ test('exact pages report measured residency and keep only the visible set in the
   assert.equal(backend.metrics().selectedTriangles, 0);
   assert.equal(backend.metrics().residentPages, 0);
   assert.equal(meshes().length, 0);
+  backend.dispose();
+  geometry.dispose();
+  material.dispose();
+});
+
+test('cpuSelectMs mesure le temps de sélection, fini et non-négatif', () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
+  );
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  const material = new THREE.MeshBasicMaterial(),
+    mesh = new THREE.Mesh(geometry, material),
+    source = new THREE.Group();
+  source.add(mesh);
+  const cluster = (id: number, start: number) => ({
+    id,
+    url: String(id),
+    count: 3,
+    min: [-1, -1, 0],
+    max: [1, 1, 0],
+    bytes: 12,
+    sha256: 'x',
+    start,
+  });
+  const context = {
+    source,
+    metadata: {
+      ...DAG,
+      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots([cluster(0, 0)]) }],
+    },
+    indices: new Map([['0', new Uint32Array([0, 1, 2, 0, 2, 3])]]),
+    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
+    maxResidentPages: 1,
+  };
+  const backend = exactPagesBackend(context);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  camera.position.z = 5;
+  camera.lookAt(0, 0, 0);
+  backend.render(camera);
+  const metrics1 = backend.metrics();
+  if (metrics1.cpuSelectMs !== null) {
+    assert.ok(Number.isFinite(metrics1.cpuSelectMs), 'cpuSelectMs is finite when measured');
+    assert.ok(metrics1.cpuSelectMs >= 0, 'cpuSelectMs is non-negative');
+  }
+  backend.render(camera);
+  const metrics2 = backend.metrics();
+  if (metrics2.cpuSelectMs !== null) {
+    assert.ok(Number.isFinite(metrics2.cpuSelectMs), 'cpuSelectMs stays finite across renders');
+    assert.ok(metrics2.cpuSelectMs >= 0, 'cpuSelectMs stays non-negative');
+  }
   backend.dispose();
   geometry.dispose();
   material.dispose();

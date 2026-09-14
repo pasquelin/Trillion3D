@@ -5,6 +5,7 @@ export default {
     'packages/page-codec/geometryPage.mjs',
     'packages/**/*.test.{ts,mjs}',
     'scripts/*.mjs',
+    'scripts/mesure/banc.mjs',
     'test/*.test.mjs',
     'test/*.browser.mjs',
   ],

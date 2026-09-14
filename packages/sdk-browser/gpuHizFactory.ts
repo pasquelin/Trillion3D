@@ -20,8 +20,8 @@ export async function createGpuHiz(
     return undefined;
   const cap = Math.max(1, maxBounds);
   const uniData = new Float32Array(UNIFORM_BYTES / 4);
-  const packBounds = createHizBoundsPacker();
-  const counters = createHizCounters(cap);
+  const counters = createHizCounters(cap),
+    packBounds = createHizBoundsPacker(counters);
   const buffers: GPUBuffer[] = [];
   let disposed = false,
     level0: GPUTexture | undefined,
@@ -129,15 +129,20 @@ export async function createGpuHiz(
         if (disposed || !bindGroup) return 0;
         const count = Math.min(boundsCount, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
-        const testBytes = packBounds(next, rows, count, gpu.width, gpu.height, sizes, offsets);
-        // A sample is due when no mapping is in flight and the interval has elapsed; the rows and
-        // their triangles are recorded here because the caller rewrites its own arrays next image.
+        // A sample is due when no mapping is in flight and the interval has elapsed; its boxes are
+        // recorded while packing, because the caller rewrites its own arrays next image.
         const due = counters.due(queueDevice, sample, flagRows);
-        if (due) {
-          counters.beginSample();
-          for (let i = 0; i < count; i++)
-            counters.observe(i, rows[i], sample!.triangles[i] ?? 0, next);
-        }
+        if (due) counters.beginSample();
+        const testBytes = packBounds(
+          next,
+          rows,
+          count,
+          gpu.width,
+          gpu.height,
+          sizes,
+          offsets,
+          due ? sample : undefined,
+        );
         if (count) queueDevice.queue.writeBuffer(bounds, 0, testBytes, 0, count * 32);
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
         const testSlot = MAX_LEVELS + 1;
@@ -156,12 +161,8 @@ export async function createGpuHiz(
         if (due) counters.encodeCopy(encoder, flags, count, flagRows, sample!.frame);
         return count;
       },
-      countsSubmitted() {
-        counters.submitted();
-      },
-      counts() {
-        return counters.counts();
-      },
+      countsSubmitted: () => counters.submitted(),
+      counts: () => counters.counts(),
       resize(nextDevice, nextWidth, nextHeight) {
         if (disposed || !nextDevice || nextWidth < 1 || nextHeight < 1) return false;
         if (nextWidth === gpu.width && nextHeight === gpu.height && level0) return true;

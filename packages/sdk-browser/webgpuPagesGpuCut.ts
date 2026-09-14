@@ -40,6 +40,7 @@ export function renderGpuCut(
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) return true;
   run.gpuFrameActive = true;
+  run.cpuSelectMs = null;
   marks.cpuStart = cpuStart;
   marks.lightsEnd = lightsEnd;
   // `budgetPixelError` carries the previous frame's verdict, the same feedback `pageBudget` applies

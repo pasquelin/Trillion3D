@@ -29,6 +29,8 @@ function selectCpuCut(
 ) {
   const { roots, viewport, bootstrapUrls } = rt.setup,
     cache = rt.gpu.cache!;
+  // The image's cut writes into the reused result; the rare pinned fallback keeps its own.
+  const result = pinnedOnly ? undefined : rt.run.selectResult;
   return selectVisiblePages(
     roots,
     camera,
@@ -41,6 +43,8 @@ function selectCpuCut(
       isResident: pinnedOnly
         ? (rec) => bootstrapUrls.has(rec.url) && !!cache.get(rec.url)
         : (rec) => !!cache.get(rec.url),
+      wanted: result?.wanted,
+      result,
     },
     pinnedOnly ? undefined : rt.run.shown,
   );
@@ -88,7 +92,8 @@ export function renderCpuCut(
     cache = gpu.cache!;
   const cpuSelectionStarted = performance.now();
   const selected = selectCpuCut(rt, camera, pixelError, false);
-  traceCpuSelection(rt, selected, performance.now() - cpuSelectionStarted);
+  run.cpuSelectMs = performance.now() - cpuSelectionStarted;
+  traceCpuSelection(rt, selected, run.cpuSelectMs);
   run.desired.length = 0;
   appendAll(run.desired, selected.wanted ?? run.shown);
   run.overBudget = false;
