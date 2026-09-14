@@ -9,7 +9,8 @@ import {createGpuTiming} from './gpuTiming.ts';
 import {createCpuStepProfile} from './cpuProfile.ts';
 import type {BackendCapabilities,BackendFactory,RenderBackend} from './backendTypes.ts';
 import {createGpuPageCache} from './gpuPages.ts';
-import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
+import {acceptPageArray,collectClusterPages,collectPendingUrls,indexPagesByUrl,pageRequestUrl,projectedPageError,resolvePixelError,selectVisiblePages,rootCoverage,type PageRec} from './pageSelection.ts';
+import {screenErrorColor,screenErrorRatio} from './diagnosticColors.ts';
 import {cameraSelectionUniforms,sameSelectionUniforms,type GpuSelection,type SelectionSubmission,type SelectionUniforms} from './gpuSelection.ts';
 import {createGpuDagSelection,packDagSelection} from './gpuDagSelection.ts';
 import {OPEN_CONE,triangleCone} from './pageCone.ts';
@@ -17,7 +18,7 @@ import {RASTER_BACKGROUND} from './pageRaster.ts';
 import {HIZ_BOUNDS_VALUES,applyTemporalHiz,createBoxCorners,createHizCounts,projectBoxesFlat,resetHizCounts,sameHizView,splitOccludersFlat,type HizCounts,type TemporalHizState} from './hiz.ts';
 import {createGpuHiz,type GpuHiz,type HizCountSample} from './gpuHiz.ts';
 import {BIN_BACK,BIN_FRONT,BIN_NONE,DRAW_ITEM_U32,createGpuDraw,type GpuDraw} from './gpuDraw.ts';
-import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_MAX_PAGES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
+import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,TRIANGLE_PALETTE_WGSL,VIS_MAX_PAGES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
 import type {DiagnosticMode,GpuPassTimings} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
@@ -33,7 +34,8 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,0.0,1.0);out.color=vec4f(0.0);out.bary=vec3f(0.0);out.view=vec3f(0.0);out.tri=0u;return out;}
  let id=indices[uni.pageOffset+vertexIndex];
  let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
- out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;out.tri=vertexIndex/3u+uni.pageOffset;
+ out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;out.tri=0u;
+ if(uni.mode==1u){out.tri=stableTriangleId(uni.pad1,vertexIndex/3u);}
  let corner=vertexIndex%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  return out;
@@ -46,14 +48,12 @@ fn aces(color:vec3f)->vec3f{
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
-fn hashColor(id:u32)->vec3f{let x=f32(id);return fract(sin(vec3f(x,x*1.37,x*2.17)*vec3f(12.9898,78.233,45.164))*43758.5453);}
+${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut)->@location(0) vec4f{
  if(uni.mode==1u){
-  let n=normalize(cross(dpdx(in.view),dpdy(in.view)));
-  let wrap=0.28+0.72*max(0.0,abs(n.z));
   let width=fwidth(in.bary);
   let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
-  return vec4f(mix(hashColor(in.tri)*wrap,vec3f(0.04,0.05,0.07),edge),1.0);
+  return vec4f(mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge),1.0);
  }
  return vec4f(linearToSrgb(aces(in.color.xyz)),1.0);
 }
@@ -72,8 +72,9 @@ const BLEND_SHADER=`struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,p
 ${STANDARD_LIGHTING_WGSL}
 ${SCENE_LIGHTING_WGSL}
 @group(0) @binding(9) var<storage,read> sceneLights:SceneLights;
+@group(0) @binding(10) var<storage,read> triangleDiagnostic:array<u32>;
 ${NORMAL_TRANSFORM_WGSL}
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,}
+struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
 fn aces(color:vec3f)->vec3f{
  var c=color/0.6;
@@ -83,12 +84,23 @@ fn aces(color:vec3f)->vec3f{
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
+${TRIANGLE_PALETTE_WGSL}
 @vertex fn vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
  var out:VSOut;
- if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);return out;}
+ if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
  let id=indices[uni.pageOffset+vertexIndex];
  let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;
+ out.tri=0u;
+ out.diagId=0u;
+ if((uni.flags&0x1c000000u)!=0u){out.diagId=triangleDiagnostic[vertexIndex/3u];}
+ if((uni.flags&0x20000000u)!=0u){
+  let triangle=(vertexIndex/3u)*3u;
+  let a=triangleHash(indices[triangle]);let b=triangleHash(indices[triangle+1u]);let c=triangleHash(indices[triangle+2u]);
+  out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
+ }
+ let corner=vertexIndex%3u;
+ out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  out.normal=vec3f(0.0);
  if((uni.flags&16u)!=0u){out.normal=xformNormal(uni.world,vec3f(normals[id*7u],normals[id*7u+1u],normals[id*7u+2u]));}
  out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);
@@ -111,6 +123,18 @@ fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,
  let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
  let sample=textureSampleGrad(maps,mapsSampler,wrapped*uni.uvScale,i32(uni.mapIndex),gradX*uni.uvScale,gradY*uni.uvScale);
  let alpha=sample.w*in.color.w;
+ if((uni.flags&0x40000000u)!=0u){
+  if(alpha<=0.01||alpha<uni.alphaTest){discard;}
+  var color=vec3f(0.204,0.827,0.6);
+  if((uni.flags&0x20000000u)!=0u){
+   let width=fwidth(in.bary);
+   let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
+   color=mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge);
+  }else if((uni.flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
+  else if((uni.flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
+  else if((uni.flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
+  return vec4f(color,1.0);
+ }
  var rgb=in.color.xyz*sample.xyz;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
  if(uni.roughIndex!=0u){let scale=scales[uni.roughIndex].xy;rough*=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.roughIndex),gradX*scale,gradY*scale).g;}
@@ -349,7 +373,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  let lost=false,overBudget=false,visible=0,selectedTriangles=0,submittedTriangles=0,uncoveredTriangles=0,frustumRejected=0,lodLevel=0,frame=0;
  let diagnostic:DiagnosticMode='beauty';
  const motion:{last?:THREE.Vector3;lastMs?:number}={};
- let pending:Promise<unknown>=Promise.resolve(),shown:PageRec[]=[],desired:PageRec[]=[],drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
+ let pending:Promise<unknown>=Promise.resolve(),drawn:PageRec[]=[],targetSize:[number,number]=[viewport?.[0]??1,viewport?.[1]??1];
+ const shown:PageRec[]=[],desired:PageRec[]=[];
  let gpuSelection:GpuSelection|undefined;
  const opaqueRoots=roots.filter(root=>!root.pages[0]?.transparent),transparentRoots=roots.filter(root=>root.pages[0]?.transparent);
  const packedPages:PageRec[]=opaqueRoots.flatMap(root=>root.pages);
@@ -569,10 +594,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   for(const item of visFeatures)if(!capabilities.unsupported.includes(item))capabilities.unsupported.push(item);
  };
  const pageSource={read:async(key:string)=>{const bytes=sourceBytes.get(key);if(!bytes)throw new Error('Missing page');return bytes;}};
- let lastCamera:THREE.PerspectiveCamera|undefined;
+ let lastCamera:THREE.PerspectiveCamera|undefined,diagnosticPixelError=0;
  const pageRgb=(rec:PageRec):[number,number,number]=>{
   if(diagnostic==='beauty')return linearColor(rec.material);
   if(diagnostic==='pages')return PAGES_GREEN;
+  if(diagnostic==='lod')return rec.role==='coarse'?[0.95,0.42,0.05]:[0.04,0.51,0.94];
+  if(diagnostic==='visibility')return PAGES_GREEN;
+  if(diagnostic==='screen-error')return lastCamera?screenErrorColor(projectedPageError(rec,lastCamera,viewport),diagnosticPixelError):[0,1,0.12];
   let rgb=clusterRgbCache.get(rec.clusterId);if(!rgb){rgb=clusterRgb(rec.clusterId);clusterRgbCache.set(rec.clusterId,rgb);}return rgb;
  };
  const ensureTargets=(device:GPUDevice,width:number,height:number)=>{
@@ -630,7 +658,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   if(uniformPacked.byteLength<bytes)uniformPacked=new Float32Array(bytes/4);
  };
  let outputDiagnosticLogged=false,renderPathLogged=false;
- const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;sourceMesh?:THREE.Mesh;sourceGeometry:THREE.BufferGeometry;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup;paged?:boolean;cut?:PageRec[];packed?:Uint32Array<ArrayBuffer>}>=[];
+ const blendGpu:Array<{position:GPUBuffer;index:GPUBuffer;uv?:GPUBuffer;normal?:GPUBuffer;material:THREE.Material|THREE.Material[];count:number;matrix:THREE.Matrix4;sourceMesh?:THREE.Mesh;sourceGeometry:THREE.BufferGeometry;bounds?:THREE.Box3;rgba:[number,number,number,number];map?:THREE.Texture;flags:number;group?:GPUBindGroup;paged?:boolean;cut?:PageRec[];packed?:Uint32Array<ArrayBuffer>;diagnosticBuffer?:GPUBuffer;diagnosticData?:Uint32Array<ArrayBuffer>;diagnosticCut?:PageRec[];diagnosticMode?:DiagnosticMode}>=[];
  const pagedBlendGpu=new Map<THREE.Mesh,(typeof blendGpu)[number]>();
  const blendCuts=new Map<(typeof blendGpu)[number],PageRec[]>(),blendDrawnPages:PageRec[]=[];
  const visibleBlend:typeof blendGpu=[],blendFrustum=new THREE.Frustum();
@@ -682,10 +710,22 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   const lLen=Math.hypot(1,3,2);
   for(let i=0;i<visibleBlend.length;i++){
    const item=visibleBlend[i],base=(uniformBase+i)*(UNIFORM_STRIDE/4),mat=visMaterial(item.material);
+   if(diagnostic==='clusters'||diagnostic==='lod'||diagnostic==='screen-error'){
+    const triangleCount=Math.floor(item.count/3),bytes=Math.max(4,triangleCount*4);
+    if(bytes>Math.min(device.limits.maxBufferSize,device.limits.maxStorageBufferBindingSize))throw new Error('GPU_TRANSPARENT_DIAGNOSTIC_BUDGET');
+    if(!item.diagnosticData||item.diagnosticData.length<triangleCount)item.diagnosticData=new Uint32Array(triangleCount);
+    if(!item.diagnosticBuffer||item.diagnosticBuffer.size<bytes){item.diagnosticBuffer?.destroy();item.diagnosticBuffer=device.createBuffer({label:'WG transparent triangle identity',size:bytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});item.group=undefined;item.diagnosticCut=undefined;}
+    if(item.diagnosticCut!==item.cut||item.diagnosticMode!==diagnostic||diagnostic==='screen-error'){
+     let at=0;
+     if(item.cut){for(const rec of item.cut){const hash=clusterHash(rec.clusterId)&0x00ffffff;const ratio=diagnostic==='screen-error'&&lastCamera?Math.round(screenErrorRatio(projectedPageError(rec,lastCamera,viewport),diagnosticPixelError)*127):0;const encoded=(hash|(ratio<<24)|(rec.role==='coarse'?0x80000000:0))>>>0;item.diagnosticData.fill(encoded,at,at+rec.triangles);at+=rec.triangles;}}
+     else item.diagnosticData.fill(0,0,triangleCount);
+     device.queue.writeBuffer(item.diagnosticBuffer,0,item.diagnosticData.subarray(0,triangleCount));item.diagnosticCut=item.cut;item.diagnosticMode=diagnostic;
+    }
+   }
    const layer=item.map&&mapLayer.has(item.map)?mapLayer.get(item.map)!:0,scale=uvScales[layer]??[1,1];
    uniformPacked.set(viewProj.elements,base);uniformPacked.set(item.matrix.elements,base+16);
    uniformPacked[base+32]=item.rgba[0];uniformPacked[base+33]=item.rgba[1];uniformPacked[base+34]=item.rgba[2];uniformPacked[base+35]=item.rgba[3];
-   packedInts[base+36]=0;packedInts[base+37]=item.count;packedInts[base+38]=layer;packedInts[base+39]=item.flags;
+   packedInts[base+36]=0;packedInts[base+37]=item.count;packedInts[base+38]=textured?layer:diagnostic==='wireframe'?1:0;packedInts[base+39]=item.flags|(diagnostic!=='beauty'?0x40000000:0)|(diagnostic==='wireframe'?0x20000000:diagnostic==='clusters'?0x10000000:diagnostic==='lod'?0x08000000:diagnostic==='screen-error'?0x04000000:0);
    uniformPacked[base+40]=scale[0];uniformPacked[base+41]=scale[1];
    packedInts[base+42]=mat.emissiveMap?mapLayer.get(mat.emissiveMap)??0:0;uniformPacked[base+43]=mat.alphaTest;
    uniformPacked[base+52]=mat.roughness;uniformPacked[base+53]=mat.metalness;uniformPacked[base+54]=mat.normalScale;uniformPacked[base+55]=mat.normalScaleY;
@@ -705,7 +745,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   for(let i=0;i<visibleBlend.length;i++){
    const item=visibleBlend[i];
    if(!item.group){
-    if(textured)item.group=device.createBindGroup({layout:blendBindGroupLayout!,entries:[{binding:0,resource:{buffer:item.index}},{binding:1,resource:{buffer:item.position}},{binding:2,resource:{buffer:item.uv??zeroUv!}},{binding:3,resource:{buffer:uniformBuffer,size:UNIFORM_STRIDE}},{binding:4,resource:mapsTexture!.createView({dimension:'2d-array'})},{binding:5,resource:mapsSampler!},{binding:6,resource:dataMapsTexture!.createView({dimension:'2d-array'})},{binding:7,resource:{buffer:item.normal??zeroUv!}},{binding:8,resource:{buffer:materialScales!}},{binding:9,resource:{buffer:lights!.buffer}}]});
+    if(textured)item.group=device.createBindGroup({layout:blendBindGroupLayout!,entries:[{binding:0,resource:{buffer:item.index}},{binding:1,resource:{buffer:item.position}},{binding:2,resource:{buffer:item.uv??zeroUv!}},{binding:3,resource:{buffer:uniformBuffer,size:UNIFORM_STRIDE}},{binding:4,resource:mapsTexture!.createView({dimension:'2d-array'})},{binding:5,resource:mapsSampler!},{binding:6,resource:dataMapsTexture!.createView({dimension:'2d-array'})},{binding:7,resource:{buffer:item.normal??zeroUv!}},{binding:8,resource:{buffer:materialScales!}},{binding:9,resource:{buffer:lights!.buffer}},{binding:10,resource:{buffer:item.diagnosticBuffer??zeroUv!}}]});
     else item.group=device.createBindGroup({layout:bindGroupLayout!,entries:[{binding:0,resource:{buffer:item.index}},{binding:1,resource:{buffer:item.position}},{binding:2,resource:{buffer:uniformBuffer,size:UNIFORM_STRIDE}}]});
    }
    pass.setBindGroup(0,item.group,[(uniformBase+i)*UNIFORM_STRIDE]);
@@ -761,6 +801,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   ints[base+42]=aoLayer;floats[base+43]=mat.aoIntensity;
   floats[base+44]=aoScale[0];floats[base+45]=aoScale[1];ints[base+46]=emissiveLayer;ints[base+47]=pageIndex;
   floats.set(mat.emissive,base+48);floats[base+52]=emissiveScale[0];floats[base+53]=emissiveScale[1];floats[base+54]=mat.normalScaleY;
+  floats[base+55]=rec.role==='coarse'?1:0;floats[base+56]=0;
   markRowDirty(row);
  };
  /**
@@ -1043,7 +1084,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   device.queue.writeBuffer(visUniform,0,visUniPacked);
   if(!shadeUniform)shadeUniform=device.createBuffer({size:256,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
   shadeUniPacked.set(viewProj.elements,0);shadeUniPacked[16]=width;shadeUniPacked[17]=height;
-  const shadeInts=new Uint32Array(shadeUniPacked.buffer);shadeInts[20]=tableRows;shadeInts[21]=diagnostic==='wireframe'?1:diagnostic==='pages'?3:diagnostic==='beauty'?0:2;
+  const shadeInts=new Uint32Array(shadeUniPacked.buffer);shadeInts[20]=tableRows;shadeInts[21]=diagnostic==='beauty'?0:diagnostic==='wireframe'?1:diagnostic==='clusters'?2:diagnostic==='pages'?3:diagnostic==='lod'?4:diagnostic==='visibility'?5:6;
   device.queue.writeBuffer(shadeUniform,0,shadeUniPacked);
   if(!shadeBindGroup&&shadeBindGroupLayout&&visView&&pageTable&&concatPos&&concatUv&&concatNrm&&mapsTexture&&dataMapsTexture&&mapsSampler&&shadeUniform&&cache){
    shadeBindGroup=device.createBindGroup({layout:shadeBindGroupLayout,entries:[
@@ -1174,6 +1215,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   viewProj.premultiply(remap);
   ensurePageTable(device);
   if(!gpuFrameActive)syncRowsFromCut();else if(rowsSyncedFrame!==frame){syncRows();rowsSyncedFrame=frame;}
+  if(diagnostic==='screen-error'&&pageTableFloats){
+   const rowWords=PAGE_INFO_STRIDE/4;
+   for(let row=0;row<packedCount;row++){
+    const rec=packedRecs[row];if(!rec)continue;
+    pageTableFloats[row*rowWords+56]=screenErrorRatio(projectedPageError(rec,camera,viewport),diagnosticPixelError);
+    markRowDirty(row);
+   }
+  }
   const itemsDirty=rowsChanged;
   if(visEnabled&&visPipelineBack&&shadePipeline&&visView){
    try{return encodeVis(device,camera,itemsDirty);}catch(error){abandonFrameEncoder();gpuTiming?.cancelUnsubmitted();diagnosticFailure('visibility-render-failed',error);dropVis();gpuDrawCalls=0;if(context.gpuCanvas||secondaryCamera||gpuFrameActive)throw error;}
@@ -1194,7 +1243,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const rec=packedRecs[i]!,row=i,base=i*(UNIFORM_STRIDE/4),color=pageRgb(rec);
    uniformPacked.set(viewProj.elements,base);uniformPacked.set(rec.matrix.elements,base+16);
    uniformPacked[base+32]=color[0];uniformPacked[base+33]=color[1];uniformPacked[base+34]=color[2];uniformPacked[base+35]=1;
-   packedInts[base+36]=pageTableInts![row*fallbackWords+24];packedInts[base+37]=pageTableInts![row*fallbackWords+25];packedInts[base+38]=diagnostic==='wireframe'?1:0;
+   packedInts[base+36]=pageTableInts![row*fallbackWords+24];packedInts[base+37]=pageTableInts![row*fallbackWords+25];packedInts[base+38]=diagnostic==='wireframe'?1:0;packedInts[base+39]=clusterHash(rec.clusterId);
   }
   if(packedCount&&uniformBuffer)device.queue.writeBuffer(uniformBuffer,0,uniformPacked.subarray(0,packedCount*(UNIFORM_STRIDE/4)));
   const encoder=createRenderEncoder(device);
@@ -1634,6 +1683,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
        {binding:7,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
        {binding:8,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
       {binding:9,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
+      {binding:10,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage'}},
       ]});
       const blendModule=gpuDevice.createShaderModule({code:BLEND_SHADER});
       const makeBlend=(cullMode:GPUCullMode)=>{const descriptor:GPURenderPipelineDescriptor={
@@ -1789,7 +1839,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const lightsEnd=performance.now();
    lastCamera=camera;overBudget=false;submittedTriangles=0;blendSubmittedTriangles=0;blendDrawCalls=0;frame++;
    if(traceEnabled)traceDiagnostic('cpu-lights','Mise à jour CPU des lumières',()=>({frame,scope:'cpu/lights.update',elapsedMs:lightsEnd-cpuStart,lightState}));
-   const pixelError=resolvePixelError(context,camera,motion);
+   const pixelError=resolvePixelError(context,camera,motion);diagnosticPixelError=pixelError;
    gpuFrameActive=false;gpuMetricsReady=false;
    if(gpuSelection?.failed())dropGpuSelection();
    if(!secondaryCamera&&gpuSelection?.residentCut&&gpuDraw&&visEnabled){
@@ -2001,7 +2051,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    const hiz=gpuHiz?gpuHiz.counts():cpuHizCounted?cpuHizCounts:undefined;
    let vertexBytes=0;for(const buffer of positionBuffers.values())vertexBytes+=buffer.size;
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
-   for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
+   for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0)+(item.diagnosticBuffer?.size??0);
 
    return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles,uncoveredTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,gpuFrameMs:lastGpuFrameMs,gpuHostGapMs:lastGpuHostGapMs,vramBytes:null,drawCalls:gpuDrawCalls,hizTestedClusters:hiz?.tested??null,hizRejectedClusters:hiz?.rejected??null,hizOversizedClusters:hiz?.oversized??null,hizTestedTriangles:hiz?.testedTriangles??null,hizRejectedTriangles:hiz?.rejectedTriangles??null,hizOversizedTriangles:hiz?.oversizedTriangles??null,hizCountedFrame:gpuHiz?gpuHiz.counts()?.frame??null:cpuHizCounted?frame:null};
   },
@@ -2010,7 +2060,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    lost=true;pending=pending.catch(()=>{});gpuTiming?.dispose();dropGpuSelection();dropVis();
    visTexture?.destroy();visTexture=undefined;visView=undefined;
    for(const buffer of positionBuffers.values())buffer.destroy();
-   for(const item of blendGpu){item.index.destroy();item.uv?.destroy();item.normal?.destroy();}blendGpu.length=0;
+   for(const item of blendGpu){item.index.destroy();item.uv?.destroy();item.normal?.destroy();item.diagnosticBuffer?.destroy();}blendGpu.length=0;
    pagedBlendGpu.clear();pagedBlendCopies.clear();blendCuts.clear();blendDrawnPages.length=0;visibleBlend.length=0;
    uniformBuffer?.destroy();uniformBuffer=undefined;
    colorTexture?.destroy();depthTexture?.destroy();hdrTexture?.destroy();surfaces?.dispose();surfaceCapture?.dispose();deferred?.dispose();lights?.dispose();presenter?.dispose();synchronousCapture?.dispose();

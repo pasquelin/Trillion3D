@@ -239,7 +239,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 
 ## Using it from Node
 
-`@web-geometry/sdk/node` is a thin relay over the executable ([`packages/sdk-node/index.mjs`](../packages/sdk-node/index.mjs)):
+`@web-geometry/sdk/node` is a thin relay over the executable ([`packages/sdk-node/index.mts`](../packages/sdk-node/index.mts)):
 
 ```js
 import {prepare, prepareMany} from '@web-geometry/sdk/node';
