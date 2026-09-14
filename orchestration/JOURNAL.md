@@ -454,3 +454,32 @@
   - Quatre fichiers pour une seule commande (`lot4.mjs`, `banc.mjs`, `serveur.mjs`, `page.mjs`) afin de tenir la limite de 200 lignes par fichier source ; aucun d'eux n'ajoute de violation à `npm run check:lines` (les 7 restantes sont celles de develop).
   - **Essai de bout en bout fait une fois**, une vue, 8 images : JSON et PNG 1280×720 produits, 80 153 clusters sélectionnés, 10 046 405 triangles, `cpuSelectMs` relevé. Tout a été arrêté ensuite.
 - Reste à mesurer : la comparaison avant/après elle-même, sur les trois vues et un nombre d'images sérieux, machine calme. **Aucun chiffre de durée de ce lot n'est exploitable** : la charge de la machine était de 17 pendant l'essai, et l'essai ne prouve que le bon fonctionnement du harnais.
+
+## 2026-09-14 — Phase 1, mesure lots 2 et 4 (agent de mesure, worktree en lecture seule)
+
+- Objet : exécuter la comparaison avant/après documentée ci-dessus. Aucun code source modifié,
+  aucun test lancé, aucune fusion. Verrou `mesure.lock` pris pour toute la session.
+- Charge avant la série (`uptime`) : `load averages: 7.67 4.95 4.06` → moyenne 1 min ≥ 6,
+  durées de cette série à considérer polluées si elles avaient été produites.
+- Commande exacte, une seule exécution : `node .mesure/lot4.mjs --avant 249438f --images 300`
+  (249438f = develop fusionné dans cette branche, cf. section précédente).
+
+| mesure | avant | après | seuil | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50/p95 (3 vues) | — | — | — | **non mesuré** |
+| hash ensemble sélectionné | — | — | identité attendue | **non mesuré** |
+| pixels différents (pixelError 0) | — | — | 0 attendu | **non mesuré** |
+| allocations/image | — | — | — | **non mesuré** |
+
+- **Résultat : échec.** Le build du côté « avant » a réussi, puis le rendu du côté « après » a
+  levé une exception non rattrapée en plein `page.evaluate` (`TypeError: Cannot read properties
+  of null (reading 'trim')`, dans `three.module.js` → `WebGLProgram.getUniforms` →
+  `onFirstUse`, appelée depuis `drawBackend`/`sdk/apres/sdk-browser/index.js`). Échec de lecture
+  de log de compilation de shader en contexte WebGL headless, avant toute capture. `EXIT_CODE=1`.
+  Aucun `mesure.json`, aucun PNG, aucun `.clusters.txt` produits ; seul l'arbre source extrait du
+  commit « avant » a été écrit dans `.mesure/out/2026-09-14T16-59-47-363Z/` (ignoré par git).
+- Conformément à la consigne « une seule exécution par série, pas de reprise », pas de nouvel
+  essai dans cette session.
+- Détail complet, tableau, chemins des artefacts et log : voir
+  `orchestration/phase-1-mesure-lots-2-4.md` dans le worktree
+  `webgeometry-sans-threejs-9f889d`.
