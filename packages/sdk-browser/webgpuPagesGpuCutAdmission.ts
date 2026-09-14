@@ -19,18 +19,49 @@ export function selectTransparentCut(
 ) {
   const { transparentRoots } = rt.layout,
     { viewport, slots, bootstrapUrls } = rt.setup,
+    hold = rt.run.transparentHold,
     cache = rt.gpu.cache!;
-  return selectVisiblePages(transparentRoots, camera, {
-    pixelError: budgeted,
-    viewport,
-    frame: rt.run.frame,
-    holdResident: true,
-    rootFallback: true,
-    pageBudget: Math.max(1, slots - bootstrapUrls.size),
-    isResident: pinnedOnly
-      ? (rec) => bootstrapUrls.has(rec.url) && !!cache.get(rec.url)
-      : (rec) => !!cache.get(rec.url),
-  });
+  // The image's cut writes into the arrays the hold publishes; the rare pinned fallback keeps its own.
+  return selectVisiblePages(
+    transparentRoots,
+    camera,
+    {
+      pixelError: budgeted,
+      viewport,
+      frame: rt.run.frame,
+      holdResident: true,
+      rootFallback: true,
+      pageBudget: Math.max(1, slots - bootstrapUrls.size),
+      isResident: pinnedOnly
+        ? (rec) => bootstrapUrls.has(rec.url) && !!cache.get(rec.url)
+        : (rec) => !!cache.get(rec.url),
+      wanted: pinnedOnly ? undefined : hold.wanted,
+      result: pinnedOnly ? undefined : hold.result,
+    },
+    pinnedOnly ? undefined : hold.shown,
+  );
+}
+
+/**
+ * The transparent cut of this image. The DAG is swept only when one of the six inputs the cut is a
+ * function of has moved since the held cut was swept; otherwise the held cut is the answer, and it is
+ * the very arrays a sweep would have rewritten, so nothing downstream can tell the two apart.
+ */
+export function transparentCutOf(
+  rt: WebgpuPagesRuntime,
+  camera: THREE.PerspectiveCamera,
+  budgeted: number,
+) {
+  const { viewport } = rt.setup,
+    hold = rt.run.transparentHold,
+    epoch = rt.layout.rows.tableEpoch,
+    cache = rt.gpu.cache!;
+  camera.updateMatrixWorld();
+  const revision = cache.residencyRevision;
+  if (hold.holds(camera, budgeted, viewport, epoch, cache, revision)) return hold.result;
+  const cut = selectTransparentCut(rt, camera, budgeted, false);
+  hold.keep(camera, budgeted, viewport, epoch, cache, revision);
+  return cut;
 }
 
 /**
