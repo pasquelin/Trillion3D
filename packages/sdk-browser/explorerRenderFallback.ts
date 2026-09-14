@@ -1,39 +1,26 @@
 import * as THREE from 'three';
-import type { AssetScope, DiagnosticMode, RuntimeEvent } from '../sdk-core/index.ts';
+import type { AssetScope, DiagnosticMode } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { ExplorerHostState } from './explorerHostState.ts';
+import type { ExplorerEmitters } from './explorerSession.ts';
 
-type Inputs = {
+type Inputs = ExplorerEmitters & {
   measuring: boolean;
   diagnostic: DiagnosticMode;
   renderer?: THREE.WebGLRenderer;
   camera: THREE.PerspectiveCamera;
   baseline: RenderBackend;
-  getActive: () => RenderBackend;
-  setActive: (backend: RenderBackend) => void;
-  setFallbackReason: (reason: string) => void;
+  state: Pick<ExplorerHostState, 'active' | 'fallbackReason'>;
   scope: AssetScope;
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
 export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
-  const {
-    measuring,
-    diagnostic,
-    renderer,
-    camera,
-    baseline,
-    getActive,
-    setActive,
-    setFallbackReason,
-    scope,
-    emit,
-    diagnose,
-  } = inputs;
+  const { measuring, diagnostic, renderer, camera, baseline, state, scope, emit, diagnose } =
+    inputs;
   if (measuring || diagnostic !== 'beauty') throw error;
   if (renderer?.getContext().isContextLost()) {
     const reason = 'Context lost: host must retain a stable preview and recreate the renderer';
-    setFallbackReason(reason);
+    state.fallbackReason = reason;
     emit({
       eventVersion: 1,
       type: 'fatal',
@@ -46,16 +33,16 @@ export function handleExplorerRenderError(error: unknown, inputs: Inputs) {
       kind: 'error',
       error: String(error),
       code: 'CONTEXT_LOST',
-      backend: getActive().id,
+      backend: state.active.id,
       scope,
     });
     throw error;
   }
-  const failedBackend = getActive();
+  const failedBackend = state.active;
   if (failedBackend === baseline) throw error;
   const reason = `Backend error: ${String(error)}`;
-  setFallbackReason(reason);
-  setActive(baseline);
+  state.fallbackReason = reason;
+  state.active = baseline;
   try {
     baseline.render(camera);
     renderer!.render(baseline.scene, camera);

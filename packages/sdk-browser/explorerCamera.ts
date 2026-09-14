@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { meshes as objects } from './sceneMeshes.ts';
+import { exactPagesBounds } from './explorerScene.ts';
 import { framingFromBounds } from './framing.ts';
 import { DEFAULT_FOV } from './backendCommon.ts';
 import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
@@ -14,26 +15,9 @@ export function createExplorerCamera(
   options: ExplorerOptions,
 ) {
   const bounds = new THREE.Box3();
-  for (const mesh of objects(source)) {
-    if (!autonomous) {
-      bounds.expandByObject(mesh);
-      continue;
-    }
-    const association = associations.get(mesh);
-    const primitive = metadata.primitives.find(
-      (item) =>
-        item.mesh === association?.meshes && item.primitive === (association?.primitives ?? 0),
-    );
-    if (!primitive) continue;
-    for (const page of primitive.pages)
-      if ((page.role ?? 'exact') === 'exact')
-        bounds.union(
-          new THREE.Box3(
-            new THREE.Vector3().fromArray(page.min),
-            new THREE.Vector3().fromArray(page.max),
-          ).applyMatrix4(mesh.matrixWorld),
-        );
-  }
+  // A mesh without a prepared primitive simply does not frame the camera.
+  if (autonomous) exactPagesBounds(source, associations, metadata, () => {}, bounds);
+  else for (const mesh of objects(source)) bounds.expandByObject(mesh);
   const center = bounds.getCenter(new THREE.Vector3()),
     radius = bounds.getSize(new THREE.Vector3()).length() / 2;
   if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds');

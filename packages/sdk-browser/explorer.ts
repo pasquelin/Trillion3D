@@ -2,7 +2,7 @@ import { disposeSource } from './explorerDisposeSource.ts';
 import { EngineError } from '../sdk-core/index.ts';
 import { loadExplorerManifest } from './explorerManifest.ts';
 import type { RenderBackend, ExplorerOptions } from './backendTypes.ts';
-import { createExplorerSession } from './explorerSession.ts';
+import { createExplorerSession, type ExplorerSession } from './explorerSession.ts';
 import { prepareExplorer, type ExplorerResources } from './explorerPrepare.ts';
 import { createExplorerHostRuntime } from './explorerHostRuntime.ts';
 import { createExplorerApi } from './explorerApi.ts';
@@ -29,38 +29,28 @@ export async function createExplorer(canvas: HTMLCanvasElement, options: Explore
   const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
   const resources: ExplorerResources = {};
   const backends: RenderBackend[] = [];
+  const session: ExplorerSession = {
+    canvas,
+    options,
+    metadata,
+    scope,
+    signal,
+    diagnosticChannel,
+    emit,
+    diagnose,
+  };
   try {
-    const prepared = await prepareExplorer({
-      canvas,
-      options,
-      metadata,
+    const prepared = await prepareExplorer(session, {
       manifestUrl,
       metadataUrl,
       sceneFile,
       base,
-      scope,
       autonomous,
-      signal,
       backends,
       resources,
-      diagnosticChannel,
       progress,
-      emit,
-      diagnose,
     });
-    const runtime = createExplorerHostRuntime({
-      canvas,
-      options,
-      metadata,
-      prepared,
-      resources,
-      backends,
-      scope,
-      signal,
-      diagnosticChannel,
-      emit,
-      diagnose,
-    });
+    const runtime = createExplorerHostRuntime(session, { prepared, resources, backends });
     const { profiler } = runtime;
     progress('ready', 1, 1, 'Explorateur prêt');
     if (typeof window !== 'undefined') {

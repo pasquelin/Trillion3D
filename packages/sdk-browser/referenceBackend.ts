@@ -1,11 +1,10 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
-import { baseCapabilities, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { baseCapabilities, hashId, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import {
   createTriangleDiagnosticMaterial,
   disposeTriangleGeometry,
   materialSide,
   triangleGeometry,
-  triangleSalt,
 } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
@@ -44,7 +43,7 @@ export const referenceBackend: BackendFactory = ({
       mesh.geometry = sourceGeometry;
       mesh.material = sourceMaterial;
       if (mode === 'wireframe') {
-        mesh.geometry = triangleGeometry(sourceGeometry, triangleSalt(String(mesh.id)));
+        mesh.geometry = triangleGeometry(sourceGeometry, hashId(String(mesh.id)));
         const material = createTriangleDiagnosticMaterial(materialSide(sourceMaterial));
         overlays.push(material);
         mesh.material = material;
