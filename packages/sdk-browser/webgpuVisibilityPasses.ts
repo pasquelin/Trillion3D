@@ -1,57 +1,33 @@
-import type { GpuHiz } from './gpuHiz.ts';
-import type { createWebgpuRowState } from './webgpuRowState.ts';
-import type { createWebgpuVisibilityDrawer } from './webgpuVisibilityDrawer.ts';
-type Rows = ReturnType<typeof createWebgpuRowState>;
-type Drawer = ReturnType<typeof createWebgpuVisibilityDrawer>;
-type PassOptions = {
-  device: GPUDevice;
-  encoder: GPUCommandEncoder;
-  idsView: GPUTextureView;
-  depthTarget: GPUTextureView;
-  width: number;
-  height: number;
-  gpuHiz?: GpuHiz;
-  visDrawer: Drawer;
-  twoPass: boolean;
-  occluderVertices: number;
-  restVertices: number;
-  hizTestedBounds: Float64Array;
-  hizTestedRows: Uint32Array;
-  testedCount: number;
-  tableRows: number;
-  rows: Rows;
-  hizRest: Uint8Array;
-  drawnOccluderUrls: Uint8Array;
-  urlIndexOfPage: Int32Array;
-  occluders: number;
-  noOccluderHistory: boolean;
-};
+import { drawVis } from './webgpuVisibilityDrawer.ts';
+import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Encodes primary and tested visibility passes and updates occluder history. */
-export function encodeWebgpuVisibilityPasses({
-  device,
-  encoder,
-  idsView,
-  depthTarget,
-  width,
-  height,
-  gpuHiz,
-  visDrawer,
-  twoPass,
-  occluderVertices,
-  restVertices,
-  hizTestedBounds,
-  hizTestedRows,
-  testedCount,
-  tableRows,
-  rows,
-  hizRest,
-  drawnOccluderUrls,
-  urlIndexOfPage,
-  occluders,
-  noOccluderHistory,
-}: PassOptions) {
-  let historyEmpty = noOccluderHistory;
+/** Encodes primary and tested visibility passes, updates the occluder history on `rt.run` and
+ *  returns the vertices the passes drew. */
+export function encodeWebgpuVisibilityPasses(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  partition: { occluders: number; twoPass: boolean },
+  items: { occluderVertices: number; restVertices: number; testedCount: number },
+  tableRows: number,
+  useIndirect: boolean,
+) {
+  const { vis, gpu, run } = rt,
+    {
+      rows,
+      hizRest,
+      hizTestedBounds,
+      hizTestedRows,
+      hizCountSample,
+      drawnOccluderUrls,
+      urlIndexOfPage,
+    } = rt.layout,
+    { gpuHiz } = vis,
+    idsView = vis.visView!,
+    depthTarget = gpu.depthView!,
+    [width, height] = gpu.targetSize,
+    { occluders, twoPass } = partition,
+    { occluderVertices, restVertices, testedCount } = items;
   const visColors = (loadOp: 'clear' | 'load') => {
     const ids: {
       view: GPUTextureView;
@@ -81,19 +57,29 @@ export function encodeWebgpuVisibilityPasses({
     },
   });
   visPass.setViewport(0, 0, width, height, 0, 1);
-  visDrawer.drawVis(visPass, false);
+  drawVis(rt, device, visPass, false, twoPass, useIndirect);
   visPass.end();
   let vertices = twoPass ? occluderVertices : occluderVertices + restVertices;
   if (twoPass && gpuHiz) {
     gpuHiz.encodePyramid(encoder);
-    gpuHiz.encodeTest(device, encoder, hizTestedBounds, hizTestedRows, testedCount, tableRows);
+    // The verdicts this image copies back are the verdicts of this image.
+    hizCountSample.frame = run.frame;
+    gpuHiz.encodeTest(
+      device,
+      encoder,
+      hizTestedBounds,
+      hizTestedRows,
+      testedCount,
+      tableRows,
+      hizCountSample,
+    );
     const restPass = encoder.beginRenderPass({
       label: 'WG visibility secondary',
       colorAttachments: visColors('load'),
       depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
     });
     restPass.setViewport(0, 0, width, height, 0, 1);
-    visDrawer.drawVis(restPass, true);
+    drawVis(rt, device, restPass, true, twoPass, useIndirect);
     restPass.end();
     vertices += restVertices;
   }
@@ -102,7 +88,7 @@ export function encodeWebgpuVisibilityPasses({
     drawnOccluderUrls.fill(0);
     for (let i = 0; i < rows.packedCount; i++)
       if (!hizRest[i]) drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] = 1;
-    historyEmpty = occluders === 0;
+    run.noOccluderHistory = occluders === 0;
   }
-  return { vertices, noOccluderHistory: historyEmpty };
+  return vertices;
 }

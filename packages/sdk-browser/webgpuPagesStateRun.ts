@@ -2,7 +2,8 @@ import type * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
-import type { TemporalHizState } from './hiz.ts';
+import { createHizCounts } from './hiz.ts';
+import type { HizCounts, TemporalHizState } from './hiz.ts';
 import type { SurfaceCapture } from './surfaceBuffer.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
@@ -39,6 +40,9 @@ export interface WebgpuRunState {
   noOccluderHistory: boolean;
   previousHizView: THREE.PerspectiveCamera | undefined;
   temporalHizState: TemporalHizState;
+  /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
+  cpuHizCounts: HizCounts;
+  cpuHizCounted: boolean;
   rowsSyncedFrame: number;
   lightState: { count: number; types: string[] } | undefined;
   motion: { last?: THREE.Vector3; lastMs?: number };
@@ -101,6 +105,8 @@ export function createWebgpuRunState(): WebgpuRunState {
     noOccluderHistory: true,
     previousHizView: undefined,
     temporalHizState: {},
+    cpuHizCounts: createHizCounts(),
+    cpuHizCounted: false,
     rowsSyncedFrame: -1,
     lightState: undefined,
     motion: {},

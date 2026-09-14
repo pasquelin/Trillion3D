@@ -42,6 +42,8 @@ export function submitColorCopy(
   const owned = encoder === timing.frameEncoder;
   const command = encoder.finish();
   device.queue.submit([command]);
+  // The verdicts of a sampled image can only be mapped once the image that copied them is submitted.
+  rt.vis.gpuHiz?.countsSubmitted();
   run.imageRevision++;
   if (owned) {
     timing.frameEncoder = undefined;

@@ -1,9 +1,11 @@
 import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
-import { prepareWebgpuColorAtlas } from './webgpuColorAtlas.ts';
-import { prepareWebgpuDataAtlas } from './webgpuDataAtlas.ts';
-import { generateMaterialMips } from './textureMips.ts';
+import { prepareWebgpuAtlas } from './webgpuAtlasCommon.ts';
+import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+const WHITE = { r: 1, g: 1, b: 1, a: 1 };
+const FLAT_NORMAL = { r: 128 / 255, g: 128 / 255, b: 1, a: 1 };
 
 /** Concatenates the page geometry and builds the colour and data atlases with their mip chains,
  *  the material scale table and the sampler the shade pass reads them through. */
@@ -40,21 +42,33 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       .length,
   });
   const textureStarted = performance.now();
-  const colorAtlas = prepareWebgpuColorAtlas(gpuDevice, maps, uvScales, textureJobs);
-  vis.mapsTexture = colorAtlas.mapsTexture;
-  vis.textureColorSize = [colorAtlas.maxW, colorAtlas.maxH];
-  const { maxW, maxH, fallbackEncoder } = colorAtlas;
-  const dataAtlas = prepareWebgpuDataAtlas(
+  const fallbackEncoder = gpuDevice.createCommandEncoder();
+  const colorAtlas = prepareWebgpuAtlas(gpuDevice, maps, uvScales, textureJobs, fallbackEncoder, {
+    kind: 'color',
+    format: 'rgba8unorm-srgb',
+    fillFor: () => WHITE,
+    errorCode: 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE',
+  });
+  vis.mapsTexture = colorAtlas.texture;
+  vis.textureColorSize = [colorAtlas.width, colorAtlas.height];
+  const { width: maxW, height: maxH } = colorAtlas;
+  const dataAtlas = prepareWebgpuAtlas(
     gpuDevice,
     dataMaps,
-    normalMaps,
     dataUvScales,
     textureJobs,
     fallbackEncoder,
+    {
+      kind: 'data',
+      format: 'rgba8unorm',
+      fillFor: (layer) => (normalMaps.has(dataMaps[layer - 1]) ? FLAT_NORMAL : WHITE),
+      errorCode: 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
+    },
   );
-  vis.dataMapsTexture = dataAtlas.dataMapsTexture;
-  vis.textureDataSize = [dataAtlas.dataW, dataAtlas.dataH];
-  const { dataW, dataH } = dataAtlas;
+  gpuDevice.queue.submit([fallbackEncoder.finish()]);
+  vis.dataMapsTexture = dataAtlas.texture;
+  vis.textureDataSize = [dataAtlas.width, dataAtlas.height];
+  const { width: dataW, height: dataH } = dataAtlas;
   await generateMaterialMips(gpuDevice, vis.mapsTexture, 'rgba8unorm-srgb', maxW, maxH, uvScales);
   await generateMaterialMips(
     gpuDevice,
@@ -79,13 +93,13 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     color: {
       count: maps.length,
       size: [maxW, maxH],
-      mipLevels: 1 + Math.floor(Math.log2(Math.max(maxW, maxH))),
+      mipLevels: mipLevelCountFor(maxW, maxH),
       format: 'rgba8unorm-srgb',
     },
     data: {
       count: dataMaps.length,
       size: [dataW, dataH],
-      mipLevels: 1 + Math.floor(Math.log2(Math.max(dataW, dataH))),
+      mipLevels: mipLevelCountFor(dataW, dataH),
       format: 'rgba8unorm',
     },
     preparationMs: performance.now() - textureStarted,

@@ -3,48 +3,32 @@ import { webgpuPagesBackend } from './webgpuPages.ts';
 import { autonomousPagesBackend } from './autonomousPages.ts';
 import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
-import type { BackendContext, ExplorerOptions, RenderBackend } from './backendTypes.ts';
-import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
+import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
-import type { createDiagnosticChannel } from './diagnosticChannel.ts';
+import type { ExplorerSession } from './explorerSession.ts';
 
 type Inputs = {
-  canvas: HTMLCanvasElement;
-  options: ExplorerOptions;
-  scope: AssetScope;
-  metadata: ClusterManifest;
   source: THREE.Object3D;
   sceneLightingSource?: THREE.Object3D;
   associations: BackendContext['associations'];
-  signal?: AbortSignal;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
   gpuDevice?: GPUDevice;
   directGpu: boolean;
   autonomous: boolean;
   backends: RenderBackend[];
-  emit: (event: RuntimeEvent) => void;
-  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void;
 };
 
-export async function prepareExplorerBackends(inputs: Inputs) {
+export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
+  const { canvas, options, scope, metadata, signal, diagnosticChannel, emit, diagnose } = session;
   const {
-    canvas,
-    options,
-    scope,
-    metadata,
     source,
     sceneLightingSource,
     associations,
-    signal,
     pageSources,
-    diagnosticChannel,
     gpuDevice,
     directGpu,
     autonomous,
     backends,
-    emit,
-    diagnose,
   } = inputs;
   const { indices, streamer, attachCap, cacheCap, preload } = pageSources;
   const viewport: [number, number] = [canvas.width, canvas.height];

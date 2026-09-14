@@ -84,12 +84,15 @@ async function main() {
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
-    page.on('pageerror', (e) => report.errors.push({ kind: 'pageerror', message: String(e.message) }));
+    page.on('pageerror', (e) =>
+      report.errors.push({ kind: 'pageerror', message: String(e.message) }),
+    );
     page.on('response', (r) => {
       if (r.status() >= 400) report.errors.push({ kind: 'http', status: r.status(), url: r.url() });
     });
     page.on('console', (m) => {
-      if (m.type() === 'error') report.errors.push({ kind: 'console', message: m.text().slice(0, 400) });
+      if (m.type() === 'error')
+        report.errors.push({ kind: 'console', message: m.text().slice(0, 400) });
     });
     await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
     report.bounds = await page.evaluate(readBounds, {
@@ -110,14 +113,25 @@ async function main() {
         report.series.push(serie);
         const files = {};
         for (const side of sides) {
-          const { row, captureFile } = await runSerie(CTX, page, side, view, pixelError, pose, captures);
+          const { row, captureFile } = await runSerie(
+            CTX,
+            page,
+            side,
+            view,
+            pixelError,
+            pose,
+            captures,
+          );
           serie.sides[side.name] = row;
           files[side.name] = captureFile;
         }
         // Témoin A/A : le même côté joué deux fois, comparé à lui-même. Il dit ce que vaut zéro.
         const temoin = await runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa');
         serie.sides[`${sides[0].name}-aa`] = temoin.row;
-        serie.temoinAA = imageDiff(captures.get(files[sides[0].name]), captures.get(temoin.captureFile));
+        serie.temoinAA = imageDiff(
+          captures.get(files[sides[0].name]),
+          captures.get(temoin.captureFile),
+        );
         serie.ecartAvantApres = files.avant
           ? imageDiff(captures.get(files.avant), captures.get(files.apres))
           : null;
@@ -134,7 +148,9 @@ async function main() {
   report.finishedAt = new Date().toISOString();
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
   await writeFile(join(OUT, 'resume.md'), resume(report));
-  process.stdout.write(`\nJSON : ${join(OUT, 'mesure.json')}\nRésumé : ${join(OUT, 'resume.md')}\n`);
+  process.stdout.write(
+    `\nJSON : ${join(OUT, 'mesure.json')}\nRésumé : ${join(OUT, 'resume.md')}\n`,
+  );
   if (report.errors.length) {
     process.stdout.write(`${report.errors.length} erreur(s) de page consignées dans le JSON\n`);
     process.exitCode = 1;

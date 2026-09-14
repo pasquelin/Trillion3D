@@ -32,7 +32,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
   if (capture)
     await writeFile(join(OUT, captureFile), pngFromRgba(capture.body, capture.w, capture.h));
   const ids = result.selection.ids;
-  await writeFile(join(OUT, `${captureFile.replace(/\.png$/, '')}.coupe.txt`), ids.join('\n') + '\n');
+  await writeFile(
+    join(OUT, `${captureFile.replace(/\.png$/, '')}.coupe.txt`),
+    ids.join('\n') + '\n',
+  );
   const row = {
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
@@ -47,7 +50,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     },
     selection: {
       source: result.selection.source,
-      sha256: result.selection.source ? createHash('sha256').update(ids.join('\n')).digest('hex') : null,
+      sha256: result.selection.source
+        ? createHash('sha256').update(ids.join('\n')).digest('hex')
+        : null,
       taille: ids.length,
     },
     budgetPages: {

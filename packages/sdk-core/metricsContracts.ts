@@ -70,6 +70,26 @@ export interface FrameMetrics {
   textureUploaded?: number | null;
   texturePending?: number | null;
   textureSkipped?: number | null;
+  /**
+   * What the Hi-Z occlusion test did on one image: clusters handed to it, clusters it eliminated, and
+   * clusters whose level-0 screen footprint is wider than the 16-texel test kernel and which therefore
+   * answer from a coarser mip. `hiz*Triangles` are the triangles those same clusters carry. The GPU
+   * path reads its verdicts back, so its counters describe an earlier image than the one that returned
+   * them, the way `gpuPassMs` does. Null on a backend that runs no occlusion test, on a device whose
+   * verdicts cannot be read back, and before the first image has been counted.
+   */
+  hizTestedClusters?: number | null;
+  hizRejectedClusters?: number | null;
+  hizOversizedClusters?: number | null;
+  hizTestedTriangles?: number | null;
+  hizRejectedTriangles?: number | null;
+  hizOversizedTriangles?: number | null;
+  /**
+   * The image the six counters above describe. It is the current image where the oracle counts on the
+   * CPU, and an earlier one on the GPU path, whose verdicts are read back; without it a reader cannot
+   * tell a count of this image from a count the last tested image left behind. Null when none.
+   */
+  hizCountedFrame?: number | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
   /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */

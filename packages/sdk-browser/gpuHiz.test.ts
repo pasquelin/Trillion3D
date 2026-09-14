@@ -151,7 +151,7 @@ test('a background pixel at the far edge of a large footprint prevents rejection
   assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]), [bounds])], [0]);
 });
 
-test('a footprint extending outside the depth target is not rejected', () => {
+test('a footprint extending outside the viewport is tested on its clipped part and rejected', () => {
   const depth = new Float32Array(33 * 19);
   depth.fill(0.2);
   const pyramid = buildHizPyramid(depth, 33, 19);
@@ -163,8 +163,8 @@ test('a footprint extending outside the depth target is not rejected', () => {
     nearestDepth: 0.8,
     clipsNear: false,
   };
-  assert.equal(hizRejects(pyramid, bounds), false);
-  assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]), [bounds])], [0]);
+  assert.equal(hizRejects(pyramid, bounds), true);
+  assert.deepEqual([...evaluateHizTest(packHizPyramid(pyramid.levels[0]), [bounds])], [1]);
 });
 
 test('Hi-Z compute shader declares this-frame max reduction with background 1', () => {

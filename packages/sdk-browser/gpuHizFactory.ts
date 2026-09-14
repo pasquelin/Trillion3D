@@ -1,7 +1,8 @@
 import { encodeHizPyramid } from './gpuHizPyramid.ts';
-import { pyramidBytes, writeUni } from './gpuHizUniforms.ts';
+import { pyramidBytes, writeHizLevelUniforms, writeUni } from './gpuHizUniforms.ts';
 import { createHizBoundsPacker } from './gpuHizTest.ts';
 import { cleanupFailedHiz, createHizPipelines } from './gpuHizPipelines.ts';
+import { createHizCounters } from './gpuHizCounters.ts';
 import type { GpuHiz } from './gpuHizTypes.ts';
 const WORKGROUP = 8,
   TEST_WORKGROUP = 64,
@@ -20,6 +21,7 @@ export async function createGpuHiz(
   const cap = Math.max(1, maxBounds);
   const uniData = new Float32Array(UNIFORM_BYTES / 4);
   const packBounds = createHizBoundsPacker();
+  const counters = createHizCounters(cap);
   const buffers: GPUBuffer[] = [];
   let disposed = false,
     level0: GPUTexture | undefined,
@@ -58,8 +60,6 @@ export async function createGpuHiz(
         ],
       });
     };
-    // Every level's source and destination are a function of the target size alone, so the whole
-    // uniform array is written once per allocation and no image uploads a byte to build the pyramid.
     const levelWords = new Uint32Array((MAX_LEVELS + 1) * (UNIFORM_BYTES / 4));
     const alloc = (w: number, h: number) => {
       const packed = pyramidBytes(w, h);
@@ -83,22 +83,17 @@ export async function createGpuHiz(
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       });
       bind(pyramid, level0View);
-      levelWords.fill(0);
-      levelWords[0] = w;
-      levelWords[1] = h;
-      levelWords[2] = 0;
-      for (let i = 0; i < sizes.length - 1 && i + 1 < MAX_LEVELS; i++) {
-        const [srcW, srcH] = sizes[i],
-          [dstW, dstH] = sizes[i + 1],
-          base = (i + 1) * (UNIFORM_BYTES / 4);
-        levelWords[base] = offsets[i];
-        levelWords[base + 1] = srcW;
-        levelWords[base + 2] = srcH;
-        levelWords[base + 3] = offsets[i + 1];
-        levelWords[base + 4] = dstW;
-        levelWords[base + 5] = dstH;
-      }
-      device.queue.writeBuffer(uniforms, 0, levelWords);
+      writeHizLevelUniforms(
+        device,
+        uniforms,
+        levelWords,
+        sizes,
+        offsets,
+        w,
+        h,
+        MAX_LEVELS,
+        UNIFORM_BYTES,
+      );
       return true;
     };
     if (!alloc(width, height) || !level0 || !level0View || !pyramid || !bindGroup) {
@@ -130,11 +125,19 @@ export async function createGpuHiz(
           WORKGROUP,
         );
       },
-      encodeTest(queueDevice, encoder, next, rows, boundsCount, flagRows) {
+      encodeTest(queueDevice, encoder, next, rows, boundsCount, flagRows, sample) {
         if (disposed || !bindGroup) return 0;
         const count = Math.min(boundsCount, cap);
         if (flagRows > 0) encoder.clearBuffer(flags, 0, Math.min(cap, flagRows) * 4);
         const testBytes = packBounds(next, rows, count, gpu.width, gpu.height, sizes, offsets);
+        // A sample is due when no mapping is in flight and the interval has elapsed; the rows and
+        // their triangles are recorded here because the caller rewrites its own arrays next image.
+        const due = counters.due(queueDevice, sample, flagRows);
+        if (due) {
+          counters.beginSample();
+          for (let i = 0; i < count; i++)
+            counters.observe(i, rows[i], sample!.triangles[i] ?? 0, next);
+        }
         if (count) queueDevice.queue.writeBuffer(bounds, 0, testBytes, 0, count * 32);
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
         const testSlot = MAX_LEVELS + 1;
@@ -150,7 +153,14 @@ export async function createGpuHiz(
         pass.setBindGroup(0, bindGroup, [testSlot * UNIFORM_BYTES]);
         pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / TEST_WORKGROUP)));
         pass.end();
+        if (due) counters.encodeCopy(encoder, flags, count, flagRows, sample!.frame);
         return count;
+      },
+      countsSubmitted() {
+        counters.submitted();
+      },
+      counts() {
+        return counters.counts();
       },
       resize(nextDevice, nextWidth, nextHeight) {
         if (disposed || !nextDevice || nextWidth < 1 || nextHeight < 1) return false;
@@ -168,6 +178,7 @@ export async function createGpuHiz(
       },
       dispose() {
         disposed = true;
+        counters.dispose();
         for (const buffer of buffers) buffer.destroy();
         level0?.destroy();
         pyramid?.destroy();

@@ -15,6 +15,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
       (item.normal?.size ?? 0) +
       (item.diagnosticBuffer?.size ?? 0);
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
+  // What the occlusion test eliminated, from the path that ran it: the GPU verdicts of the last
+  // image whose flags came back, or the CPU oracle's own image where no GPU test runs. Null when
+  // neither has counted one, never a number standing in for an unmeasured one.
+  const gpuHizCounts = vis.gpuHiz?.counts();
+  const hiz = vis.gpuHiz ? gpuHizCounts : run.cpuHizCounted ? run.cpuHizCounts : undefined;
   return {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
@@ -41,6 +46,17 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     gpuHostGapMs: timing.lastGpuHostGapMs,
     vramBytes: null,
     drawCalls: run.gpuDrawCalls,
+    hizTestedClusters: hiz?.tested ?? null,
+    hizRejectedClusters: hiz?.rejected ?? null,
+    hizOversizedClusters: hiz?.oversized ?? null,
+    hizTestedTriangles: hiz?.testedTriangles ?? null,
+    hizRejectedTriangles: hiz?.rejectedTriangles ?? null,
+    hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
+    hizCountedFrame: vis.gpuHiz
+      ? (gpuHizCounts?.frame ?? null)
+      : run.cpuHizCounted
+        ? run.frame
+        : null,
   };
 }
 

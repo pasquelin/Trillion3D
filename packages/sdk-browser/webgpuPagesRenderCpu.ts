@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
-import { applyTemporalHiz } from './hiz.ts';
+import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
 import { appendAll, partitionByPass } from './webgpuPagesHelpers.ts';
 import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
@@ -60,11 +60,15 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCa
       camera,
       rt.setup.viewport ?? rt.gpu.targetSize,
       run.temporalHizState,
+      run.cpuHizCounts,
     );
+    run.cpuHizCounted = true;
     run.culledScratch.length = 0;
     appendAll(run.culledScratch, cut.shown, partitionByPass(ready, true, run.transparentScratch));
     return run.culledScratch;
   } catch (error) {
+    resetHizCounts(run.cpuHizCounts);
+    run.cpuHizCounted = false;
     diag.diagnosticFailure('hiz-frame-fallback', error); /* Keep the selected cut. */
     return ready;
   }

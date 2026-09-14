@@ -4,3 +4,4 @@ dist/
 benchmark-runs/
 .idea/
 .mesure/
+.claude/

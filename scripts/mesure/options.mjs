@@ -11,13 +11,13 @@ export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chr
 
 // Drapeaux copiés littéralement de `render-tech-lab/scripts/headless/lib.mjs` (BASE_FLAGS) et de
 // `shots.mjs` (`--enable-unsafe-webgpu`). Le Lab n'est pas modifié ; ces lignes en sont la copie.
-export const BASE_FLAGS = [
+const BASE_FLAGS = [
   '--disable-backgrounding-occluded-windows',
   '--disable-renderer-backgrounding',
   '--disable-background-timer-throttling',
   '--enable-gpu-benchmarking',
 ];
-export const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
+const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
 
 export const ENGINES = {
   webgl: { backend: 'exactPagesBackend', id: 'exact-cluster-pages', flags: BASE_FLAGS },
@@ -158,7 +158,8 @@ export function readOptions(argv, root) {
     return value;
   };
   const engine = flags.get('moteur') ?? 'webgl';
-  if (!ENGINES[engine]) throw new Error(`--moteur doit valoir ${Object.keys(ENGINES).join(' ou ')}`);
+  if (!ENGINES[engine])
+    throw new Error(`--moteur doit valoir ${Object.keys(ENGINES).join(' ou ')}`);
   const views = (flags.get('vues') ?? 'generale,sol,rue').split(',').filter(Boolean);
   for (const view of views) if (!VIEWS[view]) throw new Error(`vue inconnue : ${view}`);
   const pixelErrors = String(flags.get('pixelError') ?? '0')
@@ -166,7 +167,8 @@ export function readOptions(argv, root) {
     .filter(Boolean)
     .map((value) => {
       const parsed = Number(value);
-      if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--pixelError invalide : ${value}`);
+      if (!Number.isFinite(parsed) || parsed < 0)
+        throw new Error(`--pixelError invalide : ${value}`);
       return parsed;
     });
   const settings = {
@@ -179,7 +181,8 @@ export function readOptions(argv, root) {
     height: number('hauteur', 720),
     port: number('port', 0),
   };
-  if (settings.port === 5174) throw new Error("le port 5174 appartient au serveur de l'utilisateur");
+  if (settings.port === 5174)
+    throw new Error("le port 5174 appartient au serveur de l'utilisateur");
   if (settings.frames < 1) throw new Error('--images doit être un entier positif');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
