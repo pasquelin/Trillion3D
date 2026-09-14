@@ -8,7 +8,8 @@ const viewportScratch: [number, number] = [1, 1];
  *  Writes the partition and projection timings into `rt.timing`. */
 export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
   const { layout, run, vis, timing } = rt,
-    { rows, boxCorners, hizBounds, hizRest, drawnOccluderUrls, urlIndexOfPage } = layout;
+    { rows, boxCorners, hizBounds, hizProjection, hizRest } = layout,
+    { drawnOccluderUrls, urlIndexOfPage } = layout;
   const hasHiz = !!vis.gpuHiz,
     hasRestPipeline = !!vis.visHizRestBack;
   viewportScratch[0] = rt.gpu.targetSize[0];
@@ -21,6 +22,21 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
     pageIndex: rows.packedPageIndex,
     epoch: rows.tableEpoch,
   };
+  // Only the rectangles the view or the row table moved under are reprojected; the rest stand.
+  hizProjection.reframe(camera, viewportScratch[0], viewportScratch[1], rows.tableEpoch);
+  const project = (only: Uint8Array | undefined) => {
+    if (hizProjection.select(rows.packedCount, only, rows.packedPageIndex))
+      projectBoxesFlat(
+        rows.packedRecs,
+        rows.packedCount,
+        camera,
+        viewportScratch,
+        hizBounds,
+        hizProjection.pending,
+        worldBoxes,
+      );
+    hizProjection.keep(rows.packedCount, rows.packedPageIndex);
+  };
   const partitionStart = performance.now();
   hizRest.fill(0, 0, rows.packedCount);
   if (hasHiz && rows.packedCount >= 2) {
@@ -32,15 +48,7 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
       }
     // Without history, or when history keeps or rejects every page, split on projected bounds.
     if (run.noOccluderHistory || !occluders || occluders === rows.packedCount) {
-      projectBoxesFlat(
-        rows.packedRecs,
-        rows.packedCount,
-        camera,
-        viewportScratch,
-        hizBounds,
-        undefined,
-        worldBoxes,
-      );
+      project(undefined);
       occluders = splitOccludersFlat(rows.packedCount, hizBounds, hizRest);
       boundsForAll = true;
     }
@@ -53,16 +61,7 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   timing.lastPartitionMs = performance.now() - partitionStart;
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
   const projectStart = performance.now();
-  if (twoPass && !boundsForAll)
-    projectBoxesFlat(
-      rows.packedRecs,
-      rows.packedCount,
-      camera,
-      viewportScratch,
-      hizBounds,
-      hizRest,
-      worldBoxes,
-    );
+  if (twoPass && !boundsForAll) project(hizRest);
   timing.lastProjectMs = performance.now() - projectStart;
   return { occluders, twoPass };
 }
