@@ -451,3 +451,30 @@ Avant = 6c84ecc (branche avant lot 2), après = 08a58c5, même procédure, pose 
 - Charge pendant les comptes : `load1` 4,3 à 5,1 — verrou `mesure.lock` pris à 15:52, aucune autre mesure. Aucune durée n'est rapportée : `gpuFrameMs` a bougé (6,6 → 7,9 ms au sol) mais la machine était au-dessus du seuil, le chiffre est **pollué** et ne vaut rien. À remesurer machine calme : le test découpé fait tourner le noyau sur des boîtes qui sortaient immédiatement avant, donc un surcoût est plausible et doit être chiffré.
 - Fusion de `develop` (eab2bfa, outillage qualité + modules scindés) : `hiz.ts`/`gpuHiz.ts` avaient été scindés depuis une base sans le lot 1, prendre « develop » effaçait les compteurs. Les deux intentions reposées sur la nouvelle découpe (`hizCounts.ts`, `gpuHizCounters.ts` neufs).
 - Portes : `npm run build`, `check:structure`, `check:dts`, mots interdits 0, `cargo clippy --release --locked --all-targets -D warnings` propre. `npm run lint` (eslint) : 14 erreurs → **2**, toutes deux préexistantes sur `develop` (`no-unsafe-finally`, `webgpuPages.ts`) ; aucun `eslint-disable`. Code mort de develop retiré au passage. **Tests non écrits et non joués** : consigne de l'utilisateur, un autre agent s'en charge.
+
+## 2026-09-14 — Phase 1, mesure lot 2 (harnais commun, session de mesure seule)
+
+Mesure seule, aucun code modifié, aucun test lancé. Lancée depuis le worktree
+`lot4-webgl2-selection` (racine du harnais commun `scripts/mesure/banc.mjs`), qui construit les
+références git à part. Verrou `mesure.lock` pris. Commande, une seule exécution, complète :
+
+```
+node scripts/mesure/banc.mjs --moteur webgpu --avant eab2bfa --apres e25827b \
+     --vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000
+```
+
+`avant` = eab2bfa (develop au moment de la fusion), `après` = e25827b (HEAD de ce worktree,
+lots 1+2). Charge avant la série (`uptime`) : `6.21 4.07 3.88` → moyenne 1 min ≥ 6, **durées
+polluées** ; comptes, hash et pixels restent valables. Série complète en 2 min 22 s.
+
+| mesure | vue | avant | après | seuil | verdict |
+|---|---|---|---|---|---|
+| compteurs Hi-Z agrégés (testés/rejetés/>16 texels) | toutes vues | null | null | — | non publiés en agrégat par le harnais (une seule image échantillon les expose, pas de p50) |
+| selectedTriangles | générale/sol/rue | identiques avant/après (6 échantillons) | idem | identité attendue | OK |
+| uncoveredTriangles | toutes vues | 0 | 0 | 0 attendu | OK |
+| pixels différents (0 px et 1 px) | toutes vues | 0 px, écart canal max 0/0/0/0 | idem | 0 attendu | OK |
+| témoin A/A | toutes vues, deux seuils | 0 px | — | 0 px attendu | OK |
+| gpuFrameMs p50 (pollué, informatif) | générale/sol/rue, 2 échantillons chacune | 20.2/9.28/9.15/10.7/5.46/6.62 ms | 20.8/9.28/9.14/10.8/6.98/4.54 ms | — (pollué) | proche partout sauf sol/rue échantillon 2 (±30 %), à remesurer machine calme |
+
+Détails, commande complète, chemins des JSON/PNG/resume.md produits :
+`orchestration/phase-1-mesure-lots-2-4.md` du worktree `webgeometry-sans-threejs-9f889d`.
