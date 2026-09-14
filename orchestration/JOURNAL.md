@@ -929,3 +929,27 @@ pour toutes les mesures ci-dessus : **une commande par vue**, un processus Node 
 liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git qui n'existe
 que dans le dépôt principal — rouge d'environnement connu, identique avant cette entrée, aucun lien
 du journal en cause.
+
+## 2026-09-14 — [session sans-threejs] fusion lot 4
+
+- `develop` avancé en **avance rapide** sur `lot4-webgl2-selection` : `04fa5f0` → **b0a0fff**, 25 fichiers, +1704 / −49. `main` avancé en avance rapide sur `develop` : les deux têtes sont identiques à `b0a0fff`. Aucune fusion forcée, aucun `--no-ff`, rien poussé sur `origin` (qui reste à `04fa5f0`).
+- Rien à fusionner en sens inverse : `develop` n'avait pas bougé depuis la fusion `05162df` faite dans le lot, l'avance rapide était donc directe.
+- Contenu livré : lot 4 (sélection de clusters côté CPU pour le moteur WebGL2, `cpuSelectMs` au contrat de métriques, coupe sans allocation par image) et le **harnais de mesure commun `scripts/mesure/`** (`banc.mjs`, `options.mjs`, `page.mjs`, `serie.mjs`, `serveur.mjs`, `rapport.mjs`, `README.md`), réutilisable tel quel par les lots suivants.
+- Tests rejoués sur `d477179` par un agent dédié : **363 tests, 0 échec**. `b0a0fff` n'ajoute que `orchestration/JOURNAL.md` au-dessus de ce commit, le code est donc couvert.
+- Portes sur la tête du lot : `build`, `lint` (eslint + clippy), `format:check`, `check:lines`, `check:dts`, `check:structure`, `check:duplicates` (0 clone), `check:unused` (knip, 0) **vertes** ; `check:links` rouge sur deux liens de `RD_ECLAIRAGE_DIAGNOSTIC.md` vers `benchmark-runs/`, dossier ignoré par git — rouge d'environnement connu, antérieur au lot.
+
+### Verdict du lot 4 (Emerald, WebGL2, 300 images par vue)
+
+| mesure | vue | valeur | cible | verdict |
+|---|---|---|---|---|
+| cpuSelectMs p50 | generale | 10,9 ms | < 2 ms | **non atteinte** |
+| cpuSelectMs p50 | sol | 1,5 ms | < 2 ms | atteinte |
+| cpuSelectMs p50 | rue | 1,6 ms | < 2 ms | atteinte |
+| hash de coupe avant vs après | les trois | identiques | identiques | OK |
+| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px | OK |
+| témoin A/A | les trois | 0 | 0 | OK |
+| allocations par image | les trois | aucune | aucune | OK |
+
+- **Cause du dépassement sur `generale`** : la sélection parcourt à plat les 80 153 clusters de la scène, à ~130 ns par cluster, soit les ~10,9 ms mesurés. `sol` et `rue` passent parce que leur tronc de vision élimine l'essentiel des clusters avant le coût par cluster, pas parce que le parcours est moins cher.
+- **Plan lot 4b** : coupe hiérarchique sur l'arbre de clusters — descente depuis la racine, rejet ou acceptation d'un sous-arbre entier en un test de nœud, budget visé **≤ 15 000 tests de nœud** par image sur `generale` contre 80 153 tests de cluster aujourd'hui.
+- **Défaut connu du harnais** : au-delà d'une vue à 300 images dans un même processus, la création du second contexte WebGL2 échoue (`WebGL2 unavailable`). Non corrigé ; contournement retenu et appliqué pour toutes les mesures ci-dessus : **une commande par vue**, un processus Node neuf à chaque fois.
