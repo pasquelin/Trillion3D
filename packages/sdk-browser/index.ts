@@ -126,7 +126,7 @@ export const exactPagesBackend:BackendFactory=(context)=>{
  return {setDiagnostic(mode){diagnostic=mode;paintBlend();syncResident();},id:'exact-cluster-pages',capabilities:{...baseCapabilities,hierarchy:true,eviction:true,unsupported:baseCapabilities.unsupported.filter(item=>item!=='bounded GPU eviction')},scene,async prepare(){},
   get overBudget(){return overBudget;},
   refreshSceneLighting:()=>sceneLights.refresh(),
-  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;lastCamera=camera;lastPixelError=resolvePixelError(context,camera,motion);const selected=selectVisiblePages(roots,camera,{pixelError:lastPixelError,viewport,frame,holdResident:true,pageBudget:cap},shown);desired.length=0;for(let i=0;i<(selected.wanted?.length??0);i++)desired.push(selected.wanted![i]);
+  render(camera){source.updateMatrixWorld(true);for(const copy of blendCopies)copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);sceneLights.update();overBudget=false;frame++;lastCamera=camera;lastPixelError=resolvePixelError(context,camera,motion);const selected=selectVisiblePages(roots,camera,{pixelError:lastPixelError,viewport,frame,holdResident:true,pageBudget:cap,wanted:desired},shown);
    // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
    // Selection already answered the budget with a coarser threshold, so the cover is kept whole and
    // only the flag is raised when even the coarsest cover exceeds the budget.
