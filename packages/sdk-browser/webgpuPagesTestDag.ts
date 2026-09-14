@@ -1,5 +1,5 @@
 /** The screen-error band every cluster of a DAG cache carries, derived from its own box. */
-export function clusterSphere(page: { min: number[]; max: number[] }) {
+function clusterSphere(page: { min: number[]; max: number[] }) {
   const c = [0, 1, 2].map((i) => (page.min[i] + page.max[i]) / 2);
   return [...c, Math.hypot(...[0, 1, 2].map((i) => page.max[i] - c[i])) || 1];
 }

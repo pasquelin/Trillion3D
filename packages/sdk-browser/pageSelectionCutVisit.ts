@@ -3,21 +3,15 @@ import { boxClip, cutSelects, projectedClusterError } from './pageSelectionMath.
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 
+/** Frustum test of a page's world box against the selection planes. */
+function boxClipRec(min: readonly number[], max: readonly number[]) {
+  return boxClip(selectionScratch.planes, min[0], min[1], min[2], max[0], max[1], max[2]);
+}
+
 /** Build requested and drawable cuts separately; a resident fallback never hides a missing request. */
-export function take<T extends PageRecord>(s: SelectionState<T>, rec: T) {
+function take<T extends PageRecord>(s: SelectionState<T>, rec: T) {
   if (!rec.min || !rec.max) return;
-  if (
-    !s.flatInside &&
-    boxClip(
-      selectionScratch.planes,
-      rec.min[0],
-      rec.min[1],
-      rec.min[2],
-      rec.max[0],
-      rec.max[1],
-      rec.max[2],
-    ) === 0
-  ) {
+  if (!s.flatInside && boxClipRec(rec.min, rec.max) === 0) {
     s.frustumRejected++;
     return;
   }
@@ -46,19 +40,7 @@ export function take<T extends PageRecord>(s: SelectionState<T>, rec: T) {
 }
 
 export function flatVisible<T extends PageRecord>(s: SelectionState<T>, rec: T) {
-  return (
-    !!rec.min &&
-    !!rec.max &&
-    boxClip(
-      selectionScratch.planes,
-      rec.min[0],
-      rec.min[1],
-      rec.min[2],
-      rec.max[0],
-      rec.max[1],
-      rec.max[2],
-    ) !== 0
-  );
+  return !!rec.min && !!rec.max && boxClipRec(rec.min, rec.max) !== 0;
 }
 
 export function flatConeKeeps<T extends PageRecord>(s: SelectionState<T>, rec: T) {

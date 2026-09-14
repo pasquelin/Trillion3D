@@ -1,0 +1,132 @@
+# Spécification — Éclairage dynamique WebGeometry
+
+Version 0, brouillon du 14 septembre 2026. Complète `SPEC_MOTEUR_SANS_THREE.md`, qui reste la référence pour la géométrie. Chaque exigence est numérotée et vérifiable ; une exigence sans mesure associée n'existe pas. Les valeurs marquées « réglage » sont des choix de produit : on part avec, on mesure, on resserre.
+
+## 0. Besoin, principe, non-objectifs
+
+Besoin : un éclairage global dynamique, propre, qui respecte les lois de la lumière, sans faire chuter la cadence. Lampes colorées mobiles que l'on allume, éteint, recolore ; une porte qui coupe réellement l'échange lumineux entre deux pièces ; un mur rouge qui colore l'indirect ; des miroirs qui montrent le hors-champ ; une caméra mobile sans dépendance incorrecte à l'écran courant.
+
+**Principe fondateur : la cadence ne bouge jamais, c'est la lumière qui converge.** Chaque composant reçoit un budget fixe par image, en millisecondes. Le travail non fait attend l'image suivante. L'image à l'état stable est la même sur toutes les machines ; seul le temps pour l'atteindre varie, et il est borné.
+
+Non-objectifs de cette version : caustiques, milieux participants, transmission colorée par les vitrages, miroirs courbes, réflexions imbriquées, rendu sans aucun GPU. Ils sont hors périmètre et nommés comme tels dans le diagnostic.
+
+Règles transverses : celles de `AGENTS.md` (fidélité avant vitesse, aucune baisse de résolution, mesures honnêtes, CPU et GPU jamais additionnés, mots interdits). Aucune illumination figée comme destination du produit : les données cuites à la compilation sont géométriques, jamais lumineuses. Une approximation non déclarée est un défaut.
+
+## 1. Architecture cible
+
+```
+[1] Compilateur natif Rust (le même binaire)
+    proxy résident : niveau grossier du DAG à erreur certifiée + BVH, ou SDF par objet
+    cartes de surfaces par objet : projections, atlas, couverture — géométrie et matériaux, aucune lumière
+    oracle : path tracer CPU convergé sur les triangles sources, incertitude mesurée
+        │
+        ▼
+[2] Runtime (TypeScript, WGSL, GLSL)
+    ordonnanceur de lumière : file de travaux classés par résidu et influence, vidée jusqu'au budget
+      ├─ direct : shadow maps par lampe, exact à chaque image
+      ├─ indirect diffus : sondes d'irradiance tracées contre le proxy + cache de surfaces sur les cartes
+      ├─ spéculaire : vue réfléchie pour les miroirs plans, cache de surfaces pour le hors-champ
+      └─ rassemblement final dans l'éclairage différé (R6) ou la passe forward WebGL2 (R7)
+        │
+        ▼
+[3] Banc 16 : scénarios, contrat d'erreur face à l'oracle, coûts séparés, rapports archivés
+```
+
+## 2. Physique (P)
+
+P1. **Unités et BRDF uniques** : radiance et irradiance en unités radiométriques linéaires ; Lambert et GGX conservant l'énergie, une seule implémentation de référence partagée par l'oracle, le WGSL et le GLSL (générés depuis la même source, comme R7). Critère : furnace blanc GGX et Lambert à 1 ± 10⁻³ par canal, valeur analytique publiée pour la rugosité maximale.
+P2. **Réciprocité et non-négativité** : le transport échantillonné est non négatif ; la réciprocité est contrôlée sur le proxy par test. Critère : test de symétrie sur la fixture des deux pièces.
+P3. **Pas de double comptage** : émission, direct, indirect et spéculaire sont partitionnés ; une surface émissive peut aussi réfléchir. Critère : somme des composantes égale à l'oracle au contrat E.
+P4. **Tone mapping dernier** : tout mélange, accumulation ou interpolation se fait en radiance linéaire avant ACES et sRGB. Critère : revue de code et test de linéarité (deux lampes = somme des deux images linéaires).
+P5. **Approximations nommées** : sondes (interpolation), cartes (projection), amortissement (retard), proxy (erreur géométrique certifiée). Chaque approximation a un champ dans le diagnostic et une borne dans le contrat E.
+
+## 3. Compilateur (LC)
+
+LC1. **Proxy résident** : représentation de toute la scène, indépendante de la caméra, toujours en mémoire (R4 la garantit pour les racines) : niveau grossier du DAG dont l'erreur certifiée est ≤ un seuil de scène (réglage : 5 cm), avec BVH propre, ou SDF par objet si la mesure E0 le justifie. Aucun rayon de lumière ne trace la coupe fine visible. Critère : Emerald, mémoire du proxy et temps de construction publiés ; erreur géométrique max ≤ seuil.
+LC2. **Cartes de surfaces** : projections par objet (six directions, découpe en cartes), atlas et table ; géométrie, normales, matériaux ; aucune lumière. Métrique de couverture (fraction de l'aire des surfaces représentée), objets concaves compris. Critère : couverture ≥ 95 % sur les scènes du banc, taille d'atlas et budget en octets publiés.
+LC3. **Instances** : les cartes sont partagées entre instances ; l'état lumineux ne l'est jamais (voir LR6).
+LC4. **Formats** : `formatVersion` montée à chaque nouvelle colonne, formats inconnus refusés, provenance à octets identiques (C10).
+LC5. **Oracle** : path tracer CPU dans le binaire, triangles sources, mêmes matériaux, lampes, caméra et empreintes de pixels que le runtime, chemins spéculaires inclus, intersections d'ombre indépendantes des shadow maps, plusieurs exécutions indépendantes et convergence vérifiée. Critère : incertitude publiée par pixel ; sous le seuil du contrat E, sinon verdict indéterminé.
+
+## 4. Runtime (LR)
+
+LR1. **Budgets par composant** (GPU, machine de référence Apple M2 Max, 1280 × 720, réglages) :
+
+| Composant | Budget GPU par image |
+|---|---:|
+| Direct et ombres (shadow maps, PCSS) | 0,8 ms |
+| Sondes d'irradiance (rayons contre le proxy) | 0,8 ms |
+| Cache de surfaces (texels mis à jour) | 0,4 ms |
+| Vue réfléchie (si un miroir est visible) | 0,5 ms |
+| Rassemblement final | inclus dans R6 |
+
+Critère : chaque budget mesuré par passe GPU (WebGPU) ; la somme tient dans l'image de 8,33 ms avec la géométrie à son budget R6. Sur GPU intégré, budgets divisés par le rapport de puissance mesuré, jamais la résolution.
+
+LR2. **Ordonnanceur de lumière** : une file de travaux (sondes, texels de cartes, faces de vue réfléchie) avec une priorité = résidu × influence sur l'image (adjoint approché), vidée jusqu'au budget puis suspendue ; zéro allocation par image ; dernière consigne remplaçable, réponses portant une révision. Critère : temps par image constant à ± 10 % pendant une porte qui claque ; aucune réponse obsolète appliquée à une autre géométrie.
+LR3. **Direct** : shadow maps par lampe (cascades pour les lampes à grande portée), ombres douces PCSS, mises à jour à chaque image pour les lampes ou occulteurs mobiles, mises en cache sinon. Critère : contrat E composante « direct » ; retard nul.
+LR4. **Indirect diffus** : grille de sondes éparses avec visibilité (moments de distance) pour éviter les fuites ; rayons tracés contre le proxy ; les rayons relisent le cache de surfaces pour le multi-rebond et la coloration ; hystérésis adaptative (détection de changement par sonde et par texel) ; occulteurs dynamiques (porte) testés aussi comme boîtes analytiques dans l'interpolation des sondes. Critère : contrat E composantes « indirect » et retard.
+LR5. **Cache de surfaces** : lumière par texel de carte, mise à jour par budget, invalidation par région lors d'un mouvement. Critère : couverture LC2, contrat E.
+LR6. **État lumineux par instance** : deux instances du même objet dans deux éclairages ont deux états ; déplacement d'une instance = invalidation de son état. Critère : scénario « déplacement d'instance ».
+LR7. **Miroirs plans** : vue réfléchie bornée à l'emprise écran du miroir, niveau de détail choisi par la même erreur d'écran que la vue principale ; le hors-champ vient de cette vue, jamais de l'espace écran seul. Critère : scénario « miroir hors champ ».
+LR8. **WebGL2** : mêmes composants, sondes mises à jour par passes de fragments (BVH et proxy en textures), budgets propres ; parité jugée à l'état stable (B2, ≤ 2 par canal), retard jugé par sa propre limite. Critère : campagne parité.
+LR9. **Métriques honnêtes** : par composant, CPU par étape, GPU par passe ou `null`, travaux en file, travaux traités, retard courant estimé, mémoire ; `null` pour ce qui n'est pas mesuré.
+
+## 5. Contrat d'erreur (E)
+
+E1. **Composantes séparées** : direct, indirect diffus, reflet, comparées à l'oracle en radiance linéaire RGB, par pixel.
+E2. **Erreur normalisée** : `e = |L − L*| / (ε_abs + ε_rel · |L*|)`, conforme si `e ≤ 1`. Réglages initiaux : ε_rel = 2 %, ε_abs = 0,1 % de la radiance de référence de la scène, à confirmer par la première campagne.
+E3. **Statistiques publiées** : maximum, p95, p99, fraction de pixels avec `e > 1`, par composante et par scénario.
+E4. **Régions ciblées** : pièce derrière la porte fermée, mur recevant la coloration, contenu du miroir, contact entre objets, fente étroite.
+E5. **Retard de réponse** après événement, mesuré comme le temps pour que l'erreur de la composante indirecte retombe sous le seuil E2 par rapport à l'état stable final : **cible 100 ms sur la machine de référence, limite 250 ms partout, 500 ms sur GPU intégré** (réglages, choisis sur les vidéos du banc 16 du 14 septembre). Au-delà de la limite : échec.
+E6. **Variations temporelles** : erreur de `(L_t − L_{t−1})` face à l'oracle sur caméra fixe, pour détecter scintillement et traînées.
+E7. **Oracle** : incertitude sous le seuil E2, sinon verdict indéterminé, jamais conforme.
+E8. **Fidélité géométrique inchangée** : les composantes n'altèrent ni silhouettes ni ordre de dessin ; `tri = selected`, trous 0.
+
+## 6. Plateformes (LP)
+
+LP1. L'OS n'importe pas : le navigateur porte tout. Les matrices de test couvrent macOS, Windows, Linux par le même navigateur.
+LP2. WebGPU est la voie principale (compute, sondes, proxy). WebGL2 est un repli complet à l'état stable, plus lent à converger.
+LP3. GPU intégré : mêmes composants, budgets réduits, limite de retard E5 propre, jamais de baisse de résolution.
+LP4. Sans aucun GPU utilisable : hors périmètre, déclaré comme capacité manquante.
+
+## 7. Banc et preuve (LB)
+
+LB1. Le banc 16 héberge et mesure ; les algorithmes vivent dans le SDK. Protocole : `16-lighting-transport/docs/protocole-eclairage.md` du Lab.
+LB2. Scénarios : démarrage à froid, porte qui claque, porte qui s'ouvre, lampe mobile à vitesse fixe, interrupteur, fente étroite avec petite source intense, miroir voyant un objet hors champ, déplacement d'instance.
+LB3. Provenance : résolution, DPR, fréquence, matériel, charge machine, commits SDK, Lab et compilateur, empreintes des caches.
+
+## 8. Phases et critères de sortie
+
+| Phase | Contenu | Sortie mesurée |
+|---|---|---|
+| E0 | Quatre nombres : shadow maps dans le vrai pipeline ; proxy résident sur Emerald (mémoire, construction, erreur) ; vue réfléchie ; incertitude de l'oracle | Les quatre valeurs publiées, banc 16 |
+| E1 | Direct : LR3 dans l'éclairage différé WebGPU | Budget LR1 tenu, E1–E3 direct conformes, pixels inchangés hors lumière |
+| E2 | Proxy et sondes : LC1, LR4 sans cache de surfaces (un rebond) | E5 sous la limite sur la porte, budget tenu |
+| E3 | Cartes et cache de surfaces : LC2, LR5, LR6, multi-rebond et coloration | Couverture ≥ 95 %, E4 régions conformes |
+| E4 | Miroirs plans : LR7 | Scénario miroir conforme, budget tenu |
+| E5 | Ordonnanceur et budgets : LR2, hystérésis adaptative, GPU intégré | Cadence constante ± 10 %, E5 sur GPU intégré |
+| E6 | WebGL2 : LR8 | Parité état stable, retard sous sa limite |
+
+La phase E0 peut s'intercaler quand un créneau d'agent est libre ; les phases E1 à E6 ne commencent pas avant la fin des phases 1 à 3 de la spec géométrie (performance, DAG multi-matériaux, première image), sauf décision explicite.
+
+## 9. Décisions prises et rejets
+
+- Cadence fixe, convergence variable, même image finale : accepté le 14 septembre 2026.
+- Retard : cible 100 ms, limite 250 ms, 500 ms sur GPU intégré ; réglages révisables après mesure.
+- Illumination figée refusée comme destination ; les cartes ne contiennent aucune lumière.
+- Rayons contre la coupe visible : refusé (dépend de la caméra, feuilles trop grosses) ; proxy résident obligatoire.
+- Amortissement comme seul levier : refusé ; hystérésis adaptative et priorité par résidu et influence obligatoires.
+- SSR et cubemap seuls pour les miroirs : refusés, ne donnent pas le hors-champ net.
+- Bases par lampe (linéarité) : réservées aux scènes à nombreuses lampes fixes ; non prioritaires.
+- Le prototype à rectangles et son solveur dense servent d'oracle de discrétisation et de scénario de retard ; aucune fonction de rendu ne s'y ajoute.
+
+## 10. Exécution des calculs et bornes (X)
+
+X1. **Trois familles, trois lieux** : à la compilation dans le binaire Rust (proxy, cartes, BVH, oracle) ; à chaque image sur le GPU (ombres, rayons des sondes, texels du cache, vue réfléchie, rassemblement) ; sur le CPU seulement l'ordonnanceur (changements, priorités, file), quelques centaines de microsecondes, déplacé dans un Worker si la mesure dépasse 1 ms. Aucun solveur dense au runtime : le solveur du prototype reste l'oracle de discrétisation hors ligne.
+X2. **Toute boucle est bornée par une constante connue avant l'image** : traversée du BVH bornée par la profondeur de l'arbre du proxy ; PCSS à nombre de prises fixe (réglage : 16) ; interpolation à huit sondes par pixel ; rayons par sonde et texels par lot fixes. Aucune boucle par pixel sur les lampes, les surfaces ou les échantillons de source : le direct vient des shadow maps, l'indirect des sondes. Critère : revue des shaders, bornes publiées dans le diagnostic.
+X3. **La seule itération ouverte, la convergence, s'étale sur les images** : chaque mise à jour de sonde relit le cache de surfaces qui porte la lumière de l'image précédente ; les rebonds successifs apparaissent aux mises à jour successives. Coût par image nul ; retard borné par E5.
+X4. **Budget tenu par lots** : le travail est découpé en lots de taille fixe ; l'ordonnanceur choisit le nombre de lots de l'image d'après le temps GPU des images précédentes (requêtes d'horodatage WebGPU) et s'arrête sous le budget LR1. WebGL2 : nombre de lots calibré au démarrage. Critère : LR2.
+X5. **Lampes à ombre plafonnées** : au plus N lampes à ombre mises à jour par image (réglage : 4, les plus influentes) ; les autres gardent leur shadow map en cache, rafraîchie à tour de rôle ; une lampe immobile dans une scène immobile ne coûte rien. Critère : coût du direct indépendant du nombre total de lampes.
+X6. **Priorités calculées sur le GPU, relues en asynchrone** : résidu (écart entre deux mises à jour) et influence (visible, distance, vu dans un miroir) par sonde et par région de carte ; relecture avec une image de retard, jamais synchrone.
+X7. **Risques de coût réels, mesurés en E0** : bande passante mémoire (atlas du cache, textures de sondes) plus qu'arithmétique ; divergence de la traversée sur GPU intégré ; seconde passe de géométrie de la vue réfléchie. Si un lot dépasse, sa taille diminue ; l'image ne ralentit pas, la convergence s'allonge.
+X8. **Worker et WebAssembly, règle d'emploi** : un Worker quand un travail CPU mesuré dépasse 1 ms par image ou dure plusieurs images (compilation d'un objet, invalidation massive), pour garder le fil principal libre ; il n'accélère rien. Le code Rust compilé en WebAssembly quand un noyau CPU mesuré domine, ou quand la même math doit être partagée avec le compilateur (BVH, proxy, erreur d'écran, picking) ; SIMD si disponible. Ni l'un ni l'autre ne soulage le GPU : jamais comme réponse à un dessin trop cher. Candidat à mesurer en E6 : mise à jour des sondes en WebAssembly dans des Workers comme repli WebGL2, face aux passes de fragments.

@@ -18,18 +18,7 @@ fn compile_concatenates_multiple_buffers() {
     .expect("write");
     let result = compile(&options, |_| {}).expect("compile");
     assert_eq!(result["selectedTriangles"], 1);
-    let key = result["key"].as_str().expect("key");
-    let written: Value = serde_json::from_slice(
-        &fs::read(
-            options
-                .cache
-                .join("native/slice")
-                .join(key)
-                .join("source.gltf"),
-        )
-        .expect("source"),
-    )
-    .expect("json");
+    let written = written_gltf(&options, result["key"].as_str().expect("key"));
     assert_eq!(written["buffers"].as_array().expect("buffers").len(), 1);
     assert_eq!(written["bufferViews"][0]["buffer"], 0);
     assert_eq!(written["bufferViews"][1]["buffer"], 0);
@@ -55,9 +44,7 @@ fn compile_sparse_accessor_overrides_base_data() {
         bin.extend_from_slice(&v.to_le_bytes());
     }
     fs::write(options.source.join("mesh.bin"), &bin).expect("write bin");
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf["buffers"][0]["byteLength"] = json!(bin.len());
     let bv_idx = gltf["bufferViews"].as_array().expect("views").len();
     let bv_val = bv_idx + 1;
@@ -70,18 +57,7 @@ fn compile_sparse_accessor_overrides_base_data() {
         .expect("views")
         .push(json!({"buffer":0,"byteOffset":sparse_val_offset,"byteLength":12}));
     gltf["accessors"][0]["sparse"] = json!({"count":1,"indices":{"bufferView":bv_idx,"componentType":5125},"values":{"bufferView":bv_val}});
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &gltf_bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
-    manifest["runtime"]["sidecars"][0]["sha256"] = json!(hash(&bin));
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, Some(&bin));
     let result = compile(&options, |_| {}).expect("compile");
     assert_eq!(result["selectedTriangles"], 1);
     let page = &result["primitives"][0]["pages"][0];
@@ -101,9 +77,7 @@ fn compile_leaves_skinned_and_morph_meshes_unsplit() {
         bin.extend_from_slice(&0.0f32.to_le_bytes());
     }
     fs::write(options.source.join("mesh.bin"), &bin).expect("write bin");
-    let gltf_path = options.source.join("mesh.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf = read_gltf(&options);
     gltf["buffers"][0]["byteLength"] = json!(bin.len());
     let bv_target = gltf["bufferViews"].as_array().expect("views").len();
     let bv_ibm = bv_target + 1;
@@ -128,36 +102,14 @@ fn compile_leaves_skinned_and_morph_meshes_unsplit() {
     gltf["meshes"][0]["primitives"][0]["targets"] = json!([{"POSITION":acc_target}]);
     gltf["nodes"][0]["skin"] = json!(0);
     gltf["skins"] = json!([{"inverseBindMatrices":acc_ibm,"joints":[0]}]);
-    let gltf_bytes = serde_json::to_vec(&gltf).expect("encode");
-    fs::write(&gltf_path, &gltf_bytes).expect("write");
-    let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    manifest["runtime"]["sha256"] = json!(hash(&gltf_bytes));
-    manifest["runtime"]["sidecars"][0]["sha256"] = json!(hash(&bin));
-    fs::write(
-        &manifest_path,
-        serde_json::to_vec(&manifest).expect("encode"),
-    )
-    .expect("write");
+    write_gltf(&options, &gltf, Some(&bin));
     let result = compile(&options, |_| {}).expect("compile");
     assert_eq!(result["primitives"][0]["pass"], "shared-blend");
     assert!(result["primitives"][0]["pages"]
         .as_array()
         .expect("pages")
         .is_empty());
-    let key = result["key"].as_str().expect("key");
-    let source_gltf: Value = serde_json::from_slice(
-        &fs::read(
-            options
-                .cache
-                .join("native/slice")
-                .join(key)
-                .join("source.gltf"),
-        )
-        .expect("read source"),
-    )
-    .expect("json");
+    let source_gltf = written_gltf(&options, result["key"].as_str().expect("key"));
     assert!(source_gltf.get("skins").is_some());
     assert!(source_gltf["meshes"][0]["primitives"][0]
         .get("targets")
