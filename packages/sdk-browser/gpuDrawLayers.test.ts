@@ -48,8 +48,11 @@ test('layerSlots = 1 collapses every layer into the original six slots', () => {
   assert.deepEqual([...result.instances], [0, 1, 2]);
 });
 
-// Comportement 17 : drawShader(k) ouvre exactement 6k slots dans son propre texte, et
-// drawShader(1) est comparé à la version `develop` du fichier, récupérée par `git show`.
+// Comportement 17 : drawShader(k) ouvre exactement 6k slots dans son propre texte, et drawShader(1)
+// est comparé à la version d'avant le lot, récupérée par `git show` sur le commit 5ae3b83, le
+// dernier à avoir touché ce fichier avant les couches. Un commit fixe, pas la branche `develop` :
+// une fois le lot fusionné, `develop` porterait la version d'après et le test se comparerait à
+// lui-même.
 test('drawShader(k) opens exactly 6k slots for several k', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
@@ -59,11 +62,15 @@ test('drawShader(k) opens exactly 6k slots for several k', () => {
   }
 });
 
-test('drawShader(1) matches the develop shader: same slot count, same order, same bin/rest arithmetic', () => {
-  const developSource = execSync('git show develop:packages/sdk-browser/gpuDrawShader.ts', {
-    encoding: 'utf8',
-    cwd: import.meta.dirname,
-  });
+const BEFORE_LAYERS = '5ae3b83';
+test('drawShader(1) matches the pre-layer shader: same slot count, same order, same bin/rest arithmetic', () => {
+  const developSource = execSync(
+    `git show ${BEFORE_LAYERS}:packages/sdk-browser/gpuDrawShader.ts`,
+    {
+      encoding: 'utf8',
+      cwd: import.meta.dirname,
+    },
+  );
   const literal = /`([^`]*)`/s.exec(developSource);
   assert.ok(literal, 'the develop file has one template-literal shader');
   const developShader = literal![1];
@@ -94,7 +101,7 @@ test('drawShader(1) matches the develop shader: same slot count, same order, sam
   assert.match(
     developShader,
     /fn matches\(i:u32,slot:u32\)->bool\{let item=items\[i\];return restAt\(i\)\*3u\+item\.bin==slot&&selected\(item\);\}/,
-    'develop calcule le slot comme rest*3+bin',
+    "la version d'avant le lot calcule le slot comme rest*3+bin",
   );
   const slotOfBody = /fn slotOf\([^)]*\)->u32\{return ([^;]+);\}/.exec(currentShader);
   assert.ok(slotOfBody, 'drawShader(1) calcule son slot par slotOf()');
