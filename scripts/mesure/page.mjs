@@ -60,7 +60,7 @@ export async function measureView(options) {
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
     // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
-    stageProfile: true,
+    stageProfile: options.stageProfile === true,
   });
   const pose = options.pose;
   explorer.setPose(pose);

@@ -24,6 +24,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     maxPages: settings.maxPages,
     width: settings.width,
     height: settings.height,
+    stageProfile: settings.stageProfile,
   });
   const fin = machineLoad();
   if (result.erreur) throw new Error(`${side.name} ${view} e${pixelError} : ${result.erreur}`);
