@@ -196,13 +196,6 @@ function sideSplit(material:THREE.Material|THREE.Material[]):[THREE.Material,THR
 
 type PageSlot={offset:number;length:number};
 
-/**
- * Au-delà de ce nombre de plages en attente, un seul envoi du tampon entier coûte moins cher que la
- * nuée de `bufferSubData` que Three.js émettrait. Le préchargement, qui rend des milliers de pages
- * résidentes avant le premier dessin d'une primitive, tombe dans ce cas.
- */
-const PENDING_RANGE_LIMIT=64;
-
 /** Tampon d'index résident d'une primitive : géométrie unique partagée par toutes ses instances. */
 class PrimitiveIndex{
  geometry=new THREE.BufferGeometry();
@@ -215,11 +208,14 @@ class PrimitiveIndex{
  urlIndexByPage:Int32Array;
  /** Marquage d'image par URL distincte, pour dédupliquer la liste des pages sans Set. */
  stamps:Int32Array;
- /** Plages écrites et pas encore envoyées au GPU ; `overflow` bascule sur un envoi complet. */
- pendingOffsets:number[]=[];
- pendingLengths:number[]=[];
- pendingCount=0;
- overflow=false;
+ /**
+  * Plages écrites et pas encore envoyées au GPU. Une plage qui prolonge la précédente la rallonge sur
+  * place, ce qui est le cas courant : l'allocateur sert les pages d'un même paquet à la suite. Le coût
+  * d'un envoi ne dépend donc que des octets réellement arrivés, jamais de la taille du tampon.
+  */
+ private pendingStarts=new Int32Array(64);
+ private pendingEnds=new Int32Array(64);
+ private pendingCount=0;
  constructor(attributes:THREE.BufferGeometry['attributes'],urlIndexByPage:Int32Array,lengths:Int32Array,bounds:THREE.Box3){
   this.urlIndexByPage=urlIndexByPage;
   let capacity=0;for(let i=0;i<lengths.length;i++)capacity+=lengths[i];
@@ -248,21 +244,29 @@ class PrimitiveIndex{
   let offset=this.allocator.allocate(array.length);
   if(offset<0){this.growTo(this.array.length+array.length);offset=this.allocator.allocate(array.length);}
   this.array.set(array,offset);
-  // L'envoi est différé au moment du dessin : c'est là seulement qu'on sait si Three.js consommera
-  // les plages, donc qu'on peut décider entre plages fines et envoi complet sans rien perdre.
-  if(this.pendingCount<PENDING_RANGE_LIMIT){this.pendingOffsets[this.pendingCount]=offset;this.pendingLengths[this.pendingCount]=array.length;this.pendingCount++;}
-  else this.overflow=true;
+  // L'envoi est différé au dessin de la primitive : une page arrivée pour une primitive hors champ
+  // attend son tour sans rien coûter, et les plages accumulées partent ensemble.
+  this.addPending(offset,array.length);
   const slot:PageSlot={offset,length:array.length};
   this.slots[urlIndex]=slot;
   return slot;
  }
- /** Appelé juste avant le rendu de la primitive : Three.js consommera l'envoi dans la foulée. */
+ private addPending(offset:number,length:number){
+  const count=this.pendingCount;
+  if(count>0&&this.pendingEnds[count-1]===offset){this.pendingEnds[count-1]=offset+length;return;}
+  if(count===this.pendingStarts.length){
+   const starts=new Int32Array(count*2);starts.set(this.pendingStarts);this.pendingStarts=starts;
+   const ends=new Int32Array(count*2);ends.set(this.pendingEnds);this.pendingEnds=ends;
+  }
+  this.pendingStarts[count]=offset;this.pendingEnds[count]=offset+length;this.pendingCount=count+1;
+ }
+ /** Appelé juste avant le rendu de la primitive : Three.js consommera l'envoi dans la foulée. Il trie
+  *  et fusionne lui-même les plages voisines avant de les émettre. */
  flush(){
-  if(!this.pendingCount&&!this.overflow)return;
-  if(this.overflow)this.attribute.clearUpdateRanges();
-  else for(let i=0;i<this.pendingCount;i++)this.attribute.addUpdateRange(this.pendingOffsets[i],this.pendingLengths[i]);
+  if(!this.pendingCount)return;
+  for(let i=0;i<this.pendingCount;i++)this.attribute.addUpdateRange(this.pendingStarts[i],this.pendingEnds[i]-this.pendingStarts[i]);
   this.attribute.needsUpdate=true;
-  this.pendingCount=0;this.overflow=false;
+  this.pendingCount=0;
  }
  free(urlIndex:number){
   const slot=this.slots[urlIndex];

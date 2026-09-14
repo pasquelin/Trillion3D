@@ -266,6 +266,9 @@ export function acceptPageArray<T extends {array?:Uint32Array;indexBytes:number;
  }
 }
 const IDENTITY_WORLD=new THREE.Matrix4();
+/** Tampons de travail de la sélection, réutilisés d'une image à l'autre : la coupe n'alloue rien.
+ *  Ils ne survivent pas à l'appel, et la sélection est synchrone : un seul appel les occupe à la fois. */
+const fallbackScratch:unknown[]=[],forceScratch:number[]=[];
 const selectionScratch={frustum:new THREE.Frustum(),matrix:new THREE.Matrix4(),viewMatrix:new THREE.Matrix4(),box:new THREE.Box3(),corner:new THREE.Vector3(),viewMin:[Infinity,Infinity,Infinity] as [number,number,number],viewMax:[-Infinity,-Infinity,-Infinity] as [number,number,number],pixelScale:[1,1] as [number,number],clip:new THREE.Matrix4(),planes:new Float64Array(24),stack:new Int32Array(4096)};
 export type ClusterCut={lodError?:number;sphere?:number[];parentError?:number|null;parentSphere?:number[]|null;group?:number|null;source?:number|null};
 /** Rounds of ancestor escalation before the pinned root cover takes over; mirrors the GPU kernel. */
@@ -317,7 +320,7 @@ function boxClip(planes:Float64Array,minX:number,minY:number,minZ:number,maxX:nu
 export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:number;level?:number;min?:number[];max?:number[];cone?:NormalCone;material?:THREE.Material|THREE.Material[];array?:Uint32Array}>(
  roots:ReadonlyArray<ClusterRoot<T>>,
  camera:THREE.PerspectiveCamera,
- options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean;isResident?:(page:T)=>boolean;rootFallback?:boolean;pageBudget?:number},
+ options:{pixelError?:number;viewport?:[number,number];frame:number;holdResident?:boolean;isResident?:(page:T)=>boolean;rootFallback?:boolean;pageBudget?:number;wanted?:T[]},
  into?:T[]
 ){
  const viewport=options.viewport,frame=options.frame,hold=!!options.holdResident;
@@ -336,7 +339,8 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
  const width=viewport?.[0]??1,height=viewport?.[1]??1;
  selectionScratch.pixelScale[0]=width*Math.abs(camera.projectionMatrix.elements[0])/2;selectionScratch.pixelScale[1]=height*Math.abs(camera.projectionMatrix.elements[5])/2;
  const shown=into??[] as T[];shown.length=0;
- const wanted:T[]=[];
+ // La coupe demandée est rendue à l'appelant : il fournit son propre tableau pour qu'une image n'en alloue aucun.
+ const wanted=options.wanted??[] as T[];
  let frustumRejected=0,lodLevel=0,complete=true;
  /**
   * The cut: every cluster carries its own screen-error band, so nothing walks a tree for the LOD.
@@ -381,7 +385,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
   *  Groups already coarse through their own error stop the walk. */
  const forceCoarse=(start:number)=>{
   const structure=flatStructure as ClusterStructureIndex,forced=flatForced as Uint8Array,list=flatForcedList as number[];
-  const pending=[start];
+  const pending=forceScratch;pending.length=0;pending.push(start);
   while(pending.length){
    const group=pending.pop() as number;
    if(forced[group])continue;
@@ -504,7 +508,7 @@ export function selectVisiblePages<T extends ClusterCut&{triangles:number;seen:n
    for(let i=0;i<count;i++)take(pages[firstPage+i]);
   }
  };
- const fallbackQueue:T[]=[];
+ const fallbackQueue=fallbackScratch as T[];
  const selectFlat=(root:ClusterRoot<T>)=>{
   const pages=root.pages;
   flatWorld=root.world;flatElements=viewMatrix.elements;
