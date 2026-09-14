@@ -28,7 +28,7 @@ if(normalTest){const t=new THREE.DataTexture(new Uint8Array([160,210,230,255]),1
 const material=new THREE.MeshStandardMaterial(params),mesh=new THREE.Mesh(geometry,material),source=new THREE.Group();source.add(mesh);source.updateMatrixWorld(true);
 const reference=new THREE.Scene();reference.background=new THREE.Color(0x2a303c);reference.add(mesh.clone());reference.add(new THREE.HemisphereLight(0xffffff,0x495061,2));const l=new THREE.DirectionalLight(0xffffff,2.5);l.position.set(1,3,2);reference.add(l);
 geometry.computeBoundingBox();const min=geometry.boundingBox.min.toArray(),max=geometry.boundingBox.max.toArray();
-const indices=new Map([['0',new Uint32Array(geometry.index.array)]]),metadata={primitives:[{mesh:0,primitive:0,pass:params.transparent?'shared-blend':'exact-clusters',pages:[{id:0,url:'0',count:6,min,max,bytes:24,sha256:'x'}],hierarchy:{min,max,page:0}}]};
+const indices=new Map([['0',new Uint32Array(geometry.index.array)]]),metadata={primitives:[{mesh:0,primitive:0,pass:params.transparent?'shared-blend':'exact-clusters',pages:[{id:0,url:'0',count:6,min,max,bytes:24,sha256:'x'}]}]};
 const events=[];const backend=webgpuPagesBackend({source,metadata,indices,associations:new Map([[mesh,{meshes:0,primitives:0}]]),maxResidentPages:1,viewport:[size,size],gpuDevice:device,clearColor:0x2a303c,onDiagnostic:event=>events.push(event)});
 await backend.prepare();for(let i=0;i<4;i++){backend.render(camera);await backend.flush();}
 const raw=Array.from(backend.capture().slice((32*size+32)*4,(32*size+32)*4+4));
