@@ -55,5 +55,3 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
     },
   };
 }
-
-export type WebglFrameTimer = ReturnType<typeof createWebglFrameTimer>;
