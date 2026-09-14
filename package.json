@@ -33,7 +33,7 @@
     "packages/asset-compiler-rust/Cargo.lock",
     "packages/asset-compiler-rust/src",
     "README.md",
-    "SDK.md",
+    "docs/SDK.md",
     "LICENSE",
     "packages/README.md"
   ],

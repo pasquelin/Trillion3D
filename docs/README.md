@@ -1,6 +1,6 @@
 # Documentation de Web Geometry
 
-Le SDK livré est décrit par le [guide SDK](../SDK.md), l'[architecture des paquets](../packages/README.md), le [compilateur natif](COMPILER.md) et le [format de cache](FORMAT.md). Tout ce qui n'est pas listé ici n'est pas livré.
+Le SDK livré est décrit par le [guide SDK](SDK.md), l'[architecture des paquets](../packages/README.md), le [compilateur natif](COMPILER.md) et le [format de cache](FORMAT.md). Tout ce qui n'est pas listé ici n'est pas livré.
 
 | Document | Rôle |
 |---|---|
