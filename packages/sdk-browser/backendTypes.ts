@@ -68,6 +68,8 @@ export interface RenderBackend {
   /** Profil par étape de la fenêtre glissante : durées processeur et carte graphique séparées.
    *  Absent d'un moteur qui n'en tient pas ; `enabled: false` quand l'hôte ne l'a pas demandé. */
   stageProfile?(): StageProfile;
+  /** Oublie la fenêtre du profil : la chauffe et les premières images ne pèsent plus sur ses quantiles. */
+  resetStageProfile?(): void;
   pendingUrls?(): string[];
   /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
    *  so a small camera move finds them already resident. */

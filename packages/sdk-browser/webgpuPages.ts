@@ -106,6 +106,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     metrics() {
       return metricsOf(rt);
     },
+    resetStageProfile() {
+      rt.timing.stages?.reset();
+    },
     stageProfile() {
       return (
         rt.timing.stages?.profile() ??

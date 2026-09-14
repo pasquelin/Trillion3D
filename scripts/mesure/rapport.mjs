@@ -68,7 +68,9 @@ function etapes(report) {
         `- Mesure carte graphique : ${profile.gpuMethod ?? 'non mesurée'}` +
           (profile.gpuReason ? ` (${profile.gpuReason})` : ''),
         `- Coût du profil lui-même : ${etape(profile.overheadMs)} ms par image`,
-        `- Image entière côté carte graphique : ${etape(profile.gpuImageMs)} ms`,
+        `- Image entière côté carte graphique (enveloppe) : ${etape(profile.gpuImageMs)} ms — les`,
+        '  durées par étape ne s’y additionnent pas : cet appareil peut faire se chevaucher deux passes,',
+        '  et une somme les compterait deux fois.',
         '',
         '| étape | CPU ms p50/p95 | GPU ms p50/p95 | compteurs |',
         '|---|---|---|---|',
