@@ -151,10 +151,10 @@ fn compile_leaves_transmission_unsplit() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 #[test]
-fn compile_source_v1_emits_blend_cache_v2() {
+fn compile_opaque_source_emits_the_base_cache_and_blend_the_next_format() {
     let (root, options) = fixture();
     let opaque = compile(&options, |_| {}).expect("opaque compile");
-    assert_eq!(opaque["formatVersion"], 1);
+    assert_eq!(opaque["formatVersion"], json!(FORMAT_VERSION));
     let gltf_path = options.source.join("mesh.gltf");
     let manifest_path = options.source.join("manifest.json");
     let mut gltf: Value =
@@ -165,18 +165,24 @@ fn compile_source_v1_emits_blend_cache_v2() {
     fs::write(&gltf_path, &bytes).expect("write");
     let mut manifest: Value =
         serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
-    assert_eq!(manifest["formatVersion"], 1);
+    assert_eq!(manifest["formatVersion"], json!(SOURCE_FORMAT_VERSION));
     manifest["runtime"]["sha256"] = json!(hash(&bytes));
     let source_manifest = serde_json::to_vec(&manifest).expect("encode");
     fs::write(&manifest_path, &source_manifest).expect("write");
     let blend = compile(&options, |_| {}).expect("blend compile");
-    assert_eq!(blend["schema"], 2);
-    assert_eq!(blend["formatVersion"], 2);
+    assert_eq!(blend["schema"], json!(CLUSTERED_BLEND_FORMAT_VERSION));
+    assert_eq!(
+        blend["formatVersion"],
+        json!(CLUSTERED_BLEND_FORMAT_VERSION)
+    );
     let pointer: Value = serde_json::from_slice(
         &fs::read(options.cache.join("native/slice/manifest.json")).expect("pointer"),
     )
     .expect("json");
-    assert_eq!(pointer["formatVersion"], 2);
+    assert_eq!(
+        pointer["formatVersion"],
+        json!(CLUSTERED_BLEND_FORMAT_VERSION)
+    );
     assert_eq!(
         fs::read(&manifest_path).expect("unchanged source"),
         source_manifest

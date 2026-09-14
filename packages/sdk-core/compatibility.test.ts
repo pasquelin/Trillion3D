@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   assertFormat,
   assertCacheIdentity,
+  CLUSTERED_BLEND_FORMAT_VERSION,
   DAG_ERROR_MODEL,
   EngineError,
   FORMAT_VERSION,
@@ -37,8 +38,8 @@ test('a cache without a cluster DAG is refused by name, with the primitive that 
     parentSphere: null,
   });
   const base = {
-    schema: 1,
-    formatVersion: 1,
+    schema: FORMAT_VERSION,
+    formatVersion: FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full' as const,
@@ -86,17 +87,18 @@ test('a cache without a cluster DAG is refused by name, with the primitive that 
     (error: unknown) => error instanceof EngineError && error.code === 'STALE_CACHE',
   );
 });
-test('cache readers accept historical format 1 and clustered BLEND format 2 explicitly', () => {
-  assertFormat(1);
-  assertFormat(2);
-  for (const version of [0, 3, 999])
+test('cache readers accept the current format and the clustered BLEND one explicitly', () => {
+  assertFormat(FORMAT_VERSION);
+  assertFormat(CLUSTERED_BLEND_FORMAT_VERSION);
+  // Formats 1 and 2 have no per-cluster coplanar layer column: refused, never half-read.
+  for (const version of [0, 1, 2, 999])
     assert.throws(
       () => assertFormat(version),
       (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
     );
   const blend = {
-    schema: 2,
-    formatVersion: 2,
+    schema: CLUSTERED_BLEND_FORMAT_VERSION,
+    formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     status: 'ready',
     key: 'blend-v2',
     scope: 'full' as const,
@@ -134,7 +136,7 @@ test('cache readers accept historical format 1 and clustered BLEND format 2 expl
   };
   assertCacheIdentity(blend);
   assert.throws(
-    () => assertCacheIdentity({ ...blend, schema: 1, formatVersion: 1 }),
+    () => assertCacheIdentity({ ...blend, schema: FORMAT_VERSION, formatVersion: FORMAT_VERSION }),
     (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
   );
 });

@@ -1,5 +1,5 @@
 /** Compute raster for sub-eight-pixel opaque triangles. Hardware renders the complementary set. */
-const PAGE_INFO = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,pad5:vec4f,}
+const PAGE_INFO = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
 struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 /** Workgroups per dispatch dimension guaranteed by WebGPU; the small-triangle list is split across x and y. */
 export const DISPATCH_SPAN = 65535;
@@ -77,7 +77,12 @@ fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
  let depth=wa*t.ca.z/t.ca.w+wb*t.cb.z/t.cb.w+wc*t.cc.z/t.cc.w;
  if(depth<0.0||depth>=1.0){return;}
  if((page.flags&128u)!=0u){let inv=wa/t.ca.w+wb/t.cb.w+wc/t.cc.w;let tc=(uv(page,t.ia)*(wa/t.ca.w)+uv(page,t.ib)*(wb/t.cb.w)+uv(page,t.ic)*(wc/t.cc.w))/inv;if(!keepMask(page,tc)){return;}}
- let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);let bits=bitcast<u32>(depth);
+ let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
+ // La couche coplanaire du cluster est un décalage entier sur la clé de profondeur, appliqué avant
+ // l'empaquetage : pour une profondeur positive, les bits IEEE-754 croissent avec la valeur, donc
+ // retrancher des unités rapproche exactement d'autant de derniers bits. Zéro pour la couche 0.
+ let raw=bitcast<u32>(depth);
+ let bits=select(raw,select(0u,raw-page.depthBias,raw>page.depthBias),page.depthBias>0u);
  if(writeId){if(atomicLoad(&frame[offset])==bits){atomicMin(&frame[pixelCount()+offset],page.packedBase|(triangle&0xffu));}}
  else{atomicMin(&frame[offset],bits);}
 }
