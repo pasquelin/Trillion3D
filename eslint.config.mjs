@@ -4,7 +4,15 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', '.claude/**', 'benchmark-runs/**', '**/target/**'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      '.claude/**',
+      'benchmark-runs/**',
+      '**/target/**',
+      // Sorties du banc de mesure : des arbres source extraits y sont construits.
+      '.mesure/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
