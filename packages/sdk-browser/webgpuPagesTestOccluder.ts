@@ -124,7 +124,10 @@ export function twoCoarseQuadsScene() {
   const primitive = {
     ...b.metadata.primitives[0],
     mesh: 1,
-    pages: b.metadata.primitives[0].pages.map((page) => ({ ...page, url: 'b' + page.url })),
+    pages: b.metadata.primitives[0].pages.map((page: { url: string }) => ({
+      ...page,
+      url: 'b' + page.url,
+    })),
   };
   return {
     source: a.source,
