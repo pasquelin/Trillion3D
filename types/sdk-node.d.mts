@@ -5,7 +5,7 @@ export const CANCEL_GRACE_MS:number;
 /** One JSON line from the compiler's stderr: `event` is queued | accepted | progress | complete | cancelled | error | batch | done. */
 export interface CompilerEvent {event:string;job:string;ratio?:number;phase?:string;[key:string]:unknown}
 /** Live terminal line for one job (spinner, bar from `ratio`, phase, elapsed); plain lines when the stream is not a TTY. */
-export interface TerminalProgress {event(event:CompilerEvent):void;done(summary:string):void;fail(message:string):void;readonly primitives:number}
+export interface TerminalProgress {event(event:CompilerEvent):void;note(text:string):void;done(summary:string):void;fail(message:string):void;readonly primitives:number}
 export function createTerminalProgress(options?:{label?:string;index?:number;total?:number;stream?:NodeJS.WriteStream;width?:number;interval?:number}):TerminalProgress;
 /** One terminal line per job of a batch, fed by `prepareMany({onEvent})`. */
 export function createBatchProgress(options?:{stream?:NodeJS.WriteStream}):{event(event:CompilerEvent):void};
