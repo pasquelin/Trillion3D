@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
+import { createSelectionResult, type PageRec } from './pageSelection.ts';
 
 type Cache = { get(key: string): unknown };
 
@@ -92,4 +92,3 @@ export function createTransparentCutHold() {
 }
 
 export type TransparentCutHold = ReturnType<typeof createTransparentCutHold>;
-export type HeldTransparentCut = SelectionResult<PageRec>;
