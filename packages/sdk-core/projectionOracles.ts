@@ -35,7 +35,18 @@ export function maxStretch(elements: readonly number[]): number {
   const g = elements[2],
     h = elements[6],
     i = elements[10];
-  if (![a, b, c, d, e, f, g, h, i].every(Number.isFinite)) throw new Error('Matrice invalide');
+  if (
+    !Number.isFinite(a) ||
+    !Number.isFinite(b) ||
+    !Number.isFinite(c) ||
+    !Number.isFinite(d) ||
+    !Number.isFinite(e) ||
+    !Number.isFinite(f) ||
+    !Number.isFinite(g) ||
+    !Number.isFinite(h) ||
+    !Number.isFinite(i)
+  )
+    throw new Error('Matrice invalide');
   const m00 = a * a + d * d + g * g,
     m11 = b * b + e * e + h * h,
     m22 = c * c + f * f + i * i;
