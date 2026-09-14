@@ -21,6 +21,9 @@ export type PageRec = {
  cone?:NormalCone;
  /** Rang de la clé de requête, posé une fois par `indexPageRequests` : dédoublonnage sans hachage. */
  requestIndex?:number;
+ /** Rang de la clé de cluster dans le catalogue de l'hôte, posé une fois : résidence et épinglage sans
+  *  hachage. L'hôte le pose, personne d'autre ne le lit. */
+ keyIndex?:number;
 };
 
 function pageIsDoubleSided(material:THREE.Material|THREE.Material[]|undefined){

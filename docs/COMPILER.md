@@ -82,7 +82,8 @@ Progress phases, in order:
 | `import` | `completed`, `total`, `ms`, `primitives`, `nodes` | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect |
 | `primitive` | `mesh`, `primitive`, `pages` | One primitive clustered and paged (order is not deterministic: primitives run in parallel) |
 | `bootstrap` | `completed`, `total` | Root bundles assembled |
-| `complete` | `completed`, `total` | Pointer written |
+| `prune` | `removedKeys`, `removedObjects`, `removedBytes` | Stale keys, imports and orphan objects removed (only emitted when something was removed) |
+| `complete` | `completed`, `total`, `pruned` | Pointer written; `pruned` summarises the cache pruning |
 
 A host that only wants a bar reads `ratio`; one that wants detail reads the phase fields.
 
@@ -112,6 +113,8 @@ stdout for one job:
 ```
 
 `pointer` is the file the browser explorer needs (`manifestUrl`); `url` is relative to `native/<scope>/`. On failure stdout carries `{"status":"error","code":…,"message":…}` and the exit code is 2.
+
+A cache never needs to be wiped before recompiling: after every successful job the compiler removes the other keys of the scope, the stale FBX/OBJ imports and every object under `objects/` that no surviving manifest (either scope) references. Deleting a large cache by hand costs tens of seconds (Emerald: 80 000 files); recompiling over it costs nothing extra.
 
 `key` is a SHA-256 over the source manifest, the source binary, the compiler version, the compiler's own source files, scope, budget, `RESOURCE_BASE_URL` and simplification. Changing any of them produces a new `<key>` directory; the pointer always names the latest one. Nothing is deleted automatically.
 

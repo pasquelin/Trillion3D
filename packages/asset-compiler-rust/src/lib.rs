@@ -710,7 +710,47 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
   slim["binary"]["sha256"]=json!(hash(&binary));
   atomic(&directory.join(MANIFEST_BINARY_FILE),&binary)?;
   atomic(&directory.join("clusters.json"),&serde_json::to_vec(&slim)?)?;}
- atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;progress(json!({"phase":"complete","completed":1,"total":1}));Ok(result)
+ atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;let pruned=prune_cache(o,&key,&result,&progress)?;progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));Ok(result)
+}
+/// Every 64-character lowercase hexadecimal digest in a manifest, JSON or binary columns alike
+/// (`clusters.bin` stores digests as contiguous 64-byte ASCII runs). Over-collecting only keeps an object.
+fn referenced_objects(bytes:&[u8],into:&mut BTreeSet<String>){
+ let mut run_start=None;
+ for (i,b) in bytes.iter().chain(std::iter::once(&0u8)).enumerate(){
+  let hex=b.is_ascii_digit()||(b'a'..=b'f').contains(b);
+  match (hex,run_start){(true,None)=>run_start=Some(i),(false,Some(start))=>{let run=&bytes[start..i];if run.len()%64==0{for chunk in run.chunks(64){into.insert(String::from_utf8_lossy(chunk).into_owned());}}run_start=None;},_=>{}}
+ }
+}
+/// After a successful compile, remove the other keys of this scope and every object no surviving
+/// manifest references. Objects are shared across scopes, so the other scope's manifest is read too.
+/// Hosts therefore never need to wipe a cache before recompiling: the cache converges on its own.
+fn prune_cache(o:&Options,key:&str,result:&Value,progress:&(impl Fn(Value)+Sync))->Result<Value>{
+ let native=o.cache.join("native");
+ let mut keep=BTreeSet::new();referenced_objects(serde_json::to_vec(result)?.as_slice(),&mut keep);
+ let mut removed_keys=0usize;
+ for scope in ["slice","full"]{
+  let dir=native.join(scope);let Ok(entries)=fs::read_dir(&dir) else {continue};
+  for entry in entries{let entry=entry?;if !entry.file_type()?.is_dir(){continue;}let name=entry.file_name();let Some(name)=name.to_str() else {continue};
+   if scope==o.scope&&name==key{continue;}
+   if scope==o.scope{fs::remove_dir_all(entry.path())?;removed_keys+=1;continue;}
+   // The other scope keeps only the key its pointer names; anything else is stale.
+   let current=fs::read(dir.join("manifest.json")).ok().and_then(|b|serde_json::from_slice::<Value>(&b).ok()).and_then(|p|p["key"].as_str().map(str::to_owned));
+   if current.as_deref()!=Some(name){fs::remove_dir_all(entry.path())?;removed_keys+=1;continue;}
+   for file in ["clusters.json",MANIFEST_BINARY_FILE]{if let Ok(bytes)=fs::read(entry.path().join(file)){referenced_objects(&bytes,&mut keep);}}
+  }
+ }
+ // Stale FBX/OBJ imports: keep the one this compile read, drop the others.
+ let imports=native.join("imports");
+ if o.source.starts_with(&imports){if let Ok(entries)=fs::read_dir(&imports){for entry in entries{let entry=entry?;if entry.file_type()?.is_dir()&&entry.path()!=o.source{fs::remove_dir_all(entry.path())?;removed_keys+=1;}}}}
+ let mut removed_objects=0usize;let mut removed_bytes=0u64;let mut kept_objects=0usize;
+ if let Ok(entries)=fs::read_dir(native.join("objects")){
+  for entry in entries{let entry=entry?;let name=entry.file_name();let Some(name)=name.to_str() else {continue};let digest=name.trim_end_matches(".bin");
+   if keep.contains(digest){kept_objects+=1;}else{removed_bytes+=entry.metadata().map(|m|m.len()).unwrap_or(0);fs::remove_file(entry.path())?;removed_objects+=1;}
+  }
+ }
+ let summary=json!({"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes,"keptObjects":kept_objects});
+ if removed_keys>0||removed_objects>0{progress(json!({"phase":"prune","completed":1,"total":1,"removedKeys":removed_keys,"removedObjects":removed_objects,"removedBytes":removed_bytes}));}
+ Ok(summary)
 }
 #[cfg(test)] mod tests {use super::*;use std::time::{SystemTime,UNIX_EPOCH};use std::sync::atomic::AtomicU64;
  static NEXT_FIXTURE_ID:AtomicU64=AtomicU64::new(0);
@@ -1186,6 +1226,40 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
   let result=compile(&options,|_|{}).expect("compile dir");
   assert_eq!(result["selectedTriangles"],4);
   assert_eq!(result["selectedNodes"].as_array().map(|a|a.len()),Some(2));
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn recompiling_prunes_stale_keys_and_orphan_objects(){
+  let (root,options)=obj_fixture("quad.obj",false);
+  let first=compile(&options,|_|{}).expect("first");
+  let other=Options{simplification:"qem-endpoints".into(),..options.clone()};
+  let second=compile(&other,|_|{}).expect("second");
+  assert_ne!(first["key"],second["key"]);
+  let keys:Vec<_>=fs::read_dir(options.cache.join("native/full")).expect("scope").filter_map(|e|e.ok()).filter(|e|e.file_type().map(|t|t.is_dir()).unwrap_or(false)).collect();
+  assert_eq!(keys.len(),1,"only the latest key survives");
+  let mut referenced=BTreeSet::new();for p in second["primitives"].as_array().unwrap(){for page in p["pages"].as_array().unwrap(){referenced.insert(page["sha256"].as_str().unwrap().to_string());if let Some(g)=page["geometry"]["sha256"].as_str(){referenced.insert(g.to_string());}}}
+  let objects:BTreeSet<String>=fs::read_dir(options.cache.join("native/objects")).expect("objects").filter_map(|e|e.ok()).map(|e|e.file_name().to_string_lossy().trim_end_matches(".bin").to_string()).collect();
+  assert!(referenced.is_subset(&objects),"every page of the surviving manifest is still on disk");
+  assert!(objects.len()<=referenced.len()+second["bundles"].as_array().map(|b|b.len()).unwrap_or(4),"orphans of the first key are gone: {} objects for {} pages",objects.len(),referenced.len());
+  // The pointer still resolves after pruning.
+  let pointer:Value=serde_json::from_slice(&fs::read(options.cache.join("native/full/manifest.json")).unwrap()).unwrap();
+  assert!(options.cache.join("native/full").join(pointer["url"].as_str().unwrap()).exists());
+  fs::remove_dir_all(root).expect("cleanup");
+ }
+ #[test] fn pruning_one_scope_keeps_the_objects_the_other_scope_needs(){
+  let (root,options)=obj_fixture("a.obj",false);
+  let dir=options.source.parent().expect("dir").to_path_buf();
+  fs::write(dir.join("b.obj"),"v 5 0 0\nv 7 0 0\nv 5 3 0\nvn 0 0 1\nf 1//1 2//1 3//1\n").expect("second mesh");
+  let options=Options{source:dir,..options};
+  let full=compile(&options,|_|{}).expect("full");
+  assert_eq!(full["selectedTriangles"],3);
+  let slice=Options{scope:"slice".into(),triangle_budget:1,..options.clone()};
+  compile(&slice,|_|{}).expect("slice");
+  // Every object the full manifest names must have survived the slice compile's pruning.
+  let key=full["key"].as_str().unwrap();let dir=options.cache.join("native/full").join(key);
+  assert!(dir.join("clusters.json").exists());
+  let bin=fs::read(dir.join(MANIFEST_BINARY_FILE)).expect("bin");let mut digests=BTreeSet::new();referenced_objects(&bin,&mut digests);
+  assert!(!digests.is_empty(),"binary columns carry the page digests");
+  for digest in &digests{assert!(options.cache.join("native/objects").join(format!("{digest}.bin")).exists(),"object {digest} of the full scope was pruned by the slice compile");}
   fs::remove_dir_all(root).expect("cleanup");
  }
  #[test] fn gltf_sources_never_go_through_the_importer(){
