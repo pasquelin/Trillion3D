@@ -18,6 +18,23 @@ export function refreshSceneLighting(rt: WebgpuPagesRuntime) {
   });
 }
 
+/**
+ * Le magasin de lampes du contrat a changé. Rien n'est recalculé ici : l'image suivante relit le
+ * magasin, repousse le tampon si sa révision a bougé, et l'ordonnanceur d'ombres reprend la main.
+ * La capture en cache est invalidée pour que l'hôte ne relise pas l'image d'avant la lampe.
+ */
+export function refreshSceneLights(rt: WebgpuPagesRuntime) {
+  const { lights } = rt;
+  rt.capture.capturedRevision = -1;
+  rt.diag.engineDiagnostic('direct-lighting-changed', 'Lampes du contrat actualisées', {
+    version: 1,
+    lights: lights.store.count,
+    mode: lights.store.mode,
+    exposure: lights.store.environment?.exposure ?? 1,
+    shadowsPending: lights.plan.pending,
+  });
+}
+
 /** Re-renders the last camera once new pages arrived, unless a readback is holding the image. */
 export function syncResident(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture } = rt;
