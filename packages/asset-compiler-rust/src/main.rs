@@ -29,13 +29,31 @@ impl Cancellation{
 /// stdin is optional: a host that ignores it gets EOF at once and the listener ends.
 fn listen_stdin(cancellation:Arc<Cancellation>){std::thread::spawn(move||{let stdin=std::io::stdin();for line in stdin.lock().lines(){let Ok(line)=line else {break};if let Ok(value)=serde_json::from_str::<Value>(&line){if let Some(target)=value.get("cancel"){match target{Value::String(s)=>cancellation.cancel(s),Value::Bool(true)=>cancellation.cancel("*"),_=>{}}}}}});}
 
+/// Whole-job completion estimate carried by every progress event, so a host shows one bar without
+/// knowing the phases. Weights: source import (FBX/OBJ only) up to 0.30, glTF import 0.35, clustering
+/// 0.35–0.95 (per primitive, total announced by the `import` event), root bundles 0.95–0.99, pointer 1.
+#[derive(Default)] struct Ratio{primitives_total:usize,primitives_done:usize}
+impl Ratio{
+ fn update(&mut self,event:&Value)->f64{
+  let frac=|e:&Value|{let total=e["total"].as_f64().unwrap_or(0.0);if total>0.0{(e["completed"].as_f64().unwrap_or(0.0)/total).clamp(0.0,1.0)}else{0.0}};
+  match event["phase"].as_str(){
+   Some("import-source")=>match event["step"].as_str(){Some("parse")=>{let files=event["files"].as_f64().unwrap_or(1.0).max(1.0);let index=event["index"].as_f64().unwrap_or(0.0);0.20*((index+frac(event))/files)}Some("meshes")=>0.20+0.08*frac(event),Some("write")=>0.29,_=>0.30},
+   Some("import")=>{self.primitives_total=event["primitives"].as_u64().unwrap_or(0) as usize;0.35}
+   Some("primitive")=>{self.primitives_done+=1;if self.primitives_total>0{0.35+0.60*(self.primitives_done as f64/self.primitives_total as f64).min(1.0)}else{0.35}}
+   Some("bootstrap")=>0.95+0.04*frac(event),
+   Some("complete")=>1.0,
+   _=>0.0,
+  }
+ }
+}
 fn run_job(id:&str,options:&Options)->Result<Value,CompilerError>{
  let started=Instant::now();
- emit(json!({"event":"accepted","source":options.source.to_string_lossy(),"cache":options.cache.to_string_lossy(),"scope":options.scope,"triangles":options.triangle_budget,"threads":options.threads,"ramBudgetMb":options.ram_budget_mb,"simplification":options.simplification}),id);
+ emit(json!({"event":"accepted","ratio":0.0,"source":options.source.to_string_lossy(),"cache":options.cache.to_string_lossy(),"scope":options.scope,"triangles":options.triangle_budget,"threads":options.threads,"ramBudgetMb":options.ram_budget_mb,"simplification":options.simplification}),id);
  let job=id.to_string();
- let result=compile(options,|mut event|{if let Some(object)=event.as_object_mut(){object.insert("event".into(),json!("progress"));}emit(event,&job)});
+ let ratio=Mutex::new(Ratio::default());
+ let result=compile(options,|mut event|{let value=ratio.lock().unwrap().update(&event);if let Some(object)=event.as_object_mut(){object.insert("event".into(),json!("progress"));object.insert("ratio".into(),json!((value*1000.0).round()/1000.0));}emit(event,&job)});
  match result{
-  Ok(result)=>{let pointer=pointer(&result,&options.cache);emit(json!({"event":"complete","pointer":pointer,"ms":started.elapsed().as_secs_f64()*1000.0}),id);Ok(pointer)}
+  Ok(result)=>{let pointer=pointer(&result,&options.cache);emit(json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":started.elapsed().as_secs_f64()*1000.0}),id);Ok(pointer)}
   Err(error)=>{let mut event=error_value(&error);event["event"]=json!(if error.code=="CANCELLED"{"cancelled"}else{"error"});event["ms"]=json!(started.elapsed().as_secs_f64()*1000.0);emit(event,id);Err(error)}
  }
 }

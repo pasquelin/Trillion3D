@@ -61,7 +61,7 @@ The compiled manifest (`clusters.json`, hundreds of KB to MB) is **never** print
 
 ## Events
 
-Every stderr line is `{"event": <kind>, "job": <id>, ...}`. For a single invocation the job id is `"job"`; in batch mode it is the id from the batch file; batch-level lines use `"*"`.
+Every stderr line is `{"event": <kind>, "job": <id>, ...}`. `accepted`, `progress` and `complete` also carry `ratio`, a whole-job completion estimate from 0 to 1 (source import up to 0.30, glTF import 0.35, clustering 0.35–0.95 spread over the primitives announced by the `import` event, root bundles 0.95–0.99, pointer 1), so a host can draw one bar without knowing the phases. For a single invocation the job id is `"job"`; in batch mode it is the id from the batch file; batch-level lines use `"*"`.
 
 | `event` | When | Extra fields |
 |---|---|---|
@@ -79,12 +79,12 @@ Progress phases, in order:
 | `phase` | Fields | Meaning |
 |---|---|---|
 | `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) when a previous import is reused | FBX/OBJ only |
-| `import` | `completed`, `total`, `ms` | glTF loaded and validated, source geometry written |
+| `import` | `completed`, `total`, `ms`, `primitives`, `nodes` | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect |
 | `primitive` | `mesh`, `primitive`, `pages` | One primitive clustered and paged (order is not deterministic: primitives run in parallel) |
 | `bootstrap` | `completed`, `total` | Root bundles assembled |
 | `complete` | `completed`, `total` | Pointer written |
 
-A host that only wants a bar can take `import-source/parse` bytes, then count `primitive` events against `pointer.primitives` of the previous run, or simply show the phase name.
+A host that only wants a bar reads `ratio`; one that wants detail reads the phase fields.
 
 ## The pointer
 
@@ -253,6 +253,15 @@ result.selectedTriangles;  // from clusters.json
 // Many models in one process.
 const summary = await prepareMany(jobs, {workers: 4, ramBudgetMb: 32768, threads: 4, onEvent});
 summary.jobs[0].pointer;   // pointers only; nothing is read from disk
+```
+
+Terminal display comes with the adapter: `createTerminalProgress({label, index, total})` returns an object whose `event` method accepts every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, or one plain line per phase change elsewhere; `createBatchProgress()` does the same per job for `prepareMany({onEvent})`. The `web-geometry-compile` CLI uses it on a TTY and prints raw JSON events on a pipe (`WEB_GEOMETRY_RAW_EVENTS=1` forces raw events).
+
+```js
+const progress = createTerminalProgress({label: 'city', index: 0, total: 8});
+await prepare(source, cache, 'full', 150000, {resourceBaseUrl, onProgress: progress.event});
+// ⠹ 1/8 city [██████████░░░░░░░░░░░░░░]  42% clustering 118/281 primitives 6.2s
+// ✔ 1/8 city 1,132,930 triangles, 412 primitives, 3395 ms 4.1s
 ```
 
 The executable is found at `packages/asset-compiler-rust/target/release/`, or through `options.executable`, or `WEB_GEOMETRY_COMPILER_BIN`. Node never buffers a manifest: its memory stays flat (about 90 MB RSS) whatever the model size.
