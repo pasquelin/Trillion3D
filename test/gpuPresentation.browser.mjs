@@ -84,7 +84,7 @@ try{
      const geometry=new THREE.PlaneGeometry(2,2),mesh=new THREE.Mesh(geometry,material),meshIndex=primitives.length;
      mesh.position.z=z;source.add(mesh);geometries.push(geometry);materials.push(material);
      const min=[-1,-1,0],max=[1,1,0],url='fixture-'+meshIndex;
-     primitives.push({mesh:meshIndex,primitive:0,pass:transparent?'shared-blend':'exact-clusters',pages:[{id:0,url,count:6,min,max,bytes:24,sha256:'fixture'}],hierarchy:{min,max,page:0}});
+     primitives.push({mesh:meshIndex,primitive:0,pass:transparent?'shared-blend':'exact-clusters',pages:[{id:0,url,count:6,min,max,bytes:24,sha256:'fixture'}]});
      indices.set(url,new Uint32Array(geometry.index.array));associations.set(mesh,{meshes:meshIndex,primitives:0});
     };
     const pbr={color:0xc5cbd8,roughness:.63,metalness:.31,map:colorMap,normalMap,normalScale:new THREE.Vector2(.75,-.4),roughnessMap:ormMap,metalnessMap:ormMap,aoMap:ormMap,aoMapIntensity:.8,emissive:0x160903};

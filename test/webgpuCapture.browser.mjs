@@ -44,7 +44,7 @@ try{
   const canvas=document.createElement('canvas');document.body.append(canvas);
   const camera=new THREE.PerspectiveCamera(55,1,.1,100);camera.position.z=3;camera.lookAt(0,0,0);camera.updateMatrixWorld();
   const pageInfo={id:0,url:'0',count:6,min:[-1,-1,0],max:[1,1,0],bytes:24,sha256:'fixture'};
-  const backend=factory({source,metadata:{primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages:[pageInfo],hierarchy:{min:pageInfo.min,max:pageInfo.max,page:0}}]},indices:new Map([['0',new Uint32Array(geometry.index.array)]]),associations:new Map([[mesh,{meshes:0,primitives:0}]]),gpuDevice:device,gpuCanvas:canvas,maxResidentPages:1,viewport:[64,64],onDiagnostic:event=>events.push({stage:'fixture',...event})});
+  const backend=factory({source,metadata:{primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages:[pageInfo]}]},indices:new Map([['0',new Uint32Array(geometry.index.array)]]),associations:new Map([[mesh,{meshes:0,primitives:0}]]),gpuDevice:device,gpuCanvas:canvas,maxResidentPages:1,viewport:[64,64],onDiagnostic:event=>events.push({stage:'fixture',...event})});
   let overlaps=0;
   const createBuffer=device.createBuffer.bind(device);
   device.createBuffer=descriptor=>{
@@ -63,7 +63,7 @@ try{
    // Same complete plane, split into two streamed detail pages and one pinned fallback.
    const arrays=new Map([['fine0',new Uint32Array(geometry.index.array.slice(0,3))],['fine1',new Uint32Array(geometry.index.array.slice(3))],['coarse',new Uint32Array(geometry.index.array)]]);
    const pages=[{...pageInfo,id:0,url:'fine0',count:3,bytes:12},{...pageInfo,id:1,url:'fine1',count:3,bytes:12},{...pageInfo,id:2,url:'coarse',role:'coarse'}];
-   const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages,hierarchy:{min:pageInfo.min,max:pageInfo.max,coarsePages:[2],errorObject:1,children:[{min:pageInfo.min,max:pageInfo.max,page:0},{min:pageInfo.min,max:pageInfo.max,page:1}]}}]};
+   const metadata={primitives:[{mesh:0,primitive:0,pass:'exact-clusters',pages}]};
    const coverage=[];
    for(const slots of [3,2]){
     const surface=document.createElement('canvas');document.body.append(surface);

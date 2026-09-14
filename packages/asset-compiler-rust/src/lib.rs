@@ -102,18 +102,23 @@ fn source_stats(g:&Value)->Result<(usize,usize)>{
  }
  Ok((mesh_nodes,triangles))
 }
-fn discover_model(dir:&Path)->Result<String>{
- let mut found=Vec::new();
- for entry in fs::read_dir(dir)?{
-  let entry=entry?;
-  let name=entry.file_name();
-  let Some(name)=name.to_str() else {continue};
+/// What a source path holds, classified once for every reader of the directory.
+pub enum SourceKind{Manifest,Gltf(String),Importable(Vec<PathBuf>)}
+pub fn source_kind(source:&Path)->Result<SourceKind>{
+ if source.is_file(){let name=source.file_name().and_then(|s|s.to_str()).ok_or_else(||invalid("runtime file is required"))?;return Ok(if import::is_import_source(name){SourceKind::Importable(vec![source.to_path_buf()])}else{SourceKind::Gltf(name.to_string())});}
+ if source.join("manifest.json").exists(){return Ok(SourceKind::Manifest);}
+ let mut gltf=Vec::new();let mut importable=Vec::new();
+ for entry in fs::read_dir(source)?{
+  let entry=entry?;let name=entry.file_name();let Some(name)=name.to_str() else {continue};
   if !is_safe_source_name(name){continue;}
   let lower=name.to_ascii_lowercase();
-  if lower.ends_with(".gltf")||lower.ends_with(".glb"){found.push(name.to_string());}
+  if lower.ends_with(".gltf")||lower.ends_with(".glb"){gltf.push(name.to_string());}else if import::is_import_source(name){importable.push(entry.path());}
  }
- if found.len()!=1{return Err(invalid("Source directory needs manifest.json, exactly one .gltf/.glb or .fbx/.obj files"));}
- Ok(found.pop().unwrap())
+ match (gltf.len(),importable.is_empty()){
+  (1,_)=>Ok(SourceKind::Gltf(gltf.pop().unwrap())),
+  (0,false)=>{importable.sort();Ok(SourceKind::Importable(importable))},
+  _=>Err(invalid("Source directory needs manifest.json, exactly one .gltf/.glb or .fbx/.obj files")),
+ }
 }
 fn unsplit_material(material:Option<&Value>)->bool{
  let Some(material)=material else {return false};
@@ -134,14 +139,6 @@ fn rewrite_images(source:&mut Value,resource_base:&str,view_map:&BTreeMap<usize,
   }
  }
  Ok(())
-}
-/// A file with an import extension, or a directory holding importable files and neither a manifest nor a glTF.
-fn needs_import(source:&Path)->Result<bool>{
- if source.is_file(){return Ok(source.file_name().and_then(|s|s.to_str()).map(import::is_import_source).unwrap_or(false));}
- if source.join("manifest.json").exists(){return Ok(false);}
- let mut gltf=0;let mut importable=0;
- for entry in fs::read_dir(source)?{let entry=entry?;let name=entry.file_name();let Some(name)=name.to_str() else {continue};let lower=name.to_ascii_lowercase();if lower.ends_with(".gltf")||lower.ends_with(".glb"){gltf+=1;}else if import::is_import_source(name){importable+=1;}}
- Ok(gltf==0&&importable>0)
 }
 fn validate_manifest(manifest:&Value)->Result<()>{
  if manifest.get("status").and_then(Value::as_str)!=Some("ready"){return Err(CompilerError::new("SOURCE_NOT_READY","Source manifest is not ready"));}
@@ -208,6 +205,11 @@ fn flatten_buffer_views(g:&mut Value,offsets:&[usize],bin_len:usize)->Result<()>
  g["buffers"]=json!([{"byteLength":bin_len}]);
  Ok(())
 }
+/// The source manifest a compile reads; written by the importer and synthesised for bare glTF files.
+pub fn runtime_manifest(file:&str,sha256:&str,sidecars:&[(String,String)],mesh_nodes:usize,triangles:usize)->Value{
+ let sidecars:Vec<Value>=sidecars.iter().map(|(file,sha)|json!({"file":file,"sha256":sha})).collect();
+ json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":file,"sha256":sha256,"sidecars":sidecars,"trianglesAcrossNodes":triangles,"meshNodes":mesh_nodes}})
+}
 fn load_model_file(dir:&Path,name:&str,declared:Option<(Value,Vec<u8>)>)->Result<RuntimeSource>{
  if !is_safe_source_name(name){return Err(invalid("manifest.runtime.file is required"));}
  if let Some((ref manifest,_))=&declared{validate_manifest(manifest)?;}
@@ -232,29 +234,25 @@ fn load_model_file(dir:&Path,name:&str,declared:Option<(Value,Vec<u8>)>)->Result
   pair
  }else{
   let (mesh_nodes,triangles)=source_stats(&g)?;
-  let sidecar_json:Vec<Value>=sidecars.iter().map(|(file,sha)|json!({"file":file,"sha256":sha})).collect();
-  let manifest=json!({"status":"ready","formatVersion":FORMAT_VERSION,"runtime":{"file":name,"sha256":hash(&file_bytes),"sidecars":sidecar_json,"trianglesAcrossNodes":triangles,"meshNodes":mesh_nodes}});
+  let manifest=runtime_manifest(name,&hash(&file_bytes),&sidecars,mesh_nodes,triangles);
   let manifest_bytes=serde_json::to_vec(&manifest)?;
   (manifest,manifest_bytes)
  };
  Ok(RuntimeSource{manifest,manifest_bytes,g,g_bytes:file_bytes,binary,bin_hash})
 }
 fn load_runtime(o:&Options)->Result<RuntimeSource>{
- if o.source.is_file(){
-  let name=o.source.file_name().and_then(|s|s.to_str()).ok_or_else(||invalid("runtime file is required"))?;
-  let parent=o.source.parent().filter(|p|!p.as_os_str().is_empty()).unwrap_or_else(||Path::new("."));
-  return load_model_file(parent,name,None);
+ match source_kind(&o.source)?{
+  SourceKind::Gltf(name) if o.source.is_file()=>load_model_file(o.source.parent().filter(|p|!p.as_os_str().is_empty()).unwrap_or_else(||Path::new(".")),&name,None),
+  SourceKind::Gltf(name)=>load_model_file(&o.source,&name,None),
+  SourceKind::Manifest=>{
+   let manifest_bytes=fs::read(o.source.join("manifest.json"))?;
+   let manifest:Value=serde_json::from_slice(&manifest_bytes)?;
+   validate_manifest(&manifest)?;
+   let gltf_file=manifest.get("runtime").and_then(|r|r.get("file")).and_then(Value::as_str).map(str::to_owned).ok_or_else(||invalid("manifest.runtime.file is required"))?;
+   load_model_file(&o.source,&gltf_file,Some((manifest,manifest_bytes)))
+  }
+  SourceKind::Importable(_)=>Err(invalid("importable sources are converted before loading")),
  }
- let manifest_path=o.source.join("manifest.json");
- if manifest_path.exists(){
-  let manifest_bytes=fs::read(&manifest_path)?;
-  let manifest:Value=serde_json::from_slice(&manifest_bytes)?;
-  validate_manifest(&manifest)?;
-  let gltf_file=manifest.get("runtime").and_then(|r|r.get("file")).and_then(Value::as_str).map(str::to_owned).ok_or_else(||invalid("manifest.runtime.file is required"))?;
-  return load_model_file(&o.source,&gltf_file,Some((manifest,manifest_bytes)));
- }
- let name=discover_model(&o.source)?;
- load_model_file(&o.source,&name,None)
 }
 fn atomic(path:&Path,data:&[u8])->Result<()>{let temp=path.with_extension(format!("tmp-{}-{:?}",std::process::id(),std::thread::current().id()));fs::write(&temp,data)?;fs::rename(temp,path)?;Ok(())}
 /// Content-addressed object store write.
@@ -404,20 +402,47 @@ pub fn parse_compiler_args(args:&[String],cancelled:Arc<AtomicBool>)->std::resul
  if !["none","qem-endpoints"].contains(&simplification.as_str()){return Err("simplification must be none or qem-endpoints".into());}
  Ok(Options{source:PathBuf::from(&args[0]),cache:PathBuf::from(&args[1]),resource_base,scope,triangle_budget,threads,ram_budget_mb,simplification,cancelled})
 }
+/// Digest of the compiler's own sources, part of every cache key; computed once per process.
+fn implementation_hash()->&'static str{
+ static HASH:std::sync::OnceLock<String>=std::sync::OnceLock::new();
+ HASH.get_or_init(||{let mut h=Sha256::new();for bytes in [&include_bytes!("lib.rs")[..],include_bytes!("main.rs"),include_bytes!("topology.rs"),include_bytes!("qem.rs"),include_bytes!("dag.rs"),include_bytes!("accessor_validation.rs"),include_bytes!("geometry_page.rs"),include_bytes!("manifest_binary.rs"),include_bytes!("import.rs"),include_bytes!("../Cargo.toml"),include_bytes!("../Cargo.lock")]{h.update(bytes);}format!("{:x}",h.finalize())})
+}
+/// Whole-job completion estimate attached to every progress event, so a host draws one bar without
+/// knowing the phases: source import (FBX/OBJ) up to 0.30, glTF import 0.35, clustering 0.35–0.95
+/// spread over the primitives announced by the `import` event, root bundles 0.95–0.99, prune 0.99, pointer 1.
+fn with_ratio(progress:impl Fn(Value)+Sync)->impl Fn(Value)+Sync{
+ let state=std::sync::Mutex::new((0usize,0usize));
+ move|mut event:Value|{
+  let frac=|e:&Value|{let total=e["total"].as_f64().unwrap_or(0.0);if total>0.0{(e["completed"].as_f64().unwrap_or(0.0)/total).clamp(0.0,1.0)}else{0.0}};
+  // Events come from several threads: counting and forwarding under one lock keeps ratios monotone.
+  let mut guard=state.lock().unwrap();
+  let ratio=match event["phase"].as_str(){
+   Some("import-source")=>match event["step"].as_str(){Some("parse")=>{let files=event["files"].as_f64().unwrap_or(1.0).max(1.0);0.20*((event["index"].as_f64().unwrap_or(0.0)+frac(&event))/files)}Some("meshes")=>0.20+0.08*frac(&event),Some("write")=>0.29,_=>0.30},
+   Some("import")=>{guard.0=event["primitives"].as_u64().unwrap_or(0) as usize;0.35}
+   Some("primitive")=>{guard.1+=1;if guard.0>0{0.35+0.60*(guard.1 as f64/guard.0 as f64).min(1.0)}else{0.35}}
+   Some("bootstrap")=>0.95+0.04*frac(&event),
+   Some("prune")=>0.99,
+   Some("complete")=>1.0,
+   _=>0.0,
+  };
+  if let Some(object)=event.as_object_mut(){object.insert("ratio".into(),json!((ratio*1000.0).round()/1000.0));}
+  progress(event);
+ }
+}
 /// Library entry point: strategy, cancellation, storage roots and progress are supplied by the host.
 pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
  check(o)?;if !["slice","full"].contains(&o.scope.as_str())||o.triangle_budget==0||o.threads==0||o.threads>64||o.ram_budget_mb<64||o.resource_base.is_empty()||!["none","qem-endpoints"].contains(&o.simplification.as_str()){return Err(CompilerError::new("INVALID_OPTIONS","scope, budgets, threads, resource_base and simplification must be valid"))}
  let started=Instant::now();
  // FBX/OBJ sources are first turned into a glTF pair inside the cache; everything below reads glTF only.
- let imported;let o=if needs_import(&o.source)?{imported=Options{source:import::import_source(&o.source,&o.cache,&o.cancelled,&progress)?,..o.clone()};&imported}else{o};
+ let progress=with_ratio(progress);
+ let imported;let o=if let SourceKind::Importable(inputs)=source_kind(&o.source)?{imported=Options{source:import::import_source(&inputs,&o.cache,&o.cancelled,&progress)?,..o.clone()};&imported}else{o};
  let loaded=load_runtime(o)?;
  let bin=loaded.binary.bytes();
  let g=&loaded.g;
  let g_bytes=&loaded.g_bytes;
  let manifest=&loaded.manifest;
  let bin_hash=&loaded.bin_hash;
- let mut implementation=Sha256::new();implementation.update(include_bytes!("lib.rs"));implementation.update(include_bytes!("main.rs"));implementation.update(include_bytes!("topology.rs"));implementation.update(include_bytes!("qem.rs"));implementation.update(include_bytes!("dag.rs"));implementation.update(include_bytes!("accessor_validation.rs"));implementation.update(include_bytes!("geometry_page.rs"));implementation.update(include_bytes!("manifest_binary.rs"));implementation.update(include_bytes!("import.rs"));implementation.update(include_bytes!("../Cargo.toml"));implementation.update(include_bytes!("../Cargo.lock"));
- let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":format!("{:x}",implementation.finalize()),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
+ let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":implementation_hash(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
   let nodes=values(g,"nodes")?;let mesh_values=values(g,"meshes")?;let accessor_values=values(g,"accessors")?;let view_values=values(g,"bufferViews")?;let mut chosen=BTreeSet::new();let mut selected_triangles=0;let mut overflowing=Vec::new();
   let mut skinned_meshes=BTreeSet::new();
   for (i,n) in nodes.iter().enumerate(){
@@ -712,28 +737,27 @@ pub fn compile(o:&Options,progress:impl Fn(Value)+Sync)->Result<Value>{
   atomic(&directory.join("clusters.json"),&serde_json::to_vec(&slim)?)?;}
  atomic(&o.cache.join("native").join(&o.scope).join("manifest.json"),&serde_json::to_vec(&json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}))?)?;let pruned=prune_cache(o,&key,&result,&progress)?;progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));Ok(result)
 }
-/// Objects a manifest references, read from its serialized JSON (`objects/<sha>.bin` URLs).
-fn referenced_objects(text:&str,into:&mut BTreeSet<String>){
- let needle="objects/";let mut rest=text;
- while let Some(at)=rest.find(needle){let after=&rest[at+needle.len()..];let digest:String=after.chars().take_while(|c|c.is_ascii_hexdigit()).collect();let len=digest.len();if len==64&&after[len..].starts_with(".bin"){into.insert(digest);}rest=&after[len.min(after.len())..];}
+/// Object digests a manifest names: the `sha256` fields of its JSON and the sha columns of its binary.
+fn referenced_objects(json:&Value,binary:Option<&[u8]>,into:&mut BTreeSet<String>){
+ fn walk(value:&Value,into:&mut BTreeSet<String>){match value{Value::Object(map)=>{for (k,v) in map{if k=="sha256"{if let Some(s)=v.as_str(){if s.len()==64{into.insert(s.to_string());}}}else{walk(v,into);}}}Value::Array(items)=>{for v in items{walk(v,into);}}_=>{}}}
+ walk(json,into);
+ if let Some(bytes)=binary{if let Ok(digests)=manifest_binary::digests(bytes){into.extend(digests);}}
 }
 /// After a successful compile, remove the other keys of this scope and every object no surviving
 /// manifest references. Objects are shared across scopes, so the other scope's manifest is read too.
 /// Hosts therefore never need to wipe a cache before recompiling: the cache converges on its own.
 fn prune_cache(o:&Options,key:&str,result:&Value,progress:&(impl Fn(Value)+Sync))->Result<Value>{
  let native=o.cache.join("native");
- let mut keep=BTreeSet::new();referenced_objects(&serde_json::to_string(result)?,&mut keep);
+ let mut keep=BTreeSet::new();referenced_objects(result,None,&mut keep);
  let mut removed_keys=0usize;
  for scope in ["slice","full"]{
   let dir=native.join(scope);let Ok(entries)=fs::read_dir(&dir) else {continue};
+  // Each scope keeps exactly the key its pointer names; for this scope that is the key just written.
+  let current=if scope==o.scope{Some(key.to_string())}else{fs::read(dir.join("manifest.json")).ok().and_then(|b|serde_json::from_slice::<Value>(&b).ok()).and_then(|p|p["key"].as_str().map(str::to_owned))};
   for entry in entries{let entry=entry?;if !entry.file_type()?.is_dir(){continue;}let name=entry.file_name();let Some(name)=name.to_str() else {continue};
-   if scope==o.scope&&name==key{continue;}
-   if scope==o.scope{fs::remove_dir_all(entry.path())?;removed_keys+=1;continue;}
-   // The other scope keeps only the key its pointer names; anything else is stale.
-   let current=fs::read(dir.join("manifest.json")).ok().and_then(|b|serde_json::from_slice::<Value>(&b).ok()).and_then(|p|p["key"].as_str().map(str::to_owned));
    if current.as_deref()!=Some(name){fs::remove_dir_all(entry.path())?;removed_keys+=1;continue;}
-   if let Ok(text)=fs::read_to_string(entry.path().join("clusters.json")){referenced_objects(&text,&mut keep);}
-   if let Ok(bytes)=fs::read(entry.path().join(MANIFEST_BINARY_FILE)){referenced_objects(&String::from_utf8_lossy(&bytes),&mut keep);}
+   if scope==o.scope{continue;}
+   if let Ok(text)=fs::read(entry.path().join("clusters.json")){if let Ok(json)=serde_json::from_slice::<Value>(&text){referenced_objects(&json,fs::read(entry.path().join(MANIFEST_BINARY_FILE)).ok().as_deref(),&mut keep);}}
   }
  }
  // Stale FBX/OBJ imports: keep the one this compile read, drop the others.
@@ -1219,7 +1243,7 @@ fn prune_cache(o:&Options,key:&str,result:&Value,progress:&(impl Fn(Value)+Sync)
   let dir=options.source.parent().expect("dir").to_path_buf();
   fs::copy(dir.join("a.obj"),dir.join("b.obj")).expect("copy");
   let options=Options{source:dir.clone(),..options};
-  assert!(needs_import(&dir).expect("needs import"));
+  assert!(matches!(source_kind(&dir).expect("kind"),SourceKind::Importable(ref v) if v.len()==2));
   let result=compile(&options,|_|{}).expect("compile dir");
   assert_eq!(result["selectedTriangles"],4);
   assert_eq!(result["selectedNodes"].as_array().map(|a|a.len()),Some(2));
@@ -1233,18 +1257,36 @@ fn prune_cache(o:&Options,key:&str,result:&Value,progress:&(impl Fn(Value)+Sync)
   assert_ne!(first["key"],second["key"]);
   let keys:Vec<_>=fs::read_dir(options.cache.join("native/full")).expect("scope").filter_map(|e|e.ok()).filter(|e|e.file_type().map(|t|t.is_dir()).unwrap_or(false)).collect();
   assert_eq!(keys.len(),1,"only the latest key survives");
-  let mut referenced=BTreeSet::new();referenced_objects(&serde_json::to_string(&second).unwrap(),&mut referenced);
+  let mut referenced=BTreeSet::new();for p in second["primitives"].as_array().unwrap(){for page in p["pages"].as_array().unwrap(){referenced.insert(page["sha256"].as_str().unwrap().to_string());if let Some(g)=page["geometry"]["sha256"].as_str(){referenced.insert(g.to_string());}}}
   let objects:BTreeSet<String>=fs::read_dir(options.cache.join("native/objects")).expect("objects").filter_map(|e|e.ok()).map(|e|e.file_name().to_string_lossy().trim_end_matches(".bin").to_string()).collect();
-  assert_eq!(objects,referenced,"every remaining object is referenced by the surviving manifest");
+  assert!(referenced.is_subset(&objects),"every page of the surviving manifest is still on disk");
+  assert!(objects.len()<=referenced.len()+second["bundles"].as_array().map(|b|b.len()).unwrap_or(4),"orphans of the first key are gone: {} objects for {} pages",objects.len(),referenced.len());
   // The pointer still resolves after pruning.
   let pointer:Value=serde_json::from_slice(&fs::read(options.cache.join("native/full/manifest.json")).unwrap()).unwrap();
   assert!(options.cache.join("native/full").join(pointer["url"].as_str().unwrap()).exists());
   fs::remove_dir_all(root).expect("cleanup");
  }
+ #[test] fn pruning_one_scope_keeps_the_objects_the_other_scope_needs(){
+  let (root,options)=obj_fixture("a.obj",false);
+  let dir=options.source.parent().expect("dir").to_path_buf();
+  fs::write(dir.join("b.obj"),"v 5 0 0\nv 7 0 0\nv 5 3 0\nvn 0 0 1\nf 1//1 2//1 3//1\n").expect("second mesh");
+  let options=Options{source:dir,..options};
+  let full=compile(&options,|_|{}).expect("full");
+  assert_eq!(full["selectedTriangles"],3);
+  let slice=Options{scope:"slice".into(),triangle_budget:1,..options.clone()};
+  compile(&slice,|_|{}).expect("slice");
+  // Every object the full manifest names must have survived the slice compile's pruning.
+  let key=full["key"].as_str().unwrap();let dir=options.cache.join("native/full").join(key);
+  assert!(dir.join("clusters.json").exists());
+  let bin=fs::read(dir.join(MANIFEST_BINARY_FILE)).expect("bin");let mut digests=BTreeSet::new();referenced_objects(&json!({}),Some(&bin),&mut digests);
+  assert!(!digests.is_empty(),"binary columns carry the page digests");
+  for digest in &digests{assert!(options.cache.join("native/objects").join(format!("{digest}.bin")).exists(),"object {digest} of the full scope was pruned by the slice compile");}
+  fs::remove_dir_all(root).expect("cleanup");
+ }
  #[test] fn gltf_sources_never_go_through_the_importer(){
   let (root,options)=fixture();
-  assert!(!needs_import(&options.source).expect("manifest dir"));
-  assert!(!needs_import(&options.source.join("mesh.gltf")).expect("gltf file"));
+  assert!(matches!(source_kind(&options.source).expect("manifest dir"),SourceKind::Manifest));
+  assert!(matches!(source_kind(&options.source.join("mesh.gltf")).expect("gltf file"),SourceKind::Gltf(_)));
   fs::remove_dir_all(root).expect("cleanup");
  }
  #[test] fn cancelled_import_reports_cancelled(){
