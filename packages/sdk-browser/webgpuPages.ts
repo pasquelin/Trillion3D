@@ -1,6 +1,5 @@
 import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
-import { createWebgpuPagesServices } from './webgpuPagesServices.ts';
 import { prepareGpuTiming, watchGpuDevice } from './webgpuPagesPrepareTiming.ts';
 import { prepareWebgpuPages } from './webgpuPagesPrepare.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
@@ -24,7 +23,6 @@ export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
  *  runtime; each method hands it to the module that owns that responsibility. */
 export const webgpuPagesBackend: BackendFactory = (context) => {
   const rt = createWebgpuPagesRuntime(context);
-  rt.services = createWebgpuPagesServices(rt);
   const { run, setup, diag } = rt;
   const onGpuError = (event: GPUUncapturedErrorEvent) => {
     diag.diagnosticFailure('gpu-uncaptured-error', event.error);
@@ -103,6 +101,5 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       return disposeWebgpuPages(rt, onGpuError);
     },
   };
-  rt.backend = backend;
   return backend;
 };

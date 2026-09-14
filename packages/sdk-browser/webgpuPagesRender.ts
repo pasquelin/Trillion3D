@@ -60,7 +60,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.gpuFrameActive = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) dropGpuSelection(rt);
-  if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled)
-    renderGpuCut(rt, camera, pixelError, cpuStart, lightsEnd);
-  else renderCpuCut(rt, camera, pixelError, cpuStart, lightsEnd);
+  if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
+    if (!renderGpuCut(rt, camera, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
+  } else renderCpuCut(rt, camera, pixelError, cpuStart, lightsEnd);
 }

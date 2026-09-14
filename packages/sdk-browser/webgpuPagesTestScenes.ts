@@ -1,17 +1,12 @@
 import * as THREE from 'three';
 import { dagRoots } from './webgpuPagesTestDag.ts';
+import { frontCamera, quadIndices, quadScene as quadMesh } from './pagesBackendScenes.ts';
 
+/** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 export function quadScene() {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3),
+  const { geometry, material, mesh, source } = quadMesh(
+    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
   );
-  geometry.setIndex([0, 1, 2, 0, 2, 3]);
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-    mesh = new THREE.Mesh(geometry, material),
-    source = new THREE.Group();
-  source.add(mesh);
   const pages = dagRoots(
     [0, 1].map((id) => ({
       id,
@@ -36,18 +31,13 @@ export function quadScene() {
       },
     ],
   };
-  const indices = new Map([
-    ['0', new Uint32Array([0, 1, 2])],
-    ['1', new Uint32Array([0, 2, 3])],
-  ]);
+  const indices = quadIndices();
   const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]]);
   return { geometry, material, source, pages, metadata, indices, associations };
 }
 
 export function camera() {
-  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  cam.position.z = 5;
-  cam.lookAt(0, 0, 0);
+  const cam = frontCamera();
   cam.updateMatrixWorld();
   return cam;
 }
