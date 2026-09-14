@@ -17,7 +17,7 @@ import {HIZ_BOUNDS_VALUES,applyTemporalHiz,projectBoxesFlat,sameHizView,splitOcc
 import {createGpuHiz,type GpuHiz} from './gpuHiz.ts';
 import {BIN_BACK,BIN_FRONT,BIN_NONE,DRAW_ITEM_U32,createGpuDraw,type GpuDraw} from './gpuDraw.ts';
 import {FLAG_BACK,FLAG_DOUBLE,FLAG_HAS_MAP,FLAG_HAS_NORMAL,FLAG_HAS_TANGENT,FLAG_HAS_NORMAL_MAP,FLAG_HAS_ORM,FLAG_HAS_UV,FLAG_LIT,FLAG_MASK,FLAG_WRAP_S_REPEAT,FLAG_WRAP_T_REPEAT,PAGE_INFO_STRIDE,SHADE_SHADER,VIS_MAX_PAGES,VIS_SHADER,VIS_TRIANGLE_BITS,assertVisibilityPageTriangles,clusterHash,isTransmissive,rasterVisibilityIds,shadeVisibility,textureRgba,visMaterial} from './visibilityBuffer.ts';
-import type {DiagnosticMode} from '../sdk-core/index.ts';
+import type {DiagnosticMode,GpuPassTimings} from '../sdk-core/index.ts';
 import * as THREE from 'three';
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
 function appendAll<T>(target:T[],...sources:readonly (readonly T[])[]){for(const source of sources)for(let i=0;i<source.length;i++)target.push(source[i]);}
@@ -345,6 +345,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  for(const page of packedPages){const n=(copiesByUrl.get(page.url)??0)+1;copiesByUrl.set(page.url,n);maxCopies=Math.max(maxCopies,n);}
  // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
  const drawSlots=Math.max(1,Math.min(VIS_MAX_PAGES,packedPages.length,slots*maxCopies));
+ /** Every triangle of every drawable row: the bound the small-triangle list can never exceed. */
+ const smallTriangleCapacity=drawSlots*Math.ceil(Math.max(1,pageBytes/4)/3);
  /**
   * A page-table row is the rank of a cluster in the drawable set, in catalogue order. A row therefore
   * never outlives its occupant: an arrival or an eviction rewrites the rows it shifts, instead of
@@ -358,7 +360,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const rowPageIndex=new Int32Array(drawSlots).fill(-1),rowOffsetWords=new Int32Array(drawSlots).fill(-1),rowEpoch=new Int32Array(drawSlots);
  /** Catalogue index of the page each drawn row carries, for the occluder history of the next image. */
  const packedPageIndex=new Int32Array(drawSlots);
- let rowCount=0,tableEpoch=1,mirrorResident=0;
+ let rowCount=0,tableEpoch=1;
+ /**
+  * Resident cluster keys the change journal has accounted for but the row table never carries — the
+  * transparent ones. The mirror's own count cannot be checked against the cache's, which counts those
+  * too; what has to hold is that the journal saw every change, so that is what is compared.
+  */
+ const residentOutsideTable=new Set<string>();
+ let journalResident=0;
  const residencyKeys:string[]=[],residencySlots:number[]=[];
  /** The rows changed since the last upload, as one span: ranks shift upward, never scatter. */
  let dirtyFrom=drawSlots,dirtyTo=-1;
@@ -367,6 +376,8 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  // Frame scratch, one entry per row the frame can draw. Sized once, never reallocated.
  const packedRecs:Array<PageRec|undefined>=new Array(drawSlots).fill(undefined);
  const packedPositions:Array<GPUBuffer|undefined>=new Array(drawSlots).fill(undefined);
+ /** Vertex buffer of each page, by page index. Built once with the buffers, so a frame looks up nothing. */
+ const pagePositions:Array<GPUBuffer|undefined>=new Array(packedPages.length).fill(undefined);
  let packedCount=0,rowsChanged=true;
  const hizBounds=new Float64Array(drawSlots*HIZ_BOUNDS_VALUES);
  const hizTestedBounds=new Float64Array(drawSlots*HIZ_BOUNDS_VALUES);
@@ -419,7 +430,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  const temporalHizState:TemporalHizState={};
  let previousHizView:THREE.PerspectiveCamera|undefined;
  let lastSubmitMs:number|null=null;
- let gpuTiming:ReturnType<typeof createGpuTiming>|undefined;
+ let gpuTiming:ReturnType<typeof createGpuTiming>|undefined,lastGpuPassMs:GpuPassTimings|null=null;
+ /** True only while the image being encoded dispatches selection, so its pass joins that image's sample. */
+ let selectionInImage=false;
  let cpuSample:Record<string,unknown>|undefined,transparentEncodeMs=0,lastCpuLogFrame=-1;
  let residencyJob=0;
  const cameraPose=(camera:THREE.PerspectiveCamera)=>({position:camera.getWorldPosition(new THREE.Vector3()).toArray(),quaternion:camera.getWorldQuaternion(new THREE.Quaternion()).toArray()});
@@ -648,8 +661,9 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
  };
  /**
   * Applies the cache's arrivals and departures to the residency mirror. The mirror is the only
-  * incremental state on this path, so its count is checked against the cache's on every drain: a
-  * disagreement means an entry moved without a record, and the mirror is rebuilt from the cache
+  * incremental state on this path, so the journal that feeds it is checked against the cache on every
+  * drain: the journal's own resident count — every key it saw, rowed or not — must equal the cache's.
+  * A disagreement means an entry moved without a record, and the mirror is rebuilt from the cache
   * instead of being left to drift into a hole.
   */
  const syncResidencyMirror=()=>{
@@ -657,18 +671,21 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   residencyKeys.length=0;residencySlots.length=0;
   cache.drainResidencyChanges(residencyKeys,residencySlots);
   for(let c=0;c<residencyKeys.length;c++){
-   const pages=pageIndicesByUrl.get(residencyKeys[c]);if(!pages)continue;
-   const offsetWords=residencySlots[c],was=residentOffsetWords[pages[0]]>=0;
-   if(offsetWords>=0&&!was)mirrorResident++;else if(offsetWords<0&&was)mirrorResident--;
+   const key=residencyKeys[c],offsetWords=residencySlots[c],pages=pageIndicesByUrl.get(key);
+   const was=pages?residentOffsetWords[pages[0]]>=0:residentOutsideTable.has(key);
+   if(offsetWords>=0&&!was)journalResident++;else if(offsetWords<0&&was)journalResident--;
+   if(!pages){if(offsetWords>=0)residentOutsideTable.add(key);else residentOutsideTable.delete(key);continue;}
    for(let i=0;i<pages.length;i++)residentOffsetWords[pages[i]]=offsetWords;
   }
   const resident=cache.stats().residentPages;
-  if(mirrorResident===resident)return;
-  engineDiagnostic('gpu-residency-mirror-rebuilt','Miroir de résidence reconstruit depuis le cache',{frame,mirror:mirrorResident,resident});
-  mirrorResident=0;
-  for(const [url,pages] of pageIndicesByUrl){
-   const page=cache.get(url),offsetWords=page?page.offset/4:-1;
-   if(page)mirrorResident++;
+  if(journalResident===resident)return;
+  engineDiagnostic('gpu-residency-mirror-rebuilt','Miroir de résidence reconstruit depuis le cache',{frame,journal:journalResident,resident});
+  journalResident=0;residentOutsideTable.clear();
+  for(let c=0;c<pageCatalog.length;c++){
+   const url=pageCatalog[c],page=cache.get(url),pages=pageIndicesByUrl.get(url);
+   if(page)journalResident++;
+   if(!pages){if(page)residentOutsideTable.add(url);continue;}
+   const offsetWords=page?page.offset/4:-1;
    for(let i=0;i<pages.length;i++)residentOffsetWords[pages[i]]=offsetWords;
   }
  };
@@ -689,13 +706,14 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!resident)continue;
    candidates++;
    if(rec.transparent)continue;
-   if(!positionBuffers.has(rec.attributes))continue;
+   const position=pagePositions[i];
+   if(!position)continue;
    if(count>=drawSlots){overflow++;continue;}
    const row=count++;
    if(rowPageIndex[row]!==i||rowOffsetWords[row]!==offsetWords||rowEpoch[row]!==tableEpoch){
     rowPageIndex[row]=i;writePageRow(rec,i,row,offsetWords,index!);rowsChanged=true;
    }
-   packedRecs[row]=rec;packedPositions[row]=positionBuffers.get(rec.attributes);packedPageIndex[row]=i;
+   packedRecs[row]=rec;packedPositions[row]=position;packedPageIndex[row]=i;
   }
   // A shorter drawable set leaves the rows past it unread: `tableRows` bounds every pass that walks
   // the table, so they are not cleared, only forgotten.
@@ -711,13 +729,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   for(let i=0;i<drawn.length&&count<drawSlots;i++){
    const rec=drawn[i];if(rec.transparent)continue;
    const pageIndex=pageIndexByRec.get(rec);if(pageIndex===undefined)continue;
-   const offsetWords=residentOffsetWords[pageIndex],index=rec.array;
-   if(offsetWords<0||!index||!positionBuffers.has(rec.attributes))continue;
+   const offsetWords=residentOffsetWords[pageIndex],index=rec.array,position=pagePositions[pageIndex];
+   if(offsetWords<0||!index||!position)continue;
    const row=count++;
    if(rowPageIndex[row]!==pageIndex||rowOffsetWords[row]!==offsetWords||rowEpoch[row]!==tableEpoch){
     rowPageIndex[row]=pageIndex;writePageRow(rec,pageIndex,row,offsetWords,index);rowsChanged=true;
    }
-   packedRecs[row]=rec;packedPositions[row]=positionBuffers.get(rec.attributes);packedPageIndex[row]=pageIndex;
+   packedRecs[row]=rec;packedPositions[row]=position;packedPageIndex[row]=pageIndex;
   }
   if(count!==rowCount)rowsChanged=true;
   rowCount=count;packedCount=count;
@@ -733,7 +751,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    if(!presented&&presenter&&colorTexture&&!secondaryCamera){presenter.present(encoder,colorTexture,width,height);gpuDrawCalls++;}
    const command=encoder.finish();device.queue.submit([command]);imageRevision++;
    traceDiagnostic('encoding-submit','Commandes WebGPU soumises',()=>({frame,submission:imageRevision,pose:lastCamera?cameraPose(lastCamera):null,width,height,drawCalls:gpuDrawCalls,drawnTriangles:gpuFrameActive&&!gpuMetricsReady?null:drawn.reduce((sum,page)=>sum+page.triangles,0),transparent:{drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles},presentation:secondaryCamera?'surface-capture':context.gpuCanvas?'direct':'composed'}));
-   if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'render-passes-only',excludes:['GPU selection dispatch','uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
+   if(gpuTiming?.isSampled(encoder))gpuTiming.submitted(encoder,{submission:imageRevision,viewport:[width,height],cameraWorld:lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),viewProjection:[...viewProj.elements],scope:'selection-and-render-passes',excludes:['uploads and copies','CPU work','presentation latency'],drawCalls:gpuDrawCalls,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles});
    if(canvasTexture&&!secondaryCamera)canvasTexture.needsUpdate=true;
   };
  const encodeClear=(device:GPUDevice,encoder:GPUCommandEncoder)=>{
@@ -779,7 +797,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
   }
   ensureUniform(device,Math.max(1,packedCount+blendGpu.length));
   if(!gpuSmall&&!hybridUnavailable&&typeof device.createComputePipeline==='function'){
-   try{checkFrameBudget(width,height,captureAllocationBytes+width*height*8);gpuSmall=createGpuSmallTriangles(device,width,height);capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='small-triangle compute raster');}
+   try{checkFrameBudget(width,height,captureAllocationBytes+width*height*8+smallTriangleCapacity*4);gpuSmall=createGpuSmallTriangles(device,width,height,smallTriangleCapacity);capabilities.unsupported=capabilities.unsupported.filter(item=>item!=='small-triangle compute raster');}
    catch(error){hybridUnavailable=true;diagnosticFailure('small-triangle-compute-unavailable',error);}
   }
   // Occluder/rest partition of the image: the half the previous image drew unoccluded, and the nearest
@@ -1176,10 +1194,13 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    dropGpuSelection();gpuFrameActive=false;backend.render(camera);return;
   }
   if(gpuSelection.updateResidency(residentFlags))gpuMetricsReady=false;
+  selectionInImage=true;
   try{gpuSelection.dispatch(selectionUniforms);}catch(error){
+   selectionInImage=false;
    diagnosticFailure('gpu-selection-dispatch-failed',error);dropGpuSelection();gpuFrameActive=false;
    backend.render(camera);return;
   }
+  selectionInImage=false;
   drawn.length=0;appendAll(drawn,shown);
   const selectionEnd=performance.now();
   const [width,height]=viewport;ensureTargets(gpuDevice,Math.max(1,width),Math.max(1,height));
@@ -1206,9 +1227,15 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    context.signal?.throwIfAborted();
    if(!gpuDevice)throw new Error('WEBGPU_UNAVAILABLE');
    if(bootstrap.length>slots)throw new Error(`INITIAL_COVERAGE_BUDGET: ${bootstrap.length} pages required, ${slots} slots`);
-   gpuTiming=createGpuTiming(gpuDevice,{sampleEveryFrames:traceEnabled?1:60,retainSamples:!traceEnabled,onSample:traceEnabled?sample=>traceDiagnostic(sample.error?'gpu-timing-unavailable':'gpu-timing',sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',()=>({backend:'webgpu-page-raster',submission:sample.submission??null,scope:'render-passes-only',...sample,frame:sample.frame})):undefined});
+   gpuTiming=createGpuTiming(gpuDevice,{sampleEveryFrames:traceEnabled?1:60,onSample:sample=>{
+    // The public metric carries the contract's fields only; the diagnostic keeps the full context.
+    lastGpuPassMs={frame:sample.frame,totalMs:sample.totalMs,passes:sample.passes,truncated:sample.truncated,...(sample.error?{error:sample.error}:{})};
+    const phase=sample.error?'gpu-timing-unavailable':'gpu-timing',message=sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe';
+    engineDiagnostic(phase,message,sample);
+    if(traceEnabled)traceDiagnostic(phase,message,()=>({backend:'webgpu-page-raster',submission:sample.submission??null,...sample}));
+   }});
    const timingStats=gpuTiming.stats();
-   engineDiagnostic('gpu-timing-status','Disponibilité des mesures GPU par passe',{version:1,available:gpuTiming.supported,reason:gpuTiming.supported?null:'timestamp-query-unavailable',method:'timestamp-query',sampleEveryFrames:timingStats.sampleEveryFrames,maxPasses:64,maxPending:1,maxBufferAllocationBytes:2048,queryCount:128,gpuMs:null,scope:'render-passes-only',stats:timingStats});
+   engineDiagnostic('gpu-timing-status','Disponibilité des mesures GPU par passe',{version:1,available:gpuTiming.supported,reason:gpuTiming.supported?null:'timestamp-query-unavailable',method:'timestamp-query',sampleEveryFrames:timingStats.sampleEveryFrames,maxPasses:timingStats.maxPasses,maxParts:timingStats.maxParts,maxPending:1,queryCount:timingStats.queryCount,scope:'selection-and-render-passes',excludes:['uploads and copies','CPU work','presentation latency'],stats:timingStats});
    gpuDevice.addEventListener?.('uncapturederror',onGpuError);
    gpuDevice.lost.then(info=>{if(!lost)engineDiagnostic('gpu-device-lost','Périphérique WebGPU perdu',{reason:info.reason,message:info.message});lost=true;}).catch(error=>{if(!lost)diagnosticFailure('gpu-device-lost',error);lost=true;});
    try{
@@ -1249,6 +1276,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      const buffer=gpuDevice.createBuffer({size:xyz.byteLength,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
      gpuDevice.queue.writeBuffer(buffer,0,xyz.buffer);positionBuffers.set(rec.attributes,buffer);
     }
+    for(let i=0;i<packedPages.length;i++)pagePositions[i]=positionBuffers.get(packedPages[i].attributes);
     zeroUv=gpuDevice.createBuffer({size:8,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
     gpuDevice.queue.writeBuffer(zeroUv,0,new Float32Array([0,0]));
     for(const copy of blendCopies){
@@ -1517,7 +1545,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
      rec.cone=visMaterial(rec.material).doubleSided||visMaterial(rec.material).backSide?OPEN_CONE:triangleCone(xyz,array);
     }
     // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
-    if(gpuDraw&&opaqueRoots.length)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true});
+    if(gpuDraw&&opaqueRoots.length)gpuSelection=await createGpuDagSelection(gpuDevice,packDagSelection(opaqueRoots),{residentCut:true,createEncoder:()=>selectionInImage?createRenderEncoder(gpuDevice!):gpuDevice!.createCommandEncoder()});
     capabilities.gpuDriven=!!gpuSelection;
     await ensureBootstrap();
     engineDiagnostic('render-capabilities','Chemins de rendu prêts',{surfaceVersion:surfaces?.version??null,deferredLighting:!!deferred,frameBudgetBytes:frameBudget,imageReadbackDuringRender:false,visibilityBuffer:visEnabled,gpuSelection:!!gpuSelection,indirectDraw:!!gpuDraw,hiz:!!gpuHiz,unsupported:[...capabilities.unsupported]});
@@ -1639,7 +1667,6 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    await pending;
    if(coverageBudgetEvent){engineDiagnostic('coverage-budget','Admission de la coupe demandée',coverageBudgetEvent);coverageBudgetEvent=undefined;}
    await gpuTiming?.flush();
-   for(const sample of gpuTiming?.drain()??[]){const phase=sample.error?'gpu-timing-unavailable':'gpu-timing';engineDiagnostic(phase,sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',sample);if(traceEnabled)traceDiagnostic(phase,sample.error?'Mesure GPU indisponible':'Durées GPU mesurées par passe',()=>({backend:'webgpu-page-raster',submission:sample.submission??null,scope:'render-passes-only',...sample,frame:sample.frame}));}
    if(!traceEnabled&&cpuSample&&frame!==lastCpuLogFrame&&performance.now()-lastProgressMs>=2000){lastCpuLogFrame=frame;engineDiagnostic('cpu-timing','Durées CPU mesurées dans le moteur',cpuSample);}
    if(performance.now()-lastProgressMs>=2000){lastProgressMs=performance.now();engineDiagnostic('render-progress','Suivi du rendu GPU',{frame,coverage:{version:1,ready:bootstrapReady,bootstrapPages:bootstrap.length,budgetLimited:coverageBudgetLimited},lights:lightState,selectedPages:shown.length,residentPages:drawn.length,selectedTriangles,submittedTriangles,transparent:{version:1,candidates:blendGpu.length,visibleMeshes:visibleBlend.length,frustumRejected:blendFrustumRejected,drawCalls:blendDrawCalls,submittedTriangles:blendSubmittedTriangles,gpuMs:null},pendingPages:collectPendingUrls(desired,pendingScratch).length,surfaceVersion:surfaces?.version??null,presentation:context.gpuCanvas?'direct':'composed',imageReadbackDuringRender:false});}
    if(gpuSelection){
@@ -1753,7 +1780,7 @@ export const webgpuPagesBackend:BackendFactory=(context)=>{
    vertexBytes+=(concatPos?.size??0)+(concatUv?.size??0)+(concatNrm?.size??0);
    for(const item of blendGpu)vertexBytes+=item.index.size+(item.uv?.size??0)+(item.normal?.size??0);
 
-   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,vramBytes:null,drawCalls:gpuDrawCalls};
+   return {coverageReady:bootstrapReady,coverageBudgetLimited,clusters:gpuFrameActive&&!gpuMetricsReady?null:visible,selectedTriangles:gpuFrameActive&&!gpuMetricsReady?null:selectedTriangles,residentPages:gpuFrameActive?stats?.residentPages??0:drawn.length,cacheEvictions:stats?.evictions??0,geometryAllocationBytes:(stats?.allocatedBytes??0)+vertexBytes,frustumRejected,lodLevel,submittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,totalSubmittedTriangles:gpuFrameActive&&!gpuMetricsReady?null:submittedTriangles,transparentMeshes:visibleBlend.length,transparentFrustumRejected:blendFrustumRejected,transparentDrawCalls:blendDrawCalls,transparentSubmittedTriangles:blendSubmittedTriangles,textureUploaded,texturePending:textureJobs.length,textureSkipped,cpuSubmitMs:lastSubmitMs,gpuPassMs:lastGpuPassMs,vramBytes:null,drawCalls:gpuDrawCalls};
   },
   dispose(){
    gpuDevice?.removeEventListener?.('uncapturederror',onGpuError);

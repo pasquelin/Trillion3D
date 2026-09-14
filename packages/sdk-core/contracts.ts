@@ -9,6 +9,15 @@ export type AssetScope = 'slice' | 'full';
 export interface PreparationProgress { phase:string; completed:number; total:number; message:string }
 export interface CameraPose { position:[number,number,number]; target:[number,number,number]; fov:number; near:number; far:number }
 export interface StablePreview { scope:AssetScope; origin:'bottom-left'|'top-left'; rgba:Uint8Array; width:number; height:number; backend:string }
+/** One timed GPU pass. `gpuMs` is null when the device returned no usable pair of timestamps. */
+export interface GpuPassTiming { name:string; gpuMs:number|null; reason?:string }
+/**
+ * GPU durations of one image, pass by pass, as the device itself reported them. `totalMs` is the sum
+ * of the listed passes and nothing else: it is never added to a `cpu*` field, and it is null as soon
+ * as one pass is unmeasured or the list was truncated. `frame` names the image the sample describes,
+ * which lags the current one because the readback never blocks an image.
+ */
+export interface GpuPassTimings { frame:number; totalMs:number|null; passes:GpuPassTiming[]; truncated:boolean; error?:string }
 export interface FrameMetrics {
  rafIntervalMs:number|null; cpuFrameMs:number; cpuSubmitMs:number|null; gpuMs:number|null; drawCalls:number; triangles:number; clusters:number|null; selectedTriangles:number|null; residentPages:number|null; submittedTriangles?:number|null;
  /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
@@ -30,6 +39,8 @@ export interface FrameMetrics {
  /** Sticky loading error; failed URLs require an explorer reload after three attempts. */
  streamingError?:string|null;
  textureUploaded?:number|null;texturePending?:number|null;textureSkipped?:number|null;
+ /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
+ gpuPassMs?:GpuPassTimings|null;
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface GeometryPageDescriptor {url:string;sha256:string;bytes:number;formatVersion:2;codec:'meshopt';vertexCount:number;indexCount:number;flags:number;uncompressedBytes:number}
