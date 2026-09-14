@@ -14,9 +14,6 @@ export interface WebgpuGpuState {
   pipelineBackCw: GPURenderPipeline | undefined;
   pipelineNone: GPURenderPipeline | undefined;
   pipelineBlend: GPURenderPipeline | undefined;
-  pipelineBlendTextured: GPURenderPipeline | undefined;
-  pipelineBlendFront: GPURenderPipeline | undefined;
-  pipelineBlendBack: GPURenderPipeline | undefined;
   colorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   colorView: GPUTextureView | undefined;
@@ -50,9 +47,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     pipelineBackCw: undefined,
     pipelineNone: undefined,
     pipelineBlend: undefined,
-    pipelineBlendTextured: undefined,
-    pipelineBlendFront: undefined,
-    pipelineBlendBack: undefined,
     colorTexture: undefined,
     depthTexture: undefined,
     colorView: undefined,

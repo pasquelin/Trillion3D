@@ -4,7 +4,7 @@ import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
 import { createWebgpuVisibilityDrawer } from './webgpuVisibilityDrawer.ts';
 import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
-import { ensureUniform, visBin, visPipelineFor } from './webgpuPagesPipelineFor.ts';
+import { ensureUniform, visBin } from './webgpuPagesPipelineFor.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import { uploadDirtyRows } from './webgpuPagesEncodeDraws.ts';
@@ -136,7 +136,7 @@ export function encodeVis(
     binInstances: layout.binInstances,
     twoPass,
     hizRest: layout.hizRest,
-    visPipelineFor: (rec, rest) => visPipelineFor(rt, rec, rest),
+    visPipelineFor: rt.hooks.visPipelineFor,
   });
   const raster = encodeWebgpuVisibilityPasses({
     device,
@@ -165,7 +165,7 @@ export function encodeVis(
   run.noOccluderHistory = raster.noOccluderHistory;
   vis.mapsArrayView = visDrawer.mapsArrayView;
   run.gpuDrawCalls += visDrawer.drawCalls;
-  encodeSmallTriangles(rt, encoder, { twoPass, tableRows, maxVertexCount, idsView, depthTarget });
+  encodeSmallTriangles(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
   const shadePass = encoder.beginRenderPass({
     label: 'WG material surfaces v1',

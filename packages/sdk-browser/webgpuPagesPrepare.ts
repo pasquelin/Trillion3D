@@ -131,9 +131,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     diag.diagnosticFailure('material-pipeline-failed', error);
     dropVis(rt);
   }
-  if (blendState.blendGpu.length && !gpu.pipelineBlendTextured) dropVis(rt);
+  if (blendState.blendGpu.length && !vis.pipelineBlendTextured) dropVis(rt);
   if (context.gpuCanvas && !vis.visEnabled) throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE');
-  if (context.gpuCanvas && blendState.blendGpu.length && !gpu.pipelineBlendTextured)
+  if (context.gpuCanvas && blendState.blendGpu.length && !vis.pipelineBlendTextured)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.

@@ -2,23 +2,10 @@ import type * as THREE from 'three';
 import { cameraPose, publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-export type GpuCutMarks = {
-  cpuStart: number;
-  lightsEnd: number;
-  adoptEnd: number;
-  transparentSelectEnd: number;
-  admissionEnd: number;
-  queueEnd: number;
-  rowsEnd: number;
-  residencyUploadEnd: number;
-  selectionEnd: number;
-  encodeStart: number;
-  cpuEnd: number;
-};
-
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */
-export function recordGpuCutTiming(rt: WebgpuPagesRuntime, m: GpuCutMarks) {
-  const { timing, run } = rt;
+export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
+  const { timing, run } = rt,
+    m = timing.marks;
   const submitMs = m.cpuEnd - m.encodeStart;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;

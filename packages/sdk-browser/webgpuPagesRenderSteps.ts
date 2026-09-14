@@ -1,7 +1,5 @@
-import type { PageRec } from './pageSelection.ts';
+import { urlsOf } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-
-const urls = (pages: readonly PageRec[]) => pages.map((page) => page.url);
 
 /** The residency traces of the CPU path, each stamped with the time its step took. */
 export function traceAdmission(rt: WebgpuPagesRuntime, requested: Set<string>, started: number) {
@@ -12,8 +10,8 @@ export function traceAdmission(rt: WebgpuPagesRuntime, requested: Set<string>, s
     scope: 'cpu/residency-admission',
     elapsedMs: performance.now() - started,
     requested: tracking.traceSet('admission.requested', [...requested]),
-    wanted: tracking.traceSet('admission.wanted', urls(run.desired)),
-    loaded: tracking.traceSet('admission.loaded', urls(run.drawn)),
+    wanted: tracking.traceSet('admission.wanted', urlsOf(run.desired)),
+    loaded: tracking.traceSet('admission.loaded', urlsOf(run.drawn)),
     slots,
     limited: run.coverageBudgetLimited,
   }));
@@ -31,8 +29,8 @@ export function traceTransition(
     frame: run.frame,
     scope: 'cpu/residency-transition',
     elapsedMs: performance.now() - started,
-    from: tracking.traceSet('transition.from', urls(run.drawn)),
-    to: tracking.traceSet('transition.to', urls(run.shown)),
+    from: tracking.traceSet('transition.from', urlsOf(run.drawn)),
+    to: tracking.traceSet('transition.to', urlsOf(run.shown)),
     requested: tracking.traceSet('transition.requested', [...requested]),
     transition: tracking.traceSet('transition.all', [...transition]),
     slots,
@@ -50,8 +48,8 @@ export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number)
       frame: run.frame,
       scope: 'cpu/residency-queue-reconstruct',
       elapsedMs,
-      requested: tracking.traceSet('reconstruct.requested', urls(run.desired)),
-      queued: tracking.traceSet('reconstruct.queued', urls(residency.items)),
+      requested: tracking.traceSet('reconstruct.requested', urlsOf(run.desired)),
+      queued: tracking.traceSet('reconstruct.queued', urlsOf(residency.items)),
       job: residency.job,
     }),
   );
@@ -67,11 +65,11 @@ export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
       frame: run.frame,
       scope: 'cpu/residency-drawn-copy',
       elapsedMs,
-      shown: tracking.traceSet('drawn.shown', urls(run.shown)),
-      drawn: tracking.traceSet('drawn', urls(run.drawn)),
+      shown: tracking.traceSet('drawn.shown', urlsOf(run.shown)),
+      drawn: tracking.traceSet('drawn', urlsOf(run.drawn)),
       loaded: tracking.traceSet(
         'drawn.loaded',
-        urls(run.drawn.filter((page) => !!gpu.cache!.get(page.url))),
+        urlsOf(run.drawn.filter((page) => !!gpu.cache!.get(page.url))),
       ),
     }),
   );

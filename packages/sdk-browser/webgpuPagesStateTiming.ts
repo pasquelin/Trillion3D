@@ -23,6 +23,22 @@ const CPU_STEPS = [
 ] as const;
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
+/** The timestamps of one GPU-cut image, written in place as each step ends. */
+type GpuCutMarks = Record<
+  | 'cpuStart'
+  | 'lightsEnd'
+  | 'adoptEnd'
+  | 'transparentSelectEnd'
+  | 'admissionEnd'
+  | 'queueEnd'
+  | 'rowsEnd'
+  | 'residencyUploadEnd'
+  | 'selectionEnd'
+  | 'encodeStart'
+  | 'cpuEnd',
+  number
+>;
+
 export interface WebgpuTimingState {
   gpuTiming: ReturnType<typeof createGpuTiming> | undefined;
   lastGpuPassMs: GpuPassTimings | null;
@@ -34,6 +50,7 @@ export interface WebgpuTimingState {
   lastPartitionMs: number;
   lastItemsMs: number;
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
+  marks: GpuCutMarks;
   lastCpuLogMs: number;
   lastCpuLogFrame: number;
   cpuSample: Record<string, unknown> | undefined;
@@ -59,6 +76,19 @@ export function createWebgpuTimingState(): WebgpuTimingState {
     lastPartitionMs: 0,
     lastItemsMs: 0,
     cpuProfile: createCpuStepProfile(CPU_STEPS),
+    marks: {
+      cpuStart: 0,
+      lightsEnd: 0,
+      adoptEnd: 0,
+      transparentSelectEnd: 0,
+      admissionEnd: 0,
+      queueEnd: 0,
+      rowsEnd: 0,
+      residencyUploadEnd: 0,
+      selectionEnd: 0,
+      encodeStart: 0,
+      cpuEnd: 0,
+    },
     lastCpuLogMs: 0,
     lastCpuLogFrame: -1,
     cpuSample: undefined,

@@ -2,13 +2,14 @@ import type * as THREE from 'three';
 import { appendAll } from './webgpuPagesHelpers.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
+import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
 export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
   rt.capture.surfaceRenderAllowed = true;
   try {
-    rt.backend.render(camera);
+    renderWebgpuPages(rt, camera);
   } finally {
     rt.capture.surfaceRenderAllowed = false;
   }

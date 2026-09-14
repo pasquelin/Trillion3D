@@ -128,13 +128,11 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 export function encodeSmallTriangles(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
-  options: {
-    twoPass: boolean;
-    tableRows: number;
-    maxVertexCount: number;
-    idsView: GPUTextureView;
-    depthTarget: GPUTextureView;
-  },
+  twoPass: boolean,
+  tableRows: number,
+  maxVertexCount: number,
+  idsView: GPUTextureView,
+  depthTarget: GPUTextureView,
 ) {
   const { vis, gpu, run } = rt;
   if (
@@ -151,7 +149,7 @@ export function encodeSmallTriangles(
     return;
   // Every row carries its own Hi-Z slot, so a frame that ran no occlusion test is handed the zero
   // flags: the pyramid verdicts of the previous image do not describe this one.
-  const hizFlags = options.twoPass && vis.gpuHiz ? vis.gpuHiz.flags : vis.zeroFlags;
+  const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : vis.zeroFlags;
   const smallKey = (hizFlags === vis.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
   vis.gpuSmall.encode(encoder, {
     indices: gpu.cache.buffer,
@@ -162,10 +160,10 @@ export function encodeSmallTriangles(
     uvs: vis.concatUv,
     maps: (vis.mapsArrayView ??= vis.mapsTexture.createView({ dimension: '2d-array' })),
     sampler: vis.mapsSampler,
-    pageRows: options.tableRows,
-    maxTriangles: Math.ceil(options.maxVertexCount / 3),
-    idsView: options.idsView,
-    depthView: options.depthTarget,
+    pageRows: tableRows,
+    maxTriangles: Math.ceil(maxVertexCount / 3),
+    idsView: idsView,
+    depthView: depthTarget,
     hizView: vis.gpuHiz?.level0View,
     selection: run.gpuFrameActive ? run.gpuSelection : undefined,
     groups: vis.smallGroups,

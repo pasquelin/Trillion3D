@@ -1,22 +1,22 @@
 import * as THREE from 'three';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { cameraPose } from './webgpuPagesStateTiming.ts';
-import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
-const newEncoder = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
+const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.gpuTiming && !rt.capture.secondaryCamera
     ? rt.timing.gpuTiming.createEncoder(rt.run.frame)
     : device.createCommandEncoder();
 
 /** The image's own command buffer when one is open, a fresh one otherwise. */
-export const createRenderEncoder = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
+export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.frameEncoder ?? newEncoder(rt, device);
 
-export const openFrameEncoder = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
+export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   (rt.timing.frameEncoder = newEncoder(rt, device));
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it. */
-export function abandonFrameEncoder(rt: WebgpuPagesRuntime) {
+export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   const { timing } = rt;
   if (!timing.frameEncoder) return;
   timing.frameEncoder = undefined;
@@ -27,7 +27,7 @@ export function abandonFrameEncoder(rt: WebgpuPagesRuntime) {
 }
 
 export function submitColorCopy(
-  rt: WebgpuPagesRuntime,
+  rt: WebgpuPagesCore,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   height: number,
@@ -91,7 +91,7 @@ export function clearValueOf(clearColor: number) {
   };
 }
 
-export function encodeClear(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
   const pass = encoder.beginRenderPass({
     label: 'WG clear',
     colorAttachments: [

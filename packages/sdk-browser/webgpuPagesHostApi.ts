@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import { collectPendingUrls, pageRequestUrl } from './pageSelection.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
+import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export function refreshSceneLighting(rt: WebgpuPagesRuntime) {
@@ -30,7 +31,7 @@ export function syncResident(rt: WebgpuPagesRuntime) {
   }
   // A complete cut is reselected for the latest camera; CPU arrival alone
   // never authorizes replacing any region's GPU fallback.
-  rt.backend.render(run.lastCamera);
+  renderWebgpuPages(rt, run.lastCamera);
 }
 
 /** The current image, read synchronously through the presenter's canvas when no flush settled it. */

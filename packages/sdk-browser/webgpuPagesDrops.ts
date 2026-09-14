@@ -45,7 +45,7 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
 }
 
 export function dropVis(rt: WebgpuPagesRuntime) {
-  const { vis, gpu, capabilities } = rt,
+  const { vis, capabilities } = rt,
     { rows, drawSlots } = rt.layout;
   vis.visEnabled = false;
   vis.visPipelineBack = undefined;
@@ -61,7 +61,9 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.visHizBindGroup = undefined;
   vis.mapsSampler = undefined;
   vis.blendBindGroupLayout = undefined;
-  gpu.pipelineBlendTextured = undefined;
+  vis.pipelineBlendTextured = undefined;
+  vis.pipelineBlendFront = undefined;
+  vis.pipelineBlendBack = undefined;
   for (const item of rt.blendState.blendGpu) item.group = undefined;
   vis.gpuSmall?.dispose();
   vis.gpuSmall = undefined;

@@ -1,15 +1,10 @@
 import type * as THREE from 'three';
 import { dagFixture, wideCamera } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
 
-type StreamedPage = { id: number; stream: number; streamOffset: number };
-
 /** Four leaves, two mid clusters, one root; the root bundle is pinned, the rest follows. */
 export function fixture() {
   const scene = dagFixture();
-  const primitive = scene.metadata.primitives[0] as unknown as {
-    pages: StreamedPage[];
-    streams: unknown;
-  };
+  const primitive = scene.metadata.primitives[0];
   // Leaves share one bundle, the mid clusters another, and the root is the pinned bundle.
   for (const page of primitive.pages) {
     if (page.id < 4) [page.stream, page.streamOffset] = [1, page.id * 12];

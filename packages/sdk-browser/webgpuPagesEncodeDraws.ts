@@ -5,7 +5,7 @@ import { screenErrorRatio } from './diagnosticColors.ts';
 import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
 import { drawWebgpuFallback } from './webgpuFallbackDraw.ts';
 import { remap, viewProj } from './webgpuPagesHelpers.ts';
-import { bindGroupFor, ensureUniform, pageRgb, pipelineFor } from './webgpuPagesPipelineFor.ts';
+import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import {
   abandonFrameEncoder,
   createRenderEncoder,
@@ -122,15 +122,15 @@ export function encodeDraws(
     uniformPacked: gpu.uniformPacked,
     uniformBuffer: gpu.uniformBuffer,
     diagnostic: run.diagnostic,
-    pageRgb: (rec) => pageRgb(rt, rec),
-    createRenderEncoder: (device) => createRenderEncoder(rt, device),
+    pageRgb: rt.hooks.pageRgb,
+    createRenderEncoder: rt.hooks.createRenderEncoder,
     colorView: gpu.colorView,
     depthView: gpu.depthView,
     width,
     height,
     clearColor,
-    bindGroupFor: (device, position) => bindGroupFor(rt, device, position),
-    pipelineFor: (rec) => pipelineFor(rt, rec),
+    bindGroupFor: rt.hooks.bindGroupFor,
+    pipelineFor: rt.hooks.pipelineFor,
   });
   const { encoder, vertices } = fallback;
   run.gpuDrawCalls += fallback.drawCalls;
