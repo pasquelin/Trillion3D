@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {compareImages,HIZ_BACKGROUND} from '../sdk-core/index.ts';
 import {rasterVisibilityIds,shadeVisibility,type VisPage} from './visibilityBuffer.ts';
-import {HIZ_BOUNDS_VALUES,buildHizPyramid,filterUnoccluded,hizRejects,projectBoxToScreen,projectBoxesFlat,sameHizView,splitOccluders,splitOccludersFlat,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
+import {HIZ_BOUNDS_VALUES,buildHizPyramid,createBoxCorners,filterUnoccluded,hizRejects,projectBoxToScreen,projectBoxesFlat,sameHizView,splitOccluders,splitOccludersFlat,visibilityDepth,applyTemporalHiz,type HizPage,type TemporalHizState} from './hiz.ts';
 
 test('Hi-Z history is invalidated by camera motion and projection cuts',()=>{
  const previous=cameraAt(),current=previous.clone();
@@ -175,6 +175,15 @@ test('flat projection and split reproduce the object forms to the bit, including
   if(reference.clipsNear)continue;
   assert.deepEqual([flat[base],flat[base+1],flat[base+2],flat[base+3],flat[base+4]],
    [reference.minX,reference.minY,reference.maxX,reference.maxY,reference.nearestDepth]);
+ }
+ // The same rectangles when the world corners are kept across images, including a second image that
+ // reads the cache instead of rebuilding it: a hoisted corner is the same double, not a rounded one.
+ const corners=createBoxCorners(pages.length),pageIndex=new Int32Array(pages.length).map((_,index)=>index);
+ const cached=new Float64Array(flat.length);
+ for(const pass of [0,1]){
+  cached.fill(0);
+  projectBoxesFlat(pages,pages.length,camera,viewport,cached,undefined,{corners,pageIndex,epoch:1});
+  assert.deepEqual([...cached],[...flat],`image ${pass} avec coins gardés`);
  }
  const rest=new Uint8Array(pages.length),occluders=splitOccludersFlat(pages.length,flat,rest);
  const tagged=pages.map((page,index)=>({...page,tag:index}));

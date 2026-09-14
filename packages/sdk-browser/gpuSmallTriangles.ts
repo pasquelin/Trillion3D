@@ -3,9 +3,15 @@ const PAGE_INFO=`struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,rou
 struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 /** Workgroups per dispatch dimension guaranteed by WebGPU; the small-triangle list is split across x and y. */
 export const DISPATCH_SPAN=65535;
-/** Words the list reserves before its entries: the count, then the three dispatch sizes. */
-const LIST_HEADER=4;
-const RASTER=`${PAGE_INFO}
+/**
+ * Words the list reserves before its entries: one count per size class, then one dispatch each.
+ * The two classes share one list — the fine one fills it from the front, the coarse one from the back —
+ * so no class can overflow while the other has room, and the bound stays every triangle of every row.
+ */
+const LIST_HEADER=8;
+/** Pixels a side of the fine class, and how many of its triangles one 64-lane workgroup rasters. */
+const FINE_SIDE=4,FINE_PER_GROUP=64/(FINE_SIDE*FINE_SIDE);
+const rasterSource=(capacity:number)=>`${PAGE_INFO}
 @group(0) @binding(0) var<storage,read> indices:array<u32>;
 @group(0) @binding(1) var<storage,read> positions:array<f32>;
 @group(0) @binding(2) var<storage,read> pages:array<PageInfo>;
@@ -39,7 +45,7 @@ fn keepMask(page:PageInfo,tc:vec2f)->bool{
 // Everything a triangle decides before a pixel is named. The binning pass evaluates it once per
 // triangle and the two raster passes replay it for the survivors only, from the same inputs, so the
 // set that reaches a pixel is the same one a per-pixel evaluation would have reached.
-struct Tri{ok:u32,row:u32,triangle:u32,a:vec2f,b:vec2f,c:vec2f,ca:vec4f,cb:vec4f,cc:vec4f,ia:u32,ib:u32,ic:u32,area:f32,lo:vec2f,}
+struct Tri{ok:u32,row:u32,triangle:u32,a:vec2f,b:vec2f,c:vec2f,ca:vec4f,cb:vec4f,cc:vec4f,ia:u32,ib:u32,ic:u32,area:f32,lo:vec2f,span:f32,}
 fn setupTriangle(pageIndex:u32,triangle:u32)->Tri{
  var t:Tri;t.ok=0u;t.row=pageIndex;t.triangle=triangle;
  let page=pages[pageIndex];
@@ -57,6 +63,7 @@ fn setupTriangle(pageIndex:u32,triangle:u32)->Tri{
  let front=select((area > 0.0),(area < 0.0),(determinant >= 0.0));
  if((page.flags&2u)==0u){if((page.flags&256u)!=0u){if(front){return t;}}else if(!front){return t;}}
  t.ok=1u;t.a=a;t.b=b;t.c=c;t.ca=ca;t.cb=cb;t.cc=cc;t.ia=ia;t.ib=ib;t.ic=ic;t.area=area;t.lo=lo;
+ t.span=max(hi.x-lo.x,hi.y-lo.y);
  return t;
 }
 fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
@@ -81,36 +88,63 @@ fn pageRow(group:vec3u)->u32{return group.y+group.z*${DISPATCH_SPAN}u;}
 @compute @workgroup_size(64) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){
  let row=pageRow(group);if(row>=uni.pageCount){return;}
  let triangle=group.x*64u+lane.x;
- if(setupTriangle(row,triangle).ok==0u){return;}
- let slot=atomicAdd(&small[0],1u);
- atomicStore(&small[${LIST_HEADER}u+slot],(row<<8u)|(triangle&0xffu));
+ let t=setupTriangle(row,triangle);
+ if(t.ok==0u){return;}
+ let entry=(row<<8u)|(triangle&0xffu);
+ // A box no wider than the fine grid is rasterised by ${FINE_SIDE*FINE_SIDE} lanes instead of 64, so the fine
+ // class packs ${FINE_PER_GROUP} triangles into one workgroup. A pixel the smaller grid drops lies outside the
+ // triangle's own bounding box, where the barycentric test rejects it anyway.
+ if(t.span<=f32(${FINE_SIDE}u-1u)){atomicStore(&small[${LIST_HEADER}u+atomicAdd(&small[0],1u)],entry);}
+ else{atomicStore(&small[${LIST_HEADER+capacity}u-1u-atomicAdd(&small[1],1u)],entry);}
 }
-/** Turns the small-triangle count into the raster dispatch, so no count travels through the CPU. */
+/** Turns each class count into its raster dispatch, so no count travels through the CPU. */
 @compute @workgroup_size(1) fn plan(){
- let total=atomicLoad(&small[0]);
- atomicStore(&small[1],min(total,${DISPATCH_SPAN}u));
- atomicStore(&small[2],(total+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
- atomicStore(&small[3],1u);
+ let fine=(atomicLoad(&small[0])+${FINE_PER_GROUP}u-1u)/${FINE_PER_GROUP}u;
+ atomicStore(&small[2],min(fine,${DISPATCH_SPAN}u));
+ atomicStore(&small[3],(fine+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
+ atomicStore(&small[4],1u);
+ let coarse=atomicLoad(&small[1]);
+ atomicStore(&small[5],min(coarse,${DISPATCH_SPAN}u));
+ atomicStore(&small[6],(coarse+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
+ atomicStore(&small[7],1u);
 }
 fn smallAt(group:vec3u)->u32{return group.x+group.y*${DISPATCH_SPAN}u;}
-// One workgroup per listed triangle, one lane per pixel of its eight-by-eight box. The triangle is
-// set up once for the whole group instead of once per lane; the pixels then read the same values a
-// per-lane setup would have produced.
-var<workgroup> shared_tri:Tri;
-fn rasterGroup(group:vec3u,lane:vec3u,writeId:bool){
+// A workgroup is always 64 lanes, whatever the class: the coarse one spends them on the eight-by-eight
+// box of a single triangle, the fine one on ${FINE_PER_GROUP} triangles of ${FINE_SIDE}×${FINE_SIDE} pixels each. A triangle is
+// set up once for the lanes that share it instead of once per lane; those lanes then read the same
+// values a per-lane setup would have produced.
+var<workgroup> shared_tri:array<Tri,${FINE_PER_GROUP}u>;
+fn fineGroup(group:vec3u,lane:vec3u,writeId:bool){
+ let index=lane.y*8u+lane.x;
+ let slot=index/${FINE_SIDE*FINE_SIDE}u;
+ let i=smallAt(group)*${FINE_PER_GROUP}u+slot;
+ if(index%${FINE_SIDE*FINE_SIDE}u==0u){
+  var t:Tri;t.ok=0u;
+  if(i<atomicLoad(&small[0])){let entry=atomicLoad(&small[${LIST_HEADER}u+i]);t=setupTriangle(entry>>8u,entry&0xffu);}
+  shared_tri[slot]=t;
+ }
+ workgroupBarrier();
+ let t=shared_tri[slot];
+ if(t.ok==0u){return;}
+ let pixel=index%${FINE_SIDE*FINE_SIDE}u;
+ rasterPixel(t,vec2u(pixel%${FINE_SIDE}u,pixel/${FINE_SIDE}u),writeId);
+}
+fn coarseGroup(group:vec3u,lane:vec3u,writeId:bool){
  let i=smallAt(group);
  if(lane.x==0u&&lane.y==0u){
   var t:Tri;t.ok=0u;
-  if(i<atomicLoad(&small[0])){let entry=atomicLoad(&small[${LIST_HEADER}u+i]);t=setupTriangle(entry>>8u,entry&0xffu);}
-  shared_tri=t;
+  if(i<atomicLoad(&small[1])){let entry=atomicLoad(&small[${LIST_HEADER+capacity}u-1u-i]);t=setupTriangle(entry>>8u,entry&0xffu);}
+  shared_tri[0]=t;
  }
  workgroupBarrier();
- let t=shared_tri;
+ let t=shared_tri[0];
  if(t.ok==0u){return;}
  rasterPixel(t,lane.xy,writeId);
 }
-@compute @workgroup_size(8,8) fn depthPass(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){rasterGroup(group,lane,false);}
-@compute @workgroup_size(8,8) fn idPass(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){rasterGroup(group,lane,true);}`;
+@compute @workgroup_size(8,8) fn fineDepth(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){fineGroup(group,lane,false);}
+@compute @workgroup_size(8,8) fn fineId(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){fineGroup(group,lane,true);}
+@compute @workgroup_size(8,8) fn coarseDepth(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){coarseGroup(group,lane,false);}
+@compute @workgroup_size(8,8) fn coarseId(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){coarseGroup(group,lane,true);}`;
 const RESOLVE=`struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}
 @group(0) @binding(0) var<storage,read> frame:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
@@ -130,7 +164,7 @@ export function createGpuSmallTriangles(device:GPUDevice,width:number,height:num
  const small=device.createBuffer({label:'WG small triangle list',size:Math.max(4,(LIST_HEADER+capacity)*4),usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST});
  // The dispatch words are copied out of the list instead of being written through a binding, so no
  // pass ever holds the buffer it dispatches from.
- const indirect=device.createBuffer({label:'WG small triangle dispatch',size:12,usage:GPUBufferUsage.INDIRECT|GPUBufferUsage.COPY_DST});
+ const indirect=device.createBuffer({label:'WG small triangle dispatch',size:24,usage:GPUBufferUsage.INDIRECT|GPUBufferUsage.COPY_DST});
  const computeLayout=device.createBindGroupLayout({entries:[
   {binding:0,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},{binding:1,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
   {binding:2,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},{binding:3,visibility:GPUShaderStage.COMPUTE,buffer:{type:'read-only-storage'}},
@@ -143,10 +177,11 @@ export function createGpuSmallTriangles(device:GPUDevice,width:number,height:num
   {binding:0,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'read-only-storage'}},
   {binding:1,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'uniform'}},
  ]});
- const computeModule=device.createShaderModule({code:RASTER});
+ const computeModule=device.createShaderModule({code:rasterSource(capacity)});
  const computePipelineLayout=device.createPipelineLayout({bindGroupLayouts:[computeLayout]});
  const pipelineFor=(entryPoint:string)=>device.createComputePipeline({layout:computePipelineLayout,compute:{module:computeModule,entryPoint}});
- const clear=pipelineFor('clear'),bin=pipelineFor('bin'),plan=pipelineFor('plan'),rasterDepth=pipelineFor('depthPass'),rasterId=pipelineFor('idPass');
+ const clear=pipelineFor('clear'),bin=pipelineFor('bin'),plan=pipelineFor('plan');
+ const fineDepth=pipelineFor('fineDepth'),fineId=pipelineFor('fineId'),coarseDepth=pipelineFor('coarseDepth'),coarseId=pipelineFor('coarseId');
  const resolveModule=device.createShaderModule({code:RESOLVE});
  const resolvePipelineLayout=device.createPipelineLayout({bindGroupLayouts:[resolveLayout]});
  const makeResolve=(two:boolean)=>device.createRenderPipeline({layout:resolvePipelineLayout,vertex:{module:resolveModule,entryPoint:'vs'},fragment:{module:resolveModule,entryPoint:two?'two':'one',targets:two?[{format:'r32uint'},{format:'r32float'}]:[{format:'r32uint'}]},primitive:{topology:'triangle-list'},depthStencil:{format:'depth32float',depthWriteEnabled:true,depthCompare:'less'}});
@@ -165,7 +200,7 @@ export function createGpuSmallTriangles(device:GPUDevice,width:number,height:num
     {binding:8,resource:{buffer:target}},{binding:9,resource:{buffer:small}},
     {binding:10,resource:{buffer:input.selection?.maskBuffer??input.hizFlags}},
    ]})) as GPUBindGroup;
-   encoder.clearBuffer(small,0,4);
+   encoder.clearBuffer(small,0,8);
    const rows=Math.max(1,input.pageRows),spanY=Math.min(rows,DISPATCH_SPAN),spanZ=Math.ceil(rows/DISPATCH_SPAN);
    const binning=encoder.beginComputePass({label:'WG small triangle binning'});
    binning.setBindGroup(0,compute);
@@ -173,13 +208,17 @@ export function createGpuSmallTriangles(device:GPUDevice,width:number,height:num
    binning.setPipeline(bin);binning.dispatchWorkgroups(Math.max(1,Math.ceil(input.maxTriangles/64)),spanY,spanZ);
    binning.setPipeline(plan);binning.dispatchWorkgroups(1);
    binning.end();
-   encoder.copyBufferToBuffer(small,4,indirect,0,12);
-   // One pass for both rasters: consecutive dispatches already see each other's writes, so the depth
-   // winners are settled before the identifiers are chosen, and neither count reaches the CPU.
+   encoder.copyBufferToBuffer(small,8,indirect,0,24);
+   // One pass for every raster dispatch: consecutive dispatches already see each other's writes, so
+   // both classes have settled the depth winners before either chooses an identifier, and no count
+   // reaches the CPU. An identifier chosen before the other class had written its depth would name a
+   // triangle that lost.
    const raster=encoder.beginComputePass({label:'WG small triangle raster'});
    raster.setBindGroup(0,compute);
-   raster.setPipeline(rasterDepth);raster.dispatchWorkgroupsIndirect(indirect,0);
-   raster.setPipeline(rasterId);raster.dispatchWorkgroupsIndirect(indirect,0);
+   raster.setPipeline(fineDepth);raster.dispatchWorkgroupsIndirect(indirect,0);
+   raster.setPipeline(coarseDepth);raster.dispatchWorkgroupsIndirect(indirect,12);
+   raster.setPipeline(fineId);raster.dispatchWorkgroupsIndirect(indirect,0);
+   raster.setPipeline(coarseId);raster.dispatchWorkgroupsIndirect(indirect,12);
    raster.end();
    resolveGroup??=device.createBindGroup({layout:resolveLayout,entries:[{binding:0,resource:{buffer:target}},{binding:1,resource:{buffer:input.uniform,offset:0,size:96}}]});
    const resolved=resolveGroup;
