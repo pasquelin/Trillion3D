@@ -80,10 +80,13 @@ export async function measureView(options) {
     { method: 'POST', body },
   );
 
-  // L'ensemble sélectionné : en mode diagnostic le moteur attache un maillage par cluster affiché
+  // L'ensemble sélectionné : hors du mode beauté le moteur attache un maillage par page affichée
   // et y dépose son `clusterId`. C'est la coupe de l'image, lue sans API ajoutée pour la mesure.
-  explorer.setDiagnostic('clusters');
-  explorer.render(pose);
+  // Le mode `pages` et non `clusters` : `clusters` teinte chaque page de sa propre couleur, donc
+  // un matériau et un programme de nuanceur par cluster — 80 153 sur Emerald, de quoi épuiser le
+  // pilote. `pages` n'en a que deux et donne exactement les mêmes maillages. Aucune image n'est
+  // dessinée ici : `setDiagnostic` rattache déjà la coupe à la scène.
+  explorer.setDiagnostic('pages');
   const backend = explorer.backends.find((candidate) => candidate.id === 'exact-cluster-pages');
   const ids = backend.scene.children
     .map((child) => child.userData && child.userData.clusterId)
