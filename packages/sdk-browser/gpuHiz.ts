@@ -195,6 +195,9 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
      {binding:4,resource:{buffer:flags}},
     ]});
    };
+   // Every level's source and destination are a function of the target size alone, so the whole
+   // uniform array is written once per allocation and no image uploads a byte to build the pyramid.
+   const levelWords=new Uint32Array((MAX_LEVELS+1)*(UNIFORM_BYTES/4));
    const alloc=(w:number,h:number)=>{
     const packed=pyramidBytes(w,h);
     sizes=packed.sizes;
@@ -204,6 +207,14 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
     level0View=level0.createView();
     pyramid=device.createBuffer({size:packed.bytes,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
     bind(pyramid,level0View);
+    levelWords.fill(0);
+    levelWords[0]=w;levelWords[1]=h;levelWords[2]=0;
+    for(let i=0;i<sizes.length-1&&i+1<MAX_LEVELS;i++){
+     const [srcW,srcH]=sizes[i],[dstW,dstH]=sizes[i+1],base=(i+1)*(UNIFORM_BYTES/4);
+     levelWords[base]=offsets[i];levelWords[base+1]=srcW;levelWords[base+2]=srcH;
+     levelWords[base+3]=offsets[i+1];levelWords[base+4]=dstW;levelWords[base+5]=dstH;
+    }
+    device.queue.writeBuffer(uniforms,0,levelWords);
     return true;
    };
    if(!alloc(width,height)||!level0||!level0View||!pyramid||!bindGroup){
@@ -213,23 +224,20 @@ export async function createGpuHiz(device:GPUDevice,width:number,height:number,m
    }
    const gpu:GpuHiz={
     width,height,level0,level0View,flags,
+    // One compute pass builds the whole pyramid: consecutive dispatches inside a pass already see each
+    // other's writes, so a pass per mip bought nothing but its own submission cost.
     encodePyramid(encoder){
      if(disposed||!bindGroup||!pyramid)return;
-     writeUni(device,uniforms,uniData,[gpu.width,gpu.height,0],0);
-     const copy=encoder.beginComputePass({label:'WG HiZ depth copy'});
-     copy.setPipeline(copyPipeline);copy.setBindGroup(0,bindGroup,[0]);
-     copy.dispatchWorkgroups(Math.max(1,Math.ceil(gpu.width/WORKGROUP)),Math.max(1,Math.ceil(gpu.height/WORKGROUP)));
-     copy.end();
-     for(let i=0;i<sizes.length-1;i++){
-      const [srcW,srcH]=sizes[i],[dstW,dstH]=sizes[i+1];
-      let srcOffset=0;for(let k=0;k<i;k++)srcOffset+=sizes[k][0]*sizes[k][1];
-      const dstOffset=srcOffset+srcW*srcH;
-      writeUni(device,uniforms,uniData,[srcOffset,srcW,srcH,dstOffset,dstW,dstH],(i+1)*UNIFORM_BYTES);
-      const reduce=encoder.beginComputePass({label:'WG HiZ reduction'});
-      reduce.setPipeline(reducePipeline);reduce.setBindGroup(0,bindGroup,[(i+1)*UNIFORM_BYTES]);
-      reduce.dispatchWorkgroups(Math.max(1,Math.ceil(dstW/WORKGROUP)),Math.max(1,Math.ceil(dstH/WORKGROUP)));
-      reduce.end();
+     const pass=encoder.beginComputePass({label:'WG HiZ pyramid'});
+     pass.setPipeline(copyPipeline);pass.setBindGroup(0,bindGroup,[0]);
+     pass.dispatchWorkgroups(Math.max(1,Math.ceil(gpu.width/WORKGROUP)),Math.max(1,Math.ceil(gpu.height/WORKGROUP)));
+     pass.setPipeline(reducePipeline);
+     for(let i=0;i<sizes.length-1&&i+1<MAX_LEVELS;i++){
+      const [dstW,dstH]=sizes[i+1];
+      pass.setBindGroup(0,bindGroup,[(i+1)*UNIFORM_BYTES]);
+      pass.dispatchWorkgroups(Math.max(1,Math.ceil(dstW/WORKGROUP)),Math.max(1,Math.ceil(dstH/WORKGROUP)));
      }
+     pass.end();
     },
     encodeTest(queueDevice,encoder,next,rows,boundsCount,flagRows){
      if(disposed||!bindGroup)return 0;
