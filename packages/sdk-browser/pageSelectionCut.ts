@@ -51,10 +51,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.shown = shown;
   state.isResident = options.isResident;
   state.pixelError = options.pixelError ?? 0;
-  state.frustumRejected = 0;
-  state.nodesTested = 0;
-  state.lodLevel = 0;
-  state.complete = true;
   state.cameraStretch = maxStretch(camera.matrixWorldInverse.elements);
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;
   state.flatElements = (roots[0]?.world ?? IDENTITY_WORLD).elements;
