@@ -1,5 +1,14 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-14 — R&D éclairage : prototype et diagnostic, aucune intégration
+
+- Essai isolé depuis `78e7fe203d273c09dd4f27b4ee39016fbcb51cd1`, branche `codex/light-transport-experiment`. Deux pièces, porte mobile, trois sources colorées réglables, miroirs et sphère. Rendu expérimental Three/WebGL2 via les API publiques ; maillages source dessinés, pas les pages de clusters ni le runner du banc 15. Lab et assets inchangés, aucun commit/fusion.
+- Deux défauts de départ corrigés : auto-intersection de la sphère et mélange de l’ombre directe avec le cache indirect grossier. Les bandes des ombres sont remplacées par un échantillonnage stratifié déterministe ; du bruit reste visible. Qualité générale et gain de performances non validés.
+- Preuve navigateur : 14 états avec égalité exacte des matrices, radiances et images entre recalcul et réutilisation ; aucune erreur navigateur. 330 tests Node, build, structure et déclarations passent.
+- À la demande utilisateur, arrêt des ajouts fonctionnels pour comprendre l’orientation technique. Profil CPU : environ 9,5 ms pour une couleur, 40,1 ms pour la porte avec réutilisation. Contrôle graphique sur cinq images isolées : 370–498 ms GPU. Worker/WASM seuls ne résoudront donc pas la lenteur de ce dessin expérimental.
+- Une preuve numérique confirme la recombinaison des contributions des trois lampes à géométrie fixe (40 608 octets de bases, erreur proche de l’arrondi Float64). Amortissement et invalidation dynamique non mesurés. Aucun BVH, worker, port WASM ni cache de bases persistant ajouté au moteur.
+- Détails, preuves et expériences suivantes proposées : [Diagnostic et orientation R&D](RD_ECLAIRAGE_DIAGNOSTIC.md). L’ancien plan d’essai est clos et supprimé.
+
 ## 2026-09-14 01:25 — état de passation (session d'audit)
 
 - `develop` = 791245b : DAG de clusters, paquets de streaming, manifeste binaire, sélection GPU DAG, clusterBatches WebGL, transparents double face pré-scindés, limites de device, identifiants 24/8 bits, repli racines sous pression de budget. 330 tests Node, 46 tests Rust verts.
