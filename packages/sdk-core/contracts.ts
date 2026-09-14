@@ -52,6 +52,9 @@ export interface FrameMetrics {
  gpuPassMs?:GpuPassTimings|null;
  /** Enclosing GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
  gpuFrameMs?:GpuFrameMs;
+ /** Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule.
+  *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
+ cpuSelectMs?:number|null;
 }
 export interface BackendCapabilities { renderer:string; materials:string; hierarchy:boolean; gpuDriven:boolean; simplification:boolean; eviction:boolean; unsupported:string[] }
 export interface GeometryPageDescriptor {url:string;sha256:string;bytes:number;formatVersion:2;codec:'meshopt';vertexCount:number;indexCount:number;flags:number;uncompressedBytes:number}
