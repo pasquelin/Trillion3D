@@ -11,6 +11,7 @@ const PHASES={
  import:()=>'source geometry written',
  primitive:(e,s)=>`clustering ${s.primitives}${s.primitivesTotal?`/${s.primitivesTotal}`:''} primitives`,
  bootstrap:e=>`root bundles ${e.completed}/${e.total}`,
+ prune:e=>`pruning cache (${e.removedKeys} keys, ${mb(e.removedBytes)})`,
  complete:()=>'writing pointer',
 };
 const clip=(text,width)=>{const chars=[...text];return chars.length>width?`${chars.slice(0,Math.max(1,width-1)).join('')}…`:text;};
@@ -39,6 +40,8 @@ export function createTerminalProgress({label='job',index=0,total=1,stream=proce
    if(describe)state.text=describe(event,state);
    draw();
   },
+  /** Host-side step happening before or between compiler events (a manifest check, a copy...). */
+  note(text){state.text=text;state.phase='host';draw();},
   done(summary){finish('✔',summary);},
   fail(message){finish('✖',message);},
   get primitives(){return state.primitives;},
