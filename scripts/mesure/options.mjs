@@ -161,6 +161,10 @@ export function readOptions(argv, root) {
     lights: number('lampes', 0),
     lightShadows: (flags.get('ombres') ?? 'on') !== 'off',
     movingLight: flags.get('lampe-mobile') === 'true',
+    // `--lampes-fichier off` ouvre la scène sans les lampes que son fichier source portait ; le
+    // moteur les déclare de lui-même sinon. C'est la porte de fidélité du lot d'import des lampes :
+    // deux exécutions dont seule cette option diffère.
+    importedLights: (flags.get('lampes-fichier') ?? 'on') !== 'off',
     // `--soleil` ajoute la lampe directionnelle générique de `lampes.mjs`, avec ses cascades.
     sun: flags.get('soleil') === 'true',
     // `--camera-mobile` avance la pose d'un cran de la trajectoire du banc à chaque image mesurée,

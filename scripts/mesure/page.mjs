@@ -63,7 +63,15 @@ export async function measureView(options) {
     stageProfile: options.stageProfile === true,
     // Idem pour la lumière qui rebondit : le moteur l'éteint par défaut, le banc peut l'allumer.
     bounce: options.bounce === true,
+    // Les lampes que le fichier source portait : le moteur les déclare seul, le banc peut les taire.
+    importedLights: options.importedLights !== false,
   });
+  // Ce que le fichier a apporté, relevé avant tout ajout du banc. Un dist plus ancien que le lot
+  // d'import des lampes n'a pas cette fonction : la mesure rend `null`, jamais un compte inventé.
+  const declared = typeof explorer.importedLights === 'function' ? explorer.importedLights() : null;
+  const importedLights = declared
+    ? { nombre: declared.length, ids: declared.map((light) => light.id) }
+    : null;
   // Les lampes du contrat, posées par la règle générique du harnais et passées ici en données : la
   // page ne calcule aucune position, elle n'invente aucune scène.
   for (const light of options.lights ?? []) explorer.addLight(light);
@@ -164,6 +172,7 @@ export async function measureView(options) {
     cpuFrameMs,
     cpuSelectMs,
     gpuFrameMs,
+    importedLights,
     stageProfile,
     selection,
     metrics,

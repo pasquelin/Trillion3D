@@ -1,5 +1,49 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-16 — [session lumiere] une scène importée arrive avec ses lampes (lot import des lampes)
+
+Worktree `lot-import-lampes`, branche `lot/import-lampes`, partie de `develop` = `a29e025`.
+Jusqu'ici, `SceneLight` n'avait que des lampes posées à la main par l'hôte ou par le harnais :
+aucun chemin ne lisait celles qu'un fichier de scène porte pourtant déjà.
+
+- **Compilateur** (`packages/asset-compiler-rust/src/compiler_lights.rs`, 181 lignes) : les lampes
+  de `KHR_lights_punctual` sont lues sur le glTF d'entrée, posées en espace monde par les matrices
+  de `compiler_world`, et écrites dans un produit de cache à leur nom, `lights.json`, à côté de
+  `clusters.json`. **La version de manifeste ne bouge pas** : le fichier vit hors du manifeste et un
+  lecteur qui l'ignore lit le cache comme avant. L'import FBX écrivait déjà ses lampes sous cette
+  extension ; il y ajoute maintenant le drapeau d'ombre de ufbx (`extras.castsShadow`) et convertit
+  son intensité sans unité en candela ou en lux (`IMPORTER_VERSION` montée à `ufbx-0.11.3-gltf-2`).
+  OBJ n'en déclare aucune, le fichier sort vide.
+- **Unités, choix chiffré et publié** (`docs/SDK.md`) : division par **683 lm/W**, la constante
+  `K_cd` qui définit la candela au SI — aucune hypothèse de spectre, aucun gain caché ; l'hôte règle
+  l'exposition. FBX, qui ne porte aucune unité photométrique, a deux réglages nommés : 1 unité vaut
+  ≈ 79,6 cd (1000 lm dans 4π) pour une ponctuelle, 10 000 lux pour une directionnelle. Une portée
+  absente est déduite par `sqrt(I / 0,01 W·m⁻²)`, plafonnée à 10 km : le contrat exige une portée
+  finie, le glTF autorise l'infini. `innerConeAngle` n'a pas d'équivalent, le moteur adoucit le bord
+  par son propre réglage. Une lampe hors contrat est comptée dans `rejected`, jamais fatale.
+- **SDK** (`packages/sdk-browser/importedLights.ts`) : lecture tolérante par construction — fichier
+  absent, version inconnue, corps illisible valent zéro lampe, donc le comportement d'avant et la
+  vue `unlit`. Les lampes sont déclarées avant la préparation du premier moteur, l'ombre vient du
+  drapeau du fichier, et au-delà des 64 du contrat ce sont les plus portantes qui restent
+  (directionnelles d'abord, puis intensité de crête), le reste compté dans le diagnostic
+  `imported-lights`. `explorer.importedLights()` les rend à l'hôte, qui les règle ou les retire ;
+  `importedLights: false` ouvre la scène sans aucune.
+- **Harnais** : `--lampes-fichier on|off`, et `scripts/mesure/fixtureLampes.mjs`, une pièce
+  synthétique de 768 triangles portant deux lampes déclarées — aucune scène réelle n'y est nommée.
+
+Preuves, WebGPU, machine calme. **Fixture** : compilée, `phase lights` = 2 lampes, 0 refus,
+`lights.json` publie deux ponctuelles à 100 W/sr (68 300 cd / 683), portée 100 m, positions monde
+(±2, 2,4, 0) ; ouverte par le banc, `lampesFichier` = `{nombre: 2, ids: [lampe-chaude,
+lampe-froide]}` et la capture montre l'éclairage réel — chute en 1/d², dégradé, teintes chaude et
+froide — là où `--lampes-fichier off` rend l'albédo plat de la vue `unlit`. **Emerald** : recompilé
+en 19 s (6 fils, 16 Go), il **ne déclare aucune lampe** dans ses données — son glTF ne porte ni
+`extensionsUsed` ni `KHR_lights_punctual` sur ses 1035 nœuds —, donc `lights.json` sort à `count: 0`
+et l'image ne bouge pas : `develop` contre ce lot sur le même cache, **0 pixel** d'écart sur 230 400,
+`maxCanal` 0, témoin A/A 0 pixel, coupe identique (80 153 pages), zéro erreur de page.
+
+Portes du lot, allégées par décision de l'utilisateur : `tsc` vert, `cargo check` vert,
+`npm run check:changed` vert. Pas de tests, pas de `npm run validate` complet.
+
 ## 2026-09-16 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
 
 Deux lignes seulement séparaient le banc commun d'une scène quelconque, et elles sont parties.

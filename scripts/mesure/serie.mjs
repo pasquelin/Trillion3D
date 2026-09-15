@@ -27,6 +27,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     height: settings.height,
     stageProfile: settings.stageProfile,
     bounce: settings.bounce,
+    importedLights: settings.importedLights,
     profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,
@@ -69,6 +70,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
       couvertureLimiteeParBudget: metrics.coverageBudgetLimited ?? null,
     },
     lampes: lights ? lights.resume : null,
+    // Les lampes venues du fichier source, telles que le moteur les a déclarées à l'ouverture.
+    lampesFichier: result.importedLights ?? null,
     charge: { debut, fin },
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,
