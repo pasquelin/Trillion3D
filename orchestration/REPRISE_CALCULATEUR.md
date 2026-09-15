@@ -1,23 +1,30 @@
 # Reprise — session Calculateur
 
-Session titrée « Calculateur » : vérifier par `get_session("self")` avant toute action.
+Vérifier le titre « Calculateur » par `get_session("self")` avant toute action. Règles : `AGENTS.md`. Plan : `SPEC_MOTEUR_SANS_THREE.md` R1a à R1f.
 
-## Règles
+## Règles de travail
 
-- Règles du dépôt : `AGENTS.md`. Plan : `orchestration/SPEC_MOTEUR_SANS_THREE.md` R1a à R1f (lots M1 à M5).
-- Opus 5 écrit le code de production et le banc, jamais de tests ; Sonnet 5 lit, écrit les tests, mesure. Opus parallèles sur périmètres disjoints, worktree parti de `develop` (merge-base vérifiée au lancement).
-- Seul le Validateur lance `npm run validate`, fusionne et pousse. On lui livre une branche avec sa preuve : tests ciblés, `npm run check:changed`, banc, campagne 0 px si le rendu est touché.
-- Jamais `git stash`, jamais de push. Mots interdits : les deux noms cités dans `AGENTS.md`.
+- Opus 5 code et écrit le banc ; Sonnet 5 écrit les tests ; Haiku lance les campagnes. Worktree parti de `develop`, merge-base vérifiée.
+- Le Validateur seul lance `validate`, fusionne et pousse. Livraison = branche + tests ciblés + `check:changed` + banc + campagne 0 px si le rendu est touché. Jamais `git stash` ni push ; mots interdits d'`AGENTS.md`.
+- Campagne 0 px : `scripts/mesure/banc.mjs` WebGPU trois vues et `--camera-mobile`, WebGL générale, `--pixelError 0,1`, avant = base develop. Aucune attente ni fichier partagé avant de mesurer.
+- Chaque lot M : identique à Three au bit près, hiérarchies parent/enfant comprises ; tout écart expliqué et borné.
+- Un seul banc : équivalence, puis comparatif Three contre nous, lancé sans attendre une machine calme, deux exécutions. Tableau : Three ns/op, nous ns/op, Three/nous, gain %, ✅ identique et plus rapide, ❌ sinon. Three importé par bancs et tests seulement.
 
-## Exigences de l'utilisateur pour chaque lot M
+## Ce que les tests ne prouvent pas
 
-- Résultat identique à Three au bit près, hiérarchies parent/enfant comprises (chaînes `Object3D` de profondeur 1 à 6, échelles négatives, non uniformes sous rotation, nulles). Un écart est expliqué et borné, jamais masqué.
-- Même script de banc : équivalence puis comparatif de performance Three contre nous (ns/op, rapport, octets alloués, médiane et p95, lots de 1 000 à 100 000, en-tête Node/CPU/charge/commit). Chiffres officiels sur machine calme ; une ligne plus lente est affichée telle quelle.
-- Three n'est importé que par les bancs et tests, comme référence ; jamais par les fichiers `math*.ts` du moteur.
+Les tests et bancs des lots M prouvent l'**identité** avec l'ancien code et avec Three, pas la **justesse** du calcul : un défaut antérieur est reproduit fidèlement. Audit externe du 15 sept. 2026 sur `f6ac76f`, cinq défauts, aucun venu des lots M ni d'un bug de Three.js (vérification par reproduction en cours) :
 
-## État courant
+1. `pageCone.ts:19` et `isConformal` de `gpuDagShader.ts` : tolérance absolue `1e-12`, rejet de faces visibles à petite échelle (`5ae3b83`).
+2. `webgpuPagesTransform.ts:51` : `decompose` puis recomposition perd le cisaillement sous un parent étiré, limite documentée de Three (`634e919`).
+3. `projectionOracles.ts:142` : division par la distance euclidienne, erreur écran sous-estimée hors axe (`c5db466`).
+4. `wrapTexel` de `visibilityMath.ts:89` et `visibilityPageWgsl.ts` : répétition miroir traitée comme répétition simple (`5ae3b83`).
+5. `gpuSelection.ts:121` : vue copiée avant que `getWorldPosition` mette à jour les parents, caméra parentée incohérente (`5ae3b83`).
 
-- **M2 volumes** : branche `calculs/m2-volumes` (worktree `agent-af28d88c19262c447`), code et banc livrés (65 275 cas, dont 18 287 parent/enfant, 0 écart). Tests Sonnet en cours. Restent : comparatif de performance et campagne 0 px, puis livraison au Validateur.
-- **M1 socle** : branche `calculs/m1-socle` (worktree `agent-a8fe9b43c4c40b33a`), Opus en cours (vecteurs, matrices, quaternions, couleurs). À vérifier au rapport : `webgpuPagesWinding.ts` touché (périmètre M3).
-- **Ensuite** : tests Sonnet de M1, preuves, livraison ; puis M3 (hiérarchie et caméra maison, chemin WebGPU par image, restes signalés par M2 : `explorerScene`, `explorerCamera`, `replicateInstances`, `getNormalMatrix`/`getWorldPosition` de `pageCone`), M4, M5.
-- Liste de travail des appels Three restants : lot T1, lu dans git (`git show ebba8de:orchestration/AUDIT_MATH_FORMULES.md`) et recopié dans le brief de chaque lot, jamais dans le dépôt.
+Corriger change le résultat : décision de l'utilisateur défaut par défaut, puis tests de justesse contre la projection et la géométrie réelles. 2 et 5 se corrigent avec la hiérarchie maison de M3a.
+
+## État
+
+- **M2 volumes** : fusionné dans develop, 0 px sur develop fusionné, 1,2 à 4× plus rapide que Three.
+- **M1 socle** : `calculs/m1-socle` 2355e89, livré au Validateur, 0 px, plus rapide sauf produit seul et composition (≈ 1,0).
+- **M3a hiérarchie et caméra** : `calculs/m3a-hierarchie` 594b97b (worktree `agent-a96ed1f11e7e723e6`), 0 écart, 55 tests, 1,1 à 10× plus rapide. À rebaser après M1, puis campagnes et livraison.
+- **Ensuite** : produit 4×4 sur tampons plats (32 % de la mise à jour de hiérarchie) ; M3b après le lot de coupe de Geometry : rendu par image (`pageSelectionCut`, `gpuSelection`, `webgpuPagesEncode*`, `hiz*`), chargement, explorateur, diagnostic ; puis M4, M5. Appels Three restants : `git show ebba8de:orchestration/AUDIT_MATH_FORMULES.md`, section lot T1.
