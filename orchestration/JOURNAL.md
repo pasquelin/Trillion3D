@@ -1,5 +1,151 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session sans-threejs] le processeur fixe WebGPU, ce qui manquait au profil et les trois postes qui en sortent (lot cpu-fixe)
+
+Worktree `.claude/worktrees/geometry-cpu-fixe`, branche `lot/cpu-fixe`, partie de `develop` =
+`9cd6a44` (les trois commits de docs qui ont suivi ne touchent pas le code). Six commits : `b684322`
+(profil), `901f105` (levier 1), `22796c1` (levier 2), `351bb45` (levier 3), `acedbbb` (tableau
+partagé), `c89ca7f` (tests). **Non fusionné** : le lot touche `sdk-browser`, la session Lumière
+travaille sur `webgpuPagesEncoder.ts` / `webgpuPagesFlush.ts` et sur la passe de mélange ; premier
+livré fusionne, le second rebase et rejoue sa preuve.
+
+### 1. Le profil ne commençait pas où l'image commence
+
+Le lot visibilité l'avait écrit et n'avait pas pu le mesurer : `renderWebgpuPages` ouvre `cpuStart`
+**après** avoir mis à jour les matrices monde de la scène et repris la matrice et la boîte de chaque
+item transparent, et les deux listes que l'hôte demande **après** le rendu — les pages encore
+attendues, les pages à épingler — n'avaient aucune étape à leur nom non plus. Le moteur WebGL2
+tenait déjà le contrat `HostCpuProfile` pour ses propres bornes d'hôte ; le moteur WebGPU ne
+l'implémentait pas. Six bornes de plus, par ce seul mécanisme : `worldMs` et `blendWorldMs` dans le
+moteur, `arrivalsMs`, `pendingMs`, `retainMs` et `submitMs` déposées par l'hôte. La ligne du profil
+n'est donc plus classée au milieu de l'image mais à sa fin, par `cpuFrameEnd` — sans quoi les bornes
+de l'hôte auraient décrit l'image précédente —, et `totalMs` couvre l'image entière du moteur.
+
+Ce que le profil nommé a montré, vue générale, seuil 0, 1280×720, `--max-pages 100000`, boucle de
+profil de 120 images (charge machine 39 à 45 : **les durées ne valent que par leur rapport**) :
+
+| étape (CPU p50)                    | `9cd6a44` | après le profil seul |
+| ---------------------------------- | --------- | -------------------- |
+| Animations et transformations      | _sans borne_ | **0,5**           |
+| Adoption de la coupe               | 0,8       | 0,9                  |
+| Transparents                       | 0,7       | 0,9                  |
+| **Listes de pages rendues à l'hôte** | _sans borne_ | **2,1 à 2,4**   |
+| Téléversements                     | 0,3       | 0,3                  |
+| Partition occulteurs / testés      | 0,5       | 0,5                  |
+| Projection des boîtes              | 0,2       | 0,2                  |
+| Fiches de dessin                   | 1,5       | 1,5 à 1,7            |
+| Encodage des passes                | 2,8       | 2,7 à 2,9            |
+
+Une seconde mesure, jetable et jamais committée, a séparé les trois moitiés de ce nouveau poste :
+**`pendingUrls` 0,8 à 1,0 ms**, **`pageUrls` 1,1 à 1,5 ms**, **épingles 0,1 ms**. Les deux premières
+parcourent, par image, la couverture d'amorçage, les quarante-six mille lignes dessinées et les
+quatre-vingt mille placements de la coupe — cent vingt-six mille enregistrements — pour redonner, à
+caméra fixe, la liste de l'image précédente.
+
+### 2. Les trois leviers, et ce que chacun a rendu
+
+| levier | ce qui change | mesure | gardé |
+| --- | --- | --- | --- |
+| 1 — les deux listes sans hachage, épingles inchangées non reposées | le rang de la clé de requête, posé une fois par le catalogue, remplace l'ensemble de chaînes ; le cache de flux compare la liste rendue à celle qu'il tient avant de reposer ses épingles une à une | épingles **1,2 → 0,1 ms** ; les deux parcours restent | **oui** |
+| 2 — la boîte monde d'un transparent ne repart que si sa matrice a bougé | seize comparaisons au lieu de seize recopies et d'un transport de huit coins, mille neuf cents fois par image | se dépose sur « Transparents », sous la résolution du profil à cette charge | **oui**, c'est le levier 2 du lot visibilité, retiré faute de borne (tag `essai/visibilite-levier2-mesure`) |
+| 3 — les deux listes tenues quand le relevé l'est déjà | le relevé dit s'il a publié la **même suite** d'identifiants que le précédent ; une page qui reçoit ou perd ses octets fait avancer une estampille | **« Listes de pages rendues à l'hôte » 2,1 → 0,0 ms** | **oui** |
+
+Le levier 3 est fermé par défaut : seule l'adoption d'un relevé déjà lu lève le drapeau, et la coupe
+processeur, la capture de surface et l'image en attente de couverture repassent toutes par le
+parcours complet. C'est l'égalité des **suites** qui est testée, pas celle des ensembles : l'aval lit
+`desired` et `shown` dans l'ordre, et un même ensemble republié dans un autre ordre réécrit les
+enregistrements à d'autres rangs.
+
+Un trou trouvé en relisant, et corrigé (`acedbbb`) : le suivi du rendu, publié toutes les deux
+secondes, comptait les pages attendues **dans le même tableau** que la liste rendue à l'hôte. Tant
+que celle-ci était refaite à chaque image l'écrasement ne se voyait pas ; tenue, elle aurait rendu ce
+que le suivi y avait laissé — et le suivi lit la coupe entière, sans le drapeau de budget ni la
+couverture d'amorçage. Chacun son tableau, et un test le dit.
+
+### 3. Ce que le lot rend, et ce qu'il n'atteint pas
+
+`cpuFrameMs` p50, vue générale, seuil 0, les deux côtés joués dans la même exécution (charge relevée
+**39 à 45**, machine occupée par d'autres sessions : le rapport vaut, la valeur non) :
+
+| série       | `9cd6a44` | tête du lot |
+| ----------- | --------- | ----------- |
+| générale · 0 | 7,70     | **5,90** (et 5,80 sur la seconde série du même côté) |
+
+Profil de la tête, même exécution : animations 0,5 · adoption 0,9 · transparents 0,8 à 0,9 ·
+**listes de l'hôte 0,0** · téléversements 0,3 · partition 0,5 · projection 0,2 · fiches de dessin
+1,4 à 1,8 · encodage des passes 2,7 à 3,1.
+
+**La cible `< 4 ms` n'est pas atteinte** : 5,8 à 5,9 ms. Ce lot enlève le poste qu'il a d'abord dû
+nommer ; ce qui reste est nommé, chiffré, et hors de son périmètre ou de son niveau de preuve :
+
+- **Encodage des passes, 2,7 à 3,1 ms**, inchangé : mille neuf cent trente-six appels de dessin dont
+  mille neuf cent vingt-huit de mélange, un par primitive transparente visible, y compris celles dont
+  la coupe est vide. C'est la passe de mélange, qui appartient à la session Lumière ; et le remède
+  reste celui que le lot encodage avait nommé — savoir avant l'image quelles primitives n'ont rien à
+  dessiner, ce que le processeur ne sait pas puisque la compaction est sur la carte.
+- **Fiches de dessin, 1,4 à 1,8 ms** : la boucle parcourt les quarante-six mille lignes et y lit
+  `rec.array.length` sur autant d'objets. Le rendre gratuit demande de tenir ce compte dans un
+  tableau typé écrit au moment où la ligne est posée — donc de prouver qu'une ligne résidente ne voit
+  jamais son tableau remplacé sous elle. **Non tenté : l'invariant n'est pas établi, et un compte de
+  sommets faux dessine faux.**
+- **Adoption de la coupe, 0,9 ms** : le drapeau du levier 3 suffirait à sauter le parcours des
+  quarante-six mille identifiants, sauf pour `uncoveredTriangles`, qui dépend en plus de
+  `residentOffsetWords` et de `rec.array`. **Écarté volontairement** : `uncoveredTriangles` est la
+  mesure par laquelle le harnais prouve qu'il n'y a pas de trou. La mettre en cache derrière une
+  estampille rendrait la preuve dépendante de l'exactitude de cette estampille. Le lot 3b avait déjà
+  refusé ce risque pour 0,6 ms ; il est refusé de nouveau.
+- **Animations et transformations, 0,5 ms** : `source.updateMatrixWorld(true)` sur le graphe source.
+  Les nœuds portent `matrixAutoUpdate`, donc leur matrice est recalculée quelle que soit la force
+  demandée ; l'enlever demanderait d'éteindre ce drapeau, c'est-à-dire de retirer à l'hôte le droit
+  de bouger un nœud par sa position. Refusé.
+
+### 4. Preuve
+
+Harnais commun, `--moteur webgpu`, 1280×720, 60 images, chauffe par défaut, `--max-pages 100000`,
+`avant` = `9cd6a44`. Verrou `.claude/mesure.lock` pris au nom de `geometry cpu-fixe` avant chaque
+campagne et rendu après, jamais tenu entre deux.
+
+| série                          | px avant/après    | témoin A/A | hash de coupe  | trous | charge  |
+| ------------------------------ | ----------------- | ---------- | -------------- | ----- | ------- |
+| générale · 0 (profil seul, `b684322`) | 0 px, max canal 0 | 0 px | `b1cd55ba461a` | 0 | 41 → 40 |
+| générale · 0 (tête `351bb45`)  | 0 px, max canal 0 | 0 px       | `b1cd55ba461a` | 0     | 43 → 42 |
+
+`selectedTriangles` 10 046 405 des deux côtés, `uncoveredTriangles` 0 des deux côtés, aucun incident
+de carte graphique. Le code de retour non nul du banc vient des 404 `lights.json` du cache Emerald du
+Lab, connus et sans effet sur les pixels. Images : `.mesure/out/cpu-fixe/`.
+
+**Séries encore à jouer**, le verrou étant tenu par la session Lumière à l'heure de la livraison — la
+règle est de ne pas attendre, et aucune ne porte sur du code que les deux premières ne traversent
+pas : `sol` et `rue` aux deux seuils, `générale · 1`, la caméra mobile aux deux seuils (elle fait
+tomber le drapeau du levier 3 à chaque image et repasse donc par le parcours complet), la scène
+synthétique `classes-materiaux` (`--cache-avant`/`--cache-apres .mesure/cache-classes`,
+`--vues generale,detail`), et **une série WebGL** : `streamingCache.retain` est partagé par les deux
+moteurs, même si seul le moteur WebGPU tient les listes d'une image à l'autre.
+
+### 5. Portes
+
+`npx tsc --noEmit -p .`, `npm run check:changed`, `npm run check:unused` (knip, 0),
+`npm run check:lines`, `npm run check:duplicates` (0 clone), `prettier --check`, `eslint` :
+**vertes**. `npm test` : **784 tests, 0 échec**, dont douze ajoutés dans cinq fichiers
+(`webgpuCutDelta.test.ts`, `webgpuPagesHostLists.test.ts`, `webgpuBlendWorlds.test.ts`,
+`webgpuPagesCpuSteps.test.ts`, `streamingPages.test.ts`), plus deux assertions rendues au test
+d'adoption qui portait le relevé tenu. `render-tech-lab/` non modifié ; port 5174 non touché ; rien
+écrit dans `public/` ; aucun fichier d'éclairage, d'ombres, de sondes, de proxy ni de reflet touché,
+et ni `webgpuPagesEncoder.ts` ni `webgpuPagesFlush.ts` — le tableau que le suivi du rendu partageait
+a été réglé du côté de la liste de l'hôte, pas du sien.
+
+### 6. Incident de verrou, à ne pas reproduire
+
+À 17 h 14 la prise a échoué (`mkdir` sans `-p`, retour vérifié, rien écrit) : bonne conduite. Mais à
+17 h 20 le verrou était un répertoire **vide**, sans fichier `proprietaire`, sans `banc.mjs` vivant,
+inchangé depuis plus d'une minute : la règle écrite dans `GEOMETRY_REPRISE` déclare un tel verrou
+orphelin et demande de le retirer. Il a donc été retiré et repris — alors qu'il appartenait à un Opus
+du Compilateur dont la `mkdir` avait réussi et qui n'avait pas encore écrit son nom. **La règle de
+l'orphelin ne distingue pas un verrou abandonné d'un verrou tout juste pris** : entre `mkdir` et
+l'écriture de `proprietaire`, un preneur est indiscernable d'un mort. Correction proposée : écrire
+`proprietaire` dans la **même** commande que la `mkdir` (`mkdir … && echo … > …/proprietaire`), et
+n'appliquer la règle de l'orphelin qu'au-delà de plusieurs minutes.
+
 ## 2026-09-15 — [session Lumière] `sceneLit` lu à chaque image
 
 Branche `fix/scenelit`, sur `develop` = `f66ddf7`. Le lot `unlit-identite` publiait `sceneLit` en
