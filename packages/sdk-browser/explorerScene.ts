@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { meshes as objects } from './sceneMeshes.ts';
+import { primitiveFinder } from './primitiveLookup.ts';
 import { replicateInstances } from './replicateInstances.ts';
 import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
 import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
@@ -15,24 +16,22 @@ export function exactPagesBounds(
   onMissing: (mesh: THREE.Mesh) => void,
   into = new THREE.Box3(),
 ) {
+  const primitiveOf = primitiveFinder(metadata.primitives);
+  // Une boîte et ses deux bornes, reprises d'une page à l'autre : la transformation et l'union sont
+  // celles de Three.js, mot pour mot, mais sans les trois objets que chaque page allouait.
+  const page = new THREE.Box3();
   for (const mesh of objects(source)) {
-    const association = associations.get(mesh);
-    const primitive = metadata.primitives.find(
-      (item) =>
-        item.mesh === association?.meshes && item.primitive === (association?.primitives ?? 0),
-    );
+    const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) {
       onMissing(mesh);
       continue;
     }
-    for (const page of primitive.pages)
-      if ((page.role ?? 'exact') === 'exact')
-        into.union(
-          new THREE.Box3(
-            new THREE.Vector3().fromArray(page.min),
-            new THREE.Vector3().fromArray(page.max),
-          ).applyMatrix4(mesh.matrixWorld),
-        );
+    for (const item of primitive.pages)
+      if ((item.role ?? 'exact') === 'exact') {
+        page.min.fromArray(item.min);
+        page.max.fromArray(item.max);
+        into.union(page.applyMatrix4(mesh.matrixWorld));
+      }
   }
   return into;
 }
