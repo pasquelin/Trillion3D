@@ -29,3 +29,30 @@ export const PAGE_LOOKUP_WGSL = `fn drawPage(instanceIndex:u32)->u32{
 
 /** Position d'un sommet de page dans son espace local. */
 export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}`;
+
+/**
+ * Les liaisons de l'atlas d'aperçu, que le test de masque lit quand la carte de base n'est pas
+ * encore transférée. Nommées ici parce que les deux passes qui appliquent la découpe en ont besoin.
+ */
+export const PAGE_PREVIEW_BINDING = `@group(0) @binding(10) var previews:texture_2d_array<f32>;
+@group(0) @binding(11) var<storage, read> previewReady:array<u32>;`;
+
+/**
+ * La coordonnée de texture d'un sommet et le test de masque d'opacité d'un cluster, tels que le
+ * raster du tampon de visibilité et la passe de profondeur des ombres les appliquent tous les deux.
+ * Une seule écriture : une découpe qui ne serait pas la même des deux côtés ferait une ombre qui ne
+ * correspond pas à la silhouette qu'on voit. `flags` : 4 = UV présentes, 8 = carte de base,
+ * 32/64 = répétition en S/T, 128 = matériau à masque ; le seuil est `baseColor.w`.
+ */
+export const PAGE_MASK_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
+fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
+fn maskKeep(page:PageInfo,uv:vec2f)->bool{
+ if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
+ let raw=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
+ // L'aperçu préserve la couverture du seuil, donc la découpe est juste avant même le transfert.
+ if(previewReady[page.mapIndex]==0u){
+  return textureSampleLevel(previews,mapsSampler,raw,i32(page.mapIndex),0.0).w>=page.baseColor.w;
+ }
+ let sample=textureSampleLevel(maps,mapsSampler,raw*page.uvScale,i32(page.mapIndex),0.0);
+ return sample.w>=page.baseColor.w;
+}`;

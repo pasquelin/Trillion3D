@@ -8,7 +8,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 /** Approximation nommée du chemin d'ombres, publiée dans le diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
-  'alpha-masked occluders cast their whole cluster silhouette',
+  'transparent clusters cast no shadow at all; their attenuated, tinted shadow is not modelled',
   'tile light lists bound the per-pixel loop to the published per-tile budget',
   'shadow slice priority uses an angular screen-coverage estimate, not an adjoint',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',

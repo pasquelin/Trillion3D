@@ -1,5 +1,6 @@
 import { PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
+import { visBindEntries } from './webgpuBindEntries.ts';
 import { faceRects } from './webgpuPagesEncodeShadows.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -12,7 +13,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number) {
   const { vis, gpu, lights } = rt;
   const cacheBuffer = gpu.cache?.buffer,
-    { visBindGroupLayout, concatPos, concatUv, pageTable, mapsTexture, mapsSampler } = vis;
+    { visBindGroupLayout, concatPos, concatUv, pageTable, mapsTexture, mapsSampler, preview } = vis;
   const { cull } = lights;
   if (
     !visBindGroupLayout ||
@@ -22,11 +23,12 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
     !pageTable ||
     !mapsTexture ||
     !mapsSampler ||
+    !preview ||
     !vis.zeroFlags ||
     !cull
   )
     return;
-  const key = [cacheBuffer, concatPos, concatUv, pageTable, mapsTexture, vis.zeroFlags, cull.kept];
+  const key = [cacheBuffer, concatPos, concatUv, pageTable, mapsTexture, preview, cull.kept];
   if (key.some((resource, index) => lights.shadowGroupsKey[index] !== resource)) {
     lights.shadowGroupsKey = key;
     lights.shadowGroups.fill(undefined);
@@ -36,21 +38,20 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
     const visMaps = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     group = device.createBindGroup({
       layout: visBindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: cacheBuffer } },
-        { binding: 1, resource: { buffer: concatPos } },
-        { binding: 2, resource: { buffer: pageTable } },
-        { binding: 3, resource: { buffer: vis.zeroFlags } },
-        {
-          binding: 4,
-          resource: { buffer: cull.drawUniform, offset: face * PAGE_BIND_ALIGN, size: 96 },
-        },
-        { binding: 5, resource: { buffer: concatUv } },
-        { binding: 6, resource: visMaps },
-        { binding: 7, resource: mapsSampler },
-        { binding: 8, resource: { buffer: cull.kept } },
-        { binding: 9, resource: { buffer: cull.offsets } },
-      ],
+      entries: visBindEntries({
+        cache: cacheBuffer,
+        position: concatPos,
+        pageTable,
+        flags: vis.zeroFlags,
+        uniform: cull.drawUniform,
+        uniformOffset: face * PAGE_BIND_ALIGN,
+        uv: concatUv,
+        maps: visMaps,
+        sampler: mapsSampler,
+        instances: cull.kept,
+        slotOffsets: cull.offsets,
+        preview,
+      }),
     });
     lights.shadowGroups[face] = group;
   }
