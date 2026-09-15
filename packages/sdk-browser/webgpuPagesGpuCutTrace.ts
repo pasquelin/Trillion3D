@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import { addCpuSteps } from './stageMapping.ts';
 import { CPU_STEP, CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
-import { sunFarState } from './webgpuPagesPrepareSunFar.ts';
+import { sunFarCounts } from './webgpuPagesPrepareSunFar.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
@@ -35,18 +35,11 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // L'ombre lointaine du soleil : des compteurs relevés sur une image sur quinze, jamais une durée.
   // Son rayon est tiré dans la résolution différée, donc ses millisecondes sont celles de l'étape
   // « Éclairage (résolution) » — dire une durée ici en compterait une seconde fois.
-  const far = sunFarState(rt);
-  // Un compteur qui n'est pas revenu n'est pas déposé du tout : il n'existe pas de zéro déduit.
-  const farCounts: Record<string, number> = {};
-  if (far.proxyTriangles !== null) farCounts.trianglesDuProxy = far.proxyTriangles;
-  if (far.pixelsTestes !== null) farCounts.pixelsTestes = far.pixelsTestes;
-  if (far.pixelsAssombris !== null) farCounts.pixelsAssombris = far.pixelsAssombris;
-  if (far.imageRelevee !== null) farCounts.imageRelevee = far.imageRelevee;
-  stages.setCounts('sunFarShadows', farCounts);
+  stages.setCounts('sunFarShadows', sunFarCounts(rt));
   stages.setReason('sunFarShadows', {
     cpu: 'aucun travail processeur : le rayon lointain est tiré par la résolution différée',
     gpu:
-      far.unavailable ??
+      rt.sunFar.reason ??
       'mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain',
   });
   // Ce que le rebond a réellement fait : des sondes et des rayons, jamais une durée. Une scène

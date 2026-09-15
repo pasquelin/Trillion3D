@@ -311,7 +311,7 @@ rapport le dit maintenant au lieu de se taire.
 ## 2026-09-15 — lot « ombres lointaines du soleil » : un rayon contre le proxy, et une découpe de cascades qui tient son rapport
 
 Worktree `lot-ombres-lointaines`, branche `lot/ombres-lointaines`, partie de `develop` = `a29e025`,
-rebasée sur `develop` = `4030cb8`. Aucun objet de cache n'est touché : le lot ne lit que
+rebasée sur `develop` = `71bb38a`. Aucun objet de cache n'est touché : le lot ne lit que
 `proxy.bin`, déjà écrit par le compilateur.
 
 ### 1. Au-delà de la dernière cascade, l'ombre se teste
@@ -422,6 +422,28 @@ relevées le sont donc sur machine chargée et ne valent que par leur ordre de g
 de contrôle, étape « Éclairage (résolution) » p50 **1,94 ms** sans rayon lointain contre **2,36 ms**
 avec 515 312 rayons, soit environ 0,8 ns par rayon. **Le tableau de coût avant/après des trois vues
 d'Emerald reste à relever**, sous verrou et charge inférieure à 4, à la livraison.
+
+### 5. Simplification, après coup
+
+- **Huit tampons de stockage, pas neuf.** `proxyAlbedoOf` sort de la traversée partagée
+  (`bounceNodeWgsl.ts` → `PROXY_ALBEDO_WGSL`) et n'est inclus que par le cache de surfaces, le seul
+  qui lise une couleur : une ombre cherche un occulteur. L'ombre lointaine ne lie donc plus que
+  trois colonnes du proxy. L'étage de fragments de la résolution différée passe de **9 à 8** tampons
+  de stockage avec le rebond allumé (7 sans), c'est-à-dire le minimum garanti par WebGPU, et la
+  demande de `maxStorageBuffersPerShaderStage` disparaît de `backendCommon.ts`. Les numéros de
+  liaison ne sont plus écrits trois fois : `SUN_FAR_PROXY_BINDING` et `SUN_FAR_STATE_BINDING` les
+  portent, et le bloc d'état a des champs nommés au lieu d'une `vec4f` décodée en `x/y/z/w`.
+  `webgpuBindBudget.test.ts` ne couvre pas encore la disposition différée — c'est ce trou qui a
+  laissé passer le neuvième tampon ; à compléter avec les tests du lot.
+- **Le groupe de liaison ne se refait plus à chaque image** : `gpuSunFarShadow.buffers()` rendait un
+  tableau neuf par appel, que la passe différée comparait à celui qu'elle avait lié — jamais égal,
+  donc groupe reconstruit à chaque image. La liste est maintenant mémorisée par `adopt()` et remise
+  à zéro par `dispose()`.
+- **`webgpuPagesEncodeLights.ts` repasse sous 200 lignes** : ce que la passe différée *lie*
+  (`wantsContractLighting`, `directLightResources`) part dans `webgpuPagesLightResources.ts`, à
+  côté de ce qui l'*encode*. Le plancher du plan proche des cascades n'est plus écrit deux fois
+  (`cameraNearMetres`), et les compteurs de l'étape se mettent en forme dans
+  `webgpuPagesPrepareSunFar.ts` plutôt que dans le profil. Aucun changement d'image.
 
 ## 2026-09-15 — [session village] la scène « Whisperwind Village » entre au banc 15, importée en FBX
 
