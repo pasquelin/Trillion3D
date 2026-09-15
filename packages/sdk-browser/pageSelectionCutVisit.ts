@@ -1,10 +1,10 @@
 import { coneSkipsPage } from './pageSelectionHelpers.ts';
 import { boxClip, cutSelects, projectedClusterError } from './pageSelectionMath.ts';
+import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 import { BOUND_STRIDE } from './pageSelectionCutBounds.ts';
 import { nodeDecision, nodeDecisionAtZero } from './pageSelectionCutNode.ts';
-import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 
 /** Frustum test of a page's world box against the selection planes. */
 function boxClipRec(min: readonly number[], max: readonly number[]) {
@@ -13,10 +13,13 @@ function boxClipRec(min: readonly number[], max: readonly number[]) {
 
 /** Retient un cluster déjà choisi : demande, niveau, résidence, estampille.
  *  Build requested and drawable cuts separately; a resident fallback never hides a missing request. */
-function keep<T extends PageRecord>(s: SelectionState<T>, rec: T) {
-  if (!s.flatUseForcing) {
+function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, forcing: boolean) {
+  const triangles = rec.triangles;
+  if (!forcing) {
     s.wanted.push(rec);
-    if (rec.level !== undefined && rec.level > s.lodLevel) s.lodLevel = rec.level;
+    s.wantedTriangles += triangles;
+    const level = rec.level;
+    if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
     if (!s.pageResident(rec)) {
       s.flatMissing = true;
       if (!s.rootFallback) s.complete = false;
@@ -27,31 +30,44 @@ function keep<T extends PageRecord>(s: SelectionState<T>, rec: T) {
     if (!s.rootFallback) s.complete = false;
     return;
   }
-  s.shown.push(rec);
+  const shown = s.shown;
+  shown.push(rec);
+  s.shownTriangles += triangles;
   // Un passage qui dépasse le budget est jeté tel quel : son seul résultat est « trop de pages ».
   // Le savoir au premier dépassement épargne la fin de la descente, pas une page de celle qu'on garde.
-  if (s.budget !== 0 && s.shown.length > s.budget) s.over = true;
+  if (s.budget !== 0 && shown.length > s.budget) s.over = true;
 }
 
 /** Teste un cluster, sauf sa coupe quand un ancêtre l'a déjà tranchée (`settled`) : le tronc et le
- *  cône restent posés, et l'ordre d'émission reste celui de la descente complète. */
-function take<T extends PageRecord>(s: SelectionState<T>, rec: T, settled = false) {
-  if (!rec.min || !rec.max) return;
-  if (!s.flatInside && boxClipRec(rec.min, rec.max) === 0) {
+ *  cône restent posés, et l'ordre d'émission reste celui de la descente complète.
+ *  `inside`, `forcing` et `exact` sont constants sous un nœud : la boucle les passe au lieu de les
+ *  relire sur l'état à chaque cluster. */
+function take<T extends PageRecord>(
+  s: SelectionState<T>,
+  rec: T,
+  settled: boolean,
+  inside: boolean,
+  forcing: boolean,
+  exact: boolean,
+) {
+  const min = rec.min,
+    max = rec.max;
+  if (!min || !max) return;
+  if (!inside && boxClipRec(min, max) === 0) {
     s.frustumRejected++;
     return;
   }
   if (
     !settled &&
-    !(s.flatUseForcing
+    !(forcing
       ? drawnUnderForcing(s, rec)
-      : s.flatExact
+      : exact
         ? cutSelectsAtZero(rec)
         : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.camera.near, s.pixelError))
   )
     return;
-  if (rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, rec.min, rec.max)) return;
-  keep(s, rec);
+  if (rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, min, max)) return;
+  keep(s, rec, forcing);
 }
 
 export function flatVisible<T extends PageRecord>(s: SelectionState<T>, rec: T) {
@@ -67,20 +83,20 @@ export function traverse<T extends PageRecord>(
   pages: T[],
   culling?: { nodes: Float64Array; stride: number; bounds: Float64Array },
 ) {
-  s.flatInside = false;
+  // Le repli par forçage ne teste pas la coupe mais le groupe forcé : les bornes de coupe ne le
+  // certifient pas, la descente y reste celle d'avant ce lot.
+  const forcing = s.flatUseForcing,
+    hierarchical = !forcing,
+    exact = s.flatExact;
   if (!culling) {
     for (let i = 0; i < pages.length; i++) {
-      take(s, pages[i]);
+      take(s, pages[i], false, false, forcing, exact);
       if (s.over) return;
     }
     return;
   }
   const { nodes, stride, bounds } = culling;
   const { stack, planes } = selectionScratch;
-  // Le repli par forçage ne teste pas la coupe mais le groupe forcé : les bornes de coupe ne le
-  // certifient pas, la descente y reste celle d'avant ce lot.
-  const hierarchical = !s.flatUseForcing,
-    exact = s.flatExact;
   let top = 0;
   stack[top++] = 0;
   while (top > 0) {
@@ -145,9 +161,8 @@ export function traverse<T extends PageRecord>(
     }
     const firstPage = nodes[base + 13],
       pageCount = nodes[base + 14];
-    s.flatInside = inside;
     for (let i = 0; i < pageCount; i++) {
-      take(s, pages[firstPage + i], settled);
+      take(s, pages[firstPage + i], settled, inside, forcing, exact);
       if (s.over) return;
     }
   }
