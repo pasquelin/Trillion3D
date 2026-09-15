@@ -54,7 +54,11 @@ impl<'a> Lines<'a> {
     }
 
     /// La ligne numéro `index` — canal fois hauteur, plus la ligne —, développée dans `into`.
-    pub(super) fn read(&mut self, index: usize, into: &mut [u8]) -> std::result::Result<(), &'static str> {
+    pub(super) fn read(
+        &mut self,
+        index: usize,
+        into: &mut [u8],
+    ) -> std::result::Result<(), &'static str> {
         if self.counts.is_empty() {
             let end = self.at.checked_add(self.width).ok_or(DATA_TRUNCATED)?;
             into.copy_from_slice(self.data.get(self.at..end).ok_or(DATA_TRUNCATED)?);
