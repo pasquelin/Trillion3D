@@ -15,7 +15,8 @@ fn linear(byte: u8) -> f32 {
 // linéaire prémultiplié — ici alpha vaut 255 partout, donc prémultiplié == linéaire directement.
 #[test]
 fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
-    let source = rgba_from(32, 32, |x, y| {
+    let (width, height) = (32u32, 32u32);
+    let source = rgba_from(width, height, |x, y| {
         [
             ((x * 7 + y * 3) % 256) as u8,
             ((x * 13 + 5) % 256) as u8,
@@ -23,14 +24,17 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
             255,
         ]
     });
-    let pixels = reduce::pyramid(&source, None);
-    for (level, pair) in PREVIEW_LEVEL_SIZES.windows(2).enumerate() {
-        let (fine_side, coarse_side) = (pair[0], pair[1]);
+    let (first, pixels) = reduce::pyramid(&source, None);
+    assert_eq!(first, 0, "une source de 32 px tient déjà sous la base");
+    let count = preview_level_count(width, height) as usize;
+    for index in 0..count - 1 {
+        let (fine_side, _) = level_size(width, height, index);
+        let (coarse_side, coarse_rows) = level_size(width, height, index + 1);
         let side = fine_side as usize;
-        let next_side = side / 2;
-        let fine = level_bytes(&pixels, level);
-        let coarse = level_bytes(&pixels, level + 1);
-        for row in 0..next_side {
+        let next_side = coarse_side as usize;
+        let fine = level_bytes(width, height, &pixels, index);
+        let coarse = level_bytes(width, height, &pixels, index + 1);
+        for row in 0..coarse_rows as usize {
             for column in 0..next_side {
                 for channel in 0..3usize {
                     let mut sum = 0f32;

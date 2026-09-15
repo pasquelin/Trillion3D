@@ -17,7 +17,8 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         height,
         source: PreviewSource::Uri,
         sha256: std::iter::repeat_n('a', 64).collect(),
-        pixels: vec![fill; PREVIEW_BYTES],
+        first_level: preview_first_level(width, height),
+        pixels: vec![fill; preview_pixel_bytes(width, height)],
     }
 }
 
@@ -36,6 +37,7 @@ fn texture_previews_round_trip_through_the_binary_columns() {
     let (sha_off, _) = column(TEXTURE_PREVIEW_SHA);
     let (pixels_off, _) = column(TEXTURE_PREVIEW_PIXELS);
     assert_eq!(words_len, previews.len() * PREVIEW_WORDS * 4);
+    let mut offset = 0usize;
     for (entry, source) in previews.iter().enumerate() {
         let base = words_off + entry * PREVIEW_WORDS * 4;
         assert_eq!(word(base), source.texture);
@@ -44,22 +46,33 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         assert_eq!(word(base + 12), source.height);
         assert_eq!(word(base + 16), source.source.kind());
         assert_eq!(word(base + 20), source.source.buffer_view());
+        assert_eq!(word(base + 24), source.first_level);
+        assert_eq!(
+            word(base + 28),
+            preview_level_count(source.width, source.height)
+        );
         let sha = std::str::from_utf8(&bytes[sha_off + entry * 64..sha_off + entry * 64 + 64])
             .expect("ascii");
         assert_eq!(sha, source.sha256);
-        let pixels = &bytes[pixels_off + entry * PREVIEW_BYTES
-            ..pixels_off + entry * PREVIEW_BYTES + PREVIEW_BYTES];
-        assert_eq!(pixels, source.pixels.as_slice());
+        // La plage d'octets de l'entrée est celle que l'entrée déclare, et elle suit la précédente.
+        let (start, length) = (word(base + 32) as usize, word(base + 36) as usize);
+        assert_eq!(start, offset);
+        assert_eq!(length, source.pixels.len());
+        assert_eq!(
+            &bytes[pixels_off + start..pixels_off + start + length],
+            source.pixels.as_slice()
+        );
+        offset += length;
     }
 }
 
-// Comportement 9 (b) : un fichier d'une version antérieure (ici 2, l'ancien format sans aperçus)
+// Comportement 9 (b) : un fichier d'une version antérieure (ici 3, les aperçus de longueur fixe)
 // est refusé d'emblée, jamais lu comme s'il avait la nouvelle section.
 #[test]
 fn a_sidecar_of_an_older_version_is_refused() {
     let (_, bytes) = split(&json!({"primitives": []}), &templates(), &[]).expect("split");
     let mut old = bytes.clone();
-    old[4..8].copy_from_slice(&2u32.to_le_bytes());
+    old[4..8].copy_from_slice(&3u32.to_le_bytes());
     assert!(digests(&old).is_err());
 }
 
