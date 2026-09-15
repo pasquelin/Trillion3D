@@ -93,7 +93,7 @@ fn compile_one(name: &str) -> (f64, Value) {
     (ms, record)
 }
 
-/// Compile les cinq fixtures et dépose le relevé dans `orchestration/mesures/`.
+/// Compile les cinq fixtures et dépose le relevé dans `.mesure/out/calculs/`.
 pub(crate) fn run() -> (f64, String) {
     let label = std::env::var("WG_BANC_LABEL").unwrap_or_else(|_| "banc".into());
     let mut total = 0.0;
