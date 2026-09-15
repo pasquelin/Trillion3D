@@ -18,13 +18,7 @@ export function buildHizPyramid(
   into?: HizPyramid,
 ): HizPyramid {
   if (width < 1 || height < 1 || depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE');
-  const flat = hizBuildFlat(depth, width, height, into);
-  if (into) {
-    into.width = width;
-    into.height = height;
-    return into;
-  }
-  return { ...flat, width, height };
+  return hizBuildFlat(depth, width, height, into);
 }
 
 /** NDC z of the visbuffer winner. Background pixels stay 1. Les sommets d'un triangle ne sont
