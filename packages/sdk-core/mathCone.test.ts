@@ -90,7 +90,10 @@ test('boxConeRejects s’accorde avec la référence sous placement conforme (é
       echelle: sx,
       oeil: [10, 8, 6],
     };
-    assert.equal(appeler(c), reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil));
+    assert.equal(
+      appeler(c),
+      reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil),
+    );
   }
 });
 
@@ -108,7 +111,10 @@ test('l’œil dans la sphère englobante rend un étalement de π et ne rejette
     oeil: [0.1, 0.1, 0.1], // dans la boîte
   };
   assert.equal(appeler(c), false);
-  assert.equal(appeler(c), reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil));
+  assert.equal(
+    appeler(c),
+    reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil),
+  );
 });
 
 test('un axe de cône nul ne rejette jamais (la référence non plus)', () => {
@@ -158,6 +164,9 @@ test('un cône tangent rejette pile comme la référence, de part et d’autre d
   };
   for (const angle of [Math.PI / 6 - 1e-6, Math.PI / 6, Math.PI / 6 + 1e-6]) {
     const c = { ...base, axe: [0, 0, -1], angle };
-    assert.equal(appeler(c), reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil));
+    assert.equal(
+      appeler(c),
+      reference(c.axe, c.angle, c.min, c.max, world, normal, c.echelle, c.oeil),
+    );
   }
 });
