@@ -13,6 +13,8 @@ pub(super) struct GoldenRun {
     pub binary: Vec<u8>,
     /// Ce que la compilation a publié en chemin : l'étape d'un pilote se prouve dans son rapport.
     pub reports: Vec<Value>,
+    /// Le cache jetable : c'est là qu'un pilote a laissé la scène intermédiaire qu'il a écrite.
+    cache: PathBuf,
     root: PathBuf,
 }
 impl Drop for GoldenRun {
@@ -55,6 +57,7 @@ pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
         slim,
         binary,
         reports: reports.into_inner().expect("reports"),
+        cache: options.cache.clone(),
         root,
     }
 }
@@ -92,6 +95,36 @@ fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
         cancelled: Arc::new(AtomicBool::new(false)),
     };
     (options, root)
+}
+
+impl GoldenRun {
+    /// La scène intermédiaire qu'un pilote nommé a écrite dans le cache : son manifeste et son
+    /// glTF. C'est ce que la dorée d'un pilote compare, avant que le compilateur ne la découpe.
+    pub(super) fn prepared(&self, plugin: &str) -> (Value, Value) {
+        let imports = self.cache.join("native").join("imports");
+        let entries = fs::read_dir(&imports).expect("imports directory");
+        for entry in entries.flatten() {
+            let manifest: Value = match fs::read(entry.path().join("manifest.json"))
+                .map(|bytes| serde_json::from_slice(&bytes).expect("manifest.json is valid JSON"))
+            {
+                Ok(manifest) => manifest,
+                Err(_) => continue,
+            };
+            if manifest
+                .pointer("/source/plugin/name")
+                .and_then(Value::as_str)
+                != Some(plugin)
+            {
+                continue;
+            }
+            let gltf = fs::read(entry.path().join("model.gltf")).expect("model.gltf");
+            return (
+                manifest,
+                serde_json::from_slice(&gltf).expect("model.gltf is valid JSON"),
+            );
+        }
+        panic!("aucune scène intermédiaire écrite par le pilote {plugin}");
+    }
 }
 
 /// L'attendu versionné d'une fixture, sans les deux champs qui ne sont que de la prose.
