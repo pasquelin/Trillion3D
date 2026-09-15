@@ -37,14 +37,11 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
   const { lights } = rt,
     { shadows, plan, store, faceMatrices } = lights;
   lights.shadowsUpdated = 0;
-  lights.shadowsDenied = 0;
-  lights.shadowsPending = 0;
   lights.shadowFaces = 0;
   lights.shadowDraws = 0;
+  lights.shadowDrawCalls = 0;
   if (!shadows || !store.count) return 0;
   const updates = plan.plan(store, shadowViewpointOf(camera));
-  lights.shadowsDenied = plan.denied;
-  lights.shadowsPending = plan.pending;
   let faces = 0;
   for (let update = 0; update < updates; update++) {
     const slice = plan.updatedSlice[update];
@@ -72,7 +69,7 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
   }
   if (faces) {
     shadows.flushFaces(faces);
-    shadows.flushSlices();
+    shadows.flushSlices(plan.updatedSlice, updates);
   }
   lights.shadowsUpdated = updates;
   lights.shadowFaces = faces;
@@ -101,6 +98,7 @@ export function encodeShadowAtlas(
   const first = slots ? visGroupFor(rt, device, drawSlots[0], false) : undefined;
   lights.shadowDraws = first ? slots : 0;
   if (!first) return false;
+  const drawsBefore = run.gpuDrawCalls;
   const pass = encoder.beginRenderPass({
     label: SHADOW_PASS,
     colorAttachments: [],
@@ -128,5 +126,6 @@ export function encodeShadowAtlas(
     }
   }
   pass.end();
+  lights.shadowDrawCalls = run.gpuDrawCalls - drawsBefore;
   return true;
 }

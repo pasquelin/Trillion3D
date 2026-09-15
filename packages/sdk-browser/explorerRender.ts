@@ -3,6 +3,7 @@ import { type CameraPose, type FrameMetrics } from '../sdk-core/index.ts';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import { handleExplorerRenderError } from './explorerRenderFallback.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
 import type { ExplorerSession } from './explorerSession.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
@@ -70,10 +71,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     // Drain unique des arrivées, hors de l'image qu'elles auraient allongée.
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
-    (state.active as { cpuStep?: (index: number, ms: number) => void }).cpuStep?.(
-      4,
-      performance.now() - arrivalStart,
-    );
+    (state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart);
     try {
       if (comparisonLayout === 'single' || measuring) {
         if (measuring && !directGpu)

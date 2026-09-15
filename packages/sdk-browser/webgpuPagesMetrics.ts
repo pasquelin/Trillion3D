@@ -1,5 +1,5 @@
 import { dropGpuSelection, dropVis } from './webgpuPagesDrops.ts';
-import { directLightTimings } from './webgpuLightMetrics.ts';
+import { directLightTimings } from './stageMapping.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export function metricsOf(rt: WebgpuPagesRuntime) {
@@ -64,6 +64,8 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     cpuSelectMs: run.cpuSelectMs,
     lightsActive: lights.lightsActive,
     shadowsUpdated: lights.shadowsUpdated,
+    shadowFacesDrawn: lights.shadowFaces,
+    shadowDrawCalls: lights.shadowDrawCalls,
     ...directLightTimings(timing.lastGpuPassMs),
   };
 }

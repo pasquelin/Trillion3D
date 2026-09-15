@@ -7,6 +7,7 @@ import type {
   BackendCapabilities,
   ClusterManifest,
   SceneLightStore,
+  StageProfile,
 } from '../sdk-core/index.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import type { ComparisonLayout } from './comparison.ts';
@@ -56,6 +57,8 @@ export interface RenderBackend {
       | 'gpuLightListsMs'
       | 'gpuShadowsMs'
       | 'gpuLightingMs'
+      | 'shadowFacesDrawn'
+      | 'shadowDrawCalls'
     >
   > & {
     drawCalls?: number;
@@ -65,6 +68,11 @@ export interface RenderBackend {
     pageRangeWrites?: number;
     subDraws?: number;
   };
+  /** Profil par étape de la fenêtre glissante : durées processeur et carte graphique séparées.
+   *  Absent d'un moteur qui n'en tient pas ; `enabled: false` quand l'hôte ne l'a pas demandé. */
+  stageProfile?(): StageProfile;
+  /** Oublie la fenêtre du profil : la chauffe et les premières images ne pèsent plus sur ses quantiles. */
+  resetStageProfile?(): void;
   pendingUrls?(): string[];
   /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
    *  so a small camera move finds them already resident. */
@@ -133,6 +141,8 @@ export interface BackendContext {
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
   sceneLights?: SceneLightStore;
+  /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
+  stageProfile?: boolean;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
@@ -176,5 +186,7 @@ export interface ExplorerOptions {
   maxFrameAllocationBytes?: number;
   maxTextureTransferBytesPerFrame?: number;
   sceneLighting?: THREE.Object3D;
+  /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
+  stageProfile?: boolean;
   logInterval?: number;
 }
