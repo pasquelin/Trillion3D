@@ -80,7 +80,7 @@ export interface WebgpuRunState {
   urlScratch: string[];
   /** Vrai quand l'adoption a relu le relevé déjà tenu : `desired` et `shown` n'ont pas bougé. */
   cutHeld: boolean;
-  /** L'âge des listes de la coupe : augmente dès qu'une adoction ou la coupe processeur les réécrit,
+  /** L'âge des listes de la coupe : augmente dès qu'une adoption ou la coupe processeur les réécrit,
    *  y compris hors du rendu. Ce que lit qui garde une liste d'une image à l'autre. */
   cutEpoch: number;
   /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que la liste attendue lit. */
