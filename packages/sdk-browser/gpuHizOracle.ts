@@ -61,8 +61,6 @@ function pyramidFromPacked(packed: PackedHiz): HizPyramid {
     widths: Int32Array.from(packed.sizes, ([w]) => w),
     heights: Int32Array.from(packed.sizes, ([, h]) => h),
     count: packed.sizes.length,
-    width: packed.sizes[0][0],
-    height: packed.sizes[0][1],
   };
 }
 

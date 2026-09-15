@@ -23,7 +23,6 @@ function demande(entree, pixelError, pageBudget) {
   return {
     pixelError,
     viewport: image,
-    frame: entree.frame,
     holdResident: true,
     rootFallback: entree.rootFallback,
     pageBudget,
@@ -66,7 +65,6 @@ function scene({ feuilles, seed, residentes = 1, pixelError, budget, rootFallbac
     shown: [],
     wanted: [],
     result: createSelectionResult(),
-    frame: 41,
     pixelError,
     budget,
     rootFallback,
