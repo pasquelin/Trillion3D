@@ -30,6 +30,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     modifiedPages,
   } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0 };
+  // L'ensemble des pages affichées, réutilisé d'une image à l'autre plutôt que reconstruit.
+  const affichees = new Set<PageRec>();
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
@@ -53,8 +55,9 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   };
   const sync = () => {
     const display = shown;
-    const keep = new Set(display);
-    for (const rec of allPages) if (rec.attached && !keep.has(rec)) detach(rec);
+    affichees.clear();
+    for (const rec of display) affichees.add(rec);
+    for (const rec of allPages) if (rec.attached && !affichees.has(rec)) detach(rec);
     state.submittedTriangles = 0;
     for (const rec of display) {
       if (!rec.array) throw new Error('AUTONOMOUS_COVERAGE_MISSING');

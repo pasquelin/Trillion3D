@@ -80,6 +80,9 @@ export interface WebgpuRunState {
   readyScratch: PageRec[];
   pendingScratch: string[];
   urlScratch: string[];
+  /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
+  requestedScratch: Set<string>;
+  transitionScratch: Set<string>;
 }
 
 /** The secondary-camera surface capture and the explicit readback of the main image. */
@@ -160,6 +163,8 @@ export function createWebgpuRunState(): WebgpuRunState {
     readyScratch: [],
     pendingScratch: [],
     urlScratch: [],
+    requestedScratch: new Set<string>(),
+    transitionScratch: new Set<string>(),
   };
 }
 
