@@ -124,12 +124,12 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         triangles,
     );
     manifest["runtime"]["bytes"] = json!(gltf_bytes.len());
-    manifest["source"] = json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":files,"key":key,"meshes":mesh_count,"materials":material_count,"images":image_count,"lights":light_count,"importMs":started.elapsed().as_secs_f64()*1000.0});
+    manifest["source"] = json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":files,"key":key,"meshes":mesh_count,"materials":material_count,"images":image_count,"lights":light_count,"importMs":crate::shared_math::elapsed_ms(started)});
     manifest["unsupported"] = json!(report.unsupported);
     manifest["notes"] = json!(report.notes);
     atomic(&manifest_path, &serde_json::to_vec_pretty(&manifest)?)?;
     progress(
-        json!({"phase":"import-source","step":"complete","key":key,"triangles":triangles,"meshNodes":mesh_nodes,"ms":started.elapsed().as_secs_f64()*1000.0}),
+        json!({"phase":"import-source","step":"complete","key":key,"triangles":triangles,"meshNodes":mesh_nodes,"ms":crate::shared_math::elapsed_ms(started)}),
     );
     Ok(directory)
 }

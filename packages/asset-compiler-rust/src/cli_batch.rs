@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Instant,
 };
-use web_geometry_compiler::Options;
+use web_geometry_compiler::{shared_math::elapsed_ms, Options};
 
 fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
     match value {
@@ -136,7 +136,7 @@ pub(super) fn run_batch(spec_path: &str, cancellation: Arc<Cancellation>) -> Res
     let cancelled = outcomes.iter().filter(|o| o["code"] == "CANCELLED").count();
     let failed = outcomes.len() - ready - cancelled;
     emit(
-        json!({"event":"done","completed":ready,"failed":failed,"cancelled":cancelled,"ms":started.elapsed().as_secs_f64()*1000.0}),
+        json!({"event":"done","completed":ready,"failed":failed,"cancelled":cancelled,"ms":elapsed_ms(started)}),
         "*",
     );
     let status = if failed == 0 && cancelled == 0 {
