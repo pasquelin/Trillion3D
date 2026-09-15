@@ -97,7 +97,7 @@ pub(super) fn compose(
 ) -> Result<(PreparedScene, Option<&'static dyn ScenePlugin>)> {
     let root = single_root(extracted);
     match route(&root)? {
-        Routed::Manifest => Ok((PreparedScene::Converted(root), None)),
+        Routed::Manifest => Ok((PreparedScene::converted(root.clone(), &root), None)),
         Routed::Driver(inner, inputs) => {
             let inner_request = SceneRequest {
                 source: &root,
@@ -127,11 +127,12 @@ pub(super) fn chain(container: &dyn ScenePlugin, inner: Option<&dyn ScenePlugin>
 /// Un glTF laissé en place par son pilote se lit à côté de la source ; dans une archive, la source
 /// est l'archive et non le dossier extrait. Le conteneur pose donc dans ce dossier le manifeste que
 /// le compilateur calculerait lui-même pour cette scène — les mêmes octets, donc la même identité de
-/// cache qu'hors archive — et rend le dossier comme scène intermédiaire.
+/// cache qu'hors archive — et rend le dossier comme scène intermédiaire. Les images de cette scène
+/// sont celles que l'extraction a écrites à côté d'elle : le dossier extrait est leur racine.
 fn stage_in_place(root: &Path, name: &str) -> Result<PreparedScene> {
     let loaded = crate::load_model_file(root, name, None)?;
     atomic(&root.join("manifest.json"), &loaded.manifest_bytes)?;
-    Ok(PreparedScene::Converted(root.to_path_buf()))
+    Ok(PreparedScene::converted(root.to_path_buf(), root))
 }
 
 /// Un unique dossier racine — `kit/` dans `kit.zip` — est traversé : l'archive livre l'arbre du
