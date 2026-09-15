@@ -30,8 +30,9 @@ fn rendus(name: &str) -> Vec<[u8; 4]> {
     let bytes = fixture("tiff", name);
     let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
     assert_eq!(pilote.name(), "tiff", "{name}");
-    let registry::DecodedImage::Rgba8(rendu) =
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}"));
+    let rendu = super::rgba8(
+        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
+    );
     assert_eq!((rendu.width(), rendu.height()), (4, 2), "{name}");
     rendu.pixels().map(|pixel| pixel.0).collect()
 }

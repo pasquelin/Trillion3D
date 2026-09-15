@@ -42,6 +42,10 @@ export async function createWebgpuBlendPipelines(device: GPUDevice, items: Blend
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      // Le proxy résident de l'ombre lointaine du soleil : en écriture, parce que son entête porte
+      // les deux compteurs `atomic` de l'image relevée. C'est la huitième et dernière liaison de
+      // stockage de cet étage de fragments, celle que la norme garantit encore.
+      { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'storage' } },
       {
         binding: b.volume,
         visibility: GPUShaderStage.FRAGMENT,

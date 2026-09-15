@@ -4,6 +4,9 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 
 ## Rôle
 
+- **Rôle en trois gestes, dit par l'utilisateur le 15 septembre 2026 au soir : fusionner dans `develop`, /simplify `develop`, pousser sur `origin`.** Les sessions livrent une branche et sa preuve ; c'est le validateur qui fusionne. Rien d'autre ne lui appartient.
+- **Périmètre : ce qui est fusionné dans `develop`, et rien d'autre.** Le validateur juge ce qui entre dans `develop` (/simplify du diff, portes, `npm run validate`, push, nettoyage du fusionné) et ne se mêle ni des plans, ni des lots, ni des choix de conception des autres sessions. Un avis donné à une session reste un avis : elle décide dans son périmètre, le validateur décide au moment où le code arrive dans `develop`.
+
 - Le validateur est la **seule** session qui pousse sur `origin`. Il pousse `develop` et rien d'autre : `main` ne se pousse que sur demande explicite de l'utilisateur.
 - Les autres sessions (Calculs, Compilateur, Lumière, Geometry) fusionnent **en local** dans `develop` (et `main` suit en local). Elles ne poussent jamais. Si `origin/develop` bouge sans le validateur, leur rappeler l'interdiction par message.
 - Le validateur ne code pas lui-même : lecture et revue par agents Sonnet, correctifs par agents Opus. Il fusionne, lance les portes, pousse et nettoie.
@@ -20,7 +23,7 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 - Changement d'image accepté par l'utilisateur : lot `unlit-identite` (vue sans lampe composée par l'identité, ACES réservé à la vue éclairée).
 - Dette ouverte, prise par Lumière en premier lot à sa reprise : l'ombre lointaine du soleil manque sur la passe de mélange (`SUN_FAR_STUB_WGSL` renvoie 1.0 pour les transparents), contraire à « une seule façon d'éclairer toute surface ».
 - Les campagnes `banc.mjs` sur Emerald sortent en code 1 à cause d'un 404 sur `lights.json` du cache, des deux côtés ; les pixels ne sont pas touchés.
-- Trois décisions attendent l'utilisateur : coplanaires Hi-Z (Geometry, recommandation « accepter »), PNG 16 bits refusé ou porté jusqu'à l'écran (Compilateur), option `atlasClasses: 2` et départ au sol du banc 15.
+- **Décisions tranchées par le validateur le 15 septembre au soir, sous la délégation** : (a) *ombre lointaine sur la passe de mélange* (Lumière) — accepté, c'est le retrait d'un bouchon qui violait « une seule façon d'éclairer toute surface », l'image d'avant était fausse ; la nouvelle référence passe si la preuve montre 0 px hors du cas annoncé. (b) *Coplanaires Hi-Z* (Geometry) — accepté, conformément à sa recommandation : déplacement de référence de 0,007 %, vainqueur fixé à la compilation, contre l'historique d'occlusion (−3 ms CPU) et la partition Hi-Z temporelle (−27 % GPU). (c) *PNG 16 bits* (Compilateur) — refus nommé avec rapport, comme le TIFF 16 bits : la règle « jamais de perte ajoutée » interdit l'abaissement silencieux en 8 bits, et le portage du 16 bits jusqu'à l'écran attendra un besoin réel ; cohérent avec `exr`/`hdr` qui rendent une variante flottante et refusent la retombée. (d) *Option `atlasClasses: 2` et départ au sol du banc 15* — hors périmètre du validateur, au Compilateur et au Lab de trancher.
 
 ## Worktrees et branches à protéger
 
@@ -55,7 +58,7 @@ Tout le reste est supprimable une fois fusionné et propre.
 ## Règles de décision
 
 - Jamais de push sans /simplify traité et validate vert sur le SHA poussé.
-- Un changement d'image voulu (nouvelle référence) exige l'accord explicite de l'utilisateur avant le push.
+- **Délégation du 15 septembre 2026 au soir :** l'utilisateur a délégué au validateur les push, les /simplify et les décisions techniques (« à toi de gérer »). Il ne tranche plus, et on ne lui remonte plus de question technique. Un changement d'image voulu n'a donc plus besoin de son accord : il passe si la preuve montre que seul le cas annoncé bouge et que l'image d'avant était fausse ; il est refusé s'il dégrade la fidélité ou s'il sort du cas annoncé. Ne lui remonter que l'irréversible, le hors-périmètre (licences, dépôt public) ou ce qui contredit `AGENTS.md`.
 - Optimisation = résultat identique : rejeter un nettoyage qui change la sortie.
 - Ne jamais commiter en `wip` ni écrire « non testé » dans un message de commit. Réécrire l'historique (`filter-branch`, rebase) est bloqué par le mode auto et demande l'accord de l'utilisateur. Écrire « non testé » dans le compte rendu seulement.
 - Si une session demande un **gel** de develop pendant la preuve de son lot, ne rien fusionner dans develop jusqu'à son « ff fait ». Préparer les correctifs sur des branches `validateur/*` en attendant.

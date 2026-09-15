@@ -33,8 +33,8 @@ fn pixels(name: &str) -> Vec<[u8; 4]> {
     let bytes = fixture("tga", name);
     let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
     assert_eq!(decoder.name(), "tga", "{name}");
-    let registry::DecodedImage::Rgba8(image) =
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}"));
+    let image =
+        super::rgba8(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
     assert_eq!((image.width(), image.height()), (4, 2), "{name}");
     image.pixels().map(|pixel| pixel.0).collect()
 }

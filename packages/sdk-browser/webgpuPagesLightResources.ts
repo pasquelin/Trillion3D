@@ -31,9 +31,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
   // Le proxy de l'ombre lointaine : lié seulement s'il existe, sans quoi les remplacements de zéro
-  // du programme du contrat laissent la surface lointaine éclairée comme avant ce lot.
-  const sunFar = active ? rt.sunFar.gpu : undefined;
-  contractResources.proxy = sunFar?.buffers();
-  contractResources.sunFarState = contractResources.proxy ? sunFar?.state : undefined;
+  // laissent la surface lointaine éclairée sans ombre portée. Les deux passes qui éclairent lisent
+  // cette même résolution, donc elles lient le même tampon et tirent le même rayon.
+  contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
   return contractResources;
 }
