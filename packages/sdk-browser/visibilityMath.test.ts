@@ -79,8 +79,8 @@ test('une texture sans image rend le blanc des deux côtés, même avec des uv n
 test('des uv extrêmes ou signés sur une vraie image restent identiques à la formule explicite', () => {
   const map = texture(4, 4, (i) => (i * 17) & 255, THREE.RepeatWrapping);
   const bordee = texture(4, 4, (i) => (i * 53) & 255, THREE.ClampToEdgeWrapping);
-  // -0 boucle sur elle-même (Repeat) et Infini se pince au bord (ClampToEdge, seul mode où
-  // Math.max/Math.min l'absorbent) : deux façons distinctes de garder un index de texel fini.
+  // -0 boucle sur elle-même (Repeat) et Infini se pince au bord (ClampToEdge) : deux façons de
+  // garder un index de texel fini.
   for (const [texture_, u, v] of [
     [map, -0, 0],
     [bordee, -1e9, 1e9],
@@ -90,6 +90,26 @@ test('des uv extrêmes ou signés sur une vraie image restent identiques à la f
       sampleMap(texture_, u, v),
       referenceSampleMap(texture_, u, v),
       `échantillon uv ${u},${v}`,
+    );
+  }
+});
+
+test('un uv non fini qui rend l’index de texel NaN rend NaN des deux côtés, jamais undefined', () => {
+  const map = texture(4, 4, (i) => (i * 17) & 255, THREE.RepeatWrapping);
+  const bordee = texture(4, 4, (i) => (i * 53) & 255, THREE.ClampToEdgeWrapping);
+  // NaN casse l'index sous n'importe quel enroulement ; Infini/-Infini ne le cassent que sous
+  // Repeat (`t - Math.floor(t)` sur un infini vaut NaN), pas sous ClampToEdge (Math.max/Math.min
+  // l'absorbent). Les deux côtés doivent rendre NaN, jamais `undefined`.
+  for (const [texture_, u, v] of [
+    [map, NaN, 0.2],
+    [map, Infinity, -Infinity],
+    [bordee, NaN, NaN],
+  ] as const) {
+    const obtenu = sampleMap(texture_, u, v);
+    bitExact(obtenu, referenceSampleMap(texture_, u, v), `échantillon uv ${u},${v}`);
+    assert.ok(
+      obtenu.every((c) => Number.isNaN(c)),
+      `échantillon uv ${u},${v} : ${obtenu}`,
     );
   }
 });
