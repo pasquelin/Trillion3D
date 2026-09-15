@@ -37,8 +37,9 @@ const GREEN: [u8; 8] = [200, 100, 185, 171, 157, 142, 128, 114];
 fn check(case: &str, file: &[u8], expected: &[[u8; 4]]) {
     let decoder = registry::by_head(file).expect("un pilote revendique ces octets");
     assert_eq!(decoder.name(), "dds", "{case}");
-    let registry::DecodedImage::Rgba8(image) =
-        registry::decode(file, MAX_ALLOC).unwrap_or_else(|reason| panic!("{case}: {reason}"));
+    let image = super::rgba8(
+        registry::decode(file, MAX_ALLOC).unwrap_or_else(|reason| panic!("{case}: {reason}")),
+    );
     assert_eq!((image.width(), image.height()), (SIDE, SIDE), "{case}");
     assert_eq!(
         image.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
