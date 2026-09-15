@@ -3,8 +3,7 @@
 //! plus d'une image est refusé en le nommant. C'est ce refus qui compte le plus ici : choisir
 //! d'office laquelle des images d'une animation est *la* texture serait arbitraire.
 use super::super::image as registry;
-use super::{fixture, rgba8};
-use std::path::PathBuf;
+use super::{assert_claims, assert_refusals, decoded_rgba8, fixture, rgba8};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -39,14 +38,7 @@ fn expected(alpha: &[u8; 8]) -> Vec<u8> {
 
 /// L'image que le registre rend pour cette fixture, dimensions vérifiées au passage.
 fn rendu(name: &str) -> image::RgbaImage {
-    let bytes = fixture("gif", name);
-    let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(pilote.name(), "gif", "{name}");
-    let rendu = rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
-    );
-    assert_eq!((rendu.width(), rendu.height()), (4, 2), "{name}");
-    rendu
+    decoded_rgba8("gif", name, MAX_ALLOC, (4, 2))
 }
 
 // Dorée du pilote GIF : la table de couleurs globale et la table locale portent la même image et
@@ -75,30 +67,17 @@ fn les_deux_tables_de_couleurs_rendent_les_memes_pixels() {
 // d'animation est un refus d'animation, quel que soit le format qui la porte.
 #[test]
 fn un_gif_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["gif", "GIF", "Gif"] {
-        let chemin = PathBuf::from(format!("albedo.{extension}"));
-        let pilote = registry::by_extension(&chemin).expect("revendiqué");
-        assert_eq!(pilote.name(), "gif", "{extension}");
-        assert_eq!(pilote.mime(), "image/gif");
-    }
-    for (name, raison) in [
-        ("anime.gif", "image-animation-unsupported"),
-        // Tronqué : la signature reste celle d'un GIF, donc le pilote est bien choisi, et le
-        // parcours des blocs s'arrête faute d'octets — sans conclure à une animation.
-        ("tronque.gif", "image-decode-failed"),
-    ] {
-        let bytes = fixture("gif", name);
-        assert_eq!(
-            registry::by_head(&bytes).map(|pilote| pilote.name()),
-            Some("gif"),
-            "{name}"
-        );
-        assert_eq!(
-            registry::decode(&bytes, MAX_ALLOC).err(),
-            Some(raison),
-            "{name}"
-        );
-    }
+    assert_claims("gif", "image/gif", &["gif", "GIF", "Gif"]);
+    assert_refusals(
+        "gif",
+        MAX_ALLOC,
+        &[
+            ("anime.gif", "image-animation-unsupported"),
+            // Tronqué : la signature reste celle d'un GIF, donc le pilote est bien choisi, et le
+            // parcours des blocs s'arrête faute d'octets — sans conclure à une animation.
+            ("tronque.gif", "image-decode-failed"),
+        ],
+    );
     // Les deux versions du format portent la même structure : la 87a n'a pas d'extensions, et le
     // parcours des blocs doit la traverser aussi bien que la 89a.
     let mut ancienne = fixture("gif", "palette-globale.gif");

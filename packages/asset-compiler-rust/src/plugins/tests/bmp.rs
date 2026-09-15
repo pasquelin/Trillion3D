@@ -3,8 +3,7 @@
 //! masque de plus de huit bits par canal n'entre pas, parce qu'entrer lui coûterait ses bits de
 //! poids faible — une perte que la source n'avait pas.
 use super::super::image as registry;
-use super::{fixture, rgba8};
-use std::path::PathBuf;
+use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -48,14 +47,7 @@ fn expected(colours: &[[u8; 3]; 8], alpha: &[u8; 8]) -> Vec<u8> {
 
 /// L'image que le registre rend pour cette fixture, dimensions vérifiées au passage.
 fn rendu(name: &str) -> image::RgbaImage {
-    let bytes = fixture("bmp", name);
-    let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(pilote.name(), "bmp", "{name}");
-    let rendu = rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
-    );
-    assert_eq!((rendu.width(), rendu.height()), (4, 2), "{name}");
-    rendu
+    decoded_rgba8("bmp", name, MAX_ALLOC, (4, 2))
 }
 
 // Dorée du pilote BMP : huit écritures du format — deux profondeurs de vraies couleurs, trois
@@ -99,33 +91,20 @@ fn toutes_les_ecritures_du_format_rendent_les_memes_pixels() {
 // pas du BMP mais un autre format, qui a son propre pilote.
 #[test]
 fn un_bmp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["bmp", "BMP", "dib", "rle"] {
-        let chemin = PathBuf::from(format!("albedo.{extension}"));
-        let pilote = registry::by_extension(&chemin).expect("revendiqué");
-        assert_eq!(pilote.name(), "bmp", "{extension}");
-        assert_eq!(pilote.mime(), "image/bmp");
-    }
-    for (name, raison) in [
-        // Masques 10-10-10 : le décodeur ne garderait que les huit bits de poids fort de chaque
-        // canal. Refusé avant tout décodage, donc sans jamais produire les pixels appauvris.
-        ("masques-10-bits.bmp", "bmp-bitfields-lossy"),
-        ("jpeg-embarque.bmp", "bmp-embedded-codec-unsupported"),
-        // Tronqué : l'entête reste un entête BMP, donc le pilote est bien choisi, et c'est la
-        // lecture des pixels qui s'arrête faute d'octets.
-        ("tronque.bmp", "image-decode-failed"),
-    ] {
-        let bytes = fixture("bmp", name);
-        assert_eq!(
-            registry::by_head(&bytes).map(|pilote| pilote.name()),
-            Some("bmp"),
-            "{name}"
-        );
-        assert_eq!(
-            registry::decode(&bytes, MAX_ALLOC).err(),
-            Some(raison),
-            "{name}"
-        );
-    }
+    assert_claims("bmp", "image/bmp", &["bmp", "BMP", "dib", "rle"]);
+    assert_refusals(
+        "bmp",
+        MAX_ALLOC,
+        &[
+            // Masques 10-10-10 : le décodeur ne garderait que les huit bits de poids fort de chaque
+            // canal. Refusé avant tout décodage, donc sans jamais produire les pixels appauvris.
+            ("masques-10-bits.bmp", "bmp-bitfields-lossy"),
+            ("jpeg-embarque.bmp", "bmp-embedded-codec-unsupported"),
+            // Tronqué : l'entête reste un entête BMP, donc le pilote est bien choisi, et c'est la
+            // lecture des pixels qui s'arrête faute d'octets.
+            ("tronque.bmp", "image-decode-failed"),
+        ],
+    );
     // Deux entêtes réécrits sur une fixture lisible, pour les refus qu'aucun fichier ne porte : une
     // profondeur hors des profils sans perte, et une compression hors du format lu.
     let profondeur_at = 28;

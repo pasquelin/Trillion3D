@@ -13,6 +13,7 @@ import {
 } from '../../sdk-core/index.ts';
 import { boitesHierarchiques } from './scenesHierarchies.mjs';
 import { boites, matrices } from './scenesVolumes.mjs';
+import { aPlat, boite3 } from '../../sdk-core/bench/oracles/volumes.mjs';
 
 const un = (nom, entree) => [{ nom, entree, taille: entree.length }];
 /** Les cas hostiles, puis les matrices monde de vraies hiérarchies Three.js. */
@@ -20,10 +21,6 @@ const etHierarchies = (nom, entree) => [
   ...un(nom, entree),
   ...un('boîtes × matrices monde hiérarchiques', boitesHierarchiques),
 ];
-const boite3 = (b) =>
-  new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5]));
-const aPlat = (box) =>
-  Float64Array.of(box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z);
 const paires = boites.flatMap((a, i) =>
   boites.filter((_, j) => j % 13 === i % 13).map((b) => [a, b]),
 );

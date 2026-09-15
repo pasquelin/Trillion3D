@@ -3,8 +3,7 @@
 //! nommant. C'est la seconde moitié du contrat qui compte ici : un flux avec perte n'est jamais
 //! décodé, parce qu'accepter la perte de la source serait accepter la perte tout court.
 use super::super::image as registry;
-use super::{fixture, rgba8};
-use std::path::PathBuf;
+use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 /// Les fixtures font 256 × 256 en RGBA8, soit 262 144 octets : ce plafond ne les laisse pas passer.
@@ -23,14 +22,7 @@ const TEXELS: [(u32, u32, [u8; 4]); 5] = [
 
 /// L'image que le registre rend pour cette fixture.
 fn rendu(name: &str) -> image::RgbaImage {
-    let bytes = fixture("webp", name);
-    let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(pilote.name(), "webp", "{name}");
-    let rendu = rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
-    );
-    assert_eq!((rendu.width(), rendu.height()), (256, 256), "{name}");
-    rendu
+    decoded_rgba8("webp", name, MAX_ALLOC, (256, 256))
 }
 
 // Dorée du pilote WebP : un flux sans perte rend ses pixels tels quels, et le conteneur étendu — ses
@@ -55,33 +47,20 @@ fn les_deux_ecritures_du_sans_perte_rendent_les_memes_octets() {
 // tout décodage, et une animation aussi — l'aplatir sur une image choisie d'office serait arbitraire.
 #[test]
 fn un_webp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["webp", "WebP", "WEBP"] {
-        let chemin = PathBuf::from(format!("albedo.{extension}"));
-        let pilote = registry::by_extension(&chemin).expect("revendiqué");
-        assert_eq!(pilote.name(), "webp", "{extension}");
-        assert_eq!(pilote.mime(), "image/webp");
-    }
-    for (name, raison) in [
-        // Conteneur étendu, `ALPH` puis le flux avec perte : le pilote parcourt les chunks, il ne
-        // se contente pas de regarder le premier.
-        ("avec-perte.webp", "image-lossy-unsupported"),
-        ("anime.webp", "image-animation-unsupported"),
-        // Tronqué : l'entête reste un entête WebP, donc le pilote est choisi, et c'est la taille
-        // annoncée par `RIFF` — plus grande que le fichier — qui arrête la lecture.
-        ("tronque.webp", "image-decode-failed"),
-    ] {
-        let bytes = fixture("webp", name);
-        assert_eq!(
-            registry::by_head(&bytes).map(|pilote| pilote.name()),
-            Some("webp"),
-            "{name}"
-        );
-        assert_eq!(
-            registry::decode(&bytes, MAX_ALLOC).err(),
-            Some(raison),
-            "{name}"
-        );
-    }
+    assert_claims("webp", "image/webp", &["webp", "WebP", "WEBP"]);
+    assert_refusals(
+        "webp",
+        MAX_ALLOC,
+        &[
+            // Conteneur étendu, `ALPH` puis le flux avec perte : le pilote parcourt les chunks, il ne
+            // se contente pas de regarder le premier.
+            ("avec-perte.webp", "image-lossy-unsupported"),
+            ("anime.webp", "image-animation-unsupported"),
+            // Tronqué : l'entête reste un entête WebP, donc le pilote est choisi, et c'est la taille
+            // annoncée par `RIFF` — plus grande que le fichier — qui arrête la lecture.
+            ("tronque.webp", "image-decode-failed"),
+        ],
+    );
     // Le flux avec perte sans conteneur étendu — le premier chunk du fichier — suit le même chemin.
     let mut nu = fixture("webp", "sans-perte.webp");
     nu[12..16].copy_from_slice(b"VP8 ");

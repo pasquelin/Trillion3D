@@ -11,19 +11,7 @@ import {
   boxTransform,
   boxUnion,
 } from './index.ts';
-
-const boite3 = (b: ArrayLike<number>) =>
-  new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5]));
-const aPlat = (box: THREE.Box3) =>
-  Float64Array.of(box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z);
-function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
-  assert.equal(actual.length, expected.length);
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(
-      Object.is(actual[i], expected[i]),
-      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
-    );
-}
+import { aPlat, assertBits, boite3 } from './bench/oracles/volumes.mjs';
 
 test('boxEmpty pose des bornes inversées à l’infini, comme Box3.makeEmpty', () => {
   const out = new Float64Array(6);

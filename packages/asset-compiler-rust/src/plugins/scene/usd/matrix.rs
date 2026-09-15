@@ -3,25 +3,11 @@
 //! est la même matrice transposée deux fois : les seize nombres d'un `matrix4d` USD se recopient
 //! donc tels quels, et la composition d'une liste d'opérations se fait de gauche à droite.
 
-/// L'identité, la composition et la rotation d'un quaternion sont celles que le compilateur applique
-/// déjà aux nœuds glTF : les reprendre ici les ferait diverger pour rien.
-pub(super) use crate::compiler_world::{multiply as mul, rotation_matrix, Mat4, IDENTITY};
-
-/// La translation de `t`.
-pub(super) fn translation(t: [f64; 3]) -> Mat4 {
-    let mut out = IDENTITY;
-    out[12..15].copy_from_slice(&t);
-    out
-}
-
-/// La mise à l'échelle de `s`, axe par axe.
-pub(super) fn scaling(s: [f64; 3]) -> Mat4 {
-    let mut out = IDENTITY;
-    for axis in 0..3 {
-        out[axis * 4 + axis] = s[axis];
-    }
-    out
-}
+/// L'identité, la composition, la translation, l'échelle et la rotation d'un quaternion sont celles
+/// que le compilateur applique déjà aux nœuds glTF : les reprendre ici les ferait diverger pour rien.
+pub(super) use crate::compiler_world::{
+    multiply as mul, rotation_matrix, scaling, translation, Mat4, IDENTITY,
+};
 
 /// La rotation de `degrees` autour de l'axe `axis` (0 = X, 1 = Y, 2 = Z).
 pub(super) fn rotation(axis: usize, degrees: f64) -> Mat4 {
