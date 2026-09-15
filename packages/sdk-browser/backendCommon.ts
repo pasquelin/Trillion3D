@@ -11,6 +11,13 @@ export const DEFAULT_FOV = 55,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
+/**
+ * Pixels d'appareil d'une dimension logique, au rapport que l'hôte a réglé. La création du canevas
+ * et son redimensionnement le calculent tous les deux : deux troncatures séparées auraient fini par
+ * poser un canevas d'une taille et un viewport d'une autre.
+ */
+export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
+  Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
 export const WEBGPU_REQUIRED_LIMITS = [
   'maxTextureArrayLayers',
   'maxStorageBufferBindingSize',
