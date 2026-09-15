@@ -80,12 +80,12 @@ fn parse_accepts_five_to_eight_args() {
 #[test]
 fn malformed_accessor_is_rejected() {
     let g = json!({"accessors":[{"bufferView":0,"componentType":5125,"type":"SCALAR","count":1}],"bufferViews":[{"buffer":0,"byteLength":4}]});
-    assert!(accessor(&g, &[], 0).is_err());
+    assert!(accessor(&g, &[], 0, None).is_err());
 }
 #[test]
 fn accessor_cannot_read_past_its_buffer_view() {
     let g = json!({"accessors":[{"bufferView":0,"componentType":5125,"type":"SCALAR","count":2}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":4}]});
-    assert!(accessor(&g, &[0u8; 8], 0).is_err());
+    assert!(accessor(&g, &[0u8; 8], 0, None).is_err());
 }
 #[test]
 fn compile_rejects_local_accessor_overflow_before_publication() {

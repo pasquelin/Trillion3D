@@ -91,12 +91,14 @@ pub fn footprint(
                 .and_then(|a| a.get("POSITION")),
             "primitive.attributes.POSITION",
         )?,
+        None,
     )?;
     let indices: Vec<u32> = match source.get("indices") {
         Some(value) => accessor(
             inputs.g,
             inputs.bin,
             required_index(Some(value), "primitive.indices")?,
+            None,
         )?
         .collect_u32()?,
         None => (0..positions.count as u32).collect(),
