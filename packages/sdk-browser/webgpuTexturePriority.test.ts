@@ -6,10 +6,14 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
-function job(layer: number): TextureJob {
+function job(slot: number, stage = 1): TextureJob {
   return {
     kind: 'color',
-    layer,
+    slot,
+    classIndex: 0,
+    layer: slot,
+    level: 0,
+    stage,
     bytes: 4,
     rows: 1,
     bytesPerRow: 4,

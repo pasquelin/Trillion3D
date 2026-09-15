@@ -1,6 +1,7 @@
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { depthLayerBias } from '../sdk-core/index.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
+import { SHADE_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
 
 /** Modes de face d'un jeu de couche, dans l'ordre : dos, aucune, face, dos inversé, face inversée. */
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
@@ -115,36 +116,26 @@ export function createWebgpuCoplanarLayerPipelines(
 
 /** Builds the material resolve pipeline after shader compilation succeeds. */
 export function createWebgpuShadePipeline(device: GPUDevice, shadeModule: GPUShaderModule) {
+  const b = SHADE_BINDINGS;
+  const fragment = GPUShaderStage.FRAGMENT;
   const shadeBindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'uint' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 3, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
+      { binding: b.cache, visibility: fragment, buffer: readOnly },
+      { binding: b.position, visibility: fragment, buffer: readOnly },
+      { binding: b.uv, visibility: fragment, buffer: readOnly },
+      { binding: b.normal, visibility: fragment, buffer: readOnly },
+      { binding: b.pageTable, visibility: fragment, buffer: readOnly },
+      ...b.maps.map((binding) => atlasLayoutEntry(binding)),
+      { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
       {
-        binding: 6,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 7, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-      {
-        binding: 8,
-        visibility: GPUShaderStage.FRAGMENT,
+        binding: b.uniform,
+        visibility: fragment,
         buffer: { type: 'uniform', minBindingSize: 256 },
       },
-      {
-        binding: 9,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      {
-        binding: 10,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      ...b.dataMaps.map((binding) => atlasLayoutEntry(binding)),
+      { binding: b.colorSlots, visibility: fragment, buffer: readOnly },
+      { binding: b.dataSlots, visibility: fragment, buffer: readOnly },
     ],
   });
   return scoped(device, () => ({

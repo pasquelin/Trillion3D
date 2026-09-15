@@ -110,10 +110,10 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     vis.concatPos &&
     vis.concatUv &&
     vis.concatNrm &&
-    vis.mapsTexture &&
-    vis.dataMapsTexture &&
+    vis.colorAtlas &&
+    vis.dataAtlas &&
     vis.mapsSampler &&
-    vis.preview &&
+    vis.slots &&
     vis.shadeUniform &&
     vis.shadeBindGroupLayout
   ) {
@@ -126,13 +126,11 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
         uv: vis.concatUv,
         normal: vis.concatNrm,
         pageTable: vis.pageTable,
-        maps: (vis.mapsArrayView ??= vis.mapsTexture.createView({ dimension: '2d-array' })),
+        colorAtlas: vis.colorAtlas,
         sampler: vis.mapsSampler,
         uniform: vis.shadeUniform,
-        dataMaps: (vis.dataMapsArrayView ??= vis.dataMapsTexture.createView({
-          dimension: '2d-array',
-        })),
-        preview: vis.preview,
+        dataAtlas: vis.dataAtlas,
+        slots: vis.slots,
       }),
     });
   }

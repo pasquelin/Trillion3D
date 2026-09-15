@@ -1,21 +1,27 @@
 import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
-import { COLOR_SAMPLE_WGSL } from './webgpuPreviewAtlas.ts';
+import {
+  ATLAS_SLOTS_WGSL,
+  COLOR_SAMPLE_WGSL,
+  DATA_SAMPLE_WGSL,
+  atlasTextures,
+} from './webgpuAtlasWgsl.ts';
+import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
 
 export const SHADE_SHADER = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
 struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,padding:array<vec4f,10>,}
-@group(0) @binding(0) var vis:texture_2d<u32>;
-@group(0) @binding(1) var<storage, read> indices:array<u32>;
-@group(0) @binding(2) var<storage, read> positions:array<f32>;
-@group(0) @binding(3) var<storage, read> uvs:array<f32>;
-@group(0) @binding(4) var<storage, read> normals:array<f32>;
-@group(0) @binding(5) var<storage, read> pages:array<PageInfo>;
-@group(0) @binding(6) var maps:texture_2d_array<f32>;
-@group(0) @binding(7) var mapsSampler:sampler;
-@group(0) @binding(8) var<uniform> uni:ShadeUni;
-@group(0) @binding(9) var dataMaps:texture_2d_array<f32>;
-@group(0) @binding(10) var previews:texture_2d_array<f32>;
-@group(0) @binding(11) var<storage, read> previewReady:array<u32>;
+@group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
+@group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
+@group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
+@group(0) @binding(${SHADE_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
+@group(0) @binding(${SHADE_BINDINGS.normal}) var<storage, read> normals:array<f32>;
+@group(0) @binding(${SHADE_BINDINGS.pageTable}) var<storage, read> pages:array<PageInfo>;
+${atlasTextures(SHADE_BINDINGS.maps, 'maps')}
+@group(0) @binding(${SHADE_BINDINGS.sampler}) var mapsSampler:sampler;
+@group(0) @binding(${SHADE_BINDINGS.uniform}) var<uniform> uni:ShadeUni;
+${atlasTextures(SHADE_BINDINGS.dataMaps, 'dataMaps')}
+@group(0) @binding(${SHADE_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
+@group(0) @binding(${SHADE_BINDINGS.dataSlots}) var<storage, read> dataSlots:array<u32>;
 ${TRIANGLE_PALETTE_WGSL}
 fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}
 fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
@@ -23,7 +29,9 @@ fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],no
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
+${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
+${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,}
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u);}
@@ -84,15 +92,15 @@ fn framebuffer(clip:vec4f)->vec3f{
  let wrapD=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
  let sample=colorSample(page.mapIndex,page.uvScale,wrapD,ddx,ddy);
  var roughSample=vec4f(1.0);
- if(page.roughnessIndex!=0u){roughSample=textureSampleGrad(dataMaps,mapsSampler,wrapD*page.roughUvScale,i32(page.roughnessIndex),ddx*page.roughUvScale,ddy*page.roughUvScale);}
+ if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,wrapD,ddx,ddy);}
  var metalSample=vec4f(1.0);
- if(page.metalnessIndex!=0u){metalSample=textureSampleGrad(dataMaps,mapsSampler,wrapD*page.metalUvScale,i32(page.metalnessIndex),ddx*page.metalUvScale,ddy*page.metalUvScale);}
+ if(page.metalnessIndex!=0u){metalSample=dataSample(page.metalnessIndex,page.metalUvScale,wrapD,ddx,ddy);}
  var ao=1.0;
- if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(textureSampleGrad(dataMaps,mapsSampler,wrapD*page.aoUvScale,i32(page.aoIndex),ddx*page.aoUvScale,ddy*page.aoUvScale).r-1.0);}
+ if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(dataSample(page.aoIndex,page.aoUvScale,wrapD,ddx,ddy).r-1.0);}
  var emissive=page.emissive.xyz;
  if(page.emissiveIndex!=0u){emissive*=colorSample(page.emissiveIndex,page.emissiveUvScale,wrapD,ddx,ddy).rgb;}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
- if(page.normalIndex!=0u){nrmSample=textureSampleGrad(dataMaps,mapsSampler,wrapD*page.normalUvScale,i32(page.normalIndex),ddx*page.normalUvScale,ddy*page.normalUvScale);}
+ if(page.normalIndex!=0u){nrmSample=dataSample(page.normalIndex,page.normalUvScale,wrapD,ddx,ddy);}
  if((page.flags&8u)!=0u){
   rgb=rgb*sample.xyz;
   if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return emptySurface();}

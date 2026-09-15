@@ -4,20 +4,23 @@ import {
   PAGE_LOOKUP_WGSL,
   PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
+import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 export const VIS_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(3) var<storage, read> hizFlags:array<u32>;
+@group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
 ${PAGE_BINDING.uniforms}
-@group(0) @binding(5) var<storage, read> uvs:array<f32>;
-@group(0) @binding(6) var maps:texture_2d_array<f32>;
-@group(0) @binding(7) var mapsSampler:sampler;
+@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
+${atlasTextures(VIS_BINDINGS.maps, 'maps')}
+@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-@group(0) @binding(10) var previews:texture_2d_array<f32>;
-@group(0) @binding(11) var<storage, read> previewReady:array<u32>;
+@group(0) @binding(${VIS_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
+${ATLAS_SLOTS_WGSL}
+${COLOR_ALPHA_WGSL}
 ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}
@@ -26,12 +29,9 @@ fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),rep
 fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
  let raw=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
- // L'aperçu préserve la couverture du seuil, donc la découpe est juste avant même le transfert.
- if(previewReady[page.mapIndex]==0u){
-  return textureSampleLevel(previews,mapsSampler,raw,i32(page.mapIndex),0.0).w>=page.baseColor.w;
- }
- let sample=textureSampleLevel(maps,mapsSampler,raw*page.uvScale,i32(page.mapIndex),0.0);
- return sample.w>=page.baseColor.w;
+ // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
+ // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
+ return colorAlpha(page.mapIndex,page.uvScale,raw)>=page.baseColor.w;
 }
 fn computeTriangle(page:PageInfo,triangle:u32)->bool{
  if(uni.smallThreshold<=0.0||triangle*3u+2u>=page.indexCount){return false;}

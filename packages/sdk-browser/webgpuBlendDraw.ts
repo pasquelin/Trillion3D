@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import { blendBindEntries } from './webgpuBindEntries.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Encodes the transparent back/front passes in source order and counts them on `rt.run`. */
@@ -36,21 +37,21 @@ export function drawBlendPass(
       if (textured)
         item.group = device.createBindGroup({
           layout: vis.blendBindGroupLayout!,
-          entries: [
-            { binding: 0, resource: { buffer: item.index } },
-            { binding: 1, resource: { buffer: item.position } },
-            { binding: 2, resource: { buffer: item.uv ?? gpu.zeroUv! } },
-            { binding: 3, resource: { buffer: uniformBuffer, size: UNIFORM_STRIDE } },
-            { binding: 4, resource: vis.mapsTexture!.createView({ dimension: '2d-array' }) },
-            { binding: 5, resource: vis.mapsSampler! },
-            { binding: 6, resource: vis.dataMapsTexture!.createView({ dimension: '2d-array' }) },
-            { binding: 7, resource: { buffer: item.normal ?? gpu.zeroUv! } },
-            { binding: 8, resource: { buffer: vis.materialScales! } },
-            { binding: 9, resource: { buffer: lightBuffer! } },
-            { binding: 10, resource: { buffer: item.diagnosticBuffer ?? gpu.zeroUv! } },
-            { binding: 11, resource: vis.preview!.view },
-            { binding: 12, resource: { buffer: vis.preview!.ready } },
-          ],
+          entries: blendBindEntries({
+            indices: item.index,
+            positions: item.position,
+            uvs: item.uv ?? gpu.zeroUv!,
+            uniform: uniformBuffer,
+            uniformSize: UNIFORM_STRIDE,
+            colorAtlas: vis.colorAtlas!,
+            sampler: vis.mapsSampler!,
+            dataAtlas: vis.dataAtlas!,
+            normals: item.normal ?? gpu.zeroUv!,
+            scales: vis.materialScales!,
+            sceneLights: lightBuffer!,
+            triangleDiagnostic: item.diagnosticBuffer ?? gpu.zeroUv!,
+            slots: vis.slots!,
+          }),
         });
       else
         item.group = device.createBindGroup({
