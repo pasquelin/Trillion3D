@@ -71,6 +71,10 @@ export function encodeDirectLights(
   return directParams;
 }
 
+/** Les tuiles de lampes de cette image-ci, que la passe de mélange relit : zéro tuile quand aucune
+ *  liste n'a été encodée, jamais celles d'une autre image. */
+export const directTiles = () => directParams;
+
 /**
  * Un lot de sondes d'irradiance, quand il y a du travail. La grille relit le tampon de lampes qui
  * vient d'être poussé, donc le rebond suit la lampe qui bouge sans une image de retard de plus. Une
