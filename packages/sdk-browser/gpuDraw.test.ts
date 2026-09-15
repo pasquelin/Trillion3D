@@ -73,9 +73,7 @@ test('overflow zeros instance counts in every indirect slot', () => {
 });
 
 test('draw shader counts and scatters page groups in parallel with stable order', () => {
-  // Le prefixe (prefixGroups) est verifie par comportement, pas par la taille de son groupe de
-  // travail : voir gpuDrawPrefixEquivalence.test.ts, qui compare l'ancien prefixe serie et le
-  // prefixe parallele actuel sur des slots vides, un seul plein, tous pleins et un compte nul.
+  assert.match(DRAW_SHADER, /@compute @workgroup_size\(1\)/);
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn countGroups/);
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn scatterGroups/);
   assert.match(DRAW_SHADER, /fn prefixGroups/);

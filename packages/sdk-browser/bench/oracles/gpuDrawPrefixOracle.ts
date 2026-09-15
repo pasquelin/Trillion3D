@@ -1,9 +1,11 @@
 /**
  * Oracle : deux portages fidèles, ligne à ligne, du noyau `prefixGroups` de gpuDrawShader.ts.
  *
- * `prefixSerial` est l'ancien noyau (un seul fil, `@workgroup_size(1)`) : il parcourt les slots
- * dans l'ordre et fait avancer un curseur unique. `prefixParallel` est le noyau du lot D3
- * (`@workgroup_size(64)`) : chaque fil (lane) totalise les slots qui lui reviennent par pas de 64,
+ * `prefixSerial` est le noyau en place (un seul fil, `@workgroup_size(1)`) : il parcourt les slots
+ * dans l'ordre et fait avancer un curseur unique. `prefixParallel` est le noyau candidat du point D3
+ * (`@workgroup_size(64)`), écrit et prouvé mais non fusionné — `gpuDraw.test.ts` épingle la taille du
+ * groupe de travail et ce lot ne touche pas aux attentes des tests existants : chaque fil (lane)
+ * totalise les slots qui lui reviennent par pas de 64,
  * une barrière de groupe de travail sépare cette phase du calcul des décalages, puis chaque fil
  * reconstruit son curseur en resommant les totaux des slots qui le précèdent. Les deux calculent en
  * u32 (`>>> 0`), comme le fait WGSL.
