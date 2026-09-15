@@ -1,10 +1,6 @@
 import { checked } from './clusterPages.ts';
+import { sha256Hex } from './sha256Hex.ts';
 import type { StreamContext } from './streamingTypes.ts';
-
-const digest = async (bytes: ArrayBuffer) =>
-  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
 
 export function createStreamingFetcher(
   context: StreamContext,
@@ -44,7 +40,7 @@ export function createStreamingFetcher(
         }));
         combined.throwIfAborted();
         const sizeMatches = bytes.byteLength === page.bytes;
-        const actualHash = sizeMatches ? await digest(bytes) : undefined;
+        const actualHash = sizeMatches ? await sha256Hex(bytes) : undefined;
         const hashMatches = sizeMatches && actualHash === page.sha256;
         emit(
           'page-hash-check',

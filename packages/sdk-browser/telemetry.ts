@@ -4,7 +4,12 @@ import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 import { frameStatistics } from '../sdk-core/index.ts';
 
 export class EngineProfiler {
-  private readonly intervals: number[] = [];
+  /** Tampon circulaire des intervalles : une écriture par image, jamais un décalage de tout le
+   *  tableau. `frameStatistics` reçoit les mêmes valeurs, dans le même ordre, du plus ancien au
+   *  plus récent. */
+  private readonly intervals: Float64Array;
+  private intervalCount = 0;
+  private intervalHead = 0;
   private readonly maxIntervals: number;
   private lastTime = 0;
   private lastMetrics: FrameMetrics | null = null;
@@ -14,6 +19,16 @@ export class EngineProfiler {
 
   constructor(maxIntervals = 120) {
     this.maxIntervals = maxIntervals;
+    this.intervals = new Float64Array(Math.max(1, maxIntervals));
+  }
+
+  /** Les intervalles retenus, du plus ancien au plus récent. */
+  private orderedIntervals() {
+    const taille = this.intervals.length,
+      ordered = new Array<number>(this.intervalCount);
+    const debut = this.intervalCount === taille ? this.intervalHead : 0;
+    for (let i = 0; i < this.intervalCount; i++) ordered[i] = this.intervals[(debut + i) % taille];
+    return ordered;
   }
 
   setMetadata(metadata: ClusterManifest) {
@@ -25,10 +40,9 @@ export class EngineProfiler {
     if (this.lastTime > 0) {
       const dt = now - this.lastTime;
       if (dt > 0 && dt < 1000) {
-        this.intervals.push(dt);
-        if (this.intervals.length > this.maxIntervals) {
-          this.intervals.shift();
-        }
+        this.intervals[this.intervalHead] = dt;
+        this.intervalHead = (this.intervalHead + 1) % this.intervals.length;
+        if (this.intervalCount < this.intervals.length) this.intervalCount++;
       }
     }
     this.lastTime = now;
@@ -36,7 +50,7 @@ export class EngineProfiler {
   }
 
   getReport(): TelemetryReport {
-    const stats = frameStatistics(this.intervals);
+    const stats = frameStatistics(this.orderedIntervals());
     const m = this.lastMetrics;
     const sourceTri = this.sourceTriangles || m?.triangles || 0;
     const selectedTri = m?.selectedTriangles ?? null;
@@ -167,7 +181,8 @@ export class EngineProfiler {
 
   dispose() {
     this.stopAutoLog();
-    this.intervals.length = 0;
+    this.intervalCount = 0;
+    this.intervalHead = 0;
     this.lastMetrics = null;
   }
 }
