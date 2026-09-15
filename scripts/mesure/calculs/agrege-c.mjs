@@ -1,50 +1,22 @@
 #!/usr/bin/env node
 // Assemble les fragments du lot C en un seul tableau : console, Markdown et JSON. Le lot C ajoute la
 // colonne « Écart » : un changement qui déplace l'ordre flottant doit dire de combien il déplace.
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { RACINE, commit, fragments } from './banc.mjs';
-import { ENTETE_C, SEPARATEUR_C, ligneMarkdownC } from './bancC.mjs';
+import { ecris, lisFragments, nombre, pourcent } from './tableau.mjs';
 
-const FRAGMENTS = join(RACINE, '.mesure', 'calculs-c');
-const SORTIE = join(RACINE, 'orchestration', 'mesures');
+const ligne = (l) =>
+  `| ${l.calcul} | \`${l.fichier}\` | ${nombre(l.avantMs)} | ${nombre(l.apresMs)} | ${pourcent(
+    l.gain,
+  )} | ${l.identique ? 'oui' : 'non'} | ${l.ecart ?? '—'} | ${l.retenu ? 'oui' : 'non'} |`;
 
-const lignes = fragments(FRAGMENTS);
-
-const jour = new Date().toISOString().slice(0, 10);
-const tableau = [ENTETE_C, SEPARATEUR_C, ...lignes.map(ligneMarkdownC)].join('\n');
-const retenus = lignes.filter((ligne) => ligne.retenu).length;
-const resume = `${lignes.length} calculs comparés, ${retenus} retenus, ${
-  lignes.filter((ligne) => !ligne.identique).length
-} écarts bit à bit.`;
-
-console.log(`\n${tableau}\n\n${resume}`);
-
-mkdirSync(SORTIE, { recursive: true });
-writeFileSync(
-  join(SORTIE, `calculs-c-${jour}.md`),
-  `# Calculs, lot C : avant / après (${jour})\n\n` +
-    `Machine : ${process.platform}/${process.arch}, Node ${process.version}. Commit \`${commit()}\`.\n` +
+ecris({
+  nom: 'calculs-c',
+  titre: 'Calculs, lot C : avant / après',
+  preambule:
     `Médiane sur N tours après échauffement. « Retenu » exige l'égalité bit à bit, ou un écart nul\n` +
-    `sur les identifiants de pixels et d'au plus 1 ULP sur les profondeurs, ET un gain de temps.\n` +
-    `DPR, résolution d'affichage et FPS : sans objet ici, ces mesures sont des calculs CPU purs.\n\n${tableau}\n\n${resume}\n`,
-);
-writeFileSync(
-  join(SORTIE, `calculs-c-${jour}.json`),
-  `${JSON.stringify(
-    {
-      version: 1,
-      lot: 'C',
-      date: new Date().toISOString(),
-      commit: commit(),
-      node: process.version,
-      plateforme: `${process.platform}/${process.arch}`,
-      dpr: null,
-      fps: null,
-      lignes,
-    },
-    null,
-    2,
-  )}\n`,
-);
-console.log(`\nÉcrit : orchestration/mesures/calculs-c-${jour}.md et .json`);
+    `sur les identifiants de pixels et d'au plus 1 ULP sur les profondeurs, ET un gain de temps.`,
+  entete: '| Calcul | Fichier | Avant (ms) | Après (ms) | Gain | Identique | Écart | Retenu |',
+  separateur: '|---|---|---|---|---|---|---|---|',
+  ligne,
+  lignes: lisFragments('calculs-c'),
+  extra: { lot: 'C' },
+});

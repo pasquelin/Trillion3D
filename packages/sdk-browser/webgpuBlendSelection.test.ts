@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ordonneCoupeTransparente } from './webgpuBlendSelection.ts';
-import { referenceOrdonneCoupe } from '../../scripts/mesure/calculs/oracles/f-transparents.mjs';
+import { referenceOrdonneCoupe } from './bench/oracles/f-transparents.mjs';
 import type { PageRec } from './pageSelection.ts';
 
 const rec = (id: number, sourceOrder?: number) => ({ id, sourceOrder }) as unknown as PageRec;
