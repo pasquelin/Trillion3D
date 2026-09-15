@@ -51,6 +51,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       const mesh = rec.sourceMesh,
         copy = new THREE.Mesh(mesh.geometry, mesh.material);
       copy.matrixAutoUpdate = false;
+      copy.frustumCulled = mesh.frustumCulled;
       copy.matrix.copy(mesh.matrixWorld);
       copy.renderOrder = rec.renderOrder;
       copy.userData.sourceMesh = mesh;

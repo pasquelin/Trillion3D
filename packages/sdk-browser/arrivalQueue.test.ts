@@ -28,13 +28,13 @@ test('a drain stops at the byte budget and the next one resumes where it left of
   assert.equal(queue.pending, 3);
   assert.equal(queue.drain(), 2, "le budget d'octets arrête le drain");
   assert.deepEqual(a.accepted, ['p0', 'p1'], "ordre d'arrivée conservé");
-  assert.equal(a.syncs, 1, 'une seule résidence par drain, pas une par page');
+  assert.equal(a.syncs, 0, 'le rendu suivant synchronise sans soumission intermédiaire');
   assert.equal(queue.pending, 1);
   assert.equal(queue.drain(), 1);
   assert.deepEqual(a.accepted, ['p0', 'p1', 'p2']);
-  assert.equal(a.syncs, 2);
+  assert.equal(a.syncs, 0);
   assert.equal(queue.drain(), 0, 'file vide : rien à livrer et aucune résidence');
-  assert.equal(a.syncs, 2);
+  assert.equal(a.syncs, 0);
 });
 
 test('a page already waiting for a target is queued once, and each target keeps its own residency', () => {
@@ -54,25 +54,22 @@ test('a page already waiting for a target is queued once, and each target keeps 
   assert.equal(queue.drain(), 2, 'le budget de pages arrête le drain');
   assert.deepEqual(a.accepted, ['p0']);
   assert.deepEqual(b.accepted, ['p0']);
-  assert.equal(a.syncs, 1);
-  assert.equal(b.syncs, 1);
+  assert.equal(a.syncs, 0);
+  assert.equal(b.syncs, 0);
   // La file ne retient que l'attente : une page relivrée plus tard se ré-empile derrière le reste.
   assert.equal(queue.queue(a, 'p0', page), true);
   assert.equal(queue.drain(), 2);
   assert.deepEqual(a.accepted, ['p0', 'p1', 'p0']);
-  assert.equal(a.syncs, 2);
-  assert.equal(b.syncs, 1, 'un destinataire non touché ne resynchronise pas');
+  assert.equal(a.syncs, 0);
+  assert.equal(b.syncs, 0);
 });
 
-// A12 : `touched.includes` (quadratique) devient une appartenance par `Set`. Oracle : la version à
-// `includes`, d'avant le lot A, dans `bench/oracles/streaming.mjs`.
-test('many duplicate targets across a drain deliver and sync exactly like the reference', () => {
+// La livraison garde exactement les pages et leur ordre malgré la suppression du rendu implicite.
+test('many duplicate targets across a drain deliver exactly like the reference', () => {
   function arrivals(create: typeof createArrivalQueue) {
-    const delivered: string[] = [],
-      synced: number[] = [];
+    const delivered: string[] = [];
     const targets = Array.from({ length: 8 }, (_, c) => ({
       acceptPage: (url: string) => delivered.push(`${c}:${url}`),
-      syncResident: () => synced.push(c),
     }));
     const queue = create(1 << 20, 4096);
     const bytes = new Uint32Array(4);
@@ -80,7 +77,7 @@ test('many duplicate targets across a drain deliver and sync exactly like the re
     for (let i = 0; i < 500; i++) queue.queue(targets[i % 8], `page-${i % 50}.bin`, bytes);
     let livrs = 0;
     for (let d = 0; d < 3; d++) livrs += queue.drain();
-    return { delivered, synced, livrs };
+    return { delivered, livrs };
   }
   const optimisee = arrivals(createArrivalQueue);
   const reference = arrivals(referenceArrivalQueue as typeof createArrivalQueue);

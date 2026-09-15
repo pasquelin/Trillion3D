@@ -1,10 +1,12 @@
 import { addCpuSteps, cpuStepTable } from './stageMapping.ts';
 import { sunFarCounts } from './webgpuPagesPrepareSunFar.ts';
+import {
+  frameCostAuditEnabled,
+  gpuFrameCostSnapshot,
+  logFrameCostAudit,
+} from './frameCostAudit.ts';
 import type { HostCpuStep } from './hostCpuProfile.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
-import type { WebgpuDiagnostics } from './webgpuPagesSetup.ts';
-import type { WebgpuTimingState } from './webgpuPagesStateTiming.ts';
 
 /**
  * Les bornes processeur d'une image, dans l'ordre : pour chacune, son nom public et l'étape du
@@ -18,7 +20,9 @@ const CPU = cpuStepTable([
   ['lightsMs', 'lights'],
   ['adoptCutMs', 'cutAdoption'],
   ['transparentSelectMs', 'transparents'],
-  ['transparentEncodeMs', 'transparents'],
+  ['transparentPrepareMs', 'transparents'],
+  ['transparentDrawMs', 'transparents'],
+  ['transparentEncodeMs', null],
   ['admissionMs', 'residency'],
   ['residencyQueueMs', 'residency'],
   ['syncRowsMs', 'uploads'],
@@ -104,20 +108,25 @@ function recordStages(rt: WebgpuPagesRuntime) {
  * by both render paths: a measured loop renders without ever flushing, and the profile is exactly what
  * such a loop needs.
  */
-export function publishCpuProfile(
-  timing: WebgpuTimingState,
-  run: WebgpuRunState,
-  diag: WebgpuDiagnostics,
-) {
-  if (diag.traceEnabled || !timing.cpuSample || run.frame === timing.lastCpuLogFrame) return;
+export function publishCpuProfile(rt: WebgpuPagesRuntime) {
+  const { timing, run, diag } = rt;
+  if (
+    (diag.traceEnabled && !frameCostAuditEnabled()) ||
+    !timing.cpuSample ||
+    run.frame === timing.lastCpuLogFrame
+  )
+    return;
   const now = performance.now();
   if (now - timing.lastCpuLogMs < 2000) return;
   timing.lastCpuLogMs = now;
   timing.lastCpuLogFrame = run.frame;
-  diag.engineDiagnostic('cpu-timing', 'Durées CPU mesurées dans le moteur', {
+  const details = {
     ...timing.cpuSample,
     steps: timing.cpuProfile.summary(),
-  });
+    audit: gpuFrameCostSnapshot(rt),
+  };
+  diag.engineDiagnostic('cpu-timing', 'Durées CPU mesurées dans le moteur', details);
+  logFrameCostAudit('webgpu-page-raster', { kind: 'cpu-profile', ...details });
 }
 
 /** Dépose la durée d'une étape relevée par l'hôte : arrivées, attente, rétention, soumission. */
@@ -137,5 +146,5 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   timing.rowFilled = false;
   timing.cpuProfile.record(run.frame, timing.cpuProfile.row[CPU.at.totalMs]);
   recordStages(rt);
-  publishCpuProfile(timing, run, rt.diag);
+  publishCpuProfile(rt);
 }
