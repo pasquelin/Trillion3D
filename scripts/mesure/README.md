@@ -41,3 +41,20 @@ centaines de mégaoctets vivants dans la page qui l'a jouée : en enchaînant le
 page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error creating WebGL
 context », relevé au passage de la vue `generale` à `sol` le 14 septembre 2026). Fermer la page rend
 au navigateur le contexte WebGL et le tas de la série précédente.
+
+## Banc des calculs (`npm run bench:calculs`)
+
+`scripts/mesure/calculs/` compare, calcul par calcul, l'implémentation d'avant une optimisation à
+celle du paquet, sur les mêmes entrées : un fichier par domaine, `banc.mjs` pour le chronomètre,
+l'égalité bit à bit (`Object.is` sur chaque flottant, même ordre pour les tableaux, même contenu
+pour les Set et les Map) et le tableau, `scenes.mjs` pour les entrées — réalistes et hostiles :
+triangles dégénérés, sommets derrière la caméra, NaN, Infinity, -0, boîtes vides ou inversées,
+ensembles vides, générateur à graine fixe. La commande joue les fichiers un par un
+(`--test-concurrency=1`) puis `agrege.mjs` imprime le tableau
+`Calcul | Fichier | Avant (ms) | Après (ms) | Gain | Identique | Retenu` et l'écrit dans
+`orchestration/mesures/calculs-<date>.md`, les données brutes dans le `.json` voisin.
+
+Une ligne n'est « retenue » que si les deux sorties sont identiques au bit près **et** que la
+médiane d'après est meilleure. Chaque fichier de banc porte, en clair, une copie de l'ancien code
+comme oracle : ces doublons-là sont voulus, d'où l'exclusion `jscpd` de `scripts/mesure/calculs`
+dans `package.json`.

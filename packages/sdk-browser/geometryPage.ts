@@ -21,6 +21,58 @@ export type DecodedGeometryPage = {
   decodedBytes: number;
 };
 
+/**
+ * Les indices et les attributs d'une page, à partir des tampons que meshopt vient de décompresser.
+ *
+ * Le plan de lecture — chaque attribut présent, sa largeur, son décalage en flottants dans le
+ * sommet — est le même pour les 65 535 sommets d'une page : il est calculé une fois, et non refait
+ * avec une fermeture à chaque sommet. Les indices seize bits et les flottants sont lus par vue
+ * typée quand la machine est en petit boutien, par `DataView` sinon : mêmes valeurs, mêmes refus.
+ */
+export function decodePageAttributes(
+  indexData: Uint8Array,
+  vertexData: Uint8Array,
+  indexCount: number,
+  vertexCount: number,
+  flags: number,
+  stride: number,
+) {
+  const indices = new Uint32Array(indexCount);
+  if (PETIT_BOUTIEN) indices.set(new Uint16Array(indexData.buffer, 0, indexCount));
+  else {
+    const indexView = new DataView(indexData.buffer);
+    for (let i = 0; i < indexCount; i++) indices[i] = indexView.getUint16(i * 2, true);
+  }
+  for (let i = 0; i < indexCount; i++)
+    if (indices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
+  const attributes: Record<string, Float32Array> = { position: new Float32Array(vertexCount * 3) };
+  for (const [name, size, bit] of OPTIONAL)
+    if (flags & bit) attributes[name] = new Float32Array(vertexCount * size);
+  const plan: Array<[Float32Array, number, number]> = [[attributes.position, 3, 0]];
+  let place = 3;
+  for (const [name, size, bit] of OPTIONAL) {
+    if (flags & bit) plan.push([attributes[name], size, place]);
+    place += size;
+  }
+  const floats = PETIT_BOUTIEN ? new Float32Array(vertexData.buffer) : null,
+    vertices = PETIT_BOUTIEN ? null : new DataView(vertexData.buffer);
+  const parSommet = stride / 4;
+  for (let i = 0; i < vertexCount; i++) {
+    const base = i * parSommet;
+    for (let a = 0; a < plan.length; a++) {
+      const target = plan[a][0],
+        size = plan[a][1],
+        at = base + plan[a][2];
+      for (let c = 0; c < size; c++) {
+        const value = floats ? floats[at + c] : vertices!.getFloat32((at + c) * 4, true);
+        if (!Number.isFinite(value)) throw new Error('GEOMETRY_PAGE_NONFINITE');
+        target[i * size + c] = value;
+      }
+    }
+  }
+  return { indices, attributes };
+}
+
 /** Decode one complete meshopt page without referring to any source glTF buffer. */
 export async function decodeGeometryPage(
   data: Uint8Array,
@@ -63,41 +115,13 @@ export async function decodeGeometryPage(
     stride,
     data.subarray(32 + indexBytes),
   );
-  const indices = new Uint32Array(indexCount);
-  if (PETIT_BOUTIEN) indices.set(new Uint16Array(indexData.buffer, 0, indexCount));
-  else {
-    const indexView = new DataView(indexData.buffer);
-    for (let i = 0; i < indexCount; i++) indices[i] = indexView.getUint16(i * 2, true);
-  }
-  for (let i = 0; i < indexCount; i++)
-    if (indices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
-  const attributes: Record<string, Float32Array> = { position: new Float32Array(vertexCount * 3) };
-  for (const [name, size, bit] of OPTIONAL)
-    if (flags & bit) attributes[name] = new Float32Array(vertexCount * size);
-  // Le plan de lecture est le même pour les 65 535 sommets d'une page : chaque attribut présent,
-  // sa largeur et son décalage en flottants dans le sommet. Il était refait, et une fermeture avec
-  // lui, à chaque sommet.
-  const plan: Array<[Float32Array, number, number]> = [[attributes.position, 3, 0]];
-  let place = 3;
-  for (const [name, size, bit] of OPTIONAL) {
-    if (flags & bit) plan.push([attributes[name], size, place]);
-    place += size;
-  }
-  const floats = PETIT_BOUTIEN ? new Float32Array(vertexData.buffer) : null,
-    vertices = PETIT_BOUTIEN ? null : new DataView(vertexData.buffer);
-  const parSommet = stride / 4;
-  for (let i = 0; i < vertexCount; i++) {
-    const base = i * parSommet;
-    for (let a = 0; a < plan.length; a++) {
-      const target = plan[a][0],
-        size = plan[a][1],
-        at = base + plan[a][2];
-      for (let c = 0; c < size; c++) {
-        const value = floats ? floats[at + c] : vertices!.getFloat32((at + c) * 4, true);
-        if (!Number.isFinite(value)) throw new Error('GEOMETRY_PAGE_NONFINITE');
-        target[i * size + c] = value;
-      }
-    }
-  }
+  const { indices, attributes } = decodePageAttributes(
+    indexData,
+    vertexData,
+    indexCount,
+    vertexCount,
+    flags,
+    stride,
+  );
   return { indices, attributes, vertexCount, flags, decodedBytes };
 }
