@@ -23,7 +23,7 @@ export function rootCoverInto<T extends PageRecord>(
       whole = false;
       continue;
     }
-    s.shown.push(rec);
+    s.shown[s.shownCount++] = rec;
     s.shownTriangles += rec.triangles;
   }
   return whole;
@@ -77,7 +77,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
         hard = true;
         break;
       }
-      s.shown.push(rec);
+      s.shown[s.shownCount++] = rec;
       s.shownTriangles += rec.triangles;
     }
   if (!hard) return;
