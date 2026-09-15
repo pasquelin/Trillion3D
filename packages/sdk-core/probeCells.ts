@@ -25,20 +25,21 @@ export function probeCellsOf(proxy: SceneProxy, grid: ProbeGrid): Uint32Array {
   const triangles = proxy.data.triangles;
   const low = [0, 0, 0],
     high = [0, 0, 0];
-  const span = (base: number, axis: number) => {
-    const cell = (vertex: number) =>
-      (triangles[base + vertex * 3 + axis] - grid.origin[axis]) / grid.spacing[axis];
-    const [a, b, c] = [cell(0), cell(1), cell(2)];
-    // La maille d'un sommet, puis la couronne d'une maille : `-1` et `+1` autour de l'intervalle.
-    low[axis] = Math.floor(Math.min(a, b, c)) - 1;
-    high[axis] = Math.floor(Math.max(a, b, c)) + 1;
-  };
   for (
     let base = 0;
     base + PROXY_TRIANGLE_FLOATS <= triangles.length;
     base += PROXY_TRIANGLE_FLOATS
   ) {
-    for (let axis = 0; axis < 3; axis++) span(base, axis);
+    for (let axis = 0; axis < 3; axis++) {
+      const origin = grid.origin[axis],
+        step = grid.spacing[axis];
+      const a = (triangles[base + axis] - origin) / step,
+        b = (triangles[base + 3 + axis] - origin) / step,
+        c = (triangles[base + 6 + axis] - origin) / step;
+      // La maille d'un sommet, puis la couronne d'une maille : `-1` et `+1` autour de l'intervalle.
+      low[axis] = Math.floor(Math.min(a, b, c)) - 1;
+      high[axis] = Math.floor(Math.max(a, b, c)) + 1;
+    }
     mark(keep, grid.counts, low, high);
   }
   const cells: number[] = [];
@@ -54,15 +55,15 @@ function mark(
   high: number[],
 ) {
   const [nx, ny, nz] = counts;
-  const span = (axis: number, limit: number) => [
-    Math.max(0, Math.min(limit - 1, low[axis])),
-    Math.max(0, Math.min(limit - 1, high[axis])),
-  ];
-  const [x0, x1] = span(0, nx),
-    [y0, y1] = span(1, ny),
-    [z0, z1] = span(2, nz);
+  // Hors grille des deux côtés : un pavé entièrement au-delà d'une borne ne marque rien.
   if (low[0] >= nx || low[1] >= ny || low[2] >= nz) return;
   if (high[0] < 0 || high[1] < 0 || high[2] < 0) return;
+  const x0 = Math.max(0, low[0]),
+    y0 = Math.max(0, low[1]),
+    z0 = Math.max(0, low[2]);
+  const x1 = Math.min(nx - 1, high[0]),
+    y1 = Math.min(ny - 1, high[1]),
+    z1 = Math.min(nz - 1, high[2]);
   for (let z = z0; z <= z1; z++)
     for (let y = y0; y <= y1; y++) {
       const row = nx * (y + ny * z);

@@ -13,7 +13,7 @@ import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Ce que la passe de sondes lie : la grille, le proxy, la liste des mailles utiles, les sondes
  *  figées, les neuves, le cache. Les lampes n'y sont plus : le cache les a évaluées par maille. */
-const PROBE_TYPES = [
+const PROBE_TYPES: (GPUBufferBindingType | null)[] = [
   'uniform',
   'read-only-storage',
   'read-only-storage',
@@ -23,7 +23,7 @@ const PROBE_TYPES = [
   'read-only-storage',
   'storage',
   'read-only-storage',
-] as const;
+];
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>;
 
@@ -75,7 +75,7 @@ export async function createGpuBounceProbes(
   try {
     surface = await createGpuBounceSurface(device, resident, lights, { uniform, snapshot });
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE');
-    const layout = bounceLayout(device, [...PROBE_TYPES]);
+    const layout = bounceLayout(device, PROBE_TYPES);
     pipeline = device.createComputePipeline({
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateProbes' },
@@ -130,7 +130,7 @@ export async function createGpuBounceProbes(
     uniform,
     probes,
     /** Images d'un tour complet : c'est la borne du retard de convergence. */
-    sweepFrames: Math.max(Math.ceil(active / Math.max(batch, 1)), surface.sweepFrames, 1),
+    sweepFrames: Math.max(Math.ceil(active / batch), surface.sweepFrames, 1),
     /** Sondes réellement tenues : les mailles utiles, sur les `grid.probes` de la grille complète. */
     activeProbes: active,
     /** Sondes mises à jour par la dernière image encodée, et rayons qu'elles ont lancés. */

@@ -9,7 +9,7 @@ import type { GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Ce que la passe de cache lie : la grille, le proxy, les lampes, les sondes figées, le cache. */
-const SURFACE_TYPES = [
+const SURFACE_TYPES: (GPUBufferBindingType | null)[] = [
   'uniform',
   'read-only-storage',
   'read-only-storage',
@@ -19,7 +19,7 @@ const SURFACE_TYPES = [
   'read-only-storage',
   'storage',
   'uniform',
-] as const;
+];
 
 export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>>;
 
@@ -47,12 +47,16 @@ export async function createGpuBounceSurface(
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
+  const release = () => {
+    buffer.destroy();
+    span.destroy();
+  };
   const module = await createCheckedShaderModule(
     device,
     BOUNCE_SURFACE_SHADER,
     'BOUNCE_SURFACE_SHADER',
   );
-  const layout = bounceLayout(device, [...SURFACE_TYPES]);
+  const layout = bounceLayout(device, SURFACE_TYPES);
   let pipeline: GPUComputePipeline;
   try {
     pipeline = device.createComputePipeline({
@@ -60,8 +64,7 @@ export async function createGpuBounceSurface(
       compute: { module, entryPoint: 'updateSurface' },
     });
   } catch (error) {
-    buffer.destroy();
-    span.destroy();
+    release();
     throw error;
   }
   const group = bounceGroup(device, layout, [
@@ -117,9 +120,6 @@ export async function createGpuBounceSurface(
         sweeps++;
       }
     },
-    dispose() {
-      buffer.destroy();
-      span.destroy();
-    },
+    dispose: release,
   };
 }
