@@ -1,31 +1,33 @@
-# Reprise — session « Lumière »
+# Lumière — handoff
 
-## Règles de la session
-- Fable chef, ne code pas ; Opus code ; Sonnet lit et raisonne (images, analyses) ; Haiku lance des commandes existantes, jamais de script. Réponses en 5 à 10 lignes, tableau seulement si la structure le justifie. Économie de jetons : un agent par lot, pas d'analyse préalable quand le constat existe déjà.
-- Seul le Validateur fusionne `develop`, lance `npm run validate` et pousse. Lumière livre « branche, SHA, preuve » par message. Plus de verrou de mesure : un banc se lance directement, `uptime` noté, durées non retenues sous forte charge.
-- Périmètre figé : uniquement le tableau ci-dessous ; tout lot nouveau se propose en une ligne et attend le go. Portes par lot : `tsc`, `check:changed`, `check:unused`, `check:lines`, `check:duplicates`, un test par comportement corrigé.
-- Preuve selon le lot. Correction visuelle : reproduction du défaut, résultat attendu vérifié, 0 px hors de la zone affectée. Optimisation : A/A stable puis avant/après 0 px. Une correction peut changer l'image.
-- Règles : `AGENTS.md`, `orchestration/SPEC_ECLAIRAGE.md`. Lab port 5174 jamais tué, `public/benchmark-assets` jamais écrit. `get_session self` avant toute action.
+## Workflow
 
-## Tableau de suivi (ordre d'exécution)
-| # | Lot | État | Preuve attendue |
-|---|---|---|---|
-| 0 | Banc fiable. (a) `lights.json` demandé seulement si le manifeste le déclare, banc refuse un cache incomplet : codé, `lot/banc-fiable` 3058b3e (worktree `lot-banc-fiable`, base bdaaacf), portes vertes, preuve navigateur non jouée (`--vues sol --images 30 --pixelError 1`, attendu zéro 404, 0 px). (b) Instabilité A/A reproduite sur develop, caméra mobile, 8 lampes + soleil, 3 exécutions : 0 / 1 392 / 6 278 px au seuil 1, jusqu'à 28 261 px max 124 au seuil 0, 14 erreurs de page par exécution (`.mesure/out/aa-audit-{1,2,3}` du worktree de session). Cause à isoler par matrice, deux exécutions chacune : caméra fixe ; soleil seul ; lampes seules ; ombres off ; sans lampe ; puis lire les 14 erreurs de page | (a) à prouver, (b) matrice à jouer | zéro 404, A/A 0 px sur 3 exécutions |
-| 1 | Occultants d'ombre hors champ : sélection propre aux occultants (`webgpuPagesEncodeShadowPass.ts`) | à faire | mur derrière la caméra ombre le sol visible |
-| 2 | Atlas d'ombres libéré à la suppression d'une lampe (`sceneLightStore.ts`) + copies publiques détachées (`explorerLightApi.ts`) | à faire | ajout/suppression ×20 sans échec ; mutation d'une copie sans effet interne |
-| 3 | Proxy lointain et rebond suivent les objets déplacés (`webgpuPagesTransform.ts`) | à faire | porte déplacée, ombre lointaine et rebond au nouvel endroit |
-| 4 | Profondeur des tuiles pour les transparents devant le ciel (`gpuLightTilesShader.ts`) | à faire | contre-exemple de l'audit éclairé |
-| 5 | Toutes les lampes contributrices par tuile, plus de plafond 32 (`gpuLightTilesShader.ts`) | à faire | 33 lampes, aucune perdue, oracle 0 |
-| 6 | Tests d'ombre du rebond pour toutes les lampes (`bounceSurfaceWgsl.ts`) | à faire | pas de fuite à travers un mur avec 5 lampes |
-| 7 | Rejet des occultants compté dans le budget d'ombres (`stageMapping.ts`) | à faire | relevé synthétique 2 + 1 ms → 3 ms |
-| 8 | Optimisations : test d'ombre sauté lampe derrière la surface, atlas 64 Mio à la demande, proxy chargé seulement avec soleil, profondeurs d'ombre conservées si seule la couleur change | après 7 | A/A stable, 0 px |
-| 9 | Reflet (`lot/reflet` 415c9e1, worktree `lot-reflet`) : chemin actif (2 surfaces, +2 ms) mais reflet on = off à 0 px, scène presque noire ; diagnostic arrêté | en pause, sur go | reflet des cubes visible sur le sol métallique, A/A 0 |
-| 10 | Bissection GPU vue sol (3,65 → 6,49 ms à 0 px) : passes d'éclairage déjà sautées à 0 lampe, cause dans géométrie ou résolution, référence mesurée sous charge 15–26 | à faire, machine calme | rejouer `db44508` ×2, puis commits Hi-Z / transparents GPU / instances / eau, `--profil on` |
-| 11 | Reflets flous, ombres colorées des semi-transparents, translucidité des feuilles, alpha binaire BLEND → MASK à l'import | après 9 | par lot |
+- Run `get_session("self")` first. Follow `AGENTS.md` and relevant sections of `SPEC_ECLAIRAGE.md`.
+- Fable leads, no coding; Opus codes; Sonnet reads/reasons about images/analysis; Haiku runs existing commands, never writes scripts. One agent per batch; reuse established findings. Keep replies brief; tables only when useful.
+- Only Validateur merges develop, runs `npm run validate` and pushes. Deliver branch, SHA, evidence. No measurement lock; record `uptime`, discard timings under heavy load. Never kill Lab port 5174 or write `public/benchmark-assets`.
+- Scope = batches below. Propose any new batch in one line and wait for go. Per-batch gates: tsc, `check:changed`, `check:unused`, `check:lines`, `check:duplicates`; one test per corrected behavior.
+- Visual fix: reproduce, verify expected output, 0 px outside affected area; corrected image may change. Optimization: stable A/A, then before/after 0 px.
 
-## Références utiles
-- Audit externe du 15 sept. 2026 sur bdaaacf : `/private/tmp/webgeometry-lighting-audit-bdaaacf/audit.md` (huit défauts, chiffres 1280 × 720, 8 ponctuelles + soleil, caméra mobile).
-- Fixture miroir : `packages/asset-compiler-rust/fixtures/classes-materiaux/miroir.gltf`, cache `.mesure/cache-miroir` du worktree `lot-reflet`. Le harnais ne compare pas deux exécutions (reflet off / on) : juger à l'œil ou proposer une option.
-- Trou de test connu : `webgpuBindBudget.test.ts` ne couvre pas `createDeferredLayouts`.
+## Execution order (September 15 handoff; verify status before resuming)
 
-Supprimer ce fichier quand le tableau est vide.
+0. Reliable bench:
+   - (a) Request `lights.json` only when declared by manifest; reject incomplete cache. Coded `lot/banc-fiable` 3058b3e, worktree `lot-banc-fiable`, base bdaaacf, gates pass. Browser proof pending: `--vues sol --images 30 --pixelError 1`, zero 404, 0 px.
+   - (b) A/A instability reproduced on develop, mobile camera, 8 lights + sun: 3 runs = 0 / 1,392 / 6,278 px at threshold 1; up to 28,261 px, max 124 at threshold 0; 14 page errors/run. Evidence `.mesure/out/aa-audit-{1,2,3}` in session worktree. Run each isolation case twice: fixed camera, sun only, lights only, shadows off, no lights; inspect 14 errors. Acceptance: zero 404, A/A 0 px on 3 runs.
+1. Offscreen shadow casters: dedicated selection (`webgpuPagesEncodeShadowPass.ts`). Pending; wall behind camera must shadow visible floor.
+2. Release shadow atlas on light removal (`sceneLightStore.ts`); detached public copies (`explorerLightApi.ts`). Pending; add/remove ×20 without failure, mutating copy must not affect internals.
+3. Far proxy/bounce follow moved objects (`webgpuPagesTransform.ts`). Pending; moved door updates distant shadow/bounce.
+4. Tile depth for transparent surfaces against sky (`gpuLightTilesShader.ts`). Pending; audit counterexample must receive light.
+5. All contributing lights per tile, remove cap 32 (`gpuLightTilesShader.ts`). Pending; 33 lights, none lost, oracle 0.
+6. Bounce shadow tests for every light (`bounceSurfaceWgsl.ts`). Pending; no wall leakage with 5 lights.
+7. Include caster rejection in shadow budget (`stageMapping.ts`). Pending; synthetic 2 + 1 ms → 3 ms.
+8. After 7: skip shadow test behind surface; allocate 64 MiB atlas on demand; load proxy only with sun; retain shadow depth on color-only change. Require stable A/A, 0 px.
+9. Reflection `lot/reflet` 415c9e1 (`lot-reflet`): active path, 2 surfaces, +2 ms, but on/off = 0 px, scene nearly black; diagnosis stopped. Paused until go. Require visible cube reflections on metal floor, A/A 0.
+10. Ground-view GPU bisection: 3.65 → 6.49 ms, 0 px. Lighting passes already skipped at 0 lights; suspect geometry/resolution, reference under load 15–26. Pending quiet machine: replay `db44508` twice, then Hi-Z/GPU transparency/instances/water commits, `--profil on`.
+11. After 9: rough reflections, colored semitransparent shadows, leaf translucency; original proposal also includes binary-alpha BLEND → MASK on import. That conversion conflicts with AGENTS.md's transparency rule; resolve before implementation. Proof per batch.
+
+## Evidence and limits
+
+- External audit, 2026-09-15, bdaaacf: `/private/tmp/webgeometry-lighting-audit-bdaaacf/audit.md`; 8 defects, 1280×720, 8 point lights + sun, mobile camera.
+- Mirror fixture: `packages/asset-compiler-rust/fixtures/classes-materiaux/miroir.gltf`; cache `.mesure/cache-miroir` in `lot-reflet`. Harness cannot compare reflection off/on runs: inspect visually or propose an option.
+- Known test gap: `webgpuBindBudget.test.ts` does not cover `createDeferredLayouts`.
+- Delete this handoff when all batches are complete.

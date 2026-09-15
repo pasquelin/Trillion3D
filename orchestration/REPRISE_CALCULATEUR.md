@@ -1,25 +1,29 @@
-# Reprise — session Calculateur
+# Calculateur — handoff
 
-Vérifier le titre « Calculateur » par `get_session("self")`. Règles : `AGENTS.md`. Plan : `SPEC_MOTEUR_SANS_THREE.md` R1a à R1f.
+Confirm title `Calculateur` with `get_session("self")`. Follow `AGENTS.md`; plan: `SPEC_MOTEUR_SANS_THREE.md`, R1a–R1f. Status below is the 2026-09-15 handoff, not fresh verification.
 
-## Règles de travail
+## Workflow
 
-- Opus code et écrit reproductions et bancs ; Sonnet écrit les tests ; Haiku lance les campagnes. Worktree parti de `develop`. Jamais `git stash` ni push.
-- Le Validateur seul lance `validate`, fusionne et pousse. Livraison : tête et merge-base sur develop récent, tests, `check:changed`, campagne `scripts/mesure/banc.mjs` (WebGPU trois vues et `--camera-mobile`, WebGL générale, `--pixelError 0,1`), sans attente préalable.
-- Lots M (sans Three) : identiques à Three au bit près, parent/enfant compris ; banc équivalence puis comparatif (Three ns, nous ns, rapport, gain %, ✅/❌).
-- Correctifs : reproduction avant, CPU et **GPU exécuté** (Chromium WebGPU, `LAB_ROOT`), test de justesse après, campagne, écarts d'image expliqués. Tout « 0 écart » nomme sa comparaison ; un contre-exemple fourni se rejoue avant de conclure.
+- Opus: code/reproductions/benchmarks; Sonnet: tests; Haiku: campaigns. Worktree from `develop`; never stash or push.
+- Only Validateur runs `validate`, merges and pushes. Deliver head + merge-base against recent develop, tests, `check:changed`, and `scripts/mesure/banc.mjs`: WebGPU three views + `--camera-mobile`, WebGL generale, `--pixelError 0,1`. No waiting beforehand.
+- M batches (without Three): bit-identical to Three, including parent/child transforms. Run equivalence then comparative bench: Three ns, ours ns, ratio, gain %, pass/fail. Equivalence preserves old bugs; it is not correctness proof.
+- Bug fixes: reproduce first on CPU and **executed GPU** (Chromium WebGPU, `LAB_ROOT`); add correctness test, run campaign, explain image changes. Name the comparison behind every “0 difference”; replay supplied counterexamples before concluding.
 
-## Lots M
+## M batches
 
-- M2 volumes : dans develop. M1 socle : `calculs/m1-socle` 2355e89, livré, pas fusionné. M3a hiérarchie : `calculs/m3a-hierarchie` 594b97b (worktree `agent-a96ed1f…`), à rebaser après M1. Puis produit 4×4 sur tampons plats, M3b, M4, M5 (appels Three : `git show ebba8de:orchestration/AUDIT_MATH_FORMULES.md`, lot T1).
-- Leurs tests prouvent l'identité, pas la justesse : les défauts antérieurs sont reproduits fidèlement.
+- M2 volumes merged. M1 foundation: `calculs/m1-socle` 2355e89, delivered/unmerged.
+- M3a hierarchy: `calculs/m3a-hierarchie` 594b97b (`agent-a96ed1f…`), rebase after M1.
+- Next: flat-buffer 4×4 product, M3b, M4, M5. Three calls: `git show ebba8de:orchestration/AUDIT_MATH_FORMULES.md`, T1.
 
-## Correctifs de l'audit du 15 sept. (agents arrêtés par l'utilisateur ; WIP commités, non vérifiés)
+## September 15 audit fixes
 
-1. Cône à petite échelle : **fusionné et poussé** (948aa29).
-2. `setTransform` perd le cisaillement (`webgpuPagesTransform.ts`) : pas commencé, attend M1.
-3. Erreur écran hors axe (`projectionOracles.ts:142`) : `fix/defaut3-erreur-ecran` bebdba6 (worktree `agent-a0b556ff…`), WIP. Borne pour **toutes** les directions, profondeur et plan proche compris ; coût en triangles et temps ; rebase.
-4. Répétition miroir : `fix/defaut4-miroir` 1558d04 corrigé, tests en WIP d1470bb (worktree `agent-adb78848…`). Référence : la carte graphique (texel 2), pas `transformUv` (texel 3). Campagne 0 px, aucun miroir au banc. Restent tests, rebase, campagne.
-5. Caméra parentée : `fix/defaut5-camera` 2ef1171 + WIP c7f2324 (worktree `agent-a9ca1348…`), 14 sites, CPU 13/14 → 0, GPU 8/12 → 0, campagne 0 px. Restent tests, rebase (`pageSelectionCut*`, `hiz*`), campagne.
-6. Seuil `1e-20` d'`inverseTranspose3` WGSL : `repro/defaut6-inverse-transposee` 7211fd6 (worktree `agent-a701ed76…`), non exécutée. Prouver ou non la suppression de faces visibles contre l'orientation réelle ; si oui, corriger dans la vague.
-7. et 8. Trouvés par le lot 4, en attente de l'utilisateur : couture de `Repeat` en filtrage linéaire (180 écarts) ; mode de répétition par carte ignoré côté GPU.
+Agents stopped by user; committed WIP remains unverified unless stated.
+
+1. Small-scale cone: **merged/pushed**, 948aa29.
+2. `setTransform` loses shear (`webgpuPagesTransform.ts`): not started; waits for M1.
+3. Off-axis screen error (`projectionOracles.ts:142`): `fix/defaut3-erreur-ecran` bebdba6 (`agent-a0b556ff…`), WIP. Bound all directions, depth/near plane; measure triangle/time cost; rebase.
+4. Mirrored repeat: `fix/defaut4-miroir` 1558d04, tests WIP d1470bb (`agent-adb78848…`). Oracle = GPU texel 2, not `transformUv` texel 3. Campaign 0 px but no mirrored content. Tests, rebase, campaign remain.
+5. Parented camera: `fix/defaut5-camera` 2ef1171 + WIP c7f2324 (`agent-a9ca1348…`); 14 sites, CPU 13/14 → 0, GPU 8/12 → 0, campaign 0 px. Tests, rebase (`pageSelectionCut*`, `hiz*`), campaign remain.
+6. WGSL `inverseTranspose3` threshold `1e-20`: `repro/defaut6-inverse-transposee` 7211fd6 (`agent-a701ed76…`), not run. Prove whether visible faces are removed against true orientation; fix in this wave if confirmed.
+7. Linear-filter `Repeat` seam: 180 differences, found by batch 4; awaits user.
+8. GPU ignores per-map repeat mode: found by batch 4; awaits user.
