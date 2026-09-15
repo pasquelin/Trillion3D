@@ -6,7 +6,7 @@ import type { PageDecodeAnswer, PageDecodeOp } from '../sdk-core/index.ts';
 
 /** Le plafond d'octets décodés d'une page, identique à celui du chemin synchrone d'origine. */
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
-const counters = { tasks: 0, offThread: 0, decodeMs: 0 };
+const counters = { tasks: 0, offThread: 0, wasm: 0, decodeMs: 0 };
 let admissionLimit = 1,
   pool: PageDecodePool | undefined;
 /** `undefined` tant que l'épreuve de démarrage n'a pas répondu, puis son verdict. */
@@ -50,7 +50,10 @@ function openPool() {
 function count(answer: PageDecodeAnswer, offThread: boolean) {
   counters.tasks++;
   if (offThread) counters.offThread++;
-  if (answer.ok) counters.decodeMs += answer.taskMs;
+  if (answer.ok) {
+    counters.decodeMs += answer.taskMs;
+    if (answer.wasm) counters.wasm++;
+  }
   return answer;
 }
 function refuse(answer: PageDecodeAnswer): never {
@@ -115,8 +118,12 @@ export async function decodePageOffThread(
     } finally {
       signal?.removeEventListener('abort', cancel);
     }
-    // Un worker disparu ne perd rien : les octets compressés sont restés chez l'appelant.
-    if (!answer.ok && answer.code === 'PAGE_DECODE_WORKER')
+    // Un worker disparu, ou un worker sans décodeur, ne perd rien : les octets compressés sont
+    // restés chez l'appelant, et le fil principal sait faire le même travail.
+    if (
+      !answer.ok &&
+      (answer.code === 'PAGE_DECODE_WORKER' || answer.code === 'PAGE_DECODE_UNAVAILABLE')
+    )
       answer = await onThread('decode', ownBuffer(bytes));
     else count(answer, true);
   } else answer = await onThread('decode', ownBuffer(bytes));
@@ -125,12 +132,13 @@ export async function decodePageOffThread(
   return restorePageDecode(answer.decoded);
 }
 
-/** Pages décodées hors fil, temps cumulé des décodages, taille du pool. `null` quand rien n'a été
- *  décodé : une métrique non mesurée n'est pas un zéro. */
+/** Pages décodées hors fil, pages décodées par le module WebAssembly, temps cumulé des décodages,
+ *  taille du pool. `null` quand rien n'a été décodé : une métrique non mesurée n'est pas un zéro. */
 export function pageDecodeStats() {
-  if (!counters.tasks) return { offThread: null, decodeMs: null, workers: null };
+  if (!counters.tasks) return { offThread: null, wasm: null, decodeMs: null, workers: null };
   return {
     offThread: counters.offThread,
+    wasm: counters.wasm,
     decodeMs: counters.decodeMs,
     workers: pool?.alive ? pool.workers : 0,
   };
@@ -143,5 +151,6 @@ export function releasePageDecoders() {
   started = undefined;
   counters.tasks = 0;
   counters.offThread = 0;
+  counters.wasm = 0;
   counters.decodeMs = 0;
 }

@@ -1,23 +1,23 @@
 {
   "version": 1,
   "lot": "H2",
-  "develop": "5305f6c8264aff2200c15f9b902c42021b410af5",
-  "socle": "23824cc853ecdd13dbcf17409c8d31c4821e858a",
-  "chargeMachine": 10.83984375,
+  "develop": "d3dcd6963bc00d84c050a496ae55c2752cfdf8d5",
+  "socle": "5305f6c8264aff2200c15f9b902c42021b410af5",
+  "chargeMachine": 18.27490234375,
   "tempsConcluants": false,
-  "date": "2026-09-15T08:44:44.414Z",
-  "commit": "da079ae013143d8b0d1236e0ee74af3449577e37",
+  "date": "2026-09-15T08:52:54.339Z",
+  "commit": "e61ebf033cc6f4083a78a46c3b31da9b5dbc83a8",
   "node": "v26.8.2",
   "plateforme": "darwin/arm64",
   "dpr": null,
   "fps": null,
   "lignes": [
     {
-      "calcul": "H1 décodage de page par le contrat",
+      "calcul": "H1 décodage de page par le contrat, module WebAssembly actif",
       "fichier": "packages/sdk-browser/pageDecodeHost.ts",
-      "avantMs": 2.4471045,
-      "apresMs": 2.4612705,
-      "gain": -0.005788882330117043,
+      "avantMs": 2.544667,
+      "apresMs": 1.595875,
+      "gain": 0.37285507298204446,
       "identique": true,
       "retenu": true,
       "difference": null,
@@ -36,9 +36,9 @@
     {
       "calcul": "H2 hachage d’intégrité par le contrat",
       "fichier": "packages/sdk-browser/pageDecodeHost.ts",
-      "avantMs": 0.5606035,
-      "apresMs": 0.5689795,
-      "gain": -0.014941041217188153,
+      "avantMs": 0.5429999999999999,
+      "apresMs": 0.5551465,
+      "gain": -0.022369244935543393,
       "identique": true,
       "retenu": true,
       "difference": null,
@@ -54,58 +54,5 @@
         }
       ]
     }
-  ],
-  "campagne": {
-    "commande": "node scripts/mesure/banc.mjs --moteur webgpu --avant 23824cc --vues generale,sol,rue,detail --images 120 --pixelError 1 --port 50421",
-    "avant": "23824cc",
-    "sortie": ".mesure/out/webgpu-2026-09-15T08-42-00-894Z",
-    "chargeMachine": "22 à 34",
-    "tempsConcluants": false,
-    "vues": [
-      {
-        "vue": "generale",
-        "temoinAAPixels": 0,
-        "ecartPixels": 0,
-        "maxCanal": 0,
-        "cpuFrameMsP50Avant": 2.5,
-        "cpuFrameMsP50Apres": 2.7,
-        "pagesDecodedOffThread": 81,
-        "pageDecodeMs": 4.8,
-        "uncoveredTriangles": 0
-      },
-      {
-        "vue": "sol",
-        "temoinAAPixels": 0,
-        "ecartPixels": 0,
-        "maxCanal": 0,
-        "cpuFrameMsP50Avant": 2.7,
-        "cpuFrameMsP50Apres": 2.6,
-        "pagesDecodedOffThread": 83,
-        "pageDecodeMs": 4.3,
-        "uncoveredTriangles": 0
-      },
-      {
-        "vue": "rue",
-        "temoinAAPixels": 0,
-        "ecartPixels": 0,
-        "maxCanal": 0,
-        "cpuFrameMsP50Avant": 2.6,
-        "cpuFrameMsP50Apres": 2.5,
-        "pagesDecodedOffThread": 90,
-        "pageDecodeMs": 5.0,
-        "uncoveredTriangles": 0
-      },
-      {
-        "vue": "detail",
-        "temoinAAPixels": 0,
-        "ecartPixels": 0,
-        "maxCanal": 0,
-        "cpuFrameMsP50Avant": 2.4,
-        "cpuFrameMsP50Apres": 2.4,
-        "pagesDecodedOffThread": 66,
-        "pageDecodeMs": 4.5,
-        "uncoveredTriangles": 0
-      }
-    ]
-  }
+  ]
 }
