@@ -174,5 +174,8 @@ export function readOptions(argv, root) {
   if (settings.frames < 1) throw new Error('--images doit être un entier positif');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
-  return { flags, settings, views, out };
+  // `--ressources` : la base que le glTF d'un cache compilé désigne par chemin relatif, montée
+  // sous `/assets/`. Sans elle, un tel cache sort ses textures en 404 et la mesure change de scène.
+  const resourcesDir = flags.get('ressources');
+  return { flags, settings, views, out, resources: resourcesDir ? resolve(resourcesDir) : null };
 }
