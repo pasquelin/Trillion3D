@@ -174,7 +174,15 @@ fn version_flag_describes_the_build() {
         .collect();
     assert_eq!(
         names,
-        ["gltf", "fbx", "obj", "unity", "zip", "unitypackage"]
+        [
+            "gltf",
+            "fbx",
+            "obj",
+            "unity",
+            "zip",
+            "unitypackage",
+            "alembic"
+        ]
     );
     let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
     assert!(fbx["version"].as_str().unwrap().contains("ufbx"));

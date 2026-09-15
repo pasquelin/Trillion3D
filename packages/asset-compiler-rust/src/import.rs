@@ -54,6 +54,7 @@ impl std::hash::Hasher for CornerHasher {
 type CornerMap = HashMap<(u32, u32, u32, u32), u32, std::hash::BuildHasherDefault<CornerHasher>>;
 /// Le binaire d'une scène intermédiaire en construction, partagé avec les pilotes de scène qui
 /// écrivent leur propre glTF : une vue par bloc d'octets, alignée sur quatre.
+#[derive(Default)]
 pub(crate) struct Bin {
     pub(crate) bytes: Vec<u8>,
     pub(crate) views: Vec<Value>,
