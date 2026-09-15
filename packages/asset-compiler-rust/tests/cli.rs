@@ -185,6 +185,6 @@ fn version_flag_describes_the_build() {
     let images = v["plugins"]["image"].as_array().expect("image plugins");
     assert_eq!(
         plugin_names(images).join(" "),
-        "png jpeg tga tiff dds webp exr hdr ktx2 psd"
+        "png jpeg tga tiff dds webp exr hdr ktx2 psd bmp gif"
     );
 }
