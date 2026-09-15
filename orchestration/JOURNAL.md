@@ -1923,55 +1923,28 @@ même ordre, donc les deux chemins partagent un seul nuanceur.
 
 ### Preuve
 
-Verrou `.claude/mesure.lock` pris avant la première exécution et libéré après la dernière. Harnais
-commun, aucune autre mesure admise.
+Verrou `.claude/mesure.lock` pris et libéré. Harnais commun, `--moteur webgpu`, 1280×720, 60 images,
+chauffe par défaut, `--max-pages 100000`, `avant = 2931606` (tête de `develop`, budget en pages et
+ombres comprises), `apres = 7101d66`. La série a été jouée deux fois, avant et après la fusion des
+ombres : mêmes verdicts au pixel près. Les deux côtés lisent `.mesure/cache-emerald`, recompilé hors du banc
+avec le compilateur natif de cette tête : le cache Emerald du Lab est en manifeste binaire version 2
+et le moteur en exige la version 3 depuis les textures progressives.
 
-```
-node scripts/mesure/banc.mjs --moteur webgpu --avant f44cc93 --apres 62713b5 \
-     --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
-```
+**Emerald, six séries.** Cinq à **0 pixel**, hash de coupe identique, `uncoveredTriangles` 0 des deux
+côtés : sol et rue aux deux seuils, générale au seuil 1. La sixième, générale au seuil 0 :
+**1 636 pixels, max canal 183**, hash différent — voir plus bas, c'est le verrou de ce lot.
 
-**Emerald, six séries (3 vues × 2 seuils) : 0 pixel avant/après partout, témoin A/A 0 pixel partout,
-hash de coupe identique 6/6, `uncoveredTriangles` 0 des deux côtés, `selectedTriangles` identiques
-série par série.** Budget 4096 jamais atteint : 100 000 pages demandées, 7 590 résidentes au plus.
+**Déterminisme.** Vue générale, seuil 0, quatre exécutions : témoin A/A **0 px, 0 px, 0 px, 0 px**,
+20 688 pages résidentes aux deux lancements de chacune, au page près.
 
-| vue · seuil | cpuFrameMs p50 avant → après | hash coupe | écart px | A/A |
-|---|---|---|---|---|
-| générale · 0 | 12,4 → 10,7 | identique | 0 | 0 |
-| sol · 0 | 4,5 → 5,2 | identique | 0 | 0 |
-| rue · 0 | 4,2 → 4,6 | identique | 0 | 0 |
-| générale · 1 | 3,0 → 3,4 | identique | 0 | 0 |
-| sol · 1 | 2,4 → 2,8 | identique | 0 | 0 |
-| rue · 1 | 2,2 → 3,0 | identique | 0 | 0 |
+**Scène synthétique des trois classes** (`classes-materiaux`, opaques + grillage MASK + vitre BLEND,
+compilée par la chaîne normale, les deux côtés lisant le même cache) : deux vues × deux seuils,
+**0 pixel partout, témoin A/A 0, hash identique 4/4, trous 0**. Les classes 1 et 2 sont donc prouvées
+au pixel sur une scène qui les porte toutes les deux.
 
-Profil par étape du harnais (`--profil on`, vue générale, seuil 0, p50/p95, avant → après) :
-
-| étape | CPU avant → après | GPU avant → après |
-|---|---|---|
-| **Transparents** | 0,0 → 0,0 | **17,6 / 19,0 → 2,9 / 6,6** |
-| Admission et file de résidence | **3,3 / 3,7 → 1,4 / 1,6** | non mesuré |
-| Encodage des commandes | 5,3 / 5,6 → 4,7 / 4,9 | non mesuré |
-| Sélection et visibilité | 1,3 / 1,9 → 1,0 / 1,2 | 0,94 → 0,95 |
-
-L'étape processeur « Transparents » est à zéro des deux côtés : à caméra fixe, la coupe tenue du lot
-3b la rendait déjà gratuite. Ce lot ne se voit donc, côté processeur, que sur l'admission et la file
-de résidence — un seul jeu de clés au lieu de deux — et côté carte graphique sur la passe de
-mélange, qui passe de 17,6 à 2,9 ms parce qu'un dessin indirect par primitive, une instance par
-cluster, remplace un dessin unique sur un tampon d'indices recopié à chaque changement de coupe.
-La charge machine est montée de 7 à 19 au fil de la journée ; les verdicts pixel n'en dépendent pas,
-les durées si, et les trois exécutions du lot donnent les mêmes rapports.
-
-**Caméra en mouvement : le harnais ne sait pas le faire.** `poses.mjs` donne un index unique par vue,
-`page.mjs` rejoue la même pose 60 fois, et aucune option n'existe pour un parcours. C'est pourtant là
-que le gain processeur de ce lot se paierait : une caméra qui bouge invalidait la coupe tenue et
-repayait les 6,8 ms du parcours CPU à chaque image. Non mesuré, donc non affirmé.
-
-**Scène synthétique des trois classes** (`packages/asset-compiler-rust/fixtures/classes-materiaux`,
-compilée par la chaîne normale, les deux côtés lisant le même cache via `--cache-avant`/
-`--cache-apres`) : 4 séries (2 vues × 2 seuils), **0 pixel avant/après, témoin A/A 0 pixel, hash identique 4/4,
-trous 0**. Le compilateur y range `grillage` (MASK) en `exact-clusters`,
-`vitre` (BLEND) en `clustered-blend` et `eau` (transmission) en `shared-blend` — les trois classes,
-chacune sur son chemin.
+**Caméra en mouvement : le harnais ne sait pas le faire.** `poses.mjs` donne un index unique par vue
+et `page.mjs` rejoue la même pose ; aucune option de parcours n'existe. C'est pourtant là que le gain
+processeur de ce lot se paierait. Non mesuré, donc non affirmé.
 
 ### Contrat de la transmission (classe 3) — écrit, pas livré
 
@@ -2024,86 +1997,28 @@ composé s'il n'est pas figé avant la passe. Une fois la copie figée (point 3)
 faire entrer au DAG comme les mélanges ; le classement du compilateur serait alors le seul
 changement.
 
-### Le verrou : le témoin A/A de la vue générale
+### Le verrou du témoin A/A est levé, un autre écart apparaît
 
-**La fusion n'a pas eu lieu.** Le verdict avant/après est 0 pixel partout, sur les quatre exécutions
-complètes qui ont suivi le correctif de tri ; c'est le témoin A/A — le même côté joué deux fois — qui
-échoue par intermittence sur la seule vue générale au seuil 0 : 73 pixels, max canal 105, une fois
-sur quatre. L'exécution sur la tête de branche (`.mesure/out/lot-transparents-tete`) est propre sur
-les six séries, témoin compris ; fusionner sur celle-là serait choisir l'exécution qui passe.
+Le lot `budget-pages-distinctes` a corrigé la cause : la file de résidence pesait des placements, pas
+des pages. Rejoué sur `develop` après cette correction, ce lot donne un **témoin A/A à 0 pixel sur
+quatre exécutions de la vue générale au seuil 0**, chauffe par défaut, résidence identique au page
+près (20 688) aux deux lancements de chacune. L'instabilité relevée plus haut n'existe plus.
 
-Ce que disent les mesures, à commande identique (`--vues generale --pixelError 0`, trois lancements
-de Chromium par série, donc le témoin en troisième) :
+Mais la même mesure fait apparaître autre chose. Sur cinq séries sur six — sol et rue aux deux
+seuils, générale au seuil 1 — l'écart avec `develop` est de **0 pixel, hash de coupe identique,
+trous 0**. Sur la vue générale au seuil 0, l'écart est de **1 636 pixels, max canal 183**, et les
+compteurs disent pourquoi : cette branche dessine **10 046 405 triangles**, c'est-à-dire exactement
+le compte du modèle (`sourceTriangles` du compilateur), quand `develop` en dessine 5 093 246 pour une
+résidence comparable (20 688 contre 20 875 pages) et sans trou des deux côtés. Autrement dit, au
+seuil zéro cette branche dessine la couverture par les feuilles du DAG — ce que « zéro pixel
+d'erreur » veut dire — et `develop` une couverture plus grossière.
 
-| côté | essais | témoin A/A | pages résidentes aux trois lancements |
-|---|---|---|---|
-| `develop` (`f44cc93`) | 3 | 0 px, 0 px, 0 px | 7590, 7590, 7590 — exactement |
-| cette branche | 3 | 0 px, **73 px**, 0 px | 7590/7590/7664, 7590/7590/7657, 7574/7590/7590 |
-| cette branche, six séries | 4 | 0, 0, **73 px**, 0 | — |
-| cette branche, `--chauffe 24` | 3 | 0 px, 0 px, 0 px | 7590/7590/7590, 7590/7590/7664, 7590/7590/7590 |
-
-La cause est une **convergence de streaming plus lente, pas une image non déterministe**. Ce que le
-harnais hache sous le nom de « coupe » est l'ensemble *dessiné* (`selectedPageIds` rend `run.shown`),
-et il est identique entre `avant` et `après` à chaque série — `e6141303ab48` sur la vue générale au
-seuil 0 ; seul le lancement du témoin qui a résidé 240 pages de plus en a un autre, et dessine
-5 959 598 triangles au lieu de 5 942 722. L'ensemble *demandé*, lui, ne dépend pas de la résidence
-par construction : `dagWanted` émet au seuil de base, et l'escalade du noyau ne déplace que le masque
-dessinable. Autrement dit, `develop` s'arrête à 7 590 pages et n'en demande
-jamais plus ; cette branche finit parfois d'amener une petite queue de pages transparentes fines
-après la chauffe, et dessine alors une image **plus** fine que `develop`, pas moins. Quand cette
-queue arrive entre les deux captures du témoin, le témoin voit 73 pixels. Vingt-quatre images de
-chauffe au lieu de huit suffisent à la faire arriver avant les deux captures.
-
-Pourquoi plus lent : sur `develop`, la coupe transparente est recalculée par le processeur à chaque
-image et nomme tout son ensemble idéal dès la première ; ici elle arrive par la relecture, une image
-plus tard, et le repli grossier du chemin processeur (`forceCoarse`, qui ne passe jamais par
-`wanted`) n'a pas le même profil de demande que l'escalade du noyau GPU. Huit images de chauffe
-suffisent à `develop`, pas toujours à cette branche.
-
-Les chiffres exacts de l'écart : 5 858 pages distinctes dessinées contre 5 924, soit 67 pages de
-plus, toutes dans la zone que la comparaison d'images désigne — un seul arbre, du feuillage, donc
-des clusters transparents.
-
-### Le verrou, deuxième tour : où il est vraiment
-
-Deux pistes ont été essayées et mesurées ; la cause est ailleurs, et elle est maintenant nommée.
-
-**Piste écartée, l'hystérésis du budget.** `couvertureLimiteeParBudget` est `false` dans toutes les
-séries : `budgetPixelError` ne monte jamais sur Emerald avec `--max-pages 100000`. Ce n'est pas ça.
-
-**Piste essayée et retirée, tenir l'ensemble dessiné.** Un cluster dont le remplaçant manque est
-dessiné depuis un ancêtre résident que la coupe n'a jamais demandé ; le chemin processeur le tenait
-dans l'ensemble gardé (`refreshTransparentShown`), la sélection GPU ne le tenait plus. Une seconde
-différence de coupe sur la liste dessinable, branchée sur l'ensemble gardé, a été écrite, testée et
-mesurée : **quatre essais, deux témoins à 73 pixels**, et le lancement qui dérive est passé du
-troisième au premier, faisant dériver aussi le verdict avant/après. Le correctif ne tenait donc pas
-la cause ; il a été retiré de la branche plutôt que gardé sans preuve.
-
-**La cause.** `cacheEvictions` vaut 0 partout : rien n'est jamais rendu, la résidence ne fait que
-croître, et elle s'arrête à 7 590 pages — c'est-à-dire à `room`, le budget de la file de résidence
-(`slots − couverture épinglée`). Or `applyBudget` compare des **placements** à un budget exprimé en
-**pages distinctes** : la coupe d'Emerald vaut 80 153 placements sur environ 7 600 pages, donc
-`ranking.rank` dépasse `room` à chaque image et la file n'est jamais l'ensemble demandé mais un
-préfixe tronqué à `room` placements. Le nombre de pages *distinctes* dans ce préfixe n'est pas fixe —
-7 590 ou 7 686 selon l'ordre dans lequel les premières images l'ont rempli — et comme rien n'est
-jamais rendu, la résidence garde tout ce qui est passé par la file. Une résidence plus riche donne
-une coupe dessinable plus fine (5 959 598 triangles contre 5 942 722), donc 73 pixels sur un arbre.
-
-Cette troncature existe sur `develop` aussi ; ce qui change ici est la suite des différences de
-coupe des premières images — les transparents arrivaient du processeur dès la première image, ils
-arrivent maintenant avec la relecture, dont la latence varie —, et cette suite décide quel préfixe
-la file a vu passer. Sur 600 images, les deux côtés finissent identiques (7 590 pages, 47 890
-clusters dessinés, témoin A/A 0 px) : l'état riche est un état de chargement, pas une divergence.
-
-**Le correctif à écrire** est donc dans le budget lui-même : peser la file dans l'unité où `slots`
-est exprimé — des pages distinctes, pas des placements —, ce qui supprime la troncature sur Emerald
-et rend la file égale à l'ensemble demandé. C'est un changement du budget partagé par les opaques :
-il demande sa propre preuve, et il change l'ensemble résident de `develop`.
-
-**Ce qu'il reste à faire avant de fusionner** : peser la file de résidence en pages distinctes, et
-rejouer la preuve — Emerald trois vues aux deux seuils, témoin A/A quatre fois sur la vue générale au
-seuil 0 avec la chauffe par défaut, scène synthétique. La branche `lot/transparents-gpu` reste non
-fusionnée, avec ses sept commits et ses mesures dans `.mesure/out/`.
+**Ce lot n'est donc pas fusionné.** Sa porte demandait 0 pixel sur les six séries ; il change une
+seconde fois l'image de référence, et l'utilisateur n'en avait autorisé qu'une, pour le budget. Rien
+ne dit encore lequel des deux rendus est l'exact : il faut lui appliquer le protocole qui a servi au
+budget — une référence où rien ne limite, et la preuve que cette branche en est plus proche que
+`develop` — avant de proposer la fusion. C'est la seule chose qui manque : le code est rebasé sur
+`develop`, `npm run validate` est vert, et les cinq autres séries sont à 0 pixel.
 
 ### Ce qui reste
 
