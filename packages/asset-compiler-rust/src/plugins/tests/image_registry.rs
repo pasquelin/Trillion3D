@@ -80,12 +80,13 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "obj=",
         "unity=",
         "zip=",
+        "unitypackage=",
         "png=",
         "jpeg=",
         "tga=",
     ] {
         assert!(print.contains(expected), "{print}");
     }
-    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(5));
+    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(6));
     assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(3));
 }

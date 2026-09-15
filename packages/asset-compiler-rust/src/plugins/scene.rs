@@ -18,6 +18,7 @@ mod obj;
 mod route;
 mod ufbx_driver;
 mod unity;
+mod unitypackage;
 mod zip;
 
 pub use route::{prepare_source, route, Routed, RoutedSource};
@@ -26,8 +27,14 @@ pub use route::{prepare_source, route, Routed, RoutedSource};
 pub const VERSION: &str = "scene-plugin-1";
 
 /// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
-pub static PLUGINS: &[&dyn ScenePlugin] =
-    &[&gltf::GLTF, &fbx::FBX, &obj::OBJ, &unity::UNITY, &zip::ZIP];
+pub static PLUGINS: &[&dyn ScenePlugin] = &[
+    &gltf::GLTF,
+    &fbx::FBX,
+    &obj::OBJ,
+    &unity::UNITY,
+    &zip::ZIP,
+    &unitypackage::UNITYPACKAGE,
+];
 
 /// Tout ce qu'un pilote reçoit pour préparer une scène.
 pub struct SceneRequest<'a> {
