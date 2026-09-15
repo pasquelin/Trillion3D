@@ -1,5 +1,10 @@
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
-import { EDGE_WGSL, MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
+import {
+  BARY_WEIGHTS_WGSL,
+  EDGE_WGSL,
+  MASK_KEEP_WGSL,
+  PAGE_INFO_STRUCT_WGSL,
+} from './visibilityPageWgsl.ts';
 import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 
 /** Compute raster for sub-eight-pixel opaque triangles. Hardware renders the complementary set. */
@@ -46,6 +51,7 @@ fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
 }
 fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
 ${EDGE_WGSL}
+${BARY_WEIGHTS_WGSL}
 fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
 ${MASK_KEEP_WGSL}
 @compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
@@ -80,7 +86,7 @@ fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
  let pixel=vec2i(floor(t.lo))+vec2i(lane);
  if(pixel.x<0||pixel.y<0||pixel.x>=i32(uni.viewport.x)||pixel.y>=i32(uni.viewport.y)){return;}
  let sample=vec2f(pixel)+vec2f(0.5);
- let wa=edge(t.b,t.c,sample)/t.area;let wb=edge(t.c,t.a,sample)/t.area;let wc=1.0-wa-wb;
+ let bw=baryWeights(t.a,t.b,t.c,sample,t.area);let wa=bw.x;let wb=bw.y;let wc=bw.z;
  if(wa<0.0||wb<0.0||wc<0.0){return;}
  let depth=wa*t.ca.z/t.ca.w+wb*t.cb.z/t.cb.w+wc*t.cc.z/t.cc.w;
  if(depth<0.0||depth>=1.0){return;}
