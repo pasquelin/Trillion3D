@@ -95,20 +95,9 @@ export function createBudgetRanking(options: {
      * into `ranked`/`keys`. Returns the page count so the caller can tell a cut that fits from one
      * that does not without counting it twice.
      */
-    rank(room: number, cut: readonly PageRec[], transparent: readonly PageRec[]) {
-      let records = heldKeys.count;
+    rank(room: number, cut: readonly PageRec[]) {
+      const records = heldKeys.count;
       counts.set(held);
-      epoch++;
-      for (let i = 0; i < transparent.length; i++) {
-        const page = transparent[i],
-          key = keyOf(page);
-        if (bootstrapKey[key] || seen[key] === epoch || refs[key] > 0) continue;
-        seen[key] = epoch;
-        const level = levelOf(page);
-        grow(level);
-        counts[level]++;
-        records++;
-      }
       if (records <= room) return records;
       if (keys.length < room) {
         keys = new Int32Array(room);

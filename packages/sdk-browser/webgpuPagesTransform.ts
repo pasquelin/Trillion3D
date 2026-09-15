@@ -39,7 +39,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
       nodeName,
     });
   moved.makeEmpty();
-  for (const root of layout.opaqueRoots)
+  for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) moved.union(root.worldBox);
   requested.fromArray(matrix as unknown as number[]);
   if (node.parent) {
@@ -49,7 +49,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   requested.decompose(node.position, node.quaternion, node.scale);
   node.matrix.copy(requested);
   setup.source.updateMatrixWorld(true);
-  for (const root of layout.opaqueRoots) {
+  for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
     root.worldBox.copy(root.localBox).applyMatrix4(root.world);
     moved.union(root.worldBox);

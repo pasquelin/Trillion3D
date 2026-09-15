@@ -60,7 +60,7 @@ export function materialSide(material: THREE.Material | THREE.Material[]) {
  * cache between the selection's view of residency and now has no row, and no ancestor took its place
  * — that is a hole in the image, and `uncovered` is the only honest way to say so.
  */
-const gpuCutCounts = { drawnTriangles: 0, uncoveredTriangles: 0 };
+const gpuCutCounts = { drawnTriangles: 0, uncoveredTriangles: 0, transparentTriangles: 0 };
 export function shownFromGpu(
   pages: PageRec[],
   ids: readonly number[],
@@ -69,17 +69,20 @@ export function shownFromGpu(
 ) {
   into.length = 0;
   let drawnTriangles = 0,
-    uncovered = 0;
+    uncovered = 0,
+    transparent = 0;
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i],
       rec = pages[id];
     if (!rec) continue;
     into.push(rec);
     drawnTriangles += rec.triangles;
+    if (rec.transparent) transparent += rec.triangles;
     if (residentOffsetWords[id] < 0 || !rec.array) uncovered += rec.triangles;
   }
   gpuCutCounts.drawnTriangles = drawnTriangles;
   gpuCutCounts.uncoveredTriangles = uncovered;
+  gpuCutCounts.transparentTriangles = transparent;
   return gpuCutCounts;
 }
 /** Sum of a cut's triangles, without the closure a `reduce` allocates on every frame. */
@@ -96,21 +99,6 @@ export function partitionByPass(source: readonly PageRec[], transparent: boolean
   for (let i = 0; i < source.length; i++)
     if (!!source[i].transparent === transparent) into.push(source[i]);
   return into;
-}
-/**
- * Keeps the opaque head of a cut in place and drops its transparent tail, so an image that only
- * re-reads the transparent cut rewrites only the transparent cut. `head` is what the GPU readback
- * last left there; -1 means nobody knows, and the head is separated out once more.
- */
-export function keepOpaqueHead(list: PageRec[], head: number, scratch: PageRec[]) {
-  if (head >= 0 && head <= list.length) {
-    list.length = head;
-    return head;
-  }
-  const opaque = partitionByPass(list, false, scratch);
-  list.length = 0;
-  appendAll(list, opaque);
-  return list.length;
 }
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
 export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
