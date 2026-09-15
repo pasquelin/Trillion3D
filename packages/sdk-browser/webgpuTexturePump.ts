@@ -1,6 +1,7 @@
 import { generateMaterialMips } from './textureMips.ts';
 import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
+import type { SlotPyramid } from './webgpuAtlasSlots.ts';
 
 /** Tranches qu'un appareil peut refuser pour un même niveau avant qu'il quitte la file :
  *  au troisième refus il est abandonné, compté dans `textureSkipped`, plus jamais réessayé. */
@@ -41,8 +42,8 @@ export function createWebgpuTexturePump(options: {
   dataAtlas: () => WebgpuAtlas | undefined;
   /** Réordonne la file selon ce que la caméra regarde, entre deux tranches seulement. */
   order: (jobs: TextureJob[]) => void;
-  /** Un niveau progressif de plus est résident sur ce slot. */
-  onLevel: (slot: number, level: number) => void;
+  /** Un niveau progressif de plus est résident sur ce slot, dans la pyramide que porte son travail. */
+  onLevel: (slot: number, level: number, pyramid: SlotPyramid | undefined) => void;
   /** Les slots couleur dont la vraie texture est transférée et remipmappée passent à « prêt ». */
   onColorReady: (slots: readonly number[]) => void;
   onFailure: (phase: string, error: unknown) => void;
@@ -61,7 +62,7 @@ export function createWebgpuTexturePump(options: {
   const finished = (job: TextureJob) => {
     if (job.stage === 0) {
       levels++;
-      options.onLevel(job.slot, job.level);
+      options.onLevel(job.slot, job.level, job.pyramid);
       return;
     }
     uploaded++;
