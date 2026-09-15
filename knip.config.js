@@ -14,6 +14,8 @@ export default {
     'scripts/mesure/oracle.mjs',
     'scripts/mesure/fixtureLampes.mjs',
     'packages/*/bench/*.bench.mjs',
+    // Reproductions de justesse lancées à la main, hors `npm test`.
+    'packages/*/bench/justesse/*.mjs',
     'scripts/mesure/calculs/agrege*.mjs',
     'test/*.test.mjs',
     'test/*.browser.mjs',

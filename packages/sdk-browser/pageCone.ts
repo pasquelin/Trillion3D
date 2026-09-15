@@ -9,19 +9,47 @@ export { triangleCone } from './pageConeBuild.ts';
 const loneContext = createConeContext();
 const cameraWorld = new THREE.Vector3();
 
+/**
+ * Conformité d'une transformation, indépendante de son échelle : la 3×3 est divisée par la somme
+ * des valeurs absolues de ses termes avant tout carré, puis ses trois colonnes doivent avoir la même
+ * longueur et être orthogonales à 1e-4 près, en relatif. Aucune tolérance absolue : une échelle
+ * minuscule n'accepte pas plus de déformation qu'une échelle unité. Une 3×3 nulle, infinie ou NaN,
+ * ou une colonne nulle, n'est pas conforme : le cluster est conservé.
+ *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances.
+ */
 function isConformal(world: THREE.Matrix4) {
   const e = world.elements;
-  const lx2 = e[0] * e[0] + e[1] * e[1] + e[2] * e[2],
-    ly2 = e[4] * e[4] + e[5] * e[5] + e[6] * e[6],
-    lz2 = e[8] * e[8] + e[9] * e[9] + e[10] * e[10];
+  const t =
+    Math.abs(e[0]) +
+    Math.abs(e[1]) +
+    Math.abs(e[2]) +
+    Math.abs(e[4]) +
+    Math.abs(e[5]) +
+    Math.abs(e[6]) +
+    Math.abs(e[8]) +
+    Math.abs(e[9]) +
+    Math.abs(e[10]);
+  if (!(t > 0) || !Number.isFinite(t)) return false;
+  const x0 = e[0] / t,
+    x1 = e[1] / t,
+    x2 = e[2] / t;
+  const y0 = e[4] / t,
+    y1 = e[5] / t,
+    y2 = e[6] / t;
+  const z0 = e[8] / t,
+    z1 = e[9] / t,
+    z2 = e[10] / t;
+  const lx2 = x0 * x0 + x1 * x1 + x2 * x2,
+    ly2 = y0 * y0 + y1 * y1 + y2 * y2,
+    lz2 = z0 * z0 + z1 * z1 + z2 * z2;
   const maxl = Math.max(lx2, ly2, lz2),
     minl = Math.min(lx2, ly2, lz2);
-  if (maxl > minl * 1.0001 + 1e-12) return false;
-  const eps = maxl * 1e-4 + 1e-12;
+  if (maxl > minl * 1.0001) return false;
+  const eps = maxl * 1e-4;
   return (
-    Math.abs(e[0] * e[4] + e[1] * e[5] + e[2] * e[6]) <= eps &&
-    Math.abs(e[0] * e[8] + e[1] * e[9] + e[2] * e[10]) <= eps &&
-    Math.abs(e[4] * e[8] + e[5] * e[9] + e[6] * e[10]) <= eps
+    Math.abs(x0 * y0 + x1 * y1 + x2 * y2) <= eps &&
+    Math.abs(x0 * z0 + x1 * z1 + x2 * z2) <= eps &&
+    Math.abs(y0 * z0 + y1 * z1 + y2 * z2) <= eps
   );
 }
 
@@ -79,7 +107,7 @@ export function coneContextFor(
 }
 
 /** Le rejet de cône d'un cluster, le contexte de sa racine étant déjà posé.
- *  Miroir CPU de `coneRejectsBox` (gpuDagShader.ts) : mêmes tolérances 1.0001, 1e-12 et 1e-4,
+ *  Miroir CPU de `coneRejectsBox` (gpuDagShader.ts) : mêmes tolérances relatives 1.0001 et 1e-4,
  *  mêmes opérandes, deux langages — le texte ne se partage pas, la règle si. */
 export function coneCullsPageWith(
   ctx: ConeContext,
