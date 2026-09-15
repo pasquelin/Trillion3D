@@ -43,9 +43,6 @@ pub fn extend_box(surface: &mut Surface, page: &Value, matrix: &crate::compiler_
             }
         }
         let placed = crate::compiler_world::transform_point(matrix, point);
-        for (axis, value) in placed.iter().enumerate() {
-            surface.low[axis] = surface.low[axis].min(*value);
-            surface.high[axis] = surface.high[axis].max(*value);
-        }
+        crate::shared_math::extend_aabb(&mut surface.low, &mut surface.high, placed);
     }
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::shared_math::bisect_centres;
 
 pub fn group_clusters(
     centres: &[[f64; 3]],
@@ -21,25 +22,7 @@ pub fn group_clusters(
             continue;
         }
         let slice = &mut members[from..to];
-        let mut min = [f64::INFINITY; 3];
-        let mut max_bound = [f64::NEG_INFINITY; 3];
-        for &m in slice.iter() {
-            for a in 0..3 {
-                min[a] = min[a].min(centres[m][a]);
-                max_bound[a] = max_bound[a].max(centres[m][a]);
-            }
-        }
-        let mut axis = 0;
-        for a in 1..3 {
-            if max_bound[a] - min[a] > max_bound[axis] - min[axis] {
-                axis = a;
-            }
-        }
-        slice.sort_unstable_by(|&a, &b| {
-            centres[a][axis]
-                .total_cmp(&centres[b][axis])
-                .then(a.cmp(&b))
-        });
+        bisect_centres(slice, centres);
         let middle = len / 2;
         for (i, &m) in slice.iter().enumerate() {
             side[m] = if i < middle { 0 } else { 1 };
