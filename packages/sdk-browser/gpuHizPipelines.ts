@@ -1,5 +1,5 @@
 import { HIZ_SHADER } from './gpuHizShader.ts';
-import { dropValidation, openValidation, validationFailed } from './gpuErrorScope.ts';
+import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 
 /** Compile the three Hi-Z kernels under one device validation scope. */
@@ -37,7 +37,7 @@ export async function createHizPipelines(device: GPUDevice, uniformBytes: number
     layout: pipelineLayout,
     compute: { module, entryPoint: 'testHiz' },
   });
-  if (await validationFailed(device)) return undefined;
+  if (await validationError(device)) return undefined;
   return { layout, copyPipeline, reducePipeline, testPipeline };
 }
 
