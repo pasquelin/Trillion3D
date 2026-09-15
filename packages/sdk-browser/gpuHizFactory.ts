@@ -1,6 +1,6 @@
 import { encodeHizPyramid } from './gpuHizPyramid.ts';
 import { pyramidBytes, writeHizLevelUniforms, writeUni } from './gpuHizUniforms.ts';
-import { createHizBoundsPacker } from './gpuHizTest.ts';
+import { createHizBoundsPacker, uploadPackedBoxes } from './gpuHizTest.ts';
 import { cleanupFailedHiz, createHizPipelines } from './gpuHizPipelines.ts';
 import { createHizCounters } from './gpuHizCounters.ts';
 import type { GpuHiz } from './gpuHizTypes.ts';
@@ -143,17 +143,7 @@ export async function createGpuHiz(
           offsets,
           due ? sample : undefined,
         );
-        // Le tampon garde ce que les images précédentes y ont écrit : seules les boîtes que cette
-        // image a réempaquetées sont renvoyées, et une image qui n'en réempaquette aucune n'envoie
-        // rien. Les entrées au-delà de `count` ne sont jamais lues, `uni.c` bornant le noyau.
-        if (boxes.to >= boxes.from)
-          queueDevice.queue.writeBuffer(
-            bounds,
-            boxes.from * 32,
-            boxes.bytes,
-            boxes.from * 32,
-            (boxes.to - boxes.from + 1) * 32,
-          );
+        uploadPackedBoxes(queueDevice, bounds, boxes);
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
         const testSlot = MAX_LEVELS + 1;
         writeUni(

@@ -12,6 +12,22 @@ export type HizBoxObserver = {
  */
 export type HizPackedBoxes = { bytes: ArrayBuffer; from: number; to: number };
 
+/**
+ * Envoie au tampon de test les seules boîtes que l'empaquetage vient de réécrire. Le tampon garde ce
+ * que les images précédentes y ont écrit, et les entrées au-delà de `count` ne sont jamais lues :
+ * `uni.c` borne le noyau. Une image qui ne réempaquette rien n'envoie pas un octet.
+ */
+export function uploadPackedBoxes(device: GPUDevice, target: GPUBuffer, packed: HizPackedBoxes) {
+  if (packed.to < packed.from) return;
+  device.queue.writeBuffer(
+    target,
+    packed.from * 32,
+    packed.bytes,
+    packed.from * 32,
+    (packed.to - packed.from + 1) * 32,
+  );
+}
+
 /** Vrai quand les six valeurs d'une boîte sont exactement celles d'où ses octets ont été écrits.
  *  `NaN` n'est égal à rien : une borne non finie fait toujours réempaqueter, jamais réutiliser. */
 function sameBox(bounds: Float64Array, held: Float64Array, at: number) {
