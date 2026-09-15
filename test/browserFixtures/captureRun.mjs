@@ -1,7 +1,7 @@
 import { captureFixture } from './captureFixture.mjs';
 import { captureModel } from './captureModel.mjs';
 
-export async function run({ sdkUrl, stableCaptures, pageBudget }) {
+export async function run({ sdkUrl, stableCaptures, pageBudget, mode, captureFrame }) {
   const THREE = await import('/.vite/deps/three.js');
   const { benchEngine } = await import('/15-virtualized-integration/implementation/engines.ts');
   const { createExplorer } = await import(sdkUrl);
@@ -26,6 +26,8 @@ export async function run({ sdkUrl, stableCaptures, pageBudget }) {
     factory,
     pageBudget,
     stableCaptures,
+    mode,
+    captureFrame,
     events,
     gpu,
     gpuErrors,

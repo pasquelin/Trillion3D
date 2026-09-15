@@ -1,8 +1,12 @@
+import { captureLive } from './captureLive.mjs';
+
 export async function captureModel({
   createExplorer,
   factory,
   pageBudget,
   stableCaptures,
+  mode,
+  captureFrame,
   events,
   gpu,
   gpuErrors,
@@ -29,11 +33,42 @@ export async function captureModel({
     preload: 'visible',
     backends: [factory],
     clearColor: 0x2a303c,
-    onDiagnostic: (event) => events.push({ stage: 'emerald', ...event }),
+    onDiagnostic: (event) => {
+      events.push({ stage: 'emerald', ...event });
+      if (/error|fallback|failed/.test(event.phase))
+        void window.captureProgress('DIAG ' + JSON.stringify(event).slice(0, 700));
+    },
   });
   try {
     const path = urbanPath(explorer.bounds),
       checkpoints = path.filter((_, i) => i % framesPerSegment === 0);
+    if (mode === 'live') {
+      const live = await captureLive({
+        explorer,
+        path,
+        framesPerSegment,
+        captureFrame,
+        width,
+        height,
+        saveCapture: window.saveCapture,
+        save: window.saveCaptureState,
+      });
+      window.__wgCaptureDrain = { events, samples: live.samples };
+      return {
+        gpu,
+        gpuErrors,
+        overlaps,
+        mode,
+        aa: [],
+        captures: live.captures,
+        convergedAtFrame: live.convergedAtFrame,
+        frames: live.captureIndex + 1,
+        resolution: [width, height],
+        sourceKey: explorer.metadata.key,
+        fallbackReason: explorer.fallbackReason,
+        userAgent: navigator.userAgent,
+      };
+    }
     for (const step of checkpoints) {
       explorer.setPose(step.pose);
       await explorer.awaitPages();

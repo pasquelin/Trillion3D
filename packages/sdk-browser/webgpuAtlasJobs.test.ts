@@ -1,20 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { textureJobFor } from './webgpuAtlasJobs.ts';
+import { previewLevelJobs, textureJobFor } from './webgpuAtlasJobs.ts';
 
 /** Records each `writeTexture` call: the row it starts at, the rows it covers and the bytes sent. */
 function fakeWriteTextureDevice() {
-  const calls: Array<{ row: number; height: number; bytes: Uint8Array }> = [];
+  const calls: Array<{
+    row: number;
+    height: number;
+    width: number;
+    level: number;
+    bytes: Uint8Array;
+  }> = [];
   const device = {
     queue: {
       writeTexture(
-        dest: { origin: [number, number, number] },
+        dest: { origin: [number, number, number]; mipLevel?: number },
         data: ArrayBufferLike,
         _layout: { bytesPerRow: number; rowsPerImage: number },
         size: { width: number; height: number },
       ) {
-        calls.push({ row: dest.origin[1], height: size.height, bytes: new Uint8Array(data) });
+        calls.push({
+          row: dest.origin[1],
+          height: size.height,
+          width: size.width,
+          level: dest.mipLevel ?? 0,
+          bytes: new Uint8Array(data),
+        });
       },
     },
   };
@@ -70,4 +82,61 @@ test('les tranches d’une texture couvrent exactement W×H, sans trou ni chevau
   const reassembled = new Uint8Array(width * height * 4);
   sliced.calls.forEach((call, index) => reassembled.set(call.bytes, index * slicedJob.bytesPerRow));
   assert.deepEqual(reassembled, block.calls[0].bytes);
+});
+
+// L'atlas couleur est `rgba8unorm-srgb` et le sidecar porte déjà des octets sRGB à alpha droit :
+// entre les deux il ne doit rien se passer. Ce test suit un texel connu — la valeur 188, dont le
+// linéaire n'est ni 188/255 ni son carré — de la pyramide du sidecar jusqu'à l'octet remis au GPU,
+// et vérifie au passage que le niveau `k` part bien dans le niveau de mip `k` de la couche.
+test('un niveau progressif part tel quel, octet pour octet, dans le niveau de mip de même rang', () => {
+  const { device, calls } = fakeWriteTextureDevice();
+  // Source 128×64 : son premier niveau porté est le 1, celui dont aucun côté ne dépasse 64.
+  const levels = [64, 32, 16, 8, 4, 2, 1].map((side, index) => {
+    const [w, h] = [side, Math.max(1, 64 >> index)];
+    return Uint8Array.from({ length: w * h * 4 }, (_, i) => (i % 4 === 3 ? 255 : 188));
+  });
+  const jobs = previewLevelJobs({
+    device,
+    texture: {} as GPUTexture,
+    place: { slot: 3, classIndex: 0, layer: 3 },
+    preview: {
+      texture: 0,
+      image: 0,
+      width: 128,
+      height: 64,
+      sourceKind: 0,
+      sourceBufferView: -1,
+      sha256: '0'.repeat(64),
+      firstLevel: 1,
+      levels,
+    },
+  });
+  // Du plus grossier au plus fin : la résidence de la couche avance d'un cran à chaque niveau reçu.
+  assert.deepEqual(
+    jobs.map((entry) => entry.level),
+    [7, 6, 5, 4, 3, 2, 1],
+  );
+  assert.ok(
+    jobs.every((entry) => entry.stage === 0 && entry.pyramid?.first === 1),
+    'ce sont des niveaux progressifs, et ils portent la pyramide de leur texture',
+  );
+  for (const entry of jobs) entry.uploadRows(0, entry.rows);
+  assert.deepEqual(
+    calls.map((call) => [call.level, call.width, call.height]),
+    [
+      [7, 1, 1],
+      [6, 2, 1],
+      [5, 4, 2],
+      [4, 8, 4],
+      [3, 16, 8],
+      [2, 32, 16],
+      [1, 64, 32],
+    ],
+  );
+  // Aucun ré-encodage, aucune conversion : les octets du sidecar sont ceux que le GPU reçoit.
+  for (const call of calls)
+    assert.ok(
+      call.bytes.every((byte, i) => byte === (i % 4 === 3 ? 255 : 188)),
+      `niveau ${call.level} : octet modifié entre le sidecar et le GPU`,
+    );
 });
