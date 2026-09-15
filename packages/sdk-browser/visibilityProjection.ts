@@ -42,3 +42,37 @@ export type Projected = {
   worldY: number;
   worldZ: number;
 };
+
+/** Un sommet dont seules les deux coordonnées écran comptent : un projeté, ou un point de raster. */
+type ScreenPoint = { x: number; y: number };
+
+/**
+ * Aire signée du triangle écran `(a, b, c)` : le dénominateur des barycentriques, et le signe qui
+ * dit de quel côté on voit la face. Le raster du tampon de visibilité, la profondeur reconstruite
+ * et le raster de référence des pages en tiraient chacun leur copie de la même ligne.
+ */
+export function signedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
+  return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+}
+
+/**
+ * Les trois poids barycentriques affines du point `(x, y)`, l'aire signée étant déjà connue.
+ *
+ * Le résultat est un objet de travail réutilisé d'un appel à l'autre : un raster le lit par pixel,
+ * et allouer trois nombres par pixel coûterait plus que le calcul lui-même. L'appelant le lit avant
+ * l'appel suivant, ou en recopie les champs, comme le fait `barycentric`.
+ */
+const poids = { w0: 0, w1: 0, w2: 0 };
+export function barycentricAt(
+  a: ScreenPoint,
+  b: ScreenPoint,
+  c: ScreenPoint,
+  x: number,
+  y: number,
+  area: number,
+) {
+  poids.w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area;
+  poids.w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area;
+  poids.w2 = 1 - poids.w0 - poids.w1;
+  return poids;
+}
