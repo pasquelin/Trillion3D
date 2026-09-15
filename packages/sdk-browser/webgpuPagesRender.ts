@@ -7,6 +7,13 @@ import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/** Vrai quand deux matrices portent exactement les mêmes seize nombres. Un `NaN` d'un côté n'est
+ *  jamais « le même » : la boîte repart, ce qui est le côté sûr. */
+function sameMatrix(held: readonly number[], world: readonly number[]) {
+  for (let i = 0; i < 16; i++) if (held[i] !== world[i]) return false;
+  return true;
+}
+
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
 export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
@@ -42,12 +49,17 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
     );
   }
   marks.blendStart = performance.now();
-  for (const item of blendState.blendGpu)
-    if (item.sourceMesh) {
-      item.matrix.copy(item.sourceMesh.matrixWorld);
-      if (item.bounds && item.sourceGeometry.boundingBox)
-        item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);
-    }
+  // La matrice d'un item transparent et la boîte monde qu'elle transporte sont fonction de la
+  // seule matrice monde de son maillage source. Une matrice que la scène n'a pas bougée rendrait
+  // les mêmes seize nombres, donc la même boîte : elle est comparée au lieu d'être recopiée, et
+  // les huit coins ne repartent que là où quelque chose a bougé.
+  for (const item of blendState.blendGpu) {
+    const mesh = item.sourceMesh;
+    if (!mesh || sameMatrix(item.matrix.elements, mesh.matrixWorld.elements)) continue;
+    item.matrix.copy(mesh.matrixWorld);
+    if (item.bounds && item.sourceGeometry.boundingBox)
+      item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);
+  }
   const cpuStart = performance.now();
   // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un
   // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU
