@@ -17,6 +17,8 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   et la mesure porterait sur des matériaux sans texture — ce ne serait plus la scène.
 - `--vues` parmi `generale`, `sol`, `rue`, `detail` (banc 15, pathVersion 5, vérifiée contre le Lab à
   chaque exécution) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut, jamais 5174).
+- `--rebond on|off` (par défaut `off`) : allume la lumière qui rebondit, éteinte par défaut dans
+  le moteur. Sans lui, l'étape « Rebond » vaut « non mesuré » et l'image est celle d'avant le lot.
 - `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
   exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
   donnent la porte de fidélité et le coût du profil.

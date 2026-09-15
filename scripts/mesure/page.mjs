@@ -61,6 +61,8 @@ export async function measureView(options) {
     diagnosticDetail: 'summary',
     // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
     stageProfile: options.stageProfile === true,
+    // Idem pour la lumière qui rebondit : le moteur l'éteint par défaut, le banc peut l'allumer.
+    bounce: options.bounce === true,
   });
   // Les lampes du contrat, posées par la règle générique du harnais et passées ici en données : la
   // page ne calcule aucune position, elle n'invente aucune scène.

@@ -86,7 +86,9 @@ fn pack(child: &Child, low: [f32; 3], high: [f32; 3]) -> [u32; PROXY_CHILD_WORDS
     let mut quantised = [[0u32; 3]; 2];
     for axis in 0..3 {
         let span = (high[axis] - low[axis]) as f64;
-        if !(span > 0.0) {
+        // Un axe plat, ou non comparable : l'enfant prend toute la largeur du parent sur cet axe,
+        // ce qui reste conservateur — une boîte plus large ne perd aucun triangle.
+        if !span.is_finite() || span <= 0.0 {
             quantised[1][axis] = 255;
             continue;
         }

@@ -26,11 +26,16 @@ export const BOUNCE_SETTINGS = {
    * n'est pas tenu, et publie celle qu'il a prise. Plus fin que cela ne se verrait pas dans un
    * indirect que huit sondes interpolent, et coûterait des mailles à balayer.
    */
-  proxyCellMetres: 0.25,
+  proxyCellMetres: 0.5,
   /** Triangles d'une feuille du BVH : la boucle d'une feuille est bornée par ce nombre (X2). */
   proxyLeafTriangles: 8,
-  /** Nœuds visités par rayon : la traversée est bornée avant l'image, jamais par la profondeur. */
-  traversalSteps: 512,
+  /**
+   * Nœuds visités par rayon : la traversée est bornée avant l'image, jamais par la profondeur. Un
+   * nœud en porte quatre, donc cette borne couvre quatre fois plus d'arbre qu'un arbre binaire.
+   * Un rayon de sonde qui l'épuise ne rapporte rien, ce qui assombrit ; un rayon d'ombre qui
+   * l'épuise ne trouve pas d'occulteur, ce qui éclaire. Les deux sont déclarés (P5).
+   */
+  traversalSteps: 128,
   /**
    * Profondeur de la pile de traversée. Un nœud large empile trois enfants au plus et l'arbre est
    * équilibré par construction : trente-deux couvrent un proxy de plusieurs millions de triangles.
@@ -51,7 +56,7 @@ export const BOUNCE_SETTINGS = {
    * l'inverse. Une petite scène balaie tout d'un coup, une grande y met le temps qu'il faut, et le
    * harnais publie ce temps.
    */
-  raysPerFrame: 131072,
+  raysPerFrame: 49152,
   /** Lampes testées sur une maille du cache : la boucle est bornée par ce nombre (X2). */
   lightsPerRay: 4,
   /**
@@ -59,7 +64,7 @@ export const BOUNCE_SETTINGS = {
    * cache entier est balayé en `mailles / surfaceTexelsPerFrame` images, et c'est ce nombre qui
    * décide du retard autant que celui des sondes.
    */
-  surfaceTexelsPerFrame: 65536,
+  surfaceTexelsPerFrame: 16384,
   /**
    * Amortissement plancher d'une sonde stable : une moyenne courante finit par s'y arrêter, et
    * c'est ce plancher qui fixe le nombre de rayons dont l'image finale garde la mémoire.

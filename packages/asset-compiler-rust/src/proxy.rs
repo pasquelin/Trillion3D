@@ -34,7 +34,7 @@ pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 pub const PROXY_ERROR_METRES: f64 = 0.05;
 /// Plancher de la maille du proxy, en mètres : la taille d'un triangle après simplification, donc
 /// la résolution du cache de surfaces du moteur. Le budget de triangles la double si besoin.
-pub const PROXY_CELL_METRES: f64 = 0.25;
+pub const PROXY_CELL_METRES: f64 = 0.5;
 /// Triangles d'une feuille du BVH : la boucle d'une feuille est bornée par ce nombre côté moteur.
 pub const PROXY_LEAF_TRIANGLES: usize = 8;
 /// Triangles que le proxy d'une scène entière s'autorise, toutes instances posées. C'est ce budget

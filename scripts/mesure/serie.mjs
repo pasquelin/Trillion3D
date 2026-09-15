@@ -26,6 +26,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     width: settings.width,
     height: settings.height,
     stageProfile: settings.stageProfile,
+    bounce: settings.bounce,
     profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,

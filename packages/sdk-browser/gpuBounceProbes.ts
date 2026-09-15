@@ -6,7 +6,7 @@ import {
   type SceneProxy,
 } from '../sdk-core/index.ts';
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
-import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER, BOUNCE_WORKGROUP } from './bounceProbeWgsl.ts';
+import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './bounceProbeWgsl.ts';
 import { createGpuBounceProxy, residentBuffer } from './gpuBounceProxy.ts';
 import { createGpuBounceSurface } from './gpuBounceSurface.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
@@ -30,10 +30,10 @@ export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>;
 /**
  * La grille de sondes d'irradiance, le cache de surfaces, et les deux passes qui les balaient.
  *
- * Le budget est fixe des deux côtés : `probesPerFrame` sondes à `raysPerProbe` rayons, et
- * `surfaceTexelsPerFrame` mailles de cache. Un tour complet — un balayage de chacun — ajoute un
- * ordre de rebond à la série ; c'est ce tour qui borne le retard. Quand plus rien ne change, aucune
- * des deux passes n'est encodée : une scène immobile ne paie rien.
+ * Le budget est fixe des deux côtés : `raysPerFrame` rayons de sonde, et `surfaceTexelsPerFrame`
+ * mailles de cache. Un tour complet — un balayage de chacun — ajoute un ordre de rebond à la
+ * série ; c'est ce tour qui borne le retard. Quand plus rien ne change, aucune des deux passes
+ * n'est encodée : une scène immobile ne paie rien.
  */
 export async function createGpuBounceProbes(
   device: GPUDevice,
@@ -177,7 +177,8 @@ export async function createGpuBounceProbes(
       const pass = encoder.beginComputePass({ label: BOUNCE_PROBE_PASS });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, group);
-      pass.dispatchWorkgroups(Math.ceil(batch / BOUNCE_WORKGROUP), 1, 1);
+      // Un groupe de travail par sonde : les rayons d'une sonde se partagent ses fils.
+      pass.dispatchWorkgroups(batch, 1, 1);
       pass.end();
       updates = batch;
       cursor += batch;
