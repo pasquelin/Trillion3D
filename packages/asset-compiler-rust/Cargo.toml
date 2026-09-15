@@ -24,6 +24,10 @@ image = { version = "0.25.10", default-features = false, features = ["png", "jpe
 # fonctionnalités : seul `deflate` par `flate2` en Rust pur, ni chiffrement ni codec natif.
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2"] }
 yaml-rust2 = { version = "0.13", default-features = false }
+# Décodage des blocs BCn du pilote `dds` (MIT ou Apache-2.0, UniversalGameExtraction/texture2ddecoder,
+# notices conservées avec la dépendance). Rust pur, sans `std` ni SDK d'éditeur : la reconstruction
+# entière que définit la spécification, rien de plus.
+texture2ddecoder = "0.1.2"
 [dev-dependencies]
 # Le décodeur de pages, partagé avec le module WebAssembly : le compilateur ne l'embarque pas,
 # il s'en sert pour prouver que ce qu'il encode se relit à l'identique.
