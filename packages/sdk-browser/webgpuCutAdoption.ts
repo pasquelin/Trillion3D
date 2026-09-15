@@ -28,8 +28,11 @@ export function createWebgpuCutAdopter(options: {
   uniforms: SelectionUniforms;
   residentOffsetWords: Int32Array;
   delta: CutDelta;
+  /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
+  drawnDelta: CutDelta;
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: (delta: CutDelta) => void;
+  onDrawnDelta: (delta: CutDelta) => void;
   onCutPages: (count: number) => void;
   onDrawnPages: (count: number, triangles: number) => void;
 }) {
@@ -46,15 +49,19 @@ export function createWebgpuCutAdopter(options: {
   const adopt = () => {
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
-    const { packedPages, desired, shown, drawn, drawableScratch, delta } = options;
-    if (cut === lastCut) delta.hold();
-    else {
+    const { packedPages, desired, shown, drawn, drawableScratch, delta, drawnDelta } = options;
+    if (cut === lastCut) {
+      delta.hold();
+      drawnDelta.hold();
+    } else {
       delta.apply(cut.result.pageIds);
+      drawnDelta.apply(cut.result.drawablePageIds);
       lastCut = cut;
     }
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
     // landed — must not replay the previous one, which would count every page twice.
     options.onCutDelta(delta);
+    options.onDrawnDelta(drawnDelta);
     options.onCutPages(delta.count);
     appendPages(desired, options.transparentWanted);
     metrics.visible = desired.length;
@@ -83,6 +90,7 @@ export function createWebgpuCutAdopter(options: {
   const invalidate = () => {
     lastCut = null;
     options.delta.invalidate();
+    options.drawnDelta.invalidate();
   };
   return { adopt, metrics, invalidate };
 }

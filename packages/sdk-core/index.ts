@@ -108,9 +108,11 @@ export { LIGHT_FIELD, createSceneLightStore } from './sceneLightStore.ts';
 export type { SceneLightStore } from './sceneLightStore.ts';
 export {
   POINT_FACE_AXES,
+  SHADOW_CULL_FLOATS,
   SHADOW_FACE_FLOATS,
   SHADOW_SLICE_FLOATS,
   faceCountOf,
+  writeFaceCull,
   writeFaceMatrix,
 } from './sceneLightShadowFaces.ts';
 export { SHADOW_FACE_SIDES, desiredFaceSide } from './sceneLightShadowAtlas.ts';

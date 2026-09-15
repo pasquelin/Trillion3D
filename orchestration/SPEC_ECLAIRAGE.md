@@ -1,6 +1,10 @@
 # Spécification — Éclairage dynamique WebGeometry
 
-Version 0, brouillon du 14 septembre 2026. Complète `SPEC_MOTEUR_SANS_THREE.md`, qui reste la référence pour la géométrie. Chaque exigence est numérotée et vérifiable ; une exigence sans mesure associée n'existe pas. Les valeurs marquées « réglage » sont des choix de produit : on part avec, on mesure, on resserre.
+Version 1, 15 septembre 2026 ; remplace la version 0 du 14 septembre 2026. Complète `SPEC_MOTEUR_SANS_THREE.md`, qui reste la référence pour la géométrie. Chaque exigence est numérotée et vérifiable ; une exigence sans mesure associée n'existe pas. Les valeurs marquées « réglage » sont des choix de produit : on part avec, on mesure, on resserre.
+
+## Principe directeur
+
+Le moteur est générique : il y aura des milliards de scènes. Emerald, la maison de test et tout autre banc ne sont que des jeux de mesure, jamais une destination. Aucune exigence de cette spécification ne se code par type d'objet (« miroir », « eau », « arbre ») ni par nom de scène : tout se code par propriété de matériau et de lampe déclarée dans les données importées. Une règle prouvée sur un banc doit valoir pour n'importe quelle scène portant les mêmes propriétés.
 
 ## 0. Besoin, principe, non-objectifs
 
@@ -8,7 +12,7 @@ Besoin : un éclairage global dynamique, propre, qui respecte les lois de la lum
 
 **Principe fondateur : la cadence ne bouge jamais, c'est la lumière qui converge.** Chaque composant reçoit un budget fixe par image, en millisecondes. Le travail non fait attend l'image suivante. L'image à l'état stable est la même sur toutes les machines ; seul le temps pour l'atteindre varie, et il est borné.
 
-Non-objectifs de cette version : caustiques, milieux participants, transmission colorée par les vitrages, miroirs courbes, réflexions imbriquées, rendu sans aucun GPU. Ils sont hors périmètre et nommés comme tels dans le diagnostic.
+Non-objectifs de cette version : caustiques, milieux participants, transmission colorée par les vitrages, réfraction avec absorption en profondeur (eau), miroirs courbes, réflexions imbriquées, rendu sans aucun GPU. Ils sont hors périmètre et nommés comme tels dans le diagnostic.
 
 Règles transverses : celles de `AGENTS.md` (fidélité avant vitesse, aucune baisse de résolution, mesures honnêtes, CPU et GPU jamais additionnés, mots interdits). Aucune illumination figée comme destination du produit : les données cuites à la compilation sont géométriques, jamais lumineuses. Une approximation non déclarée est un défaut.
 
@@ -25,7 +29,7 @@ Règles transverses : celles de `AGENTS.md` (fidélité avant vitesse, aucune ba
     ordonnanceur de lumière : file de travaux classés par résidu et influence, vidée jusqu'au budget
       ├─ direct : shadow maps par lampe, exact à chaque image
       ├─ indirect diffus : sondes d'irradiance tracées contre le proxy + cache de surfaces sur les cartes
-      ├─ spéculaire : vue réfléchie pour les miroirs plans, cache de surfaces pour le hors-champ
+      ├─ spéculaire : vue réfléchie pour toute surface réfléchissante, cache de surfaces pour le hors-champ
       └─ rassemblement final dans l'éclairage différé (R6) ou la passe forward WebGL2 (R7)
         │
         ▼
@@ -39,6 +43,7 @@ P2. **Réciprocité et non-négativité** : le transport échantillonné est non
 P3. **Pas de double comptage** : émission, direct, indirect et spéculaire sont partitionnés ; une surface émissive peut aussi réfléchir. Critère : somme des composantes égale à l'oracle au contrat E.
 P4. **Tone mapping dernier** : tout mélange, accumulation ou interpolation se fait en radiance linéaire avant ACES et sRGB. Critère : revue de code et test de linéarité (deux lampes = somme des deux images linéaires).
 P5. **Approximations nommées** : sondes (interpolation), cartes (projection), amortissement (retard), proxy (erreur géométrique certifiée). Chaque approximation a un champ dans le diagnostic et une borne dans le contrat E.
+P6. **Aucune lumière sans source déclarée** : ni ambiance fixe, ni « mode nuit » ; le jour est une lampe soleil ou ciel déclarée dans la scène, qui n'entre que par les ouvertures et projette des ombres — un couloir sans fenêtre reste noir en plein jour, sauf rebond indirect. Vaut pour tous les matériaux, transparents et feuillages compris. Reste connu : les arbres d'Emerald restent allumés la nuit tant que le chemin des transparents garde une ambiance fixe, le temps que le lot « aucune lumière sans source » atteigne les transparents (section 8). Critère : scénario couloir sans fenêtre, radiance nulle hors rebond indirect.
 
 ## 3. Compilateur (LC)
 
@@ -57,17 +62,17 @@ LR1. **Budgets par composant** (GPU, machine de référence Apple M2 Max, 1280 �
 | Direct et ombres (shadow maps, PCSS) | 0,8 ms |
 | Sondes d'irradiance (rayons contre le proxy) | 0,8 ms |
 | Cache de surfaces (texels mis à jour) | 0,4 ms |
-| Vue réfléchie (si un miroir est visible) | 0,5 ms |
+| Vue réfléchie (si une surface réfléchissante est visible) | 0,5 ms |
 | Rassemblement final | inclus dans R6 |
 
 Critère : chaque budget mesuré par passe GPU (WebGPU) ; la somme tient dans l'image de 8,33 ms avec la géométrie à son budget R6. Sur GPU intégré, budgets divisés par le rapport de puissance mesuré, jamais la résolution.
 
 LR2. **Ordonnanceur de lumière** : une file de travaux (sondes, texels de cartes, faces de vue réfléchie) avec une priorité = résidu × influence sur l'image (adjoint approché), vidée jusqu'au budget puis suspendue ; zéro allocation par image ; dernière consigne remplaçable, réponses portant une révision. Critère : temps par image constant à ± 10 % pendant une porte qui claque ; aucune réponse obsolète appliquée à une autre géométrie.
-LR3. **Direct** : shadow maps par lampe (cascades pour les lampes à grande portée), ombres douces PCSS, mises à jour à chaque image pour les lampes ou occulteurs mobiles, mises en cache sinon. Critère : contrat E composante « direct » ; retard nul.
+LR3. **Direct** : shadow maps par lampe (cascades pour les lampes à grande portée), ombres douces PCSS ; une carte n'est redessinée que si sa lampe ou un objet dans sa portée a bougé, mise en cache sinon ; elle ne reçoit que ce qui peut projeter une ombre, dans sa portée et sa face, sans réduction de résolution ni de détail. Feuillages et grilles projettent l'ombre de leur découpe réelle (masque du matériau), jamais convertis en pleins ni en masqués. Ombres atténuées et colorées des semi-transparents (verre, eau) : lot ultérieur, hors périmètre du lot en cours. Critère : contrat E composante « direct » ; retard nul.
 LR4. **Indirect diffus** : grille de sondes éparses avec visibilité (moments de distance) pour éviter les fuites ; rayons tracés contre le proxy ; les rayons relisent le cache de surfaces pour le multi-rebond et la coloration ; hystérésis adaptative (détection de changement par sonde et par texel) ; occulteurs dynamiques (porte) testés aussi comme boîtes analytiques dans l'interpolation des sondes. Critère : contrat E composantes « indirect » et retard.
 LR5. **Cache de surfaces** : lumière par texel de carte, mise à jour par budget, invalidation par région lors d'un mouvement. Critère : couverture LC2, contrat E.
 LR6. **État lumineux par instance** : deux instances du même objet dans deux éclairages ont deux états ; déplacement d'une instance = invalidation de son état. Critère : scénario « déplacement d'instance ».
-LR7. **Miroirs plans** : vue réfléchie bornée à l'emprise écran du miroir, niveau de détail choisi par la même erreur d'écran que la vue principale ; le hors-champ vient de cette vue, jamais de l'espace écran seul. Critère : scénario « miroir hors champ ».
+LR7. **Reflet pour toute surface réfléchissante** : le mécanisme de vue réfléchie est piloté par la propriété réfléchissante du matériau, pas par un objet « miroir » nommé ; toute surface qui déclare cette propriété en bénéficie, l'eau comprise. Vue réfléchie bornée à l'emprise écran de la surface, niveau de détail choisi par la même erreur d'écran que la vue principale ; le hors-champ vient de cette vue, jamais de l'espace écran seul. Critère : scénario « miroir hors champ », rejouable sur toute surface réfléchissante déclarée.
 LR8. **WebGL2** : mêmes composants, sondes mises à jour par passes de fragments (BVH et proxy en textures), budgets propres ; parité jugée à l'état stable (B2, ≤ 2 par canal), retard jugé par sa propre limite. Critère : campagne parité.
 LR9. **Métriques honnêtes** : par composant, CPU par étape, GPU par passe ou `null`, travaux en file, travaux traités, retard courant estimé, mémoire ; `null` pour ce qui n'est pas mesuré.
 
@@ -94,8 +99,12 @@ LP4. Sans aucun GPU utilisable : hors périmètre, déclaré comme capacité man
 LB1. Le banc 16 héberge et mesure ; les algorithmes vivent dans le SDK. Protocole : `16-lighting-transport/docs/protocole-eclairage.md` du Lab.
 LB2. Scénarios : démarrage à froid, porte qui claque, porte qui s'ouvre, lampe mobile à vitesse fixe, interrupteur, fente étroite avec petite source intense, miroir voyant un objet hors champ, déplacement d'instance.
 LB3. Provenance : résolution, DPR, fréquence, matériel, charge machine, commits SDK, Lab et compilateur, empreintes des caches.
+LB4. **Profil par étape** : contrat `packages/sdk-core/stageProfile.ts`, exposé par `explorer.stageProfile()`, mesuré par le harnais `scripts/mesure` ; CPU et GPU jamais additionnés, `null` pour ce qui n'est pas mesuré.
+LB5. **Chiffres de référence du 15 septembre 2026** (WebGPU) : Emerald de nuit — image entière 55 ms, géométrie 62 ms, ombres 32 ms (passes distinctes, non additionnées) ; maison à 4 lampes — image entière 1,9 ms.
 
 ## 8. Phases et critères de sortie
+
+Ordre d'exécution des lots, décidé le 15 septembre 2026 — prime sur l'ordre implicite du tableau de phases ci-dessous, qui reste la référence pour les critères de sortie mesurés : ombres (en cours, LR3) → aucune lumière sans source déclarée (P6), opaques d'abord puis transparents après la fusion du lot transparents de l'autre session → reflet pour toute surface (LR7) → lumière qui rebondit (LR4, multi-rebond) → reflets flous (spéculaire rugueux) → optimisation mesurée.
 
 | Phase | Contenu | Sortie mesurée |
 |---|---|---|
@@ -103,7 +112,7 @@ LB3. Provenance : résolution, DPR, fréquence, matériel, charge machine, commi
 | E1 | Direct : LR3 dans l'éclairage différé WebGPU | Budget LR1 tenu, E1–E3 direct conformes, pixels inchangés hors lumière |
 | E2 | Proxy et sondes : LC1, LR4 sans cache de surfaces (un rebond) | E5 sous la limite sur la porte, budget tenu |
 | E3 | Cartes et cache de surfaces : LC2, LR5, LR6, multi-rebond et coloration | Couverture ≥ 95 %, E4 régions conformes |
-| E4 | Miroirs plans : LR7 | Scénario miroir conforme, budget tenu |
+| E4 | Reflet pour toute surface : LR7 | Scénario miroir conforme, budget tenu |
 | E5 | Ordonnanceur et budgets : LR2, hystérésis adaptative, GPU intégré | Cadence constante ± 10 %, E5 sur GPU intégré |
 | E6 | WebGL2 : LR8 | Parité état stable, retard sous sa limite |
 
@@ -119,6 +128,9 @@ La phase E0 peut s'intercaler quand un créneau d'agent est libre ; les phases E
 - SSR et cubemap seuls pour les miroirs : refusés, ne donnent pas le hors-champ net.
 - Bases par lampe (linéarité) : réservées aux scènes à nombreuses lampes fixes ; non prioritaires.
 - Le prototype à rectangles et son solveur dense servent d'oracle de discrétisation et de scénario de retard ; aucune fonction de rendu ne s'y ajoute.
+- Aucune lumière sans source déclarée : suppression de l'ambiance fixe et du « mode nuit » ; décidé le 15 septembre 2026. Exception connue conservée le temps du lot : les arbres d'Emerald restent allumés la nuit via le chemin des transparents (P6).
+- Reflet pour toute surface : le lot « miroir » livre un mécanisme piloté par la propriété réfléchissante du matériau, réutilisable par toute surface, pas un objet miroir nommé ; décidé le 15 septembre 2026.
+- Eau : pas de lot dédié ; matériau réfléchissant, transparent, à relief animé, déjà couvert par les règles existantes (LR7, transparence). Seule la réfraction avec absorption en profondeur reste une propriété à ajouter plus tard. Scène de test avec de l'eau à fournir par l'utilisateur.
 
 ## 10. Exécution des calculs et bornes (X)
 

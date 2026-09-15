@@ -16,6 +16,8 @@ export function createWebgpuRowSync(
   drawSlots: number,
   cacheReady: () => boolean,
   { commitRows, sourceRowOf }: Commit,
+  /** Appelée quand une page entre dans la résidence ou en sort, avant que la ligne ne change. */
+  onResidenceChange: (rec: PageRec) => void = () => {},
 ) {
   /**
    * Rows for the drawable set. `residentFlags` keeps `pageSelection`'s predicate — CPU bytes present and
@@ -38,7 +40,10 @@ export function createWebgpuRowSync(
         rec = packedPages[i],
         index = rec.array;
       const resident = offsetWords >= 0 && !!index;
-      if (rows.residentFlags[i] !== (resident ? 1 : 0)) rows.residentFlags[i] = resident ? 1 : 0;
+      if (rows.residentFlags[i] !== (resident ? 1 : 0)) {
+        rows.residentFlags[i] = resident ? 1 : 0;
+        onResidenceChange(rec);
+      }
       if (!resident) continue;
       candidates++;
       if (rec.transparent) continue;

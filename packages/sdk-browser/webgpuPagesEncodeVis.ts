@@ -7,6 +7,7 @@ import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import { uploadDirtyRows } from './webgpuPagesEncodeDraws.ts';
+import { uploadClusterSpheres } from './webgpuShadowBounds.ts';
 import {
   encodeEmptySurfaces,
   encodeSmallTriangles,
@@ -60,6 +61,9 @@ export function encodeVis(
       `VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`,
     );
   const items = buildWebgpuVisibilityItems(rt, twoPass, itemsDirty);
+  // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
+  // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.
+  if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
   uploadDirtyRows(rt, device);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);

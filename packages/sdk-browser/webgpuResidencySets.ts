@@ -3,6 +3,7 @@ import type { CutDelta } from './webgpuCutDelta.ts';
 import { createDenseKeySet } from './webgpuDenseKeys.ts';
 import { createKeyUnion, createRefreshedKeys } from './webgpuKeyUnion.ts';
 import { createBudgetRanking } from './webgpuBudgetRanking.ts';
+import { createHeldKeys } from './webgpuHeldKeys.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -74,25 +75,23 @@ export function createWebgpuResidencySets(options: {
   const transparentShown = createRefreshedKeys(keyCount, holdDrawn, dropDrawn);
   const cpuWanted = createRefreshedKeys(keyCount, askFor, dropAsk);
   const cpuShown = createRefreshedKeys(keyCount, holdDrawn, dropDrawn);
-  /** Keys the opaque cut holds, counted per key: several placements of one page share one key. */
-  const opaqueRefs = new Int32Array(keyCount);
-  const opaqueHeld = createDenseKeySet(keyCount);
-  const dropOpaque = (id: number) => {
-    const key = keyOfPageId[id];
-    ranking.remove(packedPages[id]);
-    if (--opaqueRefs[key] > 0) return;
-    opaqueHeld.remove(key);
-    dropAsk(key);
-  };
-  const clearOpaque = () => {
-    for (let i = opaqueHeld.count - 1; i >= 0; i--) {
-      const key = opaqueHeld.list[i];
-      opaqueRefs[key] = 0;
-      dropAsk(key);
-    }
-    opaqueHeld.clear();
-    ranking.clear();
-  };
+  /** What the cut asks the cache for, and what the image actually draws. The second is not a subset
+   *  of the first: a cluster whose replacement is missing is drawn from a resident ancestor the cut
+   *  never asked for, and the cache must not reclaim it while it is on screen. */
+  const askedKeys = createHeldKeys({
+    keyCount,
+    keyOfPageId,
+    retain: (key, id) => askFor(key, packedPages[id]),
+    release: dropAsk,
+    onEnter: (id) => ranking.add(packedPages[id]),
+    onExit: (id) => ranking.remove(packedPages[id]),
+  });
+  const drawnKeys = createHeldKeys({
+    keyCount,
+    keyOfPageId,
+    retain: holdDrawn,
+    release: dropDrawn,
+  });
   /** Empties the queue, releasing every hold it placed. */
   const emptyQueue = () => {
     for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
@@ -116,15 +115,11 @@ export function createWebgpuResidencySets(options: {
     },
     /** Applies one GPU cut difference: only the pages that entered and left are touched. */
     applyCut(delta: CutDelta) {
-      for (let i = 0; i < delta.exitedCount; i++) dropOpaque(delta.exited[i]);
-      for (let i = 0; i < delta.enteredCount; i++) {
-        const id = delta.entered[i],
-          key = keyOfPageId[id];
-        ranking.add(packedPages[id]);
-        if (opaqueRefs[key]++ > 0) continue;
-        opaqueHeld.add(key);
-        askFor(key, packedPages[id]);
-      }
+      askedKeys.apply(delta);
+    },
+    /** Applies one difference of the drawable cut, which is what the image must not lose. */
+    applyDrawn(delta: CutDelta) {
+      drawnKeys.apply(delta);
     },
     refreshTransparentWanted(pages: readonly PageRec[]) {
       transparentWanted.refresh(pages, keyOf);
@@ -137,7 +132,9 @@ export function createWebgpuResidencySets(options: {
      * drawn lists in full, and the GPU cut re-seeds from nothing when it takes over again.
      */
     refreshCpu(wantedNow: readonly PageRec[], shownNow: readonly PageRec[]) {
-      if (opaqueHeld.count) clearOpaque();
+      askedKeys.clear();
+      ranking.clear();
+      drawnKeys.clear();
       transparentWanted.clear();
       transparentShown.clear();
       if (!followsDesired) restoreWanted();

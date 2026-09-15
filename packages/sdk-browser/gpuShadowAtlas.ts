@@ -70,6 +70,9 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       label: 'WG shadow depth v1',
       layout,
       vertex: { module, entryPoint: 'shadow_vs' },
+      // Aucune cible de couleur : l'étage de fragment n'existe que pour écarter la découpe d'un
+      // matériau à masque d'opacité, et ne rend rien.
+      fragment: { module, entryPoint: 'shadow_fs', targets: [] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: depthState('less'),
     });

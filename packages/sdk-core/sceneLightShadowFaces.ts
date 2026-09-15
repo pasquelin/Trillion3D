@@ -25,12 +25,57 @@ export const faceCountOf = (light: Pick<SceneLight, 'kind'>) =>
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
 /**
+ * L'axe et le champ vertical d'une face : l'axe fixe d'une ponctuelle et son quart de tour, ou la
+ * direction du projecteur et son cône élargi. La matrice de la face et le volume que le rejet lui
+ * oppose partent tous deux d'ici, sinon les deux pourraient viser des directions différentes.
+ */
+function faceAim(light: SceneLight, face: number) {
+  const forward =
+    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
+  return { forward, fov: light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!) };
+}
+
+/** Flottants du volume d'une face : centre et plan lointain, axe de la face et demi-angle. */
+export const SHADOW_CULL_FLOATS = 8;
+/**
+ * Le volume qu'une face peut voir, sous forme de cône : la lampe pour sommet, l'axe de la face pour
+ * direction, et le demi-angle du cône circonscrit au carré de la face — la diagonale du carré fait
+ * `√2` fois son demi-côté, donc le cône qui l'englobe a pour tangente `√2·tan(fov/2)`.
+ *
+ * Un cluster dont la sphère monde ne touche ni la portée ni ce cône ne peut rien écrire dans la
+ * face : la projection le rejetterait de toute façon au plan lointain ou aux plans latéraux. Le
+ * rejet est donc exact, jamais une approximation de qualité — l'image ne change pas d'un texel.
+ */
+export function writeFaceCull(out: Float32Array, base: number, light: SceneLight, face: number) {
+  const { forward, fov } = faceAim(light, face);
+  const half = fov / 2;
+  const length = Math.hypot(forward[0], forward[1], forward[2]) || 1;
+  out[base] = light.position[0];
+  out[base + 1] = light.position[1];
+  out[base + 2] = light.position[2];
+  // Le plan lointain de la face, pas la portée : les deux ne coïncident que si la portée dépasse le
+  // plan proche, et un cluster entre les deux doit rester dessiné.
+  out[base + 3] = shadowPlanes(light.range).far;
+  out[base + 4] = forward[0] / length;
+  out[base + 5] = forward[1] / length;
+  out[base + 6] = forward[2] / length;
+  // Un demi-champ au-delà du quart de tour couvre déjà tout l'espace : le cône n'exclut plus rien.
+  out[base + 7] = half >= Math.PI / 2 ? Math.PI : Math.atan(Math.SQRT2 * Math.tan(half));
+}
+
+/** Plans proche et lointain d'une tranche, dérivés de la seule portée : une seule source pour la
+ *  projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au bord. */
+function shadowPlanes(range: number) {
+  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction);
+  return { near, far: Math.max(near * 1.001, range) };
+}
+
+/**
  * Projection perspective pour l'espace de découpe WebGPU, profondeur normalisée dans `[0, 1]`,
  * colonne-major. `near` est dérivé de la portée : une seule constante, jamais un réglage caché.
  */
 function shadowProjection(out: Float32Array, base: number, fov: number, range: number) {
-  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
-    far = Math.max(near * 1.001, range),
+  const { near, far } = shadowPlanes(range),
     f = 1 / Math.tan(fov / 2),
     depth = far / (near - far);
   out.fill(0, base, base + 16);
@@ -110,9 +155,7 @@ const viewScratch = new Float32Array(16),
  * prend l'axe de `POINT_FACE_AXES` et 90° ; un projecteur prend sa direction et son cône élargi.
  */
 export function writeFaceMatrix(out: Float32Array, base: number, light: SceneLight, face: number) {
-  const forward =
-    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
-  const fov = light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!);
+  const { forward, fov } = faceAim(light, face);
   shadowView(viewScratch, 0, light.position, forward);
   const planes = shadowProjection(projScratch, 0, fov, light.range);
   multiply4(out, base, projScratch, 0, viewScratch, 0, mulScratch);
