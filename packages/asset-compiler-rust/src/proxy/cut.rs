@@ -38,9 +38,11 @@ pub struct CutDemand {
 ///
 /// Le seuil de départ est celui de la spécification, en mètres ; tant que la coupe ne tient pas
 /// dans sa part du budget, il double — et il cesse de doubler dès qu'il ne retire plus rien, parce
-/// que les racines du DAG sont un plancher que la simplification du proxy franchira, pas lui. C'est une règle de taille, générique et sans nom de scène :
-/// une primitive dessinée mille fois reçoit une part mille fois plus petite et sort mille fois plus
-/// grossière, une petite pièce garde son seuil de départ. Le seuil réellement obtenu est publié.
+/// que les racines du DAG sont un plancher que la simplification du proxy franchira, pas lui.
+///
+/// C'est une règle de taille, générique et sans nom de scène : une primitive dessinée mille fois
+/// reçoit une part mille fois plus petite et sort mille fois plus grossière, une petite pièce garde
+/// son seuil de départ. Le seuil réellement obtenu est publié.
 ///
 /// Le seuil est exprimé en espace objet : l'appelant l'a déjà divisé par l'échelle monde du nœud
 /// qui place la primitive, si bien qu'il vaut des mètres une fois la coupe placée.
