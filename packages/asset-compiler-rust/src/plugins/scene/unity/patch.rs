@@ -73,9 +73,7 @@ impl Changes {
             self.applied += 1;
         } else if let Some(slot) = material_slot(path) {
             let slots = self.materials.entry(target).or_default();
-            if slots.len() <= slot {
-                slots.resize(slot + 1, Ref::default());
-            }
+            cover(slots, slot + 1);
             slots[slot] = reference(&change["objectReference"]);
             self.applied += 1;
         } else {
@@ -126,9 +124,7 @@ impl Changes {
     pub(super) fn merged_materials(&self) -> Vec<Ref> {
         let mut out: Vec<Ref> = Vec::new();
         for slots in self.materials.values() {
-            if out.len() < slots.len() {
-                out.resize(slots.len(), Ref::default());
-            }
+            cover(&mut out, slots.len());
             for (slot, reference) in slots.iter().enumerate() {
                 if !reference.is_null() {
                     out[slot] = reference.clone();
@@ -149,6 +145,13 @@ impl Changes {
                 *count,
             );
         }
+    }
+}
+
+/// Allonge la suite d'emplacements jusqu'à `len`, les nouveaux emplacements vides.
+fn cover(slots: &mut Vec<Ref>, len: usize) {
+    if slots.len() < len {
+        slots.resize(len, Ref::default());
     }
 }
 
