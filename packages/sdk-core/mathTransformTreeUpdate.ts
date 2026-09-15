@@ -25,7 +25,7 @@ const composePosition = new Float64Array(3),
   composeQuaternion = new Float64Array(4),
   composeScale = new Float64Array(3);
 
-/** `updateMatrix` : la matrice locale depuis position, rotation et échelle, si elles ont changé. */
+/** `updateMatrix` : la matrice locale depuis la position, la rotation et l'échelle du nœud. */
 function composeLocal(tree: TransformTree, node: number) {
   const { position, quaternion, scale } = tree;
   const p = node * 3,
@@ -41,63 +41,74 @@ function composeLocal(tree: TransformTree, node: number) {
   composeScale[1] = scale[p + 1];
   composeScale[2] = scale[p + 2];
   composeMatrix4(tree.localViews[node], composePosition, composeQuaternion, composeScale);
-  tree.flags[node] = (tree.flags[node] & ~NODE_TRS_DIRTY) | NODE_LOCAL_CHANGED;
 }
 
-/** Matrice monde = monde du parent × locale, ou la locale pour une racine, si une entrée a changé. */
-function refreshWorld(tree: TransformTree, node: number) {
+/**
+ * Un nœud atteint : matrice locale recomposée si la mise à jour est automatique et la pose écrite,
+ * puis matrice monde = monde du parent × locale (la locale recopiée pour une racine) si une entrée a
+ * changé. Les drapeaux sont lus une fois et écrits une fois, `worldNeedsUpdate` compris : effacé par
+ * `updateMatrixWorld`, posé par `updateWorldMatrix` sous mise à jour automatique.
+ */
+function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean) {
+  const flags = tree.flags[node],
+    auto = (flags & NODE_AUTO_UPDATE) !== 0,
+    compose = auto && (flags & NODE_TRS_DIRTY) !== 0;
+  if (compose) composeLocal(tree, node);
+  let next = compose ? flags & ~NODE_TRS_DIRTY : flags;
+  if (fromWorldMatrix) {
+    if (auto) next |= NODE_WORLD_NEEDS_UPDATE;
+  } else next &= ~NODE_WORLD_NEEDS_UPDATE;
   const parent = tree.parent[node],
-    flags = tree.flags[node];
-  if (!(flags & NODE_LOCAL_CHANGED) && (parent < 0 || tree.seen[node] === tree.version[parent]))
-    return;
-  if (parent < 0) tree.world.set(tree.localViews[node], node * 16);
-  else multiplyMatrix4(tree.worldViews[node], tree.worldViews[parent], tree.localViews[node]);
-  tree.version[node] = (tree.version[node] + 1) >>> 0;
-  tree.seen[node] = parent < 0 ? 0 : tree.version[parent];
-  tree.flags[node] = flags & ~NODE_LOCAL_CHANGED;
+    version = tree.version,
+    changed = compose || (flags & NODE_LOCAL_CHANGED) !== 0;
+  if (parent < 0) {
+    if (changed) {
+      const world = tree.world,
+        local = tree.local,
+        at = node * 16;
+      // Une boucle : `TypedArray.prototype.set` sur une vue coûte un appel natif.
+      for (let i = 0; i < 16; i++) world[at + i] = local[at + i];
+      tree.seen[node] = 0;
+      version[node] = (version[node] + 1) >>> 0;
+    }
+  } else {
+    const parentVersion = version[parent];
+    if (changed || tree.seen[node] !== parentVersion) {
+      multiplyMatrix4(tree.worldViews[node], tree.worldViews[parent], tree.localViews[node]);
+      tree.seen[node] = parentVersion;
+      version[node] = (version[node] + 1) >>> 0;
+    }
+  }
+  tree.flags[node] = next & ~NODE_LOCAL_CHANGED;
 }
 
-/** Un nœud de `updateMatrixWorld` : `forced` est le `force` que son parent lui transmet. */
-function stepMatrixWorld(tree: TransformTree, node: number, forced: boolean) {
-  const flags = tree.flags[node];
-  if (!forced && !(flags & (NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE))) {
-    tree.forced[node] = 0;
-    return;
-  }
-  tree.forced[node] = 1;
-  if ((flags & (NODE_AUTO_UPDATE | NODE_TRS_DIRTY)) === (NODE_AUTO_UPDATE | NODE_TRS_DIRTY))
-    composeLocal(tree, node);
-  tree.flags[node] &= ~NODE_WORLD_NEEDS_UPDATE;
-  refreshWorld(tree, node);
-}
-
-/** Un nœud de `updateWorldMatrix` : la référence recalcule sans condition, et marque sous `updateMatrix`. */
-function stepWorldMatrix(tree: TransformTree, node: number) {
-  const flags = tree.flags[node];
-  if (flags & NODE_AUTO_UPDATE) {
-    if (flags & NODE_TRS_DIRTY) composeLocal(tree, node);
-    tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE;
-  }
-  refreshWorld(tree, node);
-}
+const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true);
 
 /**
  * `node.updateMatrixWorld(force)` : le nœud et tout son sous-arbre, parents d'abord. Un nœud est
  * atteint s'il se met à jour automatiquement, s'il est marqué, ou si `force` — celui de l'appel pour
- * `node`, sinon « le parent a été atteint ». Les ancêtres de `node` ne sont pas relus.
+ * `node`, sinon « le parent a été atteint ». Les ancêtres de `node` ne sont pas relus. La marque d'un
+ * nœud parcouru vaut `2 · parcours + atteint` : une seule lecture dit à l'enfant s'il est dans le
+ * sous-arbre et ce que son parent lui transmet.
  */
 export function updateNodeMatrixWorld(tree: TransformTree, node: number, force = false) {
   ensureOrder(tree);
-  const { order, parent, stamp, forced } = tree;
-  const mark = nextStamp(tree);
-  stamp[node] = mark;
-  stepMatrixWorld(tree, node, force);
-  for (let k = tree.orderAt[node] + 1; k < tree.orderCount; k++) {
+  const { order, parent, stamp, flags } = tree;
+  const visited = nextStamp(tree) * 2,
+    reach = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
+  const reached = force || (flags[node] & reach) !== 0;
+  if (reached) refreshNode(tree, node, false);
+  stamp[node] = reached ? visited | 1 : visited;
+  for (let k = tree.orderAt[node] + 1, end = tree.orderCount; k < end; k++) {
     const j = order[k],
       p = parent[j];
-    if (p < 0 || stamp[p] !== mark) continue;
-    stamp[j] = mark;
-    stepMatrixWorld(tree, j, forced[p] === 1);
+    if (p < 0) continue;
+    const mark = stamp[p];
+    if ((mark | 1) !== (visited | 1)) continue;
+    if (mark !== visited || (flags[j] & reach) !== 0) {
+      refreshNode(tree, j, false);
+      stamp[j] = visited | 1;
+    } else stamp[j] = visited;
   }
 }
 
@@ -115,8 +126,8 @@ export function updateNodeWorldMatrix(
     const { chain, parent } = tree;
     let links = 0;
     for (let walk = parent[node]; walk >= 0; walk = parent[walk]) chain[links++] = walk;
-    while (links > 0) stepWorldMatrix(tree, chain[--links]);
+    while (links > 0) refreshNode(tree, chain[--links], true);
   }
   if (updateChildren) visitSubtree(tree, node, stepWorldMatrix);
-  else stepWorldMatrix(tree, node);
+  else refreshNode(tree, node, true);
 }

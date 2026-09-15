@@ -52,9 +52,12 @@ export function ensureOrder(tree: TransformTree) {
   tree.orderDirty = false;
 }
 
-/** Une marque neuve pour un parcours de sous-arbre ; les marques sont effacées au rebouclage. */
+/**
+ * Une marque neuve pour un parcours de sous-arbre, sous 2³¹ : la mise à jour la double et y range un
+ * bit. Les marques sont effacées au rebouclage.
+ */
 export function nextStamp(tree: TransformTree) {
-  tree.call = (tree.call + 1) >>> 0;
+  tree.call = (tree.call + 1) & 0x7fffffff;
   if (tree.call === 0) {
     tree.stamp.fill(0);
     tree.call = 1;
@@ -73,7 +76,8 @@ export function visitSubtree(
 ) {
   ensureOrder(tree);
   const { order, parent, stamp } = tree;
-  const mark = nextStamp(tree);
+  // Paire, comme les marques de la mise à jour : un parcours ne relit jamais celle d'un autre.
+  const mark = nextStamp(tree) * 2;
   stamp[node] = mark;
   visit(tree, node);
   for (let k = tree.orderAt[node] + 1; k < tree.orderCount; k++) {
