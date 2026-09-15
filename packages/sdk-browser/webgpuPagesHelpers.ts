@@ -104,6 +104,25 @@ export function partitionByPass(source: readonly PageRec[], transparent: boolean
     if (!!source[i].transparent === transparent) into.push(source[i]);
   return into;
 }
+/**
+ * Remet `drawn` en phase avec `shown` — et ne fait rien quand il l'est déjà.
+ *
+ * Sur le chemin de la carte graphique, `drawn` n'est rien d'autre que la recopie de `shown` :
+ * l'adoption la refait quand le relevé change, la reprise après capture de surface aussi, et la
+ * coupe processeur baisse le drapeau dès son entrée parce qu'elle est la seule à écrire ces listes
+ * autrement. Rend vrai quand la recopie a eu lieu.
+ */
+export function mirrorDrawnFromShown(run: {
+  shown: PageRec[];
+  drawn: PageRec[];
+  drawnMirrorsShown: boolean;
+}) {
+  if (run.drawnMirrorsShown) return false;
+  run.drawn.length = 0;
+  appendAll(run.drawn, run.shown);
+  run.drawnMirrorsShown = true;
+  return true;
+}
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
 export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
   for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);
