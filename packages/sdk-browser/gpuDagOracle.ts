@@ -9,11 +9,20 @@ import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
 import { dagScratch, objectPlanes, outsidePlanes, projectedError } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
 
-/** Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer. */
+/**
+ * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
+ *
+ * `cacheCone`: false (default) recomputes coneRejects at every call site, like the oracle always
+ * has. true caches it once per page the first time a visible page reaches it — the pageIds loop
+ * runs first, so that is always dagWanted's moment — and every later site rereads the same value,
+ * like gpuDagShader.ts has done since the lot D5 cache. Both modes must select the same pages: this
+ * flag exists only so gpuDagConeCacheEquivalence.test.ts can prove that without forking the kernel.
+ */
 export function evaluateDagSelectionKernel(
   packed: PackedDag,
   uniforms: SelectionUniforms,
   resident?: Uint32Array,
+  cacheCone = false,
 ) {
   if (resident && resident.length !== packed.pageCount)
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
@@ -84,6 +93,15 @@ export function evaluateDagSelectionKernel(
     focal,
     near,
   });
+  const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
+  const cone = (i: number, w: number): boolean => {
+    if (!coneCache) return coneRejects(i, w);
+    const cached = coneCache.get(i);
+    if (cached !== undefined) return cached;
+    const rejected = coneRejects(i, w);
+    coneCache.set(i, rejected);
+    return rejected;
+  };
   const pageIds: number[] = [];
   let frustumRejected = 0,
     lodLevel = 0;
@@ -97,7 +115,7 @@ export function evaluateDagSelectionKernel(
       continue;
     }
     if (!selects(i, pixelError)) continue;
-    if (coneRejects(i, w)) continue;
+    if (cone(i, w)) continue;
     if (clusterInts[base + 11] > lodLevel) lodLevel = clusterInts[base + 11];
     pageIds.push(i);
     if (!resident || resident[i]) continue;
@@ -120,7 +138,7 @@ export function evaluateDagSelectionKernel(
       if (resident[i]) continue;
       const base = i * CLUSTER_FLOATS,
         w = clusterInts[base + 10];
-      if (!visible(i) || !selects(i, thresholds[w]) || coneRejects(i, w)) continue;
+      if (!visible(i) || !selects(i, thresholds[w]) || cone(i, w)) continue;
       const parent = bandPixels(i, 1);
       if (parent > 0 && Number.isFinite(parent)) {
         if (parent > thresholds[w]) {
@@ -138,14 +156,14 @@ export function evaluateDagSelectionKernel(
         if (resident[i]) continue;
         const base = i * CLUSTER_FLOATS,
           w = clusterInts[base + 10];
-        if (visible(i) && selects(i, thresholds[w]) && !coneRejects(i, w)) missing[w] = 1;
+        if (visible(i) && selects(i, thresholds[w]) && !cone(i, w)) missing[w] = 1;
       }
   }
   let complete = true;
   for (let i = 0; i < packed.pageCount; i++) {
     const base = i * CLUSTER_FLOATS,
       w = clusterInts[base + 10];
-    if (!visible(i) || coneRejects(i, w)) continue;
+    if (!visible(i) || cone(i, w)) continue;
     let draw: boolean;
     if (missing[w]) {
       draw = !!(clusterInts[base + 13] & CLUSTER_ROOT);
