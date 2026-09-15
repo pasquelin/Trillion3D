@@ -1,29 +1,33 @@
-# Reprise — Geometry (session sans-threejs)
+# Geometry — handoff (sans-threejs)
 
-## Identité et rôles
-- `get_session("self")` d'abord : fichier de la session titrée « Geometry ». Validateur = session « Validateur », seule à fusionner et pousser. Voisines : Lumière, Calculateur, Compilateur.
-- Fable orchestre sans coder ; Opus 5 code ; Sonnet 5 lit et vérifie, ne commite jamais ; Haiku jamais. Réponses à l'utilisateur en 5 lignes, aucune notification d'attente relayée.
+## Identity and workflow
 
-## Règles (ordres de l'utilisateur, 15 sept. 2026)
-- Coder tous les lots d'affilée ; une seule passe à la fin : tests, portes (tsc, check:changed, check:unused, check:lines, check:duplicates), puis une campagne d'image (`scripts/mesure/banc.mjs`, generale seuil 0 + caméra mobile seuil 1, 60 images, A/A). Jamais de mesure entre deux lots ni après rebase ; aucune attente ni verrou ; pixels = preuve, durées machine chargée = non mesurées ; ne jamais tuer une campagne (Chrome orphelin).
-- Corrections de défaut : l'ancien résultat n'est plus un oracle ; le contre-exemple devient le test de non-régression, un par défaut. Optimisations : comparaison à qualité identique, 0 px.
-- `npm run validate` = Validateur seul. Livraison = branche + SHA au Validateur ; jamais de fusion, push ni `git stash`. `orchestration/` = une reprise par session + `SPEC_*` ouverts, 200 lignes max, jamais de journal ; preuves dans les messages de commit et de livraison.
+- Confirm title `Geometry` with `get_session("self")`. Follow `AGENTS.md`. Neighbours: Lumière, Calculateur, Compilateur; only Validateur merges, pushes and runs `npm run validate`.
+- Fable orchestrates, no coding; Opus 5 codes; Sonnet 5 reads/verifies, never commits; no Haiku. Replies ≤5 lines; do not relay waiting notifications.
+- User order, 2026-09-15: code all batches, then one pass: tests, tsc, `check:changed`, `check:unused`, `check:lines`, `check:duplicates`, then one `scripts/mesure/banc.mjs` campaign (generale threshold 0 + mobile camera threshold 1, 60 frames, A/A). No measurements between batches or after rebase, no waiting/locks; never kill a campaign (orphaned Chrome). Pixels are evidence; timings on a loaded machine are unmeasured.
+- Bug fixes: old output is not the oracle; one regression test per counterexample. Optimizations: equal quality, 0 px. Deliver branch + SHA to Validateur; never merge, push or stash. Evidence belongs in commits/delivery, not orchestration logs.
 
-## Défauts ouverts (audit du 15 sept. 23 h, `/tmp/webgeometry-audit-20260915.mjs`, 7/7 confirmés par rejeu indépendant sur c47231d ; 872 tests verts = état de la suite, pas correction)
-1. P1 WebGL : boîte de visibilité figée à la préparation (`pageSelectionCollect.ts` ~95, `pageSelectionCut.ts` ~83) ; objet déplacé devant la caméra invisible. Actualiser avec la transformation.
-2. P1 cône : tolérance absolue 1e-12 (`pageCone.ts` ~19 et WGSL) rejette une face visible à petite échelle. Vérification relative conservatrice.
-3. P1 budget WebGL : compte les placements, pas les pages uniques (`pageSelectionCutVisit.ts` ~49, `pageSelectionCut.ts` ~97) ; instances dégradées à tort. Séparer résidence et dessins.
-4. P2 `dropPage()` garde `rec.attributes` (`autonomousResidency.ts` ~61) ; mémoire CPU accumulée.
-5. P2 décomposition PRS perd le cisaillement sous parent étiré (`webgpuPagesTransform.ts` ~51) ; garder la matrice locale.
-6. P2 erreur écran divisée par la distance euclidienne (`projectionOracles.ts` ~105, `clusterErrorPixels`, versions CPU/GPU) ; sous-estimée hors axe.
-7. P2 vue copiée avant `getWorldPosition()` (`gpuSelection.ts` ~121) ; caméra parentée incohérente une image.
+## Open audit defects
 
-## État (15 sept. 23 h 30)
-- Fusionnés à 0 px : coupe WebGL2 (7aacf6f, b2a3266), boîtes Hi-Z tenues (8498cd3, CPU fixe WebGPU générale 5,9 → 4,7 ms), banc f-cones (0fd6834). Livrés non fusionnés : `lot/selection-boxclip` e95abbb (coupe 4,17 → 3,00 ms ; touche les fichiers des défauts 1-3 sans les corriger), `lot/coplanaires` 0d274e3 (historique d'occlusion ; R5c : vainqueur d'égalité exacte dépendant de l'historique, ≤ 0,007 %).
-- GPU 29 ms seuil 0 = goulot. CPU fixe restant : fiches 1,3 ms, adoption 0,9, occulteurs 0,4. Coupe : `keep` + `traverse` = la fiche de page (59 %) ; instrument Node `.mesure/out/lot-selection-boxclip/instrument/`.
+2026-09-15 23:00: `/tmp/webgeometry-audit-20260915.mjs`, 7/7 independently replayed on c47231d. 872 passing tests do not establish fixes. Locations below are approximate audit lines.
 
-## Ordre retenu
-1. Fusion de `lot/selection-boxclip` et `lot/coplanaires` (Validateur).
-2. Défauts 1 à 3, puis 4 à 7, un test de justesse par défaut, en un seul enchaînement.
-3. Mémoire et résidence : indices WebGL de tous les niveaux (`clusterBatchPrimitive.ts` ~35), 48 o/sommet WebGPU (`webgpuGeometryPrepare.ts` ~18), cônes renvoyés en entier (`gpuDagRuntime.ts` ~115), passes d'escalade lancées tout résident (`gpuDagDispatch.ts` ~95). Puis Hi-Z temporelle (tag `essai/hiz-temporelle`, sur la version d'après boîtes tenues), fiches et adoption pour 4 ms, tableaux typés pour la coupe < 2 ms.
-4. Validation finale et preuve navigateur sur le contenu intégré. Ensuite : durées au calme, témoin Three sur `transmission`, phase 3 première image, phase 2 sans Three. Preuves gardées : tags `essai/*`, images `.mesure/out/<lot>/`.
+1. P1 WebGL bounds frozen at prepare (`pageSelectionCollect.ts:95`, `pageSelectionCut.ts:83`): moved object stays invisible; update from transform.
+2. P1 cone absolute tolerance `1e-12` (`pageCone.ts:19`, WGSL) rejects visible small-scale faces; use conservative relative check.
+3. P1 WebGL budget counts placements, not unique pages (`pageSelectionCutVisit.ts:49`, `pageSelectionCut.ts:97`); instances lose quality. Separate residency/draws.
+4. P2 `dropPage()` retains `rec.attributes` (`autonomousResidency.ts:61`); CPU memory accumulates.
+5. P2 PRS decomposition loses shear under scaled parent (`webgpuPagesTransform.ts:51`); preserve local matrix.
+6. P2 screen error uses Euclidean distance (`projectionOracles.ts:105`, `clusterErrorPixels`, CPU/GPU); underestimates off-axis error.
+7. P2 view copied before `getWorldPosition()` (`gpuSelection.ts:121`); parented camera inconsistent for one frame.
+
+## State at 2026-09-15 23:30
+
+- Merged, 0 px: WebGL2 cut 7aacf6f/b2a3266; maintained Hi-Z bounds 8498cd3 (WebGPU generale fixed CPU 5.9 → 4.7 ms); f-cones bench 0fd6834.
+- Delivered/unmerged: `lot/selection-boxclip` e95abbb (cut 4.17 → 3.00 ms; touches defects 1–3 without fixing them); `lot/coplanaires` 0d274e3 (occlusion history; R5c exact-tie winner depends on history, ≤0.007%).
+- GPU 29 ms at threshold 0 is bottleneck. Remaining fixed CPU: records 1.3 ms, adoption 0.9, occluders 0.4. Cut `keep` + `traverse` page records = 59%; Node instrumentation `.mesure/out/lot-selection-boxclip/instrument/`.
+
+## Order
+
+1. Validateur merges `lot/selection-boxclip`, `lot/coplanaires`.
+2. Fix 1–3, then 4–7 in one sequence; one correctness test each.
+3. Memory/residency: all-level WebGL indices (`clusterBatchPrimitive.ts:35`), 48 B/vertex WebGPU (`webgpuGeometryPrepare.ts:18`), full cone readback (`gpuDagRuntime.ts:115`), escalation passes when fully resident (`gpuDagDispatch.ts:95`). Then temporal Hi-Z (`essai/hiz-temporelle`, after maintained bounds), records/adoption toward 4 ms, typed-array cut <2 ms.
+4. Final validation/browser proof on integrated content; then quiet-machine timings, Three reference on `transmission`, phase 3 first frame, phase 2 without Three. Preserve `essai/*` tags and `.mesure/out/<lot>/` images.
