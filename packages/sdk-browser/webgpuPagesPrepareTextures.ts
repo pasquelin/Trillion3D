@@ -1,3 +1,4 @@
+import { compteMateriauxEtTangentes } from './webgpuPagesCatalogue.ts';
 import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
 import { prepareWebgpuAtlas } from './webgpuAtlasCommon.ts';
@@ -34,15 +35,15 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     dataLayer,
   );
   vis.materialLayers = materialLayers;
+  const compte = compteMateriauxEtTangentes(allPages, geometryBlocks);
   diag.engineDiagnostic('material-textures', 'Textures nécessaires au rendu', {
     colorTextures: maps.length,
     dataTextures: dataMaps.length,
-    materials: new Set(allPages.map((page) => page.material)).size,
+    materials: compte.materials,
     opaquePages: allPages.length,
     forwardMeshes: blendCopies.length,
-    geometryWithTangents: [...geometryBlocks.values()].filter((block) => block.hasTangent).length,
-    geometryWithoutTangents: [...geometryBlocks.values()].filter((block) => !block.hasTangent)
-      .length,
+    geometryWithTangents: compte.geometryWithTangents,
+    geometryWithoutTangents: compte.geometryWithoutTangents,
   });
   const textureStarted = performance.now();
   const fallbackEncoder = gpuDevice.createCommandEncoder();
