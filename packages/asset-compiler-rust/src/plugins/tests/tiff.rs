@@ -4,8 +4,6 @@
 //! la changer. Et ce que le pilote ne déclare pas, il le refuse en le nommant : c'est la seconde
 //! moitié du contrat, celle qui empêche un 16 bits de revenir rogné à huit.
 use super::super::image as registry;
-use super::fixture;
-use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -27,14 +25,10 @@ const GRIS: [u8; 8] = [0, 64, 128, 255, 16, 32, 48, 64];
 
 /// Ce que le registre rend pour cette fixture, dans l'ordre de lecture de l'image décodée.
 fn rendus(name: &str) -> Vec<[u8; 4]> {
-    let bytes = fixture("tiff", name);
-    let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(pilote.name(), "tiff", "{name}");
-    let rendu = super::rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
-    );
-    assert_eq!((rendu.width(), rendu.height()), (4, 2), "{name}");
-    rendu.pixels().map(|pixel| pixel.0).collect()
+    super::decoded_rgba8("tiff", name, MAX_ALLOC, (4, 2))
+        .pixels()
+        .map(|pixel| pixel.0)
+        .collect()
 }
 
 // Dorée du pilote TIFF : les sept écritures des trois profils déclarés rendent, pixel par pixel, la
@@ -70,42 +64,29 @@ fn chaque_profil_tiff_declare_rend_les_pixels_de_la_reference() {
 // moteur retomber sur son blanc, il n'interrompt aucune compilation et ne panique jamais.
 #[test]
 fn un_tiff_hors_profil_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["tif", "tiff", "TIFF"] {
-        let chemin = PathBuf::from(format!("albedo.{extension}"));
-        let pilote = registry::by_extension(&chemin).expect("revendiqué");
-        assert_eq!(pilote.name(), "tiff", "{extension}");
-        assert_eq!(pilote.mime(), "image/tiff");
-    }
-    for (name, raison) in [
-        // Le 16 bits a sa propre raison : la sortie du contrat ne sait pas encore le porter, et
-        // l'abaisser à huit en silence ajouterait une perte que la source n'avait pas.
-        ("gris16.tiff", "image-depth-unsupported"),
-        // Profils valides mais hors de ceux que le pilote déclare lire.
-        ("palette8.tiff", "image-profile-unsupported"),
-        ("rgb8-jpeg.tiff", "image-profile-unsupported"),
-        ("ccitt-g4.tiff", "image-profile-unsupported"),
-        ("deux-pages.tiff", "image-profile-unsupported"),
-        ("rgb8-plans-separes.tiff", "image-profile-unsupported"),
-        // Alpha associé : prémultiplié, donc pas l'alpha droit du contrat. Le rendre tel quel
-        // changerait les couleurs, et le démultiplier serait une autre opération que ce pilote
-        // n'annonce pas.
-        ("rgba8-alpha-associe.tiff", "image-profile-unsupported"),
-        // Tronqué : l'entête est un entête TIFF, donc le pilote est choisi et c'est la lecture
-        // qui échoue.
-        ("tronque.tif", "image-decode-failed"),
-    ] {
-        let bytes = fixture("tiff", name);
-        assert_eq!(
-            registry::by_head(&bytes).map(|pilote| pilote.name()),
-            Some("tiff"),
-            "{name}"
-        );
-        assert_eq!(
-            registry::decode(&bytes, MAX_ALLOC).err(),
-            Some(raison),
-            "{name}"
-        );
-    }
+    super::assert_claims("tiff", "image/tiff", &["tif", "tiff", "TIFF"]);
+    super::assert_refusals(
+        "tiff",
+        MAX_ALLOC,
+        &[
+            // Le 16 bits a sa propre raison : la sortie du contrat ne sait pas encore le porter, et
+            // l'abaisser à huit en silence ajouterait une perte que la source n'avait pas.
+            ("gris16.tiff", "image-depth-unsupported"),
+            // Profils valides mais hors de ceux que le pilote déclare lire.
+            ("palette8.tiff", "image-profile-unsupported"),
+            ("rgb8-jpeg.tiff", "image-profile-unsupported"),
+            ("ccitt-g4.tiff", "image-profile-unsupported"),
+            ("deux-pages.tiff", "image-profile-unsupported"),
+            ("rgb8-plans-separes.tiff", "image-profile-unsupported"),
+            // Alpha associé : prémultiplié, donc pas l'alpha droit du contrat. Le rendre tel quel
+            // changerait les couleurs, et le démultiplier serait une autre opération que ce pilote
+            // n'annonce pas.
+            ("rgba8-alpha-associe.tiff", "image-profile-unsupported"),
+            // Tronqué : l'entête est un entête TIFF, donc le pilote est choisi et c'est la lecture
+            // qui échoue.
+            ("tronque.tif", "image-decode-failed"),
+        ],
+    );
     // BigTIFF partage l'extension et presque l'entête ; ses adresses tiennent sur huit octets,
     // c'est un autre format. Le pilote le revendique pour le nommer, plutôt que de le laisser
     // sortir en format inconnu.
