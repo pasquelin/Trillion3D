@@ -22,6 +22,9 @@ pub(super) fn bundle_dag_pages(
             rank,
         )
     });
+    // L'empaquetage glouton de `compiler_bundles.rs` n'est pas celui-ci : là-bas un seul seuil de
+    // taille ferme un paquet, ici une rupture de clé (racine, niveau) le ferme aussi. Deux règles,
+    // deux boucles ; les paramétrer ensemble ferait passer la clé pour une option.
     let mut bundles: Vec<Vec<usize>> = Vec::new();
     {
         let mut current: Vec<usize> = Vec::new();
