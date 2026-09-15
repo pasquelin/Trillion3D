@@ -1,5 +1,13 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — lot H2 fusionné : décodage des pages hors fil principal, décodeur WebAssembly
+
+- **Contrat versionné** `sdk-core/pageDecodeContracts.ts` (v2) : entrée, sortie, annulation, refus fermés dont `PAGE_DECODE_UNAVAILABLE`, pool borné min(cœurs, 4, admission). Adaptateur navigateur `pageDecodeTask.ts` (la tâche écrite une seule fois, partagée par le worker et le repli), `pageDecodeWorker.ts`, `pageDecodePool.ts`, `pageDecodeHost.ts` ; branché dans la chaîne de streaming (`streamingFetch`, `clusterPages`, `explorerStreaming`, `explorerLifecycle`, `autonomousPages`), aucun `webgpu*` touché. Page fraîche transférée sans copie à l'aller, tampons décodés transférés au retour ; page déjà résidente copiée (la comptabilité d'octets de l'éviction reste sur le fil principal). Le pool ne bloque jamais : épreuve de démarrage non attendue, repli sur place si aucun worker ne vit. Métriques `pagesDecodedOffThread`, `pageDecodeMs`, `pagesDecodedWasm` (`null` si non mesuré).
+- **Décodeur WebAssembly** `packages/page-codec-wasm` (Rust, cdylib + rlib, ABI `extern "C"`, aucune nouvelle dépendance ; la crate `meshopt` compile son C en wasm32 avec `-msimd128`) ; le compilateur natif le prend en dev-dependency, le décodeur n'est écrit qu'une fois ; test doré natif contre l'encodeur (`to_bits`, fixtures + maillages hostiles). Chargeur `geometryPageWasm.ts` avec repli sur `geometryPage.ts` si `WebAssembly` ou SIMD manquent ; `pageCodec.wasm` 38 065 octets commis, recopié dans `dist/` par `npm run build` ; `build:wasm` hors de `validate` (cible `wasm32-unknown-unknown` et `llvm-tools` installés par `rustup` sur cette machine).
+- **Mesures** (`orchestration/mesures/calculs-h2-2026-09-15.md`, `calculs-h2b-2026-09-15.md`) : décodage par le contrat avec wasm 2,65 → 1,67 ms (37 %), décodeur seul 11,8 → 8,3 ms (30 %), identique octet pour octet ; refus de page plus lent en wasm, non retenu. Campagne `webgpu`, 4 vues × 120 images : témoin A/A 0 px, avant/après 0 px, même hash de coupe, 82 à 90 travaux hors fil par série. `pagesDecodedWasm = 0` en campagne : les deux moteurs exposés par `options.mjs` ne demandent que des paquets d'index ; seul le moteur autonome WebGL2 décode des pages de géométrie, à exposer dans le harnais (commit séparé, Lumière prévenue).
+- Piège trouvé : un worker de module n'hérite pas de la carte d'imports du document ; sans correction, le pool échouait au démarrage chez un hôte sans empaqueteur et tout repartait en silence sur le fil principal. Vérifié dans Chrome sur le `dist/` servi tel quel.
+- Tests : 32 tests (contrat, tâche, chargeur, identité wasm/JS/sur place, worker réel, pool, hôte), `validate` vert (737 tests JS). Fusion `30f2b33`. Charge machine 22 à 88 pendant le lot (trois campagnes d'autres sessions en parallèle) : temps par image non concluants, sérialisation des campagnes demandée aux sessions Geometry et Lumière.
+
 ## 2026-09-16 — [session lumiere] une scène importée arrive avec ses lampes (lot import des lampes)
 
 Worktree `lot-import-lampes`, branche `lot/import-lampes`, rebasée sur `develop` = `5305f6c`.
@@ -119,11 +127,11 @@ Témoin A/A à 0 px sur **toutes** les séries.
 
 **Emerald, aucune lampe déclarée** (`generale,sol,rue`) :
 
-| vue      | écart avant/après | ce qui change                                                       |
-| -------- | ----------------- | ------------------------------------------------------------------- |
-| generale | 4 390 px, max 129 | les feuillages passent de l'ambiance implicite à l'albédo brut       |
-| sol      | 0 px              | aucun transparent visible : l'image est identique au bit près        |
-| rue      | 71 722 px, max 199| idem generale, la rangée d'arbres de la rue                          |
+| vue      | écart avant/après  | ce qui change                                                  |
+| -------- | ------------------ | -------------------------------------------------------------- |
+| generale | 4 390 px, max 129  | les feuillages passent de l'ambiance implicite à l'albédo brut |
+| sol      | 0 px               | aucun transparent visible : l'image est identique au bit près  |
+| rue      | 71 722 px, max 199 | idem generale, la rangée d'arbres de la rue                    |
 
 Ce n'est pas 0 px, et c'est attendu : avant, les arbres étaient éclairés par une hémisphérique et un
 soleil inventés ; après, sans source déclarée, ils sortent en albédo brut comme tout le reste. La
@@ -131,11 +139,11 @@ vue `sol`, sans transparent, donne le 0 px qui prouve que rien d'autre n'a boug�
 
 **Emerald, 8 lampes ponctuelles + soleil** (9 lampes actives, ombres allumées) :
 
-| vue      | écart avant/après | ce qui change                                                       |
-| -------- | ----------------- | ------------------------------------------------------------------- |
-| generale | 4 356 px, max 51  | les feuillages suivent enfin les lampes déclarées                    |
-| sol      | 0 px              | aucun transparent visible                                            |
-| rue      | 67 091 px, max 131| la rangée d'arbres du fond s'éteint, celle que le soleil touche reste |
+| vue      | écart avant/après  | ce qui change                                                         |
+| -------- | ------------------ | --------------------------------------------------------------------- |
+| generale | 4 356 px, max 51   | les feuillages suivent enfin les lampes déclarées                     |
+| sol      | 0 px               | aucun transparent visible                                             |
+| rue      | 67 091 px, max 131 | la rangée d'arbres du fond s'éteint, celle que le soleil touche reste |
 
 Sur `rue`, les arbres du centre et de la droite, qui étaient uniformément verts quelle que soit la
 lumière de la scène, sont maintenant sombres : ils sont hors de la portée des ponctuelles et dans
@@ -144,12 +152,12 @@ l'ombre portée du soleil, que la passe de mélange lit dans le même atlas que 
 **Scène synthétique des trois classes de matériau** (`fixtures/classes-materiaux`, compilée avec le
 binaire Rust, `generale,detail`) :
 
-| série                 | vue      | écart avant/après |
-| --------------------- | -------- | ----------------- |
-| sans lampe            | generale | 95 583 px, max 78 |
-| sans lampe            | detail   | 0 px              |
-| 4 lampes + soleil     | generale | 0 px              |
-| 4 lampes + soleil     | detail   | 0 px              |
+| série             | vue      | écart avant/après |
+| ----------------- | -------- | ----------------- |
+| sans lampe        | generale | 95 583 px, max 78 |
+| sans lampe        | detail   | 0 px              |
+| 4 lampes + soleil | generale | 0 px              |
+| 4 lampes + soleil | detail   | 0 px              |
 
 Sans lampe, seule la vitre (`alphaMode: BLEND`) change : elle passe de `(27,31,39)` — l'ambiance
 implicite, presque éteinte sur ce plan — à `(100,106,117)`, son albédo brut. Les trois cubes opaques
@@ -161,14 +169,14 @@ ici une coïncidence de valeurs sombres, pas une preuve, et c'est Emerald qui po
 
 **Coût par étape**, GPU p50/p95, jamais additionné au CPU :
 
-| série               | vue      | étape Transparents avant | après          | enveloppe image avant | après  |
-| ------------------- | -------- | ------------------------ | -------------- | --------------------- | ------ |
-| sans lampe          | generale | 11,396 / 11,511          | 11,848 / 13,570| 29,06                 | 31,95  |
-| sans lampe          | sol      | 0,849 / 0,968            | 0,837 / 1,045  | 10,80                 | 10,77  |
-| sans lampe          | rue      | 1,767 / 1,913            | 2,039 / 2,214  | 11,31                 | 11,83  |
-| 8 lampes + soleil   | generale | 13,203 / 13,996          | 34,979 / 38,354| 36,27                 | 58,22  |
-| 8 lampes + soleil   | sol      | 2,736 / 3,069            | 2,674 / 2,979  | 12,83                 | 12,71  |
-| 8 lampes + soleil   | rue      | 3,624 / 3,851            | 23,861 / 28,586| 12,90                 | 34,49  |
+| série             | vue      | étape Transparents avant | après           | enveloppe image avant | après |
+| ----------------- | -------- | ------------------------ | --------------- | --------------------- | ----- |
+| sans lampe        | generale | 11,396 / 11,511          | 11,848 / 13,570 | 29,06                 | 31,95 |
+| sans lampe        | sol      | 0,849 / 0,968            | 0,837 / 1,045   | 10,80                 | 10,77 |
+| sans lampe        | rue      | 1,767 / 1,913            | 2,039 / 2,214   | 11,31                 | 11,83 |
+| 8 lampes + soleil | generale | 13,203 / 13,996          | 34,979 / 38,354 | 36,27                 | 58,22 |
+| 8 lampes + soleil | sol      | 2,736 / 3,069            | 2,674 / 2,979   | 12,83                 | 12,71 |
+| 8 lampes + soleil | rue      | 3,624 / 3,851            | 23,861 / 28,586 | 12,90                 | 34,49 |
 
 Sans lampe déclarée, l'étape Transparents ne bouge pas : la sortie en albédo brut coûte ce que
 coûtait l'ancienne boucle sur deux lampes implicites. Avec neuf lampes déclarées, elle est multipliée
