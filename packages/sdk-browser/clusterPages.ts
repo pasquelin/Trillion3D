@@ -1,5 +1,5 @@
 import { EngineError } from '../sdk-core/index.ts';
-import { sha256Hex } from './sha256Hex.ts';
+import { verifyPageBytes } from './pageDecodeHost.ts';
 export async function checked(url: string, signal?: AbortSignal) {
   const response = await fetch(url, { signal });
   if (!response.ok)
@@ -28,13 +28,17 @@ export async function loadClusterPages(
     async () => {
       while (next < pages.length) {
         combined.throwIfAborted();
-        const page = pages[next++],
-          bytes = await (await checked(new URL(page.url, base).href, combined)).arrayBuffer();
+        const page = pages[next++];
+        let buffer = await (await checked(new URL(page.url, base).href, combined)).arrayBuffer();
+        // Taille relevée avant l'empreinte : le tampon part transféré, puis revient transféré.
+        const byteLength = buffer.byteLength;
         combined.throwIfAborted();
-        if (bytes.byteLength !== page.bytes || (await sha256Hex(bytes)) !== page.sha256)
-          throw new Error('Corrupt cluster page');
-        indices.set(page.url, new Uint32Array(bytes));
-        pageBytesRead += bytes.byteLength;
+        if (byteLength !== page.bytes) throw new Error('Corrupt cluster page');
+        const verified = await verifyPageBytes(buffer);
+        buffer = verified.source;
+        if (verified.sha256 !== page.sha256) throw new Error('Corrupt cluster page');
+        indices.set(page.url, new Uint32Array(buffer));
+        pageBytesRead += byteLength;
         progress(++loaded, pages.length);
       }
     },
