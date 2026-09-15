@@ -11,6 +11,7 @@ import {
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
+import { holdWebgpuFrame } from './webgpuFrameHold.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -55,6 +56,21 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
+  run.lastCamera = camera;
+  // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
+  // adaptatif de la première image qui bouge à nouveau.
+  const pixelError = resolvePixelError(context, camera, run.motion);
+  run.viewRevision.read(
+    run.revisions,
+    camera,
+    rt.setup.viewport[0],
+    rt.setup.viewport[1],
+    pixelError,
+  );
+  // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
+  // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
+  if (holdWebgpuFrame(rt, gpuDevice)) return;
+  run.diagnosticPixelError = pixelError;
   // Rien n'est tenu par défaut : seule l'adoption d'un relevé déjà lu le déclare, et tout chemin
   // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
   run.cutHeld = false;
@@ -102,7 +118,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU
   // « Lumières » vaut donc zéro parce que le travail a disparu, pas parce qu'il n'est pas mesuré.
   const lightsEnd = cpuStart;
-  run.lastCamera = camera;
   run.overBudget = false;
   run.submittedTriangles = 0;
   run.blendPagedTriangles = 0;
@@ -110,8 +125,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
-  const pixelError = resolvePixelError(context, camera, run.motion);
-  run.diagnosticPixelError = pixelError;
   run.gpuFrameActive = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) dropGpuSelection(rt);
