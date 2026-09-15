@@ -19,7 +19,7 @@ export async function measureView(options) {
     lodAdaptive: false,
     maxResidentPages: options.maxPages,
     preload: 'visible',
-    backends: [factory],
+    ...(options.autonome ? { autonomousGeometry: true } : { backends: [factory] }),
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',

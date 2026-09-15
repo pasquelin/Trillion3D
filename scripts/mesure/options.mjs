@@ -22,9 +22,22 @@ const BASE_FLAGS = [
 ];
 const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
 
+// Le moteur autonome WebGL2 est le seul des trois à décoder lui-même des pages de géométrie :
+// c'est par lui que `pagesDecodedWasm` cesse d'être nul en campagne. L'explorateur ne le choisit pas
+// par une liste de moteurs mais par le réglage `autonomousGeometry`, et il refuse qu'on lui nomme
+// les deux à la fois ; `autonome` porte cette différence jusqu'à la page de mesure, qui passe alors
+// le réglage au lieu de la liste. Il exige aussi un cache dont toutes les primitives sont des
+// clusters exacts — le compilateur n'écrit `autonomousScene` que dans ce cas — sinon l'explorateur
+// refuse par `AUTONOMOUS_SCENE_UNAVAILABLE`.
 export const ENGINES = {
   webgl: { backend: 'exactPagesBackend', id: 'exact-cluster-pages', flags: BASE_FLAGS },
   webgpu: { backend: 'webgpuPagesBackend', id: 'webgpu-page-raster', flags: WEBGPU_FLAGS },
+  webgl2: {
+    backend: 'autonomousPagesBackend',
+    id: 'autonomous-pages-webgl',
+    flags: BASE_FLAGS,
+    autonome: true,
+  },
 };
 
 const buildDist = (dir) => execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'inherit' });
@@ -126,8 +139,7 @@ export function readOptions(argv, root) {
     return value;
   };
   const engine = flags.get('moteur') ?? 'webgl';
-  if (!ENGINES[engine])
-    throw new Error(`--moteur doit valoir ${Object.keys(ENGINES).join(' ou ')}`);
+  if (!ENGINES[engine]) throw new Error(`--moteur doit valoir ${Object.keys(ENGINES).join(', ')}`);
   const views = (flags.get('vues') ?? 'generale,sol,rue').split(',').filter(Boolean);
   for (const view of views) if (!VIEWS[view]) throw new Error(`vue inconnue : ${view}`);
   const pixelErrors = String(flags.get('pixelError') ?? '0')
