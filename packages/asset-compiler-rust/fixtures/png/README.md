@@ -34,6 +34,17 @@ référence 8 bits — le symptôme que ce pilote refuse désormais.
 
 Les cinq PNG 256 × 256 de `test-assets/textures/png-matrix/` (gris, palette, RGB 8 bits, RGBA 8 bits
 à alpha binaire, RGB 16 bits, CC0-1.0) couvrent la même matrice à grande taille ; le pilote a été
-passé dessus pendant le développement, avec le verdict consigné dans `orchestration/JOURNAL.md`.
+passé dessus pendant le développement, lu en place, jamais modifié. Un seul fichier change de
+comportement, celui que la décision visait ; les quatre autres rendent ce que leur type de couleur
+annonce :
+
+| fichier            | type de couleur | profondeur | verdict                           |
+| ------------------- | --------------- | ---------- | --------------------------------- |
+| `rgb8.png`         | 2 (RGB)         | 8 bits     | décodé                            |
+| `rgba8-binary.png` | 6 (RGBA)        | 8 bits     | décodé, alpha conservé            |
+| `palette.png`      | 3 (palette)     | 8 bits     | décodé                            |
+| `gray.png`         | 0 (gris)        | 8 bits     | décodé                            |
+| `rgb16.png`        | 2 (RGB)         | 16 bits    | refusé, `image-depth-unsupported` |
+
 Elles ne sont pas commitées ici : cent quarante kilooctets pour des pixels qu'on ne peut pas écrire
 en clair ne font pas une fixture minimale, et le dossier `test-assets/` est livré hors git.

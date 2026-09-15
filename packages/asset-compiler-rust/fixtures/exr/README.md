@@ -45,8 +45,9 @@ Les deux EXR 256 × 256 de `test-assets/textures/hdr-matrix/` (`float16.exr` et 
 CC0-1.0, produits par un encodeur tiers et relus par FFmpeg au moment de leur entrée au corpus)
 couvrent le cas d'un fichier écrit ailleurs. Le pilote a été passé dessus pendant le développement ;
 ils ne sont pas commis ici — huit cent mille octets de pixels qu'on ne peut pas écrire en clair ne
-font pas une fixture minimale. Les dimensions et les bornes relevées sont dans
-`orchestration/JOURNAL.md`.
+font pas une fixture minimale. Les deux se décodent, en 256 × 256 chacun, canaux `R`, `G`, `B` sans
+alpha (le pilote rend donc l'alpha opaque), avec des valeurs RGB comprises entre 0 et 8 exactement —
+la rampe linéaire 0..8 que le manifeste du corpus annonce et que FFmpeg avait relue.
 
 ## Provenance du lecteur
 
