@@ -40,10 +40,11 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
     );
     // Trois programmes, jamais une branche : la vue sans éclairage, le contrat, et le contrat plus
     // le rebond. Une session sans rebond exécute ainsi exactement le nuanceur d'avant.
-    const variants: Record<'direct' | 'bounce', { program?: DeferredProgram; pending?: unknown }> = {
-      direct: {},
-      bounce: {},
-    };
+    const variants: Record<'direct' | 'bounce', { program?: DeferredProgram; pending?: unknown }> =
+      {
+        direct: {},
+        bounce: {},
+      };
     let contractPending: Promise<unknown> | undefined,
       active: DeferredProgram = unlit;
     const packed = new Float32Array(32);
@@ -121,7 +122,8 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
         }
         // Le programme du rebond met une image ou deux à se compiler : celui du contrat rend
         // l'image en attendant, sans rebond, plutôt que de faire attendre l'image.
-        active = (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
+        active =
+          (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
         active.bind(surface, depth, hdr, direct);
       },
       /** Attend la compilation du programme du contrat, quand une est en cours. */

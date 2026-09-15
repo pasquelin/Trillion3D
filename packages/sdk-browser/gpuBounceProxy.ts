@@ -32,7 +32,11 @@ export type GpuBounceProxy = ReturnType<typeof createGpuBounceProxy>;
 export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   const data = proxy.data;
   const empty = new Float32Array(0);
-  const triangles = residentBuffer(device, 'WG bounce proxy triangles v1', data?.triangles ?? empty);
+  const triangles = residentBuffer(
+    device,
+    'WG bounce proxy triangles v1',
+    data?.triangles ?? empty,
+  );
   const albedo = residentBuffer(
     device,
     'WG bounce proxy albedo v1',

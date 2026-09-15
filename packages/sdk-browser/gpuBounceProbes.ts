@@ -1,9 +1,5 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS, probeGridOf, type SceneProxy } from '../sdk-core/index.ts';
-import {
-  BOUNCE_PROBE_PASS,
-  BOUNCE_PROBE_SHADER,
-  BOUNCE_WORKGROUP,
-} from './bounceProbeWgsl.ts';
+import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER, BOUNCE_WORKGROUP } from './bounceProbeWgsl.ts';
 import { createGpuBounceProxy, type GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
