@@ -61,6 +61,12 @@ pub trait ScenePlugin: Plugin + Sync {
     fn accepts_head(&self, head: &[u8]) -> bool;
     /// Produit la scène intermédiaire à partir des fichiers revendiqués.
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene>;
+    /// Les entrées d'un dossier que ce pilote revendique comme **projet** : un arbre entier dont il
+    /// est la source, et dont les fichiers trouvés dessous ne sont que des entrées. Un pilote de
+    /// fichiers, le cas ordinaire, rend `None` et laisse le routeur regarder les fichiers.
+    fn project_inputs(&self, _directory: &Path) -> Option<Vec<PathBuf>> {
+        None
+    }
 }
 
 impl<'a> SceneRequest<'a> {
