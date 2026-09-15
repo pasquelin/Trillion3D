@@ -160,6 +160,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -491,6 +501,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+]
+
+[[package]]
 name = "texture2ddecoder"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -570,12 +590,14 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "web-geometry-compiler"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "image",
  "memmap2",
  "meshopt",
  "rayon",
  "serde_json",
  "sha2",
+ "tar",
  "texture2ddecoder",
  "ufbx",
  "web-geometry-page-codec",
