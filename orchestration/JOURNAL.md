@@ -665,21 +665,38 @@ reste (voir §6).
 Verrou `.claude/mesure.lock` pris avant chaque campagne et rendu juste après. Harnais commun,
 `avant` = tête de `develop`, `apres` = tête du lot, les deux côtés lisant le même cache.
 
-Base de ces campagnes : `d3dcd69`. Les campagnes WebGPU **n'ont pas pu être rejouées** sur la tête
-de `develop` du jour, pour la raison donnée au §5 bis ; la campagne WebGL, elle, passe sur la base
-courante. La cause est trouvée et corrigée depuis, dans `develop` (`214942a`, session Lumière) : le
-lot est rebasé sur `2dcc8fc` et **sa campagne WebGPU reste à rejouer sur cette base**. Tant qu'elle
-ne l'est pas, le lot n'est pas fusionné.
+Première série de campagnes sur `d3dcd69` : toutes à 0 px. Elles **n'ont pas pu être rejouées** sur
+la tête de `develop` du jour, pour la raison donnée au §5 bis. La cause est corrigée depuis, dans
+`develop` (`214942a`, session Lumière), et **toutes les campagnes ci-dessous ont été rejouées** sur
+la base courante — `avant` = `b3cf4e9` puis `1fb176e` selon le moment, `apres` = la tête du lot au
+même instant, et la dernière ligne, celle qui décide, contre le `develop` dans lequel le lot est
+fusionné.
 
-| campagne                           | vues × seuils | écart | A/A | hash de coupe | trous |
-| ---------------------------------- | ------------- | ----- | --- | ------------- | ----- |
-| webgpu, 1 instance                 | 6             | 0 px  | 0   | identique 6/6 | 0     |
-| webgpu, 9 instances                | 6             | 0 px  | 0   | identique 6/6 | 0     |
-| webgpu, caméra mobile, 1 instance  | 2             | 0 px  | 0   | identique 2/2 | 0     |
-| webgpu, caméra mobile, 9 instances | 2             | 0 px  | 0   | identique 2/2 | 0     |
-| webgl, 1 instance                  | 6             | 0 px  | 0   | identique 6/6 | —     |
-| webgl, 9 instances                 | 2             | 0 px  | 0   | identique 2/2 | —     |
-| classes de matériaux, 1 instance   | 6             | 0 px  | 0   | identique 6/6 | 0     |
+| campagne                                          | vues × seuils | écart | A/A | hash de coupe | trous | géométrie avant → après |
+| ------------------------------------------------- | ------------- | ----- | --- | ------------- | ----- | ----------------------- |
+| webgpu, 1 instance                                | 6             | 0 px  | 0   | identique 6/6 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, 9 instances                               | 6             | 0 px  | 0   | identique 6/6 | 0     | 2 652,8 → 209,1 Mo      |
+| webgpu, caméra mobile, 1 instance                 | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, caméra mobile, 9 instances                | 2             | 0 px  | 0   | identique 2/2 | 0     | 2 652,8 → 209,1 Mo      |
+| classes de matériaux, 1 instance                  | 6             | 0 px  | 0   | identique 6/6 | 0     | 0,2 → 0,2 Mo            |
+| webgl, 1 instance                                 | 2             | 0 px  | 0   | identique 2/2 | —     | 223,3 → 223,3 Mo        |
+| webgpu, generale, 1 instance, **base de fusion**  | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+
+Aucun `WEBGPU_LOST` sur aucune des sept campagnes. Durées **indicatives**, machine partagée avec
+d'autres sessions, charge à une minute de 8 à 24 : vue générale au seuil 0 et à une instance,
+`cpuFrameMs` p50 8,4 → 8,5 ms et `gpuFrameMs` p50 29,83 → 29,48 ; à neuf instances, 64,0 → 62,7 ms
+et 62,09 → 59,98 ms. Le temps ne bouge pas, et c'est attendu (voir §6).
+
+Chaque campagne sort **19 × 404 sur `lights.json`**, identiques des deux côtés : le cache du Lab est
+antérieur au lot import-lampes (voir plus bas). Le banc rend alors un code non nul sans qu'aucun
+pixel ne bouge.
+
+**Verrou.** `.claude/mesure.lock` pris avant chaque campagne, rendu juste après, jamais tenu entre
+deux, et « verrou rendu » annoncé à la session voisine à chaque libération. Le répertoire porte
+désormais un fichier `proprietaire` : sans lui, un verrou anonyme ne dit pas qui mesure. Deux
+incidents notés : une reprise du verrou onze secondes après une libération, à 14:22, sans fichier
+propriétaire ; et un verrou anonyme resté en place de 14:42 à 14:45 sans aucun banc vivant. Aucune
+campagne de ce lot n'a été jouée sans le verrou.
 
 Images conservées dans `.mesure/out/lot-instances/`.
 
