@@ -14,6 +14,7 @@ mod b5_topologie;
 mod b6_adjacence;
 mod b9_vecteurs;
 mod fixture;
+mod g7_etiquettes;
 mod harness;
 mod inputs;
 mod rapport;
@@ -52,6 +53,24 @@ fn rows() -> Vec<Row> {
          l'autre : aucun gain à prouver, les attributs n'ont pas été posés",
     ));
     rows
+}
+
+/// Les points du lot G portés par le compilateur natif. Leurs lignes sont déposées au format des
+/// fragments du banc JavaScript : `scripts/mesure/calculs/agrege-g.mjs` assemble les douze points
+/// du lot en un seul tableau, sans distinguer ce qui vient de Rust de ce qui vient de Node.
+#[test]
+#[ignore]
+fn bench_calculs_g() {
+    let measured = vec![g7_etiquettes::row()];
+    let table = rapport::table(&measured);
+    rapport::write_fragment_g(&measured);
+    println!("\n{table}");
+    let ecarts: Vec<&str> = measured
+        .iter()
+        .filter(|row| row.identique == Some(false))
+        .map(|row| row.calcul.as_str())
+        .collect();
+    assert!(ecarts.is_empty(), "résultats différents : {ecarts:?}");
 }
 
 #[test]

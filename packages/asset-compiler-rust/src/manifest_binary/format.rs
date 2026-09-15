@@ -96,6 +96,18 @@ pub(crate) fn vector_into(
     }
     Ok(())
 }
+/// Tous les nombres d'un tableau, écrits droit dans la colonne. Comme `vector_into`, le nom de
+/// l'entrée fautive n'est construit que lorsqu'il y en a une : l'ancien chemin formatait une chaîne
+/// par nombre valide, nœud de culling après nœud de culling, primitive après primitive.
+pub(crate) fn numbers_into(items: &[Value], what: &str, column: &mut Column) -> Result<()> {
+    for (i, item) in items.iter().enumerate() {
+        let Some(value) = item.as_f64() else {
+            return Err(bad(format!("{what}[{i}] is not a number")));
+        };
+        column.f64(value);
+    }
+    Ok(())
+}
 pub(super) fn templated(template: &str, url: &str, sha: &str) -> Result<()> {
     if template.replace("{sha}", sha) != url {
         return Err(bad(format!(

@@ -37,12 +37,11 @@ pub(super) fn encode_primitive(
             if nodes.len() != count * stride {
                 return Err(bad("primitive.culling.nodes does not match its count"));
             }
-            for (i, node) in nodes.iter().enumerate() {
-                columns[CULLING_NODES].f64(number(
-                    Some(node),
-                    &format!("primitive.culling.nodes[{i}]"),
-                )?);
-            }
+            numbers_into(
+                nodes,
+                "primitive.culling.nodes",
+                &mut columns[CULLING_NODES],
+            )?;
             binary.insert("culling".into(), json!({"stride":stride,"count":count}));
         }
     }
@@ -72,22 +71,38 @@ pub(super) fn encode_primitive(
                     "group.sphere",
                     &mut columns[GROUP_SPHERE],
                 )?;
-                for (key, count_column, flat_column) in [
-                    ("children", GROUP_CHILD_COUNT, GROUP_CHILD),
-                    ("outputs", GROUP_OUTPUT_COUNT, GROUP_OUTPUT),
+                // Les étiquettes des deux clés sont des littéraux : elles ne sont plus formatées
+                // par groupe, ni — pour « member » — par membre de groupe.
+                for (key, labels, count_column, flat_column) in [
+                    (
+                        "children",
+                        [
+                            "group.children",
+                            "group.children is absent",
+                            "group.children length",
+                            "group.children member",
+                        ],
+                        GROUP_CHILD_COUNT,
+                        GROUP_CHILD,
+                    ),
+                    (
+                        "outputs",
+                        [
+                            "group.outputs",
+                            "group.outputs is absent",
+                            "group.outputs length",
+                            "group.outputs member",
+                        ],
+                        GROUP_OUTPUT_COUNT,
+                        GROUP_OUTPUT,
+                    ),
                 ] {
-                    let members = array(
-                        item.get(key)
-                            .ok_or_else(|| bad(format!("group.{key} is absent")))?,
-                        &format!("group.{key}"),
-                    )?;
-                    columns[count_column].i32(as_i32(
-                        members.len() as i64,
-                        &format!("group.{key} length"),
-                    )?);
+                    let [label, absent, length, member_label] = labels;
+                    let members = array(item.get(key).ok_or_else(|| bad(absent))?, label)?;
+                    columns[count_column].i32(as_i32(members.len() as i64, length)?);
                     for member in members {
                         columns[flat_column].i32(as_i32(
-                            integer(Some(member), &format!("group.{key} member"))?,
+                            integer(Some(member), member_label)?,
                             "group member",
                         )?);
                     }
