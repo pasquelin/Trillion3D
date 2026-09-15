@@ -6,15 +6,13 @@ import * as THREE from 'three';
 import { surfaceColorAttachments } from '../../../packages/sdk-browser/webgpuPagesEncodeVisSetup.ts';
 import { anneauFroid } from '../../../packages/sdk-browser/explorerDraw.ts';
 import { deplaceInstance } from '../../../packages/sdk-browser/autonomousInstances.ts';
-import { compare, graine } from './banc.mjs';
+import { compare } from './banc.mjs';
 import { verifieEtDeposeF } from './bancF.mjs';
 import {
   referenceAnneauFroid,
   referenceAttachments,
   referenceUpdateInstance,
 } from './oracles/f-cadre.mjs';
-
-const alea = graine(1301);
 
 /** Quatre vues de surface : des jetons opaques, exactement ce que le descripteur transporte. */
 const vues = (etiquette) => [0, 1, 2, 3].map((i) => ({ surface: `${etiquette}/${i}` }));
