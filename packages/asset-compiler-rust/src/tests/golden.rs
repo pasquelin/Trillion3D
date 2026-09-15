@@ -11,6 +11,8 @@ pub(super) struct GoldenRun {
     pub result: Value,
     pub slim: Value,
     pub binary: Vec<u8>,
+    /// Ce que la compilation a publié en chemin : l'étape d'un pilote se prouve dans son rapport.
+    pub reports: Vec<Value>,
     root: PathBuf,
 }
 impl Drop for GoldenRun {
@@ -26,29 +28,22 @@ pub(super) fn golden_dir(relative: &str) -> PathBuf {
         .join(relative)
 }
 
-/// Compile `<dir>/<name>.gltf`, aux mêmes options pour toutes les dorées : un seul fil et aucune
-/// simplification, pour que la sortie ne dépende que de la scène.
+/// Compile `<dir>/<name>.gltf` : la dorée d'une scène livrée telle quelle.
 pub(super) fn compile_golden(dir: &Path, name: &str) -> GoldenRun {
-    let root = std::env::temp_dir().join(format!(
-        "wg-golden-{name}-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos(),
-    ));
-    let options = Options {
-        source: dir.join(format!("{name}.gltf")),
-        cache: root.join("cache"),
-        resource_base: "/assets".into(),
-        scope: "full".into(),
-        triangle_budget: 1_000_000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "none".into(),
-        cancelled: Arc::new(AtomicBool::new(false)),
-    };
-    let result = compile(&options, |_| {}).unwrap_or_else(|e| panic!("{name}: compile: {e}"));
+    compile_golden_source(&dir.join(format!("{name}.gltf")), name)
+}
+
+/// Compile une source quelconque — un fichier d'un format qu'un pilote revendique, ou un dossier —
+/// aux mêmes options pour toutes les dorées : un seul fil et aucune simplification, pour que la
+/// sortie ne dépende que de la scène. La dorée d'un pilote entre donc par le routeur, comme tout
+/// appelant du compilateur, et ne sait pas plus que lui quel format elle lui donne.
+pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
+    let (options, root) = golden_options(source, name);
+    let reports = std::sync::Mutex::new(Vec::new());
+    let result = compile(&options, |report| {
+        reports.lock().expect("reports").push(report);
+    })
+    .unwrap_or_else(|e| panic!("{name}: compile: {e}"));
     let key = result["key"].as_str().expect("key").to_string();
     let directory = options.cache.join("native").join(&options.scope).join(key);
     let slim =
@@ -59,8 +54,44 @@ pub(super) fn compile_golden(dir: &Path, name: &str) -> GoldenRun {
         result,
         slim,
         binary,
+        reports: reports.into_inner().expect("reports"),
         root,
     }
+}
+
+/// Le code de refus d'une source que le compilateur n'accepte pas, aux mêmes options qu'une dorée :
+/// ce qu'un pilote refuse se fixe comme ce qu'il produit, et par le même chemin.
+pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
+    let (options, root) = golden_options(source, name);
+    let refusal = compile(&options, |_| {})
+        .err()
+        .unwrap_or_else(|| panic!("{name}: cette source devait être refusée"));
+    let _ = fs::remove_dir_all(&root);
+    refusal.code.to_string()
+}
+
+/// Les options communes, et la racine jetable qui les porte.
+fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
+    let root = std::env::temp_dir().join(format!(
+        "wg-golden-{name}-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos(),
+    ));
+    let options = Options {
+        source: source.to_path_buf(),
+        cache: root.join("cache"),
+        resource_base: "/assets".into(),
+        scope: "full".into(),
+        triangle_budget: 1_000_000,
+        threads: 1,
+        ram_budget_mb: 64,
+        simplification: "none".into(),
+        cancelled: Arc::new(AtomicBool::new(false)),
+    };
+    (options, root)
 }
 
 /// L'attendu versionné d'une fixture, sans les deux champs qui ne sont que de la prose.
