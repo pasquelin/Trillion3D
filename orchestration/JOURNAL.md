@@ -1,5 +1,19 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — lot 3 fusionné : une seule classe d'atlas par défaut, la seconde en option
+
+- **Décision.** Le second groupe d'atlas change l'image (15 142 px, entrée précédente) : il ne peut pas être le défaut. Le lot est fusionné avec **une seule classe d'atlas par défaut**, et la seconde derrière une option publique que l'utilisateur activera s'il accepte l'écart.
+- **Option.** `ExplorerOptions.atlasClasses` : `1` par défaut, `2` au choix de l'hôte. Elle borne `planAtlasClasses` ; à 1, le plan rendu est **exactement** l'allocation d'avant les classes de taille. Le **repli automatique** à deux classes, quand une seule dépasse `maxTextureArrayLayers`, **ignore la borne** : il tient à l'appareil, pas au goût de l'hôte. L'option voyage par `BackendContext.atlasClasses` comme `maxTextureTransferBytesPerFrame`, et `docs/SDK.md` la documente avec l'écart d'image et les octets mesurés à 2. Un test de plus : borne 1, une seule classe même là où deux économiseraient.
+- **Gain de l'option, calculé (jamais mesuré)** : `−872 359 272` o, **−11,5 %** d'octets d'atlas alloués sur Emerald. À 1, gain nul et image inchangée.
+- **Fusions de `develop` en cours de route** : `995929d` (aucune lumière sans source déclarée, lampe directionnelle) — un conflit, le journal ; `7fe6e43` (une face d'un seul geste, cascade calculée une fois) et `f38f026` (lot F des calculs, 28 commits) — sans conflit.
+- `npm run validate` : **treize portes vertes** en une passe — format, lignes (0 fichier > 200), 0 doublon, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens, **629 tests JS/TS**, **138 tests Rust** (134 bibliothèque + 4 CLI). Une première passe avait vu échouer le seul test de cancellation du compilateur, qui compare deux durées d'horloge : machine à 23 de charge, rejoué vert seul puis en passe complète.
+- **Preuve navigateur, défaut à une classe.** Lab en lecture seule sur le port 5195 (5174 laissé à l'utilisateur), relais 5196 servant les caches Emerald recompilés du scratchpad ; le Lab n'est ni écrit ni modifié — sa config est reprise telle quelle par une config de mesure du scratchpad qui ajoute `fs.allow` et fait pointer `@web-geometry/sdk` du Lab vers le `dist` mesuré, pour que le Lab et le harnais partagent **une seule** instance du SDK. Quatre séries de dix captures 1246×1000 : témoin `develop` `7fe6e43` (a, b) et lot par défaut (a, b).
+- **Chiffres.** **`lot3-defaut-une-classe-b` contre `develop-7fe6e43` : 0 px sur les dix captures, au bit près.** Les trois autres appariements diffèrent de 2 ou 4 px, **toujours sur le segment 8 et toujours aux mêmes quatre pixels** — (73, 607), (73, 608), (907, 611), (884, 612) — amplitude maximale 54. **L'A/A de `develop` contre lui-même en porte deux** ((73, 607) et (73, 608), amplitude 54) et l'A/A du lot contre lui-même les quatre : ce scintillement est celui de `develop`, pas celui du lot. Neuf captures sur dix sont identiques au bit près dans **tous** les appariements.
+- **Scintillement de `develop` à signaler** : au matin, l'A/A du témoin `develop` (`2931606`) valait 0 px. Quatre pixels de `develop` ne se reproduisent plus d'une exécution à l'autre depuis les lots d'éclairage et d'ombres. Ce n'est pas le lot 3 ; c'est à regarder par qui a écrit ces lots.
+- Chaque capture du lot : `texturePending` **0**, `textureSkipped` **0**, `textureUploaded` 336, `textureLevelsUploaded` 786, `textureAtlasClassesUsed` **1**, aucune erreur GPU, **aucun triangle non couvert**, `coverageBudgetLimited` faux. Coupe identique au témoin : mêmes `triangles` et `selectedTriangles`. Durées : **`null`**, machine chargée (load 1 min de 11 à 24).
+- Images sous `benchmark-runs/webgpu-capture/{lot3-defaut-une-classe,lot3-defaut-une-classe-b}/` du worktree et `{develop-7fe6e43,develop-7fe6e43-b}/` du dépôt principal (hors git).
+- **Reste** : le **choix de l'utilisateur** sur `atlasClasses: 2` (écart mesuré contre 872 Mo calculés) ; lot 4, le comparatif de compression ; lot 5, conditionnel ; le todo de réutilisation du pipeline de `textureMips.ts` ; **aucune fixture dorée ne porte encore de texture couleur** — à créer. Note d'exploitation : les caches v3 du Lab sont refusés par le lecteur de sidecar v4 et doivent être recompilés.
+
 ## 2026-09-15 — aucune lumière sans source déclarée (chemin opaque) et lampe directionnelle
 
 Branche `lot/sans-source`, sur `develop` = `2931606`. `npm run validate` **vert, 552 tests JS/TS** et 136 Rust.
@@ -25,20 +39,20 @@ Emerald, WebGPU, 1280×720, 60 images, mode visible, `pixelError 0`, trois vues,
 
 Étape Ombres et enveloppe GPU de l'image entière ; **jamais additionnées**, et l'enveloppe n'est pas la somme des passes. « non mesuré » quand la passe n'a pas eu lieu.
 
-| configuration | vue | Ombres GPU | image entière (enveloppe) | cartes redessinées / réutilisées |
-|---|---|---:|---:|---|
-| soleil seul, scène et caméra immobiles | generale | non mesuré | 19,92 / 20,02 | 0 / 1 |
-| | sol | non mesuré | 10,56 / 12,08 | 0 / 1 |
-| | rue | non mesuré | 10,47 / 10,99 | 0 / 1 |
-| soleil seul, caméra en mouvement | generale | 3,86 / 4,50 | 24,06 / 28,07 | 1 soleil, 4 cascades, 8 dessins |
-| | sol | 1,64 / 2,04 | 9,81 / 12,06 | idem |
-| | rue | 1,85 / 2,06 | 11,03 / 12,75 | idem |
-| soleil + 8 ponctuelles, tout immobile | generale | non mesuré | 20,18 / 20,30 | 0 / 9 |
-| | sol | non mesuré | 10,99 / 11,54 | 0 / 9 |
-| | rue | non mesuré | 11,29 / 11,78 | 0 / 9 |
-| soleil + 8 ponctuelles, caméra en mouvement | generale | 3,76 / 4,33 | 24,45 / 28,08 | 1 soleil, 4 cascades ; 8 ponctuelles réutilisées |
-| | sol | 1,85 / 2,55 | 10,94 / 13,40 | idem |
-| | rue | 1,82 / 2,58 | 12,30 / 13,43 | idem |
+| configuration                               | vue      |  Ombres GPU | image entière (enveloppe) | cartes redessinées / réutilisées                 |
+| ------------------------------------------- | -------- | ----------: | ------------------------: | ------------------------------------------------ |
+| soleil seul, scène et caméra immobiles      | generale |  non mesuré |             19,92 / 20,02 | 0 / 1                                            |
+|                                             | sol      |  non mesuré |             10,56 / 12,08 | 0 / 1                                            |
+|                                             | rue      |  non mesuré |             10,47 / 10,99 | 0 / 1                                            |
+| soleil seul, caméra en mouvement            | generale | 3,86 / 4,50 |             24,06 / 28,07 | 1 soleil, 4 cascades, 8 dessins                  |
+|                                             | sol      | 1,64 / 2,04 |              9,81 / 12,06 | idem                                             |
+|                                             | rue      | 1,85 / 2,06 |             11,03 / 12,75 | idem                                             |
+| soleil + 8 ponctuelles, tout immobile       | generale |  non mesuré |             20,18 / 20,30 | 0 / 9                                            |
+|                                             | sol      |  non mesuré |             10,99 / 11,54 | 0 / 9                                            |
+|                                             | rue      |  non mesuré |             11,29 / 11,78 | 0 / 9                                            |
+| soleil + 8 ponctuelles, caméra en mouvement | generale | 3,76 / 4,33 |             24,45 / 28,08 | 1 soleil, 4 cascades ; 8 ponctuelles réutilisées |
+|                                             | sol      | 1,85 / 2,55 |             10,94 / 13,40 | idem                                             |
+|                                             | rue      | 1,82 / 2,58 |             12,30 / 13,43 | idem                                             |
 
 Lecture : **une scène immobile et une caméra immobile ne paient aucune ombre**, soleil compris — les neuf cartes sont réutilisées et la passe n'est pas encodée. Dès que la caméra bouge, **seul le soleil** est redessiné (ses cascades suivent la caméra) ; **les huit ponctuelles restent en cache**, ce qui est exactement la règle voulue. Le coût des quatre cascades est de 1,6 à 3,9 ms p50 selon la vue, au-dessus du budget LR1 de 0,8 ms : l'optimisation est un lot à part.
 
@@ -51,6 +65,39 @@ Charge machine relevée au début et à la fin de chaque série : de 3,5 à 20 (
 - **Découpe des cascades** : la suite logarithmique part du plan proche de la caméra, que le banc pose à 0,017 m. Les deux premières cascades couvrent alors 0 à 71 m, ce qui est du gâchis pour une vue d'ensemble à 250 m. Un plancher sur la première borne se chiffre et se mesure ; il n'est pas posé au jugé ici.
 - **Au-delà de `sunShadowFarFraction`** (0,2 du lointain), une surface reste éclairée sans ombre portée : approximation nommée, publiée dans le diagnostic `direct-lighting`.
 - **Coût des cascades** au-dessus du budget LR1 ; la coupe propre aux ombres, déjà chiffrée et refusée par le lot ombres, reste le premier levier.
+
+## 2026-09-15 — lot 3 des textures progressives : preuve navigateur, écart attribué au second groupe d'atlas
+
+- **Mesure, pas encore de fusion** (la fusion est l'entrée suivante). La preuve navigateur montre un écart d'image bien au-dessus du bruit A/A, et il ne vient pas des mips progressifs : il vient du **second groupe d'atlas**.
+- **Fusion de `develop`** (`19efc13`, ombres par face) : un seul conflit, `visibilityShaderId.ts`. `develop` avait sorti la découpe alpha dans `PAGE_MASK_WGSL`, partagée avec la passe de profondeur des ombres ; le lot la fait passer par `colorAlpha` et les classes d'atlas. Le bloc partagé prend la forme du lot, `PAGE_PREVIEW_BINDING` disparaît avec l'atlas d'aperçus, et la passe d'ombres déclare les classes et la table des slots aux liaisons de `VIS_BINDINGS`.
+- **Deux défauts corrigés.** (1) `planAtlasClasses` vérifiait l'allocation à une classe **avant** d'essayer le découpage : une scène qui dépassait `maxTextureArrayLayers` en une classe levait `TEXTURE_ATLAS_LAYERS` sans regarder le plan à deux classes qui tenait (`81d7ccb`, deux tests). (2) Le raster logiciel des petits triangles liait **neuf** tampons de stockage à l'étage de calcul, un de plus que les huit garantis par WebGPU : le dispositif refusait la disposition puis se perdait à la première image, et la preuve navigateur ne démarrait pas. L'image et la liste vivent maintenant dans un seul tampon (`e2dab1d`) ; un test compte, par étage, les tampons de stockage des quatre dispositions.
+- `npm run validate` : **treize portes vertes** en une passe — format, lignes, 0 doublon, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens, **567 tests JS/TS**, **138 tests Rust** (134 bibliothèque + 4 CLI).
+- **Preuve navigateur.** Lab en lecture seule sur le port 5191 (5174 laissé à l'utilisateur), relais 5192/5193 servant un cache Emerald recompilé dans le scratchpad, Lab jamais écrit. Cache du lot : sidecar **version 4**, 232 textures couleur, **232 niveaux progressifs, 0 ignoré**, 15,5 s, 10 046 405 triangles, 281 primitives, 1 030 nœuds. Quatre séries de dix captures 1246×1000 : lot (a, b), **témoin `develop` du jour** (a, b), et une série du lot **bridé à une seule classe d'atlas**.
+- **Chiffres.** A/A du témoin `develop` : **0 px** sur dix captures ; `develop` contre `reference-develop` : 3 px, amplitude 39 (bruit connu). A/A du lot : 2 px, amplitude 16. **Lot contre témoin : 15 142 px sur 124,6 M (0,012 %), amplitude maximale 159**, répartis sur six captures — 10 934 px (segment 3), 2 704 (5), 821 (7), 618 (4), 59 (8), 3 + 3 (0 et 9). 1 130 px au-dessus de l'amplitude 16, en taches compactes (la plus grande : 338 px, boîte 14 × 30) sur de petits objets lointains — appliques de lampadaire, boîtiers de feux — et un semis de bord sur le feuillage des haies.
+- **Attribution, mesurée.** Le lot **bridé à une seule classe** est **identique au bit près au témoin `develop` sur les dix captures (0 px)** : les mips progressifs, la résidence par niveau et le sidecar v4 ne changent **rien** à l'image. Tout l'écart vient du second groupe d'atlas. Sur Emerald il range **6 textures couleur et 33 de données** dans une classe **16 × 16** ; une petite texture minifiée dans l'atlas 2048 × 2048 mélangeait, à ses niveaux grossiers, le remplissage blanc qui l'entoure, et n'est plus mélangée à rien dans son propre atlas — d'où des appliques qui passent de gris clair (≈ 150) à sombre (≈ 10). L'écart est donc **explicable**, plausiblement plus fidèle, mais il **dépasse le bruit** et n'est **pas confiné aux bords**.
+- **Octets d'atlas, calculés (jamais mesurés).** Une classe : **7 560 931 576** o. Deux classes : **6 688 572 304** o — couleur 2 438 288 580 + 9 548, données 4 250 227 800 + 46 376. Économie **872 359 272 o (−11,5 %)**, classe couleur 0 à 109 couches au lieu de 115.
+- Chaque capture du lot : `texturePending` 0, `textureSkipped` 0, `textureUploaded` 336, `textureLevelsUploaded` 786, `textureAtlasClassesUsed` 2, aucune erreur GPU, **aucun triangle non couvert**. Coupe identique au témoin : mêmes `triangles`, `selectedTriangles`, `clusters`, `drawCalls`. Durées : **`null`**, machine chargée (load 1 min de 11 à 21).
+- **Décision à l'utilisateur** : accepter l'écart du second groupe (et gagner 872 Mo calculés), ou garder une seule classe (image identique, gain nul). Images sous `benchmark-runs/webgpu-capture/{lot3-a,lot3-b,develop-a,develop-b,lot3-une-classe}/` (hors git).
+- Reste : lot 4 (comparatif de compression), lot 5 conditionnel, la réutilisation du pipeline de `textureMips.ts`, et **aucune fixture dorée ne porte encore de texture couleur** — à créer. Note d'exploitation : les caches v3 du Lab sont refusés par le lecteur de sidecar v4 et devront être recompilés.
+
+## 2026-09-15 — lot 3 : mips progressifs réels et groupes d'atlas par dimensions
+
+- Défaut visé : entre l'aperçu 16×16 du lot 1 et la pleine résolution il n'y avait rien, et une texture-tableau imposant une seule taille à toutes ses couches, une texture de 64 px payait la place d'une texture de 4 096.
+- **Compilateur** (`src/texture_preview/`, nouveau `levels.rs`). Le sidecar ne porte plus une pyramide de longueur fixe mais **la queue sans perte de la chaîne de mips** de chaque texture couleur : du premier niveau dont aucun côté ne dépasse **`PREVIEW_BASE` = 64** jusqu'au 1×1, soit au plus sept niveaux et **21 844 octets** par texture. Un niveau `k` est exactement le niveau de mip `k` de la source (division entière des deux côtés par `2^k`), donc le moteur l'écrit dans le niveau de mip de même rang de sa couche sans rien recalculer. Une source dont aucun côté ne dépasse 64 voit sa **pleine résolution** portée telle quelle, sans perte. Même chaîne de calcul qu'au lot 1 : linéaire prémultiplié, couverture MASK préservée par niveau au seuil du matériau, alpha intact sinon.
+- **Décision de format** : aucun niveau intermédiaire n'est un fichier. Au-dessus de 64, le niveau suivant est l'image source elle-même, que l'hôte charge déjà — ce qui évite d'ajouter un genre d'objet de cache, un gabarit d'URL et un chemin de téléchargement pour les niveaux 128 et 256, dont les octets auraient alourdi le sidecar de dizaines de mégaoctets sur un cache comme Emerald.
+- **Sidecar 3 → 4** (`manifest_binary`, `manifestBinaryFormat.ts`). Les entrées ne sont plus de longueur fixe : une entrée porte texture, image, dimensions, genre et vue de provenance, **premier niveau, nombre de niveaux, début et longueur de ses pixels**, et la colonne des pixels n'a plus de pas — son total entre dans le petit JSON (`texturePreviewBytes`). Les dimensions des niveaux ne sont pas écrites : elles se **redéduisent** des dimensions source (`texturePreviewLevels.ts`, miroir de `levels.rs`), si bien que le lecteur recalcule la géométrie annoncée au lieu de la croire, et refuse une entrée dont les nombres ne s'accordent pas, ou dont la plage d'octets n'enchaîne pas la précédente. La version 3 est refusée par son nom.
+- **Atlas d'aperçus absorbé** : la texture-tableau 16×16 du lot 1 disparaît (`webgpuPreviewAtlas.ts` supprimé). Justification : avec la résidence par niveau, l'aperçu n'est plus qu'un niveau grossier de la vraie couche, et le garder aurait été une seconde texture, deux liaisons et deux mécanismes pour la même chose.
+- **Résidence par niveau** (`webgpuAtlasSlots.ts`). Un mot par slot dit classe et couche, un second dit `finest | coarsest<<8` pendant le chargement et `ATLAS_READY` une fois la pleine résolution remipmappée. Pendant le chargement, le shader calcule le niveau depuis les dérivées uv, le **borne** à `[finest, coarsest]` et échantillonne à ce niveau explicite ; la résidence n'avance que sur une suite de niveaux tous écrits depuis le 1×1, sans quoi on montrerait du remplissage. **Fidélité** : dès `ATLAS_READY`, la lecture est exactement celle d'avant le lot — `textureSampleGrad` à dérivées explicites sur la vraie texture, après régénération de toute la chaîne sur GPU. L'image finale ne change pas.
+- **Priorité** (`webgpuTexturePriority.ts`) : poids de la coupe d'abord, puis **étage** — les niveaux progressifs d'une texture passent avant sa pleine résolution —, puis avancement.
+- **Classes de taille** (`webgpuAtlasClasses.ts`). `ATLAS_CLASS_COUNT = 2` slots de liaison **fixes**, choisis sous le minimum garanti par WebGPU (16 textures échantillonnées par étage) pour qu'aucun appareil ne puisse refuser les dispositions. La classe 0 garde les dimensions de la plus grande texture — donc le **repli à une classe est exactement l'allocation d'avant** ; la classe 1 est la division par deux (jusqu'à douze) qui minimise les octets alloués, et n'est retenue que si elle en gagne et si les couches tiennent sous `maxTextureArrayLayers`. Le nombre de classes employées est en plus borné par `maxSampledTexturesPerShaderStage` lu sur l'appareil. Une classe inemployée est une texture 1×1 de deux couches, huit octets, que les shaders ne lisent jamais.
+- **Table des pages inchangée** : `mapIndex` reste un slot global, et la paire (classe, couche) se lit dans la table des slots. Aucun format de page ne bouge.
+- **Dispositions** : les quatre du chemin WebGPU passent par `webgpuBindLayout.ts`, unique source de vérité des numéros de liaison, et leurs cinq constructeurs par `webgpuBindEntries.ts`. Le test de paires disposition/constructeur est étendu au **raster logiciel des petits triangles**, cinquième paire, qui lit désormais lui aussi les classes et la table des slots (sa découpe alpha suit donc le niveau résident au lieu de rester blanche).
+- **Métriques versionnées** (`metricsContracts.ts`, `backendTypes.ts`) : `textureLevelsUploaded`, puis `textureAtlasBytesCalculated`, `textureAtlasClassBytesCalculated` et `textureAtlasClassesUsed`, tous **calculés** depuis les dimensions, les couches, la chaîne de mips et le format alloués, jamais mesurés sur l'appareil ; `vramBytes` reste `null`. Le diagnostic `material-textures-ready` publie le détail par classe.
+- Chiffres de performance : **`null` partout**. Aucune mesure, aucune preuve navigateur, aucun rendu comparé dans ce lot.
+- **Écart d'image attendu à la capture** : un atlas plus étroit réduit le remplissage autour d'une texture, donc le filtrage bilinéaire au bord d'une texture rangée en classe 1 lit moins de blanc qu'avant. Les pixels de bord peuvent changer ; le cœur des surfaces, non. C'est le seul écart que ce lot peut produire une fois les textures arrivées.
+- **Fixtures dorées** : les cinq `expected.json` coplanaires ne portaient que `manifestBinaryVersion`, passé de 3 à 4.
+- `npm run validate` : **treize portes vertes**. Format, lignes (0 fichier > 200), 0 doublon, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens, **546 tests JS/TS**, **136 tests Rust**. Les quatre tests de `webgpuPreviewAtlas.test.ts` disparaissent avec le module qu'ils couvraient.
+- Hors périmètre, non fait : compression KTX2/UASTC, virtualisation par tuiles, réutilisation du pipeline de `textureMips.ts`, WebGL (inchangé).
 
 ## 2026-09-15 — textures progressives : lots 1 et 2 fusionnés dans `develop`
 
@@ -1604,7 +1651,7 @@ Le budget de pages est un nombre de slots de cache, et un slot tient une page. `
 comparait des **placements** : la vue générale d'Emerald au seuil 0 demande 80 153 placements pour
 20 875 pages distinctes, parce qu'un même cluster est placé sous plusieurs instances d'un objet. Le
 budget était donc franchi à chaque image, la file n'était jamais l'ensemble demandé mais un préfixe
-tronqué compté en placements, et le nombre de pages *distinctes* que ce préfixe contenait dépendait
+tronqué compté en placements, et le nombre de pages _distinctes_ que ce préfixe contenait dépendait
 de la façon dont les placements s'y trouvaient répartis — donc de l'ordre dans lequel les premières
 images l'avaient rempli. Le cache ne rendant rien tant que ses slots ne manquent pas, la résidence
 gardait tout ce qui était passé par la file et s'arrêtait à 7 590 pages sur les 20 875 demandées :
@@ -1660,10 +1707,10 @@ lisant `.mesure/cache-emerald` via `--cache-avant` / `--cache-apres`. `avant = a
 (`d3e86d7`) — le code de la tête de `develop`, la troncature du budget désactivée, donc la file est
 toujours l'ensemble demandé. Jamais fusionnée, elle n'existe que pour cette mesure.
 
-| vue · seuil | `develop` contre la référence | cette branche contre la référence |
-|---|---|---|
-| générale · 0 | **4 046 px, max canal 234** | **0 px** |
-| générale · 1, sol · 0, sol · 1, rue · 0, rue · 1 | 0 px | 0 px |
+| vue · seuil                                      | `develop` contre la référence | cette branche contre la référence |
+| ------------------------------------------------ | ----------------------------- | --------------------------------- |
+| générale · 0                                     | **4 046 px, max canal 234**   | **0 px**                          |
+| générale · 1, sol · 0, sol · 1, rue · 0, rue · 1 | 0 px                          | 0 px                              |
 
 Cette branche **est** le rendu sans budget, au pixel, sur les six séries ; `develop` en diffère sur la
 vue générale au seuil 0, la seule où les deux images ne coïncident pas. Le changement d'image va donc dans le bon sens, et il est mesuré, pas
@@ -1675,14 +1722,14 @@ quatre exécutions, au page près. Sur les autres vues, témoin A/A 0 px aux deu
 
 **(b) Écart contre `develop`.** Attendu non nul, et c'est la vue générale qui le porte :
 
-| vue · seuil | écart | pages résidentes (develop → branche) | triangles dessinés | trous |
-|---|---|---|---|---|
-| générale · 0 | **4 046 px, max canal 234** | 7 590 → **20 875** | 5 942 722 → 5 093 246 | 0 / 0 |
-| générale · 1 | 0 px | 3 801 → 3 801 | 1 842 728 | 0 / 0 |
-| sol · 0 | 0 px | 4 863 → 4 863 | 1 509 411 | 0 / 0 |
-| sol · 1 | 0 px | 3 422 → 3 422 | 670 036 | 0 / 0 |
-| rue · 0 | 0 px | 5 434 → 5 434 | 1 424 473 | 0 / 0 |
-| rue · 1 | 0 px | 3 554 → 3 554 | 636 059 | 0 / 0 |
+| vue · seuil  | écart                       | pages résidentes (develop → branche) | triangles dessinés    | trous |
+| ------------ | --------------------------- | ------------------------------------ | --------------------- | ----- |
+| générale · 0 | **4 046 px, max canal 234** | 7 590 → **20 875**                   | 5 942 722 → 5 093 246 | 0 / 0 |
+| générale · 1 | 0 px                        | 3 801 → 3 801                        | 1 842 728             | 0 / 0 |
+| sol · 0      | 0 px                        | 4 863 → 4 863                        | 1 509 411             | 0 / 0 |
+| sol · 1      | 0 px                        | 3 422 → 3 422                        | 670 036               | 0 / 0 |
+| rue · 0      | 0 px                        | 5 434 → 5 434                        | 1 424 473             | 0 / 0 |
+| rue · 1      | 0 px                        | 3 554 → 3 554                        | 636 059               | 0 / 0 |
 
 Cinq séries sur six ne bougent pas : leur coupe demandait moins de pages que le budget même compté
 en placements. C'est la vue générale au seuil 0, la plus lourde, qui portait la troncature.
@@ -1693,13 +1740,13 @@ en placements. C'est la vue générale au seuil 0, la plus lourde, qui portait l
 
 Vue générale au seuil 0, la seule des six séries où les deux côtés diffèrent :
 
-| | `develop` | cette branche |
-|---|---|---|
-| pages résidentes | 7 590 | **20 875** |
-| clusters dessinés | 47 890 | 41 187 |
-| triangles dessinés | 5 942 722 | 5 093 246 |
-| `uncoveredTriangles` | 0 | 0 |
-| `cpuFrameMs` p50 | 11,3 à 14,7 | **7,3 à 8,7** |
+|                      | `develop`   | cette branche |
+| -------------------- | ----------- | ------------- |
+| pages résidentes     | 7 590       | **20 875**    |
+| clusters dessinés    | 47 890      | 41 187        |
+| triangles dessinés   | 5 942 722   | 5 093 246     |
+| `uncoveredTriangles` | 0           | 0             |
+| `cpuFrameMs` p50     | 11,3 à 14,7 | **7,3 à 8,7** |
 
 La résidence triple parce que la file est enfin l'ensemble demandé ; elle ne coûte pourtant aucune
 mémoire de plus, le cache GPU allouant déjà `pageBytes × slots` à la création — `develop`
@@ -1715,7 +1762,7 @@ processeur y gagne un tiers du temps par image, faute de clusters à encoder.
   grossier — n'est donc exercé que par les tests unitaires et par un budget volontairement étroit ;
   aucune scène du banc ne le met à l'épreuve en vrai.
 - L'éviction reste celle du cache : il reprend ses slots par ancienneté quand ils manquent. La
-  résidence est donc fonction de la coupe et du budget *tant que le budget n'est pas atteint* ;
+  résidence est donc fonction de la coupe et du budget _tant que le budget n'est pas atteint_ ;
   au-delà, l'ordre d'arrivée décide encore quels slots sont repris. Le rendre exact demande une
   politique d'éviction pilotée par la coupe, et l'essai brutal de ce lot dit qu'elle ne peut pas être
   « décharger tout ce qui sort de l'ensemble gardé ».

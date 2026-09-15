@@ -48,6 +48,16 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     textureInFlight: rt.texturePump.inFlight,
     textureSlicesUploaded: rt.texturePump.slices,
     textureBytesLastFrame: rt.texturePump.bytesLastPass,
+    textureLevelsUploaded: rt.texturePump.levels,
+    // Octets calculés depuis les dimensions, les couches et les formats alloués : rien n'est mesuré
+    // sur l'appareil ici, et un atlas encore absent ne vaut pas zéro mais `null`.
+    textureAtlasBytesCalculated:
+      vis.colorAtlas && vis.dataAtlas ? vis.colorAtlas.bytes + vis.dataAtlas.bytes : null,
+    textureAtlasClassBytesCalculated:
+      vis.colorAtlas && vis.dataAtlas
+        ? [...vis.colorAtlas.classes, ...vis.dataAtlas.classes].map((entry) => entry.bytes)
+        : null,
+    textureAtlasClassesUsed: vis.colorAtlas?.used ?? null,
     cpuSubmitMs: timing.lastSubmitMs,
     gpuPassMs: timing.lastGpuPassMs,
     gpuFrameMs: timing.lastGpuFrameMs,
