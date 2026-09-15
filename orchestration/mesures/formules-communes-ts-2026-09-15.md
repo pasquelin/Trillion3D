@@ -51,17 +51,30 @@ nuanceur avant et après (`VIS_SHADER`, `SHADE_SHADER`, `rasterSource`, `RESOLVE
 - Décodage 0xRRGGBB : seul `webgpuPagesEncoder.clearValueOf` divise par 255 ; `webgpuPagesHelpers.ts` rend une chaîne hexadécimale, ce n'est pas le même calcul.
 - Comptage par référence : `webgpuHeldKeys.ts`, `webgpuKeyUnion.ts` et `webgpuBudgetRanking.ts` diffèrent par le masque `covered`, la garde de sous-dépassement au relâchement et la remise à zéro — comportements différents.
 
-## Preuve navigateur — non jouée
+## Preuve navigateur WebGPU
 
 Les nuanceurs `SHADE_SHADER` et `rasterSource` changent de texte à trois endroits (`maskKeep`,
 `baryWeights`, et le nom `INVERSE_PI`) : à chaque fois une expression déplacée telle quelle dans une
 fonction WGSL, mêmes opérandes dans le même ordre, ou un simple renommage de constante. Le reste des
 nuanceurs est identique caractère par caractère, vérifié par dépôt du texte avant et après.
 
-Le harnais `scripts/mesure/banc.mjs` n'a **pas** été joué : le verrou `.claude/mesure.lock` du
-checkout principal était pris et la charge de la machine valait 28 puis 23, très au-dessus de la
-limite de 4. Aucun chiffre de pixels n'est donc avancé ici. Il reste à jouer, sur WebGPU, la
-comparaison avant/après de cette branche avec l'exigence de 0 pixel d'écart avant fusion.
+Commande : `node scripts/mesure/banc.mjs --moteur webgpu --avant develop --apres HEAD --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000`.
+Commit mesuré : `avant` = `3979661879f6` (develop), `apres` = `17c9e3d4b034` (fusion de develop dans
+`lot/formules-communes-ts`). Sortie complète copiée dans
+`.mesure/out/formules-communes-ts/webgpu-2026-09-15T16-56-12-490Z/`.
+
+| Vue | Seuil | Pixels différents avant/après | Bruit A/A | Identique (oui/non) |
+| --- | --- | --- | --- | --- |
+| generale | 0 | 0 px, max canal 0 | 0 px, max canal 0 | oui |
+| sol | 0 | 0 px, max canal 0 | 0 px, max canal 0 | oui |
+| rue | 0 | 0 px, max canal 0 | 0 px, max canal 0 | oui |
+| generale | 1 | 0 px, max canal 0 | 0 px, max canal 0 | oui |
+| sol | 1 | 0 px, max canal 0 | 0 px, max canal 0 | oui |
+| rue | 1 | 0 px, max canal 0 | 0 px, max canal 0 | oui |
+
+Hash de coupe (`selectedPageIds`) identique avant/après sur chaque vue et chaque seuil. Charge
+machine élevée pendant la campagne (jusqu'à ~11 en fin de série) : les temps CPU/GPU relevés ne sont
+pas concluants et ne sont pas commentés ici, seule l'identité des pixels fait foi.
 
 ## Portes
 
