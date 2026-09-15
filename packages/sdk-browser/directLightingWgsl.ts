@@ -25,6 +25,17 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
  return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy),vec3f(0.0),vec3f(0.0),ao)*light.colorIntensity.rgb;
+}
+fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
+/** Les lampes d'une tranche de la liste d'une tuile : son compte à countSlot, ses indices dès firstSlot. */
+fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
+ var result=vec3f(0.0);
+ let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
+ let kept=min(tileLights[base+countSlot],MAX_TILE_LIGHTS);
+ for(var index=0u;index<kept;index++){
+  result+=declaredLight(directLights.items[tileLights[base+firstSlot+index]],rgb,metal,rough,N,V,P,ao);
+ }
+ return result;
 }`;
 
 /**
@@ -41,18 +52,12 @@ export const DIRECT_LIGHTING_WGSL = `
 ${lightingBase(SUN_FAR_SHADOW_WGSL)}
 /** La contribution des lampes du contrat au pixel, tuile par tuile et lampe par lampe. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
- var result=vec3f(0.0);
- if(u32(view.lightParams.x)==0u){return result;}
- let tile=vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);
+ if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
+ let tile=pixelTile(pixel);
  let tilesX=u32(view.lightParams.y);
  let tilesY=u32(view.lightParams.z);
- if(tile.x>=tilesX||tile.y>=tilesY){return result;}
- let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base],MAX_TILE_LIGHTS);
- for(var index=0u;index<kept;index++){
-  result+=declaredLight(directLights.items[tileLights[base+4u+index]],rgb,metal,rough,N,V,P,ao);
- }
- return result;
+ if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
+ return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u);
 }`;
 
 /**
@@ -74,21 +79,16 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 export const DECLARED_LIGHTING_WGSL = `
 ${lightingBase(SUN_FAR_STUB_WGSL)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
- var result=vec3f(0.0);
  let tilesX=u32(uni.lightTiles.x);
  let tilesY=u32(uni.lightTiles.y);
- let tile=vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);
+ let tile=pixelTile(pixel);
  if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
+  var result=vec3f(0.0);
   let count=min(directLights.count,MAX_LIGHTS);
   for(var index=0u;index<count;index++){
    result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
   }
   return result;
  }
- let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base+2u],MAX_TILE_LIGHTS);
- for(var index=0u;index<kept;index++){
-  result+=declaredLight(directLights.items[tileLights[base+TILE_BLEND_BASE+index]],rgb,metal,rough,N,V,P,ao);
- }
- return result;
+ return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,2u,TILE_BLEND_BASE);
 }`;
