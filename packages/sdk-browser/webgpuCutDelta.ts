@@ -21,9 +21,13 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
   const stamp = new Int32Array(capacity).fill(-1);
   const entered = new Int32Array(capacity),
     exited = new Int32Array(capacity);
+  /** La suite d'identifiants que le dernier relevé a publiée, pour la comparer telle quelle. */
+  const published = new Int32Array(capacity);
   let epoch = 0,
     enteredCount = 0,
-    exitedCount = 0;
+    exitedCount = 0,
+    publishedCount = -1,
+    changed = true;
   return {
     entered,
     exited,
@@ -36,8 +40,18 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
     get count() {
       return members.count;
     },
+    /**
+     * Faux quand le relevé appliqué porte exactement la même suite d'identifiants que le précédent,
+     * dans le même ordre : `pages` a été réécrit avec les mêmes enregistrements, aux mêmes rangs.
+     * Ce n'est pas l'égalité des ensembles — un ordre différent, même à ensemble égal, est un
+     * changement — et c'est ce qu'il faut à qui lit `pages` dans l'ordre.
+     */
+    get changed() {
+      return changed;
+    },
     /** Drops the caller's suffix and reports no difference: the cut is the one already held. */
     hold() {
+      changed = pages.length !== members.count;
       pages.length = members.count;
       enteredCount = 0;
       exitedCount = 0;
@@ -47,6 +61,8 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
       members.clear();
       enteredCount = 0;
       exitedCount = 0;
+      publishedCount = -1;
+      changed = true;
     },
     /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
     apply(ids: readonly number[]) {
@@ -54,8 +70,15 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
       enteredCount = 0;
       exitedCount = 0;
       pages.length = 0;
+      // Une suite plus longue que le catalogue ne se garde pas : elle est déclarée changée.
+      let same = ids.length === publishedCount && ids.length <= capacity;
+      publishedCount = ids.length <= capacity ? ids.length : -1;
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i];
+        if (i < capacity && published[i] !== id) {
+          published[i] = id;
+          same = false;
+        }
         if (id < 0 || id >= capacity || stamp[id] === epoch || !packedPages[id]) continue;
         stamp[id] = epoch;
         pages.push(packedPages[id]);
@@ -67,6 +90,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
       }
       for (let i = 0; i < exitedCount; i++) members.remove(exited[i]);
       for (let i = 0; i < enteredCount; i++) members.add(entered[i]);
+      changed = !same;
     },
   };
 }

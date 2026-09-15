@@ -6,7 +6,7 @@ Objectif : un seul exécutable Rust qui accepte ce que livrent les places de mar
 
 Politique juridique fixée par l'utilisateur : aucun format propriétaire, sauf lecture légale établie. Cette page n'est pas un avis d'avocat ; les verdicts viennent d'une analyse documentaire (directive 2009/24/CE art. 1, 5 § 3, 6 ; CJUE SAS Institute C‑406/10 ; 17 USC § 102(b) ; SAS v. WPL, 4th Cir. 2017 sur la portée des contrats). Règles de dépôt : lecteur écrit à partir de spécifications publiques ou de bibliothèques permissives dont la licence est respectée, jamais de code ni de SDK d'éditeur repris, jamais de contournement de protection, provenance de chaque lecteur documentée, jeux de tests redistribuables.
 
-État actuel du code : géométrie FBX (ufbx, MIT, sans SDK Autodesk) et OBJ, glTF et GLB en entrée directe, un modèle par dossier source ; textures PNG et JPEG décodées, les autres ignorées avec rapport.
+État actuel du code (15 sept. 2026, pause) : contrat `image-plugin-2`, neuf pilotes d'image (`png`, `jpeg`, `tga`, `tiff`, `dds`, `webp` sans perte, `exr`, `hdr`, `ktx2`) ; six de scène (`gltf`, `fbx` par ufbx, `obj`, `zip`, `unity`, `unitypackage`), sur le contrat `scene-plugin-2`. Le contrat d'image a deux sorties depuis `image-plugin-2`, RGBA8 et RGBA flottant, et un consommateur qui ne sait traiter que la première refuse la seconde par `image-float-unsupported` plutôt que d'ajouter un report de tons ; un projet Unity est routé vers `unity` avec ses modèles ; une seule racine de résolution des images de l'import aux aperçus. Reprise : `orchestration/REPRISE_COMPILATEUR.md`.
 
 ## Architecture : un pilote par format
 
@@ -15,7 +15,7 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 - **un pilote par format, sans exception, existants compris** : `gltf`, `fbx`, `obj` pour les scènes ; `png`, `jpeg` pour les images ; puis `tga`, `tiff`, `dds`, `exr`, `hdr`, `ktx2`, `webp`, `psd`, `bmp`, `gif`, `zip`, `unitypackage`, `unity`, `usd`, `alembic`, `blend`, `ma` ;
 - chaque pilote est un module Rust avec son nom, sa version, sa détection (extension, nombre magique, structure de dossier), son rapport nommé et son test doré minimal ; deux pilotes peuvent partager une bibliothèque interne (ufbx pour `fbx` et `obj`, la crate `image` pour les images) mais restent deux entrées du registre ;
 - ajouter ou retirer un format = ajouter ou retirer un module et une ligne de registre, sans toucher au cœur ni au CLI ;
-- deux contrats versionnés : pilote de scène (produit la scène intermédiaire glTF + bin + rapport) et pilote d'image (produit RGBA8, plus tard flottant pour EXR et HDR) ; la version des pilotes entre dans l'identité du cache ;
+- deux contrats versionnés : pilote de scène (produit la scène intermédiaire glTF + bin + rapport) et pilote d'image (produit RGBA8, ou RGBA flottant linéaire pour EXR et HDR) ; la version des pilotes et celle des contrats entrent dans l'identité du cache ;
 - le pilote retenu (nom, version) est consigné dans le manifeste et le rapport pour la provenance ;
 - une source inconnue ou ambiguë est refusée avec la liste des formats acceptés, jamais interprétée par défaut ;
 - le mode d'emploi pour écrire un pilote est `packages/asset-compiler-rust/PLUGINS.md` ; chaque format à venir est confié à un agent indépendant qui ne touche qu'à son module et à sa ligne de registre.
@@ -28,8 +28,8 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | OBJ / MTL               | spécification publiée                                   | fait    | MTL à vérifier                                       | P2       |
 | PNG, JPEG classique     | standards                                               | fait    | —                                                    | —        |
 | TGA                     | spécification publiée                                   | fait    | —                                                     | —        |
-| TIFF (profils déclarés) | spécification publiée                                   | à coder | feature `tiff`, 8 et 16 bits, compressions listées   | P2       |
-| OpenEXR, Radiance HDR   | documentés, BSD-3                                       | à coder | features `exr`, `hdr`, usage éclairage               | P3       |
+| TIFF (profils déclarés) | spécification publiée                                   | fait    | —                                                     | —        |
+| OpenEXR, Radiance HDR   | documentés, BSD-3                                       | fait    | crate `exr` 1.74.2 pour OpenEXR ; HDR écrit ici depuis la spécification, sans crate | —        |
 | USD / USDZ              | AOUSD public, OpenUSD sous TOST 1.0                     | à coder | crate Rust à évaluer, sinon lecteur usda/usdc propre | P3       |
 | Alembic                 | ouvert, BSD-3                                           | à coder | géométrie statique seulement                         | P3       |
 | `.blend`                | SDNA documenté ; lire un .blend n'impose pas la GPL     | à coder | maillages, UV, instances, Principled BSDF de base    | P3       |
@@ -42,11 +42,11 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | Format                                     | Condition                                                                                      | État    | Voie                                                                                      | Priorité            |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------- | ------------------- |
 | FBX                                        | ufbx MIT, version figée, notices conservées, jamais le SDK Autodesk                            | fait    | —                                                                                         | —                   |
-| Unity `.unity`, `.prefab`, `.mat`, `.meta` | sous-ensemble YAML documenté par Unity ; données seulement, jamais de scripts ni de code Unity | à coder | lecteur YAML → instances de FBX par GUID, LOD le plus fin, `.mat` Standard/URP/HDRP → PBR | P1 (Industrial Map) |
-| `.unitypackage`                            | archive tar.gz ; chaque fichier garde sa licence                                               | à coder | extraction vers l'arbre Unity                                                             | P2                  |
-| DDS                                        | conteneur documenté par Microsoft ; codecs déclarés un par un                                  | à coder | BC1-7 → RGBA8 (perte déjà faite à la source)                                              | P2                  |
-| KTX / KTX2, Basis Universal                | Khronos ; Basis Apache-2 ; codecs listés dans le build                                         | à coder | transcodage vers RGBA8                                                                    | P3                  |
-| WebP                                       | libwebp BSD-3 ; portée brevets à vérifier si décodeur réécrit                                  | à coder | sans perte uniquement                                                                     | P3                  |
+| Unity `.unity`, `.prefab`, `.mat`, `.meta` | sous-ensemble YAML documenté par Unity ; données seulement, jamais de scripts ni de code Unity | fait    | —                                                                                          | —                    |
+| `.unitypackage`                            | archive tar.gz ; chaque fichier garde sa licence                                               | fait    | —                                                                                          | —                    |
+| DDS                                        | conteneur documenté par Microsoft ; codecs déclarés un par un                                  | fait    | —                                                                                          | —                   |
+| KTX2, Basis Universal                      | Khronos ; `basisu` Apache-2 ; codecs listés un par un                                          | fait    | KTX2 seul ; ETC1S/BasisLZ et UASTC LDR par `basisu`, Zstandard par `ruzstd`, non compressé R8G8B8A8, BC1–BC5, BC7, ETC2, EAC, ASTC 4×4 ; KTX 1.0 non | —                   |
+| WebP                                       | spécification publique ; décodeur Rust pur `image-webp`, concession de brevets libwebp         | fait    | sans perte uniquement, flux avec perte et animation refusés par leur nom                   | —                   |
 | Maya ASCII `.ma`                           | format documenté ; données seulement, aucun script exécuté                                     | à coder | sous-ensemble nœuds, attributs, connexions                                                | P3                  |
 
 ## À éviter — pas d'import natif
@@ -63,8 +63,10 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 
 ## Ordre proposé
 
-1. TGA.
-2. Scène Unity (`.unity` + `.prefab` + `.mat` + `.meta`), test doré sur une mini-scène, puis Industrial Map au banc 15.
-3. Kits multi-FBX, ZIP, `.unitypackage`.
-4. TIFF, DDS, MTL.
-5. USD, Alembic, `.blend`, PSD, EXR/HDR, KTX2, WebP, `.ma` selon besoin réel.
+Faits : TGA, Unity (scène, prefabs, sous-maillages, échelle, retouches), ZIP, `.unitypackage`, TIFF, DDS, WebP sans perte, EXR/HDR, KTX2.
+
+1. Industrial Map au banc 15 (agent Lab, `prepare()` sur le dossier du projet Unity).
+2. KTX 1.0, si une source réelle l'impose : le conteneur est un autre format, donc un autre pilote.
+3. USD, Alembic, `.blend`.
+4. PSD, BMP, GIF, `.ma`, MTL à vérifier.
+5. Chantier « blocs gardés sur GPU » (DDS puis KTX2), sur go de l'utilisateur.

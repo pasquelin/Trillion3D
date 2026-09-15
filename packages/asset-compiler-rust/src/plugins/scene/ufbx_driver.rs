@@ -29,6 +29,6 @@ impl ScenePlugin for UfbxDriver {
         !self.magic.is_empty() && head.starts_with(self.magic)
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        crate::import::import_source(request, self).map(PreparedScene::Converted)
+        crate::import::import_source(request, self).map(|directory| request.converted(directory))
     }
 }

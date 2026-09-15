@@ -1,114 +1,7 @@
-import { LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
+import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
-
-const POISSON_16 = [
-  [-0.94201624, -0.39906216],
-  [0.94558609, -0.76890725],
-  [-0.094184101, -0.9293887],
-  [0.34495938, 0.2938776],
-  [-0.91588581, 0.45771432],
-  [-0.81544232, -0.87912464],
-  [-0.38277543, 0.27676845],
-  [0.97484398, 0.75648379],
-  [0.44323325, -0.97511554],
-  [0.53742981, -0.4737342],
-  [-0.26496911, -0.41893023],
-  [0.79197514, 0.19090188],
-  [-0.2418884, 0.99706507],
-  [-0.81409955, 0.9143759],
-  [0.19984126, 0.78641367],
-  [0.14383161, -0.1410079],
-];
-
-/**
- * La lecture de l'atlas d'ombres : une tranche par lampe, six faces pour une ponctuelle, une pour un
- * projecteur, les cascades pour une lampe directionnelle. Comparaison de profondeur avec biais
- * constant et biais par pente, puis moyenne de seize prises. Les bornes viennent des réglages
- * publiés — ni la tranche ni le noyau ne peuvent déborder du rectangle de la face.
- */
-const DIRECT_SHADOW_WGSL = `
-struct ShadowFace{viewProjection:mat4x4f,rect:vec4f,}
-struct ShadowSlice{faces:array<ShadowFace,${POINT_FACES}>,info:vec4f,}
-struct ShadowSlices{items:array<ShadowSlice>,}
-const PCF_TAPS:u32=${LIGHT_SETTINGS.pcfTaps}u;
-const SHADOW_BIAS:f32=${LIGHT_SETTINGS.shadowDepthBias};
-const SHADOW_SLOPE:f32=${LIGHT_SETTINGS.shadowSlopeBias};
-const SHADOW_SLOPE_MAX:f32=${LIGHT_SETTINGS.shadowSlopeBiasMax};
-const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
-const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
-  ([x, y]) => `vec2f(${x},${y})`,
-).join(',')});
-/** Biais en mètres au point considéré : une surface rasante a besoin de plus de marge qu'une de face. */
-fn shadowBiasMetres(cosine:f32)->f32{
- return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
-}
-/** Seize prises dans le rectangle de la face, décalées d'un texel de la tranche, jamais d'atlas. */
-fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
- let step=1.0/max(side,1.0);
- var lit=0.0;
- for(var tap=0u;tap<PCF_TAPS;tap++){
-  let offset=POISSON[tap]*step;
-  let inside=clamp(local+offset,vec2f(0.0),vec2f(1.0));
-  let uv=entry.rect.xy+inside*entry.rect.z;
-  lit+=textureSampleCompareLevel(shadowAtlas,shadowSampler,uv,reference);
- }
- return lit/f32(PCF_TAPS);
-}
-/**
- * Les cascades du soleil : la première dont le point tombe dans le cube unité gagne, et la boucle
- * est bornée par le nombre de cascades publié (X2). L'échelle de la cascade se lit dans sa propre
- * matrice — orthographique, donc le texel monde vaut 2/(échelle en x · côté) et un mètre de
- * profondeur vaut l'échelle en z. Aucune donnée en double, donc rien qui puisse diverger.
- */
-fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
- let cosine=clamp(dot(N,L),1e-3,1.0);
- let side=max(record.info.z,1.0);
- for(var c=0u;c<min(SUN_CASCADES,cascades);c++){
-  let entry=record.faces[c];
-  if(entry.rect.w<0.5){continue;}
-  let m=entry.viewProjection;
-  let scaleX=max(length(vec3f(m[0][0],m[1][0],m[2][0])),1e-9);
-  let scaleZ=length(vec3f(m[0][2],m[1][2],m[2][2]));
-  let texel=2.0/(scaleX*side);
-  let clip=m*vec4f(P+N*texel*SHADOW_NORMAL_TEXELS/max(cosine,0.2),1.0);
-  let ndc=clip.xyz/clip.w;
-  if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){continue;}
-  let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
-  return shadowPcf(entry,local,ndc.z-shadowBiasMetres(cosine)*scaleZ,side);
- }
- // Au-delà de la dernière cascade, la surface reste éclairée sans ombre portée : approximation
- // nommée, publiée dans le diagnostic, jamais une ombre inventée.
- return 1.0;
-}
-/** Fraction de lumiere qui atteint le point : 1 en pleine lumiere, 0 entierement dans l'ombre. */
-fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
- if(slice<0){return 1.0;}
- let record=shadows.items[u32(slice)];
- let faces=u32(record.info.x);
- if(faces==0u){return 1.0;}
- if(isSun(light)){return sunShadowFactor(record,faces,P,N,L);}
- let face=select(0u,pointFaceOf(P-light.positionRange.xyz),faces==POINT_FACES);
- let entry=record.faces[face];
- if(entry.rect.w<0.5){return 1.0;}
- // Le point lu est décalé le long de la normale d'un texel de la tranche, divisé par le cosinus
- // d'incidence : un texel couvre d'autant plus de profondeur que la surface est rasante. C'est ce
- // décalage qui referme la couture entre deux faces d'une ponctuelle et supprime l'acné rasante.
- let cosine=clamp(dot(N,L),1e-3,1.0);
- let radius=length(light.positionRange.xyz-P);
- let side=max(record.info.z,1.0);
- let texel=2.0*record.info.y*radius/side;
- let clip=entry.viewProjection*vec4f(P+N*texel*SHADOW_NORMAL_TEXELS/max(cosine,0.2),1.0);
- if(clip.w<=0.0){return 1.0;}
- let ndc=clip.xyz/clip.w;
- if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){return 1.0;}
- let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
- // Ces mètres deviennent une marge de profondeur au point considéré : dz/dd d'une projection
- // perspective vaut near·far/((far−near)·d²), donc la marge suit la distance à la lampe.
- let near=record.info.w;
- let far=max(near*1.001,light.positionRange.w);
- let scale=near*far/((far-near)*max(clip.w*clip.w,1e-4));
- return shadowPcf(entry,local,ndc.z-shadowBiasMetres(cosine)*scale,side);
-}`;
+import { DIRECT_SHADOW_WGSL } from './directShadowWgsl.ts';
+import { SUN_FAR_SHADOW_WGSL, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 
 /**
  * Le socle des deux passes qui éclairent : les types du contrat, la lecture des ombres, et la
@@ -116,9 +9,15 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  * d'éclairement du moteur. Les deux boucles ci-dessous ne diffèrent que par la liste de lampes
  * qu'elles parcourent, jamais par la physique ni par le type de surface. Une lampe hors portée, ou
  * entièrement dans l'ombre, rend exactement zéro.
+ *
+ * L'ombre du soleil au-delà de la dernière cascade en fait partie : les deux passes lient le proxy
+ * résident et tirent le même rayon. Le seul paramètre est le **rang** de cette liaison, que les
+ * deux dispositions numérotent différemment ; le code, lui, est le même caractère pour caractère.
  */
-const LIGHTING_BASE_WGSL = `
+const lightingBase = (proxyBinding: number) => `
 ${DIRECT_LIGHT_WGSL}
+${residentProxyWgsl(proxyBinding)}
+${SUN_FAR_SHADOW_WGSL}
 ${DIRECT_SHADOW_WGSL}
 fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  let incidence=directIncidence(light,P);
@@ -127,6 +26,17 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
  return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy),vec3f(0.0),vec3f(0.0),ao)*light.colorIntensity.rgb;
+}
+fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
+/** Les lampes d'une tranche de la liste d'une tuile : son compte à countSlot, ses indices dès firstSlot. */
+fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
+ var result=vec3f(0.0);
+ let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
+ let kept=min(tileLights[base+countSlot],MAX_TILE_LIGHTS);
+ for(var index=0u;index<kept;index++){
+  result+=declaredLight(directLights.items[tileLights[base+firstSlot+index]],rgb,metal,rough,N,V,P,ao);
+ }
+ return result;
 }`;
 
 /**
@@ -140,41 +50,46 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  * zéro, et un couloir sans fenêtre reste noir en plein jour.
  */
 export const DIRECT_LIGHTING_WGSL = `
-${LIGHTING_BASE_WGSL}
+${lightingBase(SUN_FAR_PROXY_BINDING)}
 /** La contribution des lampes du contrat au pixel, tuile par tuile et lampe par lampe. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
- var result=vec3f(0.0);
- if(u32(view.lightParams.x)==0u){return result;}
- let tile=vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);
+ if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
+ let tile=pixelTile(pixel);
  let tilesX=u32(view.lightParams.y);
  let tilesY=u32(view.lightParams.z);
- if(tile.x>=tilesX||tile.y>=tilesY){return result;}
- let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base],MAX_TILE_LIGHTS);
- for(var index=0u;index<kept;index++){
-  result+=declaredLight(directLights.items[tileLights[base+4u+index]],rgb,metal,rough,N,V,P,ao);
- }
- return result;
+ if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
+ return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,4u);
 }`;
 
 /**
- * Les mêmes lampes déclarées, sans liste par tuile : ce que lit une passe qui n'a pas de tuiles.
+ * Les lampes déclarées qui éclairent une surface de mélange, prises sur la **tranche de mélange** de
+ * la liste de sa tuile : celle qui va du plan proche au fond opaque, et qui prend le tronc entier là
+ * où nul opaque ne couvre la tuile. C'est la tranche qu'il faut, parce qu'une surface de mélange est
+ * dessinée devant l'opaque de son pixel : la tranche des opaques lui retirerait des lampes
+ * déclarées, et un feuillage posé devant le ciel n'en garderait aucune.
  *
- * Les listes tuilées sont bâties sur la profondeur des opaques. Une tuile que nul opaque ne couvre —
- * le ciel derrière un feuillage — n'y retient aucune lampe, et une surface transparente posée devant
- * le premier opaque de sa tuile tombe hors de la boîte monde qui a filtré ces lampes. S'en servir
- * éteindrait des surfaces que des lampes déclarées éclairent : fidélité avant vitesse, la boucle est
- * donc bornée par `MAX_LIGHTS`, constante connue avant l'image (X2), et chaque lampe hors portée
- * sort par le fenêtrage de `directIncidence`. Le remplacement de cette boucle par un rayon d'ombre
- * stochastique par pixel est un lot ultérieur (RX2).
+ * La boucle reste **exacte**, et sa somme est celle de la boucle sur toutes les lampes, au bit près :
+ * une lampe absente de la liste ne rencontre aucun point de la tranche — sa sphère de portée ne
+ * touche pas la boîte monde —, donc `declaredLight` lui aurait rendu exactement `vec3f(0.0)`, et
+ * retirer un zéro d'une somme de flottants ne la change pas. Ce qui change est le nombre de lampes
+ * parcourues, donc le nombre de lectures d'atlas d'ombre.
+ *
+ * Sans liste — un appareil qui n'a pas pu gréer la passe de tuiles —, la boucle retombe sur les
+ * lampes déclarées, bornée par `MAX_LIGHTS`, constante connue avant l'image (X2).
  */
-export const DECLARED_LIGHTING_WGSL = `
-${LIGHTING_BASE_WGSL}
-fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- var result=vec3f(0.0);
- let count=min(directLights.count,MAX_LIGHTS);
- for(var index=0u;index<count;index++){
-  result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
+export const declaredLightingWgsl = (proxyBinding: number) => `
+${lightingBase(proxyBinding)}
+fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
+ let tilesX=u32(uni.lightTiles.x);
+ let tilesY=u32(uni.lightTiles.y);
+ let tile=pixelTile(pixel);
+ if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
+  var result=vec3f(0.0);
+  let count=min(directLights.count,MAX_LIGHTS);
+  for(var index=0u;index<count;index++){
+   result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
+  }
+  return result;
  }
- return result;
+ return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,2u,TILE_BLEND_BASE);
 }`;

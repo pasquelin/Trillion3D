@@ -6,6 +6,7 @@ import { createExactPagesAttachment } from './exactPagesAttachment.ts';
 import { createExactPagesResidency } from './exactPagesResidency.ts';
 import { createExactPagesMaterials } from './exactPagesMaterials.ts';
 import { DEFAULT_CLEAR_COLOR, baseCapabilities, lighting } from './backendCommon.ts';
+import { sceneLightingApi } from './sceneLighting.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
@@ -187,7 +188,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     get overBudget() {
       return renderState.overBudget;
     },
-    refreshSceneLighting: () => sceneLights.refresh(),
+    ...sceneLightingApi(sceneLights),
     render: renderFrame,
     ...cpuMethods,
     ...requestMethods,

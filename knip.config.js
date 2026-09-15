@@ -8,6 +8,9 @@ export default {
     'packages/**/*.test.{ts,mjs}',
     'scripts/*.mjs',
     'scripts/mesure/banc.mjs',
+    // Servis à la page du harnais et importés par leur URL, jamais par un import local.
+    'scripts/mesure/pageCoupe.mjs',
+    'scripts/mesure/pageTemoin.mjs',
     'scripts/mesure/oracle.mjs',
     'scripts/mesure/fixtureLampes.mjs',
     'packages/*/bench/*.bench.mjs',

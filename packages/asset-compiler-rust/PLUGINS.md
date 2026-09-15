@@ -5,7 +5,8 @@ dans son module, tous listés dans un registre statique. Ajouter un format, c'es
 et une ligne ; enlever un format, c'est enlever les deux. Le cœur ne bouge pas.
 
 Ce que le pilote doit produire est toujours la même chose : la **scène intermédiaire**, un glTF 2.0
-et son binaire, que `compile` est seul à savoir lire. Les images suivent le même modèle, vers RGBA8.
+et son binaire, que `compile` est seul à savoir lire. Les images suivent le même modèle, vers RGBA8
+ou, pour les formats à grande gamme dynamique, vers RGBA flottant linéaire.
 
 La politique — quels formats sont admis, lesquels sont refusés, sous quelles conditions et sous
 quelle licence — est dans [`orchestration/COMPILATEUR_IMPORT.md`](../../orchestration/COMPILATEUR_IMPORT.md).
@@ -20,13 +21,23 @@ Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
    nomme la bibliothèque et sa version), `extensions` (en minuscules, sans le point).
 3. `impl ScenePlugin` : `accepts_head` reconnaît l'entête du format — `false` pour un format texte
    qui n'en a pas —, `prepare` rend `PreparedScene::InPlace` pour une entrée directe ou
-   `PreparedScene::Converted` pour ce que le pilote a écrit dans `request.cache`.
+   `request.converted(directory)` pour ce que le pilote a écrit dans `request.cache`.
 4. Une ligne dans `scene::PLUGINS`.
+
+Un pilote **de projet** — `unity` en est le premier — revendique en plus un dossier entier par
+`project_inputs` et prime alors sur les pilotes de fichiers trouvés dessous, dont les fichiers sont
+ses entrées et non des sources concurrentes ; deux projets pour un même dossier restent ambigus.
 
 `prepare` reçoit tous les fichiers du dossier que ce pilote revendique : c'est lui qui décide s'il en
 accepte un seul ou plusieurs, et il refuse avec `SOURCE_FORMAT_AMBIGUOUS` quand il n'en veut qu'un.
 Il vérifie `request.cancelled` à chaque frontière de travail bornée, publie ses étapes par
 `request.progress`, et n'écrit jamais à côté de la source — seulement sous `request.cache`.
+
+Les images ne suivent pas la scène dans le cache : elles restent là où le pilote les a lues. La
+racine où les URI relatives d'images se résolvent est donc `scene::image_root(request.source)` — le
+dossier source, ou le dossier extrait pour un conteneur —, et `request.converted` l'accroche à la
+scène convertie pour que le compilateur y relise les mêmes octets. Un pilote qui résout une image
+appelle cette fonction ; il n'en écrit pas une seconde version.
 
 ## Un pilote de conteneur
 
@@ -52,13 +63,23 @@ Un décodage impossible rend une raison de rapport — une chaîne stable comme 
 jamais une erreur de compilation : une texture illisible laisse le moteur retomber sur son blanc.
 Le décodeur ne rend jamais d'image vide et ne panique jamais.
 
+`DecodedImage` a deux variantes depuis `image-plugin-2` : `Rgba8`, et `RgbaF32` pour les formats à
+grande gamme dynamique. **Un pilote ne convertit jamais l'une en l'autre** : ramener du flottant à
+huit bits demanderait un report de tons, donc une perte que la source n'avait pas. C'est au
+consommateur de trancher, par un `match` et une raison nommée — `image-float-unsupported` pour les
+aperçus, qui sont du RGBA8 sRGB. Un pilote flottant vérifie le plafond d'allocation à **seize octets
+par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre nom de format.
+
 ## Ce qu'il faut fournir avec
 
 - **Une fixture dorée minimale** : le plus petit fichier du format que l'on possède ou que l'on peut
   redistribuer, sous `fixtures/`, avec son `expected.json`, compilé par le harnais commun
   (`src/tests/golden.rs`) — jamais par un harnais à soi.
 - **Un test par comportement du pilote** : ce qu'il reconnaît, ce qu'il refuse, ce qu'il rapporte.
-  Les tests du routeur et du registre existent déjà : ne les recopiez pas par format.
+  Les tests du routeur et du registre existent déjà : ne les recopiez pas par format. Pour lire le
+  résultat d'un décodage, prendre `rgba8()` ou `rgba_f32()` de `src/plugins/tests.rs` — jamais un
+  `let` irréfutable sur une variante de `DecodedImage` : le contrat a deux sorties, et un test qui
+  en suppose une seule doit le dire par un appel qui panique sur l'autre.
 - **La provenance** : d'où vient la spécification suivie, quelle bibliothèque, quelle licence. Elle
   se met dans l'entête du module et dans `orchestration/JOURNAL.md`.
 

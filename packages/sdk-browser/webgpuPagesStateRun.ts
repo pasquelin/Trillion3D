@@ -5,6 +5,7 @@ import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
 import type { SurfaceCapture } from './surfaceBuffer.ts';
+import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
@@ -59,6 +60,9 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
+  /** Vrai quand `drawn` est la recopie de `shown` telle qu'elle est. Écrit par les seules fonctions
+   *  de recopie de `webgpuPagesHelpers.ts`. */
+  drawnMirrorsShown: boolean;
   /** Where the drawable difference writes its members; nothing downstream reads it. */
   drawnMembers: PageRec[];
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
@@ -70,7 +74,21 @@ export interface WebgpuRunState {
   culledScratch: PageRec[];
   readyScratch: PageRec[];
   pendingScratch: string[];
+  /** Le tableau de la liste rendue à l'hôte, à lui seul : le suivi du rendu écrit dans l'autre, et
+   *  une liste tenue d'une image à l'autre ne survivrait pas à ce partage. */
+  hostPendingScratch: string[];
   urlScratch: string[];
+  /** Vrai quand l'adoption a relu le relevé déjà tenu : `desired` et `shown` n'ont pas bougé. */
+  cutHeld: boolean;
+  /** L'âge des listes de la coupe : augmente dès qu'une adoption ou la coupe processeur les réécrit,
+   *  y compris hors du rendu. Ce que lit qui garde une liste d'une image à l'autre. */
+  cutEpoch: number;
+  /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que la liste attendue lit. */
+  pageArrayEpoch: number;
+  /** Ce que chaque liste rendue à l'hôte décrit : l'état qui l'a produite, ou `-1` si elle est à
+   *  refaire. Une liste n'est gardée que si tout ce dont elle dépend est encore celui-là. */
+  pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean };
+  urlsHeld: { epoch: number; cut: number; limited: boolean };
   /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
   requestedScratch: Set<string>;
   transitionScratch: Set<string>;
@@ -141,6 +159,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     shown: [],
     desired: [],
     drawn: [],
+    ...unmirroredDrawn(),
     drawnMembers: [],
     pagesEntered: null,
     pagesExited: null,
@@ -149,7 +168,13 @@ export function createWebgpuRunState(): WebgpuRunState {
     culledScratch: [],
     readyScratch: [],
     pendingScratch: [],
+    hostPendingScratch: [],
     urlScratch: [],
+    cutHeld: false,
+    cutEpoch: 0,
+    pageArrayEpoch: 0,
+    pendingHeld: { epoch: -1, cut: -1, limited: false, ready: false },
+    urlsHeld: { epoch: -1, cut: -1, limited: false },
     requestedScratch: new Set<string>(),
     transitionScratch: new Set<string>(),
   };

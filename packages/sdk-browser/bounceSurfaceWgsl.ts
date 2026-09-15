@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './bounceGridWgsl.ts';
+import { PROXY_ALBEDO_WGSL, residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
 /** Fils d'un groupe de travail de la passe de cache : une maille par fil. */
@@ -34,17 +35,16 @@ export const BOUNCE_SURFACE_PASS = 'WG bounce surface cache v1';
 export const BOUNCE_SURFACE_SHADER = `
 struct SurfaceSpan{span:vec4u,}
 @group(0) @binding(0) var<uniform> bounce:BounceGrid;
-@group(0) @binding(1) var<storage,read> proxyTriangles:array<f32>;
+${residentProxyWgsl(1)}
 @group(0) @binding(2) var<storage,read> proxyAlbedo:array<u32>;
-@group(0) @binding(3) var<storage,read> proxyNodeBounds:array<f32>;
-@group(0) @binding(4) var<storage,read> proxyNodeChildren:array<u32>;
-@group(0) @binding(5) var<storage,read> directLights:DirectLights;
-@group(0) @binding(6) var<storage,read> probes:array<vec4f>;
-@group(0) @binding(7) var<storage,read_write> surface:array<vec4f>;
-@group(0) @binding(8) var<uniform> cursor:SurfaceSpan;
+@group(0) @binding(3) var<storage,read> directLights:DirectLights;
+@group(0) @binding(4) var<storage,read> probes:array<vec4f>;
+@group(0) @binding(5) var<storage,read_write> surface:array<vec4f>;
+@group(0) @binding(6) var<uniform> cursor:SurfaceSpan;
 ${DIRECT_LIGHT_WGSL}
 ${BOUNCE_GRID_WGSL}
 ${BOUNCE_TRACE_WGSL}
+${PROXY_ALBEDO_WGSL}
 const LIGHTS_PER_TEXEL:u32=${BOUNCE_SETTINGS.lightsPerRay}u;
 ${INVERSE_PI_WGSL}
 /**

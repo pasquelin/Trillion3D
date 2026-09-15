@@ -11,6 +11,7 @@ import { createWebgpuGpuState, type WebgpuGpuState } from './webgpuPagesStateGpu
 import { createWebgpuVisState, type WebgpuVisState } from './webgpuPagesStateVis.ts';
 import { createWebgpuLightState, type WebgpuLightState } from './webgpuPagesStateLights.ts';
 import { createWebgpuBounceState, type WebgpuBounceState } from './webgpuPagesStateBounce.ts';
+import { createWebgpuSunFarState, type WebgpuSunFarState } from './webgpuPagesStateSunFar.ts';
 import {
   createWebgpuCaptureState,
   createWebgpuRunState,
@@ -22,14 +23,16 @@ import {
   createWebgpuTimingState,
   type WebgpuTimingState,
 } from './webgpuPagesStateTiming.ts';
+import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
 
-export type WebgpuPagesBackend = RenderBackend & {
-  flush(): Promise<void>;
-  rasterRgba(): Uint8Array;
-  selectedPageIds(): string[];
-  visibilityIds(): Uint32Array;
-};
+export type WebgpuPagesBackend = RenderBackend &
+  HostCpuProfile & {
+    flush(): Promise<void>;
+    rasterRgba(): Uint8Array;
+    selectedPageIds(): string[];
+    visibilityIds(): Uint32Array;
+  };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */
 export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>;
@@ -55,6 +58,8 @@ export interface WebgpuPagesRuntime {
   lights: WebgpuLightState;
   /** Le proxy résident et la grille de sondes de la lumière qui rebondit. */
   bounce: WebgpuBounceState;
+  /** L'ombre du soleil au-delà de la dernière cascade, tirée contre le proxy résident. */
+  sunFar: WebgpuSunFarState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
   timing: WebgpuTimingState;
@@ -118,6 +123,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'small-triangle compute raster',
       'physical VRAM instrumentation',
       'global illumination, surface cache and motion vectors',
+      'sun shadows beyond the last cascade',
       'textured PBR maps',
       'visibility buffer',
       'direct WebGPU present',
@@ -135,6 +141,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       context.bounce === true,
       context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
     ),
+    sunFar: createWebgpuSunFarState(),
     run,
     capture: createWebgpuCaptureState(),
     timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),

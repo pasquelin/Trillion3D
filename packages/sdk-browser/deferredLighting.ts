@@ -3,6 +3,7 @@ import {
   BOUNCE_LIGHTING_SHADER,
   COMPOSE_SHADER,
   DIRECT_LIGHTING_SHADER,
+  UNLIT_COMPOSE_SHADER,
   UNLIT_LIGHTING_SHADER,
 } from './deferredLightingShaders.ts';
 import { createDeferredPlaceholders } from './deferredLightingSetup.ts';
@@ -20,9 +21,9 @@ const ZERO_DIRECT = [0, 0, 0, 1] as const;
 
 /**
  * Le rassemblement différé. Deux programmes vivent ici : la vue sans éclairage — l'albédo brut des
- * matériaux, qui est aussi ce que rend une scène sans lampe déclarée — et celui du contrat. Le
- * second n'est compilé qu'à la première image qui porte une lampe : une scène qui n'en a pas ne le
- * paie jamais.
+ * matériaux, composé par l'identité, qui est aussi ce que rend une scène sans lampe déclarée — et
+ * celui du contrat, exposé puis passé dans ACES. Le second n'est compilé qu'à la première image qui
+ * porte une lampe : une scène qui n'en a pas ne le paie jamais.
  */
 export async function createDeferredLighting(device: GPUDevice, directLights: GPUBuffer) {
   const uniform = device.createBuffer({
@@ -35,7 +36,14 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
   try {
     const unlit = await createDeferredProgram(
       device,
-      { lighting: UNLIT_LIGHTING_SHADER, compose: COMPOSE_SHADER, label: 'UNLIT', direct: false },
+      // La vue sans lampe compose par l'identité : sans source déclarée, aucune radiance n'est à
+      // exposer ni à ramener dans la plage d'affichage, et l'albédo doit se lire tel quel (P6).
+      {
+        lighting: UNLIT_LIGHTING_SHADER,
+        compose: UNLIT_COMPOSE_SHADER,
+        label: 'UNLIT',
+        direct: false,
+      },
       bindings,
     );
     // Trois programmes, jamais une branche : la vue sans éclairage, le contrat, et le contrat plus

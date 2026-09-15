@@ -52,12 +52,14 @@ impl std::hash::Hasher for CornerHasher {
     }
 }
 type CornerMap = HashMap<(u32, u32, u32, u32), u32, std::hash::BuildHasherDefault<CornerHasher>>;
-struct Bin {
-    bytes: Vec<u8>,
-    views: Vec<Value>,
+/// Le binaire d'une scène intermédiaire en construction, partagé avec les pilotes de scène qui
+/// écrivent leur propre glTF : une vue par bloc d'octets, alignée sur quatre.
+pub(crate) struct Bin {
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) views: Vec<Value>,
 }
 impl Bin {
-    fn view(&mut self, data: &[u8], target: Option<u32>) -> usize {
+    pub(crate) fn view(&mut self, data: &[u8], target: Option<u32>) -> usize {
         let pad = (4 - self.bytes.len() % 4) % 4;
         self.bytes.extend(std::iter::repeat_n(0u8, pad));
         let offset = self.bytes.len();
@@ -70,7 +72,7 @@ impl Bin {
         self.views.len() - 1
     }
 }
-fn f32_bytes(values: &[f32]) -> Vec<u8> {
+pub(crate) fn f32_bytes(values: &[f32]) -> Vec<u8> {
     let mut out = Vec::with_capacity(values.len() * 4);
     for v in values {
         out.extend_from_slice(&v.to_le_bytes());
@@ -78,16 +80,18 @@ fn f32_bytes(values: &[f32]) -> Vec<u8> {
     out
 }
 
+/// Ce qu'une conversion n'a pas su rendre : des raisons nommées et comptées, jamais un échec
+/// silencieux. Partagé avec les pilotes de scène, dont les manifestes publient les mêmes champs.
 #[derive(Default)]
-struct Report {
-    unsupported: BTreeMap<String, usize>,
-    notes: Vec<String>,
+pub(crate) struct Report {
+    pub(crate) unsupported: BTreeMap<String, usize>,
+    pub(crate) notes: Vec<String>,
 }
 impl Report {
-    fn add(&mut self, kind: &str) {
+    pub(crate) fn add(&mut self, kind: &str) {
         self.add_count(kind, 1);
     }
-    fn add_count(&mut self, kind: &str, count: usize) {
+    pub(crate) fn add_count(&mut self, kind: &str, count: usize) {
         if count > 0 {
             *self.unsupported.entry(kind.to_string()).or_insert(0) += count;
         }
@@ -95,7 +99,7 @@ impl Report {
 }
 
 /// Absolute, lexically normalised path (no `.`/`..`), symlinks untouched so linked source folders keep working.
-fn normalise(path: &Path) -> PathBuf {
+pub(crate) fn normalise(path: &Path) -> PathBuf {
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -142,6 +146,7 @@ pub(crate) mod opacity;
 mod runner;
 mod scene;
 mod textures;
+mod write;
 
 use lighting::*;
 use materials::*;
@@ -149,3 +154,4 @@ use mesh::*;
 use opacity::*;
 pub use runner::import_source;
 use textures::*;
+pub(crate) use write::{write_scene, Tables};

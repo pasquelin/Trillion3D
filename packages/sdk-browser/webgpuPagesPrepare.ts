@@ -15,7 +15,7 @@ import { OPEN_CONE, triangleCone } from './pageCone.ts';
 import { visMaterial } from './visibilityBuffer.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
-import { dropVis } from './webgpuPagesDrops.ts';
+import { dropVis, grantCapability } from './webgpuPagesDrops.ts';
 import { prepareWebgpuTextures } from './webgpuPagesPrepareTextures.ts';
 import { prepareWebgpuVisibility } from './webgpuPagesPrepareVisibility.ts';
 import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
@@ -102,10 +102,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     blitMaterial: gpu.blitMaterial,
     blit: gpu.blit,
   } = prepareWebgpuPresentation(gpuDevice, scene, context.gpuCanvas));
-  if (gpu.presenter)
-    capabilities.unsupported = capabilities.unsupported.filter(
-      (item) => item !== 'direct WebGPU present',
-    );
+  if (gpu.presenter) grantCapability(capabilities, 'direct WebGPU present');
   diag.engineDiagnostic('gpu-presentation', 'Présentation GPU initialisée', {
     mode: context.gpuCanvas
       ? 'direct-canvas'

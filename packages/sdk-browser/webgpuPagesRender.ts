@@ -5,7 +5,34 @@ import { dropGpuSelection, invalidateOccluderHistory } from './webgpuPagesDrops.
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
+import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+/** Vrai quand deux matrices portent exactement les mêmes seize nombres. Un `NaN` d'un côté n'est
+ *  jamais « le même » : la boîte repart, ce qui est le côté sûr. */
+function sameMatrix(held: readonly number[], world: readonly number[]) {
+  for (let i = 0; i < 16; i++) if (held[i] !== world[i]) return false;
+  return true;
+}
+
+/**
+ * La matrice d'un item transparent et la boîte monde qu'elle transporte sont fonction de la seule
+ * matrice monde de son maillage source. Une matrice que la scène n'a pas bougée rendrait les mêmes
+ * seize nombres, donc la même boîte : elle est comparée au lieu d'être recopiée, et les huit coins
+ * ne repartent que là où quelque chose a bougé. Rend le nombre d'items qui ont bougé.
+ */
+export function refreshBlendWorlds(items: readonly BlendGpuItem[]) {
+  let moved = 0;
+  for (const item of items) {
+    const mesh = item.sourceMesh;
+    if (!mesh || sameMatrix(item.matrix.elements, mesh.matrixWorld.elements)) continue;
+    item.matrix.copy(mesh.matrixWorld);
+    if (item.bounds && item.sourceGeometry.boundingBox)
+      item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);
+    moved++;
+  }
+  return moved;
+}
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -18,6 +45,11 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   if (context.signal?.aborted) context.signal.throwIfAborted();
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
+  const marks = rt.timing.marks;
+  marks.preStart = performance.now();
+  // Rien n'est tenu par défaut : seule l'adoption d'un relevé déjà lu le déclare, et tout chemin
+  // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
+  run.cutHeld = false;
   source.updateMatrixWorld(true);
   setWindingEpoch(rows.tableEpoch);
   void rt.texturePump
@@ -39,12 +71,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
       false,
     );
   }
-  for (const item of blendState.blendGpu)
-    if (item.sourceMesh) {
-      item.matrix.copy(item.sourceMesh.matrixWorld);
-      if (item.bounds && item.sourceGeometry.boundingBox)
-        item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);
-    }
+  marks.blendStart = performance.now();
+  refreshBlendWorlds(blendState.blendGpu);
   const cpuStart = performance.now();
   // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un
   // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU
