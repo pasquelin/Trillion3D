@@ -45,7 +45,11 @@ export function createSceneLightStore() {
   const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
   /** La tranche d'atlas d'une lampe vit dans le tampon lui-même : elle n'est pas tenue deux fois. */
   const sliceOf = (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.shadowSlice];
-  const write = (slot: number, light: SceneLight, slice: number) => {
+  const writeSlice = (slot: number, slice: number) => {
+    packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
+  };
+  /** Les champs déclarés par l'hôte. La tranche d'ombre n'en est pas un : l'ordonnanceur la pose. */
+  const write = (slot: number, light: SceneLight) => {
     const base = baseOf(slot);
     packed[base + LIGHT_FIELD.position] = light.position[0];
     packed[base + LIGHT_FIELD.position + 1] = light.position[1];
@@ -63,7 +67,6 @@ export function createSceneLightStore() {
       light.kind === 'spot' ? Math.cos(light.coneAngle!) : NO_CONE;
     packed[base + LIGHT_FIELD.kind] = light.kind === 'spot' ? 1 : 0;
     packed[base + LIGHT_FIELD.castsShadow] = light.castsShadow ? 1 : 0;
-    packed[base + LIGHT_FIELD.shadowSlice] = slice;
   };
   const records = new Map<string, SceneLight>();
   const store = {
@@ -108,7 +111,9 @@ export function createSceneLightStore() {
       indexOf.set(validated.id, slot);
       records.set(validated.id, validated);
       revision[slot]++;
-      write(slot, validated, -1);
+      write(slot, validated);
+      // Un slot neuf est à zéro dans le tampon ; sans tranche, la valeur publiée est −1.
+      writeSlice(slot, -1);
       header[0] = ids.length;
       epoch++;
       return slot;
@@ -121,7 +126,7 @@ export function createSceneLightStore() {
       const merged = validateSceneLight({ ...current, ...patch, id });
       records.set(id, merged);
       revision[slot]++;
-      write(slot, merged, sliceOf(slot));
+      write(slot, merged);
       epoch++;
     },
     remove(id: string) {
@@ -136,7 +141,8 @@ export function createSceneLightStore() {
         ids[slot] = movedId;
         indexOf.set(movedId, slot);
         revision[slot] = revision[last] + 1;
-        write(slot, records.get(movedId)!, sliceOf(last));
+        write(slot, records.get(movedId)!);
+        writeSlice(slot, sliceOf(last));
       }
       ids.length = last;
       indexOf.delete(id);
@@ -158,7 +164,7 @@ export function createSceneLightStore() {
      *  du magasin ne monte que si la tranche a réellement changé : sinon rien n'est repoussé au GPU. */
     assignSlice(slot: number, slice: number) {
       if (sliceOf(slot) === slice) return;
-      packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
+      writeSlice(slot, slice);
       epoch++;
     },
     /** Les flottants réellement occupés : l'écriture GPU ne pousse jamais les slots vides. */

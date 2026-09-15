@@ -4,17 +4,15 @@ import type { createGpuTiming } from './gpuTiming.ts';
 import type { SelectionSubmission } from './gpuSelection.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler, type StageProfiler } from './stageProfiler.ts';
-import { WEBGPU_STAGES } from './stageMapping.ts';
+import { cpuStepTable, WEBGPU_STAGES } from './stageMapping.ts';
 import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
 import type { WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 
 /**
- * Les bornes processeur d'une image, dans l'ordre : le nom public de chacune et l'étape du profil où
- * elle se dépose — `null` pour les sommes, qui ne se déposent pas, sans quoi elles compteraient une
- * seconde fois ce que leurs parties ont déjà déposé. Une seule déclaration ordonnée : le nom, l'étape
- * et l'indice d'écriture ne peuvent plus se désaligner en silence.
+ * Les bornes processeur d'une image, dans l'ordre : pour chacune, son nom public et l'étape du
+ * profil où elle se dépose. Le nom, l'étape et l'indice d'écriture sortent de cette seule table.
  */
-const CPU_STEP_TABLE = [
+const CPU = cpuStepTable([
   ['lightsMs', 'lights'],
   ['adoptCutMs', 'selection'],
   ['transparentSelectMs', 'transparents'],
@@ -30,16 +28,9 @@ const CPU_STEP_TABLE = [
   ['queueSubmitMs', 'submit'],
   ['encodeSubmitMs', null],
   ['totalMs', null],
-] as const;
-
-const CPU_STEPS = CPU_STEP_TABLE.map(([name]) => name);
-export const CPU_STEP_STAGES: ReadonlyArray<string | null> = CPU_STEP_TABLE.map(
-  ([, stage]) => stage,
-);
-/** L'indice de chaque borne dans `cpuProfile.row`, lu par son nom et jamais écrit à la main. */
-export const CPU_STEP = Object.fromEntries(
-  CPU_STEP_TABLE.map(([name], index) => [name, index]),
-) as Record<(typeof CPU_STEP_TABLE)[number][0], number>;
+] as const);
+export const CPU_STEP_STAGES = CPU.stages;
+export const CPU_STEP = CPU.at;
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
 /** The timestamps of one GPU-cut image, written in place as each step ends. */
@@ -114,7 +105,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     lastProjectMs: 0,
     lastPartitionMs: 0,
     lastItemsMs: 0,
-    cpuProfile: createCpuStepProfile(CPU_STEPS),
+    cpuProfile: createCpuStepProfile(CPU.names),
     marks: {
       cpuStart: 0,
       lightsEnd: 0,

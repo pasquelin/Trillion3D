@@ -1,7 +1,7 @@
 /**
- * Les erreurs de compilation d'un module de nuanceur. Cinq passes répétaient le même filtrage des
- * messages ; il n'en reste qu'un. Un appareil qui ne sait pas rendre ces messages ne prouve aucune
- * erreur : la liste est alors vide, et l'appelant garde la voie qu'il aurait gardée.
+ * Les erreurs de compilation d'un module de nuanceur. Un appareil qui ne sait pas rendre ces
+ * messages ne prouve aucune erreur : la liste est alors vide, et l'appelant garde la voie qu'il
+ * aurait gardée.
  */
 export async function shaderErrors(module: GPUShaderModule) {
   const info = await module.getCompilationInfo?.();
@@ -18,4 +18,15 @@ export async function createCheckedShaderModule(device: GPUDevice, code: string,
   if (errors.length)
     throw new Error(`${label}: ${errors.map((error) => error.message).join('\n')}`);
   return module;
+}
+
+/**
+ * Vrai quand le module n'a pas compilé. Le scope de validation ouvert autour de la compilation est
+ * alors refermé ici : les trois voies qui rendent une solution de repli le fermaient chacune de la
+ * même façon avant de sortir. À l'appelant de ne garder que son propre nettoyage.
+ */
+export async function shaderFailed(device: GPUDevice, module: GPUShaderModule) {
+  if (!(await shaderErrors(module)).length) return false;
+  if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+  return true;
 }

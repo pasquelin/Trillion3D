@@ -110,3 +110,23 @@ export function addCpuSteps(
     if (stage) add(stage, row[i]);
   }
 }
+
+/**
+ * Une déclaration ordonnée des bornes processeur d'un moteur : pour chacune, le nom public et
+ * l'étape du profil où elle se dépose — `null` pour une somme, qui ne se dépose pas, sans quoi elle
+ * compterait une seconde fois ce que ses parties ont déjà déposé. Les noms, les étapes et les
+ * indices d'écriture sortent tous de la même table : ils ne peuvent plus se désaligner en silence.
+ */
+export function cpuStepTable<Table extends ReadonlyArray<readonly [string, string | null]>>(
+  table: Table,
+) {
+  return {
+    names: table.map(([name]) => name),
+    stages: table.map(([, stage]) => stage) as ReadonlyArray<string | null>,
+    /** L'indice d'une borne dans la ligne du profil, lu par son nom et jamais écrit à la main. */
+    at: Object.fromEntries(table.map(([name], index) => [name, index])) as Record<
+      Table[number][0],
+      number
+    >,
+  };
+}

@@ -69,7 +69,7 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
   }
   if (faces) {
     shadows.flushFaces(faces);
-    shadows.flushSlices();
+    shadows.flushSlices(plan.updatedSlice, updates);
   }
   lights.shadowsUpdated = updates;
   lights.shadowFaces = faces;
