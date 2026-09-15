@@ -38,6 +38,10 @@ pub(super) const DEGENERATE_FACE: &str = "ma-degenerate-face";
 /// Une face déclare un trou. L'éventail depuis son premier coin le remplirait, donc la face est
 /// laissée : la silhouette d'un trou n'est pas devinée.
 pub(super) const FACE_HOLE: &str = "ma-face-hole-unsupported";
+/// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe,
+/// ou sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin,
+/// ce qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
+pub(super) const NGON_UNCUT: &str = "ma-ngon-untriangulable";
 /// Un enregistrement de `.fc` hors de ceux que la documentation décrit.
 pub(super) const FACE_RECORD_IGNORED: &str = "ma-face-record-ignored";
 /// Un enregistrement de face que l'écriture ne raccroche à aucune face.
