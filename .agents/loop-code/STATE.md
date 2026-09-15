@@ -5,9 +5,21 @@ généré le 2026-09-15).
 
 ## Dernière itération
 
-Aucune. Ce dépôt vient d'exécuter `/loop-code init` (2026-09-15, branche `loop-code-init`,
-worktree `.claude/worktrees/loop-code-init`, depuis `develop` à `2f4224e`). Aucun lot de
-correction n'a encore été traité.
+**Lot P0 · cache/provenance · `prune_cache` face à un sidecar incompatible** — 2026-09-15,
+branche `loop-code/p0-prune-cache` (depuis `develop` à `4d466dd`), worktree
+`.claude/worktrees/agent-ac1babe36eb77551a`. **En revue, non fusionnée.**
+
+Comportement retenu : un scope qu'on ne recompile pas est lu **avant** toute suppression ; si son
+`clusters.bin` est absent ou porte une autre `MANIFEST_BINARY_VERSION`, `prune_cache` échoue avec
+le code `UNSUPPORTED_FORMAT` et ne supprime rien (le CLI n'expose aucune purge forcée, cf.
+`src/compiler_args.rs` : aucune option à ajouter pour ce lot). Fichiers : `src/compiler_prune.rs`,
+`src/tests/part7.rs` (test neuf), `src/tests/part6.rs` (appel adapté au `Result`).
+
+Gates rejoués dans `packages/asset-compiler-rust` puis à la racine, tous verts :
+`cargo clippy --release --all-targets -- -D warnings`, `cargo fmt --check` (exit 0),
+`cargo test --release` (**152 passés, 0 échec, 2 ignorés** contre 151/0/2 en référence),
+`npm run check:lines`, `npm run check:duplicates` (0 clone), `npm run check:unused` (exit 0).
+Mesure de performance : **non applicable**, lot de robustesse (aucun chemin chaud touché).
 
 ## Prochain lot, et pourquoi lui
 
