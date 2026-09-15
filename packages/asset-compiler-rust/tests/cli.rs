@@ -181,7 +181,9 @@ fn version_flag_describes_the_build() {
             "unity",
             "zip",
             "unitypackage",
-            "alembic"
+            "alembic",
+            "usd",
+            "usdz"
         ]
     );
     let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
