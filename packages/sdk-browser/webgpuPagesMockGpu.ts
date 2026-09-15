@@ -28,6 +28,14 @@ export function mockGpu(
     views: Array<{ dimension?: string } | undefined>;
   }> = [];
   const passes: MockPass[] = [];
+  /** Chaque bande de lignes transférée vers une couche d'atlas, dans l'ordre où elle est partie. */
+  const textureWrites: Array<{
+    mipLevel: number;
+    layer: number;
+    row: number;
+    rows: number;
+    seq: number;
+  }> = [];
   const computes: string[] = [];
   const imageCopies: unknown[] = [];
   const layouts: Array<{ entries: Array<{ binding: number; buffer?: { type?: string } }> }> = [];
@@ -120,7 +128,20 @@ export function mockGpu(
         writes.push({ offset, bytes: new Uint8Array(bytes), label: buffer.label, seq: seq++ });
         buffer.data?.set(bytes, offset);
       },
-      writeTexture() {},
+      writeTexture(
+        destination: { mipLevel?: number; origin?: number[] },
+        _data: unknown,
+        _layout: unknown,
+        size: { width?: number; height?: number },
+      ) {
+        textureWrites.push({
+          mipLevel: destination.mipLevel ?? 0,
+          layer: destination.origin?.[2] ?? 0,
+          row: destination.origin?.[1] ?? 0,
+          rows: size.height ?? 0,
+          seq: seq++,
+        });
+      },
       submit() {
         submits.push(seq++);
       },
@@ -143,6 +164,7 @@ export function mockGpu(
     computes,
     layouts,
     imageCopies,
+    textureWrites,
     lose: (reason = 'destroyed') => lostResolve?.({ reason, message: reason }),
   };
 }
