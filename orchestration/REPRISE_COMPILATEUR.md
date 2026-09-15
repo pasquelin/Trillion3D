@@ -27,7 +27,7 @@ Aucune attendue à la pause : chaque lot est fusionné puis son worktree supprim
 ## À faire ensuite, dans l'ordre
 
 1. **Industrial Map au banc 15** : agent Lab séparé (projet render-tech-lab, règle un agent par projet), entrée de catalogue comme pour le Village (`15-virtualized-integration/assets/modelCatalog.ts`), `prepare()` du SDK sur le dossier du projet Unity (le routeur choisit `unity` seul), preuve navigateur WebGPU + Three témoin, chiffres au journal. Machine calme exigée pour les durées ; les verdicts pixel n'en dépendent pas.
-2. **Vague 3, trois Opus** : `exr` + `hdr` (variante flottante de `DecodedImage`, usage éclairage), `ktx2` (Basis Apache-2, transcodage vers RGBA8 ; blocs gardés sur GPU = même chantier que DDS), `webp` (sans perte uniquement, libwebp BSD-3 ou crate pure, brevets à vérifier). Corpus : `textures/hdr-matrix`, `ktx2-matrix`, `legacy-web-matrix`.
+2. **Vague 3, trois Opus** : `exr` + `hdr` (variante flottante de `DecodedImage`, usage éclairage), `ktx2` (Basis Apache-2, transcodage vers RGBA8 ; blocs gardés sur GPU = même chantier que DDS). Corpus : `textures/hdr-matrix`, `ktx2-matrix`. `webp` est fait : sans perte uniquement, refus nommés pour le flux avec perte et l'animation.
 3. **Vague 4** : `usd`/`usdz` (crate à évaluer, sinon lecteur usda/usdc propre), `alembic` (statique), `blend` (SDNA), corpus `usd/`, `alembic/`, `blend/`.
 4. **Vague 5** : `psd` (aplati), `bmp`, `gif`, `ma` (Maya ASCII, données seules), MTL à vérifier.
 5. **Chantier « blocs gardés sur GPU »** (règle de tête de COMPILATEUR_IMPORT.md) : variante `DecodedImage::Blocks { codec, width, height, data }`, `match` dans `texture_preview.rs`, transport et atlas en blocs, repli décodé ; concerne DDS puis KTX2. À ne lancer qu'avec un go.

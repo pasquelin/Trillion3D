@@ -5269,3 +5269,65 @@ passe de `-gltf-1` à `-gltf-2`. Le reste de cette dorée ne bouge pas — son p
 cubes intégrés, sans modèle ni instance de prefab — et la dorée `zip` n'est pas concernée : le
 conteneur descend d'abord jusqu'au dossier `Assets`, que le routeur revendique comme projet Unity
 exactement là où il le revendiquait par ses fichiers.
+
+## 2026-09-15 — [compilateur] pilote webp
+
+Le compilateur lit les textures WebP, **sans perte uniquement**. Un module,
+`packages/asset-compiler-rust/src/plugins/image/webp.rs`, une ligne dans `image::DECODERS`, la
+feature `webp` de la crate `image` dans `Cargo.toml` — le cœur, la CLI et les cinq pilotes d'image
+existants n'ont pas bougé d'une ligne.
+
+**La politique, tranchée avant le décodage.** La règle de fidélité du dépôt interdit d'ajouter de la
+perte, et `COMPILATEUR_IMPORT.md` n'admet WebP que sans perte. Le pilote lit donc l'entête RIFF
+lui-même et parcourt les chunks du conteneur avant de tendre quoi que ce soit au décodeur : un flux
+`VP8L` entre, un flux `VP8 ` ressort en `image-lossy-unsupported`, une animation (`ANIM`, `ANMF`) en
+`image-animation-unsupported`. Le conteneur étendu `VP8X` passe par le même parcours, ce qui compte :
+dans un WebP avec perte réel, le flux `VP8 ` arrive *derrière* `VP8X` et `ALPH` — regarder le premier
+chunk ne suffirait pas. `ICCP`, `ALPH`, `EXIF` et `XMP` sont franchis sans perte de pixel, l'alpha
+d'une image sans perte étant porté par VP8L même. La taille annoncée par `RIFF` est comparée aux
+octets réellement présents : un fichier plus court est tronqué, `image-decode-failed`, et le
+décodeur ne reçoit jamais de flux amputé.
+
+**Deux raisons de rapport nouvelles**, dans la famille de celles du pilote TIFF
+(`image-profile-unsupported`, `image-depth-unsupported`) : `image-lossy-unsupported` et
+`image-animation-unsupported`. Comme les autres, elles ressortent en entrée de rapport, jamais en
+panique ni en échec de compilation — une texture refusée laisse le moteur retomber sur son blanc.
+Refuser le WebP avec perte n'est pas un manque : le réencoder serait ajouter de la perte, le décoder
+pour le réencoder aussi. La politique l'écrit, le pilote l'applique, le test le fixe.
+
+**Provenance.** Lecture écrite d'après les spécifications publiques de Google — « WebP Container
+Specification » pour le conteneur RIFF et « WebP Lossless Bitstream Specification » pour VP8L.
+Décodage par la feature `webp` de la crate `image` 0.25.10, qui délègue à `image-webp` 0.2.4,
+décodeur en Rust pur (MIT ou Apache-2.0, notices conservées avec la dépendance, version figée au
+`Cargo.lock`). Aucun code ni SDK d'éditeur, aucun contournement. Note documentaire sur les brevets,
+pas un avis d'avocat : la concession de brevets de libwebp — licence BSD-3 assortie d'un *additional
+IP rights grant* — porte sur les implémentations conformes de la spécification, décodeur Rust
+compris ; c'est la spécification qui est suivie, pas le code de libwebp.
+
+**Dorée.** `fixtures/webp/`, à la forme de `fixtures/tga` et `fixtures/tiff` : deux fichiers que le
+pilote lit, trois qu'il refuse. `sans-perte.webp` (184 octets, `VP8L` seul) et `avec-perte.webp`
+(`VP8X` + `ALPH` + `VP8 `) sont repris tels quels du corpus CC0-1.0
+`test-assets/textures/legacy-web-matrix/`, livré hors git, avec sa notice de licence.
+`etendu-sans-perte.webp`, `anime.webp` et `tronque.webp` en sont dérivés en réassemblant les chunks
+RIFF du premier — aucun encodeur n'intervient, aucun pixel n'est réécrit. `src/plugins/tests/webp.rs`
+décode les deux écritures sans perte et compare leurs octets **un par un** : le conteneur étendu rend
+exactement ce que rend le `VP8L` seul, ce qui prouve que les chunks de métadonnées ne coûtent pas un
+pixel. Cinq texels sont écrits en clair dans le test, alphas 0 et 255 compris, vérifiés par un
+décodeur indépendant (Pillow 12.2.0) avant d'être commis. Les refus sont fixés un par un, plus deux
+cas sans fichier : un `VP8L` dont le nom de chunk est réécrit en `VP8 `, et un entête RIFF d'un autre
+type de formulaire, que le pilote ne revendique pas du tout.
+
+**Résultat.** `cargo test --locked` du crate : 184 tests au vert (182 avant), 3 ignorés, 0 échec,
+plus les 4 tests du CLI. `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`,
+`check:lines` et `check:duplicates` : verts. Deux attendus ont suivi le registre — la longueur du
+descripteur d'images avec la liste des extensions, et le doré du CLI `--version`. `npm run validate`
+n'a pas été joué ici, il l'est à la livraison.
+
+### Ce qui reste
+
+- Le `ALPH` d'un WebP avec perte porte un alpha **sans** perte ; il est perdu avec le reste, puisque
+  le flux couleur qu'il accompagne est refusé. Rien à récupérer là : une image sans couleur n'est pas
+  une texture.
+- `docs/COMPILER.md` ne liste aucune raison de rapport d'image : les deux nouvelles n'y entrent donc
+  pas plus que `image-profile-unsupported` ou `image-decode-failed`. À ajouter en une fois par qui
+  tient cette page.
