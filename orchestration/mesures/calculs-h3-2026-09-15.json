@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "lot": "H3",
+  "develop": "49521a7e0f7753d6e22fd6bd3ab9586d5d28232b",
+  "socle": "52df7aa74feaecd7094dc8167802fcbdc4575705",
+  "chargeMachine": 36.814453125,
+  "tempsConcluants": false,
+  "date": "2026-09-15T11:47:09.974Z",
+  "commit": "52df7aa74feaecd7094dc8167802fcbdc4575705",
+  "node": "v26.8.2",
+  "plateforme": "darwin/arm64",
+  "dpr": null,
+  "fps": null,
+  "lignes": [
+    {
+      "calcul": "H3-2 ordre de transfert des textures, par image",
+      "fichier": "packages/sdk-browser/webgpuTexturePriority.ts",
+      "avantMs": 0.189187,
+      "apresMs": 0.167042,
+      "gain": 0.11705349733332628,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 60,
+      "entrees": [
+        {
+          "nom": "3 000 pages, 400 matériaux, 200 couches, 48 travaux",
+          "taille": 3120
+        },
+        {
+          "nom": "600 pages, couches éparses jusqu’à 5 000",
+          "taille": 640
+        },
+        {
+          "nom": "coupe minuscule, slots tous hors des poids",
+          "taille": 7
+        },
+        {
+          "nom": "sans index de matériaux : l’ordre d’origine est gardé",
+          "taille": 48
+        },
+        {
+          "nom": "file d’un seul travail : rien à trier",
+          "taille": 12
+        },
+        {
+          "nom": "tous les poids égaux à zéro : le tri reste stable",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "H3-1 bandes d’un niveau vers sa couche d’atlas",
+      "fichier": "packages/sdk-browser/webgpuAtlasJobs.ts",
+      "avantMs": 0.8638125000000001,
+      "apresMs": 0.046417,
+      "gain": 0.9462649591201794,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 30,
+      "entrees": [
+        {
+          "nom": "2048×2048, bandes de 64 lignes",
+          "taille": 16777216
+        },
+        {
+          "nom": "1024×1024, bandes de 17 lignes",
+          "taille": 4194304
+        },
+        {
+          "nom": "512×333, ligne par ligne",
+          "taille": 681984
+        },
+        {
+          "nom": "7×5, une seule bande",
+          "taille": 140
+        },
+        {
+          "nom": "1×1",
+          "taille": 4
+        },
+        {
+          "nom": "3×2, bande plus large que le reste",
+          "taille": 24
+        }
+      ]
+    },
+    {
+      "calcul": "H3-1 niveaux progressifs d’un aperçu",
+      "fichier": "packages/sdk-browser/webgpuAtlasJobs.ts",
+      "avantMs": 0.0097085,
+      "apresMs": 0.014083,
+      "gain": -0.45058453932121334,
+      "identique": true,
+      "retenu": false,
+      "difference": null,
+      "tours": 60,
+      "entrees": [
+        {
+          "nom": "256×128 à partir du niveau 2",
+          "taille": 131072
+        }
+      ]
+    }
+  ]
+}
