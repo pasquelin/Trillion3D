@@ -139,7 +139,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawableScratch: run.drawableScratch,
     uniforms: run.selectionUniforms,
     residentOffsetWords: rows.residentOffsetWords,
-    frame: () => run.frame,
     delta: cutDelta,
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
