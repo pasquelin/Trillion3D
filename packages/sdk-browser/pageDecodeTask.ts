@@ -8,14 +8,43 @@ import type {
 } from '../sdk-core/index.ts';
 
 /**
- * Le décodage de page, chargé seulement quand une page arrive. Il tire la bibliothèque de
- * décompression, nommée par un spécificateur nu ; or un worker dédié n'hérite pas de la carte
- * d'imports du document, si bien qu'un hôte qui sert ses modules tels quels ne saurait pas la
- * résoudre. En la laissant hors du graphe statique, le worker démarre partout, le contrôle
- * d'intégrité part hors du fil chez tous les hôtes, et seul le décodage d'attributs retombe sur le
- * repli là où la dépendance reste introuvable. La promesse est gardée : un seul chargement.
+ * Le décodeur de pages, choisi une seule fois et gardé. D'abord le module compilé en WebAssembly :
+ * il ne nomme aucune dépendance, donc un worker dédié le charge même chez un hôte qui sert ses
+ * modules tels quels, sans carte d'imports ni empaqueteur. S'il ne s'instancie pas — pas de
+ * `WebAssembly`, pas de SIMD, ressource absente — le décodeur JavaScript prend sa place ; celui-là
+ * tire la bibliothèque de décompression par un spécificateur nu, et peut donc, lui, être
+ * introuvable. Quand aucun des deux ne se charge, la tâche le dit et l'appelant refait le travail
+ * chez lui.
+ *
+ * Les deux rendent les mêmes tampons et les mêmes refus : le banc H2b le prouve valeur par valeur.
  */
-let geometrie: Promise<typeof import('./geometryPage.ts')> | undefined;
+type Decodeur = {
+  decode: (data: Uint8Array, maxDecodedBytes: number) => Promise<DecodedGeometryPage>;
+  wasm: boolean;
+};
+let decodeur: Promise<Decodeur> | undefined;
+
+async function chargeDecodeur(): Promise<Decodeur> {
+  const codec = await import('./geometryPageWasm.ts');
+  if (await codec.prepareGeometryPageWasm())
+    return { decode: codec.decodeGeometryPageWasm, wasm: true };
+  const js = await import('./geometryPage.ts');
+  return { decode: js.decodeGeometryPage, wasm: false };
+}
+
+/** Aucun décodeur de ce côté du fil : l'appelant refera le travail chez lui, sans rien rejeter. */
+function indisponible(id: number, cause: unknown) {
+  return {
+    answer: {
+      protocol: PAGE_DECODE_PROTOCOL,
+      id,
+      ok: false as const,
+      code: 'PAGE_DECODE_UNAVAILABLE' as const,
+      message: cause instanceof Error ? cause.message : String(cause),
+    },
+    transfer: [] as ArrayBuffer[],
+  };
+}
 
 /**
  * Le travail lui-même, écrit une seule fois. Le worker l'exécute, et le repli synchrone exécute
@@ -37,16 +66,20 @@ export async function runPageDecodeTask(
           sha256,
           source: request.source,
           decoded: null,
+          wasm: false,
           taskMs: performance.now() - started,
         },
         transfer: [request.source],
       };
     }
-    const { decodeGeometryPage } = await (geometrie ??= import('./geometryPage.ts'));
-    const decoded = await decodeGeometryPage(
-      new Uint8Array(request.source),
-      request.maxDecodedBytes,
-    );
+    let choisi: Decodeur;
+    try {
+      choisi = await (decodeur ??= chargeDecodeur());
+    } catch (cause) {
+      decodeur = undefined;
+      return indisponible(request.id, cause);
+    }
+    const decoded = await choisi.decode(new Uint8Array(request.source), request.maxDecodedBytes);
     const payload = geometryPayload(decoded);
     return {
       answer: {
@@ -56,6 +89,7 @@ export async function runPageDecodeTask(
         sha256: null,
         source: null,
         decoded: payload,
+        wasm: choisi.wasm,
         taskMs: performance.now() - started,
       },
       transfer: [payload.indices, ...payload.attributes],

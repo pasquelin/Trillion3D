@@ -10,11 +10,12 @@
 // (une copie de la page compressée, l'aller-retour des messages), jamais son gain.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { PAGE_DECODE_PROTOCOL } from '../../sdk-core/index.ts';
+import { prepareGeometryPageWasm } from '../geometryPageWasm.ts';
 import { RACINE, compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { encodeGeometryPage } from '../../page-codec/geometryPage.mjs';
 import { decodeGeometryPage } from '../geometryPage.ts';
@@ -24,6 +25,13 @@ import { sha256Hex } from '../sha256Hex.ts';
 
 const MAX_DECODED_BYTES = 16 * 1024 * 1024;
 const alea = graine(211);
+
+// Node ne suit pas une URL de fichier avec `fetch` : l'hôte fournit les octets, comme le prévoit le
+// chargeur. Sans cela le banc comparerait le décodeur JavaScript à lui-même, et ne dirait rien du
+// chemin réellement livré, qui passe par le module WebAssembly dès qu'il s'instancie.
+const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
+if (!(await prepareGeometryPageWasm(MODULE)))
+  throw new Error('H2_WASM_ABSENT : lancer `npm run build:wasm`');
 
 /** Une page complète : les six attributs, donc le pas de 72 octets qu'exige le décodeur. */
 async function page(sommets) {
@@ -62,10 +70,17 @@ const dossier = mkdtempSync(join(tmpdir(), 'wg-decodage-h-'));
 const tache = join(dossier, 'tache.mjs');
 writeFileSync(
   tache,
-  `import { parentPort } from 'node:worker_threads';\n` +
+  `import { readFileSync } from 'node:fs';\n` +
+    `import { parentPort } from 'node:worker_threads';\n` +
     `import { runPageDecodeTask } from ${JSON.stringify(
       new URL('../pageDecodeTask.ts', import.meta.url).href,
     )};\n` +
+    `import { prepareGeometryPageWasm } from ${JSON.stringify(
+      new URL('../geometryPageWasm.ts', import.meta.url).href,
+    )};\n` +
+    `await prepareGeometryPageWasm(readFileSync(${JSON.stringify(
+      join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'),
+    )}));\n` +
     `parentPort.on('message', async (requete) => {\n` +
     `  const { answer, transfer } = await runPageDecodeTask(requete);\n` +
     `  parentPort.postMessage(answer, transfer);\n` +
@@ -119,7 +134,7 @@ test('H2 : le worker rend exactement les octets du fil principal, page et emprei
 
 const lignes = [
   await compare({
-    calcul: 'H1 décodage de page par le contrat',
+    calcul: 'H1 décodage de page par le contrat, module WebAssembly actif',
     fichier: 'packages/sdk-browser/pageDecodeHost.ts',
     cas: [
       { nom: '30 000 sommets, six attributs', entree: grande, taille: 30000 },
