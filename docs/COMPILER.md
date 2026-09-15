@@ -263,6 +263,14 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `hdr-orientation-unsupported` | Radiance HDR scan order is not `-Y height +X width`; accepting it would mean flipping the image |
 | `hdr-data-truncated` | Radiance HDR scanlines are cut short, a run overflows its line, or a packet does not advance |
 | `hdr-image-too-large` | Radiance HDR image exceeds the allocation ceiling, counted at 16 bytes per pixel; refused rather than attempting the allocation |
+| `ktx2-header-truncated` | KTX 2.0 file is shorter than its 80-byte header and level index require; reported per texture, does not fail the job |
+| `ktx2-header-invalid` | KTX 2.0 header is present but out of domain (bad identifier, zero width, unexpected `typeSize`, absurd level count, level starting inside the index) |
+| `ktx2-format-unsupported` | KTX 2.0 `vkFormat` is outside the declared list (signed BC4/BC5/EAC, BC6H float, byte orders other than RGBA, channels wider than 8 bits, ASTC footprints other than 4x4) |
+| `ktx2-layout-unsupported` | KTX 2.0 layout is outside the plain surface plan (1D texture, volume, layer array, cubemap) |
+| `ktx2-supercompression-unsupported` | KTX 2.0 `supercompressionScheme` is outside None, BasisLZ and Zstandard (ZLIB, unassigned numbers) |
+| `ktx2-data-truncated` | KTX 2.0 header is consistent but an announced level, or the Zstandard stream behind it, is not all there |
+| `ktx2-image-too-large` | KTX 2.0 image, or its decompression buffer, exceeds the allocation ceiling passed to the decoder; refused rather than attempting the allocation |
+| `ktx2-transcode-failed` | KTX 2.0 Basis Universal payload the transcoder refuses (codec outside its list, video with cross-frame state, corrupt stream) |
 
 ## Using it from Node
 

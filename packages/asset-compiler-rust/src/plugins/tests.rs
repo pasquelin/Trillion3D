@@ -7,6 +7,7 @@ mod dds;
 mod exr;
 mod hdr;
 mod image_registry;
+mod ktx2;
 mod png;
 mod router;
 mod tga;
