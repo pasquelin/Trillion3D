@@ -104,11 +104,13 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
     held = run.pendingHeld;
   if (
     run.cutHeld &&
+    held.cut === run.cutEpoch &&
     held.epoch === run.pageArrayEpoch &&
     held.limited === run.coverageBudgetLimited &&
     held.ready === ready
   )
     return run.hostPendingScratch;
+  held.cut = run.cutEpoch;
   held.epoch = run.pageArrayEpoch;
   held.limited = run.coverageBudgetLimited;
   held.ready = ready;
@@ -134,10 +136,12 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
     held = run.urlsHeld;
   if (
     run.cutHeld &&
+    held.cut === run.cutEpoch &&
     held.epoch === run.pageArrayEpoch &&
     held.limited === run.coverageBudgetLimited
   )
     return urlScratch;
+  held.cut = run.cutEpoch;
   held.epoch = run.pageArrayEpoch;
   held.limited = run.coverageBudgetLimited;
   urlScratch.length = 0;

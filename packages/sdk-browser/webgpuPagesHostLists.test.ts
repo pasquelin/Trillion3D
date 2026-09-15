@@ -24,13 +24,14 @@ function banc() {
     hostPendingScratch: [] as string[],
     coverageBudgetLimited: false,
     cutHeld: false,
+    cutEpoch: 0,
     pageArrayEpoch: 0,
-    pendingHeld: { epoch: -1, limited: false, ready: false },
-    urlsHeld: { epoch: -1, limited: false },
+    pendingHeld: { epoch: -1, cut: -1, limited: false, ready: false },
+    urlsHeld: { epoch: -1, cut: -1, limited: false },
   };
   const rt = {
     run,
-    setup: { bootstrap, requestStamps: new RequestStamps(5) },
+    setup: { bootstrap, requestStamps: new RequestStamps(6) },
     services: { bootstrapState: { ready: true } },
   } as unknown as WebgpuPagesRuntime;
   return { rt, run, desired };
@@ -94,6 +95,25 @@ test('un relevé tenu rend la liste déjà rendue, et tout le reste la refait', 
   desired.pop();
   assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd']);
   assert.deepEqual(pendingUrls(rt), ['d']);
+});
+
+test('une adoption qui réécrit les listes après coup les fait vieillir, même relevé tenu ensuite', () => {
+  const { rt, run, desired } = banc();
+  const urls = pageUrls(rt),
+    pending = pendingUrls(rt);
+  assert.deepEqual(urls, ['a', 'b', 'c', 'd']);
+  // La vidange rejoue une adoption APRÈS que l'hôte a pris ses listes : elles bougent sous lui, et
+  // l'image suivante peut très bien relire le même relevé et se croire en droit de les tenir.
+  desired.push(rec('e', 4, false));
+  run.cutEpoch++;
+  run.cutHeld = true;
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e'], 'la liste périmée n’est pas rendue');
+  assert.deepEqual(pendingUrls(rt), ['d', 'e']);
+  assert.notDeepEqual(pending, ['d'], 'le tableau tenu a bien été réécrit');
+  // Le même âge et le même relevé : là, et là seulement, la liste est rendue telle quelle.
+  desired.push(rec('f', 5, false));
+  assert.deepEqual(pageUrls(rt), ['a', 'b', 'c', 'd', 'e']);
+  assert.deepEqual(pendingUrls(rt), ['d', 'e']);
 });
 
 test('la couverture d’amorçage décide seule de ce que l’image attend avant d’être prête', () => {
