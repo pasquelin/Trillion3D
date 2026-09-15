@@ -20,7 +20,7 @@ const excludedDirs = new Set([
   'test-assets',
 ]);
 
-function findMarkdownFiles(root, excluded = excludedDirs) {
+function findMarkdownFiles(root) {
   const results = [];
   const walk = (dir) => {
     let entries;
@@ -30,7 +30,7 @@ function findMarkdownFiles(root, excluded = excludedDirs) {
       return;
     }
     for (const entry of entries) {
-      if (excluded.has(entry.name)) continue;
+      if (excludedDirs.has(entry.name)) continue;
       const full = join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full);
@@ -103,12 +103,12 @@ const exists = (path) => {
   }
 };
 
-export function checkLinks(root, excluded = excludedDirs) {
+export function checkLinks(root) {
   const bad = [];
   let count = 0;
   const runtimeRoutes = [];
 
-  for (const file of findMarkdownFiles(root, excluded)) {
+  for (const file of findMarkdownFiles(root)) {
     const s = prose(readFileSync(file, 'utf8'));
     const targets = [
       ...[...s.matchAll(/\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+["'][^\n]*?["'])?\s*\)/g)].map((m) => m[1]),
