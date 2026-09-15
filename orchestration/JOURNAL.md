@@ -1,5 +1,20 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — simplify du chantier textures progressives (lots 1 à 3)
+
+Branche `simplify-textures`, sur `develop` = `21dbe9e` (lot 4 fusionné juste avant, documentation seule). Périmètre : le code que les lots 1, 2 et 3 des textures progressives ont introduit ou modifié. Aucun ajout de fonctionnalité, aucun changement de format ni de version du sidecar, aucune assertion de test touchée.
+
+- **Six simplifications, 163 lignes ajoutées contre 179 supprimées sur 14 fichiers.** Par paquet (ajouts / suppressions) : gardes du sidecar 51/58 ; geste de transfert 24/21 ; pyramide sur le travail 17/27 ; remipmap d'une classe 31/28 ; aperçus natifs 17/18 ; collecte et priorité 24/28.
+- **Ce qui a été unifié.** (1) L'ordre par index de texture et le refus d'une image source vide s'écrivaient mot pour mot des deux côtés de la section d'aperçus : une seule garde, avec les prédicats stricts de l'écriture, qui rendent le même verdict sur les mots u32 que la lecture relit ; `encodeTexturePreviews` disparaît dans `encodePreviewColumns`. (2) Les trois comptes du descriptif binaire passaient par le même test écrit trois fois : une table. (3) Le découpage en bandes de lignes et l'appel `writeTexture` s'écrivaient deux fois, pour un niveau progressif et pour la pleine résolution, qui ne diffèrent que par le niveau de mip : `writeRows`. (4) Les six arguments de `generateMaterialMips` se redisaient dans l'ordre à la préparation et dans la pompe : `regenerateClassMips` les lit sur la classe. (5) `addColor`/`addData` et les deux boucles de poids de la priorité étaient la même fonction à deux jeux d'arguments près.
+- **États et branches retirés.** Le tableau `slotPyramids` de l'état de visibilité — rempli à la préparation, remis à zéro à la libération, relu par slot moins un — disparaît : la pyramide voyage sur le travail de niveau, qui la connaît déjà. `allowed` portait un nom de borne alors qu'il n'ouvrait que l'exploration des découpages ; la condition dit maintenant `maxClasses > 1`, qui lui est exactement égal. Côté natif, `pyramid` portait deux options qui ne pouvaient être présentes ou absentes qu'ensemble et une branche `_` qu'aucune entrée n'atteint ; et `alpha_scale` recopiait la colonne d'alphas de chaque niveau pour la lire dix-sept fois — elle lit désormais les texels du niveau, une allocation de moins par niveau et par texture.
+- `npm run validate` : **treize portes vertes** en une passe — format, lignes (0 fichier > 200), **0 doublon**, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens, **653 tests JS/TS**, **138 tests Rust** (134 bibliothèque + 4 CLI). Aucune assertion de test modifiée.
+- **Preuve navigateur.** Lab en lecture seule sur le port 5301 (5174 laissé à l'utilisateur), sa config reprise telle quelle par une config de mesure du scratchpad qui ajoute `fs.allow`, aliase `@web-geometry/sdk` vers le `dist` mesuré — une seule instance du SDK pour le Lab et le harnais — et pose devant la route `/benchmark-assets` du Lab un relais servant un **clone du cache Emerald v4** dans le scratchpad (sidecar `version` 4, 232 aperçus, 4 617 248 octets de niveaux). Le Lab n'est ni écrit ni modifié ; son cache est identique au clone avant et après (`clusters.json` `2d6a3548…`). Trois séries de dix captures 1246×1000 par `test/webgpuCapture.browser.mjs`, 600 images chacune : témoin `develop` `21dbe9e` (a, b) et `simplify-textures`.
+- **Chiffres. `simplify-textures` contre le témoin `develop-21dbe9e` : 0 px sur les dix captures, au bit près.** L'A/A de `develop` contre lui-même en porte **2**, sur le segment 8, amplitude 27 — le même scintillement que le lot 3 avait déjà signalé, et `simplify-textures` contre `develop-21dbe9e-b` porte exactement ces deux pixels-là : l'image du simplify est celle de `develop-a`, au bit près.
+- **État de chaque capture** : `texturePending` **0**, `textureSkipped` **0**, `textureUploaded` 336, `textureLevelsUploaded` 786, `textureAtlasClassesUsed` 1, `uncoveredTriangles` **0**, `coverageBudgetLimited` faux, aucune erreur GPU, aucune erreur de page. Coupe identique au témoin image par image : mêmes `triangles`, `selectedTriangles`, `transparentSubmittedTriangles`, mêmes compteurs de transfert. Seul `hizRejectedTriangles` bouge — et il bouge **davantage dans l'A/A de `develop`** (581 images sur 600) que entre `develop` et le simplify (508) : c'est du bruit de cadencement, pas un effet du simplify. Durées : **`null`**, machine chargée (load 1 min de 7 à 15).
+- Images sous `benchmark-runs/webgpu-capture/simplify-textures/` du worktree et `temoin-develop-21dbe9e{,-b}/` du dépôt principal (hors git).
+- **Volontairement laissé.** Le miroir Rust/TypeScript de la géométrie des niveaux (`levels.rs` et `texturePreviewLevels.ts`) : ce sont deux langages et deux exécutables, et c'est un test d'égalité qui les tient ensemble. `PREVIEW_MAX_LEVELS`, exporté par `sdk-core` et lu par personne : c'est une borne du format, pas du code mort, et la retirer changerait un contrat public. La logique de `planAtlasClasses` au-delà du nom corrigé : elle décide de l'image, et son seul consommateur est une option publique mesurée. Enfin, les fichiers que les lots textures partagent avec l'éclairage, les ombres, l'audit des calculs et le lot F n'ont été touchés que sur leurs lignes du chantier textures.
+- **Reste** : la revue adverse et la fusion de `simplify-textures` ; les points déjà notés au lot 4 — réutilisation du pipeline de `textureMips.ts`, aucune fixture dorée ne porte encore de texture couleur, et `docs/SDK.md:153` promet encore « its 16x16 preview » que le lot 3 a remplacé.
+
 ## 2026-09-15 — lot 4, comparatif de compression des textures : aucun conteneur n'entre dans le SDK
 
 Branche `lot4-compression`, sur `develop` = `8cb7e21`. **Étape 1 seule.** Aucune ligne du SDK ni du compilateur n'est touchée : le lot rend un verdict, pas du code. Chiffres, corpus, réglages et détail par genre : `orchestration/mesures/compression-textures-2026-09-15.{md,json}`. L'outil de mesure est un binaire Rust du **scratchpad**, hors dépôt — le dépôt n'accepte pas de code mort.
@@ -7,20 +22,20 @@ Branche `lot4-compression`, sur `develop` = `8cb7e21`. **Étape 1 seule.** Aucun
 - **Corpus.** Les 336 images que le `source.gltf` du cache Emerald compilé désigne par `images[].uri` (`/benchmark-assets/emerald-square/textures/*.png`, lues sans jamais être écrites) : **114 couleur**, **222 données** — le moteur en compte 232 et 440 parce qu'il compte des entrées de texture, pas des fichiers. **591 642 954 o** de PNG, **4 982 870 028 o** en RGBA8 brut, **1 245 717 507** texels, 297 images en 2048×2048. Le sidecar v4 y ajoute **4 617 248 o** de niveaux ≤ 64. Dépendances par cargo seulement ; `basisu_c_sys` 0.9.0 embarque **Basis Universal 2.50**, donc XUASTC et XUBC7 sont **mesurés**, pas estimés.
 - **Seuil appliqué.** Le bruit A/A du dépôt vaut **0 à 43 pixels sur 12 460 000**. Seuil : **part de texels dont un canal s'écarte de plus de 1 ≤ 3,45 × 10⁻⁶**. C'est la lecture la plus généreuse qui soit — elle compte un texel comme un pixel, alors qu'un texel faux se voit sur tous les pixels de la surface qui le lit.
 
-| candidat | octets | × PNG | max canal | part texels > 1 | verdict |
-|---|---|---|---|---|---|
-| (a) PNG source | 591 642 954 | 1,000 | référence | référence | **reste** |
-| (a) PNG réencodé au meilleur effort | 641 763 190 | 1,085 | — | — | rejeté, pire |
-| (b) Zstd 9 sur brut | 587 371 247 | 0,993 | 0 | 0 | rejeté, −0,7 % |
-| **(b) Zstd 19 sur brut** | **478 905 686** | **0,809** | **0** | **0** | passe l'étape 1 |
-| (b) Paeth puis Zstd 19 | 519 152 712 | 0,877 | 0 | 0 | rejeté, −12,3 % |
-| (b) Zstd 19 sur le PNG | 589 249 779 | 0,996 | — | — | rejeté, −0,4 % |
-| (d) BC7 ISPC basic (corpus entier) | 1 245 717 552 | 2,106 | 97 | 6,03 % | **rejeté, fidélité** |
-| (d) BC7 ISPC lent (échantillon) | 83 886 336 | 1,841 | 58 | 6,74 % | **rejeté, fidélité** |
-| (d) ASTC LDR 4×4 préparé (échantillon) | 83 890 368 | 1,841 | 93 | 6,79 % | **rejeté, fidélité** |
-| (c) UASTC 4×4 → BC7 (échantillon) | 20 965 811 | 0,460 | 102 | 28,81 % | **rejeté, fidélité** |
-| (e) XUASTC LDR 4×4 → BC7 (échantillon) | 19 797 582 | 0,435 | 104 | 32,60 % | **rejeté, fidélité** |
-| (e) XUBC7 → BC7 (échantillon) | 18 193 694 | 0,399 | 94 | 31,19 % | **rejeté, fidélité** |
+| candidat                               | octets          | × PNG     | max canal | part texels > 1 | verdict              |
+| -------------------------------------- | --------------- | --------- | --------- | --------------- | -------------------- |
+| (a) PNG source                         | 591 642 954     | 1,000     | référence | référence       | **reste**            |
+| (a) PNG réencodé au meilleur effort    | 641 763 190     | 1,085     | —         | —               | rejeté, pire         |
+| (b) Zstd 9 sur brut                    | 587 371 247     | 0,993     | 0         | 0               | rejeté, −0,7 %       |
+| **(b) Zstd 19 sur brut**               | **478 905 686** | **0,809** | **0**     | **0**           | passe l'étape 1      |
+| (b) Paeth puis Zstd 19                 | 519 152 712     | 0,877     | 0         | 0               | rejeté, −12,3 %      |
+| (b) Zstd 19 sur le PNG                 | 589 249 779     | 0,996     | —         | —               | rejeté, −0,4 %       |
+| (d) BC7 ISPC basic (corpus entier)     | 1 245 717 552   | 2,106     | 97        | 6,03 %          | **rejeté, fidélité** |
+| (d) BC7 ISPC lent (échantillon)        | 83 886 336      | 1,841     | 58        | 6,74 %          | **rejeté, fidélité** |
+| (d) ASTC LDR 4×4 préparé (échantillon) | 83 890 368      | 1,841     | 93        | 6,79 %          | **rejeté, fidélité** |
+| (c) UASTC 4×4 → BC7 (échantillon)      | 20 965 811      | 0,460     | 102       | 28,81 %         | **rejeté, fidélité** |
+| (e) XUASTC LDR 4×4 → BC7 (échantillon) | 19 797 582      | 0,435     | 104       | 32,60 %         | **rejeté, fidélité** |
+| (e) XUBC7 → BC7 (échantillon)          | 18 193 694      | 0,399     | 94        | 31,19 %         | **rejeté, fidélité** |
 
 Les lignes « échantillon » portent sur une image sur seize (21 images, 45 560 369 o de PNG), les autres sur les 336. Machine chargée par d'autres agents : load 1 min de 11 à 132.
 
