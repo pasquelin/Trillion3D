@@ -47,5 +47,8 @@ export interface ExplorerOptions {
   bounce?: boolean;
   /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
   stageProfile?: boolean;
+  /** Déclarer les lampes que le fichier source portait, lues dans le cache. Allumé par défaut :
+   *  une scène importée arrive avec ses lumières. `false` ouvre la scène sans aucune d'elles. */
+  importedLights?: boolean;
   logInterval?: number;
 }

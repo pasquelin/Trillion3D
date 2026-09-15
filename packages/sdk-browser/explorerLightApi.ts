@@ -12,6 +12,8 @@ import type { RenderBackend } from './backendTypes.ts';
 type Inputs = {
   check: () => void;
   store: SceneLightStore | undefined;
+  /** Les identifiants des lampes venues du fichier source, dans l'ordre du cache. */
+  imported: readonly string[];
   backends: RenderBackend[];
 };
 
@@ -24,7 +26,7 @@ type Inputs = {
  * `EngineError` nommé, jamais par une exception anonyme.
  */
 export function createExplorerLightApi(inputs: Inputs) {
-  const { check, store, backends } = inputs;
+  const { check, store, imported, backends } = inputs;
   const required = () => {
     if (!store)
       throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session sans magasin de lampes', {});
@@ -43,6 +45,19 @@ export function createExplorerLightApi(inputs: Inputs) {
       check();
       const lights = required();
       return lights.ids.map((id) => ({ ...lights.light(id)! }));
+    },
+    /**
+     * Les lampes que le fichier de scène portait, déclarées à l'ouverture. L'hôte les lit pour les
+     * régler (`setLight`) ou les retirer (`removeLight`) ; celles qu'il a déjà retirées n'y sont
+     * plus. Une scène sans lampe importée en rend une liste vide, et rien n'a changé pour elle.
+     */
+    importedLights(): SceneLight[] {
+      check();
+      const lights = required();
+      return imported
+        .map((id) => lights.light(id))
+        .filter((light): light is SceneLight => !!light)
+        .map((light) => ({ ...light }));
     },
     get environment(): SceneEnvironment | undefined {
       return store?.environment ? { ...store.environment } : undefined;

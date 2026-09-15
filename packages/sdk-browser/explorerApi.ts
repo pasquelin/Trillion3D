@@ -139,7 +139,12 @@ export function createExplorerApi(inputs: Inputs) {
       overlays,
       setMode: setDiagnostic,
     }),
-    ...createExplorerLightApi({ check, store: context.sceneLights, backends }),
+    ...createExplorerLightApi({
+      check,
+      store: context.sceneLights,
+      imported: context.importedLightIds ?? [],
+      backends,
+    }),
     ...createExplorerTelemetryApi(profiler, () => state.active),
   };
 }

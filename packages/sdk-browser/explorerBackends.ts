@@ -5,6 +5,7 @@ import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
+import { declareImportedLights, loadImportedLights } from './importedLights.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
@@ -69,7 +70,25 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
     // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
     sceneLights: createSceneLightStore(),
+    importedLightIds: [],
   };
+  // Les lampes que le fichier source portait, déclarées avant le premier moteur : la vue `auto` sait
+  // dès sa première image qu'elle a une source, et aucun moteur ne se prépare sur un magasin vide
+  // qu'il faudrait repousser ensuite. Un cache sans ce produit n'en déclare aucune, comme avant.
+  if (options.importedLights !== false) {
+    const imported = await loadImportedLights(base, signal);
+    const { declared, dropped } = declareImportedLights(context.sceneLights!, imported.lights);
+    context.importedLightIds = declared.map((light) => light.id);
+    if (declared.length || dropped || Object.keys(imported.rejected).length)
+      diagnose('imported-lights', 'Lampes déclarées par le fichier source', {
+        kind: 'preparation',
+        declared: declared.length,
+        dropped,
+        rejected: imported.rejected,
+        maxLights: context.sceneLights!.settings.maxLights,
+        scope,
+      });
+  }
   const factories = autonomous
     ? [autonomousPagesBackend]
     : (options.backends ??
