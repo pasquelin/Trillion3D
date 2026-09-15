@@ -1,6 +1,6 @@
-import { LIGHT_SETTINGS, type SceneLight } from './sceneLightContracts.ts';
+import { LIGHT_SETTINGS, lightDirection, type SceneLight } from './sceneLightContracts.ts';
 import { composeFace, projScratch, shadowOrthographic } from './sceneLightShadowMath.ts';
-import { sunAxisOf, sunCascadeOf, type ShadowViewpoint } from './sceneLightSunCascades.ts';
+import { sunCascadeOf, type ShadowViewpoint } from './sceneLightSunCascades.ts';
 
 const eye: [number, number, number] = [0, 0, 0];
 
@@ -18,7 +18,7 @@ export function writeSunMatrix(
   view: ShadowViewpoint,
   side: number,
 ) {
-  const axis = sunAxisOf(light);
+  const axis = lightDirection(light);
   const cascade = sunCascadeOf(view, axis, face, side);
   const depth = cascade.radius * LIGHT_SETTINGS.sunCascadeDepthScale;
   for (let a = 0; a < 3; a++) eye[a] = cascade.center[a] - axis[a] * depth;
@@ -42,7 +42,7 @@ export function writeSunCull(
   view: ShadowViewpoint,
   side: number,
 ) {
-  const cascade = sunCascadeOf(view, sunAxisOf(light), face, side);
+  const cascade = sunCascadeOf(view, lightDirection(light), face, side);
   out[base] = cascade.boxCenter[0];
   out[base + 1] = cascade.boxCenter[1];
   out[base + 2] = cascade.boxCenter[2];

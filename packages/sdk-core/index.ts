@@ -112,5 +112,4 @@ export {
 export { SHADOW_FACE_SIDES, desiredFaceSide } from './sceneLightShadowAtlas.ts';
 export { RECTS_PER_SLICE, createShadowPlan } from './sceneLightShadowPlan.ts';
 export type { ShadowPlan } from './sceneLightShadowPlan.ts';
-export { sunCascadeSplits } from './sceneLightSunCascades.ts';
 export type { ShadowViewpoint } from './sceneLightSunCascades.ts';

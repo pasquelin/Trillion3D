@@ -35,7 +35,13 @@ import { benchLights } from './lampes.mjs';
 import { runSerie } from './serie.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
-const { settings, views, out: OUT, flags } = options.readOptions(process.argv.slice(2), ROOT);
+const {
+  settings,
+  views,
+  out: OUT,
+  flags,
+  resources,
+} = options.readOptions(process.argv.slice(2), ROOT);
 const ENGINE = options.ENGINES[settings.engine];
 const MANIFEST = `/benchmark-assets/${options.SCENE}-derived/native/full/manifest.json`;
 const CTX = { ENGINE, MANIFEST, OUT, settings, lights: null, poses: null };
@@ -58,7 +64,6 @@ async function main() {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
   }
   const captures = new Map();
-  const resources = flags.get('ressources') ? resolve(flags.get('ressources')) : null;
   const mounts = options.resolveMounts(ROOT, sides, resources);
 
   const report = {
