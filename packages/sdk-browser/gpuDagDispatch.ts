@@ -6,9 +6,9 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from './gpuSelection.ts';
-import { DAG_ESCALATION_ROUNDS } from './gpuDagTypes.ts';
 import { writeDagUniforms, parseDagOutput } from './gpuDagUniforms.ts';
 import type { createDagResources } from './gpuDagResources.ts';
+import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -94,8 +94,7 @@ export function createDagDispatch(
       run(nodePipeline, Math.max(1, nodeCount));
       run(wantedPipeline, pageCount);
       if (residentCut) {
-        for (let round = 0; round < DAG_ESCALATION_ROUNDS; round++)
-          run(escalatePipeline, pageCount);
+        for (let round = 0; round < ESCALATION_ROUNDS; round++) run(escalatePipeline, pageCount);
         run(checkPipeline, pageCount);
       }
       run(maskPipeline, pageCount);
