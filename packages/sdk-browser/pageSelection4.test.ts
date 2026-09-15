@@ -47,7 +47,6 @@ test('a streaming bundle is one request that makes every cluster it carries draw
   const selected = selectVisiblePages(roots, wideCamera(), {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   });
   assert.deepEqual(selected.shown.map((page) => page.url).sort(), [
@@ -77,7 +76,6 @@ test('only the root bundle resident still covers the surface once', () => {
   const selected = selectVisiblePages(roots, wideCamera(), {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   });
   assert.deepEqual(
@@ -108,14 +106,12 @@ test('a cut wider than the page budget is answered by a coarser cut, not by drop
   const full = selectVisiblePages(roots, wideCamera(), {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   });
   assert.equal(full.shown.length, 4);
   const tight = selectVisiblePages(roots, wideCamera(), {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 2,
     holdResident: true,
     pageBudget: 3,
   });

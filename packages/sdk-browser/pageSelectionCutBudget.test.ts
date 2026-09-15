@@ -22,7 +22,6 @@ function ask(pixelError: number, pageBudget: number) {
   return {
     pixelError,
     viewport: [1280, 720] as [number, number],
-    frame: 1,
     holdResident: true,
     pageBudget,
     wanted: [] as unknown[],
