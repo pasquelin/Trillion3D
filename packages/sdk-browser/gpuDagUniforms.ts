@@ -37,16 +37,23 @@ export function parseDagOutput(
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4));
   if (((ints[3] ?? 0) & 1) !== 0) return null;
   const count = Math.min(ints[0] ?? 0, Math.max(0, ints.length - 4 - maskPageCount));
+  // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
+  // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
+  const pageIds = new Array<number>(count);
+  for (let i = 0; i < count; i++) pageIds[i] = ints[4 + i];
   const result: SelectionResult = {
-    pageIds: [...ints.subarray(4, 4 + count)],
+    pageIds,
     frustumRejected: ints[1] ?? 0,
     lodLevel: ints[2] ?? 0,
     complete: ((ints[3] ?? 0) & 2) === 0,
   };
   if (maskPageCount) {
-    result.drawablePageIds = [];
-    const offset = ints.length - maskPageCount;
-    for (let i = 0; i < maskPageCount; i++) if (ints[offset + i]) result.drawablePageIds.push(i);
+    const drawable = new Array<number>(maskPageCount),
+      offset = ints.length - maskPageCount;
+    let found = 0;
+    for (let i = 0; i < maskPageCount; i++) if (ints[offset + i]) drawable[found++] = i;
+    drawable.length = found;
+    result.drawablePageIds = drawable;
   }
   return result;
 }
