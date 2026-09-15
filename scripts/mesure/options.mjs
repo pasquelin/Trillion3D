@@ -154,6 +154,8 @@ export function readOptions(argv, root) {
     // `--profil off` rejoue la même série sans le chronométrage par étape : c'est la porte de
     // fidélité, deux exécutions dont seule cette option diffère.
     stageProfile: (flags.get('profil') ?? 'on') !== 'off',
+    // La lumière qui rebondit est éteinte par défaut dans le moteur : le banc l'allume sur demande.
+    bounce: flags.get('rebond') === 'on' || flags.get('rebond') === 'true',
     profileFrames: number('images-profil', 120),
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.

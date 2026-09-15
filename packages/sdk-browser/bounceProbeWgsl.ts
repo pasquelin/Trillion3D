@@ -2,7 +2,7 @@ import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
 import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
-/** Fils d'un groupe de travail de la passe de sondes : une sonde par fil. */
+/** Fils d'un groupe de travail de la passe de sondes : un groupe par sonde, un fil par rayon. */
 export const BOUNCE_WORKGROUP = 64;
 /** Étiquette de la passe mesurée ; l'étape « Rebond » est lue sous ce nom, pas par son rang. */
 export const BOUNCE_PROBE_PASS = 'WG bounce probes v1';
@@ -40,6 +40,7 @@ export const BOUNCE_PROBE_SHADER = `
 ${BOUNCE_GRID_WGSL}
 ${BOUNCE_TRACE_WGSL}
 const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
+const WORKGROUP:u32=${BOUNCE_WORKGROUP}u;
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
@@ -76,13 +77,23 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
  return vec4f(surface[texel].rgb,hit.distance);
 }
+/** Les sommes partielles d'un groupe : huit accumulateurs de couleur et la distance parcourue. */
+var<workgroup> partialConstant:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialX:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialY:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialZ:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialSpanPositive:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialSpanNegative:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialWeightPositive:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialWeightNegative:array<vec3f,${BOUNCE_WORKGROUP}>;
+var<workgroup> partialTravelled:array<f32,${BOUNCE_WORKGROUP}>;
 @compute @workgroup_size(${BOUNCE_WORKGROUP})
-fn updateProbes(@builtin(global_invocation_id) id:vec3u){
+fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  let useful=bounce.frame.w;
- if(id.x>=bounce.frame.y||bounce.counts.w==0u||useful==0u){return;}
+ if(group.x>=bounce.frame.y||bounce.counts.w==0u||useful==0u){return;}
  // Le curseur parcourt la liste des mailles qui méritent une sonde, jamais la grille entière : le
  // ciel vide et le cœur des murs n'y sont pas, et le budget de rayons va à ce qui sera relu.
- let probe=probeCells[(bounce.frame.x+id.x)%useful];
+ let probe=probeCells[(bounce.frame.x+group.x)%useful];
  if(probe>=bounce.counts.w){return;}
  let origin=probePosition(probe);
  let reach=bounce.origin.w;
@@ -97,7 +108,9 @@ fn updateProbes(@builtin(global_invocation_id) id:vec3u){
  var weightPositive=vec3f(0.0);
  var weightNegative=vec3f(0.0);
  var travelled=0.0;
- for(var ray=0u;ray<RAYS_PER_PROBE;ray++){
+ // Un fil par rayon : une sonde à soixante-quatre rayons occupe un groupe entier, là où un fil
+ // seul les enchaînait l'un après l'autre et laissait la carte inoccupée.
+ for(var ray=lane;ray<RAYS_PER_PROBE;ray+=WORKGROUP){
   let direction=rayDirection(ray,jitter,rotation);
   let sample=rayRadiance(origin,direction,reach);
   let span=sample.w;
@@ -114,6 +127,42 @@ fn updateProbes(@builtin(global_invocation_id) id:vec3u){
   spanNegative+=negative*span;
   weightNegative+=negative;
  }
+ // Les sommes des fils du groupe se rassemblent par moitiés successives : une seule barrière par
+ // tour, et le fil zéro écrit la sonde.
+ partialConstant[lane]=constant;
+ partialX[lane]=axisX;
+ partialY[lane]=axisY;
+ partialZ[lane]=axisZ;
+ partialSpanPositive[lane]=spanPositive;
+ partialSpanNegative[lane]=spanNegative;
+ partialWeightPositive[lane]=weightPositive;
+ partialWeightNegative[lane]=weightNegative;
+ partialTravelled[lane]=travelled;
+ for(var stride=WORKGROUP/2u;stride>0u;stride>>=1u){
+  workgroupBarrier();
+  if(lane<stride){
+   partialConstant[lane]+=partialConstant[lane+stride];
+   partialX[lane]+=partialX[lane+stride];
+   partialY[lane]+=partialY[lane+stride];
+   partialZ[lane]+=partialZ[lane+stride];
+   partialSpanPositive[lane]+=partialSpanPositive[lane+stride];
+   partialSpanNegative[lane]+=partialSpanNegative[lane+stride];
+   partialWeightPositive[lane]+=partialWeightPositive[lane+stride];
+   partialWeightNegative[lane]+=partialWeightNegative[lane+stride];
+   partialTravelled[lane]+=partialTravelled[lane+stride];
+  }
+ }
+ workgroupBarrier();
+ if(lane!=0u){return;}
+ constant=partialConstant[0];
+ axisX=partialX[0];
+ axisY=partialY[0];
+ axisZ=partialZ[0];
+ spanPositive=partialSpanPositive[0];
+ spanNegative=partialSpanNegative[0];
+ weightPositive=partialWeightPositive[0];
+ weightNegative=partialWeightNegative[0];
+ travelled=partialTravelled[0];
  // Une sonde enfermée dans une surface touche quelque chose dans toutes les directions, à bout
  // portant. Elle se déclare alors inutilisable plutôt que de répandre la lumière d'un intérieur de
  // mur dans la pièce d'à côté. Le critère est une distance, jamais un sens d'enroulement : celui-ci
