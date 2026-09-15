@@ -48,6 +48,14 @@ pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Ve
 #[path = "geometry_page_tests_lotb.rs"]
 mod tests_lotb;
 
+#[cfg(test)]
+#[path = "geometry_page_codec_tests.rs"]
+mod tests_codec;
+
+#[cfg(test)]
+#[path = "geometry_page_codec_refus_tests.rs"]
+mod tests_codec_refus;
+
 /** A complete, independently decodable geometry page. Float32 attributes are lossless. */
 pub fn encode(
     indices: &[u32],

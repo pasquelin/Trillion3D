@@ -1,0 +1,21 @@
+[package]
+name = "web-geometry-page-codec"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+# `rlib` pour le compilateur natif, qui teste le décodeur contre son propre encodeur ;
+# `cdylib` pour `wasm32-unknown-unknown`, qui n'exporte que l'ABI de `wasm.rs`.
+[lib]
+name = "web_geometry_page_codec"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+meshopt = "0.4"
+
+[profile.release]
+lto = true
+opt-level = "s"
+codegen-units = 1
+panic = "abort"
