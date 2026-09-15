@@ -31,6 +31,7 @@ export async function drawResidentCut(
     throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
   run.drawn.length = 0;
   appendAll(run.drawn, run.shown);
+  run.drawnMirrorsShown = true;
   hooks.beforeEncode?.();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
 }
