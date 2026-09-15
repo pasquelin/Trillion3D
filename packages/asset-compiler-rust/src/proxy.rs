@@ -12,7 +12,7 @@ use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
 use crate::Result;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod albedo;
@@ -32,6 +32,9 @@ pub const SCENE_PROXY_HEADER_WORDS: usize = 4;
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 /// Erreur géométrique certifiée maximale d'un cluster retenu, en mètres. Réglage publié (LC1).
 pub const PROXY_ERROR_METRES: f64 = 0.05;
+/// Plancher de la maille du proxy, en mètres : la taille d'un triangle après simplification, donc
+/// la résolution du cache de surfaces du moteur. Le budget de triangles la double si besoin.
+pub const PROXY_CELL_METRES: f64 = 0.25;
 /// Triangles d'une feuille du BVH : la boucle d'une feuille est bornée par ce nombre côté moteur.
 pub const PROXY_LEAF_TRIANGLES: usize = 8;
 /// Triangles que le proxy d'une scène entière s'autorise, toutes instances posées. C'est ce budget
@@ -71,22 +74,6 @@ impl SceneProxy {
     }
     pub fn node_count(&self) -> usize {
         self.node_children.len() / PROXY_NODE_WORDS
-    }
-    /// Le descriptif que le manifeste porte : où lire l'objet, ce qu'il pèse, ce qu'il vaut.
-    pub fn descriptor(&self, url: &str, sha256: &str, bytes: usize) -> Value {
-        json!({
-         "version": SCENE_PROXY_VERSION,
-         "url": url,
-         "sha256": sha256,
-         "bytes": bytes,
-         "errorMetres": self.error_metres,
-         "cellMetres": self.cell_metres,
-         "errorFloorMetres": PROXY_ERROR_METRES,
-         "triangleBudget": PROXY_TRIANGLE_BUDGET,
-         "bounds": self.bounds,
-         "triangles": self.triangle_count(),
-         "nodes": self.node_count(),
-        })
     }
 }
 
@@ -165,7 +152,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     }
     // La coupe du DAG s'arrête à sa racine ; la simplification du proxy, elle, va aussi loin qu'il
     // le faut, et donne au passage des triangles de taille bornée au cache de surfaces.
-    let cell = simplify::plan_cell(&triangles, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET);
+    let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
     simplify::simplify(&mut triangles, &mut colours, cell);
     let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut colours));
     let cut_error = inputs
