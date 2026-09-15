@@ -4,7 +4,7 @@ Source : `AUDIT_MATH_INVENTAIRE.md`. Règle absolue : chaque optimisation retenu
 
 ## Le banc de comparaison (livré avec le lot A)
 
-- Dossier `scripts/mesure/calculs/`, un fichier par domaine, ≤ 200 lignes, lancés par `npm run bench:calculs` (`node --test scripts/mesure/calculs/`).
+- Dossier `packages/<paquet>/bench/`, un fichier par domaine, ≤ 200 lignes, lancés par `npm run bench:calculs` (`node --test packages/*/bench/*.bench.mjs`) ; `scripts/mesure/calculs/` ne garde que les agrégateurs et leur `tableau.mjs`, sans aucun import de paquet.
 - Chaque fichier : (1) une implémentation de **référence** (l'ancien code, recopié tel quel dans le banc comme oracle) ; (2) l'implémentation **optimisée** importée du paquet ; (3) des entrées de benchmark réalistes (DAG de plusieurs milliers de pages, image 1280×720, files de streaming de centaines d'entrées) construites par les fixtures existantes ; (4) assertion d'égalité bit à bit (`Object.is` sur chaque flottant, ordre des tableaux, contenu des Set) ; (5) mesure : échauffement, puis N tours, médiane en ms de la référence et de l'optimisée, gain en %.
 - Sortie : tableau sur la console + JSON dans `orchestration/mesures/calculs-<date>.json` (commit, machine, Node, DPR non applicable → `null`).
 - Rust : pas de `cargo bench` (nightly ou dépendance). Preuve = chronomètres de `perf.rs` sur les fixtures dorées, exécutés avant/après (`--cache-avant`/`--cache-apres` déjà disponibles), et test d'intégration qui compare le manifeste binaire produit octet par octet.
