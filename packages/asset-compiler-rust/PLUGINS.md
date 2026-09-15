@@ -33,6 +33,11 @@ accepte un seul ou plusieurs, et il refuse avec `SOURCE_FORMAT_AMBIGUOUS` quand 
 Il vérifie `request.cancelled` à chaque frontière de travail bornée, publie ses étapes par
 `request.progress`, et n'écrit jamais à côté de la source — seulement sous `request.cache`.
 
+Le remplissage des tables glTF (nœuds, maillages, matériaux, accesseurs, images) est commun à
+`src/import/tables.rs` (`SceneTables`) ; l'émission d'une primitive depuis des sommets déjà
+dédupliqués est commune à `src/import/primitive.rs` (`Vertices`). Un pilote qui construit sa
+géométrie lui-même prend ces deux modules plutôt que de réécrire son propre remplissage de tables.
+
 Les images ne suivent pas la scène dans le cache : elles restent là où le pilote les a lues. La
 racine où les URI relatives d'images se résolvent est donc `scene::image_root(request.source)` — le
 dossier source, ou le dossier extrait pour un conteneur —, et `request.converted` l'accroche à la
@@ -48,7 +53,9 @@ retenu rend. Les règles du routeur valent telles quelles : inconnu ou ambigu, c
 
 Ce qui ne dépend pas du format d'archive vit dans `scene/archive.rs` — plafonds nommés (entrées et
 octets décompressés), refus de sortie du dossier d'extraction, clé d'extraction, composition avec le
-routeur. Un second conteneur y ajoute son module de lecture, pas une seconde version de tout cela.
+routeur. La lecture ZIP elle-même est commune à `scene/archive/zip_reader.rs`, partagée par `zip` et
+par `usdz` (un ZIP non compressé et aligné). Un second conteneur y ajoute son module de lecture, pas
+une seconde version de tout cela.
 Les protections ne sont pas négociables : aucun chemin absolu ni `..`, aucun lien symbolique suivi,
 aucune archive chiffrée ouverte, et un refus nommé — jamais une extraction à moitié.
 
@@ -74,7 +81,9 @@ par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre no
 
 - **Une fixture dorée minimale** : le plus petit fichier du format que l'on possède ou que l'on peut
   redistribuer, sous `fixtures/`, avec son `expected.json`, compilé par le harnais commun
-  (`src/tests/golden.rs`) — jamais par un harnais à soi.
+  (`src/tests/golden.rs`) — jamais par un harnais à soi. `GoldenRun::prepared_dir` retrouve le
+  dossier préparé d'un pilote et `scene_digest` en tire le triplet comparable à `expected.json` ;
+  les prendre plutôt que de relire soi-même les fichiers produits.
 - **Un test par comportement du pilote** : ce qu'il reconnaît, ce qu'il refuse, ce qu'il rapporte.
   Les tests du routeur et du registre existent déjà : ne les recopiez pas par format. Pour lire le
   résultat d'un décodage, prendre `rgba8()` ou `rgba_f32()` de `src/plugins/tests.rs` — jamais un
