@@ -1,7 +1,7 @@
 /**
  * Oracle du point H3-1 : `writeRows` de `webgpuAtlasJobs.ts` tel qu'il était avant le lot, recopié
- * ligne à ligne, et l'appareil de banc qui enregistre ce que `writeTexture` couvre réellement. Le
- * banc et le test d'équivalence le lisent tous les deux.
+ * ligne à ligne, l'appareil de banc qui enregistre ce que `writeTexture` couvre réellement, et les
+ * pixels et bandes qui l'alimentent. Le banc et les tests le lisent tous.
  */
 import type { TextureJob } from '../../webgpuAtlasJobs.ts';
 
@@ -67,4 +67,18 @@ export function recordingDevice() {
     },
   };
   return { device: { queue } as unknown as GPUDevice, calls };
+}
+
+/** Des pixels qui ne se répètent pas : un octet déplacé d'une ligne se verrait. */
+export function pixels(width: number, height: number, alea: () => number) {
+  const octets = new Uint8Array(width * height * 4);
+  for (let i = 0; i < octets.length; i++) octets[i] = (i * 31 + Math.floor(alea() * 7)) & 255;
+  return octets;
+}
+
+/** Les bandes successives d'un niveau : elles couvrent exactement le rectangle, sans chevauchement. */
+export function bandes(rows: number, bande: number) {
+  const decoupe: Array<[number, number]> = [];
+  for (let row = 0; row < rows; row += bande) decoupe.push([row, Math.min(bande, rows - row)]);
+  return decoupe;
 }

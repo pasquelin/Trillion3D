@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { textureJobFor, previewLevelJobs } from './webgpuAtlasJobs.ts';
-import { recordingDevice, referenceWriteRows } from './bench/oracles/h3AtlasJobsOracle.ts';
+import {
+  bandes,
+  pixels,
+  recordingDevice,
+  referenceWriteRows,
+} from './bench/oracles/h3AtlasJobsOracle.ts';
+import { graine } from '../sdk-core/bench/banc.mjs';
 import type { TexturePreview } from '../sdk-core/index.ts';
 
 // H3-1 : la bande de lignes n'est plus recopiée hors des pixels entiers avant d'être remise à
@@ -11,20 +17,6 @@ import type { TexturePreview } from '../sdk-core/index.ts';
 // partir de `offset`, aucune ligne plus courte que la région. La spécification n'exige un `offset`
 // multiple de 4 que pour un format de profondeur ou de gabarit ; les deux atlas sont `rgba8unorm`,
 // et l'offset vaut de toute façon `row * width * 4`.
-
-/** Des pixels qui ne se répètent pas : un octet pris une ligne trop loin se verrait. */
-function pixels(width: number, height: number, graine: number) {
-  const octets = new Uint8Array(width * height * 4);
-  for (let i = 0; i < octets.length; i++) octets[i] = (i * 37 + graine * 101) & 255;
-  return octets;
-}
-
-/** Les bandes successives d'un niveau : elles couvrent exactement le rectangle. */
-function bandes(rows: number, bande: number) {
-  const decoupe: Array<[number, number]> = [];
-  for (let row = 0; row < rows; row += bande) decoupe.push([row, Math.min(bande, rows - row)]);
-  return decoupe;
-}
 
 const CAS: Array<[number, number, number]> = [
   [4, 3, 1],
@@ -40,7 +32,7 @@ const CAS: Array<[number, number, number]> = [
 
 test('H3-1 : les octets remis au GPU, leur destination et leur gabarit sont ceux d’avant', () => {
   for (const [width, height, bande] of CAS) {
-    const octets = pixels(width, height, width + height + bande);
+    const octets = pixels(width, height, graine(width + height + bande));
     const attendu = recordingDevice();
     const upload = referenceWriteRows(attendu.device, {} as GPUTexture, 0, 1, octets, width);
     for (const [row, count] of bandes(height, bande)) upload(row, count);
@@ -82,7 +74,7 @@ test('H3-1 : les niveaux progressifs d’un aperçu partent eux aussi octet pour
   const levels: Uint8Array[] = [];
   for (let level = firstLevel; ; level++) {
     const [w, h] = [Math.max(1, width >> level), Math.max(1, height >> level)];
-    levels.push(pixels(w, h, level));
+    levels.push(pixels(w, h, graine(level)));
     if (w === 1 && h === 1) break;
   }
   const preview = {

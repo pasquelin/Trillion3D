@@ -16,6 +16,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod albedo;
+pub(crate) mod assemble;
 pub mod bvh;
 pub mod cut;
 pub mod encode;
@@ -163,25 +164,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
         }
     }
-    // La coupe du DAG s'arrête à sa racine ; la simplification du proxy, elle, va aussi loin qu'il
-    // le faut, et donne au passage des triangles de taille bornée au cache de surfaces.
-    let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
-    simplify::simplify(&mut triangles, &mut colours, cell);
-    let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut colours));
-    let cut_error = inputs
-        .thresholds
-        .iter()
-        .copied()
-        .fold(PROXY_ERROR_METRES, f64::max);
-    Ok(SceneProxy {
-        bounds: bvh::extent(&triangles),
-        error_metres: cut_error + cell * simplify::CELL_ERROR_FACTOR,
-        cell_metres: cell,
-        triangles,
-        albedo: colours,
-        node_bounds,
-        node_children,
-    })
+    Ok(assemble::assemble(inputs.thresholds, triangles, colours))
 }
 
 /// Les sommets d'une coupe, transformés une fois par le nœud qui la place.
