@@ -11,18 +11,21 @@
 /** Flottants des six plans d'un tronc. */
 export const FRUSTUM_PLANE_VALUES = 24;
 
-/** Écrit un plan, normalisé au besoin : les quatre composantes multipliées par `1 / ‖(a, b, c)‖`.
- *  Tout est calculé en double avant l'écriture, pour qu'une sortie simple précision arrondisse
- *  une seule fois. */
-function writePlane(
-  out: Float32Array | Float64Array,
-  at: number,
-  a: number,
-  b: number,
-  c: number,
-  d: number,
-  normalize: boolean,
-) {
+/**
+ * Les quatre composantes brutes du plan en cours. Elles passent par ce tampon et non en arguments :
+ * un flottant calculé passé à un appel que le compilateur n'intègre pas est encapsulé, soit une
+ * allocation par composante et par image.
+ */
+const plane = new Float64Array(4);
+
+/** Écrit le plan du tampon, normalisé au besoin : les quatre composantes multipliées par
+ *  `1 / ‖(a, b, c)‖`. Tout est calculé en double avant l'écriture, pour qu'une sortie simple
+ *  précision arrondisse une seule fois. */
+function writePlane(out: Float32Array | Float64Array, at: number, normalize: boolean) {
+  let a = plane[0],
+    b = plane[1],
+    c = plane[2],
+    d = plane[3];
   if (normalize) {
     const inverse = 1.0 / Math.sqrt(a * a + b * b + c * c);
     a *= inverse;
@@ -58,13 +61,36 @@ function writePlanes(
     m13 = m[13],
     m14 = m[14],
     m15 = m[15];
-  writePlane(out, 0, m3 - m0, m7 - m4, m11 - m8, m15 - m12, normalize);
-  writePlane(out, 4, m3 + m0, m7 + m4, m11 + m8, m15 + m12, normalize);
-  writePlane(out, 8, m3 + m1, m7 + m5, m11 + m9, m15 + m13, normalize);
-  writePlane(out, 12, m3 - m1, m7 - m5, m11 - m9, m15 - m13, normalize);
-  writePlane(out, 16, m3 - m2, m7 - m6, m11 - m10, m15 - m14, normalize);
-  if (depthZeroToOne) writePlane(out, 20, m2, m6, m10, m14, normalize);
-  else writePlane(out, 20, m3 + m2, m7 + m6, m11 + m10, m15 + m14, normalize);
+  plane[0] = m3 - m0;
+  plane[1] = m7 - m4;
+  plane[2] = m11 - m8;
+  plane[3] = m15 - m12;
+  writePlane(out, 0, normalize);
+  plane[0] = m3 + m0;
+  plane[1] = m7 + m4;
+  plane[2] = m11 + m8;
+  plane[3] = m15 + m12;
+  writePlane(out, 4, normalize);
+  plane[0] = m3 + m1;
+  plane[1] = m7 + m5;
+  plane[2] = m11 + m9;
+  plane[3] = m15 + m13;
+  writePlane(out, 8, normalize);
+  plane[0] = m3 - m1;
+  plane[1] = m7 - m5;
+  plane[2] = m11 - m9;
+  plane[3] = m15 - m13;
+  writePlane(out, 12, normalize);
+  plane[0] = m3 - m2;
+  plane[1] = m7 - m6;
+  plane[2] = m11 - m10;
+  plane[3] = m15 - m14;
+  writePlane(out, 16, normalize);
+  plane[0] = depthZeroToOne ? m2 : m3 + m2;
+  plane[1] = depthZeroToOne ? m6 : m7 + m6;
+  plane[2] = depthZeroToOne ? m10 : m11 + m10;
+  plane[3] = depthZeroToOne ? m14 : m15 + m14;
+  writePlane(out, 20, normalize);
 }
 
 /**
