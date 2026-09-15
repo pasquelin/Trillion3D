@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sameHizView } from './hiz.ts';
+import { invalidateOccluderHistory, invalidateTemporalPyramid } from './webgpuPagesDrops.ts';
 
 function poses(n: number) {
   const cams: THREE.PerspectiveCamera[] = [];
@@ -58,4 +59,30 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   const nanCam = a.clone();
   nanCam.position.x = NaN;
   assert.equal(sameHizView(kept, nanCam), false, 'NaN never compares equal to itself');
+});
+
+// Levier « historique d'occulteurs » : une caméra qui bouge ne périme que la pyramide temporelle.
+// Les deux invalidations sont de nature différente — la pyramide n'est relue que pour une vue
+// identique au bit près, l'historique des occulteurs ne nomme que des pages — et se séparent donc.
+function runState() {
+  return {
+    noOccluderHistory: false,
+    temporalHizState: { pyramid: {}, camera: {} },
+  } as unknown as Parameters<typeof invalidateTemporalPyramid>[0];
+}
+
+test('invalidateTemporalPyramid drops the pyramid and keeps the occluder history', () => {
+  const run = runState();
+  invalidateTemporalPyramid(run);
+  assert.equal(run.temporalHizState.pyramid, undefined);
+  assert.equal(run.temporalHizState.camera, undefined);
+  assert.equal(run.noOccluderHistory, false, 'the pages drawn last image still describe this one');
+});
+
+test('invalidateOccluderHistory still drops both', () => {
+  const run = runState();
+  invalidateOccluderHistory(run);
+  assert.equal(run.temporalHizState.pyramid, undefined);
+  assert.equal(run.temporalHizState.camera, undefined);
+  assert.equal(run.noOccluderHistory, true);
 });
