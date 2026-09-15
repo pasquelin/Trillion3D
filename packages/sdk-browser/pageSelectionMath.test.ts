@@ -1,11 +1,11 @@
-// A6 : boxClip rejette en une première passe, puis distingue traversé de dedans en une seconde qui
-// s'arrête au premier plan traversé ; le signe du plan choisit le sommet par indice. Oracle : la
-// version à une passe et une branche par sommet, d'avant le lot A, dans
+// A6 : frustumClipBox (sdk-core) rejette en une première passe, puis distingue traversé de dedans
+// en une seconde qui s'arrête au premier plan traversé ; le signe du plan choisit le sommet par
+// indice. Oracle : la version à une passe et une branche par sommet, d'avant le lot A, dans
 // `bench/oracles/selection.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { boxClip, extractPlanes } from './pageSelectionMath.ts';
+import { clipPlanesFromMatrix, frustumClipBox } from '../sdk-core/index.ts';
 import { referenceBoxClip } from './bench/oracles/selection.mjs';
 
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 100);
@@ -14,12 +14,16 @@ cam.lookAt(0, 0, 0);
 cam.updateMatrixWorld();
 const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 const planes = new Float64Array(24);
-extractPlanes(clip, planes);
+clipPlanesFromMatrix(planes, clip.elements);
 
 function agree(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number) {
-  const optimisee = boxClip(planes, minX, minY, minZ, maxX, maxY, maxZ);
+  const optimisee = frustumClipBox(planes, minX, minY, minZ, maxX, maxY, maxZ);
   const reference = referenceBoxClip(planes, minX, minY, minZ, maxX, maxY, maxZ);
-  assert.equal(optimisee, reference, `boxClip(${minX},${minY},${minZ},${maxX},${maxY},${maxZ})`);
+  assert.equal(
+    optimisee,
+    reference,
+    `frustumClipBox(${minX},${minY},${minZ},${maxX},${maxY},${maxZ})`,
+  );
   return optimisee;
 }
 
