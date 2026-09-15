@@ -79,6 +79,9 @@ export async function measureView(options) {
     });
   };
   const pose = options.pose;
+  // Une pose par image quand la caméra bouge, la même à chaque image sinon.
+  const poses = options.poses,
+    poseAt = (frame) => (poses ? poses[frame % poses.length] : pose);
   explorer.setPose(pose);
   // Chauffe bornée : la coupe réside avant que quoi que ce soit ne soit relevé.
   for (let i = 0; i < options.warmup; i++) {
@@ -92,7 +95,7 @@ export async function measureView(options) {
   let last = null;
   for (let i = 0; i < options.frames; i++) {
     moveLight(i);
-    last = explorer.render(pose);
+    last = explorer.render(poseAt(i));
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
@@ -109,7 +112,7 @@ export async function measureView(options) {
     explorer.resetStageProfile();
     for (let i = 0; i < options.profileFrames; i++) {
       moveLight(i);
-      explorer.render(pose);
+      explorer.render(poseAt(i));
       await explorer.flush();
       // Une vraie limite d'image : le navigateur ne rend un compteur d'horodatage WebGL2 lisible
       // qu'après une frontière d'image, et c'est aussi ce que fait une application réelle.

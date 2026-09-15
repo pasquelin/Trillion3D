@@ -8,7 +8,7 @@ import { distribution, machineLoad } from './rapport.mjs';
 
 /** Une série : un côté, une vue, un seuil. Écrit sa capture, renvoie sa ligne de rapport. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
-  const { ENGINE, MANIFEST, OUT, settings, lights } = ctx;
+  const { ENGINE, MANIFEST, OUT, settings, lights, poses } = ctx;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();
   const result = await page.evaluate(measureView, {
@@ -17,6 +17,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     backend: ENGINE.backend,
     engineId: ENGINE.id,
     pose,
+    poses,
     captureFile,
     pixelError,
     frames: settings.frames,
