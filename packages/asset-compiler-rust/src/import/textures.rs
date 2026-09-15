@@ -96,11 +96,9 @@ impl<'a> TextureTable<'a> {
                 outside = true;
                 continue;
             };
-            let uri = relative
-                .components()
-                .map(|c| c.as_os_str().to_string_lossy().to_string())
-                .collect::<Vec<_>>()
-                .join("/");
+            // Une URI glTF, pas un chemin : `%`, `#`, `?`, l'espace et tout ce qui n'est pas un
+            // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+            let uri = crate::uri::encode_relative(&relative);
             return Some(json!({"name":name,"mimeType":mime,"uri":uri}));
         }
         self.report.add(if outside {
