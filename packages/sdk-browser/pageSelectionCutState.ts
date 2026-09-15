@@ -37,13 +37,16 @@ export interface SelectionState<T extends PageRecord> {
   flatForcedList?: number[];
   /** Ce que le rejet de cône lit de la racine et de la caméra, posé au premier cône de la racine. */
   flatCone: ConeContext;
-  flatInside: boolean;
   /** Le seuil de cette image vaut zéro et l'étirement, la focale et le plan proche sont sains : la
    *  coupe se décide alors sans projeter, à l'identique. */
   flatExact: boolean;
   flatUseForcing: boolean;
   flatMissing: boolean;
   flatShort: boolean;
+  /** Triangles des deux coupes, sommés à la retenue dans l'ordre des tableaux : la somme est celle
+   *  d'un balayage de `wanted` et de `shown`, au même ordre et aux mêmes bits. */
+  wantedTriangles: number;
+  shownTriangles: number;
   /** Budget de pages au-delà duquel un passage n'a plus rien à dire ; `0` quand il n'y en a pas. */
   budget: number;
   /** Ce passage a dépassé le budget : son résultat est jeté, la descente s'arrête là. */
@@ -122,14 +125,24 @@ const reusedState: SelectionState<PageRecord> = {
   flatStretch: 1,
   flatFocal: 1,
   flatCone: createConeContext(),
-  flatInside: false,
   flatExact: false,
   flatUseForcing: false,
   flatMissing: false,
   flatShort: false,
+  wantedTriangles: 0,
+  shownTriangles: 0,
   budget: 0,
   over: false,
 };
+
+/** Ramène `shown` à un préfixe et sa somme de triangles avec lui : même ordre, mêmes bits que le
+ *  balayage que cette somme remplace. Les replis sont les seuls à raccourcir la coupe. */
+export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
+  s.shown.length = to;
+  let sum = 0;
+  for (let i = 0; i < to; i++) sum += s.shown[i].triangles;
+  s.shownTriangles = sum;
+}
 
 /** L'état réutilisé, vu au type de pages demandé. */
 export function selectionState<T extends PageRecord>(): SelectionState<T> {

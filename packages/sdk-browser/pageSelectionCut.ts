@@ -57,7 +57,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatStructure = undefined;
   state.flatForced = undefined;
   state.flatForcedList = undefined;
-  state.flatInside = false;
   state.flatExact = false;
   state.flatUseForcing = false;
   state.flatMissing = false;
@@ -67,6 +66,8 @@ export function selectVisiblePages<T extends PageRecord>(
     state.over = false;
     shown.length = 0;
     wanted.length = 0;
+    state.wantedTriangles = 0;
+    state.shownTriangles = 0;
     state.frustumRejected = 0;
     state.nodesTested = 0;
     state.lodLevel = 0;
@@ -95,10 +96,9 @@ export function selectVisiblePages<T extends PageRecord>(
     sweep();
   }
   state.budget = 0;
-  let selectedTriangles = 0,
-    displayedTriangles = 0;
-  for (let i = 0; i < wanted.length; i++) selectedTriangles += wanted[i].triangles;
-  for (let i = 0; i < shown.length; i++) displayedTriangles += shown[i].triangles;
+  // Les deux sommes sont tenues à la retenue : plus aucun balayage des fiches après la coupe.
+  const displayedTriangles = state.shownTriangles;
+  let selectedTriangles = state.wantedTriangles;
   if (!wanted.length) selectedTriangles = displayedTriangles;
   // Le résultat est écrit dans l'objet de l'appelant quand il en fournit un : rien n'est alloué.
   const result = options.result ?? createSelectionResult<T>();
