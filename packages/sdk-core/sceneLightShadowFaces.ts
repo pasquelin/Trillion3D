@@ -1,4 +1,9 @@
-import { LIGHT_SETTINGS, POINT_FACES, type SceneLight } from './sceneLightContracts.ts';
+import {
+  LIGHT_SETTINGS,
+  POINT_FACES,
+  lightDirection,
+  type SceneLight,
+} from './sceneLightContracts.ts';
 import {
   composeFace,
   projScratch,
@@ -29,12 +34,16 @@ export const SHADOW_SLICE_FLOATS = POINT_FACES * SHADOW_FACE_FLOATS + 4;
  * Faces réellement dessinées pour une lampe : six pour une ponctuelle, une pour un projecteur, et
  * les cascades pour une directionnelle — jamais plus que les six faces réservées par tranche.
  */
-export const faceCountOf = (light: Pick<SceneLight, 'kind'>) =>
-  light.kind === 'point'
-    ? POINT_FACES
-    : light.kind === 'directional'
-      ? Math.min(POINT_FACES, LIGHT_SETTINGS.sunCascades)
-      : 1;
+export function faceCountOf(kind: SceneLight['kind']) {
+  switch (kind) {
+    case 'point':
+      return POINT_FACES;
+    case 'directional':
+      return Math.min(POINT_FACES, LIGHT_SETTINGS.sunCascades);
+    default:
+      return 1;
+  }
+}
 
 /** Demi-angle du cône élargi d'un demi-degré, pour que le bord du cône reste couvert par la carte. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
@@ -45,8 +54,7 @@ const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 
  * oppose partent tous deux d'ici, sinon les deux pourraient viser des directions différentes.
  */
 function faceAim(light: SceneLight, face: number) {
-  const forward =
-    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
+  const forward = light.kind === 'point' ? POINT_FACE_AXES[face] : lightDirection(light);
   return { forward, fov: light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!) };
 }
 
