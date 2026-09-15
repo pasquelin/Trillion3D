@@ -7,10 +7,10 @@
  */
 
 export type Mat4 = readonly number[]; // 16 nombres, colonne-majeure : m[col*4+row]
-export type Vec3 = readonly [number, number, number];
+type Vec3 = readonly [number, number, number];
 export type Vec4 = readonly [number, number, number, number];
 
-export function mat4Multiply(a: Mat4, b: Mat4): Mat4 {
+function mat4Multiply(a: Mat4, b: Mat4): Mat4 {
   const out = new Array(16).fill(0);
   for (let col = 0; col < 4; col++)
     for (let row = 0; row < 4; row++) {
@@ -21,7 +21,7 @@ export function mat4Multiply(a: Mat4, b: Mat4): Mat4 {
   return out;
 }
 
-export function mat4MulVec4(m: Mat4, v: Vec4): Vec4 {
+function mat4MulVec4(m: Mat4, v: Vec4): Vec4 {
   const out: number[] = [0, 0, 0, 0];
   for (let row = 0; row < 4; row++)
     for (let col = 0; col < 4; col++) out[row] += m[col * 4 + row] * v[col];
