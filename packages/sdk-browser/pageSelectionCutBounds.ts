@@ -24,6 +24,8 @@ export const OWN_FLOOR = 0,
 
 /** Étend la sphère englobante rangée en `at` pour couvrir celle lue en `from`.
  *  Rayon négatif : accumulateur encore vide. */
+/** Miroir TypeScript de la fusion incrémentale de sphères de `dag/bounds.rs` (compilateur Rust) :
+ *  même récurrence, deux langages, rien à partager entre les deux dépôts de code. */
 function growSphere(into: Float64Array, at: number, sphere: ArrayLike<number>, from: number) {
   const radius = sphere[from + 3];
   if (!(radius >= 0)) return;

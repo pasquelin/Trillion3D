@@ -2,6 +2,7 @@ import {
   BOUNCE_PROBES_PER_FRAME,
   BOUNCE_SETTINGS,
   PROBE_FLOATS,
+  bounceBatchOf,
   createBounceBudget,
   createBounceCascades,
   createBounceOccupancy,
@@ -116,7 +117,7 @@ export async function createGpuBounceProbes(
   /** Vrai tant que la série des rebonds n'est pas close : au-delà, plus rien n'est encodé. */
   const working = () => rounds() < BOUNCE_SETTINGS.settledSweeps;
   /** Les sondes de l'image : la fraction du plafond publié que le budget en millisecondes tient. */
-  const batch = () => Math.max(1, Math.round(BOUNCE_PROBES_PER_FRAME * budget.load));
+  const batch = () => bounceBatchOf(BOUNCE_PROBES_PER_FRAME, budget.load);
   return {
     cascades,
     occupancy,

@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, bounceBatchOf } from '../sdk-core/index.ts';
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import {
   BOUNCE_SURFACE_PASS,
@@ -112,7 +112,7 @@ export async function createGpuBounceSurface(
      * millisecondes a retenue. La passe porte son étiquette : elle est mesurée à part.
      */
     encode(encoder: GPUCommandEncoder, load: number) {
-      batch = Math.max(1, Math.round(ceiling * load));
+      batch = bounceBatchOf(ceiling, load);
       words[0] = cursor;
       words[1] = batch;
       device.queue.writeBuffer(span, 0, words);

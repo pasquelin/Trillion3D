@@ -10,6 +10,7 @@ import {
   errorFloorAt,
   projectedErrorAt,
   viewDistance,
+  viewDistanceOf,
 } from './pageSelectionProjection.ts';
 import {
   referenceCutSelects,
@@ -151,4 +152,20 @@ test('la distance partagée rend les projections d’avant le lot, aux mêmes bi
       );
     }
   }
+});
+
+test('viewDistanceOf composante par composante rend la même distance que viewDistance sur la sphère', () => {
+  for (const sphere of SPHERES) {
+    if (!sphere) continue;
+    assert.equal(
+      viewDistanceOf(sphere[0], sphere[1], sphere[2], view),
+      viewDistance(sphere, 0, view),
+    );
+  }
+});
+
+test('viewDistanceOf se propage en NaN et rend zéro à l’origine du repère', () => {
+  assert.ok(Number.isNaN(viewDistanceOf(NaN, 0, 0, view)));
+  const originView = new THREE.Matrix4().identity().elements;
+  assert.equal(viewDistanceOf(0, 0, 0, originView), 0);
 });
