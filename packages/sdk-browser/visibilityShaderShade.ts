@@ -98,7 +98,7 @@ fn framebuffer(clip:vec4f)->vec3f{
    }
   }
  }
- let wrapD=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
+ let wrapD=wrapUv(uv,page.flags);
  let sample=colorSample(page.mapIndex,page.uvScale,wrapD,ddx,ddy);
  var roughSample=vec4f(1.0);
  if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,wrapD,ddx,ddy);}

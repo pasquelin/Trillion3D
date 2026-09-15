@@ -86,10 +86,13 @@ export function attr2(
   ];
 }
 
+/** Le texel d'un axe par la règle entière de l'échantillonneur : le miroir replie deux périodes. */
 export function wrapTexel(t: number, size: number, wrap: THREE.Wrapping) {
+  const p = wrap === THREE.MirroredRepeatWrapping ? 2 : 1;
   const scaled =
-    wrap === THREE.ClampToEdgeWrapping ? Math.min(1, Math.max(0, t)) : t - Math.floor(t);
-  return Math.min(size - 1, Math.max(0, Math.floor(scaled * size)));
+    wrap === THREE.ClampToEdgeWrapping ? Math.min(1, Math.max(0, t)) : t - p * Math.floor(t / p);
+  const i = Math.floor(scaled * size);
+  return Math.min(size - 1, Math.max(0, i < size ? i : 2 * size - 1 - i));
 }
 
 /** sRGB → linéaire n'a que 256 antécédents possibles : un octet de texture divisé par 255. La table
