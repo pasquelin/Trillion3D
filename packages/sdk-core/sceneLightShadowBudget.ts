@@ -16,8 +16,7 @@ import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 export function createShadowBudget() {
   let budgetMs: number = LIGHT_SETTINGS.shadowBudgetMs,
     msPerPage = 0,
-    samples = 0,
-    lastGpuMs: number | null = null;
+    samples = 0;
   return {
     get budgetMs() {
       return budgetMs;
@@ -30,20 +29,12 @@ export function createShadowBudget() {
     get msPerPage() {
       return samples ? msPerPage : null;
     },
-    get samples() {
-      return samples;
-    },
-    /** Dernière durée relevée de l'étape Ombres, telle quelle. */
-    get lastGpuMs() {
-      return lastGpuMs;
-    },
     /**
      * Un relevé du chronomètre de la passe, rapporté aux pages que cette image-là avait redessinées.
      * Une image sans page redessinée n'apprend rien et n'entre pas dans la moyenne.
      */
     observe(gpuMs: number | null, pages: number) {
       if (gpuMs === null || !Number.isFinite(gpuMs) || gpuMs <= 0 || pages <= 0) return;
-      lastGpuMs = gpuMs;
       const value = gpuMs / pages;
       msPerPage = samples
         ? msPerPage + (value - msPerPage) * LIGHT_SETTINGS.shadowCostBlend
@@ -57,7 +48,6 @@ export function createShadowBudget() {
     reset() {
       msPerPage = 0;
       samples = 0;
-      lastGpuMs = null;
     },
   };
 }

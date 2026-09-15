@@ -10,7 +10,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  * place dans cette liste, et l'uniforme nomme le slot. Les groupes survivent aux images et ne sont
  * rebâtis que si l'une des ressources qu'ils tiennent a changé d'identité.
  */
-function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number) {
+function shadowRegionGroup(rt: WebgpuPagesRuntime, device: GPUDevice, region: number) {
   const { vis, gpu, lights } = rt;
   const cacheBuffer = gpu.cache?.buffer,
     { visBindGroupLayout, concatPos, concatUv, pageTable, colorAtlas, mapsSampler, slots } = vis;
@@ -33,7 +33,7 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
     lights.shadowGroupsKey = key;
     lights.shadowGroups.fill(undefined);
   }
-  let group = lights.shadowGroups[face];
+  let group = lights.shadowGroups[region];
   if (!group) {
     group = device.createBindGroup({
       layout: visBindGroupLayout,
@@ -43,7 +43,7 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
         pageTable,
         flags: vis.zeroFlags,
         uniform: cull.drawUniform,
-        uniformOffset: face * PAGE_BIND_ALIGN,
+        uniformOffset: region * PAGE_BIND_ALIGN,
         uv: concatUv,
         colorAtlas,
         sampler: mapsSampler,
@@ -52,7 +52,7 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
         slots,
       }),
     });
-    lights.shadowGroups[face] = group;
+    lights.shadowGroups[region] = group;
   }
   return group;
 }
@@ -80,7 +80,7 @@ export function encodeShadowAtlas(
   lights.shadowDraws = 0;
   if (!regions || !shadows || !cull || !spheres || !gpuDraw || !vis.visBindGroupLayout)
     return false;
-  const first = shadowFaceGroup(rt, device, 0);
+  const first = shadowRegionGroup(rt, device, 0);
   if (!first) return false;
   cull.flushVolumes(regions);
   cull.encode(
@@ -103,16 +103,18 @@ export function encodeShadowAtlas(
     depthStencilAttachment: { view: shadows.view, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
   for (let region = 0; region < regions; region++) {
-    const side = regionViewport[region * 3 + 2];
+    const viewport = region * 3,
+      scissor = region * 4;
+    const side = regionViewport[viewport + 2];
     if (side <= 0) continue;
-    const group = shadowFaceGroup(rt, device, region);
+    const group = shadowRegionGroup(rt, device, region);
     if (!group) continue;
-    pass.setViewport(regionViewport[region * 3], regionViewport[region * 3 + 1], side, side, 0, 1);
+    pass.setViewport(regionViewport[viewport], regionViewport[viewport + 1], side, side, 0, 1);
     pass.setScissorRect(
-      regionScissor[region * 4],
-      regionScissor[region * 4 + 1],
-      regionScissor[region * 4 + 2],
-      regionScissor[region * 4 + 3],
+      regionScissor[scissor],
+      regionScissor[scissor + 1],
+      regionScissor[scissor + 2],
+      regionScissor[scissor + 3],
     );
     pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
     pass.setBindGroup(0, group);
