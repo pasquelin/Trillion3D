@@ -51,6 +51,12 @@ fn un_png_seize_bits_ressort_en_raison_de_rapport_jamais_rogne() {
         registry::decode(&bytes, MAX_ALLOC).err(),
         Some("image-depth-unsupported")
     );
+    // Ce refus a changé ce que le pilote produit, donc son identité de cache : la version le porte,
+    // sans quoi une entrée écrite du temps de l'abaissement silencieux serait relue comme juste.
+    assert_eq!(
+        registry::by_head(&bytes).map(|pilote| pilote.version()),
+        Some("png-image-0.25-depth8")
+    );
     // C'est la profondeur qui refuse, pas la taille : la raison ne bouge pas avec le plafond
     // d'allocation, et elle sort sans qu'un seul pixel ait été décodé.
     assert_eq!(
