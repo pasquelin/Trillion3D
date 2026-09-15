@@ -22,6 +22,23 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     return index !== undefined && packedPages[index] === rec ? index : undefined;
   };
 
+  /**
+   * Le journal des pages dont le drapeau de résidence a changé pendant la dernière synchronisation
+   * des rangs. `sorted` tombe si un index revient en arrière : la liste ne décrit alors plus des
+   * plages croissantes et le lecteur repart de toutes les pages.
+   */
+  const residencyChanges = { pages: new Int32Array(packedPages.length), count: 0, sorted: true };
+  const noteResidencyChange = (page: number) => {
+    if (residencyChanges.count && residencyChanges.pages[residencyChanges.count - 1] >= page)
+      residencyChanges.sorted = false;
+    if (residencyChanges.count < residencyChanges.pages.length)
+      residencyChanges.pages[residencyChanges.count++] = page;
+    else residencyChanges.sorted = false;
+  };
+  const clearResidencyChanges = () => {
+    residencyChanges.count = 0;
+    residencyChanges.sorted = true;
+  };
   const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
   const rowOffsetWords = new Int32Array(drawSlots).fill(-1);
@@ -51,6 +68,9 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
 
   return {
     residentFlags,
+    residencyChanges,
+    noteResidencyChange,
+    clearResidencyChanges,
     pageIndicesByUrl,
     pageIndexOf,
     residentOffsetWords,

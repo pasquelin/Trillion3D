@@ -37,6 +37,11 @@ export type SelectionResult = {
   drawablePageIds?: number[];
 };
 export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult };
+/**
+ * Les pages dont le drapeau de résidence vient de changer, dans l'ordre croissant. `sorted` faux dit
+ * que la liste ne décrit plus l'ensemble : le lecteur repart alors de toutes les pages.
+ */
+export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void;
 export type GpuSelection = {
@@ -46,7 +51,7 @@ export type GpuSelection = {
   readonly maskOffset: number;
   readonly pageCount: number;
   updateWorlds(worldMatrices: Float32Array): boolean;
-  updateResidency(resident: Uint32Array): boolean;
+  updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
   /**
    * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
    * buffer — and takes back the settlement it must call: `true` once that buffer is on the queue,

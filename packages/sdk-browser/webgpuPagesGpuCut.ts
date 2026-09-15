@@ -84,7 +84,11 @@ export function renderGpuCut(
     );
     return withoutGpuSelection(rt);
   }
-  if (run.gpuSelection.updateResidency(rows.residentFlags)) run.gpuMetricsReady = false;
+  // Le journal des rangs nomme les pages qui viennent d'entrer ou de sortir : la comparaison des
+  // deux mille trois cents pages du DAG n'a plus lieu, et seules leurs plages sont réécrites.
+  if (run.gpuSelection.updateResidency(rows.residentFlags, rows.residencyChanges))
+    run.gpuMetricsReady = false;
+  rows.clearResidencyChanges();
   marks.residencyUploadEnd = performance.now();
   try {
     rt.timing.frameSelection = run.gpuSelection.dispatch(
