@@ -897,7 +897,7 @@ x −100,49…100,85, y 0,34…47,77, z −78,74…83,40 (mètres).
 Les deux défauts d'import ci-dessus (opacité FBX perdue en silence, aperçus de textures introuvables
 après import) et la règle de départ du banc 15, qui suppose un sol au plus bas des bornes.
 
-## 2026-09-16 — [session sans-threejs] instances : la géométrie n'est plus copiée, le DAG est partagé (lot instances)
+## 2026-09-15 — [session sans-threejs] instances : la géométrie n'est plus copiée, le DAG est partagé (lot instances)
 
 Worktree `lot-instances`, branche `lot/instances-gpu`, partie de `develop` = `a29e025`, rebasée sur
 `d3dcd69` (lot import-lampes de la session Lumière) puis sur `30f2b33` (lot H2 de la session
@@ -1426,7 +1426,7 @@ pas mesuré.
 `tsc` vert, `npm run check:changed` vert (403 tests, format, lint, limite de 200 lignes, doublons).
 Pas de `npm run validate` complet ni de nouveaux tests : portes allégées, décision de l'utilisateur.
 
-## 2026-09-16 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
+## 2026-09-15 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
 
 Deux lignes seulement séparaient le banc commun d'une scène quelconque, et elles sont parties.
 
@@ -1447,7 +1447,7 @@ Cache nommé, Lab monté → sortie propre, `coupe` 80 153, la même image que p
 Quatre tests ajoutés à `scripts/banc.test.mjs` (déduction, dossier sans suffixe, repli).
 `npm run validate` vert, portes Rust comprises. README : section « mesurer une autre scène ».
 
-## 2026-09-16 — [session sans-threejs] d'où viennent les égalités de profondeur, et pourquoi la borne des 0 pixel les rend indépartageables (lot coplanaires v2)
+## 2026-09-15 — [session sans-threejs] d'où viennent les égalités de profondeur, et pourquoi la borne des 0 pixel les rend indépartageables (lot coplanaires v2)
 
 Worktree `lot-coplanaires`, branche `lot/coplanaires-v2`, partie de `develop` = `7b7a79f`, qui n'a
 pas bougé de tout le lot. **Aucun code de production n'est modifié** : le lot s'arrête sur un
@@ -1707,7 +1707,7 @@ aperçus ; rien n'y est écrit. Captures 1246×1000.
   7,56 Go d'atlas sur Emerald, donc 336 images au minimum pour tout transférer. La priorité rend cela
   invisible ; elle ne le supprime pas.
 
-## 2026-09-16 — [session sans-threejs] la cause des pixels du test Hi-Z : l'ordre de dessin, pas la borne (lot hiz)
+## 2026-09-15 — [session sans-threejs] la cause des pixels du test Hi-Z : l'ordre de dessin, pas la borne (lot hiz)
 
 Worktree `lot-hiz`, branche `lot/hiz`, partie de `develop` = `edf9e30`, rebasée sur `abe8827` (lot
 rebond 2 de la session Lumière) avant la fusion et toute la preuve rejouée sur cette base. Quatre
@@ -1854,7 +1854,7 @@ fichier Rust n'est touché par ce lot ; la machine était chargée (8 à 12).
 - Le chemin CPU de repli (`hizUnoccluded`, `applyTemporalHiz`) ne porte pas le redressement de la
   borne : il ne connaît pas la couche coplanaire d'une page. Sans effet sur le rendu WebGPU.
 
-## 2026-09-16 — [session sans-threejs] CPU par image WebGPU : encodage et soumission (lot encodage)
+## 2026-09-15 — [session sans-threejs] CPU par image WebGPU : encodage et soumission (lot encodage)
 
 Worktree `lot-encodage`, branche `lot/encodage`, partie de `develop` = `21dbe9e`, rebasée sur
 `62c6b3d` (lot rebond de la session Lumière) avant la fusion et la preuve rejouée sur cette base.
@@ -4623,7 +4623,7 @@ forcément en retard de la même image. Le verdict qui compte, le pixel, est à 
   Une scène à des milliers de primitives transparentes minuscules paierait ce rembourrage ; Emerald
   a 29 primitives `clustered-blend`, la scène synthétique une.
 
-## 2026-09-16 — [session sans-threejs] l'eau et le verre épais existent (lot eau)
+## 2026-09-15 — [session sans-threejs] l'eau et le verre épais existent (lot eau)
 
 Worktree `lot-eau`, branche `lot/eau`, rebasée sur `0a3c601`. Deux commits. **Aucune version de
 manifeste n'a bougé, aucun produit de cache n'a été ajouté** : la transmission voyage par le glTF
