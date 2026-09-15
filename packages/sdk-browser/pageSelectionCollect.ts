@@ -1,4 +1,4 @@
-import type { ClusterManifest } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
 import { objects } from './pageSelectionHelpers.ts';
@@ -92,12 +92,14 @@ export function collectClusterPages(
     templates.checkCoverage(primitive, template, sourceIndices.array as ArrayLike<number>);
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
+    const worldBox = new Float64Array(BOX_VALUES);
+    boxTransform(worldBox, 0, shape.local, 0, mesh.matrixWorld.elements);
     roots.push({
       world: mesh.matrixWorld,
       pages,
       culling: culling && { ...culling, bounds: shape.bounds! },
-      worldBox: shape.local.clone().applyMatrix4(mesh.matrixWorld),
-      localBox: shape.local.clone(),
+      worldBox,
+      localBox: shape.local.slice(),
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,
       forcedList: structure ? [] : undefined,

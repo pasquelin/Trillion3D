@@ -5,7 +5,7 @@
  * screen-error band. This module holds what is common to a kernel and its callers — the uniform
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
-import { maxStretch } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix, maxStretch } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
@@ -64,10 +64,9 @@ export type GpuSelection = {
 
 const scratch = {
   vp: new THREE.Matrix4(),
-  frustum: new THREE.Frustum(),
   camPos: new THREE.Vector3(),
 };
-const planeScratch = new Float32Array(24),
+const planeScratch = new Float32Array(FRUSTUM_PLANE_VALUES),
   viewScratch = new Float32Array(16);
 
 export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms) {
@@ -120,19 +119,15 @@ export function cameraSelectionUniforms(
   into?: SelectionUniforms,
 ): SelectionUniforms {
   camera.updateMatrixWorld();
-  const { vp, frustum, camPos } = scratch;
-  frustum.setFromProjectionMatrix(
-    vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
-  );
+  const { vp, camPos } = scratch;
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
-  for (let i = 0; i < 6; i++) {
-    const plane = frustum.planes[i];
-    planes[i * 4] = plane.normal.x;
-    planes[i * 4 + 1] = plane.normal.y;
-    planes[i * 4 + 2] = plane.normal.z;
-    planes[i * 4 + 3] = plane.constant;
-  }
+  // Profondeur WebGL, comme le tronc de Three.js par défaut : le noyau lit ces plans tels quels.
+  frustumPlanesFromMatrix(
+    planes,
+    vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
+    false,
+  );
   view.set(camera.matrixWorldInverse.elements);
   const pixelScale = pixelScaleOf(
     camera,

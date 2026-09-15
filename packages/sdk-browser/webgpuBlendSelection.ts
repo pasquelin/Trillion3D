@@ -1,3 +1,4 @@
+import { frustumExcludesBox } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -17,7 +18,12 @@ export function selectWebgpuBlend(blendState: BlendState) {
       blendState.visibleBlend.push(item);
       continue;
     }
-    if (item.bounds && !blendState.blendFrustum.intersectsBox(item.bounds)) rejected++;
+    const box = item.bounds;
+    if (
+      box &&
+      frustumExcludesBox(blendState.blendPlanes, box[0], box[1], box[2], box[3], box[4], box[5])
+    )
+      rejected++;
     else blendState.visibleBlend.push(item);
   }
   return rejected;

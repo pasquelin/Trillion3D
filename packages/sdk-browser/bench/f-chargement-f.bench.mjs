@@ -16,6 +16,10 @@ import {
 } from './oracles/f-scene.mjs';
 import { manifesteEtScene } from './scenesF.mjs';
 
+/** Les six bornes d'une boîte, qu'elle soit la boîte Three.js de la référence ou la boîte à plat. */
+const boiteVersTableau = (boite) =>
+  boite.isBox3 ? [...boite.min.toArray(), ...boite.max.toArray()] : Array.from(boite);
+
 const grande = manifesteEtScene({ primitives: 200, pages: 12, triangles: 8 });
 const petite = manifesteEtScene({ primitives: 1, pages: 1, triangles: 1, seed: 77 });
 /** Une scène dont aucun maillage n'a de primitive : les deux côtés doivent refuser au même endroit. */
@@ -71,10 +75,8 @@ const passeCollect = (fn) => (entree) => {
     bootstrap: sortie.bootstrap.length,
     pages: sortie.allPages.map(recDe),
     boites: sortie.roots.flatMap((root) => [
-      ...root.localBox.min.toArray(),
-      ...root.localBox.max.toArray(),
-      ...root.worldBox.min.toArray(),
-      ...root.worldBox.max.toArray(),
+      ...boiteVersTableau(root.localBox),
+      ...boiteVersTableau(root.worldBox),
     ]),
     bornes: sortie.roots.map((root) => root.culling?.bounds ?? null),
   };

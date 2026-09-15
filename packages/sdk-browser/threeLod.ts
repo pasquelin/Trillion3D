@@ -11,6 +11,8 @@ import {
   triangleGeometry,
 } from './triangleDiagnostic.ts';
 import { isTransmissive } from './visibilityBuffer.ts';
+import { setGeometryBounds } from './threeBounds.ts';
+import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
 
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend: BackendFactory = (context) => {
@@ -66,15 +68,14 @@ export const threeLodBackend: BackendFactory = (context) => {
         const geometry = new THREE.BufferGeometry();
         geometry.attributes = { ...mesh.geometry.attributes };
         geometry.setIndex(new THREE.BufferAttribute(index, 1));
-        const box = new THREE.Box3(),
-          corner = new THREE.Vector3();
+        const box = new Float64Array(BOX_VALUES);
+        boxEmpty(box, 0);
         for (const id of coarseIds) {
-          box.expandByPoint(corner.fromArray(primitive.pages[id].min));
-          box.expandByPoint(corner.fromArray(primitive.pages[id].max));
+          const { min, max } = primitive.pages[id];
+          boxExpandByPoint(box, 0, min[0], min[1], min[2]);
+          boxExpandByPoint(box, 0, max[0], max[1], max[2]);
         }
-        geometry.boundingBox = box.clone();
-        geometry.boundingSphere = new THREE.Sphere();
-        box.getBoundingSphere(geometry.boundingSphere);
+        setGeometryBounds(geometry, box.subarray(0, 3), box.subarray(3, BOX_VALUES));
         const coarse = new THREE.Mesh(geometry, mesh.material);
         coarse.matrixAutoUpdate = false;
         coarse.matrix.identity();
