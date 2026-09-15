@@ -133,7 +133,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0]));
-  prepareWebgpuBlend(
+  const transmissive = prepareWebgpuBlend(
     gpuDevice,
     blendCopies,
     gpu.positionBuffers,
@@ -141,6 +141,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     scene,
     !!context.gpuCanvas,
   );
+  if (transmissive) capabilities.unsupported.push(TRANSMISSION_UNSUPPORTED);
   // The transparent draw order is the scene's and is settled here, once: an image only chooses which
   // of its entries survive.
   blendState.table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
@@ -153,6 +154,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     clusters: blendState.table.length,
     maxVertexWords: blendState.table.maxVertexWords,
     gpuCompaction: !!blendState.compaction?.encode,
+    transmissiveMeshesNotDrawn: transmissive,
   });
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
