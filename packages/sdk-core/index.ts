@@ -1,6 +1,7 @@
 export * from './contracts.ts';
 export * from './bounceContracts.ts';
 export * from './proxyContracts.ts';
+export { probeCellsOf } from './probeCells.ts';
 export { assertSceneProxy, decodeSceneProxy } from './sceneProxy.ts';
 export {
   DEPTH_LAYER_BIAS_UNITS,
