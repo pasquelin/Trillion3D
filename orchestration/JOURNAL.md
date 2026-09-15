@@ -3760,3 +3760,50 @@ comme un résultat.
 écrits. Les neuf autres portes sont vertes sur la branche fusionnée — `format:check`,
 `check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
 `check:structure`, `check:dts`, `check:links` — avec 740 tests JS/TS et 153 tests Rust au vert.
+
+## 2026-09-15 — [compilateur] pilote zip
+
+Premier **conteneur** du compilateur : le ZIP n'est pas une scène, c'est un emballage. Le pilote
+`zip` extrait, puis rend au routeur ce qu'il a extrait ; il ne lit aucune géométrie et ne réencode
+rien — une extraction est sans perte par construction.
+
+Détection par extension `.zip`, puis par nombre magique : `PK\x03\x04` pour une archive qui porte au
+moins une entrée, `PK\x05\x06` pour une archive vide, reconnue afin d'être refusée en le disant
+plutôt que d'être ignorée par le routeur. Lecture par la caisse `zip` 8.6.0 (MIT, zip-rs/zip2),
+compilée sans son défaut de fonctionnalités : seul `deflate` par `flate2` (Rust pur) entre, aucun
+code d'éditeur, aucune dépendance de chiffrement. Spécification : APPNOTE 6.3.10 de PKWARE, format
+ouvert, conforme à la politique de `SPEC_FORMATS_IMPORT.md`.
+
+**Protections, toutes en refus nommé et aucune extraction à moitié.** L'archive est jugée entière sur
+son index avant qu'un octet soit écrit : `ARCHIVE_PATH_ESCAPE` (chemin absolu, `..`, volume nommé,
+séparateur inversé), `ARCHIVE_SYMLINK` (un lien n'est jamais suivi), `ARCHIVE_ENCRYPTED` (une
+protection se refuse, ne se contourne pas), `ARCHIVE_TOO_MANY_ENTRIES` et `ARCHIVE_TOO_LARGE` pour
+les plafonds — 20 000 entrées, 8 Gio décompressés, constantes nommées de `scene/archive.rs` — et
+`ARCHIVE_UNREADABLE` pour une archive tronquée ou corrompue. Le plafond d'octets est réappliqué à
+l'écriture par un lecteur borné : une entrée qui ment sur sa taille annoncée est arrêtée là.
+L'extraction va sous `<cache>/native/archives/<clé>/content`, la clé tenant le nom, la version du
+pilote et l'empreinte de l'archive ; une marque `archive.json` à côté, écrite en dernier, dit
+qu'elle est complète et porte la chaîne des pilotes pour les réutilisations.
+
+**Composition.** Un unique dossier racine est traversé, le dossier extrait est routé par le routeur
+existant, et le pilote `zip` rend ce que le pilote retenu rend — règles du routeur inchangées,
+inconnu et ambigu toujours refusés. Un pilote qui rend sa scène « en place » (le cas glTF) pose une
+difficulté : le compilateur résout ce nom à côté de la *source*, qui est ici l'archive. Le conteneur
+écrit donc dans le dossier extrait le manifeste que le compilateur calculerait lui-même — les mêmes
+octets, donc la même identité de cache — et rend ce dossier. `route.rs` n'a pas bougé : la
+composition tient dans le nouveau `scene/archive.rs`, socle destiné au `.unitypackage` (tar.gz) qui
+viendra s'y ajouter sans rien refactorer.
+
+**Dorée** (`fixtures/zip/`, corpus CC0 recopié de `test-assets/`) : la même scène glTF — buffer
+externe, texture en sous-dossier, dossier racine unique — dans son archive et hors d'elle. Les deux
+compilations rendent la **même clé de cache** et le même `clusters.bin` ; les trois archives piégées
+(sortie de dossier, tronquée, vide) sont refusées par leur code. Le harnais commun `src/tests/golden.rs`
+gagne de quoi compiler une source d'un format quelconque et de quoi fixer un refus, plus la collecte
+du rapport — de quoi servir les prochains formats. Registre : une ligne, et les deux tests qui
+comptent les pilotes. 166 tests Rust au vert, Clippy sans avertissement.
+
+### Ce qui reste
+
+- Les codes `ARCHIVE_*` ne sont pas encore dans le tableau des erreurs de `docs/COMPILER.md` : hors
+  périmètre de ce lot, à ajouter par qui tient cette page.
+- Une archive chiffrée est refusée sans test dédié : aucun jeu redistribuable ne l'exerce.
