@@ -64,8 +64,10 @@ export function drawBlendPass(
     }
     pass.setBindGroup(0, item.group, [(uniformBase + i) * UNIFORM_STRIDE]);
     const material = Array.isArray(item.material) ? item.material[0] : item.material;
-    const front = item.matrix.determinant() < 0 ? pipelineBlendFront : pipelineBlendBack,
-      back = item.matrix.determinant() < 0 ? pipelineBlendBack : pipelineBlendFront;
+    // Un seul déterminant : l'appel rendait deux fois la même valeur pour choisir les deux faces.
+    const renverse = item.matrix.determinant() < 0;
+    const front = renverse ? pipelineBlendFront : pipelineBlendBack,
+      back = renverse ? pipelineBlendBack : pipelineBlendFront;
     if (
       textured &&
       material.side === THREE.DoubleSide &&

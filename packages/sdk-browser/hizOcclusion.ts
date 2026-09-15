@@ -1,14 +1,25 @@
-import * as THREE from 'three';
 import { hizFootprintFar, hizOccluded } from '../sdk-core/index.ts';
-import { projectBoxToScreen } from './hizProjection.ts';
-import {
-  HIZ_KERNEL_TEXELS,
-  createHizCounts,
-  hizOversized,
-  resetHizCounts,
-  type HizCounts,
-} from './hizCounts.ts';
-import type { HizBounds, HizPage, HizPyramid } from './hizTypes.ts';
+import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
+import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
+import type { HizBounds, HizPyramid } from './hizTypes.ts';
+
+// Le noyau de test est une puissance de deux : `premierNiveau` en dépend pour borner la recherche.
+const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS);
+if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS');
+
+/**
+ * Premier niveau de mip qui peut encore tenir dans le noyau, pour un côté de `span` texels.
+ *
+ * `floor(x1/2^L) - floor(x0/2^L)` vaut `floor(span/2^L)` ou un de plus, donc un niveau où
+ * `floor(span/2^L) >= noyau` ne peut pas répondre : la recherche saute ces niveaux au lieu de les
+ * essayer un par un. Le niveau rendu est une borne inférieure exacte, jamais le niveau retenu :
+ * la boucle évalue ensuite le même prédicat qu'avant, sur les mêmes entiers.
+ */
+function premierNiveau(span: number) {
+  if (span < HIZ_KERNEL_TEXELS) return 0;
+  const niveau = 31 - Math.clz32(span) - (KERNEL_LOG2 - 1);
+  return niveau > 0 ? niveau : 0;
+}
 
 /**
  * Values `hizTestRect` writes: the mip the box answers from, then the level-0 rectangle that mip is
@@ -63,7 +74,7 @@ export function hizTestRect(
     x1 = maxX > width - 1 ? width - 1 : maxX,
     y1 = maxY > height - 1 ? height - 1 : maxY;
   if (x1 < x0 || y1 < y0) return false;
-  for (let level = 0; level < levels; level++) {
+  for (let level = premierNiveau(x1 - x0 > y1 - y0 ? x1 - x0 : y1 - y0); level < levels; level++) {
     const scale = 2 ** level;
     if (
       Math.floor(x1 / scale) - Math.floor(x0 / scale) < HIZ_KERNEL_TEXELS &&
@@ -104,14 +115,12 @@ export function hizTestRectFlat(
 
 const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
 
-export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
+/** `hizRejects` sur la disposition plate qu'écrit `projectBoxesFlat`. */
+export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: number, bias = 0) {
   if (
-    !hizTestRect(
-      bounds.minX,
-      bounds.minY,
-      bounds.maxX,
-      bounds.maxY,
-      bounds.clipsNear,
+    !hizTestRectFlat(
+      bounds,
+      base,
       pyramid.width,
       pyramid.height,
       pyramid.levels.length,
@@ -127,52 +136,16 @@ export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
     rejectScratch[4] + 1,
     rejectScratch[0],
   );
-  return hizOccluded(bounds.nearestDepth, far, bias);
+  return hizOccluded(bounds[base + 4], far, bias);
 }
 
-/** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
-const discardedCounts = createHizCounts();
-
-export function filterUnoccluded<T extends HizPage>(
-  pages: T[],
-  pyramid: HizPyramid,
-  camera: THREE.PerspectiveCamera,
-  viewport: [number, number],
-  bias = 0,
-) {
-  resetHizCounts(discardedCounts);
-  return countUnoccluded(pages, pyramid, camera, viewport, discardedCounts, bias);
-}
-
-/**
- * The pages the test keeps, and what it did: `counts` gains the clusters it was handed, the clusters
- * it eliminated and the clusters too wide for the level-0 kernel, each with the triangles those
- * clusters carry. This is the oracle the GPU counters are read against on a fixed image.
- */
-export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
-  pages: T[],
-  pyramid: HizPyramid,
-  camera: THREE.PerspectiveCamera,
-  viewport: [number, number],
-  counts: HizCounts,
-  bias = 0,
-) {
-  const kept: T[] = [];
-  for (const page of pages) {
-    const bounds = projectBoxToScreen(page.min, page.max, page.matrix, camera, viewport);
-    const triangles = page.array ? Math.floor(page.array.length / 3) : 0;
-    counts.tested++;
-    counts.testedTriangles += triangles;
-    if (hizOversized(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, bounds.clipsNear)) {
-      counts.oversized++;
-      counts.oversizedTriangles += triangles;
-    }
-    if (hizRejects(pyramid, bounds, bias)) {
-      counts.rejected++;
-      counts.rejectedTriangles += triangles;
-      continue;
-    }
-    kept.push(page);
-  }
-  return kept;
+const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
+export function hizRejects(pyramid: HizPyramid, bounds: HizBounds, bias = 0) {
+  boundsScratch[0] = bounds.minX;
+  boundsScratch[1] = bounds.minY;
+  boundsScratch[2] = bounds.maxX;
+  boundsScratch[3] = bounds.maxY;
+  boundsScratch[4] = bounds.nearestDepth;
+  boundsScratch[5] = bounds.clipsNear ? 1 : 0;
+  return hizRejectsFlat(pyramid, boundsScratch, 0, bias);
 }

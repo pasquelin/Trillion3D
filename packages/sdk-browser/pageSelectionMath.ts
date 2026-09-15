@@ -105,8 +105,18 @@ export function extractPlanes(clip: THREE.Matrix4, planes: Float64Array) {
   planes[22] = w2 - z2;
   planes[23] = w3 - z3;
 }
-/** Axis-aligned box against the six planes: 0 outside, 1 straddling, 2 fully inside.
- *  A subtree that is fully inside spares every box below it a test. */
+/** Les six coordonnées de la boîte, rangées pour que le signe du plan serve d'indice. */
+const boite = new Float64Array(6);
+/**
+ * Axis-aligned box against the six planes: 0 outside, 1 straddling, 2 fully inside.
+ * A subtree that is fully inside spares every box below it a test.
+ *
+ * Deux passes au lieu d'une : la première ne fait que rejeter, la seconde ne sert qu'à distinguer
+ * « traversé » de « entièrement dedans » et s'arrête au premier plan traversé. Un plan qui rejette
+ * n'a jamais besoin du second produit scalaire, et le test de l'accumulateur sort de la boucle
+ * chaude. Le signe du plan choisit le sommet par indice plutôt que par branche. Les produits et les
+ * sommes restent ceux d'avant, dans le même ordre : `a * maxX + b * maxY + c * maxZ + d`.
+ */
 export function boxClip(
   planes: Float64Array,
   minX: number,
@@ -116,21 +126,29 @@ export function boxClip(
   maxY: number,
   maxZ: number,
 ) {
-  let inside = 2;
+  boite[0] = minX;
+  boite[1] = maxX;
+  boite[2] = minY;
+  boite[3] = maxY;
+  boite[4] = minZ;
+  boite[5] = maxZ;
   for (let p = 0; p < 24; p += 4) {
     const a = planes[p],
       b = planes[p + 1],
       c = planes[p + 2],
       d = planes[p + 3];
-    if (a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0)
+    if (a * boite[a > 0 ? 1 : 0] + b * boite[b > 0 ? 3 : 2] + c * boite[c > 0 ? 5 : 4] + d < 0)
       return 0;
-    if (
-      inside === 2 &&
-      a * (a > 0 ? minX : maxX) + b * (b > 0 ? minY : maxY) + c * (c > 0 ? minZ : maxZ) + d < 0
-    )
-      inside = 1;
   }
-  return inside;
+  for (let p = 0; p < 24; p += 4) {
+    const a = planes[p],
+      b = planes[p + 1],
+      c = planes[p + 2],
+      d = planes[p + 3];
+    if (a * boite[a > 0 ? 0 : 1] + b * boite[b > 0 ? 2 : 3] + c * boite[c > 0 ? 4 : 5] + d < 0)
+      return 1;
+  }
+  return 2;
 }
 /**
  * Plancher de l'erreur projetée d'un sous-arbre : l'erreur la plus faible qu'il porte, vue du point

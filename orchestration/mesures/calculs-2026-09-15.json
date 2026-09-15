@@ -1,0 +1,349 @@
+{
+  "version": 1,
+  "date": "2026-09-15T00:21:30.484Z",
+  "commit": "74cf30331efe8b60b82cf8c5317e5647eaf21219",
+  "node": "v26.8.2",
+  "plateforme": "darwin/arm64",
+  "dpr": null,
+  "fps": null,
+  "lignes": [
+    {
+      "calcul": "A1 visibilityDepth",
+      "fichier": "packages/sdk-browser/hizDepth.ts",
+      "avantMs": 5.6507705,
+      "apresMs": 1.2101039999999998,
+      "gain": 0.7858515046753359,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "320×180, 43 200 triangles",
+          "taille": 57600
+        },
+        {
+          "nom": "1280×720, 43 200 triangles",
+          "taille": 921600
+        },
+        {
+          "nom": "aucune page",
+          "taille": 2304
+        },
+        {
+          "nom": "une page",
+          "taille": 2304
+        }
+      ]
+    },
+    {
+      "calcul": "A2 shadeVisibility",
+      "fichier": "packages/sdk-browser/visibilityShadePixel.ts",
+      "avantMs": 24.1563125,
+      "apresMs": 18.509166999999998,
+      "gain": 0.23377514676546765,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 60,
+      "entrees": [
+        {
+          "nom": "256×144 MeshBasic",
+          "taille": 36864
+        },
+        {
+          "nom": "256×144 MeshStandard",
+          "taille": 36864
+        },
+        {
+          "nom": "fond seul 128×72",
+          "taille": 9216
+        },
+        {
+          "nom": "640×360 MeshStandard",
+          "taille": 230400
+        }
+      ]
+    },
+    {
+      "calcul": "A3 splitOccluders",
+      "fichier": "packages/sdk-browser/hizSplit.ts",
+      "avantMs": 9.697396000000001,
+      "apresMs": 3.1845,
+      "gain": 0.6716128742190172,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 198,
+      "entrees": [
+        {
+          "nom": "20 000 boîtes dont dégénérées",
+          "taille": 20000
+        },
+        {
+          "nom": "une boîte",
+          "taille": 1
+        },
+        {
+          "nom": "aucune boîte",
+          "taille": 0
+        },
+        {
+          "nom": "que des coupes du plan proche",
+          "taille": 64
+        }
+      ]
+    },
+    {
+      "calcul": "A4 countUnoccluded",
+      "fichier": "packages/sdk-browser/hizUnoccluded.ts",
+      "avantMs": 13.886667,
+      "apresMs": 12.028875,
+      "gain": 0.13378242597737816,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 157,
+      "entrees": [
+        {
+          "nom": "20 000 boîtes dont dégénérées",
+          "taille": 20000
+        },
+        {
+          "nom": "une boîte",
+          "taille": 1
+        },
+        {
+          "nom": "aucune boîte",
+          "taille": 0
+        },
+        {
+          "nom": "que des coupes du plan proche",
+          "taille": 64
+        }
+      ]
+    },
+    {
+      "calcul": "A5 hizTestRect",
+      "fichier": "packages/sdk-browser/hizOcclusion.ts",
+      "avantMs": 1.4118330000000001,
+      "apresMs": 0.6757705,
+      "gain": 0.521352383745103,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20003 rectangles, 12 niveaux",
+          "taille": 20005
+        },
+        {
+          "nom": "aucun rectangle",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A6 boxClip",
+      "fichier": "packages/sdk-browser/pageSelectionMath.ts",
+      "avantMs": 0.925438,
+      "apresMs": 0.787854,
+      "gain": 0.14866906264925359,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 boîtes dont dégénérées",
+          "taille": 20000
+        },
+        {
+          "nom": "aucune boîte",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A7 urls de résidence",
+      "fichier": "packages/sdk-browser/autonomousResidency.ts",
+      "avantMs": 222.1900415,
+      "apresMs": 1.344854,
+      "gain": 0.9939472804860159,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 10,
+      "entrees": [
+        {
+          "nom": "15 000 pages, 9 000 urls, 400 paquets",
+          "taille": 15000
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A8 pages résidentes",
+      "fichier": "packages/sdk-browser/autonomousResidency.ts",
+      "avantMs": 0.35972950000000004,
+      "apresMs": 0.07325,
+      "gain": 0.796374776047002,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "40 000 pages",
+          "taille": 40000
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A9 windingCw",
+      "fichier": "packages/sdk-browser/webgpuPagesWinding.ts",
+      "avantMs": 0.936708,
+      "apresMs": 0.716604,
+      "gain": 0.23497610781588282,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 clusters, 4 lectures",
+          "taille": 20000
+        },
+        {
+          "nom": "un cluster",
+          "taille": 1
+        },
+        {
+          "nom": "aucun cluster",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A10 caméra de comparaison",
+      "fichier": "packages/sdk-browser/webgpuPagesRender.ts",
+      "avantMs": 0.679521,
+      "apresMs": 0.1280005,
+      "gain": 0.8116312814467839,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "400 images",
+          "taille": 400
+        },
+        {
+          "nom": "une image",
+          "taille": 1
+        }
+      ]
+    },
+    {
+      "calcul": "A11 résidence et lecture de coupe",
+      "fichier": "packages/sdk-browser/gpuDagRuntime.ts",
+      "avantMs": 1.3452085,
+      "apresMs": 0.812729,
+      "gain": 0.395834177378451,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "8 images, 20 000 pages",
+          "taille": 160000
+        },
+        {
+          "nom": "lecture de coupe, 12 000 pages tirées",
+          "taille": 12000
+        },
+        {
+          "nom": "64 mondes",
+          "taille": 64
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A12 admission et drain",
+      "fichier": "packages/sdk-browser/streamingQueue.ts",
+      "avantMs": 1.1979164999999998,
+      "apresMs": 0.923,
+      "gain": 0.22949554497329308,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "5 000 travaux en file, limite 6",
+          "taille": 5000
+        },
+        {
+          "nom": "file vide",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "A13 decodePageAttributes",
+      "fichier": "packages/sdk-browser/geometryPage.ts",
+      "avantMs": 2.358792,
+      "apresMs": 1.1658745000000001,
+      "gain": 0.505732383355548,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 60,
+      "entrees": [
+        {
+          "nom": "30 000 sommets, 4 attributs",
+          "taille": 30000
+        },
+        {
+          "nom": "9 sommets",
+          "taille": 9
+        }
+      ]
+    },
+    {
+      "calcul": "A14 intervalles et hexadécimal",
+      "fichier": "packages/sdk-browser/telemetry.ts",
+      "avantMs": 3.1955210000000003,
+      "apresMs": 0.33877100000000004,
+      "gain": 0.8939856755752819,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "2 000 images, 2 000 empreintes",
+          "taille": 2000
+        },
+        {
+          "nom": "aucune image",
+          "taille": 0
+        }
+      ]
+    }
+  ]
+}

@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sha256Hex } from './sha256Hex.ts';
 import { createPageStreamer } from './streamingPages.ts';
 test('streamer fetches only requested pages and counts hits', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   const fetched: string[] = [];
   globalThis.fetch = async (url) => {
     fetched.push(String(url));
@@ -29,9 +28,7 @@ test('streamer fetches only requested pages and counts hits', async () => {
 });
 test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   globalThis.fetch = async () => new Response(bytes, { status: 200 });
   const streamer = createPageStreamer(
     [
@@ -56,9 +53,7 @@ test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
 });
 test('streamer notifies consumers when a page is evicted', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   globalThis.fetch = async () => new Response(bytes, { status: 200 });
   const dropped: string[] = [];
   const streamer = createPageStreamer(
@@ -107,9 +102,7 @@ test('page failures stop after three attempts and remain observable without a pe
 
 test('the bootstrap reader verifies pages and shares in-flight requests', async () => {
   const bytes = new Uint32Array([0, 1, 2]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   let attempts = 0;
   const previous = globalThis.fetch;
   globalThis.fetch = async () => {

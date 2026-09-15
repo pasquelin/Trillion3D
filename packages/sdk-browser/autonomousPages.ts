@@ -10,7 +10,7 @@ import { decodeGeometryPage } from './geometryPage.ts';
 import { createAutonomousGeometry } from './autonomousGeometry.ts';
 import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
-import { createAutonomousResidency } from './autonomousResidency.ts';
+import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
 import { installSceneLighting } from './sceneLighting.ts';
 import type { BackendFactory } from './backendTypes.ts';
 
@@ -169,7 +169,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       return {
         clusters: visible,
         selectedTriangles,
-        residentPages: allPages.filter((rec) => !!rec.array).length,
+        residentPages: comptePagesResidentes(allPages),
         geometryAllocationBytes: geometryStore.state.allocationBytes,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected,

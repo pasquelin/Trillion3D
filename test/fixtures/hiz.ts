@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import type { VisPage } from '../../packages/sdk-browser/visibilityBuffer.ts';
-import type { HizPage } from '../../packages/sdk-browser/hiz.ts';
+import {
+  HIZ_BOUNDS_VALUES,
+  projectBoxesFlat,
+  type HizBounds,
+  type HizPage,
+} from '../../packages/sdk-browser/hiz.ts';
 
 export function cameraAt(z = 5, near = 0.1) {
   const cam = new THREE.PerspectiveCamera(55, 1, near, 100);
@@ -37,4 +42,28 @@ export function quad(
     url: clusterId,
   };
   return { page, geometry };
+}
+
+const boxScratch = new Float64Array(HIZ_BOUNDS_VALUES);
+/**
+ * Single-box `HizBounds` adapter over the flat, batched `projectBoxesFlat`: `projectBoxToScreen`
+ * was removed when the pipeline moved to the flat layout, but tests written for one box at a time
+ * still want that shape. This calls the real (only) projection with a batch of one.
+ */
+export function projectBoxToScreen(
+  min: number[],
+  max: number[],
+  matrix: THREE.Matrix4,
+  camera: THREE.PerspectiveCamera,
+  viewport: [number, number],
+): HizBounds {
+  projectBoxesFlat([{ min, max, matrix }], 1, camera, viewport, boxScratch);
+  return {
+    minX: boxScratch[0],
+    minY: boxScratch[1],
+    maxX: boxScratch[2],
+    maxY: boxScratch[3],
+    nearestDepth: boxScratch[4],
+    clipsNear: boxScratch[5] !== 0,
+  };
 }

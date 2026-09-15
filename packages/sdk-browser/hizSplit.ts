@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
-import { projectBoxToScreen } from './hizProjection.ts';
-import type { HizBounds, HizPage } from './hizTypes.ts';
+import { boundsFor, projectBoxesFlat } from './hizProjection.ts';
+import type { HizPage } from './hizTypes.ts';
 
 let splitLow = new Uint32Array(0),
   splitHigh = new Uint32Array(0),
@@ -10,14 +10,14 @@ let splitLow = new Uint32Array(0),
 const splitCounts = new Uint32Array(256);
 const splitKeyDouble = new Float64Array(1),
   splitKeyWords = new Uint32Array(splitKeyDouble.buffer);
+
 /**
- * `splitOccluders` over the flat bounds `projectBoxesFlat` wrote, without allocating and without any
- * frame history: `rest[i]` becomes 0 for an occluder and 1 otherwise, and the occluder count is
- * returned. The order is the sorting twin's to the bit — a stable radix over the orderable image of
- * the double `nearestDepth`, so equal depths fall back to the candidate order exactly as
- * `a.nearest-b.nearest||a.index-b.index` does.
+ * Classe par profondeur les boîtes qui ne coupent pas le plan proche, et renvoie leur nombre ;
+ * `splitOrder[0..n-1]` porte leurs indices, du plus proche au plus lointain. Tri radix stable sur
+ * l'image ordonnable du double `nearestDepth`, sans allocation : les profondeurs égales retombent
+ * donc sur l'ordre des candidats, exactement comme `a.nearest-b.nearest||a.index-b.index`.
  */
-export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Uint8Array) {
+function rangParProfondeur(count: number, bounds: Float64Array) {
   if (splitLow.length < count) {
     splitLow = new Uint32Array(count);
     splitHigh = new Uint32Array(count);
@@ -26,7 +26,6 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
   }
   let inFront = 0;
   for (let i = 0; i < count; i++) {
-    rest[i] = 1;
     if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) continue;
     splitKeyDouble[0] = bounds[i * HIZ_BOUNDS_VALUES + 4];
     const low = splitKeyWords[0],
@@ -61,31 +60,48 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
   }
   splitOrder = order;
   splitScratch = scratch;
+  return inFront;
+}
+
+/**
+ * La moitié la plus proche devient les occulteurs de l'image : `rest[i]` vaut 0 pour un occulteur et
+ * 1 sinon, et le nombre d'occulteurs est renvoyé. Les boîtes qui coupent le plan proche restent dans
+ * le reste, où elles ne peuvent en cacher aucune autre.
+ */
+export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Uint8Array) {
+  for (let i = 0; i < count; i++) rest[i] = 1;
+  const inFront = rangParProfondeur(count, bounds);
+  if (!inFront) return 0;
   const occluders = Math.max(1, Math.floor(inFront / 2));
-  for (let i = 0; i < occluders; i++) rest[order[i]] = 0;
+  for (let i = 0; i < occluders; i++) rest[splitOrder[i]] = 0;
   return occluders;
 }
 
-/** In-front closer half becomes this-frame occluders. Near-plane crossings stay in rest so they cannot hide others. */
-export function splitOccluders<T extends HizPage>(
+/**
+ * Le même partage, rendu en pages plutôt qu'en drapeaux : `occluders` reçoit la moitié la plus
+ * proche dans l'ordre du tri, `rest` le reste du tri puis les coupes du plan proche dans l'ordre des
+ * candidats. Aucune page n'est projetée deux fois et rien n'est alloué par image.
+ */
+export function splitOccludersInto<T extends HizPage>(
   pages: T[],
   camera: THREE.PerspectiveCamera,
   viewport: [number, number],
-  boundsMap?: Map<T, HizBounds>,
+  occluders: T[],
+  rest: T[],
 ) {
-  const ranked = pages.map((page, index) => {
-    const bounds =
-      boundsMap?.get(page) ?? projectBoxToScreen(page.min, page.max, page.matrix, camera, viewport);
-    if (boundsMap) boundsMap.set(page, bounds);
-    return { page, index, nearest: bounds.nearestDepth, clipsNear: bounds.clipsNear };
-  });
-  ranked.sort((a, b) => a.nearest - b.nearest || a.index - b.index);
-  const inFront = ranked.filter((item) => !item.clipsNear),
-    crossing = ranked.filter((item) => item.clipsNear);
-  if (!inFront.length) return { occluders: [] as T[], rest: pages };
-  const mid = Math.max(1, Math.floor(inFront.length / 2));
-  return {
-    occluders: inFront.slice(0, mid).map((item) => item.page),
-    rest: [...inFront.slice(mid), ...crossing].map((item) => item.page),
-  };
+  occluders.length = 0;
+  rest.length = 0;
+  const count = pages.length,
+    bounds = boundsFor(count);
+  projectBoxesFlat(pages, count, camera, viewport, bounds);
+  const inFront = rangParProfondeur(count, bounds);
+  if (!inFront) {
+    for (let i = 0; i < count; i++) rest.push(pages[i]);
+    return 0;
+  }
+  const mid = Math.max(1, Math.floor(inFront / 2));
+  for (let i = 0; i < mid; i++) occluders.push(pages[splitOrder[i]]);
+  for (let i = mid; i < inFront; i++) rest.push(pages[splitOrder[i]]);
+  for (let i = 0; i < count; i++) if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) rest.push(pages[i]);
+  return mid;
 }

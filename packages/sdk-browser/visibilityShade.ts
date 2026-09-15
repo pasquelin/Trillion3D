@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
 import { backgroundRgb, triangleAt, uvDerivatives } from './visibilityMath.ts';
+import { createVisibilityFrame } from './visibilityFrame.ts';
 import { shadePixel } from './visibilityShadePixel.ts';
 import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
 
@@ -19,11 +20,12 @@ export function shadeVisibility(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
   );
-  const bg = backgroundRgb(background);
+  const bg = backgroundRgb(background) as [number, number, number];
+  const frame = createVisibilityFrame(pages, viewProj, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const o = y * width + x,
-        rgb = shadePixel(ids[o], pages, camera, viewProj, width, height, x, y, background);
+        rgb = shadePixel(frame, ids[o], camera, x, y, bg);
       const p = o * 4;
       pixels[p] = rgb[0] ?? bg[0];
       pixels[p + 1] = rgb[1] ?? bg[1];

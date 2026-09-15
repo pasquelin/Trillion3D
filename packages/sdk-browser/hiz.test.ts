@@ -7,12 +7,12 @@ import {
   buildHizPyramid,
   filterUnoccluded,
   hizRejects,
-  projectBoxToScreen,
   sameHizView,
-  splitOccluders,
   visibilityDepth,
+  type HizPage,
 } from './hiz.ts';
-import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
+import { splitOccludersInto } from './hizSplit.ts';
+import { cameraAt, projectBoxToScreen, quad } from '../../test/fixtures/hiz.ts';
 
 test('Hi-Z history is invalidated by camera motion and projection cuts', () => {
   const previous = cameraAt(),
@@ -99,7 +99,9 @@ test('pages that cross the near plane are not used as Hi-Z occluders', () => {
   const cam = cameraAt(0.5, 0.1);
   const crossing = quad(new THREE.MeshBasicMaterial(), [-2, -2, -2], [2, 2, 2], 'crossing');
   const far = quad(new THREE.MeshBasicMaterial(), [-0.2, -0.2, -2], [0.2, 0.2, -2], 'far');
-  const { occluders, rest } = splitOccluders([crossing.page, far.page], cam, [16, 16]);
+  const occluders: HizPage[] = [],
+    rest: HizPage[] = [];
+  splitOccludersInto([crossing.page, far.page], cam, [16, 16], occluders, rest);
   assert.equal(
     occluders.some((page) => page.url === 'crossing'),
     false,

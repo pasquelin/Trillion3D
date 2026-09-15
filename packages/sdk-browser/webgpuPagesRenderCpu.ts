@@ -110,7 +110,10 @@ export function renderCpuCut(
   run.frustumRejected = selected.frustumRejected;
   run.lodLevel = selected.lodLevel;
   const admissionStarted = performance.now(),
-    requested = new Set([...bootstrapUrls, ...run.desired.map((page) => page.url)]);
+    requested = run.requestedScratch;
+  requested.clear();
+  for (const url of bootstrapUrls) requested.add(url);
+  for (let i = 0; i < run.desired.length; i++) requested.add(run.desired[i].url);
   const wasLimited = run.coverageBudgetLimited;
   run.coverageBudgetLimited = requested.size > slots;
   if (wasLimited !== run.coverageBudgetLimited)
@@ -139,7 +142,10 @@ export function renderCpuCut(
   // A complete root cover is always pinned. Coarsen atomically before reclaiming
   // old detail slots if old and new refinements cannot coexist in the budget.
   const transitionStarted = performance.now(),
-    transition = new Set([...requested, ...run.shown.map((page) => page.url)]);
+    transition = run.transitionScratch;
+  transition.clear();
+  for (const url of requested) transition.add(url);
+  for (let i = 0; i < run.shown.length; i++) transition.add(run.shown[i].url);
   if (!run.coverageBudgetLimited && transition.size > slots) {
     const fallback = selectCpuCut(rt, camera, pixelError, true);
     if (!fallback.complete) throw new Error('GPU_COVERAGE_INCOMPLETE');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineProfiler } from './telemetry.ts';
+import { referenceIntervals } from '../../scripts/mesure/calculs/oracles/chargement.mjs';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 
 test('EngineProfiler records frames and produces accurate statistics and bottlenecks', () => {
@@ -83,4 +84,28 @@ test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', 
   const report = profiler.getReport();
   assert.equal(report.bottleneck, 'cpu_bound');
   assert.ok(report.bottleneckMessage.includes('Choke CPU'));
+});
+
+// A14 : `record()` écrit dans un tampon circulaire au lieu de `push` puis `shift()` de tout le
+// tableau. Oracle : la version `push`/`shift`, d'avant le lot A, dans
+// `scripts/mesure/calculs/oracles/chargement.mjs`.
+test('the circular interval buffer matches push+shift after wraparound and rejected deltas', () => {
+  const max = 5;
+  const profiler = new EngineProfiler(max);
+  // The first call only sets the clock baseline; every later call produces one interval. Includes a
+  // negative delta and one past the 1000 ms ceiling, both of which the filter must reject.
+  const deltas = [0, 10, -3, 2000, 12, 8, 9, 11, 7, 13];
+  let horloge = 0;
+  for (const dt of deltas) profiler.record({} as never, (horloge += dt));
+  const optimisee = profiler.orderedIntervals();
+  const reference = referenceIntervals(max, deltas.slice(1));
+  assert.deepEqual(optimisee, reference);
+});
+
+test('a profiler that never records a valid interval reports an empty, not undefined, list', () => {
+  const profiler = new EngineProfiler(3);
+  profiler.record({} as never, 100);
+  profiler.record({} as never, 100); // dt === 0: rejected by `dt > 0`.
+  assert.deepEqual(profiler.orderedIntervals(), referenceIntervals(3, [0]));
+  assert.deepEqual(profiler.orderedIntervals(), []);
 });
