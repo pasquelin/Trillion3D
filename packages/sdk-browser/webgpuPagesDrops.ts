@@ -33,6 +33,7 @@ export function resetHizHistory(run: WebgpuRunState) {
 }
 
 export function dropGpuSelection(rt: WebgpuPagesRuntime) {
+  rt.run.frameHold.invalidate();
   rt.run.gpuSelection?.dispose();
   rt.run.gpuSelection = undefined;
   rt.capabilities.gpuDriven = false;
@@ -61,6 +62,7 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
 export function dropVis(rt: WebgpuPagesRuntime) {
   const { vis, capabilities } = rt,
     { rows, drawSlots } = rt.layout;
+  rt.run.frameHold.invalidate();
   vis.visEnabled = false;
   vis.visPipelineBack = undefined;
   vis.visPipelineBackCw = undefined;

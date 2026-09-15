@@ -123,6 +123,10 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     get pending() {
       return pending;
     },
+    /** Vrai tant qu'un téléversement est en cours ou en file : la résidence peut encore changer. */
+    get busy() {
+      return running || scheduled;
+    },
     get job() {
       return job;
     },

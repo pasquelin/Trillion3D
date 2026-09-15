@@ -108,6 +108,8 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, capture, timing, diag, services } = rt,
     { gpuDevice } = rt.setup;
+  // La vidange draine les textures, la résidence et les relevés : l'image d'après refait tout.
+  run.frameHold.invalidate();
   await Promise.resolve();
   // Le programme du contrat d'éclairage se compile hors de l'image. Si une lampe l'attendait, la
   // pose est redessinée avec lui avant toute lecture : une pose vidée est une pose éclairée.

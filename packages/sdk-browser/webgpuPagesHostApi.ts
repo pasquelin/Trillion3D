@@ -39,6 +39,7 @@ export function syncResident(rt: WebgpuPagesRuntime) {
   }
   // A complete cut is reselected for the latest camera; CPU arrival alone
   // never authorizes replacing any region's GPU fallback.
+  run.frameHold.invalidate();
   renderWebgpuPages(rt, run.lastCamera);
 }
 
