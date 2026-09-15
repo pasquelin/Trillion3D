@@ -1667,3 +1667,74 @@ processeur y gagne un tiers du temps par image, faute de clusters à encoder.
   au-delà, l'ordre d'arrivée décide encore quels slots sont repris. Le rendre exact demande une
   politique d'éviction pilotée par la coupe, et l'essai brutal de ce lot dit qu'elle ne peut pas être
   « décharger tout ce qui sort de l'ensemble gardé ».
+
+## 2026-09-15 — Lot ombres : une carte ne redessine que ce qui est à portée, et la découpe projette sa découpe
+
+Branche `lot/ombres`, rebasée sur `develop` à `2bf1f54`. Banc Emerald, WebGPU, mode visible,
+1280×720, `pixelError` 0, lampes posées par la règle de grille du harnais (`scripts/mesure/lampes.mjs`).
+
+### Ce qui a changé
+
+- **Rejet par face.** Un passage de calcul précède la passe de profondeur : de la liste d'instances
+  de l'image — celle du dessin principal, sélection comprise —, chaque face ne garde que les
+  clusters dont la sphère monde touche le plan lointain de la lampe et le cône circonscrit au carré
+  de la face. Un seul dessin indirect par face remplace un dessin par slot de couche coplanaire.
+  Le rejet est exact : ce qu'il écarte, la projection le rejetait déjà.
+- **Résidence.** L'entrée et la sortie de résidence d'une page déclarent leur boîte à
+  l'ordonnanceur, comme un nœud déplacé. Une carte en cache ne peut plus ignorer un cluster arrivé
+  ni garder l'ombre d'un cluster parti.
+- **Découpe.** La passe de profondeur a un étage de fragment qui n'écrit aucune couleur et applique
+  le test de masque du raster du tampon de visibilité, partagé au caractère près (`PAGE_MASK_WGSL`).
+  Un feuillage, une grille, un claustra projette l'ombre de sa découpe et non de son quadrilatère.
+- **Compteurs.** La ligne Ombres publie `lampesRedessinees`, `cartesReutilisees`, `facesRedessinees`,
+  `appelsDeDessin`.
+- **Harnais.** `--lampes N`, `--ombres on|off`, `--lampe-mobile` : grille dans l'emprise du modèle,
+  hauteur fixe au-dessus du plancher, portée déduite de la maille. Aucune scène nommée.
+
+### Chiffres (étape Ombres, GPU p50/p95 ; image entière = enveloppe GPU)
+
+Scène immobile, 8 et 30 lampes à ombre : 0 lampe redessinée, 0 face, **0 appel de dessin**, 30 cartes
+réutilisées sur 30 — des deux côtés. L'étape n'est pas encodée, donc « non mesuré ».
+
+Une lampe en mouvement, 6 faces redessinées par image :
+
+| vue      | lampes | Ombres avant | Ombres après | appels avant → après | image avant | image après |
+| -------- | ------ | ------------ | ------------ | -------------------- | ----------- | ----------- |
+| générale | 8      | 7,86 / 9,78  | 0,54 / 0,86  | 30 → 12              | 37,83       | 25,87       |
+| sol      | 8      | 2,25 / 2,35  | 0,48 / 0,69  | 30 → 12              | 11,91       | 11,21       |
+| rue      | 8      | 2,26 / 2,28  | 0,26 / 0,44  | 30 → 12              | 12,16       | 10,34       |
+| générale | 30     | 7,83 / 7,99  | 0,16 / 0,22  | 30 → 12              | 30,42       | 20,54       |
+| sol      | 30     | 2,21 / 2,22  | 0,39 / 0,50  | 30 → 12              | 12,09       | 11,15       |
+| rue      | 30     | 2,26 / 2,35  | 0,31 / 0,46  | 30 → 12              | 13,03       | 10,49       |
+
+CPU par image, inchangé dans le bruit : 4,0 à 12,9 ms p50 des deux côtés. Charge machine relevée
+entre 7,7 et 32 selon les séries : d'autres sessions travaillaient. Les durées GPU sont des relevés
+d'horodatage et ne dépendent pas de cette charge ; les durées CPU s'y lisent avec réserve.
+
+### Fidélité
+
+`sol` à 8 lampes : 0 px. Les autres vues diffèrent — 268 px (générale), 28 152 px (rue) à 8 lampes ;
+676, 143 et 16 794 px à 30 lampes — témoin A/A à 0 px, coupe identique. **Cause isolée par
+construction** : une variante ne portant que le rejet, sans l'invalidation par résidence, sort à
+**0 px sur les trois vues**. L'écart vient donc entièrement de la résidence, et il va dans le sens de
+la correction : 98,8 % des pixels qui changent sont **plus sombres** après (rue à 8 lampes :
+27 812 plus sombres contre 343 plus clairs), c'est-à-dire des ombres jusqu'ici absentes. Le côté
+avant ne converge pas : à 8 et à 90 images de chauffe, il rend exactement la même image fausse.
+
+La découpe ne change rien sur Emerald, qui ne porte aucun matériau à masque (191 opaques,
+29 transparents) : les trois captures sont **octet pour octet identiques** avec et sans l'étage de
+fragment, et l'étape Ombres reste dans le bruit.
+
+### Ce qui reste
+
+- Les clusters transparents ne sont pas dans la table des lignes que la passe dessine : ils ne
+  projettent **aucune** ombre. Ombre atténuée et colorée d'un verre ou d'une eau : hors de ce lot.
+- Niveau de détail propre aux ombres, **chiffré et non activé** : une face de 128 à 512 texels sur
+  90° a une résolution angulaire 8 à 20 fois plus grossière que la caméra (1 280 px sur 55°). Une
+  coupe du DAG au seuil de la face vaudrait environ trois niveaux plus grossiers, soit de l'ordre de
+  huit fois moins de clusters dans les cartes : l'étape passerait d'environ 0,3 ms à 0,04 ms par
+  lampe redessinée, et le plafond des quatre lampes par image (24 faces) d'environ 1,2 ms à 0,15 ms.
+  Le prix est une silhouette plus grossière dans la carte, donc un contact d'ombre qui peut bouger
+  d'un texel ou plus en incidence rasante : fidélité avant vitesse, ce n'est pas activé.
+- Les cartes d'ombre sont dessinées avec la sélection de la caméra : un occulteur résident mais hors
+  de la coupe caméra ne projette rien. Le rejet ne change pas cela, il le préserve.
