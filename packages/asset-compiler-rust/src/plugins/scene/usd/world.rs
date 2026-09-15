@@ -34,6 +34,10 @@ pub(super) const COMPOSITION: &str = "usd-composition-invalid";
 pub(super) const TIME_SAMPLE: &str = "usd-animation-first-sample";
 /// Un `Mesh` dont les tableaux obligatoires manquent ou se contredisent.
 pub(super) const MESH_INVALID: &str = "usd-mesh-invalid";
+/// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe, ou
+/// sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin, ce
+/// qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
+pub(super) const NGON_UNCUT: &str = "usd-ngon-untriangulable";
 /// Une opération de transformation que ce pilote ne compose pas (`!resetXformStack!`, inverse d'une
 /// matrice, opération de type inconnu).
 pub(super) const XFORM_UNSUPPORTED: &str = "usd-xform-unsupported";
