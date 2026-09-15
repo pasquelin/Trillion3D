@@ -15,6 +15,10 @@ export interface RenderBackend {
   capabilities: BackendCapabilities;
   setDiagnostic?(mode: DiagnosticMode): void;
   refreshSceneLighting?(): void;
+  /** Vrai quand la scène rendue porte au moins une lampe déclarée. Faux = vue sans éclairage, dont
+   *  la composition est l'identité (P6). Absent d'un moteur qui ne passe pas par Three. Lu à chaque
+   *  image : une lampe posée après la création du moteur change la réponse. */
+  sceneLit?(): boolean;
   /** Le magasin de lampes du contrat a changé : l'image suivante le relira. Absent = lampes ignorées. */
   refreshSceneLights?(): void;
   /** Déplace un nœud nommé de la scène préparée ; appliqué à l'image suivante, sans allocation (R8). */

@@ -7,6 +7,7 @@ import {
   collectClusterPages,
   indexPagesByUrl,
   pageRequestUrl,
+  RequestStamps,
   rootCoverage,
 } from './pageSelection.ts';
 import { lighting } from './webgpuPagesHelpers.ts';
@@ -35,7 +36,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   if (typeof window !== 'undefined')
     console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU', inputColor);
-  const { roots, allPages, blendCopies, prepared } = collectClusterPages(
+  const { roots, allPages, blendCopies, prepared, requestCount } = collectClusterPages(
     source,
     metadata,
     indices,
@@ -117,6 +118,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     bootstrapKey,
     byUrl,
     requestUrlByPage,
+    // Le dédoublonnage des clés de requête sans table de hachage, partagé par les deux listes que
+    // l'hôte demande après le rendu : leur rang est posé une fois pour toutes par le catalogue.
+    requestStamps: new RequestStamps(requestCount),
     cap,
     slots,
     scene,

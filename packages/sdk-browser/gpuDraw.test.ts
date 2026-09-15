@@ -72,11 +72,12 @@ test('overflow zeros instance counts in every indirect slot', () => {
   assert.equal(result.instances.length, 0);
 });
 
-test('draw shader counts and scatters page groups in parallel with stable order', () => {
-  assert.match(DRAW_SHADER, /@compute @workgroup_size\(1\)/);
+test('draw shader counts, prefixes and scatters page groups in parallel with stable order', () => {
+  assert.doesNotMatch(DRAW_SHADER, /@compute @workgroup_size\(1\)/);
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn countGroups/);
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn scatterGroups/);
-  assert.match(DRAW_SHADER, /fn prefixGroups/);
+  assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn prefixGroups/);
+  assert.match(DRAW_SHADER, /workgroupBarrier\(\);/);
   assert.doesNotMatch(DRAW_SHADER, /atomicAdd/);
   assert.match(DRAW_SHADER, /restAt\(i\)\s*\*\s*3u\s*\+\s*item\.bin/);
   assert.match(

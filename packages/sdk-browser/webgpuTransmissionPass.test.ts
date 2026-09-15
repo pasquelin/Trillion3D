@@ -49,6 +49,9 @@ function prepared() {
   const blendState = createWebgpuBlendState();
   const gpu = {
     positionBuffers: new Map(),
+    blendIndexBuffers: new Map(),
+    blendUvBuffers: new Map(),
+    blendNormalBuffers: new Map(),
     vertexBytes: 0,
     volumeBuffer: buffer(),
   } as unknown as WebgpuGpuState;

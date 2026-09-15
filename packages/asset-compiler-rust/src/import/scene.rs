@@ -21,11 +21,9 @@ impl<'a> Importer<'a> {
             .and_then(|s| s.to_str())
             .unwrap_or("source")
             .to_string();
-        let source_dir = file
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
+        // Les URI d'images écrites ici sont relatives à cette racine, et c'est sous elle que le
+        // compilateur relira les octets pour en calculer les aperçus : une seule règle, partagée.
+        let source_dir = crate::plugins::scene::image_root(file);
         let canonical_dir = normalise(&source_dir);
         let progress = self.progress;
         let cancelled = self.cancelled;
@@ -161,7 +159,7 @@ impl<'a> Importer<'a> {
         self.report.add_count("node-hidden", hidden);
         self.mesh_nodes += file_nodes;
         self.triangles += file_triangles;
-        self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":started.elapsed().as_secs_f64()*1000.0}));
+        self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"originalUnitMeters":scene.settings.original_unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":started.elapsed().as_secs_f64()*1000.0}));
         Ok(())
     }
     pub(super) fn push_light(&mut self, node: &ufbx::Node, light: &ufbx::Light) {

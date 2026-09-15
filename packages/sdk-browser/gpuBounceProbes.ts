@@ -17,13 +17,13 @@ import { createGpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuBounceSurface, type GpuBounceSurface } from './gpuBounceSurface.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Ce que la passe de sondes lie : les cascades, le proxy, la file de l'image, les sondes figées,
- *  les neuves, le cache. Les lampes n'y sont plus : le cache les a évaluées par maille. */
+/** Ce que la passe de sondes lie : les cascades, le proxy et son albédo, la file de l'image, les
+ *  sondes figées, les neuves, le cache. Les lampes n'y sont plus : le cache les a évaluées par
+ *  maille. Le proxy est en écriture parce que son entête porte des compteurs `atomic` ; cette passe
+ *  n'y écrit rien. */
 const PROBE_TYPES: (GPUBufferBindingType | null)[] = [
   'uniform',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
+  'storage',
   'read-only-storage',
   'read-only-storage',
   'read-only-storage',
@@ -98,10 +98,8 @@ export async function createGpuBounceProbes(
     });
     group = bounceGroup(device, layout, [
       uniform.buffer,
-      resident.triangles,
+      resident.buffer,
       resident.albedo,
-      resident.nodeBounds,
-      resident.nodeChildren,
       queue,
       snapshot,
       probes,

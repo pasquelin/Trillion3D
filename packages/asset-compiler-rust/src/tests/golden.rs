@@ -13,6 +13,8 @@ pub(super) struct GoldenRun {
     pub binary: Vec<u8>,
     /// Ce que la compilation a publié en chemin : l'étape d'un pilote se prouve dans son rapport.
     pub reports: Vec<Value>,
+    /// Le cache jetable : c'est là qu'un pilote a laissé la scène intermédiaire qu'il a écrite.
+    cache: PathBuf,
     root: PathBuf,
 }
 impl Drop for GoldenRun {
@@ -55,6 +57,7 @@ pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
         slim,
         binary,
         reports: reports.into_inner().expect("reports"),
+        cache: options.cache.clone(),
         root,
     }
 }
@@ -94,6 +97,36 @@ fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
     (options, root)
 }
 
+impl GoldenRun {
+    /// La scène intermédiaire qu'un pilote nommé a écrite dans le cache : son manifeste et son
+    /// glTF. C'est ce que la dorée d'un pilote compare, avant que le compilateur ne la découpe.
+    pub(super) fn prepared(&self, plugin: &str) -> (Value, Value) {
+        let imports = self.cache.join("native").join("imports");
+        let entries = fs::read_dir(&imports).expect("imports directory");
+        for entry in entries.flatten() {
+            let manifest: Value = match fs::read(entry.path().join("manifest.json"))
+                .map(|bytes| serde_json::from_slice(&bytes).expect("manifest.json is valid JSON"))
+            {
+                Ok(manifest) => manifest,
+                Err(_) => continue,
+            };
+            if manifest
+                .pointer("/source/plugin/name")
+                .and_then(Value::as_str)
+                != Some(plugin)
+            {
+                continue;
+            }
+            let gltf = fs::read(entry.path().join("model.gltf")).expect("model.gltf");
+            return (
+                manifest,
+                serde_json::from_slice(&gltf).expect("model.gltf is valid JSON"),
+            );
+        }
+        panic!("aucune scène intermédiaire écrite par le pilote {plugin}");
+    }
+}
+
 /// L'attendu versionné d'une fixture, sans les deux champs qui ne sont que de la prose.
 pub(super) fn golden_expected(dir: &Path) -> Value {
     let mut expected: Value =
@@ -104,4 +137,27 @@ pub(super) fn golden_expected(dir: &Path) -> Value {
         object.remove("rule");
     }
     expected
+}
+
+/// Écrit l'attendu d'une fixture qui se régénère : le condensé que le doré comparera, plus les deux
+/// champs de prose que `golden_expected` retire ensuite. Ceux-ci sont conservés tels qu'ils étaient
+/// quand le fichier existait — une phrase relue à la main ne se perd pas dans une régénération — et
+/// les valeurs données ne servent qu'à la première écriture. Deux fixtures qui se régénèrent, c'est
+/// la même écriture : elle ne s'écrit qu'une fois.
+pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: &str) {
+    let previous: Option<Value> = fs::read(dir.join("expected.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    let object = expected.as_object_mut().expect("attendu");
+    for (field, fallback) in [("case", case), ("rule", rule)] {
+        let kept = previous
+            .as_ref()
+            .and_then(|value| value.get(field))
+            .cloned()
+            .unwrap_or_else(|| json!(fallback));
+        object.insert(field.into(), kept);
+    }
+    let text = serde_json::to_vec_pretty(&expected).expect("attendu");
+    fs::write(dir.join("expected.json"), &text).expect("expected.json");
+    println!("fixture écrite dans {}", dir.display());
 }

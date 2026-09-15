@@ -76,5 +76,27 @@ export function installSceneLighting(
     update();
   };
   refresh();
-  return { update, refresh };
+  return {
+    update,
+    refresh,
+    /** Vrai dès qu'une lampe du graphe source est installée : le seul signal de la vue éclairée. */
+    get lit() {
+      return pairs.length > 0;
+    },
+  };
+}
+
+/**
+ * Ce qu'un moteur rendu par Three publie de son éclairage : de quoi le rafraîchir, et la vue qu'il
+ * rend. Sans lampe installée, l'hôte compose par l'identité plutôt que par l'exposition et ACES.
+ *
+ * `sceneLit` est une fonction et non un accesseur : les moteurs étalent cet objet dans le leur, et
+ * un accesseur y serait lu une seule fois, à la construction. Une lampe posée après coup — le cas
+ * de tout hôte du contrat — doit rallumer la chaîne d'affichage à l'image suivante.
+ */
+export function sceneLightingApi(lighting: ReturnType<typeof installSceneLighting>) {
+  return {
+    refreshSceneLighting: () => lighting.refresh(),
+    sceneLit: () => lighting.lit,
+  };
 }
