@@ -6,6 +6,7 @@ use base::*;
 use fixtures::*;
 use golden::*;
 mod apercus_golden;
+mod apercus_import;
 mod apercus_source;
 mod coplanar;
 mod coplanar_assign;
