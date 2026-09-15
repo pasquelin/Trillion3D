@@ -40,8 +40,11 @@ export function submitColorCopy(
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
+  // La soumission est chronométrée seule : l'encodage qui la précède ne la porte plus.
+  const submitStart = performance.now();
   const command = encoder.finish();
   device.queue.submit([command]);
+  timing.lastQueueSubmitMs = performance.now() - submitStart;
   // The verdicts of a sampled image can only be mapped once the image that copied them is submitted.
   rt.vis.gpuHiz?.countsSubmitted();
   run.imageRevision++;

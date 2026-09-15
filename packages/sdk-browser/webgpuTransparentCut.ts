@@ -1,15 +1,8 @@
 import type * as THREE from 'three';
+import { copyElements, sameElements } from './matrixElements.ts';
 import { createSelectionResult, type PageRec } from './pageSelection.ts';
 
 type Cache = { get(key: string): unknown };
-
-const sameElements = (held: Float64Array, now: ArrayLike<number>) => {
-  for (let i = 0; i < 16; i++) if (held[i] !== now[i]) return false;
-  return true;
-};
-const copyElements = (held: Float64Array, now: ArrayLike<number>) => {
-  for (let i = 0; i < 16; i++) held[i] = now[i];
-};
 
 /**
  * The transparent cut, held from one image to the next with the inputs it was cut from.
