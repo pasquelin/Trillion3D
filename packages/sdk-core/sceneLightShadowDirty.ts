@@ -96,6 +96,24 @@ export function createShadowDirty() {
       setRect(mask, base, x0, x1, y0, y1, false);
       settle(slice * POINT_FACES + face, base);
     },
+    /**
+     * La région n'a finalement pas été dessinée — la passe n'a pas pu être encodée — : ses pages
+     * retournent en file. Sans cela, une carte garderait une profondeur périmée sans que rien ne le
+     * dise.
+     */
+    undrew(
+      slice: number,
+      face: number,
+      x0: number,
+      x1: number,
+      y0: number,
+      y1: number,
+      nowMs: number,
+      frame: number,
+    ) {
+      setRect(mask, maskBase(slice, face), x0, x1, y0, y1, true);
+      note(slice * POINT_FACES + face, nowMs, frame);
+    },
     /** La tranche est libérée ou reprise : plus aucune page ne l'attend. */
     reset(slice: number) {
       for (let face = 0; face < POINT_FACES; face++) {

@@ -1,5 +1,5 @@
 /** Boîtes de mouvement gardées séparément avant fusion : au-delà, deux boîtes se rejoignent. */
-export const MOVED_BOXES = 8;
+const MOVED_BOXES = 8;
 
 /** Le point testé, alloué une fois : `touches` est appelé par lampe et par boîte, à chaque image. */
 const point = new Float64Array(3);

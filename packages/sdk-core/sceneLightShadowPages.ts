@@ -3,18 +3,17 @@ import { LIGHT_SETTINGS, MAX_SHADOW_SLICES, POINT_FACES } from './sceneLightCont
 /** Côté d'une page de l'atlas, en texels : la maille d'invalidation d'une face. */
 export const SHADOW_PAGE = LIGHT_SETTINGS.shadowPage;
 /** Rangées de pages d'une face au plus grand côté publié : 1024 / 128 = 8, donc 64 pages. */
-export const MAX_PAGE_ROWS = Math.max(1, Math.floor(LIGHT_SETTINGS.shadowSliceMax / SHADOW_PAGE));
+const MAX_PAGE_ROWS = Math.max(1, Math.floor(LIGHT_SETTINGS.shadowSliceMax / SHADOW_PAGE));
 /**
  * Une rangée de pages tient dans un octet — huit pages au plus — donc le masque d'une face est
  * `MAX_PAGE_ROWS` octets, un par rangée. Deux rangées identiques se reconnaissent alors par une
  * égalité d'octets, ce qui est exactement ce que le groupement en régions contiguës demande.
  */
-export const FACE_MASK_BYTES = MAX_PAGE_ROWS;
-export const SHADOW_MASK_BYTES = MAX_SHADOW_SLICES * POINT_FACES * FACE_MASK_BYTES;
+export const SHADOW_MASK_BYTES = MAX_SHADOW_SLICES * POINT_FACES * MAX_PAGE_ROWS;
 
 /** Premier octet du masque d'une face dans le tableau commun. */
 export const maskBase = (slice: number, face: number) =>
-  (slice * POINT_FACES + face) * FACE_MASK_BYTES;
+  (slice * POINT_FACES + face) * MAX_PAGE_ROWS;
 
 /** Pages par côté d'une face de `side` texels, bornées par ce que le masque sait porter. */
 export const pageRowsOf = (side: number) =>
