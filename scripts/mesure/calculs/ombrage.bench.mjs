@@ -1,11 +1,9 @@
 // A2 : l'ombrage CPU du visbuffer, pixel par pixel. Référence = `visibilityShadePixel.ts` et la
 // boucle de `visibilityShade.ts` d'avant le lot A, recopiés dans `oracles/ombrage.mjs`.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadeVisibility } from '../../../packages/sdk-browser/visibilityShade.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
-import { compare, depose } from './banc.mjs';
+import { compare, verifieEtDepose } from './banc.mjs';
 import { camera, coupe } from './scenes.mjs';
 import { referenceShadeVisibility } from './oracles/ombrage.mjs';
 
@@ -45,8 +43,4 @@ const lignes = [
   }),
 ];
 
-test('A2 rend exactement les mêmes octets', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('ombrage', lignes);
+verifieEtDepose('ombrage', 'A2 rend exactement les mêmes octets', lignes);

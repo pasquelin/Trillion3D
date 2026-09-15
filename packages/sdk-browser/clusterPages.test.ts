@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sha256Hex } from './sha256Hex.ts';
 import { loadClusterPages } from './clusterPages.ts';
 test('a corrupt page aborts sibling fetches before they allocate remaining indices', async () => {
   const started: string[] = [],
@@ -10,9 +11,7 @@ test('a corrupt page aborts sibling fetches before they allocate remaining indic
     { url: 'later.bin', bytes: 4, sha256: 'pending' },
   ];
   const bytes = new Uint8Array([1, 2, 3, 4]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   pages[0].sha256 = pages[2].sha256 = sha;
   const hold = Promise.withResolvers<void>();
   globalThis.fetch = async (url, init) => {

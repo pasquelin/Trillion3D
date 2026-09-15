@@ -1,13 +1,11 @@
 // A6 et A7 : le test d'une boîte contre le tronc, et les ensembles d'urls d'une image de résidence.
 // Référence = `pageSelectionMath.ts:110-134`, `pageSelectionRequests.ts:77-96` et
 // `autonomousResidency.ts:24-37` d'avant le lot A, recopiés dans `oracles/selection.mjs`.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { boxClip, extractPlanes } from '../../../packages/sdk-browser/pageSelectionMath.ts';
 import { collectPendingUrls } from '../../../packages/sdk-browser/pageSelectionRequests.ts';
 import { createAutonomousResidency } from '../../../packages/sdk-browser/autonomousResidency.ts';
-import { compare, depose, graine } from './banc.mjs';
+import { compare, graine, verifieEtDepose } from './banc.mjs';
 import { boites, camera } from './scenes.mjs';
 import {
   referenceBoxClip,
@@ -117,8 +115,8 @@ const lignes = [
   }),
 ];
 
-test('A6 et A7 rendent exactement les mêmes verdicts et les mêmes urls', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('selection', lignes);
+verifieEtDepose(
+  'selection',
+  'A6 et A7 rendent exactement les mêmes verdicts et les mêmes urls',
+  lignes,
+);

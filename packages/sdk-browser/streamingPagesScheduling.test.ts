@@ -1,11 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { sha256Hex } from './sha256Hex.ts';
 import { createPageStreamer } from './streamingPages.ts';
 test('a priority read overtakes queued detail without exceeding one transfer', async () => {
   const bytes = new Uint32Array([0, 1, 2]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   const started: string[] = [],
     previous = globalThis.fetch;
   let release!: () => void;
@@ -46,9 +45,7 @@ test('a priority read overtakes queued detail without exceeding one transfer', a
 
 test('cancelling obsolete detail leaves a shared page request alive', async () => {
   const bytes = new Uint32Array([0, 1, 2]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   const previous = globalThis.fetch;
   let release!: () => void,
     attempts = 0;
@@ -85,9 +82,7 @@ test('cancelling obsolete detail leaves a shared page request alive', async () =
 
 test('stream diagnostics cover coalescing, verification, retention and eviction', async () => {
   const bytes = new Uint8Array([1, 0, 0, 0]);
-  const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  const sha = await sha256Hex(bytes.buffer);
   const previous = globalThis.fetch;
   globalThis.fetch = async () => new Response(bytes);
   const events: string[] = [];

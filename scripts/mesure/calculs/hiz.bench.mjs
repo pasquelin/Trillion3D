@@ -1,11 +1,9 @@
 // A1 et A5 : la profondeur du visbuffer et le choix du niveau de mip.
 // Référence = le code d'avant, recopié tel quel dans `oracles/hiz.mjs` ; optimisée = celle du paquet.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { hizTestRect } from '../../../packages/sdk-browser/hizOcclusion.ts';
 import { visibilityDepth } from '../../../packages/sdk-browser/hizDepth.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/visibilityRaster.ts';
-import { compare, depose } from './banc.mjs';
+import { compare, verifieEtDepose } from './banc.mjs';
 import { camera, coupe, rectangles } from './scenes.mjs';
 import { referenceHizTestRect, referenceVisibilityDepth } from './oracles/hiz.mjs';
 
@@ -63,8 +61,4 @@ const lignes = [
   }),
 ];
 
-test('A1 et A5 rendent exactement les mêmes valeurs', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('hiz', lignes);
+verifieEtDepose('hiz', 'A1 et A5 rendent exactement les mêmes valeurs', lignes);

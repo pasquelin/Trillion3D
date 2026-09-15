@@ -1,15 +1,13 @@
 // A13 et A14 : la lecture des attributs d'une page décompressée, le tampon d'intervalles et le
 // passage en hexadécimal. Référence = `geometryPage.ts:63-88`, `telemetry.ts:24-33` et le `digest`
 // recopié à l'identique dans `clusterPages.ts` et `streamingFetch.ts`, d'avant le lot A.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import * as meshoptimizer from 'meshoptimizer';
 import { frameStatistics } from '../../../packages/sdk-core/index.ts';
 import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.mjs';
 import { decodePageAttributes } from '../../../packages/sdk-browser/geometryPage.ts';
 import { EngineProfiler } from '../../../packages/sdk-browser/telemetry.ts';
 import { toHex } from '../../../packages/sdk-browser/sha256Hex.ts';
-import { compare, depose, graine } from './banc.mjs';
+import { compare, graine, verifieEtDepose } from './banc.mjs';
 import { referenceDecode, referenceHex, referenceIntervals } from './oracles/chargement.mjs';
 
 const alea = graine(83);
@@ -99,8 +97,4 @@ const lignes = [
   }),
 ];
 
-test('A13 et A14 rendent exactement les mêmes valeurs', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('chargement', lignes);
+verifieEtDepose('chargement', 'A13 et A14 rendent exactement les mêmes valeurs', lignes);

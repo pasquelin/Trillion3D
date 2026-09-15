@@ -1,16 +1,18 @@
 // A8 et A11 : le comptage des pages résidentes, et ce que la sélection GPU relit par image.
 // Référence = `autonomousPages.ts:168-182`, `gpuDagRuntime.ts:77-101` et `gpuDagUniforms.ts:31-52`
 // d'avant le lot A, recopiés tels quels.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { maxStretch } from '../../../packages/sdk-core/index.ts';
 import { comptePagesResidentes } from '../../../packages/sdk-browser/autonomousResidency.ts';
 import { updateResidencyFlags } from '../../../packages/sdk-browser/gpuDagRuntime.ts';
 import { parseDagOutput } from '../../../packages/sdk-browser/gpuDagUniforms.ts';
-import { compare, depose, graine } from './banc.mjs';
+import { PAGE_CONE_FLOATS } from '../../../packages/sdk-browser/gpuSelection.ts';
+import { compare, graine, verifieEtDepose } from './banc.mjs';
 import { referenceParseDagOutput, referenceUpdateResidency } from './oracles/residence.mjs';
 
-const CONE_FLOATS = 12,
+/** La largeur du cône vient du moteur : un banc qui la redéclare peut comparer à faux. Le rang du
+ *  drapeau de résidence, lui, est écrit en clair dans le moteur (`gpuDagRuntime.ts`) ; le banc le
+ *  recopie tel quel plutôt que d'inventer une relation entre les deux. */
+const CONE_FLOATS = PAGE_CONE_FLOATS,
   FLAG = 11;
 
 const alea = graine(53);
@@ -112,8 +114,8 @@ const lignes = [
   }),
 ];
 
-test('A8 et A11 rendent exactement les mêmes comptes, drapeaux et coupes', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('residence', lignes);
+verifieEtDepose(
+  'residence',
+  'A8 et A11 rendent exactement les mêmes comptes, drapeaux et coupes',
+  lignes,
+);
