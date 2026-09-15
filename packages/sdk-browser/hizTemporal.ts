@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { rasterVisibility, type VisPage } from './visibilityBuffer.ts';
 import { buildHizPyramid } from './hizDepth.ts';
-import { countUnoccluded, filterUnoccluded } from './hizOcclusion.ts';
+import { countUnoccluded, filterUnoccluded } from './hizUnoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './hizCounts.ts';
-import { splitOccluders } from './hizSplit.ts';
+import { splitOccludersInto } from './hizSplit.ts';
 import type { HizPage, HizPyramid } from './hizTypes.ts';
 
 export type TemporalHizState = {
@@ -28,6 +28,23 @@ export function sameHizView(
   );
 }
 
+/** Retient l'image qui vient d'être rasterisée : la caméra est recopiée dans celle que l'historique
+ *  garde déjà, jamais clonée, et le viewport réécrit sur place. Même pose, sans allocation. */
+function retiens(
+  history: TemporalHizState,
+  camera: THREE.PerspectiveCamera,
+  viewport: [number, number],
+  depth: Float32Array,
+) {
+  history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1]);
+  history.camera = (history.camera ?? new THREE.PerspectiveCamera()).copy(camera, false);
+  if (!history.viewport) history.viewport = [viewport[0], viewport[1]];
+  else {
+    history.viewport[0] = viewport[0];
+    history.viewport[1] = viewport[1];
+  }
+}
+
 /**
  * Apply Temporal Hi-Z occlusion culling using previous frame's depth pyramid reprojection.
  * Candidate pages are tested against the previous frame's Hi-Z pyramid.
@@ -49,10 +66,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
 } {
   resetHizCounts(counts);
   if (selected.length < 2) {
-    const vis = rasterVisibility(selected, camera, viewport);
-    history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
-    history.camera = camera.clone();
-    history.viewport = [viewport[0], viewport[1]];
+    retiens(history, camera, viewport, rasterVisibility(selected, camera, viewport).depth);
     return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
   }
   const hasPrev = !!(
@@ -64,29 +78,19 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     history.viewport[1] === viewport[1]
   );
 
-  let occluders: T[], rest: T[];
+  const occluders: T[] = [],
+    rest: T[] = [];
   if (hasPrev) {
     const prevCam = history.camera!;
-    const unoccludedInPrev = filterUnoccluded(selected, history.pyramid!, prevCam, viewport);
-    const unoccludedSet = new Set(unoccludedInPrev);
-    occluders = selected.filter((p) => unoccludedSet.has(p));
-    rest = selected.filter((p) => !unoccludedSet.has(p));
-    if (!occluders.length || !rest.length) {
-      const split = splitOccluders(selected, camera, viewport);
-      occluders = split.occluders;
-      rest = split.rest;
-    }
-  } else {
-    const split = splitOccluders(selected, camera, viewport);
-    occluders = split.occluders;
-    rest = split.rest;
+    const unoccludedSet = new Set(filterUnoccluded(selected, history.pyramid!, prevCam, viewport));
+    for (let i = 0; i < selected.length; i++)
+      (unoccludedSet.has(selected[i]) ? occluders : rest).push(selected[i]);
   }
+  if (!occluders.length || !rest.length)
+    splitOccludersInto(selected, camera, viewport, occluders, rest);
 
   if (!occluders.length || !rest.length) {
-    const vis = rasterVisibility(selected, camera, viewport);
-    history.pyramid = buildHizPyramid(vis.depth, viewport[0], viewport[1]);
-    history.camera = camera.clone();
-    history.viewport = [viewport[0], viewport[1]];
+    retiens(history, camera, viewport, rasterVisibility(selected, camera, viewport).depth);
     return { shown: selected, hizRejected: 0, occluders, history, counts };
   }
 
@@ -95,10 +99,7 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   const disoccluded = countUnoccluded(rest, currentPyramid, camera, viewport, counts);
   const shown = [...occluders, ...disoccluded];
 
-  const fullVis = rasterVisibility(shown, camera, viewport);
-  history.pyramid = buildHizPyramid(fullVis.depth, viewport[0], viewport[1]);
-  history.camera = camera.clone();
-  history.viewport = [viewport[0], viewport[1]];
+  retiens(history, camera, viewport, rasterVisibility(shown, camera, viewport).depth);
 
   return { shown, hizRejected: rest.length - disoccluded.length, occluders, history, counts };
 }
