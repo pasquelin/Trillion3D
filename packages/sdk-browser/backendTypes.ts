@@ -143,6 +143,9 @@ export interface BackendContext {
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
   sceneLights?: SceneLightStore;
+  /** Les identifiants des lampes que le fichier source portait, dans l'ordre du cache. L'hôte les
+   *  relit par `explorer.importedLights()` pour les régler ou les retirer une à une. */
+  importedLightIds?: string[];
   /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume, et elle apparaît dès qu'une
    *  lampe est déclarée et que le cache porte un proxy résident. */
   bounce?: boolean;
