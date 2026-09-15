@@ -61,7 +61,7 @@ fn transmissionColor(lit:vec3f,baseTint:vec3f,alpha:f32,N:vec3f,V:vec3f,P:vec3f,
  let transmitted=baseTint*transmittedBackdrop(P,Nv,V,fragXY,fragZ);
  var reflected=vec3f(0.0);
  if(!unlit){
-  reflected=F*sampleBounce(P,reflect(-V,Nv))*BOUNCE_INVERSE_PI
+  reflected=F*sampleBounce(P,reflect(-V,Nv))*INVERSE_PI
    +declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,fragXY);
  }
  let a=alpha+t*(1.0-alpha);

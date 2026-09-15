@@ -11,6 +11,7 @@ import {
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { FLAG_PAGED, FLAG_TRANSMISSIVE, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
+import { WRAP_COORD_WGSL } from './visibilityPageWgsl.ts';
 import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
@@ -70,7 +71,7 @@ ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
-fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
+${WRAP_COORD_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 // A paged transparent primitive draws one instance per cluster the GPU compaction kept, in the
 // order the compaction wrote them, which is the source order the scene recorded. An unpaged one

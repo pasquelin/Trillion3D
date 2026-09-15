@@ -59,6 +59,8 @@ struct ResidentProxy{
  * emplacement vide — une boîte inversée ne suffirait pas, le test des plans n'y voit que des
  * minimums et des maximums.
  */
+/** Traversée rayon/boîte par tranches, garde à 1e-20. `lightingShaderIntersections.ts` écrit la
+ *  même en GLSL avec une garde à 1e-19 : seuils différents, langages différents, rien à partager. */
 export const BOUNCE_NODE_WGSL = `
 const NODE_FLOATS:u32=${PROXY_NODE_FLOATS}u;
 const NODE_WORDS:u32=${PROXY_NODE_WORDS}u;

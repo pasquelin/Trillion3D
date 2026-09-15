@@ -1,3 +1,5 @@
+/** `hashBits` est le fmix de murmur3 en GLSL ; `triangleHash` (trianglePalette.ts) est le même
+ *  mélange en WGSL, précédé d'un décalage additif d'entrée. Deux langages, deux écritures. */
 export const lightingDirectShader = `uint hashBits(uint x){
  x^=x>>16u;x*=0x7feb352du;x^=x>>15u;x*=0x846ca68bu;x^=x>>16u;
  return x;

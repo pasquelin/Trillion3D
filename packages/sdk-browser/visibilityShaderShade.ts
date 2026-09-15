@@ -1,6 +1,14 @@
 import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import {
+  BARY_WEIGHTS_WGSL,
+  EDGE_WGSL,
+  PAGE_INFO_STRUCT_WGSL,
+  PAGE_UV_WGSL,
+  PAGE_VERTEX_WGSL,
+  WRAP_COORD_WGSL,
+} from './visibilityPageWgsl.ts';
+import {
   ATLAS_SLOTS_WGSL,
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
@@ -8,7 +16,7 @@ import {
 } from './webgpuAtlasWgsl.ts';
 import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
 
-export const SHADE_SHADER = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
+export const SHADE_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,padding:array<vec4f,10>,}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
@@ -23,12 +31,13 @@ ${atlasTextures(SHADE_BINDINGS.dataMaps, 'dataMaps')}
 @group(0) @binding(${SHADE_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
 @group(0) @binding(${SHADE_BINDINGS.dataSlots}) var<storage, read> dataSlots:array<u32>;
 ${TRIANGLE_PALETTE_WGSL}
-fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}
-fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
+${PAGE_VERTEX_WGSL}
+${PAGE_UV_WGSL}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
-fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
-fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
+${EDGE_WGSL}
+${BARY_WEIGHTS_WGSL}
+${WRAP_COORD_WGSL}
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
@@ -63,7 +72,7 @@ fn framebuffer(clip:vec4f)->vec3f{
  var bary=vec3f(0.333,0.333,0.334);
  var uv=vec2f(0.0);
  if(area!=0.0){
-  let a0=edge(s1.xy,s2.xy,p)/area;let a1=edge(s2.xy,s0.xy,p)/area;let a2=1.0-a0-a1;
+  let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
   let iw0=1.0/c0.w;let iw1=1.0/c1.w;let iw2=1.0/c2.w;
   let p0w=a0*iw0;let p1w=a1*iw1;let p2w=a2*iw2;let sum=p0w+p1w+p2w;
   bary=select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);

@@ -5,6 +5,9 @@ import { HIZ_BACKGROUND } from './hizOracles.ts';
  * et une taille par niveau. Les valeurs sont celles du visbuffer, déjà en simple précision, et la
  * réduction est un maximum : rien n'y est arrondi, la disposition plate rend exactement ce que
  * rendait la pyramide en tableaux de tableaux, sans allouer une ligne par rangée et par image.
+ *
+ * Miroir de production de `hizReduceCeil` (hizOracles.ts), qui reste l'oracle : deux écritures
+ * volontaires de la même réduction, que le test d'équivalence oppose l'une à l'autre.
  */
 export type HizFlat = {
   data: Float32Array;

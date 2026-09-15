@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CameraPose } from '../sdk-core/index.ts';
-import { DEFAULT_PIXEL_RATIO } from './backendCommon.ts';
+import { devicePixels } from './backendCommon.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 
 type Inputs = {
@@ -62,8 +62,8 @@ export function createExplorerViewportApi(inputs: Inputs) {
       if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
         throw new Error('Invalid viewport size');
       if (directGpu) {
-        canvas.width = Math.floor(width * (options.pixelRatio ?? DEFAULT_PIXEL_RATIO));
-        canvas.height = Math.floor(height * (options.pixelRatio ?? DEFAULT_PIXEL_RATIO));
+        canvas.width = devicePixels(width, options.pixelRatio);
+        canvas.height = devicePixels(height, options.pixelRatio);
       } else renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();

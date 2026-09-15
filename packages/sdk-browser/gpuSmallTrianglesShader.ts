@@ -1,8 +1,14 @@
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import {
+  BARY_WEIGHTS_WGSL,
+  EDGE_WGSL,
+  MASK_KEEP_WGSL,
+  PAGE_INFO_STRUCT_WGSL,
+} from './visibilityPageWgsl.ts';
 import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 
 /** Compute raster for sub-eight-pixel opaque triangles. Hardware renders the complementary set. */
-const PAGE_INFO = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
+const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
 struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 /** Workgroups per dispatch dimension guaranteed by WebGPU; the small-triangle list is split across x and y. */
 export const DISPATCH_SPAN = 65535;
@@ -44,13 +50,10 @@ fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
  return vp*vec4f(positions[base],positions[base+1u],positions[base+2u],1.0);
 }
 fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
-fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
+${EDGE_WGSL}
+${BARY_WEIGHTS_WGSL}
 fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
-fn keepMask(page:PageInfo,tc:vec2f)->bool{
- if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let wrapped=vec2f(select(clamp(tc.x,0.0,1.0),fract(tc.x),(page.flags&32u)!=0u),select(clamp(tc.y,0.0,1.0),fract(tc.y),(page.flags&64u)!=0u));
- return colorAlpha(page.mapIndex,page.uvScale,wrapped)>=page.baseColor.w;
-}
+${MASK_KEEP_WGSL}
 @compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
  let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}
  atomicStore(&work[offset],bitcast<u32>(1.0));atomicStore(&work[pixels+offset],0xffffffffu);
@@ -83,11 +86,11 @@ fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
  let pixel=vec2i(floor(t.lo))+vec2i(lane);
  if(pixel.x<0||pixel.y<0||pixel.x>=i32(uni.viewport.x)||pixel.y>=i32(uni.viewport.y)){return;}
  let sample=vec2f(pixel)+vec2f(0.5);
- let wa=edge(t.b,t.c,sample)/t.area;let wb=edge(t.c,t.a,sample)/t.area;let wc=1.0-wa-wb;
+ let bw=baryWeights(t.a,t.b,t.c,sample,t.area);let wa=bw.x;let wb=bw.y;let wc=bw.z;
  if(wa<0.0||wb<0.0||wc<0.0){return;}
  let depth=wa*t.ca.z/t.ca.w+wb*t.cb.z/t.cb.w+wc*t.cc.z/t.cc.w;
  if(depth<0.0||depth>=1.0){return;}
- if((page.flags&128u)!=0u){let inv=wa/t.ca.w+wb/t.cb.w+wc/t.cc.w;let tc=(uv(page,t.ia)*(wa/t.ca.w)+uv(page,t.ib)*(wb/t.cb.w)+uv(page,t.ic)*(wc/t.cc.w))/inv;if(!keepMask(page,tc)){return;}}
+ if((page.flags&128u)!=0u){let inv=wa/t.ca.w+wb/t.cb.w+wc/t.cc.w;let tc=(uv(page,t.ia)*(wa/t.ca.w)+uv(page,t.ib)*(wb/t.cb.w)+uv(page,t.ic)*(wc/t.cc.w))/inv;if(!maskKeep(page,tc)){return;}}
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  // La couche coplanaire du cluster est un décalage entier sur la clé de profondeur, appliqué avant
  // l'empaquetage : pour une profondeur positive, les bits IEEE-754 croissent avec la valeur, donc
