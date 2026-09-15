@@ -1,5 +1,6 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import { createDeferredLayouts } from './deferredLightingSetup.ts';
+import { SUN_FAR_PROXY_BINDING, SUN_FAR_STATE_BINDING } from './sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Construit un pipeline plein écran, en asynchrone quand l'appareil le propose. */
@@ -29,7 +30,7 @@ export interface DirectLightResources {
   /** La grille de sondes et leurs coefficients ; absentes, le rebond n'est pas de cette image. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
-  /** Les quatre colonnes du proxy résident ; absentes, l'ombre lointaine du soleil ne tire rien. */
+  /** Les colonnes du proxy résident ; absentes, l'ombre lointaine du soleil ne tire rien. */
   proxy?: readonly GPUBuffer[];
   /** Réglages et compteurs de l'ombre lointaine ; absent, le remplacement de zéro l'éteint. */
   sunFarState?: GPUBuffer;
@@ -134,8 +135,14 @@ export async function createDeferredProgram(
           { binding: 10, resource: placeholders.sampler },
           // Le proxy résident, tel quel : l'ombre lointaine du soleil le traverse sans en garder
           // une seconde copie, et le bloc de réglages dit s'il y a quelque chose à traverser.
-          ...proxy.map((buffer, index) => ({ binding: 13 + index, resource: { buffer } })),
-          { binding: 17, resource: { buffer: direct.sunFarState ?? placeholders.sunFarState } },
+          ...proxy.map((buffer, index) => ({
+            binding: SUN_FAR_PROXY_BINDING + index,
+            resource: { buffer },
+          })),
+          {
+            binding: SUN_FAR_STATE_BINDING,
+            resource: { buffer: direct.sunFarState ?? placeholders.sunFarState },
+          },
         );
       if (sources.bounce && direct.bounceGrid && direct.probes)
         entries.push(
