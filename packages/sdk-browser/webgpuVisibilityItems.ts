@@ -1,6 +1,8 @@
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { hizNearestBound } from './hizNearestBound.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from './gpuDraw.ts';
+import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
+import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { visBin } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -30,13 +32,15 @@ export function buildWebgpuVisibilityItems(
   binInstances.fill(0);
   const packedRecs = rows.packedRecs,
     packedPageIndex = rows.packedPageIndex,
+    pageTableInts = rows.pageTableInts!,
+    rowWords = PAGE_INFO_STRIDE / 4,
     layerSlots = rt.vis.drawLayerSlots - 1;
   for (let i = 0; i < rows.packedCount; i++) {
     const row = i,
       rest = hizRest[i],
-      word = i * DRAW_ITEM_U32,
-      rec = packedRecs[i]!;
+      word = i * DRAW_ITEM_U32;
     if (itemsDirty) {
+      const rec = packedRecs[i]!;
       drawItemWords[word] = row;
       drawItemWords[word + 1] = visBin(rec);
       drawItemWords[word + 2] = packedPageIndex[i];
@@ -45,7 +49,10 @@ export function buildWebgpuVisibilityItems(
     }
     binInstances[drawItemWords[word + 1] + (rest ? 3 : 0) + BASE_SLOTS * drawItemWords[word + 3]]++;
     if (rest) drawRestBits[i >> 5] |= 1 << (i & 31);
-    const count = rec.array!.length;
+    // Le compte d'indices est lu dans la ligne du tableau de pages, là où la carte le lit pour
+    // dessiner : la ligne est réécrite chaque fois que la page change, si bien que ce mot est
+    // exactement ce que l'image dessine — une lecture de tableau typé au lieu de deux indirections.
+    const count = pageTableInts[i * rowWords + ROW_INDEX_WORDS];
     if (rest) restVertices += count;
     else occluderVertices += count;
     // Only the tested half travels to the GPU, each box naming the flag row it answers for.
@@ -57,7 +64,7 @@ export function buildWebgpuVisibilityItems(
       for (let k = 0; k < HIZ_BOUNDS_VALUES; k++) hizTestedBounds[to + k] = hizBounds[from + k];
       // La borne qui voyage jusqu'au noyau minore strictement ce que le cluster écrira : arrondi
       // dirigé vers le bas et biais de couche coplanaire retranché. Voir `hizNearestBound`.
-      hizTestedBounds[to + 4] = hizNearestBound(hizBounds[from + 4], rec.depthLayer);
+      hizTestedBounds[to + 4] = hizNearestBound(hizBounds[from + 4], packedRecs[i]!.depthLayer);
       hizTestedTriangles[testedCount] = count / 3;
       hizTestedRows[testedCount++] = row;
     }
