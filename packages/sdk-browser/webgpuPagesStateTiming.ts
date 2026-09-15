@@ -64,6 +64,10 @@ export interface WebgpuTimingState {
   lastCpuLogFrame: number;
   cpuSample: Record<string, unknown> | undefined;
   transparentEncodeMs: number;
+  transparentSelectMs: number;
+  transparentPrepareMs: number;
+  transparentDrawMs: number;
+  transparentSpanUploadBytes: number;
   /**
    * One image, one command buffer. A frame that drives the GPU cut opens it before the selection and
    * every pass it encodes lands in it, so the driver validates one buffer instead of two and the
@@ -135,6 +139,10 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     lastCpuLogFrame: -1,
     cpuSample: undefined,
     transparentEncodeMs: 0,
+    transparentSelectMs: 0,
+    transparentPrepareMs: 0,
+    transparentDrawMs: 0,
+    transparentSpanUploadBytes: 0,
     frameEncoder: undefined,
     frameSelection: undefined,
   };

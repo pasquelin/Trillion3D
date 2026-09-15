@@ -126,8 +126,8 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
       indirectBuffer,
       encode,
       /** Uploads the spans the last residency change rewrote, and nothing else. */
-      uploadSpans() {
-        device.queue.writeBuffer(spanBuffer, 0, table.spans);
+      uploadSpans(first: number, count: number) {
+        device.queue.writeBuffer(spanBuffer, first * 8, table.spans.buffer, first * 8, count * 8);
       },
       /** Writes the instance list and the draw counts a CPU cut chose, in the table's own order. */
       uploadInstances(source: Uint32Array, count: number, perItem: Uint32Array) {

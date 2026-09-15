@@ -112,7 +112,6 @@ export function createTransparentTable(
       entries[entry] = pageIndex;
       pageOfEntry[entry] = pageIndex;
       entryOfPage[pageIndex] = entry;
-      spans[entry * 2 + 1] = words;
       if (words > maxVertexWords) maxVertexWords = words;
     }
     at += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP;
@@ -125,7 +124,7 @@ export function createTransparentTable(
     itemRanges,
     /** Items the table describes, in the order the transparent pass draws them. */
     pagedItems: paged,
-    /** Entries in use, padding excluded. */
+    /** Entries in use, including alignment padding. */
     length,
     capacity,
     groupCount: Math.max(1, Math.ceil(capacity / TRANSPARENT_GROUP)),

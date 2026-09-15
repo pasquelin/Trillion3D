@@ -1,4 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
+import { updateTransparentSpan } from './webgpuTransparentSpans.ts';
 import { createWebgpuResidencyMirror } from './webgpuResidencyMirror.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
@@ -31,6 +32,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
+    onOffsetChange: (page, offset) => updateTransparentSpan(rt, page, offset),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
