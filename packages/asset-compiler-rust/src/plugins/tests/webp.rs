@@ -3,7 +3,7 @@
 //! nommant. C'est la seconde moitié du contrat qui compte ici : un flux avec perte n'est jamais
 //! décodé, parce qu'accepter la perte de la source serait accepter la perte tout court.
 use super::super::image as registry;
-use super::fixture;
+use super::{fixture, rgba8};
 use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
@@ -26,8 +26,9 @@ fn rendu(name: &str) -> image::RgbaImage {
     let bytes = fixture("webp", name);
     let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
     assert_eq!(pilote.name(), "webp", "{name}");
-    let registry::DecodedImage::Rgba8(rendu) =
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}"));
+    let rendu = rgba8(
+        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
+    );
     assert_eq!((rendu.width(), rendu.height()), (256, 256), "{name}");
     rendu
 }
