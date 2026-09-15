@@ -18,7 +18,7 @@
 //!
 //! **Sous-ensemble accepté** : modes RVB et niveaux de gris, huit bits par canal, avec ou sans un
 //! plan d'alpha, données composites brutes ou compressées par plages (PackBits), PSD comme PSB.
-use super::{rgba8_budget, DecodedImage, ImageDecoder, Plugin};
+use super::{surface_budget, DecodedImage, ImageDecoder, Plugin, RGBA8_PIXEL_BYTES};
 
 mod lines;
 mod pixels;
@@ -116,7 +116,13 @@ impl ImageDecoder for Psd {
         max_alloc: u64,
     ) -> std::result::Result<DecodedImage, &'static str> {
         let (header, rest) = header(bytes)?;
-        rgba8_budget(header.width, header.height, max_alloc, TOO_LARGE)?;
+        surface_budget(
+            header.width,
+            header.height,
+            RGBA8_PIXEL_BYTES,
+            max_alloc,
+            TOO_LARGE,
+        )?;
         let (compression, body) = pixels::composite(&header, rest)?;
         pixels::decode(&header, compression, body)
     }
