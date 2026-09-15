@@ -133,7 +133,7 @@ export async function createGpuHiz(
         // recorded while packing, because the caller rewrites its own arrays next image.
         const due = counters.due(queueDevice, sample, flagRows);
         if (due) counters.beginSample();
-        const testBytes = packBounds(
+        const boxes = packBounds(
           next,
           rows,
           count,
@@ -143,7 +143,17 @@ export async function createGpuHiz(
           offsets,
           due ? sample : undefined,
         );
-        if (count) queueDevice.queue.writeBuffer(bounds, 0, testBytes, 0, count * 32);
+        // Le tampon garde ce que les images précédentes y ont écrit : seules les boîtes que cette
+        // image a réempaquetées sont renvoyées, et une image qui n'en réempaquette aucune n'envoie
+        // rien. Les entrées au-delà de `count` ne sont jamais lues, `uni.c` bornant le noyau.
+        if (boxes.to >= boxes.from)
+          queueDevice.queue.writeBuffer(
+            bounds,
+            boxes.from * 32,
+            boxes.bytes,
+            boxes.from * 32,
+            (boxes.to - boxes.from + 1) * 32,
+          );
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
         const testSlot = MAX_LEVELS + 1;
         writeUni(
