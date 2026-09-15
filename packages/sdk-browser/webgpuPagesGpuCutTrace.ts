@@ -11,11 +11,16 @@ function recordStages(rt: WebgpuPagesRuntime) {
   if (!stages) return;
   stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
   // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées.
+  // Les compteurs d'avant sont gardés tels quels — le Lab les lit — et le soleil s'y ajoute :
+  // `soleilsRedessines` est la part des lampes redessinées qui sont directionnelles, et
+  // `cascadesRedessinees` la part des faces qui sont des cascades, le reste étant des ponctuelles.
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
     cartesReutilisees: lights.plan.reused,
     facesRedessinees: lights.shadowFaces,
     appelsDeDessin: lights.shadowDrawCalls,
+    soleilsRedessines: lights.plan.sunUpdates,
+    cascadesRedessinees: lights.sunCascades,
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
 }
