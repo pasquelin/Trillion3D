@@ -3,22 +3,25 @@ import {
   PAGE_INFO_WGSL,
   PAGE_LOOKUP_WGSL,
   PAGE_MASK_WGSL,
-  PAGE_PREVIEW_BINDING,
   PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
+import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 export const VIS_SHADER = `${PAGE_INFO_WGSL}
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
-@group(0) @binding(3) var<storage, read> hizFlags:array<u32>;
+@group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
 ${PAGE_BINDING.uniforms}
-@group(0) @binding(5) var<storage, read> uvs:array<f32>;
-@group(0) @binding(6) var maps:texture_2d_array<f32>;
-@group(0) @binding(7) var mapsSampler:sampler;
+@group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
+${atlasTextures(VIS_BINDINGS.maps, 'maps')}
+@group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-${PAGE_PREVIEW_BINDING}
+@group(0) @binding(${VIS_BINDINGS.colorSlots}) var<storage, read> colorSlots:array<vec2u>;
+${ATLAS_SLOTS_WGSL}
+${COLOR_ALPHA_WGSL}
 ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}

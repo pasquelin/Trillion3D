@@ -16,28 +16,31 @@
  * Columns are fixed by version: their order, element type and stride are the format. Reading one
  * is `new Float64Array(buffer, offset, length/8)`, so decoding costs no parse at all.
  */
-/** Version 3 adds the three texture preview columns. A file of another version is refused whole: a
- *  reader that skipped a column would draw the wrong surface on top and never know. */
-export const MANIFEST_BINARY_VERSION = 3;
+/** Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
+ *  column has no stride any more, each entry naming its own byte range. A file of another version is
+ *  refused whole: a reader that sliced the wrong range would show one texture's levels on another. */
+export const MANIFEST_BINARY_VERSION = 4;
 /** 'W','G','M','B' read as a little-endian u32. */
 export const MANIFEST_BINARY_MAGIC = 0x424d4757;
 export const MANIFEST_BINARY_HEADER_WORDS = 4;
 
-/** Texture preview pyramid, mirrored by `packages/asset-compiler-rust/src/texture_preview.rs`:
- *  five RGBA8 sRGB levels with straight alpha, 16×16 down to 1×1, at fixed byte offsets. */
-export const TEXTURE_PREVIEW_VERSION = 1;
-export const PREVIEW_LEVEL_SIZES = [16, 8, 4, 2, 1] as const;
-export const PREVIEW_LEVEL_OFFSETS = [0, 1024, 1280, 1344, 1360] as const;
-export const PREVIEW_BYTES = 1364;
-/** `texturePreviewU32` slots: the five level offsets follow the six leading numbers. */
+/** Progressive texture levels, mirrored by `packages/asset-compiler-rust/src/texture_preview.rs`:
+ *  the lossless tail of a source's mip chain, RGBA8 sRGB with straight alpha, from the finest level
+ *  no side of which exceeds `PREVIEW_BASE` down to 1×1. Their sizes are not written down: they
+ *  follow from the source dimensions, which `texturePreviewLevels.ts` recomputes. */
+export const TEXTURE_PREVIEW_VERSION = 2;
+/** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,
   PREVIEW_WIDTH = 2,
   PREVIEW_HEIGHT = 3,
   PREVIEW_SOURCE_KIND = 4,
   PREVIEW_SOURCE_VIEW = 5,
-  PREVIEW_FIRST_OFFSET = 6;
-export const PREVIEW_WORDS = PREVIEW_FIRST_OFFSET + PREVIEW_LEVEL_SIZES.length;
+  PREVIEW_FIRST_LEVEL = 6,
+  PREVIEW_LEVEL_COUNT = 7,
+  PREVIEW_PIXEL_OFFSET = 8,
+  PREVIEW_PIXEL_BYTES = 9;
+export const PREVIEW_WORDS = 10;
 /** A preview whose bytes came from an image `uri`; anything else names a glTF buffer view. */
 export const PREVIEW_SOURCE_URI = 0;
 
@@ -121,7 +124,9 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageDepthLayer: 1,
   texturePreviewU32: PREVIEW_WORDS,
   texturePreviewSha: 64,
-  texturePreviewPixels: PREVIEW_BYTES,
+  // Seule colonne sans pas fixe : son élément est l'octet, et son compte est le total que le petit
+  // JSON déclare, chaque entrée nommant sa propre plage à l'intérieur.
+  texturePreviewPixels: 1,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
 

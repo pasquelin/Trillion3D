@@ -125,8 +125,8 @@ test('depthLayer round-trips through the binary columns, and layer 0 leaves the 
   );
 });
 
-// Comportement 13 : assertManifestBinary refuse tout sidecar dont la version n'est pas 2.
-test('assertManifestBinary accepts version 2 and refuses every other version', () => {
+// Comportement 13 : assertManifestBinary refuse tout sidecar dont la version n'est pas la sienne.
+test('assertManifestBinary accepts this version and refuses every other one', () => {
   const descriptor = {
     version: MANIFEST_BINARY_VERSION,
     url: 'clusters.bin',
@@ -136,9 +136,10 @@ test('assertManifestBinary accepts version 2 and refuses every other version', (
     geometryUrl: '../../objects/{sha}.bin',
     bundleUrl: '../../objects/{sha}.bin',
     texturePreviews: 0,
+    texturePreviewBytes: 0,
   };
   assert.doesNotThrow(() => assertManifestBinary(descriptor));
-  for (const version of [0, 1, 2, 999])
+  for (const version of [0, 1, 2, 3, 999])
     assert.throws(
       () => assertManifestBinary({ ...descriptor, version }),
       (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',

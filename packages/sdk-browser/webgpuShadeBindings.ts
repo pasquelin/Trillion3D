@@ -12,11 +12,11 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       concatUv,
       concatNrm,
       pageTable,
-      mapsTexture,
-      dataMapsTexture,
+      colorAtlas,
+      dataAtlas,
       mapsSampler,
       shadeUniform,
-      preview,
+      slots,
     } = vis;
   if (
     !vis.shadeBindGroup &&
@@ -27,16 +27,12 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
     concatUv &&
     concatNrm &&
     pageTable &&
-    mapsTexture &&
-    dataMapsTexture &&
+    colorAtlas &&
+    dataAtlas &&
     mapsSampler &&
     shadeUniform &&
-    preview
+    slots
   ) {
-    const mapsArrayView = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
-    const dataMapsArrayView = (vis.dataMapsArrayView ??= dataMapsTexture.createView({
-      dimension: '2d-array',
-    }));
     vis.shadeBindGroup = device.createBindGroup({
       layout,
       entries: shadeBindEntries({
@@ -46,11 +42,11 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
         uv: concatUv,
         normal: concatNrm,
         pageTable,
-        maps: mapsArrayView,
+        colorAtlas,
         sampler: mapsSampler,
         uniform: shadeUniform,
-        dataMaps: dataMapsArrayView,
-        preview,
+        dataAtlas,
+        slots,
       }),
     });
   }

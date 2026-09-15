@@ -1,38 +1,76 @@
 import { generateMaterialMips } from './textureMips.ts';
+import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 
-/** Tranches qu'un appareil peut refuser pour une même texture avant qu'elle quitte la file :
- *  au troisième refus elle est abandonnée, comptée dans `textureSkipped`, plus jamais réessayée. */
+/** Tranches qu'un appareil peut refuser pour un même niveau avant qu'il quitte la file :
+ *  au troisième refus il est abandonné, compté dans `textureSkipped`, plus jamais réessayé. */
 const MAX_FAILURES = 3;
+
+/** Les couches d'une classe dont la pleine résolution vient d'arriver. */
+type ClassLayers = Map<number, number[]>;
+
+async function regenerate(device: GPUDevice, atlas: WebgpuAtlas, byClass: ClassLayers) {
+  for (const [classIndex, layers] of byClass) {
+    const entry = atlas.classes[classIndex];
+    if (!entry) continue;
+    await generateMaterialMips(
+      device,
+      entry.texture,
+      entry.texture.format,
+      ...entry.size,
+      entry.scales,
+      layers,
+    );
+  }
+}
 
 /**
  * Admet un volume borné de transfert d'atlas par image. Une texture plus grosse que le budget
  * n'est jamais abandonnée : elle est découpée en bandes de lignes réparties sur plusieurs images,
- * dans l'ordre que la caméra dicte. Seul un refus répété de l'appareil fait sortir une texture.
+ * dans l'ordre que la caméra dicte. Seul un refus répété de l'appareil fait sortir un niveau.
+ *
+ * Les niveaux progressifs et la pleine résolution passent par la même file : les premiers écrivent
+ * un niveau de mip et font avancer la résidence de la couche, la seconde déclenche la régénération
+ * de toute la chaîne sur GPU, après quoi la couche repasse au chemin d'échantillonnage ordinaire.
  */
 export function createWebgpuTexturePump(options: {
   device: GPUDevice | undefined;
   jobs: TextureJob[];
   budget: number;
-  colorScales: Array<[number, number]>;
-  dataScales: Array<[number, number]>;
-  colorAtlas: () => { texture: GPUTexture | undefined; size: [number, number] };
-  dataAtlas: () => { texture: GPUTexture | undefined; size: [number, number] };
+  colorAtlas: () => WebgpuAtlas | undefined;
+  dataAtlas: () => WebgpuAtlas | undefined;
   /** Réordonne la file selon ce que la caméra regarde, entre deux tranches seulement. */
   order: (jobs: TextureJob[]) => void;
-  /** Les couches couleur dont la vraie texture est transférée et remipmappée passent à « prêt ». */
-  onColorReady: (layers: readonly number[]) => void;
+  /** Un niveau progressif de plus est résident sur ce slot. */
+  onLevel: (slot: number, level: number) => void;
+  /** Les slots couleur dont la vraie texture est transférée et remipmappée passent à « prêt ». */
+  onColorReady: (slots: readonly number[]) => void;
   onFailure: (phase: string, error: unknown) => void;
-  /** Sortie définitive d'une texture de la file, avec la raison et l'avancement atteint. */
+  /** Sortie définitive d'un niveau de la file, avec la raison et l'avancement atteint. */
   onAbandon: (context: Record<string, unknown>) => void;
 }) {
   let pending: Promise<void> | undefined;
   let uploaded = 0,
     skipped = 0,
     slices = 0,
+    levels = 0,
     bytesLastPass = 0;
-  const colorLayers: number[] = [],
-    dataLayers: number[] = [];
+  const readySlots: number[] = [];
+  const colorClasses: ClassLayers = new Map(),
+    dataClasses: ClassLayers = new Map();
+  const finished = (job: TextureJob) => {
+    if (job.stage === 0) {
+      levels++;
+      options.onLevel(job.slot, job.level);
+      return;
+    }
+    uploaded++;
+    const byClass = job.kind === 'color' ? colorClasses : dataClasses;
+    const layers = byClass.get(job.classIndex);
+    if (layers) layers.push(job.layer);
+    else byClass.set(job.classIndex, [job.layer]);
+    if (job.kind === 'color') readySlots.push(job.slot);
+  };
   /** Transfère des tranches tant que le budget de l'image en laisse tenir une, file en tête. */
   const admit = () => {
     const { jobs, budget } = options;
@@ -54,7 +92,8 @@ export function createWebgpuTexturePump(options: {
           options.onAbandon({
             reason: 'transfer-refused',
             kind: job.kind,
-            layer: job.layer,
+            slot: job.slot,
+            level: job.level,
             failures: job.failures,
             rowsTransferred: job.nextRow,
             rows: job.rows,
@@ -65,11 +104,10 @@ export function createWebgpuTexturePump(options: {
       job.nextRow += rows;
       admitted += rows * job.bytesPerRow;
       slices++;
-      // Une texture inachevée garde la tête : le budget de l'image est épuisé à une ligne près.
+      // Un niveau inachevé garde la tête : le budget de l'image est épuisé à une ligne près.
       if (job.nextRow < job.rows) break;
       jobs.shift();
-      uploaded++;
-      (job.kind === 'color' ? colorLayers : dataLayers).push(job.layer);
+      finished(job);
     }
     bytesLastPass = admitted;
   };
@@ -77,33 +115,19 @@ export function createWebgpuTexturePump(options: {
     const { device, jobs } = options;
     if (pending || !jobs.length || !device) return pending ?? Promise.resolve();
     const run = async () => {
-      colorLayers.length = 0;
-      dataLayers.length = 0;
+      readySlots.length = 0;
+      colorClasses.clear();
+      dataClasses.clear();
       options.order(jobs);
       admit();
-      const color = options.colorAtlas();
-      const data = options.dataAtlas();
-      if (colorLayers.length && color.texture) {
-        await generateMaterialMips(
-          device,
-          color.texture,
-          'rgba8unorm-srgb',
-          ...color.size,
-          options.colorScales,
-          colorLayers,
-        );
+      const color = options.colorAtlas(),
+        data = options.dataAtlas();
+      if (color && colorClasses.size) {
+        await regenerate(device, color, colorClasses);
         // Après la dernière tranche et ses mips seulement : avant, la couche n'est pas montrable.
-        options.onColorReady(colorLayers);
+        options.onColorReady(readySlots);
       }
-      if (dataLayers.length && data.texture)
-        await generateMaterialMips(
-          device,
-          data.texture,
-          'rgba8unorm',
-          ...data.size,
-          options.dataScales,
-          dataLayers,
-        );
+      if (data && dataClasses.size) await regenerate(device, data, dataClasses);
     };
     pending = run().finally(() => {
       pending = undefined;
@@ -119,7 +143,11 @@ export function createWebgpuTexturePump(options: {
     get uploaded() {
       return uploaded;
     },
-    /** Textures sorties de la file sur refus répété de l'appareil, jamais pour cause de taille. */
+    /** Niveaux progressifs transférés en entier depuis le début de la session. */
+    get levels() {
+      return levels;
+    },
+    /** Niveaux sortis de la file sur refus répété de l'appareil, jamais pour cause de taille. */
     get skipped() {
       return skipped;
     },
@@ -127,7 +155,7 @@ export function createWebgpuTexturePump(options: {
     get slices() {
       return slices;
     },
-    /** Textures dont une tranche au moins est passée et qui en attendent d'autres. */
+    /** Niveaux dont une tranche au moins est passée et qui en attendent d'autres. */
     get inFlight() {
       let count = 0;
       for (const job of options.jobs) if (job.nextRow > 0) count++;
