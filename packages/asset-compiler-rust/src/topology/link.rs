@@ -107,3 +107,7 @@ pub(crate) fn classify_link(links: &[(u32, u32)], scratch: &mut LinkScratch) -> 
         "locked"
     }
 }
+
+#[cfg(test)]
+#[path = "link_tests.rs"]
+mod tests;
