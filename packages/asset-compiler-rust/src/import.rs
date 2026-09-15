@@ -12,7 +12,7 @@ use std::{
 };
 
 /// Bumping this invalidates cached imports (they are keyed by source hashes + importer version).
-pub const IMPORTER_VERSION: &str = "ufbx-0.11.3-gltf-2";
+pub const IMPORTER_VERSION: &str = "ufbx-0.11.3-gltf-3";
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
 const IMAGE_EXTENSIONS: [(&str, &str); 3] = [
     ("png", "image/png"),
@@ -145,6 +145,7 @@ struct Importer<'a> {
 mod lighting;
 mod materials;
 pub(crate) mod mesh;
+pub(crate) mod opacity;
 mod runner;
 mod scene;
 mod textures;
@@ -152,5 +153,6 @@ mod textures;
 use lighting::*;
 use materials::*;
 use mesh::*;
+use opacity::*;
 pub use runner::import_source;
 use textures::*;

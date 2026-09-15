@@ -1,5 +1,48 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [lot fbx-opacite] l'opacité d'un FBX classique ne se perd plus en silence
+
+Branche `fbx-opacite` sur `develop` = `81a8131`. `IMPORTER_VERSION` montée à `ufbx-0.11.3-gltf-3`
+(la sortie du glTF importé change, les imports en cache doivent être refaits).
+
+**Cause racine, mesurée.** `ufbx` ne remplit `pbr.opacity` que pour les shaders qui déclarent une
+opacité (Blender, OBJ, Arnold…). Un matériau FBX classique est en `phong` : `features.pbr` reste
+éteint et sa transparence part dans `fbx.transparency_color` / `fbx.transparency_factor`, ainsi que
+la texture liée à `TransparentColor`. `material_json` ne lisait que `pbr.opacity`, donc la carte
+d'opacité n'était jamais vue — ni `alphaMode`, ni entrée de rapport. Sur `Village2.fbx`, `M_River`
+est `FbxPhong`, `pbr.opacity` a `has_value=false` et `texture=None`, tandis que
+`fbx.transparency_color` porte `M_River_Opacity_0.png` avec `texture_enabled=true`.
+
+**Le correctif.** `src/import/opacity.rs` lit l'opacité là où elle se trouve : `pbr.opacity` quand
+elle est déclarée (valeur **ou** texture liée), sinon les maps FBX classiques, avec la convention
+`opacité = 1 − moyenne(TransparentColor) × TransparencyFactor`. Une carte d'opacité active donne
+`alphaMode` `BLEND` — jamais `MASK`, aucun format d'import ne déclarant de seuil de découpe, et un
+transparent découpé serait une perte de fidélité (le `MASK` que l'import posait de lui-même est
+retiré). glTF ne sait porter l'opacité que dans l'alpha de `baseColorTexture` : quand la carte
+d'opacité est une autre image, elle est signalée par `material-separate-opacity-texture` au lieu
+d'être avalée.
+
+**Village, avant/après** (import seul, cache jetable, même FBX de 409 Mo, même machine) :
+
+| matériau | avant | après |
+| --- | --- | --- |
+| `M_River` | `alphaMode` absent, `unsupported` = `{}` | `alphaMode` = `BLEND`, `unsupported` = `{"material-separate-opacity-texture":1}` |
+| `M_Water_Ocean` | `alphaMode` absent | `alphaMode` absent — **conforme à la source** |
+
+Sur les 81 matériaux, un seul change de classe. L'océan reste opaque parce que le FBX le dit :
+`fbx.transparency_color` = (0, 0, 0) sans texture, donc opacité 1. Le journal du 2026-09-15 le
+donnait transparent ; la source ne le confirme pas.
+
+**Preuve.** Fixture `fixtures/import-fbx/riviere.fbx`, FBX 7400 ASCII de 3 Ko écrit à la main, qui
+reproduit la forme exacte du Village. Sans le branchement, les deux tests d'import échouent
+(`baseColorFactor[3]` vaut 1.0 au lieu de 0.75, `alphaMode` est nul au lieu de `BLEND`) ; avec, ils
+passent. Tests Rust 158 → 161 passés, 3 ignorés. `cargo clippy --release --all-targets -- -D
+warnings`, `cargo fmt --check`, `npm run check:lines`, `check:duplicates`, `check:unused` : verts.
+
+**Ce qui reste.** La carte d'opacité séparée n'est toujours pas rendue : glTF 2.0 de base n'a pas
+d'emplacement pour elle, il faudrait recomposer l'alpha dans la couleur de base à l'import. Le
+rapport le dit maintenant au lieu de se taire.
+
 ## 2026-09-15 — [session village] la scène « Whisperwind Village » entre au banc 15, importée en FBX
 
 Aucune ligne de moteur n'a bougé : le Lab a reçu une entrée de catalogue
