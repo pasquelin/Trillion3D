@@ -45,6 +45,14 @@ export function drawBlendPass(
     indirect = blendState.compaction?.indirectBuffer;
   let drawCalls = 0,
     unpaged = 0;
+  // Le pipeline courant de la passe : le reposer à l'identique ne change rien à l'état, et une
+  // liste triée par ordre source enchaîne presque toujours des items qui demandent le même.
+  let bound: GPURenderPipeline | undefined;
+  const bind = (pipeline: GPURenderPipeline) => {
+    if (pipeline === bound) return;
+    bound = pipeline;
+    pass.setPipeline(pipeline);
+  };
   const pass = encoder.beginRenderPass({
     label: 'WG transparents',
     colorAttachments: [
@@ -93,12 +101,12 @@ export function drawBlendPass(
       front &&
       back
     ) {
-      pass.setPipeline(back);
+      bind(back);
       draw();
-      pass.setPipeline(front);
+      bind(front);
       draw();
     } else {
-      pass.setPipeline(
+      bind(
         textured
           ? material.side === THREE.FrontSide
             ? front!
