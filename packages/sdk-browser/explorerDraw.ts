@@ -117,6 +117,9 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
     if (directGpu) {
+      // Le moteur dessine dans le canevas de la page : rien à composer, mais l'image se clôt ici,
+      // là où les bornes que l'hôte vient de relever appartiennent encore à elle.
+      steps.cpuFrameEnd?.();
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
       return;
