@@ -1,0 +1,228 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "max": [1.0, 1.0, 0.0],
+      "min": [-1.0, -1.0, 0.0],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 5,
+      "max": [4.0, 0.9510570168495178, 0.0],
+      "min": [2.1909830570220947, -0.9510570168495178, 0.0],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 5,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 5,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 9,
+      "type": "SCALAR"
+    }
+  ],
+  "case": "Un OBJ et son MTL : deux groupes nuancés par deux matériaux, un quadrilatère et un pentagone, une couleur ambiante et sa carte, une couleur spéculaire, un exposant, un indice de réfraction, une opacité de 0,5 avec sa carte à part, une émission texturée, une normale et un relief qui visent deux fichiers différents, et les options de map -s, -o, -bm et -clamp.",
+  "compiled": {
+    "selectedTriangles": 5,
+    "totalNodes": 1
+  },
+  "counts": null,
+  "external": [
+    {
+      "file": "scene.mtl",
+      "kind": "material-library",
+      "sha256": "f8bacbb27ec4c47b5bc65e68b7da247754dcb8c65335cb810aa205f0ddaf1782",
+      "truncated": false
+    }
+  ],
+  "files": [
+    {
+      "ascii": true,
+      "bytes": 639,
+      "creator": "",
+      "fbxVersion": 0,
+      "file": "scene.obj",
+      "format": "obj",
+      "hiddenNodes": 0,
+      "lights": 0,
+      "lodGroups": 0,
+      "materials": 2,
+      "meshNodes": 1,
+      "meshes": 1,
+      "originalUnitMeters": 1.0,
+      "sha256": "f65d46e4ecb4e742d802a98f078dc304359b49b9c0288541eca5ba4f8a19c46d",
+      "textures": 6,
+      "triangles": 5,
+      "unitMeters": 1.0
+    }
+  ],
+  "formatVersion": 4,
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "diffuse.png",
+      "uri": "textures/diffuse.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "normal.png",
+      "uri": "textures/normal.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "emission.png",
+      "uri": "textures/emission.png"
+    }
+  ],
+  "materials": [
+    {
+      "alphaMode": "BLEND",
+      "emissiveFactor": [0.0, 0.0, 0.0],
+      "name": "VerreDepoli",
+      "normalTexture": {
+        "index": 1
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [1.0, 1.0, 1.0, 0.5],
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.22540333075851657
+      }
+    },
+    {
+      "emissiveFactor": [1.0, 1.0, 1.0],
+      "emissiveTexture": {
+        "index": 2
+      },
+      "name": "Braise",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.1, 0.1, 0.1, 1.0],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.6
+      }
+    }
+  ],
+  "meshNames": ["Minuscule"],
+  "meshNodes": 1,
+  "meshes": [
+    {
+      "name": "Minuscule",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+      "mesh": 0,
+      "name": "Minuscule"
+    }
+  ],
+  "notes": [],
+  "plugin": {
+    "name": "obj",
+    "version": "obj-ufbx-0.11.3-gltf-5"
+  },
+  "roots": [0],
+  "rule": "Le pilote rend ce que la bibliothèque déclare et compte le reste par son nom : la normale l'emporte sur le relief, l'opacité reste un mélange et jamais une découpe, -clamp devient le mode de bord de l'échantillonneur, et couleur ambiante, spéculaire, indice de réfraction, décalage, échelle et force de relief sont comptés faute de place dans le modèle métal-rugosité de glTF.",
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    },
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 33071,
+      "wrapT": 33071
+    }
+  ],
+  "scenePlugin": {
+    "name": "obj",
+    "version": "obj-ufbx-0.11.3-gltf-5"
+  },
+  "selectedNodes": [0],
+  "sidecarSha256": "07af4f082d81041d0c9d4c739626ec51eda5ae07721eea5383157c048a8d99b3",
+  "sourceTriangles": 5,
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 1,
+      "source": 2
+    }
+  ],
+  "trianglesAcrossNodes": 5,
+  "unsupported": {
+    "material-ambient-color": 1,
+    "material-bump-map": 1,
+    "material-separate-opacity-texture": 1,
+    "material-specular-color": 1,
+    "material-specular-ior": 1,
+    "texture-bump-scale": 1,
+    "texture-offset": 1,
+    "texture-scale": 1
+  }
+}
