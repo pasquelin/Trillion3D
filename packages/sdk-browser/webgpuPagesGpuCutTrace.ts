@@ -12,7 +12,8 @@ function recordStages(rt: WebgpuPagesRuntime) {
   stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
   // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées.
   stages.setCounts('shadows', {
-    lampesAOmbre: lights.shadowsUpdated,
+    lampesRedessinees: lights.shadowsUpdated,
+    cartesReutilisees: lights.plan.reused,
     facesRedessinees: lights.shadowFaces,
     appelsDeDessin: lights.shadowDrawCalls,
   });

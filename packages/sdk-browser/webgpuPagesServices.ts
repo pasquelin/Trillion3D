@@ -2,6 +2,7 @@ import type { PageRec } from './pageSelection.ts';
 import { createWebgpuResidencyMirror } from './webgpuResidencyMirror.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
+import { noteResidenceChange } from './webgpuShadowBounds.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
 import { createWebgpuResidencySets } from './webgpuResidencySets.ts';
@@ -59,6 +60,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     { commitRows, sourceRowOf },
+    (rec) => noteResidenceChange(rt.lights, rec),
   );
   const pageSource = {
     read: async (key: string) => {
@@ -74,6 +76,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
    */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
   const cutDelta = createCutDelta(packedPages, run.desired);
+  const drawnDelta = createCutDelta(packedPages, run.drawnMembers);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
@@ -140,6 +143,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     uniforms: run.selectionUniforms,
     residentOffsetWords: rows.residentOffsetWords,
     delta: cutDelta,
+    drawnDelta,
+    onDrawnDelta: (delta) => residencySets.applyDrawn(delta),
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
       run.pagesEntered = delta.enteredCount;

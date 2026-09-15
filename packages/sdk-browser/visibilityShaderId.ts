@@ -2,6 +2,7 @@ import {
   PAGE_BINDING,
   PAGE_INFO_WGSL,
   PAGE_LOOKUP_WGSL,
+  PAGE_MASK_WGSL,
   PAGE_VERTEX_WGSL,
 } from './visibilityPageWgsl.ts';
 import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
@@ -24,15 +25,7 @@ ${COLOR_ALPHA_WGSL}
 ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}
-fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}
-fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
-fn maskKeep(page:PageInfo,uv:vec2f)->bool{
- if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let raw=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
- // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
- // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
- return colorAlpha(page.mapIndex,page.uvScale,raw)>=page.baseColor.w;
-}
+${PAGE_MASK_WGSL}
 fn computeTriangle(page:PageInfo,triangle:u32)->bool{
  if(uni.smallThreshold<=0.0||triangle*3u+2u>=page.indexCount){return false;}
  let ia=indices[page.pageOffset+triangle*3u];let ib=indices[page.pageOffset+triangle*3u+1u];let ic=indices[page.pageOffset+triangle*3u+2u];

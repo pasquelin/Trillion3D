@@ -55,6 +55,8 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
+  /** Where the drawable difference writes its members; nothing downstream reads it. */
+  drawnMembers: PageRec[];
   /**
    * How many leading entries of `shown` and `desired` are the opaque cut, which the GPU readback
    * maintains from one image to the next; the transparent tail after them is the only part an image
@@ -148,6 +150,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     shown: [],
     desired: [],
     drawn: [],
+    drawnMembers: [],
     shownOpaque: -1,
     desiredOpaque: -1,
     shownOpaqueTriangles: -1,
