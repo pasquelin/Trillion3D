@@ -159,3 +159,7 @@ pub(crate) fn index_bytes(indices: &[u32], vertex_count: usize) -> (Vec<u8>, u32
     out.extend(indices.iter().flat_map(|i| i.to_le_bytes()));
     (out, 5125)
 }
+
+#[cfg(test)]
+#[path = "mesh_tests.rs"]
+mod tests;
