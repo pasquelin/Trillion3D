@@ -9,6 +9,7 @@ import {
   DEFAULT_PIXEL_RATIO,
   DEFAULT_WIDTH,
   WEBGPU_REQUIRED_LIMITS,
+  devicePixels,
 } from './backendCommon.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
@@ -129,12 +130,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1;
   } else {
-    canvas.width = Math.floor(
-      (options.width ?? DEFAULT_WIDTH) * (options.pixelRatio ?? DEFAULT_PIXEL_RATIO),
-    );
-    canvas.height = Math.floor(
-      (options.height ?? DEFAULT_HEIGHT) * (options.pixelRatio ?? DEFAULT_PIXEL_RATIO),
-    );
+    canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio);
+    canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
   }
   diagnose('configuration', 'Active explorer configuration', {
     kind: 'configuration',

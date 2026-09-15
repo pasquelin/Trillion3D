@@ -7,6 +7,8 @@
  * La lecture ne bloque jamais : une requête est relue quelques images plus tard, et une requête
  * marquée « disjointe » par le pilote est jetée au lieu d'être publiée.
  */
+import { nanosecondsToMs } from './gpuTimingTypes.ts';
+
 /** Requêtes relues plus tard : au-delà, l'appareil ne suit pas et on cesse d'en ouvrir. */
 const MAX_PENDING = 4;
 
@@ -61,7 +63,7 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       if (disjoint)
         return { ms: null, reason: 'le pilote a interrompu la mesure (GPU_DISJOINT_EXT)' };
       if (!Number.isFinite(nanoseconds)) return { ms: null, reason: 'durée illisible' };
-      return { ms: nanoseconds / 1e6, reason: null };
+      return { ms: nanosecondsToMs(nanoseconds), reason: null };
     },
   };
 }

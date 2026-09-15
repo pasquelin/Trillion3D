@@ -1,8 +1,7 @@
 import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
 import { truncateShown, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
+import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 import { flatConeKeeps, flatVisible } from './pageSelectionCutVisit.ts';
-
-const FLAT_ESCALATION_ROUNDS = 3;
 
 /** The pinned bootstrap cover is the last resort when no resident replacement exists. */
 export function rootCoverInto<T extends PageRecord>(
@@ -30,7 +29,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
   const near = s.camera.near;
   let threshold = s.pixelError,
     hard = false;
-  for (let round = 0; round <= FLAT_ESCALATION_ROUNDS; round++) {
+  for (let round = 0; round <= ESCALATION_ROUNDS; round++) {
     let raised = false;
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
@@ -57,7 +56,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
       } else hard = true;
     }
     if (!raised) break;
-    if (round === FLAT_ESCALATION_ROUNDS) hard = true;
+    if (round === ESCALATION_ROUNDS) hard = true;
   }
   truncateShown(s, start);
   if (!hard)
