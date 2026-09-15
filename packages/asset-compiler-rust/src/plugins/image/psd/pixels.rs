@@ -9,12 +9,12 @@
 //! chaque ligne de chaque canal — deux octets par entrée en PSD, quatre en PSB.
 use super::lines::Lines;
 use super::{Header, COMPOSITE_MISSING, DATA_TRUNCATED};
-use crate::plugins::image::{blocks, DecodedImage};
+use crate::plugins::image::{blocks, DecodedImage, RGBA8_PIXEL_BYTES};
 
 /// Les deux octets qui annoncent la compression du composite.
 const MARKER_BYTES: usize = 2;
-/// Les octets d'un pixel du contrat de sortie : quatre canaux de huit bits.
-const RGBA_BYTES: usize = 4;
+/// Les octets d'un pixel du contrat de sortie, comptés comme le plafond d'allocation les compte.
+const RGBA_BYTES: usize = RGBA8_PIXEL_BYTES as usize;
 
 /// Saute les trois sections qui séparent l'entête des données composites, et rend le mode de
 /// compression de celles-ci avec les octets qui le suivent. Un fichier qui s'arrête avant cette
