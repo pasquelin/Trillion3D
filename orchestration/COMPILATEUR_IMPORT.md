@@ -32,7 +32,7 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | OpenEXR, Radiance HDR   | documentés, BSD-3                                       | fait    | crate `exr` 1.74.2 pour OpenEXR ; HDR écrit ici depuis la spécification, sans crate | —        |
 | USD / USDZ              | AOUSD public, OpenUSD sous TOST 1.0                     | fait    | caisse `openusd` 0.7.0 (MIT, Rust pur, sans C++) ; `usd` rend Xform/Scope, Mesh triangulés, GeomSubset → matériaux, instances, UsdPreviewSurface et UsdUVTexture, `metersPerUnit`/`upAxis` sur la racine, premier échantillon temporel ; `usdz` est le conteneur ZIP stocké et aligné. Subdivision, PointInstancer, courbes, volumes et skel comptés au rapport | —        |
 | Alembic                 | ouvert, BSD-3                                           | fait    | géométrie statique seulement ; lecteur Ogawa écrit ici depuis la spécification, sans crate | —        |
-| `.blend`                | SDNA documenté ; lire un .blend n'impose pas la GPL     | à coder | maillages, UV, instances, Principled BSDF de base    | P3       |
+| `.blend`                | SDNA documenté ; lire un .blend n'impose pas la GPL     | en cours | maillages, UV, instances, Principled BSDF de base (branche `compilateur/blend`) | P3       |
 | PSD / PSB               | spécification publiée par Adobe pour les lecteurs tiers | à coder | aplati seulement, vers RGBA8                         | P3       |
 | BMP, GIF                | ouverts                                                 | à coder | features `image`                                     | P3       |
 | ZIP                     | ouvert                                                  | fait    | —                                                     | —        |
