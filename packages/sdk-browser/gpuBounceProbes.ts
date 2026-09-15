@@ -8,6 +8,7 @@ import {
   type SceneProxy,
 } from '../sdk-core/index.ts';
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
+import { ensureBounceFits } from './bounceLimits.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './bounceProbeWgsl.ts';
 import { createBounceSchedule } from './bounceSchedule.ts';
 import { createBounceUniform } from './bounceUniform.ts';
@@ -50,6 +51,10 @@ export async function createGpuBounceProbes(
   const occupancy = createBounceOccupancy(proxy, cascades);
   const schedule = createBounceSchedule(cascades, occupancy);
   const budget = createBounceBudget(budgetMs);
+  const probeBytes = Math.max(16, cascades.probes * PROBE_FLOATS * 4);
+  // Rien n'est créé tant que tout ne tient pas : une seule liaison au-dessus d'une limite de
+  // l'appareil suffirait à perdre l'appareil à la première image, et le refus dit laquelle.
+  ensureBounceFits(device, proxy, probeBytes, schedule.queue.byteLength);
   const resident = createGpuBounceProxy(device, proxy);
   const uniform = createBounceUniform(device, cascades);
   const queue = device.createBuffer({
@@ -57,7 +62,6 @@ export async function createGpuBounceProbes(
     size: schedule.queue.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  const probeBytes = Math.max(16, cascades.probes * PROBE_FLOATS * 4);
   const probes = device.createBuffer({
     label: 'WG bounce probes v2',
     size: probeBytes,

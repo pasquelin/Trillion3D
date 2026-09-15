@@ -57,8 +57,10 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
         publish(rt);
       },
       (error: unknown) => {
-        bounce.reason = `resident proxy unavailable: ${String(error)}`;
-        rt.diag.diagnosticFailure('bounce-proxy-unavailable', error);
+        // Le proxy absent n'est plus la seule cause : un appareil trop petit pour les liaisons du
+        // rebond refuse ici aussi, et le message porte la liaison et les octets qui ont manqué.
+        bounce.reason = `bounce unavailable: ${String(error)}`;
+        rt.diag.diagnosticFailure('bounce-unavailable', error);
         publish(rt);
       },
     );
