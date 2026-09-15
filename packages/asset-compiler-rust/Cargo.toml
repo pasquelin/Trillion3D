@@ -23,6 +23,11 @@ image = { version = "0.25.10", default-features = false, features = ["png", "jpe
 # Lecture d'archives ZIP (MIT, zip-rs/zip2), pour le pilote conteneur `zip`. Sans son défaut de
 # fonctionnalités : seul `deflate` par `flate2` en Rust pur, ni chiffrement ni codec natif.
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2"] }
+# Lecture d'archives tar.gz (MIT OU Apache-2.0), pour le pilote conteneur `unitypackage` : `flate2`
+# sur son backend Rust pur (miniz_oxide), et `tar` sans `xattr`, qui restaurerait des attributs
+# étendus. Décompression seule, aucun code d'éditeur.
+flate2 = { version = "1.1.10", default-features = false, features = ["rust_backend"] }
+tar = { version = "0.4.46", default-features = false }
 yaml-rust2 = { version = "0.13", default-features = false }
 [dev-dependencies]
 # Le décodeur de pages, partagé avec le module WebAssembly : le compilateur ne l'embarque pas,
