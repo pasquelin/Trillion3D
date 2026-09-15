@@ -26,7 +26,6 @@ function keep<T extends PageRecord>(s: SelectionState<T>, rec: T) {
     if (!s.rootFallback) s.complete = false;
     return;
   }
-  rec.seen = s.frame;
   s.shown.push(rec);
   // Un passage qui dépasse le budget est jeté tel quel : son seul résultat est « trop de pages ».
   // Le savoir au premier dépassement épargne la fin de la descente, pas une page de celle qu'on garde.
