@@ -40,13 +40,24 @@ export function previewLevelCount(width: number, height: number) {
   return previewLastLevel(width, height) - previewFirstLevel(width, height) + 1;
 }
 
+/**
+ * Géométrie complète d'une entrée : son premier niveau porté, leur nombre et leurs octets RGBA8.
+ * Les trois se déduisent des deux mêmes bornes. Les demander une à une recalculait `previewFirstLevel`
+ * trois fois et `previewLastLevel` deux fois pour les mêmes dimensions, et `previewFirstLevel` boucle
+ * jusqu'à trente et une fois.
+ */
+export function previewGeometry(width: number, height: number) {
+  const firstLevel = previewFirstLevel(width, height),
+    lastLevel = previewLastLevel(width, height);
+  let pixelBytes = 0;
+  for (let level = firstLevel; level <= lastLevel; level++) {
+    const [w, h] = previewLevelSize(width, height, level);
+    pixelBytes += w * h * 4;
+  }
+  return { firstLevel, levelCount: lastLevel - firstLevel + 1, pixelBytes };
+}
+
 /** Octets RGBA8 de tous les niveaux portés, bout à bout du plus fin au plus grossier. */
 export function previewPixelBytes(width: number, height: number) {
-  let bytes = 0;
-  const last = previewLastLevel(width, height);
-  for (let level = previewFirstLevel(width, height); level <= last; level++) {
-    const [w, h] = previewLevelSize(width, height, level);
-    bytes += w * h * 4;
-  }
-  return bytes;
+  return previewGeometry(width, height).pixelBytes;
 }

@@ -1,12 +1,7 @@
 import { EngineError, type TexturePreview } from './contracts.ts';
 import * as format from './manifestBinaryFormat.ts';
 import { writeSha } from './manifestBinaryLayout.ts';
-import {
-  previewFirstLevel,
-  previewLevelCount,
-  previewLevelSize,
-  previewPixelBytes,
-} from './texturePreviewLevels.ts';
+import { previewGeometry, previewLevelSize } from './texturePreviewLevels.ts';
 
 type PreviewColumns = {
   count: number;
@@ -14,15 +9,6 @@ type PreviewColumns = {
   previewShaText: string;
   previewPixels: Uint8Array<ArrayBuffer>;
 };
-
-/** Ce qu'une entrée doit annoncer pour ses dimensions source, recalculé et jamais cru sur parole. */
-function expectedGeometry(width: number, height: number) {
-  return {
-    firstLevel: previewFirstLevel(width, height),
-    levelCount: previewLevelCount(width, height),
-    pixelBytes: previewPixelBytes(width, height),
-  };
-}
 
 /** Ce que l'écriture et la lecture exigent toutes deux d'une entrée — index de texture entier et
  *  strictement croissant, dimensions source réelles — pour qu'une entrée refusée à l'écriture soit
@@ -65,7 +51,7 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
     const width = previewWords[base + format.PREVIEW_WIDTH],
       height = previewWords[base + format.PREVIEW_HEIGHT];
     previous = checkEntryHeader(entry, texture, width, height, previous);
-    const expected = expectedGeometry(width, height);
+    const expected = previewGeometry(width, height);
     const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
     const declared = {
       firstLevel,
@@ -135,7 +121,7 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
     offset = 0;
   previews.forEach((preview, entry) => {
     previous = checkEntryHeader(entry, preview.texture, preview.width, preview.height, previous);
-    const expected = expectedGeometry(preview.width, preview.height);
+    const expected = previewGeometry(preview.width, preview.height);
     const base = entry * format.PREVIEW_WORDS;
     words[base + format.PREVIEW_TEXTURE] = preview.texture;
     words[base + format.PREVIEW_IMAGE] = preview.image;
