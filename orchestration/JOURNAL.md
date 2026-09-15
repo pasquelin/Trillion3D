@@ -1,5 +1,74 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session stochastique] deux tranches de lampes par tuile, et la boucle exacte des transparents (lot RX2, réduit)
+
+Worktree `lot-stochastique`, branche `lot/stochastique`, rebasée sur `develop`. Rien n'est fusionné,
+le Lab n'est pas touché. Le lot a été **réduit en cours de route, sur décision de l'utilisateur** :
+il ne porte plus le tirage stochastique ni l'accumulation temporelle, pour les raisons mesurées
+ci-dessous. Ce qui a été écrit pour eux vit dans `essai/stochastique-accumulation`, un commit,
+jamais fusionnée.
+
+### Ce qui est livré
+
+Les listes de lampes par tuile étaient bâties sur la seule tranche entre les deux profondeurs
+opaques de la tuile. Une surface de mélange est dessinée **devant** l'opaque de son pixel : cette
+tranche lui retire des lampes déclarées, et une tuile que nul opaque ne couvre — le ciel derrière un
+feuillage — n'en garde aucune. C'est pour cela que la passe de mélange bouclait sur **toutes** les
+lampes déclarées, bornée par `maxLights`.
+
+Chaque tuile porte maintenant **deux listes, deux tranches de profondeur**, bâties dans la même
+passe par un seul masque à deux tranches (`gpuLightTilesShader.ts`) :
+
+- celle des **opaques**, entre les deux profondeurs de la tuile — même boîte, même condition de
+  couverture, même compaction qu'avant : la résolution différée n'y perd ni une lampe ni une
+  milliseconde, et son image ne bouge pas ;
+- celle du **mélange**, du plan proche au fond opaque, et le tronc entier là où nul opaque ne couvre
+  la tuile.
+
+La passe de mélange boucle sur la seconde, et sa boucle reste **exacte** : une lampe absente de la
+liste ne rencontre aucun point de la tranche — sa sphère de portée ne touche pas la boîte monde —,
+donc `declaredLight` lui aurait rendu exactement `vec3f(0.0)`, et retirer un zéro d'une somme de
+flottants ne la change pas. Ce qui change est le nombre de lampes parcourues par pixel, donc le
+nombre de lectures d'atlas d'ombre. Sans liste — un appareil qui n'a pas pu gréer la passe de
+tuiles —, la boucle retombe sur les lampes déclarées, bornée par `maxLights` (X2).
+
+### Ce qui a été mesuré puis écarté
+
+**Le tirage stochastique et l'accumulation temporelle**, écrits, mesurés, non retenus.
+
+1. **Écrire l'historique depuis le nuanceur de fragments prive le tuileur de son élimination des
+   surfaces cachées.** Sur Emerald, vue `sol`, qui n'a pourtant **aucun transparent visible**,
+   l'étape Transparents passe de 2,4 à **32,7 ms** et l'enveloppe d'image de 11,6 à 42,1 ms : tout
+   le feuillage caché derrière le sol se met à être ombré. Le même lot sans ce tampon retombe à
+   2,94 ms. Ce n'est pas le trafic mémoire : faire sauter l'accumulation pour les 76 % de pixels
+   dont le tirage était déjà exact n'a rien changé au coût (32,73 → 32,67 ms).
+2. **L'historique par pixel n'accumule rien sous surdessin transparent** : compteurs relevés,
+   **99,7 %** des clés rejetées, chaque case étant réécrite par une autre couche dans la même image.
+3. **Le banc ne pouvait pas prouver le gain du tirage.** Sur Emerald à huit lampes, la boucle « sur
+   toutes les lampes déclarées » ne testait déjà qu'**une** lampe par pixel : les ponctuelles sont
+   hors de portée des feuillages et sortaient par le fenêtrage de portée avant toute lecture
+   d'atlas. Les 23 ms de la vue de rue sont les seize prises du soleil sur 1,7 M de triangles de
+   feuillage, pas le nombre de lampes. Rue : 23,36 ms avant, 23,97 après — rien à gagner ici.
+
+Deux autres variantes ont été mesurées et écartées en chemin. **Une seule liste par tuile, élargie
+et partagée** avec les opaques : elle gardait bien les feuillages, mais faisait passer l'enveloppe
+d'image de `sol` de 12,0 à 34,6 ms, chaque tuile retenant les lampes posées entre la caméra et le
+sol. **Une clé d'historique faite du seul point du monde**, à trois pixels près : 21 329 px d'écart
+sur la vue de rue, deux feuilles voisines le long du rayon — l'une au soleil, l'autre à l'ombre —
+mêlant leurs moyennes ; la normale quantifiée dans la clé les sépare et ramène l'écart à 1 141 px.
+
+Fidélité atteinte par la version écartée, pour mémoire (Emerald, 8 lampes + soleil, 200 images) :
+`sol` 0 px, générale 169 px max canal 29, rue 1 141 px max canal 3.
+
+### Ce qui reste pour RX2
+
+L'historique porté par une **cible de rendu supplémentaire, en ping-pong**, que le tuileur traite
+sans perdre son élimination des surfaces cachées ; et un banc où des lampes atteignent vraiment les
+transparents, faute de quoi le tirage n'a rien à retirer. Le plafond X5 reste un compte de lampes et
+non un budget en millisecondes.
+
+### Preuves
+
 ## 2026-09-15 — [session calculs] lot H3 rebond : le proxy indexe ses primitives par maillage
 
 Fusion fast-forward `develop` → `8f54474` (« perf(rebond): les primitives du proxy indexées par
@@ -4515,3 +4584,56 @@ bougé — ni `apercus/atlas-couleur`, ni les coplanaires, ni `unity/cc0-import-
 la clé reste identique dans l'archive et hors d'elle. `cargo test --locked` : 174 tests au vert (173
 + celui-ci), `cargo clippy --all-targets -- -D warnings` et `cargo fmt --check` verts, tous les
 fichiers touchés sous 200 lignes.
+
+## 2026-09-15 — [compilateur] pilote unitypackage
+
+**Ce que c'est.** Un `.unitypackage` n'est pas une scène : c'est un projet Unity mis à plat dans une
+archive tar compressée en gzip, un dossier par GUID d'asset. Chaque dossier porte `pathname` — le
+chemin cible dans le projet, sur sa première ligne —, `asset` — les octets du fichier, absent quand
+l'entrée décrit un dossier du projet —, `asset.meta`, et parfois `preview.png`, vignette de
+l'éditeur qui n'appartient pas au projet. Le pilote reconstruit l'arbre `Assets/…` sous le cache,
+puis laisse le routeur faire son travail : chaîne `unitypackage` → `unity`, consignée au rapport et
+dans la marque d'extraction comme le fait `zip`.
+
+**Provenance et licences.** Formats ouverts : ustar (POSIX 1003.1-1988) et gzip (RFC 1952), lus par
+`tar` 0.4.46 et `flate2` 1.1.10, MIT OU Apache-2.0, versions figées dans `Cargo.toml` et nommées
+dans la version du pilote. `flate2` sur son backend Rust pur (miniz_oxide), `tar` sans `xattr` —
+aucun attribut étendu n'est restauré. Décompression seule, aucun code, SDK ni bibliothèque d'éditeur,
+rien de déchiffré ni contourné. Chaque fichier du paquet garde la licence de son auteur.
+
+**Le socle a servi, et s'est généralisé une fois.** `scene/archive.rs` avait été écrit pour ZIP avec
+le second conteneur en tête ; le déroulé commun y était resté dans `zip.rs`. Il est descendu dans
+`archive/container.rs` : source unique, clé d'extraction, marque `archive.json` d'une extraction
+entière, dossier racine unique traversé, routage, chaîne publiée. Un conteneur n'apporte plus que sa
+lecture. Les refus nommés (`ARCHIVE_UNREADABLE`, `ARCHIVE_EMPTY`) et les deux plafonds sont devenus
+des fonctions du socle. La version et les messages de `zip` n'ont pas bougé : sa dorée passe sans
+qu'un attendu soit touché.
+
+**Ce qui est refusé.** Toutes les protections du socle valent : `pathname` absolu, avec `..` ou
+nommant un volume → `ARCHIVE_PATH_ESCAPE`, jugé avant qu'un octet soit écrit ; lien symbolique ou
+matériel → `ARCHIVE_SYMLINK` ; plafonds d'entrées et d'octets décompressés → `ARCHIVE_TOO_*` ; gzip
+tronqué ou corrompu → `ARCHIVE_UNREADABLE` ; paquet sans aucune `pathname` → `ARCHIVE_EMPTY`.
+L'extraction se fait en deux passes — juger tout le paquet, puis écrire — donc un paquet refusé ne
+laisse aucun fichier derrière lui ; le flux gzip n'étant pas rembobinable, la seconde passe rouvre
+le fichier au lieu de garder les assets en mémoire. Aucune panique : tout sort en `CompilerError`.
+
+**Dorée.** Une seule, `fixtures/unitypackage`, sur le corpus CC0 local (le dépôt ignore
+`test-assets/`), avec sa notice. Le paquet CC0 et le même projet reconstruit à plat dans
+`hors-paquet/` sont compilés tous les deux et comparés l'un à l'autre — nom, taille et empreinte de
+chaque fichier de données lu, comptes du pilote Unity, sha256 du sidecar — avant que le premier soit
+comparé à `expected.json` : 11 `.meta` reconstruits, 12 objets, 3 instances, 36 triangles, 6 rendus
+de LOD écartés. `fixtures/unity/cc0-import-project` ne pouvait pas servir de témoin : sa `Map.unity`
+a été enrichie pour la dorée Unity et diffère de celle du corpus. Le script C# du corpus n'est pas
+repris dans `hors-paquet/` — ce pilote ne lit que des données — mais son `.meta` l'est, pour que les
+deux projets comptent les mêmes onze `.meta`. Trois paquets piégés y sont fixés par leur code, dont
+deux synthétiques écrits par un outil extérieur aux caisses qui les lisent. `cargo test --locked` du
+crate : 174 tests unitaires et 4 tests CLI au vert ; `cargo clippy --all-targets -D warnings`,
+`cargo fmt --check`, `check:lines` et `check:duplicates` verts.
+
+**Ce qui reste.** Le routeur refuse un dossier qui mêle `.unity` et `.fbx` au même niveau ; le paquet
+du corpus range ses `.fbx` sous `Models/`, donc son routage passe et la dorée ne bute pas dessus —
+un paquet dont les modèles voisinent la scène buterait, et c'est l'affaire du routeur, corrigée
+ailleurs. `accepts_head` reconnaît le nombre magique gzip : un fichier compressé sans extension
+connue est donc revendiqué par ce pilote, qui le refuse ensuite proprement s'il n'a pas la structure
+d'un paquet. La scène du corpus ne pose que des cubes intégrés : le FBX reconstruit est bien écrit à
+son chemin mais aucune instance ne le cite, ce que seul un paquet plus riche prouverait.

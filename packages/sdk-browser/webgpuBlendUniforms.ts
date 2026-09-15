@@ -1,6 +1,7 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { FLAG_UNLIT_VIEW, visMaterial } from './visibilityBuffer.ts';
 import { writeBlendDiagnostic } from './webgpuBlendDiagnostic.ts';
+import { directTiles } from './webgpuPagesEncodeLights.ts';
 import { wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -30,6 +31,7 @@ export function writeBlendUniforms(
   // Une seule question par image, pas par maillage : l'image est-elle éclairée par des lampes
   // déclarées ? Sinon les transparents sortent leur albédo brut, comme les opaques (P6).
   const unlit = wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW;
+  const tiles = directTiles();
   writeBlendDiagnostic(
     blendState,
     rt.layout.packedPages,
@@ -89,6 +91,10 @@ export function writeBlendUniforms(
     packedInts[base + 55] = mat.aoMap ? (dataLayer.get(mat.aoMap) ?? 0) : 0;
     uniformPacked[base + 56] = mat.aoIntensity;
     uniformPacked.set(mat.emissive, base + 57);
+    // Les tuiles de lampes de cette image-ci : sans elles, la boucle du pixel retombe sur les lampes
+    // déclarées. Zéro quand aucune liste n'a été encodée, jamais celles d'une autre image.
+    uniformPacked[base + 60] = tiles[1];
+    uniformPacked[base + 61] = tiles[2];
   }
   device.queue.writeBuffer(
     uniformBuffer,
