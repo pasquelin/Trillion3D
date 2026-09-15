@@ -19,7 +19,6 @@ export function rootCoverInto<T extends PageRecord>(
       whole = false;
       continue;
     }
-    rec.seen = s.frame;
     s.shown.push(rec);
   }
   return whole;
@@ -73,7 +72,6 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
         hard = true;
         break;
       }
-      rec.seen = s.frame;
       s.shown.push(rec);
     }
   if (!hard) return;

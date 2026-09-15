@@ -64,7 +64,6 @@ const gpuCutCounts = { drawnTriangles: 0, uncoveredTriangles: 0 };
 export function shownFromGpu(
   pages: PageRec[],
   ids: readonly number[],
-  frame: number,
   into: PageRec[],
   residentOffsetWords: Int32Array,
 ) {
@@ -75,7 +74,6 @@ export function shownFromGpu(
     const id = ids[i],
       rec = pages[id];
     if (!rec) continue;
-    rec.seen = frame;
     into.push(rec);
     drawnTriangles += rec.triangles;
     if (residentOffsetWords[id] < 0 || !rec.array) uncovered += rec.triangles;

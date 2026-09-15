@@ -30,7 +30,6 @@ export function dag({ feuilles = 10000, seed = 61, residentes = 1, etendue = 3 }
         url: `n${level}-${i}.bin`,
         level,
         triangles: 128,
-        seen: 0,
         min: [cx - rayon, cy - rayon, cz - rayon],
         max: [cx + rayon, cy + rayon, cz + rayon],
         sphere: [cx, cy, cz, rayon],
@@ -58,7 +57,7 @@ export function racine(pages) {
 }
 
 /** L'état visible d'une coupe : les pages affichées et demandées dans l'ordre, et ses compteurs. */
-export function etatDeCoupe(result, pages) {
+export function etatDeCoupe(result) {
   return {
     shown: result.shown.map((rec) => rec.url),
     wanted: result.wanted.map((rec) => rec.url),
@@ -70,6 +69,5 @@ export function etatDeCoupe(result, pages) {
     lodLevel: result.lodLevel,
     complete: result.complete,
     pixelError: result.pixelError,
-    estampilles: Float64Array.from(pages, (rec) => rec.seen),
   };
 }

@@ -40,7 +40,6 @@ export type PageRec = {
   geometry?: THREE.BufferGeometry;
   mesh?: THREE.Mesh;
   attached: boolean;
-  seen: number;
   resident?: boolean;
   cone?: NormalCone;
   /** Rang de la clé de requête, posé une fois par `indexPageRequests` : dédoublonnage sans hachage. */

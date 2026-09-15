@@ -12,7 +12,6 @@ import {
   selectVisiblePages,
 } from '../../../packages/sdk-browser/pageSelection.ts';
 import { compareC, deposeC, ligneDecrite } from './bancC.mjs';
-import { compteur, parcours } from './ecartsC.mjs';
 import { camera } from './scenes.mjs';
 import { dag, etatDeCoupe, racine } from './dagC.mjs';
 
@@ -33,18 +32,12 @@ function demande(entree, pixelError, pageBudget) {
   };
 }
 
-/** Remet les estampilles à zéro : l'écart des deux côtés doit être celui de la coupe, pas d'un reste. */
-function neuf(entree) {
-  for (const page of entree.pages) page.seen = 0;
-}
-
 /**
  * `pageSelectionCut.ts:82-86` avant le lot C : un passage complet, puis jusqu'à seize passages
  * complets de plus, chacun au double du seuil précédent. Sans budget la sélection ne s'arrête
  * jamais en route : un appel sans budget est mot pour mot l'ancien `sweep()`.
  */
 function referenceCoupe(entree) {
-  neuf(entree);
   const budget = entree.budget;
   let pixelError = entree.pixelError;
   let result = selectVisiblePages(entree.roots, cam, demande(entree, pixelError, 0), entree.shown);
@@ -52,37 +45,17 @@ function referenceCoupe(entree) {
     pixelError = pixelError > 0 ? pixelError * 2 : 1;
     result = selectVisiblePages(entree.roots, cam, demande(entree, pixelError, 0), entree.shown);
   }
-  return etatDeCoupe(result, entree.pages);
+  return etatDeCoupe(result);
 }
 
 function optimiseeCoupe(entree) {
-  neuf(entree);
   const result = selectVisiblePages(
     entree.roots,
     cam,
     demande(entree, entree.pixelError, entree.budget),
     entree.shown,
   );
-  return etatDeCoupe(result, entree.pages);
-}
-
-/**
- * L'écart d'une coupe, en deux parts : ce qui définit la coupe — pages affichées et demandées dans
- * l'ordre, compteurs, seuil rendu — et les estampilles `seen`, qui ne définissent rien. Un passage
- * abandonné ne pose plus les estampilles des pages qu'il ne verra pas ; personne ne les lit, et la
- * coupe rendue est la même. Le banc les compte à part au lieu de les confondre avec la coupe.
- */
-function differencesCoupe(attendu, obtenu, nom) {
-  const { estampilles: avant, ...coupeAvant } = attendu;
-  const { estampilles: apres, ...coupeApres } = obtenu;
-  const c = parcours(compteur(), coupeAvant, coupeApres, `${nom} coupe`);
-  const stamps = parcours(compteur(), avant, apres, `${nom} estampilles`);
-  c.horsCoupe = stamps.nombre;
-  c.nombre += stamps.nombre;
-  c.premier ??= stamps.nombre
-    ? `coupe identique ; ${stamps.nombre} estampilles que les passages abandonnés ne posent plus`
-    : null;
-  return c;
+  return etatDeCoupe(result);
 }
 
 function scene({ feuilles, seed, residentes = 1, pixelError, budget, rootFallback = false }) {
@@ -118,9 +91,7 @@ const lignes = [
     ],
     reference: referenceCoupe,
     optimisee: optimiseeCoupe,
-    differences: differencesCoupe,
-    // La coupe doit être identique page pour page ; les estampilles `seen` n'en font pas partie.
-    tolere: (c) => c.nombre === c.horsCoupe,
+    // La coupe doit être identique page pour page, dans l'ordre, compteurs et seuil compris.
     options: { chauffe: 3, tours: 25, budgetMs: 3000 },
   }),
   ligneDecrite({

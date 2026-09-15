@@ -64,7 +64,6 @@ test('the held cut is the very cut a sweep writes, in the order of the source', 
       ({
         url,
         triangles: 1,
-        seen: 0,
         level: 0,
         min: [index * 0.6 - 1.3, -0.3, -0.3],
         max: [index * 0.6 - 0.7, 0.3, 0.3],
