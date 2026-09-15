@@ -4,6 +4,7 @@ import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
+  residentModeOf,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -48,6 +49,9 @@ export function selectVisiblePages<T extends PageRecord>(
   state.wanted = wanted;
   state.shown = shown;
   state.isResident = options.isResident;
+  // La règle de résidence ne dépend que de la demande : la dire ici, c'est retirer de la boucle
+  // par cluster deux relectures de l'état et un appel indirect, sans toucher à la réponse.
+  state.residentMode = residentModeOf(hold, options.isResident);
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(camera.matrixWorldInverse.elements);
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;

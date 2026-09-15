@@ -88,6 +88,11 @@ export type ClusterRoot<T> = {
   structure?: ClusterStructureIndex;
   forced?: Uint8Array;
   forcedList?: number[];
+  /** Ce que la racine déclare de ses cônes de normales, une fois pour toutes à la préparation :
+   *  `false` dit qu'aucune de ses pages n'en porte, et la coupe cesse alors de lire `cone` par
+   *  cluster. Absent ou `true`, la coupe teste chaque page comme avant. Qui pose un cône sur une
+   *  page pose ce drapeau sur sa racine : c'est le seul contrat qui rend l'omission visible. */
+  cones?: boolean;
 };
 
 /**
