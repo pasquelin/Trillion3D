@@ -60,7 +60,7 @@ pub(crate) struct Bin {
 }
 impl Bin {
     pub(crate) fn view(&mut self, data: &[u8], target: Option<u32>) -> usize {
-        let pad = (4 - self.bytes.len() % 4) % 4;
+        let pad = crate::shared_math::pad_to_4(self.bytes.len());
         self.bytes.extend(std::iter::repeat_n(0u8, pad));
         let offset = self.bytes.len();
         self.bytes.extend_from_slice(data);
