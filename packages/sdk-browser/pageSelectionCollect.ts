@@ -1,23 +1,11 @@
-import {
-  DAG_ERROR_MODEL,
-  EngineError,
-  primitiveUsesClusterErrors,
-  type ClusterManifest,
-  type Primitive,
-} from '../sdk-core/index.ts';
+import type { ClusterManifest } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
-import {
-  objects,
-  streamPlacement,
-  clusterErrorFields,
-  structureIndex,
-  cullingNodes,
-} from './pageSelectionHelpers.ts';
+import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
-import { cullingBounds } from './pageSelectionCutBounds.ts';
+import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
-import type { PageRec, ClusterRoot, ClusterStructureIndex } from './pageSelectionTypes.ts';
+import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
 export function collectClusterPages(
   source: THREE.Object3D,
@@ -30,8 +18,10 @@ export function collectClusterPages(
     allPages: PageRec[] = [],
     blendCopies: THREE.Mesh[] = [],
     bootstrap: PageRec[] = [];
-  const structures = new Map<Primitive, ClusterStructureIndex | undefined>();
   const primitiveOf = primitiveFinder(metadata.primitives);
+  // Un gabarit par objet source, partagé par tous ses placements : la forme du DAG, ses bandes
+  // d'erreur et ses identités de clusters ne dépendent d'aucune matrice monde.
+  const templates = createPrimitiveTemplates(indices, options.allowMissing === true);
   let order = 0;
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
@@ -48,33 +38,25 @@ export function collectClusterPages(
     }
     const sourceIndices = mesh.geometry.getIndex();
     if (!sourceIndices) throw new Error('Indexed source required');
-    const src = sourceIndices.array as ArrayLike<number>;
+    const template = templates.pagesOf(primitive);
     const transparent =
       primitive.pass === 'clustered-blend' ||
       (Array.isArray(mesh.material)
         ? mesh.material.some((material) => material.transparent)
         : mesh.material.transparent);
     // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
-    const sourceOrder = transparent
-      ? primitive.pages.map((page, index) => page.start ?? index)
-      : undefined;
-    const exactPages = primitive.pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
-    const placement = streamPlacement(primitive.streams, primitive.pages);
-    let sourceOffset = 0;
+    const sourceOrder = transparent ? template.sourceOrder : undefined;
     const pages = primitive.pages.map((page, pageIndex) => {
-      const array = indices.get(page.url);
-      if (!array && !options.allowMissing && indices.size) throw new Error('Missing page');
-      if (array && (page.role ?? 'exact') !== 'coarse') sourceOffset += array.length;
-      else if (!array && (page.role ?? 'exact') !== 'coarse') sourceOffset += page.count;
-      const cut = clusterErrorFields(page);
-      const placed = placement?.[pageIndex];
+      const entry = template.pages[pageIndex],
+        cut = entry.cut,
+        placed = entry.placed;
       const rec: PageRec = {
         id: page.id,
         url: page.url,
-        clusterId: `${primitive.mesh}/${primitive.primitive}/${page.id}`,
-        array,
+        clusterId: entry.clusterId,
+        array: entry.array,
         triangles: page.count / 3,
-        indexBytes: array?.byteLength ?? page.bytes,
+        indexBytes: entry.array?.byteLength ?? page.bytes,
         min: page.min,
         max: page.max,
         role: page.role,
@@ -105,80 +87,17 @@ export function collectClusterPages(
       return rec;
     });
     order++;
-    const complete = primitive.pages.every(
-      (page) => indices.has(page.url) || (page.role ?? 'exact') === 'coarse',
-    );
-    if (complete && sourceOffset !== sourceIndices.count)
+    if (template.complete && template.sourceOffset !== sourceIndices.count)
       throw new Error('Incomplete cluster coverage');
-    // The DAG reorders triangles, so coverage is a multiset identity, never an order identity.
-    if (complete) {
-      const count = (arr: ArrayLike<number>) => {
-        const map = new Map<string, number>();
-        for (let i = 0; i < arr.length; i += 3) {
-          const key = `${arr[i]},${arr[i + 1]},${arr[i + 2]}`;
-          map.set(key, (map.get(key) ?? 0) + 1);
-        }
-        return map;
-      };
-      // La concaténation passe par un `Uint32Array` de taille connue : `flatMap` d'un spread par page
-      // construisait un tableau JS de plusieurs millions de nombres avant de le compter.
-      let total = 0;
-      for (const page of exactPages) total += indices.get(page.url)!.length;
-      const joined = new Uint32Array(total);
-      let at = 0;
-      for (const page of exactPages) {
-        const part = indices.get(page.url)!;
-        joined.set(part, at);
-        at += part.length;
-      }
-      const fromPages = count(joined);
-      const fromSource = count(src);
-      if (fromPages.size !== fromSource.size) throw new Error('Incomplete cluster coverage');
-      for (const [key, n] of fromSource)
-        if (fromPages.get(key) !== n) throw new Error('Page/source index mismatch');
-    }
-    if (!primitiveUsesClusterErrors(primitive))
-      throw new EngineError(
-        'STALE_CACHE',
-        `Primitive ${primitive.mesh}/${primitive.primitive}: clusters without a DAG error band; recompile with ${DAG_ERROR_MODEL}`,
-        { mesh: primitive.mesh, primitive: primitive.primitive, expected: DAG_ERROR_MODEL },
-      );
-    if (!structures.has(primitive))
-      structures.set(primitive, structureIndex(primitive.structure, primitive.pages.length));
-    const structure = structures.get(primitive);
-    const culling = cullingNodes(primitive.culling, pages.length);
-    const local = new THREE.Box3();
-    if (culling)
-      local.set(
-        new THREE.Vector3(culling.nodes[0], culling.nodes[1], culling.nodes[2]),
-        new THREE.Vector3(culling.nodes[3], culling.nodes[4], culling.nodes[5]),
-      );
-    // L'union se fait en scalaires : `Box3.union` prend `Math.min`/`Math.max` composante par
-    // composante, exactement ce qu'écrivent ces six lignes, sans les trois objets par page.
-    else {
-      let minX = Infinity,
-        minY = Infinity,
-        minZ = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity,
-        maxZ = -Infinity;
-      for (const page of primitive.pages) {
-        minX = Math.min(minX, page.min[0]);
-        minY = Math.min(minY, page.min[1]);
-        minZ = Math.min(minZ, page.min[2]);
-        maxX = Math.max(maxX, page.max[0]);
-        maxY = Math.max(maxY, page.max[1]);
-        maxZ = Math.max(maxZ, page.max[2]);
-      }
-      local.min.set(minX, minY, minZ);
-      local.max.set(maxX, maxY, maxZ);
-    }
+    templates.checkCoverage(primitive, template, sourceIndices.array as ArrayLike<number>);
+    const shape = templates.shapeOf(primitive, template);
+    const { structure, culling } = shape;
     roots.push({
       world: mesh.matrixWorld,
       pages,
-      culling: culling && { ...culling, bounds: cullingBounds(culling, pages) },
-      worldBox: local.clone().applyMatrix4(mesh.matrixWorld),
-      localBox: local.clone(),
+      culling: culling && { ...culling, bounds: shape.bounds! },
+      worldBox: shape.local.clone().applyMatrix4(mesh.matrixWorld),
+      localBox: shape.local.clone(),
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,
       forcedList: structure ? [] : undefined,
