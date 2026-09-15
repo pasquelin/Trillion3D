@@ -36,11 +36,13 @@ export function encodeDirectLights(
   directParams[3] = environment ? environment.exposure : 1;
   // La vue sans éclairage ne lit ni liste de lampes ni atlas : elle n'en fait donc encoder aucun.
   if (!active || store.unlit) return directParams;
-  const frame = rt.run.frame;
-  const regions = planShadowRegions(rt, camera, frame, performance.now());
+  const frame = rt.run.frame,
+    nowMs = performance.now(),
+    pagesSlot = frame % PAGES_RING;
+  const regions = planShadowRegions(rt, camera, frame, nowMs);
   // Le chronomètre de la passe revient avec du retard : l'image doit laisser derrière elle le
   // nombre de pages qu'elle a redessinées, sinon le relevé ne saurait pas ce qu'il chiffre.
-  lights.pagesByFrame[frame % PAGES_RING] = lights.shadowPages;
+  lights.pagesByFrame[pagesSlot] = lights.shadowPages;
   // Le tampon part au GPU avant les listes par tuile : la passe de mélange le lit directement, sans
   // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
@@ -49,10 +51,10 @@ export function encodeDirectLights(
   // venait de sortir de la file y retournent alors, sinon leur carte garderait une profondeur
   // périmée sans que rien ne le dise.
   if (regions && !encodeShadowAtlas(rt, device, encoder, regions)) {
-    lights.plan.reissue(frame, performance.now());
+    lights.plan.reissue(frame, nowMs);
     lights.shadowPages = 0;
     lights.shadowRegions = 0;
-    lights.pagesByFrame[frame % PAGES_RING] = 0;
+    lights.pagesByFrame[pagesSlot] = 0;
   }
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;

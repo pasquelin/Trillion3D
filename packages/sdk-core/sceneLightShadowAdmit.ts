@@ -25,7 +25,17 @@ export function createShadowAdmission(
     face = new Int32Array(CANDIDATES),
     rows = new Int32Array(CANDIDATES),
     priority = new Float64Array(CANDIDATES);
-  let count = 0;
+  let count = 0,
+    spent = 0;
+  /** Le prix d'une région contre ce qui reste du budget ; posé une fois, pas une fois par image. */
+  const accept = (pages: number) => {
+    const cost = budget.estimate(pages);
+    // La première région passe toujours : sans elle, une page attendrait indéfiniment sur un
+    // appareil dont la moindre page dépasse déjà le budget, et le retard ne serait plus borné.
+    if (cost !== null && regions.count > 0 && spent + cost > budget.budgetMs) return false;
+    spent += cost ?? 0;
+    return true;
+  };
   return {
     reset() {
       count = 0;
@@ -41,15 +51,7 @@ export function createShadowAdmission(
     },
     /** Vide la file par priorité décroissante jusqu'au budget, puis rend la main. */
     run(slices: ReturnType<typeof createShadowSliceTable>, store: SceneLightStore, frame: number) {
-      let spent = 0;
-      const accept = (pages: number) => {
-        const cost = budget.estimate(pages);
-        // La première région passe toujours : sans elle, une page attendrait indéfiniment sur un
-        // appareil dont la moindre page dépasse déjà le budget, et le retard ne serait plus borné.
-        if (cost !== null && regions.count > 0 && spent + cost > budget.budgetMs) return false;
-        spent += cost ?? 0;
-        return true;
-      };
+      spent = 0;
       for (let picked = 0; picked < count && regions.count < regions.capacity; picked++) {
         let best = -1,
           bestPriority = -Infinity;

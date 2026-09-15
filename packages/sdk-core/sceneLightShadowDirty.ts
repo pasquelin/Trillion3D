@@ -29,20 +29,34 @@ export function createShadowDirty() {
     dirty = new Uint8Array(FACES);
   /** Pages entrées en file depuis le début de l'image : un compte brut, jamais une différence. */
   let added = 0;
-  const note = (index: number, nowMs: number, frame: number) => {
+  const indexOf = (slice: number, face: number) => slice * POINT_FACES + face;
+  /** La face attend depuis maintenant, si elle n'attendait pas déjà : le retard ne repart jamais. */
+  const waitFrom = (slice: number, face: number, nowMs: number, frame: number) => {
+    const index = indexOf(slice, face);
     if (dirty[index]) return;
     dirty[index] = 1;
     since[index] = nowMs;
     sinceFrame[index] = frame;
   };
-  const settle = (index: number, base: number) => {
-    if (faceDirty(mask, base)) return;
+  /** La face n'attend plus rien : son horodatage repart de zéro avec elle. */
+  const forget = (index: number) => {
     dirty[index] = 0;
     since[index] = 0;
     sinceFrame[index] = 0;
   };
+  /** Des pages viennent d'entrer en file : elles sont comptées, et la face se met à attendre. */
+  const entered = (
+    slice: number,
+    face: number,
+    base: number,
+    before: number,
+    nowMs: number,
+    frame: number,
+  ) => {
+    added += countPages(mask, base) - before;
+    waitFrom(slice, face, nowMs, frame);
+  };
   return {
-    mask,
     /** Pages réellement entrées en file depuis le dernier `beginFrame`. */
     get invalidated() {
       return added;
@@ -51,14 +65,14 @@ export function createShadowDirty() {
       added = 0;
     },
     /** Vrai si la face porte au moins une page en attente. */
-    isDirty: (slice: number, face: number) => dirty[slice * POINT_FACES + face] === 1,
+    isDirty: (slice: number, face: number) => dirty[indexOf(slice, face)] === 1,
     /** Retard de la page la plus ancienne de la face, en millisecondes et en images. */
     waitedMs: (slice: number, face: number, nowMs: number) => {
-      const index = slice * POINT_FACES + face;
+      const index = indexOf(slice, face);
       return dirty[index] ? nowMs - since[index] : 0;
     },
     waitedFrames: (slice: number, face: number, frame: number) => {
-      const index = slice * POINT_FACES + face;
+      const index = indexOf(slice, face);
       return dirty[index] ? frame - sinceFrame[index] : 0;
     },
     pages: (slice: number, face: number) => countPages(mask, maskBase(slice, face)),
@@ -68,8 +82,7 @@ export function createShadowDirty() {
       const base = maskBase(slice, face);
       const before = countPages(mask, base);
       markWholeFace(mask, base, rows);
-      added += countPages(mask, base) - before;
-      note(slice * POINT_FACES + face, nowMs, frame);
+      entered(slice, face, base, before, nowMs, frame);
     },
     /** Les pages que la boîte monde recouvre dans cette face, et elles seules. */
     box(
@@ -86,15 +99,14 @@ export function createShadowDirty() {
       const base = maskBase(slice, face);
       const before = countPages(mask, base);
       if (!markBoxPages(mask, base, rows, matrix, matrixBase, min, max)) return false;
-      added += countPages(mask, base) - before;
-      note(slice * POINT_FACES + face, nowMs, frame);
+      entered(slice, face, base, before, nowMs, frame);
       return true;
     },
     /** Une région vient d'être redessinée : ses pages ne sont plus en attente. */
     drew(slice: number, face: number, x0: number, x1: number, y0: number, y1: number) {
       const base = maskBase(slice, face);
       setRect(mask, base, x0, x1, y0, y1, false);
-      settle(slice * POINT_FACES + face, base);
+      if (!faceDirty(mask, base)) forget(indexOf(slice, face));
     },
     /**
      * La région n'a finalement pas été dessinée — la passe n'a pas pu être encodée — : ses pages
@@ -112,16 +124,15 @@ export function createShadowDirty() {
       frame: number,
     ) {
       setRect(mask, maskBase(slice, face), x0, x1, y0, y1, true);
-      note(slice * POINT_FACES + face, nowMs, frame);
+      // Ces pages avaient déjà été comptées à leur entrée en file : elles y reviennent, sans
+      // repasser par `added`, qui compte les entrées et non les allers-retours.
+      waitFrom(slice, face, nowMs, frame);
     },
     /** La tranche est libérée ou reprise : plus aucune page ne l'attend. */
     reset(slice: number) {
       for (let face = 0; face < POINT_FACES; face++) {
-        const index = slice * POINT_FACES + face;
         clearFace(mask, maskBase(slice, face));
-        dirty[index] = 0;
-        since[index] = 0;
-        sinceFrame[index] = 0;
+        forget(indexOf(slice, face));
       }
     },
   };
