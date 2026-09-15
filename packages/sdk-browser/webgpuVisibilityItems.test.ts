@@ -7,6 +7,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { DRAW_ITEM_U32 } from './gpuDraw.ts';
+import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
+import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
 import { referenceBuildItems } from './bench/oracles/f-transparents.mjs';
 import type { PageRec } from './pageSelection.ts';
@@ -23,11 +25,18 @@ function runtime(n: number, drawLayerSlots: number) {
       material,
       matrix: new THREE.Matrix4(),
     } as unknown as PageRec);
+  // La ligne du tableau de pages porte le compte d'indices que la carte dessine : `writePageRow`
+  // l'y écrit à chaque fois qu'elle pose la ligne, et c'est ce mot que les fiches relisent.
+  const rowWords = PAGE_INFO_STRIDE / 4;
+  const pageTableInts = new Uint32Array(Math.max(1, n) * rowWords);
+  for (let i = 0; i < n; i++)
+    pageTableInts[i * rowWords + ROW_INDEX_WORDS] = packedRecs[i].array!.length;
   const layout = {
     rows: {
       packedCount: n,
       packedRecs,
       packedPageIndex: Int32Array.from({ length: n }, (_, i) => i),
+      pageTableInts,
     },
     hizRest: Uint8Array.from({ length: n }, (_, i) => i % 3 === 0), // un tiers « rest »
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
@@ -115,4 +124,17 @@ test('grand nombre de lignes, dirty et non dirty, deux passes : équivalence bit
     const a = runtime(n, slots);
     memeSortie(a, twoPass, dirty);
   }
+});
+
+test('le compte de sommets est celui de la ligne du tableau de pages, pas celui de l’objet', () => {
+  const a = runtime(3, 3);
+  const rowWords = PAGE_INFO_STRIDE / 4;
+  // La ligne dit six indices là où l'objet en porte trois : la fiche suit la ligne, qui est ce que
+  // la carte dessine. Les deux ne divergent que si une ligne a été posée sans être réécrite.
+  a.layout.rows.pageTableInts[0 * rowWords + ROW_INDEX_WORDS] = 6;
+  a.layout.hizRest[0] = 0;
+  const avant = buildWebgpuVisibilityItems(a.rt, true, true);
+  a.layout.rows.pageTableInts[0 * rowWords + ROW_INDEX_WORDS] = 9;
+  const apres = buildWebgpuVisibilityItems(a.rt, true, true);
+  assert.equal(apres.occluderVertices - avant.occluderVertices, 3);
 });

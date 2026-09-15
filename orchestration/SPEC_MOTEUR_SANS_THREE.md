@@ -89,18 +89,31 @@ R5d. **Ce que la coupe ne relit pas par cluster : la racine le déclare une fois
 R6. **Rendu WebGPU** : visibility buffer, compaction et `drawIndexedIndirect` par cluster, raster logiciel borné aux petits triangles réels, résolution matériau par binning, éclairage différé (GGX, IBL si et quand livré, tone mapping ACES, sRGB), transparents en sélection GPU et indirect par matériau, table de pages statique mise à jour par page, zéro allocation par image. Critère : Emerald 1280×720 CPU < 4 ms, GPU < 6 ms, image identique à la référence.
 
 R6b. **Ce que le processeur fixe coûte encore, et où il est passé.** Le coût processeur fixe d'une
-image WebGPU (vue générale, seuil 0) vaut **5,8 à 5,9 ms** après le lot `cpu-fixe`, contre 33,6 ms le
-14 septembre, 7,7 le 15 au soir. Les postes nommés qui restent sont, dans l'ordre : **encodage des
-passes 2,7 à 3,1 ms** — mille neuf cent trente-six appels de dessin dont mille neuf cent vingt-huit de
-mélange, un par primitive transparente visible **y compris celles dont la coupe est vide**, que le
-processeur ne peut pas connaître puisque la compaction est sur la carte ; **fiches de dessin 1,4 à
-1,8 ms** ; **adoption de la coupe 0,9 ms** ; **transparents 0,8 ms** ; **animations 0,5 ms**. La cible
-`< 4 ms` de R6 exige donc de traiter l'encodage de la passe de mélange : c'est le seul poste dont la
-taille suffit, et il demande de savoir avant l'image quelles primitives transparentes n'ont rien à
-dessiner. Les deux autres pistes sont refusées en l'état et la raison compte : mettre
-`uncoveredTriangles` en cache rendrait la preuve d'absence de trou dépendante de l'exactitude d'une
-estampille, et supprimer la lecture par objet des fiches demande un invariant non établi sur la durée
-de vie du tableau d'une page résidente.
+image WebGPU (Emerald, vue générale, seuil 0, 1280×720) vaut **4,7 à 4,9 ms** après le lot
+`blend-encodage`, contre 6,1 à 6,2 ms sur sa base dans la même exécution, 7,7 le 15 au soir et
+33,6 ms le 14 septembre. **À caméra mobile le lot ne rend rien** — 8,7 → 8,5 ms au seuil 0, dans le
+bruit : toutes les bornes projetées changent à chaque image, donc aucune boîte n'est tenue. Le profil
+par étape, mesuré borne par borne et non déduit d'un compteur voisin, donne les postes restants dans
+l'ordre : **fiches de dessin ~1,3 ms** ; **adoption de la coupe 0,9 ms** ;
+**transparents 0,8 ms** (monde 0,2 · uniformes de mélange 0,4 · encodage des 1 928 appels 0,2) ;
+**test Hi-Z ~0,4 ms** (la comparaison des boîtes tenues, à caméra fixe) ; **animations 0,4 ms** ; **boucle
+d'historique des occulteurs 0,4 ms** ; **partition 0,4 ms** ; **téléversements 0,2 ms**.
+
+Deux erreurs de lecture sont corrigées ici. **L'encodage de la passe de mélange ne coûte pas 2,7 à
+3,1 ms mais 0,2** : le compteur `appelsDeMelange` s'affiche sur la ligne « Encodage des passes », la
+durée du mélange non — `transparentEncodeMs` se dépose sur « Transparents » et `encodeRestMs` la
+retranche. Les 2,7 ms étaient **l'empaquetage des boîtes testées du Hi-Z**, 1,7 ms pour
+trente-six mille boîtes et 1,18 Mo par image, plus 0,4 ms de boucle d'historique des occulteurs. Et
+**la lecture par objet des fiches ne demandait aucun invariant nouveau** : la ligne du tableau de
+pages porte déjà le compte d'indices que la carte dessine, écrit par la même fonction qui pose la
+ligne ; le lire est plus exact que de relire l'objet, pas moins.
+
+Ce qui reste refusé, et la raison compte : mettre `uncoveredTriangles` en cache rendrait la preuve
+d'absence de trou dépendante de l'exactitude d'une estampille ; tenir le **résultat entier** des
+fiches d'une image à l'autre demande toujours l'invariant non établi sur la durée de vie du tableau
+d'une page résidente ; et porter la projection du test Hi-Z sur la carte est impossible au bit près,
+`projectCornersInto` projetant en double précision et `hizNearestBound` tirant sa démonstration de
+minorant de cette précision, que WGSL n'a pas.
 
 R6c. **Ce qu'un lecteur garde d'une image à l'autre porte l'âge de ce qu'il décrit.** Toute liste,
 tout compte, toute borne tenue d'une image sur l'autre doit être validée par une estampille de la
@@ -150,15 +163,15 @@ B4. **Scripts headless** conservés dans `render-tech-lab/scripts/headless/` pou
 
 ## 7. Phases, ordre, critères de sortie
 
-| Phase | Contenu                                                                                                            | Sortie mesurée                                                                                                                                    |
-| ----- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Lot 2 WebGPU (R5, R6, R6b), saccades WebGL (p99)                                                                   | Emerald 1 instance : WebGPU CPU < 4 ms (5,8 atteint, reste l'encodage de la passe de mélange), GPU < 6 ms ; WebGL p99 < 8,33 ms visible ; 0 pixel |
-| 2     | DAG multi-matériaux par objet (C3, C4) après validation du prototype                                               | vue générale ≤ 200 k triangles par ville, image identique à 0 px                                                                                  |
-| 3     | Paquets autonomes et textures streamables (C5, C6, C7), streaming (R3)                                             | première image < 500 ms chaud / 1,5 s froid, `source.bin` absent du chargement                                                                    |
-| 4     | Cache par objet, compilation incrémentale, wasm (C8, C9, E1 à E4)                                                  | recompilation d'un objet ≤ 500 ms, échange à chaud sans image manquante                                                                           |
-| 5     | Maths et transformations propres (R1a à R1f, lots M1 à M5), rendu WebGL2 maison et parité (R7, B2), API scène (R8) | 0 pixel à chaque lot, Three.js hors de `sdk-browser`, parité au pixel                                                                             |
-| 6     | Cuisson finale et blocs de quartier (F1 à F4)                                                                      | Emerald × 9 à 120 FPS, runtime livré seul                                                                                                         |
-| 7     | Outils d'éditeur dessinés par le moteur (E5, E6)                                                                   | éditeur sans Three.js                                                                                                                             |
+| Phase | Contenu                                                                                                            | Sortie mesurée                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Lot 2 WebGPU (R5, R6, R6b), saccades WebGL (p99)                                                                   | Emerald 1 instance : WebGPU CPU < 4 ms (4,7 atteint, restent les fiches de dessin et l'adoption de la coupe), GPU < 6 ms ; WebGL p99 < 8,33 ms visible ; 0 pixel |
+| 2     | DAG multi-matériaux par objet (C3, C4) après validation du prototype                                               | vue générale ≤ 200 k triangles par ville, image identique à 0 px                                                                                                 |
+| 3     | Paquets autonomes et textures streamables (C5, C6, C7), streaming (R3)                                             | première image < 500 ms chaud / 1,5 s froid, `source.bin` absent du chargement                                                                                   |
+| 4     | Cache par objet, compilation incrémentale, wasm (C8, C9, E1 à E4)                                                  | recompilation d'un objet ≤ 500 ms, échange à chaud sans image manquante                                                                                          |
+| 5     | Maths et transformations propres (R1a à R1f, lots M1 à M5), rendu WebGL2 maison et parité (R7, B2), API scène (R8) | 0 pixel à chaque lot, Three.js hors de `sdk-browser`, parité au pixel                                                                                            |
+| 6     | Cuisson finale et blocs de quartier (F1 à F4)                                                                      | Emerald × 9 à 120 FPS, runtime livré seul                                                                                                                        |
+| 7     | Outils d'éditeur dessinés par le moteur (E5, E6)                                                                   | éditeur sans Three.js                                                                                                                                            |
 
 Chaque phase se termine par une campagne du banc dont les chiffres accompagnent la fusion. Une phase dont la sortie n'est pas mesurée n'est pas finie.
 

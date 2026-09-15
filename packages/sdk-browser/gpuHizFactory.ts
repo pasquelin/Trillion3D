@@ -1,6 +1,6 @@
 import { encodeHizPyramid } from './gpuHizPyramid.ts';
 import { pyramidBytes, writeHizLevelUniforms, writeUni } from './gpuHizUniforms.ts';
-import { createHizBoundsPacker } from './gpuHizTest.ts';
+import { createHizBoundsPacker, uploadPackedBoxes } from './gpuHizTest.ts';
 import { cleanupFailedHiz, createHizPipelines } from './gpuHizPipelines.ts';
 import { createHizCounters } from './gpuHizCounters.ts';
 import type { GpuHiz } from './gpuHizTypes.ts';
@@ -133,7 +133,7 @@ export async function createGpuHiz(
         // recorded while packing, because the caller rewrites its own arrays next image.
         const due = counters.due(queueDevice, sample, flagRows);
         if (due) counters.beginSample();
-        const testBytes = packBounds(
+        const boxes = packBounds(
           next,
           rows,
           count,
@@ -143,7 +143,7 @@ export async function createGpuHiz(
           offsets,
           due ? sample : undefined,
         );
-        if (count) queueDevice.queue.writeBuffer(bounds, 0, testBytes, 0, count * 32);
+        uploadPackedBoxes(queueDevice, bounds, boxes);
         const biasBits = new Uint32Array(new Float32Array([0]).buffer)[0];
         const testSlot = MAX_LEVELS + 1;
         writeUni(
