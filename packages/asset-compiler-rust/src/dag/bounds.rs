@@ -1,3 +1,5 @@
+use crate::shared_math::extend_aabb;
+
 pub(super) fn point(positions: &[f32], id: u32) -> [f64; 3] {
     let i = id as usize * 3;
     [
@@ -12,11 +14,7 @@ pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
     let mut min = [f64::INFINITY; 3];
     let mut max = [f64::NEG_INFINITY; 3];
     for &id in indices {
-        let p = point(positions, id);
-        for a in 0..3 {
-            min[a] = min[a].min(p[a]);
-            max[a] = max[a].max(p[a]);
-        }
+        extend_aabb(&mut min, &mut max, point(positions, id));
     }
     if !min[0].is_finite() {
         return [0.0, 0.0, 0.0, 0.0];
@@ -88,11 +86,7 @@ pub(super) fn cluster_bounds(positions: &[f32], indices: &[u32]) -> ([f64; 3], [
     let mut min = [f64::INFINITY; 3];
     let mut max = [f64::NEG_INFINITY; 3];
     for &id in indices {
-        let p = point(positions, id);
-        for a in 0..3 {
-            min[a] = min[a].min(p[a]);
-            max[a] = max[a].max(p[a]);
-        }
+        extend_aabb(&mut min, &mut max, point(positions, id));
     }
     if !min[0].is_finite() {
         return ([0.0; 3], [0.0; 3]);
