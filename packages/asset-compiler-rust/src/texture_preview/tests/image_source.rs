@@ -4,7 +4,7 @@ fn inputs<'a>(
     o: &'a Options,
     g: &'a Value,
     bin: &'a [u8],
-    source_dir: &'a Path,
+    image_root: &'a Path,
     meshes: &'a BTreeSet<usize>,
     view_map: &'a BTreeMap<usize, usize>,
 ) -> PreviewInputs<'a> {
@@ -12,7 +12,7 @@ fn inputs<'a>(
         o,
         g,
         bin,
-        source_dir,
+        image_root,
         meshes,
         view_map,
     }
