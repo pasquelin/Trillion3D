@@ -1,9 +1,10 @@
 import { HIZ_SHADER } from './gpuHizShader.ts';
+import { dropValidation, openValidation, validationFailed } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 
 /** Compile the three Hi-Z kernels under one device validation scope. */
 export async function createHizPipelines(device: GPUDevice, uniformBytes: number) {
-  if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+  openValidation(device);
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
@@ -36,10 +37,7 @@ export async function createHizPipelines(device: GPUDevice, uniformBytes: number
     layout: pipelineLayout,
     compute: { module, entryPoint: 'testHiz' },
   });
-  if (typeof device.popErrorScope === 'function') {
-    const error = await device.popErrorScope();
-    if (error) return undefined;
-  }
+  if (await validationFailed(device)) return undefined;
   return { layout, copyPipeline, reducePipeline, testPipeline };
 }
 
@@ -50,7 +48,7 @@ export async function cleanupFailedHiz(
   level0?: GPUTexture,
   pyramid?: GPUBuffer,
 ) {
-  if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+  await dropValidation(device);
   for (const buffer of buffers)
     try {
       buffer.destroy();

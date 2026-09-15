@@ -1,3 +1,5 @@
+import { dropValidation } from './gpuErrorScope.ts';
+
 /**
  * Les erreurs de compilation d'un module de nuanceur. Un appareil qui ne sait pas rendre ces
  * messages ne prouve aucune erreur : la liste est alors vide, et l'appelant garde la voie qu'il
@@ -27,6 +29,6 @@ export async function createCheckedShaderModule(device: GPUDevice, code: string,
  */
 export async function shaderFailed(device: GPUDevice, module: GPUShaderModule) {
   if (!(await shaderErrors(module)).length) return false;
-  if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+  await dropValidation(device);
   return true;
 }
