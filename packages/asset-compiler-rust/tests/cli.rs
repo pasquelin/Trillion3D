@@ -178,7 +178,7 @@ fn version_flag_describes_the_build() {
     let scene = v["plugins"]["scene"].as_array().expect("scene plugins");
     assert_eq!(
         plugin_names(scene).join(" "),
-        "gltf fbx obj unity blend zip unitypackage alembic usd usdz"
+        "gltf fbx obj unity blend zip unitypackage alembic usd usdz ma"
     );
     let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
     assert!(fbx["version"].as_str().unwrap().contains("ufbx"));
