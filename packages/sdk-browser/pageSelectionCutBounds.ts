@@ -1,4 +1,4 @@
-import type { PageRecord } from './pageSelectionCutState.ts';
+import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**
  * Bornes par nœud de la hiérarchie de culling, dérivées une fois des clusters qu'elle range.
@@ -59,7 +59,7 @@ function growSphere(into: Float64Array, at: number, sphere: ArrayLike<number>, f
 }
 
 /** Réduit un cluster dans les bornes de son nœud feuille. */
-function foldPage<T extends PageRecord>(values: Float64Array, at: number, rec: T) {
+function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   const own = rec.lodError,
     sphere = rec.sphere;
   if (own === undefined || own === null) {
@@ -98,9 +98,9 @@ function foldChild(values: Float64Array, at: number, from: number) {
  * enfants d'un nœud sont toujours rangés après lui dans le tableau plat : un seul balayage
  * descendant suffit à remonter les bornes.
  */
-export function cullingBounds<T extends PageRecord>(
+export function cullingBounds(
   { nodes, stride }: { nodes: Float64Array; stride: number },
-  pages: readonly T[],
+  pages: readonly ClusterCut[],
 ) {
   const count = (nodes.length / stride) | 0;
   const values = new Float64Array(count * BOUND_STRIDE);
