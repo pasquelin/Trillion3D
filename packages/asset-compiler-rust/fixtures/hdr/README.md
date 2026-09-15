@@ -45,8 +45,9 @@ Le `test-assets/textures/hdr-matrix/environment.hdr` (512 × 256, CC0-1.0, produ
 tiers et relu par FFmpeg au moment de son entrée au corpus) couvre le cas d'un fichier écrit
 ailleurs, avec la nouvelle compression sur une vraie largeur. Le pilote a été passé dessus pendant
 le développement ; il n'est pas commis ici — un demi-mégaoctet de pixels qu'on ne peut pas écrire en
-clair ne fait pas une fixture minimale. Les dimensions et les bornes relevées sont dans
-`orchestration/JOURNAL.md`.
+clair ne fait pas une fixture minimale. Il se décode en 512 × 256, avec des valeurs RGB comprises
+entre 0 et 8 exactement — la même rampe linéaire 0..8 que le manifeste du corpus annonce et que
+FFmpeg avait relue — et un alpha opaque partout.
 
 ## Provenance du lecteur
 
