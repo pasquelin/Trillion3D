@@ -1,4 +1,8 @@
-import { BOUNCE_SETTINGS, type BounceCascades, type BounceOccupancy } from '../sdk-core/index.ts';
+import {
+  BOUNCE_PROBES_PER_FRAME,
+  type BounceCascades,
+  type BounceOccupancy,
+} from '../sdk-core/index.ts';
 
 /**
  * L'ordonnanceur des sondes : qui travaille à cette image, et jusqu'où.
@@ -21,8 +25,8 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
   const side = cascades.size;
   const cursors = new Uint32Array(levels);
   const rounds = new Uint32Array(levels);
-  const capacity =
-    Math.max(1, Math.floor(BOUNCE_SETTINGS.raysPerFrame / BOUNCE_SETTINGS.raysPerProbe)) + levels;
+  // Le plafond de l'image, plus une sonde par niveau : `shareOf` en garantit au moins une à chacun.
+  const capacity = BOUNCE_PROBES_PER_FRAME + levels;
   const queue = new Uint32Array(capacity);
   const cell = [0, 0, 0];
   /** Vrai quand le rang d'un niveau tient une maille qui mérite une sonde. */
@@ -43,11 +47,11 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
     queue,
     /** Tours complets du plus lent des niveaux depuis la dernière invalidation. */
     get sweeps() {
-      return rounds.reduce((slowest, value) => Math.min(slowest, value), rounds[0] ?? 0);
+      return Math.min(...rounds);
     },
     /** Images d'un tour complet, la plus longue des mesures des niveaux : la borne du retard. */
     get sweepFrames() {
-      return roundFrames.reduce((slowest, value) => Math.max(slowest, value), 1);
+      return Math.max(1, ...roundFrames);
     },
     /**
      * Une lampe a changé, ou la cascade a glissé : la série des rebonds n'est plus close et le

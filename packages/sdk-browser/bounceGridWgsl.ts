@@ -26,6 +26,7 @@ const CASCADE_LEVELS:u32=${BOUNCE_SETTINGS.cascadeLevels}u;
 /** Les « w » qui portent l'état d'une sonde, rang par rang. */
 const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;
+/** La maille tenue occupe trois rangs consécutifs à partir de celui-ci : x, puis y, puis z. */
 const PROBE_CELL:u32=3u;
 const PROBE_IDLE:u32=6u;
 const PROBE_DISTANCE_POSITIVE:u32=9u;
@@ -47,7 +48,7 @@ fn probeSlot(level:u32,cell:vec3i)->u32{
 fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
 /** La maille que la sonde dit porter. Différente de celle qu'on cherche : elle ne sait rien d'ici. */
 fn probeCell(slot:u32)->vec3i{
- return vec3i(i32(probes[slot+PROBE_CELL].w),i32(probes[slot+4u].w),i32(probes[slot+5u].w));
+ return vec3i(i32(probes[slot+PROBE_CELL].w),i32(probes[slot+PROBE_CELL+1u].w),i32(probes[slot+PROBE_CELL+2u].w));
 }
 /**
  * L'irradiance d'une base d'harmoniques sphériques d'ordre 2, convoluée par le lobe cosinus :
