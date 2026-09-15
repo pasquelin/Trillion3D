@@ -48,8 +48,12 @@ export function encodeDirectLights(
   // La passe peut refuser d'encoder (rejet ou sélection absents) : les pages que l'ordonnanceur
   // venait de sortir de la file y retournent alors, sinon leur carte garderait une profondeur
   // périmée sans que rien ne le dise.
-  if (regions && !encodeShadowAtlas(rt, device, encoder, regions))
+  if (regions && !encodeShadowAtlas(rt, device, encoder, regions)) {
     lights.plan.reissue(frame, performance.now());
+    lights.shadowPages = 0;
+    lights.shadowRegions = 0;
+    lights.pagesByFrame[frame % PAGES_RING] = 0;
+  }
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
