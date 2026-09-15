@@ -5,7 +5,7 @@
  "buffers": [
   {
    "uri": "classes-materiaux.bin",
-   "byteLength": 103668
+   "byteLength": 82344
   }
  ],
  "bufferViews": [
@@ -58,16 +58,6 @@
    "buffer": 0,
    "byteOffset": 72744,
    "byteLength": 9600
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 82344,
-   "byteLength": 7500
-  },
-  {
-   "buffer": 0,
-   "byteOffset": 89844,
-   "byteLength": 13824
   }
  ],
  "accessors": [
@@ -180,28 +170,6 @@
    "componentType": 5125,
    "count": 2400,
    "type": "SCALAR"
-  },
-  {
-   "bufferView": 10,
-   "componentType": 5126,
-   "count": 625,
-   "type": "VEC3",
-   "min": [
-    -10.0,
-    0.0,
-    -6.0
-   ],
-   "max": [
-    10.0,
-    0.0,
-    6.0
-   ]
-  },
-  {
-   "bufferView": 11,
-   "componentType": 5125,
-   "count": 3456,
-   "type": "SCALAR"
   }
  ],
  "materials": [
@@ -242,30 +210,7 @@
      0.35
     ]
    }
-  },
-  {
-   "name": "eau",
-   "alphaMode": "BLEND",
-   "doubleSided": true,
-   "extensions": {
-    "KHR_materials_transmission": {
-     "transmissionFactor": 1.0
-    }
-   },
-   "pbrMetallicRoughness": {
-    "baseColorFactor": [
-     0.25,
-     0.45,
-     0.55,
-     0.6
-    ],
-    "metallicFactor": 0.0,
-    "roughnessFactor": 0.08
-   }
   }
- ],
- "extensionsUsed": [
-  "KHR_materials_transmission"
  ],
  "meshes": [
   {
@@ -327,18 +272,6 @@
      "material": 2
     }
    ]
-  },
-  {
-   "name": "eau",
-   "primitives": [
-    {
-     "attributes": {
-      "POSITION": 10
-     },
-     "indices": 11,
-     "material": 3
-    }
-   ]
   }
  ],
  "nodes": [
@@ -361,10 +294,6 @@
   {
    "mesh": 4,
    "name": "vitre"
-  },
-  {
-   "mesh": 5,
-   "name": "eau"
   }
  ],
  "scenes": [
@@ -374,8 +303,7 @@
     1,
     2,
     3,
-    4,
-    5
+    4
    ]
   }
  ],
