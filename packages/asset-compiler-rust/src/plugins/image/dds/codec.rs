@@ -33,44 +33,58 @@ pub(super) enum Codec {
     Bgrx8,
 }
 
-impl Codec {
-    /// Le décodeur de blocs de ce codec ; `None` pour une surface non compressée, qui se lit
-    /// directement. C'est la seule table qui relie un codec déclaré à sa reconstruction.
-    pub(super) fn block_decode(self) -> Option<BlockDecode> {
-        Some(match self {
-            Codec::Bc1 => decode_bc1a,
-            Codec::Bc2 => decode_bc2,
-            Codec::Bc3 => decode_bc3,
-            Codec::Bc4 => decode_bc4,
-            Codec::Bc5 => decode_bc5,
-            Codec::Bc7 => decode_bc7,
-            _ => return None,
-        })
-    }
+/// Comment les octets d'un niveau deviennent des pixels. C'est la seule description d'un codec :
+/// le poids d'un niveau, sa lecture et sa reconstruction en dérivent toutes.
+#[derive(Clone, Copy)]
+pub(super) enum Layout {
+    /// Des blocs de 4 × 4 pixels : les octets d'un bloc et le décodeur qui les développe.
+    Blocks { bytes: u8, decode: BlockDecode },
+    /// Une surface non compressée, quatre octets par pixel dans l'ordre nommé.
+    Pixels(Order),
+}
 
-    /// Octets d'un bloc de 4 × 4 pixels ; `None` pour une surface non compressée.
-    fn block_bytes(self) -> Option<u64> {
+/// L'ordre des quatre octets d'un pixel non compressé.
+#[derive(Clone, Copy)]
+pub(super) enum Order {
+    /// R, G, B, A : déjà l'ordre du contrat.
+    Rgba,
+    /// B, G, R, A.
+    Bgra,
+    /// B, G, R puis un octet ignoré par la spécification : la surface est opaque.
+    Bgrx,
+}
+
+impl Codec {
+    /// La disposition de ce codec : la seule table qui relie un codec déclaré à ses octets.
+    pub(super) fn layout(self) -> Layout {
+        let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
         match self {
-            Codec::Bc1 | Codec::Bc4 => Some(8),
-            Codec::Bc2 | Codec::Bc3 | Codec::Bc5 | Codec::Bc7 => Some(16),
-            _ => None,
+            Codec::Bc1 => blocks(8, decode_bc1a),
+            Codec::Bc2 => blocks(16, decode_bc2),
+            Codec::Bc3 => blocks(16, decode_bc3),
+            Codec::Bc4 => blocks(8, decode_bc4),
+            Codec::Bc5 => blocks(16, decode_bc5),
+            Codec::Bc7 => blocks(16, decode_bc7),
+            Codec::Rgba8 => Layout::Pixels(Order::Rgba),
+            Codec::Bgra8 => Layout::Pixels(Order::Bgra),
+            Codec::Bgrx8 => Layout::Pixels(Order::Bgrx),
         }
     }
 
     /// Une surface non compressée se lit ligne par ligne, quatre octets par pixel.
     pub(super) fn is_uncompressed(self) -> bool {
-        self.block_bytes().is_none()
+        matches!(self.layout(), Layout::Pixels(_))
     }
 
     /// Les octets qu'occupe un niveau de cette taille. Les blocs couvrent toujours des multiples
     /// de quatre pixels : un niveau de 1 × 1 pèse encore un bloc entier. Le compte sature plutôt
     /// que de déborder : des dimensions absurdes donnent un besoin absurde, donc un refus.
     pub(super) fn level_bytes(self, width: u32, height: u32) -> u64 {
-        match self.block_bytes() {
-            Some(block) => u64::from(width.div_ceil(4))
+        match self.layout() {
+            Layout::Blocks { bytes, .. } => u64::from(width.div_ceil(4))
                 .saturating_mul(u64::from(height.div_ceil(4)))
-                .saturating_mul(block),
-            None => u64::from(width)
+                .saturating_mul(u64::from(bytes)),
+            Layout::Pixels(_) => u64::from(width)
                 .saturating_mul(u64::from(height))
                 .saturating_mul(4),
         }

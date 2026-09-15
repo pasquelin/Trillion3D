@@ -7,7 +7,6 @@
 //! prouve que l'entête d'un encodeur tiers se lit et que la chaîne de mips est comptée, et un DDS
 //! tronqué, qui prouve qu'un fichier coupé ressort en raison de rapport.
 use super::super::image as registry;
-use std::path::{Path, PathBuf};
 
 mod bytes;
 mod refus;
@@ -33,13 +32,6 @@ const COLORS: [[u8; 3]; 4] = [[255, 0, 0], [0, 0, 255], [170, 0, 85], [85, 0, 17
 const ALPHA: [u8; 8] = [255, 0, 218, 182, 145, 109, 72, 36];
 /// La rampe de bornes 200 et 100, sur le second canal de BC5.
 const GREEN: [u8; 8] = [200, 100, 185, 171, 157, 142, 128, 114];
-
-fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
-        .join("dds")
-        .join(name)
-}
 
 /// Décode un conteneur par le registre et compare ses pixels, un par un, à la référence.
 fn check(case: &str, file: &[u8], expected: &[[u8; 4]]) {
