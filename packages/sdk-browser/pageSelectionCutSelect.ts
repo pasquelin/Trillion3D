@@ -4,6 +4,7 @@ import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCut
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
 import {
   fallbackScratch,
+  residentUnder,
   selectionScratch,
   truncateShown,
   type PageRecord,
@@ -60,7 +61,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   let forcedAny = false;
   while (fallbackQueue.length) {
     const rec = fallbackQueue.pop() as T;
-    if (s.pageResident(rec)) continue;
+    if (residentUnder(s, rec, s.residentMode)) continue;
     if (!drawnUnderForcing(s, rec)) continue;
     const own = rec.group;
     if (own == null || own < 0) continue;

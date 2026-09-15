@@ -20,7 +20,6 @@ export interface SelectionState<T extends PageRecord> {
   wanted: T[];
   shown: T[];
   isResident?: (page: T) => boolean;
-  pageResident: (page: T) => boolean;
   pixelError: number;
   frustumRejected: number;
   /** Nœuds de hiérarchie dépilés par la coupe de cette image. */
@@ -43,7 +42,8 @@ export interface SelectionState<T extends PageRecord> {
   /** La règle de résidence de cette coupe, résolue une fois : `RESIDENT_ALL` quand rien n'est tenu
    *  (tout est réputé résident), `RESIDENT_ASK` quand l'hôte fournit sa réponse, `RESIDENT_ARRAY`
    *  quand la résidence est le tableau d'indices de la page. Le chemin par cluster lit ce mode au
-   *  lieu de relire `hold` et `isResident` sur l'état à chaque cluster retenu. */
+   *  lieu de relire `hold` et `isResident` sur l'état à chaque cluster retenu ; les replis l'appliquent
+   *  par `residentUnder`. */
   residentMode: number;
   /** Le seuil de cette image vaut zéro et l'étirement, la focale et le plan proche sont sains : la
    *  coupe se décide alors sans projeter, à l'identique. */
@@ -145,8 +145,6 @@ const reusedState: SelectionState<PageRecord> = {
   wanted: [],
   shown: [],
   isResident: undefined,
-  // Les replis, froids, passent par le mode déjà résolu : une seule règle de résidence dans le lot.
-  pageResident: (rec) => residentUnder(reusedState, rec, reusedState.residentMode),
   pixelError: 0,
   frustumRejected: 0,
   nodesTested: 0,

@@ -103,7 +103,7 @@ export function collectClusterPages(
       forcedList: structure ? [] : undefined,
       // Aucune page collectée ne porte de cône : `prepareCones` est le seul à en poser, et il
       // relève ce drapeau en même temps. Le moteur WebGL2 ne l'appelle pas et ne paie donc plus
-      // une lecture de `cone` par cluster retenu.
+      // une lecture de `cone` par cluster testé.
       cones: false,
     });
     // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut

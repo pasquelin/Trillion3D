@@ -33,13 +33,10 @@ function keep<T extends PageRecord>(
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
-    if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
-      s.flatMissing = true;
-      if (!s.rootFallback) s.complete = false;
-      return;
-    }
-  } else if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
-    s.flatShort = true;
+  }
+  if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
+    if (forcing) s.flatShort = true;
+    else s.flatMissing = true;
     if (!s.rootFallback) s.complete = false;
     return;
   }
