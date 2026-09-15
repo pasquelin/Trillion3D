@@ -66,6 +66,30 @@ page, `new THREE.WebGLRenderer` finit par ne plus obtenir de contexte (« Error 
 context », relevé au passage de la vue `generale` à `sol` le 14 septembre 2026). Fermer la page rend
 au navigateur le contexte WebGL et le tas de la série précédente.
 
+## Mesurer une autre scène
+
+Le harnais ne connaît aucune scène : il mesure celle des caches qu'on lui donne, et ses poses
+viennent des bornes du modèle lues dans la page, pas d'une table. Trois choses à fournir.
+
+1. **Compiler le glTF** avec le binaire Rust (`npm run build:native`, puis
+   `packages/asset-compiler-rust/target/release/web-geometry-compiler`), vers un dossier
+   `<nom>-derived/` hors du dépôt et hors du Lab — un cache compilé n'est jamais écrit dans
+   `render-tech-lab/public/benchmark-assets`.
+2. **Nommer ce cache aux deux côtés** : `--cache-avant <dossier>` et `--cache-apres <dossier>`. Le
+   nom de la scène est déduit du dossier `derived` ; sans aucune de ces deux options, le harnais lit
+   le cache du Lab et retombe sur la scène par défaut. Le cache du Lab n'est exigé que lorsqu'un
+   côté au moins n'a pas le sien.
+3. **Monter les ressources** : `--ressources <dossier>` est le dossier que le glTF du cache désigne
+   par chemin relatif. Sans lui, les textures sortent en 404 et la mesure ne porte plus sur la
+   scène. Un cache compilé avec un `resourceBaseUrl` absolu, lui, va chercher ses textures à cette
+   URL — sous `/benchmark-assets/` pour les caches du Lab —, et `--ressources` ne le concerne pas :
+   c'est le journal d'erreurs du relevé qui dit lequel des deux cas on est, page par page.
+
+`--max-pages` est à régler pour la scène : la valeur qui convient à un modèle urbain de plusieurs
+millions de triangles sature une petite scène en travail inutile et en sature une plus grosse en
+résidence. Le relevé consigne le budget employé ; une comparaison n'a de sens qu'à budget égal des
+deux côtés.
+
 ## Banc des calculs (`npm run bench:calculs`)
 
 Les bancs et leurs oracles vivent dans le paquet mesuré, sous `packages/<paquet>/bench/` : la

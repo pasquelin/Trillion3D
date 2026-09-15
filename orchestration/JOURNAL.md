@@ -1,5 +1,183 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-16 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
+
+Deux lignes seulement séparaient le banc commun d'une scène quelconque, et elles sont parties.
+
+- `banc.mjs` exigeait le cache du Lab de la scène par défaut **même quand les deux côtés nommaient
+  leur propre cache** compilé. Le contrôle est maintenant conditionnel : le cache du Lab n'est
+  réclamé que si un côté au moins n'a pas de `--cache-<côté>` et le lit donc vraiment.
+- Le nom de la scène n'est plus une constante : il se déduit du dossier `derived` du cache employé
+  (`<nom>-derived`), la scène du Lab ne servant plus que de repli quand aucun cache n'est nommé.
+  `scripts/mesure/scene.mjs` réunit ce repli, la déduction et le manifeste du Lab ; `options.mjs`
+  les réexporte, comme il réexporte déjà les poses. Les poses, elles, venaient déjà des bornes du
+  modèle lues dans la page : rien à y changer.
+
+Preuve : quatre exécutions courtes du banc. Cache du Lab sans option → `scene` vaut la scène par
+défaut, `coupe` 80 153. Cache nommé sous un autre nom, `WG_ASSETS` pointé sur un dossier vide → la
+scène prend le nom du dossier, le contrôle du cache du Lab ne se déclenche pas, et les seules
+erreurs sont les 404 des textures que ce cache va chercher à une URL absolue, pas celles du relevé.
+Cache nommé, Lab monté → sortie propre, `coupe` 80 153, la même image que par le chemin du Lab.
+Quatre tests ajoutés à `scripts/banc.test.mjs` (déduction, dossier sans suffixe, repli).
+`npm run validate` vert, portes Rust comprises. README : section « mesurer une autre scène ».
+
+## 2026-09-16 — [session sans-threejs] d'où viennent les égalités de profondeur, et pourquoi la borne des 0 pixel les rend indépartageables (lot coplanaires v2)
+
+Worktree `lot-coplanaires`, branche `lot/coplanaires-v2`, partie de `develop` = `7b7a79f`, qui n'a
+pas bougé de tout le lot. **Aucun code de production n'est modifié** : le lot s'arrête sur un
+diagnostic qui réfute son propre objectif, et rien n'est fusionné que cette entrée et R5c.
+
+### 1. L'instrument : une image d'identité de fragment, exacte
+
+Le révélateur reste `depthCompare: 'less-equal'` contre `less` : les pixels qui changent sont
+exactement ceux où deux fragments opaques portent la **même** profondeur au bit près (la cible est
+`depth32float`, il n'y a donc aucune quantification qui fabriquerait de fausses égalités). Mais
+l'image de beauté ne dit pas **qui** se dispute le pixel : deux clusters d'une même texture y
+diffèrent d'une unité sur un canal, et deux instances d'un même cluster n'y diffèrent parfois pas du
+tout.
+
+Trois `dist` de diagnostic ont donc été construits — jamais fusionnés, jamais commis —, chacun
+remplaçant le corps de `shade_fs` par une couleur d'identité écrite telle quelle dans une cible
+`rgba8unorm` (aucune conversion sRGB, l'aller-retour est exact) :
+
+- **beauté** : le rendu normal, la référence de ce que l'utilisateur voit ;
+- **hachage de cluster** : les 24 bits de poids faible de `page.clusterHash`, donc l'identité du
+  **cluster** (partagée par toutes ses instances) ;
+- **page + triangle** : `tri` sur le rouge, les 16 bits de poids faible de `pageIndex` sur le vert et
+  le bleu, donc l'identité de l'**instance de cluster** et du **triangle**.
+
+Croiser les trois donne, pour chaque pixel d'égalité, la nature du couple qui s'y dispute. Les trois
+lectures sont cohérentes entre elles au pixel près (1 191 + 739 = 1 930 = 2 772 − 842 sur générale),
+ce qui est le contrôle interne de la méthode. Témoin A/A à 0 px sur toutes les exécutions.
+
+### 2. Les catégories d'égalité, comptées
+
+Emerald, `webgpu-page-raster`, 1280×720, `--max-pages 100000`, caméra fixe, cache du Lab
+(manifeste binaire 4). Ensemble d'égalité complet, relevé sur l'image d'identité `page + triangle` :
+
+| vue      | égalités totales | deux triangles d'**un même cluster** | deux **instances d'un même cluster** | deux **clusters distincts** |
+| -------- | ---------------- | ------------------------------------ | ------------------------------------ | --------------------------- |
+| générale | 2 772 px         | 1 191 px (43 %)                      | 739 px (27 %)                        | 842 px (30 %)               |
+| rue      | 10 479 px        | 6 667 px (64 %)                      | 1 422 px (14 %)                      | 2 390 px (23 %)             |
+| sol      | 2 px (beauté)    | —                                    | —                                    | —                           |
+
+Sur l'image de beauté, les mêmes égalités valent 2 287 px (générale), 6 544 px (rue), 2 px (sol) :
+une égalité entre deux fragments de couleur identique ne se voit pas, et 1 441 des couples de
+couleurs de générale ne diffèrent que d'une unité sur un canal — le même matériau lu à un niveau de
+mip voisin.
+
+**Conséquence immédiate.** Une couche de profondeur est portée par la colonne `pageDepthLayer`, une
+valeur **par page de primitive**. Elle ne peut donc séparer ni deux triangles d'un même cluster
+(43 à 64 % des égalités) ni deux instances d'une même page (14 à 27 %). L'objectif « plus aucune
+égalité de profondeur exacte » **n'est pas atteignable** par une extension de
+`coplanar-depth-layers-v1`, quelle que soit la finesse de sa détection : 57 à 77 % des égalités sont
+hors de portée du format. Ce n'est pas une limite de l'étape, c'est une limite de l'unité qu'elle
+étiquette.
+
+### 3. Ce qui bloque vraiment les leviers Hi-Z est un sous-ensemble bien plus petit — et il est, lui, à portée
+
+Une égalité ne déplace un pixel que si la partition peut changer l'ordre relatif des deux fragments.
+La partition déplace des **pages** d'une passe à l'autre ; elle ne réordonne jamais les triangles
+d'un même dessin. Vérifié plutôt que supposé, en rejouant la passe unique (`hasRestPipeline =
+false`, la ligne de `4c7419c`) sur `7b7a79f` avec l'image d'identité :
+
+| vue · seuil  | pixels sensibles à la partition | dont deux triangles d'un même cluster | dont deux clusters distincts |
+| ------------ | ------------------------------- | ------------------------------------- | ---------------------------- |
+| générale · 0 | 67                              | **0**                                 | **67**                       |
+| générale · 1 | 178                             | **0**                                 | **178**                      |
+| rue · 0      | 38                              | **0**                                 | **38**                       |
+| rue · 1      | 29                              | **0**                                 | **29**                       |
+
+Cent pour cent des pixels que la partition déplace opposent **deux clusters distincts** — jamais
+deux triangles d'un cluster, jamais deux instances d'une même page (l'image de hachage de cluster
+compte les mêmes 67 / 179 / 41 / 31 px). Une couche **par cluster** suffirait donc, en principe, à
+rendre l'image du chemin WebGPU indépendante de la partition. Le format n'est pas le verrou du
+levier ; il n'est que le verrou de l'objectif « zéro égalité ».
+
+### 4. Le verrou réel : « 0 pixel contre develop » et « image indépendante de la partition » s'excluent
+
+Départager une égalité à la compilation, c'est en fixer le vainqueur une fois pour toutes. Pour être
+à 0 pixel contre `develop`, ce vainqueur doit être celui que `develop` produit aujourd'hui. Or, sur
+exactement ces pixels, le vainqueur actuel **est décidé par la partition** — c'est la définition de
+« sensible à la partition » —, et la partition est décidée à l'exécution, à partir des occulteurs de
+l'image précédente. Aucune règle de compilation ne peut la reproduire.
+
+Le prix est donc mesurable, et il l'est : c'est exactement l'écart de la passe unique contre
+`develop`, sur l'image de beauté, les deux côtés lisant le même cache du Lab.
+
+| vue      | seuil 0 | seuil 1 |
+| -------- | ------- | ------- |
+| générale | 67 px   | 173 px  |
+| sol      | 1 px    | 1 px    |
+| rue      | 39 px   | 28 px   |
+
+Soit 0,007 % de l'image sur générale au seuil 0. C'est le déplacement de référence qu'il faut
+accepter — une fois — pour que la partition cesse de décider l'image, et donc pour que les deux
+leviers Hi-Z deviennent prouvables. Tant qu'il n'est pas accepté, la porte des 0 pixel refuse aussi
+bien le levier que l'étape de compilation qui le débloquerait. **Rien n'est fusionné.**
+
+### 5. Les deux leviers, rejoués sur `7b7a79f`
+
+- **`essai/hiz-historique` (séparation des deux invalidations)**, reporté sur `develop` (`6fbecc4`,
+  branche `essai/hiz-historique-v2`, le correctif de borne de `2439fc9` étant déjà fusionné) :
+  caméra mobile, vue générale, 60 images — seuil 0 **0 px**, seuil 1 **3 px**, témoin A/A 0 px. Les
+  trois pixels, lus sur l'image d'identité, sont (1045,33), (1087,68) et (1077,172) : **trois
+  couples de clusters distincts**, aucun triangle d'un même cluster. Non fusionné.
+- **La partition temporelle** (`chantier-phase1-3-hiz-temporelle`) n'a pas été portée : son verdict
+  est le même que celui de la passe unique, dont elle est une variante d'ordre, et la mesure de la
+  passe unique ci-dessus le chiffre sans avoir à porter le code.
+
+### Portée : ce qui est général, ce qui n'est qu'une mesure
+
+Rien de ce lot n'est calé sur une scène. Le classement des égalités (deux triangles d'un cluster,
+deux instances d'une page, deux clusters distincts) est une propriété de l'**unité que le format
+étiquette**, pas d'un modèle : il vaut pour n'importe quelle scène importée, et c'est lui qui porte
+la conclusion. Les nombres ci-dessus sont ce qu'une scène urbaine donne aujourd'hui sur cette
+machine — une mesure, jamais une cible ni un seuil : une autre scène donnera d'autres comptes, et
+l'exclusion arithmétique de la section 4 ne changera pas pour autant. Aucune preuve n'a été
+produite sur la scène synthétique des classes de matériaux : le lot ne livre aucun code de
+compilation, il n'y avait rien à y prouver.
+
+**Deux réglages du code existant ne se justifient aujourd'hui que par une mesure de scène, à
+signaler sans les corriger (hors périmètre de ce lot, qui ne touche ni au compilateur ni au
+rendu)** :
+
+- `DEPTH_LAYER_BIAS_UNITS = 16` (`packages/sdk-core/depthLayer.ts`). La moitié de sa justification
+  est générique — sur la fixture des deux quads, deux triangulations d'un même plan ne s'écartent
+  que de cinq unités au pire, sur trois angles et trois plages near/far. L'autre moitié ne l'est
+  pas : le choix de 16 plutôt que 32 ou 64 vient de ce que, **sur une scène de mesure précise**,
+  au-delà de 16 le biais mord sur les surfaces voisines (94 px à 32). Une scène dont deux surfaces
+  légitimes sont plus proches que 16 unités matérielles verrait donc la couche traverser. Le réglage
+  devrait se déduire de la scène compilée — distance minimale entre deux plans distincts — au lieu
+  d'être une constante.
+- Les bornes de `CoplanarBounds::default()` (`max_pairs: 4096`, `max_surfaces_per_plane: 64`,
+  `max_planes_per_primitive: 64`) sont des plafonds fixes qui font abandonner silencieusement des
+  couples au-delà. Ils sont comptés dans le rapport, donc visibles, mais une scène plus dense qu'une
+  scène urbaine les atteindra et sera analysée à moitié. `offset_quantum`, lui, est bien déduit de
+  la taille de la scène : c'est le modèle à suivre.
+
+### Formats et caches
+
+Aucun changement de format : `formatVersion` du cache reste **3/4**, `MANIFEST_BINARY_VERSION` reste
+**4**, la colonne `pageDepthLayer` existe déjà et est un `u32` — une v2 n'aurait rien eu à monter.
+Le cache du Lab (`public/benchmark-assets/emerald-square-derived`) n'a été ni écrit ni régénéré : il
+reste lisible, `prepare:models` n'a pas à être relancé.
+
+### Ce qui reste
+
+- **La décision appartient à l'utilisateur** : accepter le déplacement de référence de 67 / 173 /
+  39 / 28 / 1 / 1 px (comme pour le lot budget-pages) ouvre d'un coup les deux leviers Hi-Z et les
+  −27 % de temps GPU ; le refuser les ferme définitivement, puisque aucune règle de compilation ne
+  peut reproduire un vainqueur décidé à l'exécution.
+- Si la décision est « accepter », l'étape à écrire n'est **pas** une détection de coplanarité plus
+  fine : c'est une couche par cluster qui reproduise l'ordre de la **passe unique** sur les couples
+  en égalité, et rien d'autre. Sa preuve sera « branche contre passe unique = 0 px », pas « branche
+  contre `develop` = 0 px ».
+- Les 57 à 77 % d'égalités intra-cluster et inter-instances restent, et resteront : elles ne gênent
+  aucun levier, mais elles interdisent d'écrire un jour « cette scène n'a plus aucune égalité de
+  profondeur ».
+- Images du harnais conservées : `.mesure/out/lot-coplanaires-v2/` (neuf campagnes, `resume.md`,
+  `mesure.json` et les `.png` avant / après / A-A par vue et par seuil).
 ## 2026-09-15 — textures en boucle d'images : la priorité lisait une coupe que seul `flush()` remplit
 
 Branche `fix-textures-live`, sur `develop` = `7b7a79f`. Défaut rapporté : dans le Lab, test
