@@ -1,4 +1,5 @@
 import { dropGpuSelection, dropVis } from './webgpuPagesDrops.ts';
+import { disposeBackdrop } from './webgpuTransmission.ts';
 import { directLightTimings } from './stageMapping.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -123,9 +124,12 @@ export function disposeWebgpuPages(
   blendState.visibleBlend.length = 0;
   gpu.uniformBuffer?.destroy();
   gpu.uniformBuffer = undefined;
+  gpu.volumeBuffer?.destroy();
+  gpu.volumeBuffer = undefined;
   gpu.colorTexture?.destroy();
   gpu.depthTexture?.destroy();
   gpu.hdrTexture?.destroy();
+  disposeBackdrop(gpu);
   gpu.surfaces?.dispose();
   capture.surfaceCapture?.dispose();
   gpu.deferred?.dispose();
