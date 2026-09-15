@@ -8,9 +8,11 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 - Les autres sessions (Calculs, Compilateur, Lumière, Geometry) fusionnent **en local** dans `develop` (et `main` suit en local). Elles ne poussent jamais. Si `origin/develop` bouge sans le validateur, leur rappeler l'interdiction par message.
 - Le validateur ne code pas lui-même : lecture et revue par agents Sonnet, correctifs par agents Opus. Il fusionne, lance les portes, pousse et nettoie.
 
-## État au 15 septembre 2026, 16 h
+## État au 15 septembre 2026, 17 h
 
-- `origin/develop` = `develop` local = `db17059`, poussé après /simplify et `npm run validate` vert (774 tests JS, 182 tests Rust).
+- `origin/develop` = `develop` local = `c746c23`, poussé à 17 h. Dernier `npm run validate` vert sur `db17059` (774 tests JS, 182 tests Rust) ; `c746c23` n'ajoute que ce fichier (format et liens vérifiés).
+- Sessions vivantes à 17 h : Lumière, Compilateur, Simplify (branche `claude/simplify-non-push-develop-92bded`, périmètre demandé), Calculs terminée, Geometry absente de la liste. Un Opus du Compilateur travaille dans le worktree verrouillé `agent-a8a42ce9a0f3ee372` (branche `compilateur/exr-hdr`).
+- `node scripts/check-links.mjs` échoue au checkout principal seulement : six `upstream-LICENSE.md` sous `test-assets/gltf/*` (dossier ignoré par git) ; vert dans un worktree sans `test-assets`. Signalé au Compilateur ; jusqu'au correctif, lancer validate dans le worktree du validateur.
 - `origin/main` = `2dcc8fc`, non poussé depuis (choix de l'utilisateur).
 - Toutes les sessions sont en pause. Calculs est terminée.
 - Changement d'image accepté par l'utilisateur : lot `unlit-identite` (vue sans lampe composée par l'identité, ACES réservé à la vue éclairée).
