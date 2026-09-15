@@ -1,4 +1,4 @@
-import type { GpuTimingSample } from './gpuTimingTypes.ts';
+import { nanosecondsToMs, type GpuTimingSample } from './gpuTimingTypes.ts';
 
 export function createSampleEmitter(onSample: (sample: GpuTimingSample) => void) {
   return (sample: GpuTimingSample) => {
@@ -73,20 +73,22 @@ export function summarizeTimestamps(
       if (end > span.endNs) span.endNs = end;
       span.passes++;
     }
-    return { name: entry.name, gpuMs: Number(end - begin) / 1e6 };
+    return { name: entry.name, gpuMs: nanosecondsToMs(Number(end - begin)) };
   });
   const total =
     truncated || passes.some((pass) => pass.gpuMs === null)
       ? null
       : passes.reduce((sum, pass) => sum + pass.gpuMs!, 0);
   const frameMs =
-    truncated || !spanValid || firstBegin === 0n ? null : Number(lastEnd - firstBegin) / 1e6;
+    truncated || !spanValid || firstBegin === 0n
+      ? null
+      : nanosecondsToMs(Number(lastEnd - firstBegin));
   const submissions = [...submissionSpans]
     .sort((a, b) => a[0] - b[0])
     .map(([part, span]) => ({
       part,
       passes: span.passes,
-      spanMs: Number(span.endNs - span.beginNs) / 1e6,
+      spanMs: nanosecondsToMs(Number(span.endNs - span.beginNs)),
     }));
   // A submission is one contiguous GPU execution, so the image's GPU time is the sum of the
   // submission spans — not `frameMs`, which also holds the host time between two submissions.
