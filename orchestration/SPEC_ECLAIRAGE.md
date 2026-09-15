@@ -53,7 +53,7 @@ Règles transverses : celles de `AGENTS.md` (fidélité avant vitesse, aucune ba
 P1. **Unités et BRDF uniques** : radiance et irradiance en unités radiométriques linéaires ; Lambert et GGX conservant l'énergie, une seule implémentation de référence partagée par l'oracle, le WGSL et le GLSL (générés depuis la même source, comme R7). Critère : furnace blanc GGX et Lambert à 1 ± 10⁻³ par canal, valeur analytique publiée pour la rugosité maximale.
 P2. **Réciprocité et non-négativité** : le transport échantillonné est non négatif ; la réciprocité est contrôlée sur le proxy par test. Critère : test de symétrie sur la fixture des deux pièces.
 P3. **Pas de double comptage** : émission, direct, indirect et spéculaire sont partitionnés ; une surface émissive peut aussi réfléchir. Critère : somme des composantes égale à l'oracle au contrat E.
-P4. **Tone mapping dernier** : tout mélange, accumulation ou interpolation se fait en radiance linéaire avant ACES et sRGB. Critère : revue de code et test de linéarité (deux lampes = somme des deux images linéaires).
+P4. **Tone mapping dernier** : tout mélange, accumulation ou interpolation se fait en radiance linéaire avant ACES et sRGB. Critère : revue de code et test de linéarité (deux lampes = somme des deux images linéaires). En vue sans lampe, la composition est l'identité : l'albédo se lit tel quel, du linéaire vers sRGB et rien d'autre — ni exposition, ni ACES, sur les deux chemins.
 P5. **Approximations nommées** : sondes (interpolation), cartes (projection), amortissement (retard), proxy (erreur géométrique certifiée). Chaque approximation a un champ dans le diagnostic et une borne dans le contrat E.
 P6. **Aucune lumière sans source déclarée** : ni ambiance fixe, ni « mode nuit » ; le jour est une lampe soleil ou ciel déclarée dans la scène, qui n'entre que par les ouvertures et projette des ombres — un couloir sans fenêtre reste noir en plein jour, sauf rebond indirect. Vaut pour tous les matériaux, transparents et feuillages compris, et c'est le cas des deux côtés depuis le lot « transparents sans ambiance » : les arbres d'Emerald s'éteignent la nuit et suivent les lampes déclarées. Reste : les adaptateurs Three ne lisent pas le magasin `SceneLight`, donc le moteur de référence WebGL rend sans éclairage tant que l'hôte ne pose pas de lumière Three (lot « import des lampes »). Critère : scénario couloir sans fenêtre, radiance nulle hors rebond indirect.
 
@@ -69,13 +69,13 @@ LC5. **Oracle** : path tracer CPU dans le binaire, triangles sources, mêmes mat
 
 LR1. **Budgets par composant** (GPU, machine de référence Apple M2 Max, 1280 × 720, réglages) :
 
-| Composant | Budget GPU par image |
-|---|---:|
-| Direct et ombres (shadow maps, PCSS) | 0,8 ms |
-| Sondes d'irradiance (rayons contre le proxy) | 0,8 ms |
-| Cache de surfaces (texels mis à jour) | 0,4 ms |
-| Vue réfléchie (si une surface réfléchissante est visible) | 0,5 ms |
-| Rassemblement final | inclus dans R6 |
+| Composant                                                 | Budget GPU par image |
+| --------------------------------------------------------- | -------------------: |
+| Direct et ombres (shadow maps, PCSS)                      |               0,8 ms |
+| Sondes d'irradiance (rayons contre le proxy)              |               0,8 ms |
+| Cache de surfaces (texels mis à jour)                     |               0,4 ms |
+| Vue réfléchie (si une surface réfléchissante est visible) |               0,5 ms |
+| Rassemblement final                                       |       inclus dans R6 |
 
 Critère : chaque budget mesuré par passe GPU (WebGPU) ; la somme tient dans l'image de 8,33 ms avec la géométrie à son budget R6. Sur GPU intégré, budgets divisés par le rapport de puissance mesuré, jamais la résolution.
 
@@ -118,15 +118,15 @@ LB5. **Chiffres de référence du 15 septembre 2026** (WebGPU) : Emerald de nuit
 
 Ordre d'exécution des lots, décidé le 15 septembre 2026 — prime sur l'ordre implicite du tableau de phases ci-dessous, qui reste la référence pour les critères de sortie mesurés : ombres (en cours, LR3) → aucune lumière sans source déclarée (P6), opaques puis transparents, les deux livrés → reflet pour toute surface (LR7) → lumière qui rebondit (LR4, multi-rebond) → reflets flous (spéculaire rugueux) → optimisation mesurée.
 
-| Phase | Contenu | Sortie mesurée |
-|---|---|---|
-| E0 | Quatre nombres : shadow maps dans le vrai pipeline ; proxy résident sur Emerald (mémoire, construction, erreur) ; vue réfléchie ; incertitude de l'oracle | Les quatre valeurs publiées, banc 16 |
-| E1 | Direct : LR3 dans l'éclairage différé WebGPU | Budget LR1 tenu, E1–E3 direct conformes, pixels inchangés hors lumière |
-| E2 | Proxy et sondes : LC1, LR4 sans cache de surfaces (un rebond) | E5 sous la limite sur la porte, budget tenu |
-| E3 | Cartes et cache de surfaces : LC2, LR5, LR6, multi-rebond et coloration | Couverture ≥ 95 %, E4 régions conformes |
-| E4 | Reflet pour toute surface : LR7 | Scénario miroir conforme, budget tenu |
-| E5 | Ordonnanceur et budgets : LR2, hystérésis adaptative, GPU intégré | Cadence constante ± 10 %, E5 sur GPU intégré |
-| E6 | WebGL2 : LR8 | Parité état stable, retard sous sa limite |
+| Phase | Contenu                                                                                                                                                   | Sortie mesurée                                                         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| E0    | Quatre nombres : shadow maps dans le vrai pipeline ; proxy résident sur Emerald (mémoire, construction, erreur) ; vue réfléchie ; incertitude de l'oracle | Les quatre valeurs publiées, banc 16                                   |
+| E1    | Direct : LR3 dans l'éclairage différé WebGPU                                                                                                              | Budget LR1 tenu, E1–E3 direct conformes, pixels inchangés hors lumière |
+| E2    | Proxy et sondes : LC1, LR4 sans cache de surfaces (un rebond)                                                                                             | E5 sous la limite sur la porte, budget tenu                            |
+| E3    | Cartes et cache de surfaces : LC2, LR5, LR6, multi-rebond et coloration                                                                                   | Couverture ≥ 95 %, E4 régions conformes                                |
+| E4    | Reflet pour toute surface : LR7                                                                                                                           | Scénario miroir conforme, budget tenu                                  |
+| E5    | Ordonnanceur et budgets : LR2, hystérésis adaptative, GPU intégré                                                                                         | Cadence constante ± 10 %, E5 sur GPU intégré                           |
+| E6    | WebGL2 : LR8                                                                                                                                              | Parité état stable, retard sous sa limite                              |
 
 La phase E0 peut s'intercaler quand un créneau d'agent est libre ; les phases E1 à E6 ne commencent pas avant la fin des phases 1 à 3 de la spec géométrie (performance, DAG multi-matériaux, première image), sauf décision explicite.
 

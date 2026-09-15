@@ -507,34 +507,34 @@ MeshRenderer:
   m_ReceiveShadows: 1
   m_Materials:
   - {fileID: 2100000, guid: a1b2c3d4e5f60718293a4b5c6d7e8f90, type: 2}
---- !u!1 &3200
+--- !u!1 &1000013039883512
 GameObject:
   m_ObjectHideFlags: 0
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3201}
-  - component: {fileID: 3202}
-  - component: {fileID: 3203}
+  - component: {fileID: 4000010230679374}
+  - component: {fileID: 33000014169494082}
+  - component: {fileID: 23000014090315290}
   m_Layer: 0
   m_Name: Prop_Glass
   m_TagString: Untagged
   m_IsActive: 1
---- !u!4 &3201
+--- !u!4 &4000010230679374
 Transform:
-  m_GameObject: {fileID: 3200}
+  m_GameObject: {fileID: 1000013039883512}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
---- !u!33 &3202
+--- !u!33 &33000014169494082
 MeshFilter:
-  m_GameObject: {fileID: 3200}
+  m_GameObject: {fileID: 1000013039883512}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &3203
+--- !u!23 &23000014090315290
 MeshRenderer:
-  m_GameObject: {fileID: 3200}
+  m_GameObject: {fileID: 1000013039883512}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -573,6 +573,39 @@ MeshRenderer:
   m_ReceiveShadows: 1
   m_Materials:
   - {fileID: 2100000, guid: 2aa289dcdf349a262ceb820761df482d, type: 2}
+--- !u!1 &3500
+GameObject:
+  m_ObjectHideFlags: 0
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3501}
+  - component: {fileID: 3502}
+  - component: {fileID: 3503}
+  m_Layer: 0
+  m_Name: Prop_SubMesh
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &3501
+Transform:
+  m_GameObject: {fileID: 3500}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -8, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+--- !u!33 &3502
+MeshFilter:
+  m_GameObject: {fileID: 3500}
+  m_Mesh: {fileID: 4300002, guid: c6ac3e67f4c6dabfd3641a94d1ce0cc6, type: 3}
+--- !u!23 &3503
+MeshRenderer:
+  m_GameObject: {fileID: 3500}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_Materials:
+  - {fileID: 2100000, guid: 01468979202d8cc5d3c407aad0b48a63, type: 2}
 --- !u!1001 &3400
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -596,6 +629,44 @@ PrefabInstance:
     - target: {fileID: 100, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
       propertyPath: m_StaticEditorFlags
       value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 204, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value:
+      objectReference: {fileID: 2100000, guid: b2c3d4e5f60718293a4b5c6d7e8f90a1, type: 2}
+    - target: {fileID: 400, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+--- !u!1001 &3600
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 101, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -12
+      objectReference: {fileID: 0}
+    - target: {fileID: 100, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_Name
+      value: Prop_Muted
+      objectReference: {fileID: 0}
+    - target: {fileID: 204, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 100, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}
+      propertyPath: m_TagString
+      value: Prop
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6c0d60623775c0828aaa3ba62a5c4117, type: 3}

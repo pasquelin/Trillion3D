@@ -8,6 +8,49 @@ use std::collections::HashMap;
 const SKIPPED: [&str; 6] = ["Library", "Temp", "Logs", "obj", "Build", "UserSettings"];
 /// Plafond de lecture d'un fichier de données : au-delà, la source n'est pas du YAML de scène.
 const MAX_TEXT_BYTES: u64 = 64 * 1024 * 1024;
+/// Profondeur maximale du parcours d'un projet : un projet range ses assets, il ne les enfouit pas,
+/// et un arbre de liens ne doit pas faire tourner le compilateur sans fin.
+const MAX_SCAN_DEPTH: usize = 16;
+
+/// Parcourt les fichiers du projet, en laissant de côté les dossiers de travail de l'éditeur et les
+/// dossiers cachés. `visit` reçoit chaque fichier avec son nom et rend `false` pour arrêter là ;
+/// le parcours rend alors `false` à son tour.
+fn walk(root: &Path, visit: &mut dyn FnMut(&Path, &str) -> bool) -> bool {
+    let mut stack = vec![(root.to_path_buf(), 0usize)];
+    while let Some((directory, depth)) = stack.pop() {
+        let Ok(entries) = fs::read_dir(&directory) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                if depth < MAX_SCAN_DEPTH && !SKIPPED.contains(&name.as_str()) {
+                    stack.push((path, depth + 1));
+                }
+            } else if !visit(&path, &name) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Les scènes qui vivent sous ce dossier. Non vide, c'est un projet Unity : le dossier entier est la
+/// source, et les modèles rangés dessous n'en sont que des entrées.
+pub(super) fn scenes_under(directory: &Path) -> Vec<PathBuf> {
+    let mut scenes = Vec::new();
+    walk(directory, &mut |path, _| {
+        if path.extension().is_some_and(|kind| kind == "unity") {
+            scenes.push(path.to_path_buf());
+        }
+        true
+    });
+    scenes
+}
 
 pub(super) struct Project {
     /// Le dossier des URI de ressource : les images sont nommées relativement à lui.
@@ -17,34 +60,26 @@ pub(super) struct Project {
 }
 
 impl Project {
-    /// Indexe les `.meta` sous `root`. Le dossier d'un projet Unity peut être profond : on borne le
-    /// parcours aux dossiers d'assets, et on vérifie l'annulation à chaque dossier.
+    /// Indexe les `.meta` sous `root`. Le dossier d'un projet Unity peut être profond : le parcours
+    /// est borné aux dossiers d'assets, et l'annulation est vérifiée à chaque fichier.
     pub(super) fn index(root: &Path, source_dir: &Path, cancelled: &AtomicBool) -> Result<Project> {
         let mut project = Project {
             source_dir: source_dir.to_path_buf(),
             by_guid: HashMap::new(),
             meta_files: 0,
         };
-        let mut stack = vec![root.to_path_buf()];
-        while let Some(directory) = stack.pop() {
+        let complete = walk(root, &mut |path, name| {
             if cancelled.load(Ordering::Relaxed) {
-                return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+                return false;
             }
-            let Ok(entries) = fs::read_dir(&directory) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                let path = entry.path();
-                if path.is_dir() {
-                    if !name.starts_with('.') && !SKIPPED.contains(&name.as_str()) {
-                        stack.push(path);
-                    }
-                } else if name.ends_with(".meta") {
-                    project.meta_files += 1;
-                    project.add_meta(&path);
-                }
+            if name.ends_with(".meta") {
+                project.meta_files += 1;
+                project.add_meta(path);
             }
+            true
+        });
+        if !complete {
+            return Err(CompilerError::new("CANCELLED", "Import cancelled"));
         }
         Ok(project)
     }
@@ -82,6 +117,13 @@ impl Project {
                 .join("/"),
         )
     }
+}
+
+/// Le `.meta` qui décrit cet asset : Unity le pose à côté, sous le même nom suivi de `.meta`.
+pub(super) fn meta_of(asset: &Path) -> PathBuf {
+    let mut name = asset.as_os_str().to_os_string();
+    name.push(".meta");
+    PathBuf::from(name)
 }
 
 /// Le texte d'un fichier de données, sous le plafond de lecture. Ce qui n'est pas de l'UTF-8 lisible

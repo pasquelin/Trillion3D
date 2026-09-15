@@ -1,5 +1,69 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Lumière] composition identité en vue sans lampe (lot `lot/unlit-identite`)
+
+Worktree `lot-unlit-identite`, branche `lot/unlit-identite`, partie de `develop` (db44508). Rien
+n'est fusionné, le Lab n'est pas touché, aucun test n'est écrit ici — ils viennent à la livraison.
+
+### Le constat
+
+`packages/sdk-browser/deferredLightingShaders.ts` ne connaissait qu'une composition : `composeColor`
+appliquait `linearToSrgb(aces(rgb * exposition))` à **toute** image, y compris la vue `unlit`, dont
+l'exposition vaut 1. La vue sans lampe sortait donc l'albédo passé dans ACES, pas l'albédo : un
+blanc de texture à 1,0 ressortait vers 0,8, la saturation tombait et la teinte glissait, alors que
+le témoin Three du Lab ne pose aucune courbe sur la même image. Le chemin rendu par Three avait le
+même défaut, à un autre étage : `explorerCapabilities.ts` posait `THREE.ACESFilmicToneMapping` sur
+le rendu une fois pour toutes, sans regarder si la scène portait une lampe.
+
+### La règle
+
+En vue sans lampe — aucune lampe déclarée, ou `setLightingView('unlit')` — la composition est
+l'**identité** : du linéaire vers sRGB, et rien d'autre. Ni exposition, ni ACES. En vue `lit`,
+rien ne change : l'exposition multiplie la radiance linéaire, puis ACES, dernier maillon (P4). Les
+vues de diagnostic, qui sortaient déjà en brut avant toute courbe, ne bougent pas. P4 porte
+désormais cette phrase dans `orchestration/SPEC_ECLAIRAGE.md`.
+
+### Ce qui a changé, les deux chemins
+
+- **WebGPU.** `composeSource(courbe, chaine)` bâtit les deux compositions à partir de la même
+  source : `COMPOSE_SHADER` déclare ACES et compose `aces(value.rgb*exposition/alpha)` — la même
+  expression qu'avant, au flottant près —, `UNLIT_COMPOSE_SHADER` ne déclare aucune courbe et
+  compose `value.rgb/alpha`. Le programme « UNLIT » de `deferredLighting.ts` prend le second. Ce
+  sont deux programmes, jamais une branche dans le nuanceur : une session éclairée exécute
+  exactement le nuanceur d'avant. Le drapeau ne vient d'aucun réglage neuf — c'est le choix de
+  programme existant, celui que `wantsContractLighting` (`store.count > 0 && !store.unlit`) fait
+  déjà à chaque image.
+- **WebGL2 et moteur de référence.** Ils composent par Three, dont le rendu portait ACES en dur.
+  `installSceneLighting` publie maintenant `lit` (vrai dès qu'une lampe du graphe source est
+  installée) et `sceneLightingApi` le rend aux quatre moteurs rendus par Three sous `sceneLit` ;
+  `explorerDraw` règle `renderer.toneMapping` sur `NoToneMapping` quand la scène rendue n'a pas de
+  lampe, sur `ACESFilmicToneMapping` sinon, et n'écrit que si la valeur change — Three recompile ses
+  programmes à chaque écriture. `outputColorSpace` reste `SRGBColorSpace` : le linéaire vers sRGB
+  demeure des deux côtés.
+
+### La preuve : non faite, verrou occupé
+
+La campagne prévue — WebGPU, Emerald, vue `generale`, (a) `--lampes 8 --soleil` à 0 px exigé,
+(b) vue sans lampe `--lampes-fichier off`, (c) comparaison au témoin Three en vue sans lampe —
+**n'a pas été jouée**. Le verrou `.claude/mesure.lock` était tenu par la session `calculs`
+(« mesure-finale-3 ») au moment du lot, et la charge machine était de 22 : aucune attente, aucune
+boucle, aucun chiffre inventé. Le lot est donc **livré sans preuve d'image** et ne se fusionne pas
+en l'état. À rejouer au calme, verrou pris, sorties dans `.mesure/out/unlit-identite/` :
+
+- (a) `--moteur webgpu --vues generale --avant develop --apres dist --lampes 8 --soleil` : 0 px
+  exigé, c'est la porte d'identité du chemin éclairé.
+- (b) même commande sans `--lampes` ni `--soleil`, avec `--lampes-fichier off` : différences
+  attendues sur toute la scène — c'est le changement d'image voulu. Publier le nombre de pixels, le
+  max par canal et le témoin A/A.
+- (c) témoin Three en vue sans lampe (`--moteur webgl` ou `webgl2`, mêmes pose et seuil) : nombre de
+  pixels au-delà de 2 par canal face au WebGPU sans lampe, avant et après le lot. C'est ce chiffre
+  qui dit si l'écart de couleur constaté dans le Lab est refermé.
+
+### Portes
+
+`npx tsc -p tsconfig.json --noEmit`, `npm run check:changed` (429 tests liés, tous verts),
+`npm run check:unused`, `npm run check:lines` : vertes. Aucun test existant ne casse : aucun
+n'encodait la composition de la vue sans lampe.
 ## 2026-09-15 — [session sans-threejs] lot visibilité WebGPU : deux leviers gardés sur trois, 0 px sur seize séries
 
 Worktree `.claude/worktrees/lot-visibilite`, branche `lot/visibilite-webgpu`, partie de `develop` =
@@ -4982,3 +5046,83 @@ ailleurs. `accepts_head` reconnaît le nombre magique gzip : un fichier compress
 connue est donc revendiqué par ce pilote, qui le refuse ensuite proprement s'il n'a pas la structure
 d'un paquet. La scène du corpus ne pose que des cubes intégrés : le FBX reconstruit est bien écrit à
 son chemin mais aucune instance ne le cite, ce que seul un paquet plus riche prouverait.
+
+## 2026-09-15 — [compilateur] pilote unity, suite : routeur de projet, sous-maillages, échelle, retouches
+
+Quatre limites du pilote Unity levées, plus une cinquième trouvée en chemin qui commandait tout le
+reste. Fichiers : `packages/asset-compiler-rust/src/plugins/scene/{route.rs,unity.rs}`, les modules
+`unity/{project,models,render,build,prefab,yaml}.rs`, deux nouveaux — `unity/meta.rs` et
+`unity/patch.rs` —, `src/import/scene.rs` pour une donnée de manifeste, et la dorée.
+
+**Routeur de projet.** `ScenePlugin` gagne `project_inputs`, qui rend `None` pour un pilote de
+fichiers. Un pilote qui revendique un **dossier** prime sur les pilotes de fichiers trouvés dessous :
+leurs fichiers sont ses entrées, pas des sources concurrentes. `unity` le revendique dès qu'une
+scène vit sous le dossier, bornes comprises (dossiers de travail de l'éditeur écartés, profondeur 16).
+Un dossier sans `.unity` ne change pas de comportement : FBX et OBJ côte à côte y restent ambigus, et
+deux projets pour un même dossier restent ambigus aussi. Une phrase dans `PLUGINS.md`.
+
+**Le `fileID` passait par un flottant.** `reference()` lisait `{fileID: …}` en `f64` : au-delà de
+2^53 un identifiant de vrai projet — `33000014169494082` — désignait un objet qui n'existe pas. Les
+`Transform` (4 000 000 000 000 000) passaient, les `MeshFilter` et les `MeshRenderer`
+(33 000 000 000 000 000, 23 000 000 000 000 000) non : sur Industrial Map, 335 objets sur 350 étaient
+posés sans le moindre rendu, sans un mot au rapport. Un `fileID` se lit maintenant en entier de
+soixante-quatre bits. C'est ce correctif, et non les trois autres points, qui fait passer la carte.
+
+**Sous-maillage par `fileID`.** Le `.meta` d'un modèle mémorise `fileID` → nom, en
+`internalIDToNameTable` (projets récents) ou `fileIDToRecycleName` (anciens, dont Industrial Map).
+Le pilote du modèle nomme déjà ses nœuds et ses maillages dans la scène intermédiaire : `unity` ne
+retient que la partie qui porte ce nom, avec sa transformation dans le modèle. Nom absent de la table
+ou introuvable : le modèle entier, compté comme avant sous `unity-model-mesh-by-fileid`.
+
+**Échelle d'import.** Unity part des unités brutes du fichier, les multiplie par l'unité du fichier
+quand « Convert Units » est coché, puis par le facteur déclaré ; le pilote du format, lui, a déjà
+rendu `brut × unité`. Reste exactement `globalScale × (useFileScale ? fileScale : 1) ÷ unité`, où
+`fileScale` est l'unité que le `.meta` a mémorisée et, à défaut, celle qu'ufbx a lue — d'où
+l'ajout de `originalUnitMeters` au manifeste des pilotes servis par ufbx, et leur version passée en
+`-gltf-4`. Le facteur s'applique aux matrices des nœuds versés du modèle, jamais à sa géométrie.
+
+**Retouches de prefab.** Elles vivent dans `unity/patch.rs` et voyagent maintenant le long du
+parcours du prefab source : chaque retouche nomme l'objet qu'elle vise, donc elle s'applique à la
+profondeur où cet objet se trouve, et plus seulement à la racine. Sont appliquées `m_LocalPosition`,
+`m_LocalRotation`, `m_LocalScale`, `m_IsActive`, `m_Materials.Array.data[n]`, `m_Enabled` d'un rendu,
+et `m_Name` comme avant. Les autres sont comptées **par propriété** (`m_RootOrder`,
+`m_StaticEditorFlags`, `m_ScaleInLightmap`, `m_LocalEulerAnglesHint`, tailles de collider…), les
+indices de tableau réduits à `[]` pour borner le rapport ; `m_LocalEulerAnglesHint` quitte les
+transformations, que le quaternion porte seul.
+
+**Essai à blanc sur Industrial Map** (licence FAB, non redistribuable, lecture seule, sortie dans le
+bac à sable ; aucun fichier du dossier source n'a changé). 349 `.meta`.
+`Map_v1.unity` : 327 → **401** instances, 15 modèles entiers → **0** (341 sous-maillages retenus),
+4 → **25** modèles, 126 → 141 maillages, 17 → 108 matériaux, 7 → 51 images, 5 → 27 textures citées
+par les matériaux (TGA comprises, aucune hors registre), 14 786 → **60 694** triangles, 880 retouches
+ignorées → 3 431 appliquées et 1 518 ignorées détaillées par propriété, 180 ms.
+`Assets_showcase_scene.unity` : 677 → **170** instances (les 677 étaient le même modèle recopié
+entier sous chaque rendu), 34 modèles entiers → 0 (152 sous-maillages), 12 → 35 modèles, 186 → 163
+maillages, 38 → 125 matériaux, 21 → 61 images, 49 767 → 24 566 triangles, 128 → 1 264 appliquées et
+217 ignorées, 242 ms. Le dossier du projet entier reste refusé, à raison : il porte deux scènes, et
+l'appelant en désigne une.
+
+**Dorée et portes.** Un seul jeu, `fixtures/unity/cc0-import-project`, étendu : le `.meta` du FBX
+porte `internalIDToNameTable` et `globalScale: 2` ; `Prop_SubMesh` vise le `fileID` 4300002, nommé
+`Icosphere.001`, et ne reçoit que ce maillage ; `Prop_Model` garde un `fileID` absent de la table et
+reste instancié entier ; `Prop_Glass` porte des `fileID` au-delà de 2^53 ; deux instances du même
+prefab portent matériau remplacé, échelle, objet désactivé, rendu éteint et deux retouches laissées
+de côté. Le dossier du projet lui-même sert de preuve au routeur. `cargo test --locked` : 174 + 4 au
+vert ; `cargo clippy --all-targets -D warnings` et `cargo fmt --check` verts ; aucun fichier au-delà
+de 200 lignes. Version du pilote : `unity-yaml-rust2-0.13-gltf-2`.
+
+**Ce qui reste.** Les lampes ne sont toujours pas converties. Les retouches d'une instance imbriquée
+dans un prefab ne se composent pas avec celles de l'instance extérieure. Les cartes métal-lissage
+empaquetées restent des facteurs déclarés. Enfin, `m_LocalEulerAnglesHint`, `m_RootOrder` et
+`m_StaticEditorFlags` n'ont pas de sens dans une scène glTF : ils resteront comptés.
+
+**Fusion avec `develop`.** Ce lot est ensuite rebasé sur la passe de simplification du pilote
+(écrivain de scène commun `src/import/write.rs`, `merge_table`, échantillonneurs indexés) et sur le
+contrat `scene-plugin-2` (`PreparedScene::Converted { directory, images }`, `image_root`). Deux
+conflits seulement, tous deux tenus : `unity/models.rs`, où le cache des `.meta` et l'échelle
+d'import se reposent sur l'`import` libre de `develop`, et le journal, où les sections se suivent.
+Un seul attendu bouge, celui de `fixtures/unitypackage/expected.json` : la version du pilote interne
+passe de `-gltf-1` à `-gltf-2`. Le reste de cette dorée ne bouge pas — son projet ne pose que des
+cubes intégrés, sans modèle ni instance de prefab — et la dorée `zip` n'est pas concernée : le
+conteneur descend d'abord jusqu'au dossier `Assets`, que le routeur revendique comme projet Unity
+exactement là où il le revendiquait par ses fichiers.
