@@ -129,6 +129,11 @@ départage des lectures, pas une borne. `render-tech-lab/` non modifié ; port 5
 `eslint-disable` ; `node_modules` (lien symbolique) non committé ; rien écrit dans `public/` ;
 fichiers d'éclairage, d'ombres, compilateur Rust et `scripts/mesure/` non touchés.
 
+**Une instabilité observée, à signaler sans l'expliquer** : sur sept exécutions de `cargo test` pendant
+le lot, **une** a rendu « 146 passed, 1 failed » sans que le nom du test soit capturé ; les six
+autres, dont quatre lancées de suite pour le reproduire, rendent « 147 passed, 0 failed ». Aucun
+fichier Rust n'est touché par ce lot ; la machine était chargée (8 à 12).
+
 ### Ce qui reste
 
 - **Le levier de 1 ms à caméra mobile est prêt et bloqué par trois pixels**, pas par sa justesse. Il
