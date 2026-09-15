@@ -11,8 +11,7 @@ const alea = graine(97);
 const HOSTILES = [0, -0, NaN, Infinity, -Infinity, 5e-324, 1.7976931348623157e308, -1e-300];
 
 const vecteurs = [];
-for (let i = 0; i < 20000; i++)
-  vecteurs.push([alea() * 2 - 1, alea() * 1e6 - 5e5, alea() * 1e-8]);
+for (let i = 0; i < 20000; i++) vecteurs.push([alea() * 2 - 1, alea() * 1e6 - 5e5, alea() * 1e-8]);
 const vecteursHostiles = [];
 for (const a of HOSTILES) for (const b of HOSTILES) vecteursHostiles.push([a, b, HOSTILES[0]]);
 for (const a of HOSTILES) vecteursHostiles.push([a, a, a]);
