@@ -37,6 +37,9 @@ export interface SelectionState<T extends PageRecord> {
   flatForcedList?: number[];
   /** Ce que le rejet de cône lit de la racine et de la caméra, posé au premier cône de la racine. */
   flatCone: ConeContext;
+  /** Cette racine déclare porter des cônes : le chemin par cluster lit `cone`. Une racine qui
+   *  déclare n'en porter aucun sort le cône de la boucle, sans changer une seule décision. */
+  flatCones: boolean;
   /** Le seuil de cette image vaut zéro et l'étirement, la focale et le plan proche sont sains : la
    *  coupe se décide alors sans projeter, à l'identique. */
   flatExact: boolean;
@@ -112,6 +115,7 @@ const reusedState: SelectionState<PageRecord> = {
   wanted: [],
   shown: [],
   isResident: undefined,
+  // Les replis, froids, passent par le mode déjà résolu : une seule règle de résidence dans le lot.
   pageResident: (rec) =>
     !reusedState.hold || (reusedState.isResident ? reusedState.isResident(rec) : !!rec.array),
   pixelError: 0,
@@ -125,6 +129,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatStretch: 1,
   flatFocal: 1,
   flatCone: createConeContext(),
+  flatCones: true,
   flatExact: false,
   flatUseForcing: false,
   flatMissing: false,
