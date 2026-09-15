@@ -8,6 +8,8 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Les quatre flottants que la passe différée relit : lampes, tuiles en X et Y, exposition. */
 const directParams = new Float32Array(4);
+/** La position monde de la caméra, réutilisée d'une image à l'autre : le rebond n'alloue rien. */
+const viewpoint = new Float64Array(3);
 
 /**
  * L'éclairage direct d'une image, dans l'ordre : ordonnancement des ombres et écriture des matrices,
@@ -38,7 +40,7 @@ export function encodeDirectLights(
   // Le tampon part au GPU avant les listes par tuile : la passe de mélange le lit directement, sans
   // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
-  encodeBounce(rt, device, encoder, active);
+  encodeBounce(rt, device, encoder, active, camera);
   encodeShadowAtlas(rt, device, encoder, faces);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
@@ -62,6 +64,7 @@ function encodeBounce(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   active: number,
+  camera: THREE.PerspectiveCamera,
 ) {
   const { bounce, lights } = rt;
   // Une lampe existe : c'est le signal qui déclenche la lecture du proxy résident, une seule fois.
@@ -82,7 +85,14 @@ function encodeBounce(
     bounce.lightEpoch = lights.store.epoch;
     probes.restart();
   }
-  bounce.encoded = probes.encode(encoder, active);
+  // La position monde de la caméra, lue dans sa matrice : les cascades s'y recentrent par pas de
+  // maille. Aucune allocation, et rien d'autre de la caméra n'entre dans le rebond — ni sa
+  // direction, ni son tronc de vue : une caméra qui pivote ne périmerait alors rien de bon.
+  const world = camera.matrixWorld.elements;
+  viewpoint[0] = world[12];
+  viewpoint[1] = world[13];
+  viewpoint[2] = world[14];
+  bounce.encoded = probes.encode(encoder, active, viewpoint);
   bounce.probesUpdated = probes.lastProbes;
   bounce.raysLaunched = probes.lastRays;
 }
@@ -92,9 +102,11 @@ export function bounceState(rt: WebgpuPagesRuntime) {
   const { bounce } = rt,
     probes = bounce.probes;
   return {
-    probes: probes?.grid.probes ?? null,
+    probes: probes?.cascades.probes ?? null,
     probesUpdated: bounce.probesUpdated,
     rays: bounce.raysLaunched,
+    budgetLoad: probes?.budget.load ?? null,
+    budgetLastMs: probes?.budget.lastMs ?? null,
     converged: probes ? !probes.working : null,
     unavailable: bounce.reason,
   };
