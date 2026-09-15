@@ -7,9 +7,11 @@ use super::Plugin;
 use std::path::Path;
 
 mod blocks;
+mod bmp;
 mod crate_image;
 mod dds;
 mod exr;
+mod gif;
 mod hdr;
 mod jpeg;
 mod ktx2;
@@ -36,6 +38,8 @@ pub static DECODERS: &[&dyn ImageDecoder] = &[
     &hdr::HDR,
     &ktx2::KTX2,
     &psd::PSD,
+    &bmp::BMP,
+    &gif::GIF,
 ];
 
 /// Ce qu'un pilote rend. Deux sorties, et aucun pont de l'une vers l'autre : ramener un flottant à
