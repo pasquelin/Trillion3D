@@ -28,6 +28,19 @@ accepte un seul ou plusieurs, et il refuse avec `SOURCE_FORMAT_AMBIGUOUS` quand 
 Il vérifie `request.cancelled` à chaque frontière de travail bornée, publie ses étapes par
 `request.progress`, et n'écrit jamais à côté de la source — seulement sous `request.cache`.
 
+## Un pilote de conteneur
+
+Une archive n'est pas une scène : c'est l'emballage d'une source. Un conteneur est un pilote de
+scène ordinaire — `zip` en est le premier — qui extrait sous `request.cache`, traverse un unique
+dossier racine, puis **route le dossier extrait par le routeur** et rend ce que le pilote de scène
+retenu rend. Les règles du routeur valent telles quelles : inconnu ou ambigu, c'est un refus.
+
+Ce qui ne dépend pas du format d'archive vit dans `scene/archive.rs` — plafonds nommés (entrées et
+octets décompressés), refus de sortie du dossier d'extraction, clé d'extraction, composition avec le
+routeur. Un second conteneur y ajoute son module de lecture, pas une seconde version de tout cela.
+Les protections ne sont pas négociables : aucun chemin absolu ni `..`, aucun lien symbolique suivi,
+aucune archive chiffrée ouverte, et un refus nommé — jamais une extraction à moitié.
+
 ## Un pilote d'image
 
 1. Un module dans `src/plugins/image/<format>.rs`, même règle de nommage.
