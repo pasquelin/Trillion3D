@@ -32,11 +32,9 @@ fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32
     for slot in &order[range.0..range.1] {
         let base = slot * PROXY_TRIANGLE_FLOATS;
         for vertex in 0..3 {
-            for axis in 0..3 {
-                let value = triangles[base + vertex * 3 + axis];
-                low[axis] = low[axis].min(value);
-                high[axis] = high[axis].max(value);
-            }
+            let at = base + vertex * 3;
+            let point = [triangles[at], triangles[at + 1], triangles[at + 2]];
+            crate::shared_math::extend_aabb_f32(&mut low, &mut high, point);
         }
     }
     (low, high)
@@ -66,6 +64,9 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
     if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
         return;
     }
+    // Ce choix d'axe n'est pas celui de `shared_math::longest_axis` : `max_by` garde le dernier axe
+    // à égalité là où le `>` du DAG garde le premier, et `total_cmp` classe les NaN au lieu de les
+    // ignorer. La coupe qui suit diffère aussi — `select_nth_unstable_by` contre un tri complet.
     let axis = (0..3)
         .max_by(|a, b| (high[*a] - low[*a]).total_cmp(&(high[*b] - low[*b])))
         .unwrap_or(0);
@@ -107,22 +108,13 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
     if triangles.is_empty() {
         return [0.0; 6];
     }
-    let mut bounds = [
-        f64::INFINITY,
-        f64::INFINITY,
-        f64::INFINITY,
-        f64::NEG_INFINITY,
-        f64::NEG_INFINITY,
-        f64::NEG_INFINITY,
-    ];
+    let mut low = [f64::INFINITY; 3];
+    let mut high = [f64::NEG_INFINITY; 3];
     for vertex in triangles.as_chunks::<3>().0 {
-        for axis in 0..3 {
-            let value = vertex[axis] as f64;
-            bounds[axis] = bounds[axis].min(value);
-            bounds[axis + 3] = bounds[axis + 3].max(value);
-        }
+        let point = [vertex[0] as f64, vertex[1] as f64, vertex[2] as f64];
+        crate::shared_math::extend_aabb(&mut low, &mut high, point);
     }
-    bounds
+    [low[0], low[1], low[2], high[0], high[1], high[2]]
 }
 
 /// L'arbre binaire aplati en sauts de sous-arbre : six nombres de bornes et trois entiers par
