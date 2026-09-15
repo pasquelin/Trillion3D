@@ -186,8 +186,12 @@ is what buys the accuracy, and the remaining error is the interpolation, not the
 error target is 10 %, so it is not met. Convergence after a light jumps: **22 frames, 367 ms** at
 60 Hz, of which 16 frames are the mandated closure of the bounce series.
 
-The bounce is **on by default** as soon as a light is declared and the cache carries a proxy:
-`createExplorer({ bounce: false })` turns it off for the session. Left off, the deferred resolve
+The bounce stays **off by default**: measured on Emerald with eight point lights, the `bounce`
+stage costs **1.12 / 1.18 / 1.26 ms** (p50, the three bench views) against 2.22 / 2.22 / 2.26 ms
+before this lot, which is still above the one-millisecond bar that would have made it the default.
+Most of that is fixed cost, not work: the millisecond budget drives the fraction down to its floor
+(2 %, 15 probes and 328 cache cells per frame) and the stage still reads 1.1 ms.
+`createExplorer({ bounce: true })` turns it on for the session. Left off, the deferred resolve
 compiles the direct-only program, exactly the shader of the previous lot, and the bounce declares
 itself unavailable rather than appearing silently. Emission, transparency and specular are not
 bounced; the proxy carries diffuse albedo only.
