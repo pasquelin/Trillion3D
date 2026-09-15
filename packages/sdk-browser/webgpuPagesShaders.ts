@@ -127,7 +127,7 @@ ${TRIANGLE_PALETTE_WGSL}
   N=normalize(in.normal);
   if((uni.flags&2u)!=0u){N*=face;}
  }
- let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
+ let wrapped=wrapUv(in.uv,uni.flags);
  let sample=colorSample(uni.mapIndex,uni.uvScale,wrapped,gradX,gradY);
  let alpha=sample.w*in.color.w;
  if((uni.flags&0x40000000u)!=0u){
