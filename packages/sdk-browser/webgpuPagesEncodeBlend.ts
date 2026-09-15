@@ -47,12 +47,16 @@ export function encodeBlend(
   ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
   writeBlendUniforms(rt, device, uniformBase, textured);
   if (textured) writeVolumeUniforms(rt, device);
+  const prepared = performance.now();
+  timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder, uniformBase, textured);
   // La transmission vient après les mélanges, sur un fond figé : les deux copies séparent les deux
   // passes, si bien qu'aucune surface transmissive ne lit une image à demi composée.
   if (blendState.transmissive && textured && copyBackdrop(rt, encoder))
     drawBlendPass(rt, device, encoder, uniformBase, textured, true);
-  timing.transparentEncodeMs += performance.now() - cpuStart;
+  const finished = performance.now();
+  timing.transparentDrawMs += finished - prepared;
+  timing.transparentEncodeMs += finished - cpuStart;
   if (diag.traceEnabled)
     diag.traceDiagnostic('transparent-encoding', 'Transparents sélectionnés et encodés', () => ({
       frame: run.frame,

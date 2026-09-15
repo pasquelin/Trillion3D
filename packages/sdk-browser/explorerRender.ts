@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { type CameraPose, type FrameMetrics } from '../sdk-core/index.ts';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
 import { handleExplorerRenderError } from './explorerRenderFallback.ts';
+import { createHostFrameCostAudit } from './frameCostAudit.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -62,6 +63,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     pageIdByUrl,
     streamer,
   } = inputs;
+  const auditFrame = createHostFrameCostAudit();
   const render = (pose?: CameraPose): FrameMetrics => {
     const { measuring, diagnostic, comparisonLayout, comparisonPair, wipe, toggle } = state;
     check();
@@ -112,6 +114,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
       metricsScratch.drawCalls = ownedRenderer?.info.render.calls ?? 0;
     metricsScratch.triangles =
       metricsScratch.totalSubmittedTriangles ?? ownedRenderer?.info.render.triangles ?? 0;
+    auditFrame(state.active.id, frameNumber, metricsScratch, directGpu ? null : ownedRenderer);
     profiler.record(metricsScratch);
     emitExplorerFrameDiagnostic({
       diagnosticChannel,
