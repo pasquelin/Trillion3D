@@ -5,7 +5,8 @@ dans son module, tous listés dans un registre statique. Ajouter un format, c'es
 et une ligne ; enlever un format, c'est enlever les deux. Le cœur ne bouge pas.
 
 Ce que le pilote doit produire est toujours la même chose : la **scène intermédiaire**, un glTF 2.0
-et son binaire, que `compile` est seul à savoir lire. Les images suivent le même modèle, vers RGBA8.
+et son binaire, que `compile` est seul à savoir lire. Les images suivent le même modèle, vers RGBA8
+ou, pour les formats à grande gamme dynamique, vers RGBA flottant linéaire.
 
 La politique — quels formats sont admis, lesquels sont refusés, sous quelles conditions et sous
 quelle licence — est dans [`orchestration/COMPILATEUR_IMPORT.md`](../../orchestration/COMPILATEUR_IMPORT.md).
@@ -61,6 +62,13 @@ aucune archive chiffrée ouverte, et un refus nommé — jamais une extraction �
 Un décodage impossible rend une raison de rapport — une chaîne stable comme `image-decode-failed` —
 jamais une erreur de compilation : une texture illisible laisse le moteur retomber sur son blanc.
 Le décodeur ne rend jamais d'image vide et ne panique jamais.
+
+`DecodedImage` a deux variantes depuis `image-plugin-2` : `Rgba8`, et `RgbaF32` pour les formats à
+grande gamme dynamique. **Un pilote ne convertit jamais l'une en l'autre** : ramener du flottant à
+huit bits demanderait un report de tons, donc une perte que la source n'avait pas. C'est au
+consommateur de trancher, par un `match` et une raison nommée — `image-float-unsupported` pour les
+aperçus, qui sont du RGBA8 sRGB. Un pilote flottant vérifie le plafond d'allocation à **seize octets
+par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre nom de format.
 
 ## Ce qu'il faut fournir avec
 
