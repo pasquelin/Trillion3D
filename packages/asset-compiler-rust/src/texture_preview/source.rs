@@ -45,7 +45,7 @@ pub(super) fn image_bytes(
         return Err("image-uri-not-relative");
     }
     let relative = decode_uri(uri).ok_or("image-uri-undecodable")?;
-    let path = safe_join(inputs.source_dir, &relative).ok_or("image-uri-outside-source")?;
+    let path = safe_join(inputs.image_root, &relative).ok_or("image-uri-outside-source")?;
     fs::read(&path)
         .map(|bytes| (bytes, PreviewSource::Uri))
         .map_err(|_| "image-missing")
@@ -70,10 +70,10 @@ fn decode_uri(uri: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
-/// Joint une URI relative au dossier source sans jamais en sortir : chaque composant doit être un
-/// nom de fichier ordinaire, ni `.`, ni `..`, ni racine, ni séparateur de plateforme.
-fn safe_join(source_dir: &Path, relative: &str) -> Option<PathBuf> {
-    let mut path = source_dir.to_path_buf();
+/// Joint une URI relative à la racine des images sans jamais en sortir : chaque composant doit être
+/// un nom de fichier ordinaire, ni `.`, ni `..`, ni racine, ni séparateur de plateforme.
+fn safe_join(image_root: &Path, relative: &str) -> Option<PathBuf> {
+    let mut path = image_root.to_path_buf();
     for component in relative.split('/') {
         if !is_safe_source_name(component) {
             return None;

@@ -4483,3 +4483,35 @@ avertissement, `cargo fmt --check` propre, `check:lines` et `check:duplicates` a
 - BC6H (HDR flottant) attend la variante flottante du contrat d'image, celle qu'EXR et Radiance HDR
   demanderont aussi ; aucun pilote ne doit ramener du flottant à 8 bits en passant.
 - Les DDS cubes, volumes et tableaux sont refusés faute de consommateur : rien ne les attend encore.
+
+## 2026-09-15 — [compilateur] aperçus après import : une seule racine de résolution des images
+
+**La cause.** Sur « Whisperwind Village » (FBX, banc 15), les sept aperçus 16×16 des textures
+couleur étaient tous écartés en `image-missing`, alors que l'import avait résolu 12 images sur 13 et
+que le rendu final avait ses textures. Le pilote FBX écrit sa scène intermédiaire sous
+`<cache>/native/imports/<clé>/`, puis `compile` déplace `o.source` sur ce dossier ; l'étape des
+aperçus en tirait sa racine et cherchait donc `Textures/xxx.png` dans le cache, où aucun PNG n'a
+jamais été écrit — les images étaient restées à côté du `.fbx`. Le rendu, lui, ne souffrait pas :
+`rewrite_images` préfixe les URI de `resourceBaseUrl`, que l'hôte sert depuis le dossier source. Ce
+n'était pas propre au FBX : tout pilote qui écrit ailleurs que sous la source était concerné — fbx,
+obj, unity, et les conteneurs qui extraient sous le cache.
+
+**La règle.** La racine de résolution des images est `scene::image_root(source)` : la source
+elle-même si c'est un dossier, le dossier qui la porte si c'est un fichier. Elle vaut des deux côtés
+— un pilote y lit les octets et en tire des URI relatives, le compilateur y relit les mêmes octets
+pour les aperçus. Une scène convertie emporte cette racine : `PreparedScene::Converted` porte
+désormais `directory` (où la scène est écrite) *et* `images` (où elles sont restées), que
+`request.converted(directory)` accroche pour tous les pilotes. Un conteneur rend le dossier extrait
+comme racine, puisque c'est là que l'extraction a mis les images. Les trois copies de ce calcul —
+`compiler_build`, `import/scene`, `unity/convert` — sont remplacées par l'appel unique ; le contrat
+des pilotes passe à `scene-plugin-2` et `PLUGINS.md` le dit. Aucune rustine par format, rien ajouté
+au manifeste : la racine dépend de la machine, elle n'entre pas dans l'identité du cache.
+
+**La preuve.** `src/tests/apercus_import.rs` compile la fixture FBX `import-fbx/riviere.fbx` recopiée
+dans un dossier jetable avec un vrai PNG 40×24 à côté — la forme du Village en petit. Avant le
+correctif : `colorTextures: 1, previews: 0, skipped: {"image-missing": 1}`, exactement le symptôme du
+banc 15. Après : une texture couleur, un aperçu, aucune image manquante. Aucun attendu de dorée n'a
+bougé — ni `apercus/atlas-couleur`, ni les coplanaires, ni `unity/cc0-import-project`, ni `zip`, dont
+la clé reste identique dans l'archive et hors d'elle. `cargo test --locked` : 174 tests au vert (173
++ celui-ci), `cargo clippy --all-targets -- -D warnings` et `cargo fmt --check` verts, tous les
+fichiers touchés sous 200 lignes.
