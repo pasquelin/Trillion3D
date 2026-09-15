@@ -34,6 +34,7 @@ fn selected(item:DrawItem)->bool{
  if(uni.selectionEnabled==0u){return true;}
  return selectionMask[uni.selectionOffset+item.selectionIndex]!=0u;
 }
+/** Miroir GPU de \`slotOf\` (gpuDrawCpu.ts) : meme produit, meme somme, meme plafond de couche. */
 fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*3u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
 fn matches(i:u32,slot:u32)->bool{let item=items[i];return slotOf(i,item)==slot&&selected(item);}
 fn writeCmd(slot:u32,count:u32){
