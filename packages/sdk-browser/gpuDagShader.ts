@@ -42,12 +42,17 @@ fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
  if(abs(det)<1e-20){return v;}
  return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
 }
+/** Miroir GPU de \`isConformal\` (pageCone.ts) : 3x3 divisee par la somme de ses valeurs absolues,
+ *  tolerances relatives seules ; somme nulle, infinie ou NaN (lue au bit) : cluster conserve. */
 fn isConformal(m:mat3x3f)->bool{
- let lx2=dot(m[0],m[0]);let ly2=dot(m[1],m[1]);let lz2=dot(m[2],m[2]);
+ let s=abs(m[0])+abs(m[1])+abs(m[2]);let t=s.x+s.y+s.z;
+ if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return false;}
+ let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
+ let lx2=dot(a,a);let ly2=dot(b,b);let lz2=dot(c,c);
  let maxl=max(lx2,max(ly2,lz2));let minl=min(lx2,min(ly2,lz2));
- if(maxl>minl*1.0001+1e-12){return false;}
- let eps=maxl*1e-4+1e-12;
- return abs(dot(m[0],m[1]))<=eps&&abs(dot(m[0],m[2]))<=eps&&abs(dot(m[1],m[2]))<=eps;
+ if(maxl>minl*1.0001){return false;}
+ let eps=maxl*1e-4;
+ return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
 }
 /** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances, memes operandes. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
