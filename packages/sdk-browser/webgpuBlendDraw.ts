@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
-import { directLightResources } from './webgpuPagesEncodeLights.ts';
+import { directLightResources } from './webgpuPagesLightResources.ts';
 import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
