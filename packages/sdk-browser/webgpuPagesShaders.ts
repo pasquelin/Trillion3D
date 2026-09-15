@@ -1,3 +1,4 @@
+import { ACES_WGSL } from './deferredLightingShaders.ts';
 import { DECLARED_LIGHTING_WGSL } from './directLightingWgsl.ts';
 import { bounceApplyWgsl } from './bounceApplyWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
@@ -27,14 +28,7 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  let corner=vertexIndex%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  return out;
-}
-fn aces(color:vec3f)->vec3f{
- var c=color/0.6;
- c=mat3x3f(vec3f(0.59719,0.07600,0.02840),vec3f(0.35458,0.90834,0.13383),vec3f(0.04823,0.01566,0.83777))*c;
- let a=c*(c+0.0245786)-0.000090537;let b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
- c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
- return clamp(c,vec3f(0.0),vec3f(1.0));
-}
+}${ACES_WGSL}
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
 ${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut)->@location(0) vec4f{
@@ -77,14 +71,6 @@ ${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
-fn aces(color:vec3f)->vec3f{
- var c=color/0.6;
- c=mat3x3f(vec3f(0.59719,0.07600,0.02840),vec3f(0.35458,0.90834,0.13383),vec3f(0.04823,0.01566,0.83777))*c;
- let a=c*(c+0.0245786)-0.000090537;let b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
- c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
- return clamp(c,vec3f(0.0),vec3f(1.0));
-}
-fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
 ${TRIANGLE_PALETTE_WGSL}
 // A paged transparent primitive draws one instance per cluster the GPU compaction kept, in the
 // order the compaction wrote them, which is the source order the scene recorded. An unpaged one
