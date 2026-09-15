@@ -2,15 +2,27 @@ import { dropGpuSelection, dropVis } from './webgpuPagesDrops.ts';
 import { directLightTimings } from './stageMapping.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/**
+ * Les octets de sommets d'une image : le total tenu à l'allocation, plus les trois tampons
+ * concaténés du visbuffer. Le relevé est interrogé à chaque image et l'ensemble des pages
+ * résidentes en compte des milliers : il ne les resomme plus, il lit le compteur.
+ */
+export function vertexBytesOf(
+  gpu: Pick<WebgpuPagesRuntime['gpu'], 'vertexBytes'>,
+  vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv' | 'concatNrm'>,
+) {
+  return (
+    gpu.vertexBytes +
+    (vis.concatPos?.size ?? 0) +
+    (vis.concatUv?.size ?? 0) +
+    (vis.concatNrm?.size ?? 0)
+  );
+}
+
 export function metricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, blendState, services, lights } = rt;
   const stats = gpu.cache?.stats();
-  let vertexBytes = 0;
-  for (const buffer of gpu.positionBuffers.values()) vertexBytes += buffer.size;
-  vertexBytes +=
-    (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + (vis.concatNrm?.size ?? 0);
-  for (const item of blendState.blendGpu)
-    vertexBytes += (item.index?.size ?? 0) + (item.uv?.size ?? 0) + (item.normal?.size ?? 0);
+  const vertexBytes = vertexBytesOf(gpu, vis);
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   // What the occlusion test eliminated, from the path that ran it: the GPU verdicts of the last
   // image whose flags came back, or the CPU oracle's own image where no GPU test runs. Null when
@@ -93,6 +105,7 @@ export function disposeWebgpuPages(
   vis.visTexture = undefined;
   vis.visView = undefined;
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy();
+  gpu.vertexBytes = 0;
   for (const item of blendState.blendGpu) {
     item.index?.destroy();
     item.uv?.destroy();
