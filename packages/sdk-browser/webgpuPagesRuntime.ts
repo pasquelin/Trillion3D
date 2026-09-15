@@ -86,8 +86,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     colorAtlas: () => vis.colorAtlas,
     dataAtlas: () => vis.dataAtlas,
     order: priority.order,
-    onLevel: (slot, level) => {
-      const pyramid = vis.slotPyramids[slot - 1];
+    onLevel: (slot, level, pyramid) => {
       if (pyramid) vis.slots?.markLevel(slot, level, pyramid);
     },
     onColorReady: (slots) => vis.slots?.markReady(slots),

@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { TexturePreview } from '../sdk-core/index.ts';
 import { previewLevelSize } from '../sdk-core/index.ts';
 import type { textureRgba } from './visibilityBuffer.ts';
+import type { SlotPyramid } from './webgpuAtlasSlots.ts';
 
 /**
  * Le transfert d'un niveau de texture vers sa couche d'atlas, découpable en bandes de lignes.
@@ -24,6 +25,9 @@ export type TextureJob = {
   level: number;
   /** 0 pour un niveau progressif du sidecar, 1 pour la pleine résolution. */
   stage: number;
+  /** Les niveaux que sa texture attend ; seul un niveau progressif en porte, et la résidence de la
+   *  couche s'y lit sans table parallèle tenue à côté de la file. */
+  pyramid?: SlotPyramid;
   /** Octets du rectangle entier, soit `rows * bytesPerRow`. */
   bytes: number;
   rows: number;
@@ -93,12 +97,16 @@ export function previewLevelJobs(options: {
   preview: TexturePreview;
 }): TextureJob[] {
   const { device, texture, place, preview } = options;
+  const pyramid: SlotPyramid = {
+    first: preview.firstLevel,
+    last: preview.firstLevel + preview.levels.length - 1,
+  };
   const jobs: TextureJob[] = [];
   for (let index = preview.levels.length - 1; index >= 0; index--) {
     const level = preview.firstLevel + index;
     const [width, height] = previewLevelSize(preview.width, preview.height, level);
     const upload = writeRows(device, texture, level, place.layer, preview.levels[index], width);
-    jobs.push(textureJob('color', place, level, 0, height, width * 4, upload));
+    jobs.push({ ...textureJob('color', place, level, 0, height, width * 4, upload), pyramid });
   }
   return jobs;
 }

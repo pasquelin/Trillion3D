@@ -96,7 +96,6 @@ export function dropVis(rt: WebgpuPagesRuntime) {
       undefined;
   vis.slots?.destroy();
   vis.slots = undefined;
-  vis.slotPyramids = [];
   rows.pageTableFloats = undefined;
   rows.pageTableInts = undefined;
   rows.rowPageIndex.fill(-1);

@@ -4,13 +4,7 @@ import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
 import { prepareWebgpuAtlas } from './webgpuAtlasCommon.ts';
 import { createWebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
 import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
-import {
-  PREVIEW_BASE,
-  TEXTURE_PREVIEW_VERSION,
-  previewFirstLevel,
-  previewLastLevel,
-  type TexturePreview,
-} from '../sdk-core/index.ts';
+import { PREVIEW_BASE, TEXTURE_PREVIEW_VERSION, type TexturePreview } from '../sdk-core/index.ts';
 import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -110,14 +104,6 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   gpuDevice.queue.submit([fallbackEncoder.finish()]);
   vis.dataAtlas = dataAtlas;
   vis.slots = createWebgpuAtlasSlots(gpuDevice, colorAtlas.slotWords, dataAtlas.slotWords);
-  vis.slotPyramids = maps.map((_map, index) => {
-    const preview = previewFor(index);
-    if (!preview) return undefined;
-    return {
-      first: previewFirstLevel(preview.width, preview.height),
-      last: previewLastLevel(preview.width, preview.height),
-    };
-  });
   // La chaîne de mips du remplissage se fait une fois, avant la pompe : les niveaux progressifs
   // écrasent ensuite ceux de leur couche, et la pleine résolution les fait tous régénérer.
   for (const atlas of [colorAtlas, dataAtlas])
@@ -146,7 +132,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     progressiveLevels: {
       version: TEXTURE_PREVIEW_VERSION,
       base: PREVIEW_BASE,
-      withLevels: vis.slotPyramids.filter(Boolean).length,
+      withLevels: maps.filter((_map, index) => previewFor(index)).length,
       format: 'rgba8unorm-srgb',
     },
     preparationMs: performance.now() - textureStarted,
