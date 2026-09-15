@@ -49,7 +49,7 @@
     "unsupported": {},
     "notes": [],
     "manifestBinaryVersion": 4,
-    "sidecarSha256": "32b81b1eab8c6b87a2abad73f7ea5cab3b4094b2cbe61e54d8df9995d83b2a0e",
+    "sidecarSha256": "fa4789634a3d23454a13a3026e18acd5a7f9ea26b9da2cd6d2fd5d49e36e21e6",
     "primitives": 1,
     "selectedNodes": [0, 4, 8],
     "totalNodes": 3,
