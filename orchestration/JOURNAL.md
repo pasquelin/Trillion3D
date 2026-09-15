@@ -1741,3 +1741,18 @@ fragment, et l'étape Ombres reste dans le bruit.
   d'un texel ou plus en incidence rasante : fidélité avant vitesse, ce n'est pas activé.
 - Les cartes d'ombre sont dessinées avec la sélection de la caméra : un occulteur résident mais hors
   de la coupe caméra ne projette rien. Le rejet ne change pas cela, il le préserve.
+
+### Banc bloqué au sommet de `develop` (constat, pas une conséquence de ce lot)
+
+Depuis la fusion des textures progressives (`e443bc6`, qui porte `MANIFEST_BINARY_VERSION = 3`), le
+cache Emerald du Lab — écrit en version 2 — n'est plus lisible : `Expected manifest binary version 3,
+received 2`, levé par `develop` seul, sans aucune ligne de ce lot. Le banc Emerald est donc
+inutilisable pour tout le monde tant que ce cache n'est pas recompilé, et aucun agent n'écrit dans
+`public/benchmark-assets`.
+
+Conséquence pour ce lot : les mesures et la porte de fidélité ci-dessus ont été jouées face à
+`ee04fd1`, dernier socle où le banc chargeait. Le rebasage sur `6206fe2` n'a demandé qu'une
+adaptation mécanique — les deux liaisons de l'atlas d'aperçu ajoutées au groupe de la passe d'ombre,
+par la fabrique commune `visBindEntries`, et le test de masque partagé qui prend la branche d'aperçu
+de `develop`. `npm run validate` est vert sur ce socle (550 tests), mais l'image n'y a pas été
+rejouée.
