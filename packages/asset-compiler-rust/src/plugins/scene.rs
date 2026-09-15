@@ -13,6 +13,7 @@ use std::{
 
 mod alembic;
 mod archive;
+mod blend;
 mod fbx;
 mod gltf;
 mod obj;
@@ -33,6 +34,7 @@ pub static PLUGINS: &[&dyn ScenePlugin] = &[
     &fbx::FBX,
     &obj::OBJ,
     &unity::UNITY,
+    &blend::BLEND,
     &zip::ZIP,
     &unitypackage::UNITYPACKAGE,
     &alembic::ALEMBIC,
