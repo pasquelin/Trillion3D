@@ -157,6 +157,10 @@ fn encode_level(texels: &[[f32; 4]], scale: f32, out: &mut Vec<u8>) {
 }
 
 /// Les 256 valeurs d'octet sRGB en linéaire, construites une fois pour toute la compilation.
+///
+/// La même courbe qu'`albedo.rs::srgb_to_linear`, mais en `f32` : 214 des 256 entrées diffèrent de
+/// la version `f64` arrondie, et la moyenne de boîte s'accumule en `f32` puis en `f64`. Remplacer
+/// la table par un appel changerait les octets de l'aperçu ; les deux exemplaires restent.
 fn srgb_table() -> &'static [f32; 256] {
     static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
