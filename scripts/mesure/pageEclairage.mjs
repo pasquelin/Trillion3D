@@ -5,9 +5,17 @@ export async function measureView(options) {
   if (!factory) return { erreur: `moteur absent du dist : ${options.backend}` };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
-  const lost = [];
+  // Ce que la carte graphique a signalé — contexte WebGL perdu, erreur non capturée, appareil
+  // perdu —, publié sur la page au fur et à mesure : une image qui échoue emporte sa pile d'appels,
+  // jamais la cause, et le banc vient la chercher là.
+  const lost = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
   const explorer = await sdk.createExplorer(canvas, {
+    onDiagnostic: (event) => {
+      if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
+      const cause = event.context ?? {};
+      lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);
+    },
     manifestUrl: options.manifestUrl,
     scope: 'full',
     width: options.width,
@@ -36,14 +44,14 @@ export async function measureView(options) {
       : {}),
     ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
   });
-  // Ce que le fichier a apporté, relevé avant tout ajout du banc. Un dist plus ancien que le lot
-  // d'import des lampes n'a pas cette fonction : la mesure rend `null`, jamais un compte inventé.
+  // Ce que le fichier a apporté, avant tout ajout du banc. Un dist plus ancien que le lot d'import
+  // des lampes n'a pas cette fonction : la mesure rend `null`, jamais un compte inventé.
   const declared = typeof explorer.importedLights === 'function' ? explorer.importedLights() : null;
   const importedLights = declared
     ? { nombre: declared.length, ids: declared.map((light) => light.id) }
     : null;
   // Les lampes du contrat, posées par la règle générique du harnais et passées ici en données : la
-  // page ne calcule aucune position, elle n'invente aucune scène.
+  // page ne calcule aucune position et n'invente aucune scène.
   for (const light of options.lights ?? []) explorer.addLight(light);
   const moving = options.moving;
   // Une lampe en mouvement : un petit cercle, appliqué avant chaque image mesurée.
@@ -59,11 +67,9 @@ export async function measureView(options) {
     });
   };
   const pose = options.pose;
-  // Une pose par image quand la caméra bouge, la même à chaque image sinon.
-  // Un objet en mouvement : le nœud que l'hôte a nommé prend une matrice monde dont la translation
-  // parcourt un petit cercle. Le premier appel le pose à l'origine du monde — un grand saut, une
-  // seule fois — puis les pas suivants sont petits, ce qui est exactement le cas que
-  // l'invalidation par pages doit traiter. Un nom absent de la scène est consigné, jamais ignoré.
+  // Un objet en mouvement : le nœud nommé par l'hôte parcourt un petit cercle. Le premier appel le
+  // pose à l'origine du monde — un grand saut, une seule fois — puis les pas suivants sont petits,
+  // le cas même que l'invalidation par pages traite. Un nom absent est consigné, jamais tu.
   const node = options.movingNode;
   let movingNode = null;
   const moveNode = (frame) => {
@@ -82,8 +88,8 @@ export async function measureView(options) {
     }
   };
   const poses = options.poses;
-  // La dernière pose rendue : c'est elle que la vidange de la file d'ombres rejoue, pour que la
-  // capture qui suit soit exactement celle des lots précédents.
+  // La dernière pose rendue, celle que la vidange de la file d'ombres rejoue : la capture qui suit
+  // est alors exactement celle des lots précédents. Une pose par image quand la caméra bouge.
   let current = pose;
   const poseAt = (frame) => {
     current = poses ? poses[frame % poses.length] : pose;
@@ -109,12 +115,10 @@ export async function measureView(options) {
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
   }
   await explorer.flush();
-
   // Le profil par étape est relevé par une boucle à part, après la mesure : la boucle mesurée reste
-  // strictement celle des lots précédents, sinon ses durées ne se compareraient plus. Ici on rend la
-  // main au navigateur entre deux images, parce que les relevés d'horodatage reviennent par une
-  // promesse : une boucle qui n'attend jamais n'en récupère presque aucun. La fenêtre est d'abord
-  // vidée pour que la chauffe et les premières images ne pèsent plus sur les quantiles.
+  // celle des lots précédents, sinon ses durées ne se compareraient plus. On rend ici la main au
+  // navigateur entre deux images, parce que les relevés d'horodatage reviennent par une promesse et
+  // qu'une boucle qui n'attend jamais n'en récupère presque aucun ; la fenêtre est vidée d'abord.
   let stageProfile = null;
   if (options.stageProfile) {
     explorer.resetStageProfile();
@@ -129,10 +133,9 @@ export async function measureView(options) {
     }
     stageProfile = explorer.stageProfile();
   }
-
-  // La file des pages d'ombre est vidée avant toute lecture de l'atlas : une page encore en attente
-  // porte évidemment l'ancienne profondeur, et l'empreinte ne prouverait rien. La boucle est bornée
-  // et le compte restant est publié tel quel, jamais supposé nul.
+  // La file des pages d'ombre est vidée avant toute lecture de l'atlas : une page en attente porte
+  // l'ancienne profondeur, et l'empreinte ne prouverait rien. La boucle est bornée, et le compte
+  // restant est publié tel quel, jamais supposé nul.
   let shadowAtlas = null;
   if (options.shadowDigest && typeof explorer.shadowAtlasDigest === 'function') {
     let pending = null,
@@ -146,7 +149,6 @@ export async function measureView(options) {
     const digest = await explorer.shadowAtlasDigest();
     shadowAtlas = digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
   }
-
   // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
   const rgba = explorer.capture();
   const body = rgba.buffer.slice(rgba.byteOffset, rgba.byteOffset + rgba.byteLength);
@@ -154,14 +156,12 @@ export async function measureView(options) {
     `/capture?file=${encodeURIComponent(options.captureFile)}&w=${canvas.width}&h=${canvas.height}`,
     { method: 'POST', body },
   );
-
   // L'ensemble sélectionné, lu sans aucune API ajoutée pour la mesure. WebGPU publie
-  // `selectedPageIds()`. Le chemin WebGL n'a pas d'équivalent : hors du mode beauté le moteur
-  // attache un maillage par page affichée et y dépose son `clusterId`. Le mode `pages` et non
-  // `clusters` : `clusters` teinte chaque page de sa propre couleur, donc un matériau et un
-  // programme de nuanceur par cluster — 80 153 sur Emerald, de quoi épuiser le pilote et faire
-  // échouer l'édition de liens. `pages` n'en a que deux et donne exactement les mêmes maillages.
-  // Les deux sources ne se comparent pas entre elles ; le rapport dit laquelle a servi.
+  // `selectedPageIds()` ; le chemin WebGL n'a pas d'équivalent, mais hors du mode beauté il attache
+  // un maillage par page affichée et y dépose son `clusterId`. Le mode `pages` et non `clusters` :
+  // `clusters` teinte chaque page de sa couleur, donc un nuanceur par cluster — 80 153 sur Emerald,
+  // de quoi épuiser le pilote —, quand `pages` n'en a que deux et rend les mêmes maillages. Les deux
+  // sources ne se comparent pas ; le rapport dit laquelle a servi.
   const backend = explorer.backends.find((candidate) => candidate.id === options.engineId);
   let selection = { source: null, ids: [] };
   if (backend && typeof backend.selectedPageIds === 'function')
