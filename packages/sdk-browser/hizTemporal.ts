@@ -28,15 +28,20 @@ export function sameHizView(
   );
 }
 
+/** La pyramide de la passe 1, distincte de celle de l'historique : les deux vivent dans la même
+ *  image, chacune garde son tampon d'une image sur l'autre. */
+let passPyramid: HizPyramid | undefined;
+
 /** Retient l'image qui vient d'être rasterisée : la caméra est recopiée dans celle que l'historique
- *  garde déjà, jamais clonée, et le viewport réécrit sur place. Même pose, sans allocation. */
+ *  garde déjà, jamais clonée, la pyramide réécrite dans son propre tampon et le viewport sur place.
+ *  Même pose, même pyramide, sans allocation. */
 function retiens(
   history: TemporalHizState,
   camera: THREE.PerspectiveCamera,
   viewport: [number, number],
   depth: Float32Array,
 ) {
-  history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1]);
+  history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1], history.pyramid);
   history.camera = (history.camera ?? new THREE.PerspectiveCamera()).copy(camera, false);
   if (!history.viewport) history.viewport = [viewport[0], viewport[1]];
   else {
@@ -95,8 +100,8 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
   }
 
   const visPass1 = rasterVisibility(occluders, camera, viewport);
-  const currentPyramid = buildHizPyramid(visPass1.depth, viewport[0], viewport[1]);
-  const disoccluded = countUnoccluded(rest, currentPyramid, camera, viewport, counts);
+  passPyramid = buildHizPyramid(visPass1.depth, viewport[0], viewport[1], passPyramid);
+  const disoccluded = countUnoccluded(rest, passPyramid, camera, viewport, counts);
   const shown = [...occluders, ...disoccluded];
 
   retiens(history, camera, viewport, rasterVisibility(shown, camera, viewport).depth);

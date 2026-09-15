@@ -1,24 +1,30 @@
 import * as THREE from 'three';
-import { HIZ_BACKGROUND, hizBuildPyramid } from '../sdk-core/index.ts';
+import { HIZ_BACKGROUND, hizBuildFlat } from '../sdk-core/index.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
 import type { VisPage } from './visibilityBuffer.ts';
 import type { HizPyramid } from './hizTypes.ts';
 
 const viewProjScratch = new THREE.Matrix4();
 
-function rowsOf(depth: Float32Array, width: number, height: number) {
-  const rows: number[][] = [];
-  for (let y = 0; y < height; y++) {
-    const row = new Array<number>(width);
-    for (let x = 0; x < width; x++) row[x] = depth[y * width + x];
-    rows.push(row);
-  }
-  return rows;
-}
-/** Standard Hi-Z pyramid from visbuffer depth (background 1, max reduction). */
-export function buildHizPyramid(depth: Float32Array, width: number, height: number): HizPyramid {
+/**
+ * Standard Hi-Z pyramid from visbuffer depth (background 1, max reduction). La pyramide est plate :
+ * un seul tampon pour tous les niveaux. `into` la reprend d'une image sur l'autre — même taille,
+ * mêmes décalages, aucune ligne réallouée ; sinon une pyramide neuve est posée.
+ */
+export function buildHizPyramid(
+  depth: Float32Array,
+  width: number,
+  height: number,
+  into?: HizPyramid,
+): HizPyramid {
   if (width < 1 || height < 1 || depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE');
-  return { levels: hizBuildPyramid(rowsOf(depth, width, height)), width, height };
+  const flat = hizBuildFlat(depth, width, height, into);
+  if (into) {
+    into.width = width;
+    into.height = height;
+    return into;
+  }
+  return { ...flat, width, height };
 }
 
 /** NDC z of the visbuffer winner. Background pixels stay 1. Les sommets d'un triangle ne sont

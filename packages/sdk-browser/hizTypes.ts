@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { HizFlat } from '../sdk-core/index.ts';
 
 export type HizPage = {
   min: number[];
@@ -15,4 +16,5 @@ export type HizBounds = {
   nearestDepth: number;
   clipsNear: boolean;
 };
-export type HizPyramid = { levels: number[][][]; width: number; height: number };
+/** La pyramide plate du chemin par image, avec la taille de l'image qu'elle décrit. */
+export type HizPyramid = HizFlat & { width: number; height: number };
