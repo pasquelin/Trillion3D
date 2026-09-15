@@ -10,7 +10,7 @@
 //   node --expose-gc --experimental-strip-types packages/sdk-browser/bench/volumes.bench.mjs
 //
 // `VOLUMES_REPETITIONS` (20 par défaut, jamais moins pour une campagne), `VOLUMES_CHAUFFE` (5) et
-// `VOLUMES_SORTIE` (chemin du JSON, sinon `orchestration/mesures/volumes-m2-<date>.json`).
+// `VOLUMES_SORTIE` (chemin du JSON, sinon `.mesure/out/calculs/volumes-m2-<date>.json`).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { RACINE, compare } from '../../sdk-core/bench/banc.mjs';
@@ -65,7 +65,7 @@ if (sousNodeTest) {
   console.log(tableau(entete, performance));
   const sortie =
     process.env.VOLUMES_SORTIE ??
-    join(RACINE, 'orchestration', 'mesures', `volumes-m2-${entete.date.slice(0, 10)}.json`);
+    join(RACINE, '.mesure', 'out', 'calculs', `volumes-m2-${entete.date.slice(0, 10)}.json`);
   mkdirSync(dirname(sortie), { recursive: true });
   writeFileSync(
     sortie,
