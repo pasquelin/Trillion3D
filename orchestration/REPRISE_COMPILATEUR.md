@@ -19,10 +19,7 @@ permissive citée dans `Cargo.toml`. `check:changed` en worktree : lien `node_mo
 
 **État courant.** Onze pilotes de scène, douze pilotes d'image, tous listés dans
 `packages/asset-compiler-rust/FORMATS.md`. `psd` fusionné, `bmp-gif` livré (6cebbd8).
-`ma` **non livré** : agent arrêté par l'utilisateur le 15 sept. 2026 à 21 h 30 ; worktree
-`agent-a2c029f4d59f598cd`, branche `compilateur/ma` (0606e32 sur 0fd6834), `fixtures/ma/expected.json`
-régénéré non commis ; reste à commettre, rejouer `cargo test --locked`, livrer. Worktrees psd et
-bmp-gif : retirés par le Validateur après push.
+`ma` livré (aacd009, portes vertes) au Validateur le 15 sept. 2026 à 21 h 55 ; worktrees psd, bmp-gif, ma retirés par le Validateur après push. Vague 5 close.
 
 **À faire ensuite.** Un seul Opus à la fois, sur reprise explicite : `compilateur/mtl` d'abord (dorée
 `obj`, MTL absent/tronqué en rapport nommé, `Ks`/`Ni`/`Ka` comptés, garde bump/normal, options de map
