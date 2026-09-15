@@ -27,7 +27,7 @@ Audit du 15 sept. 2026 : 58 constats, dix lots A–J ordonnés dans `AUDIT_PLUGI
 | Lot | État |
 | --- | --- |
 | A cache OBJ, URI, MTL | en cours (Opus, branche `compilateur/lot-a-obj-mtl`) |
-| B n-gones concaves | à lancer après A |
+| B n-gones concaves | à lancer à la prochaine reprise (arrêt demandé après A) |
 | C à J | à lancer dans l'ordre |
 
 Sur go de l'utilisateur seulement : blocs gardés sur GPU (DDS, KTX2), Draco/meshopt en entrée, Industrial Map au
