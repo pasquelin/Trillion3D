@@ -1,6 +1,10 @@
 use super::*;
 
-pub(super) fn referenced_objects(json: &Value, binary: Option<&[u8]>, into: &mut BTreeSet<String>) {
+pub(super) fn referenced_objects(
+    json: &Value,
+    binary: Option<&[u8]>,
+    into: &mut BTreeSet<String>,
+) -> Result<()> {
     fn walk(value: &Value, into: &mut BTreeSet<String>) {
         match value {
             Value::Object(map) => {
@@ -26,10 +30,34 @@ pub(super) fn referenced_objects(json: &Value, binary: Option<&[u8]>, into: &mut
     }
     walk(json, into);
     if let Some(bytes) = binary {
-        if let Ok(digests) = manifest_binary::digests(bytes) {
-            into.extend(digests);
-        }
+        // Un sidecar d'une autre version range ses colonnes autrement : le lire comme « aucun objet
+        // référencé » ferait supprimer des pages encore utilisées, donc le format inconnu est refusé.
+        into.extend(manifest_binary::digests(bytes).map_err(|e| {
+            CompilerError::new(
+                "UNSUPPORTED_FORMAT",
+                format!("Cached manifest binary is not readable by this compiler: {e}"),
+            )
+        })?);
     }
+    Ok(())
+}
+/// Les objets qu'un scope qu'on ne recompile pas nomme. Ses pages ne vivent que dans les colonnes de
+/// son sidecar : sans sidecar lisible, aucune purge ne peut décider quoi garder, donc elle échoue
+/// et ne supprime rien plutôt que de compter ce scope pour zéro objet.
+fn other_scope_objects(dir: &Path, into: &mut BTreeSet<String>) -> Result<()> {
+    let Ok(text) = fs::read(dir.join("clusters.json")) else {
+        return Ok(());
+    };
+    let binary = fs::read(dir.join(MANIFEST_BINARY_FILE)).map_err(|e| {
+        CompilerError::new(
+            "UNSUPPORTED_FORMAT",
+            format!(
+                "Cached manifest of {} has no readable sidecar: {e}",
+                dir.display()
+            ),
+        )
+    })?;
+    referenced_objects(&serde_json::from_slice(&text)?, Some(&binary), into)
 }
 /// After a successful compile, remove the other keys of this scope and every object no surviving
 /// manifest references. Objects are shared across scopes, so the other scope's manifest is read too.
@@ -42,7 +70,7 @@ pub(super) fn prune_cache(
 ) -> Result<Value> {
     let native = o.cache.join("native");
     let mut keep = BTreeSet::new();
-    referenced_objects(result, None, &mut keep);
+    referenced_objects(result, None, &mut keep)?;
     let mut removed_keys = 0usize;
     for scope in ["slice", "full"] {
         let dir = native.join(scope);
@@ -58,6 +86,13 @@ pub(super) fn prune_cache(
                 .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
                 .and_then(|p| p["key"].as_str().map(str::to_owned))
         };
+        // L'autre scope est lu avant la moindre suppression : un sidecar absent ou d'une autre
+        // version arrête la purge, cache intact, au lieu d'effacer les pages qu'il utilise encore.
+        if scope != o.scope {
+            if let Some(name) = current.as_deref() {
+                other_scope_objects(&dir.join(name), &mut keep)?;
+            }
+        }
         for entry in entries {
             let entry = entry?;
             if !entry.file_type()?.is_dir() {
@@ -68,21 +103,6 @@ pub(super) fn prune_cache(
             if current.as_deref() != Some(name) {
                 fs::remove_dir_all(entry.path())?;
                 removed_keys += 1;
-                continue;
-            }
-            if scope == o.scope {
-                continue;
-            }
-            if let Ok(text) = fs::read(entry.path().join("clusters.json")) {
-                if let Ok(json) = serde_json::from_slice::<Value>(&text) {
-                    referenced_objects(
-                        &json,
-                        fs::read(entry.path().join(MANIFEST_BINARY_FILE))
-                            .ok()
-                            .as_deref(),
-                        &mut keep,
-                    );
-                }
             }
         }
     }

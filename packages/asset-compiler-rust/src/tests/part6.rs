@@ -154,7 +154,7 @@ fn pruning_one_scope_keeps_the_objects_the_other_scope_needs() {
     assert!(dir.join("clusters.json").exists());
     let bin = fs::read(dir.join(MANIFEST_BINARY_FILE)).expect("bin");
     let mut digests = BTreeSet::new();
-    referenced_objects(&json!({}), Some(&bin), &mut digests);
+    referenced_objects(&json!({}), Some(&bin), &mut digests).expect("digests of the full scope");
     assert!(!digests.is_empty(), "binary columns carry the page digests");
     for digest in &digests {
         assert!(
