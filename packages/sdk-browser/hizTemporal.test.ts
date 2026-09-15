@@ -8,16 +8,15 @@ import {
   buildHizPyramid,
   createBoxCorners,
   filterUnoccluded,
-  projectBoxToScreen,
   projectBoxesFlat,
-  splitOccluders,
   splitOccludersFlat,
   visibilityDepth,
   applyTemporalHiz,
   type HizPage,
   type TemporalHizState,
 } from './hiz.ts';
-import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
+import { splitOccludersInto } from './hizSplit.ts';
+import { cameraAt, projectBoxToScreen, quad } from '../../test/fixtures/hiz.ts';
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {
   const frontMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -27,7 +26,9 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
   const selected = [front.page, back.page];
-  const { occluders, rest } = splitOccluders(selected, cam, size);
+  const occluders: HizPage[] = [],
+    rest: HizPage[] = [];
+  splitOccludersInto(selected, cam, size, occluders, rest);
   assert.deepEqual(
     occluders.map((page) => page.url),
     ['front'],
@@ -159,9 +160,12 @@ test('flat projection and split reproduce the object forms to the bit, including
   const rest = new Uint8Array(pages.length),
     occluders = splitOccludersFlat(pages.length, flat, rest);
   const tagged = pages.map((page, index) => ({ ...page, tag: index }));
-  const reference = splitOccluders(tagged, camera, viewport);
-  assert.equal(occluders, reference.occluders.length);
-  const referenceOccluders = new Set(reference.occluders.map((page) => page.tag));
+  const referenceOccluders: (HizPage & { tag: number })[] = [],
+    referenceRest: (HizPage & { tag: number })[] = [];
+  splitOccludersInto(tagged, camera, viewport, referenceOccluders, referenceRest);
+  assert.equal(occluders, referenceOccluders.length);
+  assert.equal(referenceOccluders.length + referenceRest.length, tagged.length);
+  const referenceOccluderTags = new Set(referenceOccluders.map((page) => page.tag));
   for (let i = 0; i < pages.length; i++)
-    assert.equal(rest[i] === 0, referenceOccluders.has(i), `page ${i}`);
+    assert.equal(rest[i] === 0, referenceOccluderTags.has(i), `page ${i}`);
 });
