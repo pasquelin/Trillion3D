@@ -9,8 +9,8 @@ import type { PageDecodeAnswer } from '../sdk-core/index.ts';
 
 const SOURCE = new URL('./pageDecodeWorker.ts', import.meta.url);
 
-/** Le prochain message reçu du worker, ou un délai écoulé sans rien recevoir. */
-function next(worker: NodeDomWorker, timeoutMs = 300): Promise<PageDecodeAnswer | null> {
+/** Le prochain message reçu du worker, ou un délai écoulé sans rien recevoir. Le délai est large : sur une machine chargée, le démarrage du worker dépasse la seconde, et les assertions portent sur l’identifiant reçu, jamais sur le temps. */
+function next(worker: NodeDomWorker, timeoutMs = 10_000): Promise<PageDecodeAnswer | null> {
   return new Promise((resolve) => {
     const minuteur = setTimeout(() => resolve(null), timeoutMs);
     worker.onmessage = (event: { data: unknown }) => {
