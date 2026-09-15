@@ -4,6 +4,8 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 
 ## Rôle
 
+- **Périmètre, dit par l'utilisateur le 15 septembre 2026 au soir : ce qui est fusionné dans `develop`, et rien d'autre.** Le validateur juge ce qui entre dans `develop` (/simplify du diff, portes, `npm run validate`, push, nettoyage du fusionné) et ne se mêle ni des plans, ni des lots, ni des choix de conception des autres sessions. Un avis donné à une session reste un avis : elle décide dans son périmètre, le validateur décide au moment où le code arrive dans `develop`.
+
 - Le validateur est la **seule** session qui pousse sur `origin`. Il pousse `develop` et rien d'autre : `main` ne se pousse que sur demande explicite de l'utilisateur.
 - Les autres sessions (Calculs, Compilateur, Lumière, Geometry) fusionnent **en local** dans `develop` (et `main` suit en local). Elles ne poussent jamais. Si `origin/develop` bouge sans le validateur, leur rappeler l'interdiction par message.
 - Le validateur ne code pas lui-même : lecture et revue par agents Sonnet, correctifs par agents Opus. Il fusionne, lance les portes, pousse et nettoie.
