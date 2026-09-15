@@ -21,6 +21,7 @@ function banc() {
     shown,
     urlScratch: [] as string[],
     pendingScratch: [] as string[],
+    hostPendingScratch: [] as string[],
     coverageBudgetLimited: false,
     cutHeld: false,
     pageArrayEpoch: 0,
@@ -47,6 +48,16 @@ const parEnsemble = (listes: readonly (readonly PageRec[])[]) => {
       }
   return urls;
 };
+
+test('le suivi du rendu écrit dans son propre tableau, jamais dans la liste tenue', () => {
+  const { rt, run } = banc();
+  const attendue = pendingUrls(rt);
+  run.cutHeld = true;
+  // Ce que `reportProgress` fait toutes les deux secondes, dans le tableau qui lui reste.
+  run.pendingScratch.length = 0;
+  run.pendingScratch.push('intrus');
+  assert.deepEqual(pendingUrls(rt), attendue, 'la liste tenue n’a pas été écrasée');
+});
 
 test('les deux listes rendent ce qu’un ensemble de chaînes rendait, dans le même ordre', () => {
   const { rt, run, desired } = banc();
