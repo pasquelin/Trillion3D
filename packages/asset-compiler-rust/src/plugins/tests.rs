@@ -8,6 +8,7 @@ mod image_registry;
 mod router;
 mod tga;
 mod tiff;
+mod webp;
 
 /// Les octets d'un fichier réel du corpus, rangé dans `fixtures/<dossier>/`.
 fn fixture(folder: &str, name: &str) -> Vec<u8> {
