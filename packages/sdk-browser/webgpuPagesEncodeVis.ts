@@ -13,6 +13,7 @@ import {
   encodeSmallTriangles,
   ensureGpuSmall,
   ensureVisBindings,
+  surfaceColorAttachments,
 } from './webgpuPagesEncodeVisSetup.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -94,12 +95,7 @@ export function encodeVis(
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
   const shadePass = encoder.beginRenderPass({
     label: 'WG material surfaces v1',
-    colorAttachments: gpu.surfaces.views().map((view) => ({
-      view,
-      loadOp: 'clear' as const,
-      storeOp: 'store' as const,
-      clearValue: [0, 0, 0, 0],
-    })),
+    colorAttachments: surfaceColorAttachments(gpu.surfaces),
   });
   shadePass.setViewport(0, 0, width, height, 0, 1);
   if (vis.shadeBindGroup) {
