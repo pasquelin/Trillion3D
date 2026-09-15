@@ -110,7 +110,7 @@ export async function mediane(tour, options = {}) {
 /** Les deux tours alternent un à un. Mesurer l'un après l'autre donne au premier une avance qui
  *  atteint des dizaines de pour cent sur une machine chargée — tas rangé, caches chauds, fréquence
  *  qui retombe — et noie les gains modestes. En alternant, la dérive touche les deux également. */
-export async function medianeAlternee(tourA, tourB, options = {}) {
+async function medianeAlternee(tourA, tourB, options = {}) {
   const { chauffe = 20, tours = 200, budgetMs = 2000 } = options;
   for (let i = 0; i < chauffe; i++) {
     await tourA();
