@@ -4,12 +4,30 @@ import assert from 'node:assert/strict';
 // banc) contre l'implémentation optimisée importée du paquet, sur les mêmes entrées. Une ligne du
 // tableau n'est « retenue » que si les deux sorties sont identiques au bit près ET que la mesure
 // montre un gain. Les copies de référence sont des doublons voulus : c'est l'oracle.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const FRAGMENTS = join(RACINE, '.mesure', 'calculs');
+
+/** Le commit mesuré, ou `null` : une mesure sans provenance n'en est pas une. */
+export function commit() {
+  try {
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: RACINE, encoding: 'utf8' }).trim();
+  } catch {
+    return null;
+  }
+}
+
+/** Les fragments déposés par les fichiers de banc d'un lot, remis dans l'ordre des points. */
+export function fragments(dossier) {
+  return readdirSync(dossier)
+    .filter((nom) => nom.endsWith('.json'))
+    .flatMap((nom) => JSON.parse(readFileSync(join(dossier, nom), 'utf8')))
+    .sort((a, b) => Number(a.calcul.slice(1, 3).trim()) - Number(b.calcul.slice(1, 3).trim()));
+}
 
 /** Générateur pseudo-aléatoire à graine fixe : deux exécutions voient exactement les mêmes entrées. */
 export function graine(depart) {
@@ -82,7 +100,7 @@ function ecart(a, b, chemin = '', profondeur = 0) {
  * Médiane en millisecondes d'un tour complet : échauffement, puis N tours ou le budget de temps.
  * Le tour est attendu, qu'il rende une promesse ou non : les deux côtés paient la même attente.
  */
-async function mediane(tour, options = {}) {
+export async function mediane(tour, options = {}) {
   const { chauffe = 20, tours = 200, budgetMs = 2000 } = options;
   for (let i = 0; i < chauffe; i++) await tour();
   const durees = [];
