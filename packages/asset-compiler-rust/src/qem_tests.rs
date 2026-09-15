@@ -69,3 +69,44 @@ fn compact_region_renumbers_each_vertex_once_and_maps_back() {
         }
     }
 }
+// Lot B4 : compact_region part de la borne connue (pas plus de sommets que de coins ni que le
+// maillage n'en porte) au lieu de doubler ses listes en route. Mêmes sorties sur des entrées
+// hostiles : maillage vide, un triangle, triangle dégénéré, indices hors des positions.
+#[test]
+fn compact_region_on_an_empty_mesh_returns_empty_lists() {
+    let (positions, indices, remap) = compact_region(&[], &[]);
+    assert!(positions.is_empty());
+    assert!(indices.is_empty());
+    assert!(remap.is_empty());
+}
+#[test]
+fn compact_region_on_a_single_triangle_keeps_every_vertex_once() {
+    let positions = [0., 0., 0., 1., 0., 0., 0., 1., 0.];
+    let indices = [0u32, 1, 2];
+    let (compact_pos, compact_idx, remap) = compact_region(&positions, &indices);
+    assert_eq!(remap, vec![0, 1, 2]);
+    assert_eq!(compact_idx, vec![0, 1, 2]);
+    assert_eq!(compact_pos, positions.to_vec());
+}
+#[test]
+fn compact_region_on_a_degenerate_triangle_renumbers_the_repeated_vertex_once() {
+    let positions = [0., 0., 0., 1., 0., 0., 0., 1., 0.];
+    // Un triangle dégénéré : les trois coins pointent sur le même sommet.
+    let indices = [0u32, 0, 0];
+    let (compact_pos, compact_idx, remap) = compact_region(&positions, &indices);
+    assert_eq!(remap, vec![0]);
+    assert_eq!(compact_idx, vec![0, 0, 0]);
+    assert_eq!(compact_pos, vec![0., 0., 0.]);
+}
+#[test]
+fn compact_region_falls_back_to_zero_for_an_index_beyond_the_positions() {
+    // Le maillage ne porte qu'un sommet, mais l'indice en référence un second : la source garde
+    // son identifiant d'origine dans remap, la position manquante devient [0,0,0].
+    let positions = [1., 2., 3.];
+    let indices = [0u32, 5];
+    let (compact_pos, compact_idx, remap) = compact_region(&positions, &indices);
+    assert_eq!(remap, vec![0, 5]);
+    assert_eq!(compact_idx, vec![0, 1]);
+    assert_eq!(&compact_pos[0..3], &[1., 2., 3.]);
+    assert_eq!(&compact_pos[3..6], &[0., 0., 0.]);
+}
