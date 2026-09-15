@@ -1,15 +1,15 @@
 # Journal d'orchestration WebGeometry
 
-## 2026-09-15 — [session Formules] migration hors Three.js : plan validé, en attente de go
+## 2026-09-15 — [session Calculs] migration hors Three.js : plan validé, en attente de go
 
 L'utilisateur a validé la démarche pour sortir les calculs de Three.js du moteur (environ 150 sites,
 lot T1 de `AUDIT_MATH_FORMULES.md`) : socle mathématique maison dans `sdk-core`, réutilisation des
 calculs existants, transformations et caméra possédées par le moteur, workers et WebAssembly réservés
 aux traitements lourds mesurés, preuve 0 px et banc contre Three à chaque lot. Spec R1a à R1f
-(`7930314`), lots M1 à M5, reprise dans `orchestration/REPRISE_FORMULES.md`. Aucun code touché ;
+(`7930314`), lots M1 à M5, reprise dans `orchestration/REPRISE_CALCULS.md`. Aucun code touché ;
 lancement de M1 et M2 sur go.
 
-## 2026-09-15 — [session Formules] doublons de formules factorisés, deux lots fusionnés
+## 2026-09-15 — [session Calculs] doublons de formules factorisés, deux lots fusionnés
 
 Suite du catalogue `AUDIT_MATH_FORMULES.md`. Deux Opus 5 en worktrees disjoints, règle : un nom
 générique parlant, l'ancien code remplacé à tous les sites, aucune copie survivante, résultat
@@ -211,7 +211,7 @@ session mesurait. Proposition à trancher : que `readOptions` **refuse toute opt
 pas** et sorte en nommant celles qu'elle accepte. Un harnais de mesure qui démarre sur une faute de
 frappe est un harnais qui fausse la mesure de quelqu'un d'autre.
 
-## 2026-09-15 — [session Formules] catalogue des formules mathématiques
+## 2026-09-15 — [session Calculs] catalogue des formules mathématiques
 
 Sur `develop` = `9bf2eb3`. Dix agents Sonnet 5 en lecture seule (trois Rust, un sdk-core, cinq
 sdk-browser, un scripts/sdk-node/page-codec) ont recensé toute fonction de calcul du dépôt, hors
