@@ -1,0 +1,189 @@
+[
+  {
+    "calcul": "boîte hors des six plans",
+    "fichier": "packages/sdk-browser/gpuDagOracleMath.ts",
+    "avantMs": 0.033562499999999995,
+    "apresMs": 0.037771,
+    "gain": -0.12539292364990703,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "400 jeux de plans × 400 boîtes hostiles",
+        "taille": 400
+      }
+    ]
+  },
+  {
+    "calcul": "erreur projetée du DAG de clusters",
+    "fichier": "packages/sdk-browser/gpuDagOracleMath.ts",
+    "avantMs": 0.11306250000000001,
+    "apresMs": 0.21035399999999999,
+    "gain": -0.8605107794361523,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "2 000 clusters, matrices hostiles",
+        "taille": 2000
+      }
+    ]
+  },
+  {
+    "calcul": "distance de vue du centre",
+    "fichier": "packages/sdk-browser/pageSelectionProjection.ts",
+    "avantMs": 0.1313125,
+    "apresMs": 0.2731665,
+    "gain": -1.0802779628748214,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "2 000 sphères",
+        "taille": 2000
+      }
+    ]
+  },
+  {
+    "calcul": "aire signée du triangle écran",
+    "fichier": "packages/sdk-browser/visibilityProjection.ts",
+    "avantMs": 0.048729,
+    "apresMs": 0.2863335,
+    "gain": -4.876038909068522,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "3 000 triangles hostiles",
+        "taille": 3000
+      }
+    ]
+  },
+  {
+    "calcul": "poids barycentriques affines",
+    "fichier": "packages/sdk-browser/visibilityProjection.ts",
+    "avantMs": 0.29633299999999996,
+    "apresMs": 0.0802495,
+    "gain": 0.7291914839049313,
+    "identique": true,
+    "retenu": true,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "3 000 triangles hostiles",
+        "taille": 3000
+      }
+    ]
+  },
+  {
+    "calcul": "barycentriques du tampon de visibilité",
+    "fichier": "packages/sdk-browser/visibilityMath.ts",
+    "avantMs": 0.110625,
+    "apresMs": 0.1260415,
+    "gain": -0.1393581920903955,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "3 000 triangles hostiles",
+        "taille": 3000
+      }
+    ]
+  },
+  {
+    "calcul": "socle d'identifiant de ligne",
+    "fichier": "packages/sdk-browser/webgpuPageRow.ts",
+    "avantMs": 0.09327150000000001,
+    "apresMs": 0.021457999999999998,
+    "gain": 0.7699404426861367,
+    "identique": true,
+    "retenu": true,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "2 000 rangs",
+        "taille": 2000
+      }
+    ]
+  },
+  {
+    "calcul": "lot borné par le budget en millisecondes",
+    "fichier": "packages/sdk-core/bounceBudget.ts",
+    "avantMs": 0.0461875,
+    "apresMs": 0.0222705,
+    "gain": 0.5178240866035183,
+    "identique": true,
+    "retenu": true,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "2 000 plafonds et charges",
+        "taille": 2000
+      }
+    ]
+  },
+  {
+    "calcul": "pixels d'appareil d'une dimension logique",
+    "fichier": "packages/sdk-browser/backendCommon.ts",
+    "avantMs": 0.025146,
+    "apresMs": 0.042729500000000004,
+    "gain": -0.6992563429571304,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "2 000 tailles et rapports",
+        "taille": 2000
+      }
+    ]
+  },
+  {
+    "calcul": "nanosecondes vers millisecondes",
+    "fichier": "packages/sdk-browser/gpuTimingTypes.ts",
+    "avantMs": 0.0542295,
+    "apresMs": 0.021582999999999998,
+    "gain": 0.6020062880904306,
+    "identique": true,
+    "retenu": true,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "2 000 durées",
+        "taille": 2000
+      }
+    ]
+  },
+  {
+    "calcul": "plancher du modèle mesuré",
+    "fichier": "scripts/mesure/poses.mjs",
+    "avantMs": 0.055396,
+    "apresMs": 0.0557085,
+    "gain": -0.005641201530796452,
+    "identique": true,
+    "retenu": false,
+    "difference": null,
+    "tours": 12,
+    "entrees": [
+      {
+        "nom": "1 000 emprises",
+        "taille": 1000
+      }
+    ]
+  }
+]
