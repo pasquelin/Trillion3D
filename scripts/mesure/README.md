@@ -60,17 +60,27 @@ au navigateur le contexte WebGL et le tas de la série précédente.
 
 ## Banc des calculs (`npm run bench:calculs`)
 
-`scripts/mesure/calculs/` compare, calcul par calcul, l'implémentation d'avant une optimisation à
-celle du paquet, sur les mêmes entrées : un fichier par domaine, `banc.mjs` pour le chronomètre,
-l'égalité bit à bit (`Object.is` sur chaque flottant, même ordre pour les tableaux, même contenu
-pour les Set et les Map) et le tableau, `scenes.mjs` pour les entrées — réalistes et hostiles :
+Les bancs et leurs oracles vivent dans le paquet mesuré, sous `packages/<paquet>/bench/` : la
+vérité de test d'un paquet lui appartient, et un banc atteint les modules du paquet par chemin
+relatif au lieu d'importer ses internes depuis l'extérieur. Un banc va donc dans le paquet dont il
+mesure le code : `packages/sdk-core/bench/` pour les deux points qui ne touchent que `sdk-core`,
+`packages/sdk-browser/bench/` pour tous les autres. Le harnais commun (`banc.mjs`, `bancF.mjs`) est
+dans `sdk-core/bench/`, le paquet de base : la dépendance va de `sdk-browser` vers `sdk-core`,
+jamais l'inverse.
+
+Ils comparent, calcul par calcul, l'implémentation d'avant une optimisation à celle du paquet, sur
+les mêmes entrées : un fichier par domaine, `banc.mjs` pour le chronomètre et l'égalité bit à bit
+(`Object.is` sur chaque flottant, même ordre pour les tableaux, même contenu pour les Set et les
+Map), `oracles/` pour les références d'avant optimisation (les tests unitaires du paquet les
+importent par `./bench/oracles/…`), `scenes.mjs` pour les entrées — réalistes et hostiles :
 triangles dégénérés, sommets derrière la caméra, NaN, Infinity, -0, boîtes vides ou inversées,
 ensembles vides, générateur à graine fixe. La commande joue les fichiers un par un
-(`--test-concurrency=1`) puis `agrege.mjs` imprime le tableau
+(`--test-concurrency=1`) puis `scripts/mesure/calculs/agrege.mjs` — ce dossier ne garde que les
+trois agrégateurs et leur `tableau.mjs` commun, sans aucun import de paquet — imprime le tableau
 `Calcul | Fichier | Avant (ms) | Après (ms) | Gain | Identique | Retenu` et l'écrit dans
 `orchestration/mesures/calculs-<date>.md`, les données brutes dans le `.json` voisin.
 
 Une ligne n'est « retenue » que si les deux sorties sont identiques au bit près **et** que la
 médiane d'après est meilleure. Chaque fichier de banc porte, en clair, une copie de l'ancien code
-comme oracle : ces doublons-là sont voulus, d'où l'exclusion `jscpd` de `scripts/mesure/calculs`
+comme oracle : ces doublons-là sont voulus, d'où l'exclusion `jscpd` de `packages/*/bench`
 dans `package.json`.
