@@ -4,16 +4,8 @@
       "bufferView": 0,
       "componentType": 5126,
       "count": 4,
-      "max": [
-        1.0,
-        1.0,
-        0.0
-      ],
-      "min": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "max": [1.0, 1.0, 0.0],
+      "min": [0.0, 0.0, 0.0],
       "type": "VEC3"
     },
     {
@@ -38,16 +30,8 @@
       "bufferView": 4,
       "componentType": 5126,
       "count": 4,
-      "max": [
-        1.0,
-        2.0,
-        0.0
-      ],
-      "min": [
-        0.0,
-        1.0,
-        0.0
-      ],
+      "max": [1.0, 2.0, 0.0],
+      "min": [0.0, 1.0, 0.0],
       "type": "VEC3"
     },
     {
@@ -98,31 +82,17 @@
       "alphaMode": "OPAQUE",
       "name": "Uni",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.7200000000000001,
-          0.09000000000000001,
-          0.09000000000000001,
-          1.0
-        ],
+        "baseColorFactor": [0.7200000000000001, 0.09000000000000001, 0.09000000000000001, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 1.0
       }
     },
     {
       "alphaMode": "BLEND",
-      "emissiveFactor": [
-        0.1,
-        0.1,
-        0.1
-      ],
+      "emissiveFactor": [0.1, 0.1, 0.1],
       "name": "Verre",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          0.5
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 0.5],
         "baseColorTexture": {
           "index": 0
         },
@@ -131,9 +101,7 @@
       }
     }
   ],
-  "meshNames": [
-    "PlaqueShape"
-  ],
+  "meshNames": ["PlaqueShape"],
   "meshNodes": 2,
   "meshes": [
     {
@@ -165,77 +133,24 @@
   "nodes": [
     {
       "matrix": [
-        4.440892098500626e-16,
-        0.0,
-        -2.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0,
-        4.440892098500626e-16,
-        0.0,
-        10.0,
-        0.0,
-        0.0,
-        1.0
+        4.440892098500626e-16, 0.0, -2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 2.0, 0.0, 4.440892098500626e-16,
+        0.0, 10.0, 0.0, 0.0, 1.0
       ],
       "mesh": 0,
       "name": "Plaque"
     },
     {
-      "children": [
-        0
-      ],
+      "children": [0],
       "name": "Racine"
     },
     {
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        30.0,
-        1.0
-      ],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 30.0, 1.0],
       "mesh": 0,
       "name": "Copie"
     },
     {
-      "children": [
-        1,
-        2
-      ],
-      "matrix": [
-        0.01,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.01,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.01,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
+      "children": [1, 2],
+      "matrix": [0.01, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 1.0],
       "name": "ma-root"
     }
   ],
@@ -244,9 +159,7 @@
     "name": "ma",
     "version": "ma-mel-subset-1-gltf-1"
   },
-  "roots": [
-    3
-  ],
+  "roots": [3],
   "rule": "Le pilote rend les données du fichier et rien d'autre : aucune commande n'est exécutée, les faces sont résolues par leurs arêtes signées puis triangulées en éventail, un groupe de faces devient une primitive à part, les normales absentes sont calculées à plat, lambert et standardSurface vont vers pbrMetallicRoughness, l'unité linéaire est portée par la racine de la scène, et tout ce qui reste est compté par son nom.",
   "samplers": [
     {
@@ -260,10 +173,7 @@
     "name": "ma",
     "version": "ma-mel-subset-1-gltf-1"
   },
-  "selectedNodes": [
-    0,
-    2
-  ],
+  "selectedNodes": [0, 2],
   "sidecarSha256": "0e02bfe9a7cdbfe2386c7cb4e28ffadfd33e0772a7f3b3702fcf0356fd82ce22",
   "sourceTriangles": 8,
   "textures": [
