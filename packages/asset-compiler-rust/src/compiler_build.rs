@@ -50,6 +50,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         .num_threads(o.threads)
         .build()?;
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
+    // L'échelle monde de chaque maillage est lue avant la boucle : le seuil du proxy est en mètres,
+    // et une primitive posée sous une échelle ne peut pas le savoir toute seule.
+    let mesh_scales = proxy::mesh_scales(g, &chosen)?;
     let primitive_inputs = PrimitiveInputs {
         o,
         g,
@@ -57,6 +60,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         mesh_values,
         skinned_meshes: &skinned_meshes,
         mesh_map: &mesh_map,
+        mesh_scales: &mesh_scales,
+        scene_triangles: selected_triangles,
         progress: &progress,
     };
     let compiled: Vec<CompiledPrimitive> = pool.install(|| {
@@ -64,7 +69,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             .map(|(old, primitive)| compile_primitive(&primitive_inputs, old, primitive))
             .collect::<Result<Vec<_>>>()
     })?;
-    let (mut primitives, cluster_planes) = compiler_coplanar::split_compiled(compiled);
+    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds) =
+        compiler_coplanar::split_compiled(compiled);
     let bootstrap_bundles = {
         let _t = perf::Timer::new(&perf::PHASES.page_write);
         share_bootstrap_bundles(o, &mut primitives)?
@@ -113,6 +119,30 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             meshes: &meshes,
             view_map: &view_map,
         })?;
+    // Le proxy résident se construit ici : les coupes grossières sont en main, les aperçus de
+    // texture aussi, et c'est le dernier endroit où la hiérarchie de nœuds qui les place existe.
+    let scene_proxy = {
+        let _t = perf::Timer::new(&perf::PHASES.manifest);
+        proxy::stage_proxy(&proxy::ProxyInputs {
+            g,
+            chosen: &chosen,
+            mesh_map: &mesh_map,
+            primitives: &primitives,
+            cuts: &proxy_cuts,
+            thresholds: &proxy_thresholds,
+            previews: &texture_previews,
+        })?
+    };
+    progress(
+        json!({"phase":"proxy","completed":1,"total":1,"triangles":scene_proxy.triangle_count(),"nodes":scene_proxy.node_count(),"errorMetres":scene_proxy.error_metres}),
+    );
+    // Le proxy est un objet de cache à son nom, et non une colonne du sidecar : un manifeste sans
+    // lui reste lisible mot pour mot, et ses dizaines de mégaoctets ne retardent pas la première
+    // image d'une scène qui ne déclare aucune lampe.
+    let proxy_bytes = scene_proxy.encode();
+    let proxy_sha = hash(&proxy_bytes);
+    let proxy_descriptor =
+        scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     let autonomous_scene = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,
@@ -131,7 +161,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     } else {
         FORMAT_VERSION
     };
-    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
     // columns instead of tokenizing tens of megabytes before its first frame.
     {
@@ -145,6 +175,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         let (mut slim, binary) = manifest_binary::split(&result, &templates, &texture_previews)?;
         slim["binary"]["sha256"] = json!(hash(&binary));
         atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;
+        atomic(&directory.join(proxy::SCENE_PROXY_FILE), &proxy_bytes)?;
         atomic(
             &directory.join("clusters.json"),
             &serde_json::to_vec(&slim)?,

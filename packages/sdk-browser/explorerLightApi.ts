@@ -1,4 +1,5 @@
 import {
+  BOUNCE_SETTINGS,
   EngineError,
   LIGHT_SETTINGS,
   type SceneEnvironment,
@@ -35,6 +36,8 @@ export function createExplorerLightApi(inputs: Inputs) {
   return {
     /** Les bornes publiées de l'éclairage direct, telles que le runtime les applique. */
     lightSettings: LIGHT_SETTINGS,
+    /** Les bornes publiées de la lumière qui rebondit : seuil du proxy, grille, budget de rayons. */
+    bounceSettings: BOUNCE_SETTINGS,
     /** Les lampes du contrat, dans l'ordre d'ajout ; une copie de lecture, jamais le tampon. */
     lights(): SceneLight[] {
       check();
@@ -48,7 +51,8 @@ export function createExplorerLightApi(inputs: Inputs) {
      * La vue demandée. `auto` — la valeur de départ — rend la vue sans éclairage tant qu'aucune
      * lampe n'est déclarée, et l'éclairage réel dès qu'il y en a une. `unlit` force la vue de
      * diagnostic d'albédo brut même avec des lampes ; `lit` force l'éclairage réel, donc une image
-     * noire dans une scène sans lampe — c'est la règle, pas un défaut (P6).
+     * noire dans une scène sans lampe — c'est la règle, pas un défaut (P6). `bounce` est la vue de
+     * mesure : l'irradiance indirecte seule, en valeurs linéaires multipliées par l'exposition.
      */
     get lightingView(): SceneLightingView {
       return store?.lightingView ?? 'auto';

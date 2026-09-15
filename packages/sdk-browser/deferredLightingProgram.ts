@@ -26,12 +26,16 @@ export interface DirectLightResources {
   tiles?: GPUBuffer;
   slices?: GPUBuffer;
   atlas?: GPUTextureView;
+  /** La grille de sondes et leurs coefficients ; absentes, le rebond n'est pas de cette image. */
+  bounceGrid?: GPUBuffer;
+  probes?: GPUBuffer;
 }
 export interface DeferredSources {
   lighting: string;
   compose: string;
   label: string;
   direct: boolean;
+  bounce?: boolean;
 }
 export interface DeferredBindings {
   uniform: GPUBuffer;
@@ -60,7 +64,7 @@ export async function createDeferredProgram(
     await createCheckedShaderModule(device, sources.lighting, `${sources.label}_LIGHTING`),
     await createCheckedShaderModule(device, sources.compose, `${sources.label}_COMPOSE`),
   ];
-  const layouts = createDeferredLayouts(device, sources.direct);
+  const layouts = createDeferredLayouts(device, sources.direct, sources.bounce);
   const make = makeFullscreenPipeline;
   const light = await make(device, modules[0], layouts.lighting, 'lightSurface', ['rgba16float']);
   const compose = await make(device, modules[1], layouts.composition, 'compose', ['rgba8unorm']);
@@ -71,6 +75,7 @@ export async function createDeferredProgram(
   let boundSurface: SurfaceBuffer | undefined,
     boundTiles: GPUBuffer | undefined,
     boundAtlas: GPUTextureView | undefined,
+    boundProbes: GPUBuffer | undefined,
     lightGroup: GPUBindGroup | undefined,
     composeGroup: GPUBindGroup | undefined;
   return {
@@ -93,10 +98,18 @@ export async function createDeferredProgram(
       const tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView;
-      if (boundSurface === surface && boundTiles === tiles && boundAtlas === atlas) return;
+      const probes = direct.probes;
+      if (
+        boundSurface === surface &&
+        boundTiles === tiles &&
+        boundAtlas === atlas &&
+        boundProbes === probes
+      )
+        return;
       boundSurface = surface;
       boundTiles = tiles;
       boundAtlas = atlas;
+      boundProbes = probes;
       const entries: GPUBindGroupEntry[] = [
         ...surface.views().map((resource, binding) => ({ binding, resource })),
         { binding: 4, resource: depth },
@@ -109,6 +122,11 @@ export async function createDeferredProgram(
           { binding: 8, resource: { buffer: slices } },
           { binding: 9, resource: atlas },
           { binding: 10, resource: placeholders.sampler },
+        );
+      if (sources.bounce && direct.bounceGrid && direct.probes)
+        entries.push(
+          { binding: 11, resource: { buffer: direct.bounceGrid } },
+          { binding: 12, resource: { buffer: direct.probes } },
         );
       lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
       composeGroup = device.createBindGroup({
@@ -123,6 +141,7 @@ export async function createDeferredProgram(
       boundSurface = undefined;
       boundTiles = undefined;
       boundAtlas = undefined;
+      boundProbes = undefined;
       lightGroup = undefined;
       composeGroup = undefined;
     },

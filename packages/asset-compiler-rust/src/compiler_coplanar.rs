@@ -1,16 +1,25 @@
 use super::*;
 
-/// The compiled primitives and, beside them, the plane of each of their clusters.
-pub(super) fn split_compiled(
-    compiled: Vec<CompiledPrimitive>,
-) -> (Vec<Value>, Vec<Vec<Option<coplanar::ClusterPlane>>>) {
+/// The compiled primitives and, beside them, the plane of each of their clusters and the coarse
+/// cut its proxy keeps. Neither travels inside the primitive: both are read once by a later stage.
+pub(super) type SplitCompiled = (
+    Vec<Value>,
+    Vec<Vec<Option<coplanar::ClusterPlane>>>,
+    Vec<Vec<f32>>,
+    Vec<f64>,
+);
+pub(super) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled {
     let mut primitives = Vec::with_capacity(compiled.len());
     let mut planes = Vec::with_capacity(compiled.len());
+    let mut cuts = Vec::with_capacity(compiled.len());
+    let mut thresholds = Vec::with_capacity(compiled.len());
     for entry in compiled {
         primitives.push(entry.value);
         planes.push(entry.cluster_planes);
+        cuts.push(entry.proxy_cut);
+        thresholds.push(entry.proxy_threshold);
     }
-    (primitives, planes)
+    (primitives, planes, cuts, thresholds)
 }
 
 /// Everything the stage reads that is not the primitives it writes into.

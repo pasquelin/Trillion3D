@@ -9,6 +9,7 @@ import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLa
 import { createWebgpuGpuState, type WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 import { createWebgpuVisState, type WebgpuVisState } from './webgpuPagesStateVis.ts';
 import { createWebgpuLightState, type WebgpuLightState } from './webgpuPagesStateLights.ts';
+import { createWebgpuBounceState, type WebgpuBounceState } from './webgpuPagesStateBounce.ts';
 import {
   createWebgpuCaptureState,
   createWebgpuRunState,
@@ -54,6 +55,8 @@ export interface WebgpuPagesRuntime {
   vis: WebgpuVisState;
   /** Les lampes du contrat, leurs listes par tuile et leur atlas d'ombres. */
   lights: WebgpuLightState;
+  /** Le proxy résident et la grille de sondes de la lumière qui rebondit. */
+  bounce: WebgpuBounceState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
   timing: WebgpuTimingState;
@@ -129,6 +132,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     gpu: createWebgpuGpuState(setup.viewport),
     vis,
     lights: createWebgpuLightState(context.sceneLights),
+    bounce: createWebgpuBounceState(context.bounce !== false),
     run,
     capture: createWebgpuCaptureState(),
     timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),
