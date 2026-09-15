@@ -13,7 +13,7 @@ import {
   referencePrepareCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
-} from '../../scripts/mesure/calculs/oracles/f-cones.mjs';
+} from './bench/oracles/f-cones.mjs';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 

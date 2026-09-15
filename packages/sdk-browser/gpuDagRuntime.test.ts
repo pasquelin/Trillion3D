@@ -1,12 +1,12 @@
 // A11 : la résidence demandée est comparée à un miroir compact (un flottant par page) au lieu de
 // sauter de douze flottants en douze flottants dans les cônes de page ; `maxStretch` reçoit
 // désormais une sous-vue au lieu d'un tableau recopié. Oracle : la comparaison à travers les cônes,
-// d'avant le lot A, dans `scripts/mesure/calculs/oracles/residence.mjs`.
+// d'avant le lot A, dans `bench/oracles/residence.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { maxStretch } from '../sdk-core/index.ts';
 import { updateResidencyFlags } from './gpuDagRuntime.ts';
-import { referenceUpdateResidency } from '../../scripts/mesure/calculs/oracles/residence.mjs';
+import { referenceUpdateResidency } from './bench/oracles/residence.mjs';
 
 const STRIDE = 12,
   OFFSET = 11;

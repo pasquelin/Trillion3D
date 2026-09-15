@@ -1,15 +1,12 @@
 // A7 : les ensembles d'urls de résidence (pendingUrls, pageUrls, collectPendingUrls) vivent aussi
 // longtemps que l'hôte au lieu d'être reconstruits par image ; A8 : comptePagesResidentes compte au
 // lieu d'allouer un tableau intermédiaire. Oracle : les versions d'avant le lot A, dans
-// `scripts/mesure/calculs/oracles/selection.mjs`.
+// `bench/oracles/selection.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectPendingUrls } from './pageSelectionRequests.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
-import {
-  referenceCollectPendingUrls,
-  referenceResidency,
-} from '../../scripts/mesure/calculs/oracles/selection.mjs';
+import { referenceCollectPendingUrls, referenceResidency } from './bench/oracles/selection.mjs';
 
 function makeEnv() {
   const bootstrapUrls = new Set(['a.bin', 'b.bin']),

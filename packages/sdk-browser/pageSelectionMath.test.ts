@@ -1,12 +1,12 @@
 // A6 : boxClip rejette en une première passe, puis distingue traversé de dedans en une seconde qui
 // s'arrête au premier plan traversé ; le signe du plan choisit le sommet par indice. Oracle : la
 // version à une passe et une branche par sommet, d'avant le lot A, dans
-// `scripts/mesure/calculs/oracles/selection.mjs`.
+// `bench/oracles/selection.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { boxClip, extractPlanes } from './pageSelectionMath.ts';
-import { referenceBoxClip } from '../../scripts/mesure/calculs/oracles/selection.mjs';
+import { referenceBoxClip } from './bench/oracles/selection.mjs';
 
 const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 100);
 cam.position.z = 6;
