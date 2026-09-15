@@ -80,12 +80,14 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     device: setup.gpuDevice,
     jobs: vis.textureJobs,
     budget: setup.textureBudget,
-    colorScales: vis.uvScales,
-    dataScales: vis.dataUvScales,
-    colorAtlas: () => ({ texture: vis.mapsTexture, size: vis.textureColorSize }),
-    dataAtlas: () => ({ texture: vis.dataMapsTexture, size: vis.textureDataSize }),
+    colorAtlas: () => vis.colorAtlas,
+    dataAtlas: () => vis.dataAtlas,
     order: priority.order,
-    onColorReady: (layers) => vis.preview?.markReady(layers),
+    onLevel: (slot, level) => {
+      const pyramid = vis.slotPyramids[slot - 1];
+      if (pyramid) vis.slots?.markLevel(slot, level, pyramid);
+    },
+    onColorReady: (slots) => vis.slots?.markReady(slots),
     onFailure: diag.diagnosticFailure,
     onAbandon: (details) =>
       diag.engineDiagnostic(

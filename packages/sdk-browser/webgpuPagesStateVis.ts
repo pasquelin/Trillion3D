@@ -5,7 +5,8 @@ import type { GpuDraw } from './gpuDraw.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
-import type { WebgpuPreviewAtlas } from './webgpuPreviewAtlas.ts';
+import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
+import type { SlotPyramid, WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -65,14 +66,15 @@ export interface WebgpuVisState {
   concatNrm: GPUBuffer | undefined;
   pageTable: GPUBuffer | undefined;
   shadeUniform: GPUBuffer | undefined;
-  mapsTexture: GPUTexture | undefined;
-  dataMapsTexture: GPUTexture | undefined;
+  /** Les classes de taille de l'atlas couleur et de l'atlas de données. */
+  colorAtlas: WebgpuAtlas | undefined;
+  dataAtlas: WebgpuAtlas | undefined;
   mapsSampler: GPUSampler | undefined;
   materialScales: GPUBuffer | undefined;
-  mapsArrayView: GPUTextureView | undefined;
-  dataMapsArrayView: GPUTextureView | undefined;
-  /** L'atlas 16×16 des aperçus et le bit « prêt » de chaque couche de l'atlas couleur. */
-  preview: WebgpuPreviewAtlas | undefined;
+  /** Classe, couche et résidence de mips de chaque slot de texture. */
+  slots: WebgpuAtlasSlots | undefined;
+  /** Niveaux progressifs attendus par slot couleur, quand le sidecar en porte. */
+  slotPyramids: Array<SlotPyramid | undefined>;
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
@@ -83,8 +85,6 @@ export interface WebgpuVisState {
   uvScales: Array<[number, number]>;
   dataUvScales: Array<[number, number]>;
   textureJobs: TextureJob[];
-  textureColorSize: [number, number];
-  textureDataSize: [number, number];
 }
 
 export function createWebgpuVisState(): WebgpuVisState {
@@ -127,13 +127,12 @@ export function createWebgpuVisState(): WebgpuVisState {
     concatNrm: undefined,
     pageTable: undefined,
     shadeUniform: undefined,
-    mapsTexture: undefined,
-    dataMapsTexture: undefined,
+    colorAtlas: undefined,
+    dataAtlas: undefined,
     mapsSampler: undefined,
     materialScales: undefined,
-    mapsArrayView: undefined,
-    dataMapsArrayView: undefined,
-    preview: undefined,
+    slots: undefined,
+    slotPyramids: [],
     shadeUniPacked: new Float32Array(64),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),
@@ -143,7 +142,5 @@ export function createWebgpuVisState(): WebgpuVisState {
     uvScales: [[1, 1]],
     dataUvScales: [[1, 1]],
     textureJobs: [],
-    textureColorSize: [1, 1],
-    textureDataSize: [1, 1],
   };
 }

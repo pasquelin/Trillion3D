@@ -1,5 +1,6 @@
 import { shaderErrors } from './gpuShaderModule.ts';
 import { SHADE_SHADER, VIS_SHADER } from './visibilityBuffer.ts';
+import { VIS_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
 
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
 export async function createWebgpuVisibilityShaders(
@@ -11,36 +12,28 @@ export async function createWebgpuVisibilityShaders(
     size: 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
+  const b = VIS_BINDINGS;
   const visBindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+      { binding: b.cache, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.position, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
-        binding: 2,
+        binding: b.pageTable,
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
+        buffer: readOnly,
       },
-      { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+      { binding: b.flags, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
-        binding: 4,
+        binding: b.uniform,
         visibility: GPUShaderStage.VERTEX,
         buffer: { type: 'uniform', minBindingSize: 96 },
       },
-      { binding: 5, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      {
-        binding: 6,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 7, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-      { binding: 8, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      { binding: 9, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      {
-        binding: 10,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      { binding: b.uv, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      ...b.maps.map((binding) => atlasLayoutEntry(binding)),
+      { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+      { binding: b.instances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.slotOffsets, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.colorSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
     ],
   });
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans

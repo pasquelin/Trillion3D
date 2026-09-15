@@ -33,11 +33,11 @@ export function encodeBlend(
   const textured = !!(
     vis.blendBindGroupLayout &&
     vis.pipelineBlendTextured &&
-    vis.mapsTexture &&
+    vis.colorAtlas &&
     vis.mapsSampler &&
-    vis.dataMapsTexture &&
+    vis.dataAtlas &&
     vis.materialScales &&
-    vis.preview &&
+    vis.slots &&
     gpu.zeroUv
   );
   if (!textured && !gpu.bindGroupLayout) return;

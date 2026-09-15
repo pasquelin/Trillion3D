@@ -89,7 +89,8 @@ export function encodeSmallTriangles(
     !vis.pageTable ||
     !vis.visUniform ||
     !vis.zeroFlags ||
-    !vis.mapsTexture ||
+    !vis.colorAtlas ||
+    !vis.slots ||
     !vis.mapsSampler
   )
     return;
@@ -104,7 +105,8 @@ export function encodeSmallTriangles(
     hizFlags,
     uniform: vis.visUniform,
     uvs: vis.concatUv,
-    maps: (vis.mapsArrayView ??= vis.mapsTexture.createView({ dimension: '2d-array' })),
+    colorAtlas: vis.colorAtlas,
+    slots: vis.slots,
     sampler: vis.mapsSampler,
     pageRows: tableRows,
     maxTriangles: Math.ceil(maxVertexCount / 3),
