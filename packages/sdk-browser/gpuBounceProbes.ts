@@ -85,7 +85,7 @@ export async function createGpuBounceProbes(
       { binding: 1, resource: { buffer: resident.triangles } },
       { binding: 2, resource: { buffer: resident.albedo } },
       { binding: 3, resource: { buffer: resident.nodeBounds } },
-      { binding: 4, resource: { buffer: resident.nodeLinks } },
+      { binding: 4, resource: { buffer: resident.nodeChildren } },
       { binding: 5, resource: { buffer: lights } },
       { binding: 6, resource: { buffer: snapshot } },
       { binding: 7, resource: { buffer: probes } },

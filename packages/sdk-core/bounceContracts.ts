@@ -1,5 +1,5 @@
 /**
- * La lumière qui rebondit : réglages publiés et contrat du proxy résident.
+ * La lumière qui rebondit : les réglages publiés, et la grille de sondes qu'ils décident.
  *
  * Rien ici ne nomme une scène. Le proxy est une représentation grossière de toute la géométrie,
  * construite à la compilation et indépendante de la caméra (LC1) ; les sondes lancent leurs rayons
@@ -24,6 +24,12 @@ export const BOUNCE_SETTINGS = {
   proxyLeafTriangles: 8,
   /** Nœuds visités par rayon : la traversée est bornée avant l'image, jamais par la profondeur. */
   traversalSteps: 512,
+  /**
+   * Profondeur de la pile de traversée. Un nœud large empile trois enfants au plus et l'arbre est
+   * équilibré par construction : trente-deux couvrent un proxy de plusieurs millions de triangles.
+   * Un débordement abandonnerait un enfant, ce qui assombrit et ne fuit jamais.
+   */
+  traversalStack: 32,
   /** Sondes de la grille, au plus. Au-delà, la grille s'écarte au lieu de s'agrandir. */
   maxProbes: 16384,
   /** Sondes sur un axe, au plus : une grille très plate reste lisible dans les deux autres. */
@@ -72,59 +78,6 @@ export const BOUNCE_SETTINGS = {
 
 /** Flottants d'une sonde dans le tampon GPU : six `vec4f`, jamais réalloués. */
 export const PROBE_FLOATS = 24;
-
-/** Version du produit de cache « proxy ». Un proxy d'une autre version est refusé, jamais deviné. */
-export const SCENE_PROXY_VERSION = 1;
-/** 'W','G','P','X' lus comme un entier non signé de 32 bits en petit-boutiste. */
-export const SCENE_PROXY_MAGIC = 0x58504757;
-/** Entiers d'en-tête : signature, version, triangles, nœuds. */
-export const SCENE_PROXY_HEADER_WORDS = 4;
-/** Nombres par triangle du proxy : trois sommets monde, sans normale — elle se déduit du triangle. */
-export const PROXY_TRIANGLE_FLOATS = 9;
-/** Nombres par nœud du BVH : bornes basses puis hautes. */
-export const PROXY_NODE_FLOATS = 6;
-/** Entiers par nœud : saut de sous-arbre, premier triangle, nombre de triangles (0 = nœud interne). */
-export const PROXY_NODE_WORDS = 3;
-
-/** Les colonnes du proxy, telles que son objet de cache les porte et que le GPU les recopie. */
-export interface SceneProxyColumns {
-  /** Trois sommets monde par triangle, `PROXY_TRIANGLE_FLOATS` nombres chacun. */
-  triangles: Float32Array;
-  /** Albédo diffus linéaire du triangle, empaqueté RGBA8. */
-  albedo: Uint32Array;
-  /** Bornes de chaque nœud du BVH. */
-  nodeBounds: Float32Array;
-  /** Saut, premier triangle et nombre de triangles de chaque nœud. */
-  nodeLinks: Uint32Array;
-}
-
-/**
- * Ce que le manifeste dit du proxy résident : où le lire, ce qu'il pèse et ce qu'il vaut. C'est un
- * produit de cache à part, et non une colonne du sidecar : un manifeste sans lui reste lisible mot
- * pour mot par un moteur qui l'ignore, et ses dizaines de mégaoctets ne retardent pas la première
- * image d'une scène qui ne déclare aucune lampe.
- */
-export interface SceneProxyDescriptor {
-  version: number;
-  url: string;
-  sha256: string;
-  bytes: number;
-  /** Le plus grand seuil d'erreur géométrique qu'une primitive a dû prendre, en mètres. */
-  errorMetres: number;
-  /** Plancher du seuil : ce que la spécification demande avant que le budget ne l'élargisse. */
-  errorFloorMetres: number;
-  /** Budget de triangles publié, celui qui a décidé du seuil réellement obtenu. */
-  triangleBudget: number;
-  /** Emprise monde du proxy : trois bornes basses puis trois hautes. */
-  bounds: [number, number, number, number, number, number];
-  triangles: number;
-  nodes: number;
-}
-
-/** Le proxy lu : son descriptif et ses colonnes, vues sur les octets de son objet de cache. */
-export interface SceneProxy extends SceneProxyDescriptor {
-  data: SceneProxyColumns;
-}
 
 /**
  * La grille de sondes d'une emprise.

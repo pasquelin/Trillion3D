@@ -37,7 +37,8 @@ pub struct CutDemand {
 /// La coupe la plus fine qui tient dans le budget de triangles, et le seuil qu'elle a demandé.
 ///
 /// Le seuil de départ est celui de la spécification, en mètres ; tant que la coupe ne tient pas
-/// dans sa part du budget, il double. C'est une règle de taille, générique et sans nom de scène :
+/// dans sa part du budget, il double — et il cesse de doubler dès qu'il ne retire plus rien, parce
+/// que les racines du DAG sont un plancher que la simplification du proxy franchira, pas lui. C'est une règle de taille, générique et sans nom de scène :
 /// une primitive dessinée mille fois reçoit une part mille fois plus petite et sort mille fois plus
 /// grossière, une petite pièce garde son seuil de départ. Le seuil réellement obtenu est publié.
 ///
@@ -50,8 +51,17 @@ pub fn coarse_cut(dag: &[DagCluster], positions: &[f32], demand: CutDemand) -> (
         if triangles <= demand.budget {
             break;
         }
-        threshold *= 2.0;
-        triangles = triangles_at(dag, threshold);
+        let wider = threshold * 2.0;
+        let fewer = triangles_at(dag, wider);
+        // Le DAG a un plancher : ses racines. Un seuil qui ne retire plus un triangle ne sert
+        // qu'à publier une erreur que la coupe n'a jamais prise ; la simplification propre au
+        // proxy, elle, descend plus bas. On s'arrête donc au plus petit seuil qui atteint ce
+        // plancher, et c'est celui-là qui est publié.
+        if fewer >= triangles {
+            break;
+        }
+        threshold = wider;
+        triangles = fewer;
     }
     let mut out: Vec<f32> = Vec::with_capacity(triangles * PROXY_TRIANGLE_FLOATS);
     for cluster in dag.iter().filter(|cluster| selected(cluster, threshold)) {

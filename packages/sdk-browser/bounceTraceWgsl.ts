@@ -1,49 +1,29 @@
-import { BOUNCE_SETTINGS, PROXY_TRIANGLE_FLOATS } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, PROXY_CHILDREN, PROXY_TRIANGLE_FLOATS } from '../sdk-core/index.ts';
+import { BOUNCE_NODE_WGSL } from './bounceNodeWgsl.ts';
 
 /**
- * La traversée du proxy résident : un BVH aplati, un saut par nœud, et l'intersection de
- * Möller–Trumbore sur les triangles d'une feuille.
+ * La traversée du proxy résident : un BVH à quatre enfants, ordonné par distance, avec sortie
+ * anticipée.
  *
- * Deux bornes connues avant l'image (X2) : le nombre de nœuds visités et le nombre de triangles
- * d'une feuille. Aucune pile, aucune récursion — un nœud interne descend sur le suivant, un nœud
- * rejeté ou une feuille finie saute sur `escape`, qui pointe toujours plus loin, ce que le lecteur
- * du cache a déjà vérifié.
+ * Un nœud teste ses quatre boîtes d'un coup, descend aussitôt sur la plus proche et empile les
+ * autres. Un nœud dépilé est retesté contre la distance du plus proche triangle déjà touché : dès
+ * qu'un rayon a touché quelque chose, tout ce qui est derrière tombe sans être ouvert. C'est ce qui
+ * remplace la descente d'un cran par nœud de l'arbre binaire, où la borne de traversée s'épuisait
+ * avant la feuille sur le proxy d'une ville.
+ *
+ * Trois bornes connues avant l'image (X2) : les nœuds visités, les triangles d'une feuille, et la
+ * profondeur de la pile — un nœud large en empile trois au plus, et l'arbre est équilibré par
+ * construction, si bien que la pile ne déborde pas ; si elle débordait, l'enfant en trop serait
+ * abandonné, ce qui assombrit et ne fuit jamais.
  */
 export const BOUNCE_TRACE_WGSL = `
 const TRAVERSAL_STEPS:u32=${BOUNCE_SETTINGS.traversalSteps}u;
 const LEAF_TRIANGLES:u32=${BOUNCE_SETTINGS.proxyLeafTriangles}u;
 const TRIANGLE_FLOATS:u32=${PROXY_TRIANGLE_FLOATS}u;
+const CHILDREN:u32=${PROXY_CHILDREN}u;
+const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
 struct ProxyHit{distance:f32,triangle:u32,found:bool,}
-/** Un sommet d'un triangle du proxy, en coordonnées monde. */
-fn proxyVertex(index:u32,vertex:u32)->vec3f{
- let base=index*TRIANGLE_FLOATS+vertex*3u;
- return vec3f(proxyTriangles[base],proxyTriangles[base+1u],proxyTriangles[base+2u]);
-}
-/** La normale géométrique d'un triangle du proxy : le proxy ne stocke aucune normale. */
-fn proxyNormal(index:u32)->vec3f{
- let a=proxyVertex(index,0u);
- let edge0=proxyVertex(index,1u)-a;
- let edge1=proxyVertex(index,2u)-a;
- return normalize(cross(edge0,edge1));
-}
-/** L'albédo linéaire d'un triangle, dépaqueté de ses quatre octets. */
-fn proxyAlbedoOf(index:u32)->vec3f{
- let packed=proxyAlbedo[index];
- return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
-}
-/** La boîte d'un nœud contre le rayon : les deux plans par axe, sans division dans la boucle. */
-fn slabHit(node:u32,origin:vec3f,inverse:vec3f,limit:f32)->bool{
- let base=node*6u;
- let low=vec3f(proxyNodeBounds[base],proxyNodeBounds[base+1u],proxyNodeBounds[base+2u]);
- let high=vec3f(proxyNodeBounds[base+3u],proxyNodeBounds[base+4u],proxyNodeBounds[base+5u]);
- let first=(low-origin)*inverse;
- let second=(high-origin)*inverse;
- let near=min(first,second);
- let far=max(first,second);
- let entry=max(max(near.x,near.y),max(near.z,0.0));
- let exit=min(min(far.x,far.y),min(far.z,limit));
- return entry<=exit;
-}
+${BOUNCE_NODE_WGSL}
 /** Möller–Trumbore, double face : un mur n'a pas d'endroit ni d'envers pour la lumière. */
 fn triangleHit(index:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
  let a=proxyVertex(index,0u);
@@ -66,45 +46,75 @@ fn triangleHit(index:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
 /** Le plus proche triangle touché, ou rien. La direction est supposée normalisée. */
 fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  var best=ProxyHit(limit,0u,false);
- let count=arrayLength(&proxyNodeLinks)/3u;
- if(count==0u){return best;}
- let inverse=vec3f(1.0)/select(direction,vec3f(1e-20),abs(direction)<vec3f(1e-20));
+ if(proxyNodeCount()==0u){return best;}
+ let inverse=rayInverse(direction);
+ var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
+ var depth=0u;
  var node=0u;
  for(var step=0u;step<TRAVERSAL_STEPS;step++){
-  if(node>=count){break;}
-  let link=node*3u;
-  if(!slabHit(node,origin,inverse,best.distance)){node=proxyNodeLinks[link];continue;}
-  let triangles=proxyNodeLinks[link+2u];
-  if(triangles==0u){node=node+1u;continue;}
-  let first=proxyNodeLinks[link+1u];
-  for(var slot=0u;slot<LEAF_TRIANGLES;slot++){
-   if(slot>=triangles){break;}
-   let index=first+slot;
-   let distance=triangleHit(index,origin,direction,best.distance);
-   if(distance<best.distance){best=ProxyHit(distance,index,true);}
+  let frame=nodeBox(node);
+  if(boxEntry(frame,origin,inverse,best.distance)>best.distance){
+   if(depth==0u){break;}
+   depth--;node=stack[depth];continue;
   }
-  node=proxyNodeLinks[link];
+  var nearest=0u;
+  var nearestSpan=best.distance+1.0;
+  for(var slot=0u;slot<CHILDREN;slot++){
+   let child=proxyChild(node,slot,frame);
+   if(!child.present){continue;}
+   let span=boxEntry(child.box,origin,inverse,best.distance);
+   if(span>best.distance){continue;}
+   if(child.count>0u){
+    for(var k=0u;k<LEAF_TRIANGLES;k++){
+     if(k>=child.count){break;}
+     let index=child.offset+k;
+     let distance=triangleHit(index,origin,direction,best.distance);
+     if(distance<best.distance){best=ProxyHit(distance,index,true);}
+    }
+    continue;
+   }
+   if(span<nearestSpan){
+    if(nearestSpan<=best.distance&&depth<STACK_DEPTH){stack[depth]=nearest;depth++;}
+    nearest=child.offset;
+    nearestSpan=span;
+   }else if(depth<STACK_DEPTH){stack[depth]=child.offset;depth++;}
+  }
+  if(nearestSpan<=best.distance){node=nearest;continue;}
+  if(depth==0u){break;}
+  depth--;node=stack[depth];
  }
  return best;
 }
 /** Vrai dès qu'un triangle coupe le segment : une ombre n'a pas besoin du plus proche. */
 fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
- let count=arrayLength(&proxyNodeLinks)/3u;
- if(count==0u){return false;}
- let inverse=vec3f(1.0)/select(direction,vec3f(1e-20),abs(direction)<vec3f(1e-20));
+ if(proxyNodeCount()==0u){return false;}
+ let inverse=rayInverse(direction);
+ var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
+ var depth=0u;
  var node=0u;
  for(var step=0u;step<TRAVERSAL_STEPS;step++){
-  if(node>=count){break;}
-  let link=node*3u;
-  if(!slabHit(node,origin,inverse,limit)){node=proxyNodeLinks[link];continue;}
-  let triangles=proxyNodeLinks[link+2u];
-  if(triangles==0u){node=node+1u;continue;}
-  let first=proxyNodeLinks[link+1u];
-  for(var slot=0u;slot<LEAF_TRIANGLES;slot++){
-   if(slot>=triangles){break;}
-   if(triangleHit(first+slot,origin,direction,limit)<limit){return true;}
+  let frame=nodeBox(node);
+  var descend=false;
+  var next=0u;
+  if(boxEntry(frame,origin,inverse,limit)<=limit){
+   for(var slot=0u;slot<CHILDREN;slot++){
+    let child=proxyChild(node,slot,frame);
+    if(!child.present){continue;}
+    if(boxEntry(child.box,origin,inverse,limit)>limit){continue;}
+    if(child.count>0u){
+     for(var k=0u;k<LEAF_TRIANGLES;k++){
+      if(k>=child.count){break;}
+      if(triangleHit(child.offset+k,origin,direction,limit)<limit){return true;}
+     }
+     continue;
+    }
+    if(!descend){descend=true;next=child.offset;}
+    else if(depth<STACK_DEPTH){stack[depth]=child.offset;depth++;}
+   }
   }
-  node=proxyNodeLinks[link];
+  if(descend){node=next;continue;}
+  if(depth==0u){break;}
+  depth--;node=stack[depth];
  }
  return false;
 }`;

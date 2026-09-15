@@ -1,12 +1,28 @@
-use super::{PROXY_LEAF_TRIANGLES, PROXY_NODE_FLOATS, PROXY_NODE_WORDS, PROXY_TRIANGLE_FLOATS};
+use super::{PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
 
-/// Un nœud en construction : ses bornes, et soit un intervalle de triangles, soit deux enfants.
-struct Node {
-    low: [f32; 3],
-    high: [f32; 3],
-    first: usize,
-    count: usize,
-    escape: usize,
+/// Un nœud binaire en construction : ses bornes, et soit un intervalle de triangles, soit son
+/// enfant droit — l'enfant gauche est toujours le nœud suivant.
+pub struct Node {
+    pub low: [f32; 3],
+    pub high: [f32; 3],
+    pub first: usize,
+    pub count: usize,
+    pub right: usize,
+}
+impl Node {
+    pub fn leaf(&self) -> bool {
+        self.count > 0
+    }
+    /// L'aire de la boîte, à un facteur deux près : ce qui décide quel enfant s'ouvre en premier
+    /// quand un nœud large cherche à se remplir.
+    pub fn area(&self) -> f32 {
+        let span = [
+            (self.high[0] - self.low[0]).max(0.0),
+            (self.high[1] - self.low[1]).max(0.0),
+            (self.high[2] - self.low[2]).max(0.0),
+        ];
+        span[0] * span[1] + span[1] * span[2] + span[2] * span[0]
+    }
 }
 
 /// Bornes d'un intervalle de triangles, lues une fois par nœud.
@@ -45,10 +61,9 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
         high,
         first: range.0,
         count: range.1 - range.0,
-        escape: 0,
+        right: 0,
     });
     if range.1 - range.0 <= PROXY_LEAF_TRIANGLES {
-        nodes[at].escape = at + 1;
         return;
     }
     let axis = (0..3)
@@ -60,16 +75,17 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
     });
     nodes[at].count = 0;
     split(triangles, order, (range.0, middle), nodes);
+    let right = nodes.len();
     split(triangles, order, (middle, range.1), nodes);
-    nodes[at].escape = nodes.len();
+    nodes[at].right = right;
 }
 
-/// Construit le BVH et réordonne les triangles et leurs albédos pour que chaque feuille nomme un
-/// intervalle contigu. Rend les deux colonnes de nœuds, aplaties.
-pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<f32>, Vec<u32>) {
+/// Construit l'arbre binaire et réordonne les triangles et leurs albédos pour que chaque feuille
+/// nomme un intervalle contigu. C'est `wide::collapse` qui en tire les nœuds larges du cache.
+pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
     let count = triangles.len() / PROXY_TRIANGLE_FLOATS;
     if count == 0 {
-        return (Vec::new(), Vec::new());
+        return Vec::new();
     }
     let mut order: Vec<usize> = (0..count).collect();
     let mut nodes: Vec<Node> = Vec::with_capacity(count * 2 / PROXY_LEAF_TRIANGLES + 2);
@@ -83,16 +99,7 @@ pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<f32>, Vec<
     }
     *triangles = sorted;
     *albedo = colours;
-    let mut node_bounds = Vec::with_capacity(nodes.len() * PROXY_NODE_FLOATS);
-    let mut node_links = Vec::with_capacity(nodes.len() * PROXY_NODE_WORDS);
-    for node in &nodes {
-        node_bounds.extend_from_slice(&node.low);
-        node_bounds.extend_from_slice(&node.high);
-        node_links.push(node.escape as u32);
-        node_links.push(node.first as u32);
-        node_links.push(node.count as u32);
-    }
-    (node_bounds, node_links)
+    nodes
 }
 
 /// L'emprise monde du proxy. Un proxy vide garde une emprise nulle, jamais une emprise infinie.
@@ -116,4 +123,29 @@ pub fn extent(triangles: &[f32]) -> [f64; 6] {
         }
     }
     bounds
+}
+
+/// L'arbre binaire aplati en sauts de sous-arbre : six nombres de bornes et trois entiers par
+/// nœud — saut, premier triangle, nombre de triangles. C'est la forme que l'oracle trace sur le
+/// processeur, où une traversée sans pile vaut mieux qu'un nœud large ; le cache du proxy, lui,
+/// porte la forme large de `wide::collapse`.
+pub fn flatten(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
+    let mut escape = vec![0u32; nodes.len()];
+    for at in (0..nodes.len()).rev() {
+        escape[at] = if nodes[at].leaf() {
+            at as u32 + 1
+        } else {
+            escape[nodes[at].right]
+        };
+    }
+    let mut bounds = Vec::with_capacity(nodes.len() * 6);
+    let mut links = Vec::with_capacity(nodes.len() * 3);
+    for (at, node) in nodes.iter().enumerate() {
+        bounds.extend_from_slice(&node.low);
+        bounds.extend_from_slice(&node.high);
+        links.push(escape[at]);
+        links.push(node.first as u32);
+        links.push(node.count as u32);
+    }
+    (bounds, links)
 }

@@ -1,5 +1,5 @@
 import type { AssetScope } from './contractsBase.ts';
-import type { SceneProxyDescriptor } from './bounceContracts.ts';
+import type { SceneProxyDescriptor } from './proxyContracts.ts';
 
 export interface GeometryPageDescriptor {
   url: string;
