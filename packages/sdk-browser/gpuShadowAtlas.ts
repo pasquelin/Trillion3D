@@ -11,10 +11,14 @@ import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Étiquette de la passe mesurée ; `gpuShadowsMs` est lu sous ce nom. */
 export const SHADOW_PASS = 'WG shadow atlas v1';
-/** Alignement d'un décalage dynamique d'uniforme : une face par entrée de 256 octets. */
+/** Alignement d'un décalage dynamique d'uniforme : une région par entrée de 256 octets. */
 const FACE_STRIDE = 256;
-/** Faces au plus dans une image : quatre lampes remises à jour, six faces chacune. */
-export const MAX_FACES_PER_FRAME = LIGHT_SETTINGS.shadowUpdatesPerFrame * POINT_FACES;
+/**
+ * Régions au plus dans une image : le plafond des tampons, pas un réglage de qualité. Une face
+ * entièrement périmée tient dans une seule région, donc ce plafond vaut au moins ce que l'ancien
+ * plafond de quatre lampes autorisait ; le budget en millisecondes s'arrête presque toujours avant.
+ */
+export const MAX_SHADOW_REGIONS = LIGHT_SETTINGS.shadowUpdatesPerFrame * POINT_FACES;
 export const shadowAtlasBytes = () => LIGHT_SETTINGS.shadowAtlasSize ** 2 * 4;
 
 export type GpuShadowAtlas = Awaited<ReturnType<typeof createGpuShadowAtlas>>;
@@ -30,11 +34,16 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     label: 'WG shadow depth atlas v1',
     size: [size, size, 1],
     format: 'depth32float',
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    // `COPY_SRC` n'est là que pour la preuve : l'hôte peut relire l'atlas et comparer son empreinte
+    // entre un redessin par pages et un redessin complet. Aucune passe de l'image ne le copie.
+    usage:
+      GPUTextureUsage.RENDER_ATTACHMENT |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_SRC,
   });
   const faceUniform = device.createBuffer({
     label: 'WG shadow faces v1',
-    size: MAX_FACES_PER_FRAME * FACE_STRIDE,
+    size: MAX_SHADOW_REGIONS * FACE_STRIDE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const sliceBuffer = device.createBuffer({
@@ -43,7 +52,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const slicePacked = new Float32Array(MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS);
-  const facePacked = new Float32Array((MAX_FACES_PER_FRAME * FACE_STRIDE) / 4);
+  const facePacked = new Float32Array((MAX_SHADOW_REGIONS * FACE_STRIDE) / 4);
   const release = () => {
     texture.destroy();
     faceUniform.destroy();
@@ -99,11 +108,13 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       faceStride: FACE_STRIDE,
       allocationBytes: shadowAtlasBytes() + faceUniform.size + sliceBuffer.size,
       /**
-       * Écrit une face dans les deux tampons : celui des matrices de l'image, lu par décalage
-       * dynamique, et celui des tranches, relu par la résolution différée. `matrices` porte la
-       * matrice à `matrixBase` ; rien n'est copié dans un tableau intermédiaire.
+       * Écrit une région dans les deux tampons : celui des matrices de l'image, lu par décalage
+       * dynamique, et celui des tranches, relu par la résolution différée. La matrice est celle de
+       * la face entière, jamais celle de la région : c'est ce qui rend le dessin par pages identique
+       * au bit près. `matrices` la porte à `matrixBase` ; rien n'est copié dans un tableau
+       * intermédiaire, et deux régions d'une même face y réécrivent les mêmes nombres.
        */
-      writeFace(
+      writeRegion(
         index: number,
         slice: number,
         face: number,
@@ -132,7 +143,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         slicePacked[entry + 19] = side > 0 ? 1 : 0;
         return side;
       },
-      flushFaces(count: number) {
+      flushRegions(count: number) {
         if (count)
           device.queue.writeBuffer(faceUniform, 0, facePacked, 0, (count * FACE_STRIDE) / 4);
       },

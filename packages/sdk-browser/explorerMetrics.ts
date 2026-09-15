@@ -47,6 +47,9 @@ export function createExplorerMetrics(
     shadowsUpdated: null,
     shadowFacesDrawn: null,
     shadowDrawCalls: null,
+    shadowPagesDrawn: null,
+    shadowPagesPending: null,
+    shadowWaitMs: null,
     gpuLightListsMs: null,
     gpuShadowsMs: null,
     gpuLightingMs: null,
@@ -129,6 +132,9 @@ export function createExplorerMetrics(
     metricsScratch.shadowsUpdated = backendMetrics.shadowsUpdated ?? null;
     metricsScratch.shadowFacesDrawn = backendMetrics.shadowFacesDrawn ?? null;
     metricsScratch.shadowDrawCalls = backendMetrics.shadowDrawCalls ?? null;
+    metricsScratch.shadowPagesDrawn = backendMetrics.shadowPagesDrawn ?? null;
+    metricsScratch.shadowPagesPending = backendMetrics.shadowPagesPending ?? null;
+    metricsScratch.shadowWaitMs = backendMetrics.shadowWaitMs ?? null;
     metricsScratch.gpuLightListsMs = backendMetrics.gpuLightListsMs ?? null;
     metricsScratch.gpuShadowsMs = backendMetrics.gpuShadowsMs ?? null;
     metricsScratch.gpuLightingMs = backendMetrics.gpuLightingMs ?? null;

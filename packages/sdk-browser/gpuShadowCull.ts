@@ -1,6 +1,6 @@
 import { SHADOW_CULL_FLOATS } from '../sdk-core/index.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from './gpuDraw.ts';
-import { MAX_FACES_PER_FRAME } from './gpuShadowAtlas.ts';
+import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import { SHADOW_CULL_SHADER } from './gpuShadowCullShader.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
@@ -27,25 +27,25 @@ const BINDING_TYPES: readonly GPUBufferBindingType[] = [
 export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 
 /**
- * Le rejet par face : une liste d'instances par face redessinée, et la commande indirecte qui va
+ * Le rejet par région : une liste d'instances par région redessinée, et la commande indirecte qui va
  * avec. Tous les tampons sont alloués une fois pour le budget d'une image — au plus
- * `MAX_FACES_PER_FRAME` faces, au plus `capacity` clusters chacune — et une image n'alloue rien.
+ * `MAX_SHADOW_REGIONS` régions, au plus `capacity` clusters chacune — et une image n'alloue rien.
  */
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const kept = device.createBuffer({
     label: 'WG shadow kept clusters v1',
-    size: Math.max(4, MAX_FACES_PER_FRAME * capacity * 4),
+    size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
     usage: GPUBufferUsage.STORAGE,
   });
   const indirect = device.createBuffer({
     label: 'WG shadow indirect v1',
-    size: MAX_FACES_PER_FRAME * DRAW_INDIRECT_STRIDE,
+    size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE,
   });
   const faceVolumes = device.createBuffer({
     label: 'WG shadow face volumes v1',
-    size: MAX_FACES_PER_FRAME * SHADOW_CULL_FLOATS * 4,
+    size: MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
     usage: storage,
   });
   const uniforms = device.createBuffer({
@@ -53,10 +53,10 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const live = device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE });
-  const offsets = device.createBuffer({ size: MAX_FACES_PER_FRAME * 4, usage: storage });
+  const offsets = device.createBuffer({ size: MAX_SHADOW_REGIONS * 4, usage: storage });
   const drawUniform = device.createBuffer({
     label: 'WG shadow draw slots v1',
-    size: MAX_FACES_PER_FRAME * PAGE_BIND_ALIGN,
+    size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const all = [kept, indirect, faceVolumes, uniforms, live, offsets, drawUniform];
@@ -65,9 +65,9 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   };
   try {
     // La place de chaque face dans la liste commune, et son slot de dessin : posées une fois.
-    const offsetWords = new Uint32Array(MAX_FACES_PER_FRAME);
-    const drawWords = new Uint32Array(MAX_FACES_PER_FRAME * DRAW_UNIFORM_WORDS);
-    for (let face = 0; face < MAX_FACES_PER_FRAME; face++) {
+    const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS);
+    const drawWords = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_UNIFORM_WORDS);
+    for (let face = 0; face < MAX_SHADOW_REGIONS; face++) {
       offsetWords[face] = face * capacity;
       drawWords[face * DRAW_UNIFORM_WORDS + WORD_DRAW_SLOT] = face;
       drawWords[face * DRAW_UNIFORM_WORDS + WORD_INDIRECT] = 1;
@@ -91,7 +91,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       layout: pipelineLayout,
       compute: { module, entryPoint: 'shadowCullScatter' },
     });
-    const volumes = new Float32Array(MAX_FACES_PER_FRAME * SHADOW_CULL_FLOATS);
+    const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS);
     const uniData = new Uint32Array(4);
     let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;

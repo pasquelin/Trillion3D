@@ -22,10 +22,21 @@ function view(overrides: Partial<ShadowViewpoint> = {}): ShadowViewpoint {
 
 const AXIS: [number, number, number] = [0.1, -0.9, 0.4];
 
+// `boxRadius` a quitté la cascade avec le lot des ombres par pages : le volume du rejet se calcule
+// désormais à partir des demi-côtés de la boîte, pour pouvoir n'en prendre qu'une région. L'oracle,
+// lui, reste la copie figée d'avant ; on compare donc les champs que la cascade publie encore.
 function memeCascade(v: ShadowViewpoint, index: number, side: number, label: string) {
-  const optimisee = { ...sunCascadeOf(v, AXIS, index, side) };
-  const reference = { ...referenceSunCascadeOf(v, AXIS, index, side) };
-  assert.deepEqual(optimisee, reference, label);
+  const { center, radius, boxCenter } = sunCascadeOf(v, AXIS, index, side);
+  const reference = referenceSunCascadeOf(v, AXIS, index, side);
+  assert.deepEqual(
+    { center: [...center], radius, boxCenter: [...boxCenter] },
+    {
+      center: [...reference.center],
+      radius: reference.radius,
+      boxCenter: [...reference.boxCenter],
+    },
+    label,
+  );
 }
 
 test('les quatre cascades d’une même vue, appelées dans l’ordre, valent la référence sans cache', () => {

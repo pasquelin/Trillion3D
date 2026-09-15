@@ -83,6 +83,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     atlasClasses: options.atlasClasses ?? 1,
     stageProfile: options.stageProfile === true,
+    shadowBudgetMs: options.shadowBudgetMs,
+    shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,
     // La lumière qui rebondit reste éteinte par défaut : son étape mesurée tient 1,1 à 1,3 ms sur
     // Emerald, au-dessus de la barre d'une milliseconde, et l'hôte l'allume explicitement.

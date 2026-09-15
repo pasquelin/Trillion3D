@@ -4,9 +4,8 @@ import { LIGHT_SETTINGS, type ShadowViewpoint } from './sceneLightContracts.ts';
 interface SunCascade {
   center: [number, number, number];
   radius: number;
-  /** Centre et rayon de la boîte de la projection : ce que le rejet oppose aux clusters. */
+  /** Centre de la boîte de la projection : ce à quoi le rejet rapporte la région qu'il découpe. */
   boxCenter: [number, number, number];
-  boxRadius: number;
 }
 
 /**
@@ -72,7 +71,6 @@ const cascade: SunCascade = {
   center: [0, 0, 0],
   radius: 1,
   boxCenter: [0, 0, 0],
-  boxRadius: 1,
 };
 
 /**
@@ -125,7 +123,5 @@ export function sunCascadeOf(
   // `(depthScale − 1)·r/2` vers le soleil par rapport au centre de la sphère.
   const back = (radius * (LIGHT_SETTINGS.sunCascadeDepthScale - 1)) / 2;
   for (let a = 0; a < 3; a++) cascade.boxCenter[a] = cascade.center[a] - axis[a] * back;
-  const halfDepth = (radius * (LIGHT_SETTINGS.sunCascadeDepthScale + 1)) / 2;
-  cascade.boxRadius = Math.hypot(radius, radius, halfDepth);
   return cascade;
 }

@@ -5,7 +5,7 @@ import {
   type SceneLightStore,
   type ShadowPlan,
 } from '../sdk-core/index.ts';
-import { MAX_FACES_PER_FRAME, type GpuShadowAtlas } from './gpuShadowAtlas.ts';
+import { MAX_SHADOW_REGIONS, type GpuShadowAtlas } from './gpuShadowAtlas.ts';
 import type { GpuShadowCull } from './gpuShadowCull.ts';
 import type { GpuLightTiles } from './gpuLightTiles.ts';
 
@@ -34,8 +34,14 @@ export interface WebgpuLightState {
    *  passe a dû écarter se lit sur l'ordonnanceur lui-même (`plan.denied`, `plan.pending`). */
   lightsActive: number;
   shadowsUpdated: number;
-  /** Faces planifiées, et dessins indirects réellement encodés par la dernière passe : un par face. */
+  /** Faces réellement touchées par la dernière image, toutes régions confondues. */
   shadowFaces: number;
+  /** Régions redessinées et pages qu'elles couvrent : l'unité de travail et celle du budget. */
+  shadowRegions: number;
+  shadowPages: number;
+  /** Pages redessinées par image, par rang d'image : le chronomètre GPU revient avec du retard et
+   *  doit retrouver le travail de l'image qu'il décrit pour en déduire le coût d'une page. */
+  pagesByFrame: Uint32Array;
   /** Part de ces faces qui sont des cascades de soleil : le coût du soleil, séparé des ponctuelles. */
   sunCascades: number;
   shadowDraws: number;
@@ -48,22 +54,28 @@ export interface WebgpuLightState {
   firstFrameLogged: boolean;
 }
 
+/** Images gardées dans l'anneau des pages : bien au-delà du retard d'un relevé d'horodatage. */
+export const PAGES_RING = 64;
+
 export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightState {
   return {
     store: store ?? createSceneLightStore(),
-    plan: createShadowPlan(),
+    plan: createShadowPlan(MAX_SHADOW_REGIONS),
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
     cull: undefined,
     spheres: undefined,
-    shadowGroups: new Array(MAX_FACES_PER_FRAME).fill(undefined),
+    shadowGroups: new Array(MAX_SHADOW_REGIONS).fill(undefined),
     shadowGroupsKey: [],
     uploadedEpoch: 0,
-    faceMatrices: new Float32Array(MAX_FACES_PER_FRAME * 16),
+    faceMatrices: new Float32Array(MAX_SHADOW_REGIONS * 16),
     lightsActive: 0,
     shadowsUpdated: 0,
     shadowFaces: 0,
+    shadowRegions: 0,
+    shadowPages: 0,
+    pagesByFrame: new Uint32Array(PAGES_RING),
     sunCascades: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,

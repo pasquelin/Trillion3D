@@ -1,67 +1,94 @@
-import type { ShadowViewpoint } from './sceneLightContracts.ts';
+/** Boîtes de mouvement gardées séparément avant fusion : au-delà, deux boîtes se rejoignent. */
+export const MOVED_BOXES = 8;
+
+/** Le point testé, alloué une fois : `touches` est appelé par lampe et par boîte, à chaque image. */
+const point = new Float64Array(3);
+/** La boîte lue, allouée une fois : l'ordonnanceur la projette face par face sans rien créer. */
+const readMin = new Float64Array(3),
+  readMax = new Float64Array(3),
+  readBox = { min: readMin, max: readMax };
 
 /**
- * Ce qui périme une carte d'ombre : la boîte de ce qui a bougé dans le monde depuis que les ombres
- * l'ont rattrapé, et la révision de la vue — une cascade du soleil suit la caméra, donc une caméra
- * qui bouge la périme, alors qu'une lampe ponctuelle s'en moque. Tout est alloué une fois.
+ * Ce qui a bougé dans le monde depuis la dernière image, en boîtes monde. Elles sont gardées
+ * **séparées** — jusqu'à huit — et non réunies en une seule : une seule boîte englobant deux objets
+ * aux deux bouts de la scène périmerait toutes les pages entre eux, alors que rien n'y a changé.
+ * Au-delà de huit, deux boîtes fusionnent, celles dont la réunion coûte le moins de volume.
+ *
+ * L'ordonnanceur les consomme à chaque image : il en déduit les pages périmées de chaque face, qui
+ * portent ensuite l'état. Les boîtes n'ont donc rien à retenir d'une image à l'autre, et tout est
+ * alloué une fois.
  */
 export function createShadowChanges() {
-  const moved = { min: [0, 0, 0], max: [0, 0, 0], valid: false };
-  const lastView = new Float64Array(9),
-    seen = new Float64Array(9);
-  let worldEpoch = 1,
-    viewEpoch = 1;
-  /** Écart d'une coordonnée à l'intervalle de la boîte déplacée, nul à l'intérieur. */
-  const outside = (value: number, axis: number) =>
-    Math.max(moved.min[axis] - value, value - moved.max[axis], 0);
+  const min = new Float64Array(MOVED_BOXES * 3),
+    max = new Float64Array(MOVED_BOXES * 3);
+  let count = 0;
+  const volume = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>) => {
+    let product = 1;
+    for (let axis = 0; axis < 3; axis++)
+      product *= Math.max(max[base + axis], hi[axis]) - Math.min(min[base + axis], lo[axis]);
+    return product;
+  };
+  const own = (base: number) =>
+    (max[base] - min[base]) * (max[base + 1] - min[base + 1]) * (max[base + 2] - min[base + 2]);
+  const write = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>, merge: boolean) => {
+    for (let axis = 0; axis < 3; axis++) {
+      min[base + axis] = merge ? Math.min(min[base + axis], lo[axis]) : lo[axis];
+      max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
+    }
+  };
   return {
-    get worldEpoch() {
-      return worldEpoch;
+    get count() {
+      return count;
     },
-    get viewEpoch() {
-      return viewEpoch;
-    },
-    /** Vrai tant qu'un mouvement du monde n'a pas encore été rattrapé par toutes les cartes. */
-    get worldMoved() {
-      return moved.valid;
-    },
-    /** Un nœud a bougé : la boîte s'unit à celle des mouvements que les ombres n'ont pas rattrapés. */
-    worldChanged(min: readonly number[], max: readonly number[]) {
-      for (let axis = 0; axis < 3; axis++) {
-        moved.min[axis] = moved.valid ? Math.min(moved.min[axis], min[axis]) : min[axis];
-        moved.max[axis] = moved.valid ? Math.max(moved.max[axis], max[axis]) : max[axis];
+    min,
+    max,
+    /** Un nœud ou une page de résidence a bougé : sa boîte entre dans la liste, ou rejoint une voisine. */
+    worldChanged(lo: readonly number[], hi: readonly number[]) {
+      if (count < MOVED_BOXES) {
+        write(count * 3, lo, hi, false);
+        count++;
+        return;
       }
-      moved.valid = true;
-      worldEpoch++;
-    },
-    /** Monte la révision de la vue dès qu'un de ses neuf nombres a changé, jamais autrement. */
-    noteView(view: ShadowViewpoint) {
-      seen[0] = view.position[0];
-      seen[1] = view.position[1];
-      seen[2] = view.position[2];
-      seen[3] = view.forward[0];
-      seen[4] = view.forward[1];
-      seen[5] = view.forward[2];
-      seen[6] = view.halfFovY;
-      seen[7] = view.aspect;
-      seen[8] = view.far;
-      for (let i = 0; i < seen.length; i++)
-        if (seen[i] !== lastView[i]) {
-          lastView.set(seen);
-          viewEpoch++;
-          return;
+      let best = 0,
+        bestGrowth = Infinity;
+      for (let box = 0; box < count; box++) {
+        const growth = volume(box * 3, lo, hi) - own(box * 3);
+        if (growth < bestGrowth) {
+          bestGrowth = growth;
+          best = box;
         }
+      }
+      write(best * 3, lo, hi, true);
     },
-    /** Sphère d'influence de la lampe contre la boîte déplacée : un test analytique, pas un rayon. */
-    touchesMoved(x: number, y: number, z: number, range: number) {
-      if (!moved.valid) return false;
-      const dx = outside(x, 0),
-        dy = outside(y, 1),
-        dz = outside(z, 2);
-      return dx * dx + dy * dy + dz * dz <= range * range;
+    /**
+     * La sphère d'influence d'une lampe contre la boîte `box` : un test analytique, pas un rayon. Une
+     * lampe sans portée — le soleil — voit tout ce qui bouge, et rend donc toujours vrai.
+     */
+    touches(box: number, x: number, y: number, z: number, range: number) {
+      const base = box * 3;
+      if (!(range > 0)) return true;
+      let squared = 0;
+      point[0] = x;
+      point[1] = y;
+      point[2] = z;
+      for (let axis = 0; axis < 3; axis++) {
+        const gap = Math.max(min[base + axis] - point[axis], point[axis] - max[base + axis], 0);
+        squared += gap * gap;
+      }
+      return squared <= range * range;
     },
+    /** La boîte `box` dans deux tableaux réutilisés : `[0]` ses minima, `[1]` ses maxima. */
+    read(box: number) {
+      const base = box * 3;
+      for (let axis = 0; axis < 3; axis++) {
+        readMin[axis] = min[base + axis];
+        readMax[axis] = max[base + axis];
+      }
+      return readBox;
+    },
+    /** Les boîtes sont consommées : les pages qu'elles périment portent désormais l'état. */
     settled() {
-      moved.valid = false;
+      count = 0;
     },
   };
 }
