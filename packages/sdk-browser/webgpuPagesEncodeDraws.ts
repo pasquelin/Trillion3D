@@ -42,6 +42,7 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function uploadDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { rows, drawSlots } = rt.layout,
     { pageTable } = rt.vis;
+  rt.timing.encodeCounts.lignesTeleversees = Math.max(0, rows.dirtyTo - rows.dirtyFrom + 1);
   if (rows.dirtyTo < rows.dirtyFrom || !pageTable || !rows.pageTableFloats) return;
   device.queue.writeBuffer(
     pageTable,
