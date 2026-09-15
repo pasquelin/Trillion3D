@@ -154,9 +154,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
   const adoptGpuCut = () => {
-    const adopted = cutAdopter.adopt();
-    const metrics = cutAdopter.metrics;
+    const adopted = cutAdopter.adopt(),
+      metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
+    // Une adoption qui a réécrit les listes les fait changer d'âge, où qu'elle se produise : au
+    // rendu comme dans la vidange, qui en rejoue une après que l'hôte a pris ses listes.
+    if (metrics.listsRewritten) run.cutEpoch++;
     if (!adopted) return;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
@@ -183,7 +186,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     hasBytes,
     residencySets,
     admitCut,
-    invalidateCut: cutAdopter.invalidate,
+    // La coupe processeur réécrit elle-même ces listes : leur âge change avec elle.
+    invalidateCut: () => (run.cutEpoch++, cutAdopter.invalidate()),
     bootstrapState,
     ensureResident,
     residency,
