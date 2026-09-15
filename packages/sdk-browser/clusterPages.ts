@@ -1,4 +1,5 @@
 import { EngineError } from '../sdk-core/index.ts';
+import { sha256Hex } from './sha256Hex.ts';
 export async function checked(url: string, signal?: AbortSignal) {
   const response = await fetch(url, { signal });
   if (!response.ok)
@@ -9,10 +10,6 @@ export async function checked(url: string, signal?: AbortSignal) {
     );
   return response;
 }
-const digest = async (bytes: ArrayBuffer) =>
-  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
 export async function loadClusterPages(
   pages: Array<{ url: string; bytes: number; sha256: string }>,
   base: string,
@@ -34,7 +31,7 @@ export async function loadClusterPages(
         const page = pages[next++],
           bytes = await (await checked(new URL(page.url, base).href, combined)).arrayBuffer();
         combined.throwIfAborted();
-        if (bytes.byteLength !== page.bytes || (await digest(bytes)) !== page.sha256)
+        if (bytes.byteLength !== page.bytes || (await sha256Hex(bytes)) !== page.sha256)
           throw new Error('Corrupt cluster page');
         indices.set(page.url, new Uint32Array(bytes));
         pageBytesRead += bytes.byteLength;
