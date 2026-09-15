@@ -34,11 +34,10 @@ Politique juridique fixée par l'utilisateur : aucun format propriétaire, sauf 
 | KTX / KTX2, Basis Universal                | Khronos ; Basis Apache-2 ; codecs listés dans le build                                         | à coder | transcodage vers RGBA8                                                                    | P3                  |
 | WebP                                       | libwebp BSD-3 ; portée brevets à vérifier si décodeur réécrit                                  | à coder | sans perte uniquement                                                                     | P3                  |
 | Maya ASCII `.ma`                           | format documenté ; données seulement, aucun script exécuté                                     | à coder | sous-ensemble nœuds, attributs, connexions                                                | P3                  |
-| `.uasset` / `.umap`                        | lecteur indépendant sans code d'Epic ni déchiffrement ; audit d'avocat AVANT diffusion         | non     | étude après avis juridique seulement                                                      | bloqué              |
 
 ## À éviter — pas d'import natif
 
-`.max`, `.mb` (binaire), SpeedTree natif, Substance `.sbsar`, CAO (`.step`, `.3dm`), nuages de points, HEIC. On demande l'export dans un format de la liste.
+`.uasset` / `.umap`, `.max`, `.mb` (binaire), SpeedTree natif, Substance `.sbsar`, CAO (`.step`, `.3dm`), nuages de points, HEIC. On demande l'export dans un format de la liste.
 
 ## Licences de contenu — indépendantes du format
 
