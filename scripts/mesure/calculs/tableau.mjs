@@ -71,12 +71,15 @@ export function ecris({ nom, titre, preambule, entete, separateur, ligne, lignes
   console.log(`\nÉcrit : orchestration/mesures/${nom}-${jour}.md et .json`);
 }
 
-/** Le tableau des lots à égalité bit à bit — A et F : même en-tête, même règle de « Retenu ». */
-export function ecrisBitAbit({ nom, titre, extra }) {
+/** Le tableau des lots à égalité bit à bit — A, F et G : même en-tête, même règle de « Retenu ».
+ *  `note` ajoute une phrase au préambule, par exemple l'état de la machine pendant la mesure. */
+export function ecrisBitAbit({ nom, titre, extra, note }) {
   ecris({
     nom,
     titre,
-    preambule: `Médiane sur N tours après échauffement ; « Retenu » exige l'égalité bit à bit ET un gain.`,
+    preambule:
+      `Médiane sur N tours après échauffement ; « Retenu » exige l'égalité bit à bit ET un gain.` +
+      (note ? `\n${note}` : ''),
     entete: '| Calcul | Fichier | Avant (ms) | Après (ms) | Gain | Identique | Retenu |',
     separateur: '|---|---|---|---|---|---|---|',
     ligne: (l) =>
