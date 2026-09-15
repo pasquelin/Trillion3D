@@ -121,6 +121,26 @@ export interface Primitive {
     manifold: boolean;
   };
 }
+/**
+ * L'aperçu d'une texture couleur : cinq niveaux RGBA8 sRGB à alpha droit, du 16×16 au 1×1. Le
+ * moteur l'échantillonne tant que la vraie texture n'est pas transférée, puis bascule sur elle.
+ */
+export interface TexturePreview {
+  /** Rang dans le tableau `textures` de la scène préparée. */
+  texture: number;
+  /** Rang dans son tableau `images`, où se lit l'`uri` source quand il y en a une. */
+  image: number;
+  width: number;
+  height: number;
+  /** 0 quand les octets venaient d'une `uri` d'image, 1 quand ils venaient de `sourceBufferView`. */
+  sourceKind: number;
+  /** Vue de tampon de la scène préparée, ou -1 pour une source `uri`. */
+  sourceBufferView: number;
+  /** SHA-256 des octets sources décodés. */
+  sha256: string;
+  /** Les cinq niveaux dans l'ordre, chacun une vue sur les octets du sidecar. */
+  levels: Uint8Array<ArrayBuffer>[];
+}
 export interface ClusterManifest {
   formatVersion?: number;
   compilerVersion?: string;
@@ -137,4 +157,6 @@ export interface ClusterManifest {
   totalNodes: number;
   autonomousScene?: string | null;
   primitives: Primitive[];
+  /** Un aperçu par texture couleur décodée, trié par index de texture; vide sans image décodable. */
+  texturePreviews?: TexturePreview[];
 }

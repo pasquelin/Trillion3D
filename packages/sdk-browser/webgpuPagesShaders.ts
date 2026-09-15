@@ -1,6 +1,7 @@
 import { SCENE_LIGHTING_WGSL } from './sceneLighting.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
+import { COLOR_SAMPLE_WGSL } from './webgpuPreviewAtlas.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -51,6 +52,9 @@ ${STANDARD_LIGHTING_WGSL}
 ${SCENE_LIGHTING_WGSL}
 @group(0) @binding(9) var<storage,read> sceneLights:SceneLights;
 @group(0) @binding(10) var<storage,read> triangleDiagnostic:array<u32>;
+@group(0) @binding(11) var previews:texture_2d_array<f32>;
+@group(0) @binding(12) var<storage,read> previewReady:array<u32>;
+${COLOR_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
@@ -99,7 +103,7 @@ ${TRIANGLE_PALETTE_WGSL}
  let face=select(-1.0,1.0,front);
  if((uni.flags&2u)!=0u){N*=face;}
  let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
- let sample=textureSampleGrad(maps,mapsSampler,wrapped*uni.uvScale,i32(uni.mapIndex),gradX*uni.uvScale,gradY*uni.uvScale);
+ let sample=colorSample(uni.mapIndex,uni.uvScale,wrapped,gradX,gradY);
  let alpha=sample.w*in.color.w;
  if((uni.flags&0x40000000u)!=0u){
   if(alpha<=0.01||alpha<uni.alphaTest){discard;}
@@ -129,7 +133,7 @@ ${TRIANGLE_PALETTE_WGSL}
   N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
  }
  var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
- if(uni.emissiveIndex!=0u){let scale=scales[uni.emissiveIndex].zw;emissive*=textureSampleGrad(maps,mapsSampler,wrapped*scale,i32(uni.emissiveIndex),gradX*scale,gradY*scale).rgb;}
+ if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,wrapped,gradX,gradY).rgb;}
  if(alpha<uni.alphaTest){discard;}
  if((uni.flags&1u)!=0u){rgb=sceneLighting(rgb,clamp(metal,0.0,1.0),clamp(rough,0.0525,1.0),N,normalize(uni.camPos.xyz-in.view),in.view,ao)+emissive;}
  return vec4f(rgb,alpha);
