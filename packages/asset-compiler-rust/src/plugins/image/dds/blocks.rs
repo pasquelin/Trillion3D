@@ -1,14 +1,14 @@
 //! La reconstruction du niveau 0 vers RGBA8, et rien d'autre.
 //!
-//! Pour un codec compressé, `texture2ddecoder` développe chaque bloc de 4 × 4 par l'interpolation
-//! entière que la spécification définit — aucun arrondi ni filtre n'est ajouté ici — et rend un
-//! pixel par mot de trente-deux bits, octets B, G, R, A en mémoire. La seule chose que fait ce
-//! module ensuite est de remettre ces octets dans l'ordre du contrat, R, G, B, A.
+//! Les blocs compressés sont développés par le socle commun `image::blocks` : `dds` et `ktx2`
+//! nomment leurs codecs chacun à sa façon, mais une fois le décodeur choisi, promener ses pixels
+//! dans l'ordre du contrat est le même travail, écrit une seule fois.
 //!
 //! Pour une surface non compressée, les octets sont déjà là : on les remet dans le même ordre.
-use super::codec::{BlockDecode, Layout, Order};
+use super::codec::{Layout, Order};
 use super::header::Surface;
 use super::{DecodedImage, DATA_TRUNCATED, TOO_LARGE};
+use crate::plugins::image::blocks as shared;
 
 pub(super) fn decode(
     surface: &Surface,
@@ -22,41 +22,17 @@ pub(super) fn decode(
     let level = &bytes[surface.data..];
     let (width, height) = (surface.width as usize, surface.height as usize);
     let rgba = match surface.codec.layout() {
-        Layout::Blocks { bytes, decode } => {
-            from_blocks(decode, usize::from(bytes), level, width, height)?
-        }
+        Layout::Blocks { bytes, decode } => shared::to_rgba8(
+            decode,
+            usize::from(bytes),
+            level,
+            width,
+            height,
+            DATA_TRUNCATED,
+        )?,
         Layout::Pixels(order) => from_pixels(order, level, width * height)?,
     };
-    ::image::RgbaImage::from_raw(surface.width, surface.height, rgba)
-        .map(DecodedImage::Rgba8)
-        .ok_or(DATA_TRUNCATED)
-}
-
-/// Les blocs compressés, développés par le décodeur du codec puis remis en RGBA8. Le décodeur
-/// travaille une rangée de blocs à la fois dans un tampon de quatre lignes de pixels, recopiées
-/// aussitôt dans l'image : aucun second tampon de la taille de l'image. Chaque bloc se décode
-/// seul, donc découper par rangée rend exactement les mêmes pixels. Un niveau trop court pour le
-/// nombre de blocs annoncé est un refus du décodeur, jamais une panique.
-fn from_blocks(
-    decode: BlockDecode,
-    block_bytes: usize,
-    level: &[u8],
-    width: usize,
-    height: usize,
-) -> std::result::Result<Vec<u8>, &'static str> {
-    let row_bytes = width.div_ceil(4) * block_bytes;
-    let mut strip = vec![0u32; width * height.min(4)];
-    let mut rgba = Vec::with_capacity(width * height * 4);
-    for (row, top) in (0..height).step_by(4).enumerate() {
-        let lines = (height - top).min(4);
-        let blocks = level.get(row * row_bytes..).ok_or(DATA_TRUNCATED)?;
-        decode(blocks, width, lines, &mut strip).map_err(|_| DATA_TRUNCATED)?;
-        rgba.extend(strip[..width * lines].iter().flat_map(|pixel| {
-            let [b, g, r, a] = pixel.to_le_bytes();
-            [r, g, b, a]
-        }));
-    }
-    Ok(rgba)
+    shared::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }
 
 /// Une surface non compressée, quatre octets par pixel. En `Rgba` les octets sont déjà ceux du

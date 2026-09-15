@@ -138,3 +138,26 @@ pub(super) fn golden_expected(dir: &Path) -> Value {
     }
     expected
 }
+
+/// Écrit l'attendu d'une fixture qui se régénère : le condensé que le doré comparera, plus les deux
+/// champs de prose que `golden_expected` retire ensuite. Ceux-ci sont conservés tels qu'ils étaient
+/// quand le fichier existait — une phrase relue à la main ne se perd pas dans une régénération — et
+/// les valeurs données ne servent qu'à la première écriture. Deux fixtures qui se régénèrent, c'est
+/// la même écriture : elle ne s'écrit qu'une fois.
+pub(super) fn write_expected(dir: &Path, mut expected: Value, case: &str, rule: &str) {
+    let previous: Option<Value> = fs::read(dir.join("expected.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    let object = expected.as_object_mut().expect("attendu");
+    for (field, fallback) in [("case", case), ("rule", rule)] {
+        let kept = previous
+            .as_ref()
+            .and_then(|value| value.get(field))
+            .cloned()
+            .unwrap_or_else(|| json!(fallback));
+        object.insert(field.into(), kept);
+    }
+    let text = serde_json::to_vec_pretty(&expected).expect("attendu");
+    fs::write(dir.join("expected.json"), &text).expect("expected.json");
+    println!("fixture écrite dans {}", dir.display());
+}
