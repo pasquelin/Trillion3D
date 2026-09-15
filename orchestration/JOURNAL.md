@@ -190,6 +190,175 @@ port 5174 non touché ; aucun `eslint-disable` ; `node_modules` (lien symbolique
 - **Passage global G** (deux Sonnet neufs, 189 fichiers relus, 12 points) : 10 retenus — coupe autonome sans parcours complet, ombrage CPU 23,5 → 15,1 ms, compteur d'octets, demande annulée 1,22 → 0,09 ms, file d'adresses 0,96 → 0,05 ms, étiquettes des colonnes Rust 13,8 → 0,36 ms, bornes de cascade solaire par vue, validation d'accessor unique, niveaux de preview, min/médiane/max sans tri. Neutres : cache de coins Hi-Z (relire 24 doubles coûte plus que retransformer 8 coins), preview Rust. Le harnais JS a gagné une mesure alternée (`options.alterne`) : la mesure séquentielle donnait 25 à 40 % d'avance au premier tour sur machine chargée.
 - Bilan dans `orchestration/AUDIT_MATH_BILAN.md` ; `AUDIT_MATH_PLAN.md` et les rapports G supprimés (plan terminé). Reste : D3 avec sa propre campagne, et la preuve navigateur chiffrée des temps par image sur machine calme.
 
+## 2026-09-15 — lot « rebond 2 » : rendre le rebond abordable
+
+Branche `lot/rebond-2`, sur `develop` = `62c6b3d`. **L'étape Rebond d'Emerald passe de 78 à 87 ms à
+2,3 ms de carte graphique** (p50, trois vues), soit trente-cinq fois moins, et l'écart à l'oracle de
+la pièce de contrôle de 15,4 % à 12,6 % de moyenne. **Le format du sidecar binaire n'est pas
+touché** ; seul l'objet de cache `proxy.bin` monte de version (1 → 2), et un cache d'avant ce lot est
+refusé par son nom, jamais deviné.
+
+### Levier 1 — la traversée : un BVH à quatre enfants, et un proxy dix-sept fois plus léger
+
+- **BVH large.** Le proxy portait un arbre binaire : un rayon descendait d'un cran par nœud visité, et
+  sur Emerald la borne de 512 nœuds s'épuisait avant la feuille. Un nœud porte maintenant **quatre
+  enfants**, testés d'un coup ; le rayon descend sur le plus proche et empile les autres, et un nœud
+  dépilé est retesté contre la distance du plus proche triangle déjà touché — dès qu'un rayon a
+  touché quelque chose, tout ce qui est derrière tombe sans être ouvert. Les boîtes des enfants
+  tiennent sur **huit bits** dans les bornes exactes du parent, arrondies vers l'extérieur : une
+  boîte quantifiée contient toujours ce qu'elle contenait, donc aucun triangle ne disparaît d'un
+  rayon. Trois bornes connues avant l'image : nœuds visités, triangles d'une feuille, profondeur de
+  pile — un débordement de pile abandonnerait un enfant, ce qui assombrit et ne fuit jamais.
+- **Simplification propre au proxy.** La coupe du DAG s'arrête à ses racines : sur Emerald elles
+  pèsent 1,4 M de triangles et doubler le seuil ne retire plus rien. Le proxy se simplifie donc
+  lui-même, sans DAG : les sommets rejoignent une grille de pas `c`, ce qui n'a plus de surface
+  disparaît, les doublons fusionnent, et ce qui reste plus long que `c` est **redécoupé**. Les deux
+  sens comptent : vers le bas la fusion fait tomber le compte, vers le haut la découpe donne au cache
+  de surfaces des mailles de taille connue. `c` part de 50 cm et double tant que le budget de
+  300 000 triangles n'est pas tenu ; celui qu'il a pris est publié, et l'erreur ajoutée est bornée
+  par la demi-diagonale d'une maille.
+- **Un seuil de coupe honnête, au passage** : la coupe cesse de doubler dès qu'elle ne retire plus un
+  triangle. Emerald publiait 3 276,8 m, un seuil que la coupe n'a jamais pris ; elle publie
+  maintenant **1,6 m**, le plus petit qui atteigne le plancher du DAG.
+
+| scène             | proxy avant | proxy après | nœuds avant → après | octets avant → après | maille |
+| ----------------- | ----------: | ----------: | ------------------: | -------------------: | -----: |
+| Emerald           |   1 399 633 |  **94 648** | 524 287 → **7 609** | 74,9 Mo → **4,3 Mo** |  4,0 m |
+| pièce de contrôle |          12 |       4 708 |             3 → 459 |       604 o → 221 ko |  0,5 m |
+
+### Levier 2 — le cache de surfaces : un rayon ne rejoue plus les lampes
+
+Chaque rayon de sonde qui touchait une surface y rejouait toutes les lampes et leurs rayons d'ombre :
+**cinq traversées du proxy par rayon**, et le même point réévalué autant de fois que des rayons le
+touchaient. Le proxy porte maintenant une **radiance sortante par triangle et par face**, mise à jour
+sur un budget fixe de mailles par image. Un rayon n'a plus qu'**une traversée et une lecture**. Le
+rebond multiple devient gratuit : la maille porte déjà l'indirect du tour précédent, relu dans la
+grille de sondes. Invalidation par la révision du magasin de lampes, comme une carte d'ombre.
+
+La maille est le triangle du proxy lui-même, dont le compilateur borne désormais la taille : c'est ce
+qui donne au cache une résolution connue en mètres, sans atlas ni projection. Emerald : 189 296
+mailles, 3,0 Mo.
+
+### Levier 3 — des sondes seulement là où il y a de la surface, et un fil par rayon
+
+- **Sondes clairsemées.** Une grille régulière sur l'emprise d'une ville passe l'essentiel de son
+  budget sur du ciel. L'irradiance n'étant relue qu'en des points de surface, et un point de surface
+  n'interpolant que les huit sondes de sa maille, la liste des sondes tenues est arrêtée à la
+  construction : **les mailles qui touchent de la géométrie, plus une couronne d'une maille autour
+  d'elles**. Une maille absente n'est jamais écrite, donc elle se déclare inutilisable et ne pèse
+  rien — là où aucune sonde ne voit le point, le rebond vaut toujours exactement zéro.
+- **Un budget de rayons, pas un budget de sondes** (131 072 au départ, 49 152 retenus) : c'est lui qui
+  décide du nombre de sondes du lot, non l'inverse.
+- **Un fil par rayon.** La passe donnait une sonde par fil, qui enchaînait ses 64 rayons l'un après
+  l'autre : 2 048 fils occupaient la carte à rien. Un **groupe de travail par sonde**, un fil par
+  rayon, et une réduction en mémoire de groupe. Mesuré seul, vue générale d'Emerald, budgets
+  inchangés : **20,04 → 12,15 ms**.
+
+**Les cascades autour de la caméra n'ont pas été faites** : le seul point d'accroche est
+`webgpuPagesEncodeLights.ts:82`, que la session « encodage » tient. La grille reste fixe dans le
+monde, comme la spécification le demande (LC1), et ne dépend d'aucune caméra.
+
+### Où va le temps, et ce que chaque borne coûte
+
+Vue `rue` d'Emerald, 1280 × 720, 8 lampes dont une mobile, 180 images de profil :
+
+| configuration                                             | étape Rebond (GPU p50) |
+| --------------------------------------------------------- | ---------------------: |
+| cache seul, 65 536 mailles, borne 512                     |               10,53 ms |
+| cache seul, 65 536 mailles, **borne 128**                 |                3,59 ms |
+| cache + sondes, 65 536 mailles, 131 072 rayons, borne 512 |               12,15 ms |
+| **retenu** : 16 384 mailles, 49 152 rayons, borne 128     |            **2,26 ms** |
+
+La borne de traversée vaut donc **2,9×** sur le cache, exactement le rapport que le lot 1 avait
+mesuré sur l'arbre binaire — mais un nœud large en couvre quatre fois plus, si bien que 128 nœuds
+larges valent 512 nœuds binaires. Les deux effets d'une borne épuisée sont déclarés : un rayon de
+sonde ne rapporte rien, ce qui assombrit ; un rayon d'ombre ne trouve pas d'occulteur, ce qui éclaire.
+
+### Coût, Emerald, huit lampes dont une mobile
+
+1280 × 720, WebGPU, 180 images de profil, mode visible, **zéro erreur de page**. Le levier 1 est
+mesuré seul, contre `develop`, avec le budget de rayons du lot 1 (262 144) : il ne doit son gain qu'à
+l'arbre et au proxy.
+
+| vue      | `develop` (p50/p95) | levier 1 seul (p50/p95) | lot entier (p50/p95) |
+| -------- | ------------------: | ----------------------: | -------------------: |
+| générale |    78,41 / 82,40 ms |        27,96 / 28,66 ms |   **2,27 / 2,90 ms** |
+| sol      |   87,22 / 108,80 ms |        34,38 / 40,06 ms |   **2,33 / 3,10 ms** |
+| rue      |    78,84 / 82,43 ms |        34,93 / 40,42 ms |   **2,26 / 2,37 ms** |
+
+Une seconde campagne de `develop`, jouée plus tôt, avait donné 87,44 / 78,83 / 78,73 ms : la
+dispersion entre campagnes est d'environ 11 %, et c'est la borne de confiance de ces chiffres.
+
+Compteurs par image, côté après : `rayonsParImage` 49 152, `sondesMisesAJour` 768, `maillesMisesAJour`
+16 384 sur 189 296. **La grille d'Emerald compte 16 250 mailles et le lot n'en tient que 4 781**,
+soit 29,4 % : le reste est du ciel ou le cœur d'un bloc plein. Durées processeur **non mesurées** : la charge de la
+machine allait de 5 à 21 selon la série, et seuls les relevés par horodatage de la carte graphique
+sont utilisables. Les nœuds visités par rayon ne sont pas comptés : seule leur borne est publiée.
+
+**Le budget de 0,8 ms n'est toujours pas tenu**, mais la cible de 3 ms du lot l'est, avec de la marge
+sur trois vues. Ce qui reste entre 2,3 et 0,8 ms : **le budget par image est un compte, pas une durée**.
+La spécification demande l'inverse (X4, LR2) — l'ordonnanceur devrait choisir le nombre de lots
+d'après le temps mesuré des images précédentes. C'est ce qui manque, et c'est la phase E5.
+
+### Écart à l'oracle sur Emerald : verdict indéterminé
+
+Vue `rue`, huit lampes du harnais, oracle à quatre rebonds, 16 rayons par pixel, 128 × 96, 38,6 s sur
+les 10 046 405 triangles sources. **L'irradiance indirecte de l'oracle est exactement nulle sur toute
+l'image** : aucun canal ne passe le plancher de comparaison, donc aucun écart n'est calculable. Le
+verdict est **indéterminé**, jamais conforme (E7). C'est le même constat qu'au lot 1 sous une autre
+forme : aux lampes génériques du harnais — huit ponctuelles à 76 m les unes des autres, portée 81 m,
+intensité 40 — l'indirect d'une place de ville est sous le plancher, et il faudrait une scène
+d'intérieur, ou des lampes déclarées par l'utilisateur, pour que la mesure ait un sens. La pièce de
+contrôle reste donc la seule mesure d'écart qui dise quelque chose.
+
+### Écart à l'oracle et retard, pièce de contrôle
+
+Même pièce, même lampe, même oracle qu'au lot 1 (huit rebonds, 128 rayons par pixel, 160 × 120) :
+
+| grandeur        |  lot 1 |      lot 2 |                 cible |
+| --------------- | -----: | ---------: | --------------------: |
+| écart moyen     | 15,4 % | **12,6 %** |                  10 % |
+| écart médian    | 13,1 % | **10,5 %** |                     — |
+| écart p95       | 36,2 % | **29,0 %** |                     — |
+| moteur / oracle | −3,6 % | **−7,0 %** |                     — |
+| retard          |  83 ms | **117 ms** | 100 ms, limite 250 ms |
+
+La cible de 10 % de moyenne **n'est pas tenue** : 12,6 %. Ce qui reste est structurel et nommé — la
+base d'harmoniques sphériques d'**ordre 1** ne sait pas représenter un champ d'irradiance net, et la
+lumière d'une maille du cache est constante sur 50 cm. Une base d'ordre 2 est le prochain levier, et
+il se chiffre : neuf coefficients au lieu de quatre, donc une grille deux fois plus lourde.
+
+Deux réglages ont été trouvés par la mesure et non devinés. **Des sondes plus serrées n'aident pas** :
+à 1 m au lieu de 2 dans une pièce de 8 m, l'écart monte à 16,9 % et l'image s'assombrit de 16 %.
+Et **le retard dépend du pas du balayage du cache** : à 3 images par balayage il montait à 533 ms ;
+la maille de 50 cm au lieu de 25 le ramène à une image et le retard à 117 ms, pour 0,5 point d'écart.
+
+### Fidélité, rebond éteint
+
+`banc.mjs`, WebGPU, Emerald, trois vues, 1280 × 720, `pixelError 0`, `auto` sans lampe, même cache des
+deux côtés. **`62c6b3d` contre le lot : 0 px, max canal 0, sur `generale`, `sol` et `rue`**, témoin
+A/A à 0 px, coupe identique (mêmes `selectedTriangles`, mêmes hachages), 0 triangle non couvert.
+
+### Portes
+
+`npm run validate` vert sur la base rebasée `edf9e30` : format, 0 fichier de plus de 200 lignes,
+**0 doublon**, lint et Clippy, `knip`, build TS et natif, structure, déclarations, liens,
+**694 tests JS/TS**, **147 tests Rust** (2 ignorés) et **4 tests CLI**. Aucun test n'a été ajouté
+pendant le lot, comme demandé.
+
+### Ce qui reste, chiffré
+
+- **De 2,3 ms à 0,8 ms** : un budget en millisecondes au lieu d'un compte (X4, LR2), qui rendrait
+  aussi son balayage d'une image à la pièce de contrôle sans coûter à Emerald.
+- **De 12,6 % à 10 %** : la base d'ordre 2, et la lumière d'une maille de 50 cm qui ne varie pas.
+- **Convergence d'Emerald** : 189 296 mailles à 16 384 par image font **12 images** par balayage, et
+  16 tours avant que la passe ne cesse d'être encodée, soit 3,2 s pour l'état stable. Une lampe qui
+  bouge est suivie par un rafraîchissement roulant, jamais par un blocage.
+- **Cascades de sondes** : non faites, point d'accroche tenu par une autre session.
+- **Un piège de méthode** : un nuanceur refusé par la carte ne remonte pas en `pageerror` mais en
+  avertissement de console, et la mesure meurt plus loin sur « appareil perdu ». `oracle.mjs` remonte
+  maintenant ces lignes telles quelles.
+
 ## 2026-09-15 — simplify du chantier textures progressives (lots 1 à 3)
 
 Branche `simplify-textures`, sur `develop` = `21dbe9e` (lot 4 fusionné juste avant, documentation seule). Périmètre : le code que les lots 1, 2 et 3 des textures progressives ont introduit ou modifié. Aucun ajout de fonctionnalité, aucun changement de format ni de version du sidecar, aucune assertion de test touchée.

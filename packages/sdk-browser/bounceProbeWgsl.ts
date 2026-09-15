@@ -3,7 +3,7 @@ import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
 /** Fils d'un groupe de travail de la passe de sondes : un groupe par sonde, un fil par rayon. */
-export const BOUNCE_WORKGROUP = 64;
+const BOUNCE_WORKGROUP = 64;
 /** Étiquette de la passe mesurée ; l'étape « Rebond » est lue sous ce nom, pas par son rang. */
 export const BOUNCE_PROBE_PASS = 'WG bounce probes v1';
 

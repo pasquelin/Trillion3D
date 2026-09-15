@@ -8,7 +8,7 @@ import {
 import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER } from './bounceProbeWgsl.ts';
 import { createGpuBounceProxy, residentBuffer } from './gpuBounceProxy.ts';
-import { createGpuBounceSurface } from './gpuBounceSurface.ts';
+import { createGpuBounceSurface, type GpuBounceSurface } from './gpuBounceSurface.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Ce que la passe de sondes lie : la grille, le proxy, la liste des mailles utiles, les sondes
@@ -69,7 +69,7 @@ export async function createGpuBounceProbes(
     snapshot.destroy();
     resident.dispose();
   };
-  let surface: Awaited<ReturnType<typeof createGpuBounceSurface>>;
+  let surface: GpuBounceSurface;
   let pipeline: GPUComputePipeline;
   let group: GPUBindGroup;
   try {
