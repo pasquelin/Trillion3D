@@ -126,8 +126,10 @@ const sitesPurs = [
   },
   {
     nom: 'resolvePixelError (vitesse de caméra)',
+    // Appelé par chaque moteur juste après la mise à jour de la caméra de l'image : même contrat ici.
     cree: () => ({ motion: {} }),
     mesure: ({ motion }, camera) => {
+      camera.updateWorldMatrix(true, false);
       resolvePixelError({ pixelError: 1, lodAdaptive: true }, camera, motion);
       return motion.last.toArray();
     },
