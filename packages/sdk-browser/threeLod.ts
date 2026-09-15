@@ -145,7 +145,7 @@ export const threeLodBackend: BackendFactory = (context) => {
     render(camera) {
       context.source.updateMatrixWorld(true);
       sceneLights.update();
-      camera.updateMatrixWorld();
+      camera.updateWorldMatrix(true, false);
       selectedTriangles = 0;
       lodLevel = 0;
       overBudget = false;

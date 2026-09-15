@@ -123,7 +123,8 @@ export function cameraSelectionUniforms(
   viewport?: [number, number],
   into?: SelectionUniforms,
 ): SelectionUniforms {
-  camera.updateMatrixWorld();
+  // Ancêtres compris : vue, plans et position décrivent la même pose, même sous un rig d'hôte.
+  camera.updateWorldMatrix(true, false);
   const { vp, camPos } = scratch;
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
@@ -139,7 +140,7 @@ export function cameraSelectionUniforms(
     viewport,
     into?.pixelScale ?? ([1, 1] as [number, number]),
   );
-  camera.getWorldPosition(camPos);
+  camPos.setFromMatrixPosition(camera.matrixWorld);
   const cameraWorld: [number, number, number] = into?.cameraWorld ?? [camPos.x, camPos.y, camPos.z];
   cameraWorld[0] = camPos.x;
   cameraWorld[1] = camPos.y;

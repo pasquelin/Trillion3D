@@ -4,6 +4,7 @@ import { collectPendingUrls } from './pageSelection.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
+import { holdCameraWorld } from './cameraWorld.ts';
 import {
   drawResidentCut,
   renderForCapture,
@@ -99,7 +100,10 @@ export async function captureSurfaceView(
     diagnostic: run.diagnostic,
     motion: { ...run.motion },
   };
-  const view = camera.clone();
+  // Une copie détachée garde la pose monde, ancêtres compris : un clone la ramènerait à sa pose
+  // locale dès que la caméra demandée est l'enfant d'un rig.
+  camera.updateWorldMatrix(true, false);
+  const view = holdCameraWorld(new THREE.PerspectiveCamera(), camera);
   view.aspect = options.width / options.height;
   view.updateProjectionMatrix();
   view.updateMatrixWorld();

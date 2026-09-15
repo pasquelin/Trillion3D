@@ -33,7 +33,7 @@ export function selectVisiblePages<T extends PageRecord>(
     hold = !!options.holdResident;
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
   const { worldPlanes, matrix, viewMatrix } = selectionScratch;
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   frustumPlanesFromMatrix(
     worldPlanes,
     matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,

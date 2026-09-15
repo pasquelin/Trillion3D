@@ -42,7 +42,7 @@ export function rasterPageRecords(
 ) {
   const [width, height] = size,
     pixels = opaqueBackgroundRgba(width, height, BACKGROUND);
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
@@ -101,7 +101,7 @@ export function rasterPages(
 ) {
   const [width, height] = viewport,
     pixels = opaqueBackgroundRgba(width, height, background);
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

@@ -97,7 +97,8 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
-  camera.getWorldPosition(cameraWorldScratch);
+  // L'image a mis la caméra à jour, ancêtres compris : sa matrice monde se lit sans recalcul.
+  cameraWorldScratch.setFromMatrixPosition(camera.matrixWorld);
   cameraWorldArray[0] = cameraWorldScratch.x;
   cameraWorldArray[1] = cameraWorldScratch.y;
   cameraWorldArray[2] = cameraWorldScratch.z;
