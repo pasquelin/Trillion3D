@@ -26,10 +26,11 @@ const lignes = [
   socle
     ? `Base du lot : \`${socle}\` ; \`develop\` au moment de la mesure : \`${develop}\`.`
     : null,
-  'Node exécute le repli synchrone : « Avant » et « Après » y mesurent le prix du contrat (copie de ' +
-    'la page compressée, aller-retour des messages), jamais le temps rendu au fil principal. ' +
-    '« Retenu » veut donc dire « livré », et c’est l’égalité bit à bit qui le décide ; le gain, lui, ' +
-    'est du temps rendu au fil principal du navigateur, et il se lit dans la campagne pixel.',
+  'Node exécute le repli synchrone : ces colonnes ne montrent donc jamais le temps rendu au fil ' +
+    'principal, qui est le gain visé et qui ne se lit qu’en navigateur. Elles montrent le reste : ' +
+    'le prix du contrat (copie de la page compressée, aller-retour des messages) et, pour H1, le ' +
+    'gain du décodeur lui-même, le module WebAssembly contre le décodeur JavaScript. « Retenu » ' +
+    'exige l’égalité bit à bit, qui seule décide.',
 ];
 if (charge > CHARGE_MAX)
   lignes.push(
