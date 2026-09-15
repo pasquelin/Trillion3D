@@ -18,8 +18,7 @@ const LEVEL_ENTRY: usize = 24;
 /// `typeSize` vaut un pour tout format compressé en blocs comme pour l'octet non compressé ; une
 /// autre valeur annonce des mots de plusieurs octets à réordonner, hors de la liste déclarée.
 const TYPE_SIZE: u32 = 1;
-/// Une texture de 2³² texels de côté n'a que trente-trois niveaux : au-delà, le champ ment.
-const MAX_LEVELS: u32 = 33;
+use crate::plugins::image::blocks::MAX_LEVELS;
 
 /// `supercompressionScheme` : les trois schémas que ce pilote déclare, sur les quatre numérotés.
 /// ZLIB (3) n'entre pas — aucun encodeur courant ne l'écrit, et un lecteur non exercé ment.

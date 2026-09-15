@@ -30,17 +30,23 @@ impl Builder {
         face: usize,
         corners: std::ops::Range<usize>,
     ) -> Result<()> {
-        let ring: Vec<usize> = corners.rev().collect();
-        let Some(start) = ring.first().copied() else {
+        // L'éventail se lit à l'envers, coin par coin : la plage suffit, un tableau intermédiaire
+        // par face n'ajouterait qu'une allocation. Les coins sont visités dans le même ordre.
+        let mut ring = corners.rev();
+        let Some(start) = ring.next() else {
             return Ok(());
         };
         let first = self.corner(geometry, face, start)?;
-        for pair in ring[1..].windows(2) {
+        let Some(mut previous) = ring.next() else {
+            return Ok(());
+        };
+        for next in ring {
             let (second, third) = (
-                self.corner(geometry, face, pair[0])?,
-                self.corner(geometry, face, pair[1])?,
+                self.corner(geometry, face, previous)?,
+                self.corner(geometry, face, next)?,
             );
             self.indices.extend_from_slice(&[first, second, third]);
+            previous = next;
         }
         Ok(())
     }

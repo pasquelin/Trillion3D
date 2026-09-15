@@ -56,6 +56,30 @@ pub enum DecodedImage {
 /// Octets qu'occupe un pixel de la variante flottante : quatre canaux de quatre octets.
 const FLOAT_PIXEL_BYTES: u64 = 16;
 
+/// Les octets qu'un pixel RGBA8 occupe, pour le même calcul de plafond côté entier.
+const RGBA8_PIXEL_BYTES: u64 = 4;
+
+/// Le plafond d'allocation d'une surface RGBA8, vérifié avant de décoder quoi que ce soit : c'est
+/// la garde que `dds` et `ktx2` posaient chacun de son côté, au mot près. `saturating_mul` garde la
+/// comparaison juste quand une dimension ment, là où une multiplication qui déborde laisserait
+/// passer. Le vide n'est pas jugé ici : chaque pilote le refuse déjà à la lecture de son entête,
+/// avec sa propre raison.
+fn rgba8_budget(
+    width: u32,
+    height: u32,
+    max_alloc: u64,
+    too_large: &'static str,
+) -> std::result::Result<(), &'static str> {
+    if u64::from(width)
+        .saturating_mul(u64::from(height))
+        .saturating_mul(RGBA8_PIXEL_BYTES)
+        > max_alloc
+    {
+        return Err(too_large);
+    }
+    Ok(())
+}
+
 /// Ce qu'un pilote flottant vérifie avant d'allouer quoi que ce soit : une image d'au moins un pixel
 /// dont la surface tient sous le plafond reçu, comptée à seize octets par pixel. Un dépassement est
 /// une raison de rapport — celle du pilote appelant —, jamais une allocation tentée puis une panique.

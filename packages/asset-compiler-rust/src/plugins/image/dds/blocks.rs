@@ -15,10 +15,7 @@ pub(super) fn decode(
     bytes: &[u8],
     max_alloc: u64,
 ) -> std::result::Result<DecodedImage, &'static str> {
-    let pixels = u64::from(surface.width).saturating_mul(u64::from(surface.height));
-    if pixels.saturating_mul(4) > max_alloc {
-        return Err(TOO_LARGE);
-    }
+    crate::plugins::image::rgba8_budget(surface.width, surface.height, max_alloc, TOO_LARGE)?;
     let level = &bytes[surface.data..];
     let (width, height) = (surface.width as usize, surface.height as usize);
     let rgba = match surface.codec.layout() {
