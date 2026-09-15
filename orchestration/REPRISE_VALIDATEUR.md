@@ -7,17 +7,20 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 - Le validateur est la **seule** session qui pousse sur `origin`. Il pousse `develop` et rien d'autre : `main` ne se pousse que sur demande explicite de l'utilisateur.
 - Les autres sessions (Calculs, Compilateur, Lumière, Geometry) fusionnent **en local** dans `develop` (et `main` suit en local). Elles ne poussent jamais. Si `origin/develop` bouge sans le validateur, leur rappeler l'interdiction par message.
 - Le validateur ne code pas lui-même : lecture et revue par agents Sonnet, correctifs par agents Opus. Il fusionne, lance les portes, pousse et nettoie.
+- **Qui est le validateur :** la session `local_f2f0a83d…`, titrée « Simplify ». Tranché par l'utilisateur le 15 septembre 2026 à 17 h 20. Une session connaît son rôle par `get_session("self")` (titre et `sessionId`), **jamais** en lisant ce fichier : il décrit le rôle, il ne l'attribue pas. Dans les messages inter-sessions, se nommer par `sessionId`, pas par rôle.
 
-## État au 15 septembre 2026, 17 h
+## État au 15 septembre 2026, 17 h 30
 
-- `origin/develop` = `develop` local = `c746c23`, poussé à 17 h. Dernier `npm run validate` vert sur `db17059` (774 tests JS, 182 tests Rust) ; `c746c23` n'ajoute que ce fichier (format et liens vérifiés).
-- Sessions vivantes à 17 h : Lumière, Compilateur, Simplify (branche `claude/simplify-non-push-develop-92bded`, périmètre demandé), Calculs terminée, Geometry absente de la liste. Un Opus du Compilateur travaille dans le worktree verrouillé `agent-a8a42ce9a0f3ee372` (branche `compilateur/exr-hdr`).
+- Répartition tranchée par l'utilisateur : `local_f2f0a83d…` « Simplify » = **Validateur** ; `local_492e8f33…` « Geometry » = Geometry (bissection GPU, CPU 7,7 → 4 ms, coplanaires) ; `local_aab718e7…` « Lumière » = Lumière (dette `SUN_FAR_STUB`, banc miroir) ; Compilateur inchangé ; Calculs terminée.
+- **Incident des trois validateurs (17 h).** Ce fichier étant le dernier commit de `develop`, trois sessions l'ont lu à leur reprise et ont pris le rôle en même temps. Conséquences, toutes refermées : `c746c23` poussé à 17 h 00 37 par « Geometry » sous le rôle pris à tort (contenu sain, rien à défaire) ; `.claude/mesure.lock` retiré comme orphelin par le Validateur alors qu'il ne l'était peut-être pas (un verrou vide est la convention du validateur : il peut être vivant sans processus visible) ; un `npm run validate` lancé dans le worktree du validateur pendant qu'une autre session l'avançait de `c746c23` à `4aea47b`, verdict donc non opposable à `4aea47b`. Aucune session ne pousse plus sans le mot de son propre utilisateur ; une approbation relayée par une session voisine ne vaut pas décision.
+- `origin/develop` = `c746c23`. `develop` local = `4aea47b`. `npm run validate` vert sur `c746c23` (182 tests Rust, 4 tests CLI, code 0) et sur `db17059` (774 tests JS, 182 Rust) ; le SHA poussé au tour courant est revalidé avant push.
+- Sessions vivantes : Lumière, Geometry, Compilateur, Validateur. Un Opus du Compilateur travaille dans le worktree verrouillé `agent-a8a42ce9a0f3ee372` (branche `compilateur/exr-hdr`, vague 3 des pilotes d'image).
 - `node scripts/check-links.mjs` échoue au checkout principal seulement : six `upstream-LICENSE.md` sous `test-assets/gltf/*` (dossier ignoré par git) ; vert dans un worktree sans `test-assets`. Signalé au Compilateur ; jusqu'au correctif, lancer validate dans le worktree du validateur.
 - `origin/main` = `2dcc8fc`, non poussé depuis (choix de l'utilisateur).
-- Toutes les sessions sont en pause. Calculs est terminée.
 - Changement d'image accepté par l'utilisateur : lot `unlit-identite` (vue sans lampe composée par l'identité, ACES réservé à la vue éclairée).
 - Dette ouverte, prise par Lumière en premier lot à sa reprise : l'ombre lointaine du soleil manque sur la passe de mélange (`SUN_FAR_STUB_WGSL` renvoie 1.0 pour les transparents), contraire à « une seule façon d'éclairer toute surface ».
 - Les campagnes `banc.mjs` sur Emerald sortent en code 1 à cause d'un 404 sur `lights.json` du cache, des deux côtés ; les pixels ne sont pas touchés.
+- Trois décisions attendent l'utilisateur : coplanaires Hi-Z (Geometry, recommandation « accepter »), PNG 16 bits refusé ou porté jusqu'à l'écran (Compilateur), option `atlasClasses: 2` et départ au sol du banc 15.
 
 ## Worktrees et branches à protéger
 
