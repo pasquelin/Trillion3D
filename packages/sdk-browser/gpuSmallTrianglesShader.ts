@@ -34,9 +34,14 @@ const LIST:u32=${listBase}u;
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_ALPHA_WGSL}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
-fn vertex(page:PageInfo,index:u32)->vec4f{
- let base=(page.vertexBase+index)*3u;
- return uni.viewProj*page.world*vec4f(positions[base],positions[base+1u],positions[base+2u],1.0);
+// Le produit \`viewProj * world\` et le determinant de la partie lineaire ne dependent que de la page :
+// ils sont calcules une fois pour la page et relus tels quels par chacun de ses triangles. Les memes
+// operandes dans le meme ordre donnent la meme valeur flottante qu'un calcul par triangle.
+fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
+fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));}
+fn vertex(vp:mat4x4f,vertexBase:u32,index:u32)->vec4f{
+ let base=(vertexBase+index)*3u;
+ return vp*vec4f(positions[base],positions[base+1u],positions[base+2u],1.0);
 }
 fn uv(page:PageInfo,index:u32)->vec2f{let base=(page.vertexBase+index)*2u;return vec2f(uvs[base],uvs[base+1u]);}
 fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
@@ -54,21 +59,20 @@ fn keepMask(page:PageInfo,tc:vec2f)->bool{
 // triangle and the two raster passes replay it for the survivors only, from the same inputs, so the
 // set that reaches a pixel is the same one a per-pixel evaluation would have reached.
 struct Tri{ok:u32,row:u32,triangle:u32,a:vec2f,b:vec2f,c:vec2f,ca:vec4f,cb:vec4f,cc:vec4f,ia:u32,ib:u32,ic:u32,area:f32,lo:vec2f,span:f32,}
-fn setupTriangle(pageIndex:u32,triangle:u32)->Tri{
+fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  var t:Tri;t.ok=0u;t.row=pageIndex;t.triangle=triangle;
  let page=pages[pageIndex];
  if(uni.selectionEnabled!=0u&&selectionMask[uni.selectionOffset+page.selectionIndex]==0u){return t;}
  if(triangle*3u+2u>=page.indexCount){return t;}
  if(page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]!=0u){return t;}
  let ia=indices[page.pageOffset+triangle*3u];let ib=indices[page.pageOffset+triangle*3u+1u];let ic=indices[page.pageOffset+triangle*3u+2u];
- let ca=vertex(page,ia);let cb=vertex(page,ib);let cc=vertex(page,ic);
+ let ca=vertex(vp,page.vertexBase,ia);let cb=vertex(vp,page.vertexBase,ib);let cc=vertex(vp,page.vertexBase,ic);
  if(ca.w<=0.0||cb.w<=0.0||cc.w<=0.0||ca.z<0.0||cb.z<0.0||cc.z<0.0||ca.z>ca.w||cb.z>cb.w||cc.z>cc.w){return t;}
  let a=screen(ca);let b=screen(cb);let c=screen(cc);
  let lo=min(a,min(b,c));let hi=max(a,max(b,c));
  if(lo.x<0.0||lo.y<0.0||hi.x>=uni.viewport.x||hi.y>=uni.viewport.y||hi.x-lo.x>uni.smallThreshold||hi.y-lo.y>uni.smallThreshold){return t;}
  let area=edge(a,b,c);if(abs(area)<1e-8){return t;}
- let determinant=determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));
- let front=select((area > 0.0),(area < 0.0),(determinant >= 0.0));
+ let front=select((area > 0.0),(area < 0.0),(det >= 0.0));
  if((page.flags&2u)==0u){if((page.flags&256u)!=0u){if(front){return t;}}else if(!front){return t;}}
  t.ok=1u;t.a=a;t.b=b;t.c=c;t.ca=ca;t.cb=cb;t.cc=cc;t.ia=ia;t.ib=ib;t.ic=ic;t.area=area;t.lo=lo;
  t.span=max(hi.x-lo.x,hi.y-lo.y);
@@ -96,12 +100,20 @@ fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
 // A dispatch dimension tops out at 65 535 groups, far below the page count a replicated scene
 // reaches, so the page row is split over y and z and bounded against the live row count.
 fn pageRow(group:vec3u)->u32{return group.y+group.z*${DISPATCH_SPAN}u;}
+// Les 64 fils d'un groupe de tri partagent la meme page : le fil zero calcule pour eux les deux
+// quantites qui n'appartiennent qu'a la page, et les 63 autres les relisent au lieu de les refaire.
+var<workgroup> rowVp:mat4x4f;
+var<workgroup> rowDet:f32;
 // One thread per triangle of the drawn rows. The survivors are appended to a list whose order the
 // image cannot see: both raster passes resolve their pixels with a minimum, which is commutative.
 @compute @workgroup_size(64) fn bin(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) lane:vec3u){
- let row=pageRow(group);if(row>=uni.pageCount){return;}
+ let row=pageRow(group);
+ let live=row<uni.pageCount;
+ if(live&&lane.x==0u){let page=pages[row];rowVp=pageTransform(page);rowDet=pageWinding(page);}
+ workgroupBarrier();
+ if(!live){return;}
  let triangle=group.x*64u+lane.x;
- let t=setupTriangle(row,triangle);
+ let t=setupTriangle(row,triangle,rowVp,rowDet);
  if(t.ok==0u){return;}
  let entry=(row<<8u)|(triangle&0xffu);
  // A box no wider than the fine grid is rasterised by ${FINE_SIDE * FINE_SIDE} lanes instead of 64, so the fine
@@ -133,7 +145,7 @@ fn fineGroup(group:vec3u,lane:vec3u,writeId:bool){
  let i=smallAt(group)*${FINE_PER_GROUP}u+slot;
  if(index%${FINE_SIDE * FINE_SIDE}u==0u){
   var t:Tri;t.ok=0u;
-  if(i<atomicLoad(&work[LIST])){let entry=atomicLoad(&work[LIST+${LIST_HEADER}u+i]);t=setupTriangle(entry>>8u,entry&0xffu);}
+  if(i<atomicLoad(&work[LIST])){let entry=atomicLoad(&work[LIST+${LIST_HEADER}u+i]);let page=pages[entry>>8u];t=setupTriangle(entry>>8u,entry&0xffu,pageTransform(page),pageWinding(page));}
   shared_tri[slot]=t;
  }
  workgroupBarrier();
@@ -146,7 +158,7 @@ fn coarseGroup(group:vec3u,lane:vec3u,writeId:bool){
  let i=smallAt(group);
  if(lane.x==0u&&lane.y==0u){
   var t:Tri;t.ok=0u;
-  if(i<atomicLoad(&work[LIST+1u])){let entry=atomicLoad(&work[LIST+${LIST_HEADER + capacity}u-1u-i]);t=setupTriangle(entry>>8u,entry&0xffu);}
+  if(i<atomicLoad(&work[LIST+1u])){let entry=atomicLoad(&work[LIST+${LIST_HEADER + capacity}u-1u-i]);let page=pages[entry>>8u];t=setupTriangle(entry>>8u,entry&0xffu,pageTransform(page),pageWinding(page));}
   shared_tri[0]=t;
  }
  workgroupBarrier();
