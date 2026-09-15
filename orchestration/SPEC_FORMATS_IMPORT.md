@@ -51,4 +51,4 @@ Objectif : un seul exécutable Rust qui accepte ce que livrent les places de mar
 4. TIFF, DDS, MTL.
 5. USD, EXR/HDR, KTX2 selon besoin réel.
 
-Hors périmètre déclaré : `.uasset`/`.umap`, `.blend`, `.psd` — on demande l'export dans un format ouvert.
+Refus déclarés : `.max`/`.ma`/`.mb`, CAO, SpeedTree, `.psd`, `.sbsar`, nuages de points — on demande l'export dans un format ouvert. `.uasset`/`.umap` et `.blend` sont possibles mais coûteux : décision après étude sur un pack réel.
