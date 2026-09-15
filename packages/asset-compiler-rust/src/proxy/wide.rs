@@ -30,7 +30,8 @@ fn gather(nodes: &[Node], at: usize) -> Vec<usize> {
     if nodes[at].leaf() {
         return vec![at];
     }
-    let mut kids = vec![at + 1, nodes[at].right];
+    let mut kids = Vec::with_capacity(PROXY_CHILDREN);
+    kids.extend([at + 1, nodes[at].right]);
     while kids.len() < PROXY_CHILDREN {
         let pick = kids
             .iter()
@@ -53,27 +54,24 @@ fn emit(nodes: &[Node], at: usize, bounds: &mut Vec<f32>, children: &mut Vec<u32
     bounds.extend_from_slice(&nodes[at].high);
     let base = children.len();
     children.resize(base + PROXY_CHILDREN * PROXY_CHILD_WORDS, 0);
-    let kids = gather(nodes, at);
-    let mut written: Vec<Child> = Vec::with_capacity(kids.len());
-    for kid in kids {
+    let (low, high) = (nodes[at].low, nodes[at].high);
+    // Un enfant interne écrit son propre nœud plus loin dans `children` ; les mots de cet
+    // emplacement-ci sont déjà réservés, donc chaque enfant se pose dès qu'il connaît son lien.
+    for (index, kid) in gather(nodes, at).into_iter().enumerate() {
         let node = &nodes[kid];
         let (offset, count) = if node.leaf() {
             (node.first as u32, node.count as u32)
         } else {
             (emit(nodes, kid, bounds, children), 0)
         };
-        written.push(Child {
+        let child = Child {
             low: node.low,
             high: node.high,
             offset,
             count,
-        });
-    }
-    let (low, high) = (nodes[at].low, nodes[at].high);
-    for (index, child) in written.iter().enumerate() {
-        let words = pack(child, low, high);
-        let at = base + index * PROXY_CHILD_WORDS;
-        children[at..at + PROXY_CHILD_WORDS].copy_from_slice(&words);
+        };
+        let word = base + index * PROXY_CHILD_WORDS;
+        children[word..word + PROXY_CHILD_WORDS].copy_from_slice(&pack(&child, low, high));
     }
     slot as u32
 }
