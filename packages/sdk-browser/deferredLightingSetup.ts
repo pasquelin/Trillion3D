@@ -1,22 +1,14 @@
 import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
-import {
-  SUN_FAR_PROXY_BINDING,
-  SUN_FAR_PROXY_COLUMNS,
-  SUN_FAR_STATE_BINDING,
-  SUN_FAR_STATE_BYTES,
-} from './sunFarShadowWgsl.ts';
+import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
+import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 
 /**
- * Les colonnes du proxy que l'ombre lointaine lit, chacune à sa liaison de fragment. Construites à
- * l'appel : `GPUShaderStage` n'existe qu'une fois l'appareil là, jamais au chargement du module.
+ * Le remplaçant du proxy résident : un entête de zéros et quatre mots derrière lui. La présence y
+ * vaut zéro, le nombre de nœuds aussi, donc aucun rayon d'ombre lointaine n'est tiré et la surface
+ * lointaine reste éclairée exactement comme avant que ce rayon existe.
  */
-const sunFarProxyEntries = (): GPUBindGroupLayoutEntry[] =>
-  SUN_FAR_PROXY_COLUMNS.map((_, index) => ({
-    binding: SUN_FAR_PROXY_BINDING + index,
-    visibility: GPUShaderStage.FRAGMENT,
-    buffer: { type: 'read-only-storage' },
-  }));
+const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
 
 /**
  * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
@@ -40,12 +32,11 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
-      // Le proxy résident et l'état de l'ombre lointaine du soleil : les colonnes qu'une ombre lit,
-      // en lecture seule, et un bloc de réglages qui porte aussi les deux compteurs de l'image
-      // relevée. Avec la grille du rebond, l'étage de fragments tient à huit tampons de stockage.
-      ...sunFarProxyEntries(),
+      // Le proxy résident de l'ombre lointaine du soleil : une seule liaison, qui porte à la fois
+      // les colonnes qu'un rayon traverse, les réglages de ce rayon et les deux compteurs de
+      // l'image relevée. C'est ce qui permet à la passe de mélange de la lier aussi.
       {
-        binding: SUN_FAR_STATE_BINDING,
+        binding: SUN_FAR_PROXY_BINDING,
         visibility: GPUShaderStage.FRAGMENT,
         buffer: { type: 'storage' },
       },
@@ -117,19 +108,12 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
-  // Le proxy absent : quatre octets de zéro par colonne, que le nuanceur lit comme un arbre sans
-  // nœud. Le bloc de l'ombre lointaine naît à zéro, donc sa présence vaut zéro et aucun rayon n'est
-  // tiré : une session sans proxy rend exactement l'image d'avant ce lot.
-  const proxy = SUN_FAR_PROXY_COLUMNS.map((column) =>
-    device.createBuffer({
-      label: `WG empty resident proxy ${column}`,
-      size: 4,
-      usage: GPUBufferUsage.STORAGE,
-    }),
-  );
-  const sunFarState = device.createBuffer({
-    label: 'WG sun far shadow state v1',
-    size: SUN_FAR_STATE_BYTES,
+  // Le proxy absent : un entête de zéros, que le nuanceur lit comme un arbre sans nœud et comme une
+  // ombre lointaine absente. Les deux passes qui éclairent lient le même, si bien qu'une session
+  // sans proxy rend exactement la même image sur l'opaque et sur le mélange.
+  const proxy = device.createBuffer({
+    label: 'WG empty resident proxy',
+    size: PLACEHOLDER_PROXY_BYTES,
     usage: GPUBufferUsage.STORAGE,
   });
   return {
@@ -140,15 +124,13 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     bounceGrid,
     probes,
     proxy,
-    sunFarState,
     dispose() {
       tiles.destroy();
       slices.destroy();
       atlas.destroy();
       bounceGrid.destroy();
       probes.destroy();
-      for (const buffer of proxy) buffer.destroy();
-      sunFarState.destroy();
+      proxy.destroy();
     },
   };
 }
