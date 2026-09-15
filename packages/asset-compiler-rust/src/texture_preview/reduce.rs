@@ -22,15 +22,13 @@ pub(super) fn pyramid(source: &image::RgbaImage, cutoff: Option<f32>) -> (u32, V
         levels.push(halve(levels.last().expect("niveau précédent"), size, next));
         size = next;
     }
-    let target = cutoff.map(|threshold| source_coverage(source, threshold));
+    // Le seuil et la couverture à préserver vont ensemble : sans seuil, aucun niveau n'est corrigé.
+    let preserved = cutoff.map(|threshold| (threshold, source_coverage(source, threshold)));
     let mut out = Vec::with_capacity(preview_pixel_bytes(width, height));
     for texels in &levels {
-        let scale = match (cutoff, target) {
-            (Some(threshold), Some(target)) => {
-                let alphas: Vec<f32> = texels.iter().map(|texel| texel[3]).collect();
-                alpha_scale(&alphas, threshold, target)
-            }
-            _ => 1.0,
+        let scale = match preserved {
+            Some((threshold, target)) => alpha_scale(texels, threshold, target),
+            None => 1.0,
         };
         encode_level(texels, scale, &mut out);
     }
@@ -117,14 +115,15 @@ fn source_coverage(source: &image::RgbaImage, cutoff: f32) -> f32 {
 
 /// Échelle d'alpha qui rapproche le plus la couverture d'un niveau de celle de la pleine résolution.
 /// La couverture croît avec l'échelle, donc une recherche binaire suffit ; à égalité l'échelle
-/// neutre l'emporte, ce qui laisse un niveau déjà juste exactement tel qu'il est.
-fn alpha_scale(alphas: &[f32], cutoff: f32, target: f32) -> f32 {
+/// neutre l'emporte, ce qui laisse un niveau déjà juste exactement tel qu'il est. Elle se compte
+/// sur l'alpha des texels du niveau, jamais sur une copie de cette colonne.
+fn alpha_scale(texels: &[[f32; 4]], cutoff: f32, target: f32) -> f32 {
     let coverage = |scale: f32| {
-        alphas
+        texels
             .iter()
-            .filter(|alpha| (*alpha * scale).min(1.0) >= cutoff)
+            .filter(|texel| (texel[3] * scale).min(1.0) >= cutoff)
             .count() as f32
-            / alphas.len() as f32
+            / texels.len() as f32
     };
     let (mut best, mut best_error) = (1.0f32, (coverage(1.0) - target).abs());
     let (mut low, mut high) = (0.0f32, MAX_ALPHA_SCALE);

@@ -46,6 +46,14 @@ export type SlimClusterManifest = Omit<ClusterManifest, 'primitives'> & {
   primitives: SlimPrimitive[];
 };
 
+/** Les comptes qu'un descriptif doit porter, et ce qu'un refus nomme. */
+const COUNT_KEYS = {
+  texturePreviews: 'texture preview count',
+  texturePreviewBytes: 'texture preview byte length',
+  bytes: 'byte length',
+} as const;
+type CountKey = keyof typeof COUNT_KEYS;
+
 export function isBinaryManifest(value: { binary?: unknown }): boolean {
   const binary = value.binary;
   return (
@@ -71,22 +79,13 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
       throw new EngineError('UNSUPPORTED_FORMAT', `Manifest binary descriptor misses ${key}`, {
         key,
       });
-  if (!Number.isSafeInteger(descriptor.texturePreviews) || descriptor.texturePreviews! < 0)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      'Manifest binary descriptor has no texture preview count',
-      { texturePreviews: descriptor.texturePreviews ?? null },
-    );
-  if (!Number.isSafeInteger(descriptor.texturePreviewBytes) || descriptor.texturePreviewBytes! < 0)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      'Manifest binary descriptor has no texture preview byte length',
-      { texturePreviewBytes: descriptor.texturePreviewBytes ?? null },
-    );
-  if (!Number.isSafeInteger(descriptor.bytes) || descriptor.bytes! < 0)
-    throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor has no byte length', {
-      bytes: descriptor.bytes ?? null,
-    });
+  for (const [key, what] of Object.entries(COUNT_KEYS) as Array<[CountKey, string]>) {
+    const value = descriptor[key];
+    if (!Number.isSafeInteger(value) || value! < 0)
+      throw new EngineError('UNSUPPORTED_FORMAT', `Manifest binary descriptor has no ${what}`, {
+        [key]: value ?? null,
+      });
+  }
   for (const key of ['pageUrl', 'geometryUrl', 'bundleUrl'] as const)
     if (!descriptor[key]!.includes('{sha}'))
       throw new EngineError(

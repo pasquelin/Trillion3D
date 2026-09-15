@@ -6,6 +6,20 @@ import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
 const defined = (layers: Array<number | undefined>) =>
   layers.filter((layer): layer is number => layer !== undefined);
 
+/** Range une texture dans un atlas si elle n'y est pas déjà, et rend la couche qu'elle occupe. La
+ *  couche 0 est le remplissage de repli, donc la première texture rangée prend la couche 1. */
+const adder =
+  (known: Map<THREE.Texture, number>, list: THREE.Texture[]) => (texture?: THREE.Texture) => {
+    if (!texture) return undefined;
+    let layer = known.get(texture);
+    if (layer === undefined) {
+      layer = list.length + 1;
+      known.set(texture, layer);
+      list.push(texture);
+    }
+    return layer;
+  };
+
 /** Finds each color and data texture once, keeping stable atlas layer order. `materialLayers` says
  *  which layers a material reads, so the transfer order can follow what the camera draws. */
 export function collectWebgpuMaterialTextures(
@@ -18,26 +32,8 @@ export function collectWebgpuMaterialTextures(
   const dataMaps: THREE.Texture[] = [];
   const normalMaps = new Set<THREE.Texture>();
   const materialLayers: MaterialLayerIndex = new Map();
-  const addColor = (texture?: THREE.Texture) => {
-    if (!texture) return undefined;
-    let layer = mapLayer.get(texture);
-    if (layer === undefined) {
-      layer = maps.length + 1;
-      mapLayer.set(texture, layer);
-      maps.push(texture);
-    }
-    return layer;
-  };
-  const addData = (texture?: THREE.Texture) => {
-    if (!texture) return undefined;
-    let layer = dataLayer.get(texture);
-    if (layer === undefined) {
-      layer = dataMaps.length + 1;
-      dataLayer.set(texture, layer);
-      dataMaps.push(texture);
-    }
-    return layer;
-  };
+  const addColor = adder(mapLayer, maps);
+  const addData = adder(dataLayer, dataMaps);
   const collect = (material: THREE.Material | THREE.Material[]) => {
     if (materialLayers.has(material)) return;
     const mat = visMaterial(material);

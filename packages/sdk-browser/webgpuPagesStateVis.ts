@@ -6,7 +6,7 @@ import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
 import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
-import type { SlotPyramid, WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
+import type { WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -73,8 +73,6 @@ export interface WebgpuVisState {
   materialScales: GPUBuffer | undefined;
   /** Classe, couche et résidence de mips de chaque slot de texture. */
   slots: WebgpuAtlasSlots | undefined;
-  /** Niveaux progressifs attendus par slot couleur, quand le sidecar en porte. */
-  slotPyramids: Array<SlotPyramid | undefined>;
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
@@ -132,7 +130,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     mapsSampler: undefined,
     materialScales: undefined,
     slots: undefined,
-    slotPyramids: [],
     shadeUniPacked: new Float32Array(64),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),

@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { TexturePreview } from '../sdk-core/index.ts';
 import { previewLevelSize } from '../sdk-core/index.ts';
 import type { textureRgba } from './visibilityBuffer.ts';
+import type { SlotPyramid } from './webgpuAtlasSlots.ts';
 
 /**
  * Le transfert d'un niveau de texture vers sa couche d'atlas, découpable en bandes de lignes.
@@ -24,6 +25,9 @@ export type TextureJob = {
   level: number;
   /** 0 pour un niveau progressif du sidecar, 1 pour la pleine résolution. */
   stage: number;
+  /** Les niveaux que sa texture attend ; seul un niveau progressif en porte, et la résidence de la
+   *  couche s'y lit sans table parallèle tenue à côté de la file. */
+  pyramid?: SlotPyramid;
   /** Octets du rectangle entier, soit `rows * bytesPerRow`. */
   bytes: number;
   rows: number;
@@ -60,6 +64,26 @@ function textureJob(
   };
 }
 
+/** Le geste unique de transfert de pixels déjà décodés vers une bande de lignes de la couche : un
+ *  niveau progressif du sidecar et la pleine résolution ne s'y distinguent que par `level`. */
+function writeRows(
+  device: GPUDevice,
+  texture: GPUTexture,
+  level: number,
+  layer: number,
+  pixels: Uint8Array,
+  width: number,
+): TextureJob['uploadRows'] {
+  const bytesPerRow = width * 4;
+  return (row, count) =>
+    device.queue.writeTexture(
+      { texture, mipLevel: level, origin: [0, row, layer] },
+      pixels.slice(row * bytesPerRow, (row + count) * bytesPerRow),
+      { bytesPerRow, rowsPerImage: count },
+      { width, height: count },
+    );
+}
+
 /**
  * Les travaux des niveaux progressifs d'une texture, du plus grossier au plus fin : chacun s'écrit
  * dans le niveau de mip de même rang que celui qu'il porte dans la chaîne de la source, si bien que
@@ -73,22 +97,16 @@ export function previewLevelJobs(options: {
   preview: TexturePreview;
 }): TextureJob[] {
   const { device, texture, place, preview } = options;
+  const pyramid: SlotPyramid = {
+    first: preview.firstLevel,
+    last: preview.firstLevel + preview.levels.length - 1,
+  };
   const jobs: TextureJob[] = [];
   for (let index = preview.levels.length - 1; index >= 0; index--) {
     const level = preview.firstLevel + index;
     const [width, height] = previewLevelSize(preview.width, preview.height, level);
-    const pixels = preview.levels[index];
-    const bytesPerRow = width * 4;
-    jobs.push(
-      textureJob('color', place, level, 0, height, bytesPerRow, (row, count) => {
-        device.queue.writeTexture(
-          { texture, mipLevel: level, origin: [0, row, place.layer] },
-          pixels.slice(row * bytesPerRow, (row + count) * bytesPerRow),
-          { bytesPerRow, rowsPerImage: count },
-          { width, height: count },
-        );
-      }),
-    );
+    const upload = writeRows(device, texture, level, place.layer, preview.levels[index], width);
+    jobs.push({ ...textureJob('color', place, level, 0, height, width * 4, upload), pyramid });
   }
   return jobs;
 }
@@ -110,17 +128,10 @@ export function textureJobFor(options: {
 }): { job: TextureJob; scale: [number, number] } {
   const { device, texture, rgba, place, kind, atlas } = options;
   if (rgba) {
-    const bytesPerRow = rgba.width * 4;
+    const upload = writeRows(device, texture, 0, place.layer, rgba.data, rgba.width);
     return {
       scale: [rgba.width / atlas[0], rgba.height / atlas[1]],
-      job: textureJob(kind, place, 0, 1, rgba.height, bytesPerRow, (row, count) => {
-        device.queue.writeTexture(
-          { texture, origin: [0, row, place.layer] },
-          rgba.data.slice(row * bytesPerRow, (row + count) * bytesPerRow),
-          { bytesPerRow, rowsPerImage: count },
-          { width: rgba.width, height: count },
-        );
-      }),
+      job: textureJob(kind, place, 0, 1, rgba.height, rgba.width * 4, upload),
     };
   }
   const image = options.map.image as GPUCopyExternalImageSource | undefined;
