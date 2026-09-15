@@ -3,8 +3,9 @@
 // entier d'avant le lot F, recopié tel quel dans `oracles/f-cadre.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { anneauFroid } from './explorerDraw.ts';
+import { anneauFroid, empileEnAttente } from './explorerDraw.ts';
 import { referenceAnneauFroid } from './bench/oracles/f-cadre.mjs';
+import { referenceEmpileEnAttente } from './bench/oracles/g-file.mjs';
 
 function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   return {
@@ -62,4 +63,35 @@ test('un grand anneau, un grand nombre de lots de tailles variées, reste identi
       referenceAnneauFroid(ring, s, limite),
       `limite ${limite}`,
     );
+});
+
+// G6 : les adresses manquantes qu'une requête en cours fera repartir ensuite s'accumulent dans un
+// `Set` (`empileEnAttente`) au lieu d'un tableau testé par `includes` à chaque adresse ajoutée.
+// Oracle : le tableau dédoublonné à la main d'avant le lot G, recopié dans `bench/oracles/g-file.mjs`.
+test('un ensemble vide reçoit les mêmes adresses, dans le même ordre, qu’un tableau dédoublonné à la main', () => {
+  const ensemble = new Set<string>();
+  const tableau: string[] = [];
+  empileEnAttente(ensemble, ['a', 'b', 'c']);
+  referenceEmpileEnAttente(tableau, ['a', 'b', 'c']);
+  assert.deepEqual([...ensemble], tableau);
+});
+
+test('des doublons à l’intérieur d’un même appel, et entre deux appels, ne sont comptés qu’une fois', () => {
+  const ensemble = new Set<string>();
+  const tableau: string[] = [];
+  for (const lot of [['a', 'a', 'b'], ['b', 'c', 'a'], [], ['d']]) {
+    empileEnAttente(ensemble, lot);
+    referenceEmpileEnAttente(tableau, lot);
+  }
+  assert.deepEqual([...ensemble], tableau);
+  assert.deepEqual([...ensemble], ['a', 'b', 'c', 'd']);
+});
+
+test('un grand nombre d’adresses partiellement redondantes garde le même ordre d’insertion que la référence', () => {
+  const ensemble = new Set<string>();
+  const tableau: string[] = [];
+  const lot = Array.from({ length: 2000 }, (_, i) => `u${i % 700}`);
+  empileEnAttente(ensemble, lot);
+  referenceEmpileEnAttente(tableau, lot);
+  assert.deepEqual([...ensemble], tableau);
 });
