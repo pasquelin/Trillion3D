@@ -13,7 +13,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées.
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
-    cartesReutilisees: lights.shadowsReused,
+    cartesReutilisees: lights.plan.reused,
     facesRedessinees: lights.shadowFaces,
     appelsDeDessin: lights.shadowDrawCalls,
   });
