@@ -1,5 +1,16 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Formules] catalogue des formules mathématiques
+
+Sur `develop` = `9bf2eb3`. Dix agents Sonnet 5 en lecture seule (trois Rust, un sdk-core, cinq
+sdk-browser, un scripts/sdk-node/page-codec) ont recensé toute fonction de calcul du dépôt, hors
+tests et bancs : formule codée, entrées, constantes, appelants. Résultat assemblé sans réécriture
+dans `orchestration/AUDIT_MATH_FORMULES.md` (environ 2 000 lignes de tableau, 577 fichiers lus, plus un lot T1 des calculs délégués à Three.js : 49 fichiers, ~150 sites),
+avec en tête vingt-six doublons transversaux (erreur projetée codée quatre fois, barycentriques six
+fois, 1/π quatre fois, Hi-Z oracle/production, sRGB trois fois…). Complète
+`AUDIT_MATH_INVENTAIRE.md` du matin, orienté coût. Rien n'est modifié dans le code ; aucune
+optimisation proposée.
+
 ## 2026-09-15 — [session Lumière] `sceneLit` lu à chaque image
 
 Branche `fix/scenelit`, sur `develop` = `f66ddf7`. Le lot `unlit-identite` publiait `sceneLit` en
@@ -95,11 +106,11 @@ deux percent la surface. 2 880 triangles.
 Contrôle A — **la même comparaison sur une scène sans transmission** (`classes-materiaux` : opaque,
 `MASK`, `BLEND`), mêmes réglages :
 
-| vue      | moteur contre témoin | max canal | px ≥ 32                           |
-| -------- | -------------------- | --------- | --------------------------------- |
+| vue      | moteur contre témoin | max canal | px ≥ 32                            |
+| -------- | -------------------- | --------- | ---------------------------------- |
 | générale | 206 471 px (22,4 %)  | 53        | 89 549, tous dans le panneau BLEND |
-| sol      | 473 793 px (51,4 %)  | **17**    | **0**                             |
-| rue      | 632 616 px (68,6 %)  | 126       | **1** (un pixel de silhouette)    |
+| sol      | 473 793 px (51,4 %)  | **17**    | **0**                              |
+| rue      | 632 616 px (68,6 %)  | 126       | **1** (un pixel de silhouette)     |
 
 Contrôle B — **sans aucune lampe déclarée**, donc le témoin n'a rien à installer : c'est l'état
 d'avant ce lot. 179 316 / 392 398 / 478 904 px, **max canal 237 sur les trois vues**.
@@ -127,7 +138,7 @@ Le compte de pixels seul ne dit rien ici : c'est le **max canal** et la réparti
 `sceneLit` ne survit pas au **spread**. Les quatre moteurs rendus par Three écrivent
 `...sceneLightingApi(sceneLights)` dans l'objet qu'ils renvoient (`exactPagesBackend.ts:191`,
 `referenceBackend.ts:61`, `autonomousPages.ts:154`, `threeLod.ts:143`) : le spread **évalue le
-getter une fois**, à la construction du moteur, et fige sa valeur. Une lampe posée *après* la
+getter une fois**, à la construction du moteur, et fige sa valeur. Une lampe posée _après_ la
 création — le cas de tout hôte qui déclare ses lampes au contrat, donc le cas du témoin — ne
 rallume jamais le drapeau, `explorerDraw` garde `NoToneMapping` et le témoin compose sans
 exposition ni ACES alors que le moteur, lui, les applique.
@@ -207,6 +218,7 @@ en l'état. À rejouer au calme, verrou pris, sorties dans `.mesure/out/unlit-id
 `npx tsc -p tsconfig.json --noEmit`, `npm run check:changed` (429 tests liés, tous verts),
 `npm run check:unused`, `npm run check:lines` : vertes. Aucun test existant ne casse : aucun
 n'encodait la composition de la vue sans lampe.
+
 ## 2026-09-15 — [session sans-threejs] lot visibilité WebGPU : deux leviers gardés sur trois, 0 px sur seize séries
 
 Worktree `.claude/worktrees/lot-visibilite`, branche `lot/visibilite-webgpu`, partie de `develop` =
@@ -313,6 +325,7 @@ un noyau « non fusionné ». `render-tech-lab/` non modifié, port 5174 non tou
 qui fait sortir le harnais en code 1 malgré un relevé propre.
 
 Images et rapports : `.mesure/out/lot-visibilite/` (sept campagnes, 185 Mo).
+
 ## 2026-09-15 — [session calculs] mesure finale des temps par image
 
 Verrou `.claude/mesure.lock` pris, campagne rejouée deux fois avant d'aboutir. Base « avant » =
