@@ -20,9 +20,9 @@ export function visGroupFor(
       concatUv,
       pageTable,
       visUniform,
-      mapsTexture,
+      colorAtlas,
       mapsSampler,
-      preview,
+      slots,
     } = vis,
     { gpuDraw } = vis;
   if (
@@ -32,9 +32,9 @@ export function visGroupFor(
     !concatUv ||
     !pageTable ||
     !visUniform ||
-    !mapsTexture ||
+    !colorAtlas ||
     !mapsSampler ||
-    !preview ||
+    !slots ||
     !gpuDraw
   )
     return;
@@ -43,7 +43,6 @@ export function visGroupFor(
   const key = slot * 2 + (rest ? 1 : 0);
   let group = vis.visSlotGroups[key];
   if (!group) {
-    const visMaps = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     group = device.createBindGroup({
       layout: visBindGroupLayout,
       entries: visBindEntries({
@@ -54,11 +53,11 @@ export function visGroupFor(
         uniform: visUniform,
         uniformOffset: (slot + 1) * 256,
         uv: concatUv,
-        maps: visMaps,
+        colorAtlas,
         sampler: mapsSampler,
         instances: gpuDraw.instanceBuffer,
         slotOffsets: gpuDraw.slotOffsetsBuffer,
-        preview,
+        slots,
       }),
     });
     vis.visSlotGroups[key] = group;

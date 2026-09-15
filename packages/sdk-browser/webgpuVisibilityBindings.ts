@@ -13,9 +13,9 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
       pageTable,
       visUniform,
       zeroFlags,
-      mapsTexture,
+      colorAtlas,
       mapsSampler,
-      preview,
+      slots,
     } = vis;
   if (
     layout &&
@@ -25,11 +25,10 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
     pageTable &&
     visUniform &&
     zeroFlags &&
-    mapsTexture &&
+    colorAtlas &&
     mapsSampler &&
-    preview
+    slots
   ) {
-    const mapsArrayView = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     const make = (flags: GPUBuffer) =>
       device.createBindGroup({
         layout,
@@ -41,11 +40,11 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
           uniform: visUniform,
           uniformOffset: 0,
           uv: concatUv,
-          maps: mapsArrayView,
+          colorAtlas,
           sampler: mapsSampler,
           instances: zeroFlags,
           slotOffsets: zeroFlags,
-          preview,
+          slots,
         }),
       });
     vis.visBindGroup ??= make(zeroFlags);

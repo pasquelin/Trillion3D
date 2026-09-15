@@ -1,0 +1,99 @@
+import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
+
+/**
+ * Les numéros de liaison des quatre dispositions du chemin WebGPU, unique source de vérité : la
+ * disposition elle-même, le code WGSL qui déclare ses variables et la liste d'entrées de son
+ * constructeur les lisent tous ici. Ajouter une classe d'atlas décale donc les numéros des trois
+ * côtés à la fois, et jamais d'un seul — le défaut que la fusion des lots 1 et 2 a coûté.
+ */
+/** Les liaisons d'un atlas, une par classe de taille, contiguës depuis `first`. */
+const classes = (first: number) =>
+  Array.from({ length: ATLAS_CLASS_COUNT }, (_, index) => first + index);
+
+/** Les deux formes de liaison que les dispositions répètent, écrites une fois pour toutes. */
+export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' };
+export const atlasLayoutEntry = (
+  binding: number,
+  visibility = GPUShaderStage.FRAGMENT,
+): GPUBindGroupLayoutEntry => ({
+  binding,
+  visibility,
+  texture: { sampleType: 'float', viewDimension: '2d-array' },
+});
+
+export const VIS_BINDINGS = (() => {
+  const maps = classes(6),
+    after = 6 + ATLAS_CLASS_COUNT;
+  return {
+    cache: 0,
+    position: 1,
+    pageTable: 2,
+    flags: 3,
+    uniform: 4,
+    uv: 5,
+    maps,
+    sampler: after,
+    instances: after + 1,
+    slotOffsets: after + 2,
+    colorSlots: after + 3,
+  };
+})();
+
+export const SHADE_BINDINGS = (() => {
+  const maps = classes(6),
+    after = 6 + ATLAS_CLASS_COUNT;
+  return {
+    visView: 0,
+    cache: 1,
+    position: 2,
+    uv: 3,
+    normal: 4,
+    pageTable: 5,
+    maps,
+    sampler: after,
+    uniform: after + 1,
+    dataMaps: classes(after + 2),
+    colorSlots: after + 2 + ATLAS_CLASS_COUNT,
+    dataSlots: after + 3 + ATLAS_CLASS_COUNT,
+  };
+})();
+
+export const BLEND_BINDINGS = (() => {
+  const maps = classes(4),
+    after = 4 + ATLAS_CLASS_COUNT;
+  const rest = after + 1 + ATLAS_CLASS_COUNT;
+  return {
+    indices: 0,
+    positions: 1,
+    uvs: 2,
+    uniform: 3,
+    maps,
+    sampler: after,
+    dataMaps: classes(after + 1),
+    normals: rest,
+    scales: rest + 1,
+    sceneLights: rest + 2,
+    triangleDiagnostic: rest + 3,
+    colorSlots: rest + 4,
+    dataSlots: rest + 5,
+  };
+})();
+
+export const SMALL_BINDINGS = (() => {
+  const maps = classes(6),
+    after = 6 + ATLAS_CLASS_COUNT;
+  return {
+    indices: 0,
+    positions: 1,
+    pages: 2,
+    hizFlags: 3,
+    uniform: 4,
+    uvs: 5,
+    maps,
+    sampler: after,
+    frame: after + 1,
+    small: after + 2,
+    selectionMask: after + 3,
+    colorSlots: after + 4,
+  };
+})();
