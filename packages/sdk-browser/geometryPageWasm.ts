@@ -1,4 +1,4 @@
-import { decodeGeometryPage, type DecodedGeometryPage } from './geometryPage.ts';
+import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /**
  * Chargeur du décodeur de pages compilé en WebAssembly (`packages/page-codec-wasm`).
@@ -9,7 +9,10 @@ import { decodeGeometryPage, type DecodedGeometryPage } from './geometryPage.ts'
  * ils survivent au `page_release` et peuvent être transférés à un autre fil.
  *
  * Si `WebAssembly` manque ou si l'instanciation échoue, le décodeur JavaScript reprend la main —
- * mêmes tampons, mêmes refus, seulement plus lentement.
+ * mêmes tampons, mêmes refus, seulement plus lentement. Il est chargé à ce moment-là et pas avant :
+ * il tire la bibliothèque de décompression, nommée par un spécificateur nu, qu'un worker dédié ne
+ * sait pas résoudre sans empaqueteur. En le laissant hors du graphe statique, ce chargeur reste
+ * utilisable là où seul le module WebAssembly l'est.
  */
 
 /** Les attributs facultatifs, dans l'ordre et sous les noms du décodeur JavaScript. */
@@ -100,7 +103,10 @@ export async function decodeGeometryPageWasm(
   maxDecodedBytes = 16 * 1024 * 1024,
 ): Promise<DecodedGeometryPage> {
   const codec = await prepareGeometryPageWasm();
-  if (!codec) return decodeGeometryPage(data, maxDecodedBytes);
+  if (!codec) {
+    const { decodeGeometryPage } = await import('./geometryPage.ts');
+    return decodeGeometryPage(data, maxDecodedBytes);
+  }
   if (data.byteLength < 32) throw new Error('GEOMETRY_PAGE_HEADER');
   const entree = codec.page_alloc(data.byteLength);
   if (!entree) throw new Error('GEOMETRY_PAGE_BOUNDS');
