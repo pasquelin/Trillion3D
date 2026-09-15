@@ -33,10 +33,16 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     diag.diagnosticFailure('light-tiles-unavailable', error);
     return;
   }
+  // L'atlas et le rejet par face vont ensemble : la passe d'ombres dessine par la liste que le
+  // rejet produit. L'un sans l'autre n'éclairerait rien, donc l'échec de l'un rend les deux.
   try {
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
     lights.cull = await createGpuShadowCull(device, drawSlots);
   } catch (error) {
+    lights.shadows?.dispose();
+    lights.cull?.dispose();
+    lights.shadows = undefined;
+    lights.cull = undefined;
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
