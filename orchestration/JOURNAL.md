@@ -3656,3 +3656,13 @@ comme un résultat.
   64 entrées. Ce n'était pas dans le chemin de ce lot — l'alignement est structurel à la somme
   préfixe par groupe de la compaction, et une primitive transmissive est `shared-blend`, donc absente
   de cette table.
+
+### Porte rouge sur `develop` au moment de cette fusion, étrangère à ce lot
+
+`npm run check:lines` échoue sur la tête de `develop` (`56c1012`) seule, sans une ligne de ce lot :
+`packages/sdk-core/metricsContracts.ts` 202 lignes, `scripts/mesure/options.mjs` 201,
+`scripts/mesure/page.mjs` 240, pour un plafond de 200. Les trois viennent de
+`lot/ombres-virtualisees` et ce lot n'en touche aucun. Constat, pas conséquence ; renvoyé à qui les a
+écrits. Les neuf autres portes sont vertes sur la branche fusionnée — `format:check`,
+`check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
+`check:structure`, `check:dts`, `check:links` — avec 740 tests JS/TS et 153 tests Rust au vert.
