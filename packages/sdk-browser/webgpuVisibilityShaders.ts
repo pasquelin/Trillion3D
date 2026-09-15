@@ -1,3 +1,4 @@
+import { shaderErrors } from './gpuShaderModule.ts';
 import { SHADE_SHADER, VIS_SHADER } from './visibilityBuffer.ts';
 
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
@@ -48,20 +49,9 @@ export async function createWebgpuVisibilityShaders(
   });
   const visModule = device.createShaderModule({ code: VIS_SHADER });
   const shadeModule = device.createShaderModule({ code: SHADE_SHADER });
-  if (typeof visModule.getCompilationInfo === 'function') {
-    const visInfo = await visModule.getCompilationInfo();
-    if (visInfo.messages.some((message) => message.type === 'error')) throw new Error('VIS_SHADER');
-  }
-  if (typeof shadeModule.getCompilationInfo === 'function') {
-    const shadeInfo = await shadeModule.getCompilationInfo();
-    if (shadeInfo.messages.some((message) => message.type === 'error'))
-      throw new Error(
-        'SHADE_SHADER: ' +
-          shadeInfo.messages
-            .filter((message) => message.type === 'error')
-            .map((message) => message.message)
-            .join(' | '),
-      );
-  }
+  if ((await shaderErrors(visModule)).length) throw new Error('VIS_SHADER');
+  const shadeErrors = await shaderErrors(shadeModule);
+  if (shadeErrors.length)
+    throw new Error('SHADE_SHADER: ' + shadeErrors.map((message) => message.message).join(' | '));
   return { shadeUniform, visBindGroupLayout, zeroFlags, visUniform, visModule, shadeModule };
 }
