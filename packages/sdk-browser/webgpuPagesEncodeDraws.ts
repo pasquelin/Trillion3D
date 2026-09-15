@@ -64,7 +64,6 @@ export function encodeDraws(
     { rows } = rt.layout,
     { viewport } = rt.setup;
   run.gpuDrawCalls = 0;
-  run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.blendFrustumRejected = 0;
   blendState.visibleBlend.length = 0;
@@ -73,7 +72,7 @@ export function encodeDraws(
   const [width, height] = gpu.targetSize;
   viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   blendState.blendFrustum.setFromProjectionMatrix(viewProj, camera.coordinateSystem);
-  run.blendFrustumRejected = selectWebgpuBlend(device, blendState, run.drawn, gpu.cache);
+  run.blendFrustumRejected = selectWebgpuBlend(blendState);
   viewProj.premultiply(remap);
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) rt.services.syncRowsFromCut();

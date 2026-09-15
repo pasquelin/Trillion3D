@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
   const { run, gpu, vis, capture, context, diag, blendState } = rt,
     { gpuDevice, source } = rt.setup,
-    { opaqueRoots, worldUpdates, rows } = rt.layout;
+    { selectionRoots, worldUpdates, rows } = rt.layout;
   if (capture.secondaryCamera && !capture.surfaceRenderAllowed)
     throw new Error('SURFACE_CAPTURE_BUSY');
   if (context.signal?.aborted) context.signal.throwIfAborted();
@@ -23,8 +23,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   void rt.texturePump
     .pump()
     .catch((error) => diag.diagnosticFailure('progressive-texture-mips-failed', error));
-  for (let i = 0; i < opaqueRoots.length; i++)
-    worldUpdates.set(opaqueRoots[i].world.elements, i * 16);
+  for (let i = 0; i < selectionRoots.length; i++)
+    worldUpdates.set(selectionRoots[i].world.elements, i * 16);
   // A moved root invalidates every row's world matrix, which is the only shared input to a row the
   // scene can still change after `prepare()`.
   if (run.gpuSelection?.updateWorlds(worldUpdates)) {
@@ -51,6 +51,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.lastCamera = camera;
   run.overBudget = false;
   run.submittedTriangles = 0;
+  run.blendPagedTriangles = 0;
+  run.blendUnpagedTriangles = 0;
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;

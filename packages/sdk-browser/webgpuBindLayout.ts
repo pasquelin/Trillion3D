@@ -73,9 +73,11 @@ export const BLEND_BINDINGS = (() => {
     normals: rest,
     scales: rest + 1,
     sceneLights: rest + 2,
-    triangleDiagnostic: rest + 3,
+    clusterDiagnostic: rest + 3,
     colorSlots: rest + 4,
     dataSlots: rest + 5,
+    clusterIds: rest + 6,
+    clusterSpans: rest + 7,
   };
 })();
 

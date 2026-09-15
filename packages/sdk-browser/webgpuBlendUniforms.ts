@@ -14,8 +14,9 @@ export function writeBlendUniforms(
   uniformBase: number,
   textured: boolean,
 ) {
-  const { run, vis } = rt,
-    items = rt.blendState.visibleBlend,
+  const { run, vis, blendState } = rt,
+    items = blendState.visibleBlend,
+    table = blendState.table,
     { uniformPacked } = rt.gpu,
     uniformBuffer = rt.gpu.uniformBuffer!,
     { diagnostic, lastCamera, diagnosticPixelError } = run,
@@ -28,11 +29,18 @@ export function writeBlendUniforms(
   );
   const cam = lastCamera?.position;
   const lLen = LONGUEUR_LAMPE;
+  writeBlendDiagnostic(
+    blendState,
+    rt.layout.packedPages,
+    diagnostic,
+    lastCamera,
+    viewport,
+    diagnosticPixelError,
+  );
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       base = (uniformBase + i) * (UNIFORM_STRIDE / 4),
       mat = visMaterial(item.material);
-    writeBlendDiagnostic(device, item, diagnostic, lastCamera, viewport, diagnosticPixelError);
     const layer = item.map && mapLayer.has(item.map) ? mapLayer.get(item.map)! : 0,
       scale = uvScales[layer] ?? [1, 1];
     uniformPacked.set(viewProj.elements, base);
@@ -41,7 +49,12 @@ export function writeBlendUniforms(
     uniformPacked[base + 33] = item.rgba[1];
     uniformPacked[base + 34] = item.rgba[2];
     uniformPacked[base + 35] = item.rgba[3];
-    packedInts[base + 36] = 0;
+    // A paged item reads its cluster list from `instanceBuffer` at its own base; an unpaged one
+    // reads its own index buffer from the start.
+    packedInts[base + 36] =
+      item.paged && table && item.pagedIndex !== undefined
+        ? table.itemRanges[item.pagedIndex * 2]
+        : 0;
     packedInts[base + 37] = item.count;
     packedInts[base + 38] = textured ? layer : diagnostic === 'wireframe' ? 1 : 0;
     packedInts[base + 39] =

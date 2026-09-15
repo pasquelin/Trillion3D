@@ -1,9 +1,30 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
 import { evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
+import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
 };
+
+const words = (bytes: Uint8Array) =>
+  new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
+
+/** Replays the transparent compaction: the same oracle the shader implements. */
+function simulateTransparentCompaction(bind: ComputeBind) {
+  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
+  const uni = words(byBinding.get(1)!.data);
+  const mask = words(byBinding.get(2)!.data);
+  const result = evaluateTransparentCompaction({
+    entries: words(byBinding.get(0)!.data),
+    itemRanges: words(byBinding.get(7)!.data),
+    entryCount: uni[0],
+    itemCount: uni[2],
+    vertexCount: uni[4],
+    selected: (cluster) => mask[uni[3] + cluster] !== 0,
+  });
+  words(byBinding.get(5)!.data).set(result.instances.subarray(0, uni[0]));
+  words(byBinding.get(6)!.data).set(result.indirect);
+}
 
 export function simulateComputeDispatch(
   computePipeline: { entryPoint: string } | undefined,
@@ -12,6 +33,8 @@ export function simulateComputeDispatch(
   packed?: PackedDag,
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
+  if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
+    return simulateTransparentCompaction(computeBind);
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
     const byBinding = new Map(
       computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),

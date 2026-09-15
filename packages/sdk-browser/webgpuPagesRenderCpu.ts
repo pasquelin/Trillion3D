@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
-import { appendAll, partitionByPass } from './webgpuPagesHelpers.ts';
+import { appendAll, partitionByPass, triangleSum } from './webgpuPagesHelpers.ts';
 import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
@@ -92,9 +92,6 @@ export function renderCpuCut(
   // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
   // and the GPU cut re-seeds from nothing when it takes the image back.
   services.invalidateCut();
-  run.shownOpaque = -1;
-  run.desiredOpaque = -1;
-  run.shownOpaqueTriangles = -1;
   run.pagesEntered = null;
   run.pagesExited = null;
   const cpuSelectionStarted = performance.now();
@@ -165,6 +162,7 @@ export function renderCpuCut(
   if (culled.some((page) => !cache.get(page.url))) throw new Error('GPU_COVERAGE_INCOMPLETE');
   run.drawn.length = 0;
   appendAll(run.drawn, culled);
+  run.blendPagedTriangles = triangleSum(run.drawn, true);
   // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
   run.uncoveredTriangles = 0;
   traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);

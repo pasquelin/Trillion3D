@@ -71,8 +71,6 @@ export function createWebgpuResidencySets(options: {
   const dropAsk = (key: number) => requested.release(key);
   const holdDrawn = (key: number) => keep.retain(key);
   const dropDrawn = (key: number) => keep.release(key);
-  const transparentWanted = createRefreshedKeys(keyCount, askFor, dropAsk);
-  const transparentShown = createRefreshedKeys(keyCount, holdDrawn, dropDrawn);
   const cpuWanted = createRefreshedKeys(keyCount, askFor, dropAsk);
   const cpuShown = createRefreshedKeys(keyCount, holdDrawn, dropDrawn);
   /** What the cut asks the cache for, and what the image actually draws. The second is not a subset
@@ -121,12 +119,6 @@ export function createWebgpuResidencySets(options: {
     applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta);
     },
-    refreshTransparentWanted(pages: readonly PageRec[]) {
-      transparentWanted.refresh(pages, keyOf);
-    },
-    refreshTransparentShown(pages: readonly PageRec[]) {
-      transparentShown.refresh(pages, keyOf);
-    },
     /**
      * The CPU cut owns the whole set for as long as it drives the image: it hands over its wanted and
      * drawn lists in full, and the GPU cut re-seeds from nothing when it takes over again.
@@ -135,8 +127,6 @@ export function createWebgpuResidencySets(options: {
       askedKeys.clear();
       ranking.clear();
       drawnKeys.clear();
-      transparentWanted.clear();
-      transparentShown.clear();
       if (!followsDesired) restoreWanted();
       cpuWanted.refresh(wantedNow, keyOf);
       cpuShown.refresh(shownNow, keyOf);
@@ -158,8 +148,8 @@ export function createWebgpuResidencySets(options: {
      * is recomputed from the records themselves every image, never assumed from the cut standing
      * still, and the queue is rebuilt only where the two differ.
      */
-    applyBudget(room: number, desiredNow: readonly PageRec[], transparentNow: readonly PageRec[]) {
-      if (ranking.rank(room, desiredNow, transparentNow) <= room) {
+    applyBudget(room: number, desiredNow: readonly PageRec[]) {
+      if (ranking.rank(room, desiredNow) <= room) {
         if (!followsDesired) restoreWanted();
         return false;
       }
