@@ -30,7 +30,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatUseForcing = false;
   s.flatMissing = false;
   traverse(s, pages, root.culling);
-  if (!s.hold) return;
+  if (s.over || !s.hold) return;
   if (!s.flatStructure || !s.flatForced || !s.flatForcedList) {
     if (s.rootFallback && s.flatMissing) repairFlat(s, pages, startShown);
     return;
@@ -65,5 +65,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatShort = false;
   traverse(s, pages, root.culling);
   s.flatUseForcing = false;
+  if (s.over) return;
   if (s.rootFallback && s.flatShort && !rootCoverInto(s, pages, startShown)) s.complete = false;
 }
