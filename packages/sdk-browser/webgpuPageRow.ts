@@ -23,6 +23,9 @@ import {
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
+/** Mot de la ligne où vit le nombre d'indices que la page dessine : ce que la carte lit pour la
+ *  dessiner, et donc le seul compte de sommets qu'un parcours d'image a besoin de relire. */
+export const ROW_INDEX_WORDS = 25;
 /**
  * Le socle d'identifiant d'une ligne du tableau de pages : son rang décalé des bits du triangle,
  * zéro restant libre pour le fond. La première écriture d'une ligne et le retassage qui la déplace
@@ -99,7 +102,7 @@ export function createPageRowWriter({
     ints[base + 22] = layer;
     ints[base + 23] = flags;
     ints[base + 24] = offsetWords;
-    ints[base + 25] = index.length;
+    ints[base + ROW_INDEX_WORDS] = index.length;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     floats[base + 28] = scale[0];
