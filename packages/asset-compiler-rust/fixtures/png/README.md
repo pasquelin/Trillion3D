@@ -4,11 +4,11 @@ Trois fichiers minuscules, moins de cent octets chacun, qui portent **le même d
 pixels** écrit dans trois profondeurs. La dorée `src/plugins/tests/png.rs` les passe au registre
 d'images et compare le résultat à une référence écrite en clair dans le test.
 
-| fichier | type de couleur | profondeur | ce qu'il met sous surveillance |
-| --- | --- | --- | --- |
-| `rgb8.png` | 2 (RGB) | 8 bits par canal | le cas courant : décodé, alpha rempli à 255, pixels inchangés |
-| `palette4.png` | 3 (palette) | 4 bits, palette 24 bits | sous huit bits l'expansion vers RGBA8 recopie, elle ne perd rien |
-| `rgb16.png` | 2 (RGB) | 16 bits par canal | refusé sous `image-depth-unsupported`, avant tout décodage |
+| fichier        | type de couleur | profondeur              | ce qu'il met sous surveillance                                   |
+| -------------- | --------------- | ----------------------- | ---------------------------------------------------------------- |
+| `rgb8.png`     | 2 (RGB)         | 8 bits par canal        | le cas courant : décodé, alpha rempli à 255, pixels inchangés    |
+| `palette4.png` | 3 (palette)     | 4 bits, palette 24 bits | sous huit bits l'expansion vers RGBA8 recopie, elle ne perd rien |
+| `rgb16.png`    | 2 (RGB)         | 16 bits par canal       | refusé sous `image-depth-unsupported`, avant tout décodage       |
 
 Le dessin est le même partout : rouge, vert sur la ligne du haut, bleu, jaune sur celle du bas. Les
 deux fixtures lisibles doivent donc rendre exactement les mêmes quatre pixels — c'est la preuve que
@@ -39,7 +39,7 @@ comportement, celui que la décision visait ; les quatre autres rendent ce que l
 annonce :
 
 | fichier            | type de couleur | profondeur | verdict                           |
-| ------------------- | --------------- | ---------- | --------------------------------- |
+| ------------------ | --------------- | ---------- | --------------------------------- |
 | `rgb8.png`         | 2 (RGB)         | 8 bits     | décodé                            |
 | `rgba8-binary.png` | 6 (RGBA)        | 8 bits     | décodé, alpha conservé            |
 | `palette.png`      | 3 (palette)     | 8 bits     | décodé                            |
