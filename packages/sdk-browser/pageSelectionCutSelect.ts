@@ -1,4 +1,4 @@
-import { extractPlanes } from './pageSelectionMath.ts';
+import { clipPlanesFromMatrix } from '../sdk-core/index.ts';
 import type { ConeContext } from './pageCone.ts';
 import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCutLogic.ts';
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
@@ -36,7 +36,10 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // Une racine qui déclare n'avoir aucun cône sort le cône du chemin par cluster. Le silence vaut
   // « je n'ai rien déclaré » : la coupe teste alors chaque page, comme avant ce lot.
   s.flatCones = root.cones !== false;
-  extractPlanes(clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix), planes);
+  clipPlanesFromMatrix(
+    planes,
+    clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix).elements,
+  );
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;

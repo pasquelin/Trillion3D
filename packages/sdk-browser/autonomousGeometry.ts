@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setGeometryBounds } from './threeBounds.ts';
 import type { GeometryPageDescriptor } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
@@ -136,12 +137,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
                 : 2,
           ),
         );
-      geometry.boundingBox = new THREE.Box3(
-        new THREE.Vector3().fromArray(rec.min),
-        new THREE.Vector3().fromArray(rec.max),
-      );
-      geometry.boundingSphere = new THREE.Sphere();
-      geometry.boundingBox.getBoundingSphere(geometry.boundingSphere);
+      setGeometryBounds(geometry, rec.min, rec.max);
       const original = baseMaterials.get(rec)!;
       rec.material = data.attributes.color
         ? Array.isArray(original)

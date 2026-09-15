@@ -5,7 +5,8 @@ import {
   type SelectionUniforms,
 } from './gpuSelection.ts';
 import { CLUSTER_FLOATS, CLUSTER_NEVER, type PackedDag } from './gpuDagTypes.ts';
-import { dagScratch, outsidePlanes, projectedError } from './gpuDagOracleMath.ts';
+import { frustumExcludesBox } from '../sdk-core/index.ts';
+import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 
 type PredicateContext = {
   packed: PackedDag;
@@ -50,7 +51,7 @@ export function createDagOraclePredicates(context: PredicateContext) {
     if (clusterInts[base + 13] & CLUSTER_NEVER) return false;
     if (node !== NONE && nodeFlags[node]) return false;
     const cone = index * PAGE_CONE_FLOATS;
-    return !outsidePlanes(
+    return !frustumExcludesBox(
       planes[w],
       pageCones[cone + 4],
       pageCones[cone + 5],

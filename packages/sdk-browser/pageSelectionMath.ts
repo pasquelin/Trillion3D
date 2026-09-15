@@ -1,6 +1,5 @@
 import { clusterErrorAtDistance } from '../sdk-core/index.ts';
 import { viewDistance } from './pageSelectionProjection.ts';
-import * as THREE from 'three';
 
 export type ClusterCut = {
   lodError?: number;
@@ -54,94 +53,4 @@ export function cutSelects(
       near,
     ) > pixelError
   );
-}
-/** Six frustum planes of `clip`, inward-facing, unnormalised: a point is inside when every ax+by+cz+d >= 0.
- *  Taken in the space `clip` maps from, so the caller never transforms a box. Allocation free. */
-export function extractPlanes(clip: THREE.Matrix4, planes: Float64Array) {
-  const m = clip.elements;
-  const x0 = m[0],
-    x1 = m[4],
-    x2 = m[8],
-    x3 = m[12];
-  const y0 = m[1],
-    y1 = m[5],
-    y2 = m[9],
-    y3 = m[13];
-  const z0 = m[2],
-    z1 = m[6],
-    z2 = m[10],
-    z3 = m[14];
-  const w0 = m[3],
-    w1 = m[7],
-    w2 = m[11],
-    w3 = m[15];
-  planes[0] = w0 + x0;
-  planes[1] = w1 + x1;
-  planes[2] = w2 + x2;
-  planes[3] = w3 + x3;
-  planes[4] = w0 - x0;
-  planes[5] = w1 - x1;
-  planes[6] = w2 - x2;
-  planes[7] = w3 - x3;
-  planes[8] = w0 + y0;
-  planes[9] = w1 + y1;
-  planes[10] = w2 + y2;
-  planes[11] = w3 + y3;
-  planes[12] = w0 - y0;
-  planes[13] = w1 - y1;
-  planes[14] = w2 - y2;
-  planes[15] = w3 - y3;
-  planes[16] = w0 + z0;
-  planes[17] = w1 + z1;
-  planes[18] = w2 + z2;
-  planes[19] = w3 + z3;
-  planes[20] = w0 - z0;
-  planes[21] = w1 - z1;
-  planes[22] = w2 - z2;
-  planes[23] = w3 - z3;
-}
-/** Les six coordonnées de la boîte, rangées pour que le signe du plan serve d'indice. */
-const boite = new Float64Array(6);
-/**
- * Axis-aligned box against the six planes: 0 outside, 1 straddling, 2 fully inside.
- * A subtree that is fully inside spares every box below it a test.
- *
- * Deux passes au lieu d'une : la première ne fait que rejeter, la seconde ne sert qu'à distinguer
- * « traversé » de « entièrement dedans » et s'arrête au premier plan traversé. Un plan qui rejette
- * n'a jamais besoin du second produit scalaire, et le test de l'accumulateur sort de la boucle
- * chaude. Le signe du plan choisit le sommet par indice plutôt que par branche. Les produits et les
- * sommes restent ceux d'avant, dans le même ordre : `a * maxX + b * maxY + c * maxZ + d`.
- */
-export function boxClip(
-  planes: Float64Array,
-  minX: number,
-  minY: number,
-  minZ: number,
-  maxX: number,
-  maxY: number,
-  maxZ: number,
-) {
-  boite[0] = minX;
-  boite[1] = maxX;
-  boite[2] = minY;
-  boite[3] = maxY;
-  boite[4] = minZ;
-  boite[5] = maxZ;
-  for (let p = 0; p < 24; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3];
-    if (a * boite[a > 0 ? 1 : 0] + b * boite[b > 0 ? 3 : 2] + c * boite[c > 0 ? 5 : 4] + d < 0)
-      return 0;
-  }
-  for (let p = 0; p < 24; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3];
-    if (a * boite[a > 0 ? 0 : 1] + b * boite[b > 0 ? 2 : 3] + c * boite[c > 0 ? 4 : 5] + d < 0)
-      return 1;
-  }
-  return 2;
 }

@@ -1,7 +1,8 @@
+import { frustumExcludesBox, frustumPlanesToLocal } from '../sdk-core/index.ts';
 import type { PackedDag } from './gpuDagTypes.ts';
 import { CLUSTER_FLOATS, DAG_NODE_FLOATS, CLUSTER_ROOT } from './gpuDagTypes.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
-import { dagScratch, objectPlanes, outsidePlanes, projectedError } from './gpuDagOracleMath.ts';
+import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
 import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 
@@ -37,7 +38,7 @@ export function evaluateDagSelectionKernel(
   for (let w = 0; w < packed.worldCount; w++) {
     world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
     const object = new Float64Array(24);
-    objectPlanes(uniforms, world, object);
+    frustumPlanesToLocal(object, uniforms.planes, world.elements);
     planes.push(object);
     viewMatrix.multiplyMatrices(view, world);
     views.push([...viewMatrix.elements]);
@@ -48,7 +49,7 @@ export function evaluateDagSelectionKernel(
     const base = n * DAG_NODE_FLOATS,
       w = nodeInts[base + 12];
     if (
-      outsidePlanes(
+      frustumExcludesBox(
         planes[w],
         nodes[base],
         nodes[base + 1],

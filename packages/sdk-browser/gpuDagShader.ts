@@ -27,7 +27,7 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  return (error*stretch*focal)/distance;
 }
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  Miroir GPU de \`boxClip\` (pageSelectionMath.ts), dont la premiere passe est ce meme rejet. */
+ *  Miroir GPU de \`frustumExcludesBox\` (sdk-core, mathFrustumBox.ts) : memes coins, meme somme. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  for(var i=0u;i<6u;i++){
   let plane=frames[base+i];

@@ -3,6 +3,7 @@
 // donc la coupe en choisit exactement un par région, et un seuil deux fois plus grand en choisit
 // deux fois moins. Tout vient du générateur à graine fixe du banc commun.
 import * as THREE from 'three';
+import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../sdk-core/index.ts';
 import { graine } from '../../sdk-core/bench/banc.mjs';
 
 /**
@@ -48,11 +49,12 @@ export function dag({ feuilles = 10000, seed = 61, residentes = 1, etendue = 3 }
 /** Une racine de sélection sans hiérarchie de culling : la descente prend les pages dans l'ordre. */
 export function racine(pages) {
   const monde = new THREE.Matrix4();
-  const box = new THREE.Box3();
-  for (const page of pages)
-    box
-      .expandByPoint(new THREE.Vector3(page.min[0], page.min[1], page.min[2]))
-      .expandByPoint(new THREE.Vector3(page.max[0], page.max[1], page.max[2]));
+  const box = new Float64Array(BOX_VALUES);
+  boxEmpty(box, 0);
+  for (const page of pages) {
+    boxExpandByPoint(box, 0, page.min[0], page.min[1], page.min[2]);
+    boxExpandByPoint(box, 0, page.max[0], page.max[1], page.max[2]);
+  }
   return { world: monde, pages, worldBox: box, localBox: box };
 }
 

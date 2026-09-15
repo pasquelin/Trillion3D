@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { DiagnosticMode } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
@@ -17,7 +17,8 @@ export type BlendGpuItem = {
   matrix: THREE.Matrix4;
   sourceMesh?: THREE.Mesh;
   sourceGeometry: THREE.BufferGeometry;
-  bounds?: THREE.Box3;
+  /** Boîte monde de l'item, six bornes à plat (`mathBox.ts`) ; absente, l'item n'est pas rejeté. */
+  bounds?: Float64Array;
   rgba: [number, number, number, number];
   map?: THREE.Texture;
   flags: number;
@@ -32,12 +33,12 @@ export function createWebgpuBlendState() {
   const blendGpu: BlendGpuItem[] = [];
   const pagedBlendGpu = new Map<THREE.Mesh, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
-  const blendFrustum = new THREE.Frustum();
   const state = {
     blendGpu,
     pagedBlendGpu,
     visibleBlend,
-    blendFrustum,
+    /** Plans normalisés du tronc de l'image, contre lesquels un item non paginé est rejeté. */
+    blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
     /** The scene's transparent draw order and the GPU compaction that filters it, or undefined
      *  before `prepare` built them — or when the scene carries no paged transparent cluster. */
     table: undefined as TransparentTable | undefined,
