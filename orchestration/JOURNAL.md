@@ -135,11 +135,21 @@ après lui. Ce qu'un lecteur garde d'une image à l'autre doit porter l'âge de 
 l'état de l'image qui l'a produit. Et une optimisation de listes de résidence ne se prouve pas à
 caméra fixe : **la caméra mobile est la série qui décide.**
 
-**Séries à jouer contre `324a3e3`**, la tête corrigée : la caméra mobile aux deux seuils d'abord,
-puis `generale,sol,rue` aux deux seuils, la scène synthétique `classes-materiaux`
-(`--cache-avant`/`--cache-apres .mesure/cache-classes`, `--vues generale,detail`), et **une série
-WebGL** : `streamingCache.retain` est partagé par les deux moteurs, même si seul le moteur WebGPU
-tient les listes d'une image à l'autre.
+**La même série contre la tête corrigée `324a3e3`**, qui est la porte du correctif :
+
+| série                       | px avant/après | témoin A/A | `selectedTriangles` avant / après | coupe          | trous |
+| --------------------------- | -------------- | ---------- | --------------------------------- | -------------- | ----- |
+| générale · 0, caméra mobile | **0 px**       | 0 px       | 6 747 087 / 6 747 087             | 51 366, identique | 0  |
+| générale · 1, caméra mobile | **0 px**       | 0 px       | 1 599 951 / 1 599 951             | 13 219, identique | 0  |
+
+Le côté « après » retrouve exactement le compte du côté « avant » au seuil 1 — 1 599 951 — celui-là
+même que la version fautive ramenait à 1 273 565. La coupe et son empreinte sont identiques des deux
+côtés, `uncoveredTriangles` nul partout.
+
+**Séries restant à jouer contre `324a3e3`** : `generale,sol,rue` aux deux seuils, la scène synthétique
+`classes-materiaux` (`--cache-avant`/`--cache-apres .mesure/cache-classes`, `--vues generale,detail`),
+et **une série WebGL** : `streamingCache.retain` est partagé par les deux moteurs, même si seul le
+moteur WebGPU tient les listes d'une image à l'autre.
 
 ### 5. Portes
 
