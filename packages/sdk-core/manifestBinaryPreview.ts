@@ -24,6 +24,30 @@ function expectedGeometry(width: number, height: number) {
   };
 }
 
+/** Ce que l'écriture et la lecture exigent toutes deux d'une entrée — index de texture entier et
+ *  strictement croissant, dimensions source réelles — pour qu'une entrée refusée à l'écriture soit
+ *  exactement celle que la lecture refuserait. Rend le `previous` de l'entrée suivante. */
+function checkEntryHeader(
+  entry: number,
+  texture: number,
+  width: number,
+  height: number,
+  previous: number,
+) {
+  if (!Number.isInteger(texture) || texture <= previous)
+    throw new EngineError('INVALID_CACHE', 'Texture previews are not ordered by texture index', {
+      entry,
+      texture,
+    });
+  if (!(width > 0) || !(height > 0))
+    throw new EngineError('INVALID_CACHE', 'A texture preview declares an empty source image', {
+      entry,
+      width,
+      height,
+    });
+  return texture;
+}
+
 /**
  * Rebuilds the progressive level entries, checking every one before a byte of it is handed on: the
  * texture indices must climb, the source dimensions must be real, the declared level geometry must
@@ -40,18 +64,7 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
     const texture = previewWords[base + format.PREVIEW_TEXTURE];
     const width = previewWords[base + format.PREVIEW_WIDTH],
       height = previewWords[base + format.PREVIEW_HEIGHT];
-    if (texture <= previous)
-      throw new EngineError('INVALID_CACHE', 'Texture previews are not ordered by texture index', {
-        entry,
-        texture,
-      });
-    previous = texture;
-    if (width === 0 || height === 0)
-      throw new EngineError('INVALID_CACHE', 'A texture preview declares an empty source image', {
-        entry,
-        width,
-        height,
-      });
+    previous = checkEntryHeader(entry, texture, width, height, previous);
     const expected = expectedGeometry(width, height);
     const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
     const declared = {
@@ -86,14 +99,15 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       at += w * h * 4;
     }
     consumed = at;
+    const sourceKind = previewWords[base + format.PREVIEW_SOURCE_KIND];
     previews[entry] = {
       texture,
       image: previewWords[base + format.PREVIEW_IMAGE],
       width,
       height,
-      sourceKind: previewWords[base + format.PREVIEW_SOURCE_KIND],
+      sourceKind,
       sourceBufferView:
-        previewWords[base + format.PREVIEW_SOURCE_KIND] === format.PREVIEW_SOURCE_URI
+        sourceKind === format.PREVIEW_SOURCE_URI
           ? -1
           : previewWords[base + format.PREVIEW_SOURCE_VIEW],
       sha256: previewShaText.substring(entry * 64, entry * 64 + 64),
@@ -109,38 +123,18 @@ type ColumnView = <T>(
   make: (buffer: ArrayBuffer, offset: number, elements: number) => T,
 ) => T;
 
-/** Writes the three preview columns of an encoder that hands out views by column name. */
+/**
+ * Writes the three preview columns of an encoder that hands out views by column name, refusing
+ * anything the reader above would refuse.
+ */
 export function encodePreviewColumns(previews: readonly TexturePreview[], view: ColumnView) {
-  encodeTexturePreviews(
-    previews,
-    view('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n)),
-    view('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n)),
-    view('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n)),
-  );
-}
-
-/** Writes the same entries back, refusing anything the reader above would refuse. */
-function encodeTexturePreviews(
-  previews: readonly TexturePreview[],
-  words: Uint32Array,
-  sha: Uint8Array,
-  pixels: Uint8Array,
-) {
+  const words = view('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n));
+  const sha = view('texturePreviewSha', (b, o, n) => new Uint8Array(b, o, n));
+  const pixels = view('texturePreviewPixels', (b, o, n) => new Uint8Array(b, o, n));
   let previous = -1,
     offset = 0;
   previews.forEach((preview, entry) => {
-    if (!Number.isInteger(preview.texture) || preview.texture <= previous)
-      throw new EngineError('INVALID_CACHE', 'Texture previews are not ordered by texture index', {
-        entry,
-        texture: preview.texture,
-      });
-    previous = preview.texture;
-    if (!(preview.width > 0) || !(preview.height > 0))
-      throw new EngineError('INVALID_CACHE', 'A texture preview declares an empty source image', {
-        entry,
-        width: preview.width,
-        height: preview.height,
-      });
+    previous = checkEntryHeader(entry, preview.texture, preview.width, preview.height, previous);
     const expected = expectedGeometry(preview.width, preview.height);
     const base = entry * format.PREVIEW_WORDS;
     words[base + format.PREVIEW_TEXTURE] = preview.texture;
