@@ -31,16 +31,16 @@ type PriorityInputs = {
 export function createTexturePriority(inputs: () => PriorityInputs) {
   const colorWeights: number[] = [];
   const dataWeights: number[] = [];
+  const bump = (weights: number[], layers: readonly number[], triangles: number) => {
+    for (const layer of layers) {
+      while (weights.length <= layer) weights.push(0);
+      weights[layer] += triangles;
+    }
+  };
   const addWeight = (layers: MaterialAtlasLayers | undefined, triangles: number) => {
     if (!layers) return;
-    for (const layer of layers.color) {
-      while (colorWeights.length <= layer) colorWeights.push(0);
-      colorWeights[layer] += triangles;
-    }
-    for (const layer of layers.data) {
-      while (dataWeights.length <= layer) dataWeights.push(0);
-      dataWeights[layer] += triangles;
-    }
+    bump(colorWeights, layers.color, triangles);
+    bump(dataWeights, layers.data, triangles);
   };
   const weightOf = (job: TextureJob) =>
     (job.kind === 'color' ? colorWeights : dataWeights)[job.slot] ?? 0;
