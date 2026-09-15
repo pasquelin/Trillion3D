@@ -1,5 +1,19 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — lot 3 des textures progressives : preuve navigateur faite, fusion refusée
+
+- **Non fusionné dans `develop`.** La branche `lot3-mips-progressifs` (et `integration-lot3`, même sommet `e2dab1d`) porte le lot, fusion de `develop` comprise. La preuve navigateur montre un écart d'image bien au-dessus du bruit A/A, et il ne vient pas des mips progressifs : il vient du **second groupe d'atlas**.
+- **Fusion de `develop`** (`19efc13`, ombres par face) : un seul conflit, `visibilityShaderId.ts`. `develop` avait sorti la découpe alpha dans `PAGE_MASK_WGSL`, partagée avec la passe de profondeur des ombres ; le lot la fait passer par `colorAlpha` et les classes d'atlas. Le bloc partagé prend la forme du lot, `PAGE_PREVIEW_BINDING` disparaît avec l'atlas d'aperçus, et la passe d'ombres déclare les classes et la table des slots aux liaisons de `VIS_BINDINGS`.
+- **Deux défauts corrigés.** (1) `planAtlasClasses` vérifiait l'allocation à une classe **avant** d'essayer le découpage : une scène qui dépassait `maxTextureArrayLayers` en une classe levait `TEXTURE_ATLAS_LAYERS` sans regarder le plan à deux classes qui tenait (`81d7ccb`, deux tests). (2) Le raster logiciel des petits triangles liait **neuf** tampons de stockage à l'étage de calcul, un de plus que les huit garantis par WebGPU : le dispositif refusait la disposition puis se perdait à la première image, et la preuve navigateur ne démarrait pas. L'image et la liste vivent maintenant dans un seul tampon (`e2dab1d`) ; un test compte, par étage, les tampons de stockage des quatre dispositions.
+- `npm run validate` : **treize portes vertes** en une passe — format, lignes, 0 doublon, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens, **567 tests JS/TS**, **138 tests Rust** (134 bibliothèque + 4 CLI).
+- **Preuve navigateur.** Lab en lecture seule sur le port 5191 (5174 laissé à l'utilisateur), relais 5192/5193 servant un cache Emerald recompilé dans le scratchpad, Lab jamais écrit. Cache du lot : sidecar **version 4**, 232 textures couleur, **232 niveaux progressifs, 0 ignoré**, 15,5 s, 10 046 405 triangles, 281 primitives, 1 030 nœuds. Quatre séries de dix captures 1246×1000 : lot (a, b), **témoin `develop` du jour** (a, b), et une série du lot **bridé à une seule classe d'atlas**.
+- **Chiffres.** A/A du témoin `develop` : **0 px** sur dix captures ; `develop` contre `reference-develop` : 3 px, amplitude 39 (bruit connu). A/A du lot : 2 px, amplitude 16. **Lot contre témoin : 15 142 px sur 124,6 M (0,012 %), amplitude maximale 159**, répartis sur six captures — 10 934 px (segment 3), 2 704 (5), 821 (7), 618 (4), 59 (8), 3 + 3 (0 et 9). 1 130 px au-dessus de l'amplitude 16, en taches compactes (la plus grande : 338 px, boîte 14 × 30) sur de petits objets lointains — appliques de lampadaire, boîtiers de feux — et un semis de bord sur le feuillage des haies.
+- **Attribution, mesurée.** Le lot **bridé à une seule classe** est **identique au bit près au témoin `develop` sur les dix captures (0 px)** : les mips progressifs, la résidence par niveau et le sidecar v4 ne changent **rien** à l'image. Tout l'écart vient du second groupe d'atlas. Sur Emerald il range **6 textures couleur et 33 de données** dans une classe **16 × 16** ; une petite texture minifiée dans l'atlas 2048 × 2048 mélangeait, à ses niveaux grossiers, le remplissage blanc qui l'entoure, et n'est plus mélangée à rien dans son propre atlas — d'où des appliques qui passent de gris clair (≈ 150) à sombre (≈ 10). L'écart est donc **explicable**, plausiblement plus fidèle, mais il **dépasse le bruit** et n'est **pas confiné aux bords**.
+- **Octets d'atlas, calculés (jamais mesurés).** Une classe : **7 560 931 576** o. Deux classes : **6 688 572 304** o — couleur 2 438 288 580 + 9 548, données 4 250 227 800 + 46 376. Économie **872 359 272 o (−11,5 %)**, classe couleur 0 à 109 couches au lieu de 115.
+- Chaque capture du lot : `texturePending` 0, `textureSkipped` 0, `textureUploaded` 336, `textureLevelsUploaded` 786, `textureAtlasClassesUsed` 2, aucune erreur GPU, **aucun triangle non couvert**. Coupe identique au témoin : mêmes `triangles`, `selectedTriangles`, `clusters`, `drawCalls`. Durées : **`null`**, machine chargée (load 1 min de 11 à 21).
+- **Décision à l'utilisateur** : accepter l'écart du second groupe (et gagner 872 Mo calculés), ou garder une seule classe (image identique, gain nul). Images sous `benchmark-runs/webgpu-capture/{lot3-a,lot3-b,develop-a,develop-b,lot3-une-classe}/` (hors git).
+- Reste : lot 4 (comparatif de compression), lot 5 conditionnel, la réutilisation du pipeline de `textureMips.ts`, et **aucune fixture dorée ne porte encore de texture couleur** — à créer. Note d'exploitation : les caches v3 du Lab sont refusés par le lecteur de sidecar v4 et devront être recompilés.
+
 ## 2026-09-15 — lot 3 : mips progressifs réels et groupes d'atlas par dimensions
 
 - Défaut visé : entre l'aperçu 16×16 du lot 1 et la pleine résolution il n'y avait rien, et une texture-tableau imposant une seule taille à toutes ses couches, une texture de 64 px payait la place d'une texture de 4 096.
@@ -1571,7 +1585,7 @@ Le budget de pages est un nombre de slots de cache, et un slot tient une page. `
 comparait des **placements** : la vue générale d'Emerald au seuil 0 demande 80 153 placements pour
 20 875 pages distinctes, parce qu'un même cluster est placé sous plusieurs instances d'un objet. Le
 budget était donc franchi à chaque image, la file n'était jamais l'ensemble demandé mais un préfixe
-tronqué compté en placements, et le nombre de pages *distinctes* que ce préfixe contenait dépendait
+tronqué compté en placements, et le nombre de pages _distinctes_ que ce préfixe contenait dépendait
 de la façon dont les placements s'y trouvaient répartis — donc de l'ordre dans lequel les premières
 images l'avaient rempli. Le cache ne rendant rien tant que ses slots ne manquent pas, la résidence
 gardait tout ce qui était passé par la file et s'arrêtait à 7 590 pages sur les 20 875 demandées :
@@ -1627,10 +1641,10 @@ lisant `.mesure/cache-emerald` via `--cache-avant` / `--cache-apres`. `avant = a
 (`d3e86d7`) — le code de la tête de `develop`, la troncature du budget désactivée, donc la file est
 toujours l'ensemble demandé. Jamais fusionnée, elle n'existe que pour cette mesure.
 
-| vue · seuil | `develop` contre la référence | cette branche contre la référence |
-|---|---|---|
-| générale · 0 | **4 046 px, max canal 234** | **0 px** |
-| générale · 1, sol · 0, sol · 1, rue · 0, rue · 1 | 0 px | 0 px |
+| vue · seuil                                      | `develop` contre la référence | cette branche contre la référence |
+| ------------------------------------------------ | ----------------------------- | --------------------------------- |
+| générale · 0                                     | **4 046 px, max canal 234**   | **0 px**                          |
+| générale · 1, sol · 0, sol · 1, rue · 0, rue · 1 | 0 px                          | 0 px                              |
 
 Cette branche **est** le rendu sans budget, au pixel, sur les six séries ; `develop` en diffère sur la
 vue générale au seuil 0, la seule où les deux images ne coïncident pas. Le changement d'image va donc dans le bon sens, et il est mesuré, pas
@@ -1642,14 +1656,14 @@ quatre exécutions, au page près. Sur les autres vues, témoin A/A 0 px aux deu
 
 **(b) Écart contre `develop`.** Attendu non nul, et c'est la vue générale qui le porte :
 
-| vue · seuil | écart | pages résidentes (develop → branche) | triangles dessinés | trous |
-|---|---|---|---|---|
-| générale · 0 | **4 046 px, max canal 234** | 7 590 → **20 875** | 5 942 722 → 5 093 246 | 0 / 0 |
-| générale · 1 | 0 px | 3 801 → 3 801 | 1 842 728 | 0 / 0 |
-| sol · 0 | 0 px | 4 863 → 4 863 | 1 509 411 | 0 / 0 |
-| sol · 1 | 0 px | 3 422 → 3 422 | 670 036 | 0 / 0 |
-| rue · 0 | 0 px | 5 434 → 5 434 | 1 424 473 | 0 / 0 |
-| rue · 1 | 0 px | 3 554 → 3 554 | 636 059 | 0 / 0 |
+| vue · seuil  | écart                       | pages résidentes (develop → branche) | triangles dessinés    | trous |
+| ------------ | --------------------------- | ------------------------------------ | --------------------- | ----- |
+| générale · 0 | **4 046 px, max canal 234** | 7 590 → **20 875**                   | 5 942 722 → 5 093 246 | 0 / 0 |
+| générale · 1 | 0 px                        | 3 801 → 3 801                        | 1 842 728             | 0 / 0 |
+| sol · 0      | 0 px                        | 4 863 → 4 863                        | 1 509 411             | 0 / 0 |
+| sol · 1      | 0 px                        | 3 422 → 3 422                        | 670 036               | 0 / 0 |
+| rue · 0      | 0 px                        | 5 434 → 5 434                        | 1 424 473             | 0 / 0 |
+| rue · 1      | 0 px                        | 3 554 → 3 554                        | 636 059               | 0 / 0 |
 
 Cinq séries sur six ne bougent pas : leur coupe demandait moins de pages que le budget même compté
 en placements. C'est la vue générale au seuil 0, la plus lourde, qui portait la troncature.
@@ -1660,13 +1674,13 @@ en placements. C'est la vue générale au seuil 0, la plus lourde, qui portait l
 
 Vue générale au seuil 0, la seule des six séries où les deux côtés diffèrent :
 
-| | `develop` | cette branche |
-|---|---|---|
-| pages résidentes | 7 590 | **20 875** |
-| clusters dessinés | 47 890 | 41 187 |
-| triangles dessinés | 5 942 722 | 5 093 246 |
-| `uncoveredTriangles` | 0 | 0 |
-| `cpuFrameMs` p50 | 11,3 à 14,7 | **7,3 à 8,7** |
+|                      | `develop`   | cette branche |
+| -------------------- | ----------- | ------------- |
+| pages résidentes     | 7 590       | **20 875**    |
+| clusters dessinés    | 47 890      | 41 187        |
+| triangles dessinés   | 5 942 722   | 5 093 246     |
+| `uncoveredTriangles` | 0           | 0             |
+| `cpuFrameMs` p50     | 11,3 à 14,7 | **7,3 à 8,7** |
 
 La résidence triple parce que la file est enfin l'ensemble demandé ; elle ne coûte pourtant aucune
 mémoire de plus, le cache GPU allouant déjà `pageBytes × slots` à la création — `develop`
@@ -1682,7 +1696,7 @@ processeur y gagne un tiers du temps par image, faute de clusters à encoder.
   grossier — n'est donc exercé que par les tests unitaires et par un budget volontairement étroit ;
   aucune scène du banc ne le met à l'épreuve en vrai.
 - L'éviction reste celle du cache : il reprend ses slots par ancienneté quand ils manquent. La
-  résidence est donc fonction de la coupe et du budget *tant que le budget n'est pas atteint* ;
+  résidence est donc fonction de la coupe et du budget _tant que le budget n'est pas atteint_ ;
   au-delà, l'ordre d'arrivée décide encore quels slots sont repris. Le rendre exact demande une
   politique d'éviction pilotée par la coupe, et l'essai brutal de ce lot dit qu'elle ne peut pas être
   « décharger tout ce qui sort de l'ensemble gardé ».
