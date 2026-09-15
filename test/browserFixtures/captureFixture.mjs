@@ -1,3 +1,14 @@
+/** La bande d'erreur d'écran que chaque cluster d'un cache DAG porte, tirée de sa propre boîte :
+ *  sans elle le moteur refuse la primitive par son nom (`STALE_CACHE`) au lieu de la lire à moitié. */
+function clusterSphere({ min, max }) {
+  const center = [0, 1, 2].map((i) => (min[i] + max[i]) / 2);
+  return [...center, Math.hypot(...[0, 1, 2].map((i) => max[i] - center[i])) || 1];
+}
+
+/** L'erreur du cluster grossier : assez grande pour que la coupe veuille toujours le détail, si
+ *  bien que seule la résidence décide entre les deux feuilles et leur remplaçant. */
+const COARSE_ERROR = 1e6;
+
 export async function captureFixture({ THREE, factory, device, events }) {
   const geometry = new THREE.PlaneGeometry(2, 2),
     material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -11,14 +22,21 @@ export async function captureFixture({ THREE, factory, device, events }) {
   camera.position.z = 3;
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld();
+  const box = { min: [-1, -1, 0], max: [1, 1, 0] };
   const pageInfo = {
     id: 0,
     url: '0',
     count: 6,
-    min: [-1, -1, 0],
-    max: [1, 1, 0],
+    ...box,
     bytes: 24,
     sha256: 'fixture',
+    level: 0,
+    lodError: 0,
+    sphere: clusterSphere(box),
+    parentError: null,
+    parentSphere: null,
+    group: null,
+    source: null,
   };
   const backend = factory({
     source,
@@ -64,13 +82,36 @@ export async function captureFixture({ THREE, factory, device, events }) {
       ['fine1', new Uint32Array(geometry.index.array.slice(3))],
       ['coarse', new Uint32Array(geometry.index.array)],
     ]);
+    // Deux feuilles et le cluster qui les remplace : le plus petit DAG à deux niveaux légal.
+    const leaf = { parentError: COARSE_ERROR, parentSphere: pageInfo.sphere, group: 0 };
     const pages = [
-      { ...pageInfo, id: 0, url: 'fine0', count: 3, bytes: 12 },
-      { ...pageInfo, id: 1, url: 'fine1', count: 3, bytes: 12 },
-      { ...pageInfo, id: 2, url: 'coarse', role: 'coarse' },
+      { ...pageInfo, ...leaf, id: 0, url: 'fine0', count: 3, bytes: 12 },
+      { ...pageInfo, ...leaf, id: 1, url: 'fine1', count: 3, bytes: 12 },
+      {
+        ...pageInfo,
+        id: 2,
+        url: 'coarse',
+        role: 'coarse',
+        level: 1,
+        lodError: COARSE_ERROR,
+        source: 0,
+      },
     ];
+    const structure = {
+      version: 1,
+      roots: [2],
+      groups: [
+        {
+          level: 1,
+          error: COARSE_ERROR,
+          sphere: pageInfo.sphere,
+          children: [0, 1],
+          outputs: [2],
+        },
+      ],
+    };
     const metadata = {
-      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', pages }],
+      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', pages, structure }],
     };
     const coverage = [];
     for (const slots of [3, 2]) {

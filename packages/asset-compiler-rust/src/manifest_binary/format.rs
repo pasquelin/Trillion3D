@@ -37,6 +37,10 @@ impl Column {
         self.bytes.extend_from_slice(value.as_bytes());
         Ok(())
     }
+    /// Octets déjà au format de la colonne, copiés tels quels.
+    pub(super) fn raw(&mut self, value: &[u8]) {
+        self.bytes.extend_from_slice(value);
+    }
     pub(super) fn zeros(&mut self, count: usize) {
         self.bytes.resize(self.bytes.len() + count, 0);
     }

@@ -2,7 +2,7 @@
   "case": "Deux surfaces opaques coplanaires dont les contours ne partagent qu'un carré de coin.",
   "rule": "Aires égales (16 et 16) : l'ordre de la source départage. Seule l'aire commune est comptée.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 2,
+  "manifestBinaryVersion": 3,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 2,

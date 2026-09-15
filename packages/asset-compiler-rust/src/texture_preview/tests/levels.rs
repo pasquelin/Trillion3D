@@ -1,0 +1,53 @@
+use super::*;
+
+/// Independent sRGB byte → linear decode, used only to *verify* the pyramid's output; the
+/// production table lives in `reduce::srgb_table` and is never called from a test.
+fn linear(byte: u8) -> f32 {
+    let c = byte as f32 / 255.0;
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+// Comportement 2 : chaque niveau après le premier est la moyenne 2×2 exacte du précédent, en
+// linéaire prémultiplié — ici alpha vaut 255 partout, donc prémultiplié == linéaire directement.
+#[test]
+fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
+    let source = rgba_from(32, 32, |x, y| {
+        [
+            ((x * 7 + y * 3) % 256) as u8,
+            ((x * 13 + 5) % 256) as u8,
+            ((y * 19 + 11) % 256) as u8,
+            255,
+        ]
+    });
+    let pixels = reduce::pyramid(&source, None);
+    for (level, pair) in PREVIEW_LEVEL_SIZES.windows(2).enumerate() {
+        let (fine_side, coarse_side) = (pair[0], pair[1]);
+        let side = fine_side as usize;
+        let next_side = side / 2;
+        let fine = level_bytes(&pixels, level);
+        let coarse = level_bytes(&pixels, level + 1);
+        for row in 0..next_side {
+            for column in 0..next_side {
+                for channel in 0..3usize {
+                    let mut sum = 0f32;
+                    for dy in 0..2 {
+                        for dx in 0..2 {
+                            let at = ((row * 2 + dy) * side + column * 2 + dx) * 4 + channel;
+                            sum += linear(fine[at]);
+                        }
+                    }
+                    let expected = sum * 0.25;
+                    let actual = linear(coarse[(row * next_side + column) * 4 + channel]);
+                    assert!(
+                        (expected - actual).abs() <= 0.02,
+                        "niveau {fine_side} vers {coarse_side}, texel ({row},{column}) canal {channel} : attendu {expected}, obtenu {actual}"
+                    );
+                }
+            }
+        }
+    }
+}

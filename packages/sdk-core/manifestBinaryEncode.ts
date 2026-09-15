@@ -1,7 +1,13 @@
 import { EngineError, type ClusterManifest } from './contracts.ts';
 import { MAX_DEPTH_LAYER } from './depthLayer.ts';
 import * as format from './manifestBinaryFormat.ts';
-import { countManifest, hexDigits, manifestBinaryRanges } from './manifestBinaryLayout.ts';
+import {
+  countManifest,
+  expectTemplate,
+  manifestBinaryRanges,
+  writeSha,
+} from './manifestBinaryLayout.ts';
+import { encodePreviewColumns } from './manifestBinaryPreview.ts';
 import { slimBinaryOf } from './manifestBinaryTypes.ts';
 import type {
   ManifestBinaryDescriptor,
@@ -13,7 +19,7 @@ import type {
  *  descriptor carries an empty `sha256`: only the caller, holding the finished bytes, can hash them. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
-  descriptor: Omit<ManifestBinaryDescriptor, 'version' | 'sha256' | 'bytes'>,
+  descriptor: Omit<ManifestBinaryDescriptor, 'version' | 'sha256' | 'bytes' | 'texturePreviews'>,
 ): { manifest: SlimClusterManifest; binary: Uint8Array } {
   const counts = countManifest(manifest);
   const { ranges, bytes } = manifestBinaryRanges(counts);
@@ -58,18 +64,7 @@ export function encodeManifestBinary(
   const bundleWords = view('bundleU32', (b, o, n) => new Uint32Array(b, o, n)),
     bundleSha = view('bundleSha', (b, o, n) => new Uint8Array(b, o, n));
   const pageDepthLayer = view('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n));
-  const writeSha = (target: Uint8Array, slot: number, sha: string) => {
-    const text = hexDigits(sha);
-    for (let i = 0; i < 64; i++) target[slot * 64 + i] = text.charCodeAt(i);
-  };
-  const expectTemplate = (template: string, url: string, sha: string) => {
-    if (template.replace('{sha}', sha) !== url)
-      throw new EngineError(
-        'INVALID_CACHE',
-        'A cache object url does not follow the manifest template',
-        { url, template },
-      );
-  };
+  encodePreviewColumns(manifest.texturePreviews ?? [], view);
   let page = 0,
     node = 0,
     group = 0,
@@ -187,7 +182,13 @@ export function encodeManifestBinary(
   return {
     manifest: {
       ...top,
-      binary: { ...descriptor, version: format.MANIFEST_BINARY_VERSION, sha256: '', bytes },
+      binary: {
+        ...descriptor,
+        version: format.MANIFEST_BINARY_VERSION,
+        sha256: '',
+        bytes,
+        texturePreviews: counts.previews,
+      },
       primitives,
     } as SlimClusterManifest,
     binary: new Uint8Array(buffer),

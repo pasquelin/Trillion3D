@@ -10,19 +10,27 @@
 //!   u32 magic 'WGMB' · u32 version · u32 columnCount · u32 reserved
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
+use crate::texture_preview::{
+    TexturePreview, PREVIEW_BYTES, PREVIEW_LEVELS, PREVIEW_LEVEL_OFFSETS,
+};
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
 
+mod digests;
 pub(crate) mod format;
 mod page;
+mod preview;
+#[cfg(test)]
+mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;
+pub use digests::digests;
 use format::*;
 
-/// Version 2 adds the per-cluster coplanar depth layer column. A reader of version 1 refuses this
-/// file outright rather than reading twenty of its twenty-one columns.
-pub const MANIFEST_BINARY_VERSION: u32 = 2;
+/// Version 3 adds the three texture preview columns. A reader of version 2 refuses this file
+/// outright rather than reading twenty-one of its twenty-four columns.
+pub const MANIFEST_BINARY_VERSION: u32 = 3;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -48,7 +56,13 @@ const STRUCTURE_ROOT: usize = 17;
 const BUNDLE_U32: usize = 18;
 const BUNDLE_SHA: usize = 19;
 const PAGE_DEPTH_LAYER: usize = 20;
-const COLUMNS: usize = 21;
+const TEXTURE_PREVIEW_U32: usize = 21;
+const TEXTURE_PREVIEW_SHA: usize = 22;
+const TEXTURE_PREVIEW_PIXELS: usize = 23;
+const COLUMNS: usize = 24;
+/// Nombres par entrée d'aperçu : texture, image, largeur, hauteur, genre et vue de provenance,
+/// puis les décalages des cinq niveaux.
+const PREVIEW_WORDS: usize = 6 + PREVIEW_LEVELS;
 
 /// Octets qu'une page écrit dans chaque colonne de page, quelle que soit la page.
 const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [
@@ -85,7 +99,11 @@ pub struct Templates<'a> {
 
 /// Splits a finished manifest into the small JSON and the columns. The returned descriptor carries
 /// an empty `sha256`: only the caller, holding the finished bytes, can hash them.
-pub fn split(manifest: &Value, templates: &Templates) -> Result<(Value, Vec<u8>)> {
+pub fn split(
+    manifest: &Value,
+    templates: &Templates,
+    previews: &[TexturePreview],
+) -> Result<(Value, Vec<u8>)> {
     let root = object(manifest, "manifest")?;
     let primitives = array(
         root.get("primitives")
@@ -122,6 +140,7 @@ pub fn split(manifest: &Value, templates: &Templates) -> Result<(Value, Vec<u8>)
             templates,
         )?);
     }
+    preview::encode_previews(previews, &mut columns)?;
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = (header_bytes + 7) & !7;
@@ -144,50 +163,6 @@ pub fn split(manifest: &Value, templates: &Templates) -> Result<(Value, Vec<u8>)
     let mut slim = root.clone();
     slim.insert("primitives".into(), Value::Array(slim_primitives));
     slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"url":templates.binary,"sha256":"","bytes":bytes.len(),
-  "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle}));
+  "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len()}));
     Ok((Value::Object(slim), bytes))
-}
-
-/// Every object digest a binary sidecar names: the PAGE, GEOMETRY and BUNDLE sha columns, 64 ASCII
-/// characters per entry. Reads the header written by `split`; a foreign or truncated file is refused.
-pub fn digests(bytes: &[u8]) -> Result<Vec<String>> {
-    let word = |at: usize| -> Result<usize> {
-        Ok(u32::from_le_bytes(
-            bytes
-                .get(at..at + 4)
-                .ok_or_else(|| bad("Manifest binary is truncated"))?
-                .try_into()
-                .expect("four bytes"),
-        ) as usize)
-    };
-    if word(0)? != MANIFEST_BINARY_MAGIC as usize {
-        return Err(bad("Manifest binary magic mismatch"));
-    }
-    if word(4)? != MANIFEST_BINARY_VERSION as usize {
-        return Err(bad("Manifest binary version mismatch"));
-    }
-    let columns = word(8)?;
-    let mut out = Vec::new();
-    for index in [PAGE_SHA, GEOMETRY_SHA, BUNDLE_SHA] {
-        if index >= columns {
-            continue;
-        }
-        let at = (HEADER_WORDS + index * 2) * 4;
-        let (offset, length) = (word(at)?, word(at + 4)?);
-        let column = bytes
-            .get(offset..offset + length)
-            .ok_or_else(|| bad("Manifest binary column exceeds the file"))?;
-        if length % 64 != 0 {
-            return Err(bad("Digest column length is not a multiple of 64"));
-        }
-        // A page without its own geometry leaves a zero-filled slot in the geometry column.
-        for entry in column.chunks(64).filter(|e| e[0] != 0) {
-            out.push(
-                std::str::from_utf8(entry)
-                    .map_err(|_| bad("Digest column is not ASCII"))?
-                    .to_string(),
-            );
-        }
-    }
-    Ok(out)
 }

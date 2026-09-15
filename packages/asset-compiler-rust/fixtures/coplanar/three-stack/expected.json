@@ -2,7 +2,7 @@
   "case": "Trois surfaces opaques empilées sur un plan ; la troisième n'y arrive que par la translation de son nœud.",
   "rule": "Aires 36, 16 et 4 : la plus petite passe au-dessus. Trois paires se recouvrent (16 + 4 + 4 = 24).",
   "formatVersion": 3,
-  "manifestBinaryVersion": 2,
+  "manifestBinaryVersion": 3,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 3,

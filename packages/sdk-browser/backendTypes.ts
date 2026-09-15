@@ -48,6 +48,9 @@ export interface RenderBackend {
       | 'coverageBudgetLimited'
       | 'textureUploaded'
       | 'texturePending'
+      | 'textureInFlight'
+      | 'textureSlicesUploaded'
+      | 'textureBytesLastFrame'
       | 'textureSkipped'
       | 'lightsActive'
       | 'shadowsUpdated'
@@ -112,6 +115,8 @@ export interface BackendContext {
   metadata: ClusterManifest;
   indices: Map<string, Uint32Array>;
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>;
+  /** Rang glTF de chaque texture de la scène préparée, pour relier une couche d'atlas à son aperçu. */
+  textureIndices?: Map<THREE.Texture, number>;
   signal?: AbortSignal;
   maxResidentPages?: number;
   maxCachedPages?: number;
