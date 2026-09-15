@@ -58,6 +58,17 @@ export type {
   PageDecodeRequest,
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
+export { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './mathMatrix4.ts';
+export { invertMatrix4 } from './mathMatrix4Inverse.ts';
+export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
+export { normalMatrix3 } from './mathMatrix3.ts';
+export {
+  crossVector3,
+  dotVector3,
+  transformAffinePoint,
+  transformHomogeneousPoint,
+} from './mathVector.ts';
+export { linearToSrgb, srgbToLinear } from './mathColor.ts';
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)
     throw new Error('Invalid RGBA images');

@@ -1,10 +1,18 @@
 import * as THREE from 'three';
-import { EngineError } from '../sdk-core/index.ts';
+import {
+  EngineError,
+  decomposeMatrix4,
+  invertMatrix4,
+  multiplyMatrix4,
+} from '../sdk-core/index.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const requested = new THREE.Matrix4(),
-  parentInverse = new THREE.Matrix4(),
+  parentInverse = new Float64Array(16),
+  trs = new Float64Array(3),
+  trsRotation = new Float64Array(4),
+  trsScale = new Float64Array(3),
   movedMin = [0, 0, 0],
   movedMax = [0, 0, 0],
   moved = new THREE.Box3();
@@ -41,12 +49,15 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   moved.makeEmpty();
   for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) moved.union(root.worldBox);
-  requested.fromArray(matrix as unknown as number[]);
+  const local = requested.fromArray(matrix as unknown as number[]).elements;
   if (node.parent) {
-    parentInverse.copy(node.parent.matrixWorld).invert();
-    requested.premultiply(parentInverse);
+    invertMatrix4(parentInverse, node.parent.matrixWorld.elements);
+    multiplyMatrix4(local, parentInverse, local);
   }
-  requested.decompose(node.position, node.quaternion, node.scale);
+  decomposeMatrix4(local, trs, trsRotation, trsScale);
+  node.position.set(trs[0], trs[1], trs[2]);
+  node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
+  node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
   node.matrix.copy(requested);
   setup.source.updateMatrixWorld(true);
   for (const root of layout.selectionRoots) {

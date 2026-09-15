@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { linearToSrgb, srgbToLinear } from '../sdk-core/index.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { barycentricAt, projectVisibilityVertex, signedArea } from './visibilityProjection.ts';
 import { textureRgba, type VisPage } from './visibilityTypes.ts';
@@ -95,14 +96,10 @@ export function wrapTexel(t: number, size: number, wrap: THREE.Wrapping) {
 /** sRGB → linéaire n'a que 256 antécédents possibles : un octet de texture divisé par 255. La table
  *  porte exactement les valeurs que le calcul par pixel produisait, sur les mêmes opérandes. */
 const SRGB8_LINEAIRE = new Float64Array(256);
-for (let octet = 0; octet < 256; octet++) {
-  const c = octet / 255;
-  SRGB8_LINEAIRE[octet] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-}
+for (let octet = 0; octet < 256; octet++) SRGB8_LINEAIRE[octet] = srgbToLinear(octet / 255);
 
 export function linearToSrgb8(c: number) {
-  const s = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
-  return Math.max(0, Math.min(255, Math.round(s * 255)));
+  return Math.max(0, Math.min(255, Math.round(linearToSrgb(c) * 255)));
 }
 
 /** Le rang du texel dans l'image, pas ses composantes : c'est l'octet qui indexe la table sRGB. */

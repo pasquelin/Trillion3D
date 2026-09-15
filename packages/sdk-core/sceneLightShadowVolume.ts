@@ -1,3 +1,4 @@
+import { dotVector3 } from './mathVector.ts';
 import { faceBasis } from './sceneLightShadowMath.ts';
 
 /**
@@ -56,7 +57,7 @@ export function writeConeVolume(
   let cosine = 1;
   for (let index = 0; index < 4; index++) {
     direction(corner, index & 1 ? rect[1] : rect[0], index & 2 ? rect[3] : rect[2], t);
-    const dot = axis[0] * corner[0] + axis[1] * corner[1] + axis[2] * corner[2];
+    const dot = dotVector3(axis, corner);
     if (dot < cosine) cosine = dot;
   }
   cull[base + 4] = axis[0];

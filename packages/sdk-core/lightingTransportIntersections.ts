@@ -1,5 +1,6 @@
 import type { Scene, Surface } from './lightingExperimentScene.ts';
 import { fail } from './lightingTransportValidation.ts';
+import { crossVector3, dotVector3 } from './mathVector.ts';
 export const EPSILON = 1e-7;
 export const SURFACE_STRIDE = 15;
 
@@ -7,18 +8,16 @@ export const SURFACE_STRIDE = 15;
 export function packSurface(surface: Surface, output: Float64Array, offset: number): boolean {
   const u = surface.u,
     v = surface.v;
-  const uu = u[0] * u[0] + u[1] * u[1] + u[2] * u[2];
-  const uv = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
-  const vv = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
+  const uu = dotVector3(u, u);
+  const uv = dotVector3(u, v);
+  const vv = dotVector3(v, v);
   const determinant = uu * vv - uv * uv;
   if (!(determinant > 1e-15)) fail('INVALID_SCENE', 'Surface rectangle is degenerate');
   const values = [
     ...surface.origin,
     ...u,
     ...v,
-    u[1] * v[2] - u[2] * v[1],
-    u[2] * v[0] - u[0] * v[2],
-    u[0] * v[1] - u[1] * v[0],
+    ...crossVector3([0, 0, 0], u, v),
     vv / determinant,
     -uv / determinant,
     uu / determinant,
