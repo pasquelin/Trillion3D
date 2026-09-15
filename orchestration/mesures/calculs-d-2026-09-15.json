@@ -246,5 +246,179 @@
       "coupe": true
     }
   },
-  "mesureComplete": "/tmp/claude-501/lotD-campagne/mesure.json (hors du dépôt)"
+  "mesureComplete": "/tmp/claude-501/lotD-campagne/mesure.json (hors du dépôt)",
+  "apresRebase": {
+    "develop": "0d5fb873ea8384a86365773da01d5a11d6407717",
+    "apres": "15ba2381b3533ea858030cf755fe503dc896317d",
+    "commande": "node scripts/mesure/banc.mjs --moteur webgpu --avant 0d5fb87 --apres claude/lot-d-shaders --vues generale,sol,rue,detail --images 120 --pixelError 1 --port 5241 --out .mesure/out/lot-d-rebase",
+    "moteur": "webgpu-page-raster",
+    "largeur": 1280,
+    "hauteur": 720,
+    "dpr": 1,
+    "images": 120,
+    "pixelError": 1,
+    "vues": ["generale", "sol", "rue", "detail"],
+    "conflitsResolus": ["packages/sdk-browser/gpuSmallTrianglesShader.ts"],
+    "resolution": "structure de tampons de develop (work[LIST+…], correctif e2dab1d) et hissage par page du point D1 (pageTransform, pageWinding, rowVp, rowDet) gardés tous les deux",
+    "pointsRevertes": [
+      {
+        "id": "D3",
+        "fichier": "packages/sdk-browser/gpuDrawShader.ts",
+        "raison": "obligeait à retirer l'attente @compute @workgroup_size(1) de gpuDraw.test.ts ; aucune attente d'un test existant n'est modifiée dans ce lot",
+        "preuveConservee": [
+          "packages/sdk-browser/bench/oracles/gpuDrawPrefixOracle.ts",
+          "packages/sdk-browser/gpuDrawPrefixEquivalence.test.ts"
+        ]
+      }
+    ],
+    "chargeMachine": {
+      "min": 77.47802734375,
+      "max": 87.7275390625,
+      "verdict": "machine très chargée (charge à une minute de 77,5 à 87,7), temps non concluants ; la preuve pixel reste valable"
+    },
+    "erreursDePage": 0,
+    "vuesMesurees": {
+      "generale": {
+        "avant": {
+          "gpuImage": 10.75792,
+          "cpuFrame": 3.099999964237213,
+          "geometry": 23.882219,
+          "selection": 0.277953,
+          "lighting": 7.782507,
+          "lightLists": null,
+          "hiZ": 0.111041,
+          "lightsActive": 0,
+          "selectedTriangles": 1842728,
+          "uncovered": 0,
+          "sha": "affe53b74f42",
+          "taille": 15637
+        },
+        "apres": {
+          "gpuImage": 10.779503,
+          "cpuFrame": 3.400000035762787,
+          "geometry": 23.971967999999997,
+          "selection": 0.276996,
+          "lighting": 7.814798,
+          "lightLists": null,
+          "hiZ": 0.110707,
+          "lightsActive": 0,
+          "selectedTriangles": 1842728,
+          "uncovered": 0,
+          "sha": "affe53b74f42",
+          "taille": 15637
+        },
+        "aa": 0,
+        "aaMaxCanal": 0,
+        "ecart": 0,
+        "ecartMaxCanal": 0,
+        "coupe": true
+      },
+      "sol": {
+        "avant": {
+          "gpuImage": 4.871884,
+          "cpuFrame": 2.199999988079071,
+          "geometry": 11.489370000000001,
+          "selection": 0.359494,
+          "lighting": 3.849024,
+          "lightLists": null,
+          "hiZ": 0.129165,
+          "lightsActive": 0,
+          "selectedTriangles": 670036,
+          "uncovered": 0,
+          "sha": "e0c92bdd5f43",
+          "taille": 5527
+        },
+        "apres": {
+          "gpuImage": 5.455875,
+          "cpuFrame": 2.199999988079071,
+          "geometry": 12.393981,
+          "selection": 0.404077,
+          "lighting": 4.113812,
+          "lightLists": null,
+          "hiZ": 0.131789,
+          "lightsActive": 0,
+          "selectedTriangles": 670036,
+          "uncovered": 0,
+          "sha": "e0c92bdd5f43",
+          "taille": 5527
+        },
+        "aa": 0,
+        "aaMaxCanal": 0,
+        "ecart": 0,
+        "ecartMaxCanal": 0,
+        "coupe": true
+      },
+      "rue": {
+        "avant": {
+          "gpuImage": 6.219946,
+          "cpuFrame": 2.199999988079071,
+          "geometry": 11.108206,
+          "selection": 0.387202,
+          "lighting": 3.722443,
+          "lightLists": null,
+          "hiZ": 0.132915,
+          "lightsActive": 0,
+          "selectedTriangles": 636059,
+          "uncovered": 0,
+          "sha": "3102e84881b9",
+          "taille": 5250
+        },
+        "apres": {
+          "gpuImage": 6.375611,
+          "cpuFrame": 2.099999964237213,
+          "geometry": 11.226245,
+          "selection": 0.395453,
+          "lighting": 3.784858,
+          "lightLists": null,
+          "hiZ": 0.13137300000000002,
+          "lightsActive": 0,
+          "selectedTriangles": 636059,
+          "uncovered": 0,
+          "sha": "3102e84881b9",
+          "taille": 5250
+        },
+        "aa": 0,
+        "aaMaxCanal": 0,
+        "ecart": 0,
+        "ecartMaxCanal": 0,
+        "coupe": true
+      },
+      "detail": {
+        "avant": {
+          "gpuImage": 7.148557,
+          "cpuFrame": 1.9000000357627869,
+          "geometry": 11.908985999999999,
+          "selection": 0.404827,
+          "lighting": 4.08098,
+          "lightLists": null,
+          "hiZ": 0.136665,
+          "lightsActive": 0,
+          "selectedTriangles": 544239,
+          "uncovered": 0,
+          "sha": "1b97c3769a4b",
+          "taille": 4483
+        },
+        "apres": {
+          "gpuImage": 6.660439,
+          "cpuFrame": 2,
+          "geometry": 10.407383,
+          "selection": 0.409619,
+          "lighting": 3.573778,
+          "lightLists": null,
+          "hiZ": 0.13858199999999998,
+          "lightsActive": 0,
+          "selectedTriangles": 544239,
+          "uncovered": 0,
+          "sha": "1b97c3769a4b",
+          "taille": 4483
+        },
+        "aa": 0,
+        "aaMaxCanal": 0,
+        "ecart": 0,
+        "ecartMaxCanal": 0,
+        "coupe": true
+      }
+    },
+    "mesureComplete": true
+  }
 }
