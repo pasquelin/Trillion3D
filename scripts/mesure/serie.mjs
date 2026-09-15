@@ -24,6 +24,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     frames: settings.frames,
     warmup: settings.warmup,
     maxPages: settings.maxPages,
+    instances: settings.instances,
     width: settings.width,
     height: settings.height,
     stageProfile: settings.stageProfile,
@@ -70,6 +71,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
         : null,
       taille: ids.length,
     },
+    // Mémoire de géométrie publiée par le moteur : octets tenus par le cache de pages et les
+    // tampons de sommets. `null` quand le moteur ne la publie pas, jamais déduite.
+    geometrieOctets: metrics.geometryAllocationBytes ?? null,
     budgetPages: {
       demande: settings.maxPages,
       residentes: metrics.residentPages ?? null,

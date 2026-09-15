@@ -13,6 +13,11 @@ import {
   visMaterial,
 } from './visibilityBuffer.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
+import {
+  ensureBlendIndexBuffer,
+  ensureBlendNormalBuffer,
+  ensureBlendUvBuffer,
+} from './webgpuBlendBuffers.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -42,66 +47,14 @@ export function prepareWebgpuBlend(
       gpu,
     )!;
     const paged = !!copy.userData.pagedBlend;
-    const src = idx.array;
     // A paged primitive reads its indices from the page cache, cluster by cluster: it owns none.
-    let index: GPUBuffer | undefined;
-    if (!paged) {
-      const indexData =
-        src instanceof Uint32Array ? src : new Uint32Array(src as ArrayLike<number>);
-      index = device.createBuffer({
-        size: Math.max(4, indexData.byteLength),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-      device.queue.writeBuffer(
-        index,
-        0,
-        indexData.buffer,
-        indexData.byteOffset,
-        indexData.byteLength,
-      );
-    }
-    const uvAttr = copy.geometry.attributes.uv;
-    let uv: GPUBuffer | undefined;
-    if (uvAttr) {
-      const uvData = new Float32Array(uvAttr.count * 2);
-      for (let i = 0; i < uvAttr.count; i++) {
-        uvData[i * 2] = uvAttr.getX(i);
-        uvData[i * 2 + 1] = uvAttr.getY(i);
-      }
-      uv = device.createBuffer({
-        size: Math.max(8, uvData.byteLength),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-      device.queue.writeBuffer(
-        uv,
-        0,
-        uvData.buffer as ArrayBuffer,
-        uvData.byteOffset,
-        uvData.byteLength,
-      );
-    }
+    // Les trois autres tampons appartiennent à la géométrie, pas au placement : neuf instances d'un
+    // objet les écrivent une fois. Les octets sont les mêmes, l'ordre des items aussi.
+    const index = paged ? undefined : ensureBlendIndexBuffer(device, idx, gpu);
+    const uv = ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
     const normalAttr = copy.geometry.attributes.normal,
       tangentAttr = copy.geometry.attributes.tangent;
-    let normal: GPUBuffer | undefined;
-    if (normalAttr) {
-      const data = new Float32Array(normalAttr.count * 7);
-      for (let i = 0; i < normalAttr.count; i++) {
-        data[i * 7] = normalAttr.getX(i);
-        data[i * 7 + 1] = normalAttr.getY(i);
-        data[i * 7 + 2] = normalAttr.getZ(i);
-        if (tangentAttr) {
-          data[i * 7 + 3] = tangentAttr.getX(i);
-          data[i * 7 + 4] = tangentAttr.getY(i);
-          data[i * 7 + 5] = tangentAttr.getZ(i);
-          data[i * 7 + 6] = tangentAttr.getW(i);
-        }
-      }
-      normal = device.createBuffer({
-        size: Math.max(12, data.byteLength),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-      device.queue.writeBuffer(normal, 0, data);
-    }
+    const normal = ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
     const opacity = Array.isArray(copy.material)
       ? ((copy.material[0] as THREE.MeshBasicMaterial).opacity ?? 1)
       : ((copy.material as THREE.MeshBasicMaterial).opacity ?? 1);
@@ -151,7 +104,6 @@ export function prepareWebgpuBlend(
       paged,
     };
     blendState.blendGpu.push(item);
-    gpu.vertexBytes += (index?.size ?? 0) + (uv?.size ?? 0) + (normal?.size ?? 0);
     if (paged && item.sourceMesh) blendState.pagedBlendGpu.set(item.sourceMesh, item);
     scene.remove(copy);
   }

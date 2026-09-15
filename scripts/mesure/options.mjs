@@ -171,7 +171,12 @@ export function readOptions(argv, root) {
     // `--camera-mobile` avance la pose d'un cran de la trajectoire du banc à chaque image mesurée,
     // au lieu de rejouer la même : c'est ce qui distingue une scène immobile d'une caméra qui bouge.
     movingCamera: flags.get('camera-mobile') === 'true',
+    // `--instances` : le nombre de copies de l'objet posées en grille par le SDK. La mesure d'un
+    // lot d'instances n'a de sens qu'à ce nombre-là ; il est consigné dans le rapport.
+    instances: number('instances', 1),
   };
+  if (![1, 4, 9, 12].includes(settings.instances))
+    throw new Error('--instances doit valoir 1, 4, 9 ou 12');
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
   if (settings.port === 5174)
     throw new Error("le port 5174 appartient au serveur de l'utilisateur");
