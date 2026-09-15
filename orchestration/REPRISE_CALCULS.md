@@ -1,4 +1,4 @@
-# Prompt de reprise — session Formules (15 sept. 2026, soir)
+# Prompt de reprise — session Calculs mathématiques (15 sept. 2026, soir)
 
 Colle ce fichier tel quel dans la nouvelle session. Les agents de la session précédente sont morts avec elle ; leur travail est sur disque.
 
