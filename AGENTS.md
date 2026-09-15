@@ -2,7 +2,6 @@
 
 Valables pour tout agent et tout contributeur, sur tout le dépôt.
 
-- Une seule branche vivante : `develop`. Tout travail se fait dans un worktree isolé créé depuis `develop`, puis est fusionné dans `develop` après validation. Jamais de `git stash`, jamais de commit direct sur `develop` hors fusion.
 - Pendant le développement, `npm run check:changed` vérifie le format, le lint, la limite de lignes et les doublons des fichiers modifiés puis lance les tests unitaires reliés par les imports ; `npm run test:changed` ne lance que ces tests. Après suppression, changement d'export public ou de configuration, examiner aussi les dépendants et lancer les contrôles pertinents. Ces commandes ne remplacent pas la validation finale.
 - Portes de validation avant fusion : `npm run validate` (format, lint JS/TS et Clippy, code/fichiers/dépendances inutilisés, build TS et natif, structure, déclarations, liens, tests JS/TS et Rust) ; puis preuve navigateur : aucun trou (`tri = selected`), captures identiques à la référence ou différence expliquée au niveau du bruit A/A.
 - Fidélité avant vitesse : aucune réduction de résolution, de distance ou de qualité ; un matériau transparent n'est jamais transformé en masqué ; un gain avec une image dégradée est rejeté.
