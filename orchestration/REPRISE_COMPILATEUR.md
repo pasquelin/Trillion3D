@@ -1,32 +1,34 @@
-# Reprise de la session « Compilateur » (formats d'import du compilateur natif)
+# Reprise de la session « Compilateur » (compilateur natif, formats d'import)
 
-Session titrée « Compilateur », contrôlée par `get_session("self")`, id `local_ebd236da…` (change au
-redémarrage : relire `list_sessions` avant d'écrire à une autre session). Vérifier ce titre avant
-tout, puis lire ce fichier et `AGENTS.md`.
+Session titrée « Compilateur » : vérifier le titre par `get_session("self")` avant tout (les ids changent au
+redémarrage ; relire `list_sessions` avant d'écrire à une autre session), puis lire ce fichier et `AGENTS.md`.
 
-**Rôles et flux.** Fable = chef, ne code pas. Opus 5 = code, un pilote par worktree, un seul à la
-fois sauf périmètres disjoints. Sonnet 5 = doc, revues, mesures. Chaque branche `compilateur/<format>`
-est livrée au Validateur avec : SHA de tête, merge-base `develop`, `fmt --check`, `clippy -D warnings`,
-`cargo test --locked`, `check:lines`, `check:duplicates`, `check:changed`, mots interdits. Le
-Validateur seul fusionne, lance `/simplify` et `validate`, et pousse `origin/develop`.
+**Rôles.** Fable = chef, ne code pas, ne lit pas de code. Opus 5 = code, **un seul Opus et un seul lot à la fois**,
+en worktree isolé, branche `compilateur/lot-<lettre>-<sujet>` depuis `develop`. Sonnet 5 = doc, revues, tests, mesures.
+Réponses de 5 à 10 lignes. Enchaînement sans redemander : livraison → Validateur → lot suivant ; « go » seulement pour
+un changement de plan ou une suppression irréversible.
 
-**Règles d'agent.** Vérifier `git merge-base develop HEAD` au lancement, rebaser tant que rien n'est
-commité. Une seule commande `cargo` à la fois, sous
-`DEVELOPER_DIR=/Library/Developer/CommandLineTools`. Tests d'image avec `rgba8()`/`rgba_f32()`,
-jamais de `let` irréfutable sur `DecodedImage`. Version d'un pilote = identité de son cache. Licence
-permissive citée dans `Cargo.toml`. `check:changed` en worktree : lien `node_modules`, retiré ensuite.
+**Méthode d'un lot** (`orchestration/AUDIT_PLUGINS.md`) : reproduction ciblée en test d'abord, correction générique
+(jamais par scène ni par type d'objet), dorée corrigée si elle figeait un résultat faux, preuve visuelle si le rendu
+change. Tout ce qui n'est pas converti est compté par code nommé dans `docs/COMPILER.md`, jamais silencieux. Ce qu'un
+pilote produit entre dans sa `version()`. Fichiers ≤ 200 lignes, 0 clone, mots interdits nulle part.
 
-**État courant.** Onze pilotes de scène, douze pilotes d'image, tous listés dans
-`packages/asset-compiler-rust/FORMATS.md`. `psd` fusionné, `bmp-gif` livré (6cebbd8).
-`ma` **non livré** : agent arrêté par l'utilisateur le 15 sept. 2026 à 21 h 30 ; worktree
-`agent-a2c029f4d59f598cd`, branche `compilateur/ma` (0606e32 sur 0fd6834), `fixtures/ma/expected.json`
-régénéré non commis ; reste à commettre, rejouer `cargo test --locked`, livrer. Worktrees psd et
-bmp-gif : retirés par le Validateur après push.
+**Livraison au Validateur** (session « Validateur », `send_message`) : SHA de tête, merge-base `develop`, preuves de
+correction (tests de reproduction nommés), contrôles (`fmt --check`, `clippy -D warnings`, `cargo test --locked`,
+`check:lines`, `check:duplicates`, `check:changed`, mots interdits), versions de pilotes modifiées, dorées touchées.
+Le Validateur seul fusionne, lance `/simplify` et `validate`, pousse `origin/develop` ; cette session retire ensuite le
+worktree et la branche du lot. Jamais `git push`, `git stash`, `npm run validate`. Cargo direct, sans mécanisme
+d'attente partagé. `export DEVELOPER_DIR=/Library/Developer/CommandLineTools` devant cargo. `check:changed` en worktree :
+lien `node_modules`, retiré ensuite. Corpus CC0 `test-assets/` hors git, lecture seule.
 
-**À faire ensuite.** Un seul Opus à la fois, sur reprise explicite : `compilateur/mtl` d'abord (dorée
-`obj`, MTL absent/tronqué en rapport nommé, `Ks`/`Ni`/`Ka` comptés, garde bump/normal, options de map
-comptées) ; puis BC6H, UASTC HDR, KTX 1.0, ASTC hors 4×4, TIFF palette, lampes Unity, instances
-imbriquées, métal-lissage, subdivision USD, `TEXCOORD_1`, animation Alembic, restes `blend`. Sur go
-utilisateur seulement : blocs gardés sur GPU, Draco/meshopt, Industrial Map au banc 15, licence FAB.
+**État.** 11 pilotes de scène, 12 pilotes d'image (`packages/asset-compiler-rust/FORMATS.md`), tous fusionnés.
+Audit du 15 sept. 2026 : 58 constats, dix lots A–J ordonnés dans `AUDIT_PLUGINS.md`.
 
-Vérifier `develop` au moment de la reprise.
+| Lot | État |
+| --- | --- |
+| A cache OBJ, URI, MTL | livré au Validateur (46d0d61), obj et fbx en `-gltf-5`, 9 codes de rapport |
+| B n-gones concaves | à lancer à la prochaine reprise (arrêt demandé après A) |
+| C à J | à lancer dans l'ordre |
+
+Sur go de l'utilisateur seulement : blocs gardés sur GPU (DDS, KTX2), Draco/meshopt en entrée, Industrial Map au
+banc 15, licence des assets FAB avant toute démonstration publique.
