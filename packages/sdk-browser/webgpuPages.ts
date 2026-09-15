@@ -11,7 +11,6 @@ import {
   pageUrls,
   pendingUrls,
   rasterRgba,
-  refreshSceneLighting,
   refreshSceneLights,
   syncResident,
   visibilityIds,
@@ -40,9 +39,6 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     setDiagnostic(mode) {
       run.diagnostic = mode;
-    },
-    refreshSceneLighting() {
-      refreshSceneLighting(rt);
     },
     refreshSceneLights() {
       refreshSceneLights(rt);

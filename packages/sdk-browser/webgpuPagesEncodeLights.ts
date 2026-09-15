@@ -33,11 +33,14 @@ export function encodeDirectLights(
   // peut rien éclairer que les lampes déclarées n'éclairent déjà.
   directParams[3] = environment ? environment.exposure : 1;
   // La vue sans éclairage ne lit ni liste de lampes ni atlas : elle n'en fait donc encoder aucun.
-  if (!active || store.unlit || !tiles || !gpu.depthView) return directParams;
+  if (!active || store.unlit) return directParams;
   const faces = planShadowFaces(rt, camera);
+  // Le tampon part au GPU avant les listes par tuile : la passe de mélange le lit directement, sans
+  // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
   encodeBounce(rt, device, encoder, active);
   encodeShadowAtlas(rt, device, encoder, faces);
+  if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
   if (!tiles.encode(encoder)) return directParams;
