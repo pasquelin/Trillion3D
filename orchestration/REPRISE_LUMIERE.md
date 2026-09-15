@@ -10,7 +10,7 @@
 ## Tableau de suivi (ordre d'exécution)
 | # | Lot | État | Preuve attendue |
 |---|---|---|---|
-| 0 | Banc fiable : `lights.json` demandé seulement si le manifeste le déclare, produits de cache vérifiés, cause des 1 540 px A/A isolée, `tri = selected` | en cours (`lot/banc-fiable`, Opus ; A/A ×3 sur develop, Haiku) | zéro 404, A/A 0 px sur 3 exécutions |
+| 0 | Banc fiable. (a) `lights.json` demandé seulement si le manifeste le déclare, banc refuse un cache incomplet : codé, `lot/banc-fiable` 3058b3e (worktree `lot-banc-fiable`, base bdaaacf), portes vertes, preuve navigateur non jouée (`--vues sol --images 30 --pixelError 1`, attendu zéro 404, 0 px). (b) Instabilité A/A reproduite sur develop, caméra mobile, 8 lampes + soleil, 3 exécutions : 0 / 1 392 / 6 278 px au seuil 1, jusqu'à 28 261 px max 124 au seuil 0, 14 erreurs de page par exécution (`.mesure/out/aa-audit-{1,2,3}` du worktree de session). Cause à isoler par matrice, deux exécutions chacune : caméra fixe ; soleil seul ; lampes seules ; ombres off ; sans lampe ; puis lire les 14 erreurs de page | (a) à prouver, (b) matrice à jouer | zéro 404, A/A 0 px sur 3 exécutions |
 | 1 | Occultants d'ombre hors champ : sélection propre aux occultants (`webgpuPagesEncodeShadowPass.ts`) | à faire | mur derrière la caméra ombre le sol visible |
 | 2 | Atlas d'ombres libéré à la suppression d'une lampe (`sceneLightStore.ts`) + copies publiques détachées (`explorerLightApi.ts`) | à faire | ajout/suppression ×20 sans échec ; mutation d'une copie sans effet interne |
 | 3 | Proxy lointain et rebond suivent les objets déplacés (`webgpuPagesTransform.ts`) | à faire | porte déplacée, ombre lointaine et rebond au nouvel endroit |
