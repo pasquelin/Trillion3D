@@ -1,26 +1,14 @@
 #!/usr/bin/env node
 // Assemble les fragments déposés par les fichiers de banc en un seul tableau : console, Markdown et
 // JSON brut. Ce qui n'est pas mesuré vaut `null` ; rien n'est déduit d'un autre champ.
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ENTETE, RACINE, SEPARATEUR, ligneMarkdown } from './banc.mjs';
+import { ENTETE, RACINE, commit, fragments, SEPARATEUR, ligneMarkdown } from './banc.mjs';
 
 const FRAGMENTS = join(RACINE, '.mesure', 'calculs');
 const SORTIE = join(RACINE, 'orchestration', 'mesures');
 
-function commit() {
-  try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: RACINE, encoding: 'utf8' }).trim();
-  } catch {
-    return null;
-  }
-}
-
-const lignes = readdirSync(FRAGMENTS)
-  .filter((nom) => nom.endsWith('.json'))
-  .flatMap((nom) => JSON.parse(readFileSync(join(FRAGMENTS, nom), 'utf8')))
-  .sort((a, b) => Number(a.calcul.slice(1, 3).trim()) - Number(b.calcul.slice(1, 3).trim()));
+const lignes = fragments(FRAGMENTS);
 
 const jour = new Date().toISOString().slice(0, 10);
 const tableau = [ENTETE, SEPARATEUR, ...lignes.map(ligneMarkdown)].join('\n');

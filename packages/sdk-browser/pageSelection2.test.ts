@@ -48,7 +48,6 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
   const selected = selectVisiblePages(roots, cam, {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   });
   assert.deepEqual(selected.shown.map((page) => page.url).sort(), ['leaf0', 'leaf1']);
@@ -69,7 +68,6 @@ test('a missing cluster steps its whole group back to the coarse representation,
   const selected = selectVisiblePages(roots, wideCamera(), {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   });
   const shown = selected.shown.map((page) => page.url).sort();
@@ -107,7 +105,6 @@ test('a missing coarse cluster keeps stepping back until the pinned root covers 
   const selected = selectVisiblePages(roots, wideCamera(), {
     pixelError: 0,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   });
   const shown = selected.shown.map((page) => page.url).sort();
@@ -133,7 +130,6 @@ test('the fallback covers the surface once for every residency pattern', () => {
       const selected = selectVisiblePages(roots, wideCamera(), {
         pixelError,
         viewport: [1280, 720],
-        frame: 1,
         holdResident: true,
       });
       const shown = selected.shown.map((page) => page.url).sort();

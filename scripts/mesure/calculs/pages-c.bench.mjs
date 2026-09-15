@@ -42,7 +42,6 @@ function anneauParSeconde(entree) {
     {
       pixelError: entree.pixelError > 0 ? entree.pixelError * 0.5 : 0.5,
       viewport: image,
-      frame: 9,
       holdResident: false,
       wanted: entree.wantedAnneau,
       result: entree.resultatAnneau,
@@ -60,7 +59,6 @@ function anneauParLaCoupe(entree) {
     {
       pixelError: entree.pixelError,
       viewport: image,
-      frame: 9,
       holdResident: false,
       wanted: entree.wantedCoupe,
       result: entree.resultatCoupe,

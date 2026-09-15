@@ -107,20 +107,22 @@ export function linearToSrgb8(c: number) {
 }
 
 /** Le rang du texel dans l'image, pas ses composantes : c'est l'octet qui indexe la table sRGB. */
-function texelAt(map: THREE.Texture, u: number, v: number) {
-  const image = textureRgba(map);
-  if (!image) return -1;
+function texelAt(
+  image: { width: number; height: number },
+  map: THREE.Texture,
+  u: number,
+  v: number,
+) {
   const x = wrapTexel(u, image.width, map.wrapS),
     y = wrapTexel(v, image.height, map.wrapT);
-  texelData = image.data;
   return (y * image.width + x) * 4;
 }
-let texelData: ArrayLike<number> = [];
 
 export function sampleMap(map: THREE.Texture, u: number, v: number): [number, number, number] {
-  const i = texelAt(map, u, v);
-  if (i < 0) return [1, 1, 1];
-  const d = texelData;
+  const image = textureRgba(map);
+  if (!image) return [1, 1, 1];
+  const d = image.data,
+    i = texelAt(image, map, u, v);
   return [
     SRGB8_LINEAIRE[d[i]] ?? NaN,
     SRGB8_LINEAIRE[d[i + 1]] ?? NaN,
@@ -128,9 +130,10 @@ export function sampleMap(map: THREE.Texture, u: number, v: number): [number, nu
   ];
 }
 export function sampleLinear(map: THREE.Texture, u: number, v: number): [number, number, number] {
-  const i = texelAt(map, u, v);
-  if (i < 0) return [1, 1, 1];
-  const d = texelData;
+  const image = textureRgba(map);
+  if (!image) return [1, 1, 1];
+  const d = image.data,
+    i = texelAt(image, map, u, v);
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 

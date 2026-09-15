@@ -42,7 +42,7 @@ export function cpuUrls(
     fixture.indices,
     fixture.associations,
   );
-  return selectVisiblePages(roots, cam, { pixelError, viewport: VIEWPORT, frame: 1 })
+  return selectVisiblePages(roots, cam, { pixelError, viewport: VIEWPORT })
     .shown.map((page) => page.url)
     .sort();
 }
