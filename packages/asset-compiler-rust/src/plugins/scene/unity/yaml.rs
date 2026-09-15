@@ -162,10 +162,21 @@ pub(super) fn text(value: &Yaml) -> Option<String> {
     }
 }
 
+/// Un `fileID` : un entier de soixante-quatre bits, lu comme tel. Le faire passer par un flottant
+/// l'abîmerait au-delà de 2^53, et un vrai projet en porte — `33000010677178610` désigne alors un
+/// objet qui n'existe pas, et le composant qu'il nomme reste invisible.
+fn file_id(value: &Yaml) -> i64 {
+    match value {
+        Yaml::Integer(value) => *value,
+        Yaml::Real(text) | Yaml::String(text) => text.parse::<i64>().unwrap_or(0),
+        _ => 0,
+    }
+}
+
 /// Une référence `{fileID: …, guid: …}`.
 pub(super) fn reference(value: &Yaml) -> Ref {
     Ref {
-        file_id: number(&value["fileID"]).unwrap_or(0.0) as i64,
+        file_id: file_id(&value["fileID"]),
         guid: text(&value["guid"]),
     }
 }
