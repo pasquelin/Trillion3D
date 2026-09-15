@@ -23,6 +23,12 @@ import {
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
+/**
+ * Le socle d'identifiant d'une ligne du tableau de pages : son rang décalé des bits du triangle,
+ * zéro restant libre pour le fond. La première écriture d'une ligne et le retassage qui la déplace
+ * le reposent tous les deux ; deux écritures de la même valeur, une seule formule.
+ */
+export const packedRowBase = (row: number) => ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
 type GeometryBlock = {
   vertexBase: number;
   count: number;
@@ -95,7 +101,7 @@ export function createPageRowWriter({
     ints[base + 24] = offsetWords;
     ints[base + 25] = index.length;
     ints[base + 26] = geo?.vertexBase ?? 0;
-    ints[base + ROW_ID_BASE_WORD] = ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
+    ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     floats[base + 28] = scale[0];
     floats[base + 29] = scale[1];
     ints[base + 30] = clusterHash(rec.clusterId);

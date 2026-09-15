@@ -1,5 +1,5 @@
-import { PAGE_INFO_STRIDE, VIS_TRIANGLE_BITS } from './visibilityBuffer.ts';
-import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD } from './webgpuPageRow.ts';
+import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
+import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD, packedRowBase } from './webgpuPageRow.ts';
 import type { createPageRowWriter } from './webgpuPageRow.ts';
 import type { createWebgpuRowState } from './webgpuRowState.ts';
 
@@ -32,7 +32,7 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
       floats.copyWithin(start * rowWords, (start + delta) * rowWords, (end + delta + 1) * rowWords);
       for (let row = start; row <= end; row++) {
         const base = row * rowWords;
-        ints[base + ROW_ID_BASE_WORD] = ((row + 1) << VIS_TRIANGLE_BITS) >>> 0;
+        ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
         ints[base + ROW_HIZ_SLOT_WORD] = row;
       }
       rows.markRowDirty(start);
