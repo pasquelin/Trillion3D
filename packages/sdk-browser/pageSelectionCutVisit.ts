@@ -26,8 +26,10 @@ function keep<T extends PageRecord>(s: SelectionState<T>, rec: T) {
     if (!s.rootFallback) s.complete = false;
     return;
   }
-  rec.seen = s.frame;
   s.shown.push(rec);
+  // Un passage qui dépasse le budget est jeté tel quel : son seul résultat est « trop de pages ».
+  // Le savoir au premier dépassement épargne la fin de la descente, pas une page de celle qu'on garde.
+  if (s.budget !== 0 && s.shown.length > s.budget) s.over = true;
 }
 
 /** Teste un cluster, sauf sa coupe quand un ancêtre l'a déjà tranchée (`settled`) : le tronc et le
@@ -64,7 +66,10 @@ export function traverse<T extends PageRecord>(
 ) {
   s.flatInside = false;
   if (!culling) {
-    for (let i = 0; i < pages.length; i++) take(s, pages[i]);
+    for (let i = 0; i < pages.length; i++) {
+      take(s, pages[i]);
+      if (s.over) return;
+    }
     return;
   }
   const { nodes, stride, bounds } = culling;
@@ -75,6 +80,7 @@ export function traverse<T extends PageRecord>(
   let top = 0;
   stack[top++] = 0;
   while (top > 0) {
+    if (s.over) return;
     const entry = stack[--top];
     const node = entry >> 2;
     const base = node * stride;
@@ -131,6 +137,9 @@ export function traverse<T extends PageRecord>(
     const firstPage = nodes[base + 13],
       pageCount = nodes[base + 14];
     s.flatInside = inside;
-    for (let i = 0; i < pageCount; i++) take(s, pages[firstPage + i], settled);
+    for (let i = 0; i < pageCount; i++) {
+      take(s, pages[firstPage + i], settled);
+      if (s.over) return;
+    }
   }
 }

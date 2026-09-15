@@ -13,11 +13,11 @@ export function hizLevelSizes(width: number, height: number): Array<[number, num
   return sizes;
 }
 
-function rowsOf(data: Float32Array, width: number, height: number, offset = 0) {
+function rowsOf(data: Float32Array, width: number, height: number) {
   const rows: number[][] = [];
   for (let y = 0; y < height; y++) {
     const row = new Array<number>(width);
-    for (let x = 0; x < width; x++) row[x] = data[offset + y * width + x];
+    for (let x = 0; x < width; x++) row[x] = data[y * width + x];
     rows.push(row);
   }
   return rows;
@@ -53,9 +53,17 @@ export function evaluateHizReduce(src: Float32Array, srcWidth: number, srcHeight
   return { data, width, height };
 }
 
+/** Le paquet du noyau GPU est déjà plat : la pyramide du test CPU le lit sans le recopier. */
 function pyramidFromPacked(packed: PackedHiz): HizPyramid {
-  const levels = packed.sizes.map(([w, h], i) => rowsOf(packed.data, w, h, packed.offsets[i]));
-  return { levels, width: packed.sizes[0][0], height: packed.sizes[0][1] };
+  return {
+    data: packed.data,
+    offsets: Int32Array.from(packed.offsets),
+    widths: Int32Array.from(packed.sizes, ([w]) => w),
+    heights: Int32Array.from(packed.sizes, ([, h]) => h),
+    count: packed.sizes.length,
+    width: packed.sizes[0][0],
+    height: packed.sizes[0][1],
+  };
 }
 
 /** Same rejection as `hizRejects` (mip-selected inclusive footprint, near clips never hide). */

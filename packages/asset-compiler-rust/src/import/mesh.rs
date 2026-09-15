@@ -128,24 +128,8 @@ pub(super) fn mesh_json(
             );
             attributes["COLOR_0"] = json!(accessors.len() - 1);
         }
-        let (index_bytes, component) = if vertex_count <= u16::MAX as usize {
-            (
-                indices
-                    .iter()
-                    .flat_map(|i| (*i as u16).to_le_bytes())
-                    .collect::<Vec<u8>>(),
-                5123,
-            )
-        } else {
-            (
-                indices
-                    .iter()
-                    .flat_map(|i| i.to_le_bytes())
-                    .collect::<Vec<u8>>(),
-                5125,
-            )
-        };
-        let view = bin.view(&index_bytes, Some(34963));
+        let (bytes, component) = index_bytes(&indices, vertex_count);
+        let view = bin.view(&bytes, Some(34963));
         accessors.push(json!({"bufferView":view,"componentType":component,"count":indices.len(),"type":"SCALAR"}));
         let mut primitive = json!({"attributes":attributes,"indices":accessors.len()-1,"mode":4});
         if let Some(Some(material)) = materials.get(material_slot) {
@@ -162,3 +146,20 @@ pub(super) fn mesh_json(
         triangles,
     })
 }
+
+/// Les indices d'une partie, en 16 ou 32 bits selon le nombre de sommets. Le tampon part à sa
+/// taille finale : un `flat_map(...).collect()` la redécouvre morceau par morceau.
+pub(crate) fn index_bytes(indices: &[u32], vertex_count: usize) -> (Vec<u8>, u32) {
+    if vertex_count <= u16::MAX as usize {
+        let mut out = Vec::with_capacity(indices.len() * 2);
+        out.extend(indices.iter().flat_map(|i| (*i as u16).to_le_bytes()));
+        return (out, 5123);
+    }
+    let mut out = Vec::with_capacity(indices.len() * 4);
+    out.extend(indices.iter().flat_map(|i| i.to_le_bytes()));
+    (out, 5125)
+}
+
+#[cfg(test)]
+#[path = "mesh_tests.rs"]
+mod tests;
