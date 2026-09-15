@@ -24,6 +24,33 @@ export const faceCountOf = (light: Pick<SceneLight, 'kind'>) =>
 /** Demi-angle du cône élargi d'un demi-degré, pour que le bord du cône reste couvert par la carte. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
+/** Flottants du volume d'une face : centre et portée de la lampe, axe de la face et demi-angle. */
+export const SHADOW_CULL_FLOATS = 8;
+/**
+ * Le volume qu'une face peut voir, sous forme de cône : la lampe pour sommet, l'axe de la face pour
+ * direction, et le demi-angle du cône circonscrit au carré de la face — la diagonale du carré fait
+ * `√2` fois son demi-côté, donc le cône qui l'englobe a pour tangente `√2·tan(fov/2)`.
+ *
+ * Un cluster dont la sphère monde ne touche ni la portée ni ce cône ne peut rien écrire dans la
+ * face : la projection le rejetterait de toute façon au plan lointain ou aux plans latéraux. Le
+ * rejet est donc exact, jamais une approximation de qualité — l'image ne change pas d'un texel.
+ */
+export function writeFaceCull(out: Float32Array, base: number, light: SceneLight, face: number) {
+  const forward =
+    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
+  const half = (light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!)) / 2;
+  const length = Math.hypot(forward[0], forward[1], forward[2]) || 1;
+  out[base] = light.position[0];
+  out[base + 1] = light.position[1];
+  out[base + 2] = light.position[2];
+  out[base + 3] = light.range;
+  out[base + 4] = forward[0] / length;
+  out[base + 5] = forward[1] / length;
+  out[base + 6] = forward[2] / length;
+  // Un demi-champ au-delà du quart de tour couvre déjà tout l'espace : le cône n'exclut plus rien.
+  out[base + 7] = half >= Math.PI / 2 ? Math.PI : Math.atan(Math.SQRT2 * Math.tan(half));
+}
+
 /**
  * Projection perspective pour l'espace de découpe WebGPU, profondeur normalisée dans `[0, 1]`,
  * colonne-major. `near` est dérivé de la portée : une seule constante, jamais un réglage caché.

@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { uploadSceneLights } from './webgpuPagesStateLights.ts';
-import { encodeShadowAtlas, planShadowFaces } from './webgpuPagesEncodeShadows.ts';
+import { planShadowFaces } from './webgpuPagesEncodeShadows.ts';
+import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -67,6 +68,7 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     contractLights: lights.lightsActive,
     mode: lights.store.mode,
     shadowsUpdated: lights.shadowsUpdated,
+    shadowsReused: lights.shadowsReused,
     shadowFaces: lights.shadowFaces,
     shadowDraws: lights.shadowDraws,
     shadowsPending: lights.plan.pending,
