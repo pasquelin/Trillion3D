@@ -1,4 +1,4 @@
-import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
+import { BASE_SLOTS, MAX_DRAW_SLOTS, slotCount } from './gpuDrawContract.ts';
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -17,6 +17,7 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
 export const drawShader = (layerSlots: number) => {
   const slots = slotCount(layerSlots);
   const top = Math.max(0, Math.max(1, layerSlots) - 1);
+  const MAX_SLOTS = MAX_DRAW_SLOTS;
   return `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,}
 struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
@@ -54,25 +55,38 @@ fn countGroups(@builtin(global_invocation_id) id:vec3u){
  for(var i=begin;i<end;i++){if(matches(i,slot)){count=count+1u;}}
  groupCounts[entry]=count;
 }
-@compute @workgroup_size(1)
-fn prefixGroups(){
+var<workgroup> slotTotals:array<u32,${slots}u>;
+// Le préfixe est parallèle : un fil par slot au lieu d'un seul fil pour tous. Chaque fil totalise
+// les groupes de son slot, puis, le groupe de travail rejoint, part de la somme des slots d'avant le
+// sien et écrit les décalages de ses groupes. Les sommes sont des entiers non signés : un slot
+// totalisé par un autre fil donne le même u32 que totalisé par le fil zéro, et les décalages sortent
+// dans le même ordre — slot par slot, groupe par groupe — que le parcours sériel qu'ils remplacent.
+// Un groupe de 64 fils couvre les ${slots} slots par pas de 64 : la table peut en ouvrir jusqu'à
+// ${MAX_SLOTS}, six par couche coplanaire que le format de cache sait décrire.
+@compute @workgroup_size(64)
+fn prefixGroups(@builtin(local_invocation_index) lane:u32){
  if(uni.count>uni.slotCap){
-  for(var slot=0u;slot<${slots}u;slot++){writeCmd(slot,0u);}
+  for(var slot=lane;slot<${slots}u;slot=slot+64u){writeCmd(slot,0u);}
   return;
  }
- var slotStart=0u;
- for(var slot=0u;slot<${slots}u;slot++){
+ for(var slot=lane;slot<${slots}u;slot=slot+64u){
+  slotTotals[slot]=0u;
   if(slotUsed[slot]==0u){writeCmd(slot,0u);continue;}
   var total=0u;
   for(var group=0u;group<uni.groupCount;group++){total=total+groupCounts[group*${slots}u+slot];}
-  var cursor=slotStart;
+  slotTotals[slot]=total;
+  writeCmd(slot,total);
+ }
+ workgroupBarrier();
+ for(var slot=lane;slot<${slots}u;slot=slot+64u){
+  if(slotUsed[slot]==0u){continue;}
+  var cursor=0u;
+  for(var before=0u;before<slot;before++){cursor=cursor+slotTotals[before];}
   for(var group=0u;group<uni.groupCount;group++){
    let entry=group*${slots}u+slot;
    groupOffsets[entry]=cursor;
    cursor=cursor+groupCounts[entry];
   }
-  writeCmd(slot,total);
-  slotStart=slotStart+total;
  }
 }
 @compute @workgroup_size(64)
