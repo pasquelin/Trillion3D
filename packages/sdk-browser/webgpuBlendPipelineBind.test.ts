@@ -57,6 +57,8 @@ function joue(items: ReturnType<typeof item>[]) {
       colorView: {},
       depthView: {},
       targetSize: [8, 8],
+      volumeBuffer: {},
+      backdrop: { colorView: {}, depthView: {}, active: false },
       cache: { buffer: {} },
       uniformBuffer: {},
       zeroUv: {},

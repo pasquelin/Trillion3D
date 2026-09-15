@@ -123,6 +123,8 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
       pipelineBlendTextured: {},
     },
     gpu,
+    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    bounce: { probes: undefined },
     blendState,
     run: {
       gpuDrawCalls: 0,
@@ -132,6 +134,17 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
       blendSubmittedTriangles: 0,
     },
   } as unknown as WebgpuPagesRuntime;
+  // Les groupes sont déjà bâtis sur ces ressources d'éclairage : la passe n'a donc pas à les
+  // refaire, et ce test observe l'ordre de dessin, pas la construction des groupes.
+  const { placeholders } = gpu.deferred!;
+  blendState.lighting = {
+    directLights: rt.lights.buffer!,
+    shadowSlices: placeholders.slices,
+    shadowAtlas: placeholders.atlasView,
+    shadowSampler: placeholders.sampler,
+    bounceGrid: placeholders.bounceGrid,
+    probes: placeholders.probes,
+  };
   drawBlendPass(rt, device, encoder, 0, true);
   assert.equal(copyBackdrop(rt, encoder), true, 'le fond est figé entre les deux passes');
   drawBlendPass(rt, device, encoder, 0, true, true);
@@ -148,6 +161,9 @@ test('la transmission est une passe à part, après les mélanges, dans l’ordr
     hdrTexture: {},
     depthTexture: {},
     backdrop: { color: {}, depth: {}, colorView: {}, depthView: {}, active: true },
+    deferred: {
+      placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
+    },
   });
   const drawn = passes(blendState, gpu);
   assert.deepEqual(drawn, [[0, 2], [1]], 'les mélanges d’abord, la transmission ensuite');
