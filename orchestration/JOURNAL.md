@@ -6,7 +6,7 @@ L'utilisateur a validé la démarche pour sortir les calculs de Three.js du mote
 lot T1 de `AUDIT_MATH_FORMULES.md`) : socle mathématique maison dans `sdk-core`, réutilisation des
 calculs existants, transformations et caméra possédées par le moteur, workers et WebAssembly réservés
 aux traitements lourds mesurés, preuve 0 px et banc contre Three à chaque lot. Spec R1a à R1f
-(`7930314`), lots M1 à M5, reprise dans `orchestration/REPRISE_CALCULS.md`. Aucun code touché ;
+(`7930314`), lots M1 à M5, reprise dans `orchestration/REPRISE_CALCULATEUR.md`. Aucun code touché ;
 lancement de M1 et M2 sur go.
 
 ## 2026-09-15 — [session Calculs] doublons de formules factorisés, deux lots fusionnés
@@ -196,7 +196,7 @@ a été réglé du côté de la liste de l'hôte, pas du sien.
 
 À 17 h 14 la prise a échoué (`mkdir` sans `-p`, retour vérifié, rien écrit) : bonne conduite. Mais à
 17 h 20 le verrou était un répertoire **vide**, sans fichier `proprietaire`, sans `banc.mjs` vivant,
-inchangé depuis plus d'une minute : la règle écrite dans `GEOMETRY_REPRISE` déclare un tel verrou
+inchangé depuis plus d'une minute : la règle écrite dans `REPRISE_GEOMETRY` déclare un tel verrou
 orphelin et demande de le retirer. Il a donc été retiré et repris — alors qu'il appartenait à un Opus
 du Compilateur dont la `mkdir` avait réussi et qui n'avait pas encore écrit son nom. **La règle de
 l'orphelin ne distingue pas un verrou abandonné d'un verrou tout juste pris** : entre `mkdir` et
@@ -333,7 +333,7 @@ signal vient toujours des seules lampes du graphe source.
 
 Portes vertes : `tsc --noEmit`, `check:changed` (412 tests), `check:unused`, `check:lines`. Preuve
 navigateur non jouée : le verrou `.claude/mesure.lock` était pris à l'heure du correctif, et la règle
-est de ne pas attendre. La campagne attendue reste celle de `GEOMETRY_REPRISE` — scène
+est de ne pas attendre. La campagne attendue reste celle de `REPRISE_GEOMETRY` — scène
 classes-materiaux, `--moteur webgpu --moteur-avant webgl --vues generale,sol,rue --soleil
 --ombres off`, max canal ≤ 1 sur les trois vues —, à rejouer sous verrou libre.
 
