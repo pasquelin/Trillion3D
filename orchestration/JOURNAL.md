@@ -1,5 +1,27 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Lumière] `sceneLit` lu à chaque image
+
+Branche `fix/scenelit`, sur `develop` = `f66ddf7`. Le lot `unlit-identite` publiait `sceneLit` en
+accesseur, et les quatre moteurs rendus par Three étalent l'objet de `sceneLightingApi` dans le leur :
+un étalement lit un accesseur une seule fois, à la construction. `sceneLit` restait donc figé à faux
+pour tout hôte qui pose ses lampes après `createExplorer` — le cas du contrat, et celui du harnais.
+L'hôte ne rallumait jamais l'exposition et ACES : le témoin Three composait par l'identité pendant que
+le moteur composait par la courbe, et l'écart mesuré portait cette différence de chaîne d'affichage
+avant de porter le matériau.
+
+`sceneLit` devient une fonction, `sceneLit?(): boolean` dans `backendTypes.ts` : une fonction survit à
+l'étalement, et l'appel lit l'état vivant des lampes installées. Les quatre moteurs ne changent pas
+d'une ligne — ils étalent le même objet —, et `explorerDraw.ts` lit `backend.sceneLit?.()` à chaque
+image, là où il réglait déjà la chaîne d'affichage. Aucun nouveau réglage, aucun drapeau d'hôte : le
+signal vient toujours des seules lampes du graphe source.
+
+Portes vertes : `tsc --noEmit`, `check:changed` (412 tests), `check:unused`, `check:lines`. Preuve
+navigateur non jouée : le verrou `.claude/mesure.lock` était pris à l'heure du correctif, et la règle
+est de ne pas attendre. La campagne attendue reste celle de `GEOMETRY_REPRISE` — scène
+classes-materiaux, `--moteur webgpu --moteur-avant webgl --vues generale,sol,rue --soleil
+--ombres off`, max canal ≤ 1 sur les trois vues —, à rejouer sous verrou libre.
+
 ## 2026-09-15 — [session sans-threejs] témoin Three.js avec lampes du contrat
 
 Branche `lot/temoin-three`, rebasée sur `develop` = `e14b249`. Le témoin rendait toute surface opaque noire dès qu'une
