@@ -23,6 +23,10 @@ Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
    `request.converted(directory)` pour ce que le pilote a écrit dans `request.cache`.
 4. Une ligne dans `scene::PLUGINS`.
 
+Un pilote **de projet** — `unity` en est le premier — revendique en plus un dossier entier par
+`project_inputs` et prime alors sur les pilotes de fichiers trouvés dessous, dont les fichiers sont
+ses entrées et non des sources concurrentes ; deux projets pour un même dossier restent ambigus.
+
 `prepare` reçoit tous les fichiers du dossier que ce pilote revendique : c'est lui qui décide s'il en
 accepte un seul ou plusieurs, et il refuse avec `SOURCE_FORMAT_AMBIGUOUS` quand il n'en veut qu'un.
 Il vérifie `request.cancelled` à chaque frontière de travail bornée, publie ses étapes par
