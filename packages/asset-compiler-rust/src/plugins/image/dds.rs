@@ -10,12 +10,16 @@
 //!
 //! **Le décodage est un repli, pas la destination.** La règle du dépôt veut qu'une texture reçue
 //! déjà compressée pour le GPU garde ses blocs compressés sur le GPU quand la machine les accepte.
-//! Ce lot ne construit pas cette chaîne — transport, atlas et GPU sont un autre chantier — et le
-//! contrat `DecodedImage` n'a qu'une variante `Rgba8` que le cœur déconstruit par `let` irréfutable
-//! (`src/texture_preview.rs`). Ce qu'il faudra ajouter est écrit dans `orchestration/JOURNAL.md` :
-//! une variante `DecodedImage::Blocks` portant le codec, les dimensions et les octets bruts de la
-//! surface. Le pilote est déjà découpé pour cela : `codec` nomme le codec et sa géométrie de bloc,
-//! `header` rend la surface et l'offset de ses octets, `blocks` n'est que la reconstruction.
+//! Ce lot ne construit pas cette chaîne — transport, atlas et GPU sont un autre chantier. `DecodedImage`
+//! a aujourd'hui deux variantes, `Rgba8` et `RgbaF32` (`image-plugin-2`), et ce pilote ne rend que la
+//! première. Ce qu'il faudra ajouter, exactement : une troisième variante
+//! `DecodedImage::Blocks { codec, width, height, data }`, un `match` chez le consommateur
+//! (`src/texture_preview.rs:134`, aujourd'hui `Rgba8` lu et `RgbaF32` refusé par
+//! `image-float-unsupported`) qui la demande explicitement, et un pilote qui la rend. Le pilote est
+//! déjà découpé pour cela : `codec` nomme le codec et sa géométrie de bloc, `header` rend la surface
+//! et l'offset de ses octets bruts, `blocks` n'est que la reconstruction — la seule partie qui
+//! deviendra le repli. BC6H (HDR flottant) n'attend donc plus le contrat, qui a déjà sa sortie
+//! flottante : il attend cette variante `Blocks`, comme les autres codecs bruts.
 //!
 //! Codecs déclarés un par un : BC1, BC2, BC3, BC4, BC5, BC7, et les surfaces non compressées
 //! RGBA8, BGRA8 et BGRX8. Tout le reste — BC6H flottant, variantes signées, `DXT2`/`DXT4` à alpha
