@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { SelectionUniforms } from './gpuSelection.ts';
+import { boxClip } from './pageSelectionMath.ts';
+import { viewDistanceOf } from './pageSelectionProjection.ts';
 
 export const dagScratch = {
   view: new THREE.Matrix4(),
@@ -30,6 +32,11 @@ export function objectPlanes(
     into[i * 4 + 3] = m[12] * a + m[13] * b + m[14] * c + m[15] * d;
   }
 }
+/**
+ * Boîte entièrement hors des six plans : c'est le verdict de rejet de `boxClip`, dont la première
+ * passe teste exactement ce sommet-là, dans le même ordre, avec les mêmes produits et la même
+ * somme. Une seule écriture du test, deux lectures — le booléen ici, les trois états là-bas.
+ */
 export function outsidePlanes(
   planes: Float64Array,
   minX: number,
@@ -39,16 +46,14 @@ export function outsidePlanes(
   maxY: number,
   maxZ: number,
 ) {
-  for (let p = 0; p < 24; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3];
-    if (a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0)
-      return true;
-  }
-  return false;
+  return boxClip(planes, minX, minY, minZ, maxX, maxY, maxZ) === 0;
 }
+/**
+ * Miroir CPU de `projected` du nuanceur `gpuDagShader.ts` : mêmes gardes, mêmes opérandes, même
+ * ordre. Le nuanceur ne lève pas, donc l'oracle ne lève pas non plus — une erreur négative ou NaN y
+ * rend l'infini, là où `clusterErrorAtDistance` de sdk-core refuse ses paramètres. Ce sont deux
+ * contrats différents du même quotient : la fonction validante ne peut pas remplacer celle-ci.
+ */
 export function projectedError(
   error: number,
   sx: number,
@@ -62,10 +67,7 @@ export function projectedError(
 ) {
   if (error === 0) return 0;
   if (!(error > 0)) return Infinity;
-  const vx = e[0] * sx + e[4] * sy + e[8] * sz + e[12];
-  const vy = e[1] * sx + e[5] * sy + e[9] * sz + e[13];
-  const vz = e[2] * sx + e[6] * sy + e[10] * sz + e[14];
-  const distance = Math.sqrt(vx * vx + vy * vy + vz * vz) - radius * stretch;
+  const distance = viewDistanceOf(sx, sy, sz, e) - radius * stretch;
   if (!(distance > near)) return Infinity;
   return (error * stretch * focal) / distance;
 }

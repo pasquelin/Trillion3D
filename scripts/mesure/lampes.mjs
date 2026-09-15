@@ -4,11 +4,10 @@
 // son plancher, chaque lampe portant une portée déduite de la maille. Elle vaut pour n'importe quel
 // modèle importé ; le banc ne sait rien du jeu de mesure qu'on lui donne, quel qu'il soit.
 
+import { plancherDuModele } from './poses.mjs';
+
 /** Intensité d'une ponctuelle du banc, faute de mieux : la valeur des lots précédents. */
 const DEFAULT_INTENSITY = 40;
-
-/** Plancher du modèle : le plan d'origine si la géométrie l'enjambe, sinon le bas de sa boîte. */
-const floorOf = (bounds) => (bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y);
 
 /**
  * `count` lampes ponctuelles sur une grille dans l'emprise du modèle. `shadows` dit si elles
@@ -32,7 +31,7 @@ function gridLights(bounds, count, shadows, intensity) {
     stepZ = sz / rows;
   const cell = Math.hypot(stepX, stepZ);
   // Hauteur d'un lampadaire : une fraction de la hauteur du modèle, jamais moins de deux mètres.
-  const height = floorOf(bounds) + Math.max(2, sy * 0.04);
+  const height = plancherDuModele(bounds) + Math.max(2, sy * 0.04);
   const lights = [];
   for (let i = 0; i < count; i++) {
     const column = i % columns,

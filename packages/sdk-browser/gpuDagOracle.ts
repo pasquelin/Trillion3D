@@ -1,13 +1,9 @@
 import type { PackedDag } from './gpuDagTypes.ts';
-import {
-  CLUSTER_FLOATS,
-  DAG_NODE_FLOATS,
-  CLUSTER_ROOT,
-  DAG_ESCALATION_ROUNDS,
-} from './gpuDagTypes.ts';
+import { CLUSTER_FLOATS, DAG_NODE_FLOATS, CLUSTER_ROOT } from './gpuDagTypes.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
 import { dagScratch, objectPlanes, outsidePlanes, projectedError } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
+import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -132,7 +128,7 @@ export function evaluateDagSelectionKernel(
       complete: true,
       drawablePageIds: pageIds.slice(),
     } as SelectionResult;
-  for (let round = 0; round < DAG_ESCALATION_ROUNDS + 1; round++) {
+  for (let round = 0; round < ESCALATION_ROUNDS + 1; round++) {
     let raised = false;
     for (let i = 0; i < packed.pageCount; i++) {
       if (resident[i]) continue;
@@ -151,7 +147,7 @@ export function evaluateDagSelectionKernel(
       }
     }
     if (!raised) break;
-    if (round === DAG_ESCALATION_ROUNDS)
+    if (round === ESCALATION_ROUNDS)
       for (let i = 0; i < packed.pageCount; i++) {
         if (resident[i]) continue;
         const base = i * CLUSTER_FLOATS,
