@@ -314,6 +314,14 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ktx2-data-truncated` | KTX 2.0 header is consistent but an announced level, or the Zstandard stream behind it, is not all there |
 | `ktx2-image-too-large` | KTX 2.0 image, or its decompression buffer, exceeds the allocation ceiling passed to the decoder; refused rather than attempting the allocation |
 | `ktx2-transcode-failed` | KTX 2.0 Basis Universal payload the transcoder refuses (codec outside its list, video with cross-frame state, corrupt stream) |
+| `psd-header-invalid` | Photoshop header is present but out of domain (unknown version, non-zero reserved bytes, zero or over-ceiling side, channel count out of range or below the colour channels of its mode) |
+| `psd-depth-unsupported` | Photoshop file carries 1, 16 or 32 bits per channel, which the `Rgba8` contract cannot hold; refused before decoding rather than quietly narrowed to 8 bits |
+| `psd-color-mode-unsupported` | Photoshop colour mode is outside RGB and greyscale (bitmap, indexed, CMYK, multichannel, duotone, Lab); converting it would need a profile, a matrix or a palette the plugin would choose in the source's stead |
+| `psd-channels-unsupported` | Photoshop file carries more than one plane beyond the colour channels of its mode; nothing in the header says which one is transparency, a saved selection or a spot colour |
+| `psd-compression-unsupported` | Photoshop composite is ZIP-compressed, outside the raw and PackBits subset the plugin reads |
+| `psd-composite-missing` | Photoshop file stops before its merged image data section: there is no flattened image to read, and the layers are not recomposed in its place |
+| `psd-data-truncated` | Photoshop header is consistent but the announced planes are not all there, or a compressed row does not yield its width |
+| `psd-image-too-large` | Photoshop image exceeds the allocation ceiling passed to the decoder; refused rather than attempting the allocation |
 | `alembic-hdf5-unsupported` | Alembic file uses the HDF5 container instead of Ogawa; refused by name rather than read as a corrupt file. Re-export it as Ogawa |
 | `alembic-file-invalid` | Alembic archive does not hold together: no Ogawa header, block truncated, pointer outside the file, root group without its six blocks |
 | `alembic-size-unsupported` | An Ogawa group or data block declares more children or bytes than the plugin's allocation ceiling admits (4 Mi children, 1 GiB per block, 64 Mi face corners per mesh) |

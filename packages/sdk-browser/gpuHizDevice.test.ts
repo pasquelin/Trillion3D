@@ -1,44 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuHiz } from './gpuHiz.ts';
-
-type DeviceOverrides = Partial<{
-  createBuffer: (options: { size: number }) => unknown;
-  createTexture: (options: { format?: string }) => unknown;
-  queue: unknown;
-}>;
-
-/** The compute-capable device the Hi-Z pyramid needs, with the hooks a test observes overridden. */
-function hizDevice(overrides: DeviceOverrides = {}) {
-  return {
-    createBuffer: ({ size }: { size: number }) => ({ size, destroy() {} }),
-    createTexture: ({ format }: { format?: string }) => ({
-      format,
-      destroy() {},
-      createView() {
-        return { format };
-      },
-    }),
-    createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
-    createBindGroupLayout: () => ({}),
-    createPipelineLayout: () => ({}),
-    createComputePipeline: ({ compute }: { compute: { entryPoint: string } }) => compute,
-    createBindGroup: () => ({}),
-    queue: { writeBuffer() {} },
-    ...overrides,
-  } as unknown as GPUDevice;
-}
+import { hizDevice } from './gpuHizMockDevice.ts';
 
 test('missing compute leaves GPU Hi-Z undefined so the visbuffer cut stays conservative', async () => {
   assert.equal(await createGpuHiz({} as GPUDevice, 32, 32, 4), undefined);
 });
 
 test('a Hi-Z resize replaces the this-frame level-0 depth target', async () => {
-  Object.assign(globalThis, {
-    GPUBufferUsage: { MAP_READ: 1, COPY_DST: 8, UNIFORM: 64, STORAGE: 128 },
-    GPUTextureUsage: { TEXTURE_BINDING: 4, RENDER_ATTACHMENT: 16 },
-    GPUShaderStage: { COMPUTE: 4 },
-  });
   const textures: Array<{ format?: string }> = [];
   const device = hizDevice({
     createTexture: ({ format }) => {

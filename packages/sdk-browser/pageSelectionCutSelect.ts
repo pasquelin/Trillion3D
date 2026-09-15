@@ -4,6 +4,7 @@ import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCut
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
 import {
   fallbackScratch,
+  residentUnder,
   selectionScratch,
   truncateShown,
   type PageRecord,
@@ -32,6 +33,9 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     Number.isFinite(near);
   // Le contexte de cône appartient à cette racine : il sera posé au premier cluster qui en a un.
   (s.flatCone as ConeContext).ready = false;
+  // Une racine qui déclare n'avoir aucun cône sort le cône du chemin par cluster. Le silence vaut
+  // « je n'ai rien déclaré » : la coupe teste alors chaque page, comme avant ce lot.
+  s.flatCones = root.cones !== false;
   extractPlanes(clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix), planes);
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
@@ -57,7 +61,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   let forcedAny = false;
   while (fallbackQueue.length) {
     const rec = fallbackQueue.pop() as T;
-    if (s.pageResident(rec)) continue;
+    if (residentUnder(s, rec, s.residentMode)) continue;
     if (!drawnUnderForcing(s, rec)) continue;
     const own = rec.group;
     if (own == null || own < 0) continue;

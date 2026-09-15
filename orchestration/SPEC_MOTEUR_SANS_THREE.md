@@ -53,7 +53,7 @@ C10. **Provenance** : empreinte du compilateur (sources + dépendances verrouill
 
 R1. **Zéro dépendance Three.js** dans `sdk-browser`. Maths propres (matrices, quaternions, frustum, rayons) partagées avec le compilateur via wasm là où la parité compte (erreur d'écran, picking).
 
-R1a. **Ce qui reste de Three.js dans le moteur, mesuré.** Le lot T1 de `orchestration/AUDIT_MATH_FORMULES.md` (15 septembre) recense chaque appel à une méthode de calcul de Three.js dans `sdk-browser` : 49 fichiers, environ 150 sites, une trentaine de méthodes (`updateMatrixWorld` 33, `multiplyScalar` 16, `multiplyMatrices` 15, `applyMatrix4` 11, `addScaledVector` 10, `getWorldPosition` 7, `invert` 4, `getBoundingSphere` 4, `setFromProjectionMatrix` 3, `determinant` 2…). Sur le chemin WebGPU par image : coupe de clusters (`pageSelectionCut.ts`), uniformes de sélection (`gpuSelection.ts`), encodage des dessins, du mélange et des ombres (`webgpuPagesEncode*.ts`), sens des faces (`webgpuBlendDraw.ts`), Hi-Z (`hizDepth.ts`, `hizProjection*.ts`, `hizTemporal.ts`) ; la matrice vue-projection y est recomposée neuf fois par des copies indépendantes. Au chargement : boîtes et sphères des pages (quatre copies de `Box3.getBoundingSphere`), matrices monde des nœuds. Le reste ne sert qu'aux moteurs témoins Three (`referenceBackend.ts`, `threeLod.ts` avec `LOD.update`, `exactPages*.ts`) et au diagnostic. Des calculs maison existent déjà et servent de base : `extractPlanes`/`boxClip` (`pageSelectionMath.ts`), transformation des coins d'une boîte (`hizCorners.ts`), `maxStretch`/`clusterErrorPixels` (`projectionOracles.ts`), `shadowProjection`/`shadowOrthographic`/`composeFace` (`sceneLightShadowMath.ts`), et les fonctions communes des lots `formules-communes-*`.
+R1a. **Ce qui reste de Three.js dans le moteur, mesuré.** Le relevé du 15 septembre (lot T1, conservé dans git, recopié dans le brief de chaque lot) recense chaque appel à une méthode de calcul de Three.js dans `sdk-browser` : 49 fichiers, environ 150 sites, une trentaine de méthodes (`updateMatrixWorld` 33, `multiplyScalar` 16, `multiplyMatrices` 15, `applyMatrix4` 11, `addScaledVector` 10, `getWorldPosition` 7, `invert` 4, `getBoundingSphere` 4, `setFromProjectionMatrix` 3, `determinant` 2…). Sur le chemin WebGPU par image : coupe de clusters (`pageSelectionCut.ts`), uniformes de sélection (`gpuSelection.ts`), encodage des dessins, du mélange et des ombres (`webgpuPagesEncode*.ts`), sens des faces (`webgpuBlendDraw.ts`), Hi-Z (`hizDepth.ts`, `hizProjection*.ts`, `hizTemporal.ts`) ; la matrice vue-projection y est recomposée neuf fois par des copies indépendantes. Au chargement : boîtes et sphères des pages (quatre copies de `Box3.getBoundingSphere`), matrices monde des nœuds. Le reste ne sert qu'aux moteurs témoins Three (`referenceBackend.ts`, `threeLod.ts` avec `LOD.update`, `exactPages*.ts`) et au diagnostic. Des calculs maison existent déjà et servent de base : `extractPlanes`/`boxClip` (`pageSelectionMath.ts`), transformation des coins d'une boîte (`hizCorners.ts`), `maxStretch`/`clusterErrorPixels` (`projectionOracles.ts`), `shadowProjection`/`shadowOrthographic`/`composeFace` (`sceneLightShadowMath.ts`), et les fonctions communes des lots `formules-communes-*`.
 
 R1b. **Socle mathématique maison, pas un clone de Three.** Un module dans `sdk-core` (sans DOM), limité aux opérations réellement appelées : vecteurs 3 et 4, matrices 3×3 et 4×4 (produit, inverse, déterminant, matrice normale, composition et décomposition TRS, `lookAt`, perspective et orthographique dans les deux conventions de profondeur, WebGL `[-1,1]` et WebGPU `[0,1]`), quaternions, couleurs (HSL, sRGB ↔ linéaire, déjà factorisées). Représentation : `Float64Array`/`Float32Array` colonne-major comme Three, sorties passées en paramètre, zéro allocation par image, opérations par lots (n boîtes, n sphères) plutôt que par objet. Remplacer chaque méthode Three en gardant `THREE.Vector3`, `THREE.Matrix4` ou `Object3D` dans les signatures ne compte pas : la dépendance tombe quand plus aucun type Three ne traverse le moteur.
 
@@ -73,7 +73,7 @@ R1f. **Lots du chantier « maths sans Three », ordre et critères.** Lancement 
 | M4  | Chargement et diagnostic : boîtes et sphères des pages, matrices monde à la collecte, couleurs ; moteurs témoins Three (`referenceBackend`, `threeLod` et `LOD.update`, `exactPages*`) déplacés dans un adaptateur hors du moteur | `three` absent de `sdk-browser` hors adaptateur témoin, Lab inchangé côté hôte                                                            |
 | M5  | Déplacement en worker ou Wasm des seuls traitements dont le coût est mesuré (R1e)                                                                                                                                                 | gain mesuré sur machine calme et image identique, sinon refusé                                                                            |
 
-M1 et M2 peuvent courir en parallèle (périmètres disjoints) ; M3 attend les deux ; M4 attend M3 ; M5 attend une mesure. Chaque lot ajoute sa ligne au journal avec les chiffres.
+M1 et M2 peuvent courir en parallèle (périmètres disjoints) ; M3 attend les deux ; M4 attend M3 ; M5 attend une mesure. Chaque lot livre ses chiffres (équivalence, comparatif de performance contre Three, pixels) avec sa branche, dans le message de fusion.
 R2. **Chargeur** : lit manifeste binaire et paquets ; jamais un champ de format côté hôte ; validation publique (`assertCachePointer`, `assertCacheReady`).
 R3. **Streaming** : 32 transferts en vol, priorité par erreur d'écran puis distance, couronne de préchargement, prédiction de caméra, cache LRU borné en octets, cache persistant par empreinte (Cache Storage/OPFS), transferts en cours jamais annulés par un mouvement. Critère : après un saut de caméra, coupe complète < 300 ms à chaud ; deuxième visite sans réseau.
 
@@ -84,21 +84,36 @@ R5b. **Invariant du test Hi-Z.** Le test d'occultation ne décide jamais qu'un c
 
 R5c. **Ce que la partition ne garantit pas, et pourquoi le compilateur ne peut pas la sauver.** Le partage occulteurs/testés décide de l'**ordre** de dessin, et sur des surfaces opaques exactement coplanaires l'ordre décide l'image : à profondeur égale, le test `less` donne le pixel au premier dessiné. Trois faits, mesurés sur une scène urbaine de banc et vrais de toute scène par construction. **(a)** Une couche de profondeur est portée par `pageDepthLayer`, une valeur **par page de primitive** : elle ne peut séparer ni deux triangles d'un même cluster, ni deux instances d'une même page. Ces deux catégories forment la majorité des égalités d'une scène réelle (57 à 77 % des relevés) ; « aucune égalité de profondeur » n'est donc pas un objectif atteignable par `coplanar-depth-layers-*`, quelle que soit sa détection. **(b)** En revanche, **100 %** des pixels qu'un changement de partition déplace opposent **deux clusters distincts** — la partition déplace des pages, jamais les triangles d'un même dessin. Une couche par cluster suffit donc à rendre l'image indépendante de la partition. **(c)** Mais sur exactement ces pixels, le vainqueur actuel est celui que la partition d'aujourd'hui désigne, et la partition est décidée à l'exécution sur les occulteurs de l'image précédente : **aucune règle de compilation ne peut la reproduire.** Donc « image indépendante de la partition » et « 0 pixel contre la référence actuelle » s'excluent. Le prix du passage est borné et se mesure sans écrire une ligne de compilateur : c'est l'écart de la **passe unique** contre la référence (67 / 173 / 39 / 28 / 1 / 1 px sur six couples vue-seuil du banc, soit 0,007 % de l'image au pire). Une fois ce déplacement de référence accepté, la preuve d'un changement de partition se fait contre la passe unique, et elle est à 0 pixel.
 
+R5d. **Ce que la coupe ne relit pas par cluster : la racine le déclare une fois.** Le chemin par cluster de la coupe (`take`, `keep`) est parcouru quatre-vingt mille fois par image en vue générale : tout ce qui y est constant sous un nœud est posé une fois par racine ou par coupe, puis passé en paramètre — jamais relu sur l'état ni sur la fiche. Deux déclarations en découlent. **Les cônes** : `ClusterRoot.cones` vaut `false` quand aucune page de la racine ne porte de cône de normales, et la coupe cesse alors de lire `cone` ; absent ou `true`, elle teste chaque page. Le silence garde donc le comportement complet, et **qui pose un cône sur une page relève le drapeau de sa racine** — `collectClusterPages` déclare `false`, `prepareCones` relève `true`. C'est le seul contrat qui rende une omission visible : une racine qui porte des cônes sans les déclarer les perdrait sans bruit. **La résidence** : la règle (`RESIDENT_ALL`, `RESIDENT_ASK`, `RESIDENT_ARRAY`) ne dépend que de la demande de coupe et se résout une fois dans `selectVisiblePages`. Critère : coupe identique bit à bit, `selectedTriangles` égaux, 0 pixel à caméra fixe et mobile aux deux seuils.
+
 R6. **Rendu WebGPU** : visibility buffer, compaction et `drawIndexedIndirect` par cluster, raster logiciel borné aux petits triangles réels, résolution matériau par binning, éclairage différé (GGX, IBL si et quand livré, tone mapping ACES, sRGB), transparents en sélection GPU et indirect par matériau, table de pages statique mise à jour par page, zéro allocation par image. Critère : Emerald 1280×720 CPU < 4 ms, GPU < 6 ms, image identique à la référence.
 
 R6b. **Ce que le processeur fixe coûte encore, et où il est passé.** Le coût processeur fixe d'une
-image WebGPU (vue générale, seuil 0) vaut **5,8 à 5,9 ms** après le lot `cpu-fixe`, contre 33,6 ms le
-14 septembre, 7,7 le 15 au soir. Les postes nommés qui restent sont, dans l'ordre : **encodage des
-passes 2,7 à 3,1 ms** — mille neuf cent trente-six appels de dessin dont mille neuf cent vingt-huit de
-mélange, un par primitive transparente visible **y compris celles dont la coupe est vide**, que le
-processeur ne peut pas connaître puisque la compaction est sur la carte ; **fiches de dessin 1,4 à
-1,8 ms** ; **adoption de la coupe 0,9 ms** ; **transparents 0,8 ms** ; **animations 0,5 ms**. La cible
-`< 4 ms` de R6 exige donc de traiter l'encodage de la passe de mélange : c'est le seul poste dont la
-taille suffit, et il demande de savoir avant l'image quelles primitives transparentes n'ont rien à
-dessiner. Les deux autres pistes sont refusées en l'état et la raison compte : mettre
-`uncoveredTriangles` en cache rendrait la preuve d'absence de trou dépendante de l'exactitude d'une
-estampille, et supprimer la lecture par objet des fiches demande un invariant non établi sur la durée
-de vie du tableau d'une page résidente.
+image WebGPU (Emerald, vue générale, seuil 0, 1280×720) vaut **4,7 à 4,9 ms** après le lot
+`blend-encodage`, contre 6,1 à 6,2 ms sur sa base dans la même exécution, 7,7 le 15 au soir et
+33,6 ms le 14 septembre. **À caméra mobile le lot ne rend rien** — 8,7 → 8,5 ms au seuil 0, dans le
+bruit : toutes les bornes projetées changent à chaque image, donc aucune boîte n'est tenue. Le profil
+par étape, mesuré borne par borne et non déduit d'un compteur voisin, donne les postes restants dans
+l'ordre : **fiches de dessin ~1,3 ms** ; **adoption de la coupe 0,9 ms** ;
+**transparents 0,8 ms** (monde 0,2 · uniformes de mélange 0,4 · encodage des 1 928 appels 0,2) ;
+**test Hi-Z ~0,4 ms** (la comparaison des boîtes tenues, à caméra fixe) ; **animations 0,4 ms** ; **boucle
+d'historique des occulteurs 0,4 ms** ; **partition 0,4 ms** ; **téléversements 0,2 ms**.
+
+Deux erreurs de lecture sont corrigées ici. **L'encodage de la passe de mélange ne coûte pas 2,7 à
+3,1 ms mais 0,2** : le compteur `appelsDeMelange` s'affiche sur la ligne « Encodage des passes », la
+durée du mélange non — `transparentEncodeMs` se dépose sur « Transparents » et `encodeRestMs` la
+retranche. Les 2,7 ms étaient **l'empaquetage des boîtes testées du Hi-Z**, 1,7 ms pour
+trente-six mille boîtes et 1,18 Mo par image, plus 0,4 ms de boucle d'historique des occulteurs. Et
+**la lecture par objet des fiches ne demandait aucun invariant nouveau** : la ligne du tableau de
+pages porte déjà le compte d'indices que la carte dessine, écrit par la même fonction qui pose la
+ligne ; le lire est plus exact que de relire l'objet, pas moins.
+
+Ce qui reste refusé, et la raison compte : mettre `uncoveredTriangles` en cache rendrait la preuve
+d'absence de trou dépendante de l'exactitude d'une estampille ; tenir le **résultat entier** des
+fiches d'une image à l'autre demande toujours l'invariant non établi sur la durée de vie du tableau
+d'une page résidente ; et porter la projection du test Hi-Z sur la carte est impossible au bit près,
+`projectCornersInto` projetant en double précision et `hizNearestBound` tirant sa démonstration de
+minorant de cette précision, que WGSL n'a pas.
 
 R6c. **Ce qu'un lecteur garde d'une image à l'autre porte l'âge de ce qu'il décrit.** Toute liste,
 tout compte, toute borne tenue d'une image sur l'autre doit être validée par une estampille de la
@@ -148,17 +163,17 @@ B4. **Scripts headless** conservés dans `render-tech-lab/scripts/headless/` pou
 
 ## 7. Phases, ordre, critères de sortie
 
-| Phase | Contenu                                                                                                            | Sortie mesurée                                                                                                                                    |
-| ----- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | Lot 2 WebGPU (R5, R6, R6b), saccades WebGL (p99)                                                                   | Emerald 1 instance : WebGPU CPU < 4 ms (5,8 atteint, reste l'encodage de la passe de mélange), GPU < 6 ms ; WebGL p99 < 8,33 ms visible ; 0 pixel |
-| 2     | DAG multi-matériaux par objet (C3, C4) après validation du prototype                                               | vue générale ≤ 200 k triangles par ville, image identique à 0 px                                                                                  |
-| 3     | Paquets autonomes et textures streamables (C5, C6, C7), streaming (R3)                                             | première image < 500 ms chaud / 1,5 s froid, `source.bin` absent du chargement                                                                    |
-| 4     | Cache par objet, compilation incrémentale, wasm (C8, C9, E1 à E4)                                                  | recompilation d'un objet ≤ 500 ms, échange à chaud sans image manquante                                                                           |
-| 5     | Maths et transformations propres (R1a à R1f, lots M1 à M5), rendu WebGL2 maison et parité (R7, B2), API scène (R8) | 0 pixel à chaque lot, Three.js hors de `sdk-browser`, parité au pixel                                                                             |
-| 6     | Cuisson finale et blocs de quartier (F1 à F4)                                                                      | Emerald × 9 à 120 FPS, runtime livré seul                                                                                                         |
-| 7     | Outils d'éditeur dessinés par le moteur (E5, E6)                                                                   | éditeur sans Three.js                                                                                                                             |
+| Phase | Contenu                                                                                                            | Sortie mesurée                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | Lot 2 WebGPU (R5, R6, R6b), saccades WebGL (p99)                                                                   | Emerald 1 instance : WebGPU CPU < 4 ms (4,7 atteint, restent les fiches de dessin et l'adoption de la coupe), GPU < 6 ms ; WebGL p99 < 8,33 ms visible ; 0 pixel |
+| 2     | DAG multi-matériaux par objet (C3, C4) après validation du prototype                                               | vue générale ≤ 200 k triangles par ville, image identique à 0 px                                                                                                 |
+| 3     | Paquets autonomes et textures streamables (C5, C6, C7), streaming (R3)                                             | première image < 500 ms chaud / 1,5 s froid, `source.bin` absent du chargement                                                                                   |
+| 4     | Cache par objet, compilation incrémentale, wasm (C8, C9, E1 à E4)                                                  | recompilation d'un objet ≤ 500 ms, échange à chaud sans image manquante                                                                                          |
+| 5     | Maths et transformations propres (R1a à R1f, lots M1 à M5), rendu WebGL2 maison et parité (R7, B2), API scène (R8) | 0 pixel à chaque lot, Three.js hors de `sdk-browser`, parité au pixel                                                                                            |
+| 6     | Cuisson finale et blocs de quartier (F1 à F4)                                                                      | Emerald × 9 à 120 FPS, runtime livré seul                                                                                                                        |
+| 7     | Outils d'éditeur dessinés par le moteur (E5, E6)                                                                   | éditeur sans Three.js                                                                                                                                            |
 
-Chaque phase se termine par une campagne du banc et une entrée de journal avec les chiffres. Une phase dont la sortie n'est pas mesurée n'est pas finie.
+Chaque phase se termine par une campagne du banc dont les chiffres accompagnent la fusion. Une phase dont la sortie n'est pas mesurée n'est pas finie.
 
 ## 8. Risques et décisions prises
 
