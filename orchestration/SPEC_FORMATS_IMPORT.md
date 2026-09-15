@@ -6,6 +6,18 @@ Politique juridique fixée par l'utilisateur : aucun format propriétaire, sauf 
 
 État actuel du code : géométrie FBX (ufbx, MIT, sans SDK Autodesk) et OBJ, glTF et GLB en entrée directe, un modèle par dossier source ; textures PNG et JPEG décodées, les autres ignorées avec rapport.
 
+## Architecture : un pilote par format
+
+Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (plugin d'interprétation) enregistré dans un registre statique, sur le modèle d'un pilote de périphérique :
+
+- **un pilote par format, sans exception, existants compris** : `gltf`, `fbx`, `obj` pour les scènes ; `png`, `jpeg` pour les images ; puis `tga`, `tiff`, `dds`, `exr`, `hdr`, `ktx2`, `webp`, `psd`, `bmp`, `gif`, `zip`, `unitypackage`, `unity`, `usd`, `alembic`, `blend`, `ma` ;
+- chaque pilote est un module Rust avec son nom, sa version, sa détection (extension, nombre magique, structure de dossier), son rapport nommé et son test doré minimal ; deux pilotes peuvent partager une bibliothèque interne (ufbx pour `fbx` et `obj`, la crate `image` pour les images) mais restent deux entrées du registre ;
+- ajouter ou retirer un format = ajouter ou retirer un module et une ligne de registre, sans toucher au cœur ni au CLI ;
+- deux contrats versionnés : pilote de scène (produit la scène intermédiaire glTF + bin + rapport) et pilote d'image (produit RGBA8, plus tard flottant pour EXR et HDR) ; la version des pilotes entre dans l'identité du cache ;
+- le pilote retenu (nom, version) est consigné dans le manifeste et le rapport pour la provenance ;
+- une source inconnue ou ambiguë est refusée avec la liste des formats acceptés, jamais interprétée par défaut ;
+- le mode d'emploi pour écrire un pilote est `packages/asset-compiler-rust/PLUGINS.md` ; chaque format à venir est confié à un agent indépendant qui ne touche qu'à son module et à sa ligne de registre.
+
 ## Sûrs — à faire
 
 | Format                  | Base                                                    | État    | Voie                                                 | Priorité |
