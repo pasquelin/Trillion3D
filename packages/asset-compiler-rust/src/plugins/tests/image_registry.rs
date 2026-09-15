@@ -64,7 +64,7 @@ fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
     // L'ordre du registre est celui dans lequel on cherche un fichier voisin décodable.
     assert_eq!(
         registry::extensions().collect::<Vec<_>>(),
-        ["png", "jpg", "jpeg", "tga", "tpic"]
+        ["png", "jpg", "jpeg", "tga", "tpic", "tif", "tiff"]
     );
 }
 
@@ -83,9 +83,10 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "png=",
         "jpeg=",
         "tga=",
+        "tiff=",
     ] {
         assert!(print.contains(expected), "{print}");
     }
     assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(5));
-    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(3));
+    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(4));
 }
