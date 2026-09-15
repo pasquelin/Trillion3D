@@ -69,3 +69,39 @@ test('planAtlasClasses is bounded to a single class when maxSampledTexturesPerSh
   assert.equal(plan.used, 1);
   assert.deepEqual(plan.sizes[0], [128, 128]);
 });
+
+// Comportement 7 : la limite de couches de l'appareil ne fait échouer la préparation que si aucun
+// plan ne tient. Deux classes répartissent les couches entre deux textures-tableaux : ici huit
+// textures dépassent une limite de cinq couches en une seule classe, et tiennent à cinq et cinq.
+test('planAtlasClasses splits in two rather than failing when a single class exceeds maxTextureArrayLayers', () => {
+  const sizes: Array<[number, number]> = [
+    [128, 128],
+    [128, 128],
+    [128, 128],
+    [128, 128],
+    [8, 8],
+    [8, 8],
+    [8, 8],
+    [8, 8],
+  ];
+  const plan = planAtlasClasses(device(5, 32), sizes);
+  assert.equal(plan.used, 2);
+  assert.deepEqual(plan.sizes[0], [128, 128]);
+  assert.deepEqual(plan.sizes[1], [8, 8]);
+  assert.deepEqual(plan.layers, [5, 5]);
+  assert.deepEqual(plan.slotClass, [0, 0, 0, 0, 1, 1, 1, 1]);
+  assert.ok(
+    plan.layers.every((layers) => layers <= 5),
+    'aucune classe ne dépasse la limite de couches de l’appareil',
+  );
+});
+
+// Comportement 7 : aucun découpage ne sauve une scène dont une seule classe déborde déjà — toutes
+// les textures ont la même taille, donc la seconde classe reste vide et la limite tient toujours.
+test('planAtlasClasses fails with TEXTURE_ATLAS_LAYERS when no plan fits under the device limit', () => {
+  const sizes: Array<[number, number]> = Array.from(
+    { length: 8 },
+    () => [64, 64] as [number, number],
+  );
+  assert.throws(() => planAtlasClasses(device(5, 32), sizes), /TEXTURE_ATLAS_LAYERS/);
+});
