@@ -345,6 +345,31 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `usd-surface-unsupported` | A `Material` with no `UsdPreviewSurface` reachable from `outputs:surface` |
 | `usd-texture-missing` | A texture file that is absent, outside the source directory, or of a format the image registry does not read |
 | `usd-texture-unsupported` | A texture this driver cannot bind as is: a UV set other than `st`, a `<UDIM>` pattern, or split metallic/roughness maps |
+| `ma-file-invalid` | Maya ASCII file does not open with `//Maya ASCII`, is not valid UTF-8 text, or stops inside a quoted string; refused rather than read up to the break |
+| `ma-size-unsupported` | Maya ASCII file is above the 512 MiB ceiling this reader admits, or an attribute index lands past its 16 Mi element ceiling; refused rather than attempting the allocation |
+| `ma-command-ignored:<command>` | A MEL command outside the read subset, named after the two dots. **No command is ever executed**: `python`, `eval`, `source` and every unknown one land here, their text going to the report and nowhere else |
+| `ma-node-ignored:<type>` | A node type this driver does not convert — camera, light, NURBS surface, joint, script node, tool node — named after the two dots |
+| `ma-attribute-unattached` | A `setAttr` with no node to apply to: no `createNode` or `select` before it, or the selected name is not a node of this file (Maya's default nodes, `:time1` and the like, are not written by the file) |
+| `ma-attribute-invalid:<attribute>` | A `setAttr` whose values do not land on its index range, whose declared type is outside the read list, or whose index passes the element ceiling |
+| `ma-parent-unsupported` | A `parent` command this driver does not replay: it does not name known mesh shapes and a known transform, or it removes instead of adding |
+| `ma-transform-invalid` | A `transform` whose numbers are not finite; the node stays at identity |
+| `ma-hierarchy-too-deep` | A hierarchy deeper than 256 levels, a circular parent chain included; the branch is cut there without overflowing the stack |
+| `ma-shear-unsupported` | A shear (`.sh`) is declared; glTF cannot carry it in a node matrix without mixing it into the rotation, so it is not composed |
+| `ma-mesh-invalid` | A `mesh` whose arrays contradict each other: no `.vt`, a face corner outside the edge table, or an edge outside the vertex table |
+| `ma-mesh-empty` | A `mesh` that yields no triangle: no face, or every face degenerate |
+| `ma-degenerate-face` | A face of fewer than three corners; nothing to triangulate |
+| `ma-face-hole-unsupported` | A face declaring a hole (`h` record); the fan from its first corner would fill it, and a silhouette is not guessed |
+| `ma-face-record-ignored` | A `.fc` record outside those the documentation describes |
+| `ma-face-record-invalid` | A `.fc` record the writing attaches to no face |
+| `ma-uv-dropped` | Texture coordinates dropped: a `mu` record with no face, a UV set past the first, a slot outside `.uvst[0].uvsp`, or a material part where only some faces carry UVs — a glTF primitive carries an attribute for all its vertices or for none |
+| `ma-normals-dropped` | `.n` counts neither one vector per vertex nor one per mesh corner; it is dropped and the normals are computed |
+| `ma-normals-computed-flat` | No normal written: they are computed **flat**, one per face, by the Newell sum. Maya does not store the smoothing groups of a mesh it has not evaluated, and smoothing without them would invent a continuity the file does not declare |
+| `ma-face-material-invalid` | An `instObjGroups` group whose component list names no face (a vertex, an edge, an empty list) |
+| `ma-material-unsupported` | A shader bound to a surface outside the four this driver converts (`lambert`, `phong`, `blinn`, `standardSurface`) |
+| `ma-transparency-colour-unsupported` | A colour transparency whose three channels differ; glTF has one alpha, and their mean is carried rather than a channel picked at random |
+| `ma-emission-clamped` | Emission above one, which `emissiveFactor` cannot carry; clamped and reported rather than silently narrowed |
+| `ma-texture-missing` | A texture file that is absent, outside the source directory, or of a format the image registry does not read |
+| `ma-texture-unsupported` | A texture this driver cannot bind as is: an input fed by a computation rather than a `file` node, a lone metalness or roughness map, or an opacity coming from another image than the base colour |
 
 ## Using it from Node
 

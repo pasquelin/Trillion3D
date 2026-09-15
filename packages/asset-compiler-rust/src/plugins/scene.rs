@@ -16,6 +16,7 @@ mod archive;
 mod blend;
 mod fbx;
 mod gltf;
+mod ma;
 mod obj;
 mod route;
 mod ufbx_driver;
@@ -42,6 +43,7 @@ pub static PLUGINS: &[&dyn ScenePlugin] = &[
     &alembic::ALEMBIC,
     &usd::USD,
     &usdz::USDZ,
+    &ma::MA,
 ];
 
 /// Tout ce qu'un pilote reçoit pour préparer une scène.
