@@ -1,4 +1,4 @@
-import { clusterErrorAtDistance } from '../sdk-core/index.ts';
+import { clusterErrorAtDistance, transformAffinePoint } from '../sdk-core/index.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**
@@ -9,16 +9,17 @@ export function viewDistance(sphere: ArrayLike<number>, offset: number, e: Array
   return viewDistanceOf(sphere[offset], sphere[offset + 1], sphere[offset + 2], e);
 }
 
+/** Le point de vue du dernier appel, réutilisé : la coupe le lit par cluster, sans rien allouer. */
+const viewPoint = new Float64Array(3);
+
 /**
  * `|vue(p)|` d'un point donné composante par composante : la coupe plate le tire d'une sphère
  * rangée dans un tableau, l'oracle du DAG de clusters de trois nombres déjà séparés. Une seule
  * écriture des neuf multiplications, des neuf sommes et de la racine, donc les mêmes bits.
  */
 export function viewDistanceOf(x: number, y: number, z: number, e: ArrayLike<number>) {
-  const vx = e[0] * x + e[4] * y + e[8] * z + e[12];
-  const vy = e[1] * x + e[5] * y + e[9] * z + e[13];
-  const vz = e[2] * x + e[6] * y + e[10] * z + e[14];
-  return Math.sqrt(vx * vx + vy * vy + vz * vz);
+  const v = transformAffinePoint(viewPoint, e, x, y, z);
+  return Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
 /** `projectedClusterError` dont la distance du centre est déjà connue. */

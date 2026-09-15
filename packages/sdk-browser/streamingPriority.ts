@@ -1,4 +1,9 @@
-import { clusterErrorPixels, maxStretch } from '../sdk-core/index.ts';
+import {
+  clusterErrorPixels,
+  maxStretch,
+  multiplyMatrix4,
+  transformAffinePoint,
+} from '../sdk-core/index.ts';
 import type * as THREE from 'three';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
@@ -24,23 +29,10 @@ export interface PriorityCamera {
 export const PRIORITY_VISIBLE = 1,
   PRIORITY_PREFETCH = 3;
 
-function composeView(view: Float64Array, camera: ArrayLike<number>, world: ArrayLike<number>) {
-  for (let column = 0; column < 4; column++)
-    for (let row = 0; row < 4; row++) {
-      let sum = 0;
-      for (let k = 0; k < 4; k++) sum += camera[k * 4 + row] * world[column * 4 + k];
-      view[column * 4 + row] = sum;
-    }
-}
 /** View-space centre of a sphere given in the space `view` maps from; the radius is carried along
  *  untouched, exactly as the selection does, and stretched by the caller where it is used. */
 function project(view: ArrayLike<number>, sphere: ArrayLike<number>, out: Float64Array) {
-  const cx = sphere[0],
-    cy = sphere[1],
-    cz = sphere[2];
-  out[0] = view[0] * cx + view[4] * cy + view[8] * cz + view[12];
-  out[1] = view[1] * cx + view[5] * cy + view[9] * cz + view[13];
-  out[2] = view[2] * cx + view[6] * cy + view[10] * cz + view[14];
+  transformAffinePoint(out, view, sphere[0], sphere[1], sphere[2]);
   out[3] = sphere[3];
 }
 const centre = new Float64Array(4),
@@ -85,7 +77,7 @@ export function orderPendingUrls(
     let frame = views.get(record.matrix);
     if (!frame) {
       const view = new Float64Array(16);
-      composeView(view, camera.matrixWorldInverse.elements, record.matrix.elements);
+      multiplyMatrix4(view, camera.matrixWorldInverse.elements, record.matrix.elements);
       frame = { view, stretch: maxStretch(view as unknown as readonly number[]) };
       views.set(record.matrix, frame);
     }
