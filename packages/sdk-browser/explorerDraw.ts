@@ -66,7 +66,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
    * d'un réglage d'hôte, et n'est écrit que lorsqu'il change : Three recompile ses programmes sinon.
    */
   const setDisplayChain = (backend: RenderBackend) => {
-    const tone = backend.sceneLit === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+    const tone = backend.sceneLit?.() === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
     if (ownedRenderer.toneMapping !== tone) ownedRenderer.toneMapping = tone;
   };
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
