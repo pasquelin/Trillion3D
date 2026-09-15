@@ -1,4 +1,5 @@
-import { SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
+import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
+import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
 
 /**
  * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
@@ -76,16 +77,18 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     magFilter: 'linear',
     minFilter: 'linear',
   });
-  // `BounceGrid` fait quatre `vec4` ; à zéro, son compte de sondes l'est aussi et `sampleBounce`
-  // sort sans lire un seul coefficient. Le tampon de sondes n'existe alors que pour la liaison.
+  // Le remplaçant porte la taille de `BounceGrid`, lue là où la structure est écrite : une liaison
+  // plus petite que ce que le nuanceur déclare est refusée par la validation, et l'appareil est
+  // perdu. À zéro, le compte de sondes l'est aussi et `sampleBounce` sort sans lire un coefficient ;
+  // le tampon de sondes tient une sonde entière, pour que sa taille aussi suive la structure.
   const bounceGrid = device.createBuffer({
     label: 'WG empty bounce grid',
-    size: 64,
+    size: BOUNCE_GRID_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   });
   const probes = device.createBuffer({
     label: 'WG empty bounce probes',
-    size: 16,
+    size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
   return {

@@ -6,6 +6,15 @@ const LEVEL_WORDS = 8;
 const HEADER_WORDS = 12;
 
 /**
+ * Octets de `BounceGrid`, unique source de vérité : cet uniforme, la structure WGSL que les trois
+ * nuanceurs du rebond déclarent, et le tampon de remplacement que lit une image sans rebond ont
+ * tous la même taille. Un niveau de cascade ajouté la fait grandir des trois côtés à la fois, et
+ * jamais d'un seul — un remplaçant plus petit que la structure fait échouer la liaison, donc perdre
+ * l'appareil, et c'est exactement ce qu'un nombre écrit à la main a déjà coûté.
+ */
+export const BOUNCE_GRID_BYTES = (HEADER_WORDS + BOUNCE_SETTINGS.cascadeLevels * LEVEL_WORDS) * 4;
+
+/**
  * L'uniforme que les trois nuanceurs du rebond partagent : la passe de sondes, celle du cache de
  * surfaces et la résolution différée lisent la même description des cascades, au même rang.
  *
@@ -17,8 +26,7 @@ const HEADER_WORDS = 12;
 export function createBounceUniform(device: GPUDevice, cascades: BounceCascades) {
   // L'uniforme porte toujours le nombre de niveaux déclaré, même quand la scène en tient moins :
   // la taille du tableau est une constante du nuanceur, et `counts.y` dit combien sont réels.
-  const words = HEADER_WORDS + BOUNCE_SETTINGS.cascadeLevels * LEVEL_WORDS;
-  const packed = new ArrayBuffer(words * 4);
+  const packed = new ArrayBuffer(BOUNCE_GRID_BYTES);
   const floats = new Float32Array(packed),
     integers = new Uint32Array(packed);
   const buffer = device.createBuffer({

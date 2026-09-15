@@ -5,6 +5,13 @@ import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
 /** Fils d'un groupe de travail de la passe de cache : une maille par fil. */
 export const SURFACE_WORKGROUP = 64;
+/** Mailles du cache de surfaces : deux faces par triangle du proxy, une au moins. */
+export const surfaceCacheTexels = (triangleCount: number) => Math.max(1, triangleCount * 2);
+/**
+ * Octets du cache, unique source de vérité : la passe qui le crée et le plan des liaisons lisent la
+ * même formule. Une maille tient un `vec4f` — la radiance sortante de la face et son drapeau.
+ */
+export const surfaceCacheBytes = (triangleCount: number) => surfaceCacheTexels(triangleCount) * 16;
 /** Étiquette de la passe mesurée ; elle rejoint l'étape « Rebond » comme celle des sondes. */
 export const BOUNCE_SURFACE_PASS = 'WG bounce surface cache v1';
 
