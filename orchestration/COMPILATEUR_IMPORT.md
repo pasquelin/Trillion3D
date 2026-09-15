@@ -35,7 +35,7 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | `.blend`                | SDNA documenté ; lire un .blend n'impose pas la GPL     | à coder | maillages, UV, instances, Principled BSDF de base    | P3       |
 | PSD / PSB               | spécification publiée par Adobe pour les lecteurs tiers | à coder | aplati seulement, vers RGBA8                         | P3       |
 | BMP, GIF                | ouverts                                                 | à coder | features `image`                                     | P3       |
-| ZIP                     | ouvert                                                  | à coder | extraction préalable                                 | P2       |
+| ZIP                     | ouvert                                                  | fait    | —                                                     | —        |
 
 ## Sûrs sous conditions — à faire, condition écrite dans le code et le journal
 

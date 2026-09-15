@@ -236,6 +236,13 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `INCOMPLETE_CLUSTER_PARTITION`, `INVALID_CLUSTER_PARTITION` | Internal consistency check failed on level-0 clusters |
 | `CANCELLED` | Stopped on a cancel request |
 | `IO_ERROR`, `THREAD_POOL_ERROR` | Filesystem or thread pool failure |
+| `ARCHIVE_PATH_ESCAPE` | ZIP entry path leaves the extraction root (absolute path, `..`, named volume, reversed separator) |
+| `ARCHIVE_SYMLINK` | ZIP entry is a symlink; never followed |
+| `ARCHIVE_ENCRYPTED` | ZIP entry is encrypted; refused, never bypassed |
+| `ARCHIVE_UNREADABLE` | ZIP archive truncated or corrupted |
+| `ARCHIVE_EMPTY` | ZIP archive carries no entry |
+| `ARCHIVE_TOO_MANY_ENTRIES` | ZIP archive exceeds 20,000 entries |
+| `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
 
 ## Using it from Node
 
