@@ -1,6 +1,6 @@
 // Banc d'équivalence du lot « formules communes TS ». Il ne cherche aucun gain : il oppose chaque
-// fonction commune à la copie qu'elle remplace, sur des entrées variées — NaN, −0, infinis,
-// dénormaux, plans dégénérés, triangles d'aire nulle — et la ligne tombe au premier bit d'écart.
+// fonction commune à la copie qu'elle remplace, sur les entrées hostiles de `scenesFormules.mjs`,
+// et la ligne tombe au premier bit d'écart.
 //
 // La colonne « retenu » du tableau commun dit qu'une ligne est plus rapide qu'avant : ce n'est pas
 // le critère ici. Seule la colonne « identique » décide, et l'assertion de dépôt la fait tomber.
@@ -15,7 +15,7 @@ import { barycentric } from '../visibilityMath.ts';
 import { barycentricAt, signedArea } from '../visibilityProjection.ts';
 import { packedRowBase } from '../webgpuPageRow.ts';
 import { plancherDuModele } from '../../../scripts/mesure/poses.mjs';
-import { compare, graine } from '../../sdk-core/bench/banc.mjs';
+import { compare } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeFormules } from '../../sdk-core/bench/bancFormules.mjs';
 import {
   referenceBarycentric,
@@ -30,95 +30,16 @@ import {
   referenceViewDistance,
   referenceWeights,
 } from './oracles/formules-ts.mjs';
-
-const alea = graine(40961);
-/** Les valeurs qu'un flottant peut prendre et qu'une formule doit traverser sans les lisser. */
-const BORDS = [0, -0, 1, -1, Infinity, -Infinity, NaN, 5e-324, Number.MIN_VALUE, 1e308, -1e308];
-const nombre = () => {
-  const r = alea();
-  if (r < 0.12) return BORDS[Math.floor(alea() * BORDS.length)];
-  return (alea() * 2 - 1) * 10 ** Math.floor(alea() * 12 - 6);
-};
-
-/** Six plans tirés au hasard, plus quelques-uns dégénérés : les 24 réels que la coupe lit. */
-const jeuxDePlans = [];
-for (let i = 0; i < 400; i++) {
-  const planes = new Float64Array(24);
-  for (let k = 0; k < 24; k++) planes[k] = i % 17 === 0 ? nombre() : alea() * 4 - 2;
-  jeuxDePlans.push(planes);
-}
-/** Des boîtes : ordinaires, plates, inversées, infinies, et une avec un NaN. */
-const boites = [];
-for (let i = 0; i < 400; i++) {
-  const c = [alea() * 20 - 10, alea() * 20 - 10, alea() * 20 - 10];
-  const e = i % 11 === 0 ? 0 : alea() * 5;
-  const boite = [c[0] - e, c[1] - e, c[2] - e, c[0] + e, c[1] + e, c[2] + e];
-  if (i % 23 === 0) boite[0] = NaN;
-  if (i % 29 === 0) boite[3] = -Infinity;
-  boites.push(boite);
-}
-const casPlans = jeuxDePlans.map((planes, i) => ({ planes, boite: boites[i] }));
-
-/** Des matrices de vue : identité, mise à l'échelle, miroir, quasi singulière, pleine de NaN. */
-const matrices = [];
-for (let i = 0; i < 200; i++) {
-  const m = new Float64Array(16);
-  for (let k = 0; k < 16; k++) m[k] = alea() * 4 - 2;
-  if (i % 13 === 0) m[5] = 0;
-  if (i % 31 === 0) m[10] = NaN;
-  matrices.push(m);
-}
-const casProjection = [];
-for (let i = 0; i < 2000; i++) {
-  const m = matrices[i % matrices.length];
-  casProjection.push({
-    error: i % 7 === 0 ? nombre() : alea() * 10,
-    sphere: [alea() * 200 - 100, alea() * 200 - 100, alea() * 200 - 100, alea() * 5],
-    e: m,
-    stretch: i % 9 === 0 ? nombre() : alea() * 3,
-    focal: i % 5 === 0 ? nombre() : alea() * 1000,
-    near: i % 3 === 0 ? nombre() : alea(),
-  });
-}
-
-/** Des triangles écran : ordinaires, plats, dégénérés, hors champ, avec un sommet non fini. */
-const point = (i) => ({
-  x: i % 19 === 0 ? nombre() : alea() * 2000 - 500,
-  y: i % 23 === 0 ? nombre() : alea() * 2000 - 500,
-  z: alea(),
-  invW: alea(),
-});
-const triangles = [];
-for (let i = 0; i < 3000; i++) {
-  const a = point(i),
-    b = point(i + 1),
-    c = i % 37 === 0 ? { ...a } : point(i + 2);
-  triangles.push({ a, b, c, x: alea() * 1000 - 100, y: alea() * 1000 - 100 });
-}
-
-/** Les rangs, plafonds, charges et durées que les autres formules communes reçoivent. */
-const rangs = [];
-for (let i = 0; i < 2000; i++) rangs.push(i % 17 === 0 ? Math.floor(alea() * 1e7) : i);
-const lots = [];
-for (let i = 0; i < 2000; i++)
-  lots.push({ ceiling: i % 11 === 0 ? nombre() : Math.floor(alea() * 1e6), load: alea() });
-const tailles = [];
-for (let i = 0; i < 2000; i++)
-  tailles.push({
-    logical: i % 13 === 0 ? nombre() : Math.floor(alea() * 4000),
-    ratio: i % 5 === 0 ? undefined : alea() * 4,
-  });
-const durees = [];
-for (let i = 0; i < 2000; i++) durees.push(i % 7 === 0 ? nombre() : alea() * 1e12);
-const emprises = [];
-for (let i = 0; i < 1000; i++) {
-  const y0 = alea() * 20 - 10,
-    y1 = y0 + alea() * 20;
-  emprises.push({
-    min: { x: 0, y: i % 11 === 0 ? nombre() : y0, z: 0 },
-    max: { x: 1, y: i % 13 === 0 ? nombre() : y1, z: 1 },
-  });
-}
+import {
+  casPlans,
+  casProjection,
+  durees,
+  emprises,
+  lots,
+  rangs,
+  tailles,
+  triangles,
+} from './scenesFormules.mjs';
 
 const un = (nom, entree, taille) => [{ nom, entree, taille }];
 const options = { chauffe: 2, tours: 12, budgetMs: 700 };
