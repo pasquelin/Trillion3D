@@ -46,18 +46,18 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
     },
     /** L'état de l'image encodée : révision des lampes, groupes lancés, compteur d'images, niveaux. */
     write(generation: number, groups: number, frame: number) {
-      integers.set([generation, groups, frame, 0], 8);
+      integers[8] = generation;
+      integers[9] = groups;
+      integers[10] = frame;
+      // Mot par mot : cette écriture a lieu à chaque image encodée, et n'alloue donc rien.
       cascades.levels.forEach((level, index) => {
         const at = HEADER_WORDS + index * LEVEL_WORDS;
-        floats.set(
-          [
-            ...level.base.map((cell) => (cell + 0.5) * level.spacing),
-            level.spacing,
-            ...level.base,
-            0,
-          ],
-          at,
-        );
+        floats[at + 3] = level.spacing;
+        for (let axis = 0; axis < 3; axis++) {
+          // `originSpacing.xyz` : le centre monde de la maille de base. `base.xyz` : cette maille.
+          floats[at + axis] = (level.base[axis] + 0.5) * level.spacing;
+          floats[at + 4 + axis] = level.base[axis];
+        }
       });
       upload();
     },

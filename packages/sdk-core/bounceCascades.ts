@@ -78,19 +78,23 @@ function spacingsOf(bounds: readonly number[]): number[] {
   return spacings;
 }
 
-/** La maille de base d'un niveau : centrée sur le point de vue s'il suit, sur l'emprise sinon. */
-function baseOf(
-  spacing: number,
-  moving: boolean,
-  viewpoint: ArrayLike<number>,
-  bounds: readonly number[],
-): [number, number, number] {
+/** La maille de base des trois axes, depuis celle que porte chacun. */
+function baseOf(cellOf: (axis: number) => number): [number, number, number] {
+  return [cellOf(0), cellOf(1), cellOf(2)];
+}
+
+/**
+ * La maille de base d'un niveau posé sur l'emprise : une maille avant elle. Sans cette couronne, un
+ * point du sol décalé le long de sa normale tomberait hors du niveau et son rebond vaudrait zéro.
+ */
+function fixedBase(spacing: number, bounds: readonly number[]) {
+  return baseOf((axis) => Math.floor(bounds[axis] / spacing) - 1);
+}
+
+/** La maille de base d'un niveau qui suit la caméra : son cube est centré sur le point de vue. */
+function movingBase(spacing: number, viewpoint: ArrayLike<number>) {
   const half = BOUNCE_SETTINGS.cascadeSize / 2;
-  // Le niveau fixe pose sa base une maille avant l'emprise : sans cette couronne, un point du sol
-  // décalé le long de sa normale tomberait hors du niveau et son rebond vaudrait exactement zéro.
-  return [0, 1, 2].map((axis) =>
-    moving ? Math.floor(viewpoint[axis] / spacing) - half : Math.floor(bounds[axis] / spacing) - 1,
-  ) as [number, number, number];
+  return baseOf((axis) => Math.floor(viewpoint[axis] / spacing) - half);
 }
 
 export function createBounceCascades(bounds: readonly number[]): BounceCascades {
@@ -99,7 +103,7 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
   const spacings = spacingsOf(bounds);
   const levels: BounceCascadeLevel[] = spacings.map((spacing, level) => ({
     spacing,
-    base: baseOf(spacing, false, bounds, bounds),
+    base: fixedBase(spacing, bounds),
     moving: level < spacings.length - 1,
   }));
   const shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length);
@@ -121,7 +125,7 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
       let moved = false;
       for (const level of levels) {
         if (!level.moving) continue;
-        const base = baseOf(level.spacing, true, viewpoint, bounds);
+        const base = movingBase(level.spacing, viewpoint);
         if (base.some((value, axis) => value !== level.base[axis])) moved = true;
         level.base = base;
       }

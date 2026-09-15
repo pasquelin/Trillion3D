@@ -94,15 +94,16 @@ export function createBounceOccupancy(
     let base = 0;
     base + PROXY_TRIANGLE_FLOATS <= triangles.length;
     base += PROXY_TRIANGLE_FLOATS
-  )
+  ) {
     for (let axis = 0; axis < 3; axis++) {
       const a = triangles[base + axis],
         b = triangles[base + 3 + axis],
         c = triangles[base + 6 + axis];
       low[axis] = Math.floor(Math.min(a, b, c) / spacing) - origin[axis];
       high[axis] = Math.floor(Math.max(a, b, c) / spacing) - origin[axis];
-      if (axis === 2) mark(map, dims, low, high);
     }
+    mark(map, dims, low, high);
+  }
   map = dilate(map, dims);
   const maps = [{ map, dims, origin }];
   let bytes = map.length;
@@ -120,11 +121,16 @@ export function createBounceOccupancy(
     cells,
     bytes,
     marked: maps[0].map.reduce((sum, value) => sum + value, 0),
+    // Appelée une fois par sonde examinée, à chaque image : rien n'y est alloué ni parcouru.
     occupied(level, x, y, z) {
       const entry = maps[Math.min(level, maps.length - 1)];
-      const local = [x - entry.origin[0], y - entry.origin[1], z - entry.origin[2]];
-      if (local.some((value, axis) => value < 0 || value >= entry.dims[axis])) return false;
-      return entry.map[local[0] + entry.dims[0] * (local[1] + entry.dims[1] * local[2])] === 1;
+      const [width, height, depth] = entry.dims;
+      const localX = x - entry.origin[0],
+        localY = y - entry.origin[1],
+        localZ = z - entry.origin[2];
+      if (localX < 0 || localY < 0 || localZ < 0) return false;
+      if (localX >= width || localY >= height || localZ >= depth) return false;
+      return entry.map[localX + width * (localY + height * localZ)] === 1;
     },
   };
 }
