@@ -109,6 +109,7 @@ Tout le reste est supprimable une fois fusionné et propre.
 
 - Prendre le verrou par `mkdir`. Si `mkdir` échoue, attendre : ne rien écrire dans un verrou existant. Le verrou reste **vide** (un fichier dedans fait échouer le `rmdir` d'un autre).
 - Attente autorisée : une seule commande Bash `run_in_background` avec `until mkdir …; do sleep 20; done`. Jamais de boucle `pgrep -f`, qui se trouve elle-même.
+- La libération ne s'enchaîne qu'à une prise réussie : `mkdir … && { travail; rmdir …; }`, jamais `mkdir … ; … ; rmdir`. Incident du 15 septembre 2026, 19 h 58 : un agent de Geometry dont le `mkdir` avait échoué a effacé le verrou d'une autre session par un `rm proprietaire; rmdir` placé après un `;`.
 - Toujours `rmdir` en fin de travail, même en échec. Prévenir la session qui attendait (« verrou rendu »).
 - Un validate est lourd : il fausse les **temps** d'une campagne concurrente, pas ses pixels.
 - Charge à une minute sous 4 pour une mesure de temps. Port 5174 interdit (serveur de l'utilisateur).
