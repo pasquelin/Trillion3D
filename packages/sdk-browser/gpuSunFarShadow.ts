@@ -55,6 +55,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
   const countingFlag = new Uint32Array(1);
   const counted: SunFarCounts = { frame: -1, tested: 0, blocked: 0 };
   let proxy: GpuBounceProxy | undefined,
+    columns: readonly GPUBuffer[] | undefined,
     owned = false,
     countedReady = false,
     counting = false,
@@ -88,10 +89,14 @@ export function createGpuSunFarShadow(device: GPUDevice) {
 
   return {
     state,
-    /** Les colonnes du proxy à lier, ou rien tant qu'aucun proxy n'est résident. */
+    /**
+     * Les colonnes du proxy à lier, ou rien tant qu'aucun proxy n'est résident. La liste est celle
+     * d'`adopt`, rendue telle quelle : la passe différée compare les ressources qu'on lui donne à
+     * celles qu'elle a liées, si bien qu'une liste neuve à chaque image lui ferait refaire son
+     * groupe de liaison pour rien.
+     */
     buffers(): readonly GPUBuffer[] | undefined {
-      const resident = proxy;
-      return resident && SUN_FAR_PROXY_COLUMNS.map((column) => resident[column]);
+      return columns;
     },
     get proxy() {
       return proxy;
@@ -114,6 +119,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
      */
     adopt(resident: GpuBounceProxy, owns: boolean) {
       proxy = resident;
+      columns = SUN_FAR_PROXY_COLUMNS.map((column) => resident[column]);
       owned = owns;
       const [x0, y0, z0, x1, y1, z1] = resident.bounds;
       params[OFFSET] = LIGHT_SETTINGS.sunFarShadowOffsetMetres;
@@ -163,6 +169,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
       readback.destroy();
       if (owned) proxy?.dispose();
       proxy = undefined;
+      columns = undefined;
     },
   };
 }
