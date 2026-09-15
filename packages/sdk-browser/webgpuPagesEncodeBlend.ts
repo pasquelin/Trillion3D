@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { writeBlendUniforms } from './webgpuBlendUniforms.ts';
+import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
@@ -42,6 +43,9 @@ export function encodeBlend(
   );
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
+  // The compaction reads the mask this very frame's cluster cut wrote, a few commands earlier in the
+  // same buffer, and writes the instance list the pass below draws from.
+  encodeTransparentInstances(rt, encoder);
   ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
   writeBlendUniforms(rt, device, uniformBase, textured);
   drawBlendPass(rt, device, encoder, uniformBase, textured);

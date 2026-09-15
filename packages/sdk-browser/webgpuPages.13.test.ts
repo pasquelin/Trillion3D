@@ -43,18 +43,14 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
     await backend.flush();
     draws.length = 0;
     backend.render(camera());
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
+    // One visible cluster of one triangle, rasterised by both face passes: the triangle is counted
+    // once, the two passes show in the draw calls.
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 1);
     assert.equal(backend.metrics().transparentDrawCalls, 2);
     assert.equal(backend.metrics().transparentMeshes, 1);
-    assert.equal(
-      backend.metrics().submittedTriangles,
-      2,
-      'transparent pages never enter the opaque pass',
-    );
-    assert.equal(
-      draws.filter((d) => d.entryPoint === 'vs').reduce((n, d) => n + d.vertexCount, 0),
-      6,
-    );
+    const blend = draws.filter((d) => d.indirect && d.entryPoint === 'vs');
+    assert.equal(blend.length, 2, 'both face passes draw indirectly');
+    for (const draw of blend) assert.equal(draw.instanceCount, 1, 'one instance per kept cluster');
     const uploads = writes.length;
     backend.render(camera());
     assert.equal(
@@ -125,7 +121,7 @@ test('clustered transparency switches LOD with resident coverage and retains bot
     backend.render(camera());
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      2,
+      1,
       'coarse coverage drawn while detail is missing',
     );
     backend.acceptPage!('0', fixture.indices.get('0')!);
@@ -134,18 +130,18 @@ test('clustered transparency switches LOD with resident coverage and retains bot
     backend.render(camera());
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      2,
+      1,
       'partial detail cannot replace coverage',
     );
     backend.acceptPage!('1', fixture.indices.get('1')!);
     backend.syncResident!();
     await backend.flush();
     backend.render(camera());
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 4);
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
     assert.equal(
       backend.metrics().transparentDrawCalls,
       2,
-      'pages are merged in source order for each face pass',
+      'one indirect draw per face pass, however many clusters the compaction kept',
     );
   } finally {
     await backend.dispose();

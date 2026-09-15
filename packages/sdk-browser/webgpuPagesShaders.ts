@@ -8,6 +8,7 @@ import {
   atlasTextures,
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
+import { FLAG_PAGED } from './visibilityBuffer.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -57,9 +58,11 @@ ${atlasTextures(BLEND_BINDINGS.dataMaps, 'dataMaps')}
 ${STANDARD_LIGHTING_WGSL}
 ${SCENE_LIGHTING_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.sceneLights}) var<storage,read> sceneLights:SceneLights;
-@group(0) @binding(${BLEND_BINDINGS.triangleDiagnostic}) var<storage,read> triangleDiagnostic:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.clusterIds}) var<storage,read> clusterIds:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
@@ -75,17 +78,29 @@ fn aces(color:vec3f)->vec3f{
 }
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(c,vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}
 ${TRIANGLE_PALETTE_WGSL}
-@vertex fn vs(@builtin(vertex_index) vertexIndex:u32)->VSOut{
+// A paged transparent primitive draws one instance per cluster the GPU compaction kept, in the
+// order the compaction wrote them, which is the source order the scene recorded. An unpaged one
+// keeps its single instance over its own index buffer.
+@vertex fn vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instance:u32)->VSOut{
  var out:VSOut;
- if(vertexIndex>=uni.indexCount){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
- let id=indices[uni.pageOffset+vertexIndex];
+ var base=uni.pageOffset;
+ var count=uni.indexCount;
+ var clusterId=0u;
+ if((uni.flags&${FLAG_PAGED}u)!=0u){
+  let span=clusterSpans[clusterIds[uni.pageOffset+instance]];
+  base=span.x;
+  count=span.y;
+  clusterId=clusterDiagnostic[clusterIds[uni.pageOffset+instance]];
+ }
+ if(vertexIndex>=count){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
+ let id=indices[base+vertexIndex];
  let world=uni.world*vec4f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u],1.0);
  out.position=uni.viewProj*world;out.view=world.xyz;out.color=uni.color;
  out.tri=0u;
  out.diagId=0u;
- if((uni.flags&0x1c000000u)!=0u){out.diagId=triangleDiagnostic[vertexIndex/3u];}
+ if((uni.flags&0x1c000000u)!=0u){out.diagId=clusterId;}
  if((uni.flags&0x20000000u)!=0u){
-  let triangle=(vertexIndex/3u)*3u;
+  let triangle=base+(vertexIndex/3u)*3u;
   let a=triangleHash(indices[triangle]);let b=triangleHash(indices[triangle+1u]);let c=triangleHash(indices[triangle+2u]);
   out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
  }

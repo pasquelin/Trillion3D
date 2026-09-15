@@ -12,7 +12,7 @@ test('what the image draws is held even when the cut never asked for it', () => 
   // The cut asks for two fine clusters whose pages have not arrived, so the image draws a coarse
   // ancestor the cut never named. Nothing else holds it: without this hold the cache is free to
   // reclaim, under the image, the surface that image is showing.
-  frame(world, [4, 6], [], [], 64);
+  frame(world, [4, 6], 64);
   drawn.apply([12]);
   sets.applyDrawn(drawn);
   assert.equal(tracking.keep.has(at(12)), true, 'ancêtre dessiné gardé');
@@ -42,7 +42,7 @@ test('the queue is a function of the cut and the budget, not of the order pages 
     const reference = new Set<number>();
     histories.forEach((history, index) => {
       const world = scene();
-      for (const ids of history) frame(world, ids, [], [], room);
+      for (const ids of history) frame(world, ids, room);
       const queue = keysOf(world.tracking.wanted);
       if (index === 0) for (const key of queue) reference.add(key);
       else assert.deepEqual(queue, reference, `budget ${room}, histoire ${index}`);
