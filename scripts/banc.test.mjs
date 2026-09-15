@@ -77,3 +77,12 @@ test('sceneOf retombe sur la scène par défaut sans cache nommé', () => {
   assert.strictEqual(sceneOf(undefined), DEFAULT_SCENE);
   assert.strictEqual(sceneOf(''), DEFAULT_SCENE);
 });
+
+// `--instances` : le nombre de copies que le SDK pose en grille. Une seule par défaut, et seules
+// les grilles que `replicateInstances` sait poser sont acceptées.
+test('readOptions lit --instances et refuse une grille que le SDK ne sait pas poser', () => {
+  const root = '/tmp/test';
+  assert.strictEqual(readOptions([], root).settings.instances, 1);
+  assert.strictEqual(readOptions(['--instances=9'], root).settings.instances, 9);
+  assert.throws(() => readOptions(['--instances=3'], root), /--instances/);
+});
