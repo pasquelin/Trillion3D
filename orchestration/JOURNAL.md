@@ -1,5 +1,187 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-16 — [session sans-threejs] CPU par image WebGPU : encodage et soumission (lot encodage)
+
+Worktree `lot-encodage`, branche `lot/encodage`, partie de `develop` = `21dbe9e`, rebasée sur
+`62c6b3d` (lot rebond de la session Lumière) avant la fusion et la preuve rejouée sur cette base.
+Six commits : `961d37c` (profil nommé), `231f50d` (sélection de la moitié proche), `e96962a`
+(projection), `aa6462c` (adoption), `953d810` (transparents), `8082e64` (tests).
+
+### 1. Le profil de départ, parce qu'il n'existait pas
+
+Le profil par étape du moteur WebGPU déposait la projection des boîtes, la partition
+occulteurs/testés, les fiches de dessin et l'encodage des passes sur une seule étape « Encodage des
+commandes », et l'adoption de la coupe sur « Sélection ». On ne pouvait donc pas dire où allaient
+les 4,5 ms que cette étape portait. Chaque borne a maintenant la sienne — ce sont les bornes que le
+moteur tenait déjà, rangées une par une — et trois séries de compteurs disent ce que l'image a
+réellement fait : lignes et occulteurs de la partition, lignes et fiches téléversées, appels de
+dessin. La projection se chronomètre aussi dans la branche sans historique, où elle projette toutes
+les boîtes ; elle se déposait jusqu'ici sur la partition.
+
+Départ mesuré sur cette base (Emerald, vue générale, 1280×720, `--max-pages 100000`, charge 5) :
+
+| étape                 | fixe · 0 (p50) | mobile · 0 (p50) |
+| --------------------- | -------------- | ---------------- |
+| Adoption de la coupe  | **1,3**        | 0,0              |
+| Sélection             | 0,2            | 0,2              |
+| Téléversements        | 0,2            | 0,2              |
+| Partition             | 0,4            | **1,5**          |
+| Projection des boîtes | 0,1            | **4,2**          |
+| Fiches de dessin      | **1,2**        | 1,1              |
+| Encodage des passes   | **2,8**        | 2,3              |
+| Soumission            | 0,0            | 0,0              |
+| somme des étapes      | 6,2            | 9,5              |
+| `cpuFrameMs`          | 8,8            | 13,4             |
+
+**Ce que ce profil a appris, et qui n'était pas ce que le lot attendait.** (a) À caméra mobile la
+borne la plus chère n'est pas l'encodage mais la **projection des boîtes**, et les compteurs disent
+pourquoi : `sansHistorique 1`, `bornesToutes 1` à chaque image. (b) L'encodage restant n'est ni un
+téléversement ni une boucle par ligne — `lignesTeleversees 0`, `fichesTeleversees 0` : la table des
+rangs et les fiches sont stables et ne repartent pas sur la carte à chaque image. C'est le **nombre
+d'appels de dessin**, 1 936 par image, dont 1 928 de mélange. (c) L'adoption de la coupe refaisait
+la liste dessinable à chaque image, même sur le relevé déjà tenu.
+
+Les étapes 2 à 5 suivent ce que le profil a montré, pas ce qui était supposé avant lui.
+
+### 2. Partition : sélectionner la moitié la plus proche au lieu de la trier
+
+Le partage ne lit que l'**ensemble** de la moitié la plus proche, jamais son ordre : huit passes de
+dispersion radix sur toute la coupe y répondaient. Une sélection suffit — descente des octets du
+plus fort au plus faible, les seaux entiers qui tiennent sous le rang cherché marqués d'un coup, et
+une seule redescente dans celui qui le contient. L'ensemble rendu est celui du tri stable terme pour
+terme : tout ce qui est strictement plus proche que la clé de rang, puis les premières clés égales
+dans l'ordre des candidats. Le tri complet reste pour le chemin qui rend des pages ordonnées.
+
+### 3. Projection : la division que la vue affine rend inutile, et l'arrêt au premier coin coupé
+
+La quatrième ligne de la vue d'une caméra vaut exactement (0,0,0,1) : le dénominateur du passage en
+espace de vue vaut alors exactement 1 pour un coin fini, et multiplier par 1 rend la même valeur au
+bit près. La division est **sautée quand le dénominateur vaut 1**, jamais remplacée — un dénominateur
+inexact, ou une vue qui n'est pas affine, retombe sur elle, ce qui garde l'arithmétique identique là
+où `1/x` et `×(1/x)` diffèrent. Et une boîte qui coupe le plan proche rend un enregistrement que plus
+aucun coin ne lit : la boucle s'y arrête.
+
+### 4. Adoption : ne refaire la liste dessinable que quand le relevé change
+
+Chaque image reconstruisait la liste des enregistrements dessinables depuis le relevé, même quand
+c'était le relevé déjà tenu : quatre-vingt mille poussées dans un tableau intermédiaire, puis autant
+dans `shown`, puis autant dans `drawn`. Le contenu de `shown` est une fonction du seul relevé — les
+mêmes identifiants, lus dans le même catalogue, rendent les mêmes enregistrements dans le même ordre.
+Un relevé dont la liste est déjà faite ne la refait donc plus, et seuls les comptes sont relus : eux
+seuls dépendent de la résidence, et ils le sont sur les mêmes enregistrements, dans le même ordre,
+par la même arithmétique. Le chemin qui réécrit les tableaux (coupe processeur) oublie déjà le relevé
+tenu, ce qui suffit à la sûreté. Le tableau intermédiaire disparaît.
+
+### 5. Transparents : un pipeline posé une fois par changement, et leur encodage nommé
+
+La passe de mélange reposait son pipeline à chaque item — 1 928 fois par image — alors que la liste,
+triée par ordre source, enchaîne des items qui demandent le même. Le pipeline courant est suivi ;
+l'ordre et le nombre des appels de dessin sont inchangés. Le temps processeur de cette passe se
+dépose désormais sur l'étape « Transparents », qu'elle n'avait plus remplie depuis que la coupe des
+transparents est sur la carte graphique, et sort de l'encodage restant.
+
+### Preuve
+
+Verrou `.claude/mesure.lock` pris et libéré. Harnais commun, `--moteur webgpu`, 1280×720, 60 images,
+chauffe par défaut, `--max-pages 100000`, les deux côtés lisant le même cache Emerald recompilé hors
+du banc (manifeste binaire version 4, 281 primitives). Une exécution 3 vues × 2 seuils **et** une
+exécution caméra mobile 2 seuils par étape, `avant` = `develop`.
+
+| étape              | base      | commit mesuré | vues × seuils | caméra mobile | A/A | hash de coupe | trous |
+| ------------------ | --------- | ------------- | ------------- | ------------- | --- | ------------- | ----- |
+| 1 profil nommé     | `21dbe9e` | `8221ce2`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+| 2 sélection proche | `21dbe9e` | `7c2dc3d`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+| 3 projection       | `21dbe9e` | `b55e34a`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+| 4 adoption         | `21dbe9e` | `77fc010`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+| 5 transparents     | `21dbe9e` | `1b52d5b`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+| tête, après rebase | `62c6b3d` | `8082e64`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+| tête, après rebase | `09092c5` | `49dd55f`     | 0 px sur 6/6  | 0 px sur 2/2  | 0   | identique 8/8 | 0     |
+
+`develop` a bougé deux fois pendant le lot — le lot rebond de la session Lumière (`62c6b3d`), puis
+l'audit des calculs (`09092c5`), qui touchent tous deux du code de production du moteur. La branche a
+été rebasée sur chacun et la preuve rejouée en entier ; les commits mesurés par étape sont donc ceux
+d'avant les rebases, et ce sont les mêmes correctifs que ceux fusionnés (`1232c8d`, `d6bbb2c`,
+`63141fe`, `f5c8140`, `2d60e23`, `da83171`). La dernière ligne est celle qui fusionne.
+
+`uncoveredTriangles` 0 des deux côtés partout, `selectedTriangles` identiques série par série, témoin
+A/A à 0 px sur chacune des seize séries des deux preuves finales, plus une exécution A/A
+supplémentaire de générale · 0 sur chaque base — soit, sur la base qui fusionne, deux exécutions du
+témoin à 0 px, comme demandé.
+
+**Ce que gagne chaque étape**, relevé sur l'exécution de l'étape elle-même, les deux côtés joués dans
+les mêmes conditions (p50, avant → après) :
+
+| étape          | ce qui bouge dans le profil                   | fixe · 0      | mobile · 0      |
+| -------------- | --------------------------------------------- | ------------- | --------------- |
+| 2 sélection    | Partition 1,5 → **1,0** (mobile)              | 8,7 → 8,6     | 11,4 → **11,0** |
+| 3 projection   | Projection 4,2 → **3,9** (mobile)             | 8,8 → 8,9     | 13,0 → **11,7** |
+| 4 adoption     | Adoption 1,3 → **0,7** (fixe)                 | 8,6 → **8,4** | 12,2 → **11,2** |
+| 5 transparents | Transparents nommés, 0,5 sortis de l'encodage | 8,9 → 9,1     | 11,9 → **10,9** |
+
+Et la tête du lot contre `develop`, les deux côtés dans les mêmes conditions — charge machine
+relevée **12 à 21** sur `62c6b3d` et **13 à 44** sur `09092c5`, une indexation système que cette
+session ne contrôle pas. À cette charge les durées ne valent que par leur sens, pas par leur valeur :
+c'est le tableau par étape ci-dessus, relevé entre 5 et 12, qui chiffre les gains. Les verdicts
+pixel, eux, n'en dépendent pas :
+
+| série      | sur `62c6b3d`, p50/p95        | sur `09092c5`, p50/p95        |
+| ---------- | ----------------------------- | ----------------------------- |
+| fixe · 0   | 8,4 / 9,7 → **8,3 / 9,5**     | 9,8 / 10,7 → **8,0 / 8,9**    |
+| fixe · 1   | 2,8 / 3,3 → **2,5 / 2,9**     | 2,8 / 3,3 → **2,5 / 2,9**     |
+| mobile · 0 | 11,9 / 13,7 → **10,8 / 13,5** | 12,0 / 13,3 → **11,3 / 14,0** |
+| mobile · 1 | 4,1 / 4,9 → **3,9 / 4,5**     | 6,7 / 7,8 → **5,4 / 6,1**     |
+
+Profil de la tête, vue générale · 0 : fixe — adoption 0,8, sélection 0,2, transparents 0,5,
+téléversements 0,2, partition 0,3, projection 0,2, fiches 1,2, encodage 2,3 ; mobile — projection
+4,0, fiches 1,2, encodage 1,6, partition 0,9, transparents 0,5, téléversements 0,3, sélection 0,2.
+
+### Portes
+
+`npm run validate` **vert de bout en bout** (`format:check`, `check:lines`, `check:duplicates` 0
+clone, `lint` + Clippy, `check:unused`, `build`, `build:native`, `check:structure`, `check:dts`,
+`check:links`, tests JS **661, 0 échec**, tests Rust **134 + 4, 0 échec**). Huit tests ajoutés dans
+quatre fichiers : `hizSplitSelection.test.ts`, `webgpuCutAdoptionHold.test.ts`,
+`hizProjectionAffine.test.ts`, `webgpuBlendPipelineBind.test.ts`. `render-tech-lab/` non modifié ;
+port 5174 non touché ; aucun `eslint-disable` ; `node_modules` (lien symbolique) non committé ; rien
+écrit dans `public/` ; fichiers d'ombres, de lampes, d'éclairage et compilateur Rust non touchés.
+
+### Ce qui reste, et ce qui n'a pas été fait
+
+- **La cible `< 4 ms` n'est pas atteinte** : 8,3 ms fixe et 10,8 ms mobile, dont 5,7 et 8,7 dans les
+  étapes nommées. Ce lot enlève entre 0,1 et 1,1 ms selon la série ; il a surtout **nommé** où le
+  reste se trouve, ce qui manquait.
+- **Le plus gros levier restant est nommé et chiffré : la projection des boîtes à caméra mobile,
+  4,0 ms.** Elle n'est pas chère parce que la projection le serait — à caméra fixe elle coûte 0,2 ms
+  — mais parce que **toute la moitié occulteuse de l'image précédente est jetée dès que la caméra
+  bouge d'un cheveu** : `invalidateOccluderHistory` est appelée sur tout changement de vue et retire
+  d'un même geste l'historique des occulteurs _et_ la pyramide temporelle. Le partage retombe alors
+  sur la branche sans historique, qui projette les 46 446 boîtes au lieu des 25 438 testées, puis les
+  classe. Les compteurs le disent à chaque image : `sansHistorique 1`, `bornesToutes 1`. Séparer les
+  deux — garder la moitié occulteuse, jeter la pyramide — enlèverait de l'ordre de 2,9 ms à caméra
+  mobile. **Ce n'est pas fait, et ce n'est pas anodin** : la moitié occulteuse décide quels clusters
+  passent par le test Hi-Z, et le bilan de phase 1 note une partition temporelle qui a coûté 67 px.
+  L'essai n'a pas été tenté faute de temps dans ce lot ; il se prouve par les mêmes six séries plus
+  la caméra mobile, et se jette s'il coûte un pixel.
+- **Fiches de dessin, 1,2 ms**, inchangées : ce que le lot visait au départ. La boucle ne réécrit
+  déjà plus les fiches (`fichesTeleversees 0`) ; ce qu'elle refait par image, ce sont les comptes par
+  slot, les bits de la moitié testée et la compaction des bornes Hi-Z, tous trois fonctions de la
+  partition. Les écrire sur la carte demande d'y porter aussi la partition, donc le levier ci-dessus
+  d'abord.
+- **Encodage des passes, 1,6 à 2,3 ms** : 1 936 appels de dessin, dont 1 928 de mélange — un, ou deux
+  pour un matériau double-face, par primitive transparente visible, y compris celles dont la coupe est
+  vide, que le processeur ne peut pas connaître puisque la compaction est sur la carte. La
+  déduplication du pipeline a pris ce qu'elle pouvait ; le reste demanderait de savoir avant l'image
+  quelles primitives n'ont rien à dessiner.
+- **Adoption, 0,8 ms** : le lot l'a divisée par deux, pas amenée à 0,1. Ce qui reste est le parcours
+  des quatre-vingt mille identifiants pour relire `uncovered`, le seul compte qui dépende de la
+  résidence. Le mettre en cache demande une estampille exacte couvrant `residentOffsetWords` et
+  `rec.array`, que l'hôte pose hors du cache GPU — le même obstacle que le lot 3b avait nommé.
+- **Écart entre `cpuFrameMs` et la somme des étapes**, 2,1 ms à caméra mobile et 2,6 à caméra fixe :
+  les deux listes que l'hôte demande après le rendu, et les boucles que `renderWebgpuPages` joue
+  avant la première borne — `updateMatrixWorld` de la scène et, pour chaque item transparent, la
+  recopie de sa matrice monde puis le retransport de sa boîte, refaits à chaque image même quand rien
+  n'a bougé. Aucune de ces trois n'a d'étape à son nom ; c'est la prochaine chose à nommer.
+
 ## 2026-09-15 — audit des calculs clos : lots D, E, F, G fusionnés, 55 optimisations à résultat identique
 
 - **Lot D, shaders GPU** : déterminant et matrice hissés par page (petits triangles), produit de matrices une fois (identifiant de visibilité), compaction des lampes par `countOneBits`, cône du DAG calculé une fois par image et relu par les passes suivantes. Campagne `webgpu`, 4 vues × 120 images, avant `0d5fb87` / après `15ba238` : témoin A/A 0 px, avant/après 0 px, hashes de sélection identiques, `uncoveredTriangles = 0`. Temps GPU relevés mais non concluants (charge 77 à 88). D3 (scan préfixe parallèle) sort du lot : identique sur tampons GPU (120 tirages) mais non couvert par la campagne ; fusion check+mask écartée (barrière entre passes) ; comparaison au carré sans objet.
