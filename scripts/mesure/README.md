@@ -17,6 +17,12 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
 - `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
   exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
   donnent la porte de fidélité et le coût du profil.
+- `--lampes N` : allume N lampes ponctuelles du contrat, posées par la règle générique de
+  `lampes.mjs` — une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus
+  de son plancher, portée déduite de la maille. Aucune scène n'est nommée. `--ombres on|off` (par
+  défaut `on`) dit si elles projettent une ombre ; `--lampe-mobile` déplace la première d'entre elles
+  d'un petit cercle à chaque image, sans lui faire quitter sa maille. Avec `--lampes`, le ciel du
+  mode contrat est déclaré : l'image est celle d'une scène de nuit éclairée par ces seules lampes.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
 - `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
   mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les

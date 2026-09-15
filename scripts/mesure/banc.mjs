@@ -31,6 +31,7 @@ import * as options from './options.mjs';
 import { startServer } from './serveur.mjs';
 import { readBounds } from './page.mjs';
 import { imageDiff, resume } from './rapport.mjs';
+import { benchLights } from './lampes.mjs';
 import { runSerie } from './serie.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
@@ -46,7 +47,7 @@ const packageDir = (name) => {
 const { settings, views, out: OUT, flags } = options.readOptions(process.argv.slice(2), ROOT);
 const ENGINE = options.ENGINES[settings.engine];
 const MANIFEST = `/benchmark-assets/${options.SCENE}-derived/native/full/manifest.json`;
-const CTX = { ENGINE, MANIFEST, OUT, settings };
+const CTX = { ENGINE, MANIFEST, OUT, settings, lights: null };
 
 async function main() {
   options.checkLabPath();
@@ -137,6 +138,9 @@ async function main() {
         manifestUrl: sides[0].manifestUrl,
       }),
     );
+    // Les lampes, une fois les bornes connues : une règle géométrique, aucune scène nommée.
+    CTX.lights = benchLights(report.bounds, settings);
+    report.lampes = CTX.lights ? CTX.lights.resume : null;
     for (const pixelError of settings.pixelErrors)
       for (const view of views) {
         const pose = options.poseAt(report.bounds, options.VIEWS[view].index);

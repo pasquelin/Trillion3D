@@ -62,6 +62,23 @@ export async function measureView(options) {
     // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
     stageProfile: options.stageProfile === true,
   });
+  // Les lampes du contrat, posées par la règle générique du harnais et passées ici en données : la
+  // page ne calcule aucune position, elle n'invente aucune scène.
+  for (const light of options.lights || []) explorer.addLight(light);
+  if (options.environment) explorer.setEnvironment(options.environment);
+  const moving = options.moving || null;
+  // Une lampe en mouvement : un petit cercle, appliqué avant chaque image mesurée.
+  const moveLight = (frame) => {
+    if (!moving) return;
+    const angle = (frame / moving.period) * Math.PI * 2;
+    explorer.setLight(moving.id, {
+      position: [
+        moving.origin[0] + Math.cos(angle) * moving.radius,
+        moving.origin[1],
+        moving.origin[2] + Math.sin(angle) * moving.radius,
+      ],
+    });
+  };
   const pose = options.pose;
   explorer.setPose(pose);
   // Chauffe bornée : la coupe réside avant que quoi que ce soit ne soit relevé.
@@ -75,6 +92,7 @@ export async function measureView(options) {
     gpuFrameMs = [];
   let last = null;
   for (let i = 0; i < options.frames; i++) {
+    moveLight(i);
     last = explorer.render(pose);
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
@@ -91,6 +109,7 @@ export async function measureView(options) {
   if (options.stageProfile) {
     explorer.resetStageProfile();
     for (let i = 0; i < options.profileFrames; i++) {
+      moveLight(i);
       explorer.render(pose);
       await explorer.flush();
       // Une vraie limite d'image : le navigateur ne rend un compteur d'horodatage WebGL2 lisible
