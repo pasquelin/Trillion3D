@@ -4,8 +4,8 @@ import type { PageRec } from './pageSelection.ts';
 import { shownFromGpu } from './webgpuPagesHelpers.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 
-function appendPages(target: PageRec[], ...sources: readonly (readonly PageRec[])[]) {
-  for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);
+function appendPages(target: PageRec[], source: readonly PageRec[]) {
+  for (let i = 0; i < source.length; i++) target.push(source[i]);
 }
 
 /**
@@ -22,7 +22,6 @@ export function createWebgpuCutAdopter(options: {
   desired: PageRec[];
   shown: PageRec[];
   drawn: PageRec[];
-  drawableScratch: PageRec[];
   uniforms: SelectionUniforms;
   residentOffsetWords: Int32Array;
   delta: CutDelta;
@@ -43,10 +42,12 @@ export function createWebgpuCutAdopter(options: {
     lodLevel: 0,
   };
   let lastCut: GpuCut | null = null;
+  /** Le relevé dont `shown` et `drawn` sont faits, ou `null` quand ils viennent d'ailleurs. */
+  let shownCut: GpuCut | null = null;
   const adopt = () => {
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
-    const { packedPages, desired, shown, drawn, drawableScratch, delta, drawnDelta } = options;
+    const { packedPages, desired, shown, drawn, delta, drawnDelta } = options;
     if (cut === lastCut) {
       delta.hold();
       drawnDelta.hold();
@@ -62,16 +63,22 @@ export function createWebgpuCutAdopter(options: {
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
+    // Le contenu de `shown` est une fonction du seul relevé : les mêmes identifiants, lus dans le
+    // même catalogue, rendent les mêmes enregistrements dans le même ordre. Un relevé dont ils sont
+    // déjà faits ne les refait donc pas — seuls les comptes sont relus, et eux seuls dépendent de la
+    // résidence. La liste est parcourue une fois au lieu d'être vidée puis repoussée trois fois.
+    const held = cut === shownCut;
     const counts = shownFromGpu(
       packedPages,
       cut.result.drawablePageIds,
-      drawableScratch,
+      held ? undefined : shown,
       options.residentOffsetWords,
     );
-    shown.length = 0;
-    appendPages(shown, drawableScratch);
-    drawn.length = 0;
-    appendPages(drawn, shown);
+    if (!held) {
+      drawn.length = 0;
+      appendPages(drawn, shown);
+      shownCut = cut;
+    }
     metrics.ready = true;
     metrics.selectedTriangles = counts.drawnTriangles;
     metrics.uncoveredTriangles = counts.uncoveredTriangles;
@@ -84,6 +91,7 @@ export function createWebgpuCutAdopter(options: {
   /** Forgets the cut held: the CPU cut rewrote the arrays this adopter maintains. */
   const invalidate = () => {
     lastCut = null;
+    shownCut = null;
     options.delta.invalidate();
     options.drawnDelta.invalidate();
   };
