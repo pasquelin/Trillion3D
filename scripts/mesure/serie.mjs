@@ -27,7 +27,6 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     stageProfile: settings.stageProfile,
     profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
-    environment: lights ? lights.environment : null,
     moving: lights ? lights.moving : null,
   });
   const fin = machineLoad();
