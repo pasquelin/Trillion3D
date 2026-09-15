@@ -1,6 +1,12 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../sdk-core/index.ts';
 
 /**
+ * La constante de Lambert, 1/π, que les deux passes de rebond appliquent à l'irradiance des
+ * sondes : le cache de surfaces et l'application sur un pixel divisent par le même littéral f32.
+ */
+export const INVERSE_PI_WGSL = `const INVERSE_PI:f32=0.31830989;`;
+
+/**
  * Les cascades de sondes, telles que la passe de mise à jour et la résolution différée les lisent
  * toutes les deux. Une seule déclaration : les deux nuanceurs nomment `bounce` et `probes`, si bien
  * que la même interpolation sert à appliquer l'irradiance sur un pixel et à la relire au point qu'un
