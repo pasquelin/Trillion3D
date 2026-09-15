@@ -43,7 +43,7 @@ function ensureClusterSpheres(rt: WebgpuPagesRuntime, device: GPUDevice) {
   lights.spheres?.buffer.destroy();
   const buffer = device.createBuffer({
     label: 'WG cluster spheres v1',
-    size: Math.max(CLUSTER_SPHERE_FLOATS * 4, drawSlots * CLUSTER_SPHERE_FLOATS * 4),
+    size: Math.max(1, drawSlots) * CLUSTER_SPHERE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const packed = new Float32Array(drawSlots * CLUSTER_SPHERE_FLOATS);
@@ -71,12 +71,13 @@ export function uploadClusterSpheres(
     }
     writeClusterSphere(rec, spheres.packed, base);
   }
+  // Décalage et taille comptés en flottants : c'est ce que `writeBuffer` attend d'un tableau typé.
   device.queue.writeBuffer(
     spheres.buffer,
     from * CLUSTER_SPHERE_FLOATS * 4,
-    spheres.packed.buffer as ArrayBuffer,
-    from * CLUSTER_SPHERE_FLOATS * 4,
-    (last - from + 1) * CLUSTER_SPHERE_FLOATS * 4,
+    spheres.packed,
+    from * CLUSTER_SPHERE_FLOATS,
+    (last - from + 1) * CLUSTER_SPHERE_FLOATS,
   );
 }
 

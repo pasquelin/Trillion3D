@@ -2,7 +2,7 @@
 //
 // La règle : une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus de
 // son plancher, chaque lampe portant une portée déduite de la maille. Elle vaut pour n'importe quel
-// modèle importé ; le banc ne sait rien d'Emerald, de la maison ni d'aucun autre jeu de mesure.
+// modèle importé ; le banc ne sait rien du jeu de mesure qu'on lui donne, quel qu'il soit.
 
 /** Plancher du modèle : le plan d'origine si la géométrie l'enjambe, sinon le bas de sa boîte. */
 const floorOf = (bounds) => (bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y);

@@ -24,6 +24,17 @@ export const faceCountOf = (light: Pick<SceneLight, 'kind'>) =>
 /** Demi-angle du cône élargi d'un demi-degré, pour que le bord du cône reste couvert par la carte. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
+/**
+ * L'axe et le champ vertical d'une face : l'axe fixe d'une ponctuelle et son quart de tour, ou la
+ * direction du projecteur et son cône élargi. La matrice de la face et le volume que le rejet lui
+ * oppose partent tous deux d'ici, sinon les deux pourraient viser des directions différentes.
+ */
+function faceAim(light: SceneLight, face: number) {
+  const forward =
+    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
+  return { forward, fov: light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!) };
+}
+
 /** Flottants du volume d'une face : centre et plan lointain, axe de la face et demi-angle. */
 export const SHADOW_CULL_FLOATS = 8;
 /**
@@ -36,9 +47,8 @@ export const SHADOW_CULL_FLOATS = 8;
  * rejet est donc exact, jamais une approximation de qualité — l'image ne change pas d'un texel.
  */
 export function writeFaceCull(out: Float32Array, base: number, light: SceneLight, face: number) {
-  const forward =
-    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
-  const half = (light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!)) / 2;
+  const { forward, fov } = faceAim(light, face);
+  const half = fov / 2;
   const length = Math.hypot(forward[0], forward[1], forward[2]) || 1;
   out[base] = light.position[0];
   out[base + 1] = light.position[1];
@@ -145,9 +155,7 @@ const viewScratch = new Float32Array(16),
  * prend l'axe de `POINT_FACE_AXES` et 90° ; un projecteur prend sa direction et son cône élargi.
  */
 export function writeFaceMatrix(out: Float32Array, base: number, light: SceneLight, face: number) {
-  const forward =
-    light.kind === 'point' ? POINT_FACE_AXES[face] : (light.direction as [number, number, number]);
-  const fov = light.kind === 'point' ? Math.PI / 2 : spotFov(light.coneAngle!);
+  const { forward, fov } = faceAim(light, face);
   shadowView(viewScratch, 0, light.position, forward);
   const planes = shadowProjection(projScratch, 0, fov, light.range);
   multiply4(out, base, projScratch, 0, viewScratch, 0, mulScratch);

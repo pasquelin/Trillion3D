@@ -22,7 +22,7 @@ export interface WebgpuLightState {
   shadows: GpuShadowAtlas | undefined;
   /** Le rejet par face et les sphères monde qu'il lit ; absents tant que l'atlas n'existe pas. */
   cull: GpuShadowCull | undefined;
-  spheres: { buffer: GPUBuffer; packed: Float32Array; rows: number } | undefined;
+  spheres: { buffer: GPUBuffer; packed: Float32Array<ArrayBuffer>; rows: number } | undefined;
   /** Groupes de liaison des faces d'ombre, et les ressources sur lesquelles ils ont été bâtis. */
   shadowGroups: Array<GPUBindGroup | undefined>;
   shadowGroupsKey: unknown[];

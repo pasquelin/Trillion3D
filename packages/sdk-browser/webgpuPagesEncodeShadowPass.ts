@@ -1,4 +1,4 @@
-import { PAGE_BIND_ALIGN } from './gpuDraw.ts';
+import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import { visBindEntries } from './webgpuBindEntries.ts';
 import { faceRects } from './webgpuPagesEncodeShadows.ts';
@@ -113,7 +113,7 @@ export function encodeShadowAtlas(
     pass.draw(3);
     run.gpuDrawCalls++;
     pass.setPipeline(shadows.depth);
-    pass.drawIndirect(cull.indirect, face * 16);
+    pass.drawIndirect(cull.indirect, face * DRAW_INDIRECT_STRIDE);
     run.gpuDrawCalls++;
   }
   pass.end();

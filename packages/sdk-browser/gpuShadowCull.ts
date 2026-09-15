@@ -9,6 +9,21 @@ const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
 const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21;
 
+/**
+ * L'unique table des liaisons du rejet : son ordre nomme à la fois la disposition et le groupe —
+ * sphères, liste source, indirect source, gardés, indirect produit, uniforme, volumes, vivants.
+ */
+const BINDING_TYPES: readonly GPUBufferBindingType[] = [
+  'read-only-storage',
+  'read-only-storage',
+  'read-only-storage',
+  'storage',
+  'storage',
+  'uniform',
+  'read-only-storage',
+  'storage',
+];
+
 export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
 
 /**
@@ -60,18 +75,11 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     device.queue.writeBuffer(offsets, 0, offsetWords);
     device.queue.writeBuffer(drawUniform, 0, drawWords);
     const module = await createCheckedShaderModule(device, SHADOW_CULL_SHADER, 'SHADOW_CULL');
-    const read = { type: 'read-only-storage' } as const,
-      write = { type: 'storage' } as const;
     const layout = device.createBindGroupLayout({
-      entries: [0, 1, 2, 3, 4, 5, 6, 7].map((binding) => ({
+      entries: BINDING_TYPES.map((type, binding) => ({
         binding,
         visibility: GPUShaderStage.COMPUTE,
-        buffer:
-          binding === 5
-            ? ({ type: 'uniform' } as const)
-            : binding === 3 || binding === 4 || binding === 7
-              ? write
-              : read,
+        buffer: { type },
       })),
     });
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
@@ -85,7 +93,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     });
     const volumes = new Float32Array(MAX_FACES_PER_FRAME * SHADOW_CULL_FLOATS);
     const uniData = new Uint32Array(4);
-    let bound: { spheres: GPUBuffer; source: GPUBuffer; sourceIndirect: GPUBuffer } | undefined,
+    let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;
     return {
       capacity,
@@ -112,26 +120,23 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         maxVertexCount: number,
       ) {
         if (!faces) return;
-        if (
-          !group ||
-          !bound ||
-          bound.spheres !== sources.spheres ||
-          bound.source !== sources.source ||
-          bound.sourceIndirect !== sources.sourceIndirect
-        ) {
-          bound = { ...sources };
+        // Les tampons du groupe, dans l'ordre des liaisons : ceux de l'image d'abord, les nôtres
+        // ensuite. Le groupe n'est rebâti que si l'un d'eux a changé d'identité.
+        const buffers = [
+          sources.spheres,
+          sources.source,
+          sources.sourceIndirect,
+          kept,
+          indirect,
+          uniforms,
+          faceVolumes,
+          live,
+        ];
+        if (!group || buffers.some((buffer, index) => bound[index] !== buffer)) {
+          bound = buffers;
           group = device.createBindGroup({
             layout,
-            entries: [
-              { binding: 0, resource: { buffer: sources.spheres } },
-              { binding: 1, resource: { buffer: sources.source } },
-              { binding: 2, resource: { buffer: sources.sourceIndirect } },
-              { binding: 3, resource: { buffer: kept } },
-              { binding: 4, resource: { buffer: indirect } },
-              { binding: 5, resource: { buffer: uniforms } },
-              { binding: 6, resource: { buffer: faceVolumes } },
-              { binding: 7, resource: { buffer: live } },
-            ],
+            entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
           });
         }
         uniData[0] = faces;
