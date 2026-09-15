@@ -81,6 +81,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     directGpu: configured.directGpu,
     autonomous,
     backends,
+    base,
   });
   const cameraState = createExplorerCamera(
     source,

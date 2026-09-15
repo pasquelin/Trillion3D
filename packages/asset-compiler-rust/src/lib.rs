@@ -1,11 +1,14 @@
 //! Native exact-cluster compiler. Rendering, UI and platform IPC do not belong here.
 mod accessor_validation;
+pub mod albedo;
 pub mod coplanar;
 mod dag;
 mod geometry_page;
 pub mod import;
 mod manifest_binary;
+pub mod oracle;
 mod perf;
+pub mod proxy;
 mod qem;
 pub mod texture_preview;
 mod topology;
@@ -115,6 +118,7 @@ mod compiler_coplanar;
 mod compiler_copy;
 mod compiler_materials;
 mod compiler_nodes;
+mod compiler_page_object;
 mod compiler_plan;
 mod compiler_primitive;
 mod compiler_primitive_bundle;

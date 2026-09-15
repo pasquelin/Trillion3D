@@ -1,5 +1,6 @@
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts';
 import { DIRECT_LIGHTING_WGSL } from './directLightingWgsl.ts';
+import { BOUNCE_APPLY_WGSL } from './bounceApplyWgsl.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
 const OUTPUT_COLOR_WGSL = `
@@ -37,22 +38,15 @@ ${FULLSCREEN_VERTEX}
  if(flag==0u){return vec4f(0.0);}
  return vec4f(textureLoad(baseMetal,coord,0).rgb,1.0);
 }`;
-/**
- * Le programme du contrat : le rassemblement différé éclairé par les seules lampes déclarées, avec
- * leurs ombres. Aucun terme ambiant, aucun ciel constant, aucune lumière écrite dans la scène ne
- * s'y ajoute (P6). Les surfaces marquées non éclairées ou en espace d'affichage sortent telles
- * quelles, comme avant : ce sont des matériaux sans réponse à la lumière, pas des surfaces éclairées.
- */
-export const DIRECT_LIGHTING_SHADER = `
-${VIEW_WGSL}
-${SURFACE_BINDINGS_WGSL}
+/** Les liaisons du contrat : les lampes déclarées, leurs listes par tuile et leur atlas d'ombres. */
+const CONTRACT_BINDINGS_WGSL = `
 @group(0) @binding(6) var<storage,read> directLights:DirectLights;
 @group(0) @binding(7) var<storage,read> tileLights:array<u32>;
 @group(0) @binding(8) var<storage,read> shadows:ShadowSlices;
 @group(0) @binding(9) var shadowAtlas:texture_depth_2d;
-@group(0) @binding(10) var shadowSampler:sampler_comparison;
-${STANDARD_LIGHTING_WGSL}
-${DIRECT_LIGHTING_WGSL}
+@group(0) @binding(10) var shadowSampler:sampler_comparison;`;
+/** Le corps commun des deux programmes du contrat : seules les lignes du rebond les séparent. */
+const contractSurface = (bounce: string, diagnostic = '') => `
 ${FULLSCREEN_VERTEX}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
@@ -64,9 +58,39 @@ ${FULLSCREEN_VERTEX}
  let ndc=vec4f(pixel.x/view.viewport.x*2.0-1.0,1.0-pixel.y/view.viewport.y*2.0,z,1.0);
  let world=view.inverseViewProjection*ndc;let P=world.xyz/world.w;
  let V=normalize(view.camera.xyz-P);let N=normalize(normal.xyz);
+ ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
- return vec4f(lit+emissive.rgb,1.0);
+ return vec4f(lit+emissive.rgb${bounce},1.0);
 }`;
+/**
+ * Le programme du contrat : le rassemblement différé éclairé par les seules lampes déclarées, avec
+ * leurs ombres. Aucun terme ambiant, aucun ciel constant, aucune lumière écrite dans la scène ne
+ * s'y ajoute (P6). Les surfaces marquées non éclairées ou en espace d'affichage sortent telles
+ * quelles, comme avant : ce sont des matériaux sans réponse à la lumière, pas des surfaces éclairées.
+ */
+export const DIRECT_LIGHTING_SHADER = `
+${VIEW_WGSL}
+${SURFACE_BINDINGS_WGSL}
+${CONTRACT_BINDINGS_WGSL}
+${STANDARD_LIGHTING_WGSL}
+${DIRECT_LIGHTING_WGSL}
+${contractSurface('')}`;
+/**
+ * Le même programme, plus la lumière qui a rebondi : l'irradiance des sondes multipliée par
+ * l'albédo diffus du pixel, ajoutée au direct. C'est un programme séparé, et non une branche, pour
+ * qu'une session sans rebond exécute exactement le nuanceur d'avant, au bit près.
+ */
+export const BOUNCE_LIGHTING_SHADER = `
+${VIEW_WGSL}
+${SURFACE_BINDINGS_WGSL}
+${CONTRACT_BINDINGS_WGSL}
+${STANDARD_LIGHTING_WGSL}
+${DIRECT_LIGHTING_WGSL}
+${BOUNCE_APPLY_WGSL}
+${contractSurface(
+  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)',
+  'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
+)}`;
 /**
  * La composition, unique pour les deux programmes : l'exposition multiplie la radiance linéaire
  * avant ACES, dernier maillon de la chaîne (P4). Sans lampe, l'exposition vaut 1 et le résultat est

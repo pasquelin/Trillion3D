@@ -1,4 +1,5 @@
 import type { GpuPassTimings } from '../sdk-core/index.ts';
+import { BOUNCE_PROBE_PASS } from './bounceProbeWgsl.ts';
 import { DEFERRED_LIGHTING_PASS } from './deferredLighting.ts';
 import { LIGHT_TILES_PASS } from './gpuLightTiles.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
@@ -27,6 +28,7 @@ const PASS_STAGES: Readonly<Record<string, string>> = Object.freeze({
   'WG transparents': 'transparents',
   [SHADOW_PASS]: 'shadows',
   [LIGHT_TILES_PASS]: 'lightLists',
+  [BOUNCE_PROBE_PASS]: 'bounce',
   [DEFERRED_LIGHTING_PASS]: 'lighting',
   'WG HDR composition': 'present',
   'WG HDR composition + present': 'present',
@@ -48,6 +50,7 @@ export const WEBGPU_STAGES = [
   'coplanar',
   'shadows',
   'lightLists',
+  'bounce',
   'lighting',
   'present',
 ] as const;

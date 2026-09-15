@@ -6,6 +6,10 @@ pub(super) struct DagResult {
     /// The plane each cluster lies in, by page index, when it lies in one. Read by the coplanar
     /// stage once every primitive is compiled; never written to the cache on its own.
     pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
+    /// Les sommets de la coupe grossière du proxy résident, en espace objet, trois par sommet.
+    pub proxy_cut: Vec<f32>,
+    /// Le seuil d'erreur, en mètres, que cette coupe a demandé pour tenir dans sa part du budget.
+    pub proxy_threshold: f64,
     pub reused: i32,
     pub dag_report: Value,
     pub culling_report: Value,
@@ -17,6 +21,7 @@ pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
     index_values: &[u32],
+    proxy_demand: (f64, usize),
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let (dag, groups, tallies) = crate::dag::build_dag_tallied(pos, index_values, &|| check(o))?;
@@ -50,6 +55,10 @@ pub(super) fn build_dag_primitive(
             "Level 0 clusters are not the source triangles",
         ));
     }
+    // La coupe grossière du proxy se lit ici, où le DAG et les positions sont tous deux en main;
+    // plus loin, les clusters n'existent plus que comme objets de cache.
+    let (proxy_threshold, proxy_cut) =
+        crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand.0, proxy_demand.1);
     let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
     let mut level_stats = Vec::new();
     for level in 0..=depth {
@@ -140,6 +149,8 @@ pub(super) fn build_dag_primitive(
     Ok(DagResult {
         pages,
         cluster_planes,
+        proxy_cut,
+        proxy_threshold,
         reused,
         dag_report,
         culling_report,
