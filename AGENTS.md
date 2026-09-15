@@ -12,7 +12,7 @@ Valables pour tout agent et tout contributeur, sur tout le dépôt.
 - Le banc `render-tech-lab` est un hôte comme un autre : il utilise `prepare()`, `createExplorer()` et les validations publiques du SDK. Aucune ligne n'y est ajoutée pour faire marcher le moteur ; aucun agent n'écrit dans `public/benchmark-assets`.
 - Les noms du système de géométrie virtualisée d'Epic et de son moteur n'apparaissent nulle part dans le dépôt. On dit « géométrie virtualisée », « DAG de clusters ».
 - Mesures honnêtes : FPS = 1000 / intervalle rAF avec le plafond d'affichage indiqué ; CPU et GPU jamais additionnés ; `null` pour ce qui n'est pas mesuré ; DPR, seuil d'erreur, résolution et commit consignés.
-- Plans et avancement : `orchestration/SPEC_MOTEUR_SANS_THREE.md` et `orchestration/JOURNAL.md`. Un plan terminé est supprimé.
+- Orchestration : dans `orchestration/`, une reprise par session (`REPRISE_<SESSION>.md`, instructions et état courant) et les plans ouverts (`SPEC_*.md`). Aucun journal, historique, récit ni catalogue : l'historique est git. Aucun fichier d'orchestration au-delà de 200 lignes. Un plan terminé est supprimé.
 
 ## Règles des paquets (`packages/`)
 
