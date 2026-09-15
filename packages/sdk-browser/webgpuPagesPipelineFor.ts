@@ -6,6 +6,7 @@ import { visLayerPipelineIndex } from './webgpuVisibilityPipelines.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { PAGES_GREEN, clusterRgb, linearColor, materialSide } from './webgpuPagesHelpers.ts';
+import { windingCw } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 /** Ordre des slots indirects de la couche 0 : les trois pipelines non testés, puis leurs jumeaux
@@ -18,16 +19,6 @@ const VIS_SLOTS = [
   'visHizRestNone',
   'visHizRestFront',
 ] as const;
-
-const windingCw = (rec: PageRec) => {
-  const e = rec.matrix.elements;
-  return (
-    e[0] * (e[5] * e[10] - e[6] * e[9]) -
-      e[1] * (e[4] * e[10] - e[6] * e[8]) +
-      e[2] * (e[4] * e[9] - e[5] * e[8]) <
-    0
-  );
-};
 
 export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const side = materialSide(rec.material);
