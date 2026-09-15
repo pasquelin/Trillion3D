@@ -179,6 +179,7 @@ fn version_flag_describes_the_build() {
             "fbx",
             "obj",
             "unity",
+            "blend",
             "zip",
             "unitypackage",
             "alembic"
