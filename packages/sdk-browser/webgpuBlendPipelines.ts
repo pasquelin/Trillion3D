@@ -22,9 +22,11 @@ export async function createWebgpuBlendPipelines(device: GPUDevice, items: Blend
       { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.scales, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.sceneLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      { binding: b.triangleDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.colorSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.dataSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.clusterIds, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
     ],
   });
   const blendModule = device.createShaderModule({ code: BLEND_SHADER });

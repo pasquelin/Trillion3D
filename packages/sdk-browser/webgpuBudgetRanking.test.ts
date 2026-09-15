@@ -50,19 +50,16 @@ test('the counting rank is the stable comparison sort, order and records alike',
     const levels = Array.from({ length: keyCount }, () =>
       next() < 0.1 ? undefined : Math.floor(next() * 13),
     );
-    const opaque: PageRec[] = [],
-      transparent: PageRec[] = [];
+    const cut: PageRec[] = [];
     const count = Math.floor(next() * 120);
     for (let i = 0; i < count; i++) {
       const key = Math.floor(next() * keyCount);
-      const page = rec(key, levels[key], `p${i}`);
-      (next() < 0.85 ? opaque : transparent).push(page);
+      cut.push(rec(key, levels[key], `p${i}`));
     }
     const room = Math.floor(next() * (count + 3));
     const ranking = createBudgetRanking({ keyCount, bootstrapKey: cover, keyOf });
-    for (const page of opaque) ranking.add(page);
-    const cut = [...opaque, ...transparent];
-    const records = ranking.rank(room, cut, transparent);
+    for (const page of cut) ranking.add(page);
+    const records = ranking.rank(room, cut);
     assert.equal(records, weighed(cut, cover), `essai ${trial} : pages pesées`);
     if (records <= room) continue;
     assert.deepEqual(ranked(ranking), reference(cut, cover, room), `essai ${trial} : rang`);
@@ -83,19 +80,19 @@ test('a placement that leaves is subtracted, and the rank follows the cut that r
   const ranking = createBudgetRanking({ keyCount: 6, bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
   // Four pages, not five placements: the two `coarse-a` records share one slot.
-  assert.equal(ranking.rank(3, cut, []), 4);
+  assert.equal(ranking.rank(3, cut), 4);
   // Coarsest first, publication order inside a level, one entry per page.
   assert.deepEqual(ranked(ranking).keys, [2, 4, 3]);
   // The two coarse-a placements leave; what is left is mid then fine, and it now fits.
   ranking.remove(cut[2]);
   ranking.remove(cut[4]);
   const shorter = [cut[0], cut[1], cut[3], cut[5]];
-  assert.equal(ranking.rank(3, shorter, []), 3);
+  assert.equal(ranking.rank(3, shorter), 3);
   assert.equal(ranking.pageCount, 3);
-  assert.equal(ranking.rank(2, shorter, []), 3);
+  assert.equal(ranking.rank(2, shorter), 3);
   assert.deepEqual(ranked(ranking).keys, [4, 3]);
   ranking.clear();
-  assert.equal(ranking.rank(1, [], []), 0);
+  assert.equal(ranking.rank(1, []), 0);
 });
 
 test('a rank the queue already holds is recognised, a rank that differs is not', () => {
@@ -103,7 +100,7 @@ test('a rank the queue already holds is recognised, a rank that differs is not',
   const cut = [rec(0, 2, 'a'), rec(1, 1, 'b'), rec(2, 0, 'c')];
   const ranking = createBudgetRanking({ keyCount: 4, bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
-  ranking.rank(2, cut, []);
+  ranking.rank(2, cut);
   const list = Int32Array.from([0, 1]);
   assert.equal(ranking.matches(list, 2, [cut[0], cut[1]]), true);
   assert.equal(ranking.matches(list, 1, [cut[0]]), false, 'longueur différente');
@@ -120,6 +117,6 @@ test('levels beyond the first band grow the counters without disturbing the rank
   const cut = [rec(0, 0, 'zero'), rec(1, 40, 'haut'), rec(2, 9, 'milieu')];
   const ranking = createBudgetRanking({ keyCount: 3, bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
-  ranking.rank(2, cut, []);
+  ranking.rank(2, cut);
   assert.deepEqual(ranked(ranking), reference(cut, cover, 2));
 });

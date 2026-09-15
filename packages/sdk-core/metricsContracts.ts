@@ -56,7 +56,13 @@ export interface FrameMetrics {
   cacheMisses?: number | null;
   frustumRejected?: number | null;
   lodLevel?: number | null;
-  /** WebGPU transparent submission counters, including both draws for two-pass materials. Null when unavailable. */
+  /**
+   * WebGPU transparent counters. `transparentDrawCalls` counts every draw, both halves of a two-pass
+   * material included; `transparentSubmittedTriangles` counts the triangles of the transparent cut
+   * once each, whatever the number of passes that rasterise them — the per-pass multiplication is
+   * the GPU's own, since the instance counts are written by the compaction and never read back.
+   * Null when unavailable.
+   */
   transparentMeshes?: number | null;
   transparentFrustumRejected?: number | null;
   transparentDrawCalls?: number | null;

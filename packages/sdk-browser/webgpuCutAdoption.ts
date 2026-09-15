@@ -1,7 +1,7 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { sameSelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
-import { shownFromGpu, triangleSum } from './webgpuPagesHelpers.ts';
+import { shownFromGpu } from './webgpuPagesHelpers.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
 
 function appendPages(target: PageRec[], ...sources: readonly (readonly PageRec[])[]) {
@@ -22,8 +22,6 @@ export function createWebgpuCutAdopter(options: {
   desired: PageRec[];
   shown: PageRec[];
   drawn: PageRec[];
-  transparentWanted: readonly PageRec[];
-  transparentShown: readonly PageRec[];
   drawableScratch: PageRec[];
   uniforms: SelectionUniforms;
   residentOffsetWords: Int32Array;
@@ -33,8 +31,6 @@ export function createWebgpuCutAdopter(options: {
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: (delta: CutDelta) => void;
   onDrawnDelta: (delta: CutDelta) => void;
-  onCutPages: (count: number) => void;
-  onDrawnPages: (count: number, triangles: number) => void;
 }) {
   const metrics = {
     ready: false,
@@ -42,6 +38,7 @@ export function createWebgpuCutAdopter(options: {
     selectedTriangles: 0,
     uncoveredTriangles: 0,
     drawnTriangles: 0,
+    transparentTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
   };
@@ -62,8 +59,6 @@ export function createWebgpuCutAdopter(options: {
     // landed — must not replay the previous one, which would count every page twice.
     options.onCutDelta(delta);
     options.onDrawnDelta(drawnDelta);
-    options.onCutPages(delta.count);
-    appendPages(desired, options.transparentWanted);
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
@@ -74,14 +69,14 @@ export function createWebgpuCutAdopter(options: {
       options.residentOffsetWords,
     );
     shown.length = 0;
-    appendPages(shown, drawableScratch, options.transparentShown);
-    options.onDrawnPages(drawableScratch.length, counts.drawnTriangles);
+    appendPages(shown, drawableScratch);
     drawn.length = 0;
     appendPages(drawn, shown);
     metrics.ready = true;
-    metrics.selectedTriangles = counts.drawnTriangles + triangleSum(options.transparentShown);
+    metrics.selectedTriangles = counts.drawnTriangles;
     metrics.uncoveredTriangles = counts.uncoveredTriangles;
     metrics.drawnTriangles = counts.drawnTriangles;
+    metrics.transparentTriangles = counts.transparentTriangles;
     metrics.frustumRejected = cut.result.frustumRejected;
     metrics.lodLevel = cut.result.lodLevel;
     return true;

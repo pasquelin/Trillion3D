@@ -49,7 +49,11 @@ export type BlendBindResources = AtlasResources & {
   normals: GPUBuffer;
   scales: GPUBuffer;
   sceneLights: GPUBuffer;
-  triangleDiagnostic: GPUBuffer;
+  /** Identité d'un cluster transparent, une par entrée de la table de dessin. */
+  clusterDiagnostic: GPUBuffer;
+  /** La liste compactée des clusters à dessiner, et la portée de chacun dans le cache de pages. */
+  clusterIds: GPUBuffer;
+  clusterSpans: GPUBuffer;
 };
 
 /** Les ressources du raster logiciel des petits triangles : il ne lit que la découpe alpha. */
@@ -124,9 +128,11 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.normals, resource: { buffer: r.normals } },
     { binding: b.scales, resource: { buffer: r.scales } },
     { binding: b.sceneLights, resource: { buffer: r.sceneLights } },
-    { binding: b.triangleDiagnostic, resource: { buffer: r.triangleDiagnostic } },
+    { binding: b.clusterDiagnostic, resource: { buffer: r.clusterDiagnostic } },
     { binding: b.colorSlots, resource: { buffer: r.slots.color } },
     { binding: b.dataSlots, resource: { buffer: r.slots.data } },
+    { binding: b.clusterIds, resource: { buffer: r.clusterIds } },
+    { binding: b.clusterSpans, resource: { buffer: r.clusterSpans } },
   ];
 }
 

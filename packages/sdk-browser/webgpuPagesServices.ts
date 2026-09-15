@@ -137,8 +137,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     desired: run.desired,
     shown: run.shown,
     drawn: run.drawn,
-    transparentWanted: run.transparentWanted,
-    transparentShown: run.transparentShown,
     drawableScratch: run.drawableScratch,
     uniforms: run.selectionUniforms,
     residentOffsetWords: rows.residentOffsetWords,
@@ -150,13 +148,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       run.pagesEntered = delta.enteredCount;
       run.pagesExited = delta.exitedCount;
     },
-    onCutPages: (count) => {
-      run.desiredOpaque = count;
-    },
-    onDrawnPages: (count, triangles) => {
-      run.shownOpaque = count;
-      run.shownOpaqueTriangles = triangles;
-    },
   });
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   if (!run.desired.length)
@@ -167,19 +158,19 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
     run.uncoveredTriangles = metrics.uncoveredTriangles;
-    run.submittedTriangles = metrics.drawnTriangles + run.blendSubmittedTriangles;
+    run.submittedTriangles = metrics.drawnTriangles;
+    run.drawnTriangles = metrics.drawnTriangles;
+    run.blendPagedTriangles = metrics.transparentTriangles;
     run.frustumRejected = metrics.frustumRejected;
     run.lodLevel = metrics.lodLevel;
     run.gpuMetricsReady = metrics.ready;
   };
   /**
-   * Admits the transparent cut, which no GPU readback describes and the image therefore re-reads
-   * whole; the opaque difference was applied the moment the readback was adopted. Answers what the
-   * image asks the cache for.
+   * Answers what the image asks the cache for. One cut covers both passes now, and the readback
+   * applied its difference the moment it was adopted, so nothing is re-read here.
    */
   const admitCut = () => {
     residencySets.releaseCpu();
-    residencySets.refreshTransparentWanted(run.transparentWanted);
     return residencySets.requestedCount;
   };
   return {

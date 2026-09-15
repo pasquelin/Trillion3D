@@ -10,11 +10,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   vertexBytes +=
     (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + (vis.concatNrm?.size ?? 0);
   for (const item of blendState.blendGpu)
-    vertexBytes +=
-      item.index.size +
-      (item.uv?.size ?? 0) +
-      (item.normal?.size ?? 0) +
-      (item.diagnosticBuffer?.size ?? 0);
+    vertexBytes += (item.index?.size ?? 0) + (item.uv?.size ?? 0) + (item.normal?.size ?? 0);
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
   // What the occlusion test eliminated, from the path that ran it: the GPU verdicts of the last
   // image whose flags came back, or the CPU oracle's own image where no GPU test runs. Null when
@@ -98,16 +94,16 @@ export function disposeWebgpuPages(
   vis.visView = undefined;
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy();
   for (const item of blendState.blendGpu) {
-    item.index.destroy();
+    item.index?.destroy();
     item.uv?.destroy();
     item.normal?.destroy();
-    item.diagnosticBuffer?.destroy();
   }
+  blendState.compaction?.dispose();
+  blendState.compaction = undefined;
+  blendState.table = undefined;
   blendState.blendGpu.length = 0;
   blendState.pagedBlendGpu.clear();
   pagedBlendCopies.clear();
-  blendState.blendCuts.clear();
-  blendState.blendDrawnPages.length = 0;
   blendState.visibleBlend.length = 0;
   gpu.uniformBuffer?.destroy();
   gpu.uniformBuffer = undefined;

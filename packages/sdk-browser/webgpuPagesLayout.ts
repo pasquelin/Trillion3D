@@ -15,8 +15,14 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   const { roots, bootstrap, slots, pageBytes } = setup;
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
     transparentRoots = roots.filter((root) => root.pages[0]?.transparent);
-  const packedPages: PageRec[] = opaqueRoots.flatMap((root) => root.pages);
-  const worldUpdates = new Float32Array(opaqueRoots.length * 16);
+  // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
+  // GPU selection, the residency and the page budget read all of it; only the drawing path splits,
+  // because a transparent cluster is blended in source order instead of entering the visibility
+  // buffer. Keeping the opaque prefix first leaves every opaque page index exactly where it was.
+  const selectionRoots = [...opaqueRoots, ...transparentRoots];
+  const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
+  const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
+  const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   // The occluder half of an image is reused as the next image's first pass, and it is keyed by cluster
   // key: a key backing several placements occludes for all of them. A dense index per key replaces the
   // set of strings the drawing path used to hash once per page per image.
@@ -35,7 +41,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     }
   }
   const drawnOccluderUrls = new Uint8Array(Math.max(1, urlCount));
-  const gpuWanted: PageRec[] = bootstrap.filter((page) => !page.transparent);
+  const gpuWanted: PageRec[] = bootstrap;
   const copiesByUrl = new Map<string, number>();
   let maxCopies = 1;
   for (const page of packedPages) {
@@ -44,7 +50,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     maxCopies = Math.max(maxCopies, n);
   }
   // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
-  const drawSlots = Math.max(1, Math.min(VIS_MAX_PAGES, packedPages.length, slots * maxCopies));
+  // Rows are the visibility buffer's, and only opaque clusters ever claim one.
+  const drawSlots = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
   const rows = createWebgpuRowState(packedPages, drawSlots);
   /** Every triangle of every drawable row: the bound the small-triangle list can never exceed. */
   const smallTriangleCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
@@ -73,7 +80,9 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   return {
     opaqueRoots,
     transparentRoots,
+    selectionRoots,
     packedPages,
+    opaquePageCount,
     worldUpdates,
     urlIndexOfPage,
     drawnOccluderUrls,

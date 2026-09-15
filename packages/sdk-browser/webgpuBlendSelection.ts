@@ -1,103 +1,76 @@
 import type { PageRec } from './pageSelection.ts';
-import type { createGpuPageCache } from './gpuPages.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
-type Cache = ReturnType<typeof createGpuPageCache>;
-
-const ordreSource = (a: PageRec, b: PageRec) => (a.sourceOrder ?? a.id) - (b.sourceOrder ?? b.id);
 
 /**
- * Remet une coupe transparente dans l'ordre source. Elle y arrive presque toujours ; un parcours le
- * dit, là où le tri coûtait un tri par maillage transparent et par image. Le test refuse tout couple
- * qui ne compare pas franchement « inférieur ou égal » — une clé NaN le fait échouer et le tri reprend
- * la main — si bien que l'ordre rendu est toujours celui d'un tri stable.
+ * The transparent draw list of one image.
+ *
+ * Paged primitives are always listed: how many of their clusters survive is the compaction's answer,
+ * not the CPU's, and a primitive whose cut is empty simply draws zero instances. Only an unpaged
+ * primitive — one whole mesh, outside the cluster DAG — is still culled here, against its own world
+ * box, exactly as before.
  */
-export function ordonneCoupeTransparente(cut: PageRec[]) {
-  for (let k = 1; k < cut.length; k++)
-    if (!(ordreSource(cut[k - 1], cut[k]) <= 0)) {
-      cut.sort(ordreSource);
-      return cut;
-    }
-  return cut;
-}
-
-/** Selects transparent meshes, packs their resident cluster indices, and counts culls. */
-export function selectWebgpuBlend(
-  device: GPUDevice,
-  blendState: BlendState,
-  drawn: PageRec[],
-  cache: Cache | undefined,
-) {
+export function selectWebgpuBlend(blendState: BlendState) {
   let rejected = 0;
-  if (blendState.pagedBlendGpu.size) {
-    const previousLength = blendState.blendDrawnPages.length;
-    let count = 0,
-      changed = false;
-    for (const rec of drawn) {
-      if (!rec.transparent) continue;
-      if (blendState.blendDrawnPages[count] !== rec) changed = true;
-      blendState.blendDrawnPages[count++] = rec;
-    }
-    blendState.blendDrawnPages.length = count;
-    if (changed || count !== previousLength) {
-      blendState.blendCuts.clear();
-      for (const rec of blendState.blendDrawnPages) {
-        const item = rec.sourceMesh && blendState.pagedBlendGpu.get(rec.sourceMesh);
-        if (!item) continue;
-        let cut = blendState.blendCuts.get(item);
-        if (!cut) blendState.blendCuts.set(item, (cut = []));
-        cut.push(rec);
-      }
-    }
-  }
   for (const item of blendState.blendGpu) {
-    if (!item.paged) {
-      if (item.bounds && !blendState.blendFrustum.intersectsBox(item.bounds)) rejected++;
-      else blendState.visibleBlend.push(item);
+    if (item.paged) {
+      blendState.visibleBlend.push(item);
       continue;
     }
-    const cut = blendState.blendCuts.get(item);
-    if (!cut?.length) {
-      rejected++;
-      continue;
-    }
-    if (cut !== item.cut) {
-      ordonneCoupeTransparente(cut);
-      if (item.cut && cut.length === item.cut.length && cut.every((rec, i) => rec === item.cut![i]))
-        blendState.blendCuts.set(item, item.cut);
-      else {
-        let count = 0;
-        for (const rec of cut) {
-          if (!rec.array || !cache?.get(rec.url))
-            throw new Error('GPU_TRANSPARENT_COVERAGE_INCOMPLETE');
-          count += rec.array.length;
-        }
-        const bytes = count * 4;
-        if (
-          bytes > Math.min(device.limits.maxBufferSize, device.limits.maxStorageBufferBindingSize)
-        )
-          throw new Error('GPU_TRANSPARENT_INDEX_BUDGET');
-        if (!item.packed || item.packed.length < count) item.packed = new Uint32Array(count);
-        let offset = 0;
-        for (const rec of cut) {
-          item.packed.set(rec.array!, offset);
-          offset += rec.array!.length;
-        }
-        if (item.index.size < bytes) {
-          item.index.destroy();
-          item.index = device.createBuffer({
-            label: 'WG transparent selected indices',
-            size: Math.max(4, bytes),
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-          });
-          item.group = undefined;
-        }
-        device.queue.writeBuffer(item.index, 0, item.packed.subarray(0, count));
-        item.count = count;
-        item.cut = cut;
-      }
-    }
-    blendState.visibleBlend.push(item);
+    if (item.bounds && !blendState.blendFrustum.intersectsBox(item.bounds)) rejected++;
+    else blendState.visibleBlend.push(item);
   }
   return rejected;
+}
+
+/**
+ * The instance lists of a CPU-cut image, written where the GPU compaction would have written them.
+ *
+ * The cut names records; the table names the order. Walking the cut once and placing each record at
+ * its item's base, then sorting each item's own range by table entry, gives the same list the
+ * compaction produces — the table order with the unselected entries removed — so the two paths draw
+ * the same primitives in the same order and the shader cannot tell them apart.
+ */
+export function writeCpuTransparentInstances(
+  blendState: BlendState,
+  drawn: readonly PageRec[],
+  entryOf: (rec: PageRec) => number,
+) {
+  const { table } = blendState;
+  if (!table) return;
+  if (blendState.cpuInstances.length < table.capacity)
+    blendState.cpuInstances = new Uint32Array(table.capacity);
+  if (blendState.cpuItemCounts.length < table.pagedItems.length)
+    blendState.cpuItemCounts = new Uint32Array(Math.max(1, table.pagedItems.length));
+  const instances = blendState.cpuInstances,
+    counts = blendState.cpuItemCounts;
+  counts.fill(0);
+  let highest = 0;
+  for (let i = 0; i < drawn.length; i++) {
+    const rec = drawn[i];
+    if (!rec.transparent) continue;
+    const item = rec.sourceMesh && blendState.pagedBlendGpu.get(rec.sourceMesh);
+    if (!item || item.pagedIndex === undefined) continue;
+    const entry = entryOf(rec);
+    if (entry < 0) continue;
+    const base = table.itemRanges[item.pagedIndex * 2];
+    instances[base + counts[item.pagedIndex]++] = entry;
+    if (base + counts[item.pagedIndex] > highest) highest = base + counts[item.pagedIndex];
+  }
+  for (const item of table.pagedItems) {
+    const index = item.pagedIndex!,
+      base = table.itemRanges[index * 2],
+      count = counts[index];
+    // La liste arrive presque toujours déjà croissante — la relecture publie ses pages dans l'ordre
+    // du catalogue, et les entrées de la table y sont rangées par rang source. Un parcours le
+    // constate, là où un tri inconditionnel triait par primitive et par image.
+    let ordonnee = true;
+    for (let k = base + 1; k < base + count; k++)
+      if (instances[k - 1] > instances[k]) {
+        ordonnee = false;
+        break;
+      }
+    if (!ordonnee) instances.subarray(base, base + count).sort();
+  }
+  blendState.cpuInstanceCount = highest;
 }

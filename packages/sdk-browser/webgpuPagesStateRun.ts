@@ -1,7 +1,6 @@
 import type * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
-import { createTransparentCutHold, type TransparentCutHold } from './webgpuTransparentCut.ts';
 import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
@@ -31,8 +30,14 @@ export interface WebgpuRunState {
   budgetPixelError: number;
   coverageBudgetEvent: Record<string, unknown> | undefined;
   deferredDrops: Set<string>;
+  /** Triangles of the transparent clusters the cut holds, counted once whatever the pass count. */
+  blendPagedTriangles: number;
+  /** Triangles of the transparent meshes outside the cluster DAG, counted per draw. */
+  blendUnpagedTriangles: number;
   blendSubmittedTriangles: number;
   blendDrawCalls: number;
+  /** Triangles of the drawable cut the last adopted readback described. */
+  drawnTriangles: number;
   blendFrustumRejected: number;
   gpuDrawCalls: number;
   lastProgressMs: number;
@@ -57,20 +62,6 @@ export interface WebgpuRunState {
   drawn: PageRec[];
   /** Where the drawable difference writes its members; nothing downstream reads it. */
   drawnMembers: PageRec[];
-  /**
-   * How many leading entries of `shown` and `desired` are the opaque cut, which the GPU readback
-   * maintains from one image to the next; the transparent tail after them is the only part an image
-   * rewrites. -1 says the CPU cut wrote the array and the split is unknown.
-   */
-  shownOpaque: number;
-  desiredOpaque: number;
-  /** Triangles of that opaque head of `shown`; -1 when it was not counted. */
-  shownOpaqueTriangles: number;
-  /** The transparent cut of the image: the GPU cut never selects it, so the CPU cuts it itself. */
-  transparentWanted: PageRec[];
-  transparentShown: PageRec[];
-  /** That cut and the inputs it was cut from, held from one image to the next. */
-  transparentHold: TransparentCutHold;
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null;
   pagesExited: number | null;
@@ -122,8 +113,11 @@ export function createWebgpuRunState(): WebgpuRunState {
     budgetPixelError: 0,
     coverageBudgetEvent: undefined,
     deferredDrops: new Set(),
+    blendPagedTriangles: 0,
+    blendUnpagedTriangles: 0,
     blendSubmittedTriangles: 0,
     blendDrawCalls: 0,
+    drawnTriangles: 0,
     blendFrustumRejected: 0,
     gpuDrawCalls: 0,
     lastProgressMs: 0,
@@ -151,12 +145,6 @@ export function createWebgpuRunState(): WebgpuRunState {
     desired: [],
     drawn: [],
     drawnMembers: [],
-    shownOpaque: -1,
-    desiredOpaque: -1,
-    shownOpaqueTriangles: -1,
-    transparentWanted: [],
-    transparentShown: [],
-    transparentHold: createTransparentCutHold(),
     pagesEntered: null,
     pagesExited: null,
     opaqueScratch: [],

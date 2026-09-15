@@ -29,9 +29,14 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     fixture.indices,
     fixture.associations,
   );
+  // One catalogue for one cut: the kernel the mock replays selects the transparent clusters too,
+  // opaque roots first then transparent, exactly as the layout packs them.
   const { device } = mockGpu(
     undefined,
-    packDagSelection(collected.roots.filter((root) => !root.pages[0].transparent)),
+    packDagSelection([
+      ...collected.roots.filter((root) => !root.pages[0].transparent),
+      ...collected.roots.filter((root) => root.pages[0].transparent),
+    ]),
   );
   const backend = webgpuPagesBackend({
     ...fixture,
@@ -51,8 +56,11 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     backend.render(camera());
     await backend.flush();
     assert.equal(backend.metrics().coverageReady, true);
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 4);
-    assert.equal(backend.metrics().submittedTriangles, 6);
+    // Transparent clusters are counted by the same readback as the opaque ones, so the count lands
+    // on the image after the cut they describe — the draw itself follows the current frame's mask.
+    backend.render(camera());
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 2);
+    assert.equal(backend.metrics().submittedTriangles, 4);
   } finally {
     await backend.dispose();
     fixture.geometry.dispose();
@@ -104,20 +112,22 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     await backend.prepare();
     const cam = camera();
     backend.render(cam);
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 12);
+    // Two paged meshes of two triangles, counted once each, and one whole mesh outside the DAG
+    // drawn by both face passes.
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 8);
     const uploads = writes.length;
     otherMesh.position.x = 100;
     backend.render(cam);
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      8,
+      6,
       'another paged mesh can disappear without changing this mesh cut',
     );
     legacyMesh.position.x = 100;
     backend.render(cam);
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      4,
+      2,
       'legacy bounds update while the paged cut stays unchanged',
     );
     mesh.position.x = 100;
@@ -127,15 +137,15 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     backend.render(cam);
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      4,
+      2,
       'cached pages become visible again',
     );
     legacyMesh.position.x = 0;
     backend.render(cam);
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 8);
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 6);
     otherMesh.position.x = 0;
     backend.render(cam);
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 12);
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 8);
     assert.equal(
       writes.slice(uploads).filter((write) => write.bytes.byteLength === 24).length,
       0,

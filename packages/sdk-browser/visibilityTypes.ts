@@ -35,7 +35,9 @@ export const FLAG_LIT = 1,
   FLAG_BACK = 256,
   FLAG_HAS_ORM = 512,
   FLAG_HAS_NORMAL_MAP = 1024,
-  FLAG_HAS_TANGENT = 2048;
+  FLAG_HAS_TANGENT = 2048,
+  /** Le dessin transparent lit ses clusters dans la liste compactée, pas un tampon d'indices à lui. */
+  FLAG_PAGED = 4096;
 export type VisPage = {
   array: Uint32Array;
   attributes: THREE.BufferGeometry['attributes'];

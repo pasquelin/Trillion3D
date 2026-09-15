@@ -4,12 +4,6 @@ import { HIZ_BOUNDS_VALUES } from '../../hiz.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from '../../gpuDraw.ts';
 import { visBin } from '../../webgpuPagesPipelineFor.ts';
 
-/** `webgpuBlendSelection.ts` avant le lot F : la coupe transparente était triée sans condition. */
-export function referenceOrdonneCoupe(cut) {
-  cut.sort((a, b) => (a.sourceOrder ?? a.id) - (b.sourceOrder ?? b.id));
-  return cut;
-}
-
 /** `webgpuVisibilityItems.ts` avant le lot F : l'enregistrement était relu trois fois par ligne. */
 export function referenceBuildItems(rt, twoPass, itemsDirty) {
   const {

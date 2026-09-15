@@ -5,6 +5,7 @@ import {
   FLAG_HAS_NORMAL,
   FLAG_HAS_TANGENT,
   FLAG_LIT,
+  FLAG_PAGED,
   FLAG_WRAP_S_REPEAT,
   FLAG_WRAP_T_REPEAT,
   isTransmissive,
@@ -34,17 +35,16 @@ export function prepareWebgpuBlend(
     if (!attr || !idx) continue;
     const position = ensureWebgpuPositionBuffer(device, copy.geometry.attributes, positionBuffers)!;
     const paged = !!copy.userData.pagedBlend;
-    const src = idx.array,
-      indexData = paged
-        ? new Uint32Array(0)
-        : src instanceof Uint32Array
-          ? src
-          : new Uint32Array(src as ArrayLike<number>);
-    const index = device.createBuffer({
-      size: Math.max(4, indexData.byteLength),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    if (indexData.byteLength)
+    const src = idx.array;
+    // A paged primitive reads its indices from the page cache, cluster by cluster: it owns none.
+    let index: GPUBuffer | undefined;
+    if (!paged) {
+      const indexData =
+        src instanceof Uint32Array ? src : new Uint32Array(src as ArrayLike<number>);
+      index = device.createBuffer({
+        size: Math.max(4, indexData.byteLength),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      });
       device.queue.writeBuffer(
         index,
         0,
@@ -52,6 +52,7 @@ export function prepareWebgpuBlend(
         indexData.byteOffset,
         indexData.byteLength,
       );
+    }
     const uvAttr = copy.geometry.attributes.uv;
     let uv: GPUBuffer | undefined;
     if (uvAttr) {
@@ -103,6 +104,7 @@ export function prepareWebgpuBlend(
     if (normal) flags |= FLAG_HAS_NORMAL;
     if (tangentAttr) flags |= FLAG_HAS_TANGENT;
     if (mat.backSide) flags |= FLAG_BACK;
+    if (paged) flags |= FLAG_PAGED;
     if (mat.map && mat.map.wrapS !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_S_REPEAT;
     if (mat.map && mat.map.wrapT !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_T_REPEAT;
     // Static source transforms are baked for this backend. World AABBs remain

@@ -44,9 +44,10 @@ export function createWebgpuRowSync(
         rows.residentFlags[i] = resident ? 1 : 0;
         onResidenceChange(rec);
       }
-      if (!resident) continue;
+      // Un cluster transparent est résident, demandé et budgété comme les autres, mais il ne réclame
+      // pas de ligne du tampon de visibilité : il se dessine dans la passe de mélange.
+      if (!resident || rec.transparent) continue;
       candidates++;
-      if (rec.transparent) continue;
       const position = rows.pagePositions[i];
       if (!position) continue;
       if (count >= drawSlots) {

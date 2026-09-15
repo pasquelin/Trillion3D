@@ -1,15 +1,17 @@
-// F6 et F7 : la coupe transparente et les items de visibilité. F6 ne trie une coupe que lorsqu'un
-// couple ne compare pas franchement « inférieur ou égal » — une clé NaN le fait échouer et le tri
-// reprend la main — si bien que l'ordre rendu reste celui d'un tri stable. F7 lit l'enregistrement de
-// la ligne une fois au lieu de trois, et sort la borne de couche de la boucle.
+// F7 : les items de visibilité. L'enregistrement de la ligne est lu une fois au lieu de trois, et la
+// borne de couche sort de la boucle.
+//
+// F6 mesurait l'ordre de la coupe transparente processeur. Ce calcul n'existe plus : la sélection GPU
+// des transparents a supprimé la coupe processeur et son tri par image, et l'ordre de dessin est
+// devenu une table statique filtrée par une compaction GPU. Le constat « déjà ordonné, donc pas de
+// tri » du lot F vit maintenant dans le repli processeur de `webgpuBlendSelection.ts`.
 import * as THREE from 'three';
-import { ordonneCoupeTransparente } from '../webgpuBlendSelection.ts';
 import { buildWebgpuVisibilityItems } from '../webgpuVisibilityItems.ts';
 import { HIZ_BOUNDS_VALUES } from '../hiz.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from '../gpuDraw.ts';
 import { compare, graine } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeF } from '../../sdk-core/bench/bancF.mjs';
-import { referenceBuildItems, referenceOrdonneCoupe } from './oracles/f-transparents.mjs';
+import { referenceBuildItems } from './oracles/f-transparents.mjs';
 
 const alea = graine(787);
 const materiaux = [
@@ -17,32 +19,6 @@ const materiaux = [
   new THREE.MeshBasicMaterial({ side: THREE.BackSide }),
   new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
 ];
-
-/** Une coupe transparente : ordonnée, presque ordonnée, désordonnée, ou semée de clés NaN. */
-const coupe = (taille, desordre, nan) => {
-  const liste = [];
-  for (let i = 0; i < taille; i++)
-    liste.push({ id: i, sourceOrder: nan && alea() < 0.05 ? NaN : i });
-  for (let i = 0; i < Math.floor(taille * desordre); i++) {
-    const a = Math.floor(alea() * taille),
-      b = Math.floor(alea() * taille);
-    const tampon = liste[a];
-    liste[a] = liste[b];
-    liste[b] = tampon;
-  }
-  return liste;
-};
-
-const coupes = {
-  ordonnee: coupe(4000, 0, false),
-  presque: coupe(4000, 0.001, false),
-  desordonnee: coupe(4000, 0.5, false),
-  nan: coupe(400, 0.3, true),
-  seule: coupe(1, 0, false),
-  vide: [],
-  identiques: Array.from({ length: 2000 }, (_, i) => ({ id: i, sourceOrder: 7 })),
-};
-const passeCoupe = (fn) => (entree) => fn(coupes[entree].map((rec) => rec));
 
 /** Un jeu de lignes empaquetées : couches coplanaires, faces mêlées, moitié testée par le Hi-Z. */
 const LIGNES = 20000,
@@ -129,22 +105,6 @@ const casItems = [
 
 const lignes = [
   await compare({
-    calcul: 'F6 ordre de la coupe transparente',
-    fichier: 'packages/sdk-browser/webgpuBlendSelection.ts',
-    cas: [
-      { nom: 'coupe déjà ordonnée', entree: 'ordonnee', taille: 4000 },
-      { nom: 'coupe presque ordonnée', entree: 'presque', taille: 4000 },
-      { nom: 'coupe désordonnée', entree: 'desordonnee', taille: 4000 },
-      { nom: 'clés NaN', entree: 'nan', taille: 400 },
-      { nom: 'clés toutes égales', entree: 'identiques', taille: 2000 },
-      { nom: 'un seul cluster', entree: 'seule', taille: 1 },
-      { nom: 'coupe vide', entree: 'vide', taille: 0 },
-    ],
-    reference: passeCoupe(referenceOrdonneCoupe),
-    optimisee: passeCoupe(ordonneCoupeTransparente),
-    options: { tours: 200, budgetMs: 2500 },
-  }),
-  await compare({
     calcul: 'F7 items de visibilité et bornes Hi-Z',
     fichier: 'packages/sdk-browser/webgpuVisibilityItems.ts',
     cas: casItems,
@@ -154,8 +114,4 @@ const lignes = [
   }),
 ];
 
-verifieEtDeposeF(
-  'f-transparents',
-  'F6 et F7 rendent exactement le même ordre de coupe et les mêmes items',
-  lignes,
-);
+verifieEtDeposeF('f-transparents', 'F7 rend exactement les mêmes items de visibilité', lignes);

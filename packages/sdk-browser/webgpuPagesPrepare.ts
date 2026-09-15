@@ -7,6 +7,8 @@ import { createGpuPageCache } from './gpuPages.ts';
 import { createWebgpuPagesPipelines } from './webgpuPagesPipelines.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
+import { createTransparentTable } from './webgpuTransparentTable.ts';
+import { createTransparentCompaction } from './webgpuTransparentCompact.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { createGpuDagSelection, packDagSelection } from './gpuDagSelection.ts';
 import { OPEN_CONE, triangleCone } from './pageCone.ts';
@@ -80,7 +82,7 @@ function cacheOptions(rt: WebgpuPagesRuntime) {
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap, frameBudget } = rt.setup,
-    { packedPages, opaqueRoots, rows } = rt.layout;
+    { packedPages, selectionRoots, rows } = rt.layout;
   gpu.lights = createSceneLightBuffer(gpuDevice, context.sceneLighting ?? rt.setup.source);
   run.lightState = gpu.lights.update();
   rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
@@ -139,6 +141,19 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     scene,
     !!context.gpuCanvas,
   );
+  // The transparent draw order is the scene's and is settled here, once: an image only chooses which
+  // of its entries survive.
+  blendState.table = createTransparentTable(packedPages, blendState.blendGpu);
+  for (let i = 0; i < blendState.table.pagedItems.length; i++)
+    blendState.table.pagedItems[i].pagedIndex = i;
+  blendState.compaction = await createTransparentCompaction(gpuDevice, blendState.table);
+  diag.engineDiagnostic('transparent-clusters', 'Table des clusters transparents', {
+    version: 1,
+    items: blendState.table.pagedItems.length,
+    clusters: blendState.table.length,
+    maxVertexWords: blendState.table.maxVertexWords,
+    gpuCompaction: !!blendState.compaction?.encode,
+  });
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
   ensureUniform(rt, gpuDevice, cap);
@@ -156,8 +171,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await prepareDirectLights(rt, gpuDevice);
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
-  if (vis.gpuDraw && opaqueRoots.length)
-    run.gpuSelection = await createGpuDagSelection(gpuDevice, packDagSelection(opaqueRoots), {
+  if (vis.gpuDraw && selectionRoots.length)
+    run.gpuSelection = await createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
       residentCut: true,
     });
   capabilities.gpuDriven = !!run.gpuSelection;

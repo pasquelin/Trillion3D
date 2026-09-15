@@ -1,66 +1,51 @@
 import type * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
-import { projectedPageError } from './pageSelection.ts';
+import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
 import { clusterHash } from './visibilityBuffer.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
+import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 
-/** Updates per-triangle identities only when a transparent cut or diagnostic changes. */
+type BlendState = ReturnType<typeof createWebgpuBlendState>;
+
+/**
+ * The cluster identity every transparent instance colours itself with, one word per catalogue entry.
+ *
+ * It is a property of the cluster, not of the cut: the hash and the level never move, and only
+ * `screen-error` depends on the camera. So the table is written whole when the mode changes and
+ * re-written per image only for that one mode — and never at all in beauty.
+ */
 export function writeBlendDiagnostic(
-  device: GPUDevice,
-  item: BlendGpuItem,
+  blendState: BlendState,
+  packedPages: readonly PageRec[],
   diagnostic: DiagnosticMode,
   lastCamera: THREE.PerspectiveCamera | undefined,
   viewport: readonly [number, number],
   diagnosticPixelError: number,
 ) {
-  if (diagnostic === 'clusters' || diagnostic === 'lod' || diagnostic === 'screen-error') {
-    const triangleCount = Math.floor(item.count / 3),
-      bytes = Math.max(4, triangleCount * 4);
-    if (bytes > Math.min(device.limits.maxBufferSize, device.limits.maxStorageBufferBindingSize))
-      throw new Error('GPU_TRANSPARENT_DIAGNOSTIC_BUDGET');
-    if (!item.diagnosticData || item.diagnosticData.length < triangleCount)
-      item.diagnosticData = new Uint32Array(triangleCount);
-    if (!item.diagnosticBuffer || item.diagnosticBuffer.size < bytes) {
-      item.diagnosticBuffer?.destroy();
-      item.diagnosticBuffer = device.createBuffer({
-        label: 'WG transparent triangle identity',
-        size: bytes,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-      item.group = undefined;
-      item.diagnosticCut = undefined;
+  const { table, compaction } = blendState;
+  if (!table || !compaction) return;
+  if (diagnostic !== 'clusters' && diagnostic !== 'lod' && diagnostic !== 'screen-error') return;
+  if (blendState.diagnosticMode === diagnostic && diagnostic !== 'screen-error') return;
+  blendState.diagnosticMode = diagnostic;
+  if (blendState.clusterIdentity.length < table.capacity)
+    blendState.clusterIdentity = new Uint32Array(table.capacity);
+  const identity = blendState.clusterIdentity;
+  for (let entry = 0; entry < table.capacity; entry++) {
+    const page = table.pageOfEntry[entry];
+    if (page < 0) {
+      identity[entry] = 0;
+      continue;
     }
-    if (
-      item.diagnosticCut !== item.cut ||
-      item.diagnosticMode !== diagnostic ||
-      diagnostic === 'screen-error'
-    ) {
-      let at = 0;
-      if (item.cut) {
-        for (const rec of item.cut) {
-          const hash = clusterHash(rec.clusterId) & 0x00ffffff;
-          const ratio =
-            diagnostic === 'screen-error' && lastCamera
-              ? Math.round(
-                  screenErrorRatio(
-                    projectedPageError(rec, lastCamera, viewport),
-                    diagnosticPixelError,
-                  ) * 127,
-                )
-              : 0;
-          const encoded = (hash | (ratio << 24) | (rec.role === 'coarse' ? 0x80000000 : 0)) >>> 0;
-          item.diagnosticData.fill(encoded, at, at + rec.triangles);
-          at += rec.triangles;
-        }
-      } else item.diagnosticData.fill(0, 0, triangleCount);
-      device.queue.writeBuffer(
-        item.diagnosticBuffer,
-        0,
-        item.diagnosticData.subarray(0, triangleCount),
-      );
-      item.diagnosticCut = item.cut;
-      item.diagnosticMode = diagnostic;
-    }
+    const rec = packedPages[page],
+      hash = clusterHash(rec.clusterId) & 0x00ffffff;
+    const ratio =
+      diagnostic === 'screen-error' && lastCamera
+        ? Math.round(
+            screenErrorRatio(projectedPageError(rec, lastCamera, viewport), diagnosticPixelError) *
+              127,
+          )
+        : 0;
+    identity[entry] = (hash | (ratio << 24) | (rec.role === 'coarse' ? 0x80000000 : 0)) >>> 0;
   }
+  compaction.uploadDiagnostic(identity.subarray(0, table.capacity));
 }
