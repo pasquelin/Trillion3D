@@ -114,7 +114,7 @@ pub(crate) fn write(rows: &[Row]) {
               "note":row.note})
         })
         .collect();
-    let json = json!({"date":date,"lot":"B","commit":shell("git",&["rev-parse","HEAD"]),
+    let json = json!({"date":date,"lot":"B+F","commit":shell("git",&["rev-parse","HEAD"]),
       "rustc":shell("rustc",&["--version"]),"profil":"release --locked",
       "toursMin":50,"budgetMs":2000,"machine":shell("uname",&["-mrs"]),"points":entries});
     let _ = std::fs::write(
@@ -123,8 +123,8 @@ pub(crate) fn write(rows: &[Row]) {
     );
     let text = |key: &str| json[key].as_str().unwrap_or("null").to_string();
     let mut page = format!(
-        "# Calculs natifs, lot B — {date}\n\nCommit {} · {} · release --locked · médiane sur au \
-         moins 50 tours ou 2 s, les deux implémentations alternant tour par tour.\n\n",
+        "# Calculs natifs, lots B et F — {date}\n\nCommit {} · {} · release --locked · médiane sur \
+         au moins 50 tours ou 2 s, les deux implémentations alternant tour par tour.\n\n",
         text("commit"),
         text("rustc")
     );

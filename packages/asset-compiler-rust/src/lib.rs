@@ -11,6 +11,7 @@ mod perf;
 pub mod plugins;
 pub mod proxy;
 mod qem;
+pub mod shared_math;
 pub mod texture_preview;
 mod topology;
 use rayon::prelude::*;
@@ -134,6 +135,8 @@ mod compiler_storage;
 mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
+#[cfg(test)]
+mod shared_math_tests;
 #[cfg(test)]
 mod tests;
 use compiler_accessor_create::*;

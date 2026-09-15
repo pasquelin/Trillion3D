@@ -1,4 +1,28 @@
 use super::*;
+use crate::shared_math::{bisect_centres, merge_aabb};
+
+/// Bornes d'un nœud : la boîte de ses clusters, la sphère qui enferme leurs sphères de remplacement
+/// et la plus grande erreur de remplacement du sous-arbre. Une seule lecture de l'intervalle sert
+/// aussi bien à la racine, qui couvre tout l'ordre, qu'à un nœud qui n'en couvre qu'une tranche.
+fn node_bounds(
+    span: &[usize],
+    boxes: &[([f64; 3], [f64; 3])],
+    clusters: &[DagCluster],
+) -> ([f64; 3], [f64; 3], [f64; 4], f64) {
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
+    let mut spheres = Vec::with_capacity(span.len());
+    let mut max_parent_error = 0.0_f64;
+    for &id in span {
+        let (bmin, bmax) = boxes[id];
+        merge_aabb(&mut min, &mut max, bmin, bmax);
+        spheres.push(clusters[id].parent_sphere);
+        if clusters[id].parent_error > max_parent_error {
+            max_parent_error = clusters[id].parent_error;
+        }
+    }
+    (min, max, enclosing_sphere(&spheres), max_parent_error)
+}
 
 pub fn build_culling_bvh(
     positions: &[f32],
@@ -47,45 +71,18 @@ pub fn build_culling_bvh(
         for (offset, &(from, to)) in level_ranges.iter().enumerate() {
             queue.push_back((first_child + offset, from, to));
         }
-        let mut min = [f64::INFINITY; 3];
-        let mut max = [f64::NEG_INFINITY; 3];
-        let mut spheres = Vec::with_capacity(clusters.len());
-        let mut max_parent_error = 0.0_f64;
-        for &id in &order {
-            let (bmin, bmax) = boxes[id];
-            for a in 0..3 {
-                min[a] = min[a].min(bmin[a]);
-                max[a] = max[a].max(bmax[a]);
-            }
-            spheres.push(clusters[id].parent_sphere);
-            if clusters[id].parent_error > max_parent_error {
-                max_parent_error = clusters[id].parent_error;
-            }
-        }
+        let (min, max, sphere, max_parent_error) = node_bounds(&order, &boxes, clusters);
         nodes[0].min = min;
         nodes[0].max = max;
-        nodes[0].sphere = enclosing_sphere(&spheres);
+        nodes[0].sphere = sphere;
         nodes[0].max_parent_error = max_parent_error;
     }
     while let Some((index, start, end)) = queue.pop_front() {
-        let mut min = [f64::INFINITY; 3];
-        let mut max = [f64::NEG_INFINITY; 3];
-        let mut spheres = Vec::with_capacity(end - start);
-        let mut max_parent_error = 0.0_f64;
-        for &id in &order[start..end] {
-            let (bmin, bmax) = boxes[id];
-            for a in 0..3 {
-                min[a] = min[a].min(bmin[a]);
-                max[a] = max[a].max(bmax[a]);
-            }
-            spheres.push(clusters[id].parent_sphere);
-            if clusters[id].parent_error > max_parent_error {
-                max_parent_error = clusters[id].parent_error;
-            }
-        }
+        let (min, max, sphere, max_parent_error) =
+            node_bounds(&order[start..end], &boxes, clusters);
         nodes[index].min = min;
         nodes[index].max = max;
-        nodes[index].sphere = enclosing_sphere(&spheres);
+        nodes[index].sphere = sphere;
         nodes[index].max_parent_error = max_parent_error;
         if end - start <= CULLING_LEAF {
             nodes[index].first_cluster = start;
@@ -101,26 +98,7 @@ pub fn build_culling_bvh(
                     next.push((from, to));
                     continue;
                 }
-                let slice = &mut order[from..to];
-                let mut low = [f64::INFINITY; 3];
-                let mut high = [f64::NEG_INFINITY; 3];
-                for &id in slice.iter() {
-                    for a in 0..3 {
-                        low[a] = low[a].min(centres[id][a]);
-                        high[a] = high[a].max(centres[id][a]);
-                    }
-                }
-                let mut axis = 0;
-                for a in 1..3 {
-                    if high[a] - low[a] > high[axis] - low[axis] {
-                        axis = a;
-                    }
-                }
-                slice.sort_unstable_by(|&x, &y| {
-                    centres[x][axis]
-                        .total_cmp(&centres[y][axis])
-                        .then(x.cmp(&y))
-                });
+                bisect_centres(&mut order[from..to], &centres);
                 let middle = from + (to - from) / 2;
                 next.push((from, middle));
                 next.push((middle, to));

@@ -79,7 +79,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .join(scene.key());
     let written = scene.write(plugin, &directory, file, started)?;
     (request.progress)(
-        json!({"phase":"import-source","step":"complete","plugin":NAME,"counts":counts,"ms":started.elapsed().as_secs_f64()*1000.0}),
+        json!({"phase":"import-source","step":"complete","plugin":NAME,"counts":counts,"ms":crate::shared_math::elapsed_ms(started)}),
     );
     Ok(written)
 }

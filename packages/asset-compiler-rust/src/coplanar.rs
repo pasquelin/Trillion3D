@@ -92,6 +92,9 @@ pub struct CoplanarResult {
 /// The distance step world planes are compared with, from the size of the scene: one part in a
 /// million of its longest side, so the same surface always hashes to the same plane whatever
 /// instance carried it, and two floors a millimetre apart stay two floors.
+///
+/// Ce n'est pas la boucle de `shared_math::extend_aabb` : chaque borne d'un axe est lue et gardée
+/// séparément, une page sans `min` lisible pouvant quand même porter un `max`.
 pub fn offset_quantum(primitives: &[Value]) -> f64 {
     let mut low = [f64::INFINITY; 3];
     let mut high = [f64::NEG_INFINITY; 3];
