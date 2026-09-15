@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { resolvePixelError } from './pageSelection.ts';
 import { sameHizView } from './hiz.ts';
 import { dropGpuSelection, invalidateOccluderHistory } from './webgpuPagesDrops.ts';
@@ -31,7 +31,11 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   }
   if (!sameHizView(run.previousHizView, camera)) {
     invalidateOccluderHistory(run);
-    run.previousHizView = camera.clone();
+    // La pose est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
+    run.previousHizView = (run.previousHizView ?? new THREE.PerspectiveCamera()).copy(
+      camera,
+      false,
+    );
   }
   for (const item of blendState.blendGpu)
     if (item.sourceMesh) {
