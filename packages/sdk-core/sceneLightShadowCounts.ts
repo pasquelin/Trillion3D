@@ -11,9 +11,6 @@ import { LIGHT_FIELD, type SceneLightStore } from './sceneLightStore.ts';
 
 type Slices = ReturnType<typeof createShadowSliceTable>;
 
-/** Le résultat d'un balayage de la file, réutilisé : deux balayages par image, aucune allocation. */
-const swept = { pages: 0, ms: 0, images: 0 };
-
 /** Rayon angulaire de la sphère d'influence rapporté au demi-champ : approximation nommée (P5). */
 export function screenCoverage(
   view: ShadowViewpoint,
@@ -32,13 +29,6 @@ export function screenCoverage(
   return Math.min(1, ratio * ratio);
 }
 
-/** Le type et la tranche d'une lampe à ombre, ou `-1` quand elle n'en a pas. */
-function shadowSliceOf(store: SceneLightStore, slot: number) {
-  const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-  if (store.packed[base + LIGHT_FIELD.castsShadow] === 0) return -1;
-  return store.sliceOf(slot);
-}
-
 /**
  * Ce que la passe d'ombres a réellement fait : des pages, jamais des durées. Pages invalidées par
  * l'image, pages redessinées, pages restées en attente, et le retard de la plus ancienne d'entre
@@ -54,24 +44,13 @@ export function createShadowCounts() {
     pendingPages = 0,
     waitedMs = 0,
     waitedFrames = 0;
-  /** Pages en attente sur toutes les faces que les lampes à ombre déclarées possèdent. */
-  const scan = (slices: Slices, store: SceneLightStore, frame: number, nowMs: number) => {
-    swept.pages = 0;
-    swept.ms = 0;
-    swept.images = 0;
-    for (let slot = 0; slot < store.count; slot++) {
-      const slice = shadowSliceOf(store, slot);
-      if (slice < 0) continue;
-      const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-      const count = faceCountOf(store.packed[base + LIGHT_FIELD.kind]);
-      for (let face = 0; face < count; face++) {
-        if (!slices.dirty.isDirty(slice, face)) continue;
-        swept.pages += slices.dirty.pages(slice, face);
-        swept.ms = Math.max(swept.ms, slices.dirty.waitedMs(slice, face, nowMs));
-        swept.images = Math.max(swept.images, slices.dirty.waitedFrames(slice, face, frame));
-      }
-    }
-    return swept;
+  /** Ce qu'une image remet à zéro ; `reset` y ajoute ce qui survit d'une image à l'autre. */
+  const beginFrame = () => {
+    denied = 0;
+    reused = 0;
+    lights = 0;
+    sunLights = 0;
+    invalidatedPages = 0;
   };
   return {
     get denied() {
@@ -100,13 +79,7 @@ export function createShadowCounts() {
     get waitedFrames() {
       return waitedFrames;
     },
-    beginFrame() {
-      denied = 0;
-      reused = 0;
-      lights = 0;
-      sunLights = 0;
-      invalidatedPages = 0;
-    },
+    beginFrame,
     deny() {
       denied++;
     },
@@ -121,23 +94,32 @@ export function createShadowCounts() {
       const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
       if (store.packed[base + LIGHT_FIELD.kind] === LIGHT_KIND.directional) sunLights++;
     },
-    /** Pages entrées en file cette image, comptées à l'entrée et non déduites d'une différence. */
-    invalidated(slices: Slices) {
-      invalidatedPages = slices.dirty.invalidated;
-    },
-    /** Ce qui reste après l'admission : la file, son retard, et le point de départ de l'image suivante. */
+    /**
+     * Ce qui reste après l'admission : les pages entrées en file cette image — comptées à l'entrée,
+     * jamais déduites d'une différence —, celles qui y restent, et le retard de la plus ancienne.
+     * Un seul balayage des faces que les lampes à ombre déclarées possèdent.
+     */
     endFrame(slices: Slices, store: SceneLightStore, frame: number, nowMs: number) {
-      const rest = scan(slices, store, frame, nowMs);
-      pendingPages = rest.pages;
-      waitedMs = rest.ms;
-      waitedFrames = rest.images;
+      invalidatedPages = slices.dirty.invalidated;
+      pendingPages = 0;
+      waitedMs = 0;
+      waitedFrames = 0;
+      for (let slot = 0; slot < store.count; slot++) {
+        const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
+        if (store.packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
+        const slice = store.sliceOf(slot);
+        if (slice < 0) continue;
+        const count = faceCountOf(store.packed[base + LIGHT_FIELD.kind]);
+        for (let face = 0; face < count; face++) {
+          if (!slices.dirty.isDirty(slice, face)) continue;
+          pendingPages += slices.dirty.pages(slice, face);
+          waitedMs = Math.max(waitedMs, slices.dirty.waitedMs(slice, face, nowMs));
+          waitedFrames = Math.max(waitedFrames, slices.dirty.waitedFrames(slice, face, frame));
+        }
+      }
     },
     reset() {
-      denied = 0;
-      reused = 0;
-      lights = 0;
-      sunLights = 0;
-      invalidatedPages = 0;
+      beginFrame();
       pendingPages = 0;
       waitedMs = 0;
       waitedFrames = 0;

@@ -32,8 +32,6 @@ export function createShadowRegions(capacity: number) {
     x1Of: (region: number) => field(region, 4),
     y0Of: (region: number) => field(region, 5),
     y1Of: (region: number) => field(region, 6),
-    pagesOf: (region: number) =>
-      (field(region, 4) - field(region, 3) + 1) * (field(region, 6) - field(region, 5) + 1),
     reset() {
       count = 0;
       pages = 0;

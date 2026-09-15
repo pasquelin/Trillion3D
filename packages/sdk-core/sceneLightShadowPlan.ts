@@ -39,7 +39,7 @@ export function createShadowPlan(capacity: number) {
   let byPage = true;
   const coverage = new Float64Array(LIGHT_SETTINGS.maxLights);
   const queue = createShadowAdmission(regions, budget, counts);
-  const plan = {
+  return {
     slices,
     regions,
     budget,
@@ -141,7 +141,6 @@ export function createShadowPlan(capacity: number) {
       }
       // Les boîtes sont consommées : ce sont les pages qui portent désormais le travail restant.
       changes.settled();
-      counts.invalidated(slices);
       queue.run(slices, store, frame);
       counts.endFrame(slices, store, frame, nowMs);
       return regions.count;
@@ -173,6 +172,5 @@ export function createShadowPlan(capacity: number) {
       counts.reset();
     },
   };
-  return plan;
 }
 export { RECTS_PER_SLICE };
