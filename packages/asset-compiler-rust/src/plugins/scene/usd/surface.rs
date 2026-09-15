@@ -56,13 +56,18 @@ impl Surface {
     ) -> Option<(Value, usize)> {
         let mut out = Vertices::default();
         let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
+        // Un seul éventail, vidé d'une face à l'autre : la boucle passe sur chaque face de la
+        // partie, et une allocation par face ne servirait qu'à refaire le même tampon.
+        let mut fan: Vec<u32> = Vec::new();
         for face in &part.faces {
             let Some((start, count)) = self.faces.get(*face).copied() else {
                 continue;
             };
-            let fan: Vec<u32> = (0..count)
-                .filter_map(|offset| self.corner(&mut out, &mut unique, start + offset, *face))
-                .collect();
+            fan.clear();
+            fan.extend(
+                (0..count)
+                    .filter_map(|offset| self.corner(&mut out, &mut unique, start + offset, *face)),
+            );
             if fan.len() < 3 || fan.len() < count {
                 continue;
             }

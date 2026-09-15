@@ -19,13 +19,7 @@ pub(super) fn decode(
     bytes: &[u8],
     max_alloc: u64,
 ) -> std::result::Result<DecodedImage, &'static str> {
-    if u64::from(surface.width)
-        .saturating_mul(u64::from(surface.height))
-        .saturating_mul(4)
-        > max_alloc
-    {
-        return Err(TOO_LARGE);
-    }
+    crate::plugins::image::rgba8_budget(surface.width, surface.height, max_alloc, TOO_LARGE)?;
     let texture = Transcoder::new(bytes).map_err(|_| TRANSCODE_FAILED)?;
     // Seul le niveau 0 est consommé, comme partout dans ce pilote : c'est l'image de base, celle
     // que l'index des niveaux donne en premier.
