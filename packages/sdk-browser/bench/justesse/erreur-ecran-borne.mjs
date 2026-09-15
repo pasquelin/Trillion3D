@@ -144,7 +144,7 @@ const familles = ['perpendiculaire', 'profondeur', 'oblique', 'planProche'];
 const rapport = { cas: CAS, familles: {} };
 let violationsMoteur = 0,
   monotonie = 0;
-/** Pire rapport réel/annoncé, rapport médian et violations d'une série. */
+/** Pire rapport réel/annoncé, médian, premier décile (borne la plus large) et violations. */
 const serie = () => ({ rapports: [], violations: 0 });
 const ajoute = (s, vrai, annonce) => {
   if (!Number.isFinite(annonce)) return;
@@ -157,6 +157,7 @@ const resume = (s) => {
   return {
     pire: arrondi(r[r.length - 1]),
     median: arrondi(r[r.length >> 1]),
+    decile: arrondi(r[Math.floor(r.length / 10)]),
     violations: s.violations,
   };
 };
