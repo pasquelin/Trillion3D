@@ -1,44 +1,48 @@
 import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 
-/** Plans proche et lointain d'une tranche, dérivés de la seule portée : une seule source pour la
- *  projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au bord. */
-export function shadowPlanes(range: number) {
-  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction);
-  return { near, far: Math.max(near * 1.001, range) };
-}
+const projScratch = new Float32Array(16);
+/** Plans d'une face et demi-champ de sa projection. Un seul est vivant à la fois : l'appelant le lit
+ *  avant de composer la face suivante, donc l'objet est réutilisé et rien n'est alloué par image. */
+const planes = { near: 0, far: 0, halfFov: 0 };
 
 /**
  * Projection perspective pour l'espace de découpe WebGPU, profondeur normalisée dans `[0, 1]`,
- * colonne-major. `near` est dérivé de la portée : une seule constante, jamais un réglage caché.
+ * colonne-major, écrite dans le tampon rendu. `near` est dérivé de la seule portée : une seule
+ * source pour la projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au
+ * bord, et jamais un réglage caché.
  */
-export function shadowProjection(out: Float32Array, base: number, fov: number, range: number) {
-  const { near, far } = shadowPlanes(range),
-    f = 1 / Math.tan(fov / 2),
+export function shadowProjection(fov: number, range: number) {
+  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
+    far = Math.max(near * 1.001, range);
+  const f = 1 / Math.tan(fov / 2),
     depth = far / (near - far);
-  out.fill(0, base, base + 16);
-  out[base] = f;
-  out[base + 5] = f;
-  out[base + 10] = depth;
-  out[base + 11] = -1;
-  out[base + 14] = near * depth;
-  return { near, far, halfFov: fov / 2 };
+  projScratch.fill(0);
+  projScratch[0] = f;
+  projScratch[5] = f;
+  projScratch[10] = depth;
+  projScratch[11] = -1;
+  projScratch[14] = near * depth;
+  planes.near = near;
+  planes.far = far;
+  planes.halfFov = fov / 2;
+  return planes;
 }
 
 /**
  * Projection orthographique d'une cascade, profondeur normalisée dans `[0, 1]`, colonne-major. Le
  * plan proche est à l'œil : celui-ci est déjà reculé vers la lampe de toute la profondeur voulue.
+ * Une orthographie n'a ni plan proche ni ouverture à publier : les deux sortent nuls.
  */
-export function shadowOrthographic(
-  out: Float32Array,
-  base: number,
-  halfExtent: number,
-  far: number,
-) {
-  out.fill(0, base, base + 16);
-  out[base] = 1 / halfExtent;
-  out[base + 5] = 1 / halfExtent;
-  out[base + 10] = -1 / far;
-  out[base + 15] = 1;
+export function shadowOrthographic(halfExtent: number, far: number) {
+  projScratch.fill(0);
+  projScratch[0] = 1 / halfExtent;
+  projScratch[5] = 1 / halfExtent;
+  projScratch[10] = -1 / far;
+  projScratch[15] = 1;
+  planes.near = 0;
+  planes.far = far;
+  planes.halfFov = 0;
+  return planes;
 }
 
 /** Matrice de vue colonne-major d'une caméra en `eye` regardant le long de `forward`. */
@@ -102,9 +106,11 @@ function multiply4(
 
 const viewScratch = new Float32Array(16),
   mulScratch = new Float32Array(16);
-export const projScratch = new Float32Array(16);
 
-/** Vue puis projection, composées dans `out` : le seul chemin par lequel une face obtient sa matrice. */
+/**
+ * Vue puis projection, composées dans `out` : le seul chemin par lequel une face obtient sa matrice.
+ * La projection est celle que `shadowProjection` ou `shadowOrthographic` vient d'écrire.
+ */
 export function composeFace(
   out: Float32Array,
   base: number,

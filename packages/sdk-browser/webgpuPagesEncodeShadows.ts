@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import {
+  LIGHT_KIND,
   RECTS_PER_SLICE,
   SHADOW_CULL_FLOATS,
   faceCountOf,
-  writeFaceCull,
-  writeFaceMatrix,
+  writeFace,
   type ShadowViewpoint,
 } from '../sdk-core/index.ts';
 import { MAX_FACES_PER_FRAME } from './gpuShadowAtlas.ts';
@@ -61,19 +61,28 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
     const slice = plan.updatedSlice[update];
     const light = store.light(store.ids[plan.updatedLight[update]]);
     if (!light) continue;
-    const count = faceCountOf(light.kind);
+    const kind = LIGHT_KIND[light.kind];
+    const count = faceCountOf(kind);
     const side = plan.slices.side[slice];
     for (let face = 0; face < count && faces < MAX_FACES_PER_FRAME; face++) {
       const base = faces * 16,
         rect = slice * RECTS_PER_SLICE + face * 3;
-      const planes = writeFaceMatrix(faceMatrices, base, light, face, view, side);
-      if (cull) writeFaceCull(cull.volumes, faces * SHADOW_CULL_FLOATS, light, face, view, side);
+      const planes = writeFace(
+        faceMatrices,
+        base,
+        cull ? cull.volumes : null,
+        faces * SHADOW_CULL_FLOATS,
+        light,
+        face,
+        view,
+        side,
+      );
       if (!face) shadows.writeSliceInfo(slice, count, Math.tan(planes.halfFov), side, planes.near);
       shadows.writeFace(faces, slice, face, faceMatrices, base, plan.slices.rects);
       faceRects[faces * 3] = plan.slices.rects[rect];
       faceRects[faces * 3 + 1] = plan.slices.rects[rect + 1];
       faceRects[faces * 3 + 2] = plan.slices.rects[rect + 2];
-      if (light.kind === 'directional') lights.sunCascades++;
+      if (kind === LIGHT_KIND.directional) lights.sunCascades++;
       faces++;
     }
   }
