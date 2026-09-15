@@ -8,10 +8,22 @@ interface SunCascade {
   boxCenter: [number, number, number];
 }
 
-/** La distance d'ombre du soleil : la borne au-delà de laquelle aucune cascade ne teste plus rien. */
+/**
+ * Le plan proche de la caméra, au plancher d'un millimètre : une vue qui déclare zéro, ou moins,
+ * n'ouvre pas la découpe sur une distance nulle. Le plancher n'est écrit qu'ici, et la distance
+ * d'ombre ci-dessous le relit plutôt que d'en garder le sien.
+ */
+function cameraNearMetres(view: ShadowViewpoint) {
+  return Math.max(1e-3, view.near);
+}
+
+/**
+ * La distance d'ombre du soleil : la borne au-delà de laquelle aucune cascade ne teste plus rien.
+ * C'est une fraction publiée du lointain de la caméra, tenue au-dessus de son plan proche pour que
+ * la découpe garde un intervalle à partager même quand la vue n'en laisse aucun.
+ */
 function sunShadowFarMetres(view: ShadowViewpoint) {
-  const near = Math.max(1e-3, view.near);
-  return Math.max(near * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
+  return Math.max(cameraNearMetres(view) * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
 }
 
 /**
@@ -34,7 +46,7 @@ function sunShadowFarMetres(view: ShadowViewpoint) {
  */
 function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
   const count = LIGHT_SETTINGS.sunCascades;
-  const camera = Math.max(1e-3, view.near),
+  const camera = cameraNearMetres(view),
     far = sunShadowFarMetres(view);
   const near = Math.max(camera, far / Math.pow(LIGHT_SETTINGS.sunCascadeRatioMax, count));
   const step = Math.pow(far / near, 1 / count);

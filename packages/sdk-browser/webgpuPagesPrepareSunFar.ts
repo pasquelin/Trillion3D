@@ -67,8 +67,10 @@ function grantCapability(rt: WebgpuPagesRuntime) {
 /** Ce que l'ombre lointaine a réellement obtenu. Jamais une estimation, jamais un zéro déduit. */
 function publish(rt: WebgpuPagesRuntime) {
   const { sunFar, diag } = rt,
-    gpu = sunFar.gpu,
-    proxy = gpu?.proxy;
+    // Le module gréé, et seulement une fois son proxy adopté : sans proxy, ses réglages ne
+    // décrivent aucun rayon, et c'est `null` qu'il faut publier, pas le zéro de leur naissance.
+    ready = sunFar.gpu?.proxy ? sunFar.gpu : undefined,
+    proxy = ready?.proxy;
   if (sunFar.published && !proxy) return;
   sunFar.published = true;
   diag.engineDiagnostic('sun-far-shadow', 'Ombres lointaines du soleil contre le proxy', {
@@ -82,9 +84,9 @@ function publish(rt: WebgpuPagesRuntime) {
     proxyBytes: proxy?.bytes ?? null,
     proxyErrorMetres: proxy?.errorMetres ?? null,
     proxyCellMetres: proxy?.cellMetres ?? null,
-    rayOffsetMetres: proxy ? (gpu?.offsetMetres ?? null) : null,
-    rayStartMetres: proxy ? (gpu?.startMetres ?? null) : null,
-    rayMaxMetres: proxy ? (gpu?.maxDistanceMetres ?? null) : null,
+    rayOffsetMetres: ready?.offsetMetres ?? null,
+    rayStartMetres: ready?.startMetres ?? null,
+    rayMaxMetres: ready?.maxDistanceMetres ?? null,
     unavailable: sunFar.reason,
     approximations: SUN_FAR_APPROXIMATIONS,
   });
@@ -92,12 +94,25 @@ function publish(rt: WebgpuPagesRuntime) {
 
 /** L'état de l'ombre lointaine, tel que le profil par étape et le suivi de l'image le publient. */
 export function sunFarState(rt: WebgpuPagesRuntime) {
-  const counts = rt.sunFar.gpu?.counts();
+  const { gpu, reason } = rt.sunFar,
+    counts = gpu?.counts();
   return {
-    proxyTriangles: rt.sunFar.gpu?.proxy?.triangleCount ?? null,
+    proxyTriangles: gpu?.proxy?.triangleCount ?? null,
     pixelsTestes: counts?.tested ?? null,
     pixelsAssombris: counts?.blocked ?? null,
     imageRelevee: counts?.frame ?? null,
-    unavailable: rt.sunFar.reason,
+    unavailable: reason,
   };
+}
+
+/**
+ * Les compteurs de l'étape « Ombres lointaines », ceux qui sont revenus seulement : un relevé qui
+ * n'est pas revenu n'est pas déposé du tout, il n'existe pas de zéro déduit.
+ */
+export function sunFarCounts(rt: WebgpuPagesRuntime) {
+  const { proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee } = sunFarState(rt);
+  const releves = { trianglesDuProxy: proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee };
+  const counts: Record<string, number> = {};
+  for (const [name, value] of Object.entries(releves)) if (value !== null) counts[name] = value;
+  return counts;
 }
