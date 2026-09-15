@@ -11,12 +11,7 @@
       {
         "name": "Opaque",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [
-            1.0,
-            1.0,
-            1.0,
-            1.0
-          ],
+          "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
           "baseColorTexture": {
             "index": 0
           },
@@ -28,12 +23,7 @@
         "alphaMode": "BLEND",
         "name": "Transparent",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [
-            1.0,
-            1.0,
-            1.0,
-            0.4000000059604645
-          ],
+          "baseColorFactor": [1.0, 1.0, 1.0, 0.4000000059604645],
           "baseColorTexture": {
             "index": 0
           },
@@ -42,19 +32,10 @@
         }
       },
       {
-        "emissiveFactor": [
-          1.0,
-          0.6000000238418579,
-          0.05999999865889549
-        ],
+        "emissiveFactor": [1.0, 0.6000000238418579, 0.05999999865889549],
         "name": "Emissive",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [
-            1.0,
-            0.20000000298023224,
-            0.019999999552965164,
-            1.0
-          ],
+          "baseColorFactor": [1.0, 0.20000000298023224, 0.019999999552965164, 1.0],
           "metallicFactor": 0.0,
           "roughnessFactor": 0.5
         }
@@ -96,112 +77,30 @@
   },
   "rule": "Blender travaille en Z vers le haut, le glTF en Y vers le haut : un unique noeud racine porte la conversion d axes, et aucun sommet n est retouche. Un maillage partage par trois objets n est ecrit qu une fois ; seules les matrices different. L indice de matiere vit a la face chez Blender et a la primitive en glTF : les six faces donnent trois primitives. Les normales ne sont pas dans le fichier et sont calculees a la lecture, a plat pour une face nette. L emission vaut couleur x intensite, bornee a 1 par le glTF et comptee des qu elle depasse. Les octets de l image empaquetee partent tels quels dans le binaire de la scene, par une vue de tampon : aucun reencodage.",
   "scene": {
-    "meshNames": [
-      "Cube"
-    ],
+    "meshNames": ["Cube"],
     "nodes": [
       {
-        "children": [
-          1,
-          2,
-          3
-        ],
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          -1.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "children": [1, 2, 3],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
         "name": "scene.blend"
       },
       {
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
         "mesh": 0,
         "name": "SharedMesh_0"
       },
       {
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          3.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 3.0, 0.0, 0.0, 1.0],
         "mesh": 0,
         "name": "SharedMesh_1"
       },
       {
-        "matrix": [
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          0.0,
-          0.0,
-          0.0,
-          1.0,
-          0.0,
-          6.0,
-          0.0,
-          0.0,
-          1.0
-        ],
+        "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 6.0, 0.0, 0.0, 1.0],
         "mesh": 0,
         "name": "SharedMesh_2"
       }
     ],
-    "primitiveMaterials": [
-      [
-        0,
-        1,
-        2
-      ]
-    ],
-    "roots": [
-      0
-    ]
+    "primitiveMaterials": [[0, 1, 2]],
+    "roots": [0]
   }
 }
