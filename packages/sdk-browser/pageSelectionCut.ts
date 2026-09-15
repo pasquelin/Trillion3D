@@ -58,6 +58,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatForced = undefined;
   state.flatForcedList = undefined;
   state.flatInside = false;
+  state.flatExact = false;
   state.flatUseForcing = false;
   state.flatMissing = false;
   state.flatShort = false;

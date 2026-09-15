@@ -96,6 +96,34 @@ export function clusterErrorPixels(
 ): number {
   if (clusterError === 0) return 0;
   if (clusterError === Infinity) return Infinity;
+  if (!Number.isFinite(centreX) || !Number.isFinite(centreY) || !Number.isFinite(centreZ)) {
+    throw new Error('Parametres de cluster invalides');
+  }
+  return clusterErrorAtDistance(
+    clusterError,
+    stretch,
+    Math.sqrt(centreX * centreX + centreY * centreY + centreZ * centreZ),
+    radius,
+    focal,
+    near,
+  );
+}
+
+/**
+ * La meme erreur projetee, la distance du centre au point de vue etant deja connue. Un appelant qui
+ * a deux bornes a poser sur la meme sphere ne paie qu'une racine carree : la soustraction, la garde
+ * de plan proche et la division sont celles de `clusterErrorPixels`, aux memes bits pres.
+ */
+export function clusterErrorAtDistance(
+  clusterError: number,
+  stretch: number,
+  centreDistance: number,
+  radius: number,
+  focal: number,
+  near: number,
+): number {
+  if (clusterError === 0) return 0;
+  if (clusterError === Infinity) return Infinity;
   if (
     !Number.isFinite(clusterError) ||
     clusterError < 0 ||
@@ -107,14 +135,11 @@ export function clusterErrorPixels(
     focal <= 0 ||
     !Number.isFinite(near) ||
     near <= 0 ||
-    !Number.isFinite(centreX) ||
-    !Number.isFinite(centreY) ||
-    !Number.isFinite(centreZ)
+    !Number.isFinite(centreDistance)
   ) {
     throw new Error('Parametres de cluster invalides');
   }
-  const distance =
-    Math.sqrt(centreX * centreX + centreY * centreY + centreZ * centreZ) - radius * stretch;
+  const distance = centreDistance - radius * stretch;
   if (!(distance > near)) return Infinity;
   return (clusterError * stretch * focal) / distance;
 }

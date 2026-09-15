@@ -1,4 +1,5 @@
 import { extractPlanes } from './pageSelectionMath.ts';
+import type { ConeContext } from './pageCone.ts';
 import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCutLogic.ts';
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
 import {
@@ -17,6 +18,19 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatElements = viewMatrix.elements;
   s.flatStretch = worldStretch(root) * s.cameraStretch;
   s.flatFocal = Math.max(pixelScale[0], pixelScale[1]);
+  // Les chemins à seuil nul ne consultent ni caméra ni sphère : ils ne valent que si les trois
+  // scalaires de l'image sont ceux qu'un quotient strictement positif demande.
+  const near = s.camera.near;
+  s.flatExact =
+    s.pixelError === 0 &&
+    s.flatStretch > 0 &&
+    Number.isFinite(s.flatStretch) &&
+    s.flatFocal > 0 &&
+    Number.isFinite(s.flatFocal) &&
+    near > 0 &&
+    Number.isFinite(near);
+  // Le contexte de cône appartient à cette racine : il sera posé au premier cluster qui en a un.
+  (s.flatCone as ConeContext).ready = false;
   extractPlanes(clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix), planes);
   s.flatStructure = root.structure;
   s.flatForced = root.forced;

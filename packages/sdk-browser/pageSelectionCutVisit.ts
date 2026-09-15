@@ -3,7 +3,8 @@ import { boxClip, cutSelects, projectedClusterError } from './pageSelectionMath.
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 import { BOUND_STRIDE } from './pageSelectionCutBounds.ts';
-import { nodeDecision } from './pageSelectionCutNode.ts';
+import { nodeDecision, nodeDecisionAtZero } from './pageSelectionCutNode.ts';
+import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 
 /** Frustum test of a page's world box against the selection planes. */
 function boxClipRec(min: readonly number[], max: readonly number[]) {
@@ -44,10 +45,12 @@ function take<T extends PageRecord>(s: SelectionState<T>, rec: T, settled = fals
     !settled &&
     !(s.flatUseForcing
       ? drawnUnderForcing(s, rec)
-      : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.camera.near, s.pixelError))
+      : s.flatExact
+        ? cutSelectsAtZero(rec)
+        : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.camera.near, s.pixelError))
   )
     return;
-  if (rec.cone && coneSkipsPage(rec, s.flatWorld, s.camera, rec.min, rec.max)) return;
+  if (rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, rec.min, rec.max)) return;
   keep(s, rec);
 }
 
@@ -56,7 +59,7 @@ export function flatVisible<T extends PageRecord>(s: SelectionState<T>, rec: T) 
 }
 
 export function flatConeKeeps<T extends PageRecord>(s: SelectionState<T>, rec: T) {
-  return !rec.cone || !coneSkipsPage(rec, s.flatWorld, s.camera, rec.min!, rec.max!);
+  return !rec.cone || !coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, rec.min!, rec.max!);
 }
 
 export function traverse<T extends PageRecord>(
@@ -76,7 +79,8 @@ export function traverse<T extends PageRecord>(
   const { stack, planes } = selectionScratch;
   // Le repli par forçage ne teste pas la coupe mais le groupe forcé : les bornes de coupe ne le
   // certifient pas, la descente y reste celle d'avant ce lot.
-  const hierarchical = !s.flatUseForcing;
+  const hierarchical = !s.flatUseForcing,
+    exact = s.flatExact;
   let top = 0;
   stack[top++] = 0;
   while (top > 0) {
@@ -106,22 +110,27 @@ export function traverse<T extends PageRecord>(
     }
     if (!settled) {
       // Rejet que le manifeste porte déjà : aucun remplaçant encore assez grossier dans le sous-arbre.
+      // À seuil nul le plafond du remplaçant ne passe sous le seuil que s'il est nul : même identité
+      // que `cutSelectsAtZero`, et pas une projection de plus.
       const bound = nodes[base + 10];
       if (
-        bound >= 0 &&
-        projectedClusterError(
-          bound,
-          nodes,
-          base + 6,
-          s.flatElements,
-          s.flatStretch,
-          s.flatFocal,
-          s.camera.near,
-        ) <= s.pixelError
+        exact
+          ? bound === 0
+          : bound >= 0 &&
+            projectedClusterError(
+              bound,
+              nodes,
+              base + 6,
+              s.flatElements,
+              s.flatStretch,
+              s.flatFocal,
+              s.camera.near,
+            ) <= s.pixelError
       )
         continue;
       if (hierarchical) {
-        const decision = nodeDecision(s, bounds, node * BOUND_STRIDE);
+        const at = node * BOUND_STRIDE;
+        const decision = exact ? nodeDecisionAtZero(bounds, at) : nodeDecision(s, bounds, at);
         if (decision < 0) continue;
         settled = decision > 0;
       }

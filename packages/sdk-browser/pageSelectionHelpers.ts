@@ -7,7 +7,13 @@ import {
   type StreamCatalogue,
 } from '../sdk-core/index.ts';
 import * as THREE from 'three';
-import { OPEN_CONE, coneCullsPage, type NormalCone } from './pageCone.ts';
+import {
+  OPEN_CONE,
+  coneContextFor,
+  coneCullsPageWith,
+  type ConeContext,
+  type NormalCone,
+} from './pageCone.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
 function pageIsDoubleSided(material: THREE.Material | THREE.Material[] | undefined) {
@@ -16,6 +22,7 @@ function pageIsDoubleSided(material: THREE.Material | THREE.Material[] | undefin
   return side === THREE.DoubleSide;
 }
 
+/** Le contexte est posé au premier cône de la racine : une racine sans cône ne le paie jamais. */
 export function coneSkipsPage(
   rec: {
     cone?: NormalCone;
@@ -23,6 +30,7 @@ export function coneSkipsPage(
     max?: number[];
     material?: THREE.Material | THREE.Material[];
   },
+  ctx: ConeContext,
   world: THREE.Matrix4,
   camera: THREE.PerspectiveCamera,
   fallbackMin: number[],
@@ -31,7 +39,8 @@ export function coneSkipsPage(
   if (pageIsDoubleSided(rec.material)) return false;
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax;
-  return coneCullsPage(rec.cone ?? OPEN_CONE, world, min, max, camera, rec.material);
+  if (!ctx.ready) coneContextFor(ctx, world, camera);
+  return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material);
 }
 
 /** Validate and unpack the flat culling hierarchy. Absent or malformed, the flat path scans pages. */
