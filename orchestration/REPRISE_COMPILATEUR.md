@@ -18,8 +18,8 @@ User order: scene fidelity/OBJ cache, crashes, remaining families; one batch at 
 
 ## Batches
 
-- A OBJ cache/MTL: 1,2 + MTL audit; **delivered 46d0d61**, obj/fbx `-gltf-5`, 9 codes, OBJ golden. Remaining: `-o`/`-s` counted, `-clamp` lacks browser proof. Scope `import/{runner,textures,materials}.rs`, `src/uri.rs`.
-- B concave n-gons: **next**, 9; shared ear-clipping helper for ma/blend/alembic/usd.
+- A OBJ cache/MTL: 1,2 + MTL audit; **merged 2df0b9f** (46d0d61), obj/fbx `-gltf-5`, 9 codes, OBJ golden. Remaining: `-o`/`-s` counted, `-clamp` lacks browser proof, `encode_relative` wired only in the ufbx import — `blend/images.rs:59-92`, `ma/texture.rs:60`, `usd/texture.rs:61`, `unity/textures.rs:54` still write the raw URI (batch H or J), simplify's `texture_ref` untested. Scope `import/{runner,textures,materials}.rs`, `src/uri.rs`.
+- B concave n-gons: **in progress**, worktree `.claude/worktrees/lot-b-ngones`, branch `compilateur/lot-b-ngones` from b92e23e; 9; shared ear-clipping helper for ma/blend/alembic/usd.
 - C USD fidelity: 35,36,37,38,40,41; `plugins/scene/usd/`.
 - D Unity fidelity: 29,30,32,31; `plugins/scene/unity/`.
 - E Maya fidelity: 10,11,12,13; `plugins/scene/ma/`.
