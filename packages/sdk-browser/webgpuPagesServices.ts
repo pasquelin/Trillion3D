@@ -154,8 +154,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
   const adoptGpuCut = () => {
-    if (!cutAdopter.adopt()) return;
+    const adopted = cutAdopter.adopt();
     const metrics = cutAdopter.metrics;
+    run.cutHeld = metrics.cutHeld;
+    if (!adopted) return;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
     run.uncoveredTriangles = metrics.uncoveredTriangles;
