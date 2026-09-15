@@ -6,6 +6,6 @@ export { HIZ_TEST_VALUES, hizTestRectFlat, hizRejects } from './hizOcclusion.ts'
 export { filterUnoccluded, countUnoccluded } from './hizUnoccluded.ts';
 export { createHizCounts, resetHizCounts, hizOversizedFlat } from './hizCounts.ts';
 export type { HizCounts } from './hizCounts.ts';
-export { splitOccludersFlat, splitOccludersInto } from './hizSplit.ts';
+export { splitOccludersFlat } from './hizSplit.ts';
 export { sameHizView, applyTemporalHiz } from './hizTemporal.ts';
 export type { TemporalHizState } from './hizTemporal.ts';

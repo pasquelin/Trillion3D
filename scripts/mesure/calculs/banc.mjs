@@ -33,7 +33,7 @@ const TYPES = [
 const typee = (v) => TYPES.some((T) => v instanceof T);
 
 /** Premier écart bit à bit entre deux valeurs, ou `null`. `Object.is` sépare -0 de +0 et voit NaN. */
-export function ecart(a, b, chemin = '', profondeur = 0) {
+function ecart(a, b, chemin = '', profondeur = 0) {
   if (profondeur > 8) throw new Error('BANC_PROFONDEUR');
   if (Object.is(a, b)) return null;
   if (typeof a === 'number' || typeof b === 'number')
@@ -80,7 +80,7 @@ export function ecart(a, b, chemin = '', profondeur = 0) {
  * Médiane en millisecondes d'un tour complet : échauffement, puis N tours ou le budget de temps.
  * Le tour est attendu, qu'il rende une promesse ou non : les deux côtés paient la même attente.
  */
-export async function mediane(tour, options = {}) {
+async function mediane(tour, options = {}) {
   const { chauffe = 20, tours = 200, budgetMs = 2000 } = options;
   for (let i = 0; i < chauffe; i++) await tour();
   const durees = [];
