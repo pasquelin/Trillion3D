@@ -1,5 +1,30 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session calculs] mesure finale des temps par image
+
+Verrou `.claude/mesure.lock` pris, campagne rejouée deux fois avant d'aboutir. Base « avant » =
+`15297dd` (première tête de `develop` en manifeste binaire v4 qui compile), base « après » =
+`develop` à `db44508`, moteurs WebGPU et WebGL, quatre vues, 300 images, seuil pixel 1, hash de
+coupe identique, aucun incident GPU, charge machine 15 à 26 pendant la mesure, 18 erreurs 404
+`lights.json` sans effet. Détail : `orchestration/mesures/calculs-finale-2026-09-15.md`.
+
+Résumé : CPU générale WebGPU 4,10 → 3,80 ms, WebGL 9,60 → 8,80 ms ; GPU générale WebGPU
+10,72 → 11,83 ms ; vue `sol` en WebGPU à 0 px d'écart, les trois autres vues avec des écarts de
+pixels francs. Lecture honnête : entre les deux bases sont passés les lots des autres sessions
+(ombres, rebond, eau, transparents GPU, instances, budget de pages) — les écarts de pixels et
+la hausse du temps GPU générale viennent de là, pas des optimisations de calcul de cet audit.
+Cette campagne ne prouve ni ne réfute une optimisation isolée ; la preuve par lot reste le banc
+Node de `AUDIT_MATH_BILAN.md`.
+
+Deux essais refusés avant celui-ci : base `a59c05a`, manifeste v2 côté ancien code contre v4
+côté cache — le format a changé deux fois pendant l'audit (v2 → v3 aux aperçus, v4 à `15297dd`),
+une base antérieure à `15297dd` ne charge donc plus le cache courant ; base `ed6369f`, commit
+intermédiaire d'un chantier texture, ne compile pas seul (export `PREVIEW_LEVEL_SIZES` absent).
+
+Faute à noter : le verrou a été pris dans un creux de charge d'une autre session, sans message
+préalable aux autres sessions actives. Règle pour la suite : prévenir avant `mkdir
+.claude/mesure.lock`, pas seulement vérifier que le verrou est libre.
+
 ## 2026-09-15 — [session stochastique] deux tranches de lampes par tuile, et la boucle exacte des transparents (lot RX2, réduit)
 
 Worktree `lot-stochastique`, branche `lot/stochastique`, rebasée sur `develop`. Rien n'est fusionné,
