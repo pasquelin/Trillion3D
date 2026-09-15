@@ -3,6 +3,7 @@
 use super::*;
 use std::{fs, path::PathBuf};
 
+mod dds;
 mod image_registry;
 mod router;
 mod tga;
