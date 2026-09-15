@@ -14,6 +14,7 @@ const BOUNCE_APPROXIMATIONS = [
   'a ray that exhausts the published traversal bound reports no hit, which darkens rather than leaks',
   'the surface cache holds one radiance per proxy triangle and face, so lighting is constant over a cell',
   'the surface cache is swept on a budget, so a freshly moved light reaches a cell within one sweep',
+  'only grid cells touching geometry, plus one ring around them, carry a probe: elsewhere the bounce is zero',
 ];
 
 /**
@@ -75,8 +76,9 @@ function publish(rt: WebgpuPagesRuntime) {
     probeCounts: probes?.grid.counts ?? null,
     probeSpacing: probes?.grid.spacing ?? null,
     probes: probes?.grid.probes ?? null,
+    probesActive: probes?.activeProbes ?? null,
     raysPerFrame: probes
-      ? Math.min(BOUNCE_SETTINGS.probesPerFrame, probes.grid.probes) * BOUNCE_SETTINGS.raysPerProbe
+      ? Math.min(BOUNCE_SETTINGS.raysPerFrame, probes.activeProbes * BOUNCE_SETTINGS.raysPerProbe)
       : null,
     sweepFrames: probes?.sweepFrames ?? null,
     unavailable: bounce.reason,

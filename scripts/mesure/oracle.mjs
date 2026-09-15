@@ -106,6 +106,12 @@ async function main() {
       viewport: { width: settings.width, height: settings.height },
     });
     page.on('pageerror', (error) => report.vues.push({ erreur: String(error) }));
+    // Un nuanceur refusé n'arrive pas par `pageerror` : il part en avertissement de console, et la
+    // mesure meurt plus loin sur un appareil perdu. On le remonte tel quel.
+    page.on('console', (m) => {
+      if (m.type() === 'error' || m.type() === 'warning')
+        console.error('[page]', m.type(), m.text().slice(0, 600));
+    });
     await page.goto(`http://127.0.0.1:${port}/`);
     const bounds = await page.evaluate(readBounds, {
       sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,

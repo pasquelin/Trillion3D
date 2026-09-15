@@ -15,6 +15,10 @@ export const BOUNCE_PROBE_PASS = 'WG bounce probes v1';
  * Elle accumule le tout en harmoniques sphériques d'ordre 1. Un rayon, une traversée : les rayons
  * d'ombre et la relecture des lampes ont quitté cette passe pour celle du cache.
  *
+ * Les sondes mises à jour sont celles d'une liste compacte, arrêtée à la construction : les mailles
+ * qui touchent de la géométrie et la couronne autour d'elles. Une maille absente de la liste n'est
+ * jamais écrite, donc elle se déclare inutilisable et ne pèse rien dans l'interpolation.
+ *
  * L'amortissement est adaptatif : une sonde dont l'estimation saute converge vite, une sonde stable
  * bouge à peine. Rien n'alloue, rien ne boucle sans borne, et une scène sans lampe déclarée écrit
  * exactement zéro (P6).
@@ -29,6 +33,7 @@ export const BOUNCE_PROBE_SHADER = `
 @group(0) @binding(2) var<storage,read> proxyAlbedo:array<u32>;
 @group(0) @binding(3) var<storage,read> proxyNodeBounds:array<f32>;
 @group(0) @binding(4) var<storage,read> proxyNodeChildren:array<u32>;
+@group(0) @binding(5) var<storage,read> probeCells:array<u32>;
 @group(0) @binding(6) var<storage,read> probes:array<vec4f>;
 @group(0) @binding(7) var<storage,read_write> probesOut:array<vec4f>;
 @group(0) @binding(8) var<storage,read> surface:array<vec4f>;
@@ -73,8 +78,12 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 }
 @compute @workgroup_size(${BOUNCE_WORKGROUP})
 fn updateProbes(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=bounce.frame.y||bounce.counts.w==0u){return;}
- let probe=(bounce.frame.x+id.x)%bounce.counts.w;
+ let useful=bounce.frame.w;
+ if(id.x>=bounce.frame.y||bounce.counts.w==0u||useful==0u){return;}
+ // Le curseur parcourt la liste des mailles qui méritent une sonde, jamais la grille entière : le
+ // ciel vide et le cœur des murs n'y sont pas, et le budget de rayons va à ce qui sera relu.
+ let probe=probeCells[(bounce.frame.x+id.x)%useful];
+ if(probe>=bounce.counts.w){return;}
  let origin=probePosition(probe);
  let reach=bounce.origin.w;
  let rotation=hashUnit(probe*9781u+bounce.frame.z)*6.2831853;

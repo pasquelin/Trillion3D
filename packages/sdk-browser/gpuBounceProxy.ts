@@ -1,7 +1,7 @@
 import type { SceneProxy } from '../sdk-core/index.ts';
 
 /** Un tampon résident écrit une fois, à la préparation : une image ne le touche jamais. */
-function residentBuffer(device: GPUDevice, label: string, data: Float32Array | Uint32Array) {
+export function residentBuffer(device: GPUDevice, label: string, data: Float32Array | Uint32Array) {
   // Une liaison de stockage ne peut pas être vide : un proxy absent garde quatre octets de zéro,
   // et le nuanceur le voit comme un arbre sans nœud, donc comme un rayon qui ne touche rien.
   const size = Math.max(4, data.byteLength);
