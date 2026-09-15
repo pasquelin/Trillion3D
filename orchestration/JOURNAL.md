@@ -1,5 +1,43 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Lumière] WEBGPU_LOST sur Emerald : le remplaçant de `BounceGrid` avait gardé son ancienne taille
+
+### La cause
+
+La passe des transparents lie le tampon `WG empty bounce grid` à chaque image, **même rebond
+éteint** : c'est le remplaçant que lit une image sans rebond. Il était créé à 64 octets, la taille
+qu'avait `BounceGrid` avant les cascades ; la structure en fait 176 depuis. Une liaison plus petite
+que ce que le nuanceur déclare est refusée par la validation WebGPU, l'erreur remonte sans être
+capturée, et c'est la première image qui lie le groupe qui perd l'appareil — loin de la cause, d'où
+un `WEBGPU_LOST` sans message.
+
+### Le correctif
+
+- `BOUNCE_GRID_BYTES` (`bounceUniform.ts`) devient l'unique source de vérité : l'uniforme, le
+  remplaçant vide et le tampon de sondes vide la lisent au même endroit. Un niveau de cascade ajouté
+  les fait grandir ensemble, jamais d'un seul côté. Même règle appliquée au cache de surfaces, dont
+  la taille était écrite deux fois (`surfaceCacheTexels`, `surfaceCacheBytes`).
+- `bounceLimits.ts` confronte toutes les liaisons prévues à `device.limits` **avant** qu'un seul
+  tampon ne soit créé : une scène trop grande pour cet appareil se voit refuser le rebond en nommant
+  la liaison et les octets qui ont manqué, au lieu de perdre l'appareil plus tard. Le diagnostic
+  s'appelle donc `bounce-unavailable` : le proxy absent n'en est plus la seule cause.
+- Le banc remonte désormais les incidents de la carte graphique (`incidentsGpu` dans le relevé) :
+  une image perdue revenait à Node avec sa pile d'appels et rien d'autre, la cause n'ayant été vue
+  que dans la page.
+
+### La preuve, et ce qu'elle ne peut pas être
+
+- **A/A : 0 px**, et **aucun incident carte graphique** sur les six fumées WebGPU — trois vues
+  (`generale`, `sol`, `rue`) × rebond éteint et rebond allumé.
+- **La comparaison 0 px contre `develop` est impossible** : `develop` (0e26787) tombe justement en
+  `WEBGPU_LOST` sur `generale`. Il n'y a pas d'image d'en face à comparer — c'est le défaut corrigé.
+- Contre la dernière référence saine connue, `d3dcd69` (import des lampes), l'écart est de
+  **4 390 px**, tous dans la boîte x[384, 572] y[287, 364]. Cette zone est celle que remuent les
+  lots fusionnés entre `d3dcd69` et aujourd'hui — transparents sans ambiance, cascades, ombres par
+  pages, eau —, pas ce correctif : ses fichiers sont à 100 % sur le chemin WebGPU du rebond.
+- **La référence d'image WebGPU devient donc la tête de `fix/webgpu-lost`** (correctif `214942a`),
+  et non `d3dcd69` : les 4 390 px sont une dette des lots intermédiaires, à expliquer chez eux.
+
 ## 2026-09-15 — [session sans-threejs] lot 4c : la coupe WebGL2 à seuil nul, une racine carrée par nœud, les triangles sommés à la retenue
 
 Le lot 4b avait laissé la cible « sélection sous 2 ms en vue générale » ouverte et nommé le coût
