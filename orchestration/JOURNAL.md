@@ -680,7 +680,12 @@ fusionné.
 | webgpu, caméra mobile, 9 instances                | 2             | 0 px  | 0   | identique 2/2 | 0     | 2 652,8 → 209,1 Mo      |
 | classes de matériaux, 1 instance                  | 6             | 0 px  | 0   | identique 6/6 | 0     | 0,2 → 0,2 Mo            |
 | webgl, 1 instance                                 | 2             | 0 px  | 0   | identique 2/2 | —     | 223,3 → 223,3 Mo        |
-| webgpu, generale, 1 instance, **base de fusion**  | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, generale, 1 instance, **base de fusion `f6dd905`** | 2    | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+
+La dernière ligne a été rejouée à chaque fois que `develop` a bougé en code pendant la livraison —
+contre `2264c16`, puis contre `f6dd905`, la base réellement fusionnée : 0 px les deux fois. Un
+rebase sur des commits de documentation seuls ne redemande pas de preuve ; un rebase sur du code,
+si.
 
 Aucun `WEBGPU_LOST` sur aucune des sept campagnes. Durées **indicatives**, machine partagée avec
 d'autres sessions, charge à une minute de 8 à 24 : vue générale au seuil 0 et à une instance,
