@@ -10,7 +10,7 @@ impl SceneProxy {
                 + self.triangles.len() * 4
                 + self.albedo.len() * 4
                 + self.node_bounds.len() * 4
-                + self.node_links.len() * 4,
+                + self.node_children.len() * 4,
         );
         for word in [
             SCENE_PROXY_MAGIC,
@@ -29,7 +29,7 @@ impl SceneProxy {
         for value in &self.node_bounds {
             bytes.extend_from_slice(&value.to_le_bytes());
         }
-        for value in &self.node_links {
+        for value in &self.node_children {
             bytes.extend_from_slice(&value.to_le_bytes());
         }
         bytes

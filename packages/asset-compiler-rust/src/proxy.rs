@@ -19,9 +19,11 @@ pub mod albedo;
 pub mod bvh;
 pub mod cut;
 pub mod encode;
+pub mod simplify;
+pub mod wide;
 
 /// Contrat du produit. Bouger la coupe, les sections ou l'ordre des nœuds impose de l'incrémenter.
-pub const SCENE_PROXY_VERSION: u32 = 1;
+pub const SCENE_PROXY_VERSION: u32 = 2;
 /// 'W','G','P','X' lus comme un entier non signé de 32 bits en petit-boutiste.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
 /// Entiers d'en-tête : signature, version, triangles, nœuds.
@@ -38,28 +40,37 @@ pub const PROXY_LEAF_TRIANGLES: usize = 8;
 pub const PROXY_TRIANGLE_BUDGET: usize = 300_000;
 /// Nombres par triangle : trois sommets monde. La normale se déduit du triangle, jamais stockée.
 pub const PROXY_TRIANGLE_FLOATS: usize = 9;
-/// Nombres par nœud : bornes basses puis hautes.
+/// Nombres par nœud : bornes basses puis hautes, exactes, qui servent aussi de repère aux boîtes
+/// quantifiées de ses enfants.
 pub const PROXY_NODE_FLOATS: usize = 6;
-/// Entiers par nœud : saut de sous-arbre, premier triangle, nombre de triangles.
-pub const PROXY_NODE_WORDS: usize = 3;
+/// Enfants d'un nœud du BVH : quatre boîtes testées d'un coup, la plus proche gardée pour la suite.
+pub const PROXY_CHILDREN: usize = 4;
+/// Entiers par enfant : deux mots de boîte quantifiée et de liens, puis le lien lui-même.
+pub const PROXY_CHILD_WORDS: usize = 3;
+/// Entiers par nœud : ses quatre enfants bout à bout.
+pub const PROXY_NODE_WORDS: usize = PROXY_CHILDREN * PROXY_CHILD_WORDS;
 
 /// Le proxy d'une scène, prêt à être écrit en colonnes.
 #[derive(Default)]
 pub struct SceneProxy {
     pub bounds: [f64; 6],
-    /// Le plus grand seuil qu'une primitive a dû prendre pour tenir dans sa part du budget.
+    /// Le plus grand seuil qu'une primitive a dû prendre pour tenir dans sa part du budget, plus
+    /// ce que la simplification propre au proxy y a ajouté.
     pub error_metres: f64,
+    /// Le pas de grille que la simplification a pris, en mètres : la taille d'un triangle du proxy,
+    /// donc aussi celle d'une maille du cache de surfaces.
+    pub cell_metres: f64,
     pub triangles: Vec<f32>,
     pub albedo: Vec<u32>,
     pub node_bounds: Vec<f32>,
-    pub node_links: Vec<u32>,
+    pub node_children: Vec<u32>,
 }
 impl SceneProxy {
     pub fn triangle_count(&self) -> usize {
         self.triangles.len() / PROXY_TRIANGLE_FLOATS
     }
     pub fn node_count(&self) -> usize {
-        self.node_links.len() / PROXY_NODE_WORDS
+        self.node_children.len() / PROXY_NODE_WORDS
     }
     /// Le descriptif que le manifeste porte : où lire l'objet, ce qu'il pèse, ce qu'il vaut.
     pub fn descriptor(&self, url: &str, sha256: &str, bytes: usize) -> Value {
@@ -69,6 +80,7 @@ impl SceneProxy {
          "sha256": sha256,
          "bytes": bytes,
          "errorMetres": self.error_metres,
+         "cellMetres": self.cell_metres,
          "errorFloorMetres": PROXY_ERROR_METRES,
          "triangleBudget": PROXY_TRIANGLE_BUDGET,
          "bounds": self.bounds,
@@ -151,18 +163,24 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
         }
     }
-    let (node_bounds, node_links) = bvh::build(&mut triangles, &mut colours);
+    // La coupe du DAG s'arrête à sa racine ; la simplification du proxy, elle, va aussi loin qu'il
+    // le faut, et donne au passage des triangles de taille bornée au cache de surfaces.
+    let cell = simplify::plan_cell(&triangles, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET);
+    simplify::simplify(&mut triangles, &mut colours, cell);
+    let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut colours));
+    let cut_error = inputs
+        .thresholds
+        .iter()
+        .copied()
+        .fold(PROXY_ERROR_METRES, f64::max);
     Ok(SceneProxy {
         bounds: bvh::extent(&triangles),
-        error_metres: inputs
-            .thresholds
-            .iter()
-            .copied()
-            .fold(PROXY_ERROR_METRES, f64::max),
+        error_metres: cut_error + cell * simplify::CELL_ERROR_FACTOR,
+        cell_metres: cell,
         triangles,
         albedo: colours,
         node_bounds,
-        node_links,
+        node_children,
     })
 }
 

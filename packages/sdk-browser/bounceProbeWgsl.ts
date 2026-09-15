@@ -29,7 +29,7 @@ export const BOUNCE_PROBE_SHADER = `
 @group(0) @binding(1) var<storage,read> proxyTriangles:array<f32>;
 @group(0) @binding(2) var<storage,read> proxyAlbedo:array<u32>;
 @group(0) @binding(3) var<storage,read> proxyNodeBounds:array<f32>;
-@group(0) @binding(4) var<storage,read> proxyNodeLinks:array<u32>;
+@group(0) @binding(4) var<storage,read> proxyNodeChildren:array<u32>;
 @group(0) @binding(5) var<storage,read> directLights:DirectLights;
 @group(0) @binding(6) var<storage,read> probes:array<vec4f>;
 @group(0) @binding(7) var<storage,read_write> probesOut:array<vec4f>;
