@@ -53,26 +53,30 @@ pub enum DecodedImage {
     },
 }
 
+/// Une texture de 2³² texels de côté n'a que trente-trois niveaux : au-delà, le champ ment. `dds`
+/// et `ktx2` lisent ce compte dans leur entête respectif et posent la même borne.
+const MAX_LEVELS: u32 = 33;
+
 /// Octets qu'occupe un pixel de la variante flottante : quatre canaux de quatre octets.
 const FLOAT_PIXEL_BYTES: u64 = 16;
 
-/// Les octets qu'un pixel RGBA8 occupe, pour le même calcul de plafond côté entier.
+/// Octets qu'occupe un pixel RGBA8.
 const RGBA8_PIXEL_BYTES: u64 = 4;
 
-/// Le plafond d'allocation d'une surface RGBA8, vérifié avant de décoder quoi que ce soit : c'est
-/// la garde que `dds` et `ktx2` posaient chacun de son côté, au mot près. `saturating_mul` garde la
-/// comparaison juste quand une dimension ment, là où une multiplication qui déborde laisserait
-/// passer. Le vide n'est pas jugé ici : chaque pilote le refuse déjà à la lecture de son entête,
-/// avec sa propre raison.
-fn rgba8_budget(
+/// Le plafond d'allocation d'une surface, vérifié avant de décoder quoi que ce soit, à
+/// `pixel_bytes` octets par pixel. `saturating_mul` garde la comparaison juste quand une dimension
+/// ment, là où une multiplication qui déborde laisserait passer. Le vide n'est pas jugé ici : `dds`
+/// et `ktx2` le refusent à la lecture de leur entête, les pilotes flottants dans `float_budget`.
+fn surface_budget(
     width: u32,
     height: u32,
+    pixel_bytes: u64,
     max_alloc: u64,
     too_large: &'static str,
 ) -> std::result::Result<(), &'static str> {
     if u64::from(width)
         .saturating_mul(u64::from(height))
-        .saturating_mul(RGBA8_PIXEL_BYTES)
+        .saturating_mul(pixel_bytes)
         > max_alloc
     {
         return Err(too_large);
@@ -92,10 +96,7 @@ fn float_budget(
     if width == 0 || height == 0 {
         return Err("image-empty");
     }
-    if u64::from(width) * u64::from(height) * FLOAT_PIXEL_BYTES > max_alloc {
-        return Err(too_large);
-    }
-    Ok(())
+    surface_budget(width, height, FLOAT_PIXEL_BYTES, max_alloc, too_large)
 }
 
 /// Un pilote d'image. Il ne rend jamais d'image vide et ne panique jamais : un octet imprévu est une
