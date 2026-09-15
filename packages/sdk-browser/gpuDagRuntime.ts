@@ -12,6 +12,29 @@ import type { createDagResources } from './gpuDagResources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
+/**
+ * La résidence demandée, comparée au miroir compact de l'image précédente : seules les pages dont
+ * le drapeau change touchent les cônes, où il vit à un flottant sur douze. Rend vrai si au moins
+ * une a changé — la même réponse que la comparaison directe des cônes, valeur flottante comprise.
+ */
+export function updateResidencyFlags(
+  next: Uint32Array,
+  mirror: Float32Array,
+  pageCones: Float32Array,
+  stride: number,
+  offset: number,
+) {
+  let changed = false;
+  for (let j = 0; j < next.length; j++) {
+    const value = next[j] ? 1 : 0;
+    if (mirror[j] === value) continue;
+    mirror[j] = value;
+    pageCones[j * stride + offset] = value;
+    changed = true;
+  }
+  return changed;
+}
+
 export function createDagRuntime(resources: DagResources): GpuSelection {
   const {
     device,
@@ -92,15 +115,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     updateResidency(next) {
       if (state.disposed || state.dead || !residentCut) return false;
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      let changed = false;
-      for (let j = 0; j < next.length; j++) {
-        const value = next[j] ? 1 : 0;
-        if (residence[j] === value) continue;
-        residence[j] = value;
-        packed.pageCones[j * PAGE_CONE_FLOATS + 11] = value;
-        changed = true;
-      }
-      if (!changed) return false;
+      if (!updateResidencyFlags(next, residence, packed.pageCones, PAGE_CONE_FLOATS, 11))
+        return false;
       device.queue.writeBuffer(pageCones, 0, packed.pageCones as Float32Array<ArrayBuffer>);
       state.residencyRevision++;
       state.last = null;
