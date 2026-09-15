@@ -4,14 +4,23 @@ import type { PageRec } from './pageSelection.ts';
 export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) {
   const residentFlags = new Uint32Array(packedPages.length);
   const pageIndicesByUrl = new Map<string, number[]>();
-  const pageIndexByRec = new Map<PageRec, number>();
   for (let i = 0; i < packedPages.length; i++) {
     const page = packedPages[i];
     const indices = pageIndicesByUrl.get(page.url);
     if (indices) indices.push(i);
     else pageIndicesByUrl.set(page.url, [i]);
-    pageIndexByRec.set(page, i);
+    page.packedIndex = i;
   }
+  /**
+   * Le rang d'une page du catalogue, ou `undefined` : le rang voyage sur la page elle-même plutôt que
+   * dans une table de hachage relue par cluster et par image. Le catalogue a le dernier mot — un rang
+   * posé par un autre moteur ne survit pas à la vérification, exactement comme une page absente de la
+   * table ne rendait rien.
+   */
+  const pageIndexOf = (rec: PageRec) => {
+    const index = rec.packedIndex;
+    return index !== undefined && packedPages[index] === rec ? index : undefined;
+  };
 
   const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
@@ -43,7 +52,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   return {
     residentFlags,
     pageIndicesByUrl,
-    pageIndexByRec,
+    pageIndexOf,
     residentOffsetWords,
     rowPageIndex,
     rowOffsetWords,

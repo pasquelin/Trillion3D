@@ -1,0 +1,534 @@
+{
+  "version": 1,
+  "lot": "F",
+  "date": "2026-09-15T02:33:24.118Z",
+  "commit": "0e9ef20fc4eff8cfade3c6f07302ac3a707f2896",
+  "node": "v26.8.2",
+  "plateforme": "darwin/arm64",
+  "dpr": null,
+  "fps": null,
+  "lignes": [
+    {
+      "calcul": "F4 table des lignes, écriture de queue",
+      "fichier": "packages/sdk-browser/webgpuRowCommit.ts",
+      "avantMs": 31.760541,
+      "apresMs": 27.069270500000002,
+      "gain": 0.147707512287023,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 123,
+      "entrees": [
+        {
+          "nom": "8 images, 12 000 pages",
+          "taille": 96000
+        },
+        {
+          "nom": "8 images, époque de table relancée",
+          "taille": 96000
+        },
+        {
+          "nom": "résidence vide",
+          "taille": 0
+        },
+        {
+          "nom": "une seule image",
+          "taille": 12000
+        }
+      ]
+    },
+    {
+      "calcul": "F5 rang d’une page du catalogue",
+      "fichier": "packages/sdk-browser/webgpuRowState.ts",
+      "avantMs": 0.6474789999999999,
+      "apresMs": 0.32254150000000004,
+      "gain": 0.5018502530584003,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 demandes, 10 % hors catalogue",
+          "taille": 20000
+        },
+        {
+          "nom": "une seule page",
+          "taille": 1
+        },
+        {
+          "nom": "page étrangère au rang usurpé",
+          "taille": 1
+        },
+        {
+          "nom": "aucune demande",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F6 ordre de la coupe transparente",
+      "fichier": "packages/sdk-browser/webgpuBlendSelection.ts",
+      "avantMs": 0.801792,
+      "apresMs": 0.7315205,
+      "gain": 0.08764305455779046,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "coupe déjà ordonnée",
+          "taille": 4000
+        },
+        {
+          "nom": "coupe presque ordonnée",
+          "taille": 4000
+        },
+        {
+          "nom": "coupe désordonnée",
+          "taille": 4000
+        },
+        {
+          "nom": "clés NaN",
+          "taille": 400
+        },
+        {
+          "nom": "clés toutes égales",
+          "taille": 2000
+        },
+        {
+          "nom": "un seul cluster",
+          "taille": 1
+        },
+        {
+          "nom": "coupe vide",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F7 items de visibilité et bornes Hi-Z",
+      "fichier": "packages/sdk-browser/webgpuVisibilityItems.ts",
+      "avantMs": 1.1004995,
+      "apresMs": 1.041833,
+      "gain": 0.05330897469739873,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 lignes, deux passes",
+          "taille": 20000
+        },
+        {
+          "nom": "20 000 lignes, items inchangés",
+          "taille": 20000
+        },
+        {
+          "nom": "20 000 lignes, une seule passe",
+          "taille": 20000
+        },
+        {
+          "nom": "une seule ligne",
+          "taille": 1
+        },
+        {
+          "nom": "aucune ligne",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F10 pièces jointes des surfaces",
+      "fichier": "packages/sdk-browser/webgpuPagesEncodeVisSetup.ts",
+      "avantMs": 0.194854,
+      "apresMs": 0.16964600000000002,
+      "gain": 0.12936865550617374,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "2 000 images sans redimensionnement",
+          "taille": 2000
+        },
+        {
+          "nom": "redimensionnements et cible libérée",
+          "taille": 7
+        },
+        {
+          "nom": "une seule image",
+          "taille": 1
+        },
+        {
+          "nom": "aucune image",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F12 déplacement d’une instance",
+      "fichier": "packages/sdk-browser/autonomousInstances.ts",
+      "avantMs": 1.6609375,
+      "apresMs": 1.364083,
+      "gain": 0.17872707431796803,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "5 000 pages",
+          "taille": 5000
+        },
+        {
+          "nom": "100 pages",
+          "taille": 100
+        },
+        {
+          "nom": "une seule page",
+          "taille": 1
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F13 anneau de préchargement",
+      "fichier": "packages/sdk-browser/explorerDraw.ts",
+      "avantMs": 0.688833,
+      "apresMs": 0.081,
+      "gain": 0.8824098148607864,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "10 000 adresses, lot de 64",
+          "taille": 10000
+        },
+        {
+          "nom": "anneau entièrement froid",
+          "taille": 10000
+        },
+        {
+          "nom": "anneau entièrement tenu",
+          "taille": 10000
+        },
+        {
+          "nom": "lot nul",
+          "taille": 0
+        },
+        {
+          "nom": "anneau vide",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F15 octets d’une texture échantillonnée",
+      "fichier": "packages/sdk-browser/visibilityTypes.ts",
+      "avantMs": 4.281708500000001,
+      "apresMs": 3.414708,
+      "gain": 0.20248938011543766,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "100 000 lectures de texel",
+          "taille": 100000
+        },
+        {
+          "nom": "textures limites et absentes",
+          "taille": 1200
+        },
+        {
+          "nom": "image remplacée en cours de route",
+          "taille": 4
+        },
+        {
+          "nom": "aucune texture",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F16 collecte des pages de clusters",
+      "fichier": "packages/sdk-browser/pageSelectionCollect.ts",
+      "avantMs": 7.2166250000000005,
+      "apresMs": 5.379791,
+      "gain": 0.25452812083210646,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "200 primitives, 2 600 pages",
+          "taille": 2600
+        },
+        {
+          "nom": "une primitive, une page",
+          "taille": 1
+        },
+        {
+          "nom": "maillage sans primitive",
+          "taille": 3
+        },
+        {
+          "nom": "scène vide",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F17 bornes des pages exactes",
+      "fichier": "packages/sdk-browser/explorerScene.ts",
+      "avantMs": 0.391229,
+      "apresMs": 0.2965835,
+      "gain": 0.24191841606833847,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "200 primitives, 2 600 pages",
+          "taille": 2600
+        },
+        {
+          "nom": "une primitive, une page",
+          "taille": 1
+        },
+        {
+          "nom": "maillage sans primitive",
+          "taille": 3
+        },
+        {
+          "nom": "scène vide",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F17 index des pages du manifeste",
+      "fichier": "packages/sdk-browser/manifestPageIndex.ts",
+      "avantMs": 0.334146,
+      "apresMs": 0.192979,
+      "gain": 0.42247101566381157,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "200 primitives, 2 600 pages",
+          "taille": 2600
+        },
+        {
+          "nom": "une seule page",
+          "taille": 1
+        },
+        {
+          "nom": "manifeste vide",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F18 cônes normaux des pages",
+      "fichier": "packages/sdk-browser/webgpuPagesPrepare.ts",
+      "avantMs": 12.398708,
+      "apresMs": 11.9278125,
+      "gain": 0.03797940075691752,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 pages, 60 matériaux",
+          "taille": 20000
+        },
+        {
+          "nom": "attributs entrelacés, normalisés, absents",
+          "taille": 400
+        },
+        {
+          "nom": "une seule page",
+          "taille": 1
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F18 table des octets source",
+      "fichier": "packages/sdk-browser/webgpuPagesCatalogue.ts",
+      "avantMs": 2.326708,
+      "apresMs": 1.3948960000000001,
+      "gain": 0.40048514897443077,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 pages, 60 matériaux",
+          "taille": 20000
+        },
+        {
+          "nom": "attributs entrelacés, normalisés, absents",
+          "taille": 400
+        },
+        {
+          "nom": "une seule page",
+          "taille": 1
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F18 compteurs du diagnostic des textures",
+      "fichier": "packages/sdk-browser/webgpuPagesCatalogue.ts",
+      "avantMs": 0.9311665,
+      "apresMs": 0.750167,
+      "gain": 0.1943793081044045,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 pages, 4 000 blocs",
+          "taille": 24000
+        },
+        {
+          "nom": "aucun bloc",
+          "taille": 1
+        },
+        {
+          "nom": "rien à compter",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F19 empreintes du manifeste binaire",
+      "fichier": "packages/sdk-core/manifestBinaryLayout.ts",
+      "avantMs": 14.786854,
+      "apresMs": 13.156604,
+      "gain": 0.110249955805339,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 86,
+      "entrees": [
+        {
+          "nom": "40 000 empreintes valides",
+          "taille": 40000
+        },
+        {
+          "nom": "empreintes refusées",
+          "taille": 12
+        },
+        {
+          "nom": "une seule empreinte",
+          "taille": 1
+        },
+        {
+          "nom": "aucune empreinte",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F20 longueur d’un Vec3",
+      "fichier": "packages/sdk-core/lightingSceneMath.ts",
+      "avantMs": 0.5272505000000001,
+      "apresMs": 0.402354,
+      "gain": 0.2368826582430933,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "20 000 vecteurs",
+          "taille": 20000
+        },
+        {
+          "nom": "zéros signés, NaN, infinis, dénormaux",
+          "taille": 74
+        },
+        {
+          "nom": "aucun vecteur",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F20 produit de deux matrices 4×4",
+      "fichier": "packages/sdk-core/sceneLightShadowFaces.ts",
+      "avantMs": 0.4215215,
+      "apresMs": 0.228375,
+      "gain": 0.4582126890324693,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "4 000 paires 4×4",
+          "taille": 4000
+        },
+        {
+          "nom": "matrices hostiles",
+          "taille": 8
+        },
+        {
+          "nom": "écriture sur place",
+          "taille": 64
+        },
+        {
+          "nom": "aucune paire",
+          "taille": 0
+        }
+      ]
+    },
+    {
+      "calcul": "F20 normales d’une scène de transport",
+      "fichier": "packages/sdk-core/lightingTransportValidation.ts",
+      "avantMs": 1.8301034999999999,
+      "apresMs": 1.724146,
+      "gain": 0.05789699872165696,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "8 000 facettes, 1 facette, normale non unitaire",
+          "taille": 8065
+        },
+        {
+          "nom": "aucune scène",
+          "taille": 0
+        }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,7 @@ import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open. */
-function prepareCones(rt: WebgpuPagesRuntime) {
+export function prepareCones(rt: WebgpuPagesRuntime) {
   const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
   for (const rec of rt.setup.allPages) {
     const array = rec.array,
@@ -29,17 +29,28 @@ function prepareCones(rt: WebgpuPagesRuntime) {
     let xyz = xyzCache.get(rec.attributes);
     if (!xyz) {
       xyz = new Float32Array(attr.count * 3);
-      for (let i = 0; i < attr.count; i++) {
-        xyz[i * 3] = attr.getX(i);
-        xyz[i * 3 + 1] = attr.getY(i);
-        xyz[i * 3 + 2] = attr.getZ(i);
-      }
+      // Un attribut simple de trois composantes non normalisé est déjà ce tableau : `getX/getY/getZ`
+      // rendent alors `array[i * 3 + c]`, et la copie par bloc écrit les mêmes valeurs, arrondies au
+      // même flottant 32 bits. Tout autre attribut — entrelacé, normalisé, d'un autre pas — repasse
+      // par les accesseurs, seuls capables de dire ce qu'il porte.
+      const plat = attr as THREE.BufferAttribute;
+      if (
+        plat.itemSize === 3 &&
+        !plat.normalized &&
+        !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
+        plat.array.length >= attr.count * 3
+      )
+        xyz.set(plat.array.subarray(0, attr.count * 3) as ArrayLike<number>);
+      else
+        for (let i = 0; i < attr.count; i++) {
+          xyz[i * 3] = attr.getX(i);
+          xyz[i * 3 + 1] = attr.getY(i);
+          xyz[i * 3 + 2] = attr.getZ(i);
+        }
       xyzCache.set(rec.attributes, xyz);
     }
-    rec.cone =
-      visMaterial(rec.material).doubleSided || visMaterial(rec.material).backSide
-        ? OPEN_CONE
-        : triangleCone(xyz, array);
+    const material = visMaterial(rec.material);
+    rec.cone = material.doubleSided || material.backSide ? OPEN_CONE : triangleCone(xyz, array);
   }
 }
 

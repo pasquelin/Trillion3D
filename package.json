@@ -45,6 +45,7 @@
     "test:changed": "node scripts/check-changed.mjs --tests-only",
     "check:changed": "node scripts/check-changed.mjs",
     "bench:calculs-c": "node --experimental-strip-types --test --test-concurrency=1 scripts/mesure/calculs/*-c.bench.mjs && node scripts/mesure/calculs/agrege-c.mjs",
+    "bench:calculs-f": "node --experimental-strip-types --test --test-concurrency=1 scripts/mesure/calculs/*-f.bench.mjs && node scripts/mesure/calculs/agrege-f.mjs",
     "test:watch": "node --experimental-strip-types --test --watch packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs test/*.test.mjs",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "bench:calculs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs",
