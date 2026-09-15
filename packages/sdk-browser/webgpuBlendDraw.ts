@@ -22,6 +22,7 @@ function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
     tileLights: contract.tiles ?? placeholders.tiles,
+    proxy: contract.proxy ?? placeholders.proxy,
   };
 }
 
@@ -35,7 +36,8 @@ function sameLighting(previous: BlendLighting | undefined, current: BlendLightin
     previous.shadowSampler === current.shadowSampler &&
     previous.bounceGrid === current.bounceGrid &&
     previous.probes === current.probes &&
-    previous.tileLights === current.tileLights
+    previous.tileLights === current.tileLights &&
+    previous.proxy === current.proxy
   );
 }
 
