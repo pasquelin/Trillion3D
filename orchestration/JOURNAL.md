@@ -4058,3 +4058,59 @@ comptent les pilotes. 166 tests Rust au vert, Clippy sans avertissement.
 - Les codes `ARCHIVE_*` ne sont pas encore dans le tableau des erreurs de `docs/COMPILER.md` : hors
   périmètre de ce lot, à ajouter par qui tient cette page.
 - Une archive chiffrée est refusée sans test dédié : aucun jeu redistribuable ne l'exerce.
+
+## 2026-09-15 — [compilateur] pilote tiff
+
+**Ce qui est fait.** Quatrième pilote d'image du registre : `src/plugins/image/tiff.rs`, son lecteur
+d'IFD `tiff/profile.rs`, une ligne dans `image::DECODERS`, la feature `tiff` de la crate `image`,
+et la dorée `src/plugins/tests/tiff.rs` sur `fixtures/tiff/`. Rien d'autre n'a bougé : le cœur, le
+CLI et les trois autres pilotes sont intacts ; seuls les comptes de pilotes de `image_registry.rs`
+et de `tests/cli.rs` suivent.
+
+**Profils lus, tous vers RGBA8 exact.** Gris 8 bits noir à zéro, RGB8, RGBA8 à alpha non associé
+(`ExtraSamples = 2`, donc droit) ; compressions aucune (1), LZW (5), Deflate (8 et 32946), PackBits
+(32773) ; les deux ordres d'octets ; bandes comme tuiles, configuration entrelacée. Aucune de ces
+écritures ne change un octet du résultat, et la dorée le prouve pixel par pixel.
+
+**Refusés, nommés, jamais devinés.** TIFF est un conteneur de champs plutôt qu'un format : le pilote
+lit donc le premier IFD **avant** de décoder et refuse tout ce qu'il n'a pas déclaré, sous
+`image-profile-unsupported` — BigTIFF (nombre magique 43, revendiqué exprès pour être nommé), plus
+d'un IFD, palette, CMJN, YCbCr, CIELab, alpha associé (prémultiplié), `PlanarConfiguration = 2`,
+JPEG-in-TIFF, CCITT, profondeurs autres que 8 bits, `SampleFormat` non entier. Entête ou IFD
+illisibles ressortent en `image-decode-failed`. Aucun chemin ne panique. À noter : la bibliothèque
+n'étend pas les palettes TIFF (`RGBPalette ... is unsupported`), le refus est donc doublement fondé.
+
+**16 bits : refusé, pas abaissé.** `DecodedImage` n'a qu'une variante, `Rgba8`, et l'unique
+consommateur (`texture_preview`) la déstructure de façon irréfutable : la chaîne aval ne sait pas
+porter 16 bits. Le pilote refuse donc RGB16 et gris16 sous une raison à eux, `image-depth-unsupported`,
+plutôt que d'ajouter une perte que la source n'avait pas. Pour les accepter il faudrait une variante
+`Rgba16` au contrat d'image, sa version de contrat relevée, et un traitement explicite chez chaque
+consommateur — la pyramide d'aperçus d'abord. **Constat sur `png.rs`, non modifié** : il passe par
+`crate_image::decode`, qui termine par `to_rgba8()` ; un PNG RGB16 y est donc aujourd'hui ramené à
+8 bits **en silence**, sans raison de rapport. Vérifié sur `test-assets/textures/png-matrix/rgb16.png`
+(premiers octets rendus `18, 171, 31`, l'octet bas perdu). C'est une perte ajoutée par le
+compilateur, hors périmètre de ce lot mais à trancher avec le même remède.
+
+**Provenance.** Spécification publique « TIFF Revision 6.0 », Adobe Developers Association,
+3 juin 1992, pour l'entête, les types et les tags ; décodage par la crate `image` 0.25.10, feature
+`tiff`, qui embarque la crate `tiff` 0.11.3 (MIT), notices conservées avec la dépendance. Aucun SDK
+d'éditeur, aucun réencodage.
+
+**Dorée.** `fixtures/tiff/`, quatorze fichiers CC0 de quelques centaines d'octets : sept profils lus
+comparés à une référence 4 × 2 écrite en clair dans le test, sept refus vérifiés sous leur nom
+(16 bits, palette, JPEG-in-TIFF, CCITT G4, deux pages, plans séparés, alpha associé) plus le tronqué
+de `test-assets/limites/truncated-tif`. Les quatre TIFF non compressés sont écrits octet par octet
+depuis la spécification, les autres par Pillow 12.2.0 — un piège doit venir d'ailleurs que du lecteur
+qu'il éprouve. Hors dorée, le corpus `test-assets/textures/tiff-matrix/` (256 × 256 : RGB8 brut, RGB8
+LZW) et un RGB8 en tuiles de 16 × 16 ont été relus par Pillow : **sha256 des pixels RGBA8 identique**
+à celui du pilote dans les trois cas, et `gray16.tiff` refusé comme prévu. Aucun test temporaire
+laissé. 173 tests Rust au vert (169 + 4), Clippy sans avertissement, `cargo fmt --check` propre.
+
+### Ce qui reste
+
+- Le 16 bits : variante `Rgba16` du contrat d'image, et le même remède pour PNG, qui l'abaisse
+  aujourd'hui sans le dire.
+- Les raisons `image-profile-unsupported` et `image-depth-unsupported` ne sont pas dans le tableau
+  des rapports de `docs/COMPILER.md` : hors périmètre, à ajouter par qui tient cette page.
+- La palette TIFF reste illisible tant que la bibliothèque ne l'étend pas ; l'écrire nous-mêmes
+  demanderait notre propre lecteur de bandes, ce que ce lot n'a pas fait.
