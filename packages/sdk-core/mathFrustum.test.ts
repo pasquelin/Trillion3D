@@ -9,14 +9,23 @@ import { clipPlanesFromMatrix, frustumPlanesFromMatrix, frustumPlanesToLocal } f
 function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
   assert.equal(actual.length, expected.length);
   for (let i = 0; i < expected.length; i++)
-    assert.ok(Object.is(actual[i], expected[i]), `composante ${i} : ${actual[i]} !== ${expected[i]}`);
+    assert.ok(
+      Object.is(actual[i], expected[i]),
+      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
+    );
 }
 /** Les six plans de Three.js recopiés à plat, normal puis constante. */
-function planesFromThreeFrustum(m: THREE.Matrix4, webgpu: boolean, Type: Float64ArrayConstructor | Float32ArrayConstructor) {
+function planesFromThreeFrustum(
+  m: THREE.Matrix4,
+  webgpu: boolean,
+  Type: Float64ArrayConstructor | Float32ArrayConstructor,
+) {
   const systeme = webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem;
   const tronc = new THREE.Frustum().setFromProjectionMatrix(m, systeme);
   const sortie = new Type(24);
-  tronc.planes.forEach((p, i) => sortie.set([p.normal.x, p.normal.y, p.normal.z, p.constant], i * 4));
+  tronc.planes.forEach((p, i) =>
+    sortie.set([p.normal.x, p.normal.y, p.normal.z, p.constant], i * 4),
+  );
   return sortie;
 }
 
@@ -90,9 +99,12 @@ test('frustumPlanesToLocal ramène chaque plan par p · m, comme p transformé p
   const transposee = new THREE.Matrix4().copy(placement).transpose();
   const attendu = new Float64Array(24);
   for (let i = 0; i < 24; i += 4) {
-    const p = new THREE.Vector4(planes[i], planes[i + 1], planes[i + 2], planes[i + 3]).applyMatrix4(
-      transposee,
-    );
+    const p = new THREE.Vector4(
+      planes[i],
+      planes[i + 1],
+      planes[i + 2],
+      planes[i + 3],
+    ).applyMatrix4(transposee);
     attendu.set([p.x, p.y, p.z, p.w], i);
   }
   const obtenu = new Float64Array(24);
