@@ -589,10 +589,16 @@ gabarit de DAG, les tests.
 ### 0. Le harnais sait poser une grille, et dit ce que la mémoire coûte
 
 `--instances N` (1, 4, 9, 12) passe `replicaCount` au SDK ; sans lui rien ne change, la valeur par
-défaut reste 1. Le rapport porte deux colonnes de plus par ligne : **géométrie (Mo)**, le relevé
-`geometryAllocationBytes` du moteur (cache de pages plus tampons de sommets), et **tas JS (Mo)**,
-`performance.memory.usedJSHeapSize` tel que Chromium le rapporte — un relevé, arrondi par le
-navigateur, `null` là où il n'existe pas. Sans ces deux colonnes le lot n'avait aucun juge.
+défaut reste 1. Le rapport porte une colonne de plus par ligne : **géométrie (Mo)**, le relevé
+`geometryAllocationBytes` du moteur (cache de pages plus tampons de sommets), `null` s'il ne le
+publie pas. Sans elle le lot n'avait aucun juge.
+
+Une colonne **tas JS** (`performance.memory.usedJSHeapSize`) a servi pendant le lot et n'est pas
+livrée : le relevé demande une ligne dans la fonction que Playwright sérialise, et `pageEclairage.mjs`
+est exactement à la limite des 200 lignes depuis la scission du lot eau. Un nombre tributaire du
+ramasse-miettes — 16 Mo d'écart entre deux exécutions du même côté — ne vaut pas de pousser au-delà
+de sa limite un fichier d'une autre session. Les chiffres de mémoire processeur cités plus bas ont
+été relevés avec cette colonne, avant la scission ; les `mesure.json` sont conservés.
 
 ### 1. Ce que la mesure a trouvé, et qui n'était pas ce que le lot attendait
 
@@ -643,10 +649,10 @@ du Lab (manifeste binaire 4). **Machine chargée pendant toute la campagne** (ch
 sessions mesurant en parallèle) : les durées sont bruitées et à lire comme telles, les verdicts pixel
 ne le sont pas.
 
-| instances | géométrie avant → après | tas JS avant → après | `cpuFrameMs` p50 générale·0 |
-| --------- | ----------------------- | -------------------- | --------------------------- |
-| 1         | **420,6 → 209,1 Mo**    | bruit (≈ 530 ± 100)  | 10,30 → 10,10               |
-| 9         | **2 652,8 → 209,1 Mo**  | ≈ 2 114 → 1 961 Mo   | 69,20 → 75,60               |
+| instances | géométrie avant → après | tas JS avant → après (relevé avant la scission) | `cpuFrameMs` p50 générale·0 |
+| --------- | ----------------------- | ----------------------------------------------- | --------------------------- |
+| 1         | **420,6 → 209,1 Mo**    | bruit (≈ 530 ± 100)                             | 10,30 → 10,10               |
+| 9         | **2 652,8 → 209,1 Mo**  | ≈ 2 114 → 1 961 Mo                              | 69,20 → 75,60               |
 
 La géométrie ne dépend plus du nombre d'instances : **209,1 Mo à 1 comme à 9**. Le tas JS baisse de
 96 Mo à 9 instances sur la mesure isolée du gabarit (témoin A/A du tas : 16 Mo) ; sur la campagne
@@ -679,11 +685,17 @@ ses boîtes bord à bord et la grille les espace de l'emprise du modèle : les i
 touchent, leurs faces opaques sont exactement coplanaires, et R5c dit le reste — à profondeur égale
 le pixel va au premier dessiné, et l'ordre vient de la partition occulteurs/testés décidée à
 l'exécution. Emerald, dont les instances ne se touchent pas, est à 0 px aux mêmes neuf instances.
-À corriger dans la fixture (un écart entre les boîtes) avant de se servir de cette scène à plusieurs
-instances ; tant que ce n'est pas fait, elle ne se mesure qu'à une instance.
+Tant que ce n'est pas corrigé, **cette scène ne se mesure qu'à une instance**. Le correctif est dans
+la fixture, pas dans le moteur, et il est hors de ce lot : espacer les boîtes de
+`classes-materiaux.gltf` d'une fraction de leur propre taille (un dixième suffit) pour que l'emprise
+du modèle, dont la grille tire son pas, laisse un vide entre deux cellules voisines. La scène
+retrouverait alors sa raison d'être — juger les trois classes de matériaux à plusieurs instances.
 
 Le harnais consigne aussi, sur toutes ces campagnes, des 404 sur `lights.json` : le cache du Lab est
-antérieur au lot import-lampes. Le manque est identique des deux côtés et ne déplace aucun pixel.
+antérieur au lot import-lampes, qui a ajouté ce fichier à la sortie du compilateur. Le manque est
+identique des deux côtés et ne déplace aucun pixel ; **le cache du Lab est à régénérer par
+l'utilisateur** — aucun agent n'écrit dans `public/benchmark-assets` — et tant qu'il ne l'est pas,
+toute campagne sortira avec ces 404 et un code de retour non nul.
 
 ### 6. Ce qui reste de H1, et pourquoi le reste ne se prend pas par là
 
