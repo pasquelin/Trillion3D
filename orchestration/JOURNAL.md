@@ -5748,3 +5748,13 @@ verts. `npm run validate` n'a pas été joué ici.
   sait les transcoder vers du demi-flottant, mais ce pilote ne rend que du RGBA8 pour l'instant.
 - Les cubes, tableaux et volumes sont refusés faute de consommateur : rien ne les attend encore.
 - Le chantier « blocs gardés sur GPU » n'est pas commencé — il attend le go de l'utilisateur.
+
+## 2026-09-15 — [compilateur] pause : vague 3 fusionnée, reprise mise à jour
+
+Cinq lots fusionnés dans `develop` (tête `ffdd01e`) : `check:links` ignore `test-assets` (6c0d753),
+pilote `webp` sans perte (385324c), pilote `png` refusant le 16 bits (2e321c7), pilotes `exr`/`hdr`
+et contrat `image-plugin-2` (8cb2555), pilote `ktx2` (ffdd01e). Neuf pilotes d'image, six de scène,
+aucune branche `compilateur/*` vivante. Restes : BC6H flottant, KTX 1.0, ASTC hors 4×4, UASTC HDR,
+blocs gardés sur GPU, lampes Unity, instances imbriquées, métal-lissage, TIFF palette, MTL à
+vérifier, Industrial Map au banc 15, `atlasClasses: 2`, licence FAB. Reprise :
+`orchestration/REPRISE_COMPILATEUR.md`.
