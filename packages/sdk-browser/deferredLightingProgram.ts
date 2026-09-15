@@ -1,5 +1,6 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import { createDeferredLayouts } from './deferredLightingSetup.ts';
+import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
 /** Construit un pipeline plein écran, en asynchrone quand l'appareil le propose. */
@@ -29,6 +30,9 @@ export interface DirectLightResources {
   /** La grille de sondes et leurs coefficients ; absentes, le rebond n'est pas de cette image. */
   bounceGrid?: GPUBuffer;
   probes?: GPUBuffer;
+  /** Le proxy résident, réglages et compteurs de l'ombre lointaine compris ; absent, le
+   *  remplacement de zéro laisse la surface lointaine éclairée sans ombre portée. */
+  proxy?: GPUBuffer;
 }
 export interface DeferredSources {
   lighting: string;
@@ -45,6 +49,7 @@ export interface DeferredBindings {
     slices: GPUBuffer;
     atlasView: GPUTextureView;
     sampler: GPUSampler;
+    proxy: GPUBuffer;
   };
 }
 
@@ -76,6 +81,7 @@ export async function createDeferredProgram(
     boundTiles: GPUBuffer | undefined,
     boundAtlas: GPUTextureView | undefined,
     boundProbes: GPUBuffer | undefined,
+    boundProxy: GPUBuffer | undefined,
     lightGroup: GPUBindGroup | undefined,
     composeGroup: GPUBindGroup | undefined;
   return {
@@ -99,17 +105,20 @@ export async function createDeferredProgram(
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView;
       const probes = direct.probes;
+      const proxy = direct.proxy ?? placeholders.proxy;
       if (
         boundSurface === surface &&
         boundTiles === tiles &&
         boundAtlas === atlas &&
-        boundProbes === probes
+        boundProbes === probes &&
+        boundProxy === proxy
       )
         return;
       boundSurface = surface;
       boundTiles = tiles;
       boundAtlas = atlas;
       boundProbes = probes;
+      boundProxy = proxy;
       const entries: GPUBindGroupEntry[] = [
         ...surface.views().map((resource, binding) => ({ binding, resource })),
         { binding: 4, resource: depth },
@@ -122,6 +131,9 @@ export async function createDeferredProgram(
           { binding: 8, resource: { buffer: slices } },
           { binding: 9, resource: atlas },
           { binding: 10, resource: placeholders.sampler },
+          // Le proxy résident, tel quel : l'ombre lointaine du soleil le traverse sans en garder
+          // une seconde copie, et son entête dit s'il y a quelque chose à traverser.
+          { binding: SUN_FAR_PROXY_BINDING, resource: { buffer: proxy } },
         );
       if (sources.bounce && direct.bounceGrid && direct.probes)
         entries.push(
@@ -142,6 +154,7 @@ export async function createDeferredProgram(
       boundTiles = undefined;
       boundAtlas = undefined;
       boundProbes = undefined;
+      boundProxy = undefined;
       lightGroup = undefined;
       composeGroup = undefined;
     },

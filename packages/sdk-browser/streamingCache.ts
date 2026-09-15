@@ -51,5 +51,27 @@ export function createStreamingCache(context: StreamContext) {
       );
     }
   };
-  return { touch, evict };
+  /**
+   * Les adresses que l'image garde. L'ensemble épinglé est fonction de cette seule liste et du
+   * catalogue, qui ne bouge plus : une liste identique à celle de l'image précédente décrit donc
+   * exactement les épingles déjà posées, et la reposer une à une n'en changerait aucune. La
+   * comparaison est une passe d'identités de chaînes, sans hachage ; la reprise de place, elle,
+   * n'est pas sautée pour autant — chaque transfert terminé la rejoue de son côté.
+   */
+  const retained: string[] = [];
+  const same = (urls: readonly string[]) => {
+    if (urls.length !== retained.length) return false;
+    for (let i = 0; i < urls.length; i++) if (retained[i] !== urls[i]) return false;
+    return true;
+  };
+  const retain = (urls: readonly string[]) => {
+    if (same(urls)) return false;
+    retained.length = urls.length;
+    for (let i = 0; i < urls.length; i++) retained[i] = urls[i];
+    pinned.clear();
+    for (const url of urls) if (context.catalog.has(url)) pinned.add(url);
+    evict();
+    return true;
+  };
+  return { touch, evict, retain };
 }

@@ -104,6 +104,37 @@ export function partitionByPass(source: readonly PageRec[], transparent: boolean
     if (!!source[i].transparent === transparent) into.push(source[i]);
   return into;
 }
+type DrawnMirror = { shown: PageRec[]; drawn: PageRec[]; drawnMirrorsShown: boolean };
+type DrawnMirrorFlag = Pick<DrawnMirror, 'drawnMirrorsShown'>;
+/**
+ * Seul propriétaire du drapeau `drawnMirrorsShown` : vrai quand `drawn` est la recopie de `shown`
+ * telle qu'elle est. Sur le chemin de la carte graphique, `drawn` n'est rien d'autre : l'adoption
+ * la refait quand le relevé change, la reprise après capture de surface aussi, et la coupe
+ * processeur marque la divergence dès son entrée parce qu'elle est la seule à écrire ces listes
+ * autrement. Ces fonctions sont les seules à écrire le drapeau, valeur initiale comprise : rien
+ * n'est encore recopié, la première image le fera.
+ */
+export const unmirroredDrawn = (): DrawnMirrorFlag => ({ drawnMirrorsShown: false });
+/** `drawn` vient d'être refait depuis `shown` par l'appelant lui-même. */
+export function markDrawnMirrored(run: DrawnMirrorFlag) {
+  run.drawnMirrorsShown = true;
+}
+/** `drawn` va être écrit autrement que par recopie : la prochaine image devra le refaire. */
+export function markDrawnDiverged(run: DrawnMirrorFlag) {
+  run.drawnMirrorsShown = false;
+}
+/** Refait `drawn` depuis `shown`, que le drapeau soit levé ou non. */
+export function copyDrawnFromShown(run: DrawnMirror) {
+  run.drawn.length = 0;
+  appendAll(run.drawn, run.shown);
+  markDrawnMirrored(run);
+}
+/** Refait `drawn` depuis `shown` s'il n'en est plus la recopie ; rend vrai s'il l'a fait. */
+export function mirrorDrawnFromShown(run: DrawnMirror) {
+  if (run.drawnMirrorsShown) return false;
+  copyDrawnFromShown(run);
+  return true;
+}
 /** Spread arguments overflow the call stack beyond ~100k pages; append with a loop instead. */
 export function appendAll<T>(target: T[], ...sources: readonly (readonly T[])[]) {
   for (const source of sources) for (let i = 0; i < source.length; i++) target.push(source[i]);

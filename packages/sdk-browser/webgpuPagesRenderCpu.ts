@@ -1,8 +1,13 @@
 import type * as THREE from 'three';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
-import { appendAll, partitionByPass, triangleSum } from './webgpuPagesHelpers.ts';
-import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import {
+  appendAll,
+  markDrawnDiverged,
+  partitionByPass,
+  triangleSum,
+} from './webgpuPagesHelpers.ts';
+import { publishCpuProfile } from './webgpuPagesCpuSteps.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import {
@@ -92,6 +97,9 @@ export function renderCpuCut(
   // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
   // and the GPU cut re-seeds from nothing when it takes the image back.
   services.invalidateCut();
+  // Cette image écrit `shown` et `drawn` elle-même, et peut sortir par une erreur entre les deux :
+  // le drapeau tombe avant la première écriture, jamais après.
+  markDrawnDiverged(run);
   run.pagesEntered = null;
   run.pagesExited = null;
   const cpuSelectionStarted = performance.now();

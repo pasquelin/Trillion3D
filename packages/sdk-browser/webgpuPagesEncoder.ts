@@ -47,6 +47,8 @@ export function submitColorCopy(
   timing.lastQueueSubmitMs = performance.now() - submitStart;
   // The verdicts of a sampled image can only be mapped once the image that copied them is submitted.
   rt.vis.gpuHiz?.countsSubmitted();
+  // Idem pour les compteurs de l'ombre lointaine : leur copie ne se mappe qu'une fois soumise.
+  rt.sunFar.gpu?.submitted();
   run.imageRevision++;
   if (owned) {
     timing.frameEncoder = undefined;

@@ -16,6 +16,7 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod albedo;
+pub(crate) mod assemble;
 pub mod bvh;
 pub mod cut;
 pub mod encode;
@@ -122,6 +123,18 @@ pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize
     Ok(scales)
 }
 
+/// Les primitives compilées de chaque maillage, dans l'ordre d'origine : sans cette table, chaque
+/// nœud retenu balaierait toutes les primitives de la scène pour retrouver les siennes.
+fn primitives_by_mesh(primitives: &[Value]) -> BTreeMap<u64, Vec<usize>> {
+    let mut by_mesh: BTreeMap<u64, Vec<usize>> = BTreeMap::new();
+    for (index, primitive) in primitives.iter().enumerate() {
+        if let Some(mesh) = primitive.get("mesh").and_then(Value::as_u64) {
+            by_mesh.entry(mesh).or_default().push(index);
+        }
+    }
+    by_mesh
+}
+
 /// Place chaque coupe grossière dans le monde, une fois par nœud qui la porte, puis construit le
 /// BVH. Une primitive posée dix fois donne dix jeux de triangles : le proxy est une scène, pas un
 /// catalogue d'objets, et un rayon n'a pas de matrice à appliquer.
@@ -131,6 +144,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
     let mut triangles: Vec<f32> = Vec::new();
     let mut colours: Vec<u32> = Vec::new();
+    let by_mesh = primitives_by_mesh(inputs.primitives);
     for node_id in inputs.chosen {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
@@ -138,41 +152,23 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             continue;
         };
         let matrix = world[*node_id];
-        for (index, primitive) in inputs.primitives.iter().enumerate() {
-            if primitive.get("mesh").and_then(Value::as_u64) != Some(mesh_index as u64) {
-                continue;
-            }
+        let Some(indices) = by_mesh.get(&(mesh_index as u64)) else {
+            continue;
+        };
+        for index in indices.iter().copied() {
             let Some(cut) = inputs.cuts.get(index) else {
                 continue;
             };
-            let colour = palette.of(primitive.get("material"));
+            let colour = palette.of(inputs.primitives[index].get("material"));
             place(cut, &matrix, &mut triangles);
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
         }
     }
-    // La coupe du DAG s'arrête à sa racine ; la simplification du proxy, elle, va aussi loin qu'il
-    // le faut, et donne au passage des triangles de taille bornée au cache de surfaces.
-    let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
-    simplify::simplify(&mut triangles, &mut colours, cell);
-    let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut colours));
-    let cut_error = inputs
-        .thresholds
-        .iter()
-        .copied()
-        .fold(PROXY_ERROR_METRES, f64::max);
-    Ok(SceneProxy {
-        bounds: bvh::extent(&triangles),
-        error_metres: cut_error + cell * simplify::CELL_ERROR_FACTOR,
-        cell_metres: cell,
-        triangles,
-        albedo: colours,
-        node_bounds,
-        node_children,
-    })
+    Ok(assemble::assemble(inputs.thresholds, triangles, colours))
 }
 
 /// Les sommets d'une coupe, transformés une fois par le nœud qui la place.
-fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
+pub(crate) fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
     out.reserve(cut.len());
     for vertex in cut.as_chunks::<3>().0 {
         let world = transform_point(
