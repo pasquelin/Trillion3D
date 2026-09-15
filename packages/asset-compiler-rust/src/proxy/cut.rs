@@ -1,3 +1,4 @@
+use super::{PROXY_ERROR_METRES, PROXY_TRIANGLE_FLOATS};
 use crate::dag::DagCluster;
 
 /// Doublements du seuil qu'une coupe s'autorise avant d'abandonner : le seizième vaut soixante-cinq
@@ -24,6 +25,15 @@ fn triangles_at(dag: &[DagCluster], threshold: f64) -> usize {
         .sum()
 }
 
+/// Ce qu'une primitive demande à sa coupe : un seuil d'erreur et une part du budget de triangles.
+#[derive(Clone, Copy)]
+pub struct CutDemand {
+    /// Le seuil de départ, en espace objet : l'appelant l'a déjà ramené par l'échelle monde.
+    pub threshold: f64,
+    /// Les triangles que cette primitive s'autorise dans le proxy de la scène.
+    pub budget: usize,
+}
+
 /// La coupe la plus fine qui tient dans le budget de triangles, et le seuil qu'elle a demandé.
 ///
 /// Le seuil de départ est celui de la spécification, en mètres ; tant que la coupe ne tient pas
@@ -33,20 +43,17 @@ fn triangles_at(dag: &[DagCluster], threshold: f64) -> usize {
 ///
 /// Le seuil est exprimé en espace objet : l'appelant l'a déjà divisé par l'échelle monde du nœud
 /// qui place la primitive, si bien qu'il vaut des mètres une fois la coupe placée.
-pub fn coarse_cut(
-    dag: &[DagCluster],
-    positions: &[f32],
-    base_threshold: f64,
-    budget: usize,
-) -> (f64, Vec<f32>) {
-    let mut threshold = base_threshold;
+pub fn coarse_cut(dag: &[DagCluster], positions: &[f32], demand: CutDemand) -> (f64, Vec<f32>) {
+    let mut threshold = demand.threshold;
+    let mut triangles = triangles_at(dag, threshold);
     for _ in 0..ERROR_LADDER {
-        if triangles_at(dag, threshold) <= budget {
+        if triangles <= demand.budget {
             break;
         }
         threshold *= 2.0;
+        triangles = triangles_at(dag, threshold);
     }
-    let mut out: Vec<f32> = Vec::with_capacity(triangles_at(dag, threshold) * 9);
+    let mut out: Vec<f32> = Vec::with_capacity(triangles * PROXY_TRIANGLE_FLOATS);
     for cluster in dag.iter().filter(|cluster| selected(cluster, threshold)) {
         for index in &cluster.indices {
             let base = *index as usize * 3;
@@ -60,7 +67,7 @@ pub fn coarse_cut(
     (threshold, out)
 }
 
-/// Ce qu'une primitive demande à sa coupe : un seuil, en espace objet, et une part du budget.
+/// Ce qu'une primitive demande à sa coupe, calculé une fois par primitive.
 ///
 /// Le seuil monde publié est ramené en espace objet par l'échelle la plus grande qui place la
 /// primitive — une échelle absente ou nulle le laisse tel quel, rien n'est deviné. La part est
@@ -73,15 +80,18 @@ pub fn cut_demand(
     budget: usize,
     triangles: usize,
     scene_triangles: usize,
-) -> (f64, usize) {
+) -> CutDemand {
     let threshold = match scale {
-        Some(value) if value.is_finite() && value > 0.0 => crate::proxy::PROXY_ERROR_METRES / value,
-        _ => crate::proxy::PROXY_ERROR_METRES,
+        Some(value) if value.is_finite() && value > 0.0 => PROXY_ERROR_METRES / value,
+        _ => PROXY_ERROR_METRES,
     };
     let share = if scene_triangles == 0 {
         budget
     } else {
         (budget as u128 * triangles as u128 / scene_triangles as u128) as usize
     };
-    (threshold, share.max(crate::dag::DAG_CLUSTER_TRIANGLES))
+    CutDemand {
+        threshold,
+        budget: share.max(crate::dag::DAG_CLUSTER_TRIANGLES),
+    }
 }

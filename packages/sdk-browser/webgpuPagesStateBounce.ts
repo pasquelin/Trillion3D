@@ -8,7 +8,7 @@ export interface WebgpuBounceState {
   probes: GpuBounceProbes | undefined;
   /** Le chargement du proxy résident en cours ; il n'est lancé qu'une fois, à la première lampe. */
   pending: Promise<unknown> | undefined;
-  /** Ce que l'hôte a demandé. Par défaut le rebond est actif dès qu'une lampe est déclarée. */
+  /** Ce que l'hôte a demandé. Par défaut le rebond est éteint : l'hôte l'allume explicitement. */
   wanted: boolean;
   /** Pourquoi le rebond n'existe pas, quand il n'existe pas. */
   reason: string | null;

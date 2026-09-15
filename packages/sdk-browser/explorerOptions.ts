@@ -43,7 +43,7 @@ export interface ExplorerOptions {
   /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 1. */
   atlasClasses?: 1 | 2;
   sceneLighting?: THREE.Object3D;
-  /** La lumière qui rebondit, active par défaut ; `false` la coupe pour toute la session. */
+  /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume pour toute la session. */
   bounce?: boolean;
   /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
   stageProfile?: boolean;

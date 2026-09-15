@@ -132,7 +132,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     gpu: createWebgpuGpuState(setup.viewport),
     vis,
     lights: createWebgpuLightState(context.sceneLights),
-    bounce: createWebgpuBounceState(context.bounce !== false),
+    bounce: createWebgpuBounceState(context.bounce === true),
     run,
     capture: createWebgpuCaptureState(),
     timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),
