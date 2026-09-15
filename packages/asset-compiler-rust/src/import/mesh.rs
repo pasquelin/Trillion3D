@@ -75,12 +75,8 @@ pub(super) fn mesh_json(
                     positions.extend_from_slice(&v);
                     if has_normal {
                         let n = mesh.vertex_normal.values[key.1 as usize];
-                        let len = (n.x * n.x + n.y * n.y + n.z * n.z).sqrt();
-                        let (x, y, z) = if len > 1e-12 {
-                            (n.x / len, n.y / len, n.z / len)
-                        } else {
-                            (0.0, 1.0, 0.0)
-                        };
+                        let [x, y, z] =
+                            crate::shared_math::normalized_or([n.x, n.y, n.z], [0.0, 1.0, 0.0]);
                         normals.extend_from_slice(&[x as f32, y as f32, z as f32]);
                     }
                     if has_uv {

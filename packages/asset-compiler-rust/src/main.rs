@@ -19,7 +19,8 @@ use std::{
     time::Instant,
 };
 use web_geometry_compiler::{
-    compile, parse_compiler_args, plugins, CompilerError, Options, COMPILER_VERSION, FORMAT_VERSION,
+    compile, parse_compiler_args, plugins, shared_math::elapsed_ms, CompilerError, Options,
+    COMPILER_VERSION, FORMAT_VERSION,
 };
 
 fn emit(mut event: Value, job: &str) {
@@ -104,7 +105,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
         Ok(result) => {
             let pointer = pointer(&result, &options.cache);
             emit(
-                json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":started.elapsed().as_secs_f64()*1000.0}),
+                json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":elapsed_ms(started)}),
                 id,
             );
             Ok(pointer)
@@ -116,7 +117,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
             } else {
                 "error"
             });
-            event["ms"] = json!(started.elapsed().as_secs_f64() * 1000.0);
+            event["ms"] = json!(elapsed_ms(started));
             emit(event, id);
             Err(error)
         }
