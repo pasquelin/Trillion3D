@@ -1,5 +1,19 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Formules] doublons de formules factorisés, deux lots fusionnés
+
+Suite du catalogue `AUDIT_MATH_FORMULES.md`. Deux Opus 5 en worktrees disjoints, règle : un nom
+générique parlant, l'ancien code remplacé à tous les sites, aucune copie survivante, résultat
+identique au bit près (bancs d'équivalence avec l'ancien code en oracle), tests écrits par Sonnet 5
+après coup. Lot Rust (`3979661`) : 28 copies remplacées par 8 fonctions dans
+`packages/asset-compiler-rust/src/shared_math.rs` (`extend_aabb`, `merge_aabb`, `bisect_centres`,
+`pad_to_4`, `normalized_or`, `elapsed_ms`…), six bancs `to_bits` identiques, 12 tests. Lot TypeScript
+et WGSL (`0b2fa1a`) : 18 doublons factorisés (`signedArea`, `barycentricAt`, `nanosecondsToMs`,
+fragments `MASK_KEEP_WGSL`, `BARY_WEIGHTS_WGSL`, `WRAP_COORD_WGSL`, `INVERSE_PI_WGSL`…), banc
+`formules-ts.bench.mjs` 11 lignes identiques, 35 tests, campagne WebGPU 0 px sur trois vues et deux
+seuils, bruit A/A nul. 21 doublons laissés séparés avec raison (paires CPU/GPU en miroir, oracle Hi-Z
+témoin, littéraux de 1/π différents, faux positifs). Relevés : `orchestration/mesures/formules-communes-{rust,ts}-2026-09-15.md`, images `.mesure/out/formules-communes-ts/`. `npm run validate` vert sur chaque branche avant fusion. Pas de push (Validateur).
+
 ## 2026-09-15 — [session sans-threejs] le processeur fixe WebGPU, ce qui manquait au profil et les trois postes qui en sortent (lot cpu-fixe)
 
 Worktree `.claude/worktrees/geometry-cpu-fixe`, branche `lot/cpu-fixe`, partie de `develop` =
@@ -27,17 +41,17 @@ de l'hôte auraient décrit l'image précédente —, et `totalMs` couvre l'imag
 Ce que le profil nommé a montré, vue générale, seuil 0, 1280×720, `--max-pages 100000`, boucle de
 profil de 120 images (charge machine 39 à 45 : **les durées ne valent que par leur rapport**) :
 
-| étape (CPU p50)                    | `9cd6a44` | après le profil seul |
-| ---------------------------------- | --------- | -------------------- |
-| Animations et transformations      | _sans borne_ | **0,5**           |
-| Adoption de la coupe               | 0,8       | 0,9                  |
-| Transparents                       | 0,7       | 0,9                  |
-| **Listes de pages rendues à l'hôte** | _sans borne_ | **2,1 à 2,4**   |
-| Téléversements                     | 0,3       | 0,3                  |
-| Partition occulteurs / testés      | 0,5       | 0,5                  |
-| Projection des boîtes              | 0,2       | 0,2                  |
-| Fiches de dessin                   | 1,5       | 1,5 à 1,7            |
-| Encodage des passes                | 2,8       | 2,7 à 2,9            |
+| étape (CPU p50)                      | `9cd6a44`    | après le profil seul |
+| ------------------------------------ | ------------ | -------------------- |
+| Animations et transformations        | _sans borne_ | **0,5**              |
+| Adoption de la coupe                 | 0,8          | 0,9                  |
+| Transparents                         | 0,7          | 0,9                  |
+| **Listes de pages rendues à l'hôte** | _sans borne_ | **2,1 à 2,4**        |
+| Téléversements                       | 0,3          | 0,3                  |
+| Partition occulteurs / testés        | 0,5          | 0,5                  |
+| Projection des boîtes                | 0,2          | 0,2                  |
+| Fiches de dessin                     | 1,5          | 1,5 à 1,7            |
+| Encodage des passes                  | 2,8          | 2,7 à 2,9            |
 
 Une seconde mesure, jetable et jamais committée, a séparé les trois moitiés de ce nouveau poste :
 **`pendingUrls` 0,8 à 1,0 ms**, **`pageUrls` 1,1 à 1,5 ms**, **épingles 0,1 ms**. Les deux premières
@@ -47,11 +61,11 @@ caméra fixe, la liste de l'image précédente.
 
 ### 2. Les trois leviers, et ce que chacun a rendu
 
-| levier | ce qui change | mesure | gardé |
-| --- | --- | --- | --- |
-| 1 — les deux listes sans hachage, épingles inchangées non reposées | le rang de la clé de requête, posé une fois par le catalogue, remplace l'ensemble de chaînes ; le cache de flux compare la liste rendue à celle qu'il tient avant de reposer ses épingles une à une | épingles **1,2 → 0,1 ms** ; les deux parcours restent | **oui** |
-| 2 — la boîte monde d'un transparent ne repart que si sa matrice a bougé | seize comparaisons au lieu de seize recopies et d'un transport de huit coins, mille neuf cents fois par image | se dépose sur « Transparents », sous la résolution du profil à cette charge | **oui**, c'est le levier 2 du lot visibilité, retiré faute de borne (tag `essai/visibilite-levier2-mesure`) |
-| 3 — les deux listes tenues quand le relevé l'est déjà | le relevé dit s'il a publié la **même suite** d'identifiants que le précédent ; une page qui reçoit ou perd ses octets fait avancer une estampille | **« Listes de pages rendues à l'hôte » 2,1 → 0,0 ms** | **oui** |
+| levier                                                                  | ce qui change                                                                                                                                                                                       | mesure                                                                      | gardé                                                                                                       |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 1 — les deux listes sans hachage, épingles inchangées non reposées      | le rang de la clé de requête, posé une fois par le catalogue, remplace l'ensemble de chaînes ; le cache de flux compare la liste rendue à celle qu'il tient avant de reposer ses épingles une à une | épingles **1,2 → 0,1 ms** ; les deux parcours restent                       | **oui**                                                                                                     |
+| 2 — la boîte monde d'un transparent ne repart que si sa matrice a bougé | seize comparaisons au lieu de seize recopies et d'un transport de huit coins, mille neuf cents fois par image                                                                                       | se dépose sur « Transparents », sous la résolution du profil à cette charge | **oui**, c'est le levier 2 du lot visibilité, retiré faute de borne (tag `essai/visibilite-levier2-mesure`) |
+| 3 — les deux listes tenues quand le relevé l'est déjà                   | le relevé dit s'il a publié la **même suite** d'identifiants que le précédent ; une page qui reçoit ou perd ses octets fait avancer une estampille                                                  | **« Listes de pages rendues à l'hôte » 2,1 → 0,0 ms**                       | **oui**                                                                                                     |
 
 Le levier 3 est fermé par défaut : seule l'adoption d'un relevé déjà lu lève le drapeau, et la coupe
 processeur, la capture de surface et l'image en attente de couverture repassent toutes par le
@@ -70,9 +84,9 @@ couverture d'amorçage. Chacun son tableau, et un test le dit.
 `cpuFrameMs` p50, vue générale, seuil 0, les deux côtés joués dans la même exécution (charge relevée
 **39 à 45**, machine occupée par d'autres sessions : le rapport vaut, la valeur non) :
 
-| série       | `9cd6a44` | tête du lot |
-| ----------- | --------- | ----------- |
-| générale · 0 | 7,70     | **5,90** (et 5,80 sur la seconde série du même côté) |
+| série        | `9cd6a44` | tête du lot                                          |
+| ------------ | --------- | ---------------------------------------------------- |
+| générale · 0 | 7,70      | **5,90** (et 5,80 sur la seconde série du même côté) |
 
 Profil de la tête, même exécution : animations 0,5 · adoption 0,9 · transparents 0,8 à 0,9 ·
 **listes de l'hôte 0,0** · téléversements 0,3 · partition 0,5 · projection 0,2 · fiches de dessin
@@ -138,13 +152,13 @@ Base `9cd6a44`, tête mesurée `324a3e3`, harnais commun, 1280×720, 60 images, 
 partagée par quatre sessions) : les durées ci-dessus ne valent que par leur rapport, et **le chiffre
 de coût est à rejouer au calme**. Les pixels, eux, n'en dépendent pas.
 
-| campagne                                          | combinaisons | px | témoin A/A | hash | trous | `selectedTriangles` |
-| ------------------------------------------------- | ------------ | -- | ---------- | ---- | ----- | ------------------- |
-| Emerald WebGPU, `generale,sol,rue` × seuils 0 et 1 | 6            | 0  | 0          | identique | 0 | identiques (10 046 405 · 1 509 411 · 1 424 473 · 1 842 728 · 670 036 · 636 059) |
-| Emerald WebGPU, générale, **caméra mobile** × 0 et 1 | 2          | 0  | 0          | identique | 0 | identiques (6 747 087 · 1 599 951) |
-| `classes-materiaux` WebGPU, 3 vues × 2 seuils      | 6            | 0  | 0          | identique | 0 | identiques (1 410 · 728 · 600 · 556 · 362 · 362) |
-| WebGL, `generale,sol,rue` × 2 seuils               | 6            | 0  | 0          | identique | — (non publiés par WebGL) | identiques |
-| WebGL, générale, **caméra mobile** × 0 et 1        | 2            | 0  | 0          | identique | — | identiques (6 436 941 · 1 576 299) |
+| campagne                                             | combinaisons | px  | témoin A/A | hash      | trous                     | `selectedTriangles`                                                             |
+| ---------------------------------------------------- | ------------ | --- | ---------- | --------- | ------------------------- | ------------------------------------------------------------------------------- |
+| Emerald WebGPU, `generale,sol,rue` × seuils 0 et 1   | 6            | 0   | 0          | identique | 0                         | identiques (10 046 405 · 1 509 411 · 1 424 473 · 1 842 728 · 670 036 · 636 059) |
+| Emerald WebGPU, générale, **caméra mobile** × 0 et 1 | 2            | 0   | 0          | identique | 0                         | identiques (6 747 087 · 1 599 951)                                              |
+| `classes-materiaux` WebGPU, 3 vues × 2 seuils        | 6            | 0   | 0          | identique | 0                         | identiques (1 410 · 728 · 600 · 556 · 362 · 362)                                |
+| WebGL, `generale,sol,rue` × 2 seuils                 | 6            | 0   | 0          | identique | — (non publiés par WebGL) | identiques                                                                      |
+| WebGL, générale, **caméra mobile** × 0 et 1          | 2            | 0   | 0          | identique | —                         | identiques (6 436 941 · 1 576 299)                                              |
 
 La série Emerald principale a tourné à charge 11,6 à 14,6. Le côté « après » retrouve exactement le
 compte du côté « avant » au seuil 1 en caméra mobile — 1 599 951 — celui-là même que la version
@@ -5576,7 +5590,7 @@ perte, et `COMPILATEUR_IMPORT.md` n'admet WebP que sans perte. Le pilote lit don
 lui-même et parcourt les chunks du conteneur avant de tendre quoi que ce soit au décodeur : un flux
 `VP8L` entre, un flux `VP8 ` ressort en `image-lossy-unsupported`, une animation (`ANIM`, `ANMF`) en
 `image-animation-unsupported`. Le conteneur étendu `VP8X` passe par le même parcours, ce qui compte :
-dans un WebP avec perte réel, le flux `VP8 ` arrive *derrière* `VP8X` et `ALPH` — regarder le premier
+dans un WebP avec perte réel, le flux `VP8 ` arrive _derrière_ `VP8X` et `ALPH` — regarder le premier
 chunk ne suffirait pas. `ICCP`, `ALPH`, `EXIF` et `XMP` sont franchis sans perte de pixel, l'alpha
 d'une image sans perte étant porté par VP8L même. La taille annoncée par `RIFF` est comparée aux
 octets réellement présents : un fichier plus court est tronqué, `image-decode-failed`, et le
@@ -5594,8 +5608,8 @@ Specification » pour le conteneur RIFF et « WebP Lossless Bitstream Specificat
 Décodage par la feature `webp` de la crate `image` 0.25.10, qui délègue à `image-webp` 0.2.4,
 décodeur en Rust pur (MIT ou Apache-2.0, notices conservées avec la dépendance, version figée au
 `Cargo.lock`). Aucun code ni SDK d'éditeur, aucun contournement. Note documentaire sur les brevets,
-pas un avis d'avocat : la concession de brevets de libwebp — licence BSD-3 assortie d'un *additional
-IP rights grant* — porte sur les implémentations conformes de la spécification, décodeur Rust
+pas un avis d'avocat : la concession de brevets de libwebp — licence BSD-3 assortie d'un _additional
+IP rights grant_ — porte sur les implémentations conformes de la spécification, décodeur Rust
 compris ; c'est la spécification qui est suivie, pas le code de libwebp.
 
 **Dorée.** `fixtures/webp/`, à la forme de `fixtures/tga` et `fixtures/tiff` : deux fichiers que le
@@ -5625,6 +5639,7 @@ n'a pas été joué ici, il l'est à la livraison.
 - `docs/COMPILER.md` ne liste aucune raison de rapport d'image : les deux nouvelles n'y entrent donc
   pas plus que `image-profile-unsupported` ou `image-decode-failed`. À ajouter en une fois par qui
   tient cette page.
+
 ## 2026-09-15 — [compilateur] png : le 16 bits est refusé, plus abaissé en silence
 
 **Pourquoi.** Le pilote `png` passait tout à `crate_image::decode`, qui termine par `to_rgba8()`.
@@ -5675,13 +5690,13 @@ l'allocation permise, et le tronqué reste en `image-decode-failed`.
 **Vérification manuelle sur le corpus.** `test-assets/textures/png-matrix/`, cinq fichiers de
 256 × 256, lus en place, jamais modifiés :
 
-| fichier | type de couleur | profondeur | verdict |
-| --- | --- | --- | --- |
-| `rgb8.png` | 2 (RGB) | 8 bits | décodé |
-| `rgba8-binary.png` | 6 (RGBA) | 8 bits | décodé, alpha conservé |
-| `palette.png` | 3 (palette) | 8 bits | décodé |
-| `gray.png` | 0 (gris) | 8 bits | décodé |
-| `rgb16.png` | 2 (RGB) | 16 bits | refusé, `image-depth-unsupported` |
+| fichier            | type de couleur | profondeur | verdict                           |
+| ------------------ | --------------- | ---------- | --------------------------------- |
+| `rgb8.png`         | 2 (RGB)         | 8 bits     | décodé                            |
+| `rgba8-binary.png` | 6 (RGBA)        | 8 bits     | décodé, alpha conservé            |
+| `palette.png`      | 3 (palette)     | 8 bits     | décodé                            |
+| `gray.png`         | 0 (gris)        | 8 bits     | décodé                            |
+| `rgb16.png`        | 2 (RGB)         | 16 bits    | refusé, `image-depth-unsupported` |
 
 Un seul fichier change de comportement, celui que la décision visait ; les quatre autres rendent ce
 qu'ils rendaient.
@@ -5692,6 +5707,7 @@ aujourd'hui, la pyramide d'aperçus ensuite, puis le transport et l'atlas. C'est
 touche le contrat et pas un pilote, et il n'a pas de raison d'être lancé tant qu'aucun besoin réel
 ne se présente : refuser en le nommant laisse la texture retomber sur son blanc et dit pourquoi,
 là où l'abaissement silencieux ne disait rien.
+
 ## 2026-09-15 — [compilateur] pilote exr
 
 Le compilateur lit les textures OpenEXR. Un module, `packages/asset-compiler-rust/src/plugins/image/exr.rs`,
@@ -5913,11 +5929,11 @@ déjà fixée bloc par bloc par la dorée de `dds`, qui passe par le même socle
 **Corpus hors git, vérification manuelle** (`test-assets/textures/ktx2-matrix/`, lecture seule, par
 le pilote lui-même) :
 
-| fichier | entête | verdict |
-| --- | --- | --- |
-| `zstd.ktx2` | `R8G8B8A8_SRGB`, `KTX_SS_ZSTD`, un niveau | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]` |
+| fichier      | entête                                        | verdict                                                                                                           |
+| ------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `zstd.ktx2`  | `R8G8B8A8_SRGB`, `KTX_SS_ZSTD`, un niveau     | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]`                                               |
 | `uastc.ktx2` | `UNDEFINED`, UASTC LDR, sans supercompression | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]` — les mêmes valeurs que le fichier sans perte |
-| `basis.ktx2` | `UNDEFINED`, ETC1S, `KTX_SS_BASIS_LZ` | décodé, 256 × 256, coin `[0, 0, 31, 0]`, centre `[130, 130, 31, 0]` — l'écart attendu d'ETC1S |
+| `basis.ktx2` | `UNDEFINED`, ETC1S, `KTX_SS_BASIS_LZ`         | décodé, 256 × 256, coin `[0, 0, 31, 0]`, centre `[130, 130, 31, 0]` — l'écart attendu d'ETC1S                     |
 
 Les trois se décodent, les trois sont revendiqués par `ktx2`. Le corpus n'a jamais été écrit.
 
