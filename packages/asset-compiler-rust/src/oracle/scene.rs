@@ -58,14 +58,16 @@ fn place_primitive(
         .get("attributes")
         .and_then(Value::as_object)
         .ok_or_else(|| bad("primitive.attributes is absent"))?;
+    // Aucun plan de tampons ici : l'oracle lit une scène brute, donc chaque accessor est validé.
     let positions = accessor(
         g,
         bin,
         required_index(attributes.get("POSITION"), "POSITION")?,
+        None,
     )?;
     let points = positions.collect_f32()?;
     let indices: Vec<u32> = match primitive.get("indices") {
-        Some(id) => accessor(g, bin, required_index(Some(id), "indices")?)?.collect_u32()?,
+        Some(id) => accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32()?,
         None => (0..positions.count as u32).collect(),
     };
     if !indices.len().is_multiple_of(3) {
