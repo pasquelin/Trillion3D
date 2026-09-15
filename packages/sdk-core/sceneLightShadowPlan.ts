@@ -34,7 +34,8 @@ export function createShadowPlan() {
   const moved = { min: [0, 0, 0], max: [0, 0, 0], valid: false };
   let worldEpoch = 1,
     denied = 0,
-    pending = 0;
+    pending = 0,
+    reused = 0;
   /** Écart d'une coordonnée à l'intervalle de la boîte déplacée, nul à l'intérieur. */
   const outside = (value: number, axis: number) =>
     Math.max(moved.min[axis] - value, value - moved.max[axis], 0);
@@ -71,6 +72,10 @@ export function createShadowPlan() {
     get pending() {
       return pending;
     },
+    /** Lampes à ombre dont la carte en cache est restée valable : zéro dessin pour elles (X5). */
+    get reused() {
+      return reused;
+    },
     /** Tranches refusées faute de place dans l'atlas, publiées telles quelles dans le diagnostic. */
     get denied() {
       return denied;
@@ -94,6 +99,7 @@ export function createShadowPlan() {
         behind = 0,
         casters = 0;
       denied = 0;
+      reused = 0;
       // Les demandeurs d'abord : la part d'atlas d'une lampe dépend de combien d'autres en veulent.
       for (let slot = 0; slot < store.count; slot++)
         if (packed[SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS + LIGHT_FIELD.castsShadow])
@@ -126,8 +132,10 @@ export function createShadowPlan() {
           continue;
         }
         store.assignSlice(slot, slice);
-        if (!slices.stale(slice, store.revision[slot], worldEpoch, touchesMoved(x, y, z, range)))
+        if (!slices.stale(slice, store.revision[slot], worldEpoch, touchesMoved(x, y, z, range))) {
+          reused++;
           continue;
+        }
         behind++;
         candidateSlot[candidates] = slot;
         candidatePriority[candidates] = coverage[slot] + (slices.drawn[slice] ? 0 : 1);
@@ -158,6 +166,7 @@ export function createShadowPlan() {
       slices.reset();
       moved.valid = false;
       pending = 0;
+      reused = 0;
     },
   };
   return plan;

@@ -2,6 +2,7 @@ import type { PageRec } from './pageSelection.ts';
 import { createWebgpuResidencyMirror } from './webgpuResidencyMirror.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
+import { noteResidenceChange } from './webgpuShadowBounds.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
 import { createWebgpuResidencySets } from './webgpuResidencySets.ts';
@@ -59,6 +60,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     { commitRows, sourceRowOf },
+    (rec) => noteResidenceChange(rt.lights, rec),
   );
   const pageSource = {
     read: async (key: string) => {
