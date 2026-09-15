@@ -93,36 +93,41 @@ export function wrapTexel(t: number, size: number, wrap: THREE.Wrapping) {
   return Math.min(size - 1, Math.max(0, Math.floor(scaled * size)));
 }
 
-function srgbToLinear(c: number) {
-  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+/** sRGB → linéaire n'a que 256 antécédents possibles : un octet de texture divisé par 255. La table
+ *  porte exactement les valeurs que le calcul par pixel produisait, sur les mêmes opérandes. */
+const SRGB8_LINEAIRE = new Float64Array(256);
+for (let octet = 0; octet < 256; octet++) {
+  const c = octet / 255;
+  SRGB8_LINEAIRE[octet] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
+
 export function linearToSrgb8(c: number) {
   const s = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(c, 0), 1 / 2.4) - 0.055;
   return Math.max(0, Math.min(255, Math.round(s * 255)));
 }
 
-function sampleTexel(
-  map: THREE.Texture,
-  u: number,
-  v: number,
-): [number, number, number, number] | null {
+/** Le rang du texel dans l'image, pas ses composantes : c'est l'octet qui indexe la table sRGB. */
+function texelAt(map: THREE.Texture, u: number, v: number) {
   const image = textureRgba(map);
-  if (!image) return null;
+  if (!image) return -1;
   const x = wrapTexel(u, image.width, map.wrapS),
-    y = wrapTexel(v, image.height, map.wrapT),
-    i = (y * image.width + x) * 4,
-    d = image.data;
-  return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, d[i + 3] / 255];
+    y = wrapTexel(v, image.height, map.wrapT);
+  texelData = image.data;
+  return (y * image.width + x) * 4;
 }
+let texelData: ArrayLike<number> = [];
+
 export function sampleMap(map: THREE.Texture, u: number, v: number): [number, number, number] {
-  const texel = sampleTexel(map, u, v);
-  if (!texel) return [1, 1, 1];
-  return [srgbToLinear(texel[0]), srgbToLinear(texel[1]), srgbToLinear(texel[2])];
+  const i = texelAt(map, u, v);
+  if (i < 0) return [1, 1, 1];
+  const d = texelData;
+  return [SRGB8_LINEAIRE[d[i]], SRGB8_LINEAIRE[d[i + 1]], SRGB8_LINEAIRE[d[i + 2]]];
 }
 export function sampleLinear(map: THREE.Texture, u: number, v: number): [number, number, number] {
-  const texel = sampleTexel(map, u, v);
-  if (!texel) return [1, 1, 1];
-  return [texel[0], texel[1], texel[2]];
+  const i = texelAt(map, u, v);
+  if (i < 0) return [1, 1, 1];
+  const d = texelData;
+  return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 
 export function clusterHash(id: string) {
