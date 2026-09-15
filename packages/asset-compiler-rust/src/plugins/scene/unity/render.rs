@@ -112,8 +112,7 @@ impl Builder<'_, '_> {
         }
         // La première liaison réécrit le maillage du modèle sur place : sans elle, le maillage
         // d'origine resterait dans le document sans que rien ne le nomme.
-        let first = !self.bound.keys().any(|(base, _)| *base == mesh);
-        if first {
+        if self.rebound.insert(mesh) {
             bind(&mut self.world.scene.meshes[mesh], materials);
             self.bound.insert(key, mesh);
             return mesh;

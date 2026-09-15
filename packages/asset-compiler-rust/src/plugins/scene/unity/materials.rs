@@ -143,10 +143,11 @@ impl Properties<'_> {
         self.first(self.colors, names)
             .map_or(default, |value| vec4(value, ["r", "g", "b", "a"], default))
     }
-    fn named(&self, names: &[&str]) -> Option<Ref> {
+    /// L'entrée de texture nommée et la texture qu'elle désigne, si elle en désigne une.
+    fn named(&self, names: &[&str]) -> Option<(&Yaml, Ref)> {
         let entry = self.first(self.textures, names)?;
         let reference = reference(&entry["m_Texture"]);
-        (!reference.is_null()).then_some(reference)
+        (!reference.is_null()).then_some((entry, reference))
     }
     /// La texture liée à cette propriété. Une échelle ou un décalage d'UV non neutre est compté :
     /// le glTF le porterait dans une extension que la scène intermédiaire n'écrit pas encore.
@@ -157,11 +158,7 @@ impl Properties<'_> {
         project: &Project,
         table: &mut Textures,
     ) -> Option<usize> {
-        let entry = self.first(self.textures, names)?;
-        let reference = reference(&entry["m_Texture"]);
-        if reference.is_null() {
-            return None;
-        }
+        let (entry, reference) = self.named(names)?;
         let scale = vec3(&entry["m_Scale"], [1.0, 1.0, 1.0]);
         let offset = vec3(&entry["m_Offset"], [0.0, 0.0, 0.0]);
         if scale[0] != 1.0 || scale[1] != 1.0 || offset[0] != 0.0 || offset[1] != 0.0 {

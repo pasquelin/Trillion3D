@@ -99,6 +99,7 @@ fn traverse(world: &mut World<'_>, file: &Path) -> Result<()> {
         materials: HashMap::new(),
         documents: HashMap::new(),
         bound: HashMap::new(),
+        rebound: HashSet::new(),
     };
     let document = builder.document(file).ok_or_else(|| {
         CompilerError::new(
