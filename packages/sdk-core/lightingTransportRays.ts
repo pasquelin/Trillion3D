@@ -1,7 +1,11 @@
 import type { Scene } from './lightingExperimentScene.ts';
 import { fail } from './lightingTransportValidation.ts';
 import { EPSILON } from './lightingTransportIntersections.ts';
+import { crossVector3 } from './mathVector.ts';
 const PI = Math.PI;
+/** Le repère tangent de la facette en cours : écrit puis relu dans le même appel. */
+const tangent = new Float64Array(3),
+  bitangent = new Float64Array(3);
 
 function radicalInverse(value: number): number {
   let inverse = 0,
@@ -19,12 +23,14 @@ export function fillPatchRays(scene: Scene, patchIndex: number, count: number, r
   const n = patch.normal;
   const length = Math.hypot(...patch.u);
   if (!(length > 0)) fail('INVALID_SCENE', 'Patch tangent is degenerate');
-  const tx = patch.u[0] / length,
-    ty = patch.u[1] / length,
-    tz = patch.u[2] / length;
-  const bx = n[1] * tz - n[2] * ty,
-    by = n[2] * tx - n[0] * tz,
-    bz = n[0] * ty - n[1] * tx;
+  for (let axis = 0; axis < 3; axis++) tangent[axis] = patch.u[axis] / length;
+  crossVector3(bitangent, n, tangent);
+  const tx = tangent[0],
+    ty = tangent[1],
+    tz = tangent[2];
+  const bx = bitangent[0],
+    by = bitangent[1],
+    bz = bitangent[2];
   const directions = count / 4;
   const rotation = (patch.id * 0.6180339887498949) % 1;
   for (let i = 0; i < count; i++) {

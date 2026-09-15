@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { determinantMatrix4, normalMatrix3 } from '../sdk-core/index.ts';
 import { attr2, sampleLinear, sampleMap, triangleAt } from './visibilityMath.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 
@@ -56,11 +57,11 @@ export function shadeLit(
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
   const screenFace = affine.area * tri.a.invW * tri.b.invW * tri.c.invW < 0 ? 1 : -1;
-  const face = screenFace * (page.matrix.determinant() < 0 ? -1 : 1),
+  const face = screenFace * (determinantMatrix4(page.matrix.elements) < 0 ? -1 : 1),
     side = mat.backSide ? -1 : 1;
   const normalAttr = page.attributes.normal,
     tangentAttr = page.attributes.tangent;
-  normalScratch.getNormalMatrix(page.matrix);
+  normalMatrix3(normalScratch.elements, page.matrix.elements);
   const vertexNormals = normalAttr ? frameNormals : null;
   if (normalAttr)
     for (let j = 0; j < 3; j++)
