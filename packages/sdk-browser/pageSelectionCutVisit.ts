@@ -30,7 +30,7 @@ function keep<T extends PageRecord>(
 ) {
   const triangles = rec.triangles;
   if (!forcing) {
-    s.wanted.push(rec);
+    s.wanted[s.wantedCount++] = rec;
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
@@ -41,12 +41,11 @@ function keep<T extends PageRecord>(
     if (!s.rootFallback) s.complete = false;
     return;
   }
-  const shown = s.shown;
-  shown.push(rec);
+  s.shown[s.shownCount++] = rec;
   s.shownTriangles += triangles;
   // Un passage qui dépasse le budget est jeté tel quel : son seul résultat est « trop de pages ».
   // Le savoir au premier dépassement épargne la fin de la descente, pas une page de celle qu'on garde.
-  if (s.budget !== 0 && shown.length > s.budget) s.over = true;
+  if (s.budget !== 0 && s.shownCount > s.budget) s.over = true;
 }
 
 /** Teste un cluster, sauf sa coupe quand un ancêtre l'a déjà tranchée (`settled`) : le tronc et le
