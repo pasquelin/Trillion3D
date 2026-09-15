@@ -579,6 +579,141 @@ x −100,49…100,85, y 0,34…47,77, z −78,74…83,40 (mètres).
 Les deux défauts d'import ci-dessus (opacité FBX perdue en silence, aperçus de textures introuvables
 après import) et la règle de départ du banc 15, qui suppose un sol au plus bas des bornes.
 
+## 2026-09-16 — [session sans-threejs] instances : la géométrie n'est plus copiée, le DAG est partagé (lot instances)
+
+Worktree `lot-instances`, branche `lot/instances-gpu`, partie de `develop` = `a29e025`, rebasée sur
+`d3dcd69` (lot import-lampes de la session Lumière) puis sur `30f2b33` (lot H2 de la session
+Calculs), preuve rejouée sur la dernière base. Trois commits : les tampons des transparents, le
+gabarit de DAG, les tests.
+
+### 0. Le harnais sait poser une grille, et dit ce que la mémoire coûte
+
+`--instances N` (1, 4, 9, 12) passe `replicaCount` au SDK ; sans lui rien ne change, la valeur par
+défaut reste 1. Le rapport porte deux colonnes de plus par ligne : **géométrie (Mo)**, le relevé
+`geometryAllocationBytes` du moteur (cache de pages plus tampons de sommets), et **tas JS (Mo)**,
+`performance.memory.usedJSHeapSize` tel que Chromium le rapporte — un relevé, arrondi par le
+navigateur, `null` là où il n'existe pas. Sans ces deux colonnes le lot n'avait aucun juge.
+
+### 1. Ce que la mesure a trouvé, et qui n'était pas ce que le lot attendait
+
+Le lot partait de « `replicateInstances` clone les maillages ». Le premier relevé dit autre chose.
+Les clones de `replicateInstances` **partagent déjà** leur `BufferGeometry` : positions, UV,
+normales et index sont le même objet sous les neuf cellules, et tout ce qui déduplique par
+`geometry.attributes` en profitait déjà — le cache de pages (résidence identique, 20 688 pages à 1
+comme à 9 instances), les trois tampons concaténés du visbuffer, les positions. Le catalogue de
+clusters, lui, est **une entrée par placement** et le reste : une instance lointaine n'a pas la même
+coupe qu'une instance proche, et sa ligne, sa boîte monde et sa matrice lui appartiennent.
+
+Deux copies réelles restaient, et une seule pesait :
+
+- **Les transparents.** `webgpuBlendPrepare` créait, **par placement**, un tampon d'indices, un
+  tampon d'UV et un tampon normale+tangente (sept flottants par sommet) — seules les positions
+  passaient par une table. Emerald, 964 primitives transparentes, neuf instances : 8 676 tampons au
+  lieu de 964, soit 2,2 Go de doublons stricts.
+- **La forme du DAG.** `collectClusterPages` recalculait par placement la hiérarchie de culling
+  (`Float64Array.from`), ses bornes par nœud, les bandes d'erreur de chaque page, le placement des
+  paquets de streaming, l'identité de chaque cluster et la vérification de couverture (deux
+  multiensembles de dix millions de triangles, par instance). Rien là-dedans ne dépend d'une matrice
+  monde.
+
+### 2. Les tampons des transparents appartiennent à la géométrie
+
+`webgpuBlendBuffers.ts` : indices tenus par l'attribut d'index, UV et normale+tangente tenus par
+l'objet `attributes`, écrits une fois, comptés une fois dans `vertexBytes`, rendus une fois au
+pilote. Les octets écrits sont exactement ceux d'avant, dans le même ordre, avec les mêmes tailles
+plancher ; l'ordre des items de mélange, leurs drapeaux, leurs groupes de liaison et leurs appels de
+dessin ne bougent pas. `undefined` retenu dans la table dit « cette géométrie n'a pas cet
+attribut », et se distingue d'une absence d'entrée.
+
+### 3. Un gabarit de DAG par objet source
+
+`pageSelectionTemplate.ts` : un objet source porte une fois ses bandes d'erreur, ses paquets, ses
+identités de clusters, sa hiérarchie de culling, ses bornes par nœud, ses liens de groupes et sa
+boîte locale — le même partage que `ClusterStructureIndex` avait déjà, étendu à tout ce qui
+l'entoure. Les placements gardent ce qui les distingue : matrice monde, boîte monde, rang de dessin,
+drapeaux de groupes forcés, enregistrement de page. La couverture se vérifie une fois par couple
+primitive / tableau d'indices source, et l'ordre des refus est celui d'avant, placement par
+placement : page absente, couverture, puis bande d'erreur du cache. `cullingBounds` ne demande plus
+qu'un `ClusterCut` : c'est tout ce qu'il lisait.
+
+### 4. Ce que ça donne
+
+Emerald, `webgpu-page-raster`, 1280×720, 60 images, chauffe par défaut, `--max-pages 100000`, cache
+du Lab (manifeste binaire 4). **Machine chargée pendant toute la campagne** (charge 17 à 34, d'autres
+sessions mesurant en parallèle) : les durées sont bruitées et à lire comme telles, les verdicts pixel
+ne le sont pas.
+
+| instances | géométrie avant → après | tas JS avant → après | `cpuFrameMs` p50 générale·0 |
+| --------- | ----------------------- | -------------------- | --------------------------- |
+| 1         | **420,6 → 209,1 Mo**    | bruit (≈ 530 ± 100)  | 10,30 → 10,10               |
+| 9         | **2 652,8 → 209,1 Mo**  | ≈ 2 114 → 1 961 Mo   | 69,20 → 75,60               |
+
+La géométrie ne dépend plus du nombre d'instances : **209,1 Mo à 1 comme à 9**. Le tas JS baisse de
+96 Mo à 9 instances sur la mesure isolée du gabarit (témoin A/A du tas : 16 Mo) ; sur la campagne
+complète l'écart va de −80 à −400 Mo selon la vue, la mesure du tas restant tributaire du ramasse-
+miettes. Le temps processeur par image ne bouge pas : il est proportionnel aux placements, et le
+reste (voir §6).
+
+### 5. Preuve
+
+Verrou `.claude/mesure.lock` pris avant chaque campagne et rendu juste après. Harnais commun,
+`avant` = tête de `develop`, `apres` = tête du lot, les deux côtés lisant le même cache.
+
+| campagne                           | vues × seuils | écart | A/A | hash de coupe | trous |
+| ---------------------------------- | ------------- | ----- | --- | ------------- | ----- |
+| webgpu, 1 instance                 | 6             | 0 px  | 0   | identique 6/6 | 0     |
+| webgpu, 9 instances                | 6             | 0 px  | 0   | identique 6/6 | 0     |
+| webgpu, caméra mobile, 1 instance  | 2             | 0 px  | 0   | identique 2/2 | 0     |
+| webgpu, caméra mobile, 9 instances | 2             | 0 px  | 0   | identique 2/2 | 0     |
+| webgl, 1 instance                  | 6             | 0 px  | 0   | identique 6/6 | —     |
+| webgl, 9 instances                 | 2             | 0 px  | 0   | identique 2/2 | —     |
+| classes de matériaux, 1 instance   | 6             | 0 px  | 0   | identique 6/6 | 0     |
+
+Images conservées dans `.mesure/out/lot-instances/`.
+
+**La scène synthétique des classes de matériaux à 9 instances n'est pas un juge, et ce n'est pas le
+lot.** Elle y montre 104 286 pixels d'écart, max canal 129 — et `develop` **contre lui-même** en
+montre exactement autant (contrôle : deux montages du même `dist`, un par côté ; A/A à 0, tous les
+compteurs égaux — clusters, pages résidentes, appels de dessin, triangles soumis). La fixture pose
+ses boîtes bord à bord et la grille les espace de l'emprise du modèle : les instances voisines se
+touchent, leurs faces opaques sont exactement coplanaires, et R5c dit le reste — à profondeur égale
+le pixel va au premier dessiné, et l'ordre vient de la partition occulteurs/testés décidée à
+l'exécution. Emerald, dont les instances ne se touchent pas, est à 0 px aux mêmes neuf instances.
+À corriger dans la fixture (un écart entre les boîtes) avant de se servir de cette scène à plusieurs
+instances ; tant que ce n'est pas fait, elle ne se mesure qu'à une instance.
+
+Le harnais consigne aussi, sur toutes ces campagnes, des 404 sur `lights.json` : le cache du Lab est
+antérieur au lot import-lampes. Le manque est identique des deux côtés et ne déplace aucun pixel.
+
+### 6. Ce qui reste de H1, et pourquoi le reste ne se prend pas par là
+
+**WebGL2 n'a rien à partager de plus.** Mesuré : `geometryAllocationBytes` vaut 223,3 Mo à 1 comme à
+9 instances. `exactPagesAttachment` partage déjà l'attribut d'index par URL et les attributs de
+sommets par géométrie source, et le relevé déduplique par géométrie. Le contrat est donc tenu sans
+une ligne : _un placement de page WebGL2 n'alloue qu'un `BufferGeometry` enveloppe et un `Mesh` ;
+ses tampons sont ceux de la page et de la géométrie source, jamais une copie._ Ce qui reste coûteux
+côté WebGL2 est la coupe processeur (29,4 ms p50 à 9 instances contre 6,8 à 1) — c'est le lot 4c, pas
+celui-ci.
+
+**Le catalogue reste une entrée par placement, et il le doit.** Une instance a sa propre coupe, sa
+propre ligne de visibilité, sa propre boîte monde : à 9 instances, 402 201 `PageRec` au lieu de
+44 689. Les déplacer vers un catalogue « gabarit × instance » (une dispatch 2D, `index = instance ×
+gabarit + cluster`, qui conserve exactement l'ordre actuel puisque `replicateInstances` émet déjà
+cellule par cellule) économiserait les 64 + 48 octets par cluster des enregistrements statiques de
+`packDagSelection` — soit 40 Mo à 9 instances — et une part des `PageRec`. C'est un chantier à part :
+il touche le cœur du moteur WebGPU (empaquetage, nuanceur de sélection, lignes, Hi-Z, dessin), pour
+un gain mémoire d'un ordre de grandeur sous celui de ce lot. À ne prendre que si la mémoire
+processeur redevient la contrainte : le tas JS croît de ~190 Mo par instance d'Emerald, dont ce lot
+rend ~12 Mo.
+
+**Le temps processeur par image ne s'améliore pas par l'instanciation.** Le profil à 9 instances le
+dit : 12,3 ms de fiches de dessin, 12,6 ms d'encodage pour 17 359 appels dont 17 352 de mélange,
+4,1 ms d'adoption, 3,6 ms de partition. Les appels de mélange sont **un par placement de primitive
+transparente**, et les fusionner à travers les instances changerait l'ordre de dessin des
+transparents — la contrainte du lot l'interdit. Le chemin opaque, lui, est déjà indépendant du
+nombre d'instances : 7 appels de dessin indirects pour 354 926 clusters. Il n'y a donc pas de
+« dessin indirect par instance » à livrer côté opaque ; il est déjà là.
+
 ## 2026-09-16 — [session lumiere] ombres virtualisées : invalidation par pages, budget en millisecondes (lot ombres virtualisées)
 
 Branche `lot/ombres-virtualisees`, sur `develop` = `d3dcd69`. `tsc` et `npm run check:changed` verts
