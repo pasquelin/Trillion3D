@@ -1,8 +1,20 @@
-import type { StreamContext } from './streamingTypes.ts';
+import type { Job, StreamContext } from './streamingTypes.ts';
 
 /** L'ordre d'admission d'une file : priorité, puis ordre d'arrivée. */
 export function sortStreamJobs(queue: { priority: number; order: number }[]) {
   queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
+}
+
+/**
+ * Retire de la file, en un seul passage et sans déranger l'ordre, les travaux qu'une annulation a
+ * marqués. Une rafale d'annulations — ce qu'une caméra rapide produit à chaque image — payait
+ * jusqu'ici un balayage de la file par demande abandonnée pour y retrouver sa place.
+ */
+export function compacteFile(queue: Job[]) {
+  let garde = 0;
+  for (let i = 0; i < queue.length; i++)
+    if (queue[i].state !== 'dropped') queue[garde++] = queue[i];
+  queue.length = garde;
 }
 
 /**
@@ -43,6 +55,10 @@ export function createStreamingQueue(
   const octetsDe = (url: string) => catalog.get(url)?.bytes;
   const pump = () => {
     if (state.disposed || abort.signal.aborted) return;
+    if (state.dropped) {
+      compacteFile(queue);
+      state.dropped = 0;
+    }
     // La file n'est triée qu'une fois par passage : rien n'y entre pendant la boucle, et retirer un
     // travail ne dérange pas l'ordre. Le tri repartait de zéro à chaque tour du `while`.
     let triee = false;
@@ -157,8 +173,10 @@ export function createStreamingQueue(
           jobs.delete(url);
           shared.controller.abort(abortError());
           emit('page-stream-abort', 'Demande en attente annulée', () => ({ version: 1, url }));
-          const at = queue.indexOf(shared);
-          if (at >= 0) queue.splice(at, 1);
+          // Marqué, pas retiré : `pump` compacte la file en un passage, et `stats()` retranche les
+          // marqués de sa longueur, si bien que le nombre en attente publié ne bouge pas.
+          shared.state = 'dropped';
+          state.dropped++;
         }
         if (ok) resolve(value as Uint8Array);
         else reject(value);

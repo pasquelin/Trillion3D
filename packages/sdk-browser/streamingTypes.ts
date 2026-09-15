@@ -10,7 +10,8 @@ export type Job = {
   priority: number;
   order: number;
   controller: AbortController;
-  state: 'queued' | 'active';
+  /** `dropped` : plus aucun consommateur, la file le laisse tomber au prochain passage de `pump`. */
+  state: 'queued' | 'active' | 'dropped';
   consumers: Set<symbol>;
   promise: Promise<Uint8Array>;
   resolve: (value: Uint8Array) => void;
@@ -43,6 +44,8 @@ export type StreamContext = {
     loaded: number;
     evictions: number;
     admissionBlocked: number;
+    /** Travaux marqués abandonnés mais encore dans le tableau de la file. */
+    dropped: number;
     disposed: boolean;
     cachedBytes: number;
   };

@@ -50,6 +50,7 @@ export function createPageStreamer(
     loaded: 0,
     evictions: 0,
     admissionBlocked: 0,
+    dropped: 0,
     disposed: false,
     cachedBytes: 0,
   };
@@ -165,7 +166,7 @@ export function createPageStreamer(
         misses: state.misses,
         bytesRead: state.bytesRead,
         loading: state.active,
-        queued: queue.length,
+        queued: queue.length - state.dropped,
         transferInFlightBytes: state.activeBytes,
         resident: cache.size,
         residentBytes: state.cachedBytes,
@@ -188,6 +189,7 @@ export function createPageStreamer(
       for (const job of jobs.values()) job.controller.abort(abortError());
       jobs.clear();
       queue.length = 0;
+      state.dropped = 0;
       cache.clear();
       state.cachedBytes = 0;
       pinned.clear();
