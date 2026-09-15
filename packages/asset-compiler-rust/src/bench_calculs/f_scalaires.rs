@@ -31,8 +31,8 @@ fn empreinte_vecteurs(vecteurs: &Vec<[f64; 3]>) -> Bits {
     bits
 }
 
-/// F5 — `pad_to_4` contre les deux formes d'avant : la soustraction de `compiler_buffers.rs` et
-/// `compiler_copy.rs`, et la boucle `while` de `compiler_autonomous.rs`, qui doivent coïncider.
+/// F5 — `pad_to_4` contre les deux formes d'avant : la soustraction de `compiler_buffers.rs`,
+/// `compiler_copy.rs` et `import.rs`, et la boucle `while` de `compiler_autonomous.rs`.
 pub(crate) fn row_bourrage() -> Row {
     let lengths: Vec<usize> = (0..SPAN)
         .chain((usize::MAX - 8)..usize::MAX)
