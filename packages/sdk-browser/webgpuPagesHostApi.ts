@@ -108,13 +108,13 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
     held.limited === run.coverageBudgetLimited &&
     held.ready === ready
   )
-    return run.pendingScratch;
+    return run.hostPendingScratch;
   held.epoch = run.pageArrayEpoch;
   held.limited = run.coverageBudgetLimited;
   held.ready = ready;
   return collectPendingUrls(
     !ready ? rt.setup.bootstrap : run.coverageBudgetLimited ? [] : run.desired,
-    run.pendingScratch,
+    run.hostPendingScratch,
     rt.setup.requestStamps,
   );
 }

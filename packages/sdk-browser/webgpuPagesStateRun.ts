@@ -74,10 +74,13 @@ export interface WebgpuRunState {
   culledScratch: PageRec[];
   readyScratch: PageRec[];
   pendingScratch: string[];
+  /** Le tableau de la liste rendue à l'hôte, à lui seul : le suivi du rendu écrit dans l'autre, et
+   *  une liste tenue d'une image à l'autre ne survivrait pas à ce partage. */
+  hostPendingScratch: string[];
   urlScratch: string[];
   /** Vrai quand l'adoption a relu le relevé déjà tenu : `desired` et `shown` n'ont pas bougé. */
   cutHeld: boolean;
-  /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que `pendingScratch` lit. */
+  /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que la liste attendue lit. */
   pageArrayEpoch: number;
   /** Ce que chaque liste rendue à l'hôte décrit : l'état qui l'a produite, ou `-1` si elle est à
    *  refaire. Une liste n'est gardée que si tout ce dont elle dépend est encore celui-là. */
@@ -162,6 +165,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     culledScratch: [],
     readyScratch: [],
     pendingScratch: [],
+    hostPendingScratch: [],
     urlScratch: [],
     cutHeld: false,
     pageArrayEpoch: 0,
