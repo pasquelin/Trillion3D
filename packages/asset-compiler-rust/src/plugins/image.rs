@@ -8,23 +8,65 @@ use std::path::Path;
 
 mod crate_image;
 mod dds;
+mod exr;
+mod hdr;
 mod jpeg;
 mod png;
 mod tga;
 mod tiff;
 
-/// Version du contrat des pilotes d'image. La changer impose de relire chaque pilote.
-pub const VERSION: &str = "image-plugin-1";
+/// Version du contrat des pilotes d'image. La changer impose de relire chaque pilote, et invalide
+/// les caches : depuis `image-plugin-2`, un pilote peut rendre une seconde sortie que tout
+/// consommateur doit trancher explicitement.
+pub const VERSION: &str = "image-plugin-2";
 
 /// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
-pub static DECODERS: &[&dyn ImageDecoder] =
-    &[&png::PNG, &jpeg::JPEG, &tga::TGA, &tiff::TIFF, &dds::DDS];
+pub static DECODERS: &[&dyn ImageDecoder] = &[
+    &png::PNG,
+    &jpeg::JPEG,
+    &tga::TGA,
+    &tiff::TIFF,
+    &dds::DDS,
+    &exr::EXR,
+    &hdr::HDR,
+];
 
-/// Ce qu'un pilote rend. Les formats flottants — EXR, Radiance HDR — entreront par une variante de
-/// plus, que chaque consommateur devra alors traiter explicitement plutôt que ramener à 8 bits.
+/// Ce qu'un pilote rend. Deux sorties, et aucun pont de l'une vers l'autre : ramener un flottant à
+/// huit bits demanderait une courbe de report de tons, donc une perte que la source n'avait pas, ce
+/// que la politique d'import interdit. Un consommateur qui ne sait traiter qu'une variante refuse
+/// l'autre par une raison de rapport nommée.
 pub enum DecodedImage {
     /// RGBA 8 bits par canal, sRGB, alpha droit, au moins un pixel.
     Rgba8(image::RgbaImage),
+    /// RGBA 32 bits flottants par canal, **linéaire** et à alpha droit, au moins un pixel : ce que
+    /// rendent les formats à grande gamme dynamique. `data` porte `width * height * 4` valeurs, un
+    /// pixel après l'autre, ligne du haut d'abord.
+    RgbaF32 {
+        width: u32,
+        height: u32,
+        data: Vec<f32>,
+    },
+}
+
+/// Octets qu'occupe un pixel de la variante flottante : quatre canaux de quatre octets.
+const FLOAT_PIXEL_BYTES: u64 = 16;
+
+/// Ce qu'un pilote flottant vérifie avant d'allouer quoi que ce soit : une image d'au moins un pixel
+/// dont la surface tient sous le plafond reçu, comptée à seize octets par pixel. Un dépassement est
+/// une raison de rapport — celle du pilote appelant —, jamais une allocation tentée puis une panique.
+fn float_budget(
+    width: u32,
+    height: u32,
+    max_alloc: u64,
+    too_large: &'static str,
+) -> std::result::Result<(), &'static str> {
+    if width == 0 || height == 0 {
+        return Err("image-empty");
+    }
+    if u64::from(width) * u64::from(height) * FLOAT_PIXEL_BYTES > max_alloc {
+        return Err(too_large);
+    }
+    Ok(())
 }
 
 /// Un pilote d'image. Il ne rend jamais d'image vide et ne panique jamais : un octet imprévu est une
