@@ -2,8 +2,8 @@ import type * as THREE from 'three';
 import { PAGES_RING, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
-import type { DirectLightResources } from './deferredLightingProgram.ts';
 import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
+import { ensureSunFarShadow } from './webgpuPagesPrepareSunFar.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Les quatre flottants que la passe différée relit : lampes, tuiles en X et Y, exposition. */
@@ -47,6 +47,10 @@ export function encodeDirectLights(
   // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
   encodeBounce(rt, device, encoder, active, camera);
+  // L'ombre lointaine du soleil : le proxy est gréé à la première lampe, comme le rebond, et son
+  // relevé de compteurs est encodé avant la passe d'éclairage qui les remplira.
+  ensureSunFarShadow(rt, device);
+  rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
   // La passe peut refuser d'encoder (rejet ou sélection absents) : les pages que l'ordonnanceur
   // venait de sortir de la file y retournent alors, sinon leur carte garderait une profondeur
   // périmée sans que rien ne le dise.
@@ -163,32 +167,4 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     atlasCells: lights.shadows ? lights.plan.slices.atlas.occupancy() : null,
     unavailable: lights.shadowReason,
   };
-}
-
-/**
- * Vrai quand l'image doit être éclairée par les lampes déclarées. Faux dans la vue sans éclairage,
- * qu'elle soit demandée par l'hôte ou qu'elle vienne du défaut d'une scène sans lampe : dans les
- * deux cas le programme du contrat n'a rien à faire, et l'albédo brut sort tel quel.
- */
-export function wantsContractLighting(rt: WebgpuPagesRuntime) {
-  const { store } = rt.lights;
-  return store.count > 0 && !store.unlit;
-}
-
-const contractResources: DirectLightResources = {};
-
-/** Les ressources du contrat que la passe différée lie, ou rien quand elles n'existent pas.
- *  L'objet est réutilisé d'une image à l'autre : la passe n'en alloue aucun. */
-export function directLightResources(rt: WebgpuPagesRuntime) {
-  const { lights } = rt,
-    active = wantsContractLighting(rt);
-  contractResources.tiles = active ? lights.tiles?.buffer : undefined;
-  contractResources.slices = active ? lights.shadows?.sliceBuffer : undefined;
-  contractResources.atlas = active ? lights.shadows?.view : undefined;
-  // La grille n'est liée que si elle existe : sans elle, la passe différée compile et lie le
-  // programme du contrat seul, exactement celui d'avant ce lot.
-  const bounce = active ? rt.bounce.probes : undefined;
-  contractResources.bounceGrid = bounce?.uniform;
-  contractResources.probes = bounce?.probes;
-  return contractResources;
 }
