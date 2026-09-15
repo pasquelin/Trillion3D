@@ -12,6 +12,7 @@ type Inputs = {
   source: THREE.Object3D;
   sceneLightingSource?: THREE.Object3D;
   associations: BackendContext['associations'];
+  textureIndices: Map<THREE.Texture, number>;
   pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
   gpuDevice?: GPUDevice;
   directGpu: boolean;
@@ -25,6 +26,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     source,
     sceneLightingSource,
     associations,
+    textureIndices,
     pageSources,
     gpuDevice,
     directGpu,
@@ -40,6 +42,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     readPage: (url) => streamer.read(url),
     readGeometryPage: (url) => streamer.readBytes(url),
     associations: associations,
+    textureIndices,
     signal,
     maxResidentPages: attachCap,
     maxCachedPages: cacheCap,

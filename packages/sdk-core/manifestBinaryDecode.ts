@@ -5,6 +5,7 @@ import {
   type Primitive,
 } from './contracts.ts';
 import { decodeCulling, decodeStreams, decodeStructure } from './manifestBinaryDecodeParts.ts';
+import { decodeTexturePreviews } from './manifestBinaryPreview.ts';
 import * as format from './manifestBinaryFormat.ts';
 import { readManifestColumns } from './manifestBinaryRead.ts';
 import type { SlimClusterManifest } from './manifestBinaryTypes.ts';
@@ -36,6 +37,7 @@ export function decodeManifestBinary(
       structureRoot,
     },
     bundles: { bundleWords, bundleShaText },
+    previews,
     cullingNodes,
     urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   } = readManifestColumns(slim, buffer);
@@ -134,5 +136,9 @@ export function decodeManifestBinary(
     return result;
   });
   const { binary: _descriptor, primitives: _slimPrimitives, ...top } = slim;
-  return { ...top, primitives } as ClusterManifest;
+  return {
+    ...top,
+    primitives,
+    texturePreviews: decodeTexturePreviews(previews),
+  } as ClusterManifest;
 }

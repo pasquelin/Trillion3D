@@ -7,6 +7,7 @@ pub mod import;
 mod manifest_binary;
 mod perf;
 mod qem;
+pub mod texture_preview;
 mod topology;
 use rayon::prelude::*;
 use serde_json::{json, Value};

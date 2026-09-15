@@ -93,6 +93,26 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
+    // Les aperçus 16×16 des textures couleur, lus sur le glTF d'entrée et son binaire déjà mappé :
+    // un décodage impossible est une ligne de rapport, jamais un échec de compilation.
+    let source_dir = if o.source.is_file() {
+        o.source
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new("."))
+            .to_path_buf()
+    } else {
+        o.source.clone()
+    };
+    let (texture_previews, texture_preview_report) =
+        texture_preview::stage_texture_previews(&texture_preview::PreviewInputs {
+            o,
+            g,
+            bin,
+            source_dir: &source_dir,
+            meshes: &meshes,
+            view_map: &view_map,
+        })?;
     let autonomous_scene = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,
@@ -111,7 +131,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     } else {
         FORMAT_VERSION
     };
-    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
     // columns instead of tokenizing tens of megabytes before its first frame.
     {
@@ -122,7 +142,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             geometry: "../../objects/{sha}.bin",
             bundle: "../../objects/{sha}.bin",
         };
-        let (mut slim, binary) = manifest_binary::split(&result, &templates)?;
+        let (mut slim, binary) = manifest_binary::split(&result, &templates, &texture_previews)?;
         slim["binary"]["sha256"] = json!(hash(&binary));
         atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;
         atomic(

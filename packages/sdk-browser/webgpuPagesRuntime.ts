@@ -70,6 +70,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     dataScales: vis.dataUvScales,
     colorAtlas: () => ({ texture: vis.mapsTexture, size: vis.textureColorSize }),
     dataAtlas: () => ({ texture: vis.dataMapsTexture, size: vis.textureDataSize }),
+    onColorReady: (layers) => vis.preview?.markReady(layers),
     onFailure: diag.diagnosticFailure,
   });
   const capabilities: BackendCapabilities = {

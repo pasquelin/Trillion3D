@@ -48,6 +48,8 @@ export function drawBlendPass(
             { binding: 8, resource: { buffer: vis.materialScales! } },
             { binding: 9, resource: { buffer: lightBuffer! } },
             { binding: 10, resource: { buffer: item.diagnosticBuffer ?? gpu.zeroUv! } },
+            { binding: 11, resource: vis.preview!.view },
+            { binding: 12, resource: { buffer: vis.preview!.ready } },
           ],
         });
       else
