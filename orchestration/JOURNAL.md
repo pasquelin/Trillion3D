@@ -1,5 +1,107 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — textures en boucle d'images : la priorité lisait une coupe que seul `flush()` remplit
+
+Branche `fix-textures-live`, sur `develop` = `7b7a79f`. Défaut rapporté : dans le Lab, test
+`15-virtualized-integration`, moteur WebGeometry WebGPU, exploration libre — « presque plus de
+textures, du moins pas celles d'origine », surfaces grossières ou plates, jamais la pleine
+résolution ; la colonne WebGPU du rapport 15 est plus claire et plus plate que les trois moteurs
+WebGL.
+
+### Le harnais a deux modes, et c'est ce qui manquait
+
+Toutes les preuves navigateur du chantier forçaient `flush()` avant de capturer : tous les
+transferts aboutissent, l'image capturée porte toujours la pleine résolution. En exploration libre
+rien n'est forcé. `test/webgpuCapture.browser.mjs` accepte maintenant `CAPTURE_MODE` : `flush`
+(inchangé, dix captures, contrôle A/A) et **`live`** (`test/browserFixtures/captureLive.mjs`) — N
+images de parcours sans le moindre `flush()` ni `awaitPages()`, relevé image par image de
+`texturePending`, `textureInFlight`, `textureUploaded`, `textureLevelsUploaded`,
+`textureSlicesUploaded`, `textureSkipped`, `textureBytesLastFrame`, puis un unique `flush()` après
+la dernière image pour relire l'image déjà rendue. `LIVE_CAPTURE_FRAME` choisit l'image capturée.
+Sans ce second mode, la régression revient sans être vue.
+
+### Les hypothèses, leur test, leur verdict
+
+| hypothèse                                                     | mesure ou test                                                                                                  | verdict                             |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| la pompe n'aboutit jamais hors `flush()`                      | mode `live`, 541 images : `texturePending` **0** à l'image 414, `textureSkipped` **0**, aucun abandon           | **fausse** — elle converge          |
+| le bit « prêt » ou le niveau résident n'atteint pas le shader | image live après convergence contre l'image `flush` : 0,24 % de pixels, sans biais ; `webgpuAtlasSlots.test.ts` | **fausse**                          |
+| double encodage sRGB sur le chemin des niveaux progressifs    | test ajouté (`webgpuAtlasJobs.test.ts`) : un texel connu part octet pour octet du sidecar au niveau de mip `k`  | **fausse** — vert avant comme après |
+| le journal du Lab montrerait des textures manquantes          | log de la campagne de l'utilisateur : `textureUploaded` **336**, `texturePending` **0**, `textureSkipped` **0** | **fausse** — tout est transféré     |
+| **l'ordre de transfert ne suit pas la caméra**                | diagnostic temporaire : `run.drawn` **vide sur les 243 premières images**, puis figé ; tous les poids à zéro    | **vraie, cause racine**             |
+
+### Cause racine, en une phrase
+
+En boucle d'images le seul signal de priorité de la pompe, `run.drawn`, reste vide — il n'est refait
+qu'à l'adoption d'un relevé de sélection, ce qui n'arrive qu'à `flush()`, puis reste figé sur un
+vieux relevé — si bien que tous les poids valent zéro, la file n'est jamais réordonnée et les
+textures partent dans l'ordre de l'atlas, une par image sous le budget de 16 Mio, la surface que la
+caméra regarde restant des centaines d'images au niveau 64 px de sa pyramide.
+
+Mesuré : à l'image 60, la file avait transféré les slots 1 à 30 dans l'ordre du rang, et le sol —
+la surface qui occupe les deux tiers de l'image — était un gris plat sans grain.
+
+### Correctif
+
+`webgpuTexturePriority.ts` et `webgpuPagesRuntime.ts`. La priorité lit **`run.desired`**, la coupe
+que l'image demande au cache, que les deux chemins de coupe réécrivent à chaque image (mesuré :
+2 312 → 17 194 → 12 714 pages, elle suit la caméra) au lieu de `run.drawn`. Deux règles d'ordre
+suivent, chacune mesurée :
+
+- **tous les niveaux progressifs avant toute pleine résolution.** Avec les poids rendus non nuls, le
+  comparateur d'avant (poids, puis étage) faisait passer les 16 Mio de la pleine résolution la plus
+  lourde devant les 3 ko d'aperçu de toutes les autres : `textureLevelsUploaded` tombait de 786 à 0
+  à la première image et l'image partait en blanc (biais +128 par canal). Étage d'abord.
+- **la couleur avant les données.** Une couche couleur qui manque se voit ; une couche de données qui
+  manque rend les facteurs scalaires du matériau. Les données pèsent deux fois la couleur
+  (4,99 Go contre 2,57 Go sur Emerald). Mesuré à l'image 60 : **31 slots couleur prêts au lieu de
+  8**, écart à la référence 78,6 % → 70,0 %.
+
+### Chiffres
+
+Lab en lecture seule sur le port 5301 (5174 laissé à l'utilisateur), config de mesure du scratchpad
+qui ajoute `fs.allow`, aliase `@web-geometry/sdk` **et** `@web-geometry/sdk/browser` vers le `dist`
+mesuré — les deux, sinon le Lab et le harnais chargent deux instances du SDK et le moteur WebGPU est
+refusé — et met le cache de dépendances hors du Lab. Cache Emerald du Lab, sidecar version 4, 232
+aperçus ; rien n'y est écrit. Captures 1246×1000.
+
+| preuve                                              | avant                      | après                   |
+| --------------------------------------------------- | -------------------------- | ----------------------- |
+| `live` image 120, pose du segment 2, contre `flush` | **91,84 %**, écart max 100 | **0,21 %**, écart max 2 |
+| `live` image 60, pose du segment 1, contre `flush`  | 75,55 %, écart max 154     | 70,0 %, écart max 154   |
+| `live` image 540, pose du segment 9, contre `flush` | 0,23 %                     | 0,24 %                  |
+
+- **`flush` contre le témoin `develop` du jour : 3 px sur 12 460 000**, sur les segments 3 (amplitude
+  1. et 8 (amplitude 27). L'**A/A du correctif contre lui-même en porte 6, amplitude 105, sur ce même
+     segment 8** : l'écart est strictement sous le bruit mesuré aujourd'hui. Fidélité tenue.
+- **A/A du mode `live` : 0 px, au bit près** sur deux exécutions indépendantes.
+- L'écart résiduel de 0,24 % entre `live` et `flush` après convergence n'est pas de la texture : les
+  deux portent `textureUploaded` **336**, `textureLevelsUploaded` **786**, `texturePending` **0**,
+  `textureSkipped` **0**. Il vient de la résidence — 19 637 pages contre 20 192, 375 chargements
+  contre 378 — parce que le mode `flush` précharge à chaque point de contrôle par `awaitPages()` et
+  que le mode `live` ne précharge rien. `uncoveredTriangles` **0** des deux côtés, aucune erreur GPU.
+- Convergence complète de la pompe en boucle d'images : image **408 à 414** sur 541.
+
+### Tests
+
+- `webgpuTextureOrder.test.ts`, **nouveau** : deux pages, deux matériaux, la page de cent triangles
+  rangée **en second** dans l'atlas, coupe GPU, budget d'une texture par passe, quatre images sans
+  `flush()` — c'est sa couche qui doit partir la première. Rouge sur le code d'avant (`[1, 2]` au
+  lieu de `[2, 1]`), vert après. Le faux `GPUDevice` note maintenant chaque bande de lignes
+  transférée (`textureWrites`), ce qui rend l'ordre observable sans navigateur.
+- `webgpuTexturePriority.test.ts` : deux tests ajoutés pour les deux règles d'ordre.
+- `webgpuAtlasJobs.test.ts` : un test ajouté pour le chemin sRGB du sidecar au GPU.
+- `npm run validate` en une passe : **702 tests JS/TS, 147 + 4 tests Rust, toutes les portes vertes**.
+
+### Reste
+
+- Le poids est un nombre de triangles, pas une surface à l'écran : une route de peu de triangles qui
+  occupe les deux tiers de l'image pèse moins qu'une façade très découpée. C'est ce qui reste visible
+  à l'image 60. Une pondération par aire projetée demanderait une mesure dédiée.
+- Le budget de 16 Mio par image ne laisse passer qu'une texture 2048² par image : 336 textures et
+  7,56 Go d'atlas sur Emerald, donc 336 images au minimum pour tout transférer. La priorité rend cela
+  invisible ; elle ne le supprime pas.
+
 ## 2026-09-16 — [session sans-threejs] la cause des pixels du test Hi-Z : l'ordre de dessin, pas la borne (lot hiz)
 
 Worktree `lot-hiz`, branche `lot/hiz`, partie de `develop` = `edf9e30`, rebasée sur `abe8827` (lot
