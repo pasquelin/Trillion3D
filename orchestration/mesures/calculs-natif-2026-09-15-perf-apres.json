@@ -1,0 +1,135 @@
+{
+ "label": "apres",
+ "date": "2026-09-15",
+ "rounds": 7,
+ "source": "chronomètres de packages/asset-compiler-rust/src/perf.rs, relevés dans metrics.phases de clusters.json",
+ "totalMs": 3051.822957,
+ "fixtures": {
+  "three-stack": {
+   "ms": 7.870583,
+   "phasesMs": {
+    "adjacencyMs": 0,
+    "clusterLevel0Ms": 0.001459,
+    "coplanarMs": 1.715708,
+    "cullingMs": 0.003125,
+    "decodeMs": 0.000791,
+    "groupingMs": 0,
+    "locksMs": 0,
+    "manifestMs": 0,
+    "pageBytesMs": 0.001958,
+    "pageHashMs": 0.005916,
+    "pagePackedMs": 0.305542,
+    "pageWriteMs": 0.667708,
+    "resplitMs": 0,
+    "simplifyMs": 0,
+    "topologyMs": 0.01625,
+    "weldMs": 0.00429
+   }
+  },
+  "full-overlap": {
+   "ms": 6.346208,
+   "phasesMs": {
+    "adjacencyMs": 0,
+    "clusterLevel0Ms": 0.004624,
+    "coplanarMs": 0.715958,
+    "cullingMs": 0.0025,
+    "decodeMs": 0.000541,
+    "groupingMs": 0,
+    "locksMs": 0,
+    "manifestMs": 0,
+    "pageBytesMs": 0.001125,
+    "pageHashMs": 0.004209,
+    "pagePackedMs": 0.164584,
+    "pageWriteMs": 0.322332,
+    "resplitMs": 0,
+    "simplifyMs": 0,
+    "topologyMs": 0.012667,
+    "weldMs": 0.002334
+   }
+  },
+  "partial-overlap": {
+   "ms": 6.089625,
+   "phasesMs": {
+    "adjacencyMs": 0,
+    "clusterLevel0Ms": 0.001083,
+    "coplanarMs": 0.6235,
+    "cullingMs": 0.002375,
+    "decodeMs": 0.000542,
+    "groupingMs": 0,
+    "locksMs": 0,
+    "manifestMs": 0,
+    "pageBytesMs": 0.001166,
+    "pageHashMs": 0.003251,
+    "pagePackedMs": 0.172709,
+    "pageWriteMs": 0.3445,
+    "resplitMs": 0,
+    "simplifyMs": 0,
+    "topologyMs": 0.01325,
+    "weldMs": 0.002417
+   }
+  },
+  "masked-overlay": {
+   "ms": 5.615917,
+   "phasesMs": {
+    "adjacencyMs": 0,
+    "clusterLevel0Ms": 0.001124,
+    "coplanarMs": 0.114208,
+    "cullingMs": 0.002291,
+    "decodeMs": 0.000459,
+    "groupingMs": 0,
+    "locksMs": 0,
+    "manifestMs": 0,
+    "pageBytesMs": 0.001291,
+    "pageHashMs": 0.003167,
+    "pagePackedMs": 0.207417,
+    "pageWriteMs": 0.406001,
+    "resplitMs": 0,
+    "simplifyMs": 0,
+    "topologyMs": 0.016083,
+    "weldMs": 0.0025
+   }
+  },
+  "blend-overlay": {
+   "ms": 5.253791,
+   "phasesMs": {
+    "adjacencyMs": 0,
+    "clusterLevel0Ms": 0.001126,
+    "coplanarMs": 0.103458,
+    "cullingMs": 0.002375,
+    "decodeMs": 0.000499,
+    "groupingMs": 0,
+    "locksMs": 0,
+    "manifestMs": 0,
+    "pageBytesMs": 0.001167,
+    "pageHashMs": 0.004291,
+    "pagePackedMs": 0.223542,
+    "pageWriteMs": 0.436084,
+    "resplitMs": 0,
+    "simplifyMs": 0,
+    "topologyMs": 0.013417,
+    "weldMs": 0.002458
+   }
+  },
+  "grid": {
+   "ms": 3020.646833,
+   "phasesMs": {
+    "adjacencyMs": 55.475208,
+    "clusterLevel0Ms": 216.569458,
+    "coplanarMs": 2.688333,
+    "cullingMs": 6.180958,
+    "decodeMs": 0.543,
+    "groupingMs": 3.165876,
+    "locksMs": 8.957832,
+    "manifestMs": 0,
+    "pageBytesMs": 19.830479,
+    "pageHashMs": 70.705452,
+    "pagePackedMs": 1119.149317,
+    "pageWriteMs": 910.979413,
+    "resplitMs": 218.187836,
+    "simplifyMs": 173.108829,
+    "topologyMs": 73.014083,
+    "weldMs": 8.044208
+   }
+  }
+ }
+}
