@@ -3,16 +3,12 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { LAB, VIEWS } from './poses.mjs';
+import { VIEWS } from './poses.mjs';
+import { ASSETS } from './scene.mjs';
 
 export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
+export { labManifest, sceneOf } from './scene.mjs';
 
-// Le cache du banc, en lecture seule. `WG_ASSETS` laisse un agent pointer une copie figée hors du
-// Lab : la mesure lit alors ses propres octets, et le Lab n'est ni lu ni touché pendant la série.
-export const ASSETS = process.env.WG_ASSETS
-  ? resolve(process.env.WG_ASSETS)
-  : join(LAB, 'public/benchmark-assets');
-export const SCENE = 'emerald-square';
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 // Drapeaux copiés littéralement de `render-tech-lab/scripts/headless/lib.mjs` (BASE_FLAGS) et de
