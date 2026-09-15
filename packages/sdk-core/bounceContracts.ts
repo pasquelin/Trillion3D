@@ -46,12 +46,12 @@ export const BOUNCE_SETTINGS = {
   /** Rayons lancés par sonde à chaque mise à jour. Budget fixe et réglable (X2). */
   raysPerProbe: 64,
   /**
-   * Sondes mises à jour par image : la grille est balayée en `probes / probesPerFrame` images.
-   * C'est le budget de rayons de l'image, et il ne bouge pas : c'est la lumière qui converge, pas
-   * la cadence qui cède. Une petite scène balaie tout d'un coup, une grande y met le temps qu'il
-   * faut, et le harnais publie ce temps.
+   * Rayons de sonde lancés par image. C'est le budget de l'image, et il ne bouge pas : c'est la
+   * lumière qui converge, pas la cadence qui cède. Il décide du nombre de sondes du lot, et non
+   * l'inverse. Une petite scène balaie tout d'un coup, une grande y met le temps qu'il faut, et le
+   * harnais publie ce temps.
    */
-  probesPerFrame: 8192,
+  raysPerFrame: 131072,
   /** Lampes testées sur une maille du cache : la boucle est bornée par ce nombre (X2). */
   lightsPerRay: 4,
   /**
@@ -100,7 +100,15 @@ export const PROBE_FLOATS = 24;
  * la pièce. L'écartement visé fixe le nombre de mailles, le budget le plafonne, et l'écartement
  * réellement obtenu est publié. Rien ici ne connaît de scène : une emprise et deux bornes suffisent.
  */
-export function probeGridOf(bounds: readonly number[]) {
+export interface ProbeGrid {
+  /** Sondes sur chaque axe, puis leur produit : la grille complète. */
+  counts: [number, number, number];
+  origin: [number, number, number];
+  spacing: [number, number, number];
+  probes: number;
+}
+
+export function probeGridOf(bounds: readonly number[]): ProbeGrid {
   const extent = [
     Math.max(bounds[3] - bounds[0], 0),
     Math.max(bounds[4] - bounds[1], 0),
