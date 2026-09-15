@@ -79,16 +79,33 @@ fn snap(t: &[f32], size: f64) -> [f32; PROXY_TRIANGLE_FLOATS] {
     out
 }
 
+/// Les triangles que le pas `size` retient : ceux qui ont encore une surface et ne doublonnent pas,
+/// ramenés sur la grille, avec le nombre de découpes que leur plus long côté demande. C'est la seule
+/// lecture du proxy : compter et construire suivent exactement la même règle.
+fn kept(
+    triangles: &[f32],
+    size: f64,
+) -> impl Iterator<Item = (usize, [f32; PROXY_TRIANGLE_FLOATS], usize)> + '_ {
+    let mut seen: HashSet<[[i32; 3]; 3]> = HashSet::new();
+    triangles
+        .as_chunks::<PROXY_TRIANGLE_FLOATS>()
+        .0
+        .iter()
+        .enumerate()
+        .filter_map(move |(index, t)| {
+            let key = key_of(t, size)?;
+            if !seen.insert(key) {
+                return None;
+            }
+            let snapped = snap(t, size);
+            Some((index, snapped, divisions(longest_edge(&snapped), size)))
+        })
+}
+
 /// Combien de triangles le pas `size` laisserait, sans rien construire. S'arrête au dépassement.
 fn count_at(triangles: &[f32], size: f64, budget: usize) -> usize {
-    let mut seen: HashSet<[[i32; 3]; 3]> = HashSet::new();
     let mut total = 0usize;
-    for t in triangles.as_chunks::<PROXY_TRIANGLE_FLOATS>().0 {
-        let Some(key) = key_of(t, size) else { continue };
-        if !seen.insert(key) {
-            continue;
-        }
-        let n = divisions(longest_edge(&snap(t, size)), size);
+    for (_, _, n) in kept(triangles, size) {
         total = total.saturating_add(n.saturating_mul(n));
         if total > budget {
             return total;
@@ -138,22 +155,11 @@ fn subdivide(t: &[f32], n: usize, out: &mut Vec<f32>) {
 
 /// Ramène le proxy à des triangles de taille bornée par `size`, l'albédo suivant son triangle.
 pub fn simplify(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>, size: f64) {
-    let mut seen: HashSet<[[i32; 3]; 3]> = HashSet::new();
     let mut out: Vec<f32> = Vec::with_capacity(triangles.len());
     let mut colours: Vec<u32> = Vec::with_capacity(albedo.len());
-    for (index, t) in triangles
-        .as_chunks::<PROXY_TRIANGLE_FLOATS>()
-        .0
-        .iter()
-        .enumerate()
-    {
-        let Some(key) = key_of(t, size) else { continue };
-        if !seen.insert(key) {
-            continue;
-        }
-        let snapped = snap(t, size);
+    for (index, snapped, n) in kept(triangles, size) {
         let before = out.len();
-        subdivide(&snapped, divisions(longest_edge(&snapped), size), &mut out);
+        subdivide(&snapped, n, &mut out);
         let colour = albedo.get(index).copied().unwrap_or(0xffff_ffff);
         colours.resize(
             colours.len() + (out.len() - before) / PROXY_TRIANGLE_FLOATS,
