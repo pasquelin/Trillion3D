@@ -1,0 +1,101 @@
+{
+ "asset": {
+  "version": "2.0"
+ },
+ "buffers": [
+  {
+   "uri": "transmission.bin",
+   "byteLength": 21324
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 7500
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 7500,
+   "byteLength": 13824
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 625,
+   "type": "VEC3",
+   "min": [
+    -10.0,
+    0.0,
+    -6.0
+   ],
+   "max": [
+    10.0,
+    0.0,
+    6.0
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5125,
+   "count": 3456,
+   "type": "SCALAR"
+  }
+ ],
+ "materials": [
+  {
+   "name": "eau",
+   "alphaMode": "BLEND",
+   "doubleSided": true,
+   "extensions": {
+    "KHR_materials_transmission": {
+     "transmissionFactor": 1.0
+    }
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.25,
+     0.45,
+     0.55,
+     0.6
+    ],
+    "metallicFactor": 0.0,
+    "roughnessFactor": 0.08
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "eau",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0
+     },
+     "indices": 1,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "eau"
+  }
+ ],
+ "scenes": [
+  {
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "scene": 0,
+ "images": [],
+ "extensionsUsed": [
+  "KHR_materials_transmission"
+ ]
+}
