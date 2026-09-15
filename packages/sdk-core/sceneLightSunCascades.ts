@@ -29,6 +29,44 @@ function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
 }
 
 const splits = new Float64Array(LIGHT_SETTINGS.sunCascades + 1);
+/** Ce dont `splits` dépend, tel qu'il était au dernier calcul : les deux distances de la vue et les
+ *  trois réglages de la découpe. `pretes` distingue « jamais calculé » d'un `NaN` gardé. */
+let pretes = false,
+  vuNear = 0,
+  vuFar = 0,
+  vuCount = 0,
+  vuFraction = 0,
+  vuLambda = 0;
+
+/**
+ * Les bornes de la vue courante, recalculées seulement si la vue ou la découpe ont changé. Elles ne
+ * dépendent ni de la face ni du soleil : les quatre cascades d'une image les partagent, là où
+ * chacune refaisait les quatre `Math.pow` pour retrouver les mêmes nombres. `Object.is` compare,
+ * donc `-0` et `NaN` sont traités comme le calcul les traiterait.
+ */
+function splitsDe(view: ShadowViewpoint) {
+  const count = LIGHT_SETTINGS.sunCascades,
+    fraction = LIGHT_SETTINGS.sunShadowFarFraction,
+    lambda = LIGHT_SETTINGS.sunCascadeLambda;
+  if (
+    pretes &&
+    Object.is(vuNear, view.near) &&
+    Object.is(vuFar, view.far) &&
+    vuCount === count &&
+    Object.is(vuFraction, fraction) &&
+    Object.is(vuLambda, lambda)
+  )
+    return splits;
+  sunCascadeSplits(view, splits);
+  pretes = true;
+  vuNear = view.near;
+  vuFar = view.far;
+  vuCount = count;
+  vuFraction = fraction;
+  vuLambda = lambda;
+  return splits;
+}
+
 const sphere = { distance: 0, radius: 0 };
 const cascade: SunCascade = {
   center: [0, 0, 0],
@@ -73,8 +111,8 @@ export function sunCascadeOf(
   index: number,
   side: number,
 ) {
-  sunCascadeSplits(view, splits);
-  const { distance, radius } = frustumSphere(view, splits[index], splits[index + 1]);
+  const bornes = splitsDe(view);
+  const { distance, radius } = frustumSphere(view, bornes[index], bornes[index + 1]);
   const texel = (2 * radius) / Math.max(1, side);
   for (let a = 0; a < 3; a++) {
     const value = view.position[a] + view.forward[a] * distance;
