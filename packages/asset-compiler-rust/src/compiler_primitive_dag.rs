@@ -17,6 +17,28 @@ pub(super) struct DagResult {
     pub stream_report: Value,
 }
 
+/// Le minimum, la médiane et le maximum des erreurs d'un niveau du DAG. Trois statistiques d'ordre
+/// ne demandent pas un tri complet : une sélection partielle met au rang médian l'élément exact que
+/// le tri y aurait mis — `total_cmp` est un ordre total — et les deux moitiés qu'elle laisse bornent
+/// le minimum et le maximum. Les trois nombres publiés sont bit à bit ceux du tri complet.
+pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
+    let (lower, median, upper) = errors.select_nth_unstable_by(errors.len() / 2, f64::total_cmp);
+    let median = *median;
+    let min = lower
+        .iter()
+        .copied()
+        .chain([median])
+        .min_by(f64::total_cmp)
+        .unwrap_or(median);
+    let max = upper
+        .iter()
+        .copied()
+        .chain([median])
+        .max_by(f64::total_cmp)
+        .unwrap_or(median);
+    (min, median, max)
+}
+
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
@@ -74,8 +96,9 @@ pub(super) fn build_dag_primitive(
         if errors.is_empty() {
             continue;
         }
-        errors.sort_by(f64::total_cmp);
-        level_stats.push(json!({"level":level,"clusters":errors.len(),"triangles":triangles,"roots":roots,"errorMin":errors[0],"errorMedian":errors[errors.len()/2],"errorMax":errors[errors.len()-1]}));
+        let clusters = errors.len();
+        let (min, median, max) = level_error_stats(&mut errors);
+        level_stats.push(json!({"level":level,"clusters":clusters,"triangles":triangles,"roots":roots,"errorMin":min,"errorMedian":median,"errorMax":max}));
     }
     let group_stats:Vec<Value>=tallies.iter().enumerate().map(|(i,tally)|json!({"level":i+1,"reduced":tally.reduced,"tooSmall":tally.too_small,"noCollapse":tally.no_collapse,"borderLost":tally.border_lost,"unusableError":tally.unusable_error})).collect();
     let dag_report = json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":level_stats,"groups":group_stats});
