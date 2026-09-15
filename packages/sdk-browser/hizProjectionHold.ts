@@ -31,7 +31,7 @@ export function createProjectionHold(slots: number) {
     pending,
     /** Re-reads the view every slot shares; a change retires every rectangle at once. */
     reframe(camera: THREE.PerspectiveCamera, width: number, height: number, epoch: number) {
-      camera.updateMatrixWorld();
+      camera.updateWorldMatrix(true, false);
       const now = camera.matrixWorldInverse.elements,
         nowProjection = camera.projectionMatrix.elements;
       if (
