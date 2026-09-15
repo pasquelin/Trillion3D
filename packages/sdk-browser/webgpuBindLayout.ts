@@ -92,6 +92,9 @@ export const BLEND_BINDINGS = (() => {
     volume: rest + 13,
     backdrop: rest + 14,
     backdropDepth: rest + 15,
+    /** Les listes de lampes par tuile, celles-là mêmes que lit la résolution opaque : la passe de
+     *  mélange y lit sa propre tranche de profondeur, du plan proche au fond opaque. */
+    tileLights: rest + 16,
   };
 })();
 

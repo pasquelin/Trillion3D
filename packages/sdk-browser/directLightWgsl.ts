@@ -7,7 +7,10 @@ import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
  */
 export const DIRECT_LIGHT_WGSL = `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
-const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLightsPerTile + 4}u;
+/** Une tuile porte deux listes : quatre mots d'entête — retenues et demandées de chacune —, la
+ *  liste des opaques, puis celle du mélange, qui couvre une tranche de profondeur plus profonde. */
+const TILE_STRIDE:u32=${LIGHT_SETTINGS.maxLightsPerTile * 2 + 4}u;
+const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.maxLightsPerTile + 4}u;
 const MAX_TILE_LIGHTS:u32=${LIGHT_SETTINGS.maxLightsPerTile}u;
 const MAX_LIGHTS:u32=${LIGHT_SETTINGS.maxLights}u;
 const POINT_FACES:u32=${POINT_FACES}u;
