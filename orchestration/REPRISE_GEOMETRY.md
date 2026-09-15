@@ -13,12 +13,6 @@
 - Livraison : branche et SHA de tête envoyés au Validateur, qui fusionne dans develop ; jamais de fusion ni de push soi-même, jamais de `git stash`.
 - Orchestration (`orchestration/`) : une reprise par session + plans ouverts (`SPEC_*.md`), 200 lignes max par fichier, jamais de journal. Les preuves d'un lot sont ses messages de commit et de livraison (SHA, chiffres, pixels), pas un fichier séparé.
 
-## Verrou de mesure
-
-- Prise : `mkdir` sans `-p` ; `proprietaire` écrit seulement dans la même chaîne `&&` après la mkdir réussie.
-- Libération : seulement chaînée en `&&` après relecture de `proprietaire`, jamais après un `;`. Ne jamais retirer le verrou d'autrui.
-- Attente : `until mkdir …` en arrière-plan, jamais `pgrep -f`.
-
 ## État courant
 
 - develop = 73b9e4b. CPU fixe image générale seuil 0 : 5,9 ms (14 sept. : 33,6). GPU 29 ms seuil 0 = goulot.
