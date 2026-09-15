@@ -159,7 +159,7 @@ impl<'a> Importer<'a> {
         self.report.add_count("node-hidden", hidden);
         self.mesh_nodes += file_nodes;
         self.triangles += file_triangles;
-        self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":started.elapsed().as_secs_f64()*1000.0}));
+        self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"originalUnitMeters":scene.settings.original_unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":started.elapsed().as_secs_f64()*1000.0}));
         Ok(())
     }
     pub(super) fn push_light(&mut self, node: &ufbx::Node, light: &ufbx::Light) {

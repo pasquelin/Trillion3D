@@ -73,7 +73,31 @@ fn several_scenes_in_one_directory_are_refused_and_named() {
     fs::remove_dir_all(dir).expect("cleanup");
 }
 
-// Comportement 28 : un fichier de données Unity dont le nom ne dit rien est reconnu à son entête —
+// Comportement 28 : un projet Unity est reconnu au niveau du dossier. Le dossier de la dorée porte
+// une scène et un FBX ; sans le désigner, le routeur rend le pilote `unity` et la scène qu'il a
+// trouvée, le modèle n'étant qu'une entrée du projet. Un dossier sans scène reste l'affaire des
+// pilotes de fichiers : deux formats de modèle côte à côte y restent une ambiguïté.
+#[test]
+fn a_unity_project_directory_wins_over_the_models_it_carries() {
+    let project = golden_dir("unity/cc0-import-project");
+    match route(&project).expect("le dossier du projet est revendiqué") {
+        Routed::Driver(plugin, inputs) => {
+            assert_eq!(plugin.name(), "unity");
+            assert_eq!(inputs, vec![project.join("Assets").join("Map.unity")]);
+        }
+        Routed::Manifest => panic!("routed to the manifest"),
+    }
+    let dir = temp_dir("modeles");
+    fs::write(dir.join("a.fbx"), b"Kaydara FBX Binary  ").expect("fbx");
+    fs::write(dir.join("b.obj"), b"v 0 0 0\n").expect("obj");
+    let refusal = route(&dir)
+        .err()
+        .expect("deux formats de modèle sont ambigus");
+    assert_eq!(refusal.code, "SOURCE_FORMAT_AMBIGUOUS");
+    fs::remove_dir_all(dir).expect("cleanup");
+}
+
+// Comportement 29 : un fichier de données Unity dont le nom ne dit rien est reconnu à son entête —
 // la directive de tag que l'éditeur écrit en tête de chaque fichier sérialisé.
 #[test]
 fn a_unity_data_file_is_recognised_by_its_head() {
