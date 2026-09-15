@@ -27,23 +27,29 @@ export function buildWebgpuVisibilityItems(
   drawRestBits.fill(0, 0, Math.ceil(Math.max(1, rows.packedCount) / 32));
   const itemsStart = performance.now();
   binInstances.fill(0);
+  const packedRecs = rows.packedRecs,
+    packedPageIndex = rows.packedPageIndex,
+    layerSlots = rt.vis.drawLayerSlots - 1;
   for (let i = 0; i < rows.packedCount; i++) {
     const row = i,
       rest = hizRest[i],
-      word = i * DRAW_ITEM_U32;
+      word = i * DRAW_ITEM_U32,
+      rec = packedRecs[i]!;
     if (itemsDirty) {
       drawItemWords[word] = row;
-      drawItemWords[word + 1] = visBin(rows.packedRecs[i]!);
-      drawItemWords[word + 2] = rows.packedPageIndex[i];
+      drawItemWords[word + 1] = visBin(rec);
+      drawItemWords[word + 2] = packedPageIndex[i];
       // La couche coplanaire appartient à la ligne de la table, pas à l'image : elle voyage avec l'item.
-      drawItemWords[word + 3] = Math.min(rows.packedRecs[i]!.depthLayer, rt.vis.drawLayerSlots - 1);
+      drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);
     }
     binInstances[drawItemWords[word + 1] + (rest ? 3 : 0) + BASE_SLOTS * drawItemWords[word + 3]]++;
     if (rest) drawRestBits[i >> 5] |= 1 << (i & 31);
-    const count = rows.packedRecs[i]!.array!.length;
+    const count = rec.array!.length;
     if (rest) restVertices += count;
     else occluderVertices += count;
     // Only the tested half travels to the GPU, each box naming the flag row it answers for.
+    // Les bornes restent recopiées valeur par valeur : `set(subarray)` alloue une vue par boîte testée,
+    // et six affectations coûtent moins que cette vue.
     if (twoPass && rest) {
       const from = i * HIZ_BOUNDS_VALUES,
         to = testedCount * HIZ_BOUNDS_VALUES;
