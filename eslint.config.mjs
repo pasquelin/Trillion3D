@@ -8,6 +8,7 @@ export default tseslint.config(
       'node_modules/**',
       'dist/**',
       '.claude/**',
+      '.agents/**',
       'benchmark-runs/**',
       '**/target/**',
       // Sorties du banc de mesure : des arbres source extraits y sont construits.
