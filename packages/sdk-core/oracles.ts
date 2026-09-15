@@ -1,4 +1,10 @@
-export { dot, maxStretch, clusterErrorPixels, coneRejects } from './projectionOracles.ts';
+export {
+  dot,
+  maxStretch,
+  clusterErrorPixels,
+  clusterErrorAtDistance,
+  coneRejects,
+} from './projectionOracles.ts';
 export {
   HIZ_BACKGROUND,
   hizReduceCeil,
