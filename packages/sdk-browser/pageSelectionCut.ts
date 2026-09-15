@@ -41,7 +41,6 @@ export function selectVisiblePages<T extends PageRecord>(
   );
   pixelScaleOf(camera, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
-  shown.length = 0;
   const wanted = options.wanted ?? ([] as T[]);
   // L'état de la coupe est posé sur l'objet réutilisé : une image de rendu n'alloue rien ici.
   const state = selectionState<T>();
@@ -70,8 +69,8 @@ export function selectVisiblePages<T extends PageRecord>(
   state.budget = budget;
   const sweep = () => {
     state.over = false;
-    shown.length = 0;
-    wanted.length = 0;
+    state.shownCount = 0;
+    state.wantedCount = 0;
     state.wantedTriangles = 0;
     state.shownTriangles = 0;
     state.frustumRejected = 0;
@@ -103,6 +102,10 @@ export function selectVisiblePages<T extends PageRecord>(
     sweep();
   }
   state.budget = 0;
+  // La coupe est finie : les deux listes prennent ici leur longueur, et une seule fois. Elles
+  // gardent ainsi leur capacité d'une image à l'autre, au lieu de la reperdre à chaque passage.
+  shown.length = state.shownCount;
+  wanted.length = state.wantedCount;
   // Les deux sommes sont tenues à la retenue : plus aucun balayage des fiches après la coupe.
   const displayedTriangles = state.shownTriangles;
   let selectedTriangles = state.wantedTriangles;
