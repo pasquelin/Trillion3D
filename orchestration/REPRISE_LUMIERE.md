@@ -6,8 +6,8 @@ Fable chef, ne code pas ; Opus code ; Sonnet lit/teste/mesure. Réponses en 5 à
 
 ## Branches prêtes à livrer
 
-- `lot/reflet` cdf8a36 (worktree `lot-reflet`, base 9abd53f, portes vertes). Preuve à jouer sous verrou : banc miroir `--moteur webgpu --cache-avant/apres .mesure/cache-miroir --vues generale,detail --images 60 --pixelError 0,1 --reflet off` puis `on`, diff des PNG, `surfacesReflechissantes` > 0, `incidentsGpu` nul. Touche `webgpuPagesEncodeBlend.ts` sur 4 lignes : Geometry rebase `lot/blend-encodage` dessus.
-- `lot/blend-fidelite` 8a69712 (worktree `lot-blend-fidelite`, base 9abd53f, correctif de normale du nuanceur de mélange, changement d'image voulu). Preuve à jouer depuis ce worktree :
+- `lot/reflet` 415c9e1 (worktree `lot-reflet`, base 9abd53f, portes vertes). Preuve à jouer sous verrou : banc miroir `--moteur webgpu --cache-avant/apres .mesure/cache-miroir --vues generale,detail --images 60 --pixelError 0,1 --reflet off` puis `on`, diff des PNG, `surfacesReflechissantes` > 0, `incidentsGpu` nul. Touche `webgpuPagesEncodeBlend.ts` sur 4 lignes : Geometry rebase `lot/blend-encodage` dessus.
+- `lot/blend-fidelite` f048441 (worktree `lot-blend-fidelite`, base 9abd53f, correctif de normale du nuanceur de mélange, changement d'image voulu). Preuve à jouer depuis ce worktree :
   ```
   node scripts/mesure/banc.mjs --moteur webgpu --moteur-avant webgl --avant f51efc4 --apres f51efc4 --vues generale,sol,rue --soleil --ombres off --cache-avant /Users/pasquelin/Applications/webGeometry/.mesure/cache-classes/classes-materiaux-derived --cache-apres /Users/pasquelin/Applications/webGeometry/.mesure/cache-classes/classes-materiaux-derived --out .mesure/out/blend-fidelite
   ```
