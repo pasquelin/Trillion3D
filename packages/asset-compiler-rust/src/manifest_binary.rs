@@ -11,7 +11,7 @@
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
 use crate::texture_preview::{
-    TexturePreview, PREVIEW_BYTES, PREVIEW_LEVELS, PREVIEW_LEVEL_OFFSETS,
+    preview_first_level, preview_level_count, preview_pixel_bytes, TexturePreview,
 };
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
@@ -28,9 +28,10 @@ mod tests;
 pub use digests::digests;
 use format::*;
 
-/// Version 3 adds the three texture preview columns. A reader of version 2 refuses this file
-/// outright rather than reading twenty-one of its twenty-four columns.
-pub const MANIFEST_BINARY_VERSION: u32 = 3;
+/// Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
+/// column is no longer one stride per entry, and an entry carries its own byte range. A reader of
+/// version 3 would slice the wrong texture's levels, so it refuses this file outright.
+pub const MANIFEST_BINARY_VERSION: u32 = 4;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -60,9 +61,9 @@ const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
 const COLUMNS: usize = 24;
-/// Nombres par entrée d'aperçu : texture, image, largeur, hauteur, genre et vue de provenance,
-/// puis les décalages des cinq niveaux.
-const PREVIEW_WORDS: usize = 6 + PREVIEW_LEVELS;
+/// Nombres par entrée de niveaux : texture, image, largeur, hauteur, genre et vue de provenance,
+/// puis le premier niveau porté, leur nombre, et le début et la longueur de ses pixels.
+const PREVIEW_WORDS: usize = 10;
 
 /// Octets qu'une page écrit dans chaque colonne de page, quelle que soit la page.
 const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [
@@ -141,6 +142,9 @@ pub fn split(
         )?);
     }
     preview::encode_previews(previews, &mut columns)?;
+    // La colonne des pixels n'a pas de pas fixe : sa longueur totale entre dans le petit JSON, sans
+    // quoi un lecteur ne saurait pas combien d'octets la colonne doit faire avant de la lire.
+    let preview_bytes = columns[TEXTURE_PREVIEW_PIXELS].bytes.len();
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = (header_bytes + 7) & !7;
@@ -163,6 +167,7 @@ pub fn split(
     let mut slim = root.clone();
     slim.insert("primitives".into(), Value::Array(slim_primitives));
     slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"url":templates.binary,"sha256":"","bytes":bytes.len(),
-  "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len()}));
+  "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len(),
+  "texturePreviewBytes":preview_bytes}));
     Ok((Value::Object(slim), bytes))
 }

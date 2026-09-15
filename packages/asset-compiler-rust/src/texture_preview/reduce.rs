@@ -6,19 +6,24 @@ const MAX_ALPHA_SCALE: f32 = 16.0;
 /// En dessous de cet alpha la couleur prémultipliée ne porte plus d'information à restituer.
 const MIN_ALPHA: f32 = 1e-6;
 
-/// Les 1364 octets d'une entrée : cinq niveaux RGBA8 sRGB à alpha droit, du 16×16 au 1×1.
-/// `cutoff`, quand il est donné, est le seuil de découpe dont la couverture doit être préservée.
-pub(super) fn pyramid(source: &image::RgbaImage, cutoff: Option<f32>) -> Vec<u8> {
-    let mut levels = Vec::with_capacity(PREVIEW_LEVELS);
-    levels.push(box_reduce(source));
-    for level in 1..PREVIEW_LEVELS {
-        levels.push(halve(
-            &levels[level - 1],
-            PREVIEW_LEVEL_SIZES[level - 1] as usize,
-        ));
+/// Les octets d'une entrée : les niveaux RGBA8 sRGB à alpha droit, du plus fin porté au 1×1, et le
+/// rang de ce premier niveau dans la chaîne de mips de la source. `cutoff`, quand il est donné, est
+/// le seuil de découpe dont la couverture doit être préservée.
+pub(super) fn pyramid(source: &image::RgbaImage, cutoff: Option<f32>) -> (u32, Vec<u8>) {
+    let (width, height) = (source.width(), source.height());
+    let (first, last) = (
+        preview_first_level(width, height),
+        preview_last_level(width, height),
+    );
+    let mut size = preview_level_size(width, height, first);
+    let mut levels = vec![box_reduce(source, size)];
+    for level in first + 1..=last {
+        let next = preview_level_size(width, height, level);
+        levels.push(halve(levels.last().expect("niveau précédent"), size, next));
+        size = next;
     }
     let target = cutoff.map(|threshold| source_coverage(source, threshold));
-    let mut out = Vec::with_capacity(PREVIEW_BYTES);
+    let mut out = Vec::with_capacity(preview_pixel_bytes(width, height));
     for texels in &levels {
         let scale = match (cutoff, target) {
             (Some(threshold), Some(target)) => {
@@ -29,23 +34,24 @@ pub(super) fn pyramid(source: &image::RgbaImage, cutoff: Option<f32>) -> Vec<u8>
         };
         encode_level(texels, scale, &mut out);
     }
-    out
+    (first, out)
 }
 
-/// Moyenne de boîte de l'image pleine résolution vers 16×16, en linéaire prémultiplié. Chaque case
-/// couvre au moins un texel source, de sorte qu'une image plus petite que 16 réplique les siens.
-fn box_reduce(source: &image::RgbaImage) -> Vec<[f32; 4]> {
+/// Moyenne de boîte de l'image pleine résolution vers le niveau le plus fin porté, en linéaire
+/// prémultiplié. Chaque case couvre au moins un texel source ; quand la cible a les dimensions de
+/// la source, chaque case vaut exactement un texel et le niveau est la source, sans perte.
+fn box_reduce(source: &image::RgbaImage, target: (u32, u32)) -> Vec<[f32; 4]> {
     let table = srgb_table();
     let (width, height) = (source.width() as u64, source.height() as u64);
     let raw = source.as_raw();
-    let side = u64::from(PREVIEW_BASE);
-    let mut out = vec![[0f32; 4]; (side * side) as usize];
-    for row in 0..side {
-        let y0 = row * height / side;
-        let y1 = ((row + 1) * height / side).max(y0 + 1).min(height);
-        for column in 0..side {
-            let x0 = column * width / side;
-            let x1 = ((column + 1) * width / side).max(x0 + 1).min(width);
+    let (columns, rows) = (u64::from(target.0), u64::from(target.1));
+    let mut out = vec![[0f32; 4]; (columns * rows) as usize];
+    for row in 0..rows {
+        let y0 = row * height / rows;
+        let y1 = ((row + 1) * height / rows).max(y0 + 1).min(height);
+        for column in 0..columns {
+            let x0 = column * width / columns;
+            let x1 = ((column + 1) * width / columns).max(x0 + 1).min(width);
             let mut sum = [0f64; 4];
             let mut count = 0f64;
             for y in y0..y1 {
@@ -59,7 +65,7 @@ fn box_reduce(source: &image::RgbaImage) -> Vec<[f32; 4]> {
                     count += 1.0;
                 }
             }
-            let texel = &mut out[(row * side + column) as usize];
+            let texel = &mut out[(row * columns + column) as usize];
             for channel in 0..4 {
                 texel[channel] = (sum[channel] / count) as f32;
             }
@@ -68,22 +74,27 @@ fn box_reduce(source: &image::RgbaImage) -> Vec<[f32; 4]> {
     out
 }
 
-/// Niveau suivant : moyenne 2×2 du précédent, toujours en linéaire prémultiplié.
-fn halve(previous: &[[f32; 4]], size: usize) -> Vec<[f32; 4]> {
-    let next = size / 2;
-    let mut out = vec![[0f32; 4]; next * next];
-    for row in 0..next {
-        for column in 0..next {
+/// Niveau suivant : moyenne 2×2 du précédent, toujours en linéaire prémultiplié. Un côté impair
+/// laisse sa dernière rangée de côté, comme la division entière qui donne les dimensions ; un côté
+/// déjà à un texel se répète, si bien que la moyenne y rend ce texel inchangé.
+fn halve(previous: &[[f32; 4]], size: (u32, u32), next: (u32, u32)) -> Vec<[f32; 4]> {
+    let (width, height) = (size.0 as usize, size.1 as usize);
+    let (columns, rows) = (next.0 as usize, next.1 as usize);
+    let mut out = vec![[0f32; 4]; columns * rows];
+    for row in 0..rows {
+        for column in 0..columns {
             let mut sum = [0f32; 4];
             for dy in 0..2 {
+                let y = (row * 2 + dy).min(height - 1);
                 for dx in 0..2 {
-                    let texel = previous[(row * 2 + dy) * size + column * 2 + dx];
+                    let x = (column * 2 + dx).min(width - 1);
+                    let texel = previous[y * width + x];
                     for channel in 0..4 {
                         sum[channel] += texel[channel];
                     }
                 }
             }
-            let texel = &mut out[row * next + column];
+            let texel = &mut out[row * columns + column];
             for channel in 0..4 {
                 texel[channel] = sum[channel] * 0.25;
             }

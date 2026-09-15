@@ -80,8 +80,10 @@ export interface FrameMetrics {
    * `maxTextureTransferBytesPerFrame` le borne à une ligne de texture près : la ligne est l'unité
    * indivisible d'une tranche et la première ligne d'une image passe même si elle dépasse à elle
    * seule le budget, sans quoi une texture plus large que le budget n'avancerait jamais.
-   * `textureSkipped` : textures sorties de la file après trois refus de transfert de l'appareil.
+   * `textureSkipped` : niveaux sortis de la file après trois refus de transfert de l'appareil.
    * Une texture trop grosse pour le budget d'une image n'y est jamais comptée : elle est découpée.
+   * `textureLevelsUploaded` : niveaux progressifs transférés en entier, ceux que le sidecar porte
+   * entre l'aperçu le plus grossier et la pleine résolution.
    */
   textureUploaded?: number | null;
   texturePending?: number | null;
@@ -89,6 +91,20 @@ export interface FrameMetrics {
   textureSlicesUploaded?: number | null;
   textureBytesLastFrame?: number | null;
   textureSkipped?: number | null;
+  textureLevelsUploaded?: number | null;
+  /**
+   * Les octets que les atlas de matériaux occupent en mémoire graphique, **calculés** depuis les
+   * dimensions, le nombre de couches, la chaîne de mips et le format de chaque classe allouée — ce
+   * ne sont pas des octets mesurés sur l'appareil, que WebGPU ne publie pas. `vramBytes` reste
+   * `null` tant que rien ne le mesure vraiment.
+   *
+   * `textureAtlasBytesCalculated` : total des deux atlas. `textureAtlasClassBytesCalculated` : le
+   * détail par classe, atlas couleur d'abord puis atlas de données. `textureAtlasClassesUsed` :
+   * classes réellement peuplées, une seule valant l'allocation à la taille maximale.
+   */
+  textureAtlasBytesCalculated?: number | null;
+  textureAtlasClassBytesCalculated?: number[] | null;
+  textureAtlasClassesUsed?: number | null;
   /**
    * What the Hi-Z occlusion test did on one image: clusters handed to it, clusters it eliminated, and
    * clusters whose level-0 screen footprint is wider than the 16-texel test kernel and which therefore

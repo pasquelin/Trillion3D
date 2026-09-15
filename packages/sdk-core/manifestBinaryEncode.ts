@@ -19,7 +19,10 @@ import type {
  *  descriptor carries an empty `sha256`: only the caller, holding the finished bytes, can hash them. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
-  descriptor: Omit<ManifestBinaryDescriptor, 'version' | 'sha256' | 'bytes' | 'texturePreviews'>,
+  descriptor: Omit<
+    ManifestBinaryDescriptor,
+    'version' | 'sha256' | 'bytes' | 'texturePreviews' | 'texturePreviewBytes'
+  >,
 ): { manifest: SlimClusterManifest; binary: Uint8Array } {
   const counts = countManifest(manifest);
   const { ranges, bytes } = manifestBinaryRanges(counts);
@@ -188,6 +191,7 @@ export function encodeManifestBinary(
         sha256: '',
         bytes,
         texturePreviews: counts.previews,
+        texturePreviewBytes: counts.previewBytes,
       },
       primitives,
     } as SlimClusterManifest,

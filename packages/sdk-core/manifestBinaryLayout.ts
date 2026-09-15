@@ -7,6 +7,7 @@ import {
   MANIFEST_BINARY_HEADER_WORDS,
   type ColumnName,
 } from './manifestBinaryFormat.ts';
+import { previewPixelBytes } from './texturePreviewLevels.ts';
 
 function hexDigits(sha: string) {
   if (sha.length !== 64 || !/^[0-9a-f]{64}$/.test(sha))
@@ -46,8 +47,11 @@ export interface Counts {
   roots: number;
   bundles: number;
   previews: number;
+  /** Octets de la colonne des pixels, tous niveaux de toutes les entrées bout à bout. */
+  previewBytes: number;
 }
 export function countManifest(manifest: ClusterManifest): Counts {
+  const previews = manifest.texturePreviews ?? [];
   const counts: Counts = {
     pages: 0,
     cullingNodes: 0,
@@ -56,7 +60,11 @@ export function countManifest(manifest: ClusterManifest): Counts {
     outputs: 0,
     roots: 0,
     bundles: 0,
-    previews: manifest.texturePreviews?.length ?? 0,
+    previews: previews.length,
+    previewBytes: previews.reduce(
+      (bytes, preview) => bytes + previewPixelBytes(preview.width, preview.height),
+      0,
+    ),
   };
   for (const primitive of manifest.primitives) {
     counts.pages += primitive.pages.length;
@@ -103,8 +111,9 @@ export function columnElements(name: ColumnName, counts: Counts) {
       return counts.bundles;
     case 'texturePreviewU32':
     case 'texturePreviewSha':
-    case 'texturePreviewPixels':
       return counts.previews;
+    case 'texturePreviewPixels':
+      return counts.previewBytes;
   }
 }
 function columnBytes(name: ColumnName, counts: Counts) {

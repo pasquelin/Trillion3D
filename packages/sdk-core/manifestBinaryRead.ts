@@ -44,6 +44,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     roots: 0,
     bundles: 0,
     previews: slim.binary.texturePreviews,
+    previewBytes: slim.binary.texturePreviewBytes,
   };
   for (const primitive of slim.primitives) {
     const binary = primitive.binary;
