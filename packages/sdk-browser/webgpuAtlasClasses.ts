@@ -74,6 +74,9 @@ function assign(
  * Le découpage en classes qui alloue le moins d'octets, la classe 0 gardant les dimensions de la
  * plus grande texture. Rend toujours `ATLAS_CLASS_COUNT` classes : celles qu'aucune texture
  * n'emploie sont des textures 1×1 de deux couches, huit octets, que les shaders ne lisent jamais.
+ *
+ * L'échec `TEXTURE_ATLAS_LAYERS` n'est prononcé que si aucun plan ne tient sous la limite de
+ * couches de l'appareil — ni l'allocation unique, ni aucun découpage à deux classes.
  */
 export function planAtlasClasses(
   device: GPUDevice,
@@ -91,21 +94,19 @@ export function planAtlasClasses(
   const affordable = Math.max(1, Math.floor((sampled - 1) / 2));
   const allowed = Math.min(ATLAS_CLASS_COUNT, affordable);
   const single = assign(sizes, [[width, height]], maxLayers);
-  if (!single)
-    throw new Error(
-      `TEXTURE_ATLAS_LAYERS: ${sizes.length + 1} texture layers exceed the device limit ${maxLayers}`,
-    );
   let best = single;
   for (let shift = 1; allowed > 1 && shift <= MAX_CLASS_SHIFT; shift++) {
     const small: [number, number] = [Math.max(1, width >> shift), Math.max(1, height >> shift)];
     const candidate = assign(sizes, [[width, height], small], maxLayers);
-    if (
-      candidate &&
-      candidate.bytes.reduce(sum) < best.bytes.reduce(sum) &&
-      candidate.layers[1] > 2
-    )
-      best = candidate;
+    if (!candidate || (best && candidate.bytes.reduce(sum) >= best.bytes.reduce(sum))) continue;
+    // Une seconde classe qui ne porte aucune texture ne se retient que faute d'allocation unique :
+    // deux classes répartissent les couches, donc elles tiennent là où une seule dépasse la limite.
+    if (candidate.layers[1] > 2 || !single) best = candidate;
   }
+  if (!best)
+    throw new Error(
+      `TEXTURE_ATLAS_LAYERS: ${sizes.length + 1} texture layers exceed the device limit ${maxLayers}`,
+    );
   const used = best.sizes.length;
   const plan: AtlasClassPlan = { ...best, used };
   while (plan.sizes.length < ATLAS_CLASS_COUNT) {
