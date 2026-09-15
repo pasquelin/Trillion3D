@@ -3,8 +3,9 @@
 // systématiquement, d'avant le lot A, dans `bench/oracles/streaming.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findAdmissible, sortStreamJobs } from './streamingQueue.ts';
+import { compacteFile, findAdmissible, sortStreamJobs } from './streamingQueue.ts';
 import { referenceAdmission } from './bench/oracles/streaming.mjs';
+import type { Job } from './streamingTypes.ts';
 
 const LIMITE = 6,
   BUDGET = 2 * 1024 * 1024;
@@ -107,3 +108,82 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
     referenceAdmission(jobs.slice(), octetsDe),
   );
 });
+
+// G5 : une demande annulée est marquée `dropped` puis la file est compactée en un seul passage
+// (`compacteFile`) au prochain `pump`, au lieu d'être retrouvée par `queue.indexOf` et retirée par
+// `splice` à chaque annulation. Oracle du retrait immédiat : `referenceRetireDeLaFile`, recopié tel
+// quel d'avant le lot G dans `bench/oracles/g-file.mjs`.
+{
+  const { referenceRetireDeLaFile } = await import('./bench/oracles/g-file.mjs');
+
+  function job(url: string): Job {
+    return {
+      url,
+      priority: 0,
+      order: 0,
+      controller: new AbortController(),
+      state: 'queued',
+      consumers: new Set(),
+      promise: new Promise(() => {}),
+      resolve: () => {},
+      reject: () => {},
+    };
+  }
+
+  function urls(queue: Job[]) {
+    return queue.map((j) => j.url);
+  }
+
+  test('annulation, réadmission puis drain donnent la même file que le retrait immédiat', () => {
+    const ancienne = ['a', 'b', 'c', 'd'].map(job);
+    const nouvelle = ['a', 'b', 'c', 'd'].map(job);
+
+    // Annulation de 'b' : l'ancienne le retire tout de suite, la nouvelle le marque seulement.
+    referenceRetireDeLaFile(
+      ancienne,
+      ancienne.find((j) => j.url === 'b')!,
+    );
+    const cible = nouvelle.find((j) => j.url === 'b')!;
+    cible.state = 'dropped';
+
+    // Réadmission : une nouvelle demande arrive pendant que 'b' est encore dans le tableau côté nouvelle.
+    ancienne.push(job('e'));
+    nouvelle.push(job('e'));
+
+    // Une seconde annulation, sur 'd' cette fois.
+    referenceRetireDeLaFile(
+      ancienne,
+      ancienne.find((j) => j.url === 'd')!,
+    );
+    nouvelle.find((j) => j.url === 'd')!.state = 'dropped';
+
+    // Drain : la nouvelle compacte enfin, en un passage.
+    compacteFile(nouvelle);
+
+    assert.deepEqual(urls(nouvelle), urls(ancienne));
+    assert.deepEqual(urls(nouvelle), ['a', 'c', 'e']);
+  });
+
+  test('annuler un travail absent de la file, ou déjà marqué, ne perturbe pas le compactage', () => {
+    const queue = ['a', 'b'].map(job);
+    const étranger = job('x');
+    referenceRetireDeLaFile(queue, étranger); // absent : indexOf renvoie -1, rien ne bouge
+    compacteFile(queue); // rien de marqué : rien ne bouge non plus
+    assert.deepEqual(urls(queue), ['a', 'b']);
+
+    queue[0].state = 'dropped';
+    compacteFile(queue);
+    compacteFile(queue); // un second compactage sur une file déjà propre est un no-op
+    assert.deepEqual(urls(queue), ['b']);
+  });
+
+  test('annuler la file entière la vide, comme des retraits un par un', () => {
+    const ancienne = ['p0', 'p1', 'p2', 'p3'].map(job);
+    const nouvelle = ['p0', 'p1', 'p2', 'p3'].map(job);
+    for (const j of [...ancienne]) referenceRetireDeLaFile(ancienne, j);
+    for (const j of nouvelle) j.state = 'dropped';
+    compacteFile(nouvelle);
+    assert.deepEqual(urls(ancienne), []);
+    assert.deepEqual(urls(nouvelle), []);
+  });
+}
