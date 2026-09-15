@@ -9,6 +9,7 @@ use super::codec::{self, Codec};
 use super::{
     CODEC_UNSUPPORTED, DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
 };
+use crate::plugins::image::MAX_LEVELS;
 
 /// Fin de `DDS_HEADER` : quatre octets de nombre magique et cent vingt-quatre d'entête.
 const HEADER_END: usize = 128;
@@ -32,7 +33,6 @@ const TEXTURE_2D: u32 = 3;
 const MISC_TEXTURECUBE: u32 = 0x4;
 const ALPHA_MODE_MASK: u32 = 0x7;
 const ALPHA_MODE_PREMULTIPLIED: u32 = 2;
-use crate::plugins::image::blocks::MAX_LEVELS;
 
 /// La surface que le pilote va lire : son codec, sa taille, sa chaîne et où commence le niveau 0.
 pub(super) struct Surface {

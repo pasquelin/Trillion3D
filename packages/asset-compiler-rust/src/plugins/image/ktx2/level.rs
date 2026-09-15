@@ -8,6 +8,7 @@ use super::format::{self, Layout};
 use super::header::{self, Surface};
 use super::{DecodedImage, DATA_TRUNCATED, FORMAT_UNSUPPORTED, TOO_LARGE};
 use crate::plugins::image::blocks as shared;
+use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 use std::borrow::Cow;
 use std::io::Read;
 
@@ -18,7 +19,7 @@ pub(super) fn decode(
 ) -> std::result::Result<DecodedImage, &'static str> {
     let layout = format::layout(surface.format).ok_or(FORMAT_UNSUPPORTED)?;
     let (width, height) = (surface.width, surface.height);
-    crate::plugins::image::rgba8_budget(width, height, max_alloc, TOO_LARGE)?;
+    surface_budget(width, height, RGBA8_PIXEL_BYTES, max_alloc, TOO_LARGE)?;
     let needed = layout.level_bytes(width, height);
     let level = plain(surface, bytes, needed, max_alloc)?;
     let (width, height) = (width as usize, height as usize);
