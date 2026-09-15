@@ -78,11 +78,12 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "gltf=",
         "fbx=",
         "obj=",
+        "unity=",
         "png=",
         "jpeg=",
     ] {
         assert!(print.contains(expected), "{print}");
     }
-    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(3));
+    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(4));
     assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(2));
 }
