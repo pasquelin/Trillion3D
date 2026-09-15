@@ -29,7 +29,8 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
             w: 1.0,
         }
     };
-    let alpha = map_value(&pbr.opacity, 1.0).clamp(0.0, 1.0);
+    let opacity = read_opacity(material);
+    let alpha = opacity.alpha;
     let metallic = map_value(&pbr.metalness, 0.0).clamp(0.0, 1.0);
     let roughness = if pbr.roughness.has_value {
         let r = pbr.roughness.value_vec4.x;
@@ -81,14 +82,17 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     if material.features.double_sided.enabled {
         out["doubleSided"] = json!(true);
     }
-    if alpha < 1.0 {
+    // Une carte d'opacité rend le matériau transparent ; aucun format d'import ne déclare de seuil
+    // de découpe, donc jamais `MASK` — un transparent découpé serait une perte de fidélité. glTF ne
+    // sait porter l'opacité que dans l'alpha de la couleur de base : une carte séparée ne se branche
+    // pas, elle se signale plutôt que d'être avalée.
+    if let Some(map) = opacity.texture {
         out["alphaMode"] = json!("BLEND");
-    } else if pbr.opacity.texture.is_some() {
-        out["alphaMode"] = json!("MASK");
-        out["alphaCutoff"] = json!(0.5);
-        if texture_id(&pbr.opacity) != texture_id(&pbr.base_color) {
+        if texture_id(map) != texture_id(&pbr.base_color) {
             textures.report.add("material-separate-opacity-texture");
         }
+    } else if alpha < 1.0 {
+        out["alphaMode"] = json!("BLEND");
     }
     out
 }
