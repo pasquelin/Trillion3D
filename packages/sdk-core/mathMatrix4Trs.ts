@@ -61,7 +61,7 @@ const rotation = new Float64Array(9);
  * Quaternion d'une matrice de rotation pure, lue sur ses neuf termes rangés par ligne, par la branche
  * de la plus grande diagonale. Les termes arrivent déjà divisés par l'échelle de leur colonne.
  */
-function writeRotationQuaternion(out: NumberSink, r: Float64Array) {
+export function writeRotationQuaternion(out: NumberSink, r: Float64Array) {
   const m11 = r[0],
     m12 = r[1],
     m13 = r[2],
