@@ -9,7 +9,7 @@ et son binaire, que `compile` est seul à savoir lire. Les images suivent le mê
 ou, pour les formats à grande gamme dynamique, vers RGBA flottant linéaire.
 
 La politique — quels formats sont admis, lesquels sont refusés, sous quelles conditions et sous
-quelle licence — est dans [`orchestration/COMPILATEUR_IMPORT.md`](../../orchestration/COMPILATEUR_IMPORT.md).
+quelle licence — est dans [`FORMATS.md`](FORMATS.md).
 Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
 
 ## Un pilote de scène
