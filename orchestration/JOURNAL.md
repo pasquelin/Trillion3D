@@ -1,5 +1,126 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session sans-threejs] témoin Three.js avec lampes du contrat
+
+Branche `lot/temoin-three`, rebasée sur `develop` = `e14b249`. Le témoin rendait toute surface opaque noire dès qu'une
+lampe du contrat était déclarée : les adaptateurs Three ne lisent pas le magasin `SceneLight`, ils
+recopient les lampes du graphe source et rien d'autre (P6, entrées des 14 et 15 septembre). Aucune
+comparaison de fidélité entre les deux moteurs n'était donc possible, et les 174 268 px relevés sur
+la scène à transmission ne mesuraient que cette convention d'éclairage.
+
+### Ce qui change, et où
+
+Rien dans le moteur. Le harnais est un hôte comme un autre : il pose lui-même, en Three, les lampes
+que le magasin déclare, par l'option publique `sceneLighting` de `createExplorer`. Aucune lampe
+n'est écrite à la main — tout vient de `explorer.lights()`, donc du cache compilé et du contrat, les
+lampes du fichier importé comme celles du banc —, et aucune scène n'est nommée.
+
+La correspondance est exacte dans les unités de Three 0.174, vérifiée formule contre formule :
+`getDistanceAttenuation` avec `decay = 2` et `distance` = portée est mot pour mot le carré inverse
+fenêtré de `directIncidence` (`pow2(saturate(1 − pow4(d/r))) / max(d², ·)`) ; l'intensité est
+radiométrique sans facteur π des deux côtés ; `MeshStandardMaterial` évalue le même Lambert `a/π` et
+le même GGX à visibilité de Smith que `standardLighting`, qui dit d'ailleurs en commentaire qu'il
+recopie Three ; et le renderer du SDK applique déjà ACES puis sRGB avec exposition 1, comme la
+composition WebGPU. Le bord de cône d'un projecteur est reproduit par la pénombre :
+`p = 1 − acos(cos θ + douceur)/θ`, avec la douceur publiée par `lightSettings`.
+
+`--moteur-avant` / `--moteur-apres` donnent son moteur à chaque côté : le moteur et le témoin se
+mesurent dans une seule exécution, mêmes poses, mêmes lampes, mêmes caches, même serveur, et
+`ecartAvantApres` devient un chiffre de fidélité au lieu d'une comparaison entre deux campagnes.
+
+Fichiers : `scripts/mesure/pageTemoin.mjs` (neuf), `pageCoupe.mjs` (neuf, coupe extraite),
+`dists.mjs` (neuf, résolution du dist d'un côté), `pageEclairage.mjs`, `options.mjs`, `serie.mjs`,
+`banc.mjs`, `rapport.mjs`, `README.md`, `scripts/temoin.test.mjs` (neuf), `scripts/banc.test.mjs`,
+`knip.config.js`. Les deux modules neufs de la page sont **servis** sous `/mesure/` et importés par
+leur URL : `measureView` est sérialisée par Playwright et ne peut appeler aucune fonction de module,
+mais un `import()` d'URL lui reste ouvert — c'est la seule raison de la découpe.
+
+### Ce que le témoin ne rend toujours pas, nommé plutôt que deviné
+
+- **Aucune ombre portée.** Le renderer Three du SDK n'allume pas ses cartes d'ombre, et une lampe
+  qui les demanderait ferait compiler un nuanceur qui lit une carte absente. Les lampes du témoin
+  sont posées `castShadow = false`, et une campagne de fidélité se joue `--ombres off` des deux
+  côtés — sinon l'écart mesuré porte d'abord les ombres que seul le moteur dessine.
+- **Ni rebond, ni sondes, ni ombre lointaine du soleil** côté témoin : ce sont des composantes du
+  moteur, pas de Three. Elles restent éteintes dans la comparaison.
+
+### Portes
+
+`tsc` vert, `eslint` vert, `check:lines` vert (200 exactement pour `banc.mjs`, 193 pour
+`pageEclairage.mjs`), `format:check` vert, `check:unused` vert, `check:duplicates` à zéro clone,
+27 tests de `scripts/` verts dont 7 neufs sur le témoin — un par comportement : ponctuelle,
+directionnelle, projecteur, absence d'ombre, résumé publié, reprise seulement sur changement
+d'ensemble, dist antérieur au contrat.
+
+### La campagne de fidélité, enfin chiffrée
+
+Moteur contre témoin **dans une seule exécution** : côté `apres` = **le moteur** (`--moteur webgpu`,
+`webgpu-page-raster`), côté `avant` = **le témoin Three.js** (`--moteur-avant webgl`,
+`exact-cluster-pages`). Mêmes poses, même cache, même serveur, mêmes lampes du contrat. 1280 × 720,
+seuil 0, 20 images, `--soleil --ombres off --profil off`, base `develop` = `e14b249`. Le témoin A/A
+vaut **0 px sur les neuf séries** : zéro veut bien dire zéro. Aucune erreur de page, aucune 404.
+
+Scène `transmission` des fixtures de classes de matériau — un plan d'eau (`shared-blend`,
+`KHR_materials_transmission` 1,0, volume teinté) au-dessus d'un sol et de trois blocs opaques, dont
+deux percent la surface. 2 880 triangles.
+
+| vue      | témoin A/A | moteur contre témoin | max canal | px ≥ 32 | px ≥ 128 |
+| -------- | ---------- | -------------------- | --------- | ------- | -------- |
+| générale | 0 px       | 181 413 px (19,7 %)  | 186       | 148 866 | 258      |
+| sol      | 0 px       | 386 695 px (42,0 %)  | 124       | 269 173 | 0        |
+| rue      | 0 px       | 287 333 px (31,2 %)  | 186       | 228 138 | 3        |
+
+Contrôle A — **la même comparaison sur une scène sans transmission** (`classes-materiaux` : opaque,
+`MASK`, `BLEND`), mêmes réglages :
+
+| vue      | moteur contre témoin | max canal | px ≥ 32                           |
+| -------- | -------------------- | --------- | --------------------------------- |
+| générale | 206 471 px (22,4 %)  | 53        | 89 549, tous dans le panneau BLEND |
+| sol      | 473 793 px (51,4 %)  | **17**    | **0**                             |
+| rue      | 632 616 px (68,6 %)  | 126       | **1** (un pixel de silhouette)    |
+
+Contrôle B — **sans aucune lampe déclarée**, donc le témoin n'a rien à installer : c'est l'état
+d'avant ce lot. 179 316 / 392 398 / 478 904 px, **max canal 237 sur les trois vues**.
+
+### Ce que ces chiffres disent
+
+Le compte de pixels seul ne dit rien ici : c'est le **max canal** et la répartition qui parlent.
+
+- **L'écart grossier a disparu.** Max canal 237 sans lampe posée au témoin, 124 à 186 avec. Sur la
+  scène sans transmission, vue « sol », l'écart tombe à **17 au pire et zéro pixel au-dessus de
+  31** : les surfaces opaques éclairées par le soleil du contrat sont les mêmes des deux côtés à
+  quelques quanta de huit bits près. C'est la preuve que la lampe arrive bien au témoin, et que la
+  physique des deux chemins coïncide — même atténuation, même Lambert, même GGX.
+- **Ce qui reste est le matériau, pas la lumière.** Sur la scène sans transmission, tout l'écart
+  franc (≥ 32) tient dans le rectangle du **panneau `BLEND`** ; ailleurs il est sous le quantum.
+  Sur la scène à transmission, l'écart franc couvre **l'eau et ce qu'on voit à travers** : notre
+  passe de transmission (fond figé, atténuation de volume) et celle de `MeshPhysicalMaterial` ne
+  donnent pas la même image. **C'est désormais mesurable, et c'est la question suivante.**
+- **Les durées de cette campagne ne valent rien** : la première exécution a tourné pendant le
+  `npm run validate` du validateur, la seconde sur une machine à 4,6 / 10,1 de charge. Les verdicts
+  pixel n'en dépendent pas, ce sont des comparaisons d'images.
+
+### Défaut trouvé chez le voisin, pas corrigé ici
+
+`sceneLit` ne survit pas au **spread**. Les quatre moteurs rendus par Three écrivent
+`...sceneLightingApi(sceneLights)` dans l'objet qu'ils renvoient (`exactPagesBackend.ts:191`,
+`referenceBackend.ts:61`, `autonomousPages.ts:154`, `threeLod.ts:143`) : le spread **évalue le
+getter une fois**, à la construction du moteur, et fige sa valeur. Une lampe posée *après* la
+création — le cas de tout hôte qui déclare ses lampes au contrat, donc le cas du témoin — ne
+rallume jamais le drapeau, `explorerDraw` garde `NoToneMapping` et le témoin compose sans
+exposition ni ACES alors que le moteur, lui, les applique.
+
+Mesuré : la même campagne sur la base d'avant le lot `unlit-identite` (`develop` = `3657c91`), où le
+renderer Three appliquait ACES sans condition, donne **151 912 / 360 882 / 286 714 px**, max canal
+**197 / 138 / 200** sur la scène à transmission, et **114 763 / 83 412 / 134 312 px**, max canal
+**58 / 1 / 126** sur la scène sans transmission — avec **83 412 px tous à exactement 1 sur 255** en
+vue « sol », c'est-à-dire l'égalité au quantum près sur toute la surface opaque. Le second tableau,
+celui de la base fusionnée, est donc **dégradé par ce défaut**, pas par le témoin. Correction hors
+périmètre de ce lot : `sceneLightingApi` doit être posée telle quelle, jamais étalée — ou rendre une
+méthode plutôt qu'un accesseur.
+
+Images, `mesure.json` et `resume.md` des six campagnes : `.mesure/out/lot-temoin-three/`.
+
 ## 2026-09-15 — [session Lumière] composition identité en vue sans lampe (lot `lot/unlit-identite`)
 
 Worktree `lot-unlit-identite`, branche `lot/unlit-identite`, partie de `develop` (db44508). Rien
