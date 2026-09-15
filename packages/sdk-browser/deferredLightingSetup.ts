@@ -1,5 +1,22 @@
 import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
+import {
+  SUN_FAR_PROXY_BINDING,
+  SUN_FAR_PROXY_COLUMNS,
+  SUN_FAR_STATE_BINDING,
+  SUN_FAR_STATE_BYTES,
+} from './sunFarShadowWgsl.ts';
+
+/**
+ * Les colonnes du proxy que l'ombre lointaine lit, chacune à sa liaison de fragment. Construites à
+ * l'appel : `GPUShaderStage` n'existe qu'une fois l'appareil là, jamais au chargement du module.
+ */
+const sunFarProxyEntries = (): GPUBindGroupLayoutEntry[] =>
+  SUN_FAR_PROXY_COLUMNS.map((_, index) => ({
+    binding: SUN_FAR_PROXY_BINDING + index,
+    visibility: GPUShaderStage.FRAGMENT,
+    buffer: { type: 'read-only-storage' },
+  }));
 
 /**
  * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
@@ -23,6 +40,15 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
+      // Le proxy résident et l'état de l'ombre lointaine du soleil : les colonnes qu'une ombre lit,
+      // en lecture seule, et un bloc de réglages qui porte aussi les deux compteurs de l'image
+      // relevée. Avec la grille du rebond, l'étage de fragments tient à huit tampons de stockage.
+      ...sunFarProxyEntries(),
+      {
+        binding: SUN_FAR_STATE_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'storage' },
+      },
     );
   // La grille de sondes et leurs coefficients : liées seulement par le programme du rebond, si
   // bien qu'une session sans rebond garde exactement la disposition d'avant.
@@ -91,6 +117,21 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
+  // Le proxy absent : quatre octets de zéro par colonne, que le nuanceur lit comme un arbre sans
+  // nœud. Le bloc de l'ombre lointaine naît à zéro, donc sa présence vaut zéro et aucun rayon n'est
+  // tiré : une session sans proxy rend exactement l'image d'avant ce lot.
+  const proxy = SUN_FAR_PROXY_COLUMNS.map((column) =>
+    device.createBuffer({
+      label: `WG empty resident proxy ${column}`,
+      size: 4,
+      usage: GPUBufferUsage.STORAGE,
+    }),
+  );
+  const sunFarState = device.createBuffer({
+    label: 'WG sun far shadow state v1',
+    size: SUN_FAR_STATE_BYTES,
+    usage: GPUBufferUsage.STORAGE,
+  });
   return {
     tiles,
     slices,
@@ -98,12 +139,16 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     sampler,
     bounceGrid,
     probes,
+    proxy,
+    sunFarState,
     dispose() {
       tiles.destroy();
       slices.destroy();
       atlas.destroy();
       bounceGrid.destroy();
       probes.destroy();
+      for (const buffer of proxy) buffer.destroy();
+      sunFarState.destroy();
     },
   };
 }

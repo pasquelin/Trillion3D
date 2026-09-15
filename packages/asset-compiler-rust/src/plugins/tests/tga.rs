@@ -2,7 +2,8 @@
 //! `fixtures/tga/`, doit rendre exactement les mêmes pixels RGBA8 — écrits en clair ici. Origine,
 //! compression et profondeur sont des façons d'écrire la même image, jamais de la changer.
 use super::super::image as registry;
-use std::path::{Path, PathBuf};
+use super::fixture;
+use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -27,16 +28,9 @@ fn opaque() -> Vec<[u8; 4]> {
         .collect()
 }
 
-fn fixture(name: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
-        .join("tga")
-        .join(name)
-}
-
 /// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
-    let bytes = std::fs::read(fixture(name)).expect("fixture lisible");
+    let bytes = fixture("tga", name);
     let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
     assert_eq!(decoder.name(), "tga", "{name}");
     let registry::DecodedImage::Rgba8(image) =
@@ -80,7 +74,7 @@ fn un_tga_illisible_ressort_en_raison_de_rapport_jamais_en_panique() {
         assert_eq!(decoder.mime(), "image/x-tga");
     }
     // Tronqué : l'entête est reconnu, donc le pilote est choisi, et c'est le décodage qui échoue.
-    let tronque = std::fs::read(fixture("tronque.tga")).expect("fixture lisible");
+    let tronque = fixture("tga", "tronque.tga");
     assert_eq!(
         registry::by_head(&tronque).map(|d| d.name()),
         Some("tga"),

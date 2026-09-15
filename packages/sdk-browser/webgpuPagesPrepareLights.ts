@@ -2,6 +2,7 @@ import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
 import { createGpuLightTiles } from './gpuLightTiles.ts';
 import { createGpuShadowAtlas, shadowAtlasBytes } from './gpuShadowAtlas.ts';
 import { createGpuShadowCull } from './gpuShadowCull.ts';
+import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Ce que la capacité déclare quand le contrat d'éclairage direct n'est pas gréé sur cet appareil. */
@@ -50,10 +51,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
   }
-  if (lights.tiles && lights.shadows)
-    capabilities.unsupported = capabilities.unsupported.filter(
-      (item) => item !== DIRECT_LIGHT_CAPABILITY,
-    );
+  if (lights.tiles && lights.shadows) grantCapability(capabilities, DIRECT_LIGHT_CAPABILITY);
   diag.engineDiagnostic('direct-lighting', 'Éclairage direct du contrat gréé', {
     version: 1,
     settings: { ...LIGHT_SETTINGS },

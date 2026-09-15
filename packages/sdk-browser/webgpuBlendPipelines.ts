@@ -41,6 +41,7 @@ export async function createWebgpuBlendPipelines(device: GPUDevice, items: Blend
       },
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       {
         binding: b.volume,
         visibility: GPUShaderStage.FRAGMENT,

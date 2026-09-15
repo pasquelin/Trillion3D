@@ -20,7 +20,7 @@ Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
    nomme la bibliothèque et sa version), `extensions` (en minuscules, sans le point).
 3. `impl ScenePlugin` : `accepts_head` reconnaît l'entête du format — `false` pour un format texte
    qui n'en a pas —, `prepare` rend `PreparedScene::InPlace` pour une entrée directe ou
-   `PreparedScene::Converted` pour ce que le pilote a écrit dans `request.cache`.
+   `request.converted(directory)` pour ce que le pilote a écrit dans `request.cache`.
 4. Une ligne dans `scene::PLUGINS`.
 
 Un pilote **de projet** — `unity` en est le premier — revendique en plus un dossier entier par
@@ -31,6 +31,12 @@ ses entrées et non des sources concurrentes ; deux projets pour un même dossie
 accepte un seul ou plusieurs, et il refuse avec `SOURCE_FORMAT_AMBIGUOUS` quand il n'en veut qu'un.
 Il vérifie `request.cancelled` à chaque frontière de travail bornée, publie ses étapes par
 `request.progress`, et n'écrit jamais à côté de la source — seulement sous `request.cache`.
+
+Les images ne suivent pas la scène dans le cache : elles restent là où le pilote les a lues. La
+racine où les URI relatives d'images se résolvent est donc `scene::image_root(request.source)` — le
+dossier source, ou le dossier extrait pour un conteneur —, et `request.converted` l'accroche à la
+scène convertie pour que le compilateur y relise les mêmes octets. Un pilote qui résout une image
+appelle cette fonction ; il n'en écrit pas une seconde version.
 
 ## Un pilote de conteneur
 
