@@ -64,13 +64,15 @@ impl Builder<'_, '_> {
         roots
     }
 
-    /// Construit le nœud d'une transformation et de sa descendance.
+    /// Construit le nœud d'une transformation et de sa descendance. `changes` porte les retouches de
+    /// l'instance de prefab en cours de dépliage : chacune nomme l'objet qu'elle vise, donc elle
+    /// s'applique à la profondeur où cet objet se trouve.
     pub(super) fn transform(
         &mut self,
         document: &Rc<Document>,
         id: i64,
         dropped: &HashSet<i64>,
-        overrides: &Overrides,
+        changes: &Changes,
         depth: usize,
     ) -> Option<usize> {
         if depth > MAX_DEPTH {
@@ -86,28 +88,32 @@ impl Builder<'_, '_> {
             let instance = reference(&entry.body["m_PrefabInstance"]).file_id;
             return self.prefab_instance(document, instance, depth);
         }
-        let object = document.get(reference(&entry.body["m_GameObject"]).file_id)?;
+        let object_id = reference(&entry.body["m_GameObject"]).file_id;
+        let object = document.get(object_id)?;
         if object.class_id != GAME_OBJECT {
             return None;
         }
-        if number_at(&object.body, "m_IsActive", 1.0) == 0.0 {
+        let active = changes
+            .active(object_id)
+            .unwrap_or(number_at(&object.body, "m_IsActive", 1.0) != 0.0);
+        if !active {
             self.world.scene.count("inactive", 1);
             return None;
         }
         let components = self.components(document, &object.body);
         let dropped = &self.dropped_renderers(document, &components, dropped);
         let mut node = json!({"name":object.body["m_Name"].as_str().unwrap_or("GameObject")});
-        let trs = local_trs(&entry.body, overrides);
+        let empty = Overrides::new();
+        let trs = local_trs(&entry.body, changes.transform(id).unwrap_or(&empty));
         if trs.is_finite() {
             trs.write(&mut node);
         } else {
             self.world.scene.report.add("unity-invalid-transform");
         }
-        let mut children = self.render(document, &components, dropped, &mut node);
+        let mut children = self.render(document, &components, dropped, changes, &mut node);
         for child in sequence(&entry.body, "m_Children") {
             let child = reference(child).file_id;
-            let empty = Overrides::new();
-            if let Some(index) = self.transform(document, child, dropped, &empty, depth + 1) {
+            if let Some(index) = self.transform(document, child, dropped, changes, depth + 1) {
                 children.push(index);
             }
         }
@@ -155,35 +161,4 @@ impl Builder<'_, '_> {
         }
         dropped
     }
-}
-
-/// La transformation locale, telle que Unity l'écrit, une fois les surcharges d'instance appliquées
-/// puis la conversion d'axes faite.
-pub(super) fn local_trs(body: &Yaml, overrides: &Overrides) -> Trs {
-    let at = |path: &str, value: f64| overrides.get(path).copied().unwrap_or(value);
-    let position = vec3(&body["m_LocalPosition"], [0.0, 0.0, 0.0]);
-    let rotation = vec4(
-        &body["m_LocalRotation"],
-        ["x", "y", "z", "w"],
-        [0., 0., 0., 1.],
-    );
-    let scale = vec3(&body["m_LocalScale"], [1.0, 1.0, 1.0]);
-    Trs::from_unity(
-        [
-            at("m_LocalPosition.x", position[0]),
-            at("m_LocalPosition.y", position[1]),
-            at("m_LocalPosition.z", position[2]),
-        ],
-        [
-            at("m_LocalRotation.x", rotation[0]),
-            at("m_LocalRotation.y", rotation[1]),
-            at("m_LocalRotation.z", rotation[2]),
-            at("m_LocalRotation.w", rotation[3]),
-        ],
-        [
-            at("m_LocalScale.x", scale[0]),
-            at("m_LocalScale.y", scale[1]),
-            at("m_LocalScale.z", scale[2]),
-        ],
-    )
 }

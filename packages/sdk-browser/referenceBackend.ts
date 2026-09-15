@@ -1,5 +1,6 @@
 import { meshes as objects, geometryBytes } from './sceneMeshes.ts';
 import { baseCapabilities, hashId, lighting, DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
+import { sceneLightingApi } from './sceneLighting.ts';
 import {
   createTriangleDiagnosticMaterial,
   disposeTriangleGeometry,
@@ -57,7 +58,7 @@ export const referenceBackend: BackendFactory = ({
     scene,
     setDiagnostic: applyDiagnostic,
     async prepare() {},
-    refreshSceneLighting: () => sceneLights.refresh(),
+    ...sceneLightingApi(sceneLights),
     render() {
       source.updateMatrixWorld(true);
       sceneLights.update();
