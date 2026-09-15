@@ -110,3 +110,7 @@ pub(super) fn as_u32(value: i64, what: &str) -> Result<u32> {
         ))
     })
 }
+
+#[cfg(test)]
+#[path = "format_tests.rs"]
+mod tests;
