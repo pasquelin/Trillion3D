@@ -1,6 +1,7 @@
 // Oracles du lot F, côté transparents et items de visibilité : `webgpuBlendSelection.ts:48` et
 // `webgpuVisibilityItems.ts:30-53` d'avant le lot F, recopiés tels quels.
 import { HIZ_BOUNDS_VALUES } from '../../hiz.ts';
+import { hizNearestBound } from '../../hizNearestBound.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from '../../gpuDraw.ts';
 import { visBin } from '../../webgpuPagesPipelineFor.ts';
 
@@ -41,6 +42,10 @@ export function referenceBuildItems(rt, twoPass, itemsDirty) {
       const from = i * HIZ_BOUNDS_VALUES,
         to = testedCount * HIZ_BOUNDS_VALUES;
       for (let k = 0; k < HIZ_BOUNDS_VALUES; k++) hizTestedBounds[to + k] = hizBounds[from + k];
+      // Redressement de la borne : postérieur au lot F, il ne relève pas de l'optimisation que cet
+      // oracle départage, et il est donc repris ici tel quel pour que la comparaison reste celle
+      // des lectures et de rien d'autre.
+      hizTestedBounds[to + 4] = hizNearestBound(hizBounds[from + 4], rows.packedRecs[i].depthLayer);
       hizTestedTriangles[testedCount] = count / 3;
       hizTestedRows[testedCount++] = row;
     }
