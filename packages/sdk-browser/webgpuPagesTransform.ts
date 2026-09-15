@@ -27,10 +27,11 @@ function findNode(source: THREE.Object3D, nodeName: string) {
 
 /**
  * Déplace un nœud nommé de la scène préparée (R8). La matrice est une matrice monde colonne-major :
- * elle est ramenée dans le repère du parent, puis décomposée, pour que `updateMatrixWorld` la
- * retrouve à l'identique. Les boîtes monde des primitives déplacées sont reprojetées, l'historique
- * d'occulteurs est jeté, et la boîte du mouvement est déclarée à l'ordonnanceur d'ombres — les
- * tranches des lampes dont la portée touche cette boîte redeviennent candidates.
+ * elle est ramenée dans le repère du parent, puis posée telle quelle comme matrice locale, pour que
+ * `updateMatrixWorld` la retrouve à l'identique. Les boîtes monde des primitives déplacées sont
+ * reprojetées, l'historique d'occulteurs est jeté, et la boîte du mouvement est déclarée à
+ * l'ordonnanceur d'ombres — les tranches des lampes dont la portée touche cette boîte redeviennent
+ * candidates.
  *
  * Rien n'est dessiné ici : le déplacement prend effet à l'image suivante, sans allocation par image.
  */
@@ -53,8 +54,16 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     parentInverse.copy(node.parent.matrixWorld).invert();
     requested.premultiply(parentInverse);
   }
+  // La matrice locale fait foi, pas les trois champs : toute matrice n'est pas un produit
+  // translation-rotation-échelle. Un cisaillement — deux axes non orthogonaux, ce que produit une
+  // échelle non uniforme sous une rotation — ne s'y décompose pas, et `updateMatrixWorld`
+  // recomposerait `matrix` depuis `position`, `quaternion` et `scale` par-dessus celle posée ici,
+  // laissant le moteur dessiner une autre transformation que celle demandée. Couper la
+  // recomposition sur le seul nœud déplacé est ce qui la préserve intacte. `decompose` renseigne
+  // quand même les trois champs, exacts sans cisaillement et approchés sinon, pour qui les lit.
   requested.decompose(node.position, node.quaternion, node.scale);
   node.matrix.copy(requested);
+  node.matrixAutoUpdate = false;
   setup.source.updateMatrixWorld(true);
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
