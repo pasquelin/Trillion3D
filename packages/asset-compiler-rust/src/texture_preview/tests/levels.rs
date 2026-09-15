@@ -55,3 +55,27 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
         }
     }
 }
+
+// Comportement 1 : nombre, tailles et octets des niveaux pour une texture non carrée dont les deux
+// côtés dépassent la base, et pour une texture assez grande pour saturer les sept niveaux et les
+// 21 844 octets maximum que le module documente.
+#[test]
+fn geometry_matches_expectations_for_a_non_square_and_a_maximal_texture() {
+    // 128×64 : exactement le double de la base sur chaque côté, un niveau sous le maximum.
+    assert_eq!(preview_first_level(128, 64), 1);
+    assert_eq!(preview_last_level(128, 64), 7);
+    assert_eq!(preview_level_count(128, 64), 7);
+    assert_eq!(preview_level_size(128, 64, 1), (64, 32));
+    assert_eq!(preview_level_size(128, 64, 7), (1, 1));
+    assert_eq!(preview_pixel_bytes(128, 64), 10_924);
+
+    // 4096×4096 : assez grande pour que le premier niveau porté tombe pile sur la base.
+    assert_eq!(preview_first_level(4096, 4096), 6);
+    assert_eq!(preview_last_level(4096, 4096), 12);
+    assert_eq!(preview_level_count(4096, 4096), PREVIEW_MAX_LEVELS);
+    assert_eq!(
+        preview_level_size(4096, 4096, 6),
+        (PREVIEW_BASE, PREVIEW_BASE)
+    );
+    assert_eq!(preview_pixel_bytes(4096, 4096), 21_844);
+}
