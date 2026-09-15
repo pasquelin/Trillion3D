@@ -11,7 +11,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
   const { ENGINE, MANIFEST, OUT, settings, lights, poses } = ctx;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();
-  const result = await page.evaluate(measureView, {
+  const result = await runInPage(page, {
     sdkUrl: `/sdk/${side.name}/sdk-browser/index.js`,
     manifestUrl: side.manifestUrl ?? MANIFEST,
     backend: ENGINE.backend,
@@ -86,7 +86,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     charge: { debut, fin },
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,
-    contexteWebglPerdu: result.lost.length ? result.lost : null,
+    incidentsGpu: result.lost.length ? result.lost : null,
     canvas: result.size,
     metrics,
   };
@@ -97,4 +97,23 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
       `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'oui' : 'non'}\n`,
   );
   return { row, captureFile };
+}
+
+/**
+ * La mesure jouée dans la page, et ce que la carte graphique a signalé quand elle échoue.
+ *
+ * Une image perdue remonte ici avec sa pile d'appels et rien d'autre : la cause — erreur de
+ * validation, appareil perdu — n'a été vue que dans la page. Le harnais la relit donc sur la page
+ * avant de renvoyer l'échec, pour que le banc nomme la cause au lieu de la laisser deviner.
+ */
+async function runInPage(page, payload) {
+  try {
+    return await page.evaluate(measureView, payload);
+  } catch (error) {
+    const incidents = await page.evaluate(() => globalThis.incidentsGpu ?? []).catch(() => []);
+    if (!incidents.length) throw error;
+    throw new Error(`${error.message}\nIncidents carte graphique :\n${incidents.join('\n')}`, {
+      cause: error,
+    });
+  }
 }
