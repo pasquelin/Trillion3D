@@ -16,12 +16,30 @@
  * Columns are fixed by version: their order, element type and stride are the format. Reading one
  * is `new Float64Array(buffer, offset, length/8)`, so decoding costs no parse at all.
  */
-/** Version 2 adds `pageDepthLayer`. A file of another version is refused whole: a reader that
- *  skipped the column would draw the wrong surface on top and never know. */
-export const MANIFEST_BINARY_VERSION = 2;
+/** Version 3 adds the three texture preview columns. A file of another version is refused whole: a
+ *  reader that skipped a column would draw the wrong surface on top and never know. */
+export const MANIFEST_BINARY_VERSION = 3;
 /** 'W','G','M','B' read as a little-endian u32. */
 export const MANIFEST_BINARY_MAGIC = 0x424d4757;
 export const MANIFEST_BINARY_HEADER_WORDS = 4;
+
+/** Texture preview pyramid, mirrored by `packages/asset-compiler-rust/src/texture_preview.rs`:
+ *  five RGBA8 sRGB levels with straight alpha, 16×16 down to 1×1, at fixed byte offsets. */
+export const TEXTURE_PREVIEW_VERSION = 1;
+export const PREVIEW_LEVEL_SIZES = [16, 8, 4, 2, 1] as const;
+export const PREVIEW_LEVEL_OFFSETS = [0, 1024, 1280, 1344, 1360] as const;
+export const PREVIEW_BYTES = 1364;
+/** `texturePreviewU32` slots: the five level offsets follow the six leading numbers. */
+export const PREVIEW_TEXTURE = 0,
+  PREVIEW_IMAGE = 1,
+  PREVIEW_WIDTH = 2,
+  PREVIEW_HEIGHT = 3,
+  PREVIEW_SOURCE_KIND = 4,
+  PREVIEW_SOURCE_VIEW = 5,
+  PREVIEW_FIRST_OFFSET = 6;
+export const PREVIEW_WORDS = PREVIEW_FIRST_OFFSET + PREVIEW_LEVEL_SIZES.length;
+/** A preview whose bytes came from an image `uri`; anything else names a glTF buffer view. */
+export const PREVIEW_SOURCE_URI = 0;
 
 export const COLUMN_NAMES = [
   'pageBounds',
@@ -45,6 +63,9 @@ export const COLUMN_NAMES = [
   'bundleU32',
   'bundleSha',
   'pageDepthLayer',
+  'texturePreviewU32',
+  'texturePreviewSha',
+  'texturePreviewPixels',
 ] as const;
 export type ColumnName = (typeof COLUMN_NAMES)[number];
 export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8';
@@ -70,6 +91,9 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   bundleU32: 'u32',
   bundleSha: 'u8',
   pageDepthLayer: 'u32',
+  texturePreviewU32: 'u32',
+  texturePreviewSha: 'u8',
+  texturePreviewPixels: 'u8',
 };
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
@@ -95,6 +119,9 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   bundleU32: 2,
   bundleSha: 64,
   pageDepthLayer: 1,
+  texturePreviewU32: PREVIEW_WORDS,
+  texturePreviewSha: 64,
+  texturePreviewPixels: PREVIEW_BYTES,
 };
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
 

@@ -14,6 +14,7 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
       zeroFlags,
       mapsTexture,
       mapsSampler,
+      preview,
     } = vis;
   if (
     layout &&
@@ -24,7 +25,8 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
     visUniform &&
     zeroFlags &&
     mapsTexture &&
-    mapsSampler
+    mapsSampler &&
+    preview
   ) {
     const mapsArrayView = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     const make = (flags: GPUBuffer) =>
@@ -41,6 +43,8 @@ export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: G
           { binding: 7, resource: mapsSampler },
           { binding: 8, resource: { buffer: zeroFlags } },
           { binding: 9, resource: { buffer: zeroFlags } },
+          { binding: 10, resource: preview.view },
+          { binding: 11, resource: { buffer: preview.ready } },
         ],
       });
     vis.visBindGroup ??= make(zeroFlags);

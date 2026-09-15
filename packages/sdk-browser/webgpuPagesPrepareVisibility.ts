@@ -112,6 +112,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     vis.mapsTexture &&
     vis.dataMapsTexture &&
     vis.mapsSampler &&
+    vis.preview &&
     vis.shadeUniform &&
     vis.shadeBindGroupLayout
   ) {
@@ -128,6 +129,8 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
         { binding: 7, resource: vis.mapsSampler },
         { binding: 8, resource: { buffer: vis.shadeUniform } },
         { binding: 9, resource: vis.dataMapsTexture.createView({ dimension: '2d-array' }) },
+        { binding: 10, resource: vis.preview.view },
+        { binding: 11, resource: { buffer: vis.preview.ready } },
       ],
     });
   }

@@ -10,19 +10,23 @@
 //!   u32 magic 'WGMB' · u32 version · u32 columnCount · u32 reserved
 //!   columnCount × (u32 byteOffset, u32 byteLength)
 //!   column payloads, each starting on an 8-byte boundary
+use crate::texture_preview::{
+    TexturePreview, PREVIEW_BYTES, PREVIEW_LEVELS, PREVIEW_LEVEL_OFFSETS,
+};
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
 
 mod format;
 mod page;
+mod preview;
 mod primitive;
 #[cfg(test)]
 mod tests;
 use format::*;
 
-/// Version 2 adds the per-cluster coplanar depth layer column. A reader of version 1 refuses this
-/// file outright rather than reading twenty of its twenty-one columns.
-pub const MANIFEST_BINARY_VERSION: u32 = 2;
+/// Version 3 adds the three texture preview columns. A reader of version 2 refuses this file
+/// outright rather than reading twenty-one of its twenty-four columns.
+pub const MANIFEST_BINARY_VERSION: u32 = 3;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 const HEADER_WORDS: usize = 4;
@@ -48,7 +52,13 @@ const STRUCTURE_ROOT: usize = 17;
 const BUNDLE_U32: usize = 18;
 const BUNDLE_SHA: usize = 19;
 const PAGE_DEPTH_LAYER: usize = 20;
-const COLUMNS: usize = 21;
+const TEXTURE_PREVIEW_U32: usize = 21;
+const TEXTURE_PREVIEW_SHA: usize = 22;
+const TEXTURE_PREVIEW_PIXELS: usize = 23;
+const COLUMNS: usize = 24;
+/// Nombres par entrée d'aperçu : texture, image, largeur, hauteur, genre et vue de provenance,
+/// puis les décalages des cinq niveaux.
+const PREVIEW_WORDS: usize = 6 + PREVIEW_LEVELS;
 
 const FLAG_ROLE: u32 = 1;
 const FLAG_COARSE: u32 = 2;
@@ -71,7 +81,11 @@ pub struct Templates<'a> {
 
 /// Splits a finished manifest into the small JSON and the columns. The returned descriptor carries
 /// an empty `sha256`: only the caller, holding the finished bytes, can hash them.
-pub fn split(manifest: &Value, templates: &Templates) -> Result<(Value, Vec<u8>)> {
+pub fn split(
+    manifest: &Value,
+    templates: &Templates,
+    previews: &[TexturePreview],
+) -> Result<(Value, Vec<u8>)> {
     let root = object(manifest, "manifest")?;
     let primitives = array(
         root.get("primitives")
@@ -98,6 +112,7 @@ pub fn split(manifest: &Value, templates: &Templates) -> Result<(Value, Vec<u8>)
             templates,
         )?);
     }
+    preview::encode_previews(previews, &mut columns)?;
     let header_bytes = (HEADER_WORDS + COLUMNS * 2) * 4;
     let mut offsets = [0u32; COLUMNS];
     let mut offset = (header_bytes + 7) & !7;
@@ -120,7 +135,7 @@ pub fn split(manifest: &Value, templates: &Templates) -> Result<(Value, Vec<u8>)
     let mut slim = root.clone();
     slim.insert("primitives".into(), Value::Array(slim_primitives));
     slim.insert("binary".into(),json!({"version":MANIFEST_BINARY_VERSION,"url":templates.binary,"sha256":"","bytes":bytes.len(),
-  "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle}));
+  "pageUrl":templates.page,"geometryUrl":templates.geometry,"bundleUrl":templates.bundle,"texturePreviews":previews.len()}));
     Ok((Value::Object(slim), bytes))
 }
 
