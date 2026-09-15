@@ -63,6 +63,29 @@ R5b. **Invariant du test Hi-Z.** Le test d'occultation ne décide jamais qu'un c
 R5c. **Ce que la partition ne garantit pas, et pourquoi le compilateur ne peut pas la sauver.** Le partage occulteurs/testés décide de l'**ordre** de dessin, et sur des surfaces opaques exactement coplanaires l'ordre décide l'image : à profondeur égale, le test `less` donne le pixel au premier dessiné. Trois faits, mesurés sur une scène urbaine de banc et vrais de toute scène par construction. **(a)** Une couche de profondeur est portée par `pageDepthLayer`, une valeur **par page de primitive** : elle ne peut séparer ni deux triangles d'un même cluster, ni deux instances d'une même page. Ces deux catégories forment la majorité des égalités d'une scène réelle (57 à 77 % des relevés) ; « aucune égalité de profondeur » n'est donc pas un objectif atteignable par `coplanar-depth-layers-*`, quelle que soit sa détection. **(b)** En revanche, **100 %** des pixels qu'un changement de partition déplace opposent **deux clusters distincts** — la partition déplace des pages, jamais les triangles d'un même dessin. Une couche par cluster suffit donc à rendre l'image indépendante de la partition. **(c)** Mais sur exactement ces pixels, le vainqueur actuel est celui que la partition d'aujourd'hui désigne, et la partition est décidée à l'exécution sur les occulteurs de l'image précédente : **aucune règle de compilation ne peut la reproduire.** Donc « image indépendante de la partition » et « 0 pixel contre la référence actuelle » s'excluent. Le prix du passage est borné et se mesure sans écrire une ligne de compilateur : c'est l'écart de la **passe unique** contre la référence (67 / 173 / 39 / 28 / 1 / 1 px sur six couples vue-seuil du banc, soit 0,007 % de l'image au pire). Une fois ce déplacement de référence accepté, la preuve d'un changement de partition se fait contre la passe unique, et elle est à 0 pixel.
 
 R6. **Rendu WebGPU** : visibility buffer, compaction et `drawIndexedIndirect` par cluster, raster logiciel borné aux petits triangles réels, résolution matériau par binning, éclairage différé (GGX, IBL si et quand livré, tone mapping ACES, sRGB), transparents en sélection GPU et indirect par matériau, table de pages statique mise à jour par page, zéro allocation par image. Critère : Emerald 1280×720 CPU < 4 ms, GPU < 6 ms, image identique à la référence.
+
+R6b. **Ce que le processeur fixe coûte encore, et où il est passé.** Le coût processeur fixe d'une
+image WebGPU (vue générale, seuil 0) vaut **5,8 à 5,9 ms** après le lot `cpu-fixe`, contre 33,6 ms le
+14 septembre, 7,7 le 15 au soir. Les postes nommés qui restent sont, dans l'ordre : **encodage des
+passes 2,7 à 3,1 ms** — mille neuf cent trente-six appels de dessin dont mille neuf cent vingt-huit de
+mélange, un par primitive transparente visible **y compris celles dont la coupe est vide**, que le
+processeur ne peut pas connaître puisque la compaction est sur la carte ; **fiches de dessin 1,4 à
+1,8 ms** ; **adoption de la coupe 0,9 ms** ; **transparents 0,8 ms** ; **animations 0,5 ms**. La cible
+`< 4 ms` de R6 exige donc de traiter l'encodage de la passe de mélange : c'est le seul poste dont la
+taille suffit, et il demande de savoir avant l'image quelles primitives transparentes n'ont rien à
+dessiner. Les deux autres pistes sont refusées en l'état et la raison compte : mettre
+`uncoveredTriangles` en cache rendrait la preuve d'absence de trou dépendante de l'exactitude d'une
+estampille, et supprimer la lecture par objet des fiches demande un invariant non établi sur la durée
+de vie du tableau d'une page résidente.
+
+R6c. **Ce qu'un lecteur garde d'une image à l'autre porte l'âge de ce qu'il décrit.** Toute liste,
+tout compte, toute borne tenue d'une image sur l'autre doit être validée par une estampille de la
+donnée décrite, jamais par un drapeau posé pendant le rendu : l'adoption de la coupe se produit aussi
+**hors** du rendu — la vidange en rejoue une après que l'hôte a pris ses listes —, et un drapeau par
+image ne voit pas ce qui bouge après lui. Coût de l'oubli, mesuré : 5 918 pixels et une coupe de
+1 273 565 triangles au lieu de 1 599 951, invisibles à caméra fixe. Critère : **toute optimisation de
+listes, de résidence ou d'épinglage se prouve en caméra mobile**, aux deux seuils, en plus des poses
+fixes.
 R7. **Rendu WebGL2** : mêmes formules d'éclairage en GLSL généré depuis la même source que le WGSL, tampons d'index persistants, `WEBGL_multi_draw`, un dessin par matériau et non par objet (matrices d'instance en texture), transparents triés, textures et mips gérés par le runtime. Critère : parité au pixel avec WebGPU sur toutes les scènes du banc (erreur max ≤ 2 par canal, expliquée), CPU < 8 ms sur Emerald.
 R7b. **Ce qu'une instance coûte, et ce qu'elle ne coûte pas.** Poser N fois le même objet n'alloue
 **aucune géométrie de plus**, sur aucun des deux moteurs : sommets, indices, UV, normales et
@@ -105,7 +128,7 @@ B4. **Scripts headless** conservés dans `render-tech-lab/scripts/headless/` pou
 
 | Phase | Contenu                                                                    | Sortie mesurée                                                                             |
 | ----- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 1     | Lot 2 WebGPU (R5, R6), saccades WebGL (p99)                                | Emerald 1 instance : WebGPU CPU < 4 ms, GPU < 6 ms ; WebGL p99 < 8,33 ms visible ; 0 pixel |
+| 1     | Lot 2 WebGPU (R5, R6, R6b), saccades WebGL (p99)                           | Emerald 1 instance : WebGPU CPU < 4 ms (5,8 atteint, reste l'encodage de la passe de mélange), GPU < 6 ms ; WebGL p99 < 8,33 ms visible ; 0 pixel |
 | 2     | DAG multi-matériaux par objet (C3, C4) après validation du prototype       | vue générale ≤ 200 k triangles par ville, image identique à 0 px                           |
 | 3     | Paquets autonomes et textures streamables (C5, C6, C7), streaming (R3)     | première image < 500 ms chaud / 1,5 s froid, `source.bin` absent du chargement             |
 | 4     | Cache par objet, compilation incrémentale, wasm (C8, C9, E1 à E4)          | recompilation d'un objet ≤ 500 ms, échange à chaud sans image manquante                    |
