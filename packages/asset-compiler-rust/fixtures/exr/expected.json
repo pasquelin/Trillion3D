@@ -1,0 +1,24 @@
+{
+  "case": "Un quad dont la couleur de base est demi.exr, un OpenEXR 2 × 2 en demi-flottant à quatre canaux, compilé par le harnais commun.",
+  "rule": "Une texture flottante ne fait échouer aucune compilation et n'est jamais rognée à huit bits : les aperçus progressifs sont du RGBA8 sRGB, la texture est comptée, aucun aperçu n'est produit, et la raison image-float-unsupported est nommée au rapport.",
+  "imageContract": "image-plugin-2",
+  "report": {
+    "base": 64,
+    "colorTextures": 1,
+    "maxLevels": 7,
+    "pixelBytes": 0,
+    "previews": 0,
+    "skipped": {
+      "image-float-unsupported": 1
+    },
+    "version": 2
+  },
+  "scene": {
+    "formatVersion": 3,
+    "manifestBinaryVersion": 4,
+    "primitives": 1,
+    "selectedTriangles": 2,
+    "sidecarSha256": "6a9faec1c549b3157e083318a1d17b91beb6d00bcda3dd3768b186cca9789cdc",
+    "texturePreviewBytes": 0
+  }
+}
