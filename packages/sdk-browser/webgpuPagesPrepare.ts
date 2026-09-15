@@ -22,41 +22,43 @@ import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
 import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open.
- *  Poser un cône, c'est le déclarer : les racines de cette préparation relèvent leur drapeau, sans
- *  quoi la coupe les croirait sans cône et ne lirait plus `cone`. */
+ *  Poser un cône, c'est le déclarer : la racine de la page relève son drapeau, sans quoi la coupe
+ *  la croirait sans cône et ne lirait plus `cone`. Les pages sont parcourues par racine : le
+ *  catalogue `allPages` est la concaténation de leurs pages, dans le même ordre. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
-  for (const root of rt.setup.roots) root.cones = true;
   const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
-  for (const rec of rt.setup.allPages) {
-    const array = rec.array,
-      attr = rec.attributes.position;
-    if (!array || !attr) continue;
-    let xyz = xyzCache.get(rec.attributes);
-    if (!xyz) {
-      xyz = new Float32Array(attr.count * 3);
-      // Un attribut simple de trois composantes non normalisé est déjà ce tableau : `getX/getY/getZ`
-      // rendent alors `array[i * 3 + c]`, et la copie par bloc écrit les mêmes valeurs, arrondies au
-      // même flottant 32 bits. Tout autre attribut — entrelacé, normalisé, d'un autre pas — repasse
-      // par les accesseurs, seuls capables de dire ce qu'il porte.
-      const plat = attr as THREE.BufferAttribute;
-      if (
-        plat.itemSize === 3 &&
-        !plat.normalized &&
-        !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
-        plat.array.length >= attr.count * 3
-      )
-        xyz.set(plat.array.subarray(0, attr.count * 3) as ArrayLike<number>);
-      else
-        for (let i = 0; i < attr.count; i++) {
-          xyz[i * 3] = attr.getX(i);
-          xyz[i * 3 + 1] = attr.getY(i);
-          xyz[i * 3 + 2] = attr.getZ(i);
-        }
-      xyzCache.set(rec.attributes, xyz);
+  for (const root of rt.setup.roots)
+    for (const rec of root.pages) {
+      const array = rec.array,
+        attr = rec.attributes.position;
+      if (!array || !attr) continue;
+      root.cones = true;
+      let xyz = xyzCache.get(rec.attributes);
+      if (!xyz) {
+        xyz = new Float32Array(attr.count * 3);
+        // Un attribut simple de trois composantes non normalisé est déjà ce tableau :
+        // `getX/getY/getZ` rendent alors `array[i * 3 + c]`, et la copie par bloc écrit les mêmes
+        // valeurs, arrondies au même flottant 32 bits. Tout autre attribut — entrelacé, normalisé,
+        // d'un autre pas — repasse par les accesseurs, seuls capables de dire ce qu'il porte.
+        const plat = attr as THREE.BufferAttribute;
+        if (
+          plat.itemSize === 3 &&
+          !plat.normalized &&
+          !(attr as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute &&
+          plat.array.length >= attr.count * 3
+        )
+          xyz.set(plat.array.subarray(0, attr.count * 3) as ArrayLike<number>);
+        else
+          for (let i = 0; i < attr.count; i++) {
+            xyz[i * 3] = attr.getX(i);
+            xyz[i * 3 + 1] = attr.getY(i);
+            xyz[i * 3 + 2] = attr.getZ(i);
+          }
+        xyzCache.set(rec.attributes, xyz);
+      }
+      const material = visMaterial(rec.material);
+      rec.cone = material.doubleSided || material.backSide ? OPEN_CONE : triangleCone(xyz, array);
     }
-    const material = visMaterial(rec.material);
-    rec.cone = material.doubleSided || material.backSide ? OPEN_CONE : triangleCone(xyz, array);
-  }
 }
 
 function cacheOptions(rt: WebgpuPagesRuntime) {

@@ -25,7 +25,10 @@ function triangle(material: THREE.Material, attributes: THREE.BufferGeometry['at
     cone: undefined,
   } as unknown as PageRec;
 }
-function runtime(allPages: PageRec[], roots: Array<{ cones?: boolean }> = []) {
+function runtime(
+  allPages: PageRec[],
+  roots: Array<{ cones?: boolean; pages: PageRec[] }> = [{ pages: allPages }],
+) {
   return { setup: { allPages, roots } } as unknown as WebgpuPagesRuntime;
 }
 const positions = (values: number[]) => new THREE.Float32BufferAttribute(values, 3);
@@ -126,11 +129,18 @@ test('compteMateriauxEtTangentes sur un catalogue et une table de géométries v
   );
 });
 
-test('poser des cônes déclare les racines qui en portent : la coupe cesse alors de les croire nues', () => {
+test('poser un cône déclare sa racine ; une racine dont aucune page ne reçoit de cône reste déclarée nue', () => {
   // `collectClusterPages` déclare `cones: false` ; sans ce relevé, la coupe ne lirait plus le cône
-  // que cette préparation vient d'écrire, et le rejet de cône disparaîtrait sans bruit.
-  const roots = [{ cones: false }, { cones: false }];
+  // que cette préparation vient d'écrire, et le rejet de cône disparaîtrait sans bruit. Une page
+  // sans octets d'index ne reçoit aucun cône : sa racine n'a rien à déclarer.
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
-  prepareCones(runtime([triangle(new THREE.MeshBasicMaterial(), attributes)], roots));
-  for (const root of roots) assert.equal(root.cones, true);
+  const porte = triangle(new THREE.MeshBasicMaterial(), attributes);
+  const nue = { ...triangle(new THREE.MeshBasicMaterial(), attributes), array: undefined };
+  const roots = [
+    { cones: false, pages: [porte] },
+    { cones: false, pages: [nue as unknown as PageRec] },
+  ];
+  prepareCones(runtime([porte, nue as unknown as PageRec], roots));
+  assert.equal(roots[0].cones, true);
+  assert.equal(roots[1].cones, false);
 });
