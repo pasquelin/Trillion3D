@@ -29,6 +29,9 @@ fn scene_with_one_node() -> Value {
 
 /// Les deux cas partagent la même scène à un nœud : seules la liste de primitives, leurs plans, le
 /// quantum d'offset et les bornes changent. Les rappels vivent ici, le temps de l'appel.
+///
+/// `world`, quand il est fourni, est la matrice monde déjà construite par l'appelant (lot B1) :
+/// `None` fait reconstruire la matrice par `collect`, comme avant B1.
 fn collect_one_node(
     g: &Value,
     primitives: &[Value],
@@ -36,6 +39,7 @@ fn collect_one_node(
     offset_quantum: f64,
     bounds: &CoplanarBounds,
     dropped: &mut usize,
+    world: Option<&[crate::compiler_world::Mat4]>,
 ) -> Vec<Surface> {
     let chosen: BTreeSet<usize> = [0].into_iter().collect();
     let mesh_map: BTreeMap<usize, usize> = [(0, 0)].into_iter().collect();
@@ -54,7 +58,11 @@ fn collect_one_node(
         cancelled: &cancelled,
         progress: &progress,
     };
-    surface::collect(&inputs, bounds, dropped).expect("collect")
+    match world {
+        Some(world) => surface::collect_with_world(&inputs, bounds, dropped, world),
+        None => surface::collect(&inputs, bounds, dropped),
+    }
+    .expect("collect")
 }
 
 #[test]
@@ -79,6 +87,7 @@ fn collect_drops_mask_blend_and_transmissive_materials() {
         0.001,
         &CoplanarBounds::default(),
         &mut dropped,
+        None,
     );
     // Seule la primitive opaque (index 0) passe : MASK, BLEND et transmission sont écartés.
     assert_eq!(
@@ -115,7 +124,15 @@ fn collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest() {
         max_planes_per_primitive: 3,
         ..CoplanarBounds::default()
     };
-    let surfaces = collect_one_node(&g, &primitives, &cluster_planes, 0.1, &bounds, &mut dropped);
+    let surfaces = collect_one_node(
+        &g,
+        &primitives,
+        &cluster_planes,
+        0.1,
+        &bounds,
+        &mut dropped,
+        None,
+    );
     let mut kept: Vec<f64> = surfaces.iter().map(|s| s.area).collect();
     kept.sort_by(|a, b| b.total_cmp(a));
     assert_eq!(
@@ -127,4 +144,55 @@ fn collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest() {
         dropped, 2,
         "les deux plus petites sont comptées comme abandonnées"
     );
+}
+
+// Lot B1 : la matrice monde d'un nœud miroir (échelle négative), construite une fois par l'étape
+// et prêtée à collect_with_world, donne les mêmes surfaces au bit près que l'ancien chemin où
+// collect la reconstruisait elle-même.
+#[test]
+fn collect_with_world_matches_collect_for_a_mirrored_node() {
+    let g = json!({"nodes":[{"mesh":0,"scale":[-1.0,1.0,1.0]}],"meshes":[{}],"materials":[]});
+    let primitives = vec![flat_primitive(0, None, 1)];
+    let plane = Some(ClusterPlane {
+        normal: [0., 0., 1.],
+        offset: 0.0,
+        area: 10.0,
+    });
+    let cluster_planes = vec![vec![plane]];
+    let bounds = CoplanarBounds::default();
+
+    let mut dropped_auto = 0usize;
+    let auto = collect_one_node(
+        &g,
+        &primitives,
+        &cluster_planes,
+        0.001,
+        &bounds,
+        &mut dropped_auto,
+        None,
+    );
+    let world = crate::compiler_world::world_matrices(&g).expect("world monde");
+    let mut dropped_shared = 0usize;
+    let shared = collect_one_node(
+        &g,
+        &primitives,
+        &cluster_planes,
+        0.001,
+        &bounds,
+        &mut dropped_shared,
+        Some(&world),
+    );
+
+    assert_eq!(dropped_auto, dropped_shared);
+    assert_eq!(auto.len(), shared.len());
+    assert!(!auto.is_empty(), "le nœud miroir doit produire une surface");
+    for (a, s) in auto.iter().zip(&shared) {
+        assert_eq!(a.normal.map(f64::to_bits), s.normal.map(f64::to_bits));
+        assert_eq!(a.offset.to_bits(), s.offset.to_bits());
+        assert_eq!(a.key, s.key);
+        assert_eq!(a.area.to_bits(), s.area.to_bits());
+        assert_eq!(a.low.map(f64::to_bits), s.low.map(f64::to_bits));
+        assert_eq!(a.high.map(f64::to_bits), s.high.map(f64::to_bits));
+        assert_eq!(a.pages, s.pages);
+    }
 }
