@@ -21,7 +21,7 @@ pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
     index_values: &[u32],
-    proxy_demand: (f64, usize),
+    proxy_demand: crate::proxy::cut::CutDemand,
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let (dag, groups, tallies) = crate::dag::build_dag_tallied(pos, index_values, &|| check(o))?;
@@ -57,8 +57,7 @@ pub(super) fn build_dag_primitive(
     }
     // La coupe grossière du proxy se lit ici, où le DAG et les positions sont tous deux en main;
     // plus loin, les clusters n'existent plus que comme objets de cache.
-    let (proxy_threshold, proxy_cut) =
-        crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand.0, proxy_demand.1);
+    let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let depth = dag.iter().map(|c| c.level).max().unwrap_or(0);
     let mut level_stats = Vec::new();
     for level in 0..=depth {

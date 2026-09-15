@@ -1,7 +1,5 @@
 use crate::albedo::{srgb_to_linear, Palette};
-use crate::Result;
 use serde_json::Value;
-use std::collections::BTreeMap;
 use std::path::Path;
 
 /// La couleur moyenne d'une texture, décodée ici même. L'oracle ne lit pas l'aperçu du cache : il
@@ -35,12 +33,7 @@ fn texture_mean(g: &Value, directory: &Path, texture: u64) -> Option<[f64; 3]> {
 }
 
 /// L'albédo diffus linéaire de chaque matériau, lu sur la source et non sur le cache.
-pub fn palette(g: &Value, source: &Path) -> Result<Palette> {
-    let directory = source.parent().unwrap_or(Path::new(".")).to_path_buf();
-    let mut cache: BTreeMap<u64, Option<[f64; 3]>> = BTreeMap::new();
-    Ok(crate::albedo::palette(g, |texture| {
-        *cache
-            .entry(texture)
-            .or_insert_with(|| texture_mean(g, &directory, texture))
-    }))
+pub fn palette(g: &Value, source: &Path) -> Palette {
+    let directory = source.parent().unwrap_or(Path::new("."));
+    crate::albedo::palette(g, |texture| texture_mean(g, directory, texture))
 }

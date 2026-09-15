@@ -1,4 +1,4 @@
-use super::geometry::{albedo_of, cross, dot, normal_of, normalise, scale, sub};
+use super::geometry::{albedo_of, cross, normalise, sub, surface_at};
 use super::scene::World;
 use super::trace::{direct, scene_reach, trace};
 use super::OracleJob;
@@ -68,17 +68,7 @@ pub fn indirect(
         if !hit.found {
             continue;
         }
-        let touched = [
-            origin[0] + ray[0] * hit.distance,
-            origin[1] + ray[1] * hit.distance,
-            origin[2] + ray[2] * hit.distance,
-        ];
-        let facing = normal_of(world, hit.triangle);
-        let surface = if dot(facing, ray) > 0.0 {
-            scale(facing, -1.0)
-        } else {
-            facing
-        };
+        let (touched, surface) = surface_at(world, origin, ray, &hit);
         let albedo = albedo_of(world, hit.triangle);
         let mut arriving = direct(world, &job.lights, touched, surface);
         if depth > 0 {
@@ -136,17 +126,7 @@ pub fn render_row(job: &OracleJob, world: &World, y: usize, row: &mut [f32]) {
         if !hit.found {
             continue;
         }
-        let point = [
-            job.camera.position[0] + ray[0] * hit.distance,
-            job.camera.position[1] + ray[1] * hit.distance,
-            job.camera.position[2] + ray[2] * hit.distance,
-        ];
-        let facing = normal_of(world, hit.triangle);
-        let surface = if dot(facing, ray) > 0.0 {
-            scale(facing, -1.0)
-        } else {
-            facing
-        };
+        let (point, surface) = surface_at(world, job.camera.position, ray, &hit);
         let seed = (y as u64) << 32 | x as u64;
         let value = indirect(
             job,

@@ -40,13 +40,9 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
     );
     // Trois programmes, jamais une branche : la vue sans éclairage, le contrat, et le contrat plus
     // le rebond. Une session sans rebond exécute ainsi exactement le nuanceur d'avant.
-    const variants: Record<'direct' | 'bounce', { program?: DeferredProgram; pending?: unknown }> =
-      {
-        direct: {},
-        bounce: {},
-      };
-    let contractPending: Promise<unknown> | undefined,
-      active: DeferredProgram = unlit;
+    type Variant = { program?: DeferredProgram; pending?: Promise<unknown> };
+    const variants: Record<'direct' | 'bounce', Variant> = { direct: {}, bounce: {} };
+    let active: DeferredProgram = unlit;
     const packed = new Float32Array(32);
     // Les vues de diagnostic sortent des valeurs brutes : ni ACES, ni sRGB, ni fond composé. La
     // vue d'irradiance indirecte en est une, et c'est l'éclairage qui le dit, pas l'appelant.
@@ -60,10 +56,6 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
       /** Vrai quand l'image en cours est rendue par un programme du contrat. */
       get usesContract() {
         return active !== unlit;
-      },
-      /** Vrai quand l'image en cours porte réellement le rebond, et non seulement le direct. */
-      get usesBounce() {
-        return active === variants.bounce.program;
       },
       update(
         inverseViewProjection: readonly number[],
@@ -100,10 +92,9 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
         onFailure?: (error: unknown) => void,
       ) {
         const wantsBounce = wantsContract && !!direct.bounceGrid && !!direct.probes;
-        const wanted = wantsBounce ? 'bounce' : 'direct';
-        const variant = variants[wanted];
-        if (wantsContract && !variant.program && !variant.pending) {
-          const pending = createDeferredProgram(
+        const variant = variants[wantsBounce ? 'bounce' : 'direct'];
+        if (wantsContract && !variant.program && !variant.pending)
+          variant.pending = createDeferredProgram(
             device,
             {
               lighting: wantsBounce ? BOUNCE_LIGHTING_SHADER : DIRECT_LIGHTING_SHADER,
@@ -117,18 +108,15 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
             (program) => (variant.program = program),
             (error) => onFailure?.(error),
           );
-          variant.pending = pending;
-          contractPending = pending;
-        }
         // Le programme du rebond met une image ou deux à se compiler : celui du contrat rend
         // l'image en attendant, sans rebond, plutôt que de faire attendre l'image.
         active =
           (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
         active.bind(surface, depth, hdr, direct);
       },
-      /** Attend la compilation du programme du contrat, quand une est en cours. */
+      /** Attend les compilations de programmes du contrat en cours, quand il y en a. */
       settle() {
-        return Promise.resolve(contractPending).then(() => {});
+        return Promise.all([variants.direct.pending, variants.bounce.pending]).then(() => {});
       },
       light(encoder: GPUCommandEncoder, target: GPUTextureView) {
         const group = active.lightGroup;

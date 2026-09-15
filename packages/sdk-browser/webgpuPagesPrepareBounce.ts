@@ -28,7 +28,8 @@ const BOUNCE_APPROXIMATIONS = [
 export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { bounce, lights, context } = rt;
   if (bounce.probes || bounce.pending || bounce.reason) return;
-  if (!bounce.wanted) bounce.reason = 'the host turned the bounce off';
+  if (!bounce.wanted)
+    bounce.reason = 'the bounce is off by default; create the explorer with bounce: true';
   else if (!context.readSceneProxy)
     bounce.reason = 'the cache carries no resident proxy; recompile it with this compiler';
   else if (!lights.buffer) bounce.reason = 'the declared-light buffer is unavailable';

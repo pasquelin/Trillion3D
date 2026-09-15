@@ -5,9 +5,10 @@
 //! une pose de caméra et une liste de lampes déclarées. Le moteur répond à la même question par sa
 //! vue de mesure ; le harnais compare les deux.
 //!
-//! Il ne partage ni le proxy, ni le BVH du cache, ni la grille de sondes : il relit la source,
-//! construit son propre arbre et intègre par Monte-Carlo. Le seul modèle commun est celui des
-//! lampes et du diffus de Lambert, qui est le contrat lui-même.
+//! Il ne partage ni le proxy, ni les nœuds écrits dans le cache, ni la grille de sondes : il relit
+//! la source et intègre par Monte-Carlo. Il construit son arbre avec `proxy::bvh`, le seul
+//! constructeur de BVH du dépôt côté Rust — c'est le code qui est partagé, jamais la géométrie ni
+//! la coupe. L'autre modèle commun est celui des lampes et du diffus de Lambert, le contrat même.
 use crate::Result;
 use serde_json::{json, Value};
 use std::path::PathBuf;

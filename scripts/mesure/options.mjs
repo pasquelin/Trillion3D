@@ -105,8 +105,9 @@ function resolveDist(value, label, root) {
   return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)}` };
 }
 
-/** Les arguments `--nom valeur` / `--nom=valeur` de la ligne de commande. */
-function parseArgs(argv) {
+/** Les arguments `--nom valeur` / `--nom=valeur` de la ligne de commande. Partagé par les harnais :
+ *  un seul endroit sait ce qu'un drapeau veut dire, et une valeur absente vaut `'true'`. */
+export function parseArgs(argv) {
   const flags = new Map();
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
