@@ -146,8 +146,8 @@ export interface BackendContext {
   /** Les identifiants des lampes que le fichier source portait, dans l'ordre du cache. L'hôte les
    *  relit par `explorer.importedLights()` pour les régler ou les retirer une à une. */
   importedLightIds?: string[];
-  /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume, et elle apparaît dès qu'une
-   *  lampe est déclarée et que le cache porte un proxy résident. */
+  /** La lumière qui rebondit. Éteinte par défaut : son étape reste au-dessus de la barre d'une
+   *  milliseconde mesurée sur les trois vues ; `true` l'allume pour toute la session. */
   bounce?: boolean;
   /** Durée visée de l'étape « Rebond » sur la carte graphique, par image, en millisecondes.
    *  Par défaut `BOUNCE_SETTINGS.budgetMs` (0,8 ms) : c'est une consigne, pas une promesse. */
