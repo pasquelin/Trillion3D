@@ -1,7 +1,5 @@
 import { writeRotationQuaternion } from './mathMatrix4Trs.ts';
-import { crossVector3 } from './mathVector.ts';
 import { setNodeQuaternion, type TransformTree } from './mathTransformTree.ts';
-import { normalize } from './mathTransformTreeRead.ts';
 import { updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
 
 /**
@@ -12,36 +10,66 @@ import { updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
  * à échelle non uniforme ou cisaillé n'est pas compensé exactement.
  */
 
-const axisX = new Float64Array(3),
-  axisY = new Float64Array(3),
-  axisZ = new Float64Array(3),
-  rows = new Float64Array(9),
+const rows = new Float64Array(9),
   own = new Float64Array(4),
   parentRotation = new Float64Array(4);
 
-const lengthSquared = (v: Float64Array) => v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-
-/** Base `lookAt` de `Matrix4` : `z = eye − target`, `x = up × z`, `y = z × x`, rangée dans `rows`. */
-function lookAtRows(eye: ArrayLike<number>, target: ArrayLike<number>, up: ArrayLike<number>) {
-  axisZ[0] = eye[0] - target[0];
-  axisZ[1] = eye[1] - target[1];
-  axisZ[2] = eye[2] - target[2];
-  if (lengthSquared(axisZ) === 0) axisZ[2] = 1;
-  normalize(axisZ);
-  crossVector3(axisX, up, axisZ);
-  if (lengthSquared(axisX) === 0) {
-    if (Math.abs(up[2]) === 1) axisZ[0] += 0.0001;
-    else axisZ[2] += 0.0001;
-    normalize(axisZ);
-    crossVector3(axisX, up, axisZ);
+/**
+ * Base `lookAt` de `Matrix4` : `z = eye − target`, `x = up × z`, `y = z × x`, rangée dans `rows`.
+ * Tout en scalaires : le haut est lu une fois, et aucun appel ne partage ses retours de type avec
+ * d'autres appelants.
+ */
+function lookAtRows(
+  world: Float64Array,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  up: ArrayLike<number>,
+  viewer: boolean,
+) {
+  const ux = up[0],
+    uy = up[1],
+    uz = up[2];
+  // Une caméra ou une lampe vise de l'œil vers la cible, un objet de la cible vers l'œil.
+  const wx = world[at + 12],
+    wy = world[at + 13],
+    wz = world[at + 14];
+  let zx = viewer ? wx - x : x - wx,
+    zy = viewer ? wy - y : y - wy,
+    zz = viewer ? wz - z : z - wz;
+  if (zx * zx + zy * zy + zz * zz === 0) zz = 1;
+  let inverse = 1 / (Math.sqrt(zx * zx + zy * zy + zz * zz) || 1);
+  zx *= inverse;
+  zy *= inverse;
+  zz *= inverse;
+  let xx = uy * zz - uz * zy,
+    xy = uz * zx - ux * zz,
+    xz = ux * zy - uy * zx;
+  if (xx * xx + xy * xy + xz * xz === 0) {
+    if (Math.abs(uz) === 1) zx += 0.0001;
+    else zz += 0.0001;
+    inverse = 1 / (Math.sqrt(zx * zx + zy * zy + zz * zz) || 1);
+    zx *= inverse;
+    zy *= inverse;
+    zz *= inverse;
+    xx = uy * zz - uz * zy;
+    xy = uz * zx - ux * zz;
+    xz = ux * zy - uy * zx;
   }
-  normalize(axisX);
-  crossVector3(axisY, axisZ, axisX);
-  for (let row = 0; row < 3; row++) {
-    rows[row * 3] = axisX[row];
-    rows[row * 3 + 1] = axisY[row];
-    rows[row * 3 + 2] = axisZ[row];
-  }
+  inverse = 1 / (Math.sqrt(xx * xx + xy * xy + xz * xz) || 1);
+  xx *= inverse;
+  xy *= inverse;
+  xz *= inverse;
+  rows[0] = xx;
+  rows[1] = zy * xz - zz * xy;
+  rows[2] = zx;
+  rows[3] = xy;
+  rows[4] = zz * xx - zx * xz;
+  rows[5] = zy;
+  rows[6] = xz;
+  rows[7] = zx * xy - zy * xx;
+  rows[8] = zz;
 }
 
 /** `extractRotation` de la matrice monde `m` : chaque colonne multipliée par `1 / sa longueur`. */
@@ -54,9 +82,6 @@ function extractRotationRows(m: ArrayLike<number>) {
     rows[6 + column] = m[c + 2] * inverse;
   }
 }
-
-const eye = new Float64Array(3),
-  target = new Float64Array(3);
 
 /**
  * Tourne `node` vers le point monde `(x, y, z)`. `viewer` vaut vrai pour une caméra ou une lampe, qui
@@ -73,15 +98,7 @@ export function lookAtNode(
   viewer: boolean,
 ) {
   updateNodeWorldMatrix(tree, node, true, false);
-  const world = tree.worldViews[node];
-  eye[0] = world[12];
-  eye[1] = world[13];
-  eye[2] = world[14];
-  target[0] = x;
-  target[1] = y;
-  target[2] = z;
-  if (viewer) lookAtRows(eye, target, up);
-  else lookAtRows(target, eye, up);
+  lookAtRows(tree.world, node * 16, x, y, z, up, viewer);
   writeRotationQuaternion(own, rows);
   const parent = tree.parent[node];
   if (parent >= 0) {
