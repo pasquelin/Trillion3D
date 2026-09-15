@@ -166,23 +166,39 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 }`;
 
 /**
- * Les mêmes lampes déclarées, sans liste par tuile : ce que lit une passe qui n'a pas de tuiles.
+ * Les lampes déclarées qui éclairent une surface de mélange, prises sur la **tranche de mélange** de
+ * la liste de sa tuile : celle qui va du plan proche au fond opaque, et qui prend le tronc entier là
+ * où nul opaque ne couvre la tuile. C'est la tranche qu'il faut, parce qu'une surface de mélange est
+ * dessinée devant l'opaque de son pixel : la tranche des opaques lui retirerait des lampes
+ * déclarées, et un feuillage posé devant le ciel n'en garderait aucune.
  *
- * Les listes tuilées sont bâties sur la profondeur des opaques. Une tuile que nul opaque ne couvre —
- * le ciel derrière un feuillage — n'y retient aucune lampe, et une surface transparente posée devant
- * le premier opaque de sa tuile tombe hors de la boîte monde qui a filtré ces lampes. S'en servir
- * éteindrait des surfaces que des lampes déclarées éclairent : fidélité avant vitesse, la boucle est
- * donc bornée par `MAX_LIGHTS`, constante connue avant l'image (X2), et chaque lampe hors portée
- * sort par le fenêtrage de `directIncidence`. Le remplacement de cette boucle par un rayon d'ombre
- * stochastique par pixel est un lot ultérieur (RX2).
+ * La boucle reste **exacte**, et sa somme est celle de la boucle sur toutes les lampes, au bit près :
+ * une lampe absente de la liste ne rencontre aucun point de la tranche — sa sphère de portée ne
+ * touche pas la boîte monde —, donc `declaredLight` lui aurait rendu exactement `vec3f(0.0)`, et
+ * retirer un zéro d'une somme de flottants ne la change pas. Ce qui change est le nombre de lampes
+ * parcourues, donc le nombre de lectures d'atlas d'ombre.
+ *
+ * Sans liste — un appareil qui n'a pas pu gréer la passe de tuiles —, la boucle retombe sur les
+ * lampes déclarées, bornée par `MAX_LIGHTS`, constante connue avant l'image (X2).
  */
 export const DECLARED_LIGHTING_WGSL = `
 ${lightingBase(SUN_FAR_STUB_WGSL)}
-fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  var result=vec3f(0.0);
- let count=min(directLights.count,MAX_LIGHTS);
- for(var index=0u;index<count;index++){
-  result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
+ let tilesX=u32(uni.lightTiles.x);
+ let tilesY=u32(uni.lightTiles.y);
+ let tile=vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);
+ if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
+  let count=min(directLights.count,MAX_LIGHTS);
+  for(var index=0u;index<count;index++){
+   result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
+  }
+  return result;
+ }
+ let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
+ let kept=min(tileLights[base+2u],MAX_TILE_LIGHTS);
+ for(var index=0u;index<kept;index++){
+  result+=declaredLight(directLights.items[tileLights[base+TILE_BLEND_BASE+index]],rgb,metal,rough,N,V,P,ao);
  }
  return result;
 }`;

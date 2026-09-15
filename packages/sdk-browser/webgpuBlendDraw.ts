@@ -21,6 +21,7 @@ function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
     shadowSampler: placeholders.sampler,
     bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
     probes: contract.probes ?? placeholders.probes,
+    tileLights: contract.tiles ?? placeholders.tiles,
   };
 }
 
@@ -33,7 +34,8 @@ function sameLighting(previous: BlendLighting | undefined, current: BlendLightin
     previous.shadowAtlas === current.shadowAtlas &&
     previous.shadowSampler === current.shadowSampler &&
     previous.bounceGrid === current.bounceGrid &&
-    previous.probes === current.probes
+    previous.probes === current.probes &&
+    previous.tileLights === current.tileLights
   );
 }
 

@@ -51,6 +51,8 @@ export type BlendLighting = {
   shadowSampler: GPUSampler;
   bounceGrid: GPUBuffer;
   probes: GPUBuffer;
+  /** Les listes de lampes par tuile : la passe de mélange lit la tranche qui la concerne. */
+  tileLights: GPUBuffer;
 };
 
 /** Les ressources du groupe d'un maillage transparent : le maillage lui-même et la scène. */
@@ -159,6 +161,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.shadowSampler, resource: r.shadowSampler },
     { binding: b.bounceGrid, resource: { buffer: r.bounceGrid } },
     { binding: b.probes, resource: { buffer: r.probes } },
+    { binding: b.tileLights, resource: { buffer: r.tileLights } },
     { binding: b.volume, resource: { buffer: r.volume, size: r.volumeSize } },
     { binding: b.backdrop, resource: r.backdrop },
     { binding: b.backdropDepth, resource: r.backdropDepth },

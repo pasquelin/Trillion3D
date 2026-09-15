@@ -47,7 +47,7 @@ ${TRIANGLE_PALETTE_WGSL}
 }
 `;
 
-export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,}
+export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,lightTiles:vec4f,}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
@@ -69,6 +69,7 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.clusterIds}) var<storage,read> clusterIds:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
+@group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TRANSMISSION_WGSL}
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
@@ -174,7 +175,7 @@ ${TRIANGLE_PALETTE_WGSL}
  let clamped=clamp(rough,0.0525,1.0);
  if(!unlit&&(uni.flags&1u)!=0u){
   let m=clamp(metal,0.0,1.0);
-  rgb=declaredLighting(rgb,m,clamped,N,V,in.view,ao)+bounceLighting(rgb,m,N,in.view,ao)+emissive;
+  rgb=declaredLighting(rgb,m,clamped,N,V,in.view,ao,in.position.xy)+bounceLighting(rgb,m,N,in.view,ao)+emissive;
  }
  // La classe 3 relit le fond figé au lieu de le mélanger par alpha. Le drapeau vient du matériau,
  // et cette passe est la seule à le porter : une vue sans éclairage transmet toujours ce qu'elle
