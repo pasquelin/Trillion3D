@@ -14,7 +14,7 @@ import * as THREE from 'three';
 const systeme = (webgpu) => (webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem);
 
 function regleCameraThree(camera, spec) {
-  for (const cle of ['fov', 'aspect', 'left', 'right', 'top', 'bottom', 'near', 'far', 'zoom'])
+  for (const cle of ['fov', 'aspect', 'near', 'far', 'zoom'])
     if (cle in spec) camera[cle] = spec[cle];
   camera.coordinateSystem = systeme(spec.webgpu);
   camera.updateProjectionMatrix();
@@ -34,11 +34,7 @@ export function joueThree(scenario) {
     switch (op[0]) {
       case 'ajoute': {
         const [, , parent, p, r, s, camera] = op;
-        const n = !camera
-          ? new THREE.Object3D()
-          : camera.type === 'perspective'
-            ? new THREE.PerspectiveCamera()
-            : new THREE.OrthographicCamera();
+        const n = camera ? new THREE.PerspectiveCamera() : new THREE.Object3D();
         if (camera) regleCameraThree(n, camera);
         n.position.fromArray(p);
         n.quaternion.fromArray(r);

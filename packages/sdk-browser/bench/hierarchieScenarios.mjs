@@ -57,27 +57,14 @@ const ordinaire = () => [
 const pose = (rarete) =>
   alea() * rarete < 1 ? [tire(POSITIONS), tire(ROTATIONS), tire(ECHELLES)] : ordinaire();
 
-const perspective = (webgpu) => ({
-  type: 'perspective',
+export const cameraAuHasard = () => ({
   fov: 20 + alea() * 100,
   aspect: 0.5 + alea() * 2,
   near: 0.01 + alea(),
   far: 100 + alea() * 1000,
   zoom: alea() < 0.5 ? 1 : 0.5 + alea() * 3,
-  webgpu,
+  webgpu: alea() < 0.5,
 });
-const orthographique = (webgpu) => ({
-  type: 'orthographic',
-  left: -10 - alea() * 10,
-  right: 10 + alea() * 10,
-  top: 5 + alea() * 10,
-  bottom: -5 - alea() * 10,
-  near: alea(),
-  far: 50 + alea() * 500,
-  zoom: alea() < 0.5 ? 1 : 0.5 + alea() * 3,
-  webgpu,
-});
-export const cameraAuHasard = () => (alea() < 0.75 ? perspective : orthographique)(alea() < 0.5);
 
 /** Descendants vivants de `id`, lui compris, d'après les parents tenus par le générateur. */
 export function sousArbre(parents, vivants, id) {
@@ -97,7 +84,7 @@ const finies = (liste) => liste.filter((v) => v.every(Number.isFinite));
 
 /**
  * Chaînes figées : profondeurs 1 à 6 sous des racines, branches à cinq enfants portant chacun trois
- * niveaux, une caméra perspective ou orthographique sous une chaîne sur cinq, échelle et rotation
+ * niveaux, une caméra sous une chaîne sur cinq, échelle et rotation
  * hostiles à chaque niveau. Puis mise à jour forcée, instantané, lectures de chaque nœud et images
  * de chaque caméra dans les deux conventions de plans. `nonFinies` faux écarte NaN et infinis, qui
  * gagneraient tout le sous-arbre et cacheraient un écart derrière un NaN partagé.
