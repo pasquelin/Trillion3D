@@ -87,6 +87,33 @@ export {
 } from './mathFrustum.ts';
 export { frustumClipBox, frustumExcludesBox } from './mathFrustumBox.ts';
 export { boxConeRejects } from './mathCone.ts';
+export {
+  addTransformNode,
+  createTransformTree,
+  setNodeAutoUpdate,
+  setNodeLocalMatrix,
+  setNodePosition,
+  setNodeQuaternion,
+  setNodeScale,
+  type TransformTree,
+} from './mathTransformTree.ts';
+export { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
+export { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
+export {
+  nodeWorldDirection,
+  nodeWorldMirrorsFaces,
+  nodeWorldPosition,
+  nodeWorldQuaternion,
+  nodeWorldScale,
+} from './mathTransformTreeRead.ts';
+export { lookAtNode } from './mathTransformTreeLookAt.ts';
+export {
+  createCameraFrame,
+  orthographicProjection,
+  perspectiveProjection,
+  updateCameraFrame,
+  type CameraFrame,
+} from './mathCamera.ts';
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)
     throw new Error('Invalid RGBA images');
