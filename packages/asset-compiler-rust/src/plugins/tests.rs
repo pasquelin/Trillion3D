@@ -5,6 +5,7 @@ use std::{fs, path::PathBuf};
 
 mod image_registry;
 mod router;
+mod tga;
 
 /// Un dossier jetable, nommé par le cas qui l'utilise.
 fn temp_dir(tag: &str) -> PathBuf {
