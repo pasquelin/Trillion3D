@@ -76,5 +76,25 @@ export function installSceneLighting(
     update();
   };
   refresh();
-  return { update, refresh };
+  return {
+    update,
+    refresh,
+    /** Vrai dès qu'une lampe du graphe source est installée : le seul signal de la vue éclairée. */
+    get lit() {
+      return pairs.length > 0;
+    },
+  };
+}
+
+/**
+ * Ce qu'un moteur rendu par Three publie de son éclairage : de quoi le rafraîchir, et la vue qu'il
+ * rend. Sans lampe installée, l'hôte compose par l'identité plutôt que par l'exposition et ACES.
+ */
+export function sceneLightingApi(lighting: ReturnType<typeof installSceneLighting>) {
+  return {
+    refreshSceneLighting: () => lighting.refresh(),
+    get sceneLit() {
+      return lighting.lit;
+    },
+  };
 }
