@@ -23,7 +23,7 @@ fn an_undecodable_image_is_reported_and_yields_no_preview() {
         o: &o,
         g: &g,
         bin: &[],
-        source_dir: &dir,
+        image_root: &dir,
         meshes: &meshes,
         view_map: &view_map,
     })
@@ -47,7 +47,7 @@ fn a_missing_image_file_is_reported_and_yields_no_preview() {
         o: &o,
         g: &g,
         bin: &[],
-        source_dir: &dir,
+        image_root: &dir,
         meshes: &meshes,
         view_map: &view_map,
     })
