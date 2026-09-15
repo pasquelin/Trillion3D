@@ -18,6 +18,8 @@ export function createShadowSliceTable() {
     side = new Int32Array(MAX_SHADOW_SLICES),
     revision = new Uint32Array(MAX_SHADOW_SLICES),
     movedEpoch = new Uint32Array(MAX_SHADOW_SLICES),
+    /** Révision de la vue au dernier dessin : une cascade du soleil suit la caméra, pas la lampe. */
+    viewEpoch = new Uint32Array(MAX_SHADOW_SLICES),
     drawn = new Uint8Array(MAX_SHADOW_SLICES);
   const table = {
     atlas,
@@ -26,6 +28,7 @@ export function createShadowSliceTable() {
     side,
     revision,
     movedEpoch,
+    viewEpoch,
     drawn,
     free(slice: number) {
       if (slice < 0) return;
@@ -66,16 +69,29 @@ export function createShadowSliceTable() {
       if (!got) taken[slice] = 0;
       return got;
     },
-    /** Marque la tranche comme dessinée à cette révision de lampe et cet état du monde. */
-    refreshed(slice: number, lightRevision: number, worldEpoch: number) {
+    /** Marque la tranche comme dessinée à cette révision de lampe, du monde et de la vue. */
+    refreshed(slice: number, lightRevision: number, worldEpoch: number, view: number) {
       revision[slice] = lightRevision;
       movedEpoch[slice] = worldEpoch;
+      viewEpoch[slice] = view;
       drawn[slice] = 1;
     },
-    stale(slice: number, lightRevision: number, worldEpoch: number, touched: boolean) {
+    /**
+     * Une tranche est périmée si elle n'a jamais été dessinée, si sa lampe a changé, si un objet a
+     * bougé dans son emprise, ou — pour une carte qui suit la caméra — si la vue a bougé. Tout le
+     * reste garde sa carte en cache : une lampe immobile dans une scène immobile ne coûte rien.
+     */
+    stale(
+      slice: number,
+      lightRevision: number,
+      worldEpoch: number,
+      touched: boolean,
+      view: number,
+    ) {
       return (
         !drawn[slice] ||
         revision[slice] !== lightRevision ||
+        viewEpoch[slice] !== view ||
         (movedEpoch[slice] !== worldEpoch && touched)
       );
     },

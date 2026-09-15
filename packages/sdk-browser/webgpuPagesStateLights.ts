@@ -36,6 +36,8 @@ export interface WebgpuLightState {
   shadowsUpdated: number;
   /** Faces planifiées, et dessins indirects réellement encodés par la dernière passe : un par face. */
   shadowFaces: number;
+  /** Part de ces faces qui sont des cascades de soleil : le coût du soleil, séparé des ponctuelles. */
+  sunCascades: number;
   shadowDraws: number;
   /** Appels de dessin réellement encodés par la passe d'ombres : une remise au fond et un dessin
    *  indirect par face redessinée. C'est le coût par lampe à ombre. */
@@ -62,6 +64,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     lightsActive: 0,
     shadowsUpdated: 0,
     shadowFaces: 0,
+    sunCascades: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,
     shadowReason: null,
