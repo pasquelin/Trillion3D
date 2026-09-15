@@ -90,7 +90,7 @@ par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre no
   `let` irréfutable sur une variante de `DecodedImage` : le contrat a deux sorties, et un test qui
   en suppose une seule doit le dire par un appel qui panique sur l'autre.
 - **La provenance** : d'où vient la spécification suivie, quelle bibliothèque, quelle licence. Elle
-  se met dans l'entête du module et dans `orchestration/JOURNAL.md`.
+  se met dans l'entête du module et dans le message de commit.
 
 ## Interdit
 
