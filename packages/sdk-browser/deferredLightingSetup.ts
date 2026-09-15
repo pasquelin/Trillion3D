@@ -1,8 +1,9 @@
 import { SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 
 /**
- * Les liaisons de la passe différée. Le programme de la scène écrite s'arrête à la liaison 6 ; celui
- * du contrat ajoute les lampes, leurs listes par tuile, leurs tranches d'ombre et l'atlas.
+ * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
+ * le programme du contrat ajoute les lampes déclarées, leurs listes par tuile, leurs tranches
+ * d'ombre et l'atlas. Aucun des deux ne lit de lumière écrite dans la scène : il n'y en a plus.
  */
 export function createDeferredLayouts(device: GPUDevice, direct: boolean) {
   const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
@@ -12,17 +13,14 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean) {
       sampleType: binding === 3 ? 'uint' : binding === 4 ? 'depth' : 'unfilterable-float',
     },
   }));
-  entries.push(
-    { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-    { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-  );
+  entries.push({ binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } });
   if (direct)
     entries.push(
+      { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 7, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 9, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 10, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
-      { binding: 11, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
+      { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
+      { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
     );
   return {
     lighting: device.createBindGroupLayout({ entries }),

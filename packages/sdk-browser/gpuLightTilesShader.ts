@@ -82,7 +82,10 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  let count=min(lights.count,MAX_LIGHTS);
  if(lane<count&&atomicLoad(&covered)==1u){
   let light=lights.items[lane];
-  if(sphereTouchesBox(light.positionRange.xyz,light.positionRange.w)){
+  // Une lampe directionnelle porte partout : aucune boîte de tuile ne peut la rejeter. Les autres
+  // ne sont retenues que si leur sphère de portée touche la boîte monde de la tuile.
+  let sun=light.params.x>KIND_SUN-0.5;
+  if(sun||sphereTouchesBox(light.positionRange.xyz,light.positionRange.w)){
    atomicOr(&hits[lane/32u],1u<<(lane%32u));
   }
  }

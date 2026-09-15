@@ -12,6 +12,9 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
 - `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient
   `native/full`), pour comparer deux compilateurs sur la même scène. Sans l'option, le côté lit le
   cache du Lab. Chaque cache nommé est rendu sous `/cache/<côté>/`.
+- `--ressources <dossier>` : le dossier que le glTF d'un cache compilé désigne par chemin relatif,
+  monté sous `/assets/`. Sans lui, un cache compilé sans base de ressources sort ses textures en 404
+  et la mesure porterait sur des matériaux sans texture — ce ne serait plus la scène.
 - `--vues` parmi `generale`, `sol`, `rue`, `detail` (banc 15, pathVersion 5, vérifiée contre le Lab à
   chaque exécution) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut, jamais 5174).
 - `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
@@ -21,8 +24,15 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   `lampes.mjs` — une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus
   de son plancher, portée déduite de la maille. Aucune scène n'est nommée. `--ombres on|off` (par
   défaut `on`) dit si elles projettent une ombre ; `--lampe-mobile` déplace la première d'entre elles
-  d'un petit cercle à chaque image, sans lui faire quitter sa maille. Avec `--lampes`, le ciel du
-  mode contrat est déclaré : l'image est celle d'une scène de nuit éclairée par ces seules lampes.
+  d'un petit cercle à chaque image, sans lui faire quitter sa maille.
+- `--soleil` : ajoute la lampe directionnelle générique de `lampes.mjs` — direction, couleur et
+  intensité fixes, les mêmes pour n'importe quel modèle — avec ses cascades d'ombre, soumises à
+  `--ombres` comme les ponctuelles. Combinable avec `--lampes`.
+- `--camera-mobile` : la pose avance d'un cran de la trajectoire du banc à chaque image mesurée, au
+  lieu de rejouer la même. C'est ce qui distingue une scène immobile d'une caméra qui bouge — et
+  donc, pour le soleil, une cascade en cache d'une cascade redessinée à chaque image.
+- Sans `--lampes` ni `--soleil`, aucune lampe n'est déclarée : le moteur rend alors sa vue sans
+  éclairage, l'albédo brut des matériaux. C'est son comportement par défaut, pas une option du banc.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
 - `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
   mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les

@@ -35,7 +35,6 @@ export interface DeferredSources {
 }
 export interface DeferredBindings {
   uniform: GPUBuffer;
-  sceneLights: GPUBuffer;
   directLights: GPUBuffer;
   placeholders: {
     tiles: GPUBuffer;
@@ -49,8 +48,8 @@ export type DeferredProgram = Awaited<ReturnType<typeof createDeferredProgram>>;
 
 /**
  * Un programme de la passe différée : ses deux modules, ses trois pipelines, et les groupes de
- * liaison qu'il garde tant que ses ressources ne changent pas. Le moteur en tient deux — celui de la
- * scène écrite et celui du contrat — et ne compile le second que lorsqu'une lampe le demande.
+ * liaison qu'il garde tant que ses ressources ne changent pas. Le moteur en tient deux — la vue
+ * sans éclairage et celui du contrat — et ne compile le second que lorsqu'une lampe le demande.
  */
 export async function createDeferredProgram(
   device: GPUDevice,
@@ -102,15 +101,14 @@ export async function createDeferredProgram(
         ...surface.views().map((resource, binding) => ({ binding, resource })),
         { binding: 4, resource: depth },
         { binding: 5, resource: { buffer: bindings.uniform } },
-        { binding: 6, resource: { buffer: bindings.sceneLights } },
       ];
       if (sources.direct)
         entries.push(
-          { binding: 7, resource: { buffer: bindings.directLights } },
-          { binding: 8, resource: { buffer: tiles } },
-          { binding: 9, resource: { buffer: slices } },
-          { binding: 10, resource: atlas },
-          { binding: 11, resource: placeholders.sampler },
+          { binding: 6, resource: { buffer: bindings.directLights } },
+          { binding: 7, resource: { buffer: tiles } },
+          { binding: 8, resource: { buffer: slices } },
+          { binding: 9, resource: atlas },
+          { binding: 10, resource: placeholders.sampler },
         );
       lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
       composeGroup = device.createBindGroup({

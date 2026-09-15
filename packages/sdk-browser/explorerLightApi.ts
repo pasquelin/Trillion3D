@@ -4,6 +4,7 @@ import {
   type SceneEnvironment,
   type SceneLight,
   type SceneLightStore,
+  type SceneLightingView,
 } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
@@ -42,6 +43,20 @@ export function createExplorerLightApi(inputs: Inputs) {
     },
     get environment(): SceneEnvironment | undefined {
       return store?.environment ? { ...store.environment } : undefined;
+    },
+    /**
+     * La vue demandée. `auto` — la valeur de départ — rend la vue sans éclairage tant qu'aucune
+     * lampe n'est déclarée, et l'éclairage réel dès qu'il y en a une. `unlit` force la vue de
+     * diagnostic d'albédo brut même avec des lampes ; `lit` force l'éclairage réel, donc une image
+     * noire dans une scène sans lampe — c'est la règle, pas un défaut (P6).
+     */
+    get lightingView(): SceneLightingView {
+      return store?.lightingView ?? 'auto';
+    },
+    setLightingView(view: SceneLightingView) {
+      check();
+      required().setView(view);
+      notify();
     },
     addLight(light: SceneLight) {
       check();

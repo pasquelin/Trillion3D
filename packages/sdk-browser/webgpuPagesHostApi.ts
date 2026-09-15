@@ -29,7 +29,8 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
   rt.diag.engineDiagnostic('direct-lighting-changed', 'Lampes du contrat actualisées', {
     version: 1,
     lights: lights.store.count,
-    mode: lights.store.mode,
+    view: lights.store.lightingView,
+    unlit: lights.store.unlit,
     exposure: lights.store.environment?.exposure ?? 1,
     shadowsPending: lights.plan.pending,
   });

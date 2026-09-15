@@ -5,14 +5,14 @@ import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Les huit flottants que la passe différée relit : lampes, tuiles, mode, ciel et exposition. */
-const directParams = new Float32Array(8);
+/** Les quatre flottants que la passe différée relit : lampes, tuiles en X et Y, exposition. */
+const directParams = new Float32Array(4);
 
 /**
  * L'éclairage direct d'une image, dans l'ordre : ordonnancement des ombres et écriture des matrices,
  * passe de profondeur dans l'atlas, listes de lampes par tuile, puis les paramètres que la résolution
- * différée relira. Une scène sans lampe du contrat ne lance ni ombres ni listes : elle ne paie rien
- * et l'image sort exactement comme avant.
+ * différée relira. Une scène sans lampe déclarée ne lance ni ombres ni listes : elle ne paie rien,
+ * et la vue sans éclairage sort son albédo brut.
  */
 export function encodeDirectLights(
   rt: WebgpuPagesRuntime,
@@ -27,15 +27,12 @@ export function encodeDirectLights(
   const active = store.count;
   lights.lightsActive = active;
   const environment = store.environment;
-  directParams[0] = 0;
-  directParams[1] = 0;
-  directParams[2] = 0;
-  directParams[3] = environment ? 1 : 0;
-  directParams[4] = environment ? environment.skyColor[0] : 0;
-  directParams[5] = environment ? environment.skyColor[1] : 0;
-  directParams[6] = environment ? environment.skyColor[2] : 0;
-  directParams[7] = environment ? environment.exposure : 1;
-  if (!active || !tiles || !gpu.depthView) return directParams;
+  directParams.fill(0);
+  // L'exposition n'est pas une lumière : elle règle la conversion de la radiance en image, et ne
+  // peut rien éclairer que les lampes déclarées n'éclairent déjà.
+  directParams[3] = environment ? environment.exposure : 1;
+  // La vue sans éclairage ne lit ni liste de lampes ni atlas : elle n'en fait donc encoder aucun.
+  if (!active || store.unlit || !tiles || !gpu.depthView) return directParams;
   const faces = planShadowFaces(rt, camera);
   uploadSceneLights(device, lights);
   encodeShadowAtlas(rt, device, encoder, faces);
@@ -66,10 +63,13 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
   const { lights } = rt;
   return {
     contractLights: lights.lightsActive,
-    mode: lights.store.mode,
+    view: lights.store.lightingView,
+    unlit: lights.store.unlit,
     shadowsUpdated: lights.shadowsUpdated,
+    sunShadowsUpdated: lights.plan.sunUpdates,
     shadowsReused: lights.plan.reused,
     shadowFaces: lights.shadowFaces,
+    sunCascades: lights.sunCascades,
     shadowDraws: lights.shadowDraws,
     shadowsPending: lights.plan.pending,
     shadowsDenied: lights.plan.denied,
@@ -78,10 +78,14 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
   };
 }
 
-/** Vrai dès que l'hôte a déclaré une lampe ou un environnement : le programme du contrat s'impose. */
+/**
+ * Vrai quand l'image doit être éclairée par les lampes déclarées. Faux dans la vue sans éclairage,
+ * qu'elle soit demandée par l'hôte ou qu'elle vienne du défaut d'une scène sans lampe : dans les
+ * deux cas le programme du contrat n'a rien à faire, et l'albédo brut sort tel quel.
+ */
 export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   const { store } = rt.lights;
-  return store.count > 0 || !!store.environment;
+  return store.count > 0 && !store.unlit;
 }
 
 const contractResources: DirectLightResources = {};

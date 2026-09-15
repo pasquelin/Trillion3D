@@ -1,9 +1,8 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import {
   COMPOSE_SHADER,
-  DEFERRED_LIGHTING_SHADER,
-  DIRECT_COMPOSE_SHADER,
   DIRECT_LIGHTING_SHADER,
+  UNLIT_LIGHTING_SHADER,
 } from './deferredLightingShaders.ts';
 import { createDeferredPlaceholders } from './deferredLightingSetup.ts';
 import {
@@ -11,51 +10,42 @@ import {
   type DeferredProgram,
   type DirectLightResources,
 } from './deferredLightingProgram.ts';
-export { FULLSCREEN_VERTEX, DEFERRED_LIGHTING_SHADER } from './deferredLightingShaders.ts';
+export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './deferredLightingShaders.ts';
 
 /** Étiquette de la passe mesurée ; `gpuLightingMs` est lu sous ce nom. */
 export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
-/** Sans lampe ni environnement déclaré : zéro lampe, zéro tuile, mode écrit, ciel noir, exposition 1. */
-const ZERO_DIRECT = [0, 0, 0, 0, 0, 0, 0, 1] as const;
+/** Sans lampe déclarée : zéro lampe, zéro tuile, exposition 1. */
+const ZERO_DIRECT = [0, 0, 0, 1] as const;
 
 /**
- * Le rassemblement différé. Deux programmes vivent ici : celui de la scène telle qu'elle est écrite,
- * identique au caractère près à celui d'avant l'éclairage direct, et celui du contrat. Le second
- * n'est compilé qu'à la première image qui porte une lampe ou un environnement déclaré : une scène
- * qui n'en a pas ne le paie jamais et exécute exactement le programme d'avant.
+ * Le rassemblement différé. Deux programmes vivent ici : la vue sans éclairage — l'albédo brut des
+ * matériaux, qui est aussi ce que rend une scène sans lampe déclarée — et celui du contrat. Le
+ * second n'est compilé qu'à la première image qui porte une lampe : une scène qui n'en a pas ne le
+ * paie jamais.
  */
-export async function createDeferredLighting(
-  device: GPUDevice,
-  lights: GPUBuffer,
-  directLights: GPUBuffer,
-) {
+export async function createDeferredLighting(device: GPUDevice, directLights: GPUBuffer) {
   const uniform = device.createBuffer({
     label: 'WG deferred view v1',
-    size: 160,
+    size: 128,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const placeholders = createDeferredPlaceholders(device);
-  const bindings = { uniform, sceneLights: lights, directLights, placeholders };
+  const bindings = { uniform, directLights, placeholders };
   try {
-    const authored = await createDeferredProgram(
+    const unlit = await createDeferredProgram(
       device,
-      {
-        lighting: DEFERRED_LIGHTING_SHADER,
-        compose: COMPOSE_SHADER,
-        label: 'DEFERRED',
-        direct: false,
-      },
+      { lighting: UNLIT_LIGHTING_SHADER, compose: COMPOSE_SHADER, label: 'UNLIT', direct: false },
       bindings,
     );
     let contract: DeferredProgram | undefined,
       contractPending: Promise<unknown> | undefined,
-      active: DeferredProgram = authored;
-    const packed = new Float32Array(36);
+      active: DeferredProgram = unlit;
+    const packed = new Float32Array(32);
     return {
       uniform,
       /** Vrai quand l'image en cours est rendue par le programme du contrat. */
       get usesContract() {
-        return active !== authored;
+        return active !== unlit;
       },
       update(
         inverseViewProjection: readonly number[],
@@ -73,14 +63,15 @@ export async function createDeferredLighting(
           [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
           24,
         );
-        // Lampes du contrat, tuiles en X et Y, mode ; puis couleur de ciel linéaire et exposition.
+        // Lampes du contrat, tuiles en X et Y, puis l'exposition.
         packed.set(direct as number[], 28);
         device.queue.writeBuffer(uniform, 0, packed);
       },
       /**
        * Choisit le programme de l'image et lie ses ressources. `wantsContract` reste faux tant que
-       * l'hôte n'a déclaré ni lampe ni environnement ; la compilation du second programme est lancée
-       * à la première demande et l'image d'avant reste correcte pendant qu'elle se termine.
+       * l'hôte n'a déclaré aucune lampe, ou tant qu'il demande la vue sans éclairage ; la
+       * compilation du programme du contrat est lancée à la première demande et la vue sans
+       * éclairage reste correcte pendant qu'elle se termine.
        */
       bind(
         surface: SurfaceBuffer,
@@ -95,7 +86,7 @@ export async function createDeferredLighting(
             device,
             {
               lighting: DIRECT_LIGHTING_SHADER,
-              compose: DIRECT_COMPOSE_SHADER,
+              compose: COMPOSE_SHADER,
               label: 'DIRECT',
               direct: true,
             },
@@ -104,7 +95,7 @@ export async function createDeferredLighting(
             (program) => (contract = program),
             (error) => onFailure?.(error),
           );
-        active = wantsContract && contract ? contract : authored;
+        active = wantsContract && contract ? contract : unlit;
         active.bind(surface, depth, hdr, direct);
       },
       /** Attend la compilation du programme du contrat, quand une est en cours. */
@@ -157,7 +148,7 @@ export async function createDeferredLighting(
       dispose() {
         uniform.destroy();
         placeholders.dispose();
-        authored.release();
+        unlit.release();
         contract?.release();
       },
     };
