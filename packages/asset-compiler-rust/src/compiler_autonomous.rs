@@ -31,9 +31,10 @@ pub(super) fn write_autonomous_scene(
                     let view = item(output_views, id, "image bufferView")?;
                     let start = required_index(view.get("byteOffset"), "image.byteOffset")?;
                     let length = required_index(view.get("byteLength"), "image.byteLength")?;
-                    while !scene_bytes.len().is_multiple_of(4) {
-                        scene_bytes.push(0);
-                    }
+                    scene_bytes.resize(
+                        scene_bytes.len() + shared_math::pad_to_4(scene_bytes.len()),
+                        0,
+                    );
                     let at = scene_bytes.len();
                     let end = at
                         .checked_add(length)
