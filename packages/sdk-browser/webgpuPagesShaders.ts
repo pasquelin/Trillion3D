@@ -116,10 +116,17 @@ ${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
  let q0=dpdx(in.view);let q1=dpdy(in.view);
+ // La normale géométrique vient des dérivées d'écran : elle regarde déjà l'observateur, quelle que
+ // soit la face rasterisée. Seule une normale de sommet, qui pointe vers le dehors déclaré, se
+ // retourne sur le dos d'un matériau à deux faces — la retourner aussi enverrait la géométrique à
+ // l'opposé de la lumière, et la surface rendrait exactement zéro. Même règle que la résolution
+ // opaque, qui ne retourne que la normale interpolée.
  var N=normalize(-cross(q0,q1));
- if((uni.flags&16u)!=0u){N=normalize(in.normal);}
  let face=select(-1.0,1.0,front);
- if((uni.flags&2u)!=0u){N*=face;}
+ if((uni.flags&16u)!=0u){
+  N=normalize(in.normal);
+  if((uni.flags&2u)!=0u){N*=face;}
+ }
  let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
  let sample=colorSample(uni.mapIndex,uni.uvScale,wrapped,gradX,gradY);
  let alpha=sample.w*in.color.w;
@@ -148,7 +155,7 @@ ${TRIANGLE_PALETTE_WGSL}
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
   if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}
-  if((uni.flags&2u)!=0u){T*=face;B*=face;}
+  if((uni.flags&2u)!=0u&&(uni.flags&16u)!=0u){T*=face;B*=face;}
   let tbnScale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
   N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
  }
