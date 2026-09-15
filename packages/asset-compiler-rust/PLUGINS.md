@@ -76,7 +76,10 @@ par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre no
   redistribuer, sous `fixtures/`, avec son `expected.json`, compilé par le harnais commun
   (`src/tests/golden.rs`) — jamais par un harnais à soi.
 - **Un test par comportement du pilote** : ce qu'il reconnaît, ce qu'il refuse, ce qu'il rapporte.
-  Les tests du routeur et du registre existent déjà : ne les recopiez pas par format.
+  Les tests du routeur et du registre existent déjà : ne les recopiez pas par format. Pour lire le
+  résultat d'un décodage, prendre `rgba8()` ou `rgba_f32()` de `src/plugins/tests.rs` — jamais un
+  `let` irréfutable sur une variante de `DecodedImage` : le contrat a deux sorties, et un test qui
+  en suppose une seule doit le dire par un appel qui panique sur l'autre.
 - **La provenance** : d'où vient la spécification suivie, quelle bibliothèque, quelle licence. Elle
   se met dans l'entête du module et dans `orchestration/JOURNAL.md`.
 

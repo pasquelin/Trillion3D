@@ -6,7 +6,7 @@ Objectif : un seul exécutable Rust qui accepte ce que livrent les places de mar
 
 Politique juridique fixée par l'utilisateur : aucun format propriétaire, sauf lecture légale établie. Cette page n'est pas un avis d'avocat ; les verdicts viennent d'une analyse documentaire (directive 2009/24/CE art. 1, 5 § 3, 6 ; CJUE SAS Institute C‑406/10 ; 17 USC § 102(b) ; SAS v. WPL, 4th Cir. 2017 sur la portée des contrats). Règles de dépôt : lecteur écrit à partir de spécifications publiques ou de bibliothèques permissives dont la licence est respectée, jamais de code ni de SDK d'éditeur repris, jamais de contournement de protection, provenance de chaque lecteur documentée, jeux de tests redistribuables.
 
-État actuel du code (15 sept. 2026, pause) : routeur à pilotes (`scene-plugin-2`, `image-plugin-2`), six pilotes de scène (`gltf`, `fbx` par ufbx, `obj`, `zip`, `unity`, `unitypackage`) et neuf pilotes d'image (`png`, `jpeg`, `tga`, `tiff`, `dds`, `webp` sans perte, `exr`, `hdr`, `ktx2`) ; le contrat d'image a deux sorties depuis `image-plugin-2`, RGBA8 et RGBA flottant, et un consommateur qui ne sait traiter que la première refuse la seconde par `image-float-unsupported` plutôt que d'ajouter un report de tons ; un projet Unity est routé vers `unity` avec ses modèles ; une seule racine de résolution des images de l'import aux aperçus. Reprise : `orchestration/REPRISE_COMPILATEUR.md`.
+État actuel du code (15 sept. 2026, pause) : contrat `image-plugin-2`, neuf pilotes d'image (`png`, `jpeg`, `tga`, `tiff`, `dds`, `webp` sans perte, `exr`, `hdr`, `ktx2`) ; six de scène (`gltf`, `fbx` par ufbx, `obj`, `zip`, `unity`, `unitypackage`), sur le contrat `scene-plugin-2`. Le contrat d'image a deux sorties depuis `image-plugin-2`, RGBA8 et RGBA flottant, et un consommateur qui ne sait traiter que la première refuse la seconde par `image-float-unsupported` plutôt que d'ajouter un report de tons ; un projet Unity est routé vers `unity` avec ses modèles ; une seule racine de résolution des images de l'import aux aperçus. Reprise : `orchestration/REPRISE_COMPILATEUR.md`.
 
 ## Architecture : un pilote par format
 
@@ -29,7 +29,7 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | PNG, JPEG classique     | standards                                               | fait    | —                                                    | —        |
 | TGA                     | spécification publiée                                   | fait    | —                                                     | —        |
 | TIFF (profils déclarés) | spécification publiée                                   | fait    | —                                                     | —        |
-| OpenEXR, Radiance HDR   | documentés, BSD-3                                       | fait    | —                                                     | —        |
+| OpenEXR, Radiance HDR   | documentés, BSD-3                                       | fait    | crate `exr` 1.74.2 pour OpenEXR ; HDR écrit ici depuis la spécification, sans crate | —        |
 | USD / USDZ              | AOUSD public, OpenUSD sous TOST 1.0                     | à coder | crate Rust à évaluer, sinon lecteur usda/usdc propre | P3       |
 | Alembic                 | ouvert, BSD-3                                           | à coder | géométrie statique seulement                         | P3       |
 | `.blend`                | SDNA documenté ; lire un .blend n'impose pas la GPL     | à coder | maillages, UV, instances, Principled BSDF de base    | P3       |
