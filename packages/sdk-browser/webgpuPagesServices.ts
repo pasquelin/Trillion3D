@@ -12,6 +12,7 @@ import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -142,9 +143,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     delta: cutDelta,
     drawnDelta,
     onDrawnDelta: (delta) => residencySets.applyDrawn(delta),
-    onDrawnMirrored: () => {
-      run.drawnMirrorsShown = true;
-    },
+    onDrawnMirrored: () => markDrawnMirrored(run),
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
       run.pagesEntered = delta.enteredCount;

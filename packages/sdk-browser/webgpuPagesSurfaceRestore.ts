@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { appendAll } from './webgpuPagesHelpers.ts';
+import { copyDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
@@ -29,9 +29,7 @@ export async function drawResidentCut(
   await services.ensureResident(run.shown, run.frame, services.residency.nextJobId());
   if (run.shown.some((page) => !gpu.cache?.get(page.url)))
     throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
-  run.drawn.length = 0;
-  appendAll(run.drawn, run.shown);
-  run.drawnMirrorsShown = true;
+  copyDrawnFromShown(run);
   hooks.beforeEncode?.();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
 }

@@ -5,6 +5,7 @@ import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
 import type { SurfaceCapture } from './surfaceBuffer.ts';
+import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
@@ -59,8 +60,8 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
-  /** Vrai quand `drawn` est la recopie de `shown` telle qu'elle est, et n'a rien à refaire. La coupe
-   *  processeur le met à faux en entrant : c'est la seule qui écrive `drawn` d'ailleurs. */
+  /** Vrai quand `drawn` est la recopie de `shown` telle qu'elle est. Écrit par les seules fonctions
+   *  de recopie de `webgpuPagesHelpers.ts`. */
   drawnMirrorsShown: boolean;
   /** Where the drawable difference writes its members; nothing downstream reads it. */
   drawnMembers: PageRec[];
@@ -144,7 +145,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     shown: [],
     desired: [],
     drawn: [],
-    drawnMirrorsShown: false,
+    ...unmirroredDrawn(),
     drawnMembers: [],
     pagesEntered: null,
     pagesExited: null,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
+import { markDrawnDiverged, mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
@@ -26,7 +26,7 @@ test('la recopie n’a lieu que quand le drapeau est baissé, et le relève', ()
   assert.equal(run.drawn.at(-1), intrus);
 
   // La coupe processeur baisse le drapeau ; l'image suivante recopie le `shown` du moment.
-  run.drawnMirrorsShown = false;
+  markDrawnDiverged(run);
   run.shown = [page(7)];
   assert.equal(mirrorDrawnFromShown(run), true);
   assert.deepEqual(
