@@ -121,7 +121,11 @@ export function sampleMap(map: THREE.Texture, u: number, v: number): [number, nu
   const i = texelAt(map, u, v);
   if (i < 0) return [1, 1, 1];
   const d = texelData;
-  return [SRGB8_LINEAIRE[d[i]], SRGB8_LINEAIRE[d[i + 1]], SRGB8_LINEAIRE[d[i + 2]]];
+  return [
+    SRGB8_LINEAIRE[d[i]] ?? NaN,
+    SRGB8_LINEAIRE[d[i + 1]] ?? NaN,
+    SRGB8_LINEAIRE[d[i + 2]] ?? NaN,
+  ];
 }
 export function sampleLinear(map: THREE.Texture, u: number, v: number): [number, number, number] {
   const i = texelAt(map, u, v);
