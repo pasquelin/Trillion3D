@@ -10,6 +10,8 @@ export function createWebgpuTexturePump(options: {
   dataScales: Array<[number, number]>;
   colorAtlas: () => { texture: GPUTexture | undefined; size: [number, number] };
   dataAtlas: () => { texture: GPUTexture | undefined; size: [number, number] };
+  /** Les couches couleur dont la vraie texture est transférée et remipmappée passent à « prêt ». */
+  onColorReady: (layers: readonly number[]) => void;
   onFailure: (phase: string, error: unknown) => void;
 }) {
   let pending: Promise<void> | undefined;
@@ -40,7 +42,7 @@ export function createWebgpuTexturePump(options: {
       }
       const color = options.colorAtlas();
       const data = options.dataAtlas();
-      if (colorLayers.length && color.texture)
+      if (colorLayers.length && color.texture) {
         await generateMaterialMips(
           device,
           color.texture,
@@ -49,6 +51,9 @@ export function createWebgpuTexturePump(options: {
           options.colorScales,
           colorLayers,
         );
+        // Après le transfert complet et ses mips seulement : avant, la couche n'est pas montrable.
+        options.onColorReady(colorLayers);
+      }
       if (dataLayers.length && data.texture)
         await generateMaterialMips(
           device,

@@ -8,6 +8,8 @@ export {
 export {
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
+  PREVIEW_LEVEL_SIZES,
+  TEXTURE_PREVIEW_VERSION,
   assertManifestBinary,
   decodeManifestBinary,
   encodeManifestBinary,

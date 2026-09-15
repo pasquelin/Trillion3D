@@ -34,6 +34,12 @@ export async function createWebgpuVisibilityShaders(
       { binding: 7, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       { binding: 8, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
       { binding: 9, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+      {
+        binding: 10,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'float', viewDimension: '2d-array' },
+      },
+      { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
     ],
   });
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans

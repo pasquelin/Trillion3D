@@ -69,8 +69,12 @@ try {
     });
   page.on('pageerror', (error) => result.errors.push(error.message));
   await page.exposeFunction('captureProgress', (message) => console.log(message));
+  // Une capture est une candidate : elle porte ce nom, et son état réel est consigné à côté d'elle.
   await page.exposeFunction('saveCapture', async (segment, bytes) =>
-    writeFile(resolve(out, `segment-${segment}.rgba`), Buffer.from(bytes, 'base64')),
+    writeFile(resolve(out, `segment-${segment}.candidate.rgba`), Buffer.from(bytes, 'base64')),
+  );
+  await page.exposeFunction('saveCaptureState', async (segment, state) =>
+    writeFile(resolve(out, `segment-${segment}.candidate.json`), state),
   );
   await page.goto(
     (process.env.LAB_URL ?? 'http://localhost:5174') + '/?test=15-virtualized-integration',

@@ -4,6 +4,7 @@ import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { TextureJob } from './webgpuAtlasCommon.ts';
+import type { WebgpuPreviewAtlas } from './webgpuPreviewAtlas.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -69,6 +70,8 @@ export interface WebgpuVisState {
   materialScales: GPUBuffer | undefined;
   mapsArrayView: GPUTextureView | undefined;
   dataMapsArrayView: GPUTextureView | undefined;
+  /** L'atlas 16×16 des aperçus et le bit « prêt » de chaque couche de l'atlas couleur. */
+  preview: WebgpuPreviewAtlas | undefined;
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
@@ -127,6 +130,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     materialScales: undefined,
     mapsArrayView: undefined,
     dataMapsArrayView: undefined,
+    preview: undefined,
     shadeUniPacked: new Float32Array(64),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),

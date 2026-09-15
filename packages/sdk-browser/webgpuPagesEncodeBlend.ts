@@ -37,6 +37,7 @@ export function encodeBlend(
     vis.mapsSampler &&
     vis.dataMapsTexture &&
     vis.materialScales &&
+    vis.preview &&
     gpu.zeroUv
   );
   if (!textured && !gpu.bindGroupLayout) return;
