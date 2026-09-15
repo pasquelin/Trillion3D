@@ -78,27 +78,53 @@ function ecart(a, b, chemin = '', profondeur = 0) {
   return null;
 }
 
-/**
- * Médiane en millisecondes d'un tour complet : échauffement, puis N tours ou le budget de temps.
- * Le tour est attendu, qu'il rende une promesse ou non : les deux côtés paient la même attente.
- */
+/** Un tour chronométré en millisecondes. Le tour est attendu, qu'il rende une promesse ou non. */
+async function chronometre(tour) {
+  const t0 = process.hrtime.bigint();
+  await tour();
+  return Number(process.hrtime.bigint() - t0) / 1e6;
+}
+/** Médiane d'une série de durées, et le nombre de tours qui l'ont produite. */
+function milieuDe(durees) {
+  const triees = durees.slice().sort((x, y) => x - y);
+  const milieu = triees.length >> 1;
+  return {
+    ms: triees.length % 2 ? triees[milieu] : (triees[milieu - 1] + triees[milieu]) / 2,
+    tours: triees.length,
+  };
+}
+
+/** Médiane en millisecondes d'un tour complet : échauffement, puis N tours ou le budget de temps. */
 export async function mediane(tour, options = {}) {
   const { chauffe = 20, tours = 200, budgetMs = 2000 } = options;
   for (let i = 0; i < chauffe; i++) await tour();
   const durees = [];
   const debut = process.hrtime.bigint();
   while (durees.length < tours) {
-    const t0 = process.hrtime.bigint();
-    await tour();
-    durees.push(Number(process.hrtime.bigint() - t0) / 1e6);
+    durees.push(await chronometre(tour));
     if (durees.length >= 5 && Number(process.hrtime.bigint() - debut) / 1e6 > budgetMs) break;
   }
-  durees.sort((x, y) => x - y);
-  const milieu = durees.length >> 1;
-  return {
-    ms: durees.length % 2 ? durees[milieu] : (durees[milieu - 1] + durees[milieu]) / 2,
-    tours: durees.length,
-  };
+  return milieuDe(durees);
+}
+
+/** Les deux tours alternent un à un. Mesurer l'un après l'autre donne au premier une avance qui
+ *  atteint des dizaines de pour cent sur une machine chargée — tas rangé, caches chauds, fréquence
+ *  qui retombe — et noie les gains modestes. En alternant, la dérive touche les deux également. */
+export async function medianeAlternee(tourA, tourB, options = {}) {
+  const { chauffe = 20, tours = 200, budgetMs = 2000 } = options;
+  for (let i = 0; i < chauffe; i++) {
+    await tourA();
+    await tourB();
+  }
+  const a = [],
+    b = [];
+  const debut = process.hrtime.bigint();
+  while (a.length < tours) {
+    a.push(await chronometre(tourA));
+    b.push(await chronometre(tourB));
+    if (a.length >= 5 && Number(process.hrtime.bigint() - debut) / 1e6 > budgetMs) break;
+  }
+  return [milieuDe(a), milieuDe(b)];
 }
 
 /**
@@ -120,8 +146,9 @@ export async function compare({ calcul, fichier, cas, reference, optimisee, opti
   const tourOptimisee = async () => {
     for (const item of chronometres) await optimisee(item.entree);
   };
-  const avant = await mediane(tourReference, options);
-  const apres = await mediane(tourOptimisee, options);
+  const [avant, apres] = options?.alterne
+    ? await medianeAlternee(tourReference, tourOptimisee, options)
+    : [await mediane(tourReference, options), await mediane(tourOptimisee, options)];
   const identique = difference === null;
   return {
     calcul,

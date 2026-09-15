@@ -99,7 +99,7 @@ const lignes = [
     ],
     reference: (entree) => entree.reference(),
     optimisee: (entree) => entree.optimisee(),
-    options: { tours: 200, budgetMs: 2500 },
+    options: { tours: 200, budgetMs: 4000, alterne: true },
   }),
 ];
 
