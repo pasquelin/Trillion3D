@@ -41,14 +41,9 @@ fn scene_file(inputs: &[PathBuf]) -> Result<&Path> {
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let file = scene_file(request.inputs)?;
-    let source_dir = if request.source.is_dir() {
-        request.source.to_path_buf()
-    } else {
-        request
-            .source
-            .parent()
-            .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
-    };
+    // La racine sous laquelle les URI d'images de la scène se résolvent, la même que celle où le
+    // compilateur relira ces images : une seule règle pour tous les pilotes.
+    let source_dir = crate::plugins::scene::image_root(request.source);
     let project = Project::index(&assets_root(file), &source_dir, request.cancelled)?;
     (request.progress)(
         json!({"phase":"import-source","step":"scan","plugin":NAME,"metaFiles":project.meta_files}),
