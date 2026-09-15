@@ -97,7 +97,6 @@ export function collectClusterPages(
         matrix: mesh.matrixWorld,
         renderOrder: order,
         attached: false,
-        seen: 0,
         cone: undefined,
         geometry: undefined,
         mesh: undefined,

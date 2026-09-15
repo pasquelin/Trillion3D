@@ -27,7 +27,6 @@ export function createWebgpuCutAdopter(options: {
   drawableScratch: PageRec[];
   uniforms: SelectionUniforms;
   residentOffsetWords: Int32Array;
-  frame: () => number;
   delta: CutDelta;
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: (delta: CutDelta) => void;
@@ -64,7 +63,6 @@ export function createWebgpuCutAdopter(options: {
     const counts = shownFromGpu(
       packedPages,
       cut.result.drawablePageIds,
-      options.frame(),
       drawableScratch,
       options.residentOffsetWords,
     );

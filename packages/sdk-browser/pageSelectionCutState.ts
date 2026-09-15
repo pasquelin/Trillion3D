@@ -5,7 +5,6 @@ import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
-  seen: number;
   level?: number;
   min?: number[];
   max?: number[];
