@@ -1,0 +1,17 @@
+newmtl VerreDepoli
+Ka 0.200000 0.200000 0.240000
+Kd 0.800000 0.600000 0.300000
+Ks 0.500000 0.500000 0.500000
+Ns 60.000000
+Ni 1.450000
+d 0.500000
+map_Ka textures/ambient.png
+map_Kd -s 2 2 1 -o 0.25 0 0 textures/diffuse.png
+map_d textures/opacity.png
+norm -bm 0.750000 textures/normal.png
+map_Bump textures/relief.png
+
+newmtl Braise
+Kd 0.100000 0.100000 0.100000
+Ke 1.000000 0.400000 0.100000
+map_Ke -clamp on textures/emission.png
