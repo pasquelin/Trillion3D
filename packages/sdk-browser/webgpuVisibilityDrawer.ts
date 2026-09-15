@@ -1,4 +1,5 @@
 import { visPipelineFor, visSlotPipeline } from './webgpuPagesPipelineFor.ts';
+import { visBindEntries } from './webgpuBindEntries.ts';
 import { BASE_SLOTS } from './gpuDraw.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -13,8 +14,16 @@ export function visGroupFor(
 ) {
   const { vis, gpu } = rt;
   const cacheBuffer = gpu.cache?.buffer,
-    { visBindGroupLayout, concatPos, concatUv, pageTable, visUniform, mapsTexture, mapsSampler } =
-      vis,
+    {
+      visBindGroupLayout,
+      concatPos,
+      concatUv,
+      pageTable,
+      visUniform,
+      mapsTexture,
+      mapsSampler,
+      preview,
+    } = vis,
     { gpuDraw } = vis;
   if (
     !visBindGroupLayout ||
@@ -25,6 +34,7 @@ export function visGroupFor(
     !visUniform ||
     !mapsTexture ||
     !mapsSampler ||
+    !preview ||
     !gpuDraw
   )
     return;
@@ -36,18 +46,20 @@ export function visGroupFor(
     const visMaps = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     group = device.createBindGroup({
       layout: visBindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: cacheBuffer } },
-        { binding: 1, resource: { buffer: concatPos } },
-        { binding: 2, resource: { buffer: pageTable } },
-        { binding: 3, resource: { buffer: flags } },
-        { binding: 4, resource: { buffer: visUniform, offset: (slot + 1) * 256, size: 96 } },
-        { binding: 5, resource: { buffer: concatUv } },
-        { binding: 6, resource: visMaps },
-        { binding: 7, resource: mapsSampler },
-        { binding: 8, resource: { buffer: gpuDraw.instanceBuffer } },
-        { binding: 9, resource: { buffer: gpuDraw.slotOffsetsBuffer } },
-      ],
+      entries: visBindEntries({
+        cache: cacheBuffer,
+        position: concatPos,
+        pageTable,
+        flags,
+        uniform: visUniform,
+        uniformOffset: (slot + 1) * 256,
+        uv: concatUv,
+        maps: visMaps,
+        sampler: mapsSampler,
+        instances: gpuDraw.instanceBuffer,
+        slotOffsets: gpuDraw.slotOffsetsBuffer,
+        preview,
+      }),
     });
     vis.visSlotGroups[key] = group;
   }

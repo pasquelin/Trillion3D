@@ -93,6 +93,7 @@ test('drawVis draws each coplanar layer’s non-empty slots through its own indi
       mapsTexture: { createView: () => ({}) },
       mapsSampler: {},
       zeroFlags: {},
+      preview: { view: {}, ready: {} },
       gpuHiz: undefined,
       visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
       gpuDraw: { indirectBuffer: {}, instanceBuffer: {}, slotOffsetsBuffer: {} },
