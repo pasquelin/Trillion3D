@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { RenderBackend } from './backendTypes.ts';
 import type { PageRec } from './pageSelection.ts';
+import { barycentricAt, signedArea } from './visibilityProjection.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
@@ -173,13 +174,11 @@ function fillTriangle(
     maxX = Math.min(width - 1, Math.ceil(Math.max(a.x, b.x, c.x)));
   const minY = Math.max(0, Math.floor(Math.min(a.y, b.y, c.y))),
     maxY = Math.min(height - 1, Math.ceil(Math.max(a.y, b.y, c.y)));
-  const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+  const area = signedArea(a, b, c);
   if (area === 0) return;
   for (let y = minY; y <= maxY; y++)
     for (let x = minX; x <= maxX; x++) {
-      const w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area;
-      const w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area;
-      const w2 = 1 - w0 - w1;
+      const { w0, w1, w2 } = barycentricAt(a, b, c, x, y, area);
       if (w0 < 0 || w1 < 0 || w2 < 0) continue;
       const o = (y * width + x) * 4;
       pixels[o] = rgb[0];
