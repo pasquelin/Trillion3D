@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
-import { referenceBuildItems } from '../../scripts/mesure/calculs/oracles/f-transparents.mjs';
+import { referenceBuildItems } from './bench/oracles/f-transparents.mjs';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 

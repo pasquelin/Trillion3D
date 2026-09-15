@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { surfaceColorAttachments } from './webgpuPagesEncodeVisSetup.ts';
-import { referenceAttachments } from '../../scripts/mesure/calculs/oracles/f-cadre.mjs';
+import { referenceAttachments } from './bench/oracles/f-cadre.mjs';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 
 const surfacesWith = (views: GPUTextureView[]) =>

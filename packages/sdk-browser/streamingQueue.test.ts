@@ -1,10 +1,10 @@
 // A12 : la file de transferts est triée une seule fois par passage du `while`, et `findAdmissible`
 // remplace le `queue.sort()` + `findIndex` répétés à chaque tour. Oracle : la version qui re-triait
-// systématiquement, d'avant le lot A, dans `scripts/mesure/calculs/oracles/streaming.mjs`.
+// systématiquement, d'avant le lot A, dans `bench/oracles/streaming.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { findAdmissible, sortStreamJobs } from './streamingQueue.ts';
-import { referenceAdmission } from '../../scripts/mesure/calculs/oracles/streaming.mjs';
+import { referenceAdmission } from './bench/oracles/streaming.mjs';
 
 const LIMITE = 6,
   BUDGET = 2 * 1024 * 1024;

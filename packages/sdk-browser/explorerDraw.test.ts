@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anneauFroid } from './explorerDraw.ts';
-import { referenceAnneauFroid } from '../../scripts/mesure/calculs/oracles/f-cadre.mjs';
+import { referenceAnneauFroid } from './bench/oracles/f-cadre.mjs';
 
 function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   return {

@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeSha } from './manifestBinaryLayout.ts';
-import { referenceWriteSha } from '../../scripts/mesure/calculs/oracles/f-manifeste.mjs';
+import { referenceWriteSha } from './bench/oracles/f-manifeste.mjs';
 
 const VALID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
 

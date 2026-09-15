@@ -10,10 +10,7 @@ import { createWebgpuRowState } from './webgpuRowState.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
 import { createWebgpuRowSync } from './webgpuRowSync.ts';
 import { PAGE_INFO_STRIDE } from './visibilityTypes.ts';
-import {
-  referenceRowCommit,
-  referenceRowState,
-} from '../../scripts/mesure/calculs/oracles/f-lignes.mjs';
+import { referenceRowCommit, referenceRowState } from './bench/oracles/f-lignes.mjs';
 import type { PageRec } from './pageSelection.ts';
 
 const MOTS = PAGE_INFO_STRIDE / 4;

@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { deplaceInstance } from './autonomousInstances.ts';
-import { referenceUpdateInstance } from '../../scripts/mesure/calculs/oracles/f-cadre.mjs';
+import { referenceUpdateInstance } from './bench/oracles/f-cadre.mjs';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 
 function page(matrice: THREE.Matrix4): PageRec {

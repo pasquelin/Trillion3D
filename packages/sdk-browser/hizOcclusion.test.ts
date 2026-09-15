@@ -1,10 +1,10 @@
 // A5 : hizTestRect part du premier niveau de mip que `Math.clz32` autorise au lieu d'essayer chaque
 // niveau depuis 0. Oracle : la recherche linéaire d'avant le lot A, dans
-// `scripts/mesure/calculs/oracles/hiz.mjs`.
+// `bench/oracles/hiz.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HIZ_TEST_VALUES, hizTestRect } from './hizOcclusion.ts';
-import { referenceHizTestRect } from '../../scripts/mesure/calculs/oracles/hiz.mjs';
+import { referenceHizTestRect } from './bench/oracles/hiz.mjs';
 
 function bothAgree(
   minX: number,

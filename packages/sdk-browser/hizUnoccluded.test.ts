@@ -1,15 +1,12 @@
 // A3 et A4 : splitOccludersInto rend les pages du tri radix flat, et countUnoccluded projette par
 // projectBoxesFlat avec cache d'époque au lieu d'un HizBounds alloué par page et par image. Oracle :
-// la référence d'avant le lot A dans `scripts/mesure/calculs/oracles/occlusion.mjs`.
+// la référence d'avant le lot A dans `bench/oracles/occlusion.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildHizPyramid, countUnoccluded, createHizCounts, type HizPage } from './hiz.ts';
 import { splitOccludersInto } from './hizSplit.ts';
-import {
-  referenceCountUnoccluded,
-  referenceSplitOccluders,
-} from '../../scripts/mesure/calculs/oracles/occlusion.mjs';
+import { referenceCountUnoccluded, referenceSplitOccluders } from './bench/oracles/occlusion.mjs';
 import { cameraAt } from '../../test/fixtures/hiz.ts';
 
 function box(min: number[], max: number[], tag: number) {

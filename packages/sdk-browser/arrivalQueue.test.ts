@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
-import { referenceArrivalQueue } from '../../scripts/mesure/calculs/oracles/streaming.mjs';
+import { referenceArrivalQueue } from './bench/oracles/streaming.mjs';
 
 function target() {
   const accepted: string[] = [];
@@ -65,7 +65,7 @@ test('a page already waiting for a target is queued once, and each target keeps 
 });
 
 // A12 : `touched.includes` (quadratique) devient une appartenance par `Set`. Oracle : la version à
-// `includes`, d'avant le lot A, dans `scripts/mesure/calculs/oracles/streaming.mjs`.
+// `includes`, d'avant le lot A, dans `bench/oracles/streaming.mjs`.
 test('many duplicate targets across a drain deliver and sync exactly like the reference', () => {
   function arrivals(create: typeof createArrivalQueue) {
     const delivered: string[] = [],

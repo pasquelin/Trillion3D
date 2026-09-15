@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from './visibilityMath.ts';
 import { textureRgba } from './visibilityTypes.ts';
-import { referenceTextureRgba } from '../../scripts/mesure/calculs/oracles/f-texture.mjs';
+import { referenceTextureRgba } from './bench/oracles/f-texture.mjs';
 
 /** `visibilityMath.ts` avant le lot C : une puissance par composante, sans table. */
 function referenceSrgbToLinear(c: number) {

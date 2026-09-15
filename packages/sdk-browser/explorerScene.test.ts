@@ -8,7 +8,7 @@ import {
   referenceExactPagesBounds,
   referenceIndexManifestPages,
   referenceIndexManifestBundles,
-} from '../../scripts/mesure/calculs/oracles/f-scene.mjs';
+} from './bench/oracles/f-scene.mjs';
 import type { ClusterManifest, Page, Primitive } from '../sdk-core/index.ts';
 
 const manifest = { primitives: [] } as unknown as ClusterManifest;

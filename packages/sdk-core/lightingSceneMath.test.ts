@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { length } from './lightingSceneMath.ts';
 import { validateScene } from './lightingTransportValidation.ts';
 import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
-import { referenceLength } from '../../scripts/mesure/calculs/oracles/f-vecteurs.mjs';
+import { referenceLength } from './bench/oracles/f-vecteurs.mjs';
 import type { Vec3 } from './lightingSceneTypes.ts';
 
 test('length rend exactement Math.hypot(...v) sur des vecteurs hostiles', () => {

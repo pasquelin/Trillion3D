@@ -1,13 +1,13 @@
 // A1 : visibilityDepth projette les sommets d'un triangle une fois par image (cache par identifiant
 // de visibilité) au lieu d'une fois par pixel. L'oracle est la référence recopiée avant le lot A dans
-// `scripts/mesure/calculs/oracles/hiz.mjs` (importer le banc lui-même l'exécuterait).
+// `bench/oracles/hiz.mjs` (importer le banc lui-même l'exécuterait).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { HIZ_BACKGROUND } from '../sdk-core/index.ts';
 import { packVisibilityId, rasterVisibilityIds } from './visibilityBuffer.ts';
 import { visibilityDepth } from './hiz.ts';
-import { referenceVisibilityDepth } from '../../scripts/mesure/calculs/oracles/hiz.mjs';
+import { referenceVisibilityDepth } from './bench/oracles/hiz.mjs';
 import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
 
 function bitExactDepth(a: Float32Array, b: Float32Array) {
