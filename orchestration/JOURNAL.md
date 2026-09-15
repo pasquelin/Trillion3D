@@ -1,5 +1,35 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — lot 4, comparatif de compression des textures : aucun conteneur n'entre dans le SDK
+
+Branche `lot4-compression`, sur `develop` = `8cb7e21`. **Étape 1 seule.** Aucune ligne du SDK ni du compilateur n'est touchée : le lot rend un verdict, pas du code. Chiffres, corpus, réglages et détail par genre : `orchestration/mesures/compression-textures-2026-09-15.{md,json}`. L'outil de mesure est un binaire Rust du **scratchpad**, hors dépôt — le dépôt n'accepte pas de code mort.
+
+- **Corpus.** Les 336 images que le `source.gltf` du cache Emerald compilé désigne par `images[].uri` (`/benchmark-assets/emerald-square/textures/*.png`, lues sans jamais être écrites) : **114 couleur**, **222 données** — le moteur en compte 232 et 440 parce qu'il compte des entrées de texture, pas des fichiers. **591 642 954 o** de PNG, **4 982 870 028 o** en RGBA8 brut, **1 245 717 507** texels, 297 images en 2048×2048. Le sidecar v4 y ajoute **4 617 248 o** de niveaux ≤ 64. Dépendances par cargo seulement ; `basisu_c_sys` 0.9.0 embarque **Basis Universal 2.50**, donc XUASTC et XUBC7 sont **mesurés**, pas estimés.
+- **Seuil appliqué.** Le bruit A/A du dépôt vaut **0 à 43 pixels sur 12 460 000**. Seuil : **part de texels dont un canal s'écarte de plus de 1 ≤ 3,45 × 10⁻⁶**. C'est la lecture la plus généreuse qui soit — elle compte un texel comme un pixel, alors qu'un texel faux se voit sur tous les pixels de la surface qui le lit.
+
+| candidat | octets | × PNG | max canal | part texels > 1 | verdict |
+|---|---|---|---|---|---|
+| (a) PNG source | 591 642 954 | 1,000 | référence | référence | **reste** |
+| (a) PNG réencodé au meilleur effort | 641 763 190 | 1,085 | — | — | rejeté, pire |
+| (b) Zstd 9 sur brut | 587 371 247 | 0,993 | 0 | 0 | rejeté, −0,7 % |
+| **(b) Zstd 19 sur brut** | **478 905 686** | **0,809** | **0** | **0** | passe l'étape 1 |
+| (b) Paeth puis Zstd 19 | 519 152 712 | 0,877 | 0 | 0 | rejeté, −12,3 % |
+| (b) Zstd 19 sur le PNG | 589 249 779 | 0,996 | — | — | rejeté, −0,4 % |
+| (d) BC7 ISPC basic (corpus entier) | 1 245 717 552 | 2,106 | 97 | 6,03 % | **rejeté, fidélité** |
+| (d) BC7 ISPC lent (échantillon) | 83 886 336 | 1,841 | 58 | 6,74 % | **rejeté, fidélité** |
+| (d) ASTC LDR 4×4 préparé (échantillon) | 83 890 368 | 1,841 | 93 | 6,79 % | **rejeté, fidélité** |
+| (c) UASTC 4×4 → BC7 (échantillon) | 20 965 811 | 0,460 | 102 | 28,81 % | **rejeté, fidélité** |
+| (e) XUASTC LDR 4×4 → BC7 (échantillon) | 19 797 582 | 0,435 | 104 | 32,60 % | **rejeté, fidélité** |
+| (e) XUBC7 → BC7 (échantillon) | 18 193 694 | 0,399 | 94 | 31,19 % | **rejeté, fidélité** |
+
+Les lignes « échantillon » portent sur une image sur seize (21 images, 45 560 369 o de PNG), les autres sur les 336. Machine chargée par d'autres agents : load 1 min de 11 à 132.
+
+- **Tout ce qui a une perte est rejeté, et de très loin.** Le meilleur pour la fidélité, BC7 au réglage le plus lent d'ISPC, laisse **6,74 %** des texels à plus d'un niveau d'écart — **19 500 fois le seuil** — avec des pointes à **58 niveaux** sur un canal. Le meilleur pour les octets, XUBC7 de Basis 2.50 (**−60,1 %**), en laisse **31,19 %**. Aucun n'est à moins de trois ordres de grandeur du bruit A/A. L'écart se concentre sur les **données** (BC7 lent : 1,02 % des texels couleur, **9,82 %** des texels de données) — normales et rugosité ne supportent pas une décorrélation pensée pour la couleur —, et le dépôt ne sépare pas ses règles selon le genre de texture. **Rien de (c), (d) ni (e) n'entre dans le SDK.**
+- **Le sans perte gagne vraiment, et deux fois.** **Zstandard 19 sur les niveaux bruts : −19,1 %**, soit **112 737 268 o** de moins sur Emerald (couleur **−39,1 %**, données **−6,8 %**), écart texel **0 sur les quatre canaux, vérifié par aller-retour**. Et il décode **deux fois plus vite** que le PNG : 5 608 ms contre 12 808 ms de CPU cumulé sur le corpus. Deux résultats contre-intuitifs, mesurés : le **filtrage de lignes à la PNG (Paeth) fait perdre 40 Mo** contre le brut — la fenêtre longue portée de Zstd retrouve des régions entières répétées que le filtre casse — et le **réencodage PNG au meilleur effort est 8,5 % pire que la source** : les PNG d'Emerald sont déjà bien tassés, il n'y a rien à gratter de ce côté.
+- **Pourquoi l'étape 2 n'a pas lieu quand même.** Mesuré dans le Chrome du banc (HeadlessChrome 152) : `DecompressionStream` connaît `gzip`, `deflate`, `deflate-raw` et **pas** `zstd` ; mais Chrome annonce `Accept-Encoding: gzip, deflate, br, zstd` et **décode nativement un corps servi en `Content-Encoding: zstd`** (1 048 576 o récupérés exacts depuis 363 o sur le fil). Le gain est donc atteignable sans WASM — **par le transport, pas par un conteneur**. Or ces octets ne sont pas ceux du SDK : c'est le `GLTFLoader` de `explorerScene.ts:66` qui résout `images[].uri` et télécharge les PNG, et un PNG servi en zstd ne gagne que **0,4 %**. Pour toucher les 19,1 %, il faut **cesser de faire passer les textures par le chargeur glTF** : scène sans `images`, un objet de niveau brut par image, le SDK qui le récupère et le pose en `texture.image = {data, width, height}`. C'est le chantier **C3/C4 du plan « première image »**, pas un choix de conteneur. Prototyper ici un lecteur et une pompe que rien ne peut alimenter aurait été du code mort, que le dépôt interdit. **Décision : le lot rend la cible chiffrée et les points d'insertion, et s'arrête là.**
+- **Points d'insertion relevés pour ce chantier**, à qui le prendra : écriture d'objet `compiler_storage.rs:20` (`store_object`), exemple d'appel `compiler_primitive.rs:145-158` ; étape appelée depuis `compiler_build.rs:107-115`, colonnes du sidecar déclarées en `manifest_binary.rs:39-61` et relues par `packages/sdk-core/manifestBinaryFormat.ts:47-129`, version refusée par son nom en `manifestBinaryRead.ts:27-31` ; annulation par `check(o)` (`lib.rs:95`) ; côté moteur **rien à écrire** — `webgpuAtlasJobs.ts:112-125` a déjà le chemin « octets RGBA bruts en mémoire », alimenté par `textureRgba` (`visibilityTypes.ts:139`) depuis `webgpuAtlasCommon.ts:113`.
+- **Reste** : le chantier ci-dessus s'il est voulu ; lot 5, conditionnel ; la réutilisation du pipeline de `textureMips.ts` ; **aucune fixture dorée ne porte encore de texture couleur** ; et une ligne périmée à corriger — `docs/SDK.md:153` promet encore « its 16x16 preview », que le lot 3 a remplacé par les niveaux progressifs du sidecar.
+
 ## 2026-09-15 — lot 3 fusionné : une seule classe d'atlas par défaut, la seconde en option
 
 - **Fusion `15297dd`** dans `develop`.
