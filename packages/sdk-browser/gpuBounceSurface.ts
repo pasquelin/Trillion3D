@@ -4,6 +4,8 @@ import {
   BOUNCE_SURFACE_PASS,
   BOUNCE_SURFACE_SHADER,
   SURFACE_WORKGROUP,
+  surfaceCacheBytes,
+  surfaceCacheTexels,
 } from './bounceSurfaceWgsl.ts';
 import type { GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
@@ -36,9 +38,8 @@ export async function createGpuBounceSurface(
   lights: GPUBuffer,
   grid: { uniform: GPUBuffer; snapshot: GPUBuffer },
 ) {
-  const texels = Math.max(1, proxy.triangleCount * 2);
-  /** Une maille tient un `vec4f` : la radiance sortante de la face, plus son drapeau d'écriture. */
-  const bytes = texels * 16;
+  const texels = surfaceCacheTexels(proxy.triangleCount);
+  const bytes = surfaceCacheBytes(proxy.triangleCount);
   const buffer = device.createBuffer({
     label: 'WG bounce surface cache v1',
     size: bytes,
