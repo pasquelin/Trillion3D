@@ -6282,3 +6282,20 @@ scène. 220 tests Rust et 4 tests CLI au vert, Clippy sans avertissement, `check
   sont une ambiguïté : c'est plus strict que la spécification, et c'est délibéré tant qu'aucune
   source réelle n'impose l'autre lecture.
 - Un paquet chiffré est refusé sans test dédié : aucun jeu redistribuable ne l'exerce.
+
+## 15 sept. 2026, 19 h 50 — Audit de la lecture MTL du pilote `obj` (Sonnet, lecture seule)
+
+Le pilote `obj` (11 lignes) délègue tout à ufbx 0.11.3 puis à `src/import/*` commun avec FBX ; aucun code OBJ propre. Constat clé par clé :
+
+| Clé MTL | Comportement | Où |
+| --- | --- | --- |
+| `Kd`, `map_Kd`, `Ke`, `map_Ke`, `d` | convertis (base, émission, alpha + BLEND) | `import/materials.rs`, `import/opacity.rs` |
+| `Ns` | rugosité par heuristique ufbx `1 − 0,1·√Ns` | ufbx.c 19377, `materials.rs:35-45` |
+| `map_d` distincte de `map_Kd` | comptée `material-separate-opacity-texture` | `materials.rs:89-93` |
+| `Ks`, `Ni`, `Ka`/`map_Ka` | parsés par ufbx, jamais lus : perte silencieuse | `materials.rs` ne lit ni `specular` ni `ior` |
+| `map_Bump`/`bump`/`norm` | dernier gagne sans garde, silencieux si fichiers différents | ufbx.c 19829-19833 |
+| `-bm`, `-o`, `-s`, `-clamp` | parsés puis inertes (wrap REPEAT, pas de transform) | ufbx.c 17852-17897 vs 22907-23364 |
+| `Tr`, `illum` | absents du parseur ufbx | — |
+| MTL absent ou tronqué | toléré, avertissement en texte libre dans `report.notes`, pas de code nommé | `import/scene.rs:44,63-68` |
+
+Aucune dorée `fixtures/obj/` : seul un test ad hoc (`Kd`, `d`, `map_Kd`). Écarts : (1) bloquant, dorée obj à créer sur le motif du corpus `groups-quads-ngons` ; (2) bloquant, MTL absent/tronqué à coder en rapport nommé ; (3) à faire, compter `Ks`/`Ni`/`Ka` ignorés ; (4) à faire, garde sur `bump`/`norm` en conflit ; (5) à faire, compter les options de map jetées ; (6) cosmétique, documenter `Tr`/`illum` non lus par la dépendance. Lot `compilateur/mtl` à lancer dès qu'un Opus de la vague 5 libère sa place.
