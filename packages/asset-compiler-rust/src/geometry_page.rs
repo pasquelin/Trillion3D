@@ -10,23 +10,16 @@ pub struct Attribute {
     pub values: Vec<f32>,
 }
 
-/** A complete, independently decodable geometry page. Float32 attributes are lossless. */
-pub fn encode(
-    indices: &[u32],
-    positions: &[f32],
-    attributes: &[Attribute],
-) -> Result<(Vec<u8>, u32, usize)> {
-    if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
-        return Err(CompilerError::new(
-            "INVALID_PAGE",
-            "Invalid page triangle or position count",
-        ));
-    }
-    let mut original = Vec::<u32>::new();
-    let mut remap = HashMap::<u32, u32>::new();
+/// Renumérotation locale des sommets d'une page : la table et les deux listes partent à leur
+/// taille finale connue, une page ne portant jamais plus de 65 535 sommets ni plus de coins que
+/// d'indices.
+pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
+    let bound = indices.len().min(65_535);
+    let mut original = Vec::<u32>::with_capacity(bound);
+    let mut remap = HashMap::<u32, u32>::with_capacity(bound);
     let mut local = Vec::<u32>::with_capacity(indices.len());
     for &source in indices {
-        if source as usize >= positions.len() / 3 {
+        if source as usize >= vertices {
             return Err(CompilerError::new(
                 "INVALID_PAGE",
                 "Page index exceeds positions",
@@ -48,6 +41,22 @@ pub fn encode(
         };
         local.push(id);
     }
+    Ok((original, local))
+}
+
+/** A complete, independently decodable geometry page. Float32 attributes are lossless. */
+pub fn encode(
+    indices: &[u32],
+    positions: &[f32],
+    attributes: &[Attribute],
+) -> Result<(Vec<u8>, u32, usize)> {
+    if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
+        return Err(CompilerError::new(
+            "INVALID_PAGE",
+            "Invalid page triangle or position count",
+        ));
+    }
+    let (original, local) = localise(indices, positions.len() / 3)?;
     let mut flags = 0u32;
     for attribute in attributes {
         flags |= attribute.flag;
