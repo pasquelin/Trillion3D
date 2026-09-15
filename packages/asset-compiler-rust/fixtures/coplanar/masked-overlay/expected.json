@@ -2,7 +2,7 @@
   "case": "Une surface opaque et, exactement dessus, une surface à masque alpha (alphaMode MASK).",
   "rule": "Un masque découpe ses propres trous par pixel : l'étape ne le classe pas. Une seule surface est collectée, aucune couche n'est attribuée, l'ordre de dessin reste celui d'avant.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 2,
+  "manifestBinaryVersion": 3,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 1,
