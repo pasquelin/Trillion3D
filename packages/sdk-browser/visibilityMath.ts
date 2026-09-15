@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import { projectVisibilityVertex, type Projected } from './visibilityProjection.ts';
+import {
+  barycentricAt,
+  projectVisibilityVertex,
+  signedArea,
+  type Projected,
+} from './visibilityProjection.ts';
 import { textureRgba, type VisPage } from './visibilityTypes.ts';
 
 export function backgroundRgb(background: number) {
@@ -48,11 +53,9 @@ export function triangleAt(
 }
 
 export function barycentric(a: Projected, b: Projected, c: Projected, x: number, y: number) {
-  const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+  const area = signedArea(a, b, c);
   if (area === 0) return null;
-  const w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area,
-    w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area,
-    w2 = 1 - w0 - w1;
+  const { w0, w1, w2 } = barycentricAt(a, b, c, x, y, area);
   if (w0 < 0 || w1 < 0 || w2 < 0) return null;
   return { w0, w1, w2, area };
 }

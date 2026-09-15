@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Projected } from './visibilityProjection.ts';
+import { signedArea, type Projected } from './visibilityProjection.ts';
 import { HIZ_BACKGROUND } from '../sdk-core/index.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
 import {
@@ -23,7 +23,7 @@ function fillIds(
   packed: number,
   keep?: (x: number, y: number, w0: number, w1: number, w2: number) => boolean,
 ) {
-  const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+  const area = signedArea(a, b, c);
   if (area === 0) return;
   const minX = Math.max(0, Math.floor(Math.min(a.x, b.x, c.x))),
     maxX = Math.min(width - 1, Math.ceil(Math.max(a.x, b.x, c.x)));
@@ -91,8 +91,7 @@ export function rasterVisibility(
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
       const tri = triangleAt(page, t, viewProj, width, height);
       if (!tri) continue;
-      const area =
-        (tri.b.x - tri.a.x) * (tri.c.y - tri.a.y) - (tri.c.x - tri.a.x) * (tri.b.y - tri.a.y);
+      const area = signedArea(tri.a, tri.b, tri.c);
       if (side !== THREE.DoubleSide) {
         if (side === THREE.BackSide) {
           if (area <= 0) continue;

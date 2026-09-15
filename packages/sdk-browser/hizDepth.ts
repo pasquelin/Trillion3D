@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { HIZ_BACKGROUND, hizBuildFlat } from '../sdk-core/index.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
+import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import type { VisPage } from './visibilityBuffer.ts';
 import type { HizPyramid } from './hizTypes.ts';
 
@@ -43,11 +44,9 @@ export function visibilityDepth(
       const triangle = frame.triangle(ids[y * width + x]);
       if (!triangle) continue;
       const { a, b, c } = triangle;
-      const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+      const area = signedArea(a, b, c);
       if (area === 0) continue;
-      const w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area,
-        w1 = ((c.x - x) * (a.y - y) - (a.x - x) * (c.y - y)) / area,
-        w2 = 1 - w0 - w1;
+      const { w0, w1, w2 } = barycentricAt(a, b, c, x, y, area);
       if (w0 < 0 || w1 < 0 || w2 < 0) continue;
       const z = w0 * a.z + w1 * b.z + w2 * c.z;
       if (!Number.isFinite(z)) continue;
