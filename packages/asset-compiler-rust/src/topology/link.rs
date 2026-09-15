@@ -1,12 +1,33 @@
+/// Blocs de travail d'une classification : trois listes par sommet et la pile du parcours, prêtées
+/// d'un sommet au suivant. Un maillage de plusieurs millions de sommets les allouait autant de fois.
+#[derive(Default)]
+pub(crate) struct LinkScratch {
+    ids: Vec<u32>,
+    neighbours: Vec<[u32; 2]>,
+    degree: Vec<u8>,
+    seen: Vec<bool>,
+    stack: Vec<usize>,
+}
+
 /// Vertex class from its link: the edges of the faces around it, as (end, opposite) pairs.
 ///
 /// A manifold interior vertex has a closed link, a boundary vertex an open one; anything else is
 /// locked. Degrees never exceed two in either case, so the link is walked in place instead of being
 /// materialised as a map per vertex.
-pub(super) fn classify_link(links: &[(u32, u32)]) -> &'static str {
-    let mut ids: Vec<u32> = Vec::new();
-    let mut neighbours: Vec<[u32; 2]> = Vec::new();
-    let mut degree: Vec<u8> = Vec::new();
+pub(crate) fn classify_link(links: &[(u32, u32)], scratch: &mut LinkScratch) -> &'static str {
+    let LinkScratch {
+        ids,
+        neighbours,
+        degree,
+        seen,
+        stack,
+    } = scratch;
+    // Vidés à l'entrée : la fonction sort par une dizaine de chemins, dont plusieurs abandons.
+    ids.clear();
+    neighbours.clear();
+    degree.clear();
+    seen.clear();
+    stack.clear();
     let slot = |ids: &mut Vec<u32>,
                 neighbours: &mut Vec<[u32; 2]>,
                 degree: &mut Vec<u8>,
@@ -27,7 +48,7 @@ pub(super) fn classify_link(links: &[(u32, u32)]) -> &'static str {
             continue;
         }
         for (from, to) in [(a, b), (b, a)] {
-            let index = slot(&mut ids, &mut neighbours, &mut degree, from);
+            let index = slot(ids, neighbours, degree, from);
             let held = degree[index] as usize;
             if (held >= 1 && neighbours[index][0] == to)
                 || (held >= 2 && neighbours[index][1] == to)
@@ -46,16 +67,15 @@ pub(super) fn classify_link(links: &[(u32, u32)]) -> &'static str {
     }
     let mut degree_one = 0;
     let mut degree_two = 0;
-    for &held in &degree {
+    for &held in degree.iter() {
         match held {
             1 => degree_one += 1,
             2 => degree_two += 1,
             _ => return "locked",
         }
     }
-    let mut seen = vec![false; ids.len()];
+    seen.resize(ids.len(), false);
     let mut components = 0;
-    let mut stack = Vec::new();
     for start in 0..ids.len() {
         if seen[start] {
             continue;
@@ -87,3 +107,7 @@ pub(super) fn classify_link(links: &[(u32, u32)]) -> &'static str {
         "locked"
     }
 }
+
+#[cfg(test)]
+#[path = "link_tests.rs"]
+mod tests;

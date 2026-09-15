@@ -12,8 +12,11 @@ pub struct SimplifiedMesh {
 /// the case of a small region inside a very large vertex buffer.
 pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, Vec<u32>, Vec<u32>) {
     let vertex_count = positions.len() / 3;
-    let mut compact_pos = Vec::new();
-    let mut remap = Vec::new();
+    // Une région ne peut pas renuméroter plus de sommets qu'elle n'a de coins ni que le maillage
+    // n'en contient : les deux listes partent à cette borne au lieu de doubler de taille en route.
+    let bound = indices.len().min(vertex_count.max(1));
+    let mut compact_pos = Vec::with_capacity(bound * 3);
+    let mut remap = Vec::with_capacity(bound);
     let mut compact_idx = Vec::with_capacity(indices.len());
     let push = |source: u32, compact_pos: &mut Vec<f32>, remap: &mut Vec<u32>| {
         let i = source as usize * 3;
