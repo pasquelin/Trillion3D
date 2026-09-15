@@ -1,7 +1,18 @@
 use super::*;
 
-pub(super) fn accessor<'a>(g: &'a Value, bin: &'a [u8], id: usize) -> Result<Accessor<'a>> {
-    accessor_validation::validate(g, bin, id)?;
+/// `validated` porte les identifiants qu'une passe amont a déjà validés — l'ensemble dédupliqué de
+/// `plan_buffers`. `validate` est une fonction pure sans effet de bord des mêmes `g`, `bin` et `id` :
+/// la seconde validation ne pourrait que retrouver le même verdict, et l'erreur, s'il y en avait
+/// une, a déjà été levée. `None` demande la validation, comme avant.
+pub(super) fn accessor<'a>(
+    g: &'a Value,
+    bin: &'a [u8],
+    id: usize,
+    validated: Option<&BTreeSet<usize>>,
+) -> Result<Accessor<'a>> {
+    if !validated.is_some_and(|ids| ids.contains(&id)) {
+        accessor_validation::validate(g, bin, id)?;
+    }
     let accessors = values(g, "accessors")?;
     let views = values(g, "bufferViews")?;
     let a = item(accessors, id, "accessor")?;
