@@ -1,6 +1,28 @@
-use super::{SceneProxy, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION};
+use super::{
+    SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
+    SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION,
+};
+use serde_json::{json, Value};
 
 impl SceneProxy {
+    /// Le descriptif que le manifeste porte : où lire l'objet, ce qu'il pèse, ce qu'il vaut.
+    pub fn descriptor(&self, url: &str, sha256: &str, bytes: usize) -> Value {
+        json!({
+         "version": SCENE_PROXY_VERSION,
+         "url": url,
+         "sha256": sha256,
+         "bytes": bytes,
+         "errorMetres": self.error_metres,
+         "cellMetres": self.cell_metres,
+         "errorFloorMetres": PROXY_ERROR_METRES,
+         "cellFloorMetres": PROXY_CELL_METRES,
+         "triangleBudget": PROXY_TRIANGLE_BUDGET,
+         "bounds": self.bounds,
+         "triangles": self.triangle_count(),
+         "nodes": self.node_count(),
+        })
+    }
+
     /// Les octets de l'objet de cache, en petit-boutiste : l'en-tête, puis les sommets monde, les
     /// albédos, les bornes des nœuds et leurs liens, bout à bout. Aucune longueur n'y est répétée —
     /// l'en-tête les impose toutes, et un lecteur refuse un fichier d'une autre taille.

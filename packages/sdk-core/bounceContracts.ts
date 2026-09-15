@@ -20,6 +20,13 @@ export const BOUNCE_SETTINGS = {
   proxyErrorMetres: 0.05,
   /** Triangles du proxy d'une scène entière, toutes instances posées : ce qui reste résident. */
   proxyTriangleBudget: 300_000,
+  /**
+   * Plancher de la maille du proxy, en mètres : la taille d'un triangle après simplification, donc
+   * la résolution du cache de surfaces. Le compilateur la double tant que le budget de triangles
+   * n'est pas tenu, et publie celle qu'il a prise. Plus fin que cela ne se verrait pas dans un
+   * indirect que huit sondes interpolent, et coûterait des mailles à balayer.
+   */
+  proxyCellMetres: 0.25,
   /** Triangles d'une feuille du BVH : la boucle d'une feuille est bornée par ce nombre (X2). */
   proxyLeafTriangles: 8,
   /** Nœuds visités par rayon : la traversée est bornée avant l'image, jamais par la profondeur. */
@@ -37,7 +44,7 @@ export const BOUNCE_SETTINGS = {
   /** Écartement visé entre deux sondes, en mètres. Une emprise plus grande écarte les sondes. */
   probeSpacingMetres: 2,
   /** Rayons lancés par sonde à chaque mise à jour. Budget fixe et réglable (X2). */
-  raysPerProbe: 32,
+  raysPerProbe: 64,
   /**
    * Sondes mises à jour par image : la grille est balayée en `probes / probesPerFrame` images.
    * C'est le budget de rayons de l'image, et il ne bouge pas : c'est la lumière qui converge, pas
@@ -45,13 +52,19 @@ export const BOUNCE_SETTINGS = {
    * faut, et le harnais publie ce temps.
    */
   probesPerFrame: 8192,
-  /** Lampes testées au point touché : la boucle du rayon est bornée par ce nombre (X2). */
+  /** Lampes testées sur une maille du cache : la boucle est bornée par ce nombre (X2). */
   lightsPerRay: 4,
+  /**
+   * Mailles du cache de surfaces mises à jour par image. C'est l'autre budget fixe de l'image : le
+   * cache entier est balayé en `mailles / surfaceTexelsPerFrame` images, et c'est ce nombre qui
+   * décide du retard autant que celui des sondes.
+   */
+  surfaceTexelsPerFrame: 65536,
   /**
    * Amortissement plancher d'une sonde stable : une moyenne courante finit par s'y arrêter, et
    * c'est ce plancher qui fixe le nombre de rayons dont l'image finale garde la mémoire.
    */
-  blendStable: 0.04,
+  blendStable: 0.1,
   /** Amortissement d'une sonde qui saute : elle reprend presque tout, donc le retard reste court. */
   blendMoving: 0.8,
   /** Résidu relatif au-delà duquel une sonde est déclarée en mouvement (hystérésis adaptative). */
@@ -61,7 +74,7 @@ export const BOUNCE_SETTINGS = {
    * balayage ajoute un ordre de rebond à la série : il en faut assez pour que la série soit close,
    * sans quoi l'état « stable » dépendrait de l'histoire de la scène et non d'elle seule.
    */
-  settledSweeps: 12,
+  settledSweeps: 16,
   /**
    * Distance moyenne en deçà de laquelle une sonde se déclare enterrée dans une surface, en
    * fraction du plus petit pas de la grille. Une sonde enterrée ne pèse plus rien : sans cela, la

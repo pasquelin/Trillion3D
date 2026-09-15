@@ -1,5 +1,4 @@
 import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
-import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
@@ -11,10 +10,10 @@ export const BOUNCE_PROBE_PASS = 'WG bounce probes v1';
 /**
  * La mise à jour des sondes d'irradiance.
  *
- * Une sonde lance un budget fixe de rayons contre le proxy résident, évalue au point touché
- * l'éclairage des lampes déclarées — mêmes lampes, mêmes ombres logiques, mais tracées contre le
- * proxy et non contre l'atlas — y ajoute ce que la grille sait déjà de ce point, ce qui donne le
- * rebond d'ordre deux, et accumule le tout en harmoniques sphériques d'ordre 1.
+ * Une sonde lance un budget fixe de rayons contre le proxy résident et lit, à la maille touchée,
+ * la radiance que le cache de surfaces y tient déjà — direct, ombres et rebond du tour précédent.
+ * Elle accumule le tout en harmoniques sphériques d'ordre 1. Un rayon, une traversée : les rayons
+ * d'ombre et la relecture des lampes ont quitté cette passe pour celle du cache.
  *
  * L'amortissement est adaptatif : une sonde dont l'estimation saute converge vite, une sonde stable
  * bouge à peine. Rien n'alloue, rien ne boucle sans borne, et une scène sans lampe déclarée écrit
@@ -30,20 +29,17 @@ export const BOUNCE_PROBE_SHADER = `
 @group(0) @binding(2) var<storage,read> proxyAlbedo:array<u32>;
 @group(0) @binding(3) var<storage,read> proxyNodeBounds:array<f32>;
 @group(0) @binding(4) var<storage,read> proxyNodeChildren:array<u32>;
-@group(0) @binding(5) var<storage,read> directLights:DirectLights;
 @group(0) @binding(6) var<storage,read> probes:array<vec4f>;
 @group(0) @binding(7) var<storage,read_write> probesOut:array<vec4f>;
-${DIRECT_LIGHT_WGSL}
+@group(0) @binding(8) var<storage,read> surface:array<vec4f>;
 ${BOUNCE_GRID_WGSL}
 ${BOUNCE_TRACE_WGSL}
 const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
-const LIGHTS_PER_RAY:u32=${BOUNCE_SETTINGS.lightsPerRay}u;
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
 const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const GOLDEN_ANGLE:f32=2.39996323;
-const INVERSE_PI:f32=0.31830989;
 /** Un entier mélangé puis ramené dans [0,1) : la graine d'une rotation, jamais un nombre au hasard. */
 fn hashUnit(seed:u32)->f32{
  var x=seed*747796405u+2891336453u;
@@ -60,46 +56,20 @@ fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
 /**
- * L'irradiance des lampes déclarées au point touché. Les ombres sont tracées contre le proxy, ce
- * qui garde une porte fermée fermée pour le rebond comme pour le direct ; le nombre de rayons
- * d'ombre d'un point est plafonné, et ce qu'il écarte est écarté dans l'ordre des lampes, donc de
- * façon déterminée.
+ * La radiance qu'un rayon rapporte : rien s'il ne touche rien, la maille touchée sinon.
+ *
+ * C'est une lecture, plus un calcul. Le cache de surfaces porte déjà la radiance sortante de cette
+ * face — direct, ombres comprises, et l'indirect que la grille avait convergé au tour précédent —
+ * et il l'a payée une fois pour toutes les fois où un rayon la touche.
  */
-fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
- var total=vec3f(0.0);
- var shadows=0u;
- let count=min(directLights.count,MAX_LIGHTS);
- let offset=P+N*1e-3;
- for(var index=0u;index<MAX_LIGHTS;index++){
-  if(index>=count){break;}
-  let light=directLights.items[index];
-  let incidence=directIncidence(light,P);
-  if(incidence.w<=0.0){continue;}
-  let cosine=dot(N,incidence.xyz);
-  if(cosine<=0.0){continue;}
-  if(light.params.z>0.5&&shadows<LIGHTS_PER_RAY){
-   shadows++;
-   let span=select(length(light.positionRange.xyz-P),reach,light.params.x>KIND_SUN-0.5);
-   if(proxyBlocked(offset,incidence.xyz,span)){continue;}
-  }
-  total+=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
- }
- return total;
-}
-/** La radiance qu'un rayon rapporte : rien s'il ne touche rien, la surface touchée sinon. */
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=traceProxy(origin,direction,reach);
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
- let point=origin+direction*hit.distance;
- var normal=proxyNormal(hit.triangle);
- // Le proxy est double face : la normale qui compte est celle qui regarde le rayon. Le sens
- // d'enroulement de la source n'entre jamais en jeu — il n'est fiable sur aucune scène importée.
- normal=select(normal,-normal,dot(normal,direction)>0.0);
- let albedo=proxyAlbedoOf(hit.triangle);
- // Le second rebond vient de la grille elle-même, relue au point touché : la convergence de
- // l'image précédente porte l'ordre deux, et les suivants arrivent aux mises à jour suivantes.
- let irradiance=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
- return vec4f(albedo*irradiance*INVERSE_PI,hit.distance);
+ // La face qui compte est celle qui regarde le rayon : le proxy est double face par construction.
+ let face=select(0u,1u,dot(proxyNormal(hit.triangle),direction)>0.0);
+ let texel=hit.triangle*2u+face;
+ if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
+ return vec4f(surface[texel].rgb,hit.distance);
 }
 @compute @workgroup_size(${BOUNCE_WORKGROUP})
 fn updateProbes(@builtin(global_invocation_id) id:vec3u){
