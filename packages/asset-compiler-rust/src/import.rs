@@ -144,7 +144,7 @@ struct Importer<'a> {
 
 mod lighting;
 mod materials;
-mod mesh;
+pub(crate) mod mesh;
 mod runner;
 mod scene;
 mod textures;
