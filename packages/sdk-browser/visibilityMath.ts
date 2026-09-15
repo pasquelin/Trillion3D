@@ -1,10 +1,6 @@
 import * as THREE from 'three';
-import {
-  barycentricAt,
-  projectVisibilityVertex,
-  signedArea,
-  type Projected,
-} from './visibilityProjection.ts';
+import type { Projected } from './visibilityProjection.ts';
+import { barycentricAt, projectVisibilityVertex, signedArea } from './visibilityProjection.ts';
 import { textureRgba, type VisPage } from './visibilityTypes.ts';
 
 export function backgroundRgb(background: number) {
@@ -140,10 +136,14 @@ export function sampleLinear(map: THREE.Texture, u: number, v: number): [number,
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255];
 }
 
+/** Polynôme ×31 par points de code. `hashId` (backendCommon.ts) parcourt les unités UTF-16 : même
+ *  polynôme, deux parcours, deux résultats hors du plan de base — pas deux copies d'un seul. */
 export function clusterHash(id: string) {
   return Array.from(id).reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 0);
 }
 
+/** Miroir CPU des dérivées d'UV du nuanceur d'ombrage (`visibilityShaderShade.ts`) : mêmes
+ *  quotients, même ordre, deux langages — le texte ne se partage pas entre TypeScript et WGSL. */
 export function uvDerivatives(
   a: Projected,
   b: Projected,

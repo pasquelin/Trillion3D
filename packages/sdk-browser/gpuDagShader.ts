@@ -49,6 +49,7 @@ fn isConformal(m:mat3x3f)->bool{
  let eps=maxl*1e-4+1e-12;
  return abs(dot(m[0],m[1]))<=eps&&abs(dot(m[0],m[2]))<=eps&&abs(dot(m[1],m[2]))<=eps;
 }
+/** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances, memes operandes. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(cone.w>=1.57079632679){return false;}
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);

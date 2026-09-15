@@ -41,7 +41,9 @@ export const baseCapabilities: BackendCapabilities = {
     'physical VRAM instrumentation',
   ],
 };
-/** Stable 32-bit hash of a cluster or mesh id, used as a colour seed. */
+/** Stable 32-bit hash of a cluster or mesh id, used as a colour seed.
+ *  Voisin de `clusterHash` (visibilityMath.ts), qui parcourt les points de code plutôt que les
+ *  unités UTF-16 : même polynôme ×31, deux parcours, deux résultats hors du plan de base. */
 export function hashId(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;

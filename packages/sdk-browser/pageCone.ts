@@ -106,7 +106,9 @@ export function coneContextFor(
   return into;
 }
 
-/** Le rejet de cône d'un cluster, le contexte de sa racine étant déjà posé. */
+/** Le rejet de cône d'un cluster, le contexte de sa racine étant déjà posé.
+ *  Miroir CPU de `coneRejectsBox` (gpuDagShader.ts) : mêmes tolérances 1.0001, 1e-12 et 1e-4,
+ *  mêmes opérandes, deux langages — le texte ne se partage pas, la règle si. */
 export function coneCullsPageWith(
   ctx: ConeContext,
   cone: NormalCone,
