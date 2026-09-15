@@ -27,6 +27,9 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
+  // Rien n'est tenu par défaut : seule l'adoption d'un relevé déjà lu le déclare, et tout chemin
+  // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
+  run.cutHeld = false;
   source.updateMatrixWorld(true);
   setWindingEpoch(rows.tableEpoch);
   void rt.texturePump

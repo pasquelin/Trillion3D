@@ -75,6 +75,14 @@ export interface WebgpuRunState {
   readyScratch: PageRec[];
   pendingScratch: string[];
   urlScratch: string[];
+  /** Vrai quand l'adoption a relu le relevé déjà tenu : `desired` et `shown` n'ont pas bougé. */
+  cutHeld: boolean;
+  /** Augmente chaque fois qu'une page reçoit ou perd ses octets : ce que `pendingScratch` lit. */
+  pageArrayEpoch: number;
+  /** Ce que chaque liste rendue à l'hôte décrit : l'état qui l'a produite, ou `-1` si elle est à
+   *  refaire. Une liste n'est gardée que si tout ce dont elle dépend est encore celui-là. */
+  pendingHeld: { epoch: number; limited: boolean; ready: boolean };
+  urlsHeld: { epoch: number; limited: boolean };
   /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
   requestedScratch: Set<string>;
   transitionScratch: Set<string>;
@@ -155,6 +163,10 @@ export function createWebgpuRunState(): WebgpuRunState {
     readyScratch: [],
     pendingScratch: [],
     urlScratch: [],
+    cutHeld: false,
+    pageArrayEpoch: 0,
+    pendingHeld: { epoch: -1, limited: false, ready: false },
+    urlsHeld: { epoch: -1, limited: false },
     requestedScratch: new Set<string>(),
     transitionScratch: new Set<string>(),
   };
