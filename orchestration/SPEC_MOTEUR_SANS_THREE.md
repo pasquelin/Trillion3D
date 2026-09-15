@@ -64,6 +64,17 @@ R5c. **Ce que la partition ne garantit pas, et pourquoi le compilateur ne peut p
 
 R6. **Rendu WebGPU** : visibility buffer, compaction et `drawIndexedIndirect` par cluster, raster logiciel borné aux petits triangles réels, résolution matériau par binning, éclairage différé (GGX, IBL si et quand livré, tone mapping ACES, sRGB), transparents en sélection GPU et indirect par matériau, table de pages statique mise à jour par page, zéro allocation par image. Critère : Emerald 1280×720 CPU < 4 ms, GPU < 6 ms, image identique à la référence.
 R7. **Rendu WebGL2** : mêmes formules d'éclairage en GLSL généré depuis la même source que le WGSL, tampons d'index persistants, `WEBGL_multi_draw`, un dessin par matériau et non par objet (matrices d'instance en texture), transparents triés, textures et mips gérés par le runtime. Critère : parité au pixel avec WebGPU sur toutes les scènes du banc (erreur max ≤ 2 par canal, expliquée), CPU < 8 ms sur Emerald.
+R7b. **Ce qu'une instance coûte, et ce qu'elle ne coûte pas.** Poser N fois le même objet n'alloue
+**aucune géométrie de plus**, sur aucun des deux moteurs : sommets, indices, UV, normales et
+tangentes appartiennent à la géométrie source, jamais au placement, et la forme de son DAG —
+hiérarchie de culling, bornes par nœud, bandes d'erreur, paquets de streaming, liens de groupes,
+identités de clusters — est calculée une fois par objet et relue par chaque placement. Ce qu'un
+placement possède en propre est ce qui le distingue : sa matrice monde, sa boîte monde, son rang de
+dessin, ses drapeaux de groupes forcés, et un enregistrement par cluster — parce que sa coupe lui
+appartient, l'erreur projetée dépendant de sa distance. Le budget de pages ne compte pas deux fois
+un cluster posé deux fois (R3b). Critère : `geometryAllocationBytes` identique à 1 et à N instances
+(Emerald, WebGPU 209,1 Mo, WebGL2 223,3 Mo à 1 comme à 9), image identique à 0 px.
+
 R8. **API scène** : `addObject(cache, transform)`, `removeObject`, `setTransform`, `setMaterial`, `setCamera`, `pick(x, y)` (rayon contre clusters visibles et triangles réels), événements de résidence et de chargement. Critère : opérations appliquées à l'image suivante, sans allocation par image.
 R9. **Métriques honnêtes** : rAF, CPU par étape, GPU par passe (WebGPU) ou `null`, triangles soumis et sélectionnés selon le même contrat pour tous les moteurs, `pagesDetached`, `cacheEvictions`, trous mesurés par le SDK lui-même. Critère : champs identiques entre moteurs, aucune valeur déduite.
 
