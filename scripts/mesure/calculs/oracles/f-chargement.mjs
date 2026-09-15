@@ -1,40 +1,42 @@
+// Oracles du lot F, côté chargement : `pageSelectionCollect.ts:34-153`, `explorerScene.ts:18-36` et
+// `explorerPageSources.ts:20-49` d'avant le lot F, recopiés tels quels.
+import * as THREE from 'three';
 import {
   DAG_ERROR_MODEL,
   EngineError,
   primitiveUsesClusterErrors,
-  type ClusterManifest,
-  type Primitive,
-} from '../sdk-core/index.ts';
-import * as THREE from 'three';
-import { isTransmissive } from './visibilityBuffer.ts';
+} from '../../../../packages/sdk-core/index.ts';
+import { isTransmissive } from '../../../../packages/sdk-browser/visibilityBuffer.ts';
 import {
   objects,
   streamPlacement,
   clusterErrorFields,
   structureIndex,
   cullingNodes,
-} from './pageSelectionHelpers.ts';
-import { primitiveFinder } from './primitiveLookup.ts';
-import { cullingBounds } from './pageSelectionCutBounds.ts';
-import { indexPageRequests } from './pageSelectionRequests.ts';
-import type { PageRec, ClusterRoot, ClusterStructureIndex } from './pageSelectionTypes.ts';
+} from '../../../../packages/sdk-browser/pageSelectionHelpers.ts';
+import { cullingBounds } from '../../../../packages/sdk-browser/pageSelectionCutBounds.ts';
+import { indexPageRequests } from '../../../../packages/sdk-browser/pageSelectionRequests.ts';
 
-export function collectClusterPages(
-  source: THREE.Object3D,
-  metadata: ClusterManifest,
-  indices: Map<string, Uint32Array>,
-  associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
-  options: { allowMissing?: boolean } = {},
+/** `collectClusterPages` avant le lot F : `find` par maillage, `flatMap` d'un spread, trois objets
+ *  Three.js par page pour l'union des boîtes. */
+export function referenceCollectClusterPages(
+  source,
+  metadata,
+  indices,
+  associations,
+  options = {},
 ) {
-  const roots: Array<ClusterRoot<PageRec>> = [],
-    allPages: PageRec[] = [],
-    blendCopies: THREE.Mesh[] = [],
-    bootstrap: PageRec[] = [];
-  const structures = new Map<Primitive, ClusterStructureIndex | undefined>();
-  const primitiveOf = primitiveFinder(metadata.primitives);
+  const roots = [],
+    allPages = [],
+    blendCopies = [],
+    bootstrap = [];
+  const structures = new Map();
   let order = 0;
   for (const mesh of objects(source)) {
-    const primitive = primitiveOf(associations.get(mesh));
+    const association = associations.get(mesh),
+      primitive = metadata.primitives.find(
+        (p) => p.mesh === association?.meshes && p.primitive === (association?.primitives ?? 0),
+      );
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
       const copy = new THREE.Mesh(mesh.geometry, mesh.material);
@@ -48,13 +50,12 @@ export function collectClusterPages(
     }
     const sourceIndices = mesh.geometry.getIndex();
     if (!sourceIndices) throw new Error('Indexed source required');
-    const src = sourceIndices.array as ArrayLike<number>;
+    const src = sourceIndices.array;
     const transparent =
       primitive.pass === 'clustered-blend' ||
       (Array.isArray(mesh.material)
         ? mesh.material.some((material) => material.transparent)
         : mesh.material.transparent);
-    // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
     const sourceOrder = transparent
       ? primitive.pages.map((page, index) => page.start ?? index)
       : undefined;
@@ -68,7 +69,7 @@ export function collectClusterPages(
       else if (!array && (page.role ?? 'exact') !== 'coarse') sourceOffset += page.count;
       const cut = clusterErrorFields(page);
       const placed = placement?.[pageIndex];
-      const rec: PageRec = {
+      const rec = {
         id: page.id,
         url: page.url,
         clusterId: `${primitive.mesh}/${primitive.primitive}/${page.id}`,
@@ -110,28 +111,16 @@ export function collectClusterPages(
     );
     if (complete && sourceOffset !== sourceIndices.count)
       throw new Error('Incomplete cluster coverage');
-    // The DAG reorders triangles, so coverage is a multiset identity, never an order identity.
     if (complete) {
-      const count = (arr: ArrayLike<number>) => {
-        const map = new Map<string, number>();
+      const count = (arr) => {
+        const map = new Map();
         for (let i = 0; i < arr.length; i += 3) {
           const key = `${arr[i]},${arr[i + 1]},${arr[i + 2]}`;
           map.set(key, (map.get(key) ?? 0) + 1);
         }
         return map;
       };
-      // La concaténation passe par un `Uint32Array` de taille connue : `flatMap` d'un spread par page
-      // construisait un tableau JS de plusieurs millions de nombres avant de le compter.
-      let total = 0;
-      for (const page of exactPages) total += indices.get(page.url)!.length;
-      const joined = new Uint32Array(total);
-      let at = 0;
-      for (const page of exactPages) {
-        const part = indices.get(page.url)!;
-        joined.set(part, at);
-        at += part.length;
-      }
-      const fromPages = count(joined);
+      const fromPages = count(exactPages.flatMap((page) => [...indices.get(page.url)]));
       const fromSource = count(src);
       if (fromPages.size !== fromSource.size) throw new Error('Incomplete cluster coverage');
       for (const [key, n] of fromSource)
@@ -153,26 +142,9 @@ export function collectClusterPages(
         new THREE.Vector3(culling.nodes[0], culling.nodes[1], culling.nodes[2]),
         new THREE.Vector3(culling.nodes[3], culling.nodes[4], culling.nodes[5]),
       );
-    // L'union se fait en scalaires : `Box3.union` prend `Math.min`/`Math.max` composante par
-    // composante, exactement ce qu'écrivent ces six lignes, sans les trois objets par page.
-    else {
-      let minX = Infinity,
-        minY = Infinity,
-        minZ = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity,
-        maxZ = -Infinity;
-      for (const page of primitive.pages) {
-        minX = Math.min(minX, page.min[0]);
-        minY = Math.min(minY, page.min[1]);
-        minZ = Math.min(minZ, page.min[2]);
-        maxX = Math.max(maxX, page.max[0]);
-        maxY = Math.max(maxY, page.max[1]);
-        maxZ = Math.max(maxZ, page.max[2]);
-      }
-      local.min.set(minX, minY, minZ);
-      local.max.set(maxX, maxY, maxZ);
-    }
+    else
+      for (const page of primitive.pages)
+        local.union(new THREE.Box3(new THREE.Vector3(...page.min), new THREE.Vector3(...page.max)));
     roots.push({
       world: mesh.matrixWorld,
       pages,
@@ -183,8 +155,6 @@ export function collectClusterPages(
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,
       forcedList: structure ? [] : undefined,
     });
-    // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
-    // always has something to fall back on.
     if (structure) for (const root of structure.roots) bootstrap.push(pages[root]);
   }
   return {

@@ -16,6 +16,26 @@ type InstanceEnvironment = {
   cap: number;
 };
 
+/**
+ * Repose une instance : ses racines et ses pages reprennent la transformation appliquée à leurs
+ * modèles. `pages[i]` est le clone de `bases[i]`, posé une fois à la création, là où le déplacement
+ * reconstruisait une table de hachage page → page de base à chaque appel.
+ */
+export function deplaceInstance(
+  instance: { pages: PageRec[]; bases: PageRec[]; roots: ClusterRoot<PageRec>[] },
+  baseRoots: readonly ClusterRoot<PageRec>[],
+  transform: THREE.Matrix4,
+) {
+  const { pages, bases, roots } = instance;
+  for (let i = 0; i < roots.length; i++)
+    roots[i].world.copy(transform).multiply(baseRoots[i].world);
+  for (let i = 0; i < pages.length; i++) {
+    const rec = pages[i];
+    rec.matrix.copy(transform).multiply(bases[i].matrix);
+    if (rec.mesh) rec.mesh.matrix.copy(rec.matrix);
+  }
+}
+
 export function createAutonomousInstances(env: InstanceEnvironment) {
   const {
     roots,
@@ -30,9 +50,11 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     geometryStore,
     cap,
   } = env;
+  // `pages[i]` est le clone de `bases[i]` : le couple est posé à la création, pas reconstruit en table
+  // de hachage à chaque déplacement de l'instance.
   const instances = new Map<
     string,
-    { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bootstrap: PageRec[] }
+    { roots: ClusterRoot<PageRec>[]; pages: PageRec[]; bases: PageRec[]; bootstrap: PageRec[] }
   >();
   const { geometryBytes, removeRecords, sync } = geometryStore;
   return {
@@ -70,19 +92,14 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       instances.set(id, {
         roots: addedRoots,
         pages: [...mapped.values()],
+        bases: [...basePages],
         bootstrap: addedBootstrap,
       });
     },
     updateInstance(id: string, transform: THREE.Matrix4) {
       const instance = instances.get(id);
       if (!instance) throw new Error('AUTONOMOUS_INSTANCE_MISSING');
-      const mapped = new Map(basePages.map((base, i) => [instance.pages[i], base] as const));
-      for (let i = 0; i < instance.roots.length; i++)
-        instance.roots[i].world.copy(transform).multiply(baseRoots[i].world);
-      for (const rec of instance.pages) {
-        rec.matrix.copy(transform).multiply(mapped.get(rec)!.matrix);
-        if (rec.mesh) rec.mesh.matrix.copy(rec.matrix);
-      }
+      deplaceInstance(instance, baseRoots, transform);
     },
     removeInstance(id: string) {
       const instance = instances.get(id);
