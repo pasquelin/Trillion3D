@@ -21,7 +21,7 @@ export async function measureView(options) {
     width: options.width,
     height: options.height,
     pixelRatio: 1,
-    replicaCount: 1,
+    replicaCount: options.instances ?? 1,
     detail: 'source',
     pixelError: options.pixelError,
     lodAdaptive: false,
