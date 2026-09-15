@@ -65,7 +65,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   requested.decompose(node.position, node.quaternion, node.scale);
   node.matrix.copy(requested);
   node.matrixAutoUpdate = false;
-  setup.source.updateMatrixWorld(true);
+  // Seuls les ancêtres du nœud et son sous-arbre changent de matrice monde : le reste de la scène
+  // rendrait les mêmes seize nombres. C'est la liste des nœuds modifiés, tenue par la hiérarchie.
+  node.updateWorldMatrix(true, true);
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
     boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
@@ -74,6 +76,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   layout.rows.tableEpoch++;
   // Origine du changement de scène : les matrices monde de ce sous-arbre viennent d'être réécrites.
   bumpScene(run.revisions);
+  // La hiérarchie porte déjà les matrices de cette révision : l'image suivante ne la remonte pas.
+  run.worldsRevision = run.revisions.scene;
   invalidateOccluderHistory(run);
   if (boxIsEmpty(moved, 0)) return;
   for (let axis = 0; axis < 3; axis++) {

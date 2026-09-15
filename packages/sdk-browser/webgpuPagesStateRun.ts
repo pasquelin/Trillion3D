@@ -101,6 +101,11 @@ export interface WebgpuRunState {
   viewRevision: ReturnType<typeof createViewRevision>;
   /** Ce que l'image précédente a produit, et si l'image suivante peut être tenue. */
   frameHold: FrameHold;
+  /** La révision de scène pour laquelle la hiérarchie Three porte ses matrices monde à jour.
+   *  Écrite par qui les a remontées : la première image, ou le déplacement d'un nœud nommé. */
+  worldsRevision: number;
+  /** La révision de scène dont les matrices ont été portées à la carte et aux items transparents. */
+  worldUploadRevision: number;
   /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
    *  occulteurs, donc la partition que la suivante hérite. */
   occluderSignature: number;
@@ -179,6 +184,8 @@ export function createWebgpuRunState(): WebgpuRunState {
     revisions: createFrameRevisions(),
     viewRevision: createViewRevision(),
     frameHold: createFrameHold(HOLD_SIGNATURE_VALUES),
+    worldsRevision: 0,
+    worldUploadRevision: 0,
     occluderSignature: 0,
   };
 }
