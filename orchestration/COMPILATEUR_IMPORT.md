@@ -28,7 +28,7 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | OBJ / MTL               | spécification publiée                                   | fait    | MTL à vérifier                                       | P2       |
 | PNG, JPEG classique     | standards                                               | fait    | —                                                    | —        |
 | TGA                     | spécification publiée                                   | fait    | —                                                     | —        |
-| TIFF (profils déclarés) | spécification publiée                                   | à coder | feature `tiff`, 8 et 16 bits, compressions listées   | P2       |
+| TIFF (profils déclarés) | spécification publiée                                   | fait    | —                                                     | —        |
 | OpenEXR, Radiance HDR   | documentés, BSD-3                                       | à coder | features `exr`, `hdr`, usage éclairage               | P3       |
 | USD / USDZ              | AOUSD public, OpenUSD sous TOST 1.0                     | à coder | crate Rust à évaluer, sinon lecteur usda/usdc propre | P3       |
 | Alembic                 | ouvert, BSD-3                                           | à coder | géométrie statique seulement                         | P3       |
