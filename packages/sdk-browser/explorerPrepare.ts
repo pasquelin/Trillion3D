@@ -75,6 +75,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
+    textureIndices: loadedScene.textureIndices,
     pageSources,
     gpuDevice: resources.gpuDevice,
     directGpu: configured.directGpu,

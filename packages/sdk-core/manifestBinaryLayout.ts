@@ -19,6 +19,24 @@ export function hexDigits(sha: string) {
 }
 const align8 = (value: number) => (value + 7) & ~7;
 
+/** A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column. */
+export function writeSha(target: Uint8Array, slot: number, sha: string) {
+  const text = hexDigits(sha);
+  for (let i = 0; i < 64; i++) target[slot * 64 + i] = text.charCodeAt(i);
+}
+/** Every object url a sidecar names follows its template; a cache where one does not is rejected. */
+export function expectTemplate(template: string, url: string, sha: string) {
+  if (template.replace('{sha}', sha) !== url)
+    throw new EngineError(
+      'INVALID_CACHE',
+      'A cache object url does not follow the manifest template',
+      {
+        url,
+        template,
+      },
+    );
+}
+
 export interface Counts {
   pages: number;
   cullingNodes: number;
@@ -27,6 +45,7 @@ export interface Counts {
   outputs: number;
   roots: number;
   bundles: number;
+  previews: number;
 }
 export function countManifest(manifest: ClusterManifest): Counts {
   const counts: Counts = {
@@ -37,6 +56,7 @@ export function countManifest(manifest: ClusterManifest): Counts {
     outputs: 0,
     roots: 0,
     bundles: 0,
+    previews: manifest.texturePreviews?.length ?? 0,
   };
   for (const primitive of manifest.primitives) {
     counts.pages += primitive.pages.length;
@@ -81,6 +101,10 @@ export function columnElements(name: ColumnName, counts: Counts) {
     case 'bundleU32':
     case 'bundleSha':
       return counts.bundles;
+    case 'texturePreviewU32':
+    case 'texturePreviewSha':
+    case 'texturePreviewPixels':
+      return counts.previews;
   }
 }
 function columnBytes(name: ColumnName, counts: Counts) {

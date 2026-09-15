@@ -56,13 +56,19 @@ export async function captureModel({
       await raf();
       samples.push({ ...explorer.render(step.pose), segment: step.segment });
       if (i % framesPerSegment === 0) {
+        let framesAfterFlush = 0;
         if (stableCaptures)
           for (let settle = 0; settle < 4; settle++) {
             explorer.setPose(step.pose);
             await explorer.awaitPages();
             explorer.render(step.pose);
+            framesAfterFlush++;
             await explorer.flush();
           }
+        // L'état consigné est celui de l'image lue, pas celui d'avant les rendus de stabilisation :
+        // la dernière image est rendue ici, et c'est ses métriques que la capture emporte.
+        const metrics = { ...explorer.render(step.pose), segment: step.segment };
+        framesAfterFlush++;
         await explorer.flush();
         const pixels = explorer.capture();
         if (pixels.length !== width * height * 4) throw Error('Invalid model capture length');
@@ -73,13 +79,33 @@ export async function captureModel({
         let binary = '';
         for (let offset = 0; offset < pixels.length; offset += 8192)
           binary += String.fromCharCode(...pixels.subarray(offset, offset + 8192));
-        await window.saveCapture(step.segment, btoa(binary));
-        captures.push({
+        // Une capture est une candidate, jamais une référence : c'est un humain qui promeut.
+        const capture = {
           segment: step.segment,
+          role: 'candidate',
           foreground,
           pose: step.pose,
-          metrics: samples.at(-1),
-        });
+          framesAfterFlush,
+          texturePending: metrics.texturePending ?? null,
+          textureSkipped: metrics.textureSkipped ?? null,
+          textureUploaded: metrics.textureUploaded ?? null,
+          gpuErrors: [...gpuErrors],
+          metrics,
+        };
+        await window.saveCapture(step.segment, btoa(binary));
+        await window.saveCaptureState(step.segment, JSON.stringify(capture, null, 2));
+        captures.push(capture);
+        if (capture.texturePending || capture.textureSkipped || capture.gpuErrors.length)
+          throw Error(
+            'Capture ' +
+              step.segment +
+              ' : textures incomplètes ou erreur GPU — ' +
+              JSON.stringify({
+                texturePending: capture.texturePending,
+                textureSkipped: capture.textureSkipped,
+                gpuErrors: capture.gpuErrors,
+              }),
+          );
         await window.captureProgress('Emerald capture ' + captures.length + '/10');
       }
     }

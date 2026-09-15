@@ -11,6 +11,8 @@ export interface ManifestBinaryDescriptor {
   pageUrl: string;
   geometryUrl: string;
   bundleUrl: string;
+  /** Entrées de la section des aperçus de texture; zéro quand la source n'a aucune image décodable. */
+  texturePreviews: number;
 }
 interface SlimCulling {
   stride: number;
@@ -67,6 +69,12 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
       throw new EngineError('UNSUPPORTED_FORMAT', `Manifest binary descriptor misses ${key}`, {
         key,
       });
+  if (!Number.isSafeInteger(descriptor.texturePreviews) || descriptor.texturePreviews! < 0)
+    throw new EngineError(
+      'UNSUPPORTED_FORMAT',
+      'Manifest binary descriptor has no texture preview count',
+      { texturePreviews: descriptor.texturePreviews ?? null },
+    );
   if (!Number.isSafeInteger(descriptor.bytes) || descriptor.bytes! < 0)
     throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor has no byte length', {
       bytes: descriptor.bytes ?? null,

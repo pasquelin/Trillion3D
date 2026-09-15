@@ -70,6 +70,12 @@ export async function loadPreparedScene(
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
   const associations = gltf.parser.associations as BackendContext['associations'];
+  // Le sidecar nomme ses aperçus par rang de texture glTF ; c'est la seule table qui les relie aux
+  // objets que le chargeur a construits.
+  const textureIndices = new Map<THREE.Texture, number>();
+  for (const [object, reference] of gltf.parser.associations as Map<object, { textures?: number }>)
+    if (object instanceof THREE.Texture && typeof reference?.textures === 'number')
+      textureIndices.set(object, reference.textures);
   const preparedBounds = autonomous
     ? exactPagesBounds(source, associations, metadata, () => {
         throw new EngineError(
@@ -79,5 +85,5 @@ export async function loadPreparedScene(
       })
     : undefined;
   source = replicateInstances(source, associations, options.replicaCount ?? 1, preparedBounds);
-  return { source, sceneLightingSource, associations };
+  return { source, sceneLightingSource, associations, textureIndices };
 }
