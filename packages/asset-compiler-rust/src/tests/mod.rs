@@ -9,6 +9,8 @@ mod alembic_golden;
 mod apercus_golden;
 mod apercus_import;
 mod apercus_source;
+mod blend_driver;
+mod blend_golden;
 mod coplanar;
 mod coplanar_assign;
 mod coplanar_collect;
