@@ -5349,10 +5349,16 @@ le premier morceau : huit octets de signature, huit de longueur et de type de mo
 largeur et de hauteur — et refuse la valeur 16 sous `image-depth-unsupported`, avant tout décodage.
 Aucune source 16 bits n'atteint plus `to_rgba8()`. Tout le reste est inchangé, pixel pour pixel :
 1, 2, 4 et 8 bits par canal, palette, niveaux de gris, alpha — jusqu'à huit bits l'expansion vers
-RGBA8 recopie au lieu de rogner, elle ne perd rien. La détection du format ne bouge pas, la version
-du pilote non plus (`png-image-0.25`, la bibliothèque et son comportement sur les profondeurs lues
-sont les mêmes), donc aucune clé de cache ne change et aucune dorée existante ne bouge — pas un
-`expected.json` : le seul PNG 16 bits du dépôt est la fixture ajoutée ici. Un fichier trop court
+RGBA8 recopie au lieu de rogner, elle ne perd rien. La détection du format ne bouge pas. La version
+du pilote, si : `png-image-0.25` devient `png-image-0.25-depth8`, parce qu'elle entre dans
+l'identité du cache et que ce qu'un PNG 16 bits produit vient de changer. Sans ce pas, une entrée
+écrite quand le 16 bits était abaissé en silence serait relue comme si elle était juste, et la perte
+survivrait au correctif — c'est la règle « never silently interpret incompatible cached data »
+d'`AGENTS.md`. Le suffixe nomme la profondeur maximale rendue, dans l'esprit des `-gltf-N` des
+pilotes de scène. Aucune dorée n'en dépend : les `expected.json` ne portent que la version du pilote
+de scène, jamais celle d'un pilote d'image, et le seul PNG 16 bits du dépôt est la fixture ajoutée
+ici. Le pilote `tiff` n'a pas la même dette : son refus du 16 bits est né avec lui, au commit
+`cda842f`, donc sa version n'a jamais désigné un autre comportement et ne bouge pas. Un fichier trop court
 pour porter son IHDR n'est pas jugé sur sa profondeur : il part au décodeur et ressort comme avant
 en `image-decode-failed`. Le pilote ne panique jamais, il ne fait que lire des octets.
 
