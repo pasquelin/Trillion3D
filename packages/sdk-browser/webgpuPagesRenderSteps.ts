@@ -121,7 +121,7 @@ export function cpuSampleOf(
     frame: run.frame,
     submission: run.imageRevision,
     scope: 'backend-render-call',
-    totalMs: cpuEnd - marks.cpuStart,
+    totalMs: cpuEnd - timing.marks.preStart,
     lightsMs: marks.lightsEnd - marks.cpuStart,
     selectionMs: marks.selectionEnd - marks.lightsEnd,
     residencyScheduleAndTargetsMs: drew ? marks.encodeStart! - marks.selectionEnd : null,

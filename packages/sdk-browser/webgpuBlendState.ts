@@ -37,16 +37,18 @@ export function createWebgpuBlendState() {
     blendGpu,
     pagedBlendGpu,
     visibleBlend,
-    /** Plans normalisés du tronc de l'image, contre lesquels un item non paginé est rejeté. */
+    /** Plans normalisés du tronc de l'image, contre lesquels un item est rejeté. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
     /** The scene's transparent draw order and the GPU compaction that filters it, or undefined
      *  before `prepare` built them — or when the scene carries no paged transparent cluster. */
     table: undefined as TransparentTable | undefined,
     compaction: undefined as TransparentCompaction | undefined,
-    /** Instances a CPU cut wrote, and the residency revision the spans were written from. */
+    /** Instances a CPU cut wrote, and the meshes it selected. */
     cpuInstances: new Uint32Array(0),
     cpuInstanceCount: 0,
-    spanRevision: -1,
+    cpuSelectedMeshes: new Set<THREE.Mesh>(),
+    /** Table entries changed by the residency journal, awaiting a partial upload. */
+    dirtySpans: new Set<number>(),
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */
     cpuItemCounts: new Uint32Array(0),
     /** Les ressources d'éclairage sur lesquelles les groupes de liaison courants ont été bâtis :

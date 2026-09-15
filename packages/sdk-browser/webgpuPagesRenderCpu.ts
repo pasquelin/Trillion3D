@@ -184,6 +184,6 @@ export function renderCpuCut(
   const cpuEnd = performance.now();
   timing.lastSubmitMs = cpuEnd - encodeStart;
   timing.cpuSample = cpuSampleOf(rt, { cpuStart, lightsEnd, selectionEnd, encodeStart }, cpuEnd);
-  publishCpuProfile(timing, run, rt.diag);
+  publishCpuProfile(rt);
   traceCpuFrame(rt, camera);
 }

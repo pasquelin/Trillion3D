@@ -67,11 +67,10 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
     hizRest.fill(0, 0, rows.packedCount);
     occluders = rows.packedCount;
   }
-  const partitionMs = performance.now() - partitionStart;
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
   if (twoPass && !boundsForAll) project(hizRest);
   timing.lastProjectMs = projectMs;
-  timing.lastPartitionMs = partitionMs - projectMs;
+  timing.lastPartitionMs = performance.now() - partitionStart - projectMs;
   const counts = timing.partitionCounts;
   counts.lignes = rows.packedCount;
   counts.occulteurs = occluders;
