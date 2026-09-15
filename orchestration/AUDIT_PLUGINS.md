@@ -8,7 +8,7 @@ Ordre retenu par l'utilisateur : fidélité des scènes et cache OBJ, puis plant
 
 | Lot | Constats | Périmètre |
 | --- | --- | --- |
-| A cache et MTL obj | 1, 2 + audit MTL (dorée obj, MTL absent/tronqué, Ks/Ni/Ka, bump/norm, options de map) | `import/runner.rs`, `import/textures.rs`, `import/materials.rs`, `import/scene.rs` |
+| A cache et MTL obj | 1, 2 + audit MTL — **livré 46d0d61** (obj/fbx `-gltf-5`, 9 codes, dorée obj) ; restes : `-o`/`-s` comptés, `-clamp` sans preuve navigateur | `import/runner.rs`, `import/textures.rs`, `import/materials.rs`, `src/uri.rs` |
 | B n-gones concaves | 9 | aide commune de triangulation (oreilles), utilisée par ma, blend, alembic, usd |
 | C USD fidélité | 35, 36, 37, 38, 40, 41 | `plugins/scene/usd/` |
 | D Unity fidélité | 29, 30, 32, 31 | `plugins/scene/unity/` |
