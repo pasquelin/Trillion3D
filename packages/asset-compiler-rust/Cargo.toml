@@ -33,6 +33,10 @@ yaml-rust2 = { version = "0.13", default-features = false }
 # notices conservées avec la dépendance). Rust pur, sans `std` ni SDK d'éditeur : la reconstruction
 # entière que définit la spécification, rien de plus.
 texture2ddecoder = "0.1.2"
+# Lecture OpenEXR (BSD-3-Clause, `johannesvollmer/exrs`, Rust pur et sans `unsafe`, notices
+# conservées avec la dépendance), pour le pilote `exr`. Version figée : elle nomme le pilote et entre
+# dans l'identité du cache. Aucun code ni SDK d'éditeur, aucune bibliothèque C.
+exr = "1.74.2"
 [dev-dependencies]
 # Le décodeur de pages, partagé avec le module WebAssembly : le compilateur ne l'embarque pas,
 # il s'en sert pour prouver que ce qu'il encode se relit à l'identique.
