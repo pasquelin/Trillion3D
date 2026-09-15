@@ -243,7 +243,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ARCHIVE_EMPTY` | ZIP archive carries no entry |
 | `ARCHIVE_TOO_MANY_ENTRIES` | ZIP archive exceeds 20,000 entries |
 | `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
-| `image-profile-unsupported` | Image plugin (TGA/TIFF/DDS) read the file but declined its profile or codec; reported per texture, does not fail the job |
+| `image-profile-unsupported` | Image plugin (TIFF) read the file but declined its profile or codec; reported per texture, does not fail the job |
 | `image-depth-unsupported` | Image plugin read a bit depth the `Rgba8`-only image contract cannot carry (e.g. TIFF 16 bits per channel); reported per texture, does not fail the job |
 | `dds-header-truncated` | DDS file is shorter than `DDS_HEADER`/`DDS_PIXELFORMAT`/`DDS_HEADER_DXT10` require; reported per texture, does not fail the job |
 | `dds-header-invalid` | DDS header is present but out of domain (false announced size, zero dimension, absurd mip count); reported per texture, does not fail the job |

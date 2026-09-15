@@ -4,7 +4,8 @@
 //! la changer. Et ce que le pilote ne déclare pas, il le refuse en le nommant : c'est la seconde
 //! moitié du contrat, celle qui empêche un 16 bits de revenir rogné à huit.
 use super::super::image as registry;
-use std::path::{Path, PathBuf};
+use super::fixture;
+use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -24,17 +25,9 @@ const ALPHA: [u8; 8] = [255, 128, 255, 64, 0, 255, 68, 150];
 /// L'autre référence, celle des profils à une seule composante.
 const GRIS: [u8; 8] = [0, 64, 128, 255, 16, 32, 48, 64];
 
-fn octets(name: &str) -> Vec<u8> {
-    let chemin: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("fixtures")
-        .join("tiff")
-        .join(name);
-    std::fs::read(chemin).unwrap_or_else(|erreur| panic!("{name}: {erreur}"))
-}
-
 /// Ce que le registre rend pour cette fixture, dans l'ordre de lecture de l'image décodée.
 fn rendus(name: &str) -> Vec<[u8; 4]> {
-    let bytes = octets(name);
+    let bytes = fixture("tiff", name);
     let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
     assert_eq!(pilote.name(), "tiff", "{name}");
     let registry::DecodedImage::Rgba8(rendu) =
@@ -100,7 +93,7 @@ fn un_tiff_hors_profil_ressort_en_raison_de_rapport_jamais_en_panique() {
         // qui échoue.
         ("tronque.tif", "image-decode-failed"),
     ] {
-        let bytes = octets(name);
+        let bytes = fixture("tiff", name);
         assert_eq!(
             registry::by_head(&bytes).map(|pilote| pilote.name()),
             Some("tiff"),
