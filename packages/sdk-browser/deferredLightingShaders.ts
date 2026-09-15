@@ -3,15 +3,18 @@ import { DIRECT_LIGHTING_WGSL } from './directLightingWgsl.ts';
 import { BOUNCE_APPLY_WGSL } from './bounceApplyWgsl.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
-const OUTPUT_COLOR_WGSL = `
+/** Le dernier maillon de toute composition : la radiance linéaire portée dans l'espace d'affichage. */
+const SRGB_WGSL = `
+fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
+/** La courbe du contrat, appliquée juste avant sRGB et jamais avant un mélange (P4). */
+const ACES_WGSL = `
 fn aces(color:vec3f)->vec3f{
  var c=color/0.6;
  c=mat3x3f(vec3f(0.59719,0.07600,0.02840),vec3f(0.35458,0.90834,0.13383),vec3f(0.04823,0.01566,0.83777))*c;
  let a=c*(c+0.0245786)-0.000090537;let b=c*(0.983729*c+0.4329510)+0.238081;c=a/b;
  c=mat3x3f(vec3f(1.60475,-0.10208,-0.00327),vec3f(-0.53108,1.10813,-0.07276),vec3f(-0.07367,-0.00605,1.07602))*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
-}
-fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
+}`;
 /** L'uniforme de vue, commun aux deux programmes : `lightParams` porte le nombre de lampes du
  *  contrat, les tuiles en X et en Y, et l'exposition, appliquée avant ACES (P4). Rien d'autre —
  *  il n'y a plus ni ciel ni ambiance à transmettre à la résolution opaque (P6). */
@@ -92,21 +95,21 @@ ${contractSurface(
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
 /**
- * La composition, unique pour les deux programmes : l'exposition multiplie la radiance linéaire
- * avant ACES, dernier maillon de la chaîne (P4). Sans lampe, l'exposition vaut 1 et le résultat est
- * exactement celui d'avant.
+ * La composition, une source pour deux programmes séparés — jamais une branche dans le nuanceur.
+ * `chaine` est ce que la radiance linéaire traverse avant sRGB, et `courbe` ce qu'il faut déclarer
+ * pour cela. Le fond, la prémultiplication et la sortie brute des vues de diagnostic sont communs.
  */
-export const COMPOSE_SHADER = `
+const composeSource = (courbe: string, chaine: string) => `
 ${VIEW_WGSL}
 @group(0) @binding(0) var hdr:texture_2d<f32>;
 @group(0) @binding(1) var<uniform> view:View;
 ${FULLSCREEN_VERTEX}
-${OUTPUT_COLOR_WGSL}
+${SRGB_WGSL}${courbe}
 fn composeColor(pixel:vec4f)->vec4f{
  let value=textureLoad(hdr,vec2i(pixel.xy),0);
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
- let color=linearToSrgb(aces(value.rgb*view.lightParams.w/max(value.a,1e-6)));
+ let color=linearToSrgb(${chaine});
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
@@ -115,3 +118,17 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
  let color=composeColor(pixel);
  return DisplayOutput(color,color);
 }`;
+/**
+ * La composition du contrat : l'exposition multiplie la radiance linéaire avant ACES, dernier
+ * maillon de la chaîne (P4). C'est celle des programmes éclairés par des lampes déclarées.
+ */
+export const COMPOSE_SHADER = composeSource(
+  ACES_WGSL,
+  'aces(value.rgb*view.lightParams.w/max(value.a,1e-6))',
+);
+/**
+ * La composition de la vue sans lampe : l'identité, du linéaire vers sRGB et rien d'autre. Sans
+ * source déclarée il n'y a aucune radiance à exposer ni à ramener dans la plage d'affichage (P6) —
+ * l'albédo se lit tel quel, ce que demandent les bancs qui comparent des images au pixel près.
+ */
+export const UNLIT_COMPOSE_SHADER = composeSource('', 'value.rgb/max(value.a,1e-6)');

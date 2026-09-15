@@ -1,5 +1,69 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Lumière] composition identité en vue sans lampe (lot `lot/unlit-identite`)
+
+Worktree `lot-unlit-identite`, branche `lot/unlit-identite`, partie de `develop` (db44508). Rien
+n'est fusionné, le Lab n'est pas touché, aucun test n'est écrit ici — ils viennent à la livraison.
+
+### Le constat
+
+`packages/sdk-browser/deferredLightingShaders.ts` ne connaissait qu'une composition : `composeColor`
+appliquait `linearToSrgb(aces(rgb * exposition))` à **toute** image, y compris la vue `unlit`, dont
+l'exposition vaut 1. La vue sans lampe sortait donc l'albédo passé dans ACES, pas l'albédo : un
+blanc de texture à 1,0 ressortait vers 0,8, la saturation tombait et la teinte glissait, alors que
+le témoin Three du Lab ne pose aucune courbe sur la même image. Le chemin rendu par Three avait le
+même défaut, à un autre étage : `explorerCapabilities.ts` posait `THREE.ACESFilmicToneMapping` sur
+le rendu une fois pour toutes, sans regarder si la scène portait une lampe.
+
+### La règle
+
+En vue sans lampe — aucune lampe déclarée, ou `setLightingView('unlit')` — la composition est
+l'**identité** : du linéaire vers sRGB, et rien d'autre. Ni exposition, ni ACES. En vue `lit`,
+rien ne change : l'exposition multiplie la radiance linéaire, puis ACES, dernier maillon (P4). Les
+vues de diagnostic, qui sortaient déjà en brut avant toute courbe, ne bougent pas. P4 porte
+désormais cette phrase dans `orchestration/SPEC_ECLAIRAGE.md`.
+
+### Ce qui a changé, les deux chemins
+
+- **WebGPU.** `composeSource(courbe, chaine)` bâtit les deux compositions à partir de la même
+  source : `COMPOSE_SHADER` déclare ACES et compose `aces(value.rgb*exposition/alpha)` — la même
+  expression qu'avant, au flottant près —, `UNLIT_COMPOSE_SHADER` ne déclare aucune courbe et
+  compose `value.rgb/alpha`. Le programme « UNLIT » de `deferredLighting.ts` prend le second. Ce
+  sont deux programmes, jamais une branche dans le nuanceur : une session éclairée exécute
+  exactement le nuanceur d'avant. Le drapeau ne vient d'aucun réglage neuf — c'est le choix de
+  programme existant, celui que `wantsContractLighting` (`store.count > 0 && !store.unlit`) fait
+  déjà à chaque image.
+- **WebGL2 et moteur de référence.** Ils composent par Three, dont le rendu portait ACES en dur.
+  `installSceneLighting` publie maintenant `lit` (vrai dès qu'une lampe du graphe source est
+  installée) et `sceneLightingApi` le rend aux quatre moteurs rendus par Three sous `sceneLit` ;
+  `explorerDraw` règle `renderer.toneMapping` sur `NoToneMapping` quand la scène rendue n'a pas de
+  lampe, sur `ACESFilmicToneMapping` sinon, et n'écrit que si la valeur change — Three recompile ses
+  programmes à chaque écriture. `outputColorSpace` reste `SRGBColorSpace` : le linéaire vers sRGB
+  demeure des deux côtés.
+
+### La preuve : non faite, verrou occupé
+
+La campagne prévue — WebGPU, Emerald, vue `generale`, (a) `--lampes 8 --soleil` à 0 px exigé,
+(b) vue sans lampe `--lampes-fichier off`, (c) comparaison au témoin Three en vue sans lampe —
+**n'a pas été jouée**. Le verrou `.claude/mesure.lock` était tenu par la session `calculs`
+(« mesure-finale-3 ») au moment du lot, et la charge machine était de 22 : aucune attente, aucune
+boucle, aucun chiffre inventé. Le lot est donc **livré sans preuve d'image** et ne se fusionne pas
+en l'état. À rejouer au calme, verrou pris, sorties dans `.mesure/out/unlit-identite/` :
+
+- (a) `--moteur webgpu --vues generale --avant develop --apres dist --lampes 8 --soleil` : 0 px
+  exigé, c'est la porte d'identité du chemin éclairé.
+- (b) même commande sans `--lampes` ni `--soleil`, avec `--lampes-fichier off` : différences
+  attendues sur toute la scène — c'est le changement d'image voulu. Publier le nombre de pixels, le
+  max par canal et le témoin A/A.
+- (c) témoin Three en vue sans lampe (`--moteur webgl` ou `webgl2`, mêmes pose et seuil) : nombre de
+  pixels au-delà de 2 par canal face au WebGPU sans lampe, avant et après le lot. C'est ce chiffre
+  qui dit si l'écart de couleur constaté dans le Lab est refermé.
+
+### Portes
+
+`npx tsc -p tsconfig.json --noEmit`, `npm run check:changed` (429 tests liés, tous verts),
+`npm run check:unused`, `npm run check:lines` : vertes. Aucun test existant ne casse : aucun
+n'encodait la composition de la vue sans lampe.
 ## 2026-09-15 — [session sans-threejs] lot visibilité WebGPU : deux leviers gardés sur trois, 0 px sur seize séries
 
 Worktree `.claude/worktrees/lot-visibilite`, branche `lot/visibilite-webgpu`, partie de `develop` =
