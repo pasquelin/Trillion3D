@@ -1,5 +1,16 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — textures progressives : lots 1 et 2 fusionnés dans `develop`
+
+- Fusion `e443bc6`. Trois fusions de `develop` dans l'intégration en cours de route (lot A, lots B et C, état de coupe chez l'appelant) : un seul conflit, le journal.
+- **Défaut de fond corrigé** : le lot 1 étendait `visBindGroupLayout` et `shadeBindGroupLayout` à douze entrées mais ne mettait à jour qu'un des deux constructeurs de chaque groupe ; le dispositif refusait le groupe (« Number of entries (10) did not match the expected number of entries (12) ») puis se perdait au premier `awaitPages`. `webgpuBindEntries.ts` porte maintenant l'unique liste d'entrées de chaque disposition, et les quatre constructeurs y passent. **Un test ajouté** compare, pour chaque paire disposition/constructeur, le nombre d'entrées construites au nombre d'entrées de la disposition réelle : il échoue sur le code d'avant.
+- **Harnais**, deux défauts préexistants réparés : `test/browserFixtures/captureFixture.mjs` décrivait ses pages sans bande d'erreur de DAG, que la page exige depuis longtemps (`STALE_CACHE`), et la scène de couverture est maintenant un vrai DAG à deux niveaux ; le rapport n'épuise plus le tas de Node — `page.evaluate` ne rend plus d'un coup les 373 042 événements et 600 échantillons (vidés par tranches) et `result.json` s'écrit au fil de l'eau (849 Mo sur la course d'Emerald).
+- **Limite de lignes** : la fusion cumulait les ajouts des deux côtés, `lib.rs` à 201 et `manifest_binary.rs` à 210 ; `with_ratio` et `digests` partent chacune dans leur module, sans une ligne de logique changée.
+- `npm run validate` : **treize portes vertes**. Format, lignes, 0 doublon, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens, **550 tests JS/TS**, **136 tests Rust** (132 bibliothèque + 4 CLI).
+- **Preuve navigateur.** Lab en lecture seule sur le port 5181 (5174 laissé à l'utilisateur), cache Emerald recompilé en v3 dans le scratchpad (232 textures couleur, **232 aperçus, 0 ignoré**, sidecar `version 3`, 17 s, 10 046 405 triangles, 281 primitives, 1 030 nœuds) et servi par un relais 5182, Lab jamais écrit. Deux exécutions du harnais `test/webgpuCapture.browser.mjs`, 600 images chacune, dix captures 1246×1000 : **bit à bit identiques entre elles**. Contre les dix références `develop` : **3 pixels sur 12 460 000**, écart maximal **39** sur un canal, trois pixels isolés sur les segments 3 et 8 — le bruit A/A mesuré sur ces mêmes segments va de 0 à 43 pixels. Chaque capture : `texturePending` 0, `textureSkipped` 0, `textureUploaded` 336, aucune erreur GPU, **aucun triangle non couvert**, couverture complète. Images sous `benchmark-runs/webgpu-capture/fusion-finale-{a,b}/` (hors git).
+- Chiffres de performance : **`null`**. Rien n'est mesuré ici, ni première image, ni coût par image, ni taille de sidecar.
+- Reste : lots 3 à 5 des textures progressives, la réutilisation du pipeline de `textureMips.ts`, et — note d'exploitation — **tous les caches du Lab doivent être recompilés en v3**, le lecteur de sidecar refusant la version 2 par son nom.
+
 ## 2026-09-15 — audit des calculs, lots B et C fusionnés
 
 - **Lot B, Rust à la compilation** (`npm run bench:calculs:natif`, banc `src/bench_calculs/`, référence recopiée, `to_bits` sur chaque flottant) : 7 retenus sur 12 lignes. Matrices monde construites une fois pour la coplanarité 7,84 → 3,98 ms ; colonnes du manifeste binaire sans vecteur temporaire 27,6 → 1,77 ms ; bisection et bord des groupes sans HashSet 0,97 → 0,16 et 0,43 → 0,19 ms ; compaction d'une région 0,31 → 0,29 ms ; classification des sommets à blocs réutilisés 15,3 → 4,64 ms ; renumérotation d'une page 291 → 140 ms. Refusés : adjacence sans tri (52 ms contre 28, annulé), `#[inline]` (bruit), octets d'indices (neutre) ; sans objet : digests (rien n'est recalculé), `CornerHasher` (déjà fait). Fixtures dorées et maillage de 500 000 triangles : manifeste, `clusters.bin`, pages et objets identiques octet par octet ; compilation 3 909 → 3 501 ms (machine chargée, chronomètres `perf.rs` : topologie −44 %, regroupement −55 %). 8 tests d'équivalence, `validate` vert (111 tests Rust).
@@ -13,17 +24,6 @@
 - **Résultat : 14 / 14 identiques, 14 / 14 retenus.** Gains (ms avant → après) : projection des sommets une fois par triangle dans `visibilityDepth` 5,65 → 1,21 ; `shadeVisibility` 24,2 → 18,5 ; occulteurs par tri radix (`splitOccludersFlat` enfin branché, `splitOccluders` supprimé) 9,70 → 3,18 ; `countUnoccluded` à plat (`projectBoxToScreen` supprimé) 13,9 → 12,0 ; niveau de mip borné 1,41 → 0,68 ; `boxClip` par indice 0,93 → 0,79 ; urls de résidence autonome (Set persistants, plus d'`includes` ni de spread) **222 → 1,35** ; comptage des pages résidentes 0,36 → 0,07 ; `windingCw` mémorisé et déterminant unique 0,94 → 0,72 ; caméra de comparaison Hi-Z recopiée au lieu de clonée 0,68 → 0,13 ; résidence DAG GPU sur miroir compact 1,35 → 0,81 ; file de streaming triée une fois 1,20 → 0,92 ; décodage de page sans fermeture par sommet 2,36 → 1,17 ; télémétrie en tampon circulaire 3,20 → 0,34.
 - Tests : 61 tests d'équivalence ajoutés (un par comportement), `hiz.test.ts` et `hizTemporal.test.ts` adaptés à l'API restante. `npm run validate` vert après rebase sur `develop` (`a59c05a`) : 493 tests JS, 83 Rust, 0 doublon, 0 fichier > 200 lignes.
 - Non fait : preuve navigateur (captures A/A et `tri = selected`) reportée à une machine calme, deux agents compilant en parallèle ; reportés au lot C : cache de coins d'époque dans `countUnoccluded`, delta `entered/exited` de `shownFromGpu`, compteur incrémental de `vertexBytes`.
-
-## 2026-09-15 — intégration des lots 1 et 2 « textures progressives » : arrêtée avant fusion
-
-- Branche `integration-textures-lots-1-2` : tête du lot 1 (`753d8ab`), les deux commits du lot 2 rapportés sans conflit (`2d9439a`, `62c600b`), puis `develop` (`a59c05a`, profil par étape et passes de simplification) fusionné **sans un seul conflit** (`7ba5ee8`). `develop` avait avancé de 19 commits depuis la base annoncée `9a7821a`.
-- Trois défauts visés : `scripts/mesure/options.mjs` était déjà découpé sur `develop` (208 → 138 lignes, `poses.mjs` et `rapport.mjs`) et `orchestration/RD_ECLAIRAGE_DIAGNOSTIC.md` déjà supprimé avec ses cinq liens morts (`532ccca`) ; restait `hexDigits`, dont l'export est retiré (`f2425e2`), la fonction ne servant plus qu'à `writeSha`.
-- `npm run validate` : **treize portes vertes**. Format, lignes, doublons, lint et Clippy, `knip`, build TS, build natif, structure, déclarations, liens (64 liens locaux, 0 erreur), **473 tests JS/TS**, **104 tests Rust** (100 bibliothèque + 4 CLI). Chiffres de performance : `null`, rien n'est mesuré ici.
-- **Preuve navigateur : échec, la fusion n'a pas eu lieu.** Lab en lecture seule sur le port 5175 (5174 laissé à l'utilisateur), cache Emerald recompilé par le compilateur du lot 1 dans le scratchpad et servi par un relais 5177, Lab jamais écrit. Le compilateur passe : 232 textures couleur, **232 aperçus, 0 ignoré**, sidecar `version 3`, 19 s, géométrie identique à la référence (10 046 405 triangles, 281 primitives, 1 030 nœuds).
-- Le moteur, lui, perd le dispositif au premier `awaitPages` : `WEBGPU_LOST`. Cause lue dans la console Chrome, reproductible : « Number of entries (10) did not match the expected number of entries (12) », puis `Invalid BindGroup` et `Invalid CommandBuffer`. Le lot 1 étend deux dispositions à douze entrées (aperçu en 2d-array et tampon des bits « prêt ») mais ne met à jour que l'un des deux constructeurs de chaque groupe de liaison : `webgpuPagesPrepareVisibility.ts` est corrigé, **`webgpuShadeBindings.ts` (`vis.shadeBindGroup`) et `webgpuVisibilityDrawer.ts` (`vis.visSlotGroups`) restent à dix entrées**. Ces deux fichiers sont identiques à ceux de la branche du lot 1 et n'ont pas bougé sur `develop` : le défaut est **dans le lot 1, pas dans la fusion**. Les tests unitaires ne le voient pas, ils ne créent aucun dispositif WebGPU.
-- Référence ancienne obtenue pour la comparaison future : dix captures Emerald sur `develop` avec le cache v2 du Lab (`benchmark-runs/webgpu-capture/reference-develop/`, 1246×1000). Aucune comparaison de pixels n'est possible tant que le moteur ne rend pas. `tri = selected` non vérifié, aucune capture candidate produite.
-- Défauts préexistants rencontrés, non corrigés : `test/browserFixtures/captureFixture.mjs` est périmée (page sans bande d'erreur de DAG, puis `WEBGPU_LOST` une fois la bande ajoutée) — identique sur `develop` ; et le harnais épuise le tas de Node en sérialisant `result.json` après les dix captures.
-- Reste : corriger les deux constructeurs du lot 1 (et leur duplication, cause du défaut), rejouer la capture, fusionner ; puis lots 3 à 5 et la réutilisation de `textureMips.ts`. Note d'exploitation : le sidecar v3 refuse la version 2, donc **tous les caches du Lab devront être recompilés** avant toute preuve navigateur.
 
 ## 2026-09-15 — lot 2 : transferts de textures découpés et prioritaires
 
@@ -524,10 +524,10 @@
 
 Caméras du banc : `urbanPath` image 0 (« Vue générale du modèle ») et image 120 (« Déplacement au niveau de référence », niveau du sol). Une session de navigateur par vue, pose tenue 150 images après 8 itérations de préchargement ; 10 et 11 échantillons par vue, **tous identiques** ; valeurs reproduites à l'identique dans une seconde session.
 
-| Vue | Clusters testés | Rejetés | Empreinte > 16 texels | Triangles testés | Triangles rejetés | Triangles > 16 texels |
-|---|---|---|---|---|---|---|
-| Vue générale (image 0) | 5 077 | **758** (14,9 %) | 3 155 (62,1 %) | 614 739 | **82 250** (13,4 %) | 392 558 (63,9 %) |
-| Niveau du sol (image 120) | 8 481 | **158** (1,9 %) | 4 768 (56,2 %) | 1 016 973 | **15 081** (1,5 %) | 585 973 (57,6 %) |
+| Vue                       | Clusters testés | Rejetés          | Empreinte > 16 texels | Triangles testés | Triangles rejetés   | Triangles > 16 texels |
+| ------------------------- | --------------- | ---------------- | --------------------- | ---------------- | ------------------- | --------------------- |
+| Vue générale (image 0)    | 5 077           | **758** (14,9 %) | 3 155 (62,1 %)        | 614 739          | **82 250** (13,4 %) | 392 558 (63,9 %)      |
+| Niveau du sol (image 120) | 8 481           | **158** (1,9 %)  | 4 768 (56,2 %)        | 1 016 973        | **15 081** (1,5 %)  | 585 973 (57,6 %)      |
 
 - Dénominateur : la population testée est la moitié « rest » des lignes dessinables résidentes de l'image (la Hi-Z teste les lignes résidentes, pas la seule coupe sélectionnée : vue générale 5 527 clusters visibles pour ~10 000 lignes empaquetées, vue au sol 5 527 visibles pour ~17 000). Les parts ci-dessus sont rejetés / testés, même population.
 - Constat chiffré : la Hi-Z **élimine déjà** 14,9 % des clusters testés en vue générale mais seulement 1,9 % au niveau du sol, où la profondeur de la passe 1 occlude peu. Plus de la moitié des clusters testés (56–62 %) ont une empreinte plus large que le noyau et répondent depuis un mip grossier, donc avec une profondeur de rejet plus conservatrice : c'est le premier levier du lot 2.
@@ -546,14 +546,14 @@ Caméras du banc : `urbanPath` image 0 (« Vue générale du modèle ») et imag
 
 Avant = 6c84ecc (branche avant lot 2), après = 08a58c5, même procédure, pose tenue 150 images après 8 itérations de préchargement, 10 échantillons par vue, tous identiques.
 
-| Vue | Testés | Rejetés avant | Rejetés après | Triangles rejetés avant | après |
-|---|---|---|---|---|---|
-| Vue générale (image 0) | 5 077 | 758 (14,9 %) | **758 (14,9 %)** | 82 250 | **82 250** |
-| Niveau du sol (image 120) | 6 090 | 424 (7,0 %) | **447 (7,3 %)** | 48 343 | **51 222** |
+| Vue                       | Testés | Rejetés avant | Rejetés après    | Triangles rejetés avant | après      |
+| ------------------------- | ------ | ------------- | ---------------- | ----------------------- | ---------- |
+| Vue générale (image 0)    | 5 077  | 758 (14,9 %)  | **758 (14,9 %)** | 82 250                  | **82 250** |
+| Niveau du sol (image 120) | 6 090  | 424 (7,0 %)   | **447 (7,3 %)**  | 48 343                  | **51 222** |
 
 - **Verdict honnête : le gain est marginal.** Zéro cluster de plus en vue générale (le modèle tient entier dans le cadre, aucune boîte ne déborde), +23 clusters et +2 879 triangles au niveau du sol (+5,4 % relatif). L'hypothèse « beaucoup de clusters débordent du cadre » est fausse pour des clusters de 128 triangles : ils sont petits à l'écran. Le correctif reste juste et il est un **prérequis** du rejet hiérarchique : une boîte de groupe ou d'ancêtre est grande et touche presque toujours un bord, donc elle aurait répondu `undefined` et n'aurait jamais rejeté un sous-arbre.
 - `uncoveredTriangles` = 0 et `selectedTriangles` inchangé (1 842 728 / 670 036) avant comme après, sur les deux vues : aucun trou, coupe identique. `firstError` nul.
-- **Non fait, et pourquoi** : (1) *rejet hiérarchique des nœuds* — analysé, non implémenté : la boîte d'un nœud contient celles de ses clusters et sa profondeur la plus proche n'est jamais plus loin, donc le test de nœud est **strictement plus dur** à passer que le test par cluster. Il ne peut pas rejeter un cluster que le test par cluster ne rejette pas déjà : c'est un gain de **temps GPU**, pas de rejet. À chiffrer d'abord (coût réel de la passe de test) avant d'être écrit. (2) *Hi-Z temporelle avec rattrapage* — le chemin WebGPU actuel est déjà la forme sûre : la pyramide qui **rejette** est toujours celle de l'image courante (passe 1), l'image précédente ne sert qu'à choisir qui dessine en passe 1. Aucun rattrapage n'est donc nécessaire, garantie plus forte que « rejeter sur la Hi-Z temporelle puis rattraper ».
+- **Non fait, et pourquoi** : (1) _rejet hiérarchique des nœuds_ — analysé, non implémenté : la boîte d'un nœud contient celles de ses clusters et sa profondeur la plus proche n'est jamais plus loin, donc le test de nœud est **strictement plus dur** à passer que le test par cluster. Il ne peut pas rejeter un cluster que le test par cluster ne rejette pas déjà : c'est un gain de **temps GPU**, pas de rejet. À chiffrer d'abord (coût réel de la passe de test) avant d'être écrit. (2) _Hi-Z temporelle avec rattrapage_ — le chemin WebGPU actuel est déjà la forme sûre : la pyramide qui **rejette** est toujours celle de l'image courante (passe 1), l'image précédente ne sert qu'à choisir qui dessine en passe 1. Aucun rattrapage n'est donc nécessaire, garantie plus forte que « rejeter sur la Hi-Z temporelle puis rattraper ».
 - **Le vrai verrou, mesuré** : la population testée est la moitié « rest » des lignes ; l'autre moitié est dessinée en passe 1 sans aucun test, et la pyramide n'est construite que sur la profondeur de cette moitié. C'est là qu'est le gisement du prochain lot : tester **toutes** les lignes contre la pyramide **complète de l'image précédente** pour choisir la passe 1, puis confirmer en passe 2 contre la pyramide courante — correct par construction quoi que dise le test temporel, puisqu'il ne décide que de la passe, jamais du dessin.
 - Preuves non faites : captures PNG à pixelError 0 et 1, parcours 600 images, témoin A/A. Charge machine au moment de la décision : `load1` 5,08 > 4, consigne de l'utilisateur « une seule mesure et seulement si la charge < 4 » → non mesuré, à faire par l'agent suivant. Les comptes ci-dessus restent valables sous charge (grandeurs déterministes, reproduites à l'identique entre deux sessions et sur 10 échantillons).
 - Charge pendant les comptes : `load1` 4,3 à 5,1 — verrou `mesure.lock` pris à 15:52, aucune autre mesure. Aucune durée n'est rapportée : `gpuFrameMs` a bougé (6,6 → 7,9 ms au sol) mais la machine était au-dessus du seuil, le chiffre est **pollué** et ne vaut rien. À remesurer machine calme : le test découpé fait tourner le noyau sur des boîtes qui sortaient immédiatement avant, donc un surcoût est plausible et doit être chiffré.
@@ -575,14 +575,14 @@ node scripts/mesure/banc.mjs --moteur webgpu --avant eab2bfa --apres e25827b \
 lots 1+2). Charge avant la série (`uptime`) : `6.21 4.07 3.88` → moyenne 1 min ≥ 6, **durées
 polluées** ; comptes, hash et pixels restent valables. Série complète en 2 min 22 s.
 
-| mesure | vue | avant | après | seuil | verdict |
-|---|---|---|---|---|---|
-| compteurs Hi-Z agrégés (testés/rejetés/>16 texels) | toutes vues | null | null | — | non publiés en agrégat par le harnais (une seule image échantillon les expose, pas de p50) |
-| selectedTriangles | générale/sol/rue | identiques avant/après (6 échantillons) | idem | identité attendue | OK |
-| uncoveredTriangles | toutes vues | 0 | 0 | 0 attendu | OK |
-| pixels différents (0 px et 1 px) | toutes vues | 0 px, écart canal max 0/0/0/0 | idem | 0 attendu | OK |
-| témoin A/A | toutes vues, deux seuils | 0 px | — | 0 px attendu | OK |
-| gpuFrameMs p50 (pollué, informatif) | générale/sol/rue, 2 échantillons chacune | 20.2/9.28/9.15/10.7/5.46/6.62 ms | 20.8/9.28/9.14/10.8/6.98/4.54 ms | — (pollué) | proche partout sauf sol/rue échantillon 2 (±30 %), à remesurer machine calme |
+| mesure                                             | vue                                      | avant                                   | après                            | seuil             | verdict                                                                                    |
+| -------------------------------------------------- | ---------------------------------------- | --------------------------------------- | -------------------------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| compteurs Hi-Z agrégés (testés/rejetés/>16 texels) | toutes vues                              | null                                    | null                             | —                 | non publiés en agrégat par le harnais (une seule image échantillon les expose, pas de p50) |
+| selectedTriangles                                  | générale/sol/rue                         | identiques avant/après (6 échantillons) | idem                             | identité attendue | OK                                                                                         |
+| uncoveredTriangles                                 | toutes vues                              | 0                                       | 0                                | 0 attendu         | OK                                                                                         |
+| pixels différents (0 px et 1 px)                   | toutes vues                              | 0 px, écart canal max 0/0/0/0           | idem                             | 0 attendu         | OK                                                                                         |
+| témoin A/A                                         | toutes vues, deux seuils                 | 0 px                                    | —                                | 0 px attendu      | OK                                                                                         |
+| gpuFrameMs p50 (pollué, informatif)                | générale/sol/rue, 2 échantillons chacune | 20.2/9.28/9.15/10.7/5.46/6.62 ms        | 20.8/9.28/9.14/10.8/6.98/4.54 ms | — (pollué)        | proche partout sauf sol/rue échantillon 2 (±30 %), à remesurer machine calme               |
 
 Détails, commande complète, chemins des JSON/PNG/resume.md produits :
 `orchestration/phase-1-mesure-lots-2-4.md` du worktree `webgeometry-sans-threejs-9f889d`.
@@ -646,6 +646,7 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
   - `render-tech-lab/` n'est **pas modifié** : il est lu pour ses assets Emerald, son Playwright et sa trajectoire. La copie de `urbanPath` (pathVersion 5) est vérifiée contre la source à chaque exécution ; le harnais refuse de mesurer si elle a bougé.
   - Quatre fichiers pour une seule commande (`lot4.mjs`, `banc.mjs`, `serveur.mjs`, `page.mjs`) afin de tenir la limite de 200 lignes par fichier source ; aucun d'eux n'ajoute de violation à `npm run check:lines` (les 7 restantes sont celles de develop).
   - **Essai de bout en bout fait une fois**, une vue, 8 images : JSON et PNG 1280×720 produits, 80 153 clusters sélectionnés, 10 046 405 triangles, `cpuSelectMs` relevé. Tout a été arrêté ensuite.
+
 - Reste à mesurer : la comparaison avant/après elle-même, sur les trois vues et un nombre d'images sérieux, machine calme. **Aucun chiffre de durée de ce lot n'est exploitable** : la charge de la machine était de 17 pendant l'essai, et l'essai ne prouve que le bon fonctionnement du harnais.
 
 ## 2026-09-14 — Phase 1, mesure lots 2 et 4 (agent de mesure, worktree en lecture seule)
@@ -657,16 +658,16 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
 - Commande exacte, une seule exécution : `node .mesure/lot4.mjs --avant 249438f --images 300`
   (249438f = develop fusionné dans cette branche, cf. section précédente).
 
-| mesure | avant | après | seuil | verdict |
-|---|---|---|---|---|
-| cpuSelectMs p50/p95 (3 vues) | — | — | — | **non mesuré** |
-| hash ensemble sélectionné | — | — | identité attendue | **non mesuré** |
-| pixels différents (pixelError 0) | — | — | 0 attendu | **non mesuré** |
-| allocations/image | — | — | — | **non mesuré** |
+| mesure                           | avant | après | seuil             | verdict        |
+| -------------------------------- | ----- | ----- | ----------------- | -------------- |
+| cpuSelectMs p50/p95 (3 vues)     | —     | —     | —                 | **non mesuré** |
+| hash ensemble sélectionné        | —     | —     | identité attendue | **non mesuré** |
+| pixels différents (pixelError 0) | —     | —     | 0 attendu         | **non mesuré** |
+| allocations/image                | —     | —     | —                 | **non mesuré** |
 
 - **Résultat : échec.** Le build du côté « avant » a réussi, puis le rendu du côté « après » a
   levé une exception non rattrapée en plein `page.evaluate` (`TypeError: Cannot read properties
-  of null (reading 'trim')`, dans `three.module.js` → `WebGLProgram.getUniforms` →
+of null (reading 'trim')`, dans `three.module.js` → `WebGLProgram.getUniforms` →
   `onFirstUse`, appelée depuis `drawBackend`/`sdk/apres/sdk-browser/index.js`). Échec de lecture
   de log de compilation de shader en contexte WebGL headless, avant toute capture. `EXIT_CODE=1`.
   Aucun `mesure.json`, aucun PNG, aucun `.clusters.txt` produits ; seul l'arbre source extrait du
@@ -687,7 +688,7 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
   `pageSelectionCut.ts`, `selectOptions` posé une fois et `cpuSelectMs` dans `exactPagesRender.ts`,
   publication jusqu'à `FrameMetrics` via `exactPagesBackend/Metrics` et `explorerMetrics.ts`. Les
   onze corrections de lint du lot 4 sont sans objet : le découpage a supprimé ce code. `npm run
-  lint` est **entièrement vert**, y compris les deux `no-unsafe-finally` autrefois tolérées.
+lint` est **entièrement vert**, y compris les deux `no-unsafe-finally` autrefois tolérées.
   Vérification fonctionnelle : la coupe d'Emerald vue générale est inchangée après fusion
   (80 153 clusters, hash 4f03157d6ecb, identique avant fusion).
 - **Cause du `TypeError … .trim()`** du run `--avant 249438f --images 300` (9ebf03b) : **ni
@@ -713,6 +714,7 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
   `selectedTriangles`, `uncoveredTriangles`, compteurs Hi-Z, hash de l'ensemble sélectionné,
   budget de pages, charge machine au début et à la fin, témoin A/A et écart avant/après par canal.
   `null` quand non mesuré, jamais déduit. Tout ce qu'il lance, il l'arrête. README de 20 lignes.
+
 - **Essai court fait deux fois**, une vue, 6 images, ce worktree contre lui-même : WebGL — coupe
   80 153 (clusterId, 4f03157d6ecb), témoin A/A **0 px**, écart avant/après 0 px ; WebGPU — coupe
   47 890 (selectedPageIds, e6141303ab48), `gpuFrameMs` p50 20,17 ms, `uncoveredTriangles` 0,
@@ -722,7 +724,6 @@ Détails, commande complète, chemins des JSON/PNG/resume.md produits :
 - **Aucun chiffre de durée de cette session n'est exploitable** : charge machine relevée entre 3,8
   et 6,3 pendant les essais, et 6 images ne mesurent rien. Reste à faire : la comparaison
   avant/après elle-même, machine calme, et les tests (un autre agent s'en charge).
-
 
 ## 2026-09-14 — Phase 1, mesure lot 4 (harnais commun, session de mesure seule)
 
@@ -734,13 +735,13 @@ node scripts/mesure/banc.mjs --moteur webgl --avant 7491682 --apres 6b9341b \
      --vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000
 ```
 
-| mesure | vue | avant | après | seuil | verdict |
-|---|---|---|---|---|---|
-| cpuSelectMs p50 (n=300) | générale | — (absent avant lot 4) | 11.40 ms | < 2 ms | **ÉCHEC** (5,7× le seuil) |
-| cpuFrameMs p50 (n=300) | générale | 30.30 ms | 30.30 ms | — | égal |
-| hash coupe (clusterId) | générale | identique (coupe.txt byte-identique, PNG sha256 identique) | idem | identité attendue | OK |
-| pixels différents (0 px) | générale | 0 (PNG identiques) | idem | 0 attendu | OK |
-| tout le reste (sol, rue, A/A, uncoveredTriangles) | sol/rue | — | — | — | **NON MESURÉ** : `Error creating WebGL context` au passage à la vue `sol` (côté après), série arrêtée sans reprise |
+| mesure                                            | vue      | avant                                                      | après    | seuil             | verdict                                                                                                            |
+| ------------------------------------------------- | -------- | ---------------------------------------------------------- | -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| cpuSelectMs p50 (n=300)                           | générale | — (absent avant lot 4)                                     | 11.40 ms | < 2 ms            | **ÉCHEC** (5,7× le seuil)                                                                                          |
+| cpuFrameMs p50 (n=300)                            | générale | 30.30 ms                                                   | 30.30 ms | —                 | égal                                                                                                               |
+| hash coupe (clusterId)                            | générale | identique (coupe.txt byte-identique, PNG sha256 identique) | idem     | identité attendue | OK                                                                                                                 |
+| pixels différents (0 px)                          | générale | 0 (PNG identiques)                                         | idem     | 0 attendu         | OK                                                                                                                 |
+| tout le reste (sol, rue, A/A, uncoveredTriangles) | sol/rue  | —                                                          | —        | —                 | **NON MESURÉ** : `Error creating WebGL context` au passage à la vue `sol` (côté après), série arrêtée sans reprise |
 
 Charge avant la série (`uptime`) : `2.95 3.22 3.60`, non polluée. Détails, commande complète,
 chemins des fichiers produits : `orchestration/phase-1-mesure-lots-2-4.md` du worktree
@@ -785,15 +786,15 @@ exacte.
 80 153 clusters sélectionnés / 10 046 405 triangles. Le profileur gonfle l'image (`cpuSelectMs`
 p50 13,0 ms sous profileur contre 11,0 sans) : lire les parts, pas les valeurs absolues.
 
-| étape | ms/image | allocation par image |
-|---|---|---|
-| `resolvePixelError` + pose de la demande (hors bornes depuis le correctif) | < 0,02 (sous le seuil) | non |
-| `selectVisiblePages` : frustum, échelle pixel, état réutilisé, sommes de triangles, écriture du résultat | ≤ 0,19 | non |
-| balayage des racines et `selectFlat` (dont `extractPlanes` 0,21, `worldStretch`, remise à zéro du forçage, file de repli) | 1,00 | non |
-| `traverse` : pile BVH et `take` (`boxClip` inliné par V8) | 5,14 | non |
-| `cutSelects` : seuil par cluster | 2,46 | non |
-| `projectedClusterError` : erreur projetée, nœuds BVH et clusters | 3,06 | non |
-| **total `cpuSelectMs`** | **12,2 sous profileur, 11,0 sans** | **non** |
+| étape                                                                                                                     | ms/image                           | allocation par image |
+| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | -------------------- |
+| `resolvePixelError` + pose de la demande (hors bornes depuis le correctif)                                                | < 0,02 (sous le seuil)             | non                  |
+| `selectVisiblePages` : frustum, échelle pixel, état réutilisé, sommes de triangles, écriture du résultat                  | ≤ 0,19                             | non                  |
+| balayage des racines et `selectFlat` (dont `extractPlanes` 0,21, `worldStretch`, remise à zéro du forçage, file de repli) | 1,00                               | non                  |
+| `traverse` : pile BVH et `take` (`boxClip` inliné par V8)                                                                 | 5,14                               | non                  |
+| `cutSelects` : seuil par cluster                                                                                          | 2,46                               | non                  |
+| `projectedClusterError` : erreur projetée, nœuds BVH et clusters                                                          | 3,06                               | non                  |
+| **total `cpuSelectMs`**                                                                                                   | **12,2 sous profileur, 11,0 sans** | **non**              |
 
 Aucune étape de la coupe n'alloue par image : état, tampons et résultat sont posés une fois
 (lot 4). Le profil relève 0,25 ms/image de ramasse-miettes sur **toute** l'image, imputables au
@@ -870,10 +871,10 @@ sur erreur. `readBounds`, chaque côté et le témoin A/A passent par lui. Rien 
 --chauffe 4 --pixelError 0 --max-pages 100000`, avant = après = HEAD 0db5afc, six séries jouées
 sans interruption, sortie complète :
 
-| vue | coupe | `selectedTriangles` | témoin A/A | avant vs après | hash coupe |
-|---|---|---|---|---|---|
-| generale | 80 153 clusters | 10 046 405 | **0 px**, max canal 0/0/0/0 | **0 px**, max canal 0/0/0/0 | identique (4f03157d6ecb) |
-| sol | 12 106 clusters | 1 509 411 | **0 px**, max canal 0/0/0/0 | **0 px**, max canal 0/0/0/0 | identique (4b4097aac673) |
+| vue      | coupe           | `selectedTriangles` | témoin A/A                  | avant vs après              | hash coupe               |
+| -------- | --------------- | ------------------- | --------------------------- | --------------------------- | ------------------------ |
+| generale | 80 153 clusters | 10 046 405          | **0 px**, max canal 0/0/0/0 | **0 px**, max canal 0/0/0/0 | identique (4f03157d6ecb) |
+| sol      | 12 106 clusters | 1 509 411           | **0 px**, max canal 0/0/0/0 | **0 px**, max canal 0/0/0/0 | identique (4b4097aac673) |
 
 `mesure.json` et `resume.md` écrits, quatre PNG plus deux captures A/A et six `.coupe.txt` produits,
 liste d'erreurs de page vide. Les durées de cet essai ne valent rien comme mesure : la charge
@@ -902,16 +903,16 @@ fusion. Commande : `node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 
 --vues generale,sol,rue --images 300 --pixelError 0,1 --max-pages 100000`. `uptime` avant série :
 charge 4,85 — sous le seuil de 6, durées non polluées a priori.
 
-| mesure | vue | avant | après | verdict |
-|---|---|---|---|---|
-| cpuSelectMs p50 | generale | `null` (absent sur develop, attendu) | 10,90 ms | OK |
-| cpuFrameMs p50 | generale | 30,50 ms | 30,30 ms | stable |
-| hash de coupe avant vs après | generale | `5aef42e4…` | `5aef42e4…` | identique |
-| pixels différents 0 px / 1 px | generale | — | 0 / 0 | OK |
-| témoin A/A (coupe + PNG) | generale | — | identique à `après` | OK |
-| p95 (cpuSelect/cpuFrame), uncoveredTriangles | generale | `null` | `null` | non mesuré (`mesure.json` jamais écrit) |
-| toutes mesures | sol | — | — | ÉCHEC — `WebGL2 unavailable` dès la première série (`avant`) |
-| toutes mesures | rue | — | — | NON MESURÉE — vue jamais atteinte |
+| mesure                                       | vue      | avant                                | après               | verdict                                                      |
+| -------------------------------------------- | -------- | ------------------------------------ | ------------------- | ------------------------------------------------------------ |
+| cpuSelectMs p50                              | generale | `null` (absent sur develop, attendu) | 10,90 ms            | OK                                                           |
+| cpuFrameMs p50                               | generale | 30,50 ms                             | 30,30 ms            | stable                                                       |
+| hash de coupe avant vs après                 | generale | `5aef42e4…`                          | `5aef42e4…`         | identique                                                    |
+| pixels différents 0 px / 1 px                | generale | —                                    | 0 / 0               | OK                                                           |
+| témoin A/A (coupe + PNG)                     | generale | —                                    | identique à `après` | OK                                                           |
+| p95 (cpuSelect/cpuFrame), uncoveredTriangles | generale | `null`                               | `null`              | non mesuré (`mesure.json` jamais écrit)                      |
+| toutes mesures                               | sol      | —                                    | —                   | ÉCHEC — `WebGL2 unavailable` dès la première série (`avant`) |
+| toutes mesures                               | rue      | —                                    | —                   | NON MESURÉE — vue jamais atteinte                            |
 
 Même symptôme que l'incident déjà documenté plus haut (tas de la page épuisé après plusieurs séries
 `generale` à 80 153 clusters), corrigé par `fix(mesure)` `0db5afc` et vérifié alors avec 6 images
@@ -937,18 +938,18 @@ node scripts/mesure/banc.mjs --moteur webgl --avant 04fa5f0 --apres d477179 --vu
 `uptime` avant `sol` : charge 4,60 ; avant `rue` : charge 6,43 (au-dessus du seuil de 6, relevé
 sans être jugé) ; après `rue` : charge 6,07.
 
-| mesure (e0) | vue | avant | après | verdict |
-|---|---|---|---|---|
-| cpuSelectMs p50/p95 | sol | `null` | 1,500 / 1,800 ms | OK |
-| cpuFrameMs p50/p95 | sol | 4,200 / 5,000 ms | 3,600 / 4,500 ms | stable |
-| hash de coupe avant vs après | sol | `4b4097aac673…` | `4b4097aac673…` | identique |
-| pixels différents 0 px / 1 px | sol | — | 0 / 0 | OK |
-| témoin A/A | sol | — | identique à `après` | OK |
-| cpuSelectMs p50/p95 | rue | `null` | 1,600 / 2,000 ms | OK |
-| cpuFrameMs p50/p95 | rue | 3,700 / 4,600 ms | 3,700 / 4,900 ms | stable |
-| hash de coupe avant vs après | rue | `e99456030cb7…` | `e99456030cb7…` | identique |
-| pixels différents 0 px / 1 px | rue | — | 0 / 0 | OK |
-| témoin A/A | rue | — | identique à `après` | OK |
+| mesure (e0)                   | vue | avant            | après               | verdict   |
+| ----------------------------- | --- | ---------------- | ------------------- | --------- |
+| cpuSelectMs p50/p95           | sol | `null`           | 1,500 / 1,800 ms    | OK        |
+| cpuFrameMs p50/p95            | sol | 4,200 / 5,000 ms | 3,600 / 4,500 ms    | stable    |
+| hash de coupe avant vs après  | sol | `4b4097aac673…`  | `4b4097aac673…`     | identique |
+| pixels différents 0 px / 1 px | sol | —                | 0 / 0               | OK        |
+| témoin A/A                    | sol | —                | identique à `après` | OK        |
+| cpuSelectMs p50/p95           | rue | `null`           | 1,600 / 2,000 ms    | OK        |
+| cpuFrameMs p50/p95            | rue | 3,700 / 4,600 ms | 3,700 / 4,900 ms    | stable    |
+| hash de coupe avant vs après  | rue | `e99456030cb7…`  | `e99456030cb7…`     | identique |
+| pixels différents 0 px / 1 px | rue | —                | 0 / 0               | OK        |
+| témoin A/A                    | rue | —                | identique à `après` | OK        |
 
 `uncoveredTriangles` : non mesuré (non affiché en console par le harnais) pour les deux vues, comme
 pour `generale`. Les deux vues sont couvertes aux deux seuils `pixelError` (0 et 1) ; détail complet
@@ -962,15 +963,15 @@ Clôture du lot 4 (sélection de clusters côté CPU, moteur WebGL2). `git rev-p
 `04fa5f0` : develop n'a pas bougé depuis la fusion `05162df`, **aucune fusion à faire**, aucun
 conflit, aucun code touché par cette entrée. Aucun test lancé (interdit par la consigne).
 
-| mesure | vue | valeur | cible | verdict |
-|---|---|---|---|---|
-| cpuSelectMs p50 | generale | 10,9 ms | < 2 ms | **non atteinte** |
-| cpuSelectMs p50 | sol | 1,5 ms | < 2 ms | atteinte |
-| cpuSelectMs p50 | rue | 1,6 ms | < 2 ms | atteinte |
-| hash de coupe avant vs après | les trois | identiques | identiques | OK |
-| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px | OK |
-| témoin A/A | les trois | 0 | 0 | OK |
-| allocations par image | les trois | aucune | aucune | OK |
+| mesure                           | vue       | valeur      | cible      | verdict          |
+| -------------------------------- | --------- | ----------- | ---------- | ---------------- |
+| cpuSelectMs p50                  | generale  | 10,9 ms     | < 2 ms     | **non atteinte** |
+| cpuSelectMs p50                  | sol       | 1,5 ms      | < 2 ms     | atteinte         |
+| cpuSelectMs p50                  | rue       | 1,6 ms      | < 2 ms     | atteinte         |
+| hash de coupe avant vs après     | les trois | identiques  | identiques | OK               |
+| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px       | OK               |
+| témoin A/A                       | les trois | 0           | 0          | OK               |
+| allocations par image            | les trois | aucune      | aucune     | OK               |
 
 **Cause du dépassement sur `generale`** : la sélection parcourt à plat les 80 153 clusters de la
 scène, à ~130 ns par cluster, soit les ~10,9 ms mesurés. Les vues `sol` et `rue` passent parce que
@@ -1010,15 +1011,15 @@ du journal en cause.
 
 ### Verdict du lot 4 (Emerald, WebGL2, 300 images par vue)
 
-| mesure | vue | valeur | cible | verdict |
-|---|---|---|---|---|
-| cpuSelectMs p50 | generale | 10,9 ms | < 2 ms | **non atteinte** |
-| cpuSelectMs p50 | sol | 1,5 ms | < 2 ms | atteinte |
-| cpuSelectMs p50 | rue | 1,6 ms | < 2 ms | atteinte |
-| hash de coupe avant vs après | les trois | identiques | identiques | OK |
-| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px | OK |
-| témoin A/A | les trois | 0 | 0 | OK |
-| allocations par image | les trois | aucune | aucune | OK |
+| mesure                           | vue       | valeur      | cible      | verdict          |
+| -------------------------------- | --------- | ----------- | ---------- | ---------------- |
+| cpuSelectMs p50                  | generale  | 10,9 ms     | < 2 ms     | **non atteinte** |
+| cpuSelectMs p50                  | sol       | 1,5 ms      | < 2 ms     | atteinte         |
+| cpuSelectMs p50                  | rue       | 1,6 ms      | < 2 ms     | atteinte         |
+| hash de coupe avant vs après     | les trois | identiques  | identiques | OK               |
+| pixels différents, seuils 0 et 1 | les trois | 0 px / 0 px | 0 px       | OK               |
+| témoin A/A                       | les trois | 0           | 0          | OK               |
+| allocations par image            | les trois | aucune      | aucune     | OK               |
 
 - **Cause du dépassement sur `generale`** : la sélection parcourt à plat les 80 153 clusters de la scène, à ~130 ns par cluster, soit les ~10,9 ms mesurés. `sol` et `rue` passent parce que leur tronc de vision élimine l'essentiel des clusters avant le coût par cluster, pas parce que le parcours est moins cher.
 - **Plan lot 4b** : coupe hiérarchique sur l'arbre de clusters — descente depuis la racine, rejet ou acceptation d'un sous-arbre entier en un test de nœud, budget visé **≤ 15 000 tests de nœud** par image sur `generale` contre 80 153 tests de cluster aujourd'hui.
@@ -1055,6 +1056,7 @@ Borne basse, symétrique : `dist_i ≤ |vue(C)| + R·stretch`, donc
 (`projectedErrorFloor`, `pageSelectionMath.ts`).
 
 D'où les trois décisions, toutes démontrées, jamais heuristiques :
+
 - **rejet** si le plafond de l'erreur de remplacement est sous le seuil (aucun remplaçant encore
   trop grossier : second membre faux partout) — c'est le rejet que develop posait déjà, gardé mot
   pour mot, avec les bornes du manifeste, sur les deux passes ;
@@ -1062,12 +1064,12 @@ D'où les trois décisions, toutes démontrées, jamais heuristiques :
   premier membre faux partout) ;
 - **acceptation** si le plafond de l'erreur propre est sous le seuil **et** le plancher de
   l'erreur de remplacement au-dessus (les deux membres vrais partout).
-Entre les deux on descend. Les bornes d'un nœud encadrant celles de tous ses descendants, la
-décision prise en haut est celle qu'aurait rendue la descente complète : la coupe est la même.
+  Entre les deux on descend. Les bornes d'un nœud encadrant celles de tous ses descendants, la
+  décision prise en haut est celle qu'aurait rendue la descente complète : la coupe est la même.
 
 Ce que la descente garde par cluster, même sous un nœud accepté : le tronc de vision dès que le
 nœud n'est pas entièrement dedans, le cône de normales, la résidence, l'estampille, la demande.
-Un nœud tranché n'est plus *testé*, il est seulement *traversé*, et ses feuilles émettent leurs
+Un nœud tranché n'est plus _testé_, il est seulement _traversé_, et ses feuilles émettent leurs
 clusters **dans l'ordre exact de la descente d'avant ce lot** : l'ordre de dessin ne bouge pas.
 Le repli par forçage ne teste pas la coupe mais le groupe forcé ; les bornes de coupe ne le
 certifient pas, il garde la descente d'avant, à l'identique.
@@ -1094,18 +1096,19 @@ Emerald, WebGL2, 1280×720, pixelError 0, 20 images, budget 100 000 pages. Machi
 (`loadavg` 9 à 12) : les durées ne valent rien comme mesure, seuls les comptes et les hash sont
 retenus.
 
-| mesure | avant | après |
-|---|---|---|
-| clusters sélectionnés | 80 153 | 80 153 |
-| `selectedTriangles` | 10 046 405 | 10 046 405 |
-| hash de coupe | `4f03157d6ecb` | **`4f03157d6ecb` — identique** |
-| `cpuSelectNodesTested` | — (absent) | **13 541**, cible ≤ 15 000 : tenue |
-| `cpuSelectMs` p50 (indicatif) | 10,9 ms | 3,9 ms |
-| témoin A/A | 0 px | 0 px |
+| mesure                        | avant          | après                              |
+| ----------------------------- | -------------- | ---------------------------------- |
+| clusters sélectionnés         | 80 153         | 80 153                             |
+| `selectedTriangles`           | 10 046 405     | 10 046 405                         |
+| hash de coupe                 | `4f03157d6ecb` | **`4f03157d6ecb` — identique**     |
+| `cpuSelectNodesTested`        | — (absent)     | **13 541**, cible ≤ 15 000 : tenue |
+| `cpuSelectMs` p50 (indicatif) | 10,9 ms        | 3,9 ms                             |
+| témoin A/A                    | 0 px           | 0 px                               |
 
 **Non résolu : l'écart avant/après de cet essai n'était pas nul — 581 px sur 921 600, max canal
 185/185/185/0**, des pixels sombres isolés (valeurs 0 à 30) éparpillés dans une boîte
 [208..1052]×[83..538]. Ce qui a été établi, et ce qui ne l'est pas :
+
 - la coupe n'est pas en cause. Sonde cumulée sur **toutes** les images : **zéro** cluster émis par
   l'acceptation en bloc que `cutSelects` n'aurait pas retenu, et somme des tailles de coupe
   (`shown` et `wanted`) **identique** au chiffre près entre acceptation active et désactivée ;
@@ -1153,18 +1156,18 @@ Session de mesure seule (harnais commun `scripts/mesure/banc.mjs`), sur HEAD `9c
 la session). Aucun code modifié, aucun test lancé, aucun `prepare:models`. Trois commandes, une
 par vue, chacune attendue jusqu'au bout, aucune reprise.
 
-| mesure | vue | avant | après | seuil | verdict |
-|---|---|---|---|---|---|
-| cpuSelectMs p50/p95 | sol e0 | 1,40 / 1,60 | 0,70 / 0,90 | < 2 ms | OK |
-| cpuSelectMs p50/p95 | sol e1 | 0,90 / 1,10 | 0,80 / 0,90 | < 2 ms | OK |
-| cpuSelectMs p50/p95 | rue e0 | 1,40 / 1,60 | 0,70 / 0,90 | < 2 ms | OK |
-| cpuSelectMs p50/p95 | rue e1 | 0,90 / 1,10 | 0,80 / 1,00 | < 2 ms | OK |
-| cpuSelectNodesTested (après) | sol e0 / e1 | — | 3 831 / 4 927 | ≤ 15 000 | OK |
-| cpuSelectNodesTested (après) | rue e0 / e1 | — | 3 801 / 4 921 | ≤ 15 000 | OK |
-| hash de coupe identique | sol, rue (e0 et e1) | — | — | oui, les quatre fois | OK |
-| pixels différents (0 px / 1 px) | sol, rue (e0 et e1) | — | 0 / 921 600 | 0 attendu | OK |
-| témoin A/A | sol, rue (e0 et e1) | — | 0 px, max canal 0 | 0 attendu | OK |
-| pagesDetached avant/après | sol e0/e1, rue e0/e1 | 3005/1220/2904/1200 | identiques | — | identique |
+| mesure                          | vue                  | avant               | après             | seuil                | verdict   |
+| ------------------------------- | -------------------- | ------------------- | ----------------- | -------------------- | --------- |
+| cpuSelectMs p50/p95             | sol e0               | 1,40 / 1,60         | 0,70 / 0,90       | < 2 ms               | OK        |
+| cpuSelectMs p50/p95             | sol e1               | 0,90 / 1,10         | 0,80 / 0,90       | < 2 ms               | OK        |
+| cpuSelectMs p50/p95             | rue e0               | 1,40 / 1,60         | 0,70 / 0,90       | < 2 ms               | OK        |
+| cpuSelectMs p50/p95             | rue e1               | 0,90 / 1,10         | 0,80 / 1,00       | < 2 ms               | OK        |
+| cpuSelectNodesTested (après)    | sol e0 / e1          | —                   | 3 831 / 4 927     | ≤ 15 000             | OK        |
+| cpuSelectNodesTested (après)    | rue e0 / e1          | —                   | 3 801 / 4 921     | ≤ 15 000             | OK        |
+| hash de coupe identique         | sol, rue (e0 et e1)  | —                   | —                 | oui, les quatre fois | OK        |
+| pixels différents (0 px / 1 px) | sol, rue (e0 et e1)  | —                   | 0 / 921 600       | 0 attendu            | OK        |
+| témoin A/A                      | sol, rue (e0 et e1)  | —                   | 0 px, max canal 0 | 0 attendu            | OK        |
+| pagesDetached avant/après       | sol e0/e1, rue e0/e1 | 3005/1220/2904/1200 | identiques        | —                    | identique |
 
 **`generale` (point 1 laissé ouvert par la session précédente, les 581 px) : toujours pas
 tranché.** Trois séries jouées (après e0 5,70 ms, avant e0 11,20 ms, après e0 rejoué 5,70 ms — même
@@ -1200,7 +1203,7 @@ de nœud. Aucun test ajouté (consigne) ; les 403 tests existants restent verts.
 `LIGHT_SETTINGS`, validation), `sceneLightStore.ts` (magasin à capacité fixe, tampon de 64 lampes
 alloué une fois, zéro allocation par image), `sceneLightShadowFaces.ts` (matrices de face, six axes
 d'une ponctuelle dans un ordre qui est le contrat), `sceneLightShadowAtlas.ts` (placement par blocs
-alignés dans une grille de 32 × 32 cellules de 128 texels, part d'atlas par lampe), 
+alignés dans une grille de 32 × 32 cellules de 128 texels, part d'atlas par lampe),
 `sceneLightShadowSlices.ts` (table des tranches et fraîcheur), `sceneLightShadowPlan.ts`
 (ordonnanceur : au plus quatre lampes redessinées par image, priorité = influence écran × changement).
 
@@ -1252,11 +1255,11 @@ Cache Emerald figé recopié hors du Lab (`scratchpad/lumiere-assets`, lecture s
 commun accepte désormais `WG_ASSETS` pour pointer une copie. `--avant 33c5a0c`, 60 images par série,
 `pixelError 0`, 1280 × 720.
 
-| vue | témoin A/A | avant vs après | hash de coupe | `uncoveredTriangles` | erreurs de page |
-|---|---|---|---|---|---|
-| generale | 0 px | **0 px**, max canal 0 | identique | 0 | 0 |
-| sol | 0 px | **0 px**, max canal 0 | identique | 0 | 0 |
-| rue | 0 px | **0 px**, max canal 0 | identique | 0 | 0 |
+| vue      | témoin A/A | avant vs après        | hash de coupe | `uncoveredTriangles` | erreurs de page |
+| -------- | ---------- | --------------------- | ------------- | -------------------- | --------------- |
+| generale | 0 px       | **0 px**, max canal 0 | identique     | 0                    | 0               |
+| sol      | 0 px       | **0 px**, max canal 0 | identique     | 0                    | 0               |
+| rue      | 0 px       | **0 px**, max canal 0 | identique     | 0                    | 0               |
 
 Témoin de contrôle : `develop` construit deux fois indépendamment, comparé à lui-même, **0 px** —
 c'est ce qui a permis d'attribuer les 1 et 2 pixels de la première version au changement et non au
@@ -1269,19 +1272,19 @@ sont retenus.
 1280 × 720, 180 images en boucle serrée pour le CPU, 90 images vidées pour le GPU par passe (les
 relevés d'horodatage ne reviennent qu'au retour à la boucle d'événements). Machine chargée.
 
-| cas | CPU/image p50 | GPU image p50 | listes | ombres | éclairage | tranches maj |
-|---|---:|---:|---:|---:|---:|---:|
-| 0 lampe | 0,10 ms | 1,13 ms | `null` | `null` | 0,52 ms | 0 |
-| 1 lampe, ombres | 0,10 ms | 1,07 ms | 0,31 ms | `null` | 0,70 ms | 0 |
-| 1 lampe, sans ombres | 0,10 ms | 1,33 ms | 0,42 ms | `null` | 0,83 ms | 0 |
-| 3 lampes, ombres | 0,10 ms | 3,38 ms | 0,45 ms | `null` | 1,67 ms | 0 |
-| 3 lampes, sans ombres | 0,10 ms | 1,42 ms | 0,41 ms | `null` | 0,94 ms | 0 |
-| 10 lampes, ombres | 0,10 ms | 2,66 ms | 0,35 ms | `null` | 2,05 ms | 0 |
-| 10 lampes, sans ombres | 0,10 ms | 1,97 ms | 0,50 ms | `null` | 1,33 ms | 0 |
-| 30 lampes, ombres | 0,10 ms | 4,09 ms | 0,22 ms | `null` | 3,71 ms | 0 |
-| 30 lampes, sans ombres | 0,10 ms | 3,07 ms | 0,61 ms | `null` | 2,33 ms | 0 |
-| 10 lampes, nuit | 0,10 ms | 1,86 ms | 0,20 ms | `null` | 1,39 ms | 0 |
-| 4 lampes, une mobile | 0,10 ms | 2,27 ms | 0,42 ms | **0,17 ms** | 1,74 ms | 1/image |
+| cas                    | CPU/image p50 | GPU image p50 |  listes |      ombres | éclairage | tranches maj |
+| ---------------------- | ------------: | ------------: | ------: | ----------: | --------: | -----------: |
+| 0 lampe                |       0,10 ms |       1,13 ms |  `null` |      `null` |   0,52 ms |            0 |
+| 1 lampe, ombres        |       0,10 ms |       1,07 ms | 0,31 ms |      `null` |   0,70 ms |            0 |
+| 1 lampe, sans ombres   |       0,10 ms |       1,33 ms | 0,42 ms |      `null` |   0,83 ms |            0 |
+| 3 lampes, ombres       |       0,10 ms |       3,38 ms | 0,45 ms |      `null` |   1,67 ms |            0 |
+| 3 lampes, sans ombres  |       0,10 ms |       1,42 ms | 0,41 ms |      `null` |   0,94 ms |            0 |
+| 10 lampes, ombres      |       0,10 ms |       2,66 ms | 0,35 ms |      `null` |   2,05 ms |            0 |
+| 10 lampes, sans ombres |       0,10 ms |       1,97 ms | 0,50 ms |      `null` |   1,33 ms |            0 |
+| 30 lampes, ombres      |       0,10 ms |       4,09 ms | 0,22 ms |      `null` |   3,71 ms |            0 |
+| 30 lampes, sans ombres |       0,10 ms |       3,07 ms | 0,61 ms |      `null` |   2,33 ms |            0 |
+| 10 lampes, nuit        |       0,10 ms |       1,86 ms | 0,20 ms |      `null` |   1,39 ms |            0 |
+| 4 lampes, une mobile   |       0,10 ms |       2,27 ms | 0,42 ms | **0,17 ms** |   1,74 ms |      1/image |
 
 `ombres = null` sur les scènes immobiles n'est pas une mesure manquante : la passe n'a pas lieu, les
 tranches restent en cache (X5). La colonne devient un nombre dès qu'une lampe bouge. CPU et GPU ne
@@ -1344,14 +1347,14 @@ transparente, que la coupe GPU ne sélectionne jamais, est réécrite.
 Charge machine : 4,97 / 7,44 / 6,63 au début, 12,50 / 8,88 / 7,23 à la fin — machine **chargée**,
 les proportions valent mieux que les valeurs absolues.
 
-| vue | seuil | cpuFrameMs p50 avant → après | p95 avant → après | hash | écart px | A/A |
-|---|---|---|---|---|---|---|
-| générale | 0 | 27,1 → **21,6** | 28,5 → 22,5 | identique | 0 | 0 |
-| sol | 0 | 7,9 → **6,2** | 8,5 → 6,5 | identique | 0 | 0 |
-| rue | 0 | 9,1 → **6,1** | 9,8 → 7,0 | identique | 0 | 0 |
-| générale | 1 | 6,6 → **4,3** | 7,9 → 4,7 | identique | 0 | 0 |
-| sol | 1 | 4,1 → **2,9** | 4,4 → 3,2 | identique | 0 | 0 |
-| rue | 1 | 4,1 → **2,9** | 4,5 → 3,2 | identique | 0 | 0 |
+| vue      | seuil | cpuFrameMs p50 avant → après | p95 avant → après | hash      | écart px | A/A |
+| -------- | ----- | ---------------------------- | ----------------- | --------- | -------- | --- |
+| générale | 0     | 27,1 → **21,6**              | 28,5 → 22,5       | identique | 0        | 0   |
+| sol      | 0     | 7,9 → **6,2**                | 8,5 → 6,5         | identique | 0        | 0   |
+| rue      | 0     | 9,1 → **6,1**                | 9,8 → 7,0         | identique | 0        | 0   |
+| générale | 1     | 6,6 → **4,3**                | 7,9 → 4,7         | identique | 0        | 0   |
+| sol      | 1     | 4,1 → **2,9**                | 4,4 → 3,2         | identique | 0        | 0   |
+| rue      | 1     | 4,1 → **2,9**                | 4,5 → 3,2         | identique | 0        | 0   |
 
 `uncoveredTriangles` 0 des deux côtés partout ; `selectedTriangles` et `residentPages` identiques
 série par série ; aucune erreur de page consignée.
@@ -1359,15 +1362,15 @@ série par série ; aucune erreur de page consignée.
 Étapes internes `cpu-timing` (vue générale, pixelError 0, script de profil du scratchpad, jamais
 committé ; le harnais du banc ne rend pas ces étapes) :
 
-| étape | p50 avant → après | p95 avant → après |
-|---|---|---|
-| Adopter la coupe GPU | 1,6 → **0,8** | 2,4 → 1,0 |
-| Sélection CPU des transparents | 8,3 → 8,1 | 9,2 → 8,8 |
-| **Admission** | 5,2 → **1,4** | 5,8 → 1,6 |
-| **File de résidence** | 4,3 → **2,5** | 5,1 → 3,2 |
-| Projection des boîtes | 3,1 → 3,1 | 3,3 → 3,3 |
-| Encodage et soumission | 7,8 → 7,8 | 8,2 → 8,3 |
-| total moteur | 27,6 → **21,2** | 29,9 → 23,2 |
+| étape                          | p50 avant → après | p95 avant → après |
+| ------------------------------ | ----------------- | ----------------- |
+| Adopter la coupe GPU           | 1,6 → **0,8**     | 2,4 → 1,0         |
+| Sélection CPU des transparents | 8,3 → 8,1         | 9,2 → 8,8         |
+| **Admission**                  | 5,2 → **1,4**     | 5,8 → 1,6         |
+| **File de résidence**          | 4,3 → **2,5**     | 5,1 → 3,2         |
+| Projection des boîtes          | 3,1 → 3,1         | 3,3 → 3,3         |
+| Encodage et soumission         | 7,8 → 7,8         | 8,2 → 8,3         |
+| total moteur                   | 27,6 → **21,2**   | 29,9 → 23,2       |
 
 Nouvelle métrique, publiée par le diagnostic `cpu-timing` des deux chemins de rendu :
 `residencyPagesEntered` / `residencyPagesExited` — les pages que la résidence a dû traiter dans
@@ -1427,8 +1430,8 @@ exactement ce qui manquait à la tentative retirée du lot 3a (témoin A/A à 75
 et ordre strictement identiques : même filtre de couverture, même ordre niveau décroissant, même
 ordre de publication à niveau égal, même déduplication par première occurrence.
 
-**2. Transparents — la coupe tenue d'une image à l'autre.** *Ce n'est pas le passage en sélection
-GPU que le lot demandait ; voir « Ce qui reste ».* La coupe des clusters transparents est le seul
+**2. Transparents — la coupe tenue d'une image à l'autre.** _Ce n'est pas le passage en sélection
+GPU que le lot demandait ; voir « Ce qui reste »._ La coupe des clusters transparents est le seul
 parcours de DAG qu'une image garde sur le CPU. Elle est fonction de six entrées et de rien d'autre :
 vue et projection de la caméra, seuil d'erreur retenu par le budget, fenêtre, époque des matrices
 monde, identité et révision de résidence du cache de pages. Le numéro d'image qu'elle reçoit en plus
@@ -1453,13 +1456,13 @@ qui n'est plus courant, écrit par la même arithmétique dans le même tableau.
 generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000`, une exécution par étape plus une
 sur la tête. Verrou `mesure.lock` pris puis libéré à chaque fois.
 
-| étape | commit | cpuFrameMs p50 générale, pixelError 0 | écart px | A/A | hash | trous |
-|---|---|---|---|---|---|---|
-| départ (`develop`) | `ea032f4` | 21,5 | — | — | — | 0 |
-| 1 file de résidence | `fe2be87` | 21,5 → **20,4** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
-| 2 transparents | `933954a` | 21,2 → **13,0** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
-| 3 projection | `ea054a9` | 24,0 → **10,8** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
-| tête (tests inclus) | `90f47ad` | 27,4 → **10,7** | 0 sur 6/6 | 0 | identique 6/6 | 0 |
+| étape               | commit    | cpuFrameMs p50 générale, pixelError 0 | écart px  | A/A | hash          | trous |
+| ------------------- | --------- | ------------------------------------- | --------- | --- | ------------- | ----- |
+| départ (`develop`)  | `ea032f4` | 21,5                                  | —         | —   | —             | 0     |
+| 1 file de résidence | `fe2be87` | 21,5 → **20,4**                       | 0 sur 6/6 | 0   | identique 6/6 | 0     |
+| 2 transparents      | `933954a` | 21,2 → **13,0**                       | 0 sur 6/6 | 0   | identique 6/6 | 0     |
+| 3 projection        | `ea054a9` | 24,0 → **10,8**                       | 0 sur 6/6 | 0   | identique 6/6 | 0     |
+| tête (tests inclus) | `90f47ad` | 27,4 → **10,7**                       | 0 sur 6/6 | 0   | identique 6/6 | 0     |
 
 `uncoveredTriangles` 0 des deux côtés partout, `selectedTriangles` identiques série par série, aucune
 erreur de page. Le côté `avant` varie de 21,2 à 27,4 ms d'une exécution à l'autre : la charge machine
@@ -1474,18 +1477,18 @@ vue générale à 0 px : 25,0 → 12,0.
 Étapes internes `cpu-timing` (vue générale, pixelError 0, script de profil du scratchpad, jamais
 committé ; le harnais du banc ne rend pas ces étapes), même session, `ea032f4` contre `ea054a9` :
 
-| étape | p50 avant → après |
-|---|---|
-| Adopter la coupe GPU | 0,6 → 0,6 |
-| **Sélection CPU des transparents** | 6,8 → **0,0** |
-| Admission | 1,2 → 1,3 |
-| **File de résidence** | 2,1 → **0,8** |
-| Synchroniser / envoyer la résidence / lancer la sélection | 0,5 → 0,5 |
-| Partition Hi-Z | 0,5 → 0,5 |
-| **Projection des boîtes** | 3,0 → **0,2** |
-| Construire les items de dessin | 1,2 → 1,3 |
-| Reste de l'encodage et soumission | 2,6 → 2,8 |
-| **total moteur** | 18,7 → **8,8** |
+| étape                                                     | p50 avant → après |
+| --------------------------------------------------------- | ----------------- |
+| Adopter la coupe GPU                                      | 0,6 → 0,6         |
+| **Sélection CPU des transparents**                        | 6,8 → **0,0**     |
+| Admission                                                 | 1,2 → 1,3         |
+| **File de résidence**                                     | 2,1 → **0,8**     |
+| Synchroniser / envoyer la résidence / lancer la sélection | 0,5 → 0,5         |
+| Partition Hi-Z                                            | 0,5 → 0,5         |
+| **Projection des boîtes**                                 | 3,0 → **0,2**     |
+| Construire les items de dessin                            | 1,2 → 1,3         |
+| Reste de l'encodage et soumission                         | 2,6 → 2,8         |
+| **total moteur**                                          | 18,7 → **8,8**    |
 
 ### Ce qui reste
 
