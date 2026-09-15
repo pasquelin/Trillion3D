@@ -166,5 +166,20 @@ fn version_flag_describes_the_build() {
     let v: Value =
         serde_json::from_str(String::from_utf8_lossy(&output.stdout).trim()).expect("json");
     assert_eq!(v["compilerVersion"], env!("CARGO_PKG_VERSION"));
-    assert!(v["importer"].as_str().unwrap().starts_with("ufbx"));
+    // Le registre des pilotes voyage dans --version : un format par pilote, avec sa version.
+    let scene = v["plugins"]["scene"].as_array().expect("scene plugins");
+    let names: Vec<&str> = scene
+        .iter()
+        .map(|plugin| plugin["name"].as_str().expect("name"))
+        .collect();
+    assert_eq!(names, ["gltf", "fbx", "obj"]);
+    let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
+    assert!(fbx["version"].as_str().unwrap().contains("ufbx"));
+    let images: Vec<&str> = v["plugins"]["image"]
+        .as_array()
+        .expect("image plugins")
+        .iter()
+        .map(|plugin| plugin["name"].as_str().expect("name"))
+        .collect();
+    assert_eq!(images, ["png", "jpeg"]);
 }
