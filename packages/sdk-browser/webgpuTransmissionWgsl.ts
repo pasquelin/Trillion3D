@@ -50,14 +50,19 @@ fn transmittedBackdrop(P:vec3f,N:vec3f,V:vec3f,fragXY:vec2f,fragZ:f32)->vec3f{
 // la seule formule d'éclairement du moteur sur un albédo nul : le lobe diffus s'annule, le lobe
 // spéculaire diélectrique reste. Une vue sans éclairage n'en garde aucun des deux.
 fn transmissionColor(lit:vec3f,baseTint:vec3f,alpha:f32,N:vec3f,V:vec3f,P:vec3f,fragXY:vec2f,fragZ:f32,rough:f32,ao:f32,unlit:bool)->vec4f{
+ // La normale du côté d'où l'on regarde. Une surface simple face, ou un maillage sans attribut de
+ // normale dont la normale vient des dérivées d'écran, peut arriver ici tournée à l'envers : la
+ // réfraction traverserait alors dans le mauvais sens et Fresnel rendrait un miroir noir. On entre
+ // toujours dans le volume par la face qu'on voit, et c'est cette normale-là qui décrit l'entrée.
+ let Nv=select(-N,N,dot(N,V)>0.0);
  let t=clamp(volume.transmission,0.0,1.0);
  let f0=pow((volume.ior-1.0)/(volume.ior+1.0),2.0);
- let F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(N,V),0.0),0.0,1.0),5.0);
- let transmitted=baseTint*transmittedBackdrop(P,N,V,fragXY,fragZ);
+ let F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
+ let transmitted=baseTint*transmittedBackdrop(P,Nv,V,fragXY,fragZ);
  var reflected=vec3f(0.0);
  if(!unlit){
-  reflected=F*sampleBounce(P,reflect(-V,N))*BOUNCE_INVERSE_PI
-   +declaredLighting(vec3f(0.0),0.0,rough,N,V,P,ao);
+  reflected=F*sampleBounce(P,reflect(-V,Nv))*BOUNCE_INVERSE_PI
+   +declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao);
  }
  let a=alpha+t*(1.0-alpha);
  return vec4f((t*((1.0-F)*transmitted+reflected)+(1.0-t)*alpha*lit)/max(a,1e-4),a);
