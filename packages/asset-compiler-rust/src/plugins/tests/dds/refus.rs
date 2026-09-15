@@ -145,7 +145,7 @@ fn un_dds_hors_liste_ou_tronque_ressort_en_raison_de_rapport_jamais_en_panique()
 fn le_bc1_a_neuf_niveaux_rend_son_niveau_zero_et_compte_sa_chaine() {
     let file = fixture("dds", "bc1-mips.dds");
     assert_eq!(registry::by_head(&file).map(|d| d.name()), Some("dds"));
-    let registry::DecodedImage::Rgba8(image) = registry::decode(&file, MAX_ALLOC).expect("décodé");
+    let image = super::super::rgba8(registry::decode(&file, MAX_ALLOC).expect("décodé"));
     assert_eq!((image.width(), image.height()), (256, 256));
     // L'encodeur du corpus écrit des blocs constants : chaque carré de 4 × 4 ressort d'une seule
     // couleur. Un niveau mélangé à un autre, ou un décalage d'une ligne, se verrait ici.
