@@ -1,5 +1,111 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session sans-threejs] lot visibilité WebGPU : deux leviers gardés sur trois, 0 px sur seize séries
+
+Worktree `.claude/worktrees/lot-visibilite`, branche `lot/visibilite-webgpu`, partie de `develop` =
+`32c95b9` et **rebasée quatre fois** pendant le lot, jusqu'à `develop` = `db44508` (lot instances
+fusionné) ; les portes et la preuve sont jouées sur cette base. Trois commits : `f04c072` (levier 1),
+`cbfd1fe` (levier 3), `19cdd7d` (tests). **Non fusionné** : le lot touche `sdk-browser`, la fusion
+demande un préavis à la session Lumière.
+
+### Ce que chaque levier remplace, et ce qu'il a rendu
+
+| levier                                                                        | ce qui change                                                                        | mesure                                                                                          | gardé                     |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------- |
+| 1 — préfixe du tirage indirect en parallèle (point D3)                        | `prefixGroups` passe de `@workgroup_size(1)` à 64 fils                               | passe « WG draw compaction », **GPU 0,93 → 0,37 ms** (−60 %), CPU inchangé                      | **oui**, pour un gain GPU |
+| 2 — un item transparent ne refait rien tant que sa matrice monde ne bouge pas | matrice, boîte monde, déterminant et matériau tenus au lieu d'être refaits par image | **aucun gain mesurable** : 7,9 → 7,9 ms `cpuFrameMs`, étape « Transparents » 0,7 → 0,7 / 0,6 ms | **non, retiré**           |
+| 3 — liste dessinée recopiée seulement quand la coupe montrée change           | quatre-vingt mille enregistrements repoussés par image en moins                      | étape « Sélection et visibilité », **CPU 0,2 → 0,0 ms**                                         | **oui**                   |
+
+Chiffres du profil par étape, vue générale seuil 0, 1280×720, 60 images mesurées, chauffe 8, budget
+100 000 pages (coupe de 80 153 pages, 20 688 résidentes), charge 12 à 19 ; `avant` = `db44508` des
+trois côtés :
+
+| étape                                                  | `db44508`                                        | +1       | +1+2 | +1+2+3  |
+| ------------------------------------------------------ | ------------------------------------------------ | -------- | ---- | ------- |
+| Sélection et visibilité, **GPU** p50                   | 0,93                                             | **0,37** | 0,37 | 0,37    |
+| Sélection et visibilité, **CPU** p50                   | 0,2                                              | 0,2      | 0,2  | **0,0** |
+| Transparents, CPU p50                                  | 0,7                                              | 0,7      | 0,7  | 0,7     |
+| Adoption, fiches, encodage, partition, projection, CPU | inchangés à 0,1 ms près d'une campagne à l'autre |          |      |         |
+
+### Pourquoi le levier 2 est retiré, et ce que cela apprend sur le harnais
+
+Le travail que ce levier supprime — recopier la matrice monde de mille neuf cents items
+transparents, retransporter les huit coins de leur boîte, reprendre leur déterminant — **se joue
+avant la première borne du profil** : `renderWebgpuPages` ouvre `cpuStart` après cette boucle, si
+bien que ni `cpuFrameMs` ni aucune étape ne la contient. Le harnais n'expose par ailleurs aucune
+durée d'horloge murale par image (`cpuFrameMs`, `cpuSelectMs`, `gpuFrameMs` et rien d'autre). La
+part du levier qui tombait, elle, dans une borne — le matériau relevé une fois au lieu d'être
+réalloué par item et par image dans les uniformes de mélange et de volume, et le déterminant tenu
+avec la matrice — se dépose sur l'étape « Transparents » : 0,7 ms avant, 0,7 puis 0,6 après, c'est-à-dire
+la résolution du profil, pas un gain. Règle appliquée telle quelle : **un levier sans gain mesuré
+n'est pas gardé.** Le code est retiré de l'historique (`git rebase --onto`), et la version qui le
+portait reste accessible au tag `essai/visibilite-levier2-mesure` pour le jour où une borne
+couvrira ce qui précède `cpuStart` — c'est d'ailleurs la prochaine chose à nommer dans le profil,
+comme le lot encodage l'avait déjà écrit.
+
+### Le piège de la pénalité d'ordre, à ne pas relire de travers
+
+Le harnais joue les séries dans l'ordre `apres`, `avant`, `apres-aa`. **La première série paie une
+pénalité systématique** : sur la campagne du levier 1, `cpuFrameMs` p50 vaut 10,1 pour `apres`, 8,4
+pour `avant` et 8,4 pour `apres-aa` — le même dist, mesuré deux fois, donne 10,1 puis 8,4. Aucun
+`cpuFrameMs` de première série n'est donc comparable à quoi que ce soit, et tout ce qui est conclu
+ci-dessus l'est sur le **profil par étape**, où les deux séries `apres` s'accordent à 0,1 ms.
+
+### Preuve pixels de la tête gardée (leviers 1 et 3)
+
+`--moteur webgpu --avant db44508 --apres <dist lot> --max-pages 100000`, 60 images, 1280×720 ;
+`pixels-final` (générale, sol, rue × seuils 0 et 1) et `mobile-final` (générale × 0 et 1, caméra
+mobile). Verrou `.claude/mesure.lock` pris au nom de `geometry visibilite` avant **chacune** des sept
+campagnes du lot et rendu après, répertoire laissé vide.
+
+| série                       | px avant/après    | témoin A/A | hash de coupe  | trous | charge  |
+| --------------------------- | ----------------- | ---------- | -------------- | ----- | ------- |
+| générale · 0                | 0 px, max canal 0 | 0 px       | `b1cd55ba461a` | 0     | 13 → 12 |
+| sol · 0                     | 0 px              | 0 px       | `8000678aa60f` | 0     | 12      |
+| rue · 0                     | 0 px              | 0 px       | `49ec9e88bb77` | 0     | 12      |
+| générale · 1                | 0 px              | 0 px       | `affe53b74f42` | 0     | 12      |
+| sol · 1                     | 0 px              | 0 px       | `e0c92bdd5f43` | 0     | 12      |
+| rue · 1                     | 0 px              | 0 px       | `3102e84881b9` | 0     | 12      |
+| générale · 0, caméra mobile | 0 px              | 0 px       | `46335af99674` | 0     | 7       |
+| générale · 1, caméra mobile | 0 px              | 0 px       | `0cb1fa4a3a15` | 0     | 7       |
+
+`selectedTriangles` identiques série par série, `uncoveredTriangles` 0 des deux côtés partout, aucun
+incident de carte graphique, aucun `WEBGPU_LOST` sur les sept campagnes. La version qui portait
+encore le levier 2 avait elle aussi rendu 8 séries à 0 px ; les deux preuves sont conservées.
+
+**Le GPU par image suit le levier 1 sur les huit séries**, `avant` → `après` (p50, ms) : 29,11 →
+28,49 · 9,35 → 8,87 · 10,46 → 10,22 · 11,84 → 11,68 · 3,81 → 3,71 · 7,39 → 5,83 · 29,13 → 28,68 ·
+11,86 → 11,73. Huit signes sur huit, cohérent avec les 0,56 ms enlevés à la compaction ; les valeurs
+elles-mêmes sont à rejouer au calme, la machine tenait 6 à 19.
+
+### Ce que le lot n'a pas atteint
+
+La cible était **le coût processeur fixe, 7,8 ms → ~4 ms**. Il vaut 7,7 à 7,9 ms après le lot : le
+levier 3 enlève 0,2 ms, le levier 1 n'enlève rien au processeur, le levier 2 est retiré. Les
+« passes persistantes » n'ont pas donné de troisième levier : les groupes de liaison, les pipelines
+et les pièces jointes de couleur sont déjà tenus d'une image à l'autre par les lots précédents, et
+ce qui reste cher au processeur est nommé et inchangé — encodage des passes 2,9 ms (1 936 appels de
+dessin dont 1 928 de mélange), fiches de dessin 1,6 ms, adoption 0,8 ms. Les trois demandent ce que
+le lot encodage avait déjà nommé : porter la partition sur la carte pour les fiches, savoir avant
+l'image quelles primitives transparentes n'ont rien à dessiner pour l'encodage, une estampille
+exacte de résidence pour l'adoption.
+
+### Portes
+
+`tsc` (projet entier), `npm run check:changed` (**193 tests, 0 échec**), `check:lines`,
+`check:unused`, `check:duplicates` (**0 clone**) : les cinq vertes sur `19cdd7d`. Deux fichiers de
+tests ajoutés, un par comportement gardé : `gpuDrawPrefixParallel.test.ts` (forme du noyau expédié,
+et égalité des deux noyaux de l'oracle sur mille entrées tirées au hasard, débordement compris) et
+`webgpuDrawnMirror.test.ts` (recopie seulement drapeau baissé, adoption qui l'annonce sur un relevé
+neuf et jamais sur celui qu'elle tient). Aucune ligne de calcul de
+`bench/oracles/gpuDrawPrefixOracle.ts` n'est touchée : seul son commentaire d'en-tête, qui annonçait
+un noyau « non fusionné ». `render-tech-lab/` non modifié, port 5174 non touché, rien écrit dans
+`public/` ; aucun fichier d'éclairage, d'ombres, de sondes, de proxy ou de reflet, ni
+`webgpuAtlasJobs.ts` / `webgpuTexturePriority.ts`, ni les fichiers du lot instances. Huit 404 sur
+`lights.json` par campagne, des deux côtés : le cache du Lab n'a pas de sidecar de lampes, c'est ce
+qui fait sortir le harnais en code 1 malgré un relevé propre.
+
+Images et rapports : `.mesure/out/lot-visibilite/` (sept campagnes, 185 Mo).
 ## 2026-09-15 — [session calculs] mesure finale des temps par image
 
 Verrou `.claude/mesure.lock` pris, campagne rejouée deux fois avant d'aboutir. Base « avant » =
@@ -99,9 +205,9 @@ non un budget en millisecondes.
 Fusion fast-forward `develop` → `8f54474` (« perf(rebond): les primitives du proxy indexées par
 maillage »), même session que les deux entrées suivantes.
 
-| Point | Avant | Après | Gain | Identique | Retenu |
-|---|---|---|---|---|---|
-| Primitives du proxy indexées par maillage (`stage_proxy`, `asset-compiler-rust/src/proxy.rs`) | 271,8 ms | 176,7 ms | 35 % | oui | oui |
+| Point                                                                                         | Avant    | Après    | Gain | Identique | Retenu |
+| --------------------------------------------------------------------------------------------- | -------- | -------- | ---- | --------- | ------ |
+| Primitives du proxy indexées par maillage (`stage_proxy`, `asset-compiler-rust/src/proxy.rs`) | 271,8 ms | 176,7 ms | 35 % | oui       | oui    |
 
 - `stage_proxy` construisait la scène du proxy en balayant toutes les primitives de la scène pour
   chaque nœud retenu. Une table `primitives_by_mesh` (maillage → indices de primitives, dans l'ordre
@@ -124,11 +230,11 @@ Deux commits `perf(textures)` rebasés sur `develop`, fusion fast-forward `devel
 `a31e8f9` (bandes d'atlas) puis `32c95b9` (ordre de transfert), tête de branche alignée sur `develop`
 après fusion.
 
-| Point | Avant (ms) | Après (ms) | Gain | Identique | Retenu |
-|---|---|---|---|---|---|
-| Bandes d'un niveau vers l'atlas (`writeRows`, écriture par `dataLayout.offset`, plus de `slice()`) | 0,864 | 0,046 | 95 % | oui | oui |
-| Niveaux progressifs d'un aperçu (même code, tampons minuscules) | 0,010 | 0,014 | −45 % | oui | non (mesure noyée) |
-| Ordre de transfert par image (`bump`, poids en `Float64Array` à capacité doublée) | 0,189 | 0,167 | 12 % | oui | oui |
+| Point                                                                                              | Avant (ms) | Après (ms) | Gain  | Identique | Retenu             |
+| -------------------------------------------------------------------------------------------------- | ---------- | ---------- | ----- | --------- | ------------------ |
+| Bandes d'un niveau vers l'atlas (`writeRows`, écriture par `dataLayout.offset`, plus de `slice()`) | 0,864      | 0,046      | 95 %  | oui       | oui                |
+| Niveaux progressifs d'un aperçu (même code, tampons minuscules)                                    | 0,010      | 0,014      | −45 % | oui       | non (mesure noyée) |
+| Ordre de transfert par image (`bump`, poids en `Float64Array` à capacité doublée)                  | 0,189      | 0,167      | 12 %  | oui       | oui                |
 
 - Preuves : oracles `bench/oracles/h3AtlasJobsOracle.ts` et `h3PriorityOracle.ts`, bancs
   `bench/textures-h3.bench.mjs` et `priorite-h3.bench.mjs`, script `npm run bench:calculs-h3`,
@@ -360,6 +466,7 @@ une scène, il est maintenant ambigu — un format par dossier source, c'est la 
 `packages/asset-compiler-rust/PLUGINS.md` est le brief d'un agent par format : le module, le trait,
 la ligne de registre, la dorée minimale à fournir, et ce qui est interdit (code ou SDK d'éditeur,
 contournement de protection). La politique reste dans `orchestration/SPEC_FORMATS_IMPORT.md`.
+
 ## 2026-09-15 — [lot fbx-opacite] l'opacité d'un FBX classique ne se perd plus en silence
 
 Branche `fbx-opacite` sur `develop` = `81a8131`. `IMPORTER_VERSION` montée à `ufbx-0.11.3-gltf-3`
@@ -384,10 +491,10 @@ d'être avalée.
 
 **Village, avant/après** (import seul, cache jetable, même FBX de 409 Mo, même machine) :
 
-| matériau | avant | après |
-| --- | --- | --- |
-| `M_River` | `alphaMode` absent, `unsupported` = `{}` | `alphaMode` = `BLEND`, `unsupported` = `{"material-separate-opacity-texture":1}` |
-| `M_Water_Ocean` | `alphaMode` absent | `alphaMode` absent — **conforme à la source** |
+| matériau        | avant                                    | après                                                                            |
+| --------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `M_River`       | `alphaMode` absent, `unsupported` = `{}` | `alphaMode` = `BLEND`, `unsupported` = `{"material-separate-opacity-texture":1}` |
+| `M_Water_Ocean` | `alphaMode` absent                       | `alphaMode` absent — **conforme à la source**                                    |
 
 Sur les 81 matériaux, un seul change de classe. L'océan reste opaque parce que le FBX le dit :
 `fbx.transparency_color` = (0, 0, 0) sans texture, donc opacité 1. Le journal du 2026-09-15 le
@@ -402,6 +509,7 @@ warnings`, `cargo fmt --check`, `npm run check:lines`, `check:duplicates`, `chec
 **Ce qui reste.** La carte d'opacité séparée n'est toujours pas rendue : glTF 2.0 de base n'a pas
 d'emplacement pour elle, il faudrait recomposer l'alpha dans la couleur de base à l'import. Le
 rapport le dit maintenant au lieu de se taire.
+
 ## 2026-09-15 — lot « ombres lointaines du soleil » : un rayon contre le proxy, et une découpe de cascades qui tient son rapport
 
 Worktree `lot-ombres-lointaines`, branche `lot/ombres-lointaines`, partie de `develop` = `a29e025`,
@@ -533,9 +641,9 @@ d'Emerald reste à relever**, sous verrou et charge inférieure à 4, à la livr
   tableau neuf par appel, que la passe différée comparait à celui qu'elle avait lié — jamais égal,
   donc groupe reconstruit à chaque image. La liste est maintenant mémorisée par `adopt()` et remise
   à zéro par `dispose()`.
-- **`webgpuPagesEncodeLights.ts` repasse sous 200 lignes** : ce que la passe différée *lie*
+- **`webgpuPagesEncodeLights.ts` repasse sous 200 lignes** : ce que la passe différée _lie_
   (`wantsContractLighting`, `directLightResources`) part dans `webgpuPagesLightResources.ts`, à
-  côté de ce qui l'*encode*. Le plancher du plan proche des cascades n'est plus écrit deux fois
+  côté de ce qui l'_encode_. Le plancher du plan proche des cascades n'est plus écrit deux fois
   (`cameraNearMetres`), et les compteurs de l'étape se mettent en forme dans
   `webgpuPagesPrepareSunFar.ts` plutôt que dans le profil. Aucun changement d'image.
 
@@ -697,15 +805,15 @@ la base courante — `avant` = `b3cf4e9` puis `1fb176e` selon le moment, `apres`
 même instant, et la dernière ligne, celle qui décide, contre le `develop` dans lequel le lot est
 fusionné.
 
-| campagne                                          | vues × seuils | écart | A/A | hash de coupe | trous | géométrie avant → après |
-| ------------------------------------------------- | ------------- | ----- | --- | ------------- | ----- | ----------------------- |
-| webgpu, 1 instance                                | 6             | 0 px  | 0   | identique 6/6 | 0     | 420,6 → 209,1 Mo        |
-| webgpu, 9 instances                               | 6             | 0 px  | 0   | identique 6/6 | 0     | 2 652,8 → 209,1 Mo      |
-| webgpu, caméra mobile, 1 instance                 | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
-| webgpu, caméra mobile, 9 instances                | 2             | 0 px  | 0   | identique 2/2 | 0     | 2 652,8 → 209,1 Mo      |
-| classes de matériaux, 1 instance                  | 6             | 0 px  | 0   | identique 6/6 | 0     | 0,2 → 0,2 Mo            |
-| webgl, 1 instance                                 | 2             | 0 px  | 0   | identique 2/2 | —     | 223,3 → 223,3 Mo        |
-| webgpu, generale, 1 instance, **base de fusion `f6dd905`** | 2    | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+| campagne                                                   | vues × seuils | écart | A/A | hash de coupe | trous | géométrie avant → après |
+| ---------------------------------------------------------- | ------------- | ----- | --- | ------------- | ----- | ----------------------- |
+| webgpu, 1 instance                                         | 6             | 0 px  | 0   | identique 6/6 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, 9 instances                                        | 6             | 0 px  | 0   | identique 6/6 | 0     | 2 652,8 → 209,1 Mo      |
+| webgpu, caméra mobile, 1 instance                          | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, caméra mobile, 9 instances                         | 2             | 0 px  | 0   | identique 2/2 | 0     | 2 652,8 → 209,1 Mo      |
+| classes de matériaux, 1 instance                           | 6             | 0 px  | 0   | identique 6/6 | 0     | 0,2 → 0,2 Mo            |
+| webgl, 1 instance                                          | 2             | 0 px  | 0   | identique 2/2 | —     | 223,3 → 223,3 Mo        |
+| webgpu, generale, 1 instance, **base de fusion `f6dd905`** | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
 
 La dernière ligne a été rejouée à chaque fois que `develop` a bougé en code pendant la livraison —
 contre `2264c16`, puis contre `f6dd905`, la base réellement fusionnée : 0 px les deux fois. Un
@@ -4338,7 +4446,7 @@ source déjà chargé et par un tampon d'uniformes interne au moteur.
 
 ### 1. Le chargement accepte une primitive hors DAG
 
-`assertCacheIdentity` exigeait une bande d'erreur par cluster de *chaque* primitive. Une primitive
+`assertCacheIdentity` exigeait une bande d'erreur par cluster de _chaque_ primitive. Une primitive
 que le compilateur garde d'un seul tenant — `pass: "shared-blend"` — n'a aucun cluster, donc aucune
 bande, et c'est sa définition, pas une lacune : un cache qui en portait une était refusé en bloc, et
 une eau importée rendait la scène entière illisible. `primitiveIsDrawable` (`geometryContracts.ts`)
@@ -4361,12 +4469,12 @@ pas une transmission.
 
 Après les opaques et après les mélanges, dans l'ordre source, test de profondeur `less` sans
 écriture, même mélange. Deux `copyTextureToTexture` figent le fond — la cible HDR et la profondeur
-vers `rgba16float` et `depth32float` en lecture seule. C'est ce que *toutes* les surfaces
+vers `rgba16float` et `depth32float` en lecture seule. C'est ce que _toutes_ les surfaces
 transmissives lisent : l'ordre entre deux d'entre elles ne change donc pas ce qu'elles voient.
 
 - **Réfraction** : le rayon de vue est dévié par `1/ior`, avancé de `thicknessFactor`, le point de
   sortie reprojeté à l'écran, et c'est là qu'on relit la couleur. Un échantillon dont la profondeur
-  copiée le place *devant* la surface est rejeté : on retombe sur l'échantillon non dévié.
+  copiée le place _devant_ la surface est rejeté : on retombe sur l'échantillon non dévié.
 - **Atténuation** : `exp(-sigma·thickness)` avec `sigma = -log(attenuationColor)/attenuationDistance`.
   Une distance nulle veut dire pas d'atténuation.
 - **Réflexion** : Fresnel de Schlick, `f0 = ((ior-1)/(ior+1))²`, appliqué à ce que la scène déclare —
@@ -4438,8 +4546,8 @@ lampes du harnais sont déclarées par le contrat `SceneLight`, que seul le chem
 que le témoin Three rend toute surface opaque noire pendant que le nôtre rend la vue sans éclairage
 en albédo brut. Contrôle construit pour l'isoler : la **même comparaison sur `classes-materiaux`, une
 scène qui ne porte aucune transmission**, donne **206 471 px (22,40 %)** et **544 747 px (59,11 %)** —
-*plus* que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
-l'arrivée de la transmission le *réduit*, parce que l'eau assombrit notre image vers celle du témoin.
+_plus_ que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
+l'arrivée de la transmission le _réduit_, parce que l'eau assombrit notre image vers celle du témoin.
 Une comparaison de fidélité qui porte sur la transmission seule demande que le témoin reçoive les
 lampes du contrat ; ce n'est pas dans ce lot, et c'est nommé ci-dessous.
 
@@ -4529,6 +4637,7 @@ Trois attendus ont suivi le registre — le doré du CLI `--version`, la longueu
 d'images et la liste des extensions ; le cas « format hors registre » du test de registre se disait
 avec un entête TGA, il se dit maintenant avec un entête DDS. `npm run validate` n'a pas été joué ici,
 il l'est à la livraison.
+
 ## 2026-09-15 — [compilateur] pilote zip
 
 Premier **conteneur** du compilateur : le ZIP n'est pas une scène, c'est un emballage. Le pilote
@@ -4556,7 +4665,7 @@ qu'elle est complète et porte la chaîne des pilotes pour les réutilisations.
 **Composition.** Un unique dossier racine est traversé, le dossier extrait est routé par le routeur
 existant, et le pilote `zip` rend ce que le pilote retenu rend — règles du routeur inchangées,
 inconnu et ambigu toujours refusés. Un pilote qui rend sa scène « en place » (le cas glTF) pose une
-difficulté : le compilateur résout ce nom à côté de la *source*, qui est ici l'archive. Le conteneur
+difficulté : le compilateur résout ce nom à côté de la _source_, qui est ici l'archive. Le conteneur
 écrit donc dans le dossier extrait le manifeste que le compilateur calculerait lui-même — les mêmes
 octets, donc la même identité de cache — et rend ce dossier. `route.rs` n'a pas bougé : la
 composition tient dans le nouveau `scene/archive.rs`, socle destiné au `.unitypackage` (tar.gz) qui
@@ -4621,7 +4730,7 @@ quaternion `(-x, -y, z, w)`, échelle inchangée. `S·T·S` est une rotation pro
 l'ordre d'enroulement des faces ne change pas, aucune normale n'est retournée, aucun matériau ne
 devient double face par accident.
 
-**Matériaux.** Standard, URP Lit et HDRP Lit sont lus *par propriété*, jamais par famille de shader :
+**Matériaux.** Standard, URP Lit et HDRP Lit sont lus _par propriété_, jamais par famille de shader :
 `_BaseColor`/`_Color`, `_BaseColorMap`/`_BaseMap`/`_MainTex`, `_Smoothness`/`_Glossiness`,
 `_NormalMap`/`_BumpMap`, `_EmissiveColor`/`_EmissionColor`. Seule conversion de grandeur :
 `roughness = 1 − smoothness`. Les deux vivent dans [0, 1], l'application est une bijection,
@@ -4669,6 +4778,7 @@ lampes ne sont pas encore converties, alors que le glTF intermédiaire sait les 
 refuse un dossier qui mêle `.unity` et `.fbx` au même niveau, ce qui reste son affaire et non celle
 de ce pilote. Enfin, la conversion relit le YAML à chaque appel : c'est court, et les modèles, eux,
 sont déjà mis en cache par leur propre pilote.
+
 ## 2026-09-15 — [compilateur] pilote tiff
 
 **Ce qui est fait.** Quatrième pilote d'image du registre : `src/plugins/image/tiff.rs`, son lecteur
@@ -4724,6 +4834,7 @@ laissé. 173 tests Rust au vert (169 + 4), Clippy sans avertissement, `cargo fmt
   des rapports de `docs/COMPILER.md` : hors périmètre, à ajouter par qui tient cette page.
 - La palette TIFF reste illisible tant que la bibliothèque ne l'étend pas ; l'écrire nous-mêmes
   demanderait notre propre lecteur de bandes, ce que ce lot n'a pas fait.
+
 ## 2026-09-15 — [compilateur] pilote dds
 
 Un pilote d'image de plus au registre : `dds`, quatrième entrée après `png`, `jpeg` et `tga`. Le
@@ -4802,7 +4913,7 @@ obj, unity, et les conteneurs qui extraient sous le cache.
 elle-même si c'est un dossier, le dossier qui la porte si c'est un fichier. Elle vaut des deux côtés
 — un pilote y lit les octets et en tire des URI relatives, le compilateur y relit les mêmes octets
 pour les aperçus. Une scène convertie emporte cette racine : `PreparedScene::Converted` porte
-désormais `directory` (où la scène est écrite) *et* `images` (où elles sont restées), que
+désormais `directory` (où la scène est écrite) _et_ `images` (où elles sont restées), que
 `request.converted(directory)` accroche pour tous les pilotes. Un conteneur rend le dossier extrait
 comme racine, puisque c'est là que l'extraction a mis les images. Les trois copies de ce calcul —
 `compiler_build`, `import/scene`, `unity/convert` — sont remplacées par l'appel unique ; le contrat
@@ -4815,8 +4926,9 @@ correctif : `colorTextures: 1, previews: 0, skipped: {"image-missing": 1}`, exac
 banc 15. Après : une texture couleur, un aperçu, aucune image manquante. Aucun attendu de dorée n'a
 bougé — ni `apercus/atlas-couleur`, ni les coplanaires, ni `unity/cc0-import-project`, ni `zip`, dont
 la clé reste identique dans l'archive et hors d'elle. `cargo test --locked` : 174 tests au vert (173
-+ celui-ci), `cargo clippy --all-targets -- -D warnings` et `cargo fmt --check` verts, tous les
-fichiers touchés sous 200 lignes.
+
+- celui-ci), `cargo clippy --all-targets -- -D warnings` et `cargo fmt --check` verts, tous les
+  fichiers touchés sous 200 lignes.
 
 ## 2026-09-15 — [compilateur] pilote unitypackage
 
