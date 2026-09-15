@@ -2,11 +2,11 @@
 
 ## 2026-09-16 — [session lumiere] une scène importée arrive avec ses lampes (lot import des lampes)
 
-Worktree `lot-import-lampes`, branche `lot/import-lampes`, partie de `develop` = `a29e025`.
+Worktree `lot-import-lampes`, branche `lot/import-lampes`, rebasée sur `develop` = `5305f6c`.
 Jusqu'ici, `SceneLight` n'avait que des lampes posées à la main par l'hôte ou par le harnais :
 aucun chemin ne lisait celles qu'un fichier de scène porte pourtant déjà.
 
-- **Compilateur** (`packages/asset-compiler-rust/src/compiler_lights.rs`, 181 lignes) : les lampes
+- **Compilateur** (`packages/asset-compiler-rust/src/compiler_lights.rs`) : les lampes
   de `KHR_lights_punctual` sont lues sur le glTF d'entrée, posées en espace monde par les matrices
   de `compiler_world`, et écrites dans un produit de cache à leur nom, `lights.json`, à côté de
   `clusters.json`. **La version de manifeste ne bouge pas** : le fichier vit hors du manifeste et un
