@@ -51,7 +51,7 @@ Coplanaires (surfaces à profondeur exactement égale, branches `essai/hiz-*`, r
 
 ## Suite prévue (dans l'ordre)
 
-1. Encodage de la passe de mélange (2,7-3,1 ms, 1 928 appels) : c'est le seul poste qui permette 4 ms, et il vit dans les fichiers de Lumière. Proposer à Lumière un lot commun ou lui laisser : savoir avant l'image quelles primitives transparentes n'ont rien à dessiner.
+1. Encodage de la passe de mélange (2,7-3,1 ms, 1 928 appels) : c'est le seul poste qui permette 4 ms, et il vit dans les fichiers de Lumière. Lumière (message du 15 sept. au soir) nous autorise à le prendre si nous reprenons avant elle : préavis sur `webgpuPagesEncodeBlend.ts` et les listes par tuile, résultat identique au pixel, preuve caméra mobile aux deux seuils. Idée : savoir avant l'image quelles primitives transparentes n'ont rien à dessiner.
 2. Sélection WebGL2 < 2 ms : sortir cône et résidence du chemin de la coupe (préalable aux tableaux typés).
 3. Coplanaires, dès le go de l'utilisateur : historique d'occlusion + Hi-Z temporel, gain GPU mesuré machine calme.
 4. Rejouer au calme les durées du lot cpu-fixe et le témoin Three sur `transmission`.
