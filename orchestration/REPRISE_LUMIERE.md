@@ -1,0 +1,21 @@
+# Reprise — session « Lumière » WebGeometry (15 septembre 2026, soir)
+
+## Rôles (inchangés)
+Fable = chef, ne code pas, ne lit que des résumés, répond en 5 à 10 lignes en langage courant. Opus code, Sonnet lit/teste, Haiku lance des commandes. Plusieurs lots moteur en parallèle autorisés si leurs fichiers sont disjoints. Enchaînement automatique : simplify → prévenir la session géométrie → fusion `develop` = `main` → lot suivant ; « go » seulement pour suppression irréversible ou changement de plan. Portes allégées par lot : `tsc`, `check:changed`, `check:unused`, `check:lines`, preuve d'image ; tests et `npm run validate` complet UNIQUEMENT à la livraison finale. Règles : `AGENTS.md` (moteur générique sans scène cible, fidélité avant vitesse, 200 lignes, mots interdits), spec `orchestration/SPEC_ECLAIRAGE.md` v2. Mémoire : `~/.claude/projects/-Users-pasquelin-Applications-webGeometry/memory/` (lire `webgeometry-etat-2026-09-15-soir.md`). Lab : port 5174 jamais tué, `public/benchmark-assets` jamais écrit. Mesures : une campagne à la fois, verrou `.claude/mesure.lock` (mkdir/rmdir), charge < 4. `export DEVELOPER_DIR=/Library/Developer/CommandLineTools` si git refuse (licence Xcode).
+
+## État
+Moteur `develop` = `main` = 38f1b5c (+ fusions d'autres sessions ensuite), Lab `develop` = `main` = f7557b7. Fusionnés le 15 septembre : profil par étape, ombres avec cache, aucune lumière sans source + soleil en cascades, rebond 1-2-3 (éteint par défaut), import des lampes glTF/FBX, transparents sans ambiance, ombres virtualisées, spec v2, banc 16 complet (banc 15 + lampes).
+
+## BLOQUANT (cause trouvée), à finir en premier
+`fix/webgpu-lost` = 6405b38 (worktree `.claude/worktrees/fix-webgpu-lost`) : le tampon de remplacement « WG empty bounce grid » (`deferredLightingSetup.ts`) restait à 64 octets alors que `BounceGrid` est passé à 176 (8d1fe94, rebond 3) ; la passe des transparents le lie même rebond éteint → `WEBGPU_LOST` sur Emerald. Corrigé : `BOUNCE_GRID_BYTES` unique (`bounceUniform.ts`), `bounceLimits.ts` confronte les liaisons à `device.limits`, incidents GPU remontés dans le banc ; six fumées WebGPU passent (3 vues × rebond éteint/allumé). Reste : 0 px contre d3dcd69 sur `generale` rebond éteint, portes, rebase `develop`, fusion, puis envoyer le SHA à la session « sans-threejs » (géométrie, nouveau compte) dès qu'elle apparaît dans ListAgents : ses lots `lot/instances-gpu` et `lot/4c-webgl2` l'attendent. Ne pas toucher `pageSelection*`, `replicateInstances`, `webgpuBlendBuffers`, `pageSelectionTemplate`.
+
+## Branches livrées en attente (worktrees en place)
+- `lot/ombres-lointaines` (8703111, worktree `lot-ombres-lointaines`, propre) : simplification à faire avec trois constats déjà posés : `webgpuPagesEncodeLights.ts` à 204 lignes ; les 9 tampons de stockage au fragment redescendent à 8 en sortant `proxyAlbedoOf` de `BOUNCE_NODE_WGSL` (retirer la demande `maxStorageBuffersPerShaderStage` de `backendCommon.ts`) ; `gpuSunFarShadow.buffers()` recrée le groupe de liaison à chaque image (mémoriser dans `adopt()`) ; repli de `sunShadowFarMetres`. Puis rebase, fusion.
+- `lot/stochastique` réduit = listes de lampes par tuile à deux tranches + boucle exacte des transparents (73e93ca, worktree `lot-stochastique`) : preuve 0 px contre `develop` (3 vues Emerald 8 lampes + soleil, classes de matériaux) à faire au calme après le correctif, puis simplify, fusion.
+- `essai/stochastique-accumulation` (74300fe, poussée nulle part) : écarté ; base du futur lot « historique en cible de rendu ping-pong ».
+
+## Suite du plan
+Reflet pour toute surface (miroir, eau : par propriété de matériau) → reflets flous → ombres colorées des semi-transparents → optimisation mesurée. Restes chiffrés : rebond 1,01 ms (barre 1 ms, à remesurer au calme pour l'allumer par défaut), erreur oracle 18,6 % (cible 10 %), retard 367 ms (limite 250), oracle nul sur Emerald, WebGL2 lampes en dur, un banc où des lampes atteignent vraiment les transparents. Livraison finale : remesure de tous les coûts au calme, tests pour ce qui est retenu, `npm run validate` complet. Supprimer ce fichier quand tout est livré.
+
+## Première action
+ListAgents pour retrouver « sans-threejs » et « Calculs mathématiques » ; finir et fusionner le correctif WebGPU ; ne rien fusionner d'autre avant.
