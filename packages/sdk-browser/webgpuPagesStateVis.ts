@@ -3,7 +3,9 @@ import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
-import type { TextureJob } from './webgpuAtlasCommon.ts';
+import type { TextureJob } from './webgpuAtlasJobs.ts';
+import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
+import type { WebgpuPreviewAtlas } from './webgpuPreviewAtlas.ts';
 
 type GeometryBlock = {
   vertexBase: number;
@@ -69,11 +71,15 @@ export interface WebgpuVisState {
   materialScales: GPUBuffer | undefined;
   mapsArrayView: GPUTextureView | undefined;
   dataMapsArrayView: GPUTextureView | undefined;
+  /** L'atlas 16×16 des aperçus et le bit « prêt » de chaque couche de l'atlas couleur. */
+  preview: WebgpuPreviewAtlas | undefined;
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
   mapLayer: Map<THREE.Texture, number>;
   dataLayer: Map<THREE.Texture, number>;
+  /** Couches d'atlas que chaque matériau lit : l'ordre de transfert suit ce que la coupe dessine. */
+  materialLayers: MaterialLayerIndex | undefined;
   uvScales: Array<[number, number]>;
   dataUvScales: Array<[number, number]>;
   textureJobs: TextureJob[];
@@ -127,11 +133,13 @@ export function createWebgpuVisState(): WebgpuVisState {
     materialScales: undefined,
     mapsArrayView: undefined,
     dataMapsArrayView: undefined,
+    preview: undefined,
     shadeUniPacked: new Float32Array(64),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),
     mapLayer: new Map(),
     dataLayer: new Map(),
+    materialLayers: undefined,
     uvScales: [[1, 1]],
     dataUvScales: [[1, 1]],
     textureJobs: [],

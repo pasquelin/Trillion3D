@@ -139,6 +139,12 @@ export function createWebgpuShadePipeline(device: GPUDevice, shadeModule: GPUSha
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'float', viewDimension: '2d-array' },
       },
+      {
+        binding: 10,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'float', viewDimension: '2d-array' },
+      },
+      { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
     ],
   });
   return scoped(device, () => ({

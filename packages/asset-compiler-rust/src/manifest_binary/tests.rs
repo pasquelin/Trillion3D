@@ -56,7 +56,7 @@ fn digests_reads_back_every_sha_column() {
         geometry: "../../objects/{sha}.bin",
         bundle: "../../objects/{sha}.bin",
     };
-    let (_, bytes) = split(&manifest, &templates).expect("split");
+    let (_, bytes) = split(&manifest, &templates, &[]).expect("split");
     let mut found = digests(&bytes).expect("digests");
     found.sort();
     found.dedup();
@@ -73,7 +73,7 @@ fn columns_declare_their_own_offsets_and_lengths() {
         geometry: "../../objects/{sha}.bin",
         bundle: "../../objects/{sha}.bin",
     };
-    let (slim, bytes) = split(&sample(), &templates).expect("split");
+    let (slim, bytes) = split(&sample(), &templates, &[]).expect("split");
     assert_eq!(
         u32::from_le_bytes(bytes[0..4].try_into().unwrap()),
         MANIFEST_BINARY_MAGIC
@@ -128,7 +128,7 @@ fn a_url_that_leaves_the_template_is_refused() {
         bundle: "../../objects/{sha}.bin",
     };
     assert_eq!(
-        split(&manifest, &templates).unwrap_err().code,
+        split(&manifest, &templates, &[]).unwrap_err().code,
         "INVALID_MANIFEST"
     );
 }
@@ -143,7 +143,7 @@ fn split_rejects_a_depth_layer_that_exceeds_four_bits() {
     };
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(16);
-    let error = split(&manifest, &templates).unwrap_err();
+    let error = split(&manifest, &templates, &[]).unwrap_err();
     assert_eq!(error.code, "INVALID_MANIFEST");
     assert!(
         error.message.contains("depthLayer"),
@@ -161,7 +161,7 @@ fn split_accepts_a_depth_layer_at_the_four_bit_limit_and_writes_it_in_its_column
     };
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["depthLayer"] = json!(15);
-    let (_, bytes) = split(&manifest, &templates).expect("split");
+    let (_, bytes) = split(&manifest, &templates, &[]).expect("split");
     let at = (HEADER_WORDS + PAGE_DEPTH_LAYER * 2) * 4;
     let offset = u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
     let first_page_layer = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());

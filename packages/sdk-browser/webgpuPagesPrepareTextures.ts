@@ -1,6 +1,8 @@
 import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
 import { prepareWebgpuAtlas } from './webgpuAtlasCommon.ts';
+import { prepareWebgpuPreviewAtlas } from './webgpuPreviewAtlas.ts';
+import { PREVIEW_LEVEL_SIZES, TEXTURE_PREVIEW_VERSION } from '../sdk-core/index.ts';
 import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -25,12 +27,13 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     concatUv: vis.concatUv,
     concatNrm: vis.concatNrm,
   } = prepareWebgpuGeometry(gpuDevice, allPages, geometryBlocks));
-  const { maps, dataMaps, normalMaps } = collectWebgpuMaterialTextures(
+  const { maps, dataMaps, normalMaps, materialLayers } = collectWebgpuMaterialTextures(
     allPages,
     blendCopies,
     mapLayer,
     dataLayer,
   );
+  vis.materialLayers = materialLayers;
   diag.engineDiagnostic('material-textures', 'Textures nécessaires au rendu', {
     colorTextures: maps.length,
     dataTextures: dataMaps.length,
@@ -51,6 +54,13 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   });
   vis.mapsTexture = colorAtlas.texture;
   vis.textureColorSize = [colorAtlas.width, colorAtlas.height];
+  // L'aperçu se tient prêt avant le premier transfert : sans lui la première image serait blanche.
+  vis.preview = prepareWebgpuPreviewAtlas(
+    gpuDevice,
+    maps,
+    rt.context.textureIndices,
+    rt.context.metadata.texturePreviews,
+  );
   const { width: maxW, height: maxH } = colorAtlas;
   const dataAtlas = prepareWebgpuAtlas(
     gpuDevice,
@@ -101,6 +111,14 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
       size: [dataW, dataH],
       mipLevels: mipLevelCountFor(dataW, dataH),
       format: 'rgba8unorm',
+    },
+    previews: {
+      version: TEXTURE_PREVIEW_VERSION,
+      layers: maps.length + 1,
+      withPreview: vis.preview.withPreview,
+      size: [PREVIEW_LEVEL_SIZES[0], PREVIEW_LEVEL_SIZES[0]],
+      levels: PREVIEW_LEVEL_SIZES.length,
+      format: 'rgba8unorm-srgb',
     },
     preparationMs: performance.now() - textureStarted,
     lighting: 'GGX direct + diffuse hemisphere; no environment map',
