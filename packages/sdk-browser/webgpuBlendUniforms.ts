@@ -1,7 +1,7 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { FLAG_UNLIT_VIEW, visMaterial } from './visibilityBuffer.ts';
 import { writeBlendDiagnostic } from './webgpuBlendDiagnostic.ts';
-import { wantsContractLighting } from './webgpuPagesEncodeLights.ts';
+import { wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export const UNIFORM_STRIDE = 256;

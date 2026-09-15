@@ -243,6 +243,8 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ARCHIVE_EMPTY` | ZIP archive carries no entry |
 | `ARCHIVE_TOO_MANY_ENTRIES` | ZIP archive exceeds 20,000 entries |
 | `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
+| `image-profile-unsupported` | Image plugin (TGA/TIFF/DDS) read the file but declined its profile or codec; reported per texture, does not fail the job |
+| `image-depth-unsupported` | Image plugin read a bit depth the `Rgba8`-only image contract cannot carry (e.g. TIFF 16 bits per channel); reported per texture, does not fail the job |
 
 ## Using it from Node
 
