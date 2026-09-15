@@ -1,7 +1,5 @@
-// Options, vues du banc et résolution des dists, pour `banc.mjs`.
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+// Options, vues du banc et montages du serveur, pour `banc.mjs`.
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { VIEWS } from './poses.mjs';
 import { ASSETS } from './scene.mjs';
@@ -9,6 +7,7 @@ import { lightingSettings } from './optionsEclairage.mjs';
 
 export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
 export { labManifest, sceneOf } from './scene.mjs';
+export { resolveSides } from './dists.mjs';
 
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
@@ -29,18 +28,33 @@ const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
 // le réglage au lieu de la liste. Il exige aussi un cache dont toutes les primitives sont des
 // clusters exacts — le compilateur n'écrit `autonomousScene` que dans ce cas — sinon l'explorateur
 // refuse par `AUTONOMOUS_SCENE_UNAVAILABLE`.
+// `three` dit que le moteur dessine par Three.js, donc qu'il recopie les lampes d'un graphe source
+// au lieu de lire le magasin du contrat : à celui-là seul, l'hôte pose les lampes en Three.
 export const ENGINES = {
-  webgl: { backend: 'exactPagesBackend', id: 'exact-cluster-pages', flags: BASE_FLAGS },
+  webgl: {
+    backend: 'exactPagesBackend',
+    id: 'exact-cluster-pages',
+    flags: BASE_FLAGS,
+    three: true,
+  },
   webgpu: { backend: 'webgpuPagesBackend', id: 'webgpu-page-raster', flags: WEBGPU_FLAGS },
   webgl2: {
     backend: 'autonomousPagesBackend',
     id: 'autonomous-pages-webgl',
     flags: BASE_FLAGS,
     autonome: true,
+    three: true,
   },
 };
 
-const buildDist = (dir) => execFileSync('npm', ['run', 'build'], { cwd: dir, stdio: 'inherit' });
+/** Le moteur d'un côté : `--moteur-<côté>` s'il est donné, sinon celui de la campagne. C'est ce qui
+ *  met le moteur face au témoin en une seule exécution — mêmes poses, mêmes lampes, même cache. */
+export function engineOf(flags, name, fallback) {
+  const engine = flags.get(`moteur-${name}`) ?? fallback;
+  if (!ENGINES[engine])
+    throw new Error(`--moteur-${name} doit valoir ${Object.keys(ENGINES).join(', ')}`);
+  return ENGINES[engine];
+}
 
 /**
  * Le cache d'un côté. La valeur nomme le dossier « derived » — celui qui contient `native/full` —
@@ -75,6 +89,8 @@ function packageDir(root, name) {
 export function resolveMounts(root, sides, resources) {
   return [
     { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
+    // Les modules que la page importe par URL : `pageCoupe.mjs`, `pageTemoin.mjs`.
+    { prefix: '/mesure/', dir: join(root, 'scripts/mesure') },
     { prefix: '/vendor/meshoptimizer/', dir: packageDir(root, 'meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: ASSETS },
     ...(resources ? [{ prefix: '/assets/', dir: resources }] : []),
@@ -83,36 +99,6 @@ export function resolveMounts(root, sides, resources) {
       .filter((side) => side.cache)
       .map((side) => ({ prefix: `/cache/${side.name}/`, dir: side.cache })),
   ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
-}
-
-/** Les côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
-export function resolveSides({ apres, avant, root }) {
-  const target = apres ?? join(root, 'dist');
-  if (target === join(root, 'dist') && !existsSync(join(target, 'sdk-browser/index.js')))
-    buildDist(root);
-  const sides = [{ name: 'apres', ...resolveDist(target, 'apres', root) }];
-  if (avant) sides.push({ name: 'avant', ...resolveDist(avant, 'avant', root) });
-  return sides;
-}
-
-/** Résout un côté : un dossier `dist` existant, ou une référence git extraite puis construite.
- *  L'arbre extrait va hors du dépôt : un second `tsconfig.json` sous la racine casserait le lint. */
-function resolveDist(value, label, root) {
-  if (existsSync(join(value, 'sdk-browser/index.js')))
-    return { dist: resolve(value), from: 'dossier' };
-  if (existsSync(join(value, 'dist/sdk-browser/index.js')))
-    return { dist: resolve(value, 'dist'), from: 'dossier' };
-  const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
-    encoding: 'utf8',
-  }).trim();
-  const dir = join(tmpdir(), 'web-geometry-mesure', `${label}-${ref.slice(0, 12)}`);
-  if (existsSync(join(dir, 'dist/sdk-browser/index.js')))
-    return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (réutilisé)` };
-  mkdirSync(dir, { recursive: true });
-  execFileSync('/bin/sh', ['-c', `git -C '${root}' archive ${ref} | tar -x -C '${dir}'`]);
-  execFileSync('ln', ['-sfn', join(root, 'node_modules'), join(dir, 'node_modules')]);
-  buildDist(dir);
-  return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)}` };
 }
 
 /** Les arguments `--nom valeur` / `--nom=valeur` de la ligne de commande. Partagé par les harnais :
