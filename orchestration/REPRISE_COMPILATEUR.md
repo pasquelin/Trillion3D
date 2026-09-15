@@ -17,11 +17,14 @@ réussit, relu avant `rmdir` ; une seule commande `cargo` par prise, sous
 jamais de `let` irréfutable sur `DecodedImage`. Version d'un pilote = identité de son cache. Licence
 permissive citée dans `Cargo.toml`. `check:changed` en worktree : lien `node_modules`, retiré ensuite.
 
-**État courant.** Dix pilotes de scène, neuf pilotes d'image, tous listés dans
-`packages/asset-compiler-rust/FORMATS.md`. Vague 5 en cours : `compilateur/psd`,
-`compilateur/bmp-gif`, `compilateur/ma`.
+**État courant.** Onze pilotes de scène, douze pilotes d'image, tous listés dans
+`packages/asset-compiler-rust/FORMATS.md`. `psd` fusionné, `bmp-gif` livré (6cebbd8).
+`ma` **non livré** : agent arrêté par l'utilisateur le 15 sept. 2026 à 21 h 30 ; worktree
+`agent-a2c029f4d59f598cd`, branche `compilateur/ma` (0606e32 sur 0fd6834), `fixtures/ma/expected.json`
+régénéré non commis ; reste à commettre, rejouer `cargo test --locked`, livrer. Worktrees psd et
+bmp-gif : retirés par le Validateur après push.
 
-**À faire ensuite.** Après la vague 5, un seul Opus à la fois : `compilateur/mtl` d'abord (dorée
+**À faire ensuite.** Un seul Opus à la fois, sur reprise explicite : `compilateur/mtl` d'abord (dorée
 `obj`, MTL absent/tronqué en rapport nommé, `Ks`/`Ni`/`Ka` comptés, garde bump/normal, options de map
 comptées) ; puis BC6H, UASTC HDR, KTX 1.0, ASTC hors 4×4, TIFF palette, lampes Unity, instances
 imbriquées, métal-lissage, subdivision USD, `TEXCOORD_1`, animation Alembic, restes `blend`. Sur go
