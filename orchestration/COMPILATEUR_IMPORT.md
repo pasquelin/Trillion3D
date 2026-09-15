@@ -6,7 +6,7 @@ Objectif : un seul exécutable Rust qui accepte ce que livrent les places de mar
 
 Politique juridique fixée par l'utilisateur : aucun format propriétaire, sauf lecture légale établie. Cette page n'est pas un avis d'avocat ; les verdicts viennent d'une analyse documentaire (directive 2009/24/CE art. 1, 5 § 3, 6 ; CJUE SAS Institute C‑406/10 ; 17 USC § 102(b) ; SAS v. WPL, 4th Cir. 2017 sur la portée des contrats). Règles de dépôt : lecteur écrit à partir de spécifications publiques ou de bibliothèques permissives dont la licence est respectée, jamais de code ni de SDK d'éditeur repris, jamais de contournement de protection, provenance de chaque lecteur documentée, jeux de tests redistribuables.
 
-État actuel du code (15 sept. 2026, pause) : contrat `image-plugin-2`, neuf pilotes d'image (`png`, `jpeg`, `tga`, `tiff`, `dds`, `webp` sans perte, `exr`, `hdr`, `ktx2`) ; huit de scène (`gltf`, `fbx` par ufbx, `obj`, `zip`, `unity`, `unitypackage`, `blend`, `alembic`), sur le contrat `scene-plugin-2`. Le contrat d'image a deux sorties depuis `image-plugin-2`, RGBA8 et RGBA flottant, et un consommateur qui ne sait traiter que la première refuse la seconde par `image-float-unsupported` plutôt que d'ajouter un report de tons ; un projet Unity est routé vers `unity` avec ses modèles ; une seule racine de résolution des images de l'import aux aperçus. Reprise : `orchestration/REPRISE_COMPILATEUR.md`.
+État actuel du code (15 sept. 2026) : contrat `image-plugin-2`, neuf pilotes d'image (`png`, `jpeg`, `tga`, `tiff`, `dds`, `webp` sans perte, `exr`, `hdr`, `ktx2`) ; dix de scène (`gltf`, `fbx` par ufbx, `obj`, `zip`, `unity`, `unitypackage`, `alembic`, `blend`, `usd`, `usdz`), sur le contrat `scene-plugin-2`. Le contrat d'image a deux sorties depuis `image-plugin-2`, RGBA8 et RGBA flottant, et un consommateur qui ne sait traiter que la première refuse la seconde par `image-float-unsupported` plutôt que d'ajouter un report de tons ; un projet Unity est routé vers `unity` avec ses modèles ; une seule racine de résolution des images de l'import aux aperçus. Reprise : `orchestration/REPRISE_COMPILATEUR.md`.
 
 ## Architecture : un pilote par format
 
@@ -30,7 +30,7 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 | TGA                     | spécification publiée                                   | fait    | —                                                     | —        |
 | TIFF (profils déclarés) | spécification publiée                                   | fait    | —                                                     | —        |
 | OpenEXR, Radiance HDR   | documentés, BSD-3                                       | fait    | crate `exr` 1.74.2 pour OpenEXR ; HDR écrit ici depuis la spécification, sans crate | —        |
-| USD / USDZ              | AOUSD public, OpenUSD sous TOST 1.0                     | à coder | crate Rust à évaluer, sinon lecteur usda/usdc propre | P3       |
+| USD / USDZ              | AOUSD public, OpenUSD sous TOST 1.0                     | fait    | caisse `openusd` 0.7.0 (MIT, Rust pur, sans C++) ; `usd` rend Xform/Scope, Mesh triangulés, GeomSubset → matériaux, instances, UsdPreviewSurface et UsdUVTexture, `metersPerUnit`/`upAxis` sur la racine, premier échantillon temporel ; `usdz` est le conteneur ZIP stocké et aligné. Subdivision, PointInstancer, courbes, volumes et skel comptés au rapport | —        |
 | Alembic                 | ouvert, BSD-3                                           | fait    | géométrie statique seulement ; lecteur Ogawa écrit ici depuis la spécification, sans crate | —        |
 | `.blend`                | SDNA documenté ; lire un .blend n'impose pas la GPL     | fait    | lecteur SDNA écrit ici ; maillages, UV, instances, Principled BSDF | —        |
 | PSD / PSB               | spécification publiée par Adobe pour les lecteurs tiers | à coder | aplati seulement, vers RGBA8                         | P3       |
@@ -63,10 +63,10 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 
 ## Ordre proposé
 
-Faits : TGA, Unity (scène, prefabs, sous-maillages, échelle, retouches), ZIP, `.unitypackage`, TIFF, DDS, WebP sans perte, EXR/HDR, KTX2.
+Faits : TGA, Unity (scène, prefabs, sous-maillages, échelle, retouches), ZIP, `.unitypackage`, TIFF, DDS, WebP sans perte, EXR/HDR, KTX2, USD/USDZ.
 
 1. Industrial Map au banc 15 (agent Lab, `prepare()` sur le dossier du projet Unity).
 2. KTX 1.0, si une source réelle l'impose : le conteneur est un autre format, donc un autre pilote.
-3. USD, `.blend` (Alembic fait : géométrie statique, face sets, premier échantillon).
+3. `.blend` (USD, USDZ et Alembic sont faits).
 4. PSD, BMP, GIF, `.ma`, MTL à vérifier.
 5. Chantier « blocs gardés sur GPU » (DDS puis KTX2), sur go de l'utilisateur.

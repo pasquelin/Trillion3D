@@ -1,0 +1,90 @@
+#usda 1.0
+(
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Xform "Plaque"
+    {
+        double3 xformOp:translate = (1, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "Quad" (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            int[] faceVertexCounts = [4, 4]
+            int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]
+            rel material:binding = </Root/Materials/Uni>
+            normal3f[] normals = [(0, 0, 1)] (
+                interpolation = "constant"
+            )
+            point3f[] points = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (1, 2, 0), (0, 2, 0)]
+            texCoord2f[] primvars:st = [(0, 0), (1, 0), (1, 1), (0, 1), (1, 2), (0, 2)] (
+                interpolation = "vertex"
+            )
+            uniform token subdivisionScheme = "none"
+
+            def GeomSubset "Haut" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+            )
+            {
+                uniform token elementType = "face"
+                uniform token familyName = "materialBind"
+                int[] indices = [1]
+                rel material:binding = </Root/Materials/Texture>
+            }
+        }
+    }
+
+    def Scope "Materials"
+    {
+        def Material "Uni"
+        {
+            token outputs:surface.connect = </Root/Materials/Uni/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.8, 0.1, 0.1)
+                float inputs:metallic = 0
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
+        def Material "Texture"
+        {
+            token outputs:surface.connect = </Root/Materials/Texture/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor.connect = </Root/Materials/Texture/Image.outputs:rgb>
+                float inputs:opacity = 0.5
+                float inputs:roughness = 0.2
+                token outputs:surface
+            }
+
+            def Shader "Image"
+            {
+                uniform token info:id = "UsdUVTexture"
+                asset inputs:file = @./textures/checker.png@
+                float2 inputs:st.connect = </Root/Materials/Texture/Reader.outputs:result>
+                token inputs:wrapS = "clamp"
+                token inputs:wrapT = "clamp"
+                float3 outputs:rgb
+            }
+
+            def Shader "Reader"
+            {
+                uniform token info:id = "UsdPrimvarReader_float2"
+                string inputs:varname = "st"
+                float2 outputs:result
+            }
+        }
+    }
+}

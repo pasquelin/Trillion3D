@@ -1,35 +1,37 @@
-//! La scène intermédiaire en construction, et son écriture dans le cache.
+//! La scène intermédiaire en construction, et son écriture dans le cache, partagées par les pilotes
+//! de scène qui remplissent eux-mêmes leurs tables glTF.
 //!
 //! Le pilote remplit les mêmes tables qu'un glTF 2.0 — nœuds, maillages, matériaux, accesseurs,
 //! images — puis les publie en `model.gltf`, `model.bin` et `manifest.json`, la seule chose que le
-//! compilateur sache lire. Rien n'est jamais écrit à côté de la source.
+//! compilateur sache lire. Ce qui est ici ne dépend d'aucun format : seul le remplissage en dépend.
+//! Rien n'est jamais écrit à côté de la source.
 use super::*;
 
 /// Les tables du glTF en cours d'écriture.
-pub(super) struct Scene {
-    pub(super) nodes: Vec<Value>,
-    pub(super) meshes: Vec<Value>,
+pub(crate) struct SceneTables {
+    pub(crate) nodes: Vec<Value>,
+    pub(crate) meshes: Vec<Value>,
     /// Le nombre de triangles de chaque maillage, par rang de `meshes`.
-    pub(super) mesh_triangles: Vec<usize>,
-    pub(super) materials: Vec<Value>,
-    pub(super) accessors: Vec<Value>,
-    pub(super) images: Vec<Value>,
-    pub(super) samplers: Vec<Value>,
+    pub(crate) mesh_triangles: Vec<usize>,
+    pub(crate) materials: Vec<Value>,
+    pub(crate) accessors: Vec<Value>,
+    pub(crate) images: Vec<Value>,
+    pub(crate) samplers: Vec<Value>,
     /// Le premier échantillonneur de chaque mode de répétition `wrapS`, versé ou créé.
     sampler_ids: HashMap<u64, usize>,
-    pub(super) textures: Vec<Value>,
-    pub(super) bin: Bin,
-    pub(super) report: Report,
+    pub(crate) textures: Vec<Value>,
+    pub(crate) bin: Bin,
+    pub(crate) report: Report,
     /// Ce que le rapport publie en clair : instances, modèles, matériaux, LOD écartés…
-    pub(super) counts: BTreeMap<&'static str, usize>,
+    pub(crate) counts: BTreeMap<&'static str, usize>,
     /// Les fichiers de données lus, avec leur empreinte : c'est l'identité de cette conversion.
-    pub(super) files: Vec<Value>,
+    pub(crate) files: Vec<Value>,
     key_material: String,
 }
 
-impl Scene {
-    pub(super) fn new(plugin: &dyn ScenePlugin) -> Scene {
-        Scene {
+impl SceneTables {
+    pub(crate) fn new(plugin: &dyn ScenePlugin) -> Self {
+        Self {
             nodes: Vec::new(),
             meshes: Vec::new(),
             mesh_triangles: Vec::new(),
@@ -49,17 +51,17 @@ impl Scene {
             key_material: format!("{}:{}", plugin.name(), plugin.version()),
         }
     }
-    pub(super) fn count(&mut self, what: &'static str, by: usize) {
+    pub(crate) fn count(&mut self, what: &'static str, by: usize) {
         *self.counts.entry(what).or_insert(0) += by;
     }
     /// Ajoute un nœud et rend son rang.
-    pub(super) fn node(&mut self, node: Value) -> usize {
+    pub(crate) fn node(&mut self, node: Value) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
     /// Un échantillonneur par mode de répétition, partagé par toutes les textures qui le demandent,
     /// y compris celles d'un modèle versé qui déclare déjà ce mode.
-    pub(super) fn sampler(&mut self, wrap: u32) -> usize {
+    pub(crate) fn sampler(&mut self, wrap: u32) -> usize {
         if let Some(known) = self.sampler_ids.get(&u64::from(wrap)) {
             return *known;
         }
@@ -70,7 +72,7 @@ impl Scene {
         id
     }
     /// Note les échantillonneurs versés depuis un modèle : le premier de chaque mode sert ensuite.
-    pub(super) fn share_samplers(&mut self, ids: &[usize]) {
+    pub(crate) fn share_samplers(&mut self, ids: &[usize]) {
         for id in ids {
             if let Some(wrap) = self.samplers[*id]["wrapS"].as_u64() {
                 self.sampler_ids.entry(wrap).or_insert(*id);
@@ -78,7 +80,7 @@ impl Scene {
         }
     }
     /// Note un fichier de données lu : son chemin, sa taille et son empreinte entrent dans la clé.
-    pub(super) fn read_file(&mut self, name: &str, bytes: usize, digest: &str) {
+    pub(crate) fn read_file(&mut self, name: &str, bytes: usize, digest: &str) {
         self.files
             .push(json!({"file":name,"bytes":bytes,"sha256":digest}));
         self.key_material
@@ -86,17 +88,17 @@ impl Scene {
     }
     /// Note un modèle importé par son pilote : la clé de son dossier de cache est déjà l'empreinte
     /// de ses octets, on la reprend telle quelle plutôt que de relire le fichier.
-    pub(super) fn read_model(&mut self, name: &str, plugin: &str, key: &str) {
+    pub(crate) fn read_model(&mut self, name: &str, plugin: &str, key: &str) {
         self.files
             .push(json!({"file":name,"plugin":plugin,"importKey":key}));
         self.key_material.push_str(&format!("\n{name}@{key}"));
     }
-    pub(super) fn key(&self) -> String {
+    pub(crate) fn key(&self) -> String {
         hash(self.key_material.as_bytes())
     }
 
     /// Écrit la scène dans `<cache>/native/imports/<clé>/` et rend ce dossier.
-    pub(super) fn write(
+    pub(crate) fn write(
         self,
         plugin: &dyn ScenePlugin,
         directory: &Path,

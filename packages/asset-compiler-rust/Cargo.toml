@@ -46,6 +46,11 @@ basisu = { version = "0.1.0", default-features = false, features = ["std", "zstd
 # décompression seule ; `hash` garde la vérification du condensé qu'une trame peut porter, et la
 # longueur attendue du niveau, annoncée par l'index du conteneur, borne la lecture et l'allocation.
 ruzstd = { version = "0.7.3", default-features = false, features = ["std", "hash"] }
+# Lecture USD des pilotes `usd` et `usdz` : couches `.usda` (texte) et `.usdc` (binaire « crate »),
+# et composition des couches (MIT, mxpv/openusd, notices conservées avec la dépendance). Rust pur,
+# sans dépendance C++ : aucun code ni SDK d'éditeur, aucune bibliothèque de Pixar. Lecture seule ici.
+# Version figée : elle nomme le pilote et entre dans l'identité du cache.
+openusd = "0.7.0"
 [dev-dependencies]
 # Le décodeur de pages, partagé avec le module WebAssembly : le compilateur ne l'embarque pas,
 # il s'en sert pour prouver que ce qu'il encode se relit à l'identique.
