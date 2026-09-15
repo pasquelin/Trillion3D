@@ -3,7 +3,8 @@ import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
-import type { TextureJob } from './webgpuAtlasCommon.ts';
+import type { TextureJob } from './webgpuAtlasJobs.ts';
+import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
 import type { WebgpuPreviewAtlas } from './webgpuPreviewAtlas.ts';
 
 type GeometryBlock = {
@@ -77,6 +78,8 @@ export interface WebgpuVisState {
   geometryBlocks: Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
   mapLayer: Map<THREE.Texture, number>;
   dataLayer: Map<THREE.Texture, number>;
+  /** Couches d'atlas que chaque matériau lit : l'ordre de transfert suit ce que la coupe dessine. */
+  materialLayers: MaterialLayerIndex | undefined;
   uvScales: Array<[number, number]>;
   dataUvScales: Array<[number, number]>;
   textureJobs: TextureJob[];
@@ -136,6 +139,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     geometryBlocks: new Map(),
     mapLayer: new Map(),
     dataLayer: new Map(),
+    materialLayers: undefined,
     uvScales: [[1, 1]],
     dataUvScales: [[1, 1]],
     textureJobs: [],
