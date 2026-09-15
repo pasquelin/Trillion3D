@@ -13,13 +13,14 @@ import {
 } from './visibilityBuffer.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import type { createWebgpuBlendState } from './webgpuBlendState.ts';
+import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /** Creates forward transparent GPU items while preserving source mesh order and materials. */
 export function prepareWebgpuBlend(
   device: GPUDevice,
   blendCopies: THREE.Mesh[],
-  positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>,
+  gpu: WebgpuGpuState,
   blendState: BlendState,
   scene: THREE.Scene,
   directCanvas: boolean,
@@ -37,7 +38,12 @@ export function prepareWebgpuBlend(
     const attr = copy.geometry.attributes.position,
       idx = copy.geometry.getIndex();
     if (!attr || !idx) continue;
-    const position = ensureWebgpuPositionBuffer(device, copy.geometry.attributes, positionBuffers)!;
+    const position = ensureWebgpuPositionBuffer(
+      device,
+      copy.geometry.attributes,
+      gpu.positionBuffers,
+      gpu,
+    )!;
     const paged = !!copy.userData.pagedBlend;
     const src = idx.array;
     // A paged primitive reads its indices from the page cache, cluster by cluster: it owns none.
@@ -146,6 +152,7 @@ export function prepareWebgpuBlend(
       paged,
     };
     blendState.blendGpu.push(item);
+    gpu.vertexBytes += (index?.size ?? 0) + (uv?.size ?? 0) + (normal?.size ?? 0);
     if (paged && item.sourceMesh) blendState.pagedBlendGpu.set(item.sourceMesh, item);
     scene.remove(copy);
   }

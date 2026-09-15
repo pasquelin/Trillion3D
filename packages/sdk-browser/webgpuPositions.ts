@@ -5,6 +5,7 @@ export function ensureWebgpuPositionBuffer(
   device: GPUDevice,
   attributes: THREE.BufferGeometry['attributes'],
   buffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>,
+  tally: { vertexBytes: number },
 ) {
   const existing = buffers.get(attributes);
   if (existing) return existing;
@@ -22,5 +23,6 @@ export function ensureWebgpuPositionBuffer(
   });
   device.queue.writeBuffer(buffer, 0, xyz.buffer);
   buffers.set(attributes, buffer);
+  tally.vertexBytes += buffer.size;
   return buffer;
 }

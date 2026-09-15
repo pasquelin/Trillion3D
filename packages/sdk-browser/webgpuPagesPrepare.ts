@@ -125,7 +125,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     pipelineBlend: gpu.pipelineBlend,
   } = createWebgpuPagesPipelines(gpuDevice, UNIFORM_STRIDE));
   for (const rec of allPages)
-    ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers);
+    ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
   for (let i = 0; i < packedPages.length; i++)
     rows.pagePositions[i] = gpu.positionBuffers.get(packedPages[i].attributes);
   gpu.zeroUv = gpuDevice.createBuffer({
@@ -136,7 +136,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   const transmissive = prepareWebgpuBlend(
     gpuDevice,
     blendCopies,
-    gpu.positionBuffers,
+    gpu,
     blendState,
     scene,
     !!context.gpuCanvas,
