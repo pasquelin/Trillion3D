@@ -40,6 +40,26 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   } = inputs;
   const { indices, streamer, attachCap, cacheCap, preload } = pageSources;
   const viewport: [number, number] = [canvas.width, canvas.height];
+  // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
+  const sceneLights = createSceneLightStore();
+  // Les lampes que le fichier source portait, déclarées avant le premier moteur : la vue `auto` sait
+  // dès sa première image qu'elle a une source, et aucun moteur ne se prépare sur un magasin vide
+  // qu'il faudrait repousser ensuite. Un cache sans ce produit n'en déclare aucune, comme avant.
+  let importedLightIds: string[] = [];
+  if (options.importedLights !== false) {
+    const imported = await loadImportedLights(base, signal);
+    const { declared, dropped } = declareImportedLights(sceneLights, imported.lights);
+    importedLightIds = declared;
+    if (declared.length || dropped || Object.keys(imported.rejected).length)
+      diagnose('imported-lights', 'Lampes déclarées par le fichier source', {
+        kind: 'preparation',
+        declared: declared.length,
+        dropped,
+        rejected: imported.rejected,
+        maxLights: sceneLights.settings.maxLights,
+        scope,
+      });
+  }
   const context: BackendContext = {
     source,
     metadata,
@@ -68,27 +88,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // au-dessus du budget publié, et l'hôte l'allume explicitement quand il la veut.
     bounce: options.bounce,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
-    // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
-    sceneLights: createSceneLightStore(),
-    importedLightIds: [],
+    sceneLights,
+    importedLightIds,
   };
-  // Les lampes que le fichier source portait, déclarées avant le premier moteur : la vue `auto` sait
-  // dès sa première image qu'elle a une source, et aucun moteur ne se prépare sur un magasin vide
-  // qu'il faudrait repousser ensuite. Un cache sans ce produit n'en déclare aucune, comme avant.
-  if (options.importedLights !== false) {
-    const imported = await loadImportedLights(base, signal);
-    const { declared, dropped } = declareImportedLights(context.sceneLights!, imported.lights);
-    context.importedLightIds = declared.map((light) => light.id);
-    if (declared.length || dropped || Object.keys(imported.rejected).length)
-      diagnose('imported-lights', 'Lampes déclarées par le fichier source', {
-        kind: 'preparation',
-        declared: declared.length,
-        dropped,
-        rejected: imported.rejected,
-        maxLights: context.sceneLights!.settings.maxLights,
-        scope,
-      });
-  }
   const factories = autonomous
     ? [autonomousPagesBackend]
     : (options.backends ??

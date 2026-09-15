@@ -142,7 +142,7 @@ use compiler_buffers::*;
 pub use compiler_build::compile;
 use compiler_bundles::*;
 use compiler_copy::*;
-use compiler_lights::{scene_lights, SCENE_LIGHTS_FILE};
+use compiler_lights::stage_scene_lights;
 use compiler_materials::*;
 use compiler_nodes::*;
 use compiler_plan::*;

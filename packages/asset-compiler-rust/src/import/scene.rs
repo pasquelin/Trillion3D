@@ -179,14 +179,9 @@ impl<'a> Importer<'a> {
             self.report.add("node-invalid-transform");
             return;
         }
-        // FBX ne porte pas d'unité photométrique : son intensité est un pourcentage. Les deux
-        // réglages publiés de `compiler_lights` la rendent en candela ou en lux, comme le glTF.
-        let scale = if kind == "directional" {
-            crate::compiler_lights::FBX_LUX_PER_UNIT
-        } else {
-            crate::compiler_lights::FBX_CANDELA_PER_UNIT
-        };
-        let intensity = light.intensity * scale;
+        // FBX ne porte pas d'unité photométrique : son intensité est un pourcentage, que le réglage
+        // publié de `compiler_lights` rend en candela ou en lux, comme le glTF.
+        let intensity = light.intensity * crate::compiler_lights::fbx_intensity_scale(kind);
         let mut json = json!({"name":&*light.element.name,"type":kind,"color":[light.color.x,light.color.y,light.color.z],"intensity":intensity,"extras":{"castsShadow":light.cast_shadows}});
         if kind == "spot" {
             json["spot"] = json!({"innerConeAngle":light.inner_angle.to_radians(),"outerConeAngle":light.outer_angle.to_radians().max(0.001)});
