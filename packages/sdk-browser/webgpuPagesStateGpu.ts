@@ -26,6 +26,12 @@ export interface WebgpuGpuState {
   surfaces: SurfaceBuffer | undefined;
   targetSize: [number, number];
   positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
+  /** Indices, UV et normales des transparents, tenus par la géométrie source : deux instances d'un
+   *  même objet partagent la même géométrie, donc les mêmes tampons. `undefined` retenu dans la
+   *  table dit « cette géométrie n'a pas cet attribut », et se distingue d'une absence d'entrée. */
+  blendIndexBuffers: Map<THREE.BufferAttribute | THREE.InterleavedBufferAttribute, GPUBuffer>;
+  blendUvBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer | undefined>;
+  blendNormalBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer | undefined>;
   /** Octets de sommets tenus au fil des allocations : tampons de positions, puis index, UV et
    *  normales des maillages transparents. Le relevé les lit au lieu de les resommer par image. */
   vertexBytes: number;
@@ -74,6 +80,9 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     surfaces: undefined,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     positionBuffers: new Map(),
+    blendIndexBuffers: new Map(),
+    blendUvBuffers: new Map(),
+    blendNormalBuffers: new Map(),
     vertexBytes: 0,
     positionIds: new WeakMap(),
     nextPositionId: 1,
