@@ -51,12 +51,20 @@ export function projectCornersInto(
       x = corners[at],
       y = corners[at + 1],
       z = corners[at + 2];
-    const vw = 1 / (v[3] * x + v[7] * y + v[11] * z + v[15]);
-    if (-((v[2] * x + v[6] * y + v[10] * z + v[14]) * vw) <= near) clipsNear = true;
+    // Une vue affine — la quatrième ligne vaut (0,0,0,1) — rend un dénominateur exactement 1 pour
+    // un coin fini, et `viewZ * 1` est `viewZ` au bit près : la division est alors sautée, pas
+    // remplacée. Un dénominateur quelconque, ou seulement inexact, retombe sur elle.
+    const vd = v[3] * x + v[7] * y + v[11] * z + v[15];
+    const vw = vd === 1 ? 1 : 1 / vd;
+    if (-((v[2] * x + v[6] * y + v[10] * z + v[14]) * vw) <= near) {
+      // Le résultat d'une boîte qui coupe le plan proche ne lit plus aucun coin : rien à projeter.
+      clipsNear = true;
+      break;
+    }
     const cw = e[3] * x + e[7] * y + e[11] * z + e[15];
     if (cw <= 0 || !Number.isFinite(cw)) {
       clipsNear = true;
-      continue;
+      break;
     }
     const ndcX = (e[0] * x + e[4] * y + e[8] * z + e[12]) / cw,
       ndcY = (e[1] * x + e[5] * y + e[9] * z + e[13]) / cw,
