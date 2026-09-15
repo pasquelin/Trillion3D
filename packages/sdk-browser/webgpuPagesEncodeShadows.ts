@@ -37,15 +37,11 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
   const { lights } = rt,
     { shadows, plan, store, faceMatrices } = lights;
   lights.shadowsUpdated = 0;
-  lights.shadowsDenied = 0;
-  lights.shadowsPending = 0;
   lights.shadowFaces = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
   if (!shadows || !store.count) return 0;
   const updates = plan.plan(store, shadowViewpointOf(camera));
-  lights.shadowsDenied = plan.denied;
-  lights.shadowsPending = plan.pending;
   let faces = 0;
   for (let update = 0; update < updates; update++) {
     const slice = plan.updatedSlice[update];
