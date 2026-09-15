@@ -3760,3 +3760,97 @@ comme un résultat.
 écrits. Les neuf autres portes sont vertes sur la branche fusionnée — `format:check`,
 `check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
 `check:structure`, `check:dts`, `check:links` — avec 740 tests JS/TS et 153 tests Rust au vert.
+
+## 2026-09-15 — [compilateur] pilote unity
+
+Un projet Unity exporté tel quel devient une scène intermédiaire glTF, sans éditeur, sans outil
+tiers. Le pilote est un module par responsabilité sous `packages/asset-compiler-rust/src/plugins/
+scene/unity/` — `yaml`, `project`, `build`, `render`, `prefab`, `assets`, `materials`, `textures`,
+`merge`, `models`, `builtin`, `transform`, `output`, `convert` — plus une ligne dans le registre de
+scènes. Rien d'autre dans le cœur, aucun autre pilote touché.
+
+**Condition juridique, écrite en tête du module comme ici.** Données seulement : la sérialisation
+YAML documentée par Unity pour `.unity`, `.prefab`, `.mat` et `.meta`. Aucun script C#, aucun
+assembly, aucune bibliothèque, aucun SDK, aucun shader de l'éditeur n'est lu, exécuté, repris ni
+redistribué ; rien n'est déchiffré ni contourné. Lecteur YAML : `yaml-rust2` 0.13 (MIT OU
+Apache-2.0), version figée dans `Cargo.toml` et nommée dans la version du pilote. La licence du
+contenu importé reste celle de son auteur.
+
+**Ce qui est lu.** L'entête d'un document Unity (`--- !u!<classe> &<fileID>`, et le mot `stripped`
+d'une accroche de prefab) n'est pas du YAML ordinaire : on découpe le flux ligne par ligne et on ne
+confie au parseur que le corps. Un GUID de trente-deux chiffres hexadécimaux comme
+`0000000000000000e000000000000000` ressemble à un nombre en notation scientifique : il arrive en
+`Real`, dont on relit le texte d'origine — le lire par `as_str` seul laisserait la référence vide.
+Les `.meta` sont indexés une fois pour toutes sous la racine `Assets`, et toute référence se résout
+par GUID. Suivent : hiérarchie des `Transform`, `MeshFilter` + `MeshRenderer`, instances de prefab
+avec leurs retouches de transformation, de nom et de matériau, `LODGroup`. Les modèles sont importés
+par le pilote de leur format via le registre — on compose, on ne réimplémente pas FBX — versés une
+seule fois dans la scène puis instanciés ; les matériaux du `MeshRenderer` remplacent ceux du modèle,
+emplacement par emplacement, comme Unity le fait. Une scène par source : plusieurs `.unity` dans un
+dossier sont refusés en les nommant, l'appelant en désigne un par son fichier.
+
+**Ce qui est compté sans être rendu.** LOD autres que le plus fin, objets inactifs, rendus
+désactivés, lampes, caméras, terrains, particules, rendus animés ou de sprite, scripts, retouches de
+prefab autres que transformation/nom/matériau, cartes métal-lissage empaquetées, textures d'un format
+hors registre d'images, primitives intégrées autres que le cube. Rien de tout cela n'interrompt une
+compilation.
+
+**Conversion d'axes.** Unity est en main gauche (Y haut, Z avant, 1 unité = 1 m), le glTF en main
+droite : les deux ne diffèrent que par le sens de Z, donc la conversion exacte est la symétrie
+`S = diag(1, 1, -1)`, sa propre inverse. On ne l'applique qu'aux transformations de la scène, jamais
+aux sommets d'un modèle : Unity lit elle-même un FBX en appliquant `S`, donc un sommet vaut `S·v`
+dans la scène Unity et repasser en glTF donne `S·(T₁…Tₙ)·S·v = (S·T₁·S)…(S·Tₙ·S)·v`. La chaîne se
+télescope : convertir chaque transformation locale par `T ↦ S·T·S` suffit, la géométrie du modèle
+reste intacte dans l'espace où son propre pilote l'a rendue. En clair : position `(x, y, -z)`,
+quaternion `(-x, -y, z, w)`, échelle inchangée. `S·T·S` est une rotation propre (déterminant +1) :
+l'ordre d'enroulement des faces ne change pas, aucune normale n'est retournée, aucun matériau ne
+devient double face par accident.
+
+**Matériaux.** Standard, URP Lit et HDRP Lit sont lus *par propriété*, jamais par famille de shader :
+`_BaseColor`/`_Color`, `_BaseColorMap`/`_BaseMap`/`_MainTex`, `_Smoothness`/`_Glossiness`,
+`_NormalMap`/`_BumpMap`, `_EmissiveColor`/`_EmissionColor`. Seule conversion de grandeur :
+`roughness = 1 − smoothness`. Les deux vivent dans [0, 1], l'application est une bijection,
+l'aller-retour est exact : aucune information n'est perdue. La couleur de base reste un facteur
+multiplié par sa texture, comme chez Unity comme en glTF. Modes de rendu : Opaque, Cutout, Fade et
+Transparent (`_Mode` chez Standard, `_Surface` et le drapeau de découpe chez URP et HDRP) vont vers
+`OPAQUE`, `MASK` avec son seuil, `BLEND` — un matériau transparent ne devient jamais masqué. Unity
+empaquette métal et lissage dans un seul plan là où le glTF les attend en G et B : les convertir
+demanderait de réencoder des pixels, on garde donc les facteurs déclarés, exacts, et la carte est
+comptée au rapport. Le cube intégré de l'éditeur est reconstruit depuis sa définition géométrique
+(un mètre d'arête, centré, six faces) et non extrait d'un fichier de Unity ; les autres primitives
+ont une tessellation propre à l'éditeur qu'on ne peut pas reproduire fidèlement, elles sont comptées.
+
+**Dorée.** Une seule, `fixtures/unity/cc0-import-project`, reprise du corpus CC0 local (le dépôt
+ignore `test-assets/`) avec sa notice, sans le script d'éditeur du corpus, et complétée sous la même
+licence de ce que le corpus ne porte pas — la scène du corpus ne pose que des cubes intégrés : une
+référence de modèle par GUID (le FBX à LOD 320/80/20), une lampe, deux matériaux aux modes découpé
+et transparent, un objet inactif, une instance de prefab replacée et renommée. `expected.json` fixe
+en clair 9 instances, 6 maillages, la hiérarchie, les transformations converties — `Prop_Model` posé
+en (1, 2, 3) et tourné d'un quart de tour autour de Y sort en (1, 2, −3) avec
+(0, −0.7071067811865476, 0, 0.7071067811865476), échelle 2 — les facteurs PBR de chaque matériau,
+492 triangles, 8 rendus de LOD écartés et la TGA signalée sans bloquer. La dorée passe par le harnais
+commun, à qui ce lot apprend deux choses : accepter une source d'un autre format que glTF, et relire
+la scène intermédiaire qu'un pilote nommé a écrite. Trois tests de refus l'accompagnent : `.unity`
+tronqué (fixture `limites`, 31 octets), plusieurs scènes dans un dossier, fichier reconnu à son
+entête. `cargo test` du crate : 169 tests au vert ; `cargo clippy --all-targets -D warnings`,
+`cargo fmt --check`, `check:lines` et `check:duplicates` verts.
+
+**Essai à blanc sur un vrai projet**, en lecture seule, sortie dans le bac à sable — `Industrial
+Map`, licence FAB, non redistribuable, donc aucun test automatique dessus. 349 `.meta` indexés.
+`Map_v1.unity` : 350 instances de prefab, 327 instances de maillage, 4 modèles importés, 126
+maillages, 17 matériaux, 14 786 triangles, 64 fichiers de données lus, 1,5 s d'import.
+`Assets_showcase_scene.unity` : 128 instances de prefab, 677 instances, 12 modèles, 186 maillages,
+38 matériaux, 49 767 triangles, 152 fichiers lus. Aucun échec de lecture, aucun prefab ni modèle
+introuvable. Au rapport : 4 puis 10 textures TGA non lues (le registre d'images ne connaît pas encore
+ce format, un autre lot le code), 880 puis 128 retouches de prefab ignorées, 15 puis 34 modèles à
+plusieurs maillages instanciés entiers, une lampe et une caméra. Le dossier source n'a pas été
+touché : aucun fichier n'y a changé.
+
+**Ce qui reste.** Le `fileID` d'un `MeshFilter` désigne un maillage précis dans le modèle importé ;
+cette correspondance est interne à l'éditeur et n'est pas reconstituable, donc un modèle à plusieurs
+maillages est instancié entier et le fait est compté — c'est la limite qui coûtera le plus cher sur
+un grand kit. Le facteur d'échelle d'import déclaré par un `ModelImporter` n'est pas appliqué. Les
+lampes ne sont pas encore converties, alors que le glTF intermédiaire sait les porter. Le routeur
+refuse un dossier qui mêle `.unity` et `.fbx` au même niveau, ce qui reste son affaire et non celle
+de ce pilote. Enfin, la conversion relit le YAML à chaque appel : c'est court, et les modèles, eux,
+sont déjà mis en cache par leur propre pilote.
