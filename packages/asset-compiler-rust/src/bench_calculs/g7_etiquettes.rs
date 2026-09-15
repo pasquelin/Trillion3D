@@ -81,3 +81,73 @@ pub(crate) fn row() -> Row {
         empreinte,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `reference_nodes` (une chaîne formatée par nœud valide, l'ancien chemin) et `numbers_into`
+    /// (l'étiquette n'existe que dans la branche d'erreur) doivent écrire les mêmes octets sur un
+    /// jeu sain, et rendre le même message sur un jeu fautif — quelle que soit la position du nœud
+    /// fautif dans le tableau.
+    fn memes_octets_et_message(sains: &[Value], fautifs: &[Value], label: &str) {
+        let mut colonne_ref = Column::default();
+        reference_nodes(sains, &mut colonne_ref).expect("nœuds sains, référence");
+        let mut colonne_neuve = Column::default();
+        numbers_into(sains, "primitive.culling.nodes", &mut colonne_neuve)
+            .expect("nœuds sains, version neuve");
+        assert_eq!(colonne_ref.bytes, colonne_neuve.bytes, "{label}: octets");
+
+        if fautifs.is_empty() {
+            return;
+        }
+        let mut poubelle = Column::default();
+        let message_ref = reference_nodes(fautifs, &mut poubelle)
+            .expect_err("jeu fautif, référence")
+            .to_string();
+        let mut poubelle2 = Column::default();
+        let message_neuf = numbers_into(fautifs, "primitive.culling.nodes", &mut poubelle2)
+            .expect_err("jeu fautif, version neuve")
+            .to_string();
+        assert_eq!(message_ref, message_neuf, "{label}: message d'erreur");
+    }
+
+    #[test]
+    fn tableau_vide_ne_produit_ni_octet_ni_erreur() {
+        memes_octets_et_message(&[], &[], "tableau vide");
+    }
+
+    #[test]
+    fn un_seul_noeud_valide_ou_fautif() {
+        memes_octets_et_message(&[json!(3.5)], &[], "un noeud valide");
+        memes_octets_et_message(&[], &[json!("pas un nombre")], "un noeud fautif seul");
+    }
+
+    #[test]
+    fn le_noeud_fautif_en_tete_au_milieu_ou_en_queue_donne_le_meme_message() {
+        let tete = vec![json!("x"), json!(1.0), json!(2.0)];
+        memes_octets_et_message(&[], &tete, "fautif en tete");
+        let milieu = vec![json!(1.0), json!("x"), json!(2.0)];
+        memes_octets_et_message(&[], &milieu, "fautif au milieu");
+        let queue = vec![json!(1.0), json!(2.0), json!("x")];
+        memes_octets_et_message(&[], &queue, "fautif en queue");
+    }
+
+    #[test]
+    fn poison_flottant_sans_erreur_ecrit_les_memes_octets() {
+        let sains = vec![
+            json!(-0.0),
+            json!(f64::MAX),
+            json!(5e-324),
+            json!(0.0),
+            json!(1.0 / 3.0),
+        ];
+        memes_octets_et_message(&sains, &[], "poison flottant");
+    }
+
+    #[test]
+    fn un_grand_jeu_sain_puis_le_meme_avec_une_seule_entree_fautive() {
+        let (sains, fautifs) = noeuds(0x707, 5_000);
+        memes_octets_et_message(&sains, &fautifs, "grand jeu, dix-neuvieme rate");
+    }
+}
