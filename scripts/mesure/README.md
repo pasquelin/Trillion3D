@@ -5,8 +5,12 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
     node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
          --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 
-- `--moteur` : `webgl` (exact-cluster-pages) ou `webgpu` (webgpu-page-raster) ; il choisit aussi les
-  drapeaux de Chromium, copiés de `render-tech-lab/scripts/headless/lib.mjs` et `shots.mjs`.
+- `--moteur` : `webgl` (exact-cluster-pages), `webgpu` (webgpu-page-raster) ou `webgl2`
+  (autonomous-pages-webgl, le moteur autonome qui décode lui-même les pages de géométrie, donc le
+  seul qui fait monter `pagesDecodedWasm`) ; il choisit aussi les drapeaux de Chromium, copiés de
+  `render-tech-lab/scripts/headless/lib.mjs` et `shots.mjs`. `webgl2` exige un cache dont toutes les
+  primitives sont des clusters exacts : sans cela le compilateur laisse `autonomousScene` nul et
+  l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`.
 - `--avant` / `--apres` : un dossier `dist/` construit, ou une référence git, extraite hors du dépôt
   et construite. Sans `--avant`, un seul côté est mesuré ; `--apres` vaut le `dist/` du dépôt.
 - `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient

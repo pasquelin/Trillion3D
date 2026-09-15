@@ -16,6 +16,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     manifestUrl: side.manifestUrl ?? MANIFEST,
     backend: ENGINE.backend,
     engineId: ENGINE.id,
+    autonome: ENGINE.autonome === true,
     pose,
     poses,
     captureFile,
