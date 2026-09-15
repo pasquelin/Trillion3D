@@ -1857,6 +1857,7 @@ adaptation mécanique — les deux liaisons de l'atlas d'aperçu ajoutées au gr
 par la fabrique commune `visBindEntries`, et le test de masque partagé qui prend la branche d'aperçu
 de `develop`. `npm run validate` est vert sur ce socle (550 tests), mais l'image n'y a pas été
 rejouée.
+
 ## 2026-09-15 — [session sans-threejs] transparents en sélection GPU (lot transparents-gpu)
 
 Worktree `webgeometry-sans-threejs-9f889d`, branche `lot/transparents-gpu`, rebasée sur `f44cc93`.
@@ -1882,7 +1883,7 @@ jusqu'à la ligne, et vérifie qu'un mélange, lui, ne prend jamais le drapeau d
 
 **2. Mélanges (`alphaMode: BLEND`, `clustered-blend`) — le cœur du lot.**
 
-*Une seule coupe.* Le catalogue de clusters que la sélection GPU parcourt réunit maintenant les
+_Une seule coupe._ Le catalogue de clusters que la sélection GPU parcourt réunit maintenant les
 primitives opaques **et** transparentes (`webgpuPagesLayout.ts` : `selectionRoots`, les opaques
 d'abord, donc aucun index de page opaque ne bouge). Un seul `packDagSelection`, une seule
 résidence, une seule différence de coupe, un seul budget de pages : le parcours de DAG que le CPU
@@ -1891,16 +1892,16 @@ disparaît, comme `transparentWanted`/`transparentShown`/`shownOpaque` et les de
 `webgpuResidencySets` tenait pour eux. Les lignes du tampon de visibilité restent opaques : un
 cluster transparent est résident, demandé, budgété comme les autres, mais ne réclame pas de ligne.
 
-*Une compaction à ordre stable.* L'ordre de dessin d'une primitive transparente est une propriété de
+_Une compaction à ordre stable._ L'ordre de dessin d'une primitive transparente est une propriété de
 la scène, pas de l'image : ses clusters sont triés une fois pour toutes
 (`webgpuTransparentTable.ts`) par le rang que la source a enregistré (`sourceOrder`), et ce que
-l'image ajoute est seulement *lesquels* elle garde. La compaction GPU
+l'image ajoute est seulement _lesquels_ elle garde. La compaction GPU
 (`webgpuTransparentShader.ts`) compte par groupe de 64, préfixe par primitive, puis place chaque
 cluster retenu à son rang dans son groupe : la sortie est l'ordre d'entrée privé des entrées non
 sélectionnées, c'est-à-dire exactement la liste que le CPU triait chaque image. Chaque primitive
 reçoit sa plage alignée sur le groupe, donc sa base est connue avant l'image et ne bouge jamais.
 
-*Le second critère de tri, qui a coûté 705 pixels.* Plusieurs clusters d'une primitive partagent un
+_Le second critère de tri, qui a coûté 705 pixels._ Plusieurs clusters d'une primitive partagent un
 rang source : un cluster grossier hérite du premier triangle du groupe qu'il remplace (`dag.rs`,
 `source_rank`). Le rang seul ne les ordonne donc pas ; ce qui les séparait était l'ordre d'émission
 de la coupe CPU, c'est-à-dire la marche du tronc de culling — une pile, donc les enfants d'un nœud
@@ -1909,7 +1910,7 @@ et les clusters qu'une image garde en sont une sous-suite : la table la calcule 
 sert comme second critère. Avant ce correctif, la vue générale à 1 px montrait 705 pixels d'écart,
 max canal 16, tous sur un seul arbre ; après, 0.
 
-*Le dessin.* Une primitive paginée n'a plus de tampon d'indices à elle : elle se dessine en
+_Le dessin._ Une primitive paginée n'a plus de tampon d'indices à elle : elle se dessine en
 `drawIndirect`, une instance par cluster retenu, et le nuanceur lit `clusterIds[base + instance]`
 puis la portée de ce cluster dans le cache de pages (`clusterSpans`, réécrite seulement quand la
 résidence du cache change). L'ordre des primitives entre elles est inchangé, l'ordre des triangles
@@ -1924,10 +1925,12 @@ même ordre, donc les deux chemins partagent un seul nuanceur.
 ### Preuve
 
 Verrou `.claude/mesure.lock` pris et libéré. Harnais commun, `--moteur webgpu`, 1280×720, 60 images,
-chauffe par défaut, `--max-pages 100000`, `avant = 7fe6e43` (tête de `develop`), `apres = 0d0ea02`. Les
-deux côtés lisent `.mesure/cache-emerald`, recompilé hors du banc avec le compilateur natif de cette
-tête : le cache Emerald du Lab est en manifeste binaire version 2 et le moteur en exige la version 3
-depuis les textures progressives, et un agent n'écrit pas dans les ressources du banc.
+chauffe par défaut, `--max-pages 100000`, `avant = a517b47` (tête de `develop` au moment de la
+fusion), `apres = ccaf60d`. Les deux côtés lisent le même cache, recompilé hors du banc avec le
+compilateur natif de cette tête — `.mesure/cache-emerald` pour Emerald, `.mesure/cache-classes` pour
+la scène synthétique. Le manifeste binaire est passé en version 4 avec les mips progressifs ; le
+cache du Lab et les caches des mesures précédentes de ce lot sont refusés au chargement, et un agent
+n'écrit pas dans les ressources du banc. Rien n'est écrit dans `public/`.
 
 ### Contrat de la transmission (classe 3) — écrit, pas livré
 
@@ -1949,13 +1952,13 @@ manquante à l'hôte. Une eau importée est donc invisible.
 2. la passe de mélange dessine les BLEND dans cette même cible (déjà fait) ;
 3. **deux copies** : `copyTextureToTexture` de la cible HDR et de la profondeur vers deux textures
    en lecture seule (`rgba16float` et `depth32float`, taille de la cible). Ces copies sont le fond
-   figé que *toutes* les surfaces transmissives lisent : l'ordre entre deux d'entre elles ne change
+   figé que _toutes_ les surfaces transmissives lisent : l'ordre entre deux d'entre elles ne change
    donc pas ce qu'elles lisent ;
 4. une passe de dessin des items transmissifs, dans le même ordre source que les mélanges
    (`renderOrder`), même test de profondeur (`less`, sans écriture), même mélange, avec un nuanceur
    qui lit en plus : le fond à la position écran du fragment décalée par le vecteur de réfraction
    (normale, vue, `ior`, `thicknessFactor`), la profondeur copiée pour rejeter un échantillon de
-   fond situé *devant* la surface (repli sur l'échantillon non dévié), et qui mélange
+   fond situé _devant_ la surface (repli sur l'échantillon non dévié), et qui mélange
    `baseColor × fond` par `transmissionFactor` en gardant le spéculaire GGX que l'éclairage direct
    fournit déjà.
 
@@ -1994,10 +1997,10 @@ Protocole de proximité, deux références construites depuis `2931606` et jamai
 (`e21f5d5`) désactive la troncature de la file de résidence, `ref2` (`31c0303`) désactive en plus le
 budget propre de la coupe transparente.
 
-| vue · seuil | `develop` contre `ref1` | `develop` contre `ref2` | ce lot contre `ref2` |
-|---|---|---|---|
-| générale · 0 | 0 px | **1 636 px, max canal 183** | **0 px** |
-| générale · 1, sol · 0 et 1, rue · 0 et 1 | 0 px | 0 px | 0 px |
+| vue · seuil                              | `develop` contre `ref1` | `develop` contre `ref2`     | ce lot contre `ref2` |
+| ---------------------------------------- | ----------------------- | --------------------------- | -------------------- |
+| générale · 0                             | 0 px                    | **1 636 px, max canal 183** | **0 px**             |
+| générale · 1, sol · 0 et 1, rue · 0 et 1 | 0 px                    | 0 px                        | 0 px                 |
 
 `ref2` et ce lot coïncident sur tous les compteurs de la vue générale au seuil 0 : 80 153 clusters,
 10 046 405 triangles — le compte exact du modèle —, 20 688 pages résidentes, hash de coupe identique.
@@ -2012,38 +2015,40 @@ rue·0 226 964, sol·1 203 766, rue·1 167 862. Seule générale·0 diffère, et
 
 ### Chiffres sur la base finale
 
-Base `995929d` (éclairage opaque et cascades d'ombres de la session Lumière comprises), cache
-`.mesure/cache-emerald`, 60 images, chauffe par défaut, `--max-pages 100000`. Les verdicts pixel sont
-les mêmes qu'avant cette base : l'albédo brut et les cascades ne les déplacent pas.
+Base `a517b47` (mips progressifs du lot 3 et optimisations de nuanceurs du lot D comprises), caches
+recompilés en manifeste binaire version 4, 60 images, chauffe par défaut, `--max-pages 100000`. Les
+verdicts pixel sont les mêmes que sur les bases précédentes de ce lot : ni l'albédo brut, ni les
+cascades, ni les mips progressifs ne les déplacent.
 
-| vue · seuil | écart contre `develop` | triangles dessinés | hash | trous |
-|---|---|---|---|---|
-| générale · 0 | **1 636 px, max canal 183** — le cas exact | 5 093 246 → **10 046 405** | différent | 0 / 0 |
-| générale · 1 | 0 px | 1 842 728 | identique | 0 / 0 |
-| sol · 0 | 0 px | 1 509 411 | identique | 0 / 0 |
-| sol · 1 | 0 px | 670 036 | identique | 0 / 0 |
-| rue · 0 | 0 px | 1 424 473 | identique | 0 / 0 |
-| rue · 1 | 0 px | 636 059 | identique | 0 / 0 |
+| vue · seuil  | écart contre `develop`                    | triangles dessinés         | hash      | trous |
+| ------------ | ----------------------------------------- | -------------------------- | --------- | ----- |
+| générale · 0 | **2 083 px, max canal 62** — le cas exact | 5 093 246 → **10 046 405** | différent | 0 / 0 |
+| générale · 1 | 0 px                                      | 1 842 728                  | identique | 0 / 0 |
+| sol · 0      | 0 px                                      | 1 509 411                  | identique | 0 / 0 |
+| sol · 1      | 0 px                                      | 670 036                    | identique | 0 / 0 |
+| rue · 0      | 0 px                                      | 1 424 473                  | identique | 0 / 0 |
+| rue · 1      | 0 px                                      | 636 059                    | identique | 0 / 0 |
 
-Témoin A/A, vue générale au seuil 0, quatre exécutions sur la base finale, chauffe par défaut :
-**0 px, 0 px, 0 px, 0 px**, 10 046 405 triangles à chaque fois. Scène synthétique des trois classes (opaques, grillage MASK, vitre BLEND) : deux vues × deux
-seuils, **0 px, témoin A/A 0, hash identique 4/4, trous 0**.
+Témoin A/A, vue générale au seuil 0, quatre relevés sur cette base (le témoin de la série et trois
+exécutions dédiées), chauffe par défaut : **0 px, 0 px, 0 px, 0 px**, 10 046 405 triangles et le même
+hash de coupe à chaque fois. Scène synthétique des trois classes (opaques, grillage MASK, vitre
+BLEND), cache `.mesure/cache-classes` : deux vues × deux seuils, **0 px, témoin A/A 0, hash identique
+4/4, trous 0**.
 
-**Coût.** À image égale — ce lot contre `ref2`, qui rend la même chose — `cpuFrameMs` p50 passe de
-12,9 à **9,9 ms** sur générale·0. Contre `develop`, dont l'image est plus grossière, la même mesure
-va de 8,3 à 10,4 ms : l'image exacte coûte plus cher parce qu'elle dessine deux fois plus de
-triangles et 80 153 clusters au lieu de 41 187. L'étape carte graphique « Transparents » passe de
-**17,02 à 10,95 ms p50** tout en dessinant onze fois plus de triangles transparents (5 452 864 contre
-499 705) : à triangle égal, la passe de mélange coûte environ quinze fois moins.
+**Coût.** Contre `develop`, dont l'image est plus grossière, `cpuFrameMs` p50 va de 7,2 à 8,8 ms sur
+générale·0 à caméra fixe : l'image exacte coûte plus cher parce qu'elle dessine deux fois plus de
+triangles et 80 153 clusters au lieu de 41 187. L'étape carte graphique « Transparents » passe en
+sens inverse, de **16,78 à 11,41 ms p50**, tout en dessinant bien plus de triangles transparents : à
+triangle égal, la passe de mélange coûte un ordre de grandeur de moins. Le gain processeur, lui, ne
+se lit qu'à caméra mobile (plus bas), parce qu'à caméra fixe la coupe transparente processeur du lot
+3b était déjà tenue et ne se recalculait pas.
 
 ### Portes
 
-`npm run validate` **entièrement vert**, portes Rust comprises : `format:check`, `check:lines`,
-`check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
-`check:structure`, `check:dts`, `check:links`, `test` (552 tests JS/TS), `test:native` (132 + 4 tests
-Rust). Une exécution de `cargo test` a échoué une fois sur un test, juste après l'acceptation de la
-licence Xcode et pendant que l'édition de liens se terminait ; quatre exécutions suivantes sont
-vertes, et ce lot ne touche aucune ligne de Rust.
+`npm run validate` **entièrement vert** sur la base finale, portes Rust comprises : `format:check`,
+`check:lines`, `check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
+`check:structure`, `check:dts`, `check:links`, `test` (653 tests JS/TS, 0 échec), `test:native`
+(134 + 4 tests Rust). Ce lot ne touche aucune ligne de Rust.
 
 ### Caméra en mouvement, enfin mesurée
 
@@ -2052,14 +2057,20 @@ image mesurée au lieu de rejouer la même) pendant ce lot. C'est exactement ce 
 fixe, la coupe transparente tenue du lot 3b rendait le parcours processeur gratuit, et le gain de
 cette sélection GPU ne se voyait pas. Vue générale, 60 images, chauffe par défaut :
 
-| seuil | `cpuFrameMs` p50 avant → après | écart | témoin A/A | hash de coupe |
-|---|---|---|---|---|
-| 0 | **20,4 → 13,5 ms** (−34 %) | 0 px | 0 px | identique |
-| 1 | **8,2 → 4,9 ms** (−40 %) | 0 px | 0 px | identique |
+| seuil | `cpuFrameMs` p50 avant → après | p95 avant → après | écart | témoin A/A |
+| ----- | ------------------------------ | ----------------- | ----- | ---------- |
+| 0     | **17,6 → 12,1 ms** (−31 %)     | 25,2 → 14,0 ms    | 0 px  | 0 px       |
+| 1     | **7,2 → 4,5 ms** (−38 %)       | 9,0 → 5,1 ms      | 0 px  | 0 px       |
 
-Image identique au pixel des deux côtés, et un tiers du temps processeur par image en moins : c'est
-le résultat que ce lot cherchait, et il n'était pas mesurable avant que le banc sache bouger la
-caméra.
+Image identique au pixel des deux côtés, et près d'un tiers du temps processeur par image en moins —
+la queue p95 tombe presque de moitié au seuil 0, parce que la pointe qu'elle mesurait était le tri de
+la coupe transparente processeur. C'est le résultat que ce lot cherchait, et il n'était pas mesurable
+avant que le banc sache bouger la caméra. L'option est documentée dans `scripts/mesure/README.md`.
+
+Une réserve honnête : au seuil 1 à caméra mobile, le hash de coupe rapporté diffère d'un côté à
+l'autre alors que l'image est identique au pixel. Ce hash vient de la relecture asynchrone du masque,
+une image en retard sur la coupe qu'il décrit ; à caméra mobile, les deux côtés ne sont pas
+forcément en retard de la même image. Le verdict qui compte, le pixel, est à zéro.
 
 ### Ce qui reste
 

@@ -30,7 +30,13 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   `--ombres` comme les ponctuelles. Combinable avec `--lampes`.
 - `--camera-mobile` : la pose avance d'un cran de la trajectoire du banc à chaque image mesurée, au
   lieu de rejouer la même. C'est ce qui distingue une scène immobile d'une caméra qui bouge — et
-  donc, pour le soleil, une cascade en cache d'une cascade redessinée à chaque image.
+  donc, pour le soleil, une cascade en cache d'une cascade redessinée à chaque image. C'est aussi la
+  seule façon de voir le coût d'une sélection : à pose figée, tout ce qui est tenu d'une image sur
+  l'autre est gratuit et n'apparaît nulle part. Sur Emerald, vue générale, la sélection GPU des
+  transparents fait passer `cpuFrameMs` p50 de 17,6 à 12,1 ms au seuil 0 et de 7,2 à 4,5 ms au
+  seuil 1 — un écart invisible à caméra fixe. Le hash de coupe relevé peut différer d'un côté à
+  l'autre sous cette option sans que l'image bouge : il vient d'une relecture asynchrone, en retard
+  d'une image sur la coupe qu'il décrit.
 - Sans `--lampes` ni `--soleil`, aucune lampe n'est déclarée : le moteur rend alors sa vue sans
   éclairage, l'albédo brut des matériaux. C'est son comportement par défaut, pas une option du banc.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
