@@ -17,7 +17,9 @@ export function createArrivalQueue(byteBudget: number, countBudget: number) {
   // Une même page peut être vue par le cache puis par la fin de son téléchargement : tant qu'elle
   // attend, elle ne s'empile qu'une fois par destinataire. L'attente est oubliée dès la livraison.
   const waiting = new Map<ArrivalTarget, Set<string>>(),
-    touched: ArrivalTarget[] = [];
+    touched: ArrivalTarget[] = [],
+    // Appartenance en temps constant : `touched.includes` redevenait quadratique sur un gros drain.
+    touchedSet = new Set<ArrivalTarget>();
   let head = 0;
   return {
     /** Arrivées encore en attente de drain. */
@@ -47,13 +49,17 @@ export function createArrivalQueue(byteBudget: number, countBudget: number) {
       let bytes = 0,
         count = 0;
       touched.length = 0;
+      touchedSet.clear();
       while (head < items.length && bytes < byteBudget && count < countBudget) {
         const item = items[head++];
         waiting.get(item.target)?.delete(item.url);
         item.target.acceptPage?.(item.url, item.array);
         bytes += item.array.byteLength;
         count++;
-        if (!touched.includes(item.target)) touched.push(item.target);
+        if (!touchedSet.has(item.target)) {
+          touchedSet.add(item.target);
+          touched.push(item.target);
+        }
       }
       if (head >= items.length) {
         items.length = 0;

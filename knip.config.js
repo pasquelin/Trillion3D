@@ -6,6 +6,7 @@ export default {
     'packages/**/*.test.{ts,mjs}',
     'scripts/*.mjs',
     'scripts/mesure/banc.mjs',
+    'scripts/mesure/calculs/*.bench.mjs',
     'test/*.test.mjs',
     'test/*.browser.mjs',
   ],

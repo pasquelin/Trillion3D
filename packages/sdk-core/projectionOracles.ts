@@ -24,7 +24,7 @@ export function dot(left: readonly number[], right: readonly number[]): number {
  *
  * `elements` is a column-major 4x4 as stored by a 3D library: indices 0,1,2 / 4,5,6 / 8,9,10.
  */
-export function maxStretch(elements: readonly number[]): number {
+export function maxStretch(elements: ArrayLike<number>): number {
   if (elements.length < 11) throw new Error('Matrice invalide');
   const a = elements[0],
     b = elements[4],

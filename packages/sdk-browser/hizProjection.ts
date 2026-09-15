@@ -5,7 +5,7 @@ import {
   projectBoxInto,
   type BoxCorners,
 } from './hizCorners.ts';
-import type { HizBounds, HizPage } from './hizTypes.ts';
+import type { HizPage } from './hizTypes.ts';
 
 const viewProjScratch = new THREE.Matrix4();
 
@@ -60,33 +60,11 @@ export function projectBoxesFlat(
   }
 }
 
-const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
-/** Conservative screen AABB. min/max are inclusive integer samples (fillIds last pixel is ceil(max)). Near-plane crossings never reject. */
-export function projectBoxToScreen(
-  min: number[],
-  max: number[],
-  world: THREE.Matrix4,
-  camera: THREE.PerspectiveCamera,
-  viewport: [number, number],
-): HizBounds {
-  camera.updateMatrixWorld();
-  const viewProj = viewProjScratch.multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse,
-  );
-  projectBoxInto(
-    min,
-    max,
-    world,
-    camera.matrixWorldInverse.elements,
-    viewProj.elements,
-    camera.near,
-    viewport[0],
-    viewport[1],
-    boundsScratch,
-    0,
-  );
-  const b = boundsScratch;
-  if (b[5] !== 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0, nearestDepth: 0, clipsNear: true };
-  return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3], nearestDepth: b[4], clipsNear: false };
+let boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
+/** Les rectangles d'une image, dans un tampon qui ne grandit qu'avec la plus grosse coupe vue.
+ *  Un seul appelant à la fois : les bornes ne survivent pas à la passe qui les a demandées. */
+export function boundsFor(count: number) {
+  const need = Math.max(1, count) * HIZ_BOUNDS_VALUES;
+  if (boundsScratch.length < need) boundsScratch = new Float64Array(need);
+  return boundsScratch;
 }

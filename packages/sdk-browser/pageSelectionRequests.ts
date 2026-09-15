@@ -74,12 +74,15 @@ export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   }
   return byUrl;
 }
+/** Le repli sans estampilles : un seul ensemble pour tout l'hôte, vidé à chaque appel. */
+const vuesSansEstampille = new Set<string>();
 export function collectPendingUrls<
   T extends { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number },
 >(shown: readonly T[], into: string[], stamps?: RequestStamps) {
   into.length = 0;
   if (stamps) stamps.begin();
-  const seen = stamps ? undefined : new Set<string>();
+  const seen = stamps ? undefined : vuesSansEstampille;
+  seen?.clear();
   for (let i = 0; i < shown.length; i++) {
     const rec = shown[i];
     if (rec.array) continue;
