@@ -6,7 +6,7 @@ import {
   selectVisiblePages,
   type PageRec,
 } from './pageSelection.ts';
-import { decodeGeometryPage } from './geometryPage.ts';
+import { decodePageOffThread } from './pageDecodeHost.ts';
 import { createAutonomousGeometry } from './autonomousGeometry.ts';
 import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
@@ -116,7 +116,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
           context.signal?.throwIfAborted();
           const bytes = await context.readGeometryPage!(url);
           context.signal?.throwIfAborted();
-          acceptGeometryPage(url, await decodeGeometryPage(bytes));
+          acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
         }),
       );
       ready = true;
