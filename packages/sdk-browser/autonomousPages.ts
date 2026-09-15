@@ -44,8 +44,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.material] as const)),
     colorMaterials = new Map<THREE.Material, THREE.Material>();
   const modifiedPages = new Set<string>();
-  let frame = 0,
-    visible = 0,
+  let visible = 0,
     selectedTriangles = 0,
     frustumRejected = 0,
     lodLevel = 0,
@@ -128,14 +127,12 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!ready) return;
       context.source.updateMatrixWorld(true);
       lighting.update();
-      frame++;
       const selected = selectVisiblePages(
         roots,
         camera,
         {
           pixelError: resolvePixelError(context, camera, motion),
           viewport: context.viewport,
-          frame,
           holdResident: true,
         },
         shown,

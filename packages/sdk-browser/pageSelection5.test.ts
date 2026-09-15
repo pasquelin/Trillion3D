@@ -18,7 +18,6 @@ test('budget pressure down to the pinned roots still publishes a complete, coars
   const tight = selectVisiblePages(roots, cam, {
     pixelError: 0,
     viewport,
-    frame: 1,
     holdResident: true,
     pageBudget: 3,
   });
@@ -32,7 +31,6 @@ test('budget pressure down to the pinned roots still publishes a complete, coars
   const starved = selectVisiblePages(roots, cam, {
     pixelError: 0,
     viewport,
-    frame: 2,
     holdResident: true,
     rootFallback: true,
     isResident: (rec) => pinned.has(rec.url),

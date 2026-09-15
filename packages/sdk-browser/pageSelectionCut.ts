@@ -19,7 +19,6 @@ export function selectVisiblePages<T extends PageRecord>(
   options: {
     pixelError?: number;
     viewport?: [number, number];
-    frame: number;
     holdResident?: boolean;
     isResident?: (page: T) => boolean;
     rootFallback?: boolean;
@@ -44,7 +43,6 @@ export function selectVisiblePages<T extends PageRecord>(
   // L'état de la coupe est posé sur l'objet réutilisé : une image de rendu n'alloue rien ici.
   const state = selectionState<T>();
   state.camera = camera;
-  state.frame = options.frame;
   state.hold = hold;
   state.rootFallback = hold && !!options.rootFallback;
   state.wanted = wanted;

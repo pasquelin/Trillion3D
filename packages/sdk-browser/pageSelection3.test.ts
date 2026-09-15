@@ -63,7 +63,6 @@ test('the culling hierarchy accelerates the flat cut without changing it', () =>
   const coarse = selectVisiblePages(roots, cam, {
     pixelError: 20,
     viewport: [1280, 720],
-    frame: 1,
   });
   assert.deepEqual(coarse.shown.map((page) => page.url).sort(), ['mid-left', 'mid-right']);
   plain.geometry.dispose();
