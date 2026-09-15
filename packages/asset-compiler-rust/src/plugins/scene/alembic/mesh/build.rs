@@ -31,21 +31,20 @@ impl Builder {
         corners: std::ops::Range<usize>,
     ) -> Result<()> {
         // L'éventail se lit à l'envers, coin par coin : la plage suffit, un tableau intermédiaire
-        // par face n'ajouterait qu'une allocation. Les coins sont visités dans le même ordre.
+        // par face n'ajouterait qu'une allocation. Chaque coin est émis une fois, dans le même
+        // ordre ; une face de moins de trois coins n'émet que son premier, comme avant.
         let mut ring = corners.rev();
         let Some(start) = ring.next() else {
             return Ok(());
         };
         let first = self.corner(geometry, face, start)?;
-        let Some(mut previous) = ring.next() else {
+        let Some(second) = ring.next().filter(|_| ring.len() > 0) else {
             return Ok(());
         };
+        let mut previous = self.corner(geometry, face, second)?;
         for next in ring {
-            let (second, third) = (
-                self.corner(geometry, face, previous)?,
-                self.corner(geometry, face, next)?,
-            );
-            self.indices.extend_from_slice(&[first, second, third]);
+            let next = self.corner(geometry, face, next)?;
+            self.indices.extend_from_slice(&[first, previous, next]);
             previous = next;
         }
         Ok(())
