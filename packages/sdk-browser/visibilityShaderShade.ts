@@ -1,6 +1,7 @@
 import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import {
+  BARY_WEIGHTS_WGSL,
   EDGE_WGSL,
   PAGE_INFO_STRUCT_WGSL,
   PAGE_UV_WGSL,
@@ -35,6 +36,7 @@ ${PAGE_UV_WGSL}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 ${EDGE_WGSL}
+${BARY_WEIGHTS_WGSL}
 ${WRAP_COORD_WGSL}
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
@@ -70,7 +72,7 @@ fn framebuffer(clip:vec4f)->vec3f{
  var bary=vec3f(0.333,0.333,0.334);
  var uv=vec2f(0.0);
  if(area!=0.0){
-  let a0=edge(s1.xy,s2.xy,p)/area;let a1=edge(s2.xy,s0.xy,p)/area;let a2=1.0-a0-a1;
+  let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
   let iw0=1.0/c0.w;let iw1=1.0/c1.w;let iw2=1.0/c2.w;
   let p0w=a0*iw0;let p1w=a1*iw1;let p2w=a2*iw2;let sum=p0w+p1w+p2w;
   bary=select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);

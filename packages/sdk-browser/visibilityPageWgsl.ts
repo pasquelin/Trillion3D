@@ -45,6 +45,16 @@ export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool)->f32{return sele
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
 
 /**
+ * Les trois poids barycentriques affines du point `p`, l'aire signée étant déjà connue. Le raster
+ * des petits triangles et l'ombrage du tampon de visibilité posaient le même quotient chacun de son
+ * côté ; c'est le même triangle qu'ils pondèrent, il n'en existe qu'une écriture. Exige `EDGE_WGSL`.
+ */
+export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
+ let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;
+ return vec3f(w0,w1,1.0-w0-w1);
+}`;
+
+/**
  * La coordonnée de texture d'un sommet et le test de masque d'opacité d'un cluster, tels que le
  * raster du tampon de visibilité et la passe de profondeur des ombres les appliquent tous les deux.
  * Une seule écriture : une découpe qui ne serait pas la même des deux côtés ferait une ombre qui ne
