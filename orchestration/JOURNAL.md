@@ -1,5 +1,84 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session calculs] lot H3 rebond : le proxy indexe ses primitives par maillage
+
+Fusion fast-forward `develop` → `8f54474` (« perf(rebond): les primitives du proxy indexées par
+maillage »), même session que les deux entrées suivantes.
+
+| Point | Avant | Après | Gain | Identique | Retenu |
+|---|---|---|---|---|---|
+| Primitives du proxy indexées par maillage (`stage_proxy`, `asset-compiler-rust/src/proxy.rs`) | 271,8 ms | 176,7 ms | 35 % | oui | oui |
+
+- `stage_proxy` construisait la scène du proxy en balayant toutes les primitives de la scène pour
+  chaque nœud retenu. Une table `primitives_by_mesh` (maillage → indices de primitives, dans l'ordre
+  d'origine) est construite une fois avant la boucle sur les nœuds, qui n'a plus qu'à la relire.
+- Non appliqué : un tampon de travail (« scratch ») dans `movingBase()`
+  (`packages/sdk-core/bounceCascades.ts`). `follow()` garde une référence directe dans `level.base`,
+  relue les images suivantes par `bounceUniform.ts` et `bounceSchedule.ts` ; un scratch partagé y
+  serait faux. La variante « écrire dans `level.base` » est laissée à la session Lumière. Aucun fichier
+  de ce chemin n'apparaît dans le commit.
+- Preuves : oracle = ancien `stage_proxy` recopié tel quel (`bench_calculs/h3_proxy.rs`), quatre jeux
+  de données (`h3_proxy_jeux.rs` : 200/6 000, 3 000/24, 2 000/40, 4 000/4 000, avec cas limites), deux
+  tests d'équivalence, sortie identique bit à bit. `cargo test` 168+4, `clippy` et `fmt` propres,
+  `check:changed` 574 tests.
+- Temps sous charge 13 à 138 pendant la mesure, témoin du banc à ±8,6 % au lieu de 0 : signe certain
+  malgré la machine chargée, mais à rejouer au calme pour un chiffre définitif.
+
+## 2026-09-15 — [session calculs] lot H3 textures : deux gains retenus sur quatre candidats, campagne WebGPU à 0 px
+
+Deux commits `perf(textures)` rebasés sur `develop`, fusion fast-forward `develop` 2dcc8fc → 32c95b9 :
+`a31e8f9` (bandes d'atlas) puis `32c95b9` (ordre de transfert), tête de branche alignée sur `develop`
+après fusion.
+
+| Point | Avant (ms) | Après (ms) | Gain | Identique | Retenu |
+|---|---|---|---|---|---|
+| Bandes d'un niveau vers l'atlas (`writeRows`, écriture par `dataLayout.offset`, plus de `slice()`) | 0,864 | 0,046 | 95 % | oui | oui |
+| Niveaux progressifs d'un aperçu (même code, tampons minuscules) | 0,010 | 0,014 | −45 % | oui | non (mesure noyée) |
+| Ordre de transfert par image (`bump`, poids en `Float64Array` à capacité doublée) | 0,189 | 0,167 | 12 % | oui | oui |
+
+- Preuves : oracles `bench/oracles/h3AtlasJobsOracle.ts` et `h3PriorityOracle.ts`, bancs
+  `bench/textures-h3.bench.mjs` et `priorite-h3.bench.mjs`, script `npm run bench:calculs-h3`,
+  tableau `orchestration/mesures/calculs-h3-2026-09-15.md`.
+- Spec WebGPU vérifiée avant le premier gain : l'alignement d'`offset` sur 4 n'est exigé que pour un
+  format de profondeur ou de gabarit ; les deux atlas sont `rgba8unorm`, donc `writeTexture` accepte
+  l'offset `row * width * 4` sans copie.
+- Campagne navigateur WebGPU, `develop` 2dcc8fc contre 32c95b9, vues générale et rue, 30 images,
+  `pixelError 1` : 0 px avant/après, témoin A/A 0 px, hash de coupe identique, aucun incident carte
+  graphique, un 404 `lights.json` sans rapport avec le lot. Images dans
+  `.mesure/out/lot-h3-textures/`. Temps mesurés sous charge 15 à 150 : indicatifs, seuls les pixels
+  comptent ici.
+- Origine du lot : inventaire Sonnet de 34 fichiers du code fusionné depuis a59c05a (ombres, rebond,
+  transparents, Hi-Z, atlas) ; quatre candidats seulement en sont sortis, le reste déjà optimisé à la
+  main. Deux autres points du lot H3, côté rebond (`proxy.rs`, `bounceCascades.ts`), restent en cours
+  ailleurs.
+- Verrou de mesure pris puis rendu, convention du fichier `proprietaire` respectée dans le verrou ;
+  quatre boucles d'attente d'une autre session se sont trouvées elles-mêmes au `pgrep`, arrêtées par
+  leur propre session.
+
+## 2026-09-15 — [session calculs] moteur `webgl2` dans le harnais : le troisième moteur devient mesurable en campagne
+
+Fusion fast-forward, `develop` 840a935 → 71bb38a, commit unique `71bb38a`
+(« feat(mesure): moteur webgl2 autonome dans les options du banc »).
+
+- `--moteur` du banc accepte une troisième valeur, `webgl2` : le moteur autonome WebGL2
+  (`autonomousPagesBackend`, id `autonomous-pages-webgl`, drapeaux `BASE_FLAGS`). C'est le seul des
+  trois moteurs exposés à décoder lui-même des pages de géométrie ; les deux autres (`webgl`,
+  `webgpu`) ne demandent que des paquets d'index, d'où `pagesDecodedWasm` (décodage WebAssembly des
+  pages, lot H2) toujours nul en campagne jusqu'ici.
+- Il n'est pas choisi par la liste `backends` comme les deux autres, mais par le réglage public
+  `autonomousGeometry` de l'explorateur, qui refuse de recevoir les deux à la fois. `ENGINES.webgl2`
+  porte un drapeau `autonome: true` (`options.mjs`) ; `serie.mjs` le relit pour nommer la série, et
+  `pageEclairage.mjs` bascule entre `{ autonomousGeometry: true }` et `{ backends: [factory] }` selon
+  ce drapeau — une ligne changée, le fichier reste à 200 lignes.
+- Limite écrite dans le `README.md` du harnais : `webgl2` exige un cache dont toutes les primitives
+  sont en `exact-clusters` (le compilateur n'écrit `autonomousScene` que dans ce cas) ; sans cela
+  l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`. Le cache Emerald du Lab n'en a
+  pas ; Whisperwind Village, New York, Low Poly City et AccuCities London en ont un.
+- Point ouvert, laissé tel quel par ce commit : la coupe relevée par la page de mesure peut revenir
+  vide avec ce moteur (pas de `selectedPageIds`) — à reprendre si besoin.
+- Fumée non faite : verrou de mesure pris par une autre session au moment du commit.
+- Portes passées : `tsc`, `check:changed`, `check:unused`, `eslint`, `banc.test` 10/10.
+
 ## 2026-09-15 — [session Lumière] WEBGPU_LOST sur Emerald : le remplaçant de `BounceGrid` avait gardé son ancienne taille
 
 ### La cause
