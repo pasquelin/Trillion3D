@@ -33,6 +33,9 @@ export type WebgpuPagesBackend = RenderBackend & {
 export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>;
 
 export const UNTEXTURED_MATERIALS = 'Untextured source color; double-sided when the material is';
+/** Named only when the scene carries such a surface: no pass reads the image behind one yet. */
+export const TRANSMISSION_UNSUPPORTED =
+  'transmissive materials (KHR_materials_transmission): the surface is not drawn';
 export const VIS_FEATURES = [
   'visibility buffer',
   'textured PBR maps',

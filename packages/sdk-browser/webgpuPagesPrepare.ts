@@ -19,7 +19,7 @@ import { dropVis } from './webgpuPagesDrops.ts';
 import { prepareWebgpuTextures } from './webgpuPagesPrepareTextures.ts';
 import { prepareWebgpuVisibility } from './webgpuPagesPrepareVisibility.ts';
 import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
-import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { TRANSMISSION_UNSUPPORTED, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
