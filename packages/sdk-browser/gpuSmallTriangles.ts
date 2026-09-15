@@ -1,4 +1,8 @@
 import { DISPATCH_SPAN, LIST_HEADER, rasterSource, RESOLVE } from './gpuSmallTrianglesShader.ts';
+import { SMALL_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import { smallBindEntries } from './webgpuBindEntries.ts';
+import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
+import type { WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
 
 /**
  * `capacity` is how many small triangles one image can hold: every triangle of every drawable row, so
@@ -27,23 +31,22 @@ export function createGpuSmallTriangles(
     size: 24,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
   });
+  const b = SMALL_BINDINGS;
+  const compute = GPUShaderStage.COMPUTE;
   const computeLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-      { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-      {
-        binding: 6,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 7, visibility: GPUShaderStage.COMPUTE, sampler: {} },
-      { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-      { binding: 10, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+      { binding: b.indices, visibility: compute, buffer: readOnly },
+      { binding: b.positions, visibility: compute, buffer: readOnly },
+      { binding: b.pages, visibility: compute, buffer: readOnly },
+      { binding: b.hizFlags, visibility: compute, buffer: readOnly },
+      { binding: b.uniform, visibility: compute, buffer: { type: 'uniform' } },
+      { binding: b.uvs, visibility: compute, buffer: readOnly },
+      ...b.maps.map((binding) => atlasLayoutEntry(binding, compute)),
+      { binding: b.sampler, visibility: compute, sampler: {} },
+      { binding: b.frame, visibility: compute, buffer: { type: 'storage' } },
+      { binding: b.small, visibility: compute, buffer: { type: 'storage' } },
+      { binding: b.selectionMask, visibility: compute, buffer: readOnly },
+      { binding: b.colorSlots, visibility: compute, buffer: readOnly },
     ],
   });
   const resolveLayout = device.createBindGroupLayout({
@@ -96,7 +99,8 @@ export function createGpuSmallTriangles(
         hizFlags: GPUBuffer;
         uniform: GPUBuffer;
         uvs: GPUBuffer;
-        maps: GPUTextureView;
+        colorAtlas: WebgpuAtlas;
+        slots: WebgpuAtlasSlots;
         sampler: GPUSampler;
         pageRows: number;
         maxTriangles: number;
@@ -110,28 +114,30 @@ export function createGpuSmallTriangles(
     ) {
       // Every resource here outlives the frame, so the caller keeps the groups and names which one this
       // combination of flag source and selection uses instead of building one per image.
-      const compute = (input.groups[input.groupKey] ??= device.createBindGroup({
+      const group = (input.groups[input.groupKey] ??= device.createBindGroup({
         layout: computeLayout,
-        entries: [
-          { binding: 0, resource: { buffer: input.indices } },
-          { binding: 1, resource: { buffer: input.positions } },
-          { binding: 2, resource: { buffer: input.pages } },
-          { binding: 3, resource: { buffer: input.hizFlags } },
-          { binding: 4, resource: { buffer: input.uniform, offset: 0, size: 96 } },
-          { binding: 5, resource: { buffer: input.uvs } },
-          { binding: 6, resource: input.maps },
-          { binding: 7, resource: input.sampler },
-          { binding: 8, resource: { buffer: target } },
-          { binding: 9, resource: { buffer: small } },
-          { binding: 10, resource: { buffer: input.selection?.maskBuffer ?? input.hizFlags } },
-        ],
+        entries: smallBindEntries({
+          indices: input.indices,
+          positions: input.positions,
+          pages: input.pages,
+          hizFlags: input.hizFlags,
+          uniform: input.uniform,
+          uniformSize: 96,
+          uvs: input.uvs,
+          colorAtlas: input.colorAtlas,
+          sampler: input.sampler,
+          frame: target,
+          small,
+          selectionMask: input.selection?.maskBuffer ?? input.hizFlags,
+          slots: input.slots,
+        }),
       })) as GPUBindGroup;
       encoder.clearBuffer(small, 0, 8);
       const rows = Math.max(1, input.pageRows),
         spanY = Math.min(rows, DISPATCH_SPAN),
         spanZ = Math.ceil(rows / DISPATCH_SPAN);
       const binning = encoder.beginComputePass({ label: 'WG small triangle binning' });
-      binning.setBindGroup(0, compute);
+      binning.setBindGroup(0, group);
       binning.setPipeline(clear);
       binning.dispatchWorkgroups(Math.ceil((width * height) / 64));
       binning.setPipeline(bin);
@@ -145,7 +151,7 @@ export function createGpuSmallTriangles(
       // reaches the CPU. An identifier chosen before the other class had written its depth would name a
       // triangle that lost.
       const raster = encoder.beginComputePass({ label: 'WG small triangle raster' });
-      raster.setBindGroup(0, compute);
+      raster.setBindGroup(0, group);
       raster.setPipeline(fineDepth);
       raster.dispatchWorkgroupsIndirect(indirect, 0);
       raster.setPipeline(coarseDepth);

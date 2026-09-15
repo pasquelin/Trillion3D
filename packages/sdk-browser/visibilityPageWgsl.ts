@@ -1,3 +1,5 @@
+import { VIS_BINDINGS } from './webgpuBindLayout.ts';
+
 /**
  * La géométrie d'une page telle que le GPU la lit : la description d'un cluster, l'uniforme de son
  * slot de dessin, et la résolution du rang de page d'une instance indirecte. Une seule déclaration,
@@ -13,12 +15,12 @@ struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pad:f32,drawS
  * buffer garde ainsi, au caractère près, le texte de shader qu'il avait avant les ombres.
  */
 export const PAGE_BINDING = {
-  indices: '@group(0) @binding(0) var<storage, read> indices:array<u32>;',
-  positions: '@group(0) @binding(1) var<storage, read> positions:array<f32>;',
-  pages: '@group(0) @binding(2) var<storage, read> pages:array<PageInfo>;',
-  uniforms: '@group(0) @binding(4) var<uniform> uni:Uniforms;',
-  instances: '@group(0) @binding(8) var<storage, read> instances:array<u32>;',
-  slotOffsets: '@group(0) @binding(9) var<storage, read> slotOffsets:array<u32>;',
+  indices: `@group(0) @binding(${VIS_BINDINGS.cache}) var<storage, read> indices:array<u32>;`,
+  positions: `@group(0) @binding(${VIS_BINDINGS.position}) var<storage, read> positions:array<f32>;`,
+  pages: `@group(0) @binding(${VIS_BINDINGS.pageTable}) var<storage, read> pages:array<PageInfo>;`,
+  uniforms: `@group(0) @binding(${VIS_BINDINGS.uniform}) var<uniform> uni:Uniforms;`,
+  instances: `@group(0) @binding(${VIS_BINDINGS.instances}) var<storage, read> instances:array<u32>;`,
+  slotOffsets: `@group(0) @binding(${VIS_BINDINGS.slotOffsets}) var<storage, read> slotOffsets:array<u32>;`,
 } as const;
 
 /** Rang de page d'une instance : direct en dessin explicite, via la table des slots en indirect. */

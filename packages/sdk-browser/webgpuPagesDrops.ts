@@ -78,8 +78,8 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.shadeUniform?.destroy();
   vis.visUniform?.destroy();
   vis.zeroFlags?.destroy();
-  vis.mapsTexture?.destroy();
-  vis.dataMapsTexture?.destroy();
+  vis.colorAtlas?.destroy();
+  vis.dataAtlas?.destroy();
   vis.materialScales?.destroy();
   vis.materialScales = undefined;
   vis.visSlotGroups.fill(undefined);
@@ -91,13 +91,12 @@ export function dropVis(rt: WebgpuPagesRuntime) {
     vis.shadeUniform =
     vis.visUniform =
     vis.zeroFlags =
-    vis.mapsTexture =
-    vis.dataMapsTexture =
+    vis.colorAtlas =
+    vis.dataAtlas =
       undefined;
-  vis.preview?.destroy();
-  vis.preview = undefined;
-  vis.mapsArrayView = undefined;
-  vis.dataMapsArrayView = undefined;
+  vis.slots?.destroy();
+  vis.slots = undefined;
+  vis.slotPyramids = [];
   rows.pageTableFloats = undefined;
   rows.pageTableInts = undefined;
   rows.rowPageIndex.fill(-1);

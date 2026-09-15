@@ -1,3 +1,6 @@
+import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
+
 /** Compute raster for sub-eight-pixel opaque triangles. Hardware renders the complementary set. */
 const PAGE_INFO = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
 struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
@@ -13,19 +16,22 @@ export const LIST_HEADER = 8;
 const FINE_SIDE = 4,
   FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
 export const rasterSource = (capacity: number) => `${PAGE_INFO}
-@group(0) @binding(0) var<storage,read> indices:array<u32>;
-@group(0) @binding(1) var<storage,read> positions:array<f32>;
-@group(0) @binding(2) var<storage,read> pages:array<PageInfo>;
-@group(0) @binding(3) var<storage,read> hizFlags:array<u32>;
-@group(0) @binding(4) var<uniform> uni:Uniforms;
-@group(0) @binding(5) var<storage,read> uvs:array<f32>;
-@group(0) @binding(6) var maps:texture_2d_array<f32>;
-@group(0) @binding(7) var mapsSampler:sampler;
+@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.positions}) var<storage,read> positions:array<f32>;
+@group(0) @binding(${SMALL_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
+@group(0) @binding(${SMALL_BINDINGS.hizFlags}) var<storage,read> hizFlags:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.uniform}) var<uniform> uni:Uniforms;
+@group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
+${atlasTextures(SMALL_BINDINGS.maps, 'maps')}
+@group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
 // One target holds both attachments the raster resolves: depth first, identifiers one screen later.
-@group(0) @binding(8) var<storage,read_write> frame:array<atomic<u32>>;
+@group(0) @binding(${SMALL_BINDINGS.frame}) var<storage,read_write> frame:array<atomic<u32>>;
 // The small-triangle list: its count, the dispatch it implies, then one packed row and triangle each.
-@group(0) @binding(9) var<storage,read_write> small:array<atomic<u32>>;
-@group(0) @binding(10) var<storage,read> selectionMask:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.small}) var<storage,read_write> small:array<atomic<u32>>;
+@group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
+${ATLAS_SLOTS_WGSL}
+${COLOR_ALPHA_WGSL}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 fn vertex(page:PageInfo,index:u32)->vec4f{
  let base=(page.vertexBase+index)*3u;
@@ -36,8 +42,8 @@ fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-
 fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
 fn keepMask(page:PageInfo,tc:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let wrapped=vec2f(select(clamp(tc.x,0.0,1.0),fract(tc.x),(page.flags&32u)!=0u),select(clamp(tc.y,0.0,1.0),fract(tc.y),(page.flags&64u)!=0u))*page.uvScale;
- return textureSampleLevel(maps,mapsSampler,wrapped,i32(page.mapIndex),0.0).w>=page.baseColor.w;
+ let wrapped=vec2f(select(clamp(tc.x,0.0,1.0),fract(tc.x),(page.flags&32u)!=0u),select(clamp(tc.y,0.0,1.0),fract(tc.y),(page.flags&64u)!=0u));
+ return colorAlpha(page.mapIndex,page.uvScale,wrapped)>=page.baseColor.w;
 }
 @compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
  let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}

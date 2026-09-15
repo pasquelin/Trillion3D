@@ -52,6 +52,10 @@ export function createExplorerMetrics(
     textureInFlight: null,
     textureSlicesUploaded: null,
     textureBytesLastFrame: null,
+    textureLevelsUploaded: null,
+    textureAtlasBytesCalculated: null,
+    textureAtlasClassBytesCalculated: null,
+    textureAtlasClassesUsed: null,
   };
   const profiler = new EngineProfiler();
   profiler.setMetadata(metadata);
@@ -112,6 +116,11 @@ export function createExplorerMetrics(
     metricsScratch.textureSlicesUploaded = backendMetrics.textureSlicesUploaded ?? null;
     metricsScratch.textureBytesLastFrame = backendMetrics.textureBytesLastFrame ?? null;
     metricsScratch.textureSkipped = backendMetrics.textureSkipped ?? null;
+    metricsScratch.textureLevelsUploaded = backendMetrics.textureLevelsUploaded ?? null;
+    metricsScratch.textureAtlasBytesCalculated = backendMetrics.textureAtlasBytesCalculated ?? null;
+    metricsScratch.textureAtlasClassBytesCalculated =
+      backendMetrics.textureAtlasClassBytesCalculated ?? null;
+    metricsScratch.textureAtlasClassesUsed = backendMetrics.textureAtlasClassesUsed ?? null;
     metricsScratch.lightsActive = backendMetrics.lightsActive ?? null;
     metricsScratch.shadowsUpdated = backendMetrics.shadowsUpdated ?? null;
     metricsScratch.shadowFacesDrawn = backendMetrics.shadowFacesDrawn ?? null;

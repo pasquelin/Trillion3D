@@ -10,6 +10,9 @@ import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { visGroupFor } from './webgpuVisibilityDrawer.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
+import { createGpuSmallTriangles } from './gpuSmallTriangles.ts';
+import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
+import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 // Le défaut que ce test attrape : une disposition gagne une liaison et un seul de ses deux
@@ -24,12 +27,24 @@ function recordingDevice(groups: Recorded[]) {
     createBindGroupLayout: (desc: unknown) => desc,
     createPipelineLayout: () => ({}),
     createRenderPipeline: () => ({}),
+    createComputePipeline: () => ({}),
     createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
     createBindGroup: (desc: Recorded) => {
       groups.push(desc);
       return desc;
     },
   } as unknown as GPUDevice;
+}
+
+/** Un atlas de la forme que les constructeurs lisent : une classe de taille par slot de liaison. */
+function stubAtlas() {
+  return {
+    classes: Array.from({ length: ATLAS_CLASS_COUNT }, () => ({
+      view: {} as GPUTextureView,
+      size: [4, 4] as [number, number],
+    })),
+    used: 1,
+  } as unknown as WebgpuAtlas;
 }
 
 /** Tout ce qu'un constructeur lit sur `rt.vis` : des jetons, seul leur nombre est vérifié ici. */
@@ -45,10 +60,10 @@ function stubVis(layouts: Record<string, unknown>) {
     shadeUniform: token(),
     zeroFlags: token(),
     visView: {} as GPUTextureView,
-    mapsTexture: { createView: () => ({}) } as unknown as GPUTexture,
-    dataMapsTexture: { createView: () => ({}) } as unknown as GPUTexture,
+    colorAtlas: stubAtlas(),
+    dataAtlas: stubAtlas(),
     mapsSampler: {} as GPUSampler,
-    preview: { view: {} as GPUTextureView, ready: token() },
+    slots: { color: token(), data: token() },
     materialScales: token(),
     gpuHiz: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
@@ -118,8 +133,41 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     true,
   );
 
+  // Le constructeur unique du raster logiciel des petits triangles, cinquième paire du chemin :
+  // il lit les mêmes classes d'atlas et la même table de slots que les autres passes.
+  const smallPass = {
+    setBindGroup() {},
+    setPipeline() {},
+    dispatchWorkgroups() {},
+    dispatchWorkgroupsIndirect() {},
+    end() {},
+  };
+  const smallEncoder = {
+    clearBuffer() {},
+    copyBufferToBuffer() {},
+    beginComputePass: () => smallPass,
+    beginRenderPass: () => pass,
+  } as unknown as GPUCommandEncoder;
+  createGpuSmallTriangles(device, 4, 4, 8).encode(smallEncoder, {
+    indices: {} as GPUBuffer,
+    positions: {} as GPUBuffer,
+    pages: {} as GPUBuffer,
+    hizFlags: {} as GPUBuffer,
+    uniform: {} as GPUBuffer,
+    uvs: {} as GPUBuffer,
+    colorAtlas: vis.colorAtlas,
+    slots: vis.slots as never,
+    sampler: vis.mapsSampler,
+    pageRows: 1,
+    maxTriangles: 3,
+    idsView: {} as GPUTextureView,
+    depthView: {} as GPUTextureView,
+    groups: [],
+    groupKey: 0,
+  });
+
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length]);
-  assert.ok(counted.length >= 4, 'les quatre constructeurs ont bien tourné');
+  assert.equal(counted.length, 6, 'les cinq constructeurs ont tourné, le résolveur compris');
   for (const [built, expected] of counted)
     assert.equal(
       built,
@@ -127,7 +175,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
       `un groupe lie ${built} entrées pour une disposition de ${expected}`,
     );
   assert.deepEqual(
-    counted,
+    counted.slice(0, 4),
     [
       [visCount, visCount],
       [visCount, visCount],
