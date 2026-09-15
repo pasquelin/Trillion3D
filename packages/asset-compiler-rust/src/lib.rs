@@ -136,6 +136,8 @@ mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
 #[cfg(test)]
+mod shared_math_tests;
+#[cfg(test)]
 mod tests;
 use compiler_accessor_create::*;
 use compiler_accessor_types::*;
