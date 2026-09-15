@@ -1,8 +1,6 @@
 import {
   LIGHT_KIND,
   LIGHT_SETTINGS,
-  MAX_SHADOW_SLICES,
-  POINT_FACES,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
   type ShadowViewpoint,
@@ -17,9 +15,9 @@ import { createShadowRegions } from './sceneLightShadowRegions.ts';
 import { invalidateLightPages } from './sceneLightShadowInvalidate.ts';
 import { pageRowsOf } from './sceneLightShadowPages.ts';
 import { createShadowCounts, screenCoverage } from './sceneLightShadowCounts.ts';
+import { createShadowAdmission } from './sceneLightShadowAdmit.ts';
 
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
-const CANDIDATES = MAX_SHADOW_SLICES * POINT_FACES;
 
 /**
  * L'ordonnanceur d'ombres. Le travail d'une image n'est plus « quatre lampes » mais **les pages
@@ -40,11 +38,7 @@ export function createShadowPlan(capacity: number) {
   // C'est le seul moyen de comparer les deux règles sur le même moteur, à la même image près.
   let byPage = true;
   const coverage = new Float64Array(LIGHT_SETTINGS.maxLights);
-  const candidateLight = new Int32Array(CANDIDATES),
-    candidateSlice = new Int32Array(CANDIDATES),
-    candidateFace = new Int32Array(CANDIDATES),
-    candidateRows = new Int32Array(CANDIDATES),
-    candidatePriority = new Float64Array(CANDIDATES);
+  const queue = createShadowAdmission(regions, budget, counts);
   const plan = {
     slices,
     regions,
@@ -70,10 +64,10 @@ export function createShadowPlan(capacity: number) {
     plan(store: SceneLightStore, view: ShadowViewpoint, frame: number, nowMs: number) {
       const { packed } = store;
       regions.reset();
+      queue.reset();
       counts.beginFrame();
       slices.dirty.beginFrame();
-      let casters = 0,
-        candidates = 0;
+      let casters = 0;
       for (let slot = 0; slot < store.count; slot++)
         if (packed[SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS + LIGHT_FIELD.castsShadow])
           casters++;
@@ -131,24 +125,45 @@ export function createShadowPlan(capacity: number) {
         for (let face = 0; face < faces; face++) {
           if (!slices.dirty.isDirty(slice, face)) continue;
           waiting = true;
-          candidateLight[candidates] = slot;
-          candidateSlice[candidates] = slice;
-          candidateFace[candidates] = face;
-          candidateRows[candidates] = rows;
-          candidatePriority[candidates] =
+          // Priorité : la lampe la plus visible d'abord, une carte jamais dessinée avant tout, et
+          // l'attente déjà subie, qui monte d'image en image et empêche la famine.
+          queue.add(
+            slot,
+            slice,
+            face,
+            rows,
             coverage[slot] +
-            (slices.drawn[slice] ? 0 : 1) +
-            slices.dirty.waitedFrames(slice, face, frame) * LIGHT_SETTINGS.shadowAgingPerFrame;
-          candidates++;
+              (slices.drawn[slice] ? 0 : 1) +
+              slices.dirty.waitedFrames(slice, face, frame) * LIGHT_SETTINGS.shadowAgingPerFrame,
+          );
         }
         if (!waiting) counts.reusedLight();
       }
       // Les boîtes sont consommées : ce sont les pages qui portent désormais le travail restant.
       changes.settled();
       counts.invalidated(slices);
-      admit(store, frame, candidates);
+      queue.run(slices, store, frame);
       counts.endFrame(slices, store, frame, nowMs);
       return regions.count;
+    },
+    /**
+     * Les régions de cette image n'ont pas pu être encodées : leurs pages retournent en file. Elles
+     * en étaient sorties à l'admission, parce que l'ordonnanceur et la passe ne se parlent que par
+     * cette liste ; si la passe ne dessine rien, la file doit les retrouver.
+     */
+    reissue(frame: number, nowMs: number) {
+      for (let region = 0; region < regions.count; region++)
+        slices.dirty.undrew(
+          regions.sliceOf(region),
+          regions.faceOf(region),
+          regions.x0Of(region),
+          regions.x1Of(region),
+          regions.y0Of(region),
+          regions.y1Of(region),
+          nowMs,
+          frame,
+        );
+      regions.reset();
     },
     reset() {
       slices.reset();
@@ -158,45 +173,6 @@ export function createShadowPlan(capacity: number) {
       counts.reset();
     },
   };
-  /** Vide la file par priorité décroissante, sans tri : un balayage par région retenue. */
-  function admit(store: SceneLightStore, frame: number, candidates: number) {
-    let spent = 0;
-    const accept = (pages: number) => {
-      const cost = budget.estimate(pages);
-      // La première région passe toujours : sans elle, une page attendrait indéfiniment sur un
-      // appareil dont la moindre page dépasse déjà le budget, et le retard ne serait plus borné.
-      if (cost !== null && regions.count > 0 && spent + cost > budget.budgetMs) return false;
-      spent += cost ?? 0;
-      return true;
-    };
-    for (let picked = 0; picked < candidates && regions.count < regions.capacity; picked++) {
-      let best = -1,
-        bestPriority = -Infinity;
-      for (let i = 0; i < candidates; i++)
-        if (candidatePriority[i] > bestPriority) {
-          bestPriority = candidatePriority[i];
-          best = i;
-        }
-      if (best < 0) break;
-      candidatePriority[best] = -Infinity;
-      const slice = candidateSlice[best];
-      const before = regions.count;
-      const complete = regions.addFace(
-        slices.dirty,
-        candidateLight[best],
-        slice,
-        candidateFace[best],
-        candidateRows[best],
-        accept,
-      );
-      if (regions.count > before) {
-        slices.markDrawn(slice);
-        counts.drewLight(candidateLight[best], store, frame);
-      }
-      if (!complete) break;
-    }
-    for (let i = 0; i < candidates; i++) candidatePriority[i] = 0;
-  }
   return plan;
 }
 export { RECTS_PER_SLICE };
