@@ -3,6 +3,19 @@
 import { OPEN_CONE, triangleCone } from '../../pageCone.ts';
 import { visMaterial } from '../../visibilityBuffer.ts';
 
+/**
+ * L'entrée de `prepareCones`, écrite ici une seule fois pour le banc comme pour le test.
+ *
+ * La fonction parcourt les pages **par racine**, parce que poser un cône, c'est le déclarer ;
+ * l'oracle, lui, parcourt le catalogue. Les deux champs disent la même liste dans le même ordre,
+ * et c'est ce que cette fonction garantit. Un second endroit qui construirait cette entrée à la
+ * main n'aurait aucun type pour le relire — c'est ainsi que le banc s'est cassé quand la fonction
+ * est passée du catalogue aux racines.
+ */
+export function entreeCones(pages, roots = [{ cones: false, pages }]) {
+  return { setup: { allPages: pages, roots } };
+}
+
 /** `prepareCones` avant le lot F : accesseurs sommet par sommet et matériau lu deux fois. */
 export function referencePrepareCones(rt) {
   const xyzCache = new WeakMap();
