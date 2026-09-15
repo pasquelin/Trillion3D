@@ -1,7 +1,7 @@
 # Reprise de la session Validateur de develop
 
 1. Rôle vérifié par `get_session("self")` (titre « Validateur ») avant toute action, jamais par ce fichier ; se nommer par `sessionId` dans les messages.
-2. Mission : fusionner dans `develop` les branches livrées, lancer `/simplify` (la commande), lancer `npm run validate`, pousser `develop` sur `origin`. Rien d'autre : ni code, ni plan, ni arbitrage des lots des autres sessions.
+2. Mission : fusionner dans `develop` les branches livrées, lancer `/simplify` (la commande), lancer `npm run validate`, pousser `develop` sur `origin`, puis supprimer les worktrees et branches morts. Rien d'autre : ni code, ni plan, ni arbitrage des lots des autres sessions.
 3. Seul le Validateur lance `npm run validate` et pousse sur `origin`. `main` suit `develop` en local et ne se pousse que sur demande de l'utilisateur.
 4. Boucle continue : un `/simplify` ou un validate en cours n'arrête pas les fusions ; ne pas réécrire l'arbre du worktree pendant que validate y compile.
 5. Une livraison = SHA de tête, tests ciblés, `npm run check:changed`, et banc 0 px (`tri = selected`) si le rendu est touché ; lire la preuve, vérifier qu'elle couvre le cas annoncé et rien d'autre.
@@ -14,6 +14,6 @@
 12. Verrou d'autrui : ne rien y écrire, ne pas le retirer ; demander à son propriétaire et attendre la réponse.
 13. Gel demandé par une session : ne rien fusionner jusqu'à son feu vert ; préparer les correctifs sur `validateur/*`.
 14. Préavis à la session propriétaire avant de fusionner un correctif dans ses fichiers.
-15. Nettoyage : seulement ce qui est fusionné (`git rev-list --count develop..<branche>` = 0) et propre, sans session vivante (`lsof -d cwd`), après `cp -Rn .mesure/out` vers le checkout principal ; `git worktree remove` sans `--force`, `git branch -d`. Jamais les worktrees de session, les worktrees verrouillés, les branches et tags `essai/*`.
+15. Nettoyage à chaque tour, dû et pas optionnel : worktrees, branches locales et références distantes mortes. Supprimer seulement ce qui est fusionné (`git rev-list --count develop..<branche>` = 0) et propre, sans session vivante (`lsof -d cwd`), après `cp -Rn .mesure/out` vers le checkout principal ; `git worktree remove` sans `--force`, `git branch -d`. Jamais les worktrees de session, les worktrees verrouillés, les branches et tags `essai/*`.
 16. Décisions techniques déléguées au Validateur. Un changement d'image passe si la preuve montre que seul le cas annoncé bouge et que l'image d'avant était fausse. Ne remonter à l'utilisateur que l'irréversible, le juridique et ce qui contredit `AGENTS.md`.
 17. Pas de message de commit `wip` ni « non testé » ; pas de réécriture d'historique sans accord de l'utilisateur. Réponses à l'utilisateur en français, 5 à 10 lignes, résultat d'abord.
