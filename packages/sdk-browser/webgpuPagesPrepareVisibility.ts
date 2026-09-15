@@ -6,6 +6,7 @@ import {
   createWebgpuVisibilityRasterPipelines,
 } from './webgpuVisibilityPipelines.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
+import { shadeBindEntries } from './webgpuBindEntries.ts';
 import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
@@ -118,20 +119,21 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   ) {
     vis.shadeBindGroup = gpuDevice.createBindGroup({
       layout: vis.shadeBindGroupLayout,
-      entries: [
-        { binding: 0, resource: vis.visView },
-        { binding: 1, resource: { buffer: gpu.cache.buffer } },
-        { binding: 2, resource: { buffer: vis.concatPos } },
-        { binding: 3, resource: { buffer: vis.concatUv } },
-        { binding: 4, resource: { buffer: vis.concatNrm } },
-        { binding: 5, resource: { buffer: vis.pageTable } },
-        { binding: 6, resource: vis.mapsTexture.createView({ dimension: '2d-array' }) },
-        { binding: 7, resource: vis.mapsSampler },
-        { binding: 8, resource: { buffer: vis.shadeUniform } },
-        { binding: 9, resource: vis.dataMapsTexture.createView({ dimension: '2d-array' }) },
-        { binding: 10, resource: vis.preview.view },
-        { binding: 11, resource: { buffer: vis.preview.ready } },
-      ],
+      entries: shadeBindEntries({
+        visView: vis.visView,
+        cache: gpu.cache.buffer,
+        position: vis.concatPos,
+        uv: vis.concatUv,
+        normal: vis.concatNrm,
+        pageTable: vis.pageTable,
+        maps: (vis.mapsArrayView ??= vis.mapsTexture.createView({ dimension: '2d-array' })),
+        sampler: vis.mapsSampler,
+        uniform: vis.shadeUniform,
+        dataMaps: (vis.dataMapsArrayView ??= vis.dataMapsTexture.createView({
+          dimension: '2d-array',
+        })),
+        preview: vis.preview,
+      }),
     });
   }
   vis.visEnabled =
