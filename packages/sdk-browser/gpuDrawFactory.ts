@@ -1,7 +1,7 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './gpuDrawContract.ts';
 import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
-import { shaderErrors } from './gpuShaderModule.ts';
+import { shaderFailed } from './gpuShaderModule.ts';
 import { drawShader } from './gpuDrawShader.ts';
 
 /**
@@ -38,8 +38,7 @@ export async function createGpuDraw(
       ],
     });
     const module = device.createShaderModule({ code: drawShader(layerSlots) });
-    if ((await shaderErrors(module)).length) {
-      if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+    if (await shaderFailed(device, module)) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }

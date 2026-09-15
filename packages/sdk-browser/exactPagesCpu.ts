@@ -1,21 +1,25 @@
 import { disabledStageProfile } from '../sdk-core/index.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler } from './stageProfiler.ts';
-import { addCpuSteps, WEBGL_STAGES } from './stageMapping.ts';
+import { addCpuSteps, cpuStepTable, WEBGL_STAGES } from './stageMapping.ts';
 import type { BackendContext } from './backendTypes.ts';
 
-/** L'étape publique de chaque borne du moteur WebGL2 ; `null` pour la somme, qui ne se dépose pas. */
-const STEP_STAGES: ReadonlyArray<string | null> = [
-  'animations',
-  'lights',
-  'selection',
-  'uploads',
-  'residency',
-  'residency',
-  'residency',
-  'submit',
-  null,
-];
+/**
+ * Les bornes processeur d'une image WebGL2, dans l'ordre : son nom public et l'étape du profil où
+ * elle se dépose (`null` pour la somme, qui ne se dépose pas). `arrivals`, `pending`, `retain` et
+ * `submit` sont relevées par l'hôte, qui les dépose ici par leur indice.
+ */
+const CPU = cpuStepTable([
+  ['worldMs', 'animations'],
+  ['lightsMs', 'lights'],
+  ['selectMs', 'selection'],
+  ['syncMs', 'uploads'],
+  ['arrivalsMs', 'residency'],
+  ['pendingMs', 'residency'],
+  ['retainMs', 'residency'],
+  ['submitMs', 'submit'],
+  ['totalMs', null],
+] as const);
 
 export function createExactPagesCpu(
   onDiagnostic: BackendContext['onDiagnostic'],
@@ -24,19 +28,7 @@ export function createExactPagesCpu(
   getCutMs: () => number = () => 0,
 ) {
   // Profil CPU par étape, publié en mode `summary` : allumer la trace par image changerait la mesure.
-  // `arrivals`, `pending`, `retain` et `submit` sont relevées par l'hôte, qui les dépose ici.
-  const CPU_STEPS = [
-    'worldMs',
-    'lightsMs',
-    'selectMs',
-    'syncMs',
-    'arrivalsMs',
-    'pendingMs',
-    'retainMs',
-    'submitMs',
-    'totalMs',
-  ] as const;
-  const cpuProfile = createCpuStepProfile(CPU_STEPS);
+  const cpuProfile = createCpuStepProfile(CPU.names);
   const stages = enabled
     ? createStageProfiler({
         backend: 'exact-cluster-pages',
@@ -70,18 +62,18 @@ export function createExactPagesCpu(
     },
     /** Dépose la durée d'une étape mesurée par l'hôte : arrivées, attente, rétention, soumission. */
     cpuStep(index: number, ms: number) {
-      if (index >= 0 && index < CPU_STEPS.length) cpuProfile.row[index] = ms;
+      if (index >= 0 && index < CPU.names.length) cpuProfile.row[index] = ms;
     },
     /** Clôt l'image : total, classement, et publication au plus une fois toutes les deux secondes. */
     cpuFrameEnd() {
       const frame = getFrame();
       const row = cpuProfile.row;
       let total = 0;
-      for (let i = 0; i < CPU_STEPS.length - 1; i++) total += row[i];
-      row[CPU_STEPS.length - 1] = total;
+      for (let i = 0; i < CPU.names.length - 1; i++) total += row[i];
+      row[CPU.names.length - 1] = total;
       cpuProfile.record(frame, total);
       stages?.frameCpu((add) => {
-        addCpuSteps(STEP_STAGES, row, add);
+        addCpuSteps(CPU.stages, row, add);
         // La coupe hiérarchique est bornée à l'intérieur de `selectMs` par le moteur lui-même.
         add('hierarchyCut', getCutMs());
         add('frame', total);

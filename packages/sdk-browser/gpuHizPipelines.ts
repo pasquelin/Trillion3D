@@ -1,5 +1,5 @@
 import { HIZ_SHADER } from './gpuHizShader.ts';
-import { shaderErrors } from './gpuShaderModule.ts';
+import { shaderFailed } from './gpuShaderModule.ts';
 
 /** Compile the three Hi-Z kernels under one device validation scope. */
 export async function createHizPipelines(device: GPUDevice, uniformBytes: number) {
@@ -22,10 +22,7 @@ export async function createHizPipelines(device: GPUDevice, uniformBytes: number
     ],
   });
   const module = device.createShaderModule({ code: HIZ_SHADER });
-  if ((await shaderErrors(module)).length) {
-    if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
-    return undefined;
-  }
+  if (await shaderFailed(device, module)) return undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const copyPipeline = device.createComputePipeline({
     layout: pipelineLayout,
