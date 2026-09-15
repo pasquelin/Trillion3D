@@ -1,5 +1,11 @@
 # Reprise de la session Validateur de develop
 
+**La mission tient en une phrase : fusionner ce qui est livré dans `develop`, lancer `/simplify`, lancer `npm run validate`, pousser sur `origin`.** Pas de code écrit soi-même, pas de plan, pas d'arbitrage des lots des autres sessions.
+
+**En boucle, et sans jamais s'arrêter d'avancer.** La session tourne en `/loop` : elle reprend le tour dès qu'une livraison arrive. Un `/simplify` ou un `validate` en cours **ne suspend pas les fusions** — pendant qu'ils tournent, on continue de recevoir les branches, de les fusionner et de résoudre leurs conflits. Seule contrainte : ne pas réécrire l'arbre du worktree pendant que `validate` y compile, donc fusionner dans le checkout principal ou attendre la fin du tour pour la fusion suivante.
+
+`/simplify` est une **commande** (skill `simplify`) : on l'invoque, on ne réécrit pas sa procédure à la main. Elle lance elle-même ses quatre agents de revue (réutilisation, simplification, efficacité, altitude), puis applique les correctifs. Rappel de l'utilisateur, 15 septembre 2026 au soir, après que cette session eut relu les diffs elle-même au lieu de l'appeler.
+
 Prompt de reprise pour une nouvelle session. À lire en entier avant toute action, avec `AGENTS.md`.
 
 ## Rôle
@@ -77,19 +83,16 @@ Tout le reste est supprimable une fois fusionné et propre.
 
 ## Boucle de validation (un tour)
 
-1. `git fetch origin`, puis comparer `origin/develop` et `develop` local.
-2. Si des commits ne sont pas poussés : dans le worktree du validateur, `git merge --no-edit develop`. En cas de conflit, le résoudre en gardant les deux intentions, puis vérifier que ça compile (`cargo clippy --all-targets -- -D warnings`, `npx tsc --noEmit -p .`).
-3. /simplify sur le diff des nouveaux commits seulement, hors `orchestration/**` et `**/fixtures/**`. Extraire le diff dans le scratchpad, puis lancer les 4 angles (réutilisation, simplification, efficacité, altitude) avec des agents Sonnet en **lecture seule**, qui lisent par `git show <sha>:<chemin>`. Pour un petit diff (moins de 500 lignes), un seul agent couvre les 4 angles.
-4. Trier les constats :
-   - **À appliquer :** doublons, code mort, recherches linéaires, copies inutiles.
-   - **À sauter en le disant :** tout ce qui change la sortie (dorées, JSON, pixels), ou une abstraction spéculative.
-   - **Cas particulier :** une infraction à `AGENTS.md` qui demande un lot (ex. chemin opaque et chemin transparent distincts) va à la session propriétaire, pas à un Opus du validateur.
-5. Correctifs : un Opus en `isolation: "worktree"`, sur une branche `validateur/<sujet>` partie du SHA de develop, avec un commit unique `refactor(<périmètre>): …`. Puis fusion dans la branche du validateur, et suppression du worktree et des branches de l'agent.
-6. Porte navigateur : tout commit qui touche un shader ou le rendu passe une preuve 0 px avant d'entrer dans develop. Commande : `node scripts/mesure/banc.mjs --moteur webgpu --avant <sha> --apres <sha>`, avec `--lampes 8` puis `--soleil`, vues `generale,rue`, `--pixelError 0,1`. Critère : 0 px et `tri = selected`. Copier les images dans `/Users/pasquelin/Applications/webGeometry/.mesure/out/<sujet>/`.
-7. `npm run validate` sous le verrou de mesure (voir plus bas), dans le worktree du validateur. Noter le SHA testé. Étapes : format, lignes, doublons, lint, knip, build, build natif, structure, dts, liens, tests JS, tests Rust. Si `dist/` manque, 6 tests JS échouent hors validate : ce n'est pas un défaut.
-8. Push : `git push origin <sha-validé>:refs/heads/develop`, après avoir vérifié que `origin/develop` est ancêtre. Pousser le SHA validé, sans courir derrière develop qui bouge : les nouveaux commits partent au tour suivant.
-9. Develop local : `git -C /Users/pasquelin/Applications/webGeometry merge --ff-only claude/develop-validator-repo-management-f4dc23`, seulement si le checkout principal n'a pas de fusion en cours (`.git/MERGE_HEAD` absent, pas de `UU`). Sinon, fusionner d'abord develop dans la branche du validateur.
-10. Prévenir chaque session concernée du SHA fusionné et poussé, et lui dire de rebaser ses branches en cours.
+1. `git fetch origin`, comparer `origin/develop` et `develop` local.
+2. **Fusionner** la branche livrée. Si le checkout principal n'est pas propre (une autre session y travaille), fusionner dans le worktree du validateur. Conflit = garder les deux intentions ; ne jamais commiter ni jeter le travail non commité d'une autre session.
+3. **`/simplify`** — la commande, pas une imitation. Appliquer ce qu'elle trouve, sauter ce qui changerait la sortie (dorées, JSON, pixels) en le disant.
+4. **`npm run validate`** sous le verrou de mesure, dans le worktree du validateur. Noter le SHA testé.
+5. **Pousser le SHA validé** : `git push origin <sha>:refs/heads/develop`, après `git merge-base --is-ancestor origin/develop <sha>`. Ne pas courir derrière `develop` qui bouge : le reste part au tour suivant.
+6. Aligner `develop` local et `main`, prévenir les sessions concernées du SHA.
+
+**La garde qui a sauté une fois, le 15 septembre :** vérifier `CODE=0` **avant** de pousser. Un `grep … ; git push` enchaîné pousse même quand le validate est rouge — c'est arrivé avec `b81ad59` (défaut bénin, une dorée mal formatée, corrigé ensuite). Lire le verdict, puis pousser, en deux temps.
+
+**Porte navigateur :** un commit qui touche un shader ou le rendu passe une preuve 0 px avant d'entrer dans `develop` — `node scripts/mesure/banc.mjs --moteur webgpu --avant <sha> --apres <sha>`, `--lampes 8` puis `--soleil`, vues `generale,rue`, `--pixelError 0,1`, critère 0 px et `tri = selected`. En pratique, la session propriétaire fournit cette preuve avec sa livraison ; le validateur la lit et vérifie qu'elle couvre le cas annoncé et rien d'autre.
 
 ## Règles de décision
 
