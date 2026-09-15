@@ -23,14 +23,16 @@ import {
   createWebgpuTimingState,
   type WebgpuTimingState,
 } from './webgpuPagesStateTiming.ts';
+import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
 
-export type WebgpuPagesBackend = RenderBackend & {
-  flush(): Promise<void>;
-  rasterRgba(): Uint8Array;
-  selectedPageIds(): string[];
-  visibilityIds(): Uint32Array;
-};
+export type WebgpuPagesBackend = RenderBackend &
+  HostCpuProfile & {
+    flush(): Promise<void>;
+    rasterRgba(): Uint8Array;
+    selectedPageIds(): string[];
+    visibilityIds(): Uint32Array;
+  };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */
 export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>;

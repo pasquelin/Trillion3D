@@ -7,7 +7,7 @@ import {
   partitionByPass,
   triangleSum,
 } from './webgpuPagesHelpers.ts';
-import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { publishCpuProfile } from './webgpuPagesCpuSteps.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import {
