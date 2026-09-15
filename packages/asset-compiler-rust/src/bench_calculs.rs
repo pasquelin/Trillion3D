@@ -15,6 +15,7 @@ mod b6_adjacence;
 mod b9_vecteurs;
 mod fixture;
 mod g7_etiquettes;
+mod g10_preview;
 mod g9_accessor;
 mod harness;
 mod inputs;
@@ -62,7 +63,7 @@ fn rows() -> Vec<Row> {
 #[test]
 #[ignore]
 fn bench_calculs_g() {
-    let measured = vec![g7_etiquettes::row(), g9_accessor::row()];
+    let measured = vec![g7_etiquettes::row(), g9_accessor::row(), g10_preview::row()];
     let table = rapport::table(&measured);
     rapport::write_fragment_g(&measured);
     println!("\n{table}");
