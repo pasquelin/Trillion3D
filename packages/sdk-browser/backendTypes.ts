@@ -142,6 +142,8 @@ export interface BackendContext {
   maxFrameAllocationBytes?: number;
   /** Maximum source texture bytes admitted to GPU upload per frame. */
   maxTextureTransferBytesPerFrame?: number;
+  /** Atlas size classes the host allows. Defaults to 1, the single-array allocation. */
+  atlasClasses?: 1 | 2;
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
   sceneLights?: SceneLightStore;
@@ -189,6 +191,8 @@ export interface ExplorerOptions {
   pointsOfInterest?: PointOfInterest[];
   maxFrameAllocationBytes?: number;
   maxTextureTransferBytesPerFrame?: number;
+  /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 1. */
+  atlasClasses?: 1 | 2;
   sceneLighting?: THREE.Object3D;
   /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
   stageProfile?: boolean;
