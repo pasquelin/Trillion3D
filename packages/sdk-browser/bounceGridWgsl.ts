@@ -1,92 +1,130 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../sdk-core/index.ts';
 
 /**
- * La grille de sondes, telle que la passe de mise à jour et la résolution différée la lisent toutes
- * les deux. Une seule déclaration : les deux nuanceurs nomment `bounce` et `probes`, si bien que la
- * même interpolation sert à appliquer l'irradiance sur un pixel et à la relire au point qu'un rayon
- * a touché — c'est ce second usage qui donne le rebond d'ordre deux.
+ * Les cascades de sondes, telles que la passe de mise à jour et la résolution différée les lisent
+ * toutes les deux. Une seule déclaration : les deux nuanceurs nomment `bounce` et `probes`, si bien
+ * que la même interpolation sert à appliquer l'irradiance sur un pixel et à la relire au point qu'un
+ * rayon a touché — c'est ce second usage qui donne les rebonds d'ordre supérieur.
  *
- * La grille est fixe dans le monde, posée sur l'emprise du proxy : rien ici ne dépend de la caméra.
+ * Chaque niveau est un cube de sondes posé sur un réseau global : une sonde vit au centre de sa
+ * maille, aux points `(maille + ½) · écartement`, et ne bouge donc jamais. Un niveau qui suit la
+ * caméra ne fait que changer les mailles qu'il tient ; une maille se range par son reste modulo le
+ * côté du cube, si bien que glisser d'une maille ne périme que la tranche qui entre. Une sonde dit
+ * elle-même quelle maille elle porte : si ce n'est pas celle qu'on lui demande, elle ne sait rien du
+ * point et ne pèse rien. Le dernier niveau est fixe dans le monde et couvre l'emprise du proxy.
  */
 export const BOUNCE_GRID_WGSL = `
-struct BounceGrid{origin:vec4f,spacing:vec4f,counts:vec4u,frame:vec4u,}
+struct BounceLevel{originSpacing:vec4f,base:vec4f,}
+struct BounceGrid{
+ reach:vec4f,
+ counts:vec4u,
+ frame:vec4u,
+ levels:array<BounceLevel,${BOUNCE_SETTINGS.cascadeLevels}>,
+}
 const PROBE_VECTORS:u32=${PROBE_FLOATS / 4}u;
+const CASCADE_LEVELS:u32=${BOUNCE_SETTINGS.cascadeLevels}u;
+/** Les « w » qui portent l'état d'une sonde, rang par rang. */
+const PROBE_CHANGE:u32=1u;
 const PROBE_VALID:u32=2u;
-const PROBE_DISTANCE_POSITIVE:u32=4u;
-const PROBE_DISTANCE_NEGATIVE:u32=5u;
+const PROBE_CELL:u32=3u;
+const PROBE_IDLE:u32=6u;
+const PROBE_DISTANCE_POSITIVE:u32=9u;
+const PROBE_DISTANCE_NEGATIVE:u32=10u;
 const BOUNCE_VISIBILITY:f32=${BOUNCE_SETTINGS.visibilityMargin};
 const BOUNCE_NORMAL_BIAS:f32=${BOUNCE_SETTINGS.normalBias};
-/** Le plus grand pas de la grille : c'est lui qui donne l'échelle des marges en mètres. */
-fn probeStep()->f32{
- return max(bounce.spacing.x,max(bounce.spacing.y,bounce.spacing.z));
+/** Le reste positif d'une maille modulo le côté du cube : c'est le rangement torique du niveau. */
+fn probeWrap(cell:vec3i)->vec3u{
+ let side=i32(bounce.counts.x);
+ return vec3u(((cell%side)+side)%side);
 }
-/** Position monde d'une sonde. La grille est fixe : une sonde ne bouge jamais d'une image à l'autre. */
-fn probePosition(probe:u32)->vec3f{
- let nx=max(bounce.counts.x,1u);
- let ny=max(bounce.counts.y,1u);
- let cell=vec3u(probe%nx,(probe/nx)%ny,probe/(nx*ny));
- return bounce.origin.xyz+bounce.spacing.xyz*vec3f(cell);
+/** Le rang d'une sonde dans le tampon : son niveau, puis sa maille rangée toriquement. */
+fn probeSlot(level:u32,cell:vec3i)->u32{
+ let wrapped=probeWrap(cell);
+ let side=bounce.counts.x;
+ return (level*bounce.counts.z+wrapped.x+side*(wrapped.y+side*wrapped.z))*PROBE_VECTORS;
 }
-fn probeIndex(cell:vec3u)->u32{
- return cell.x+bounce.counts.x*(cell.y+bounce.counts.y*cell.z);
+/** Position monde d'une maille : le réseau global, indépendant de la caméra comme du niveau. */
+fn probeCentre(cell:vec3i,spacing:f32)->vec3f{return (vec3f(cell)+vec3f(0.5))*spacing;}
+/** La maille que la sonde dit porter. Différente de celle qu'on cherche : elle ne sait rien d'ici. */
+fn probeCell(slot:u32)->vec3i{
+ return vec3i(i32(probes[slot+PROBE_CELL].w),i32(probes[slot+4u].w),i32(probes[slot+5u].w));
 }
 /**
- * L'irradiance d'une base d'harmoniques sphériques d'ordre 1, convoluée par le lobe cosinus :
- * π·Y₀₀ pour le terme constant, (2π/3)·Y₁ₘ pour les trois termes directionnels. Jamais négative —
- * une base d'ordre 1 peut descendre sous zéro là où la vraie irradiance ne le peut pas.
+ * L'irradiance d'une base d'harmoniques sphériques d'ordre 2, convoluée par le lobe cosinus :
+ * π·Y₀₀ pour le terme constant, (2π/3)·Y₁ₘ pour les trois linéaires, (π/4)·Y₂ₘ pour les cinq
+ * quadratiques. Jamais négative — une base tronquée peut descendre sous zéro là où la vraie
+ * irradiance ne le peut pas.
  */
-fn shIrradiance(c0:vec3f,cx:vec3f,cy:vec3f,cz:vec3f,n:vec3f)->vec3f{
- return max(vec3f(0.0),c0*0.8862269+(cx*n.x+cy*n.y+cz*n.z)*1.0233267);
+fn shIrradiance(slot:u32,n:vec3f)->vec3f{
+ var total=probes[slot].xyz*0.8862269;
+ total+=(probes[slot+1u].xyz*n.x+probes[slot+2u].xyz*n.y+probes[slot+3u].xyz*n.z)*1.0233267;
+ total+=(probes[slot+4u].xyz*(n.x*n.y)+probes[slot+5u].xyz*(n.y*n.z)+probes[slot+7u].xyz*(n.x*n.z))*0.8580854;
+ total+=probes[slot+6u].xyz*(3.0*n.z*n.z-1.0)*0.2477078;
+ total+=probes[slot+8u].xyz*(n.x*n.x-n.y*n.y)*0.4290427;
+ return max(vec3f(0.0),total);
 }
 /**
  * La distance moyenne que la sonde a mesurée dans une direction, interpolée entre ses six axes.
  * C'est le test de visibilité : un point plus loin de la sonde que cette distance est derrière une
  * surface que la sonde voit, donc dans une autre pièce, et la sonde n'a rien à lui dire.
  */
-fn probeDistance(probe:u32,direction:vec3f)->f32{
- let base=probe*PROBE_VECTORS;
- let positive=probes[base+PROBE_DISTANCE_POSITIVE].xyz;
- let negative=probes[base+PROBE_DISTANCE_NEGATIVE].xyz;
+fn probeDistance(slot:u32,direction:vec3f)->f32{
+ let positive=probes[slot+PROBE_DISTANCE_POSITIVE].xyz;
+ let negative=probes[slot+PROBE_DISTANCE_NEGATIVE].xyz;
  let weight=abs(direction);
  let picked=select(negative,positive,direction>vec3f(0.0));
  return dot(picked,weight)/max(weight.x+weight.y+weight.z,1e-6);
 }
 /**
- * L'irradiance de la grille en un point, pour une normale donnée. Huit sondes, trois pondérations :
- * la trilinéaire de la cellule, le dos de la surface — une sonde derrière elle n'en sait rien — et
- * la visibilité mesurée, qui referme les fuites à travers les murs. Quand aucune sonde ne voit le
- * point, le résultat est exactement zéro : une fuite serait de la lumière sans source.
+ * L'irradiance d'un niveau en un point, ou rien quand ce niveau ne l'atteint pas. Huit sondes,
+ * trois pondérations : la trilinéaire de la maille, le dos de la surface — une sonde derrière elle
+ * n'en sait rien — et la visibilité mesurée, qui referme les fuites à travers les murs. Une sonde
+ * qui ne porte pas la maille demandée, jamais mise à jour ou enterrée dans une surface, ne pèse rien.
  */
-fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
- if(bounce.counts.w==0u){return vec3f(0.0);}
- let step=probeStep();
- let biased=P+N*BOUNCE_NORMAL_BIAS*step;
- let local=(biased-bounce.origin.xyz)/max(bounce.spacing.xyz,vec3f(1e-6));
- let last=max(vec3f(0.0),vec3f(bounce.counts.xyz)-vec3f(2.0));
- let base=clamp(floor(local),vec3f(0.0),last);
- let fraction=clamp(local-base,vec3f(0.0),vec3f(1.0));
- let margin=BOUNCE_VISIBILITY*step;
+fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
+ let spacing=bounce.levels[level].originSpacing.w;
+ let base=vec3i(bounce.levels[level].base.xyz);
+ let side=i32(bounce.counts.x);
+ let biased=P+N*BOUNCE_NORMAL_BIAS*spacing;
+ let local=biased/spacing-vec3f(0.5);
+ let corner=vec3i(floor(local));
+ // Le niveau ne répond que s'il tient les huit coins : une réponse partielle ferait une couture.
+ if(any(corner<base)||any(corner+vec3i(1)>=base+vec3i(side))){return vec4f(0.0);}
+ let fraction=clamp(local-floor(local),vec3f(0.0),vec3f(1.0));
+ let margin=BOUNCE_VISIBILITY*spacing;
  var sum=vec3f(0.0);
  var total=0.0;
- for(var corner=0u;corner<8u;corner++){
-  let offset=vec3u(corner&1u,(corner>>1u)&1u,(corner>>2u)&1u);
-  let cell=min(vec3u(base)+offset,bounce.counts.xyz-vec3u(1u));
-  let probe=probeIndex(cell);
-  if(probe>=bounce.counts.w){continue;}
-  // Une sonde enfermée dans une surface, ou jamais encore mise à jour, ne pèse rien.
-  if(probes[probe*PROBE_VECTORS+PROBE_VALID].w<0.5){continue;}
-  let toProbe=probePosition(probe)-biased;
+ for(var index=0u;index<8u;index++){
+  let offset=vec3u(index&1u,(index>>1u)&1u,(index>>2u)&1u);
+  let cell=corner+vec3i(offset);
+  let slot=probeSlot(level,cell);
+  if(any(probeCell(slot)!=cell)){continue;}
+  if(probes[slot+PROBE_VALID].w<0.5){continue;}
+  let toProbe=probeCentre(cell,spacing)-biased;
   let distance=length(toProbe);
   let direction=toProbe/max(distance,1e-6);
   let trilinear=mix(vec3f(1.0)-fraction,fraction,vec3f(offset));
   var weight=trilinear.x*trilinear.y*trilinear.z;
   let facing=dot(direction,N)*0.5+0.5;
   weight*=facing*facing;
-  if(distance>probeDistance(probe,-direction)+margin){weight=0.0;}
+  if(distance>probeDistance(slot,-direction)+margin){weight=0.0;}
   if(weight<=0.0){continue;}
-  let slot=probe*PROBE_VECTORS;
-  sum+=shIrradiance(probes[slot].xyz,probes[slot+1u].xyz,probes[slot+2u].xyz,probes[slot+3u].xyz,N)*weight;
+  sum+=shIrradiance(slot,N)*weight;
   total+=weight;
  }
- return select(vec3f(0.0),sum/total,total>1e-5);
+ return vec4f(sum,total);
+}
+/**
+ * L'irradiance des cascades en un point : le niveau le plus fin qui sait répondre, du plus serré au
+ * plus large. Quand aucun niveau ne sait, le résultat est exactement zéro — une fuite serait de la
+ * lumière sans source.
+ */
+fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
+ if(bounce.counts.w==0u){return vec3f(0.0);}
+ for(var level=0u;level<CASCADE_LEVELS;level++){
+  if(level>=bounce.counts.y){break;}
+  let gathered=sampleLevel(level,P,N);
+  if(gathered.w>1e-5){return gathered.xyz/gathered.w;}
+ }
+ return vec3f(0.0);
 }`;

@@ -149,6 +149,9 @@ export interface BackendContext {
   /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume, et elle apparaît dès qu'une
    *  lampe est déclarée et que le cache porte un proxy résident. */
   bounce?: boolean;
+  /** Durée visée de l'étape « Rebond » sur la carte graphique, par image, en millisecondes.
+   *  Par défaut `BOUNCE_SETTINGS.budgetMs` (0,8 ms) : c'est une consigne, pas une promesse. */
+  bounceBudgetMs?: number;
   /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
   stageProfile?: boolean;
   /** Lit l'objet de cache du proxy résident. Absent quand le cache n'en porte pas ; appelé au plus
