@@ -22,8 +22,8 @@ export class EngineProfiler {
     this.intervals = new Float64Array(Math.max(1, maxIntervals));
   }
 
-  /** Les intervalles retenus, du plus ancien au plus récent. */
-  private orderedIntervals() {
+  /** Les intervalles retenus, du plus ancien au plus récent : ce que `frameStatistics` reçoit. */
+  orderedIntervals() {
     const taille = this.intervals.length,
       ordered = new Array<number>(this.intervalCount);
     const debut = this.intervalCount === taille ? this.intervalHead : 0;
