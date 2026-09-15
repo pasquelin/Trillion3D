@@ -28,9 +28,12 @@ function recordStages(rt: WebgpuPagesRuntime) {
   stages.setCounts('bounce', {
     sondesMisesAJour: bounce.probesUpdated,
     rayonsParImage: bounce.raysLaunched,
-    sondesDeLaGrille: bounce.probes?.grid.probes ?? 0,
+    sondesDesCascades: bounce.probes?.cascades.probes ?? 0,
     maillesMisesAJour: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
     maillesDuCache: bounce.probes?.surface.texels ?? 0,
+    // La fraction du plafond que le budget en millisecondes tient, en millièmes : un compteur est
+    // un entier, et c'est la durée qui décide de ce compte, jamais l'inverse.
+    fractionDuBudget: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
   });
   if (!bounce.probes)
     stages.setReason('bounce', {

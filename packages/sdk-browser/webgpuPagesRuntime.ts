@@ -1,3 +1,4 @@
+import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
 import type { BackendCapabilities, BackendContext, RenderBackend } from './backendTypes.ts';
 import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPagesServices.ts';
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
@@ -133,7 +134,10 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     gpu: createWebgpuGpuState(setup.viewport),
     vis,
     lights: createWebgpuLightState(context.sceneLights),
-    bounce: createWebgpuBounceState(context.bounce === true),
+    bounce: createWebgpuBounceState(
+      context.bounce !== false,
+      context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
+    ),
     run,
     capture: createWebgpuCaptureState(),
     timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),

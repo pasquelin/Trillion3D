@@ -73,6 +73,8 @@ async function main() {
     floor: number('plancher', 0.01),
     cadenceHz: number('cadence', 60),
     lamps: number('lampes', 1),
+    // Même règle générique que le banc : l'intensité des ponctuelles est une option de mesure.
+    intensity: number('intensite', 40),
     shadows: flag('ombres', 'on') === 'on',
     pixelError: number('pixelError', 0),
     maxPages: number('max-pages', 100000),
@@ -120,6 +122,7 @@ async function main() {
     const lights = benchLights(bounds, {
       lights: settings.lamps,
       lightShadows: settings.shadows,
+      lightIntensity: settings.intensity,
       sun: false,
       movingLight: false,
     });

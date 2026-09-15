@@ -17,8 +17,9 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   et la mesure porterait sur des matériaux sans texture — ce ne serait plus la scène.
 - `--vues` parmi `generale`, `sol`, `rue`, `detail` (banc 15, pathVersion 5, vérifiée contre le Lab à
   chaque exécution) ; `--pixelError` prend une liste ; aussi `--chauffe`, `--largeur`, `--hauteur`, `--out` et `--port` (libre par défaut, jamais 5174).
-- `--rebond on|off` (par défaut `off`) : allume la lumière qui rebondit, éteinte par défaut dans
-  le moteur. Sans lui, l'étape « Rebond » vaut « non mesuré » et l'image est celle d'avant le lot.
+- `--rebond on|off` (par défaut `on`) : la lumière qui rebondit est allumée par défaut dans le
+  moteur dès qu'une lampe est déclarée ; `--rebond off` la coupe. Sans lampe, l'étape « Rebond »
+  vaut « non mesuré » de toute façon, et l'image est l'albédo brut.
 - `--profil on|off` (par défaut `on`) : demande au moteur son découpage par étape. `off` rejoue
   exactement la même série sans ce chronométrage — deux exécutions dont seule cette option diffère
   donnent la porte de fidélité et le coût du profil.
@@ -26,7 +27,11 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   `lampes.mjs` — une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus
   de son plancher, portée déduite de la maille. Aucune scène n'est nommée. `--ombres on|off` (par
   défaut `on`) dit si elles projettent une ombre ; `--lampe-mobile` déplace la première d'entre elles
-  d'un petit cercle à chaque image, sans lui faire quitter sa maille.
+  d'un petit cercle à chaque image, sans lui faire quitter sa maille. `--intensite N` (40 par
+  défaut) règle ce qu'une ponctuelle émet, de la même façon pour tout modèle : sur un modèle dont
+  la maille fait des dizaines de mètres, l'indirect d'une ponctuelle à intensité de rue tombe sous
+  le quantum des huit bits de la capture et l'écart à l'oracle n'a plus rien à mesurer. La même
+  option existe sur `oracle.mjs`.
 - `--soleil` : ajoute la lampe directionnelle générique de `lampes.mjs` — direction, couleur et
   intensité fixes, les mêmes pour n'importe quel modèle — avec ses cascades d'ombre, soumises à
   `--ombres` comme les ponctuelles. Combinable avec `--lampes`.

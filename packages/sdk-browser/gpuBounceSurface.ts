@@ -78,18 +78,21 @@ export async function createGpuBounceSurface(
     buffer,
     span,
   ]);
-  const batch = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels);
+  const ceiling = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels);
   const words = new Uint32Array(4);
   let cursor = 0,
     sweeps = 0,
-    updated = 0;
+    updated = 0,
+    batch = ceiling;
   return {
     buffer,
     texels,
     /** Ce que le cache occupe en mémoire graphique, publié dans le diagnostic. */
     bytes: texels * 16,
-    /** Images d'un balayage complet du cache : c'est l'autre moitié du retard de convergence. */
-    sweepFrames: Math.max(1, Math.ceil(texels / batch)),
+    /** Images d'un balayage complet du cache au lot courant : l'autre moitié du retard. */
+    get sweepFrames() {
+      return Math.max(1, Math.ceil(texels / Math.max(1, batch)));
+    },
     /** Balayages complets depuis la dernière invalidation. */
     get sweeps() {
       return sweeps;
@@ -103,8 +106,12 @@ export async function createGpuBounceSurface(
       cursor = 0;
       sweeps = 0;
     },
-    /** Encode un lot de mailles. La passe porte son étiquette : elle est mesurée à part. */
-    encode(encoder: GPUCommandEncoder) {
+    /**
+     * Encode un lot de mailles, dont la taille est la fraction du plafond que le budget en
+     * millisecondes a retenue. La passe porte son étiquette : elle est mesurée à part.
+     */
+    encode(encoder: GPUCommandEncoder, load: number) {
+      batch = Math.max(1, Math.round(ceiling * load));
       words[0] = cursor;
       words[1] = batch;
       device.queue.writeBuffer(span, 0, words);

@@ -43,8 +43,10 @@ export interface ExplorerOptions {
   /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 1. */
   atlasClasses?: 1 | 2;
   sceneLighting?: THREE.Object3D;
-  /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume pour toute la session. */
+  /** La lumière qui rebondit. Allumée par défaut ; `false` la coupe pour toute la session. */
   bounce?: boolean;
+  /** Durée visée de l'étape « Rebond » par image, en millisecondes. 0,8 ms par défaut. */
+  bounceBudgetMs?: number;
   /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
   stageProfile?: boolean;
   /** Déclarer les lampes que le fichier source portait, lues dans le cache. Allumé par défaut :

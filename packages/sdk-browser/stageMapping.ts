@@ -95,6 +95,15 @@ export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: Sta
   for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms);
 }
 
+/**
+ * La durée carte graphique de l'étape « Rebond » d'un relevé, ou `null` : c'est la mesure que le
+ * budget en millisecondes asservit. Une étape absente, un relevé tronqué ou un appareil sans
+ * horodatage rendent `null`, et l'asservissement ne bouge pas plutôt que de suivre un zéro.
+ */
+export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
+  return gpuStageTotals(sample).get('bounce') ?? null;
+}
+
 /** Les trois durées de l'éclairage direct de l'image, lues dans le même relevé par étiquette. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
   const totals = gpuStageTotals(sample);

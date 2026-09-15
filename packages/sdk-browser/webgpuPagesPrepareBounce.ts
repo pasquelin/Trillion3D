@@ -1,4 +1,4 @@
-import { BOUNCE_SETTINGS, type SceneProxy } from '../sdk-core/index.ts';
+import { BOUNCE_SETTINGS, PROBE_FLOATS, type SceneProxy } from '../sdk-core/index.ts';
 import { createGpuBounceProbes } from './gpuBounceProbes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -6,16 +6,19 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 const BOUNCE_CAPABILITY = 'global illumination, surface cache and motion vectors';
 /** Approximations nommées du rebond, publiées dans le diagnostic (P5). */
 const BOUNCE_APPROXIMATIONS = [
-  'the probe grid interpolates irradiance between eight probes, so a detail smaller than a cell is lost',
+  'the cascades interpolate irradiance between eight probes, so a detail smaller than a cell is lost',
+  'order-2 spherical harmonics carry the irradiance, so a sharp directional change is smoothed',
   'probe visibility uses six mean distances per probe, not a full distance map',
   'the resident proxy carries a certified geometric error, so a bounce leaves the coarse surface',
   'the proxy carries diffuse albedo only: emission, transparency and specular are not bounced',
-  'a probe update reads the grid as it stands, so one update may see a neighbour already updated',
+  'a probe update reads the cascades as they stand, so one update may see a neighbour already updated',
   'a probe ray that exhausts the published traversal bound reports no hit, which darkens',
   'a shadow ray that exhausts that bound reports no blocker, which lights a cell that should be dark',
   'the surface cache holds one radiance per proxy triangle and face, so lighting is constant over a cell',
   'the surface cache is swept on a budget, so a freshly moved light reaches a cell within one sweep',
-  'only grid cells touching geometry, plus one ring around them, carry a probe: elsewhere the bounce is zero',
+  'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light changes',
+  'the millisecond budget follows a timestamp read several frames late, and only every third or twelfth frame',
+  'a point no cascade level reaches gets exactly zero bounce, never a guess',
 ];
 
 /**
@@ -42,7 +45,9 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     return;
   }
   bounce.pending = context.readSceneProxy!()
-    .then((proxy: SceneProxy) => createGpuBounceProbes(device, proxy, lights.buffer!))
+    .then((proxy: SceneProxy) =>
+      createGpuBounceProbes(device, proxy, lights.buffer!, bounce.budgetMs),
+    )
     .then(
       (probes) => {
         bounce.probes = probes;
@@ -74,13 +79,21 @@ function publish(rt: WebgpuPagesRuntime) {
     surfaceTexels: probes?.surface.texels ?? null,
     surfaceBytes: probes?.surface.bytes ?? null,
     surfaceSweepFrames: probes?.surface.sweepFrames ?? null,
-    probeCounts: probes?.grid.counts ?? null,
-    probeSpacing: probes?.grid.spacing ?? null,
-    probes: probes?.grid.probes ?? null,
-    probesActive: probes?.activeProbes ?? null,
-    raysPerFrame: probes
-      ? Math.min(BOUNCE_SETTINGS.raysPerFrame, probes.activeProbes * BOUNCE_SETTINGS.raysPerProbe)
-      : null,
+    cascadeLevels: probes?.cascades.levels.length ?? null,
+    cascadeSize: probes?.cascades.size ?? null,
+    cascadeSpacings: probes?.cascades.levels.map((level) => level.spacing) ?? null,
+    probes: probes?.cascades.probes ?? null,
+    // Ce que la carte d'occupation retient : les mailles du niveau le plus fin qui touchent de la
+    // géométrie, sur toutes celles de l'emprise, et ce que la carte coûte en mémoire.
+    occupiedCells: probes?.occupancy.marked ?? null,
+    mapCells: probes?.occupancy.cells ?? null,
+    mapBytes: probes?.occupancy.bytes ?? null,
+    probeBytes: probes ? probes.cascades.probes * PROBE_FLOATS * 4 : null,
+    // La cible, la fraction que l'asservissement tient, et la dernière durée qu'il a vue.
+    budgetMs: probes?.budget.budgetMs ?? bounce.budgetMs,
+    budgetLoad: probes?.budget.load ?? null,
+    budgetLastMs: probes?.budget.lastMs ?? null,
+    budgetSamples: probes?.budget.samples ?? null,
     sweepFrames: probes?.sweepFrames ?? null,
     unavailable: bounce.reason,
     approximations: BOUNCE_APPROXIMATIONS,

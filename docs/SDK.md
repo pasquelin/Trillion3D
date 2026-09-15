@@ -132,37 +132,65 @@ published in the manifest as `proxy.errorMetres`; on a scene whose DAG does not 
 the proxy is the DAG's root level and says so. A cache compiled before this lot carries no `proxy`
 field and stays readable: the bounce is then unavailable and declares it.
 
-At run time a compute pass updates a world-fixed grid of irradiance probes (`explorer.bounceSettings`:
-at most 16 384 probes, a 2 m target spacing widened until the budget holds, probes at cell centres,
-32 rays each, 8 192 probes per frame, at most 512 BVH nodes visited per ray). A probe traces its rays against the proxy, evaluates the
-declared lights at the point it hits — same lights, same logical shadows, traced against the proxy
-rather than the shadow atlas — reads the grid back at that point, which is what gives the higher
-bounce orders, and accumulates the result in order-1 spherical harmonics with an adaptive
-hysteresis. The grid is read from a snapshot frozen before the pass, so the steady image does not
-depend on the order the device scheduled its threads. Once the scene has been swept
-`settledSweeps` (12) times with no declared light changing, the pass is no longer encoded at all: a
-still scene pays nothing, and the `bounce` stage then reads "not measured", never zero.
+At run time two compute passes carry it (`explorer.bounceSettings` publishes every bound below).
 
-The deferred resolve adds the interpolated irradiance of the eight surrounding probes, multiplied by
-the pixel's diffuse albedo over pi. Three weights guard the interpolation: the trilinear weight of
-the cell, the surface's own facing — a probe behind it knows nothing about it — and each probe's six
-measured mean distances, which close the leaks through a wall. Where no probe sees the point the
-term is exactly zero: a leak would be light without a source. A probe buried inside a surface
-declares itself unusable rather than spilling the inside of a wall into the next room.
+**Cascades of probes.** Irradiance lives in up to `cascadeLevels` (4) nested cubes of
+`cascadeSize` (16) probes per axis. Each level's spacing doubles, the last one is fixed in the world
+and covers the whole proxy extent, and every finer level follows the camera. The finest spacing is
+at most `cascadeSpacingMetres` (2 m), narrowed further so that the thinnest dimension of the scene
+keeps at least `cascadeLayersAcross` (3) layers of probes, and widened if the coarsest level would
+not otherwise reach across the scene. A small scene therefore ends up with a single fixed level; a
+city gets four. Probes live on a global lattice at cell centres, so a probe never moves: a level
+that follows the camera only exchanges the cells it holds, and a cell is stored by its remainder
+modulo the cube side, so sliding by one cell only invalidates the slab that enters. Every probe
+carries the cell it holds, and a probe that does not hold the cell you ask for contributes nothing.
 
-Measured cost, Emerald at 1280x720 on an Apple M2 Max, eight declared point lights, one of them
-moving so the grid never settles: the `bounce` stage takes **79 ms p50** on the general view, for
-262 144 primary rays against a 1 399 633-triangle proxy. The published budget is 0.8 ms, so this
-does not hold it: the cost is dominated by BVH node visits, and halving the traversal bound from
-512 to 128 nodes takes the stage from 79 ms to 27 ms on the same view. A still scene pays nothing.
-Read the bound, the proxy size and the delay before turning the bounce on over a whole city.
+**Where the probes go.** An occupancy map, built once from the proxy, says which cells touch
+geometry — plus one ring around them, so the eight corners of a useful cell are always held. The
+scheduler skips the rest: empty sky and the solid core of a block cost no ray. A probe that turns
+out to be buried in a surface, or lost in open sky, also puts itself to sleep until a light changes
+or it changes cell.
 
-The bounce is **off by default**, because of that cost: `createExplorer({ bounce: true })` turns it
-on for the session, and it then costs nothing until a light is declared — the proxy object is read on
-the first frame that carries one. Left off, the deferred resolve compiles the direct-only program,
-exactly the shader of the previous lot, and the bounce declares itself unavailable rather than
-appearing silently. `explorer.bounceSettings` publishes every bound above whether or not it is on.
-Emission, transparency and specular are not bounced; the proxy carries diffuse albedo only.
+**A budget in milliseconds, not in rays.** `createExplorer({ bounceBudgetMs })` sets the GPU time
+the `bounce` stage should take per frame (0.8 ms by default). The engine reads the stage's own
+timestamp from the per-pass GPU profile and corrects, with smoothing, the fraction of its published
+ceilings — `raysPerFrame` (49 152 probe rays) and `surfaceTexelsPerFrame` (16 384 cache cells) — that
+the next frame will encode. The frame rate never gives; convergence stretches instead. The timestamp
+comes back several frames late and only every third or twelfth frame, and a device that cannot time
+its passes keeps the fraction at one: both are declared in the `bounce-lighting` diagnostic, which
+publishes the target, the fraction held and the last duration seen.
+
+**What a probe does.** A probe traces `raysPerProbe` (64) rays against the proxy, at most
+`traversalSteps` (128) BVH nodes visited per ray, and reads at the cell it hits the outgoing radiance
+the surface cache already holds — direct, shadows included, plus the indirect the cascades converged
+on the previous round. One ray, one traversal, one read. It accumulates the result in **order-2
+spherical harmonics** (nine coefficients) with an adaptive hysteresis, and the cascades are read from
+a snapshot frozen before the pass, so the steady image does not depend on the order the device
+scheduled its threads. The surface cache holds one radiance per proxy triangle and face and is swept
+on the same budget; each full round adds one bounce order to the series. Once the scene has been
+swept `settledSweeps` (16) times with no declared light changing and no cascade sliding, neither pass
+is encoded at all: a still scene pays nothing, and the `bounce` stage then reads "not measured",
+never zero.
+
+The deferred resolve adds the interpolated irradiance of the eight surrounding probes of the finest
+level that reaches the point, multiplied by the pixel's diffuse albedo over pi. Three weights guard
+the interpolation: the trilinear weight of the cell, the surface's own facing — a probe behind it
+knows nothing about it — and each probe's six measured mean distances, which close the leaks through
+a wall. Where no level reaches the point the term is exactly zero: a leak would be light without a
+source.
+
+Measured on a control room (8 x 3 x 8 m, one red wall, one shadowing point light) against the
+compiler's path tracer at eight bounces: mean error **18.6 %** of the oracle, median 14.4 %, p95
+49.9 %, engine mean 1.03x the oracle. The same cascades with an order-1 basis give 25.1 %: order 2
+is what buys the accuracy, and the remaining error is the interpolation, not the basis. The published
+error target is 10 %, so it is not met. Convergence after a light jumps: **22 frames, 367 ms** at
+60 Hz, of which 16 frames are the mandated closure of the bounce series.
+
+The bounce is **on by default** as soon as a light is declared and the cache carries a proxy:
+`createExplorer({ bounce: false })` turns it off for the session. Left off, the deferred resolve
+compiles the direct-only program, exactly the shader of the previous lot, and the bounce declares
+itself unavailable rather than appearing silently. Emission, transparency and specular are not
+bounced; the proxy carries diffuse albedo only.
 
 `setLightingView('bounce')` is the measurement view: the indirect irradiance alone, multiplied by
 exposure, in linear values with no ACES and no sRGB. It is not an image to look at — it is the
