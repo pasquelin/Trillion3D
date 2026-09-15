@@ -5269,3 +5269,65 @@ passe de `-gltf-1` à `-gltf-2`. Le reste de cette dorée ne bouge pas — son p
 cubes intégrés, sans modèle ni instance de prefab — et la dorée `zip` n'est pas concernée : le
 conteneur descend d'abord jusqu'au dossier `Assets`, que le routeur revendique comme projet Unity
 exactement là où il le revendiquait par ses fichiers.
+
+## 2026-09-15 — [compilateur] png : le 16 bits est refusé, plus abaissé en silence
+
+**Pourquoi.** Le pilote `png` passait tout à `crate_image::decode`, qui termine par `to_rgba8()`.
+Sur une source 16 bits par canal, cet appel ne convertit pas : il rogne. La crate `image` rend un
+`Rgb16`, `to_rgba8()` n'en garde que l'octet de poids fort de chaque composante, et les huit bits de
+précision du bas partent sans un mot — ni rapport, ni avertissement, ni trace dans le manifeste.
+C'est exactement la perte ajoutée que la règle de tête d'`orchestration/COMPILATEUR_IMPORT.md`
+interdit : une texture reçue sans perte doit rester exacte. Le pilote `tiff` avait déjà tranché la
+même question dans l'autre sens, en lisant la profondeur dans l'IFD avant tout décodage et en
+refusant le 16 bits sous `image-depth-unsupported` ; `dds` refuse de même ses codecs 16 bits. `png`
+restait le seul à ne pas le faire — c'était la décision n° 1 en attente d'`REPRISE_COMPILATEUR.md`,
+tranchée ici en refus nommé.
+
+**Ce qui change.** Le pilote lit l'octet 24 du fichier — la profondeur de l'IHDR, qui est toujours
+le premier morceau : huit octets de signature, huit de longueur et de type de morceau, huit de
+largeur et de hauteur — et refuse la valeur 16 sous `image-depth-unsupported`, avant tout décodage.
+Aucune source 16 bits n'atteint plus `to_rgba8()`. Tout le reste est inchangé, pixel pour pixel :
+1, 2, 4 et 8 bits par canal, palette, niveaux de gris, alpha — jusqu'à huit bits l'expansion vers
+RGBA8 recopie au lieu de rogner, elle ne perd rien. La détection du format ne bouge pas, la version
+du pilote non plus (`png-image-0.25`, la bibliothèque et son comportement sur les profondeurs lues
+sont les mêmes), donc aucune clé de cache ne change et aucune dorée existante ne bouge — pas un
+`expected.json` : le seul PNG 16 bits du dépôt est la fixture ajoutée ici. Un fichier trop court
+pour porter son IHDR n'est pas jugé sur sa profondeur : il part au décodeur et ressort comme avant
+en `image-decode-failed`. Le pilote ne panique jamais, il ne fait que lire des octets.
+
+**Le cas JPEG, vérifié.** `zune-jpeg` 0.5.15, le décodeur de la feature `jpeg`, lit la précision
+dans le marqueur SOF et refuse tout ce qui n'est pas huit bits (`headers.rs` : « The library can
+only parse 8-bit images »). Le JPEG à douze bits, rare et réservé à l'imagerie technique, ressort
+donc déjà en `image-decode-failed` sans avoir été rogné : le défaut du PNG n'existait pas là, rien à
+corriger, le constat est noté dans l'entête du module.
+
+**Fixture et preuve.** `fixtures/png/`, trois fichiers de moins de cent octets écrits ici morceau
+par morceau depuis la spécification publique « PNG (Second Edition) », W3C / ISO-IEC 15948:2004,
+CC0-1.0, corpus WebGeometry : `rgb8.png` (RGB 8 bits), `palette4.png` (palette 4 bits) et
+`rgb16.png` (RGB 16 bits). Les trois portent le même dessin de 2 × 2 pixels ; les octets de poids
+faible du 16 bits sont tous non nuls et différents, si bien qu'un abaissement silencieux rendrait la
+référence 8 bits sans laisser de trace — Pillow 12.2.0, relecture indépendante, le fait justement.
+Deux tests dans `src/plugins/tests/png.rs`, un par comportement : les profondeurs lues rendent la
+référence pixel pour pixel ; le 16 bits ressort en `image-depth-unsupported`, quelle que soit
+l'allocation permise, et le tronqué reste en `image-decode-failed`.
+
+**Vérification manuelle sur le corpus.** `test-assets/textures/png-matrix/`, cinq fichiers de
+256 × 256, lus en place, jamais modifiés :
+
+| fichier | type de couleur | profondeur | verdict |
+| --- | --- | --- | --- |
+| `rgb8.png` | 2 (RGB) | 8 bits | décodé |
+| `rgba8-binary.png` | 6 (RGBA) | 8 bits | décodé, alpha conservé |
+| `palette.png` | 3 (palette) | 8 bits | décodé |
+| `gray.png` | 0 (gris) | 8 bits | décodé |
+| `rgb16.png` | 2 (RGB) | 16 bits | refusé, `image-depth-unsupported` |
+
+Un seul fichier change de comportement, celui que la décision visait ; les quatre autres rendent ce
+qu'ils rendaient.
+
+**Ce qui reste.** Porter le 16 bits jusqu'à l'écran plutôt que le refuser : une variante `Rgba16`
+au contrat d'image, et son traitement explicite chez chaque consommateur — `texture_preview`
+aujourd'hui, la pyramide d'aperçus ensuite, puis le transport et l'atlas. C'est un lot à soi, qui
+touche le contrat et pas un pilote, et il n'a pas de raison d'être lancé tant qu'aucun besoin réel
+ne se présente : refuser en le nommant laisse la texture retomber sur son blanc et dit pourquoi,
+là où l'abaissement silencieux ne disait rien.
