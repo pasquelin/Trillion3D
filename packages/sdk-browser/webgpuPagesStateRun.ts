@@ -101,6 +101,8 @@ export interface WebgpuRunState {
   viewRevision: ReturnType<typeof createViewRevision>;
   /** Ce que l'image précédente a produit, et si l'image suivante peut être tenue. */
   frameHold: FrameHold;
+  /** Vrai quand l'image en cours a été tenue : aucune étape processeur n'a été exécutée. */
+  frameHeld: boolean;
   /** La révision de scène pour laquelle la hiérarchie Three porte ses matrices monde à jour.
    *  Écrite par qui les a remontées : la première image, ou le déplacement d'un nœud nommé. */
   worldsRevision: number;
@@ -184,6 +186,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     revisions: createFrameRevisions(),
     viewRevision: createViewRevision(),
     frameHold: createFrameHold(HOLD_SIGNATURE_VALUES),
+    frameHeld: false,
     worldsRevision: 0,
     worldUploadRevision: 0,
     occluderSignature: 0,
