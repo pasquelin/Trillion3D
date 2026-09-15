@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
 function recordStages(rt: WebgpuPagesRuntime) {
-  const { timing, lights } = rt,
+  const { timing, lights, bounce } = rt,
     stages = timing.stages;
   if (!stages) return;
   stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
@@ -23,6 +23,18 @@ function recordStages(rt: WebgpuPagesRuntime) {
     cascadesRedessinees: lights.sunCascades,
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
+  // Ce que le rebond a réellement fait : des sondes et des rayons, jamais une durée. Une scène
+  // immobile et convergée n'encode aucune passe, donc l'étape reste « non mesuré » et non zéro.
+  stages.setCounts('bounce', {
+    sondesMisesAJour: bounce.probesUpdated,
+    rayonsParImage: bounce.raysLaunched,
+    sondesDeLaGrille: bounce.probes?.grid.probes ?? 0,
+  });
+  if (!bounce.probes)
+    stages.setReason('bounce', {
+      cpu: bounce.reason ?? 'rebond absent',
+      gpu: bounce.reason ?? 'rebond absent',
+    });
 }
 
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */

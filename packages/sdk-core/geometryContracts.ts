@@ -1,4 +1,5 @@
 import type { AssetScope } from './contractsBase.ts';
+import type { SceneProxyDescriptor } from './bounceContracts.ts';
 
 export interface GeometryPageDescriptor {
   url: string;
@@ -162,4 +163,7 @@ export interface ClusterManifest {
   primitives: Primitive[];
   /** Un aperçu par texture couleur décodée, trié par index de texture; vide sans image décodable. */
   texturePreviews?: TexturePreview[];
+  /** Où lire le proxy résident de la scène et son BVH : la géométrie que les rayons touchent.
+   *  Absent d'un cache compilé avant le rebond, qui reste lisible tel quel. */
+  proxy?: SceneProxyDescriptor;
 }

@@ -1,4 +1,6 @@
 export * from './contracts.ts';
+export * from './bounceContracts.ts';
+export { assertSceneProxy, decodeSceneProxy } from './sceneProxy.ts';
 export {
   DEPTH_LAYER_BIAS_UNITS,
   MAX_DEPTH_LAYER,

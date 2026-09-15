@@ -1,8 +1,5 @@
 import type * as THREE from 'three';
 import type {
-  AssetScope,
-  PreparationProgress,
-  CameraPose,
   FrameMetrics,
   BackendCapabilities,
   ClusterManifest,
@@ -10,7 +7,6 @@ import type {
   StageProfile,
 } from '../sdk-core/index.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
-import type { ComparisonLayout } from './comparison.ts';
 
 export type { BackendCapabilities };
 
@@ -147,54 +143,17 @@ export interface BackendContext {
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
   sceneLights?: SceneLightStore;
+  /** La lumière qui rebondit. Active par défaut dès qu'une lampe est déclarée et que le cache
+   *  porte un proxy résident ; `false` la coupe, et l'image redevient celle du direct seul. */
+  bounce?: boolean;
   /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
   stageProfile?: boolean;
+  /** Lit l'objet de cache du proxy résident. Absent quand le cache n'en porte pas ; appelé au plus
+   *  une fois, à la première image qui porte une lampe déclarée. */
+  readSceneProxy?: () => Promise<import('../sdk-core/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
 }
 export type BackendFactory = (context: BackendContext) => RenderBackend;
-export type PointOfInterest = { id: string; label: string; pose: CameraPose };
-export interface ExplorerOptions {
-  replicaCount?: 1 | 4 | 9 | 12;
-  detail?: 'source' | 'maximum';
-  onEvent?: (event: import('../sdk-core/index.ts').RuntimeEvent) => void;
-  manifestUrl: string;
-  scope?: AssetScope;
-  signal?: AbortSignal;
-  width?: number;
-  height?: number;
-  fov?: number;
-  pixelRatio?: number;
-  pageFetchWorkers?: number;
-  maxPageTransferBytes?: number;
-  onPreparation?: (event: PreparationProgress) => void;
-  backends?: BackendFactory[];
-  maxResidentPages?: number;
-  maxCachedPages?: number;
-  /** Resident page/bundle bytes kept by the streamer. Defaults to DEFAULT_CACHED_BYTES. */
-  maxCachedBytes?: number;
-  pixelError?: number;
-  lodAdaptive?: boolean;
-  /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
-  clearColor?: number;
-  /** Bounded diagnostics emitted by a backend and owned by the host report. */
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
-  /** Summary suppresses per-frame trace records; trace is the default with an observer. */
-  diagnosticDetail?: DiagnosticDetail;
-  preload?: 'visible' | 'all';
-  /** Render static prepared pages without requesting the full source geometry buffer. */
-  autonomousGeometry?: boolean;
-  comparisonLayout?: ComparisonLayout;
-  comparisonPair?: [string, string];
-  gpu?: GPU;
-  pointsOfInterest?: PointOfInterest[];
-  maxFrameAllocationBytes?: number;
-  maxTextureTransferBytesPerFrame?: number;
-  /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 1. */
-  atlasClasses?: 1 | 2;
-  sceneLighting?: THREE.Object3D;
-  /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
-  stageProfile?: boolean;
-  logInterval?: number;
-}
+export type { ExplorerOptions, PointOfInterest } from './explorerOptions.ts';

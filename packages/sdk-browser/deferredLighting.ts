@@ -1,5 +1,6 @@
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import {
+  BOUNCE_LIGHTING_SHADER,
   COMPOSE_SHADER,
   DIRECT_LIGHTING_SHADER,
   UNLIT_LIGHTING_SHADER,
@@ -37,15 +38,31 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
       { lighting: UNLIT_LIGHTING_SHADER, compose: COMPOSE_SHADER, label: 'UNLIT', direct: false },
       bindings,
     );
-    let contract: DeferredProgram | undefined,
-      contractPending: Promise<unknown> | undefined,
+    // Trois programmes, jamais une branche : la vue sans éclairage, le contrat, et le contrat plus
+    // le rebond. Une session sans rebond exécute ainsi exactement le nuanceur d'avant.
+    const variants: Record<'direct' | 'bounce', { program?: DeferredProgram; pending?: unknown }> = {
+      direct: {},
+      bounce: {},
+    };
+    let contractPending: Promise<unknown> | undefined,
       active: DeferredProgram = unlit;
     const packed = new Float32Array(32);
+    // Les vues de diagnostic sortent des valeurs brutes : ni ACES, ni sRGB, ni fond composé. La
+    // vue d'irradiance indirecte en est une, et c'est l'éclairage qui le dit, pas l'appelant.
+    let rawOutput = false;
     return {
       uniform,
-      /** Vrai quand l'image en cours est rendue par le programme du contrat. */
+      /** Sort l'image en valeurs brutes, sans la chaîne d'affichage. Pour une vue de mesure. */
+      setRawOutput(value: boolean) {
+        rawOutput = value;
+      },
+      /** Vrai quand l'image en cours est rendue par un programme du contrat. */
       get usesContract() {
         return active !== unlit;
+      },
+      /** Vrai quand l'image en cours porte réellement le rebond, et non seulement le direct. */
+      get usesBounce() {
+        return active === variants.bounce.program;
       },
       update(
         inverseViewProjection: readonly number[],
@@ -58,7 +75,7 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
       ) {
         packed.set(inverseViewProjection, 0);
         packed.set(camera, 16);
-        packed.set([width, height, diagnostic ? 1 : 0, 0], 20);
+        packed.set([width, height, diagnostic || rawOutput ? 1 : 0, 0], 20);
         packed.set(
           [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
           24,
@@ -81,21 +98,30 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
         direct: DirectLightResources = {},
         onFailure?: (error: unknown) => void,
       ) {
-        if (wantsContract && !contract && !contractPending)
-          contractPending = createDeferredProgram(
+        const wantsBounce = wantsContract && !!direct.bounceGrid && !!direct.probes;
+        const wanted = wantsBounce ? 'bounce' : 'direct';
+        const variant = variants[wanted];
+        if (wantsContract && !variant.program && !variant.pending) {
+          const pending = createDeferredProgram(
             device,
             {
-              lighting: DIRECT_LIGHTING_SHADER,
+              lighting: wantsBounce ? BOUNCE_LIGHTING_SHADER : DIRECT_LIGHTING_SHADER,
               compose: COMPOSE_SHADER,
-              label: 'DIRECT',
+              label: wantsBounce ? 'BOUNCE' : 'DIRECT',
               direct: true,
+              bounce: wantsBounce,
             },
             bindings,
           ).then(
-            (program) => (contract = program),
+            (program) => (variant.program = program),
             (error) => onFailure?.(error),
           );
-        active = wantsContract && contract ? contract : unlit;
+          variant.pending = pending;
+          contractPending = pending;
+        }
+        // Le programme du rebond met une image ou deux à se compiler : celui du contrat rend
+        // l'image en attendant, sans rebond, plutôt que de faire attendre l'image.
+        active = (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
         active.bind(surface, depth, hdr, direct);
       },
       /** Attend la compilation du programme du contrat, quand une est en cours. */
@@ -149,7 +175,8 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
         uniform.destroy();
         placeholders.dispose();
         unlit.release();
-        contract?.release();
+        variants.direct.program?.release();
+        variants.bounce.program?.release();
       },
     };
   } catch (error) {

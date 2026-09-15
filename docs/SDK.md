@@ -81,6 +81,60 @@ A directional light's shadows are `sunCascades` (4) cascades following the camer
 
 `setLightingView(view)` selects what the opaque path outputs. `'lit'` is real lighting and nothing else. `'unlit'` is the raw-albedo diagnostic view: base colour as authored, with no light, no ambient and no emission, for geometry benchmarks that compare images pixel by pixel. It is a diagnostic view, not a light. `'auto'` is the default: the unlit view while no light is declared, real lighting as soon as one is. Declaring a light therefore changes the image; declaring none never leaves a black frame.
 
+### Light that bounces (opaque path)
+
+An opaque surface also receives the light that bounced off other surfaces before reaching it. The
+bounce is dynamic: it carries no baked lighting, it depends on no camera, and it follows a light
+that moves or a door that closes.
+
+It rests on a **resident proxy** the native compiler writes beside the cache, as `proxy.bin`. The
+proxy is the coarse cut of the cluster DAG whose certified geometric error stays under
+`proxyErrorMetres` (5 cm), raised per primitive until the whole scene fits `proxyTriangleBudget`
+(300 000 triangles, every instance placed), plus a BVH over it and one linear diffuse albedo per
+triangle. It carries geometry and materials, never light. The threshold it actually reached is
+published in the manifest as `proxy.errorMetres`; on a scene whose DAG does not simplify that far,
+the proxy is the DAG's root level and says so. A cache compiled before this lot carries no `proxy`
+field and stays readable: the bounce is then unavailable and declares it.
+
+At run time a compute pass updates a world-fixed grid of irradiance probes (`explorer.bounceSettings`:
+at most 16 384 probes, a 2 m target spacing widened until the budget holds, probes at cell centres,
+32 rays each, 8 192 probes per frame, at most 512 BVH nodes visited per ray). A probe traces its rays against the proxy, evaluates the
+declared lights at the point it hits — same lights, same logical shadows, traced against the proxy
+rather than the shadow atlas — reads the grid back at that point, which is what gives the higher
+bounce orders, and accumulates the result in order-1 spherical harmonics with an adaptive
+hysteresis. The grid is read from a snapshot frozen before the pass, so the steady image does not
+depend on the order the device scheduled its threads. Once the scene has been swept
+`settledSweeps` (12) times with no declared light changing, the pass is no longer encoded at all: a
+still scene pays nothing, and the `bounce` stage then reads "not measured", never zero.
+
+The deferred resolve adds the interpolated irradiance of the eight surrounding probes, multiplied by
+the pixel's diffuse albedo over pi. Three weights guard the interpolation: the trilinear weight of
+the cell, the surface's own facing — a probe behind it knows nothing about it — and each probe's six
+measured mean distances, which close the leaks through a wall. Where no probe sees the point the
+term is exactly zero: a leak would be light without a source. A probe buried inside a surface
+declares itself unusable rather than spilling the inside of a wall into the next room.
+
+Measured cost, Emerald at 1280x720 on an Apple M2 Max, eight declared point lights, one of them
+moving so the grid never settles: the `bounce` stage takes **79 ms p50** on the general view, for
+262 144 primary rays against a 1 399 633-triangle proxy. The published budget is 0.8 ms, so this
+does not hold it: the cost is dominated by BVH node visits, and halving the traversal bound from
+512 to 128 nodes takes the stage from 79 ms to 27 ms on the same view. A still scene pays nothing.
+Read the bound, the proxy size and the delay before turning the bounce on over a whole city.
+
+The bounce is on by default and costs nothing until a light is declared: the proxy object is read on
+the first frame that carries one. `createExplorer({ bounce: false })` turns it off for the session,
+and the deferred resolve then compiles the direct-only program, exactly the shader of the previous
+lot. `explorer.bounceSettings` publishes every bound above. Emission, transparency and specular are
+not bounced; the proxy carries diffuse albedo only.
+
+`setLightingView('bounce')` is the measurement view: the indirect irradiance alone, multiplied by
+exposure, in linear values with no ACES and no sRGB. It is not an image to look at — it is the
+quantity `scripts/mesure/oracle.mjs` compares against the compiler's own path tracer
+(`web-geometry-oracle`, built by `npm run build:native`), which traces the source triangles with the
+same light and diffuse-material model. The oracle truncates the bounce series at its `bounces`
+count while the engine carries the whole series, so a comparison only means something at a matching
+order.
+
 `setEnvironment({ exposure })` sets camera exposure, applied to linear radiance immediately before ACES. It is not a light: it cannot brighten a surface no declared light reaches, and a scene without lights stays black whatever its value.
 
 The transparent path still uses the authored Three.js light graph and its fixed ambient, so `sceneLighting?: THREE.Object3D` still supplies that graph (falling back to the loaded glTF graph, then to a hemisphere/sun rig), still adapts directional, point, spot, hemisphere and ambient lights to a bounded buffer (maximum 256 visible lights; excess and unsupported types fail explicitly), and `explorer.refreshSceneLighting()` still applies after adding or removing lights there. Extending the no-implicit-light rule to transparents is a later lot. Environment-map lighting, area lights, probes and global illumination are not implemented.

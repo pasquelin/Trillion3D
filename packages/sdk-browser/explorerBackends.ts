@@ -4,6 +4,7 @@ import { autonomousPagesBackend } from './autonomousPages.ts';
 import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore } from '../sdk-core/index.ts';
+import { createSceneProxyReader } from './sceneProxyLoad.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
 import type { ExplorerSession } from './explorerSession.ts';
@@ -18,6 +19,8 @@ type Inputs = {
   directGpu: boolean;
   autonomous: boolean;
   backends: RenderBackend[];
+  /** Base d'url du manifeste : c'est elle qui situe l'objet de cache du proxy résident. */
+  base: string;
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
@@ -32,6 +35,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     directGpu,
     autonomous,
     backends,
+    base,
   } = inputs;
   const { indices, streamer, attachCap, cacheCap, preload } = pageSources;
   const viewport: [number, number] = [canvas.width, canvas.height];
@@ -59,6 +63,10 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     atlasClasses: options.atlasClasses ?? 1,
     stageProfile: options.stageProfile === true,
     sceneLighting: sceneLightingSource,
+    // La lumière qui rebondit est active par défaut : elle n'ajoute rien tant qu'aucune lampe
+    // n'est déclarée, et l'hôte la coupe explicitement quand il veut le direct seul.
+    bounce: options.bounce,
+    readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
     // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.
     sceneLights: createSceneLightStore(),
   };

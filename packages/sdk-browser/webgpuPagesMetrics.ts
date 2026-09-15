@@ -116,6 +116,8 @@ export function disposeWebgpuPages(
   gpu.lights?.dispose();
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
+  rt.bounce.probes?.dispose();
+  rt.bounce.probes = undefined;
   rt.lights.cull?.dispose();
   rt.lights.spheres?.buffer.destroy();
   rt.lights.spheres = undefined;

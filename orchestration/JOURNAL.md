@@ -46,6 +46,135 @@ Les lignes « échantillon » portent sur une image sur seize (21 images, 45 560
 - **Non mesuré, `null`** : le plafond de qualité de Basis Universal (qualité 100, effort 10). Passe lancée sur sept images, interrompue après 6 min 46 s de temps mur et 37 min de CPU, machine saturée. Sans effet sur le verdict — le plafond de **BC7**, lui, est mesuré (`alpha_slow` / `opaque_slow` d'ISPC) et reste 19 500 fois au-dessus du seuil.
 - **Points d'insertion relevés pour ce chantier**, à qui le prendra : écriture d'objet `compiler_storage.rs:20` (`store_object`), exemple d'appel `compiler_primitive.rs:145-158` ; étape appelée depuis `compiler_build.rs:107-115`, colonnes du sidecar déclarées en `manifest_binary.rs:39-61` et relues par `packages/sdk-core/manifestBinaryFormat.ts:47-129`, version refusée par son nom en `manifestBinaryRead.ts:27-31` ; annulation par `check(o)` (`lib.rs:95`) ; côté moteur **rien à écrire** — `webgpuAtlasJobs.ts:112-125` a déjà le chemin « octets RGBA bruts en mémoire », alimenté par `textureRgba` (`visibilityTypes.ts:139`) depuis `webgpuAtlasCommon.ts:113`.
 - **Reste** : le chantier ci-dessus s'il est voulu ; lot 5, conditionnel ; la réutilisation du pipeline de `textureMips.ts` ; **aucune fixture dorée ne porte encore de texture couleur** ; et une ligne périmée à corriger — `docs/SDK.md:153` promet encore « its 16x16 preview », que le lot 3 a remplacé par les niveaux progressifs du sidecar.
+## 2026-09-15 — lot « rebond 1 » : la lumière qui rebondit, proxy résident et oracle
+
+Branche `lot/rebond-1`, sur `develop` = `8cb7e21`. `npm run validate` vert. **Le format du sidecar
+binaire n'est pas touché** : le proxy est un objet de cache à son nom, et un cache d'avant ce lot
+reste lisible mot pour mot — le rebond y est simplement déclaré indisponible.
+
+### Les règles livrées
+
+- **Proxy résident (LC1)**, écrit par le binaire Rust à côté de `clusters.json`, sous le nom
+  `proxy.bin` : la coupe plate du DAG dont l'erreur certifiée passe sous `proxyErrorMetres` (5 cm),
+  seuil doublé primitive par primitive jusqu'à ce que la scène entière tienne dans
+  `proxyTriangleBudget` (300 000 triangles, toutes instances posées), plus un BVH par médiane et un
+  albédo diffus linéaire par triangle. Le seuil réellement obtenu est publié. Aucune lumière n'y est
+  cuite. La part de budget d'une primitive est proportionnelle à ce qu'elle pèse une fois instanciée :
+  le facteur d'instance s'annule, une primitive posée mille fois sort mille fois plus grossière.
+- **Sondes d'irradiance (LR4)** : une grille fixe dans le monde, posée sur l'emprise du proxy, sondes
+  **au centre des mailles** — une sonde au coin de l'emprise tombe dans le mur qui la borne et n'y
+  voit rien. Chaque sonde lance 32 rayons contre le proxy, évalue au point touché les lampes
+  déclarées — mêmes lampes, ombres tracées contre le proxy et non contre l'atlas — relit la grille au
+  même point, ce qui donne les ordres supérieurs, et accumule en harmoniques sphériques d'ordre 1.
+  **La grille est lue sur un instantané figé avant la passe** : l'image à l'état stable ne dépend pas
+  de l'ordre dans lequel la carte a ordonnancé ses fils, et deux exécutions rendent la même moyenne
+  au quatre-millième près (214,8809 deux fois).
+- **Hystérésis adaptative** : moyenne courante tant que l'estimation est stable, reprise à 80 % dès
+  qu'elle saute. **Travail nul en scène immobile** : après `settledSweeps` (12) balayages sans qu'une
+  lampe ait changé, la passe n'est plus encodée du tout et l'étape « Rebond » vaut « non mesuré ».
+- **Application** : la résolution différée ajoute l'irradiance interpolée de huit sondes, multipliée
+  par l'albédo diffus du pixel sur π. Trois pondérations : trilinéaire, dos de la surface, et les six
+  distances moyennes mesurées par chaque sonde, qui referment les fuites à travers les murs. Là où
+  aucune sonde ne voit le point, le terme vaut **exactement zéro** — une fuite serait de la lumière
+  sans source. Une sonde enterrée dans une surface se déclare inutilisable (critère de distance,
+  jamais de sens d'enroulement : celui-ci n'est fiable sur aucune scène importée).
+- **Trois programmes différés, jamais une branche** : vue sans éclairage, contrat seul, contrat plus
+  rebond. Une session sans rebond exécute exactement le nuanceur du lot précédent.
+- **Oracle (LC5)** : second binaire `web-geometry-oracle` dans le crate Rust. Traceur de chemins sur
+  les **triangles sources**, son propre BVH, même modèle de lampes et de diffus, échantillonnage en
+  cosinus, graine par pixel donc image reproductible quel que soit le nombre de fils. Il ne lit ni le
+  proxy, ni la grille : seule la palette d'albédo est partagée avec le compilateur, pour que la
+  comparaison mesure le transport et non deux lectures de matériau.
+- **Vue de mesure** : `setLightingView('bounce')` sort l'irradiance indirecte nue, multipliée par
+  l'exposition, sans ACES ni sRGB. `scripts/mesure/oracle.mjs` la compare à l'oracle et mesure le
+  retard de convergence après déplacement d'une lampe.
+
+### Chiffres du proxy
+
+| scène                            | triangles source |     proxy |   nœuds |      octets | seuil obtenu |
+| -------------------------------- | ---------------: | --------: | ------: | ----------: | -----------: |
+| pièce de contrôle (12 triangles) |               12 |        12 |       3 |       604 o |       0,05 m |
+| Emerald                          |       10 046 405 | 1 399 633 | 524 287 | **74,9 Mo** |    3 276,8 m |
+
+Le budget de 300 000 triangles **n'est pas atteignable sur Emerald** : le seuil a parcouru toute
+l'échelle (seize doublements) sans que la coupe y entre, parce que le **niveau racine du DAG pèse
+déjà 1,4 million de triangles** — la simplification ne va pas plus loin. Le proxy d'Emerald est donc
+son niveau racine, 74,9 Mo lus une fois et résidents. Le sidecar binaire, lui, est inchangé.
+
+### Fidélité, rebond éteint
+
+`banc.mjs`, WebGPU, Emerald, trois vues, 1280×720, `pixelError 0`, `auto` sans lampe, cache v4
+recompilé, 40 images de chauffe. **`8cb7e21` (la base du lot) contre le lot : 0 px, max canal 0, sur
+`generale`, `sol` et `rue`**, coupe identique, témoin A/A à 0 px, 0 erreur de page.
+
+Réserve à signaler : contre le `develop` du moment (`21dbe9e`, lot 4 des textures), `generale`
+diffère de 2 083 px et **sélectionne 5 093 246 triangles contre 10 046 405** — deux coupes
+différentes, des deux côtés reproductibles. Ce n'est pas ce lot : contre sa propre base, l'écart est
+nul. C'est à regarder par qui a écrit le lot 4.
+
+### Écart à l'oracle et retard, sur la pièce de contrôle
+
+Pièce fermée 8 × 3 × 8 m, un mur rouge (0,75 / 0,06 / 0,06), les autres blancs, sol gris, une lampe
+ponctuelle à ombre. Vue `bounce` du moteur, convergée, contre l'oracle à huit rebonds, 128 rayons par
+pixel, 160 × 120, exposition 0,05 :
+
+| grandeur                                            |                                  valeur |
+| --------------------------------------------------- | --------------------------------------: |
+| écart moyen                                         |                              **15,4 %** |
+| écart médian                                        |                                  13,1 % |
+| écart p95                                           |                                  36,2 % |
+| moyenne moteur / oracle                             | 0,2070 / 0,2148 (**3,6 % plus sombre**) |
+| canaux écrêtés par les huit bits de la capture      |                                       0 |
+| retard de convergence après déplacement de la lampe |            **5 images = 83 ms à 60 Hz** |
+
+La cible de 10 % d'écart moyen **n'est pas tenue** : 15,4 %. Le biais, lui, est faible (3,6 %) ; ce
+qui reste est la dispersion, dominée par l'interpolation entre huit sondes espacées de 2 m dans une
+pièce de 8 m et par la base d'ordre 1. Le retard, lui, tient la cible de 100 ms.
+
+Deux constats de méthode, gagnés en route : le moteur porte **toute la série de rebonds** (la grille
+se relit elle-même), donc une comparaison à un oracle tronqué à deux rebonds n'a aucun sens — à deux
+rebonds l'écart montait à 54 %, à quatre 18 %, à huit 15,4 %. Et la portée des rayons doit couvrir la
+scène : bornée au tiers de la diagonale, le moteur perdait 11 % de lumière parce qu'un rayon ne
+traversait plus la pièce.
+
+### Coût, Emerald, huit lampes dont une mobile
+
+1280 × 720, WebGPU, 180 images de profil, machine à 20–50 de charge (durées processeur inutilisables,
+relevés GPU par horodatage) :
+
+| vue      | image entière avant | image entière après | étape Rebond (GPU) | rayons/image |
+| -------- | ------------------: | ------------------: | -----------------: | -----------: |
+| générale |       20,58 / 21,64 |      99,83 / 103,98 |  **79,25 / 83,47** |      262 144 |
+| sol      |       14,24 / 22,35 |     114,40 / 140,92 | **97,33 / 109,29** |      262 144 |
+| rue      |       10,66 / 11,18 |       90,40 / 93,68 |  **79,39 / 82,64** |      262 144 |
+
+**Le budget de 0,8 ms n'est pas tenu, de deux ordres de grandeur.** Le coût est dominé par les
+visites de nœuds du BVH, pas par le nombre de rayons : à budget divisé par huit (1 024 sondes,
+32 768 rayons) l'étape ne descend qu'à 67,8 ms, tandis qu'à borne de traversée divisée par quatre
+(128 nœuds au lieu de 512) elle tombe à **27,0 ms** à rayons inchangés.
+
+**Scène immobile : zéro travail, mesuré.** Sans lampe mobile, après convergence, `sondesMisesAJour`
+vaut **0**, `rayonsParImage` **0**, la passe n'est plus encodée et l'étape Rebond vaut « non mesuré ».
+L'image est alors **identique au pixel près** à celle d'avant le lot sur les trois vues — parce qu'aux
+lampes génériques du harnais (portée 81 m, intensité 40) l'irradiance indirecte d'Emerald reste **sous
+le quantum des huit bits**. Le rebond y coûte donc sans se voir : c'est un réglage de scène, pas un
+défaut du mécanisme, et la pièce de contrôle le montre bien visible.
+
+### Ce qui reste, chiffré
+
+- **Coût.** Tenir 0,8 ms à 512 nœuds visités demanderait environ **2 650 rayons par image**, soit un
+  balayage de la grille d'Emerald en 3,3 s : hors de portée en l'état. Les trois leviers, dans
+  l'ordre du gain mesuré ou calculable : borne de traversée (mesuré, ×2,9 de 512 à 128), **BVH large
+  et traversée ordonnée d'avant en arrière** (calculé : 2 à 4× de moins de nœuds visités), et
+  **proxy plus petit** — les 1,4 M de triangles d'Emerald sont le plancher du DAG actuel, il faudrait
+  une décimation propre ou le cache de surfaces (LR5) pour descendre.
+- **Cache de surfaces (LR5)** : il remplacerait la relecture de la grille au point touché par une
+  lecture de texel, supprimerait le second rayon d'ombre par lampe et rendrait le multi-rebond
+  gratuit. C'est le lot suivant.
+- **Grille clairsemée ou en cascades** : sur Emerald, 25 sondes sur la verticale couvrent 113 m dont
+  l'essentiel est du ciel vide. Une grille suivant la caméra diviserait le nombre de sondes utiles
+  par un facteur que seule une mesure dira.
+- **Émission, transparents, spéculaire indirect** : hors de ce lot, déclarés manquants.
 
 ## 2026-09-15 — lot 3 fusionné : une seule classe d'atlas par défaut, la seconde en option
 

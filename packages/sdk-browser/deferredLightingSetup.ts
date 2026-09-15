@@ -3,9 +3,10 @@ import { SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 /**
  * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
  * le programme du contrat ajoute les lampes déclarées, leurs listes par tuile, leurs tranches
- * d'ombre et l'atlas. Aucun des deux ne lit de lumière écrite dans la scène : il n'y en a plus.
+ * d'ombre et l'atlas ; celui du rebond y ajoute la grille de sondes. Aucun des trois ne lit de
+ * lumière écrite dans la scène : il n'y en a plus.
  */
-export function createDeferredLayouts(device: GPUDevice, direct: boolean) {
+export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
   const entries: GPUBindGroupLayoutEntry[] = [0, 1, 2, 3, 4].map((binding) => ({
     binding,
     visibility: GPUShaderStage.FRAGMENT,
@@ -21,6 +22,13 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean) {
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
+    );
+  // La grille de sondes et leurs coefficients : liées seulement par le programme du rebond, si
+  // bien qu'une session sans rebond garde exactement la disposition d'avant.
+  if (bounce)
+    entries.push(
+      { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
     );
   return {
     lighting: device.createBindGroupLayout({ entries }),
