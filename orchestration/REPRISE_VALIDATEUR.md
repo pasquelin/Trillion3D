@@ -28,17 +28,17 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 
 `origin/develop` est passé de `db17059` à `5b95b4c` en dix poussées, chacune avec `npm run validate` vert sur le SHA poussé exactement :
 
-| SHA | Contenu |
-| --- | --- |
-| `9cd6a44` | rôles et incident des trois validateurs |
-| `f4308bf` | check-links, `webp`, PNG 16 bits + bump de version, `exr`/`hdr` (contrat `image-plugin-2`), ombre lointaine sur la passe de mélange |
-| `ffdd01e` | `ktx2` (Basis, Zstd) |
-| `b6dbae3` | doc du Compilateur après la vague 3 |
-| `e756b46` | lot `cpu-fixe` de Geometry : CPU 7,70 → 5,90 ms, 0 px |
-| `62763d3`, `7930314` | docs Geometry, Lumière, spec du socle mathématique |
-| `3979661` | formules communes Rust : 28 copies → 8 fonctions, bit à bit identique |
-| `8a5beca` | formules communes TS/WGSL : 18 doublons, campagne 0 px |
-| `5b95b4c` | pilote `alembic` (lecteur Ogawa écrit sans crate) |
+| SHA                  | Contenu                                                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `9cd6a44`            | rôles et incident des trois validateurs                                                                                             |
+| `f4308bf`            | check-links, `webp`, PNG 16 bits + bump de version, `exr`/`hdr` (contrat `image-plugin-2`), ombre lointaine sur la passe de mélange |
+| `ffdd01e`            | `ktx2` (Basis, Zstd)                                                                                                                |
+| `b6dbae3`            | doc du Compilateur après la vague 3                                                                                                 |
+| `e756b46`            | lot `cpu-fixe` de Geometry : CPU 7,70 → 5,90 ms, 0 px                                                                               |
+| `62763d3`, `7930314` | docs Geometry, Lumière, spec du socle mathématique                                                                                  |
+| `3979661`            | formules communes Rust : 28 copies → 8 fonctions, bit à bit identique                                                               |
+| `8a5beca`            | formules communes TS/WGSL : 18 doublons, campagne 0 px                                                                              |
+| `5b95b4c`            | pilote `alembic` (lecteur Ogawa écrit sans crate)                                                                                   |
 
 En cours au moment d'écrire : `usd`/`usdz` fusionné dans la branche du validateur (`426bb8f`), sept conflits résolus, 238 tests Rust verts, `npm run validate` lancé. Reste attendu : `compilateur/blend`, puis le banc miroir de Lumière et les coplanaires de Geometry à leur reprise.
 
