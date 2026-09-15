@@ -47,7 +47,7 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
     return;
   }
   writeCpuTransparentInstances(blendState, run.drawn, (rec) => {
-    const page = rt.layout.rows.pageIndexByRec.get(rec);
+    const page = rt.layout.rows.pageIndexOf(rec);
     return page === undefined ? -1 : table.entryOfPage[page];
   });
   compaction.uploadInstances(
