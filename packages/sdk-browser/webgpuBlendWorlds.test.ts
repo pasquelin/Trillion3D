@@ -13,7 +13,8 @@ function item(position: THREE.Vector3) {
   mesh.position.copy(position);
   mesh.updateMatrixWorld(true);
   const matrix = new THREE.Matrix4().copy(mesh.matrixWorld);
-  const bounds = geometry.boundingBox.clone().applyMatrix4(matrix);
+  const box = geometry.boundingBox.clone().applyMatrix4(matrix);
+  const bounds = Float64Array.of(...box.min.toArray(), ...box.max.toArray());
   return {
     matrix,
     bounds,
@@ -27,15 +28,14 @@ test('une scène immobile ne retransporte aucune boîte, et une matrice qui boug
     mobile = item(new THREE.Vector3(0, 0, 0));
   const items = [fixe, mobile];
   assert.equal(refreshBlendWorlds(items), 0, 'rien n’a bougé depuis la préparation');
-  const boiteFixe = fixe.bounds!.clone();
+  const boiteFixe = fixe.bounds!.slice();
 
   mobile.sourceMesh.position.set(0, 5, 0);
   mobile.sourceMesh.updateMatrixWorld(true);
   assert.equal(refreshBlendWorlds(items), 1, 'seul l’item déplacé est repris');
-  assert.deepEqual(mobile.bounds!.min.toArray(), [-1, 4, -1]);
-  assert.deepEqual(mobile.bounds!.max.toArray(), [1, 6, 1]);
+  assert.deepEqual(Array.from(mobile.bounds!), [-1, 4, -1, 1, 6, 1]);
   assert.deepEqual(mobile.matrix.elements, [...mobile.sourceMesh.matrixWorld.elements]);
-  assert.deepEqual(fixe.bounds!.min.toArray(), boiteFixe.min.toArray(), 'l’autre n’a pas bougé');
+  assert.deepEqual(fixe.bounds!, boiteFixe, 'l’autre n’a pas bougé');
 
   assert.equal(refreshBlendWorlds(items), 0, 'la matrice reprise est celle du maillage');
 });

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setGeometryBounds } from './threeBounds.ts';
 import { type BatchPage, DrawRanges, IndexRangeAllocator } from './clusterBatchRange.ts';
 import { ClusterDrawMesh } from './clusterBatchMesh.ts';
 
@@ -28,7 +29,8 @@ export class PrimitiveIndex {
     attributes: THREE.BufferGeometry['attributes'],
     urlIndexByPage: Int32Array,
     lengths: Int32Array,
-    bounds: THREE.Box3,
+    min: ArrayLike<number>,
+    max: ArrayLike<number>,
   ) {
     this.urlIndexByPage = urlIndexByPage;
     let capacity = 0;
@@ -40,9 +42,7 @@ export class PrimitiveIndex {
     this.stamps = new Int32Array(lengths.length);
     this.geometry.attributes = { ...attributes };
     this.geometry.setIndex(this.attribute);
-    this.geometry.boundingBox = bounds.clone();
-    this.geometry.boundingSphere = new THREE.Sphere();
-    bounds.getBoundingSphere(this.geometry.boundingSphere);
+    setGeometryBounds(this.geometry, min, max);
   }
   /** Recrée le tampon plus grand : filet de sécurité si une page dépasse la taille annoncée par le manifeste. */
   private growTo(capacity: number) {
