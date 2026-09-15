@@ -54,8 +54,10 @@ glTF avec `manifest.json` :
 Lab en lecture seule (`AGENTS.md`) : lu comme source, jamais écrit. Le cache de sortie va dans le
 scratchpad de la session, jamais dans le Lab.
 
-Commande exacte exécutée (binaire construit par `npm run build:native`, une exécution, machine non
-isolée d'autres sessions actives — pas une médiane de 5, voir `protocole-mesure.md`) :
+Commande exécutée (binaire construit par `npm run build:native`, une exécution, machine non
+isolée d'autres sessions actives — pas une médiane de 5, voir `protocole-mesure.md`).
+**Non rejouable telle quelle** : `<scratchpad>` remplace ici le chemin réel du cache de session,
+dans la commande comme dans le JSON ci-dessous. Tout le reste est collé verbatim.
 
 ```
 packages/asset-compiler-rust/target/release/web-geometry-compiler \
@@ -142,12 +144,12 @@ fixtures `packages/asset-compiler-rust/fixtures/`.
 
 | Sujet | Valeur, ou renvoi |
 |---|---|
-| branche | une seule branche vivante `develop` ; tout travail dans un worktree isolé créé depuis `develop` (`AGENTS.md`) |
+| branche | une seule branche vivante `develop` ; tout travail dans un worktree isolé créé depuis `develop` (`orchestration/JOURNAL.md` ; **pas** dans `AGENTS.md`) |
 | worktree | `git worktree add .claude/worktrees/<nom> -b <branche> develop` |
 | commit | français, style `type(scope): résumé` (voir historique), sans ligne d'attribution quand l'utilisateur le demande |
-| merge | fusion dans `develop` après validation complète ; jamais de commit direct sur `develop` hors fusion ; jamais de `git stash` |
-| mots interdits | « Nanite », « Unreal » — dire « géométrie virtualisée », « DAG de clusters » |
-| ports interdits | 5174 (serveur de l'utilisateur) |
+| merge | fusion dans `develop` après validation complète ; jamais de commit direct sur `develop` hors fusion ; jamais de `git stash` (`orchestration/JOURNAL.md`) |
+| mots interdits | les noms du système de géométrie virtualisée d'Epic et de son moteur ne s'écrivent nulle part dans le dépôt (`AGENTS.md`) — dire « géométrie virtualisée », « DAG de clusters » |
+| ports interdits | 5174, serveur de l'utilisateur (`orchestration/JOURNAL.md`, `docs/SDK.md`) |
 | zones en lecture seule | `render-tech-lab`, `public/benchmark-assets` |
 
 ## Seuils
@@ -161,6 +163,10 @@ fixtures `packages/asset-compiler-rust/fixtures/`.
 | duplication | ≥ 12 lignes et ≥ 100 tokens, JS/TS/Rust croisés (`jscpd`) | — |
 
 ## Capacités
+
+Relevé du 2026-09-15 sur `develop` à `2f4224e`. **Les chiffres de cette table ne se
+revalident pas tout seuls** : `develop` a avancé depuis, rejouer `npm run validate` avant de s'y
+fier.
 
 | Capacité | État | Raison si N/A · outillage si non vérifiable |
 |---|---|---|
