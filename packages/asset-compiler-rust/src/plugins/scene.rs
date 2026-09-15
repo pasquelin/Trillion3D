@@ -11,6 +11,7 @@ use std::{
     sync::atomic::AtomicBool,
 };
 
+mod alembic;
 mod archive;
 mod fbx;
 mod gltf;
@@ -34,6 +35,7 @@ pub static PLUGINS: &[&dyn ScenePlugin] = &[
     &unity::UNITY,
     &zip::ZIP,
     &unitypackage::UNITYPACKAGE,
+    &alembic::ALEMBIC,
 ];
 
 /// Tout ce qu'un pilote reçoit pour préparer une scène.

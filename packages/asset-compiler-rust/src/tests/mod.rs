@@ -5,6 +5,7 @@ mod golden;
 use base::*;
 use fixtures::*;
 use golden::*;
+mod alembic_golden;
 mod apercus_golden;
 mod apercus_import;
 mod apercus_source;
