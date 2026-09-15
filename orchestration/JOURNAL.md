@@ -3517,3 +3517,142 @@ forcément en retard de la même image. Le verdict qui compte, le pixel, est à 
 - **Rembourrage de la table** : les clusters transparents sont alignés par primitive sur 64 entrées.
   Une scène à des milliers de primitives transparentes minuscules paierait ce rembourrage ; Emerald
   a 29 primitives `clustered-blend`, la scène synthétique une.
+
+## 2026-09-16 — [session sans-threejs] l'eau et le verre épais existent (lot eau)
+
+Worktree `lot-eau`, branche `lot/eau`, rebasée sur `0a3c601`. Deux commits. **Aucune version de
+manifeste n'a bougé, aucun produit de cache n'a été ajouté** : la transmission voyage par le glTF
+source déjà chargé et par un tampon d'uniformes interne au moteur.
+
+### 1. Le chargement accepte une primitive hors DAG
+
+`assertCacheIdentity` exigeait une bande d'erreur par cluster de *chaque* primitive. Une primitive
+que le compilateur garde d'un seul tenant — `pass: "shared-blend"` — n'a aucun cluster, donc aucune
+bande, et c'est sa définition, pas une lacune : un cache qui en portait une était refusé en bloc, et
+une eau importée rendait la scène entière illisible. `primitiveIsDrawable` (`geometryContracts.ts`)
+énonce maintenant les deux formes que ce runtime sait dessiner, et deux seulement : un DAG dont
+chaque cluster porte sa bande, ou un maillage d'un seul tenant **sans aucune page**. Une primitive
+`shared-blend` qui porterait quand même des pages reste refusée, et le message le dit.
+
+### 2. Le classement au compilateur ne bouge pas, et il est désormais fixé
+
+`unsplit_material` déclarait déjà transmissif tout matériau dont
+`KHR_materials_transmission.transmissionFactor` dépasse zéro, et `compile_primitive` le rangeait déjà
+en `shared-blend`. Rien n'a changé là ; ce qui manquait était la preuve que l'arrivée de la classe 3
+ne déplace pas les autres. `compile_ranks_every_material_class_by_its_own_property` compile la même
+géométrie sous quatre matériaux et fixe les quatre rangements : opaque et `MASK` en `exact-clusters`
+avec leurs pages, `BLEND` en `clustered-blend` avec les siennes, transmission en `shared-blend` sans
+aucune. `compile_ranks_a_zero_transmission_by_its_alpha_mode` ajoute qu'une transmission nulle n'est
+pas une transmission.
+
+### 3. La passe de transmission
+
+Après les opaques et après les mélanges, dans l'ordre source, test de profondeur `less` sans
+écriture, même mélange. Deux `copyTextureToTexture` figent le fond — la cible HDR et la profondeur
+vers `rgba16float` et `depth32float` en lecture seule. C'est ce que *toutes* les surfaces
+transmissives lisent : l'ordre entre deux d'entre elles ne change donc pas ce qu'elles voient.
+
+- **Réfraction** : le rayon de vue est dévié par `1/ior`, avancé de `thicknessFactor`, le point de
+  sortie reprojeté à l'écran, et c'est là qu'on relit la couleur. Un échantillon dont la profondeur
+  copiée le place *devant* la surface est rejeté : on retombe sur l'échantillon non dévié.
+- **Atténuation** : `exp(-sigma·thickness)` avec `sigma = -log(attenuationColor)/attenuationDistance`.
+  Une distance nulle veut dire pas d'atténuation.
+- **Réflexion** : Fresnel de Schlick, `f0 = ((ior-1)/(ior+1))²`, appliqué à ce que la scène déclare —
+  l'irradiance des sondes dans la direction du miroir, exactement zéro sans grille de sondes — plus
+  le spéculaire des lampes déclarées, obtenu en évaluant `declaredLighting` sur un albédo nul : le
+  lobe diffus s'annule de lui-même, le lobe spéculaire diélectrique reste. Une seule formule
+  d'éclairement dans le moteur, pas une de plus, et aucune lumière propre à cette passe (P6).
+- **Composition** : la part transmise remplace le mélange alpha, comme le modèle de glTF.
+  `a = alpha + t(1-alpha)` et `a·C = t((1-F)·transmis + F·réfléchi) + (1-t)·alpha·éclairé`. À `t = 0`
+  on retrouve la couleur et l'opacité de la classe 2 **au bit près** : c'est ce qui rend le verdict
+  Emerald atteignable, et c'est ce que la mesure confirme.
+
+**La normale du côté d'où l'on regarde.** Premier rendu : l'eau sortait parfaitement noire. Cause,
+isolée par construction : la scène n'a pas d'attribut de normale, donc la normale vient des dérivées
+d'écran et peut arriver tournée à l'envers ; `dot(N,V)` négatif donnait `F = 1`, la part transmise
+disparaissait et la réflexion ne la remplaçait pas. La passe retourne maintenant la normale du côté
+de l'œil avant Fresnel et avant la réfraction — on entre toujours dans le volume par la face qu'on
+voit. Vaut pour toute surface simple face et pour tout maillage sans normales, pas pour cette scène.
+
+**Ce que la classe coûte quand elle est absente.** `blendState.transmissive` vaut alors zéro : les
+deux copies font un texel, aucune copie n'est encodée, la seconde passe n'existe pas, aucun item ne
+porte le drapeau. Les trois liaisons ajoutées à la disposition des mélanges existent quand même — une
+disposition ne dépend pas de la scène — et le budget d'image ne compte les douze octets par pixel du
+fond que si la scène en a besoin.
+
+### Preuve — Emerald, là où la classe est absente
+
+Harnais commun, `--moteur webgpu`, 1280×720, 60 images, chauffe par défaut, `--max-pages 100000`,
+`--camera-mobile`, `avant = 0a3c601` (tête de `develop`), `apres` = ce lot. Cache Emerald du Lab, le
+même des deux côtés.
+
+| vue · seuil  | écart avant/après | témoin A/A | hash de coupe | triangles sélectionnés | non couverts |
+| ------------ | ----------------- | ---------- | ------------- | ---------------------- | ------------ |
+| générale · 0 | **0 px**          | 0 px       | identique     | 6 747 087              | 0            |
+| sol · 0      | **0 px**          | 0 px       | identique     | 1 992 781              | 0            |
+| rue · 0      | **0 px**          | 0 px       | identique     | 1 459 758              | 0            |
+| générale · 1 | **0 px**          | 0 px       | identique     | 1 599 951              | 0            |
+| sol · 1      | **0 px**          | 0 px       | identique     | 969 373                | 0            |
+| rue · 1      | **0 px**          | 0 px       | identique     | 655 125                | 0            |
+
+Max canal 0 sur les six couples. La classe 3 ne déplace donc rien là où elle est absente, y compris
+sous une caméra qui bouge.
+
+Une réserve consignée, qui ne vient pas de ce lot : le relevé compte 38 erreurs de page, soit
+19 requêtes 404 sur une page du cache Emerald du Lab et les 19 messages de console correspondants.
+Les deux côtés lisent le même cache et subissent le même manque ; `uncoveredTriangles` vaut 0 partout,
+donc aucun trou. À signaler à qui recompilera ce cache.
+
+### Preuve — la scène synthétique, là où la classe est présente
+
+`packages/asset-compiler-rust/fixtures/classes-materiaux/transmission.gltf` a été enrichie : un plan
+d'eau à `y = 0` au-dessus d'un sol à `y = -2,5` et de trois blocs opaques, dont deux percent la
+surface. Une scène sans rien derrière l'eau n'aurait rien prouvé. 2 880 triangles ; le compilateur
+range les quatre maillages opaques en `exact-clusters` et l'eau en `shared-blend`.
+
+Le cache se charge — c'était le premier verrou et il est levé. Deux vues × deux seuils, `--moteur
+webgpu` : **témoin A/A 0 px, 4 fois sur 4**, hash de coupe identique, `uncoveredTriangles` 0. Et
+l'eau est dessinée : les parties immergées des blocs apparaissent à travers elle, assombries et
+teintées par l'atténuation du volume, la ligne d'eau coupant chaque bloc en deux.
+
+### L'écart avec la référence indépendante, et ce qu'il mesure vraiment
+
+Le chemin témoin `--moteur webgl` dessine bien la transmission, par la passe de Three.js. L'écart au
+pixel entre les deux moteurs est de **174 268 px (18,91 %, max canal 231)** en vue générale et
+**427 395 px (46,38 %)** en vue de détail.
+
+**Ce chiffre ne mesure pas la transmission.** Les deux moteurs ne reçoivent pas la même lumière : les
+lampes du harnais sont déclarées par le contrat `SceneLight`, que seul le chemin WebGPU lit, si bien
+que le témoin Three rend toute surface opaque noire pendant que le nôtre rend la vue sans éclairage
+en albédo brut. Contrôle construit pour l'isoler : la **même comparaison sur `classes-materiaux`, une
+scène qui ne porte aucune transmission**, donne **206 471 px (22,40 %)** et **544 747 px (59,11 %)** —
+*plus* que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
+l'arrivée de la transmission le *réduit*, parce que l'eau assombrit notre image vers celle du témoin.
+Une comparaison de fidélité qui porte sur la transmission seule demande que le témoin reçoive les
+lampes du contrat ; ce n'est pas dans ce lot, et c'est nommé ci-dessous.
+
+### Durées
+
+Relevées **machine chargée** : trois bancs concurrents tournaient pendant ces campagnes, et le
+harnais consigne la charge. Les verdicts pixel n'en dépendent pas — ce sont des comparaisons d'images
+—, les durées si. Elles sont à rejouer au calme à la livraison finale et ne sont pas publiées ici
+comme un résultat.
+
+### Ce qui reste
+
+- **Le témoin Three ne reçoit pas les lampes du contrat**, donc aucune comparaison de fidélité
+  chiffrée n'est possible entre les deux moteurs tant que la scène porte une lampe déclarée. C'est ce
+  qui manque pour transformer l'écart ci-dessus en une mesure de la transmission.
+- **Deux surfaces transmissives qui se recouvrent ne se voient pas l'une à travers l'autre** : elles
+  lisent le même fond figé. Limite connue et voulue, la même que celle du visualiseur de référence
+  glTF.
+- **Un verre dépoli lit un fond net** : la chaîne de mips de la copie, qui flouterait le fond selon la
+  rugosité, n'est pas écrite.
+- **La transmission reste hors du DAG.** Le fond étant figé avant la passe, plus rien ne l'y empêche ;
+  le classement du compilateur serait alors le seul changement.
+- **Le chemin non texturé** (appareil sans pipeline de matériaux) dessine une surface transmissive
+  comme un mélange ordinaire : la passe de transmission demande l'atlas et le fond figé.
+- **Rembourrage de la table** : les clusters transparents restent alignés par primitive sur
+  64 entrées. Ce n'était pas dans le chemin de ce lot — l'alignement est structurel à la somme
+  préfixe par groupe de la compaction, et une primitive transmissive est `shared-blend`, donc absente
+  de cette table.
