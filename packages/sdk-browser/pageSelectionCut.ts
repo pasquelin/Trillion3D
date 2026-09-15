@@ -1,4 +1,4 @@
-import { maxStretch } from '../sdk-core/index.ts';
+import { frustumExcludesBox, frustumPlanesFromMatrix, maxStretch } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
@@ -31,10 +31,12 @@ export function selectVisiblePages<T extends PageRecord>(
   const viewport = options.viewport,
     hold = !!options.holdResident;
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
-  const { frustum, matrix, viewMatrix } = selectionScratch;
+  const { worldPlanes, matrix, viewMatrix } = selectionScratch;
   camera.updateMatrixWorld();
-  frustum.setFromProjectionMatrix(
-    matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse),
+  frustumPlanesFromMatrix(
+    worldPlanes,
+    matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
+    false,
   );
   pixelScaleOf(camera, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
@@ -74,7 +76,8 @@ export function selectVisiblePages<T extends PageRecord>(
     state.complete = true;
     for (const root of roots) {
       if (state.over) return;
-      if (root.worldBox && !frustum.intersectsBox(root.worldBox)) {
+      const box = root.worldBox;
+      if (box && frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])) {
         state.frustumRejected++;
         continue;
       }

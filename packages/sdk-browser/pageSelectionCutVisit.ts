@@ -1,5 +1,6 @@
 import { coneSkipsPage } from './pageSelectionHelpers.ts';
-import { boxClip, cutSelects, projectedClusterError } from './pageSelectionMath.ts';
+import { frustumClipBox } from '../sdk-core/index.ts';
+import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
 import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
@@ -7,8 +8,8 @@ import { BOUND_STRIDE } from './pageSelectionCutBounds.ts';
 import { nodeDecision, nodeDecisionAtZero } from './pageSelectionCutNode.ts';
 
 /** Frustum test of a page's world box against the selection planes. */
-function boxClipRec(min: readonly number[], max: readonly number[]) {
-  return boxClip(selectionScratch.planes, min[0], min[1], min[2], max[0], max[1], max[2]);
+function clipRecordBox(min: readonly number[], max: readonly number[]) {
+  return frustumClipBox(selectionScratch.planes, min[0], min[1], min[2], max[0], max[1], max[2]);
 }
 
 /** Retient un cluster déjà choisi : demande, niveau, résidence, estampille.
@@ -53,7 +54,7 @@ function take<T extends PageRecord>(
   const min = rec.min,
     max = rec.max;
   if (!min || !max) return;
-  if (!inside && boxClipRec(min, max) === 0) {
+  if (!inside && clipRecordBox(min, max) === 0) {
     s.frustumRejected++;
     return;
   }
@@ -71,7 +72,7 @@ function take<T extends PageRecord>(
 }
 
 export function flatVisible<T extends PageRecord>(s: SelectionState<T>, rec: T) {
-  return !!rec.min && !!rec.max && boxClipRec(rec.min, rec.max) !== 0;
+  return !!rec.min && !!rec.max && clipRecordBox(rec.min, rec.max) !== 0;
 }
 
 export function flatConeKeeps<T extends PageRecord>(s: SelectionState<T>, rec: T) {
@@ -109,7 +110,7 @@ export function traverse<T extends PageRecord>(
     // Un nœud déjà tranché et entièrement dans le tronc n'est pas testé : il n'est que traversé.
     if (!inside || !settled) s.nodesTested++;
     if (!inside) {
-      const clipped = boxClip(
+      const clipped = frustumClipBox(
         planes,
         nodes[base],
         nodes[base + 1],
