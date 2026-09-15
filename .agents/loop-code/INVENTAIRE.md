@@ -1,21 +1,44 @@
-# Inventaire des surfaces
+# INVENTAIRE
 
-Recensement de `packages/` au moment de l'`init` (2026-09-15, `develop` à `2f4224e`). Détail
-complet des chemins dans `.agents/loop-profile.md`, section « Surfaces fonctionnelles ».
+Photo du dépôt au dernier passage. **Sert à comparer, pas à décrire** : ce qui compte est ce qui
+a bougé depuis la dernière exécution.
 
-| Package | Rôle | Langage | Lignes-clé du budget (200 max) |
-|---|---|---|---|
-| `packages/asset-compiler-rust` | compilateur natif CLI (bibliothèque + 2 binaires) | Rust | vérifié par `npm run check:lines`, 0 dépassement au 2026-09-15 |
-| `packages/sdk-core` | contrats/logique sans DOM ni Node ni React | TypeScript | idem |
-| `packages/sdk-node` | hôte Node, lance le compilateur natif, CLI `web-geometry-compile` | TypeScript | idem |
-| `packages/sdk-browser` | runtime de rendu navigateur WebGL/WebGPU (stack `gpu-realtime`) | TypeScript | idem |
-| `packages/page-codec` | codec des pages de géométrie, partagé par les deux runtimes | TypeScript | idem |
+Généré le : 2026-09-15 · commit : `8ed6b8d`
 
-Comptage exact du dernier passage de `jscpd` (`npm run check:duplicates`, 2026-09-15) :
-javascript 65 fichiers / 6209 lignes, rust 140 fichiers / 16240 lignes, typescript 518 fichiers /
-54965 lignes — 723 fichiers, 77414 lignes, 0 clone.
+## Volume
 
-Aucune UI applicative dans `packages/` : pas de design system, pas de jetons, pas de composant de
-liste partagé, pas de dossier de locales. `render-tech-lab` (banc externe) et
-`public/benchmark-assets` restent hors inventaire : lecture seule, jamais modifiés par un lot de
-ce dépôt.
+| | Nombre |
+|---|---|
+| fichiers de code | 617 (`packages/`, hors tests, hors `target/`) |
+| fichiers de test | 166 fichiers `*.test.*` JS/TS, plus les modules `#[cfg(test)]` du crate Rust |
+| lignes de code | 79 668 (`packages/`, `.ts .mts .mjs .js .rs`) |
+| modules exportés | non relevé |
+
+## Éléments partagés déclarés au profil
+
+| Élément | Chemin | Appelants |
+|---|---|---|
+| composant de liste partagé | — | N/A, aucune UI dans `packages/` |
+| design system | — | N/A, idem |
+| jetons | — | N/A, idem |
+| modules noyau | `packages/sdk-core` | `sdk-node`, `sdk-browser`, `page-codec` ; frontière tenue par `test/engineStructure.test.mjs` et `tsc -p tsconfig.core.json` |
+
+## Relevés statiques
+
+Sortie de `scripts/audit-statique.sh --root packages --ext "ts,mts,js,mjs"`, comptée par famille.
+**Ce sont des relevés : ils désignent des endroits, ils ne classent rien.**
+
+| Famille | Compte | Δ depuis la dernière exécution |
+|---|---|---|
+| valeurs de design en dur | 0 | première exécution |
+| styles en ligne | 0 | première exécution |
+| dimensions en dur | 0 | première exécution |
+| index en clé de liste | 0 | première exécution |
+| types d'échappement | 0 | première exécution |
+| listes hors composant partagé | N/A — aucune UI dans `packages/`, raison écrite au profil | — |
+| exports sans appelant | 0 (`knip`) | première exécution |
+
+**Duplication approchée : 25 lignes non triviales répétées**, dominées par du montage de test
+(`new THREE.BufferGeometry()` ×23, destructuration de `quadScene()` ×19, drapeaux
+`GPUBufferUsage` ×19). Aucune n'atteint le seuil opposable du dépôt (`jscpd` : ≥ 12 lignes et
+≥ 100 tokens, 0 clone). C'est un relevé à surveiller, pas un manquement.

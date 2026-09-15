@@ -1,34 +1,37 @@
-# Backlog
+# BACKLOG
 
-Format d'une entrée : priorité, preuve `fichier:ligne`, règle enfreinte, date d'apparition. Une
-entrée sans preuve n'entre pas.
+Une entrée par ligne, triée par priorité puis par chemin. **Une entrée sans preuve
+`fichier:ligne` n'entre pas.**
 
-## P0
+Une entrée sort d'ici de deux façons : **corrigée**, ou **arbitrée par l'utilisateur** — et dans
+le second cas la décision s'écrit ailleurs et l'entrée disparaît. Une entrée laissée « pour plus
+tard » reste, et compte.
 
-### P0 · outillage · cycles d'imports JS/TS
+## P0 — casse un invariant, perd du travail, ou rend une mesure non fiable
 
-- **Preuve** : `eslint.config.mjs` (racine) — aucun plugin `eslint-plugin-import`, aucune règle
-  `import/no-cycle` ; `package.json` — aucune dépendance `madge` ni équivalent ; recherche
-  `grep -r madge package.json` et lecture de `eslint.config.mjs` en entier, 0 résultat.
-- **Règle enfreinte** : `references/core/gates.md` #16 et `references/core/gate-merge.md` point
-  16 — « aucun cycle d'imports nouveau » doit être rejouable à chaque lot avec une commande
-  exacte ; `references/core/capacites.md` — un gate dont la surface existe (modules ESM avec
-  imports croisés dans `packages/sdk-core`, `sdk-browser`, `sdk-node`, `page-codec`) et dont
-  l'outil manque est NON VÉRIFIABLE, jamais N/A, et génère ce lot P0 automatiquement.
-- **Apparue le** : 2026-09-15, `/loop-code init`.
-- **Ce que corrige ce lot** : ajouter un outil de détection de cycles d'imports JS/TS (candidat :
-  `eslint-plugin-import` + règle `import/no-cycle`, ou `madge --circular`) et l'exposer comme
-  script npm dédié (`check:cycles` ou intégré à `lint`). **Ajouter une dépendance nouvelle exige
-  un accord explicite de l'utilisateur** (`~/.claude/shared/escalade.md`, point 4) : ce lot
-  commence par une escalade, pas par une installation.
+| Fichier:ligne | Constat | Preuve | Apparu le |
+|---|---|---|---|
 
-## P1
+## P1 — fait diverger deux surfaces, ou dégrade une mesure au-delà des seuils
 
-Aucune entrée. Cet `init` n'a pas rejoué de rapport de dérive (`/loop-code watch`) : les gates
-exécutés (duplication, code mort, structure, liens, format, lignes, tests) sont tous à 0
-signalement sur `develop` à `2f4224e` au moment de l'audit — voir `.agents/loop-profile.md` et
-`.agents/loop-code/BASELINE.md`.
+| Fichier:ligne | Constat | Preuve | Apparu le |
+|---|---|---|---|
+| `pnpm-lock.yaml` (racine) | Second arbre de dépendances suivi par git, que rien n'installe et que personne ne lit, mais que quelqu'un régénère encore | `.github/workflows/quality.yml` n'utilise que `npm ci` ; `AGENTS.md` ne parle qu'en `npm run …` ; pourtant `git log -1 -- pnpm-lock.yaml` = `04fa5f0` (14 sept. 20:08), **plus récent** que `package-lock.json` (`5ae3b83`, 14 sept. 15:58) | 2026-09-15 |
 
-## P2
+## P2 — dette de forme, sans effet observable
 
-Aucune entrée à ce stade.
+| Fichier:ligne | Constat | Preuve | Apparu le |
+|---|---|---|---|
+
+## Lots d'outillage — ouverts par un gate NON VÉRIFIABLE
+
+**Un gate non vérifiable ne se referme pas en le changeant en N/A.** Il se referme quand l'outil
+est là, ou sur décision écrite de l'utilisateur de s'en passer.
+
+| Gate concerné | Outil manquant | Ce qu'il permettrait de vérifier | Ouvert le |
+|---|---|---|---|
+| cycles d'imports JS/TS (`gates.md` #16, `gate-merge.md` point 16) | `eslint-plugin-import` + règle `import/no-cycle`, ou `madge --circular`, exposé en script npm (`check:cycles`) | « aucun cycle d'imports nouveau », rejouable à chaque lot par une commande exacte. Surface bien présente : modules ESM à imports croisés dans `packages/sdk-core`, `sdk-browser`, `sdk-node`, `page-codec` | 2026-09-15 |
+
+**Avant d'ouvrir ce lot** : ajouter une dépendance exige un accord explicite de l'utilisateur
+(`~/.claude/shared/escalade.md`, point 4). Le lot commence par une escalade, pas par une
+installation.
