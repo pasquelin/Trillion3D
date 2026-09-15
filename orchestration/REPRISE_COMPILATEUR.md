@@ -11,8 +11,7 @@ est livrée au Validateur avec : SHA de tête, merge-base `develop`, `fmt --chec
 Validateur seul fusionne, lance `/simplify` et `validate`, et pousse `origin/develop`.
 
 **Règles d'agent.** Vérifier `git merge-base develop HEAD` au lancement, rebaser tant que rien n'est
-commité. Verrou `.claude/mesure.lock` : `mkdir` sans `-p`, `proprietaire` écrit seulement si `mkdir`
-réussit, relu avant `rmdir` ; une seule commande `cargo` par prise, sous
+commité. Une seule commande `cargo` à la fois, sous
 `DEVELOPER_DIR=/Library/Developer/CommandLineTools`. Tests d'image avec `rgba8()`/`rgba_f32()`,
 jamais de `let` irréfutable sur `DecodedImage`. Version d'un pilote = identité de son cache. Licence
 permissive citée dans `Cargo.toml`. `check:changed` en worktree : lien `node_modules`, retiré ensuite.
