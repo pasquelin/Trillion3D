@@ -27,6 +27,8 @@ export function createShadowDirty() {
   const since = new Float64Array(FACES),
     sinceFrame = new Float64Array(FACES),
     dirty = new Uint8Array(FACES);
+  /** Pages entrées en file depuis le début de l'image : un compte brut, jamais une différence. */
+  let added = 0;
   const note = (index: number, nowMs: number, frame: number) => {
     if (dirty[index]) return;
     dirty[index] = 1;
@@ -41,6 +43,13 @@ export function createShadowDirty() {
   };
   return {
     mask,
+    /** Pages réellement entrées en file depuis le dernier `beginFrame`. */
+    get invalidated() {
+      return added;
+    },
+    beginFrame() {
+      added = 0;
+    },
     /** Vrai si la face porte au moins une page en attente. */
     isDirty: (slice: number, face: number) => dirty[slice * POINT_FACES + face] === 1,
     /** Retard de la page la plus ancienne de la face, en millisecondes et en images. */
@@ -56,7 +65,10 @@ export function createShadowDirty() {
     row: (slice: number, face: number, row: number) => mask[maskBase(slice, face) + row],
     /** Toute la face est à refaire : lampe déplacée, tranche réallouée, cascade déplacée, première image. */
     whole(slice: number, face: number, rows: number, nowMs: number, frame: number) {
-      markWholeFace(mask, maskBase(slice, face), rows);
+      const base = maskBase(slice, face);
+      const before = countPages(mask, base);
+      markWholeFace(mask, base, rows);
+      added += countPages(mask, base) - before;
       note(slice * POINT_FACES + face, nowMs, frame);
     },
     /** Les pages que la boîte monde recouvre dans cette face, et elles seules. */
@@ -72,7 +84,9 @@ export function createShadowDirty() {
       frame: number,
     ) {
       const base = maskBase(slice, face);
+      const before = countPages(mask, base);
       if (!markBoxPages(mask, base, rows, matrix, matrixBase, min, max)) return false;
+      added += countPages(mask, base) - before;
       note(slice * POINT_FACES + face, nowMs, frame);
       return true;
     },

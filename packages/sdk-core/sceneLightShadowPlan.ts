@@ -71,6 +71,7 @@ export function createShadowPlan(capacity: number) {
       const { packed } = store;
       regions.reset();
       counts.beginFrame();
+      slices.dirty.beginFrame();
       let casters = 0,
         candidates = 0;
       for (let slot = 0; slot < store.count; slot++)
@@ -144,7 +145,7 @@ export function createShadowPlan(capacity: number) {
       }
       // Les boîtes sont consommées : ce sont les pages qui portent désormais le travail restant.
       changes.settled();
-      counts.invalidated(slices, store);
+      counts.invalidated(slices);
       admit(store, frame, candidates);
       counts.endFrame(slices, store, frame, nowMs);
       return regions.count;

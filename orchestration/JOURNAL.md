@@ -1,5 +1,102 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-16 — [session lumiere] ombres virtualisées : invalidation par pages, budget en millisecondes (lot ombres virtualisées)
+
+Branche `lot/ombres-virtualisees`, sur `develop` = `d3dcd69`. `tsc` et `npm run check:changed` verts
+(571 tests). RX3 et LR3 de `orchestration/SPEC_ECLAIRAGE.md` v2.
+
+### La règle livrée
+
+- **Invalidation par pages.** L'atlas 4096² est découpé en pages de **128 texels** (`shadowPage`),
+  soit 1 à 64 pages par face selon le côté que la lampe obtient. Une lampe qui bouge périme sa carte
+  entière ; **un objet qui bouge — transformation, entrée ou sortie de résidence — ne périme que les
+  pages de chaque face que sa boîte projetée recouvre** (`sceneLightShadowPages.ts`, huit sommets
+  projetés par la matrice de la face, face entière si un sommet passe derrière le plan de
+  projection). Le masque d'une face est **huit octets, une rangée par octet** : deux rangées
+  identiques se reconnaissent par une égalité d'octets, donc le regroupement en rectangles de pages
+  contiguës est immédiat — une face entièrement périmée redonne **une seule** région et un seul
+  appel indirect, exactement comme avant le lot.
+- **Identique au bit près.** Le cadre de dessin reste celui de la **face entière** ; seul le
+  **ciseau** borne la région, la remise au fond comprise. Un sommet atterrit donc au même texel
+  qu'un redessin complet, et les pages hors région gardent ce qu'elles avaient. Les boîtes de
+  mouvement sont l'union de l'avant et de l'après : toute page qu'un objet quitte est remarquée en
+  même temps que celle qu'il atteint.
+- **Rejet resserré à la région.** Le volume que `gpuShadowCull` oppose aux clusters n'est plus celui
+  de la face mais celui de la **région** : cône d'axe la direction du centre de la région et de
+  demi-angle celui du plus écarté de ses quatre coins (l'image sphérique d'un rectangle plan est
+  sphériquement convexe, donc la calotte qui contient les quatre coins contient tout le rectangle) ;
+  sphère de la sous-boîte pour une cascade. Sur la face entière, les deux formules redonnent
+  **exactement** les volumes d'avant le lot (`atan(√2·tan(fov/2))`, sphère de la boîte de cascade).
+- **Budget en millisecondes.** Le plafond « quatre lampes par image » (X5) devient un **budget de
+  durée**, option publique `shadowBudgetMs`, **1,0 ms par défaut**. Le prix d'une page vient du
+  chronomètre d'horodatage de la passe Ombres elle-même — celui que le profil publie déjà —,
+  rapporté aux pages que l'image chiffrée avait redessinées, et lissé (`shadowCostBlend` 0,25). Les
+  régions sont admises par priorité = couverture écran de la lampe + prime de première carte +
+  attente (`shadowAgingPerFrame` 0,05 par image, contre la famine) ; la première région passe
+  toujours, sinon le retard ne serait pas borné sur un appareil dont la moindre page dépasse le
+  budget. **Sans horodatage, il n'y a pas de budget** : seul le plafond de 24 régions s'applique,
+  soit exactement le travail maximal d'avant le lot.
+- **Compteurs.** La ligne Ombres du profil garde ses six compteurs (le Lab les lit) et en gagne six :
+  `regionsRedessinees`, `pagesInvalidees` (un compte brut, pas une différence), `pagesRedessinees`,
+  `pagesEnAttente`, `retardMaxMs`, `retardMaxImages`. `metrics()` publie en plus
+  `shadowPagesDrawn`, `shadowPagesPending` et `shadowWaitMs`.
+- **Cascades du soleil.** Leur fraîcheur ne dépend plus de la révision de la vue mais de la
+  **fenêtre monde que la cascade décrit** (centre aligné sur la grille de texels + rayon) : une
+  caméra qui bouge moins que ce pas ne périme plus rien, là où toute caméra en mouvement redessinait
+  les quatre cascades. Un objet qui bouge sous une cascade stable n'en périme que les pages.
+- **Pourquoi une cascade qui glisse repart entière.** Quand la fenêtre se déplace d'un texel, la
+  carte décrit une autre partie du monde : sans adressage en anneau de l'atlas, aucun de ses texels
+  ne reste à sa place. L'anneau demanderait un modulo dans la lecture de l'atlas, qui vit dans
+  `deferredLighting*.ts` — fichier tenu par le lot « ombres lointaines » de cette session. Le
+  redessin complet de la cascade est donc **conservé**, et le budget est ce qui en borne le coût :
+  les quatre cascades s'étalent sur plusieurs images au lieu de tomber dans une seule.
+
+### Preuves (Emerald, WebGPU, 1280×720, `pixelError 0`, trois vues, cache du Lab en lecture seule)
+
+**Identité des cartes d'ombre** — même moteur, seule `--ombres-pages` diffère, huit lampes à ombre
+et un objet mobile (`--objet-mobile Light_Tube46 --objet-rayon 3`, 120 déplacements), file vidée
+avant la lecture :
+
+| vue      | empreinte de l'atlas, par pages | empreinte, faces entières | texels écrits | image |
+| -------- | ------------------------------- | ------------------------- | ------------: | ----- |
+| generale | `2040375360`                    | `2040375360`              |     2 850 816 | 0 px  |
+| sol      | `3598675376`                    | `3598675376`              |    12 582 912 | 0 px  |
+| rue      | `969265087`                     | `969265087`               |    12 582 912 | 0 px  |
+
+Les six PNG (capture et témoin A/A) sont **identiques octet pour octet** entre les deux exécutions.
+L'empreinte est FNV-1a sur les 16 777 216 profondeurs brutes de l'atlas, relue par
+`explorer.shadowAtlasDigest()`.
+
+**Fidélité avant/après** (`--avant d3dcd69`) : **0 pixel sur les trois vues**, témoin A/A 0 pixel,
+avec **8 lampes** puis **30 lampes** à ombre et `--lampe-mobile`, ainsi qu'à **scène immobile**
+(vue générale). Scène immobile : **0 région, 0 page, étape Ombres « non mesuré »** — la passe n'est
+pas encodée, la règle d'avant est conservée telle quelle.
+
+### Coûts : non mesurés au calme
+
+Consigne de l'utilisateur en cours de lot : aucune campagne tant que la charge à une minute n'est
+pas sous 4. La charge relevée pendant les séries ci-dessus allait de **24 à 74** (trois campagnes
+parallèles). **Aucune durée de ce lot n'est un verdict de performance** ; seuls les pixels, les
+empreintes et les compteurs sont retenus. Ce qui a tout de même été observé, à titre indicatif :
+l'étape Ombres tenait 0,75 à 0,98 ms p50 avec un objet mobile et huit lampes — le budget de 1,0 ms —
+avec 72 à 288 pages en attente et un retard maximal de 3,8 ms à 336 ms selon la vue. La remesure au
+calme reste à faire : coût avant/après de l'étape Ombres (immobile, lampe mobile, objet mobile), et
+le cas `--soleil --camera-mobile`, celui où le budget doit remplacer les 1,6 à 3,9 ms p50 des quatre
+cascades relevés le 15 septembre.
+
+### Restes
+
+- **Coûts à remesurer au calme**, verrou `.claude/mesure.lock` pris, une campagne à la fois.
+- **Cascade qui glisse** : redessin complet, faute d'adressage en anneau de l'atlas (voir plus haut).
+- **Coût fixe d'une région** fondu dans le coût moyen d'une page : approximation nommée, publiée
+  dans le diagnostic `direct-lighting`.
+- **Les faces retombent souvent au plancher de 128 texels** — à 8 ou 30 lampes sur Emerald, une face
+  vaut alors _une_ page et l'invalidation par pages n'y change rien. Le gain de la règle porte sur
+  les faces larges (peu de lampes, lampes proches, cascades du soleil) ; la part d'atlas par lampe
+  (`desiredFaceSide`) est le levier à revoir si on veut qu'il porte plus loin.
+- **Harnais** : `--objet-mobile <nœud>` demande un nom de nœud à l'hôte — le harnais ne devine
+  aucune scène. Le premier appel pose le nœud à l'origine du monde (un saut, une seule fois).
+
 ## 2026-09-15 — lot H2 fusionné : décodage des pages hors fil principal, décodeur WebAssembly
 
 - **Contrat versionné** `sdk-core/pageDecodeContracts.ts` (v2) : entrée, sortie, annulation, refus fermés dont `PAGE_DECODE_UNAVAILABLE`, pool borné min(cœurs, 4, admission). Adaptateur navigateur `pageDecodeTask.ts` (la tâche écrite une seule fois, partagée par le worker et le repli), `pageDecodeWorker.ts`, `pageDecodePool.ts`, `pageDecodeHost.ts` ; branché dans la chaîne de streaming (`streamingFetch`, `clusterPages`, `explorerStreaming`, `explorerLifecycle`, `autonomousPages`), aucun `webgpu*` touché. Page fraîche transférée sans copie à l'aller, tampons décodés transférés au retour ; page déjà résidente copiée (la comptabilité d'octets de l'éviction reste sur le fil principal). Le pool ne bloque jamais : épreuve de démarrage non attendue, repli sur place si aucun worker ne vit. Métriques `pagesDecodedOffThread`, `pageDecodeMs`, `pagesDecodedWasm` (`null` si non mesuré).
@@ -869,11 +966,11 @@ de cache `proxy.bin` garde sa version 2 : un cache compilé pour le lot 2 marche
 restée entre 21 et 68 pendant toute la journée**, si bien que seuls les relevés par horodatage de la
 carte graphique sont utilisables ; les durées processeur de l'étape valent `null`.
 
-| vue      | `develop` p50/p95 | lot p50/p95      | fraction du budget tenue |
-| -------- | ----------------: | ---------------: | -----------------------: |
-| générale |   2,33 / 3,22 ms  | **0,99 / 2,88**  |                    5,5 % |
-| sol      |   2,74 / 3,65 ms  | **0,83 / 2,43**  |                    3,0 % |
-| rue      |   2,37 / 3,20 ms  | **1,01 / 4,16**  |                    2,4 % |
+| vue      | `develop` p50/p95 |     lot p50/p95 | fraction du budget tenue |
+| -------- | ----------------: | --------------: | -----------------------: |
+| générale |    2,33 / 3,22 ms | **0,99 / 2,88** |                    5,5 % |
+| sol      |    2,74 / 3,65 ms | **0,83 / 2,43** |                    3,0 % |
+| rue      |    2,37 / 3,20 ms | **1,01 / 4,16** |                    2,4 % |
 
 Scène immobile, même campagne sans lampe mobile : **0,94 / 0,74 / 0,73 ms** p50, fraction 3,1 à 5,6 %.
 Les compteurs publiés par image : sondes mises à jour 9 à 24, rayons 576 à 1 536, mailles de cache
@@ -911,14 +1008,14 @@ Pièce fermée 8 × 3 × 8 m, un mur rouge, une ponctuelle à ombre, oracle à h
 même pose des deux côtés (position 3, 2, 3 ; cible −4, 0,5, −4). L'exposition est descendue à 0,005
 pour que rien n'écrête : à 0,05, l'image du moteur saturait et l'écart ne mesurait plus rien.
 
-| grandeur                  | `develop` | lot, ordre 1 | **lot, ordre 2** |     cible |
-| ------------------------- | --------: | -----------: | ---------------: | --------: |
-| écart moyen               |    19,4 % |       25,1 % |       **18,6 %** |      10 % |
-| écart médian              |    16,8 % |       23,7 % |       **14,4 %** |         — |
-| écart p95                 |    44,7 % |       53,4 % |       **49,9 %** |         — |
-| moteur / oracle           |      0,91 |         0,76 |         **1,03** |         1 |
-| retard de convergence     |     6 img |       25 img |      **22 img**  | 100 ms,   |
-|                           |    100 ms |       417 ms |       **367 ms** | limite 250 |
+| grandeur              | `develop` | lot, ordre 1 | **lot, ordre 2** |      cible |
+| --------------------- | --------: | -----------: | ---------------: | ---------: |
+| écart moyen           |    19,4 % |       25,1 % |       **18,6 %** |       10 % |
+| écart médian          |    16,8 % |       23,7 % |       **14,4 %** |          — |
+| écart p95             |    44,7 % |       53,4 % |       **49,9 %** |          — |
+| moteur / oracle       |      0,91 |         0,76 |         **1,03** |          1 |
+| retard de convergence |     6 img |       25 img |       **22 img** |    100 ms, |
+|                       |    100 ms |       417 ms |       **367 ms** | limite 250 |
 
 **L'ordre 2 se paie et se justifie** : dans les mêmes cascades, l'ordre 1 rend 25,1 % d'écart et une
 image 24 % trop sombre, l'ordre 2 rend 18,6 % et un biais de 3 %. Le coût est de 44 flottants par

@@ -30,8 +30,8 @@ export interface WebgpuLightState {
   uploadedEpoch: number;
   /** Matrices des faces de l'image, une par face remise à jour. */
   faceMatrices: Float32Array;
-  /** Lampes du contrat retenues par la dernière image, et tranches d'ombre redessinées. Ce que la
-   *  passe a dû écarter se lit sur l'ordonnanceur lui-même (`plan.denied`, `plan.pending`). */
+  /** Lampes du contrat retenues par la dernière image, et lampes dont une carte a été redessinée.
+   *  La file d'attente et son retard se lisent sur l'ordonnanceur (`plan.counts`). */
   lightsActive: number;
   shadowsUpdated: number;
   /** Faces réellement touchées par la dernière image, toutes régions confondues. */

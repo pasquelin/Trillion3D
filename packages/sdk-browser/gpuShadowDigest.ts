@@ -45,6 +45,8 @@ export async function readShadowAtlasDigest(
     device.queue.submit([encoder.finish()]);
     await buffer.mapAsync(GPUMapMode.READ);
     const words = new Uint32Array(buffer.getMappedRange());
+    // La longueur est lue avant `unmap` : celui-ci détache le tampon et la mettrait à zéro.
+    const texels = words.length;
     let hash = OFFSET,
       written = 0;
     for (let index = 0; index < words.length; index++) {
@@ -55,7 +57,7 @@ export async function readShadowAtlasDigest(
       }
     }
     buffer.unmap();
-    return { size, texels: words.length, written, hash: hash >>> 0 };
+    return { size, texels, written, hash: hash >>> 0 };
   } finally {
     buffer.destroy();
   }
