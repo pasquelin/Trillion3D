@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { NormalCone } from './pageCone.ts';
+import { createConeContext, type ConeContext, type NormalCone } from './pageCone.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
@@ -35,7 +35,12 @@ export interface SelectionState<T extends PageRecord> {
   flatStructure?: ClusterStructureIndex;
   flatForced?: Uint8Array;
   flatForcedList?: number[];
+  /** Ce que le rejet de cône lit de la racine et de la caméra, posé au premier cône de la racine. */
+  flatCone: ConeContext;
   flatInside: boolean;
+  /** Le seuil de cette image vaut zéro et l'étirement, la focale et le plan proche sont sains : la
+   *  coupe se décide alors sans projeter, à l'identique. */
+  flatExact: boolean;
   flatUseForcing: boolean;
   flatMissing: boolean;
   flatShort: boolean;
@@ -116,7 +121,9 @@ const reusedState: SelectionState<PageRecord> = {
   flatElements: IDENTITY_WORLD.elements,
   flatStretch: 1,
   flatFocal: 1,
+  flatCone: createConeContext(),
   flatInside: false,
+  flatExact: false,
   flatUseForcing: false,
   flatMissing: false,
   flatShort: false,
