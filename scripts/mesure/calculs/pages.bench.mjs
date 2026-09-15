@@ -6,17 +6,7 @@ import * as THREE from 'three';
 import { sameHizView } from '../../../packages/sdk-browser/hizTemporal.ts';
 import { setWindingEpoch, windingCw } from '../../../packages/sdk-browser/webgpuPagesWinding.ts';
 import { compare, depose, graine } from './banc.mjs';
-
-/** `webgpuPagesPipelineFor.ts:22-30` avant le lot A : un déterminant 3×3 par appel. */
-function referenceWindingCw(rec) {
-  const e = rec.matrix.elements;
-  return (
-    e[0] * (e[5] * e[10] - e[6] * e[9]) -
-      e[1] * (e[4] * e[10] - e[6] * e[8]) +
-      e[2] * (e[4] * e[9] - e[5] * e[8]) <
-    0
-  );
-}
+import { referenceWindingCw } from './oracles/pages.mjs';
 
 const alea = graine(67);
 /** Des clusters posés au hasard, dont un sur sept est réfléchi : son sens de parcours s'inverse. */
