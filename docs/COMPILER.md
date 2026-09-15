@@ -197,6 +197,28 @@ Not carried, counted in the import manifest under `unsupported`: skinning, blend
 
 The import manifest also records, per file: format, FBX version, creator, unit scale, mesh/material/texture/light counts, parse and conversion time.
 
+## USD and USDZ import
+
+When `SOURCE` is a `.usd`, `.usda` or `.usdc` layer, the `usd` driver composes it and writes the same
+intermediate scene into `<CACHE>/native/imports/<import-key>/`. A `.usdz` package is a container: it
+is extracted under the cache, its content routed like any other source, and the layer it carries goes
+through `usd`.
+
+| Source | glTF |
+|---|---|
+| `Xform`, `Scope`, any untyped group | One node each; `xformOpOrder` composed into a column-major `matrix` (translate, scale, the six Euler orders, `orient`, `transform`, and their `!invert!` forms) |
+| `Mesh` | Polygons triangulated as a fan from the first corner; `orientation` honoured (`leftHanded` reverses each triangle); indices `u16` under 65 536 vertices, else `u32` |
+| Normals and `primvars:st` | Resolved through their `interpolation` (`constant`, `uniform`, `vertex`/`varying`, `faceVarying`) and their `:indices`; `TEXCOORD_0` V flipped; a corner's (point, normal, uv) slots are the vertex key |
+| `GeomSubset`, family `materialBind` | One primitive per subset; faces no subset claims fall back to the mesh's own `material:binding` |
+| Instances | `instanceable` prims sharing a prototype share one glTF mesh, one node each; `class` prims are templates and are not traversed |
+| Units and axes | `metersPerUnit` and `upAxis` land on the scene root node, never in the vertices (`Z` up becomes `Y` up) |
+| Materials | `UsdPreviewSurface` → `pbrMetallicRoughness`: `diffuseColor` + `opacity` → `baseColorFactor`, `metallic`, `roughness`, `emissiveColor`, `normal`; a connected `UsdUVTexture` wins over the factor. `opacityThreshold` > 0 → `MASK` at that cutoff, otherwise an opacity below one or bound to a texture → `BLEND`. `doubleSided` comes from the mesh, as glTF puts it on the material |
+| Textures | `UsdUVTexture` resolved relative to the source directory and referenced by URI, like any glTF image; `wrapS` → sampler |
+| Animation | The default value, or the lowest time sample when there is none (`usd-animation-first-sample`) |
+
+Not carried, counted in the import manifest under `unsupported`: see the `usd-*` rows in the error
+table below. The import manifest also records the layer read, its size and its SHA-256.
+
 ## Cache layout
 
 Written by a job, all under `<CACHE>/native/`:
@@ -243,6 +265,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ARCHIVE_EMPTY` | ZIP archive carries no entry |
 | `ARCHIVE_TOO_MANY_ENTRIES` | ZIP archive exceeds 20,000 entries |
 | `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
+| `USDZ_LAYOUT_INVALID` | USDZ package entry is compressed, or its payload does not start on a 64-byte boundary; the AOUSD package layout requires every file stored as-is and aligned |
 | `image-lossy-unsupported` | Image plugin (WebP) read a `VP8 ` (lossy) image stream; refused before decoding — the fidelity policy admits WebP lossless only — reported per texture, does not fail the job |
 | `image-animation-unsupported` | Image plugin (WebP) read an `ANIM`/`ANMF` chunk; an animation is not a texture, so it is refused rather than flattened to a chosen frame; reported per texture, does not fail the job |
 | `image-profile-unsupported` | Image plugin (TIFF) read the file but declined its profile or codec; reported per texture, does not fail the job |
@@ -279,6 +302,23 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `alembic-values-invalid` | An `Xform` operation stack does not compose: operation outside the seven the format defines, or fewer values than the stack consumes |
 | `alembic-topology-invalid` | A mesh contradicts itself: a face index outside the position table, or more face corners declared than face indices written |
 | `alembic-*` report reasons | Counted in the import manifest under `unsupported`, never failing the job: `curves`, `points`, `nupatch`, `camera`, `light`, `object` and `instance` `-unsupported` for objects the plugin does not convert; `subd-as-polygons` for a subdivision surface rendered as the flat polygons it carries; `animation-ignored` when a property holds several samples and only the first is read; `normals-missing`, `normals-dropped`, `uv-dropped` for geometry parameters absent or inconsistent; `face-in-two-facesets`, `degenerate-face`, `faceset-invalid`, `mesh-invalid`, `mesh-empty`, `transform-invalid`, `transform-not-inherited`, `hierarchy-too-deep` |
+| `usd-point-instancer-unsupported` | USD `PointInstancer`: its instances are parallel arrays over an indexed prototype, which this driver does not expand; counted, does not fail the job |
+| `usd-curves-unsupported` | USD `BasisCurves`, `NurbsCurves` or `HermiteCurves`: a curve is not a surface |
+| `usd-volume-unsupported` | USD `Volume` or an OpenVDB/Field3D asset: not a surface either |
+| `usd-skel-unsupported` | USD `SkelRoot`, `Skeleton`, `SkelAnimation` or `BlendShape`: no skinning is carried |
+| `usd-camera-unsupported` | USD `Camera`: an imported scene brings none, the host places its own |
+| `usd-light-unsupported` | A `UsdLux` light: scene lighting does not come from the import |
+| `usd-patch-unsupported` | USD `NurbsPatch`: a parametric surface this driver does not tessellate |
+| `usd-subdivision-unsupported` | USD `Mesh` whose `subdivisionScheme` is not `none`: the polygons are carried **flat**, without the requested subdivision, which changes the silhouette |
+| `usd-variants-unsupported` | A variant set is present; only the composed default selection is read |
+| `usd-composition-invalid` | A reference, payload or sublayer the composition did not resolve (missing file, unresolvable path) |
+| `usd-animation-first-sample` | An attribute with no default was read at its first time sample; the scene is frozen there and no animation is carried |
+| `usd-mesh-invalid` | USD `Mesh` whose required arrays are missing or contradict each other (`faceVertexCounts` not landing on `faceVertexIndices`) |
+| `usd-xform-unsupported` | A transform operation this driver does not compose (`!resetXformStack!`, the inverse of an arbitrary matrix, an unknown op type) |
+| `usd-xform-invalid` | A transform whose numbers are not finite; the node stays at identity |
+| `usd-surface-unsupported` | A `Material` with no `UsdPreviewSurface` reachable from `outputs:surface` |
+| `usd-texture-missing` | A texture file that is absent, outside the source directory, or of a format the image registry does not read |
+| `usd-texture-unsupported` | A texture this driver cannot bind as is: a UV set other than `st`, a `<UDIM>` pattern, or split metallic/roughness maps |
 
 ## Using it from Node
 

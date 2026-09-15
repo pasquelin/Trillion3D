@@ -84,6 +84,8 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "zip=",
         "unitypackage=",
         "alembic=",
+        "usd=",
+        "usdz=",
         "png=",
         "jpeg=",
         "tga=",
@@ -96,6 +98,6 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
     ] {
         assert!(print.contains(expected), "{print}");
     }
-    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(7));
+    assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(9));
     assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(9));
 }
