@@ -5,6 +5,8 @@ import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 
 export type BlendGpuItem = {
+  /** Le matériau transmet : l'item est dessiné dans la passe de transmission, pas dans le mélange. */
+  transmissive?: boolean;
   position: GPUBuffer;
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
   index?: GPUBuffer;
@@ -49,6 +51,11 @@ export function createWebgpuBlendState() {
     /** Les ressources d'éclairage sur lesquelles les groupes de liaison courants ont été bâtis :
      *  l'atlas d'ombres et la grille de sondes n'arrivent qu'après les premières images. */
     lighting: undefined as BlendLighting | undefined,
+    /** Combien d'items transparents transmettent : zéro veut dire qu'aucune copie de fond n'est
+     *  allouée ni encodée, et que la passe de transmission n'existe pas de l'image. */
+    transmissive: 0,
+    /** Le volume de chaque item de la liste de dessin, à l'écriture des uniformes. */
+    volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     /** Per-catalogue-entry cluster identity, and the mode it was written for. */
     clusterIdentity: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     diagnosticMode: undefined as DiagnosticMode | undefined,
