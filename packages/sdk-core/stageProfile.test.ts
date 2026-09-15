@@ -7,9 +7,7 @@ test('stageQuantiles renvoie null pour une série vide : non mesuré, pas zéro'
 });
 
 test('stageQuantiles distingue un zéro mesuré du non-mesuré', () => {
-  const quantiles = stageQuantiles([0, 0, 0]);
-  assert.deepEqual(quantiles, { p50: 0, p95: 0 });
-  assert.notEqual(quantiles, null);
+  assert.deepEqual(stageQuantiles([0, 0, 0]), { p50: 0, p95: 0 });
 });
 
 test('stageQuantiles calcule p50 et p95 à partir de la série', () => {
