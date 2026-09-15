@@ -1,0 +1,75 @@
+{
+  "binary": {
+    "texturePreviewBytes": 44,
+    "texturePreviews": 1
+  },
+  "case": "Un quad dont la couleur de base est palette-globale.gif, un GIF 4 × 2 indexé sur une table de couleurs globale de huit entrées, compilé par le harnais commun.",
+  "formatVersion": 3,
+  "manifestBinaryVersion": 4,
+  "previews": [
+    {
+      "firstLevel": 0,
+      "height": 2,
+      "image": 0,
+      "levelCount": 3,
+      "levels": [
+        {
+          "coveredAtMaskCutoff": 8,
+          "level": 0,
+          "samples": [
+            [255, 0, 0, 255],
+            [255, 255, 255, 255],
+            [0, 0, 0, 255],
+            [132, 239, 66, 255],
+            [16, 49, 239, 255]
+          ],
+          "sha256": "a71930dcafad732cc04b95bfa173e1b5ae2915ab75c279991777968765ed0e4f",
+          "size": [4, 2]
+        },
+        {
+          "coveredAtMaskCutoff": 2,
+          "level": 1,
+          "samples": [
+            [185, 170, 2, 255],
+            [151, 183, 222, 255],
+            [185, 170, 2, 255],
+            [151, 183, 222, 255],
+            [151, 183, 222, 255]
+          ],
+          "sha256": "ec36dd988e2dd41cffb0ad85d0366edbada1917d061cfc3de43e9037844b7923",
+          "size": [2, 1]
+        },
+        {
+          "coveredAtMaskCutoff": 1,
+          "level": 2,
+          "samples": [
+            [169, 177, 163, 255],
+            [169, 177, 163, 255],
+            [169, 177, 163, 255],
+            [169, 177, 163, 255],
+            [169, 177, 163, 255]
+          ],
+          "sha256": "ab3d55fc3cfeb3fa22e768924d079284fdf3ae8dd02ef215e978bcb529260f37",
+          "size": [1, 1]
+        }
+      ],
+      "pixelBytes": 44,
+      "pixelOffset": 0,
+      "sourceKind": 0,
+      "sourceSha256": "fb2d122650a7670bdaccc13ac94de0c5a9c55c091a50de90e67ac8f94f321574",
+      "sourceView": 4294967295,
+      "texture": 0,
+      "width": 4
+    }
+  ],
+  "report": {
+    "base": 64,
+    "colorTextures": 1,
+    "maxLevels": 7,
+    "pixelBytes": 44,
+    "previews": 1,
+    "skipped": {},
+    "version": 2
+  },
+  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Ni le BMP ni le GIF n'ajoutent de perte : le premier est lu tel quel et remis dans l'ordre de l'image, le second est indexé, et une table de couleurs porte déjà du 8-8-8."
+}

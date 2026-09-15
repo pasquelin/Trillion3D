@@ -285,9 +285,13 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `blend-extra-scenes` | Blender file carries more than one scene; every mesh object of the file is exported and the count is reported |
 | `USDZ_LAYOUT_INVALID` | USDZ package entry is compressed, or its payload does not start on a 64-byte boundary; the AOUSD package layout requires every file stored as-is and aligned |
 | `image-lossy-unsupported` | Image plugin (WebP) read a `VP8 ` (lossy) image stream; refused before decoding — the fidelity policy admits WebP lossless only — reported per texture, does not fail the job |
-| `image-animation-unsupported` | Image plugin (WebP) read an `ANIM`/`ANMF` chunk; an animation is not a texture, so it is refused rather than flattened to a chosen frame; reported per texture, does not fail the job |
+| `image-animation-unsupported` | Image plugin read an `ANIM`/`ANMF` chunk (WebP) or a second image descriptor (GIF); an animation is not a texture, so it is refused rather than flattened to a chosen frame; reported per texture, does not fail the job |
 | `image-profile-unsupported` | Image plugin (TIFF) read the file but declined its profile or codec; reported per texture, does not fail the job |
 | `image-depth-unsupported` | Image plugin read a bit depth the `Rgba8`-only image contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than quietly narrowed to 8 bits, reported per texture, does not fail the job |
+| `bmp-depth-unsupported` | BMP declares a bit count outside the profiles carried losslessly to RGBA8 (1, 2, 4, 8, 16, 24, 32); reported per texture, does not fail the job |
+| `bmp-bitfields-lossy` | BMP `BI_BITFIELDS` mask is wider than eight bits per channel (10-10-10, for instance), which the decoder would narrow by dropping its low bits; refused before decoding rather than quietly adding loss the source did not have |
+| `bmp-embedded-codec-unsupported` | BMP compression is `BI_JPEG` or `BI_PNG`: the file wraps a whole other format rather than pixels, and that format has its own plugin; unwrapping a second one here would bypass the image router |
+| `bmp-compression-unsupported` | BMP compression is outside the read format (`BI_ALPHABITFIELDS`, the CMYK variants); reported per texture, does not fail the job |
 | `image-float-unsupported` | Image plugin returned the `RgbaF32` variant (OpenEXR, Radiance HDR) to a consumer that only handles `Rgba8` — progressive texture previews are RGBA8 sRGB. Refused by name rather than tone-mapped, which would add loss the source did not have; reported per texture, does not fail the job |
 | `dds-header-truncated` | DDS file is shorter than `DDS_HEADER`/`DDS_PIXELFORMAT`/`DDS_HEADER_DXT10` require; reported per texture, does not fail the job |
 | `dds-header-invalid` | DDS header is present but out of domain (false announced size, zero dimension, absurd mip count); reported per texture, does not fail the job |
