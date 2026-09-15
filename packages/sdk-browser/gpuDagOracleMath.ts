@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { viewDistanceOf } from './pageSelectionProjection.ts';
+import { screenErrorBound } from '../sdk-core/index.ts';
+import { viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
 
 export const dagScratch = {
   view: new THREE.Matrix4(),
@@ -14,8 +15,9 @@ export const dagScratch = {
 /**
  * Miroir CPU de `projected` du nuanceur `gpuDagShader.ts` : mêmes gardes, mêmes opérandes, même
  * ordre. Le nuanceur ne lève pas, donc l'oracle ne lève pas non plus — une erreur négative ou NaN y
- * rend l'infini, là où `clusterErrorAtDistance` de sdk-core refuse ses paramètres. Ce sont deux
- * contrats différents du même quotient : la fonction validante ne peut pas remplacer celle-ci.
+ * rend l'infini, là où `clusterErrorAtDepth` de sdk-core refuse ses paramètres. Ce sont deux
+ * contrats différents de la même borne `screenErrorBound` : la fonction validante ne peut pas
+ * remplacer celle-ci.
  */
 export function projectedError(
   error: number,
@@ -30,7 +32,6 @@ export function projectedError(
 ) {
   if (error === 0) return 0;
   if (!(error > 0)) return Infinity;
-  const distance = viewDistanceOf(sx, sy, sz, e) - radius * stretch;
-  if (!(distance > near)) return Infinity;
-  return (error * stretch * focal) / distance;
+  const lateral = viewLateralOf(sx, sy, sz, e);
+  return screenErrorBound(error, stretch, lateral, viewDepthOf(sx, sy, sz, e), radius, focal, near);
 }
