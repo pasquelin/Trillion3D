@@ -11,7 +11,6 @@ import {
   nodeWorldPosition,
   nodeWorldQuaternion,
   nodeWorldScale,
-  orthographicProjection,
   perspectiveProjection,
   removeTransformNode,
   reparentTransformNode,
@@ -25,22 +24,8 @@ import {
   updateNodeWorldMatrix,
 } from '../../sdk-core/index.ts';
 
-function projectionNous(sortie, s) {
-  if (s.type === 'perspective')
-    perspectiveProjection(sortie, s.fov, s.aspect, s.near, s.far, s.zoom, s.webgpu);
-  else
-    orthographicProjection(
-      sortie,
-      s.left,
-      s.right,
-      s.top,
-      s.bottom,
-      s.near,
-      s.far,
-      s.zoom,
-      s.webgpu,
-    );
-}
+const projectionNous = (sortie, s) =>
+  perspectiveProjection(sortie, s.fov, s.aspect, s.near, s.far, s.zoom, s.webgpu);
 
 /** Les mêmes opérations sur la hiérarchie et la caméra de sdk-core. */
 export function joueNous(scenario) {

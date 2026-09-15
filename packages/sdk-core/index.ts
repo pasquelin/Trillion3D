@@ -109,7 +109,6 @@ export {
 export { lookAtNode } from './mathTransformTreeLookAt.ts';
 export {
   createCameraFrame,
-  orthographicProjection,
   perspectiveProjection,
   updateCameraFrame,
   type CameraFrame,
