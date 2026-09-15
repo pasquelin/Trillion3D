@@ -1,5 +1,74 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session stochastique] deux tranches de lampes par tuile, et la boucle exacte des transparents (lot RX2, réduit)
+
+Worktree `lot-stochastique`, branche `lot/stochastique`, rebasée sur `develop`. Rien n'est fusionné,
+le Lab n'est pas touché. Le lot a été **réduit en cours de route, sur décision de l'utilisateur** :
+il ne porte plus le tirage stochastique ni l'accumulation temporelle, pour les raisons mesurées
+ci-dessous. Ce qui a été écrit pour eux vit dans `essai/stochastique-accumulation`, un commit,
+jamais fusionnée.
+
+### Ce qui est livré
+
+Les listes de lampes par tuile étaient bâties sur la seule tranche entre les deux profondeurs
+opaques de la tuile. Une surface de mélange est dessinée **devant** l'opaque de son pixel : cette
+tranche lui retire des lampes déclarées, et une tuile que nul opaque ne couvre — le ciel derrière un
+feuillage — n'en garde aucune. C'est pour cela que la passe de mélange bouclait sur **toutes** les
+lampes déclarées, bornée par `maxLights`.
+
+Chaque tuile porte maintenant **deux listes, deux tranches de profondeur**, bâties dans la même
+passe par un seul masque à deux tranches (`gpuLightTilesShader.ts`) :
+
+- celle des **opaques**, entre les deux profondeurs de la tuile — même boîte, même condition de
+  couverture, même compaction qu'avant : la résolution différée n'y perd ni une lampe ni une
+  milliseconde, et son image ne bouge pas ;
+- celle du **mélange**, du plan proche au fond opaque, et le tronc entier là où nul opaque ne couvre
+  la tuile.
+
+La passe de mélange boucle sur la seconde, et sa boucle reste **exacte** : une lampe absente de la
+liste ne rencontre aucun point de la tranche — sa sphère de portée ne touche pas la boîte monde —,
+donc `declaredLight` lui aurait rendu exactement `vec3f(0.0)`, et retirer un zéro d'une somme de
+flottants ne la change pas. Ce qui change est le nombre de lampes parcourues par pixel, donc le
+nombre de lectures d'atlas d'ombre. Sans liste — un appareil qui n'a pas pu gréer la passe de
+tuiles —, la boucle retombe sur les lampes déclarées, bornée par `maxLights` (X2).
+
+### Ce qui a été mesuré puis écarté
+
+**Le tirage stochastique et l'accumulation temporelle**, écrits, mesurés, non retenus.
+
+1. **Écrire l'historique depuis le nuanceur de fragments prive le tuileur de son élimination des
+   surfaces cachées.** Sur Emerald, vue `sol`, qui n'a pourtant **aucun transparent visible**,
+   l'étape Transparents passe de 2,4 à **32,7 ms** et l'enveloppe d'image de 11,6 à 42,1 ms : tout
+   le feuillage caché derrière le sol se met à être ombré. Le même lot sans ce tampon retombe à
+   2,94 ms. Ce n'est pas le trafic mémoire : faire sauter l'accumulation pour les 76 % de pixels
+   dont le tirage était déjà exact n'a rien changé au coût (32,73 → 32,67 ms).
+2. **L'historique par pixel n'accumule rien sous surdessin transparent** : compteurs relevés,
+   **99,7 %** des clés rejetées, chaque case étant réécrite par une autre couche dans la même image.
+3. **Le banc ne pouvait pas prouver le gain du tirage.** Sur Emerald à huit lampes, la boucle « sur
+   toutes les lampes déclarées » ne testait déjà qu'**une** lampe par pixel : les ponctuelles sont
+   hors de portée des feuillages et sortaient par le fenêtrage de portée avant toute lecture
+   d'atlas. Les 23 ms de la vue de rue sont les seize prises du soleil sur 1,7 M de triangles de
+   feuillage, pas le nombre de lampes. Rue : 23,36 ms avant, 23,97 après — rien à gagner ici.
+
+Deux autres variantes ont été mesurées et écartées en chemin. **Une seule liste par tuile, élargie
+et partagée** avec les opaques : elle gardait bien les feuillages, mais faisait passer l'enveloppe
+d'image de `sol` de 12,0 à 34,6 ms, chaque tuile retenant les lampes posées entre la caméra et le
+sol. **Une clé d'historique faite du seul point du monde**, à trois pixels près : 21 329 px d'écart
+sur la vue de rue, deux feuilles voisines le long du rayon — l'une au soleil, l'autre à l'ombre —
+mêlant leurs moyennes ; la normale quantifiée dans la clé les sépare et ramène l'écart à 1 141 px.
+
+Fidélité atteinte par la version écartée, pour mémoire (Emerald, 8 lampes + soleil, 200 images) :
+`sol` 0 px, générale 169 px max canal 29, rue 1 141 px max canal 3.
+
+### Ce qui reste pour RX2
+
+L'historique porté par une **cible de rendu supplémentaire, en ping-pong**, que le tuileur traite
+sans perdre son élimination des surfaces cachées ; et un banc où des lampes atteignent vraiment les
+transparents, faute de quoi le tirage n'a rien à retirer. Le plafond X5 reste un compte de lampes et
+non un budget en millisecondes.
+
+### Preuves
+
 ## 2026-09-15 — [session calculs] lot H3 rebond : le proxy indexe ses primitives par maillage
 
 Fusion fast-forward `develop` → `8f54474` (« perf(rebond): les primitives du proxy indexées par
