@@ -19,7 +19,7 @@ export function projectBoxesFlat(
   world?: { corners: BoxCorners; pageIndex: Int32Array; epoch: number },
 ) {
   const [width, height] = viewport;
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = viewProjScratch.multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

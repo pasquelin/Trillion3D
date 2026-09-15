@@ -15,7 +15,7 @@ export function shadeVisibility(
 ) {
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
@@ -47,7 +47,7 @@ export function visibilityUvDerivatives(
   const [width, height] = viewport,
     unpacked = unpackVisibilityId(ids[y * width + x]);
   if (!unpacked) return null;
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

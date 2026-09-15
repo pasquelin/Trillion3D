@@ -33,7 +33,7 @@ export function visibilityDepth(
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(HIZ_BACKGROUND);
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = viewProjScratch.multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
