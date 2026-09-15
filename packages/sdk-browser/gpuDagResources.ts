@@ -32,8 +32,11 @@ export async function createDagResources(
       size: UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    // Les drapeaux de coupe, puis les drapeaux de dessin, puis le rejet par cone retenu par
+    // `dagWanted` pour les quatre passes qui le relisent : une page de plus par page, jamais lue
+    // par le CPU, qui ne copie toujours que les drapeaux de dessin.
     const flags = device.createBuffer({
-      size: Math.max(4, (nodeCount + pageCount) * 4),
+      size: Math.max(4, (nodeCount + pageCount * 2) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const output = device.createBuffer({
