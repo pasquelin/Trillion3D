@@ -89,3 +89,10 @@ export type ClusterRoot<T> = {
   forced?: Uint8Array;
   forcedList?: number[];
 };
+
+/**
+ * Tours de montée vers un ancêtre résident avant que la couverture racine épinglée ne prenne le
+ * relais. La coupe plate et la coupe du DAG de clusters escaladent le même nombre de fois : deux
+ * valeurs séparées se seraient réglées l'une sans l'autre.
+ */
+export const ESCALATION_ROUNDS = 3;
