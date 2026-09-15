@@ -15,21 +15,18 @@
 //! sa couleur est conservée telle quelle — ni remplie de blanc, ni prémultipliée.
 //!
 //! **Une animation est refusée, pas aplatie.** Un fichier qui porte plus d'un descripteur d'image
-//! ressort en refus nommé, par la même raison que le pilote `webp` : choisir d'office laquelle de
+//! ressort en refus nommé, par la raison d'animation commune aux pilotes : choisir d'office laquelle de
 //! ses images est *la* texture serait arbitraire, et une animation n'est pas une texture. Le compte
 //! des images ignorées n'est pas publié : le contrat d'image ne nomme une raison que du côté du
 //! refus, et le rapport des aperçus ne compte que celles-là.
 //!
 //! Le parcours des blocs est fait ici, avant tout décodage, parce que le décodeur rendrait sinon la
 //! première image d'une animation sans que personne ne l'ait demandé.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+use super::crate_image::{self, ANIMATED};
+use super::{DecodedImage, ImageDecoder, Plugin};
 
 pub(super) static GIF: Gif = Gif;
 pub(super) struct Gif;
-
-/// Plus d'une image dans le fichier. La raison est celle du pilote `webp` : un refus d'animation est
-/// un refus d'animation, quel que soit le format qui la porte.
-const ANIMATED: &str = "image-animation-unsupported";
 
 /// L'entête et le descripteur d'écran logique : six octets de signature, la taille sur quatre, le
 /// champ groupé, l'index de fond et le rapport d'aspect.
@@ -100,15 +97,15 @@ fn carries_several_images(bytes: &[u8]) -> bool {
     let Some(mut at) = after_global_color_table(bytes) else {
         return false;
     };
-    let mut images = 0;
+    let mut seen_image = false;
     while let Some(&block) = bytes.get(at) {
         at += 1;
         match block {
             IMAGE_SEPARATOR => {
-                images += 1;
-                if images > 1 {
+                if seen_image {
                     return true;
                 }
+                seen_image = true;
                 let Some(next) = after_image_descriptor(bytes, at) else {
                     return false;
                 };
