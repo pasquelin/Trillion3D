@@ -135,11 +135,45 @@ test('assertManifestBinary accepts version 2 and refuses every other version', (
     pageUrl: '../../objects/{sha}.bin',
     geometryUrl: '../../objects/{sha}.bin',
     bundleUrl: '../../objects/{sha}.bin',
+    texturePreviews: 0,
   };
   assert.doesNotThrow(() => assertManifestBinary(descriptor));
-  for (const version of [0, 1, 3, 999])
+  for (const version of [0, 1, 2, 999])
     assert.throws(
       () => assertManifestBinary({ ...descriptor, version }),
       (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
     );
+});
+
+// Comportement 10 : assertManifestBinary refuse un descriptif sans compte d'aperçus de texture, et
+// split/decodeManifestBinary fait l'aller-retour de la section aperçus sans en perdre un octet.
+test('assertManifestBinary rejects a descriptor with no texture preview count', () => {
+  const descriptor = {
+    version: MANIFEST_BINARY_VERSION,
+    url: 'clusters.bin',
+    sha256: 'a'.repeat(64),
+    bytes: 8,
+    pageUrl: '../../objects/{sha}.bin',
+    geometryUrl: '../../objects/{sha}.bin',
+    bundleUrl: '../../objects/{sha}.bin',
+  };
+  assert.throws(
+    () => assertManifestBinary(descriptor),
+    (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
+  );
+  assert.throws(
+    () => assertManifestBinary({ ...descriptor, texturePreviews: -1 }),
+    (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
+  );
+});
+test('encodeManifestBinary and decodeManifestBinary round-trip the texture preview section', () => {
+  const source = manifest();
+  const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES);
+  slim.binary.sha256 = sha('f');
+  assert.equal(slim.binary.texturePreviews, 1);
+  const decoded = decodeManifestBinary(
+    JSON.parse(JSON.stringify(slim)),
+    binary.buffer.slice(binary.byteOffset, binary.byteOffset + binary.byteLength),
+  );
+  assert.deepEqual(decoded.texturePreviews, source.texturePreviews);
 });
