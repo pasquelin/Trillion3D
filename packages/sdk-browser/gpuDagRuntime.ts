@@ -47,6 +47,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     state.lastReadback = undefined;
   };
   const previousWorlds = packed.worlds.slice();
+  // Miroir compact des drapeaux de résidence : la comparaison d'une image lit ce tableau contigu
+  // plutôt que de sauter de douze flottants en douze flottants dans les cônes de page.
+  const residence = new Float32Array(pageCount);
+  for (let j = 0; j < pageCount; j++) residence[j] = packed.pageCones[j * PAGE_CONE_FLOATS + 11];
   const dispatch = createDagDispatch(resources, state, fail);
   const selection: GpuSelection = {
     residentCut,
@@ -75,9 +79,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       );
       // The object-to-view stretch is the primitive's own; recompute it whenever its placement moves.
       for (let w = 0; w < packed.worldCount; w++) {
-        packed.worldStretch[w] = maxStretch(
-          Array.from(packed.worlds.subarray(w * 16, w * 16 + 16)),
-        );
+        packed.worldStretch[w] = maxStretch(packed.worlds.subarray(w * 16, w * 16 + 16));
         frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
       }
       device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
@@ -92,12 +94,11 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
       let changed = false;
       for (let j = 0; j < next.length; j++) {
-        const index = j * PAGE_CONE_FLOATS + 11,
-          value = next[j] ? 1 : 0;
-        if (packed.pageCones[index] !== value) {
-          packed.pageCones[index] = value;
-          changed = true;
-        }
+        const value = next[j] ? 1 : 0;
+        if (residence[j] === value) continue;
+        residence[j] = value;
+        packed.pageCones[j * PAGE_CONE_FLOATS + 11] = value;
+        changed = true;
       }
       if (!changed) return false;
       device.queue.writeBuffer(pageCones, 0, packed.pageCones as Float32Array<ArrayBuffer>);
