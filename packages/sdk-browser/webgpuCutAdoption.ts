@@ -34,6 +34,9 @@ export function createWebgpuCutAdopter(options: {
   onDrawnMirrored: () => void;
 }) {
   const metrics = {
+    /** Vrai quand l'image a relu le relevé qu'elle tenait déjà : `desired` et `shown` sont ceux de
+     *  l'image précédente, aux mêmes rangs. Faux par défaut, et faux dès qu'un doute existe. */
+    cutHeld: false,
     ready: false,
     visible: 0,
     selectedTriangles: 0,
@@ -47,6 +50,7 @@ export function createWebgpuCutAdopter(options: {
   /** Le relevé dont `shown` et `drawn` sont faits, ou `null` quand ils viennent d'ailleurs. */
   let shownCut: GpuCut | null = null;
   const adopt = () => {
+    metrics.cutHeld = false;
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
     const { packedPages, desired, shown, drawn, delta, drawnDelta } = options;
@@ -62,6 +66,7 @@ export function createWebgpuCutAdopter(options: {
     // landed — must not replay the previous one, which would count every page twice.
     options.onCutDelta(delta);
     options.onDrawnDelta(drawnDelta);
+    metrics.cutHeld = !delta.changed && !drawnDelta.changed;
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
