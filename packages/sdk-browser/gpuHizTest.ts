@@ -13,9 +13,10 @@ export type HizBoxObserver = {
 export type HizPackedBoxes = { bytes: ArrayBuffer; from: number; to: number };
 
 /**
- * Envoie au tampon de test les seules boîtes que l'empaquetage vient de réécrire. Le tampon garde ce
- * que les images précédentes y ont écrit, et les entrées au-delà de `count` ne sont jamais lues :
- * `uni.c` borne le noyau. Une image qui ne réempaquette rien n'envoie pas un octet.
+ * Envoie au tampon de test la plage contiguë qui va de la première à la dernière boîte que
+ * l'empaquetage vient de réécrire. Le tampon garde ce que les images précédentes y ont écrit, et les
+ * entrées au-delà de `count` ne sont jamais lues : `uni.c` borne le noyau. Une image qui ne
+ * réempaquette rien n'envoie pas un octet.
  */
 export function uploadPackedBoxes(device: GPUDevice, target: GPUBuffer, packed: HizPackedBoxes) {
   if (packed.to < packed.from) return;

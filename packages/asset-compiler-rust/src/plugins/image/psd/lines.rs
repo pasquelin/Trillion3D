@@ -60,16 +60,21 @@ impl<'a> Lines<'a> {
         into: &mut [u8],
     ) -> std::result::Result<(), &'static str> {
         if self.counts.is_empty() {
-            let end = self.at.checked_add(self.width).ok_or(DATA_TRUNCATED)?;
-            into.copy_from_slice(self.data.get(self.at..end).ok_or(DATA_TRUNCATED)?);
-            self.at = end;
+            into.copy_from_slice(self.take(self.width)?);
             return Ok(());
         }
         let count = self.count(index)?;
-        let end = self.at.checked_add(count).ok_or(DATA_TRUNCATED)?;
-        let packed = self.data.get(self.at..end).ok_or(DATA_TRUNCATED)?;
-        self.at = end;
+        let packed = self.take(count)?;
         unpack(packed, into)
+    }
+
+    /// Les `n` octets suivants du corps, le curseur passé derrière eux ; un corps qui ne les porte
+    /// pas entiers est tronqué.
+    fn take(&mut self, n: usize) -> std::result::Result<&'a [u8], &'static str> {
+        let end = self.at.checked_add(n).ok_or(DATA_TRUNCATED)?;
+        let bytes = self.data.get(self.at..end).ok_or(DATA_TRUNCATED)?;
+        self.at = end;
+        Ok(bytes)
     }
 
     /// La longueur compressée que la table donne à cette ligne.
