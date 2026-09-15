@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS, LIGHT_SETTINGS, type SceneProxy } from '../sdk-core/index.ts';
 import { createGpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuSunFarShadow } from './gpuSunFarShadow.ts';
+import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Ce que la capacité déclare tant qu'aucune ombre lointaine n'est gréée sur cette scène. */
@@ -36,7 +37,7 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (shared) {
     sunFar.borrowed = true;
     sunFar.gpu.adopt(shared, false);
-    grantCapability(rt);
+    grantCapability(rt.capabilities, SUN_FAR_CAPABILITY);
     return publish(rt);
   }
   if (sunFar.pending || sunFar.reason) return;
@@ -48,7 +49,7 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
     .readSceneProxy()
     .then((proxy: SceneProxy) => {
       sunFar.gpu?.adopt(createGpuBounceProxy(device, proxy), true);
-      grantCapability(rt);
+      grantCapability(rt.capabilities, SUN_FAR_CAPABILITY);
       publish(rt);
     })
     .catch((error: unknown) => {
@@ -56,12 +57,6 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
       rt.diag.diagnosticFailure('sun-far-shadow-unavailable', error);
       publish(rt);
     });
-}
-
-function grantCapability(rt: WebgpuPagesRuntime) {
-  rt.capabilities.unsupported = rt.capabilities.unsupported.filter(
-    (item) => item !== SUN_FAR_CAPABILITY,
-  );
 }
 
 /** Ce que l'ombre lointaine a réellement obtenu. Jamais une estimation, jamais un zéro déduit. */

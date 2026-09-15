@@ -1,5 +1,6 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS, type SceneProxy } from '../sdk-core/index.ts';
 import { createGpuBounceProbes } from './gpuBounceProbes.ts';
+import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Ce que la capacité déclare tant que la lumière qui rebondit n'est pas gréée sur cet appareil. */
@@ -51,9 +52,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     .then(
       (probes) => {
         bounce.probes = probes;
-        rt.capabilities.unsupported = rt.capabilities.unsupported.filter(
-          (item) => item !== BOUNCE_CAPABILITY,
-        );
+        grantCapability(rt.capabilities, BOUNCE_CAPABILITY);
         publish(rt);
       },
       (error: unknown) => {
