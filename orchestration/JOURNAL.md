@@ -4515,3 +4515,56 @@ bougé — ni `apercus/atlas-couleur`, ni les coplanaires, ni `unity/cc0-import-
 la clé reste identique dans l'archive et hors d'elle. `cargo test --locked` : 174 tests au vert (173
 + celui-ci), `cargo clippy --all-targets -- -D warnings` et `cargo fmt --check` verts, tous les
 fichiers touchés sous 200 lignes.
+
+## 2026-09-15 — [compilateur] pilote unitypackage
+
+**Ce que c'est.** Un `.unitypackage` n'est pas une scène : c'est un projet Unity mis à plat dans une
+archive tar compressée en gzip, un dossier par GUID d'asset. Chaque dossier porte `pathname` — le
+chemin cible dans le projet, sur sa première ligne —, `asset` — les octets du fichier, absent quand
+l'entrée décrit un dossier du projet —, `asset.meta`, et parfois `preview.png`, vignette de
+l'éditeur qui n'appartient pas au projet. Le pilote reconstruit l'arbre `Assets/…` sous le cache,
+puis laisse le routeur faire son travail : chaîne `unitypackage` → `unity`, consignée au rapport et
+dans la marque d'extraction comme le fait `zip`.
+
+**Provenance et licences.** Formats ouverts : ustar (POSIX 1003.1-1988) et gzip (RFC 1952), lus par
+`tar` 0.4.46 et `flate2` 1.1.10, MIT OU Apache-2.0, versions figées dans `Cargo.toml` et nommées
+dans la version du pilote. `flate2` sur son backend Rust pur (miniz_oxide), `tar` sans `xattr` —
+aucun attribut étendu n'est restauré. Décompression seule, aucun code, SDK ni bibliothèque d'éditeur,
+rien de déchiffré ni contourné. Chaque fichier du paquet garde la licence de son auteur.
+
+**Le socle a servi, et s'est généralisé une fois.** `scene/archive.rs` avait été écrit pour ZIP avec
+le second conteneur en tête ; le déroulé commun y était resté dans `zip.rs`. Il est descendu dans
+`archive/container.rs` : source unique, clé d'extraction, marque `archive.json` d'une extraction
+entière, dossier racine unique traversé, routage, chaîne publiée. Un conteneur n'apporte plus que sa
+lecture. Les refus nommés (`ARCHIVE_UNREADABLE`, `ARCHIVE_EMPTY`) et les deux plafonds sont devenus
+des fonctions du socle. La version et les messages de `zip` n'ont pas bougé : sa dorée passe sans
+qu'un attendu soit touché.
+
+**Ce qui est refusé.** Toutes les protections du socle valent : `pathname` absolu, avec `..` ou
+nommant un volume → `ARCHIVE_PATH_ESCAPE`, jugé avant qu'un octet soit écrit ; lien symbolique ou
+matériel → `ARCHIVE_SYMLINK` ; plafonds d'entrées et d'octets décompressés → `ARCHIVE_TOO_*` ; gzip
+tronqué ou corrompu → `ARCHIVE_UNREADABLE` ; paquet sans aucune `pathname` → `ARCHIVE_EMPTY`.
+L'extraction se fait en deux passes — juger tout le paquet, puis écrire — donc un paquet refusé ne
+laisse aucun fichier derrière lui ; le flux gzip n'étant pas rembobinable, la seconde passe rouvre
+le fichier au lieu de garder les assets en mémoire. Aucune panique : tout sort en `CompilerError`.
+
+**Dorée.** Une seule, `fixtures/unitypackage`, sur le corpus CC0 local (le dépôt ignore
+`test-assets/`), avec sa notice. Le paquet CC0 et le même projet reconstruit à plat dans
+`hors-paquet/` sont compilés tous les deux et comparés l'un à l'autre — nom, taille et empreinte de
+chaque fichier de données lu, comptes du pilote Unity, sha256 du sidecar — avant que le premier soit
+comparé à `expected.json` : 11 `.meta` reconstruits, 12 objets, 3 instances, 36 triangles, 6 rendus
+de LOD écartés. `fixtures/unity/cc0-import-project` ne pouvait pas servir de témoin : sa `Map.unity`
+a été enrichie pour la dorée Unity et diffère de celle du corpus. Le script C# du corpus n'est pas
+repris dans `hors-paquet/` — ce pilote ne lit que des données — mais son `.meta` l'est, pour que les
+deux projets comptent les mêmes onze `.meta`. Trois paquets piégés y sont fixés par leur code, dont
+deux synthétiques écrits par un outil extérieur aux caisses qui les lisent. `cargo test --locked` du
+crate : 174 tests unitaires et 4 tests CLI au vert ; `cargo clippy --all-targets -D warnings`,
+`cargo fmt --check`, `check:lines` et `check:duplicates` verts.
+
+**Ce qui reste.** Le routeur refuse un dossier qui mêle `.unity` et `.fbx` au même niveau ; le paquet
+du corpus range ses `.fbx` sous `Models/`, donc son routage passe et la dorée ne bute pas dessus —
+un paquet dont les modèles voisinent la scène buterait, et c'est l'affaire du routeur, corrigée
+ailleurs. `accepts_head` reconnaît le nombre magique gzip : un fichier compressé sans extension
+connue est donc revendiqué par ce pilote, qui le refuse ensuite proprement s'il n'a pas la structure
+d'un paquet. La scène du corpus ne pose que des cubes intégrés : le FBX reconstruit est bien écrit à
+son chemin mais aucune instance ne le cite, ce que seul un paquet plus riche prouverait.

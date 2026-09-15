@@ -23,4 +23,5 @@ mod part6;
 mod part7;
 mod unity_driver;
 mod unity_golden;
+mod unitypackage_golden;
 mod zip_golden;
