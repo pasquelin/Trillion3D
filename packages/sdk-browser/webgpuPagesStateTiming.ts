@@ -16,6 +16,7 @@ const CPU = cpuStepTable([
   ['lightsMs', 'lights'],
   ['adoptCutMs', 'cutAdoption'],
   ['transparentSelectMs', 'transparents'],
+  ['transparentEncodeMs', 'transparents'],
   ['admissionMs', 'residency'],
   ['residencyQueueMs', 'residency'],
   ['syncRowsMs', 'uploads'],
@@ -73,7 +74,12 @@ export interface WebgpuTimingState {
     sansHistorique: number;
   };
   /** Ce que l'encodage a téléversé et soumis : des comptes, jamais des durées. */
-  encodeCounts: { lignesTeleversees: number; fichesTeleversees: number; appelsDeDessin: number };
+  encodeCounts: {
+    lignesTeleversees: number;
+    fichesTeleversees: number;
+    appelsDeDessin: number;
+    appelsDeMelange: number;
+  };
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
   marks: GpuCutMarks;
   lastCpuLogMs: number;
@@ -124,7 +130,12 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       historiqueOcculteurs: 0,
       sansHistorique: 0,
     },
-    encodeCounts: { lignesTeleversees: 0, fichesTeleversees: 0, appelsDeDessin: 0 },
+    encodeCounts: {
+      lignesTeleversees: 0,
+      fichesTeleversees: 0,
+      appelsDeDessin: 0,
+      appelsDeMelange: 0,
+    },
     cpuProfile: createCpuStepProfile(CPU.names),
     marks: {
       cpuStart: 0,
