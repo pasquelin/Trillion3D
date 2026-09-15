@@ -30,15 +30,13 @@ impl<'a> TextureTable<'a> {
         self.sampler_ids.insert(key, id);
         id
     }
+    /// Le type MIME du pilote d'image qui revendique ce chemin. Hors registre, rien : le glTF
+    /// intermédiaire ne nomme que des images qu'un pilote sait relire.
     pub(super) fn mime(path: &Path) -> Option<&'static str> {
-        let ext = path.extension()?.to_str()?.to_ascii_lowercase();
-        IMAGE_EXTENSIONS
-            .iter()
-            .find(|(e, _)| *e == ext)
-            .map(|(_, mime)| *mime)
+        crate::plugins::image::by_extension(path).map(|decoder| decoder.mime())
     }
     /// Finds a decodable image for a texture: embedded bytes first, then the declared paths inside the
-    /// source directory, then a sibling PNG/JPEG next to a GPU-only format (DDS, TGA...).
+    /// source directory, then a sibling of a format the image registry knows, next to one it does not.
     pub(super) fn resolve(&mut self, texture: &ufbx::Texture) -> Option<Value> {
         let name = Path::new(&*texture.filename)
             .file_name()
@@ -79,8 +77,8 @@ impl<'a> TextureTable<'a> {
         candidates.push(self.source_dir.join("textures").join(&name));
         let mut siblings = Vec::new();
         for candidate in &candidates {
-            for (ext, _) in IMAGE_EXTENSIONS {
-                siblings.push(candidate.with_extension(ext));
+            for extension in crate::plugins::image::extensions() {
+                siblings.push(candidate.with_extension(extension));
             }
         }
         let mut outside = false;
