@@ -94,9 +94,16 @@ export function installSceneLighting(
  * un accesseur y serait lu une seule fois, à la construction. Une lampe posée après coup — le cas
  * de tout hôte du contrat — doit rallumer la chaîne d'affichage à l'image suivante.
  */
-export function sceneLightingApi(lighting: ReturnType<typeof installSceneLighting>) {
+export function sceneLightingApi(
+  lighting: ReturnType<typeof installSceneLighting>,
+  /** Prévenu quand les lampes du graphe source changent : c'est une écriture de scène. */
+  sceneChanged: () => void = () => {},
+) {
   return {
-    refreshSceneLighting: () => lighting.refresh(),
+    refreshSceneLighting: () => {
+      lighting.refresh();
+      sceneChanged();
+    },
     sceneLit: () => lighting.lit,
   };
 }
