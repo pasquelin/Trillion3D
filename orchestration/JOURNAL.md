@@ -1,5 +1,785 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session sans-threejs] le processeur fixe WebGPU, ce qui manquait au profil et les trois postes qui en sortent (lot cpu-fixe)
+
+Worktree `.claude/worktrees/geometry-cpu-fixe`, branche `lot/cpu-fixe`, partie de `develop` =
+`9cd6a44` (les trois commits de docs qui ont suivi ne touchent pas le code). Sept commits : `b684322`
+(profil), `901f105` (levier 1), `22796c1` (levier 2), `351bb45` (levier 3), `acedbbb` (tableau
+partagé), `c89ca7f` (tests), `324a3e3` (l'âge de la coupe — un défaut du levier 3 trouvé à la
+preuve, voir la section 4). Fusionné depuis `develop` = `b6dbae3` (ombre lointaine de Lumière,
+formules de Calculs, ktx2/webp du Compilateur) : aucun fichier de `sdk-browser` en commun, seul
+`orchestration/JOURNAL.md` se recouvrait. **Non fusionné** : le lot touche `sdk-browser`, la session Lumière
+travaille sur `webgpuPagesEncoder.ts` / `webgpuPagesFlush.ts` et sur la passe de mélange ; premier
+livré fusionne, le second rebase et rejoue sa preuve.
+
+### 1. Le profil ne commençait pas où l'image commence
+
+Le lot visibilité l'avait écrit et n'avait pas pu le mesurer : `renderWebgpuPages` ouvre `cpuStart`
+**après** avoir mis à jour les matrices monde de la scène et repris la matrice et la boîte de chaque
+item transparent, et les deux listes que l'hôte demande **après** le rendu — les pages encore
+attendues, les pages à épingler — n'avaient aucune étape à leur nom non plus. Le moteur WebGL2
+tenait déjà le contrat `HostCpuProfile` pour ses propres bornes d'hôte ; le moteur WebGPU ne
+l'implémentait pas. Six bornes de plus, par ce seul mécanisme : `worldMs` et `blendWorldMs` dans le
+moteur, `arrivalsMs`, `pendingMs`, `retainMs` et `submitMs` déposées par l'hôte. La ligne du profil
+n'est donc plus classée au milieu de l'image mais à sa fin, par `cpuFrameEnd` — sans quoi les bornes
+de l'hôte auraient décrit l'image précédente —, et `totalMs` couvre l'image entière du moteur.
+
+Ce que le profil nommé a montré, vue générale, seuil 0, 1280×720, `--max-pages 100000`, boucle de
+profil de 120 images (charge machine 39 à 45 : **les durées ne valent que par leur rapport**) :
+
+| étape (CPU p50)                    | `9cd6a44` | après le profil seul |
+| ---------------------------------- | --------- | -------------------- |
+| Animations et transformations      | _sans borne_ | **0,5**           |
+| Adoption de la coupe               | 0,8       | 0,9                  |
+| Transparents                       | 0,7       | 0,9                  |
+| **Listes de pages rendues à l'hôte** | _sans borne_ | **2,1 à 2,4**   |
+| Téléversements                     | 0,3       | 0,3                  |
+| Partition occulteurs / testés      | 0,5       | 0,5                  |
+| Projection des boîtes              | 0,2       | 0,2                  |
+| Fiches de dessin                   | 1,5       | 1,5 à 1,7            |
+| Encodage des passes                | 2,8       | 2,7 à 2,9            |
+
+Une seconde mesure, jetable et jamais committée, a séparé les trois moitiés de ce nouveau poste :
+**`pendingUrls` 0,8 à 1,0 ms**, **`pageUrls` 1,1 à 1,5 ms**, **épingles 0,1 ms**. Les deux premières
+parcourent, par image, la couverture d'amorçage, les quarante-six mille lignes dessinées et les
+quatre-vingt mille placements de la coupe — cent vingt-six mille enregistrements — pour redonner, à
+caméra fixe, la liste de l'image précédente.
+
+### 2. Les trois leviers, et ce que chacun a rendu
+
+| levier | ce qui change | mesure | gardé |
+| --- | --- | --- | --- |
+| 1 — les deux listes sans hachage, épingles inchangées non reposées | le rang de la clé de requête, posé une fois par le catalogue, remplace l'ensemble de chaînes ; le cache de flux compare la liste rendue à celle qu'il tient avant de reposer ses épingles une à une | épingles **1,2 → 0,1 ms** ; les deux parcours restent | **oui** |
+| 2 — la boîte monde d'un transparent ne repart que si sa matrice a bougé | seize comparaisons au lieu de seize recopies et d'un transport de huit coins, mille neuf cents fois par image | se dépose sur « Transparents », sous la résolution du profil à cette charge | **oui**, c'est le levier 2 du lot visibilité, retiré faute de borne (tag `essai/visibilite-levier2-mesure`) |
+| 3 — les deux listes tenues quand le relevé l'est déjà | le relevé dit s'il a publié la **même suite** d'identifiants que le précédent ; une page qui reçoit ou perd ses octets fait avancer une estampille | **« Listes de pages rendues à l'hôte » 2,1 → 0,0 ms** | **oui** |
+
+Le levier 3 est fermé par défaut : seule l'adoption d'un relevé déjà lu lève le drapeau, et la coupe
+processeur, la capture de surface et l'image en attente de couverture repassent toutes par le
+parcours complet. C'est l'égalité des **suites** qui est testée, pas celle des ensembles : l'aval lit
+`desired` et `shown` dans l'ordre, et un même ensemble republié dans un autre ordre réécrit les
+enregistrements à d'autres rangs.
+
+Un trou trouvé en relisant, et corrigé (`acedbbb`) : le suivi du rendu, publié toutes les deux
+secondes, comptait les pages attendues **dans le même tableau** que la liste rendue à l'hôte. Tant
+que celle-ci était refaite à chaque image l'écrasement ne se voyait pas ; tenue, elle aurait rendu ce
+que le suivi y avait laissé — et le suivi lit la coupe entière, sans le drapeau de budget ni la
+couverture d'amorçage. Chacun son tableau, et un test le dit.
+
+### 3. Ce que le lot rend, et ce qu'il n'atteint pas
+
+`cpuFrameMs` p50, vue générale, seuil 0, les deux côtés joués dans la même exécution (charge relevée
+**39 à 45**, machine occupée par d'autres sessions : le rapport vaut, la valeur non) :
+
+| série       | `9cd6a44` | tête du lot |
+| ----------- | --------- | ----------- |
+| générale · 0 | 7,70     | **5,90** (et 5,80 sur la seconde série du même côté) |
+
+Profil de la tête, même exécution : animations 0,5 · adoption 0,9 · transparents 0,8 à 0,9 ·
+**listes de l'hôte 0,0** · téléversements 0,3 · partition 0,5 · projection 0,2 · fiches de dessin
+1,4 à 1,8 · encodage des passes 2,7 à 3,1.
+
+**La cible `< 4 ms` n'est pas atteinte** : 5,8 à 5,9 ms. Ce lot enlève le poste qu'il a d'abord dû
+nommer ; ce qui reste est nommé, chiffré, et hors de son périmètre ou de son niveau de preuve :
+
+- **Encodage des passes, 2,7 à 3,1 ms**, inchangé : mille neuf cent trente-six appels de dessin dont
+  mille neuf cent vingt-huit de mélange, un par primitive transparente visible, y compris celles dont
+  la coupe est vide. C'est la passe de mélange, qui appartient à la session Lumière ; et le remède
+  reste celui que le lot encodage avait nommé — savoir avant l'image quelles primitives n'ont rien à
+  dessiner, ce que le processeur ne sait pas puisque la compaction est sur la carte.
+- **Fiches de dessin, 1,4 à 1,8 ms** : la boucle parcourt les quarante-six mille lignes et y lit
+  `rec.array.length` sur autant d'objets. Le rendre gratuit demande de tenir ce compte dans un
+  tableau typé écrit au moment où la ligne est posée — donc de prouver qu'une ligne résidente ne voit
+  jamais son tableau remplacé sous elle. **Non tenté : l'invariant n'est pas établi, et un compte de
+  sommets faux dessine faux.**
+- **Adoption de la coupe, 0,9 ms** : le drapeau du levier 3 suffirait à sauter le parcours des
+  quarante-six mille identifiants, sauf pour `uncoveredTriangles`, qui dépend en plus de
+  `residentOffsetWords` et de `rec.array`. **Écarté volontairement** : `uncoveredTriangles` est la
+  mesure par laquelle le harnais prouve qu'il n'y a pas de trou. La mettre en cache derrière une
+  estampille rendrait la preuve dépendante de l'exactitude de cette estampille. Le lot 3b avait déjà
+  refusé ce risque pour 0,6 ms ; il est refusé de nouveau.
+- **Animations et transformations, 0,5 ms** : `source.updateMatrixWorld(true)` sur le graphe source.
+  Les nœuds portent `matrixAutoUpdate`, donc leur matrice est recalculée quelle que soit la force
+  demandée ; l'enlever demanderait d'éteindre ce drapeau, c'est-à-dire de retirer à l'hôte le droit
+  de bouger un nœud par sa position. Refusé.
+
+### 4. Le défaut que le lot a d'abord livré, et comment il s'est fait prendre
+
+**Le défaut que la caméra mobile a trouvé, et qui vaut d'être écrit.** Deux campagnes à caméra fixe
+(générale · 0, sur le profil seul puis sur la tête `351bb45`) rendaient 0 px, témoin A/A 0, hash
+`b1cd55ba461a`, trous 0. Elles ne prouvaient rien. La vue générale en **caméra mobile au seuil 1** a
+rendu **5 918 pixels, max canal 187**, `selectedTriangles` 1 599 951 contre 1 273 565, coupe de
+13 219 pages contre 10 608 — le témoin A/A restant à 0 px de chaque côté, donc chaque build
+déterministe seul. Le lot était faux.
+
+La cause est le levier 3, et elle tient en une phrase : **`flushWebgpuPages` rejoue une adoption de
+la coupe après que l'hôte a pris ses listes.** `desired` et `shown` étaient réécrits sous une liste
+déjà rendue ; l'image suivante relisait le même relevé, se déclarait en droit de tenir ses listes, et
+rendait des adresses qui ne décrivaient plus la coupe — pages épinglées à tort, d'autres reprises par
+le cache, résidence plus pauvre, coupe plus grossière. À caméra fixe les listes ne bougent pas : rien
+ne se voyait. Correctif `324a3e3` : les deux listes ne se fient plus au drapeau de l'image seule,
+elles portent **l'âge de la coupe**, et cet âge avance à chaque adoption qui réécrit réellement l'une
+des deux listes — au rendu comme dans la vidange — et à chaque invalidation par la coupe processeur.
+Un test rejoue exactement ce scénario.
+
+**Leçon, à garder :** un drapeau « rien n'a bougé » posé pendant le rendu ne dit rien de ce qui bouge
+après lui. Ce qu'un lecteur garde d'une image à l'autre doit porter l'âge de ce qu'il décrit, pas
+l'état de l'image qui l'a produit. Et une optimisation de listes de résidence ne se prouve pas à
+caméra fixe : **la caméra mobile est la série qui décide.** Dette laissée par le correctif : l'âge
+est déclaré par les écrivains de ces listes, pas dérivé de leur contenu ; un futur écrivain qui
+l'oublierait rouvrirait le même défaut. Le remède durable est de construire les deux listes dans le
+moteur en fin de rendu, après toute adoption de cette image, et de n'en rendre qu'une vue : il n'y
+aurait plus d'« après » possible.
+
+### 5. Preuve : vingt-deux combinaisons vue × seuil à 0 pixel
+
+Base `9cd6a44`, tête mesurée `324a3e3`, harnais commun, 1280×720, 60 images, chauffe par défaut,
+`--max-pages 100000`. Verrou pris au nom de `geometry cpu-fixe` avant chaque campagne et rendu après.
+**Aucune campagne n'a tourné sous charge à une minute inférieure à 4** (relevés de 8 à 45, machine
+partagée par quatre sessions) : les durées ci-dessus ne valent que par leur rapport, et **le chiffre
+de coût est à rejouer au calme**. Les pixels, eux, n'en dépendent pas.
+
+| campagne                                          | combinaisons | px | témoin A/A | hash | trous | `selectedTriangles` |
+| ------------------------------------------------- | ------------ | -- | ---------- | ---- | ----- | ------------------- |
+| Emerald WebGPU, `generale,sol,rue` × seuils 0 et 1 | 6            | 0  | 0          | identique | 0 | identiques (10 046 405 · 1 509 411 · 1 424 473 · 1 842 728 · 670 036 · 636 059) |
+| Emerald WebGPU, générale, **caméra mobile** × 0 et 1 | 2          | 0  | 0          | identique | 0 | identiques (6 747 087 · 1 599 951) |
+| `classes-materiaux` WebGPU, 3 vues × 2 seuils      | 6            | 0  | 0          | identique | 0 | identiques (1 410 · 728 · 600 · 556 · 362 · 362) |
+| WebGL, `generale,sol,rue` × 2 seuils               | 6            | 0  | 0          | identique | — (non publiés par WebGL) | identiques |
+| WebGL, générale, **caméra mobile** × 0 et 1        | 2            | 0  | 0          | identique | — | identiques (6 436 941 · 1 576 299) |
+
+La série Emerald principale a tourné à charge 11,6 à 14,6. Le côté « après » retrouve exactement le
+compte du côté « avant » au seuil 1 en caméra mobile — 1 599 951 — celui-là même que la version
+fautive ramenait à 1 273 565. **La série WebGL en caméra mobile a été ajoutée exprès** :
+`streamingCache.retain` est partagé par les deux moteurs, même si seul le moteur WebGPU tient ses
+listes d'une image à l'autre ; c'était la leçon du défaut ci-dessus.
+
+Les 404 `lights.json` du cache Emerald du Lab (38 par campagne à trois vues, 14 à une vue) sont
+identiques des deux côtés partout, y compris sur le cache `classes-materiaux` : défaut connu, code de
+retour non nul du banc, aucun effet sur les pixels. Images et relevés : `.mesure/out/cpu-fixe/`
+(14 dossiers) du checkout principal.
+
+### 6. Portes
+
+`npx tsc --noEmit -p .`, `npm run check:changed`, `npm run check:unused` (knip, 0),
+`npm run check:lines`, `npm run check:duplicates` (0 clone), `prettier --check`, `eslint` :
+**vertes**, rejouées sur la tête fusionnée. `npm test` : **792 tests, 0 échec**, dont treize ajoutés dans cinq fichiers
+(`webgpuCutDelta.test.ts`, `webgpuPagesHostLists.test.ts`, `webgpuBlendWorlds.test.ts`,
+`webgpuPagesCpuSteps.test.ts`, `streamingPages.test.ts`), plus deux assertions rendues au test
+d'adoption qui portait le relevé tenu. `render-tech-lab/` non modifié ; port 5174 non touché ; rien
+écrit dans `public/` ; aucun fichier d'éclairage, d'ombres, de sondes, de proxy ni de reflet touché,
+et ni `webgpuPagesEncoder.ts` ni `webgpuPagesFlush.ts` — le tableau que le suivi du rendu partageait
+a été réglé du côté de la liste de l'hôte, pas du sien.
+
+### 7. Deux incidents de verrou, à ne pas reproduire
+
+À 17 h 14 la prise a échoué (`mkdir` sans `-p`, retour vérifié, rien écrit) : bonne conduite. Mais à
+17 h 20 le verrou était un répertoire **vide**, sans fichier `proprietaire`, sans `banc.mjs` vivant,
+inchangé depuis plus d'une minute : la règle écrite dans `GEOMETRY_REPRISE` déclare un tel verrou
+orphelin et demande de le retirer. Il a donc été retiré et repris — alors qu'il appartenait à un Opus
+du Compilateur dont la `mkdir` avait réussi et qui n'avait pas encore écrit son nom. **La règle de
+l'orphelin ne distingue pas un verrou abandonné d'un verrou tout juste pris** : entre `mkdir` et
+l'écriture de `proprietaire`, un preneur est indiscernable d'un mort. Correction proposée : écrire
+`proprietaire` dans la **même** commande que la `mkdir` (`mkdir … && echo … > …/proprietaire`), et
+n'appliquer la règle de l'orphelin qu'au-delà de plusieurs minutes.
+
+Second incident, d'une autre nature : `node scripts/mesure/banc.mjs --help` **n'affiche pas d'aide**.
+L'option inconnue est ignorée et le harnais part sur ses valeurs par défaut — une campagne WebGL
+complète, lancée sans que personne ne l'ait demandée, donc **sans verrou pris**, pendant qu'une autre
+session mesurait. Proposition à trancher : que `readOptions` **refuse toute option qu'elle ne connaît
+pas** et sorte en nommant celles qu'elle accepte. Un harnais de mesure qui démarre sur une faute de
+frappe est un harnais qui fausse la mesure de quelqu'un d'autre.
+
+## 2026-09-15 — [session Formules] catalogue des formules mathématiques
+
+Sur `develop` = `9bf2eb3`. Dix agents Sonnet 5 en lecture seule (trois Rust, un sdk-core, cinq
+sdk-browser, un scripts/sdk-node/page-codec) ont recensé toute fonction de calcul du dépôt, hors
+tests et bancs : formule codée, entrées, constantes, appelants. Résultat assemblé sans réécriture
+dans `orchestration/AUDIT_MATH_FORMULES.md` (environ 2 000 lignes de tableau, 577 fichiers lus, plus un lot T1 des calculs délégués à Three.js : 49 fichiers, ~150 sites),
+avec en tête vingt-six doublons transversaux (erreur projetée codée quatre fois, barycentriques six
+fois, 1/π quatre fois, Hi-Z oracle/production, sRGB trois fois…). Complète
+`AUDIT_MATH_INVENTAIRE.md` du matin, orienté coût. Rien n'est modifié dans le code ; aucune
+optimisation proposée.
+
+## 2026-09-15 — [session Lumière] ombre lointaine sur la passe de mélange (lot `lot/ombre-lointaine-blend`)
+
+Worktree isolé, branche `lot/ombre-lointaine-blend`, partie de `develop` = `9cd6a44` (la consigne
+disait `c746c23` ; `develop` avait depuis deux commits de documentation, aucun code), rebasée sur
+`develop` = `d1294e4` avant livraison, sans conflit. Rien du cache n'est touché : le lot ne lit que
+`proxy.bin`, déjà écrit par le compilateur.
+
+### 1. Ce qui change
+
+Depuis le lot « ombres lointaines du soleil », la résolution différée opaque tirait un rayon d'ombre
+contre le proxy résident au-delà de la dernière cascade, et la passe de mélange recevait
+`SUN_FAR_STUB_WGSL`, un bouchon qui rendait `1.0`. Le bouchon disparaît : **les deux passes qui
+éclairent lient le proxy et tirent le même rayon, par le même code WGSL**. Un transparent lointain à
+l'ombre du soleil est désormais ombré exactement comme un opaque au même endroit.
+
+`directLightingWgsl.ts` ne prend plus une chaîne d'ombre en paramètre mais un **rang de liaison** :
+`DIRECT_LIGHTING_WGSL` passe celui de la résolution différée, `declaredLightingWgsl(...)` celui de la
+passe de mélange. Le reste du socle est le même caractère pour caractère, et un test le vérifie.
+
+### 2. Le vrai obstacle : une liaison de stockage, pas une ligne de code
+
+La raison notée du bouchon (« le proxy n'est lié qu'à la passe opaque ») était un **budget de
+liaisons**, mesuré ici : l'étage de fragments de la passe de mélange liait déjà **7 tampons de
+stockage sur les 8 que la norme garantit** (`maxStorageBuffersPerShaderStage` = 8, que le moteur ne
+demande pas de relever : `WEBGPU_REQUIRED_LIMITS` ne porte que les trois limites de taille). L'ombre
+lointaine en demandait **4** — trois colonnes de proxy plus un bloc de réglages et de compteurs.
+7 + 4 = 11. Aucun découpage en deux groupes n'y change rien : la limite est par étage, pas par groupe.
+
+Le proxy résident tient donc maintenant dans **un seul tampon** (`gpuBounceProxy.ts`) : un entête de
+douze mots — les quatre réglages du rayon, le drapeau de relevé, les deux compteurs `atomic`, le
+nombre de nœuds et les trois rangs de départ —, puis les trois colonnes bout à bout. Les colonnes de
+flottants se relisent par `bitcast` ; rien n'est recopié ni converti. L'albédo reste à part : seule
+la lumière qui rebondit lit une couleur. `gpuSunFarShadow.ts` n'a plus de tampon propre, il écrit
+dans cet entête.
+
+Tampons de stockage à l'étage de fragments de la passe de mélange : **7 avant, 8 après**, le plafond
+garanti tenu sans rien demander à l'appareil. La résolution différée **descend de 8 à 5** : trois
+liaisons libérées. Les deux passes de calcul du rebond passent de 4 liaisons de proxy à 2 (le tampon
+et l'albédo) : la passe de sondes descend de 8 à 6 tampons de stockage à l'étage de calcul — elle
+était pile au plafond —, celle du cache de surfaces de 7 à 5. La liaison est `read_write`
+partout, parce qu'une liaison en lecture seule ne peut pas déclarer un `atomic` ; les passes qui ne
+comptent rien n'y écrivent jamais.
+
+### 3. Sans proxy dans le cache
+
+Rien ne change : les deux passes lient le même remplaçant, un entête de zéros, où `present` vaut zéro
+et le nombre de nœuds aussi. Aucun rayon n'est tiré, aucun compteur n'est relevé, le diagnostic
+`sun-far-shadow` publie la même indisponibilité qu'avant. Pas de nouveau réglage, pas de drapeau.
+
+### 4. Fichiers et portes
+
+`packages/sdk-browser` seulement — ni `webgpuPagesEncoder.ts` ni `webgpuPagesFlush.ts` ne sont
+touchés, donc aucun conflit attendu avec Geometry. Touchés : `bounceNodeWgsl.ts` (entête, déclaration
+partagée, accesseurs), `sunFarShadowWgsl.ts`, `directLightingWgsl.ts`, `gpuBounceProxy.ts`,
+`gpuSunFarShadow.ts`, `bounceProbeWgsl.ts`, `bounceSurfaceWgsl.ts`, `gpuBounceProbes.ts`,
+`gpuBounceSurface.ts`, `bounceLimits.ts`, `deferredLightingSetup.ts`, `deferredLightingProgram.ts`,
+`webgpuPagesLightResources.ts`, `webgpuBindLayout.ts`, `webgpuBlendPipelines.ts`,
+`webgpuBindEntries.ts`, `webgpuBlendDraw.ts`, `webgpuPagesShaders.ts`. Deux fichiers de tests neufs :
+`sunFarShadowBlend.test.ts` (le mélange porte le vrai rayon et plus de bouchon ; les deux passes
+portent le même texte ; le proxy est lié une fois et une seule des deux côtés, en `storage` ; sans
+proxy, rien n'est encodé) et `residentProxyBuffer.test.ts` (l'entête publie les bons rangs, les trois
+colonnes se relisent telles quelles, les réglages et les compteurs vivent dans le tampon du proxy).
+
+Portes jouées, toutes vertes : `npx tsc --noEmit -p .`, `npm run check:changed` (format, lint,
+doublons, 446 tests reliés), `npm run check:unused`, `npm run check:lines`,
+`npm run check:duplicates`, plus `npm run build` et la suite complète `npm test` — **780 tests, 0
+échec** (sans le build, six tests échouent sur `dist/` manquant, avant comme après ce lot).
+
+### 5. Preuve d'image
+
+Jouée sous verrou le 15 septembre au soir, Emerald, WebGPU, 40 images par vue, seuils 0 et 1,
+`--avant d1294e4 --apres 9b4e1e8`, images et JSON dans `.mesure/out/ombre-lointaine-blend/`
+(`soleil`, `lampes8`, `rebond`). Machine chargée : seuls les pixels sont lus, aucune durée.
+
+| campagne        | vue                | px (e0 / e1)         | max canal | > 32 | A/A | trous | incidents GPU |
+| --------------- | ------------------ | -------------------- | --------- | ---- | --- | ----- | ------------- |
+| soleil          | generale           | 18 / 6               | 29        | 0    | 0   | 0     | aucun         |
+| soleil          | sol                | 0 / 0                | 0         | 0    | 0   | 0     | aucun         |
+| soleil          | rue                | 2 / 4                | 9         | 0    | 0   | 0     | aucun         |
+| 8 lampes        | generale           | 1 / 0                | 1         | 0    | 0   | 0     | aucun         |
+| 8 lampes        | sol, rue           | 0 / 0                | 0         | 0    | 0   | 0     | aucun         |
+| soleil + rebond | generale, sol, rue | 18 / 6, 0 / 0, 2 / 4 | 29, 0, 9  | 0    | 0   | 0     | aucun         |
+
+- **Le seul écart est celui annoncé.** Les pixels qui bougent en vue générale et en rue sont tous
+  sur le feuillage — matériau de mélange lointain, au-delà des cascades —, jamais sur une façade,
+  le ciel ou le premier plan ; il s'assombrit comme l'opaque voisin. La vue sol, sans feuillage
+  lointain, rend 0 px. L'écart le plus fort vaut 29 sur 255.
+- **Le tampon réagencé est juste** : la campagne avec rebond reproduit pixel pour pixel la campagne
+  soleil (mêmes comptes, mêmes maxima), donc aucun rang de colonne n'est faux.
+- **A/A 0 px partout.** Le pixel unique à 1/255 en 8 lampes est au niveau du quantum.
+- Chaque campagne journalise l'incident connu du cache Emerald sans `lights.json` (404), sans
+  effet sur les pixels.
+
+## 2026-09-15 — [session Lumière] `sceneLit` lu à chaque image
+
+Branche `fix/scenelit`, sur `develop` = `f66ddf7`. Le lot `unlit-identite` publiait `sceneLit` en
+accesseur, et les quatre moteurs rendus par Three étalent l'objet de `sceneLightingApi` dans le leur :
+un étalement lit un accesseur une seule fois, à la construction. `sceneLit` restait donc figé à faux
+pour tout hôte qui pose ses lampes après `createExplorer` — le cas du contrat, et celui du harnais.
+L'hôte ne rallumait jamais l'exposition et ACES : le témoin Three composait par l'identité pendant que
+le moteur composait par la courbe, et l'écart mesuré portait cette différence de chaîne d'affichage
+avant de porter le matériau.
+
+`sceneLit` devient une fonction, `sceneLit?(): boolean` dans `backendTypes.ts` : une fonction survit à
+l'étalement, et l'appel lit l'état vivant des lampes installées. Les quatre moteurs ne changent pas
+d'une ligne — ils étalent le même objet —, et `explorerDraw.ts` lit `backend.sceneLit?.()` à chaque
+image, là où il réglait déjà la chaîne d'affichage. Aucun nouveau réglage, aucun drapeau d'hôte : le
+signal vient toujours des seules lampes du graphe source.
+
+Portes vertes : `tsc --noEmit`, `check:changed` (412 tests), `check:unused`, `check:lines`. Preuve
+navigateur non jouée : le verrou `.claude/mesure.lock` était pris à l'heure du correctif, et la règle
+est de ne pas attendre. La campagne attendue reste celle de `GEOMETRY_REPRISE` — scène
+classes-materiaux, `--moteur webgpu --moteur-avant webgl --vues generale,sol,rue --soleil
+--ombres off`, max canal ≤ 1 sur les trois vues —, à rejouer sous verrou libre.
+
+## 2026-09-15 — [session sans-threejs] témoin Three.js avec lampes du contrat
+
+Branche `lot/temoin-three`, rebasée sur `develop` = `e14b249`. Le témoin rendait toute surface opaque noire dès qu'une
+lampe du contrat était déclarée : les adaptateurs Three ne lisent pas le magasin `SceneLight`, ils
+recopient les lampes du graphe source et rien d'autre (P6, entrées des 14 et 15 septembre). Aucune
+comparaison de fidélité entre les deux moteurs n'était donc possible, et les 174 268 px relevés sur
+la scène à transmission ne mesuraient que cette convention d'éclairage.
+
+### Ce qui change, et où
+
+Rien dans le moteur. Le harnais est un hôte comme un autre : il pose lui-même, en Three, les lampes
+que le magasin déclare, par l'option publique `sceneLighting` de `createExplorer`. Aucune lampe
+n'est écrite à la main — tout vient de `explorer.lights()`, donc du cache compilé et du contrat, les
+lampes du fichier importé comme celles du banc —, et aucune scène n'est nommée.
+
+La correspondance est exacte dans les unités de Three 0.174, vérifiée formule contre formule :
+`getDistanceAttenuation` avec `decay = 2` et `distance` = portée est mot pour mot le carré inverse
+fenêtré de `directIncidence` (`pow2(saturate(1 − pow4(d/r))) / max(d², ·)`) ; l'intensité est
+radiométrique sans facteur π des deux côtés ; `MeshStandardMaterial` évalue le même Lambert `a/π` et
+le même GGX à visibilité de Smith que `standardLighting`, qui dit d'ailleurs en commentaire qu'il
+recopie Three ; et le renderer du SDK applique déjà ACES puis sRGB avec exposition 1, comme la
+composition WebGPU. Le bord de cône d'un projecteur est reproduit par la pénombre :
+`p = 1 − acos(cos θ + douceur)/θ`, avec la douceur publiée par `lightSettings`.
+
+`--moteur-avant` / `--moteur-apres` donnent son moteur à chaque côté : le moteur et le témoin se
+mesurent dans une seule exécution, mêmes poses, mêmes lampes, mêmes caches, même serveur, et
+`ecartAvantApres` devient un chiffre de fidélité au lieu d'une comparaison entre deux campagnes.
+
+Fichiers : `scripts/mesure/pageTemoin.mjs` (neuf), `pageCoupe.mjs` (neuf, coupe extraite),
+`dists.mjs` (neuf, résolution du dist d'un côté), `pageEclairage.mjs`, `options.mjs`, `serie.mjs`,
+`banc.mjs`, `rapport.mjs`, `README.md`, `scripts/temoin.test.mjs` (neuf), `scripts/banc.test.mjs`,
+`knip.config.js`. Les deux modules neufs de la page sont **servis** sous `/mesure/` et importés par
+leur URL : `measureView` est sérialisée par Playwright et ne peut appeler aucune fonction de module,
+mais un `import()` d'URL lui reste ouvert — c'est la seule raison de la découpe.
+
+### Ce que le témoin ne rend toujours pas, nommé plutôt que deviné
+
+- **Aucune ombre portée.** Le renderer Three du SDK n'allume pas ses cartes d'ombre, et une lampe
+  qui les demanderait ferait compiler un nuanceur qui lit une carte absente. Les lampes du témoin
+  sont posées `castShadow = false`, et une campagne de fidélité se joue `--ombres off` des deux
+  côtés — sinon l'écart mesuré porte d'abord les ombres que seul le moteur dessine.
+- **Ni rebond, ni sondes, ni ombre lointaine du soleil** côté témoin : ce sont des composantes du
+  moteur, pas de Three. Elles restent éteintes dans la comparaison.
+
+### Portes
+
+`tsc` vert, `eslint` vert, `check:lines` vert (200 exactement pour `banc.mjs`, 193 pour
+`pageEclairage.mjs`), `format:check` vert, `check:unused` vert, `check:duplicates` à zéro clone,
+27 tests de `scripts/` verts dont 7 neufs sur le témoin — un par comportement : ponctuelle,
+directionnelle, projecteur, absence d'ombre, résumé publié, reprise seulement sur changement
+d'ensemble, dist antérieur au contrat.
+
+### La campagne de fidélité, enfin chiffrée
+
+Moteur contre témoin **dans une seule exécution** : côté `apres` = **le moteur** (`--moteur webgpu`,
+`webgpu-page-raster`), côté `avant` = **le témoin Three.js** (`--moteur-avant webgl`,
+`exact-cluster-pages`). Mêmes poses, même cache, même serveur, mêmes lampes du contrat. 1280 × 720,
+seuil 0, 20 images, `--soleil --ombres off --profil off`, base `develop` = `e14b249`. Le témoin A/A
+vaut **0 px sur les neuf séries** : zéro veut bien dire zéro. Aucune erreur de page, aucune 404.
+
+Scène `transmission` des fixtures de classes de matériau — un plan d'eau (`shared-blend`,
+`KHR_materials_transmission` 1,0, volume teinté) au-dessus d'un sol et de trois blocs opaques, dont
+deux percent la surface. 2 880 triangles.
+
+| vue      | témoin A/A | moteur contre témoin | max canal | px ≥ 32 | px ≥ 128 |
+| -------- | ---------- | -------------------- | --------- | ------- | -------- |
+| générale | 0 px       | 181 413 px (19,7 %)  | 186       | 148 866 | 258      |
+| sol      | 0 px       | 386 695 px (42,0 %)  | 124       | 269 173 | 0        |
+| rue      | 0 px       | 287 333 px (31,2 %)  | 186       | 228 138 | 3        |
+
+Contrôle A — **la même comparaison sur une scène sans transmission** (`classes-materiaux` : opaque,
+`MASK`, `BLEND`), mêmes réglages :
+
+| vue      | moteur contre témoin | max canal | px ≥ 32                            |
+| -------- | -------------------- | --------- | ---------------------------------- |
+| générale | 206 471 px (22,4 %)  | 53        | 89 549, tous dans le panneau BLEND |
+| sol      | 473 793 px (51,4 %)  | **17**    | **0**                              |
+| rue      | 632 616 px (68,6 %)  | 126       | **1** (un pixel de silhouette)     |
+
+Contrôle B — **sans aucune lampe déclarée**, donc le témoin n'a rien à installer : c'est l'état
+d'avant ce lot. 179 316 / 392 398 / 478 904 px, **max canal 237 sur les trois vues**.
+
+### Ce que ces chiffres disent
+
+Le compte de pixels seul ne dit rien ici : c'est le **max canal** et la répartition qui parlent.
+
+- **L'écart grossier a disparu.** Max canal 237 sans lampe posée au témoin, 124 à 186 avec. Sur la
+  scène sans transmission, vue « sol », l'écart tombe à **17 au pire et zéro pixel au-dessus de
+  31** : les surfaces opaques éclairées par le soleil du contrat sont les mêmes des deux côtés à
+  quelques quanta de huit bits près. C'est la preuve que la lampe arrive bien au témoin, et que la
+  physique des deux chemins coïncide — même atténuation, même Lambert, même GGX.
+- **Ce qui reste est le matériau, pas la lumière.** Sur la scène sans transmission, tout l'écart
+  franc (≥ 32) tient dans le rectangle du **panneau `BLEND`** ; ailleurs il est sous le quantum.
+  Sur la scène à transmission, l'écart franc couvre **l'eau et ce qu'on voit à travers** : notre
+  passe de transmission (fond figé, atténuation de volume) et celle de `MeshPhysicalMaterial` ne
+  donnent pas la même image. **C'est désormais mesurable, et c'est la question suivante.**
+- **Les durées de cette campagne ne valent rien** : la première exécution a tourné pendant le
+  `npm run validate` du validateur, la seconde sur une machine à 4,6 / 10,1 de charge. Les verdicts
+  pixel n'en dépendent pas, ce sont des comparaisons d'images.
+
+### Défaut trouvé chez le voisin, pas corrigé ici
+
+`sceneLit` ne survit pas au **spread**. Les quatre moteurs rendus par Three écrivent
+`...sceneLightingApi(sceneLights)` dans l'objet qu'ils renvoient (`exactPagesBackend.ts:191`,
+`referenceBackend.ts:61`, `autonomousPages.ts:154`, `threeLod.ts:143`) : le spread **évalue le
+getter une fois**, à la construction du moteur, et fige sa valeur. Une lampe posée _après_ la
+création — le cas de tout hôte qui déclare ses lampes au contrat, donc le cas du témoin — ne
+rallume jamais le drapeau, `explorerDraw` garde `NoToneMapping` et le témoin compose sans
+exposition ni ACES alors que le moteur, lui, les applique.
+
+Mesuré : la même campagne sur la base d'avant le lot `unlit-identite` (`develop` = `3657c91`), où le
+renderer Three appliquait ACES sans condition, donne **151 912 / 360 882 / 286 714 px**, max canal
+**197 / 138 / 200** sur la scène à transmission, et **114 763 / 83 412 / 134 312 px**, max canal
+**58 / 1 / 126** sur la scène sans transmission — avec **83 412 px tous à exactement 1 sur 255** en
+vue « sol », c'est-à-dire l'égalité au quantum près sur toute la surface opaque. Le second tableau,
+celui de la base fusionnée, est donc **dégradé par ce défaut**, pas par le témoin. Correction hors
+périmètre de ce lot : `sceneLightingApi` doit être posée telle quelle, jamais étalée — ou rendre une
+méthode plutôt qu'un accesseur.
+
+Images, `mesure.json` et `resume.md` des six campagnes : `.mesure/out/lot-temoin-three/`.
+
+## 2026-09-15 — [session Lumière] composition identité en vue sans lampe (lot `lot/unlit-identite`)
+
+Worktree `lot-unlit-identite`, branche `lot/unlit-identite`, partie de `develop` (db44508). Rien
+n'est fusionné, le Lab n'est pas touché, aucun test n'est écrit ici — ils viennent à la livraison.
+
+### Le constat
+
+`packages/sdk-browser/deferredLightingShaders.ts` ne connaissait qu'une composition : `composeColor`
+appliquait `linearToSrgb(aces(rgb * exposition))` à **toute** image, y compris la vue `unlit`, dont
+l'exposition vaut 1. La vue sans lampe sortait donc l'albédo passé dans ACES, pas l'albédo : un
+blanc de texture à 1,0 ressortait vers 0,8, la saturation tombait et la teinte glissait, alors que
+le témoin Three du Lab ne pose aucune courbe sur la même image. Le chemin rendu par Three avait le
+même défaut, à un autre étage : `explorerCapabilities.ts` posait `THREE.ACESFilmicToneMapping` sur
+le rendu une fois pour toutes, sans regarder si la scène portait une lampe.
+
+### La règle
+
+En vue sans lampe — aucune lampe déclarée, ou `setLightingView('unlit')` — la composition est
+l'**identité** : du linéaire vers sRGB, et rien d'autre. Ni exposition, ni ACES. En vue `lit`,
+rien ne change : l'exposition multiplie la radiance linéaire, puis ACES, dernier maillon (P4). Les
+vues de diagnostic, qui sortaient déjà en brut avant toute courbe, ne bougent pas. P4 porte
+désormais cette phrase dans `orchestration/SPEC_ECLAIRAGE.md`.
+
+### Ce qui a changé, les deux chemins
+
+- **WebGPU.** `composeSource(courbe, chaine)` bâtit les deux compositions à partir de la même
+  source : `COMPOSE_SHADER` déclare ACES et compose `aces(value.rgb*exposition/alpha)` — la même
+  expression qu'avant, au flottant près —, `UNLIT_COMPOSE_SHADER` ne déclare aucune courbe et
+  compose `value.rgb/alpha`. Le programme « UNLIT » de `deferredLighting.ts` prend le second. Ce
+  sont deux programmes, jamais une branche dans le nuanceur : une session éclairée exécute
+  exactement le nuanceur d'avant. Le drapeau ne vient d'aucun réglage neuf — c'est le choix de
+  programme existant, celui que `wantsContractLighting` (`store.count > 0 && !store.unlit`) fait
+  déjà à chaque image.
+- **WebGL2 et moteur de référence.** Ils composent par Three, dont le rendu portait ACES en dur.
+  `installSceneLighting` publie maintenant `lit` (vrai dès qu'une lampe du graphe source est
+  installée) et `sceneLightingApi` le rend aux quatre moteurs rendus par Three sous `sceneLit` ;
+  `explorerDraw` règle `renderer.toneMapping` sur `NoToneMapping` quand la scène rendue n'a pas de
+  lampe, sur `ACESFilmicToneMapping` sinon, et n'écrit que si la valeur change — Three recompile ses
+  programmes à chaque écriture. `outputColorSpace` reste `SRGBColorSpace` : le linéaire vers sRGB
+  demeure des deux côtés.
+
+### La preuve : non faite, verrou occupé
+
+La campagne prévue — WebGPU, Emerald, vue `generale`, (a) `--lampes 8 --soleil` à 0 px exigé,
+(b) vue sans lampe `--lampes-fichier off`, (c) comparaison au témoin Three en vue sans lampe —
+**n'a pas été jouée**. Le verrou `.claude/mesure.lock` était tenu par la session `calculs`
+(« mesure-finale-3 ») au moment du lot, et la charge machine était de 22 : aucune attente, aucune
+boucle, aucun chiffre inventé. Le lot est donc **livré sans preuve d'image** et ne se fusionne pas
+en l'état. À rejouer au calme, verrou pris, sorties dans `.mesure/out/unlit-identite/` :
+
+- (a) `--moteur webgpu --vues generale --avant develop --apres dist --lampes 8 --soleil` : 0 px
+  exigé, c'est la porte d'identité du chemin éclairé.
+- (b) même commande sans `--lampes` ni `--soleil`, avec `--lampes-fichier off` : différences
+  attendues sur toute la scène — c'est le changement d'image voulu. Publier le nombre de pixels, le
+  max par canal et le témoin A/A.
+- (c) témoin Three en vue sans lampe (`--moteur webgl` ou `webgl2`, mêmes pose et seuil) : nombre de
+  pixels au-delà de 2 par canal face au WebGPU sans lampe, avant et après le lot. C'est ce chiffre
+  qui dit si l'écart de couleur constaté dans le Lab est refermé.
+
+### Portes
+
+`npx tsc -p tsconfig.json --noEmit`, `npm run check:changed` (429 tests liés, tous verts),
+`npm run check:unused`, `npm run check:lines` : vertes. Aucun test existant ne casse : aucun
+n'encodait la composition de la vue sans lampe.
+
+## 2026-09-15 — [session sans-threejs] lot visibilité WebGPU : deux leviers gardés sur trois, 0 px sur seize séries
+
+Worktree `.claude/worktrees/lot-visibilite`, branche `lot/visibilite-webgpu`, partie de `develop` =
+`32c95b9` et **rebasée quatre fois** pendant le lot, jusqu'à `develop` = `db44508` (lot instances
+fusionné) ; les portes et la preuve sont jouées sur cette base. Trois commits : `f04c072` (levier 1),
+`cbfd1fe` (levier 3), `19cdd7d` (tests). **Non fusionné** : le lot touche `sdk-browser`, la fusion
+demande un préavis à la session Lumière.
+
+### Ce que chaque levier remplace, et ce qu'il a rendu
+
+| levier                                                                        | ce qui change                                                                        | mesure                                                                                          | gardé                     |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------- |
+| 1 — préfixe du tirage indirect en parallèle (point D3)                        | `prefixGroups` passe de `@workgroup_size(1)` à 64 fils                               | passe « WG draw compaction », **GPU 0,93 → 0,37 ms** (−60 %), CPU inchangé                      | **oui**, pour un gain GPU |
+| 2 — un item transparent ne refait rien tant que sa matrice monde ne bouge pas | matrice, boîte monde, déterminant et matériau tenus au lieu d'être refaits par image | **aucun gain mesurable** : 7,9 → 7,9 ms `cpuFrameMs`, étape « Transparents » 0,7 → 0,7 / 0,6 ms | **non, retiré**           |
+| 3 — liste dessinée recopiée seulement quand la coupe montrée change           | quatre-vingt mille enregistrements repoussés par image en moins                      | étape « Sélection et visibilité », **CPU 0,2 → 0,0 ms**                                         | **oui**                   |
+
+Chiffres du profil par étape, vue générale seuil 0, 1280×720, 60 images mesurées, chauffe 8, budget
+100 000 pages (coupe de 80 153 pages, 20 688 résidentes), charge 12 à 19 ; `avant` = `db44508` des
+trois côtés :
+
+| étape                                                  | `db44508`                                        | +1       | +1+2 | +1+2+3  |
+| ------------------------------------------------------ | ------------------------------------------------ | -------- | ---- | ------- |
+| Sélection et visibilité, **GPU** p50                   | 0,93                                             | **0,37** | 0,37 | 0,37    |
+| Sélection et visibilité, **CPU** p50                   | 0,2                                              | 0,2      | 0,2  | **0,0** |
+| Transparents, CPU p50                                  | 0,7                                              | 0,7      | 0,7  | 0,7     |
+| Adoption, fiches, encodage, partition, projection, CPU | inchangés à 0,1 ms près d'une campagne à l'autre |          |      |         |
+
+### Pourquoi le levier 2 est retiré, et ce que cela apprend sur le harnais
+
+Le travail que ce levier supprime — recopier la matrice monde de mille neuf cents items
+transparents, retransporter les huit coins de leur boîte, reprendre leur déterminant — **se joue
+avant la première borne du profil** : `renderWebgpuPages` ouvre `cpuStart` après cette boucle, si
+bien que ni `cpuFrameMs` ni aucune étape ne la contient. Le harnais n'expose par ailleurs aucune
+durée d'horloge murale par image (`cpuFrameMs`, `cpuSelectMs`, `gpuFrameMs` et rien d'autre). La
+part du levier qui tombait, elle, dans une borne — le matériau relevé une fois au lieu d'être
+réalloué par item et par image dans les uniformes de mélange et de volume, et le déterminant tenu
+avec la matrice — se dépose sur l'étape « Transparents » : 0,7 ms avant, 0,7 puis 0,6 après, c'est-à-dire
+la résolution du profil, pas un gain. Règle appliquée telle quelle : **un levier sans gain mesuré
+n'est pas gardé.** Le code est retiré de l'historique (`git rebase --onto`), et la version qui le
+portait reste accessible au tag `essai/visibilite-levier2-mesure` pour le jour où une borne
+couvrira ce qui précède `cpuStart` — c'est d'ailleurs la prochaine chose à nommer dans le profil,
+comme le lot encodage l'avait déjà écrit.
+
+### Le piège de la pénalité d'ordre, à ne pas relire de travers
+
+Le harnais joue les séries dans l'ordre `apres`, `avant`, `apres-aa`. **La première série paie une
+pénalité systématique** : sur la campagne du levier 1, `cpuFrameMs` p50 vaut 10,1 pour `apres`, 8,4
+pour `avant` et 8,4 pour `apres-aa` — le même dist, mesuré deux fois, donne 10,1 puis 8,4. Aucun
+`cpuFrameMs` de première série n'est donc comparable à quoi que ce soit, et tout ce qui est conclu
+ci-dessus l'est sur le **profil par étape**, où les deux séries `apres` s'accordent à 0,1 ms.
+
+### Preuve pixels de la tête gardée (leviers 1 et 3)
+
+`--moteur webgpu --avant db44508 --apres <dist lot> --max-pages 100000`, 60 images, 1280×720 ;
+`pixels-final` (générale, sol, rue × seuils 0 et 1) et `mobile-final` (générale × 0 et 1, caméra
+mobile). Verrou `.claude/mesure.lock` pris au nom de `geometry visibilite` avant **chacune** des sept
+campagnes du lot et rendu après, répertoire laissé vide.
+
+| série                       | px avant/après    | témoin A/A | hash de coupe  | trous | charge  |
+| --------------------------- | ----------------- | ---------- | -------------- | ----- | ------- |
+| générale · 0                | 0 px, max canal 0 | 0 px       | `b1cd55ba461a` | 0     | 13 → 12 |
+| sol · 0                     | 0 px              | 0 px       | `8000678aa60f` | 0     | 12      |
+| rue · 0                     | 0 px              | 0 px       | `49ec9e88bb77` | 0     | 12      |
+| générale · 1                | 0 px              | 0 px       | `affe53b74f42` | 0     | 12      |
+| sol · 1                     | 0 px              | 0 px       | `e0c92bdd5f43` | 0     | 12      |
+| rue · 1                     | 0 px              | 0 px       | `3102e84881b9` | 0     | 12      |
+| générale · 0, caméra mobile | 0 px              | 0 px       | `46335af99674` | 0     | 7       |
+| générale · 1, caméra mobile | 0 px              | 0 px       | `0cb1fa4a3a15` | 0     | 7       |
+
+`selectedTriangles` identiques série par série, `uncoveredTriangles` 0 des deux côtés partout, aucun
+incident de carte graphique, aucun `WEBGPU_LOST` sur les sept campagnes. La version qui portait
+encore le levier 2 avait elle aussi rendu 8 séries à 0 px ; les deux preuves sont conservées.
+
+**Le GPU par image suit le levier 1 sur les huit séries**, `avant` → `après` (p50, ms) : 29,11 →
+28,49 · 9,35 → 8,87 · 10,46 → 10,22 · 11,84 → 11,68 · 3,81 → 3,71 · 7,39 → 5,83 · 29,13 → 28,68 ·
+11,86 → 11,73. Huit signes sur huit, cohérent avec les 0,56 ms enlevés à la compaction ; les valeurs
+elles-mêmes sont à rejouer au calme, la machine tenait 6 à 19.
+
+### Ce que le lot n'a pas atteint
+
+La cible était **le coût processeur fixe, 7,8 ms → ~4 ms**. Il vaut 7,7 à 7,9 ms après le lot : le
+levier 3 enlève 0,2 ms, le levier 1 n'enlève rien au processeur, le levier 2 est retiré. Les
+« passes persistantes » n'ont pas donné de troisième levier : les groupes de liaison, les pipelines
+et les pièces jointes de couleur sont déjà tenus d'une image à l'autre par les lots précédents, et
+ce qui reste cher au processeur est nommé et inchangé — encodage des passes 2,9 ms (1 936 appels de
+dessin dont 1 928 de mélange), fiches de dessin 1,6 ms, adoption 0,8 ms. Les trois demandent ce que
+le lot encodage avait déjà nommé : porter la partition sur la carte pour les fiches, savoir avant
+l'image quelles primitives transparentes n'ont rien à dessiner pour l'encodage, une estampille
+exacte de résidence pour l'adoption.
+
+### Portes
+
+`tsc` (projet entier), `npm run check:changed` (**193 tests, 0 échec**), `check:lines`,
+`check:unused`, `check:duplicates` (**0 clone**) : les cinq vertes sur `19cdd7d`. Deux fichiers de
+tests ajoutés, un par comportement gardé : `gpuDrawPrefixParallel.test.ts` (forme du noyau expédié,
+et égalité des deux noyaux de l'oracle sur mille entrées tirées au hasard, débordement compris) et
+`webgpuDrawnMirror.test.ts` (recopie seulement drapeau baissé, adoption qui l'annonce sur un relevé
+neuf et jamais sur celui qu'elle tient). Aucune ligne de calcul de
+`bench/oracles/gpuDrawPrefixOracle.ts` n'est touchée : seul son commentaire d'en-tête, qui annonçait
+un noyau « non fusionné ». `render-tech-lab/` non modifié, port 5174 non touché, rien écrit dans
+`public/` ; aucun fichier d'éclairage, d'ombres, de sondes, de proxy ou de reflet, ni
+`webgpuAtlasJobs.ts` / `webgpuTexturePriority.ts`, ni les fichiers du lot instances. Huit 404 sur
+`lights.json` par campagne, des deux côtés : le cache du Lab n'a pas de sidecar de lampes, c'est ce
+qui fait sortir le harnais en code 1 malgré un relevé propre.
+
+Images et rapports : `.mesure/out/lot-visibilite/` (sept campagnes, 185 Mo).
+
+## 2026-09-15 — [session calculs] mesure finale des temps par image
+
+Verrou `.claude/mesure.lock` pris, campagne rejouée deux fois avant d'aboutir. Base « avant » =
+`15297dd` (première tête de `develop` en manifeste binaire v4 qui compile), base « après » =
+`develop` à `db44508`, moteurs WebGPU et WebGL, quatre vues, 300 images, seuil pixel 1, hash de
+coupe identique, aucun incident GPU, charge machine 15 à 26 pendant la mesure, 18 erreurs 404
+`lights.json` sans effet. Détail : `orchestration/mesures/calculs-finale-2026-09-15.md`.
+
+Résumé : CPU générale WebGPU 4,10 → 3,80 ms, WebGL 9,60 → 8,80 ms ; GPU générale WebGPU
+10,72 → 11,83 ms ; vue `sol` en WebGPU à 0 px d'écart, les trois autres vues avec des écarts de
+pixels francs. Lecture honnête : entre les deux bases sont passés les lots des autres sessions
+(ombres, rebond, eau, transparents GPU, instances, budget de pages) — les écarts de pixels et
+la hausse du temps GPU générale viennent de là, pas des optimisations de calcul de cet audit.
+Cette campagne ne prouve ni ne réfute une optimisation isolée ; la preuve par lot reste le banc
+Node de `AUDIT_MATH_BILAN.md`.
+
+Deux essais refusés avant celui-ci : base `a59c05a`, manifeste v2 côté ancien code contre v4
+côté cache — le format a changé deux fois pendant l'audit (v2 → v3 aux aperçus, v4 à `15297dd`),
+une base antérieure à `15297dd` ne charge donc plus le cache courant ; base `ed6369f`, commit
+intermédiaire d'un chantier texture, ne compile pas seul (export `PREVIEW_LEVEL_SIZES` absent).
+
+Faute à noter : le verrou a été pris dans un creux de charge d'une autre session, sans message
+préalable aux autres sessions actives. Règle pour la suite : prévenir avant `mkdir
+.claude/mesure.lock`, pas seulement vérifier que le verrou est libre.
+
+## 2026-09-15 — [session stochastique] deux tranches de lampes par tuile, et la boucle exacte des transparents (lot RX2, réduit)
+
+Worktree `lot-stochastique`, branche `lot/stochastique`, rebasée sur `develop`. Rien n'est fusionné,
+le Lab n'est pas touché. Le lot a été **réduit en cours de route, sur décision de l'utilisateur** :
+il ne porte plus le tirage stochastique ni l'accumulation temporelle, pour les raisons mesurées
+ci-dessous. Ce qui a été écrit pour eux vit dans `essai/stochastique-accumulation`, un commit,
+jamais fusionnée.
+
+### Ce qui est livré
+
+Les listes de lampes par tuile étaient bâties sur la seule tranche entre les deux profondeurs
+opaques de la tuile. Une surface de mélange est dessinée **devant** l'opaque de son pixel : cette
+tranche lui retire des lampes déclarées, et une tuile que nul opaque ne couvre — le ciel derrière un
+feuillage — n'en garde aucune. C'est pour cela que la passe de mélange bouclait sur **toutes** les
+lampes déclarées, bornée par `maxLights`.
+
+Chaque tuile porte maintenant **deux listes, deux tranches de profondeur**, bâties dans la même
+passe par un seul masque à deux tranches (`gpuLightTilesShader.ts`) :
+
+- celle des **opaques**, entre les deux profondeurs de la tuile — même boîte, même condition de
+  couverture, même compaction qu'avant : la résolution différée n'y perd ni une lampe ni une
+  milliseconde, et son image ne bouge pas ;
+- celle du **mélange**, du plan proche au fond opaque, et le tronc entier là où nul opaque ne couvre
+  la tuile.
+
+La passe de mélange boucle sur la seconde, et sa boucle reste **exacte** : une lampe absente de la
+liste ne rencontre aucun point de la tranche — sa sphère de portée ne touche pas la boîte monde —,
+donc `declaredLight` lui aurait rendu exactement `vec3f(0.0)`, et retirer un zéro d'une somme de
+flottants ne la change pas. Ce qui change est le nombre de lampes parcourues par pixel, donc le
+nombre de lectures d'atlas d'ombre. Sans liste — un appareil qui n'a pas pu gréer la passe de
+tuiles —, la boucle retombe sur les lampes déclarées, bornée par `maxLights` (X2).
+
+### Ce qui a été mesuré puis écarté
+
+**Le tirage stochastique et l'accumulation temporelle**, écrits, mesurés, non retenus.
+
+1. **Écrire l'historique depuis le nuanceur de fragments prive le tuileur de son élimination des
+   surfaces cachées.** Sur Emerald, vue `sol`, qui n'a pourtant **aucun transparent visible**,
+   l'étape Transparents passe de 2,4 à **32,7 ms** et l'enveloppe d'image de 11,6 à 42,1 ms : tout
+   le feuillage caché derrière le sol se met à être ombré. Le même lot sans ce tampon retombe à
+   2,94 ms. Ce n'est pas le trafic mémoire : faire sauter l'accumulation pour les 76 % de pixels
+   dont le tirage était déjà exact n'a rien changé au coût (32,73 → 32,67 ms).
+2. **L'historique par pixel n'accumule rien sous surdessin transparent** : compteurs relevés,
+   **99,7 %** des clés rejetées, chaque case étant réécrite par une autre couche dans la même image.
+3. **Le banc ne pouvait pas prouver le gain du tirage.** Sur Emerald à huit lampes, la boucle « sur
+   toutes les lampes déclarées » ne testait déjà qu'**une** lampe par pixel : les ponctuelles sont
+   hors de portée des feuillages et sortaient par le fenêtrage de portée avant toute lecture
+   d'atlas. Les 23 ms de la vue de rue sont les seize prises du soleil sur 1,7 M de triangles de
+   feuillage, pas le nombre de lampes. Rue : 23,36 ms avant, 23,97 après — rien à gagner ici.
+
+Deux autres variantes ont été mesurées et écartées en chemin. **Une seule liste par tuile, élargie
+et partagée** avec les opaques : elle gardait bien les feuillages, mais faisait passer l'enveloppe
+d'image de `sol` de 12,0 à 34,6 ms, chaque tuile retenant les lampes posées entre la caméra et le
+sol. **Une clé d'historique faite du seul point du monde**, à trois pixels près : 21 329 px d'écart
+sur la vue de rue, deux feuilles voisines le long du rayon — l'une au soleil, l'autre à l'ombre —
+mêlant leurs moyennes ; la normale quantifiée dans la clé les sépare et ramène l'écart à 1 141 px.
+
+Fidélité atteinte par la version écartée, pour mémoire (Emerald, 8 lampes + soleil, 200 images) :
+`sol` 0 px, générale 169 px max canal 29, rue 1 141 px max canal 3.
+
+### Ce qui reste pour RX2
+
+L'historique porté par une **cible de rendu supplémentaire, en ping-pong**, que le tuileur traite
+sans perdre son élimination des surfaces cachées ; et un banc où des lampes atteignent vraiment les
+transparents, faute de quoi le tirage n'a rien à retirer. Le plafond X5 reste un compte de lampes et
+non un budget en millisecondes.
+
+### Preuves
+
+## 2026-09-15 — [session calculs] lot H3 rebond : le proxy indexe ses primitives par maillage
+
+Fusion fast-forward `develop` → `8f54474` (« perf(rebond): les primitives du proxy indexées par
+maillage »), même session que les deux entrées suivantes.
+
+| Point                                                                                         | Avant    | Après    | Gain | Identique | Retenu |
+| --------------------------------------------------------------------------------------------- | -------- | -------- | ---- | --------- | ------ |
+| Primitives du proxy indexées par maillage (`stage_proxy`, `asset-compiler-rust/src/proxy.rs`) | 271,8 ms | 176,7 ms | 35 % | oui       | oui    |
+
+- `stage_proxy` construisait la scène du proxy en balayant toutes les primitives de la scène pour
+  chaque nœud retenu. Une table `primitives_by_mesh` (maillage → indices de primitives, dans l'ordre
+  d'origine) est construite une fois avant la boucle sur les nœuds, qui n'a plus qu'à la relire.
+- Non appliqué : un tampon de travail (« scratch ») dans `movingBase()`
+  (`packages/sdk-core/bounceCascades.ts`). `follow()` garde une référence directe dans `level.base`,
+  relue les images suivantes par `bounceUniform.ts` et `bounceSchedule.ts` ; un scratch partagé y
+  serait faux. La variante « écrire dans `level.base` » est laissée à la session Lumière. Aucun fichier
+  de ce chemin n'apparaît dans le commit.
+- Preuves : oracle = ancien `stage_proxy` recopié tel quel (`bench_calculs/h3_proxy.rs`), quatre jeux
+  de données (`h3_proxy_jeux.rs` : 200/6 000, 3 000/24, 2 000/40, 4 000/4 000, avec cas limites), deux
+  tests d'équivalence, sortie identique bit à bit. `cargo test` 168+4, `clippy` et `fmt` propres,
+  `check:changed` 574 tests.
+- Temps sous charge 13 à 138 pendant la mesure, témoin du banc à ±8,6 % au lieu de 0 : signe certain
+  malgré la machine chargée, mais à rejouer au calme pour un chiffre définitif.
+
+## 2026-09-15 — [session calculs] lot H3 textures : deux gains retenus sur quatre candidats, campagne WebGPU à 0 px
+
+Deux commits `perf(textures)` rebasés sur `develop`, fusion fast-forward `develop` 2dcc8fc → 32c95b9 :
+`a31e8f9` (bandes d'atlas) puis `32c95b9` (ordre de transfert), tête de branche alignée sur `develop`
+après fusion.
+
+| Point                                                                                              | Avant (ms) | Après (ms) | Gain  | Identique | Retenu             |
+| -------------------------------------------------------------------------------------------------- | ---------- | ---------- | ----- | --------- | ------------------ |
+| Bandes d'un niveau vers l'atlas (`writeRows`, écriture par `dataLayout.offset`, plus de `slice()`) | 0,864      | 0,046      | 95 %  | oui       | oui                |
+| Niveaux progressifs d'un aperçu (même code, tampons minuscules)                                    | 0,010      | 0,014      | −45 % | oui       | non (mesure noyée) |
+| Ordre de transfert par image (`bump`, poids en `Float64Array` à capacité doublée)                  | 0,189      | 0,167      | 12 %  | oui       | oui                |
+
+- Preuves : oracles `bench/oracles/h3AtlasJobsOracle.ts` et `h3PriorityOracle.ts`, bancs
+  `bench/textures-h3.bench.mjs` et `priorite-h3.bench.mjs`, script `npm run bench:calculs-h3`,
+  tableau `orchestration/mesures/calculs-h3-2026-09-15.md`.
+- Spec WebGPU vérifiée avant le premier gain : l'alignement d'`offset` sur 4 n'est exigé que pour un
+  format de profondeur ou de gabarit ; les deux atlas sont `rgba8unorm`, donc `writeTexture` accepte
+  l'offset `row * width * 4` sans copie.
+- Campagne navigateur WebGPU, `develop` 2dcc8fc contre 32c95b9, vues générale et rue, 30 images,
+  `pixelError 1` : 0 px avant/après, témoin A/A 0 px, hash de coupe identique, aucun incident carte
+  graphique, un 404 `lights.json` sans rapport avec le lot. Images dans
+  `.mesure/out/lot-h3-textures/`. Temps mesurés sous charge 15 à 150 : indicatifs, seuls les pixels
+  comptent ici.
+- Origine du lot : inventaire Sonnet de 34 fichiers du code fusionné depuis a59c05a (ombres, rebond,
+  transparents, Hi-Z, atlas) ; quatre candidats seulement en sont sortis, le reste déjà optimisé à la
+  main. Deux autres points du lot H3, côté rebond (`proxy.rs`, `bounceCascades.ts`), restent en cours
+  ailleurs.
+- Verrou de mesure pris puis rendu, convention du fichier `proprietaire` respectée dans le verrou ;
+  quatre boucles d'attente d'une autre session se sont trouvées elles-mêmes au `pgrep`, arrêtées par
+  leur propre session.
+
+## 2026-09-15 — [session calculs] moteur `webgl2` dans le harnais : le troisième moteur devient mesurable en campagne
+
+Fusion fast-forward, `develop` 840a935 → 71bb38a, commit unique `71bb38a`
+(« feat(mesure): moteur webgl2 autonome dans les options du banc »).
+
+- `--moteur` du banc accepte une troisième valeur, `webgl2` : le moteur autonome WebGL2
+  (`autonomousPagesBackend`, id `autonomous-pages-webgl`, drapeaux `BASE_FLAGS`). C'est le seul des
+  trois moteurs exposés à décoder lui-même des pages de géométrie ; les deux autres (`webgl`,
+  `webgpu`) ne demandent que des paquets d'index, d'où `pagesDecodedWasm` (décodage WebAssembly des
+  pages, lot H2) toujours nul en campagne jusqu'ici.
+- Il n'est pas choisi par la liste `backends` comme les deux autres, mais par le réglage public
+  `autonomousGeometry` de l'explorateur, qui refuse de recevoir les deux à la fois. `ENGINES.webgl2`
+  porte un drapeau `autonome: true` (`options.mjs`) ; `serie.mjs` le relit pour nommer la série, et
+  `pageEclairage.mjs` bascule entre `{ autonomousGeometry: true }` et `{ backends: [factory] }` selon
+  ce drapeau — une ligne changée, le fichier reste à 200 lignes.
+- Limite écrite dans le `README.md` du harnais : `webgl2` exige un cache dont toutes les primitives
+  sont en `exact-clusters` (le compilateur n'écrit `autonomousScene` que dans ce cas) ; sans cela
+  l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`. Le cache Emerald du Lab n'en a
+  pas ; Whisperwind Village, New York, Low Poly City et AccuCities London en ont un.
+- Point ouvert, laissé tel quel par ce commit : la coupe relevée par la page de mesure peut revenir
+  vide avec ce moteur (pas de `selectedPageIds`) — à reprendre si besoin.
+- Fumée non faite : verrou de mesure pris par une autre session au moment du commit.
+- Portes passées : `tsc`, `check:changed`, `check:unused`, `eslint`, `banc.test` 10/10.
+
 ## 2026-09-15 — [session Lumière] WEBGPU_LOST sur Emerald : le remplaçant de `BounceGrid` avait gardé son ancienne taille
 
 ### La cause
@@ -187,6 +967,7 @@ une scène, il est maintenant ambigu — un format par dossier source, c'est la 
 `packages/asset-compiler-rust/PLUGINS.md` est le brief d'un agent par format : le module, le trait,
 la ligne de registre, la dorée minimale à fournir, et ce qui est interdit (code ou SDK d'éditeur,
 contournement de protection). La politique reste dans `orchestration/SPEC_FORMATS_IMPORT.md`.
+
 ## 2026-09-15 — [lot fbx-opacite] l'opacité d'un FBX classique ne se perd plus en silence
 
 Branche `fbx-opacite` sur `develop` = `81a8131`. `IMPORTER_VERSION` montée à `ufbx-0.11.3-gltf-3`
@@ -211,10 +992,10 @@ d'être avalée.
 
 **Village, avant/après** (import seul, cache jetable, même FBX de 409 Mo, même machine) :
 
-| matériau | avant | après |
-| --- | --- | --- |
-| `M_River` | `alphaMode` absent, `unsupported` = `{}` | `alphaMode` = `BLEND`, `unsupported` = `{"material-separate-opacity-texture":1}` |
-| `M_Water_Ocean` | `alphaMode` absent | `alphaMode` absent — **conforme à la source** |
+| matériau        | avant                                    | après                                                                            |
+| --------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `M_River`       | `alphaMode` absent, `unsupported` = `{}` | `alphaMode` = `BLEND`, `unsupported` = `{"material-separate-opacity-texture":1}` |
+| `M_Water_Ocean` | `alphaMode` absent                       | `alphaMode` absent — **conforme à la source**                                    |
 
 Sur les 81 matériaux, un seul change de classe. L'océan reste opaque parce que le FBX le dit :
 `fbx.transparency_color` = (0, 0, 0) sans texture, donc opacité 1. Le journal du 2026-09-15 le
@@ -229,6 +1010,143 @@ warnings`, `cargo fmt --check`, `npm run check:lines`, `check:duplicates`, `chec
 **Ce qui reste.** La carte d'opacité séparée n'est toujours pas rendue : glTF 2.0 de base n'a pas
 d'emplacement pour elle, il faudrait recomposer l'alpha dans la couleur de base à l'import. Le
 rapport le dit maintenant au lieu de se taire.
+
+## 2026-09-15 — lot « ombres lointaines du soleil » : un rayon contre le proxy, et une découpe de cascades qui tient son rapport
+
+Worktree `lot-ombres-lointaines`, branche `lot/ombres-lointaines`, partie de `develop` = `a29e025`,
+rebasée sur `develop` = `71bb38a`. Aucun objet de cache n'est touché : le lot ne lit que
+`proxy.bin`, déjà écrit par le compilateur.
+
+### 1. Au-delà de la dernière cascade, l'ombre se teste
+
+`sunShadowFactor` ne rend plus `1.0` quand aucune cascade ne couvre le point : il tire un rayon
+d'ombre contre le **proxy résident**, par la traversée du rebond (`proxyBlocked`, bornes publiées,
+aucune ligne de géométrie en double). Le rayon est **déterministe** — sa direction est celle du
+soleil, son origine celle du pixel —, donc deux images d'une caméra immobile donnent exactement la
+même ombre lointaine : rien n'est accumulé d'une image à l'autre, il n'y a ni retard, ni traînée,
+ni bruit propre à ce lot. Un rayon par pixel concerné, et zéro pour tous les autres.
+
+Le proxy est celui de la lumière qui rebondit quand elle est allumée — emprunté, jamais tenu en
+double — et chargé par ce lot sinon : l'ombre du soleil est de la fidélité du direct, elle ne
+dépend pas d'un réglage de rebond. Le rayon part d'**une maille de proxy le long de sa propre
+direction** (`sunFarShadowStartCells`), pas d'un relèvement le long de la normale : sur Emerald
+l'erreur certifiée du proxy vaut 5,06 m, relever de deux erreurs aurait fait partir le rayon
+au-dessus des toits.
+
+**Sans proxy dans le cache** : rien n'est gréé, la surface lointaine reste éclairée sans ombre
+portée comme avant, et le diagnostic `sun-far-shadow` publie « ombre lointaine indisponible » avec
+sa raison. Le choix est motivé : étirer la dernière cascade jusqu'au lointain aurait divisé par cinq
+la densité de texels de **toutes** les ombres proches, sur chaque axe — une baisse de qualité pour
+cacher une absence, que `AGENTS.md` refuse.
+
+**Le chemin des transparents n'en bénéficie pas encore.** Depuis le lot « transparents sans
+ambiance », les deux passes qui éclairent partagent le même socle WGSL ; le socle prend maintenant
+l'ombre lointaine en paramètre, la résolution différée opaque reçoit le rayon et la passe de mélange
+reçoit un bouchon qui rend un. La raison est une liaison : le proxy n'est lié qu'à la passe opaque.
+Le manque est écrit dans `sunFarShadowWgsl.ts`, pas deviné.
+
+### 2. Le plancher des cascades, chiffré par le rapport des coutures
+
+À une couture de cascade, la densité de texels change exactement du rapport de la découpe : c'est
+lui, et rien d'autre, qui décide du saut de netteté visible. Il est maintenant **constant et publié**
+(`sunCascadeRatioMax` = 4), la découpe est une suite géométrique de bout en bout, et le plancher du
+plan proche s'en déduit : `distance d'ombre / rapport^cascades`. Le mélange avec une suite uniforme
+(`sunCascadeLambda`) disparaît : il ne servait qu'à rattraper une suite géométrique écrasée par un
+plan proche à un dix-millième du lointain. La première borne reste le plan proche de la caméra : le
+plancher redistribue les bornes intérieures, il ne creuse aucun trou sous le nez de l'observateur.
+
+Emerald, 1280 × 720, `far` = 3441,9 m (vingt fois le rayon du modèle, règle du harnais) :
+
+| cascade | rayon avant | rayon après | ce que ça change        |
+| ------- | ----------: | ----------: | ----------------------- |
+| 0       |      36,8 m |  **11,4 m** | 3,2 fois plus fine      |
+| 1       |      76,0 m |  **45,7 m** | 1,7 fois plus fine      |
+| 2       |     151,0 m |     182,7 m | 1,2 fois plus grossière |
+| 3       |     730,9 m |     730,9 m | inchangée               |
+
+Rapports de couture : 2,07 / 1,99 / **4,84** avant, **4,00 / 4,00 / 4,00** après. Le gain est près de
+la caméra, la perte au milieu, et la portée d'ombre ne bouge pas.
+
+### 3. Profil
+
+Étape `sunFarShadows` (« Ombres lointaines »), avec ses compteurs : pixels testés par rayon lointain,
+pixels assombris, image relevée, triangles du proxy. Le relevé est un diagnostic, donc il reste hors
+de la passe mesurée : le drapeau de comptage ne passe à un **qu'une image sur quinze**, les quatorze
+autres n'exécutent aucun `atomicAdd`. La colonne carte graphique de l'étape vaut `null` avec sa
+raison — le rayon est tiré dans la résolution différée, ses millisecondes sont celles de l'étape
+« Éclairage (résolution) », et les dire deux fois serait les compter deux fois.
+
+### 4. Ce que la mesure dit, et ce qu'elle ne dit pas
+
+**Le cas lointain est hors d'atteinte du harnais sur Emerald.** `scripts/mesure/poses.mjs` pose
+`far` à vingt fois le rayon du modèle ; la distance d'ombre vaut donc quatre rayons, et la sphère
+circonscrite de la dernière cascade porte à environ huit rayons, quand aucun point visible n'est à
+plus de 2,6 rayons de la caméra. Relevé sur Emerald, `--soleil`, vues `rue` et `generale`, avec et
+sans `--lampes 8` : **`pixelsTestes` = 0 partout**. Le défaut décrit — un intérieur lointain en plein
+jour — appartient à un hôte qui serre son plan lointain, comme le banc 16.
+
+**Portes de fidélité, scène de contrôle** (pièce fermée 8 × 3 × 8 m, cache compilé avec proxy,
+1280 × 720, `pixelError 0`, `avant` = `develop` `be5889a`, 20 images, 10 de chauffe) :
+
+| série                       | témoin A/A        | avant / après             | coupe     |
+| --------------------------- | ----------------- | ------------------------- | --------- |
+| `--lampes 4`, soleil éteint | 0 px, max canal 0 | **0 px, max canal 0**     | identique |
+| `--soleil`                  | 0 px, max canal 0 | 222 996 px, max canal 176 | identique |
+
+Les 222 996 pixels viennent **entièrement de la découpe des cascades** : `pixelsTestes` vaut 0 sur
+cette série, aucun rayon lointain n'est tiré. 220 689 pixels s'éclaircissent, 2 307 s'assombrissent,
+et l'image dit pourquoi : **avant, le sol de la pièce était entièrement noir**, auto-ombré par une
+première cascade de 6,3 m de rayon dont un texel couvrait plus que le biais d'ombre ; après, avec un
+rayon de 0,39 m, le sol est éclairé comme il doit l'être. Les quatre cascades de cette scène passent
+de 6,3 / 12,4 / 18,6 / 24,9 m de rayon à 0,39 / 1,55 / 6,22 / 24,9 m : plus fines partout, la
+dernière inchangée.
+
+**Le rayon lointain, vu à l'œuvre** (mêmes réglages, plan lointain de l'hôte serré à 10 m par
+`.mesure/loin.mjs` — les modules du harnais tels quels, ce seul nombre changé) :
+
+| grandeur                                         |                                          valeur |
+| ------------------------------------------------ | ----------------------------------------------: |
+| pixels testés par rayon lointain (image relevée) |                                     **515 312** |
+| pixels assombris par ce rayon                    |                                     **369 861** |
+| écart avant/après                                | 405 197 px, max canal 193, **0 pixel éclairci** |
+| témoin A/A                                       |                               0 px, max canal 0 |
+
+L'image d'avant montrait les murs du fond d'une pièce **fermée** en plein soleil ; celle d'après les
+met à l'ombre. C'est exactement le défaut visé. Sur Emerald, même vérification à `far` = 200 m :
+18 717 pixels testés, 250 assombris. Ce relevé a été rejoué à l'identique après le rebasage, contre
+`develop` `4030cb8` qui porte les ombres virtualisées : mêmes 515 312 et 369 861, même 0 px A/A.
+
+**Coûts : non mesurés au calme.** La charge à une minute est restée entre 5 et 125 pendant toute la
+fenêtre du lot, plusieurs campagnes d'autres sessions en parallèle ; l'attente sous verrou a dépassé
+trente minutes sans jamais descendre sous 4. Sous cette charge, **`develop` seul perd son appareil
+WebGPU sur Emerald** (`WEBGPU_LOST` dans `readBackImage`, vérifié sur le `dist` de `be5889a` sans
+une ligne de ce lot) : aucune campagne Emerald n'a pu aboutir, ni avant ni après. Les seules durées
+relevées le sont donc sur machine chargée et ne valent que par leur ordre de grandeur : sur la scène
+de contrôle, étape « Éclairage (résolution) » p50 **1,94 ms** sans rayon lointain contre **2,36 ms**
+avec 515 312 rayons, soit environ 0,8 ns par rayon. **Le tableau de coût avant/après des trois vues
+d'Emerald reste à relever**, sous verrou et charge inférieure à 4, à la livraison.
+
+### 5. Simplification, après coup
+
+- **Huit tampons de stockage, pas neuf.** `proxyAlbedoOf` sort de la traversée partagée
+  (`bounceNodeWgsl.ts` → `PROXY_ALBEDO_WGSL`) et n'est inclus que par le cache de surfaces, le seul
+  qui lise une couleur : une ombre cherche un occulteur. L'ombre lointaine ne lie donc plus que
+  trois colonnes du proxy. L'étage de fragments de la résolution différée passe de **9 à 8** tampons
+  de stockage avec le rebond allumé (7 sans), c'est-à-dire le minimum garanti par WebGPU, et la
+  demande de `maxStorageBuffersPerShaderStage` disparaît de `backendCommon.ts`. Les numéros de
+  liaison ne sont plus écrits trois fois : `SUN_FAR_PROXY_BINDING` et `SUN_FAR_STATE_BINDING` les
+  portent, et le bloc d'état a des champs nommés au lieu d'une `vec4f` décodée en `x/y/z/w`.
+  `webgpuBindBudget.test.ts` ne couvre pas encore la disposition différée — c'est ce trou qui a
+  laissé passer le neuvième tampon ; à compléter avec les tests du lot.
+- **Le groupe de liaison ne se refait plus à chaque image** : `gpuSunFarShadow.buffers()` rendait un
+  tableau neuf par appel, que la passe différée comparait à celui qu'elle avait lié — jamais égal,
+  donc groupe reconstruit à chaque image. La liste est maintenant mémorisée par `adopt()` et remise
+  à zéro par `dispose()`.
+- **`webgpuPagesEncodeLights.ts` repasse sous 200 lignes** : ce que la passe différée _lie_
+  (`wantsContractLighting`, `directLightResources`) part dans `webgpuPagesLightResources.ts`, à
+  côté de ce qui l'_encode_. Le plancher du plan proche des cascades n'est plus écrit deux fois
+  (`cameraNearMetres`), et les compteurs de l'étape se mettent en forme dans
+  `webgpuPagesPrepareSunFar.ts` plutôt que dans le profil. Aucun changement d'image.
 
 ## 2026-09-15 — [session village] la scène « Whisperwind Village » entre au banc 15, importée en FBX
 
@@ -253,11 +1171,11 @@ ni de format refusé.
 Lab servi en lecture seule sur le port 5190, banc 15, chemins publics du SDK (`createExplorer`),
 1280×720, seuil 0 pixel, `dist/` du moteur bâti sur `develop` = `38f1b5c`.
 
-| moteur | création | triangles sélectionnés | `uncoveredTriangles` | textures montées / en attente / écartées |
-| --- | --- | --- | --- | --- |
-| WebGeometry WebGPU · vue générale | 5,4 s | 171 683 459 | **0** | 12 / 0 / 0 |
-| WebGeometry WebGPU · au sol | 5,8 s | 90 952 138 | **0** | 12 / 0 / 0 |
-| Three.js référence · vue générale | 3,0 s | 172 008 090 | non mesuré | non mesuré |
+| moteur                            | création | triangles sélectionnés | `uncoveredTriangles` | textures montées / en attente / écartées |
+| --------------------------------- | -------- | ---------------------- | -------------------- | ---------------------------------------- |
+| WebGeometry WebGPU · vue générale | 5,4 s    | 171 683 459            | **0**                | 12 / 0 / 0                               |
+| WebGeometry WebGPU · au sol       | 5,8 s    | 90 952 138             | **0**                | 12 / 0 / 0                               |
+| Three.js référence · vue générale | 3,0 s    | 172 008 090            | non mesuré           | non mesuré                               |
 
 Aucune erreur GPU, aucune erreur de console, `streamingError` nul, `coverageReady` vrai. Chargement
 complet d'une vue borné à **25 s** de bout en bout. Bornes de la scène :
@@ -294,6 +1212,214 @@ x −100,49…100,85, y 0,34…47,77, z −78,74…83,40 (mètres).
 
 Les deux défauts d'import ci-dessus (opacité FBX perdue en silence, aperçus de textures introuvables
 après import) et la règle de départ du banc 15, qui suppose un sol au plus bas des bornes.
+
+## 2026-09-15 — [session sans-threejs] instances : la géométrie n'est plus copiée, le DAG est partagé (lot instances)
+
+Worktree `lot-instances`, branche `lot/instances-gpu`, partie de `develop` = `a29e025`, rebasée sur
+`d3dcd69` (lot import-lampes de la session Lumière) puis sur `30f2b33` (lot H2 de la session
+Calculs), preuve rejouée sur la dernière base. Trois commits : les tampons des transparents, le
+gabarit de DAG, les tests.
+
+### 0. Le harnais sait poser une grille, et dit ce que la mémoire coûte
+
+`--instances N` (1, 4, 9, 12) passe `replicaCount` au SDK ; sans lui rien ne change, la valeur par
+défaut reste 1. Le rapport porte une colonne de plus par ligne : **géométrie (Mo)**, le relevé
+`geometryAllocationBytes` du moteur (cache de pages plus tampons de sommets), `null` s'il ne le
+publie pas. Sans elle le lot n'avait aucun juge.
+
+Une colonne **tas JS** (`performance.memory.usedJSHeapSize`) a servi pendant le lot et n'est pas
+livrée : le relevé demande une ligne dans la fonction que Playwright sérialise, et `pageEclairage.mjs`
+est exactement à la limite des 200 lignes depuis la scission du lot eau. Un nombre tributaire du
+ramasse-miettes — 16 Mo d'écart entre deux exécutions du même côté — ne vaut pas de pousser au-delà
+de sa limite un fichier d'une autre session. Les chiffres de mémoire processeur cités plus bas ont
+été relevés avec cette colonne, avant la scission ; les `mesure.json` sont conservés.
+
+### 1. Ce que la mesure a trouvé, et qui n'était pas ce que le lot attendait
+
+Le lot partait de « `replicateInstances` clone les maillages ». Le premier relevé dit autre chose.
+Les clones de `replicateInstances` **partagent déjà** leur `BufferGeometry` : positions, UV,
+normales et index sont le même objet sous les neuf cellules, et tout ce qui déduplique par
+`geometry.attributes` en profitait déjà — le cache de pages (résidence identique, 20 688 pages à 1
+comme à 9 instances), les trois tampons concaténés du visbuffer, les positions. Le catalogue de
+clusters, lui, est **une entrée par placement** et le reste : une instance lointaine n'a pas la même
+coupe qu'une instance proche, et sa ligne, sa boîte monde et sa matrice lui appartiennent.
+
+Deux copies réelles restaient, et une seule pesait :
+
+- **Les transparents.** `webgpuBlendPrepare` créait, **par placement**, un tampon d'indices, un
+  tampon d'UV et un tampon normale+tangente (sept flottants par sommet) — seules les positions
+  passaient par une table. Emerald, 964 primitives transparentes, neuf instances : 8 676 tampons au
+  lieu de 964, soit 2,2 Go de doublons stricts.
+- **La forme du DAG.** `collectClusterPages` recalculait par placement la hiérarchie de culling
+  (`Float64Array.from`), ses bornes par nœud, les bandes d'erreur de chaque page, le placement des
+  paquets de streaming, l'identité de chaque cluster et la vérification de couverture (deux
+  multiensembles de dix millions de triangles, par instance). Rien là-dedans ne dépend d'une matrice
+  monde.
+
+### 2. Les tampons des transparents appartiennent à la géométrie
+
+`webgpuBlendBuffers.ts` : indices tenus par l'attribut d'index, UV et normale+tangente tenus par
+l'objet `attributes`, écrits une fois, comptés une fois dans `vertexBytes`, rendus une fois au
+pilote. Les octets écrits sont exactement ceux d'avant, dans le même ordre, avec les mêmes tailles
+plancher ; l'ordre des items de mélange, leurs drapeaux, leurs groupes de liaison et leurs appels de
+dessin ne bougent pas. `undefined` retenu dans la table dit « cette géométrie n'a pas cet
+attribut », et se distingue d'une absence d'entrée.
+
+### 3. Un gabarit de DAG par objet source
+
+`pageSelectionTemplate.ts` : un objet source porte une fois ses bandes d'erreur, ses paquets, ses
+identités de clusters, sa hiérarchie de culling, ses bornes par nœud, ses liens de groupes et sa
+boîte locale — le même partage que `ClusterStructureIndex` avait déjà, étendu à tout ce qui
+l'entoure. Les placements gardent ce qui les distingue : matrice monde, boîte monde, rang de dessin,
+drapeaux de groupes forcés, enregistrement de page. La couverture se vérifie une fois par couple
+primitive / tableau d'indices source, et l'ordre des refus est celui d'avant, placement par
+placement : page absente, couverture, puis bande d'erreur du cache. `cullingBounds` ne demande plus
+qu'un `ClusterCut` : c'est tout ce qu'il lisait.
+
+### 4. Ce que ça donne
+
+Emerald, `webgpu-page-raster`, 1280×720, 60 images, chauffe par défaut, `--max-pages 100000`, cache
+du Lab (manifeste binaire 4). **Machine chargée pendant toute la campagne** (charge 17 à 34, d'autres
+sessions mesurant en parallèle) : les durées sont bruitées et à lire comme telles, les verdicts pixel
+ne le sont pas.
+
+| instances | géométrie avant → après | tas JS avant → après (relevé avant la scission) | `cpuFrameMs` p50 générale·0 |
+| --------- | ----------------------- | ----------------------------------------------- | --------------------------- |
+| 1         | **420,6 → 209,1 Mo**    | bruit (≈ 530 ± 100)                             | 10,30 → 10,10               |
+| 9         | **2 652,8 → 209,1 Mo**  | ≈ 2 114 → 1 961 Mo                              | 69,20 → 75,60               |
+
+La géométrie ne dépend plus du nombre d'instances : **209,1 Mo à 1 comme à 9**. Le tas JS baisse de
+96 Mo à 9 instances sur la mesure isolée du gabarit (témoin A/A du tas : 16 Mo) ; sur la campagne
+complète l'écart va de −80 à −400 Mo selon la vue, la mesure du tas restant tributaire du ramasse-
+miettes. Le temps processeur par image ne bouge pas : il est proportionnel aux placements, et le
+reste (voir §6).
+
+### 5. Preuve
+
+Verrou `.claude/mesure.lock` pris avant chaque campagne et rendu juste après. Harnais commun,
+`avant` = tête de `develop`, `apres` = tête du lot, les deux côtés lisant le même cache.
+
+Première série de campagnes sur `d3dcd69` : toutes à 0 px. Elles **n'ont pas pu être rejouées** sur
+la tête de `develop` du jour, pour la raison donnée au §5 bis. La cause est corrigée depuis, dans
+`develop` (`214942a`, session Lumière), et **toutes les campagnes ci-dessous ont été rejouées** sur
+la base courante — `avant` = `b3cf4e9` puis `1fb176e` selon le moment, `apres` = la tête du lot au
+même instant, et la dernière ligne, celle qui décide, contre le `develop` dans lequel le lot est
+fusionné.
+
+| campagne                                                   | vues × seuils | écart | A/A | hash de coupe | trous | géométrie avant → après |
+| ---------------------------------------------------------- | ------------- | ----- | --- | ------------- | ----- | ----------------------- |
+| webgpu, 1 instance                                         | 6             | 0 px  | 0   | identique 6/6 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, 9 instances                                        | 6             | 0 px  | 0   | identique 6/6 | 0     | 2 652,8 → 209,1 Mo      |
+| webgpu, caméra mobile, 1 instance                          | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+| webgpu, caméra mobile, 9 instances                         | 2             | 0 px  | 0   | identique 2/2 | 0     | 2 652,8 → 209,1 Mo      |
+| classes de matériaux, 1 instance                           | 6             | 0 px  | 0   | identique 6/6 | 0     | 0,2 → 0,2 Mo            |
+| webgl, 1 instance                                          | 2             | 0 px  | 0   | identique 2/2 | —     | 223,3 → 223,3 Mo        |
+| webgpu, generale, 1 instance, **base de fusion `f6dd905`** | 2             | 0 px  | 0   | identique 2/2 | 0     | 420,6 → 209,1 Mo        |
+
+La dernière ligne a été rejouée à chaque fois que `develop` a bougé en code pendant la livraison —
+contre `2264c16`, puis contre `f6dd905`, la base réellement fusionnée : 0 px les deux fois. Un
+rebase sur des commits de documentation seuls ne redemande pas de preuve ; un rebase sur du code,
+si.
+
+Aucun `WEBGPU_LOST` sur aucune des sept campagnes. Durées **indicatives**, machine partagée avec
+d'autres sessions, charge à une minute de 8 à 24 : vue générale au seuil 0 et à une instance,
+`cpuFrameMs` p50 8,4 → 8,5 ms et `gpuFrameMs` p50 29,83 → 29,48 ; à neuf instances, 64,0 → 62,7 ms
+et 62,09 → 59,98 ms. Le temps ne bouge pas, et c'est attendu (voir §6).
+
+Chaque campagne sort **19 × 404 sur `lights.json`**, identiques des deux côtés : le cache du Lab est
+antérieur au lot import-lampes (voir plus bas). Le banc rend alors un code non nul sans qu'aucun
+pixel ne bouge.
+
+**Verrou.** `.claude/mesure.lock` pris avant chaque campagne, rendu juste après, jamais tenu entre
+deux, et « verrou rendu » annoncé à la session voisine à chaque libération. Le répertoire porte
+désormais un fichier `proprietaire` : sans lui, un verrou anonyme ne dit pas qui mesure. Deux
+incidents notés : une reprise du verrou onze secondes après une libération, à 14:22, sans fichier
+propriétaire ; et un verrou anonyme resté en place de 14:42 à 14:45 sans aucun banc vivant. Aucune
+campagne de ce lot n'a été jouée sans le verrou.
+
+Images conservées dans `.mesure/out/lot-instances/`.
+
+**La scène synthétique des classes de matériaux à 9 instances n'est pas un juge, et ce n'est pas le
+lot.** Elle y montre 104 286 pixels d'écart, max canal 129 — et `develop` **contre lui-même** en
+montre exactement autant (contrôle : deux montages du même `dist`, un par côté ; A/A à 0, tous les
+compteurs égaux — clusters, pages résidentes, appels de dessin, triangles soumis). La fixture pose
+ses boîtes bord à bord et la grille les espace de l'emprise du modèle : les instances voisines se
+touchent, leurs faces opaques sont exactement coplanaires, et R5c dit le reste — à profondeur égale
+le pixel va au premier dessiné, et l'ordre vient de la partition occulteurs/testés décidée à
+l'exécution. Emerald, dont les instances ne se touchent pas, est à 0 px aux mêmes neuf instances.
+Tant que ce n'est pas corrigé, **cette scène ne se mesure qu'à une instance**. Le correctif est dans
+la fixture, pas dans le moteur, et il est hors de ce lot : espacer les boîtes de
+`classes-materiaux.gltf` d'une fraction de leur propre taille (un dixième suffit) pour que l'emprise
+du modèle, dont la grille tire son pas, laisse un vide entre deux cellules voisines. La scène
+retrouverait alors sa raison d'être — juger les trois classes de matériaux à plusieurs instances.
+
+Le harnais consigne aussi, sur toutes ces campagnes, des 404 sur `lights.json` : le cache du Lab est
+antérieur au lot import-lampes, qui a ajouté ce fichier à la sortie du compilateur. Le manque est
+identique des deux côtés et ne déplace aucun pixel ; **le cache du Lab est à régénérer par
+l'utilisateur** — aucun agent n'écrit dans `public/benchmark-assets` — et tant qu'il ne l'est pas,
+toute campagne sortira avec ces 404 et un code de retour non nul.
+
+### 5 bis. La preuve WebGPU ne peut plus être rejouée sur `develop` : bissection
+
+Le lot est prouvé sur `d3dcd69`. À partir d'un certain point de `develop`, **plus aucune campagne
+WebGPU ne démarre** : le contexte carte graphique est perdu avant la première mesure, sur
+n'importe quel côté, y compris `develop` contre lui-même.
+
+    Error: WEBGPU_LOST
+      at readBackImage (…/webgpuPagesFlush.js:79)
+      at async flushWebgpuPages (…/webgpuPagesFlush.js:136)
+      at async awaitBackendPages · async awaitPages · measureView
+
+Révélateur, cinq images, un seul côté, une instance, aucune lampe, rebond éteint (défaut) :
+
+    node scripts/mesure/banc.mjs --moteur webgpu --apres <dist de la ref> \
+      --vues generale --images 5 --pixelError 0 --max-pages 100000 --profil off
+
+| ref                                                              | WebGPU          |
+| ---------------------------------------------------------------- | --------------- |
+| `d3dcd69` (base de la preuve de ce lot)                          | OK              |
+| `30f2b33` (lot H2)                                               | OK              |
+| `0756387`                                                        | **OK**          |
+| `8d1fe94` feat(rebond) : cascades autour de la caméra, budget ms | **WEBGPU_LOST** |
+| `5bf6c46`, `be5889a`, `061059e`, `8bb630c`                       | WEBGPU_LOST     |
+| `56c1012`, `38f1b5c`, `2846372`                                  | WEBGPU_LOST     |
+
+Premier commit fautif : **`8d1fe94`**. Deux témoins écartent la machine et ce lot : `d3dcd69` en
+WebGPU passe le même jour sur la même machine, et la tête de `develop` en **WebGL** passe aussi.
+
+La session Lumière a trouvé la cause et l'a corrigée dans `develop` (`214942a`) : le remplaçant du
+tampon de rebond, lié à chaque image même rebond éteint, était resté à la taille qu'avait la
+structure avant les cascades. La campagne WebGPU de ce lot se rejoue donc sur `2dcc8fc` ou plus
+récent.
+
+### 6. Ce qui reste de H1, et pourquoi le reste ne se prend pas par là
+
+**WebGL2 n'a rien à partager de plus.** Mesuré : `geometryAllocationBytes` vaut 223,3 Mo à 1 comme à
+9 instances. `exactPagesAttachment` partage déjà l'attribut d'index par URL et les attributs de
+sommets par géométrie source, et le relevé déduplique par géométrie. Le contrat est donc tenu sans
+une ligne : _un placement de page WebGL2 n'alloue qu'un `BufferGeometry` enveloppe et un `Mesh` ;
+ses tampons sont ceux de la page et de la géométrie source, jamais une copie._ Ce qui reste coûteux
+côté WebGL2 est la coupe processeur (29,4 ms p50 à 9 instances contre 6,8 à 1) — c'est le lot 4c, pas
+celui-ci.
+
+**Le catalogue reste une entrée par placement, et il le doit.** Une instance a sa propre coupe, sa
+propre ligne de visibilité, sa propre boîte monde : à 9 instances, 402 201 `PageRec` au lieu de
+44 689. Les déplacer vers un catalogue « gabarit × instance » (une dispatch 2D, `index = instance ×
+gabarit + cluster`, qui conserve exactement l'ordre actuel puisque `replicateInstances` émet déjà
+cellule par cellule) économiserait les 64 + 48 octets par cluster des enregistrements statiques de
+`packDagSelection` — soit 40 Mo à 9 instances — et une part des `PageRec`. C'est un chantier à part :
+il touche le cœur du moteur WebGPU (empaquetage, nuanceur de sélection, lignes, Hi-Z, dessin), pour
+un gain mémoire d'un ordre de grandeur sous celui de ce lot. À ne prendre que si la mémoire
+processeur redevient la contrainte : le tas JS croît de ~190 Mo par instance d'Emerald, dont ce lot
+rend ~12 Mo.
+
+**Le temps processeur par image ne s'améliore pas par l'instanciation.** Le profil à 9 instances le
+dit : 12,3 ms de fiches de dessin, 12,6 ms d'encodage pour 17 359 appels dont 17 352 de mélange,
+4,1 ms d'adoption, 3,6 ms de partition. Les appels de mélange sont **un par placement de primitive
+transparente**, et les fusionner à travers les instances changerait l'ordre de dessin des
+transparents — la contrainte du lot l'interdit. Le chemin opaque, lui, est déjà indépendant du
+nombre d'instances : 7 appels de dessin indirects pour 354 926 clusters. Il n'y a donc pas de
+« dessin indirect par instance » à livrer côté opaque ; il est déjà là.
 
 ## 2026-09-16 — [session lumiere] ombres virtualisées : invalidation par pages, budget en millisecondes (lot ombres virtualisées)
 
@@ -616,7 +1742,7 @@ pas mesuré.
 `tsc` vert, `npm run check:changed` vert (403 tests, format, lint, limite de 200 lignes, doublons).
 Pas de `npm run validate` complet ni de nouveaux tests : portes allégées, décision de l'utilisateur.
 
-## 2026-09-16 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
+## 2026-09-15 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
 
 Deux lignes seulement séparaient le banc commun d'une scène quelconque, et elles sont parties.
 
@@ -637,7 +1763,7 @@ Cache nommé, Lab monté → sortie propre, `coupe` 80 153, la même image que p
 Quatre tests ajoutés à `scripts/banc.test.mjs` (déduction, dossier sans suffixe, repli).
 `npm run validate` vert, portes Rust comprises. README : section « mesurer une autre scène ».
 
-## 2026-09-16 — [session sans-threejs] d'où viennent les égalités de profondeur, et pourquoi la borne des 0 pixel les rend indépartageables (lot coplanaires v2)
+## 2026-09-15 — [session sans-threejs] d'où viennent les égalités de profondeur, et pourquoi la borne des 0 pixel les rend indépartageables (lot coplanaires v2)
 
 Worktree `lot-coplanaires`, branche `lot/coplanaires-v2`, partie de `develop` = `7b7a79f`, qui n'a
 pas bougé de tout le lot. **Aucun code de production n'est modifié** : le lot s'arrête sur un
@@ -897,7 +2023,7 @@ aperçus ; rien n'y est écrit. Captures 1246×1000.
   7,56 Go d'atlas sur Emerald, donc 336 images au minimum pour tout transférer. La priorité rend cela
   invisible ; elle ne le supprime pas.
 
-## 2026-09-16 — [session sans-threejs] la cause des pixels du test Hi-Z : l'ordre de dessin, pas la borne (lot hiz)
+## 2026-09-15 — [session sans-threejs] la cause des pixels du test Hi-Z : l'ordre de dessin, pas la borne (lot hiz)
 
 Worktree `lot-hiz`, branche `lot/hiz`, partie de `develop` = `edf9e30`, rebasée sur `abe8827` (lot
 rebond 2 de la session Lumière) avant la fusion et toute la preuve rejouée sur cette base. Quatre
@@ -1044,7 +2170,7 @@ fichier Rust n'est touché par ce lot ; la machine était chargée (8 à 12).
 - Le chemin CPU de repli (`hizUnoccluded`, `applyTemporalHiz`) ne porte pas le redressement de la
   borne : il ne connaît pas la couche coplanaire d'une page. Sans effet sur le rendu WebGPU.
 
-## 2026-09-16 — [session sans-threejs] CPU par image WebGPU : encodage et soumission (lot encodage)
+## 2026-09-15 — [session sans-threejs] CPU par image WebGPU : encodage et soumission (lot encodage)
 
 Worktree `lot-encodage`, branche `lot/encodage`, partie de `develop` = `21dbe9e`, rebasée sur
 `62c6b3d` (lot rebond de la session Lumière) avant la fusion et la preuve rejouée sur cette base.
@@ -3813,7 +4939,7 @@ forcément en retard de la même image. Le verdict qui compte, le pixel, est à 
   Une scène à des milliers de primitives transparentes minuscules paierait ce rembourrage ; Emerald
   a 29 primitives `clustered-blend`, la scène synthétique une.
 
-## 2026-09-16 — [session sans-threejs] l'eau et le verre épais existent (lot eau)
+## 2026-09-15 — [session sans-threejs] l'eau et le verre épais existent (lot eau)
 
 Worktree `lot-eau`, branche `lot/eau`, rebasée sur `0a3c601`. Deux commits. **Aucune version de
 manifeste n'a bougé, aucun produit de cache n'a été ajouté** : la transmission voyage par le glTF
@@ -3821,7 +4947,7 @@ source déjà chargé et par un tampon d'uniformes interne au moteur.
 
 ### 1. Le chargement accepte une primitive hors DAG
 
-`assertCacheIdentity` exigeait une bande d'erreur par cluster de *chaque* primitive. Une primitive
+`assertCacheIdentity` exigeait une bande d'erreur par cluster de _chaque_ primitive. Une primitive
 que le compilateur garde d'un seul tenant — `pass: "shared-blend"` — n'a aucun cluster, donc aucune
 bande, et c'est sa définition, pas une lacune : un cache qui en portait une était refusé en bloc, et
 une eau importée rendait la scène entière illisible. `primitiveIsDrawable` (`geometryContracts.ts`)
@@ -3844,12 +4970,12 @@ pas une transmission.
 
 Après les opaques et après les mélanges, dans l'ordre source, test de profondeur `less` sans
 écriture, même mélange. Deux `copyTextureToTexture` figent le fond — la cible HDR et la profondeur
-vers `rgba16float` et `depth32float` en lecture seule. C'est ce que *toutes* les surfaces
+vers `rgba16float` et `depth32float` en lecture seule. C'est ce que _toutes_ les surfaces
 transmissives lisent : l'ordre entre deux d'entre elles ne change donc pas ce qu'elles voient.
 
 - **Réfraction** : le rayon de vue est dévié par `1/ior`, avancé de `thicknessFactor`, le point de
   sortie reprojeté à l'écran, et c'est là qu'on relit la couleur. Un échantillon dont la profondeur
-  copiée le place *devant* la surface est rejeté : on retombe sur l'échantillon non dévié.
+  copiée le place _devant_ la surface est rejeté : on retombe sur l'échantillon non dévié.
 - **Atténuation** : `exp(-sigma·thickness)` avec `sigma = -log(attenuationColor)/attenuationDistance`.
   Une distance nulle veut dire pas d'atténuation.
 - **Réflexion** : Fresnel de Schlick, `f0 = ((ior-1)/(ior+1))²`, appliqué à ce que la scène déclare —
@@ -3921,8 +5047,8 @@ lampes du harnais sont déclarées par le contrat `SceneLight`, que seul le chem
 que le témoin Three rend toute surface opaque noire pendant que le nôtre rend la vue sans éclairage
 en albédo brut. Contrôle construit pour l'isoler : la **même comparaison sur `classes-materiaux`, une
 scène qui ne porte aucune transmission**, donne **206 471 px (22,40 %)** et **544 747 px (59,11 %)** —
-*plus* que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
-l'arrivée de la transmission le *réduit*, parce que l'eau assombrit notre image vers celle du témoin.
+_plus_ que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
+l'arrivée de la transmission le _réduit_, parce que l'eau assombrit notre image vers celle du témoin.
 Une comparaison de fidélité qui porte sur la transmission seule demande que le témoin reçoive les
 lampes du contrat ; ce n'est pas dans ce lot, et c'est nommé ci-dessous.
 
@@ -4012,6 +5138,7 @@ Trois attendus ont suivi le registre — le doré du CLI `--version`, la longueu
 d'images et la liste des extensions ; le cas « format hors registre » du test de registre se disait
 avec un entête TGA, il se dit maintenant avec un entête DDS. `npm run validate` n'a pas été joué ici,
 il l'est à la livraison.
+
 ## 2026-09-15 — [compilateur] pilote zip
 
 Premier **conteneur** du compilateur : le ZIP n'est pas une scène, c'est un emballage. Le pilote
@@ -4039,7 +5166,7 @@ qu'elle est complète et porte la chaîne des pilotes pour les réutilisations.
 **Composition.** Un unique dossier racine est traversé, le dossier extrait est routé par le routeur
 existant, et le pilote `zip` rend ce que le pilote retenu rend — règles du routeur inchangées,
 inconnu et ambigu toujours refusés. Un pilote qui rend sa scène « en place » (le cas glTF) pose une
-difficulté : le compilateur résout ce nom à côté de la *source*, qui est ici l'archive. Le conteneur
+difficulté : le compilateur résout ce nom à côté de la _source_, qui est ici l'archive. Le conteneur
 écrit donc dans le dossier extrait le manifeste que le compilateur calculerait lui-même — les mêmes
 octets, donc la même identité de cache — et rend ce dossier. `route.rs` n'a pas bougé : la
 composition tient dans le nouveau `scene/archive.rs`, socle destiné au `.unitypackage` (tar.gz) qui
@@ -4058,3 +5185,764 @@ comptent les pilotes. 166 tests Rust au vert, Clippy sans avertissement.
 - Les codes `ARCHIVE_*` ne sont pas encore dans le tableau des erreurs de `docs/COMPILER.md` : hors
   périmètre de ce lot, à ajouter par qui tient cette page.
 - Une archive chiffrée est refusée sans test dédié : aucun jeu redistribuable ne l'exerce.
+
+## 2026-09-15 — [compilateur] pilote unity
+
+Un projet Unity exporté tel quel devient une scène intermédiaire glTF, sans éditeur, sans outil
+tiers. Le pilote est un module par responsabilité sous `packages/asset-compiler-rust/src/plugins/
+scene/unity/` — `yaml`, `project`, `build`, `render`, `prefab`, `assets`, `materials`, `textures`,
+`merge`, `models`, `builtin`, `transform`, `output`, `convert` — plus une ligne dans le registre de
+scènes. Rien d'autre dans le cœur, aucun autre pilote touché.
+
+**Condition juridique, écrite en tête du module comme ici.** Données seulement : la sérialisation
+YAML documentée par Unity pour `.unity`, `.prefab`, `.mat` et `.meta`. Aucun script C#, aucun
+assembly, aucune bibliothèque, aucun SDK, aucun shader de l'éditeur n'est lu, exécuté, repris ni
+redistribué ; rien n'est déchiffré ni contourné. Lecteur YAML : `yaml-rust2` 0.13 (MIT OU
+Apache-2.0), version figée dans `Cargo.toml` et nommée dans la version du pilote. La licence du
+contenu importé reste celle de son auteur.
+
+**Ce qui est lu.** L'entête d'un document Unity (`--- !u!<classe> &<fileID>`, et le mot `stripped`
+d'une accroche de prefab) n'est pas du YAML ordinaire : on découpe le flux ligne par ligne et on ne
+confie au parseur que le corps. Un GUID de trente-deux chiffres hexadécimaux comme
+`0000000000000000e000000000000000` ressemble à un nombre en notation scientifique : il arrive en
+`Real`, dont on relit le texte d'origine — le lire par `as_str` seul laisserait la référence vide.
+Les `.meta` sont indexés une fois pour toutes sous la racine `Assets`, et toute référence se résout
+par GUID. Suivent : hiérarchie des `Transform`, `MeshFilter` + `MeshRenderer`, instances de prefab
+avec leurs retouches de transformation, de nom et de matériau, `LODGroup`. Les modèles sont importés
+par le pilote de leur format via le registre — on compose, on ne réimplémente pas FBX — versés une
+seule fois dans la scène puis instanciés ; les matériaux du `MeshRenderer` remplacent ceux du modèle,
+emplacement par emplacement, comme Unity le fait. Une scène par source : plusieurs `.unity` dans un
+dossier sont refusés en les nommant, l'appelant en désigne un par son fichier.
+
+**Ce qui est compté sans être rendu.** LOD autres que le plus fin, objets inactifs, rendus
+désactivés, lampes, caméras, terrains, particules, rendus animés ou de sprite, scripts, retouches de
+prefab autres que transformation/nom/matériau, cartes métal-lissage empaquetées, textures d'un format
+hors registre d'images, primitives intégrées autres que le cube. Rien de tout cela n'interrompt une
+compilation.
+
+**Conversion d'axes.** Unity est en main gauche (Y haut, Z avant, 1 unité = 1 m), le glTF en main
+droite : les deux ne diffèrent que par le sens de Z, donc la conversion exacte est la symétrie
+`S = diag(1, 1, -1)`, sa propre inverse. On ne l'applique qu'aux transformations de la scène, jamais
+aux sommets d'un modèle : Unity lit elle-même un FBX en appliquant `S`, donc un sommet vaut `S·v`
+dans la scène Unity et repasser en glTF donne `S·(T₁…Tₙ)·S·v = (S·T₁·S)…(S·Tₙ·S)·v`. La chaîne se
+télescope : convertir chaque transformation locale par `T ↦ S·T·S` suffit, la géométrie du modèle
+reste intacte dans l'espace où son propre pilote l'a rendue. En clair : position `(x, y, -z)`,
+quaternion `(-x, -y, z, w)`, échelle inchangée. `S·T·S` est une rotation propre (déterminant +1) :
+l'ordre d'enroulement des faces ne change pas, aucune normale n'est retournée, aucun matériau ne
+devient double face par accident.
+
+**Matériaux.** Standard, URP Lit et HDRP Lit sont lus _par propriété_, jamais par famille de shader :
+`_BaseColor`/`_Color`, `_BaseColorMap`/`_BaseMap`/`_MainTex`, `_Smoothness`/`_Glossiness`,
+`_NormalMap`/`_BumpMap`, `_EmissiveColor`/`_EmissionColor`. Seule conversion de grandeur :
+`roughness = 1 − smoothness`. Les deux vivent dans [0, 1], l'application est une bijection,
+l'aller-retour est exact : aucune information n'est perdue. La couleur de base reste un facteur
+multiplié par sa texture, comme chez Unity comme en glTF. Modes de rendu : Opaque, Cutout, Fade et
+Transparent (`_Mode` chez Standard, `_Surface` et le drapeau de découpe chez URP et HDRP) vont vers
+`OPAQUE`, `MASK` avec son seuil, `BLEND` — un matériau transparent ne devient jamais masqué. Unity
+empaquette métal et lissage dans un seul plan là où le glTF les attend en G et B : les convertir
+demanderait de réencoder des pixels, on garde donc les facteurs déclarés, exacts, et la carte est
+comptée au rapport. Le cube intégré de l'éditeur est reconstruit depuis sa définition géométrique
+(un mètre d'arête, centré, six faces) et non extrait d'un fichier de Unity ; les autres primitives
+ont une tessellation propre à l'éditeur qu'on ne peut pas reproduire fidèlement, elles sont comptées.
+
+**Dorée.** Une seule, `fixtures/unity/cc0-import-project`, reprise du corpus CC0 local (le dépôt
+ignore `test-assets/`) avec sa notice, sans le script d'éditeur du corpus, et complétée sous la même
+licence de ce que le corpus ne porte pas — la scène du corpus ne pose que des cubes intégrés : une
+référence de modèle par GUID (le FBX à LOD 320/80/20), une lampe, deux matériaux aux modes découpé
+et transparent, un objet inactif, une instance de prefab replacée et renommée. `expected.json` fixe
+en clair 9 instances, 6 maillages, la hiérarchie, les transformations converties — `Prop_Model` posé
+en (1, 2, 3) et tourné d'un quart de tour autour de Y sort en (1, 2, −3) avec
+(0, −0.7071067811865476, 0, 0.7071067811865476), échelle 2 — les facteurs PBR de chaque matériau,
+492 triangles, 8 rendus de LOD écartés et la TGA signalée sans bloquer. La dorée passe par le harnais
+commun, à qui ce lot apprend deux choses : accepter une source d'un autre format que glTF, et relire
+la scène intermédiaire qu'un pilote nommé a écrite. Trois tests de refus l'accompagnent : `.unity`
+tronqué (fixture `limites`, 31 octets), plusieurs scènes dans un dossier, fichier reconnu à son
+entête. `cargo test` du crate : 169 tests au vert ; `cargo clippy --all-targets -D warnings`,
+`cargo fmt --check`, `check:lines` et `check:duplicates` verts.
+
+**Essai à blanc sur un vrai projet**, en lecture seule, sortie dans le bac à sable — `Industrial
+Map`, licence FAB, non redistribuable, donc aucun test automatique dessus. 349 `.meta` indexés.
+`Map_v1.unity` : 350 instances de prefab, 327 instances de maillage, 4 modèles importés, 126
+maillages, 17 matériaux, 14 786 triangles, 64 fichiers de données lus, 1,5 s d'import.
+`Assets_showcase_scene.unity` : 128 instances de prefab, 677 instances, 12 modèles, 186 maillages,
+38 matériaux, 49 767 triangles, 152 fichiers lus. Aucun échec de lecture, aucun prefab ni modèle
+introuvable. Au rapport : 4 puis 10 textures TGA non lues (le registre d'images ne connaît pas encore
+ce format, un autre lot le code), 880 puis 128 retouches de prefab ignorées, 15 puis 34 modèles à
+plusieurs maillages instanciés entiers, une lampe et une caméra. Le dossier source n'a pas été
+touché : aucun fichier n'y a changé.
+
+**Ce qui reste.** Le `fileID` d'un `MeshFilter` désigne un maillage précis dans le modèle importé ;
+cette correspondance est interne à l'éditeur et n'est pas reconstituable, donc un modèle à plusieurs
+maillages est instancié entier et le fait est compté — c'est la limite qui coûtera le plus cher sur
+un grand kit. Le facteur d'échelle d'import déclaré par un `ModelImporter` n'est pas appliqué. Les
+lampes ne sont pas encore converties, alors que le glTF intermédiaire sait les porter. Le routeur
+refuse un dossier qui mêle `.unity` et `.fbx` au même niveau, ce qui reste son affaire et non celle
+de ce pilote. Enfin, la conversion relit le YAML à chaque appel : c'est court, et les modèles, eux,
+sont déjà mis en cache par leur propre pilote.
+
+## 2026-09-15 — [compilateur] pilote tiff
+
+**Ce qui est fait.** Quatrième pilote d'image du registre : `src/plugins/image/tiff.rs`, son lecteur
+d'IFD `tiff/profile.rs`, une ligne dans `image::DECODERS`, la feature `tiff` de la crate `image`,
+et la dorée `src/plugins/tests/tiff.rs` sur `fixtures/tiff/`. Rien d'autre n'a bougé : le cœur, le
+CLI et les trois autres pilotes sont intacts ; seuls les comptes de pilotes de `image_registry.rs`
+et de `tests/cli.rs` suivent.
+
+**Profils lus, tous vers RGBA8 exact.** Gris 8 bits noir à zéro, RGB8, RGBA8 à alpha non associé
+(`ExtraSamples = 2`, donc droit) ; compressions aucune (1), LZW (5), Deflate (8 et 32946), PackBits
+(32773) ; les deux ordres d'octets ; bandes comme tuiles, configuration entrelacée. Aucune de ces
+écritures ne change un octet du résultat, et la dorée le prouve pixel par pixel.
+
+**Refusés, nommés, jamais devinés.** TIFF est un conteneur de champs plutôt qu'un format : le pilote
+lit donc le premier IFD **avant** de décoder et refuse tout ce qu'il n'a pas déclaré, sous
+`image-profile-unsupported` — BigTIFF (nombre magique 43, revendiqué exprès pour être nommé), plus
+d'un IFD, palette, CMJN, YCbCr, CIELab, alpha associé (prémultiplié), `PlanarConfiguration = 2`,
+JPEG-in-TIFF, CCITT, profondeurs autres que 8 bits, `SampleFormat` non entier. Entête ou IFD
+illisibles ressortent en `image-decode-failed`. Aucun chemin ne panique. À noter : la bibliothèque
+n'étend pas les palettes TIFF (`RGBPalette ... is unsupported`), le refus est donc doublement fondé.
+
+**16 bits : refusé, pas abaissé.** `DecodedImage` n'a qu'une variante, `Rgba8`, et l'unique
+consommateur (`texture_preview`) la déstructure de façon irréfutable : la chaîne aval ne sait pas
+porter 16 bits. Le pilote refuse donc RGB16 et gris16 sous une raison à eux, `image-depth-unsupported`,
+plutôt que d'ajouter une perte que la source n'avait pas. Pour les accepter il faudrait une variante
+`Rgba16` au contrat d'image, sa version de contrat relevée, et un traitement explicite chez chaque
+consommateur — la pyramide d'aperçus d'abord. **Constat sur `png.rs`, non modifié** : il passe par
+`crate_image::decode`, qui termine par `to_rgba8()` ; un PNG RGB16 y est donc aujourd'hui ramené à
+8 bits **en silence**, sans raison de rapport. Vérifié sur `test-assets/textures/png-matrix/rgb16.png`
+(premiers octets rendus `18, 171, 31`, l'octet bas perdu). C'est une perte ajoutée par le
+compilateur, hors périmètre de ce lot mais à trancher avec le même remède.
+
+**Provenance.** Spécification publique « TIFF Revision 6.0 », Adobe Developers Association,
+3 juin 1992, pour l'entête, les types et les tags ; décodage par la crate `image` 0.25.10, feature
+`tiff`, qui embarque la crate `tiff` 0.11.3 (MIT), notices conservées avec la dépendance. Aucun SDK
+d'éditeur, aucun réencodage.
+
+**Dorée.** `fixtures/tiff/`, quatorze fichiers CC0 de quelques centaines d'octets : sept profils lus
+comparés à une référence 4 × 2 écrite en clair dans le test, sept refus vérifiés sous leur nom
+(16 bits, palette, JPEG-in-TIFF, CCITT G4, deux pages, plans séparés, alpha associé) plus le tronqué
+de `test-assets/limites/truncated-tif`. Les quatre TIFF non compressés sont écrits octet par octet
+depuis la spécification, les autres par Pillow 12.2.0 — un piège doit venir d'ailleurs que du lecteur
+qu'il éprouve. Hors dorée, le corpus `test-assets/textures/tiff-matrix/` (256 × 256 : RGB8 brut, RGB8
+LZW) et un RGB8 en tuiles de 16 × 16 ont été relus par Pillow : **sha256 des pixels RGBA8 identique**
+à celui du pilote dans les trois cas, et `gray16.tiff` refusé comme prévu. Aucun test temporaire
+laissé. 173 tests Rust au vert (169 + 4), Clippy sans avertissement, `cargo fmt --check` propre.
+
+### Ce qui reste
+
+- Le 16 bits : variante `Rgba16` du contrat d'image, et le même remède pour PNG, qui l'abaisse
+  aujourd'hui sans le dire.
+- Les raisons `image-profile-unsupported` et `image-depth-unsupported` ne sont pas dans le tableau
+  des rapports de `docs/COMPILER.md` : hors périmètre, à ajouter par qui tient cette page.
+- La palette TIFF reste illisible tant que la bibliothèque ne l'étend pas ; l'écrire nous-mêmes
+  demanderait notre propre lecteur de bandes, ce que ce lot n'a pas fait.
+
+## 2026-09-15 — [compilateur] pilote dds
+
+Un pilote d'image de plus au registre : `dds`, quatrième entrée après `png`, `jpeg` et `tga`. Le
+cœur n'a pas bougé — un module, une ligne de registre, et les deux tests qui comptent les pilotes.
+
+**Ce qui est lu.** Le conteneur est reconnu par son nombre magique `DDS ` puis par son extension.
+`DDS_HEADER` (124 octets) et `DDS_PIXELFORMAT` (32 octets) sont lus champ par champ depuis la
+documentation publique « DDS — Programming Guide » de Microsoft, ainsi que `DDS_HEADER_DXT10` et les
+valeurs de `DXGI_FORMAT` : aucun SDK, aucun code d'éditeur, aucun octet repris ailleurs.
+
+**Codecs déclarés, un par un.** BC1 (`DXT1`, `BC1_UNORM`, `_SRGB`), BC2 (`DXT3`), BC3 (`DXT5`),
+BC4 (`ATI1`, `BC4U`), BC5 (`ATI2`, `BC5U`), BC7 (`BC7_UNORM`, `_SRGB`), et les surfaces non
+compressées RGBA8, BGRA8 et BGRX8, nommées par leurs masques de bits comme par leur `dxgiFormat`.
+
+**Refusés, nommés.** `dds-codec-unsupported` pour BC6H flottant, les variantes signées, les
+`_TYPELESS`, les 16 bits, les YUV, et pour `DXT2`/`DXT4` comme pour `DDS_ALPHA_MODE_PREMULTIPLIED` —
+le contrat d'image demande un alpha droit, on refuse plutôt que de rendre faux.
+`dds-layout-unsupported` pour les cubes, les volumes, les tableaux et un pas de ligne rembourré ;
+`dds-header-truncated`, `dds-header-invalid`, `dds-data-truncated`, `dds-image-too-large` pour le
+reste. Jamais une panique : une texture illisible laisse le moteur retomber sur son blanc.
+
+**Décodeur et provenance.** Crate `texture2ddecoder` 0.1.2, MIT ou Apache-2.0,
+`UniversalGameExtraction/texture2ddecoder` : Rust pur, sans `std`, sans dépendance d'éditeur, elle
+applique l'interpolation entière que la spécification définit. Aucune perte n'est ajoutée — celle
+du BCn a été faite chez l'encodeur de la source — et rien n'est réencodé. La crate `image` n'était
+pas une option : sa feature `dds` ne couvre que BC1 à BC3 par son décodeur DXT déprécié.
+
+**Mips.** Seul le niveau 0 est consommé. `dwMipMapCount` est compté et sert de vérification : la
+chaîne annoncée doit tenir dans le fichier, sinon c'est `dds-data-truncated`. Un `bc1-mips.dds` de
+256 × 256 à neuf niveaux amputé d'un seul octet est refusé — la dorée le prouve.
+
+**Ce qui prépare « les blocs restent compressés sur le GPU ».** La règle du dépôt veut qu'une
+texture déjà compressée pour le GPU y reste compressée quand la machine l'accepte, le décodage
+n'étant qu'un repli. Ce lot ne construit pas cette chaîne (transport, atlas, GPU : autre chantier)
+et n'a **rien ajouté de spéculatif**, parce que le contrat ne s'y prête pas encore : `DecodedImage`
+n'a qu'une variante et le cœur la déconstruit par `let` irréfutable (`src/texture_preview.rs:131`).
+Ce qu'il faudra ajouter, exactement : une variante `DecodedImage::Blocks { codec, width, height,
+data }`, le passage du `let` irréfutable à un `match` à cet endroit, et un pilote qui rend cette
+variante quand l'appelant la demande. Le pilote est déjà découpé pour ça : `dds/codec.rs` porte le
+codec et sa géométrie de bloc, `dds/header.rs` rend la surface et l'offset de ses octets bruts,
+`dds/blocks.rs` n'est que la reconstruction — la seule partie qui deviendra le repli.
+
+**Dorée** (`fixtures/dds/`) : un bloc de 4 × 4 par codec, conteneur écrit octet par octet dans le
+test, référence RGBA8 en clair calculée à la main depuis la spécification — les tiers entiers de
+BC1, les septièmes de BC3, les quartets étendus de BC2, le mode 6 de BC7 posé sur ses deux bornes.
+Tout est passé du premier coup : le décodeur rend exactement ce que la spécification annonce.
+S'y ajoutent deux fichiers réels CC0 recopiés du corpus hors git, `bc1-mips.dds` et `tronque.dds`
+(43 832 et 31 octets), et les refus vérifiés par code de raison. Les quatre autres DDS de
+`test-assets/textures/dds-matrix` (BC1 sans mips, BC3, BC5, BC7) ont été décodés pendant le
+développement — 256 × 256, blocs constants de bout en bout — sans être commités.
+
+175 tests Rust au vert (`cargo test --locked`), Clippy `--all-targets -D warnings` sans
+avertissement, `cargo fmt --check` propre, `check:lines` et `check:duplicates` au vert.
+`npm run validate` n'a pas été joué ici.
+
+### Ce qui reste
+
+- Les codes `dds-*` ne sont pas dans le tableau des erreurs de `docs/COMPILER.md` : hors périmètre.
+- BC6H (HDR flottant) attend la variante flottante du contrat d'image, celle qu'EXR et Radiance HDR
+  demanderont aussi ; aucun pilote ne doit ramener du flottant à 8 bits en passant.
+- Les DDS cubes, volumes et tableaux sont refusés faute de consommateur : rien ne les attend encore.
+
+## 2026-09-15 — [compilateur] aperçus après import : une seule racine de résolution des images
+
+**La cause.** Sur « Whisperwind Village » (FBX, banc 15), les sept aperçus 16×16 des textures
+couleur étaient tous écartés en `image-missing`, alors que l'import avait résolu 12 images sur 13 et
+que le rendu final avait ses textures. Le pilote FBX écrit sa scène intermédiaire sous
+`<cache>/native/imports/<clé>/`, puis `compile` déplace `o.source` sur ce dossier ; l'étape des
+aperçus en tirait sa racine et cherchait donc `Textures/xxx.png` dans le cache, où aucun PNG n'a
+jamais été écrit — les images étaient restées à côté du `.fbx`. Le rendu, lui, ne souffrait pas :
+`rewrite_images` préfixe les URI de `resourceBaseUrl`, que l'hôte sert depuis le dossier source. Ce
+n'était pas propre au FBX : tout pilote qui écrit ailleurs que sous la source était concerné — fbx,
+obj, unity, et les conteneurs qui extraient sous le cache.
+
+**La règle.** La racine de résolution des images est `scene::image_root(source)` : la source
+elle-même si c'est un dossier, le dossier qui la porte si c'est un fichier. Elle vaut des deux côtés
+— un pilote y lit les octets et en tire des URI relatives, le compilateur y relit les mêmes octets
+pour les aperçus. Une scène convertie emporte cette racine : `PreparedScene::Converted` porte
+désormais `directory` (où la scène est écrite) _et_ `images` (où elles sont restées), que
+`request.converted(directory)` accroche pour tous les pilotes. Un conteneur rend le dossier extrait
+comme racine, puisque c'est là que l'extraction a mis les images. Les trois copies de ce calcul —
+`compiler_build`, `import/scene`, `unity/convert` — sont remplacées par l'appel unique ; le contrat
+des pilotes passe à `scene-plugin-2` et `PLUGINS.md` le dit. Aucune rustine par format, rien ajouté
+au manifeste : la racine dépend de la machine, elle n'entre pas dans l'identité du cache.
+
+**La preuve.** `src/tests/apercus_import.rs` compile la fixture FBX `import-fbx/riviere.fbx` recopiée
+dans un dossier jetable avec un vrai PNG 40×24 à côté — la forme du Village en petit. Avant le
+correctif : `colorTextures: 1, previews: 0, skipped: {"image-missing": 1}`, exactement le symptôme du
+banc 15. Après : une texture couleur, un aperçu, aucune image manquante. Aucun attendu de dorée n'a
+bougé — ni `apercus/atlas-couleur`, ni les coplanaires, ni `unity/cc0-import-project`, ni `zip`, dont
+la clé reste identique dans l'archive et hors d'elle. `cargo test --locked` : 174 tests au vert (173
+
+- celui-ci), `cargo clippy --all-targets -- -D warnings` et `cargo fmt --check` verts, tous les
+  fichiers touchés sous 200 lignes.
+
+## 2026-09-15 — [compilateur] pilote unitypackage
+
+**Ce que c'est.** Un `.unitypackage` n'est pas une scène : c'est un projet Unity mis à plat dans une
+archive tar compressée en gzip, un dossier par GUID d'asset. Chaque dossier porte `pathname` — le
+chemin cible dans le projet, sur sa première ligne —, `asset` — les octets du fichier, absent quand
+l'entrée décrit un dossier du projet —, `asset.meta`, et parfois `preview.png`, vignette de
+l'éditeur qui n'appartient pas au projet. Le pilote reconstruit l'arbre `Assets/…` sous le cache,
+puis laisse le routeur faire son travail : chaîne `unitypackage` → `unity`, consignée au rapport et
+dans la marque d'extraction comme le fait `zip`.
+
+**Provenance et licences.** Formats ouverts : ustar (POSIX 1003.1-1988) et gzip (RFC 1952), lus par
+`tar` 0.4.46 et `flate2` 1.1.10, MIT OU Apache-2.0, versions figées dans `Cargo.toml` et nommées
+dans la version du pilote. `flate2` sur son backend Rust pur (miniz_oxide), `tar` sans `xattr` —
+aucun attribut étendu n'est restauré. Décompression seule, aucun code, SDK ni bibliothèque d'éditeur,
+rien de déchiffré ni contourné. Chaque fichier du paquet garde la licence de son auteur.
+
+**Le socle a servi, et s'est généralisé une fois.** `scene/archive.rs` avait été écrit pour ZIP avec
+le second conteneur en tête ; le déroulé commun y était resté dans `zip.rs`. Il est descendu dans
+`archive/container.rs` : source unique, clé d'extraction, marque `archive.json` d'une extraction
+entière, dossier racine unique traversé, routage, chaîne publiée. Un conteneur n'apporte plus que sa
+lecture. Les refus nommés (`ARCHIVE_UNREADABLE`, `ARCHIVE_EMPTY`) et les deux plafonds sont devenus
+des fonctions du socle. La version et les messages de `zip` n'ont pas bougé : sa dorée passe sans
+qu'un attendu soit touché.
+
+**Ce qui est refusé.** Toutes les protections du socle valent : `pathname` absolu, avec `..` ou
+nommant un volume → `ARCHIVE_PATH_ESCAPE`, jugé avant qu'un octet soit écrit ; lien symbolique ou
+matériel → `ARCHIVE_SYMLINK` ; plafonds d'entrées et d'octets décompressés → `ARCHIVE_TOO_*` ; gzip
+tronqué ou corrompu → `ARCHIVE_UNREADABLE` ; paquet sans aucune `pathname` → `ARCHIVE_EMPTY`.
+L'extraction se fait en deux passes — juger tout le paquet, puis écrire — donc un paquet refusé ne
+laisse aucun fichier derrière lui ; le flux gzip n'étant pas rembobinable, la seconde passe rouvre
+le fichier au lieu de garder les assets en mémoire. Aucune panique : tout sort en `CompilerError`.
+
+**Dorée.** Une seule, `fixtures/unitypackage`, sur le corpus CC0 local (le dépôt ignore
+`test-assets/`), avec sa notice. Le paquet CC0 et le même projet reconstruit à plat dans
+`hors-paquet/` sont compilés tous les deux et comparés l'un à l'autre — nom, taille et empreinte de
+chaque fichier de données lu, comptes du pilote Unity, sha256 du sidecar — avant que le premier soit
+comparé à `expected.json` : 11 `.meta` reconstruits, 12 objets, 3 instances, 36 triangles, 6 rendus
+de LOD écartés. `fixtures/unity/cc0-import-project` ne pouvait pas servir de témoin : sa `Map.unity`
+a été enrichie pour la dorée Unity et diffère de celle du corpus. Le script C# du corpus n'est pas
+repris dans `hors-paquet/` — ce pilote ne lit que des données — mais son `.meta` l'est, pour que les
+deux projets comptent les mêmes onze `.meta`. Trois paquets piégés y sont fixés par leur code, dont
+deux synthétiques écrits par un outil extérieur aux caisses qui les lisent. `cargo test --locked` du
+crate : 174 tests unitaires et 4 tests CLI au vert ; `cargo clippy --all-targets -D warnings`,
+`cargo fmt --check`, `check:lines` et `check:duplicates` verts.
+
+**Ce qui reste.** Le routeur refuse un dossier qui mêle `.unity` et `.fbx` au même niveau ; le paquet
+du corpus range ses `.fbx` sous `Models/`, donc son routage passe et la dorée ne bute pas dessus —
+un paquet dont les modèles voisinent la scène buterait, et c'est l'affaire du routeur, corrigée
+ailleurs. `accepts_head` reconnaît le nombre magique gzip : un fichier compressé sans extension
+connue est donc revendiqué par ce pilote, qui le refuse ensuite proprement s'il n'a pas la structure
+d'un paquet. La scène du corpus ne pose que des cubes intégrés : le FBX reconstruit est bien écrit à
+son chemin mais aucune instance ne le cite, ce que seul un paquet plus riche prouverait.
+
+## 2026-09-15 — [compilateur] pilote unity, suite : routeur de projet, sous-maillages, échelle, retouches
+
+Quatre limites du pilote Unity levées, plus une cinquième trouvée en chemin qui commandait tout le
+reste. Fichiers : `packages/asset-compiler-rust/src/plugins/scene/{route.rs,unity.rs}`, les modules
+`unity/{project,models,render,build,prefab,yaml}.rs`, deux nouveaux — `unity/meta.rs` et
+`unity/patch.rs` —, `src/import/scene.rs` pour une donnée de manifeste, et la dorée.
+
+**Routeur de projet.** `ScenePlugin` gagne `project_inputs`, qui rend `None` pour un pilote de
+fichiers. Un pilote qui revendique un **dossier** prime sur les pilotes de fichiers trouvés dessous :
+leurs fichiers sont ses entrées, pas des sources concurrentes. `unity` le revendique dès qu'une
+scène vit sous le dossier, bornes comprises (dossiers de travail de l'éditeur écartés, profondeur 16).
+Un dossier sans `.unity` ne change pas de comportement : FBX et OBJ côte à côte y restent ambigus, et
+deux projets pour un même dossier restent ambigus aussi. Une phrase dans `PLUGINS.md`.
+
+**Le `fileID` passait par un flottant.** `reference()` lisait `{fileID: …}` en `f64` : au-delà de
+2^53 un identifiant de vrai projet — `33000014169494082` — désignait un objet qui n'existe pas. Les
+`Transform` (4 000 000 000 000 000) passaient, les `MeshFilter` et les `MeshRenderer`
+(33 000 000 000 000 000, 23 000 000 000 000 000) non : sur Industrial Map, 335 objets sur 350 étaient
+posés sans le moindre rendu, sans un mot au rapport. Un `fileID` se lit maintenant en entier de
+soixante-quatre bits. C'est ce correctif, et non les trois autres points, qui fait passer la carte.
+
+**Sous-maillage par `fileID`.** Le `.meta` d'un modèle mémorise `fileID` → nom, en
+`internalIDToNameTable` (projets récents) ou `fileIDToRecycleName` (anciens, dont Industrial Map).
+Le pilote du modèle nomme déjà ses nœuds et ses maillages dans la scène intermédiaire : `unity` ne
+retient que la partie qui porte ce nom, avec sa transformation dans le modèle. Nom absent de la table
+ou introuvable : le modèle entier, compté comme avant sous `unity-model-mesh-by-fileid`.
+
+**Échelle d'import.** Unity part des unités brutes du fichier, les multiplie par l'unité du fichier
+quand « Convert Units » est coché, puis par le facteur déclaré ; le pilote du format, lui, a déjà
+rendu `brut × unité`. Reste exactement `globalScale × (useFileScale ? fileScale : 1) ÷ unité`, où
+`fileScale` est l'unité que le `.meta` a mémorisée et, à défaut, celle qu'ufbx a lue — d'où
+l'ajout de `originalUnitMeters` au manifeste des pilotes servis par ufbx, et leur version passée en
+`-gltf-4`. Le facteur s'applique aux matrices des nœuds versés du modèle, jamais à sa géométrie.
+
+**Retouches de prefab.** Elles vivent dans `unity/patch.rs` et voyagent maintenant le long du
+parcours du prefab source : chaque retouche nomme l'objet qu'elle vise, donc elle s'applique à la
+profondeur où cet objet se trouve, et plus seulement à la racine. Sont appliquées `m_LocalPosition`,
+`m_LocalRotation`, `m_LocalScale`, `m_IsActive`, `m_Materials.Array.data[n]`, `m_Enabled` d'un rendu,
+et `m_Name` comme avant. Les autres sont comptées **par propriété** (`m_RootOrder`,
+`m_StaticEditorFlags`, `m_ScaleInLightmap`, `m_LocalEulerAnglesHint`, tailles de collider…), les
+indices de tableau réduits à `[]` pour borner le rapport ; `m_LocalEulerAnglesHint` quitte les
+transformations, que le quaternion porte seul.
+
+**Essai à blanc sur Industrial Map** (licence FAB, non redistribuable, lecture seule, sortie dans le
+bac à sable ; aucun fichier du dossier source n'a changé). 349 `.meta`.
+`Map_v1.unity` : 327 → **401** instances, 15 modèles entiers → **0** (341 sous-maillages retenus),
+4 → **25** modèles, 126 → 141 maillages, 17 → 108 matériaux, 7 → 51 images, 5 → 27 textures citées
+par les matériaux (TGA comprises, aucune hors registre), 14 786 → **60 694** triangles, 880 retouches
+ignorées → 3 431 appliquées et 1 518 ignorées détaillées par propriété, 180 ms.
+`Assets_showcase_scene.unity` : 677 → **170** instances (les 677 étaient le même modèle recopié
+entier sous chaque rendu), 34 modèles entiers → 0 (152 sous-maillages), 12 → 35 modèles, 186 → 163
+maillages, 38 → 125 matériaux, 21 → 61 images, 49 767 → 24 566 triangles, 128 → 1 264 appliquées et
+217 ignorées, 242 ms. Le dossier du projet entier reste refusé, à raison : il porte deux scènes, et
+l'appelant en désigne une.
+
+**Dorée et portes.** Un seul jeu, `fixtures/unity/cc0-import-project`, étendu : le `.meta` du FBX
+porte `internalIDToNameTable` et `globalScale: 2` ; `Prop_SubMesh` vise le `fileID` 4300002, nommé
+`Icosphere.001`, et ne reçoit que ce maillage ; `Prop_Model` garde un `fileID` absent de la table et
+reste instancié entier ; `Prop_Glass` porte des `fileID` au-delà de 2^53 ; deux instances du même
+prefab portent matériau remplacé, échelle, objet désactivé, rendu éteint et deux retouches laissées
+de côté. Le dossier du projet lui-même sert de preuve au routeur. `cargo test --locked` : 174 + 4 au
+vert ; `cargo clippy --all-targets -D warnings` et `cargo fmt --check` verts ; aucun fichier au-delà
+de 200 lignes. Version du pilote : `unity-yaml-rust2-0.13-gltf-2`.
+
+**Ce qui reste.** Les lampes ne sont toujours pas converties. Les retouches d'une instance imbriquée
+dans un prefab ne se composent pas avec celles de l'instance extérieure. Les cartes métal-lissage
+empaquetées restent des facteurs déclarés. Enfin, `m_LocalEulerAnglesHint`, `m_RootOrder` et
+`m_StaticEditorFlags` n'ont pas de sens dans une scène glTF : ils resteront comptés.
+
+**Fusion avec `develop`.** Ce lot est ensuite rebasé sur la passe de simplification du pilote
+(écrivain de scène commun `src/import/write.rs`, `merge_table`, échantillonneurs indexés) et sur le
+contrat `scene-plugin-2` (`PreparedScene::Converted { directory, images }`, `image_root`). Deux
+conflits seulement, tous deux tenus : `unity/models.rs`, où le cache des `.meta` et l'échelle
+d'import se reposent sur l'`import` libre de `develop`, et le journal, où les sections se suivent.
+Un seul attendu bouge, celui de `fixtures/unitypackage/expected.json` : la version du pilote interne
+passe de `-gltf-1` à `-gltf-2`. Le reste de cette dorée ne bouge pas — son projet ne pose que des
+cubes intégrés, sans modèle ni instance de prefab — et la dorée `zip` n'est pas concernée : le
+conteneur descend d'abord jusqu'au dossier `Assets`, que le routeur revendique comme projet Unity
+exactement là où il le revendiquait par ses fichiers.
+
+## 2026-09-15 — [compilateur] pilote webp
+
+Le compilateur lit les textures WebP, **sans perte uniquement**. Un module,
+`packages/asset-compiler-rust/src/plugins/image/webp.rs`, une ligne dans `image::DECODERS`, la
+feature `webp` de la crate `image` dans `Cargo.toml` — le cœur, la CLI et les cinq pilotes d'image
+existants n'ont pas bougé d'une ligne.
+
+**La politique, tranchée avant le décodage.** La règle de fidélité du dépôt interdit d'ajouter de la
+perte, et `COMPILATEUR_IMPORT.md` n'admet WebP que sans perte. Le pilote lit donc l'entête RIFF
+lui-même et parcourt les chunks du conteneur avant de tendre quoi que ce soit au décodeur : un flux
+`VP8L` entre, un flux `VP8 ` ressort en `image-lossy-unsupported`, une animation (`ANIM`, `ANMF`) en
+`image-animation-unsupported`. Le conteneur étendu `VP8X` passe par le même parcours, ce qui compte :
+dans un WebP avec perte réel, le flux `VP8 ` arrive *derrière* `VP8X` et `ALPH` — regarder le premier
+chunk ne suffirait pas. `ICCP`, `ALPH`, `EXIF` et `XMP` sont franchis sans perte de pixel, l'alpha
+d'une image sans perte étant porté par VP8L même. La taille annoncée par `RIFF` est comparée aux
+octets réellement présents : un fichier plus court est tronqué, `image-decode-failed`, et le
+décodeur ne reçoit jamais de flux amputé.
+
+**Deux raisons de rapport nouvelles**, dans la famille de celles du pilote TIFF
+(`image-profile-unsupported`, `image-depth-unsupported`) : `image-lossy-unsupported` et
+`image-animation-unsupported`. Comme les autres, elles ressortent en entrée de rapport, jamais en
+panique ni en échec de compilation — une texture refusée laisse le moteur retomber sur son blanc.
+Refuser le WebP avec perte n'est pas un manque : le réencoder serait ajouter de la perte, le décoder
+pour le réencoder aussi. La politique l'écrit, le pilote l'applique, le test le fixe.
+
+**Provenance.** Lecture écrite d'après les spécifications publiques de Google — « WebP Container
+Specification » pour le conteneur RIFF et « WebP Lossless Bitstream Specification » pour VP8L.
+Décodage par la feature `webp` de la crate `image` 0.25.10, qui délègue à `image-webp` 0.2.4,
+décodeur en Rust pur (MIT ou Apache-2.0, notices conservées avec la dépendance, version figée au
+`Cargo.lock`). Aucun code ni SDK d'éditeur, aucun contournement. Note documentaire sur les brevets,
+pas un avis d'avocat : la concession de brevets de libwebp — licence BSD-3 assortie d'un *additional
+IP rights grant* — porte sur les implémentations conformes de la spécification, décodeur Rust
+compris ; c'est la spécification qui est suivie, pas le code de libwebp.
+
+**Dorée.** `fixtures/webp/`, à la forme de `fixtures/tga` et `fixtures/tiff` : deux fichiers que le
+pilote lit, trois qu'il refuse. `sans-perte.webp` (184 octets, `VP8L` seul) et `avec-perte.webp`
+(`VP8X` + `ALPH` + `VP8 `) sont repris tels quels du corpus CC0-1.0
+`test-assets/textures/legacy-web-matrix/`, livré hors git, avec sa notice de licence.
+`etendu-sans-perte.webp`, `anime.webp` et `tronque.webp` en sont dérivés en réassemblant les chunks
+RIFF du premier — aucun encodeur n'intervient, aucun pixel n'est réécrit. `src/plugins/tests/webp.rs`
+décode les deux écritures sans perte et compare leurs octets **un par un** : le conteneur étendu rend
+exactement ce que rend le `VP8L` seul, ce qui prouve que les chunks de métadonnées ne coûtent pas un
+pixel. Cinq texels sont écrits en clair dans le test, alphas 0 et 255 compris, vérifiés par un
+décodeur indépendant (Pillow 12.2.0) avant d'être commis. Les refus sont fixés un par un, plus deux
+cas sans fichier : un `VP8L` dont le nom de chunk est réécrit en `VP8 `, et un entête RIFF d'un autre
+type de formulaire, que le pilote ne revendique pas du tout.
+
+**Résultat.** `cargo test --locked` du crate : 184 tests au vert (182 avant), 3 ignorés, 0 échec,
+plus les 4 tests du CLI. `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`,
+`check:lines` et `check:duplicates` : verts. Deux attendus ont suivi le registre — la longueur du
+descripteur d'images avec la liste des extensions, et le doré du CLI `--version`. `npm run validate`
+n'a pas été joué ici, il l'est à la livraison.
+
+### Ce qui reste
+
+- Le `ALPH` d'un WebP avec perte porte un alpha **sans** perte ; il est perdu avec le reste, puisque
+  le flux couleur qu'il accompagne est refusé. Rien à récupérer là : une image sans couleur n'est pas
+  une texture.
+- `docs/COMPILER.md` ne liste aucune raison de rapport d'image : les deux nouvelles n'y entrent donc
+  pas plus que `image-profile-unsupported` ou `image-decode-failed`. À ajouter en une fois par qui
+  tient cette page.
+## 2026-09-15 — [compilateur] png : le 16 bits est refusé, plus abaissé en silence
+
+**Pourquoi.** Le pilote `png` passait tout à `crate_image::decode`, qui termine par `to_rgba8()`.
+Sur une source 16 bits par canal, cet appel ne convertit pas : il rogne. La crate `image` rend un
+`Rgb16`, `to_rgba8()` n'en garde que l'octet de poids fort de chaque composante, et les huit bits de
+précision du bas partent sans un mot — ni rapport, ni avertissement, ni trace dans le manifeste.
+C'est exactement la perte ajoutée que la règle de tête d'`orchestration/COMPILATEUR_IMPORT.md`
+interdit : une texture reçue sans perte doit rester exacte. Le pilote `tiff` avait déjà tranché la
+même question dans l'autre sens, en lisant la profondeur dans l'IFD avant tout décodage et en
+refusant le 16 bits sous `image-depth-unsupported` ; `dds` refuse de même ses codecs 16 bits. `png`
+restait le seul à ne pas le faire — c'était la décision n° 1 en attente d'`REPRISE_COMPILATEUR.md`,
+tranchée ici en refus nommé.
+
+**Ce qui change.** Le pilote lit l'octet 24 du fichier — la profondeur de l'IHDR, qui est toujours
+le premier morceau : huit octets de signature, huit de longueur et de type de morceau, huit de
+largeur et de hauteur — et refuse la valeur 16 sous `image-depth-unsupported`, avant tout décodage.
+Aucune source 16 bits n'atteint plus `to_rgba8()`. Tout le reste est inchangé, pixel pour pixel :
+1, 2, 4 et 8 bits par canal, palette, niveaux de gris, alpha — jusqu'à huit bits l'expansion vers
+RGBA8 recopie au lieu de rogner, elle ne perd rien. La détection du format ne bouge pas. La version
+du pilote, si : `png-image-0.25` devient `png-image-0.25-depth8`, parce qu'elle entre dans
+l'identité du cache et que ce qu'un PNG 16 bits produit vient de changer. Sans ce pas, une entrée
+écrite quand le 16 bits était abaissé en silence serait relue comme si elle était juste, et la perte
+survivrait au correctif — c'est la règle « never silently interpret incompatible cached data »
+d'`AGENTS.md`. Le suffixe nomme la profondeur maximale rendue, dans l'esprit des `-gltf-N` des
+pilotes de scène. Aucune dorée n'en dépend : les `expected.json` ne portent que la version du pilote
+de scène, jamais celle d'un pilote d'image, et le seul PNG 16 bits du dépôt est la fixture ajoutée
+ici. Le pilote `tiff` n'a pas la même dette : son refus du 16 bits est né avec lui, au commit
+`cda842f`, donc sa version n'a jamais désigné un autre comportement et ne bouge pas. Un fichier trop court
+pour porter son IHDR n'est pas jugé sur sa profondeur : il part au décodeur et ressort comme avant
+en `image-decode-failed`. Le pilote ne panique jamais, il ne fait que lire des octets.
+
+**Le cas JPEG, vérifié.** `zune-jpeg` 0.5.15, le décodeur de la feature `jpeg`, lit la précision
+dans le marqueur SOF et refuse tout ce qui n'est pas huit bits (`headers.rs` : « The library can
+only parse 8-bit images »). Le JPEG à douze bits, rare et réservé à l'imagerie technique, ressort
+donc déjà en `image-decode-failed` sans avoir été rogné : le défaut du PNG n'existait pas là, rien à
+corriger, le constat est noté dans l'entête du module.
+
+**Fixture et preuve.** `fixtures/png/`, trois fichiers de moins de cent octets écrits ici morceau
+par morceau depuis la spécification publique « PNG (Second Edition) », W3C / ISO-IEC 15948:2004,
+CC0-1.0, corpus WebGeometry : `rgb8.png` (RGB 8 bits), `palette4.png` (palette 4 bits) et
+`rgb16.png` (RGB 16 bits). Les trois portent le même dessin de 2 × 2 pixels ; les octets de poids
+faible du 16 bits sont tous non nuls et différents, si bien qu'un abaissement silencieux rendrait la
+référence 8 bits sans laisser de trace — Pillow 12.2.0, relecture indépendante, le fait justement.
+Deux tests dans `src/plugins/tests/png.rs`, un par comportement : les profondeurs lues rendent la
+référence pixel pour pixel ; le 16 bits ressort en `image-depth-unsupported`, quelle que soit
+l'allocation permise, et le tronqué reste en `image-decode-failed`.
+
+**Vérification manuelle sur le corpus.** `test-assets/textures/png-matrix/`, cinq fichiers de
+256 × 256, lus en place, jamais modifiés :
+
+| fichier | type de couleur | profondeur | verdict |
+| --- | --- | --- | --- |
+| `rgb8.png` | 2 (RGB) | 8 bits | décodé |
+| `rgba8-binary.png` | 6 (RGBA) | 8 bits | décodé, alpha conservé |
+| `palette.png` | 3 (palette) | 8 bits | décodé |
+| `gray.png` | 0 (gris) | 8 bits | décodé |
+| `rgb16.png` | 2 (RGB) | 16 bits | refusé, `image-depth-unsupported` |
+
+Un seul fichier change de comportement, celui que la décision visait ; les quatre autres rendent ce
+qu'ils rendaient.
+
+**Ce qui reste.** Porter le 16 bits jusqu'à l'écran plutôt que le refuser : une variante `Rgba16`
+au contrat d'image, et son traitement explicite chez chaque consommateur — `texture_preview`
+aujourd'hui, la pyramide d'aperçus ensuite, puis le transport et l'atlas. C'est un lot à soi, qui
+touche le contrat et pas un pilote, et il n'a pas de raison d'être lancé tant qu'aucun besoin réel
+ne se présente : refuser en le nommant laisse la texture retomber sur son blanc et dit pourquoi,
+là où l'abaissement silencieux ne disait rien.
+## 2026-09-15 — [compilateur] pilote exr
+
+Le compilateur lit les textures OpenEXR. Un module, `packages/asset-compiler-rust/src/plugins/image/exr.rs`,
+une ligne dans `image::DECODERS`, la caisse `exr` dans `Cargo.toml` — et, pour la première fois, une
+**seconde sortie au contrat d'image**, décrite dans l'entrée `pilote hdr` ci-dessous et commune aux
+deux pilotes de ce lot.
+
+**Ce qui est lu, sans perte.** Une seule partie, plate, à son plus grand niveau de résolution, avec
+les canaux `R`, `G`, `B` et, s'il y en a un, `A`, en demi ou en simple précision. Les échantillons
+sortent en `f32` : un demi-flottant s'y étend exactement, un simple flottant y passe tel quel. Rien
+n'est ramené à huit bits, rien n'est reporté en tons, rien n'est remis à l'échelle. Un fichier sans
+canal alpha rend l'alpha opaque que la spécification prescrit, pas un zéro. Les canaux sont lus par
+leur **nom**, jamais par leur rang. La lecture est séquentielle (`non_parallel`) : le compilateur
+borne ses propres fils, un décodeur de texture ne lui en prend pas d'autres dans le dos.
+
+**La détection.** Le nombre magique `76 2f 31 01` suffit, il n'appartient qu'à ce format. Les deux
+drapeaux du champ de version — parties profondes (`0x800`), parties multiples (`0x1000`) — sont lus
+par le pilote lui-même, quatre octets après le nombre magique, **avant** d'ouvrir l'entête : un
+fichier hors sous-ensemble est nommé sans qu'une seule ligne de pixels soit touchée.
+
+**Ce qui est refusé, et comment.** `exr-deep-unsupported` (des données profondes : un pixel y porte
+une liste d'échantillons, les aplatir serait une composition, donc un choix que le compilateur n'a
+pas à faire), `exr-multipart-unsupported` (rien ne dit quelle partie est la texture),
+`exr-channels-unsupported` (un canal de plus, un canal d'un autre nom, un entier 32 bits, une chroma
+sous-échantillonnée), `exr-header-invalid`, `exr-data-unreadable`, `exr-image-too-large`. Tout
+ressort en raison de rapport, jamais en panique, jamais en échec de compilation.
+
+**Provenance.** Champ de version et jeu de canaux écrits d'après les spécifications publiques de
+l'Academy Software Foundation (« OpenEXR File Layout », « Technical Introduction to OpenEXR »,
+openexr.com) ; décodage des pixels par la caisse `exr` 1.74.2 (BSD-3-Clause,
+`johannesvollmer/exrs`, Rust pur et sans `unsafe`, version figée, notices conservées avec la
+dépendance). Aucun code ni SDK d'éditeur, aucune bibliothèque C.
+
+**Dorée.** `fixtures/exr/` : six EXR de 2 × 2 pixels écrits ici octet par octet (CC0-1.0) par un
+encodeur qui ne partage aucune ligne avec le décodeur du pilote — compression absente, une ligne par
+morceau, table des offsets calculée —, plus une scène glTF d'un quad qui porte `demi.exr` en couleur
+de base. `src/plugins/tests/exr.rs` compare les **valeurs flottantes une par une** à une référence
+écrite en clair : les valeurs choisies (0, ⅛, ¼, ½, ¾, 1, 1,5, 2, 3, 4, 8, 16) sont exactes dans les
+deux précisions, donc un écart ne peut venir que du pilote. Les fixtures ont été relues par un second
+analyseur écrit séparément avant d'être commises : table des offsets, chaînage des attributs,
+valeurs de chaque morceau.
+
+**Vérification sur un corpus tiers.** `test-assets/textures/hdr-matrix/float16.exr` et `float32.exr`
+(CC0-1.0, écrits par un encodeur tiers, relus par FFmpeg à leur entrée au corpus) : les deux se
+décodent, en 256 × 256 chacun, canaux `R`, `G`, `B` sans alpha — le pilote rend donc l'alpha opaque —
+et des valeurs RGB comprises entre **0 et 8 exactement**, la rampe linéaire 0..8 que le manifeste du
+corpus annonce et que FFmpeg avait relue. Ils ne sont pas commis : huit cent mille octets de pixels
+qu'on ne peut pas écrire en clair ne font pas une fixture minimale.
+
+### Ce qui reste
+
+- BC6H, le codec flottant du pilote `dds`, est aujourd'hui refusé par `dds-codec-unsupported` faute
+  d'une sortie flottante au contrat. Cette sortie existe maintenant : le refus peut devenir un
+  décodage, dans un lot à lui, avec ses propres dorées. Ce lot ne le fait pas.
+- Un EXR tuilé ou à niveaux de mip est accepté — le plus grand niveau est lu —, mais aucune fixture
+  minimale ne l'exerce : les deux fichiers du corpus tiers sont des images à lignes.
+
+## 2026-09-15 — [compilateur] pilote hdr
+
+Le compilateur lit les textures Radiance HDR (RGBE). Un module,
+`packages/asset-compiler-rust/src/plugins/image/hdr.rs`, son voisin `hdr/scanlines.rs`, une ligne
+dans `image::DECODERS`. **Aucune dépendance ajoutée** : le lecteur est écrit ici, depuis la
+spécification publique.
+
+**Pourquoi un lecteur propre.** La caisse `image` a une fonctionnalité `hdr`, mais elle ne reconnaît
+que la signature `#?RADIANCE` — les fichiers anciens et plusieurs exporteurs écrivent `#?RGBE` — et
+elle ne laisse pas nommer ce qu'elle refuse : un espace de couleur XYZE, une orientation inversée et
+une ligne tronquée en ressortent sous la même erreur. Un pilote qui doit rapporter par un nom stable
+a besoin des deux.
+
+**Ce qui est lu, sans perte.** Signature `#?RADIANCE` ou `#?RGBE`, `FORMAT=32-bit_rle_rgbe` (absent,
+c'est le défaut de Radiance), résolution `-Y hauteur +X largeur`, et les trois écritures d'une
+ligne : brute, compression ancienne de « Real Pixels » (marqueur `1,1,1,n`, multiplicateurs
+consécutifs par 256), compression nouvelle par composantes (entête `2, 2, largeur`, paquets bruts et
+plages). Un RGBE porte trois mantisses de huit bits et un exposant commun ; la mantisse multipliée
+par `2^(e - 136)` est exactement le flottant que le fichier décrit. L'échelle est construite bit à
+bit en double précision — son exposant tient entre -135 et 119, donc toujours normal —, puis le
+produit n'est arrondi qu'une fois, au passage en simple précision. L'alpha est opaque : le format
+n'en a pas, et en inventer un serait mentir.
+
+**Ce qui est refusé, et comment.** `hdr-format-unsupported` (`32-bit_rle_xyze` décrit les mêmes
+octets dans un autre espace de couleur ; le convertir demanderait une matrice et un choix de
+primaires), `hdr-orientation-unsupported` (les sept autres combinaisons de signes et d'axes
+décrivent la même image écrite dans un autre sens ; les accepter voudrait dire la retourner, et un
+pilote qui retourne en silence est un pilote dont on doute), `hdr-header-invalid`,
+`hdr-data-truncated`, `hdr-image-too-large`.
+
+**Provenance.** « Real Pixels », Greg Ward, Graphics Gems II (1991), pour l'encodage RGBE et ses deux
+compressions ; manuel Radiance (Lawrence Berkeley National Laboratory) pour l'entête et la ligne de
+résolution. Aucun code ni SDK d'éditeur, aucun décodeur tiers.
+
+**Dorée.** `fixtures/hdr/` : sept fichiers écrits ici octet par octet (CC0-1.0) plus une scène glTF.
+Les trois fichiers 4 × 2 — ligne brute, compression ancienne, signature `#?RGBE` — portent la **même
+image**, ce qui prouve que ni la compression ni la signature ne changent un bit du résultat ; la
+fixture 8 × 1 exerce la compression nouvelle, qui ne s'écrit qu'à partir de huit pixels de large, et
+mêle dans la même ligne une plage de quatre pixels identiques et des valeurs isolées, pour que les
+deux sortes de paquets soient parcourues. `src/plugins/tests/hdr.rs` compare les valeurs une par une
+à une référence écrite en clair. Les fixtures ont été relues par un second analyseur écrit
+séparément avant d'être commises.
+
+**Vérification sur un corpus tiers.** `test-assets/textures/hdr-matrix/environment.hdr` (512 × 256,
+CC0-1.0, écrit par un encodeur tiers, relu par FFmpeg à son entrée au corpus) : il se décode, en
+512 × 256, avec des valeurs RGB comprises entre **0 et 8 exactement** — la rampe linéaire 0..8 que le
+manifeste du corpus annonce et que FFmpeg avait relue — et un alpha opaque partout. C'est une vraie
+largeur, donc la compression nouvelle sur des lignes de 512 pixels, ce qu'aucune fixture minimale ne
+peut montrer. Il n'est pas commis ici : un demi-mégaoctet de pixels qu'on ne peut pas écrire en clair
+ne fait pas une fixture minimale.
+
+### La variante flottante du contrat d'image (commune aux deux pilotes)
+
+`DecodedImage` avait une seule variante, `Rgba8`, que le cœur déconstruisait par un `let`
+irréfutable. Elle en a deux : `RgbaF32 { width, height, data }`, RGBA 32 bits linéaire à alpha droit.
+Le contrat passe de `image-plugin-1` à `image-plugin-2` ; cette version entre dans l'empreinte du
+registre, donc dans l'identité du cache, et c'est voulu : rien de ce qu'a écrit l'ancien contrat
+n'est relu comme à jour.
+
+**Aucun pont entre les deux variantes.** Ramener du flottant à huit bits demanderait un report de
+tons, donc une perte que la source n'avait pas, ce que la politique d'import interdit. Chaque
+consommateur tranche donc explicitement. Il y en a un aujourd'hui : les aperçus progressifs
+(`src/texture_preview.rs`), qui sont du RGBA8 sRGB — le `let` irréfutable est devenu un `match` dont
+la seconde branche rend `image-float-unsupported`. Le plafond d'allocation reçu par `decode` est
+compté à **seize octets par pixel** avant toute allocation, par `float_budget`, et le dépassement
+porte le nom du pilote (`exr-image-too-large`, `hdr-image-too-large`).
+
+**Ce que cela donne bout en bout.** Les dorées `fixtures/exr/scene.gltf` et `fixtures/hdr/scene.gltf`
+sont compilées par le harnais commun : la compilation aboutit, la texture couleur est comptée, aucun
+aperçu n'est produit, et `image-float-unsupported` est nommé au rapport. Une texture flottante ne
+fait donc échouer aucune compilation et n'est jamais rognée — le moteur retombe sur son blanc, comme
+pour toute texture qu'il ne sait pas encore afficher.
+
+**Résultat.** `cargo test --locked` du crate : **189 tests de bibliothèque au vert** (182 avant ce
+lot) plus 4 tests de CLI, 3 ignorés, 0 échec. `cargo fmt --check`, `cargo clippy --all-targets
+-- -D warnings`, `npm run check:lines` et `npm run check:duplicates` : verts. Quatre attendus ont
+suivi le registre — la liste des extensions, la longueur du descripteur d'images, le doré du CLI
+`--version` et les cinq appels qui déconstruisaient `DecodedImage` par un `let` irréfutable, passés
+par deux fonctions communes de `src/plugins/tests.rs` — et le cas « format hors registre » du test de
+registre se disait avec un entête EXR : il se dit maintenant avec un entête KTX2. `npm run
+check:changed` s'arrête dans ce worktree faute de `node_modules` ; prettier y a été passé à la main
+sur les fichiers JSON ajoutés. `npm run validate` n'a pas été joué ici, il l'est à la livraison.
+
+## 2026-09-15 — [compilateur] pilote ktx2
+
+Un pilote d'image de plus au registre : `ktx2`, neuvième entrée. Le cœur n'a pas bougé — un module,
+une ligne de registre, et les compteurs de pilotes des trois tests qui les comptent.
+
+**Ce qui est lu.** Le conteneur est reconnu par ses douze octets d'identifiant puis par son
+extension. L'entête de quatre-vingts octets — `vkFormat`, `typeSize`, les trois dimensions,
+`layerCount`, `faceCount`, `levelCount`, `supercompressionScheme`, puis l'index des trois sections —
+et l'index des niveaux sont lus champ par champ depuis « KTX File Format Specification, version
+2.0 » de Khronos. Aucun SDK, aucun code d'éditeur, aucun octet repris ailleurs. KTX 1.0 est un autre
+conteneur : il n'entre pas ici, ce serait un autre pilote.
+
+**Deux chemins, que l'entête sépare seul.** Un `vkFormat` nommé désigne un codec du registre Vulkan ;
+`VK_FORMAT_UNDEFINED` annonce une charge Basis Universal décrite par le descripteur de format, que le
+transcodeur relit lui-même.
+
+**Codecs déclarés, un par un.** Non compressé `R8G8B8A8_UNORM` et `_SRGB` ; BC1 sans puis avec alpha
+(la séparation compte : en trois couleurs, l'indice 3 est un noir opaque d'un côté, transparent de
+l'autre), BC2, BC3, BC4, BC5, BC7 ; ETC2 RGB, RGBA1 et RGBA8 ; EAC R11 et R11G11 ; ASTC 4 × 4. Les
+variantes `_SRGB` portent les mêmes octets que leurs `_UNORM`, le contrat d'image étant déjà sRGB.
+Supercompression : aucune, Zstandard, BasisLZ.
+
+**Refusés, nommés.** `ktx2-format-unsupported` pour les variantes signées, BC6H flottant, les canaux
+de plus de huit bits, les ordres d'octets autres que R, G, B, A et les treize empreintes ASTC autres
+que 4 × 4 ; `ktx2-layout-unsupported` pour les textures à une dimension, les volumes, les tableaux de
+couches et les cubes ; `ktx2-supercompression-unsupported` pour ZLIB et les numéros non attribués ;
+`ktx2-header-truncated`, `ktx2-header-invalid`, `ktx2-data-truncated`, `ktx2-image-too-large` et
+`ktx2-transcode-failed` pour le reste. Jamais une panique : une texture illisible laisse le moteur
+retomber sur son blanc. Les huit codes sont dans le tableau de `docs/COMPILER.md`.
+
+**Voie Basis retenue, et pourquoi.** Crate `basisu` 0.1.0, **Apache-2.0**,
+`marcogomez/basisu` : un transcodeur Basis Universal complet en **Rust pur**, sans `cc`, sans source
+C++, portage du transcodeur de référence de Binomial que son auteur déclare vérifié octet pour octet
+contre lui. Elle lit le conteneur KTX2 comme le `.basis`, et couvre ETC1S sous BasisLZ comme UASTC
+LDR. Les deux autres voies ont été regardées et écartées : `basis-universal` 0.3.1 (MIT ou
+Apache-2.0) compile dix mégaoctets de C++ vendorisé — encodeur compris — et n'expose, côté Rust, que
+le transcodeur `.basis` et un `LowLevelUastcTranscoder` : pas de transcodeur KTX2, pas de
+transcodeur ETC1S bas niveau, donc ETC1S depuis KTX2 aurait été hors de portée ; `ktx2-rw` 0.2.4
+télécharge KTX-Software au moment du build par `reqwest` et le construit par `cmake` et `bindgen`,
+ce qu'un build reproductible ne peut pas accepter. Le décodage des blocs déjà compressés reste à
+`texture2ddecoder` 0.1.2 (MIT ou Apache-2.0), et la supercompression Zstandard à `ruzstd` 0.7.3
+(MIT, Rust pur, décompression seule). Les trois versions sont figées et nommées dans la version du
+pilote, qui entre dans l'identité du cache.
+
+**Le socle commun avec `dds`.** `dds` et `ktx2` nomment leurs codecs différemment — `dwFourCC`,
+`dxgiFormat`, `vkFormat` — mais une fois le décodeur choisi, promener ses pixels est le même travail.
+Il descend dans `src/plugins/image/blocks.rs` : le type du décodeur de blocs, la reconstruction par
+rangée de quatre lignes sans second tampon de la taille de l'image, et la construction de l'image
+RGBA8. `dds/blocks.rs` l'appelle désormais et garde ce qui lui est propre, ses surfaces non
+compressées BGRA et BGRX. Rien n'a été extrait qui ne soit réellement identique ;
+`npm run check:duplicates` est vert. Même règle pour l'écriture des attendus de fixture, qui était
+la même dans `apercus_source.rs` et dans le nouveau doré : elle descend dans `src/tests/golden.rs`.
+
+**Mips.** Seul le niveau 0 est consommé, comme chez `dds`. `levelCount` sert de vérification : chaque
+niveau annoncé doit commencer après l'index et tenir dans le fichier, sinon c'est
+`ktx2-data-truncated`.
+
+**Ce qui prépare « les blocs restent compressés sur le GPU ».** Rien n'a été ajouté de spéculatif,
+pour la même raison que chez `dds` : le contrat rend du RGBA8 ou du flottant, pas des blocs. Le
+pilote est découpé pour l'accueillir — `header` rend la surface et les bornes de son niveau 0,
+`format` nomme le codec et sa géométrie de bloc, `level` et `basis` ne sont que la reconstruction,
+la seule partie qui deviendra le repli.
+
+**Dorée** (`fixtures/ktx2/`) : cinq fichiers et un doré compilé. `base.ktx2` (4 × 4, R8G8B8A8 sRGB,
+260 octets) et `base-zstd.ktx2` (le même niveau sous Zstandard, 256 octets) sont écrits depuis la
+spécification ; leurs seize texels sont en clair dans le test, et les deux fichiers doivent rendre
+exactement les mêmes — la supercompression n'est qu'un emballage. `uastc.ktx2` (416 octets) est
+découpé dans le corpus : les blocs UASTC font seize octets et sont indépendants, donc les quatre
+premiers blocs des quatre premières rangées sont le coin de 16 × 16 texels de la source, sans le
+moindre réencodage. `basis.ktx2` (8 108 octets, ETC1S sous BasisLZ) est copié tel quel du corpus.
+`tronque.ktx2` fait quarante octets. Tout est CC0-1.0. S'y ajoutent `scene.gltf`, `scene.bin` et
+`expected.json` : trois quads, trois matériaux, une texture KTX2 chacun, passés par `compile()`
+entier — trois aperçus, `skipped` vide, chaque niveau fixé par son condensé. Les conteneurs
+minuscules de `src/plugins/tests/ktx2/bytes.rs` couvrent les refus et la géométrie de bloc de chaque
+`vkFormat`, prouvée par l'octet qui manque. Les texels sont écrits en clair pour le non compressé,
+pour BC1 en trois couleurs et pour un bloc ASTC « void extent » ; l'interpolation entière des BCn est
+déjà fixée bloc par bloc par la dorée de `dds`, qui passe par le même socle et le même décodeur.
+
+**Corpus hors git, vérification manuelle** (`test-assets/textures/ktx2-matrix/`, lecture seule, par
+le pilote lui-même) :
+
+| fichier | entête | verdict |
+| --- | --- | --- |
+| `zstd.ktx2` | `R8G8B8A8_SRGB`, `KTX_SS_ZSTD`, un niveau | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]` |
+| `uastc.ktx2` | `UNDEFINED`, UASTC LDR, sans supercompression | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]` — les mêmes valeurs que le fichier sans perte |
+| `basis.ktx2` | `UNDEFINED`, ETC1S, `KTX_SS_BASIS_LZ` | décodé, 256 × 256, coin `[0, 0, 31, 0]`, centre `[130, 130, 31, 0]` — l'écart attendu d'ETC1S |
+
+Les trois se décodent, les trois sont revendiqués par `ktx2`. Le corpus n'a jamais été écrit.
+
+190 tests Rust déclarés contre 183 sur la base (six jouables de plus, et la régénération de la
+fixture, ignorée), `cargo test --locked` au vert, Clippy `--all-targets -D warnings` sans
+avertissement, `cargo fmt --check` propre, `check:lines`, `check:duplicates` et `check:changed`
+verts. `npm run validate` n'a pas été joué ici.
+
+### Ce qui reste
+
+- KTX 1.0 n'est pas lu : c'est un autre conteneur, donc un autre pilote, et aucune source réelle ne
+  l'a demandé jusqu'ici.
+- ASTC n'entre qu'en 4 × 4. Les treize autres empreintes demanderaient une reconstruction par rangée
+  de blocs de hauteur variable dans `image::blocks` ; elles sont refusées par leur nom en attendant.
+- BC6H, UASTC HDR et ASTC HDR attendent que le contrat flottant `RgbaF32` soit branché ici : `basisu`
+  sait les transcoder vers du demi-flottant, mais ce pilote ne rend que du RGBA8 pour l'instant.
+- Les cubes, tableaux et volumes sont refusés faute de consommateur : rien ne les attend encore.
+- Le chantier « blocs gardés sur GPU » n'est pas commencé — il attend le go de l'utilisateur.
+
+## 2026-09-15 — [compilateur] pause : vague 3 fusionnée, reprise mise à jour
+
+Cinq lots fusionnés dans `develop` (tête `ffdd01e`) : `check:links` ignore `test-assets` (6c0d753),
+pilote `webp` sans perte (385324c), pilote `png` refusant le 16 bits (2e321c7), pilotes `exr`/`hdr`
+et contrat `image-plugin-2` (8cb2555), pilote `ktx2` (ffdd01e). Neuf pilotes d'image, six de scène,
+aucune branche `compilateur/*` vivante. Restes : BC6H flottant, KTX 1.0, ASTC hors 4×4, UASTC HDR,
+blocs gardés sur GPU, lampes Unity, instances imbriquées, métal-lissage, TIFF palette, MTL à
+vérifier, Industrial Map au banc 15, `atlasClasses: 2`, licence FAB. Reprise :
+`orchestration/REPRISE_COMPILATEUR.md`.

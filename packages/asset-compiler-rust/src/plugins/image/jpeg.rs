@@ -1,5 +1,10 @@
 //! Pilote JPEG, standard ISO/IEC 10918, décodé par la crate `image` (feature `jpeg`). Le décodage
 //! ne réencode rien : la perte est celle du fichier source, le compilateur n'en ajoute aucune.
+//!
+//! Le JPEG à douze bits de précision, rare et réservé à l'imagerie technique, n'a pas ici le défaut
+//! que le PNG 16 bits avait : `zune-jpeg`, le décodeur de la feature, lit la précision dans le
+//! marqueur SOF et refuse tout ce qui n'est pas huit bits, plutôt que de l'abaisser. Le refus sort
+//! donc déjà en `image-decode-failed`, sans profondeur rognée en silence — rien à ajouter ici.
 use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
 
 pub(super) static JPEG: Jpeg = Jpeg;

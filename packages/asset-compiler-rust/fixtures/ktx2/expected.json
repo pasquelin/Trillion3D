@@ -1,0 +1,261 @@
+{
+  "binary": {
+    "texturePreviewBytes": 23292,
+    "texturePreviews": 3
+  },
+  "case": "Trois quads, trois matériaux opaques, une texture KTX 2.0 chacun : un niveau R8G8B8A8 sRGB non compressé de 4 × 4, une charge UASTC LDR 4 × 4 de 16 × 16, et une charge ETC1S de 256 × 256 sous supercompression BasisLZ.",
+  "formatVersion": 3,
+  "manifestBinaryVersion": 4,
+  "previews": [
+    {
+      "firstLevel": 0,
+      "height": 4,
+      "image": 0,
+      "levelCount": 3,
+      "levels": [
+        {
+          "coveredAtMaskCutoff": 16,
+          "level": 0,
+          "samples": [
+            [0, 0, 0, 255],
+            [255, 0, 126, 204],
+            [0, 255, 126, 204],
+            [255, 255, 252, 153],
+            [170, 170, 168, 187]
+          ],
+          "sha256": "f2c86d5fcacd018b591df4517558ec1c5da885dd27d9f8d3beea0b13a59f797b",
+          "size": [4, 4]
+        },
+        {
+          "coveredAtMaskCutoff": 4,
+          "level": 1,
+          "samples": [
+            [59, 59, 50, 238],
+            [216, 59, 129, 204],
+            [59, 216, 129, 204],
+            [216, 216, 211, 170],
+            [216, 216, 211, 170]
+          ],
+          "sha256": "56224983efe7fed2d57728b075e577c10f63534722891a616fc9cb931f000b25",
+          "size": [2, 2]
+        },
+        {
+          "coveredAtMaskCutoff": 1,
+          "level": 2,
+          "samples": [
+            [157, 157, 138, 204],
+            [157, 157, 138, 204],
+            [157, 157, 138, 204],
+            [157, 157, 138, 204],
+            [157, 157, 138, 204]
+          ],
+          "sha256": "f8d7bc22308fb098e0ea7fca96d0f2785f416255caed7a81984aee22691645f8",
+          "size": [1, 1]
+        }
+      ],
+      "pixelBytes": 84,
+      "pixelOffset": 0,
+      "sourceKind": 0,
+      "sourceSha256": "520bb17e4fd68cd68a365775d275a37d1d62c7b5b82c81cc488a5e7cab4db844",
+      "sourceView": 4294967295,
+      "texture": 0,
+      "width": 4
+    },
+    {
+      "firstLevel": 0,
+      "height": 16,
+      "image": 1,
+      "levelCount": 5,
+      "levels": [
+        {
+          "coveredAtMaskCutoff": 0,
+          "level": 0,
+          "samples": [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+          "size": [16, 16]
+        },
+        {
+          "coveredAtMaskCutoff": 0,
+          "level": 1,
+          "samples": [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "5341e6b2646979a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af1",
+          "size": [8, 8]
+        },
+        {
+          "coveredAtMaskCutoff": 0,
+          "level": 2,
+          "samples": [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+          "size": [4, 4]
+        },
+        {
+          "coveredAtMaskCutoff": 0,
+          "level": 3,
+          "samples": [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+          "size": [2, 2]
+        },
+        {
+          "coveredAtMaskCutoff": 0,
+          "level": 4,
+          "samples": [
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+          "size": [1, 1]
+        }
+      ],
+      "pixelBytes": 1364,
+      "pixelOffset": 84,
+      "sourceKind": 0,
+      "sourceSha256": "9aa054bbc21b2c7798945705bd69950f8cad148886f2cf213ef38077096e2c04",
+      "sourceView": 4294967295,
+      "texture": 1,
+      "width": 16
+    },
+    {
+      "firstLevel": 2,
+      "height": 256,
+      "image": 2,
+      "levelCount": 7,
+      "levels": [
+        {
+          "coveredAtMaskCutoff": 2048,
+          "level": 2,
+          "samples": [
+            [0, 0, 0, 0],
+            [254, 1, 222, 255],
+            [1, 254, 214, 255],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "600077219269d30b851fad4d6206c4a3bca69ae8048811afb2864da2e2acc5f1",
+          "size": [64, 64]
+        },
+        {
+          "coveredAtMaskCutoff": 512,
+          "level": 3,
+          "samples": [
+            [0, 0, 0, 0],
+            [250, 4, 221, 255],
+            [3, 252, 221, 255],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "519c28461ceaeaffcac00a5fed9544e70ad7847a5de62acdc8145a5677e4f981",
+          "size": [32, 32]
+        },
+        {
+          "coveredAtMaskCutoff": 128,
+          "level": 4,
+          "samples": [
+            [0, 0, 0, 0],
+            [248, 7, 221, 255],
+            [7, 248, 220, 255],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "6cf55cdc36f6f453dd3e5a1eea88d1dac07b4f26973801c477594c3bfe2cbf2e",
+          "size": [16, 16]
+        },
+        {
+          "coveredAtMaskCutoff": 32,
+          "level": 5,
+          "samples": [
+            [0, 0, 0, 0],
+            [240, 17, 163, 255],
+            [17, 240, 162, 255],
+            [0, 0, 0, 0],
+            [0, 0, 0, 0]
+          ],
+          "sha256": "f0e3a11d5dd6fc23c57f2fb6f8bc71fde3f1762d8e1b3f55eeccc1862adbe4ef",
+          "size": [8, 8]
+        },
+        {
+          "coveredAtMaskCutoff": 16,
+          "level": 6,
+          "samples": [
+            [36, 36, 163, 128],
+            [224, 37, 162, 128],
+            [36, 224, 162, 128],
+            [225, 224, 163, 128],
+            [161, 161, 164, 128]
+          ],
+          "sha256": "f9edfdb21d403003ee807c9869e1ce67d22bf561f36e2b9411833408864a4bc8",
+          "size": [4, 4]
+        },
+        {
+          "coveredAtMaskCutoff": 4,
+          "level": 7,
+          "samples": [
+            [74, 74, 163, 128],
+            [196, 74, 163, 128],
+            [75, 196, 163, 128],
+            [196, 196, 163, 128],
+            [196, 196, 163, 128]
+          ],
+          "sha256": "0af900c2fbce9bdb684f455c77b76988399fe967f815c1afcf043b6fce3fa92d",
+          "size": [2, 2]
+        },
+        {
+          "coveredAtMaskCutoff": 1,
+          "level": 8,
+          "samples": [
+            [151, 151, 163, 128],
+            [151, 151, 163, 128],
+            [151, 151, 163, 128],
+            [151, 151, 163, 128],
+            [151, 151, 163, 128]
+          ],
+          "sha256": "162d5df6a69b0d81b70b484dc5d6361ef475f42886a9c8c00a4b6c5aa0c30bd5",
+          "size": [1, 1]
+        }
+      ],
+      "pixelBytes": 21844,
+      "pixelOffset": 1448,
+      "sourceKind": 0,
+      "sourceSha256": "caae8bc87302f92f55d6ae99e74317a12cbe3e788c8600121271f64b71e8a362",
+      "sourceView": 4294967295,
+      "texture": 2,
+      "width": 256
+    }
+  ],
+  "report": {
+    "base": 64,
+    "colorTextures": 3,
+    "maxLevels": 7,
+    "pixelBytes": 23292,
+    "previews": 3,
+    "skipped": {},
+    "version": 2
+  },
+  "rule": "Chaque texture couleur porte la queue sans perte de sa chaîne de mips, du premier niveau dont aucun côté ne dépasse 64 jusqu'au 1×1, en RGBA8 sRGB à alpha droit. Le conteneur KTX2 n'ajoute aucune perte : ce que le pilote rend est la reconstruction que la spécification du codec définit, et rien d'autre."
+}

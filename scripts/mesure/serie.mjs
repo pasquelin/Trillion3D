@@ -8,7 +8,10 @@ import { distribution, machineLoad } from './rapport.mjs';
 
 /** Une série : un côté, une vue, un seuil. Écrit sa capture, renvoie sa ligne de rapport. */
 export async function runSerie(ctx, page, side, view, pixelError, pose, captures, suffix = '') {
-  const { ENGINE, MANIFEST, OUT, settings, lights, poses } = ctx;
+  const { MANIFEST, OUT, settings, lights, poses } = ctx;
+  // Le moteur du côté : `--moteur-<côté>` le distingue de celui de la campagne, et c'est ainsi que
+  // le moteur et le témoin Three se mesurent dans la même exécution.
+  const ENGINE = side.engine;
   const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
   const debut = machineLoad();
   const result = await runInPage(page, {
@@ -17,6 +20,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     backend: ENGINE.backend,
     engineId: ENGINE.id,
     autonome: ENGINE.autonome === true,
+    // Les modules que la page importe par URL, et le témoin : un moteur qui dessine par Three ne
+    // lit pas le magasin de lampes, l'hôte lui pose donc les mêmes lampes en Three.
+    modulesUrl: '/mesure/',
+    temoin: ENGINE.three === true,
     pose,
     poses,
     captureFile,
@@ -24,6 +31,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     frames: settings.frames,
     warmup: settings.warmup,
     maxPages: settings.maxPages,
+    instances: settings.instances,
     width: settings.width,
     height: settings.height,
     stageProfile: settings.stageProfile,
@@ -52,7 +60,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
   const row = {
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
-    gpuFrameMs: settings.engine === 'webgpu' ? distribution(result.gpuFrameMs) : null,
+    moteur: ENGINE.id,
+    gpuFrameMs: ENGINE.id === 'webgpu-page-raster' ? distribution(result.gpuFrameMs) : null,
     // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
     profilParEtape: result.stageProfile ?? null,
     selectedTriangles: metrics.selectedTriangles ?? null,
@@ -70,6 +79,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
         : null,
       taille: ids.length,
     },
+    // Mémoire de géométrie publiée par le moteur : octets tenus par le cache de pages et les
+    // tampons de sommets. `null` quand le moteur ne la publie pas, jamais déduite.
+    geometrieOctets: metrics.geometryAllocationBytes ?? null,
     budgetPages: {
       demande: settings.maxPages,
       residentes: metrics.residentPages ?? null,
@@ -78,6 +90,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     lampes: lights ? lights.resume : null,
     // Les lampes venues du fichier source, telles que le moteur les a déclarées à l'ouverture.
     lampesFichier: result.importedLights ?? null,
+    // Ce que le témoin Three a reçu du magasin ; `null` quand ce côté ne dessine pas par Three.
+    lampesTemoin: result.lampesTemoin ?? null,
     // L'empreinte de l'atlas d'ombres, lue une fois la file d'attente vide. Deux exécutions dont
     // seule `--ombres-pages` diffère doivent rendre la même : c'est la preuve que le dessin par
     // pages est identique au bit près à un redessin complet.

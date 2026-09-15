@@ -46,6 +46,7 @@ function banc(ids: number[]) {
     drawnDelta: createCutDelta(packedPages, []),
     onCutDelta: () => {},
     onDrawnDelta: () => {},
+    onDrawnMirrored: () => {},
   });
   return {
     adopter,
@@ -61,7 +62,9 @@ function banc(ids: number[]) {
 test('un relevé déjà tenu ne refait pas la liste dessinable, et rend les mêmes comptes', () => {
   const b = banc([0, 1, 2, 3, 4]);
   assert.equal(b.adopter.adopt(), true);
-  const premiers = { ...b.adopter.metrics };
+  const { cutHeld: tenuPremier, listsRewritten: ecritPremier, ...premiers } = b.adopter.metrics;
+  assert.equal(tenuPremier, false, 'le premier relevé n’est pas celui qu’on tenait');
+  assert.equal(ecritPremier, true, 'et il a réécrit les listes');
   const listeShown = b.shown,
     listeDrawn = b.drawn;
   const contenu = [...b.shown];
@@ -72,7 +75,10 @@ test('un relevé déjà tenu ne refait pas la liste dessinable, et rend les mêm
   assert.equal(b.shown, listeShown, 'le tableau lui-même ne change pas');
   assert.equal(b.drawn, listeDrawn);
   assert.equal(b.shown.at(-1), intrus, 'la liste tenue n’est pas refaite');
-  assert.deepEqual(b.adopter.metrics, premiers, 'les comptes sont ceux du même relevé');
+  const { cutHeld: tenuSecond, listsRewritten: ecritSecond, ...seconds } = b.adopter.metrics;
+  assert.deepEqual(seconds, premiers, 'les comptes sont ceux du même relevé');
+  assert.equal(tenuSecond, true, 'le relevé tenu est annoncé tel quel');
+  assert.equal(ecritSecond, false, 'et rien n’a été réécrit');
   b.shown.pop();
 
   // Les comptes suivent la résidence sans que la liste bouge : un trou apparaît, elle ne change pas.

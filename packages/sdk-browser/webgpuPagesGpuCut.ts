@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
-import { appendAll } from './webgpuPagesHelpers.ts';
+import { mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './webgpuPagesEncoder.ts';
 import { dropGpuSelection } from './webgpuPagesDrops.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
@@ -90,8 +90,9 @@ export function renderGpuCut(
     diag.diagnosticFailure('gpu-selection-dispatch-failed', error);
     return withoutGpuSelection(rt);
   }
-  run.drawn.length = 0;
-  appendAll(run.drawn, run.shown);
+  // Une image dont ni l'adoption ni la coupe processeur n'a touché ces listes repousserait
+  // quatre-vingt mille enregistrements déjà en place : le drapeau le dit, la recopie s'en abstient.
+  mirrorDrawnFromShown(run);
   marks.selectionEnd = performance.now();
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));
