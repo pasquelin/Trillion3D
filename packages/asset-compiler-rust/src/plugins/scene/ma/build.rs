@@ -20,6 +20,8 @@ pub(super) struct World<'a> {
     pub(super) images: &'a Path,
     /// Les enfants de chaque nœud du document, par rang de père.
     kids: Vec<Vec<usize>>,
+    /// Les formes qu'un `parent -add` accroche à chaque nœud, par rang d'hôte.
+    added: Vec<Vec<usize>>,
     /// Les matériaux déjà construits, par rang de nœud nuanceur.
     pub(super) materials: HashMap<usize, Option<usize>>,
     /// Les maillages déjà construits, par rang de nœud `mesh`.
@@ -50,12 +52,17 @@ pub(super) fn scene(
             kids[parent].push(rank);
         }
     }
+    let mut added = vec![Vec::new(); document.nodes.len()];
+    for (host, shape) in &document.instances {
+        added[*host].push(*shape);
+    }
     let mut world = World {
         document,
         graph,
         scene,
         images: &images,
         kids,
+        added,
         materials: HashMap::new(),
         meshes: HashMap::new(),
         images_by_uri: HashMap::new(),
@@ -79,20 +86,14 @@ pub(super) fn scene(
 /// Compte, par son type, chaque nœud que ce pilote ne convertit pas : caméras, lampes, surfaces
 /// paramétriques, squelettes, nœuds d'outil, nœuds de script. Rien de tout cela n'est un échec.
 fn ignored(world: &mut World<'_>) {
-    let kinds: Vec<String> = world
-        .document
-        .nodes
-        .iter()
-        .filter(|node| {
-            !report::is_transform(&node.kind) && !report::is_mesh(&node.kind) && !shades(&node.kind)
-        })
-        .map(|node| node.kind.clone())
-        .collect();
-    for kind in kinds {
+    let document = world.document;
+    for node in document.nodes.iter().filter(|node| {
+        !report::is_transform(&node.kind) && !report::is_mesh(&node.kind) && !shades(&node.kind)
+    }) {
         world
             .scene
             .report
-            .add(&format!("{}:{kind}", report::NODE_IGNORED));
+            .add(&format!("{}:{}", report::NODE_IGNORED, node.kind));
     }
 }
 
@@ -126,12 +127,9 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
             world.scene.node(extra)
         })
         .collect::<Vec<usize>>();
-    let descendants: Vec<usize> = world.kids[node].clone();
-    children.extend(
-        descendants
-            .into_iter()
-            .filter_map(|child| visit(world, child, depth + 1)),
-    );
+    for rank in 0..world.kids[node].len() {
+        children.extend(visit(world, world.kids[node][rank], depth + 1));
+    }
     let mut out = json!({ "name": name });
     if let Some(matrix) = matrix {
         out["matrix"] = json!(matrix);
@@ -156,13 +154,7 @@ fn shapes(world: &mut World<'_>, node: usize) -> Vec<usize> {
         .copied()
         .filter(|shape| report::is_mesh(&world.document.nodes[*shape].kind))
         .collect();
-    let added: Vec<usize> = world
-        .document
-        .instances
-        .iter()
-        .filter(|(host, _)| *host == node)
-        .map(|(_, shape)| *shape)
-        .collect();
+    let added = world.added[node].clone();
     own.into_iter()
         .chain(added)
         .filter_map(|shape| mesh::build(world, shape))

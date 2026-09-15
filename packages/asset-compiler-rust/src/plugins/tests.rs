@@ -26,6 +26,46 @@ fn rgba8(decoded: image::DecodedImage) -> ::image::RgbaImage {
     }
 }
 
+/// L'image RGBA8 que le registre rend pour une fixture de `fixtures/<pilote>/` : ce pilote la
+/// revendique par ses octets, et elle a les dimensions attendues.
+fn decoded_rgba8(pilote: &str, name: &str, max_alloc: u64, size: (u32, u32)) -> ::image::RgbaImage {
+    let bytes = fixture(pilote, name);
+    let claimed = image::by_head(&bytes).expect("un pilote revendique ces octets");
+    assert_eq!(claimed.name(), pilote, "{name}");
+    let decoded =
+        rgba8(image::decode(&bytes, max_alloc).unwrap_or_else(|error| panic!("{name}: {error}")));
+    assert_eq!(decoded.dimensions(), size, "{name}");
+    decoded
+}
+
+/// Ce qu'un pilote revendique par l'extension : chaque écriture le désigne, sous son type MIME.
+fn assert_claims(pilote: &str, mime: &str, extensions: &[&str]) {
+    for extension in extensions {
+        let path = PathBuf::from(format!("albedo.{extension}"));
+        let claimed = image::by_extension(&path).expect("revendiqué");
+        assert_eq!(claimed.name(), pilote, "{extension}");
+        assert_eq!(claimed.mime(), mime, "{extension}");
+    }
+}
+
+/// Les refus nommés d'un pilote : chaque fixture reste revendiquée par ses octets, puis ressort
+/// en raison de rapport, jamais en panique.
+fn assert_refusals(pilote: &str, max_alloc: u64, cases: &[(&str, &str)]) {
+    for (name, reason) in cases {
+        let bytes = fixture(pilote, name);
+        assert_eq!(
+            image::by_head(&bytes).map(|claimed| claimed.name()),
+            Some(pilote),
+            "{name}"
+        );
+        assert_eq!(
+            image::decode(&bytes, max_alloc).err(),
+            Some(*reason),
+            "{name}"
+        );
+    }
+}
+
 /// Les valeurs d'un pilote qui rend du flottant, avec les dimensions qu'il annonce.
 fn rgba_f32(decoded: image::DecodedImage) -> (u32, u32, Vec<f32>) {
     match decoded {

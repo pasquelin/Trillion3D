@@ -3,8 +3,7 @@
 //! ci-dessous. Surface brute et lignes compressées par plages sont deux façons d'écrire le même
 //! composite, en PSD comme en PSB — le doré le prouve en les comparant à la même référence.
 use super::super::image as registry;
-use super::{fixture, rgba8};
-use std::path::PathBuf;
+use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 /// Les dimensions de toutes les fixtures : deux lignes de quatre pixels, la plus petite image où
@@ -52,14 +51,10 @@ fn avec_alpha(base: [[u8; 4]; 8]) -> Vec<[u8; 4]> {
 
 /// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
-    let bytes = fixture("psd", name);
-    let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(decoder.name(), "psd", "{name}");
-    let image = rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|error| panic!("{name}: {error}")),
-    );
-    assert_eq!(image.dimensions(), SIZE, "{name}");
-    image.pixels().map(|pixel| pixel.0).collect()
+    decoded_rgba8("psd", name, MAX_ALLOC, SIZE)
+        .pixels()
+        .map(|pixel| pixel.0)
+        .collect()
 }
 
 // Dorée du pilote : les deux écritures du composite et les deux versions du format rendent, pixel
@@ -92,32 +87,20 @@ fn le_plan_qui_suit_les_canaux_de_couleur_est_lalpha_du_composite() {
 // sous-ensemble laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation.
 #[test]
 fn ce_qui_sort_du_sous_ensemble_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["psd", "psb", "PSD"] {
-        let path = PathBuf::from(format!("couleur-de-base.{extension}"));
-        let claimed = registry::by_extension(&path).expect("revendiqué");
-        assert_eq!(claimed.name(), "psd", "{extension}");
-        assert_eq!(claimed.mime(), "image/vnd.adobe.photoshop");
-    }
-    for (name, reason) in [
-        ("seize-bits.psd", "psd-depth-unsupported"),
-        ("cmjn.psd", "psd-color-mode-unsupported"),
-        ("canaux-en-trop.psd", "psd-channels-unsupported"),
-        ("zip.psd", "psd-compression-unsupported"),
-        ("sans-composite.psd", "psd-composite-missing"),
-        ("tronque.psd", "psd-data-truncated"),
-    ] {
-        let bytes = fixture("psd", name);
-        assert_eq!(
-            registry::by_head(&bytes).map(|decoder| decoder.name()),
-            Some("psd"),
-            "{name}: la signature reste celle d'un Photoshop"
-        );
-        assert_eq!(
-            registry::decode(&bytes, MAX_ALLOC).err(),
-            Some(reason),
-            "{name}"
-        );
-    }
+    assert_claims("psd", "image/vnd.adobe.photoshop", &["psd", "psb", "PSD"]);
+    // La signature reste celle d'un Photoshop : chaque refus est revendiqué par ce pilote.
+    assert_refusals(
+        "psd",
+        MAX_ALLOC,
+        &[
+            ("seize-bits.psd", "psd-depth-unsupported"),
+            ("cmjn.psd", "psd-color-mode-unsupported"),
+            ("canaux-en-trop.psd", "psd-channels-unsupported"),
+            ("zip.psd", "psd-compression-unsupported"),
+            ("sans-composite.psd", "psd-composite-missing"),
+            ("tronque.psd", "psd-data-truncated"),
+        ],
+    );
     // Sans la signature et son numéro de version, le pilote ne revendique rien : mieux vaut un
     // format inconnu que les octets volés à un voisin.
     assert!(registry::by_head(b"8BPS\0\x09").is_none());

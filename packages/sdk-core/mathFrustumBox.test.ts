@@ -9,6 +9,7 @@ import {
   frustumExcludesBox,
   frustumPlanesFromMatrix,
 } from './index.ts';
+import { boite3 } from './bench/oracles/volumes.mjs';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(50, 1.3, 0.5, 200);
@@ -26,12 +27,9 @@ frustumPlanesFromMatrix(plans, vp.elements, false);
 const brut = new Float64Array(24);
 clipPlanesFromMatrix(brut, vp.elements);
 
-function box3(b: number[]) {
-  return new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5]));
-}
 /** État à trois voies bâti avec les primitives publiques de Three, indépendant de mathFrustumBox.ts. */
 function etatThree(b: number[]) {
-  const box = box3(b);
+  const box = boite3(b);
   if (!tronc.intersectsBox(box)) return 0;
   const coins = [0, 1, 2, 3, 4, 5, 6, 7].map(
     (i) => new THREE.Vector3(i & 1 ? b[3] : b[0], i & 2 ? b[4] : b[1], i & 4 ? b[5] : b[2]),
