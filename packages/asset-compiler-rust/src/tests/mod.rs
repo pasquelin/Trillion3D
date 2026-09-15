@@ -11,6 +11,7 @@ mod apercus_import;
 mod apercus_source;
 mod blend_driver;
 mod blend_golden;
+mod bmp_gif_golden;
 mod coplanar;
 mod coplanar_assign;
 mod coplanar_collect;
