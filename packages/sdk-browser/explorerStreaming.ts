@@ -1,5 +1,5 @@
 import { createArrivalQueue } from './arrivalQueue.ts';
-import { decodeGeometryPage } from './geometryPage.ts';
+import { decodePageOffThread } from './pageDecodeHost.ts';
 import { PRIORITY_VISIBLE } from './streamingPriority.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -48,10 +48,13 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
             const bytes = streamer.getBytes(url);
             if (bytes) {
               try {
-                const decoded = await decodeGeometryPage(bytes);
+                const decoded = await decodePageOffThread(bytes, controller.signal);
                 for (const b of backends) b.acceptGeometryPage?.(url, decoded);
               } catch (error) {
-                decodeFailures.add(url);
+                // Un refus du décodage est définitif pour cette adresse ; une annulation ne l'est
+                // pas : la page repartira avec la prochaine demande, sans quoi une caméra qui
+                // change d'avis creuserait un trou permanent dans l'image.
+                if (!controller.signal.aborted) decodeFailures.add(url);
                 throw error;
               }
             }
