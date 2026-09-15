@@ -27,7 +27,7 @@ fn the_unity_scene_matches_its_golden_expected_json() {
 /// nœud avec son nom, sa transformation convertie, ses enfants et son maillage, chaque matériau
 /// avec ses facteurs PBR, et les nombres que le compilateur en a retenus.
 fn unity_digest(run: &GoldenRun) -> Value {
-    let (manifest, gltf) = run.prepared("unity");
+    let (mut digest, _, gltf) = scene_digest(run, "unity");
     let triangles: Vec<usize> = gltf["meshes"]
         .as_array()
         .expect("meshes")
@@ -44,28 +44,19 @@ fn unity_digest(run: &GoldenRun) -> Value {
                 .sum()
         })
         .collect();
-    json!({
-      "formatVersion": run.result["formatVersion"],
-      "plugin": manifest["source"]["plugin"],
-      "counts": manifest["source"]["counts"],
-      "unsupported": manifest["unsupported"],
-      "notes": manifest["notes"],
-      "meshNodes": manifest["runtime"]["meshNodes"],
-      "trianglesAcrossNodes": manifest["runtime"]["trianglesAcrossNodes"],
-      "roots": gltf["scenes"][0]["nodes"],
-      "nodes": gltf["nodes"],
-      "meshNames": gltf["meshes"].as_array().expect("meshes").iter()
-                       .map(|mesh| mesh["name"].clone()).collect::<Vec<Value>>(),
-      "meshTriangles": triangles,
-      "meshMaterials": gltf["meshes"].as_array().expect("meshes").iter()
-                       .map(|mesh| mesh["primitives"].as_array().expect("primitives").iter()
-                            .map(|primitive| primitive["material"].clone()).collect::<Vec<Value>>())
-                       .collect::<Vec<Vec<Value>>>(),
-      "materials": gltf["materials"],
-      "images": gltf["images"],
-      "compiled": {
-        "selectedTriangles": run.result["selectedTriangles"],
-        "totalNodes": run.result["totalNodes"],
-      },
-    })
+    digest["meshTriangles"] = json!(triangles);
+    digest["meshMaterials"] = json!(gltf["meshes"]
+        .as_array()
+        .expect("meshes")
+        .iter()
+        .map(|mesh| mesh["primitives"]
+            .as_array()
+            .expect("primitives")
+            .iter()
+            .map(|primitive| primitive["material"].clone())
+            .collect::<Vec<Value>>())
+        .collect::<Vec<Vec<Value>>>());
+    digest["materials"] = gltf["materials"].clone();
+    digest["images"] = gltf["images"].clone();
+    digest
 }

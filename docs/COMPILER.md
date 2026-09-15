@@ -273,6 +273,12 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ktx2-data-truncated` | KTX 2.0 header is consistent but an announced level, or the Zstandard stream behind it, is not all there |
 | `ktx2-image-too-large` | KTX 2.0 image, or its decompression buffer, exceeds the allocation ceiling passed to the decoder; refused rather than attempting the allocation |
 | `ktx2-transcode-failed` | KTX 2.0 Basis Universal payload the transcoder refuses (codec outside its list, video with cross-frame state, corrupt stream) |
+| `alembic-hdf5-unsupported` | Alembic file uses the HDF5 container instead of Ogawa; refused by name rather than read as a corrupt file. Re-export it as Ogawa |
+| `alembic-file-invalid` | Alembic archive does not hold together: no Ogawa header, block truncated, pointer outside the file, root group without its six blocks |
+| `alembic-size-unsupported` | An Ogawa group or data block declares more children or bytes than the plugin's allocation ceiling admits (4 Mi children, 1 GiB per block, 64 Mi face corners per mesh) |
+| `alembic-values-invalid` | An `Xform` operation stack does not compose: operation outside the seven the format defines, or fewer values than the stack consumes |
+| `alembic-topology-invalid` | A mesh contradicts itself: a face index outside the position table, or more face corners declared than face indices written |
+| `alembic-*` report reasons | Counted in the import manifest under `unsupported`, never failing the job: `curves`, `points`, `nupatch`, `camera`, `light`, `object` and `instance` `-unsupported` for objects the plugin does not convert; `subd-as-polygons` for a subdivision surface rendered as the flat polygons it carries; `animation-ignored` when a property holds several samples and only the first is read; `normals-missing`, `normals-dropped`, `uv-dropped` for geometry parameters absent or inconsistent; `face-in-two-facesets`, `degenerate-face`, `faceset-invalid`, `mesh-invalid`, `mesh-empty`, `transform-invalid`, `transform-not-inherited`, `hierarchy-too-deep` |
 
 ## Using it from Node
 
