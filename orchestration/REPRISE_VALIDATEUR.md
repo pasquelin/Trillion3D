@@ -16,7 +16,7 @@ Prompt de reprise pour une nouvelle session. À lire en entier avant toute actio
 - Le validateur est la **seule** session qui pousse sur `origin`. Il pousse `develop` et rien d'autre : `main` ne se pousse que sur demande explicite de l'utilisateur.
 - Les autres sessions (Calculs, Compilateur, Lumière, Geometry) fusionnent **en local** dans `develop` (et `main` suit en local). Elles ne poussent jamais. Si `origin/develop` bouge sans le validateur, leur rappeler l'interdiction par message.
 - Le validateur ne code pas lui-même : lecture et revue par agents Sonnet, correctifs par agents Opus. Il fusionne, lance les portes, pousse et nettoie.
-- **Qui est le validateur :** la session `local_f2f0a83d…`, titrée « Simplify ». Tranché par l'utilisateur le 15 septembre 2026 à 17 h 20. Une session connaît son rôle par `get_session("self")` (titre et `sessionId`), **jamais** en lisant ce fichier : il décrit le rôle, il ne l'attribue pas. Dans les messages inter-sessions, se nommer par `sessionId`, pas par rôle.
+- **Qui est le validateur :** la session `local_a124c3e6…`, titrée « Validateur », reprise sur ordre de l'utilisateur le 15 septembre 2026 à 19 h 40 (l'ancienne `local_f2f0a83d…` « Simplify » n'existe plus). Sessions vivantes à cette heure : `local_10bffc28…` Geometry, `local_a9ce364b…` Calculateur, `local_ebd236da…` Compilateur, `local_9d9cf46a…` Lumière. Une session connaît son rôle par `get_session("self")` (titre et `sessionId`), **jamais** en lisant ce fichier : il décrit le rôle, il ne l'attribue pas. Dans les messages inter-sessions, se nommer par `sessionId`, pas par rôle.
 
 ## État au 15 septembre 2026, 19 h 30
 
