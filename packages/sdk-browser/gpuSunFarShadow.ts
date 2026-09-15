@@ -1,18 +1,16 @@
 import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import {
+  PROXY_COUNTING_OFFSET,
+  PROXY_COUNTS,
+  PROXY_COUNT_OFFSET,
+  PROXY_PARAM_FLOATS,
+} from './bounceNodeWgsl.ts';
 import type { GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createGpuPeriodicReadback } from './gpuPeriodicReadback.ts';
-import {
-  SUN_FAR_COUNTS,
-  SUN_FAR_COUNTING_OFFSET,
-  SUN_FAR_COUNT_OFFSET,
-  SUN_FAR_PARAM_FLOATS,
-  SUN_FAR_PROXY_COLUMNS,
-  SUN_FAR_STATE_BYTES,
-} from './sunFarShadowWgsl.ts';
 
 /** Les deux compteurs relevés, en octets : la taille de la copie comme celle du mappage. */
-const COUNT_BYTES = SUN_FAR_COUNTS * 4;
-/** Les rangs des quatre réglages dans le bloc, dans l'ordre où le nuanceur les lit. */
+const COUNT_BYTES = PROXY_COUNTS * 4;
+/** Les rangs des quatre réglages dans l'entête, dans l'ordre où le nuanceur les lit. */
 const OFFSET = 0,
   START = 1,
   MAX_DISTANCE = 2,
@@ -28,9 +26,14 @@ export interface SunFarCounts {
 export type GpuSunFarShadow = ReturnType<typeof createGpuSunFarShadow>;
 
 /**
- * Les réglages et les compteurs de l'ombre lointaine du soleil, dans un seul bloc que la résolution
- * différée lit. Les colonnes du proxy, elles, ne sont jamais recopiées : le bloc dit seulement
- * qu'il y en a un, de combien relever l'origine d'un rayon, et jusqu'où le pousser.
+ * Les réglages et les compteurs de l'ombre lointaine du soleil, écrits dans l'**entête du proxy
+ * résident** : le même tampon que les deux passes qui éclairent lient pour le traverser. Les
+ * colonnes ne sont jamais recopiées ; l'entête dit seulement qu'il y a un proxy, de combien relever
+ * l'origine d'un rayon, et jusqu'où le pousser.
+ *
+ * Sans proxy adopté, il n'y a rien à écrire : les passes lient le remplaçant de la résolution
+ * différée, un entête de zéros où la présence vaut zéro, et la surface lointaine reste éclairée sans
+ * ombre portée exactement comme avant que ce rayon existe.
  *
  * Le comptage est un diagnostic, donc il reste hors de la passe mesurée : le drapeau de relevé ne
  * passe à un que sur une image sur quinze, et il retombe à zéro dès la suivante, si bien que les
@@ -38,12 +41,7 @@ export type GpuSunFarShadow = ReturnType<typeof createGpuSunFarShadow>;
  * une promesse, jamais une attente dans l'image.
  */
 export function createGpuSunFarShadow(device: GPUDevice) {
-  const state = device.createBuffer({
-    label: 'WG sun far shadow state v1',
-    size: SUN_FAR_STATE_BYTES,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-  });
-  const params = new Float32Array(SUN_FAR_PARAM_FLOATS);
+  const params = new Float32Array(PROXY_PARAM_FLOATS);
   const countingFlag = new Uint32Array(1);
   const counted: SunFarCounts = { frame: -1, tested: 0, blocked: 0 };
   const reader = createGpuPeriodicReadback((mapped) => {
@@ -59,29 +57,25 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     }),
   );
   let proxy: GpuBounceProxy | undefined,
-    columns: readonly GPUBuffer[] | undefined,
     owned = false,
     counting = false,
     copyOwed = false;
 
-  const writeParams = () => device.queue.writeBuffer(state, 0, params);
   const setCounting = (value: boolean) => {
-    if (counting === value) return;
+    if (counting === value || !proxy) return;
     counting = value;
     countingFlag[0] = value ? 1 : 0;
-    device.queue.writeBuffer(state, SUN_FAR_COUNTING_OFFSET, countingFlag);
+    device.queue.writeBuffer(proxy.buffer, PROXY_COUNTING_OFFSET, countingFlag);
   };
 
   return {
-    state,
     /**
-     * Les colonnes du proxy à lier, ou rien tant qu'aucun proxy n'est résident. La liste est celle
-     * d'`adopt`, rendue telle quelle : la passe différée compare les ressources qu'on lui donne à
-     * celles qu'elle a liées, si bien qu'une liste neuve à chaque image lui ferait refaire son
-     * groupe de liaison pour rien.
+     * Le tampon à lier, ou rien tant qu'aucun proxy n'est résident. C'est celui du proxy lui-même,
+     * rendu tel quel : les deux passes comparent la ressource qu'on leur donne à celle qu'elles ont
+     * liée, si bien qu'un tampon neuf à chaque image leur ferait refaire leur groupe pour rien.
      */
-    buffers(): readonly GPUBuffer[] | undefined {
-      return columns;
+    buffer(): GPUBuffer | undefined {
+      return proxy?.buffer;
     },
     get proxy() {
       return proxy;
@@ -104,7 +98,6 @@ export function createGpuSunFarShadow(device: GPUDevice) {
      */
     adopt(resident: GpuBounceProxy, owns: boolean) {
       proxy = resident;
-      columns = SUN_FAR_PROXY_COLUMNS.map((column) => resident[column]);
       owned = owns;
       const [x0, y0, z0, x1, y1, z1] = resident.bounds;
       params[OFFSET] = LIGHT_SETTINGS.sunFarShadowOffsetMetres;
@@ -113,22 +106,25 @@ export function createGpuSunFarShadow(device: GPUDevice) {
       // rien à couper, et un soleil est assez loin pour que tout occulteur tienne dedans.
       params[MAX_DISTANCE] = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
       params[PRESENT] = resident.nodeCount > 0 ? 1 : 0;
-      writeParams();
+      device.queue.writeBuffer(resident.buffer, 0, params);
+      // L'entête neuf porte un drapeau de relevé à zéro : c'est aussi l'état que ce module tient.
+      counting = false;
     },
     /**
      * Ce que l'image doit encoder avant sa passe d'éclairage : le relevé de l'image précédente,
      * puis, une image sur quinze, la remise à zéro des compteurs et l'allumage du drapeau.
      */
     prepare(encoder: GPUCommandEncoder, frame: number) {
+      if (!proxy) return;
       if (copyOwed) {
-        reader.copy(encoder, state, SUN_FAR_COUNT_OFFSET, COUNT_BYTES);
+        reader.copy(encoder, proxy.buffer, PROXY_COUNT_OFFSET, COUNT_BYTES);
         copyOwed = false;
       }
       // Un proxy sans nœud laisse ce drapeau à zéro : il n'y a alors ni rayon tiré ni rien à compter.
       const sample = params[PRESENT] > 0 && reader.due(frame);
       setCounting(sample);
       if (!sample) return;
-      encoder.clearBuffer(state, SUN_FAR_COUNT_OFFSET, COUNT_BYTES);
+      encoder.clearBuffer(proxy.buffer, PROXY_COUNT_OFFSET, COUNT_BYTES);
       copyOwed = true;
       counted.frame = frame;
       reader.sampled(frame);
@@ -141,10 +137,8 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     },
     dispose() {
       reader.dispose();
-      state.destroy();
       if (owned) proxy?.dispose();
       proxy = undefined;
-      columns = undefined;
     },
   };
 }
