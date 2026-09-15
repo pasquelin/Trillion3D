@@ -2,7 +2,13 @@ import { coneSkipsPage } from './pageSelectionHelpers.ts';
 import { boxClip, cutSelects, projectedClusterError } from './pageSelectionMath.ts';
 import { cutSelectsAtZero } from './pageSelectionProjection.ts';
 import { drawnUnderForcing } from './pageSelectionCutLogic.ts';
-import { selectionScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
+import {
+  RESIDENT_ALL,
+  residentUnder,
+  selectionScratch,
+  type PageRecord,
+  type SelectionState,
+} from './pageSelectionCutState.ts';
 import { BOUND_STRIDE } from './pageSelectionCutBounds.ts';
 import { nodeDecision, nodeDecisionAtZero } from './pageSelectionCutNode.ts';
 
@@ -13,20 +19,26 @@ function boxClipRec(min: readonly number[], max: readonly number[]) {
 
 /** Retient un cluster déjà choisi : demande, niveau, résidence, estampille.
  *  Build requested and drawable cuts separately; a resident fallback never hides a missing request.
- */
-function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, forcing: boolean) {
+ *  `resident` est la règle de résidence de la coupe, résolue une fois : à `RESIDENT_ALL` il n'y a
+ *  rien à lire sur la fiche, et le cluster est retenu sans autre question. */
+function keep<T extends PageRecord>(
+  s: SelectionState<T>,
+  rec: T,
+  forcing: boolean,
+  resident: number,
+) {
   const triangles = rec.triangles;
   if (!forcing) {
     s.wanted.push(rec);
     s.wantedTriangles += triangles;
     const level = rec.level;
     if (level !== undefined && level > s.lodLevel) s.lodLevel = level;
-    if (!s.pageResident(rec)) {
+    if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
       s.flatMissing = true;
       if (!s.rootFallback) s.complete = false;
       return;
     }
-  } else if (!s.pageResident(rec)) {
+  } else if (resident !== RESIDENT_ALL && !residentUnder(s, rec, resident)) {
     s.flatShort = true;
     if (!s.rootFallback) s.complete = false;
     return;
@@ -41,8 +53,8 @@ function keep<T extends PageRecord>(s: SelectionState<T>, rec: T, forcing: boole
 
 /** Teste un cluster, sauf sa coupe quand un ancêtre l'a déjà tranchée (`settled`) : le tronc et le
  *  cône restent posés, et l'ordre d'émission reste celui de la descente complète.
- *  `inside`, `forcing`, `exact` et `cones` sont constants sous un nœud : la boucle les passe au
- *  lieu de les relire sur l'état à chaque cluster. */
+ *  `inside`, `forcing`, `exact`, `cones` et `resident` sont constants sous un nœud : la boucle les
+ *  passe au lieu de les relire sur l'état à chaque cluster. */
 function take<T extends PageRecord>(
   s: SelectionState<T>,
   rec: T,
@@ -51,6 +63,7 @@ function take<T extends PageRecord>(
   forcing: boolean,
   exact: boolean,
   cones: boolean,
+  resident: number,
 ) {
   const min = rec.min,
     max = rec.max;
@@ -69,7 +82,7 @@ function take<T extends PageRecord>(
   )
     return;
   if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, min, max)) return;
-  keep(s, rec, forcing);
+  keep(s, rec, forcing, resident);
 }
 
 export function flatVisible<T extends PageRecord>(s: SelectionState<T>, rec: T) {
@@ -91,10 +104,11 @@ export function traverse<T extends PageRecord>(
   const forcing = s.flatUseForcing,
     hierarchical = !forcing,
     exact = s.flatExact,
-    cones = s.flatCones;
+    cones = s.flatCones,
+    resident = s.residentMode;
   if (!culling) {
     for (let i = 0; i < pages.length; i++) {
-      take(s, pages[i], false, false, forcing, exact, cones);
+      take(s, pages[i], false, false, forcing, exact, cones, resident);
       if (s.over) return;
     }
     return;
@@ -166,7 +180,7 @@ export function traverse<T extends PageRecord>(
     const firstPage = nodes[base + 13],
       pageCount = nodes[base + 14];
     for (let i = 0; i < pageCount; i++) {
-      take(s, pages[firstPage + i], settled, inside, forcing, exact, cones);
+      take(s, pages[firstPage + i], settled, inside, forcing, exact, cones, resident);
       if (s.over) return;
     }
   }
