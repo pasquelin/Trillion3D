@@ -35,13 +35,10 @@ import { machineLoad } from './rapport.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const args = process.argv.slice(2);
-const flag = (name, fallback) => {
-  const at = args.indexOf(`--${name}`);
-  if (at < 0) return fallback;
-  const next = args[at + 1];
-  return next && !next.startsWith('--') ? next : 'true';
-};
-const number = (name, fallback) => Number(flag(name, String(fallback)));
+// Le même lecteur de drapeaux que le banc : `--nom valeur`, `--nom=valeur`, `--nom` seul.
+const flags = options.parseArgs(args);
+const flag = (name, fallback) => flags.get(name) ?? fallback;
+const number = (name, fallback) => Number(flag(name, fallback));
 
 /** Trois nombres séparés par des virgules, ou rien. Sert aux poses données à la main. */
 const triple = (name) => {
@@ -72,7 +69,6 @@ async function main() {
     exposure: number('exposition', 0.2),
     converge: number('converge', 24),
     delayFrames: number('images-retard', 40),
-    delayThreshold: number('seuil-retard', 0.001),
     delayMargin: number('marge-retard', 1.2),
     floor: number('plancher', 0.01),
     cadenceHz: number('cadence', 60),
@@ -86,11 +82,8 @@ async function main() {
   const side = sides[0];
   side.cache = cache;
   side.manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
-  const mounts = options.resolveMounts(
-    ROOT,
-    sides,
-    flag('ressources') && resolve(flag('ressources')),
-  );
+  const resources = flag('ressources');
+  const mounts = options.resolveMounts(ROOT, sides, resources && resolve(resources));
   const captures = new Map();
   const server = await startServer({ port: 0, mounts, captures });
   const port = server.address().port;
@@ -131,7 +124,7 @@ async function main() {
     const step = number('pas', Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
     const camera = triple('pose'),
       target = triple('cible');
-    for (const view of (flag('vues', 'generale') ?? '').split(',')) {
+    for (const view of flag('vues', 'generale').split(',')) {
       // Une pose donnée à la main l'emporte sur la trajectoire du banc : une pièce fermée n'a
       // aucune vue utile depuis le dehors, et la trajectoire est faite pour un modèle urbain.
       const known = options.VIEWS[view];
@@ -170,7 +163,6 @@ async function runView(page, ctx) {
     exposure: settings.exposure,
     converge: settings.converge,
     delayFrames: settings.delayFrames,
-    delayThreshold: settings.delayThreshold,
     lights: lights.lights,
     movingLight: moving.id,
     originalPosition: moving.position,

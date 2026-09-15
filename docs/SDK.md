@@ -121,11 +121,12 @@ does not hold it: the cost is dominated by BVH node visits, and halving the trav
 512 to 128 nodes takes the stage from 79 ms to 27 ms on the same view. A still scene pays nothing.
 Read the bound, the proxy size and the delay before turning the bounce on over a whole city.
 
-The bounce is on by default and costs nothing until a light is declared: the proxy object is read on
-the first frame that carries one. `createExplorer({ bounce: false })` turns it off for the session,
-and the deferred resolve then compiles the direct-only program, exactly the shader of the previous
-lot. `explorer.bounceSettings` publishes every bound above. Emission, transparency and specular are
-not bounced; the proxy carries diffuse albedo only.
+The bounce is **off by default**, because of that cost: `createExplorer({ bounce: true })` turns it
+on for the session, and it then costs nothing until a light is declared — the proxy object is read on
+the first frame that carries one. Left off, the deferred resolve compiles the direct-only program,
+exactly the shader of the previous lot, and the bounce declares itself unavailable rather than
+appearing silently. `explorer.bounceSettings` publishes every bound above whether or not it is on.
+Emission, transparency and specular are not bounced; the proxy carries diffuse albedo only.
 
 `setLightingView('bounce')` is the measurement view: the indirect irradiance alone, multiplied by
 exposure, in linear values with no ACES and no sRGB. It is not an image to look at — it is the

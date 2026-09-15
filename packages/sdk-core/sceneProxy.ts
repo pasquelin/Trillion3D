@@ -87,14 +87,16 @@ export function decodeSceneProxy(
   const words = new Uint32Array(buffer, 0, SCENE_PROXY_HEADER_WORDS);
   if (words[0] !== SCENE_PROXY_MAGIC)
     throw bad('The scene proxy object has no WGPX signature', { magic: words[0] });
-  if (words[1] !== SCENE_PROXY_VERSION || words[2] !== descriptor.triangles)
+  if (
+    words[1] !== SCENE_PROXY_VERSION ||
+    words[2] !== descriptor.triangles ||
+    words[3] !== descriptor.nodes
+  )
     throw bad('The scene proxy object disagrees with its manifest', {
       version: words[1],
       triangles: words[2],
       nodes: words[3],
     });
-  if (words[3] !== descriptor.nodes)
-    throw bad('The scene proxy object disagrees with its manifest', { nodes: words[3] });
   let at = header;
   const take = <T>(make: (b: ArrayBuffer, o: number, n: number) => T, elements: number): T => {
     const column = make(buffer, at, elements);
