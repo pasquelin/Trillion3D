@@ -39,6 +39,22 @@ export * from './competitors.ts';
 export * from './paths.ts';
 export * from './stats.ts';
 export * from './stageProfile.ts';
+export {
+  PAGE_DECODE_FAILURES,
+  PAGE_DECODE_PROTOCOL,
+  pageDecodeFailureCode,
+  pageDecodeWorkerCount,
+} from './pageDecodeContracts.ts';
+export type {
+  PageDecodeAnswer,
+  PageDecodeCancel,
+  PageDecodeDone,
+  PageDecodeFailed,
+  PageDecodeFailureCode,
+  PageDecodeGeometryPayload,
+  PageDecodeOp,
+  PageDecodeRequest,
+} from './pageDecodeContracts.ts';
 export * from './oracles.ts';
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)
