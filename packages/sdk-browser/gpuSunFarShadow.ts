@@ -1,5 +1,6 @@
 import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
 import type { GpuBounceProxy } from './gpuBounceProxy.ts';
+import { createGpuPeriodicReadback } from './gpuPeriodicReadback.ts';
 import {
   SUN_FAR_COUNTS,
   SUN_FAR_COUNTING_OFFSET,
@@ -9,8 +10,6 @@ import {
   SUN_FAR_STATE_BYTES,
 } from './sunFarShadowWgsl.ts';
 
-/** Images entre deux relevés des compteurs. Les quatorze autres n'incrémentent rien du tout. */
-const COUNT_EVERY_IMAGES = 15;
 /** Les deux compteurs relevés, en octets : la taille de la copie comme celle du mappage. */
 const COUNT_BYTES = SUN_FAR_COUNTS * 4;
 /** Les rangs des quatre réglages dans le bloc, dans l'ordre où le nuanceur les lit. */
@@ -18,8 +17,6 @@ const OFFSET = 0,
   START = 1,
   MAX_DISTANCE = 2,
   PRESENT = 3;
-/** `GPUMapMode.READ`, ou sa valeur là où un appareil de test laisse l'énumération vide. */
-const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1;
 
 /** Ce que la dernière image relevée a compté, et le numéro de cette image. */
 export interface SunFarCounts {
@@ -46,23 +43,26 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     size: SUN_FAR_STATE_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   });
-  const readback = device.createBuffer({
-    label: 'WG sun far shadow counts readback',
-    size: COUNT_BYTES,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-  });
   const params = new Float32Array(SUN_FAR_PARAM_FLOATS);
   const countingFlag = new Uint32Array(1);
   const counted: SunFarCounts = { frame: -1, tested: 0, blocked: 0 };
+  const reader = createGpuPeriodicReadback((mapped) => {
+    const values = new Uint32Array(mapped);
+    counted.tested = values[0];
+    counted.blocked = values[1];
+  });
+  reader.adopt(
+    device.createBuffer({
+      label: 'WG sun far shadow counts readback',
+      size: COUNT_BYTES,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    }),
+  );
   let proxy: GpuBounceProxy | undefined,
     columns: readonly GPUBuffer[] | undefined,
     owned = false,
-    countedReady = false,
     counting = false,
-    copyEncoded = false,
-    mapping = false,
-    disposed = false,
-    lastCountedFrame = -COUNT_EVERY_IMAGES;
+    copyOwed = false;
 
   const writeParams = () => device.queue.writeBuffer(state, 0, params);
   const setCounting = (value: boolean) => {
@@ -70,21 +70,6 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     counting = value;
     countingFlag[0] = value ? 1 : 0;
     device.queue.writeBuffer(state, SUN_FAR_COUNTING_OFFSET, countingFlag);
-  };
-  const onMapped = () => {
-    if (disposed) return;
-    const values = new Uint32Array(readback.getMappedRange(0, COUNT_BYTES));
-    counted.tested = values[0];
-    counted.blocked = values[1];
-    countedReady = true;
-  };
-  const onSettled = () => {
-    try {
-      readback.unmap();
-    } catch {
-      /* Déjà démappé par une libération. */
-    }
-    mapping = false;
   };
 
   return {
@@ -135,38 +120,28 @@ export function createGpuSunFarShadow(device: GPUDevice) {
      * puis, une image sur quinze, la remise à zéro des compteurs et l'allumage du drapeau.
      */
     prepare(encoder: GPUCommandEncoder, frame: number) {
-      if (copyEncoded) {
-        encoder.copyBufferToBuffer(state, SUN_FAR_COUNT_OFFSET, readback, 0, COUNT_BYTES);
-        copyEncoded = false;
-        mapping = true;
+      if (copyOwed) {
+        reader.copy(encoder, state, SUN_FAR_COUNT_OFFSET, COUNT_BYTES);
+        copyOwed = false;
       }
       // Un proxy sans nœud laisse ce drapeau à zéro : il n'y a alors ni rayon tiré ni rien à compter.
-      const sample =
-        params[PRESENT] > 0 && !mapping && frame - lastCountedFrame >= COUNT_EVERY_IMAGES;
+      const sample = params[PRESENT] > 0 && reader.due(frame);
       setCounting(sample);
       if (!sample) return;
       encoder.clearBuffer(state, SUN_FAR_COUNT_OFFSET, COUNT_BYTES);
-      copyEncoded = true;
+      copyOwed = true;
       counted.frame = frame;
-      lastCountedFrame = frame;
+      reader.sampled(frame);
     },
     /** Demande le mappage du relevé, une fois l'image qui l'a copié soumise. */
-    submitted() {
-      if (!mapping || disposed) return;
-      Promise.resolve(readback.mapAsync(mapRead(), 0, COUNT_BYTES))
-        .then(onMapped, () => {})
-        .finally(onSettled);
-    },
+    submitted: reader.submitted,
     /** Les compteurs de la dernière image relevée, ou rien tant qu'aucune n'est revenue. */
     counts(): SunFarCounts | undefined {
-      return countedReady ? counted : undefined;
+      return reader.ready ? counted : undefined;
     },
     dispose() {
-      disposed = true;
-      countedReady = false;
-      copyEncoded = false;
+      reader.dispose();
       state.destroy();
-      readback.destroy();
       if (owned) proxy?.dispose();
       proxy = undefined;
       columns = undefined;

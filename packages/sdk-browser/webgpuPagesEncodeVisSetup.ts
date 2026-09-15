@@ -7,6 +7,7 @@ import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
+import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 let attachmentsFor: GPUTextureView[] | undefined,
@@ -73,9 +74,7 @@ export function ensureGpuSmall(rt: WebgpuPagesRuntime, device: GPUDevice) {
       capture.captureAllocationBytes + width * height * 8 + rt.layout.smallTriangleCapacity * 4,
     );
     vis.gpuSmall = createGpuSmallTriangles(device, width, height, rt.layout.smallTriangleCapacity);
-    capabilities.unsupported = capabilities.unsupported.filter(
-      (item) => item !== 'small-triangle compute raster',
-    );
+    grantCapability(capabilities, 'small-triangle compute raster');
   } catch (error) {
     vis.hybridUnavailable = true;
     diag.diagnosticFailure('small-triangle-compute-unavailable', error);

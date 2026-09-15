@@ -78,5 +78,5 @@ export const SUN_FAR_PARAM_FLOATS = 4;
 export const SUN_FAR_COUNTING_OFFSET = SUN_FAR_PARAM_FLOATS * 4;
 export const SUN_FAR_COUNT_OFFSET = SUN_FAR_COUNTING_OFFSET + 4;
 export const SUN_FAR_COUNTS = 2;
-/** Vingt-huit octets utiles, arrondis à seize près : ce que le tampon de l'état réserve. */
-export const SUN_FAR_STATE_BYTES = 32;
+/** Les octets utiles, arrondis au multiple de seize : ce que le tampon de l'état réserve. */
+export const SUN_FAR_STATE_BYTES = Math.ceil((SUN_FAR_COUNT_OFFSET + SUN_FAR_COUNTS * 4) / 16) * 16;
