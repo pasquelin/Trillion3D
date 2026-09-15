@@ -177,3 +177,16 @@ test('une texture entamée n’est jamais interrompue au milieu d’une tranche,
   assert.equal(pump.skipped, 0);
   assert.deepEqual(logX, [0, 1, 2]);
 });
+
+test('un travail de niveau progressif (stage 0) appelle onLevel, jamais onColorReady ni de régénération de mips', async () => {
+  const job = scriptedJob({ rows: 1, bytesPerRow: 4 }, () => {});
+  job.stage = 0;
+  job.level = 3;
+  const { pump, submits, colorReady, levels } = buildPump([job], 4);
+  await pump.pump();
+  assert.deepEqual(levels, [[1, 3]]);
+  assert.equal(colorReady.length, 0);
+  assert.equal(submits.length, 0, 'aucune régénération de mips pour un niveau progressif seul');
+  assert.equal(pump.uploaded, 0);
+  assert.equal(pump.levels, 1);
+});
