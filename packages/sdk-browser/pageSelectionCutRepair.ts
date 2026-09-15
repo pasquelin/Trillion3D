@@ -25,15 +25,10 @@ export function rootCoverInto<T extends PageRecord>(
   return whole;
 }
 
-/** Le seuil auquel la réparation avait convergé la fois précédente : d'une image à l'autre la
- *  caméra bouge peu, donc la montée repart de là au lieu de refaire les paliers depuis le seuil
- *  de l'image. */
-let seuilConverge = 0;
-
 /** Raise the threshold to a resident ancestor when group structure is unavailable. */
 export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[], start: number) {
   const near = s.camera.near;
-  let threshold = seuilConverge > s.pixelError ? seuilConverge : s.pixelError,
+  let threshold = s.pixelError,
     hard = false;
   for (let round = 0; round <= FLAT_ESCALATION_ROUNDS; round++) {
     let raised = false;
@@ -64,7 +59,6 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
     if (!raised) break;
     if (round === FLAT_ESCALATION_ROUNDS) hard = true;
   }
-  seuilConverge = threshold;
   s.shown.length = start;
   if (!hard)
     for (let i = 0; i < pages.length; i++) {
