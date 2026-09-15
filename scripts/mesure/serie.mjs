@@ -34,6 +34,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowBudgetMs: settings.shadowBudgetMs,
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
+    movingNode: settings.movingNode,
+    movingNodeRadius: settings.movingNodeRadius,
   });
   const fin = machineLoad();
   if (result.erreur) throw new Error(`${side.name} ${view} e${pixelError} : ${result.erreur}`);
@@ -79,6 +81,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // seule `--ombres-pages` diffère doivent rendre la même : c'est la preuve que le dessin par
     // pages est identique au bit près à un redessin complet.
     atlasOmbres: result.shadowAtlas ?? null,
+    objetMobile: result.movingNode ?? null,
     charge: { debut, fin },
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,
