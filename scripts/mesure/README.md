@@ -157,7 +157,7 @@ ensembles vides, générateur à graine fixe. La commande joue les fichiers un p
 (`--test-concurrency=1`) puis `scripts/mesure/calculs/agrege.mjs` — ce dossier ne garde que les
 trois agrégateurs et leur `tableau.mjs` commun, sans aucun import de paquet — imprime le tableau
 `Calcul | Fichier | Avant (ms) | Après (ms) | Gain | Identique | Retenu` et l'écrit dans
-`orchestration/mesures/calculs-<date>.md`, les données brutes dans le `.json` voisin.
+`.mesure/out/calculs/calculs-<date>.md` (hors dépôt), les données brutes dans le `.json` voisin.
 
 Une ligne n'est « retenue » que si les deux sorties sont identiques au bit près **et** que la
 médiane d'après est meilleure. Chaque fichier de banc porte, en clair, une copie de l'ancien code

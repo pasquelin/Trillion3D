@@ -9,7 +9,7 @@ et son binaire, que `compile` est seul à savoir lire. Les images suivent le mê
 ou, pour les formats à grande gamme dynamique, vers RGBA flottant linéaire.
 
 La politique — quels formats sont admis, lesquels sont refusés, sous quelles conditions et sous
-quelle licence — est dans [`orchestration/COMPILATEUR_IMPORT.md`](../../orchestration/COMPILATEUR_IMPORT.md).
+quelle licence — est dans [`FORMATS.md`](FORMATS.md).
 Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
 
 ## Un pilote de scène
@@ -90,7 +90,7 @@ par pixel** avant d'allouer, par `float_budget`, et le refus porte son propre no
   `let` irréfutable sur une variante de `DecodedImage` : le contrat a deux sorties, et un test qui
   en suppose une seule doit le dire par un appel qui panique sur l'autre.
 - **La provenance** : d'où vient la spécification suivie, quelle bibliothèque, quelle licence. Elle
-  se met dans l'entête du module et dans `orchestration/JOURNAL.md`.
+  se met dans l'entête du module et dans le message de commit.
 
 ## Interdit
 

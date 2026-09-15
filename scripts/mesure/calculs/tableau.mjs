@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const SORTIE = join(RACINE, 'orchestration', 'mesures');
+const SORTIE = join(RACINE, '.mesure', 'out', 'calculs');
 
 export const nombre = (v) => (v === null ? 'null' : v.toFixed(3));
 export const pourcent = (v) => (v === null ? 'null' : `${(v * 100).toFixed(1)} %`);
@@ -109,7 +109,7 @@ export function ecris({ nom, titre, preambule, entete, separateur, ligne, lignes
       2,
     )}\n`,
   );
-  console.log(`\nÉcrit : orchestration/mesures/${nom}-${jour}.md et .json`);
+  console.log(`\nÉcrit : .mesure/out/calculs/${nom}-${jour}.md et .json`);
 }
 
 /** Le tableau des lots à égalité bit à bit — A, F et G : même en-tête, même règle de « Retenu ».
