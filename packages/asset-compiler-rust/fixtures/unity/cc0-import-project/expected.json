@@ -1,19 +1,23 @@
 {
-  "case": "Projet Unity CC0 : trois props \u00e0 cubes int\u00e9gr\u00e9s sous LODGroup, un mod\u00e8le FBX instanci\u00e9 par GUID, deux mat\u00e9riaux aux modes d\u00e9coup\u00e9 et transparent, un objet inactif, une instance de prefab replac\u00e9e et renomm\u00e9e.",
-  "rule": "Unity est en main gauche, le glTF en main droite : z devient -z, le quaternion (x, y, z, w) devient (-x, -y, z, w), l'\u00e9chelle ne bouge pas. Prop_Model, pos\u00e9 en (1, 2, 3) et tourn\u00e9 d'un quart de tour autour de Y, sort en (1, 2, -3) avec (0, -0.7071067811865476, 0, 0.7071067811865476) ; rugosit\u00e9 = 1 \u2212 lissage, donc 0,75 donne 0,25. Seul le niveau de LOD le plus fin est gard\u00e9 : huit rendus \u00e9cart\u00e9s. La TGA est dans le registre d'images depuis le pilote `tga` : la texture se lit.",
+  "case": "Projet Unity CC0 : trois props a cubes integres sous LODGroup, un modele FBX instancie entier par GUID, le meme modele dont un MeshFilter ne vise qu un sous-maillage par fileID, une echelle d import de 2 declaree par le .meta du modele, deux materiaux aux modes decoupe et transparent, un objet inactif, et deux instances du meme prefab retouchees : l une replacee, renommee, remise a l echelle, avec un materiau remplace et un objet desactive, l autre avec son rendu eteint.",
+  "rule": "Unity est en main gauche, le glTF en main droite : z devient -z, le quaternion (x, y, z, w) devient (-x, -y, z, w), l echelle ne bouge pas. Prop_Model, pose en (1, 2, 3) et tourne d un quart de tour autour de Y, sort en (1, 2, -3) avec (0, -0.7071067811865476, 0, 0.7071067811865476), echelle 2 ; rugosite = 1 - lissage, donc 0,75 donne 0,25. Seul le niveau de LOD le plus fin est garde : dix rendus ecartes. L echelle d import vaut globalScale x (useFileScale ? fileScale : 1) / unite du fichier, soit 2 ici : les matrices des noeuds du modele sont multipliees par 2, sa geometrie ne bouge pas. Le fileID 4300002 est nomme Icosphere.001 par internalIDToNameTable : seul ce maillage est retenu, 80 triangles ; le fileID 4300000, absent de la table, laisse instancier le modele entier et le fait est compte. Les retouches de prefab qui changent la geometrie ou le rendu sont appliquees, les autres comptees par propriete.",
   "compiled": {
-    "selectedTriangles": 492,
-    "totalNodes": 9
+    "selectedTriangles": 572,
+    "totalNodes": 10
   },
   "counts": {
-    "gameObjects": 19,
-    "inactive": 1,
-    "instances": 9,
-    "lodDropped": 8,
-    "materials": 4,
+    "gameObjects": 23,
+    "inactive": 2,
+    "instances": 10,
+    "lodDropped": 10,
+    "materials": 5,
     "metaFiles": 9,
     "models": 1,
-    "prefabInstances": 1,
+    "prefabInstances": 2,
+    "prefabOverridesApplied": 9,
+    "prefabOverridesIgnored": 2,
+    "renderersDisabled": 1,
+    "subMeshes": 1,
     "textures": 1
   },
   "formatVersion": 4,
@@ -28,48 +32,85 @@
     {
       "name": "Standard",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
-        "metallicFactor": 0.25,
-        "roughnessFactor": 0.5,
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
         "baseColorTexture": {
           "index": 0
-        }
+        },
+        "metallicFactor": 0.25,
+        "roughnessFactor": 0.5
       }
     },
     {
       "name": "URP",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
-        "metallicFactor": 0.25,
-        "roughnessFactor": 0.5,
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
         "baseColorTexture": {
           "index": 0
-        }
+        },
+        "metallicFactor": 0.25,
+        "roughnessFactor": 0.5
       }
     },
     {
-      "emissiveFactor": [0.0, 0.0, 0.0],
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "name": "PropMaterial0",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [0.20000000298023224, 0.6000000238418579, 0.30000001192092896, 1.0],
+        "baseColorFactor": [
+          0.20000000298023224,
+          0.6000000238418579,
+          0.30000001192092896,
+          1.0
+        ],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
     },
     {
-      "emissiveFactor": [0.0, 0.0, 0.0],
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "name": "PropMaterial1",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [0.20000000298023224, 0.6000000238418579, 0.30000001192092896, 1.0],
+        "baseColorFactor": [
+          0.20000000298023224,
+          0.6000000238418579,
+          0.30000001192092896,
+          1.0
+        ],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
     },
     {
-      "emissiveFactor": [0.0, 0.0, 0.0],
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
       "name": "PropMaterial2",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [0.20000000298023224, 0.6000000238418579, 0.30000001192092896, 1.0],
+        "baseColorFactor": [
+          0.20000000298023224,
+          0.6000000238418579,
+          0.30000001192092896,
+          1.0
+        ],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
@@ -79,37 +120,98 @@
       "alphaMode": "MASK",
       "name": "Cutout",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
-        "metallicFactor": 0.0,
-        "roughnessFactor": 0.5,
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
         "baseColorTexture": {
           "index": 0
-        }
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.5
       }
     },
     {
       "alphaMode": "BLEND",
       "doubleSided": true,
-      "emissiveFactor": [0.5, 0.0, 0.0],
+      "emissiveFactor": [
+        0.5,
+        0.0,
+        0.0
+      ],
       "name": "Glass",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [0.25, 0.5, 0.75, 0.5],
+        "baseColorFactor": [
+          0.25,
+          0.5,
+          0.75,
+          0.5
+        ],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.25
       }
+    },
+    {
+      "name": "HDRP",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.25,
+        "roughnessFactor": 0.5
+      }
     }
   ],
-  "meshMaterials": [[0], [1], [1], [1], [5], [6]],
+  "meshMaterials": [
+    [
+      0
+    ],
+    [
+      1
+    ],
+    [
+      1
+    ],
+    [
+      1
+    ],
+    [
+      5
+    ],
+    [
+      6
+    ],
+    [
+      7
+    ]
+  ],
   "meshNames": [
     "UnityBuiltinCube",
     "Icosphere",
     "Icosphere.001",
     "Icosphere.002",
     "UnityBuiltinCube",
-    "UnityBuiltinCube"
+    "UnityBuiltinCube",
+    "Icosphere.001"
   ],
-  "meshNodes": 9,
-  "meshTriangles": [12, 320, 80, 20, 12, 12],
+  "meshNodes": 10,
+  "meshTriangles": [
+    12,
+    320,
+    80,
+    20,
+    12,
+    12,
+    80
+  ],
   "nodes": [
     {
       "mesh": 0,
@@ -122,7 +224,11 @@
       "name": "LOD2"
     },
     {
-      "children": [0, 1, 2],
+      "children": [
+        0,
+        1,
+        2
+      ],
       "name": "Prop_Standard"
     },
     {
@@ -136,9 +242,17 @@
       "name": "LOD2"
     },
     {
-      "children": [4, 5, 6],
+      "children": [
+        4,
+        5,
+        6
+      ],
       "name": "Prop_URP",
-      "translation": [3.0, 0.0, 0.0]
+      "translation": [
+        3.0,
+        0.0,
+        0.0
+      ]
     },
     {
       "mesh": 0,
@@ -151,53 +265,184 @@
       "name": "LOD2"
     },
     {
-      "children": [8, 9, 10],
+      "children": [
+        8,
+        9,
+        10
+      ],
       "name": "Prop_HDRP",
-      "translation": [6.0, 0.0, 0.0]
+      "translation": [
+        6.0,
+        0.0,
+        0.0
+      ]
     },
     {
       "matrix": [
-        1.0, 0.0, 0.0, 0.0, -0.0, -1.6292067961387604e-7, -0.9999999999999868, 0.0, 0.0,
-        0.9999999999999868, -1.6292067961387604e-7, 0.0, 0.0, 0.0, 0.0, 1.0
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0,
+        -3.258413592277521e-07,
+        -1.9999999999999736,
+        0.0,
+        0.0,
+        1.9999999999999736,
+        -3.258413592277521e-07,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
       ],
       "mesh": 1,
       "name": "Prop_LOD0"
     },
     {
       "matrix": [
-        1.0, 0.0, 0.0, 0.0, -0.0, -1.6292067961387604e-7, -0.9999999999999868, 0.0, 0.0,
-        0.9999999999999868, -1.6292067961387604e-7, 0.0, 0.0, 0.0, 0.0, 1.0
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0,
+        -3.258413592277521e-07,
+        -1.9999999999999736,
+        0.0,
+        0.0,
+        1.9999999999999736,
+        -3.258413592277521e-07,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
       ],
       "mesh": 2,
       "name": "Prop_LOD1"
     },
     {
       "matrix": [
-        1.0, 0.0, 0.0, 0.0, -0.0, -1.6292067961387604e-7, -0.9999999999999868, 0.0, 0.0,
-        0.9999999999999868, -1.6292067961387604e-7, 0.0, 0.0, 0.0, 0.0, 1.0
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0,
+        -3.258413592277521e-07,
+        -1.9999999999999736,
+        0.0,
+        0.0,
+        1.9999999999999736,
+        -3.258413592277521e-07,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
       ],
       "mesh": 3,
       "name": "Prop_LOD2"
     },
     {
-      "children": [12, 13, 14],
+      "children": [
+        12,
+        13,
+        14
+      ],
       "name": "Prop_Model",
-      "rotation": [0.0, -0.7071067811865476, 0.0, 0.7071067811865476],
-      "scale": [2.0, 2.0, 2.0],
-      "translation": [1.0, 2.0, -3.0]
+      "rotation": [
+        0.0,
+        -0.7071067811865476,
+        0.0,
+        0.7071067811865476
+      ],
+      "scale": [
+        2.0,
+        2.0,
+        2.0
+      ],
+      "translation": [
+        1.0,
+        2.0,
+        -3.0
+      ]
     },
     {
       "mesh": 4,
       "name": "Prop_Cutout",
-      "translation": [0.0, 0.0, 2.0]
+      "translation": [
+        0.0,
+        0.0,
+        2.0
+      ]
     },
     {
       "mesh": 5,
       "name": "Prop_Glass",
-      "translation": [0.0, 0.0, -2.0]
+      "translation": [
+        0.0,
+        0.0,
+        -2.0
+      ]
     },
     {
-      "mesh": 0,
+      "matrix": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0,
+        -3.258413592277521e-07,
+        -1.9999999999999736,
+        0.0,
+        0.0,
+        1.9999999999999736,
+        -3.258413592277521e-07,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "mesh": 6,
+      "name": "Prop_LOD1"
+    },
+    {
+      "children": [
+        18
+      ],
+      "name": "Prop_SubMesh",
+      "translation": [
+        -8.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "LOD0"
+    },
+    {
+      "name": "LOD1"
+    },
+    {
+      "children": [
+        20,
+        21
+      ],
+      "name": "Prop_Copy",
+      "scale": [
+        1.0,
+        3.0,
+        1.0
+      ],
+      "translation": [
+        -4.0,
+        0.0,
+        -5.0
+      ]
+    },
+    {
       "name": "LOD0"
     },
     {
@@ -207,21 +452,40 @@
       "name": "LOD2"
     },
     {
-      "children": [18, 19, 20],
-      "name": "Prop_Copy",
-      "translation": [-4.0, 0.0, -5.0]
+      "children": [
+        23,
+        24,
+        25
+      ],
+      "name": "Prop_Muted",
+      "translation": [
+        -12.0,
+        0.0,
+        0.0
+      ]
     }
   ],
   "notes": [],
   "plugin": {
     "name": "unity",
-    "version": "unity-yaml-rust2-0.13-gltf-1"
+    "version": "unity-yaml-rust2-0.13-gltf-2"
   },
-  "roots": [3, 7, 11, 15, 16, 17, 21],
-  "trianglesAcrossNodes": 492,
+  "roots": [
+    3,
+    7,
+    11,
+    15,
+    16,
+    17,
+    19,
+    22,
+    26
+  ],
+  "trianglesAcrossNodes": 572,
   "unsupported": {
     "unity-light": 1,
     "unity-model-mesh-by-fileid": 1,
-    "unity-prefab-modification-ignored": 1
+    "unity-prefab-modification-ignored:m_StaticEditorFlags": 1,
+    "unity-prefab-modification-ignored:m_TagString": 1
   }
 }
