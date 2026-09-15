@@ -92,7 +92,6 @@ pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
     Ok(())
 }
 
-
 /// Le refus d'une archive que son lecteur n'ouvre pas : tronquée, corrompue, ou compressée par une
 /// méthode que ce binaire n'embarque pas. La raison du lecteur voyage telle quelle.
 pub(super) fn unreadable(source: &Path, error: impl std::fmt::Display) -> CompilerError {
