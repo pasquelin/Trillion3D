@@ -79,6 +79,11 @@ export const BLEND_BINDINGS = (() => {
   };
 })();
 
+/**
+ * Le raster logiciel tient tout entier dans l'étage de calcul, où WebGPU ne garantit que huit
+ * tampons de stockage : l'image et la liste des petits triangles vivent donc dans un seul tampon,
+ * `work`, l'image d'abord et la liste juste après elle. Une liaison de moins, et le compte tient.
+ */
 export const SMALL_BINDINGS = (() => {
   const maps = classes(6),
     after = 6 + ATLAS_CLASS_COUNT;
@@ -91,9 +96,8 @@ export const SMALL_BINDINGS = (() => {
     uvs: 5,
     maps,
     sampler: after,
-    frame: after + 1,
-    small: after + 2,
-    selectionMask: after + 3,
-    colorSlots: after + 4,
+    work: after + 1,
+    selectionMask: after + 2,
+    colorSlots: after + 3,
   };
 })();
