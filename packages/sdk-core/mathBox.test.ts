@@ -19,7 +19,10 @@ const aPlat = (box: THREE.Box3) =>
 function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
   assert.equal(actual.length, expected.length);
   for (let i = 0; i < expected.length; i++)
-    assert.ok(Object.is(actual[i], expected[i]), `composante ${i} : ${actual[i]} !== ${expected[i]}`);
+    assert.ok(
+      Object.is(actual[i], expected[i]),
+      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
+    );
 }
 
 test('boxEmpty pose des bornes inversées à l’infini, comme Box3.makeEmpty', () => {
@@ -37,10 +40,22 @@ test('boxIsEmpty signale une boîte inversée, pas une boîte ponctuelle ni une 
 
 test('boxUnion s’accorde avec Box3.union, boîte vide, zéro signé et infinis compris', () => {
   const cas: [number[], number[]][] = [
-    [[-1, -1, -1, 1, 1, 1], [2, 2, 2, 3, 3, 3]],
-    [[Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity], [0, 0, 0, 1, 1, 1]],
-    [[-0, -0, -0, 0, 0, 0], [0, 0, 0, -0, -0, -0]],
-    [[-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity], [1, 2, 3, 4, 5, 6]],
+    [
+      [-1, -1, -1, 1, 1, 1],
+      [2, 2, 2, 3, 3, 3],
+    ],
+    [
+      [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity],
+      [0, 0, 0, 1, 1, 1],
+    ],
+    [
+      [-0, -0, -0, 0, 0, 0],
+      [0, 0, 0, -0, -0, -0],
+    ],
+    [
+      [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity],
+      [1, 2, 3, 4, 5, 6],
+    ],
   ];
   for (const [a, b] of cas) {
     const attendu = aPlat(boite3(a).union(boite3(b)));
@@ -52,9 +67,18 @@ test('boxUnion s’accorde avec Box3.union, boîte vide, zéro signé et infinis
 
 test('boxExpandByPoint s’accorde avec Box3.expandByPoint, points NaN et infinis compris', () => {
   const cas: [number[], number[]][] = [
-    [[-1, -1, -1, 1, 1, 1], [5, -5, 0]],
-    [[0, 0, 0, 0, 0, 0], [Infinity, -Infinity, NaN]],
-    [[1, 1, 1, 0, 0, 0], [0.5, 0.5, 0.5]], // boîte inversée en entrée
+    [
+      [-1, -1, -1, 1, 1, 1],
+      [5, -5, 0],
+    ],
+    [
+      [0, 0, 0, 0, 0, 0],
+      [Infinity, -Infinity, NaN],
+    ],
+    [
+      [1, 1, 1, 0, 0, 0],
+      [0.5, 0.5, 0.5],
+    ], // boîte inversée en entrée
   ];
   for (const [a, p] of cas) {
     const attendu = aPlat(boite3(a).expandByPoint(new THREE.Vector3(p[0], p[1], p[2])));

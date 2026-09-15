@@ -3,7 +3,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { clipPlanesFromMatrix, frustumClipBox, frustumExcludesBox, frustumPlanesFromMatrix } from './index.ts';
+import {
+  clipPlanesFromMatrix,
+  frustumClipBox,
+  frustumExcludesBox,
+  frustumPlanesFromMatrix,
+} from './index.ts';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(50, 1.3, 0.5, 200);
@@ -29,8 +34,7 @@ function etatThree(b: number[]) {
   const box = box3(b);
   if (!tronc.intersectsBox(box)) return 0;
   const coins = [0, 1, 2, 3, 4, 5, 6, 7].map(
-    (i) =>
-      new THREE.Vector3(i & 1 ? b[3] : b[0], i & 2 ? b[4] : b[1], i & 4 ? b[5] : b[2]),
+    (i) => new THREE.Vector3(i & 1 ? b[3] : b[0], i & 2 ? b[4] : b[1], i & 4 ? b[5] : b[2]),
   );
   return coins.every((c) => tronc.containsPoint(c)) ? 2 : 1;
 }
@@ -40,22 +44,40 @@ function etatThree(b: number[]) {
 test('une boîte entièrement dedans, avant le plan proche, rend 2 et n’est pas exclue', () => {
   const b = [-0.15, -0.15, 9.0, 0.15, 0.15, 9.3];
   assert.equal(etatThree(b), 2);
-  assert.equal(frustumClipBox(plans, ...(b as [number, number, number, number, number, number])), 2);
-  assert.equal(frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])), false);
+  assert.equal(
+    frustumClipBox(plans, ...(b as [number, number, number, number, number, number])),
+    2,
+  );
+  assert.equal(
+    frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])),
+    false,
+  );
 });
 
 test('une boîte entièrement dehors, loin sur le côté, rend 0 et est exclue', () => {
   const b = [500, 500, 500, 501, 501, 501];
   assert.equal(etatThree(b), 0);
-  assert.equal(frustumClipBox(plans, ...(b as [number, number, number, number, number, number])), 0);
-  assert.equal(frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])), true);
+  assert.equal(
+    frustumClipBox(plans, ...(b as [number, number, number, number, number, number])),
+    0,
+  );
+  assert.equal(
+    frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])),
+    true,
+  );
 });
 
 test('une boîte à cheval sur le plan gauche, loin du plan proche, rend 1 et n’est pas exclue', () => {
   const b = [5, -0.5, -1, 7, 0.5, 1];
   assert.equal(etatThree(b), 1);
-  assert.equal(frustumClipBox(plans, ...(b as [number, number, number, number, number, number])), 1);
-  assert.equal(frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])), false);
+  assert.equal(
+    frustumClipBox(plans, ...(b as [number, number, number, number, number, number])),
+    1,
+  );
+  assert.equal(
+    frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])),
+    false,
+  );
 });
 
 test('une boîte qui coupe le plan proche (z = 9.5) rend 1, jamais 0 ni 2', () => {
@@ -63,7 +85,10 @@ test('une boîte qui coupe le plan proche (z = 9.5) rend 1, jamais 0 ni 2', () =
   assert.equal(etatThree(b), 1);
   const etat = frustumClipBox(plans, ...(b as [number, number, number, number, number, number]));
   assert.equal(etat, 1);
-  assert.equal(frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])), false);
+  assert.equal(
+    frustumExcludesBox(plans, ...(b as [number, number, number, number, number, number])),
+    false,
+  );
 });
 
 test('le verdict est le même avec les plans bruts (non normalisés) qu’avec les plans normalisés', () => {
