@@ -2,7 +2,7 @@
   "case": "Deux surfaces opaques exactement coplanaires, même contour, deux matériaux, deux triangulations.",
   "rule": "Aires égales (16 et 16) : l'ordre de la source départage, le maillage le plus tardif passe dessus.",
   "formatVersion": 3,
-  "manifestBinaryVersion": 2,
+  "manifestBinaryVersion": 3,
   "coplanar": {
     "stage": "coplanar-depth-layers-v1",
     "surfaces": 2,
