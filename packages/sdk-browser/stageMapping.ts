@@ -39,10 +39,14 @@ const PASS_STAGES: Readonly<Record<string, string>> = Object.freeze({
 /** Les étapes que le moteur WebGPU sait nommer, dans l'ordre où elles se produisent. */
 export const WEBGPU_STAGES = [
   'lights',
+  'cutAdoption',
   'selection',
   'transparents',
   'residency',
   'uploads',
+  'partition',
+  'boxes',
+  'drawItems',
   'encode',
   'submit',
   'hiZ',
