@@ -1,14 +1,5 @@
 # Journal d'orchestration WebGeometry
 
-## 2026-09-15 — [session Calculs] migration hors Three.js : plan validé, en attente de go
-
-L'utilisateur a validé la démarche pour sortir les calculs de Three.js du moteur (environ 150 sites,
-lot T1 de `AUDIT_MATH_FORMULES.md`) : socle mathématique maison dans `sdk-core`, réutilisation des
-calculs existants, transformations et caméra possédées par le moteur, workers et WebAssembly réservés
-aux traitements lourds mesurés, preuve 0 px et banc contre Three à chaque lot. Spec R1a à R1f
-(`7930314`), lots M1 à M5, reprise dans `orchestration/REPRISE_CALCULATEUR.md`. Aucun code touché ;
-lancement de M1 et M2 sur go.
-
 ## 2026-09-15 — [session Calculs] doublons de formules factorisés, deux lots fusionnés
 
 Suite du catalogue `AUDIT_MATH_FORMULES.md`. Deux Opus 5 en worktrees disjoints, règle : un nom
@@ -210,17 +201,6 @@ complète, lancée sans que personne ne l'ait demandée, donc **sans verrou pris
 session mesurait. Proposition à trancher : que `readOptions` **refuse toute option qu'elle ne connaît
 pas** et sorte en nommant celles qu'elle accepte. Un harnais de mesure qui démarre sur une faute de
 frappe est un harnais qui fausse la mesure de quelqu'un d'autre.
-
-## 2026-09-15 — [session Calculs] catalogue des formules mathématiques
-
-Sur `develop` = `9bf2eb3`. Dix agents Sonnet 5 en lecture seule (trois Rust, un sdk-core, cinq
-sdk-browser, un scripts/sdk-node/page-codec) ont recensé toute fonction de calcul du dépôt, hors
-tests et bancs : formule codée, entrées, constantes, appelants. Résultat assemblé sans réécriture
-dans `orchestration/AUDIT_MATH_FORMULES.md` (environ 2 000 lignes de tableau, 577 fichiers lus, plus un lot T1 des calculs délégués à Three.js : 49 fichiers, ~150 sites),
-avec en tête vingt-six doublons transversaux (erreur projetée codée quatre fois, barycentriques six
-fois, 1/π quatre fois, Hi-Z oracle/production, sRGB trois fois…). Complète
-`AUDIT_MATH_INVENTAIRE.md` du matin, orienté coût. Rien n'est modifié dans le code ; aucune
-optimisation proposée.
 
 ## 2026-09-15 — [session Lumière] ombre lointaine sur la passe de mélange (lot `lot/ombre-lointaine-blend`)
 
@@ -636,7 +616,7 @@ Verrou `.claude/mesure.lock` pris, campagne rejouée deux fois avant d'aboutir. 
 `15297dd` (première tête de `develop` en manifeste binaire v4 qui compile), base « après » =
 `develop` à `db44508`, moteurs WebGPU et WebGL, quatre vues, 300 images, seuil pixel 1, hash de
 coupe identique, aucun incident GPU, charge machine 15 à 26 pendant la mesure, 18 erreurs 404
-`lights.json` sans effet. Détail : `orchestration/mesures/calculs-finale-2026-09-15.md`.
+`lights.json` sans effet. Détail retiré du dépôt (git `f3365a2`).
 
 Résumé : CPU générale WebGPU 4,10 → 3,80 ms, WebGL 9,60 → 8,80 ms ; GPU générale WebGPU
 10,72 → 11,83 ms ; vue `sol` en WebGPU à 0 px d'écart, les trois autres vues avec des écarts de
@@ -644,7 +624,7 @@ pixels francs. Lecture honnête : entre les deux bases sont passés les lots des
 (ombres, rebond, eau, transparents GPU, instances, budget de pages) — les écarts de pixels et
 la hausse du temps GPU générale viennent de là, pas des optimisations de calcul de cet audit.
 Cette campagne ne prouve ni ne réfute une optimisation isolée ; la preuve par lot reste le banc
-Node de `AUDIT_MATH_BILAN.md`.
+Node de l'audit des calculs (bilan retiré, git `f3365a2`).
 
 Deux essais refusés avant celui-ci : base `a59c05a`, manifeste v2 côté ancien code contre v4
 côté cache — le format a changé deux fois pendant l'audit (v2 → v3 aux aperçus, v4 à `15297dd`),
@@ -762,7 +742,7 @@ après fusion.
 
 - Preuves : oracles `bench/oracles/h3AtlasJobsOracle.ts` et `h3PriorityOracle.ts`, bancs
   `bench/textures-h3.bench.mjs` et `priorite-h3.bench.mjs`, script `npm run bench:calculs-h3`,
-  tableau `orchestration/mesures/calculs-h3-2026-09-15.md`.
+  tableau retiré du dépôt (git `f3365a2`).
 - Spec WebGPU vérifiée avant le premier gain : l'alignement d'`offset` sur 4 n'est exigé que pour un
   format de profondeur ou de gabarit ; les deux atlas sont `rgba8unorm`, donc `writeTexture` accepte
   l'offset `row * width * 4` sans copie.
@@ -778,30 +758,6 @@ après fusion.
 - Verrou de mesure pris puis rendu, convention du fichier `proprietaire` respectée dans le verrou ;
   quatre boucles d'attente d'une autre session se sont trouvées elles-mêmes au `pgrep`, arrêtées par
   leur propre session.
-
-## 2026-09-15 — [session calculs] moteur `webgl2` dans le harnais : le troisième moteur devient mesurable en campagne
-
-Fusion fast-forward, `develop` 840a935 → 71bb38a, commit unique `71bb38a`
-(« feat(mesure): moteur webgl2 autonome dans les options du banc »).
-
-- `--moteur` du banc accepte une troisième valeur, `webgl2` : le moteur autonome WebGL2
-  (`autonomousPagesBackend`, id `autonomous-pages-webgl`, drapeaux `BASE_FLAGS`). C'est le seul des
-  trois moteurs exposés à décoder lui-même des pages de géométrie ; les deux autres (`webgl`,
-  `webgpu`) ne demandent que des paquets d'index, d'où `pagesDecodedWasm` (décodage WebAssembly des
-  pages, lot H2) toujours nul en campagne jusqu'ici.
-- Il n'est pas choisi par la liste `backends` comme les deux autres, mais par le réglage public
-  `autonomousGeometry` de l'explorateur, qui refuse de recevoir les deux à la fois. `ENGINES.webgl2`
-  porte un drapeau `autonome: true` (`options.mjs`) ; `serie.mjs` le relit pour nommer la série, et
-  `pageEclairage.mjs` bascule entre `{ autonomousGeometry: true }` et `{ backends: [factory] }` selon
-  ce drapeau — une ligne changée, le fichier reste à 200 lignes.
-- Limite écrite dans le `README.md` du harnais : `webgl2` exige un cache dont toutes les primitives
-  sont en `exact-clusters` (le compilateur n'écrit `autonomousScene` que dans ce cas) ; sans cela
-  l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`. Le cache Emerald du Lab n'en a
-  pas ; Whisperwind Village, New York, Low Poly City et AccuCities London en ont un.
-- Point ouvert, laissé tel quel par ce commit : la coupe relevée par la page de mesure peut revenir
-  vide avec ce moteur (pas de `selectedPageIds`) — à reprendre si besoin.
-- Fumée non faite : verrou de mesure pris par une autre session au moment du commit.
-- Portes passées : `tsc`, `check:changed`, `check:unused`, `eslint`, `banc.test` 10/10.
 
 ## 2026-09-15 — [session Lumière] WEBGPU_LOST sur Emerald : le remplaçant de `BounceGrid` avait gardé son ancienne taille
 
@@ -1557,7 +1513,7 @@ cascades relevés le 15 septembre.
 
 - **Contrat versionné** `sdk-core/pageDecodeContracts.ts` (v2) : entrée, sortie, annulation, refus fermés dont `PAGE_DECODE_UNAVAILABLE`, pool borné min(cœurs, 4, admission). Adaptateur navigateur `pageDecodeTask.ts` (la tâche écrite une seule fois, partagée par le worker et le repli), `pageDecodeWorker.ts`, `pageDecodePool.ts`, `pageDecodeHost.ts` ; branché dans la chaîne de streaming (`streamingFetch`, `clusterPages`, `explorerStreaming`, `explorerLifecycle`, `autonomousPages`), aucun `webgpu*` touché. Page fraîche transférée sans copie à l'aller, tampons décodés transférés au retour ; page déjà résidente copiée (la comptabilité d'octets de l'éviction reste sur le fil principal). Le pool ne bloque jamais : épreuve de démarrage non attendue, repli sur place si aucun worker ne vit. Métriques `pagesDecodedOffThread`, `pageDecodeMs`, `pagesDecodedWasm` (`null` si non mesuré).
 - **Décodeur WebAssembly** `packages/page-codec-wasm` (Rust, cdylib + rlib, ABI `extern "C"`, aucune nouvelle dépendance ; la crate `meshopt` compile son C en wasm32 avec `-msimd128`) ; le compilateur natif le prend en dev-dependency, le décodeur n'est écrit qu'une fois ; test doré natif contre l'encodeur (`to_bits`, fixtures + maillages hostiles). Chargeur `geometryPageWasm.ts` avec repli sur `geometryPage.ts` si `WebAssembly` ou SIMD manquent ; `pageCodec.wasm` 38 065 octets commis, recopié dans `dist/` par `npm run build` ; `build:wasm` hors de `validate` (cible `wasm32-unknown-unknown` et `llvm-tools` installés par `rustup` sur cette machine).
-- **Mesures** (`orchestration/mesures/calculs-h2-2026-09-15.md`, `calculs-h2b-2026-09-15.md`) : décodage par le contrat avec wasm 2,65 → 1,67 ms (37 %), décodeur seul 11,8 → 8,3 ms (30 %), identique octet pour octet ; refus de page plus lent en wasm, non retenu. Campagne `webgpu`, 4 vues × 120 images : témoin A/A 0 px, avant/après 0 px, même hash de coupe, 82 à 90 travaux hors fil par série. `pagesDecodedWasm = 0` en campagne : les deux moteurs exposés par `options.mjs` ne demandent que des paquets d'index ; seul le moteur autonome WebGL2 décode des pages de géométrie, à exposer dans le harnais (commit séparé, Lumière prévenue).
+- **Mesures** (tableaux H2 et H2b retirés, git `f3365a2`) : décodage par le contrat avec wasm 2,65 → 1,67 ms (37 %), décodeur seul 11,8 → 8,3 ms (30 %), identique octet pour octet ; refus de page plus lent en wasm, non retenu. Campagne `webgpu`, 4 vues × 120 images : témoin A/A 0 px, avant/après 0 px, même hash de coupe, 82 à 90 travaux hors fil par série. `pagesDecodedWasm = 0` en campagne : les deux moteurs exposés par `options.mjs` ne demandent que des paquets d'index ; seul le moteur autonome WebGL2 décode des pages de géométrie, à exposer dans le harnais (commit séparé, Lumière prévenue).
 - Piège trouvé : un worker de module n'hérite pas de la carte d'imports du document ; sans correction, le pool échouait au démarrage chez un hôte sans empaqueteur et tout repartait en silence sur le fil principal. Vérifié dans Chrome sur le `dist/` servi tel quel.
 - Tests : 32 tests (contrat, tâche, chargeur, identité wasm/JS/sur place, worker réel, pool, hôte), `validate` vert (737 tests JS). Fusion `30f2b33`. Charge machine 22 à 88 pendant le lot (trois campagnes d'autres sessions en parallèle) : temps par image non concluants, sérialisation des campagnes demandée aux sessions Geometry et Lumière.
 
@@ -2381,7 +2337,7 @@ port 5174 non touché ; aucun `eslint-disable` ; `node_modules` (lien symbolique
 - **Lot E** : oracles et bancs déménagés de `scripts/mesure/calculs/` vers `packages/sdk-browser/bench/` et `packages/sdk-core/bench/` (47 fichiers, 24 tests recâblés), les agrégateurs seuls restent sous `scripts/`. Un premier déménagement avait été retiré de `develop` par un `branch: Reset to HEAD` d'une autre session (sauvegardé sous le tag `audit/lot-e-v1`) ; refait sur l'état à jour.
 - **Lot F** : 17 lignes retenues (commit de lignes déplacées seulement, index de ligne sur `PageRec`, transparentes tenues à part, bornes Hi-Z par bloc, `colorAttachments` en cache, mapping d'instance stocké, anneau de préchargement 0,69 → 0,08 ms, `textureRgba` sans vue par texel, `pageSelectionCollect` 7,2 → 5,4 ms, index des primitives et des pages, préparation WebGPU, décodage du manifeste, `hypot` sans étalement). Refusés : tri par insertion (diverge de `sort` sur clé NaN), `viewProj`, `uncovered` hors delta, anisotropie (`texture.version` observable) ; neutres revertés : slots d'ombre, paire de moteurs, `Map` de bundles ; `multiply4` sans objet après la réécriture des faces d'ombre sur `develop`. 69 tests.
 - **Passage global G** (deux Sonnet neufs, 189 fichiers relus, 12 points) : 10 retenus — coupe autonome sans parcours complet, ombrage CPU 23,5 → 15,1 ms, compteur d'octets, demande annulée 1,22 → 0,09 ms, file d'adresses 0,96 → 0,05 ms, étiquettes des colonnes Rust 13,8 → 0,36 ms, bornes de cascade solaire par vue, validation d'accessor unique, niveaux de preview, min/médiane/max sans tri. Neutres : cache de coins Hi-Z (relire 24 doubles coûte plus que retransformer 8 coins), preview Rust. Le harnais JS a gagné une mesure alternée (`options.alterne`) : la mesure séquentielle donnait 25 à 40 % d'avance au premier tour sur machine chargée.
-- Bilan dans `orchestration/AUDIT_MATH_BILAN.md` ; `AUDIT_MATH_PLAN.md` et les rapports G supprimés (plan terminé). Reste : D3 avec sa propre campagne, et la preuve navigateur chiffrée des temps par image sur machine calme.
+- Bilan retiré du dépôt (git `f3365a2`) ; `AUDIT_MATH_PLAN.md` et les rapports G supprimés (plan terminé). Reste : D3 avec sa propre campagne, et la preuve navigateur chiffrée des temps par image sur machine calme.
 
 ## 2026-09-15 — lot « rebond 3 » : cascades autour de la caméra, budget en millisecondes, ordre 2
 
@@ -2982,21 +2938,6 @@ Charge machine relevée au début et à la fin de chaque série : de 3,5 à 20 (
 - **Preuve navigateur.** Lab en lecture seule sur le port 5181 (5174 laissé à l'utilisateur), cache Emerald recompilé en v3 dans le scratchpad (232 textures couleur, **232 aperçus, 0 ignoré**, sidecar `version 3`, 17 s, 10 046 405 triangles, 281 primitives, 1 030 nœuds) et servi par un relais 5182, Lab jamais écrit. Deux exécutions du harnais `test/webgpuCapture.browser.mjs`, 600 images chacune, dix captures 1246×1000 : **bit à bit identiques entre elles**. Contre les dix références `develop` : **3 pixels sur 12 460 000**, écart maximal **39** sur un canal, trois pixels isolés sur les segments 3 et 8 — le bruit A/A mesuré sur ces mêmes segments va de 0 à 43 pixels. Chaque capture : `texturePending` 0, `textureSkipped` 0, `textureUploaded` 336, aucune erreur GPU, **aucun triangle non couvert**, couverture complète. Images sous `benchmark-runs/webgpu-capture/fusion-finale-{a,b}/` (hors git).
 - Chiffres de performance : **`null`**. Rien n'est mesuré ici, ni première image, ni coût par image, ni taille de sidecar.
 - Reste : lots 3 à 5 des textures progressives, la réutilisation du pipeline de `textureMips.ts`, et — note d'exploitation — **tous les caches du Lab doivent être recompilés en v3**, le lecteur de sidecar refusant la version 2 par son nom.
-
-## 2026-09-15 — audit des calculs, lots B et C fusionnés
-
-- **Lot B, Rust à la compilation** (`npm run bench:calculs:natif`, banc `src/bench_calculs/`, référence recopiée, `to_bits` sur chaque flottant) : 7 retenus sur 12 lignes. Matrices monde construites une fois pour la coplanarité 7,84 → 3,98 ms ; colonnes du manifeste binaire sans vecteur temporaire 27,6 → 1,77 ms ; bisection et bord des groupes sans HashSet 0,97 → 0,16 et 0,43 → 0,19 ms ; compaction d'une région 0,31 → 0,29 ms ; classification des sommets à blocs réutilisés 15,3 → 4,64 ms ; renumérotation d'une page 291 → 140 ms. Refusés : adjacence sans tri (52 ms contre 28, annulé), `#[inline]` (bruit), octets d'indices (neutre) ; sans objet : digests (rien n'est recalculé), `CornerHasher` (déjà fait). Fixtures dorées et maillage de 500 000 triangles : manifeste, `clusters.bin`, pages et objets identiques octet par octet ; compilation 3 909 → 3 501 ms (machine chargée, chronomètres `perf.rs` : topologie −44 %, regroupement −55 %). 8 tests d'équivalence, `validate` vert (111 tests Rust).
-- **Lot C, changements d'ordre flottant** (`*-c.bench.mjs`, écart mesuré en ULP et en pixels) : 3 retenus sur 7. Pyramide Hi-Z plate en `Float32Array` 9,41 → 5,97 ms ; relance sur budget arrêtée à la page qui dépasse 22,0 → 9,78 ms (coupe strictement identique) ; table sRGB 256 entrées 34,6 → 20,2 ms. Refusés avec preuve : raster affine (809 pixels changent d'identifiant, trou possible sur une diagonale au centre du pixel), préchargement dérivé de la coupe (2 500 pages contre 1 250), second parcours de forçage (autre ensemble), seuil de réparation mémorisé (coupe dépendante de l'historique). Les tests ont trouvé un écart que le banc masquait (`Float64Array` convertissait `undefined` en `NaN`) : `sampleMap` rend `NaN` sur un index de texel rompu, comme avant. Champ `PageRec.seen`, écrit et jamais lu, supprimé. 3 fichiers de tests, `validate` vert (534 tests JS).
-- Règle posée par l'utilisateur : aucune optimisation n'est retenue si le résultat change, même d'un bit. Décision : oracles et bancs JS déménagent de `scripts/mesure/calculs/` vers `packages/*/bench/` (les tests d'un paquet ne doivent pas dépendre de `scripts/`, et un banc n'importe pas les internes d'un paquet depuis l'extérieur) — lot de déplacement à venir. Preuve navigateur des trois lots reportée à une machine calme.
-- **Lot E, déplacement pur** : les 17 oracles, les 21 bancs et le harnais (`banc.mjs`, `bancC.mjs`, `bancF.mjs`, `ecartsC.mjs`, `scenes.mjs`, `scenesC.mjs`, `scenesF.mjs`, `rasterC.mjs`, `dagC.mjs`) ont quitté `scripts/mesure/calculs/` pour le paquet dont ils mesurent le code : `packages/sdk-core/bench/` pour `f-manifeste-f` et `f-vecteurs-f`, qui ne touchent que `sdk-core`, `packages/sdk-browser/bench/` pour les dix-neuf autres. Le harnais commun est dans `sdk-core/bench/`, le paquet de base : la dépendance va de `sdk-browser` vers `sdk-core`, jamais l'inverse. Les 24 tests des deux paquets importent leurs oracles par `./bench/oracles/…`, les bancs atteignent leur paquet par chemin relatif. `scripts/mesure/calculs/` ne garde que `agrege.mjs`, `agrege-c.mjs`, `agrege-f.mjs` et leur `tableau.mjs` commun, sans aucun import de paquet. Aucun changement de comportement : `bench:calculs` rend 14 lignes « Identique » à oui, `bench:calculs-f` 17, `bench:calculs-c` les mêmes 3 retenus et 4 refus décrits ; `validate` vert, 613 tests JS avant comme après.
-
-## 2026-09-15 — audit des calculs, lot A : quatorze optimisations bit-exactes et un banc de comparaison
-
-- Inventaire des calculs mathématiques (`orchestration/AUDIT_MATH_INVENTAIRE.md`, ~230 entrées, Top 15 des boucles chaudes) par onze lectures Sonnet 5 sur `ea032f4`, plan en trois lots (`orchestration/AUDIT_MATH_BILAN.md` (anciennement le plan)). Lot A = JavaScript par image, résultat identique au bit près ; lot B = Rust à la compilation ; lot C = changements d'ordre flottant, décidés sur mesure d'écart.
-- **Banc commis** `scripts/mesure/calculs/` (`npm run bench:calculs`) : pour chaque calcul, l'ancien code recopié comme référence dans `oracles/*.mjs`, le nouveau importé du paquet, mêmes entrées hostiles (DAG 20 000 pages, 1280×720, dégénérés, NaN/Infinity/-0, tailles limites, graines xorshift), égalité `Object.is` sur chaque valeur, médiane sur ≥ 200 tours. Tableau et JSON dans `orchestration/mesures/calculs-2026-09-15.{md,json}`.
-- **Résultat : 14 / 14 identiques, 14 / 14 retenus.** Gains (ms avant → après) : projection des sommets une fois par triangle dans `visibilityDepth` 5,65 → 1,21 ; `shadeVisibility` 24,2 → 18,5 ; occulteurs par tri radix (`splitOccludersFlat` enfin branché, `splitOccluders` supprimé) 9,70 → 3,18 ; `countUnoccluded` à plat (`projectBoxToScreen` supprimé) 13,9 → 12,0 ; niveau de mip borné 1,41 → 0,68 ; `boxClip` par indice 0,93 → 0,79 ; urls de résidence autonome (Set persistants, plus d'`includes` ni de spread) **222 → 1,35** ; comptage des pages résidentes 0,36 → 0,07 ; `windingCw` mémorisé et déterminant unique 0,94 → 0,72 ; caméra de comparaison Hi-Z recopiée au lieu de clonée 0,68 → 0,13 ; résidence DAG GPU sur miroir compact 1,35 → 0,81 ; file de streaming triée une fois 1,20 → 0,92 ; décodage de page sans fermeture par sommet 2,36 → 1,17 ; télémétrie en tampon circulaire 3,20 → 0,34.
-- Tests : 61 tests d'équivalence ajoutés (un par comportement), `hiz.test.ts` et `hizTemporal.test.ts` adaptés à l'API restante. `npm run validate` vert après rebase sur `develop` (`a59c05a`) : 493 tests JS, 83 Rust, 0 doublon, 0 fichier > 200 lignes.
-- Non fait : preuve navigateur (captures A/A et `tri = selected`) reportée à une machine calme, deux agents compilant en parallèle ; reportés au lot C : cache de coins d'époque dans `countUnoccluded`, delta `entered/exited` de `shownFromGpu`, compteur incrémental de `vertexBytes`.
 
 ## 2026-09-15 — lot 2 : transferts de textures découpés et prioritaires
 
