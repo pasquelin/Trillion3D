@@ -4,6 +4,7 @@ import { sameHizView } from './hiz.ts';
 import { dropGpuSelection, invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
+import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
@@ -18,6 +19,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
   source.updateMatrixWorld(true);
+  setWindingEpoch(rows.tableEpoch);
   void rt.texturePump
     .pump()
     .catch((error) => diag.diagnosticFailure('progressive-texture-mips-failed', error));

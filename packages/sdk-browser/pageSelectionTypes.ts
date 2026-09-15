@@ -33,6 +33,9 @@ export type PageRec = {
   sourceMesh?: THREE.Mesh;
   sourceOrder?: number;
   matrix: THREE.Matrix4;
+  /** Sens de parcours mémorisé et époque de la matrice monde qui l'a donné (`webgpuPagesWinding`). */
+  windingCw?: boolean;
+  windingEpoch?: number;
   renderOrder: number;
   geometry?: THREE.BufferGeometry;
   mesh?: THREE.Mesh;
