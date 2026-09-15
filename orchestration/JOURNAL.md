@@ -5971,3 +5971,87 @@ aucune branche `compilateur/*` vivante. Restes : BC6H flottant, KTX 1.0, ASTC ho
 blocs gardés sur GPU, lampes Unity, instances imbriquées, métal-lissage, TIFF palette, MTL à
 vérifier, Industrial Map au banc 15, `atlasClasses: 2`, licence FAB. Reprise :
 `orchestration/REPRISE_COMPILATEUR.md`.
+
+## 2026-09-15 — [compilateur] pilote alembic
+
+Un `.abc` de géométrie statique devient une scène intermédiaire glTF, sans outil tiers. Le pilote est
+`packages/asset-compiler-rust/src/plugins/scene/alembic.rs` et ses neuf modules par responsabilité —
+`ogawa` (le conteneur), `archive` (métadonnées, objets), `property` (en-têtes et échantillons),
+`values` (octets vers nombres), `geom` (positions, faces, paramètres de géométrie), `mesh`
+(triangulation et découpage), `xform` (pile d'opérations), `scene` (tables glTF), `walk` (parcours),
+`convert` (entrée) — plus une ligne dans le registre de scènes. Rien d'autre n'a bougé dans le cœur,
+sauf une méthode ajoutée au harnais doré commun, `GoldenRun::prepared_dir`, qui donne le dossier où
+un pilote nommé a écrit sa scène : une dorée qui veut lire les octets de cette scène part de là.
+
+**Provenance et licence.** Le lecteur est écrit dans ce dépôt, depuis la spécification publique
+d'Alembic et ses sources de référence sous BSD-3-Clause (Sony Pictures Imageworks, Lucasfilm) :
+entête et blocs Ogawa, métadonnées indexées, objets, propriétés composées, scalaires et tableaux,
+échantillons. **Aucune dépendance n'a été ajoutée** — `Cargo.lock` est inchangé —, aucun code ni SDK
+d'éditeur n'est repris, rien n'est déchiffré. La seule caisse Rust publique candidate, `ogawa-rs`
+0.4.0 (MIT OU Apache-2.0, Traverse Research), a été lue et écartée pour trois raisons de sûreté, pas
+de licence : elle rend `todo!()` — donc panique — sur le type booléen, que porte le `.inherits` de
+tout `Xform` du corpus ; elle indexe les enfants d'un groupe sans borne (`children[index]`) ; elle ne
+plafonne aucune allocation et alloue ce qu'un entête annonce. Le dépôt exige l'inverse : un fichier
+corrompu rend un refus nommé. Le lecteur écrit ici borne chaque lecture deux fois, par la taille du
+fichier et par un plafond nommé — 4 Mi enfants par groupe, 1 Gio par bloc, 64 Mi coins par maillage.
+
+**Ce qui est lu.** La hiérarchie des `Xform` : pile d'opérations `.ops` — un octet dont les quatre
+bits de poids **fort** donnent le type, ce qu'une lecture inverse fait passer pour une mise à
+l'échelle, et c'est le premier bogue que la dorée a attrapé —, valeurs `.vals`, héritage
+`.inherits`. Les `PolyMesh` : positions, `.faceCounts`/`.faceIndices`, normales `N` et coordonnées
+`uv`, sous leurs deux formes — valeurs directes ou valeurs uniques plus indices — et sous n'importe
+quelle portée (par sommet, par coin de face, par face, constante). Les `SubD`, rendus comme les
+polygones plats qu'ils portent, et dits au rapport. Les `FaceSet` : chacun donne son nom à un
+matériau et découpe une primitive ; Alembic ne décrit aucun nuancier, donc le matériau est neutre
+(blanc opaque, métal 0, rugosité 1) et rien ne lui est inventé. Deux objets aux mêmes octets sont un
+seul maillage et deux nœuds : c'est là l'instanciation, par contenu, sans deviner un champ de format.
+
+**Les deux conversions, et pourquoi elles sont exactes.** L'**enroulement** : Alembic décrit ses
+faces dans l'ordre horaire vu de l'extérieur, le glTF dans l'ordre inverse ; chaque face est donc lue
+à l'envers, puis découpée en éventail — exact pour une face plane et convexe. La preuve est dans le
+corpus : la normale calculée sur l'ordre écrit est l'opposée de la normale que le fichier stocke,
+sur les six faces. Les **coins** : Alembic donne une position par sommet mais une normale et une
+coordonnée par coin de face, là où le glTF n'a qu'un tableau par sommet ; chaque triplet distinct
+(sommet, normale, coordonnée) devient un sommet, les triplets identiques restent un seul sommet —
+aucun nombre n'est modifié. La seconde coordonnée de texture est retournée, les origines des deux
+formats étant opposées, et l'aller-retour est exact. Une matrice `matrix` entre telle quelle : Imath
+range en lignes avec le vecteur à gauche, le glTF en colonnes avec le vecteur à droite, et les deux
+inversions se compensent — la suite de seize nombres est la même.
+
+**Ce qui est compté sans être rendu** : courbes, points, surfaces NURBS, caméras, lampes, objets
+d'un autre schéma, objets marqués comme instance par référence, animation — seul le premier
+échantillon est lu —, faces revendiquées par deux face sets, faces de moins de trois côtés,
+paramètres de géométrie qui ne couvrent pas tous les coins, normales absentes, `.arbGeomParams`.
+Refus qui arrêtent la compilation, chacun par son nom : `alembic-hdf5-unsupported` (l'emballage
+HDF5, que ce binaire ne lit pas et n'imite pas), `alembic-file-invalid`, `alembic-size-unsupported`,
+`alembic-values-invalid`, `alembic-topology-invalid`. Aucune panique nulle part.
+
+**Dorées.** `fixtures/alembic/procedural-static/scene.abc`, CC0-1.0, repris tel quel du corpus local
+`test-assets/alembic/procedural-static` avec sa notice : 8 110 octets, conteneur Ogawa, quatre
+`Xform` (une racine et trois porteurs posés en x = 0, 3 et 6), trois `PolyMesh` `Cube` de 8 positions
+et 6 faces de quatre côtés, normales et coordonnées par coin de face — ces dernières indexées sur 14
+valeurs uniques —, neuf `FaceSet` lus (`Emissive`, `Opaque`, `Transparent` par cube). Sortie :
+**un seul maillage** écrit et deux répétitions ramenées à des nœuds, 3 primitives de 8 sommets et 4
+triangles chacune, 3 matériaux nommés, 36 triangles sur 3 nœuds, rapport vide. `expected.json` fixe
+en clair la hiérarchie, les matrices, chaque primitive, et les positions, normales, coordonnées et
+indices de la première primitive — c'est là que l'enroulement inversé et la coordonnée retournée se
+lisent nombre par nombre. `fixtures/alembic/limites/` porte trois fichiers écrits à la main pour ce
+dépôt, sous CC0 : `hdf5.abc` et `truncated.abc` (seize octets chacun) prouvent deux refus au travers
+du compilateur entier, et `cases.abc` (3 110 octets) ce que le corpus ne porte pas — un pentagone à
+deux échantillons de positions, une surface de subdivision, un objet de courbes, un `Xform` qui
+n'hérite pas de son père et devient racine avec sa matrice, trois maillages sans normales. Treize
+tests au total, treize cas de plus qu'avant le lot ; `cargo test --locked` du paquet, rebasé sur
+`7930314` : 228 cas, 223 au vert et 5 ignorés (les régénérations de fixtures), plus les 4 du CLI.
+`cargo fmt --check`, `cargo clippy --all-targets -D warnings`, `check:lines` et `check:duplicates`
+verts. Deux petites additions au code commun l'ont permis sans rien dupliquer : `Bin` dérive
+`Default`, et le harnais doré publie `GoldenRun::prepared_dir` et `scene_digest`, la charpente que
+toute dorée de pilote de scène fixe — la dorée Unity y est passée, son `expected.json` inchangé.
+
+**Ce qui reste.** L'instanciation par référence d'Alembic — un objet dont la métadonnée porte
+`isInstance` — est comptée, pas suivie : aucun fichier du corpus n'en porte, et la déduplication par
+contenu rend déjà un maillage répété une seule fois. L'animation n'est pas convertie, seul le premier
+échantillon est lu, et le glTF intermédiaire saurait pourtant porter des cibles de morphage. Les
+`.arbGeomParams` — couleurs de sommets, poids, vitesses — sont ignorés faute de consommateur. Les
+surfaces de subdivision ne sont pas subdivisées : un `SubD` rend sa cage, ce qui est plus grossier
+que ce qu'un moteur de rendu en ferait. Les faces concaves ou non planes sortent d'un découpage en
+éventail, qui les recouvre sans les respecter ; aucun corpus n'en porte pour l'instant.
