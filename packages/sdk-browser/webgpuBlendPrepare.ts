@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { BOX_VALUES, boxIsEmpty, boxTransform } from '../sdk-core/index.ts';
+import { readThreeBox } from './threeBounds.ts';
 import {
   FLAG_BACK,
   FLAG_DOUBLE,
@@ -69,16 +71,15 @@ export function prepareWebgpuBlend(
     if (mat.map && mat.map.wrapT !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_T_REPEAT;
     // Static source transforms are baked for this backend. World AABBs remain
     // conservative under rotation, mirroring, nonuniform scale and shear.
-    let bounds: THREE.Box3 | undefined;
+    let bounds: Float64Array | undefined;
     if (copy.frustumCulled) {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
-      const box = copy.geometry.boundingBox?.clone().applyMatrix4(copy.matrix);
-      if (
-        box &&
-        !box.isEmpty() &&
-        [...box.min.toArray(), ...box.max.toArray()].every(Number.isFinite)
-      )
-        bounds = box;
+      if (copy.geometry.boundingBox) {
+        const box = new Float64Array(BOX_VALUES);
+        readThreeBox(box, copy.geometry.boundingBox);
+        boxTransform(box, 0, box, 0, copy.matrix.elements);
+        if (!boxIsEmpty(box, 0) && box.every(Number.isFinite)) bounds = box;
+      }
     }
     const item = {
       transmissive: transmits,
