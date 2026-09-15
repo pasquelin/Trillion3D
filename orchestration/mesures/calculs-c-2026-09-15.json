@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "lot": "C",
+  "date": "2026-09-15T00:55:15.292Z",
+  "commit": "9779008dc1ebb5f90b77f8dc8d23408d4ab26575",
+  "node": "v26.8.2",
+  "plateforme": "darwin/arm64",
+  "dpr": null,
+  "fps": null,
+  "lignes": [
+    {
+      "calcul": "C1 fillIds",
+      "fichier": "packages/sdk-browser/visibilityRaster.ts",
+      "avantMs": 620.824333,
+      "apresMs": 434.690041,
+      "gain": 0.2998179712134447,
+      "identique": false,
+      "ecart": "1017 valeurs, ULP max 551127, 809 pixels d'identifiant, 208 pixels de profondeur — 64×64, diagonale partagée au centre du pixel identifiant [946]: 512 ≠ 256",
+      "retenu": false,
+      "entrees": [
+        {
+          "nom": "1280×720, 9 600 triangles dont dégénérés",
+          "taille": 9600
+        },
+        {
+          "nom": "1280×720, triangles rasants et derrière la caméra",
+          "taille": 576
+        },
+        {
+          "nom": "aucune page",
+          "taille": 0
+        },
+        {
+          "nom": "64×64, diagonale partagée au centre du pixel",
+          "taille": 2
+        },
+        {
+          "nom": "1280×720, 64 quadrilatères en damier",
+          "taille": 128
+        },
+        {
+          "nom": "graine 11, 2 880 triangles",
+          "taille": 2880
+        },
+        {
+          "nom": "graine 37, 2 880 triangles",
+          "taille": 2880
+        },
+        {
+          "nom": "graine 97, 2 880 triangles",
+          "taille": 2880
+        }
+      ]
+    },
+    {
+      "calcul": "C2 pyramide Hi-Z",
+      "fichier": "packages/sdk-browser/hizDepth.ts",
+      "avantMs": 9.4108755,
+      "apresMs": 5.970896,
+      "gain": 0.3655323566866866,
+      "identique": true,
+      "ecart": null,
+      "retenu": true,
+      "entrees": [
+        {
+          "nom": "1280×720, tous les niveaux",
+          "taille": 921600
+        },
+        {
+          "nom": "33×19, tous les niveaux",
+          "taille": 627
+        },
+        {
+          "nom": "1×1, tous les niveaux",
+          "taille": 1
+        },
+        {
+          "nom": "1280×720, 4 000 rectangles",
+          "taille": 921600
+        },
+        {
+          "nom": "33×19, tailles impaires",
+          "taille": 627
+        },
+        {
+          "nom": "1×1",
+          "taille": 1
+        }
+      ]
+    },
+    {
+      "calcul": "C3 anneau de préchargement",
+      "fichier": "packages/sdk-browser/exactPagesRequests.ts",
+      "avantMs": 2.16075,
+      "apresMs": 2.052916,
+      "gain": 0.04990581973851671,
+      "identique": false,
+      "ecart": "2 valeurs, ULP max Infinity — l'anneau descend sous la coupe (2500 pages demandées contre 1250 dans la coupe), il ne s'en dérive pas ; et la seconde coupe n'est pas faite par image : `explorerDraw.ts:54-59` ne l'appelle que réseau au repos, après un délai",
+      "retenu": false,
+      "entrees": [
+        {
+          "nom": "20 000 pages, seuil 8 contre seuil 4",
+          "taille": 20000
+        },
+        {
+          "nom": "4 000 pages, seuil 32 contre seuil 16",
+          "taille": 4000
+        }
+      ]
+    },
+    {
+      "calcul": "C4 second parcours de forçage",
+      "fichier": "packages/sdk-browser/pageSelectionCutSelect.ts",
+      "avantMs": null,
+      "apresMs": null,
+      "gain": null,
+      "identique": false,
+      "ecart": "non mesuré : le second parcours ne rejoue pas la coupe, il change de prédicat pour toutes les pages (`drawnUnderForcing` au lieu de `cutSelects`), pas seulement sous les groupes forcés. Ne retraverser que les sous-arbres touchés rendrait un autre ensemble et un autre ordre d'émission : la coupe ne serait pas identique.",
+      "retenu": false,
+      "entrees": []
+    },
+    {
+      "calcul": "C5 relance sur budget",
+      "fichier": "packages/sdk-browser/pageSelectionCut.ts",
+      "avantMs": 22.035208,
+      "apresMs": 9.775958,
+      "gain": 0.5563482768122725,
+      "identique": false,
+      "ecart": "8182 valeurs, ULP max 0, dont 8182 hors de la coupe — coupe identique ; 8182 estampilles que les passages abandonnés ne posent plus",
+      "retenu": true,
+      "entrees": [
+        {
+          "nom": "20 000 pages, budget 300 dépassé",
+          "taille": 20000
+        },
+        {
+          "nom": "20 000 pages, budget tenu du premier coup",
+          "taille": 20000
+        },
+        {
+          "nom": "8 000 pages, aucun budget",
+          "taille": 8000
+        }
+      ]
+    },
+    {
+      "calcul": "C6 seuil de réparation mémorisé",
+      "fichier": "packages/sdk-browser/pageSelectionCutRepair.ts",
+      "avantMs": null,
+      "apresMs": null,
+      "gain": null,
+      "identique": false,
+      "ecart": "non retenu : la montée par paliers cherche le plus petit point fixe au-dessus du seuil de l'image. Repartir d'un seuil mémorisé donne un point fixe plus grand, donc une coupe plus grossière : le résultat cesse d'être une fonction de l'entrée, il dépend de ce qui a été demandé avant. Aucune réécriture ne rend la coupe identique, et la mesure sur 8 000 pages dont 45 % manquantes n'a montré aucun gain. Le commit est reverté.",
+      "retenu": false,
+      "entrees": []
+    },
+    {
+      "calcul": "C7 sRGB vers linéaire",
+      "fichier": "packages/sdk-browser/visibilityMath.ts",
+      "avantMs": 34.582125,
+      "apresMs": 20.248666,
+      "gain": 0.41447594674994664,
+      "identique": true,
+      "ecart": null,
+      "retenu": true,
+      "entrees": [
+        {
+          "nom": "200 000 texels, trois textures, uv non finis",
+          "taille": 200000
+        },
+        {
+          "nom": "64 texels, deux textures",
+          "taille": 64
+        }
+      ]
+    }
+  ]
+}
