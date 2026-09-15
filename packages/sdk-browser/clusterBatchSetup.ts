@@ -78,15 +78,12 @@ export function setupClusterBatches(pages: readonly BatchPage[]) {
     const urlIndexByPage = new Int32Array(draft.urlIndexByPage.length);
     for (let i = 0; i < urlIndexByPage.length; i++)
       urlIndexByPage[i] = draft.urlIndexByPage[i] ?? -1;
-    const bounds = new THREE.Box3(
-      new THREE.Vector3().fromArray(draft.min),
-      new THREE.Vector3().fromArray(draft.max),
-    );
     const primitive = new PrimitiveIndex(
       draft.attributes,
       urlIndexByPage,
       Int32Array.from(draft.lengths),
-      bounds,
+      draft.min,
+      draft.max,
     );
     built.set(draft, primitive);
     state.primitives.push(primitive);

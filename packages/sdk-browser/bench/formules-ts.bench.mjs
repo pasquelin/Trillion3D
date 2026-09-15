@@ -6,8 +6,8 @@
 // le critère ici. Seule la colonne « identique » décide, et l'assertion de dépôt la fait tomber.
 // Les durées mesurées sont celles de `map` sur quelques milliers d'entrées, pas celles du moteur.
 import { DEFAULT_PIXEL_RATIO, devicePixels } from '../backendCommon.ts';
-import { bounceBatchOf } from '../../sdk-core/index.ts';
-import { outsidePlanes, projectedError } from '../gpuDagOracleMath.ts';
+import { bounceBatchOf, frustumExcludesBox } from '../../sdk-core/index.ts';
+import { projectedError } from '../gpuDagOracleMath.ts';
 import { nanosecondsToMs } from '../gpuTimingTypes.ts';
 import { viewDistance, viewDistanceOf } from '../pageSelectionProjection.ts';
 import { VIS_TRIANGLE_BITS } from '../visibilityTypes.ts';
@@ -47,10 +47,10 @@ const options = { chauffe: 2, tours: 12, budgetMs: 700 };
 const lignes = [
   await compare({
     calcul: 'boîte hors des six plans',
-    fichier: 'packages/sdk-browser/gpuDagOracleMath.ts',
+    fichier: 'packages/sdk-core/mathFrustumBox.ts',
     cas: un('400 jeux de plans × 400 boîtes hostiles', casPlans, casPlans.length),
     reference: (liste) => liste.map((c) => referenceOutsidePlanes(c.planes, ...c.boite)),
-    optimisee: (liste) => liste.map((c) => outsidePlanes(c.planes, ...c.boite)),
+    optimisee: (liste) => liste.map((c) => frustumExcludesBox(c.planes, ...c.boite)),
     options,
   }),
   await compare({

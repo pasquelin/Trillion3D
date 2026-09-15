@@ -156,9 +156,9 @@ test('deux instances partagent la forme du DAG, jamais ce qui les place', () => 
   assert.equal(roots[0].structure, roots[1].structure);
   assert.notEqual(roots[0].forced, roots[1].forced);
   assert.notEqual(roots[0].localBox, roots[1].localBox);
-  assert.deepEqual(roots[0].localBox.min.toArray(), roots[1].localBox.min.toArray());
+  assert.deepEqual(Array.from(roots[0].localBox!), Array.from(roots[1].localBox!));
   assert.notEqual(roots[0].world, roots[1].world);
-  assert.notDeepEqual(roots[0].worldBox.min.toArray(), roots[1].worldBox.min.toArray());
+  assert.notDeepEqual(Array.from(roots[0].worldBox!), Array.from(roots[1].worldBox!));
   for (let i = 0; i < roots[0].pages.length; i++) {
     const a = roots[0].pages[i],
       b = roots[1].pages[i];

@@ -1,7 +1,9 @@
-import * as THREE from 'three';
 import {
+  BOX_VALUES,
   DAG_ERROR_MODEL,
   EngineError,
+  boxEmpty,
+  boxUnion,
   primitiveUsesClusterErrors,
   type Primitive,
 } from '../sdk-core/index.ts';
@@ -40,7 +42,7 @@ type Shape = {
   structure: ReturnType<typeof structureIndex>;
   culling: ReturnType<typeof cullingNodes>;
   bounds: Float64Array | undefined;
-  local: THREE.Box3;
+  local: Float64Array;
 };
 
 /** Multiensemble des triangles d'un tableau d'indices : la couverture est une identité de
@@ -56,30 +58,23 @@ function triangleCounts(arr: ArrayLike<number>) {
 
 /** La boîte locale d'une primitive : celle de la racine de sa hiérarchie, ou l'union de ses pages. */
 function localBox(primitive: Primitive, culling: ReturnType<typeof cullingNodes>) {
-  const local = new THREE.Box3();
+  const local = new Float64Array(BOX_VALUES);
   if (culling) {
-    local.min.set(culling.nodes[0], culling.nodes[1], culling.nodes[2]);
-    local.max.set(culling.nodes[3], culling.nodes[4], culling.nodes[5]);
+    local.set(culling.nodes.subarray(0, BOX_VALUES));
     return local;
   }
-  // L'union se fait en scalaires : `Box3.union` prend `Math.min`/`Math.max` composante par
-  // composante, exactement ce qu'écrivent ces six lignes, sans les trois objets par page.
-  let minX = Infinity,
-    minY = Infinity,
-    minZ = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity,
-    maxZ = -Infinity;
-  for (const page of primitive.pages) {
-    minX = Math.min(minX, page.min[0]);
-    minY = Math.min(minY, page.min[1]);
-    minZ = Math.min(minZ, page.min[2]);
-    maxX = Math.max(maxX, page.max[0]);
-    maxY = Math.max(maxY, page.max[1]);
-    maxZ = Math.max(maxZ, page.max[2]);
-  }
-  local.min.set(minX, minY, minZ);
-  local.max.set(maxX, maxY, maxZ);
+  boxEmpty(local, 0);
+  for (const page of primitive.pages)
+    boxUnion(
+      local,
+      0,
+      page.min[0],
+      page.min[1],
+      page.min[2],
+      page.max[0],
+      page.max[1],
+      page.max[2],
+    );
   return local;
 }
 

@@ -1,3 +1,5 @@
+import { frustumPlanesFromMatrix } from '../sdk-core/index.ts';
+import { WebGPUCoordinateSystem } from 'three';
 import type * as THREE from 'three';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { projectedPageError } from './pageSelection.ts';
@@ -72,7 +74,11 @@ export function encodeDraws(
   if (!gpu.bindGroupLayout || !gpu.cache || !gpu.colorView || !gpu.depthView) return 0;
   const [width, height] = gpu.targetSize;
   viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-  blendState.blendFrustum.setFromProjectionMatrix(viewProj, camera.coordinateSystem);
+  frustumPlanesFromMatrix(
+    blendState.blendPlanes,
+    viewProj.elements,
+    camera.coordinateSystem === WebGPUCoordinateSystem,
+  );
   run.blendFrustumRejected = selectWebgpuBlend(blendState);
   viewProj.premultiply(remap);
   ensurePageTable(rt, device);

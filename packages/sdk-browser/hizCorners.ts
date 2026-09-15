@@ -1,30 +1,11 @@
-import * as THREE from 'three';
+import { boxCornersInto } from '../sdk-core/index.ts';
+import type * as THREE from 'three';
 import type { HizPage } from './hizTypes.ts';
 
 export const HIZ_BOUNDS_VALUES = 6;
 
 /** Doubles one box occupies in the world-corner layout: eight corners of three coordinates. */
 const BOX_CORNER_VALUES = 24;
-/** The eight world-space corners of a local box, in the order the screen projection reads them. */
-function worldCornersInto(
-  min: readonly number[],
-  max: readonly number[],
-  world: THREE.Matrix4,
-  into: Float64Array,
-  base: number,
-) {
-  const m = world.elements;
-  for (let i = 0; i < 8; i++) {
-    const lx = i & 1 ? max[0] : min[0],
-      ly = i & 2 ? max[1] : min[1],
-      lz = i & 4 ? max[2] : min[2];
-    const mw = 1 / (m[3] * lx + m[7] * ly + m[11] * lz + m[15]);
-    const at = base + i * 3;
-    into[at] = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) * mw;
-    into[at + 1] = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) * mw;
-    into[at + 2] = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) * mw;
-  }
-}
 /** Screen AABB of eight world-space corners. Term for term the arithmetic of the one-shot path. */
 export function projectCornersInto(
   corners: Float64Array,
@@ -105,7 +86,7 @@ const cornerScratch = new Float64Array(BOX_CORNER_VALUES);
  * Conservative screen AABB of one box into `into` at `base`. min/max are inclusive integer samples
  * (fillIds last pixel is ceil(max)). Near-plane crossings never reject. The caller passes the view
  * and view-projection elements, so a batch builds them once instead of once per box; the arithmetic
- * is `Matrix4`/`Vector3.applyMatrix4` term for term, so the flat and object forms agree bit for bit.
+ * is `boxCornersInto` (sdk-core) for both, so the flat and object forms agree bit for bit.
  */
 export function projectBoxInto(
   min: readonly number[],
@@ -119,7 +100,7 @@ export function projectBoxInto(
   into: Float64Array,
   base: number,
 ) {
-  worldCornersInto(min, max, world, cornerScratch, 0);
+  boxCornersInto(cornerScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2], world.elements);
   projectCornersInto(
     cornerScratch,
     0,
@@ -148,7 +129,18 @@ export function createBoxCorners(pageCount: number) {
     at(pageIndex: number, page: HizPage, value: number) {
       const base = pageIndex * BOX_CORNER_VALUES;
       if (epoch[pageIndex] !== value) {
-        worldCornersInto(page.min, page.max, page.matrix, corners, base);
+        const { min, max } = page;
+        boxCornersInto(
+          corners,
+          base,
+          min[0],
+          min[1],
+          min[2],
+          max[0],
+          max[1],
+          max[2],
+          page.matrix.elements,
+        );
         epoch[pageIndex] = value;
       }
       return base;

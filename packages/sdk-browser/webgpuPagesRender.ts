@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { boxTransform } from '../sdk-core/index.ts';
 import { resolvePixelError } from './pageSelection.ts';
+import { readThreeBox } from './threeBounds.ts';
 import { sameHizView } from './hiz.ts';
 import { dropGpuSelection, invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
@@ -27,8 +29,10 @@ export function refreshBlendWorlds(items: readonly BlendGpuItem[]) {
     const mesh = item.sourceMesh;
     if (!mesh || sameMatrix(item.matrix.elements, mesh.matrixWorld.elements)) continue;
     item.matrix.copy(mesh.matrixWorld);
-    if (item.bounds && item.sourceGeometry.boundingBox)
-      item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);
+    if (item.bounds && item.sourceGeometry.boundingBox) {
+      readThreeBox(item.bounds, item.sourceGeometry.boundingBox);
+      boxTransform(item.bounds, 0, item.bounds, 0, item.matrix.elements);
+    }
     moved++;
   }
   return moved;
