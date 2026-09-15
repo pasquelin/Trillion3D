@@ -173,6 +173,16 @@ export function readOptions(argv, root) {
     // `--camera-mobile` avance la pose d'un cran de la trajectoire du banc à chaque image mesurée,
     // au lieu de rejouer la même : c'est ce qui distingue une scène immobile d'une caméra qui bouge.
     movingCamera: flags.get('camera-mobile') === 'true',
+    // Budget de l'étape Ombres, en millisecondes de carte graphique par image. Sans l'option, le
+    // moteur garde le sien (`LIGHT_SETTINGS.shadowBudgetMs`).
+    shadowBudgetMs: flags.has('budget-ombres') ? number('budget-ombres', 1) : null,
+    // `--ombres-pages off` fait repartir la face entière dès qu'un objet bouge dans la portée d'une
+    // lampe, comme avant le lot des ombres virtualisées. C'est la porte d'identité des cartes :
+    // deux exécutions dont seule cette option diffère doivent rendre la même empreinte d'atlas.
+    shadowPages: (flags.get('ombres-pages') ?? 'on') !== 'off',
+    // `--empreinte-ombres` vide la file des pages d'ombre puis relit l'atlas de profondeur et en
+    // publie l'empreinte. Éteint par défaut : c'est une lecture de 64 Mo, pas une mesure d'image.
+    shadowDigest: flags.get('empreinte-ombres') === 'true',
   };
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
   if (settings.port === 5174)

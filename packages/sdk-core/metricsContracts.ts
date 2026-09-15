@@ -161,6 +161,12 @@ export interface FrameMetrics {
    *  C'est le coût par lampe à ombre, séparé du reste. Null sur un moteur qui ne dessine pas d'ombre. */
   shadowFacesDrawn?: number | null;
   shadowDrawCalls?: number | null;
+  /** Ce que l'invalidation par pages a produit : pages redessinées par l'image, pages restées en
+   *  file faute de budget, et le retard en millisecondes de la plus ancienne d'entre elles. Zéro
+   *  partout est la valeur normale d'une scène immobile ; `null` sur un moteur sans atlas d'ombres. */
+  shadowPagesDrawn?: number | null;
+  shadowPagesPending?: number | null;
+  shadowWaitMs?: number | null;
   gpuLightListsMs?: number | null;
   gpuShadowsMs?: number | null;
   gpuLightingMs?: number | null;

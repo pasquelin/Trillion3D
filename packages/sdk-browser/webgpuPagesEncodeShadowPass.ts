@@ -1,13 +1,13 @@
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from './gpuDraw.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import { visBindEntries } from './webgpuBindEntries.ts';
-import { faceRects } from './webgpuPagesEncodeShadows.ts';
+import { regionScissor, regionViewport } from './webgpuPagesEncodeShadows.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Le groupe de liaison d'une face : celui du raster du visibility buffer, à trois liaisons près —
- * la liste d'instances est celle que le rejet a gardée pour cette face, la table des slots la place
- * dans cette liste, et l'uniforme nomme le slot. Les groupes survivent aux images et ne sont
+ * Le groupe de liaison d'une région : celui du raster du visibility buffer, à trois liaisons près —
+ * la liste d'instances est celle que le rejet a gardée pour cette région, la table des slots la
+ * place dans cette liste, et l'uniforme nomme le slot. Les groupes survivent aux images et ne sont
  * rebâtis que si l'une des ressources qu'ils tiennent a changé d'identité.
  */
 function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number) {
@@ -58,26 +58,31 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
 }
 
 /**
- * La passe de profondeur des ombres : d'abord le rejet par face, qui ne garde de la liste
- * d'instances de l'image que les clusters touchant la portée de la lampe et le cône de la face ;
- * puis une seule passe de rendu pour toutes les faces, cadre et ciseaux sur la tranche, tranche
- * remise au fond, et un seul dessin indirect par face. Deux appels de dessin par face, quel que
- * soit le nombre de couches coplanaires de la scène.
+ * La passe de profondeur des ombres : d'abord le rejet par région, qui ne garde de la liste
+ * d'instances de l'image que les clusters touchant la portée de la lampe et le volume de la région ;
+ * puis une seule passe de rendu pour toutes les régions, et un seul dessin indirect par région.
+ *
+ * **Le cadre reste celui de la face entière ; seul le ciseau borne la région.** C'est toute la
+ * règle : un sommet atterrit exactement au même texel que dans un redessin complet, et le ciseau ne
+ * fait qu'écarter les pixels hors région. La remise au fond suit le même ciseau, donc les pages que
+ * la région ne couvre pas gardent la profondeur qu'elles avaient. Deux appels de dessin par région,
+ * quel que soit le nombre de couches coplanaires de la scène.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  faces: number,
+  regions: number,
 ) {
   const { lights, vis, run, layout, setup } = rt,
     { shadows, cull, spheres } = lights,
     { gpuDraw } = vis;
   lights.shadowDraws = 0;
-  if (!faces || !shadows || !cull || !spheres || !gpuDraw || !vis.visBindGroupLayout) return false;
+  if (!regions || !shadows || !cull || !spheres || !gpuDraw || !vis.visBindGroupLayout)
+    return false;
   const first = shadowFaceGroup(rt, device, 0);
   if (!first) return false;
-  cull.flushVolumes(faces);
+  cull.flushVolumes(regions);
   cull.encode(
     encoder,
     {
@@ -85,34 +90,37 @@ export function encodeShadowAtlas(
       source: gpuDraw.instanceBuffer,
       sourceIndirect: gpuDraw.indirectBuffer,
     },
-    faces,
+    regions,
     gpuDraw.slots,
     layout.rows.packedCount,
     Math.max(1, setup.pageBytes / 4),
   );
-  lights.shadowDraws = faces;
+  lights.shadowDraws = regions;
   const drawsBefore = run.gpuDrawCalls;
   const pass = encoder.beginRenderPass({
     label: SHADOW_PASS,
     colorAttachments: [],
     depthStencilAttachment: { view: shadows.view, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
-  for (let face = 0; face < faces; face++) {
-    const x = faceRects[face * 3],
-      y = faceRects[face * 3 + 1],
-      side = faceRects[face * 3 + 2];
+  for (let region = 0; region < regions; region++) {
+    const side = regionViewport[region * 3 + 2];
     if (side <= 0) continue;
-    const group = shadowFaceGroup(rt, device, face);
+    const group = shadowFaceGroup(rt, device, region);
     if (!group) continue;
-    pass.setViewport(x, y, side, side, 0, 1);
-    pass.setScissorRect(x, y, side, side);
-    pass.setBindGroup(1, shadows.faceGroup, [face * shadows.faceStride]);
+    pass.setViewport(regionViewport[region * 3], regionViewport[region * 3 + 1], side, side, 0, 1);
+    pass.setScissorRect(
+      regionScissor[region * 4],
+      regionScissor[region * 4 + 1],
+      regionScissor[region * 4 + 2],
+      regionScissor[region * 4 + 3],
+    );
+    pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
     pass.setBindGroup(0, group);
     pass.setPipeline(shadows.clear);
     pass.draw(3);
     run.gpuDrawCalls++;
     pass.setPipeline(shadows.depth);
-    pass.drawIndirect(cull.indirect, face * DRAW_INDIRECT_STRIDE);
+    pass.drawIndirect(cull.indirect, region * DRAW_INDIRECT_STRIDE);
     run.gpuDrawCalls++;
   }
   pass.end();

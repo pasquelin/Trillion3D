@@ -144,3 +144,5 @@ export {
 export { SHADOW_FACE_SIDES, desiredFaceSide } from './sceneLightShadowAtlas.ts';
 export { RECTS_PER_SLICE, createShadowPlan } from './sceneLightShadowPlan.ts';
 export type { ShadowPlan } from './sceneLightShadowPlan.ts';
+export { MAX_PAGE_ROWS, SHADOW_PAGE, pageRowsOf } from './sceneLightShadowPages.ts';
+export { FULL_FACE, regionRect } from './sceneLightShadowVolume.ts';
