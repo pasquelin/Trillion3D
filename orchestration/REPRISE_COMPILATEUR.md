@@ -26,7 +26,7 @@ Audit du 15 sept. 2026 : 58 constats, dix lots A–J ordonnés dans `AUDIT_PLUGI
 
 | Lot | État |
 | --- | --- |
-| A cache OBJ, URI, MTL | en cours (Opus, branche `compilateur/lot-a-obj-mtl`) |
+| A cache OBJ, URI, MTL | livré au Validateur (46d0d61), obj et fbx en `-gltf-5`, 9 codes de rapport |
 | B n-gones concaves | à lancer à la prochaine reprise (arrêt demandé après A) |
 | C à J | à lancer dans l'ordre |
 
