@@ -19,6 +19,8 @@ use serde_json::{json, Map, Value};
 mod format;
 mod page;
 mod preview;
+#[cfg(test)]
+mod preview_tests;
 mod primitive;
 #[cfg(test)]
 mod tests;

@@ -18,6 +18,8 @@ use super::*;
 mod collect;
 mod reduce;
 mod source;
+#[cfg(test)]
+mod tests;
 
 /// Contrat de la section : bouger la pyramide, l'ordre des niveaux ou l'espace colorimétrique
 /// impose d'incrémenter ce numéro et celui du sidecar binaire qui la transporte.
