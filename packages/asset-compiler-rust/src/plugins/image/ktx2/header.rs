@@ -10,6 +10,7 @@ use super::{
     DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
     SUPERCOMPRESSION_UNSUPPORTED,
 };
+use crate::plugins::image::MAX_LEVELS;
 
 /// Fin de l'entête fixe : identifiant, quatorze champs et l'index des trois sections.
 const HEADER_END: usize = 80;
@@ -18,7 +19,6 @@ const LEVEL_ENTRY: usize = 24;
 /// `typeSize` vaut un pour tout format compressé en blocs comme pour l'octet non compressé ; une
 /// autre valeur annonce des mots de plusieurs octets à réordonner, hors de la liste déclarée.
 const TYPE_SIZE: u32 = 1;
-use crate::plugins::image::blocks::MAX_LEVELS;
 
 /// `supercompressionScheme` : les trois schémas que ce pilote déclare, sur les quatre numérotés.
 /// ZLIB (3) n'entre pas — aucun encodeur courant ne l'écrit, et un lecteur non exercé ment.

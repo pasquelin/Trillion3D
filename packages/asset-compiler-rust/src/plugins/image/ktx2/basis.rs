@@ -12,6 +12,7 @@
 use super::header::Surface;
 use super::{DecodedImage, DATA_TRUNCATED, TOO_LARGE, TRANSCODE_FAILED};
 use crate::plugins::image::blocks as shared;
+use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 use basisu::{DecodeFlags, TargetFormat, Transcoder};
 
 pub(super) fn decode(
@@ -19,7 +20,13 @@ pub(super) fn decode(
     bytes: &[u8],
     max_alloc: u64,
 ) -> std::result::Result<DecodedImage, &'static str> {
-    crate::plugins::image::rgba8_budget(surface.width, surface.height, max_alloc, TOO_LARGE)?;
+    surface_budget(
+        surface.width,
+        surface.height,
+        RGBA8_PIXEL_BYTES,
+        max_alloc,
+        TOO_LARGE,
+    )?;
     let texture = Transcoder::new(bytes).map_err(|_| TRANSCODE_FAILED)?;
     // Seul le niveau 0 est consommé, comme partout dans ce pilote : c'est l'image de base, celle
     // que l'index des niveaux donne en premier.
