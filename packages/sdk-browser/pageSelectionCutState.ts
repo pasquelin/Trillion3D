@@ -40,6 +40,9 @@ export interface SelectionState<T extends PageRecord> {
   /** Cette racine déclare porter des cônes : le chemin par cluster lit `cone`. Une racine qui
    *  déclare n'en porter aucun sort le cône de la boucle, sans changer une seule décision. */
   flatCones: boolean;
+  /** Cette racine déclare que chacune de ses pages porte sa boîte : sous un nœud entièrement dans
+   *  le tronc, le chemin par cluster ne lit alors ni `min` ni `max`. */
+  flatBoxes: boolean;
   /** La règle de résidence de cette coupe, résolue une fois : `RESIDENT_ALL` quand rien n'est tenu
    *  (tout est réputé résident), `RESIDENT_ASK` quand l'hôte fournit sa réponse, `RESIDENT_ARRAY`
    *  quand la résidence est le tableau d'indices de la page. Le chemin par cluster lit ce mode au
@@ -52,6 +55,12 @@ export interface SelectionState<T extends PageRecord> {
   flatUseForcing: boolean;
   flatMissing: boolean;
   flatShort: boolean;
+  /** Ce que les deux listes portent vraiment. Les tableaux ne sont plus vidés par `length = 0` à
+   *  chaque image — ils y perdraient leur capacité et la repousseraient de zéro à quatre-vingt
+   *  mille — mais réécrits par indice, et leur longueur n'est posée qu'une fois la coupe finie.
+   *  Pendant la coupe, ces deux comptes sont la seule vérité : `length` est en retard. */
+  shownCount: number;
+  wantedCount: number;
   /** Triangles des deux coupes, sommés à la retenue dans l'ordre des tableaux : la somme est celle
    *  d'un balayage de `wanted` et de `shown`, au même ordre et aux mêmes bits. */
   wantedTriangles: number;
@@ -158,11 +167,14 @@ const reusedState: SelectionState<PageRecord> = {
   flatFocal: 1,
   flatCone: createConeContext(),
   flatCones: true,
+  flatBoxes: false,
   residentMode: RESIDENT_ALL,
   flatExact: false,
   flatUseForcing: false,
   flatMissing: false,
   flatShort: false,
+  shownCount: 0,
+  wantedCount: 0,
   wantedTriangles: 0,
   shownTriangles: 0,
   budget: 0,
@@ -172,7 +184,7 @@ const reusedState: SelectionState<PageRecord> = {
 /** Ramène `shown` à un préfixe et sa somme de triangles avec lui : même ordre, mêmes bits que le
  *  balayage que cette somme remplace. Les replis sont les seuls à raccourcir la coupe. */
 export function truncateShown<T extends PageRecord>(s: SelectionState<T>, to: number) {
-  s.shown.length = to;
+  s.shownCount = to;
   let sum = 0;
   for (let i = 0; i < to; i++) sum += s.shown[i].triangles;
   s.shownTriangles = sum;
