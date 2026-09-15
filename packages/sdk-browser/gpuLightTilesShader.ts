@@ -6,8 +6,9 @@ const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
 /**
  * Listes de lampes par tuile d'écran de 16 × 16 pixels. Un groupe de travail par tuile : les 256
  * fils réduisent la profondeur minimale et maximale de la tuile, le fil zéro en déduit la boîte
- * englobante monde de la tuile, chaque fil teste une lampe, puis le fil zéro écrit les rangs retenus
- * dans l'ordre croissant — l'ordre est déterminé, donc l'image l'est aussi. Aucune boucle non bornée :
+ * englobante monde de la tuile, chaque fil teste une lampe, puis chaque fil retenu écrit son rang à
+ * la place que le compte de bits avant lui désigne — l'ordre reste croissant et déterminé, donc
+ * l'image l'est aussi. Aucune boucle non bornée :
  * la liste s'arrête à `maxLightsPerTile`, et le nombre demandé est écrit à côté du nombre retenu.
  */
 export const LIGHT_TILES_SHADER = `
@@ -90,16 +91,22 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   }
  }
  workgroupBarrier();
+ // Compaction en parallele : le rang d'une lampe retenue est le nombre de bits retenus avant elle
+ // dans le meme masque, que \`countOneBits\` donne mot par mot. Chaque fil ecrit sa lampe a son rang,
+ // donc la liste porte les memes rangs de lampe dans le meme ordre croissant que la boucle d'un
+ // seul fil qu'elle remplace, et s'arrete a la meme borne.
+ let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;
+ let word=lane/32u;
+ if(lane<count&&(atomicLoad(&hits[word])&(1u<<(lane%32u)))!=0u){
+  var rank=0u;
+  for(var before=0u;before<word;before++){rank=rank+countOneBits(atomicLoad(&hits[before]));}
+  rank=rank+countOneBits(atomicLoad(&hits[word])&((1u<<(lane%32u))-1u));
+  if(rank<MAX_TILE_LIGHTS){tiles[base+4u+rank]=lane;}
+ }
  if(lane==0u){
-  let base=(tile.y*u32(view.viewport.z)+tile.x)*TILE_STRIDE;
-  var kept=0u;
   var requested=0u;
-  for(var index=0u;index<count;index++){
-   if((atomicLoad(&hits[index/32u])&(1u<<(index%32u)))==0u){continue;}
-   requested++;
-   if(kept<MAX_TILE_LIGHTS){tiles[base+4u+kept]=index;kept++;}
-  }
-  tiles[base]=kept;
+  for(var w=0u;w<${WORDS}u;w++){requested=requested+countOneBits(atomicLoad(&hits[w]));}
+  tiles[base]=min(requested,MAX_TILE_LIGHTS);
   tiles[base+1u]=requested;
  }
 }`;
