@@ -1,4 +1,4 @@
-import { coneRejects } from '../sdk-core/index.ts';
+import { boxConeRejects } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
@@ -16,26 +16,7 @@ const loneContext: ConeContext = {
   camZ: 0,
 };
 
-const scratch = {
-  axis: new THREE.Vector3(),
-  center: new THREE.Vector3(),
-  cam: new THREE.Vector3(),
-};
-
-function perspectiveSpread(
-  center: [number, number, number],
-  radius: number,
-  cameraWorld: [number, number, number],
-): number {
-  const d = Math.hypot(
-    cameraWorld[0] - center[0],
-    cameraWorld[1] - center[1],
-    cameraWorld[2] - center[2],
-  );
-  if (!(d > radius)) return Math.PI;
-  const t = radius / d;
-  return Math.asin(t < 0 ? 0 : t > 1 ? 1 : t);
-}
+const cameraWorld = new THREE.Vector3();
 
 function isConformal(world: THREE.Matrix4) {
   const e = world.elements;
@@ -99,10 +80,10 @@ export function coneContextFor(
   into.scale = Math.hypot(e[0], e[1], e[2]);
   into.normal.getNormalMatrix(world);
   camera.updateMatrixWorld();
-  camera.getWorldPosition(scratch.cam);
-  into.camX = scratch.cam.x;
-  into.camY = scratch.cam.y;
-  into.camZ = scratch.cam.z;
+  camera.getWorldPosition(cameraWorld);
+  into.camX = cameraWorld.x;
+  into.camY = cameraWorld.y;
+  into.camZ = cameraWorld.z;
   return into;
 }
 
@@ -123,33 +104,18 @@ export function coneCullsPageWith(
   }
   if (!ctx.conformal) return false;
   if (cone.angle >= Math.PI / 2) return false;
-  const { axis, center } = scratch;
-  center
-    .set((min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5, (min[2] + max[2]) * 0.5)
-    .applyMatrix4(world);
-  const radius =
-    Math.hypot((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) *
-    ctx.scale;
-  const spread = perspectiveSpread([center.x, center.y, center.z], radius, [
+  return boxConeRejects(
+    cone.axis,
+    cone.angle,
+    min,
+    max,
+    world.elements,
+    ctx.normal.elements,
+    ctx.scale,
     ctx.camX,
     ctx.camY,
     ctx.camZ,
-  ]);
-  axis.fromArray(cone.axis).applyMatrix3(ctx.normal);
-  const al = axis.length();
-  if (!(al > 0)) return false;
-  axis.multiplyScalar(1 / al);
-  const vx = ctx.camX - center.x,
-    vy = ctx.camY - center.y,
-    vz = ctx.camZ - center.z;
-  const vl = Math.hypot(vx, vy, vz);
-  if (!(vl > 0)) return false;
-  const dot = Math.min(1, Math.max(-1, (axis.x * vx + axis.y * vy + axis.z * vz) / vl));
-  try {
-    return coneRejects(dot, cone.angle, spread);
-  } catch {
-    return false;
-  }
+  );
 }
 
 /** Le même rejet pour un appelant qui n'a pas de contexte : il en pose un pour ce seul cluster. */
