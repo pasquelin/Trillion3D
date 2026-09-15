@@ -37,9 +37,11 @@ export async function createGpuBounceSurface(
   grid: { uniform: GPUBuffer; snapshot: GPUBuffer },
 ) {
   const texels = Math.max(1, proxy.triangleCount * 2);
+  /** Une maille tient un `vec4f` : la radiance sortante de la face, plus son drapeau d'écriture. */
+  const bytes = texels * 16;
   const buffer = device.createBuffer({
     label: 'WG bounce surface cache v1',
-    size: texels * 16,
+    size: bytes,
     usage: GPUBufferUsage.STORAGE,
   });
   const span = device.createBuffer({
@@ -88,7 +90,7 @@ export async function createGpuBounceSurface(
     buffer,
     texels,
     /** Ce que le cache occupe en mémoire graphique, publié dans le diagnostic. */
-    bytes: texels * 16,
+    bytes,
     /** Images d'un balayage complet du cache au lot courant : l'autre moitié du retard. */
     get sweepFrames() {
       return Math.max(1, Math.ceil(texels / Math.max(1, batch)));
