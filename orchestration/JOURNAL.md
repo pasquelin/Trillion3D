@@ -1,5 +1,126 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session sans-threejs] lot 4c : la coupe WebGL2 à seuil nul, une racine carrée par nœud, les triangles sommés à la retenue
+
+Le lot 4b avait laissé la cible « sélection sous 2 ms en vue générale » ouverte et nommé le coût
+restant : `projectedClusterError`, les `cutSelects` sur les nœuds indécis, et la retenue par cluster.
+Le lot 4c prend les trois. **Aucun changement d'image : l'empreinte de la coupe est identique bit à
+bit à celle de `develop` sur les six séries mesurées**, ce qui couvre l'ordre et l'identité des
+clusters retenus, leurs triangles, leurs niveaux, les nœuds testés, les rejets et le seuil final.
+
+### Les quatre leviers, tous exacts
+
+1. **Seuil nul sans projection.** Une erreur projetée n'est jamais négative, donc « > seuil » vaut
+   « ≠ 0 », et les formules ne rendent zéro que sur une erreur nulle. À seuil nul la coupe ne dépend
+   donc ni de la caméra ni des sphères : `cutSelectsAtZero` et `nodeDecisionAtZero` la décident sur
+   les seules erreurs. Le chemin n'est pris que si l'étirement, la focale et le plan proche sont
+   finis et strictement positifs, et il lève la même exception sur une erreur mal formée.
+2. **Une racine carrée par sphère.** Le plancher et le plafond de l'erreur propre d'un nœud
+   partagent la sphère propre ; la sphère du remplaçant n'est projetée que si la décision en dépend
+   encore. `projectedClusterError` délègue à `clusterErrorAtDistance` : une implémentation, un oracle.
+3. **Le rejet de cône ne relit plus la racine ni la caméra par cluster** : conformité, échelle,
+   inverse-transposée 3×3 et position monde sont posées une fois par racine, au premier cluster à
+   cône — jamais pour une racine qui n'en a pas, ce qui est le cas du moteur WebGL2.
+4. **Deux balayages de 80 000 fiches en moins par image.** Les deux sommes de triangles sont tenues
+   à la retenue, dans l'ordre des tableaux, donc terme pour terme aux mêmes bits que les boucles
+   finales qu'elles remplacent ; les replis recalculent la somme du préfixe gardé.
+
+### Chiffres (Emerald, 1280×720, 60 images par série, budget 100 000 pages)
+
+`cpuSelectMs` p50, avant → après. **Durées indicatives seulement : charge machine à une minute entre
+10,9 et 23,2 pendant les campagnes** (trois sessions d'agents en parallèle), très au-dessus du seuil
+de 4 sous lequel ce dépôt considère une durée comme comparable.
+
+| vue      | seuil | caméra fixe | caméra mobile |
+| -------- | ----- | ----------- | ------------- |
+| générale | 0     | 5,30 → 4,60 | 5,10 → 4,60   |
+| sol      | 0     | 0,90 → 0,80 | 1,40 → 1,30   |
+| rue      | 0     | 0,80 → 0,80 | 1,70 → 2,00   |
+| générale | 1     | 2,50 → 2,30 | 3,30 → 2,70   |
+| sol      | 1     | 0,80 → 0,70 | 1,30 → 1,50   |
+| rue      | 1     | 0,90 → 0,90 | 1,70 → 1,60   |
+
+À caméra mobile, seule la vue générale sort du bruit ; les quatre autres lignes sont dedans, et deux
+d'entre elles sont même « plus lentes après » (`rue` au seuil 0, `sol` au seuil 1). Le témoin A/A de
+la même campagne le dit : il rend 1,80 contre 2,00 sur `rue` e0 et 3,30 contre 2,70 sur `générale`
+e1 — un écart du même ordre que celui qu'on voudrait lire entre avant et après. Les `cpuFrameMs` p95
+montent à 77 ms sur `sol` : la machine était occupée par deux autres sessions. **Ces durées ne
+prouvent rien et ne sont publiées que pour mémoire ; la seule porte tenue par ce lot est la
+fidélité.** Le gain réel du lot a été établi au banc de calculs, hors navigateur, et il est écrit
+dans les messages des commits : −17 % pour les sommes tenues à la retenue, −3 % pour les relectures
+supprimées.
+
+**Fidélité — c'est la porte, et elle est verte.** Sur les six séries à caméra fixe et les six à
+caméra mobile : **0 pixel différent, écart maximal de canal 0**, témoin A/A **0 px** partout,
+`selectedTriangles` identique des deux côtés, et le fichier d'empreinte de coupe **identique octet
+pour octet** entre avant et après comme entre après et son témoin A/A.
+
+`uncoveredTriangles` (« trous ») vaut `null` et non zéro : ce compteur est produit par le seul
+moteur WebGPU (`webgpuCutAdoption.ts`) ; le moteur WebGL2 `exact-cluster-pages` ne le publie pas. La
+règle du dépôt interdit de l'écrire zéro. L'absence de trou est ici portée par l'identité de
+l'empreinte de coupe et par `selectedTriangles`, égaux des deux côtés.
+
+**La cible « sélection sous 2 ms en vue générale au seuil 0 » n'est pas atteinte** : 4,6 ms. Ce qui
+reste n'est plus dans la décision mais dans la retenue elle-même — une fiche déréférencée par
+cluster retenu, 80 000 fois par image. Voir ci-dessous pourquoi ranger ces fiches ne l'enlève pas.
+
+### Ce qui a été essayé et refusé : les tableaux typés (SoA)
+
+Le levier 1 du diagnostic du lot 4 — ranger boîte, erreur propre, erreur du remplaçant, triangles et
+niveau dans un `Float64Array` de pas 10 plus un `Uint8Array` de présence, une fois par racine, et y
+lire au lieu de la fiche — a été **écrit, mesuré et refusé**. Il est conservé hors du lot sur la
+branche `essai/4c-tableaux-types` (commit `db5ada4`), avec ses trois tests qui passent.
+
+A/B entrelacé, deux copies du module dans le même processus, une image chacune à tour de rôle, 240
+images mesurées, médiane de sept tirages : **−7,9 % au seuil 0, les sept tirages négatifs** (−3,4 à
+−11,2 %) ; **−17 %** de médiane au seuil 1 sur trois tirages. Le témoin A/A du même harnais rend
+±1 % : le signe est réel.
+
+La cause est celle que le lot a établie : le coût par cluster est le déréférencement de la fiche, et
+la retenue déréférence la fiche de toute façon (`shown.push(rec)`, `rec.cone`, `rec.array` pour la
+résidence). Ranger la coupe ajoute donc un **second** flux mémoire de 80 octets par cluster sans
+supprimer le premier ; seuls les clusters rejetés y gagnent, et ils sont le tiers. Deux flux valent
+moins qu'un. Ce qui rendrait ce levier payant est nommé, pas écrit : sortir aussi le cône et la
+résidence du chemin — le premier demande que la préparation WebGPU marque les cônes, la seconde que
+la résidence soit rangée par la coupe. **Qu'aucun agent ne le retente sans avoir d'abord fait ces
+deux-là.**
+
+### Tests
+
+Un test par comportement changé, chacun contre l'implémentation d'avant le lot, recopiée dans
+`packages/sdk-browser/bench/oracles/coupe4c.mjs` — les seules copies voulues.
+`pageSelectionProjection.test.ts` (identité de `cutSelectsAtZero` sur le produit des erreurs et des
+sphères, `viewDistance`/`errorFloorAt`/`projectedErrorAt` comparés par `Object.is`),
+`pageSelectionCutNode.test.ts` (`nodeDecisionAtZero`, **et** l'invariant de `cullingBounds` dont
+cette identité dépend), `projectionOracles.test.ts` (`clusterErrorAtDistance` est
+`clusterErrorPixels` la racine déjà prise), `pageSelectionTriangles.test.ts` (les deux sommes sur
+tous les sous-ensembles résidents, trois seuils, cinq budgets, repli compris),
+`pageCone.test.ts` (le contexte de racine rend le même rejet, et n'est pas posé sans demande).
+
+### Portes
+
+`tsc`, `check:changed`, `check:unused` (knip, 0), `check:lines` (aucun fichier au-dessus de 200
+lignes), `check:duplicates` (**0 clone** sur 771 fichiers) : **vertes**. `npm test` : **751 tests, 0
+échec**. Aucun `eslint-disable` ajouté, aucun nom de scène ni de type d'objet dans le code du lot,
+`render-tech-lab/` non touché, port 5174 non employé.
+
+### Verrou de mesure
+
+`.claude/mesure.lock` pris par `mkdir` juste avant chacune des deux campagnes et rendu juste après,
+jamais tenu entre les deux ; la session Lumière, qui l'attendait, a été prévenue du rendu. Une seule
+campagne à la fois sur la machine. Charge à une minute : 20,1 au début de la campagne fixe, 10,9 au
+début de la mobile, 9,3 à la fin.
+
+Deux ressorts de ce mécanisme à corriger pour la prochaine fois. Le `rmdir` final a échoué
+(« Directory not empty ») parce que j'avais écrit un `qui.txt` dans le dossier de verrou : un verrou
+par `mkdir` doit rester **vide**, sinon il ne se rend pas et la campagne se termine sur un code
+d'erreur qui fait croire à un échec de mesure alors que les six séries étaient complètes. Et les 38
+« erreurs de page » consignées au JSON sont, aux deux campagnes à l'identique, 19 fois le même 404
+sur `lights.json` — ressource accessoire, aucune lampe n'étant déclarée dans ces campagnes. Zéro
+erreur de rendu.
+
+Images et relevés copiés dans `.mesure/out/lot-4c/` (`fixe/` et `mobile/`), 38 fichiers chacun.
+
 ## 2026-09-15 — [compilateur] un pilote par format : routeur de scènes et registre d'images (lot routeur et plugins)
 
 Le compilateur choisissait sa voie d'entrée en dur — « exactement un `.gltf`/`.glb`, ou des
