@@ -179,6 +179,10 @@ export interface FrameMetrics {
    * qu'aucune page n'a été décodée — non mesuré, et non pas zéro.
    */
   pagesDecodedOffThread?: number | null;
+  /** Pages dont les attributs ont été lus par le décodeur compilé en WebAssembly plutôt que par le
+   *  décodeur JavaScript. Les deux rendent les mêmes octets ; ce compteur dit seulement lequel a
+   *  tourné, donc si la ressource `.wasm` a bien été trouvée et instanciée par cet hôte. */
+  pagesDecodedWasm?: number | null;
   pageDecodeMs?: number | null;
 }
 export interface BackendCapabilities {

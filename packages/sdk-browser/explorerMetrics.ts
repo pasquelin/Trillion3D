@@ -58,6 +58,7 @@ export function createExplorerMetrics(
     textureAtlasClassBytesCalculated: null,
     textureAtlasClassesUsed: null,
     pagesDecodedOffThread: null,
+    pagesDecodedWasm: null,
     pageDecodeMs: null,
   };
   const profiler = new EngineProfiler();
@@ -133,6 +134,7 @@ export function createExplorerMetrics(
     metricsScratch.gpuLightingMs = backendMetrics.gpuLightingMs ?? null;
     const decode = pageDecodeStats();
     metricsScratch.pagesDecodedOffThread = decode.offThread;
+    metricsScratch.pagesDecodedWasm = decode.wasm;
     metricsScratch.pageDecodeMs = decode.decodeMs;
   };
   return { metricsScratch, profiler, fillMetrics };

@@ -12,7 +12,7 @@
  * exactement les mêmes valeurs : le contrat ne dit pas comment le travail voyage, seulement ce qu'il
  * rend.
  */
-export const PAGE_DECODE_PROTOCOL = 1;
+export const PAGE_DECODE_PROTOCOL = 2;
 
 /** `verify` : l'empreinte SHA-256 d'une page. `decode` : ses indices et ses attributs par sommet. */
 export type PageDecodeOp = 'verify' | 'decode';
@@ -55,6 +55,9 @@ export interface PageDecodeDone {
   /** `verify` : le tampon source rendu. `decode` : `null`, la source est consommée. */
   source: ArrayBuffer | null;
   decoded: PageDecodeGeometryPayload | null;
+  /** Vrai quand le décodeur compilé en WebAssembly a fait le travail, faux pour le décodeur
+   *  JavaScript. Les deux rendent les mêmes octets ; seul le compteur les distingue. */
+  wasm: boolean;
   /** Temps de la tâche, mesuré par l'exécutant lui-même. */
   taskMs: number;
 }
@@ -73,6 +76,7 @@ export const PAGE_DECODE_FAILURES = [
   'GEOMETRY_PAGE_NONFINITE',
   'PAGE_DECODE_FAILED',
   'PAGE_DECODE_CANCELLED',
+  'PAGE_DECODE_UNAVAILABLE',
   'PAGE_DECODE_WORKER',
 ] as const;
 export type PageDecodeFailureCode = (typeof PAGE_DECODE_FAILURES)[number];
