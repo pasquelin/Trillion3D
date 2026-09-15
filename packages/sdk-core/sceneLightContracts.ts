@@ -1,28 +1,46 @@
-import { EngineError } from './cacheContracts.ts';
-
 /**
- * Une lampe de scène, version 1. Les unités sont radiométriques et linéaires (P1) : `color` est une
- * couleur linéaire, `intensity` une intensité radiométrique strictement positive, `range` la portée
- * en mètres au-delà de laquelle la lampe n'éclaire plus rien. `direction` et `coneAngle` n'existent
- * que pour un projecteur ; `coneAngle` est le demi-angle en radians.
+ * Une lampe de scène, version 2. Les unités sont radiométriques et linéaires (P1) : `color` est une
+ * couleur linéaire et `intensity` une intensité radiométrique strictement positive.
+ *
+ * Trois types, et rien d'autre ne fait de lumière dans ce moteur (P6) :
+ * - `point` : une position et une portée en mètres au-delà de laquelle elle n'éclaire plus rien ;
+ * - `spot` : la même chose plus une direction et un demi-angle de cône en radians ;
+ * - `directional` : le soleil ou un ciel couvert — une direction de propagation, aucune position et
+ *   aucune portée, la même irradiance partout, et des ombres en cascades qui suivent la caméra.
+ *
+ * Les champs qu'un type n'utilise pas sont refusés à la validation : une lampe directionnelle avec
+ * une position serait une promesse que le moteur ne tiendrait pas.
  */
 export interface SceneLight {
   id: string;
-  kind: 'point' | 'spot';
-  position: [number, number, number];
+  kind: 'point' | 'spot' | 'directional';
+  /** Ponctuelle et projecteur seulement : le point d'où part la lumière, en mètres. */
+  position?: [number, number, number];
+  /** Projecteur : l'axe du cône. Directionnelle : le sens de propagation (du soleil vers le sol). */
   direction?: [number, number, number];
   color: [number, number, number];
   intensity: number;
-  range: number;
+  /** Ponctuelle et projecteur seulement : la portée en mètres, où l'énergie s'annule exactement. */
+  range?: number;
   coneAngle?: number;
   castsShadow: boolean;
 }
-/** Le ciel comme terme ambiant constant et l'exposition appliquée avant ACES (P4). */
+/**
+ * L'exposition de la caméra, appliquée à la radiance linéaire juste avant ACES (P4). Ce n'est pas
+ * une lumière : elle ne peut pas éclairer une surface que rien n'éclaire, elle ne fait que régler
+ * la conversion de la radiance en image. Une scène sans lampe reste noire quelle que soit sa valeur.
+ */
 export interface SceneEnvironment {
-  skyColor: [number, number, number];
   exposure: number;
 }
-export const SCENE_LIGHT_VERSION = 1;
+export const SCENE_LIGHT_VERSION = 2;
+/**
+ * Ce que l'hôte demande à voir. `lit` est l'éclairage réel et lui seul ; `unlit` est la vue de
+ * diagnostic d'albédo brut — la couleur des matériaux telle quelle, sans lampe, sans ambiance et
+ * sans émission — pour les bancs de géométrie qui comparent des images au pixel près. `auto`, la
+ * valeur par défaut, rend `unlit` tant qu'aucune lampe n'est déclarée et `lit` dès qu'il y en a une.
+ */
+export type SceneLightingView = 'auto' | 'lit' | 'unlit';
 /**
  * Réglages publiés de l'éclairage direct. Ce sont des choix de produit nommés, pas des constantes
  * enfouies : chaque borne du runtime les relit, et le diagnostic les publie telles quelles.
@@ -46,6 +64,20 @@ export const LIGHT_SETTINGS = {
   pcfTaps: 16,
   /** Largeur du bord adouci du cône d'un projecteur, en unités de cosinus : contre l'escalier. */
   spotEdgeSoftness: 0.02,
+  /** Cascades d'une lampe directionnelle : au moins trois, jamais plus que les faces d'une tranche. */
+  sunCascades: 4,
+  /**
+   * Part du tronc de la caméra que les cascades couvrent, du plan proche vers le lointain. Au-delà,
+   * une surface reste éclairée sans ombre portée : approximation nommée, publiée dans le diagnostic.
+   */
+  sunShadowFarFraction: 0.2,
+  /** Mélange des découpes logarithmique et uniforme des cascades : 1 tout log, 0 tout uniforme. */
+  sunCascadeLambda: 0.8,
+  /**
+   * Recul du plan proche d'une cascade, en rayons de sa sphère : ce qui se tient au-dessus de la
+   * cascade, entre elle et le soleil, doit entrer dans la carte pour y projeter son ombre.
+   */
+  sunCascadeDepthScale: 4,
   /**
    * Biais d'ombre en mètres, jamais en unités de profondeur : la profondeur projetée d'une tranche
    * est très non linéaire, une constante en profondeur normalisée vaudrait des mètres près de la
@@ -67,86 +99,24 @@ export const LIGHT_SETTINGS = {
 } as const;
 /** Lampes qu'une tranche d'ombre peut adresser dans l'atlas : une par lampe à ombre déclarée. */
 export const MAX_SHADOW_SLICES = LIGHT_SETTINGS.maxLights;
-/** Faces d'une tranche : six pour une ponctuelle, une pour un projecteur. */
+/** Faces d'une tranche : six pour une ponctuelle, une pour un projecteur, les cascades du soleil. */
 export const POINT_FACES = 6;
 /** Flottants d'une lampe dans le tampon GPU : quatre `vec4f`, jamais réalloués. */
 export const SCENE_LIGHT_FLOATS = 16;
-/** Entête du tampon de lampes : compte, tuiles en X, tuiles en Y, mode. */
+/** Entête du tampon de lampes : compte, tuiles en X, tuiles en Y, réserve. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4;
 export const SCENE_LIGHT_BUFFER_FLOATS =
   SCENE_LIGHT_HEADER_FLOATS + LIGHT_SETTINGS.maxLights * SCENE_LIGHT_FLOATS;
-/** Le mode d'éclairage direct que l'hôte a choisi, publié tel quel dans le diagnostic. */
-export type SceneLightMode = 'authored' | 'contract';
-
-const finite = (value: unknown): value is number => typeof value === 'number' && isFinite(value);
-function vector(value: unknown, field: string, id: string): [number, number, number] {
-  if (!Array.isArray(value) || value.length !== 3 || !value.every(finite))
-    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: ${field} attend trois nombres finis`, {
-      field,
-      value,
-    });
-  return [value[0], value[1], value[2]];
-}
-function normalized(value: [number, number, number], id: string): [number, number, number] {
-  const length = Math.hypot(value[0], value[1], value[2]);
-  if (!(length > 1e-6))
-    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: direction de longueur nulle`, { value });
-  return [value[0] / length, value[1] / length, value[2] / length];
-}
+/** Le rang d'un type de lampe dans le tampon GPU : le shader s'y réfère par ce nombre, pas par nom. */
+export const LIGHT_KIND = { point: 0, spot: 1, directional: 2 } as const;
 /**
- * Valide une lampe et en rend une copie normalisée. Une lampe refusée n'entre jamais dans le tampon :
- * le contrat n'accepte ni intensité négative, ni portée nulle, ni projecteur sans direction.
+ * L'axe d'une lampe qui en a un — projecteur ou directionnelle. Le contrat l'a déjà normalisé et
+ * refuse une lampe de ce type sans direction : lire ce champ ici ne suppose rien de plus.
  */
-export function validateSceneLight(light: SceneLight): SceneLight {
-  const id = light?.id;
-  if (typeof id !== 'string' || !id.length)
-    throw new EngineError('INVALID_SCENE_LIGHT', 'identifiant de lampe vide', { id });
-  if (light.kind !== 'point' && light.kind !== 'spot')
-    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: type ${String(light.kind)} inconnu`, {
-      kind: light.kind,
-    });
-  if (!finite(light.intensity) || light.intensity <= 0)
-    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: intensité doit être > 0`, {
-      intensity: light.intensity,
-    });
-  if (!finite(light.range) || light.range <= 0)
-    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: portée doit être > 0`, {
-      range: light.range,
-    });
-  const color = vector(light.color, 'color', id);
-  if (color.some((channel) => channel < 0))
-    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: couleur négative`, { color });
-  const validated: SceneLight = {
-    id,
-    kind: light.kind,
-    position: vector(light.position, 'position', id),
-    color,
-    intensity: light.intensity,
-    range: light.range,
-    castsShadow: !!light.castsShadow,
-  };
-  if (light.kind === 'spot') {
-    if (light.direction === undefined)
-      throw new EngineError('INVALID_SCENE_LIGHT', `${id}: un projecteur exige une direction`, {});
-    if (!finite(light.coneAngle) || light.coneAngle! <= 0 || light.coneAngle! >= Math.PI / 2)
-      throw new EngineError(
-        'INVALID_SCENE_LIGHT',
-        `${id}: demi-angle de cône attendu dans (0, π/2)`,
-        { coneAngle: light.coneAngle },
-      );
-    validated.direction = normalized(vector(light.direction, 'direction', id), id);
-    validated.coneAngle = light.coneAngle;
-  } else if (light.direction !== undefined)
-    validated.direction = normalized(vector(light.direction, 'direction', id), id);
-  return validated;
-}
-export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
-  const skyColor = vector(environment?.skyColor, 'skyColor', 'environment');
-  if (skyColor.some((channel) => channel < 0))
-    throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'couleur de ciel négative', { skyColor });
-  if (!finite(environment.exposure) || environment.exposure <= 0)
-    throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'exposition doit être > 0', {
-      exposure: environment.exposure,
-    });
-  return { skyColor, exposure: environment.exposure };
+export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
+/** Le type d'une lampe depuis son rang : l'inverse de `LIGHT_KIND`, écrit juste à côté de lui. */
+export function lightKindOf(rank: number): SceneLight['kind'] {
+  if (rank === LIGHT_KIND.directional) return 'directional';
+  if (rank === LIGHT_KIND.spot) return 'spot';
+  return 'point';
 }

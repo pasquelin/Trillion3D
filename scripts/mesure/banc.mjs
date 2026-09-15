@@ -35,19 +35,16 @@ import { benchLights } from './lampes.mjs';
 import { runSerie } from './serie.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
-/** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. Un
- *  worktree sans `node_modules` à lui trouve ainsi ceux de l'arbre de travail principal. */
-const packageDir = (name) => {
-  for (let dir = ROOT; ; dir = dirname(dir)) {
-    const candidate = join(dir, 'node_modules', name);
-    if (existsSync(candidate)) return candidate;
-    if (dirname(dir) === dir) throw new Error(`paquet introuvable : ${name}`);
-  }
-};
-const { settings, views, out: OUT, flags } = options.readOptions(process.argv.slice(2), ROOT);
+const {
+  settings,
+  views,
+  out: OUT,
+  flags,
+  resources,
+} = options.readOptions(process.argv.slice(2), ROOT);
 const ENGINE = options.ENGINES[settings.engine];
 const MANIFEST = `/benchmark-assets/${options.SCENE}-derived/native/full/manifest.json`;
-const CTX = { ENGINE, MANIFEST, OUT, settings, lights: null };
+const CTX = { ENGINE, MANIFEST, OUT, settings, lights: null, poses: null };
 
 async function main() {
   options.checkLabPath();
@@ -67,17 +64,7 @@ async function main() {
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
   }
   const captures = new Map();
-  const mounts = [
-    // Les dépendances du navigateur sont résolues par Node, pas par un chemin deviné : un worktree
-    // sans `node_modules` à lui les trouve quand même, chez l'arbre de travail principal.
-    { prefix: '/vendor/three/', dir: packageDir('three') },
-    { prefix: '/vendor/meshoptimizer/', dir: packageDir('meshoptimizer') },
-    { prefix: '/benchmark-assets/', dir: options.ASSETS },
-    ...sides.map((side) => ({ prefix: `/sdk/${side.name}/`, dir: side.dist })),
-    ...sides
-      .filter((side) => side.cache)
-      .map((side) => ({ prefix: `/cache/${side.name}/`, dir: side.cache })),
-  ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
+  const mounts = options.resolveMounts(ROOT, sides, resources);
 
   const report = {
     startedAt: new Date().toISOString(),
@@ -89,6 +76,7 @@ async function main() {
     pathVersion: options.PATH_VERSION,
     settings,
     flags: ENGINE.flags,
+    ressources: resources,
     sides: Object.fromEntries(
       sides.map((s) => [s.name, { dist: s.dist, from: s.from, cache: s.cache ?? null }]),
     ),
@@ -143,12 +131,19 @@ async function main() {
     report.lampes = CTX.lights ? CTX.lights.resume : null;
     for (const pixelError of settings.pixelErrors)
       for (const view of views) {
-        const pose = options.poseAt(report.bounds, options.VIEWS[view].index);
+        const index = options.VIEWS[view].index;
+        const pose = options.poseAt(report.bounds, index);
+        // Caméra en mouvement : une pose par image mesurée, prise sur la trajectoire du banc.
+        CTX.poses = settings.movingCamera
+          ? Array.from({ length: settings.frames }, (_, i) =>
+              options.poseAt(report.bounds, index + i),
+            )
+          : null;
         const serie = {
           view,
           pixelError,
           segment: options.VIEWS[view].segment,
-          index: options.VIEWS[view].index,
+          index,
           pose,
           sides: {},
         };
