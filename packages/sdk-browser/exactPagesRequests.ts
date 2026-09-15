@@ -119,7 +119,6 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
         {
           pixelError: ctx.lastPixelError > 0 ? ctx.lastPixelError * 0.5 : 0.5,
           viewport,
-          frame: ctx.frame,
           holdResident: false,
         },
         prefetchShown,

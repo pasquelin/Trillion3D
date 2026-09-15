@@ -15,7 +15,6 @@ export interface PageRecord extends ClusterCut {
 
 export interface SelectionState<T extends PageRecord> {
   camera: THREE.PerspectiveCamera;
-  frame: number;
   hold: boolean;
   rootFallback: boolean;
   wanted: T[];
@@ -100,7 +99,6 @@ export const forceScratch: number[] = [];
  *  `selectionScratch` : réutiliser cet état retire la dernière allocation par image. */
 const reusedState: SelectionState<PageRecord> = {
   camera: undefined as unknown as THREE.PerspectiveCamera,
-  frame: 0,
   hold: false,
   rootFallback: false,
   wanted: [],

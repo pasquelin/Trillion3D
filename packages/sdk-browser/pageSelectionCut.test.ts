@@ -8,7 +8,6 @@ import { dagCulling } from './pageSelectionTestHelpers.ts';
 const ASK = {
   pixelError: 0,
   viewport: [1280, 720] as [number, number],
-  frame: 1,
   holdResident: true,
 };
 
@@ -87,8 +86,8 @@ test('un nœud aux bornes invalides (NaN) est rejeté à la préparation', () =>
 test('nodesTested est un entier positif ou nul après une image de coupe hiérarchique', () => {
   const fixture = hierarchicalFixture();
   const roots = rootsOf(fixture);
-  for (const frame of [1, 2, 3]) {
-    const { nodesTested } = selectVisiblePages(roots, wideCamera(), { ...ASK, frame });
+  for (let image = 0; image < 3; image++) {
+    const { nodesTested } = selectVisiblePages(roots, wideCamera(), { ...ASK });
     assert.ok(Number.isInteger(nodesTested) && nodesTested >= 0, `nodesTested = ${nodesTested}`);
   }
   fixture.geometry.dispose();
@@ -114,7 +113,7 @@ test('la coupe hiérarchique réutilise son résultat et ses tableaux d’une im
   };
   const ask = { ...ASK, result, wanted };
   const first = selectVisiblePages(roots, cam, ask, shown);
-  const second = selectVisiblePages(roots, cam, { ...ask, frame: 2 }, shown);
+  const second = selectVisiblePages(roots, cam, { ...ask }, shown);
   assert.equal(second, first, 'objet résultat réutilisé');
   assert.equal(second.shown, shown, 'tableau shown réutilisé');
   assert.equal(second.wanted, wanted, 'tableau wanted réutilisé');

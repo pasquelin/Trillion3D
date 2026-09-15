@@ -68,7 +68,8 @@ pub(crate) fn row() -> Row {
                 .iter()
                 .map(|cluster| sphere_reference(&positions, cluster))
                 .collect();
-            out.push(enclosing_sphere(&out.clone()));
+            let englobante = enclosing_sphere(&out);
+            out.push(englobante);
             out
         },
         &mut || {
@@ -76,7 +77,8 @@ pub(crate) fn row() -> Row {
                 .iter()
                 .map(|cluster| bounding_sphere(&positions, cluster))
                 .collect();
-            out.push(enclosing_sphere(&out.clone()));
+            let englobante = enclosing_sphere(&out);
+            out.push(englobante);
             out
         },
         empreinte,

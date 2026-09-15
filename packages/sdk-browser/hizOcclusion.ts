@@ -117,7 +117,16 @@ const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
 
 /** `hizRejects` sur la disposition plate qu'écrit `projectBoxesFlat`. */
 export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: number, bias = 0) {
-  if (!hizTestRectFlat(bounds, base, pyramid.width, pyramid.height, pyramid.count, rejectScratch))
+  if (
+    !hizTestRectFlat(
+      bounds,
+      base,
+      pyramid.widths[0],
+      pyramid.heights[0],
+      pyramid.count,
+      rejectScratch,
+    )
+  )
     return false;
   const far = hizFootprintFarFlat(
     pyramid,

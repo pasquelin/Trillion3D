@@ -28,7 +28,6 @@ function selectTransparentCut(
     {
       pixelError: budgeted,
       viewport,
-      frame: rt.run.frame,
       holdResident: true,
       rootFallback: true,
       pageBudget: Math.max(1, slots - bootstrapUrls.size),

@@ -1,27 +1,15 @@
 #!/usr/bin/env node
 // Assemble les fragments du lot C en un seul tableau : console, Markdown et JSON. Le lot C ajoute la
 // colonne « Écart » : un changement qui déplace l'ordre flottant doit dire de combien il déplace.
-import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RACINE } from './banc.mjs';
+import { RACINE, commit, fragments } from './banc.mjs';
 import { ENTETE_C, SEPARATEUR_C, ligneMarkdownC } from './bancC.mjs';
 
 const FRAGMENTS = join(RACINE, '.mesure', 'calculs-c');
 const SORTIE = join(RACINE, 'orchestration', 'mesures');
 
-function commit() {
-  try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: RACINE, encoding: 'utf8' }).trim();
-  } catch {
-    return null;
-  }
-}
-
-const lignes = readdirSync(FRAGMENTS)
-  .filter((nom) => nom.endsWith('.json'))
-  .flatMap((nom) => JSON.parse(readFileSync(join(FRAGMENTS, nom), 'utf8')))
-  .sort((a, b) => Number(a.calcul.slice(1, 3).trim()) - Number(b.calcul.slice(1, 3).trim()));
+const lignes = fragments(FRAGMENTS);
 
 const jour = new Date().toISOString().slice(0, 10);
 const tableau = [ENTETE_C, SEPARATEUR_C, ...lignes.map(ligneMarkdownC)].join('\n');

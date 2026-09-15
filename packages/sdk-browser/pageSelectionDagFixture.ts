@@ -152,7 +152,6 @@ export function urls(
   return selectVisiblePages(roots, cam, {
     pixelError,
     viewport: [1280, 720],
-    frame: 1,
     holdResident: true,
   })
     .shown.map((page) => page.url)
