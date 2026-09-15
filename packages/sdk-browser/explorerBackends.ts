@@ -84,8 +84,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     atlasClasses: options.atlasClasses ?? 1,
     stageProfile: options.stageProfile === true,
     sceneLighting: sceneLightingSource,
-    // La lumière qui rebondit est allumée par défaut : son étape tient la durée que l'hôte lui
-    // donne, et l'hôte la coupe explicitement s'il n'en veut pas.
+    // La lumière qui rebondit reste éteinte par défaut : son étape mesurée tient 1,1 à 1,3 ms sur
+    // Emerald, au-dessus de la barre d'une milliseconde, et l'hôte l'allume explicitement.
     bounce: options.bounce,
     bounceBudgetMs: options.bounceBudgetMs,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),

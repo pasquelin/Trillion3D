@@ -101,9 +101,9 @@ export async function createGpuBounceSurface(
     get lastTexels() {
       return updated;
     },
-    /** Une lampe a changé : le cache entier est périmé et le balayage repart. */
+    /** Une lampe a changé : le cache entier est périmé, le balayage reprend là où il en était.
+     *  Reculer le curseur ne referait que les mêmes mailles à chaque image d'une lampe mobile. */
     restart() {
-      cursor = 0;
       sweeps = 0;
     },
     /**

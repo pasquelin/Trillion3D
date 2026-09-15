@@ -135,7 +135,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     vis,
     lights: createWebgpuLightState(context.sceneLights),
     bounce: createWebgpuBounceState(
-      context.bounce !== false,
+      context.bounce === true,
       context.bounceBudgetMs ?? BOUNCE_SETTINGS.budgetMs,
     ),
     run,

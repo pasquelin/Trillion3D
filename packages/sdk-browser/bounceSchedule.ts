@@ -49,11 +49,14 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
     get sweepFrames() {
       return roundFrames.reduce((slowest, value) => Math.max(slowest, value), 1);
     },
-    /** Une lampe a changé, ou la cascade a glissé : tout le monde repart du début. */
+    /**
+     * Une lampe a changé, ou la cascade a glissé : la série des rebonds n'est plus close et le
+     * travail reprend. Les curseurs, eux, ne reculent pas — une lampe qui bouge à chaque image
+     * les remettrait sans cesse au début, et seules les premières sondes seraient jamais mises à
+     * jour. Le rafraîchissement est roulant, jamais bloquant.
+     */
     restart() {
-      cursors.fill(0);
       rounds.fill(0);
-      elapsed.fill(0);
     },
     /**
      * La file de l'image : les rangs à mettre à jour, niveau par niveau, dans la limite du lot.

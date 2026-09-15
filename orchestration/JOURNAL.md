@@ -830,6 +830,142 @@ port 5174 non touché ; aucun `eslint-disable` ; `node_modules` (lien symbolique
 - **Passage global G** (deux Sonnet neufs, 189 fichiers relus, 12 points) : 10 retenus — coupe autonome sans parcours complet, ombrage CPU 23,5 → 15,1 ms, compteur d'octets, demande annulée 1,22 → 0,09 ms, file d'adresses 0,96 → 0,05 ms, étiquettes des colonnes Rust 13,8 → 0,36 ms, bornes de cascade solaire par vue, validation d'accessor unique, niveaux de preview, min/médiane/max sans tri. Neutres : cache de coins Hi-Z (relire 24 doubles coûte plus que retransformer 8 coins), preview Rust. Le harnais JS a gagné une mesure alternée (`options.alterne`) : la mesure séquentielle donnait 25 à 40 % d'avance au premier tour sur machine chargée.
 - Bilan dans `orchestration/AUDIT_MATH_BILAN.md` ; `AUDIT_MATH_PLAN.md` et les rapports G supprimés (plan terminé). Reste : D3 avec sa propre campagne, et la preuve navigateur chiffrée des temps par image sur machine calme.
 
+## 2026-09-15 — lot « rebond 3 » : cascades autour de la caméra, budget en millisecondes, ordre 2
+
+Branche `lot/rebond-3`, sur `develop` = `abe8827`. Le format du sidecar n'est pas touché et l'objet
+de cache `proxy.bin` garde sa version 2 : un cache compilé pour le lot 2 marche tel quel.
+
+### Ce que le lot remplace
+
+- **Cascades au lieu d'une grille fixe.** Jusqu'à quatre cubes emboîtés de 16 sondes par axe ; chaque
+  niveau double son écartement, les plus fins suivent la caméra, le dernier reste fixe dans le monde
+  et couvre l'emprise du proxy. Une scène assez petite n'obtient qu'un seul niveau, fixe, et la
+  cascade s'arrête au premier niveau qui couvre déjà tout : un niveau de plus ne verrait rien de neuf.
+  L'écartement du plus fin vaut au plus 2 m, resserré pour garder au moins trois couches de sondes en
+  travers de la plus mince dimension de la scène, élargi si le plus grossier ne traversait pas la
+  scène sans cela. Sur Emerald (232 × 104 × 232 m) : **2,23 / 4,46 / 8,92 / 17,85 m**, 16 384 sondes.
+  Sur la pièce de contrôle (8 × 3 × 8 m) : **un seul niveau à 1 m**, 4 096 sondes.
+- **Les sondes ne bougent pas.** Elles vivent sur un réseau global, au centre de leur maille, et une
+  maille se range par son reste modulo le côté du cube. Glisser d'une maille ne périme donc que la
+  tranche qui entre ; tout le reste garde son travail. Chaque sonde porte la maille qu'elle tient, et
+  une sonde qui ne tient pas celle qu'on lui demande ne pèse rien — c'est ce qui remplace une purge.
+- **Une carte d'occupation dit où poser une sonde.** Calculée une fois sur le proxy, dilatée d'une
+  maille, réduite exactement d'un niveau au suivant. L'ordonnanceur saute le ciel vide et le cœur
+  plein des blocs : sur Emerald **83 562 mailles sur 802 816** méritent une sonde, soit 10,4 %. Une
+  sonde enterrée dans une surface ou perdue en plein ciel s'endort en plus d'elle-même, et les mises
+  à jour suivantes la sautent sans lancer un rayon jusqu'à ce qu'une lampe change.
+- **Le budget devient une durée.** `createExplorer({ bounceBudgetMs })`, 0,8 ms par défaut. Le rebond
+  lit le chronomètre de sa propre étape dans le profil par passe — jamais une estimation — et corrige
+  d'un quart de l'écart la fraction de ses plafonds publiés que l'image suivante encodera. Les
+  plafonds (49 152 rayons, 16 384 mailles de cache) restent des bornes connues avant l'image (X2).
+  Approximation déclarée : le relevé revient avec plusieurs images de retard et une image sur trois
+  ou sur douze ; sans horodatage, la fraction reste à un, et c'est dit.
+- **Base d'ordre 2**, neuf coefficients au lieu de quatre : 44 flottants par sonde au lieu de 24.
+
+### Coût, Emerald, huit lampes dont une mobile
+
+1280 × 720, WebGPU, 180 images de profil, mode visible, cache Emerald recompilé par ce compilateur
+(proxy 94 648 triangles, 7 609 nœuds, 4,3 Mo, maille 4 m). **Machine jamais calme : la charge est
+restée entre 21 et 68 pendant toute la journée**, si bien que seuls les relevés par horodatage de la
+carte graphique sont utilisables ; les durées processeur de l'étape valent `null`.
+
+| vue      | `develop` p50/p95 | lot p50/p95      | fraction du budget tenue |
+| -------- | ----------------: | ---------------: | -----------------------: |
+| générale |   2,33 / 3,22 ms  | **0,99 / 2,88**  |                    5,5 % |
+| sol      |   2,74 / 3,65 ms  | **0,83 / 2,43**  |                    3,0 % |
+| rue      |   2,37 / 3,20 ms  | **1,01 / 4,16**  |                    2,4 % |
+
+Scène immobile, même campagne sans lampe mobile : **0,94 / 0,74 / 0,73 ms** p50, fraction 3,1 à 5,6 %.
+Les compteurs publiés par image : sondes mises à jour 9 à 24, rayons 576 à 1 536, mailles de cache
+388 à 895 sur 189 296, contre 768 sondes, 49 152 rayons et 16 384 mailles à budget fixe dans
+`develop`. **C'est l'asservissement qui a choisi ces nombres, pas un réglage à la main.**
+
+Un défaut trouvé par cette mesure et corrigé : la première version remettait les curseurs à zéro à
+chaque changement de lampe, si bien qu'une lampe qui bouge à chaque image gelait le balayage sur ses
+premières sondes. Le rafraîchissement est maintenant roulant — les curseurs ne reculent jamais, seuls
+les compteurs de tours repartent.
+
+### Activation par défaut : non, et pourquoi
+
+La règle demandait moins d'une milliseconde sur les trois vues. Le p50 vaut 0,99, 0,83 et **1,01 ms**
+— la troisième vue passe à côté de 1 % — et le p95 monte de 2,4 à 4,2 ms. **Le rebond reste donc
+éteint par défaut**, `createExplorer({ bounce: true })` l'allume. Une remesure sur machine calme est
+le seul travail qui reste avant de rouvrir la question : toute la campagne s'est faite entre 21 et 68
+de charge, et le p95 de l'étape suit cette charge de près.
+
+### Fidélité, rebond éteint
+
+`banc.mjs`, WebGPU, Emerald, trois vues, 1280 × 720, `pixelError 0`, `auto` sans lampe, même cache des
+deux côtés. **`abe8827` contre le lot : 0 px, max canal 0, sur `generale`, `sol` et `rue`**, témoin
+A/A à 0 px, coupe identique, 0 triangle non couvert.
+
+### Stabilité, rebond allumé, scène immobile
+
+Huit lampes fixes, caméra fixe, 60 images de chauffe puis 60 mesurées, deux exécutions indépendantes
+du même côté : **0 px d'écart, max canal 0, sur les trois vues**. L'image convergée ne scintille pas,
+et une fois la série close aucune des deux passes n'est encodée.
+
+### Écart à l'oracle et retard, pièce de contrôle
+
+Pièce fermée 8 × 3 × 8 m, un mur rouge, une ponctuelle à ombre, oracle à huit rebonds, 160 × 120,
+même pose des deux côtés (position 3, 2, 3 ; cible −4, 0,5, −4). L'exposition est descendue à 0,005
+pour que rien n'écrête : à 0,05, l'image du moteur saturait et l'écart ne mesurait plus rien.
+
+| grandeur                  | `develop` | lot, ordre 1 | **lot, ordre 2** |     cible |
+| ------------------------- | --------: | -----------: | ---------------: | --------: |
+| écart moyen               |    19,4 % |       25,1 % |       **18,6 %** |      10 % |
+| écart médian              |    16,8 % |       23,7 % |       **14,4 %** |         — |
+| écart p95                 |    44,7 % |       53,4 % |       **49,9 %** |         — |
+| moteur / oracle           |      0,91 |         0,76 |         **1,03** |         1 |
+| retard de convergence     |     6 img |       25 img |      **22 img**  | 100 ms,   |
+|                           |    100 ms |       417 ms |       **367 ms** | limite 250 |
+
+**L'ordre 2 se paie et se justifie** : dans les mêmes cascades, l'ordre 1 rend 25,1 % d'écart et une
+image 24 % trop sombre, l'ordre 2 rend 18,6 % et un biais de 3 %. Le coût est de 44 flottants par
+sonde au lieu de 24 — sur Emerald, 2,9 Mo de sondes au lieu de 1,6 —, et cinq accumulateurs de plus
+en mémoire de groupe, 13,3 ko sur les 16 ko d'un groupe de travail. **La cible de 10 % n'est pas
+tenue** : ce qui reste n'est plus la base mais l'interpolation entre huit sondes et la maille de
+50 cm du cache.
+
+**Le retard ne tient pas la limite de 250 ms sur la pièce de contrôle** : 367 ms. Deux choses le
+disent honnêtement. D'abord la mesure : le plancher de la courbe est le bruit de Monte-Carlo du
+moteur lui-même, et celui du lot vaut la moitié de celui de `develop` (0,036 contre 0,068), donc la
+barre du lot est deux fois plus stricte ; à la barre absolue de `develop`, le lot la franchit en
+10 images. Ensuite la structure : `settledSweeps` vaut 16 et un balayage de cette pièce tient en une
+image, si bien qu'aucun retard mesuré ne peut descendre sous 16 images, soit 267 ms. Deux réglages
+ont été trouvés par la mesure et non devinés : l'amortissement plancher passe de 0,1 à **0,2** et le
+seuil de résidu de 0,12 à **0,05**, ce qui fait tomber le retard de 450 à 300 ms sans changer l'écart.
+
+### Emerald invisible : l'option d'intensité ne suffit pas
+
+`--intensite N` est ajoutée au banc et à la campagne d'oracle (40 par défaut), posée par la même
+règle générique que les lampes : aucune coordonnée de scène. **Elle ne débloque pas la mesure.**
+L'irradiance indirecte de l'oracle sur Emerald est **exactement nulle sur les 36 864 canaux**, à
+intensité 40 comme à 2 000, et encore à 64 rayons par pixel avec la caméra posée à huit mètres d'une
+lampe de 2 000 : aucun canal ne passe le plancher de comparaison. Le verdict reste **indéterminé**
+(E7), et le blocage n'est pas l'intensité des lampes : c'est l'oracle qui ne rapporte aucun indirect
+sur cette scène. Savoir si ce sont les rayons d'ombre, la portée des lampes ou la palette d'albédo
+qui l'annulent demande un lot à lui seul, sur `web-geometry-oracle`.
+
+### Portes
+
+Typage `tsc` vert, `npm run check:changed` vert (format, lignes — 0 fichier de plus de 200 —,
+doublons 0, lint, 547 tests reliés). Aucun test ajouté. Sur une passe complète jouée avant la
+consigne de l'utilisateur : 694 tests JS/TS, 147 Rust, 4 CLI, `knip` propre.
+
+### Ce qui reste, chiffré
+
+- **Remesurer sur machine calme** : la charge n'est pas descendue sous 21 de la journée, et c'est la
+  seule chose qui sépare aujourd'hui l'étape de la barre d'une milliseconde qui l'allumerait.
+- **De 18,6 % à 10 %** : l'interpolation entre huit sondes et la maille de 50 cm du cache, pas la base.
+- **Le plancher de l'étape** : à 15 sondes et 328 mailles par image, l'étape coûtait encore 1,1 ms sur
+  machine saturée. Il faut savoir ce qui, des deux passes, du recopiage de l'instantané (2,9 Mo par
+  image) ou de la contention, porte ce plancher. Un instantané par échange de tampons au lieu d'une
+  copie est le premier candidat.
+- **Retard sous 250 ms** : il faudrait découpler la clôture de la série (`settledSweeps`) de la
+  mesure, ou faire converger la série autrement que par itération.
+- **L'oracle sur Emerald** : indirect nul, cause inconnue, lot dédié.
+
 ## 2026-09-15 — lot « rebond 2 » : rendre le rebond abordable
 
 Branche `lot/rebond-2`, sur `develop` = `62c6b3d`. **L'étape Rebond d'Emerald passe de 78 à 87 ms à
