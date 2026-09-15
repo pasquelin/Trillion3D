@@ -32,10 +32,14 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const state = { allocationBytes: 0, submittedTriangles: 0 };
   // L'ensemble des pages affichées, réutilisé d'une image à l'autre plutôt que reconstruit.
   const affichees = new Set<PageRec>();
+  // Les pages effectivement attachées à la scène, tenues par `attach` et `detach`. Une image ne
+  // détache qu'un delta borné par la coupe : elle n'a plus à balayer tout le DAG pour le trouver.
+  const attachees = new Set<PageRec>();
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
       rec.attached = false;
+      attachees.delete(rec);
     }
   };
   const attach = (rec: PageRec) => {
@@ -51,13 +55,15 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     if (!rec.attached) {
       scene.add(rec.mesh);
       rec.attached = true;
+      attachees.add(rec);
     }
   };
   const sync = () => {
     const display = shown;
     affichees.clear();
     for (const rec of display) affichees.add(rec);
-    for (const rec of allPages) if (rec.attached && !affichees.has(rec)) detach(rec);
+    // Retirer l'élément courant d'un `Set` pendant son parcours est défini : il ne sera pas revisité.
+    for (const rec of attachees) if (!affichees.has(rec)) detach(rec);
     state.submittedTriangles = 0;
     for (const rec of display) {
       if (!rec.array) throw new Error('AUTONOMOUS_COVERAGE_MISSING');
