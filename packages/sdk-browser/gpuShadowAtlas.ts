@@ -141,8 +141,16 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         slicePacked[base + 2] = side;
         slicePacked[base + 3] = near;
       },
-      flushSlices() {
-        device.queue.writeBuffer(sliceBuffer, 0, slicePacked);
+      /**
+       * Repousse les tranches que l'ordonnanceur vient de redessiner, et elles seules : les autres
+       * décrivent déjà l'image côté carte. L'atlas écrit ce qu'on lui donne et ne tient pas la liste
+       * de ce qu'il a écrit — celui qui décide quoi redessiner la connaît déjà.
+       */
+      flushSlices(slices: Int32Array, count: number) {
+        for (let i = 0; i < count; i++) {
+          const first = slices[i] * SHADOW_SLICE_FLOATS;
+          device.queue.writeBuffer(sliceBuffer, first * 4, slicePacked, first, SHADOW_SLICE_FLOATS);
+        }
       },
       dispose: release,
     };

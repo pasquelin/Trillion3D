@@ -5,14 +5,15 @@ import { createShadowAtlas } from './sceneLightShadowAtlas.ts';
 export const RECTS_PER_SLICE = POINT_FACES * 3;
 
 /**
- * La table des tranches d'ombre : qui possède quelle tranche, à quel côté, et l'état de fraîcheur
+ * La table des tranches d'ombre : quelle tranche est prise, à quel côté, et l'état de fraîcheur
  * qui décide qu'une tranche en cache est périmée. Tout est alloué une fois ; une tranche ne se
  * réalloue que lorsque le nombre de faces change ou que le côté voulu double ou se divise par deux.
  */
 export function createShadowSliceTable() {
   const atlas = createShadowAtlas();
   const rects = new Int32Array(MAX_SHADOW_SLICES * RECTS_PER_SLICE);
-  const owner: string[] = new Array(MAX_SHADOW_SLICES).fill('');
+  /** Une tranche prise, sans dire par qui : le magasin porte déjà le lien lampe → tranche. */
+  const taken = new Uint8Array(MAX_SHADOW_SLICES);
   const faces = new Int32Array(MAX_SHADOW_SLICES),
     side = new Int32Array(MAX_SHADOW_SLICES),
     revision = new Uint32Array(MAX_SHADOW_SLICES),
@@ -29,16 +30,16 @@ export function createShadowSliceTable() {
     free(slice: number) {
       if (slice < 0) return;
       atlas.release(faces[slice], rects, slice * RECTS_PER_SLICE);
-      owner[slice] = '';
+      taken[slice] = 0;
       faces[slice] = 0;
       side[slice] = 0;
       drawn[slice] = 0;
     },
     /** La première tranche libre, ou −1 quand les 64 tranches publiées sont prises. */
-    claim(id: string) {
+    claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
-        if (!owner[slice]) {
-          owner[slice] = id;
+        if (!taken[slice]) {
+          taken[slice] = 1;
           revision[slice] = 0;
           movedEpoch[slice] = 0;
           drawn[slice] = 0;
@@ -62,7 +63,7 @@ export function createShadowSliceTable() {
       faces[slice] = got ? wantedFaces : 0;
       side[slice] = got;
       drawn[slice] = 0;
-      if (!got) owner[slice] = '';
+      if (!got) taken[slice] = 0;
       return got;
     },
     /** Marque la tranche comme dessinée à cette révision de lampe et cet état du monde. */

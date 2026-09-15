@@ -59,6 +59,8 @@ export async function measureView(options) {
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
+    // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
+    stageProfile: options.stageProfile === true,
   });
   const pose = options.pose;
   explorer.setPose(pose);
@@ -79,6 +81,24 @@ export async function measureView(options) {
     if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
   }
   await explorer.flush();
+
+  // Le profil par étape est relevé par une boucle à part, après la mesure : la boucle mesurée reste
+  // strictement celle des lots précédents, sinon ses durées ne se compareraient plus. Ici on rend la
+  // main au navigateur entre deux images, parce que les relevés d'horodatage reviennent par une
+  // promesse : une boucle qui n'attend jamais n'en récupère presque aucun. La fenêtre est d'abord
+  // vidée pour que la chauffe et les premières images ne pèsent plus sur les quantiles.
+  let stageProfile = null;
+  if (options.stageProfile) {
+    explorer.resetStageProfile();
+    for (let i = 0; i < options.profileFrames; i++) {
+      explorer.render(pose);
+      await explorer.flush();
+      // Une vraie limite d'image : le navigateur ne rend un compteur d'horodatage WebGL2 lisible
+      // qu'après une frontière d'image, et c'est aussi ce que fait une application réelle.
+      await new Promise((done) => requestAnimationFrame(done));
+    }
+    stageProfile = explorer.stageProfile();
+  }
 
   // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
   const rgba = explorer.capture();
@@ -121,6 +141,7 @@ export async function measureView(options) {
     cpuFrameMs,
     cpuSelectMs,
     gpuFrameMs,
+    stageProfile,
     selection,
     metrics,
     size,

@@ -1,6 +1,8 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './gpuDrawContract.ts';
 import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
+import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
+import { shaderFailed } from './gpuShaderModule.ts';
 import { drawShader } from './gpuDrawShader.ts';
 
 /**
@@ -22,7 +24,7 @@ export async function createGpuDraw(
     const { itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer } = allocated;
     const { groupCounts, groupOffsets, slotUsedBuf } = allocated;
     buffers.push(...allocated.all);
-    if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+    openValidation(device);
     const layout = device.createBindGroupLayout({
       entries: [
         { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
@@ -37,14 +39,9 @@ export async function createGpuDraw(
       ],
     });
     const module = device.createShaderModule({ code: drawShader(layerSlots) });
-    if (typeof module.getCompilationInfo === 'function') {
-      const info = await module.getCompilationInfo();
-      if (info.messages.some((message) => message.type === 'error')) {
-        if (typeof device.popErrorScope === 'function')
-          await device.popErrorScope().catch(() => {});
-        for (const buffer of buffers) buffer.destroy();
-        return undefined;
-      }
+    if (await shaderFailed(device, module)) {
+      for (const buffer of buffers) buffer.destroy();
+      return undefined;
     }
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
     const countPipeline = device.createComputePipeline({
@@ -59,12 +56,9 @@ export async function createGpuDraw(
       layout: pipelineLayout,
       compute: { module, entryPoint: 'scatterGroups' },
     });
-    if (typeof device.popErrorScope === 'function') {
-      const error = await device.popErrorScope();
-      if (error) {
-        for (const buffer of buffers) buffer.destroy();
-        return undefined;
-      }
+    if (await validationError(device)) {
+      for (const buffer of buffers) buffer.destroy();
+      return undefined;
     }
     const makeBindGroup = (maskBuffer: GPUBuffer) =>
       device.createBindGroup({
@@ -147,7 +141,7 @@ export async function createGpuDraw(
       },
     };
   } catch {
-    if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+    await dropValidation(device);
     for (const buffer of buffers)
       try {
         buffer.destroy();

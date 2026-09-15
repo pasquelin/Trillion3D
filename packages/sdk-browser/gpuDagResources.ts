@@ -1,3 +1,4 @@
+import { dropValidation } from './gpuErrorScope.ts';
 import { SELECTION_UNIFORM_BYTES as UNIFORM_BYTES } from './gpuSelection.ts';
 import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 import { createDagPipeline } from './gpuDagPipeline.ts';
@@ -124,7 +125,7 @@ export async function createDagResources(
       ...pipeline,
     };
   } catch {
-    if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+    await dropValidation(device);
     for (const buffer of buffers)
       try {
         buffer.destroy();

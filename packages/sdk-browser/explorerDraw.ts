@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
+import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -23,12 +25,15 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
   const ownedRenderer = inputs.renderer;
+  // WebGL2 ne sait pas horodater une passe : le chronomètre entoure la soumission de l'image entière,
+  // et n'est monté que si l'hôte a demandé le profil par étape.
+  const gpuTimer =
+    session.options.stageProfile === true && !directGpu && ownedRenderer
+      ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
+      : null;
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
     const { measuring } = state;
-    const steps = backend as {
-      cpuStep?: (index: number, ms: number) => void;
-      cpuFrameEnd?: () => void;
-    };
+    const steps = backend as HostCpuProfile;
     backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
@@ -74,8 +79,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const visibleUrls = backend.pageUrls?.();
     if (visibleUrls) streamer.retain(visibleUrls);
     const retainEnd = performance.now();
-    steps.cpuStep?.(5, pendingEnd - renderEnd);
-    steps.cpuStep?.(6, retainEnd - pendingEnd);
+    steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
+    steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
     if (directGpu) {
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
@@ -110,8 +115,15 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
+    gpuTimer?.begin();
     ownedRenderer.render(backend.scene, camera);
-    steps.cpuStep?.(7, performance.now() - retainEnd);
+    gpuTimer?.end();
+    steps.cpuStep?.('submitMs', performance.now() - retainEnd);
+    if (gpuTimer) {
+      // Une requête relue quelques images plus tard : la lecture ne bloque jamais l'image en cours.
+      const read = gpuTimer.poll();
+      steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
+    }
     steps.cpuFrameEnd?.();
   };
   return drawBackend;

@@ -44,6 +44,51 @@ function rows(report) {
   return lines;
 }
 
+/** `p50 / p95` d'une étape, ou « non mesuré » : un tiret ne serait pas distinct d'un zéro. */
+const etape = (q) => (q ? `${q.p50.toFixed(3)} / ${q.p95.toFixed(3)}` : 'non mesuré');
+
+/** Les compteurs d'une étape, sur une seule ligne ; vide quand l'étape n'en porte pas. */
+const compteurs = (counts) =>
+  Object.entries(counts ?? {})
+    .map(([nom, valeur]) => `${nom} ${valeur}`)
+    .join(', ');
+
+/** Le découpage par étape d'une série : une ligne par étape, processeur et carte graphique séparés. */
+function etapes(report) {
+  const lines = [];
+  for (const serie of report.series)
+    for (const [side, resultat] of Object.entries(serie.sides)) {
+      const titre = `### ${serie.view} · e${serie.pixelError} · ${side}`;
+      const profile = resultat.profilParEtape;
+      if (!profile || !profile.enabled) {
+        lines.push(`${titre} : profil par étape absent`, '');
+        continue;
+      }
+      lines.push(
+        titre,
+        '',
+        `- Moteur \`${profile.backend}\`, ${profile.cpuFrames} images processeur, ` +
+          `${profile.gpuSamples} relevés carte graphique sur une fenêtre de ${profile.windowFrames}`,
+        `- Mesure carte graphique : ${profile.gpuMethod ?? 'non mesurée'}` +
+          (profile.gpuReason ? ` (${profile.gpuReason})` : ''),
+        `- Coût du profil lui-même : ${etape(profile.overheadMs)} ms par image`,
+        `- Image entière côté carte graphique (enveloppe) : ${etape(profile.gpuImageMs)} ms — les`,
+        '  durées par étape ne s’y additionnent pas : cet appareil peut faire se chevaucher deux passes,',
+        '  et une somme les compterait deux fois.',
+        '',
+        '| étape | CPU ms p50/p95 | GPU ms p50/p95 | compteurs |',
+        '|---|---|---|---|',
+        ...profile.stages.map(
+          (stage) =>
+            `| ${stage.label} | ${etape(stage.cpuMs)} | ${etape(stage.gpuMs)} ` +
+            `| ${compteurs(stage.counts)} |`,
+        ),
+        '',
+      );
+    }
+  return lines;
+}
+
 /** `resume.md` : ce que la série a relevé, et rien d'autre. Un tiret est une absence, pas un zéro. */
 export function resume(report) {
   const lines = [
@@ -62,6 +107,12 @@ export function resume(report) {
     '',
     ...rows(report),
     '',
+    '## Coût par étape',
+    '',
+    'Les deux colonnes ne sont jamais additionnées : le processeur et la carte graphique travaillent',
+    "en même temps. « non mesuré » n'est pas zéro.",
+    '',
+    ...etapes(report),
     '## Témoin A/A et écart avant/après',
     '',
     '| vue | pixelError | témoin A/A (même côté, deux captures) | avant vs après |',

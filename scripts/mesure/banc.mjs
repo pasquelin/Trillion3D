@@ -34,6 +34,15 @@ import { imageDiff, resume } from './rapport.mjs';
 import { runSerie } from './serie.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
+/** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. Un
+ *  worktree sans `node_modules` à lui trouve ainsi ceux de l'arbre de travail principal. */
+const packageDir = (name) => {
+  for (let dir = ROOT; ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', name);
+    if (existsSync(candidate)) return candidate;
+    if (dirname(dir) === dir) throw new Error(`paquet introuvable : ${name}`);
+  }
+};
 const { settings, views, out: OUT, flags } = options.readOptions(process.argv.slice(2), ROOT);
 const ENGINE = options.ENGINES[settings.engine];
 const MANIFEST = `/benchmark-assets/${options.SCENE}-derived/native/full/manifest.json`;
@@ -58,8 +67,10 @@ async function main() {
   }
   const captures = new Map();
   const mounts = [
-    { prefix: '/vendor/three/', dir: join(ROOT, 'node_modules/three') },
-    { prefix: '/vendor/meshoptimizer/', dir: join(ROOT, 'node_modules/meshoptimizer') },
+    // Les dépendances du navigateur sont résolues par Node, pas par un chemin deviné : un worktree
+    // sans `node_modules` à lui les trouve quand même, chez l'arbre de travail principal.
+    { prefix: '/vendor/three/', dir: packageDir('three') },
+    { prefix: '/vendor/meshoptimizer/', dir: packageDir('meshoptimizer') },
     { prefix: '/benchmark-assets/', dir: options.ASSETS },
     ...sides.map((side) => ({ prefix: `/sdk/${side.name}/`, dir: side.dist })),
     ...sides
@@ -94,7 +105,7 @@ async function main() {
   // le navigateur libère le processus GPU entre deux séries.
   const onFreshPage = async (run) => {
     const browser = await chromium.launch({
-      headless: true,
+      headless: !settings.visible,
       executablePath: options.CHROME,
       args: ENGINE.flags,
     });

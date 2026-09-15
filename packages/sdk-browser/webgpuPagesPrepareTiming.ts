@@ -1,11 +1,17 @@
 import { createGpuTiming } from './gpuTiming.ts';
+import { addGpuPasses } from './stageMapping.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
 export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { timing, diag } = rt;
+  // La trace relève chaque image ; le profil par étape a besoin d'assez de relevés pour un p95
+  // honnête ; sans l'un ni l'autre, la cadence d'origine est conservée telle quelle.
+  let sampleEveryFrames = 12;
+  if (diag.traceEnabled) sampleEveryFrames = 1;
+  else if (timing.stages) sampleEveryFrames = 3;
   const gpuTiming = createGpuTiming(gpuDevice, {
-    sampleEveryFrames: diag.traceEnabled ? 1 : 12,
+    sampleEveryFrames,
     onSample: (sample) => {
       // The public metric carries the contract's fields only; the diagnostic keeps the full context.
       timing.lastGpuPassMs = {
@@ -17,6 +23,13 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       };
       timing.lastGpuFrameMs = sample.submittedMs;
       timing.lastGpuHostGapMs = sample.hostGapMs;
+      // Le relevé décrit une image déjà passée : il est rangé par étape sans jamais bloquer celle-ci.
+      // L'enveloppe de l'image est publiée à part : sur un appareil qui fait se chevaucher les passes,
+      // la somme des étapes dépasse l'image, et c'est l'enveloppe qui dit la vérité sur sa durée.
+      if (timing.stages) {
+        timing.stages.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add));
+        if (sample.submittedMs !== null) timing.stages.pushImageGpu(sample.submittedMs);
+      }
       const phase = sample.error ? 'gpu-timing-unavailable' : 'gpu-timing',
         message = sample.error ? 'Mesure GPU indisponible' : 'Durées GPU mesurées par passe';
       diag.engineDiagnostic(phase, message, sample);

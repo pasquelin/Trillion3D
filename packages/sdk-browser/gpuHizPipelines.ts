@@ -1,8 +1,10 @@
 import { HIZ_SHADER } from './gpuHizShader.ts';
+import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
+import { shaderFailed } from './gpuShaderModule.ts';
 
 /** Compile the three Hi-Z kernels under one device validation scope. */
 export async function createHizPipelines(device: GPUDevice, uniformBytes: number) {
-  if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+  openValidation(device);
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
@@ -21,13 +23,7 @@ export async function createHizPipelines(device: GPUDevice, uniformBytes: number
     ],
   });
   const module = device.createShaderModule({ code: HIZ_SHADER });
-  if (typeof module.getCompilationInfo === 'function') {
-    const info = await module.getCompilationInfo();
-    if (info.messages.some((message) => message.type === 'error')) {
-      if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
-      return undefined;
-    }
-  }
+  if (await shaderFailed(device, module)) return undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const copyPipeline = device.createComputePipeline({
     layout: pipelineLayout,
@@ -41,10 +37,7 @@ export async function createHizPipelines(device: GPUDevice, uniformBytes: number
     layout: pipelineLayout,
     compute: { module, entryPoint: 'testHiz' },
   });
-  if (typeof device.popErrorScope === 'function') {
-    const error = await device.popErrorScope();
-    if (error) return undefined;
-  }
+  if (await validationError(device)) return undefined;
   return { layout, copyPipeline, reducePipeline, testPipeline };
 }
 
@@ -55,7 +48,7 @@ export async function cleanupFailedHiz(
   level0?: GPUTexture,
   pyramid?: GPUBuffer,
 ) {
-  if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+  await dropValidation(device);
   for (const buffer of buffers)
     try {
       buffer.destroy();

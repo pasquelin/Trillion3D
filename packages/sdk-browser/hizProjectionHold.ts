@@ -1,8 +1,5 @@
 import type * as THREE from 'three';
-
-/** View, projection, near, viewport and world epoch: everything a screen rectangle depends on
- *  besides the box itself. */
-const SIGNATURE = 36;
+import { copyElements, sameElements } from './matrixElements.ts';
 
 /**
  * Which slots of the screen-rectangle table still describe this image, and which have to be
@@ -21,35 +18,37 @@ export function createProjectionHold(slots: number) {
   const stamp = new Int32Array(size).fill(-1),
     heldPage = new Int32Array(size).fill(-1),
     pending = new Uint8Array(size);
-  const signature = new Float64Array(SIGNATURE);
-  let generation = 0;
+  // Vue, projection, plan proche, viewport et révision du monde : tout ce dont un rectangle d'écran
+  // dépend en dehors de la boîte elle-même.
+  const view = new Float64Array(16),
+    projection = new Float64Array(16);
+  let generation = 0,
+    heldNear = NaN,
+    heldWidth = -1,
+    heldHeight = -1,
+    heldEpoch = -1;
   return {
     pending,
     /** Re-reads the view every slot shares; a change retires every rectangle at once. */
     reframe(camera: THREE.PerspectiveCamera, width: number, height: number, epoch: number) {
       camera.updateMatrixWorld();
-      const view = camera.matrixWorldInverse.elements,
-        projection = camera.projectionMatrix.elements;
-      let same =
-        signature[32] === camera.near &&
-        signature[33] === width &&
-        signature[34] === height &&
-        signature[35] === epoch;
-      if (same)
-        for (let i = 0; i < 16; i++)
-          if (signature[i] !== view[i] || signature[16 + i] !== projection[i]) {
-            same = false;
-            break;
-          }
-      if (same) return;
-      for (let i = 0; i < 16; i++) {
-        signature[i] = view[i];
-        signature[16 + i] = projection[i];
-      }
-      signature[32] = camera.near;
-      signature[33] = width;
-      signature[34] = height;
-      signature[35] = epoch;
+      const now = camera.matrixWorldInverse.elements,
+        nowProjection = camera.projectionMatrix.elements;
+      if (
+        heldNear === camera.near &&
+        heldWidth === width &&
+        heldHeight === height &&
+        heldEpoch === epoch &&
+        sameElements(view, now) &&
+        sameElements(projection, nowProjection)
+      )
+        return;
+      copyElements(view, now);
+      copyElements(projection, nowProjection);
+      heldNear = camera.near;
+      heldWidth = width;
+      heldHeight = height;
+      heldEpoch = epoch;
       generation++;
     },
     /**
