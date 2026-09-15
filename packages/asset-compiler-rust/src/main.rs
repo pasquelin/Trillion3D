@@ -18,9 +18,8 @@ use std::{
     },
     time::Instant,
 };
-use web_geometry_compiler::import::IMPORTER_VERSION;
 use web_geometry_compiler::{
-    compile, parse_compiler_args, CompilerError, Options, COMPILER_VERSION, FORMAT_VERSION,
+    compile, parse_compiler_args, plugins, CompilerError, Options, COMPILER_VERSION, FORMAT_VERSION,
 };
 
 fn emit(mut event: Value, job: &str) {
@@ -134,7 +133,7 @@ fn main() {
         Some("--version") => {
             println!(
                 "{}",
-                json!({"compilerVersion":COMPILER_VERSION,"formatVersion":FORMAT_VERSION,"importer":IMPORTER_VERSION,"platform":std::env::consts::OS,"arch":std::env::consts::ARCH})
+                json!({"compilerVersion":COMPILER_VERSION,"formatVersion":FORMAT_VERSION,"plugins":plugins::descriptor(),"platform":std::env::consts::OS,"arch":std::env::consts::ARCH})
             );
             0
         }

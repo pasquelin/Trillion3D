@@ -66,18 +66,20 @@ pub(super) fn load_model_file(
         bin_hash,
     })
 }
-pub(super) fn load_runtime(o: &Options) -> Result<RuntimeSource> {
-    match source_kind(&o.source)? {
-        SourceKind::Gltf(name) if o.source.is_file() => load_model_file(
+/// Charge la scène intermédiaire que le routeur a préparée. Une scène convertie a déplacé `o.source`
+/// sur son dossier de cache : elle se relit alors par son manifeste, comme une source qui en porte un.
+pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<RuntimeSource> {
+    match prepared {
+        PreparedScene::InPlace(name) if o.source.is_file() => load_model_file(
             o.source
                 .parent()
                 .filter(|p| !p.as_os_str().is_empty())
                 .unwrap_or_else(|| Path::new(".")),
-            &name,
+            name,
             None,
         ),
-        SourceKind::Gltf(name) => load_model_file(&o.source, &name, None),
-        SourceKind::Manifest => {
+        PreparedScene::InPlace(name) => load_model_file(&o.source, name, None),
+        PreparedScene::Manifest | PreparedScene::Converted(_) => {
             let manifest_bytes = fs::read(o.source.join("manifest.json"))?;
             let manifest: Value = serde_json::from_slice(&manifest_bytes)?;
             validate_manifest(&manifest)?;
@@ -88,9 +90,6 @@ pub(super) fn load_runtime(o: &Options) -> Result<RuntimeSource> {
                 .map(str::to_owned)
                 .ok_or_else(|| invalid("manifest.runtime.file is required"))?;
             load_model_file(&o.source, &gltf_file, Some((manifest, manifest_bytes)))
-        }
-        SourceKind::Importable(_) => {
-            Err(invalid("importable sources are converted before loading"))
         }
     }
 }
