@@ -4,14 +4,13 @@ import {
   MAX_SHADOW_SLICES,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
-  lightKindOf,
+  type ShadowViewpoint,
 } from './sceneLightContracts.ts';
 import { desiredFaceSide } from './sceneLightShadowAtlas.ts';
 import { faceCountOf } from './sceneLightShadowFaces.ts';
 import { createShadowSliceTable, RECTS_PER_SLICE } from './sceneLightShadowSlices.ts';
 import { LIGHT_FIELD, type SceneLightStore } from './sceneLightStore.ts';
 import { createShadowChanges } from './sceneLightShadowChanges.ts';
-import type { ShadowViewpoint } from './sceneLightSunCascades.ts';
 
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
@@ -71,9 +70,7 @@ export function createShadowPlan() {
       return denied;
     },
     /** Un nœud a bougé : la boîte s'unit à celle des mouvements que les ombres n'ont pas rattrapés. */
-    worldChanged(min: readonly number[], max: readonly number[]) {
-      changes.worldChanged(min, max);
-    },
+    worldChanged: changes.worldChanged,
     /**
      * Choisit les lampes de cette image. Rend le nombre de lampes retenues ; `updatedLight[i]` est le
      * rang de la lampe dans le magasin, `updatedSlice[i]` sa tranche d'atlas.
@@ -112,7 +109,7 @@ export function createShadowPlan() {
         // caméra, donc la révision de la vue entre dans leur fraîcheur. Une ponctuelle, elle, ne
         // dépend que de sa propre révision et de ce qui a bougé dans sa portée.
         coverage[slot] = sun ? 1 : screenCoverage(view, x, y, z, range);
-        const faces = faceCountOf(lightKindOf(kind));
+        const faces = faceCountOf(kind);
         if (slice < 0) slice = slices.claim();
         const side = desiredFaceSide(coverage[slot], faces, casters);
         if (slice < 0 || !slices.fit(slice, faces, side)) {

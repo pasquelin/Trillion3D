@@ -1,4 +1,4 @@
-import type { ShadowViewpoint } from './sceneLightSunCascades.ts';
+import type { ShadowViewpoint } from './sceneLightContracts.ts';
 
 /**
  * Ce qui périme une carte d'ombre : la boîte de ce qui a bougé dans le monde depuis que les ombres
@@ -36,7 +36,15 @@ export function createShadowChanges() {
     },
     /** Monte la révision de la vue dès qu'un de ses neuf nombres a changé, jamais autrement. */
     noteView(view: ShadowViewpoint) {
-      seen.set([...view.position, ...view.forward, view.halfFovY, view.aspect, view.far]);
+      seen[0] = view.position[0];
+      seen[1] = view.position[1];
+      seen[2] = view.position[2];
+      seen[3] = view.forward[0];
+      seen[4] = view.forward[1];
+      seen[5] = view.forward[2];
+      seen[6] = view.halfFovY;
+      seen[7] = view.aspect;
+      seen[8] = view.far;
       for (let i = 0; i < seen.length; i++)
         if (seen[i] !== lastView[i]) {
           lastView.set(seen);
