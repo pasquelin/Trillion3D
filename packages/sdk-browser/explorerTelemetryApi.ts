@@ -20,6 +20,14 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
         disabledStageProfile(backend.id, 'ce moteur ne chronomètre pas ses étapes')
       );
     },
+    /**
+     * L'empreinte de l'atlas d'ombres du moteur actif, bit pour bit, ou `null` quand il n'en tient
+     * pas. Deux exécutions de la même scène — l'une redessinant les faces entières, l'autre
+     * seulement les pages invalidées — doivent rendre la même empreinte une fois la file vide.
+     */
+    shadowAtlasDigest() {
+      return active().shadowAtlasDigest?.() ?? Promise.resolve(null);
+    },
     /** Vide la fenêtre du profil du moteur actif, pour ne mesurer que ce qui vient ensuite. */
     resetStageProfile() {
       active().resetStageProfile?.();

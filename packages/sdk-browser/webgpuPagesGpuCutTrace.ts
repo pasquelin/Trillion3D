@@ -10,17 +10,25 @@ function recordStages(rt: WebgpuPagesRuntime) {
     stages = timing.stages;
   if (!stages) return;
   stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
-  // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées.
-  // Les compteurs d'avant sont gardés tels quels — le Lab les lit — et le soleil s'y ajoute :
-  // `soleilsRedessines` est la part des lampes redessinées qui sont directionnelles, et
-  // `cascadesRedessinees` la part des faces qui sont des cascades, le reste étant des ponctuelles.
+  // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées. Les six
+  // compteurs d'avant sont gardés tels quels — le Lab les lit — et les pages s'y ajoutent :
+  // `pagesInvalidees` est ce qui est entré en file à cette image, `pagesRedessinees` ce que les
+  // régions retenues couvrent, `pagesEnAttente` ce que le budget a laissé pour plus tard, et
+  // `retardMaxMs` l'attente de la page la plus ancienne de cette file.
+  const { counts } = lights.plan;
   stages.setCounts('shadows', {
     lampesRedessinees: lights.shadowsUpdated,
-    cartesReutilisees: lights.plan.reused,
+    cartesReutilisees: counts.reused,
     facesRedessinees: lights.shadowFaces,
     appelsDeDessin: lights.shadowDrawCalls,
-    soleilsRedessines: lights.plan.sunUpdates,
+    soleilsRedessines: counts.sunLights,
     cascadesRedessinees: lights.sunCascades,
+    regionsRedessinees: lights.shadowRegions,
+    pagesInvalidees: counts.invalidatedPages,
+    pagesRedessinees: lights.shadowPages,
+    pagesEnAttente: counts.pendingPages,
+    retardMaxMs: counts.waitedMs,
+    retardMaxImages: counts.waitedFrames,
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
   // Ce que le rebond a réellement fait : des sondes et des rayons, jamais une durée. Une scène

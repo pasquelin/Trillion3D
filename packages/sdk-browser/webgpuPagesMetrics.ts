@@ -84,6 +84,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowsUpdated: lights.shadowsUpdated,
     shadowFacesDrawn: lights.shadowFaces,
     shadowDrawCalls: lights.shadowDrawCalls,
+    shadowPagesDrawn: lights.shadowPages,
+    shadowPagesPending: lights.plan.counts.pendingPages,
+    shadowWaitMs: lights.plan.counts.waitedMs,
     ...directLightTimings(timing.lastGpuPassMs),
   };
 }

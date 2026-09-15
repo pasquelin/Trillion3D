@@ -45,6 +45,13 @@ export function shadowOrthographic(halfExtent: number, far: number) {
   return planes;
 }
 
+/**
+ * Le repère monde de la dernière face composée : droite, haut, avant. C'est ce qui permet de porter
+ * un rectangle de la carte — une région de pages — dans le monde sans recalculer le repère ailleurs,
+ * donc sans qu'une seconde copie puisse diverger de celle-ci.
+ */
+export const faceBasis = new Float64Array(9);
+
 /** Matrice de vue colonne-major d'une caméra en `eye` regardant le long de `forward`. */
 function shadowView(
   out: Float32Array,
@@ -67,6 +74,15 @@ function shadowView(
   const ux = ry * fz - rz * fy,
     uy = rz * fx - rx * fz,
     uz = rx * fy - ry * fx;
+  faceBasis[0] = rx;
+  faceBasis[1] = ry;
+  faceBasis[2] = rz;
+  faceBasis[3] = ux;
+  faceBasis[4] = uy;
+  faceBasis[5] = uz;
+  faceBasis[6] = fx;
+  faceBasis[7] = fy;
+  faceBasis[8] = fz;
   out[base] = rx;
   out[base + 1] = ux;
   out[base + 2] = -fx;

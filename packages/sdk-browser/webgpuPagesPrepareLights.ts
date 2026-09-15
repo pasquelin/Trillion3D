@@ -12,6 +12,8 @@ const SHADOW_APPROXIMATIONS = [
   'tile light lists bound the per-pixel loop of the opaque path to the published per-tile budget; the blend pass loops over the declared lights instead, bounded by maxLights',
   'shadow slice priority uses an angular screen-coverage estimate, not an adjoint',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
+  'the shadow millisecond budget folds a region fixed cost into an averaged per-page cost',
+  'a sun cascade whose world window moves is redrawn whole: the atlas has no ring addressing',
 ];
 
 /**
@@ -22,6 +24,8 @@ const SHADOW_APPROXIMATIONS = [
 export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, vis, capabilities, diag } = rt,
     { drawSlots } = rt.layout;
+  if (rt.context.shadowBudgetMs !== undefined) lights.plan.setBudgetMs(rt.context.shadowBudgetMs);
+  if (rt.context.shadowPageInvalidation === false) lights.plan.setPageInvalidation(false);
   if (!lights.buffer || !vis.visEnabled || !vis.visBindGroupLayout) {
     lights.shadowReason = 'visibility buffer unavailable';
     return;
@@ -57,6 +61,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     shadowAtlas: lights.shadows ? lights.shadows.size : null,
     shadowCullRows: lights.cull ? drawSlots : null,
     shadowAtlasBytes: lights.shadows ? shadowAtlasBytes() : 0,
+    shadowBudgetMs: lights.plan.budget.budgetMs,
+    shadowPageInvalidation: lights.plan.pageInvalidation,
     unavailable: lights.shadowReason,
     approximations: SHADOW_APPROXIMATIONS,
   });

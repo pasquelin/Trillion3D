@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
-import { uploadSceneLights } from './webgpuPagesStateLights.ts';
-import { planShadowFaces } from './webgpuPagesEncodeShadows.ts';
+import { PAGES_RING, uploadSceneLights } from './webgpuPagesStateLights.ts';
+import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
@@ -36,12 +36,16 @@ export function encodeDirectLights(
   directParams[3] = environment ? environment.exposure : 1;
   // La vue sans éclairage ne lit ni liste de lampes ni atlas : elle n'en fait donc encoder aucun.
   if (!active || store.unlit) return directParams;
-  const faces = planShadowFaces(rt, camera);
+  const frame = rt.run.frame;
+  const regions = planShadowRegions(rt, camera, frame, performance.now());
+  // Le chronomètre de la passe revient avec du retard : l'image doit laisser derrière elle le
+  // nombre de pages qu'elle a redessinées, sinon le relevé ne saurait pas ce qu'il chiffre.
+  lights.pagesByFrame[frame % PAGES_RING] = lights.shadowPages;
   // Le tampon part au GPU avant les listes par tuile : la passe de mélange le lit directement, sans
   // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
   encodeBounce(rt, device, encoder, active, camera);
-  encodeShadowAtlas(rt, device, encoder, faces);
+  encodeShadowAtlas(rt, device, encoder, regions);
   if (!tiles || !gpu.depthView) return directParams;
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
@@ -132,13 +136,20 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     view: lights.store.lightingView,
     unlit: lights.store.unlit,
     shadowsUpdated: lights.shadowsUpdated,
-    sunShadowsUpdated: lights.plan.sunUpdates,
-    shadowsReused: lights.plan.reused,
+    sunShadowsUpdated: lights.plan.counts.sunLights,
+    shadowsReused: lights.plan.counts.reused,
     shadowFaces: lights.shadowFaces,
     sunCascades: lights.sunCascades,
     shadowDraws: lights.shadowDraws,
-    shadowsPending: lights.plan.pending,
-    shadowsDenied: lights.plan.denied,
+    shadowRegions: lights.shadowRegions,
+    shadowPagesDrawn: lights.shadowPages,
+    shadowPagesInvalidated: lights.plan.counts.invalidatedPages,
+    shadowPagesPending: lights.plan.counts.pendingPages,
+    shadowWaitMs: lights.plan.counts.waitedMs,
+    shadowWaitFrames: lights.plan.counts.waitedFrames,
+    shadowBudgetMs: lights.plan.budget.budgetMs,
+    shadowMsPerPage: lights.plan.budget.msPerPage,
+    shadowsDenied: lights.plan.counts.denied,
     atlasCells: lights.shadows ? lights.plan.slices.atlas.occupancy() : null,
     unavailable: lights.shadowReason,
   };
