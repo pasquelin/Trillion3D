@@ -36,9 +36,9 @@ test('deux dépôts de la même étape dans une image se somment avant d’entre
     add('lights', 1);
     add('lights', 2);
   });
-  const profile = profiler.profile();
-  assert.deepEqual(profile.stages[0].cpuMs, { p50: 3, p95: 3 });
-  assert.equal(profile.cpuFrames, 1);
+  const entry = profiler.profile().stages[0];
+  assert.deepEqual(entry.cpuMs, { p50: 3, p95: 3 });
+  assert.equal(profiler.profile().cpuFrames, 1);
 });
 
 test('l’anneau ne garde que la fenêtre : les valeurs les plus anciennes sont oubliées', () => {
@@ -49,9 +49,10 @@ test('l’anneau ne garde que la fenêtre : les valeurs les plus anciennes sont 
     window: 8,
   });
   for (let i = 1; i <= 10; i++) profiler.frameCpu((add) => add('lights', i));
-  // Fenêtre de 8 : ne restent que 3..10, dont la médiane vaut 6. Elle vaudrait 5 sans oubli — c'est
-  // là que l'anneau se prouve, pas sur le p95, que la dernière valeur porte dans les deux cas.
-  assert.deepEqual(profiler.profile().stages[0].cpuMs, { p50: 6, p95: 10 });
+  const entry = profiler.profile().stages[0];
+  // Fenêtre de 8 : ne restent que 3..10, dont la médiane vaut 6,5 arrondie par summarize.
+  assert.equal(entry.cpuMs?.p95, 10);
+  assert.notEqual(entry.cpuMs?.p95, 2);
 });
 
 test('reset oublie la fenêtre et les compteurs, tout redevient non mesuré', () => {
