@@ -6,12 +6,18 @@ import type { ClusterCut } from './pageSelectionMath.ts';
  * partagent, et les formules qui la reçoivent sont celles des projections, aux mêmes bits près.
  */
 export function viewDistance(sphere: ArrayLike<number>, offset: number, e: ArrayLike<number>) {
-  const cx = sphere[offset],
-    cy = sphere[offset + 1],
-    cz = sphere[offset + 2];
-  const vx = e[0] * cx + e[4] * cy + e[8] * cz + e[12];
-  const vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13];
-  const vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
+  return viewDistanceOf(sphere[offset], sphere[offset + 1], sphere[offset + 2], e);
+}
+
+/**
+ * `|vue(p)|` d'un point donné composante par composante : la coupe plate le tire d'une sphère
+ * rangée dans un tableau, l'oracle du DAG de clusters de trois nombres déjà séparés. Une seule
+ * écriture des neuf multiplications, des neuf sommes et de la racine, donc les mêmes bits.
+ */
+export function viewDistanceOf(x: number, y: number, z: number, e: ArrayLike<number>) {
+  const vx = e[0] * x + e[4] * y + e[8] * z + e[12];
+  const vy = e[1] * x + e[5] * y + e[9] * z + e[13];
+  const vz = e[2] * x + e[6] * y + e[10] * z + e[14];
   return Math.sqrt(vx * vx + vy * vy + vz * vz);
 }
 
