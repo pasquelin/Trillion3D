@@ -20,7 +20,9 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     lastPrefetch = 0;
   let streamingPromise: Promise<void> | null = null,
     backgroundFetchController: AbortController | undefined;
-  const queuedFetch: string[] = [];
+  // Un `Set` plutôt qu'un tableau : l'ordre d'insertion est le même, l'appartenance ne coûte plus
+  // un balayage par adresse ajoutée, et le doublon est écarté par la structure elle-même.
+  const queuedFetch = new Set<string>();
   const decodeFailures = new Set<string>();
   // Les arrivées de pages n'entrent plus dans l'image qui les découvre : la file les empile et un
   // drain unique et borné, en tête de `render()`, les fait résider avant la sélection de l'image
@@ -103,16 +105,16 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
       .finally(() => {
         if (backgroundFetchController === controller) backgroundFetchController = undefined;
         streamingPromise = null;
-        if (queuedFetch.length && !state.measuring) {
-          const next = queuedFetch
-            .splice(0, queuedFetch.length)
-            .filter(
-              (url) =>
-                (geometryUrls.has(url) || !streamer.has(url)) &&
-                !streamer.loading(url) &&
-                !streamer.failed(url) &&
-                !decodeFailures.has(url),
-            );
+        if (queuedFetch.size && !state.measuring) {
+          const attente = [...queuedFetch];
+          queuedFetch.clear();
+          const next = attente.filter(
+            (url) =>
+              (geometryUrls.has(url) || !streamer.has(url)) &&
+              !streamer.loading(url) &&
+              !streamer.failed(url) &&
+              !decodeFailures.has(url),
+          );
           if (next.length) startFetch(next);
         }
       });
