@@ -83,11 +83,21 @@ function coordonnees(count, seed) {
 
 const pixels = { uv: coordonnees(200000, 5), maps: [atlas, borde, sansImage] };
 const rares = { uv: coordonnees(64, 91), maps: [borde, atlas] };
+// uv qui rendent l'index de texel NaN : sous Repeat, NaN et Infini le cassent (`t - Math.floor(t)`
+// sur un infini vaut NaN) ; sous ClampToEdge seul NaN le casse (Math.max/Math.min absorbent Infini).
+// Nommés explicitement plutôt que confiés au hasard de `coordonnees`, pour que « Identique » les
+// couvre à coup sûr — ni mesurés en temps, ni de taille comparable aux cas ci-dessus.
+const indexRompu = {
+  uv: Float64Array.from([NaN, 0.2, Infinity, -Infinity, NaN, NaN, -0, 0]),
+  maps: [atlas, atlas, borde, atlas],
+};
 
-/** Une image d'ombrage : chaque coordonnée échantillonnée en couleur puis en linéaire. */
+/** Une image d'ombrage : chaque coordonnée échantillonnée en couleur puis en linéaire. Un tableau
+ *  ordinaire, jamais un `Float64Array` : celui-ci convertirait un `undefined` en `NaN` à l'écriture
+ *  et masquerait la différence que la comparaison doit justement voir. */
 const passe = (map, linear) => (entree) => {
   const { uv, maps } = entree,
-    sortie = new Float64Array(uv.length * 3);
+    sortie = new Array(uv.length * 3);
   for (let i = 0; i < uv.length / 2; i++) {
     const texture = maps[i % maps.length],
       u = uv[i * 2],
@@ -112,6 +122,12 @@ const lignes = [
     cas: [
       { nom: '200 000 texels, trois textures, uv non finis', entree: pixels, taille: 200000 },
       { nom: '64 texels, deux textures', entree: rares, taille: 64 },
+      {
+        nom: '4 texels, index de texel rendu NaN par uv',
+        entree: indexRompu,
+        taille: 4,
+        mesure: false,
+      },
     ],
     reference: passe(referenceSampleMap, referenceSampleLinear),
     optimisee: passe(sampleMap, sampleLinear),
