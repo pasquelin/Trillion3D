@@ -33,7 +33,7 @@
 - Preuve navigateur : 14 états avec égalité exacte des matrices, radiances et images entre recalcul et réutilisation ; aucune erreur navigateur. 330 tests Node, build, structure et déclarations passent.
 - À la demande utilisateur, arrêt des ajouts fonctionnels pour comprendre l’orientation technique. Profil CPU : environ 9,5 ms pour une couleur, 40,1 ms pour la porte avec réutilisation. Contrôle graphique sur cinq images isolées : 370–498 ms GPU. Worker/WASM seuls ne résoudront donc pas la lenteur de ce dessin expérimental.
 - Une preuve numérique confirme la recombinaison des contributions des trois lampes à géométrie fixe (40 608 octets de bases, erreur proche de l’arrondi Float64). Amortissement et invalidation dynamique non mesurés. Aucun BVH, worker, port WASM ni cache de bases persistant ajouté au moteur.
-- Détails, preuves et expériences suivantes proposées : [Diagnostic et orientation R&D](RD_ECLAIRAGE_DIAGNOSTIC.md). L’ancien plan d’essai est clos et supprimé.
+- Détails, preuves et expériences suivantes proposées : diagnostic et orientation R&D (document `RD_ECLAIRAGE_DIAGNOSTIC.md`, chiffres finaux archivés le 15 septembre ci-dessous, puis supprimé). L’ancien plan d’essai est clos et supprimé.
 
 ## 2026-09-14 01:25 — état de passation (session d'audit)
 
@@ -1478,3 +1478,13 @@ dossier ignoré par git.
 `render-tech-lab/` non modifié et lu en lecture seule ; port 5174 non touché ; aucun `eslint-disable`
 ajouté ; `node_modules` (lien symbolique) non committé ; scripts de profil dans le scratchpad, jamais
 committés ; `sauvegarde/lot-4c` non touchée.
+
+## 2026-09-15 — Nettoyage `orchestration/` : chiffres finaux archivés avant suppression de `RD_ECLAIRAGE_DIAGNOSTIC.md`
+
+- Banc 16, campagne persistée `2026-09-14T14-19-00-913Z` : médianes GPU isolées 239,852 ms (exhaustive) et 197,028 ms (BVH), rAF 316,6 et 237,5 ms (24 dessins/variante), 0 px différent sur les 14 états A/A et exhaustive/BVH, 4 158 triangles soumis, 44 modules éclairage/fixtures conformes au découpage.
+- Test navigateur terminé sur une assertion favicon 404 (ressource accessoire, exclue des erreurs fonctionnelles), aucune erreur de rendu. Prototype resté expérimental (clusters préparés non dessinés) ; document supprimé, ses cinq liens vers `benchmark-runs/` (non versionné) cassaient `check:links`.
+
+## 2026-09-15 — Nettoyage `orchestration/` : bilan phase 1 archivé avant suppression de `phase-1-bilan.md`
+
+- Six mesures du 14 septembre (`chantier-phase1-3`, Emerald 1 instance 1280×720, 60 images) : WebGPU CPU 28,0 → 28,0 ms (non atteint, cible < 4 ms) ; WebGPU GPU 20,88 → 15,26 ms (−27 %, non conservé, coûte 67 px) ; WebGL2 sélection 5,2 → 4,80 ms, 2,40 ms au seuil 1 (non atteint, cible < 2 ms) ; WebGL2 CPU 29,5 → 30,3 ms ; pixels différents 0 px sur WebGL2, 67/37/173/1 px sur WebGPU si la partition temporelle est conservée ; tests non rejoués.
+- Ce qui reste, toujours ouvert : WebGPU GPU < 6 ms (trancher coplanaires vs `nearestDepth`), WebGPU CPU < 4 ms (intouché), WebGL2 sélection < 2 ms (émission de plages jusqu'au consommateur).
