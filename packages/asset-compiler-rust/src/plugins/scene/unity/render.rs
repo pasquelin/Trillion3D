@@ -93,7 +93,7 @@ impl Builder<'_, '_> {
         let Some(parts) = self.models.parts(&asset, self.world) else {
             return Vec::new();
         };
-        let parts = self.selected(&asset, mesh.file_id, &parts);
+        let parts = self.selected(&asset, mesh.file_id, parts);
         self.attach(&parts, materials)
     }
 
@@ -102,9 +102,9 @@ impl Builder<'_, '_> {
     /// fichier : on ne retient que la partie qui porte ce nom, avec sa transformation dans le
     /// modèle. Nom absent de la table, ou introuvable sous ce nom dans le modèle : le modèle entier
     /// est instancié et le fait est compté, comme avant.
-    fn selected(&mut self, asset: &Path, file_id: i64, parts: &Parts) -> Parts {
+    fn selected(&mut self, asset: &Path, file_id: i64, parts: Parts) -> Parts {
         if parts.nodes.len() < 2 {
-            return parts.clone();
+            return parts;
         }
         let wanted = self.models.meta(asset).name(file_id).map(str::to_string);
         let meshes = &self.world.scene.meshes;
@@ -119,7 +119,7 @@ impl Builder<'_, '_> {
             .collect();
         if kept.is_empty() {
             self.world.scene.report.add("unity-model-mesh-by-fileid");
-            return parts.clone();
+            return parts;
         }
         self.world.scene.count("subMeshes", 1);
         Parts { nodes: kept }
