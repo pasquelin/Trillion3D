@@ -1,4 +1,4 @@
-import { hizFootprintFar, hizOccluded } from '../sdk-core/index.ts';
+import { hizFootprintFarFlat, hizOccluded } from '../sdk-core/index.ts';
 import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
 import { HIZ_KERNEL_TEXELS } from './hizCounts.ts';
 import type { HizBounds, HizPyramid } from './hizTypes.ts';
@@ -117,19 +117,10 @@ const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
 
 /** `hizRejects` sur la disposition plate qu'écrit `projectBoxesFlat`. */
 export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: number, bias = 0) {
-  if (
-    !hizTestRectFlat(
-      bounds,
-      base,
-      pyramid.width,
-      pyramid.height,
-      pyramid.levels.length,
-      rejectScratch,
-    )
-  )
+  if (!hizTestRectFlat(bounds, base, pyramid.width, pyramid.height, pyramid.count, rejectScratch))
     return false;
-  const far = hizFootprintFar(
-    pyramid.levels,
+  const far = hizFootprintFarFlat(
+    pyramid,
     rejectScratch[1],
     rejectScratch[2],
     rejectScratch[3] + 1,
