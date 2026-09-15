@@ -16,7 +16,8 @@ struct PageCone{cone:vec4f,minimum:vec3f,hasBox:f32,maximum:vec3f,resident:f32,}
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
 const FRAME:u32=7u;
-/** Same projection as clusterErrorPixels: error x stretch x focal over the distance to the sphere. */
+/** Same projection as clusterErrorPixels: error x stretch x focal over the distance to the sphere.
+ *  Miroir GPU de \`projectedError\` (gpuDagOracleMath.ts) : memes gardes, meme ordre, deux langages. */
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
@@ -25,7 +26,8 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(!(distance>uni.near)){return INF;}
  return (error*stretch*focal)/distance;
 }
-/** Frustum planes live in the primitive's own space, so no box is ever transformed. */
+/** Frustum planes live in the primitive's own space, so no box is ever transformed.
+ *  Miroir GPU de \`boxClip\` (pageSelectionMath.ts), dont la premiere passe est ce meme rejet. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  for(var i=0u;i<6u;i++){
   let plane=frames[base+i];
