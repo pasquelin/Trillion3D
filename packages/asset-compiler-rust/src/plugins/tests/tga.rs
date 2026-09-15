@@ -3,7 +3,6 @@
 //! compression et profondeur sont des façons d'écrire la même image, jamais de la changer.
 use super::super::image as registry;
 use super::fixture;
-use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -30,13 +29,10 @@ fn opaque() -> Vec<[u8; 4]> {
 
 /// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
-    let bytes = fixture("tga", name);
-    let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(decoder.name(), "tga", "{name}");
-    let image =
-        super::rgba8(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
-    assert_eq!((image.width(), image.height()), (4, 2), "{name}");
-    image.pixels().map(|pixel| pixel.0).collect()
+    super::decoded_rgba8("tga", name, MAX_ALLOC, (4, 2))
+        .pixels()
+        .map(|pixel| pixel.0)
+        .collect()
 }
 
 // Dorée du pilote TGA : les six profils que le pilote annonce lire rendent, pixel par pixel, la
@@ -67,12 +63,7 @@ fn chaque_profil_tga_rend_les_pixels_de_la_reference() {
 // illisible laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation.
 #[test]
 fn un_tga_illisible_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["tga", "tpic", "TGA"] {
-        let path = PathBuf::from(format!("albedo.{extension}"));
-        let decoder = registry::by_extension(&path).expect("revendiqué");
-        assert_eq!(decoder.name(), "tga", "{extension}");
-        assert_eq!(decoder.mime(), "image/x-tga");
-    }
+    super::assert_claims("tga", "image/x-tga", &["tga", "tpic", "TGA"]);
     // Tronqué : l'entête est reconnu, donc le pilote est choisi, et c'est le décodage qui échoue.
     let tronque = fixture("tga", "tronque.tga");
     assert_eq!(

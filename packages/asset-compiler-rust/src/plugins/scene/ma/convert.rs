@@ -12,13 +12,15 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let file = source_file(request.inputs)?;
     let bytes = usize::try_from(size(file)?).unwrap_or(usize::MAX);
     (request.progress)(json!({"phase":"import-source","step":"scan","plugin":NAME,"bytes":bytes}));
-    let mut document = document::read(&text(file)?)?;
+    let source = fs::read(file)?;
+    let digest = crate::hash(&source);
+    let mut document = document::read(&text(file, source)?)?;
     let graph = shading::resolve(&mut document);
     let mut scene = Scene::new(plugin);
     scene.read_file(
         &file.file_name().unwrap_or_default().to_string_lossy(),
         bytes,
-        &crate::hash_file(file)?,
+        &digest,
     );
     carry(&document.report, &mut scene.report);
     let counts = build::scene(&document, &graph, &mut scene, request);
@@ -59,10 +61,9 @@ fn size(file: &Path) -> Result<u64> {
     Ok(bytes)
 }
 
-/// Le texte du fichier. Un fichier qui n'est pas de l'UTF-8 est refusé par son nom : un `.ma` est
-/// un texte, et en deviner l'encodage changerait les noms qu'il porte.
-fn text(file: &Path) -> Result<String> {
-    let bytes = fs::read(file)?;
+/// Le texte des octets lus, déjà hachés. Un fichier qui n'est pas de l'UTF-8 est refusé par son
+/// nom : un `.ma` est un texte, et en deviner l'encodage changerait les noms qu'il porte.
+fn text(file: &Path, bytes: Vec<u8>) -> Result<String> {
     String::from_utf8(bytes).map_err(|_| {
         CompilerError::new(
             FILE_INVALID,

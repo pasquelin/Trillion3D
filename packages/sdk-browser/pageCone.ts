@@ -6,16 +6,7 @@ export type NormalCone = { axis: [number, number, number]; angle: number };
 export const OPEN_CONE: NormalCone = { axis: [0, 0, 1], angle: Math.PI };
 export { triangleCone } from './pageConeBuild.ts';
 
-const loneContext: ConeContext = {
-  ready: false,
-  conformal: false,
-  scale: 1,
-  normal: new THREE.Matrix3(),
-  camX: 0,
-  camY: 0,
-  camZ: 0,
-};
-
+const loneContext = createConeContext();
 const cameraWorld = new THREE.Vector3();
 
 function isConformal(world: THREE.Matrix4) {
