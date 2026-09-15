@@ -2,7 +2,7 @@
 
 ## Première action, avant tout
 
-Appeler `mcp__ccd_session_mgmt__get_session("self")` et lire le titre. Ce fichier est celui de la session titrée **« Geometry »** (`local_492e8f33…`). Le 15 septembre à 17 h, trois sessions se sont crues Validateur parce que le dernier commit de develop était `REPRISE_VALIDATEUR.md` et que la mémoire du projet est partagée : le rôle se lit dans le titre de la session, jamais dans le dernier commit ni dans la mémoire. Sessions au 15 septembre : Validateur = « Simplify » (`local_f2f0a83d…`, seule à pousser origin), Lumière = `local_aab718e7…`, Compilateur = `local_03e37a47…`, Calculs = `local_b3acd30e…` (formules communes en cours).
+Appeler `mcp__ccd_session_mgmt__get_session("self")` et lire le titre. Ce fichier est celui de la session titrée **« Geometry »** (`local_492e8f33…`). Le 15 septembre à 17 h, trois sessions se sont crues Validateur parce que le dernier commit de develop était `REPRISE_VALIDATEUR.md` et que la mémoire du projet est partagée : le rôle se lit dans le titre de la session, jamais dans le dernier commit ni dans la mémoire. Sessions au 15 septembre : Validateur = « Simplify » (`local_f2f0a83d…`, seule à pousser origin), Lumière = `local_aab718e7…`, Compilateur = `local_03e37a47…`, Calculs = `local_b3acd30e…` (formules communes fusionnées, 3979661 et 0b2fa1a).
 
 ## Rôles, non négociables
 
@@ -56,13 +56,13 @@ Coplanaires (surfaces à profondeur exactement égale, branches `essai/hiz-*`, r
 3. Coplanaires, dès le go de l'utilisateur : historique d'occlusion + Hi-Z temporel, gain GPU mesuré machine calme.
 4. Rejouer au calme les durées du lot cpu-fixe et le témoin Three sur `transmission`.
 5. Rembourrage 64 entrées par primitive transparente ; phase 3 première image (chantier/premiere-image-v3, 22 conflits) ; phase 2 sans Three dans l'hôte.
-   Worktree `geometry-cpu-fixe` (branche `lot/cpu-fixe`) : fusionné, à supprimer une fois le Validateur passé (images déjà copiées). Tags et branches de preuve gardés : `essai/4c-tableaux-types`, `essai/visibilite-levier2-mesure`, `essai/hiz-*`.
+   Worktree `geometry-cpu-fixe` et branche `lot/cpu-fixe` supprimés après le push du Validateur (origin/develop ≥ 7930314), images dans `.mesure/out/cpu-fixe/`. Aucun worktree ni branche de lot Geometry en attente. Tags et branches de preuve gardés : `essai/4c-tableaux-types`, `essai/visibilite-levier2-mesure`, `essai/hiz-*`.
    Tableau de suivi pour l'utilisateur : CPU image générale seuil 0 : 33,6 ms (14 sept.) → 7,8 (15 sept. midi) → 7,7 (15 sept. soir) → **5,9 (15 sept. nuit)** ; GPU 29 ms seuil 0 (goulot) ; géométrie 209 Mo quel que soit le nombre d'instances.
 
 ## Sessions voisines (list_sessions, se nommer par sessionId dans les messages)
 
 - « Lumière » (`local_aab718e7…`) : éclairage, ombres, reflet (`lot/reflet` en worktree), ombre lointaine fusionnée ; préavis mutuel avant toute fusion touchant sdk-browser ; ne pas toucher ses fichiers d'éclairage/ombres/sondes/proxy/reflet ni la passe de mélange sans accord.
-- « Calculs mathématiques » (`local_b3acd30e…`) : formules communes, lots `lot/formules-communes-rust` puis `-ts` (sdk-browser, sdk-core, scripts/mesure) en attente de fusion après nous.
+- « Calculs mathématiques » (`local_b3acd30e…`) : formules communes, lots `lot/formules-communes-rust` (3979661) et `-ts` (0b2fa1a, sdk-browser, sdk-core, scripts/mesure) fusionnés après nous, caméra mobile 0 px rejouée sur 62763d3 → 0b2fa1a.
 - « Compilateur » (`local_03e37a47…`) : pilotes d'import ; ses cargo passent sous le verrou, vide.
 - « Simplify » = Validateur (`local_f2f0a83d…`) : /simplify, validate, push de develop ; lui envoyer chaque SHA fusionné ; lui dire ce qu'il ne doit pas supprimer (worktrees actifs, branches `essai/*`, tag `essai/visibilite-levier2-mesure`).
 
