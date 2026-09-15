@@ -3,6 +3,7 @@ import { uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowFaces } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
+import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Les quatre flottants que la passe différée relit : lampes, tuiles en X et Y, exposition. */
@@ -35,6 +36,7 @@ export function encodeDirectLights(
   if (!active || store.unlit || !tiles || !gpu.depthView) return directParams;
   const faces = planShadowFaces(rt, camera);
   uploadSceneLights(device, lights);
+  encodeBounce(rt, device, encoder, active);
   encodeShadowAtlas(rt, device, encoder, faces);
   if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
   tiles.update(inverseViewProjection, width, height, active);
@@ -44,6 +46,55 @@ export function encodeDirectLights(
   directParams[2] = tiles.tilesY;
   logFirstDirectFrame(rt);
   return directParams;
+}
+
+/**
+ * Un lot de sondes d'irradiance, quand il y a du travail. La grille relit le tampon de lampes qui
+ * vient d'être poussé, donc le rebond suit la lampe qui bouge sans une image de retard de plus. Une
+ * scène dont rien n'a changé et dont la grille est convergée n'encode rien du tout : l'étape
+ * « Rebond » vaut alors « non mesuré », jamais zéro.
+ */
+function encodeBounce(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  active: number,
+) {
+  const { bounce, lights } = rt;
+  // Une lampe existe : c'est le signal qui déclenche la lecture du proxy résident, une seule fois.
+  ensureBounce(rt, device);
+  const probes = bounce.probes;
+  bounce.probesUpdated = 0;
+  bounce.raysLaunched = 0;
+  bounce.encoded = false;
+  // La vue de diagnostic d'irradiance sort des valeurs brutes : l'application du rebond le lit
+  // dans l'uniforme de la grille, et la composition saute ACES et sRGB.
+  const irradiance = lights.store.lightingView === 'bounce';
+  rt.gpu.deferred?.setRawOutput(irradiance);
+  if (!probes) return;
+  probes.setIrradianceView(irradiance);
+  // La révision du magasin monte dès qu'une lampe est ajoutée, réglée ou retirée : c'est le seul
+  // signal dont la grille a besoin pour repartir, et il ne coûte aucune lecture.
+  if (bounce.lightEpoch !== lights.store.epoch) {
+    bounce.lightEpoch = lights.store.epoch;
+    probes.restart();
+  }
+  bounce.encoded = probes.encode(encoder, active);
+  bounce.probesUpdated = probes.lastProbes;
+  bounce.raysLaunched = probes.lastRays;
+}
+
+/** L'état du rebond, tel que les diagnostics de l'image et le profil par étape le publient. */
+export function bounceState(rt: WebgpuPagesRuntime) {
+  const { bounce } = rt,
+    probes = bounce.probes;
+  return {
+    probes: probes?.grid.probes ?? null,
+    probesUpdated: bounce.probesUpdated,
+    rays: bounce.raysLaunched,
+    converged: probes ? !probes.working : null,
+    unavailable: bounce.reason,
+  };
 }
 
 /** La configuration de la première image éclairée par le contrat, journalisée une seule fois. */
@@ -98,5 +149,10 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.tiles = active ? lights.tiles?.buffer : undefined;
   contractResources.slices = active ? lights.shadows?.sliceBuffer : undefined;
   contractResources.atlas = active ? lights.shadows?.view : undefined;
+  // La grille n'est liée que si elle existe : sans elle, la passe différée compile et lie le
+  // programme du contrat seul, exactement celui d'avant ce lot.
+  const bounce = active ? rt.bounce.probes : undefined;
+  contractResources.bounceGrid = bounce?.uniform;
+  contractResources.probes = bounce?.probes;
   return contractResources;
 }

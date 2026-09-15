@@ -39,8 +39,12 @@ export const SCENE_LIGHT_VERSION = 2;
  * diagnostic d'albédo brut — la couleur des matériaux telle quelle, sans lampe, sans ambiance et
  * sans émission — pour les bancs de géométrie qui comparent des images au pixel près. `auto`, la
  * valeur par défaut, rend `unlit` tant qu'aucune lampe n'est déclarée et `lit` dès qu'il y en a une.
+ *
+ * `bounce` est la troisième vue de diagnostic : l'irradiance indirecte seule, multipliée par
+ * l'exposition et sortie en valeurs linéaires sans ACES ni sRGB. C'est ce que le harnais compare à
+ * l'oracle du compilateur ; ce n'est pas une image à regarder, et elle vaut noir sans rebond gréé.
  */
-export type SceneLightingView = 'auto' | 'lit' | 'unlit';
+export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
 /**
  * Réglages publiés de l'éclairage direct. Ce sont des choix de produit nommés, pas des constantes
  * enfouies : chaque borne du runtime les relit, et le diagnostic les publie telles quelles.

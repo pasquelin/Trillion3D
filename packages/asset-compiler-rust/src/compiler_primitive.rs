@@ -7,6 +7,11 @@ pub(super) struct PrimitiveInputs<'a> {
     pub mesh_values: &'a [Value],
     pub skinned_meshes: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
+    /// Échelle monde la plus grande sous laquelle chaque maillage source est placé : c'est elle qui
+    /// ramène le seuil du proxy, exprimé en mètres, dans l'espace objet de la primitive.
+    pub mesh_scales: &'a BTreeMap<usize, f64>,
+    /// Triangles de la scène entière, toutes instances posées : le dénominateur des parts de budget.
+    pub scene_triangles: usize,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
@@ -15,6 +20,10 @@ pub(super) struct PrimitiveInputs<'a> {
 pub(super) struct CompiledPrimitive {
     pub value: Value,
     pub cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>>,
+    /// Les sommets de la coupe grossière du proxy résident, en espace objet.
+    pub proxy_cut: Vec<f32>,
+    /// Le seuil, en mètres, que cette coupe a demandé.
+    pub proxy_threshold: f64,
 }
 
 pub(super) fn compile_primitive(
@@ -29,6 +38,8 @@ pub(super) fn compile_primitive(
         mesh_values,
         skinned_meshes,
         mesh_map,
+        mesh_scales,
+        scene_triangles,
         progress,
     } = inputs;
     check(o)?;
@@ -143,42 +154,39 @@ pub(super) fn compile_primitive(
         }
     }
     let store_packed = |slice: &[u32]| -> Result<(Value, bool)> {
-        let (data, flags, vertex_count) = geometry_page::encode(slice, &pos, &page_attributes)?;
-        let digest = hash(&data);
-        let name = format!("../../objects/{}.bin", digest);
-        let target = o
-            .cache
-            .join("native")
-            .join("objects")
-            .join(format!("{}.bin", digest));
-        let reused = target.exists() && hash_file(&target)? == digest;
-        if !reused {
-            store_object(&target, &data)?;
-        }
-        Ok((
-            json!({"url":name,"sha256":digest,"bytes":data.len(),"formatVersion":2,"codec":"meshopt","vertexCount":vertex_count,"indexCount":slice.len(),"flags":flags,"uncompressedBytes":vertex_count*geometry_page::STRIDE+slice.len()*2}),
-            reused,
-        ))
+        compiler_page_object::store_page(o, slice, &pos, &page_attributes)
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
     let dag_primitive = !unsplit;
+    let scale = mesh_scales.get(old).copied();
+    let demand = crate::proxy::cut::cut_demand(
+        scale,
+        crate::proxy::PROXY_TRIANGLE_BUDGET,
+        triangle_count,
+        *scene_triangles,
+    );
     let DagResult {
         pages,
         cluster_planes,
+        proxy_cut,
+        proxy_threshold,
         reused,
         dag_report,
         culling_report,
         structure_report,
         stream_report,
     } = if dag_primitive {
-        build_dag_primitive(o, &pos, &index_values, &store_packed)?
+        build_dag_primitive(o, &pos, &index_values, demand, &store_packed)?
     } else {
         DagResult::default()
     };
     progress(json!({"phase":"primitive","mesh":mesh,"primitive":primitive,"pages":pages.len()}));
     Ok(CompiledPrimitive {
         cluster_planes,
+        proxy_cut,
+        // Le seuil est revenu en espace objet : il repart en mètres pour le rapport.
+        proxy_threshold: proxy_threshold * scale.unwrap_or(1.0),
         value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }
