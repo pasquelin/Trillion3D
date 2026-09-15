@@ -12,12 +12,12 @@ const splitKeyDouble = new Float64Array(1),
   splitKeyWords = new Uint32Array(splitKeyDouble.buffer);
 
 /**
- * Classe par profondeur les boîtes qui ne coupent pas le plan proche, et renvoie leur nombre ;
- * `splitOrder[0..n-1]` porte leurs indices, du plus proche au plus lointain. Tri radix stable sur
- * l'image ordonnable du double `nearestDepth`, sans allocation : les profondeurs égales retombent
- * donc sur l'ordre des candidats, exactement comme `a.nearest-b.nearest||a.index-b.index`.
+ * Les clés ordonnables des boîtes qui ne coupent pas le plan proche, et leur nombre ;
+ * `splitOrder[0..n-1]` porte leurs indices dans l'ordre des candidats. Image ordonnable d'un double :
+ * tous les bits d'un négatif inversés, le bit de signe d'un positif posé, de sorte que la comparaison
+ * non signée de (haut, bas) rende l'ordre des doubles.
  */
-function rangParProfondeur(count: number, bounds: Float64Array) {
+function chargeCles(count: number, bounds: Float64Array) {
   if (splitLow.length < count) {
     splitLow = new Uint32Array(count);
     splitHigh = new Uint32Array(count);
@@ -30,12 +30,21 @@ function rangParProfondeur(count: number, bounds: Float64Array) {
     splitKeyDouble[0] = bounds[i * HIZ_BOUNDS_VALUES + 4];
     const low = splitKeyWords[0],
       high = splitKeyWords[1];
-    // Orderable image of a double: flip every bit of a negative, set the sign bit of a positive.
     const negative = (high & 0x80000000) !== 0;
     splitLow[i] = negative ? ~low >>> 0 : low;
     splitHigh[i] = negative ? ~high >>> 0 : (high ^ 0x80000000) >>> 0;
     splitOrder[inFront++] = i;
   }
+  return inFront;
+}
+
+/**
+ * Classe par profondeur les mêmes boîtes, du plus proche au plus lointain. Tri radix stable, sans
+ * allocation : les profondeurs égales retombent donc sur l'ordre des candidats, exactement comme
+ * `a.nearest-b.nearest||a.index-b.index`.
+ */
+function rangParProfondeur(count: number, bounds: Float64Array) {
+  const inFront = chargeCles(count, bounds);
   if (!inFront) return 0;
   let order = splitOrder,
     scratch = splitScratch;
@@ -67,13 +76,49 @@ function rangParProfondeur(count: number, bounds: Float64Array) {
  * La moitié la plus proche devient les occulteurs de l'image : `rest[i]` vaut 0 pour un occulteur et
  * 1 sinon, et le nombre d'occulteurs est renvoyé. Les boîtes qui coupent le plan proche restent dans
  * le reste, où elles ne peuvent en cacher aucune autre.
+ *
+ * Seul l'ensemble de cette moitié est lu, jamais son ordre : ce qu'il faut est donc une sélection,
+ * pas un tri. Elle descend les octets du plus fort au plus faible, marque d'un coup les seaux entiers
+ * qui tiennent sous le rang cherché et ne redescend que dans celui qui le contient — une passe sur
+ * tous les candidats, puis sur un sur deux cent cinquante-six en moyenne, au lieu de huit passes de
+ * dispersion. L'ensemble rendu est celui du tri stable, terme pour terme : tout ce qui est
+ * strictement plus proche que la clé de rang, puis les premières clés égales dans l'ordre des
+ * candidats — l'ordre que la partition par seau conserve, comme le tri stable le conservait.
  */
 export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Uint8Array) {
   for (let i = 0; i < count; i++) rest[i] = 1;
-  const inFront = rangParProfondeur(count, bounds);
+  let inFront = chargeCles(count, bounds);
   if (!inFront) return 0;
   const occluders = Math.max(1, Math.floor(inFront / 2));
-  for (let i = 0; i < occluders; i++) rest[splitOrder[i]] = 0;
+  let need = occluders,
+    pool = splitOrder,
+    scratch = splitScratch;
+  for (let pass = 7; pass >= 0 && need > 0; pass--) {
+    const keys = pass < 4 ? splitLow : splitHigh,
+      shift = (pass & 3) * 8;
+    splitCounts.fill(0);
+    for (let i = 0; i < inFront; i++) splitCounts[(keys[pool[i]] >>> shift) & 255]++;
+    // Le seau du rang cherché : tous ceux d'avant tiennent entièrement dessous.
+    let below = 0,
+      digit = 0;
+    for (; digit < 255 && below + splitCounts[digit] < need; digit++) below += splitCounts[digit];
+    let kept = 0;
+    for (let i = 0; i < inFront; i++) {
+      const index = pool[i],
+        d = (keys[index] >>> shift) & 255;
+      if (d < digit) rest[index] = 0;
+      else if (d === digit) scratch[kept++] = index;
+    }
+    need -= below;
+    const swap = pool;
+    pool = scratch;
+    scratch = swap;
+    inFront = kept;
+  }
+  // Ce qui reste a les mêmes huit octets : l'ordre des candidats départage, comme dans le tri.
+  for (let i = 0; i < need; i++) rest[pool[i]] = 0;
+  splitOrder = pool;
+  splitScratch = scratch;
   return occluders;
 }
 
