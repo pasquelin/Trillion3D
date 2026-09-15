@@ -6055,3 +6055,102 @@ contenu rend déjà un maillage répété une seule fois. L'animation n'est pas 
 surfaces de subdivision ne sont pas subdivisées : un `SubD` rend sa cage, ce qui est plus grossier
 que ce qu'un moteur de rendu en ferait. Les faces concaves ou non planes sortent d'un découpage en
 éventail, qui les recouvre sans les respecter ; aucun corpus n'en porte pour l'instant.
+
+## 2026-09-15 — [compilateur] pilote blend
+
+Huitième pilote de scène : un fichier Blender devient une scène intermédiaire glTF, sans Blender,
+sans outil tiers. Module `packages/asset-compiler-rust/src/plugins/scene/blend.rs` et treize modules
+sous `blend/` — `envelope`, `file`, `dna`, `view`, `bytes`, `attrs`, `mesh`, `normals`, `build`,
+`material`, `shading`, `images`, `object`, `out`, `walker`, `convert` — plus une ligne dans
+`scene::PLUGINS`. Le cœur et la CLI ne bougent pas.
+
+**Provenance et licence, écrites en tête du module comme ici.** Le lecteur est écrit **depuis la
+description publique du format**, jamais depuis le code de Blender : entête `BLENDER`, suite de
+blocs, et le bloc `DNA1` par lequel chaque fichier décrit lui-même ses structures, leurs champs et
+leurs types. C'est cette auto-description qui rend le lecteur possible sans rien reprendre : aucune
+ligne, aucun en-tête, aucun algorithme de Blender n'entre ici, et lire un `.blend` n'impose aucune
+licence au lecteur ni au contenu lu. Les deux seules bibliothèques employées ne font que
+décompresser une enveloppe, toutes deux déjà au `Cargo.toml` avec leur notice : `flate2` 1.1.10
+(MIT OU Apache-2.0, backend Rust pur) pour gzip, `ruzstd` 0.7.3 (MIT, Rust pur) pour Zstandard.
+Aucune caisse Rust de lecture de `.blend` n'a été retenue : celles qui existent sont des lecteurs
+partiels, et le format s'auto-décrivant, un lecteur propre tient en quinze petits modules. Rien
+n'est déchiffré ni contourné, la source n'est jamais modifiée.
+
+**Aucun décalage écrit en dur.** Tout champ se demande par son nom, résolu dans le SDNA du fichier
+lui-même ; une structure qui perd, gagne ou déplace un champ d'une version de Blender à l'autre
+reste lisible tant que les noms employés existent. C'est ce qui permet de lire, du même code, les
+deux dispositions d'entête — l'ancienne de douze octets à champs de bloc sur trente-deux bits, et
+celle de Blender 5 qui annonce la longueur de son entête et écrit adresse, taille et nombre sur
+soixante-quatre bits.
+
+**Enveloppe.** Un flux Zstandard est une **suite** de trames, et Blender en écrit quatre plus une
+trame ignorable qui porte sa table de recherche ; le décodeur employé n'en lit qu'une à la fois, on
+les enchaîne donc, en sautant la trame ignorable à la longueur qu'elle annonce. Le gzip passe par
+`MultiGzDecoder`, pour la même raison. Un `.blend` compressé n'a pas de nombre magique en propre —
+il commence par celui de son enveloppe, que d'autres formats portent aussi : il n'est donc reconnu
+que par son extension, et `accepts_head` ne répond que sur `BLENDER` nu. C'est ce qui l'empêche de
+voler une source à `unitypackage`, dont l'entête est aussi du gzip.
+
+**Sous-ensemble lu.** Objets de type maillage et leur matrice monde — depuis Blender 4 la matrice
+n'est plus dans le fichier, on la recompose : échelle (avec son échelle différée), rotation
+(quaternion, six ordres d'Euler, axe-angle, différées comprises), translation, puis la chaîne des
+pères et la matrice d'accrochage ; quand un fichier plus ancien écrit bien sa matrice, le SDNA le
+dit et on la prend telle quelle. Maillages par leurs attributs nommés — `position`, `.corner_vert`,
+offsets de faces, `material_index`, `sharp_face`, première couche d'UV de l'auteur —, triangulés en
+éventail. Aucune normale n'est stockée dans un fichier Blender : elles sont calculées à la lecture
+par la formule de Newell, à plat pour une face nette, moyennées par aire pour une face lisse, et le
+fait est compté. Instances : plusieurs objets qui partagent un `ME` partagent le maillage glTF et
+n'en diffèrent que par leur matrice. Matériaux : le nœud `Principled BSDF`, lu par l'identifiant de
+ses entrées et non par leur rang — couleur de base, métallicité, rugosité, alpha, émission, normale
+— avec les images qu'elles lient, une carte de normales traversée au passage ; un matériau sans
+graphe garde les grandeurs du bloc `MA`. Images **empaquetées** : les octets du fichier d'origine
+partent dans le binaire de la scène par une vue de tampon, **sans être touchés** — c'est ce que le
+glTF prévoit et ce que le pilote FBX fait déjà pour ses textures embarquées ; une image seulement
+désignée reste nommée par son chemin, relativement à `scene::image_root`, la racine commune à tous
+les pilotes.
+
+**Conversion d'axes.** Blender travaille en Z vers le haut, le glTF en Y vers le haut. Un **unique
+nœud racine** porte la matrice de conversion et tous les objets sont ses enfants : la conversion est
+exacte, aucun sommet n'est retouché, et il n'y a pas seize multiplications par objet à vérifier.
+
+**Ce qui est refusé, par son nom** (table complète dans `docs/COMPILER.md`) :
+`blend-header-invalid`, `blend-pointer-size-unsupported`, `blend-endianness-unsupported`,
+`blend-block-header-unsupported`, `blend-truncated`, `blend-too-large`, `blend-dna-invalid`,
+`blend-mesh-layout-unsupported`, `blend-mesh-invalid`, plus les refus de routage habituels quand un
+dossier porte deux `.blend`. **Ce qui est compté sans être rendu** : objets qui ne sont pas des
+maillages, collections instanciées, modificateurs non appliqués (le maillage de base sort tel quel),
+entrées de nuanceur alimentées par un calcul, émission au-delà de un, images hors racine ou hors
+registre, remplacement de matériau par un objet, scènes au-delà de la première.
+
+**Ce qui n'est pas lu, et pourquoi.** Les fichiers antérieurs à la disposition par attributs nommés
+— géométrie dans `MPoly`/`MLoop` et `CustomData` — sont refusés par `blend-mesh-layout-unsupported`
+plutôt que devinés : le dépôt ne possède aucun fichier de cette époque, et un chemin de lecture sans
+fichier pour le prouver serait du code mort. De même, les pointeurs de 32 bits et le boutisme gros
+sont refusés faute d'exemplaire. L'ancienne **disposition d'entête**, elle, est bien lue et testée,
+sur un fichier minimal écrit dans le test depuis la description du format.
+
+**Dorée.** `fixtures/blend/procedural-materials/scene.blend`, 92 065 octets, CC0-1.0, repris tel quel
+du corpus local (le dépôt ignore `test-assets/`) avec sa notice ; écrit par Blender 5.2.1 LTS et
+compressé en Zstandard. Chiffres fixés par `expected.json` : 4 objets dont 1 vide compté, **3
+instances** d'un **seul** maillage `Cube` (8 sommets, 6 faces à quatre coins), **36 triangles**
+instanciés, **3 matériaux** (`Opaque` à texture de couleur, `Transparent` à alpha 0,4 donc `BLEND`,
+`Emissive` dont la couleur × intensité 3 dépasse un et est bornée, comptée
+`blend-emission-clamped`), **1 image PNG empaquetée** de 291 octets, 1 échantillonneur. Les trois
+objets posés en (0, 0, 0), (3, 0, 0) et (6, 0, 0) sortent avec ces translations exactes sous la
+racine de conversion d'axes. Fixture de refus : `fixtures/blend/limites/truncated.blend`, les 4 096
+premiers octets du même fichier déballé.
+
+**Tests** : trois en éprouvette dans le module (ancienne disposition d'entête et résolution par nom
+de champ, refus d'entête hors sous-ensemble, normales plates contre lissées sur deux triangles en
+toit), quatre par le compilateur entier (dorée, refus du tronqué et du dossier ambigu, instance
+unique avec triangulation-UV-matériau par face, gzip et fichier nu rendant **octet pour octet** le
+même glTF que le Zstandard, image empaquetée conservée à l'octet). `cargo test --locked` : **207
+tests au vert** (200 avant ce lot). `cargo fmt --check`, `cargo clippy --all-targets -D warnings`,
+`npm run check:lines` et `npm run check:duplicates` verts.
+
+**Ce qui reste.** Lampes et caméras non converties (le glTF intermédiaire sait porter des lampes).
+Modificateurs non appliqués : c'est la limite qui coûtera le plus cher sur une scène réelle, Blender
+les évalue et ne range pas le résultat. Collections instanciées comptées et non dépliées. Une seule
+couche d'UV, pas de couleurs de sommet, pas de normales personnalisées. Échantillonneur unique : les
+nœuds de coordonnées de texture ne sont pas lus. Transmission et `IOR` du `Principled BSDF` non
+convertis. Essai à blanc sur une scène Blender lourde encore à faire.
