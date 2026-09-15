@@ -245,12 +245,24 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
 | `image-profile-unsupported` | Image plugin (TIFF) read the file but declined its profile or codec; reported per texture, does not fail the job |
 | `image-depth-unsupported` | Image plugin read a bit depth the `Rgba8`-only image contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than quietly narrowed to 8 bits, reported per texture, does not fail the job |
+| `image-float-unsupported` | Image plugin returned the `RgbaF32` variant (OpenEXR, Radiance HDR) to a consumer that only handles `Rgba8` — progressive texture previews are RGBA8 sRGB. Refused by name rather than tone-mapped, which would add loss the source did not have; reported per texture, does not fail the job |
 | `dds-header-truncated` | DDS file is shorter than `DDS_HEADER`/`DDS_PIXELFORMAT`/`DDS_HEADER_DXT10` require; reported per texture, does not fail the job |
 | `dds-header-invalid` | DDS header is present but out of domain (false announced size, zero dimension, absurd mip count); reported per texture, does not fail the job |
 | `dds-codec-unsupported` | DDS codec is outside the declared list (BC6H float, signed variants, `_TYPELESS`, 16-bit, YUV, premultiplied-alpha `DXT2`/`DXT4`); reported per texture, does not fail the job |
 | `dds-layout-unsupported` | DDS layout is outside the plain surface plan (cube, volume, array, padded row pitch); reported per texture, does not fail the job |
 | `dds-data-truncated` | DDS header is consistent but the announced pixels are not all present |
 | `dds-image-too-large` | DDS image exceeds the allocation ceiling passed to the decoder; refused rather than attempting the allocation |
+| `exr-header-invalid` | OpenEXR magic is present but the version field or the header cannot be read |
+| `exr-deep-unsupported` | OpenEXR file carries deep data: a pixel holds a list of samples, not a colour; flattening it would be a compositing choice |
+| `exr-multipart-unsupported` | OpenEXR file has several parts; nothing says which one is the texture |
+| `exr-channels-unsupported` | OpenEXR channel set is outside `R`, `G`, `B` plus optional `A` — extra channels, other names, 32-bit integers, or subsampling |
+| `exr-image-too-large` | OpenEXR image exceeds the allocation ceiling, counted at 16 bytes per pixel; refused rather than attempting the allocation |
+| `exr-data-unreadable` | OpenEXR header is inside the subset but the pixels do not read back (truncated file, unexpected compression, wrong chunk table) |
+| `hdr-header-invalid` | Radiance HDR header is missing, truncated, or carries no valid resolution line |
+| `hdr-format-unsupported` | Radiance HDR pixel encoding is outside the subset (`32-bit_rle_xyze`, another colour space) |
+| `hdr-orientation-unsupported` | Radiance HDR scan order is not `-Y height +X width`; accepting it would mean flipping the image |
+| `hdr-data-truncated` | Radiance HDR scanlines are cut short, a run overflows its line, or a packet does not advance |
+| `hdr-image-too-large` | Radiance HDR image exceeds the allocation ceiling, counted at 16 bytes per pixel; refused rather than attempting the allocation |
 
 ## Using it from Node
 
