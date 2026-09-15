@@ -23,7 +23,6 @@ function reportProgress(rt: WebgpuPagesRuntime) {
       bootstrapPages: rt.setup.bootstrap.length,
       budgetLimited: run.coverageBudgetLimited,
     },
-    lights: run.lightState,
     directLighting: { version: 1, ...directLightingState(rt) },
     bounce: { version: 1, ...bounceState(rt) },
     selectedPages: run.shown.length,

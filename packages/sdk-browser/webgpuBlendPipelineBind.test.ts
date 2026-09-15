@@ -36,15 +36,37 @@ function joue(items: ReturnType<typeof item>[]) {
     drawIndirect() {},
     end() {},
   };
+  // Les groupes de liaison sont rebâtis à la première passe, quand les ressources d'éclairage
+  // entrent dans la clé : le stub en donne assez pour que la construction aboutisse.
+  const atlas = { classes: Array.from({ length: 16 }, () => ({ view: {} })) };
   const rt = {
     vis: {
       visEnabled: true,
       pipelineBlendFront: FRONT,
       pipelineBlendBack: BACK,
       pipelineBlendTextured: TEXTURED,
+      blendBindGroupLayout: {},
+      colorAtlas: atlas,
+      dataAtlas: atlas,
+      mapsSampler: {},
+      materialScales: {},
+      slots: { color: {}, data: {} },
     },
-    gpu: { hdrView: {}, colorView: {}, depthView: {}, targetSize: [8, 8] },
-    blendState: { visibleBlend: items, compaction: undefined },
+    gpu: {
+      hdrView: {},
+      colorView: {},
+      depthView: {},
+      targetSize: [8, 8],
+      cache: { buffer: {} },
+      uniformBuffer: {},
+      zeroUv: {},
+      deferred: {
+        placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
+      },
+    },
+    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    bounce: { probes: undefined },
+    blendState: { visibleBlend: items, compaction: undefined, lighting: undefined },
     run: {
       gpuDrawCalls: 0,
       blendDrawCalls: 0,
@@ -55,7 +77,7 @@ function joue(items: ReturnType<typeof item>[]) {
   } as unknown as WebgpuPagesRuntime;
   drawBlendPass(
     rt,
-    {} as GPUDevice,
+    { createBindGroup: () => ({}) } as unknown as GPUDevice,
     { beginRenderPass: () => pass } as unknown as GPUCommandEncoder,
     0,
     true,

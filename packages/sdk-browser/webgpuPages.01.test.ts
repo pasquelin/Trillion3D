@@ -109,11 +109,10 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     );
     assert.equal(events.filter((event) => event.phase === 'cpu-selection').length, 0);
     assert.ok(events.some((event) => event.phase === 'residency-queue'));
-    for (const phase of ['cpu-lights', 'gpu-selection-current-frame'])
-      assert.ok(
-        events.some((event) => event.phase === phase),
-        phase,
-      );
+    assert.ok(
+      events.some((event) => event.phase === 'gpu-selection-current-frame'),
+      'gpu-selection-current-frame',
+    );
   } finally {
     backend.dispose();
     fixture.geometry.dispose();

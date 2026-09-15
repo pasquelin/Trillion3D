@@ -49,6 +49,8 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
     let rawOutput = false;
     return {
       uniform,
+      /** Ce que vaut une ressource du contrat absente : la passe de mélange lie les mêmes. */
+      placeholders,
       /** Sort l'image en valeurs brutes, sans la chaîne d'affichage. Pour une vue de mesure. */
       setRawOutput(value: boolean) {
         rawOutput = value;

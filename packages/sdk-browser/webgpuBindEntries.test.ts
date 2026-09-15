@@ -104,10 +104,14 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
       targetSize: [4, 4],
       colorView: {},
       depthView: {},
-      lights: { buffer: {} },
+      deferred: {
+        placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
+      },
       gpuDrawCalls: 0,
     },
-    blendState: { visibleBlend: [item] },
+    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    bounce: { probes: undefined },
+    blendState: { visibleBlend: [item], lighting: undefined },
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },
   } as unknown as WebgpuPagesRuntime;
 

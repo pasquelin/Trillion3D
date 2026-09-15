@@ -1,7 +1,9 @@
 import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
 
 /**
- * L'application du rebond dans la résolution différée opaque.
+ * L'application du rebond, aux liaisons que la passe appelante lui donne : la résolution différée
+ * opaque et la passe de mélange lisent les mêmes sondes, avec la même loi, depuis deux dispositions
+ * de liaisons différentes. Une seule implémentation, jamais deux.
  *
  * L'irradiance interpolée des sondes multiplie l'albédo diffus du pixel, divisé par π : c'est la
  * même loi de Lambert que le direct, avec la même implémentation de référence. Le terme est
@@ -11,15 +13,20 @@ import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
  * Un métal pur n'a pas d'albédo diffus : sa part indirecte est nulle, comme dans le direct. Le
  * spéculaire indirect n'est pas de ce lot, et son absence est déclarée plutôt que devinée.
  */
-export const BOUNCE_APPLY_WGSL = `
-@group(0) @binding(11) var<uniform> bounce:BounceGrid;
-@group(0) @binding(12) var<storage,read> probes:array<vec4f>;
+export function bounceApplyWgsl(grid: number, probes: number): string {
+  return `
+@group(0) @binding(${grid}) var<uniform> bounce:BounceGrid;
+@group(0) @binding(${probes}) var<storage,read> probes:array<vec4f>;
 ${BOUNCE_GRID_WGSL}
 const BOUNCE_INVERSE_PI:f32=0.31830989;
 /** La radiance diffuse qu'un pixel renvoie de la lumière qui a rebondi avant de l'atteindre. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*BOUNCE_INVERSE_PI*sampleBounce(P,N)*ao;
+}`;
 }
+
+/** L'application du rebond aux liaisons de la résolution différée, et ses deux vues de mesure. */
+export const BOUNCE_APPLY_WGSL = `${bounceApplyWgsl(11, 12)}
 /** Vrai quand l'hôte a demandé la vue de diagnostic d'irradiance indirecte, et elle seule. */
 fn bounceOnly()->bool{return bounce.spacing.w>0.5;}
 /**

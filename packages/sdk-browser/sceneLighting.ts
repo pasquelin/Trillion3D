@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 
-const MAX_LIGHTS = 256,
-  STRIDE = 20;
 /** Browser adapter: world-space light data, independent of material evaluation. */
 function sceneLights(source: THREE.Object3D): THREE.Light[] {
   const lights: THREE.Light[] = [];
@@ -10,15 +8,6 @@ function sceneLights(source: THREE.Object3D): THREE.Light[] {
   });
   return lights;
 }
-function defaultLights(): THREE.Light[] {
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x495061, 2);
-  const sun = new THREE.DirectionalLight(0xffffff, 2.5);
-  sun.position.set(1, 3, 2);
-  hemi.updateMatrixWorld();
-  sun.updateMatrixWorld();
-  return [hemi, sun];
-}
-const DEFAULT_LIGHTS = defaultLights();
 function visible(light: THREE.Light) {
   let node: THREE.Object3D | null = light;
   while (node) {
@@ -27,6 +16,13 @@ function visible(light: THREE.Light) {
   }
   return true;
 }
+/**
+ * Recopie dans la scène de rendu les lampes que le graphe source déclare, et rien d'autre.
+ *
+ * Aucune lumière sans source déclarée (P6) : une source qui n'en porte aucune donne une scène sans
+ * lampe, pas une hémisphérique et un soleil inventés. C'est la même règle que le chemin du contrat,
+ * du côté des adaptateurs qui rendent par Three.
+ */
 export function installSceneLighting(
   scene: THREE.Scene,
   source: THREE.Object3D,
@@ -66,8 +62,7 @@ export function installSceneLighting(
       if (target) scene.remove(target);
     }
     pairs = [];
-    const authored = sceneLights(source);
-    for (const original of authored.length ? authored : DEFAULT_LIGHTS) {
+    for (const original of sceneLights(source)) {
       const copy = original.clone();
       let target: THREE.Object3D | undefined;
       if ('target' in original) {
@@ -83,108 +78,3 @@ export function installSceneLighting(
   refresh();
   return { update, refresh };
 }
-
-export function packSceneLights(
-  source: THREE.Object3D,
-  out = new Float32Array(4 + MAX_LIGHTS * STRIDE),
-  inventory = sceneLights(source),
-) {
-  const lights = inventory.length ? inventory.filter(visible) : DEFAULT_LIGHTS;
-  if (lights.length > MAX_LIGHTS) throw new Error(`LIGHT_BUDGET: ${lights.length} > ${MAX_LIGHTS}`);
-  out.fill(0);
-  new Uint32Array(out.buffer, out.byteOffset, out.length)[0] = lights.length;
-  const position = new THREE.Vector3(),
-    direction = new THREE.Vector3(),
-    target = new THREE.Vector3();
-  for (let i = 0; i < lights.length; i++) {
-    const light = lights[i],
-      base = 4 + i * STRIDE;
-    let kind = 0;
-    light.updateWorldMatrix(true, false);
-    position.setFromMatrixPosition(light.matrixWorld);
-    direction.set(0, 1, 0);
-    if (light instanceof THREE.DirectionalLight) {
-      kind = 1;
-      light.target.updateWorldMatrix(true, false);
-      target.setFromMatrixPosition(light.target.matrixWorld);
-      direction.subVectors(position, target).normalize();
-    } else if (light instanceof THREE.PointLight) kind = 2;
-    else if (light instanceof THREE.SpotLight) {
-      kind = 3;
-      light.target.updateWorldMatrix(true, false);
-      target.setFromMatrixPosition(light.target.matrixWorld);
-      direction.subVectors(position, target).normalize();
-    } else if (light instanceof THREE.HemisphereLight) {
-      kind = 4;
-      direction.copy(position).normalize();
-    } else if (!(light instanceof THREE.AmbientLight))
-      throw new Error(`UNSUPPORTED_SCENE_LIGHT: ${light.type}`);
-    out.set(
-      [
-        position.x,
-        position.y,
-        position.z,
-        kind,
-        light.color.r,
-        light.color.g,
-        light.color.b,
-        light.intensity,
-        direction.x,
-        direction.y,
-        direction.z,
-        0,
-        0,
-        0,
-        0,
-        2,
-        0,
-        0,
-        0,
-        0,
-      ],
-      base,
-    );
-    if (light instanceof THREE.PointLight || light instanceof THREE.SpotLight) {
-      out[base + 11] = light.distance;
-      out[base + 15] = light.decay;
-    }
-    if (light instanceof THREE.HemisphereLight) {
-      out.set([light.groundColor.r, light.groundColor.g, light.groundColor.b], base + 12);
-    }
-    if (light instanceof THREE.SpotLight) {
-      out[base + 16] = Math.cos(light.angle);
-      out[base + 17] = Math.cos(light.angle * (1 - light.penumbra));
-    }
-    if (!out.subarray(base, base + STRIDE).every(Number.isFinite))
-      throw new Error('INVALID_SCENE_LIGHT');
-  }
-  return {
-    data: out.subarray(0, 4 + lights.length * STRIDE),
-    count: lights.length,
-    types: lights.map((light) => light.type),
-  };
-}
-export function createSceneLightBuffer(device: GPUDevice, source: THREE.Object3D) {
-  const packed = new Float32Array(4 + MAX_LIGHTS * STRIDE);
-  let inventory = sceneLights(source);
-  const buffer = device.createBuffer({
-    label: 'WG scene lights v1',
-    size: packed.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  return {
-    buffer,
-    refresh() {
-      inventory = sceneLights(source);
-    },
-    update() {
-      const result = packSceneLights(source, packed, inventory);
-      device.queue.writeBuffer(buffer, 0, result.data);
-      return { count: result.count, types: result.types };
-    },
-    dispose() {
-      buffer.destroy();
-    },
-  };
-}
-export { SCENE_LIGHTING_WGSL } from './sceneLightingShader.ts';

@@ -1,4 +1,5 @@
-import { SCENE_LIGHTING_WGSL } from './sceneLighting.ts';
+import { DECLARED_LIGHTING_WGSL } from './directLightingWgsl.ts';
+import { bounceApplyWgsl } from './bounceApplyWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import {
@@ -8,7 +9,7 @@ import {
   atlasTextures,
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
-import { FLAG_PAGED } from './visibilityBuffer.ts';
+import { FLAG_PAGED, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -45,7 +46,7 @@ ${TRIANGLE_PALETTE_WGSL}
 }
 `;
 
-export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,lightDir:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,}
+export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
@@ -56,8 +57,12 @@ ${atlasTextures(BLEND_BINDINGS.dataMaps, 'dataMaps')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.scales}) var<storage,read> scales:array<vec4f>;
 ${STANDARD_LIGHTING_WGSL}
-${SCENE_LIGHTING_WGSL}
-@group(0) @binding(${BLEND_BINDINGS.sceneLights}) var<storage,read> sceneLights:SceneLights;
+${DECLARED_LIGHTING_WGSL}
+${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
+@group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${BLEND_BINDINGS.shadowSlices}) var<storage,read> shadows:ShadowSlices;
+@group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d;
+@group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
 @group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
 @group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
@@ -157,7 +162,14 @@ ${TRIANGLE_PALETTE_WGSL}
  var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
  if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,wrapped,gradX,gradY).rgb;}
  if(alpha<uni.alphaTest){discard;}
- if((uni.flags&1u)!=0u){rgb=sceneLighting(rgb,clamp(metal,0.0,1.0),clamp(rough,0.0525,1.0),N,normalize(uni.camPos.xyz-in.view),in.view,ao)+emissive;}
+ // Aucune lampe déclarée, ou vue sans éclairage demandée : l'albédo brut, exactement comme la
+ // résolution opaque. Ni ambiance, ni ciel, ni soleil par défaut (P6).
+ if((uni.flags&${FLAG_UNLIT_VIEW}u)!=0u){return vec4f(rgb,alpha);}
+ if((uni.flags&1u)!=0u){
+  let m=clamp(metal,0.0,1.0);
+  let V=normalize(uni.camPos.xyz-in.view);
+  rgb=declaredLighting(rgb,m,clamp(rough,0.0525,1.0),N,V,in.view,ao)+bounceLighting(rgb,m,N,in.view,ao)+emissive;
+ }
  return vec4f(rgb,alpha);
 }
 `;

@@ -38,23 +38,38 @@ export type ShadeBindResources = AtlasResources & {
   dataAtlas: WebgpuAtlas;
 };
 
-/** Les ressources du groupe d'un maillage transparent : le maillage lui-même et la scène. */
-export type BlendBindResources = AtlasResources & {
-  indices: GPUBuffer;
-  positions: GPUBuffer;
-  uvs: GPUBuffer;
-  uniform: GPUBuffer;
-  uniformSize: number;
-  dataAtlas: WebgpuAtlas;
-  normals: GPUBuffer;
-  scales: GPUBuffer;
-  sceneLights: GPUBuffer;
-  /** Identité d'un cluster transparent, une par entrée de la table de dessin. */
-  clusterDiagnostic: GPUBuffer;
-  /** La liste compactée des clusters à dessiner, et la portée de chacun dans le cache de pages. */
-  clusterIds: GPUBuffer;
-  clusterSpans: GPUBuffer;
+/**
+ * L'éclairage que lit un maillage transparent : les lampes déclarées du contrat, leurs tranches
+ * d'ombre, l'atlas et son échantillonneur, la grille de sondes et ses coefficients. Ce sont les
+ * ressources de la résolution opaque, jamais une lumière propre au mélange (P6) ; celles qui
+ * n'existent pas encore sont tenues par les remplaçants de la résolution différée.
+ */
+export type BlendLighting = {
+  directLights: GPUBuffer;
+  shadowSlices: GPUBuffer;
+  shadowAtlas: GPUTextureView;
+  shadowSampler: GPUSampler;
+  bounceGrid: GPUBuffer;
+  probes: GPUBuffer;
 };
+
+/** Les ressources du groupe d'un maillage transparent : le maillage lui-même et la scène. */
+export type BlendBindResources = AtlasResources &
+  BlendLighting & {
+    indices: GPUBuffer;
+    positions: GPUBuffer;
+    uvs: GPUBuffer;
+    uniform: GPUBuffer;
+    uniformSize: number;
+    dataAtlas: WebgpuAtlas;
+    normals: GPUBuffer;
+    scales: GPUBuffer;
+    /** Identité d'un cluster transparent, une par entrée de la table de dessin. */
+    clusterDiagnostic: GPUBuffer;
+    /** La liste compactée des clusters à dessiner, et la portée de chacun dans le cache de pages. */
+    clusterIds: GPUBuffer;
+    clusterSpans: GPUBuffer;
+  };
 
 /** Les ressources du raster logiciel des petits triangles : il ne lit que la découpe alpha. */
 export type SmallBindResources = AtlasResources & {
@@ -127,12 +142,17 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     ...atlasEntries(b.dataMaps, r.dataAtlas),
     { binding: b.normals, resource: { buffer: r.normals } },
     { binding: b.scales, resource: { buffer: r.scales } },
-    { binding: b.sceneLights, resource: { buffer: r.sceneLights } },
+    { binding: b.directLights, resource: { buffer: r.directLights } },
     { binding: b.clusterDiagnostic, resource: { buffer: r.clusterDiagnostic } },
     { binding: b.colorSlots, resource: { buffer: r.slots.color } },
     { binding: b.dataSlots, resource: { buffer: r.slots.data } },
     { binding: b.clusterIds, resource: { buffer: r.clusterIds } },
     { binding: b.clusterSpans, resource: { buffer: r.clusterSpans } },
+    { binding: b.shadowSlices, resource: { buffer: r.shadowSlices } },
+    { binding: b.shadowAtlas, resource: r.shadowAtlas },
+    { binding: b.shadowSampler, resource: r.shadowSampler },
+    { binding: b.bounceGrid, resource: { buffer: r.bounceGrid } },
+    { binding: b.probes, resource: { buffer: r.probes } },
   ];
 }
 

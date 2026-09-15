@@ -44,6 +44,166 @@ et l'image ne bouge pas : `develop` contre ce lot sur le même cache, **0 pixel*
 Portes du lot, allégées par décision de l'utilisateur : `tsc` vert, `cargo check` vert,
 `npm run check:changed` vert. Pas de tests, pas de `npm run validate` complet.
 
+## 2026-09-15 — [session transparents] les transparents n'ont plus de lumière à eux (lot transparents sans ambiance)
+
+Worktree `lot-transparents-sans-ambiance`, branche `lot/transparents-sans-ambiance`, partie de
+`develop` = `a29e025`. Rien n'est fusionné, le Lab n'est pas touché.
+
+### Ce qui est parti
+
+Le chemin des transparents portait un éclairage à lui, sans rapport avec les lampes déclarées :
+
+- `sceneLighting.ts` injectait `DEFAULT_LIGHTS` — une hémisphérique et un soleil écrits dans le code
+  — dès que le graphe source ne portait aucune lumière Three, aussi bien dans le tampon GPU du
+  mélange que dans les adaptateurs Three.
+- `sceneLightingShader.ts` ajoutait une ambiance constante (`kind==0`) et une ambiance hémisphérique
+  (`kind==4`) qu'aucune ombre n'atténuait.
+- Les uniformes du mélange portaient en plus une direction de soleil en dur (`lightDir`, la même
+  `(1,3,2)` d'intensité 2,5) que le nuanceur ne lisait même plus.
+
+Les trois sont supprimés, et `sceneLightingShader.ts` avec eux. `sceneLighting.ts` se réduit à la
+recopie des lampes **déclarées** du graphe source vers la scène de rendu des adaptateurs Three.
+
+### Ce qui les remplace
+
+La passe de mélange lit les mêmes ressources que la résolution opaque : le tampon `DirectLights` du
+magasin `SceneLight`, les tranches d'ombre, l'atlas et son échantillonneur de comparaison, la grille
+de sondes. Aucun nuanceur n'est dupliqué : la formule d'éclairement d'une lampe est extraite dans
+`declaredLight` (`directLightingWgsl.ts`), que la boucle tuilée de l'opaque (`contractLighting`) et
+la boucle du mélange (`declaredLighting`) appellent toutes les deux ; `bounceApplyWgsl(grid,probes)`
+devient paramétrique pour que les deux passes lient la même grille à leurs propres numéros.
+
+- **Sans lampe déclarée** : un drapeau d'image (`FLAG_UNLIT_VIEW`) fait sortir les transparents en
+  albédo brut, exactement comme la vue sans éclairage des opaques. C'est le même critère
+  (`wantsContractLighting`), posé une fois par image et non par maillage.
+- **Ombres** : un transparent est atténué par les cartes d'ombre des lampes déclarées, ponctuelles
+  comme cascades du soleil, par le même `shadowFactor`.
+- **Exposition** : inchangée, elle vient de la composition — les transparents sont dessinés dans la
+  cible HDR, avant ACES.
+- **Rebond** : `bounceLighting` est ajouté au direct, avec la même grille de sondes que l'opaque et
+  sans passe de plus. Grille absente, `sampleBounce` sort exactement zéro : les remplaçants de la
+  résolution différée (grille à zéro, tampon de sondes d'un `vec4`) sont partagés avec le mélange.
+
+### Pourquoi une boucle bornée et non les listes tuilées
+
+Les listes par tuile sont bâties sur la profondeur des **opaques** : une tuile que nul opaque ne
+couvre — le ciel derrière un arbre — n'y retient aucune lampe, et un transparent posé devant le
+premier opaque de sa tuile tombe hors de la boîte monde qui a filtré ces lampes. S'en servir
+éteindrait des feuillages que des lampes déclarées éclairent. Le mélange boucle donc sur
+`min(directLights.count, MAX_LIGHTS)`, borne connue avant l'image (X2), chaque lampe hors portée
+sortant par le fenêtrage de `directIncidence`. Le coût de ce choix est mesuré ci-dessous ;
+l'éclairage stochastique par pixel (RX2) reste le lot qui le remplacera.
+
+### Ombres portées par les transparents : ce qui a été vérifié
+
+Règle du lot : un masque projette sa découpe, un matériau de mélange ne projette rien encore.
+
+- Un matériau `alphaMode: MASK` n'est **jamais** rangé en mélange : `compiler_primitive.rs` ne met en
+  `clustered-blend` que `alphaMode == "BLEND"`. Un masque passe donc par `exact-clusters`, reçoit une
+  ligne de visibilité, porte `FLAG_MASK` (`webgpuPageRow.ts:85`) et la passe de profondeur des ombres
+  découpe déjà sa vraie silhouette (`gpuShadowShader.ts:53`, `maskKeep`). Rien à ajouter.
+- Un cluster de mélange, lui, ne peut pas entrer dans la table des lignes dessinées :
+  `webgpuRowSync.ts:49` refuse une ligne à tout `rec.transparent`, et `drawSlots` est plafonné au
+  nombre de pages opaques (`webgpuPagesLayout.ts:54`). Le rejet d'ombres lit cette table
+  (`gpuDraw.instanceBuffer`) : aucun transparent n'y est. Sur Emerald, ce sont 29 primitives
+  `clustered-blend` et 1 732 416 triangles de feuillage qui ne projettent rien.
+- L'approximation publiée dans le diagnostic `direct-lighting` est donc réécrite en deux lignes
+  distinctes, masque et mélange, au lieu de l'unique « transparent clusters cast no shadow ».
+
+### Preuves
+
+Harnais commun, `--moteur webgpu`, 1280×720, 40 images, `--pixelError 0`, mode visible, machine
+chargée (charge relevée entre 12 et 29 — aucune de ces durées n'est une mesure de performance tant
+que l'appelant ne l'a pas jugée acceptable). Côté « avant » = `a29e025`, côté « après » = ce lot.
+Témoin A/A à 0 px sur **toutes** les séries.
+
+**Emerald, aucune lampe déclarée** (`generale,sol,rue`) :
+
+| vue      | écart avant/après | ce qui change                                                       |
+| -------- | ----------------- | ------------------------------------------------------------------- |
+| generale | 4 390 px, max 129 | les feuillages passent de l'ambiance implicite à l'albédo brut       |
+| sol      | 0 px              | aucun transparent visible : l'image est identique au bit près        |
+| rue      | 71 722 px, max 199| idem generale, la rangée d'arbres de la rue                          |
+
+Ce n'est pas 0 px, et c'est attendu : avant, les arbres étaient éclairés par une hémisphérique et un
+soleil inventés ; après, sans source déclarée, ils sortent en albédo brut comme tout le reste. La
+vue `sol`, sans transparent, donne le 0 px qui prouve que rien d'autre n'a bougé.
+
+**Emerald, 8 lampes ponctuelles + soleil** (9 lampes actives, ombres allumées) :
+
+| vue      | écart avant/après | ce qui change                                                       |
+| -------- | ----------------- | ------------------------------------------------------------------- |
+| generale | 4 356 px, max 51  | les feuillages suivent enfin les lampes déclarées                    |
+| sol      | 0 px              | aucun transparent visible                                            |
+| rue      | 67 091 px, max 131| la rangée d'arbres du fond s'éteint, celle que le soleil touche reste |
+
+Sur `rue`, les arbres du centre et de la droite, qui étaient uniformément verts quelle que soit la
+lumière de la scène, sont maintenant sombres : ils sont hors de la portée des ponctuelles et dans
+l'ombre portée du soleil, que la passe de mélange lit dans le même atlas que les opaques.
+
+**Scène synthétique des trois classes de matériau** (`fixtures/classes-materiaux`, compilée avec le
+binaire Rust, `generale,detail`) :
+
+| série                 | vue      | écart avant/après |
+| --------------------- | -------- | ----------------- |
+| sans lampe            | generale | 95 583 px, max 78 |
+| sans lampe            | detail   | 0 px              |
+| 4 lampes + soleil     | generale | 0 px              |
+| 4 lampes + soleil     | detail   | 0 px              |
+
+Sans lampe, seule la vitre (`alphaMode: BLEND`) change : elle passe de `(27,31,39)` — l'ambiance
+implicite, presque éteinte sur ce plan — à `(100,106,117)`, son albédo brut. Les trois cubes opaques
+et la grille à découpe sont identiques au bit près, ce qui vaut le 0 px demandé en vue sans
+éclairage : ils empruntaient déjà le chemin opaque, que ce lot ne touche pas. Avec les lampes, la
+vitre retombe à `(27,31,39)` des deux côtés : elle est hors de portée des quatre ponctuelles et le
+soleil frappe son autre face, donc son éclairement déclaré vaut zéro — l'égalité des deux côtés est
+ici une coïncidence de valeurs sombres, pas une preuve, et c'est Emerald qui porte la preuve.
+
+**Coût par étape**, GPU p50/p95, jamais additionné au CPU :
+
+| série               | vue      | étape Transparents avant | après          | enveloppe image avant | après  |
+| ------------------- | -------- | ------------------------ | -------------- | --------------------- | ------ |
+| sans lampe          | generale | 11,396 / 11,511          | 11,848 / 13,570| 29,06                 | 31,95  |
+| sans lampe          | sol      | 0,849 / 0,968            | 0,837 / 1,045  | 10,80                 | 10,77  |
+| sans lampe          | rue      | 1,767 / 1,913            | 2,039 / 2,214  | 11,31                 | 11,83  |
+| 8 lampes + soleil   | generale | 13,203 / 13,996          | 34,979 / 38,354| 36,27                 | 58,22  |
+| 8 lampes + soleil   | sol      | 2,736 / 3,069            | 2,674 / 2,979  | 12,83                 | 12,71  |
+| 8 lampes + soleil   | rue      | 3,624 / 3,851            | 23,861 / 28,586| 12,90                 | 34,49  |
+
+Sans lampe déclarée, l'étape Transparents ne bouge pas : la sortie en albédo brut coûte ce que
+coûtait l'ancienne boucle sur deux lampes implicites. Avec neuf lampes déclarées, elle est multipliée
+par 2,6 (`generale`) à 6,6 (`rue`) : c'est le prix de la boucle bornée et de ses seize prises de PCF
+par lampe, sur un feuillage à fort recouvrement (1 928 appels de mélange sur `rue`). C'est le coût
+que le lot devait noter, et la cible du lot « éclairage stochastique par pixel » (RX2).
+
+Côté CPU, l'étape « Lumières » du profil vaut maintenant zéro sur le chemin WebGPU : il n'y a plus
+aucune lumière de scène à empaqueter par image, et le seul reste — pousser le magasin au GPU quand sa
+révision a bougé — vit dans l'encodage. Zéro parce que le travail a disparu, pas parce qu'il n'est
+pas mesuré.
+
+### Restes nommés
+
+- **Rebond sur les transparents non prouvé par une image** : le code y est, lit la même grille que
+  l'opaque par le même `sampleBounce`, et une série `--rebond on` contre `--rebond off` sur la scène
+  des classes de matériau recompilée avec le binaire de cette branche donne 0 px d'écart — la passe
+  de mélange lie bien la vraie grille (42 sondes) et le vrai tampon de sondes sans rien perturber,
+  mais l'ordonnanceur n'a mis à jour **aucune** sonde (`sondesMisesAJour 0`, `rayonsParImage 0`),
+  donc l'irradiance indirecte vaut zéro partout, sur les opaques comme sur les transparents, et il
+  n'y a rien à comparer. Le cache Emerald du Lab, lui, ne porte pas de proxy résident (« the cache
+  carries no resident proxy; recompile it with this compiler »). À rejouer avec le lot rebond 3.
+- **Ombres atténuées et colorées des matériaux de mélange** : hors périmètre, lot ultérieur (LR3).
+- **Adaptateurs Three sans lampe déclarée** : `installSceneLighting` ne recopie plus que les lumières
+  du graphe source. Or les lampes du contrat vivent dans le magasin `SceneLight`, qu'aucun
+  adaptateur Three ne lit — le moteur de référence WebGL rend donc sans éclairage tant que l'hôte ne
+  pose pas de lumière Three. C'est P6 appliqué, et c'est le lot « import des lampes » qui refermera
+  l'écart.
+- **Boucle par pixel** : bornée par `maxLights`, à remplacer par un rayon d'ombre stochastique (RX2).
+
+### Portes
+
+`tsc` vert, `npm run check:changed` vert (403 tests, format, lint, limite de 200 lignes, doublons).
+Pas de `npm run validate` complet ni de nouveaux tests : portes allégées, décision de l'utilisateur.
+
 ## 2026-09-16 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
 
 Deux lignes seulement séparaient le banc commun d'une scène quelconque, et elles sont parties.

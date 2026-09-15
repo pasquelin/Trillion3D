@@ -50,7 +50,6 @@ export interface WebgpuRunState {
   cpuHizCounts: HizCounts;
   cpuHizCounted: boolean;
   rowsSyncedFrame: number;
-  lightState: { count: number; types: string[] } | undefined;
   motion: { last?: THREE.Vector3; lastMs?: number };
   selectionUniforms: SelectionUniforms;
   /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
@@ -128,7 +127,6 @@ export function createWebgpuRunState(): WebgpuRunState {
     cpuHizCounts: createHizCounts(),
     cpuHizCounted: false,
     rowsSyncedFrame: -1,
-    lightState: undefined,
     motion: {},
     selectionUniforms: {
       planes: new Float32Array(24),

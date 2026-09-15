@@ -2,7 +2,6 @@ import type * as THREE from 'three';
 import type { createGpuPageCache } from './gpuPages.ts';
 import type { createGpuPresenter, createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import type { createDeferredLighting } from './deferredLighting.ts';
-import type { createSceneLightBuffer } from './sceneLighting.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 
@@ -39,7 +38,6 @@ export interface WebgpuGpuState {
   blitMaterial: THREE.ShaderMaterial | undefined;
   blit: THREE.Mesh | undefined;
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined;
-  lights: ReturnType<typeof createSceneLightBuffer> | undefined;
 }
 
 export function createWebgpuGpuState(viewport: readonly [number, number]): WebgpuGpuState {
@@ -73,6 +71,5 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     blitMaterial: undefined,
     blit: undefined,
     deferred: undefined,
-    lights: undefined,
   };
 }

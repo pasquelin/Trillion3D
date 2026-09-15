@@ -1,11 +1,48 @@
 import * as THREE from 'three';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
-import { blendBindEntries } from './webgpuBindEntries.ts';
+import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
+import { directLightResources } from './webgpuPagesEncodeLights.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/**
+ * Les ressources d'éclairage que la passe de mélange lie : exactement celles que la résolution
+ * opaque vient de résoudre, et les remplaçants de la résolution différée pour celles qui n'existent
+ * pas encore. Une seule résolution pour les deux passes, donc aucune lumière propre au mélange (P6).
+ */
+function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
+  const { placeholders } = rt.gpu.deferred!,
+    contract = directLightResources(rt);
+  return {
+    directLights: rt.lights.buffer!,
+    shadowSlices: contract.slices ?? placeholders.slices,
+    shadowAtlas: contract.atlas ?? placeholders.atlasView,
+    shadowSampler: placeholders.sampler,
+    bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
+    probes: contract.probes ?? placeholders.probes,
+  };
+}
+
+/** Vrai quand deux résolutions successives ont donné exactement les mêmes ressources. */
+function sameLighting(previous: BlendLighting | undefined, current: BlendLighting) {
+  return (
+    !!previous &&
+    previous.directLights === current.directLights &&
+    previous.shadowSlices === current.shadowSlices &&
+    previous.shadowAtlas === current.shadowAtlas &&
+    previous.shadowSampler === current.shadowSampler &&
+    previous.bounceGrid === current.bounceGrid &&
+    previous.probes === current.probes
+  );
+}
+
 /** The bind group of one transparent item: its own attributes, the shared cluster lists, the atlas. */
-function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGpuItem) {
+function blendBindGroup(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  item: BlendGpuItem,
+  lighting: BlendLighting,
+) {
   const { gpu, vis, blendState } = rt,
     compaction = blendState.compaction,
     zero = gpu.zeroUv!;
@@ -22,7 +59,7 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
       dataAtlas: vis.dataAtlas!,
       normals: item.normal ?? zero,
       scales: vis.materialScales!,
-      sceneLights: gpu.lights!.buffer,
+      ...lighting,
       clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
       clusterIds: compaction?.instanceBuffer ?? zero,
       clusterSpans: compaction?.spanBuffer ?? zero,
@@ -45,6 +82,14 @@ export function drawBlendPass(
     indirect = blendState.compaction?.indirectBuffer;
   let drawCalls = 0,
     unpaged = 0;
+  // L'atlas d'ombres et la grille de sondes n'existent pas dès la première image : un groupe bâti
+  // sur les remplaçants doit être refait le jour où les vraies ressources arrivent, sinon les
+  // transparents liraient une grille vide pendant que les opaques lisent la bonne.
+  const lighting = textured ? blendLightResources(rt) : undefined;
+  if (lighting && !sameLighting(blendState.lighting, lighting)) {
+    blendState.lighting = lighting;
+    for (const item of items) item.group = undefined;
+  }
   // Le pipeline courant de la passe : le reposer à l'identique ne change rien à l'état, et une
   // liste triée par ordre source enchaîne presque toujours des items qui demandent le même.
   let bound: GPURenderPipeline | undefined;
@@ -69,7 +114,7 @@ export function drawBlendPass(
     const item = items[i];
     if (!item.group)
       item.group = textured
-        ? blendBindGroup(rt, device, item)
+        ? blendBindGroup(rt, device, item, lighting!)
         : device.createBindGroup({
             layout: gpu.bindGroupLayout!,
             entries: [

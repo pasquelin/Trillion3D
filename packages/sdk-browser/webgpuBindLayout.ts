@@ -72,12 +72,20 @@ export const BLEND_BINDINGS = (() => {
     dataMaps: classes(after + 1),
     normals: rest,
     scales: rest + 1,
-    sceneLights: rest + 2,
+    /** Les lampes déclarées du contrat, celles-là mêmes que relit la résolution opaque (P6). */
+    directLights: rest + 2,
     clusterDiagnostic: rest + 3,
     colorSlots: rest + 4,
     dataSlots: rest + 5,
     clusterIds: rest + 6,
     clusterSpans: rest + 7,
+    /** Les tranches d'ombre, leur atlas et l'échantillonneur de comparaison qui les lit. */
+    shadowSlices: rest + 8,
+    shadowAtlas: rest + 9,
+    shadowSampler: rest + 10,
+    /** La grille de sondes et leurs coefficients : l'irradiance de l'opaque, sans passe de plus. */
+    bounceGrid: rest + 11,
+    probes: rest + 12,
   };
 })();
 

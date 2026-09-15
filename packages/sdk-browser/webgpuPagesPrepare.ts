@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { createSceneLightBuffer } from './sceneLighting.ts';
 import { createDeferredLighting } from './deferredLighting.ts';
 import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
 import { prepareWebgpuPresentation } from './webgpuPresentationSetup.ts';
@@ -83,16 +82,14 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
     { allPages, blendCopies, scene, viewport, cap, frameBudget } = rt.setup,
     { packedPages, selectionRoots, rows } = rt.layout;
-  gpu.lights = createSceneLightBuffer(gpuDevice, context.sceneLighting ?? rt.setup.source);
-  run.lightState = gpu.lights.update();
   rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
-  // Ce tampon ne sert plus qu'au chemin des transparents : le chemin opaque n'éclaire que par les
-  // lampes déclarées du contrat, et n'a plus aucune lumière écrite dans la scène à lire (P6).
+  // Plus aucune lumière écrite dans la scène, d'aucun côté : opaques et transparents lisent le même
+  // tampon de lampes déclarées, avec les mêmes ombres et la même exposition (P6).
   diag.engineDiagnostic('scene-lighting', 'Lumières de la scène actives', {
     version: 1,
-    ...run.lightState,
     contractLights: rt.lights.store.count,
-    opaqueUsesSceneLights: false,
+    sceneGraphLights: false,
+    implicitAmbient: false,
     shadows: false,
     globalIllumination: false,
   });

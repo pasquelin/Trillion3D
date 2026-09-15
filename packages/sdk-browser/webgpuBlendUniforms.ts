@@ -1,11 +1,10 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
-import { visMaterial } from './visibilityBuffer.ts';
+import { FLAG_UNLIT_VIEW, visMaterial } from './visibilityBuffer.ts';
 import { writeBlendDiagnostic } from './webgpuBlendDiagnostic.ts';
+import { wantsContractLighting } from './webgpuPagesEncodeLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export const UNIFORM_STRIDE = 256;
-/** Longueur de la direction de lampe par défaut : une constante, pas une racine par image. */
-const LONGUEUR_LAMPE = Math.hypot(1, 3, 2);
 
 /** Populates and uploads the transparent draw uniforms for one image. */
 export function writeBlendUniforms(
@@ -28,7 +27,9 @@ export function writeBlendUniforms(
     uniformPacked.length,
   );
   const cam = lastCamera?.position;
-  const lLen = LONGUEUR_LAMPE;
+  // Une seule question par image, pas par maillage : l'image est-elle éclairée par des lampes
+  // déclarées ? Sinon les transparents sortent leur albédo brut, comme les opaques (P6).
+  const unlit = wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW;
   writeBlendDiagnostic(
     blendState,
     rt.layout.packedPages,
@@ -59,6 +60,7 @@ export function writeBlendUniforms(
     packedInts[base + 38] = textured ? layer : diagnostic === 'wireframe' ? 1 : 0;
     packedInts[base + 39] =
       item.flags |
+      unlit |
       (diagnostic !== 'beauty' ? 0x40000000 : 0) |
       (diagnostic === 'wireframe'
         ? 0x20000000
@@ -73,24 +75,20 @@ export function writeBlendUniforms(
     uniformPacked[base + 41] = scale[1];
     packedInts[base + 42] = mat.emissiveMap ? (mapLayer.get(mat.emissiveMap) ?? 0) : 0;
     uniformPacked[base + 43] = mat.alphaTest;
-    uniformPacked[base + 52] = mat.roughness;
-    uniformPacked[base + 53] = mat.metalness;
-    uniformPacked[base + 54] = mat.normalScale;
-    uniformPacked[base + 55] = mat.normalScaleY;
-    packedInts[base + 56] = mat.roughnessMap ? (dataLayer.get(mat.roughnessMap) ?? 0) : 0;
-    packedInts[base + 57] = mat.metalnessMap ? (dataLayer.get(mat.metalnessMap) ?? 0) : 0;
-    packedInts[base + 58] = mat.normalMap ? (dataLayer.get(mat.normalMap) ?? 0) : 0;
-    packedInts[base + 59] = mat.aoMap ? (dataLayer.get(mat.aoMap) ?? 0) : 0;
-    uniformPacked[base + 60] = mat.aoIntensity;
-    uniformPacked.set(mat.emissive, base + 61);
     uniformPacked[base + 44] = cam?.x ?? 0;
     uniformPacked[base + 45] = cam?.y ?? 0;
     uniformPacked[base + 46] = cam?.z ?? 0;
     uniformPacked[base + 47] = 1;
-    uniformPacked[base + 48] = 1 / lLen;
-    uniformPacked[base + 49] = 3 / lLen;
-    uniformPacked[base + 50] = 2 / lLen;
-    uniformPacked[base + 51] = 2.5;
+    uniformPacked[base + 48] = mat.roughness;
+    uniformPacked[base + 49] = mat.metalness;
+    uniformPacked[base + 50] = mat.normalScale;
+    uniformPacked[base + 51] = mat.normalScaleY;
+    packedInts[base + 52] = mat.roughnessMap ? (dataLayer.get(mat.roughnessMap) ?? 0) : 0;
+    packedInts[base + 53] = mat.metalnessMap ? (dataLayer.get(mat.metalnessMap) ?? 0) : 0;
+    packedInts[base + 54] = mat.normalMap ? (dataLayer.get(mat.normalMap) ?? 0) : 0;
+    packedInts[base + 55] = mat.aoMap ? (dataLayer.get(mat.aoMap) ?? 0) : 0;
+    uniformPacked[base + 56] = mat.aoIntensity;
+    uniformPacked.set(mat.emissive, base + 57);
   }
   device.queue.writeBuffer(
     uniformBuffer,
