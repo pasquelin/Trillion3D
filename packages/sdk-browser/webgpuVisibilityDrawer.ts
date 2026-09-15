@@ -6,7 +6,12 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** The bind group of one indirect slot, cached on `rt.vis` until a resource change voids it.
  *  Les passes de profondeur des ombres réutilisent exactement ces groupes : même table de pages,
  *  même sélection, même uniforme de slot. */
-function visGroupFor(rt: WebgpuPagesRuntime, device: GPUDevice, slot: number, rest: boolean) {
+export function visGroupFor(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  slot: number,
+  rest: boolean,
+) {
   const { vis, gpu } = rt;
   const cacheBuffer = gpu.cache?.buffer,
     {
