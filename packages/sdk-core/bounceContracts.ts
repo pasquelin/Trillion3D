@@ -124,6 +124,16 @@ export const BOUNCE_SETTINGS = {
 } as const;
 
 /**
+ * Plafond des sondes mises à jour par image : le budget de rayons publié divisé par les rayons
+ * d'une sonde. L'ordonnanceur y dimensionne sa file, et le budget en millisecondes n'en encode
+ * qu'une fraction — il ne peut que descendre sous ce plafond, jamais le franchir (X2).
+ */
+export const BOUNCE_PROBES_PER_FRAME = Math.max(
+  1,
+  Math.floor(BOUNCE_SETTINGS.raysPerFrame / BOUNCE_SETTINGS.raysPerProbe),
+);
+
+/**
  * Flottants d'une sonde dans le tampon GPU : onze `vec4f`, jamais réalloués.
  *
  * Neuf portent la base d'harmoniques sphériques d'ordre 2 — un terme constant, trois linéaires,

@@ -86,12 +86,13 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  // La file dit, rang par rang, quelle sonde de quel niveau travaille : l'ordonnanceur l'a remplie
  // en sautant les mailles que la carte d'occupation déclare sans intérêt.
  let packed=probeQueue[group.x];
- let picked=vec2u(packed/max(bounce.counts.z,1u),packed%max(bounce.counts.z,1u));
- if(picked.x>=bounce.counts.y){return;}
- let level=picked.x;
+ let perLevel=max(bounce.counts.z,1u);
+ let level=packed/perLevel;
+ if(level>=bounce.counts.y){return;}
+ let rank=packed%perLevel;
  let side=i32(bounce.counts.x);
  let base=vec3i(bounce.levels[level].base.xyz);
- let ranked=vec3i(vec3u(picked.y%bounce.counts.x,(picked.y/bounce.counts.x)%bounce.counts.x,picked.y/(bounce.counts.x*bounce.counts.x)));
+ let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
  // La maille que ce rang porte dans ce niveau : l'inverse du rangement torique, dans [base,base+côté).
  let cell=base+(((ranked-base)%side)+side)%side;
  let slot=probeSlot(level,cell);
@@ -102,8 +103,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let spacing=bounce.levels[level].originSpacing.w;
  let origin=probeCentre(cell,spacing);
  let reach=bounce.reach.x;
- let rotation=hashUnit(picked.y*9781u+bounce.frame.z)*6.2831853;
- let jitter=hashUnit(picked.y*6151u+bounce.frame.z*131u);
+ let rotation=hashUnit(rank*9781u+bounce.frame.z)*6.2831853;
+ let jitter=hashUnit(rank*6151u+bounce.frame.z*131u);
  var sums:array<vec3f,13>;
  var travelled=0.0;
  // Un fil par rayon : une sonde à soixante-quatre rayons occupe un groupe entier, là où un fil
@@ -171,8 +172,8 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  probesOut[slot+PROBE_CHANGE].w=change;
  probesOut[slot+PROBE_VALID].w=usable;
  probesOut[slot+PROBE_CELL].w=f32(cell.x);
- probesOut[slot+4u].w=f32(cell.y);
- probesOut[slot+5u].w=f32(cell.z);
+ probesOut[slot+PROBE_CELL+1u].w=f32(cell.y);
+ probesOut[slot+PROBE_CELL+2u].w=f32(cell.z);
  probesOut[slot+PROBE_IDLE].w=select(0.0,f32(bounce.frame.x),asleep);
  let meanPositive=sums[9]/max(sums[10],vec3f(1e-6));
  let meanNegative=sums[11]/max(sums[12],vec3f(1e-6));

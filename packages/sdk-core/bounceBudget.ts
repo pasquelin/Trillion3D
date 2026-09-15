@@ -36,6 +36,8 @@ export interface BounceBudget {
 export function createBounceBudget(budgetMs: number): BounceBudget {
   const target = Number.isFinite(budgetMs) && budgetMs > 0 ? budgetMs : BOUNCE_SETTINGS.budgetMs;
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS;
+  /** Les deux bornes de la boucle : jamais au-delà des plafonds publiés, jamais sous le plancher. */
+  const bounded = (fraction: number) => Math.min(1, Math.max(budgetFloor, fraction));
   let load = 1,
     lastMs: number | null = null,
     samples = 0;
@@ -56,8 +58,8 @@ export function createBounceBudget(budgetMs: number): BounceBudget {
       if (ms === null || !Number.isFinite(ms) || ms <= 0) return;
       lastMs = ms;
       samples++;
-      const wanted = Math.min(1, Math.max(budgetFloor, (load * target) / ms));
-      load = Math.min(1, Math.max(budgetFloor, load + (wanted - load) * budgetSmoothing));
+      const wanted = bounded((load * target) / ms);
+      load = bounded(load + (wanted - load) * budgetSmoothing);
     },
   };
 }

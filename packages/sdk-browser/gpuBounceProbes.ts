@@ -1,4 +1,5 @@
 import {
+  BOUNCE_PROBES_PER_FRAME,
   BOUNCE_SETTINGS,
   PROBE_FLOATS,
   createBounceBudget,
@@ -105,17 +106,15 @@ export async function createGpuBounceProbes(
     release();
     throw error;
   }
-  /** Plafond des sondes d'une image : le budget de rayons publié, divisé par les rayons d'une sonde. */
-  const ceiling = Math.max(
-    1,
-    Math.floor(BOUNCE_SETTINGS.raysPerFrame / BOUNCE_SETTINGS.raysPerProbe),
-  );
   let generation = 1,
     frame = 0,
     updates = 0;
   /** Tours complets : un balayage des cascades et un balayage du cache, le plus lent des deux. */
   const rounds = () => Math.min(schedule.sweeps, surface.sweeps);
-  const batch = () => Math.max(1, Math.round(ceiling * budget.load));
+  /** Vrai tant que la série des rebonds n'est pas close : au-delà, plus rien n'est encodé. */
+  const working = () => rounds() < BOUNCE_SETTINGS.settledSweeps;
+  /** Les sondes de l'image : la fraction du plafond publié que le budget en millisecondes tient. */
+  const batch = () => Math.max(1, Math.round(BOUNCE_PROBES_PER_FRAME * budget.load));
   return {
     cascades,
     occupancy,
@@ -139,7 +138,7 @@ export async function createGpuBounceProbes(
     },
     /** Vrai tant que la série des rebonds n'est pas close : au-delà, plus rien n'est encodé. */
     get working() {
-      return rounds() < BOUNCE_SETTINGS.settledSweeps;
+      return working();
     },
     /** Le chronomètre de l'étape, tel que le profil par étape l'a relevé. `null` n'est pas zéro. */
     observeGpuMs(ms: number | null) {
@@ -161,7 +160,7 @@ export async function createGpuBounceProbes(
       // Une cascade qui glisse fait entrer des mailles neuves : c'est du travail, comme une lampe
       // qui bouge. Une caméra immobile ne fait glisser personne et ne relance donc rien.
       if (cascades.follow(viewpoint)) schedule.restart();
-      if (!cascades.probes || !lightsActive || !this.working) return false;
+      if (!cascades.probes || !lightsActive || !working()) return false;
       frame++;
       const groups = schedule.plan(batch());
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups);
