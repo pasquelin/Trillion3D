@@ -37,7 +37,13 @@ export const FLAG_LIT = 1,
   FLAG_HAS_NORMAL_MAP = 1024,
   FLAG_HAS_TANGENT = 2048,
   /** Le dessin transparent lit ses clusters dans la liste compactée, pas un tampon d'indices à lui. */
-  FLAG_PAGED = 4096;
+  FLAG_PAGED = 4096,
+  /**
+   * Drapeau de l'image, pas du matériau : l'image entière sort en albédo brut parce qu'aucune lampe
+   * n'est déclarée, ou parce que l'hôte a demandé la vue sans éclairage. Seul le dessin transparent
+   * le lit — l'opaque a pour cela son propre programme de résolution.
+   */
+  FLAG_UNLIT_VIEW = 8192;
 export type VisPage = {
   array: Uint32Array;
   attributes: THREE.BufferGeometry['attributes'];

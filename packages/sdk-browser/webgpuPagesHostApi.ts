@@ -5,19 +5,6 @@ import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-export function refreshSceneLighting(rt: WebgpuPagesRuntime) {
-  const { gpu, run } = rt;
-  gpu.lights?.refresh();
-  run.lightState = gpu.lights?.update();
-  rt.capture.capturedRevision = -1;
-  rt.diag.engineDiagnostic('scene-lighting', 'Inventaire des lumières actualisé', {
-    version: 1,
-    ...run.lightState,
-    shadows: false,
-    globalIllumination: false,
-  });
-}
-
 /**
  * Le magasin de lampes du contrat a changé. Rien n'est recalculé ici : l'image suivante relit le
  * magasin, repousse le tampon si sa révision a bougé, et l'ordonnanceur d'ombres reprend la main.

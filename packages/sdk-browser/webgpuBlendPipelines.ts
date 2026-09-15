@@ -21,12 +21,25 @@ export async function createWebgpuBlendPipelines(device: GPUDevice, items: Blend
       ...b.dataMaps.map((binding) => atlasLayoutEntry(binding)),
       { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.scales, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      { binding: b.sceneLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.colorSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.dataSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.clusterIds, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.shadowSlices, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      {
+        binding: b.shadowAtlas,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth' },
+      },
+      {
+        binding: b.shadowSampler,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: { type: 'comparison' },
+      },
+      { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
     ],
   });
   const blendModule = device.createShaderModule({ code: BLEND_SHADER });
