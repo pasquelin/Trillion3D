@@ -4,6 +4,8 @@ import { writeBlendDiagnostic } from './webgpuBlendDiagnostic.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export const UNIFORM_STRIDE = 256;
+/** Longueur de la direction de lampe par défaut : une constante, pas une racine par image. */
+const LONGUEUR_LAMPE = Math.hypot(1, 3, 2);
 
 /** Populates and uploads the transparent draw uniforms for one image. */
 export function writeBlendUniforms(
@@ -25,7 +27,7 @@ export function writeBlendUniforms(
     uniformPacked.length,
   );
   const cam = lastCamera?.position;
-  const lLen = Math.hypot(1, 3, 2);
+  const lLen = LONGUEUR_LAMPE;
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       base = (uniformBase + i) * (UNIFORM_STRIDE / 4),
