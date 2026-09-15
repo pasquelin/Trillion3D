@@ -3,7 +3,7 @@
 //! le TIFF 16 bits et pour la même raison — la sortie du contrat ne sait pas encore porter cette
 //! précision, et la rogner en silence ajouterait une perte que la source n'avait pas.
 use super::super::image as registry;
-use super::fixture;
+use super::{fixture, rgba8};
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -26,8 +26,9 @@ fn chaque_profondeur_lue_rend_les_pixels_de_la_reference() {
         let pilote = registry::by_head(&bytes).expect("un pilote revendique ces octets");
         assert_eq!(pilote.name(), "png", "{name}");
         assert_eq!(pilote.mime(), "image/png", "{name}");
-        let registry::DecodedImage::Rgba8(rendu) =
-            registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}"));
+        let rendu = rgba8(
+            registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|erreur| panic!("{name}: {erreur}")),
+        );
         assert_eq!((rendu.width(), rendu.height()), (2, 2), "{name}");
         assert_eq!(
             rendu.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
