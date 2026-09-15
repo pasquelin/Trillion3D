@@ -30,8 +30,12 @@ impl Plugin for Png {
     fn name(&self) -> &'static str {
         "png"
     }
+    /// Le suffixe nomme la profondeur maximale que ce pilote rend : au-delà, il refuse. Il a été
+    /// ajouté avec ce refus, parce que la version entre dans l'identité du cache — sans elle, une
+    /// entrée produite quand le 16 bits était abaissé en silence continuerait d'être relue comme si
+    /// elle était juste, et la perte survivrait au correctif.
     fn version(&self) -> &'static str {
-        "png-image-0.25"
+        "png-image-0.25-depth8"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["png"]
