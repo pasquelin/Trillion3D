@@ -3,11 +3,9 @@ import { collectPendingUrls } from './pageSelection.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { dropGpuSelection } from './webgpuPagesDrops.ts';
-import {
-  bounceState,
-  directLightingState,
-  wantsContractLighting,
-} from './webgpuPagesEncodeLights.ts';
+import { bounceState, directLightingState } from './webgpuPagesEncodeLights.ts';
+import { wantsContractLighting } from './webgpuPagesLightResources.ts';
+import { sunFarState } from './webgpuPagesPrepareSunFar.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -25,6 +23,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
     },
     directLighting: { version: 1, ...directLightingState(rt) },
     bounce: { version: 1, ...bounceState(rt) },
+    sunFarShadows: { version: 1, ...sunFarState(rt) },
     selectedPages: run.shown.length,
     residentPages: run.drawn.length,
     selectedTriangles: run.selectedTriangles,

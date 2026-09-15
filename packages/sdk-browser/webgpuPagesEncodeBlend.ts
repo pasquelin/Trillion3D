@@ -6,11 +6,8 @@ import { copyBackdrop, writeVolumeUniforms } from './webgpuTransmission.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
-import {
-  directLightResources,
-  encodeDirectLights,
-  wantsContractLighting,
-} from './webgpuPagesEncodeLights.ts';
+import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
+import { directLightResources, wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const inverseViewProj = new THREE.Matrix4(),

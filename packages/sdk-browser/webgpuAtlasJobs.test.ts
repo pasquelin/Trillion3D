@@ -2,43 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { previewLevelJobs, textureJobFor } from './webgpuAtlasJobs.ts';
-
-/**
- * Records each `writeTexture` call: the row it starts at, the rows it covers and the bytes sent.
- * The band is no longer a copy of its own — `dataLayout.offset` says where it starts inside the
- * whole level — so the fake reads the bytes the device would actually cover, and nothing else.
- */
-function fakeWriteTextureDevice() {
-  const calls: Array<{
-    row: number;
-    height: number;
-    width: number;
-    level: number;
-    bytes: Uint8Array;
-  }> = [];
-  const device = {
-    queue: {
-      writeTexture(
-        dest: { origin: [number, number, number]; mipLevel?: number },
-        data: Uint8Array,
-        layout: { offset?: number; bytesPerRow: number; rowsPerImage: number },
-        size: { width: number; height: number },
-      ) {
-        const start = layout.offset ?? 0;
-        const covered = layout.bytesPerRow * (size.height - 1) + size.width * 4;
-        assert.ok(start + covered <= data.byteLength, 'la bande déborde des pixels fournis');
-        calls.push({
-          row: dest.origin[1],
-          height: size.height,
-          width: size.width,
-          level: dest.mipLevel ?? 0,
-          bytes: data.slice(start, start + covered),
-        });
-      },
-    },
-  };
-  return { device: device as unknown as GPUDevice, calls };
-}
+import { recordingDevice } from './bench/oracles/h3AtlasJobsOracle.ts';
 
 test('les tranches d’une texture couvrent exactement W×H, sans trou ni chevauchement, comme un transfert en un bloc', () => {
   const width = 4,
@@ -48,7 +12,7 @@ test('les tranches d’une texture couvrent exactement W×H, sans trou ni chevau
   const map = new THREE.DataTexture(source, width, height);
   const rgba = { data: source, width, height };
 
-  const block = fakeWriteTextureDevice();
+  const block = recordingDevice();
   const blockJob = textureJobFor({
     device: block.device,
     texture: {} as GPUTexture,
@@ -61,7 +25,7 @@ test('les tranches d’une texture couvrent exactement W×H, sans trou ni chevau
   }).job;
   blockJob.uploadRows(0, blockJob.rows);
 
-  const sliced = fakeWriteTextureDevice();
+  const sliced = recordingDevice();
   const slicedJob = textureJobFor({
     device: sliced.device,
     texture: {} as GPUTexture,
@@ -80,15 +44,17 @@ test('les tranches d’une texture couvrent exactement W×H, sans trou ni chevau
 
   // Contiguous, non-overlapping coverage: every row visited exactly once, in order.
   assert.deepEqual(
-    sliced.calls.map((call) => call.row),
+    sliced.calls.map((call) => call.origine[1]),
     [0, 1, 2],
   );
-  for (const call of sliced.calls) assert.equal(call.height, 1);
+  for (const call of sliced.calls) assert.equal(call.hauteur, 1);
 
   // Same bytes as a single-block transfer, slice by slice.
   const reassembled = new Uint8Array(width * height * 4);
-  sliced.calls.forEach((call, index) => reassembled.set(call.bytes, index * slicedJob.bytesPerRow));
-  assert.deepEqual(reassembled, block.calls[0].bytes);
+  sliced.calls.forEach((call, index) =>
+    reassembled.set(call.octets, index * slicedJob.bytesPerRow),
+  );
+  assert.deepEqual(reassembled, block.calls[0].octets);
 });
 
 // L'atlas couleur est `rgba8unorm-srgb` et le sidecar porte déjà des octets sRGB à alpha droit :
@@ -96,7 +62,7 @@ test('les tranches d’une texture couvrent exactement W×H, sans trou ni chevau
 // linéaire n'est ni 188/255 ni son carré — de la pyramide du sidecar jusqu'à l'octet remis au GPU,
 // et vérifie au passage que le niveau `k` part bien dans le niveau de mip `k` de la couche.
 test('un niveau progressif part tel quel, octet pour octet, dans le niveau de mip de même rang', () => {
-  const { device, calls } = fakeWriteTextureDevice();
+  const { device, calls } = recordingDevice();
   // Source 128×64 : son premier niveau porté est le 1, celui dont aucun côté ne dépasse 64.
   const levels = [64, 32, 16, 8, 4, 2, 1].map((side, index) => {
     const [w, h] = [side, Math.max(1, 64 >> index)];
@@ -129,7 +95,7 @@ test('un niveau progressif part tel quel, octet pour octet, dans le niveau de mi
   );
   for (const entry of jobs) entry.uploadRows(0, entry.rows);
   assert.deepEqual(
-    calls.map((call) => [call.level, call.width, call.height]),
+    calls.map((call) => [call.niveau, call.largeur, call.hauteur]),
     [
       [7, 1, 1],
       [6, 2, 1],
@@ -143,7 +109,7 @@ test('un niveau progressif part tel quel, octet pour octet, dans le niveau de mi
   // Aucun ré-encodage, aucune conversion : les octets du sidecar sont ceux que le GPU reçoit.
   for (const call of calls)
     assert.ok(
-      call.bytes.every((byte, i) => byte === (i % 4 === 3 ? 255 : 188)),
-      `niveau ${call.level} : octet modifié entre le sidecar et le GPU`,
+      call.octets.every((byte, i) => byte === (i % 4 === 3 ? 255 : 188)),
+      `niveau ${call.niveau} : octet modifié entre le sidecar et le GPU`,
     );
 });

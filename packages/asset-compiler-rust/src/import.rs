@@ -146,6 +146,7 @@ pub(crate) mod opacity;
 mod runner;
 mod scene;
 mod textures;
+mod write;
 
 use lighting::*;
 use materials::*;
@@ -153,3 +154,4 @@ use mesh::*;
 use opacity::*;
 pub use runner::import_source;
 use textures::*;
+pub(crate) use write::{write_scene, Tables};

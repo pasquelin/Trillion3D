@@ -3,9 +3,20 @@
 use super::*;
 use std::{fs, path::PathBuf};
 
+mod dds;
 mod image_registry;
 mod router;
 mod tga;
+mod tiff;
+
+/// Les octets d'un fichier réel du corpus, rangé dans `fixtures/<dossier>/`.
+fn fixture(folder: &str, name: &str) -> Vec<u8> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("fixtures")
+        .join(folder)
+        .join(name);
+    fs::read(path).unwrap_or_else(|error| panic!("{folder}/{name}: {error}"))
+}
 
 /// Un dossier jetable, nommé par le cas qui l'utilise.
 fn temp_dir(tag: &str) -> PathBuf {

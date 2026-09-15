@@ -16,92 +16,88 @@ pub(super) struct Models {
 impl Models {
     /// Les nœuds porteurs de maillage de ce modèle, versés dans la scène à la première demande.
     pub(super) fn parts(&mut self, asset: &Path, world: &mut World<'_>) -> Option<Parts> {
-        if let Some(known) = self.imported.get(asset) {
-            return known.clone();
-        }
-        let parts = self.import(asset, world);
-        self.imported.insert(asset.to_path_buf(), parts.clone());
-        parts
+        let meta = self.meta(asset);
+        self.imported
+            .entry(asset.to_path_buf())
+            .or_insert_with(|| import(asset, world, &meta))
+            .clone()
     }
 
     /// Les réglages d'import déclarés par le `.meta` de ce modèle, lus une seule fois.
     pub(super) fn meta(&mut self, asset: &Path) -> Rc<ModelImport> {
-        if let Some(known) = self.metas.get(asset) {
-            return known.clone();
-        }
-        let read = Rc::new(meta::read(&meta_of(asset)));
-        self.metas.insert(asset.to_path_buf(), read.clone());
-        read
+        self.metas
+            .entry(asset.to_path_buf())
+            .or_insert_with(|| Rc::new(meta::read(&meta_of(asset))))
+            .clone()
     }
+}
 
-    fn import(&mut self, asset: &Path, world: &mut World<'_>) -> Option<Parts> {
-        let name = asset.file_name()?.to_string_lossy().to_string();
-        let Ok(Routed::Driver(plugin, inputs)) = route(asset) else {
-            world.scene.report.add("unity-model-format-unknown");
+fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Parts> {
+    let name = asset.file_name()?.to_string_lossy().to_string();
+    let Ok(Routed::Driver(plugin, inputs)) = route(asset) else {
+        world.scene.report.add("unity-model-format-unknown");
+        world
+            .scene
+            .report
+            .notes
+            .push(format!("modèle non lu: {name}"));
+        return None;
+    };
+    if plugin.name() == NAME {
+        world.scene.report.add("unity-model-nested-scene");
+        return None;
+    }
+    let request = SceneRequest {
+        source: asset,
+        inputs: &inputs,
+        cache: world.cache,
+        cancelled: world.cancelled,
+        progress: world.progress,
+    };
+    let prepared = match plugin.prepare(&request) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            world.scene.report.add("unity-model-import-failed");
             world
                 .scene
                 .report
                 .notes
-                .push(format!("modèle non lu: {name}"));
-            return None;
-        };
-        if plugin.name() == NAME {
-            world.scene.report.add("unity-model-nested-scene");
+                .push(format!("{name}: {} {}", error.code, error.message));
             return None;
         }
-        let request = SceneRequest {
-            source: asset,
-            inputs: &inputs,
-            cache: world.cache,
-            cancelled: world.cancelled,
-            progress: world.progress,
-        };
-        let prepared = match plugin.prepare(&request) {
-            Ok(prepared) => prepared,
-            Err(error) => {
-                world.scene.report.add("unity-model-import-failed");
-                world
-                    .scene
-                    .report
-                    .notes
-                    .push(format!("{name}: {} {}", error.code, error.message));
-                return None;
-            }
-        };
-        let (directory, file, key, unit) = match &prepared {
-            PreparedScene::Converted(directory) => (
-                directory.clone(),
-                "model.gltf".to_string(),
-                directory.file_name()?.to_string_lossy().to_string(),
-                unit_meters(directory),
-            ),
-            PreparedScene::InPlace(file) => (
-                asset.parent()?.to_path_buf(),
-                file.clone(),
-                hash_file(asset).ok()?,
-                1.0,
-            ),
-            PreparedScene::Manifest => return None,
-        };
-        let (gltf, buffers) = match load_gltf(&directory, &file) {
-            Some(loaded) => loaded,
-            None => {
-                world.scene.report.add("unity-model-buffer-unreadable");
-                return None;
-            }
-        };
-        // Les images du modèle sont nommées relativement à son propre dossier ; la scène les sert
-        // depuis la racine donnée au compilateur, il faut donc les préfixer de ce chemin.
-        let prefix = asset
-            .parent()
-            .and_then(|parent| world.project.relative_uri(parent))
-            .unwrap_or_default();
-        let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
-        let scale = self.meta(asset).scale(unit);
-        world.scene.read_model(&name, plugin.name(), &key);
-        world.scene.count("models", 1);
-        Some(scaled(parts, scale))
-    }
+    };
+    let (directory, file, key, unit) = match &prepared {
+        PreparedScene::Converted { directory, .. } => (
+            directory.clone(),
+            "model.gltf".to_string(),
+            directory.file_name()?.to_string_lossy().to_string(),
+            unit_meters(directory),
+        ),
+        PreparedScene::InPlace(file) => (
+            asset.parent()?.to_path_buf(),
+            file.clone(),
+            hash_file(asset).ok()?,
+            1.0,
+        ),
+        PreparedScene::Manifest => return None,
+    };
+    let (gltf, buffers) = match load_gltf(&directory, &file) {
+        Some(loaded) => loaded,
+        None => {
+            world.scene.report.add("unity-model-buffer-unreadable");
+            return None;
+        }
+    };
+    // Les images du modèle sont nommées relativement à son propre dossier ; la scène les sert
+    // depuis la racine donnée au compilateur, il faut donc les préfixer de ce chemin.
+    let prefix = asset
+        .parent()
+        .and_then(|parent| world.project.relative_uri(parent))
+        .unwrap_or_default();
+    let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
+    world.scene.read_model(&name, plugin.name(), &key);
+    world.scene.count("models", 1);
+    Some(scaled(parts, meta.scale(unit)))
 }
 
 /// L'unité déclarée par le fichier modèle, telle que son pilote l'a consignée. Un modèle dont le
@@ -140,8 +136,8 @@ fn scaled(parts: Parts, scale: f64) -> Parts {
                     })
                     .collect::<Vec<f64>>()),
                 None => json!([
-                    scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0,
-                    0.0, 1.0
+                    scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0,
+                    1.0
                 ]),
             };
             (name, matrix, mesh)

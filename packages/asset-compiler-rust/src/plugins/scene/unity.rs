@@ -17,8 +17,8 @@
 //! rendus animés, objets inactifs, niveaux de LOD écartés, retouches de prefab qui ne changent ni la
 //! géométrie ni le rendu, cartes métal/lissage empaquetées et textures hors registre.
 use super::*;
-use crate::import::{f32_bytes, normalise, Bin, Report};
-use crate::{atomic, hash, hash_file, runtime_manifest, CompilerError};
+use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
+use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -85,7 +85,7 @@ impl ScenePlugin for Unity {
         head.windows(12).any(|window| window == b"tag:unity3d.")
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert(request, self).map(PreparedScene::Converted)
+        convert(request, self).map(|directory| request.converted(directory))
     }
     /// Un projet Unity se reconnaît au niveau du dossier : dès qu'une scène vit dessous, l'arbre
     /// entier est la source, et les modèles rangés dedans sont ses entrées, jamais des sources

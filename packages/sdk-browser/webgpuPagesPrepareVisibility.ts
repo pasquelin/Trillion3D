@@ -12,7 +12,7 @@ import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
-import { dropGpuHiz, dropVis } from './webgpuPagesDrops.ts';
+import { dropGpuHiz, dropVis, grantCapability } from './webgpuPagesDrops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
@@ -151,6 +151,5 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     (item) => !VIS_FEATURES.includes(item),
   );
   vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots);
-  if (vis.gpuDraw)
-    capabilities.unsupported = capabilities.unsupported.filter((item) => item !== 'indirect draw');
+  if (vis.gpuDraw) grantCapability(capabilities, 'indirect draw');
 }

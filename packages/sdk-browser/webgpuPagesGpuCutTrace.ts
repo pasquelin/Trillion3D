@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import { addCpuSteps } from './stageMapping.ts';
 import { CPU_STEP, CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
+import { sunFarCounts } from './webgpuPagesPrepareSunFar.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
@@ -31,6 +32,16 @@ function recordStages(rt: WebgpuPagesRuntime) {
     retardMaxImages: counts.waitedFrames,
   });
   stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
+  // L'ombre lointaine du soleil : des compteurs relevés sur une image sur quinze, jamais une durée.
+  // Son rayon est tiré dans la résolution différée, donc ses millisecondes sont celles de l'étape
+  // « Éclairage (résolution) » — dire une durée ici en compterait une seconde fois.
+  stages.setCounts('sunFarShadows', sunFarCounts(rt));
+  stages.setReason('sunFarShadows', {
+    cpu: 'aucun travail processeur : le rayon lointain est tiré par la résolution différée',
+    gpu:
+      rt.sunFar.reason ??
+      'mesurée dans l’étape « Éclairage (résolution) », qui tire le rayon lointain',
+  });
   // Ce que le rebond a réellement fait : des sondes et des rayons, jamais une durée. Une scène
   // immobile et convergée n'encode aucune passe, donc l'étape reste « non mesuré » et non zéro.
   stages.setCounts('bounce', {

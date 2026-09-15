@@ -24,12 +24,10 @@ impl Textures {
         project: &Project,
     ) -> Option<usize> {
         let guid = reference.guid.as_ref()?;
-        if let Some(known) = self.by_guid.get(guid) {
-            return *known;
-        }
-        let resolved = resolve(guid, scene, project);
-        self.by_guid.insert(guid.clone(), resolved);
-        resolved
+        *self
+            .by_guid
+            .entry(guid.clone())
+            .or_insert_with(|| resolve(guid, scene, project))
     }
 }
 

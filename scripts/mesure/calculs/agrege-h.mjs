@@ -4,43 +4,21 @@
 // résultat est identique au bit près. Ce que Node mesure ici est le prix du contrat, pas son gain :
 // `Worker` n'existe pas sous Node, donc les deux colonnes de temps exécutent le repli synchrone. Le
 // gain, lui, est du temps rendu au fil principal du navigateur, et il se lit dans la campagne pixel.
-import { execFileSync } from 'node:child_process';
-import { loadavg } from 'node:os';
-import { ecrisBitAbit } from './tableau.mjs';
+import { contexteLot, ecrisBitAbit } from './tableau.mjs';
 
-/** Un commit, ou `null` : une mesure sans provenance n'en est pas une. */
-function sha(...args) {
-  try {
-    return execFileSync('git', args, { encoding: 'utf8' }).trim();
-  } catch {
-    return null;
-  }
-}
-
-/** Au-delà de cette charge moyenne, les chronomètres ne départagent plus rien d'honnête. */
-const CHARGE_MAX = 4;
-const charge = loadavg()[0];
-const develop = sha('rev-parse', 'develop');
-const socle = sha('merge-base', 'HEAD', 'develop');
-const lignes = [
-  socle
-    ? `Base du lot : \`${socle}\` ; \`develop\` au moment de la mesure : \`${develop}\`.`
-    : null,
+const { note, ...contexte } = contexteLot(
   'Node exécute le repli synchrone : ces colonnes ne montrent donc jamais le temps rendu au fil ' +
     'principal, qui est le gain visé et qui ne se lit qu’en navigateur. Elles montrent le reste : ' +
     'le prix du contrat (copie de la page compressée, aller-retour des messages) et, pour H1, le ' +
     'gain du décodeur lui-même, le module WebAssembly contre le décodeur JavaScript. « Retenu » ' +
     'exige l’égalité bit à bit, qui seule décide.',
-];
-if (charge > CHARGE_MAX)
-  lignes.push(
-    `Machine chargée pendant la mesure (charge moyenne sur une minute : ${charge.toFixed(1)}, ` +
-      `seuil ${CHARGE_MAX}) : temps non concluants.`,
-  );
+);
 
 ecrisBitAbit({
   nom: 'calculs-h2',
   titre: 'Calculs, lot H2 : décodage hors du fil principal, avant / après',
-  extra: { lot: 'H2', develop, socle, chargeMachine: charge, tempsConcluants: false },
-  note: lignes.filter(Boolean).join('\n'),
+  // Sous Node les deux colonnes exécutent le même repli : les temps ne concluent jamais ici,
+  // quelle que soit la charge de la machine.
+  extra: { lot: 'H2', ...contexte, tempsConcluants: false },
+  note,
 });

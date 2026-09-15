@@ -4,10 +4,8 @@
 use super::harness::{compare, Bits, Row};
 use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::world_matrices;
-use crate::proxy::{
-    albedo, bvh, place, simplify, stage_proxy, wide, ProxyInputs, SceneProxy, PROXY_CELL_METRES,
-    PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET, PROXY_TRIANGLE_FLOATS,
-};
+use crate::proxy::assemble::assemble;
+use crate::proxy::{albedo, place, stage_proxy, ProxyInputs, SceneProxy, PROXY_TRIANGLE_FLOATS};
 use crate::Result;
 use serde_json::Value;
 
@@ -41,33 +39,7 @@ fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
         }
     }
-    reference_finish(inputs, triangles, colours)
-}
-
-/// La fin de l'ancien `stage_proxy`, que le point ne touche pas : simplification, BVH, seuil publié.
-fn reference_finish(
-    inputs: &ProxyInputs<'_>,
-    mut triangles: Vec<f32>,
-    mut colours: Vec<u32>,
-) -> Result<SceneProxy> {
-    let cell = simplify::plan_cell(&triangles, PROXY_CELL_METRES, PROXY_TRIANGLE_BUDGET);
-    simplify::simplify(&mut triangles, &mut colours, cell);
-    let (node_bounds, node_children) = wide::collapse(&bvh::build(&mut triangles, &mut colours));
-    let error = inputs
-        .thresholds
-        .iter()
-        .copied()
-        .fold(PROXY_ERROR_METRES, f64::max)
-        + cell * simplify::CELL_ERROR_FACTOR;
-    Ok(SceneProxy {
-        bounds: bvh::extent(&triangles),
-        error_metres: error,
-        cell_metres: cell,
-        triangles,
-        albedo: colours,
-        node_bounds,
-        node_children,
-    })
+    Ok(assemble(inputs.thresholds, triangles, colours))
 }
 
 /// Les proxys des jeux d'un tour, dans l'ordre.

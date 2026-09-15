@@ -21,11 +21,9 @@ impl<'a> Importer<'a> {
             .and_then(|s| s.to_str())
             .unwrap_or("source")
             .to_string();
-        let source_dir = file
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
+        // Les URI d'images écrites ici sont relatives à cette racine, et c'est sous elle que le
+        // compilateur relira les octets pour en calculer les aperçus : une seule règle, partagée.
+        let source_dir = crate::plugins::scene::image_root(file);
         let canonical_dir = normalise(&source_dir);
         let progress = self.progress;
         let cancelled = self.cancelled;

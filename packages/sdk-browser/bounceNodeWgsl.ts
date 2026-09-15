@@ -1,8 +1,10 @@
 import { PROXY_CHILD_WORDS, PROXY_NODE_FLOATS, PROXY_NODE_WORDS } from '../sdk-core/index.ts';
 
 /**
- * Ce qu'un nœud du proxy porte, et comment un rayon le lit : les sommets d'un triangle, son albédo,
- * les bornes exactes d'un nœud et les quatre boîtes quantifiées de ses enfants.
+ * Ce qu'un nœud du proxy porte, et comment un rayon le lit : les sommets d'un triangle, les bornes
+ * exactes d'un nœud et les quatre boîtes quantifiées de ses enfants. L'albédo est à part, plus bas :
+ * une ombre n'a que faire de la couleur de ce qui la porte, et la colonne qui la porte est un tampon
+ * de stockage de plus à lier.
  *
  * Une boîte d'enfant tient sur six octets, écrits dans les bornes du parent et arrondis vers
  * l'extérieur par le compilateur : déquantifiée, elle contient toujours ce qu'elle contenait, donc
@@ -31,11 +33,6 @@ fn proxyNormal(index:u32)->vec3f{
 /** Le barycentre d'un triangle : le point où le cache de surfaces évalue sa maille. */
 fn proxyCentre(index:u32)->vec3f{
  return (proxyVertex(index,0u)+proxyVertex(index,1u)+proxyVertex(index,2u))/3.0;
-}
-/** L'albédo linéaire d'un triangle, dépaqueté de ses quatre octets. */
-fn proxyAlbedoOf(index:u32)->vec3f{
- let packed=proxyAlbedo[index];
- return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
 }
 /** L'inverse d'une direction, sans division dans la boucle et sans infini sur un axe nul. */
 fn rayInverse(direction:vec3f)->vec3f{
@@ -67,4 +64,15 @@ fn proxyChild(node:u32,slot:u32,frame:Box)->ProxyChild{
   Box(frame.low+span*vec3f(f32(low&255u),f32((low>>8u)&255u),f32((low>>16u)&255u)),
       frame.low+span*vec3f(f32((low>>24u)&255u),f32(high&255u),f32((high>>8u)&255u))),
   proxyNodeChildren[base+2u],(high>>16u)&255u,(high>>24u)!=0u);
+}`;
+
+/**
+ * L'albédo linéaire d'un triangle du proxy, dépaqueté de ses quatre octets. Séparé de la traversée :
+ * seule la lumière qui rebondit lit une couleur, et un nuanceur qui ne fait que chercher un
+ * occulteur n'a alors ni la colonne d'albédo à déclarer ni son tampon à lier.
+ */
+export const PROXY_ALBEDO_WGSL = `
+fn proxyAlbedoOf(index:u32)->vec3f{
+ let packed=proxyAlbedo[index];
+ return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
 }`;

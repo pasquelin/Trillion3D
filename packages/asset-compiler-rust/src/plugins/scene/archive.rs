@@ -3,13 +3,16 @@
 //! extrait au routeur : c'est un pilote de scène ordinaire qui produit la scène intermédiaire, et
 //! le conteneur ne rend rien d'autre que ce que ce pilote rend.
 //!
-//! Ce module tient ce qui ne dépend pas du format d'archive — plafonds, refus de sortie de dossier,
-//! clé d'extraction, composition avec le routeur — pour qu'un second conteneur soit un module de
-//! plus et non une reprise de celui-ci.
+//! Ce module tient les protections et l'identité, qui ne dépendent d'aucun format : plafonds, refus
+//! nommés, refus de sortie de dossier, clé d'extraction. Son sous-module `container` tient le
+//! déroulé commun — extraire, marquer, router. Un second conteneur n'ajoute donc que sa lecture.
 use super::*;
-use crate::{atomic, hash, is_safe_source_name, CompilerError};
-use serde_json::json;
+use crate::{hash, is_safe_source_name, CompilerError};
 use std::sync::atomic::Ordering;
+
+mod container;
+
+pub(super) use container::container;
 
 /// Plafonds d'une extraction. Au-delà, l'archive est refusée par son nom : une archive n'est jamais
 /// extraite à moitié, sans quoi le routeur verrait un dossier incomplet comme une scène.
@@ -89,68 +92,45 @@ pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
     Ok(())
 }
 
-/// Route le dossier extrait et lui fait produire la scène intermédiaire. Rend le pilote interne
-/// retenu, `None` quand le dossier portait déjà son manifeste — une extraction réutilisée.
-pub(super) fn compose(
-    request: &SceneRequest<'_>,
-    extracted: &Path,
-) -> Result<(PreparedScene, Option<&'static dyn ScenePlugin>)> {
-    let root = single_root(extracted);
-    match route(&root)? {
-        Routed::Manifest => Ok((PreparedScene::Converted(root), None)),
-        Routed::Driver(inner, inputs) => {
-            let inner_request = SceneRequest {
-                source: &root,
-                inputs: &inputs,
-                cache: request.cache,
-                cancelled: request.cancelled,
-                progress: request.progress,
-            };
-            let scene = match inner.prepare(&inner_request)? {
-                PreparedScene::InPlace(name) => stage_in_place(&root, &name)?,
-                converted => converted,
-            };
-            Ok((scene, Some(inner)))
-        }
+/// Le refus d'une archive que son lecteur n'ouvre pas : tronquée, corrompue, ou compressée par une
+/// méthode que ce binaire n'embarque pas. La raison du lecteur voyage telle quelle.
+pub(super) fn unreadable(source: &Path, error: impl std::fmt::Display) -> CompilerError {
+    CompilerError::new(UNREADABLE, format!("{}: {error}", source.to_string_lossy()))
+}
+
+/// Le refus d'une archive bien formée qui ne porte aucune entrée.
+pub(super) fn empty(source: &Path) -> CompilerError {
+    CompilerError::new(
+        EMPTY,
+        format!("{}: archive is empty", source.to_string_lossy()),
+    )
+}
+
+/// Le plafond d'entrées, dès que le lecteur sait combien l'archive en porte.
+pub(super) fn under_entry_limit(entries: usize) -> Result<()> {
+    if entries > LIMITS.entries {
+        return Err(CompilerError::new(
+            TOO_MANY_ENTRIES,
+            format!(
+                "archive holds {entries} entries, over the {} allowed",
+                LIMITS.entries
+            ),
+        ));
     }
+    Ok(())
 }
 
-/// La chaîne du conteneur et de son pilote interne, telle qu'elle voyage dans le rapport et dans la
-/// marque d'extraction : deux pilotes sont intervenus, les deux se nomment et se versionnent.
-pub(super) fn chain(container: &dyn ScenePlugin, inner: Option<&dyn ScenePlugin>) -> Value {
-    json!([
-        crate::plugins::provenance(container),
-        inner.map(crate::plugins::provenance)
-    ])
-}
-
-/// Un glTF laissé en place par son pilote se lit à côté de la source ; dans une archive, la source
-/// est l'archive et non le dossier extrait. Le conteneur pose donc dans ce dossier le manifeste que
-/// le compilateur calculerait lui-même pour cette scène — les mêmes octets, donc la même identité de
-/// cache qu'hors archive — et rend le dossier comme scène intermédiaire.
-fn stage_in_place(root: &Path, name: &str) -> Result<PreparedScene> {
-    let loaded = crate::load_model_file(root, name, None)?;
-    atomic(&root.join("manifest.json"), &loaded.manifest_bytes)?;
-    Ok(PreparedScene::Converted(root.to_path_buf()))
-}
-
-/// Un unique dossier racine — `kit/` dans `kit.zip` — est traversé : l'archive livre l'arbre du
-/// projet, pas un dossier qui n'existe que pour l'emballage. Un dossier qui porte autre chose qu'un
-/// seul sous-dossier est la racine cherchée.
-fn single_root(extracted: &Path) -> PathBuf {
-    let mut root = extracted.to_path_buf();
-    while let Some(only) = only_child(&root) {
-        root = only;
+/// Le plafond d'octets décompressés, sur le total annoncé par l'index puis sur le total écrit : une
+/// archive qui ment sur la taille de ses entrées est arrêtée par le même compte.
+pub(super) fn under_byte_limit(bytes: u64) -> Result<()> {
+    if bytes > LIMITS.bytes {
+        return Err(CompilerError::new(
+            TOO_LARGE,
+            format!(
+                "archive expands past the {} uncompressed bytes allowed",
+                LIMITS.bytes
+            ),
+        ));
     }
-    root
-}
-
-/// L'unique enfant d'un dossier quand c'en est un dossier, sinon rien.
-fn only_child(dir: &Path) -> Option<PathBuf> {
-    let mut entries = std::fs::read_dir(dir).ok()?;
-    let first = entries.next()?.ok()?.path();
-    if entries.next().is_some() || !first.is_dir() {
-        return None;
-    }
-    Some(first)
+    Ok(())
 }

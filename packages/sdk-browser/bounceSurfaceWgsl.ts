@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
+import { PROXY_ALBEDO_WGSL } from './bounceNodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
 /** Fils d'un groupe de travail de la passe de cache : une maille par fil. */
@@ -45,6 +46,7 @@ struct SurfaceSpan{span:vec4u,}
 ${DIRECT_LIGHT_WGSL}
 ${BOUNCE_GRID_WGSL}
 ${BOUNCE_TRACE_WGSL}
+${PROXY_ALBEDO_WGSL}
 const LIGHTS_PER_TEXEL:u32=${BOUNCE_SETTINGS.lightsPerRay}u;
 const SURFACE_INVERSE_PI:f32=0.31830989;
 /**

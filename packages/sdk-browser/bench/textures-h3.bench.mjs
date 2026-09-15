@@ -9,27 +9,18 @@
 import { join } from 'node:path';
 import { textureJobFor, previewLevelJobs } from '../webgpuAtlasJobs.ts';
 import { RACINE, compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
-import { recordingDevice, referenceWriteRows } from './oracles/h3AtlasJobsOracle.ts';
+import {
+  bandes,
+  pixels,
+  recordingDevice,
+  referenceWriteRows,
+} from './oracles/h3AtlasJobsOracle.ts';
 
 const alea = graine(3113);
 
-/** Des pixels qui ne se répètent pas : un octet déplacé d'une ligne se verrait. */
-function pixels(width, height) {
-  const octets = new Uint8Array(width * height * 4);
-  for (let i = 0; i < octets.length; i++) octets[i] = (i * 31 + Math.floor(alea() * 7)) & 255;
-  return octets;
-}
-
-/** Les bandes successives d'un niveau : elles couvrent exactement le rectangle, sans chevauchement. */
-function bandes(rows, bande) {
-  const decoupe = [];
-  for (let row = 0; row < rows; row += bande) decoupe.push([row, Math.min(bande, rows - row)]);
-  return decoupe;
-}
-
 /** Un cas : un niveau de `width × height` transféré en bandes de `bande` lignes. */
 function cas(nom, width, height, bande, mesure = true) {
-  const octets = pixels(width, height);
+  const octets = pixels(width, height, alea);
   return {
     nom,
     taille: octets.length,
@@ -68,7 +59,7 @@ function apercu(width, height, firstLevel) {
   const levels = [];
   for (let level = firstLevel; ; level++) {
     const [w, h] = [Math.max(1, width >> level), Math.max(1, height >> level)];
-    levels.push(pixels(w, h));
+    levels.push(pixels(w, h, alea));
     if (w === 1 && h === 1) break;
   }
   return { width, height, firstLevel, levels };

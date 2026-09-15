@@ -1,0 +1,59 @@
+{
+  "case": "Un projet Unity CC0 livré en .unitypackage : archive tar.gz, un dossier par GUID, l'arbre Assets/ reconstruit sous le cache depuis les fichiers pathname, puis routé vers le pilote unity.",
+  "rule": "Un conteneur ne change rien au projet qu'il emballe. Le test compare d'abord la compilation issue du paquet à celle du même projet à plat — nom, taille et empreinte de chaque fichier de données lu compris — puis fixe les trois paquets piégés, refusés par leur code sans qu'un octet soit écrit.",
+  "scenePlugin": {
+    "name": "unitypackage",
+    "version": "unitypackage-ustar-gzip-tar-0.4.46-flate2-1.1.10-extract-1"
+  },
+  "chain": [
+    {
+      "name": "unitypackage",
+      "version": "unitypackage-ustar-gzip-tar-0.4.46-flate2-1.1.10-extract-1"
+    },
+    {
+      "name": "unity",
+      "version": "unity-yaml-rust2-0.13-gltf-2"
+    }
+  ],
+  "refus": {
+    "sortieDeDossier": "ARCHIVE_PATH_ESCAPE",
+    "tronque": "ARCHIVE_UNREADABLE",
+    "vide": "ARCHIVE_EMPTY"
+  },
+  "scene": {
+    "formatVersion": 3,
+    "plugin": {
+      "name": "unity",
+      "version": "unity-yaml-rust2-0.13-gltf-2"
+    },
+    "files": [
+      {
+        "file": "Map.unity",
+        "bytes": 10495,
+        "sha256": "02ffa23c2a97cd62f1fa74c11d4bab2d2580ba00e0f10396ca157fedb98e006c"
+      },
+      {
+        "file": "Standard.mat",
+        "bytes": 1006,
+        "sha256": "8f2e840e969ddfdcb7c7db51d9580c60dae13f1ebaf2853d8faffd1657785696"
+      }
+    ],
+    "counts": {
+      "gameObjects": 12,
+      "instances": 3,
+      "lodDropped": 6,
+      "materials": 1,
+      "metaFiles": 11,
+      "textures": 1
+    },
+    "unsupported": {},
+    "notes": [],
+    "manifestBinaryVersion": 4,
+    "sidecarSha256": "32b81b1eab8c6b87a2abad73f7ea5cab3b4094b2cbe61e54d8df9995d83b2a0e",
+    "primitives": 1,
+    "selectedNodes": [0, 4, 8],
+    "totalNodes": 3,
+    "selectedTriangles": 36,
+    "sourceTriangles": 36
+  }
+}

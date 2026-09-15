@@ -55,6 +55,7 @@ export const WEBGPU_STAGES = [
   'geometry',
   'coplanar',
   'shadows',
+  'sunFarShadows',
   'lightLists',
   'bounce',
   'lighting',
