@@ -76,7 +76,7 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  // source n'entre jamais en jeu — il n'est fiable sur aucune scène importée.
  let normal=select(proxyNormal(triangle),-proxyNormal(triangle),(texel&1u)==1u);
  let point=proxyCentre(triangle);
- let reach=bounce.origin.w;
+ let reach=bounce.reach.x;
  // Direct exact de l'image, plus l'indirect que la grille a déjà convergé : c'est ce terme-là qui
  // ferme la série des rebonds, un ordre de plus à chaque balayage.
  let irradiance=directIrradiance(point,normal,reach)+sampleBounce(point,normal);

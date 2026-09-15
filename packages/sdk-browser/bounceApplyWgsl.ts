@@ -28,7 +28,7 @@ fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
 /** L'application du rebond aux liaisons de la résolution différée, et ses deux vues de mesure. */
 export const BOUNCE_APPLY_WGSL = `${bounceApplyWgsl(11, 12)}
 /** Vrai quand l'hôte a demandé la vue de diagnostic d'irradiance indirecte, et elle seule. */
-fn bounceOnly()->bool{return bounce.spacing.w>0.5;}
+fn bounceOnly()->bool{return bounce.reach.y>0.5;}
 /**
  * L'irradiance indirecte nue du pixel, multipliée par l'exposition : c'est ce que le harnais
  * compare à l'oracle du compilateur. Ni albédo, ni ACES, ni sRGB — une image à mesurer, pas une

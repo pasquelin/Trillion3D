@@ -150,8 +150,8 @@ export function readOptions(argv, root) {
     // `--profil off` rejoue la même série sans le chronométrage par étape : c'est la porte de
     // fidélité, deux exécutions dont seule cette option diffère.
     stageProfile: (flags.get('profil') ?? 'on') !== 'off',
-    // La lumière qui rebondit est éteinte par défaut dans le moteur : le banc l'allume sur demande.
-    bounce: flags.get('rebond') === 'on' || flags.get('rebond') === 'true',
+    // La lumière qui rebondit est allumée par défaut dans le moteur : le banc la coupe sur demande.
+    bounce: (flags.get('rebond') ?? 'on') !== 'off',
     profileFrames: number('images-profil', 120),
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.
@@ -160,6 +160,9 @@ export function readOptions(argv, root) {
     // projettent une ombre, et si la première d'entre elles bouge à chaque image.
     lights: number('lampes', 0),
     lightShadows: (flags.get('ombres') ?? 'on') !== 'off',
+    // `--intensite` règle ce qu'une ponctuelle du banc émet, pour toutes les scènes de la même
+    // façon : sans elle, l'indirect d'un modèle à grande maille reste sous le quantum de la capture.
+    lightIntensity: number('intensite', 40),
     movingLight: flags.get('lampe-mobile') === 'true',
     // `--lampes-fichier off` ouvre la scène sans les lampes que son fichier source portait ; le
     // moteur les déclare de lui-même sinon. C'est la porte de fidélité du lot d'import des lampes :

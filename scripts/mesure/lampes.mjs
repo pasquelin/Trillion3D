@@ -4,15 +4,24 @@
 // son plancher, chaque lampe portant une portée déduite de la maille. Elle vaut pour n'importe quel
 // modèle importé ; le banc ne sait rien du jeu de mesure qu'on lui donne, quel qu'il soit.
 
+/** Intensité d'une ponctuelle du banc, faute de mieux : la valeur des lots précédents. */
+const DEFAULT_INTENSITY = 40;
+
 /** Plancher du modèle : le plan d'origine si la géométrie l'enjambe, sinon le bas de sa boîte. */
 const floorOf = (bounds) => (bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y);
 
 /**
  * `count` lampes ponctuelles sur une grille dans l'emprise du modèle. `shadows` dit si elles
- * projettent une ombre. Rend la liste que l'hôte passe telle quelle à `addLight`, plus la maille :
- * le mouvement d'une lampe s'exprime en fraction de maille, donc reste dans sa propre portée.
+ * projettent une ombre, `intensity` ce qu'elles émettent. Rend la liste que l'hôte passe telle
+ * quelle à `addLight`, plus la maille : le mouvement d'une lampe s'exprime en fraction de maille,
+ * donc reste dans sa propre portée.
+ *
+ * L'intensité est une option du banc et non une valeur de scène : sur un modèle dont la maille
+ * fait des dizaines de mètres, l'indirect d'une ponctuelle à intensité de rue tombe sous le
+ * quantum des huit bits de la capture, et l'écart à l'oracle n'a alors plus rien à mesurer. La
+ * monter ne nomme aucune scène — c'est le même nombre pour tout modèle, choisi par l'opérateur.
  */
-function gridLights(bounds, count, shadows) {
+function gridLights(bounds, count, shadows, intensity) {
   if (count <= 0) return { lights: [], cell: 0 };
   const sx = Math.max(1e-3, bounds.max.x - bounds.min.x),
     sy = Math.max(0, bounds.max.y - bounds.min.y),
@@ -33,7 +42,7 @@ function gridLights(bounds, count, shadows) {
       kind: 'point',
       position: [bounds.min.x + (column + 0.5) * stepX, height, bounds.min.z + (row + 0.5) * stepZ],
       color: [1, 0.96, 0.88],
-      intensity: 40,
+      intensity,
       // La portée couvre la maille et un peu plus : les portées se recouvrent comme dans une rue.
       range: cell * 0.75,
       castsShadow: shadows,
@@ -74,7 +83,8 @@ function movingLightPlan(lights, cell) {
  */
 export function benchLights(bounds, settings) {
   if (!settings.lights && !settings.sun) return null;
-  const { lights, cell } = gridLights(bounds, settings.lights, settings.lightShadows);
+  const intensity = settings.lightIntensity ?? DEFAULT_INTENSITY;
+  const { lights, cell } = gridLights(bounds, settings.lights, settings.lightShadows, intensity);
   const moving = settings.movingLight ? movingLightPlan(lights, cell) : null;
   const all = settings.sun ? [{ ...SUN, castsShadow: settings.lightShadows }, ...lights] : lights;
   return {
@@ -86,6 +96,7 @@ export function benchLights(bounds, settings) {
       soleil: settings.sun,
       ombres: settings.lightShadows,
       maille: cell,
+      intensite: intensity,
       mobile: !!moving,
     },
   };
