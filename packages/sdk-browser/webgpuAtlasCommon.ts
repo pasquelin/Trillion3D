@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { TexturePreview } from '../sdk-core/index.ts';
 import { textureRgba } from './visibilityBuffer.ts';
-import { mipLevelCountFor } from './textureMips.ts';
+import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
 import { planAtlasClasses, type AtlasClassPlan } from './webgpuAtlasClasses.ts';
 import { previewLevelJobs, textureJobFor, type TextureJob } from './webgpuAtlasJobs.ts';
 
@@ -21,7 +21,7 @@ export type AtlasSpec = {
 };
 
 /** Une classe de taille allouée : sa texture-tableau, ses échelles uv par couche et ses octets. */
-type AtlasClassTexture = {
+export type AtlasClassTexture = {
   texture: GPUTexture;
   view: GPUTextureView;
   size: [number, number];
@@ -66,10 +66,30 @@ function clearWebgpuAtlasLayer(
   pass.end();
 }
 
+/**
+ * Regénère la chaîne de mips d'une classe : toutes ses couches, ou seulement celles données. Le
+ * format, les dimensions et les échelles uv se lisent sur la classe, si bien qu'aucun appelant ne
+ * redit l'ordre de ces six arguments.
+ */
+export function regenerateClassMips(
+  device: GPUDevice,
+  entry: AtlasClassTexture,
+  layers?: readonly number[],
+) {
+  return generateMaterialMips(
+    device,
+    entry.texture,
+    entry.texture.format,
+    ...entry.size,
+    entry.scales,
+    layers,
+  );
+}
+
 function allocate(
   device: GPUDevice,
   plan: AtlasClassPlan,
-  spec: AtlasSpec,
+  format: GPUTextureFormat,
   encoder: GPUCommandEncoder,
   fillFor: (classIndex: number, layer: number) => AtlasFill,
 ): AtlasClassTexture[] {
@@ -77,7 +97,7 @@ function allocate(
     const layers = plan.layers[index];
     const texture = device.createTexture({
       size: { width, height, depthOrArrayLayers: layers },
-      format: spec.format,
+      format,
       mipLevelCount: mipLevelCountFor(width, height),
       usage:
         GPUTextureUsage.TEXTURE_BINDING |
@@ -123,7 +143,7 @@ export function prepareWebgpuAtlas(
   const sourceAt: number[][] = plan.sizes.map(() => []);
   for (let index = 0; index < maps.length; index++)
     sourceAt[plan.slotClass[index]][plan.slotLayer[index]] = index;
-  const classes = allocate(device, plan, spec, encoder, (classIndex, layer) =>
+  const classes = allocate(device, plan, spec.format, encoder, (classIndex, layer) =>
     spec.fillFor(sourceAt[classIndex][layer]),
   );
   const slotWords = new Uint32Array(maps.length + 1);

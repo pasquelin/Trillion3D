@@ -1,11 +1,11 @@
 import { compteMateriauxEtTangentes } from './webgpuPagesCatalogue.ts';
 import { prepareWebgpuGeometry } from './webgpuGeometryPrepare.ts';
 import { collectWebgpuMaterialTextures } from './webgpuMaterialTextures.ts';
-import { prepareWebgpuAtlas } from './webgpuAtlasCommon.ts';
+import { prepareWebgpuAtlas, regenerateClassMips } from './webgpuAtlasCommon.ts';
 import { createWebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
 import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
 import { PREVIEW_BASE, TEXTURE_PREVIEW_VERSION, type TexturePreview } from '../sdk-core/index.ts';
-import { generateMaterialMips, mipLevelCountFor } from './textureMips.ts';
+import { mipLevelCountFor } from './textureMips.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const WHITE = { r: 1, g: 1, b: 1, a: 1 };
@@ -107,14 +107,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   // La chaîne de mips du remplissage se fait une fois, avant la pompe : les niveaux progressifs
   // écrasent ensuite ceux de leur couche, et la pleine résolution les fait tous régénérer.
   for (const atlas of [colorAtlas, dataAtlas])
-    for (const entry of atlas.classes)
-      await generateMaterialMips(
-        gpuDevice,
-        entry.texture,
-        entry.texture.format,
-        ...entry.size,
-        entry.scales,
-      );
+    for (const entry of atlas.classes) await regenerateClassMips(gpuDevice, entry);
   await rt.texturePump.pump();
   const scales = new Float32Array(Math.max(uvScales.length, dataUvScales.length) * 4);
   for (let i = 0; i < scales.length / 4; i++) {

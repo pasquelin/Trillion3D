@@ -96,12 +96,11 @@ export function planAtlasClasses(
   const sampled = device.limits.maxSampledTexturesPerShaderStage;
   // La passe de résolution lit le tampon de visibilité, puis autant d'atlas couleur que de données.
   const affordable = Math.max(1, Math.floor((sampled - 1) / 2));
-  const allowed = Math.min(ATLAS_CLASS_COUNT, affordable, Math.max(1, maxClasses));
   const single = assign(sizes, [[width, height]], maxLayers);
   let best = single;
   // Le découpage s'explore quand l'hôte l'autorise, et de toute façon quand l'allocation unique ne
   // tient pas sous la limite de couches : ce repli par limites de l'appareil ignore la borne.
-  const explore = affordable > 1 && (allowed > 1 || !single);
+  const explore = affordable > 1 && (maxClasses > 1 || !single);
   for (let shift = 1; explore && shift <= MAX_CLASS_SHIFT; shift++) {
     const small: [number, number] = [Math.max(1, width >> shift), Math.max(1, height >> shift)];
     const candidate = assign(sizes, [[width, height], small], maxLayers);

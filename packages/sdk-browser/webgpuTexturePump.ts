@@ -1,5 +1,4 @@
-import { generateMaterialMips } from './textureMips.ts';
-import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
+import { regenerateClassMips, type WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { SlotPyramid } from './webgpuAtlasSlots.ts';
 
@@ -13,15 +12,7 @@ type ClassLayers = Map<number, number[]>;
 async function regenerate(device: GPUDevice, atlas: WebgpuAtlas, byClass: ClassLayers) {
   for (const [classIndex, layers] of byClass) {
     const entry = atlas.classes[classIndex];
-    if (!entry) continue;
-    await generateMaterialMips(
-      device,
-      entry.texture,
-      entry.texture.format,
-      ...entry.size,
-      entry.scales,
-      layers,
-    );
+    if (entry) await regenerateClassMips(device, entry, layers);
   }
 }
 
