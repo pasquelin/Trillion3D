@@ -60,6 +60,10 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   empreinte dans `series[].sides[].atlasOmbres` (`hash`, `written`, `pagesEnAttente`, `images`).
   Éteint par défaut : c'est une lecture de 64 Mo, pas une mesure d'image. À n'employer qu'avec des
   poses et des lampes déterministes, sinon les deux côtés ne décrivent pas la même scène.
+- `--instances N` (1, 4, 9 ou 12) : le SDK pose N copies de l'objet en grille (`replicaCount`).
+  Par défaut 1. Un lot qui touche aux instances se mesure aux deux nombres, et le rapport porte
+  dans chaque ligne la mémoire de géométrie publiée par le moteur (colonne « géométrie (Mo) » :
+  octets du cache de pages plus tampons de sommets, `null` si le moteur ne la publie pas).
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
 - `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
   mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les

@@ -1,5 +1,6 @@
 import { dropGpuSelection, dropVis } from './webgpuPagesDrops.ts';
 import { disposeBackdrop } from './webgpuTransmission.ts';
+import { dropBlendBuffers } from './webgpuBlendBuffers.ts';
 import { directLightTimings } from './stageMapping.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -109,12 +110,8 @@ export function disposeWebgpuPages(
   vis.visTexture = undefined;
   vis.visView = undefined;
   for (const buffer of gpu.positionBuffers.values()) buffer.destroy();
+  dropBlendBuffers(gpu);
   gpu.vertexBytes = 0;
-  for (const item of blendState.blendGpu) {
-    item.index?.destroy();
-    item.uv?.destroy();
-    item.normal?.destroy();
-  }
   blendState.compaction?.dispose();
   blendState.compaction = undefined;
   blendState.table = undefined;
