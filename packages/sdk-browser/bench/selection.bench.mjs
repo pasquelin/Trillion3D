@@ -2,7 +2,7 @@
 // Référence = `pageSelectionMath.ts:110-134`, `pageSelectionRequests.ts:77-96` et
 // `autonomousResidency.ts:24-37` d'avant le lot A, recopiés dans `oracles/selection.mjs`.
 import * as THREE from 'three';
-import { boxClip, extractPlanes } from '../pageSelectionMath.ts';
+import { clipPlanesFromMatrix, frustumClipBox } from '../../sdk-core/index.ts';
 import { collectPendingUrls } from '../pageSelectionRequests.ts';
 import { createAutonomousResidency } from '../autonomousResidency.ts';
 import { compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
@@ -16,7 +16,7 @@ import {
 const cam = camera(6, 0.1, 16 / 9);
 const clip = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 const planes = new Float64Array(24);
-extractPlanes(clip, planes);
+clipPlanesFromMatrix(planes, clip.elements);
 const boxes = (liste) => {
   const plat = new Float64Array(liste.length * 6);
   for (let i = 0; i < liste.length; i++) {
@@ -91,7 +91,7 @@ const lignes = [
       { nom: 'aucune boîte', entree: vide, taille: 0 },
     ],
     reference: clipper(referenceBoxClip),
-    optimisee: clipper(boxClip),
+    optimisee: clipper(frustumClipBox),
     options: { tours: 200, budgetMs: 2000 },
   }),
   await compare({
