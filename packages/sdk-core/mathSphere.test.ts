@@ -10,7 +10,10 @@ const boite3 = (b: ArrayLike<number>) =>
 function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
   assert.equal(actual.length, expected.length);
   for (let i = 0; i < expected.length; i++)
-    assert.ok(Object.is(actual[i], expected[i]), `composante ${i} : ${actual[i]} !== ${expected[i]}`);
+    assert.ok(
+      Object.is(actual[i], expected[i]),
+      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
+    );
 }
 const sphereRef = (b: ArrayLike<number>) => {
   const s = boite3(b).getBoundingSphere(new THREE.Sphere());
@@ -34,7 +37,16 @@ test('sphereFromBounds s’accorde avec Box3.getBoundingSphere pour des boîtes 
 test('une boîte vide (bornes inversées) rend la sphère vide : centre nul, rayon -1', () => {
   const inversee = [1, 1, 1, -1, -1, -1];
   const obtenu = new Float64Array(4);
-  sphereFromBounds(obtenu, 0, inversee[0], inversee[1], inversee[2], inversee[3], inversee[4], inversee[5]);
+  sphereFromBounds(
+    obtenu,
+    0,
+    inversee[0],
+    inversee[1],
+    inversee[2],
+    inversee[3],
+    inversee[4],
+    inversee[5],
+  );
   assertBits(obtenu, sphereRef(inversee));
   assertBits(obtenu, Float64Array.of(0, 0, 0, -1));
 });

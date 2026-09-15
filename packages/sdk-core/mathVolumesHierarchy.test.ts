@@ -15,7 +15,10 @@ import {
 function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
   assert.equal(actual.length, expected.length);
   for (let i = 0; i < expected.length; i++)
-    assert.ok(Object.is(actual[i], expected[i]), `composante ${i} : ${actual[i]} !== ${expected[i]}`);
+    assert.ok(
+      Object.is(actual[i], expected[i]),
+      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
+    );
 }
 
 /** Chaîne racine → parent tourné à échelle non uniforme → enfant à échelle négative → petit-enfant. */
@@ -65,7 +68,14 @@ test('boxTransform sous chaque matrixWorld d’une chaîne de profondeur ≥ 3 �
       boxTransform(obtenu, 0, b, 0, noeud.matrixWorld.elements);
       assertBits(
         obtenu,
-        Float64Array.of(attendu.min.x, attendu.min.y, attendu.min.z, attendu.max.x, attendu.max.y, attendu.max.z),
+        Float64Array.of(
+          attendu.min.x,
+          attendu.min.y,
+          attendu.min.z,
+          attendu.max.x,
+          attendu.max.y,
+          attendu.max.z,
+        ),
       );
     }
   }
@@ -83,10 +93,24 @@ test('sphereFromBounds après la matrixWorld d’un petit-enfant égale getBound
     const boiteMonde = new Float64Array(6);
     boxTransform(boiteMonde, 0, b, 0, petitEnfant.matrixWorld.elements);
     const obtenu = new Float64Array(4);
-    sphereFromBounds(obtenu, 0, boiteMonde[0], boiteMonde[1], boiteMonde[2], boiteMonde[3], boiteMonde[4], boiteMonde[5]);
+    sphereFromBounds(
+      obtenu,
+      0,
+      boiteMonde[0],
+      boiteMonde[1],
+      boiteMonde[2],
+      boiteMonde[3],
+      boiteMonde[4],
+      boiteMonde[5],
+    );
     assertBits(
       obtenu,
-      Float64Array.of(sphereAttendue.center.x, sphereAttendue.center.y, sphereAttendue.center.z, sphereAttendue.radius),
+      Float64Array.of(
+        sphereAttendue.center.x,
+        sphereAttendue.center.y,
+        sphereAttendue.center.z,
+        sphereAttendue.radius,
+      ),
     );
   }
 });
@@ -101,7 +125,10 @@ test('frustumExcludesBox pour une caméra posée dans la hiérarchie égale !Fru
   enfant.add(camera); // la caméra est elle-même un enfant de la chaîne
   racine.updateMatrixWorld(true);
 
-  const vp = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  const vp = new THREE.Matrix4().multiplyMatrices(
+    camera.projectionMatrix,
+    camera.matrixWorldInverse,
+  );
   const tronc = new THREE.Frustum().setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
   const plans = new Float64Array(24);
   frustumPlanesFromMatrix(plans, vp.elements, true);
