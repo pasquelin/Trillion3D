@@ -1,11 +1,21 @@
 import { PAGE_DECODE_PROTOCOL, pageDecodeFailureCode } from '../sdk-core/index.ts';
-import { decodeGeometryPage, type DecodedGeometryPage } from './geometryPage.ts';
+import type { DecodedGeometryPage } from './geometryPage.ts';
 import { sha256Hex } from './sha256Hex.ts';
 import type {
   PageDecodeAnswer,
   PageDecodeGeometryPayload,
   PageDecodeRequest,
 } from '../sdk-core/index.ts';
+
+/**
+ * Le décodage de page, chargé seulement quand une page arrive. Il tire la bibliothèque de
+ * décompression, nommée par un spécificateur nu ; or un worker dédié n'hérite pas de la carte
+ * d'imports du document, si bien qu'un hôte qui sert ses modules tels quels ne saurait pas la
+ * résoudre. En la laissant hors du graphe statique, le worker démarre partout, le contrôle
+ * d'intégrité part hors du fil chez tous les hôtes, et seul le décodage d'attributs retombe sur le
+ * repli là où la dépendance reste introuvable. La promesse est gardée : un seul chargement.
+ */
+let geometrie: Promise<typeof import('./geometryPage.ts')> | undefined;
 
 /**
  * Le travail lui-même, écrit une seule fois. Le worker l'exécute, et le repli synchrone exécute
@@ -32,6 +42,7 @@ export async function runPageDecodeTask(
         transfer: [request.source],
       };
     }
+    const { decodeGeometryPage } = await (geometrie ??= import('./geometryPage.ts'));
     const decoded = await decodeGeometryPage(
       new Uint8Array(request.source),
       request.maxDecodedBytes,
