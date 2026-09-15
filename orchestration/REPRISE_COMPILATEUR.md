@@ -25,27 +25,23 @@ Cela remplace toute mention antérieure de fusion locale, de `branch -f main dev
 
 ## État (vérifié dans le code, base 426bb8f)
 
-Pilotes de scène enregistrés dans `src/plugins/scene.rs` (`PLUGINS`), neuf : `gltf`, `fbx`, `obj`, `unity`, `zip`, `unitypackage`, `alembic`, `usd`, `usdz`. Pilotes d'image dans `src/plugins/image.rs` (`DECODERS`, `VERSION = "image-plugin-2"`), neuf : `png`, `jpeg`, `tga`, `tiff`, `dds`, `webp`, `exr`, `hdr`, `ktx2`.
+Pilotes de scène enregistrés dans `src/plugins/scene.rs` (`PLUGINS`), dix : `gltf`, `fbx`, `obj`, `unity`, `zip`, `unitypackage`, `alembic`, `usd`, `usdz`, `blend`. Pilotes d'image dans `src/plugins/image.rs` (`DECODERS`, `VERSION = "image-plugin-2"`), neuf : `png`, `jpeg`, `tga`, `tiff`, `dds`, `webp`, `exr`, `hdr`, `ktx2`.
 
-Vague 4 : `alembic` fusionné (lecteur Ogawa écrit depuis la spécification, aucune crate ajoutée) et `usd`/`usdz` fusionnés (crate `openusd` 0.7.0, MIT, Rust pur, lecture seule — licence en commentaire dans `Cargo.toml`) ; les deux dans `develop` via `claude/develop-validator-repo-management-f4dc23` (426bb8f). `blend` en cours : Opus, branche `compilateur/blend` (b6dbae3, sur disque, non fusionnée — pas d'entrée dans `PLUGINS`), livraison attendue. Vérifier l'état réel d'une branche `compilateur/*` par `git branch --list 'compilateur/*'` et `git worktree list` plutôt que de faire confiance à ce fichier.
+Vague 4 : `alembic` fusionné (lecteur Ogawa écrit depuis la spécification, aucune crate ajoutée) et `usd`/`usdz` fusionnés (crate `openusd` 0.7.0, MIT, Rust pur, lecture seule — licence en commentaire dans `Cargo.toml`) ; les deux dans `develop` via `claude/develop-validator-repo-management-f4dc23` (426bb8f). `blend` fusionné en local dans `develop` = 03873d2 sur ordre de l'utilisateur (6b18c89 : lecteur SDNA écrit depuis la description publique du format, aucune ligne de Blender, aucune crate ajoutée, image empaquetée conservée à l'octet) ; portes rejouées après rebase : `cargo test --locked` 231 + 4 verts, clippy `-D warnings`, fmt, `check:lines`, `check:duplicates` 0 clone, mots interdits néant ; `check:changed` et `npm run validate` restent au Validateur avant push.
 
 Corpus CC0 `test-assets/` hors git.
 
 ## À faire ensuite, dans l'ordre
 
-1. **Vague 4, trois Opus** : `usd`/`usdz` — **fait** : branche `compilateur/usd`, caisse `openusd` 0.7.0 (MIT, Rust pur, sans C++ ; `usd`/`rust-usd` et `openusd-rs` écartées), Xform/Scope, Mesh triangulés, GeomSubset → matériaux, instances par prototype, UsdPreviewSurface et UsdUVTexture, `metersPerUnit`/`upAxis`, premier échantillon, `usdz` = conteneur ZIP stocké et aligné, refus `usd-*` et `USDZ_LAYOUT_INVALID`, dorées `fixtures/usd` et `fixtures/usdz` —, `alembic` — **fait** : branche `compilateur/alembic`, lecteur Ogawa écrit depuis la spécification (aucune crate ajoutée ; `ogawa-rs` évaluée et écartée : `todo!()` sur les booléens, indexation non bornée, aucun plafond), `Xform`/`PolyMesh`/`SubD`/`FaceSet`, premier échantillon, refus `alembic-*`, dorée CC0 `fixtures/alembic/` —, `.blend` — **fait** : branche `compilateur/blend`, lecteur SDNA écrit depuis la description publique du format (aucune dépendance ajoutée ; `flate2` et `ruzstd`, déjà présentes, pour l'enveloppe), maillages par attributs nommés, UV, instances, Principled BSDF, images empaquetées conservées à l'octet, refus `blend-*`, dorée CC0 `fixtures/blend/` ; les fichiers antérieurs à la disposition par attributs sont refusés par leur nom, faute d'exemplaire. Corpus : `usd/`, `alembic/`, `blend/`.
-2. **Vague 5** : `psd` (aplati vers RGBA8), `bmp`, `gif` (features `image`), `.ma` (Maya ASCII, données seules), MTL à vérifier (OBJ).
-3. **Chantiers restants** :
-   - BC6H de `dds` en flottant (attend le contrat `RgbaF32` côté DDS).
-   - KTX 1.0 (autre conteneur, donc un autre pilote), si une source réelle l'impose.
-   - ASTC hors 4×4 et UASTC HDR côté `ktx2` (le transcodeur `basisu` sait les produire, aucun consommateur flottant n'est branché).
-   - Chantier « blocs gardés sur GPU » (`DecodedImage::Blocks`, DDS puis KTX2) : sur go de l'utilisateur seulement.
-   - Lampes Unity non converties, retouches d'instances imbriquées non composées, cartes métal-lissage empaquetées.
-   - TIFF palette (crate `tiff`), test d'archive chiffrée.
-   - `docs/COMPILER.md` : relire à chaque pilote livré pour les codes de rapport.
-   - Industrial Map au banc 15 : le dossier de mesure est à copier dans `public/benchmark-assets` du Lab par l'utilisateur ; ensuite agent Lab séparé (projet render-tech-lab, un agent par projet), entrée de catalogue comme le Village, `prepare()` du SDK sur le dossier du projet Unity, preuve navigateur WebGPU + Three témoin, chiffres au journal. Machine calme exigée pour les durées ; les verdicts pixel n'en dépendent pas.
-4. Chantiers hors compilateur listés dans `REPRISE_2026-09-15.md` (loop-code P1/P2, poids sans perte, virtualisation par tuiles).
+1. Vérifier que le Validateur a poussé `blend` (validate vert), puis supprimer le worktree `agent-a9d6b9e893e08da0d` et la branche `compilateur/blend`. Restes de `blend` : lampes et caméras, modificateurs non appliqués, collections instanciées, UV multiples, couleurs de sommet, transmission/IOR, fichiers antérieurs à la disposition par attributs, essai à blanc sur une scène lourde.
+2. Vague 5 : `psd` (aplati vers RGBA8), `bmp`, `gif` (features `image`), `ma` (Maya ASCII, données seules) ; vérifier MTL (OBJ).
+3. Compléments : BC6H et UASTC HDR sur `RgbaF32`, KTX 1.0, ASTC hors 4×4, TIFF palette, lampes Unity non converties, retouches d'instances imbriquées non composées, cartes métal-lissage empaquetées, subdivision USD, `TEXCOORD_1`, animation Alembic.
+4. Lecture en entrée des glTF Draco / meshopt (sans perte ajoutée, perte de la source dite au rapport) : à proposer à l'utilisateur avant de coder.
+5. Chantier « blocs gardés sur GPU » (`DecodedImage::Blocks`, DDS puis KTX2) : sur go de l'utilisateur seulement.
+6. Industrial Map au banc 15 : dossier à copier par l'utilisateur dans `public/benchmark-assets` du Lab, puis agent Lab séparé.
+
+Décisions ouvertes, à trancher par cette session ou par l'utilisateur : `atlasClasses: 2` et départ au sol du banc 15 (cette session) ; licence des assets FAB — réservée à l'utilisateur, avant toute démonstration publique seulement.
 
 ## Dernier état connu
 
-`develop` = d2335f2. `origin/develop` = 5b95b4c (poussé par le Validateur seulement, peut être en retard sur `develop` local). Vérifier au moment de la reprise, ne pas recopier ces SHA sans contrôle.
+`develop` = 03873d2 (blend compris) puis b81ad59 (autres sessions). `origin/develop` = dff4d79 (poussé par le Validateur seulement, peut être en retard sur `develop` local). Vérifier au moment de la reprise, ne pas recopier ces SHA sans contrôle.
