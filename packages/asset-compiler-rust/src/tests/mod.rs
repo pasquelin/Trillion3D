@@ -13,6 +13,7 @@ mod coplanar_assign;
 mod coplanar_collect;
 mod coplanar_golden;
 mod coplanar_overlap;
+mod flottant_golden;
 mod import_opacite;
 mod part1;
 mod part2;

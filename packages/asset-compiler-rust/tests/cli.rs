@@ -184,5 +184,8 @@ fn version_flag_describes_the_build() {
         .iter()
         .map(|plugin| plugin["name"].as_str().expect("name"))
         .collect();
-    assert_eq!(images, ["png", "jpeg", "tga", "tiff", "dds"]);
+    assert_eq!(
+        images,
+        ["png", "jpeg", "tga", "tiff", "dds", "webp", "exr", "hdr"]
+    );
 }
