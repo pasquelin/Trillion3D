@@ -54,10 +54,10 @@ export function createExplorerLightApi(inputs: Inputs) {
     importedLights(): SceneLight[] {
       check();
       const lights = required();
-      return imported
-        .map((id) => lights.light(id))
-        .filter((light): light is SceneLight => !!light)
-        .map((light) => ({ ...light }));
+      return imported.flatMap((id) => {
+        const light = lights.light(id);
+        return light ? [{ ...light }] : [];
+      });
     },
     get environment(): SceneEnvironment | undefined {
       return store?.environment ? { ...store.environment } : undefined;
