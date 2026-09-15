@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   previewFirstLevel,
+  previewGeometry,
   previewLastLevel,
   previewLevelCount,
   previewLevelSize,
   previewPixelBytes,
 } from './texturePreviewLevels.ts';
+import { referenceExpectedGeometry } from './bench/oracles/g-preview.mjs';
 
 // Comportement 5 : la géométrie TypeScript est le miroir exact de
 // `packages/asset-compiler-rust/src/texture_preview/levels.rs`, vérifié ici sur les mêmes cas —
@@ -32,4 +34,31 @@ test('previewFirstLevel/Last/Count/Size/PixelBytes match the Rust geometry on th
   assert.equal(previewLevelCount(128, 64), 7);
   assert.deepEqual(previewLevelSize(128, 64, 1), [64, 32]);
   assert.equal(previewPixelBytes(128, 64), 10_924);
+});
+
+// G11 : `previewGeometry` calcule le premier et le dernier niveau une seule fois puis en déduit les
+// trois nombres, au lieu que `manifestBinaryPreview.ts` appelle `previewFirstLevel`/`previewLevelCount`/
+// `previewPixelBytes` séparément (chacune recalculant les mêmes bornes). Oracle : cette ancienne
+// combinaison, recopiée telle quelle dans `bench/oracles/g-preview.mjs`.
+test('previewGeometry rend exactement ce que les trois appels séparés rendaient, cas hostiles compris', () => {
+  const cas: [number, number][] = [
+    [0, 0],
+    [1, 1],
+    [63, 63],
+    [64, 64],
+    [65, 65],
+    [17, 9],
+    [128, 64],
+    [1, 100000],
+    [100000, 1],
+    [65536, 65536],
+    [-1, -1],
+    [-7, 20],
+  ];
+  for (const [width, height] of cas)
+    assert.deepEqual(
+      previewGeometry(width, height),
+      referenceExpectedGeometry(width, height),
+      `${width}x${height}`,
+    );
 });
