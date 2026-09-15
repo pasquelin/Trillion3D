@@ -1,5 +1,147 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-16 — [session sans-threejs] la cause des pixels du test Hi-Z : l'ordre de dessin, pas la borne (lot hiz)
+
+Worktree `lot-hiz`, branche `lot/hiz`, partie de `develop` = `edf9e30`, rebasée sur `abe8827` (lot
+rebond 2 de la session Lumière) avant la fusion et toute la preuve rejouée sur cette base. Quatre
+branches d'essai gardées : `essai/hiz-diagnostic`, `essai/hiz-monopasse`, `essai/hiz-egalite`,
+`essai/hiz-historique`.
+
+### 1. La cause des 67 à 173 pixels de la partition temporelle, établie par l'expérience
+
+La question ouverte du bilan de phase 1 était : la partition temporelle Hi-Z (« toutes les lignes
+testées contre la pyramide complète ») gagne 27 % de temps GPU mais coûte 67 à 173 pixels, et on ne
+savait pas si c'était un départage de surfaces coplanaires ou une borne `nearestDepth` qui n'est pas
+un minorant. Quatre essais d'une ligne chacun, mesurés au harnais commun sur `develop` = `edf9e30`
+(Emerald, vue générale, 1280×720, 60 images, `--max-pages 100000`, témoin A/A 0 px partout) :
+
+| essai        | ce qu'il change                                                                     | pixels contre `develop`                       |
+| ------------ | ----------------------------------------------------------------------------------- | --------------------------------------------- |
+| D1 `04d9262` | partage occulteurs/testés à 90/10 au lieu de 50/50, **rejet actif**                 | **4 px** (générale), 0 px sol, 0 px rue       |
+| D2 `629d379` | le même partage, **rejet neutralisé** (biais 1.0 : le noyau ne rejette plus rien)   | **les mêmes 4 px**, coordonnée par coordonnée |
+| D3 `4c7419c` | **passe unique** : aucune partition, aucun test, tout dessiné d'un coup             | **67 px**                                     |
+| D4 `385387a` | `develop` avec `depthCompare: 'less-equal'` : le dernier dessiné gagne les égalités | **2 287 px**                                  |
+
+Ce que ces quatre lignes établissent, et qui ne tient à aucune hypothèse :
+
+- **Le test Hi-Z n'a rien à voir avec ces pixels.** D1 et D2 diffèrent par la seule chose que le test
+  décide — ce qu'il retire — et rendent **exactement le même ensemble de pixels**, alors que D1
+  rejette bien davantage que `develop` (sa pyramide de passe 1 porte 90 % des lignes au lieu de
+  50 %). Un test non conservateur aurait fait apparaître des pixels dans D1 et pas dans D2.
+- **Ce qui les cause est l'ordre de dessin, sur des profondeurs exactement égales.** D4 compte
+  2 287 pixels de la vue générale où deux fragments opaques portent la **même** profondeur au bit
+  près ; sous `less`, le pixel revient au premier dessiné. Les 67 pixels de D3 sont **inclus dans ces
+  2 287** (67 sur 67), et les 4 pixels de D1 aussi. Changer la partition, c'est changer la passe où un
+  cluster est dessiné, donc l'ordre, donc le gagnant de ces égalités.
+- L'étape de compilation `coplanar-depth-layers-v1` du 14 septembre traite ce défaut, mais elle ne
+  marque aujourd'hui que **quatre clusters** d'Emerald : les 2 287 pixels restants ne sont pas
+  départagés. Le compilateur Rust est hors périmètre de ce lot.
+
+**Conséquence, écrite dans la spec (R5c) :** tant que ces surfaces ne sont pas départagées à la
+compilation, _aucun_ changement de partition ne peut être prouvé à 0 pixel contre une référence
+rendue avec une autre partition. Le verrou de la partition temporelle n'est pas un verrou Hi-Z.
+
+### 2. La borne rendue minorante par construction (fusionné, `56d98f5`)
+
+L'expérience dit que la borne n'a coûté aucun pixel ; elle ne dit pas qu'elle est un minorant. Deux
+écarts la séparaient de la profondeur que la carte écrit, et les deux sont redressés :
+
+- **L'arrondi du transport.** La borne est calculée en double et lue en simple précision par le
+  noyau ; `Math.fround` arrondit au plus proche et pouvait donc la faire **monter** d'un demi-ulp.
+  Elle descend maintenant d'un ulp avant l'arrondi — un multiplicateur `1 − 2⁻²⁴` et un `Math.fround`,
+  pas de manipulation de bits par boîte.
+- **Le biais de couche coplanaire.** Un cluster de couche non nulle est dessiné de seize unités
+  matérielles par couche **plus près** de l'œil que son propre coin : son coin n'était donc pas un
+  minorant de ce qu'il écrit. Les mêmes unités sont retranchées des bits de la borne par
+  `biasedDepthBits`, la fonction que le raster logiciel applique déjà à sa clé.
+
+Les deux redressements ne peuvent que faire dessiner davantage. Invariant écrit en **R5b** de la
+spec : le test compare un minorant de ce que le cluster écrira à un majorant de ce qui est déjà
+écrit sur son empreinte ; il peut retarder un cluster d'une passe, jamais retirer un pixel.
+
+### 3. La projection d'une boîte, sans produit scalaire redondant ni conversion par coin (fusionné, `8e790ae`)
+
+Deux raccourcis, tous deux vérifiés sur les éléments des matrices eux-mêmes, avec repli terme pour
+terme sur l'arithmétique d'avant :
+
+- La quatrième ligne d'une projection perspective vaut (0,0,−1,0), et `multiplyMatrices` en fait
+  exactement l'opposé de la troisième ligne de la vue : `cw` vaut `-viewZ` **au bit près** — la
+  négation est exacte et `(−a) + (−b)` vaut `−(a + b)` —, donc un produit scalaire de moins par coin.
+- Le passage du repère normalisé à l'écran est monotone coordonnée par coordonnée : l'extremum de
+  l'image est l'image de l'extremum. Les cinq conversions se font une fois par boîte au lieu de
+  vingt-quatre.
+- Le dénominateur de vue d'une vue affine n'est plus calculé du tout ; il valait déjà exactement 1.
+
+### Preuve
+
+Verrou `.claude/mesure.lock` pris et libéré. Harnais commun, `--moteur webgpu`, 1280×720, 60 images,
+chauffe par défaut, `--max-pages 100000`, les deux côtés lisant le même cache Emerald du Lab
+(manifeste binaire version 4). `avant` = `develop` = `abe8827`, `après` = `31fb4de` (tête du lot).
+
+| série                                 | vues × seuils    | caméra mobile    | témoin A/A   | hash de coupe | trous | `selectedTriangles` |
+| ------------------------------------- | ---------------- | ---------------- | ------------ | ------------- | ----- | ------------------- |
+| Q1 générale, sol, rue × 0, 1          | **0 px sur 6/6** | —                | 0 px sur 6/6 | identique 6/6 | 0     | identiques          |
+| Q2 générale × 0, 1, `--camera-mobile` | —                | **0 px sur 2/2** | 0 px sur 2/2 | identique 2/2 | 0     | identiques          |
+| Q3 générale · 0                       | 0 px             | —                | 0 px         | identique     | 0     | identiques          |
+
+Soit, sur générale · 0, **trois exécutions du témoin A/A à 0 px**. Aucune erreur de page, aucun 404.
+
+**Durées, machine chargée (charge 1 min entre 8 et 12 pendant toute la campagne)** : à cette charge
+les valeurs ne comptent que par leur sens. Profil par étape, p50, avant → après :
+
+| série                | Projection des boîtes | Fiches de dessin | `cpuFrameMs` p50/p95              |
+| -------------------- | --------------------- | ---------------- | --------------------------------- |
+| générale · 0, fixe   | 0,20 → 0,20           | 1,20 → 1,30      | 8,10 / 8,70 → **7,80 / 8,50**     |
+| générale · 0, mobile | **3,80 → 3,40**       | 1,00 → 1,20      | 11,00 / 12,50 → **10,70 / 12,80** |
+| générale · 1, mobile | **1,80 → 1,60**       | 0,50 → 0,50      | 4,30 → 4,60                       |
+
+La projection est **bornée par la mémoire**, pas par l'arithmétique : une image mobile relit les
+46 446 × 24 doubles de coins, soit 8,9 Mo, et c'est ce qui reste après avoir enlevé un tiers des
+opérations. Les fiches de dessin portent le coût du redressement de la borne, un dixième de
+milliseconde sur 36 866 boîtes testées.
+
+### Ce qui n'est pas fusionné, et pourquoi
+
+- **`essai/hiz-historique` (`5c52b12`) : séparer les deux invalidations.** `invalidateOccluderHistory`
+  retirait d'un même geste la pyramide temporelle — qui n'est relue que pour une vue identique — et
+  l'historique des occulteurs, qui ne nomme que des pages. Les séparer fait ce que le lot encodage
+  avait chiffré : les compteurs passent de `sansHistorique 1, bornesToutes 1` à `0, 0` à caméra
+  mobile, la projection de **4,00 → 3,10 ms** (seuil 0) et **1,80 → 1,00 ms** (seuil 1), `cpuFrameMs`
+  p50 de **13,0 → 12,0** et **4,1 → 3,1 ms**. Mais la partition change, donc l'ordre : caméra mobile,
+  seuil 0 **0 px**, seuil 1 **3 px, écart de canal maximal 1**, reproduit à l'identique sur deux
+  exécutions, témoin A/A 0 px. Trois pixels ne sont pas zéro : la branche est gardée, non fusionnée.
+- **La partition temporelle elle-même** (toutes les lignes testées contre la pyramide complète de
+  l'image précédente) n'a pas été réécrite : la cause de ses pixels est établie et elle ne lui
+  appartient pas, donc la réécrire ne l'aurait pas rendue prouvable. Le code d'origine reste lisible
+  en `986ea50` (et son retrait en `8c1b19b`).
+
+### Portes
+
+`npm run validate` vert de bout en bout (`format:check`, `check:lines`, `check:duplicates` **0
+clone**, `lint` + Clippy, `check:unused`, `build`, `build:native`, `check:structure`, `check:dts`,
+`check:links`, tests JS **698, 0 échec**, tests Rust **134 + 4, 0 échec**). Quatre tests ajoutés dans
+deux fichiers : `hizProjectionIdentique.test.ts` (identité bit à bit de la projection contre
+l'arithmétique complète, sur une perspective, une orthographique — dont la quatrième ligne n'est pas
+(0,0,−1,0) — et une vue non affine, 400 boîtes à graine fixe) et `hizNearestBound.test.ts` (la borne
+ne dépasse jamais son entrée, la couche coplanaire retranche exactement ses unités, et la correction
+ne peut que faire dessiner davantage). L'oracle du lot F reprend le redressement de la borne : il
+départage des lectures, pas une borne. `render-tech-lab/` non modifié ; port 5174 non touché ; aucun
+`eslint-disable` ; `node_modules` (lien symbolique) non committé ; rien écrit dans `public/` ;
+fichiers d'éclairage, d'ombres, compilateur Rust et `scripts/mesure/` non touchés.
+
+### Ce qui reste
+
+- **Le levier de 1 ms à caméra mobile est prêt et bloqué par trois pixels**, pas par sa justesse. Il
+  se débloque de deux façons, aucune dans ce lot : étendre `coplanar-depth-layers-v1` aux 2 287
+  pixels d'égalité (compilateur Rust), ou faire accepter un changement d'image de référence comme
+  pour le lot budget-pages.
+- **La partition temporelle et ses −27 % de temps GPU** attendent le même déblocage.
+- La projection restante (3,4 ms à caméra mobile) est **bornée par la relecture des coins**. La
+  réduire demande de ne pas relire 8,9 Mo par image : coins en simple précision, ou projection sur la
+  carte.
+- Le chemin CPU de repli (`hizUnoccluded`, `applyTemporalHiz`) ne porte pas le redressement de la
+  borne : il ne connaît pas la couche coplanaire d'une page. Sans effet sur le rendu WebGPU.
+
 ## 2026-09-16 — [session sans-threejs] CPU par image WebGPU : encodage et soumission (lot encodage)
 
 Worktree `lot-encodage`, branche `lot/encodage`, partie de `develop` = `21dbe9e`, rebasée sur
