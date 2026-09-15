@@ -1,7 +1,12 @@
 import type * as THREE from 'three';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
-import { appendAll, partitionByPass, triangleSum } from './webgpuPagesHelpers.ts';
+import {
+  appendAll,
+  markDrawnDiverged,
+  partitionByPass,
+  triangleSum,
+} from './webgpuPagesHelpers.ts';
 import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
@@ -94,7 +99,7 @@ export function renderCpuCut(
   services.invalidateCut();
   // Cette image écrit `shown` et `drawn` elle-même, et peut sortir par une erreur entre les deux :
   // le drapeau tombe avant la première écriture, jamais après.
-  run.drawnMirrorsShown = false;
+  markDrawnDiverged(run);
   run.pagesEntered = null;
   run.pagesExited = null;
   const cpuSelectionStarted = performance.now();
