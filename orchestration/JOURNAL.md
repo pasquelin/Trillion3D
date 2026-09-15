@@ -1857,3 +1857,273 @@ adaptation mécanique — les deux liaisons de l'atlas d'aperçu ajoutées au gr
 par la fabrique commune `visBindEntries`, et le test de masque partagé qui prend la branche d'aperçu
 de `develop`. `npm run validate` est vert sur ce socle (550 tests), mais l'image n'y a pas été
 rejouée.
+## 2026-09-15 — [session sans-threejs] transparents en sélection GPU (lot transparents-gpu)
+
+Worktree `webgeometry-sans-threejs-9f889d`, branche `lot/transparents-gpu`, rebasée sur `f44cc93`.
+Six commits : `52233f0` (une seule coupe de clusters, compaction GPU des mélanges), `1bba020` (la marche
+du tronc sépare les clusters de même rang source), `d043696` (scène synthétique des trois classes),
+`1b74b8e` et `f273ee0` (la transmission déclarée non dessinée), `62713b5` (la transmission a sa
+propre scène).
+
+### Les trois classes, et où chacune passe
+
+**1. Découpes (`alphaMode: MASK`).** Rien à faire : c'était déjà le cas, et c'est maintenant prouvé.
+Le compilateur ne range en `clustered-blend` que `alphaMode: BLEND` (`compiler_primitive.rs`), donc
+un matériau MASK sort en `exact-clusters` — vérifié sur la scène synthétique, où `grillage` sort en
+`exact-clusters` à côté des trois boîtes opaques. Côté navigateur, `collectClusterPages` ne marque
+`transparent` qu'un `clustered-blend` ou un matériau `transparent`, et le chargeur glTF ne pose pas
+`transparent` sur un MASK : la découpe entre donc au catalogue opaque, à la sélection GPU, au tampon
+de visibilité, sans ordre. Le test alpha voyage avec la ligne du cluster
+(`webgpuPageRow.ts` : `FLAG_MASK` et le seuil), et il est appliqué trois fois : à l'écriture des
+identifiants (`visibilityShaderId.ts:25`), dans le raster logiciel des petits triangles
+(`gpuSmallTrianglesShader.ts:38,79`) et à l'ombrage (`visibilityShaderShade.ts:95`). Un test
+(`webgpuMaterialClasses.test.ts`) fixe le classement des trois classes et le voyage du seuil alpha
+jusqu'à la ligne, et vérifie qu'un mélange, lui, ne prend jamais le drapeau de découpe.
+
+**2. Mélanges (`alphaMode: BLEND`, `clustered-blend`) — le cœur du lot.**
+
+*Une seule coupe.* Le catalogue de clusters que la sélection GPU parcourt réunit maintenant les
+primitives opaques **et** transparentes (`webgpuPagesLayout.ts` : `selectionRoots`, les opaques
+d'abord, donc aucun index de page opaque ne bouge). Un seul `packDagSelection`, une seule
+résidence, une seule différence de coupe, un seul budget de pages : le parcours de DAG que le CPU
+gardait pour les transparents — et avec lui la coupe tenue du lot 3b, ses six entrées et son état —
+disparaît, comme `transparentWanted`/`transparentShown`/`shownOpaque` et les deux jeux de clés que
+`webgpuResidencySets` tenait pour eux. Les lignes du tampon de visibilité restent opaques : un
+cluster transparent est résident, demandé, budgété comme les autres, mais ne réclame pas de ligne.
+
+*Une compaction à ordre stable.* L'ordre de dessin d'une primitive transparente est une propriété de
+la scène, pas de l'image : ses clusters sont triés une fois pour toutes
+(`webgpuTransparentTable.ts`) par le rang que la source a enregistré (`sourceOrder`), et ce que
+l'image ajoute est seulement *lesquels* elle garde. La compaction GPU
+(`webgpuTransparentShader.ts`) compte par groupe de 64, préfixe par primitive, puis place chaque
+cluster retenu à son rang dans son groupe : la sortie est l'ordre d'entrée privé des entrées non
+sélectionnées, c'est-à-dire exactement la liste que le CPU triait chaque image. Chaque primitive
+reçoit sa plage alignée sur le groupe, donc sa base est connue avant l'image et ne bouge jamais.
+
+*Le second critère de tri, qui a coûté 705 pixels.* Plusieurs clusters d'une primitive partagent un
+rang source : un cluster grossier hérite du premier triangle du groupe qu'il remplace (`dag.rs`,
+`source_rank`). Le rang seul ne les ordonne donc pas ; ce qui les séparait était l'ordre d'émission
+de la coupe CPU, c'est-à-dire la marche du tronc de culling — une pile, donc les enfants d'un nœud
+visités du dernier au premier (`pageSelectionCutVisit.ts`). Cette marche ne dépend que de l'arbre,
+et les clusters qu'une image garde en sont une sous-suite : la table la calcule une fois et s'en
+sert comme second critère. Avant ce correctif, la vue générale à 1 px montrait 705 pixels d'écart,
+max canal 16, tous sur un seul arbre ; après, 0.
+
+*Le dessin.* Une primitive paginée n'a plus de tampon d'indices à elle : elle se dessine en
+`drawIndirect`, une instance par cluster retenu, et le nuanceur lit `clusterIds[base + instance]`
+puis la portée de ce cluster dans le cache de pages (`clusterSpans`, réécrite seulement quand la
+résidence du cache change). L'ordre des primitives entre elles est inchangé, l'ordre des triangles
+dans une instance aussi, et l'ordre des instances est celui de la compaction : le mélange est le
+même au pixel. Une primitive dont la coupe est vide dessine zéro instance au lieu d'être retirée de
+la liste — même image, un appel de dessin de plus. Le chemin de coupe CPU (appareil sans compute,
+repli après un échec de sélection) écrit la même liste d'instances dans le même tampon et dans le
+même ordre, donc les deux chemins partagent un seul nuanceur.
+
+**3. Transmission** : contrat écrit, rien livré. Voir plus bas.
+
+### Preuve
+
+Verrou `.claude/mesure.lock` pris avant la première exécution et libéré après la dernière. Harnais
+commun, aucune autre mesure admise.
+
+```
+node scripts/mesure/banc.mjs --moteur webgpu --avant f44cc93 --apres 62713b5 \
+     --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
+```
+
+**Emerald, six séries (3 vues × 2 seuils) : 0 pixel avant/après partout, témoin A/A 0 pixel partout,
+hash de coupe identique 6/6, `uncoveredTriangles` 0 des deux côtés, `selectedTriangles` identiques
+série par série.** Budget 4096 jamais atteint : 100 000 pages demandées, 7 590 résidentes au plus.
+
+| vue · seuil | cpuFrameMs p50 avant → après | hash coupe | écart px | A/A |
+|---|---|---|---|---|
+| générale · 0 | 12,4 → 10,7 | identique | 0 | 0 |
+| sol · 0 | 4,5 → 5,2 | identique | 0 | 0 |
+| rue · 0 | 4,2 → 4,6 | identique | 0 | 0 |
+| générale · 1 | 3,0 → 3,4 | identique | 0 | 0 |
+| sol · 1 | 2,4 → 2,8 | identique | 0 | 0 |
+| rue · 1 | 2,2 → 3,0 | identique | 0 | 0 |
+
+Profil par étape du harnais (`--profil on`, vue générale, seuil 0, p50/p95, avant → après) :
+
+| étape | CPU avant → après | GPU avant → après |
+|---|---|---|
+| **Transparents** | 0,0 → 0,0 | **17,6 / 19,0 → 2,9 / 6,6** |
+| Admission et file de résidence | **3,3 / 3,7 → 1,4 / 1,6** | non mesuré |
+| Encodage des commandes | 5,3 / 5,6 → 4,7 / 4,9 | non mesuré |
+| Sélection et visibilité | 1,3 / 1,9 → 1,0 / 1,2 | 0,94 → 0,95 |
+
+L'étape processeur « Transparents » est à zéro des deux côtés : à caméra fixe, la coupe tenue du lot
+3b la rendait déjà gratuite. Ce lot ne se voit donc, côté processeur, que sur l'admission et la file
+de résidence — un seul jeu de clés au lieu de deux — et côté carte graphique sur la passe de
+mélange, qui passe de 17,6 à 2,9 ms parce qu'un dessin indirect par primitive, une instance par
+cluster, remplace un dessin unique sur un tampon d'indices recopié à chaque changement de coupe.
+La charge machine est montée de 7 à 19 au fil de la journée ; les verdicts pixel n'en dépendent pas,
+les durées si, et les trois exécutions du lot donnent les mêmes rapports.
+
+**Caméra en mouvement : le harnais ne sait pas le faire.** `poses.mjs` donne un index unique par vue,
+`page.mjs` rejoue la même pose 60 fois, et aucune option n'existe pour un parcours. C'est pourtant là
+que le gain processeur de ce lot se paierait : une caméra qui bouge invalidait la coupe tenue et
+repayait les 6,8 ms du parcours CPU à chaque image. Non mesuré, donc non affirmé.
+
+**Scène synthétique des trois classes** (`packages/asset-compiler-rust/fixtures/classes-materiaux`,
+compilée par la chaîne normale, les deux côtés lisant le même cache via `--cache-avant`/
+`--cache-apres`) : 4 séries (2 vues × 2 seuils), **0 pixel avant/après, témoin A/A 0 pixel, hash identique 4/4,
+trous 0**. Le compilateur y range `grillage` (MASK) en `exact-clusters`,
+`vitre` (BLEND) en `clustered-blend` et `eau` (transmission) en `shared-blend` — les trois classes,
+chacune sur son chemin.
+
+### Contrat de la transmission (classe 3) — écrit, pas livré
+
+**Classement, au compilateur.** `unsplit_material` (`compiler_materials.rs`) déclare transmissif tout
+matériau dont `KHR_materials_transmission.transmissionFactor` dépasse zéro, et
+`compile_primitive` le range alors en `pass: "shared-blend"` : pas de DAG, une primitive = un
+maillage entier, ordre source conservé. C'est déjà le cas aujourd'hui, vérifié sur la scène
+synthétique (`eau` → `shared-blend`). Le classement ne nomme aucun objet : il lit une propriété de
+matériau, comme MASK et BLEND.
+
+**Ce que fait le moteur aujourd'hui.** Rien. `prepareWebgpuBlend` saute la copie transmissive
+(`if (isTransmissive(copy.material)) continue`) : la surface n'est pas dessinée du tout, et seul le
+chemin canvas direct lève `UNSUPPORTED_TRANSMISSION`. La capacité n'est pas non plus déclarée
+manquante à l'hôte. Une eau importée est donc invisible.
+
+**La passe à ajouter**, après les mélanges et avant la composition :
+
+1. l'éclairage différé résout les opaques dans la cible HDR (déjà fait) ;
+2. la passe de mélange dessine les BLEND dans cette même cible (déjà fait) ;
+3. **deux copies** : `copyTextureToTexture` de la cible HDR et de la profondeur vers deux textures
+   en lecture seule (`rgba16float` et `depth32float`, taille de la cible). Ces copies sont le fond
+   figé que *toutes* les surfaces transmissives lisent : l'ordre entre deux d'entre elles ne change
+   donc pas ce qu'elles lisent ;
+4. une passe de dessin des items transmissifs, dans le même ordre source que les mélanges
+   (`renderOrder`), même test de profondeur (`less`, sans écriture), même mélange, avec un nuanceur
+   qui lit en plus : le fond à la position écran du fragment décalée par le vecteur de réfraction
+   (normale, vue, `ior`, `thicknessFactor`), la profondeur copiée pour rejeter un échantillon de
+   fond situé *devant* la surface (repli sur l'échantillon non dévié), et qui mélange
+   `baseColor × fond` par `transmissionFactor` en gardant le spéculaire GGX que l'éclairage direct
+   fournit déjà.
+
+**Tampons lus** : les deux copies, le cache de pages (indices) pour une primitive qui entrerait au
+DAG, sinon le tampon d'indices propre à l'item, ses positions/UV/normales, la ligne de matériau.
+**Tampon écrit** : la cible HDR seule.
+
+**Tout par propriété de matériau** : `transmissionFactor`, `KHR_materials_volume.thicknessFactor`
+et `attenuationColor`, `KHR_materials_ior.ior`, la rugosité pour un fond flouté (chaîne de mips de
+la copie). Aucun nom d'objet, aucun type.
+
+**Ce qui manque pour le livrer** : (a) le manifeste binaire ne porte pas encore `transmission`,
+`ior` ni `thickness` dans la ligne de matériau — `visMaterial` les lit sur le matériau Three, donc
+le chemin glTF les a, le chemin binaire non ; (b) les deux copies et leur groupe de liaison ;
+(c) le nuanceur ; (d) la chaîne de mips pour un verre dépoli ; (e) deux surfaces transmissives qui
+se recouvrent ne se voient pas l'une à travers l'autre — limite connue et documentée, la même que
+celle du visualiseur de référence glTF.
+
+**Pourquoi la transmission reste hors du DAG pour l'instant** : une surface transmissive lit le
+fond ; découpée en clusters mélangés indépendamment, chaque cluster lirait un fond partiellement
+composé s'il n'est pas figé avant la passe. Une fois la copie figée (point 3), rien n'empêche de la
+faire entrer au DAG comme les mélanges ; le classement du compilateur serait alors le seul
+changement.
+
+### Le verrou : le témoin A/A de la vue générale
+
+**La fusion n'a pas eu lieu.** Le verdict avant/après est 0 pixel partout, sur les quatre exécutions
+complètes qui ont suivi le correctif de tri ; c'est le témoin A/A — le même côté joué deux fois — qui
+échoue par intermittence sur la seule vue générale au seuil 0 : 73 pixels, max canal 105, une fois
+sur quatre. L'exécution sur la tête de branche (`.mesure/out/lot-transparents-tete`) est propre sur
+les six séries, témoin compris ; fusionner sur celle-là serait choisir l'exécution qui passe.
+
+Ce que disent les mesures, à commande identique (`--vues generale --pixelError 0`, trois lancements
+de Chromium par série, donc le témoin en troisième) :
+
+| côté | essais | témoin A/A | pages résidentes aux trois lancements |
+|---|---|---|---|
+| `develop` (`f44cc93`) | 3 | 0 px, 0 px, 0 px | 7590, 7590, 7590 — exactement |
+| cette branche | 3 | 0 px, **73 px**, 0 px | 7590/7590/7664, 7590/7590/7657, 7574/7590/7590 |
+| cette branche, six séries | 4 | 0, 0, **73 px**, 0 | — |
+| cette branche, `--chauffe 24` | 3 | 0 px, 0 px, 0 px | 7590/7590/7590, 7590/7590/7664, 7590/7590/7590 |
+
+La cause est une **convergence de streaming plus lente, pas une image non déterministe**. Ce que le
+harnais hache sous le nom de « coupe » est l'ensemble *dessiné* (`selectedPageIds` rend `run.shown`),
+et il est identique entre `avant` et `après` à chaque série — `e6141303ab48` sur la vue générale au
+seuil 0 ; seul le lancement du témoin qui a résidé 240 pages de plus en a un autre, et dessine
+5 959 598 triangles au lieu de 5 942 722. L'ensemble *demandé*, lui, ne dépend pas de la résidence
+par construction : `dagWanted` émet au seuil de base, et l'escalade du noyau ne déplace que le masque
+dessinable. Autrement dit, `develop` s'arrête à 7 590 pages et n'en demande
+jamais plus ; cette branche finit parfois d'amener une petite queue de pages transparentes fines
+après la chauffe, et dessine alors une image **plus** fine que `develop`, pas moins. Quand cette
+queue arrive entre les deux captures du témoin, le témoin voit 73 pixels. Vingt-quatre images de
+chauffe au lieu de huit suffisent à la faire arriver avant les deux captures.
+
+Pourquoi plus lent : sur `develop`, la coupe transparente est recalculée par le processeur à chaque
+image et nomme tout son ensemble idéal dès la première ; ici elle arrive par la relecture, une image
+plus tard, et le repli grossier du chemin processeur (`forceCoarse`, qui ne passe jamais par
+`wanted`) n'a pas le même profil de demande que l'escalade du noyau GPU. Huit images de chauffe
+suffisent à `develop`, pas toujours à cette branche.
+
+Les chiffres exacts de l'écart : 5 858 pages distinctes dessinées contre 5 924, soit 67 pages de
+plus, toutes dans la zone que la comparaison d'images désigne — un seul arbre, du feuillage, donc
+des clusters transparents.
+
+### Le verrou, deuxième tour : où il est vraiment
+
+Deux pistes ont été essayées et mesurées ; la cause est ailleurs, et elle est maintenant nommée.
+
+**Piste écartée, l'hystérésis du budget.** `couvertureLimiteeParBudget` est `false` dans toutes les
+séries : `budgetPixelError` ne monte jamais sur Emerald avec `--max-pages 100000`. Ce n'est pas ça.
+
+**Piste essayée et retirée, tenir l'ensemble dessiné.** Un cluster dont le remplaçant manque est
+dessiné depuis un ancêtre résident que la coupe n'a jamais demandé ; le chemin processeur le tenait
+dans l'ensemble gardé (`refreshTransparentShown`), la sélection GPU ne le tenait plus. Une seconde
+différence de coupe sur la liste dessinable, branchée sur l'ensemble gardé, a été écrite, testée et
+mesurée : **quatre essais, deux témoins à 73 pixels**, et le lancement qui dérive est passé du
+troisième au premier, faisant dériver aussi le verdict avant/après. Le correctif ne tenait donc pas
+la cause ; il a été retiré de la branche plutôt que gardé sans preuve.
+
+**La cause.** `cacheEvictions` vaut 0 partout : rien n'est jamais rendu, la résidence ne fait que
+croître, et elle s'arrête à 7 590 pages — c'est-à-dire à `room`, le budget de la file de résidence
+(`slots − couverture épinglée`). Or `applyBudget` compare des **placements** à un budget exprimé en
+**pages distinctes** : la coupe d'Emerald vaut 80 153 placements sur environ 7 600 pages, donc
+`ranking.rank` dépasse `room` à chaque image et la file n'est jamais l'ensemble demandé mais un
+préfixe tronqué à `room` placements. Le nombre de pages *distinctes* dans ce préfixe n'est pas fixe —
+7 590 ou 7 686 selon l'ordre dans lequel les premières images l'ont rempli — et comme rien n'est
+jamais rendu, la résidence garde tout ce qui est passé par la file. Une résidence plus riche donne
+une coupe dessinable plus fine (5 959 598 triangles contre 5 942 722), donc 73 pixels sur un arbre.
+
+Cette troncature existe sur `develop` aussi ; ce qui change ici est la suite des différences de
+coupe des premières images — les transparents arrivaient du processeur dès la première image, ils
+arrivent maintenant avec la relecture, dont la latence varie —, et cette suite décide quel préfixe
+la file a vu passer. Sur 600 images, les deux côtés finissent identiques (7 590 pages, 47 890
+clusters dessinés, témoin A/A 0 px) : l'état riche est un état de chargement, pas une divergence.
+
+**Le correctif à écrire** est donc dans le budget lui-même : peser la file dans l'unité où `slots`
+est exprimé — des pages distinctes, pas des placements —, ce qui supprime la troncature sur Emerald
+et rend la file égale à l'ensemble demandé. C'est un changement du budget partagé par les opaques :
+il demande sa propre preuve, et il change l'ensemble résident de `develop`.
+
+**Ce qu'il reste à faire avant de fusionner** : peser la file de résidence en pages distinctes, et
+rejouer la preuve — Emerald trois vues aux deux seuils, témoin A/A quatre fois sur la vue générale au
+seuil 0 avec la chauffe par défaut, scène synthétique. La branche `lot/transparents-gpu` reste non
+fusionnée, avec ses sept commits et ses mesures dans `.mesure/out/`.
+
+### Ce qui reste
+
+- **La transmission n'est toujours pas dessinée.** Le contrat ci-dessus dit quoi écrire ; rien n'en
+  est écrit. Une eau importée reste invisible, et le moteur ne le déclare pas non plus à l'hôte
+  (`capabilities.unsupported` ne nomme pas la transmission) : à corriger avec la passe, ou avant.
+- **Le harnais ne sait pas bouger la caméra.** `poses.mjs` donne un index unique par vue et
+  `page.mjs` rejoue la même pose 60 fois ; aucune option n'existe pour un parcours. Le gain
+  processeur de ce lot est précisément celui qu'une caméra immobile ne montre pas : la coupe tenue
+  du lot 3b rendait déjà l'étape « Transparents » gratuite à caméra fixe (0,0 ms des deux côtés),
+  et c'est un mouvement qui la repayait en entier. Ce qui se mesure ici, c'est le reste : l'étape
+  « Admission et file de résidence », qui perd la moitié de son temps parce qu'un seul jeu de clés
+  remplace deux, et surtout l'étape carte graphique « Transparents ».
+- **`transparentSubmittedTriangles` a changé de sens** : il compte les triangles de la coupe
+  transparente une fois, quel que soit le nombre de passes qui les rastérisent, parce que les
+  comptes d'instances sont écrits par la compaction et jamais relus. `transparentDrawCalls` compte
+  toujours chaque appel, les deux moitiés d'un matériau double-face incluses. Contrat mis à jour
+  dans `metricsContracts.ts`.
+- **Le compte transparent arrive avec la relecture**, comme le compte opaque : une image en retard
+  sur la coupe qu'il décrit. Le dessin, lui, suit le masque de l'image courante.
+- **Capacité de la table** : la table des clusters transparents est alignée par primitive sur 64
+  entrées. Une scène à des milliers de primitives transparentes minuscules paierait ce rembourrage ;
+  Emerald a 29 primitives `clustered-blend`, la scène synthétique 1.
