@@ -6,8 +6,6 @@ const TIME_ELAPSED_EXT = 0x88bf;
 const GPU_DISJOINT_EXT = 0x8fbb;
 const QUERY_RESULT_AVAILABLE = 0x8867;
 const QUERY_RESULT = 0x8866;
-const ABSENT = 'EXT_disjoint_timer_query_webgl2 absent de cet appareil';
-const DISJOINT = 'le pilote a interrompu la mesure (GPU_DISJOINT_EXT)';
 
 /** Un faux WebGL2RenderingContext : une requête = un identifiant, un résultat et une disponibilité. */
 function fakeGl(options: { withExtension?: boolean } = {}) {
@@ -49,18 +47,14 @@ function fakeGl(options: { withExtension?: boolean } = {}) {
   };
 }
 
-/** Une image chronométrée de bout en bout : l'intervalle est ouvert puis refermé. */
-function timed(f: ReturnType<typeof fakeGl>) {
-  const timer = createWebglFrameTimer(f.gl);
+test('sans extension, le chronomètre annonce non supporté et rien n’est jamais mesuré', () => {
+  const timer = createWebglFrameTimer(fakeGl({ withExtension: false }).gl);
+  assert.equal(timer.supported, false);
   timer.begin();
   timer.end();
-  return timer;
-}
-
-test('sans extension, le chronomètre annonce non supporté et rien n’est jamais mesuré', () => {
-  const timer = timed(fakeGl({ withExtension: false }));
-  assert.equal(timer.supported, false);
-  assert.deepEqual(timer.poll(), { ms: null, reason: ABSENT });
+  const polled = timer.poll();
+  assert.equal(polled.ms, null);
+  assert.equal(polled.reason, 'EXT_disjoint_timer_query_webgl2 absent de cet appareil');
 });
 
 test('sans requête en attente, poll explique l’absence plutôt que de rendre zéro', () => {
@@ -70,13 +64,18 @@ test('sans requête en attente, poll explique l’absence plutôt que de rendre 
 
 test('une requête pas encore prête reste non mesurée, sans être perdue', () => {
   const f = fakeGl();
-  assert.deepEqual(timed(f).poll(), { ms: null, reason: 'résultat pas encore prêt' });
+  const timer = createWebglFrameTimer(f.gl);
+  timer.begin();
+  timer.end();
+  assert.deepEqual(timer.poll(), { ms: null, reason: 'résultat pas encore prêt' });
   assert.equal(f.flushes(), 1);
 });
 
 test('une requête disponible et non disjointe donne une durée en millisecondes', () => {
   const f = fakeGl();
-  const timer = timed(f);
+  const timer = createWebglFrameTimer(f.gl);
+  timer.begin();
+  timer.end();
   f.markAvailable(0, 2_500_000);
   assert.deepEqual(timer.poll(), { ms: 2.5, reason: null });
   assert.deepEqual(f.deleted, [0]);
@@ -85,9 +84,14 @@ test('une requête disponible et non disjointe donne une durée en millisecondes
 test('une requête disjointe est jetée avec sa raison, jamais publiée comme une durée', () => {
   const f = fakeGl();
   f.setDisjoint(true);
-  const timer = timed(f);
+  const timer = createWebglFrameTimer(f.gl);
+  timer.begin();
+  timer.end();
   f.markAvailable(0, 1_000_000);
-  assert.deepEqual(timer.poll(), { ms: null, reason: DISJOINT });
+  assert.deepEqual(timer.poll(), {
+    ms: null,
+    reason: 'le pilote a interrompu la mesure (GPU_DISJOINT_EXT)',
+  });
 });
 
 test('au-delà du seuil de requêtes en attente, plus aucune nouvelle requête n’est ouverte', () => {
