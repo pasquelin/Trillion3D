@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { LAB, VIEWS } from './poses.mjs';
 
 export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
@@ -44,6 +44,35 @@ export function resolveCache(value) {
   for (const candidate of [dir, join(dir, '../..')])
     if (existsSync(join(candidate, 'native/full/manifest.json'))) return resolve(candidate);
   throw new Error(`cache sans native/full/manifest.json : ${dir}`);
+}
+
+/** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. Un
+ *  worktree sans `node_modules` à lui trouve ainsi ceux de l'arbre de travail principal. */
+function packageDir(root, name) {
+  for (let dir = root; ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', name);
+    if (existsSync(candidate)) return candidate;
+    if (dirname(dir) === dir) throw new Error(`paquet introuvable : ${name}`);
+  }
+}
+
+/**
+ * Ce que le serveur du harnais rend, et rien d'autre : les dépendances du navigateur, le cache du
+ * Lab, le dist de chaque côté et son cache s'il en a un. `resources` est le dossier auquel le glTF
+ * d'un cache compilé fait référence par chemin relatif (`assets/textures/...`) ; sans lui, un cache
+ * compilé sans base de ressources sort ses textures en 404 et la mesure ne porte plus sur la scène.
+ */
+export function resolveMounts(root, sides, resources) {
+  return [
+    { prefix: '/vendor/three/', dir: packageDir(root, 'three') },
+    { prefix: '/vendor/meshoptimizer/', dir: packageDir(root, 'meshoptimizer') },
+    { prefix: '/benchmark-assets/', dir: ASSETS },
+    ...(resources ? [{ prefix: '/assets/', dir: resources }] : []),
+    ...sides.map((side) => ({ prefix: `/sdk/${side.name}/`, dir: side.dist })),
+    ...sides
+      .filter((side) => side.cache)
+      .map((side) => ({ prefix: `/cache/${side.name}/`, dir: side.cache })),
+  ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 }
 
 /** Les côtés demandés : « après » toujours, « avant » seulement s'il a été nommé. */
@@ -133,6 +162,11 @@ export function readOptions(argv, root) {
     lights: number('lampes', 0),
     lightShadows: (flags.get('ombres') ?? 'on') !== 'off',
     movingLight: flags.get('lampe-mobile') === 'true',
+    // `--soleil` ajoute la lampe directionnelle générique de `lampes.mjs`, avec ses cascades.
+    sun: flags.get('soleil') === 'true',
+    // `--camera-mobile` avance la pose d'un cran de la trajectoire du banc à chaque image mesurée,
+    // au lieu de rejouer la même : c'est ce qui distingue une scène immobile d'une caméra qui bouge.
+    movingCamera: flags.get('camera-mobile') === 'true',
   };
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
   if (settings.port === 5174)
@@ -140,5 +174,8 @@ export function readOptions(argv, root) {
   if (settings.frames < 1) throw new Error('--images doit être un entier positif');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
-  return { flags, settings, views, out };
+  // `--ressources` : la base que le glTF d'un cache compilé désigne par chemin relatif, montée
+  // sous `/assets/`. Sans elle, un tel cache sort ses textures en 404 et la mesure change de scène.
+  const resourcesDir = flags.get('ressources');
+  return { flags, settings, views, out, resources: resourcesDir ? resolve(resourcesDir) : null };
 }

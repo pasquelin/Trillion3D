@@ -1,15 +1,15 @@
 import { EngineError } from './cacheContracts.ts';
 import {
+  LIGHT_KIND,
   LIGHT_SETTINGS,
   SCENE_LIGHT_BUFFER_FLOATS,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
-  validateSceneEnvironment,
-  validateSceneLight,
   type SceneEnvironment,
   type SceneLight,
-  type SceneLightMode,
+  type SceneLightingView,
 } from './sceneLightContracts.ts';
+import { validateSceneEnvironment, validateSceneLight } from './sceneLightValidate.ts';
 
 /** Champ d'une lampe dans le tampon, en flottants depuis sa base. Quatre `vec4f` par lampe. */
 export const LIGHT_FIELD = {
@@ -41,6 +41,7 @@ export function createSceneLightStore() {
   const indexOf = new Map<string, number>();
   const revision = new Uint32Array(LIGHT_SETTINGS.maxLights);
   let environment: SceneEnvironment | undefined,
+    view: SceneLightingView = 'auto',
     epoch = 1;
   const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
   /** La tranche d'atlas d'une lampe vit dans le tampon lui-même : elle n'est pas tenue deux fois. */
@@ -48,24 +49,24 @@ export function createSceneLightStore() {
   const writeSlice = (slot: number, slice: number) => {
     packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
   };
+  const writeVector = (base: number, field: number, value: readonly number[]) => {
+    packed[base + field] = value[0];
+    packed[base + field + 1] = value[1];
+    packed[base + field + 2] = value[2];
+  };
   /** Les champs déclarés par l'hôte. La tranche d'ombre n'en est pas un : l'ordonnanceur la pose. */
   const write = (slot: number, light: SceneLight) => {
     const base = baseOf(slot);
-    packed[base + LIGHT_FIELD.position] = light.position[0];
-    packed[base + LIGHT_FIELD.position + 1] = light.position[1];
-    packed[base + LIGHT_FIELD.position + 2] = light.position[2];
-    packed[base + LIGHT_FIELD.range] = light.range;
-    packed[base + LIGHT_FIELD.color] = light.color[0];
-    packed[base + LIGHT_FIELD.color + 1] = light.color[1];
-    packed[base + LIGHT_FIELD.color + 2] = light.color[2];
+    // Une directionnelle n'a ni position ni portée : ses deux champs restent à zéro dans le tampon,
+    // et le shader ne les lit jamais — il branche sur le type avant.
+    writeVector(base, LIGHT_FIELD.position, light.position ?? [0, 0, 0]);
+    packed[base + LIGHT_FIELD.range] = light.range ?? 0;
+    writeVector(base, LIGHT_FIELD.color, light.color);
     packed[base + LIGHT_FIELD.intensity] = light.intensity;
-    const direction = light.direction ?? [0, -1, 0];
-    packed[base + LIGHT_FIELD.direction] = direction[0];
-    packed[base + LIGHT_FIELD.direction + 1] = direction[1];
-    packed[base + LIGHT_FIELD.direction + 2] = direction[2];
+    writeVector(base, LIGHT_FIELD.direction, light.direction ?? [0, -1, 0]);
     packed[base + LIGHT_FIELD.cosCone] =
       light.kind === 'spot' ? Math.cos(light.coneAngle!) : NO_CONE;
-    packed[base + LIGHT_FIELD.kind] = light.kind === 'spot' ? 1 : 0;
+    packed[base + LIGHT_FIELD.kind] = LIGHT_KIND[light.kind];
     packed[base + LIGHT_FIELD.castsShadow] = light.castsShadow ? 1 : 0;
   };
   const records = new Map<string, SceneLight>();
@@ -84,9 +85,23 @@ export function createSceneLightStore() {
     get environment() {
       return environment;
     },
-    /** `authored` tant que l'hôte n'a déclaré aucun environnement ; `contract` ensuite (mode nuit). */
-    get mode(): SceneLightMode {
-      return environment ? 'contract' : 'authored';
+    /** La vue demandée par l'hôte, telle quelle : `auto` tant qu'il n'a rien demandé. */
+    get lightingView(): SceneLightingView {
+      return view;
+    },
+    /**
+     * Vrai quand l'image doit sortir en albédo brut, sans aucune lumière. C'est le comportement par
+     * défaut tant qu'aucune lampe n'est déclarée : une scène sans source n'a rien à éclairer, et une
+     * image noire n'aiderait aucun banc de géométrie. Dès qu'une lampe existe, l'éclairage réel
+     * s'impose — sauf si l'hôte a explicitement demandé la vue de diagnostic.
+     */
+    get unlit() {
+      return view === 'unlit' || (view === 'auto' && ids.length === 0);
+    },
+    setView(next: SceneLightingView) {
+      if (view === next) return;
+      view = next;
+      epoch++;
     },
     light(id: string) {
       return records.get(id);
