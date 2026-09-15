@@ -3,7 +3,11 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { previewLevelJobs, textureJobFor } from './webgpuAtlasJobs.ts';
 
-/** Records each `writeTexture` call: the row it starts at, the rows it covers and the bytes sent. */
+/**
+ * Records each `writeTexture` call: the row it starts at, the rows it covers and the bytes sent.
+ * The band is no longer a copy of its own — `dataLayout.offset` says where it starts inside the
+ * whole level — so the fake reads the bytes the device would actually cover, and nothing else.
+ */
 function fakeWriteTextureDevice() {
   const calls: Array<{
     row: number;
@@ -16,16 +20,19 @@ function fakeWriteTextureDevice() {
     queue: {
       writeTexture(
         dest: { origin: [number, number, number]; mipLevel?: number },
-        data: ArrayBufferLike,
-        _layout: { bytesPerRow: number; rowsPerImage: number },
+        data: Uint8Array,
+        layout: { offset?: number; bytesPerRow: number; rowsPerImage: number },
         size: { width: number; height: number },
       ) {
+        const start = layout.offset ?? 0;
+        const covered = layout.bytesPerRow * (size.height - 1) + size.width * 4;
+        assert.ok(start + covered <= data.byteLength, 'la bande déborde des pixels fournis');
         calls.push({
           row: dest.origin[1],
           height: size.height,
           width: size.width,
           level: dest.mipLevel ?? 0,
-          bytes: new Uint8Array(data),
+          bytes: data.slice(start, start + covered),
         });
       },
     },

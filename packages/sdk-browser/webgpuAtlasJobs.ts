@@ -64,8 +64,15 @@ function textureJob(
   };
 }
 
-/** Le geste unique de transfert de pixels déjà décodés vers une bande de lignes de la couche : un
- *  niveau progressif du sidecar et la pleine résolution ne s'y distinguent que par `level`. */
+/**
+ * Le geste unique de transfert de pixels déjà décodés vers une bande de lignes de la couche : un
+ * niveau progressif du sidecar et la pleine résolution ne s'y distinguent que par `level`.
+ *
+ * La bande n'est pas recopiée avant d'être remise à l'appareil : `dataLayout.offset` désigne son
+ * premier octet dans les pixels entiers, que `writeTexture` accepte plus grands que la région
+ * écrite — la spécification n'exige l'offset multiple de 4 que pour un format de profondeur ou de
+ * gabarit, et les deux atlas sont `rgba8unorm`. L'offset vaut de toute façon `row * width * 4`.
+ */
 function writeRows(
   device: GPUDevice,
   texture: GPUTexture,
@@ -75,11 +82,15 @@ function writeRows(
   width: number,
 ): TextureJob['uploadRows'] {
   const bytesPerRow = width * 4;
+  // `AllowSharedBufferSource` admet une vue sur un tampon partagé ; le type de `@webgpu/types`
+  // n'admet, lui, que les vues sur un `ArrayBuffer` — d'où ce resserrement, que la tranche faisait
+  // silencieusement puisque `slice()` rend toujours une vue sur un tampon non partagé.
+  const source = pixels as Uint8Array<ArrayBuffer>;
   return (row, count) =>
     device.queue.writeTexture(
       { texture, mipLevel: level, origin: [0, row, layer] },
-      pixels.slice(row * bytesPerRow, (row + count) * bytesPerRow),
-      { bytesPerRow, rowsPerImage: count },
+      source,
+      { offset: row * bytesPerRow, bytesPerRow, rowsPerImage: count },
       { width, height: count },
     );
 }
