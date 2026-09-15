@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
+import { referenceArrivalQueue } from '../../scripts/mesure/calculs/oracles/streaming.mjs';
 
 function target() {
   const accepted: string[] = [];
@@ -61,4 +62,27 @@ test('a page already waiting for a target is queued once, and each target keeps 
   assert.deepEqual(a.accepted, ['p0', 'p1', 'p0']);
   assert.equal(a.syncs, 2);
   assert.equal(b.syncs, 1, 'un destinataire non touché ne resynchronise pas');
+});
+
+// A12 : `touched.includes` (quadratique) devient une appartenance par `Set`. Oracle : la version à
+// `includes`, d'avant le lot A, dans `scripts/mesure/calculs/oracles/streaming.mjs`.
+test('many duplicate targets across a drain deliver and sync exactly like the reference', () => {
+  function arrivals(create: typeof createArrivalQueue) {
+    const delivered: string[] = [],
+      synced: number[] = [];
+    const targets = Array.from({ length: 8 }, (_, c) => ({
+      acceptPage: (url: string) => delivered.push(`${c}:${url}`),
+      syncResident: () => synced.push(c),
+    }));
+    const queue = create(1 << 20, 4096);
+    const bytes = new Uint32Array(4);
+    // Round-robin over the eight targets so the touched list sees many repeats before a drain.
+    for (let i = 0; i < 500; i++) queue.queue(targets[i % 8], `page-${i % 50}.bin`, bytes);
+    let livrs = 0;
+    for (let d = 0; d < 3; d++) livrs += queue.drain();
+    return { delivered, synced, livrs };
+  }
+  const optimisee = arrivals(createArrivalQueue);
+  const reference = arrivals(referenceArrivalQueue as typeof createArrivalQueue);
+  assert.deepEqual(optimisee, reference);
 });

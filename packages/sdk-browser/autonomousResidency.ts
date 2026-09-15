@@ -12,27 +12,44 @@ type ResidencyEnvironment = {
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
 };
 
+/** Combien de pages portent leurs indices. Un comptage, pas un tableau intermédiaire de dizaines de
+ *  milliers d'entrées alloué puis jeté à chaque relevé de métriques, c'est-à-dire à chaque image. */
+export function comptePagesResidentes(pages: readonly PageRec[]) {
+  let residentes = 0;
+  for (let i = 0; i < pages.length; i++) if (pages[i].array) residentes++;
+  return residentes;
+}
+
 export function createAutonomousResidency(env: ResidencyEnvironment) {
   const { bootstrapUrls, modifiedPages, shown, desired, pending, retained, byUrl, geometryStore } =
     env;
   const { detach } = geometryStore;
   const state = { cacheEvictions: 0 };
+  // Deux ensembles pour la vie de l'hôte : une image les remplit et les vide, elle n'en alloue pas.
+  const vues = new Set<string>(),
+    uniques = new Set<string>();
   return {
     get cacheEvictions() {
       return state.cacheEvictions;
     },
     pendingUrls() {
       pending.length = 0;
+      vues.clear();
       for (const rec of desired)
-        if (!rec.array && !pending.includes(rec.url)) pending.push(rec.url);
+        if (!rec.array && !vues.has(rec.url)) {
+          vues.add(rec.url);
+          pending.push(rec.url);
+        }
       return pending;
     },
     pageUrls() {
       retained.length = 0;
-      const unique = new Set<string>([...bootstrapUrls, ...modifiedPages]);
-      for (const rec of shown) unique.add(rec.url);
-      for (const rec of desired) unique.add(rec.url);
-      retained.push(...unique);
+      uniques.clear();
+      for (const url of bootstrapUrls) uniques.add(url);
+      for (const url of modifiedPages) uniques.add(url);
+      for (const rec of shown) uniques.add(rec.url);
+      for (const rec of desired) uniques.add(rec.url);
+      for (const url of uniques) retained.push(url);
       return retained;
     },
     dropPage(url: string) {

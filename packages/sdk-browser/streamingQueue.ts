@@ -1,5 +1,26 @@
 import type { StreamContext } from './streamingTypes.ts';
 
+/** L'ordre d'admission d'une file : priorité, puis ordre d'arrivée. */
+export function sortStreamJobs(queue: { priority: number; order: number }[]) {
+  queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
+}
+
+/**
+ * Le premier travail que le budget de transfert laisse partir, ou -1. Le premier transfert d'une
+ * file part toujours : sans lui rien n'avancerait quand une seule page dépasse le budget.
+ */
+export function findAdmissible(
+  queue: readonly { url: string }[],
+  active: number,
+  activeBytes: number,
+  bytesOf: (url: string) => number | undefined,
+  maxTransferBytes: number,
+) {
+  for (let i = 0; i < queue.length; i++)
+    if (active === 0 || activeBytes + (bytesOf(queue[i].url) ?? 0) <= maxTransferBytes) return i;
+  return -1;
+}
+
 export function createStreamingQueue(
   context: StreamContext,
   loadOne: (url: string, signal: AbortSignal) => Promise<Uint8Array>,
@@ -19,15 +40,18 @@ export function createStreamingQueue(
     cache,
     abortError,
   } = context;
+  const octetsDe = (url: string) => catalog.get(url)?.bytes;
   const pump = () => {
     if (state.disposed || abort.signal.aborted) return;
+    // La file n'est triée qu'une fois par passage : rien n'y entre pendant la boucle, et retirer un
+    // travail ne dérange pas l'ordre. Le tri repartait de zéro à chaque tour du `while`.
+    let triee = false;
     while (state.active < limit && queue.length) {
-      queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
-      const at = queue.findIndex(
-        (item) =>
-          state.active === 0 ||
-          state.activeBytes + (catalog.get(item.url)?.bytes ?? 0) <= maxTransferBytes,
-      );
+      if (!triee) {
+        sortStreamJobs(queue);
+        triee = true;
+      }
+      const at = findAdmissible(queue, state.active, state.activeBytes, octetsDe, maxTransferBytes);
       if (at < 0) break;
       const job = queue.splice(at, 1)[0];
       if (job.consumers.size === 0 || job.controller.signal.aborted) continue;
