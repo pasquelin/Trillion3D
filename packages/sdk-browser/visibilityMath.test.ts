@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sampleLinear, sampleMap, wrapTexel } from './visibilityMath.ts';
 import { textureRgba } from './visibilityTypes.ts';
+import { referenceTextureRgba } from '../../scripts/mesure/calculs/oracles/f-texture.mjs';
 
 /** `visibilityMath.ts` avant le lot C : une puissance par composante, sans table. */
 function referenceSrgbToLinear(c: number) {
@@ -112,4 +113,58 @@ test('un uv non fini qui rend l’index de texel NaN rend NaN des deux côtés, 
       `échantillon uv ${u},${v} : ${obtenu}`,
     );
   }
+});
+
+// Lot F, F15 : `textureRgba` (visibilityTypes.ts) garde les octets d'une texture tant que sa source
+// (tampon, décalage, longueur, largeur, hauteur) ne change pas, au lieu d'allouer une vue et un objet
+// à chaque texel échantillonné. L'oracle est l'allocation inconditionnelle d'avant le lot F, recopiée
+// telle quelle dans `oracles/f-texture.mjs`.
+test('une texture sans image ou sans données rend null des deux côtés', () => {
+  const sansImage = new THREE.Texture();
+  assert.equal(textureRgba(sansImage), referenceTextureRgba(sansImage));
+  const largeurNulle = new THREE.Texture();
+  largeurNulle.image = { data: new Uint8Array(4), width: 0, height: 1 };
+  assert.equal(textureRgba(largeurNulle), referenceTextureRgba(largeurNulle));
+});
+
+test('deux appels sur la même image rendent les mêmes octets que la référence, et le même objet mémoïsé', () => {
+  const map = texture(2, 2, (i) => i & 255, THREE.ClampToEdgeWrapping);
+  const premier = textureRgba(map);
+  const second = textureRgba(map);
+  assert.equal(second, premier, 'le même objet est réutilisé tant que la source ne change pas');
+  const attendu = referenceTextureRgba(map);
+  assert.deepEqual(Array.from(premier!.data), Array.from(attendu!.data));
+  assert.equal(premier!.width, attendu!.width);
+  assert.equal(premier!.height, attendu!.height);
+});
+
+test('une image remplacée par un nouveau tampon rend de nouveaux octets, identiques à la référence', () => {
+  const map = texture(2, 2, (i) => i & 255, THREE.ClampToEdgeWrapping);
+  const premier = textureRgba(map);
+  map.image = { data: new Uint8Array(16).fill(7), width: 2, height: 2 };
+  const second = textureRgba(map);
+  assert.notEqual(second, premier, 'un nouveau tampon source invalide le cache');
+  assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(map)!.data));
+});
+
+test('une sous-vue du même tampon (décalage ou longueur différents) n’est jamais confondue avec la vue d’origine', () => {
+  const buffer = new Uint8Array(32).map((_, i) => i);
+  const map = new THREE.Texture();
+  map.image = { data: buffer.subarray(0, 16), width: 2, height: 2 };
+  const premier = textureRgba(map);
+  map.image = { data: buffer.subarray(4, 20), width: 2, height: 2 }; // même buffer, autre décalage
+  const second = textureRgba(map);
+  assert.notEqual(second, premier, 'un décalage différent sur le même tampon invalide le cache');
+  assert.deepEqual(Array.from(second!.data), Array.from(referenceTextureRgba(map)!.data));
+});
+
+test('une même largeur/hauteur mais une image redimensionnée sans changer de tampon invalide aussi le cache', () => {
+  const buffer = new Uint8Array(64).fill(9);
+  const map = new THREE.Texture();
+  map.image = { data: buffer, width: 4, height: 4 };
+  const premier = textureRgba(map);
+  map.image = { data: buffer, width: 8, height: 2 }; // même tampon, dimensions différentes
+  const second = textureRgba(map);
+  assert.notEqual(second, premier);
+  assert.deepEqual(second, referenceTextureRgba(map));
 });
