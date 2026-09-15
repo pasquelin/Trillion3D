@@ -136,8 +136,8 @@ fn scaled(parts: Parts, scale: f64) -> Parts {
                     })
                     .collect::<Vec<f64>>()),
                 None => json!([
-                    scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0,
-                    1.0
+                    scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0,
+                    0.0, 1.0
                 ]),
             };
             (name, matrix, mesh)
