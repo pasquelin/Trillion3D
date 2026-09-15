@@ -104,6 +104,8 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
       targetSize: [4, 4],
       colorView: {},
       depthView: {},
+      volumeBuffer: {},
+      backdrop: { colorView: {}, depthView: {}, active: false },
       deferred: {
         placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
       },

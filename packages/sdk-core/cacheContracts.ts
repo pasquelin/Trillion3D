@@ -4,7 +4,7 @@ import {
   FORMAT_VERSION,
   type AssetScope,
 } from './contractsBase.ts';
-import { primitiveUsesClusterErrors, type ClusterManifest } from './geometryContracts.ts';
+import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometryContracts.ts';
 
 export class EngineError extends Error {
   readonly code: string;
@@ -103,7 +103,8 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
 }
 /**
  * Rejects any cache this runtime cannot draw. The runtime reads one geometry model: a DAG of
- * clusters where every cluster carries its own screen-error band. A cache whose clusters carry no
+ * clusters where every cluster carries its own screen-error band, or a whole mesh the compiler kept
+ * outside the DAG (`shared-blend`), which carries no cluster at all. A cache whose clusters carry no
  * band — the old page tree — is refused by name here rather than half-read later.
  */
 export function assertCacheIdentity(metadata: ClusterManifest) {
@@ -129,17 +130,20 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
     throw new EngineError('UNSUPPORTED_FORMAT', 'clustered-blend requires cache format 2', {
       formatVersion,
     });
-  const missing = metadata.primitives.findIndex(
-    (primitive) => !primitiveUsesClusterErrors(primitive),
-  );
+  const missing = metadata.primitives.findIndex((primitive) => !primitiveIsDrawable(primitive));
   if (missing >= 0) {
     const primitive = metadata.primitives[missing];
+    const cause =
+      primitive.pass === UNSPLIT_PASS
+        ? `is ${UNSPLIT_PASS} yet carries ${primitive.pages.length} cluster pages`
+        : 'has no per-cluster error band';
     throw new EngineError(
       'STALE_CACHE',
-      `Cache without a cluster DAG cannot be used: primitive ${primitive.mesh}/${primitive.primitive} has no per-cluster error band; recompile with ${DAG_ERROR_MODEL}`,
+      `Cache without a cluster DAG cannot be used: primitive ${primitive.mesh}/${primitive.primitive} ${cause}; recompile with ${DAG_ERROR_MODEL}`,
       {
         mesh: primitive.mesh,
         primitive: primitive.primitive,
+        pass: primitive.pass,
         errorModel: metadata.errorModel ?? null,
         expected: DAG_ERROR_MODEL,
       },

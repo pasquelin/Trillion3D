@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { writeBlendUniforms } from './webgpuBlendUniforms.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
+import { copyBackdrop, writeVolumeUniforms } from './webgpuTransmission.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
@@ -48,7 +49,12 @@ export function encodeBlend(
   encodeTransparentInstances(rt, encoder);
   ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
   writeBlendUniforms(rt, device, uniformBase, textured);
+  if (textured) writeVolumeUniforms(rt, device);
   drawBlendPass(rt, device, encoder, uniformBase, textured);
+  // La transmission vient après les mélanges, sur un fond figé : les deux copies séparent les deux
+  // passes, si bien qu'aucune surface transmissive ne lit une image à demi composée.
+  if (blendState.transmissive && textured && copyBackdrop(rt, encoder))
+    drawBlendPass(rt, device, encoder, uniformBase, textured, true);
   timing.transparentEncodeMs += performance.now() - cpuStart;
   if (diag.traceEnabled)
     diag.traceDiagnostic('transparent-encoding', 'Transparents sélectionnés et encodés', () => ({
@@ -59,6 +65,7 @@ export function encodeBlend(
       frustumRejected: run.blendFrustumRejected,
       drawCalls: run.blendDrawCalls,
       submittedTriangles: run.blendSubmittedTriangles,
+      transmissiveMeshes: blendState.transmissive,
       encodeMs: timing.transparentEncodeMs,
       passes: blendState.visibleBlend.length ? 2 : 0,
     }));

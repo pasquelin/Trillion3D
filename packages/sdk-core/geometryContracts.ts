@@ -70,6 +70,22 @@ export function pageCarriesClusterError(page: Page) {
 export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) {
   return primitive.pages.length > 0 && primitive.pages.every(pageCarriesClusterError);
 }
+/** Le rangement d'une primitive que le compilateur garde d'un seul tenant, hors du DAG de clusters :
+ *  un maillage entier, ordre source conservé. Trois propriétés de matériau y mènent aujourd'hui — la
+ *  transmission, la peau et les cibles de morphing —, jamais un nom d'objet. */
+export const UNSPLIT_PASS = 'shared-blend';
+/**
+ * Une primitive que ce runtime sait dessiner. Deux formes, et deux seulement : un DAG dont chaque
+ * cluster porte sa bande d'erreur d'écran, ou un maillage d'un seul tenant que le compilateur a
+ * laissé hors du DAG — celui-là n'a aucune page, donc aucune bande, et c'est sa définition, pas une
+ * lacune. Une primitive `shared-blend` qui porterait quand même des pages vient d'un compilateur
+ * qu'on ne lit pas : elle est refusée comme un DAG sans bande.
+ */
+export function primitiveIsDrawable(primitive: Pick<Primitive, 'pages' | 'pass'>) {
+  return primitive.pass === UNSPLIT_PASS
+    ? primitive.pages.length === 0
+    : primitiveUsesClusterErrors(primitive);
+}
 /** Flat culling hierarchy over a primitive's clusters. `stride` numbers per node, node 0 is the root:
  *  min[3], max[3], sphere[4], maxParentError (-1 when the subtree holds a cluster with no
  *  replacement), firstChild, childCount, firstPage, pageCount. A leaf has childCount 0. */

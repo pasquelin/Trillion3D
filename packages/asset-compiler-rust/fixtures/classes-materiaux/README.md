@@ -1,10 +1,9 @@
-# Scènes de mesure — les trois classes de matériau
+# Scènes de mesure — les classes de matériau
 
-Aucune scène du banc ne porte les trois classes que le moteur distingue : Emerald n'a que du
-feuillage en mélange, ni découpe ni surface transmissive. Ces deux scènes glTF minimales les
-portent, chacune assez subdivisée pour donner plusieurs clusters et donc une vraie coupe de DAG.
-Aucune texture : la classe se lit sur le matériau seul, et chaque scène reste deux fichiers
-lisibles.
+Aucune scène du banc ne porte les classes que le moteur distingue : Emerald n'a que du feuillage en
+mélange, ni découpe ni surface transmissive. Ces deux scènes glTF minimales les portent, chacune
+assez subdivisée pour donner plusieurs clusters et donc une vraie coupe de DAG. Aucune texture : la
+classe se lit sur le matériau seul, et chaque scène reste deux fichiers lisibles.
 
 ## `classes-materiaux` — opaque, découpe, mélange
 
@@ -16,14 +15,23 @@ lisibles.
 
 4 516 triangles. C'est la scène que le harnais mesure.
 
-## `transmission` — la classe que le moteur ne dessine pas encore
+## `transmission` — la quatrième classe, et de quoi la voir
 
-Un plan d'eau seul, `KHR_materials_transmission`. Le compilateur le range en `shared-blend` : hors
-du DAG, une primitive = un maillage entier. **Le cache qui en résulte est refusé au chargement** :
-`assertCacheIdentity` exige une bande d'erreur par cluster de *chaque* primitive, et une primitive
-`shared-blend` n'en a pas par construction (`Cache without a cluster DAG cannot be used: primitive
-0/0 has no per-cluster error band`). C'est donc la première chose à corriger avant d'écrire la passe
-de transmission, et la scène est ici pour le fixer noir sur blanc.
+| maillage | matériau | classe | rangement du compilateur |
+|---|---|---|---|
+| `fond` | `fond`, opaque | opaque | `exact-clusters` |
+| `bloc0..2` | `beton`, opaque | opaque | `exact-clusters` |
+| `eau` | `eau`, `KHR_materials_transmission` 1,0, `KHR_materials_ior` 1,33, `KHR_materials_volume` (épaisseur 2,5, distance 6, couleur 0,35/0,72/0,68) | transmission | `shared-blend` |
+
+2 880 triangles. Un plan d'eau à `y = 0` au-dessus d'un sol à `y = -2,5` et de trois blocs, dont deux
+percent la surface : ce qu'on regarde est la déviation du fond sous l'eau contre la ligne droite du
+bloc au-dessus d'elle, et la teinte que la distance d'atténuation lui donne. Une scène sans rien
+derrière l'eau n'aurait rien prouvé du tout.
+
+Le compilateur range l'eau en `shared-blend` : hors du DAG, une primitive = un maillage entier,
+ordre source conservé. Cette primitive n'a donc aucun cluster, donc aucune bande d'erreur, et
+`assertCacheIdentity` l'accepte à ce titre depuis le lot de l'eau ; une primitive `shared-blend` qui
+porterait quand même des pages reste refusée.
 
 ## Compiler et mesurer
 
