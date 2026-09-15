@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prefixParallel, prefixSerial } from './bench/oracles/gpuDrawPrefixOracle.ts';
 
-// D3 : le prefixe parallele par slot (workgroup_size(64), lot D) doit produire exactement les
-// memes totals (indirect[slot*4+1]) et groupOffsets que l'ancien prefixe serie (workgroup_size(1))
-// qu'il remplace. gpuDraw.test.ts:76 epinglait la taille du groupe de travail ; ce fichier verifie
-// le comportement que cette taille servait, sur des entrees hostiles.
+// D3 : le prefixe parallele par slot (workgroup_size(64)) produit exactement les memes totals
+// (indirect[slot*4+1]) et groupOffsets que le prefixe serie (workgroup_size(1)) en place dans
+// gpuDrawShader.ts. Le noyau parallele reste un candidat : gpuDraw.test.ts epingle la taille du
+// groupe de travail, et ce lot ne touche pas aux attentes des tests existants. Ce fichier garde la
+// preuve d'equivalence, sur des entrees hostiles, pour le jour ou cette attente sera rouverte.
 
 function assertSameResult(
   overflow: boolean,
