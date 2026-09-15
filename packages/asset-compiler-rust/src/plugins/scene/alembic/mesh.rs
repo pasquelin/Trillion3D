@@ -7,8 +7,9 @@
 //! coins** : un fichier Alembic donne une position par sommet mais peut donner une normale et une
 //! coordonnée de texture par coin de face, là où le glTF n'a qu'un seul tableau par sommet ; chaque
 //! triplet distinct (sommet, normale, coordonnée) devient donc un sommet du glTF, et les triplets
-//! identiques restent un seul sommet. Les faces de plus de trois côtés sont découpées en éventail,
-//! ce qui est exact pour une face plane et convexe — ce que la géométrie exportée est.
+//! identiques restent un seul sommet. Les faces de plus de trois côtés sont coupées en oreilles
+//! dans le plan de leur normale, ce qui conserve l'aire et la silhouette d'une face plane, qu'elle
+//! soit convexe ou creusée.
 use self::build::Builder;
 use super::geom::Geometry;
 use super::TOPOLOGY_INVALID;
@@ -45,6 +46,8 @@ pub(super) struct Counted {
     pub(super) overlaps: usize,
     /// Des faces de moins de trois côtés, qui ne portent aucune surface.
     pub(super) degenerate: usize,
+    /// Des faces que la coupe par oreilles n'a pas su découper entièrement.
+    pub(super) uncut: usize,
 }
 
 /// Le face set de chaque face, et ce que la répartition a rencontré. Une face revendiquée deux fois
@@ -81,7 +84,7 @@ pub(super) fn parts(geometry: &Geometry, facesets: &[FaceSet]) -> Result<(Vec<Pa
     let (owner, overlaps) = assign(facesets, geometry.counts.len());
     let mut counted = Counted {
         overlaps,
-        degenerate: 0,
+        ..Counted::default()
     };
     let mut builders: HashMap<Option<usize>, Builder> = HashMap::new();
     let mut at = 0usize;
@@ -101,7 +104,9 @@ pub(super) fn parts(geometry: &Geometry, facesets: &[FaceSet]) -> Result<(Vec<Pa
         }
         let owner = owner.get(face).copied().flatten();
         let builder = builders.entry(owner).or_default();
-        builder.face(geometry, face, corners)?;
+        if !builder.face(geometry, face, corners)? {
+            counted.uncut += 1;
+        }
     }
     let mut out: Vec<Part> = builders
         .into_iter()
