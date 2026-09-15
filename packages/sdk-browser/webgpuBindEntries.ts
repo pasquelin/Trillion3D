@@ -69,6 +69,12 @@ export type BlendBindResources = AtlasResources &
     /** La liste compactée des clusters à dessiner, et la portée de chacun dans le cache de pages. */
     clusterIds: GPUBuffer;
     clusterSpans: GPUBuffer;
+    /** Le volume du matériau, à décalage dynamique comme l'uniforme principal. */
+    volume: GPUBuffer;
+    volumeSize: number;
+    /** Le fond figé de la passe de transmission : couleur et profondeur déjà dessinées. */
+    backdrop: GPUTextureView;
+    backdropDepth: GPUTextureView;
   };
 
 /** Les ressources du raster logiciel des petits triangles : il ne lit que la découpe alpha. */
@@ -153,6 +159,9 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.shadowSampler, resource: r.shadowSampler },
     { binding: b.bounceGrid, resource: { buffer: r.bounceGrid } },
     { binding: b.probes, resource: { buffer: r.probes } },
+    { binding: b.volume, resource: { buffer: r.volume, size: r.volumeSize } },
+    { binding: b.backdrop, resource: r.backdrop },
+    { binding: b.backdropDepth, resource: r.backdropDepth },
   ];
 }
 

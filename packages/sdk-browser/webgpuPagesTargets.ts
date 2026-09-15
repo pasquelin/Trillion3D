@@ -1,5 +1,6 @@
 import { checkSurfaceSize, createSurfaceBuffer, frameTargetBytes } from './surfaceBuffer.ts';
 import { dropGpuHiz } from './webgpuPagesDrops.ts';
+import { backdropBytes, createBackdrop, disposeBackdrop } from './webgpuTransmission.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 export function checkFrameBudget(
@@ -23,7 +24,7 @@ export function ensureTargets(
   width: number,
   height: number,
 ) {
-  const { gpu, vis, run, capture, diag } = rt,
+  const { gpu, vis, run, capture, diag, blendState } = rt,
     { frameBudget, reserveHiz } = rt.setup;
   if (
     gpu.colorTexture &&
@@ -43,11 +44,17 @@ export function ensureTargets(
     budgetBytes: frameBudget,
     hiZReserved: reserveHiz,
   }));
-  const allocationBytes = checkFrameBudget(rt, width, height, capture.captureAllocationBytes);
+  const allocationBytes = checkFrameBudget(
+    rt,
+    width,
+    height,
+    capture.captureAllocationBytes + backdropBytes(rt, width, height),
+  );
   gpu.colorTexture?.destroy();
   gpu.depthTexture?.destroy();
   vis.visTexture?.destroy();
   gpu.hdrTexture?.destroy();
+  disposeBackdrop(gpu);
   gpu.surfaces?.dispose();
   vis.visTexture = undefined;
   vis.visView = undefined;
@@ -87,6 +94,10 @@ export function ensureTargets(
   gpu.colorView = gpu.colorTexture.createView();
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
+  gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
+  // Les groupes de liaison d'un item transparent nomment les vues du fond : elles viennent de
+  // changer, donc ils sont refaits à la première image qui suit.
+  for (const item of blendState.blendGpu) item.group = undefined;
   gpu.targetSize = [width, height];
   try {
     vis.visTexture = device.createTexture({

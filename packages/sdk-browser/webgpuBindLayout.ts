@@ -86,6 +86,12 @@ export const BLEND_BINDINGS = (() => {
     /** La grille de sondes et leurs coefficients : l'irradiance de l'opaque, sans passe de plus. */
     bounceGrid: rest + 11,
     probes: rest + 12,
+    /** Le volume du matériau transmissif, et le fond figé que sa passe relit : la couleur et la
+     *  profondeur déjà dessinées, copiées avant elle. Liées pour tout item, lues par le seul
+     *  fragment qui porte le drapeau de transmission. */
+    volume: rest + 13,
+    backdrop: rest + 14,
+    backdropDepth: rest + 15,
   };
 })();
 

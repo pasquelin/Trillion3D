@@ -43,7 +43,9 @@ export const FLAG_LIT = 1,
    * n'est déclarée, ou parce que l'hôte a demandé la vue sans éclairage. Seul le dessin transparent
    * le lit — l'opaque a pour cela son propre programme de résolution.
    */
-  FLAG_UNLIT_VIEW = 8192;
+  FLAG_UNLIT_VIEW = 8192,
+  /** Le matériau transmet : la surface lit le fond déjà dessiné au lieu de le mélanger par alpha. */
+  FLAG_TRANSMISSIVE = 16384;
 export type VisPage = {
   array: Uint32Array;
   attributes: THREE.BufferGeometry['attributes'];
@@ -70,7 +72,14 @@ export type VisMaterial = {
   aoIntensity: number;
   emissive: [number, number, number];
   emissiveMap?: THREE.Texture;
+  /** `KHR_materials_transmission.transmissionFactor` : la part du fond que la surface laisse voir. */
   transmission: number;
+  /** `KHR_materials_ior.ior`, et le volume de `KHR_materials_volume`. `attenuationDistance` vaut 0
+   *  quand le glTF n'en déclare pas : le volume n'atténue alors rien. */
+  ior: number;
+  thickness: number;
+  attenuationDistance: number;
+  attenuationColor: [number, number, number];
 };
 
 export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };
@@ -127,6 +136,19 @@ export function visMaterial(material: THREE.Material | THREE.Material[]): VisMat
     emissiveMap: lit && std.emissiveMap ? std.emissiveMap : undefined,
     transmission:
       phys.isMeshPhysicalMaterial && typeof phys.transmission === 'number' ? phys.transmission : 0,
+    ior: phys.isMeshPhysicalMaterial && typeof phys.ior === 'number' ? phys.ior : 1.5,
+    thickness:
+      phys.isMeshPhysicalMaterial && typeof phys.thickness === 'number' ? phys.thickness : 0,
+    // Three donne `Infinity` quand le glTF ne déclare pas de distance ; zéro dit « pas d'atténuation »
+    // sans faire voyager un infini jusqu'à un uniforme.
+    attenuationDistance:
+      phys.isMeshPhysicalMaterial && Number.isFinite(phys.attenuationDistance)
+        ? phys.attenuationDistance
+        : 0,
+    attenuationColor:
+      phys.isMeshPhysicalMaterial && phys.attenuationColor
+        ? [phys.attenuationColor.r, phys.attenuationColor.g, phys.attenuationColor.b]
+        : [1, 1, 1],
   };
 }
 

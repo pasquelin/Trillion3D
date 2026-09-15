@@ -10,7 +10,9 @@ import {
   FORMAT_VERSION,
   MANIFEST_BINARY_VERSION,
   pageCarriesClusterError,
+  primitiveIsDrawable,
   primitiveUsesClusterErrors,
+  UNSPLIT_PASS,
 } from './index.ts';
 test('a cache whose pages carry their own cluster errors requires the DAG error model', () => {
   const page = (
@@ -147,4 +149,47 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
       () => assertCacheReady(metadata, 'full'),
       (error: unknown) => error instanceof EngineError && error.code === code,
     );
+});
+test("une primitive d'un seul tenant n'a pas de bande d'erreur, et le cache reste lisible", () => {
+  // Le compilateur garde hors du DAG toute primitive qu'une propriété de matériau y oblige — la
+  // transmission de `KHR_materials_transmission`, la peau, les cibles de morphing. Elle n'a alors
+  // aucun cluster, donc aucune bande : le chargement l'accepte, au lieu de refuser la scène.
+  const metadata = {
+    schema: FORMAT_VERSION,
+    status: 'ready',
+    key: 'k',
+    scope: 'full' as const,
+    errorModel: DAG_ERROR_MODEL,
+    sourceTriangles: 2,
+    selectedTriangles: 2,
+    selectedNodes: [0],
+    totalNodes: 1,
+    primitives: [{ mesh: 0, primitive: 0, pass: UNSPLIT_PASS, pages: [] }],
+  };
+  assertCacheIdentity(metadata);
+  assert.equal(primitiveIsDrawable(metadata.primitives[0]), true);
+  assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), false);
+  // Elle n'ouvre pas la porte : une primitive d'un seul tenant qui porterait quand même des pages
+  // vient d'un compilateur que ce runtime ne lit pas, et elle est refusée comme un DAG sans bande.
+  const withPages = {
+    ...metadata,
+    primitives: [
+      {
+        mesh: 0,
+        primitive: 0,
+        pass: UNSPLIT_PASS,
+        pages: [
+          { id: 0, url: '0', sha256: 'x', bytes: 12, count: 3, min: [0, 0, 0], max: [1, 1, 1] },
+        ],
+      },
+    ],
+  };
+  assert.throws(
+    () => assertCacheIdentity(withPages),
+    (error: unknown) =>
+      error instanceof EngineError &&
+      error.code === 'STALE_CACHE' &&
+      error.details.pass === UNSPLIT_PASS,
+  );
+  assert.equal(primitiveIsDrawable(withPages.primitives[0]), false);
 });

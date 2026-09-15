@@ -6,6 +6,7 @@ import {
   FLAG_HAS_TANGENT,
   FLAG_LIT,
   FLAG_PAGED,
+  FLAG_TRANSMISSIVE,
   FLAG_WRAP_S_REPEAT,
   FLAG_WRAP_T_REPEAT,
   isTransmissive,
@@ -23,17 +24,13 @@ export function prepareWebgpuBlend(
   gpu: WebgpuGpuState,
   blendState: BlendState,
   scene: THREE.Scene,
-  directCanvas: boolean,
 ) {
   let transmissive = 0;
   for (const copy of blendCopies) {
-    if (isTransmissive(copy.material)) {
-      // No pass reads the image behind a surface yet, so such a surface is not drawn at all. The
-      // caller says so out loud rather than letting the scene lose a plane of water in silence.
-      transmissive++;
-      if (directCanvas) throw new Error('UNSUPPORTED_TRANSMISSION');
-      continue;
-    }
+    // Une surface transmissive traverse la même préparation que les autres mélanges : elle n'en
+    // diffère qu'au dessin, où elle relit le fond figé au lieu de le mélanger par alpha.
+    const transmits = isTransmissive(copy.material);
+    if (transmits) transmissive++;
     const mat = visMaterial(copy.material);
     const attr = copy.geometry.attributes.position,
       idx = copy.geometry.getIndex();
@@ -115,6 +112,7 @@ export function prepareWebgpuBlend(
     if (tangentAttr) flags |= FLAG_HAS_TANGENT;
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
+    if (transmits) flags |= FLAG_TRANSMISSIVE;
     if (mat.map && mat.map.wrapS !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_S_REPEAT;
     if (mat.map && mat.map.wrapT !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_T_REPEAT;
     // Static source transforms are baked for this backend. World AABBs remain
@@ -131,6 +129,7 @@ export function prepareWebgpuBlend(
         bounds = box;
     }
     const item = {
+      transmissive: transmits,
       position,
       index,
       uv,

@@ -9,6 +9,7 @@ import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
 import { createTransparentTable } from './webgpuTransparentTable.ts';
 import { createTransparentCompaction } from './webgpuTransparentCompact.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import { VOLUME_STRIDE, createVolumeBuffer } from './webgpuTransmission.ts';
 import { createGpuDagSelection, packDagSelection } from './gpuDagSelection.ts';
 import { OPEN_CONE, triangleCone } from './pageCone.ts';
 import { visMaterial } from './visibilityBuffer.ts';
@@ -18,7 +19,7 @@ import { dropVis } from './webgpuPagesDrops.ts';
 import { prepareWebgpuTextures } from './webgpuPagesPrepareTextures.ts';
 import { prepareWebgpuVisibility } from './webgpuPagesPrepareVisibility.ts';
 import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
-import { TRANSMISSION_UNSUPPORTED, type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
@@ -130,15 +131,9 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0]));
-  const transmissive = prepareWebgpuBlend(
-    gpuDevice,
-    blendCopies,
-    gpu,
-    blendState,
-    scene,
-    !!context.gpuCanvas,
-  );
-  if (transmissive) capabilities.unsupported.push(TRANSMISSION_UNSUPPORTED);
+  blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene);
+  blendState.volumePacked = new Float32Array(blendState.blendGpu.length * (VOLUME_STRIDE / 4));
+  gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.blendGpu.length);
   // The transparent draw order is the scene's and is settled here, once: an image only chooses which
   // of its entries survive.
   blendState.table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
@@ -151,7 +146,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     clusters: blendState.table.length,
     maxVertexWords: blendState.table.maxVertexWords,
     gpuCompaction: !!blendState.compaction?.encode,
-    transmissiveMeshesNotDrawn: transmissive,
+    transmissiveMeshes: blendState.transmissive,
   });
   const [width, height] = viewport;
   ensureTargets(rt, gpuDevice, Math.max(1, width), Math.max(1, height));

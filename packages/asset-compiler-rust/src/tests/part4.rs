@@ -91,6 +91,56 @@ fn compile_leaves_transmission_unsplit() {
         .is_empty());
     fs::remove_dir_all(root).expect("cleanup");
 }
+/// Les quatre classes de matériau et le rangement de chacune. La transmission entre par la même
+/// porte que la peau — une primitive d'un seul tenant, hors du DAG — et son arrivée ne déplace
+/// aucune des trois autres : opaque et découpe restent des clusters exacts, le mélange reste
+/// groupé. Rien n'est lu que des propriétés de matériau.
+#[test]
+fn compile_ranks_every_material_class_by_its_own_property() {
+    for (material, pass, paged) in [
+        (json!({}), "exact-clusters", true),
+        (
+            json!({"alphaMode":"MASK","alphaCutoff":0.5}),
+            "exact-clusters",
+            true,
+        ),
+        (json!({"alphaMode":"BLEND"}), "clustered-blend", true),
+        (
+            json!({"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":0.6}}}),
+            "shared-blend",
+            false,
+        ),
+    ] {
+        let (root, options) = fixture();
+        let mut gltf = read_gltf(&options);
+        gltf["materials"] = json!([material]);
+        gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+        write_gltf(&options, &gltf, None);
+        let result = compile(&options, |_| {}).expect("compile");
+        assert_eq!(result["primitives"][0]["pass"], pass, "classe {material}");
+        assert_eq!(
+            !result["primitives"][0]["pages"]
+                .as_array()
+                .expect("pages")
+                .is_empty(),
+            paged,
+            "pages de la classe {material}"
+        );
+        fs::remove_dir_all(root).expect("cleanup");
+    }
+}
+/// Une transmission nulle n'est pas une transmission : le matériau retombe dans sa classe alphaMode.
+#[test]
+fn compile_ranks_a_zero_transmission_by_its_alpha_mode() {
+    let (root, options) = fixture();
+    let mut gltf = read_gltf(&options);
+    gltf["materials"] = json!([{"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":0.0}}}]);
+    gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+    write_gltf(&options, &gltf, None);
+    let result = compile(&options, |_| {}).expect("compile");
+    assert_eq!(result["primitives"][0]["pass"], "clustered-blend");
+    fs::remove_dir_all(root).expect("cleanup");
+}
 #[test]
 fn compile_opaque_source_emits_the_base_cache_and_blend_the_next_format() {
     let (root, options) = fixture();

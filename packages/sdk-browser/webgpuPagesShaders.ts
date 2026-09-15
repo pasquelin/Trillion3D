@@ -9,7 +9,8 @@ import {
   atlasTextures,
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
-import { FLAG_PAGED, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
+import { FLAG_PAGED, FLAG_TRANSMISSIVE, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
+import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -68,6 +69,7 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.clusterIds}) var<storage,read> clusterIds:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec2u>;
+${TRANSMISSION_WGSL}
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
@@ -146,6 +148,9 @@ ${TRIANGLE_PALETTE_WGSL}
   return vec4f(color,1.0);
  }
  var rgb=in.color.xyz*sample.xyz;
+ // La teinte du matériau avant tout éclairage : c'est elle qui colore le fond qu'une surface
+ // transmissive laisse voir, jamais la couleur déjà éclairée.
+ let baseTint=rgb;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
  if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,wrapped,gradX,gradY).g;}
  if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,wrapped,gradX,gradY).b;}
@@ -164,11 +169,18 @@ ${TRIANGLE_PALETTE_WGSL}
  if(alpha<uni.alphaTest){discard;}
  // Aucune lampe déclarée, ou vue sans éclairage demandée : l'albédo brut, exactement comme la
  // résolution opaque. Ni ambiance, ni ciel, ni soleil par défaut (P6).
- if((uni.flags&${FLAG_UNLIT_VIEW}u)!=0u){return vec4f(rgb,alpha);}
- if((uni.flags&1u)!=0u){
+ let unlit=(uni.flags&${FLAG_UNLIT_VIEW}u)!=0u;
+ let V=normalize(uni.camPos.xyz-in.view);
+ let clamped=clamp(rough,0.0525,1.0);
+ if(!unlit&&(uni.flags&1u)!=0u){
   let m=clamp(metal,0.0,1.0);
-  let V=normalize(uni.camPos.xyz-in.view);
-  rgb=declaredLighting(rgb,m,clamp(rough,0.0525,1.0),N,V,in.view,ao)+bounceLighting(rgb,m,N,in.view,ao)+emissive;
+  rgb=declaredLighting(rgb,m,clamped,N,V,in.view,ao)+bounceLighting(rgb,m,N,in.view,ao)+emissive;
+ }
+ // La classe 3 relit le fond figé au lieu de le mélanger par alpha. Le drapeau vient du matériau,
+ // et cette passe est la seule à le porter : une vue sans éclairage transmet toujours ce qu'elle
+ // voit derrière, elle ne l'éclaire simplement pas.
+ if((uni.flags&${FLAG_TRANSMISSIVE}u)!=0u){
+  return transmissionColor(rgb,baseTint,alpha,N,V,in.view,in.position.xy,in.position.z,clamped,ao,unlit);
  }
  return vec4f(rgb,alpha);
 }
