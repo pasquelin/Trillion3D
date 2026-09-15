@@ -15,7 +15,11 @@ import {
   type WebgpuCaptureState,
   type WebgpuRunState,
 } from './webgpuPagesStateRun.ts';
-import { createWebgpuTimingState, type WebgpuTimingState } from './webgpuPagesStateTiming.ts';
+import {
+  createWebgpuStageProfiler,
+  createWebgpuTimingState,
+  type WebgpuTimingState,
+} from './webgpuPagesStateTiming.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
 
 export type WebgpuPagesBackend = RenderBackend & {
@@ -123,7 +127,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     lights: createWebgpuLightState(context.sceneLights),
     run,
     capture: createWebgpuCaptureState(),
-    timing: createWebgpuTimingState(),
+    timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),
     capabilities,
     blendState,
     texturePump,

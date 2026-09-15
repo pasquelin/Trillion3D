@@ -40,11 +40,17 @@ export function createSceneLightStore() {
   const ids: string[] = [];
   const indexOf = new Map<string, number>();
   const revision = new Uint32Array(LIGHT_SETTINGS.maxLights);
-  const shadowSlice = new Int32Array(LIGHT_SETTINGS.maxLights).fill(-1);
   let environment: SceneEnvironment | undefined,
     epoch = 1;
+  const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
+  /** La tranche d'atlas d'une lampe vit dans le tampon lui-même : elle n'est pas tenue deux fois. */
+  const sliceOf = (slot: number) => packed[baseOf(slot) + LIGHT_FIELD.shadowSlice];
+  const writeSlice = (slot: number, slice: number) => {
+    packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
+  };
+  /** Les champs déclarés par l'hôte. La tranche d'ombre n'en est pas un : l'ordonnanceur la pose. */
   const write = (slot: number, light: SceneLight) => {
-    const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
+    const base = baseOf(slot);
     packed[base + LIGHT_FIELD.position] = light.position[0];
     packed[base + LIGHT_FIELD.position + 1] = light.position[1];
     packed[base + LIGHT_FIELD.position + 2] = light.position[2];
@@ -61,14 +67,13 @@ export function createSceneLightStore() {
       light.kind === 'spot' ? Math.cos(light.coneAngle!) : NO_CONE;
     packed[base + LIGHT_FIELD.kind] = light.kind === 'spot' ? 1 : 0;
     packed[base + LIGHT_FIELD.castsShadow] = light.castsShadow ? 1 : 0;
-    packed[base + LIGHT_FIELD.shadowSlice] = shadowSlice[slot];
   };
   const records = new Map<string, SceneLight>();
   const store = {
     settings: LIGHT_SETTINGS,
     packed,
     revision,
-    shadowSlice,
+    sliceOf,
     ids,
     get count() {
       return ids.length;
@@ -105,9 +110,10 @@ export function createSceneLightStore() {
       ids.push(validated.id);
       indexOf.set(validated.id, slot);
       records.set(validated.id, validated);
-      shadowSlice[slot] = -1;
       revision[slot]++;
       write(slot, validated);
+      // Un slot neuf est à zéro dans le tampon ; sans tranche, la valeur publiée est −1.
+      writeSlice(slot, -1);
       header[0] = ids.length;
       epoch++;
       return slot;
@@ -134,14 +140,13 @@ export function createSceneLightStore() {
         const movedId = ids[last];
         ids[slot] = movedId;
         indexOf.set(movedId, slot);
-        shadowSlice[slot] = shadowSlice[last];
         revision[slot] = revision[last] + 1;
         write(slot, records.get(movedId)!);
+        writeSlice(slot, sliceOf(last));
       }
       ids.length = last;
       indexOf.delete(id);
       records.delete(id);
-      shadowSlice[last] = -1;
       revision[last] = 0;
       packed.fill(
         0,
@@ -158,10 +163,8 @@ export function createSceneLightStore() {
     /** Note la tranche d'atlas qu'une lampe occupe, sans toucher au reste de ses champs. La révision
      *  du magasin ne monte que si la tranche a réellement changé : sinon rien n'est repoussé au GPU. */
     assignSlice(slot: number, slice: number) {
-      if (shadowSlice[slot] === slice) return;
-      shadowSlice[slot] = slice;
-      packed[SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS + LIGHT_FIELD.shadowSlice] =
-        slice;
+      if (sliceOf(slot) === slice) return;
+      writeSlice(slot, slice);
       epoch++;
     },
     /** Les flottants réellement occupés : l'écriture GPU ne pousse jamais les slots vides. */

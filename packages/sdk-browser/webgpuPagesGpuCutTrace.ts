@@ -1,7 +1,23 @@
 import type * as THREE from 'three';
-import { publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { addCpuSteps } from './stageMapping.ts';
+import { CPU_STEP, CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+/** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
+function recordStages(rt: WebgpuPagesRuntime) {
+  const { timing, lights } = rt,
+    stages = timing.stages;
+  if (!stages) return;
+  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
+  // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées.
+  stages.setCounts('shadows', {
+    lampesAOmbre: lights.shadowsUpdated,
+    facesRedessinees: lights.shadowFaces,
+    appelsDeDessin: lights.shadowDrawCalls,
+  });
+  stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
+}
 
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */
 export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
@@ -10,20 +26,31 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   const submitMs = m.cpuEnd - m.encodeStart;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
-  steps[0] = m.adoptEnd - m.lightsEnd;
-  steps[1] = m.transparentSelectEnd - m.adoptEnd;
-  steps[2] = m.admissionEnd - m.transparentSelectEnd;
-  steps[3] = m.queueEnd - m.admissionEnd;
-  steps[4] = m.rowsEnd - m.queueEnd;
-  steps[5] = m.residencyUploadEnd - m.rowsEnd;
-  steps[6] = m.selectionEnd - m.residencyUploadEnd;
-  steps[7] = timing.lastProjectMs;
-  steps[8] = timing.lastPartitionMs;
-  steps[9] = timing.lastItemsMs;
-  steps[10] = submitMs - timing.lastProjectMs - timing.lastPartitionMs - timing.lastItemsMs;
-  steps[11] = submitMs;
-  steps[12] = m.cpuEnd - m.cpuStart;
+  steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
+  steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;
+  steps[CPU_STEP.transparentSelectMs] = m.transparentSelectEnd - m.adoptEnd;
+  steps[CPU_STEP.admissionMs] = m.admissionEnd - m.transparentSelectEnd;
+  steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd;
+  steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd;
+  steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd;
+  steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.residencyUploadEnd;
+  steps[CPU_STEP.projectBoxesMs] = timing.lastProjectMs;
+  steps[CPU_STEP.partitionMs] = timing.lastPartitionMs;
+  steps[CPU_STEP.itemsMs] = timing.lastItemsMs;
+  // L'encodage restant exclut la soumission elle-même : les deux étapes ne se recouvrent jamais.
+  steps[CPU_STEP.encodeRestMs] = Math.max(
+    0,
+    submitMs -
+      timing.lastProjectMs -
+      timing.lastPartitionMs -
+      timing.lastItemsMs -
+      timing.lastQueueSubmitMs,
+  );
+  steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs;
+  steps[CPU_STEP.encodeSubmitMs] = submitMs;
+  steps[CPU_STEP.totalMs] = m.cpuEnd - m.cpuStart;
   timing.cpuProfile.record(run.frame, m.cpuEnd - m.cpuStart);
+  recordStages(rt);
   timing.cpuSample = {
     version: 1,
     frame: run.frame,

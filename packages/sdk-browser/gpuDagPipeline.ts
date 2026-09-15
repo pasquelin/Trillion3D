@@ -1,4 +1,6 @@
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+import { openValidation, validationError } from './gpuErrorScope.ts';
+import { shaderFailed } from './gpuShaderModule.ts';
 
 type DagBuffers = {
   clusters: GPUBuffer;
@@ -14,7 +16,7 @@ type DagBuffers = {
 
 export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
   const { clusters, nodes, uniforms, flags, output, work, worlds, frames, pageCones } = buffers;
-  if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+  openValidation(device);
   const storage = { type: 'storage' } as const,
     readOnly = { type: 'read-only-storage' } as const;
   const layout = device.createBindGroupLayout({
@@ -31,13 +33,7 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     ],
   });
   const module = device.createShaderModule({ code: DAG_SELECTION_SHADER });
-  if (typeof module.getCompilationInfo === 'function') {
-    const info = await module.getCompilationInfo();
-    if (info.messages.some((message) => message.type === 'error')) {
-      if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
-      return undefined;
-    }
-  }
+  if (await shaderFailed(device, module)) return undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const stage = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
@@ -48,12 +44,7 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     escalatePipeline = stage('dagEscalate'),
     checkPipeline = stage('dagCheck'),
     maskPipeline = stage('dagMask');
-  if (typeof device.popErrorScope === 'function') {
-    const error = await device.popErrorScope();
-    if (error) {
-      return undefined;
-    }
-  }
+  if (await validationError(device)) return undefined;
   const bindGroup = device.createBindGroup({
     layout,
     entries: [

@@ -1,3 +1,4 @@
+import { disabledStageProfile } from '../sdk-core/index.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 import { prepareGpuTiming, watchGpuDevice } from './webgpuPagesPrepareTiming.ts';
@@ -104,6 +105,15 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     metrics() {
       return metricsOf(rt);
+    },
+    resetStageProfile() {
+      rt.timing.stages?.reset();
+    },
+    stageProfile() {
+      return (
+        rt.timing.stages?.profile() ??
+        disabledStageProfile('webgpu-page-raster', 'profil par étape non demandé par l’hôte')
+      );
     },
     dispose() {
       return disposeWebgpuPages(rt, onGpuError);
