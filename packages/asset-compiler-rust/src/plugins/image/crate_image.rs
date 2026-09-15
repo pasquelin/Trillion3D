@@ -5,6 +5,9 @@
 //! le pilote, et lui seul décide de ce qu'il accepte.
 use super::DecodedImage;
 
+/// Une animation n'est pas une texture : refusée, jamais aplatie, quel que soit le format qui la porte.
+pub(super) const ANIMATED: &str = "image-animation-unsupported";
+
 pub(super) fn decode(
     bytes: &[u8],
     max_alloc: u64,
@@ -19,5 +22,5 @@ pub(super) fn decode(
     if decoded.width() == 0 || decoded.height() == 0 {
         return Err("image-empty");
     }
-    Ok(DecodedImage::Rgba8(decoded.to_rgba8()))
+    Ok(DecodedImage::Rgba8(decoded.into_rgba8()))
 }
