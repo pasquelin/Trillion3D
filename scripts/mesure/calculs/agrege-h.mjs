@@ -8,10 +8,10 @@ import { execFileSync } from 'node:child_process';
 import { loadavg } from 'node:os';
 import { ecrisBitAbit } from './tableau.mjs';
 
-/** Le commit de `develop` sous le lot : ce que la mesure a réellement sous les pieds. */
-function base() {
+/** Un commit, ou `null` : une mesure sans provenance n'en est pas une. */
+function sha(...args) {
   try {
-    return execFileSync('git', ['rev-parse', 'develop'], { encoding: 'utf8' }).trim();
+    return execFileSync('git', args, { encoding: 'utf8' }).trim();
   } catch {
     return null;
   }
@@ -20,12 +20,16 @@ function base() {
 /** Au-delà de cette charge moyenne, les chronomètres ne départagent plus rien d'honnête. */
 const CHARGE_MAX = 4;
 const charge = loadavg()[0];
-const develop = base();
+const develop = sha('rev-parse', 'develop');
+const socle = sha('merge-base', 'HEAD', 'develop');
 const lignes = [
-  develop ? `Lot H rebasé sur develop \`${develop}\`.` : null,
+  socle
+    ? `Base du lot : \`${socle}\` ; \`develop\` au moment de la mesure : \`${develop}\`.`
+    : null,
   'Node exécute le repli synchrone : « Avant » et « Après » y mesurent le prix du contrat (copie de ' +
-    'la page compressée, aller-retour des messages), jamais le temps rendu au fil principal. Seule ' +
-    'la colonne « Identique » et la campagne navigateur font foi pour le gain.',
+    'la page compressée, aller-retour des messages), jamais le temps rendu au fil principal. ' +
+    '« Retenu » veut donc dire « livré », et c’est l’égalité bit à bit qui le décide ; le gain, lui, ' +
+    'est du temps rendu au fil principal du navigateur, et il se lit dans la campagne pixel.',
 ];
 if (charge > CHARGE_MAX)
   lignes.push(
@@ -36,6 +40,6 @@ if (charge > CHARGE_MAX)
 ecrisBitAbit({
   nom: 'calculs-h2',
   titre: 'Calculs, lot H2 : décodage hors du fil principal, avant / après',
-  extra: { lot: 'H2', develop, chargeMachine: charge, tempsConcluants: false },
+  extra: { lot: 'H2', develop, socle, chargeMachine: charge, tempsConcluants: false },
   note: lignes.filter(Boolean).join('\n'),
 });

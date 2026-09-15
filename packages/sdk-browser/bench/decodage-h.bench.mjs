@@ -142,9 +142,14 @@ const lignes = [
   }),
 ];
 
+// « Retenu » veut dire ici « livré », et non « plus rapide sous Node » : le gain de ce lot est du
+// temps rendu au fil principal du navigateur, que ce banc ne peut pas voir. Ce qui décide, c'est
+// l'égalité bit à bit — sans elle, la ligne tombe.
+const livrees = lignes.map((ligne) => ({ ...ligne, retenu: ligne.identique }));
+
 verifieEtDepose(
   'decodage-h',
   'H1 et H2 rendent exactement les mêmes valeurs',
-  lignes,
+  livrees,
   join(RACINE, '.mesure', 'calculs-h2'),
 );
