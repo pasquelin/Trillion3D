@@ -10,8 +10,8 @@
 8. `/simplify` : appliquer ses constats, sauter ce qui change la sortie (dorées, JSON, pixels) en le disant. Optimisation = résultat identique.
 9. Pousser en deux temps : lire `CODE=0` du validate, puis `git merge-base --is-ancestor origin/develop <sha>` et `git push origin <sha>:refs/heads/develop`. Jamais de push sans validate vert sur ce SHA exact.
 10. Après push : aligner `develop` et `main` locaux, envoyer le SHA aux sessions pour qu'elles rebasent.
-11. Verrou `.claude/mesure.lock` pour tout validate : `mkdir` sans `-p`, dossier laissé vide, libération chaînée à la prise réussie (`mkdir … && { …; rmdir …; }`), jamais après un `;`. Attente : une seule commande en arrière-plan `until mkdir …; do sleep 20; done`, jamais de boucle `pgrep`. Prévenir « verrou rendu ».
-12. Verrou d'autrui : ne rien y écrire, ne pas le retirer ; demander à son propriétaire et attendre la réponse.
+11. Verrou `.claude/mesure.lock` pour tout validate : règle commune d'`AGENTS.md`, `proprietaire` = « Validateur validate <sha> ». Prévenir « verrou rendu ».
+12. Verrou sans `proprietaire` depuis plus d'une minute : interroger toutes les sessions, attendre leurs réponses, puis seulement le retirer. Jamais retirer un verrou nommé d'autrui.
 13. Gel demandé par une session : ne rien fusionner jusqu'à son feu vert ; préparer les correctifs sur `validateur/*`.
 14. Préavis à la session propriétaire avant de fusionner un correctif dans ses fichiers.
 15. Nettoyage à chaque tour, dû et pas optionnel : worktrees, branches locales et références distantes mortes. Supprimer seulement ce qui est fusionné (`git rev-list --count develop..<branche>` = 0) et propre, sans session vivante (`lsof -d cwd`), après `cp -Rn .mesure/out` vers le checkout principal ; `git worktree remove` sans `--force`, `git branch -d`. Jamais les worktrees de session, les worktrees verrouillés, les branches et tags `essai/*`.
