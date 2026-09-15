@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { HIZ_BACKGROUND, hizBuildPyramid } from '../sdk-core/index.ts';
-import { unpackVisibilityId, type VisPage } from './visibilityBuffer.ts';
-import { projectVisibilityVertex } from './visibilityProjection.ts';
+import { createVisibilityFrame } from './visibilityFrame.ts';
+import type { VisPage } from './visibilityBuffer.ts';
 import type { HizPyramid } from './hizTypes.ts';
 
 const viewProjScratch = new THREE.Matrix4();
@@ -21,7 +21,8 @@ export function buildHizPyramid(depth: Float32Array, width: number, height: numb
   return { levels: hizBuildPyramid(rowsOf(depth, width, height)), width, height };
 }
 
-/** NDC z of the visbuffer winner. Background pixels stay 1. */
+/** NDC z of the visbuffer winner. Background pixels stay 1. Les sommets d'un triangle ne sont
+ *  projetés qu'une fois par image, jamais une fois par pixel : mêmes opérandes, moins souvent. */
 export function visibilityDepth(
   ids: Uint32Array,
   pages: VisPage[],
@@ -36,40 +37,12 @@ export function visibilityDepth(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
   );
+  const frame = createVisibilityFrame(pages, viewProj, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
-      const unpacked = unpackVisibilityId(ids[y * width + x]);
-      if (!unpacked) continue;
-      const page = pages[unpacked.pageIndex];
-      if (!page?.attributes.position) continue;
-      const index = page.array,
-        base = unpacked.triangleIndex * 3;
-      if (base + 2 >= index.length) continue;
-      const a = projectVisibilityVertex(
-        page.matrix,
-        page.attributes.position,
-        index[base],
-        viewProj,
-        width,
-        height,
-      );
-      const b = projectVisibilityVertex(
-        page.matrix,
-        page.attributes.position,
-        index[base + 1],
-        viewProj,
-        width,
-        height,
-      );
-      const c = projectVisibilityVertex(
-        page.matrix,
-        page.attributes.position,
-        index[base + 2],
-        viewProj,
-        width,
-        height,
-      );
-      if (!a || !b || !c) continue;
+      const triangle = frame.triangle(ids[y * width + x]);
+      if (!triangle) continue;
+      const { a, b, c } = triangle;
       const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
       if (area === 0) continue;
       const w0 = ((b.x - x) * (c.y - y) - (c.x - x) * (b.y - y)) / area,
