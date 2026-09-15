@@ -1,39 +1,54 @@
-# État de la boucle loop-code
+# STATE — mémoire de la boucle
 
-Dépôt `/Users/pasquelin/Applications/webGeometry`. Profil : `.agents/loop-profile.md` (v1,
-généré le 2026-09-15).
+> Ce fichier doit permettre à une session **totalement fraîche** de reprendre sans rien
+> redemander à l'utilisateur. Mis à jour à chaque fin d'itération.
 
-## Dernière itération
+## Où en est la boucle
 
-Aucune. Ce dépôt vient d'exécuter `/loop-code init` (2026-09-15, branche `loop-code-init`,
-worktree `.claude/worktrees/loop-code-init`, depuis `develop` à `2f4224e`). Aucun lot de
-correction n'a encore été traité.
+| | |
+|---|---|
+| Itération | 0 — aucune. Seul `/loop-code init` a tourné |
+| Mode | `init` |
+| Profil généré le | 2026-09-15, depuis `develop` à `2f4224e` |
+| Version des skills | v1 |
+| Dernier lot traité | aucun |
+| Verdict | — |
+
+## Décompte des gates de la dernière itération
+
+```
+Gates : 18 vérifiés · 5 non applicables justifiés · 1 non vérifiable
+```
+
+Z > 0 bloque le merge. Le non vérifiable est **les cycles d'imports JS/TS** : aucun outil de
+détection dans le dépôt (ni `madge`, ni `eslint-plugin-import` avec `import/no-cycle`). Outillage
+manquant et escalade requise : voir `BACKLOG.md`, section « Lots d'outillage ».
 
 ## Prochain lot, et pourquoi lui
 
-**P0 · outillage · cycles d'imports JS/TS · aucun outil de détection (`madge` ou
-`eslint-plugin-import` + règle `import/no-cycle`) · permettrait de vérifier le gate #16 du
-gate-merge (« aucun cycle d'imports nouveau »).**
+Le lot d'outillage « cycles d'imports ». Un gate non vérifiable bloque le merge et se traite
+seul, avant tout P1 ou P2. Il commence par une escalade auprès de l'utilisateur, parce qu'il
+suppose d'ajouter une dépendance.
 
-C'est le seul P0 ouvert : per `capacites.md`, un gate NON VÉRIFIABLE bloque le merge et se traite
-seul, avant tout P1/P2. Voir `.agents/loop-code/BACKLOG.md` pour le détail et les options.
-
-Après ce P0 : aucun P1 ni P2 n'a été détecté par cet `init` (il ne rejoue pas les rapports de
-duplication/code mort en mode dérive — ceux relevés ici sont à 0 signalement le 2026-09-15 sur la
-branche `loop-code-init`, alignée sur `develop` à `2f4224e` — `develop` a avancé depuis). Un audit de dérive (`/loop-code watch`) ou une
-itération complète (`/loop-code`) partira de cet état.
+Ensuite seulement, le P1 des deux lockfiles (`BACKLOG.md`).
 
 ## Ce qu'une session fraîche doit savoir pour reprendre
 
-- Le profil couvre tout le dépôt mais distingue deux stacks noyau sans module dédié (TypeScript/
-  Node, Rust) et une stack avec module (`gpu-realtime`, `packages/sdk-browser`). Pas de React, pas
-  d'Electron, pas d'UI dans `packages/` : les gates de design/listes/captures sont N/A.
-- Le compilateur natif (`packages/asset-compiler-rust`) se construit avec `npm run build:native`
-  et se mesure sur la scène Emerald du Lab (lecture seule) :
-  `/Users/pasquelin/Applications/render-tech-lab/public/benchmark-assets/emerald-square`. Le
-  cache de sortie va toujours hors dépôt (scratchpad ou dossier ignoré), jamais dans le Lab.
-- `npm run validate` = format:check, check:lines, check:duplicates, lint, check:unused, build,
-  build:native, check:structure, check:dts, check:links, test, test:native — tous verts au
-  moment de cet `init` (voir `.agents/loop-profile.md`, section Capacités, pour chaque sortie).
-- Deux lockfiles sont suivis par git (`package-lock.json`, `pnpm-lock.yaml`) ; npm fait foi, voir
-  la section Contradictions du profil.
+- **Où est l'état.** `.agents/` n'est pas suivi par git (décision du 2026-09-15, au même titre que
+  `.claude/`) : ces fichiers sont locaux à la machine. Ce qui doit survivre à un clone s'écrit
+  dans `orchestration/`, conformément à `AGENTS.md`.
+- **Stacks.** Deux stacks noyau sans module dédié dans `references/stacks/` (TypeScript/Node,
+  Rust) et une avec module (`gpu-realtime`, pour `packages/sdk-browser`). Pas de React, pas
+  d'Electron, aucune UI dans `packages/` : les gates de design, de listes et de captures sont
+  N/A, raison écrite au profil.
+- **Compilateur natif.** `packages/asset-compiler-rust` se construit par `npm run build:native`
+  et se mesure sur la scène Emerald du Lab, en lecture seule. Le cache de sortie va toujours hors
+  dépôt (scratchpad ou dossier ignoré), jamais dans le Lab.
+- **Portes.** `npm run validate` enchaîne format, lignes, duplication, lint, code inutilisé,
+  build, build natif, structure, `.d.ts`, liens, tests JS/TS et Rust. La liste fait foi dans
+  `scripts/validate.mjs`, pas ici : la relire plutôt que la recopier.
+- **Conventions non écrites dans `AGENTS.md`.** Branche unique `develop`, worktree isolé par lot,
+  jamais de `git stash`, port 5174 réservé à l'utilisateur : tout cela vient de
+  `orchestration/JOURNAL.md`. `AGENTS.md` porte les portes de validation, la limite de 200
+  lignes, le seuil de duplication, la lecture seule du Lab et l'interdiction de nommer le système
+  de géométrie virtualisée d'Epic.
