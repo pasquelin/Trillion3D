@@ -46,6 +46,7 @@
     "check:changed": "node scripts/check-changed.mjs",
     "test:watch": "node --experimental-strip-types --test --watch packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs test/*.test.mjs",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
+    "bench:calculs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs",
     "lint": "eslint . && cargo clippy --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --all-targets -- -D warnings",
     "format": "prettier --write \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "format:check": "prettier --check \"**/*.{js,cjs,mjs,ts,mts,tsx,json}\" && cargo fmt --all --manifest-path packages/asset-compiler-rust/Cargo.toml -- --check",
