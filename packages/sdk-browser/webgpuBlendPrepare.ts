@@ -52,8 +52,7 @@ export function prepareWebgpuBlend(
     // objet les écrivent une fois. Les octets sont les mêmes, l'ordre des items aussi.
     const index = paged ? undefined : ensureBlendIndexBuffer(device, idx, gpu);
     const uv = ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
-    const normalAttr = copy.geometry.attributes.normal,
-      tangentAttr = copy.geometry.attributes.tangent;
+    const tangentAttr = copy.geometry.attributes.tangent;
     const normal = ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
     const opacity = Array.isArray(copy.material)
       ? ((copy.material[0] as THREE.MeshBasicMaterial).opacity ?? 1)
