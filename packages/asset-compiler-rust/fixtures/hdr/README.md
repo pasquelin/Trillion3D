@@ -3,16 +3,16 @@
 Sept fichiers minuscules et une scène. Quatre portent la même image écrite de quatre façons ; trois
 sont là pour être refusés, chacun par son nom.
 
-| fichier | ce qu'il porte | ce qu'il met sous surveillance |
-| --- | --- | --- |
-| `plat.hdr` | 4 × 2, lignes brutes | quatre octets par pixel, sans aucun marqueur |
-| `rle-ancienne.hdr` | 4 × 2, marqueurs `1,1,1,n` | la compression de « Real Pixels » : mêmes pixels que `plat.hdr` |
-| `signature-rgbe.hdr` | 4 × 2, signature `#?RGBE` | la seconde signature du format, que les fichiers anciens portent |
-| `rle-nouvelle.hdr` | 8 × 1, entête `2, 2, largeur` | la compression par composantes, ses plages **et** ses paquets bruts dans la même ligne |
-| `xyze.hdr` | `FORMAT=32-bit_rle_xyze` | un autre espace de couleur : refus `hdr-format-unsupported` |
-| `bas-en-haut.hdr` | résolution `+Y 2 +X 4` | une orientation qu'il faudrait retourner : refus `hdr-orientation-unsupported` |
-| `tronque.hdr` | 7 des 32 octets de pixels | refus `hdr-data-truncated`, jamais une ligne à moitié |
-| `scene.gltf`, `scene.bin` | un quad dont la couleur de base est `plat.hdr` | le chemin complet jusqu'au rapport des aperçus, où la texture flottante est nommée |
+| fichier                   | ce qu'il porte                                 | ce qu'il met sous surveillance                                                         |
+| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `plat.hdr`                | 4 × 2, lignes brutes                           | quatre octets par pixel, sans aucun marqueur                                           |
+| `rle-ancienne.hdr`        | 4 × 2, marqueurs `1,1,1,n`                     | la compression de « Real Pixels » : mêmes pixels que `plat.hdr`                        |
+| `signature-rgbe.hdr`      | 4 × 2, signature `#?RGBE`                      | la seconde signature du format, que les fichiers anciens portent                       |
+| `rle-nouvelle.hdr`        | 8 × 1, entête `2, 2, largeur`                  | la compression par composantes, ses plages **et** ses paquets bruts dans la même ligne |
+| `xyze.hdr`                | `FORMAT=32-bit_rle_xyze`                       | un autre espace de couleur : refus `hdr-format-unsupported`                            |
+| `bas-en-haut.hdr`         | résolution `+Y 2 +X 4`                         | une orientation qu'il faudrait retourner : refus `hdr-orientation-unsupported`         |
+| `tronque.hdr`             | 7 des 32 octets de pixels                      | refus `hdr-data-truncated`, jamais une ligne à moitié                                  |
+| `scene.gltf`, `scene.bin` | un quad dont la couleur de base est `plat.hdr` | le chemin complet jusqu'au rapport des aperçus, où la texture flottante est nommée     |
 
 `src/plugins/tests/hdr.rs` compare les valeurs **une par une** à une référence écrite en clair dans
 le test. Les quatre quadruplets RGBE employés ont des exposants lisibles à l'œil — `2^-8`, `2^-7`,
