@@ -1,14 +1,8 @@
+import { createGpuPeriodicReadback } from './gpuPeriodicReadback.ts';
 import { HIZ_BOUNDS_VALUES, createHizCounts, hizOversizedFlat, type HizCounts } from './hiz.ts';
 
 /** One image's counts and the number of that image. */
 export type HizCountsFrame = HizCounts & { frame: number };
-
-/**
- * Images between two readbacks of the test verdicts. The verdicts are written by the GPU, so counting
- * what they eliminated costs one copy of the flag rows and one mapping; both are kept off the images
- * in between, and neither ever blocks an image.
- */
-const COUNT_EVERY_IMAGES = 15;
 
 /**
  * Per-image inputs the counters need and the test does not: the triangles each tested box carries, in
@@ -17,18 +11,15 @@ const COUNT_EVERY_IMAGES = 15;
  */
 export type HizCountSample = { triangles: ArrayLike<number>; frame: number };
 
-/** `GPUMapMode.READ`, or the value it holds where a stub device leaves the enum undefined. */
-const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1;
-
 /**
- * Counting machinery for the GPU occlusion test, sized once. `counted` describes the last image whose
- * verdicts came back; the `sampled*` fields hold the image being read, because the caller's own arrays
- * are rewritten by the next one. Nothing here is deduced: a device that cannot map a buffer simply
- * never reports counts.
+ * Counting machinery for the GPU occlusion test, sized once. The verdicts are written by the GPU, so
+ * counting what they eliminated costs one copy of the flag rows and one mapping, both on the periodic
+ * readback's rhythm. `counted` describes the last image whose verdicts came back; the `sampled*`
+ * fields hold the image being read, because the caller's own arrays are rewritten by the next one.
+ * Nothing here is deduced: a device that cannot map a buffer simply never reports counts.
  */
 export function createHizCounters(cap: number) {
   const counted: HizCountsFrame = { ...createHizCounts(), frame: -1 };
-  let countedReady = false;
   const sampledRows = new Uint32Array(cap),
     sampledTriangles = new Uint32Array(cap);
   let sampledCount = 0,
@@ -37,39 +28,10 @@ export function createHizCounters(cap: number) {
     sampledOversized = 0,
     sampledTestedTriangles = 0,
     sampledOversizedTriangles = 0;
-  let readback: GPUBuffer | undefined,
-    readbackRows = 0,
-    copyEncoded = false,
-    mapping = false,
-    lastCountedFrame = -COUNT_EVERY_IMAGES;
-  let disposed = false;
 
-  /** Staging buffer for the verdicts, made on the first sampled image and never once per image. */
-  const ensureReadback = (target: GPUDevice) => {
-    if (readback) return true;
-    if (typeof target.createBuffer !== 'function') return false;
-    try {
-      const buffer = target.createBuffer({
-        label: 'WG HiZ counts readback',
-        size: Math.max(4, cap * 4),
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      });
-      if (typeof buffer.mapAsync !== 'function' || typeof buffer.getMappedRange !== 'function') {
-        buffer.destroy();
-        return false;
-      }
-      readback = buffer;
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  // The mapping's handlers, made once: a sampled image allocates no closure to read its verdicts.
-  const onMapped = () => {
-    if (disposed || !readback) return;
-    const rowsRead = readbackRows;
-    const verdicts = new Uint32Array(readback.getMappedRange(0, rowsRead * 4));
+  const reader = createGpuPeriodicReadback((mapped) => {
+    const verdicts = new Uint32Array(mapped),
+      rowsRead = verdicts.length;
     let rejected = 0,
       rejectedTriangles = 0;
     for (let i = 0; i < sampledCount; i++) {
@@ -86,30 +48,33 @@ export function createHizCounters(cap: number) {
     counted.oversizedTriangles = sampledOversizedTriangles;
     counted.rejected = rejected;
     counted.rejectedTriangles = rejectedTriangles;
-    countedReady = true;
-  };
-  /** A device loss or a disposal cancels a mapping; the counters keep their last image. */
-  const onMapFailed = () => {};
-  const onSettled = () => {
+  });
+
+  /** Staging buffer for the verdicts, made on the first sampled image and never once per image. */
+  const ensureReadback = (target: GPUDevice) => {
+    if (reader.buffer) return true;
+    if (typeof target.createBuffer !== 'function') return false;
     try {
-      readback?.unmap();
+      const buffer = target.createBuffer({
+        label: 'WG HiZ counts readback',
+        size: Math.max(4, cap * 4),
+        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+      });
+      if (typeof buffer.mapAsync !== 'function' || typeof buffer.getMappedRange !== 'function') {
+        buffer.destroy();
+        return false;
+      }
+      reader.adopt(buffer);
+      return true;
     } catch {
-      /* Already unmapped by a disposal. */
+      return false;
     }
-    mapping = false;
   };
 
   return {
     /** True when this image owes a readback: the interval elapsed and no mapping is in flight. */
     due(device: GPUDevice, sample: HizCountSample | undefined, flagRows: number) {
-      return (
-        !!sample &&
-        !mapping &&
-        !copyEncoded &&
-        flagRows > 0 &&
-        sample.frame - lastCountedFrame >= COUNT_EVERY_IMAGES &&
-        ensureReadback(device)
-      );
+      return !!sample && flagRows > 0 && reader.due(sample.frame) && ensureReadback(device);
     },
     /** Records one tested box while the caller packs it, so counting walks the boxes only once. */
     observe(index: number, row: number, triangles: number, bounds: Float64Array) {
@@ -137,40 +102,24 @@ export function createHizCounters(cap: number) {
       flagRows: number,
       frame: number,
     ) {
-      if (!readback) return;
+      if (!reader.buffer) return;
       sampledCount = count;
       sampledFrame = frame;
-      readbackRows = Math.min(cap, flagRows);
-      encoder.copyBufferToBuffer(flags, 0, readback, 0, readbackRows * 4);
-      copyEncoded = true;
-      lastCountedFrame = frame;
+      reader.copy(encoder, flags, 0, Math.min(cap, flagRows) * 4);
+      reader.sampled(frame);
     },
     /**
-     * Hands the verdicts of the sampled image to the mapping. Called once the image that encoded the
-     * copy has been submitted: a mapping requested before the submission would make that submission
-     * use a mapped buffer. A no-op on every image that encoded no copy.
+     * Hands the verdicts of the sampled image to the mapping, once the image that encoded the copy
+     * has been submitted. A no-op on every image that encoded no copy.
      */
-    submitted() {
-      if (!copyEncoded || !readback || disposed) return;
-      copyEncoded = false;
-      mapping = true;
-      Promise.resolve(readback.mapAsync(mapRead(), 0, readbackRows * 4))
-        .then(onMapped, onMapFailed)
-        .finally(onSettled);
-    },
+    submitted: reader.submitted,
     /**
      * Counts of the last image whose verdicts came back, and the number of that image. Undefined
      * until one has.
      */
     counts() {
-      return countedReady ? counted : undefined;
+      return reader.ready ? counted : undefined;
     },
-    dispose() {
-      disposed = true;
-      countedReady = false;
-      copyEncoded = false;
-      readback?.destroy();
-      readback = undefined;
-    },
+    dispose: reader.dispose,
   };
 }

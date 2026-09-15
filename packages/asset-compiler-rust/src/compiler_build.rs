@@ -8,8 +8,11 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // qui suit ne lit qu'un glTF, sans savoir de quel format il vient.
     let progress = with_ratio(progress);
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
+    // La racine où les URI relatives d'images se résolvent, lue avant tout déplacement de `o.source`
+    // vers le cache : une scène convertie l'y a écrite, ses images sont restées où le pilote les a lues.
+    let image_root = routed.scene.images(&o.source);
     let imported;
-    let o = if let PreparedScene::Converted(directory) = &routed.scene {
+    let o = if let PreparedScene::Converted { directory, .. } = &routed.scene {
         imported = Options {
             source: directory.clone(),
             ..o.clone()
@@ -104,21 +107,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     })?;
     // Les aperçus 16×16 des textures couleur, lus sur le glTF d'entrée et son binaire déjà mappé :
     // un décodage impossible est une ligne de rapport, jamais un échec de compilation.
-    let source_dir = if o.source.is_file() {
-        o.source
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-            .unwrap_or(Path::new("."))
-            .to_path_buf()
-    } else {
-        o.source.clone()
-    };
     let (texture_previews, texture_preview_report) =
         texture_preview::stage_texture_previews(&texture_preview::PreviewInputs {
             o,
             g,
             bin,
-            source_dir: &source_dir,
+            image_root: &image_root,
             meshes: &meshes,
             view_map: &view_map,
         })?;
