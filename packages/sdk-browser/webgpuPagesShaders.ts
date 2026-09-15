@@ -1,5 +1,5 @@
 import { ACES_WGSL } from './deferredLightingShaders.ts';
-import { DECLARED_LIGHTING_WGSL } from './directLightingWgsl.ts';
+import { declaredLightingWgsl } from './directLightingWgsl.ts';
 import { bounceApplyWgsl } from './bounceApplyWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
@@ -52,7 +52,7 @@ ${atlasTextures(BLEND_BINDINGS.dataMaps, 'dataMaps')}
 @group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.scales}) var<storage,read> scales:array<vec4f>;
 ${STANDARD_LIGHTING_WGSL}
-${DECLARED_LIGHTING_WGSL}
+${declaredLightingWgsl(BLEND_BINDINGS.proxy)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.shadowSlices}) var<storage,read> shadows:ShadowSlices;

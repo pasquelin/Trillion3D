@@ -95,6 +95,9 @@ export const BLEND_BINDINGS = (() => {
     /** Les listes de lampes par tuile, celles-là mêmes que lit la résolution opaque : la passe de
      *  mélange y lit sa propre tranche de profondeur, du plan proche au fond opaque. */
     tileLights: rest + 16,
+    /** Le proxy résident, celui-là même que traverse la résolution opaque : l'ombre du soleil
+     *  au-delà de la dernière cascade se tire ici par le même rayon, sur une seule liaison. */
+    proxy: rest + 17,
   };
 })();
 
