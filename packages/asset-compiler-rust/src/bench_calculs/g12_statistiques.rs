@@ -66,3 +66,51 @@ pub(crate) fn row() -> Row {
         empreinte,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `reference_stats` (le tri complet d'avant le lot G) et `level_error_stats` (la sélection
+    /// partielle) doivent rendre le même triplet bit à bit, sur des niveaux hostiles : un seul
+    /// élément, un nombre pair, des doublons, et le poison (NaN, infinis, zéros signés) déjà semé
+    /// par `erreurs`.
+    fn memes_stats(valeurs: Vec<f64>, label: &str) {
+        let attendu = reference_stats(&mut valeurs.clone());
+        let obtenu = level_error_stats(&mut valeurs.clone());
+        let identiques = attendu.0.to_bits() == obtenu.0.to_bits()
+            && attendu.1.to_bits() == obtenu.1.to_bits()
+            && attendu.2.to_bits() == obtenu.2.to_bits();
+        assert!(
+            identiques,
+            "{label}: attendu {attendu:?}, obtenu {obtenu:?}"
+        );
+    }
+
+    #[test]
+    fn un_seul_element_est_son_propre_minimum_median_et_maximum() {
+        memes_stats(vec![42.5], "un seul element");
+        memes_stats(vec![f64::NAN], "un seul element NaN");
+        memes_stats(vec![-0.0], "un seul element -0.0");
+    }
+
+    #[test]
+    fn deux_elements_choisissent_la_meme_moitie_haute_comme_mediane() {
+        memes_stats(vec![3.0, 1.0], "deux elements decroissants");
+        memes_stats(vec![1.0, 1.0], "deux elements egaux");
+        memes_stats(vec![f64::INFINITY, f64::NEG_INFINITY], "deux infinis");
+    }
+
+    #[test]
+    fn des_doublons_et_le_poison_ne_font_pas_diverger_le_triplet() {
+        memes_stats(vec![5.0, 5.0, 5.0, 5.0, 5.0], "que des doublons");
+        memes_stats(erreurs(0xA11, 7), "sept, poison inclus");
+        memes_stats(erreurs(0xA22, 8), "huit, pair, poison inclus");
+        memes_stats(erreurs(0xA33, 211), "une periode complete de poison");
+    }
+
+    #[test]
+    fn un_grand_niveau_avec_beaucoup_de_poison_reste_identique() {
+        memes_stats(erreurs(0xA44, 6000), "six mille, poison inclus");
+    }
+}
