@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { addCpuSteps } from './stageMapping.ts';
-import { CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { CPU_STEP, CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -26,19 +26,19 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   const submitMs = m.cpuEnd - m.encodeStart;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
-  steps[0] = m.lightsEnd - m.cpuStart;
-  steps[1] = m.adoptEnd - m.lightsEnd;
-  steps[2] = m.transparentSelectEnd - m.adoptEnd;
-  steps[3] = m.admissionEnd - m.transparentSelectEnd;
-  steps[4] = m.queueEnd - m.admissionEnd;
-  steps[5] = m.rowsEnd - m.queueEnd;
-  steps[6] = m.residencyUploadEnd - m.rowsEnd;
-  steps[7] = m.selectionEnd - m.residencyUploadEnd;
-  steps[8] = timing.lastProjectMs;
-  steps[9] = timing.lastPartitionMs;
-  steps[10] = timing.lastItemsMs;
+  steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
+  steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;
+  steps[CPU_STEP.transparentSelectMs] = m.transparentSelectEnd - m.adoptEnd;
+  steps[CPU_STEP.admissionMs] = m.admissionEnd - m.transparentSelectEnd;
+  steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd;
+  steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd;
+  steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd;
+  steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.residencyUploadEnd;
+  steps[CPU_STEP.projectBoxesMs] = timing.lastProjectMs;
+  steps[CPU_STEP.partitionMs] = timing.lastPartitionMs;
+  steps[CPU_STEP.itemsMs] = timing.lastItemsMs;
   // L'encodage restant exclut la soumission elle-même : les deux étapes ne se recouvrent jamais.
-  steps[11] = Math.max(
+  steps[CPU_STEP.encodeRestMs] = Math.max(
     0,
     submitMs -
       timing.lastProjectMs -
@@ -46,9 +46,9 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
       timing.lastItemsMs -
       timing.lastQueueSubmitMs,
   );
-  steps[12] = timing.lastQueueSubmitMs;
-  steps[13] = submitMs;
-  steps[14] = m.cpuEnd - m.cpuStart;
+  steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs;
+  steps[CPU_STEP.encodeSubmitMs] = submitMs;
+  steps[CPU_STEP.totalMs] = m.cpuEnd - m.cpuStart;
   timing.cpuProfile.record(run.frame, m.cpuEnd - m.cpuStart);
   recordStages(rt);
   timing.cpuSample = {
