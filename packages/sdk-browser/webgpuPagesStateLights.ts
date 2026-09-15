@@ -6,6 +6,7 @@ import {
   type ShadowPlan,
 } from '../sdk-core/index.ts';
 import { MAX_FACES_PER_FRAME, type GpuShadowAtlas } from './gpuShadowAtlas.ts';
+import type { GpuShadowCull } from './gpuShadowCull.ts';
 import type { GpuLightTiles } from './gpuLightTiles.ts';
 
 /**
@@ -19,6 +20,12 @@ export interface WebgpuLightState {
   buffer: GPUBuffer | undefined;
   tiles: GpuLightTiles | undefined;
   shadows: GpuShadowAtlas | undefined;
+  /** Le rejet par face et les sphères monde qu'il lit ; absents tant que l'atlas n'existe pas. */
+  cull: GpuShadowCull | undefined;
+  spheres: { buffer: GPUBuffer; packed: Float32Array; rows: number } | undefined;
+  /** Groupes de liaison des faces d'ombre, et les ressources sur lesquelles ils ont été bâtis. */
+  shadowGroups: Array<GPUBindGroup | undefined>;
+  shadowGroupsKey: unknown[];
   /** Révision du magasin déjà poussée au GPU : une image sans changement n'écrit rien. */
   uploadedEpoch: number;
   /** Matrices des faces de l'image, une par face remise à jour. */
@@ -27,11 +34,11 @@ export interface WebgpuLightState {
    *  passe a dû écarter se lit sur l'ordonnanceur lui-même (`plan.denied`, `plan.pending`). */
   lightsActive: number;
   shadowsUpdated: number;
-  /** Faces planifiées et slots de dessin indirect réellement encodés par la dernière passe. */
+  /** Faces planifiées, et dessins indirects réellement encodés par la dernière passe : un par face. */
   shadowFaces: number;
   shadowDraws: number;
   /** Appels de dessin réellement encodés par la passe d'ombres : une remise au fond et un dessin
-   *  indirect par couche, pour chaque face redessinée. C'est le coût par lampe à ombre. */
+   *  indirect par face redessinée. C'est le coût par lampe à ombre. */
   shadowDrawCalls: number;
   /** Pourquoi l'atlas d'ombres n'existe pas, quand il n'existe pas. */
   shadowReason: string | null;
@@ -46,6 +53,10 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     buffer: undefined,
     tiles: undefined,
     shadows: undefined,
+    cull: undefined,
+    spheres: undefined,
+    shadowGroups: new Array(MAX_FACES_PER_FRAME).fill(undefined),
+    shadowGroupsKey: [],
     uploadedEpoch: 0,
     faceMatrices: new Float32Array(MAX_FACES_PER_FRAME * 16),
     lightsActive: 0,

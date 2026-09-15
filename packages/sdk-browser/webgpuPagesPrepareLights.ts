@@ -1,6 +1,7 @@
 import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
 import { createGpuLightTiles } from './gpuLightTiles.ts';
 import { createGpuShadowAtlas, shadowAtlasBytes } from './gpuShadowAtlas.ts';
+import { createGpuShadowCull } from './gpuShadowCull.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Ce que la capacité déclare quand le contrat d'éclairage direct n'est pas gréé sur cet appareil. */
@@ -10,6 +11,7 @@ const SHADOW_APPROXIMATIONS = [
   'alpha-masked occluders cast their whole cluster silhouette',
   'tile light lists bound the per-pixel loop to the published per-tile budget',
   'shadow slice priority uses an angular screen-coverage estimate, not an adjoint',
+  'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
 ];
 
 /**
@@ -18,7 +20,8 @@ const SHADOW_APPROXIMATIONS = [
  * du contrat restent éteintes et la capacité manquante est déclarée. Rien n'est jeté en silence.
  */
 export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { lights, vis, capabilities, diag } = rt;
+  const { lights, vis, capabilities, diag } = rt,
+    { drawSlots } = rt.layout;
   if (!lights.buffer || !vis.visEnabled || !vis.visBindGroupLayout) {
     lights.shadowReason = 'visibility buffer unavailable';
     return;
@@ -32,6 +35,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   }
   try {
     lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
+    lights.cull = await createGpuShadowCull(device, drawSlots);
   } catch (error) {
     lights.shadowReason = `shadow atlas unavailable: ${String(error)}`;
     diag.diagnosticFailure('shadow-atlas-unavailable', error);
@@ -45,6 +49,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     settings: { ...LIGHT_SETTINGS },
     tileLists: !!lights.tiles,
     shadowAtlas: lights.shadows ? lights.shadows.size : null,
+    shadowCullRows: lights.cull ? drawSlots : null,
     shadowAtlasBytes: lights.shadows ? shadowAtlasBytes() : 0,
     unavailable: lights.shadowReason,
     approximations: SHADOW_APPROXIMATIONS,
