@@ -92,6 +92,9 @@ export function renderCpuCut(
   // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
   // and the GPU cut re-seeds from nothing when it takes the image back.
   services.invalidateCut();
+  // Cette image écrit `shown` et `drawn` elle-même, et peut sortir par une erreur entre les deux :
+  // le drapeau tombe avant la première écriture, jamais après.
+  run.drawnMirrorsShown = false;
   run.pagesEntered = null;
   run.pagesExited = null;
   const cpuSelectionStarted = performance.now();

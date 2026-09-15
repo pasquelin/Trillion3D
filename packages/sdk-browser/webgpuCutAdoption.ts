@@ -30,6 +30,8 @@ export function createWebgpuCutAdopter(options: {
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: (delta: CutDelta) => void;
   onDrawnDelta: (delta: CutDelta) => void;
+  /** Appelée quand `drawn` vient d'être refait depuis `shown` : l'image n'a plus à le refaire. */
+  onDrawnMirrored: () => void;
 }) {
   const metrics = {
     ready: false,
@@ -77,6 +79,7 @@ export function createWebgpuCutAdopter(options: {
     if (!held) {
       drawn.length = 0;
       appendPages(drawn, shown);
+      options.onDrawnMirrored();
       shownCut = cut;
     }
     metrics.ready = true;

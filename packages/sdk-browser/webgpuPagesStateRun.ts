@@ -59,6 +59,9 @@ export interface WebgpuRunState {
   shown: PageRec[];
   desired: PageRec[];
   drawn: PageRec[];
+  /** Vrai quand `drawn` est la recopie de `shown` telle qu'elle est, et n'a rien à refaire. La coupe
+   *  processeur le met à faux en entrant : c'est la seule qui écrive `drawn` d'ailleurs. */
+  drawnMirrorsShown: boolean;
   /** Where the drawable difference writes its members; nothing downstream reads it. */
   drawnMembers: PageRec[];
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
@@ -141,6 +144,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     shown: [],
     desired: [],
     drawn: [],
+    drawnMirrorsShown: false,
     drawnMembers: [],
     pagesEntered: null,
     pagesExited: null,

@@ -142,6 +142,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     delta: cutDelta,
     drawnDelta,
     onDrawnDelta: (delta) => residencySets.applyDrawn(delta),
+    onDrawnMirrored: () => {
+      run.drawnMirrorsShown = true;
+    },
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
       run.pagesEntered = delta.enteredCount;

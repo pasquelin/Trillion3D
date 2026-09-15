@@ -46,6 +46,7 @@ function banc(ids: number[]) {
     drawnDelta: createCutDelta(packedPages, []),
     onCutDelta: () => {},
     onDrawnDelta: () => {},
+    onDrawnMirrored: () => {},
   });
   return {
     adopter,
