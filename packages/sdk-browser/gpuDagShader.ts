@@ -73,6 +73,13 @@ fn coneRejects(index:u32,cluster:Cluster)->bool{
  if(rec.hasBox==0.0){return false;}
  return coneRejectsBox(rec.cone,rec.minimum,rec.maximum,worlds[cluster.worldIndex]);
 }
+/** Le rejet par cone ne depend que de la page, de son monde et de la camera : il vaut donc la meme
+ *  chose pour les cinq passes d'une meme image. \`dagWanted\` le calcule une fois par page visible et
+ *  le depose derriere les drapeaux de dessin ; les passes suivantes le relisent au lieu de refaire
+ *  \`asin\`, \`sin\` et les deux \`length\`. Elles ne le lisent que pour une page visible, la seule pour
+ *  laquelle il a ete ecrit. */
+fn coneCache(index:u32)->u32{return uni.nodeCount+uni.clusterCount+index;}
+fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(index:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
  if(cluster.nodeIndex!=0xffffffffu&&flags[cluster.nodeIndex]!=0u){return false;}
@@ -126,10 +133,12 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=uni.clusterCount){return;}
  let cluster=clusters[i];
  if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
+ let rejected=coneRejects(i,cluster);
+ flags[coneCache(i)]=select(0u,1u,rejected);
  let w=cluster.worldIndex;
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,uni.pixelError)){return;}
- if(coneRejects(i,cluster)){return;}
+ if(rejected){return;}
  atomicMax(&out.lodLevel,cluster.level);
  emitOne(i);
  if(uni.residentCut==0u||pageCones[i].resident!=0.0){return;}
@@ -144,7 +153,7 @@ fn dagEscalate(@builtin(global_invocation_id) id:vec3u){
  let w=cluster.worldIndex;
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[w])))){return;}
- if(coneRejects(i,cluster)){return;}
+ if(coneRejected(i)){return;}
  escalate(w,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
 }
 @compute @workgroup_size(64)
@@ -156,7 +165,7 @@ fn dagCheck(@builtin(global_invocation_id) id:vec3u){
  let w=cluster.worldIndex;
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,bitcast<f32>(atomicLoad(&work[w])))){return;}
- if(coneRejects(i,cluster)){return;}
+ if(coneRejected(i)){return;}
  atomicOr(&work[uni.worldCount+w],1u);
 }
 @compute @workgroup_size(64)
@@ -164,7 +173,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=uni.clusterCount){return;}
  let cluster=clusters[i];
  var draw=false;
- if(visible(i,cluster)&&!coneRejects(i,cluster)){
+ if(visible(i,cluster)&&!coneRejected(i)){
   let w=cluster.worldIndex;
   if(uni.residentCut!=0u&&atomicLoad(&work[uni.worldCount+w])!=0u){
    // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
