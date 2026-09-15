@@ -1,8 +1,12 @@
 use super::*;
 mod base;
 mod fixtures;
+mod golden;
 use base::*;
 use fixtures::*;
+use golden::*;
+mod apercus_golden;
+mod apercus_source;
 mod coplanar;
 mod coplanar_assign;
 mod coplanar_collect;
