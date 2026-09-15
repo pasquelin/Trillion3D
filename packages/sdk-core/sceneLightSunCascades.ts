@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS, type SceneLight } from './sceneLightContracts.ts';
+import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 
 /** Ce que l'ordonnanceur sait de la vue : une caméra, pas une matrice, pour rester sans dépendance. */
 export interface ShadowViewpoint {
@@ -23,7 +23,7 @@ interface SunCascade {
  * géométrique — celle qui donne la même erreur relative partout — et de la suite uniforme, dosé par
  * `sunCascadeLambda`. La dernière borne est la distance d'ombre, une fraction publiée du lointain.
  */
-export function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
+function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
   const count = LIGHT_SETTINGS.sunCascades;
   const near = Math.max(1e-3, view.near),
     far = Math.max(near * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
@@ -95,6 +95,3 @@ export function sunCascadeOf(
   cascade.boxRadius = Math.hypot(radius, radius, halfDepth);
   return cascade;
 }
-
-/** L'axe de propagation d'une lampe directionnelle, normalisé une fois pour toutes par le contrat. */
-export const sunAxisOf = (light: SceneLight) => light.direction as [number, number, number];

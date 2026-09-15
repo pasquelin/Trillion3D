@@ -14,8 +14,8 @@ export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './deferredLightingSha
 
 /** Étiquette de la passe mesurée ; `gpuLightingMs` est lu sous ce nom. */
 export const DEFERRED_LIGHTING_PASS = 'WG deferred lighting';
-/** Sans lampe déclarée : zéro lampe, zéro tuile, rien en réserve, exposition 1. */
-const ZERO_DIRECT = [0, 0, 0, 0, 0, 0, 0, 1] as const;
+/** Sans lampe déclarée : zéro lampe, zéro tuile, exposition 1. */
+const ZERO_DIRECT = [0, 0, 0, 1] as const;
 
 /**
  * Le rassemblement différé. Deux programmes vivent ici : la vue sans éclairage — l'albédo brut des
@@ -26,7 +26,7 @@ const ZERO_DIRECT = [0, 0, 0, 0, 0, 0, 0, 1] as const;
 export async function createDeferredLighting(device: GPUDevice, directLights: GPUBuffer) {
   const uniform = device.createBuffer({
     label: 'WG deferred view v1',
-    size: 160,
+    size: 128,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const placeholders = createDeferredPlaceholders(device);
@@ -40,7 +40,7 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
     let contract: DeferredProgram | undefined,
       contractPending: Promise<unknown> | undefined,
       active: DeferredProgram = unlit;
-    const packed = new Float32Array(36);
+    const packed = new Float32Array(32);
     return {
       uniform,
       /** Vrai quand l'image en cours est rendue par le programme du contrat. */
@@ -63,7 +63,7 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
           [(clearColor >> 16) / 255, ((clearColor >> 8) & 255) / 255, (clearColor & 255) / 255, 1],
           24,
         );
-        // Lampes du contrat, tuiles en X et Y, réserve ; puis réserve et exposition.
+        // Lampes du contrat, tuiles en X et Y, puis l'exposition.
         packed.set(direct as number[], 28);
         device.queue.writeBuffer(uniform, 0, packed);
       },

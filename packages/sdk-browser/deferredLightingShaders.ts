@@ -12,8 +12,9 @@ fn aces(color:vec3f)->vec3f{
 }
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
 /** L'uniforme de vue, commun aux deux programmes : `lightParams` porte le nombre de lampes du
- *  contrat et les tuiles en X et en Y ; `sky.w` porte l'exposition, appliquée avant ACES (P4). */
-const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,sky:vec4f,}`;
+ *  contrat, les tuiles en X et en Y, et l'exposition, appliquée avant ACES (P4). Rien d'autre —
+ *  il n'y a plus ni ciel ni ambiance à transmettre à la résolution opaque (P6). */
+const VIEW_WGSL = `struct View{inverseViewProjection:mat4x4f,camera:vec4f,viewport:vec4f,background:vec4f,lightParams:vec4f,}`;
 const SURFACE_BINDINGS_WGSL = `
 @group(0) @binding(0) var baseMetal:texture_2d<f32>;
 @group(0) @binding(1) var normalRough:texture_2d<f32>;
@@ -66,15 +67,22 @@ ${FULLSCREEN_VERTEX}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
  return vec4f(lit+emissive.rgb,1.0);
 }`;
-/** La composition : l'exposition multiplie la radiance linéaire avant ACES, dernier maillon (P4). */
-const COMPOSE_BODY = `
+/**
+ * La composition, unique pour les deux programmes : l'exposition multiplie la radiance linéaire
+ * avant ACES, dernier maillon de la chaîne (P4). Sans lampe, l'exposition vaut 1 et le résultat est
+ * exactement celui d'avant.
+ */
+export const COMPOSE_SHADER = `
+${VIEW_WGSL}
+@group(0) @binding(0) var hdr:texture_2d<f32>;
+@group(0) @binding(1) var<uniform> view:View;
 ${FULLSCREEN_VERTEX}
 ${OUTPUT_COLOR_WGSL}
 fn composeColor(pixel:vec4f)->vec4f{
  let value=textureLoad(hdr,vec2i(pixel.xy),0);
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
- let color=linearToSrgb(aces(value.rgb*view.sky.w/max(value.a,1e-6)));
+ let color=linearToSrgb(aces(value.rgb*view.lightParams.w/max(value.a,1e-6)));
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
@@ -83,8 +91,3 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
  let color=composeColor(pixel);
  return DisplayOutput(color,color);
 }`;
-export const COMPOSE_SHADER = `
-${VIEW_WGSL}
-@group(0) @binding(0) var hdr:texture_2d<f32>;
-@group(0) @binding(1) var<uniform> view:View;
-${COMPOSE_BODY}`;

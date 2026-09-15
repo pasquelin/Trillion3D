@@ -109,3 +109,14 @@ export const SCENE_LIGHT_BUFFER_FLOATS =
   SCENE_LIGHT_HEADER_FLOATS + LIGHT_SETTINGS.maxLights * SCENE_LIGHT_FLOATS;
 /** Le rang d'un type de lampe dans le tampon GPU : le shader s'y réfère par ce nombre, pas par nom. */
 export const LIGHT_KIND = { point: 0, spot: 1, directional: 2 } as const;
+/**
+ * L'axe d'une lampe qui en a un — projecteur ou directionnelle. Le contrat l'a déjà normalisé et
+ * refuse une lampe de ce type sans direction : lire ce champ ici ne suppose rien de plus.
+ */
+export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
+/** Le type d'une lampe depuis son rang : l'inverse de `LIGHT_KIND`, écrit juste à côté de lui. */
+export function lightKindOf(rank: number): SceneLight['kind'] {
+  if (rank === LIGHT_KIND.directional) return 'directional';
+  if (rank === LIGHT_KIND.spot) return 'spot';
+  return 'point';
+}

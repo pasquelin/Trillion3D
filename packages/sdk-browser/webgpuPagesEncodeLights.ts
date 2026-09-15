@@ -5,8 +5,8 @@ import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Les huit flottants que la passe différée relit : lampes, tuiles, réserve, et l'exposition. */
-const directParams = new Float32Array(8);
+/** Les quatre flottants que la passe différée relit : lampes, tuiles en X et Y, exposition. */
+const directParams = new Float32Array(4);
 
 /**
  * L'éclairage direct d'une image, dans l'ordre : ordonnancement des ombres et écriture des matrices,
@@ -30,7 +30,7 @@ export function encodeDirectLights(
   directParams.fill(0);
   // L'exposition n'est pas une lumière : elle règle la conversion de la radiance en image, et ne
   // peut rien éclairer que les lampes déclarées n'éclairent déjà.
-  directParams[7] = environment ? environment.exposure : 1;
+  directParams[3] = environment ? environment.exposure : 1;
   // La vue sans éclairage ne lit ni liste de lampes ni atlas : elle n'en fait donc encoder aucun.
   if (!active || store.unlit || !tiles || !gpu.depthView) return directParams;
   const faces = planShadowFaces(rt, camera);

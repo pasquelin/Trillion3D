@@ -61,7 +61,7 @@ export function planShadowFaces(rt: WebgpuPagesRuntime, camera: THREE.Perspectiv
     const slice = plan.updatedSlice[update];
     const light = store.light(store.ids[plan.updatedLight[update]]);
     if (!light) continue;
-    const count = faceCountOf(light);
+    const count = faceCountOf(light.kind);
     const side = plan.slices.side[slice];
     for (let face = 0; face < count && faces < MAX_FACES_PER_FRAME; face++) {
       const base = faces * 16,

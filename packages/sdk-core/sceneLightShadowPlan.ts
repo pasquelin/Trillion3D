@@ -4,6 +4,7 @@ import {
   MAX_SHADOW_SLICES,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
+  lightKindOf,
 } from './sceneLightContracts.ts';
 import { desiredFaceSide } from './sceneLightShadowAtlas.ts';
 import { faceCountOf } from './sceneLightShadowFaces.ts';
@@ -111,9 +112,7 @@ export function createShadowPlan() {
         // caméra, donc la révision de la vue entre dans leur fraîcheur. Une ponctuelle, elle, ne
         // dépend que de sa propre révision et de ce qui a bougé dans sa portée.
         coverage[slot] = sun ? 1 : screenCoverage(view, x, y, z, range);
-        const faces = faceCountOf({
-          kind: sun ? 'directional' : kind === LIGHT_KIND.spot ? 'spot' : 'point',
-        });
+        const faces = faceCountOf(lightKindOf(kind));
         if (slice < 0) slice = slices.claim();
         const side = desiredFaceSide(coverage[slot], faces, casters);
         if (slice < 0 || !slices.fit(slice, faces, side)) {

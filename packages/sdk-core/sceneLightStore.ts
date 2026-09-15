@@ -49,24 +49,21 @@ export function createSceneLightStore() {
   const writeSlice = (slot: number, slice: number) => {
     packed[baseOf(slot) + LIGHT_FIELD.shadowSlice] = slice;
   };
+  const writeVector = (base: number, field: number, value: readonly number[]) => {
+    packed[base + field] = value[0];
+    packed[base + field + 1] = value[1];
+    packed[base + field + 2] = value[2];
+  };
   /** Les champs déclarés par l'hôte. La tranche d'ombre n'en est pas un : l'ordonnanceur la pose. */
   const write = (slot: number, light: SceneLight) => {
     const base = baseOf(slot);
     // Une directionnelle n'a ni position ni portée : ses deux champs restent à zéro dans le tampon,
     // et le shader ne les lit jamais — il branche sur le type avant.
-    const position = light.position ?? [0, 0, 0];
-    packed[base + LIGHT_FIELD.position] = position[0];
-    packed[base + LIGHT_FIELD.position + 1] = position[1];
-    packed[base + LIGHT_FIELD.position + 2] = position[2];
+    writeVector(base, LIGHT_FIELD.position, light.position ?? [0, 0, 0]);
     packed[base + LIGHT_FIELD.range] = light.range ?? 0;
-    packed[base + LIGHT_FIELD.color] = light.color[0];
-    packed[base + LIGHT_FIELD.color + 1] = light.color[1];
-    packed[base + LIGHT_FIELD.color + 2] = light.color[2];
+    writeVector(base, LIGHT_FIELD.color, light.color);
     packed[base + LIGHT_FIELD.intensity] = light.intensity;
-    const direction = light.direction ?? [0, -1, 0];
-    packed[base + LIGHT_FIELD.direction] = direction[0];
-    packed[base + LIGHT_FIELD.direction + 1] = direction[1];
-    packed[base + LIGHT_FIELD.direction + 2] = direction[2];
+    writeVector(base, LIGHT_FIELD.direction, light.direction ?? [0, -1, 0]);
     packed[base + LIGHT_FIELD.cosCone] =
       light.kind === 'spot' ? Math.cos(light.coneAngle!) : NO_CONE;
     packed[base + LIGHT_FIELD.kind] = LIGHT_KIND[light.kind];

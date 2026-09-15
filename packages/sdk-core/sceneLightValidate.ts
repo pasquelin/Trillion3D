@@ -16,18 +16,37 @@ function normalized(value: [number, number, number], id: string): [number, numbe
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: direction de longueur nulle`, { value });
   return [value[0] / length, value[1] / length, value[2] / length];
 }
+/** La direction d'une lampe : trois nombres finis, rendus unitaires. Le tampon n'en voit pas d'autre. */
+function direction(value: unknown, id: string): [number, number, number] {
+  return normalized(vector(value, 'direction', id), id);
+}
+/** La direction d'un type qui en exige une : absente, la lampe est refusée avant tout calcul. */
+function requiredDirection(value: unknown, id: string, why: string): [number, number, number] {
+  if (value === undefined) throw new EngineError('INVALID_SCENE_LIGHT', `${id}: ${why}`, {});
+  return direction(value, id);
+}
 /** Un champ qu'un type de lampe n'utilise pas est refusé, jamais accepté puis ignoré. */
 function unused(light: SceneLight, field: 'position' | 'range' | 'coneAngle', why: string) {
   if (light[field] !== undefined)
     throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${field} ${why}`, { field });
 }
 /** La portée d'une ponctuelle ou d'un projecteur : strictement positive, en mètres. */
-function range(light: SceneLight): number {
-  if (!finite(light.range) || light.range! <= 0)
-    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: portée doit être > 0`, {
-      range: light.range,
-    });
-  return light.range!;
+function range(value: unknown, id: string): number {
+  if (!finite(value) || value <= 0)
+    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: portée doit être > 0`, { range: value });
+  return value;
+}
+/** Le demi-angle du cône d'un projecteur, en radians, strictement dans `(0, π/2)`. */
+function coneAngle(value: unknown, id: string): number {
+  if (!finite(value) || value <= 0 || value >= Math.PI / 2)
+    throw new EngineError(
+      'INVALID_SCENE_LIGHT',
+      `${id}: demi-angle de cône attendu dans (0, π/2)`,
+      {
+        coneAngle: value,
+      },
+    );
+  return value;
 }
 /**
  * Valide une lampe et en rend une copie normalisée. Une lampe refusée n'entre jamais dans le tampon :
@@ -60,33 +79,26 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     unused(light, 'position', "n'existe pas pour une lampe directionnelle");
     unused(light, 'range', "n'existe pas pour une lampe directionnelle : elle porte partout");
     unused(light, 'coneAngle', "n'existe que pour un projecteur");
-    if (light.direction === undefined)
-      throw new EngineError(
-        'INVALID_SCENE_LIGHT',
-        `${id}: une directionnelle exige sa direction`,
-        {},
-      );
-    validated.direction = normalized(vector(light.direction, 'direction', id), id);
+    validated.direction = requiredDirection(
+      light.direction,
+      id,
+      'une directionnelle exige sa direction',
+    );
     return validated;
   }
   validated.position = vector(light.position, 'position', id);
-  validated.range = range(light);
+  validated.range = range(light.range, id);
   if (light.kind === 'spot') {
-    if (light.direction === undefined)
-      throw new EngineError('INVALID_SCENE_LIGHT', `${id}: un projecteur exige une direction`, {});
-    if (!finite(light.coneAngle) || light.coneAngle! <= 0 || light.coneAngle! >= Math.PI / 2)
-      throw new EngineError(
-        'INVALID_SCENE_LIGHT',
-        `${id}: demi-angle de cône attendu dans (0, π/2)`,
-        { coneAngle: light.coneAngle },
-      );
-    validated.direction = normalized(vector(light.direction, 'direction', id), id);
-    validated.coneAngle = light.coneAngle;
+    validated.direction = requiredDirection(
+      light.direction,
+      id,
+      'un projecteur exige une direction',
+    );
+    validated.coneAngle = coneAngle(light.coneAngle, id);
     return validated;
   }
   unused(light, 'coneAngle', "n'existe que pour un projecteur");
-  if (light.direction !== undefined)
-    validated.direction = normalized(vector(light.direction, 'direction', id), id);
+  if (light.direction !== undefined) validated.direction = direction(light.direction, id);
   return validated;
 }
 export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
