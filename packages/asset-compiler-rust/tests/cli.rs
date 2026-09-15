@@ -186,6 +186,6 @@ fn version_flag_describes_the_build() {
         .collect();
     assert_eq!(
         images,
-        ["png", "jpeg", "tga", "tiff", "dds", "webp", "exr", "hdr"]
+        ["png", "jpeg", "tga", "tiff", "dds", "webp", "exr", "hdr", "ktx2"]
     );
 }
