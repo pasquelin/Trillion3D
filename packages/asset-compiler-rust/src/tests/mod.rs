@@ -21,6 +21,7 @@ mod flottant_golden;
 mod import_opacite;
 mod ktx2_golden;
 mod ma_golden;
+mod obj_mtl;
 mod part1;
 mod part2;
 mod part3;
