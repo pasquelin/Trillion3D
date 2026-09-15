@@ -243,6 +243,24 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ARCHIVE_EMPTY` | ZIP archive carries no entry |
 | `ARCHIVE_TOO_MANY_ENTRIES` | ZIP archive exceeds 20,000 entries |
 | `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
+| `blend-header-invalid` | Blender file starts neither with `BLENDER` nor with a gzip or Zstandard frame, or its header does not read back |
+| `blend-pointer-size-unsupported` | Blender file was written with 32-bit pointers; this reader reads 64-bit files only |
+| `blend-endianness-unsupported` | Blender file is big-endian; only little-endian files are read |
+| `blend-block-header-unsupported` | Blender file announces a block-header variant outside the one this reader describes |
+| `blend-truncated` | Blender file, or the compressed frame carrying it, ends inside a block |
+| `blend-too-large` | Blender file expands beyond the 1 GiB ceiling, or a mesh announces more vertices or corners than this reader reads; refused rather than attempting the allocation |
+| `blend-dna-invalid` | Blender file carries no `DNA1` block, or its self-description does not read back |
+| `blend-mesh-layout-unsupported` | Blender mesh is outside the named-attribute layout (no `position`, no `.corner_vert`, or unreadable face offsets); files older than that layout are refused, never guessed |
+| `blend-mesh-invalid` | Blender mesh has a corner pointing outside its own vertices |
+| `blend-collection-instance-unsupported` | Blender object instances a collection; reported per object, does not fail the job |
+| `blend-modifier-not-applied` | Blender object carries modifiers, which are evaluated by Blender and not stored in the file; the base mesh is exported and the fact is reported |
+| `blend-mesh-missing` | Blender mesh object points at data that is not a mesh, or at nothing |
+| `blend-shader-input-unconverted` | Principled BSDF input is fed by a node other than an image texture (or a normal map over one); the declared value is kept, exact, and the fact is reported |
+| `blend-emission-clamped` | Blender emission colour times strength exceeds 1, which glTF's `emissiveFactor` cannot carry; clamped and reported rather than silently narrowed |
+| `blend-image-format` | Blender image names a file the image registry cannot decode; reported, the scene continues without it |
+| `blend-image-outside-source` | Blender image lives outside the served root and carries no packed bytes; reported rather than copied beside the scene |
+| `blend-object-material-override-unconverted` | Blender object replaces one of its mesh's material slots; the pilot follows the mesh and reports the override |
+| `blend-extra-scenes` | Blender file carries more than one scene; every mesh object of the file is exported and the count is reported |
 | `image-lossy-unsupported` | Image plugin (WebP) read a `VP8 ` (lossy) image stream; refused before decoding — the fidelity policy admits WebP lossless only — reported per texture, does not fail the job |
 | `image-animation-unsupported` | Image plugin (WebP) read an `ANIM`/`ANMF` chunk; an animation is not a texture, so it is refused rather than flattened to a chosen frame; reported per texture, does not fail the job |
 | `image-profile-unsupported` | Image plugin (TIFF) read the file but declined its profile or codec; reported per texture, does not fail the job |
