@@ -94,6 +94,8 @@ export function dropVis(rt: WebgpuPagesRuntime) {
     vis.mapsTexture =
     vis.dataMapsTexture =
       undefined;
+  vis.preview?.destroy();
+  vis.preview = undefined;
   vis.mapsArrayView = undefined;
   vis.dataMapsArrayView = undefined;
   rows.pageTableFloats = undefined;

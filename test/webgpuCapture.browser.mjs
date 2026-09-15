@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { routeBrowserFixtures } from './browserFixtureServer.mjs';
+import { drainPageArray, writeCaptureReport } from './captureReport.mjs';
 const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'browserFixtures');
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -69,8 +70,12 @@ try {
     });
   page.on('pageerror', (error) => result.errors.push(error.message));
   await page.exposeFunction('captureProgress', (message) => console.log(message));
+  // Une capture est une candidate : elle porte ce nom, et son état réel est consigné à côté d'elle.
   await page.exposeFunction('saveCapture', async (segment, bytes) =>
-    writeFile(resolve(out, `segment-${segment}.rgba`), Buffer.from(bytes, 'base64')),
+    writeFile(resolve(out, `segment-${segment}.candidate.rgba`), Buffer.from(bytes, 'base64')),
+  );
+  await page.exposeFunction('saveCaptureState', async (segment, state) =>
+    writeFile(resolve(out, `segment-${segment}.candidate.json`), state),
   );
   await page.goto(
     (process.env.LAB_URL ?? 'http://localhost:5174') + '/?test=15-virtualized-integration',
@@ -83,6 +88,8 @@ try {
       { sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'), stableCaptures, pageBudget },
     ),
   );
+  result.events = await drainPageArray(page, 'events');
+  result.samples = await drainPageArray(page, 'samples');
   if (unculledControl) assert.ok(result.controlOverrideSha256, 'control override was not served');
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.gpuErrors, []);
@@ -182,6 +189,6 @@ try {
   throw error;
 } finally {
   result.finishedAt = new Date().toISOString();
-  await writeFile(resolve(out, 'result.json'), JSON.stringify(result, null, 2));
+  await writeCaptureReport(resolve(out, 'result.json'), result);
   await browser.close();
 }

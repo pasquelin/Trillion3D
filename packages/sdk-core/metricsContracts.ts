@@ -67,8 +67,27 @@ export interface FrameMetrics {
   coverageBudgetLimited?: boolean | null;
   /** Sticky loading error; failed URLs require an explorer reload after three attempts. */
   streamingError?: string | null;
+  /**
+   * Le transfert découpé des textures source vers les atlas, compté par la pompe elle-même. Champs
+   * facultatifs ajoutés après coup : un lecteur plus ancien les ignore, un moteur qui ne découpe pas
+   * ses transferts les laisse absents, et `null` dit « non mesuré », jamais une estimation.
+   *
+   * `textureUploaded` : textures transférées en entier, dernière tranche comprise.
+   * `texturePending` : textures encore en file, entamées ou intactes.
+   * `textureInFlight` : textures dont une tranche au moins est passée et qui en attendent d'autres.
+   * `textureSlicesUploaded` : tranches réellement transférées depuis le début de la session.
+   * `textureBytesLastFrame` : octets admis par la dernière passe de la pompe. Le budget
+   * `maxTextureTransferBytesPerFrame` le borne à une ligne de texture près : la ligne est l'unité
+   * indivisible d'une tranche et la première ligne d'une image passe même si elle dépasse à elle
+   * seule le budget, sans quoi une texture plus large que le budget n'avancerait jamais.
+   * `textureSkipped` : textures sorties de la file après trois refus de transfert de l'appareil.
+   * Une texture trop grosse pour le budget d'une image n'y est jamais comptée : elle est découpée.
+   */
   textureUploaded?: number | null;
   texturePending?: number | null;
+  textureInFlight?: number | null;
+  textureSlicesUploaded?: number | null;
+  textureBytesLastFrame?: number | null;
   textureSkipped?: number | null;
   /**
    * What the Hi-Z occlusion test did on one image: clusters handed to it, clusters it eliminated, and

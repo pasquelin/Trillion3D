@@ -1,13 +1,7 @@
 import type * as THREE from 'three';
 import { textureRgba } from './visibilityBuffer.ts';
 import { mipLevelCountFor } from './textureMips.ts';
-
-export type TextureJob = {
-  kind: 'color' | 'data';
-  layer: number;
-  bytes: number;
-  upload: () => void;
-};
+import { textureJobFor, type TextureJob } from './webgpuAtlasJobs.ts';
 
 type AtlasFill = { r: number; g: number; b: number; a: number };
 
@@ -87,43 +81,19 @@ export function prepareWebgpuAtlas(
   for (let layer = 0; layer < layers; layer++)
     clearWebgpuAtlasLayer(encoder, texture, layer, spec.fillFor(layer));
   for (let i = 0; i < maps.length; i++) {
-    const rgba = rgbaMaps[i],
-      layer = i + 1;
-    uvScales[layer] = [1, 1];
-    if (rgba) {
-      uvScales[layer] = [rgba.width / width, rgba.height / height];
-      textureJobs.push({
-        kind: spec.kind,
-        layer,
-        bytes: rgba.data.byteLength,
-        upload: () => {
-          device.queue.writeTexture(
-            { texture, origin: [0, 0, layer] },
-            Uint8Array.from(rgba.data),
-            { bytesPerRow: rgba.width * 4, rowsPerImage: rgba.height },
-            { width: rgba.width, height: rgba.height },
-          );
-        },
-      });
-    } else {
-      const image = maps[i].image as GPUCopyExternalImageSource | undefined;
-      if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
-        throw new Error(spec.errorCode);
-      const w = 'width' in image ? (image as ImageBitmap).width : width,
-        h = 'height' in image ? (image as ImageBitmap).height : height;
-      uvScales[layer] = [w / width, h / height];
-      textureJobs.push({
-        kind: spec.kind,
-        layer,
-        bytes: w * h * 4,
-        upload: () =>
-          device.queue.copyExternalImageToTexture(
-            { source: image },
-            { texture, origin: [0, 0, layer] },
-            [w, h],
-          ),
-      });
-    }
+    const layer = i + 1;
+    const { job, scale } = textureJobFor({
+      device,
+      texture,
+      rgba: rgbaMaps[i],
+      map: maps[i],
+      layer,
+      kind: spec.kind,
+      atlas: [width, height],
+      errorCode: spec.errorCode,
+    });
+    uvScales[layer] = scale;
+    textureJobs.push(job);
   }
   return { texture, width, height };
 }

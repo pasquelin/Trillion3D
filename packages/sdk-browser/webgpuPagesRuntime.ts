@@ -3,6 +3,7 @@ import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPag
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
+import { createTexturePriority } from './webgpuTexturePriority.ts';
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLayout.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './webgpuPagesStateGpu.ts';
@@ -66,6 +67,15 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const setup = createWebgpuPagesSetup(context, diag);
   const layout = createWebgpuPagesLayout(setup);
   const vis = createWebgpuVisState();
+  const run = createWebgpuRunState();
+  const blendState = createWebgpuBlendState();
+  // Le signal de priorité est celui de la coupe précédente : elle a déjà nommé les pages dessinées
+  // et les maillages transparents visibles, donc les lire ne coûte ni passe GPU ni lecture bloquante.
+  const priority = createTexturePriority(() => ({
+    index: vis.materialLayers,
+    drawn: run.drawn,
+    blend: blendState.visibleBlend,
+  }));
   const texturePump = createWebgpuTexturePump({
     device: setup.gpuDevice,
     jobs: vis.textureJobs,
@@ -74,7 +84,15 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     dataScales: vis.dataUvScales,
     colorAtlas: () => ({ texture: vis.mapsTexture, size: vis.textureColorSize }),
     dataAtlas: () => ({ texture: vis.dataMapsTexture, size: vis.textureDataSize }),
+    order: priority.order,
+    onColorReady: (layers) => vis.preview?.markReady(layers),
     onFailure: diag.diagnosticFailure,
+    onAbandon: (details) =>
+      diag.engineDiagnostic(
+        'progressive-texture-abandoned',
+        'Texture sortie de la file après refus répétés du transfert',
+        details,
+      ),
   });
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
@@ -107,11 +125,11 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     gpu: createWebgpuGpuState(setup.viewport),
     vis,
     lights: createWebgpuLightState(context.sceneLights),
-    run: createWebgpuRunState(),
+    run,
     capture: createWebgpuCaptureState(),
     timing: createWebgpuTimingState(context.stageProfile ? createWebgpuStageProfiler() : undefined),
     capabilities,
-    blendState: createWebgpuBlendState(),
+    blendState,
     texturePump,
   };
   return { ...core, services: createWebgpuPagesServices(core) };

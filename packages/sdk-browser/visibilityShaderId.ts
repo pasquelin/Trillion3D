@@ -16,6 +16,8 @@ ${PAGE_BINDING.uniforms}
 @group(0) @binding(7) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
+@group(0) @binding(10) var previews:texture_2d_array<f32>;
+@group(0) @binding(11) var<storage, read> previewReady:array<u32>;
 ${PAGE_LOOKUP_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) uv:vec2f,}
 ${PAGE_VERTEX_WGSL}
@@ -23,8 +25,12 @@ fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
 fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let wrapped=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u))*page.uvScale;
- let sample=textureSampleLevel(maps,mapsSampler,wrapped,i32(page.mapIndex),0.0);
+ let raw=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
+ // L'aperçu préserve la couverture du seuil, donc la découpe est juste avant même le transfert.
+ if(previewReady[page.mapIndex]==0u){
+  return textureSampleLevel(previews,mapsSampler,raw,i32(page.mapIndex),0.0).w>=page.baseColor.w;
+ }
+ let sample=textureSampleLevel(maps,mapsSampler,raw*page.uvScale,i32(page.mapIndex),0.0);
  return sample.w>=page.baseColor.w;
 }
 fn computeTriangle(page:PageInfo,triangle:u32)->bool{

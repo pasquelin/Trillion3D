@@ -10,6 +10,15 @@ export const TEMPLATES = {
 export const sha = (c: string) => c.repeat(64);
 const url = (c: string) => `../../objects/${sha(c)}.bin`;
 
+/** One texture preview pyramid: five RGBA8 levels, each byte deterministic and level-distinct so a
+ *  round trip that mixed up two levels would show here. */
+function previewLevels() {
+  return [16, 8, 4, 2, 1].map(
+    (size, level) =>
+      new Uint8Array(size * size * 4).map((_, i) => (i + level) % 256) as Uint8Array<ArrayBuffer>,
+  );
+}
+
 /** Every optional field in both of its shapes: a round trip that misses one would show here. */
 export function manifest(): ClusterManifest {
   const dagPages = [
@@ -95,6 +104,18 @@ export function manifest(): ClusterManifest {
     selectedNodes: [0, 1],
     totalNodes: 2,
     autonomousScene: null,
+    texturePreviews: [
+      {
+        texture: 0,
+        image: 0,
+        width: 32,
+        height: 16,
+        sourceKind: 0,
+        sourceBufferView: -1,
+        sha256: sha('9'),
+        levels: previewLevels(),
+      },
+    ],
     primitives: [
       {
         mesh: 0,
