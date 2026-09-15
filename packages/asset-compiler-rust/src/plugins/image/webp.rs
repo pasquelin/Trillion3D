@@ -13,7 +13,7 @@
 //! **Brevets.** La concession de brevets de libwebp (licence BSD-3 assortie d'un *additional IP
 //! rights grant*) porte sur les implémentations conformes de la spécification, `image-webp`
 //! compris. Note documentaire, pas un avis d'avocat : la politique juridique du dépôt est dans
-//! `orchestration/COMPILATEUR_IMPORT.md`.
+//! `packages/asset-compiler-rust/FORMATS.md`.
 use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
 
 pub(super) static WEBP: Webp = Webp;

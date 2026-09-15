@@ -7,5 +7,5 @@ benchmark-runs/
 .claude/
 .agents/
 
-# Jeu de modèles de test livré hors git (voir orchestration/COMPILATEUR_IMPORT.md)
+# Jeu de modèles de test livré hors git (voir packages/asset-compiler-rust/FORMATS.md)
 test-assets/
