@@ -3,13 +3,11 @@
 // `projectBoxToScreen`, `countUnoccluded`) ; optimisée = `splitOccludersInto` et `countUnoccluded`
 // du paquet. Les deux côtés appellent le même `hizRejects` : la ligne A4 mesure la projection seule,
 // le gain du choix de niveau de mip étant porté par la ligne A5 et compté une seule fois.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { createHizCounts } from '../../../packages/sdk-browser/hizCounts.ts';
 import { countUnoccluded } from '../../../packages/sdk-browser/hizUnoccluded.ts';
 import { splitOccludersInto } from '../../../packages/sdk-browser/hizSplit.ts';
 import { buildHizPyramid } from '../../../packages/sdk-browser/hizDepth.ts';
-import { compare, depose, graine } from './banc.mjs';
+import { compare, graine, verifieEtDepose } from './banc.mjs';
 import { boites, camera } from './scenes.mjs';
 import { referenceCountUnoccluded, referenceSplitOccluders } from './oracles/occlusion.mjs';
 
@@ -67,8 +65,8 @@ const lignes = [
   }),
 ];
 
-test('A3 et A4 rendent exactement les mêmes pages et les mêmes comptes', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('occlusion', lignes);
+verifieEtDepose(
+  'occlusion',
+  'A3 et A4 rendent exactement les mêmes pages et les mêmes comptes',
+  lignes,
+);
