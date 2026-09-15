@@ -58,7 +58,6 @@ export function uploadClusterSpheres(
   from: number,
   to: number,
 ) {
-  if (to < from) return;
   const { rows } = rt.layout;
   const spheres = ensureClusterSpheres(rt, device);
   const last = Math.min(to, spheres.rows - 1);
