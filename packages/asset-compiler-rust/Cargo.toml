@@ -23,6 +23,7 @@ image = { version = "0.25.10", default-features = false, features = ["png", "jpe
 # Lecture d'archives ZIP (MIT, zip-rs/zip2), pour le pilote conteneur `zip`. Sans son défaut de
 # fonctionnalités : seul `deflate` par `flate2` en Rust pur, ni chiffrement ni codec natif.
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2"] }
+yaml-rust2 = { version = "0.13", default-features = false }
 [dev-dependencies]
 # Le décodeur de pages, partagé avec le module WebAssembly : le compilateur ne l'embarque pas,
 # il s'en sert pour prouver que ce qu'il encode se relit à l'identique.
