@@ -7,6 +7,10 @@ entrée sans preuve n'entre pas.
 
 ### P0 · cache/provenance · `prune_cache` avale silencieusement un sidecar de version différente
 
+- **État** : **en revue** — branche `loop-code/p0-prune-cache` (depuis `develop` à `4d466dd`),
+  worktree `.claude/worktrees/agent-ac1babe36eb77551a`, non fusionnée. La purge refuse désormais un
+  sidecar absent ou d'une autre version binaire (`CompilerError` code `UNSUPPORTED_FORMAT`) et ne
+  supprime rien ; test `tests::part7::a_sidecar_of_another_version_stops_the_prune_without_removing_anything`.
 - **Preuve** : `packages/asset-compiler-rust/src/manifest_binary/format.rs:31` bascule
   `MANIFEST_BINARY_VERSION` de 2 à 3 (chantier textures progressives). Le lecteur
   `packages/asset-compiler-rust/src/manifest_binary.rs:156-161` (`digests()`) refuse bien un
