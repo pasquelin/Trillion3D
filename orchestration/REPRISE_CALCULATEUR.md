@@ -5,17 +5,12 @@ Vérifier le titre « Calculateur » par `get_session("self")` avant toute actio
 ## Règles de travail
 
 - Opus 5 code et écrit le banc ; Sonnet 5 écrit les tests ; Haiku lance les campagnes. Worktree parti de `develop`, merge-base vérifiée.
-- Le Validateur seul lance `validate`, fusionne et pousse. Livraison = branche + tests ciblés + `check:changed` + banc + campagne 0 px si le rendu est touché.
+- Le Validateur seul lance `validate`, fusionne et pousse. Livraison = branche + tests ciblés + `check:changed` + banc + campagne 0 px si le rendu est touché. Jamais `git stash` ni push ; mots interdits d'`AGENTS.md`.
 - Campagne 0 px : `scripts/mesure/banc.mjs` WebGPU trois vues et `--camera-mobile`, WebGL générale, `--pixelError 0,1`, avant = base develop. Aucune attente ni fichier partagé avant de mesurer.
-- Jamais `git stash`, jamais de push. Mots interdits : les deux noms cités dans `AGENTS.md`.
+- Chaque lot M : identique à Three au bit près, hiérarchies parent/enfant comprises ; tout écart expliqué et borné.
+- Un seul banc : équivalence, puis comparatif Three contre nous, lancé sans attendre une machine calme, deux exécutions. Tableau : Three ns/op, nous ns/op, Three/nous, gain %, ✅ identique et plus rapide, ❌ sinon. Three importé par bancs et tests seulement.
 
-## Exigences de l'utilisateur pour chaque lot M
-
-- Identique à Three au bit près, hiérarchies parent/enfant comprises ; tout écart expliqué et borné.
-- Un seul banc : équivalence, puis comparatif Three contre nous, lancé sans attendre une machine calme, deux exécutions. Tableau : Three ns/op, nous ns/op, Three/nous, gain %, ✅ identique et plus rapide, ❌ sinon.
-- Three n'est importé que par bancs et tests, jamais par `math*.ts`.
-
-## Ce que les tests prouvent, et ce qu'ils ne prouvent pas
+## Ce que les tests ne prouvent pas
 
 Les tests et bancs des lots M prouvent l'**identité** avec l'ancien code et avec Three, pas la **justesse** du calcul : un défaut antérieur est reproduit fidèlement. Audit externe du 15 sept. 2026 sur `f6ac76f`, cinq défauts, aucun venu des lots M ni d'un bug de Three.js (vérification par reproduction en cours) :
 
