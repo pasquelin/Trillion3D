@@ -5375,3 +5375,271 @@ passe de `-gltf-1` à `-gltf-2`. Le reste de cette dorée ne bouge pas — son p
 cubes intégrés, sans modèle ni instance de prefab — et la dorée `zip` n'est pas concernée : le
 conteneur descend d'abord jusqu'au dossier `Assets`, que le routeur revendique comme projet Unity
 exactement là où il le revendiquait par ses fichiers.
+
+## 2026-09-15 — [compilateur] pilote webp
+
+Le compilateur lit les textures WebP, **sans perte uniquement**. Un module,
+`packages/asset-compiler-rust/src/plugins/image/webp.rs`, une ligne dans `image::DECODERS`, la
+feature `webp` de la crate `image` dans `Cargo.toml` — le cœur, la CLI et les cinq pilotes d'image
+existants n'ont pas bougé d'une ligne.
+
+**La politique, tranchée avant le décodage.** La règle de fidélité du dépôt interdit d'ajouter de la
+perte, et `COMPILATEUR_IMPORT.md` n'admet WebP que sans perte. Le pilote lit donc l'entête RIFF
+lui-même et parcourt les chunks du conteneur avant de tendre quoi que ce soit au décodeur : un flux
+`VP8L` entre, un flux `VP8 ` ressort en `image-lossy-unsupported`, une animation (`ANIM`, `ANMF`) en
+`image-animation-unsupported`. Le conteneur étendu `VP8X` passe par le même parcours, ce qui compte :
+dans un WebP avec perte réel, le flux `VP8 ` arrive *derrière* `VP8X` et `ALPH` — regarder le premier
+chunk ne suffirait pas. `ICCP`, `ALPH`, `EXIF` et `XMP` sont franchis sans perte de pixel, l'alpha
+d'une image sans perte étant porté par VP8L même. La taille annoncée par `RIFF` est comparée aux
+octets réellement présents : un fichier plus court est tronqué, `image-decode-failed`, et le
+décodeur ne reçoit jamais de flux amputé.
+
+**Deux raisons de rapport nouvelles**, dans la famille de celles du pilote TIFF
+(`image-profile-unsupported`, `image-depth-unsupported`) : `image-lossy-unsupported` et
+`image-animation-unsupported`. Comme les autres, elles ressortent en entrée de rapport, jamais en
+panique ni en échec de compilation — une texture refusée laisse le moteur retomber sur son blanc.
+Refuser le WebP avec perte n'est pas un manque : le réencoder serait ajouter de la perte, le décoder
+pour le réencoder aussi. La politique l'écrit, le pilote l'applique, le test le fixe.
+
+**Provenance.** Lecture écrite d'après les spécifications publiques de Google — « WebP Container
+Specification » pour le conteneur RIFF et « WebP Lossless Bitstream Specification » pour VP8L.
+Décodage par la feature `webp` de la crate `image` 0.25.10, qui délègue à `image-webp` 0.2.4,
+décodeur en Rust pur (MIT ou Apache-2.0, notices conservées avec la dépendance, version figée au
+`Cargo.lock`). Aucun code ni SDK d'éditeur, aucun contournement. Note documentaire sur les brevets,
+pas un avis d'avocat : la concession de brevets de libwebp — licence BSD-3 assortie d'un *additional
+IP rights grant* — porte sur les implémentations conformes de la spécification, décodeur Rust
+compris ; c'est la spécification qui est suivie, pas le code de libwebp.
+
+**Dorée.** `fixtures/webp/`, à la forme de `fixtures/tga` et `fixtures/tiff` : deux fichiers que le
+pilote lit, trois qu'il refuse. `sans-perte.webp` (184 octets, `VP8L` seul) et `avec-perte.webp`
+(`VP8X` + `ALPH` + `VP8 `) sont repris tels quels du corpus CC0-1.0
+`test-assets/textures/legacy-web-matrix/`, livré hors git, avec sa notice de licence.
+`etendu-sans-perte.webp`, `anime.webp` et `tronque.webp` en sont dérivés en réassemblant les chunks
+RIFF du premier — aucun encodeur n'intervient, aucun pixel n'est réécrit. `src/plugins/tests/webp.rs`
+décode les deux écritures sans perte et compare leurs octets **un par un** : le conteneur étendu rend
+exactement ce que rend le `VP8L` seul, ce qui prouve que les chunks de métadonnées ne coûtent pas un
+pixel. Cinq texels sont écrits en clair dans le test, alphas 0 et 255 compris, vérifiés par un
+décodeur indépendant (Pillow 12.2.0) avant d'être commis. Les refus sont fixés un par un, plus deux
+cas sans fichier : un `VP8L` dont le nom de chunk est réécrit en `VP8 `, et un entête RIFF d'un autre
+type de formulaire, que le pilote ne revendique pas du tout.
+
+**Résultat.** `cargo test --locked` du crate : 184 tests au vert (182 avant), 3 ignorés, 0 échec,
+plus les 4 tests du CLI. `cargo fmt --check`, `cargo clippy --all-targets --locked -- -D warnings`,
+`check:lines` et `check:duplicates` : verts. Deux attendus ont suivi le registre — la longueur du
+descripteur d'images avec la liste des extensions, et le doré du CLI `--version`. `npm run validate`
+n'a pas été joué ici, il l'est à la livraison.
+
+### Ce qui reste
+
+- Le `ALPH` d'un WebP avec perte porte un alpha **sans** perte ; il est perdu avec le reste, puisque
+  le flux couleur qu'il accompagne est refusé. Rien à récupérer là : une image sans couleur n'est pas
+  une texture.
+- `docs/COMPILER.md` ne liste aucune raison de rapport d'image : les deux nouvelles n'y entrent donc
+  pas plus que `image-profile-unsupported` ou `image-decode-failed`. À ajouter en une fois par qui
+  tient cette page.
+## 2026-09-15 — [compilateur] png : le 16 bits est refusé, plus abaissé en silence
+
+**Pourquoi.** Le pilote `png` passait tout à `crate_image::decode`, qui termine par `to_rgba8()`.
+Sur une source 16 bits par canal, cet appel ne convertit pas : il rogne. La crate `image` rend un
+`Rgb16`, `to_rgba8()` n'en garde que l'octet de poids fort de chaque composante, et les huit bits de
+précision du bas partent sans un mot — ni rapport, ni avertissement, ni trace dans le manifeste.
+C'est exactement la perte ajoutée que la règle de tête d'`orchestration/COMPILATEUR_IMPORT.md`
+interdit : une texture reçue sans perte doit rester exacte. Le pilote `tiff` avait déjà tranché la
+même question dans l'autre sens, en lisant la profondeur dans l'IFD avant tout décodage et en
+refusant le 16 bits sous `image-depth-unsupported` ; `dds` refuse de même ses codecs 16 bits. `png`
+restait le seul à ne pas le faire — c'était la décision n° 1 en attente d'`REPRISE_COMPILATEUR.md`,
+tranchée ici en refus nommé.
+
+**Ce qui change.** Le pilote lit l'octet 24 du fichier — la profondeur de l'IHDR, qui est toujours
+le premier morceau : huit octets de signature, huit de longueur et de type de morceau, huit de
+largeur et de hauteur — et refuse la valeur 16 sous `image-depth-unsupported`, avant tout décodage.
+Aucune source 16 bits n'atteint plus `to_rgba8()`. Tout le reste est inchangé, pixel pour pixel :
+1, 2, 4 et 8 bits par canal, palette, niveaux de gris, alpha — jusqu'à huit bits l'expansion vers
+RGBA8 recopie au lieu de rogner, elle ne perd rien. La détection du format ne bouge pas. La version
+du pilote, si : `png-image-0.25` devient `png-image-0.25-depth8`, parce qu'elle entre dans
+l'identité du cache et que ce qu'un PNG 16 bits produit vient de changer. Sans ce pas, une entrée
+écrite quand le 16 bits était abaissé en silence serait relue comme si elle était juste, et la perte
+survivrait au correctif — c'est la règle « never silently interpret incompatible cached data »
+d'`AGENTS.md`. Le suffixe nomme la profondeur maximale rendue, dans l'esprit des `-gltf-N` des
+pilotes de scène. Aucune dorée n'en dépend : les `expected.json` ne portent que la version du pilote
+de scène, jamais celle d'un pilote d'image, et le seul PNG 16 bits du dépôt est la fixture ajoutée
+ici. Le pilote `tiff` n'a pas la même dette : son refus du 16 bits est né avec lui, au commit
+`cda842f`, donc sa version n'a jamais désigné un autre comportement et ne bouge pas. Un fichier trop court
+pour porter son IHDR n'est pas jugé sur sa profondeur : il part au décodeur et ressort comme avant
+en `image-decode-failed`. Le pilote ne panique jamais, il ne fait que lire des octets.
+
+**Le cas JPEG, vérifié.** `zune-jpeg` 0.5.15, le décodeur de la feature `jpeg`, lit la précision
+dans le marqueur SOF et refuse tout ce qui n'est pas huit bits (`headers.rs` : « The library can
+only parse 8-bit images »). Le JPEG à douze bits, rare et réservé à l'imagerie technique, ressort
+donc déjà en `image-decode-failed` sans avoir été rogné : le défaut du PNG n'existait pas là, rien à
+corriger, le constat est noté dans l'entête du module.
+
+**Fixture et preuve.** `fixtures/png/`, trois fichiers de moins de cent octets écrits ici morceau
+par morceau depuis la spécification publique « PNG (Second Edition) », W3C / ISO-IEC 15948:2004,
+CC0-1.0, corpus WebGeometry : `rgb8.png` (RGB 8 bits), `palette4.png` (palette 4 bits) et
+`rgb16.png` (RGB 16 bits). Les trois portent le même dessin de 2 × 2 pixels ; les octets de poids
+faible du 16 bits sont tous non nuls et différents, si bien qu'un abaissement silencieux rendrait la
+référence 8 bits sans laisser de trace — Pillow 12.2.0, relecture indépendante, le fait justement.
+Deux tests dans `src/plugins/tests/png.rs`, un par comportement : les profondeurs lues rendent la
+référence pixel pour pixel ; le 16 bits ressort en `image-depth-unsupported`, quelle que soit
+l'allocation permise, et le tronqué reste en `image-decode-failed`.
+
+**Vérification manuelle sur le corpus.** `test-assets/textures/png-matrix/`, cinq fichiers de
+256 × 256, lus en place, jamais modifiés :
+
+| fichier | type de couleur | profondeur | verdict |
+| --- | --- | --- | --- |
+| `rgb8.png` | 2 (RGB) | 8 bits | décodé |
+| `rgba8-binary.png` | 6 (RGBA) | 8 bits | décodé, alpha conservé |
+| `palette.png` | 3 (palette) | 8 bits | décodé |
+| `gray.png` | 0 (gris) | 8 bits | décodé |
+| `rgb16.png` | 2 (RGB) | 16 bits | refusé, `image-depth-unsupported` |
+
+Un seul fichier change de comportement, celui que la décision visait ; les quatre autres rendent ce
+qu'ils rendaient.
+
+**Ce qui reste.** Porter le 16 bits jusqu'à l'écran plutôt que le refuser : une variante `Rgba16`
+au contrat d'image, et son traitement explicite chez chaque consommateur — `texture_preview`
+aujourd'hui, la pyramide d'aperçus ensuite, puis le transport et l'atlas. C'est un lot à soi, qui
+touche le contrat et pas un pilote, et il n'a pas de raison d'être lancé tant qu'aucun besoin réel
+ne se présente : refuser en le nommant laisse la texture retomber sur son blanc et dit pourquoi,
+là où l'abaissement silencieux ne disait rien.
+## 2026-09-15 — [compilateur] pilote exr
+
+Le compilateur lit les textures OpenEXR. Un module, `packages/asset-compiler-rust/src/plugins/image/exr.rs`,
+une ligne dans `image::DECODERS`, la caisse `exr` dans `Cargo.toml` — et, pour la première fois, une
+**seconde sortie au contrat d'image**, décrite dans l'entrée `pilote hdr` ci-dessous et commune aux
+deux pilotes de ce lot.
+
+**Ce qui est lu, sans perte.** Une seule partie, plate, à son plus grand niveau de résolution, avec
+les canaux `R`, `G`, `B` et, s'il y en a un, `A`, en demi ou en simple précision. Les échantillons
+sortent en `f32` : un demi-flottant s'y étend exactement, un simple flottant y passe tel quel. Rien
+n'est ramené à huit bits, rien n'est reporté en tons, rien n'est remis à l'échelle. Un fichier sans
+canal alpha rend l'alpha opaque que la spécification prescrit, pas un zéro. Les canaux sont lus par
+leur **nom**, jamais par leur rang. La lecture est séquentielle (`non_parallel`) : le compilateur
+borne ses propres fils, un décodeur de texture ne lui en prend pas d'autres dans le dos.
+
+**La détection.** Le nombre magique `76 2f 31 01` suffit, il n'appartient qu'à ce format. Les deux
+drapeaux du champ de version — parties profondes (`0x800`), parties multiples (`0x1000`) — sont lus
+par le pilote lui-même, quatre octets après le nombre magique, **avant** d'ouvrir l'entête : un
+fichier hors sous-ensemble est nommé sans qu'une seule ligne de pixels soit touchée.
+
+**Ce qui est refusé, et comment.** `exr-deep-unsupported` (des données profondes : un pixel y porte
+une liste d'échantillons, les aplatir serait une composition, donc un choix que le compilateur n'a
+pas à faire), `exr-multipart-unsupported` (rien ne dit quelle partie est la texture),
+`exr-channels-unsupported` (un canal de plus, un canal d'un autre nom, un entier 32 bits, une chroma
+sous-échantillonnée), `exr-header-invalid`, `exr-data-unreadable`, `exr-image-too-large`. Tout
+ressort en raison de rapport, jamais en panique, jamais en échec de compilation.
+
+**Provenance.** Champ de version et jeu de canaux écrits d'après les spécifications publiques de
+l'Academy Software Foundation (« OpenEXR File Layout », « Technical Introduction to OpenEXR »,
+openexr.com) ; décodage des pixels par la caisse `exr` 1.74.2 (BSD-3-Clause,
+`johannesvollmer/exrs`, Rust pur et sans `unsafe`, version figée, notices conservées avec la
+dépendance). Aucun code ni SDK d'éditeur, aucune bibliothèque C.
+
+**Dorée.** `fixtures/exr/` : six EXR de 2 × 2 pixels écrits ici octet par octet (CC0-1.0) par un
+encodeur qui ne partage aucune ligne avec le décodeur du pilote — compression absente, une ligne par
+morceau, table des offsets calculée —, plus une scène glTF d'un quad qui porte `demi.exr` en couleur
+de base. `src/plugins/tests/exr.rs` compare les **valeurs flottantes une par une** à une référence
+écrite en clair : les valeurs choisies (0, ⅛, ¼, ½, ¾, 1, 1,5, 2, 3, 4, 8, 16) sont exactes dans les
+deux précisions, donc un écart ne peut venir que du pilote. Les fixtures ont été relues par un second
+analyseur écrit séparément avant d'être commises : table des offsets, chaînage des attributs,
+valeurs de chaque morceau.
+
+**Vérification sur un corpus tiers.** `test-assets/textures/hdr-matrix/float16.exr` et `float32.exr`
+(CC0-1.0, écrits par un encodeur tiers, relus par FFmpeg à leur entrée au corpus) : les deux se
+décodent, en 256 × 256 chacun, canaux `R`, `G`, `B` sans alpha — le pilote rend donc l'alpha opaque —
+et des valeurs RGB comprises entre **0 et 8 exactement**, la rampe linéaire 0..8 que le manifeste du
+corpus annonce et que FFmpeg avait relue. Ils ne sont pas commis : huit cent mille octets de pixels
+qu'on ne peut pas écrire en clair ne font pas une fixture minimale.
+
+### Ce qui reste
+
+- BC6H, le codec flottant du pilote `dds`, est aujourd'hui refusé par `dds-codec-unsupported` faute
+  d'une sortie flottante au contrat. Cette sortie existe maintenant : le refus peut devenir un
+  décodage, dans un lot à lui, avec ses propres dorées. Ce lot ne le fait pas.
+- Un EXR tuilé ou à niveaux de mip est accepté — le plus grand niveau est lu —, mais aucune fixture
+  minimale ne l'exerce : les deux fichiers du corpus tiers sont des images à lignes.
+
+## 2026-09-15 — [compilateur] pilote hdr
+
+Le compilateur lit les textures Radiance HDR (RGBE). Un module,
+`packages/asset-compiler-rust/src/plugins/image/hdr.rs`, son voisin `hdr/scanlines.rs`, une ligne
+dans `image::DECODERS`. **Aucune dépendance ajoutée** : le lecteur est écrit ici, depuis la
+spécification publique.
+
+**Pourquoi un lecteur propre.** La caisse `image` a une fonctionnalité `hdr`, mais elle ne reconnaît
+que la signature `#?RADIANCE` — les fichiers anciens et plusieurs exporteurs écrivent `#?RGBE` — et
+elle ne laisse pas nommer ce qu'elle refuse : un espace de couleur XYZE, une orientation inversée et
+une ligne tronquée en ressortent sous la même erreur. Un pilote qui doit rapporter par un nom stable
+a besoin des deux.
+
+**Ce qui est lu, sans perte.** Signature `#?RADIANCE` ou `#?RGBE`, `FORMAT=32-bit_rle_rgbe` (absent,
+c'est le défaut de Radiance), résolution `-Y hauteur +X largeur`, et les trois écritures d'une
+ligne : brute, compression ancienne de « Real Pixels » (marqueur `1,1,1,n`, multiplicateurs
+consécutifs par 256), compression nouvelle par composantes (entête `2, 2, largeur`, paquets bruts et
+plages). Un RGBE porte trois mantisses de huit bits et un exposant commun ; la mantisse multipliée
+par `2^(e - 136)` est exactement le flottant que le fichier décrit. L'échelle est construite bit à
+bit en double précision — son exposant tient entre -135 et 119, donc toujours normal —, puis le
+produit n'est arrondi qu'une fois, au passage en simple précision. L'alpha est opaque : le format
+n'en a pas, et en inventer un serait mentir.
+
+**Ce qui est refusé, et comment.** `hdr-format-unsupported` (`32-bit_rle_xyze` décrit les mêmes
+octets dans un autre espace de couleur ; le convertir demanderait une matrice et un choix de
+primaires), `hdr-orientation-unsupported` (les sept autres combinaisons de signes et d'axes
+décrivent la même image écrite dans un autre sens ; les accepter voudrait dire la retourner, et un
+pilote qui retourne en silence est un pilote dont on doute), `hdr-header-invalid`,
+`hdr-data-truncated`, `hdr-image-too-large`.
+
+**Provenance.** « Real Pixels », Greg Ward, Graphics Gems II (1991), pour l'encodage RGBE et ses deux
+compressions ; manuel Radiance (Lawrence Berkeley National Laboratory) pour l'entête et la ligne de
+résolution. Aucun code ni SDK d'éditeur, aucun décodeur tiers.
+
+**Dorée.** `fixtures/hdr/` : sept fichiers écrits ici octet par octet (CC0-1.0) plus une scène glTF.
+Les trois fichiers 4 × 2 — ligne brute, compression ancienne, signature `#?RGBE` — portent la **même
+image**, ce qui prouve que ni la compression ni la signature ne changent un bit du résultat ; la
+fixture 8 × 1 exerce la compression nouvelle, qui ne s'écrit qu'à partir de huit pixels de large, et
+mêle dans la même ligne une plage de quatre pixels identiques et des valeurs isolées, pour que les
+deux sortes de paquets soient parcourues. `src/plugins/tests/hdr.rs` compare les valeurs une par une
+à une référence écrite en clair. Les fixtures ont été relues par un second analyseur écrit
+séparément avant d'être commises.
+
+**Vérification sur un corpus tiers.** `test-assets/textures/hdr-matrix/environment.hdr` (512 × 256,
+CC0-1.0, écrit par un encodeur tiers, relu par FFmpeg à son entrée au corpus) : il se décode, en
+512 × 256, avec des valeurs RGB comprises entre **0 et 8 exactement** — la rampe linéaire 0..8 que le
+manifeste du corpus annonce et que FFmpeg avait relue — et un alpha opaque partout. C'est une vraie
+largeur, donc la compression nouvelle sur des lignes de 512 pixels, ce qu'aucune fixture minimale ne
+peut montrer. Il n'est pas commis ici : un demi-mégaoctet de pixels qu'on ne peut pas écrire en clair
+ne fait pas une fixture minimale.
+
+### La variante flottante du contrat d'image (commune aux deux pilotes)
+
+`DecodedImage` avait une seule variante, `Rgba8`, que le cœur déconstruisait par un `let`
+irréfutable. Elle en a deux : `RgbaF32 { width, height, data }`, RGBA 32 bits linéaire à alpha droit.
+Le contrat passe de `image-plugin-1` à `image-plugin-2` ; cette version entre dans l'empreinte du
+registre, donc dans l'identité du cache, et c'est voulu : rien de ce qu'a écrit l'ancien contrat
+n'est relu comme à jour.
+
+**Aucun pont entre les deux variantes.** Ramener du flottant à huit bits demanderait un report de
+tons, donc une perte que la source n'avait pas, ce que la politique d'import interdit. Chaque
+consommateur tranche donc explicitement. Il y en a un aujourd'hui : les aperçus progressifs
+(`src/texture_preview.rs`), qui sont du RGBA8 sRGB — le `let` irréfutable est devenu un `match` dont
+la seconde branche rend `image-float-unsupported`. Le plafond d'allocation reçu par `decode` est
+compté à **seize octets par pixel** avant toute allocation, par `float_budget`, et le dépassement
+porte le nom du pilote (`exr-image-too-large`, `hdr-image-too-large`).
+
+**Ce que cela donne bout en bout.** Les dorées `fixtures/exr/scene.gltf` et `fixtures/hdr/scene.gltf`
+sont compilées par le harnais commun : la compilation aboutit, la texture couleur est comptée, aucun
+aperçu n'est produit, et `image-float-unsupported` est nommé au rapport. Une texture flottante ne
+fait donc échouer aucune compilation et n'est jamais rognée — le moteur retombe sur son blanc, comme
+pour toute texture qu'il ne sait pas encore afficher.
+
+**Résultat.** `cargo test --locked` du crate : **189 tests de bibliothèque au vert** (182 avant ce
+lot) plus 4 tests de CLI, 3 ignorés, 0 échec. `cargo fmt --check`, `cargo clippy --all-targets
+-- -D warnings`, `npm run check:lines` et `npm run check:duplicates` : verts. Quatre attendus ont
+suivi le registre — la liste des extensions, la longueur du descripteur d'images, le doré du CLI
+`--version` et les cinq appels qui déconstruisaient `DecodedImage` par un `let` irréfutable, passés
+par deux fonctions communes de `src/plugins/tests.rs` — et le cas « format hors registre » du test de
+registre se disait avec un entête EXR : il se dit maintenant avec un entête KTX2. `npm run
+check:changed` s'arrête dans ce worktree faute de `node_modules` ; prettier y a été passé à la main
+sur les fichiers JSON ajoutés. `npm run validate` n'a pas été joué ici, il l'est à la livraison.
