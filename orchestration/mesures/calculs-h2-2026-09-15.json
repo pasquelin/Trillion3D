@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "lot": "H2",
+  "develop": "5305f6c8264aff2200c15f9b902c42021b410af5",
+  "chargeMachine": 7.798828125,
+  "tempsConcluants": false,
+  "date": "2026-09-15T08:33:44.837Z",
+  "commit": "23824cc853ecdd13dbcf17409c8d31c4821e858a",
+  "node": "v26.8.2",
+  "plateforme": "darwin/arm64",
+  "dpr": null,
+  "fps": null,
+  "lignes": [
+    {
+      "calcul": "H1 décodage de page par le contrat",
+      "fichier": "packages/sdk-browser/pageDecodeHost.ts",
+      "avantMs": 2.377688,
+      "apresMs": 2.349688,
+      "gain": 0.011776145566617666,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 40,
+      "entrees": [
+        {
+          "nom": "30 000 sommets, six attributs",
+          "taille": 30000
+        },
+        {
+          "nom": "9 sommets",
+          "taille": 9
+        }
+      ]
+    },
+    {
+      "calcul": "H2 hachage d’intégrité par le contrat",
+      "fichier": "packages/sdk-browser/pageDecodeHost.ts",
+      "avantMs": 0.5225415,
+      "apresMs": 0.525271,
+      "gain": -0.005223508563434773,
+      "identique": true,
+      "retenu": false,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "30 000 sommets, page compressée",
+          "taille": 1101488
+        },
+        {
+          "nom": "9 sommets",
+          "taille": 605
+        }
+      ]
+    }
+  ]
+}
