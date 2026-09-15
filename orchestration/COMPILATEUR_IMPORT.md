@@ -6,7 +6,7 @@ Objectif : un seul exécutable Rust qui accepte ce que livrent les places de mar
 
 Politique juridique fixée par l'utilisateur : aucun format propriétaire, sauf lecture légale établie. Cette page n'est pas un avis d'avocat ; les verdicts viennent d'une analyse documentaire (directive 2009/24/CE art. 1, 5 § 3, 6 ; CJUE SAS Institute C‑406/10 ; 17 USC § 102(b) ; SAS v. WPL, 4th Cir. 2017 sur la portée des contrats). Règles de dépôt : lecteur écrit à partir de spécifications publiques ou de bibliothèques permissives dont la licence est respectée, jamais de code ni de SDK d'éditeur repris, jamais de contournement de protection, provenance de chaque lecteur documentée, jeux de tests redistribuables.
 
-État actuel du code : géométrie FBX (ufbx, MIT, sans SDK Autodesk) et OBJ, glTF et GLB en entrée directe, un modèle par dossier source ; textures PNG et JPEG décodées, les autres ignorées avec rapport.
+État actuel du code (15 sept. 2026, pause) : routeur à pilotes (`scene-plugin-2`, `image-plugin-1`), six pilotes de scène (`gltf`, `fbx` par ufbx, `obj`, `zip`, `unity`, `unitypackage`) et cinq pilotes d'image (`png`, `jpeg`, `tga`, `tiff`, `dds`) ; un projet Unity est routé vers `unity` avec ses modèles ; une seule racine de résolution des images de l'import aux aperçus. Reprise : `orchestration/REPRISE_COMPILATEUR.md`.
 
 ## Architecture : un pilote par format
 
@@ -63,8 +63,10 @@ Le compilateur ne connaît aucun format. Il route chaque source vers un pilote (
 
 ## Ordre proposé
 
-1. TGA.
-2. Scène Unity (`.unity` + `.prefab` + `.mat` + `.meta`), test doré sur une mini-scène, puis Industrial Map au banc 15.
-3. Kits multi-FBX, ZIP, `.unitypackage`.
-4. TIFF, DDS, MTL.
-5. USD, Alembic, `.blend`, PSD, EXR/HDR, KTX2, WebP, `.ma` selon besoin réel.
+Faits : TGA, Unity (scène, prefabs, sous-maillages, échelle, retouches), ZIP, `.unitypackage`, TIFF, DDS.
+
+1. Industrial Map au banc 15 (agent Lab, `prepare()` sur le dossier du projet Unity).
+2. EXR/HDR (variante flottante du contrat d'image), KTX2, WebP sans perte.
+3. USD, Alembic, `.blend`.
+4. PSD, BMP, GIF, `.ma`, MTL à vérifier.
+5. Chantier « blocs gardés sur GPU » (DDS puis KTX2), sur go de l'utilisateur.
