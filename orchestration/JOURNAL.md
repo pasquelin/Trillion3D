@@ -104,13 +104,15 @@ son niveau racine, 74,9 Mo lus une fois et résidents. Le sidecar binaire, lui, 
 ### Fidélité, rebond éteint
 
 `banc.mjs`, WebGPU, Emerald, trois vues, 1280×720, `pixelError 0`, `auto` sans lampe, cache v4
-recompilé, 40 images de chauffe. **`8cb7e21` (la base du lot) contre le lot : 0 px, max canal 0, sur
-`generale`, `sol` et `rue`**, coupe identique, témoin A/A à 0 px, 0 erreur de page.
+recompilé, 40 images de chauffe. **Base finale `21dbe9e` contre le lot rebasé : 0 px, max canal 0,
+sur `generale`, `sol` et `rue`**, coupe identique, témoin A/A à 0 px, 0 erreur de page. Le même
+verdict avait déjà été obtenu contre la base d'origine `8cb7e21` avant le rebasage.
 
-Réserve à signaler : contre le `develop` du moment (`21dbe9e`, lot 4 des textures), `generale`
-diffère de 2 083 px et **sélectionne 5 093 246 triangles contre 10 046 405** — deux coupes
-différentes, des deux côtés reproductibles. Ce n'est pas ce lot : contre sa propre base, l'écart est
-nul. C'est à regarder par qui a écrit le lot 4.
+Deux pièges rencontrés en route, à savoir pour les prochains : un cache compilé avec une autre base
+d'URL de ressources sort **3 360 textures en 404** et la mesure ne porte plus sur la scène ; et
+comparer à un `develop` qui a bougé fait apparaître un écart (2 083 px, deux coupes différentes) qui
+n'appartient pas au lot. La référence d'une porte de fidélité est la base du lot, pas la tête du
+moment.
 
 ### Écart à l'oracle et retard, sur la pièce de contrôle
 
