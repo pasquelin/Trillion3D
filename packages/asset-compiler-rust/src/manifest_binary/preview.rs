@@ -1,14 +1,19 @@
 use super::*;
 
-/// Section des aperçus de texture : une entrée de longueur fixe par texture couleur décodée.
+/// Section des niveaux progressifs : une entrée de longueur fixe par texture couleur décodée, et
+/// une plage d'octets à elle dans la colonne des pixels.
 ///
 /// Une entrée nomme la texture et l'image de `source.gltf` qu'elle couvre, les dimensions de la
 /// source, le genre de provenance — 0 pour une `uri`, 1 pour une vue de tampon dont l'index suit —
-/// et le décalage de chacun des cinq niveaux dans ses pixels. L'`uri` elle-même n'est pas recopiée :
-/// elle se lit dans `images[image]`, que l'entrée nomme, et la dupliquer serait deux vérités.
-/// Les entrées sont strictement croissantes par index de texture, ce qu'un lecteur revérifie.
+/// puis le rang du premier niveau porté, leur nombre, et le début et la longueur de ses pixels.
+/// L'`uri` elle-même n'est pas recopiée : elle se lit dans `images[image]`, que l'entrée nomme, et
+/// la dupliquer serait deux vérités. Les niveaux, eux, ne sont pas décrits un par un : leurs
+/// dimensions se redéduisent des dimensions de la source, si bien qu'un lecteur recalcule la
+/// géométrie annoncée au lieu de la croire. Les entrées sont strictement croissantes par index de
+/// texture et leurs plages se suivent sans trou, ce qu'un lecteur revérifie.
 pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column]) -> Result<()> {
     let mut previous: Option<u32> = None;
+    let mut offset: u32 = 0;
     for preview in previews {
         if previous.is_some_and(|last| last >= preview.texture) {
             return Err(bad(format!(
@@ -23,13 +28,22 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
                 preview.texture
             )));
         }
-        if preview.pixels.len() != PREVIEW_BYTES {
+        let first = preview_first_level(preview.width, preview.height);
+        if preview.first_level != first {
             return Err(bad(format!(
-                "Texture preview {} carries {} pixel bytes, expected {PREVIEW_BYTES}",
+                "Texture preview {} declares first level {}, expected {first}",
+                preview.texture, preview.first_level
+            )));
+        }
+        let bytes = preview_pixel_bytes(preview.width, preview.height);
+        if preview.pixels.len() != bytes {
+            return Err(bad(format!(
+                "Texture preview {} carries {} pixel bytes, expected {bytes}",
                 preview.texture,
                 preview.pixels.len()
             )));
         }
+        let length = as_u32(bytes as i64, "Texture preview pixel length")?;
         let words = &mut columns[TEXTURE_PREVIEW_U32];
         words.u32(preview.texture);
         words.u32(preview.image);
@@ -37,9 +51,13 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
         words.u32(preview.height);
         words.u32(preview.source.kind());
         words.u32(preview.source.buffer_view());
-        for offset in PREVIEW_LEVEL_OFFSETS {
-            words.u32(offset);
-        }
+        words.u32(first);
+        words.u32(preview_level_count(preview.width, preview.height));
+        words.u32(offset);
+        words.u32(length);
+        offset = offset
+            .checked_add(length)
+            .ok_or_else(|| bad("Texture preview pixels exceed four gigabytes"))?;
         columns[TEXTURE_PREVIEW_SHA].sha(&preview.sha256)?;
         columns[TEXTURE_PREVIEW_PIXELS].raw(&preview.pixels);
     }
@@ -47,5 +65,6 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
         columns[TEXTURE_PREVIEW_U32].bytes.len(),
         previews.len() * PREVIEW_WORDS * 4
     );
+    debug_assert_eq!(columns[TEXTURE_PREVIEW_PIXELS].bytes.len(), offset as usize);
     Ok(())
 }

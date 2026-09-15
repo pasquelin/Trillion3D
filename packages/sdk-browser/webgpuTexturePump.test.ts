@@ -9,9 +9,14 @@ function scriptedJob(
   overrides: { layer?: number; rows: number; bytesPerRow: number },
   uploadRows: TextureJob['uploadRows'],
 ): TextureJob {
+  const layer = overrides.layer ?? 1;
   return {
     kind: 'color',
-    layer: overrides.layer ?? 1,
+    slot: layer,
+    classIndex: 0,
+    layer,
+    level: 0,
+    stage: 1,
     bytes: overrides.rows * overrides.bytesPerRow,
     rows: overrides.rows,
     bytesPerRow: overrides.bytesPerRow,
@@ -28,30 +33,44 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
   const size: [number, number] = [4, 4];
   const texture = device.createTexture({
     size: { width: size[0], height: size[1], depthOrArrayLayers: 4 },
+    format: 'rgba8unorm-srgb',
   }) as unknown as GPUTexture;
+  const colorAtlas = {
+    classes: [
+      {
+        texture,
+        view: {} as GPUTextureView,
+        size,
+        layers: 4,
+        bytes: 0,
+        scales: [
+          [1, 1],
+          [1, 1],
+        ] as Array<[number, number]>,
+      },
+    ],
+    used: 1,
+    slotWords: new Uint32Array(4),
+    bytes: 0,
+    destroy() {},
+  };
   const colorReady: number[][] = [];
+  const levels: Array<[number, number]> = [];
   const failures: Array<{ phase: string; error: unknown }> = [];
   const abandons: Array<Record<string, unknown>> = [];
   const pump = createWebgpuTexturePump({
     device,
     jobs,
     budget,
-    colorScales: [
-      [1, 1],
-      [1, 1],
-    ],
-    dataScales: [
-      [1, 1],
-      [1, 1],
-    ],
-    colorAtlas: () => ({ texture, size }),
-    dataAtlas: () => ({ texture: undefined, size: [0, 0] }),
+    colorAtlas: () => colorAtlas,
+    dataAtlas: () => undefined,
     order: order ?? (() => {}),
-    onColorReady: (layers) => colorReady.push([...layers]),
+    onLevel: (slot, level) => levels.push([slot, level]),
+    onColorReady: (slots) => colorReady.push([...slots]),
     onFailure: (phase, error) => failures.push({ phase, error }),
     onAbandon: (context) => abandons.push(context),
   });
-  return { pump, submits, colorReady, failures, abandons };
+  return { pump, submits, colorReady, levels, failures, abandons };
 }
 
 test('une texture plus grosse que le budget d’une image arrive complète en plusieurs pompes, jamais dans textureSkipped', async () => {
@@ -135,7 +154,7 @@ test('une texture entamée n’est jamais interrompue au milieu d’une tranche,
   let relegate = false;
   const order = (jobs: TextureJob[]) => {
     if (!relegate) return;
-    const index = jobs.findIndex((entry) => entry.layer === 2);
+    const index = jobs.findIndex((entry) => entry.slot === 2);
     if (index > 0) jobs.unshift(jobs.splice(index, 1)[0]);
   };
   const { pump } = buildPump([jobX, jobY], 4, order);
@@ -157,4 +176,17 @@ test('une texture entamée n’est jamais interrompue au milieu d’une tranche,
   assert.equal(pump.uploaded, 2);
   assert.equal(pump.skipped, 0);
   assert.deepEqual(logX, [0, 1, 2]);
+});
+
+test('un travail de niveau progressif (stage 0) appelle onLevel, jamais onColorReady ni de régénération de mips', async () => {
+  const job = scriptedJob({ rows: 1, bytesPerRow: 4 }, () => {});
+  job.stage = 0;
+  job.level = 3;
+  const { pump, submits, colorReady, levels } = buildPump([job], 4);
+  await pump.pump();
+  assert.deepEqual(levels, [[1, 3]]);
+  assert.equal(colorReady.length, 0);
+  assert.equal(submits.length, 0, 'aucune régénération de mips pour un niveau progressif seul');
+  assert.equal(pump.uploaded, 0);
+  assert.equal(pump.levels, 1);
 });

@@ -138,7 +138,10 @@ export interface TexturePreview {
   sourceBufferView: number;
   /** SHA-256 des octets sources décodés. */
   sha256: string;
-  /** Les cinq niveaux dans l'ordre, chacun une vue sur les octets du sidecar. */
+  /** Rang du premier niveau porté dans la chaîne de mips de la source ; 0 quand elle tient déjà
+   *  sous `PREVIEW_BASE` et que le sidecar porte donc sa pleine résolution. */
+  firstLevel: number;
+  /** Les niveaux portés dans l'ordre, du plus fin au 1×1, chacun une vue sur les octets du sidecar. */
   levels: Uint8Array<ArrayBuffer>[];
 }
 export interface ClusterManifest {

@@ -28,7 +28,9 @@ test('SHADE_SHADER implements mat3 inverse-transpose without the missing WGSL in
 test('SHADE_SHADER early returns on background or invalid pixels before texture sampling', () => {
   const fs = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shade_fs'));
   const firstReturn = fs.indexOf('return');
-  const sampleAt = fs.indexOf('textureSampleGrad');
+  // Les lectures d'atlas passent par `colorSample` et `dataSample`, déclarés avant `shade_fs` :
+  // ce qui compte reste qu'aucune ne soit atteinte avant la sortie sur pixel de fond ou invalide.
+  const sampleAt = fs.indexOf('colorSample(');
   assert.ok(firstReturn >= 0 && sampleAt >= 0);
   assert.ok(firstReturn < sampleAt);
 });
