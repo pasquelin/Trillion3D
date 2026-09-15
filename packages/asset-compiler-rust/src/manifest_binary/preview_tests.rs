@@ -103,3 +103,16 @@ fn encode_previews_rejects_the_wrong_pixel_byte_length() {
     malformed.pixels.pop();
     assert!(crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).is_err());
 }
+
+// Comportement 9 (f) : une entrée dont le premier niveau annoncé ne correspond pas à ses dimensions
+// est refusée, même quand ses octets de pixels ont la bonne longueur pour ce premier niveau erroné
+// n'étant pas en cause : c'est bien la géométrie déclarée, pas la taille des pixels, qui ment ici.
+#[test]
+fn encode_previews_rejects_a_first_level_that_disagrees_with_the_dimensions() {
+    let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    let mut malformed = preview(0, 128, 128, 1);
+    malformed.first_level += 1;
+    let error =
+        crate::manifest_binary::preview::encode_previews(&[malformed], &mut columns).unwrap_err();
+    assert_eq!(error.code, "INVALID_MANIFEST");
+}
