@@ -33,6 +33,15 @@ export interface BounceBudget {
   observe(ms: number | null): void;
 }
 
+/**
+ * Le lot d'une image : la fraction du plafond publié que le budget tient, arrondie, jamais nulle.
+ * La passe de sondes et celle du cache de surfaces plafonnent de la même façon — deux arrondis
+ * séparés auraient fini par ne plus avancer au même rythme sous le même budget.
+ */
+export function bounceBatchOf(ceiling: number, load: number) {
+  return Math.max(1, Math.round(ceiling * load));
+}
+
 export function createBounceBudget(budgetMs: number): BounceBudget {
   const target = Number.isFinite(budgetMs) && budgetMs > 0 ? budgetMs : BOUNCE_SETTINGS.budgetMs;
   const { budgetSmoothing, budgetFloor } = BOUNCE_SETTINGS;
