@@ -12,6 +12,8 @@ pub(super) struct PrimitiveInputs<'a> {
     pub mesh_scales: &'a BTreeMap<usize, f64>,
     /// Triangles de la scène entière, toutes instances posées : le dénominateur des parts de budget.
     pub scene_triangles: usize,
+    /// Les accessors que `plan_buffers` a déjà validés une fois, sur les mêmes octets.
+    pub validated: &'a BTreeSet<usize>,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
 
@@ -40,6 +42,7 @@ pub(super) fn compile_primitive(
         mesh_map,
         mesh_scales,
         scene_triangles,
+        validated,
         progress,
     } = inputs;
     check(o)?;
@@ -63,6 +66,7 @@ pub(super) fn compile_primitive(
                 .and_then(|a| a.get("POSITION")),
             "primitive.attributes.POSITION",
         )?,
+        Some(validated),
     )?;
     if positions.width != 3 || positions.component != 5126 {
         return Err(invalid("POSITION must be float VEC3"));
@@ -72,6 +76,7 @@ pub(super) fn compile_primitive(
             g,
             bin,
             required_index(p.get("indices"), "primitive.indices")?,
+            Some(validated),
         )?;
         if ids.width != 1 || ids.normalized || ![5121, 5123, 5125].contains(&ids.component) {
             return Err(invalid("indices component must be unsigned SCALAR"));
@@ -134,7 +139,7 @@ pub(super) fn compile_primitive(
                 .and_then(Value::as_object)
                 .and_then(|attributes| attributes.get(name))
             {
-                let a = accessor(g, bin, required_index(Some(id), name)?)?;
+                let a = accessor(g, bin, required_index(Some(id), name)?, Some(validated))?;
                 if a.count != positions.count
                     || (a.width != width && !(name == "COLOR_0" && a.width == 3))
                 {

@@ -62,6 +62,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         mesh_map: &mesh_map,
         mesh_scales: &mesh_scales,
         scene_triangles: selected_triangles,
+        validated: &accessors,
         progress: &progress,
     };
     let compiled: Vec<CompiledPrimitive> = pool.install(|| {
