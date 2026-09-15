@@ -10,17 +10,14 @@
 // du texel de la période voisine (défaut distinct, présent avant ce lot et laissé tel quel).
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { WRAP_COORD_WGSL } from '../../visibilityPageWgsl.ts';
-import { FLAG_WRAP_S_REPEAT, FLAG_WRAP_T_REPEAT } from '../../visibilityTypes.ts';
+import { WRAP_COORD_WGSL, wrapFlags } from '../../visibilityPageWgsl.ts';
 import { bilan, cas, octetsTexture, somme, TAILLES } from './adressageCas.mjs';
 import { executerDansChromium } from './adressageGpuPage.mjs';
 
-/** Les drapeaux tels que `webgpuPageRow.ts` et `webgpuBlendPrepare.ts` les écrivent. */
-const drapeaux = (c) =>
-  (c.wrapS !== THREE.ClampToEdgeWrapping ? FLAG_WRAP_S_REPEAT : 0) |
-  (c.wrapT !== THREE.ClampToEdgeWrapping ? FLAG_WRAP_T_REPEAT : 0);
+/** Les drapeaux écrits par `webgpuPageRow.ts` et `webgpuBlendPrepare.ts`, par la même fonction. */
+const drapeaux = (c) => wrapFlags({ wrapS: c.wrapS, wrapT: c.wrapT });
 /** L'appel des passes de géométrie, d'ombrage et de mélange, au caractère près. */
-const APPEL = 'vec2f(wrapCoord(c.uv.x,(c.flags&32u)!=0u),wrapCoord(c.uv.y,(c.flags&64u)!=0u))';
+const APPEL = 'wrapUv(c.uv,c.flags)';
 
 const SHADER = `${WRAP_COORD_WGSL}
 struct Cas{uv:vec2f,flags:u32,pad:u32,}
