@@ -14,16 +14,16 @@ import type { WebgpuDiagnostics } from './webgpuPagesSetup.ts';
  */
 const CPU = cpuStepTable([
   ['lightsMs', 'lights'],
-  ['adoptCutMs', 'selection'],
+  ['adoptCutMs', 'cutAdoption'],
   ['transparentSelectMs', 'transparents'],
   ['admissionMs', 'residency'],
   ['residencyQueueMs', 'residency'],
   ['syncRowsMs', 'uploads'],
   ['residencyUploadMs', 'uploads'],
   ['selectionDispatchMs', 'selection'],
-  ['projectBoxesMs', 'encode'],
-  ['partitionMs', 'encode'],
-  ['itemsMs', 'encode'],
+  ['projectBoxesMs', 'boxes'],
+  ['partitionMs', 'partition'],
+  ['itemsMs', 'drawItems'],
   ['encodeRestMs', 'encode'],
   ['queueSubmitMs', 'submit'],
   ['encodeSubmitMs', null],
@@ -63,6 +63,17 @@ export interface WebgpuTimingState {
   lastProjectMs: number;
   lastPartitionMs: number;
   lastItemsMs: number;
+  /** Ce que la partition de l'image a décidé : des comptes, jamais des durées. */
+  partitionCounts: {
+    lignes: number;
+    occulteurs: number;
+    testees: number;
+    bornesToutes: number;
+    historiqueOcculteurs: number;
+    sansHistorique: number;
+  };
+  /** Ce que l'encodage a téléversé et soumis : des comptes, jamais des durées. */
+  encodeCounts: { lignesTeleversees: number; fichesTeleversees: number; appelsDeDessin: number };
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
   marks: GpuCutMarks;
   lastCpuLogMs: number;
@@ -105,6 +116,15 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     lastProjectMs: 0,
     lastPartitionMs: 0,
     lastItemsMs: 0,
+    partitionCounts: {
+      lignes: 0,
+      occulteurs: 0,
+      testees: 0,
+      bornesToutes: 0,
+      historiqueOcculteurs: 0,
+      sansHistorique: 0,
+    },
+    encodeCounts: { lignesTeleversees: 0, fichesTeleversees: 0, appelsDeDessin: 0 },
     cpuProfile: createCpuStepProfile(CPU.names),
     marks: {
       cpuStart: 0,
