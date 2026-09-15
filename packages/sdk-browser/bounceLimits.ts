@@ -9,6 +9,7 @@
  */
 
 import type { SceneProxy } from '../sdk-core/index.ts';
+import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
 import { surfaceCacheBytes } from './bounceSurfaceWgsl.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
 
@@ -35,9 +36,22 @@ function bounceLimitFailure(device: GPUDevice, bindings: readonly BounceBinding[
 }
 
 /**
+ * Les octets du proxy résident : son entête, puis ses trois colonnes bout à bout dans le tampon
+ * unique que la traversée lie. Un proxy sans données garde les quatre mots de la liaison vide.
+ */
+function residentProxyBytes(proxy: SceneProxy) {
+  const data = proxy.data;
+  const columns =
+    (data?.triangles.byteLength ?? 0) +
+    (data?.nodeBounds.byteLength ?? 0) +
+    (data?.nodeChildren.byteLength ?? 0);
+  return PROXY_HEADER_BYTES + Math.max(16, columns);
+}
+
+/**
  * Les octets de chaque liaison que le rebond va créer, dans l'ordre où il les crée : le proxy
- * résident et son arbre, les deux copies des sondes, la file de l'image, le cache de surfaces et
- * l'uniforme des cascades. Un proxy sans données garde les quatre octets de la liaison vide.
+ * résident et son albédo, les deux copies des sondes, la file de l'image, le cache de surfaces et
+ * l'uniforme des cascades.
  */
 function plannedBindings(
   proxy: SceneProxy,
@@ -47,10 +61,8 @@ function plannedBindings(
   const data = proxy.data,
     storage = 'maxStorageBufferBindingSize';
   return [
-    { name: 'proxy triangles', bytes: data?.triangles.byteLength ?? 4, limit: storage },
+    { name: 'resident proxy', bytes: residentProxyBytes(proxy), limit: storage },
     { name: 'proxy albedo', bytes: data?.albedo.byteLength ?? 4, limit: storage },
-    { name: 'proxy node bounds', bytes: data?.nodeBounds.byteLength ?? 4, limit: storage },
-    { name: 'proxy node children', bytes: data?.nodeChildren.byteLength ?? 4, limit: storage },
     { name: 'probes', bytes: probeBytes, limit: storage },
     { name: 'probes snapshot', bytes: probeBytes, limit: storage },
     { name: 'probe queue', bytes: queueBytes, limit: storage },
