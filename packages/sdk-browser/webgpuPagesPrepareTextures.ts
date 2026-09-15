@@ -27,12 +27,13 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     concatUv: vis.concatUv,
     concatNrm: vis.concatNrm,
   } = prepareWebgpuGeometry(gpuDevice, allPages, geometryBlocks));
-  const { maps, dataMaps, normalMaps } = collectWebgpuMaterialTextures(
+  const { maps, dataMaps, normalMaps, materialLayers } = collectWebgpuMaterialTextures(
     allPages,
     blendCopies,
     mapLayer,
     dataLayer,
   );
+  vis.materialLayers = materialLayers;
   diag.engineDiagnostic('material-textures', 'Textures nécessaires au rendu', {
     colorTextures: maps.length,
     dataTextures: dataMaps.length,
