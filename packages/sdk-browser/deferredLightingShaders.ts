@@ -7,7 +7,7 @@ export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i
 const SRGB_WGSL = `
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
 /** La courbe du contrat, appliquée juste avant sRGB et jamais avant un mélange (P4). */
-const ACES_WGSL = `
+export const ACES_WGSL = `
 fn aces(color:vec3f)->vec3f{
  var c=color/0.6;
  c=mat3x3f(vec3f(0.59719,0.07600,0.02840),vec3f(0.35458,0.90834,0.13383),vec3f(0.04823,0.01566,0.83777))*c;
