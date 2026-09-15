@@ -46,7 +46,9 @@ fn valid() -> Vec<u8> {
 fn decoded(case: &str, file: &[u8]) -> ::image::RgbaImage {
     let decoder = registry::by_head(file).expect("un pilote revendique ces octets");
     assert_eq!(decoder.name(), "ktx2", "{case}");
-    super::rgba8(registry::decode(file, MAX_ALLOC).unwrap_or_else(|reason| panic!("{case}: {reason}")))
+    super::rgba8(
+        registry::decode(file, MAX_ALLOC).unwrap_or_else(|reason| panic!("{case}: {reason}")),
+    )
 }
 
 /// Les texels d'un conteneur, dans l'ordre de lecture.
