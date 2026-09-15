@@ -24,7 +24,7 @@ test('planAtlasClasses replies to a single class, sized like the largest texture
     [64, 64],
     [64, 64],
   ];
-  const plan = planAtlasClasses(device(256, 32), sizes);
+  const plan = planAtlasClasses(device(256, 32), sizes, 2);
   assert.equal(plan.used, 1);
   assert.deepEqual(plan.sizes[0], [64, 64]);
   assert.equal(plan.layers[0], sizes.length + 1);
@@ -41,7 +41,7 @@ test('planAtlasClasses keeps a second class only when it saves bytes over the si
     [8, 8],
     [8, 8],
   ];
-  const plan = planAtlasClasses(device(256, 32), sizes);
+  const plan = planAtlasClasses(device(256, 32), sizes, 2);
   assert.equal(plan.used, 2);
   assert.deepEqual(plan.sizes[1], [8, 8]);
   assert.deepEqual(plan.slotClass, [0, 1, 1, 1]);
@@ -65,7 +65,7 @@ test('planAtlasClasses is bounded to a single class when maxSampledTexturesPerSh
     [8, 8],
     [8, 8],
   ];
-  const plan = planAtlasClasses(device(256, 4), sizes);
+  const plan = planAtlasClasses(device(256, 4), sizes, 2);
   assert.equal(plan.used, 1);
   assert.deepEqual(plan.sizes[0], [128, 128]);
 });
@@ -84,7 +84,7 @@ test('planAtlasClasses splits in two rather than failing when a single class exc
     [8, 8],
     [8, 8],
   ];
-  const plan = planAtlasClasses(device(5, 32), sizes);
+  const plan = planAtlasClasses(device(5, 32), sizes, 2);
   assert.equal(plan.used, 2);
   assert.deepEqual(plan.sizes[0], [128, 128]);
   assert.deepEqual(plan.sizes[1], [8, 8]);
@@ -103,5 +103,22 @@ test('planAtlasClasses fails with TEXTURE_ATLAS_LAYERS when no plan fits under t
     { length: 8 },
     () => [64, 64] as [number, number],
   );
-  assert.throws(() => planAtlasClasses(device(5, 32), sizes), /TEXTURE_ATLAS_LAYERS/);
+  assert.throws(() => planAtlasClasses(device(5, 32), sizes, 2), /TEXTURE_ATLAS_LAYERS/);
+});
+
+// Comportement 7 : la borne demandée par l'hôte prime sur l'économie d'octets. Avec `atlasClasses`
+// à 1, la scène du deuxième cas — celle où deux classes gagnent des octets — reste en une seule.
+test('planAtlasClasses keeps a single class when the host bound is 1, even where two would save bytes', () => {
+  const sizes: Array<[number, number]> = [
+    [128, 128],
+    [8, 8],
+    [8, 8],
+    [8, 8],
+  ];
+  const plan = planAtlasClasses(device(256, 32), sizes, 1);
+  assert.equal(plan.used, 1);
+  assert.deepEqual(plan.sizes[0], [128, 128]);
+  assert.deepEqual(plan.slotClass, [0, 0, 0, 0]);
+  assert.equal(plan.layers[0], sizes.length + 1);
+  assert.equal(plan.bytes[0], classBytes(128, 128, sizes.length + 1));
 });
