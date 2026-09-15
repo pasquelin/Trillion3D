@@ -1,4 +1,5 @@
 import { HIZ_BOUNDS_VALUES } from './hiz.ts';
+import { hizNearestBound } from './hizNearestBound.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { visBin } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -54,6 +55,9 @@ export function buildWebgpuVisibilityItems(
       const from = i * HIZ_BOUNDS_VALUES,
         to = testedCount * HIZ_BOUNDS_VALUES;
       for (let k = 0; k < HIZ_BOUNDS_VALUES; k++) hizTestedBounds[to + k] = hizBounds[from + k];
+      // La borne qui voyage jusqu'au noyau minore strictement ce que le cluster écrira : arrondi
+      // dirigé vers le bas et biais de couche coplanaire retranché. Voir `hizNearestBound`.
+      hizTestedBounds[to + 4] = hizNearestBound(hizBounds[from + 4], rec.depthLayer);
       hizTestedTriangles[testedCount] = count / 3;
       hizTestedRows[testedCount++] = row;
     }
