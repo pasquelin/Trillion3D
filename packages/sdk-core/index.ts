@@ -102,7 +102,12 @@ export {
   LIGHT_KIND,
   SCENE_LIGHT_VERSION,
 } from './sceneLightContracts.ts';
-export type { SceneEnvironment, SceneLight, SceneLightingView } from './sceneLightContracts.ts';
+export type {
+  SceneEnvironment,
+  SceneLight,
+  SceneLightingView,
+  ShadowViewpoint,
+} from './sceneLightContracts.ts';
 export { validateSceneEnvironment, validateSceneLight } from './sceneLightValidate.ts';
 export { LIGHT_FIELD, createSceneLightStore } from './sceneLightStore.ts';
 export type { SceneLightStore } from './sceneLightStore.ts';
@@ -112,10 +117,8 @@ export {
   SHADOW_FACE_FLOATS,
   SHADOW_SLICE_FLOATS,
   faceCountOf,
-  writeFaceCull,
-  writeFaceMatrix,
+  writeFace,
 } from './sceneLightShadowFaces.ts';
 export { SHADOW_FACE_SIDES, desiredFaceSide } from './sceneLightShadowAtlas.ts';
 export { RECTS_PER_SLICE, createShadowPlan } from './sceneLightShadowPlan.ts';
 export type { ShadowPlan } from './sceneLightShadowPlan.ts';
-export type { ShadowViewpoint } from './sceneLightSunCascades.ts';

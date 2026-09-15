@@ -114,9 +114,12 @@ export const LIGHT_KIND = { point: 0, spot: 1, directional: 2 } as const;
  * refuse une lampe de ce type sans direction : lire ce champ ici ne suppose rien de plus.
  */
 export const lightDirection = (light: SceneLight) => light.direction as [number, number, number];
-/** Le type d'une lampe depuis son rang : l'inverse de `LIGHT_KIND`, écrit juste à côté de lui. */
-export function lightKindOf(rank: number): SceneLight['kind'] {
-  if (rank === LIGHT_KIND.directional) return 'directional';
-  if (rank === LIGHT_KIND.spot) return 'spot';
-  return 'point';
+/** Ce que l'ordonnanceur sait de la vue : une caméra, pas une matrice, pour rester sans dépendance. */
+export interface ShadowViewpoint {
+  position: readonly [number, number, number];
+  forward: readonly [number, number, number];
+  halfFovY: number;
+  aspect: number;
+  near: number;
+  far: number;
 }
