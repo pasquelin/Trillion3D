@@ -172,7 +172,7 @@ fn version_flag_describes_the_build() {
         .iter()
         .map(|plugin| plugin["name"].as_str().expect("name"))
         .collect();
-    assert_eq!(names, ["gltf", "fbx", "obj", "zip"]);
+    assert_eq!(names, ["gltf", "fbx", "obj", "unity", "zip"]);
     let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
     assert!(fbx["version"].as_str().unwrap().contains("ufbx"));
     let images: Vec<&str> = v["plugins"]["image"]
