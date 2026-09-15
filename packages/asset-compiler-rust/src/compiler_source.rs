@@ -1,3 +1,5 @@
+//! Lecture de la scène intermédiaire : le glTF 2.0 et son conteneur GLB, que tout pilote de scène
+//! produit et que le compilateur est seul à consommer. Le choix du pilote, lui, est dans `plugins`.
 use super::*;
 
 pub(super) fn is_glb(bytes: &[u8]) -> bool {
@@ -103,52 +105,4 @@ pub(super) fn source_stats(g: &Value) -> Result<(usize, usize)> {
         }
     }
     Ok((mesh_nodes, triangles))
-}
-/// What a source path holds, classified once for every reader of the directory.
-pub enum SourceKind {
-    Manifest,
-    Gltf(String),
-    Importable(Vec<PathBuf>),
-}
-pub fn source_kind(source: &Path) -> Result<SourceKind> {
-    if source.is_file() {
-        let name = source
-            .file_name()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| invalid("runtime file is required"))?;
-        return Ok(if import::is_import_source(name) {
-            SourceKind::Importable(vec![source.to_path_buf()])
-        } else {
-            SourceKind::Gltf(name.to_string())
-        });
-    }
-    if source.join("manifest.json").exists() {
-        return Ok(SourceKind::Manifest);
-    }
-    let mut gltf = Vec::new();
-    let mut importable = Vec::new();
-    for entry in fs::read_dir(source)? {
-        let entry = entry?;
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else { continue };
-        if !is_safe_source_name(name) {
-            continue;
-        }
-        let lower = name.to_ascii_lowercase();
-        if lower.ends_with(".gltf") || lower.ends_with(".glb") {
-            gltf.push(name.to_string());
-        } else if import::is_import_source(name) {
-            importable.push(entry.path());
-        }
-    }
-    match (gltf.len(), importable.is_empty()) {
-        (1, _) => Ok(SourceKind::Gltf(gltf.pop().unwrap())),
-        (0, false) => {
-            importable.sort();
-            Ok(SourceKind::Importable(importable))
-        }
-        _ => Err(invalid(
-            "Source directory needs manifest.json, exactly one .gltf/.glb or .fbx/.obj files",
-        )),
-    }
 }

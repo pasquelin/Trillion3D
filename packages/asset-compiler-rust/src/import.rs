@@ -1,7 +1,12 @@
-//! FBX / OBJ import. A ufbx scene becomes a plain glTF 2.0 pair (`model.gltf` + `model.bin`) plus a
-//! source manifest inside the cache, so `compile` consumes it exactly like a hand-made glTF source.
-//! Textures are referenced relative to the source directory (served under `resourceBaseUrl`) or
-//! embedded as buffer views when the file carries their bytes. Nothing is written next to the source.
+//! Conversion ufbx, partagée par les pilotes de scène servis par ufbx (FBX, OBJ). Une scène ufbx
+//! devient une paire glTF 2.0 (`model.gltf` + `model.bin`) et son manifeste dans le cache, que
+//! `compile` consomme exactement comme un glTF écrit à la main. Les textures sont référencées
+//! relativement au dossier source (servi sous `resourceBaseUrl`) ou embarquées en vues de binaire
+//! quand le fichier en porte les octets. Rien n'est jamais écrit à côté de la source.
+//!
+//! Ce module n'est pas un pilote : il n'a ni nom ni version de format. Le pilote qui l'appelle donne
+//! les siens, et ce sont eux qui entrent dans la clé du cache et dans le manifeste.
+use crate::plugins::scene::{ScenePlugin, SceneRequest};
 use crate::{atomic, hash, runtime_manifest, CompilerError, Result};
 use serde_json::{json, Value};
 use std::{
@@ -11,19 +16,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-/// Bumping this invalidates cached imports (they are keyed by source hashes + importer version).
-pub const IMPORTER_VERSION: &str = "ufbx-0.11.3-gltf-2";
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
-const IMAGE_EXTENSIONS: [(&str, &str); 3] = [
-    ("png", "image/png"),
-    ("jpg", "image/jpeg"),
-    ("jpeg", "image/jpeg"),
-];
-
-pub fn is_import_source(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
-    lower.ends_with(".fbx") || lower.ends_with(".obj")
-}
 fn import_error(error: &ufbx::Error) -> CompilerError {
     if error.type_ == ufbx::ErrorType::Cancelled {
         return CompilerError::new("CANCELLED", "Import cancelled");
