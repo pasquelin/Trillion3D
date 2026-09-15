@@ -12,13 +12,20 @@ mod jpeg;
 mod png;
 mod tga;
 mod tiff;
+mod webp;
 
 /// Version du contrat des pilotes d'image. La changer impose de relire chaque pilote.
 pub const VERSION: &str = "image-plugin-1";
 
 /// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
-pub static DECODERS: &[&dyn ImageDecoder] =
-    &[&png::PNG, &jpeg::JPEG, &tga::TGA, &tiff::TIFF, &dds::DDS];
+pub static DECODERS: &[&dyn ImageDecoder] = &[
+    &png::PNG,
+    &jpeg::JPEG,
+    &tga::TGA,
+    &tiff::TIFF,
+    &dds::DDS,
+    &webp::WEBP,
+];
 
 /// Ce qu'un pilote rend. Les formats flottants — EXR, Radiance HDR — entreront par une variante de
 /// plus, que chaque consommateur devra alors traiter explicitement plutôt que ramener à 8 bits.
