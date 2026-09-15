@@ -51,5 +51,5 @@ Compilation complète d'un maillage de 500 000 triangles : 3 909 → 3 501 ms, s
 ## Ce qui reste
 
 - **D3** (scan préfixe parallèle du dessin indirect) : prouvé identique sur tampons GPU, pas encore couvert par une campagne navigateur ; à faire seul, chez Geometry.
-- **Mesure finale des temps par image A→H** : jamais faite le 15 septembre, charge machine entre 8 et 155 toute la journée, quatre sessions en parallèle, verrou de mesure en file. Commande à lancer au calme, verrou `.claude/mesure.lock` pris (fichier `proprietaire`), charge < 4 : `node scripts/mesure/banc.mjs --moteur webgpu --avant a59c05a --apres <develop> --vues generale,sol,rue,detail --images 300 --pixelError 1 --out .mesure/finale-webgpu`, puis la même commande avec `--moteur webgl`. Develop contient aussi les lots des autres sessions depuis `a59c05a`, à préciser dans le résultat.
+- **Mesure finale des temps par image** : faite le 15 sept., voir `mesures/calculs-finale-2026-09-15.md` ; non isolante (develop porte les lots des autres sessions depuis la base) ; à rejouer au calme seulement si l'on veut des temps de référence.
 - **Refusés définitivement** tant que la règle est « résultat identique » : raster affine, tuilage des lampes de scène, factorisation de la BRDF, accélération du transport lumineux.
