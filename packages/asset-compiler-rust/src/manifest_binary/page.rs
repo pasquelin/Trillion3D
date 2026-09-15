@@ -70,7 +70,11 @@ pub(super) fn encode_page(
         None => -1,
         Some(value) => as_i32(integer(Some(value), "page.level")?, "page.level")?,
     });
-    for (key, flag) in [("group", FLAG_GROUP), ("source", FLAG_SOURCE)] {
+    // Étiquettes littérales : elles étaient formatées deux fois par clé et par page.
+    for (key, label, flag) in [
+        ("group", "page.group", FLAG_GROUP),
+        ("source", "page.source", FLAG_SOURCE),
+    ] {
         match item.get(key) {
             None => columns[PAGE_INT].i32(-1),
             Some(Value::Null) => {
@@ -79,10 +83,7 @@ pub(super) fn encode_page(
             }
             Some(value) => {
                 flags |= flag;
-                columns[PAGE_INT].i32(as_i32(
-                    integer(Some(value), &format!("page.{key}"))?,
-                    &format!("page.{key}"),
-                )?);
+                columns[PAGE_INT].i32(as_i32(integer(Some(value), label)?, label)?);
             }
         }
     }
@@ -135,17 +136,14 @@ pub(super) fn encode_page(
                 return Err(bad("page.geometry.codec is not meshopt"));
             }
             columns[GEOMETRY_SHA].sha(digest)?;
-            for key in [
-                "bytes",
-                "vertexCount",
-                "indexCount",
-                "flags",
-                "uncompressedBytes",
+            for (key, label) in [
+                ("bytes", "page.geometry.bytes"),
+                ("vertexCount", "page.geometry.vertexCount"),
+                ("indexCount", "page.geometry.indexCount"),
+                ("flags", "page.geometry.flags"),
+                ("uncompressedBytes", "page.geometry.uncompressedBytes"),
             ] {
-                columns[GEOMETRY_U32].u32(as_u32(
-                    integer(geometry.get(key), &format!("page.geometry.{key}"))?,
-                    &format!("page.geometry.{key}"),
-                )?);
+                columns[GEOMETRY_U32].u32(as_u32(integer(geometry.get(key), label)?, label)?);
             }
         }
     }

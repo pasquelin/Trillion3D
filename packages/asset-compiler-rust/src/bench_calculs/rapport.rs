@@ -80,6 +80,28 @@ pub(crate) fn mesures_dir() -> PathBuf {
     dir
 }
 
+/// Dépose les lignes au format des fragments du banc JavaScript, dans `.mesure/calculs-g` : le
+/// tableau du lot G se lit d'un bloc, Rust et Node mêlés, au lieu de deux tableaux à rapprocher.
+pub(crate) fn write_fragment_g(rows: &[Row]) {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.mesure/calculs-g")
+        .components()
+        .collect::<PathBuf>();
+    let _ = std::fs::create_dir_all(&dir);
+    let entries: Vec<Value> = rows
+        .iter()
+        .map(|row| {
+            json!({"calcul":row.calcul,"fichier":row.fichier,"taille":row.taille,
+              "avantMs":row.avant,"apresMs":row.apres,"gain":row.gain().map(|g| g / 100.0),
+              "identique":row.identique,"retenu":row.retenu(),"tours":row.tours,"note":row.note})
+        })
+        .collect();
+    let _ = std::fs::write(
+        dir.join("natif.json"),
+        serde_json::to_vec_pretty(&entries).unwrap_or_default(),
+    );
+}
+
 pub(crate) fn write(rows: &[Row]) {
     let date = today();
     let dir = mesures_dir();
