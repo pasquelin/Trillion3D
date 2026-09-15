@@ -1,4 +1,4 @@
-import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
+import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './bounceGridWgsl.ts';
 
 /**
  * L'application du rebond, aux liaisons que la passe appelante lui donne : la résolution différée
@@ -18,10 +18,10 @@ export function bounceApplyWgsl(grid: number, probes: number): string {
 @group(0) @binding(${grid}) var<uniform> bounce:BounceGrid;
 @group(0) @binding(${probes}) var<storage,read> probes:array<vec4f>;
 ${BOUNCE_GRID_WGSL}
-const BOUNCE_INVERSE_PI:f32=0.31830989;
+${INVERSE_PI_WGSL}
 /** La radiance diffuse qu'un pixel renvoie de la lumière qui a rebondi avant de l'atteindre. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
- return rgb*(1.0-metal)*BOUNCE_INVERSE_PI*sampleBounce(P,N)*ao;
+ return rgb*(1.0-metal)*INVERSE_PI*sampleBounce(P,N)*ao;
 }`;
 }
 

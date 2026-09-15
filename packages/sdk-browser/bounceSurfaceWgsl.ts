@@ -1,6 +1,6 @@
 import { BOUNCE_SETTINGS } from '../sdk-core/index.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
-import { BOUNCE_GRID_WGSL } from './bounceGridWgsl.ts';
+import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './bounceGridWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 
 /** Fils d'un groupe de travail de la passe de cache : une maille par fil. */
@@ -46,7 +46,7 @@ ${DIRECT_LIGHT_WGSL}
 ${BOUNCE_GRID_WGSL}
 ${BOUNCE_TRACE_WGSL}
 const LIGHTS_PER_TEXEL:u32=${BOUNCE_SETTINGS.lightsPerRay}u;
-const SURFACE_INVERSE_PI:f32=0.31830989;
+${INVERSE_PI_WGSL}
 /**
  * L'irradiance des lampes déclarées en un point de maille. Les ombres sont tracées contre le proxy,
  * ce qui garde une porte fermée fermée pour le rebond comme pour le direct ; le nombre de rayons
@@ -87,5 +87,5 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  // Direct exact de l'image, plus l'indirect que la grille a déjà convergé : c'est ce terme-là qui
  // ferme la série des rebonds, un ordre de plus à chaque balayage.
  let irradiance=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
- surface[texel]=vec4f(proxyAlbedoOf(triangle)*irradiance*SURFACE_INVERSE_PI,1.0);
+ surface[texel]=vec4f(proxyAlbedoOf(triangle)*irradiance*INVERSE_PI,1.0);
 }`;
