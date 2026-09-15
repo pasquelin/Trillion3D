@@ -2,9 +2,9 @@
 //!
 //! Le maillage est décrit par coins : un tableau d'offsets dit où chaque face commence dans la
 //! suite des coins, et chaque coin renvoie à un sommet. Les UV vivent au coin, l'indice de matériau
-//! et le marquage « face nette » vivent à la face. Les n-gones sont triangulés en éventail depuis
-//! leur premier coin, ce qui conserve exactement les sommets, l'aire et l'orientation d'une face
-//! plane et convexe — ce que Blender garantit de ses faces exportées.
+//! et le marquage « face nette » vivent à la face. Les n-gones sont coupés en oreilles dans le plan
+//! de leur normale, ce qui conserve exactement les sommets, l'aire et l'orientation d'une face
+//! plane, qu'elle soit convexe ou creusée.
 //!
 //! Aucune normale n'est stockée dans un fichier Blender : elles sont calculées à la lecture, à plat
 //! pour une face nette, moyennées par aire pour une face lisse.

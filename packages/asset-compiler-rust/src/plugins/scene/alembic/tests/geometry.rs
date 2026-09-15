@@ -4,6 +4,7 @@
 use super::super::geom::Geometry;
 use super::super::mesh::{parts, FaceSet};
 use super::super::TOPOLOGY_INVALID;
+use crate::tests::ngones::{rendered_area, U_RING};
 
 /// Un maillage de trois faces sur six positions : un triangle, un pentagone, et une face de deux
 /// côtés, qui ne porte aucune surface.
@@ -68,4 +69,27 @@ fn a_face_index_outside_the_positions_is_refused_by_name() {
         .err()
         .expect("cette topologie devait être refusée");
     assert_eq!(refusal.code, TOPOLOGY_INVALID);
+}
+
+// Comportement : un polygone concave garde exactement l'aire qu'il porte. L'éventail depuis le
+// premier coin traversait le creux du U et rendait onze pour sept ; les oreilles rendent sept.
+#[test]
+fn a_concave_polygon_keeps_its_own_area() {
+    let geometry = Geometry {
+        positions: U_RING
+            .iter()
+            .flat_map(|[x, y]| [*x as f32, *y as f32, 0.0])
+            .collect(),
+        counts: vec![8],
+        corners: (0..8).collect(),
+        normals: None,
+        uv: None,
+        dropped: Vec::new(),
+    };
+    let (parts, counted) = parts(&geometry, &[]).expect("morceaux");
+    assert_eq!(counted.uncut, 0, "un U simple se découpe entièrement");
+    assert_eq!(parts.len(), 1, "un seul morceau, sans face set");
+    assert_eq!(parts[0].indices.len(), 18, "huit coins font six triangles");
+    let area = rendered_area(&parts[0].positions, &parts[0].indices);
+    assert!((area - 7.0).abs() < 1e-5, "aire rendue {area}, attendue 7");
 }

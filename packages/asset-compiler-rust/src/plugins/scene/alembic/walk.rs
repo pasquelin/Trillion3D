@@ -141,6 +141,9 @@ impl World<'_> {
         self.scene
             .report
             .add_count("alembic-degenerate-face", counted.degenerate);
+        self.scene
+            .report
+            .add_count("alembic-ngon-untriangulable", counted.uncut);
         if parts.is_empty() {
             self.scene.report.add("alembic-mesh-empty");
             return Ok(attached);
