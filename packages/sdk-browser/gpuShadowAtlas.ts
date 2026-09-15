@@ -43,14 +43,6 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   const slicePacked = new Float32Array(MAX_SHADOW_SLICES * SHADOW_SLICE_FLOATS);
-  /** Les tranches que l'image a réécrites. Au plus `shadowUpdatesPerFrame` des soixante-quatre
-   *  publiées bougent : pousser l'entête complet enverrait trente kilo-octets pour en changer deux. */
-  const touched = new Int32Array(MAX_SHADOW_SLICES);
-  let touchedCount = 0;
-  const touch = (slice: number) => {
-    for (let i = 0; i < touchedCount; i++) if (touched[i] === slice) return;
-    if (touchedCount < touched.length) touched[touchedCount++] = slice;
-  };
   const facePacked = new Float32Array((MAX_FACES_PER_FRAME * FACE_STRIDE) / 4);
   const release = () => {
     texture.destroy();
@@ -122,7 +114,6 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
           side = rects[rect + 2];
         const uniform = (index * FACE_STRIDE) / 4,
           entry = slice * SHADOW_SLICE_FLOATS + face * SHADOW_FACE_FLOATS;
-        touch(slice);
         for (let i = 0; i < 16; i++) {
           facePacked[uniform + i] = matrices[matrixBase + i];
           slicePacked[entry + i] = matrices[matrixBase + i];
@@ -145,19 +136,21 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       /** L'entête d'une tranche : faces, demi-ouverture tangente, côté en texels, plan proche. */
       writeSliceInfo(slice: number, faces: number, tanHalfFov: number, side: number, near: number) {
         const base = slice * SHADOW_SLICE_FLOATS + POINT_FACES * SHADOW_FACE_FLOATS;
-        touch(slice);
         slicePacked[base] = faces;
         slicePacked[base + 1] = tanHalfFov;
         slicePacked[base + 2] = side;
         slicePacked[base + 3] = near;
       },
-      /** Ne repousse que les tranches réécrites : les autres décrivent déjà l'image côté carte. */
-      flushSlices() {
-        for (let i = 0; i < touchedCount; i++) {
-          const first = touched[i] * SHADOW_SLICE_FLOATS;
+      /**
+       * Repousse les tranches que l'ordonnanceur vient de redessiner, et elles seules : les autres
+       * décrivent déjà l'image côté carte. L'atlas écrit ce qu'on lui donne et ne tient pas la liste
+       * de ce qu'il a écrit — celui qui décide quoi redessiner la connaît déjà.
+       */
+      flushSlices(slices: Int32Array, count: number) {
+        for (let i = 0; i < count; i++) {
+          const first = slices[i] * SHADOW_SLICE_FLOATS;
           device.queue.writeBuffer(sliceBuffer, first * 4, slicePacked, first, SHADOW_SLICE_FLOATS);
         }
-        touchedCount = 0;
       },
       dispose: release,
     };
