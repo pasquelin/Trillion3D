@@ -15,10 +15,11 @@
 //! précédent → pour chaque niveau, dé-prémultiplication au tout dernier pas, linéaire vers sRGB,
 //! RGBA8 alpha droit. Le prémultiplié ne vit que dans ce module.
 //!
-//! Un décodage impossible (DDS, TGA, PNG corrompu, image absente, format inconnu) est une entrée de
-//! rapport et aucun niveau : la compilation n'échoue jamais pour une texture, et le moteur retombe
+//! Un décodage impossible — un format hors du registre des pilotes d'image, un PNG corrompu, une
+//! image absente — est une entrée de rapport nommée et aucun niveau : la compilation n'échoue jamais pour une texture, et le moteur retombe
 //! sur son blanc.
 use super::*;
+use crate::plugins::image::DecodedImage;
 
 mod collect;
 mod levels;
@@ -127,7 +128,7 @@ fn one_preview(
         .ok_or("texture-without-image")? as usize;
     let image = images.get(image_index).ok_or("image-out-of-bounds")?;
     let (bytes, provenance) = source::image_bytes(inputs, image)?;
-    let decoded = decode(&bytes)?;
+    let DecodedImage::Rgba8(decoded) = crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC)?;
     let (first_level, pixels) = reduce::pyramid(&decoded, entry.cutoff);
     Ok(TexturePreview {
         texture: u32::try_from(entry.texture).map_err(|_| "texture-out-of-bounds")?,
@@ -139,20 +140,4 @@ fn one_preview(
         first_level,
         pixels,
     })
-}
-
-/// Décode PNG et JPEG sous un plafond d'allocation. Tout le reste — DDS, TGA, octets corrompus,
-/// format inconnu — ressort en raison de rapport.
-fn decode(bytes: &[u8]) -> std::result::Result<image::RgbaImage, &'static str> {
-    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes))
-        .with_guessed_format()
-        .map_err(|_| "image-format-unknown")?;
-    let mut limits = image::Limits::default();
-    limits.max_alloc = Some(PREVIEW_MAX_ALLOC);
-    reader.limits(limits);
-    let decoded = reader.decode().map_err(|_| "image-decode-failed")?;
-    if decoded.width() == 0 || decoded.height() == 0 {
-        return Err("image-empty");
-    }
-    Ok(decoded.to_rgba8())
 }

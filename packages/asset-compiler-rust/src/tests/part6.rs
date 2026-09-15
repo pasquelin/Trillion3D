@@ -16,7 +16,8 @@ fn obj_source_is_imported_into_the_cache_then_compiled() {
         serde_json::from_slice(&fs::read(entries[0].join("manifest.json")).expect("manifest"))
             .expect("json");
     assert_eq!(manifest["status"], "ready");
-    assert_eq!(manifest["source"]["importer"], import::IMPORTER_VERSION);
+    assert_eq!(manifest["source"]["plugin"]["name"], "obj");
+    assert_eq!(result["scenePlugin"]["name"], "obj");
     assert_eq!(manifest["runtime"]["trianglesAcrossNodes"], 2);
     assert_eq!(manifest["runtime"]["meshNodes"], 1);
     let gltf: Value =
@@ -64,7 +65,8 @@ fn directory_of_importable_files_is_merged_into_one_scene() {
         source: dir.clone(),
         ..options
     };
-    assert!(matches!(source_kind(&dir).expect("kind"),SourceKind::Importable(ref v) if v.len()==2));
+    assert!(matches!(plugins::scene::route(&dir).expect("route"),
+            plugins::scene::Routed::Driver(plugin, ref files) if plugin.name() == "obj" && files.len() == 2));
     let result = compile(&options, |_| {}).expect("compile dir");
     assert_eq!(result["selectedTriangles"], 4);
     assert_eq!(result["selectedNodes"].as_array().map(|a| a.len()), Some(2));
@@ -172,12 +174,12 @@ fn pruning_one_scope_keeps_the_objects_the_other_scope_needs() {
 fn gltf_sources_never_go_through_the_importer() {
     let (root, options) = fixture();
     assert!(matches!(
-        source_kind(&options.source).expect("manifest dir"),
-        SourceKind::Manifest
+        plugins::scene::route(&options.source).expect("manifest dir"),
+        plugins::scene::Routed::Manifest
     ));
     assert!(matches!(
-        source_kind(&options.source.join("mesh.gltf")).expect("gltf file"),
-        SourceKind::Gltf(_)
+        plugins::scene::route(&options.source.join("mesh.gltf")).expect("gltf file"),
+        plugins::scene::Routed::Driver(plugin, _) if plugin.name() == "gltf"
     ));
     fs::remove_dir_all(root).expect("cleanup");
 }
