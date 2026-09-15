@@ -3,9 +3,9 @@
 ## 2026-09-15 — [session sans-threejs] le processeur fixe WebGPU, ce qui manquait au profil et les trois postes qui en sortent (lot cpu-fixe)
 
 Worktree `.claude/worktrees/geometry-cpu-fixe`, branche `lot/cpu-fixe`, partie de `develop` =
-`9cd6a44` (les trois commits de docs qui ont suivi ne touchent pas le code). Six commits : `b684322`
+`9cd6a44` (les trois commits de docs qui ont suivi ne touchent pas le code). Sept commits : `b684322`
 (profil), `901f105` (levier 1), `22796c1` (levier 2), `351bb45` (levier 3), `acedbbb` (tableau
-partagé), `c89ca7f` (tests). **Non fusionné** : le lot touche `sdk-browser`, la session Lumière
+partagé), `c89ca7f` (tests), `324a3e3` (l'âge de la coupe, voir la preuve). **Non fusionné** : le lot touche `sdk-browser`, la session Lumière
 travaille sur `webgpuPagesEncoder.ts` / `webgpuPagesFlush.ts` et sur la passe de mélange ; premier
 livré fusionne, le second rebase et rejoue sa preuve.
 
@@ -105,28 +105,47 @@ Harnais commun, `--moteur webgpu`, 1280×720, 60 images, chauffe par défaut, `-
 `avant` = `9cd6a44`. Verrou `.claude/mesure.lock` pris au nom de `geometry cpu-fixe` avant chaque
 campagne et rendu après, jamais tenu entre deux.
 
-| série                          | px avant/après    | témoin A/A | hash de coupe  | trous | charge  |
-| ------------------------------ | ----------------- | ---------- | -------------- | ----- | ------- |
-| générale · 0 (profil seul, `b684322`) | 0 px, max canal 0 | 0 px | `b1cd55ba461a` | 0 | 41 → 40 |
-| générale · 0 (tête `351bb45`)  | 0 px, max canal 0 | 0 px       | `b1cd55ba461a` | 0     | 43 → 42 |
+| série                                 | px avant/après    | témoin A/A | hash de coupe  | trous | charge  |
+| ------------------------------------- | ----------------- | ---------- | -------------- | ----- | ------- |
+| générale · 0 (profil seul, `b684322`) | 0 px, max canal 0 | 0 px       | `b1cd55ba461a` | 0     | 41 → 40 |
+| générale · 0 (`351bb45`)              | 0 px, max canal 0 | 0 px       | `b1cd55ba461a` | 0     | 43 → 42 |
 
 `selectedTriangles` 10 046 405 des deux côtés, `uncoveredTriangles` 0 des deux côtés, aucun incident
 de carte graphique. Le code de retour non nul du banc vient des 404 `lights.json` du cache Emerald du
 Lab, connus et sans effet sur les pixels. Images : `.mesure/out/cpu-fixe/`.
 
-**Séries encore à jouer**, le verrou étant tenu par la session Lumière à l'heure de la livraison — la
-règle est de ne pas attendre, et aucune ne porte sur du code que les deux premières ne traversent
-pas : `sol` et `rue` aux deux seuils, `générale · 1`, la caméra mobile aux deux seuils (elle fait
-tomber le drapeau du levier 3 à chaque image et repasse donc par le parcours complet), la scène
-synthétique `classes-materiaux` (`--cache-avant`/`--cache-apres .mesure/cache-classes`,
-`--vues generale,detail`), et **une série WebGL** : `streamingCache.retain` est partagé par les deux
-moteurs, même si seul le moteur WebGPU tient les listes d'une image à l'autre.
+**Et une série qui a trouvé un défaut, qui vaut d'être écrite.** La vue générale en **caméra mobile
+au seuil 1** a rendu, contre `2088d58`, **5 918 pixels, max canal 187**, avec `selectedTriangles`
+1 599 951 contre 1 273 565 et une coupe de 13 219 pages contre 10 608 — le témoin A/A restant à 0 px
+de chaque côté, donc chaque build déterministe seul. Le lot était donc faux, et deux campagnes à
+caméra fixe ne le disaient pas.
+
+La cause est le levier 3, et elle tient en une phrase : **`flushWebgpuPages` rejoue une adoption de
+la coupe après que l'hôte a pris ses listes.** `desired` et `shown` étaient réécrits sous une liste
+déjà rendue ; l'image suivante relisait le même relevé, se déclarait en droit de tenir ses listes, et
+rendait des adresses qui ne décrivaient plus la coupe — pages épinglées à tort, d'autres reprises par
+le cache, résidence plus pauvre, coupe plus grossière. À caméra fixe les listes ne bougent pas : rien
+ne se voyait. Correctif `324a3e3` : les deux listes ne se fient plus au drapeau de l'image seule,
+elles portent **l'âge de la coupe**, et cet âge avance à chaque adoption qui réécrit réellement l'une
+des deux listes — au rendu comme dans la vidange — et à chaque invalidation par la coupe processeur.
+Un test rejoue exactement ce scénario.
+
+**Leçon, à garder :** un drapeau « rien n'a bougé » posé pendant le rendu ne dit rien de ce qui bouge
+après lui. Ce qu'un lecteur garde d'une image à l'autre doit porter l'âge de ce qu'il décrit, pas
+l'état de l'image qui l'a produit. Et une optimisation de listes de résidence ne se prouve pas à
+caméra fixe : **la caméra mobile est la série qui décide.**
+
+**Séries à jouer contre `324a3e3`**, la tête corrigée : la caméra mobile aux deux seuils d'abord,
+puis `generale,sol,rue` aux deux seuils, la scène synthétique `classes-materiaux`
+(`--cache-avant`/`--cache-apres .mesure/cache-classes`, `--vues generale,detail`), et **une série
+WebGL** : `streamingCache.retain` est partagé par les deux moteurs, même si seul le moteur WebGPU
+tient les listes d'une image à l'autre.
 
 ### 5. Portes
 
 `npx tsc --noEmit -p .`, `npm run check:changed`, `npm run check:unused` (knip, 0),
 `npm run check:lines`, `npm run check:duplicates` (0 clone), `prettier --check`, `eslint` :
-**vertes**. `npm test` : **784 tests, 0 échec**, dont douze ajoutés dans cinq fichiers
+**vertes**. `npm test` : **785 tests, 0 échec**, dont treize ajoutés dans cinq fichiers
 (`webgpuCutDelta.test.ts`, `webgpuPagesHostLists.test.ts`, `webgpuBlendWorlds.test.ts`,
 `webgpuPagesCpuSteps.test.ts`, `streamingPages.test.ts`), plus deux assertions rendues au test
 d'adoption qui portait le relevé tenu. `render-tech-lab/` non modifié ; port 5174 non touché ; rien
