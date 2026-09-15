@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { DEFAULT_SCENE, sceneOf } from './mesure/scene.mjs';
 import { readOptions } from './mesure/options.mjs';
 
 test('readOptions parses command line arguments correctly', () => {
@@ -60,4 +61,19 @@ test('readOptions rejects negative pixelError', () => {
 test('readOptions rejects invalid views', () => {
   const root = '/tmp/test';
   assert.throws(() => readOptions(['--vues=invalide'], root), /vue inconnue/);
+});
+
+test('sceneOf déduit le nom de la scène du dossier derived du cache', () => {
+  assert.strictEqual(sceneOf('/quelque/part/bistro-exterior-derived'), 'bistro-exterior');
+  assert.strictEqual(sceneOf('/quelque/part/bistro-exterior-derived/'), 'bistro-exterior');
+  assert.strictEqual(sceneOf('/quelque/part/new-york-manhattan-derived'), 'new-york-manhattan');
+});
+
+test('sceneOf garde le nom du dossier quand il ne finit pas par -derived', () => {
+  assert.strictEqual(sceneOf('/quelque/part/un-cache-a-moi'), 'un-cache-a-moi');
+});
+
+test('sceneOf retombe sur la scène par défaut sans cache nommé', () => {
+  assert.strictEqual(sceneOf(undefined), DEFAULT_SCENE);
+  assert.strictEqual(sceneOf(''), DEFAULT_SCENE);
 });

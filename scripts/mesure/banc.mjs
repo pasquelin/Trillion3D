@@ -43,13 +43,10 @@ const {
   resources,
 } = options.readOptions(process.argv.slice(2), ROOT);
 const ENGINE = options.ENGINES[settings.engine];
-const MANIFEST = `/benchmark-assets/${options.SCENE}-derived/native/full/manifest.json`;
-const CTX = { ENGINE, MANIFEST, OUT, settings, lights: null, poses: null };
+const CTX = { ENGINE, MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
   options.checkLabPath();
-  if (!existsSync(join(options.ASSETS, `${options.SCENE}-derived/native/full/manifest.json`)))
-    throw new Error(`cache Emerald absent : ${join(options.ASSETS, options.SCENE + '-derived')}`);
   if (!existsSync(options.CHROME)) throw new Error(`Chrome absent : ${options.CHROME}`);
   await mkdir(OUT, { recursive: true });
   const sides = options.resolveSides({
@@ -58,11 +55,17 @@ async function main() {
     root: ROOT,
   });
   // `--cache-avant` / `--cache-apres` : chaque côté peut jouer son propre cache compilé, rendu sous
-  // son propre préfixe. Sans l'option, les deux côtés lisent le cache du Lab, comme avant.
-  for (const side of sides) {
-    side.cache = options.resolveCache(flags.get(`cache-${side.name}`));
+  // son propre préfixe. Sans l'option, le côté lit le cache du Lab, comme avant.
+  for (const side of sides) side.cache = options.resolveCache(flags.get(`cache-${side.name}`));
+  // La scène mesurée est celle des caches nommés ; sans aucun, celle que le Lab garde par défaut.
+  const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
+  const MANIFEST = options.labManifest(
+    scene,
+    sides.some((side) => !side.cache),
+  );
+  CTX.MANIFEST = MANIFEST;
+  for (const side of sides)
     side.manifestUrl = side.cache ? `/cache/${side.name}/native/full/manifest.json` : MANIFEST;
-  }
   const captures = new Map();
   const mounts = options.resolveMounts(ROOT, sides, resources);
 
@@ -70,7 +73,7 @@ async function main() {
     startedAt: new Date().toISOString(),
     commande: `node scripts/mesure/banc.mjs ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
-    scene: options.SCENE,
+    scene,
     engine: settings.engine,
     engineId: ENGINE.id,
     pathVersion: options.PATH_VERSION,

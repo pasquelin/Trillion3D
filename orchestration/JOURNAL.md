@@ -1,5 +1,26 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-16 — [session sans-threejs] le harnais de mesure accepte n'importe quelle scène
+
+Deux lignes seulement séparaient le banc commun d'une scène quelconque, et elles sont parties.
+
+- `banc.mjs` exigeait le cache du Lab de la scène par défaut **même quand les deux côtés nommaient
+  leur propre cache** compilé. Le contrôle est maintenant conditionnel : le cache du Lab n'est
+  réclamé que si un côté au moins n'a pas de `--cache-<côté>` et le lit donc vraiment.
+- Le nom de la scène n'est plus une constante : il se déduit du dossier `derived` du cache employé
+  (`<nom>-derived`), la scène du Lab ne servant plus que de repli quand aucun cache n'est nommé.
+  `scripts/mesure/scene.mjs` réunit ce repli, la déduction et le manifeste du Lab ; `options.mjs`
+  les réexporte, comme il réexporte déjà les poses. Les poses, elles, venaient déjà des bornes du
+  modèle lues dans la page : rien à y changer.
+
+Preuve : quatre exécutions courtes du banc. Cache du Lab sans option → `scene` vaut la scène par
+défaut, `coupe` 80 153. Cache nommé sous un autre nom, `WG_ASSETS` pointé sur un dossier vide → la
+scène prend le nom du dossier, le contrôle du cache du Lab ne se déclenche pas, et les seules
+erreurs sont les 404 des textures que ce cache va chercher à une URL absolue, pas celles du relevé.
+Cache nommé, Lab monté → sortie propre, `coupe` 80 153, la même image que par le chemin du Lab.
+Quatre tests ajoutés à `scripts/banc.test.mjs` (déduction, dossier sans suffixe, repli).
+`npm run validate` vert, portes Rust comprises. README : section « mesurer une autre scène ».
+
 ## 2026-09-16 — [session sans-threejs] d'où viennent les égalités de profondeur, et pourquoi la borne des 0 pixel les rend indépartageables (lot coplanaires v2)
 
 Worktree `lot-coplanaires`, branche `lot/coplanaires-v2`, partie de `develop` = `7b7a79f`, qui n'a
