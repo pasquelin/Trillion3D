@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { routeBrowserFixtures } from './browserFixtureServer.mjs';
 import { drainPageArray, writeCaptureReport } from './captureReport.mjs';
+import { checkCaptureTimings } from './captureTimingChecks.mjs';
 const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'browserFixtures');
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -41,6 +42,16 @@ const pageBudget = Number(process.env.GPU_PAGE_SLOTS ?? 100000);
 assert.ok(Number.isSafeInteger(pageBudget) && pageBudget > 0);
 const stableCaptures = process.env.STABLE_CAPTURE === '1',
   unculledControl = process.env.UNCULLED_CONTROL === '1';
+// Deux modes de preuve. `flush` force tous les transferts avant chaque capture : c'est la référence
+// A/A du dépôt. `live` ne force rien pendant le parcours — la pompe avance image par image sous le
+// budget, comme en exploration libre — et ne force qu'après la dernière image, pour lire l'image
+// déjà rendue. Sans le second mode, une régression qui n'apparaît qu'en boucle d'images passe.
+const mode = process.env.CAPTURE_MODE ?? 'flush';
+assert.ok(mode === 'flush' || mode === 'live', 'CAPTURE_MODE vaut flush ou live');
+// Image du parcours où le mode `live` capture ; par défaut la dernière, celle du segment 9.
+const captureFrame = process.env.LIVE_CAPTURE_FRAME
+  ? Number(process.env.LIVE_CAPTURE_FRAME)
+  : undefined;
 const result = {
   startedAt: new Date().toISOString(),
   purpose: 'capture-regression-only',
@@ -48,6 +59,7 @@ const result = {
   hashes,
   stableCaptures,
   unculledControl,
+  mode,
   errors: [],
   events: [],
 };
@@ -85,7 +97,13 @@ try {
     result,
     await page.evaluate(
       (args) => import('/__wg-fixture/captureRun.mjs').then((module) => module.run(args)),
-      { sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'), stableCaptures, pageBudget },
+      {
+        sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'),
+        stableCaptures,
+        pageBudget,
+        mode,
+        captureFrame,
+      },
     ),
   );
   result.events = await drainPageArray(page, 'events');
@@ -96,93 +114,62 @@ try {
   assert.ok(
     !result.events.some((event) => /failed|uncaptured-error|device-lost/.test(event.phase)),
   );
+  // En mode `live` la couverture se construit pendant le parcours, comme en exploration libre :
+  // c'est l'image capturée, la dernière, qui doit être complète.
+  const covered = mode === 'live' ? result.samples.slice(-1) : result.samples;
   assert.ok(
-    result.samples.every((sample) => sample.coverageReady === true && !sample.streamingError),
+    covered.every((sample) => sample.coverageReady === true && !sample.streamingError),
     'all Emerald frames need complete coverage without a loading failure',
   );
-  if (pageBudget === 100000)
-    assert.ok(result.samples.every((sample) => !sample.coverageBudgetLimited));
-  else
-    assert.ok(
-      result.samples.some((sample) => sample.coverageBudgetLimited),
-      'reduced budget must exercise detail admission',
-    );
-  assert.equal(result.frames, 600);
-  assert.equal(result.captures.length, 10);
-  assert.ok(!result.fallbackReason);
-  const status = result.events.find(
-    (event) => event.stage === 'emerald' && event.phase === 'gpu-timing-status',
-  );
-  assert.ok(status, 'timing availability must be reported');
-  if (status.context.available) {
-    const timings = result.events.filter(
-      (event) => event.stage === 'emerald' && event.phase === 'gpu-timing',
-    );
-    assert.ok(timings.length >= 6, 'real timestamp samples required');
-    assert.ok(
-      !result.events.some((event) => event.phase === 'gpu-timing-unavailable'),
-      'timestamp readback failed',
-    );
-    assert.ok(
-      timings.every((event) =>
-        event.context.passes.every((pass) =>
-          pass.gpuMs === null
-            ? pass.reason === 'invalid-timestamps'
-            : Number.isFinite(pass.gpuMs) && pass.gpuMs >= 0,
-        ),
-      ),
-    );
-    assert.ok(
-      timings.some((event) => event.context.sumPassMs !== null),
-      'at least one complete GPU sample required',
-    );
-    for (const label of [
-      'WG visibility primary',
-      'WG material surfaces v1',
-      'WG deferred lighting',
-      'WG transparents',
-      'WG HDR composition + present',
-    ])
+  if (mode === 'flush') {
+    if (pageBudget === 100000)
+      assert.ok(result.samples.every((sample) => !sample.coverageBudgetLimited));
+    else
       assert.ok(
-        timings.some((event) =>
-          event.context.passes.some((pass) => pass.name === label && pass.gpuMs !== null),
-        ),
-        label + ' valid timestamp missing',
+        result.samples.some((sample) => sample.coverageBudgetLimited),
+        'reduced budget must exercise detail admission',
       );
-    assert.ok(
-      timings.every(
-        (event) => !event.context.passes.some((pass) => pass.name === 'WG direct present'),
-      ),
-      'normal rendering must not copy the composed image in a second presentation pass',
-    );
-    console.log('PASS: ' + timings.length + ' real GPU pass timing samples');
   }
-  const cpuSamples = result.events
-    .filter((event) => event.stage === 'emerald')
-    .flatMap((event) =>
-      event.phase === 'cpu-timing'
-        ? [event.context]
-        : event.phase === 'frame' && event.context?.cpu
-          ? [event.context.cpu]
-          : [],
+  if (mode === 'live') {
+    assert.equal(
+      result.captures.length,
+      1,
+      'le mode live capture une image, à la pose du segment 9',
     );
-  assert.ok(cpuSamples.length, 'CPU stages required in trace frames or summary timing events');
-  for (const sample of cpuSamples)
-    for (const field of [
-      'totalMs',
-      'lightsMs',
-      'selectionMs',
-      'residencyScheduleAndTargetsMs',
-      'encodeSubmitMs',
-      'transparentEncodeMs',
-    ]) {
-      assert.ok(
-        Number.isFinite(sample[field]) && sample[field] >= 0,
-        `CPU ${field} must be a measured nonnegative duration`,
+    const live = result.captures[0];
+    assert.equal(live.textureSkipped, 0, 'aucune texture abandonnée en boucle d’images');
+    if (captureFrame === undefined)
+      assert.equal(
+        live.texturePending,
+        0,
+        `la pompe n’a pas convergé en ${live.framesBeforeCapture} images : ` +
+          JSON.stringify({
+            texturePending: live.texturePending,
+            textureUploaded: live.textureUploaded,
+            textureLevelsUploaded: live.textureLevelsUploaded,
+          }),
       );
-    }
-  result.status = 'passed';
-  console.log('PASS: GPU overlap, 10 A/A controls, 600 Emerald frames, 10 captures');
+    console.log(
+      'PASS live: convergence à l’image ' +
+        result.convergedAtFrame +
+        ' sur ' +
+        result.frames +
+        ', capture segment ' +
+        live.segment,
+    );
+  } else {
+    assert.equal(result.frames, 600);
+    assert.equal(result.captures.length, 10);
+  }
+  assert.ok(!result.fallbackReason);
+  if (mode === 'live') {
+    result.status = 'passed';
+    console.log('PASS: mode live, ' + result.frames + ' images sans flush, 1 capture');
+  } else {
+    checkCaptureTimings(result);
+    result.status = 'passed';
+    console.log('PASS: GPU overlap, 10 A/A controls, 600 Emerald frames, 10 captures');
+  }
 } catch (error) {
   result.status = 'failed';
   result.error = String(error);

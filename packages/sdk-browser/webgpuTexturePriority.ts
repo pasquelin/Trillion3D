@@ -7,26 +7,45 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
 type MaterialAtlasLayers = { color: readonly number[]; data: readonly number[] };
 export type MaterialLayerIndex = Map<THREE.Material | THREE.Material[], MaterialAtlasLayers>;
 
-/** Ce que la coupe de l'image précédente a déjà décidé, seule source de la priorité. */
+/** Ce que l'image précédente a demandé au cache, seule source de la priorité. */
 type PriorityInputs = {
   index: MaterialLayerIndex | undefined;
-  drawn: readonly PageRec[];
+  /** La coupe que l'image demande au cache : les deux chemins de coupe la réécrivent à chaque
+   *  image, y compris quand aucun relevé de sélection n'a encore été adopté. */
+  requested: readonly PageRec[];
   blend: readonly BlendGpuItem[];
 };
 
 /**
  * L'ordre de transfert, recalculé à chaque image à partir d'un signal que le moteur produit déjà :
- * les pages opaques et transparentes que la coupe a retenues (`run.drawn`) et les maillages
- * transparents visibles (`blendState.visibleBlend`). Aucune passe GPU, aucune lecture bloquante —
- * ces deux listes sont réécrites par la coupe de chaque image et se lisent à coût nul.
+ * les pages que la coupe demande au cache (`run.desired`) et les maillages transparents visibles
+ * (`blendState.visibleBlend`). Aucune passe GPU, aucune lecture bloquante — ces deux listes sont
+ * réécrites par la coupe de chaque image et se lisent à coût nul.
  *
- * Le poids d'un slot est le nombre de triangles dessinés par les surfaces qui le lisent : une
- * texture que la caméra regarde de près pèse plus qu'une texture au loin. À poids égal, les niveaux
- * progressifs d'une texture passent avant sa pleine résolution — quelques kilooctets donnent une
- * image lisible que des mégaoctets mettraient des dizaines d'images à donner ; puis un niveau déjà
- * entamé passe devant un niveau intact, ce qui borne le nombre de transferts à moitié faits ; à
- * poids, étage et avancement égaux l'ordre d'origine est conservé. Un niveau entamé peut donc être
- * relégué entre deux tranches, jamais au milieu d'une tranche.
+ * C'est bien la coupe demandée, et pas la coupe dessinée : `run.drawn` n'est refait que lorsqu'un
+ * relevé de sélection est adopté, ce qui n'arrive en pratique qu'à `flush()`. En boucle d'images
+ * libre il reste vide, puis figé sur un vieux relevé — le poids de chaque slot vaut alors zéro, la
+ * file n'est plus réordonnée et les textures arrivent dans l'ordre de l'atlas, pas dans celui que la
+ * caméra dicte.
+ *
+ * Les niveaux progressifs passent d'abord, tous, avant toute pleine résolution : la queue de mips
+ * d'une texture tient en quelques kilooctets, celle de la scène entière dans une fraction du budget
+ * d'une image, alors qu'une seule pleine résolution le remplit entièrement. Les faire attendre
+ * derrière des mégaoctets laisserait des surfaces au remplissage blanc pendant des centaines
+ * d'images ; les passer d'abord donne une image lisible dès la première.
+ *
+ * Vient ensuite la couleur avant les données. Une couche couleur qui manque se voit — la surface
+ * reste au niveau grossier de sa pyramide — alors qu'une couche de données qui manque rend le
+ * remplissage du matériau, normale plate ou blanc, c'est-à-dire ses facteurs scalaires. Les données
+ * pèsent ici deux fois la couleur en octets : les servir d'abord retiendrait la couleur pendant des
+ * centaines d'images pour un gain invisible.
+ *
+ * Vient enfin le poids : le nombre de triangles demandés par les surfaces qui lisent le slot. Une
+ * texture que la caméra regarde de près pèse plus qu'une texture au loin, donc sa pleine résolution
+ * arrive la première. À poids égal, un niveau déjà entamé passe devant un niveau intact, ce qui
+ * borne le nombre de transferts à moitié faits ; à étage, nature, poids et avancement égaux l'ordre
+ * d'origine est conservé. Un niveau entamé peut donc être relégué entre deux tranches, jamais au
+ * milieu d'une tranche.
  */
 export function createTexturePriority(inputs: () => PriorityInputs) {
   const colorWeights: number[] = [];
@@ -44,19 +63,24 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
   };
   const weightOf = (job: TextureJob) =>
     (job.kind === 'color' ? colorWeights : dataWeights)[job.slot] ?? 0;
+  /** La couleur avant les données : seule la couleur manquante se voit. */
+  const rank = (job: TextureJob) => (job.kind === 'color' ? 0 : 1);
   /** Réordonne la file en place ; sans signal exploitable, elle garde l'ordre où elle a été bâtie. */
   const order = (jobs: TextureJob[]) => {
     if (jobs.length < 2) return;
-    const { index, drawn, blend } = inputs();
+    const { index, requested, blend } = inputs();
     colorWeights.fill(0);
     dataWeights.fill(0);
     if (index) {
-      for (const page of drawn) addWeight(index.get(page.material), page.triangles);
+      for (const page of requested) addWeight(index.get(page.material), page.triangles);
       for (const item of blend) addWeight(index.get(item.material), item.count / 3);
     }
     jobs.sort(
       (a, b) =>
-        weightOf(b) - weightOf(a) || a.stage - b.stage || (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
+        a.stage - b.stage ||
+        rank(a) - rank(b) ||
+        weightOf(b) - weightOf(a) ||
+        (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
     );
   };
   return { order };
