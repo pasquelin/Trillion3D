@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { awaitBackendPages } from './awaitBackendPages.ts';
-import { decodeGeometryPage } from './geometryPage.ts';
+import { decodePageOffThread, releasePageDecoders } from './pageDecodeHost.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createComparisonCompositor } from './comparison.ts';
@@ -68,6 +68,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     state.pairTargetB?.dispose();
     compositor?.dispose();
     streamer.dispose();
+    releasePageDecoders();
     overlays.forEach((material) => material.dispose());
     backends.forEach((backend) => backend.dispose());
     disposeSource(source);
@@ -97,7 +98,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
         for (const url of missing) {
           if (geometryUrls.has(url)) {
             const bytes = streamer.getBytes(url);
-            if (bytes) backend.acceptGeometryPage?.(url, await decodeGeometryPage(bytes));
+            if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
           } else {
             const array = streamer.get(url);
             if (array) backend.acceptPage?.(url, array);

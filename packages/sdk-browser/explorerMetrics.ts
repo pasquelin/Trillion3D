@@ -1,3 +1,4 @@
+import { pageDecodeStats } from './pageDecodeHost.ts';
 import { EngineProfiler } from './telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
@@ -56,6 +57,8 @@ export function createExplorerMetrics(
     textureAtlasBytesCalculated: null,
     textureAtlasClassBytesCalculated: null,
     textureAtlasClassesUsed: null,
+    pagesDecodedOffThread: null,
+    pageDecodeMs: null,
   };
   const profiler = new EngineProfiler();
   profiler.setMetadata(metadata);
@@ -128,6 +131,9 @@ export function createExplorerMetrics(
     metricsScratch.gpuLightListsMs = backendMetrics.gpuLightListsMs ?? null;
     metricsScratch.gpuShadowsMs = backendMetrics.gpuShadowsMs ?? null;
     metricsScratch.gpuLightingMs = backendMetrics.gpuLightingMs ?? null;
+    const decode = pageDecodeStats();
+    metricsScratch.pagesDecodedOffThread = decode.offThread;
+    metricsScratch.pageDecodeMs = decode.decodeMs;
   };
   return { metricsScratch, profiler, fillMetrics };
 }

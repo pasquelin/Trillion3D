@@ -170,6 +170,16 @@ export interface FrameMetrics {
    *  coupe à plat en teste zéro et parcourt tous les clusters.
    *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur, ou qui ne le compte pas. */
   cpuSelectNodesTested?: number | null;
+  /**
+   * Le décodage des pages hors du fil principal. `pagesDecodedOffThread` compte les tâches — contrôle
+   * d'intégrité SHA-256 ou lecture des attributs par sommet — qu'un worker a menées à bien, jamais
+   * celles que le repli a exécutées sur le fil principal. `pageDecodeMs` est le temps cumulé de ces
+   * tâches, mesuré par l'exécutant lui-même, quel que soit le fil : c'est du temps de décodage, il
+   * n'est jamais additionné à un `cpu*` ni à un `gpu*` par image. Les deux valent `null` tant
+   * qu'aucune page n'a été décodée — non mesuré, et non pas zéro.
+   */
+  pagesDecodedOffThread?: number | null;
+  pageDecodeMs?: number | null;
 }
 export interface BackendCapabilities {
   renderer: string;

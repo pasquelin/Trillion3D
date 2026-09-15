@@ -1,4 +1,5 @@
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from './backendCommon.ts';
+import { configurePageDecoders } from './pageDecodeHost.ts';
 import { createPageStreamer } from './streamingPages.ts';
 import { loadClusterPages } from './clusterPages.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
@@ -35,6 +36,8 @@ export async function createExplorerPageSources(
     (dagPages
       ? Math.max(8192, bundles.length * 2)
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)));
+  // Le pool de décodage ne dépasse jamais l'admission des transferts déjà en vigueur.
+  configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS);
   const streamer = createPageStreamer(
     [...pages, ...geometryPages, ...bundles],
     base,

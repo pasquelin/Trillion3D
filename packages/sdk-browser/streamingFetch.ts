@@ -1,5 +1,5 @@
 import { checked } from './clusterPages.ts';
-import { sha256Hex } from './sha256Hex.ts';
+import { verifyPageBytes } from './pageDecodeHost.ts';
 import type { StreamContext } from './streamingTypes.ts';
 
 export function createStreamingFetcher(
@@ -29,18 +29,26 @@ export function createStreamingFetcher(
           attempt,
           expectedBytes: page.bytes,
         }));
-        const bytes = await (await checked(new URL(url, base).href, combined)).arrayBuffer();
+        let buffer = await (await checked(new URL(url, base).href, combined)).arrayBuffer();
+        // La taille est relevée avant toute vérification : le tampon part transféré vers le worker
+        // de décodage, donc la référence d'origine est détachée le temps de l'aller-retour.
+        const byteLength = buffer.byteLength;
         emit('page-read-end', 'Lecture de page terminée', () => ({
           version: 1,
           url,
           attempt,
-          actualBytes: bytes.byteLength,
+          actualBytes: byteLength,
           expectedBytes: page.bytes,
           durationMs: onDiagnostic ? performance.now() - attemptStart : null,
         }));
         combined.throwIfAborted();
-        const sizeMatches = bytes.byteLength === page.bytes;
-        const actualHash = sizeMatches ? await sha256Hex(bytes) : undefined;
+        const sizeMatches = byteLength === page.bytes;
+        let actualHash: string | undefined;
+        if (sizeMatches) {
+          const verified = await verifyPageBytes(buffer);
+          actualHash = verified.sha256;
+          buffer = verified.source;
+        }
         const hashMatches = sizeMatches && actualHash === page.sha256;
         emit(
           'page-hash-check',
@@ -50,7 +58,7 @@ export function createStreamingFetcher(
             url,
             attempt,
             expectedBytes: page.bytes,
-            actualBytes: bytes.byteLength,
+            actualBytes: byteLength,
             expectedHash: page.sha256,
             actualHash: actualHash ?? null,
             sizeMatches,
@@ -66,15 +74,15 @@ export function createStreamingFetcher(
           throw new Error('Corrupt cluster page');
         }
         combined.throwIfAborted();
-        const array = new Uint8Array(bytes);
+        const array = new Uint8Array(buffer);
         touch(url, array);
-        state.bytesRead += bytes.byteLength;
+        state.bytesRead += byteLength;
         state.loaded++;
         emit('page-attempt-end', 'Tentative de lecture réussie', () => ({
           version: 1,
           url,
           attempt,
-          actualBytes: bytes.byteLength,
+          actualBytes: byteLength,
           durationMs: onDiagnostic ? performance.now() - attemptStart : null,
           resident: cache.size,
         }));
