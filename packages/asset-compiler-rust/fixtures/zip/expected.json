@@ -1,0 +1,33 @@
+{
+  "case": "Un glTF à buffer externe et texture en sous-dossier, lu à travers son ZIP : extraction sous le cache, dossier racine unique traversé, routage du contenu vers le pilote glTF.",
+  "rule": "Un conteneur ne change rien à la scène qu'il emballe. Le test compare d'abord la compilation issue de l'archive à celle du même glTF hors archive, clé de cache comprise ; les archives piégées sont refusées par leur code, jamais extraites à moitié.",
+  "scenePlugin": {
+    "name": "zip",
+    "version": "zip-appnote-6.3.10-zip-8.6.0-extract-1"
+  },
+  "chain": [
+    {
+      "name": "zip",
+      "version": "zip-appnote-6.3.10-zip-8.6.0-extract-1"
+    },
+    {
+      "name": "gltf",
+      "version": "gltf-2.0-direct-1"
+    }
+  ],
+  "refus": {
+    "sortieDeDossier": "ARCHIVE_PATH_ESCAPE",
+    "tronquee": "ARCHIVE_UNREADABLE",
+    "vide": "ARCHIVE_EMPTY"
+  },
+  "scene": {
+    "formatVersion": 3,
+    "manifestBinaryVersion": 4,
+    "sidecarSha256": "00028e1defeee4b96400955264fdfb67e23ee1fc10b65a68a0a1bc0468ccfd2d",
+    "primitives": 2,
+    "selectedNodes": [0],
+    "totalNodes": 1,
+    "selectedTriangles": 8,
+    "sourceTriangles": 8
+  }
+}
