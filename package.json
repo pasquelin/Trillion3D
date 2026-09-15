@@ -47,6 +47,7 @@
     "bench:calculs-c": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*-c.bench.mjs && node scripts/mesure/calculs/agrege-c.mjs",
     "bench:calculs-f": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*-f.bench.mjs && node scripts/mesure/calculs/agrege-f.mjs",
     "bench:calculs-g": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*-g.bench.mjs && npm run bench:calculs:natif-g && node scripts/mesure/calculs/agrege-g.mjs",
+    "bench:calculs-h": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*-h.bench.mjs && node scripts/mesure/calculs/agrege-h.mjs",
     "test:watch": "node --experimental-strip-types --test --watch packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs test/*.test.mjs",
     "test:native": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "bench:calculs:natif": "cargo test --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture bench_calculs",
