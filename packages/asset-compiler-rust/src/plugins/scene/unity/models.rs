@@ -58,7 +58,7 @@ impl Models {
             }
         };
         let (directory, file, key) = match &prepared {
-            PreparedScene::Converted(directory) => (
+            PreparedScene::Converted { directory, .. } => (
                 directory.clone(),
                 "model.gltf".to_string(),
                 directory.file_name()?.to_string_lossy().to_string(),

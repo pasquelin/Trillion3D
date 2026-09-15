@@ -79,7 +79,7 @@ impl ScenePlugin for Unity {
         head.windows(12).any(|window| window == b"tag:unity3d.")
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert(request, self).map(PreparedScene::Converted)
+        convert(request, self).map(|directory| request.converted(directory))
     }
 }
 
