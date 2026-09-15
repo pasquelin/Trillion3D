@@ -128,7 +128,13 @@ export function readOptions(argv, root) {
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.
     visible: flags.get('visible') === 'true',
+    // Lampes du contrat posées par la règle générique de `lampes.mjs` : leur nombre, si elles
+    // projettent une ombre, et si la première d'entre elles bouge à chaque image.
+    lights: number('lampes', 0),
+    lightShadows: (flags.get('ombres') ?? 'on') !== 'off',
+    movingLight: flags.get('lampe-mobile') === 'true',
   };
+  if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
   if (settings.port === 5174)
     throw new Error("le port 5174 appartient au serveur de l'utilisateur");
   if (settings.frames < 1) throw new Error('--images doit être un entier positif');
