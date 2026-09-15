@@ -1,5 +1,109 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session Formules] catalogue des formules mathématiques
+
+Sur `develop` = `9bf2eb3`. Dix agents Sonnet 5 en lecture seule (trois Rust, un sdk-core, cinq
+sdk-browser, un scripts/sdk-node/page-codec) ont recensé toute fonction de calcul du dépôt, hors
+tests et bancs : formule codée, entrées, constantes, appelants. Résultat assemblé sans réécriture
+dans `orchestration/AUDIT_MATH_FORMULES.md` (environ 2 000 lignes de tableau, 577 fichiers lus, plus un lot T1 des calculs délégués à Three.js : 49 fichiers, ~150 sites),
+avec en tête vingt-six doublons transversaux (erreur projetée codée quatre fois, barycentriques six
+fois, 1/π quatre fois, Hi-Z oracle/production, sRGB trois fois…). Complète
+`AUDIT_MATH_INVENTAIRE.md` du matin, orienté coût. Rien n'est modifié dans le code ; aucune
+optimisation proposée.
+
+## 2026-09-15 — [session Lumière] ombre lointaine sur la passe de mélange (lot `lot/ombre-lointaine-blend`)
+
+Worktree isolé, branche `lot/ombre-lointaine-blend`, partie de `develop` = `9cd6a44` (la consigne
+disait `c746c23` ; `develop` avait depuis deux commits de documentation, aucun code), rebasée sur
+`develop` = `d1294e4` avant livraison, sans conflit. Rien du cache n'est touché : le lot ne lit que
+`proxy.bin`, déjà écrit par le compilateur.
+
+### 1. Ce qui change
+
+Depuis le lot « ombres lointaines du soleil », la résolution différée opaque tirait un rayon d'ombre
+contre le proxy résident au-delà de la dernière cascade, et la passe de mélange recevait
+`SUN_FAR_STUB_WGSL`, un bouchon qui rendait `1.0`. Le bouchon disparaît : **les deux passes qui
+éclairent lient le proxy et tirent le même rayon, par le même code WGSL**. Un transparent lointain à
+l'ombre du soleil est désormais ombré exactement comme un opaque au même endroit.
+
+`directLightingWgsl.ts` ne prend plus une chaîne d'ombre en paramètre mais un **rang de liaison** :
+`DIRECT_LIGHTING_WGSL` passe celui de la résolution différée, `declaredLightingWgsl(...)` celui de la
+passe de mélange. Le reste du socle est le même caractère pour caractère, et un test le vérifie.
+
+### 2. Le vrai obstacle : une liaison de stockage, pas une ligne de code
+
+La raison notée du bouchon (« le proxy n'est lié qu'à la passe opaque ») était un **budget de
+liaisons**, mesuré ici : l'étage de fragments de la passe de mélange liait déjà **7 tampons de
+stockage sur les 8 que la norme garantit** (`maxStorageBuffersPerShaderStage` = 8, que le moteur ne
+demande pas de relever : `WEBGPU_REQUIRED_LIMITS` ne porte que les trois limites de taille). L'ombre
+lointaine en demandait **4** — trois colonnes de proxy plus un bloc de réglages et de compteurs.
+7 + 4 = 11. Aucun découpage en deux groupes n'y change rien : la limite est par étage, pas par groupe.
+
+Le proxy résident tient donc maintenant dans **un seul tampon** (`gpuBounceProxy.ts`) : un entête de
+douze mots — les quatre réglages du rayon, le drapeau de relevé, les deux compteurs `atomic`, le
+nombre de nœuds et les trois rangs de départ —, puis les trois colonnes bout à bout. Les colonnes de
+flottants se relisent par `bitcast` ; rien n'est recopié ni converti. L'albédo reste à part : seule
+la lumière qui rebondit lit une couleur. `gpuSunFarShadow.ts` n'a plus de tampon propre, il écrit
+dans cet entête.
+
+Tampons de stockage à l'étage de fragments de la passe de mélange : **7 avant, 8 après**, le plafond
+garanti tenu sans rien demander à l'appareil. La résolution différée **descend de 8 à 5** : trois
+liaisons libérées. Les deux passes de calcul du rebond passent de 4 liaisons de proxy à 2 (le tampon
+et l'albédo) : la passe de sondes descend de 8 à 6 tampons de stockage à l'étage de calcul — elle
+était pile au plafond —, celle du cache de surfaces de 7 à 5. La liaison est `read_write`
+partout, parce qu'une liaison en lecture seule ne peut pas déclarer un `atomic` ; les passes qui ne
+comptent rien n'y écrivent jamais.
+
+### 3. Sans proxy dans le cache
+
+Rien ne change : les deux passes lient le même remplaçant, un entête de zéros, où `present` vaut zéro
+et le nombre de nœuds aussi. Aucun rayon n'est tiré, aucun compteur n'est relevé, le diagnostic
+`sun-far-shadow` publie la même indisponibilité qu'avant. Pas de nouveau réglage, pas de drapeau.
+
+### 4. Fichiers et portes
+
+`packages/sdk-browser` seulement — ni `webgpuPagesEncoder.ts` ni `webgpuPagesFlush.ts` ne sont
+touchés, donc aucun conflit attendu avec Geometry. Touchés : `bounceNodeWgsl.ts` (entête, déclaration
+partagée, accesseurs), `sunFarShadowWgsl.ts`, `directLightingWgsl.ts`, `gpuBounceProxy.ts`,
+`gpuSunFarShadow.ts`, `bounceProbeWgsl.ts`, `bounceSurfaceWgsl.ts`, `gpuBounceProbes.ts`,
+`gpuBounceSurface.ts`, `bounceLimits.ts`, `deferredLightingSetup.ts`, `deferredLightingProgram.ts`,
+`webgpuPagesLightResources.ts`, `webgpuBindLayout.ts`, `webgpuBlendPipelines.ts`,
+`webgpuBindEntries.ts`, `webgpuBlendDraw.ts`, `webgpuPagesShaders.ts`. Deux fichiers de tests neufs :
+`sunFarShadowBlend.test.ts` (le mélange porte le vrai rayon et plus de bouchon ; les deux passes
+portent le même texte ; le proxy est lié une fois et une seule des deux côtés, en `storage` ; sans
+proxy, rien n'est encodé) et `residentProxyBuffer.test.ts` (l'entête publie les bons rangs, les trois
+colonnes se relisent telles quelles, les réglages et les compteurs vivent dans le tampon du proxy).
+
+Portes jouées, toutes vertes : `npx tsc --noEmit -p .`, `npm run check:changed` (format, lint,
+doublons, 446 tests reliés), `npm run check:unused`, `npm run check:lines`,
+`npm run check:duplicates`, plus `npm run build` et la suite complète `npm test` — **780 tests, 0
+échec** (sans le build, six tests échouent sur `dist/` manquant, avant comme après ce lot).
+
+### 5. Preuve d'image
+
+Jouée sous verrou le 15 septembre au soir, Emerald, WebGPU, 40 images par vue, seuils 0 et 1,
+`--avant d1294e4 --apres 9b4e1e8`, images et JSON dans `.mesure/out/ombre-lointaine-blend/`
+(`soleil`, `lampes8`, `rebond`). Machine chargée : seuls les pixels sont lus, aucune durée.
+
+| campagne        | vue                | px (e0 / e1)         | max canal | > 32 | A/A | trous | incidents GPU |
+| --------------- | ------------------ | -------------------- | --------- | ---- | --- | ----- | ------------- |
+| soleil          | generale           | 18 / 6               | 29        | 0    | 0   | 0     | aucun         |
+| soleil          | sol                | 0 / 0                | 0         | 0    | 0   | 0     | aucun         |
+| soleil          | rue                | 2 / 4                | 9         | 0    | 0   | 0     | aucun         |
+| 8 lampes        | generale           | 1 / 0                | 1         | 0    | 0   | 0     | aucun         |
+| 8 lampes        | sol, rue           | 0 / 0                | 0         | 0    | 0   | 0     | aucun         |
+| soleil + rebond | generale, sol, rue | 18 / 6, 0 / 0, 2 / 4 | 29, 0, 9  | 0    | 0   | 0     | aucun         |
+
+- **Le seul écart est celui annoncé.** Les pixels qui bougent en vue générale et en rue sont tous
+  sur le feuillage — matériau de mélange lointain, au-delà des cascades —, jamais sur une façade,
+  le ciel ou le premier plan ; il s'assombrit comme l'opaque voisin. La vue sol, sans feuillage
+  lointain, rend 0 px. L'écart le plus fort vaut 29 sur 255.
+- **Le tampon réagencé est juste** : la campagne avec rebond reproduit pixel pour pixel la campagne
+  soleil (mêmes comptes, mêmes maxima), donc aucun rang de colonne n'est faux.
+- **A/A 0 px partout.** Le pixel unique à 1/255 en 8 lampes est au niveau du quantum.
+- Chaque campagne journalise l'incident connu du cache Emerald sans `lights.json` (404), sans
+  effet sur les pixels.
+
 ## 2026-09-15 — [session Lumière] `sceneLit` lu à chaque image
 
 Branche `fix/scenelit`, sur `develop` = `f66ddf7`. Le lot `unlit-identite` publiait `sceneLit` en
@@ -95,11 +199,11 @@ deux percent la surface. 2 880 triangles.
 Contrôle A — **la même comparaison sur une scène sans transmission** (`classes-materiaux` : opaque,
 `MASK`, `BLEND`), mêmes réglages :
 
-| vue      | moteur contre témoin | max canal | px ≥ 32                           |
-| -------- | -------------------- | --------- | --------------------------------- |
+| vue      | moteur contre témoin | max canal | px ≥ 32                            |
+| -------- | -------------------- | --------- | ---------------------------------- |
 | générale | 206 471 px (22,4 %)  | 53        | 89 549, tous dans le panneau BLEND |
-| sol      | 473 793 px (51,4 %)  | **17**    | **0**                             |
-| rue      | 632 616 px (68,6 %)  | 126       | **1** (un pixel de silhouette)    |
+| sol      | 473 793 px (51,4 %)  | **17**    | **0**                              |
+| rue      | 632 616 px (68,6 %)  | 126       | **1** (un pixel de silhouette)     |
 
 Contrôle B — **sans aucune lampe déclarée**, donc le témoin n'a rien à installer : c'est l'état
 d'avant ce lot. 179 316 / 392 398 / 478 904 px, **max canal 237 sur les trois vues**.
@@ -127,7 +231,7 @@ Le compte de pixels seul ne dit rien ici : c'est le **max canal** et la réparti
 `sceneLit` ne survit pas au **spread**. Les quatre moteurs rendus par Three écrivent
 `...sceneLightingApi(sceneLights)` dans l'objet qu'ils renvoient (`exactPagesBackend.ts:191`,
 `referenceBackend.ts:61`, `autonomousPages.ts:154`, `threeLod.ts:143`) : le spread **évalue le
-getter une fois**, à la construction du moteur, et fige sa valeur. Une lampe posée *après* la
+getter une fois**, à la construction du moteur, et fige sa valeur. Une lampe posée _après_ la
 création — le cas de tout hôte qui déclare ses lampes au contrat, donc le cas du témoin — ne
 rallume jamais le drapeau, `explorerDraw` garde `NoToneMapping` et le témoin compose sans
 exposition ni ACES alors que le moteur, lui, les applique.
@@ -207,6 +311,7 @@ en l'état. À rejouer au calme, verrou pris, sorties dans `.mesure/out/unlit-id
 `npx tsc -p tsconfig.json --noEmit`, `npm run check:changed` (429 tests liés, tous verts),
 `npm run check:unused`, `npm run check:lines` : vertes. Aucun test existant ne casse : aucun
 n'encodait la composition de la vue sans lampe.
+
 ## 2026-09-15 — [session sans-threejs] lot visibilité WebGPU : deux leviers gardés sur trois, 0 px sur seize séries
 
 Worktree `.claude/worktrees/lot-visibilite`, branche `lot/visibilite-webgpu`, partie de `develop` =
@@ -313,6 +418,7 @@ un noyau « non fusionné ». `render-tech-lab/` non modifié, port 5174 non tou
 qui fait sortir le harnais en code 1 malgré un relevé propre.
 
 Images et rapports : `.mesure/out/lot-visibilite/` (sept campagnes, 185 Mo).
+
 ## 2026-09-15 — [session calculs] mesure finale des temps par image
 
 Verrou `.claude/mesure.lock` pris, campagne rejouée deux fois avant d'aboutir. Base « avant » =
