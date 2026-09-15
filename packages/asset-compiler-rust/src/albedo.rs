@@ -32,6 +32,11 @@ pub fn pack(colour: [f64; 3]) -> u32 {
 }
 
 /// Un octet sRGB ramené en linéaire, la même courbe que le reste de la chaîne (P1).
+///
+/// Deux autres exemplaires de cette courbe existent, et aucun n'est celui-ci : la table de
+/// `texture_preview/reduce.rs::srgb_table` la calcule en `f32` — 214 des 256 entrées diffèrent du
+/// `f64` arrondi, donc la table ne se construit pas d'ici — et `deferredLightingShaders.ts` la
+/// porte côté moteur. Trois précisions, trois emplacements, aucun partage.
 pub fn srgb_to_linear(byte: u8) -> f64 {
     let value = byte as f64 / 255.0;
     if value <= 0.04045 {
