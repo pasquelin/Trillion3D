@@ -7,6 +7,7 @@ export default {
     'scripts/*.mjs',
     'scripts/mesure/banc.mjs',
     'scripts/mesure/oracle.mjs',
+    'scripts/mesure/fixtureLampes.mjs',
     'packages/*/bench/*.bench.mjs',
     'scripts/mesure/calculs/agrege*.mjs',
     'test/*.test.mjs',

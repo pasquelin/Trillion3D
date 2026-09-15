@@ -1,7 +1,7 @@
 import { validateSceneLight, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
 
 /** Le produit de cache des lampes, à côté du manifeste qui le voisine. Sa version lui est propre. */
-export const IMPORTED_LIGHTS_FILE = 'lights.json';
+const IMPORTED_LIGHTS_FILE = 'lights.json';
 const IMPORTED_LIGHTS_VERSION = 1;
 
 /** Ce que le cache déclare : la liste des lampes du fichier source et le compte de celles refusées. */
