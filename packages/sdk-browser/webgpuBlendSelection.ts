@@ -4,6 +4,23 @@ import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 type Cache = ReturnType<typeof createGpuPageCache>;
 
+const ordreSource = (a: PageRec, b: PageRec) => (a.sourceOrder ?? a.id) - (b.sourceOrder ?? b.id);
+
+/**
+ * Remet une coupe transparente dans l'ordre source. Elle y arrive presque toujours ; un parcours le
+ * dit, là où le tri coûtait un tri par maillage transparent et par image. Le test refuse tout couple
+ * qui ne compare pas franchement « inférieur ou égal » — une clé NaN le fait échouer et le tri reprend
+ * la main — si bien que l'ordre rendu est toujours celui d'un tri stable.
+ */
+export function ordonneCoupeTransparente(cut: PageRec[]) {
+  for (let k = 1; k < cut.length; k++)
+    if (!(ordreSource(cut[k - 1], cut[k]) <= 0)) {
+      cut.sort(ordreSource);
+      return cut;
+    }
+  return cut;
+}
+
 /** Selects transparent meshes, packs their resident cluster indices, and counts culls. */
 export function selectWebgpuBlend(
   device: GPUDevice,
@@ -45,7 +62,7 @@ export function selectWebgpuBlend(
       continue;
     }
     if (cut !== item.cut) {
-      cut.sort((a, b) => (a.sourceOrder ?? a.id) - (b.sourceOrder ?? b.id));
+      ordonneCoupeTransparente(cut);
       if (item.cut && cut.length === item.cut.length && cut.every((rec, i) => rec === item.cut![i]))
         blendState.blendCuts.set(item, item.cut);
       else {
