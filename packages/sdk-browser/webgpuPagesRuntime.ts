@@ -75,11 +75,12 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState();
   const blendState = createWebgpuBlendState();
-  // Le signal de priorité est celui de la coupe précédente : elle a déjà nommé les pages dessinées
-  // et les maillages transparents visibles, donc les lire ne coûte ni passe GPU ni lecture bloquante.
+  // Le signal de priorité est celui de la coupe précédente : elle a déjà nommé les pages demandées
+  // au cache et les maillages transparents visibles, donc les lire ne coûte ni passe GPU ni lecture
+  // bloquante. `run.desired` et non `run.drawn` : voir `webgpuTexturePriority.ts`.
   const priority = createTexturePriority(() => ({
     index: vis.materialLayers,
-    drawn: run.drawn,
+    requested: run.desired,
     blend: blendState.visibleBlend,
   }));
   const texturePump = createWebgpuTexturePump({
