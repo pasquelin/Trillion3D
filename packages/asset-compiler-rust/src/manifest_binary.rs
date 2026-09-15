@@ -16,7 +16,7 @@ use crate::texture_preview::{
 use crate::{CompilerError, Result};
 use serde_json::{json, Map, Value};
 
-mod format;
+pub(crate) mod format;
 mod page;
 mod preview;
 #[cfg(test)]
@@ -62,6 +62,20 @@ const COLUMNS: usize = 24;
 /// puis les décalages des cinq niveaux.
 const PREVIEW_WORDS: usize = 6 + PREVIEW_LEVELS;
 
+/// Octets qu'une page écrit dans chaque colonne de page, quelle que soit la page.
+const PAGE_COLUMN_WIDTHS: [(usize, usize); 10] = [
+    (PAGE_BOUNDS, 48),
+    (PAGE_SPHERE, 32),
+    (PAGE_PARENT_SPHERE, 32),
+    (PAGE_ERROR, 16),
+    (PAGE_INT, 32),
+    (PAGE_U32, 8),
+    (PAGE_SHA, 64),
+    (GEOMETRY_SHA, 64),
+    (GEOMETRY_U32, 20),
+    (PAGE_DEPTH_LAYER, 4),
+];
+
 const FLAG_ROLE: u32 = 1;
 const FLAG_COARSE: u32 = 2;
 const FLAG_GEOMETRY: u32 = 4;
@@ -95,6 +109,16 @@ pub fn split(
         "manifest.primitives",
     )?;
     let mut columns: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
+    // Les colonnes par page ont une largeur fixe : une page en écrit toujours le même nombre
+    // d'octets, donc le total est connu avant la première écriture.
+    let pages_total = primitives
+        .iter()
+        .filter_map(|primitive| primitive.get("pages").and_then(Value::as_array))
+        .map(Vec::len)
+        .sum::<usize>();
+    for (index, per_page) in PAGE_COLUMN_WIDTHS {
+        columns[index].reserve(pages_total * per_page);
+    }
     let mut slim_primitives = Vec::with_capacity(primitives.len());
     for primitive in primitives {
         let entry = object(primitive, "primitive")?;

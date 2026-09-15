@@ -7,6 +7,8 @@ pub fn group_clusters(
 ) -> Vec<Vec<usize>> {
     let mut groups = Vec::new();
     let mut side = vec![0u8; centres.len()];
+    // Une seule table d'appartenance pour toutes les coupes : elle repart vide de chaque appel.
+    let mut present = vec![false; centres.len()];
     let mut members: Vec<usize> = (0..centres.len()).collect();
     let mut stack = vec![(0usize, members.len())];
     while let Some((from, to)) = stack.pop() {
@@ -42,7 +44,7 @@ pub fn group_clusters(
         for (i, &m) in slice.iter().enumerate() {
             side[m] = if i < middle { 0 } else { 1 };
         }
-        refine_bisection(slice, &mut side, adjacency, len * 3 / 8);
+        refine_bisection(slice, &mut side, adjacency, len * 3 / 8, &mut present);
         slice.sort_unstable_by_key(|&m| (side[m], m));
         let split = from + slice.iter().filter(|&&m| side[m] == 0).count();
         stack.push((from, split));
@@ -52,16 +54,17 @@ pub fn group_clusters(
     groups
 }
 
-pub(super) fn refine_bisection(
-    slice: &mut [usize],
+/// `present` arrive et repart entièrement à `false` : la coupe ne marque que ses propres membres,
+/// ce qui remplace le `HashSet` reconstruit à chaque appel par une table indexée réutilisée.
+pub(crate) fn refine_bisection(
+    slice: &[usize],
     side: &mut [u8],
     adjacency: &[Vec<(u32, u32)>],
     floor: usize,
+    present: &mut [bool],
 ) {
-    let mut present: std::collections::HashSet<usize> =
-        std::collections::HashSet::with_capacity(slice.len());
     for &m in slice.iter() {
-        present.insert(m);
+        present[m] = true;
     }
     let mut counts = [0usize; 2];
     for &m in slice.iter() {
@@ -77,7 +80,7 @@ pub(super) fn refine_bisection(
             let mut internal = 0i64;
             let mut external = 0i64;
             for &(other, weight) in adjacency.get(m).map(|v| v.as_slice()).unwrap_or(&[]) {
-                if !present.contains(&(other as usize)) {
+                if !present.get(other as usize).copied().unwrap_or(false) {
                     continue;
                 }
                 if side[other as usize] as usize == here {
@@ -97,6 +100,9 @@ pub(super) fn refine_bisection(
             break;
         }
     }
+    for &m in slice.iter() {
+        present[m] = false;
+    }
 }
 
 // ---------------------------------------------------------------- group reduction
@@ -106,7 +112,7 @@ pub(super) fn reduce_group(
     children: &[&DagCluster],
 ) -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
     let positions = input.positions;
-    let mut merged = Vec::new();
+    let mut merged = Vec::with_capacity(children.iter().map(|c| c.indices.len()).sum());
     let mut spheres = Vec::with_capacity(children.len());
     let mut child_error = 0.0_f64;
     let mut source_rank = u32::MAX;
@@ -135,22 +141,8 @@ pub(super) fn reduce_group(
     if simplified.triangles >= triangles || simplified.indices.is_empty() {
         return Ok(Err(GroupOutcome::NoCollapse));
     }
-    // Every vertex shared with another group must survive, or the two groups no longer meet.
-    let weld = input.weld;
-    let required: std::collections::HashSet<u32> = merged
-        .iter()
-        .filter(|&&id| locks.get(id as usize).copied().unwrap_or(false))
-        .map(|&id| weld[id as usize])
-        .collect();
-    if !required.is_empty() {
-        let kept: std::collections::HashSet<u32> = simplified
-            .indices
-            .iter()
-            .map(|&id| weld[id as usize])
-            .collect();
-        if !required.iter().all(|id| kept.contains(id)) {
-            return Ok(Err(GroupOutcome::BorderLost));
-        }
+    if !border_survived(&merged, &simplified.indices, locks, input.weld) {
+        return Ok(Err(GroupOutcome::BorderLost));
     }
     let error = simplified.error_object.max(child_error);
     if !error.is_finite() {
@@ -166,4 +158,39 @@ pub(super) fn reduce_group(
         clusters,
         source_rank,
     }))
+}
+
+/// Every vertex shared with another group must survive, or the two groups no longer meet.
+///
+/// Deux listes triées et une fusion remplacent les deux `HashSet` d'avant : même question posée,
+/// même réponse, sans hacher deux fois des dizaines de milliers de coins.
+pub(crate) fn border_survived(
+    merged: &[u32],
+    simplified: &[u32],
+    locks: &[bool],
+    weld: &[u32],
+) -> bool {
+    let mut required: Vec<u32> = merged
+        .iter()
+        .filter(|&&id| locks.get(id as usize).copied().unwrap_or(false))
+        .map(|&id| weld[id as usize])
+        .collect();
+    if required.is_empty() {
+        return true;
+    }
+    required.sort_unstable();
+    required.dedup();
+    let mut kept: Vec<u32> = simplified.iter().map(|&id| weld[id as usize]).collect();
+    kept.sort_unstable();
+    kept.dedup();
+    let mut at = 0usize;
+    for id in required {
+        while kept.get(at).is_some_and(|value| *value < id) {
+            at += 1;
+        }
+        if kept.get(at) != Some(&id) {
+            return false;
+        }
+    }
+    true
 }

@@ -10,8 +10,8 @@ type Cache = { get(key: string): unknown };
  * No GPU readback describes the transparent clusters, so the CPU cuts their DAG itself — the one
  * traversal an image still owns. That traversal is a function of six things and nothing else: the
  * camera's view and projection, the error threshold the budget settled on, the viewport, the world
- * matrices of the scene, and what the page cache holds. The frame number it also receives only stamps
- * `seen` on the clusters it keeps, and nothing in the runtime reads `seen`.
+ * matrices of the scene, and what the page cache holds. The frame number it also receives has no
+ * bearing on the cut itself.
  *
  * So an image whose six inputs are the ones the held cut was computed from would walk the same DAG to
  * the same answer: it reads the answer. Any of them moving — the camera by a hair, one page arriving

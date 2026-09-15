@@ -33,10 +33,9 @@ pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
 /// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
 /// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
 pub const CULLING_STRIDE: usize = 15;
-/// Target size of one streaming bundle. A bundle is a single request that carries dozens of
-/// clusters of the same level that sit next to each other, so filling a cut costs hundreds of
-/// requests instead of tens of thousands. Clusters stay individually addressable through their own
-/// object and through their offset inside the bundle.
+/// Target size of one streaming bundle: one request carrying dozens of neighbouring clusters of
+/// the same level, so filling a cut costs hundreds of requests instead of tens of thousands. A
+/// cluster stays individually addressable, through its own object and its offset in the bundle.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
 /// Target size of one bootstrap object. The root clusters of every primitive share these objects,
@@ -152,6 +151,8 @@ fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sync {
         progress(event);
     }
 }
+#[cfg(test)]
+mod bench_calculs;
 mod compiler_accessor_create;
 mod compiler_accessor_decode;
 mod compiler_accessor_types;
