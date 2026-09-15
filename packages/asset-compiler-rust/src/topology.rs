@@ -1,6 +1,6 @@
-mod link;
+pub(crate) mod link;
 use crate::{invalid, Result};
-use link::classify_link;
+use link::{classify_link, LinkScratch};
 #[derive(Debug, Clone, PartialEq)]
 pub struct TopologyReport {
     pub triangles: usize,
@@ -112,12 +112,14 @@ pub fn classify_topology(indices: &[u32], vertex_count: usize) -> Result<Topolog
     let mut boundary_vertices = 0;
     let mut locked = 0;
     let mut unused = 0;
+    let mut scratch = LinkScratch::default();
     for vertex in 0..vertex_count {
         if incident[vertex] == 0 {
             unused += 1;
             continue;
         }
-        match classify_link(&links[offsets[vertex] as usize..offsets[vertex + 1] as usize]) {
+        let span = offsets[vertex] as usize..offsets[vertex + 1] as usize;
+        match classify_link(&links[span], &mut scratch) {
             "interior" => interior += 1,
             "boundary" => boundary_vertices += 1,
             _ => locked += 1,
