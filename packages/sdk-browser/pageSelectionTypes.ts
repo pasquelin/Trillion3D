@@ -47,6 +47,9 @@ export type PageRec = {
   /** Rang de la clé de cluster dans le catalogue de l'hôte, posé une fois : résidence et épinglage sans
    *  hachage. L'hôte le pose, personne d'autre ne le lit. */
   keyIndex?: number;
+  /** Rang de la page dans le catalogue empaqueté d'un moteur WebGPU, posé une fois. Un autre moteur
+   *  qui le réécrit ne trompe personne : le lecteur vérifie que le catalogue rend bien cette page. */
+  packedIndex?: number;
 };
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.
