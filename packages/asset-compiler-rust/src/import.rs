@@ -12,7 +12,7 @@ use std::{
 };
 
 /// Bumping this invalidates cached imports (they are keyed by source hashes + importer version).
-pub const IMPORTER_VERSION: &str = "ufbx-0.11.3-gltf-1";
+pub const IMPORTER_VERSION: &str = "ufbx-0.11.3-gltf-2";
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
 const IMAGE_EXTENSIONS: [(&str, &str); 3] = [
     ("png", "image/png"),
