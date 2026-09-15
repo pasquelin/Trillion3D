@@ -9,70 +9,10 @@
 // coupes variées — poids fractionnaires, couches éparses, égalités parfaites, slots hors des poids,
 // index absent, file trop courte pour être triée.
 import { join } from 'node:path';
-import { createTexturePriority } from '../webgpuTexturePriority.ts';
 import { RACINE, compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
-import { referenceTexturePriority } from './oracles/h3PriorityOracle.ts';
+import { coupe } from './oracles/h3PriorityOracle.ts';
 
 const alea = graine(9173);
-
-/** Un travail de la file ; seuls `kind`, `slot`, `stage` et `nextRow` pèsent sur l'ordre. */
-function travail(kind, slot, stage, nextRow) {
-  return {
-    kind,
-    slot,
-    classIndex: 0,
-    layer: slot,
-    level: 0,
-    stage,
-    bytes: 4,
-    rows: 1,
-    bytesPerRow: 4,
-    nextRow,
-    failures: 0,
-    uploadRows: () => {},
-  };
-}
-
-/**
- * Une coupe : `materiaux` matériaux lisant chacun des couches tirées sous `couches`, `pages` pages
- * demandées au cache et `transparents` maillages mélangés, dont le poids `count / 3` n'est pas
- * entier. `slots` borne les slots des travaux, éventuellement au-delà de la dernière couche vue.
- */
-function coupe({ materiaux, couches, pages, transparents, travaux, slots, sansIndex = false }) {
-  const index = new Map();
-  const liste = [];
-  for (let i = 0; i < materiaux; i++) {
-    const material = { id: i };
-    const color = [Math.floor(alea() * couches), Math.floor(alea() * couches)];
-    const data = [Math.floor(alea() * couches), Math.floor(alea() * couches)];
-    index.set(material, { color, data });
-    liste.push(material);
-  }
-  const requested = [];
-  for (let i = 0; i < pages; i++)
-    requested.push({
-      material: liste[Math.floor(alea() * materiaux)],
-      triangles: 1 + Math.floor(alea() * 4000),
-    });
-  const blend = [];
-  for (let i = 0; i < transparents; i++)
-    blend.push({
-      material: liste[Math.floor(alea() * materiaux)],
-      count: 1 + Math.floor(alea() * 9000),
-    });
-  const jobs = [];
-  for (let i = 0; i < travaux; i++)
-    jobs.push(
-      travail(
-        alea() < 0.5 ? 'color' : 'data',
-        Math.floor(alea() * slots),
-        alea() < 0.4 ? 0 : 1,
-        alea() < 0.3 ? 1 + Math.floor(alea() * 8) : 0,
-      ),
-    );
-  const entrees = () => ({ index: sansIndex ? undefined : index, requested, blend });
-  return { jobs, avant: referenceTexturePriority(entrees), apres: createTexturePriority(entrees) };
-}
 
 /** Chaque tour repart de la file telle qu'elle a été bâtie : `order` la trie en place. */
 const joue = (cle) => (e) => {
@@ -82,7 +22,7 @@ const joue = (cle) => (e) => {
 };
 
 function cas(nom, options, mesure = true) {
-  const entree = coupe(options);
+  const entree = coupe(options, alea);
   return { nom, taille: options.pages + options.transparents, mesure, entree };
 }
 

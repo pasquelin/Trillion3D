@@ -19,7 +19,7 @@ fn prepare(source: &Path, cache: &Path) -> std::result::Result<PathBuf, (&'stati
         Routed::Manifest => panic!("routed to the manifest"),
     };
     match prepared.map_err(|error| (error.code, error.message))? {
-        PreparedScene::Converted(directory) => Ok(directory),
+        PreparedScene::Converted { directory, .. } => Ok(directory),
         _ => panic!("the unity plugin always converts"),
     }
 }

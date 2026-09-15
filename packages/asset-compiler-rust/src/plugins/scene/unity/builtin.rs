@@ -36,12 +36,12 @@ impl Builtins {
             ));
             return None;
         }
-        if let Some(known) = self.by_material.get(&material) {
-            return Some(*known);
-        }
-        let mesh = cube(material, scene);
-        self.by_material.insert(material, mesh);
-        Some(mesh)
+        Some(
+            *self
+                .by_material
+                .entry(material)
+                .or_insert_with(|| cube(material, scene)),
+        )
     }
 }
 

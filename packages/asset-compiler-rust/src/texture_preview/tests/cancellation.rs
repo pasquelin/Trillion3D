@@ -43,7 +43,7 @@ fn cancellation_is_honoured_between_two_textures_not_mid_decode() {
         o: &already_cancelled,
         g: &g,
         bin: &[],
-        source_dir: &dir,
+        image_root: &dir,
         meshes: &meshes,
         view_map: &view_map,
     });
@@ -58,7 +58,7 @@ fn cancellation_is_honoured_between_two_textures_not_mid_decode() {
         o: &mid_flight,
         g: &g,
         bin: &[],
-        source_dir: &dir,
+        image_root: &dir,
         meshes: &meshes,
         view_map: &view_map,
     });

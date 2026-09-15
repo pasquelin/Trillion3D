@@ -82,7 +82,9 @@ pub(super) struct PreviewInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub source_dir: &'a Path,
+    /// La racine de résolution des images de la scène intermédiaire, que `plugins::scene` nomme :
+    /// le dossier source, ou le dossier extrait d'un conteneur — jamais celui du cache.
+    pub image_root: &'a Path,
     pub meshes: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
 }
