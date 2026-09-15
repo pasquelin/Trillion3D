@@ -68,7 +68,7 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     contractLights: lights.lightsActive,
     mode: lights.store.mode,
     shadowsUpdated: lights.shadowsUpdated,
-    shadowsReused: lights.shadowsReused,
+    shadowsReused: lights.plan.reused,
     shadowFaces: lights.shadowFaces,
     shadowDraws: lights.shadowDraws,
     shadowsPending: lights.plan.pending,
