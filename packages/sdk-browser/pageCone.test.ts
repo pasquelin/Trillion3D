@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { OPEN_CONE, triangleCone, coneCullsPage } from './pageCone.ts';
+import {
+  OPEN_CONE,
+  coneContextFor,
+  coneCullsPage,
+  coneCullsPageWith,
+  createConeContext,
+  triangleCone,
+} from './pageCone.ts';
 
 test('a single front-facing triangle has a narrow cone along +z', () => {
   const cone = triangleCone([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2]);
@@ -65,4 +72,36 @@ test('BackSide materials are not cone-culled from behind', () => {
   const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
   assert.equal(coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], behind, material), false);
   material.dispose();
+});
+
+test('le contexte de racine rend le même rejet que le calcul par cluster, et n’est posé qu’à la demande', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 };
+  const world = new THREE.Matrix4().makeRotationY(0.4).setPosition(2, 0, -1);
+  const cam = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  cam.position.set(0, 0, -5);
+  cam.lookAt(0, 0, 0);
+  cam.updateMatrixWorld();
+  const ctx = createConeContext();
+  assert.equal(ctx.ready, false, 'aucune racine lue tant que personne ne demande un rejet');
+  coneContextFor(ctx, world, cam);
+  assert.equal(ctx.ready, true);
+  for (const [min, max] of [
+    [
+      [-0.1, -0.1, 0],
+      [0.1, 0.1, 0],
+    ],
+    [
+      [-3, -3, -3],
+      [3, 3, 3],
+    ],
+    [
+      [1, 1, 1],
+      [1.2, 1.4, 1.1],
+    ],
+  ])
+    assert.equal(
+      coneCullsPageWith(ctx, cone, world, min, max),
+      coneCullsPage(cone, world, min, max, cam),
+      `boîte ${min} ${max}`,
+    );
 });

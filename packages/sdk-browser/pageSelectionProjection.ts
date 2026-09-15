@@ -69,6 +69,11 @@ export function errorFloorAt(
  * focale le sont. Le résultat ne dépend donc ni de la caméra ni de la sphère : à seuil nul la coupe
  * retient exactement les clusters exacts que quelque chose remplace. L'appelant ne prend ce chemin
  * que lorsque l'étirement, la focale et le plan proche de l'image sont finis et strictement positifs.
+ *
+ * L'identité vaut sur le domaine que la préparation garantit (`pageCarriesClusterError`,
+ * `clusterErrorFields`) : une erreur propre finie positive vient toujours avec sa sphère, et une
+ * erreur de remplaçant est nulle, finie positive avec sa sphère, ou absente. Une erreur mal formée
+ * y est refusée des deux côtés. `pageSelectionProjection.test.ts` parcourt ce domaine et ses bords.
  */
 export function cutSelectsAtZero(rec: ClusterCut) {
   const own = rec.lodError ?? 0;

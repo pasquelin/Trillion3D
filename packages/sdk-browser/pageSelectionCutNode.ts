@@ -70,6 +70,11 @@ function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
  * nul. Les décisions d'un nœud à seuil nul ne dépendent donc ni de la caméra ni des sphères, mais
  * seulement des bornes que la préparation a réduites. L'appelant ne prend ce chemin que lorsque
  * l'étirement, la focale et le plan proche de l'image sont finis et strictement positifs.
+ *
+ * L'identité tient sous l'invariant que `cullingBounds` maintient et que
+ * `pageSelectionCutNode.test.ts` vérifie : une borne finie strictement positive vient d'un cluster
+ * qui portait sa sphère, donc d'un rayon positif ou nul. Sur une borne positive sans sphère — que
+ * la préparation ne produit pas —, le chemin général refuserait la donnée là où celui-ci descend.
  */
 export function nodeDecisionAtZero(values: Float64Array, at: number) {
   if (floorAboveZero(values, values[at + OWN_FLOOR], at + OWN_SPHERE + 3)) return -1;
