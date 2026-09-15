@@ -35,13 +35,11 @@ test("une image de coupe réutilise sa table plate, son résultat et ses tableau
     ask = {
       pixelError: 100,
       viewport: [960, 540] as [number, number],
-      frame: 1,
       holdResident: true,
       wanted,
       result,
     };
   const first = selectVisiblePages(roots, cam, ask, shown);
-  ask.frame = 2;
   const second = selectVisiblePages(roots, cam, ask, shown);
   assert.equal(second, first, 'le résultat rendu est celui fourni, image après image');
   assert.equal(second, result);
@@ -91,14 +89,14 @@ test('deux appels successifs avec la même caméra sélectionnent le même ensem
   const first = selectVisiblePages(
     roots,
     cam,
-    { pixelError: 100, viewport: [960, 540], frame: 1, holdResident: true },
+    { pixelError: 100, viewport: [960, 540], holdResident: true },
     shown1,
   );
   const shown2: PageRec[] = [];
   const second = selectVisiblePages(
     roots,
     cam,
-    { pixelError: 100, viewport: [960, 540], frame: 2, holdResident: true },
+    { pixelError: 100, viewport: [960, 540], holdResident: true },
     shown2,
   );
   assert.deepEqual(
@@ -129,12 +127,10 @@ test("les tableaux de travail de la sélection sont réutilisés d'une image à 
     ask = {
       pixelError: 100,
       viewport: [960, 540] as [number, number],
-      frame: 0,
       holdResident: true,
     };
   const hint: PageRec[] = [];
   const first = selectVisiblePages(roots, cam, ask, hint);
-  ask.frame = 1;
   const second = selectVisiblePages(roots, cam, ask, hint);
   assert.deepEqual(
     first.shown.map((p) => p.url),

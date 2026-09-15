@@ -5,25 +5,14 @@
 // la tolérance déclarée par le point est respectée ET que la mesure montre un gain.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RACINE } from './banc.mjs';
+import { RACINE, mediane as chronometre } from './banc.mjs';
 import { compteur, parcours } from './ecartsC.mjs';
 
 const FRAGMENTS = join(RACINE, '.mesure', 'calculs-c');
-/** Médiane en millisecondes d'un tour complet : échauffement, puis N tours ou le budget de temps. */
+/** Le chronomètre du lot A, avec les réglages du lot C : ses tours sont plus lourds. */
 async function mediane(tour, options = {}) {
-  const { chauffe = 8, tours = 120, budgetMs = 2500 } = options;
-  for (let i = 0; i < chauffe; i++) await tour();
-  const durees = [];
-  const debut = process.hrtime.bigint();
-  while (durees.length < tours) {
-    const t0 = process.hrtime.bigint();
-    await tour();
-    durees.push(Number(process.hrtime.bigint() - t0) / 1e6);
-    if (durees.length >= 5 && Number(process.hrtime.bigint() - debut) / 1e6 > budgetMs) break;
-  }
-  durees.sort((x, y) => x - y);
-  const milieu = durees.length >> 1;
-  return durees.length % 2 ? durees[milieu] : (durees[milieu - 1] + durees[milieu]) / 2;
+  const { ms } = await chronometre(tour, { chauffe: 8, tours: 120, budgetMs: 2500, ...options });
+  return ms;
 }
 
 function texteEcart(c) {

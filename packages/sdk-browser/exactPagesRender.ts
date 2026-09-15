@@ -46,7 +46,6 @@ export function createExactPagesRender(
   const selectOptions = {
     pixelError: 0,
     viewport,
-    frame: 0,
     holdResident: true,
     pageBudget: cap,
     wanted: desired,
@@ -66,9 +65,8 @@ export function createExactPagesRender(
     state.lastPixelError = resolvePixelError(context, camera, motion);
     // La demande de coupe est posée une fois pour toutes : l'image de rendu n'alloue rien.
     selectOptions.pixelError = state.lastPixelError;
-    selectOptions.frame = state.frame;
-    // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif, le numéro
-    // d'image et la caméra sont posés avant cette borne ; la résidence et la soumission sont après.
+    // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif et la
+    // caméra sont posés avant cette borne ; la résidence et la soumission sont après.
     const cutStart = performance.now();
     const selected = selectVisiblePages(roots, camera, selectOptions, shown);
     state.cpuSelectMs = performance.now() - cutStart;

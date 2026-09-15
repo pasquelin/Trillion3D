@@ -37,7 +37,6 @@ function selectCpuCut(
     {
       pixelError,
       viewport,
-      frame: rt.run.frame,
       holdResident: true,
       rootFallback: true,
       isResident: pinnedOnly

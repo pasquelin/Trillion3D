@@ -23,7 +23,6 @@ test('clustered blend pages retain their source and only select the intersecting
   const selected = selectVisiblePages(roots, camera(), {
     pixelError: 100,
     viewport: [960, 540],
-    frame: 1,
     holdResident: true,
   });
   assert.deepEqual(
@@ -50,7 +49,7 @@ test('clustered blend never reports missing exact coverage as resident', () => {
     fixture.associations,
     { allowMissing: true },
   );
-  const selected = selectVisiblePages(roots, camera(), { frame: 1, holdResident: true });
+  const selected = selectVisiblePages(roots, camera(), { holdResident: true });
   assert.equal(selected.complete, false);
   assert.deepEqual(
     selected.wanted.map((page) => page.url),
@@ -72,7 +71,7 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
   allPages[0].cone = { axis: [0, 0, -1], angle: 0 };
   const cam = camera(),
     packed = packDagSelection(roots);
-  const cpu = selectVisiblePages(roots, cam, { frame: 1 });
+  const cpu = selectVisiblePages(roots, cam, {});
   const gpu = evaluateDagSelectionKernel(packed, cameraSelectionUniforms(cam, 0, [960, 540]));
   assert.deepEqual(
     cpu.shown.map((page) => page.url),
