@@ -74,6 +74,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
    */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
   const cutDelta = createCutDelta(packedPages, run.desired);
+  const drawnDelta = createCutDelta(packedPages, run.drawnMembers);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
@@ -140,6 +141,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     uniforms: run.selectionUniforms,
     residentOffsetWords: rows.residentOffsetWords,
     delta: cutDelta,
+    drawnDelta,
+    onDrawnDelta: (delta) => residencySets.applyDrawn(delta),
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
       run.pagesEntered = delta.enteredCount;
