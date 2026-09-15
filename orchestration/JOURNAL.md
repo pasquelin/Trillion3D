@@ -1539,3 +1539,131 @@ committés ; `sauvegarde/lot-4c` non touchée.
 
 - Six mesures du 14 septembre (`chantier-phase1-3`, Emerald 1 instance 1280×720, 60 images) : WebGPU CPU 28,0 → 28,0 ms (non atteint, cible < 4 ms) ; WebGPU GPU 20,88 → 15,26 ms (−27 %, non conservé, coûte 67 px) ; WebGL2 sélection 5,2 → 4,80 ms, 2,40 ms au seuil 1 (non atteint, cible < 2 ms) ; WebGL2 CPU 29,5 → 30,3 ms ; pixels différents 0 px sur WebGL2, 67/37/173/1 px sur WebGPU si la partition temporelle est conservée ; tests non rejoués.
 - Ce qui reste, toujours ouvert : WebGPU GPU < 6 ms (trancher coplanaires vs `nearestDepth`), WebGPU CPU < 4 ms (intouché), WebGL2 sélection < 2 ms (émission de plages jusqu'au consommateur).
+
+## 2026-09-15 — [session sans-threejs] le budget de pages compte des pages (lot budget-pages-distinctes)
+
+**Changement d'image de référence, accepté par l'utilisateur** : la vue générale d'Emerald au seuil 0
+n'est plus la même image qu'avant ce lot. Elle est prouvée plus proche de l'exact, et le résultat est
+prouvé déterministe ; c'est la condition qui était posée.
+
+### Ce qui était faux
+
+Le budget de pages est un nombre de slots de cache, et un slot tient une page. `applyBudget` y
+comparait des **placements** : la vue générale d'Emerald au seuil 0 demande 80 153 placements pour
+20 875 pages distinctes, parce qu'un même cluster est placé sous plusieurs instances d'un objet. Le
+budget était donc franchi à chaque image, la file n'était jamais l'ensemble demandé mais un préfixe
+tronqué compté en placements, et le nombre de pages *distinctes* que ce préfixe contenait dépendait
+de la façon dont les placements s'y trouvaient répartis — donc de l'ordre dans lequel les premières
+images l'avaient rempli. Le cache ne rendant rien tant que ses slots ne manquent pas, la résidence
+gardait tout ce qui était passé par la file et s'arrêtait à 7 590 pages sur les 20 875 demandées :
+deux exécutions de la même caméra au même seuil ne résidaient pas le même ensemble et ne rendaient
+pas la même image. C'est la cause de l'instabilité du témoin A/A relevée au lot précédent, et c'est
+aussi pourquoi l'image était grossière là où elle aurait dû être fine.
+
+### Ce qui est fait
+
+Le rang compte des clés distinctes, par niveau comme avant : le niveau appartient à la page et non au
+placement, donc la partition par niveau est inchangée et la coupe grossière que le budget garde est
+la même en nature. Sur Emerald le budget ne tronque alors plus rien — une scène ne peut pas demander
+plus de pages distinctes qu'elle n'en contient —, et la file est l'ensemble demandé.
+
+Second point : ce que l'image dessine rejoint l'ensemble gardé. Un cluster dont le remplaçant manque
+est dessiné depuis un ancêtre résident que la coupe n'a jamais demandé ; il faut que le cache ne
+puisse pas le reprendre sous l'image qui l'affiche. La relecture publie déjà sa liste dessinable :
+elle devient une seconde différence de coupe, appliquée là où la première l'est, et l'ensemble gardé
+la suit clé par clé — une image qui ne bouge aucune page n'y touche rien. Les deux index de clés
+partagent leur arithmétique (`webgpuHeldKeys.ts`).
+
+**Ce qui a été essayé et retiré** : décharger d'autorité toute clé qui sort de l'ensemble gardé, pour
+faire de la résidence une fonction exacte de la coupe et du budget. Mesuré : **211 041 évictions en
+soixante-dix images** et une image plus grossière (5 310 974 triangles au lieu de 5 942 722) — la
+liste dessinable dépend de la résidence, qui dépendait alors de la liste dessinable, et le système
+battait. Le cache reprend ses slots par ancienneté quand ils manquent, ce qui est sa politique ; les
+épingles protègent ce que l'image montre. Sémantique écrite en R3b de la spécification.
+
+### Un cache du banc que `develop` ne sait plus lire
+
+Les textures progressives ont porté le manifeste binaire à la version 3, et le cache Emerald du Lab
+est en version 2 : la tête de `develop` le refuse au chargement (`Expected manifest binary version 3,
+received 2`). Aucune mesure contre Emerald n'est donc possible sur cette base tant que les ressources
+du banc n'ont pas été recompilées, et un agent n'écrit pas dans `public/benchmark-assets`.
+
+Ce lot a donc recompilé Emerald **hors du banc**, avec le compilateur natif de la tête de `develop`,
+dans `.mesure/cache-emerald` (281 primitives, 10 046 405 triangles, 743 Mo, 15,6 s), et les deux
+côtés de chaque série lisent ce même cache via `--cache-avant` / `--cache-apres`. Les chiffres
+absolus ne se comparent donc pas à ceux des entrées précédentes, qui lisaient le cache du Lab ; les
+verdicts pixel, eux, comparent bien deux moteurs sur la même scène.
+
+À faire hors de ce lot : recompiler les ressources du banc, ou accepter formellement que le harnais
+compile sa scène lui-même.
+
+### Preuve
+
+Verrou `.claude/mesure.lock` pris et libéré. Harnais commun, `--moteur webgpu`, 1280×720, 60 images,
+chauffe par défaut du harnais (huit images, jamais `--chauffe`), `--max-pages 100000`, les deux côtés
+lisant `.mesure/cache-emerald` via `--cache-avant` / `--cache-apres`. `avant = a71ed35` (tête de
+`develop`), `apres = 9e048f6`.
+
+**(c) Proximité de l'exact.** Référence : la branche d'essai `essai/reference-sans-budget`
+(`d3e86d7`) — le code de la tête de `develop`, la troncature du budget désactivée, donc la file est
+toujours l'ensemble demandé. Jamais fusionnée, elle n'existe que pour cette mesure.
+
+| vue · seuil | `develop` contre la référence | cette branche contre la référence |
+|---|---|---|
+| générale · 0 | **4 046 px, max canal 234** | **0 px** |
+| générale · 1, sol · 0, sol · 1, rue · 0, rue · 1 | 0 px | 0 px |
+
+Cette branche **est** le rendu sans budget, au pixel, sur les six séries ; `develop` en diffère sur la
+vue générale au seuil 0, la seule où les deux images ne coïncident pas. Le changement d'image va donc dans le bon sens, et il est mesuré, pas
+argumenté.
+
+**(a) Déterminisme.** Vue générale, seuil 0, quatre exécutions, chauffe par défaut : témoin A/A
+**0 px, 0 px, 0 px, 0 px**. Pages résidentes : 20 875 aux deux lancements de cette branche, dans les
+quatre exécutions, au page près. Sur les autres vues, témoin A/A 0 px aux deux seuils (série (b)).
+
+**(b) Écart contre `develop`.** Attendu non nul, et c'est la vue générale qui le porte :
+
+| vue · seuil | écart | pages résidentes (develop → branche) | triangles dessinés | trous |
+|---|---|---|---|---|
+| générale · 0 | **4 046 px, max canal 234** | 7 590 → **20 875** | 5 942 722 → 5 093 246 | 0 / 0 |
+| générale · 1 | 0 px | 3 801 → 3 801 | 1 842 728 | 0 / 0 |
+| sol · 0 | 0 px | 4 863 → 4 863 | 1 509 411 | 0 / 0 |
+| sol · 1 | 0 px | 3 422 → 3 422 | 670 036 | 0 / 0 |
+| rue · 0 | 0 px | 5 434 → 5 434 | 1 424 473 | 0 / 0 |
+| rue · 1 | 0 px | 3 554 → 3 554 | 636 059 | 0 / 0 |
+
+Cinq séries sur six ne bougent pas : leur coupe demandait moins de pages que le budget même compté
+en placements. C'est la vue générale au seuil 0, la plus lourde, qui portait la troncature.
+
+`uncoveredTriangles` 0 des deux côtés partout : l'image change de finesse, jamais de couverture.
+
+### Chiffres
+
+Vue générale au seuil 0, la seule des six séries où les deux côtés diffèrent :
+
+| | `develop` | cette branche |
+|---|---|---|
+| pages résidentes | 7 590 | **20 875** |
+| clusters dessinés | 47 890 | 41 187 |
+| triangles dessinés | 5 942 722 | 5 093 246 |
+| `uncoveredTriangles` | 0 | 0 |
+| `cpuFrameMs` p50 | 11,3 à 14,7 | **7,3 à 8,7** |
+
+La résidence triple parce que la file est enfin l'ensemble demandé ; elle ne coûte pourtant aucune
+mémoire de plus, le cache GPU allouant déjà `pageBytes × slots` à la création — `develop`
+n'utilisait qu'un tiers de ce qu'il avait réservé. L'image est moins peuplée parce qu'elle n'a plus
+besoin de remplacer une surface manquante par une couverture grossière : moins de clusters, moins de
+triangles, et c'est exactement l'image que rend le moteur quand le budget ne tronque rien. Le
+processeur y gagne un tiers du temps par image, faute de clusters à encoder.
+
+### Ce qui reste
+
+- Le budget ne tronque plus rien sur Emerald à `--max-pages 100000`, parce qu'une scène ne peut pas
+  demander plus de pages distinctes qu'elle n'en contient. Le chemin de troncature — préfixe le plus
+  grossier — n'est donc exercé que par les tests unitaires et par un budget volontairement étroit ;
+  aucune scène du banc ne le met à l'épreuve en vrai.
+- L'éviction reste celle du cache : il reprend ses slots par ancienneté quand ils manquent. La
+  résidence est donc fonction de la coupe et du budget *tant que le budget n'est pas atteint* ;
+  au-delà, l'ordre d'arrivée décide encore quels slots sont repris. Le rendre exact demande une
+  politique d'éviction pilotée par la coupe, et l'essai brutal de ce lot dit qu'elle ne peut pas être
+  « décharger tout ce qui sort de l'ensemble gardé ».
