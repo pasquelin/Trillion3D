@@ -207,7 +207,7 @@ through `usd`.
 | Source | glTF |
 |---|---|
 | `Xform`, `Scope`, any untyped group | One node each; `xformOpOrder` composed into a column-major `matrix` (translate, scale, the six Euler orders, `orient`, `transform`, and their `!invert!` forms) |
-| `Mesh` | Polygons triangulated as a fan from the first corner; `orientation` honoured (`leftHanded` reverses each triangle); indices `u16` under 65 536 vertices, else `u32` |
+| `Mesh` | Polygons triangulated by ear clipping in the plane of their own normal, which keeps the area and outline of a concave face; `orientation` honoured (`leftHanded` reverses each triangle); indices `u16` under 65 536 vertices, else `u32` |
 | Normals and `primvars:st` | Resolved through their `interpolation` (`constant`, `uniform`, `vertex`/`varying`, `faceVarying`) and their `:indices`; `TEXCOORD_0` V flipped; a corner's (point, normal, uv) slots are the vertex key |
 | `GeomSubset`, family `materialBind` | One primitive per subset; faces no subset claims fall back to the mesh's own `material:binding` |
 | Instances | `instanceable` prims sharing a prototype share one glTF mesh, one node each; `class` prims are templates and are not traversed |
@@ -282,6 +282,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `blend-image-format` | Blender image names a file the image registry cannot decode; reported, the scene continues without it |
 | `blend-image-outside-source` | Blender image lives outside the served root and carries no packed bytes; reported rather than copied beside the scene |
 | `blend-object-material-override-unconverted` | Blender object replaces one of its mesh's material slots; the pilot follows the mesh and reports the override |
+| `blend-ngon-untriangulable` | Blender face is a polygon the ear-clipping cut could not finish: a ring that crosses itself, or one with no plane at all (every corner collinear, zero area). It falls back to the fan from its first corner, which may fill it beyond its own outline, and the face is counted |
 | `blend-extra-scenes` | Blender file carries more than one scene; every mesh object of the file is exported and the count is reported |
 | `USDZ_LAYOUT_INVALID` | USDZ package entry is compressed, or its payload does not start on a 64-byte boundary; the AOUSD package layout requires every file stored as-is and aligned |
 | `image-lossy-unsupported` | Image plugin (WebP) read a `VP8 ` (lossy) image stream; refused before decoding — the fidelity policy admits WebP lossless only — reported per texture, does not fail the job |
@@ -331,7 +332,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `alembic-size-unsupported` | An Ogawa group or data block declares more children or bytes than the plugin's allocation ceiling admits (4 Mi children, 1 GiB per block, 64 Mi face corners per mesh) |
 | `alembic-values-invalid` | An `Xform` operation stack does not compose: operation outside the seven the format defines, or fewer values than the stack consumes |
 | `alembic-topology-invalid` | A mesh contradicts itself: a face index outside the position table, or more face corners declared than face indices written |
-| `alembic-*` report reasons | Counted in the import manifest under `unsupported`, never failing the job: `curves`, `points`, `nupatch`, `camera`, `light`, `object` and `instance` `-unsupported` for objects the plugin does not convert; `subd-as-polygons` for a subdivision surface rendered as the flat polygons it carries; `animation-ignored` when a property holds several samples and only the first is read; `normals-missing`, `normals-dropped`, `uv-dropped` for geometry parameters absent or inconsistent; `face-in-two-facesets`, `degenerate-face`, `faceset-invalid`, `mesh-invalid`, `mesh-empty`, `transform-invalid`, `transform-not-inherited`, `hierarchy-too-deep` |
+| `alembic-*` report reasons | Counted in the import manifest under `unsupported`, never failing the job: `curves`, `points`, `nupatch`, `camera`, `light`, `object` and `instance` `-unsupported` for objects the plugin does not convert; `subd-as-polygons` for a subdivision surface rendered as the flat polygons it carries; `animation-ignored` when a property holds several samples and only the first is read; `normals-missing`, `normals-dropped`, `uv-dropped` for geometry parameters absent or inconsistent; `face-in-two-facesets`, `degenerate-face`, `ngon-untriangulable` for a face the ear-clipping cut could not finish (a ring that crosses itself, or with no plane at all), which falls back to the fan from its first corner, `faceset-invalid`, `mesh-invalid`, `mesh-empty`, `transform-invalid`, `transform-not-inherited`, `hierarchy-too-deep` |
 | `usd-point-instancer-unsupported` | USD `PointInstancer`: its instances are parallel arrays over an indexed prototype, which this driver does not expand; counted, does not fail the job |
 | `usd-curves-unsupported` | USD `BasisCurves`, `NurbsCurves` or `HermiteCurves`: a curve is not a surface |
 | `usd-volume-unsupported` | USD `Volume` or an OpenVDB/Field3D asset: not a surface either |
@@ -344,6 +345,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `usd-composition-invalid` | A reference, payload or sublayer the composition did not resolve (missing file, unresolvable path) |
 | `usd-animation-first-sample` | An attribute with no default was read at its first time sample; the scene is frozen there and no animation is carried |
 | `usd-mesh-invalid` | USD `Mesh` whose required arrays are missing or contradict each other (`faceVertexCounts` not landing on `faceVertexIndices`) |
+| `usd-ngon-untriangulable` | USD face is a polygon the ear-clipping cut could not finish: a ring that crosses itself, or one with no plane at all (every corner collinear, zero area). It falls back to the fan from its first corner, which may fill it beyond its own outline, and the face is counted |
 | `usd-xform-unsupported` | A transform operation this driver does not compose (`!resetXformStack!`, the inverse of an arbitrary matrix, an unknown op type) |
 | `usd-xform-invalid` | A transform whose numbers are not finite; the node stays at identity |
 | `usd-surface-unsupported` | A `Material` with no `UsdPreviewSurface` reachable from `outputs:surface` |
@@ -363,6 +365,7 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ma-mesh-empty` | A `mesh` that yields no triangle: no face, or every face degenerate |
 | `ma-degenerate-face` | A face of fewer than three corners; nothing to triangulate |
 | `ma-face-hole-unsupported` | A face declaring a hole (`h` record); the fan from its first corner would fill it, and a silhouette is not guessed |
+| `ma-ngon-untriangulable` | A face is a polygon the ear-clipping cut could not finish: a ring that crosses itself, or one with no plane at all (every corner collinear, zero area). It falls back to the fan from its first corner, which may fill it beyond its own outline, and the face is counted |
 | `ma-face-record-ignored` | A `.fc` record outside those the documentation describes |
 | `ma-face-record-invalid` | A `.fc` record the writing attaches to no face |
 | `ma-uv-dropped` | Texture coordinates dropped: a `mu` record with no face, a UV set past the first, a slot outside `.uvst[0].uvsp`, or a material part where only some faces carry UVs — a glTF primitive carries an attribute for all its vertices or for none |
