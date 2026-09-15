@@ -10,6 +10,7 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub(super) struct Models {
     imported: HashMap<PathBuf, Option<Parts>>,
+    metas: HashMap<PathBuf, Rc<ModelImport>>,
 }
 
 impl Models {
@@ -21,6 +22,16 @@ impl Models {
         let parts = self.import(asset, world);
         self.imported.insert(asset.to_path_buf(), parts.clone());
         parts
+    }
+
+    /// Les réglages d'import déclarés par le `.meta` de ce modèle, lus une seule fois.
+    pub(super) fn meta(&mut self, asset: &Path) -> Rc<ModelImport> {
+        if let Some(known) = self.metas.get(asset) {
+            return known.clone();
+        }
+        let read = Rc::new(meta::read(&meta_of(asset)));
+        self.metas.insert(asset.to_path_buf(), read.clone());
+        read
     }
 
     fn import(&mut self, asset: &Path, world: &mut World<'_>) -> Option<Parts> {
@@ -57,16 +68,18 @@ impl Models {
                 return None;
             }
         };
-        let (directory, file, key) = match &prepared {
+        let (directory, file, key, unit) = match &prepared {
             PreparedScene::Converted(directory) => (
                 directory.clone(),
                 "model.gltf".to_string(),
                 directory.file_name()?.to_string_lossy().to_string(),
+                unit_meters(directory),
             ),
             PreparedScene::InPlace(file) => (
                 asset.parent()?.to_path_buf(),
                 file.clone(),
                 hash_file(asset).ok()?,
+                1.0,
             ),
             PreparedScene::Manifest => return None,
         };
@@ -84,10 +97,57 @@ impl Models {
             .and_then(|parent| world.project.relative_uri(parent))
             .unwrap_or_default();
         let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
+        let scale = self.meta(asset).scale(unit);
         world.scene.read_model(&name, plugin.name(), &key);
         world.scene.count("models", 1);
-        Some(parts)
+        Some(scaled(parts, scale))
     }
+}
+
+/// L'unité déclarée par le fichier modèle, telle que son pilote l'a consignée. Un modèle dont le
+/// manifeste ne la dit pas est en mètres, comme le glTF.
+fn unit_meters(directory: &Path) -> f64 {
+    fs::read(directory.join("manifest.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .and_then(|manifest| manifest["source"]["files"][0]["originalUnitMeters"].as_f64())
+        .filter(|unit| unit.is_finite() && *unit > 0.0)
+        .unwrap_or(1.0)
+}
+
+/// Applique le facteur d'échelle d'import du modèle : la géométrie reste exactement celle que son
+/// pilote a rendue, seule la transformation de chaque nœud versé la met à l'échelle. La matrice
+/// étant en colonnes, mettre les lignes `x`, `y` et `z` à l'échelle laisse la dernière ligne intacte.
+fn scaled(parts: Parts, scale: f64) -> Parts {
+    if scale == 1.0 {
+        return parts;
+    }
+    let nodes = parts
+        .nodes
+        .into_iter()
+        .map(|(name, matrix, mesh)| {
+            let matrix = match matrix.as_array().filter(|values| values.len() == 16) {
+                Some(values) => json!(values
+                    .iter()
+                    .enumerate()
+                    .map(|(rank, value)| {
+                        let value = value.as_f64().unwrap_or(0.0);
+                        if rank % 4 == 3 {
+                            value
+                        } else {
+                            value * scale
+                        }
+                    })
+                    .collect::<Vec<f64>>()),
+                None => json!([
+                    scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0, 0.0, scale, 0.0, 0.0, 0.0,
+                    0.0, 1.0
+                ]),
+            };
+            (name, matrix, mesh)
+        })
+        .collect();
+    Parts { nodes }
 }
 
 /// Le glTF d'un modèle et ses binaires. Un tampon en `data:` n'est pas lu : le pilote le compte au
