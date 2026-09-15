@@ -21,12 +21,12 @@ export const pageRowsOf = (side: number) =>
 
 /** Toute la face est périmée : la lampe a bougé, la tranche a changé de taille, ou c'est la première. */
 export function markWholeFace(mask: Uint8Array, base: number, rows: number) {
-  const full = (1 << rows) - 1;
-  for (let row = 0; row < MAX_PAGE_ROWS; row++) mask[base + row] = row < rows ? full : 0;
+  mask.fill((1 << rows) - 1, base, base + rows);
+  mask.fill(0, base + rows, base + MAX_PAGE_ROWS);
 }
 
 export function clearFace(mask: Uint8Array, base: number) {
-  for (let row = 0; row < MAX_PAGE_ROWS; row++) mask[base + row] = 0;
+  mask.fill(0, base, base + MAX_PAGE_ROWS);
 }
 
 /** Vrai dès qu'une page de la face attend son dessin. */

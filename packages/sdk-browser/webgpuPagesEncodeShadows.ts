@@ -89,10 +89,10 @@ export function planShadowRegions(
       x1 = regions.x1Of(region),
       y0 = regions.y0Of(region),
       y1 = regions.y1Of(region);
-    const base = region * 16;
+    const matrixBase = region * 16;
     const planes = writeFace(
       faceMatrices,
-      base,
+      matrixBase,
       cull ? cull.volumes : null,
       region * SHADOW_CULL_FLOATS,
       light,
@@ -101,17 +101,19 @@ export function planShadowRegions(
       side,
       regionRect(rectScratch, rows, x0, x1, y0, y1),
     );
-    shadows.writeRegion(region, slice, face, faceMatrices, base, slices.rects);
+    shadows.writeRegion(region, slice, face, faceMatrices, matrixBase, slices.rects);
     const rect = slice * RECTS_PER_SLICE + face * 3;
     const faceX = slices.rects[rect],
       faceY = slices.rects[rect + 1];
-    regionScissor[region * 4] = faceX + x0 * SHADOW_PAGE;
-    regionScissor[region * 4 + 1] = faceY + y0 * SHADOW_PAGE;
-    regionScissor[region * 4 + 2] = (x1 - x0 + 1) * SHADOW_PAGE;
-    regionScissor[region * 4 + 3] = (y1 - y0 + 1) * SHADOW_PAGE;
-    regionViewport[region * 3] = faceX;
-    regionViewport[region * 3 + 1] = faceY;
-    regionViewport[region * 3 + 2] = slices.rects[rect + 2];
+    const scissor = region * 4,
+      viewport = region * 3;
+    regionScissor[scissor] = faceX + x0 * SHADOW_PAGE;
+    regionScissor[scissor + 1] = faceY + y0 * SHADOW_PAGE;
+    regionScissor[scissor + 2] = (x1 - x0 + 1) * SHADOW_PAGE;
+    regionScissor[scissor + 3] = (y1 - y0 + 1) * SHADOW_PAGE;
+    regionViewport[viewport] = faceX;
+    regionViewport[viewport + 1] = faceY;
+    regionViewport[viewport + 2] = slices.rects[rect + 2];
     // Les régions d'une même face se suivent : un changement de paire tranche/face est une face de
     // plus redessinée, et c'est ce que le profil publie à côté des pages.
     if (slice !== lastSlice || face !== lastFace) {

@@ -64,13 +64,13 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     for (const buffer of all) buffer.destroy();
   };
   try {
-    // La place de chaque face dans la liste commune, et son slot de dessin : posées une fois.
+    // La place de chaque région dans la liste commune, et son slot de dessin : posées une fois.
     const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS);
     const drawWords = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_UNIFORM_WORDS);
-    for (let face = 0; face < MAX_SHADOW_REGIONS; face++) {
-      offsetWords[face] = face * capacity;
-      drawWords[face * DRAW_UNIFORM_WORDS + WORD_DRAW_SLOT] = face;
-      drawWords[face * DRAW_UNIFORM_WORDS + WORD_INDIRECT] = 1;
+    for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
+      offsetWords[region] = region * capacity;
+      drawWords[region * DRAW_UNIFORM_WORDS + WORD_DRAW_SLOT] = region;
+      drawWords[region * DRAW_UNIFORM_WORDS + WORD_INDIRECT] = 1;
     }
     device.queue.writeBuffer(offsets, 0, offsetWords);
     device.queue.writeBuffer(drawUniform, 0, drawWords);

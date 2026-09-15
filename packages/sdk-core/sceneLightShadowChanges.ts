@@ -40,8 +40,6 @@ export function createShadowChanges() {
     get count() {
       return count;
     },
-    min,
-    max,
     /** Un nœud ou une page de résidence a bougé : sa boîte entre dans la liste, ou rejoint une voisine. */
     worldChanged(lo: readonly number[], hi: readonly number[]) {
       if (count < MOVED_BOXES) {
