@@ -115,9 +115,9 @@ fn traverse(world: &mut World<'_>, file: &Path) -> Result<()> {
             ),
         ));
     }
-    let (dropped, overrides) = (HashSet::new(), Overrides::new());
+    let (dropped, changes) = (HashSet::new(), Changes::default());
     for root in roots {
-        builder.transform(&document, root, &dropped, &overrides, 0);
+        builder.transform(&document, root, &dropped, &changes, 0);
     }
     Ok(())
 }

@@ -17,6 +17,7 @@ impl Builder<'_, '_> {
         document: &Rc<Document>,
         components: &[(u32, i64)],
         dropped: &HashSet<i64>,
+        changes: &Changes,
         node: &mut Value,
     ) -> Vec<usize> {
         let find = |class: u32| {
@@ -25,25 +26,42 @@ impl Builder<'_, '_> {
                 .find(|(kind, _)| *kind == class)
                 .map(|(_, id)| *id)
         };
-        let (Some(filter), Some(renderer)) = (find(MESH_FILTER), find(MESH_RENDERER)) else {
+        let (Some(filter), Some(renderer_id)) = (find(MESH_FILTER), find(MESH_RENDERER)) else {
             return Vec::new();
         };
-        if dropped.contains(&renderer) {
+        if dropped.contains(&renderer_id) {
             return Vec::new();
         }
-        let (Some(filter), Some(renderer)) = (document.get(filter), document.get(renderer)) else {
+        let (Some(filter), Some(renderer)) = (document.get(filter), document.get(renderer_id))
+        else {
             return Vec::new();
         };
-        if number_at(&renderer.body, "m_Enabled", 1.0) == 0.0 {
+        let enabled = changes
+            .enabled(renderer_id)
+            .unwrap_or(number_at(&renderer.body, "m_Enabled", 1.0) != 0.0);
+        if !enabled {
             self.world.scene.count("renderersDisabled", 1);
             return Vec::new();
         }
-        let materials: Vec<Option<usize>> = sequence(&renderer.body, "m_Materials")
-            .iter()
-            .map(|slot| self.material(&reference(slot)))
-            .collect();
+        let materials = self.materials(&renderer.body, changes.materials(renderer_id));
         let mesh = reference(&filter.body["m_Mesh"]);
         self.instance(&mesh, &materials, node)
+    }
+
+    /// Les matériaux du rendu, emplacement par emplacement : ceux que le `MeshRenderer` déclare, et
+    /// à leur place ceux qu'une instance de prefab remplace. Un emplacement que l'instance laisse
+    /// vide garde celui du rendu.
+    fn materials(&mut self, renderer: &Yaml, replaced: Option<&[Ref]>) -> Vec<Option<usize>> {
+        let declared = sequence(renderer, "m_Materials");
+        let replaced = replaced.unwrap_or(&[]);
+        (0..declared.len().max(replaced.len()))
+            .map(|slot| {
+                let over = replaced.get(slot).filter(|slot| !slot.is_null()).cloned();
+                let slot =
+                    over.unwrap_or_else(|| declared.get(slot).map(reference).unwrap_or_default());
+                self.material(&slot)
+            })
+            .collect()
     }
 
     /// Le maillage désigné par le `MeshFilter`, primitif ou importé.
@@ -75,13 +93,36 @@ impl Builder<'_, '_> {
         let Some(parts) = self.models.parts(&asset, self.world) else {
             return Vec::new();
         };
-        // Le `fileID` désigne un maillage précis dans le modèle importé ; cette correspondance est
-        // interne à l'éditeur et n'est pas reconstituable, donc un modèle à plusieurs maillages est
-        // instancié entier et le fait est compté.
-        if parts.nodes.len() > 1 {
-            self.world.scene.report.add("unity-model-mesh-by-fileid");
-        }
+        let parts = self.selected(&asset, mesh.file_id, &parts);
         self.attach(&parts, materials)
+    }
+
+    /// Le maillage précis qu'un `fileID` désigne dans un modèle à plusieurs maillages. Le `.meta` du
+    /// modèle mémorise, pour chaque objet importé, le `fileID` et le nom qu'il portait dans le
+    /// fichier : on ne retient que la partie qui porte ce nom, avec sa transformation dans le
+    /// modèle. Nom absent de la table, ou introuvable sous ce nom dans le modèle : le modèle entier
+    /// est instancié et le fait est compté, comme avant.
+    fn selected(&mut self, asset: &Path, file_id: i64, parts: &Parts) -> Parts {
+        if parts.nodes.len() < 2 {
+            return parts.clone();
+        }
+        let wanted = self.models.meta(asset).name(file_id).map(str::to_string);
+        let meshes = &self.world.scene.meshes;
+        let kept: Vec<(String, Value, usize)> = wanted
+            .iter()
+            .flat_map(|name| {
+                parts.nodes.iter().filter(move |(node, _, mesh)| {
+                    node == name || meshes[*mesh]["name"].as_str() == Some(name.as_str())
+                })
+            })
+            .cloned()
+            .collect();
+        if kept.is_empty() {
+            self.world.scene.report.add("unity-model-mesh-by-fileid");
+            return parts.clone();
+        }
+        self.world.scene.count("subMeshes", 1);
+        Parts { nodes: kept }
     }
 
     /// Instancie les nœuds d'un modèle sous le nœud courant, en liant les matériaux demandés.

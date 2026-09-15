@@ -17,13 +17,27 @@ corpus ne pose que des cubes intégrés avec un `LODGroup` :
 
 - `Prop_Model` : un `MeshFilter` qui renvoie au FBX par GUID, en position (1, 2, 3), tourné d'un
   quart de tour autour de Y et à l'échelle 2 — la conversion d'axes et la composition avec le
-  pilote FBX y sont vérifiées en clair ;
+  pilote FBX y sont vérifiées en clair ; son `fileID` ne figure pas dans la table de noms du
+  `.meta`, donc le modèle entier est instancié et le fait est compté ;
+- `Prop_SubMesh` : le même modèle, mais un `MeshFilter` qui vise le `fileID` 4300002, que la table
+  `internalIDToNameTable` du `.meta` nomme `Icosphere.001` — seul ce maillage est retenu ;
+- `LODProp.fbx.meta` déclare `globalScale: 2` et `useFileScale: 1` : l'échelle d'import s'applique
+  aux nœuds versés du modèle, jamais à sa géométrie ;
 - une lampe sur ce même objet, pour qu'elle soit comptée sans être rendue ;
 - `Prop_Cutout` et `Prop_Glass` avec `Assets/Materials/{Cutout,Glass}.mat`, écrits ici : modes
   découpé (Standard `_Mode: 1`, `_Cutoff: 0.25`) et transparent (URP `_Surface: 1`, alpha 0,5,
   émission, double face) ;
 - `Prop_Hidden`, inactif, qui ne doit produire aucun nœud ;
-- une instance de `Prop_Standard.prefab` replacée en (-4, 0, 5) et renommée `Prop_Copy`.
+- `Prop_Glass` porte des `fileID` de vrai projet, au-delà de 2^53
+  (`33000014169494082`, `23000014090315290`) : lus au travers d'un flottant ils désigneraient un
+  objet qui n'existe pas, et l'objet disparaîtrait de la scène ;
+- deux instances de `Prop_Standard.prefab` : `Prop_Copy`, replacée en (-4, 0, 5), renommée, remise à
+  l'échelle en y, dont le matériau du rendu de LOD0 est remplacé par `Glass` et dont l'objet `LOD2`
+  est désactivé ; `Prop_Muted`, dont le rendu de LOD0 est éteint. Les retouches que ce pilote ne
+  rend pas — `m_StaticEditorFlags`, `m_TagString` — restent comptées, propriété par propriété.
+
+Le dossier `cc0-import-project` lui-même sert de preuve au routeur : il porte une scène et un FBX,
+et se route vers `unity` sans qu'on lui désigne quoi que ce soit.
 
 L'attendu de la dorée est dans `cc0-import-project/expected.json`.
 

@@ -9,11 +9,13 @@
 //! contenu importé reste celle de son auteur : ce pilote n'en accorde ni n'en retire aucune.
 //!
 //! Ce qu'il lit : la hiérarchie des `Transform`, les `MeshFilter` et `MeshRenderer`, les instances
-//! de prefab et leurs retouches, les `LODGroup` (niveau le plus fin seulement), les matériaux
-//! Standard, URP Lit et HDRP Lit, et les textures que le registre d'images sait décoder.
+//! de prefab et leurs retouches de géométrie et de rendu, les `LODGroup` (niveau le plus fin
+//! seulement), les matériaux Standard, URP Lit et HDRP Lit, les textures que le registre d'images
+//! sait décoder, et les réglages d'import d'un modèle déclarés par son `.meta` — facteur d'échelle
+//! et table `fileID` → nom, qui dit quel maillage d'un modèle un `MeshFilter` désigne.
 //! Ce qu'il compte au rapport sans le rendre : lampes, caméras, terrains, particules, scripts,
-//! rendus animés, objets inactifs, niveaux de LOD écartés, retouches de prefab autres que la
-//! transformation, cartes métal/lissage empaquetées et textures hors registre.
+//! rendus animés, objets inactifs, niveaux de LOD écartés, retouches de prefab qui ne changent ni la
+//! géométrie ni le rendu, cartes métal/lissage empaquetées et textures hors registre.
 use super::*;
 use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
 use crate::{hash, hash_file, CompilerError};
@@ -33,8 +35,10 @@ mod builtin;
 mod convert;
 mod materials;
 mod merge;
+mod meta;
 mod models;
 mod output;
+mod patch;
 mod prefab;
 mod project;
 mod render;
@@ -46,9 +50,11 @@ use build::*;
 use builtin::*;
 use convert::convert;
 use merge::Parts;
+use meta::ModelImport;
 use models::Models;
 use output::Scene;
-use project::{assets_root, read_text, Project};
+use patch::{local_trs, Changes};
+use project::{assets_root, meta_of, read_text, Project};
 use textures::Textures;
 use transform::Trs;
 use yaml::*;
@@ -65,7 +71,7 @@ impl Plugin for Unity {
     /// La version nomme le lecteur YAML et la génération de la conversion : la changer invalide les
     /// caches, donc toute scène Unity déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "unity-yaml-rust2-0.13-gltf-1"
+        "unity-yaml-rust2-0.13-gltf-2"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["unity"]
@@ -80,6 +86,12 @@ impl ScenePlugin for Unity {
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
         convert(request, self).map(|directory| request.converted(directory))
+    }
+    /// Un projet Unity se reconnaît au niveau du dossier : dès qu'une scène vit dessous, l'arbre
+    /// entier est la source, et les modèles rangés dedans sont ses entrées, jamais des sources
+    /// concurrentes. Un dossier sans scène n'est pas un projet : le routeur regarde les fichiers.
+    fn project_inputs(&self, directory: &Path) -> Option<Vec<PathBuf>> {
+        Some(project::scenes_under(directory)).filter(|scenes| !scenes.is_empty())
     }
 }
 
