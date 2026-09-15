@@ -15,8 +15,8 @@
 //! rendus animés, objets inactifs, niveaux de LOD écartés, retouches de prefab autres que la
 //! transformation, cartes métal/lissage empaquetées et textures hors registre.
 use super::*;
-use crate::import::{f32_bytes, normalise, Bin, Report};
-use crate::{atomic, hash, hash_file, runtime_manifest, CompilerError};
+use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
+use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},

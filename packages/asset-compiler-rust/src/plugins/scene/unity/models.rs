@@ -15,79 +15,77 @@ pub(super) struct Models {
 impl Models {
     /// Les nœuds porteurs de maillage de ce modèle, versés dans la scène à la première demande.
     pub(super) fn parts(&mut self, asset: &Path, world: &mut World<'_>) -> Option<Parts> {
-        if let Some(known) = self.imported.get(asset) {
-            return known.clone();
-        }
-        let parts = self.import(asset, world);
-        self.imported.insert(asset.to_path_buf(), parts.clone());
-        parts
+        self.imported
+            .entry(asset.to_path_buf())
+            .or_insert_with(|| import(asset, world))
+            .clone()
     }
+}
 
-    fn import(&mut self, asset: &Path, world: &mut World<'_>) -> Option<Parts> {
-        let name = asset.file_name()?.to_string_lossy().to_string();
-        let Ok(Routed::Driver(plugin, inputs)) = route(asset) else {
-            world.scene.report.add("unity-model-format-unknown");
+fn import(asset: &Path, world: &mut World<'_>) -> Option<Parts> {
+    let name = asset.file_name()?.to_string_lossy().to_string();
+    let Ok(Routed::Driver(plugin, inputs)) = route(asset) else {
+        world.scene.report.add("unity-model-format-unknown");
+        world
+            .scene
+            .report
+            .notes
+            .push(format!("modèle non lu: {name}"));
+        return None;
+    };
+    if plugin.name() == NAME {
+        world.scene.report.add("unity-model-nested-scene");
+        return None;
+    }
+    let request = SceneRequest {
+        source: asset,
+        inputs: &inputs,
+        cache: world.cache,
+        cancelled: world.cancelled,
+        progress: world.progress,
+    };
+    let prepared = match plugin.prepare(&request) {
+        Ok(prepared) => prepared,
+        Err(error) => {
+            world.scene.report.add("unity-model-import-failed");
             world
                 .scene
                 .report
                 .notes
-                .push(format!("modèle non lu: {name}"));
-            return None;
-        };
-        if plugin.name() == NAME {
-            world.scene.report.add("unity-model-nested-scene");
+                .push(format!("{name}: {} {}", error.code, error.message));
             return None;
         }
-        let request = SceneRequest {
-            source: asset,
-            inputs: &inputs,
-            cache: world.cache,
-            cancelled: world.cancelled,
-            progress: world.progress,
-        };
-        let prepared = match plugin.prepare(&request) {
-            Ok(prepared) => prepared,
-            Err(error) => {
-                world.scene.report.add("unity-model-import-failed");
-                world
-                    .scene
-                    .report
-                    .notes
-                    .push(format!("{name}: {} {}", error.code, error.message));
-                return None;
-            }
-        };
-        let (directory, file, key) = match &prepared {
-            PreparedScene::Converted(directory) => (
-                directory.clone(),
-                "model.gltf".to_string(),
-                directory.file_name()?.to_string_lossy().to_string(),
-            ),
-            PreparedScene::InPlace(file) => (
-                asset.parent()?.to_path_buf(),
-                file.clone(),
-                hash_file(asset).ok()?,
-            ),
-            PreparedScene::Manifest => return None,
-        };
-        let (gltf, buffers) = match load_gltf(&directory, &file) {
-            Some(loaded) => loaded,
-            None => {
-                world.scene.report.add("unity-model-buffer-unreadable");
-                return None;
-            }
-        };
-        // Les images du modèle sont nommées relativement à son propre dossier ; la scène les sert
-        // depuis la racine donnée au compilateur, il faut donc les préfixer de ce chemin.
-        let prefix = asset
-            .parent()
-            .and_then(|parent| world.project.relative_uri(parent))
-            .unwrap_or_default();
-        let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
-        world.scene.read_model(&name, plugin.name(), &key);
-        world.scene.count("models", 1);
-        Some(parts)
-    }
+    };
+    let (directory, file, key) = match &prepared {
+        PreparedScene::Converted(directory) => (
+            directory.clone(),
+            "model.gltf".to_string(),
+            directory.file_name()?.to_string_lossy().to_string(),
+        ),
+        PreparedScene::InPlace(file) => (
+            asset.parent()?.to_path_buf(),
+            file.clone(),
+            hash_file(asset).ok()?,
+        ),
+        PreparedScene::Manifest => return None,
+    };
+    let (gltf, buffers) = match load_gltf(&directory, &file) {
+        Some(loaded) => loaded,
+        None => {
+            world.scene.report.add("unity-model-buffer-unreadable");
+            return None;
+        }
+    };
+    // Les images du modèle sont nommées relativement à son propre dossier ; la scène les sert
+    // depuis la racine donnée au compilateur, il faut donc les préfixer de ce chemin.
+    let prefix = asset
+        .parent()
+        .and_then(|parent| world.project.relative_uri(parent))
+        .unwrap_or_default();
+    let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
+    world.scene.read_model(&name, plugin.name(), &key);
+    world.scene.count("models", 1);
+    Some(parts)
 }
 
 /// Le glTF d'un modèle et ses binaires. Un tampon en `data:` n'est pas lu : le pilote le compte au
