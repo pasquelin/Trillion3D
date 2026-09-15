@@ -1,6 +1,6 @@
 {
-  "case": "Projet Unity CC0 : trois props à cubes intégrés sous LODGroup, un modèle FBX instancié par GUID, deux matériaux aux modes découpé et transparent, un objet inactif, une instance de prefab replacée et renommée.",
-  "rule": "Unity est en main gauche, le glTF en main droite : z devient -z, le quaternion (x, y, z, w) devient (-x, -y, z, w), l'échelle ne bouge pas. Prop_Model, posé en (1, 2, 3) et tourné d'un quart de tour autour de Y, sort en (1, 2, -3) avec (0, -0.7071067811865476, 0, 0.7071067811865476) ; rugosité = 1 − lissage, donc 0,75 donne 0,25. Seul le niveau de LOD le plus fin est gardé : huit rendus écartés. La TGA n'est pas dans le registre d'images : elle est signalée, elle ne bloque rien.",
+  "case": "Projet Unity CC0 : trois props \u00e0 cubes int\u00e9gr\u00e9s sous LODGroup, un mod\u00e8le FBX instanci\u00e9 par GUID, deux mat\u00e9riaux aux modes d\u00e9coup\u00e9 et transparent, un objet inactif, une instance de prefab replac\u00e9e et renomm\u00e9e.",
+  "rule": "Unity est en main gauche, le glTF en main droite : z devient -z, le quaternion (x, y, z, w) devient (-x, -y, z, w), l'\u00e9chelle ne bouge pas. Prop_Model, pos\u00e9 en (1, 2, 3) et tourn\u00e9 d'un quart de tour autour de Y, sort en (1, 2, -3) avec (0, -0.7071067811865476, 0, 0.7071067811865476) ; rugosit\u00e9 = 1 \u2212 lissage, donc 0,75 donne 0,25. Seul le niveau de LOD le plus fin est gard\u00e9 : huit rendus \u00e9cart\u00e9s. La TGA est dans le registre d'images depuis le pilote `tga` : la texture se lit.",
   "compiled": {
     "selectedTriangles": 492,
     "totalNodes": 9
@@ -13,17 +13,27 @@
     "materials": 4,
     "metaFiles": 9,
     "models": 1,
-    "prefabInstances": 1
+    "prefabInstances": 1,
+    "textures": 1
   },
   "formatVersion": 4,
-  "images": null,
+  "images": [
+    {
+      "mimeType": "image/x-tga",
+      "name": "checker.tga",
+      "uri": "Textures/checker.tga"
+    }
+  ],
   "materials": [
     {
       "name": "Standard",
       "pbrMetallicRoughness": {
         "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.25,
-        "roughnessFactor": 0.5
+        "roughnessFactor": 0.5,
+        "baseColorTexture": {
+          "index": 0
+        }
       }
     },
     {
@@ -31,7 +41,10 @@
       "pbrMetallicRoughness": {
         "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.25,
-        "roughnessFactor": 0.5
+        "roughnessFactor": 0.5,
+        "baseColorTexture": {
+          "index": 0
+        }
       }
     },
     {
@@ -68,7 +81,10 @@
       "pbrMetallicRoughness": {
         "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.0,
-        "roughnessFactor": 0.5
+        "roughnessFactor": 0.5,
+        "baseColorTexture": {
+          "index": 0
+        }
       }
     },
     {
@@ -196,7 +212,7 @@
       "translation": [-4.0, 0.0, -5.0]
     }
   ],
-  "notes": ["texture hors registre d'images: checker.tga"],
+  "notes": [],
   "plugin": {
     "name": "unity",
     "version": "unity-yaml-rust2-0.13-gltf-1"
@@ -206,7 +222,6 @@
   "unsupported": {
     "unity-light": 1,
     "unity-model-mesh-by-fileid": 1,
-    "unity-prefab-modification-ignored": 1,
-    "unity-texture-format": 1
+    "unity-prefab-modification-ignored": 1
   }
 }
