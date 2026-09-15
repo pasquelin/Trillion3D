@@ -11,6 +11,13 @@ import { resolve } from 'node:path';
 async function executer({ shader, textures, lots }) {
   const adapter = await navigator.gpu.requestAdapter();
   const device = await adapter.requestDevice();
+  // La carte réellement obtenue, rendue avec le relevé : `adapter.info` n'est pas clonable, on n'en
+  // garde que les champs de texte.
+  const info = adapter.info ?? {};
+  const adaptateur = ['vendor', 'architecture', 'device', 'description']
+    .map((champ) => info[champ])
+    .filter(Boolean)
+    .join(' / ');
   const erreurs = [];
   device.onuncapturederror = (e) => erreurs.push(e.error.message);
   const module = device.createShaderModule({ code: shader });
@@ -95,7 +102,7 @@ async function executer({ shader, textures, lots }) {
     }
     sorties.push({ moteur: lu[0], three: lu[1] });
   }
-  return { messages, erreurs, sorties };
+  return { adaptateur, messages, erreurs, sorties };
 }
 
 /** Lance Chromium, exécute les lots sur une origine locale servie par interception, referme. */
@@ -114,6 +121,8 @@ export async function executerDansChromium(argument) {
     const resultat = await page.evaluate(executer, argument);
     if (resultat.messages.length || resultat.erreurs.length)
       throw new Error(JSON.stringify({ messages: resultat.messages, erreurs: resultat.erreurs }));
+    // La carte qui a rendu le relevé, consignée avec lui : un écart de bord dépend de l'adaptateur.
+    console.log(`Adaptateur WebGPU : ${resultat.adaptateur || 'non renseigné'}`);
     return resultat.sorties;
   } finally {
     await browser.close();
