@@ -23,6 +23,9 @@ export interface WebgpuGpuState {
   surfaces: SurfaceBuffer | undefined;
   targetSize: [number, number];
   positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
+  /** Octets de sommets tenus au fil des allocations : tampons de positions, puis index, UV et
+   *  normales des maillages transparents. Le relevé les lit au lieu de les resommer par image. */
+  vertexBytes: number;
   positionIds: WeakMap<GPUBuffer, number>;
   nextPositionId: number;
   uniformBuffer: GPUBuffer | undefined;
@@ -56,6 +59,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     surfaces: undefined,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     positionBuffers: new Map(),
+    vertexBytes: 0,
     positionIds: new WeakMap(),
     nextPositionId: 1,
     uniformBuffer: undefined,
