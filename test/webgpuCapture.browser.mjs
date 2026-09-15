@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { routeBrowserFixtures } from './browserFixtureServer.mjs';
+import { drainPageArray, writeCaptureReport } from './captureReport.mjs';
 const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'browserFixtures');
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -87,6 +88,8 @@ try {
       { sdkUrl: '/@fs' + resolve('dist/sdk-browser/index.js'), stableCaptures, pageBudget },
     ),
   );
+  result.events = await drainPageArray(page, 'events');
+  result.samples = await drainPageArray(page, 'samples');
   if (unculledControl) assert.ok(result.controlOverrideSha256, 'control override was not served');
   assert.deepEqual(result.errors, []);
   assert.deepEqual(result.gpuErrors, []);
@@ -186,6 +189,6 @@ try {
   throw error;
 } finally {
   result.finishedAt = new Date().toISOString();
-  await writeFile(resolve(out, 'result.json'), JSON.stringify(result, null, 2));
+  await writeCaptureReport(resolve(out, 'result.json'), result);
   await browser.close();
 }

@@ -110,14 +110,15 @@ export async function captureModel({
       }
     }
     await explorer.flush();
+    // Les deux grands tableaux restent dans la page : le harnais les vide par tranches. Rendus d'un
+    // coup, ils passaient par le sérialiseur du pilote et épuisaient le tas de Node.
+    window.__wgCaptureDrain = { events, samples };
     return {
       gpu,
       gpuErrors,
-      events,
       overlaps,
       aa,
       captures,
-      samples,
       frames: path.length,
       resolution: [width, height],
       sourceKey: explorer.metadata.key,
