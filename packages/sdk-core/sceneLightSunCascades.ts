@@ -1,14 +1,5 @@
-import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
+import { LIGHT_SETTINGS, type ShadowViewpoint } from './sceneLightContracts.ts';
 
-/** Ce que l'ordonnanceur sait de la vue : une caméra, pas une matrice, pour rester sans dépendance. */
-export interface ShadowViewpoint {
-  position: readonly [number, number, number];
-  forward: readonly [number, number, number];
-  halfFovY: number;
-  aspect: number;
-  near: number;
-  far: number;
-}
 /** La sphère qu'une cascade couvre, et la boîte que sa carte dessine, toutes deux en mètres. */
 interface SunCascade {
   center: [number, number, number];
@@ -38,6 +29,7 @@ function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
 }
 
 const splits = new Float64Array(LIGHT_SETTINGS.sunCascades + 1);
+const sphere = { distance: 0, radius: 0 };
 const cascade: SunCascade = {
   center: [0, 0, 0],
   radius: 1,
@@ -54,13 +46,17 @@ const cascade: SunCascade = {
 function frustumSphere(view: ShadowViewpoint, near: number, far: number) {
   const tanY = Math.tan(view.halfFovY),
     k2 = tanY * tanY * (1 + view.aspect * view.aspect);
-  if (k2 * (far + near) >= far - near) return { distance: far, radius: far * Math.sqrt(k2) };
-  const distance = 0.5 * (far + near) * (1 + k2);
+  if (k2 * (far + near) >= far - near) {
+    sphere.distance = far;
+    sphere.radius = far * Math.sqrt(k2);
+    return sphere;
+  }
   const span = far - near,
     sum = far + near;
-  const radius =
+  sphere.distance = 0.5 * sum * (1 + k2);
+  sphere.radius =
     0.5 * Math.sqrt(span * span + 2 * (far * far + near * near) * k2 + sum * sum * k2 * k2);
-  return { distance, radius };
+  return sphere;
 }
 
 /**
