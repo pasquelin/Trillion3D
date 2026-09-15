@@ -4231,3 +4231,72 @@ lampes ne sont pas encore converties, alors que le glTF intermédiaire sait les 
 refuse un dossier qui mêle `.unity` et `.fbx` au même niveau, ce qui reste son affaire et non celle
 de ce pilote. Enfin, la conversion relit le YAML à chaque appel : c'est court, et les modèles, eux,
 sont déjà mis en cache par leur propre pilote.
+
+## 2026-09-15 — [compilateur] pilote unity, suite : routeur de projet, sous-maillages, échelle, retouches
+
+Quatre limites du pilote Unity levées, plus une cinquième trouvée en chemin qui commandait tout le
+reste. Fichiers : `packages/asset-compiler-rust/src/plugins/scene/{route.rs,unity.rs}`, les modules
+`unity/{project,models,render,build,prefab,yaml}.rs`, deux nouveaux — `unity/meta.rs` et
+`unity/patch.rs` —, `src/import/scene.rs` pour une donnée de manifeste, et la dorée.
+
+**Routeur de projet.** `ScenePlugin` gagne `project_inputs`, qui rend `None` pour un pilote de
+fichiers. Un pilote qui revendique un **dossier** prime sur les pilotes de fichiers trouvés dessous :
+leurs fichiers sont ses entrées, pas des sources concurrentes. `unity` le revendique dès qu'une
+scène vit sous le dossier, bornes comprises (dossiers de travail de l'éditeur écartés, profondeur 16).
+Un dossier sans `.unity` ne change pas de comportement : FBX et OBJ côte à côte y restent ambigus, et
+deux projets pour un même dossier restent ambigus aussi. Une phrase dans `PLUGINS.md`.
+
+**Le `fileID` passait par un flottant.** `reference()` lisait `{fileID: …}` en `f64` : au-delà de
+2^53 un identifiant de vrai projet — `33000014169494082` — désignait un objet qui n'existe pas. Les
+`Transform` (4 000 000 000 000 000) passaient, les `MeshFilter` et les `MeshRenderer`
+(33 000 000 000 000 000, 23 000 000 000 000 000) non : sur Industrial Map, 335 objets sur 350 étaient
+posés sans le moindre rendu, sans un mot au rapport. Un `fileID` se lit maintenant en entier de
+soixante-quatre bits. C'est ce correctif, et non les trois autres points, qui fait passer la carte.
+
+**Sous-maillage par `fileID`.** Le `.meta` d'un modèle mémorise `fileID` → nom, en
+`internalIDToNameTable` (projets récents) ou `fileIDToRecycleName` (anciens, dont Industrial Map).
+Le pilote du modèle nomme déjà ses nœuds et ses maillages dans la scène intermédiaire : `unity` ne
+retient que la partie qui porte ce nom, avec sa transformation dans le modèle. Nom absent de la table
+ou introuvable : le modèle entier, compté comme avant sous `unity-model-mesh-by-fileid`.
+
+**Échelle d'import.** Unity part des unités brutes du fichier, les multiplie par l'unité du fichier
+quand « Convert Units » est coché, puis par le facteur déclaré ; le pilote du format, lui, a déjà
+rendu `brut × unité`. Reste exactement `globalScale × (useFileScale ? fileScale : 1) ÷ unité`, où
+`fileScale` est l'unité que le `.meta` a mémorisée et, à défaut, celle qu'ufbx a lue — d'où
+l'ajout de `originalUnitMeters` au manifeste des pilotes servis par ufbx, et leur version passée en
+`-gltf-4`. Le facteur s'applique aux matrices des nœuds versés du modèle, jamais à sa géométrie.
+
+**Retouches de prefab.** Elles vivent dans `unity/patch.rs` et voyagent maintenant le long du
+parcours du prefab source : chaque retouche nomme l'objet qu'elle vise, donc elle s'applique à la
+profondeur où cet objet se trouve, et plus seulement à la racine. Sont appliquées `m_LocalPosition`,
+`m_LocalRotation`, `m_LocalScale`, `m_IsActive`, `m_Materials.Array.data[n]`, `m_Enabled` d'un rendu,
+et `m_Name` comme avant. Les autres sont comptées **par propriété** (`m_RootOrder`,
+`m_StaticEditorFlags`, `m_ScaleInLightmap`, `m_LocalEulerAnglesHint`, tailles de collider…), les
+indices de tableau réduits à `[]` pour borner le rapport ; `m_LocalEulerAnglesHint` quitte les
+transformations, que le quaternion porte seul.
+
+**Essai à blanc sur Industrial Map** (licence FAB, non redistribuable, lecture seule, sortie dans le
+bac à sable ; aucun fichier du dossier source n'a changé). 349 `.meta`.
+`Map_v1.unity` : 327 → **401** instances, 15 modèles entiers → **0** (341 sous-maillages retenus),
+4 → **25** modèles, 126 → 141 maillages, 17 → 108 matériaux, 7 → 51 images, 5 → 27 textures citées
+par les matériaux (TGA comprises, aucune hors registre), 14 786 → **60 694** triangles, 880 retouches
+ignorées → 3 431 appliquées et 1 518 ignorées détaillées par propriété, 180 ms.
+`Assets_showcase_scene.unity` : 677 → **170** instances (les 677 étaient le même modèle recopié
+entier sous chaque rendu), 34 modèles entiers → 0 (152 sous-maillages), 12 → 35 modèles, 186 → 163
+maillages, 38 → 125 matériaux, 21 → 61 images, 49 767 → 24 566 triangles, 128 → 1 264 appliquées et
+217 ignorées, 242 ms. Le dossier du projet entier reste refusé, à raison : il porte deux scènes, et
+l'appelant en désigne une.
+
+**Dorée et portes.** Un seul jeu, `fixtures/unity/cc0-import-project`, étendu : le `.meta` du FBX
+porte `internalIDToNameTable` et `globalScale: 2` ; `Prop_SubMesh` vise le `fileID` 4300002, nommé
+`Icosphere.001`, et ne reçoit que ce maillage ; `Prop_Model` garde un `fileID` absent de la table et
+reste instancié entier ; `Prop_Glass` porte des `fileID` au-delà de 2^53 ; deux instances du même
+prefab portent matériau remplacé, échelle, objet désactivé, rendu éteint et deux retouches laissées
+de côté. Le dossier du projet lui-même sert de preuve au routeur. `cargo test --locked` : 174 + 4 au
+vert ; `cargo clippy --all-targets -D warnings` et `cargo fmt --check` verts ; aucun fichier au-delà
+de 200 lignes. Version du pilote : `unity-yaml-rust2-0.13-gltf-2`.
+
+**Ce qui reste.** Les lampes ne sont toujours pas converties. Les retouches d'une instance imbriquée
+dans un prefab ne se composent pas avec celles de l'instance extérieure. Les cartes métal-lissage
+empaquetées restent des facteurs déclarés. Enfin, `m_LocalEulerAnglesHint`, `m_RootOrder` et
+`m_StaticEditorFlags` n'ont pas de sens dans une scène glTF : ils resteront comptés.
