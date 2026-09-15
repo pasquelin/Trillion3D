@@ -7,6 +7,7 @@ use super::Plugin;
 use std::path::Path;
 
 mod crate_image;
+mod dds;
 mod jpeg;
 mod png;
 mod tga;
@@ -15,7 +16,7 @@ mod tga;
 pub const VERSION: &str = "image-plugin-1";
 
 /// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
-pub static DECODERS: &[&dyn ImageDecoder] = &[&png::PNG, &jpeg::JPEG, &tga::TGA];
+pub static DECODERS: &[&dyn ImageDecoder] = &[&png::PNG, &jpeg::JPEG, &tga::TGA, &dds::DDS];
 
 /// Ce qu'un pilote rend. Les formats flottants — EXR, Radiance HDR — entreront par une variante de
 /// plus, que chaque consommateur devra alors traiter explicitement plutôt que ramener à 8 bits.
