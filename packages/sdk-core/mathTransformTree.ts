@@ -33,13 +33,12 @@ export interface TransformTree {
   orderAt: Int32Array;
   orderCount: number;
   orderDirty: boolean;
-  /** Tampons de travail des parcours : profondeur, chaîne d'ancêtres, seaux, marques, état hérité. */
+  /** Tampons de travail des parcours : profondeur, chaîne d'ancêtres, seaux, marques. */
   depth: Int32Array;
   chain: Int32Array;
   buckets: Int32Array;
   stamp: Uint32Array;
   call: number;
-  forced: Uint8Array;
 }
 
 /** `matrixAutoUpdate` : la matrice locale est recomposée depuis la position, la rotation, l'échelle. */
@@ -89,7 +88,6 @@ function reserve(tree: TransformTree, capacity: number) {
   tree.chain = new Int32Array(capacity);
   tree.buckets = new Int32Array(capacity + 1);
   tree.stamp = grown(tree.stamp, Uint32Array, capacity);
-  tree.forced = new Uint8Array(capacity);
 }
 
 /** Une hiérarchie vide, prête pour `capacity` nœuds sans agrandissement. */
