@@ -243,6 +243,8 @@ Exit code 0: every job ready. Exit code 2: usage error, invalid batch, or at lea
 | `ARCHIVE_EMPTY` | ZIP archive carries no entry |
 | `ARCHIVE_TOO_MANY_ENTRIES` | ZIP archive exceeds 20,000 entries |
 | `ARCHIVE_TOO_LARGE` | ZIP archive exceeds 8 GiB decompressed |
+| `image-lossy-unsupported` | Image plugin (WebP) read a `VP8 ` (lossy) image stream; refused before decoding — the fidelity policy admits WebP lossless only — reported per texture, does not fail the job |
+| `image-animation-unsupported` | Image plugin (WebP) read an `ANIM`/`ANMF` chunk; an animation is not a texture, so it is refused rather than flattened to a chosen frame; reported per texture, does not fail the job |
 | `image-profile-unsupported` | Image plugin (TIFF) read the file but declined its profile or codec; reported per texture, does not fail the job |
 | `image-depth-unsupported` | Image plugin read a bit depth the `Rgba8`-only image contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than quietly narrowed to 8 bits, reported per texture, does not fail the job |
 | `image-float-unsupported` | Image plugin returned the `RgbaF32` variant (OpenEXR, Radiance HDR) to a consumer that only handles `Rgba8` — progressive texture previews are RGBA8 sRGB. Refused by name rather than tone-mapped, which would add loss the source did not have; reported per texture, does not fail the job |
