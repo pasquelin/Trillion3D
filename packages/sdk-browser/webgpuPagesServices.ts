@@ -48,13 +48,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     dataUvScales: rt.vis.dataUvScales,
     markRowDirty: rows.markRowDirty,
   });
-  /**
-   * Applies the cache's arrivals and departures to the residency mirror. The mirror is the only
-   * incremental state on this path, so the journal that feeds it is checked against the cache on every
-   * drain: the journal's own resident count — every key it saw, rowed or not — must equal the cache's.
-   * A disagreement means an entry moved without a record, and the mirror is rebuilt from the cache
-   * instead of being left to drift into a hole.
-   */
+  // Le miroir de résidence est le seul état incrémental de ce chemin : son journal est vérifié
+  // contre le cache à chaque vidange, et reconstruit au moindre désaccord plutôt que de dériver.
   const { commitRows, sourceRowOf } = createWebgpuRowCommit(rows, writePageRow);
   const { syncRows, syncRowsFromCut } = createWebgpuRowSync(
     rows,
@@ -64,11 +59,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     { commitRows, sourceRowOf },
-    (rec) => {
-      // Origine du changement de ressources : cette page vient d'entrer dans la résidence ou d'en sortir.
-      bumpResources(run.revisions);
-      noteResidenceChange(rt.lights, rec);
-    },
+    // Origine du changement de ressources : la page entre dans la résidence ou en sort.
+    (rec) => (bumpResources(run.revisions), noteResidenceChange(rt.lights, rec)),
   );
   const pageSource = {
     read: async (key: string) => {

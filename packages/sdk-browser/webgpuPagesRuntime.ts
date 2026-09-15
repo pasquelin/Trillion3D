@@ -14,10 +14,7 @@ import { createWebgpuLightState, type WebgpuLightState } from './webgpuPagesStat
 import { createWebgpuBounceState, type WebgpuBounceState } from './webgpuPagesStateBounce.ts';
 import { createWebgpuSunFarState, type WebgpuSunFarState } from './webgpuPagesStateSunFar.ts';
 import { createWebgpuRunState, type WebgpuRunState } from './webgpuPagesStateRun.ts';
-import {
-  createWebgpuCaptureState,
-  type WebgpuCaptureState,
-} from './webgpuPagesStateCapture.ts';
+import { createWebgpuCaptureState, type WebgpuCaptureState } from './webgpuPagesStateCapture.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
