@@ -24,8 +24,12 @@ export function prepareWebgpuBlend(
   scene: THREE.Scene,
   directCanvas: boolean,
 ) {
+  let transmissive = 0;
   for (const copy of blendCopies) {
     if (isTransmissive(copy.material)) {
+      // No pass reads the image behind a surface yet, so such a surface is not drawn at all. The
+      // caller says so out loud rather than letting the scene lose a plane of water in silence.
+      transmissive++;
       if (directCanvas) throw new Error('UNSUPPORTED_TRANSMISSION');
       continue;
     }
@@ -145,4 +149,5 @@ export function prepareWebgpuBlend(
     if (paged && item.sourceMesh) blendState.pagedBlendGpu.set(item.sourceMesh, item);
     scene.remove(copy);
   }
+  return transmissive;
 }
