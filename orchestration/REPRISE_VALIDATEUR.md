@@ -10,10 +10,8 @@
 8. `/simplify` : appliquer ses constats, sauter ce qui change la sortie (dorées, JSON, pixels) en le disant. Optimisation = résultat identique.
 9. Pousser en deux temps : lire `CODE=0` du validate, puis `git merge-base --is-ancestor origin/develop <sha>` et `git push origin <sha>:refs/heads/develop`. Jamais de push sans validate vert sur ce SHA exact.
 10. Après push : aligner `develop` et `main` locaux, envoyer le SHA aux sessions pour qu'elles rebasent.
-11. Verrou `.claude/mesure.lock` pour tout validate : règle commune d'`AGENTS.md`, `proprietaire` = « Validateur validate <sha> ». Prévenir « verrou rendu ».
-12. Verrou sans `proprietaire` depuis plus d'une minute : interroger toutes les sessions, attendre leurs réponses, puis seulement le retirer. Jamais retirer un verrou nommé d'autrui.
-13. Gel demandé par une session : ne rien fusionner jusqu'à son feu vert ; préparer les correctifs sur `validateur/*`.
-14. Préavis à la session propriétaire avant de fusionner un correctif dans ses fichiers.
-15. Nettoyage à chaque tour, dû et pas optionnel : worktrees, branches locales et références distantes mortes. Supprimer seulement ce qui est fusionné (`git rev-list --count develop..<branche>` = 0) et propre, sans session vivante (`lsof -d cwd`), après `cp -Rn .mesure/out` vers le checkout principal ; `git worktree remove` sans `--force`, `git branch -d`. Jamais les worktrees de session, les worktrees verrouillés, les branches et tags `essai/*`.
-16. Décisions techniques déléguées au Validateur. Un changement d'image passe si la preuve montre que seul le cas annoncé bouge et que l'image d'avant était fausse. Ne remonter à l'utilisateur que l'irréversible, le juridique et ce qui contredit `AGENTS.md`.
-17. Pas de message de commit `wip` ni « non testé » ; pas de réécriture d'historique sans accord de l'utilisateur. Réponses à l'utilisateur en français, 5 à 10 lignes, résultat d'abord.
+11. Gel demandé par une session : ne rien fusionner jusqu'à son feu vert ; préparer les correctifs sur `validateur/*`.
+12. Préavis à la session propriétaire avant de fusionner un correctif dans ses fichiers.
+13. Nettoyage à chaque tour, dû et pas optionnel : worktrees, branches locales et références distantes mortes. Supprimer seulement ce qui est fusionné (`git rev-list --count develop..<branche>` = 0) et propre, sans session vivante (`lsof -d cwd`), après `cp -Rn .mesure/out` vers le checkout principal ; `git worktree remove` sans `--force`, `git branch -d`. Jamais les worktrees de session, les branches et tags `essai/*`.
+14. Décisions techniques déléguées au Validateur. Un changement d'image passe si la preuve montre que seul le cas annoncé bouge et que l'image d'avant était fausse. Ne remonter à l'utilisateur que l'irréversible, le juridique et ce qui contredit `AGENTS.md`.
+15. Pas de message de commit `wip` ni « non testé » ; pas de réécriture d'historique sans accord de l'utilisateur. Réponses à l'utilisateur en français, 5 à 10 lignes, résultat d'abord.
