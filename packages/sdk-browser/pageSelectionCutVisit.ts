@@ -51,8 +51,8 @@ function keep<T extends PageRecord>(
 
 /** Teste un cluster, sauf sa coupe quand un ancêtre l'a déjà tranchée (`settled`) : le tronc et le
  *  cône restent posés, et l'ordre d'émission reste celui de la descente complète.
- *  `inside`, `forcing`, `exact`, `cones` et `resident` sont constants sous un nœud : la boucle les
- *  passe au lieu de les relire sur l'état à chaque cluster. */
+ *  `inside`, `forcing`, `exact`, `cones`, `boxes` et `resident` sont constants sous un nœud : la
+ *  boucle les passe au lieu de les relire sur l'état à chaque cluster. */
 function take<T extends PageRecord>(
   s: SelectionState<T>,
   rec: T,
@@ -61,15 +61,21 @@ function take<T extends PageRecord>(
   forcing: boolean,
   exact: boolean,
   cones: boolean,
+  boxes: boolean,
   resident: number,
 ) {
-  const min = rec.min,
-    max = rec.max;
-  if (!min || !max) return;
-  if (!inside && clipRecordBox(min, max) === 0) {
-    s.frustumRejected++;
-    return;
-  }
+  // Un cluster qu'un ancêtre place entièrement dans le tronc ne lit plus sa boîte : ni test, ni
+  // vérification de présence quand la racine l'a déclarée. C'est la seule lecture de fiche que le
+  // tronc imposait encore à un cluster qu'il ne teste pas.
+  if (!inside) {
+    const min = rec.min,
+      max = rec.max;
+    if (!min || !max) return;
+    if (clipRecordBox(min, max) === 0) {
+      s.frustumRejected++;
+      return;
+    }
+  } else if (!boxes && (!rec.min || !rec.max)) return;
   if (
     !settled &&
     !(forcing
@@ -79,7 +85,12 @@ function take<T extends PageRecord>(
         : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.camera.near, s.pixelError))
   )
     return;
-  if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, min, max)) return;
+  if (
+    cones &&
+    rec.cone &&
+    coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, rec.min!, rec.max!)
+  )
+    return;
   keep(s, rec, forcing, resident);
 }
 
@@ -103,10 +114,11 @@ export function traverse<T extends PageRecord>(
     hierarchical = !forcing,
     exact = s.flatExact,
     cones = s.flatCones,
+    boxes = s.flatBoxes,
     resident = s.residentMode;
   if (!culling) {
     for (let i = 0; i < pages.length; i++) {
-      take(s, pages[i], false, false, forcing, exact, cones, resident);
+      take(s, pages[i], false, false, forcing, exact, cones, boxes, resident);
       if (s.over) return;
     }
     return;
@@ -178,7 +190,7 @@ export function traverse<T extends PageRecord>(
     const firstPage = nodes[base + 13],
       pageCount = nodes[base + 14];
     for (let i = 0; i < pageCount; i++) {
-      take(s, pages[firstPage + i], settled, inside, forcing, exact, cones, resident);
+      take(s, pages[firstPage + i], settled, inside, forcing, exact, cones, boxes, resident);
       if (s.over) return;
     }
   }
