@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 
@@ -45,6 +46,9 @@ export function createWebgpuBlendState() {
     spanRevision: -1,
     /** Instances each item drew this image; only a CPU cut counts them, a GPU cut does not. */
     cpuItemCounts: new Uint32Array(0),
+    /** Les ressources d'éclairage sur lesquelles les groupes de liaison courants ont été bâtis :
+     *  l'atlas d'ombres et la grille de sondes n'arrivent qu'après les premières images. */
+    lighting: undefined as BlendLighting | undefined,
     /** Per-catalogue-entry cluster identity, and the mode it was written for. */
     clusterIdentity: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     diagnosticMode: undefined as DiagnosticMode | undefined,

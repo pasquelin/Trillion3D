@@ -46,9 +46,12 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
 }
 
 /**
- * Les ressources de remplacement du contrat : une liste de tuiles vide, une tranche d'ombre invalide
- * et un atlas d'un texel. Un appareil qui refuse le vrai atlas garde ainsi des liaisons valides, et
- * la lampe reste simplement sans ombre au lieu de faire échouer l'image.
+ * Les ressources de remplacement du contrat : une liste de tuiles vide, une tranche d'ombre invalide,
+ * un atlas d'un texel, et une grille de sondes à zéro. Un appareil qui refuse le vrai atlas garde
+ * ainsi des liaisons valides, et la lampe reste simplement sans ombre au lieu de faire échouer
+ * l'image ; une image sans rebond lit une grille dont le compte de sondes est nul, donc une
+ * irradiance indirecte exactement nulle. La passe de mélange emprunte les mêmes remplaçants : une
+ * seule définition de ce que vaut une ressource absente.
  */
 export function createDeferredPlaceholders(device: GPUDevice) {
   const tiles = device.createBuffer({
@@ -73,15 +76,31 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     magFilter: 'linear',
     minFilter: 'linear',
   });
+  // `BounceGrid` fait quatre `vec4` ; à zéro, son compte de sondes l'est aussi et `sampleBounce`
+  // sort sans lire un seul coefficient. Le tampon de sondes n'existe alors que pour la liaison.
+  const bounceGrid = device.createBuffer({
+    label: 'WG empty bounce grid',
+    size: 64,
+    usage: GPUBufferUsage.UNIFORM,
+  });
+  const probes = device.createBuffer({
+    label: 'WG empty bounce probes',
+    size: 16,
+    usage: GPUBufferUsage.STORAGE,
+  });
   return {
     tiles,
     slices,
     atlasView: atlas.createView(),
     sampler,
+    bounceGrid,
+    probes,
     dispose() {
       tiles.destroy();
       slices.destroy();
       atlas.destroy();
+      bounceGrid.destroy();
+      probes.destroy();
     },
   };
 }

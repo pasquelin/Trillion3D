@@ -46,8 +46,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
         item.bounds.copy(item.sourceGeometry.boundingBox).applyMatrix4(item.matrix);
     }
   const cpuStart = performance.now();
-  run.lightState = gpu.lights?.update();
-  const lightsEnd = performance.now();
+  // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un
+  // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU
+  // « Lumières » vaut donc zéro parce que le travail a disparu, pas parce qu'il n'est pas mesuré.
+  const lightsEnd = cpuStart;
   run.lastCamera = camera;
   run.overBudget = false;
   run.submittedTriangles = 0;
@@ -56,13 +58,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
-  if (diag.traceEnabled)
-    diag.traceDiagnostic('cpu-lights', 'Mise à jour CPU des lumières', () => ({
-      frame: run.frame,
-      scope: 'cpu/lights.update',
-      elapsedMs: lightsEnd - cpuStart,
-      lightState: run.lightState,
-    }));
   const pixelError = resolvePixelError(context, camera, run.motion);
   run.diagnosticPixelError = pixelError;
   run.gpuFrameActive = false;

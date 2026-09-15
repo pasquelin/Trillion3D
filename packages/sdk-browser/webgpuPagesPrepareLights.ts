@@ -8,8 +8,8 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
 /** Approximation nommée du chemin d'ombres, publiée dans le diagnostic (P5). */
 const SHADOW_APPROXIMATIONS = [
-  'transparent clusters cast no shadow at all; their attenuated, tinted shadow is not modelled',
-  'tile light lists bound the per-pixel loop to the published per-tile budget',
+  'blended clusters hold no visibility row, so they reach no shadow draw table and cast no shadow; only the opaque path casts a real cutout, and an attenuated tinted shadow is a later lot',
+  'tile light lists bound the per-pixel loop of the opaque path to the published per-tile budget; the blend pass loops over the declared lights instead, bounded by maxLights',
   'shadow slice priority uses an angular screen-coverage estimate, not an adjoint',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
 ];

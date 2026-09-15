@@ -111,6 +111,25 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
 }`;
 
 /**
+ * Le socle des deux passes qui éclairent : les types du contrat, la lecture des ombres, et la
+ * contribution d'une seule lampe déclarée au point, son ombre comprise — la seule formule
+ * d'éclairement du moteur. Les deux boucles ci-dessous ne diffèrent que par la liste de lampes
+ * qu'elles parcourent, jamais par la physique ni par le type de surface. Une lampe hors portée, ou
+ * entièrement dans l'ombre, rend exactement zéro.
+ */
+const LIGHTING_BASE_WGSL = `
+${DIRECT_LIGHT_WGSL}
+${DIRECT_SHADOW_WGSL}
+fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+ let incidence=directIncidence(light,P);
+ if(incidence.w<=0.0){return vec3f(0.0);}
+ let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz);
+ if(shade<=0.0){return vec3f(0.0);}
+ let energy=light.colorIntensity.w*incidence.w*shade;
+ return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy),vec3f(0.0),vec3f(0.0),ao)*light.colorIntensity.rgb;
+}`;
+
+/**
  * La résolution du contrat d'éclairage direct dans le visibility buffer. La boucle du pixel est
  * bornée par la liste de sa tuile, jamais par le nombre de lampes de la scène (X2) ; Lambert et GGX
  * viennent de `standardLighting`, la seule implémentation de référence ; l'atténuation est physique
@@ -121,8 +140,7 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  * zéro, et un couloir sans fenêtre reste noir en plein jour.
  */
 export const DIRECT_LIGHTING_WGSL = `
-${DIRECT_LIGHT_WGSL}
-${DIRECT_SHADOW_WGSL}
+${LIGHTING_BASE_WGSL}
 /** La contribution des lampes du contrat au pixel, tuile par tuile et lampe par lampe. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  var result=vec3f(0.0);
@@ -134,13 +152,29 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
  let kept=min(tileLights[base],MAX_TILE_LIGHTS);
  for(var index=0u;index<kept;index++){
-  let light=directLights.items[tileLights[base+4u+index]];
-  let incidence=directIncidence(light,P);
-  if(incidence.w<=0.0){continue;}
-  let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz);
-  if(shade<=0.0){continue;}
-  let energy=light.colorIntensity.w*incidence.w*shade;
-  result+=standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy),vec3f(0.0),vec3f(0.0),ao)*light.colorIntensity.rgb;
+  result+=declaredLight(directLights.items[tileLights[base+4u+index]],rgb,metal,rough,N,V,P,ao);
+ }
+ return result;
+}`;
+
+/**
+ * Les mêmes lampes déclarées, sans liste par tuile : ce que lit une passe qui n'a pas de tuiles.
+ *
+ * Les listes tuilées sont bâties sur la profondeur des opaques. Une tuile que nul opaque ne couvre —
+ * le ciel derrière un feuillage — n'y retient aucune lampe, et une surface transparente posée devant
+ * le premier opaque de sa tuile tombe hors de la boîte monde qui a filtré ces lampes. S'en servir
+ * éteindrait des surfaces que des lampes déclarées éclairent : fidélité avant vitesse, la boucle est
+ * donc bornée par `MAX_LIGHTS`, constante connue avant l'image (X2), et chaque lampe hors portée
+ * sort par le fenêtrage de `directIncidence`. Le remplacement de cette boucle par un rayon d'ombre
+ * stochastique par pixel est un lot ultérieur (RX2).
+ */
+export const DECLARED_LIGHTING_WGSL = `
+${LIGHTING_BASE_WGSL}
+fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+ var result=vec3f(0.0);
+ let count=min(directLights.count,MAX_LIGHTS);
+ for(var index=0u;index<count;index++){
+  result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
  }
  return result;
 }`;

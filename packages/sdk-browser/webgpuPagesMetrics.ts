@@ -126,7 +126,6 @@ export function disposeWebgpuPages(
   gpu.surfaces?.dispose();
   capture.surfaceCapture?.dispose();
   gpu.deferred?.dispose();
-  gpu.lights?.dispose();
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
   rt.bounce.probes?.dispose();
