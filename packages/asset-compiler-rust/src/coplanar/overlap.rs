@@ -31,10 +31,7 @@ pub fn rectangle(surface: &Surface, u: [f64; 3], v: [f64; 3]) -> Rect {
             },
         ];
         let flat = [plane::dot(u, point), plane::dot(v, point)];
-        for axis in 0..2 {
-            low[axis] = low[axis].min(flat[axis]);
-            high[axis] = high[axis].max(flat[axis]);
-        }
+        crate::shared_math::extend_aabb(&mut low, &mut high, flat);
     }
     (low, high)
 }

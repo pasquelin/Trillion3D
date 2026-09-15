@@ -65,7 +65,7 @@ pub(super) fn bundle_dag_pages(
       let offset=payload.len();
       let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
       {let _t=perf::Timer::new(&perf::PHASES.page_bytes);
-       for &id in &cluster.indices{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid cluster index"));}payload.extend_from_slice(&id.to_le_bytes());for a in 0..3{let value=pos[index*3+a] as f64;min[a]=min[a].min(value);max[a]=max[a].max(value);}}}
+       for &id in &cluster.indices{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid cluster index"));}payload.extend_from_slice(&id.to_le_bytes());crate::shared_math::extend_aabb(&mut min,&mut max,[pos[index*3] as f64,pos[index*3+1] as f64,pos[index*3+2] as f64]);}}
       let bytes=&payload[offset..];
       let digest={let _t=perf::Timer::new(&perf::PHASES.page_hash);hash(bytes)};
       let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));

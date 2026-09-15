@@ -11,6 +11,7 @@ mod perf;
 pub mod plugins;
 pub mod proxy;
 mod qem;
+mod shared_math;
 pub mod texture_preview;
 mod topology;
 use rayon::prelude::*;

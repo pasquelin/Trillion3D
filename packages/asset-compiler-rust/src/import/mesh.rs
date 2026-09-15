@@ -71,10 +71,7 @@ pub(super) fn mesh_json(
                 let id = *unique.entry(key).or_insert_with(|| {
                     let p = mesh.vertex_position.values[key.0 as usize];
                     let v = [p.x as f32, p.y as f32, p.z as f32];
-                    for a in 0..3 {
-                        min[a] = min[a].min(v[a]);
-                        max[a] = max[a].max(v[a]);
-                    }
+                    crate::shared_math::extend_aabb_f32(&mut min, &mut max, v);
                     positions.extend_from_slice(&v);
                     if has_normal {
                         let n = mesh.vertex_normal.values[key.1 as usize];
