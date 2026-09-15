@@ -7,12 +7,20 @@
 // scripts/check-links.py, ported so `npm run check:links` needs no Python.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', '.claude']);
+const excludedDirs = new Set([
+  '.git',
+  '.idea',
+  'node_modules',
+  'dist',
+  'target',
+  '.claude',
+  'test-assets',
+]);
 
-function findMarkdownFiles(root) {
+function findMarkdownFiles(root, excluded = excludedDirs) {
   const results = [];
   const walk = (dir) => {
     let entries;
@@ -22,7 +30,7 @@ function findMarkdownFiles(root) {
       return;
     }
     for (const entry of entries) {
-      if (excludedDirs.has(entry.name)) continue;
+      if (excluded.has(entry.name)) continue;
       const full = join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
       else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full);
@@ -95,42 +103,49 @@ const exists = (path) => {
   }
 };
 
-const bad = [];
-let count = 0;
-const runtimeRoutes = [];
+export function checkLinks(root, excluded = excludedDirs) {
+  const bad = [];
+  let count = 0;
+  const runtimeRoutes = [];
 
-for (const file of findMarkdownFiles(sdkRoot)) {
-  const s = prose(readFileSync(file, 'utf8'));
-  const targets = [
-    ...[...s.matchAll(/\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+["'][^\n]*?["'])?\s*\)/g)].map((m) => m[1]),
-    ...[...s.matchAll(/^\s*\[[^\]]+\]:\s*(\S+)/gm)].map((m) => m[1]),
-    ...[...s.matchAll(/(?:href|src)=["']([^"']+)/g)].map((m) => m[1]),
-  ];
-  for (let t of targets) {
-    t = t.replace(/^[<>]+/, '').replace(/[<>]+$/, '');
-    if (hasScheme(t) || t.startsWith('//')) continue;
-    if (t.startsWith('/api/')) {
-      runtimeRoutes.push([file, t]);
-      continue;
-    }
-    count++;
-    const { path, fragment } = splitTarget(t);
-    const dest = path ? resolve(dirname(file), decode(path)) : file;
-    if (!exists(dest)) {
-      bad.push([file, t, 'missing file']);
-      continue;
-    }
-    if (fragment && extname(dest).toLowerCase() === '.md' && !anchors(dest).has(decode(fragment))) {
-      bad.push([file, t, 'missing anchor']);
+  for (const file of findMarkdownFiles(root, excluded)) {
+    const s = prose(readFileSync(file, 'utf8'));
+    const targets = [
+      ...[...s.matchAll(/\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+["'][^\n]*?["'])?\s*\)/g)].map((m) => m[1]),
+      ...[...s.matchAll(/^\s*\[[^\]]+\]:\s*(\S+)/gm)].map((m) => m[1]),
+      ...[...s.matchAll(/(?:href|src)=["']([^"']+)/g)].map((m) => m[1]),
+    ];
+    for (let t of targets) {
+      t = t.replace(/^[<>]+/, '').replace(/[<>]+$/, '');
+      if (hasScheme(t) || t.startsWith('//')) continue;
+      if (t.startsWith('/api/')) {
+        runtimeRoutes.push([file, t]);
+        continue;
+      }
+      count++;
+      const { path, fragment } = splitTarget(t);
+      const dest = path ? resolve(dirname(file), decode(path)) : file;
+      if (!exists(dest)) {
+        bad.push([file, t, 'missing file']);
+        continue;
+      }
+      if (
+        fragment &&
+        extname(dest).toLowerCase() === '.md' &&
+        !anchors(dest).has(decode(fragment))
+      ) {
+        bad.push([file, t, 'missing anchor']);
+      }
     }
   }
+
+  return { localFileLinks: count, errors: bad, runtimeRoutesNotChecked: runtimeRoutes };
 }
 
-console.log(
-  JSON.stringify(
-    { localFileLinks: count, errors: bad, runtimeRoutesNotChecked: runtimeRoutes },
-    null,
-    2,
-  ),
-);
-process.exitCode = bad.length ? 1 : 0;
+function main() {
+  const result = checkLinks(sdkRoot);
+  console.log(JSON.stringify(result, null, 2));
+  process.exitCode = result.errors.length ? 1 : 0;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
