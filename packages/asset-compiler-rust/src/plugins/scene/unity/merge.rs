@@ -20,9 +20,12 @@ pub(super) fn merge(gltf: &Value, buffers: &[Vec<u8>], prefix: &str, scene: &mut
     let views = merge_views(gltf, buffers, scene);
     let accessors = merge_accessors(gltf, &views, scene);
     let images = merge_images(gltf, prefix, &views, scene);
-    let samplers = merge_samplers(gltf, scene);
+    let samplers = merge_table(gltf, "samplers", &mut scene.samplers, |_| {});
+    scene.share_samplers(&samplers);
     let textures = merge_textures(gltf, &images, &samplers, scene);
-    let materials = merge_materials(gltf, &textures, scene);
+    let materials = merge_table(gltf, "materials", &mut scene.materials, |copy| {
+        retarget_textures(copy, &textures)
+    });
     merge_meshes(gltf, &accessors, &materials, scene)
 }
 
@@ -53,51 +56,52 @@ fn merge_views(gltf: &Value, buffers: &[Vec<u8>], scene: &mut Scene) -> Vec<usiz
     map
 }
 
+/// Recopie une table du modèle à la suite de celle de la scène, chaque entrée retouchée par `patch`,
+/// et rend le rang de chaque entrée dans la scène.
+fn merge_table(
+    gltf: &Value,
+    name: &str,
+    dest: &mut Vec<Value>,
+    patch: impl Fn(&mut Value),
+) -> Vec<usize> {
+    array(gltf, name)
+        .iter()
+        .map(|entry| {
+            let mut copy = entry.clone();
+            patch(&mut copy);
+            dest.push(copy);
+            dest.len() - 1
+        })
+        .collect()
+}
+
 fn merge_accessors(gltf: &Value, views: &[usize], scene: &mut Scene) -> Vec<usize> {
-    let mut map = Vec::new();
-    for accessor in array(gltf, "accessors") {
-        let mut copy = accessor.clone();
-        match index(&accessor["bufferView"], views) {
-            Some(view) => copy["bufferView"] = json!(view),
-            None => {
-                copy.as_object_mut()
-                    .map(|fields| fields.remove("bufferView"));
-            }
+    merge_table(gltf, "accessors", &mut scene.accessors, |copy| match index(
+        &copy["bufferView"],
+        views,
+    ) {
+        Some(view) => copy["bufferView"] = json!(view),
+        None => {
+            copy.as_object_mut()
+                .map(|fields| fields.remove("bufferView"));
         }
-        scene.accessors.push(copy);
-        map.push(scene.accessors.len() - 1);
-    }
-    map
+    })
 }
 
 fn merge_images(gltf: &Value, prefix: &str, views: &[usize], scene: &mut Scene) -> Vec<usize> {
-    let mut map = Vec::new();
-    for image in array(gltf, "images") {
-        let mut copy = image.clone();
-        if let Some(uri) = image["uri"].as_str() {
-            copy["uri"] = json!(if prefix.is_empty() {
+    merge_table(gltf, "images", &mut scene.images, |copy| {
+        if let Some(uri) = copy["uri"].as_str() {
+            let uri = if prefix.is_empty() {
                 uri.to_string()
             } else {
                 format!("{prefix}/{uri}")
-            });
+            };
+            copy["uri"] = json!(uri);
         }
-        if let Some(view) = index(&image["bufferView"], views) {
+        if let Some(view) = index(&copy["bufferView"], views) {
             copy["bufferView"] = json!(view);
         }
-        scene.images.push(copy);
-        map.push(scene.images.len() - 1);
-    }
-    map
-}
-
-fn merge_samplers(gltf: &Value, scene: &mut Scene) -> Vec<usize> {
-    array(gltf, "samplers")
-        .iter()
-        .map(|sampler| {
-            scene.samplers.push(sampler.clone());
-            scene.samplers.len() - 1
-        })
-        .collect()
+    })
 }
 
 fn merge_textures(
@@ -106,30 +110,14 @@ fn merge_textures(
     samplers: &[usize],
     scene: &mut Scene,
 ) -> Vec<usize> {
-    let mut map = Vec::new();
-    for texture in array(gltf, "textures") {
-        let mut copy = texture.clone();
-        if let Some(source) = index(&texture["source"], images) {
+    merge_table(gltf, "textures", &mut scene.textures, |copy| {
+        if let Some(source) = index(&copy["source"], images) {
             copy["source"] = json!(source);
         }
-        if let Some(sampler) = index(&texture["sampler"], samplers) {
+        if let Some(sampler) = index(&copy["sampler"], samplers) {
             copy["sampler"] = json!(sampler);
         }
-        scene.textures.push(copy);
-        map.push(scene.textures.len() - 1);
-    }
-    map
-}
-
-fn merge_materials(gltf: &Value, textures: &[usize], scene: &mut Scene) -> Vec<usize> {
-    let mut map = Vec::new();
-    for material in array(gltf, "materials") {
-        let mut copy = material.clone();
-        retarget_textures(&mut copy, textures);
-        scene.materials.push(copy);
-        map.push(scene.materials.len() - 1);
-    }
-    map
+    })
 }
 
 /// Décale chaque renvoi de texture d'un matériau : toute propriété nommée `…Texture` porte un
