@@ -1,5 +1,10 @@
 import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
-import { truncateShown, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
+import {
+  residentUnder,
+  truncateShown,
+  type PageRecord,
+  type SelectionState,
+} from './pageSelectionCutState.ts';
 import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 import { flatConeKeeps, flatVisible } from './pageSelectionCutVisit.ts';
 
@@ -14,7 +19,7 @@ export function rootCoverInto<T extends PageRecord>(
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i];
     if (rec.parentError != null || !flatVisible(s, rec) || !flatConeKeeps(s, rec)) continue;
-    if (!s.pageResident(rec)) {
+    if (!residentUnder(s, rec, s.residentMode)) {
       whole = false;
       continue;
     }
@@ -33,7 +38,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
     let raised = false;
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
-      if (s.pageResident(rec) || !flatVisible(s, rec)) continue;
+      if (residentUnder(s, rec, s.residentMode) || !flatVisible(s, rec)) continue;
       if (
         !cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, near, threshold) ||
         !flatConeKeeps(s, rec)
@@ -68,7 +73,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
         !flatConeKeeps(s, rec)
       )
         continue;
-      if (!s.pageResident(rec)) {
+      if (!residentUnder(s, rec, s.residentMode)) {
         hard = true;
         break;
       }

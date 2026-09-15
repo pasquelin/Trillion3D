@@ -20,7 +20,6 @@ export interface SelectionState<T extends PageRecord> {
   wanted: T[];
   shown: T[];
   isResident?: (page: T) => boolean;
-  pageResident: (page: T) => boolean;
   pixelError: number;
   frustumRejected: number;
   /** Nœuds de hiérarchie dépilés par la coupe de cette image. */
@@ -37,6 +36,15 @@ export interface SelectionState<T extends PageRecord> {
   flatForcedList?: number[];
   /** Ce que le rejet de cône lit de la racine et de la caméra, posé au premier cône de la racine. */
   flatCone: ConeContext;
+  /** Cette racine déclare porter des cônes : le chemin par cluster lit `cone`. Une racine qui
+   *  déclare n'en porter aucun sort le cône de la boucle, sans changer une seule décision. */
+  flatCones: boolean;
+  /** La règle de résidence de cette coupe, résolue une fois : `RESIDENT_ALL` quand rien n'est tenu
+   *  (tout est réputé résident), `RESIDENT_ASK` quand l'hôte fournit sa réponse, `RESIDENT_ARRAY`
+   *  quand la résidence est le tableau d'indices de la page. Le chemin par cluster lit ce mode au
+   *  lieu de relire `hold` et `isResident` sur l'état à chaque cluster retenu ; les replis l'appliquent
+   *  par `residentUnder`. */
+  residentMode: number;
   /** Le seuil de cette image vaut zéro et l'étirement, la focale et le plan proche sont sains : la
    *  coupe se décide alors sans projeter, à l'identique. */
   flatExact: boolean;
@@ -85,6 +93,31 @@ export function createSelectionResult<T>(): SelectionResult<T> {
   };
 }
 
+/** Rien n'est tenu : la coupe n'a pas de résidence à tester. */
+export const RESIDENT_ALL = 0;
+/** L'hôte répond lui-même de la résidence d'une page. */
+export const RESIDENT_ASK = 1;
+/** La résidence d'une page est son tableau d'indices. */
+export const RESIDENT_ARRAY = 2;
+
+/** La règle de résidence d'une coupe, dite une fois par appel : `keep` la reçoit en paramètre et ne
+ *  relit plus l'état par cluster. Une seule écriture de la règle, pour le chemin chaud comme pour
+ *  les replis. */
+export function residentModeOf(hold: boolean, isResident: unknown) {
+  return !hold ? RESIDENT_ALL : isResident ? RESIDENT_ASK : RESIDENT_ARRAY;
+}
+
+/** La résidence d'une page sous un mode déjà résolu. */
+export function residentUnder<T extends PageRecord>(
+  s: SelectionState<T>,
+  rec: T,
+  mode: number,
+): boolean {
+  if (mode === RESIDENT_ALL) return true;
+  if (mode === RESIDENT_ARRAY) return !!rec.array;
+  return (s.isResident as (page: T) => boolean)(rec);
+}
+
 export const IDENTITY_WORLD = new THREE.Matrix4();
 /** Synchronous selection reuses these buffers between frames without allocating a new cut. */
 export const selectionScratch = {
@@ -112,8 +145,6 @@ const reusedState: SelectionState<PageRecord> = {
   wanted: [],
   shown: [],
   isResident: undefined,
-  pageResident: (rec) =>
-    !reusedState.hold || (reusedState.isResident ? reusedState.isResident(rec) : !!rec.array),
   pixelError: 0,
   frustumRejected: 0,
   nodesTested: 0,
@@ -125,6 +156,8 @@ const reusedState: SelectionState<PageRecord> = {
   flatStretch: 1,
   flatFocal: 1,
   flatCone: createConeContext(),
+  flatCones: true,
+  residentMode: RESIDENT_ALL,
   flatExact: false,
   flatUseForcing: false,
   flatMissing: false,

@@ -2,6 +2,7 @@ import { viewProj } from './webgpuPagesHelpers.ts';
 import { clearValueOf, createRenderEncoder } from './webgpuPagesEncoder.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from './visibilityBuffer.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { bindGroupFor, pageRgb, pipelineFor } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -30,7 +31,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     uniformPacked[base + 34] = color[2];
     uniformPacked[base + 35] = 1;
     packedInts[base + 36] = rows.pageTableInts![row * fallbackWords + 24];
-    packedInts[base + 37] = rows.pageTableInts![row * fallbackWords + 25];
+    packedInts[base + 37] = rows.pageTableInts![row * fallbackWords + ROW_INDEX_WORDS];
     packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
     packedInts[base + 39] = clusterHash(rec.clusterId);
   }
@@ -66,7 +67,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const group = bindGroupFor(rt, device, position),
       pipeline = pipelineFor(rt, rows.packedRecs[i]!);
     if (!group || !pipeline) continue;
-    const count = rows.pageTableInts![i * fallbackWords + 25];
+    const count = rows.pageTableInts![i * fallbackWords + ROW_INDEX_WORDS];
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group, [i * UNIFORM_STRIDE]);
     pass.draw(count);
