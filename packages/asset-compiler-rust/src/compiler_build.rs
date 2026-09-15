@@ -144,6 +144,17 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_sha = hash(&proxy_bytes);
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
+    // Les lampes déclarées par le fichier source, en espace monde, dans le contrat du moteur. Elles
+    // sortent en produit de cache à leur nom, hors du manifeste : sa version ne bouge pas, et un
+    // lecteur qui ne connaît pas ce fichier lit le cache exactement comme avant.
+    let lights = scene_lights(g)?;
+    atomic(
+        &directory.join(SCENE_LIGHTS_FILE),
+        &serde_json::to_vec(&lights)?,
+    )?;
+    progress(
+        json!({"phase":"lights","completed":1,"total":1,"lights":lights["count"],"rejected":lights["rejected"]}),
+    );
     let autonomous_scene = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,
