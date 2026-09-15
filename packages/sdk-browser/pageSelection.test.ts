@@ -68,7 +68,10 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
     fixture.indices,
     fixture.associations,
   );
+  // Qui pose un cône déclare sa racine, exactement comme `prepareCones` : la coupe croit la
+  // déclaration de la racine et ne lit `cone` que sur celles qui en annoncent.
   allPages[0].cone = { axis: [0, 0, -1], angle: 0 };
+  roots[0].cones = true;
   const cam = camera(),
     packed = packDagSelection(roots);
   const cpu = selectVisiblePages(roots, cam, {});
