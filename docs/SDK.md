@@ -81,6 +81,42 @@ A directional light's shadows are `sunCascades` (4) cascades following the camer
 
 `setLightingView(view)` selects what the opaque path outputs. `'lit'` is real lighting and nothing else. `'unlit'` is the raw-albedo diagnostic view: base colour as authored, with no light, no ambient and no emission, for geometry benchmarks that compare images pixel by pixel. It is a diagnostic view, not a light. `'auto'` is the default: the unlit view while no light is declared, real lighting as soon as one is. Declaring a light therefore changes the image; declaring none never leaves a black frame.
 
+### Lights imported from the source file
+
+An imported scene arrives with its own lights. The native compiler reads the lights the source file
+declares and writes them beside the manifest as `lights.json`, a cache product of its own: the
+manifest format number does not move, and a reader that ignores the file loads the cache exactly as
+before. glTF lights come from `KHR_lights_punctual` (`point`, `spot`, `directional`, with colour,
+intensity, optional range and cone angles); FBX lights come through ufbx, which rewrites them under
+the same extension, so one reader serves both formats. OBJ declares no light, and the file is empty.
+Positions and directions are world space, after instancing: a light instanced by three nodes becomes
+three entries, each with the world transform of its node.
+
+**Unit conversion, chosen and published.** glTF is photometric — candela (lm/sr) for `point` and
+`spot`, lux (lm/m²) for `directional` — while the engine is radiometric (P1), in W/sr and W/m². The
+compiler divides by **683 lm/W**, `K_cd`, the SI constant that defines the candela; no spectrum is
+assumed, and no hidden gain is applied. A source whose image is then too dark or too bright is
+corrected by `setEnvironment({ exposure })`, never by the import. FBX carries no photometric unit at
+all — its `Intensity` is a percentage — so two published settings convert it: one unit is
+**1000 lm / 4π ≈ 79.6 cd** for a point or spot (a domestic bulb radiating in every direction), and
+**10 000 lux** for a directional (an overcast day). A `point` or `spot` with no `range` gets one
+derived from its intensity, `sqrt(I / 0.01 W·m⁻²)`, capped at 10 000 m: the contract needs a finite
+range, glTF allows an infinite one. `innerConeAngle` has no equivalent in the contract; the engine
+softens a spot edge with its own published `spotEdgeSoftness`. A light whose type, transform or
+intensity does not hold the contract is counted in the file's `rejected` map and left out — a
+compile never dies on a light, it says so.
+
+`prepare()` and `createExplorer()` declare these lights on open, before the first backend prepares,
+so the `auto` view knows from its first frame that it has a source. A light casts a shadow when the
+file says so (FBX carries the flag; glTF has none, so imported glTF lights cast one) — the per-frame
+cap of `shadowUpdatesPerFrame` (4) already bounds what that costs. If a file declares more than the
+64 lights the contract accepts, the ones that carry furthest are kept — directionals first, then by
+peak channel intensity — and the rest are counted in the `imported-lights` diagnostic, never
+silently lost. `explorer.importedLights()` returns them, in cache order, for the host to change with
+`setLight` or drop with `removeLight`; `importedLights: false` in the explorer options opens the
+scene without any of them. A scene with no imported light behaves exactly as before: no light, `auto`
+resolves to `unlit`. The measurement harness carries the same switch as `--lampes-fichier on|off`.
+
 ### Light that bounces (opaque path)
 
 An opaque surface also receives the light that bounced off other surfaces before reaching it. The
