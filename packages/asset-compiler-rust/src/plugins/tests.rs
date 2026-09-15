@@ -3,8 +3,10 @@
 use super::*;
 use std::{fs, path::PathBuf};
 
+mod bmp;
 mod dds;
 mod exr;
+mod gif;
 mod hdr;
 mod image_registry;
 mod ktx2;

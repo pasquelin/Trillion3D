@@ -65,7 +65,7 @@ fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
         registry::extensions().collect::<Vec<_>>(),
         [
             "png", "jpg", "jpeg", "tga", "tpic", "tif", "tiff", "dds", "webp", "exr", "hdr",
-            "rgbe", "pic", "ktx2", "psd", "psb"
+            "rgbe", "pic", "ktx2", "psd", "psb", "bmp", "dib", "rle", "gif"
         ]
     );
 }
@@ -97,9 +97,11 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "hdr=",
         "ktx2=",
         "psd=",
+        "bmp=",
+        "gif=",
     ] {
         assert!(print.contains(expected), "{print}");
     }
     assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(10));
-    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(10));
+    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(12));
 }
