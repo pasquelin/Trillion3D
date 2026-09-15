@@ -54,7 +54,11 @@ export function materialSide(material: THREE.Material | THREE.Material[]) {
   return Array.isArray(material) ? material[0].side : material.side;
 }
 
-/** Turns a GPU page-id list into records, into an array the caller owns: no per-frame allocation. */
+/**
+ * Turns a GPU page-id list into records, into an array the caller owns: no per-frame allocation.
+ * `into` absent : les comptes seuls sont relus, sur exactement les mêmes enregistrements et dans le
+ * même ordre — ce que demande un appelant dont la liste est déjà faite de ce relevé.
+ */
 /**
  * The cut the GPU published, and what of it the frame cannot draw: a cluster whose page left the
  * cache between the selection's view of residency and now has no row, and no ancestor took its place
@@ -64,10 +68,10 @@ const gpuCutCounts = { drawnTriangles: 0, uncoveredTriangles: 0, transparentTria
 export function shownFromGpu(
   pages: PageRec[],
   ids: readonly number[],
-  into: PageRec[],
+  into: PageRec[] | undefined,
   residentOffsetWords: Int32Array,
 ) {
-  into.length = 0;
+  if (into) into.length = 0;
   let drawnTriangles = 0,
     uncovered = 0,
     transparent = 0;
@@ -75,7 +79,7 @@ export function shownFromGpu(
     const id = ids[i],
       rec = pages[id];
     if (!rec) continue;
-    into.push(rec);
+    if (into) into.push(rec);
     drawnTriangles += rec.triangles;
     if (rec.transparent) transparent += rec.triangles;
     if (residentOffsetWords[id] < 0 || !rec.array) uncovered += rec.triangles;

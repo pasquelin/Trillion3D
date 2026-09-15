@@ -68,7 +68,6 @@ export interface WebgpuRunState {
   // Reused by the cut every image; the cut changes, the arrays behind it do not.
   opaqueScratch: PageRec[];
   transparentScratch: PageRec[];
-  drawableScratch: PageRec[];
   culledScratch: PageRec[];
   readyScratch: PageRec[];
   pendingScratch: string[];
@@ -149,7 +148,6 @@ export function createWebgpuRunState(): WebgpuRunState {
     pagesExited: null,
     opaqueScratch: [],
     transparentScratch: [],
-    drawableScratch: [],
     culledScratch: [],
     readyScratch: [],
     pendingScratch: [],
