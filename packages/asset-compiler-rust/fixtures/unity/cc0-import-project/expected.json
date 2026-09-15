@@ -21,12 +21,7 @@
     {
       "name": "Standard",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.25,
         "roughnessFactor": 0.5
       }
@@ -34,66 +29,34 @@
     {
       "name": "URP",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.25,
         "roughnessFactor": 0.5
       }
     },
     {
-      "emissiveFactor": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "emissiveFactor": [0.0, 0.0, 0.0],
       "name": "PropMaterial0",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.20000000298023224,
-          0.6000000238418579,
-          0.30000001192092896,
-          1.0
-        ],
+        "baseColorFactor": [0.20000000298023224, 0.6000000238418579, 0.30000001192092896, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
     },
     {
-      "emissiveFactor": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "emissiveFactor": [0.0, 0.0, 0.0],
       "name": "PropMaterial1",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.20000000298023224,
-          0.6000000238418579,
-          0.30000001192092896,
-          1.0
-        ],
+        "baseColorFactor": [0.20000000298023224, 0.6000000238418579, 0.30000001192092896, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
     },
     {
-      "emissiveFactor": [
-        0.0,
-        0.0,
-        0.0
-      ],
+      "emissiveFactor": [0.0, 0.0, 0.0],
       "name": "PropMaterial2",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.20000000298023224,
-          0.6000000238418579,
-          0.30000001192092896,
-          1.0
-        ],
+        "baseColorFactor": [0.20000000298023224, 0.6000000238418579, 0.30000001192092896, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
@@ -103,12 +66,7 @@
       "alphaMode": "MASK",
       "name": "Cutout",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          1.0,
-          1.0,
-          1.0,
-          1.0
-        ],
+        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.5
       }
@@ -116,44 +74,16 @@
     {
       "alphaMode": "BLEND",
       "doubleSided": true,
-      "emissiveFactor": [
-        0.5,
-        0.0,
-        0.0
-      ],
+      "emissiveFactor": [0.5, 0.0, 0.0],
       "name": "Glass",
       "pbrMetallicRoughness": {
-        "baseColorFactor": [
-          0.25,
-          0.5,
-          0.75,
-          0.5
-        ],
+        "baseColorFactor": [0.25, 0.5, 0.75, 0.5],
         "metallicFactor": 0.0,
         "roughnessFactor": 0.25
       }
     }
   ],
-  "meshMaterials": [
-    [
-      0
-    ],
-    [
-      1
-    ],
-    [
-      1
-    ],
-    [
-      1
-    ],
-    [
-      5
-    ],
-    [
-      6
-    ]
-  ],
+  "meshMaterials": [[0], [1], [1], [1], [5], [6]],
   "meshNames": [
     "UnityBuiltinCube",
     "Icosphere",
@@ -163,14 +93,7 @@
     "UnityBuiltinCube"
   ],
   "meshNodes": 9,
-  "meshTriangles": [
-    12,
-    320,
-    80,
-    20,
-    12,
-    12
-  ],
+  "meshTriangles": [12, 320, 80, 20, 12, 12],
   "nodes": [
     {
       "mesh": 0,
@@ -183,11 +106,7 @@
       "name": "LOD2"
     },
     {
-      "children": [
-        0,
-        1,
-        2
-      ],
+      "children": [0, 1, 2],
       "name": "Prop_Standard"
     },
     {
@@ -201,17 +120,9 @@
       "name": "LOD2"
     },
     {
-      "children": [
-        4,
-        5,
-        6
-      ],
+      "children": [4, 5, 6],
       "name": "Prop_URP",
-      "translation": [
-        3.0,
-        0.0,
-        0.0
-      ]
+      "translation": [3.0, 0.0, 0.0]
     },
     {
       "mesh": 0,
@@ -224,125 +135,50 @@
       "name": "LOD2"
     },
     {
-      "children": [
-        8,
-        9,
-        10
-      ],
+      "children": [8, 9, 10],
       "name": "Prop_HDRP",
-      "translation": [
-        6.0,
-        0.0,
-        0.0
-      ]
+      "translation": [6.0, 0.0, 0.0]
     },
     {
       "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        -0.0,
-        -1.6292067961387604e-07,
-        -0.9999999999999868,
-        0.0,
-        0.0,
-        0.9999999999999868,
-        -1.6292067961387604e-07,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
+        1.0, 0.0, 0.0, 0.0, -0.0, -1.6292067961387604e-7, -0.9999999999999868, 0.0, 0.0,
+        0.9999999999999868, -1.6292067961387604e-7, 0.0, 0.0, 0.0, 0.0, 1.0
       ],
       "mesh": 1,
       "name": "Prop_LOD0"
     },
     {
       "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        -0.0,
-        -1.6292067961387604e-07,
-        -0.9999999999999868,
-        0.0,
-        0.0,
-        0.9999999999999868,
-        -1.6292067961387604e-07,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
+        1.0, 0.0, 0.0, 0.0, -0.0, -1.6292067961387604e-7, -0.9999999999999868, 0.0, 0.0,
+        0.9999999999999868, -1.6292067961387604e-7, 0.0, 0.0, 0.0, 0.0, 1.0
       ],
       "mesh": 2,
       "name": "Prop_LOD1"
     },
     {
       "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        -0.0,
-        -1.6292067961387604e-07,
-        -0.9999999999999868,
-        0.0,
-        0.0,
-        0.9999999999999868,
-        -1.6292067961387604e-07,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
+        1.0, 0.0, 0.0, 0.0, -0.0, -1.6292067961387604e-7, -0.9999999999999868, 0.0, 0.0,
+        0.9999999999999868, -1.6292067961387604e-7, 0.0, 0.0, 0.0, 0.0, 1.0
       ],
       "mesh": 3,
       "name": "Prop_LOD2"
     },
     {
-      "children": [
-        12,
-        13,
-        14
-      ],
+      "children": [12, 13, 14],
       "name": "Prop_Model",
-      "rotation": [
-        0.0,
-        -0.7071067811865476,
-        0.0,
-        0.7071067811865476
-      ],
-      "scale": [
-        2.0,
-        2.0,
-        2.0
-      ],
-      "translation": [
-        1.0,
-        2.0,
-        -3.0
-      ]
+      "rotation": [0.0, -0.7071067811865476, 0.0, 0.7071067811865476],
+      "scale": [2.0, 2.0, 2.0],
+      "translation": [1.0, 2.0, -3.0]
     },
     {
       "mesh": 4,
       "name": "Prop_Cutout",
-      "translation": [
-        0.0,
-        0.0,
-        2.0
-      ]
+      "translation": [0.0, 0.0, 2.0]
     },
     {
       "mesh": 5,
       "name": "Prop_Glass",
-      "translation": [
-        0.0,
-        0.0,
-        -2.0
-      ]
+      "translation": [0.0, 0.0, -2.0]
     },
     {
       "mesh": 0,
@@ -355,35 +191,17 @@
       "name": "LOD2"
     },
     {
-      "children": [
-        18,
-        19,
-        20
-      ],
+      "children": [18, 19, 20],
       "name": "Prop_Copy",
-      "translation": [
-        -4.0,
-        0.0,
-        -5.0
-      ]
+      "translation": [-4.0, 0.0, -5.0]
     }
   ],
-  "notes": [
-    "texture hors registre d'images: checker.tga"
-  ],
+  "notes": ["texture hors registre d'images: checker.tga"],
   "plugin": {
     "name": "unity",
     "version": "unity-yaml-rust2-0.13-gltf-1"
   },
-  "roots": [
-    3,
-    7,
-    11,
-    15,
-    16,
-    17,
-    21
-  ],
+  "roots": [3, 7, 11, 15, 16, 17, 21],
   "trianglesAcrossNodes": 492,
   "unsupported": {
     "unity-light": 1,
