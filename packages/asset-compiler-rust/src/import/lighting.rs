@@ -9,13 +9,10 @@ pub(super) fn matrix_is_finite(m: &[f64]) -> bool {
 }
 /// Rotates the glTF light axis (-Z) onto the FBX light direction, then applies the node transform.
 pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64> {
-    let len =
-        (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z).sqrt();
-    let d = if len > 1e-12 {
-        [direction.x / len, direction.y / len, direction.z / len]
-    } else {
-        [0.0, 0.0, -1.0]
-    };
+    let d = crate::shared_math::normalized_or(
+        [direction.x, direction.y, direction.z],
+        [0.0, 0.0, -1.0],
+    );
     let z = [-d[0], -d[1], -d[2]];
     let up = if z[1].abs() > 0.99 {
         [1.0, 0.0, 0.0]
