@@ -1,6 +1,12 @@
 /** Une vue, un côté, un seuil : les durées de chaque image, la coupe sélectionnée, la capture. */
 export async function measureView(options) {
   const sdk = await import(options.sdkUrl);
+  const coupe = await import(`${options.modulesUrl}pageCoupe.mjs`);
+  // Le témoin Three ne lit pas le magasin de lampes du contrat : le harnais, qui est un hôte comme
+  // un autre, lui pose lui-même en Three les lampes que ce magasin déclare (`pageTemoin.mjs`).
+  const eclairage = options.temoin
+    ? (await import(`${options.modulesUrl}pageTemoin.mjs`)).creerEclairageTemoin()
+    : null;
   const factory = sdk[options.backend];
   if (!factory) return { erreur: `moteur absent du dist : ${options.backend}` };
   const canvas = document.createElement('canvas');
@@ -28,6 +34,8 @@ export async function measureView(options) {
     maxResidentPages: options.maxPages,
     preload: 'visible',
     ...(options.autonome ? { autonomousGeometry: true } : { backends: [factory] }),
+    // Le groupe de lampes du témoin : vide à la création, rempli du magasin juste après.
+    ...(eclairage ? { sceneLighting: eclairage.groupe } : {}),
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
@@ -53,6 +61,8 @@ export async function measureView(options) {
   // Les lampes du contrat, posées par la règle générique du harnais et passées ici en données : la
   // page ne calcule aucune position et n'invente aucune scène.
   for (const light of options.lights ?? []) explorer.addLight(light);
+  // Les mêmes lampes, en Three, pour le témoin : lues du magasin, jamais posées à la main.
+  const lampesTemoin = eclairage ? eclairage.suivre(explorer) : null;
   const moving = options.moving;
   // Une lampe en mouvement : un petit cercle, appliqué avant chaque image mesurée.
   const moveLight = (frame) => {
@@ -65,6 +75,7 @@ export async function measureView(options) {
         moving.origin[2] + Math.sin(angle) * moving.radius,
       ],
     });
+    eclairage?.suivre(explorer);
   };
   const pose = options.pose;
   // Un objet en mouvement : le nœud nommé par l'hôte parcourt un petit cercle. Le premier appel le
@@ -156,27 +167,8 @@ export async function measureView(options) {
     `/capture?file=${encodeURIComponent(options.captureFile)}&w=${canvas.width}&h=${canvas.height}`,
     { method: 'POST', body },
   );
-  // L'ensemble sélectionné, lu sans aucune API ajoutée pour la mesure. WebGPU publie
-  // `selectedPageIds()` ; le chemin WebGL n'a pas d'équivalent, mais hors du mode beauté il attache
-  // un maillage par page affichée et y dépose son `clusterId`. Le mode `pages` et non `clusters` :
-  // `clusters` teinte chaque page de sa couleur, donc un nuanceur par cluster — 80 153 sur Emerald,
-  // de quoi épuiser le pilote —, quand `pages` n'en a que deux et rend les mêmes maillages. Les deux
-  // sources ne se comparent pas ; le rapport dit laquelle a servi.
-  const backend = explorer.backends.find((candidate) => candidate.id === options.engineId);
-  let selection = { source: null, ids: [] };
-  if (backend && typeof backend.selectedPageIds === 'function')
-    selection = { source: 'selectedPageIds', ids: [...backend.selectedPageIds()].sort() };
-  else if (backend && backend.scene) {
-    explorer.setDiagnostic('pages');
-    selection = {
-      source: 'clusterId',
-      ids: backend.scene.children
-        .map((child) => child.userData && child.userData.clusterId)
-        .filter((id) => typeof id === 'string')
-        .sort(),
-    };
-    explorer.setDiagnostic('beauty');
-  }
+  // L'ensemble sélectionné, lu comme dans les lots précédents : voir `pageCoupe.mjs`.
+  const selection = coupe.lireCoupe(explorer, options.engineId);
   const metrics = {};
   for (const key of Object.keys(last || {}))
     if (typeof last[key] === 'number' || typeof last[key] === 'boolean') metrics[key] = last[key];
@@ -188,6 +180,7 @@ export async function measureView(options) {
     cpuSelectMs,
     gpuFrameMs,
     importedLights,
+    lampesTemoin,
     shadowAtlas,
     movingNode,
     stageProfile,
