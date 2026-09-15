@@ -3,39 +3,15 @@ import type { GpuPassTimings } from '../sdk-core/index.ts';
 import type { createGpuTiming } from './gpuTiming.ts';
 import type { SelectionSubmission } from './gpuSelection.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
+import { CPU_STEP_NAMES } from './webgpuPagesCpuSteps.ts';
 import { createStageProfiler, type StageProfiler } from './stageProfiler.ts';
-import { cpuStepTable, WEBGPU_STAGES } from './stageMapping.ts';
-import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
-import type { WebgpuDiagnostics } from './webgpuPagesSetup.ts';
-
-/**
- * Les bornes processeur d'une image, dans l'ordre : pour chacune, son nom public et l'étape du
- * profil où elle se dépose. Le nom, l'étape et l'indice d'écriture sortent de cette seule table.
- */
-const CPU = cpuStepTable([
-  ['lightsMs', 'lights'],
-  ['adoptCutMs', 'cutAdoption'],
-  ['transparentSelectMs', 'transparents'],
-  ['transparentEncodeMs', 'transparents'],
-  ['admissionMs', 'residency'],
-  ['residencyQueueMs', 'residency'],
-  ['syncRowsMs', 'uploads'],
-  ['residencyUploadMs', 'uploads'],
-  ['selectionDispatchMs', 'selection'],
-  ['projectBoxesMs', 'boxes'],
-  ['partitionMs', 'partition'],
-  ['itemsMs', 'drawItems'],
-  ['encodeRestMs', 'encode'],
-  ['queueSubmitMs', 'submit'],
-  ['encodeSubmitMs', null],
-  ['totalMs', null],
-] as const);
-export const CPU_STEP_STAGES = CPU.stages;
-export const CPU_STEP = CPU.at;
+import { WEBGPU_STAGES } from './stageMapping.ts';
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
 /** The timestamps of one GPU-cut image, written in place as each step ends. */
 type GpuCutMarks = Record<
+  | 'preStart'
+  | 'blendStart'
   | 'cpuStart'
   | 'lightsEnd'
   | 'adoptEnd'
@@ -81,6 +57,8 @@ export interface WebgpuTimingState {
     appelsDeMelange: number;
   };
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
+  /** Vrai quand l'image a rempli sa ligne de bornes et attend d'être classée par l'hôte. */
+  rowFilled: boolean;
   marks: GpuCutMarks;
   lastCpuLogMs: number;
   lastCpuLogFrame: number;
@@ -136,8 +114,11 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       appelsDeDessin: 0,
       appelsDeMelange: 0,
     },
-    cpuProfile: createCpuStepProfile(CPU.names),
+    cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+    rowFilled: false,
     marks: {
+      preStart: 0,
+      blendStart: 0,
       cpuStart: 0,
       lightsEnd: 0,
       adoptEnd: 0,
@@ -157,27 +138,6 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     frameEncoder: undefined,
     frameSelection: undefined,
   };
-}
-
-/**
- * Publishes where the image's CPU time went, on the cadence of the progress diagnostic. It is called
- * by both render paths: a measured loop renders without ever flushing, and the profile is exactly what
- * such a loop needs.
- */
-export function publishCpuProfile(
-  timing: WebgpuTimingState,
-  run: WebgpuRunState,
-  diag: WebgpuDiagnostics,
-) {
-  if (diag.traceEnabled || !timing.cpuSample || run.frame === timing.lastCpuLogFrame) return;
-  const now = performance.now();
-  if (now - timing.lastCpuLogMs < 2000) return;
-  timing.lastCpuLogMs = now;
-  timing.lastCpuLogFrame = run.frame;
-  diag.engineDiagnostic('cpu-timing', 'Durées CPU mesurées dans le moteur', {
-    ...timing.cpuSample,
-    steps: timing.cpuProfile.summary(),
-  });
 }
 
 export const cameraPose = (camera: THREE.PerspectiveCamera) => ({

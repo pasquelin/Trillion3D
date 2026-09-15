@@ -92,29 +92,64 @@ export function rasterRgba(rt: WebgpuPagesRuntime) {
   );
 }
 
+/**
+ * Les adresses que l'image attend encore. Elles sont fonction de la coupe demandée, du drapeau de
+ * budget, de la couverture d'amorçage et des octets que les pages tiennent — et de rien d'autre.
+ * Une image qui a relu le relevé qu'elle tenait déjà, sans qu'aucune page ne reçoive ni ne perde
+ * ses octets, redonne donc exactement la liste déjà rendue.
+ */
 export function pendingUrls(rt: WebgpuPagesRuntime) {
-  const { run } = rt;
+  const { run } = rt,
+    ready = rt.services.bootstrapState.ready,
+    held = run.pendingHeld;
+  if (
+    run.cutHeld &&
+    held.cut === run.cutEpoch &&
+    held.epoch === run.pageArrayEpoch &&
+    held.limited === run.coverageBudgetLimited &&
+    held.ready === ready
+  )
+    return run.hostPendingScratch;
+  held.cut = run.cutEpoch;
+  held.epoch = run.pageArrayEpoch;
+  held.limited = run.coverageBudgetLimited;
+  held.ready = ready;
   return collectPendingUrls(
-    !rt.services.bootstrapState.ready
-      ? rt.setup.bootstrap
-      : run.coverageBudgetLimited
-        ? []
-        : run.desired,
-    run.pendingScratch,
+    !ready ? rt.setup.bootstrap : run.coverageBudgetLimited ? [] : run.desired,
+    run.hostPendingScratch,
+    rt.setup.requestStamps,
   );
 }
 
+/**
+ * Les adresses que l'hôte épingle après le rendu : la couverture d'amorçage, ce que l'image
+ * dessine et ce que la coupe demande. Le rang de la clé de requête est posé une fois pour toutes
+ * par le catalogue : deux pages qui partagent une requête partagent leur rang, et le dédoublonnage
+ * les sépare par une estampille au lieu de hacher cent mille chaînes par image. Mêmes adresses,
+ * même ordre, même longueur qu'un ensemble de chaînes. Et une image qui a relu le relevé déjà tenu
+ * lit trois listes inchangées : elle redonne celle qu'elle a rendue plutôt que de la refaire.
+ */
 export function pageUrls(rt: WebgpuPagesRuntime) {
   const { run } = rt,
-    { urlScratch } = run;
+    { urlScratch } = run,
+    stamps = rt.setup.requestStamps,
+    held = run.urlsHeld;
+  if (
+    run.cutHeld &&
+    held.cut === run.cutEpoch &&
+    held.epoch === run.pageArrayEpoch &&
+    held.limited === run.coverageBudgetLimited
+  )
+    return urlScratch;
+  held.cut = run.cutEpoch;
+  held.epoch = run.pageArrayEpoch;
+  held.limited = run.coverageBudgetLimited;
   urlScratch.length = 0;
-  const seen = new Set<string>();
+  stamps.begin();
   for (const list of [rt.setup.bootstrap, run.shown, run.coverageBudgetLimited ? [] : run.desired])
     for (let i = 0; i < list.length; i++) {
-      const url = pageRequestUrl(list[i]);
-      if (seen.has(url)) continue;
-      seen.add(url);
-      urlScratch.push(url);
+      const rec = list[i];
+      if (stamps.first(rec.requestIndex)) urlScratch.push(pageRequestUrl(rec));
     }
   return urlScratch;
 }

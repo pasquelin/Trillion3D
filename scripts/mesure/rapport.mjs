@@ -20,25 +20,29 @@ export function imageDiff(a, b) {
 
 const ms = (d, key) => (d ? d[key].toFixed(3) : '—');
 const num = (value) => (value == null ? '—' : String(value));
+/** Des octets en mégaoctets, ou un tiret : un zéro ne serait pas distinct d'un relevé absent. */
+const mo = (value) => (value == null ? '—' : (value / (1024 * 1024)).toFixed(1));
 const diffText = (d) =>
   !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max canal ${d.maxCanal}`;
 
 /** Le tableau de la série : une ligne par vue, par seuil et par côté. */
 function rows(report) {
   const lines = [
-    '| vue | pixelError | côté | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | uncoveredTriangles | Hi-Z testés/rejetés/>16 | hash coupe | budget pages |',
-    '|---|---|---|---|---|---|---|---|---|---|---|',
+    '| vue | pixelError | côté | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | uncoveredTriangles | Hi-Z testés/rejetés/>16 | hash coupe | budget pages | géométrie (Mo) |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const serie of report.series)
     for (const [side, r] of Object.entries(serie.sides)) {
       const hiz = r.hiZ;
       lines.push(
-        `| ${serie.view} | ${serie.pixelError} | ${side} | ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
+        `| ${serie.view} | ${serie.pixelError} | ${side}${r.moteur ? ` · ${r.moteur}` : ''} ` +
+          `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
           `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
           `| ${num(r.selectedTriangles)} | ${num(r.uncoveredTriangles)} ` +
           `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} ` +
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
-          `| ${num(r.budgetPages.demande)} demandées, ${num(r.budgetPages.residentes)} résidentes |`,
+          `| ${num(r.budgetPages.demande)} demandées, ${num(r.budgetPages.residentes)} résidentes ` +
+          `| ${mo(r.geometrieOctets)} |`,
       );
     }
   return lines;

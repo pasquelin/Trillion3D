@@ -12,6 +12,7 @@ import { createWebgpuResidentEnsurer } from './webgpuResidentEnsurer.ts';
 import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -142,6 +143,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     delta: cutDelta,
     drawnDelta,
     onDrawnDelta: (delta) => residencySets.applyDrawn(delta),
+    onDrawnMirrored: () => markDrawnMirrored(run),
     onCutDelta: (delta) => {
       residencySets.applyCut(delta);
       run.pagesEntered = delta.enteredCount;
@@ -152,8 +154,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
   const adoptGpuCut = () => {
-    if (!cutAdopter.adopt()) return;
-    const metrics = cutAdopter.metrics;
+    const adopted = cutAdopter.adopt(),
+      metrics = cutAdopter.metrics;
+    run.cutHeld = metrics.cutHeld;
+    // Une adoption qui a réécrit les listes les fait changer d'âge, où qu'elle se produise : au
+    // rendu comme dans la vidange, qui en rejoue une après que l'hôte a pris ses listes.
+    if (metrics.listsRewritten) run.cutEpoch++;
+    if (!adopted) return;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
     run.uncoveredTriangles = metrics.uncoveredTriangles;
@@ -179,7 +186,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     hasBytes,
     residencySets,
     admitCut,
-    invalidateCut: cutAdopter.invalidate,
+    // La coupe processeur réécrit elle-même ces listes : leur âge change avec elle.
+    invalidateCut: () => (run.cutEpoch++, cutAdopter.invalidate()),
     bootstrapState,
     ensureResident,
     residency,

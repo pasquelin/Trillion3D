@@ -10,9 +10,18 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
  *
  * `slotUsed` is what the CPU counted for each slot before this pass: a slot it counted at zero holds
  * nothing here either, because the only thing this shader adds is the selection mask, which can just
- * remove items. Such a slot leaves the counting pass at once and is skipped by the serial prefix, so
+ * remove items. Such a slot leaves the counting pass at once and is skipped by the prefix too, so
  * a coplanar layer that no cluster of the batch — or of this half of the image — reaches costs the
  * compaction nothing at all.
+ *
+ * Le préfixe répartit les slots sur les soixante-quatre fils d'un seul groupe de travail plutôt que
+ * de les parcourir l'un après l'autre : chaque fil totalise les slots qui lui reviennent par pas de
+ * 64, une barrière de groupe de travail sépare cette phase du calcul des décalages, puis chaque fil
+ * reconstruit son curseur en resommant les totaux des slots qui le précèdent. Le résultat est celui
+ * du parcours en série terme pour terme — l'addition en u32 est associative, et le curseur d'un slot
+ * ne dépend que des totaux des slots d'indice inférieur, qu'un slot inutilisé laisse à zéro.
+ * `bench/oracles/gpuDrawPrefixOracle.ts` porte les deux noyaux et `gpuDrawPrefixEquivalence.test.ts`
+ * la preuve.
  */
 export const drawShader = (layerSlots: number) => {
   const slots = slotCount(layerSlots);
@@ -54,25 +63,32 @@ fn countGroups(@builtin(global_invocation_id) id:vec3u){
  for(var i=begin;i<end;i++){if(matches(i,slot)){count=count+1u;}}
  groupCounts[entry]=count;
 }
-@compute @workgroup_size(1)
-fn prefixGroups(){
+var<workgroup> slotTotals:array<u32,${slots}>;
+@compute @workgroup_size(64)
+fn prefixGroups(@builtin(local_invocation_id) lid:vec3u){
+ let lane=lid.x;
+ for(var slot=lane;slot<${slots}u;slot+=64u){slotTotals[slot]=0u;}
  if(uni.count>uni.slotCap){
-  for(var slot=0u;slot<${slots}u;slot++){writeCmd(slot,0u);}
+  for(var slot=lane;slot<${slots}u;slot+=64u){writeCmd(slot,0u);}
   return;
  }
- var slotStart=0u;
- for(var slot=0u;slot<${slots}u;slot++){
+ for(var slot=lane;slot<${slots}u;slot+=64u){
   if(slotUsed[slot]==0u){writeCmd(slot,0u);continue;}
   var total=0u;
   for(var group=0u;group<uni.groupCount;group++){total=total+groupCounts[group*${slots}u+slot];}
-  var cursor=slotStart;
+  slotTotals[slot]=total;
+  writeCmd(slot,total);
+ }
+ workgroupBarrier();
+ for(var slot=lane;slot<${slots}u;slot+=64u){
+  if(slotUsed[slot]==0u){continue;}
+  var cursor=0u;
+  for(var before=0u;before<slot;before++){cursor=cursor+slotTotals[before];}
   for(var group=0u;group<uni.groupCount;group++){
    let entry=group*${slots}u+slot;
    groupOffsets[entry]=cursor;
    cursor=cursor+groupCounts[entry];
   }
-  writeCmd(slot,total);
-  slotStart=slotStart+total;
  }
 }
 @compute @workgroup_size(64)

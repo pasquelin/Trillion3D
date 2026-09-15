@@ -82,7 +82,9 @@ pub(super) struct PreviewInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub source_dir: &'a Path,
+    /// La racine de résolution des images de la scène intermédiaire, que `plugins::scene` nomme :
+    /// le dossier source, ou le dossier extrait d'un conteneur — jamais celui du cache.
+    pub image_root: &'a Path,
     pub meshes: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
 }
@@ -128,7 +130,13 @@ fn one_preview(
         .ok_or("texture-without-image")? as usize;
     let image = images.get(image_index).ok_or("image-out-of-bounds")?;
     let (bytes, provenance) = source::image_bytes(inputs, image)?;
-    let DecodedImage::Rgba8(decoded) = crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC)?;
+    let decoded = match crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC)? {
+        DecodedImage::Rgba8(pixels) => pixels,
+        // Un aperçu est du RGBA8 sRGB, le format exact de la vraie texture. Y faire entrer une
+        // image flottante demanderait un report de tons, c'est-à-dire une perte que la source
+        // n'avait pas : la texture est nommée au rapport et n'a pas d'aperçu, jamais rognée.
+        DecodedImage::RgbaF32 { .. } => return Err("image-float-unsupported"),
+    };
     let (first_level, pixels) = reduce::pyramid(&decoded, entry.cutoff);
     Ok(TexturePreview {
         texture: u32::try_from(entry.texture).map_err(|_| "texture-out-of-bounds")?,

@@ -30,8 +30,17 @@ export function createWebgpuCutAdopter(options: {
   /** Called once per readback, and only there: the difference is applied exactly once. */
   onCutDelta: (delta: CutDelta) => void;
   onDrawnDelta: (delta: CutDelta) => void;
+  /** Appelée quand `drawn` vient d'être refait depuis `shown` : l'image n'a plus à le refaire. */
+  onDrawnMirrored: () => void;
 }) {
   const metrics = {
+    /** Vrai quand l'image a relu le relevé qu'elle tenait déjà : `desired` et `shown` sont ceux de
+     *  l'image précédente, aux mêmes rangs. Faux par défaut, et faux dès qu'un doute existe. */
+    cutHeld: false,
+    /** Vrai quand cette adoption a réellement réécrit `desired` ou `shown`. L'adoption ne se produit
+     *  pas qu'au rendu : la vidange en rejoue une après coup, donc tout lecteur de ces listes doit
+     *  savoir qu'elles ont bougé sous lui, pas seulement que l'image en cours les tenait. */
+    listsRewritten: false,
     ready: false,
     visible: 0,
     selectedTriangles: 0,
@@ -45,6 +54,8 @@ export function createWebgpuCutAdopter(options: {
   /** Le relevé dont `shown` et `drawn` sont faits, ou `null` quand ils viennent d'ailleurs. */
   let shownCut: GpuCut | null = null;
   const adopt = () => {
+    metrics.cutHeld = false;
+    metrics.listsRewritten = false;
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
     const { packedPages, desired, shown, drawn, delta, drawnDelta } = options;
@@ -60,6 +71,8 @@ export function createWebgpuCutAdopter(options: {
     // landed — must not replay the previous one, which would count every page twice.
     options.onCutDelta(delta);
     options.onDrawnDelta(drawnDelta);
+    metrics.cutHeld = !delta.changed && !drawnDelta.changed;
+    metrics.listsRewritten = !metrics.cutHeld;
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
     if (cut.result.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
@@ -77,6 +90,7 @@ export function createWebgpuCutAdopter(options: {
     if (!held) {
       drawn.length = 0;
       appendPages(drawn, shown);
+      options.onDrawnMirrored();
       shownCut = cut;
     }
     metrics.ready = true;

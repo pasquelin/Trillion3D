@@ -21,6 +21,7 @@ mod g10_preview;
 mod g12_statistiques;
 mod g7_etiquettes;
 mod g9_accessor;
+mod h3_proxy;
 mod harness;
 mod inputs;
 mod rapport;
@@ -58,6 +59,7 @@ fn rows() -> Vec<Row> {
         "l'écart entre la copie du banc et la bibliothèque change de signe d'une exécution à \
          l'autre : aucun gain à prouver, les attributs n'ont pas été posés",
     ));
+    rows.push(h3_proxy::row());
     rows.extend(formules());
     rows
 }
