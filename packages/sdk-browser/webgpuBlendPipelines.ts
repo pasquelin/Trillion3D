@@ -2,6 +2,7 @@ import { BLEND_SHADER } from './webgpuPagesShaders.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import { VOLUME_SIZE } from './webgpuTransmission.ts';
 
 /** Builds the forward-material pipelines for transparent draws. */
 export async function createWebgpuBlendPipelines(device: GPUDevice, items: BlendGpuItem[]) {
@@ -40,6 +41,21 @@ export async function createWebgpuBlendPipelines(device: GPUDevice, items: Blend
       },
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      {
+        binding: b.volume,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: VOLUME_SIZE },
+      },
+      {
+        binding: b.backdrop,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d' },
+      },
+      {
+        binding: b.backdropDepth,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'depth', viewDimension: '2d' },
+      },
     ],
   });
   const blendModule = device.createShaderModule({ code: BLEND_SHADER });

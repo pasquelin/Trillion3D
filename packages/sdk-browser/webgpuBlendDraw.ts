@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
 import { directLightResources } from './webgpuPagesEncodeLights.ts';
+import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -63,18 +64,29 @@ function blendBindGroup(
       clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
       clusterIds: compaction?.instanceBuffer ?? zero,
       clusterSpans: compaction?.spanBuffer ?? zero,
+      volume: gpu.volumeBuffer!,
+      volumeSize: VOLUME_SIZE,
+      backdrop: gpu.backdrop!.colorView,
+      backdropDepth: gpu.backdrop!.depthView,
       slots: vis.slots!,
     }),
   });
 }
 
-/** Encodes the transparent back/front passes in source order and counts them on `rt.run`. */
+/**
+ * Encodes the transparent back/front passes in source order and counts them on `rt.run`.
+ *
+ * `transmissive` dit laquelle des deux passes on encode : les mélanges d'abord, puis, une fois le
+ * fond figé, les surfaces qui le relisent. Les deux parcourent la même liste dans le même ordre, si
+ * bien que l'ordre source d'une scène est celui des deux passes bout à bout.
+ */
 export function drawBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
   textured: boolean,
+  transmissive = false,
 ) {
   const { gpu, vis, run, blendState } = rt,
     items = blendState.visibleBlend,
@@ -99,7 +111,7 @@ export function drawBlendPass(
     pass.setPipeline(pipeline);
   };
   const pass = encoder.beginRenderPass({
-    label: 'WG transparents',
+    label: transmissive ? 'WG transmission' : 'WG transparents',
     colorAttachments: [
       {
         view: vis.visEnabled && gpu.hdrView ? gpu.hdrView : gpu.colorView!,
@@ -112,6 +124,7 @@ export function drawBlendPass(
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
+    if (!!item.transmissive !== transmissive) continue;
     if (!item.group)
       item.group = textured
         ? blendBindGroup(rt, device, item, lighting!)
@@ -123,7 +136,13 @@ export function drawBlendPass(
               { binding: 2, resource: { buffer: gpu.uniformBuffer!, size: UNIFORM_STRIDE } },
             ],
           });
-    pass.setBindGroup(0, item.group, [(uniformBase + i) * UNIFORM_STRIDE]);
+    pass.setBindGroup(
+      0,
+      item.group,
+      textured
+        ? [(uniformBase + i) * UNIFORM_STRIDE, i * VOLUME_STRIDE]
+        : [(uniformBase + i) * UNIFORM_STRIDE],
+    );
     const material = Array.isArray(item.material) ? item.material[0] : item.material;
     // Un seul déterminant : l'appel rendait deux fois la même valeur pour choisir les deux faces.
     const renverse = item.matrix.determinant() < 0;

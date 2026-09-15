@@ -19,6 +19,10 @@ export interface WebgpuGpuState {
   depthView: GPUTextureView | undefined;
   hdrTexture: GPUTexture | undefined;
   hdrView: GPUTextureView | undefined;
+  /** Le fond figé que la passe de transmission relit : une copie de la cible HDR et de la
+   *  profondeur, prises après les opaques et les mélanges. Un texel 1×1 tant que la scène ne porte
+   *  aucune surface transmissive — la liaison existe alors sans rien coûter. */
+  backdrop: TransmissionBackdrop | undefined;
   surfaces: SurfaceBuffer | undefined;
   targetSize: [number, number];
   positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
@@ -29,6 +33,8 @@ export interface WebgpuGpuState {
   nextPositionId: number;
   uniformBuffer: GPUBuffer | undefined;
   uniformPacked: Float32Array<ArrayBuffer>;
+  /** Le volume glTF d'un item transparent par entrée, lu à décalage dynamique comme l'uniforme. */
+  volumeBuffer: GPUBuffer | undefined;
   bindGroups: Map<number, GPUBindGroup>;
   clusterRgbCache: Map<string, [number, number, number]>;
   zeroUv: GPUBuffer | undefined;
@@ -38,6 +44,16 @@ export interface WebgpuGpuState {
   blitMaterial: THREE.ShaderMaterial | undefined;
   blit: THREE.Mesh | undefined;
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined;
+}
+
+/** Les deux copies que la passe de transmission lit, et leurs vues. */
+export interface TransmissionBackdrop {
+  color: GPUTexture;
+  colorView: GPUTextureView;
+  depth: GPUTexture;
+  depthView: GPUTextureView;
+  /** Vrai quand les copies sont à la taille de la cible et que la copie vaut la peine. */
+  active: boolean;
 }
 
 export function createWebgpuGpuState(viewport: readonly [number, number]): WebgpuGpuState {
@@ -54,6 +70,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     depthView: undefined,
     hdrTexture: undefined,
     hdrView: undefined,
+    backdrop: undefined,
     surfaces: undefined,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     positionBuffers: new Map(),
@@ -62,6 +79,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     nextPositionId: 1,
     uniformBuffer: undefined,
     uniformPacked: new Float32Array(UNIFORM_STRIDE / 4),
+    volumeBuffer: undefined,
     bindGroups: new Map(),
     clusterRgbCache: new Map(),
     zeroUv: undefined,
