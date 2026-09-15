@@ -1670,7 +1670,10 @@ processeur y gagne un tiers du temps par image, faute de clusters à encoder.
 
 ## 2026-09-15 — Lot ombres : une carte ne redessine que ce qui est à portée, et la découpe projette sa découpe
 
-Branche `lot/ombres`, rebasée sur `develop` à `2bf1f54`. Banc Emerald, WebGPU, mode visible,
+Branche `lot/ombres`, rebasée sur `develop` à `ee04fd1`. Les durées du tableau ci-dessous ont été
+relevées face au socle `2bf1f54` sur une machine à charge 7,7 à 10,8 ; rejouées face à `ee04fd1` à
+charge 12 à 35, elles donnent les mêmes ordres (générale 7,82 → 0,38 ms ; rue 2,46 → 0,44 ms à
+8 lampes ; rue 2,24 → 0,14 ms à 30 lampes) et **exactement les mêmes écarts d'image**. Banc Emerald, WebGPU, mode visible,
 1280×720, `pixelError` 0, lampes posées par la règle de grille du harnais (`scripts/mesure/lampes.mjs`).
 
 ### Ce qui a changé
