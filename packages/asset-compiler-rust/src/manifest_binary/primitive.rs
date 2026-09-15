@@ -66,9 +66,12 @@ pub(super) fn encode_primitive(
                     "group.level",
                 )?);
                 columns[GROUP_ERROR].f64(number(item.get("error"), "group.error")?);
-                for value in vector(item.get("sphere"), 4, "group.sphere")? {
-                    columns[GROUP_SPHERE].f64(value);
-                }
+                vector_into(
+                    item.get("sphere"),
+                    4,
+                    "group.sphere",
+                    &mut columns[GROUP_SPHERE],
+                )?;
                 for (key, count_column, flat_column) in [
                     ("children", GROUP_CHILD_COUNT, GROUP_CHILD),
                     ("outputs", GROUP_OUTPUT_COUNT, GROUP_OUTPUT),
