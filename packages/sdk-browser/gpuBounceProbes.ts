@@ -103,11 +103,11 @@ export async function createGpuBounceProbes(
     words = new Uint32Array(packed);
   floats.set([...grid.origin, diagonal * BOUNCE_SETTINGS.rayReachFraction], 0);
   floats.set([...grid.spacing, 0], 4);
-  let irradianceView = false;
-  // L'uniforme est écrit une fois à la construction : l'application le relit à chaque image, même
-  // quand la grille est convergée et que plus aucune passe de sondes n'est encodée.
-  device.queue.writeBuffer(uniform, 0, packed);
   words.set([...grid.counts, grid.probes], 8);
+  let irradianceView = false;
+  // L'uniforme est écrit une fois à la construction, la grille entière dedans : l'application le
+  // relit à chaque image, même convergée, quand plus aucune passe de sondes n'est encodée.
+  device.queue.writeBuffer(uniform, 0, packed);
   let cursor = 0,
     sweep = 0,
     settled = 0,

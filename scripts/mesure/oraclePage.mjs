@@ -25,6 +25,9 @@ export async function measureIrradiance(options) {
     },
     manifestUrl: options.manifestUrl,
     scope: 'full',
+    // Le rebond est éteint par défaut : la campagne d'oracle l'allume, sans quoi elle comparerait
+    // une vue d'irradiance vide au traceur de chemins.
+    bounce: true,
     width: options.width,
     height: options.height,
     pixelRatio: 1,
@@ -73,10 +76,8 @@ export async function measureIrradiance(options) {
   explorer.setLightingView('bounce');
   await settle(options.converge);
   const settled = shot();
-  const settledMean = average(settled);
   // Le retard : la lampe part sur sa seconde position, la grille reconverge, puis on rejoue le
   // saut en relevant à chaque image l'écart à cet état stable.
-  let delay = null;
   const gaps = [];
   if (options.movingLight) {
     moveTo(options.movedPosition);
@@ -89,28 +90,21 @@ export async function measureIrradiance(options) {
     for (let frame = 0; frame < options.delayFrames; frame++) {
       explorer.render(options.pose);
       await explorer.flush();
-      const value = gap(shot(), moved, movedMean);
-      gaps.push(value);
-      if (delay === null && value <= options.delayThreshold) delay = frame + 1;
+      gaps.push(gap(shot(), moved, movedMean));
     }
     moveTo(options.originalPosition);
     await settle(options.converge);
   }
   // L'image convergée part telle quelle vers Node, qui l'encode et la compare à l'oracle.
   const body = settled.buffer.slice(settled.byteOffset, settled.byteOffset + settled.byteLength);
-  const response = await fetch(
+  await fetch(
     `/capture?file=${encodeURIComponent(options.captureFile)}&w=${canvas.width}&h=${canvas.height}`,
     { method: 'POST', body },
   );
-  const size = { width: canvas.width, height: canvas.height };
   explorer.dispose();
   canvas.remove();
   return {
-    captureStatus: response.status,
-    settledMean,
-    delayFrames: delay,
     gaps,
-    size,
     rebond: bounce.length ? bounce[bounce.length - 1] : null,
   };
 }

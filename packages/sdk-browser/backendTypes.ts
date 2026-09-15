@@ -143,8 +143,8 @@ export interface BackendContext {
   sceneLighting?: THREE.Object3D;
   /** Les lampes du contrat, possédées par l'hôte et partagées par tous les moteurs de la session. */
   sceneLights?: SceneLightStore;
-  /** La lumière qui rebondit. Active par défaut dès qu'une lampe est déclarée et que le cache
-   *  porte un proxy résident ; `false` la coupe, et l'image redevient celle du direct seul. */
+  /** La lumière qui rebondit. Éteinte par défaut ; `true` l'allume, et elle apparaît dès qu'une
+   *  lampe est déclarée et que le cache porte un proxy résident. */
   bounce?: boolean;
   /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
   stageProfile?: boolean;

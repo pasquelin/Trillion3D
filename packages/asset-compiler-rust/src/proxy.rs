@@ -129,7 +129,7 @@ pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize
 pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let world = world_matrices(inputs.g)?;
     let nodes = values(inputs.g, "nodes")?;
-    let palette = albedo::material_albedo(inputs.g, inputs.previews)?;
+    let palette = albedo::material_albedo(inputs.g, inputs.previews);
     let mut triangles: Vec<f32> = Vec::new();
     let mut colours: Vec<u32> = Vec::new();
     for node_id in inputs.chosen {

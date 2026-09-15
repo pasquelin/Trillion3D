@@ -63,8 +63,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     atlasClasses: options.atlasClasses ?? 1,
     stageProfile: options.stageProfile === true,
     sceneLighting: sceneLightingSource,
-    // La lumière qui rebondit est active par défaut : elle n'ajoute rien tant qu'aucune lampe
-    // n'est déclarée, et l'hôte la coupe explicitement quand il veut le direct seul.
+    // La lumière qui rebondit est éteinte par défaut : son coût carte graphique reste très
+    // au-dessus du budget publié, et l'hôte l'allume explicitement quand il la veut.
     bounce: options.bounce,
     readSceneProxy: createSceneProxyReader(metadata.proxy, base, signal),
     // Un seul magasin de lampes par session : chaque moteur le lit, l'hôte est le seul à l'écrire.

@@ -49,9 +49,14 @@ Les lignes « échantillon » portent sur une image sur seize (21 images, 45 560
 
 ## 2026-09-15 — lot « rebond 1 » : la lumière qui rebondit, proxy résident et oracle
 
-Branche `lot/rebond-1`, sur `develop` = `8cb7e21`. `npm run validate` vert. **Le format du sidecar
+Branche `lot/rebond-1`, rebasée sur `develop` = `7cf5c6f` ; la porte de fidélité ci-dessous a été
+jouée contre `21dbe9e`, la base de la mesure. `npm run validate` vert. **Le format du sidecar
 binaire n'est pas touché** : le proxy est un objet de cache à son nom, et un cache d'avant ce lot
 reste lisible mot pour mot — le rebond y est simplement déclaré indisponible.
+
+**Le rebond est éteint par défaut** — `createExplorer({ bounce: true })` l'allume — parce qu'il coûte
+80 ms de carte graphique sur Emerald, deux ordres de grandeur au-dessus du budget ; le lot rebond 2
+s'attaque à ce coût.
 
 ### Les règles livrées
 

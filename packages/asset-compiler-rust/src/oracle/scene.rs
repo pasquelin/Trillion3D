@@ -92,7 +92,7 @@ pub fn load(path: &Path) -> Result<World> {
     let matrices = world_matrices(&g)?;
     let nodes = values(&g, "nodes")?;
     let meshes = values(&g, "meshes")?;
-    let palette = materials::palette(&g, path)?;
+    let palette = materials::palette(&g, path);
     let mut world = World {
         triangles: Vec::new(),
         albedo: Vec::new(),

@@ -6,6 +6,7 @@
 //! dans l'aperçu que le compilateur a déjà réduit, l'oracle la refait sur l'image source — et c'est
 //! l'appelant qui la fournit.
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 /// L'albédo diffus de chaque matériau, empaqueté RGBA8 linéaire, dans l'ordre du glTF.
 pub struct Palette {
@@ -63,7 +64,11 @@ fn diffuse_share(material: &Value) -> f64 {
 
 /// La palette d'une scène. `mean` rend la couleur moyenne linéaire d'une texture de couleur de
 /// base, ou rien quand elle n'est pas lisible ; le facteur du matériau vaut alors seul.
+///
+/// Une texture n'est moyennée qu'une fois : sans cette mémoire, une scène de milliers de matériaux
+/// qui partagent quelques textures paierait le produit des deux tailles.
 pub fn palette(g: &Value, mut mean: impl FnMut(u64) -> Option<[f64; 3]>) -> Palette {
+    let mut known: BTreeMap<u64, Option<[f64; 3]>> = BTreeMap::new();
     let materials = g
         .get("materials")
         .and_then(Value::as_array)
@@ -76,7 +81,7 @@ pub fn palette(g: &Value, mut mean: impl FnMut(u64) -> Option<[f64; 3]>) -> Pale
         let tint = material
             .pointer("/pbrMetallicRoughness/baseColorTexture/index")
             .and_then(Value::as_u64)
-            .and_then(&mut mean)
+            .and_then(|texture| *known.entry(texture).or_insert_with(|| mean(texture)))
             .unwrap_or([1.0, 1.0, 1.0]);
         colours.push(pack([
             base[0] * tint[0] * share,
