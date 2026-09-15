@@ -665,6 +665,12 @@ reste (voir §6).
 Verrou `.claude/mesure.lock` pris avant chaque campagne et rendu juste après. Harnais commun,
 `avant` = tête de `develop`, `apres` = tête du lot, les deux côtés lisant le même cache.
 
+Base de ces campagnes : `d3dcd69`. Les campagnes WebGPU **n'ont pas pu être rejouées** sur la tête
+de `develop` du jour, pour la raison donnée au §5 bis ; la campagne WebGL, elle, passe sur la base
+courante. La cause est trouvée et corrigée depuis, dans `develop` (`214942a`, session Lumière) : le
+lot est rebasé sur `2dcc8fc` et **sa campagne WebGPU reste à rejouer sur cette base**. Tant qu'elle
+ne l'est pas, le lot n'est pas fusionné.
+
 | campagne                           | vues × seuils | écart | A/A | hash de coupe | trous |
 | ---------------------------------- | ------------- | ----- | --- | ------------- | ----- |
 | webgpu, 1 instance                 | 6             | 0 px  | 0   | identique 6/6 | 0     |
@@ -696,6 +702,39 @@ antérieur au lot import-lampes, qui a ajouté ce fichier à la sortie du compil
 identique des deux côtés et ne déplace aucun pixel ; **le cache du Lab est à régénérer par
 l'utilisateur** — aucun agent n'écrit dans `public/benchmark-assets` — et tant qu'il ne l'est pas,
 toute campagne sortira avec ces 404 et un code de retour non nul.
+
+### 5 bis. La preuve WebGPU ne peut plus être rejouée sur `develop` : bissection
+
+Le lot est prouvé sur `d3dcd69`. À partir d'un certain point de `develop`, **plus aucune campagne
+WebGPU ne démarre** : le contexte carte graphique est perdu avant la première mesure, sur
+n'importe quel côté, y compris `develop` contre lui-même.
+
+    Error: WEBGPU_LOST
+      at readBackImage (…/webgpuPagesFlush.js:79)
+      at async flushWebgpuPages (…/webgpuPagesFlush.js:136)
+      at async awaitBackendPages · async awaitPages · measureView
+
+Révélateur, cinq images, un seul côté, une instance, aucune lampe, rebond éteint (défaut) :
+
+    node scripts/mesure/banc.mjs --moteur webgpu --apres <dist de la ref> \
+      --vues generale --images 5 --pixelError 0 --max-pages 100000 --profil off
+
+| ref                                                              | WebGPU          |
+| ---------------------------------------------------------------- | --------------- |
+| `d3dcd69` (base de la preuve de ce lot)                          | OK              |
+| `30f2b33` (lot H2)                                               | OK              |
+| `0756387`                                                        | **OK**          |
+| `8d1fe94` feat(rebond) : cascades autour de la caméra, budget ms | **WEBGPU_LOST** |
+| `5bf6c46`, `be5889a`, `061059e`, `8bb630c`                       | WEBGPU_LOST     |
+| `56c1012`, `38f1b5c`, `2846372`                                  | WEBGPU_LOST     |
+
+Premier commit fautif : **`8d1fe94`**. Deux témoins écartent la machine et ce lot : `d3dcd69` en
+WebGPU passe le même jour sur la même machine, et la tête de `develop` en **WebGL** passe aussi.
+
+La session Lumière a trouvé la cause et l'a corrigée dans `develop` (`214942a`) : le remplaçant du
+tampon de rebond, lié à chaque image même rebond éteint, était resté à la taille qu'avait la
+structure avant les cascades. La campagne WebGPU de ce lot se rejoue donc sur `2dcc8fc` ou plus
+récent.
 
 ### 6. Ce qui reste de H1, et pourquoi le reste ne se prend pas par là
 
@@ -4252,7 +4291,7 @@ source déjà chargé et par un tampon d'uniformes interne au moteur.
 
 ### 1. Le chargement accepte une primitive hors DAG
 
-`assertCacheIdentity` exigeait une bande d'erreur par cluster de _chaque_ primitive. Une primitive
+`assertCacheIdentity` exigeait une bande d'erreur par cluster de *chaque* primitive. Une primitive
 que le compilateur garde d'un seul tenant — `pass: "shared-blend"` — n'a aucun cluster, donc aucune
 bande, et c'est sa définition, pas une lacune : un cache qui en portait une était refusé en bloc, et
 une eau importée rendait la scène entière illisible. `primitiveIsDrawable` (`geometryContracts.ts`)
@@ -4275,12 +4314,12 @@ pas une transmission.
 
 Après les opaques et après les mélanges, dans l'ordre source, test de profondeur `less` sans
 écriture, même mélange. Deux `copyTextureToTexture` figent le fond — la cible HDR et la profondeur
-vers `rgba16float` et `depth32float` en lecture seule. C'est ce que _toutes_ les surfaces
+vers `rgba16float` et `depth32float` en lecture seule. C'est ce que *toutes* les surfaces
 transmissives lisent : l'ordre entre deux d'entre elles ne change donc pas ce qu'elles voient.
 
 - **Réfraction** : le rayon de vue est dévié par `1/ior`, avancé de `thicknessFactor`, le point de
   sortie reprojeté à l'écran, et c'est là qu'on relit la couleur. Un échantillon dont la profondeur
-  copiée le place _devant_ la surface est rejeté : on retombe sur l'échantillon non dévié.
+  copiée le place *devant* la surface est rejeté : on retombe sur l'échantillon non dévié.
 - **Atténuation** : `exp(-sigma·thickness)` avec `sigma = -log(attenuationColor)/attenuationDistance`.
   Une distance nulle veut dire pas d'atténuation.
 - **Réflexion** : Fresnel de Schlick, `f0 = ((ior-1)/(ior+1))²`, appliqué à ce que la scène déclare —
@@ -4352,8 +4391,8 @@ lampes du harnais sont déclarées par le contrat `SceneLight`, que seul le chem
 que le témoin Three rend toute surface opaque noire pendant que le nôtre rend la vue sans éclairage
 en albédo brut. Contrôle construit pour l'isoler : la **même comparaison sur `classes-materiaux`, une
 scène qui ne porte aucune transmission**, donne **206 471 px (22,40 %)** et **544 747 px (59,11 %)** —
-_plus_ que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
-l'arrivée de la transmission le _réduit_, parce que l'eau assombrit notre image vers celle du témoin.
+*plus* que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
+l'arrivée de la transmission le *réduit*, parce que l'eau assombrit notre image vers celle du témoin.
 Une comparaison de fidélité qui porte sur la transmission seule demande que le témoin reçoive les
 lampes du contrat ; ce n'est pas dans ce lot, et c'est nommé ci-dessous.
 
