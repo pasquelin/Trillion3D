@@ -6,6 +6,13 @@ export {
   hizFootprintFar,
   hizOccluded,
 } from './hizOracles.ts';
+export {
+  hizBuildFlat,
+  hizFlatLayout,
+  hizFlatLevels,
+  hizFootprintFarFlat,
+  type HizFlat,
+} from './hizPyramidFlat.ts';
 
 /** Balayage préfixe exclusif (exclusive scan). */
 export function exclusiveScan(values: readonly number[]): [number[], number] {
