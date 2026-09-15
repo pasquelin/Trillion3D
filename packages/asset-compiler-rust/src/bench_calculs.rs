@@ -13,6 +13,9 @@ mod b5_page;
 mod b5_topologie;
 mod b6_adjacence;
 mod b9_vecteurs;
+mod f_boites;
+mod f_scalaires;
+mod f_valeurs;
 mod fixture;
 mod g10_preview;
 mod g12_statistiques;
@@ -54,6 +57,33 @@ fn rows() -> Vec<Row> {
     rows.push(b9_vecteurs::row().ecarte(
         "l'écart entre la copie du banc et la bibliothèque change de signe d'une exécution à \
          l'autre : aucun gain à prouver, les attributs n'ont pas été posés",
+    ));
+    rows.extend(formules());
+    rows
+}
+
+/// Lot F — équivalence des formules factorisées dans `shared_math.rs`. Ces lignes ne cherchent pas
+/// un gain : elles prouvent que le seul exemplaire restant rend les mêmes bits que chaque copie
+/// qu'il remplace, valeurs hostiles comprises. Une ligne « non » vaut retour en arrière.
+fn formules() -> Vec<Row> {
+    let mut rows = vec![
+        f_boites::row_points(),
+        f_boites::row_boites(),
+        f_boites::row_simple(),
+        f_boites::row_bisection(),
+        f_scalaires::row_bourrage(),
+        f_scalaires::row_normalisation(),
+    ];
+    for row in &mut rows {
+        if row.note.is_empty() {
+            row.note = "factorisation à résultat identique : aucun gain attendu".into();
+        }
+    }
+    rows.push(Row::note(
+        "F7 secondes vers millisecondes (elapsed_ms)",
+        "shared_math.rs",
+        "hors banc : l'entrée est une durée mesurée, jamais deux fois la même ; la formule est le \
+         seul `as_secs_f64() * 1000.0` du compilateur, déplacé sans changement",
     ));
     rows
 }
