@@ -3,6 +3,7 @@ import { createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import { collectPendingUrls, pageRequestUrl } from './pageSelection.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
+import { bumpScene } from './frameRevisions.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -13,6 +14,8 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function refreshSceneLights(rt: WebgpuPagesRuntime) {
   const { lights } = rt;
   rt.capture.capturedRevision = -1;
+  // Origine du changement de scène : une lampe déclarée a été ajoutée, réglée ou retirée.
+  bumpScene(rt.run.revisions);
   rt.diag.engineDiagnostic('direct-lighting-changed', 'Lampes du contrat actualisées', {
     version: 1,
     lights: lights.store.count,
