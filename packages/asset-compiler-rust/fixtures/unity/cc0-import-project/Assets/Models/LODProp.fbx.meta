@@ -1,7 +1,18 @@
 fileFormatVersion: 2
 guid: c6ac3e67f4c6dabfd3641a94d1ce0cc6
 ModelImporter:
+  serializedVersion: 22
+  internalIDToNameTable:
+  - first:
+      43: 4300002
+    second: Icosphere.001
+  - first:
+      43: 4300004
+    second: Icosphere.002
+  meshes:
+    globalScale: 2
+    useFileScale: 1
   externalObjects: {}
-  userData: 
-  assetBundleName: 
-  assetBundleVariant: 
+  userData:
+  assetBundleName:
+  assetBundleVariant:
