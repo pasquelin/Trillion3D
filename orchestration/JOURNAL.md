@@ -3760,3 +3760,54 @@ comme un résultat.
 écrits. Les neuf autres portes sont vertes sur la branche fusionnée — `format:check`,
 `check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
 `check:structure`, `check:dts`, `check:links` — avec 740 tests JS/TS et 153 tests Rust au vert.
+
+## 2026-09-15 — [compilateur] pilote tga
+
+Premier format de la file de `SPEC_FORMATS_IMPORT.md` après le routeur : le compilateur lit les
+textures TGA. Un module, `packages/asset-compiler-rust/src/plugins/image/tga.rs`, une ligne dans
+`image::DECODERS`, la feature `tga` de la crate `image` dans `Cargo.toml` — le cœur, la CLI et les
+trois pilotes existants n'ont pas bougé d'une ligne.
+
+**Ce qui est lu, sans perte.** Vraies couleurs 24 et 32 bits, palette 8 bits, niveaux de gris
+8 bits, chacun brut (types 1, 2, 3) ou compressé RLE (types 9, 10, 11), origine haute comme basse.
+L'alpha des 32 bits traverse intact : rien n'est prémultiplié, rien n'est rééchelonné, rien n'est
+réencodé. Le 15/16 bits entre en RGB opaque, parce que son bit d'attribut n'est pas un canal alpha
+fiable — c'est la spécification qui l'interdit, pas un raccourci du pilote.
+
+**La détection, faute de nombre magique.** TGA 1.0 commence directement par ses dix-huit octets
+d'entête ; seule la 2.0 pose un pied « TRUEVISION-XFILE. » en fin de fichier. Le pilote reconnaît
+donc par extension (`.tga`, `.tpic`) via le registre, puis par **structure d'entête** : chaque champ
+dans son domaine (type de palette, type d'image, taille d'entrée, profondeur, bits réservés du
+descripteur) et les champs cohérents entre eux (une palette annoncée avec un type d'image à palette
+et pas autrement, une profondeur qui suit le type). Le pied de la 2.0, quand les octets fournis vont
+jusqu'à la fin du fichier, suffit à lui seul. Un entête incohérent n'est pas revendiqué : mieux vaut
+`image-format-unknown` que voler les octets d'un format voisin. `tga` est placé **après** `png` et
+`jpeg` dans le registre, pour que la recherche d'un fichier voisin décodable garde son ordre.
+
+**Ce qui est refusé, et comment.** Fichier tronqué, profondeur hors profil, palette illisible,
+image vide : tout ressort en raison de rapport nommée — `image-decode-failed`, `image-empty`,
+`image-format-unknown` — jamais en panique, jamais en échec de compilation. Une texture illisible
+laisse le moteur retomber sur son blanc.
+
+**Provenance.** Lecture écrite d'après la spécification publique « Truevision TGA File Format
+Specification, Version 2.0 » ; décodage par la feature `tga` de la crate `image` 0.25.10 (MIT ou
+Apache-2.0, notices conservées avec la dépendance). Aucun code ni SDK d'éditeur, aucun contournement.
+
+**Dorée.** `fixtures/tga/` : six images de 4 × 2 pixels écrites ici octet par octet (CC0-1.0), une
+par profil, plus `tronque.tga` repris de `test-assets/limites/truncated-tga` (CC0-1.0, 31 octets).
+`src/plugins/tests/tga.rs` les décode et compare les **pixels RGBA8 un par un** à une référence
+écrite en clair dans le test, alpha compris : les cinq variantes couleur rendent exactement la même
+image, ce qui prouve qu'origine, compression et profondeur ne changent pas un octet. Les pixels des
+fixtures ont été vérifiés par un décodeur indépendant (Pillow 12.2.0) avant d'être commis. Le pilote
+a aussi été passé, hors dorée, sur les quatre TGA 256 × 256 de `test-assets/textures/tga-matrix`
+(24 et 32 bits, brut et RLE, origines haute et basse) : les quatre décodent et leurs pixels
+coïncident avec ceux que rend Pillow sur les mêmes fichiers ; elles ne sont pas commises, un quart
+de mégaoctet par fichier pour des pixels qu'on ne peut pas écrire en clair n'est pas une fixture
+minimale.
+
+**Résultat.** `cargo test` du crate : 167 tests au vert, 3 ignorés, 0 échec. `cargo clippy
+--all-targets -- -D warnings`, `cargo fmt --check`, `check:lines` et `check:duplicates` : verts.
+Trois attendus ont suivi le registre — le doré du CLI `--version`, la longueur du descripteur
+d'images et la liste des extensions ; le cas « format hors registre » du test de registre se disait
+avec un entête TGA, il se dit maintenant avec un entête DDS. `npm run validate` n'a pas été joué ici,
+il l'est à la livraison.
