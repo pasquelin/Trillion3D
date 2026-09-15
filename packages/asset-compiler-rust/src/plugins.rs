@@ -6,7 +6,7 @@
 //! extension ou par nombre magique, qui décode vers le type de sortie du contrat.
 //!
 //! Ajouter un format, c'est ajouter un module et une ligne de registre ; le cœur ne bouge pas.
-//! `PLUGINS.md` est le mode d'emploi d'un pilote, `orchestration/SPEC_FORMATS_IMPORT.md` la
+//! `PLUGINS.md` est le mode d'emploi d'un pilote, `orchestration/COMPILATEUR_IMPORT.md` la
 //! politique : quels formats sont admis, lesquels sont refusés, et sous quelles conditions.
 use serde_json::{json, Value};
 

@@ -8,7 +8,7 @@ Ce que le pilote doit produire est toujours la même chose : la **scène interm�
 et son binaire, que `compile` est seul à savoir lire. Les images suivent le même modèle, vers RGBA8.
 
 La politique — quels formats sont admis, lesquels sont refusés, sous quelles conditions et sous
-quelle licence — est dans [`orchestration/SPEC_FORMATS_IMPORT.md`](../../orchestration/SPEC_FORMATS_IMPORT.md).
+quelle licence — est dans [`orchestration/COMPILATEUR_IMPORT.md`](../../orchestration/COMPILATEUR_IMPORT.md).
 Elle prime sur ce document : un pilote hors de cette liste ne se fusionne pas.
 
 ## Un pilote de scène
