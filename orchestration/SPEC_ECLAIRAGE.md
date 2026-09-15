@@ -1,10 +1,20 @@
 # Spécification — Éclairage dynamique WebGeometry
 
-Version 1, 15 septembre 2026 ; remplace la version 0 du 14 septembre 2026. Complète `SPEC_MOTEUR_SANS_THREE.md`, qui reste la référence pour la géométrie. Chaque exigence est numérotée et vérifiable ; une exigence sans mesure associée n'existe pas. Les valeurs marquées « réglage » sont des choix de produit : on part avec, on mesure, on resserre.
+Version 2, 15 septembre 2026 ; remplace la version 1 du 15 septembre 2026. Complète `SPEC_MOTEUR_SANS_THREE.md`, qui reste la référence pour la géométrie. Chaque exigence est numérotée et vérifiable ; une exigence sans mesure associée n'existe pas. Les valeurs marquées « réglage » sont des choix de produit : on part avec, on mesure, on resserre.
 
 ## Principe directeur
 
 Le moteur est générique : il y aura des milliards de scènes. Emerald, la maison de test et tout autre banc ne sont que des jeux de mesure, jamais une destination. Aucune exigence de cette spécification ne se code par type d'objet (« miroir », « eau », « arbre ») ni par nom de scène : tout se code par propriété de matériau et de lampe déclarée dans les données importées. Une règle prouvée sur un banc doit valoir pour n'importe quelle scène portant les mêmes propriétés.
+
+## État livré au 15 septembre 2026
+
+Résumé court ; le détail chiffré vit dans `orchestration/JOURNAL.md`, jamais recopié ici.
+
+- **Profil par étape** (LB4) : `packages/sdk-core/stageProfile.ts`, exposé par `explorer.stageProfile()`, CPU et GPU jamais additionnés.
+- **Ombres avec cache** (LR3) : une carte n'est redessinée que si sa lampe ou un objet dans sa portée a bougé ; rejet des clusters hors portée et hors face avant la passe de profondeur ; découpe réelle des matériaux à masque, partagée avec le tampon de visibilité. Scène et caméra immobiles : zéro lampe redessinée, zéro appel de dessin.
+- **Aucune lumière sans source déclarée** (P6), chemin opaque : plus d'ambiance ni de ciel implicite ; vue `unlit` par défaut tant qu'aucune lampe n'est déclarée, `lit` dès qu'il y en a une ; soleil directionnel en **quatre cascades** suivant la caméra, mêmes règles de cache que les lampes ponctuelles.
+- **Rebond** (LR4, LC1, LC5) : proxy résident (coupe du DAG bornée par son plancher, puis simplification propre au proxy par grille de fusion/redécoupe), BVH à quatre enfants et boîtes quantifiées, cache de surfaces sur les triangles du proxy, sondes clairsemées (mailles touchant de la géométrie plus une couronne), oracle Rust à triangles sources. **Éteint par défaut.**
+- **Chiffres de référence (Emerald, huit lampes dont une mobile)** : étape Rebond **2,3 ms** GPU (p50, trois vues) ; écart moyen à l'oracle sur la pièce de contrôle **12,6 %** (cible 10 %, non tenue) ; retard de convergence **117 ms** (cible 100 ms, limite 250 ms, tenue).
 
 ## 0. Besoin, principe, non-objectifs
 
@@ -15,6 +25,8 @@ Besoin : un éclairage global dynamique, propre, qui respecte les lois de la lum
 Non-objectifs de cette version : caustiques, milieux participants, transmission colorée par les vitrages, réfraction avec absorption en profondeur (eau), miroirs courbes, réflexions imbriquées, rendu sans aucun GPU. Ils sont hors périmètre et nommés comme tels dans le diagnostic.
 
 Règles transverses : celles de `AGENTS.md` (fidélité avant vitesse, aucune baisse de résolution, mesures honnêtes, CPU et GPU jamais additionnés, mots interdits). Aucune illumination figée comme destination du produit : les données cuites à la compilation sont géométriques, jamais lumineuses. Une approximation non déclarée est un défaut.
+
+**Fidélité pour l'éclairage, différente de la géométrie.** La géométrie se prouve au bit près (`tri = selected`, E8). L'éclairage ne le peut pas : les techniques temporelles et stochastiques (sondes tracées et interpolées, hystérésis adaptative, cascades suivant la caméra, oracle Monte-Carlo) ne rendent jamais deux fois exactement la même image, sur une machine ni entre deux machines. La règle d'`AGENTS.md` s'applique donc telle quelle, pas une exception : un écart s'explique au niveau du bruit A/A (deux exécutions du même côté), mesuré et consigné dans `orchestration/JOURNAL.md`, comme l'ont fait les lots ombres, sans-source et rebond 1/2. Pour le rebond, s'y ajoute l'erreur face à l'oracle du contrat E (section 5) : un lot qui resserre le bruit A/A sans resserrer l'erreur à l'oracle n'a rien prouvé sur la physique.
 
 ## 1. Architecture cible
 
@@ -142,3 +154,25 @@ X5. **Lampes à ombre plafonnées** : au plus N lampes à ombre mises à jour pa
 X6. **Priorités calculées sur le GPU, relues en asynchrone** : résidu (écart entre deux mises à jour) et influence (visible, distance, vu dans un miroir) par sonde et par région de carte ; relecture avec une image de retard, jamais synchrone.
 X7. **Risques de coût réels, mesurés en E0** : bande passante mémoire (atlas du cache, textures de sondes) plus qu'arithmétique ; divergence de la traversée sur GPU intégré ; seconde passe de géométrie de la vue réfléchie. Si un lot dépasse, sa taille diminue ; l'image ne ralentit pas, la convergence s'allonge.
 X8. **Worker et WebAssembly, règle d'emploi** : un Worker quand un travail CPU mesuré dépasse 1 ms par image ou dure plusieurs images (compilation d'un objet, invalidation massive), pour garder le fil principal libre ; il n'accélère rien. Le code Rust compilé en WebAssembly quand un noyau CPU mesuré domine, ou quand la même math doit être partagée avec le compilateur (BVH, proxy, erreur d'écran, picking) ; SIMD si disponible. Ni l'un ni l'autre ne soulage le GPU : jamais comme réponse à un dessin trop cher. Candidat à mesurer en E6 : mise à jour des sondes en WebAssembly dans des Workers comme repli WebGL2, face aux passes de fragments.
+
+## 11. Repères du moteur de référence du marché, vocabulaire neutre (RX)
+
+Repères externes publics (version 2026), en vocabulaire neutre, chacun avec ce qu'il change chez nous. Aucun ne se copie tel quel : chaque repère se rejoue sur nos propres scènes et son propre budget avant d'entrer dans le code.
+
+RX1. **Champs d'irradiance + occlusion par sondes comme mode « léger »**, publiés environ deux fois plus rapides qu'un rebond tracé haute qualité. C'est déjà notre direction (LR4, LC5) : les sondes clairsemées et le cache de surfaces du lot rebond 2 sont ce mode léger, pas une étape intermédiaire vers autre chose. Priorité : resserrer ce chemin (base d'ordre 2, budget en millisecondes du lot rebond 3) plutôt que d'ajouter un rebond tracé par pixel séparé.
+RX2. **Éclairage stochastique par pixel** (un rayon d'ombre par pixel, accumulation temporelle, rejet des lampes hors portée), publié pour porter des centaines de lampes ombrées sans une carte d'ombre par lampe. Chez nous, X5 plafonne aujourd'hui les lampes à ombre par image et le chemin des transparents boucle sur toutes les lampes déclarées par pixel (`sceneLightingShader.ts:5-21`, boucle `for(var i=0u;i<sceneLights.count;i++)`). Lot futur : remplacer cette boucle par pixel par un rayon d'ombre stochastique, avec le même plafond X5 remplacé par un budget en millisecondes ; à terme, mêmes listes tuilées côté opaque si le nombre de lampes déclarées le justifie.
+RX3. **Ombres virtualisées** : un cache d'ombre à budget d'invalidation différée, qui ne recalcule que les faces effectivement touchées par un changement. C'est déjà notre règle (LR3, lot ombres du 15 septembre 2026 : rejet par portée et par face, résidence, zéro travail en scène immobile). À étendre : le budget est aujourd'hui un plafond de lampes (X5), pas un budget en millisecondes par image ; en faire un budget temporel, comme X4 le demande pour le rebond, est le même levier appliqué au direct.
+RX4. **Résolution minimale des cartes du cache de surfaces abaissée** (repère externe : 4 → 2, sur l'axe le plus fin d'une carte). Chez nous, LC2 fixe une couverture (≥ 95 %) mais ne borne pas la résolution minimale d'une carte de projection. Paramètre à ajouter à LC2, à exposer côté compilateur, et à mesurer sur Emerald (octets d'atlas, couverture, écart à l'oracle) avant tout changement de défaut.
+
+## 12. Restes et ordre des lots
+
+Ordre proposé, prime sur l'ordre implicite de la section 8 : rebond 3 → transparents sans ambiance → ombres lointaines du soleil contre le proxy → reflet pour toute surface (LR7) → import des lampes depuis les fichiers → reflets flous → éclairage stochastique par pixel (RX2) → optimisation mesurée.
+
+- **Rebond 3** (`lot/rebond-3`, non fusionné dans `develop` au 15 septembre 2026) : cascades de sondes autour de la caméra, budget en millisecondes plutôt qu'en nombre de mailles et de rayons (X4, LR1), base d'harmoniques sphériques d'ordre 2 (pour resserrer les 12,6 % d'écart vers la cible de 10 %), activation par défaut une fois le budget tenu.
+- **Transparents sans ambiance** : le chemin des transparents injecte encore un ciel et un soleil par défaut — `sceneLighting.ts:13-19` (`defaultLights`, hémisphère + soleil) et `sceneLightingShader.ts:12` (terme `kind==4u`, ambiance hémisphérique dans la boucle par pixel). P6 ne s'applique qu'au chemin opaque depuis le lot sans-source ; les arbres d'Emerald restent donc allumés la nuit tant que ce chemin n'est pas traité, exception déjà nommée en section 9.
+- **Ombres lointaines du soleil contre le proxy** : au-delà de `sunShadowFarFraction` (0,2 du lointain), une surface est éclairée sans test d'ombre — approximation nommée, publiée dans le diagnostic `direct-lighting`, mais pas encore couverte par une ombre contre le proxy résident.
+- **Reflet pour toute surface** (LR7) : décidé en section 9, non livré — un prototype expérimental hors dépôt existe (`codex/light-transport-experiment`), aucune ligne dans `develop`. Reste le premier lot spéculaire.
+- **Import des lampes depuis les fichiers** (glTF, FBX) : `SceneLight` v2 (section « aucune lumière sans source ») n'a que des lampes déclarées par le code hôte ou le harnais ; aucun chemin n'importe une lampe portée par un fichier de scène.
+- **Reflets flous** (spéculaire rugueux) : hors périmètre de LR7 tel que livré, qui vise la réflexion nette.
+- **Éclairage stochastique par pixel** (RX2) : remplace la boucle de lampes par pixel du chemin des transparents, puis les listes tuilées si le nombre de lampes déclarées le justifie.
+- **Optimisation mesurée** : ordonnanceur en budget de millisecondes (X4, LR2), hystérésis adaptative généralisée, GPU intégré — phase E5 de la section 8, qui reste la référence pour les critères de sortie.
