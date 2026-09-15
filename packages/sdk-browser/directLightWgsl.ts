@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
 
 /**
  * Les structures partagées par la passe de listes de lampes et par la résolution différée : une seule
@@ -12,10 +12,17 @@ const MAX_TILE_LIGHTS:u32=${LIGHT_SETTINGS.maxLightsPerTile}u;
 const MAX_LIGHTS:u32=${LIGHT_SETTINGS.maxLights}u;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
+const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
+const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
+const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,}
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight>,}
 /** Direction normalisée vers la lampe et atténuation ; w à zéro quand le point est hors portée. */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
+ // Une lampe directionnelle n'a ni position ni portée : la même irradiance en tout point, jamais
+ // atténuée par la distance. Sa direction est celle de la propagation, donc l'incidence en est
+ // l'opposée. Le contrat l'a déjà normalisée.
+ if(light.params.x>KIND_SUN-0.5){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
  let distance=length(offset);
  let range=light.positionRange.w;
@@ -25,7 +32,7 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  let ratio=distance/range;
  let window=pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
  var attenuation=window/max(distance*distance,1e-4);
- if(light.params.x>0.5){
+ if(light.params.x>KIND_SPOT-0.5){
   let cosine=dot(-L,light.directionCone.xyz);
   let edge=light.directionCone.w;
   attenuation*=smoothstep(edge,edge+SPOT_EDGE,cosine);

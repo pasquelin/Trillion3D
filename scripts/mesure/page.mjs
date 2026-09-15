@@ -65,7 +65,6 @@ export async function measureView(options) {
   // Les lampes du contrat, posées par la règle générique du harnais et passées ici en données : la
   // page ne calcule aucune position, elle n'invente aucune scène.
   for (const light of options.lights ?? []) explorer.addLight(light);
-  if (options.environment) explorer.setEnvironment(options.environment);
   const moving = options.moving;
   // Une lampe en mouvement : un petit cercle, appliqué avant chaque image mesurée.
   const moveLight = (frame) => {

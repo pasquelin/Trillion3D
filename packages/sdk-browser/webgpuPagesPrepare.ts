@@ -73,14 +73,17 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   gpu.lights = createSceneLightBuffer(gpuDevice, context.sceneLighting ?? rt.setup.source);
   run.lightState = gpu.lights.update();
   rt.lights.buffer = createSceneLightContractBuffer(gpuDevice);
+  // Ce tampon ne sert plus qu'au chemin des transparents : le chemin opaque n'éclaire que par les
+  // lampes déclarées du contrat, et n'a plus aucune lumière écrite dans la scène à lire (P6).
   diag.engineDiagnostic('scene-lighting', 'Lumières de la scène actives', {
     version: 1,
     ...run.lightState,
     contractLights: rt.lights.store.count,
+    opaqueUsesSceneLights: false,
     shadows: false,
     globalIllumination: false,
   });
-  gpu.deferred = await createDeferredLighting(gpuDevice, gpu.lights.buffer, rt.lights.buffer);
+  gpu.deferred = await createDeferredLighting(gpuDevice, rt.lights.buffer);
   context.signal?.throwIfAborted();
   ({
     presenter: gpu.presenter,

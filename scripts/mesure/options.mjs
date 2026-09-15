@@ -133,6 +133,8 @@ export function readOptions(argv, root) {
     lights: number('lampes', 0),
     lightShadows: (flags.get('ombres') ?? 'on') !== 'off',
     movingLight: flags.get('lampe-mobile') === 'true',
+    // `--soleil` ajoute la lampe directionnelle générique de `lampes.mjs`, avec ses cascades.
+    sun: flags.get('soleil') === 'true',
   };
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
   if (settings.port === 5174)

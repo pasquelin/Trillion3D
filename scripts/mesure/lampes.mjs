@@ -42,8 +42,20 @@ function gridLights(bounds, count, shadows) {
   return { lights, cell };
 }
 
-/** Le ciel sombre du mode contrat : sans lui, l'éclairage d'origine reste le seul à l'image. */
-const NIGHT_ENVIRONMENT = { skyColor: [0.02, 0.025, 0.04], exposure: 1 };
+/**
+ * Le soleil du banc : une lampe directionnelle générique, la même pour n'importe quel modèle. Sa
+ * direction descend vers le nord-est à environ 40° au-dessus de l'horizon — un après-midi
+ * quelconque, choisi une fois et jamais par scène —, sa couleur est neutre, et elle projette une
+ * ombre. Aucune valeur ici ne dépend du jeu de mesure qu'on donne au banc.
+ */
+const SUN = {
+  id: 'banc-soleil',
+  kind: 'directional',
+  direction: [-0.5, -0.64, -0.58],
+  color: [1, 0.97, 0.92],
+  intensity: 3,
+  castsShadow: true,
+};
 
 /**
  * Le mouvement d'une lampe, en fraction de maille : un petit cercle parcouru en `period` images.
@@ -56,19 +68,22 @@ function movingLightPlan(lights, cell) {
 }
 
 /**
- * Les lampes d'une exécution, ou `null` quand le banc n'en demande aucune : la liste posée par la
- * règle de grille, le ciel du mode contrat, et le plan de mouvement de la première lampe.
+ * Les lampes d'une exécution, ou `null` quand le banc n'en demande aucune : la grille de ponctuelles,
+ * le soleil si on l'a demandé, et le plan de mouvement de la première ponctuelle. Sans aucune lampe,
+ * le moteur rend sa vue sans éclairage : c'est son comportement par défaut, pas une option du banc.
  */
 export function benchLights(bounds, settings) {
-  if (!settings.lights) return null;
+  if (!settings.lights && !settings.sun) return null;
   const { lights, cell } = gridLights(bounds, settings.lights, settings.lightShadows);
   const moving = settings.movingLight ? movingLightPlan(lights, cell) : null;
+  const all = settings.sun ? [{ ...SUN, castsShadow: settings.lightShadows }, ...lights] : lights;
   return {
-    lights,
-    environment: NIGHT_ENVIRONMENT,
+    lights: all,
     moving,
     resume: {
-      nombre: lights.length,
+      nombre: all.length,
+      ponctuelles: lights.length,
+      soleil: settings.sun,
       ombres: settings.lightShadows,
       maille: cell,
       mobile: !!moving,

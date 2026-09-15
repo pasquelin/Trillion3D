@@ -21,8 +21,12 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   `lampes.mjs` — une grille régulière dans l'emprise horizontale du modèle, à hauteur fixe au-dessus
   de son plancher, portée déduite de la maille. Aucune scène n'est nommée. `--ombres on|off` (par
   défaut `on`) dit si elles projettent une ombre ; `--lampe-mobile` déplace la première d'entre elles
-  d'un petit cercle à chaque image, sans lui faire quitter sa maille. Avec `--lampes`, le ciel du
-  mode contrat est déclaré : l'image est celle d'une scène de nuit éclairée par ces seules lampes.
+  d'un petit cercle à chaque image, sans lui faire quitter sa maille.
+- `--soleil` : ajoute la lampe directionnelle générique de `lampes.mjs` — direction, couleur et
+  intensité fixes, les mêmes pour n'importe quel modèle — avec ses cascades d'ombre, soumises à
+  `--ombres` comme les ponctuelles. Combinable avec `--lampes`.
+- Sans `--lampes` ni `--soleil`, aucune lampe n'est déclarée : le moteur rend alors sa vue sans
+  éclairage, l'albédo brut des matériaux. C'est son comportement par défaut, pas une option du banc.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
 - `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
   mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les
