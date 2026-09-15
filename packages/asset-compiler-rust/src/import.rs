@@ -138,6 +138,7 @@ struct Importer<'a> {
 mod lighting;
 mod materials;
 pub(crate) mod mesh;
+pub(crate) mod opacity;
 mod runner;
 mod scene;
 mod textures;
@@ -145,5 +146,6 @@ mod textures;
 use lighting::*;
 use materials::*;
 use mesh::*;
+use opacity::*;
 pub use runner::import_source;
 use textures::*;
