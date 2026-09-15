@@ -110,6 +110,11 @@ export function disposeWebgpuPages(
   gpu.lights?.dispose();
   rt.lights.tiles?.dispose();
   rt.lights.shadows?.dispose();
+  rt.lights.cull?.dispose();
+  rt.lights.spheres?.buffer.destroy();
+  rt.lights.spheres = undefined;
+  rt.lights.shadowGroups.fill(undefined);
+  rt.lights.shadowGroupsKey = [];
   rt.lights.buffer?.destroy();
   rt.lights.plan.reset();
   gpu.presenter?.dispose();
