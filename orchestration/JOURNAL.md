@@ -1,5 +1,34 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [compilateur] un pilote par format : routeur de scènes et registre d'images (lot routeur et plugins)
+
+Le compilateur choisissait sa voie d'entrée en dur — « exactement un `.gltf`/`.glb`, ou des
+`.fbx`/`.obj` » — et sa table d'images tenait en trois lignes de constantes. Chaque format à venir
+aurait touché ce cœur. Il route désormais vers un **pilote par format**, chacun dans son module,
+tous listés dans un registre statique : ajouter un format, c'est un module et une ligne.
+
+Deux contrats versionés. `ScenePlugin` (`scene-plugin-1`) reconnaît une source par extension puis par
+nombre magique, et rend la scène intermédiaire que `compile` sait déjà lire : `gltf` (glTF et GLB, en
+entrée directe), `fbx` et `obj` (ufbx, par un socle interne commun — deux noms, deux versions, deux
+détections). `ImageDecoder` (`image-plugin-1`) décode vers `DecodedImage::Rgba8` : `png` et `jpeg`,
+par la crate `image`. Le type de sortie est une énumération pour que l'EXR et le HDR flottants y
+entrent par une variante, sans ramener à huit bits ce qui n'y tient pas.
+
+Le routeur refuse plutôt que de deviner : `SOURCE_FORMAT_UNKNOWN` nomme tout ce que le binaire
+accepte, `SOURCE_FORMAT_AMBIGUOUS` nomme les pilotes qui se disputent un dossier. Le pilote retenu
+voyage dans le manifeste d'import (`source.plugin`), dans la sortie de `compile` (`scenePlugin`) et
+dans `--version` ; l'empreinte du registre entre dans la clé de compilation, donc un pilote ajouté,
+retiré ou reversionné invalide ce que l'ancien registre avait écrit.
+
+Refactor à comportement constant : les cinq dorées coplanaires et la dorée des aperçus passent sans
+régénération, aucun `expected.json` n'a bougé. 165 tests Rust au vert contre 158 avant, 3 ignorés de
+part et d'autre. Un seul rétrécissement délibéré : un dossier qui mélange FBX et OBJ était fusionné en
+une scène, il est maintenant ambigu — un format par dossier source, c'est la règle du modèle.
+
+`packages/asset-compiler-rust/PLUGINS.md` est le brief d'un agent par format : le module, le trait,
+la ligne de registre, la dorée minimale à fournir, et ce qui est interdit (code ou SDK d'éditeur,
+contournement de protection). La politique reste dans `orchestration/SPEC_FORMATS_IMPORT.md`.
+
 ## 2026-09-15 — [session village] la scène « Whisperwind Village » entre au banc 15, importée en FBX
 
 Aucune ligne de moteur n'a bougé : le Lab a reçu une entrée de catalogue

@@ -4,25 +4,27 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
     let started = Instant::now();
-    // FBX/OBJ sources are first turned into a glTF pair inside the cache; everything below reads glTF only.
+    // Le routeur choisit le pilote du format et lui fait produire la scène intermédiaire ; tout ce
+    // qui suit ne lit qu'un glTF, sans savoir de quel format il vient.
     let progress = with_ratio(progress);
+    let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
     let imported;
-    let o = if let SourceKind::Importable(inputs) = source_kind(&o.source)? {
+    let o = if let PreparedScene::Converted(directory) = &routed.scene {
         imported = Options {
-            source: import::import_source(&inputs, &o.cache, &o.cancelled, &progress)?,
+            source: directory.clone(),
             ..o.clone()
         };
         &imported
     } else {
         o
     };
-    let loaded = load_runtime(o)?;
+    let loaded = load_runtime(o, &routed.scene)?;
     let bin = loaded.binary.bytes();
     let g = &loaded.g;
     let g_bytes = &loaded.g_bytes;
     let manifest = &loaded.manifest;
     let bin_hash = &loaded.bin_hash;
-    let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":implementation_hash(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
+    let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":implementation_hash(),"plugins":plugins::fingerprint(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
     let NodeSelection {
@@ -164,7 +166,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     } else {
         FORMAT_VERSION
     };
-    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":cluster_start.elapsed().as_secs_f64()*1000.,"wallMs":started.elapsed().as_secs_f64()*1000.,"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
     // columns instead of tokenizing tens of megabytes before its first frame.
     {
