@@ -1,3 +1,4 @@
+import { FRUSTUM_PLANE_VALUES } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { createConeContext, type ConeContext, type NormalCone } from './pageCone.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
@@ -88,16 +89,16 @@ export function createSelectionResult<T>(): SelectionResult<T> {
 export const IDENTITY_WORLD = new THREE.Matrix4();
 /** Synchronous selection reuses these buffers between frames without allocating a new cut. */
 export const selectionScratch = {
-  frustum: new THREE.Frustum(),
+  /** Plans du tronc en repère monde, qui rejettent une racine entière par sa boîte monde. */
+  worldPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
   matrix: new THREE.Matrix4(),
   viewMatrix: new THREE.Matrix4(),
-  box: new THREE.Box3(),
-  corner: new THREE.Vector3(),
   viewMin: [Infinity, Infinity, Infinity] as [number, number, number],
   viewMax: [-Infinity, -Infinity, -Infinity] as [number, number, number],
   pixelScale: [1, 1] as [number, number],
   clip: new THREE.Matrix4(),
-  planes: new Float64Array(24),
+  /** Plans du tronc dans le repère de la racine en cours, bruts : ceux de la descente exacte. */
+  planes: new Float64Array(FRUSTUM_PLANE_VALUES),
   stack: new Int32Array(4096),
 };
 export const fallbackScratch: unknown[] = [];

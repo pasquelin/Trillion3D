@@ -69,6 +69,24 @@ export {
   transformHomogeneousPoint,
 } from './mathVector.ts';
 export { linearToSrgb, srgbToLinear } from './mathColor.ts';
+export {
+  BOX_VALUES,
+  boxCornersInto,
+  boxEmpty,
+  boxExpandByPoint,
+  boxIsEmpty,
+  boxTransform,
+  boxUnion,
+} from './mathBox.ts';
+export { sphereFromBounds } from './mathSphere.ts';
+export {
+  FRUSTUM_PLANE_VALUES,
+  clipPlanesFromMatrix,
+  frustumPlanesFromMatrix,
+  frustumPlanesToLocal,
+} from './mathFrustum.ts';
+export { frustumClipBox, frustumExcludesBox } from './mathFrustumBox.ts';
+export { boxConeRejects } from './mathCone.ts';
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)
     throw new Error('Invalid RGBA images');
