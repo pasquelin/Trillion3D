@@ -5,11 +5,20 @@ import {
   type WebgpuPagesRuntime,
 } from './webgpuPagesRuntime.ts';
 
-/** The previous image no longer describes this one: neither its occluders nor its temporal pyramid. */
-export function invalidateOccluderHistory(run: WebgpuRunState) {
-  run.noOccluderHistory = true;
+/**
+ * La pyramide temporelle ne décrit plus cette image. Elle n'est relue que pour une vue identique au
+ * bit près, donc un mouvement de caméra la retire ; l'historique des occulteurs, lui, ne nomme que
+ * des pages et ne dépend d'aucune vue.
+ */
+export function invalidateTemporalPyramid(run: WebgpuRunState) {
   run.temporalHizState.pyramid = undefined;
   run.temporalHizState.camera = undefined;
+}
+
+/** Ni les occulteurs de l'image précédente ni sa pyramide ne décrivent celle-ci. */
+export function invalidateOccluderHistory(run: WebgpuRunState) {
+  run.noOccluderHistory = true;
+  invalidateTemporalPyramid(run);
 }
 
 /** A capability now served: it leaves the list of what the backend declares unsupported. */
