@@ -10,6 +10,9 @@ const OPTIONAL = [
   ['color', 4, 16],
 ] as const;
 
+/** Les vues typées ne se lisent qu'en boutien natif ; ailleurs le `DataView` reste le chemin. */
+const PETIT_BOUTIEN = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+
 export type DecodedGeometryPage = {
   indices: Uint32Array;
   attributes: Record<string, Float32Array>;
@@ -60,31 +63,41 @@ export async function decodeGeometryPage(
     stride,
     data.subarray(32 + indexBytes),
   );
-  const indexView = new DataView(indexData.buffer),
-    indices = new Uint32Array(indexCount);
-  for (let i = 0; i < indexCount; i++) {
-    indices[i] = indexView.getUint16(i * 2, true);
-    if (indices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
+  const indices = new Uint32Array(indexCount);
+  if (PETIT_BOUTIEN) indices.set(new Uint16Array(indexData.buffer, 0, indexCount));
+  else {
+    const indexView = new DataView(indexData.buffer);
+    for (let i = 0; i < indexCount; i++) indices[i] = indexView.getUint16(i * 2, true);
   }
+  for (let i = 0; i < indexCount; i++)
+    if (indices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
   const attributes: Record<string, Float32Array> = { position: new Float32Array(vertexCount * 3) };
   for (const [name, size, bit] of OPTIONAL)
     if (flags & bit) attributes[name] = new Float32Array(vertexCount * size);
-  const vertices = new DataView(vertexData.buffer);
+  // Le plan de lecture est le même pour les 65 535 sommets d'une page : chaque attribut présent,
+  // sa largeur et son décalage en flottants dans le sommet. Il était refait, et une fermeture avec
+  // lui, à chaque sommet.
+  const plan: Array<[Float32Array, number, number]> = [[attributes.position, 3, 0]];
+  let place = 3;
+  for (const [name, size, bit] of OPTIONAL) {
+    if (flags & bit) plan.push([attributes[name], size, place]);
+    place += size;
+  }
+  const floats = PETIT_BOUTIEN ? new Float32Array(vertexData.buffer) : null,
+    vertices = PETIT_BOUTIEN ? null : new DataView(vertexData.buffer);
+  const parSommet = stride / 4;
   for (let i = 0; i < vertexCount; i++) {
-    let offset = i * stride;
-    const read = (name: string, size: number) => {
-      const target = attributes[name];
+    const base = i * parSommet;
+    for (let a = 0; a < plan.length; a++) {
+      const target = plan[a][0],
+        size = plan[a][1],
+        at = base + plan[a][2];
       for (let c = 0; c < size; c++) {
-        const value = vertices.getFloat32(offset, true);
+        const value = floats ? floats[at + c] : vertices!.getFloat32((at + c) * 4, true);
         if (!Number.isFinite(value)) throw new Error('GEOMETRY_PAGE_NONFINITE');
         target[i * size + c] = value;
-        offset += 4;
       }
-    };
-    read('position', 3);
-    for (const [name, size, bit] of OPTIONAL)
-      if (flags & bit) read(name, size);
-      else offset += size * 4;
+    }
   }
   return { indices, attributes, vertexCount, flags, decodedBytes };
 }
