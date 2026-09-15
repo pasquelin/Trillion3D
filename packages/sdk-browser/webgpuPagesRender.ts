@@ -3,7 +3,11 @@ import { boxTransform } from '../sdk-core/index.ts';
 import { resolvePixelError } from './pageSelection.ts';
 import { readThreeBox } from './threeBounds.ts';
 import { sameHizView } from './hiz.ts';
-import { dropGpuSelection, invalidateOccluderHistory } from './webgpuPagesDrops.ts';
+import {
+  dropGpuSelection,
+  invalidateOccluderHistory,
+  invalidateTemporalPyramid,
+} from './webgpuPagesDrops.ts';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
@@ -68,7 +72,11 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
     invalidateOccluderHistory(run);
   }
   if (!sameHizView(run.previousHizView, camera)) {
-    invalidateOccluderHistory(run);
+    // Une caméra qui bouge périme la pyramide temporelle, pas la moitié occulteuse : celle-ci nomme
+    // des pages, elle ne choisit que la passe où un cluster est dessiné, et la pyramide de cette
+    // image-ci reste seule juge de ce qui est retiré. La garder évite de projeter toutes les boîtes
+    // et de les reclasser à chaque image de déplacement.
+    invalidateTemporalPyramid(run);
     // La pose est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
     run.previousHizView = (run.previousHizView ?? new THREE.PerspectiveCamera()).copy(
       camera,
