@@ -13,9 +13,69 @@ pub(super) fn map_texture(map: &ufbx::MaterialMap, textures: &mut TextureTable) 
         .filter(|_| map.texture_enabled)
         .and_then(|t| textures.texture(t))
 }
-pub(super) fn texture_id(map: &ufbx::MaterialMap) -> Option<u32> {
-    map.texture.as_ref().map(|t| t.element.element_id)
+/// De quel fichier une map parle. Comparer les **éléments** ne suffit pas : une bibliothèque de
+/// matériaux fait un élément par ligne, si bien que `norm x.png` et `map_Bump x.png` — le même
+/// fichier, déclaré deux fois — passaient pour deux cartes différentes.
+pub(super) fn texture_file(map: &ufbx::MaterialMap) -> Option<&str> {
+    let texture = map.texture.as_ref()?;
+    [
+        &texture.relative_filename,
+        &texture.filename,
+        &texture.absolute_filename,
+    ]
+    .into_iter()
+    .map(|declared| &**declared)
+    .find(|declared| !declared.is_empty())
 }
+/// Les options d'une map que la sortie ne porte pas : décalage et échelle demanderaient
+/// `KHR_texture_transform`, que l'écrivain glTF ne connaît pas, et rien ne porte la force d'un
+/// relief. Comptées sur toutes les maps du matériau, converties ou non — une option déclarée et
+/// restée sans effet est une perte, que la map ait fini dans la sortie ou non.
+fn map_options(material: &ufbx::Material, report: &mut Report) {
+    for bound in &material.textures {
+        for (option, code) in [
+            ("o", "texture-offset"),
+            ("s", "texture-scale"),
+            ("bm", "texture-bump-scale"),
+        ] {
+            if bound.texture.element.props.find_prop(option).is_some() {
+                report.add(code);
+            }
+        }
+    }
+}
+
+/// Une couleur qui apporte quelque chose : noire, elle ne se perd pas à ne pas être portée.
+fn lit(map: &ufbx::MaterialMap) -> bool {
+    map.has_value && map.value_vec4.x + map.value_vec4.y + map.value_vec4.z > 0.0
+}
+
+/// Ce que le modèle métal-rugosité de glTF ne sait pas porter, compté par son nom plutôt qu'avalé.
+/// Rien n'est deviné au passage : une couleur spéculaire ne devient pas du métal, ce sont deux
+/// modèles, et un relief n'est pas une normale.
+fn unconverted(material: &ufbx::Material, normal: &ufbx::MaterialMap, report: &mut Report) {
+    let (pbr, fbx) = (&material.pbr, &material.fbx);
+    if lit(&pbr.specular_color) || pbr.specular_color.texture.is_some() {
+        report.add("material-specular-color");
+    }
+    // glTF pose l'indice de réfraction à 1,5 par défaut : un autre indice est le seul qui se perde.
+    if pbr.specular_ior.has_value && (pbr.specular_ior.value_vec4.x - 1.5).abs() > 1e-6 {
+        report.add("material-specular-ior");
+    }
+    let ambient = &fbx.ambient_color;
+    let ambient_elsewhere = ambient.texture.is_some()
+        && texture_file(ambient) != texture_file(&pbr.ambient_occlusion)
+        && texture_file(ambient) != texture_file(&pbr.base_color);
+    if lit(ambient) || ambient_elsewhere {
+        report.add("material-ambient-color");
+    }
+    // Relief et normale visent la même fente glTF. La normale l'emporte — c'est la carte que le
+    // modèle attend —, et le relief laissé derrière est compté, jamais un « dernier gagne » muet.
+    if fbx.bump.texture.is_some() && texture_file(&fbx.bump) != texture_file(normal) {
+        report.add("material-bump-map");
+    }
+}
+
 pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTable) -> Value {
     let pbr = &material.pbr;
     let base_factor = map_value(&pbr.base_factor, 1.0);
@@ -60,7 +120,8 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
         pbr_json["baseColorTexture"] = json!({"index":t});
         pbr_json["baseColorFactor"] = json!([1.0, 1.0, 1.0, alpha]);
     }
-    let (rough_texture, metal_texture) = (texture_id(&pbr.roughness), texture_id(&pbr.metalness));
+    let (rough_texture, metal_texture) =
+        (texture_file(&pbr.roughness), texture_file(&pbr.metalness));
     if rough_texture.is_some() && rough_texture == metal_texture {
         if let Some(t) = map_texture(&pbr.roughness, textures) {
             pbr_json["metallicRoughnessTexture"] = json!({"index":t});
@@ -88,11 +149,13 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     // pas, elle se signale plutôt que d'être avalée.
     if let Some(map) = opacity.texture {
         out["alphaMode"] = json!("BLEND");
-        if texture_id(map) != texture_id(&pbr.base_color) {
+        if texture_file(map) != texture_file(&pbr.base_color) {
             textures.report.add("material-separate-opacity-texture");
         }
     } else if alpha < 1.0 {
         out["alphaMode"] = json!("BLEND");
     }
+    unconverted(material, &pbr.normal_map, textures.report);
+    map_options(material, textures.report);
     out
 }

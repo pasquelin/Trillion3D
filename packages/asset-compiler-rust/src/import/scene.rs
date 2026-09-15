@@ -27,6 +27,11 @@ impl<'a> Importer<'a> {
         let canonical_dir = normalise(&source_dir);
         let progress = self.progress;
         let cancelled = self.cancelled;
+        let externals = &self.externals;
+        let opened_before = externals.opened();
+        // Toute ouverture passe par nous : c'est là qu'on apprend quels fichiers la scène entraîne,
+        // et leur empreinte entre dans la clé du cache.
+        let open = move |path: &str, info: &ufbx::OpenFileInfo| externals.open(path, info);
         let label = file_name.clone();
         let callback = move |p: &ufbx::Progress| -> ufbx::ProgressResult {
             if cancelled.load(Ordering::Relaxed) {
@@ -52,6 +57,7 @@ impl<'a> Importer<'a> {
             pivot_handling: ufbx::PivotHandling::Retain,
             index_error_handling: ufbx::IndexErrorHandling::Clamp,
             progress_cb: ufbx::ProgressCb::Ref(&callback),
+            open_file_cb: ufbx::OpenFileCb::Ref(&open),
             progress_interval_hint: PROGRESS_INTERVAL_BYTES,
             obj_search_mtl_by_filename: true,
             obj_unit_meters: 1.0,
@@ -60,7 +66,20 @@ impl<'a> Importer<'a> {
         };
         let scene = ufbx::load_memory(mapped, opts).map_err(|e| import_error(&e))?;
         let parse_ms = crate::shared_math::elapsed_ms(started);
+        // Une bibliothèque de matériaux absente ou coupée porte désormais un code nommé et compté ;
+        // son avertissement libre ferait doublon, et son texte nomme un chemin de la machine. Le
+        // lecteur n'avertit que pour un fichier que la source cite : c'est là notre « déclarée ».
+        let declared = scene
+            .metadata
+            .warnings
+            .iter()
+            .any(|w| w.type_ == ufbx::WarningType::MissingExternalFile);
+        self.externals
+            .report_since(opened_before, declared, &mut self.report);
         for warning in &scene.metadata.warnings {
+            if warning.type_ == ufbx::WarningType::MissingExternalFile {
+                continue;
+            }
             self.report.notes.push(format!(
                 "{file_name}: {} (x{})",
                 &*warning.description, warning.count
@@ -161,30 +180,5 @@ impl<'a> Importer<'a> {
         self.triangles += file_triangles;
         self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"originalUnitMeters":scene.settings.original_unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":crate::shared_math::elapsed_ms(started)}));
         Ok(())
-    }
-    pub(super) fn push_light(&mut self, node: &ufbx::Node, light: &ufbx::Light) {
-        let kind = match light.type_ {
-            ufbx::LightType::Point => "point",
-            ufbx::LightType::Directional => "directional",
-            ufbx::LightType::Spot => "spot",
-            _ => {
-                self.report.add("light-area-or-volume");
-                return;
-            }
-        };
-        let matrix = light_matrix(node, light.local_direction);
-        if !matrix_is_finite(&matrix) {
-            self.report.add("node-invalid-transform");
-            return;
-        }
-        // FBX ne porte pas d'unité photométrique : son intensité est un pourcentage, que le réglage
-        // publié de `compiler_lights` rend en candela ou en lux, comme le glTF.
-        let intensity = light.intensity * crate::compiler_lights::fbx_intensity_scale(kind);
-        let mut json = json!({"name":&*light.element.name,"type":kind,"color":[light.color.x,light.color.y,light.color.z],"intensity":intensity,"extras":{"castsShadow":light.cast_shadows}});
-        if kind == "spot" {
-            json["spot"] = json!({"innerConeAngle":light.inner_angle.to_radians(),"outerConeAngle":light.outer_angle.to_radians().max(0.001)});
-        }
-        self.lights.push(json);
-        self.nodes.push(json!({"name":&*node.element.name,"matrix":matrix,"extensions":{"KHR_lights_punctual":{"light":self.lights.len()-1}}}));
     }
 }

@@ -1,3 +1,7 @@
+//! Les lampes d'une scène lue par ufbx : la matrice d'un nœud, et la lampe ponctuelle glTF qu'il
+//! porte. Le pilote ne place jamais de lampe de lui-même — tout vient des données importées.
+use super::*;
+
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
     vec![
         m.m00, m.m10, m.m20, 0.0, m.m01, m.m11, m.m21, 0.0, m.m02, m.m12, m.m22, 0.0, m.m03, m.m13,
@@ -44,4 +48,32 @@ pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64>
         cx[0], cx[1], cx[2], 0.0, cy[0], cy[1], cy[2], 0.0, cz[0], cz[1], cz[2], 0.0, n.m03, n.m13,
         n.m23, 1.0,
     ]
+}
+
+impl Importer<'_> {
+    pub(super) fn push_light(&mut self, node: &ufbx::Node, light: &ufbx::Light) {
+        let kind = match light.type_ {
+            ufbx::LightType::Point => "point",
+            ufbx::LightType::Directional => "directional",
+            ufbx::LightType::Spot => "spot",
+            _ => {
+                self.report.add("light-area-or-volume");
+                return;
+            }
+        };
+        let matrix = light_matrix(node, light.local_direction);
+        if !matrix_is_finite(&matrix) {
+            self.report.add("node-invalid-transform");
+            return;
+        }
+        // FBX ne porte pas d'unité photométrique : son intensité est un pourcentage, que le réglage
+        // publié de `compiler_lights` rend en candela ou en lux, comme le glTF.
+        let intensity = light.intensity * crate::compiler_lights::fbx_intensity_scale(kind);
+        let mut json = json!({"name":&*light.element.name,"type":kind,"color":[light.color.x,light.color.y,light.color.z],"intensity":intensity,"extras":{"castsShadow":light.cast_shadows}});
+        if kind == "spot" {
+            json["spot"] = json!({"innerConeAngle":light.inner_angle.to_radians(),"outerConeAngle":light.outer_angle.to_radians().max(0.001)});
+        }
+        self.lights.push(json);
+        self.nodes.push(json!({"name":&*node.element.name,"matrix":matrix,"extensions":{"KHR_lights_punctual":{"light":self.lights.len()-1}}}));
+    }
 }
