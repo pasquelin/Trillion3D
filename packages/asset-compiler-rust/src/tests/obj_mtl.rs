@@ -101,3 +101,44 @@ fn une_bibliotheque_tronquee_est_comptee_par_son_nom() {
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }
+
+// Comportement : un nom de fichier qui porte un caractère réservé d'URI ressort échappé, et l'aperçu
+// le relit. Sans échappement, `%re` se décodait en octet invalide et l'image était perdue.
+#[test]
+fn un_nom_de_texture_a_echapper_reste_relisible() {
+    let (root, mut options) = fixture();
+    options.source = obj_source(&root, "newmtl Uni\nKd 1 1 1\nmap_Kd color%red.png\n");
+    let image = image::RgbaImage::from_fn(8, 8, |x, y| image::Rgba([x as u8, y as u8, 7, 255]));
+    let mut png = Vec::new();
+    image
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .expect("png");
+    fs::write(options.source.with_file_name("color%red.png"), &png).expect("texture");
+    let keys = std::sync::Mutex::new(Vec::new());
+    let result = compile(&options, |report| {
+        if report["phase"] == "import-source" {
+            if let Some(key) = report["key"].as_str() {
+                keys.lock().expect("clés").push(key.to_string());
+            }
+        }
+    })
+    .expect("compile obj");
+    let key = keys.into_inner().expect("clés").pop().expect("une clé");
+    let gltf = read_json(
+        &options
+            .cache
+            .join("native")
+            .join("imports")
+            .join(&key)
+            .join("model.gltf"),
+    );
+    assert_eq!(gltf["images"][0]["uri"], "color%25red.png");
+    assert_eq!(result["texturePreviews"]["previews"], json!(1));
+    assert_eq!(
+        result["texturePreviews"]["skipped"],
+        json!({}),
+        "{}",
+        result["texturePreviews"]
+    );
+    fs::remove_dir_all(root).expect("nettoyage");
+}
