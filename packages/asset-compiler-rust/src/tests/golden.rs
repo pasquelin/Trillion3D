@@ -3,7 +3,10 @@
 //! le sidecar binaire. Chaque famille de dorées y ajoute son propre condensé, jamais son propre
 //! harnais : deux façons de compiler une fixture, ce sont deux vérités.
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{sync::atomic::AtomicU64, time::SystemTime, time::UNIX_EPOCH};
+
+/// Rang de racine jetable : l'horloge macOS s'arrête à la microseconde, deux dorées parallèles non.
+static NEXT: AtomicU64 = AtomicU64::new(0);
 
 /// Une fixture dorée compilée. Le cache jetable s'efface avec la structure, y compris quand
 /// l'assertion qui suit échoue et emporte le test.
@@ -76,8 +79,9 @@ pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
 /// Les options communes, et la racine jetable qui les porte.
 fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
     let root = std::env::temp_dir().join(format!(
-        "wg-golden-{name}-{}-{}",
+        "wg-golden-{name}-{}-{}-{}",
         std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock")
