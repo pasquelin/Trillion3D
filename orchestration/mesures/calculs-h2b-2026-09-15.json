@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "lot": "H2b",
+  "chargeMachine": 29.19580078125,
+  "tempsConcluants": false,
+  "date": "2026-09-15T08:42:04.643Z",
+  "commit": "41f7c4784639e476abf07c4a1ce1701ab076aea1",
+  "node": "v26.8.2",
+  "plateforme": "darwin/arm64",
+  "dpr": null,
+  "fps": null,
+  "lignes": [
+    {
+      "calcul": "H2b1 décodage de page, wasm contre JS",
+      "fichier": "packages/sdk-browser/geometryPageWasm.ts",
+      "avantMs": 11.7773955,
+      "apresMs": 8.2793755,
+      "gain": 0.29701133837273275,
+      "identique": true,
+      "retenu": true,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "page pleine : 65 535 sommets, tous les attributs",
+          "taille": 65535
+        },
+        {
+          "nom": "2 048 sommets, tous les attributs",
+          "taille": 2048
+        },
+        {
+          "nom": "2 048 sommets, positions seules",
+          "taille": 2048
+        },
+        {
+          "nom": "96 sommets",
+          "taille": 96
+        },
+        {
+          "nom": "seize pages moyennes à la suite",
+          "taille": 16
+        }
+      ]
+    },
+    {
+      "calcul": "H2b2 refus de page, wasm contre JS",
+      "fichier": "packages/sdk-browser/geometryPageWasm.ts",
+      "avantMs": 0.034062,
+      "apresMs": 0.0480835,
+      "gain": -0.4116464094885796,
+      "identique": true,
+      "retenu": false,
+      "difference": null,
+      "tours": 200,
+      "entrees": [
+        {
+          "nom": "indice hors borne",
+          "taille": 3
+        },
+        {
+          "nom": "flottant NaN",
+          "taille": 3
+        },
+        {
+          "nom": "flottant infini",
+          "taille": 3
+        },
+        {
+          "nom": "page tronquée",
+          "taille": 125527
+        },
+        {
+          "nom": "en-tête trop court",
+          "taille": 16
+        },
+        {
+          "nom": "magie fausse",
+          "taille": 125528
+        }
+      ]
+    }
+  ]
+}
