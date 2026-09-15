@@ -24,7 +24,7 @@ export const faceCountOf = (light: Pick<SceneLight, 'kind'>) =>
 /** Demi-angle du cône élargi d'un demi-degré, pour que le bord du cône reste couvert par la carte. */
 const spotFov = (coneAngle: number) => Math.min(Math.PI * 0.98, 2 * coneAngle + 0.0175);
 
-/** Flottants du volume d'une face : centre et portée de la lampe, axe de la face et demi-angle. */
+/** Flottants du volume d'une face : centre et plan lointain, axe de la face et demi-angle. */
 export const SHADOW_CULL_FLOATS = 8;
 /**
  * Le volume qu'une face peut voir, sous forme de cône : la lampe pour sommet, l'axe de la face pour
@@ -43,7 +43,9 @@ export function writeFaceCull(out: Float32Array, base: number, light: SceneLight
   out[base] = light.position[0];
   out[base + 1] = light.position[1];
   out[base + 2] = light.position[2];
-  out[base + 3] = light.range;
+  // Le plan lointain de la face, pas la portée : les deux ne coïncident que si la portée dépasse le
+  // plan proche, et un cluster entre les deux doit rester dessiné.
+  out[base + 3] = shadowPlanes(light.range).far;
   out[base + 4] = forward[0] / length;
   out[base + 5] = forward[1] / length;
   out[base + 6] = forward[2] / length;
@@ -51,13 +53,19 @@ export function writeFaceCull(out: Float32Array, base: number, light: SceneLight
   out[base + 7] = half >= Math.PI / 2 ? Math.PI : Math.atan(Math.SQRT2 * Math.tan(half));
 }
 
+/** Plans proche et lointain d'une tranche, dérivés de la seule portée : une seule source pour la
+ *  projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au bord. */
+function shadowPlanes(range: number) {
+  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction);
+  return { near, far: Math.max(near * 1.001, range) };
+}
+
 /**
  * Projection perspective pour l'espace de découpe WebGPU, profondeur normalisée dans `[0, 1]`,
  * colonne-major. `near` est dérivé de la portée : une seule constante, jamais un réglage caché.
  */
 function shadowProjection(out: Float32Array, base: number, fov: number, range: number) {
-  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
-    far = Math.max(near * 1.001, range),
+  const { near, far } = shadowPlanes(range),
     f = 1 / Math.tan(fov / 2),
     depth = far / (near - far);
   out.fill(0, base, base + 16);

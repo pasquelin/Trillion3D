@@ -8,7 +8,7 @@
  * exactement les mêmes clusters qu'avant, jamais un de plus.
  */
 export const SHADOW_CULL_SHADER = `struct Sphere{center:vec3f,radius:f32,}
-struct Face{center:vec3f,range:f32,axis:vec3f,halfAngle:f32,}
+struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,}
 struct Uni{faces:u32,slots:u32,maxVertexCount:u32,capacity:u32,}
 @group(0) @binding(0) var<storage, read> spheres:array<Sphere>;
 @group(0) @binding(1) var<storage, read> source:array<u32>;
@@ -44,7 +44,7 @@ fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  let volume=faces[face];
  let delta=sphere.center-volume.center;
  let distance=length(delta);
- if(distance-sphere.radius>volume.range){return;}
+ if(distance-sphere.radius>volume.far){return;}
  if(volume.halfAngle<3.14159&&distance>sphere.radius){
   let axis=clamp(dot(delta,volume.axis)/distance,-1.0,1.0);
   if(acos(axis)-asin(clamp(sphere.radius/distance,0.0,1.0))>volume.halfAngle){return;}
