@@ -35,6 +35,9 @@ function recordStages(rt: WebgpuPagesRuntime) {
       cpu: bounce.reason ?? 'rebond absent',
       gpu: bounce.reason ?? 'rebond absent',
     });
+  stages.setCounts('partition', timing.partitionCounts);
+  timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
+  stages.setCounts('encode', timing.encodeCounts);
 }
 
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */

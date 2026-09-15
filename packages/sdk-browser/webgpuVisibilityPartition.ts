@@ -24,7 +24,12 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   };
   // Only the rectangles the view or the row table moved under are reprojected; the rest stand.
   hizProjection.reframe(camera, viewportScratch[0], viewportScratch[1], rows.tableEpoch);
+  // La projection se chronomètre elle-même, dans les deux branches : la moitié testée seule, ou
+  // toutes les boîtes quand l'historique ne partage rien. Sans cela le second cas se déposait sur la
+  // partition, et une caméra mobile — qui n'emprunte que lui — n'aurait montré aucune projection.
+  let projectMs = 0;
   const project = (only: Uint8Array | undefined) => {
+    const start = performance.now();
     if (hizProjection.select(rows.packedCount, only, rows.packedPageIndex))
       projectBoxesFlat(
         rows.packedRecs,
@@ -36,8 +41,11 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
         worldBoxes,
       );
     hizProjection.keep(rows.packedCount, rows.packedPageIndex);
+    projectMs += performance.now() - start;
   };
   const partitionStart = performance.now();
+  const noHistory = run.noOccluderHistory;
+  let historyOccluders = 0;
   hizRest.fill(0, 0, rows.packedCount);
   if (hasHiz && rows.packedCount >= 2) {
     if (!run.noOccluderHistory)
@@ -46,6 +54,7 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
         hizRest[i] = rest;
         if (!rest) occluders++;
       }
+    historyOccluders = occluders;
     // Without history, or when history keeps or rejects every page, split on projected bounds.
     if (run.noOccluderHistory || !occluders || occluders === rows.packedCount) {
       project(undefined);
@@ -58,10 +67,18 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
     hizRest.fill(0, 0, rows.packedCount);
     occluders = rows.packedCount;
   }
-  timing.lastPartitionMs = performance.now() - partitionStart;
+  const partitionMs = performance.now() - partitionStart;
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
-  const projectStart = performance.now();
   if (twoPass && !boundsForAll) project(hizRest);
-  timing.lastProjectMs = performance.now() - projectStart;
+  timing.lastProjectMs = projectMs;
+  timing.lastPartitionMs = partitionMs - projectMs;
+  const counts = timing.partitionCounts;
+  counts.lignes = rows.packedCount;
+  counts.occulteurs = occluders;
+  counts.testees = twoPass ? rows.packedCount - occluders : 0;
+  // 1 quand l'historique n'a rien partagé et que toutes les boîtes ont dû être projetées.
+  counts.bornesToutes = boundsForAll ? 1 : 0;
+  counts.historiqueOcculteurs = historyOccluders;
+  counts.sansHistorique = noHistory ? 1 : 0;
   return { occluders, twoPass };
 }
