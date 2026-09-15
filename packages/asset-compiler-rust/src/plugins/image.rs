@@ -14,6 +14,7 @@ mod hdr;
 mod jpeg;
 mod ktx2;
 mod png;
+mod psd;
 mod tga;
 mod tiff;
 mod webp;
@@ -34,6 +35,7 @@ pub static DECODERS: &[&dyn ImageDecoder] = &[
     &exr::EXR,
     &hdr::HDR,
     &ktx2::KTX2,
+    &psd::PSD,
 ];
 
 /// Ce qu'un pilote rend. Deux sorties, et aucun pont de l'une vers l'autre : ramener un flottant à
