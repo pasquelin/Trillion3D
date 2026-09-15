@@ -4,7 +4,7 @@
 import { join } from 'node:path';
 import { RACINE, verifieEtDepose } from './banc.mjs';
 
-export const FRAGMENTS_G = join(RACINE, '.mesure', 'calculs-g');
+const FRAGMENTS_G = join(RACINE, '.mesure', 'calculs-g');
 
 /** Vérifie l'égalité bit à bit du domaine, puis dépose ses lignes dans le dossier du lot G. */
 export function verifieEtDeposeG(domaine, intitule, lignes) {
