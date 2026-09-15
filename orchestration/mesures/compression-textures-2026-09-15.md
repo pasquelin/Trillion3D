@@ -6,7 +6,7 @@ rustc 1.98.1 (48a229cea 2026-09-01) · Node v26.8.2 · crates par cargo seulemen
 **Basis Universal 2.50** avec son encodeur, `texture2ddecoder` 0.1.2.
 
 **Machine chargée par d'autres agents pendant les mesures** : load 1 min de 11 à 132 sur les passes
-A et B, de 14 à 84 sur les passes C, D et E. Les octets n'en dépendent pas ; **les temps CPU si**,
+A et B, de 14 à 114 sur les passes C et D. Les octets n'en dépendent pas ; **les temps CPU si**,
 et ils sont donnés tels que mesurés, jamais normalisés. FPS, DPR et résolution : sans objet, ce sont
 des calculs CPU hors moteur. Détail par image et par genre dans le `.json` du même nom.
 
@@ -79,6 +79,15 @@ Par genre, l'écart se concentre sur les **données** : BC7 lent laisse 1,02 % d
 **9,82 %** des texels de données au-dessus du seuil. C'est attendu — normales et rugosité ne
 supportent pas une décorrélation pensée pour la couleur — et c'est rédhibitoire : le dépôt ne
 sépare pas les règles selon le genre de texture.
+
+## Non mesuré
+
+Le **plafond de qualité de Basis Universal** (qualité 100, effort 10) sur UASTC, ASTC, XUASTC et
+XUBC7 : **`null`**. La passe a été lancée sur sept images puis interrompue après 6 min 46 s de
+temps mur et 37 min de CPU sans résultat, la machine étant saturée par d'autres travaux. Ce
+plafond n'aurait rien changé au verdict : le plafond de BC7 est, lui, mesuré (`alpha_slow` /
+`opaque_slow` d'ISPC, ligne « BC7 ISPC lent » ci-dessus) et laisse encore 6,74 % des texels
+au-dessus du seuil, soit 19 500 fois celui-ci.
 
 ## Transport, mesuré dans le Chrome du banc
 

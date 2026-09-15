@@ -7,7 +7,7 @@
   "os": "darwin 25.6.0",
   "rustc": "1.98.1 (48a229cea 2026-09-01)",
   "node": "v26.8.2",
-  "charge": "machine chargée par d'autres agents : load 1 min de 11 a 132 pendant les passes A et B, de 14 a 65 pendant C, D et E"
+  "charge": "machine chargee par d'autres agents : load 1 min de 11 a 132 pendant les passes A et B, de 14 a 114 pendant C et D"
  },
  "crates": {
   "image": "0.25.10 (png, jpeg)",
@@ -50,6 +50,10 @@
   }
  },
  "passes": {
+  "E_basisPlafond": {
+   "statut": "non mesure",
+   "raison": "plafond de qualite Basis (qualite 100, effort 10) lance sur sept images puis interrompu apres 6 min 46 s de temps mur et 37 min de CPU, machine saturee ; sans effet sur le verdict, le plafond de BC7 est mesure en passe D"
+  },
   "A_sansPerteEtBc7": {
    "corpus": {
     "images": 336,
@@ -1313,9 +1317,6 @@
      "octets": 26687605
     }
    }
-  },
-  "E_basisPlafond": {
-   "statut": "non mesuree"
   }
  }
 }
