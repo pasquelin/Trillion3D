@@ -24,10 +24,10 @@ fn encoded(format: ImageFormat) -> Vec<u8> {
 // nommée, jamais en panique ni en échec — une texture illisible n'interrompt pas une compilation.
 #[test]
 fn a_format_outside_the_registry_is_named_in_the_report() {
-    assert!(registry::by_extension(Path::new("albedo.tga")).is_none());
+    assert!(registry::by_extension(Path::new("albedo.dds")).is_none());
     assert!(registry::by_extension(Path::new("albedo")).is_none());
     assert_eq!(
-        registry::decode(b"\x00\x00\x02\x00\x00\x00\x00\x00", MAX_ALLOC).err(),
+        registry::decode(b"DDS \x7c\x00\x00\x00", MAX_ALLOC).err(),
         Some("image-format-unknown")
     );
     // Des octets reconnus mais tronqués sont une autre raison : le pilote a bien été choisi.
@@ -64,7 +64,7 @@ fn png_and_jpeg_are_each_decoded_by_their_own_plugin() {
     // L'ordre du registre est celui dans lequel on cherche un fichier voisin décodable.
     assert_eq!(
         registry::extensions().collect::<Vec<_>>(),
-        ["png", "jpg", "jpeg"]
+        ["png", "jpg", "jpeg", "tga", "tpic"]
     );
 }
 
@@ -80,9 +80,10 @@ fn the_registry_fingerprint_names_every_plugin_and_both_contracts() {
         "obj=",
         "png=",
         "jpeg=",
+        "tga=",
     ] {
         assert!(print.contains(expected), "{print}");
     }
     assert_eq!(descriptor()["scene"].as_array().map(Vec::len), Some(3));
-    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(2));
+    assert_eq!(descriptor()["image"].as_array().map(Vec::len), Some(3));
 }
