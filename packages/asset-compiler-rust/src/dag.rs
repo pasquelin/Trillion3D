@@ -148,11 +148,11 @@ impl Default for CullingNode {
     }
 }
 
-mod bounds;
+pub(crate) mod bounds;
 mod build;
-mod clusters;
+pub(crate) mod clusters;
 mod culling;
-mod groups;
+pub(crate) mod groups;
 #[cfg(test)]
 mod tests;
 
