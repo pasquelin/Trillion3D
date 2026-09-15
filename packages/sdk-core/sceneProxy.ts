@@ -1,4 +1,6 @@
 import {
+  PROXY_CHILDREN,
+  PROXY_CHILD_WORDS,
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
   PROXY_TRIANGLE_FLOATS,
@@ -8,7 +10,7 @@ import {
   type SceneProxy,
   type SceneProxyColumns,
   type SceneProxyDescriptor,
-} from './bounceContracts.ts';
+} from './proxyContracts.ts';
 import { EngineError } from './contracts.ts';
 
 const bad = (message: string, details: Record<string, unknown>) =>
@@ -46,28 +48,35 @@ export function assertSceneProxy(value: unknown): asserts value is SceneProxyDes
     });
 }
 
-/** Chaque nœud : un saut qui avance, un intervalle de triangles dans le tableau, rien qui déborde. */
-function checkLinks(descriptor: SceneProxyDescriptor, columns: SceneProxyColumns) {
-  const { nodeLinks } = columns;
-  for (let node = 0; node < descriptor.nodes; node++) {
-    const base = node * PROXY_NODE_WORDS,
-      escape = nodeLinks[base],
-      first = nodeLinks[base + 1],
-      count = nodeLinks[base + 2];
-    if (escape <= node || escape > descriptor.nodes)
-      throw bad('A scene proxy node does not skip forward', { node, escape });
-    if (count > 0 && first + count > descriptor.triangles)
-      throw bad('A scene proxy leaf names triangles it does not have', { node, first, count });
-  }
+/**
+ * Chaque enfant présent nomme soit un nœud plus loin dans le tableau, soit un intervalle de
+ * triangles qui existe. Un enfant absent n'est pas lu : son bit de présence est à zéro.
+ */
+function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColumns) {
+  const { nodeChildren } = columns;
+  for (let node = 0; node < descriptor.nodes; node++)
+    for (let slot = 0; slot < PROXY_CHILDREN; slot++) {
+      const base = node * PROXY_NODE_WORDS + slot * PROXY_CHILD_WORDS;
+      const words = nodeChildren[base + 1],
+        offset = nodeChildren[base + 2];
+      if (words >>> 24 === 0) continue;
+      const count = (words >>> 16) & 255;
+      if (count === 0 && offset <= node)
+        throw bad('A scene proxy child does not point forward', { node, slot, offset });
+      if (count === 0 && offset >= descriptor.nodes)
+        throw bad('A scene proxy child names a node it does not have', { node, slot, offset });
+      if (count > 0 && offset + count > descriptor.triangles)
+        throw bad('A scene proxy leaf names triangles it does not have', { node, offset, count });
+    }
 }
 
 /**
  * Le proxy relu et revérifié avant qu'un seul rayon ne le touche.
  *
  * Disposition, en petit-boutiste : `u32 'WGPX' · u32 version · u32 triangles · u32 nœuds`, puis les
- * sommets monde, les albédos, les bornes des nœuds et leurs liens, bout à bout. Chaque section a
- * une longueur que l'en-tête impose ; un fichier d'une autre taille est refusé en bloc, parce qu'un
- * nœud qui nommerait un triangle absent ferait lire n'importe quoi au nuanceur de sondes.
+ * sommets monde, les albédos, les bornes exactes des nœuds et leurs quatre enfants, bout à bout.
+ * Chaque section a une longueur que l'en-tête impose ; un fichier d'une autre taille est refusé en
+ * bloc, parce qu'un nœud qui nommerait un triangle absent ferait lire n'importe quoi au nuanceur.
  */
 export function decodeSceneProxy(
   descriptor: SceneProxyDescriptor,
@@ -110,8 +119,8 @@ export function decodeSceneProxy(
     ),
     albedo: take((b, o, n) => new Uint32Array(b, o, n), descriptor.triangles),
     nodeBounds: take((b, o, n) => new Float32Array(b, o, n), descriptor.nodes * PROXY_NODE_FLOATS),
-    nodeLinks: take((b, o, n) => new Uint32Array(b, o, n), descriptor.nodes * PROXY_NODE_WORDS),
+    nodeChildren: take((b, o, n) => new Uint32Array(b, o, n), descriptor.nodes * PROXY_NODE_WORDS),
   };
-  checkLinks(descriptor, data);
+  checkChildren(descriptor, data);
   return { ...descriptor, data };
 }

@@ -119,7 +119,8 @@ pub fn load(path: &Path) -> Result<World> {
     if world.albedo.is_empty() {
         return Err(bad("the source carries no triangle the oracle can trace"));
     }
-    let (node_bounds, node_links) = bvh::build(&mut world.triangles, &mut world.albedo);
+    let (node_bounds, node_links) =
+        bvh::flatten(&bvh::build(&mut world.triangles, &mut world.albedo));
     world.node_bounds = node_bounds;
     world.node_links = node_links;
     Ok(world)

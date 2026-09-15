@@ -47,32 +47,33 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     'WG bounce proxy node bounds v1',
     data?.nodeBounds ?? empty,
   );
-  const nodeLinks = residentBuffer(
+  const nodeChildren = residentBuffer(
     device,
-    'WG bounce proxy node links v1',
-    data?.nodeLinks ?? new Uint32Array(0),
+    'WG bounce proxy node children v2',
+    data?.nodeChildren ?? new Uint32Array(0),
   );
   const bytes =
     (data?.triangles.byteLength ?? 0) +
     (data?.albedo.byteLength ?? 0) +
     (data?.nodeBounds.byteLength ?? 0) +
-    (data?.nodeLinks.byteLength ?? 0);
+    (data?.nodeChildren.byteLength ?? 0);
   return {
     triangles,
     albedo,
     nodeBounds,
-    nodeLinks,
+    nodeChildren,
     /** Ce que le proxy occupe réellement en mémoire graphique, publié dans le diagnostic. */
     bytes,
     triangleCount: proxy.triangles,
     nodeCount: proxy.nodes,
     bounds: proxy.bounds,
     errorMetres: proxy.errorMetres,
+    cellMetres: proxy.cellMetres,
     dispose() {
       triangles.destroy();
       albedo.destroy();
       nodeBounds.destroy();
-      nodeLinks.destroy();
+      nodeChildren.destroy();
     },
   };
 }
