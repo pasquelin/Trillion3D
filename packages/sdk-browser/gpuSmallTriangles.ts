@@ -14,14 +14,13 @@ export function createGpuSmallTriangles(
   height: number,
   capacity: number,
 ) {
-  const target = device.createBuffer({
-    label: 'WG small triangle target',
-    size: Math.max(8, width * height * 8),
-    usage: GPUBufferUsage.STORAGE,
-  });
-  const small = device.createBuffer({
-    label: 'WG small triangle list',
-    size: Math.max(4, (LIST_HEADER + capacity) * 4),
+  // Un seul tampon de stockage pour l'image et pour la liste : l'étage de calcul n'a droit qu'à huit
+  // tampons sur l'appareil le plus pauvre que WebGPU garantit, et le raster les emploie tous.
+  const targetBytes = Math.max(8, width * height * 8),
+    listOffset = targetBytes;
+  const work = device.createBuffer({
+    label: 'WG small triangle target and list',
+    size: listOffset + Math.max(4, (LIST_HEADER + capacity) * 4),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   // The dispatch words are copied out of the list instead of being written through a binding, so no
@@ -43,8 +42,7 @@ export function createGpuSmallTriangles(
       { binding: b.uvs, visibility: compute, buffer: readOnly },
       ...b.maps.map((binding) => atlasLayoutEntry(binding, compute)),
       { binding: b.sampler, visibility: compute, sampler: {} },
-      { binding: b.frame, visibility: compute, buffer: { type: 'storage' } },
-      { binding: b.small, visibility: compute, buffer: { type: 'storage' } },
+      { binding: b.work, visibility: compute, buffer: { type: 'storage' } },
       { binding: b.selectionMask, visibility: compute, buffer: readOnly },
       { binding: b.colorSlots, visibility: compute, buffer: readOnly },
     ],
@@ -55,7 +53,7 @@ export function createGpuSmallTriangles(
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
   });
-  const computeModule = device.createShaderModule({ code: rasterSource(capacity) });
+  const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) });
   const computePipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [computeLayout] });
   const pipelineFor = (entryPoint: string) =>
     device.createComputePipeline({
@@ -126,13 +124,12 @@ export function createGpuSmallTriangles(
           uvs: input.uvs,
           colorAtlas: input.colorAtlas,
           sampler: input.sampler,
-          frame: target,
-          small,
+          work,
           selectionMask: input.selection?.maskBuffer ?? input.hizFlags,
           slots: input.slots,
         }),
       })) as GPUBindGroup;
-      encoder.clearBuffer(small, 0, 8);
+      encoder.clearBuffer(work, listOffset, 8);
       const rows = Math.max(1, input.pageRows),
         spanY = Math.min(rows, DISPATCH_SPAN),
         spanZ = Math.ceil(rows / DISPATCH_SPAN);
@@ -145,7 +142,7 @@ export function createGpuSmallTriangles(
       binning.setPipeline(plan);
       binning.dispatchWorkgroups(1);
       binning.end();
-      encoder.copyBufferToBuffer(small, 8, indirect, 0, 24);
+      encoder.copyBufferToBuffer(work, listOffset + 8, indirect, 0, 24);
       // One pass for every raster dispatch: consecutive dispatches already see each other's writes, so
       // both classes have settled the depth winners before either chooses an identifier, and no count
       // reaches the CPU. An identifier chosen before the other class had written its depth would name a
@@ -164,7 +161,7 @@ export function createGpuSmallTriangles(
       resolveGroup ??= device.createBindGroup({
         layout: resolveLayout,
         entries: [
-          { binding: 0, resource: { buffer: target } },
+          { binding: 0, resource: { buffer: work, offset: 0, size: targetBytes } },
           { binding: 1, resource: { buffer: input.uniform, offset: 0, size: 96 } },
         ],
       });
@@ -189,8 +186,7 @@ export function createGpuSmallTriangles(
       output.end();
     },
     dispose() {
-      target.destroy();
-      small.destroy();
+      work.destroy();
       indirect.destroy();
     },
   };

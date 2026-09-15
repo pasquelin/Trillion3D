@@ -61,8 +61,8 @@ export type SmallBindResources = AtlasResources & {
   uniform: GPUBuffer;
   uniformSize: number;
   uvs: GPUBuffer;
-  frame: GPUBuffer;
-  small: GPUBuffer;
+  /** L'image du raster puis, juste après elle, la liste des petits triangles. */
+  work: GPUBuffer;
   selectionMask: GPUBuffer;
 };
 
@@ -142,8 +142,7 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     { binding: b.uvs, resource: { buffer: r.uvs } },
     ...atlasEntries(b.maps, r.colorAtlas),
     { binding: b.sampler, resource: r.sampler },
-    { binding: b.frame, resource: { buffer: r.frame } },
-    { binding: b.small, resource: { buffer: r.small } },
+    { binding: b.work, resource: { buffer: r.work } },
     { binding: b.selectionMask, resource: { buffer: r.selectionMask } },
     { binding: b.colorSlots, resource: { buffer: r.slots.color } },
   ];
