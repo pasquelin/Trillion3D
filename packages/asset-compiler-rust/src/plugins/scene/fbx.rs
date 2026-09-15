@@ -6,7 +6,7 @@ use super::ufbx_driver::UfbxDriver;
 /// seule le désigne, ce que le routeur essaie en premier.
 pub(super) static FBX: UfbxDriver = UfbxDriver {
     name: "fbx",
-    version: "fbx-ufbx-0.11.3-gltf-3",
+    version: "fbx-ufbx-0.11.3-gltf-4",
     extensions: &["fbx"],
     magic: b"Kaydara FBX Binary",
 };

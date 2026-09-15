@@ -2,8 +2,9 @@ import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
 import { LIGHT_TILES_SHADER } from './gpuLightTilesShader.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Mots par tuile : le nombre retenu, le nombre demandé, deux mots de réserve, puis les rangs. */
-const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLightsPerTile + 4;
+/** Mots par tuile : retenues et demandées de la liste opaque, puis celles de la liste du mélange,
+ *  puis les deux listes de rangs — elles couvrent deux tranches de profondeur de la même tuile. */
+const TILE_STRIDE_WORDS = LIGHT_SETTINGS.maxLightsPerTile * 2 + 4;
 /** Étiquette de la passe mesurée ; `gpuLightListsMs` est lu sous ce nom, pas par son rang. */
 export const LIGHT_TILES_PASS = 'WG light tiles v1';
 /** Tuiles sur un axe : la liste couvre toujours la cible entière, jamais une tuile de moins. */

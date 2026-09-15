@@ -32,8 +32,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     }
     let key = hash(key_material.as_bytes());
     let directory = cache.join("native").join("imports").join(&key);
-    let manifest_path = directory.join("manifest.json");
-    if let Ok(bytes) = fs::read(&manifest_path) {
+    if let Ok(bytes) = fs::read(directory.join("manifest.json")) {
         if let Ok(existing) = serde_json::from_slice::<Value>(&bytes) {
             if existing["status"] == "ready"
                 && existing["source"]["plugin"] == crate::plugins::provenance(plugin)
@@ -80,54 +79,36 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
             "No visible mesh instance in the source",
         ));
     }
-    let Importer {
-        nodes,
-        meshes,
-        materials,
-        accessors,
-        images,
-        samplers,
-        textures,
-        lights,
-        bin,
-        report,
-        triangles,
-        mesh_nodes,
-        files,
-        ..
-    } = importer;
-    let bin_len = bin.bytes.len();
-    let (mesh_count, material_count, image_count, light_count) =
-        (meshes.len(), materials.len(), images.len(), lights.len());
-    let mut gltf = json!({"asset":{"version":"2.0","generator":format!("web-geometry-compiler {} ({})",crate::COMPILER_VERSION,plugin.version())},"scene":0,"scenes":[{"nodes":(0..nodes.len()).collect::<Vec<_>>()}],"nodes":nodes,"meshes":meshes,"materials":materials,"accessors":accessors,"bufferViews":bin.views,"buffers":[{"uri":"model.bin","byteLength":bin_len}]});
-    if !images.is_empty() {
-        gltf["images"] = json!(images);
-        gltf["samplers"] = json!(samplers);
-        gltf["textures"] = json!(textures);
-    }
+    let tables = Tables {
+        nodes: &importer.nodes,
+        meshes: &importer.meshes,
+        materials: &importer.materials,
+        accessors: &importer.accessors,
+        images: &importer.images,
+        samplers: &importer.samplers,
+        textures: &importer.textures,
+        bin: &importer.bin,
+    };
+    let roots: Vec<usize> = (0..importer.nodes.len()).collect();
+    let mut gltf = tables.document(plugin, &roots);
+    let lights = &importer.lights;
     if !lights.is_empty() {
         gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":lights}});
         gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
     }
     let gltf_bytes = serde_json::to_vec(&gltf)?;
-    fs::create_dir_all(&directory)?;
     progress(
-        json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":bin_len+gltf_bytes.len()}),
+        json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":importer.bin.bytes.len()+gltf_bytes.len()}),
     );
-    atomic(&directory.join("model.bin"), &bin.bytes)?;
-    atomic(&directory.join("model.gltf"), &gltf_bytes)?;
-    let mut manifest = runtime_manifest(
-        "model.gltf",
-        &hash(&gltf_bytes),
-        &[("model.bin".to_string(), hash(&bin.bytes))],
-        mesh_nodes,
-        triangles,
-    );
-    manifest["runtime"]["bytes"] = json!(gltf_bytes.len());
-    manifest["source"] = json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":files,"key":key,"meshes":mesh_count,"materials":material_count,"images":image_count,"lights":light_count,"importMs":crate::shared_math::elapsed_ms(started)});
-    manifest["unsupported"] = json!(report.unsupported);
-    manifest["notes"] = json!(report.notes);
-    atomic(&manifest_path, &serde_json::to_vec_pretty(&manifest)?)?;
+    let (triangles, mesh_nodes) = (importer.triangles, importer.mesh_nodes);
+    write_scene(
+        &directory,
+        &gltf_bytes,
+        &importer.bin,
+        (mesh_nodes, triangles),
+        &importer.report,
+        || json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":importer.files,"key":key,"meshes":importer.meshes.len(),"materials":importer.materials.len(),"images":importer.images.len(),"lights":lights.len(),"importMs":crate::shared_math::elapsed_ms(started)}),
+    )?;
     progress(
         json!({"phase":"import-source","step":"complete","key":key,"triangles":triangles,"meshNodes":mesh_nodes,"ms":crate::shared_math::elapsed_ms(started)}),
     );

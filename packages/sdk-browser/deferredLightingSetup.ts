@@ -1,5 +1,14 @@
 import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
+import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
+import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
+
+/**
+ * Le remplaçant du proxy résident : un entête de zéros et quatre mots derrière lui. La présence y
+ * vaut zéro, le nombre de nœuds aussi, donc aucun rayon d'ombre lointaine n'est tiré et la surface
+ * lointaine reste éclairée exactement comme avant que ce rayon existe.
+ */
+const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
 
 /**
  * Les liaisons de la passe différée. La vue sans éclairage s'arrête aux surfaces et à l'uniforme ;
@@ -23,6 +32,14 @@ export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
+      // Le proxy résident de l'ombre lointaine du soleil : une seule liaison, qui porte à la fois
+      // les colonnes qu'un rayon traverse, les réglages de ce rayon et les deux compteurs de
+      // l'image relevée. C'est ce qui permet à la passe de mélange de la lier aussi.
+      {
+        binding: SUN_FAR_PROXY_BINDING,
+        visibility: GPUShaderStage.FRAGMENT,
+        buffer: { type: 'storage' },
+      },
     );
   // La grille de sondes et leurs coefficients : liées seulement par le programme du rebond, si
   // bien qu'une session sans rebond garde exactement la disposition d'avant.
@@ -91,6 +108,14 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: PROBE_FLOATS * 4,
     usage: GPUBufferUsage.STORAGE,
   });
+  // Le proxy absent : un entête de zéros, que le nuanceur lit comme un arbre sans nœud et comme une
+  // ombre lointaine absente. Les deux passes qui éclairent lient le même, si bien qu'une session
+  // sans proxy rend exactement la même image sur l'opaque et sur le mélange.
+  const proxy = device.createBuffer({
+    label: 'WG empty resident proxy',
+    size: PLACEHOLDER_PROXY_BYTES,
+    usage: GPUBufferUsage.STORAGE,
+  });
   return {
     tiles,
     slices,
@@ -98,12 +123,14 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     sampler,
     bounceGrid,
     probes,
+    proxy,
     dispose() {
       tiles.destroy();
       slices.destroy();
       atlas.destroy();
       bounceGrid.destroy();
       probes.destroy();
+      proxy.destroy();
     },
   };
 }

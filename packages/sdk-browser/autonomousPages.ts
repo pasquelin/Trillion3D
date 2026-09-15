@@ -11,7 +11,7 @@ import { createAutonomousGeometry } from './autonomousGeometry.ts';
 import { createAutonomousInstances } from './autonomousInstances.ts';
 import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousManifest.ts';
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
-import { installSceneLighting } from './sceneLighting.ts';
+import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import type { BackendFactory } from './backendTypes.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
@@ -151,9 +151,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       sync();
     },
     ...instances,
-    refreshSceneLighting() {
-      lighting.refresh();
-    },
+    ...sceneLightingApi(lighting),
     ...residency,
     acceptGeometryPage,
     replaceGeometryPage(url, data) {

@@ -17,6 +17,7 @@ import {
   visibilityIds,
 } from './webgpuPagesHostApi.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { endCpuFrame, hostCpuStep } from './webgpuPagesCpuSteps.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
 export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
@@ -105,6 +106,12 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     resetStageProfile() {
       rt.timing.stages?.reset();
+    },
+    cpuStep(step, ms) {
+      hostCpuStep(rt, step, ms);
+    },
+    cpuFrameEnd() {
+      endCpuFrame(rt);
     },
     stageProfile() {
       return (

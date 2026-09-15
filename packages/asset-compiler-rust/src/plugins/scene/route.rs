@@ -38,6 +38,9 @@ pub fn prepare_source(o: &Options, progress: &(dyn Fn(Value) + Sync)) -> Result<
 /// Interroge le registre. Un fichier est routé sur lui seul ; un dossier l'est sur tous les fichiers
 /// qu'un même pilote revendique. Deux pilotes servis par le même dossier, c'est une ambiguïté : le
 /// compilateur refuse plutôt que de deviner lequel porte la scène.
+///
+/// Un pilote **de projet** passe avant : il revendique le dossier entier, et les fichiers trouvés
+/// dessous sont ses entrées, pas des sources concurrentes.
 pub fn route(source: &Path) -> Result<Routed> {
     if source.is_file() {
         let name = source
@@ -49,6 +52,9 @@ pub fn route(source: &Path) -> Result<Routed> {
     }
     if source.join("manifest.json").exists() {
         return Ok(Routed::Manifest);
+    }
+    if let Some(routed) = project(source)? {
+        return Ok(routed);
     }
     let mut claimed: BTreeMap<&'static str, (&'static dyn ScenePlugin, Vec<PathBuf>)> =
         BTreeMap::new();
@@ -69,13 +75,7 @@ pub fn route(source: &Path) -> Result<Routed> {
     }
     if claimed.len() > 1 {
         let names: Vec<&str> = claimed.keys().copied().collect();
-        return Err(CompilerError::new(
-            "SOURCE_FORMAT_AMBIGUOUS",
-            format!(
-                "Source directory is claimed by several import plugins ({}); keep one format per source directory",
-                names.join(", ")
-            ),
-        ));
+        return Err(ambiguous(&names));
     }
     let (plugin, mut inputs) = claimed
         .into_values()
@@ -83,6 +83,42 @@ pub fn route(source: &Path) -> Result<Routed> {
         .ok_or_else(|| unknown(&source.to_string_lossy()))?;
     inputs.sort();
     Ok(Routed::Driver(plugin, inputs))
+}
+
+/// Le pilote de projet qui revendique ce dossier entier, s'il y en a un. Un projet est reconnu au
+/// niveau du dossier : les fichiers trouvés dessous sont ses entrées, et il prime donc sur les
+/// pilotes de fichiers, qui ne verraient là que des sources concurrentes. Deux projets pour un même
+/// dossier restent une ambiguïté, comme deux formats.
+fn project(source: &Path) -> Result<Option<Routed>> {
+    let mut claimed: Vec<(&'static dyn ScenePlugin, Vec<PathBuf>)> = PLUGINS
+        .iter()
+        .filter_map(|plugin| {
+            plugin
+                .project_inputs(source)
+                .filter(|inputs| !inputs.is_empty())
+                .map(|inputs| (*plugin, inputs))
+        })
+        .collect();
+    if claimed.len() > 1 {
+        let names: Vec<&str> = claimed.iter().map(|(plugin, _)| plugin.name()).collect();
+        return Err(ambiguous(&names));
+    }
+    Ok(claimed.pop().map(|(plugin, mut inputs)| {
+        inputs.sort();
+        Routed::Driver(plugin, inputs)
+    }))
+}
+
+/// Le refus d'un dossier que plusieurs pilotes revendiquent : le compilateur ne devine pas lequel
+/// porte la scène.
+fn ambiguous(names: &[&str]) -> CompilerError {
+    CompilerError::new(
+        "SOURCE_FORMAT_AMBIGUOUS",
+        format!(
+            "Source directory is claimed by several import plugins ({}); keep one format per source directory",
+            names.join(", ")
+        ),
+    )
 }
 
 /// Le pilote qui revendique ce fichier : son extension d'abord, son nombre magique ensuite — un

@@ -1,6 +1,6 @@
 import { meshes, geometryBytes } from './sceneMeshes.ts';
 import { collectCover, buildIndex } from './threeLodHelpers.ts';
-import { installSceneLighting } from './sceneLighting.ts';
+import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import * as THREE from 'three';
 import type { BackendFactory } from './backendTypes.ts';
 import { hashId } from './backendCommon.ts';
@@ -140,7 +140,7 @@ export const threeLodBackend: BackendFactory = (context) => {
         }
     },
     async prepare() {},
-    refreshSceneLighting: () => sceneLights.refresh(),
+    ...sceneLightingApi(sceneLights),
     render(camera) {
       context.source.updateMatrixWorld(true);
       sceneLights.update();

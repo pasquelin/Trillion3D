@@ -58,6 +58,17 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     session.options.stageProfile === true && !directGpu && ownedRenderer
       ? createWebglFrameTimer(ownedRenderer.getContext() as WebGL2RenderingContext)
       : null;
+  /**
+   * La chaîne d'affichage du moteur rendu par Three, réglée sur la vue du moteur — la même règle que
+   * le chemin du contrat. Une scène sans lampe déclarée compose par l'identité : du linéaire vers
+   * sRGB et rien d'autre, l'albédo tel quel (P6). Dès qu'une lampe existe, l'exposition et ACES
+   * reviennent, derniers maillons de la chaîne (P4). Le drapeau vient des lampes installées, jamais
+   * d'un réglage d'hôte, et n'est écrit que lorsqu'il change : Three recompile ses programmes sinon.
+   */
+  const setDisplayChain = (backend: RenderBackend) => {
+    const tone = backend.sceneLit?.() === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
+    if (ownedRenderer.toneMapping !== tone) ownedRenderer.toneMapping = tone;
+  };
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile;
@@ -106,6 +117,9 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
     if (directGpu) {
+      // Le moteur dessine dans le canevas de la page : rien à composer, mais l'image se clôt ici,
+      // là où les bornes que l'hôte vient de relever appartiennent encore à elle.
+      steps.cpuFrameEnd?.();
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
       return;
@@ -121,6 +135,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.fallbackReason = fallbackReason;
       state.active = baseline;
       baseline.render(camera);
+      setDisplayChain(baseline);
       ownedRenderer.render(baseline.scene, camera);
       emit({
         eventVersion: 1,
@@ -139,6 +154,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
+    setDisplayChain(backend);
     gpuTimer?.begin();
     ownedRenderer.render(backend.scene, camera);
     gpuTimer?.end();

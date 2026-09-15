@@ -1,58 +1,7 @@
 import type * as THREE from 'three';
-import { addCpuSteps } from './stageMapping.ts';
-import { CPU_STEP, CPU_STEP_STAGES, publishCpuProfile } from './webgpuPagesStateTiming.ts';
+import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-
-/** Dépose les bornes processeur de l'image dans le profil public par étape, quand il est monté. */
-function recordStages(rt: WebgpuPagesRuntime) {
-  const { timing, lights, bounce } = rt,
-    stages = timing.stages;
-  if (!stages) return;
-  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
-  // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées. Les six
-  // compteurs d'avant sont gardés tels quels — le Lab les lit — et les pages s'y ajoutent :
-  // `pagesInvalidees` est ce qui est entré en file à cette image, `pagesRedessinees` ce que les
-  // régions retenues couvrent, `pagesEnAttente` ce que le budget a laissé pour plus tard, et
-  // `retardMaxMs` l'attente de la page la plus ancienne de cette file.
-  const { counts } = lights.plan;
-  stages.setCounts('shadows', {
-    lampesRedessinees: lights.shadowsUpdated,
-    cartesReutilisees: counts.reused,
-    facesRedessinees: lights.shadowFaces,
-    appelsDeDessin: lights.shadowDrawCalls,
-    soleilsRedessines: counts.sunLights,
-    cascadesRedessinees: lights.sunCascades,
-    regionsRedessinees: lights.shadowRegions,
-    pagesInvalidees: counts.invalidatedPages,
-    pagesRedessinees: lights.shadowPages,
-    pagesEnAttente: counts.pendingPages,
-    retardMaxMs: counts.waitedMs,
-    retardMaxImages: counts.waitedFrames,
-  });
-  stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
-  // Ce que le rebond a réellement fait : des sondes et des rayons, jamais une durée. Une scène
-  // immobile et convergée n'encode aucune passe, donc l'étape reste « non mesuré » et non zéro.
-  stages.setCounts('bounce', {
-    sondesMisesAJour: bounce.probesUpdated,
-    rayonsParImage: bounce.raysLaunched,
-    sondesDesCascades: bounce.probes?.cascades.probes ?? 0,
-    maillesMisesAJour: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
-    maillesDuCache: bounce.probes?.surface.texels ?? 0,
-    // La fraction du plafond que le budget en millisecondes tient, en millièmes : un compteur est
-    // un entier, et c'est la durée qui décide de ce compte, jamais l'inverse.
-    fractionDuBudget: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
-  });
-  if (!bounce.probes)
-    stages.setReason('bounce', {
-      cpu: bounce.reason ?? 'rebond absent',
-      gpu: bounce.reason ?? 'rebond absent',
-    });
-  stages.setCounts('partition', timing.partitionCounts);
-  timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
-  timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
-  stages.setCounts('encode', timing.encodeCounts);
-}
 
 /** Files the image's CPU steps into the profile and the sample the progress diagnostic reports. */
 export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
@@ -61,6 +10,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   const submitMs = m.cpuEnd - m.encodeStart;
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
+  steps[CPU_STEP.worldMs] = m.blendStart - m.preStart;
+  steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart;
   steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;
   steps[CPU_STEP.transparentSelectMs] = m.transparentSelectEnd - m.adoptEnd;
@@ -85,9 +36,10 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   );
   steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs;
   steps[CPU_STEP.encodeSubmitMs] = submitMs;
-  steps[CPU_STEP.totalMs] = m.cpuEnd - m.cpuStart;
-  timing.cpuProfile.record(run.frame, m.cpuEnd - m.cpuStart);
-  recordStages(rt);
+  // Le total de la ligne couvre l'image entière du moteur, préparation comprise : la borne
+  // `cpuStart` n'ouvre que la partie que les lots précédents chronométraient.
+  steps[CPU_STEP.totalMs] = m.cpuEnd - m.preStart;
+  timing.rowFilled = true;
   timing.cpuSample = {
     version: 1,
     frame: run.frame,
@@ -105,7 +57,6 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     residencyPagesEntered: run.pagesEntered,
     residencyPagesExited: run.pagesExited,
   };
-  publishCpuProfile(timing, run, rt.diag);
 }
 
 export function traceGpuCutWaiting(rt: WebgpuPagesRuntime) {

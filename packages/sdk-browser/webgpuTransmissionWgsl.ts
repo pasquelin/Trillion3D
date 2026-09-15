@@ -62,7 +62,7 @@ fn transmissionColor(lit:vec3f,baseTint:vec3f,alpha:f32,N:vec3f,V:vec3f,P:vec3f,
  var reflected=vec3f(0.0);
  if(!unlit){
   reflected=F*sampleBounce(P,reflect(-V,Nv))*BOUNCE_INVERSE_PI
-   +declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao);
+   +declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,fragXY);
  }
  let a=alpha+t*(1.0-alpha);
  return vec4f((t*((1.0-F)*transmitted+reflected)+(1.0-t)*alpha*lit)/max(a,1e-4),a);

@@ -11,6 +11,8 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
   // One request can carry a whole bundle: each cluster takes the view at its own offset, and that
   // view — not the bundle — is what the GPU cache uploads under the cluster key.
   acceptPageArray(recs, array);
+  // Des octets sont arrivés : la liste des pages encore attendues n'est plus celle d'avant.
+  run.pageArrayEpoch++;
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i],
       view = rec.array!;
@@ -62,6 +64,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     return;
   }
   run.deferredDrops.delete(url);
+  run.pageArrayEpoch++;
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i];
     rec.array = undefined;

@@ -12,6 +12,11 @@ export function invalidateOccluderHistory(run: WebgpuRunState) {
   run.temporalHizState.camera = undefined;
 }
 
+/** A capability now served: it leaves the list of what the backend declares unsupported. */
+export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities'], item: string) {
+  capabilities.unsupported = capabilities.unsupported.filter((entry) => entry !== item);
+}
+
 export function resetHizHistory(run: WebgpuRunState) {
   invalidateOccluderHistory(run);
   run.previousHizView = undefined;

@@ -47,13 +47,29 @@ type PriorityInputs = {
  * d'origine est conservé. Un niveau entamé peut donc être relégué entre deux tranches, jamais au
  * milieu d'une tranche.
  */
+/**
+ * Les poids d'un étage, tenus dans un tableau de doubles au lieu d'un tableau JavaScript agrandi
+ * d'une case par couche. Le nombre de couches n'est pas connu quand la file naît — l'index des
+ * matériaux est refait à chaque scène chargée — donc la capacité double au lieu d'être fixée
+ * d'avance. Les poids restent des doubles, `triangles` valant `count / 3` sur un transparent : une
+ * addition IEEE 754 dans `Float64Array` est celle d'un `number`, à l'octet près. Les cases au-delà
+ * de la dernière couche vue valent zéro des deux côtés, que la capacité les couvre ou non.
+ */
+type Weights = { values: Float64Array };
+
 export function createTexturePriority(inputs: () => PriorityInputs) {
-  const colorWeights: number[] = [];
-  const dataWeights: number[] = [];
-  const bump = (weights: number[], layers: readonly number[], triangles: number) => {
+  const colorWeights: Weights = { values: new Float64Array(0) };
+  const dataWeights: Weights = { values: new Float64Array(0) };
+  const bump = (weights: Weights, layers: readonly number[], triangles: number) => {
     for (const layer of layers) {
-      while (weights.length <= layer) weights.push(0);
-      weights[layer] += triangles;
+      if (layer >= weights.values.length) {
+        let taille = weights.values.length || 8;
+        while (taille <= layer) taille *= 2;
+        const grandi = new Float64Array(taille);
+        grandi.set(weights.values);
+        weights.values = grandi;
+      }
+      weights.values[layer] += triangles;
     }
   };
   const addWeight = (layers: MaterialAtlasLayers | undefined, triangles: number) => {
@@ -62,15 +78,15 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
     bump(dataWeights, layers.data, triangles);
   };
   const weightOf = (job: TextureJob) =>
-    (job.kind === 'color' ? colorWeights : dataWeights)[job.slot] ?? 0;
+    (job.kind === 'color' ? colorWeights : dataWeights).values[job.slot] ?? 0;
   /** La couleur avant les données : seule la couleur manquante se voit. */
   const rank = (job: TextureJob) => (job.kind === 'color' ? 0 : 1);
   /** Réordonne la file en place ; sans signal exploitable, elle garde l'ordre où elle a été bâtie. */
   const order = (jobs: TextureJob[]) => {
     if (jobs.length < 2) return;
     const { index, requested, blend } = inputs();
-    colorWeights.fill(0);
-    dataWeights.fill(0);
+    colorWeights.values.fill(0);
+    dataWeights.values.fill(0);
     if (index) {
       for (const page of requested) addWeight(index.get(page.material), page.triangles);
       for (const item of blend) addWeight(index.get(item.material), item.count / 3);

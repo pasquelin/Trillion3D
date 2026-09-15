@@ -91,7 +91,7 @@ export function createPageStreamer(
     emit,
     abortError,
   };
-  const { touch, evict } = createStreamingCache(context);
+  const { touch, evict, retain: retainPages } = createStreamingCache(context);
   const loadOne = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const indexViews = new WeakMap<Uint8Array, Uint32Array>();
@@ -134,16 +134,15 @@ export function createPageStreamer(
     },
     retain(urls: readonly string[]) {
       const before = onDiagnostic ? new Set(pinned) : undefined;
-      pinned.clear();
-      for (const url of urls) if (catalog.has(url)) pinned.add(url);
+      const changed = retainPages(urls);
       emit('page-retain', 'Épingles de pages mises à jour', () => ({
         version: 1,
         requested: urls.length,
         retained: pinned.size,
+        changed,
         added: [...pinned].filter((url) => !before?.has(url)),
         removed: [...(before ?? [])].filter((url) => !pinned.has(url)),
       }));
-      evict();
     },
     async request(
       urls: readonly string[],

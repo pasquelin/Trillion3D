@@ -1,19 +1,16 @@
-// Oracle du point G8 : `sceneLightSunCascades.ts` avant le lot G, recopié tel quel.
+// Oracle du point G8 : `sceneLightSunCascades.ts` avant le lot G — les bornes refaites à chaque
+// face —, avec le plancher de découpe du lot « ombres lointaines », que le point G8 ne mesure pas.
 import { LIGHT_SETTINGS } from '../../sceneLightContracts.ts';
 
 /** `sceneLightSunCascades.ts` : les bornes étaient refaites à chaque face, pour la même vue. */
 function sunCascadeSplits(view, out) {
   const count = LIGHT_SETTINGS.sunCascades;
-  const near = Math.max(1e-3, view.near),
-    far = Math.max(near * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
-  const lambda = LIGHT_SETTINGS.sunCascadeLambda;
-  out[0] = near;
-  for (let i = 1; i <= count; i++) {
-    const ratio = i / count;
-    const log = near * Math.pow(far / near, ratio),
-      uniform = near + (far - near) * ratio;
-    out[i] = lambda * log + (1 - lambda) * uniform;
-  }
+  const camera = Math.max(1e-3, view.near),
+    far = Math.max(camera * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
+  const near = Math.max(camera, far / Math.pow(LIGHT_SETTINGS.sunCascadeRatioMax, count));
+  const step = Math.pow(far / near, 1 / count);
+  out[0] = camera;
+  for (let i = 1; i <= count; i++) out[i] = near * Math.pow(step, i);
 }
 
 const splits = new Float64Array(LIGHT_SETTINGS.sunCascades + 1);
