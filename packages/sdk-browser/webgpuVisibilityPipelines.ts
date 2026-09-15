@@ -1,5 +1,6 @@
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { depthLayerBias } from '../sdk-core/index.ts';
+import { openValidation, validationError } from './gpuErrorScope.ts';
 
 /** Modes de face d'un jeu de couche, dans l'ordre : dos, aucune, face, dos inversé, face inversée. */
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
@@ -16,10 +17,11 @@ const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2;
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull;
 
+/** Crée sous scope de validation, et laisse remonter ce que l'appareil a refusé. */
 async function scoped<T>(device: GPUDevice, run: () => T): Promise<T> {
-  if (typeof device.pushErrorScope === 'function') device.pushErrorScope('validation');
+  openValidation(device);
   const value = run();
-  const error = typeof device.popErrorScope === 'function' ? await device.popErrorScope() : null;
+  const error = await validationError(device);
   if (error) throw error;
   return value;
 }
