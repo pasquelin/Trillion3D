@@ -37,7 +37,6 @@ const PARENTS = [
   ],
 ];
 const cameraFixe = {
-  type: 'perspective',
   fov: 60,
   aspect: 16 / 9,
   near: 0.1,
@@ -116,25 +115,13 @@ export function visees() {
 
 /**
  * Projections : champ, rapport, plans et grossissement ordinaires et dégénérés (champ nul ou plat,
- * `near` nul, `far` égal à `near` ou infini, zoom nul), perspective et orthographique, chaque
- * réglage dans les deux conventions de profondeur, plans lus dans les deux conventions.
+ * `near` nul, `far` égal à `near` ou infini, zoom nul), chaque réglage dans les deux conventions de
+ * profondeur, plans lus dans les deux conventions.
  */
 export function objectifs() {
-  const ops = [
-    ['ajoute', 0, -1, [1, 2, 3], [0.1, 0.2, 0.3, 0.927], [1, 1, 1], cameraFixe],
-    [
-      'ajoute',
-      1,
-      -1,
-      [1, 2, 3],
-      [0.1, 0.2, 0.3, 0.927],
-      [1, 1, 1],
-      { ...cameraFixe, type: 'orthographic', left: -1, right: 1, top: 1, bottom: -1 },
-    ],
-  ];
-  const image = (id, spec) =>
-    ops.push(['objectif', id, spec], ['image', id, false], ['image', id, true]);
-  for (const webgpu of [false, true]) {
+  const ops = [['ajoute', 0, -1, [1, 2, 3], [0.1, 0.2, 0.3, 0.927], [1, 1, 1], cameraFixe]];
+  const image = (spec) => ops.push(['objectif', 0, spec], ['image', 0, false], ['image', 0, true]);
+  for (const webgpu of [false, true])
     for (const fov of [1e-6, 45, 90, 179.999, 180, 0, NaN])
       for (const aspect of [1e-9, 1, 16 / 9, 1e9])
         for (const [near, far] of [
@@ -144,26 +131,9 @@ export function objectifs() {
           [0.5, Infinity],
           [10, 1],
         ])
-          for (const zoom of [1, 2.5, 0])
-            image(0, { type: 'perspective', fov, aspect, near, far, zoom, webgpu });
-    for (const [left, right, top, bottom] of [
-      [-1, 1, 1, -1],
-      [-20, 5, 3, -9],
-      [2, 2, 1, -1],
-      [0, 1e9, 1e-9, 0],
-    ])
-      for (const [near, far] of [
-        [0, 100],
-        [5, 5],
-        [-10, 10],
-        [1, Infinity],
-      ])
-        for (const zoom of [1, 0.25, 0])
-          image(1, { type: 'orthographic', left, right, top, bottom, near, far, zoom, webgpu });
-  }
+          for (const zoom of [1, 2.5, 0]) image({ fov, aspect, near, far, zoom, webgpu });
   for (let i = 0; i < 64; i++)
-    image(0, {
-      type: 'perspective',
+    image({
       fov: 10 + alea() * 160,
       aspect: 0.2 + alea() * 4,
       near: alea() * 2,
