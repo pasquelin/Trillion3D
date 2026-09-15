@@ -1,7 +1,7 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './gpuDrawContract.ts';
 import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
-import { dropValidation, openValidation, validationFailed } from './gpuErrorScope.ts';
+import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 import { drawShader } from './gpuDrawShader.ts';
 
@@ -56,7 +56,7 @@ export async function createGpuDraw(
       layout: pipelineLayout,
       compute: { module, entryPoint: 'scatterGroups' },
     });
-    if (await validationFailed(device)) {
+    if (await validationError(device)) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }

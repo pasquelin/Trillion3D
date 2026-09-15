@@ -1,10 +1,10 @@
-import { HOST_CPU_STEP } from './exactPagesCpu.ts';
 import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
+import type { HostCpuProfile } from './hostCpuProfile.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -33,11 +33,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       : null;
   const drawBackend = (backend: RenderBackend, target: THREE.WebGLRenderTarget | null) => {
     const { measuring } = state;
-    const steps = backend as {
-      cpuStep?: (index: number, ms: number) => void;
-      cpuFrameEnd?: () => void;
-      gpuImageMs?: (ms: number | null, supported: boolean, reason: string | null) => void;
-    };
+    const steps = backend as HostCpuProfile;
     backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
@@ -83,8 +79,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const visibleUrls = backend.pageUrls?.();
     if (visibleUrls) streamer.retain(visibleUrls);
     const retainEnd = performance.now();
-    steps.cpuStep?.(HOST_CPU_STEP.pendingMs, pendingEnd - renderEnd);
-    steps.cpuStep?.(HOST_CPU_STEP.retainMs, retainEnd - pendingEnd);
+    steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
+    steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
     if (directGpu) {
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
@@ -122,7 +118,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     gpuTimer?.begin();
     ownedRenderer.render(backend.scene, camera);
     gpuTimer?.end();
-    steps.cpuStep?.(HOST_CPU_STEP.submitMs, performance.now() - retainEnd);
+    steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
       // Une requête relue quelques images plus tard : la lecture ne bloque jamais l'image en cours.
       const read = gpuTimer.poll();

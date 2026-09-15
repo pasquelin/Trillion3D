@@ -9,6 +9,7 @@ import {
 import type { BackendContext } from './backendTypes.ts';
 import { lighting } from './backendCommon.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
+import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -84,13 +85,13 @@ export function createExactPagesRender(
     syncResident();
     const syncEnd = performance.now();
     const row = cpuProfile.row;
-    row[0] = lightsStart - worldStart;
-    row[1] = selectStart - lightsStart;
+    row[EXACT_CPU_STEP.worldMs] = lightsStart - worldStart;
+    row[EXACT_CPU_STEP.lightsMs] = selectStart - lightsStart;
     // L'étape `selectMs` du profil garde ses bornes larges : la somme des étapes reste l'image.
-    row[2] = syncStart - selectStart;
-    row[3] = syncEnd - syncStart;
-    row[5] = 0;
-    row[6] = 0;
-    row[7] = 0;
+    row[EXACT_CPU_STEP.selectMs] = syncStart - selectStart;
+    row[EXACT_CPU_STEP.syncMs] = syncEnd - syncStart;
+    row[EXACT_CPU_STEP.pendingMs] = 0;
+    row[EXACT_CPU_STEP.retainMs] = 0;
+    row[EXACT_CPU_STEP.submitMs] = 0;
   };
 }

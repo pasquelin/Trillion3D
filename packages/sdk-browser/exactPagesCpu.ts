@@ -3,12 +3,13 @@ import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler } from './stageProfiler.ts';
 import { addCpuSteps, cpuStepTable, WEBGL_STAGES } from './stageMapping.ts';
 import type { BackendContext } from './backendTypes.ts';
+import type { HostCpuStep } from './hostCpuProfile.ts';
 
 /**
  * Les bornes processeur d'une image WebGL2, dans l'ordre : son nom public et l'étape du profil où
  * elle se dépose (`null` pour la somme, qui ne se dépose pas). `arrivals`, `pending`, `retain` et
- * `submit` sont relevées par l'hôte, qui les dépose dans `cpuStep` par leur indice — celui que
- * `HOST_CPU_STEP` nomme, pour qu'aucun appelant n'écrive un nombre à la main.
+ * `submit` sont relevées par l'hôte, qui les dépose dans `cpuStep` par leur nom : l'indice de la
+ * borne dans la ligne du profil ne sort jamais de ce moteur.
  */
 const CPU = cpuStepTable([
   ['worldMs', 'animations'],
@@ -22,8 +23,8 @@ const CPU = cpuStepTable([
   ['totalMs', null],
 ] as const);
 
-/** L'indice des bornes que l'hôte relève lui-même, nommé plutôt qu'écrit en clair. */
-export const HOST_CPU_STEP = CPU.at;
+/** L'indice d'une borne dans la ligne du profil, pour les deux fichiers de ce moteur. */
+export const EXACT_CPU_STEP = CPU.at;
 
 export function createExactPagesCpu(
   onDiagnostic: BackendContext['onDiagnostic'],
@@ -65,8 +66,8 @@ export function createExactPagesCpu(
       );
     },
     /** Dépose la durée d'une étape mesurée par l'hôte : arrivées, attente, rétention, soumission. */
-    cpuStep(index: number, ms: number) {
-      if (index >= 0 && index < CPU.names.length) cpuProfile.row[index] = ms;
+    cpuStep(step: HostCpuStep, ms: number) {
+      cpuProfile.row[CPU.at[step]] = ms;
     },
     /** Clôt l'image : total, classement, et publication au plus une fois toutes les deux secondes. */
     cpuFrameEnd() {

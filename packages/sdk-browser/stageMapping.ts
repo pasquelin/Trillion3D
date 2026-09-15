@@ -119,11 +119,16 @@ export function addCpuSteps(
  */
 export function cpuStepTable<Table extends ReadonlyArray<readonly [string, string | null]>>(
   table: Table,
-) {
+): {
+  names: readonly string[];
+  stages: ReadonlyArray<string | null>;
+  /** L'indice d'une borne dans la ligne du profil, lu par son nom et jamais écrit à la main. */
+  at: Record<Table[number][0], number>;
+} {
   return {
     names: table.map(([name]) => name),
     stages: table.map(([, stage]) => stage),
-    /** L'indice d'une borne dans la ligne du profil, lu par son nom et jamais écrit à la main. */
+    // `fromEntries` ne sait pas rendre des clés littérales : le nom déclaré les porte.
     at: Object.fromEntries(table.map(([name], index) => [name, index])) as Record<
       Table[number][0],
       number
