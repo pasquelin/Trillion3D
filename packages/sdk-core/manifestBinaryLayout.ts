@@ -8,7 +8,7 @@ import {
   type ColumnName,
 } from './manifestBinaryFormat.ts';
 
-export function hexDigits(sha: string) {
+function hexDigits(sha: string) {
   if (sha.length !== 64 || !/^[0-9a-f]{64}$/.test(sha))
     throw new EngineError(
       'INVALID_CACHE',
