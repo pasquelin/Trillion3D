@@ -1,3 +1,4 @@
+import { HOST_CPU_STEP } from './exactPagesCpu.ts';
 import * as THREE from 'three';
 import { type CameraPose, type FrameMetrics } from '../sdk-core/index.ts';
 import { emitExplorerFrameDiagnostic } from './explorerFrameDiagnostic.ts';
@@ -71,7 +72,7 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     const arrivalStart = performance.now();
     streaming.arrivals.drain();
     (state.active as { cpuStep?: (index: number, ms: number) => void }).cpuStep?.(
-      4,
+      HOST_CPU_STEP.arrivalsMs,
       performance.now() - arrivalStart,
     );
     try {

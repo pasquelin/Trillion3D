@@ -1,3 +1,4 @@
+import { HOST_CPU_STEP } from './exactPagesCpu.ts';
 import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
 import { PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
@@ -82,8 +83,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const visibleUrls = backend.pageUrls?.();
     if (visibleUrls) streamer.retain(visibleUrls);
     const retainEnd = performance.now();
-    steps.cpuStep?.(5, pendingEnd - renderEnd);
-    steps.cpuStep?.(6, retainEnd - pendingEnd);
+    steps.cpuStep?.(HOST_CPU_STEP.pendingMs, pendingEnd - renderEnd);
+    steps.cpuStep?.(HOST_CPU_STEP.retainMs, retainEnd - pendingEnd);
     if (directGpu) {
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
@@ -121,7 +122,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     gpuTimer?.begin();
     ownedRenderer.render(backend.scene, camera);
     gpuTimer?.end();
-    steps.cpuStep?.(7, performance.now() - retainEnd);
+    steps.cpuStep?.(HOST_CPU_STEP.submitMs, performance.now() - retainEnd);
     if (gpuTimer) {
       // Une requête relue quelques images plus tard : la lecture ne bloque jamais l'image en cours.
       const read = gpuTimer.poll();

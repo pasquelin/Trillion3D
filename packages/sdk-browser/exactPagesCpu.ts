@@ -7,7 +7,8 @@ import type { BackendContext } from './backendTypes.ts';
 /**
  * Les bornes processeur d'une image WebGL2, dans l'ordre : son nom public et l'étape du profil où
  * elle se dépose (`null` pour la somme, qui ne se dépose pas). `arrivals`, `pending`, `retain` et
- * `submit` sont relevées par l'hôte, qui les dépose ici par leur indice.
+ * `submit` sont relevées par l'hôte, qui les dépose dans `cpuStep` par leur indice — celui que
+ * `HOST_CPU_STEP` nomme, pour qu'aucun appelant n'écrive un nombre à la main.
  */
 const CPU = cpuStepTable([
   ['worldMs', 'animations'],
@@ -20,6 +21,9 @@ const CPU = cpuStepTable([
   ['submitMs', 'submit'],
   ['totalMs', null],
 ] as const);
+
+/** L'indice des bornes que l'hôte relève lui-même, nommé plutôt qu'écrit en clair. */
+export const HOST_CPU_STEP = CPU.at;
 
 export function createExactPagesCpu(
   onDiagnostic: BackendContext['onDiagnostic'],

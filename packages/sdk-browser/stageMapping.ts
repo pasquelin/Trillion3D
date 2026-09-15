@@ -122,7 +122,7 @@ export function cpuStepTable<Table extends ReadonlyArray<readonly [string, strin
 ) {
   return {
     names: table.map(([name]) => name),
-    stages: table.map(([, stage]) => stage) as ReadonlyArray<string | null>,
+    stages: table.map(([, stage]) => stage),
     /** L'indice d'une borne dans la ligne du profil, lu par son nom et jamais écrit à la main. */
     at: Object.fromEntries(table.map(([name], index) => [name, index])) as Record<
       Table[number][0],
