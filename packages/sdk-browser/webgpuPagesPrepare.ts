@@ -21,8 +21,11 @@ import { prepareWebgpuVisibility } from './webgpuPagesPrepareVisibility.ts';
 import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
 import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Every cluster carries its own cone; a double-sided or back-facing material keeps it open. */
+/** Every cluster carries its own cone; a double-sided or back-facing material keeps it open.
+ *  Poser un cône, c'est le déclarer : les racines de cette préparation relèvent leur drapeau, sans
+ *  quoi la coupe les croirait sans cône et ne lirait plus `cone`. */
 export function prepareCones(rt: WebgpuPagesRuntime) {
+  for (const root of rt.setup.roots) root.cones = true;
   const xyzCache = new WeakMap<THREE.BufferGeometry['attributes'], Float32Array>();
   for (const rec of rt.setup.allPages) {
     const array = rec.array,
