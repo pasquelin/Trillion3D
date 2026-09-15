@@ -4,10 +4,8 @@
 //! de Direct3D 9, le `dxgiFormat` de l'entête DX10, ou — pour une surface non compressée — ses
 //! masques de bits. Les trois chemins arrivent ici et rendent `None` pour tout ce qui n'est pas
 //! dans la liste : c'est l'appelant qui en fait un refus nommé.
+use crate::plugins::image::blocks::BlockDecode;
 use texture2ddecoder::{decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5, decode_bc7};
-
-/// La signature d'un décodeur de blocs : les octets du niveau, ses dimensions, les pixels rendus.
-pub(super) type BlockDecode = fn(&[u8], usize, usize, &mut [u32]) -> Result<(), &'static str>;
 
 /// Les codecs déclarés. Rien ici n'est « deviné » : chaque variante a été inscrite exprès, avec
 /// les identifiants de format qui y mènent.
