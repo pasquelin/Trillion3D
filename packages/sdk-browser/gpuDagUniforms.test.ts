@@ -1,10 +1,10 @@
 // A11 : parseDagOutput dimensionne ses tableaux d'avance au lieu d'un spread de tableau typé et d'un
 // `push` sans capacité. Oracle : la version d'avant le lot A, dans
-// `scripts/mesure/calculs/oracles/residence.mjs`.
+// `bench/oracles/residence.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDagOutput } from './gpuDagUniforms.ts';
-import { referenceParseDagOutput } from '../../scripts/mesure/calculs/oracles/residence.mjs';
+import { referenceParseDagOutput } from './bench/oracles/residence.mjs';
 
 function buffer(header: number[], pageIds: number[], mask: number[] = []) {
   const ints = new Uint32Array(4 + pageIds.length + mask.length);

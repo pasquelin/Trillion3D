@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages } from './pageSelection.ts';
-import { dag, racine } from '../../scripts/mesure/calculs/dagC.mjs';
+import { dag, racine } from './bench/dagC.mjs';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
