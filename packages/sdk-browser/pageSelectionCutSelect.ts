@@ -36,6 +36,9 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // Une racine qui déclare n'avoir aucun cône sort le cône du chemin par cluster. Le silence vaut
   // « je n'ai rien déclaré » : la coupe teste alors chaque page, comme avant ce lot.
   s.flatCones = root.cones !== false;
+  // Une racine qui déclare que toutes ses pages portent leur boîte sort cette vérification du
+  // chemin par cluster. Le silence vaut « je n'ai rien déclaré » : la coupe s'en assure comme avant.
+  s.flatBoxes = root.boxes === true;
   clipPlanesFromMatrix(
     planes,
     clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix).elements,
@@ -47,8 +50,8 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     for (let i = 0; i < s.flatForcedList.length; i++) s.flatForced[s.flatForcedList[i]] = 0;
     s.flatForcedList.length = 0;
   }
-  const startWanted = s.wanted.length,
-    startShown = s.shown.length;
+  const startWanted = s.wantedCount,
+    startShown = s.shownCount;
   s.flatUseForcing = false;
   s.flatMissing = false;
   traverse(s, pages, root.culling);
@@ -59,7 +62,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   }
   const fallbackQueue = fallbackScratch as T[];
   fallbackQueue.length = 0;
-  for (let i = startWanted; i < s.wanted.length; i++) fallbackQueue.push(s.wanted[i]);
+  for (let i = startWanted; i < s.wantedCount; i++) fallbackQueue.push(s.wanted[i]);
   s.flatUseForcing = true;
   let forcedAny = false;
   while (fallbackQueue.length) {
