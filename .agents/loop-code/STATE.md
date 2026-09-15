@@ -20,7 +20,7 @@ seul, avant tout P1/P2. Voir `.agents/loop-code/BACKLOG.md` pour le détail et l
 
 Après ce P0 : aucun P1 ni P2 n'a été détecté par cet `init` (il ne rejoue pas les rapports de
 duplication/code mort en mode dérive — ceux relevés ici sont à 0 signalement le 2026-09-15 sur la
-branche `loop-code-init` = `develop` inchangée). Un audit de dérive (`/loop-code watch`) ou une
+branche `loop-code-init`, alignée sur `develop` à `2f4224e` — `develop` a avancé depuis). Un audit de dérive (`/loop-code watch`) ou une
 itération complète (`/loop-code`) partira de cet état.
 
 ## Ce qu'une session fraîche doit savoir pour reprendre
