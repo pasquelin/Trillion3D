@@ -25,6 +25,8 @@ export default {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
+  // `scripts/build-wasm.mjs` interroge la chaîne Rust installée par rustup, pas un paquet npm.
+  ignoreBinaries: ['rustc'],
   // These specifiers are Vite/Render Tech Lab runtime URLs, not local Node modules.
   ignoreUnresolved: [
     '/.vite/deps/three.js',
