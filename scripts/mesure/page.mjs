@@ -96,6 +96,30 @@ export async function measureView(options) {
   };
   const pose = options.pose;
   // Une pose par image quand la caméra bouge, la même à chaque image sinon.
+  // Un objet en mouvement : le nœud que l'hôte a nommé prend une matrice monde dont la translation
+  // parcourt un petit cercle. Le premier appel le pose à l'origine du monde — un grand saut, une
+  // seule fois — puis les pas suivants sont petits, ce qui est exactement le cas que
+  // l'invalidation par pages doit traiter. Un nom absent de la scène est consigné, jamais ignoré.
+  const node = options.movingNode;
+  let movingNode = null;
+  const moveNode = (frame) => {
+    if (!node || movingNode?.erreur) return;
+    const angle = (frame / 30) * Math.PI * 2,
+      r = options.movingNodeRadius ?? 1;
+    const matrix = new Float32Array(16);
+    matrix[0] = 1;
+    matrix[5] = 1;
+    matrix[10] = 1;
+    matrix[15] = 1;
+    matrix[12] = Math.cos(angle) * r;
+    matrix[14] = Math.sin(angle) * r;
+    try {
+      explorer.setTransform(node, matrix);
+      movingNode = { noeud: node, rayon: r, images: (movingNode?.images ?? 0) + 1 };
+    } catch (error) {
+      movingNode = { noeud: node, erreur: String(error) };
+    }
+  };
   const poses = options.poses;
   // La dernière pose rendue : c'est elle que la vidange de la file d'ombres rejoue, pour que la
   // capture qui suit soit exactement celle des lots précédents.
@@ -117,6 +141,7 @@ export async function measureView(options) {
   let last = null;
   for (let i = 0; i < options.frames; i++) {
     moveLight(i);
+    moveNode(i);
     last = explorer.render(poseAt(i));
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs);
     if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs);
@@ -134,6 +159,7 @@ export async function measureView(options) {
     explorer.resetStageProfile();
     for (let i = 0; i < options.profileFrames; i++) {
       moveLight(i);
+      moveNode(i);
       explorer.render(poseAt(i));
       await explorer.flush();
       // Une vraie limite d'image : le navigateur ne rend un compteur d'horodatage WebGL2 lisible
@@ -203,6 +229,7 @@ export async function measureView(options) {
     gpuFrameMs,
     importedLights,
     shadowAtlas,
+    movingNode,
     stageProfile,
     selection,
     metrics,

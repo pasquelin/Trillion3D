@@ -52,7 +52,6 @@ export function createShadowCounts() {
     sunLights = 0,
     invalidatedPages = 0,
     pendingPages = 0,
-    previousPending = 0,
     waitedMs = 0,
     waitedFrames = 0;
   /** Pages en attente sur toutes les faces que les lampes à ombre déclarées possèdent. */
@@ -122,16 +121,14 @@ export function createShadowCounts() {
       const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
       if (store.packed[base + LIGHT_FIELD.kind] === LIGHT_KIND.directional) sunLights++;
     },
-    /** Pages entrées en file cette image : l'écart avec ce qui restait de l'image précédente. */
-    invalidated(slices: Slices, store: SceneLightStore) {
-      const { pages } = scan(slices, store, 0, 0);
-      invalidatedPages = Math.max(0, pages - previousPending);
+    /** Pages entrées en file cette image, comptées à l'entrée et non déduites d'une différence. */
+    invalidated(slices: Slices) {
+      invalidatedPages = slices.dirty.invalidated;
     },
     /** Ce qui reste après l'admission : la file, son retard, et le point de départ de l'image suivante. */
     endFrame(slices: Slices, store: SceneLightStore, frame: number, nowMs: number) {
       const rest = scan(slices, store, frame, nowMs);
       pendingPages = rest.pages;
-      previousPending = rest.pages;
       waitedMs = rest.ms;
       waitedFrames = rest.images;
     },
@@ -142,7 +139,6 @@ export function createShadowCounts() {
       sunLights = 0;
       invalidatedPages = 0;
       pendingPages = 0;
-      previousPending = 0;
       waitedMs = 0;
       waitedFrames = 0;
       drewAt.fill(0);
