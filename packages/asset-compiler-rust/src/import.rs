@@ -136,10 +136,13 @@ struct Importer<'a> {
     triangles: usize,
     mesh_nodes: usize,
     files: Vec<Value>,
+    /// Les fichiers ouverts en plus des entrées revendiquées : ils entrent dans la clé du cache.
+    externals: external::Externals,
     cancelled: &'a AtomicBool,
     progress: &'a (dyn Fn(Value) + Sync),
 }
 
+mod external;
 mod lighting;
 mod materials;
 pub(crate) mod mesh;
