@@ -52,8 +52,12 @@ export function checkLabPath() {
       throw new Error(`le segment « ${view.segment} » n'existe plus dans le banc`);
 }
 
-/** `streetLevel` du banc : plan d'origine si la géométrie l'enjambe, sinon le plancher de l'AABB. */
-const streetLevel = (bounds) => (bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y);
+/**
+ * Plancher du modèle, `streetLevel` du banc : le plan d'origine si la géométrie l'enjambe, sinon le
+ * bas de sa boîte. La caméra s'y pose et les lampes s'y accrochent — une seule règle pour les deux.
+ */
+export const plancherDuModele = (bounds) =>
+  bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 
 /** La pose du banc à l'indice `index`, calculée comme `urbanPath` la calcule. */
 export function poseAt(bounds, index) {
@@ -65,7 +69,7 @@ export function poseAt(bounds, index) {
     sy = max.y - min.y,
     sz = max.z - min.z;
   const radius = Math.hypot(sx, sy, sz) / 2;
-  const ground = streetLevel(bounds),
+  const ground = plancherDuModele(bounds),
     block = Math.max(sx, sz);
   const eye = Math.max(block * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
   const segment = Math.floor(index / FRAMES_PER_SEGMENT),
