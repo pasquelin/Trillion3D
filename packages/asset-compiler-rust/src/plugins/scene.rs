@@ -17,6 +17,7 @@ mod blend;
 mod fbx;
 mod gltf;
 mod ma;
+mod ngon;
 mod obj;
 mod route;
 mod ufbx_driver;

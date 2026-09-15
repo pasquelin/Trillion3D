@@ -3,6 +3,7 @@
 //! une géométrie que l'on pose à la main. Tout le reste se prouve depuis la dorée, par le
 //! compilateur entier.
 use super::*;
+use crate::tests::ngones::{rendered_area, U_RING};
 
 /// Écrit un fichier Blender minimal à l'ancienne disposition, depuis la description du format :
 /// entête de douze octets, blocs à champs de trente-deux bits, un `DNA1` d'une seule structure et
@@ -130,4 +131,52 @@ fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
     // Le sommet 1 est partagé par les deux faces : sa normale moyennée est verticale.
     assert!(smooth[3].abs() < 1e-6, "{smooth:?}");
     assert!((smooth[5] - 1.0).abs() < 1e-6, "{smooth:?}");
+}
+
+// Comportement : un polygone concave garde exactement l'aire qu'il porte. L'éventail depuis le
+// premier coin traversait le creux du U et rendait onze pour sept ; les oreilles rendent sept.
+#[test]
+fn a_concave_polygon_keeps_its_own_area() {
+    let geometry = Geometry {
+        positions: U_RING
+            .iter()
+            .flat_map(|[x, y]| [*x as f32, *y as f32, 0.0])
+            .collect(),
+        corners: (0..8).collect(),
+        offsets: vec![0, 8],
+        uv: Vec::new(),
+        material: vec![0],
+        sharp: vec![true],
+    };
+    let mut out = Out::new();
+    let normals = normals::corners(&geometry);
+    let (mesh, triangles) = build::mesh_json(&geometry, &normals, &[None], "U", &mut out);
+    assert_eq!(triangles, 6, "huit coins font six triangles");
+    assert_eq!(out.counts.get("blend-ngon-untriangulable"), None);
+    let primitive = &mesh["primitives"][0];
+    let positions: Vec<f32> = read(&out, &primitive["attributes"]["POSITION"])
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|word| f32::from_le_bytes(*word))
+        .collect();
+    let indices: Vec<u32> = read(&out, &primitive["indices"])
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|word| u32::from_le_bytes(*word))
+        .collect();
+    let area = rendered_area(&positions, &indices);
+    assert!((area - 7.0).abs() < 1e-5, "aire rendue {area}, attendue 7");
+}
+
+/// Les octets d'un accesseur de la scène en construction, par la vue de binaire qu'il cite.
+fn read<'a>(out: &'a Out, accessor: &Value) -> &'a [u8] {
+    let rank = accessor.as_u64().expect("accesseur") as usize;
+    let view = out.accessors[rank]["bufferView"].as_u64().expect("vue") as usize;
+    let from = out.bin.views[view]["byteOffset"].as_u64().expect("début") as usize;
+    let length = out.bin.views[view]["byteLength"]
+        .as_u64()
+        .expect("longueur") as usize;
+    &out.bin.bytes[from..from + length]
 }

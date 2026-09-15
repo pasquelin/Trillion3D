@@ -1,10 +1,11 @@
 //! Un nœud `mesh` vers un maillage glTF : les tableaux écrits, les faces résolues par les arêtes,
 //! et une primitive par matériau lié.
 //!
-//! Les polygones sont triangulés en éventail depuis leur premier coin, ce qui est exact pour toute
-//! face convexe et reste la lecture littérale des coins pour les autres. Une face qui déclare un
-//! trou est laissée : l'éventail le remplirait, et une silhouette ne se devine pas.
+//! Les polygones sont triangulés par oreilles dans le plan de leur normale, ce qui conserve l'aire
+//! et la silhouette d'une face concave comme d'une face convexe. Une face qui déclare un trou est
+//! laissée : le découpage le remplirait, et une silhouette ne se devine pas.
 use super::*;
+use crate::plugins::scene::ngon;
 
 mod part;
 
@@ -166,24 +167,17 @@ fn shade(
         world.refuse(report::NORMALS_DROPPED);
     }
     world.refuse(report::NORMALS_COMPUTED);
+    // La normale d'une face est la somme de Newell de son anneau, ramenée à la longueur un : la
+    // formule vaut pour une face quelconque, et c'est celle que la coupe par oreilles emploie déjà.
+    let mut points: Vec<[f64; 3]> = Vec::new();
     let flat = loops
         .iter()
-        .map(|ring| newell(positions, ring))
+        .map(|ring| {
+            points.clear();
+            let read = |vertex: &u32| positions.get(*vertex as usize).copied().unwrap_or_default();
+            points.extend(ring.iter().map(read));
+            crate::shared_math::normalized_or(ngon::newell(&points), [0.0, 1.0, 0.0])
+        })
         .collect::<Vec<[f64; 3]>>();
     (flat, Shading::Face)
-}
-
-/// La normale d'un polygone par la somme de Newell, ramenée à la longueur un. La formule vaut pour
-/// une face quelconque, et sa longueur avant normalisation est le double de l'aire.
-fn newell(positions: &[[f64; 3]], ring: &[u32]) -> [f64; 3] {
-    let mut sum = [0.0f64; 3];
-    for (rank, vertex) in ring.iter().enumerate() {
-        let here = positions[*vertex as usize];
-        let next = positions[ring[(rank + 1) % ring.len()] as usize];
-        for (axis, part) in sum.iter_mut().enumerate() {
-            let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
-            *part += (here[u] - next[u]) * (here[v] + next[v]);
-        }
-    }
-    crate::shared_math::normalized_or(sum, [0.0, 1.0, 0.0])
 }

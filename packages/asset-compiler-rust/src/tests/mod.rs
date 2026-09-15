@@ -21,6 +21,7 @@ mod flottant_golden;
 mod import_opacite;
 mod ktx2_golden;
 mod ma_golden;
+pub(crate) mod ngones;
 mod obj_golden;
 mod obj_mtl;
 mod part1;

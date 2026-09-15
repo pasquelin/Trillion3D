@@ -10,6 +10,7 @@
 //! donner `(0, 0)` aux autres inventerait un placage que le fichier n'écrit pas.
 use super::*;
 use crate::import::{primitive, Vertices};
+use crate::plugins::scene::ngon::Ngon;
 
 /// Une part de matériau : son matériau glTF, et les faces qu'elle porte.
 struct Part {
@@ -100,19 +101,23 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
     }
     let mut out = Vertices::default();
     let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
+    let mut cutter = Ngon::default();
     for face in &part.faces {
         let ring = surface.loops.get(*face).map_or(0, Vec::len);
         if ring < 3 {
             continue;
         }
-        let fan: Vec<u32> = (0..ring)
+        let corners: Vec<u32> = (0..ring)
             .filter_map(|rank| surface.corner(&mut out, &mut unique, (*face, rank), textured))
             .collect();
-        if fan.len() != ring {
+        if corners.len() != ring {
             continue;
         }
-        for step in 1..ring - 1 {
-            out.indices.extend([fan[0], fan[step], fan[step + 1]]);
+        if !surface.cut(&mut cutter, *face) {
+            world.refuse(report::NGON_UNCUT);
+        }
+        for [a, b, c] in cutter.triangles() {
+            out.indices.extend([corners[*a], corners[*b], corners[*c]]);
         }
     }
     if out.indices.is_empty() {
@@ -125,6 +130,17 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
 }
 
 impl Surface {
+    /// Verse l'anneau d'une face dans le découpeur et le coupe. Rend `false` quand la face n'a pas
+    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte.
+    fn cut(&self, cutter: &mut Ngon, face: usize) -> bool {
+        cutter.begin();
+        for vertex in self.loops.get(face).map_or(&[][..], Vec::as_slice) {
+            let point = self.positions.get(*vertex as usize);
+            cutter.corner(point.copied().unwrap_or_default());
+        }
+        cutter.cut()
+    }
+
     /// Le sommet glTF d'un coin de face, créé à sa première rencontre. Trois rangs l'identifient :
     /// sa position, sa coordonnée de texture et l'endroit où se lit sa normale. Deux coins qui les
     /// partagent tous les trois sont le même sommet.
