@@ -52,23 +52,8 @@ fn regenere_la_fixture_ktx2() {
     fs::write(dir.join("scene.bin"), &bin).expect("binaire");
     let gltf = serde_json::to_vec_pretty(&scene(bin.len())).expect("glTF");
     fs::write(dir.join("scene.gltf"), &gltf).expect("scène");
-    let previous: Option<Value> = fs::read(dir.join("expected.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
     let run = compile_golden(&dir, "scene");
-    let mut expected = previews_digest(&run);
-    let object = expected.as_object_mut().expect("attendu");
-    for (field, fallback) in [("case", CASE), ("rule", RULE)] {
-        let kept = previous
-            .as_ref()
-            .and_then(|value| value.get(field))
-            .cloned()
-            .unwrap_or_else(|| json!(fallback));
-        object.insert(field.into(), kept);
-    }
-    let text = serde_json::to_vec_pretty(&expected).expect("attendu");
-    fs::write(dir.join("expected.json"), &text).expect("expected.json");
-    println!("fixture écrite dans {}", dir.display());
+    write_expected(&dir, previews_digest(&run), CASE, RULE);
 }
 
 /// Positions, coordonnées de texture puis indices : les trois vues du binaire, dans cet ordre.

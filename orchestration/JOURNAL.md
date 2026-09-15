@@ -5643,3 +5643,108 @@ par deux fonctions communes de `src/plugins/tests.rs` — et le cas « format ho
 registre se disait avec un entête EXR : il se dit maintenant avec un entête KTX2. `npm run
 check:changed` s'arrête dans ce worktree faute de `node_modules` ; prettier y a été passé à la main
 sur les fichiers JSON ajoutés. `npm run validate` n'a pas été joué ici, il l'est à la livraison.
+
+## 2026-09-15 — [compilateur] pilote ktx2
+
+Un pilote d'image de plus au registre : `ktx2`, neuvième entrée. Le cœur n'a pas bougé — un module,
+une ligne de registre, et les compteurs de pilotes des trois tests qui les comptent.
+
+**Ce qui est lu.** Le conteneur est reconnu par ses douze octets d'identifiant puis par son
+extension. L'entête de quatre-vingts octets — `vkFormat`, `typeSize`, les trois dimensions,
+`layerCount`, `faceCount`, `levelCount`, `supercompressionScheme`, puis l'index des trois sections —
+et l'index des niveaux sont lus champ par champ depuis « KTX File Format Specification, version
+2.0 » de Khronos. Aucun SDK, aucun code d'éditeur, aucun octet repris ailleurs. KTX 1.0 est un autre
+conteneur : il n'entre pas ici, ce serait un autre pilote.
+
+**Deux chemins, que l'entête sépare seul.** Un `vkFormat` nommé désigne un codec du registre Vulkan ;
+`VK_FORMAT_UNDEFINED` annonce une charge Basis Universal décrite par le descripteur de format, que le
+transcodeur relit lui-même.
+
+**Codecs déclarés, un par un.** Non compressé `R8G8B8A8_UNORM` et `_SRGB` ; BC1 sans puis avec alpha
+(la séparation compte : en trois couleurs, l'indice 3 est un noir opaque d'un côté, transparent de
+l'autre), BC2, BC3, BC4, BC5, BC7 ; ETC2 RGB, RGBA1 et RGBA8 ; EAC R11 et R11G11 ; ASTC 4 × 4. Les
+variantes `_SRGB` portent les mêmes octets que leurs `_UNORM`, le contrat d'image étant déjà sRGB.
+Supercompression : aucune, Zstandard, BasisLZ.
+
+**Refusés, nommés.** `ktx2-format-unsupported` pour les variantes signées, BC6H flottant, les canaux
+de plus de huit bits, les ordres d'octets autres que R, G, B, A et les treize empreintes ASTC autres
+que 4 × 4 ; `ktx2-layout-unsupported` pour les textures à une dimension, les volumes, les tableaux de
+couches et les cubes ; `ktx2-supercompression-unsupported` pour ZLIB et les numéros non attribués ;
+`ktx2-header-truncated`, `ktx2-header-invalid`, `ktx2-data-truncated`, `ktx2-image-too-large` et
+`ktx2-transcode-failed` pour le reste. Jamais une panique : une texture illisible laisse le moteur
+retomber sur son blanc. Les huit codes sont dans le tableau de `docs/COMPILER.md`.
+
+**Voie Basis retenue, et pourquoi.** Crate `basisu` 0.1.0, **Apache-2.0**,
+`marcogomez/basisu` : un transcodeur Basis Universal complet en **Rust pur**, sans `cc`, sans source
+C++, portage du transcodeur de référence de Binomial que son auteur déclare vérifié octet pour octet
+contre lui. Elle lit le conteneur KTX2 comme le `.basis`, et couvre ETC1S sous BasisLZ comme UASTC
+LDR. Les deux autres voies ont été regardées et écartées : `basis-universal` 0.3.1 (MIT ou
+Apache-2.0) compile dix mégaoctets de C++ vendorisé — encodeur compris — et n'expose, côté Rust, que
+le transcodeur `.basis` et un `LowLevelUastcTranscoder` : pas de transcodeur KTX2, pas de
+transcodeur ETC1S bas niveau, donc ETC1S depuis KTX2 aurait été hors de portée ; `ktx2-rw` 0.2.4
+télécharge KTX-Software au moment du build par `reqwest` et le construit par `cmake` et `bindgen`,
+ce qu'un build reproductible ne peut pas accepter. Le décodage des blocs déjà compressés reste à
+`texture2ddecoder` 0.1.2 (MIT ou Apache-2.0), et la supercompression Zstandard à `ruzstd` 0.7.3
+(MIT, Rust pur, décompression seule). Les trois versions sont figées et nommées dans la version du
+pilote, qui entre dans l'identité du cache.
+
+**Le socle commun avec `dds`.** `dds` et `ktx2` nomment leurs codecs différemment — `dwFourCC`,
+`dxgiFormat`, `vkFormat` — mais une fois le décodeur choisi, promener ses pixels est le même travail.
+Il descend dans `src/plugins/image/blocks.rs` : le type du décodeur de blocs, la reconstruction par
+rangée de quatre lignes sans second tampon de la taille de l'image, et la construction de l'image
+RGBA8. `dds/blocks.rs` l'appelle désormais et garde ce qui lui est propre, ses surfaces non
+compressées BGRA et BGRX. Rien n'a été extrait qui ne soit réellement identique ;
+`npm run check:duplicates` est vert. Même règle pour l'écriture des attendus de fixture, qui était
+la même dans `apercus_source.rs` et dans le nouveau doré : elle descend dans `src/tests/golden.rs`.
+
+**Mips.** Seul le niveau 0 est consommé, comme chez `dds`. `levelCount` sert de vérification : chaque
+niveau annoncé doit commencer après l'index et tenir dans le fichier, sinon c'est
+`ktx2-data-truncated`.
+
+**Ce qui prépare « les blocs restent compressés sur le GPU ».** Rien n'a été ajouté de spéculatif,
+pour la même raison que chez `dds` : le contrat rend du RGBA8 ou du flottant, pas des blocs. Le
+pilote est découpé pour l'accueillir — `header` rend la surface et les bornes de son niveau 0,
+`format` nomme le codec et sa géométrie de bloc, `level` et `basis` ne sont que la reconstruction,
+la seule partie qui deviendra le repli.
+
+**Dorée** (`fixtures/ktx2/`) : cinq fichiers et un doré compilé. `base.ktx2` (4 × 4, R8G8B8A8 sRGB,
+260 octets) et `base-zstd.ktx2` (le même niveau sous Zstandard, 256 octets) sont écrits depuis la
+spécification ; leurs seize texels sont en clair dans le test, et les deux fichiers doivent rendre
+exactement les mêmes — la supercompression n'est qu'un emballage. `uastc.ktx2` (416 octets) est
+découpé dans le corpus : les blocs UASTC font seize octets et sont indépendants, donc les quatre
+premiers blocs des quatre premières rangées sont le coin de 16 × 16 texels de la source, sans le
+moindre réencodage. `basis.ktx2` (8 108 octets, ETC1S sous BasisLZ) est copié tel quel du corpus.
+`tronque.ktx2` fait quarante octets. Tout est CC0-1.0. S'y ajoutent `scene.gltf`, `scene.bin` et
+`expected.json` : trois quads, trois matériaux, une texture KTX2 chacun, passés par `compile()`
+entier — trois aperçus, `skipped` vide, chaque niveau fixé par son condensé. Les conteneurs
+minuscules de `src/plugins/tests/ktx2/bytes.rs` couvrent les refus et la géométrie de bloc de chaque
+`vkFormat`, prouvée par l'octet qui manque. Les texels sont écrits en clair pour le non compressé,
+pour BC1 en trois couleurs et pour un bloc ASTC « void extent » ; l'interpolation entière des BCn est
+déjà fixée bloc par bloc par la dorée de `dds`, qui passe par le même socle et le même décodeur.
+
+**Corpus hors git, vérification manuelle** (`test-assets/textures/ktx2-matrix/`, lecture seule, par
+le pilote lui-même) :
+
+| fichier | entête | verdict |
+| --- | --- | --- |
+| `zstd.ktx2` | `R8G8B8A8_SRGB`, `KTX_SS_ZSTD`, un niveau | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]` |
+| `uastc.ktx2` | `UNDEFINED`, UASTC LDR, sans supercompression | décodé, 256 × 256, coin `[0, 0, 30, 0]`, centre `[128, 128, 30, 0]` — les mêmes valeurs que le fichier sans perte |
+| `basis.ktx2` | `UNDEFINED`, ETC1S, `KTX_SS_BASIS_LZ` | décodé, 256 × 256, coin `[0, 0, 31, 0]`, centre `[130, 130, 31, 0]` — l'écart attendu d'ETC1S |
+
+Les trois se décodent, les trois sont revendiqués par `ktx2`. Le corpus n'a jamais été écrit.
+
+190 tests Rust déclarés contre 183 sur la base (six jouables de plus, et la régénération de la
+fixture, ignorée), `cargo test --locked` au vert, Clippy `--all-targets -D warnings` sans
+avertissement, `cargo fmt --check` propre, `check:lines`, `check:duplicates` et `check:changed`
+verts. `npm run validate` n'a pas été joué ici.
+
+### Ce qui reste
+
+- KTX 1.0 n'est pas lu : c'est un autre conteneur, donc un autre pilote, et aucune source réelle ne
+  l'a demandé jusqu'ici.
+- ASTC n'entre qu'en 4 × 4. Les treize autres empreintes demanderaient une reconstruction par rangée
+  de blocs de hauteur variable dans `image::blocks` ; elles sont refusées par leur nom en attendant.
+- BC6H, UASTC HDR et ASTC HDR attendent que le contrat flottant `RgbaF32` soit branché ici : `basisu`
+  sait les transcoder vers du demi-flottant, mais ce pilote ne rend que du RGBA8 pour l'instant.
+- Les cubes, tableaux et volumes sont refusés faute de consommateur : rien ne les attend encore.
+- Le chantier « blocs gardés sur GPU » n'est pas commencé — il attend le go de l'utilisateur.
