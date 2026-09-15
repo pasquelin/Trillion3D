@@ -75,12 +75,16 @@ function assign(
  * plus grande texture. Rend toujours `ATLAS_CLASS_COUNT` classes : celles qu'aucune texture
  * n'emploie sont des textures 1×1 de deux couches, huit octets, que les shaders ne lisent jamais.
  *
+ * `maxClasses` est la borne que l'hôte demande (`ExplorerOptions.atlasClasses`). À 1, le plan rendu
+ * est exactement l'allocation d'avant les classes de taille.
+ *
  * L'échec `TEXTURE_ATLAS_LAYERS` n'est prononcé que si aucun plan ne tient sous la limite de
  * couches de l'appareil — ni l'allocation unique, ni aucun découpage à deux classes.
  */
 export function planAtlasClasses(
   device: GPUDevice,
   sizes: ReadonlyArray<readonly [number, number]>,
+  maxClasses: number,
 ): AtlasClassPlan {
   let width = 1,
     height = 1;
@@ -92,10 +96,13 @@ export function planAtlasClasses(
   const sampled = device.limits.maxSampledTexturesPerShaderStage;
   // La passe de résolution lit le tampon de visibilité, puis autant d'atlas couleur que de données.
   const affordable = Math.max(1, Math.floor((sampled - 1) / 2));
-  const allowed = Math.min(ATLAS_CLASS_COUNT, affordable);
+  const allowed = Math.min(ATLAS_CLASS_COUNT, affordable, Math.max(1, maxClasses));
   const single = assign(sizes, [[width, height]], maxLayers);
   let best = single;
-  for (let shift = 1; allowed > 1 && shift <= MAX_CLASS_SHIFT; shift++) {
+  // Le découpage s'explore quand l'hôte l'autorise, et de toute façon quand l'allocation unique ne
+  // tient pas sous la limite de couches : ce repli par limites de l'appareil ignore la borne.
+  const explore = affordable > 1 && (allowed > 1 || !single);
+  for (let shift = 1; explore && shift <= MAX_CLASS_SHIFT; shift++) {
     const small: [number, number] = [Math.max(1, width >> shift), Math.max(1, height >> shift)];
     const candidate = assign(sizes, [[width, height], small], maxLayers);
     if (!candidate || (best && candidate.bytes.reduce(sum) >= best.bytes.reduce(sum))) continue;

@@ -80,9 +80,12 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     const source = rt.context.textureIndices?.get(maps[index]);
     return source === undefined ? undefined : byTexture.get(source);
   };
+  // Une seule classe par défaut : l'hôte demande la seconde explicitement (`atlasClasses`).
+  const maxClasses = rt.context.atlasClasses ?? 1;
   const colorAtlas = prepareWebgpuAtlas(gpuDevice, maps, uvScales, textureJobs, fallbackEncoder, {
     kind: 'color',
     format: 'rgba8unorm-srgb',
+    maxClasses,
     fillFor: () => WHITE,
     errorCode: 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE',
     previewFor,
@@ -97,6 +100,7 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     {
       kind: 'data',
       format: 'rgba8unorm',
+      maxClasses,
       fillFor: (source) =>
         source !== undefined && normalMaps.has(dataMaps[source]) ? FLAT_NORMAL : WHITE,
       errorCode: 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',

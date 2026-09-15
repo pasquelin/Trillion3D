@@ -7,10 +7,12 @@ import { previewLevelJobs, textureJobFor, type TextureJob } from './webgpuAtlasJ
 
 type AtlasFill = { r: number; g: number; b: number; a: number };
 
-/** What distinguishes the sRGB colour atlas from the linear data atlas. */
+/** What distinguishes the sRGB colour atlas from the linear data atlas, plus the class bound. */
 export type AtlasSpec = {
   kind: TextureJob['kind'];
   format: GPUTextureFormat;
+  /** Classes de taille que l'hôte autorise : 1 rend l'allocation à une seule texture-tableau. */
+  maxClasses: number;
   /** Remplissage d'une couche, par rang de la texture source, ou `undefined` pour le repli. */
   fillFor: (source: number | undefined) => AtlasFill;
   errorCode: string;
@@ -115,7 +117,7 @@ export function prepareWebgpuAtlas(
     const image = texture.image as { width?: number; height?: number } | undefined;
     return [Math.max(1, image?.width ?? 1), Math.max(1, image?.height ?? 1)];
   });
-  const plan = planAtlasClasses(device, sizes);
+  const plan = planAtlasClasses(device, sizes, spec.maxClasses);
   // Quelle texture source occupe quelle couche de quelle classe : le remplissage d'une couche se
   // décide par texture (une carte de normales part du normal plat), pas par rang de couche.
   const sourceAt: number[][] = plan.sizes.map(() => []);
