@@ -6,11 +6,8 @@ pub(super) fn encode_page(
     templates: &Templates,
 ) -> Result<()> {
     let item = object(page, "page")?;
-    let min = vector(item.get("min"), 3, "page.min")?;
-    let max = vector(item.get("max"), 3, "page.max")?;
-    for value in min.iter().chain(max.iter()) {
-        columns[PAGE_BOUNDS].f64(*value);
-    }
+    vector_into(item.get("min"), 3, "page.min", &mut columns[PAGE_BOUNDS])?;
+    vector_into(item.get("max"), 3, "page.max", &mut columns[PAGE_BOUNDS])?;
     let mut flags = 0u32;
     match item.get("role") {
         None => {}
@@ -27,9 +24,12 @@ pub(super) fn encode_page(
     if cluster_error {
         flags |= FLAG_CLUSTER_ERROR;
         columns[PAGE_ERROR].f64(number(item.get("lodError"), "page.lodError")?);
-        for value in vector(item.get("sphere"), 4, "page.sphere")? {
-            columns[PAGE_SPHERE].f64(value);
-        }
+        vector_into(
+            item.get("sphere"),
+            4,
+            "page.sphere",
+            &mut columns[PAGE_SPHERE],
+        )?;
     } else {
         columns[PAGE_ERROR].f64(0.);
         columns[PAGE_SPHERE].zeros(32);
@@ -57,9 +57,12 @@ pub(super) fn encode_page(
         }
         Some(_) => {
             flags |= FLAG_PARENT_SPHERE | FLAG_PARENT_SPHERE_SET;
-            for value in vector(item.get("parentSphere"), 4, "page.parentSphere")? {
-                columns[PAGE_PARENT_SPHERE].f64(value);
-            }
+            vector_into(
+                item.get("parentSphere"),
+                4,
+                "page.parentSphere",
+                &mut columns[PAGE_PARENT_SPHERE],
+            )?;
         }
     }
     columns[PAGE_INT].i32(as_i32(integer(item.get("id"), "page.id")?, "page.id")?);

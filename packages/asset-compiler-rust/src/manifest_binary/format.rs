@@ -5,11 +5,15 @@ pub(super) fn bad(message: impl Into<String>) -> CompilerError {
 }
 
 #[derive(Default)]
-pub(super) struct Column {
-    pub(super) bytes: Vec<u8>,
+pub(crate) struct Column {
+    pub(crate) bytes: Vec<u8>,
 }
 impl Column {
-    pub(super) fn f64(&mut self, value: f64) {
+    /// Une colonne dont la taille finale est connue n'est jamais réallouée pendant l'écriture.
+    pub(crate) fn reserve(&mut self, bytes: usize) {
+        self.bytes.reserve(bytes);
+    }
+    pub(crate) fn f64(&mut self, value: f64) {
         self.bytes.extend_from_slice(&value.to_le_bytes());
     }
     pub(super) fn i32(&mut self, value: i32) {
@@ -63,7 +67,14 @@ pub(super) fn text<'a>(value: Option<&'a Value>, what: &str) -> Result<&'a str> 
         .and_then(Value::as_str)
         .ok_or_else(|| bad(format!("{what} is not a string")))
 }
-pub(super) fn vector(value: Option<&Value>, length: usize, what: &str) -> Result<Vec<f64>> {
+/// Les `length` nombres d'un tableau, écrits droit dans la colonne : pas de `Vec` intermédiaire
+/// par sphère ni par paire de bornes, et les mêmes octets qu'une écriture valeur par valeur.
+pub(crate) fn vector_into(
+    value: Option<&Value>,
+    length: usize,
+    what: &str,
+    column: &mut Column,
+) -> Result<()> {
     let items = array(value.ok_or_else(|| bad(format!("{what} is absent")))?, what)?;
     if items.len() != length {
         return Err(bad(format!(
@@ -71,11 +82,15 @@ pub(super) fn vector(value: Option<&Value>, length: usize, what: &str) -> Result
             items.len()
         )));
     }
-    items
-        .iter()
-        .enumerate()
-        .map(|(i, item)| number(Some(item), &format!("{what}[{i}]")))
-        .collect()
+    for (i, item) in items.iter().enumerate() {
+        // Le nom de l'entrée fautive n'est construit que lorsqu'il y en a une : l'ancien chemin
+        // formatait une chaîne par nombre valide, sphère après sphère, page après page.
+        let Some(value) = item.as_f64() else {
+            return Err(bad(format!("{what}[{i}] is not a number")));
+        };
+        column.f64(value);
+    }
+    Ok(())
 }
 pub(super) fn templated(template: &str, url: &str, sha: &str) -> Result<()> {
     if template.replace("{sha}", sha) != url {
