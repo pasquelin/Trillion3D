@@ -1,6 +1,6 @@
 # Reprise de la session « Compilateur » (formats d'import du compilateur natif) — 15 sept. 2026
 
-Cette session s'appelle « Compilateur » : son titre, lu par `mcp__ccd_session_mgmt__get_session("self")`, id `local_03e37a47…`. Au « reprends », vérifier ce titre **avant** de lire quoi que ce soit d'autre, puis lire ce fichier et `AGENTS.md`. Ne jamais prendre un autre rôle (Validateur, Lumière, Geometry) parce que son fichier de reprise est plus récent : le titre de la session prime toujours sur l'ancienneté d'un fichier.
+Cette session s'appelle « Compilateur » : son titre, lu par `mcp__ccd_session_mgmt__get_session("self")`, id `local_ebd236da…` (les identifiants changent à chaque redémarrage du poste : relire `list_sessions` avant d'écrire à une autre session). Au « reprends », vérifier ce titre **avant** de lire quoi que ce soit d'autre, puis lire ce fichier et `AGENTS.md`. Ne jamais prendre un autre rôle (Validateur, Lumière, Geometry) parce que son fichier de reprise est plus récent : le titre de la session prime toujours sur l'ancienneté d'un fichier.
 
 ## Rôles
 
@@ -8,7 +8,7 @@ Fable = chef : ne code pas, ne lit pas de code, brief et décide. Opus 5 = code,
 
 ## Flux de livraison (unique)
 
-Chaque branche `compilateur/<format>` est livrée au Validateur — session titrée « Simplify », id `local_f2f0a83d…`, joignable par `mcp__ccd_session_mgmt__send_message` — avec sa preuve : SHA de tête, merge-base avec `develop`, `cargo fmt --check`, `clippy --all-targets -D warnings`, `cargo test --locked`, `npm run check:lines`, `npm run check:duplicates`, `npm run check:changed`, grep des mots interdits, chiffres du corpus. Le Validateur fusionne, lance `/simplify`, valide, pousse `origin/develop` et confirme ; la session supprime alors le worktree et la branche du pilote livré.
+Chaque branche `compilateur/<format>` est livrée au Validateur — session titrée « Validateur », id `local_a124c3e6…` au 15 sept. 2026 19 h 40, joignable par `mcp__ccd_session_mgmt__send_message` — avec sa preuve : SHA de tête, merge-base avec `develop`, `cargo fmt --check`, `clippy --all-targets -D warnings`, `cargo test --locked`, `npm run check:lines`, `npm run check:duplicates`, `npm run check:changed`, grep des mots interdits, chiffres du corpus. Le Validateur fusionne, lance `/simplify`, valide, pousse `origin/develop` et confirme ; la session supprime alors le worktree et la branche du pilote livré.
 
 Cela remplace toute mention antérieure de fusion locale, de `branch -f main develop` ou d'un Sonnet de fusion : périmé. Jamais de `git push`, jamais de fusion par cette session sauf ordre explicite de l'utilisateur.
 
@@ -33,8 +33,8 @@ Corpus CC0 `test-assets/` hors git.
 
 ## À faire ensuite, dans l'ordre
 
-1. Vérifier que le Validateur a poussé `blend` (validate vert), puis supprimer le worktree `agent-a9d6b9e893e08da0d` et la branche `compilateur/blend`. Restes de `blend` : lampes et caméras, modificateurs non appliqués, collections instanciées, UV multiples, couleurs de sommet, transmission/IOR, fichiers antérieurs à la disposition par attributs, essai à blanc sur une scène lourde.
-2. Vague 5 : `psd` (aplati vers RGBA8), `bmp`, `gif` (features `image`), `ma` (Maya ASCII, données seules) ; vérifier MTL (OBJ).
+1. Vague 5 en cours depuis le 15 sept. 2026 19 h 40, trois Opus en worktree : `compilateur/psd` (aplati vers RGBA8, 16 bits/CMYK refusés), `compilateur/bmp-gif` (features `image`, première image des GIF animés comptée), `compilateur/ma` (Maya ASCII, sous-ensemble de commandes, rien d'exécuté) ; un Sonnet vérifie la lecture MTL du pilote `obj` en lecture seule. `blend` est poussé (03873d2 dans `origin/develop`), worktree et branche déjà retirés. Restes de `blend` : lampes et caméras, modificateurs non appliqués, collections instanciées, UV multiples, couleurs de sommet, transmission/IOR, fichiers antérieurs à la disposition par attributs, essai à blanc sur une scène lourde.
+2. À la livraison de la vague 5 : preuve au Validateur, puis suppression des trois worktrees et branches ; écarts MTL relevés par le Sonnet à corriger dans un lot `compilateur/mtl` si bloquants.
 3. Compléments : BC6H et UASTC HDR sur `RgbaF32`, KTX 1.0, ASTC hors 4×4, TIFF palette, lampes Unity non converties, retouches d'instances imbriquées non composées, cartes métal-lissage empaquetées, subdivision USD, `TEXCOORD_1`, animation Alembic.
 4. Lecture en entrée des glTF Draco / meshopt (sans perte ajoutée, perte de la source dite au rapport) : à proposer à l'utilisateur avant de coder.
 5. Chantier « blocs gardés sur GPU » (`DecodedImage::Blocks`, DDS puis KTX2) : sur go de l'utilisateur seulement.
@@ -44,4 +44,4 @@ Décisions ouvertes, à trancher par cette session ou par l'utilisateur : `atlas
 
 ## Dernier état connu
 
-`develop` = 03873d2 (blend compris) puis b81ad59 (autres sessions). `origin/develop` = dff4d79 (poussé par le Validateur seulement, peut être en retard sur `develop` local). Vérifier au moment de la reprise, ne pas recopier ces SHA sans contrôle.
+`develop` = `origin/develop` = d016f88 au 15 sept. 2026 19 h 40 (blend, alembic, usd compris). Vérifier au moment de la reprise, ne pas recopier ces SHA sans contrôle.
