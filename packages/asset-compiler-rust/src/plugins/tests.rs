@@ -9,6 +9,7 @@ mod hdr;
 mod image_registry;
 mod ktx2;
 mod png;
+mod psd;
 mod router;
 mod tga;
 mod tiff;
