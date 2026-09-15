@@ -63,7 +63,9 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatUseForcing = false;
   state.flatMissing = false;
   state.flatShort = false;
+  state.budget = budget;
   const sweep = () => {
+    state.over = false;
     shown.length = 0;
     wanted.length = 0;
     state.frustumRejected = 0;
@@ -71,6 +73,7 @@ export function selectVisiblePages<T extends PageRecord>(
     state.lodLevel = 0;
     state.complete = true;
     for (const root of roots) {
+      if (state.over) return;
       if (root.worldBox && !frustum.intersectsBox(root.worldBox)) {
         state.frustumRejected++;
         continue;
@@ -80,10 +83,19 @@ export function selectVisiblePages<T extends PageRecord>(
     }
   };
   sweep();
-  for (let attempt = 0; budget && shown.length > budget && attempt < 16; attempt++) {
+  // Un passage au-dessus du budget n'apporte qu'une chose : le seuil suivant. La coupe abandonnée
+  // s'arrête donc à la page qui dépasse, et seul le passage qui tient le budget est mené au bout.
+  // Quand même le seuil le plus grossier dépasse, la coupe entière est refaite : le drapeau de
+  // dépassement se lève sur une couverture complète, jamais sur une coupe tronquée.
+  for (let attempt = 0; budget && state.over && attempt < 16; attempt++) {
     state.pixelError = state.pixelError > 0 ? state.pixelError * 2 : 1;
     sweep();
   }
+  if (state.over) {
+    state.budget = 0;
+    sweep();
+  }
+  state.budget = 0;
   let selectedTriangles = 0,
     displayedTriangles = 0;
   for (let i = 0; i < wanted.length; i++) selectedTriangles += wanted[i].triangles;

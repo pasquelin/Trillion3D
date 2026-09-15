@@ -65,6 +65,17 @@ pub fn collect(
     bounds: &CoplanarBounds,
     dropped: &mut usize,
 ) -> Result<Vec<Surface>> {
+    let world = crate::compiler_world::world_matrices(inputs.g)?;
+    collect_with_world(inputs, bounds, dropped, &world)
+}
+
+/// La même collecte, avec les matrices monde déjà construites par l'étape.
+pub fn collect_with_world(
+    inputs: &CoplanarInputs<'_>,
+    bounds: &CoplanarBounds,
+    dropped: &mut usize,
+    world: &[crate::compiler_world::Mat4],
+) -> Result<Vec<Surface>> {
     let nodes = values(inputs.g, "nodes")?;
     let meshes = values(inputs.g, "meshes")?;
     let materials = inputs
@@ -73,7 +84,6 @@ pub fn collect(
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let world = crate::compiler_world::world_matrices(inputs.g)?;
     let mut surfaces: Vec<Surface> = Vec::new();
     for (order, node_id) in inputs.chosen.iter().enumerate() {
         (inputs.cancelled)()?;

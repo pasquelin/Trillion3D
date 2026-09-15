@@ -5,7 +5,6 @@ import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
 export interface PageRecord extends ClusterCut {
   triangles: number;
-  seen: number;
   level?: number;
   min?: number[];
   max?: number[];
@@ -41,6 +40,10 @@ export interface SelectionState<T extends PageRecord> {
   flatUseForcing: boolean;
   flatMissing: boolean;
   flatShort: boolean;
+  /** Budget de pages au-delà duquel un passage n'a plus rien à dire ; `0` quand il n'y en a pas. */
+  budget: number;
+  /** Ce passage a dépassé le budget : son résultat est jeté, la descente s'arrête là. */
+  over: boolean;
 }
 
 /** Résultat de la coupe, rempli en place : l'appelant fournit l'objet, l'image n'en alloue aucun. */
@@ -119,6 +122,8 @@ const reusedState: SelectionState<PageRecord> = {
   flatUseForcing: false,
   flatMissing: false,
   flatShort: false,
+  budget: 0,
+  over: false,
 };
 
 /** L'état réutilisé, vu au type de pages demandé. */
