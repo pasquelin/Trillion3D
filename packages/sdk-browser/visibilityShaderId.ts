@@ -29,9 +29,12 @@ ${PAGE_MASK_WGSL}
 fn computeTriangle(page:PageInfo,triangle:u32)->bool{
  if(uni.smallThreshold<=0.0||triangle*3u+2u>=page.indexCount){return false;}
  let ia=indices[page.pageOffset+triangle*3u];let ib=indices[page.pageOffset+triangle*3u+1u];let ic=indices[page.pageOffset+triangle*3u+2u];
- let a=uni.viewProj*page.world*vec4f(vertPos(page.vertexBase,ia),1.0);
- let b=uni.viewProj*page.world*vec4f(vertPos(page.vertexBase,ib),1.0);
- let c=uni.viewProj*page.world*vec4f(vertPos(page.vertexBase,ic),1.0);
+ // \`uni.viewProj*page.world*v\` s'associe a gauche : le produit des deux matrices etait refait pour
+ // chacun des trois sommets. Le nommer une fois donne exactement la meme matrice aux trois.
+ let vp=uni.viewProj*page.world;
+ let a=vp*vec4f(vertPos(page.vertexBase,ia),1.0);
+ let b=vp*vec4f(vertPos(page.vertexBase,ib),1.0);
+ let c=vp*vec4f(vertPos(page.vertexBase,ic),1.0);
  if(a.w<=0.0||b.w<=0.0||c.w<=0.0||a.z<0.0||b.z<0.0||c.z<0.0||a.z>a.w||b.z>b.w||c.z>c.w){return false;}
  let pa=vec2f((a.x/a.w*0.5+0.5)*uni.viewport.x,(1.0-(a.y/a.w*0.5+0.5))*uni.viewport.y);
  let pb=vec2f((b.x/b.w*0.5+0.5)*uni.viewport.x,(1.0-(b.y/b.w*0.5+0.5))*uni.viewport.y);
