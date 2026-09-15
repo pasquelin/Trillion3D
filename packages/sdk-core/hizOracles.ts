@@ -1,7 +1,9 @@
 /** Standard Hi-Z uses far = 1 and max reduction. Reversed-Z uses far = 0 and min reduction. */
 export const HIZ_BACKGROUND = 1;
 
-/** Réduction pyramidale Hi-Z conservatrice (plafond 2x2). */
+/** Réduction pyramidale Hi-Z conservatrice (plafond 2x2).
+ *  Témoin indépendant de `hizBuildFlat` (hizPyramidFlat.ts) : les deux écritures de la même
+ *  réduction sont ce que le test d'équivalence oppose, les fusionner supprimerait la preuve. */
 export function hizReduceCeil(
   depth: readonly (readonly number[])[],
   reversedZ = false,
