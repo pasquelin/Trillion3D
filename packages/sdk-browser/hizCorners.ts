@@ -37,31 +37,36 @@ export function projectCornersInto(
   into: Float64Array,
   base: number,
 ) {
-  let minX = Infinity,
-    minY = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity,
-    nearest = Infinity,
+  let lowX = Infinity,
+    lowY = Infinity,
+    highX = -Infinity,
+    highY = -Infinity,
+    lowZ = Infinity,
     clipsNear = false,
     projected = 0;
   const v = viewElements,
     e = viewProjElements;
+  // Une vue affine — quatrième ligne (0,0,0,1) — rend un dénominateur exactement 1 pour un coin
+  // fini : le produit scalaire n'est alors plus calculé, et `viewZ * 1` était déjà `viewZ`.
+  const affine = v[3] === 0 && v[7] === 0 && v[11] === 0 && v[15] === 1;
+  // Une projection perspective a pour quatrième ligne (0,0,-1,0), dont `multiplyMatrices` fait
+  // exactement l'opposé de la troisième ligne de la vue : `cw` vaut alors `-viewZ` au bit près —
+  // la négation est exacte et `(-a) + (-b)` vaut `-(a + b)` —, un produit scalaire de moins par
+  // coin. Une projection quelconque, orthographique ou oblique, retombe sur le produit.
+  const mirrored = e[3] === -v[2] && e[7] === -v[6] && e[11] === -v[10] && e[15] === -v[14];
   for (let i = 0; i < 8; i++) {
     const at = from + i * 3,
       x = corners[at],
       y = corners[at + 1],
       z = corners[at + 2];
-    // Une vue affine — la quatrième ligne vaut (0,0,0,1) — rend un dénominateur exactement 1 pour
-    // un coin fini, et `viewZ * 1` est `viewZ` au bit près : la division est alors sautée, pas
-    // remplacée. Un dénominateur quelconque, ou seulement inexact, retombe sur elle.
-    const vd = v[3] * x + v[7] * y + v[11] * z + v[15];
-    const vw = vd === 1 ? 1 : 1 / vd;
-    if (-((v[2] * x + v[6] * y + v[10] * z + v[14]) * vw) <= near) {
+    const viewZ = v[2] * x + v[6] * y + v[10] * z + v[14];
+    const vd = affine ? 1 : v[3] * x + v[7] * y + v[11] * z + v[15];
+    if (-(vd === 1 ? viewZ : viewZ * (1 / vd)) <= near) {
       // Le résultat d'une boîte qui coupe le plan proche ne lit plus aucun coin : rien à projeter.
       clipsNear = true;
       break;
     }
-    const cw = e[3] * x + e[7] * y + e[11] * z + e[15];
+    const cw = mirrored ? -viewZ : e[3] * x + e[7] * y + e[11] * z + e[15];
     if (cw <= 0 || !Number.isFinite(cw)) {
       clipsNear = true;
       break;
@@ -69,14 +74,11 @@ export function projectCornersInto(
     const ndcX = (e[0] * x + e[4] * y + e[8] * z + e[12]) / cw,
       ndcY = (e[1] * x + e[5] * y + e[9] * z + e[13]) / cw,
       ndcZ = (e[2] * x + e[6] * y + e[10] * z + e[14]) / cw;
-    const sx = (ndcX * 0.5 + 0.5) * width,
-      sy = (1 - (ndcY * 0.5 + 0.5)) * height,
-      sz = ndcZ * 0.5 + 0.5;
-    if (sx < minX) minX = sx;
-    if (sy < minY) minY = sy;
-    if (sx > maxX) maxX = sx;
-    if (sy > maxY) maxY = sy;
-    if (sz < nearest) nearest = sz;
+    if (ndcX < lowX) lowX = ndcX;
+    if (ndcX > highX) highX = ndcX;
+    if (ndcY < lowY) lowY = ndcY;
+    if (ndcY > highY) highY = ndcY;
+    if (ndcZ < lowZ) lowZ = ndcZ;
     projected++;
   }
   if (!projected || clipsNear) {
@@ -88,11 +90,14 @@ export function projectCornersInto(
     into[base + 5] = 1;
     return;
   }
-  into[base] = Math.floor(minX);
-  into[base + 1] = Math.floor(minY);
-  into[base + 2] = Math.ceil(maxX);
-  into[base + 3] = Math.ceil(maxY);
-  into[base + 4] = nearest;
+  // Le passage du repère normalisé à l'écran est monotone coordonnée par coordonnée — croissant en
+  // x et en profondeur, décroissant en y : l'extremum de l'image est l'image de l'extremum, au bit
+  // près. Les cinq conversions se font une fois par boîte au lieu de vingt-quatre.
+  into[base] = Math.floor((lowX * 0.5 + 0.5) * width);
+  into[base + 1] = Math.floor((1 - (highY * 0.5 + 0.5)) * height);
+  into[base + 2] = Math.ceil((highX * 0.5 + 0.5) * width);
+  into[base + 3] = Math.ceil((1 - (lowY * 0.5 + 0.5)) * height);
+  into[base + 4] = lowZ * 0.5 + 0.5;
   into[base + 5] = 0;
 }
 const cornerScratch = new Float64Array(BOX_CORNER_VALUES);
