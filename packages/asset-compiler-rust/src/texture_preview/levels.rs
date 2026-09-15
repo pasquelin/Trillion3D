@@ -1,11 +1,11 @@
+//! Géométrie de la pyramide progressive d'une texture, partagée par le calcul, l'écriture du
+//! sidecar et le lecteur TypeScript (`packages/sdk-core/texturePreviewLevels.ts`).
+//!
+//! Un niveau `k` est exactement le niveau de mip `k` de la source : la division entière de ses deux
+//! côtés par `2^k`, jamais moins d'un texel. Le moteur peut donc écrire le niveau `k` reçu dans le
+//! niveau de mip `k` de sa couche d'atlas sans rien recalculer, et l'échantillonner tel quel.
 use super::*;
 
-/// Géométrie de la pyramide progressive d'une texture, partagée par le calcul, l'écriture du
-/// sidecar et le lecteur TypeScript (`packages/sdk-core/texturePreviewLevels.ts`).
-///
-/// Un niveau `k` est exactement le niveau de mip `k` de la source : la division entière de ses deux
-/// côtés par `2^k`, jamais moins d'un texel. Le moteur peut donc écrire le niveau `k` reçu dans le
-/// niveau de mip `k` de sa couche d'atlas sans rien recalculer, et l'échantillonner tel quel.
 /// Dimensions du niveau `level` d'une image `width`×`height`.
 pub fn preview_level_size(width: u32, height: u32, level: u32) -> (u32, u32) {
     let shift = level.min(31);
