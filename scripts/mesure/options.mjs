@@ -183,6 +183,10 @@ export function readOptions(argv, root) {
     // `--empreinte-ombres` vide la file des pages d'ombre puis relit l'atlas de profondeur et en
     // publie l'empreinte. Éteint par défaut : c'est une lecture de 64 Mo, pas une mesure d'image.
     shadowDigest: flags.get('empreinte-ombres') === 'true',
+    // `--objet-mobile <nœud>` déplace un nœud nommé de la scène préparée d'un petit cercle à chaque
+    // image. Le harnais ne devine aucun nom : c'est l'hôte qui le donne, comme il donne son cache.
+    movingNode: flags.get('objet-mobile') ?? null,
+    movingNodeRadius: number('objet-rayon', 1),
   };
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
   if (settings.port === 5174)
