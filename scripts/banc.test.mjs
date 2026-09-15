@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SCENE, sceneOf } from './mesure/scene.mjs';
-import { readOptions } from './mesure/options.mjs';
+import { ENGINES, engineOf, parseArgs, readOptions } from './mesure/options.mjs';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';
@@ -85,4 +85,23 @@ test('readOptions lit --instances et refuse une grille que le SDK ne sait pas po
   assert.strictEqual(readOptions([], root).settings.instances, 1);
   assert.strictEqual(readOptions(['--instances=9'], root).settings.instances, 9);
   assert.throws(() => readOptions(['--instances=3'], root), /--instances/);
+});
+
+test('engineOf donne à un côté son propre moteur, sinon celui de la campagne', () => {
+  const flags = parseArgs(['--moteur-avant', 'webgl']);
+  assert.strictEqual(engineOf(flags, 'avant', 'webgpu').id, 'exact-cluster-pages');
+  assert.strictEqual(engineOf(flags, 'apres', 'webgpu').id, 'webgpu-page-raster');
+});
+
+test('engineOf refuse un moteur inconnu pour un côté', () => {
+  assert.throws(
+    () => engineOf(parseArgs(['--moteur-apres', 'inconnu']), 'apres', 'webgl'),
+    /--moteur-apres doit valoir/,
+  );
+});
+
+test('seuls les moteurs qui dessinent par Three reçoivent les lampes posées par l’hôte', () => {
+  assert.strictEqual(ENGINES.webgl.three, true);
+  assert.strictEqual(ENGINES.webgl2.three, true);
+  assert.strictEqual(ENGINES.webgpu.three, undefined);
 });

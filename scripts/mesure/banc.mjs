@@ -5,18 +5,14 @@
 //   node scripts/mesure/banc.mjs --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
 //        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 //
-// `--moteur` vaut `webgl` (exact-cluster-pages) ou `webgpu` (webgpu-page-raster) ; le moteur
-// choisit aussi les drapeaux de Chromium, copiés de `render-tech-lab/scripts/headless/`.
-// `--avant` et `--apres` prennent un dossier `dist/` construit ou une référence git, extraite hors
-// du dépôt puis construite ; sans `--avant`, un seul côté est mesuré, et `--apres` vaut le `dist/`
-// de ce dépôt, construit s'il manque. `--vues` parmi generale, sol, rue, detail. `--pixelError`
-// accepte une liste. Autres options : --chauffe N --largeur N --hauteur N --port N (un port libre
-// par défaut, jamais 5174) --out <dossier> (par défaut `.mesure/out/<moteur>-<horodatage>/`).
+// `--moteur` vaut `webgl`, `webgpu` ou `webgl2` ; `--moteur-avant` et `--moteur-apres` le
+// redéfinissent côté par côté, ce qui met un moteur face au témoin Three dans une seule exécution,
+// mêmes poses, mêmes lampes et même cache. Toutes les options sont décrites dans `README.md`.
 //
 // Le harnais écrit `mesure.json`, `resume.md` et un PNG par vue, par seuil et par côté, plus la
 // capture du témoin A/A. Un champ vaut `null` quand il n'a pas été mesuré : rien n'est déduit.
-// Chaque série est jouée dans une page neuve, fermée ensuite : le contexte WebGL et le tas de la
-// série précédente sont rendus au navigateur avant que la suivante n'en demande un.
+// Chaque série est jouée dans une page neuve : le contexte WebGL et le tas de la précédente sont
+// rendus au navigateur avant que la suivante n'en demande un.
 // Tout ce qu'il lance — serveur statique, Chromium — il l'arrête, y compris sur erreur.
 //
 // AUCUN CHRONOMÉTRAGE SÉRIEUX N'EST PROMIS ICI : le harnais relève les durées et la charge de la
@@ -42,8 +38,7 @@ const {
   flags,
   resources,
 } = options.readOptions(process.argv.slice(2), ROOT);
-const ENGINE = options.ENGINES[settings.engine];
-const CTX = { ENGINE, MANIFEST: null, OUT, settings, lights: null, poses: null };
+const CTX = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
   options.checkLabPath();
@@ -55,8 +50,13 @@ async function main() {
     root: ROOT,
   });
   // `--cache-avant` / `--cache-apres` : chaque côté peut jouer son propre cache compilé, rendu sous
-  // son propre préfixe. Sans l'option, le côté lit le cache du Lab, comme avant.
-  for (const side of sides) side.cache = options.resolveCache(flags.get(`cache-${side.name}`));
+  // son propre préfixe. Sans l'option, le côté lit le cache du Lab, comme avant. `--moteur-<côté>`
+  // lui donne son propre moteur ; les drapeaux de Chromium sont alors ceux dont les côtés ont besoin.
+  for (const side of sides) {
+    side.cache = options.resolveCache(flags.get(`cache-${side.name}`));
+    side.engine = options.engineOf(flags, side.name, settings.engine);
+  }
+  const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // La scène mesurée est celle des caches nommés ; sans aucun, celle que le Lab garde par défaut.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
   const MANIFEST = options.labManifest(
@@ -75,13 +75,15 @@ async function main() {
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     scene,
     engine: settings.engine,
-    engineId: ENGINE.id,
     pathVersion: options.PATH_VERSION,
     settings,
-    flags: ENGINE.flags,
+    flags: FLAGS,
     ressources: resources,
     sides: Object.fromEntries(
-      sides.map((s) => [s.name, { dist: s.dist, from: s.from, cache: s.cache ?? null }]),
+      sides.map((s) => [
+        s.name,
+        { dist: s.dist, from: s.from, cache: s.cache ?? null, moteur: s.engine.id },
+      ]),
     ),
     series: [],
     errors: [],
@@ -99,7 +101,7 @@ async function main() {
     const browser = await chromium.launch({
       headless: !settings.visible,
       executablePath: options.CHROME,
-      args: ENGINE.flags,
+      args: FLAGS,
     });
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
