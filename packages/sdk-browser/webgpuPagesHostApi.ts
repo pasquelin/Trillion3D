@@ -101,20 +101,26 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
         ? []
         : run.desired,
     run.pendingScratch,
+    rt.setup.requestStamps,
   );
 }
 
+/**
+ * Les adresses que l'hôte épingle après le rendu. Le rang de la clé de requête est posé une fois
+ * pour toutes par le catalogue : deux pages qui partagent une requête partagent leur rang, et le
+ * dédoublonnage les sépare par une estampille au lieu de hacher cent mille chaînes par image.
+ * Mêmes adresses, même ordre, même longueur qu'un ensemble de chaînes.
+ */
 export function pageUrls(rt: WebgpuPagesRuntime) {
   const { run } = rt,
-    { urlScratch } = run;
+    { urlScratch } = run,
+    stamps = rt.setup.requestStamps;
   urlScratch.length = 0;
-  const seen = new Set<string>();
+  stamps.begin();
   for (const list of [rt.setup.bootstrap, run.shown, run.coverageBudgetLimited ? [] : run.desired])
     for (let i = 0; i < list.length; i++) {
-      const url = pageRequestUrl(list[i]);
-      if (seen.has(url)) continue;
-      seen.add(url);
-      urlScratch.push(url);
+      const rec = list[i];
+      if (stamps.first(rec.requestIndex)) urlScratch.push(pageRequestUrl(rec));
     }
   return urlScratch;
 }
