@@ -8,7 +8,9 @@ pub(super) const IDENTITY: Mat4 = [
 /// A scene graph deeper than this is refused rather than followed: a cycle would never end.
 const MAX_DEPTH: usize = 256;
 
-fn multiply(a: &Mat4, b: &Mat4) -> Mat4 {
+/// `a · b`, l'opération `b` s'appliquant au point avant `a`. Partagée avec les pilotes de scène
+/// qui composent eux-mêmes leurs matrices.
+pub(super) fn multiply(a: &Mat4, b: &Mat4) -> Mat4 {
     let mut out = [0.0f64; 16];
     for column in 0..4 {
         for row in 0..4 {
@@ -43,18 +45,10 @@ fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Ve
         .map(Some)
 }
 
-/// `matrix` when the node carries one, otherwise translation · rotation · scale, as glTF defines it.
-fn local_matrix(node: &Value) -> Result<Mat4> {
-    if let Some(values) = numbers(node.get("matrix"), 16, "matrix")? {
-        let mut matrix = IDENTITY;
-        matrix.copy_from_slice(&values);
-        return Ok(matrix);
-    }
-    let t = numbers(node.get("translation"), 3, "translation")?.unwrap_or(vec![0., 0., 0.]);
-    let r = numbers(node.get("rotation"), 4, "rotation")?.unwrap_or(vec![0., 0., 0., 1.]);
-    let s = numbers(node.get("scale"), 3, "scale")?.unwrap_or(vec![1., 1., 1.]);
-    let (x, y, z, w) = (r[0], r[1], r[2], r[3]);
-    let rotation = [
+/// The rotation of a glTF unit quaternion `(x, y, z, w)`, column by column. Shared with the scene
+/// plugins that compose their own matrices.
+pub(super) fn rotation_matrix([x, y, z, w]: [f64; 4]) -> Mat4 {
+    [
         1. - 2. * (y * y + z * z),
         2. * (x * y + z * w),
         2. * (x * z - y * w),
@@ -71,8 +65,20 @@ fn local_matrix(node: &Value) -> Result<Mat4> {
         0.,
         0.,
         1.,
-    ];
-    let mut matrix = rotation;
+    ]
+}
+
+/// `matrix` when the node carries one, otherwise translation · rotation · scale, as glTF defines it.
+fn local_matrix(node: &Value) -> Result<Mat4> {
+    if let Some(values) = numbers(node.get("matrix"), 16, "matrix")? {
+        let mut matrix = IDENTITY;
+        matrix.copy_from_slice(&values);
+        return Ok(matrix);
+    }
+    let t = numbers(node.get("translation"), 3, "translation")?.unwrap_or(vec![0., 0., 0.]);
+    let r = numbers(node.get("rotation"), 4, "rotation")?.unwrap_or(vec![0., 0., 0., 1.]);
+    let s = numbers(node.get("scale"), 3, "scale")?.unwrap_or(vec![1., 1., 1.]);
+    let mut matrix = rotation_matrix([r[0], r[1], r[2], r[3]]);
     for column in 0..3 {
         for row in 0..3 {
             matrix[column * 4 + row] *= s[column];

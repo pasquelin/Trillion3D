@@ -1,0 +1,126 @@
+//! Un `UsdUVTexture` vers une texture glTF.
+//!
+//! Le pilote ne décode rien lui-même : il nomme l'image par son URI, relativement à la racine où le
+//! compilateur relira ces mêmes octets, et laisse le registre d'images dire si ce format se lit.
+//! Une texture d'un format hors registre, absente, ou qui sort du dossier de la source est comptée
+//! au rapport et la scène continue sans elle — jamais un échec de compilation.
+use super::*;
+
+/// L'identifiant du nœud de texture que ce pilote lit.
+const UV_TEXTURE: &str = "UsdUVTexture";
+/// Le jeu de coordonnées que la scène intermédiaire porte : glTF n'en reçoit qu'un ici.
+const UV_SET: &str = "st";
+/// Le motif d'un jeu de textures par tuile, qui désigne plusieurs fichiers et non un.
+const UDIM: &str = "<UDIM>";
+
+/// La texture glTF que cette connexion désigne, sous la forme que glTF attend d'un emplacement de
+/// texture : `{"index": …}`.
+pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path) -> Option<Value> {
+    let shader = world.stage.prim(target.prim_path()).ok()?;
+    let id = read::first(&shader.attribute("info:id")).and_then(|(value, _)| read::text(&value));
+    if id.as_deref() != Some(UV_TEXTURE) {
+        world.refuse(world::TEXTURE_UNSUPPORTED);
+        return None;
+    }
+    let file =
+        read::first(&shader.attribute("inputs:file")).and_then(|(value, _)| read::asset(&value))?;
+    if file.contains(UDIM) {
+        world.refuse(world::TEXTURE_UNSUPPORTED);
+        return None;
+    }
+    if uv_set(world, &shader).as_deref().unwrap_or(UV_SET) != UV_SET {
+        world.refuse(world::TEXTURE_UNSUPPORTED);
+    }
+    let index = image(world, &file)?;
+    let sampler = world.scene.sampler(wrap(&shader));
+    Some(texture(world, index, sampler))
+}
+
+/// Le rang de l'image, versée à la première demande, ou `None` quand le fichier ne se lit pas.
+fn image(world: &mut World<'_>, file: &str) -> Option<usize> {
+    let Some(uri) = uri(file) else {
+        world.refuse(world::TEXTURE_MISSING);
+        return None;
+    };
+    if let Some(known) = world.images_by_uri.get(&uri) {
+        return Some(*known);
+    }
+    let path = world.images.join(&uri);
+    let Some(decoder) = crate::plugins::image::by_extension(&path).filter(|_| path.is_file())
+    else {
+        world.refuse(world::TEXTURE_MISSING);
+        world.scene.report.notes.push(format!(
+            "texture illisible ou hors registre d'images: {uri}"
+        ));
+        return None;
+    };
+    let name = uri.rsplit('/').next().unwrap_or(&uri).to_string();
+    world
+        .scene
+        .images
+        .push(json!({"name":name,"mimeType":decoder.mime(),"uri":uri.clone()}));
+    let index = world.scene.images.len() - 1;
+    world.images_by_uri.insert(uri, index);
+    Some(index)
+}
+
+/// Le rang de la texture qui lie cette image à cet échantillonneur, versée une seule fois.
+fn texture(world: &mut World<'_>, source: usize, sampler: usize) -> Value {
+    let entry = json!({"source":source,"sampler":sampler});
+    let known = world
+        .scene
+        .textures
+        .iter()
+        .position(|value| *value == entry);
+    let index = known.unwrap_or_else(|| {
+        world.scene.textures.push(entry);
+        world.scene.count("textures", 1);
+        world.scene.textures.len() - 1
+    });
+    json!({ "index": index })
+}
+
+/// L'URI d'un chemin d'asset, relative à la racine des images. Un chemin absolu, un chemin qui
+/// remonte au-dessus de la racine ou un nom de fichier dangereux n'a pas d'URI : la texture est
+/// comptée absente plutôt que lue hors du dossier de la source.
+fn uri(file: &str) -> Option<String> {
+    if file.starts_with('/') || file.contains(':') {
+        return None;
+    }
+    let mut parts: Vec<&str> = Vec::new();
+    for part in file
+        .split('/')
+        .filter(|part| !part.is_empty() && *part != ".")
+    {
+        if !crate::is_safe_source_name(part) {
+            return None;
+        }
+        parts.push(part);
+    }
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
+/// Le jeu de coordonnées que le lecteur de primvar branché sur `inputs:st` désigne.
+fn uv_set(world: &World<'_>, shader: &usd::Prim) -> Option<String> {
+    let target = shader
+        .attribute("inputs:st")
+        .connections()
+        .ok()?
+        .into_iter()
+        .next()?;
+    let reader = world.stage.prim(target.prim_path()).ok()?;
+    read::first(&reader.attribute("inputs:varname")).and_then(|(value, _)| read::text(&value))
+}
+
+/// Le mode de répétition, lu sur `wrapS` — la scène intermédiaire n'en porte qu'un par
+/// échantillonneur, et `wrapT` suit. Un mode que glTF n'a pas répète, comme le fait USD par défaut.
+fn wrap(shader: &usd::Prim) -> u32 {
+    let mode = read::first(&shader.attribute("inputs:wrapS"))
+        .and_then(|(value, _)| read::text(&value))
+        .unwrap_or_default();
+    match mode.as_str() {
+        "clamp" => 33071,
+        "mirror" => 33648,
+        _ => 10497,
+    }
+}

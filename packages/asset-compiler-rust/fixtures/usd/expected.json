@@ -1,0 +1,172 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "max": [1.0, 2.0, 0.0],
+      "min": [0.0, 1.0, 0.0],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 4,
+      "max": [1.0, 1.0, 0.0],
+      "min": [0.0, 0.0, 0.0],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    }
+  ],
+  "case": "Une couche usda : un Xform translaté, un Mesh de deux quadrilatères, un GeomSubset materialBind qui lie la seconde face à un second matériau, un UsdPreviewSurface opaque et un autre translucide à texture UsdUVTexture en sous-dossier.",
+  "counts": {
+    "materials": 2,
+    "meshInstances": 1,
+    "textures": 1
+  },
+  "formatVersion": 4,
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "checker.png",
+      "uri": "textures/checker.png"
+    }
+  ],
+  "manifestBinaryVersion": 4,
+  "materials": [
+    {
+      "alphaMode": "BLEND",
+      "name": "Texture",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [1.0, 1.0, 1.0, 0.5],
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.20000000298023224
+      }
+    },
+    {
+      "alphaMode": "OPAQUE",
+      "name": "Uni",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.800000011920929, 0.10000000149011612, 0.10000000149011612, 1.0],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.4000000059604645
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Quad",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Quad"
+    },
+    {
+      "children": [0],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0],
+      "name": "Plaque"
+    },
+    {
+      "children": [1],
+      "name": "Root"
+    },
+    {
+      "children": [2],
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+      "name": "usd-root"
+    }
+  ],
+  "notes": [],
+  "plugin": {
+    "name": "usd",
+    "version": "usd-openusd-0.7.0-gltf-1"
+  },
+  "primitives": 2,
+  "rule": "Le pilote rend la scène composée et rien d'autre : polygones triangulés en éventail, une primitive par partie de matériau, normales et primvars:st résolues par leur interpolation, UsdPreviewSurface vers pbrMetallicRoughness, et l'unité comme l'axe haut de la couche portés par la racine de la scène.",
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 33071,
+      "wrapT": 33071
+    }
+  ],
+  "scenePlugin": {
+    "name": "usd",
+    "version": "usd-openusd-0.7.0-gltf-1"
+  },
+  "selectedNodes": [0],
+  "selectedTriangles": 4,
+  "sidecarSha256": "64cf0a593424f47f01beea8743714afdb61b87e2bf4a0539d85e7f58b77cf09b",
+  "sourceTriangles": 4,
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "totalNodes": 1,
+  "unsupported": {}
+}

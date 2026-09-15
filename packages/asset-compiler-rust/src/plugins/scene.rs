@@ -19,6 +19,8 @@ mod route;
 mod ufbx_driver;
 mod unity;
 mod unitypackage;
+mod usd;
+mod usdz;
 mod zip;
 
 pub use route::{prepare_source, route, Routed, RoutedSource};
@@ -34,6 +36,8 @@ pub static PLUGINS: &[&dyn ScenePlugin] = &[
     &unity::UNITY,
     &zip::ZIP,
     &unitypackage::UNITYPACKAGE,
+    &usd::USD,
+    &usdz::USDZ,
 ];
 
 /// Tout ce qu'un pilote reçoit pour préparer une scène.
