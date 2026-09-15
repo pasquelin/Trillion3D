@@ -1,6 +1,12 @@
 import { EngineError, type TexturePreview } from './contracts.ts';
 import * as format from './manifestBinaryFormat.ts';
 import { writeSha } from './manifestBinaryLayout.ts';
+import {
+  previewFirstLevel,
+  previewLevelCount,
+  previewLevelSize,
+  previewPixelBytes,
+} from './texturePreviewLevels.ts';
 
 type PreviewColumns = {
   count: number;
@@ -9,15 +15,26 @@ type PreviewColumns = {
   previewPixels: Uint8Array<ArrayBuffer>;
 };
 
+/** Ce qu'une entrée doit annoncer pour ses dimensions source, recalculé et jamais cru sur parole. */
+function expectedGeometry(width: number, height: number) {
+  return {
+    firstLevel: previewFirstLevel(width, height),
+    levelCount: previewLevelCount(width, height),
+    pixelBytes: previewPixelBytes(width, height),
+  };
+}
+
 /**
- * Rebuilds the texture preview entries, checking every one before a byte of it is handed on: the
- * declared level offsets must be exactly this version's, the source dimensions must be real, and
- * the texture indices must climb, so one entry can never be read as another's.
+ * Rebuilds the progressive level entries, checking every one before a byte of it is handed on: the
+ * texture indices must climb, the source dimensions must be real, the declared level geometry must
+ * be the one those dimensions imply, and the byte ranges must follow one another without a gap or
+ * an overlap — so one entry can never be read as another's.
  */
 export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[] {
   const { count, previewWords, previewShaText, previewPixels } = columns;
   const previews: TexturePreview[] = new Array(count);
-  let previous = -1;
+  let previous = -1,
+    consumed = 0;
   for (let entry = 0; entry < count; entry++) {
     const base = entry * format.PREVIEW_WORDS;
     const texture = previewWords[base + format.PREVIEW_TEXTURE];
@@ -35,22 +52,40 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
         width,
         height,
       });
-    const start = entry * format.PREVIEW_BYTES;
-    const levels = format.PREVIEW_LEVEL_SIZES.map((size, level) => {
-      const offset = previewWords[base + format.PREVIEW_FIRST_OFFSET + level];
-      if (offset !== format.PREVIEW_LEVEL_OFFSETS[level])
-        throw new EngineError(
-          'INVALID_CACHE',
-          'A texture preview level offset is not this format',
-          {
-            entry,
-            level,
-            offset,
-            expected: format.PREVIEW_LEVEL_OFFSETS[level],
-          },
-        );
-      return previewPixels.subarray(start + offset, start + offset + size * size * 4);
-    });
+    const expected = expectedGeometry(width, height);
+    const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
+    const declared = {
+      firstLevel,
+      levelCount: previewWords[base + format.PREVIEW_LEVEL_COUNT],
+      pixelBytes: previewWords[base + format.PREVIEW_PIXEL_BYTES],
+    };
+    const offset = previewWords[base + format.PREVIEW_PIXEL_OFFSET];
+    if (
+      declared.firstLevel !== expected.firstLevel ||
+      declared.levelCount !== expected.levelCount ||
+      declared.pixelBytes !== expected.pixelBytes
+    )
+      throw new EngineError(
+        'INVALID_CACHE',
+        'A texture preview level geometry is not the one its dimensions imply',
+        { entry, width, height, declared, expected },
+      );
+    if (offset !== consumed || offset + declared.pixelBytes > previewPixels.length)
+      throw new EngineError('INVALID_CACHE', 'A texture preview pixel range is not contiguous', {
+        entry,
+        offset,
+        expected: consumed,
+        bytes: declared.pixelBytes,
+        column: previewPixels.length,
+      });
+    const levels: Uint8Array<ArrayBuffer>[] = [];
+    let at = offset;
+    for (let index = 0; index < declared.levelCount; index++) {
+      const [w, h] = previewLevelSize(width, height, firstLevel + index);
+      levels.push(previewPixels.subarray(at, at + w * h * 4));
+      at += w * h * 4;
+    }
+    consumed = at;
     previews[entry] = {
       texture,
       image: previewWords[base + format.PREVIEW_IMAGE],
@@ -62,6 +97,7 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
           ? -1
           : previewWords[base + format.PREVIEW_SOURCE_VIEW],
       sha256: previewShaText.substring(entry * 64, entry * 64 + 64),
+      firstLevel,
       levels,
     };
   }
@@ -90,7 +126,8 @@ function encodeTexturePreviews(
   sha: Uint8Array,
   pixels: Uint8Array,
 ) {
-  let previous = -1;
+  let previous = -1,
+    offset = 0;
   previews.forEach((preview, entry) => {
     if (!Number.isInteger(preview.texture) || preview.texture <= previous)
       throw new EngineError('INVALID_CACHE', 'Texture previews are not ordered by texture index', {
@@ -104,8 +141,8 @@ function encodeTexturePreviews(
         width: preview.width,
         height: preview.height,
       });
-    const base = entry * format.PREVIEW_WORDS,
-      start = entry * format.PREVIEW_BYTES;
+    const expected = expectedGeometry(preview.width, preview.height);
+    const base = entry * format.PREVIEW_WORDS;
     words[base + format.PREVIEW_TEXTURE] = preview.texture;
     words[base + format.PREVIEW_IMAGE] = preview.image;
     words[base + format.PREVIEW_WIDTH] = preview.width;
@@ -113,19 +150,23 @@ function encodeTexturePreviews(
     words[base + format.PREVIEW_SOURCE_KIND] = preview.sourceKind;
     words[base + format.PREVIEW_SOURCE_VIEW] =
       preview.sourceKind === format.PREVIEW_SOURCE_URI ? 0xffffffff : preview.sourceBufferView;
+    words[base + format.PREVIEW_FIRST_LEVEL] = expected.firstLevel;
+    words[base + format.PREVIEW_LEVEL_COUNT] = expected.levelCount;
+    words[base + format.PREVIEW_PIXEL_OFFSET] = offset;
+    words[base + format.PREVIEW_PIXEL_BYTES] = expected.pixelBytes;
     writeSha(sha, entry, preview.sha256);
-    format.PREVIEW_LEVEL_SIZES.forEach((size, level) => {
-      const offset = format.PREVIEW_LEVEL_OFFSETS[level];
-      words[base + format.PREVIEW_FIRST_OFFSET + level] = offset;
-      const source = preview.levels[level];
-      if (!source || source.length !== size * size * 4)
+    for (let index = 0; index < expected.levelCount; index++) {
+      const [w, h] = previewLevelSize(preview.width, preview.height, expected.firstLevel + index);
+      const source = preview.levels[index];
+      if (!source || source.length !== w * h * 4)
         throw new EngineError('INVALID_CACHE', 'A texture preview level has the wrong length', {
           entry,
-          level,
+          level: expected.firstLevel + index,
           length: source?.length ?? null,
-          expected: size * size * 4,
+          expected: w * h * 4,
         });
-      pixels.set(source, start + offset);
-    });
+      pixels.set(source, offset);
+      offset += source.length;
+    }
   });
 }

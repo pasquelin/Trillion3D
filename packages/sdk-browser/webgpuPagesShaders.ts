@@ -1,7 +1,13 @@
 import { SCENE_LIGHTING_WGSL } from './sceneLighting.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
-import { COLOR_SAMPLE_WGSL } from './webgpuPreviewAtlas.ts';
+import {
+  ATLAS_SLOTS_WGSL,
+  COLOR_SAMPLE_WGSL,
+  DATA_SAMPLE_WGSL,
+  atlasTextures,
+} from './webgpuAtlasWgsl.ts';
+import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -39,22 +45,24 @@ ${TRIANGLE_PALETTE_WGSL}
 `;
 
 export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,lightDir:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,}
-@group(0) @binding(0) var<storage, read> indices:array<u32>;
-@group(0) @binding(1) var<storage, read> positions:array<f32>;
-@group(0) @binding(2) var<storage, read> uvs:array<f32>;
-@group(0) @binding(3) var<uniform> uni:Uniforms;
-@group(0) @binding(4) var maps:texture_2d_array<f32>;
-@group(0) @binding(5) var mapsSampler:sampler;
-@group(0) @binding(6) var dataMaps:texture_2d_array<f32>;
-@group(0) @binding(7) var<storage,read> normals:array<f32>;
-@group(0) @binding(8) var<storage,read> scales:array<vec4f>;
+@group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
+@group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
+@group(0) @binding(${BLEND_BINDINGS.uniform}) var<uniform> uni:Uniforms;
+${atlasTextures(BLEND_BINDINGS.maps, 'maps')}
+@group(0) @binding(${BLEND_BINDINGS.sampler}) var mapsSampler:sampler;
+${atlasTextures(BLEND_BINDINGS.dataMaps, 'dataMaps')}
+@group(0) @binding(${BLEND_BINDINGS.normals}) var<storage,read> normals:array<f32>;
+@group(0) @binding(${BLEND_BINDINGS.scales}) var<storage,read> scales:array<vec4f>;
 ${STANDARD_LIGHTING_WGSL}
 ${SCENE_LIGHTING_WGSL}
-@group(0) @binding(9) var<storage,read> sceneLights:SceneLights;
-@group(0) @binding(10) var<storage,read> triangleDiagnostic:array<u32>;
-@group(0) @binding(11) var previews:texture_2d_array<f32>;
-@group(0) @binding(12) var<storage,read> previewReady:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.sceneLights}) var<storage,read> sceneLights:SceneLights;
+@group(0) @binding(${BLEND_BINDINGS.triangleDiagnostic}) var<storage,read> triangleDiagnostic:array<u32>;
+@group(0) @binding(${BLEND_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
+@group(0) @binding(${BLEND_BINDINGS.dataSlots}) var<storage,read> dataSlots:array<u32>;
+${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
+${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
 fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}
@@ -119,12 +127,11 @@ ${TRIANGLE_PALETTE_WGSL}
  }
  var rgb=in.color.xyz*sample.xyz;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
- if(uni.roughIndex!=0u){let scale=scales[uni.roughIndex].xy;rough*=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.roughIndex),gradX*scale,gradY*scale).g;}
- if(uni.metalIndex!=0u){let scale=scales[uni.metalIndex].xy;metal*=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.metalIndex),gradX*scale,gradY*scale).b;}
- if(uni.aoIndex!=0u){let scale=scales[uni.aoIndex].xy;ao+=uni.aoIntensity*(textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.aoIndex),gradX*scale,gradY*scale).r-1.0);}
+ if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,wrapped,gradX,gradY).g;}
+ if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,wrapped,gradX,gradY).b;}
+ if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,wrapped,gradX,gradY).r-1.0);}
  if(uni.normalIndex!=0u){
-  let scale=scales[uni.normalIndex].xy;
-  let mapN=textureSampleGrad(dataMaps,mapsSampler,wrapped*scale,i32(uni.normalIndex),gradX*scale,gradY*scale).xyz*2.0-vec3f(1.0);
+  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,wrapped,gradX,gradY).xyz*2.0-vec3f(1.0);
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
   if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}

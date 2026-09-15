@@ -1,7 +1,7 @@
 use super::*;
 
 // Comportement 4 (a) : la couverture MASK à pleine résolution se retrouve, à un texel près, à
-// chacun des cinq niveaux — la recherche d'échelle d'alpha préserve la fraction de texels visibles.
+// chacun des niveaux portés — la recherche d'échelle d'alpha préserve la fraction de texels visibles.
 #[test]
 fn mask_coverage_is_preserved_within_one_texel_at_every_level() {
     let cutoff = 0.5f32;
@@ -18,15 +18,17 @@ fn mask_coverage_is_preserved_within_one_texel_at_every_level() {
         .filter(|&(x, y)| covered_at(x, y))
         .count();
     let target = covered_source as f32 / (SIDE * SIDE) as f32;
-    let pixels = reduce::pyramid(&source, Some(cutoff));
-    for (level, &side) in PREVIEW_LEVEL_SIZES.iter().enumerate() {
-        let side = side as usize;
-        let bytes = level_bytes(&pixels, level);
+    let (first, pixels) = reduce::pyramid(&source, Some(cutoff));
+    assert_eq!(first, 2, "256 px descend à 64 px pour tenir sous la base");
+    for index in 0..preview_level_count(SIDE, SIDE) as usize {
+        let (columns, rows) = level_size(SIDE, SIDE, index);
+        let texels = (columns * rows) as usize;
+        let bytes = level_bytes(SIDE, SIDE, &pixels, index);
         let covered = bytes.chunks(4).filter(|texel| texel[3] >= 128).count() as i64;
-        let expected = (target * (side * side) as f32).round() as i64;
+        let expected = (target * texels as f32).round() as i64;
         assert!(
             (covered - expected).abs() <= 1,
-            "niveau {side}×{side} : couverture {covered}, attendue {expected} (±1 texel)"
+            "niveau {columns}×{rows} : couverture {covered}, attendue {expected} (±1 texel)"
         );
     }
 }
@@ -35,13 +37,14 @@ fn mask_coverage_is_preserved_within_one_texel_at_every_level() {
 // matériau MASK), l'alpha ressort inchangé — simple moyenne de boîte, jamais remis à l'échelle.
 #[test]
 fn alpha_is_unchanged_without_a_mask_cutoff() {
-    let source = rgba_from(32, 32, |x, _y| [10, 20, 30, (x * 8) as u8]);
-    let pixels = reduce::pyramid(&source, None);
-    let level0 = level_bytes(&pixels, 0);
+    let (width, height) = (32u32, 32u32);
+    let source = rgba_from(width, height, |x, _y| [10, 20, 30, (x * 8) as u8]);
+    let (_first, pixels) = reduce::pyramid(&source, None);
+    let level = level_bytes(width, height, &pixels, 1);
     for column in 0..16usize {
         let (a0, a1) = ((2 * column * 8) as i32, ((2 * column + 1) * 8) as i32);
         let expected = ((a0 + a1) as f32 / 2.0).round() as i32;
-        let actual = level0[column * 4 + 3] as i32;
+        let actual = level[column * 4 + 3] as i32;
         assert!(
             (expected - actual).abs() <= 1,
             "colonne {column} : alpha attendu {expected}, obtenu {actual}"

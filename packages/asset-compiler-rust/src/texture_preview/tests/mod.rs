@@ -44,9 +44,21 @@ pub(super) fn rgba_from(
 ) -> image::RgbaImage {
     image::RgbaImage::from_fn(width, height, |x, y| image::Rgba(pixel(x, y)))
 }
-/// A level's straight-alpha sRGB8 pixel bytes, sliced out of the pyramid's flat 1364 bytes.
-pub(super) fn level_bytes(pixels: &[u8], level: usize) -> &[u8] {
-    let start = PREVIEW_LEVEL_OFFSETS[level] as usize;
-    let side = PREVIEW_LEVEL_SIZES[level] as usize;
-    &pixels[start..start + side * side * 4]
+/// Les dimensions du niveau de rang `index` d'une pyramide, le rang 0 étant le plus fin porté.
+pub(super) fn level_size(width: u32, height: u32, index: usize) -> (u32, u32) {
+    preview_level_size(
+        width,
+        height,
+        preview_first_level(width, height) + index as u32,
+    )
+}
+/// A level's straight-alpha sRGB8 pixel bytes, sliced out of the pyramid's variable-length bytes.
+pub(super) fn level_bytes(width: u32, height: u32, pixels: &[u8], index: usize) -> &[u8] {
+    let mut start = 0usize;
+    for step in 0..index {
+        let (w, h) = level_size(width, height, step);
+        start += (w * h * 4) as usize;
+    }
+    let (w, h) = level_size(width, height, index);
+    &pixels[start..start + (w * h * 4) as usize]
 }

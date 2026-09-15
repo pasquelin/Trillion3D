@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number) {
   const { vis, gpu, lights } = rt;
   const cacheBuffer = gpu.cache?.buffer,
-    { visBindGroupLayout, concatPos, concatUv, pageTable, mapsTexture, mapsSampler, preview } = vis;
+    { visBindGroupLayout, concatPos, concatUv, pageTable, colorAtlas, mapsSampler, slots } = vis;
   const { cull } = lights;
   if (
     !visBindGroupLayout ||
@@ -21,21 +21,20 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
     !concatPos ||
     !concatUv ||
     !pageTable ||
-    !mapsTexture ||
+    !colorAtlas ||
     !mapsSampler ||
-    !preview ||
+    !slots ||
     !vis.zeroFlags ||
     !cull
   )
     return;
-  const key = [cacheBuffer, concatPos, concatUv, pageTable, mapsTexture, preview, cull.kept];
+  const key = [cacheBuffer, concatPos, concatUv, pageTable, colorAtlas, slots.color, cull.kept];
   if (key.some((resource, index) => lights.shadowGroupsKey[index] !== resource)) {
     lights.shadowGroupsKey = key;
     lights.shadowGroups.fill(undefined);
   }
   let group = lights.shadowGroups[face];
   if (!group) {
-    const visMaps = (vis.mapsArrayView ??= mapsTexture.createView({ dimension: '2d-array' }));
     group = device.createBindGroup({
       layout: visBindGroupLayout,
       entries: visBindEntries({
@@ -46,11 +45,11 @@ function shadowFaceGroup(rt: WebgpuPagesRuntime, device: GPUDevice, face: number
         uniform: cull.drawUniform,
         uniformOffset: face * PAGE_BIND_ALIGN,
         uv: concatUv,
-        maps: visMaps,
+        colorAtlas,
         sampler: mapsSampler,
         instances: cull.kept,
         slotOffsets: cull.offsets,
-        preview,
+        slots,
       }),
     });
     lights.shadowGroups[face] = group;

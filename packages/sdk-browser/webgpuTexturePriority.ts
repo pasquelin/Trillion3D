@@ -20,11 +20,13 @@ type PriorityInputs = {
  * transparents visibles (`blendState.visibleBlend`). Aucune passe GPU, aucune lecture bloquante —
  * ces deux listes sont réécrites par la coupe de chaque image et se lisent à coût nul.
  *
- * Le poids d'une couche est le nombre de triangles dessinés par les surfaces qui la lisent : une
- * texture que la caméra regarde de près pèse plus qu'une texture au loin. À poids égal, une texture
- * déjà entamée passe devant une texture intacte, ce qui borne le nombre de transferts à moitié
- * faits ; à poids et avancement égaux l'ordre d'origine est conservé. Une texture entamée peut donc
- * être reléguée entre deux tranches, jamais au milieu d'une tranche.
+ * Le poids d'un slot est le nombre de triangles dessinés par les surfaces qui le lisent : une
+ * texture que la caméra regarde de près pèse plus qu'une texture au loin. À poids égal, les niveaux
+ * progressifs d'une texture passent avant sa pleine résolution — quelques kilooctets donnent une
+ * image lisible que des mégaoctets mettraient des dizaines d'images à donner ; puis un niveau déjà
+ * entamé passe devant un niveau intact, ce qui borne le nombre de transferts à moitié faits ; à
+ * poids, étage et avancement égaux l'ordre d'origine est conservé. Un niveau entamé peut donc être
+ * relégué entre deux tranches, jamais au milieu d'une tranche.
  */
 export function createTexturePriority(inputs: () => PriorityInputs) {
   const colorWeights: number[] = [];
@@ -41,7 +43,7 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
     }
   };
   const weightOf = (job: TextureJob) =>
-    (job.kind === 'color' ? colorWeights : dataWeights)[job.layer] ?? 0;
+    (job.kind === 'color' ? colorWeights : dataWeights)[job.slot] ?? 0;
   /** Réordonne la file en place ; sans signal exploitable, elle garde l'ordre où elle a été bâtie. */
   const order = (jobs: TextureJob[]) => {
     if (jobs.length < 2) return;
@@ -52,7 +54,10 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
       for (const page of drawn) addWeight(index.get(page.material), page.triangles);
       for (const item of blend) addWeight(index.get(item.material), item.count / 3);
     }
-    jobs.sort((a, b) => weightOf(b) - weightOf(a) || (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0));
+    jobs.sort(
+      (a, b) =>
+        weightOf(b) - weightOf(a) || a.stage - b.stage || (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
+    );
   };
   return { order };
 }

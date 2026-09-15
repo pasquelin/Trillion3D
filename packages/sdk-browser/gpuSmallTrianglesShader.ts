@@ -1,3 +1,6 @@
+import { ATLAS_SLOTS_WGSL, COLOR_ALPHA_WGSL, atlasTextures } from './webgpuAtlasWgsl.ts';
+import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
+
 /** Compute raster for sub-eight-pixel opaque triangles. Hardware renders the complementary set. */
 const PAGE_INFO = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}
 struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
@@ -12,20 +15,24 @@ export const LIST_HEADER = 8;
 /** Pixels a side of the fine class, and how many of its triangles one 64-lane workgroup rasters. */
 const FINE_SIDE = 4,
   FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
-export const rasterSource = (capacity: number) => `${PAGE_INFO}
-@group(0) @binding(0) var<storage,read> indices:array<u32>;
-@group(0) @binding(1) var<storage,read> positions:array<f32>;
-@group(0) @binding(2) var<storage,read> pages:array<PageInfo>;
-@group(0) @binding(3) var<storage,read> hizFlags:array<u32>;
-@group(0) @binding(4) var<uniform> uni:Uniforms;
-@group(0) @binding(5) var<storage,read> uvs:array<f32>;
-@group(0) @binding(6) var maps:texture_2d_array<f32>;
-@group(0) @binding(7) var mapsSampler:sampler;
-// One target holds both attachments the raster resolves: depth first, identifiers one screen later.
-@group(0) @binding(8) var<storage,read_write> frame:array<atomic<u32>>;
-// The small-triangle list: its count, the dispatch it implies, then one packed row and triangle each.
-@group(0) @binding(9) var<storage,read_write> small:array<atomic<u32>>;
-@group(0) @binding(10) var<storage,read> selectionMask:array<u32>;
+export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO}
+@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.positions}) var<storage,read> positions:array<f32>;
+@group(0) @binding(${SMALL_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
+@group(0) @binding(${SMALL_BINDINGS.hizFlags}) var<storage,read> hizFlags:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.uniform}) var<uniform> uni:Uniforms;
+@group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
+${atlasTextures(SMALL_BINDINGS.maps, 'maps')}
+@group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
+// Un seul tampon de travail : d'abord les deux attachements que le raster résout — la profondeur,
+// puis les identifiants un écran plus loin —, et à partir de LIST la liste des petits triangles,
+// son compte, la répartition qu'il implique, puis une ligne et un triangle empaquetés par entrée.
+@group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
+const LIST:u32=${listBase}u;
+@group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.colorSlots}) var<storage,read> colorSlots:array<vec2u>;
+${ATLAS_SLOTS_WGSL}
+${COLOR_ALPHA_WGSL}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 fn vertex(page:PageInfo,index:u32)->vec4f{
  let base=(page.vertexBase+index)*3u;
@@ -36,12 +43,12 @@ fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-
 fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
 fn keepMask(page:PageInfo,tc:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let wrapped=vec2f(select(clamp(tc.x,0.0,1.0),fract(tc.x),(page.flags&32u)!=0u),select(clamp(tc.y,0.0,1.0),fract(tc.y),(page.flags&64u)!=0u))*page.uvScale;
- return textureSampleLevel(maps,mapsSampler,wrapped,i32(page.mapIndex),0.0).w>=page.baseColor.w;
+ let wrapped=vec2f(select(clamp(tc.x,0.0,1.0),fract(tc.x),(page.flags&32u)!=0u),select(clamp(tc.y,0.0,1.0),fract(tc.y),(page.flags&64u)!=0u));
+ return colorAlpha(page.mapIndex,page.uvScale,wrapped)>=page.baseColor.w;
 }
 @compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
  let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}
- atomicStore(&frame[offset],bitcast<u32>(1.0));atomicStore(&frame[pixels+offset],0xffffffffu);
+ atomicStore(&work[offset],bitcast<u32>(1.0));atomicStore(&work[pixels+offset],0xffffffffu);
 }
 // Everything a triangle decides before a pixel is named. The binning pass evaluates it once per
 // triangle and the two raster passes replay it for the survivors only, from the same inputs, so the
@@ -83,8 +90,8 @@ fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
  // retrancher des unités rapproche exactement d'autant de derniers bits. Zéro pour la couche 0.
  let raw=bitcast<u32>(depth);
  let bits=select(raw,select(0u,raw-page.depthBias,raw>page.depthBias),page.depthBias>0u);
- if(writeId){if(atomicLoad(&frame[offset])==bits){atomicMin(&frame[pixelCount()+offset],page.packedBase|(triangle&0xffu));}}
- else{atomicMin(&frame[offset],bits);}
+ if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(triangle&0xffu));}}
+ else{atomicMin(&work[offset],bits);}
 }
 // A dispatch dimension tops out at 65 535 groups, far below the page count a replicated scene
 // reaches, so the page row is split over y and z and bounded against the live row count.
@@ -100,19 +107,19 @@ fn pageRow(group:vec3u)->u32{return group.y+group.z*${DISPATCH_SPAN}u;}
  // A box no wider than the fine grid is rasterised by ${FINE_SIDE * FINE_SIDE} lanes instead of 64, so the fine
  // class packs ${FINE_PER_GROUP} triangles into one workgroup. A pixel the smaller grid drops lies outside the
  // triangle's own bounding box, where the barycentric test rejects it anyway.
- if(t.span<=f32(${FINE_SIDE}u-1u)){atomicStore(&small[${LIST_HEADER}u+atomicAdd(&small[0],1u)],entry);}
- else{atomicStore(&small[${LIST_HEADER + capacity}u-1u-atomicAdd(&small[1],1u)],entry);}
+ if(t.span<=f32(${FINE_SIDE}u-1u)){atomicStore(&work[LIST+${LIST_HEADER}u+atomicAdd(&work[LIST],1u)],entry);}
+ else{atomicStore(&work[LIST+${LIST_HEADER + capacity}u-1u-atomicAdd(&work[LIST+1u],1u)],entry);}
 }
 /** Turns each class count into its raster dispatch, so no count travels through the CPU. */
 @compute @workgroup_size(1) fn plan(){
- let fine=(atomicLoad(&small[0])+${FINE_PER_GROUP}u-1u)/${FINE_PER_GROUP}u;
- atomicStore(&small[2],min(fine,${DISPATCH_SPAN}u));
- atomicStore(&small[3],(fine+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
- atomicStore(&small[4],1u);
- let coarse=atomicLoad(&small[1]);
- atomicStore(&small[5],min(coarse,${DISPATCH_SPAN}u));
- atomicStore(&small[6],(coarse+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
- atomicStore(&small[7],1u);
+ let fine=(atomicLoad(&work[LIST])+${FINE_PER_GROUP}u-1u)/${FINE_PER_GROUP}u;
+ atomicStore(&work[LIST+2u],min(fine,${DISPATCH_SPAN}u));
+ atomicStore(&work[LIST+3u],(fine+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
+ atomicStore(&work[LIST+4u],1u);
+ let coarse=atomicLoad(&work[LIST+1u]);
+ atomicStore(&work[LIST+5u],min(coarse,${DISPATCH_SPAN}u));
+ atomicStore(&work[LIST+6u],(coarse+${DISPATCH_SPAN}u-1u)/${DISPATCH_SPAN}u);
+ atomicStore(&work[LIST+7u],1u);
 }
 fn smallAt(group:vec3u)->u32{return group.x+group.y*${DISPATCH_SPAN}u;}
 // A workgroup is always 64 lanes, whatever the class: the coarse one spends them on the eight-by-eight
@@ -126,7 +133,7 @@ fn fineGroup(group:vec3u,lane:vec3u,writeId:bool){
  let i=smallAt(group)*${FINE_PER_GROUP}u+slot;
  if(index%${FINE_SIDE * FINE_SIDE}u==0u){
   var t:Tri;t.ok=0u;
-  if(i<atomicLoad(&small[0])){let entry=atomicLoad(&small[${LIST_HEADER}u+i]);t=setupTriangle(entry>>8u,entry&0xffu);}
+  if(i<atomicLoad(&work[LIST])){let entry=atomicLoad(&work[LIST+${LIST_HEADER}u+i]);t=setupTriangle(entry>>8u,entry&0xffu);}
   shared_tri[slot]=t;
  }
  workgroupBarrier();
@@ -139,7 +146,7 @@ fn coarseGroup(group:vec3u,lane:vec3u,writeId:bool){
  let i=smallAt(group);
  if(lane.x==0u&&lane.y==0u){
   var t:Tri;t.ok=0u;
-  if(i<atomicLoad(&small[1])){let entry=atomicLoad(&small[${LIST_HEADER + capacity}u-1u-i]);t=setupTriangle(entry>>8u,entry&0xffu);}
+  if(i<atomicLoad(&work[LIST+1u])){let entry=atomicLoad(&work[LIST+${LIST_HEADER + capacity}u-1u-i]);t=setupTriangle(entry>>8u,entry&0xffu);}
   shared_tri[0]=t;
  }
  workgroupBarrier();

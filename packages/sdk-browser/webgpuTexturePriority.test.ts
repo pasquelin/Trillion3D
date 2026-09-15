@@ -6,10 +6,14 @@ import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
-function job(layer: number): TextureJob {
+function job(slot: number, stage = 1): TextureJob {
   return {
     kind: 'color',
-    layer,
+    slot,
+    classIndex: 0,
+    layer: slot,
+    level: 0,
+    stage,
     bytes: 4,
     rows: 1,
     bytesPerRow: 4,
@@ -41,4 +45,18 @@ test('une couche lue par des pages dessinées passe devant une couche invisible 
   const originalOrder = [...untouched];
   noSignal.order(untouched);
   assert.deepEqual(untouched, originalOrder);
+});
+
+// Comportement 8 : à poids égal, les niveaux progressifs d'une texture (stage 0) passent devant sa
+// pleine résolution (stage 1) — quelques kilooctets donnent une image lisible avant les mégaoctets.
+test('à poids égal, un niveau progressif passe devant la pleine résolution de la même texture', () => {
+  const visible = new THREE.MeshStandardMaterial();
+  const index: MaterialLayerIndex = new Map([[visible, { color: [1], data: [] }]]);
+  const drawn = [{ material: visible, triangles: 10 } as PageRec];
+  const priority = createTexturePriority(() => ({ index, drawn, blend: [] as BlendGpuItem[] }));
+  const full = job(1, 1),
+    level = job(1, 0);
+  const jobs = [full, level];
+  priority.order(jobs);
+  assert.deepEqual(jobs, [level, full]);
 });

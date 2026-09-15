@@ -1,40 +1,30 @@
 import { BLEND_SHADER } from './webgpuPagesShaders.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
+import { BLEND_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
 
 /** Builds the forward-material pipelines for transparent draws. */
 export async function createWebgpuBlendPipelines(device: GPUDevice, items: BlendGpuItem[]) {
+  const b = BLEND_BINDINGS;
   const blendBindGroupLayout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
+      { binding: b.indices, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.positions, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.uvs, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       {
-        binding: 3,
+        binding: b.uniform,
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
         buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNIFORM_STRIDE },
       },
-      {
-        binding: 4,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 5, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-      {
-        binding: 6,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 7, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 9, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 10, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } },
-      {
-        binding: 11,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 12, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+      ...b.maps.map((binding) => atlasLayoutEntry(binding)),
+      { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+      ...b.dataMaps.map((binding) => atlasLayoutEntry(binding)),
+      { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.scales, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.sceneLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.triangleDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.colorSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.dataSlots, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
     ],
   });
   const blendModule = device.createShaderModule({ code: BLEND_SHADER });

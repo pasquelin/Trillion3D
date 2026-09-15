@@ -15,7 +15,8 @@ fn linear(byte: u8) -> f32 {
 // linéaire prémultiplié — ici alpha vaut 255 partout, donc prémultiplié == linéaire directement.
 #[test]
 fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
-    let source = rgba_from(32, 32, |x, y| {
+    let (width, height) = (32u32, 32u32);
+    let source = rgba_from(width, height, |x, y| {
         [
             ((x * 7 + y * 3) % 256) as u8,
             ((x * 13 + 5) % 256) as u8,
@@ -23,14 +24,17 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
             255,
         ]
     });
-    let pixels = reduce::pyramid(&source, None);
-    for (level, pair) in PREVIEW_LEVEL_SIZES.windows(2).enumerate() {
-        let (fine_side, coarse_side) = (pair[0], pair[1]);
+    let (first, pixels) = reduce::pyramid(&source, None);
+    assert_eq!(first, 0, "une source de 32 px tient déjà sous la base");
+    let count = preview_level_count(width, height) as usize;
+    for index in 0..count - 1 {
+        let (fine_side, _) = level_size(width, height, index);
+        let (coarse_side, coarse_rows) = level_size(width, height, index + 1);
         let side = fine_side as usize;
-        let next_side = side / 2;
-        let fine = level_bytes(&pixels, level);
-        let coarse = level_bytes(&pixels, level + 1);
-        for row in 0..next_side {
+        let next_side = coarse_side as usize;
+        let fine = level_bytes(width, height, &pixels, index);
+        let coarse = level_bytes(width, height, &pixels, index + 1);
+        for row in 0..coarse_rows as usize {
             for column in 0..next_side {
                 for channel in 0..3usize {
                     let mut sum = 0f32;
@@ -50,4 +54,28 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
             }
         }
     }
+}
+
+// Comportement 1 : nombre, tailles et octets des niveaux pour une texture non carrée dont les deux
+// côtés dépassent la base, et pour une texture assez grande pour saturer les sept niveaux et les
+// 21 844 octets maximum que le module documente.
+#[test]
+fn geometry_matches_expectations_for_a_non_square_and_a_maximal_texture() {
+    // 128×64 : exactement le double de la base sur chaque côté, un niveau sous le maximum.
+    assert_eq!(preview_first_level(128, 64), 1);
+    assert_eq!(preview_last_level(128, 64), 7);
+    assert_eq!(preview_level_count(128, 64), 7);
+    assert_eq!(preview_level_size(128, 64, 1), (64, 32));
+    assert_eq!(preview_level_size(128, 64, 7), (1, 1));
+    assert_eq!(preview_pixel_bytes(128, 64), 10_924);
+
+    // 4096×4096 : assez grande pour que le premier niveau porté tombe pile sur la base.
+    assert_eq!(preview_first_level(4096, 4096), 6);
+    assert_eq!(preview_last_level(4096, 4096), 12);
+    assert_eq!(preview_level_count(4096, 4096), PREVIEW_MAX_LEVELS);
+    assert_eq!(
+        preview_level_size(4096, 4096, 6),
+        (PREVIEW_BASE, PREVIEW_BASE)
+    );
+    assert_eq!(preview_pixel_bytes(4096, 4096), 21_844);
 }

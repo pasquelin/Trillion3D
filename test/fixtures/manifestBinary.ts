@@ -1,5 +1,10 @@
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../packages/sdk-core/contractsBase.ts';
 import type { ClusterManifest } from '../../packages/sdk-core/contracts.ts';
+import {
+  previewFirstLevel,
+  previewLevelCount,
+  previewLevelSize,
+} from '../../packages/sdk-core/texturePreviewLevels.ts';
 
 export const TEMPLATES = {
   url: 'clusters.bin',
@@ -10,13 +15,19 @@ export const TEMPLATES = {
 export const sha = (c: string) => c.repeat(64);
 const url = (c: string) => `../../objects/${sha(c)}.bin`;
 
-/** One texture preview pyramid: five RGBA8 levels, each byte deterministic and level-distinct so a
- *  round trip that mixed up two levels would show here. */
+/** Les dimensions source de l'unique entrée de niveaux progressifs de la fixture. */
+const PREVIEW_SIZE: [number, number] = [32, 16];
+
+/** One progressive level pyramid: the lossless tail of the source's mip chain, each byte
+ *  deterministic and level-distinct so a round trip that mixed up two levels would show here. */
 function previewLevels() {
-  return [16, 8, 4, 2, 1].map(
-    (size, level) =>
-      new Uint8Array(size * size * 4).map((_, i) => (i + level) % 256) as Uint8Array<ArrayBuffer>,
-  );
+  const first = previewFirstLevel(...PREVIEW_SIZE);
+  return Array.from({ length: previewLevelCount(...PREVIEW_SIZE) }, (_, index) => {
+    const [width, height] = previewLevelSize(...PREVIEW_SIZE, first + index);
+    return new Uint8Array(width * height * 4).map(
+      (_byte, i) => (i + index) % 256,
+    ) as Uint8Array<ArrayBuffer>;
+  });
 }
 
 /** Every optional field in both of its shapes: a round trip that misses one would show here. */
@@ -108,11 +119,12 @@ export function manifest(): ClusterManifest {
       {
         texture: 0,
         image: 0,
-        width: 32,
-        height: 16,
+        width: PREVIEW_SIZE[0],
+        height: PREVIEW_SIZE[1],
         sourceKind: 0,
         sourceBufferView: -1,
         sha256: sha('9'),
+        firstLevel: previewFirstLevel(...PREVIEW_SIZE),
         levels: previewLevels(),
       },
     ],

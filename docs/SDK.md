@@ -14,11 +14,11 @@ The compiler rejects selected accessors that cross their `bufferView`, invalid s
 
 ## Entry points
 
-| Import | Symbols |
-|---|---|
+| Import                         | Symbols                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@web-geometry/sdk` or `/core` | `SDK_VERSION`, `FORMAT_VERSION`, `DEFAULT_SCOPE`, `assertFormat`, `assertCachePointer`, `assertCacheReady`, `assertCacheIdentity`, `EngineError`, `createJob`, `createSafetyPolicy`, `userNotice`, `compareImages`, `summarize`, `frameStatistics`, `makeCameraPath`, `CAMERA_SCENARIOS`, `DIAGNOSTICS`, `LOD_QUALITY`, `lodQuality`, `adaptivePixelError` |
-| `@web-geometry/sdk/node` | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `getSdkProvenance`, CLI |
-| `@web-geometry/sdk/browser` | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories |
+| `@web-geometry/sdk/node`       | `prepare`, `prepareMany`, `createCompilationJob`, `createTerminalProgress`, `createBatchProgress`, `getSdkProvenance`, CLI                                                                                                                                                                                                                                 |
+| `@web-geometry/sdk/browser`    | `createExplorer`, `createExplorerJob`, `runCameraPath`, `createGpuPageCache`, `httpPageSource`, `detectCapabilities`, `replicateInstances` (1/4/9 replica helper), `webgpuPagesBackend`, backend factories                                                                                                                                                 |
 
 `replicateInstances` is a helper that instances the source 1, 4 or 9 times while sharing geometry and materials.
 
@@ -95,10 +95,10 @@ WebGPU pins the root cover for the lifetime of the backend, including its CPU in
 
 Two counters say different things about pages, and a host that confuses them reads thrashing where there is none:
 
-| Field | Meaning | Reported by |
-|---|---|---|
-| `pagesDetached` | Clusters that left the drawn cut since the backend was created. A moving camera detaches clusters on every frame; this is a measure of cut churn, not of memory pressure. | `exact-cluster-pages` (WebGL). `null` elsewhere. |
-| `cacheEvictions` | Pages actually evicted from the cache that feeds the drawn geometry — the backend's own GPU page cache when it owns one (`webgpu-page-raster`, `autonomous-pages`), the host page streamer otherwise. This is the memory-pressure signal. | every backend |
+| Field            | Meaning                                                                                                                                                                                                                                   | Reported by                                      |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `pagesDetached`  | Clusters that left the drawn cut since the backend was created. A moving camera detaches clusters on every frame; this is a measure of cut churn, not of memory pressure.                                                                 | `exact-cluster-pages` (WebGL). `null` elsewhere. |
+| `cacheEvictions` | Pages actually evicted from the cache that feeds the drawn geometry — the backend's own GPU page cache when it owns one (`webgpu-page-raster`, `autonomous-pages`), the host page streamer otherwise. This is the memory-pressure signal. | every backend                                    |
 
 A bounded cache evicting nothing while `pagesDetached` climbs is the normal state of an exploration. Background loads attempt a failed URL at most three times per explorer, then stop retrying it; reload the explorer to retry after repairing the source. `awaitPages()` rejects a failed requested URL. Initial cover read failures reject preparation. Diagnostics include `coverage-bootstrap-start`, `coverage-bootstrap-ready`/`coverage-bootstrap-failed`, `coverage-budget` (delivered during `flush()`), `coverage-upload-failed`, and `coverage-streaming-failed`. The `render-progress.coverage` object uses version 1. CPU cache eviction cannot remove an active GPU fallback; deferred evictions apply when its detail pages are released.
 
@@ -107,7 +107,6 @@ A bounded cache evicting nothing while `pagesDetached` climbs is the normal stat
 If visibility/material initialization fails in a direct WebGPU session, the engine fails visibly. It also rejects transmission rather than silently leaving it out. Mixed sessions retain the earlier reported fallback path; inspect `unsupported` and diagnostics and reject fallbacks for quality/performance comparisons. Per-texture transforms/UV channels/sampler modes, skinning, morph targets and the full material contract remain unsupported. No compiler/cache-format migration or new LOD algorithm is part of this integration.
 
 ### WebGPU visual checks and diagnostics
-
 
 `diagnosticDetail: "trace" | "summary"` controls event detail. An `onDiagnostic` observer defaults to trace; omit the observer to disable collection. The Lab's model bench enables **Mode debug** by default and saves this choice in the report. Debug frames are marked `measurementKind: "diagnostic"`, including beauty renders. Turn debug off before collecting performance evidence.
 
@@ -141,7 +140,6 @@ The runners use the Lab's installed Playwright and Chrome's actual WebGPU device
 
 The current WebGPU path still lacks per-texture transforms/UV channels/filter modes, environment maps, shadows and the full material contract. Padded texture-array boundaries, transparent compositing and full-scene pixel differences still need dedicated parity checks. The CPU shading oracle encodes linear lighting to sRGB without ACES; it is not a substitute for the displayed-image comparisons.
 
-
 The separated pipeline has completed real Lab paths and A/A checks; full material parity and a controlled performance verdict remain unvalidated. Start the Lab recipe with material fixtures, then Emerald with fixed camera, resolution, lights, pixel error and warmup. Verify actual direct-presentation logs, independent A/A captures, foreground coverage, transparent compositing and second-view restoration before timing. Preserve raw source hashes and results; old reports do not validate this code. Node tests validate orchestration/CPU contracts with GPU doubles and do not execute WGSL.
 
 The existing model report can be verified without starting a renderer:
@@ -153,3 +151,5 @@ LAB_ROOT=../render-tech-lab node --experimental-strip-types test/debugLogging.ar
 This check compares every journal event and capture against the original compressed report, verifies hashes, diagnostic sequences and measured sample counts. It does not rerun the campaign.
 
 For prepared WebGPU scenes, `maxTextureTransferBytesPerFrame` bounds source texture uploads per frame. A texture larger than that budget is cut into bands of rows spread over several frames, in the order the camera draws them, and is never dropped for its size; a layer becomes readable only after its last band and its mip regeneration, showing its 16x16 preview until then. Frame metrics expose `textureUploaded`, `texturePending`, `textureInFlight`, `textureSlicesUploaded`, `textureBytesLastFrame`, `textureSkipped` and `totalSubmittedTriangles`; `textureSkipped` counts only textures the device refused three times. `createExplorer` exposes `renderViews(poses)` for successive captures. Its `addInstance`, `updateInstance`, `removeInstance`, `updateMaterial` and `replaceGeometryPage` methods currently require the autonomous WebGL2 backend; other backends return `UNSUPPORTED_SCENE_UPDATE`.
+
+`atlasClasses` (`1` by default, `2` opt-in) sets how many size classes the prepared WebGPU renderer may allocate for its material atlases; at `1` it allocates one texture array sized like the largest texture, and `2` lets it add a second, smaller array when that saves bytes and the device limits allow it — the automatic split under `maxTextureArrayLayers` happens at either setting. Measured on the Emerald cache, `2` saves 872 359 272 calculated bytes (−11,5 %) and changes the image: 15 142 pixels over ten 1246×1000 captures (0,012 %, maximum amplitude 159) against a bit-identical `1`, because a small texture packed in its own atlas no longer blends the surrounding white fill into its coarse mip levels.

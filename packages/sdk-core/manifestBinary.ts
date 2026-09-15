@@ -1,9 +1,17 @@
 export {
   MANIFEST_BINARY_VERSION,
   MANIFEST_BINARY_MAGIC,
-  PREVIEW_LEVEL_SIZES,
   TEXTURE_PREVIEW_VERSION,
 } from './manifestBinaryFormat.ts';
+export {
+  PREVIEW_BASE,
+  PREVIEW_MAX_LEVELS,
+  previewFirstLevel,
+  previewLastLevel,
+  previewLevelCount,
+  previewLevelSize,
+  previewPixelBytes,
+} from './texturePreviewLevels.ts';
 export { isBinaryManifest, assertManifestBinary } from './manifestBinaryTypes.ts';
 export type {
   ManifestBinaryDescriptor,
