@@ -107,6 +107,9 @@ export function collectClusterPages(
       // relève ce drapeau en même temps. Le moteur WebGL2 ne l'appelle pas et ne paie donc plus
       // une lecture de `cone` par cluster testé.
       cones: false,
+      // Chaque fiche reçoit `min` et `max` du manifeste, que le contrat de page rend obligatoires :
+      // la racine le déclare, et la coupe cesse de le vérifier par cluster.
+      boxes: true,
     });
     // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
     // always has something to fall back on.

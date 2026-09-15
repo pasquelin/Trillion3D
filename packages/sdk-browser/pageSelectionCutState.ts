@@ -40,6 +40,9 @@ export interface SelectionState<T extends PageRecord> {
   /** Cette racine déclare porter des cônes : le chemin par cluster lit `cone`. Une racine qui
    *  déclare n'en porter aucun sort le cône de la boucle, sans changer une seule décision. */
   flatCones: boolean;
+  /** Cette racine déclare que chacune de ses pages porte sa boîte : sous un nœud entièrement dans
+   *  le tronc, le chemin par cluster ne lit alors ni `min` ni `max`. */
+  flatBoxes: boolean;
   /** La règle de résidence de cette coupe, résolue une fois : `RESIDENT_ALL` quand rien n'est tenu
    *  (tout est réputé résident), `RESIDENT_ASK` quand l'hôte fournit sa réponse, `RESIDENT_ARRAY`
    *  quand la résidence est le tableau d'indices de la page. Le chemin par cluster lit ce mode au
@@ -158,6 +161,7 @@ const reusedState: SelectionState<PageRecord> = {
   flatFocal: 1,
   flatCone: createConeContext(),
   flatCones: true,
+  flatBoxes: false,
   residentMode: RESIDENT_ALL,
   flatExact: false,
   flatUseForcing: false,

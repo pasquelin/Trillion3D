@@ -36,6 +36,9 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // Une racine qui déclare n'avoir aucun cône sort le cône du chemin par cluster. Le silence vaut
   // « je n'ai rien déclaré » : la coupe teste alors chaque page, comme avant ce lot.
   s.flatCones = root.cones !== false;
+  // Une racine qui déclare que toutes ses pages portent leur boîte sort cette vérification du
+  // chemin par cluster. Le silence vaut « je n'ai rien déclaré » : la coupe s'en assure comme avant.
+  s.flatBoxes = root.boxes === true;
   clipPlanesFromMatrix(
     planes,
     clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix).elements,
