@@ -37,6 +37,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     });
   stages.setCounts('partition', timing.partitionCounts);
   timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
+  timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
   stages.setCounts('encode', timing.encodeCounts);
 }
 
@@ -50,6 +51,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;
   steps[CPU_STEP.transparentSelectMs] = m.transparentSelectEnd - m.adoptEnd;
+  steps[CPU_STEP.transparentEncodeMs] = timing.transparentEncodeMs;
   steps[CPU_STEP.admissionMs] = m.admissionEnd - m.transparentSelectEnd;
   steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd;
   steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd;
@@ -65,6 +67,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
       timing.lastProjectMs -
       timing.lastPartitionMs -
       timing.lastItemsMs -
+      timing.transparentEncodeMs -
       timing.lastQueueSubmitMs,
   );
   steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs;
