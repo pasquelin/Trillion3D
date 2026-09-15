@@ -2,7 +2,8 @@
 //! hors liste ne panique pas et n'interrompt aucune compilation — il laisse le moteur retomber sur
 //! son blanc, et le manifeste compte la raison. Chaque refus est vérifié par son code de raison.
 use super::super::super::image as registry;
-use super::{bytes, fixture, MAX_ALLOC, ORDER, SIDE};
+use super::super::fixture;
+use super::{bytes, MAX_ALLOC, ORDER, SIDE};
 
 /// Décalages absolus des champs que ces cas modifient après coup, nombre magique compris.
 const DEPTH: usize = 24;
@@ -30,7 +31,7 @@ fn un_dds_hors_liste_ou_tronque_ressort_en_raison_de_rapport_jamais_en_panique()
         assert_eq!(decoder.mime(), "image/vnd.ms-dds");
     }
     // Trente et un octets sur quarante-trois mille : le nombre magique est là, l'entête non.
-    let truncated = std::fs::read(fixture("tronque.dds")).expect("fixture lisible");
+    let truncated = fixture("dds", "tronque.dds");
     assert_eq!(registry::by_head(&truncated).map(|d| d.name()), Some("dds"));
     assert_eq!(
         registry::decode(&truncated, MAX_ALLOC).err(),
@@ -142,7 +143,7 @@ fn un_dds_hors_liste_ou_tronque_ressort_en_raison_de_rapport_jamais_en_panique()
 // n'est plus lisible.
 #[test]
 fn le_bc1_a_neuf_niveaux_rend_son_niveau_zero_et_compte_sa_chaine() {
-    let file = std::fs::read(fixture("bc1-mips.dds")).expect("fixture lisible");
+    let file = fixture("dds", "bc1-mips.dds");
     assert_eq!(registry::by_head(&file).map(|d| d.name()), Some("dds"));
     let registry::DecodedImage::Rgba8(image) = registry::decode(&file, MAX_ALLOC).expect("décodé");
     assert_eq!((image.width(), image.height()), (256, 256));
