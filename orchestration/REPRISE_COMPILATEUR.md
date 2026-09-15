@@ -1,51 +1,47 @@
-# Prompt de reprise — session Compilateur (formats d'import), 15 sept. 2026, pause
+# Reprise de la session « Compilateur » (formats d'import du compilateur natif) — 15 sept. 2026
 
-Colle ce fichier tel quel dans la nouvelle session. Les agents de la session précédente sont morts avec elle ; leur travail est sur disque (develop, journal, fixtures).
+Cette session s'appelle « Compilateur » : son titre, lu par `mcp__ccd_session_mgmt__get_session("self")`, id `local_03e37a47…`. Au « reprends », vérifier ce titre **avant** de lire quoi que ce soit d'autre, puis lire ce fichier et `AGENTS.md`. Ne jamais prendre un autre rôle (Validateur, Lumière, Geometry) parce que son fichier de reprise est plus récent : le titre de la session prime toujours sur l'ancienneté d'un fichier.
 
-## Rôles et règles (rappel ferme)
+## Rôles
 
-Fable = chef : ne code pas, ne lit pas de code, décide et brief ; Opus 5 = code ; Sonnet 5 = fusion, validation, tests, mesures. Réponses de 5 à 10 lignes. Règles du dépôt : `AGENTS.md` (mots interdits, plafond 200 lignes/fichier, portes). Enchaînement automatique autorisé : livraison → fusion locale → lot suivant du plan, sans redemander « go » ; « go » seulement pour un changement de plan ou une suppression irréversible. Jamais de `git stash`, jamais de `git push` : seule la session « Validateur » pousse `origin/develop` après `/simplify` + validate ; nos fusions restent locales (`develop` puis `main` alignée) et on prévient le Validateur à chaque commit de fusion, il nettoie les worktrees fusionnés. Quatre sessions en parallèle (Compilateur, Calculs, Lumière, Geometry) qui se parlent par messages inter-sessions : annoncer chaque fusion par SHA, respecter les gels demandés (mesure sous `.claude/mesure.lock`, aucun cargo/validate pendant une mesure de temps ; re-preuve de Geometry, aucun commit intercalé). `test-assets/` = corpus CC0 de ChatGPT, hors git, reconstruit par `telecharger.sh`, index dans `INDEX.md`/`COVERAGE.md` ; `check:links` l'ignore désormais (le corpus hors git n'est plus un rouge de faux positif). Licence Xcode : `DEVELOPER_DIR=/Library/Developer/CommandLineTools` devant cargo.
+Fable = chef : ne code pas, ne lit pas de code, brief et décide. Opus 5 = code, un par pilote, en `isolation: worktree`, trois au plus en parallèle, périmètres disjoints. Sonnet 5 = doc, revues, mesures. Réponses de 5 à 10 lignes ; le détail vit dans les fichiers.
 
-Politique des formats : `orchestration/COMPILATEUR_IMPORT.md` (règle de tête : jamais de perte ajoutée ; aucun format propriétaire hors lecture légale). Mode d'emploi d'un pilote : `packages/asset-compiler-rust/PLUGINS.md`. Un format = un module + une ligne de registre + une dorée minimale, confié à un Opus en worktree ; trois Opus au plus en parallèle, périmètres disjoints ; un Sonnet fusionne et valide à la livraison (`npm run validate`, `cargo test --locked`, grep des mots interdits, `branch -f main develop`, suppression du worktree et de la branche).
+## Flux de livraison (unique)
 
-Règles ajoutées à la pause :
+Chaque branche `compilateur/<format>` est livrée au Validateur — session titrée « Simplify », id `local_f2f0a83d…`, joignable par `mcp__ccd_session_mgmt__send_message` — avec sa preuve : SHA de tête, merge-base avec `develop`, `cargo fmt --check`, `clippy --all-targets -D warnings`, `cargo test --locked`, `npm run check:lines`, `npm run check:duplicates`, `npm run check:changed`, grep des mots interdits, chiffres du corpus. Le Validateur fusionne, lance `/simplify`, valide, pousse `origin/develop` et confirme ; la session supprime alors le worktree et la branche du pilote livré.
 
-- (a) La session connaît son rôle par `get_session("self")` (titre « Compilateur », id `local_03e37a47…`), jamais par le dernier fichier de reprise lu ; le Validateur est la session titrée « Simplify » (id `local_f2f0a83d…`), seule à fusionner `develop`, `/simplify`, valider et pousser : on lui livre des branches avec preuve (SHA, `cargo test --locked`, portes), on ne fusionne plus soi-même.
-- (b) Vérifier la base d'un worktree d'agent dès son lancement (`git merge-base develop HEAD`) : quatre agents sont partis de `2dcc8fc` aujourd'hui, un `git rebase develop` immédiat corrige un retard tant que rien n'est encore commité.
-- (c) Verrou `.claude/mesure.lock` posé par `mkdir` sans `-p`, vide, rendu par `rmdir` ; jamais retiré sans réponse de son propriétaire.
-- (d) Tests d'un pilote d'image écrits avec les helpers `rgba8()`/`rgba_f32()` de `src/plugins/tests.rs`, jamais un `let` irréfutable sur une variante de `DecodedImage`.
-- (e) Toute politique qui change ce qu'un pilote produit fait bouger sa `version()` : c'est l'identité du cache.
+Cela remplace toute mention antérieure de fusion locale, de `branch -f main develop` ou d'un Sonnet de fusion : périmé. Jamais de `git push`, jamais de fusion par cette session sauf ordre explicite de l'utilisateur.
 
-## État de develop à la pause (SHA dans la dernière ligne de ce fichier)
+## Règles d'agent
 
-Routeur à pilotes fusionné en premier (contrats `scene-plugin-2`, `image-plugin-2`, registre statique, empreinte du registre dans la clé de cache). Pilotes de scène (6) : `gltf`, `fbx` (ufbx, `-gltf-4`, opacité FBX lue, `originalUnitMeters`), `obj`, `zip` (socle conteneur `archive/container.rs`, refus `ARCHIVE_*`), `unity` (données YAML seules, LOD le plus fin, .mat Standard/URP/HDRP → PBR, axes `diag(1,1,−1)`, sous-maillage par `fileID` via `internalIDToNameTable`, échelle d'import, retouches de prefab, `fileID` en i64, priorité de projet dans le routeur `project_inputs`), `unitypackage` (tar.gz → arbre Unity → `unity`). Pilotes d'image (9), contrat `image-plugin-2` à deux sorties (`Rgba8`, `RgbaF32`) : `png` (16 bits refusé `image-depth-unsupported`, version `png-image-0.25-depth8`), `jpeg`, `tga` (sans perte, toutes variantes), `tiff` (profils déclarés, 16 bits refusé), `dds` (BC1–BC5, BC7, non compressé ; décodeur `texture2ddecoder` MIT ; BC6H et 16 bits refusés), `webp` (sans perte uniquement, crate `image-webp` via `image` 0.25.10, refus nommés `image-lossy-unsupported` et `image-animation-unsupported`), `exr` (crate `exr` 1.74.2, BSD-3, refus `image-float-unsupported` chez un consommateur RGBA8), `hdr` (Radiance RGBE, lecteur écrit depuis la spécification, aucune crate), `ktx2` (crates `basisu` 0.1.0 Apache-2.0, `texture2ddecoder` 0.1.2, `ruzstd` 0.7.3 ; socle `image/blocks.rs` partagé avec `dds`). Une seule racine de résolution des images de l'import aux aperçus (`plugins::scene::image_root`). Toutes les dorées sur fixtures CC0 minuscules ; `expected.json` inchangés hors ajouts.
+- Vérifier la base d'un worktree d'agent dès son lancement (`git merge-base develop HEAD`) ; rebaser immédiatement si retard, tant que rien n'est commité.
+- Verrou `.claude/mesure.lock` posé par `mkdir` sans `-p`, vide, rendu par `rmdir` ; jamais retiré sans réponse de son propriétaire. Tout `cargo` sous le verrou.
+- `export DEVELOPER_DIR=/Library/Developer/CommandLineTools` devant tout `cargo` (licence Xcode).
+- Tests d'un pilote d'image écrits avec les helpers `rgba8()`/`rgba_f32()` de `src/plugins/tests.rs` ; jamais de `let` irréfutable sur une variante d'un enum à plusieurs variantes (`DecodedImage` notamment).
+- Ce qu'un pilote produit entre dans sa `version()` : c'est l'identité du cache.
+- Prévenir le Validateur avant tout changement de contrat (`scene-plugin-2`, `image-plugin-2`).
+- Juridique : crates permissives en lecture seule, licence citée en commentaire dans `Cargo.toml`, jamais de code ou SDK d'éditeur, jamais de sources GPL.
+- `check:changed` dans un worktree : `ln -s <racine>/node_modules node_modules`, lien retiré ensuite.
 
-Essai à blanc Industrial Map (`/Users/pasquelin/Desktop/AI/map/Industrial Map`, FAB, lecture seule, jamais commis) : `Map_v1` 401 instances, 25 modèles, 108 matériaux, 51 images, 60 694 triangles ; `Assets_showcase_scene` 170 instances, 35 modèles, 24 566 triangles ; toutes les TGA lues ; 0 modèle entier en repli.
+## État (vérifié dans le code, base 426bb8f)
 
-## Branches vivantes
+Pilotes de scène enregistrés dans `src/plugins/scene.rs` (`PLUGINS`), dix : `gltf`, `fbx`, `obj`, `unity`, `zip`, `unitypackage`, `alembic`, `usd`, `usdz`, `blend`. Pilotes d'image dans `src/plugins/image.rs` (`DECODERS`, `VERSION = "image-plugin-2"`), neuf : `png`, `jpeg`, `tga`, `tiff`, `dds`, `webp`, `exr`, `hdr`, `ktx2`.
 
-Aucune à la pause : chaque lot de la vague 3 (`compilateur/webp`, `compilateur/png-16-bits`, `compilateur/exr-hdr`, `compilateur/ktx2`) a été fusionné puis son worktree supprimé — vérifié (`git worktree list`, `git branch --list 'compilateur/*'`). Si un `compilateur/*` réapparaît sans avoir été annoncé fusionné, c'est qu'un lot n'a pas atteint develop : relancer un Sonnet de fusion (merge develop, validate, cargo test, main, nettoyage).
+Vague 4 : `alembic` fusionné (lecteur Ogawa écrit depuis la spécification, aucune crate ajoutée) et `usd`/`usdz` fusionnés (crate `openusd` 0.7.0, MIT, Rust pur, lecture seule — licence en commentaire dans `Cargo.toml`) ; les deux dans `develop` via `claude/develop-validator-repo-management-f4dc23` (426bb8f). `blend` fusionné en local dans `develop` = 03873d2 sur ordre de l'utilisateur (6b18c89 : lecteur SDNA écrit depuis la description publique du format, aucune ligne de Blender, aucune crate ajoutée, image empaquetée conservée à l'octet) ; portes rejouées après rebase : `cargo test --locked` 231 + 4 verts, clippy `-D warnings`, fmt, `check:lines`, `check:duplicates` 0 clone, mots interdits néant ; `check:changed` et `npm run validate` restent au Validateur avant push.
 
-## Décisions en attente de l'utilisateur
-
-1. Licence des assets FAB (Village, Industrial Map) : réservée à l'utilisateur, à trancher seulement avant une démonstration publique — pas un blocage de développement.
-2. Option `atlasClasses: 2` et départ au sol du banc 15 : à trancher par la session Compilateur (voir `REPRISE_2026-09-15.md`).
+Corpus CC0 `test-assets/` hors git.
 
 ## À faire ensuite, dans l'ordre
 
-1. **Vague 4, trois Opus** : `usd`/`usdz` (crate à évaluer, sinon lecteur usda/usdc propre), `alembic` — **fait** : branche `compilateur/alembic`, lecteur Ogawa écrit depuis la spécification (aucune crate ajoutée ; `ogawa-rs` évaluée et écartée : `todo!()` sur les booléens, indexation non bornée, aucun plafond), `Xform`/`PolyMesh`/`SubD`/`FaceSet`, premier échantillon, refus `alembic-*`, dorée CC0 `fixtures/alembic/` —, `.blend` — **fait** : branche `compilateur/blend`, lecteur SDNA écrit depuis la description publique du format (aucune dépendance ajoutée ; `flate2` et `ruzstd`, déjà présentes, pour l'enveloppe), maillages par attributs nommés, UV, instances, Principled BSDF, images empaquetées conservées à l'octet, refus `blend-*`, dorée CC0 `fixtures/blend/` ; les fichiers antérieurs à la disposition par attributs sont refusés par leur nom, faute d'exemplaire. Corpus : `usd/`, `alembic/`, `blend/`.
-2. **Vague 5** : `psd` (aplati vers RGBA8), `bmp`, `gif` (features `image`), `.ma` (Maya ASCII, données seules), MTL à vérifier (OBJ).
-3. **Chantiers restants** :
-   - BC6H de `dds` en flottant (attend le contrat `RgbaF32` côté DDS).
-   - KTX 1.0 (autre conteneur, donc un autre pilote), si une source réelle l'impose.
-   - ASTC hors 4×4 et UASTC HDR côté `ktx2` (le transcodeur `basisu` sait les produire, aucun consommateur flottant n'est branché).
-   - Chantier « blocs gardés sur GPU » (`DecodedImage::Blocks`, DDS puis KTX2) : sur go de l'utilisateur seulement.
-   - Lampes Unity non converties, retouches d'instances imbriquées non composées, cartes métal-lissage empaquetées.
-   - TIFF palette (crate `tiff`), test d'archive chiffrée.
-   - `docs/COMPILER.md` : relire à chaque pilote livré pour les codes de rapport.
-   - Industrial Map au banc 15 : le dossier de mesure est à copier dans `public/benchmark-assets` du Lab par l'utilisateur ; ensuite agent Lab séparé (projet render-tech-lab, un agent par projet), entrée de catalogue comme le Village, `prepare()` du SDK sur le dossier du projet Unity, preuve navigateur WebGPU + Three témoin, chiffres au journal. Machine calme exigée pour les durées ; les verdicts pixel n'en dépendent pas.
-4. Chantiers hors compilateur listés dans `REPRISE_2026-09-15.md` (loop-code P1/P2, poids sans perte, virtualisation par tuiles).
+1. Vérifier que le Validateur a poussé `blend` (validate vert), puis supprimer le worktree `agent-a9d6b9e893e08da0d` et la branche `compilateur/blend`. Restes de `blend` : lampes et caméras, modificateurs non appliqués, collections instanciées, UV multiples, couleurs de sommet, transmission/IOR, fichiers antérieurs à la disposition par attributs, essai à blanc sur une scène lourde.
+2. Vague 5 : `psd` (aplati vers RGBA8), `bmp`, `gif` (features `image`), `ma` (Maya ASCII, données seules) ; vérifier MTL (OBJ).
+3. Compléments : BC6H et UASTC HDR sur `RgbaF32`, KTX 1.0, ASTC hors 4×4, TIFF palette, lampes Unity non converties, retouches d'instances imbriquées non composées, cartes métal-lissage empaquetées, subdivision USD, `TEXCOORD_1`, animation Alembic.
+4. Lecture en entrée des glTF Draco / meshopt (sans perte ajoutée, perte de la source dite au rapport) : à proposer à l'utilisateur avant de coder.
+5. Chantier « blocs gardés sur GPU » (`DecodedImage::Blocks`, DDS puis KTX2) : sur go de l'utilisateur seulement.
+6. Industrial Map au banc 15 : dossier à copier par l'utilisateur dans `public/benchmark-assets` du Lab, puis agent Lab séparé.
+
+Décisions ouvertes, à trancher par cette session ou par l'utilisateur : `atlasClasses: 2` et départ au sol du banc 15 (cette session) ; licence des assets FAB — réservée à l'utilisateur, avant toute démonstration publique seulement.
 
 ## Dernier état connu
 
-develop = main = origin/develop = ffdd01e ; origin/develop poussé par le Validateur seulement.
+`develop` = 03873d2 (blend compris) puis b81ad59 (autres sessions). `origin/develop` = dff4d79 (poussé par le Validateur seulement, peut être en retard sur `develop` local). Vérifier au moment de la reprise, ne pas recopier ces SHA sans contrôle.
