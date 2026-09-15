@@ -1,0 +1,180 @@
+//! Le parcours du document : la hiérarchie des `transform`, leurs formes, et la racine de la scène.
+//!
+//! Un `transform` de Maya porte la pose ; c'est sa forme fille, le nœud `mesh`, qui porte la
+//! géométrie. Un nœud glTF réunit les deux quand il n'y en a qu'une, et prend un enfant par forme
+//! supplémentaire — dont celles qu'un `parent -add` lui accroche, qui citent alors le même maillage
+//! glTF que leur transform d'origine : ce sont des instances, et la géométrie n'est écrite qu'une
+//! fois. Un transform invisible n'est pas parcouru : ce que le fichier cache ne s'affiche pas.
+use super::*;
+
+/// Profondeur maximale d'une hiérarchie : un fichier dont les pères bouclent ne fait pas déborder
+/// la pile, il est coupé et compté.
+const MAX_DEPTH: usize = 256;
+
+/// Ce qu'un parcours a sous la main : le document lu, son graphe de nuançage, et la scène en cours.
+pub(super) struct World<'a> {
+    pub(super) document: &'a Document,
+    pub(super) graph: &'a Graph,
+    pub(super) scene: &'a mut Scene,
+    /// Le dossier contre lequel les URI relatives d'images se résolvent, `scene::image_root`.
+    pub(super) images: &'a Path,
+    /// Les enfants de chaque nœud du document, par rang de père.
+    kids: Vec<Vec<usize>>,
+    /// Les matériaux déjà construits, par rang de nœud nuanceur.
+    pub(super) materials: HashMap<usize, Option<usize>>,
+    /// Les maillages déjà construits, par rang de nœud `mesh`.
+    pub(super) meshes: HashMap<usize, Option<usize>>,
+    /// Les images déjà versées, par URI relative.
+    pub(super) images_by_uri: HashMap<String, usize>,
+    pub(super) cancelled: &'a AtomicBool,
+}
+
+impl World<'_> {
+    /// Compte un refus nommé une fois.
+    pub(super) fn refuse(&mut self, reason: &str) {
+        self.scene.report.add(reason);
+    }
+}
+
+/// Remplit les tables de la scène depuis le document, et rend ce que le rapport publie en clair.
+pub(super) fn scene(
+    document: &Document,
+    graph: &Graph,
+    scene: &mut Scene,
+    request: &SceneRequest<'_>,
+) -> BTreeMap<&'static str, usize> {
+    let images = crate::plugins::scene::image_root(request.source);
+    let mut kids = vec![Vec::new(); document.nodes.len()];
+    for (rank, node) in document.nodes.iter().enumerate() {
+        if let Some(parent) = node.parent.filter(|parent| *parent != rank) {
+            kids[parent].push(rank);
+        }
+    }
+    let mut world = World {
+        document,
+        graph,
+        scene,
+        images: &images,
+        kids,
+        materials: HashMap::new(),
+        meshes: HashMap::new(),
+        images_by_uri: HashMap::new(),
+        cancelled: request.cancelled,
+    };
+    ignored(&mut world);
+    let children: Vec<usize> = (0..document.nodes.len())
+        .filter(|node| document.nodes[*node].parent.is_none())
+        .filter_map(|node| visit(&mut world, node, 0))
+        .collect();
+    (request.progress)(json!({"phase":"import-source","step":"nodes","plugin":NAME,
+        "nodes":document.nodes.len(),"roots":children.len()}));
+    world.scene.node(json!({
+        "name": "ma-root",
+        "matrix": xform::root(document.meters_per_unit),
+        "children": children,
+    }));
+    world.scene.counts.clone()
+}
+
+/// Compte, par son type, chaque nœud que ce pilote ne convertit pas : caméras, lampes, surfaces
+/// paramétriques, squelettes, nœuds d'outil, nœuds de script. Rien de tout cela n'est un échec.
+fn ignored(world: &mut World<'_>) {
+    let kinds: Vec<String> = world
+        .document
+        .nodes
+        .iter()
+        .filter(|node| {
+            !report::is_transform(&node.kind) && !report::is_mesh(&node.kind) && !shades(&node.kind)
+        })
+        .map(|node| node.kind.clone())
+        .collect();
+    for kind in kinds {
+        world
+            .scene
+            .report
+            .add(&format!("{}:{kind}", report::NODE_IGNORED));
+    }
+}
+
+/// Le nœud glTF d'un `transform` et de sa descendance, ou rien quand il ne porte aucune surface.
+fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
+    if world.cancelled.load(Ordering::Relaxed) {
+        return None;
+    }
+    if depth > MAX_DEPTH {
+        world.refuse(report::HIERARCHY_TOO_DEEP);
+        return None;
+    }
+    let document = world.document;
+    let entry = &document.nodes[node];
+    if !report::is_transform(&entry.kind) {
+        return None;
+    }
+    if entry.attr(&["v", "visibility"]).and_then(Attr::flag) == Some(false) {
+        world.scene.count("invisible", 1);
+        return None;
+    }
+    let name = entry.name.clone();
+    let matrix = xform::local(entry, document.degrees_per_unit, &mut world.scene.report);
+    let meshes = shapes(world, node);
+    // Les enfants sont posés avant leur père : un nœud glTF cite ses enfants par leur rang.
+    let mut children: Vec<usize> = meshes
+        .iter()
+        .skip(1)
+        .map(|mesh| {
+            let extra = json!({"name": format!("{name}|{mesh}"), "mesh": mesh});
+            world.scene.node(extra)
+        })
+        .collect::<Vec<usize>>();
+    let descendants: Vec<usize> = world.kids[node].clone();
+    children.extend(
+        descendants
+            .into_iter()
+            .filter_map(|child| visit(world, child, depth + 1)),
+    );
+    let mut out = json!({ "name": name });
+    if let Some(matrix) = matrix {
+        out["matrix"] = json!(matrix);
+    }
+    match meshes.first() {
+        Some(mesh) => out["mesh"] = json!(mesh),
+        None if children.is_empty() => return None,
+        None => {}
+    }
+    if !children.is_empty() {
+        out["children"] = json!(children);
+    }
+    Some(world.scene.node(out))
+}
+
+/// Les maillages glTF que ce transform porte : ses formes filles, puis celles qu'un `parent -add`
+/// lui accroche. Chaque forme n'est construite qu'une fois, quel que soit le nombre de transforms
+/// qui la citent.
+fn shapes(world: &mut World<'_>, node: usize) -> Vec<usize> {
+    let own: Vec<usize> = world.kids[node]
+        .iter()
+        .copied()
+        .filter(|shape| report::is_mesh(&world.document.nodes[*shape].kind))
+        .collect();
+    let added: Vec<usize> = world
+        .document
+        .instances
+        .iter()
+        .filter(|(host, _)| *host == node)
+        .map(|(_, shape)| *shape)
+        .collect();
+    own.into_iter()
+        .chain(added)
+        .filter_map(|shape| mesh::build(world, shape))
+        .collect()
+}
+
+/// Ce nœud décrit-il le nuançage — un nuanceur, un ensemble, une image, un placage ? Ces nœuds
+/// n'entrent pas dans la hiérarchie : les matériaux les lisent, et ils ne sont donc pas comptés.
+fn shades(kind: &str) -> bool {
+    report::is_shader(kind)
+        || matches!(
+            kind,
+            "shadingEngine" | "file" | "place2dTexture" | "bump2d" | "materialInfo" | "groupId"
+        )
+}
