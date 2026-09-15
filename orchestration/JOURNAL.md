@@ -1924,27 +1924,10 @@ même ordre, donc les deux chemins partagent un seul nuanceur.
 ### Preuve
 
 Verrou `.claude/mesure.lock` pris et libéré. Harnais commun, `--moteur webgpu`, 1280×720, 60 images,
-chauffe par défaut, `--max-pages 100000`, `avant = 2931606` (tête de `develop`, budget en pages et
-ombres comprises), `apres = 7101d66`. La série a été jouée deux fois, avant et après la fusion des
-ombres : mêmes verdicts au pixel près. Les deux côtés lisent `.mesure/cache-emerald`, recompilé hors du banc
-avec le compilateur natif de cette tête : le cache Emerald du Lab est en manifeste binaire version 2
-et le moteur en exige la version 3 depuis les textures progressives.
-
-**Emerald, six séries.** Cinq à **0 pixel**, hash de coupe identique, `uncoveredTriangles` 0 des deux
-côtés : sol et rue aux deux seuils, générale au seuil 1. La sixième, générale au seuil 0 :
-**1 636 pixels, max canal 183**, hash différent — voir plus bas, c'est le verrou de ce lot.
-
-**Déterminisme.** Vue générale, seuil 0, quatre exécutions : témoin A/A **0 px, 0 px, 0 px, 0 px**,
-20 688 pages résidentes aux deux lancements de chacune, au page près.
-
-**Scène synthétique des trois classes** (`classes-materiaux`, opaques + grillage MASK + vitre BLEND,
-compilée par la chaîne normale, les deux côtés lisant le même cache) : deux vues × deux seuils,
-**0 pixel partout, témoin A/A 0, hash identique 4/4, trous 0**. Les classes 1 et 2 sont donc prouvées
-au pixel sur une scène qui les porte toutes les deux.
-
-**Caméra en mouvement : le harnais ne sait pas le faire.** `poses.mjs` donne un index unique par vue
-et `page.mjs` rejoue la même pose ; aucune option de parcours n'existe. C'est pourtant là que le gain
-processeur de ce lot se paierait. Non mesuré, donc non affirmé.
+chauffe par défaut, `--max-pages 100000`, `avant = 7fe6e43` (tête de `develop`), `apres = 0d0ea02`. Les
+deux côtés lisent `.mesure/cache-emerald`, recompilé hors du banc avec le compilateur natif de cette
+tête : le cache Emerald du Lab est en manifeste binaire version 2 et le moteur en exige la version 3
+depuis les textures progressives, et un agent n'écrit pas dans les ressources du banc.
 
 ### Contrat de la transmission (classe 3) — écrit, pas livré
 
@@ -1997,48 +1980,101 @@ composé s'il n'est pas figé avant la passe. Une fois la copie figée (point 3)
 faire entrer au DAG comme les mélanges ; le classement du compilateur serait alors le seul
 changement.
 
-### Le verrou du témoin A/A est levé, un autre écart apparaît
+### Le budget caché de la coupe transparente, et la décision
 
-Le lot `budget-pages-distinctes` a corrigé la cause : la file de résidence pesait des placements, pas
-des pages. Rejoué sur `develop` après cette correction, ce lot donne un **témoin A/A à 0 pixel sur
-quatre exécutions de la vue générale au seuil 0**, chauffe par défaut, résidence identique au page
-près (20 688) aux deux lancements de chacune. L'instabilité relevée plus haut n'existe plus.
+**Second changement d'image de référence, accepté par l'utilisateur.** La coupe transparente
+processeur s'imposait un budget que rien n'imposait aux opaques : `selectTransparentCut` passait
+`pageBudget: slots − bootstrapUrls.size`, et la boucle de `selectVisiblePages` double le seuil
+d'erreur tant que la coupe ne tient pas dans ce budget. Sur la vue générale d'Emerald, le seuil 0
+était ainsi remonté jusqu'au niveau du seuil 1 — preuve directe, sans aucune référence : sur
+`develop`, générale au seuil 0 et générale au seuil 1 donnent **exactement le même compte
+transparent**, 999 410 triangles. Le chemin GPU de ce lot n'a pas ce budget : il rend l'exact.
 
-Mais la même mesure fait apparaître autre chose. Sur cinq séries sur six — sol et rue aux deux
-seuils, générale au seuil 1 — l'écart avec `develop` est de **0 pixel, hash de coupe identique,
-trous 0**. Sur la vue générale au seuil 0, l'écart est de **1 636 pixels, max canal 183**, et les
-compteurs disent pourquoi : cette branche dessine **10 046 405 triangles**, c'est-à-dire exactement
-le compte du modèle (`sourceTriangles` du compilateur), quand `develop` en dessine 5 093 246 pour une
-résidence comparable (20 688 contre 20 875 pages) et sans trou des deux côtés. Autrement dit, au
-seuil zéro cette branche dessine la couverture par les feuilles du DAG — ce que « zéro pixel
-d'erreur » veut dire — et `develop` une couverture plus grossière.
+Protocole de proximité, deux références construites depuis `2931606` et jamais fusionnées : `ref1`
+(`e21f5d5`) désactive la troncature de la file de résidence, `ref2` (`31c0303`) désactive en plus le
+budget propre de la coupe transparente.
 
-**Ce lot n'est donc pas fusionné.** Sa porte demandait 0 pixel sur les six séries ; il change une
-seconde fois l'image de référence, et l'utilisateur n'en avait autorisé qu'une, pour le budget. Rien
-ne dit encore lequel des deux rendus est l'exact : il faut lui appliquer le protocole qui a servi au
-budget — une référence où rien ne limite, et la preuve que cette branche en est plus proche que
-`develop` — avant de proposer la fusion. C'est la seule chose qui manque : le code est rebasé sur
-`develop`, `npm run validate` est vert, et les cinq autres séries sont à 0 pixel.
+| vue · seuil | `develop` contre `ref1` | `develop` contre `ref2` | ce lot contre `ref2` |
+|---|---|---|---|
+| générale · 0 | 0 px | **1 636 px, max canal 183** | **0 px** |
+| générale · 1, sol · 0 et 1, rue · 0 et 1 | 0 px | 0 px | 0 px |
+
+`ref2` et ce lot coïncident sur tous les compteurs de la vue générale au seuil 0 : 80 153 clusters,
+10 046 405 triangles — le compte exact du modèle —, 20 688 pages résidentes, hash de coupe identique.
+`develop` en dessine 5 093 246 pour 20 875 pages. Ce n'est donc pas la file de résidence qui
+tronquait (`ref1` est `develop` au pixel près, le lot du budget en pages l'avait déjà réglée), c'est
+bien le budget caché de la coupe transparente.
+
+**La coupe transparente GPU donne le même compte que le chemin processeur partout où ce dernier n'a
+pas été grossi par son budget**, une fois retiré le facteur deux du contrat de `develop` (il comptait
+les deux passes de face ; ce lot compte une fois) : générale·1 499 705 = 499 705, sol·0 263 572,
+rue·0 226 964, sol·1 203 766, rue·1 167 862. Seule générale·0 diffère, et c'est le cas ci-dessus.
+
+### Chiffres sur la base finale
+
+Base `995929d` (éclairage opaque et cascades d'ombres de la session Lumière comprises), cache
+`.mesure/cache-emerald`, 60 images, chauffe par défaut, `--max-pages 100000`. Les verdicts pixel sont
+les mêmes qu'avant cette base : l'albédo brut et les cascades ne les déplacent pas.
+
+| vue · seuil | écart contre `develop` | triangles dessinés | hash | trous |
+|---|---|---|---|---|
+| générale · 0 | **1 636 px, max canal 183** — le cas exact | 5 093 246 → **10 046 405** | différent | 0 / 0 |
+| générale · 1 | 0 px | 1 842 728 | identique | 0 / 0 |
+| sol · 0 | 0 px | 1 509 411 | identique | 0 / 0 |
+| sol · 1 | 0 px | 670 036 | identique | 0 / 0 |
+| rue · 0 | 0 px | 1 424 473 | identique | 0 / 0 |
+| rue · 1 | 0 px | 636 059 | identique | 0 / 0 |
+
+Témoin A/A, vue générale au seuil 0, quatre exécutions sur la base finale, chauffe par défaut :
+**0 px, 0 px, 0 px, 0 px**, 10 046 405 triangles à chaque fois. Scène synthétique des trois classes (opaques, grillage MASK, vitre BLEND) : deux vues × deux
+seuils, **0 px, témoin A/A 0, hash identique 4/4, trous 0**.
+
+**Coût.** À image égale — ce lot contre `ref2`, qui rend la même chose — `cpuFrameMs` p50 passe de
+12,9 à **9,9 ms** sur générale·0. Contre `develop`, dont l'image est plus grossière, la même mesure
+va de 8,3 à 10,4 ms : l'image exacte coûte plus cher parce qu'elle dessine deux fois plus de
+triangles et 80 153 clusters au lieu de 41 187. L'étape carte graphique « Transparents » passe de
+**17,02 à 10,95 ms p50** tout en dessinant onze fois plus de triangles transparents (5 452 864 contre
+499 705) : à triangle égal, la passe de mélange coûte environ quinze fois moins.
+
+### Portes
+
+`npm run validate` **entièrement vert**, portes Rust comprises : `format:check`, `check:lines`,
+`check:duplicates`, `lint` (ESLint et Clippy), `check:unused`, `build`, `build:native`,
+`check:structure`, `check:dts`, `check:links`, `test` (552 tests JS/TS), `test:native` (132 + 4 tests
+Rust). Une exécution de `cargo test` a échoué une fois sur un test, juste après l'acceptation de la
+licence Xcode et pendant que l'édition de liens se terminait ; quatre exécutions suivantes sont
+vertes, et ce lot ne touche aucune ligne de Rust.
+
+### Caméra en mouvement, enfin mesurée
+
+Le harnais a gagné `--camera-mobile` (la pose avance d'un cran de la trajectoire du banc à chaque
+image mesurée au lieu de rejouer la même) pendant ce lot. C'est exactement ce qui manquait : à caméra
+fixe, la coupe transparente tenue du lot 3b rendait le parcours processeur gratuit, et le gain de
+cette sélection GPU ne se voyait pas. Vue générale, 60 images, chauffe par défaut :
+
+| seuil | `cpuFrameMs` p50 avant → après | écart | témoin A/A | hash de coupe |
+|---|---|---|---|---|
+| 0 | **20,4 → 13,5 ms** (−34 %) | 0 px | 0 px | identique |
+| 1 | **8,2 → 4,9 ms** (−40 %) | 0 px | 0 px | identique |
+
+Image identique au pixel des deux côtés, et un tiers du temps processeur par image en moins : c'est
+le résultat que ce lot cherchait, et il n'était pas mesurable avant que le banc sache bouger la
+caméra.
 
 ### Ce qui reste
 
-- **La transmission n'est toujours pas dessinée.** Le contrat ci-dessus dit quoi écrire ; rien n'en
-  est écrit. Une eau importée reste invisible, et le moteur ne le déclare pas non plus à l'hôte
-  (`capabilities.unsupported` ne nomme pas la transmission) : à corriger avec la passe, ou avant.
-- **Le harnais ne sait pas bouger la caméra.** `poses.mjs` donne un index unique par vue et
-  `page.mjs` rejoue la même pose 60 fois ; aucune option n'existe pour un parcours. Le gain
-  processeur de ce lot est précisément celui qu'une caméra immobile ne montre pas : la coupe tenue
-  du lot 3b rendait déjà l'étape « Transparents » gratuite à caméra fixe (0,0 ms des deux côtés),
-  et c'est un mouvement qui la repayait en entier. Ce qui se mesure ici, c'est le reste : l'étape
-  « Admission et file de résidence », qui perd la moitié de son temps parce qu'un seul jeu de clés
-  remplace deux, et surtout l'étape carte graphique « Transparents ».
+- **La transmission n'est toujours pas dessinée.** Le contrat plus haut dit quoi écrire ; rien n'en
+  est écrit. Une eau importée reste invisible, et le moteur le déclare maintenant à l'hôte.
+- **Un cache qui porte une primitive `shared-blend` est refusé au chargement** par
+  `assertCacheIdentity`, qui exige une bande d'erreur par cluster de chaque primitive — une primitive
+  hors DAG n'en a pas. C'est la première chose à corriger avant la passe de transmission ; la scène
+  `transmission` du dossier de fixtures le fixe noir sur blanc.
 - **`transparentSubmittedTriangles` a changé de sens** : il compte les triangles de la coupe
-  transparente une fois, quel que soit le nombre de passes qui les rastérisent, parce que les
-  comptes d'instances sont écrits par la compaction et jamais relus. `transparentDrawCalls` compte
-  toujours chaque appel, les deux moitiés d'un matériau double-face incluses. Contrat mis à jour
-  dans `metricsContracts.ts`.
+  transparente une fois, quel que soit le nombre de passes qui les rastérisent, parce que les comptes
+  d'instances sont écrits par la compaction et jamais relus. `transparentDrawCalls` compte toujours
+  chaque appel, les deux moitiés d'un matériau double-face incluses.
 - **Le compte transparent arrive avec la relecture**, comme le compte opaque : une image en retard
   sur la coupe qu'il décrit. Le dessin, lui, suit le masque de l'image courante.
-- **Capacité de la table** : la table des clusters transparents est alignée par primitive sur 64
-  entrées. Une scène à des milliers de primitives transparentes minuscules paierait ce rembourrage ;
-  Emerald a 29 primitives `clustered-blend`, la scène synthétique 1.
+- **Rembourrage de la table** : les clusters transparents sont alignés par primitive sur 64 entrées.
+  Une scène à des milliers de primitives transparentes minuscules paierait ce rembourrage ; Emerald
+  a 29 primitives `clustered-blend`, la scène synthétique une.
