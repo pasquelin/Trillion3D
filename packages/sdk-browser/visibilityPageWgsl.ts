@@ -47,7 +47,11 @@ export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)
 
 /**
  * Les drapeaux d'adressage de la carte de base, un mode par axe, lus par `wrapUv` : aucun bit en
- * serrage, `REPEAT` en répétition, `MIRROR` en répétition miroir.
+ * serrage, `FLAG_WRAP_*_REPEAT` en répétition, `FLAG_WRAP_*_MIRROR` en répétition miroir. Les deux
+ * bits d'un même axe s'excluent, donc `wrapCoord` n'a jamais à arbitrer entre eux. Écrite ici, à
+ * côté du WGSL qui les lit, et appelée par `webgpuPageRow.ts` comme par `webgpuBlendPrepare.ts` :
+ * une page et un lot transparent portant des drapeaux différents adresseraient la même texture de
+ * deux façons.
  */
 export function wrapFlags(map: THREE.Texture | undefined) {
   if (!map) return 0;
