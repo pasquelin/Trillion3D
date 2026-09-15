@@ -36,6 +36,8 @@ pub(super) struct Builder<'a, 'w> {
     /// Les maillages déjà liés à une suite de matériaux : la clé est le maillage du modèle et les
     /// matériaux que l'instance demande.
     pub(super) bound: HashMap<(usize, Vec<Option<usize>>), usize>,
+    /// Les maillages de modèle déjà réécrits sur place par leur première liaison.
+    pub(super) rebound: HashSet<usize>,
 }
 
 /// Ce qu'une instance de prefab remplace dans la transformation de sa racine.
