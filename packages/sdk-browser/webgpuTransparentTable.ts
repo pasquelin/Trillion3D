@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
+import type { ClusterRoot } from './pageSelectionTypes.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
@@ -12,6 +12,40 @@ export type TransparentTable = ReturnType<typeof createTransparentTable>;
 
 /** The draw rank of a transparent cluster: the rank its source recorded, the catalogue rank else. */
 const drawRank = (rec: PageRec) => rec.sourceOrder ?? rec.id;
+
+/**
+ * The order the cluster cut visits a primitive's pages in, whatever it ends up keeping.
+ *
+ * Several clusters of one primitive share a source rank — a coarse cluster inherits the earliest
+ * source triangle of the group it replaces — so the rank alone does not order them. What separated
+ * them was the order the cut emitted them in, and that order is the culling walk's: a stack, so the
+ * children of a node are visited last-pushed-first, and a leaf's pages in their own order. The walk
+ * is a property of the tree, not of the camera, and the pages any image keeps are a subsequence of
+ * it — which is exactly what a stable sort by rank needs to reproduce the draw order it had.
+ */
+function visitOrder(root: ClusterRoot<PageRec>) {
+  const order = new Int32Array(root.pages.length).fill(root.pages.length);
+  const culling = root.culling;
+  if (!culling) {
+    for (let i = 0; i < order.length; i++) order[i] = i;
+    return order;
+  }
+  const { nodes, stride } = culling;
+  const stack = [0];
+  let rank = 0;
+  while (stack.length) {
+    const base = stack.pop()! * stride,
+      children = nodes[base + 12];
+    if (children > 0) {
+      const first = nodes[base + 11];
+      for (let child = 0; child < children; child++) stack.push(first + child);
+      continue;
+    }
+    const firstPage = nodes[base + 13];
+    for (let i = 0; i < nodes[base + 14]; i++) order[firstPage + i] = rank++;
+  }
+  return order;
+}
 
 /**
  * The static draw order of every transparent cluster, item by item.
@@ -27,26 +61,35 @@ const drawRank = (rec: PageRec) => rec.sourceOrder ?? rec.id;
  * inside that range, so an item's base is known before the image starts and never moves.
  */
 export function createTransparentTable(
+  roots: ReadonlyArray<ClusterRoot<PageRec>>,
   packedPages: readonly PageRec[],
   items: readonly BlendGpuItem[],
 ) {
-  const pagesByMesh = new Map<THREE.Mesh, number[]>();
-  for (let i = 0; i < packedPages.length; i++) {
-    const rec = packedPages[i];
-    if (!rec.transparent || !rec.sourceMesh) continue;
-    const list = pagesByMesh.get(rec.sourceMesh);
-    if (list) list.push(i);
-    else pagesByMesh.set(rec.sourceMesh, [i]);
+  /** Where each root's pages start in the catalogue, and how the cut walks them. */
+  const rootOfMesh = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
+  let base = 0;
+  for (const root of roots) {
+    const mesh = root.pages[0]?.sourceMesh;
+    if (mesh && root.pages[0]?.transparent) rootOfMesh.set(mesh, { base, root });
+    base += root.pages.length;
   }
   const paged = items.filter((item) => item.paged);
   const orders: number[][] = [];
   let length = 0,
     maxVertexWords = 0;
   for (const item of paged) {
-    const list = item.sourceMesh ? (pagesByMesh.get(item.sourceMesh) ?? []) : [];
-    // `sort` is stable, so clusters sharing a source rank keep their catalogue order — the same
-    // tie-break every other reader of the catalogue sees.
-    const order = list.slice().sort((a, b) => drawRank(packedPages[a]) - drawRank(packedPages[b]));
+    const owner = item.sourceMesh && rootOfMesh.get(item.sourceMesh);
+    const order: number[] = [];
+    if (owner) {
+      const visited = visitOrder(owner.root);
+      const local = owner.root.pages.map((_, index) => index);
+      // Source rank first, the cut's own walk to separate the clusters that share one.
+      local.sort(
+        (a, b) =>
+          drawRank(owner.root.pages[a]) - drawRank(owner.root.pages[b]) || visited[a] - visited[b],
+      );
+      for (const index of local) order.push(owner.base + index);
+    }
     orders.push(order);
     length += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP;
   }

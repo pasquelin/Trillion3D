@@ -143,7 +143,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   );
   // The transparent draw order is the scene's and is settled here, once: an image only chooses which
   // of its entries survive.
-  blendState.table = createTransparentTable(packedPages, blendState.blendGpu);
+  blendState.table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu);
   for (let i = 0; i < blendState.table.pagedItems.length; i++)
     blendState.table.pagedItems[i].pagedIndex = i;
   blendState.compaction = await createTransparentCompaction(gpuDevice, blendState.table);
