@@ -6055,3 +6055,131 @@ contenu rend déjà un maillage répété une seule fois. L'animation n'est pas 
 surfaces de subdivision ne sont pas subdivisées : un `SubD` rend sa cage, ce qui est plus grossier
 que ce qu'un moteur de rendu en ferait. Les faces concaves ou non planes sortent d'un découpage en
 éventail, qui les recouvre sans les respecter ; aucun corpus n'en porte pour l'instant.
+## 2026-09-15 — [compilateur] pilote usd
+
+Septième pilote de scène : une couche USD — `.usda` (texte), `.usdc` (binaire « crate ») ou `.usd`,
+qui peut être l'une ou l'autre — devient la scène intermédiaire glTF. Détection par extension, puis
+par entête : `#usda ` pour le texte, `PXR-USDC` pour le binaire.
+
+**Provenance et voie retenue.** Spécification publique : *OpenUSD Core Specification* de l'AOUSD.
+Les deux voies du brief étaient ouvertes — caisse Rust existante, ou lecteur écrit ici. Évaluation
+de ce qui existe sur crates.io : `usd` et `rust-usd` sont des liaisons vers le C++ de Pixar (donc
+hors politique et hors « un seul exécutable »), `openusd-rs` est explicitement en chantier et figé
+depuis juillet 2025, `openusd` (MIT, dépôt `mxpv/openusd`, version 0.7.0 publiée le 5 sept. 2026)
+est une implémentation Rust native sans dépendance C++ qui lit `usda`, `usdc` et compose les
+couches. Ses onze dépendances sont toutes permissives (MIT ou Apache-2.0), toutes en Rust pur, dont
+`lz4_flex` pour la décompression des blocs du format « crate ». Essai sur les trois fichiers du
+corpus avant d'écrire une ligne de pilote : les vingt-huit prims sont lus à l'identique dans les
+trois formats. **Voie retenue : la caisse.** Écrire le lecteur ici aurait demandé la grammaire du
+texte, la base de données du format « crate » (tables de jetons, de chaînes, de champs, de chemins
+et de spécifications, entiers compressés et LZ4) **et** le moteur de composition LIVRPS — plusieurs
+milliers de lignes pour un résultat moins sûr, alors que la caisse est permissive et maintenue.
+Aucun code ni SDK d'éditeur n'entre, aucune bibliothèque de Pixar ; la licence est citée à côté de
+la dépendance dans `Cargo.toml` et dans l'entête du module.
+
+**Sous-ensemble rendu.** Le pilote ne lit que la scène **composée** : sous-couches, références,
+héritages, variantes et instances sont résolus avant lui. Hiérarchie `Xform`, `Scope` et tout groupe
+non typé ; `xformOpOrder` composé en une matrice colonne de glTF — `translate`, `scale`, les six
+ordres d'Euler, `rotateX/Y/Z`, `orient`, `transform`, et leurs formes `!invert!`. `Mesh` polygonal
+triangulé en éventail depuis le premier coin, `orientation` respectée (`leftHanded` renverse chaque
+triangle plutôt que de retourner les normales). Normales et `primvars:st` résolues par leur
+`interpolation` (`constant`, `uniform`, `vertex`/`varying`, `faceVarying`) et par leurs `:indices` ;
+quand la couche ne déclare pas l'interpolation, la longueur du tableau la désigne. Le rang de
+primvar d'un coin, avec son indice de point, est la clé de déduplication du sommet glTF ; `V` est
+retournée pour glTF. `GeomSubset` de la famille `materialBind` en primitives distinctes, les faces
+qu'aucun sous-ensemble ne réclame revenant à la liaison du maillage. Instances : un prim
+`instanceable` présente ses enfants comme mandataires de son prototype, et c'est le prim du
+prototype qui nomme la donnée — deux instances citent donc le même maillage glTF. Une `class` est un
+gabarit, pas une surface : elle n'est pas parcourue. `defaultPrim` comme point d'entrée quand la
+couche en désigne un. `metersPerUnit` et `upAxis` vivent sur **la racine de la scène**, jamais dans
+les sommets : `Z` haut devient `Y` haut par une rotation de −90° autour de `X`. Matériaux
+`UsdPreviewSurface` vers `pbrMetallicRoughness` — `diffuseColor` + `opacity`, `metallic`,
+`roughness`, `emissiveColor`, `normal` —, une texture connectée l'emportant sur le facteur ;
+`opacityThreshold` non nul fait `MASK` à ce seuil, une opacité inférieure à un ou portée par une
+texture fait `BLEND`, rien de tout cela laisse `OPAQUE`. `doubleSided` est une propriété de la
+géométrie en USD et du matériau en glTF : c'est le maillage qui l'apporte, et deux maillages qui la
+déclarent autrement sur un même `Material` obtiennent deux matériaux — un seul en aurait trahi un.
+Textures `UsdUVTexture` nommées par URI relative à la racine de résolution des images, `wrapS` vers
+l'échantillonneur. Animation : la valeur par défaut, ou le **plus petit** échantillon temporel quand
+il n'y en a pas, et le rapport le dit.
+
+**Refus, tous nommés, aucun fatal tant qu'une surface reste.** `usd-point-instancer-unsupported`,
+`usd-curves-unsupported`, `usd-volume-unsupported`, `usd-skel-unsupported`, `usd-camera-unsupported`,
+`usd-light-unsupported`, `usd-patch-unsupported` pour les types de prim non rendus ;
+`usd-subdivision-unsupported` quand `subdivisionScheme` n'est pas `none` — **les polygones sont
+rendus plats**, sans la subdivision demandée, ce qui change la silhouette, et c'est dit ;
+`usd-variants-unsupported` quand un jeu de variantes est présent, seule la sélection composée étant
+lue ; `usd-composition-invalid` par référence ou charge dont le fichier n'est pas là — la
+composition, elle, les ignore en silence, donc le pilote relit les arcs écrits et compte ;
+`usd-animation-first-sample` ; `usd-mesh-invalid` quand les comptes de faces ne tombent pas sur les
+indices ; `usd-xform-unsupported` et `usd-xform-invalid` ; `usd-surface-unsupported` ;
+`usd-texture-missing` et `usd-texture-unsupported`. Refus durs : `IMPORT_ERROR` pour une couche
+illisible, `IMPORT_EMPTY` quand il ne reste aucune surface, `SOURCE_FORMAT_AMBIGUOUS` pour un
+dossier qui porte deux couches. Un type de prim inconnu n'est pas refusé : il est traversé comme un
+groupe, ce qui laisse passer les surfaces qu'il porte au lieu de couper une branche entière.
+
+**Trois extractions de commun, faites avant d'écrire du neuf.** Les tables de la scène intermédiaire
+et leur écriture quittent `scene/unity/output.rs` pour `import/tables.rs` (`SceneTables`), que tout
+pilote qui remplit lui-même son glTF partage désormais. L'émission d'une primitive à partir de
+sommets dédupliqués — vues de binaire, accesseurs, bornes de `POSITION` — devient
+`import/primitive.rs`, que la conversion ufbx emploie aussi. L'identité, le produit de matrices et
+la rotation d'un quaternion ne sont pas réécrits : `compiler_world` les expose, le pilote les
+reprend. `check:duplicates` passe de un à zéro doublon.
+
+**Dorées.** `fixtures/usd/minuscule/` est une couche écrite à la main pour ce test : `Xform`
+translaté, `Mesh` de deux quadrilatères, `GeomSubset` qui donne un second matériau à l'une des deux
+faces, un `UsdPreviewSurface` opaque et un autre translucide à texture. `fixtures/usd/corpus/` est
+la **même scène** en `usda` et en `usdc`, recopiée du corpus CC0 : les deux compilations rendent la
+même scène intermédiaire au nœud près et le même sidecar — trois maillages, trois matériaux,
+trente-six triangles, 14 572 octets de texte contre 4 627 de binaire. Les trois cubes du corpus sont
+des copies et non des instances USD : ils donnent bien trois maillages, et le test le fixe. Onze
+tests de comportement en plus des deux dorés.
+
+### Ce qui reste
+
+- Subdivision réelle (`catmullClark`, `loop`) : le repli plat est compté, il n'est pas corrigé.
+- `PointInstancer`, courbes, volumes et `SkelRoot` : comptés, non rendus.
+- Un jeu d'UV autre que `st`, le motif `<UDIM>` et les cartes métal/rugosité séparées sont comptés
+  sous `usd-texture-unsupported` ; le second jeu d'UV demanderait un `TEXCOORD_1` que la scène
+  intermédiaire ne porte pas encore.
+- `!resetXformStack!` et l'inverse d'un `matrix4d` : comptés, non composés.
+- L'ancrage d'un arc de composition non résolu est le dossier de la couche source ; une source à
+  sous-couches multiples pourrait donc compter un arc résolu ailleurs. C'est un compte de rapport,
+  jamais une scène fausse.
+
+## 2026-09-15 — [compilateur] pilote usdz
+
+Second conteneur du compilateur, après `zip`. Un `.usdz` est un ZIP **non compressé** dont chaque
+charge commence sur un multiple de soixante-quatre octets : l'emballage sert à lire une couche USD
+et ses images en place, jamais à les réduire. Le pilote extrait sous le cache, puis rend au routeur
+ce qu'il a extrait ; il ne lit aucune géométrie et ne réencode rien.
+
+**Provenance.** *OpenUSD Core Specification* de l'AOUSD pour la disposition du paquet, APPNOTE
+6.3.10 de PKWARE pour le conteneur. Aucune caisse nouvelle : la lecture ZIP de `zip.rs` descend dans
+`scene/archive/zip_reader.rs`, que les deux conteneurs partagent — entêtes reconnues, deux passes,
+plafonds, refus `ARCHIVE_*`. `zip.rs` tombe de 105 à 34 lignes.
+
+**Ce que le pilote ajoute.** Une passe de jugement avant qu'un octet soit écrit : chaque entrée est
+stockée telle quelle et sa charge est alignée, sinon `USDZ_LAYOUT_INVALID` nomme l'entrée en cause.
+Le reste est le déroulé commun des conteneurs : extraction sous `<cache>/native/archives/<clé>`,
+marque écrite en dernier, dossier racine unique traversé, contenu routé par le routeur existant. La
+couche racine n'est ni devinée ni prise au premier venu : aucune couche est `SOURCE_FORMAT_UNKNOWN`,
+plusieurs est `SOURCE_FORMAT_AMBIGUOUS`, tous deux rendus par le routeur et par `usd`. Les images du
+paquet se résolvent contre le dossier extrait, la règle commune de `scene::image_root`.
+
+**Dorée** (`fixtures/usdz/`, corpus CC0 recopié de `test-assets/`) : le paquet porte la même couche
+`usdc` que `fixtures/usd/corpus/usdc`, et les deux compilations rendent la même scène intermédiaire
+et le même `clusters.bin` — trente-six triangles, neuf primitives, trois nœuds. Les trois paquets
+piégés (compressé, sans couche, deux couches) sont refusés par leur code, et rien n'est extrait. Les
+piégés sont écrits par un script Python extérieur à la caisse que le pilote emploie pour lire.
+
+Registre : deux lignes pour `usd` et `usdz`, et les deux attendus qui comptent les pilotes — huit de
+scène. 220 tests Rust et 4 tests CLI au vert, Clippy sans avertissement, `check:duplicates` à zéro.
+
+### Ce qui reste
+
+- La spécification désigne le **premier** fichier du paquet comme couche racine, ce qui autorise un
+  paquet à plusieurs couches dont les suivantes sont référencées. Ici, plusieurs couches à la racine
+  sont une ambiguïté : c'est plus strict que la spécification, et c'est délibéré tant qu'aucune
+  source réelle n'impose l'autre lecture.
+- Un paquet chiffré est refusé sans test dédié : aucun jeu redistribuable ne l'exerce.

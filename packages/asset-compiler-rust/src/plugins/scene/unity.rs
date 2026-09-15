@@ -17,7 +17,7 @@
 //! rendus animés, objets inactifs, niveaux de LOD écartés, retouches de prefab qui ne changent ni la
 //! géométrie ni le rendu, cartes métal/lissage empaquetées et textures hors registre.
 use super::*;
-use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
+use crate::import::{f32_bytes, normalise, SceneTables as Scene};
 use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{
@@ -37,7 +37,6 @@ mod materials;
 mod merge;
 mod meta;
 mod models;
-mod output;
 mod patch;
 mod prefab;
 mod project;
@@ -52,7 +51,6 @@ use convert::convert;
 use merge::Parts;
 use meta::ModelImport;
 use models::Models;
-use output::Scene;
 use patch::{local_trs, Changes};
 use project::{assets_root, meta_of, read_text, Project};
 use textures::Textures;

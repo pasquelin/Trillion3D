@@ -33,7 +33,7 @@ Aucune à la pause : chaque lot de la vague 3 (`compilateur/webp`, `compilateur/
 
 ## À faire ensuite, dans l'ordre
 
-1. **Vague 4, trois Opus** : `usd`/`usdz` (crate à évaluer, sinon lecteur usda/usdc propre), `alembic` — **fait** : branche `compilateur/alembic`, lecteur Ogawa écrit depuis la spécification (aucune crate ajoutée ; `ogawa-rs` évaluée et écartée : `todo!()` sur les booléens, indexation non bornée, aucun plafond), `Xform`/`PolyMesh`/`SubD`/`FaceSet`, premier échantillon, refus `alembic-*`, dorée CC0 `fixtures/alembic/` —, `.blend` (SDNA, maillages/UV/instances/Principled BSDF de base). Corpus : `usd/`, `alembic/`, `blend/`.
+1. **Vague 4, trois Opus** : `usd`/`usdz` **fait** (branche `compilateur/usd` : caisse `openusd` 0.7.0 MIT, Rust pur ; Xform/Scope, Mesh triangulés, GeomSubset, instances, UsdPreviewSurface, `metersPerUnit`/`upAxis` sur la racine ; conteneur `usdz` ZIP stocké et aligné ; dorées `fixtures/usd` et `fixtures/usdz` ; refus `usd-*` et `USDZ_LAYOUT_INVALID`) ; `alembic` **fait** (branche `compilateur/alembic` : lecteur Ogawa écrit depuis la spécification, aucune crate ajoutée — `ogawa-rs` évaluée et écartée pour `todo!()`, indexation non bornée et absence de plafond ; `Xform`/`PolyMesh`/`SubD`/`FaceSet`, premier échantillon, refus `alembic-*`, dorée CC0 `fixtures/alembic/`) ; reste `.blend` (SDNA, maillages/UV/instances/Principled BSDF de base). Corpus : `blend/`.
 2. **Vague 5** : `psd` (aplati vers RGBA8), `bmp`, `gif` (features `image`), `.ma` (Maya ASCII, données seules), MTL à vérifier (OBJ).
 3. **Chantiers restants** :
    - BC6H de `dds` en flottant (attend le contrat `RgbaF32` côté DDS).
