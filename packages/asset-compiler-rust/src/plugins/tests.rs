@@ -5,6 +5,7 @@ use std::{fs, path::PathBuf};
 
 mod dds;
 mod image_registry;
+mod png;
 mod router;
 mod tga;
 mod tiff;

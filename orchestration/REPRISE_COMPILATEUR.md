@@ -20,7 +20,7 @@ Aucune attendue à la pause : chaque lot est fusionné puis son worktree supprim
 
 ## Décisions en attente de l'utilisateur
 
-1. **PNG 16 bits abaissé en 8 bits en silence** par le pilote `png` (via `to_rgba8()` de la crate `image`), vérifié sur `test-assets/textures/png-matrix/rgb16.png` : perte ajoutée, contraire à la règle. Deux voies : refuser avec rapport comme `tiff` (rapide), ou porter le 16 bits jusqu'à l'écran (variante `Rgba16`, contrat d'image relevé, chaque consommateur adapté : lot Opus dédié). Question posée, sans réponse.
+1. **PNG 16 bits : tranché : refus nommé.** Le pilote `png` lit la profondeur dans l'IHDR avant tout décodage et refuse le 16 bits par canal sous `image-depth-unsupported`, comme `tiff` et `dds` ; plus aucun `to_rgba8()` sur une source 16 bits. Porter le 16 bits jusqu'à l'écran (variante `Rgba16`, contrat d'image relevé, chaque consommateur adapté) reste ouvert, à lancer le jour où un besoin réel se présente.
 2. Licence des assets FAB (Village, Industrial Map) avant toute démonstration publique.
 3. Option `atlasClasses: 2` et départ au sol du banc 15 (voir REPRISE_2026-09-15.md).
 
