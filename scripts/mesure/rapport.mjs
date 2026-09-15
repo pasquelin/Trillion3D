@@ -35,7 +35,8 @@ function rows(report) {
     for (const [side, r] of Object.entries(serie.sides)) {
       const hiz = r.hiZ;
       lines.push(
-        `| ${serie.view} | ${serie.pixelError} | ${side} | ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
+        `| ${serie.view} | ${serie.pixelError} | ${side}${r.moteur ? ` · ${r.moteur}` : ''} ` +
+          `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
           `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
           `| ${num(r.selectedTriangles)} | ${num(r.uncoveredTriangles)} ` +
           `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} ` +

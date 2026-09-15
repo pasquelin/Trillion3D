@@ -13,6 +13,11 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   l'explorateur refuse la série par `AUTONOMOUS_SCENE_UNAVAILABLE`.
 - `--avant` / `--apres` : un dossier `dist/` construit, ou une référence git, extraite hors du dépôt
   et construite. Sans `--avant`, un seul côté est mesuré ; `--apres` vaut le `dist/` du dépôt.
+- `--moteur-avant` / `--moteur-apres` : le moteur d'un seul côté, qui l'emporte sur `--moteur`. C'est
+  ainsi qu'on met **le moteur face au témoin Three dans une seule exécution** — mêmes poses, mêmes
+  lampes, mêmes caches, même serveur —, et que `ecartAvantApres` devient un chiffre de fidélité et
+  non plus une comparaison entre deux campagnes. Les drapeaux de Chromium sont alors la réunion de
+  ceux dont les deux côtés ont besoin, et chaque côté publie son moteur dans `mesure.json`.
 - `--cache-avant` / `--cache-apres` : le dossier « derived » d'un cache compilé (celui qui contient
   `native/full`), pour comparer deux compilateurs sur la même scène. Sans l'option, le côté lit le
   cache du Lab. Chaque cache nommé est rendu sous `/cache/<côté>/`.
@@ -49,6 +54,25 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   d'une image sur la coupe qu'il décrit.
 - Sans `--lampes` ni `--soleil`, aucune lampe n'est déclarée : le moteur rend alors sa vue sans
   éclairage, l'albédo brut des matériaux. C'est son comportement par défaut, pas une option du banc.
+
+## Le témoin Three et les lampes du contrat
+
+Les adaptateurs Three ne lisent pas le magasin `SceneLight` : ils recopient les lampes du graphe
+source, et rien d'autre. Le harnais est un hôte comme un autre — il pose donc lui-même, en Three,
+les lampes que le magasin déclare, par l'option publique `sceneLighting` de `createExplorer`
+(`pageTemoin.mjs`, servi à la page sous `/mesure/` et importé par son URL). Rien n'est écrit à la
+main : tout vient de `explorer.lights()`, donc du cache compilé et du contrat — les lampes du
+fichier importé comme celles du banc —, et aucune scène n'est nommée.
+
+La correspondance est exacte dans les unités de Three : couleur linéaire, intensité radiométrique
+sans facteur, `distance` = portée et `decay` = 2, ce qui donne le carré inverse fenêtré de
+`directIncidence` ; le bord de cône d'un projecteur est reproduit par la pénombre. Chaque côté
+publie dans son relevé `lampesTemoin` ce qu'il a reçu, ou `null` s'il ne dessine pas par Three.
+
+Ce que le témoin ne rend pas, nommé plutôt que deviné : **aucune ombre portée** — le renderer Three
+du SDK n'allume pas ses cartes d'ombre. Une campagne de fidélité se joue donc `--ombres off` des
+deux côtés, sinon l'écart mesuré porte d'abord les ombres que seul le moteur dessine.
+
 - `--budget-ombres <ms>` : le budget de l'étape Ombres, en millisecondes de carte graphique par
   image. Sans l'option, le moteur garde le sien (1,0 ms). Les pages invalidées au-delà attendent leur
   tour ; le profil publie `pagesEnAttente` et `retardMaxMs`.
