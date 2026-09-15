@@ -45,6 +45,17 @@ Un seul harnais pour tous les lots. Une commande, aucun serveur à lancer à la 
   d'une image sur la coupe qu'il décrit.
 - Sans `--lampes` ni `--soleil`, aucune lampe n'est déclarée : le moteur rend alors sa vue sans
   éclairage, l'albédo brut des matériaux. C'est son comportement par défaut, pas une option du banc.
+- `--budget-ombres <ms>` : le budget de l'étape Ombres, en millisecondes de carte graphique par
+  image. Sans l'option, le moteur garde le sien (1,0 ms). Les pages invalidées au-delà attendent leur
+  tour ; le profil publie `pagesEnAttente` et `retardMaxMs`.
+- `--ombres-pages off` : fait repartir la face d'ombre entière dès qu'un objet bouge dans la portée
+  d'une lampe, au lieu des seules pages que sa boîte projetée recouvre. C'est la porte d'identité des
+  cartes : deux exécutions dont seule cette option diffère doivent rendre la **même empreinte**
+  d'atlas et la même image.
+- `--empreinte-ombres` : vide la file des pages d'ombre, relit l'atlas de profondeur et publie son
+  empreinte dans `series[].sides[].atlasOmbres` (`hash`, `written`, `pagesEnAttente`, `images`).
+  Éteint par défaut : c'est une lecture de 64 Mo, pas une mesure d'image. À n'employer qu'avec des
+  poses et des lampes déterministes, sinon les deux côtés ne décrivent pas la même scène.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
 - `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
   mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les

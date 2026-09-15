@@ -4,6 +4,7 @@ import { metricsOf, vertexBytesOf } from './webgpuPagesMetrics.ts';
 import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
+import { createWebgpuLightState } from './webgpuPagesStateLights.ts';
 import { referenceVertexBytes } from './bench/oracles/g-octets.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
@@ -18,7 +19,7 @@ test('textureInFlight, textureSlicesUploaded et textureBytesLastFrame reflètent
     timing: {},
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
-    lights: { lightsActive: 0, shadowsUpdated: 0 },
+    lights: createWebgpuLightState(),
     texturePump: { uploaded: 5, skipped: 1, inFlight: 2, slices: 7, bytesLastPass: 123 },
   } as unknown as WebgpuPagesRuntime;
 
@@ -41,7 +42,7 @@ test('textureLevelsUploaded reflète la pompe ; les métriques d’atlas sont nu
     timing: {},
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
-    lights: { lightsActive: 0, shadowsUpdated: 0 },
+    lights: createWebgpuLightState(),
     texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0, levels: 3 },
   } as unknown as WebgpuPagesRuntime;
   const metrics = metricsOf(rt);
@@ -72,7 +73,7 @@ test('les métriques d’atlas reflètent les octets et classes calculés une fo
     timing: {},
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
-    lights: { lightsActive: 0, shadowsUpdated: 0 },
+    lights: createWebgpuLightState(),
     texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0, levels: 0 },
   } as unknown as WebgpuPagesRuntime;
   const metrics = metricsOf(rt);

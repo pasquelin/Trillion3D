@@ -59,6 +59,9 @@ export interface RenderBackend {
       | 'gpuLightingMs'
       | 'shadowFacesDrawn'
       | 'shadowDrawCalls'
+      | 'shadowPagesDrawn'
+      | 'shadowPagesPending'
+      | 'shadowWaitMs'
     >
   > & {
     drawCalls?: number;
@@ -73,6 +76,8 @@ export interface RenderBackend {
   stageProfile?(): StageProfile;
   /** Oublie la fenêtre du profil : la chauffe et les premières images ne pèsent plus sur ses quantiles. */
   resetStageProfile?(): void;
+  /** Empreinte de l'atlas d'ombres, bit pour bit : la preuve du dessin par pages, jamais une image. */
+  shadowAtlasDigest?(): Promise<import('./gpuShadowDigest.ts').ShadowAtlasDigest | null>;
   pendingUrls?(): string[];
   /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
    *  so a small camera move finds them already resident. */
@@ -154,6 +159,10 @@ export interface BackendContext {
   bounceBudgetMs?: number;
   /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
   stageProfile?: boolean;
+  /** Budget de l'étape Ombres, en millisecondes de carte graphique par image. Voir `LIGHT_SETTINGS`. */
+  shadowBudgetMs?: number;
+  /** Invalidation des cartes d'ombre page par page. Allumée par défaut. */
+  shadowPageInvalidation?: boolean;
   /** Lit l'objet de cache du proxy résident. Absent quand le cache n'en porte pas ; appelé au plus
    *  une fois, à la première image qui porte une lampe déclarée. */
   readSceneProxy?: () => Promise<import('../sdk-core/index.ts').SceneProxy>;

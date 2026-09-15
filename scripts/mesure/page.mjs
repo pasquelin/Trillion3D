@@ -65,6 +65,12 @@ export async function measureView(options) {
     bounce: options.bounce === true,
     // Les lampes que le fichier source portait : le moteur les déclare seul, le banc peut les taire.
     importedLights: options.importedLights !== false,
+    // Le budget de l'étape Ombres et l'invalidation par pages : sans ces options, le moteur garde
+    // ses propres réglages publiés.
+    ...(typeof options.shadowBudgetMs === 'number'
+      ? { shadowBudgetMs: options.shadowBudgetMs }
+      : {}),
+    ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
   });
   // Ce que le fichier a apporté, relevé avant tout ajout du banc. Un dist plus ancien que le lot
   // d'import des lampes n'a pas cette fonction : la mesure rend `null`, jamais un compte inventé.
@@ -90,8 +96,14 @@ export async function measureView(options) {
   };
   const pose = options.pose;
   // Une pose par image quand la caméra bouge, la même à chaque image sinon.
-  const poses = options.poses,
-    poseAt = (frame) => (poses ? poses[frame % poses.length] : pose);
+  const poses = options.poses;
+  // La dernière pose rendue : c'est elle que la vidange de la file d'ombres rejoue, pour que la
+  // capture qui suit soit exactement celle des lots précédents.
+  let current = pose;
+  const poseAt = (frame) => {
+    current = poses ? poses[frame % poses.length] : pose;
+    return current;
+  };
   explorer.setPose(pose);
   // Chauffe bornée : la coupe réside avant que quoi que ce soit ne soit relevé.
   for (let i = 0; i < options.warmup; i++) {
@@ -129,6 +141,23 @@ export async function measureView(options) {
       await new Promise((done) => requestAnimationFrame(done));
     }
     stageProfile = explorer.stageProfile();
+  }
+
+  // La file des pages d'ombre est vidée avant toute lecture de l'atlas : une page encore en attente
+  // porte évidemment l'ancienne profondeur, et l'empreinte ne prouverait rien. La boucle est bornée
+  // et le compte restant est publié tel quel, jamais supposé nul.
+  let shadowAtlas = null;
+  if (options.shadowDigest && typeof explorer.shadowAtlasDigest === 'function') {
+    let pending = null,
+      drains = 0;
+    for (; drains < 600; drains++) {
+      const frame = explorer.render(current);
+      await explorer.flush();
+      pending = typeof frame.shadowPagesPending === 'number' ? frame.shadowPagesPending : null;
+      if (pending === null || pending === 0) break;
+    }
+    const digest = await explorer.shadowAtlasDigest();
+    shadowAtlas = digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
   }
 
   // La capture part telle quelle vers Node, qui l'encode en PNG et la compare.
@@ -173,6 +202,7 @@ export async function measureView(options) {
     cpuSelectMs,
     gpuFrameMs,
     importedLights,
+    shadowAtlas,
     stageProfile,
     selection,
     metrics,

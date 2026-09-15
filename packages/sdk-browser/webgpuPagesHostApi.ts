@@ -19,7 +19,7 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
     view: lights.store.lightingView,
     unlit: lights.store.unlit,
     exposure: lights.store.environment?.exposure ?? 1,
-    shadowsPending: lights.plan.pending,
+    shadowPagesPending: lights.plan.counts.pendingPages,
   });
 }
 

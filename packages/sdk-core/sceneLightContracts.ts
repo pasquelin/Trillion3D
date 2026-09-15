@@ -56,8 +56,26 @@ export const LIGHT_SETTINGS = {
   maxLightsPerTile: 32,
   /** Côté en pixels d'une tuile d'écran de la liste de lampes. */
   tileSize: 16,
-  /** Lampes à ombre remises à jour par image, les plus prioritaires (X5). */
+  /**
+   * Régions d'ombre au plus par image : le plafond des tampons, jamais un réglage de qualité. Le
+   * budget en millisecondes s'arrête presque toujours avant ; ce plafond ne sert que d'ultime borne,
+   * et de seule limite sur un appareil sans horloge carte graphique.
+   */
   shadowUpdatesPerFrame: 4,
+  /**
+   * Côté d'une page de l'atlas d'ombres, en texels : la maille d'invalidation d'une face. Un objet
+   * qui bouge ne périme que les pages que sa boîte projetée recouvre, jamais la face entière.
+   */
+  shadowPage: 128,
+  /**
+   * Budget de l'étape Ombres, en millisecondes de carte graphique par image (X4, RX3). Les pages
+   * invalidées au-delà attendent leur tour ; elles ne sont jamais perdues, et leur retard est publié.
+   */
+  shadowBudgetMs: 1,
+  /** Poids de l'attente dans la priorité d'une page, par image passée en file : contre la famine. */
+  shadowAgingPerFrame: 0.05,
+  /** Part du relevé d'une image dans le coût moyen d'une page : lissage exponentiel du chronomètre. */
+  shadowCostBlend: 0.25,
   /** Côté de l'atlas d'ombres de profondeur, en texels. */
   shadowAtlasSize: 4096,
   /** Côté maximal d'une tranche d'ombre ; une face de ponctuelle en occupe un sixième d'aire. */

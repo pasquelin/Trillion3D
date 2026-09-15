@@ -31,6 +31,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     profileFrames: settings.profileFrames,
     lights: lights ? lights.lights : [],
     moving: lights ? lights.moving : null,
+    shadowBudgetMs: settings.shadowBudgetMs,
+    shadowPages: settings.shadowPages,
+    shadowDigest: settings.shadowDigest,
   });
   const fin = machineLoad();
   if (result.erreur) throw new Error(`${side.name} ${view} e${pixelError} : ${result.erreur}`);
@@ -72,6 +75,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     lampes: lights ? lights.resume : null,
     // Les lampes venues du fichier source, telles que le moteur les a déclarées à l'ouverture.
     lampesFichier: result.importedLights ?? null,
+    // L'empreinte de l'atlas d'ombres, lue une fois la file d'attente vide. Deux exécutions dont
+    // seule `--ombres-pages` diffère doivent rendre la même : c'est la preuve que le dessin par
+    // pages est identique au bit près à un redessin complet.
+    atlasOmbres: result.shadowAtlas ?? null,
     charge: { debut, fin },
     png: capture ? captureFile : null,
     captureStatus: result.captureStatus,

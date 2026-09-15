@@ -1,5 +1,6 @@
 import { createGpuTiming } from './gpuTiming.ts';
-import { addGpuPasses, bounceGpuMs } from './stageMapping.ts';
+import { addGpuPasses, bounceGpuMs, directLightTimings } from './stageMapping.ts';
+import { PAGES_RING } from './webgpuPagesStateLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
@@ -25,6 +26,12 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
       // Le budget du rebond est une durée : il lit ici le chronomètre de sa propre étape, celui du
       // profil par passe, et corrige le lot de l'image suivante. Jamais une estimation.
       rt.bounce.probes?.observeGpuMs(bounceGpuMs(timing.lastGpuPassMs));
+      // Le budget des ombres se règle de même : la durée mesurée de l'étape Ombres, rapportée aux
+      // pages que cette image-là avait redessinées.
+      rt.lights.plan.observeCost(
+        directLightTimings(timing.lastGpuPassMs).gpuShadowsMs,
+        rt.lights.pagesByFrame[sample.frame % PAGES_RING],
+      );
       timing.lastGpuHostGapMs = sample.hostGapMs;
       // Le relevé décrit une image déjà passée : il est rangé par étape sans jamais bloquer celle-ci.
       // L'enveloppe de l'image est publiée à part : sur un appareil qui fait se chevaucher les passes,

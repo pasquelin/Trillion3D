@@ -49,6 +49,12 @@ export interface ExplorerOptions {
   bounceBudgetMs?: number;
   /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
   stageProfile?: boolean;
+  /** Budget de l'étape Ombres, en millisecondes de carte graphique par image. 1,0 par défaut : les
+   *  pages invalidées au-delà attendent leur tour, jamais perdues, leur retard publié. */
+  shadowBudgetMs?: number;
+  /** Invalidation des cartes d'ombre page par page. Allumée par défaut ; `false` fait repartir la
+   *  face entière dès qu'un objet bouge dans sa portée, comme avant le lot des ombres virtualisées. */
+  shadowPageInvalidation?: boolean;
   /** Déclarer les lampes que le fichier source portait, lues dans le cache. Allumé par défaut :
    *  une scène importée arrive avec ses lumières. `false` ouvre la scène sans aucune d'elles. */
   importedLights?: boolean;
