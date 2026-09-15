@@ -101,6 +101,18 @@ impl GoldenRun {
     /// La scène intermédiaire qu'un pilote nommé a écrite dans le cache : son manifeste et son
     /// glTF. C'est ce que la dorée d'un pilote compare, avant que le compilateur ne la découpe.
     pub(super) fn prepared(&self, plugin: &str) -> (Value, Value) {
+        let directory = self.prepared_dir(plugin);
+        let manifest = fs::read(directory.join("manifest.json")).expect("manifest.json");
+        let gltf = fs::read(directory.join("model.gltf")).expect("model.gltf");
+        (
+            serde_json::from_slice(&manifest).expect("manifest.json is valid JSON"),
+            serde_json::from_slice(&gltf).expect("model.gltf is valid JSON"),
+        )
+    }
+
+    /// Le dossier de cache où un pilote nommé a écrit sa scène intermédiaire. Une dorée qui veut
+    /// lire les octets de cette scène — son binaire — part de là, sans deviner la clé.
+    pub(super) fn prepared_dir(&self, plugin: &str) -> PathBuf {
         let imports = self.cache.join("native").join("imports");
         let entries = fs::read_dir(&imports).expect("imports directory");
         for entry in entries.flatten() {
@@ -113,18 +125,39 @@ impl GoldenRun {
             if manifest
                 .pointer("/source/plugin/name")
                 .and_then(Value::as_str)
-                != Some(plugin)
+                == Some(plugin)
             {
-                continue;
+                return entry.path();
             }
-            let gltf = fs::read(entry.path().join("model.gltf")).expect("model.gltf");
-            return (
-                manifest,
-                serde_json::from_slice(&gltf).expect("model.gltf is valid JSON"),
-            );
         }
         panic!("aucune scène intermédiaire écrite par le pilote {plugin}");
     }
+}
+
+/// Ce que toute dorée de pilote de scène fixe, quel que soit le format : la provenance du pilote,
+/// ce qu'il a compté et refusé, la charpente de la scène intermédiaire qu'il a écrite, et les deux
+/// nombres que le compilateur en a retenus. Chaque famille y ajoute ensuite ce qui lui est propre —
+/// les matériaux d'un projet, les primitives d'un maillage — en écrivant ses champs sur le résultat.
+pub(super) fn scene_digest(run: &GoldenRun, plugin: &str) -> (Value, Value, Value) {
+    let (manifest, gltf) = run.prepared(plugin);
+    let digest = json!({
+      "formatVersion": run.result["formatVersion"],
+      "plugin": manifest["source"]["plugin"],
+      "counts": manifest["source"]["counts"],
+      "unsupported": manifest["unsupported"],
+      "notes": manifest["notes"],
+      "meshNodes": manifest["runtime"]["meshNodes"],
+      "trianglesAcrossNodes": manifest["runtime"]["trianglesAcrossNodes"],
+      "roots": gltf["scenes"][0]["nodes"],
+      "nodes": gltf["nodes"],
+      "meshNames": gltf["meshes"].as_array().expect("meshes").iter()
+                       .map(|mesh| mesh["name"].clone()).collect::<Vec<Value>>(),
+      "compiled": {
+        "selectedTriangles": run.result["selectedTriangles"],
+        "totalNodes": run.result["totalNodes"],
+      },
+    });
+    (digest, manifest, gltf)
 }
 
 /// L'attendu versionné d'une fixture, sans les deux champs qui ne sont que de la prose.
