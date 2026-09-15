@@ -1,6 +1,7 @@
 import { DRAW_ITEM_U32, UNIFORM_BYTES, WORKGROUP } from './gpuDrawContract.ts';
 import { createGpuDrawBuffers } from './gpuDrawBuffers.ts';
 import type { GpuDraw } from './gpuDrawContract.ts';
+import { shaderErrors } from './gpuShaderModule.ts';
 import { drawShader } from './gpuDrawShader.ts';
 
 /**
@@ -37,14 +38,10 @@ export async function createGpuDraw(
       ],
     });
     const module = device.createShaderModule({ code: drawShader(layerSlots) });
-    if (typeof module.getCompilationInfo === 'function') {
-      const info = await module.getCompilationInfo();
-      if (info.messages.some((message) => message.type === 'error')) {
-        if (typeof device.popErrorScope === 'function')
-          await device.popErrorScope().catch(() => {});
-        for (const buffer of buffers) buffer.destroy();
-        return undefined;
-      }
+    if ((await shaderErrors(module)).length) {
+      if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+      for (const buffer of buffers) buffer.destroy();
+      return undefined;
     }
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
     const countPipeline = device.createComputePipeline({

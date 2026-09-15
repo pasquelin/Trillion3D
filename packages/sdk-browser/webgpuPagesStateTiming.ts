@@ -8,41 +8,38 @@ import { WEBGPU_STAGES } from './stageMapping.ts';
 import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
 import type { WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 
-const CPU_STEPS = [
-  'lightsMs',
-  'adoptCutMs',
-  'transparentSelectMs',
-  'admissionMs',
-  'residencyQueueMs',
-  'syncRowsMs',
-  'residencyUploadMs',
-  'selectionDispatchMs',
-  'projectBoxesMs',
-  'partitionMs',
-  'itemsMs',
-  'encodeRestMs',
-  'queueSubmitMs',
-  'encodeSubmitMs',
-  'totalMs',
+/**
+ * Les bornes processeur d'une image, dans l'ordre : le nom public de chacune et l'étape du profil où
+ * elle se dépose — `null` pour les sommes, qui ne se déposent pas, sans quoi elles compteraient une
+ * seconde fois ce que leurs parties ont déjà déposé. Une seule déclaration ordonnée : le nom, l'étape
+ * et l'indice d'écriture ne peuvent plus se désaligner en silence.
+ */
+const CPU_STEP_TABLE = [
+  ['lightsMs', 'lights'],
+  ['adoptCutMs', 'selection'],
+  ['transparentSelectMs', 'transparents'],
+  ['admissionMs', 'residency'],
+  ['residencyQueueMs', 'residency'],
+  ['syncRowsMs', 'uploads'],
+  ['residencyUploadMs', 'uploads'],
+  ['selectionDispatchMs', 'selection'],
+  ['projectBoxesMs', 'encode'],
+  ['partitionMs', 'encode'],
+  ['itemsMs', 'encode'],
+  ['encodeRestMs', 'encode'],
+  ['queueSubmitMs', 'submit'],
+  ['encodeSubmitMs', null],
+  ['totalMs', null],
 ] as const;
-/** L'étape publique de chaque borne ci-dessus ; `null` pour les sommes, qui ne se déposent pas. */
-export const CPU_STEP_STAGES: ReadonlyArray<string | null> = [
-  'lights',
-  'selection',
-  'transparents',
-  'residency',
-  'residency',
-  'uploads',
-  'uploads',
-  'selection',
-  'encode',
-  'encode',
-  'encode',
-  'encode',
-  'submit',
-  null,
-  null,
-];
+
+const CPU_STEPS = CPU_STEP_TABLE.map(([name]) => name);
+export const CPU_STEP_STAGES: ReadonlyArray<string | null> = CPU_STEP_TABLE.map(
+  ([, stage]) => stage,
+);
+/** L'indice de chaque borne dans `cpuProfile.row`, lu par son nom et jamais écrit à la main. */
+export const CPU_STEP = Object.fromEntries(
+  CPU_STEP_TABLE.map(([name], index) => [name, index]),
+) as Record<(typeof CPU_STEP_TABLE)[number][0], number>;
 
 /** GPU pass timing, the CPU step profile of the image, and the one command buffer an image owns. */
 /** The timestamps of one GPU-cut image, written in place as each step ends. */

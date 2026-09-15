@@ -1,4 +1,5 @@
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+import { shaderErrors } from './gpuShaderModule.ts';
 
 type DagBuffers = {
   clusters: GPUBuffer;
@@ -31,12 +32,9 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     ],
   });
   const module = device.createShaderModule({ code: DAG_SELECTION_SHADER });
-  if (typeof module.getCompilationInfo === 'function') {
-    const info = await module.getCompilationInfo();
-    if (info.messages.some((message) => message.type === 'error')) {
-      if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
-      return undefined;
-    }
+  if ((await shaderErrors(module)).length) {
+    if (typeof device.popErrorScope === 'function') await device.popErrorScope().catch(() => {});
+    return undefined;
   }
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const stage = (entryPoint: string) =>

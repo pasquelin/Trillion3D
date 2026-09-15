@@ -69,8 +69,8 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowsUpdated: lights.shadowsUpdated,
     shadowFaces: lights.shadowFaces,
     shadowDraws: lights.shadowDraws,
-    shadowsPending: lights.shadowsPending,
-    shadowsDenied: lights.shadowsDenied,
+    shadowsPending: lights.plan.pending,
+    shadowsDenied: lights.plan.denied,
     atlasCells: lights.shadows ? lights.plan.slices.atlas.occupancy() : null,
     unavailable: lights.shadowReason,
   };

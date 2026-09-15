@@ -100,7 +100,7 @@ export function createShadowPlan() {
           casters++;
       for (let slot = 0; slot < store.count; slot++) {
         const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-        let slice = store.shadowSlice[slot];
+        let slice = store.sliceOf(slot);
         coverage[slot] = 0;
         if (packed[base + LIGHT_FIELD.castsShadow] === 0) {
           if (slice >= 0) {
@@ -117,7 +117,7 @@ export function createShadowPlan() {
         const faces = faceCountOf({
           kind: packed[base + LIGHT_FIELD.kind] === 1 ? 'spot' : 'point',
         });
-        if (slice < 0) slice = slices.claim(store.ids[slot]);
+        if (slice < 0) slice = slices.claim();
         const side = desiredFaceSide(coverage[slot], faces, casters);
         if (slice < 0 || !slices.fit(slice, faces, side)) {
           denied++;
@@ -147,7 +147,7 @@ export function createShadowPlan() {
         const slot = candidateSlot[best];
         candidatePriority[best] = -1;
         updatedLight[chosen] = slot;
-        updatedSlice[chosen] = store.shadowSlice[slot];
+        updatedSlice[chosen] = store.sliceOf(slot);
         slices.refreshed(updatedSlice[chosen], store.revision[slot], worldEpoch);
       }
       pending = Math.max(0, behind - chosen);

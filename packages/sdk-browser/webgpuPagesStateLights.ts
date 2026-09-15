@@ -23,12 +23,10 @@ export interface WebgpuLightState {
   uploadedEpoch: number;
   /** Matrices des faces de l'image, une par face remise à jour. */
   faceMatrices: Float32Array;
-  /** Lampes du contrat retenues par la dernière image, et tranches d'ombre redessinées. */
+  /** Lampes du contrat retenues par la dernière image, et tranches d'ombre redessinées. Ce que la
+   *  passe a dû écarter se lit sur l'ordonnanceur lui-même (`plan.denied`, `plan.pending`). */
   lightsActive: number;
   shadowsUpdated: number;
-  /** Ce que la dernière passe a dû écarter : tranches refusées, tuiles saturées. */
-  shadowsDenied: number;
-  shadowsPending: number;
   /** Faces planifiées et slots de dessin indirect réellement encodés par la dernière passe. */
   shadowFaces: number;
   shadowDraws: number;
@@ -52,8 +50,6 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     faceMatrices: new Float32Array(MAX_FACES_PER_FRAME * 16),
     lightsActive: 0,
     shadowsUpdated: 0,
-    shadowsDenied: 0,
-    shadowsPending: 0,
     shadowFaces: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,
