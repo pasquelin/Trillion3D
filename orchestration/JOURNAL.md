@@ -1,5 +1,57 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — aucune lumière sans source déclarée (chemin opaque) et lampe directionnelle
+
+Branche `lot/sans-source`, sur `develop` = `2931606`. `npm run validate` **vert, 552 tests JS/TS** et 136 Rust.
+
+### Ce que la règle change
+
+- La résolution différée opaque n'a plus **ni ambiance fixe, ni ciel constant, ni éclairage écrit dans la scène** (P6). Une surface qu'aucune lampe déclarée n'atteint vaut exactement zéro. Le programme « scène écrite » qui appelait `sceneLighting` disparaît de ce chemin ; `skyAmbient` et le « mode nuit » disparaissent tout court. La liaison des lampes de la scène quitte la passe différée, qui perd une entrée de disposition.
+- **Vue « sans éclairage »** : `explorer.setLightingView('auto' | 'lit' | 'unlit')`. `unlit` rend l'albédo brut — couleur des matériaux telle quelle, sans lampe, sans ambiance, sans émission — pour les bancs de géométrie qui comparent au pixel près. Ce n'est pas une lumière, c'est une vue de diagnostic. `auto`, la valeur de départ, rend `unlit` tant qu'aucune lampe n'est déclarée et `lit` dès qu'il y en a une : une scène sans source ne sort donc jamais une image noire par surprise. Contrat écrit dans `docs/SDK.md`.
+- **`SceneLight` version 2**, nouveau type `directional` : direction de propagation, couleur, intensité, ombre oui/non. Ni position, ni portée, ni cône — les trois sont **refusés** à la validation plutôt qu'acceptés puis ignorés. `SceneEnvironment` se réduit à l'exposition, qui n'est pas une lumière et ne peut rien éclairer.
+- **Ombres du soleil : quatre cascades suivant la caméra**, dans les mêmes tranches d'atlas que les six faces d'une ponctuelle et sous les mêmes règles — carte réutilisée tant que ni la lampe, ni le monde dans son emprise, ni la caméra n'ont bougé ; rejet des clusters hors cascade par `gpuShadowCull` ; découpe réelle des matériaux à masque ; aucune baisse de résolution (côté 1024 par cascade) ; au plus quatre lampes redessinées par image. Le shader lit l'échelle d'une cascade **dans sa propre matrice** (orthographique) : aucune donnée en double, donc rien qui puisse diverger.
+- **Profil** : la ligne Ombres garde ses quatre compteurs (le Lab les lit) et en gagne deux, `soleilsRedessines` et `cascadesRedessinees`.
+- **Harnais** : `--soleil` (lampe directionnelle générique), `--camera-mobile` (une pose de la trajectoire par image), `--ressources` (le dossier que le glTF d'un cache compilé désigne en relatif ; sans lui, 3 360 textures en 404 et la mesure ne portait plus sur la scène).
+
+### Fidélité
+
+Emerald, WebGPU, 1280×720, 60 images, mode visible, `pixelError 0`, trois vues, cache v3 recompilé hors du Lab. **Témoin A/A : 0 pixel sur les trois vues, des deux côtés.** **Coupe identique** partout (`coupeIdentique: true`, 41 187 / 12 106 / 11 426 pages) : la géométrie ne bouge pas d'un triangle (E8).
+
+- **(a) Sans lampe déclarée**, `avant` = `2931606` contre `après` : **non identique**, et c'est la règle elle-même. `avant` éclairait Emerald avec le gréement implicite hémisphère + soleil de `defaultLights()` ; `après` rend la vue sans éclairage. Écart : 177 971 px (max canal 224) sur `generale`, **921 599 px sur 921 600** (max 191) sur `sol`, 803 591 px (max 226) sur `rue` — l'ancien implicite touchait littéralement toute l'image. Il n'existe aucun réglage du côté `avant` qui l'éteigne : le gréement est écrit dans son nuanceur.
+- **(b) Huit lampes ponctuelles à ombre**, `avant` contre `après` : **non identique**, même cause. Sans environnement déclaré, `avant` reste en mode « scène écrite » — gréement implicite **plus** les huit lampes ; `après` n'a que les huit lampes. Écart 176 418 / 903 895 / 706 322 px. **La comparaison à ambiance retirée des deux côtés est impossible** : l'ancien moteur ne sait pas rendre « les huit lampes seules », ni avec un environnement (qui remplace le gréement par un ciel constant) ni sans (qui le garde). L'écart est donc documenté, pas mesuré à zéro.
+- **(c) `--soleil`** : pas de référence antérieure. Ombres portées réelles au sol et sur les façades, faces à contre-jour strictement noires (l'indirect est un lot ultérieur), pas d'acné rasante visible sur un mur de brique en plein soleil.
+
+### Coûts (Emerald, WebGPU, p50/p95 par image, machine **non calme**)
+
+Étape Ombres et enveloppe GPU de l'image entière ; **jamais additionnées**, et l'enveloppe n'est pas la somme des passes. « non mesuré » quand la passe n'a pas eu lieu.
+
+| configuration | vue | Ombres GPU | image entière (enveloppe) | cartes redessinées / réutilisées |
+|---|---|---:|---:|---|
+| soleil seul, scène et caméra immobiles | generale | non mesuré | 19,92 / 20,02 | 0 / 1 |
+| | sol | non mesuré | 10,56 / 12,08 | 0 / 1 |
+| | rue | non mesuré | 10,47 / 10,99 | 0 / 1 |
+| soleil seul, caméra en mouvement | generale | 3,86 / 4,50 | 24,06 / 28,07 | 1 soleil, 4 cascades, 8 dessins |
+| | sol | 1,64 / 2,04 | 9,81 / 12,06 | idem |
+| | rue | 1,85 / 2,06 | 11,03 / 12,75 | idem |
+| soleil + 8 ponctuelles, tout immobile | generale | non mesuré | 20,18 / 20,30 | 0 / 9 |
+| | sol | non mesuré | 10,99 / 11,54 | 0 / 9 |
+| | rue | non mesuré | 11,29 / 11,78 | 0 / 9 |
+| soleil + 8 ponctuelles, caméra en mouvement | generale | 3,76 / 4,33 | 24,45 / 28,08 | 1 soleil, 4 cascades ; 8 ponctuelles réutilisées |
+| | sol | 1,85 / 2,55 | 10,94 / 13,40 | idem |
+| | rue | 1,82 / 2,58 | 12,30 / 13,43 | idem |
+
+Lecture : **une scène immobile et une caméra immobile ne paient aucune ombre**, soleil compris — les neuf cartes sont réutilisées et la passe n'est pas encodée. Dès que la caméra bouge, **seul le soleil** est redessiné (ses cascades suivent la caméra) ; **les huit ponctuelles restent en cache**, ce qui est exactement la règle voulue. Le coût des quatre cascades est de 1,6 à 3,9 ms p50 selon la vue, au-dessus du budget LR1 de 0,8 ms : l'optimisation est un lot à part.
+
+Charge machine relevée au début et à la fin de chaque série : de 3,5 à 20 (indexation Spotlight et un compilateur natif d'une autre session). **Aucune de ces durées n'est un verdict de performance.**
+
+### Ce qui reste
+
+- **Les transparents gardent leur ambiance** : `BLEND_SHADER` appelle toujours `sceneLighting`, une autre session tient ce fichier. Les arbres d'Emerald restent donc allumés sans source, exactement comme la spécification l'annonce (P6, section 8).
+- **Le chemin WebGL2** (`visibilityLighting.ts`, oracle CPU) garde ses lampes en dur : hors périmètre de ce lot, qui ne touche que la résolution différée.
+- **Découpe des cascades** : la suite logarithmique part du plan proche de la caméra, que le banc pose à 0,017 m. Les deux premières cascades couvrent alors 0 à 71 m, ce qui est du gâchis pour une vue d'ensemble à 250 m. Un plancher sur la première borne se chiffre et se mesure ; il n'est pas posé au jugé ici.
+- **Au-delà de `sunShadowFarFraction`** (0,2 du lointain), une surface reste éclairée sans ombre portée : approximation nommée, publiée dans le diagnostic `direct-lighting`.
+- **Coût des cascades** au-dessus du budget LR1 ; la coupe propre aux ombres, déjà chiffrée et refusée par le lot ombres, reste le premier levier.
+
 ## 2026-09-15 — textures progressives : lots 1 et 2 fusionnés dans `develop`
 
 - Fusion `e443bc6`. Trois fusions de `develop` dans l'intégration en cours de route (lot A, lots B et C, état de coupe chez l'appelant) : un seul conflit, le journal.
