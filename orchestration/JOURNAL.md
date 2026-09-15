@@ -4058,3 +4058,65 @@ comptent les pilotes. 166 tests Rust au vert, Clippy sans avertissement.
 - Les codes `ARCHIVE_*` ne sont pas encore dans le tableau des erreurs de `docs/COMPILER.md` : hors
   périmètre de ce lot, à ajouter par qui tient cette page.
 - Une archive chiffrée est refusée sans test dédié : aucun jeu redistribuable ne l'exerce.
+
+## 2026-09-15 — [compilateur] pilote dds
+
+Un pilote d'image de plus au registre : `dds`, quatrième entrée après `png`, `jpeg` et `tga`. Le
+cœur n'a pas bougé — un module, une ligne de registre, et les deux tests qui comptent les pilotes.
+
+**Ce qui est lu.** Le conteneur est reconnu par son nombre magique `DDS ` puis par son extension.
+`DDS_HEADER` (124 octets) et `DDS_PIXELFORMAT` (32 octets) sont lus champ par champ depuis la
+documentation publique « DDS — Programming Guide » de Microsoft, ainsi que `DDS_HEADER_DXT10` et les
+valeurs de `DXGI_FORMAT` : aucun SDK, aucun code d'éditeur, aucun octet repris ailleurs.
+
+**Codecs déclarés, un par un.** BC1 (`DXT1`, `BC1_UNORM`, `_SRGB`), BC2 (`DXT3`), BC3 (`DXT5`),
+BC4 (`ATI1`, `BC4U`), BC5 (`ATI2`, `BC5U`), BC7 (`BC7_UNORM`, `_SRGB`), et les surfaces non
+compressées RGBA8, BGRA8 et BGRX8, nommées par leurs masques de bits comme par leur `dxgiFormat`.
+
+**Refusés, nommés.** `dds-codec-unsupported` pour BC6H flottant, les variantes signées, les
+`_TYPELESS`, les 16 bits, les YUV, et pour `DXT2`/`DXT4` comme pour `DDS_ALPHA_MODE_PREMULTIPLIED` —
+le contrat d'image demande un alpha droit, on refuse plutôt que de rendre faux.
+`dds-layout-unsupported` pour les cubes, les volumes, les tableaux et un pas de ligne rembourré ;
+`dds-header-truncated`, `dds-header-invalid`, `dds-data-truncated`, `dds-image-too-large` pour le
+reste. Jamais une panique : une texture illisible laisse le moteur retomber sur son blanc.
+
+**Décodeur et provenance.** Crate `texture2ddecoder` 0.1.2, MIT ou Apache-2.0,
+`UniversalGameExtraction/texture2ddecoder` : Rust pur, sans `std`, sans dépendance d'éditeur, elle
+applique l'interpolation entière que la spécification définit. Aucune perte n'est ajoutée — celle
+du BCn a été faite chez l'encodeur de la source — et rien n'est réencodé. La crate `image` n'était
+pas une option : sa feature `dds` ne couvre que BC1 à BC3 par son décodeur DXT déprécié.
+
+**Mips.** Seul le niveau 0 est consommé. `dwMipMapCount` est compté et sert de vérification : la
+chaîne annoncée doit tenir dans le fichier, sinon c'est `dds-data-truncated`. Un `bc1-mips.dds` de
+256 × 256 à neuf niveaux amputé d'un seul octet est refusé — la dorée le prouve.
+
+**Ce qui prépare « les blocs restent compressés sur le GPU ».** La règle du dépôt veut qu'une
+texture déjà compressée pour le GPU y reste compressée quand la machine l'accepte, le décodage
+n'étant qu'un repli. Ce lot ne construit pas cette chaîne (transport, atlas, GPU : autre chantier)
+et n'a **rien ajouté de spéculatif**, parce que le contrat ne s'y prête pas encore : `DecodedImage`
+n'a qu'une variante et le cœur la déconstruit par `let` irréfutable (`src/texture_preview.rs:131`).
+Ce qu'il faudra ajouter, exactement : une variante `DecodedImage::Blocks { codec, width, height,
+data }`, le passage du `let` irréfutable à un `match` à cet endroit, et un pilote qui rend cette
+variante quand l'appelant la demande. Le pilote est déjà découpé pour ça : `dds/codec.rs` porte le
+codec et sa géométrie de bloc, `dds/header.rs` rend la surface et l'offset de ses octets bruts,
+`dds/blocks.rs` n'est que la reconstruction — la seule partie qui deviendra le repli.
+
+**Dorée** (`fixtures/dds/`) : un bloc de 4 × 4 par codec, conteneur écrit octet par octet dans le
+test, référence RGBA8 en clair calculée à la main depuis la spécification — les tiers entiers de
+BC1, les septièmes de BC3, les quartets étendus de BC2, le mode 6 de BC7 posé sur ses deux bornes.
+Tout est passé du premier coup : le décodeur rend exactement ce que la spécification annonce.
+S'y ajoutent deux fichiers réels CC0 recopiés du corpus hors git, `bc1-mips.dds` et `tronque.dds`
+(43 832 et 31 octets), et les refus vérifiés par code de raison. Les quatre autres DDS de
+`test-assets/textures/dds-matrix` (BC1 sans mips, BC3, BC5, BC7) ont été décodés pendant le
+développement — 256 × 256, blocs constants de bout en bout — sans être commités.
+
+175 tests Rust au vert (`cargo test --locked`), Clippy `--all-targets -D warnings` sans
+avertissement, `cargo fmt --check` propre, `check:lines` et `check:duplicates` au vert.
+`npm run validate` n'a pas été joué ici.
+
+### Ce qui reste
+
+- Les codes `dds-*` ne sont pas dans le tableau des erreurs de `docs/COMPILER.md` : hors périmètre.
+- BC6H (HDR flottant) attend la variante flottante du contrat d'image, celle qu'EXR et Radiance HDR
+  demanderont aussi ; aucun pilote ne doit ramener du flottant à 8 bits en passant.
+- Les DDS cubes, volumes et tableaux sont refusés faute de consommateur : rien ne les attend encore.
