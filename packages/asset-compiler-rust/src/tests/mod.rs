@@ -20,6 +20,7 @@ mod coplanar_overlap;
 mod flottant_golden;
 mod import_opacite;
 mod ktx2_golden;
+mod ma_golden;
 mod part1;
 mod part2;
 mod part3;
