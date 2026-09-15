@@ -1,12 +1,12 @@
 {
   "version": 1,
   "lot": "H2",
-  "develop": "d3dcd6963bc00d84c050a496ae55c2752cfdf8d5",
+  "develop": "2f4224ead256741810fa7be3253108d9881ebfa6",
   "socle": "5305f6c8264aff2200c15f9b902c42021b410af5",
-  "chargeMachine": 18.27490234375,
+  "chargeMachine": 39.66650390625,
   "tempsConcluants": false,
-  "date": "2026-09-15T08:52:54.339Z",
-  "commit": "e61ebf033cc6f4083a78a46c3b31da9b5dbc83a8",
+  "date": "2026-09-15T09:00:57.034Z",
+  "commit": "b854d453a3935d2c333a032e8fa3a7f2f330931d",
   "node": "v26.8.2",
   "plateforme": "darwin/arm64",
   "dpr": null,
@@ -15,9 +15,9 @@
     {
       "calcul": "H1 décodage de page par le contrat, module WebAssembly actif",
       "fichier": "packages/sdk-browser/pageDecodeHost.ts",
-      "avantMs": 2.544667,
-      "apresMs": 1.595875,
-      "gain": 0.37285507298204446,
+      "avantMs": 2.6519165,
+      "apresMs": 1.671375,
+      "gain": 0.36974825564832076,
       "identique": true,
       "retenu": true,
       "difference": null,
@@ -36,9 +36,9 @@
     {
       "calcul": "H2 hachage d’intégrité par le contrat",
       "fichier": "packages/sdk-browser/pageDecodeHost.ts",
-      "avantMs": 0.5429999999999999,
-      "apresMs": 0.5551465,
-      "gain": -0.022369244935543393,
+      "avantMs": 0.552833,
+      "apresMs": 0.561354,
+      "gain": -0.015413334587479403,
       "identique": true,
       "retenu": true,
       "difference": null,
@@ -54,5 +54,67 @@
         }
       ]
     }
-  ]
+  ],
+  "campagne": {
+    "commande": "node scripts/mesure/banc.mjs --moteur webgpu --avant 5305f6c --vues generale,sol,rue,detail --images 120 --pixelError 1 --port 50441",
+    "avant": "5305f6c",
+    "sortie": ".mesure/out/webgpu-2026-09-15T08-55-58-754Z",
+    "chargeMachine": "22 à 37",
+    "tempsConcluants": false,
+    "vues": [
+      {
+        "vue": "generale",
+        "temoinAAPixels": 0,
+        "ecartPixels": 0,
+        "maxCanal": 0,
+        "cpuFrameMsP50Avant": 3.0,
+        "cpuFrameMsP50Apres": 3.1,
+        "pagesDecodedOffThread": 82,
+        "pagesDecodedWasm": 0,
+        "pageDecodeMs": 5.2,
+        "uncoveredTriangles": 0
+      },
+      {
+        "vue": "sol",
+        "temoinAAPixels": 0,
+        "ecartPixels": 0,
+        "maxCanal": 0,
+        "cpuFrameMsP50Avant": 2.8,
+        "cpuFrameMsP50Apres": 2.8,
+        "pagesDecodedOffThread": 83,
+        "pagesDecodedWasm": 0,
+        "pageDecodeMs": 5.4,
+        "uncoveredTriangles": 0
+      },
+      {
+        "vue": "rue",
+        "temoinAAPixels": 0,
+        "ecartPixels": 0,
+        "maxCanal": 0,
+        "cpuFrameMsP50Avant": 3.0,
+        "cpuFrameMsP50Apres": 2.8,
+        "pagesDecodedOffThread": 90,
+        "pagesDecodedWasm": 0,
+        "pageDecodeMs": 5.4,
+        "uncoveredTriangles": 0
+      },
+      {
+        "vue": "detail",
+        "temoinAAPixels": 0,
+        "ecartPixels": 0,
+        "maxCanal": 0,
+        "cpuFrameMsP50Avant": 2.9,
+        "cpuFrameMsP50Apres": 2.6,
+        "pagesDecodedOffThread": 66,
+        "pagesDecodedWasm": 0,
+        "pageDecodeMs": 3.8,
+        "uncoveredTriangles": 0
+      }
+    ],
+    "wasmDansLaCampagne": {
+      "compteur": 0,
+      "cause": "aucune page de géométrie décodée : les deux moteurs exposés par le harnais ne demandent que des paquets d'index ; seul le moteur autonome WebGL2 implémente acceptGeometryPage",
+      "verifieAutrement": "Chrome sur le même dist/ servi statiquement, worker de module : wasm=true, 2046 sommets, six attributs, 151404 octets décodés"
+    }
+  }
 }
