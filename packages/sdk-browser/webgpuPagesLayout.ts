@@ -4,6 +4,7 @@ import { HIZ_BOUNDS_VALUES, createBoxCorners } from './hiz.ts';
 import { createProjectionHold } from './hizProjectionHold.ts';
 import type { HizCountSample } from './gpuHiz.ts';
 import { DRAW_ITEM_U32, MAX_DRAW_SLOTS } from './gpuDraw.ts';
+import { createVisibilityItemsHold } from './webgpuVisibilityItems.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
 
@@ -77,6 +78,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   /** Lignes par slot indirect (pipeline, moitié, puis couche coplanaire) : un slot que rien ne
    *  remplit ne vaut pas un appel de dessin. Dimensionné pour toutes les couches nommables. */
   const binInstances = new Uint32Array(MAX_DRAW_SLOTS);
+  /** Ce que la dernière construction de fiches a produit, et ce dont elle dépendait. */
+  const itemsHold = createVisibilityItemsHold();
   return {
     opaqueRoots,
     transparentRoots,
@@ -101,5 +104,6 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     drawItemWords,
     drawRestBits,
     binInstances,
+    itemsHold,
   };
 }
