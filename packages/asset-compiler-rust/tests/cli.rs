@@ -157,6 +157,14 @@ fn cancel_line_on_stdin_stops_the_job() {
     );
     fs::remove_dir_all(root).ok();
 }
+/// Le nom de chaque pilote d'une famille, dans l'ordre où le registre les publie.
+fn plugin_names(plugins: &[Value]) -> Vec<&str> {
+    plugins
+        .iter()
+        .map(|plugin| plugin["name"].as_str().expect("name"))
+        .collect()
+}
+
 #[test]
 fn version_flag_describes_the_build() {
     let output = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"))
@@ -168,12 +176,8 @@ fn version_flag_describes_the_build() {
     assert_eq!(v["compilerVersion"], env!("CARGO_PKG_VERSION"));
     // Le registre des pilotes voyage dans --version : un format par pilote, avec sa version.
     let scene = v["plugins"]["scene"].as_array().expect("scene plugins");
-    let names: Vec<&str> = scene
-        .iter()
-        .map(|plugin| plugin["name"].as_str().expect("name"))
-        .collect();
     assert_eq!(
-        names,
+        plugin_names(scene),
         [
             "gltf",
             "fbx",
@@ -188,14 +192,9 @@ fn version_flag_describes_the_build() {
     );
     let fbx = scene.iter().find(|p| p["name"] == "fbx").expect("fbx");
     assert!(fbx["version"].as_str().unwrap().contains("ufbx"));
-    let images: Vec<&str> = v["plugins"]["image"]
-        .as_array()
-        .expect("image plugins")
-        .iter()
-        .map(|plugin| plugin["name"].as_str().expect("name"))
-        .collect();
+    let images = v["plugins"]["image"].as_array().expect("image plugins");
     assert_eq!(
-        images,
+        plugin_names(images),
         ["png", "jpeg", "tga", "tiff", "dds", "webp", "exr", "hdr", "ktx2"]
     );
 }
