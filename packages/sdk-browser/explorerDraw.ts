@@ -39,6 +39,15 @@ export function anneauFroid(
   return cold;
 }
 
+/**
+ * Les adresses qu'une requête déjà partie fera repartir ensuite. Mêmes adresses et même ordre
+ * d'ajout qu'un tableau dédoublonné à la main : l'appartenance est celle de la structure, là où un
+ * `includes` rebalayait toute la liste pour chaque adresse, image après image.
+ */
+export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
+  for (const url of urls) attente.add(url);
+}
+
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
@@ -67,8 +76,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       if (needFetch.length > 0) {
         if (!measuring && !streaming.promise) streaming.startFetch(needFetch);
         else if (!measuring && streaming.promise) {
-          for (const url of needFetch)
-            if (!streaming.queuedFetch.includes(url)) streaming.queuedFetch.push(url);
+          empileEnAttente(streaming.queuedFetch, needFetch);
           streaming.backgroundFetchController?.abort(
             new DOMException('Camera request superseded', 'AbortError'),
           );
@@ -77,7 +85,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     } else if (
       !measuring &&
       !streaming.promise &&
-      !streaming.queuedFetch.length &&
+      !streaming.queuedFetch.size &&
       performance.now() - streaming.lastPrefetch > PREFETCH_INTERVAL_MS &&
       streamer.stats().loading === 0
     ) {
