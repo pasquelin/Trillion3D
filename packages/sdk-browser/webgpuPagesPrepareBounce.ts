@@ -12,6 +12,8 @@ const BOUNCE_APPROXIMATIONS = [
   'the proxy carries diffuse albedo only: emission, transparency and specular are not bounced',
   'a probe update reads the grid as it stands, so one update may see a neighbour already updated',
   'a ray that exhausts the published traversal bound reports no hit, which darkens rather than leaks',
+  'the surface cache holds one radiance per proxy triangle and face, so lighting is constant over a cell',
+  'the surface cache is swept on a budget, so a freshly moved light reaches a cell within one sweep',
 ];
 
 /**
@@ -66,6 +68,10 @@ function publish(rt: WebgpuPagesRuntime) {
     proxyNodes: probes?.proxy.nodeCount ?? null,
     proxyBytes: probes?.proxy.bytes ?? null,
     proxyErrorMetres: probes?.proxy.errorMetres ?? null,
+    proxyCellMetres: probes?.proxy.cellMetres ?? null,
+    surfaceTexels: probes?.surface.texels ?? null,
+    surfaceBytes: probes?.surface.bytes ?? null,
+    surfaceSweepFrames: probes?.surface.sweepFrames ?? null,
     probeCounts: probes?.grid.counts ?? null,
     probeSpacing: probes?.grid.spacing ?? null,
     probes: probes?.grid.probes ?? null,

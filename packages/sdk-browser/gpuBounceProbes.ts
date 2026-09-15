@@ -1,38 +1,33 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS, probeGridOf, type SceneProxy } from '../sdk-core/index.ts';
+import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import { BOUNCE_PROBE_PASS, BOUNCE_PROBE_SHADER, BOUNCE_WORKGROUP } from './bounceProbeWgsl.ts';
-import { createGpuBounceProxy, type GpuBounceProxy } from './gpuBounceProxy.ts';
+import { createGpuBounceProxy } from './gpuBounceProxy.ts';
+import { createGpuBounceSurface } from './gpuBounceSurface.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Les liaisons de la passe : la grille, les quatre colonnes du proxy, les lampes, les sondes. */
-function probeLayout(device: GPUDevice) {
-  const storage = (binding: number, type: GPUBufferBindingType) => ({
-    binding,
-    visibility: GPUShaderStage.COMPUTE,
-    buffer: { type },
-  });
-  return device.createBindGroupLayout({
-    entries: [
-      storage(0, 'uniform'),
-      storage(1, 'read-only-storage'),
-      storage(2, 'read-only-storage'),
-      storage(3, 'read-only-storage'),
-      storage(4, 'read-only-storage'),
-      storage(5, 'read-only-storage'),
-      storage(6, 'read-only-storage'),
-      storage(7, 'storage'),
-    ],
-  });
-}
+/** Ce que la passe de sondes lie : la grille, le proxy, les sondes figées, les neuves, le cache.
+ *  Les lampes n'y sont plus : c'est le cache de surfaces qui les évalue, une fois par maille. */
+const PROBE_TYPES = [
+  'uniform',
+  'read-only-storage',
+  'read-only-storage',
+  'read-only-storage',
+  'read-only-storage',
+  null,
+  'read-only-storage',
+  'storage',
+  'read-only-storage',
+] as const;
 
 export type GpuBounceProbes = Awaited<ReturnType<typeof createGpuBounceProbes>>;
 
 /**
- * La grille de sondes d'irradiance et la passe qui la met à jour.
+ * La grille de sondes d'irradiance, le cache de surfaces, et les deux passes qui les balaient.
  *
- * Le budget est fixe : `probesPerFrame` sondes par image, `raysPerProbe` rayons chacune. La grille
- * entière est balayée en un nombre connu d'images, et c'est ce nombre qui borne le retard. Quand
- * plus rien ne change — aucune lampe déclarée n'a bougé et la grille est balayée depuis assez
- * longtemps — la passe n'est plus encodée du tout : une scène immobile ne paie rien.
+ * Le budget est fixe des deux côtés : `probesPerFrame` sondes à `raysPerProbe` rayons, et
+ * `surfaceTexelsPerFrame` mailles de cache. Un tour complet — un balayage de chacun — ajoute un
+ * ordre de rebond à la série ; c'est ce tour qui borne le retard. Quand plus rien ne change, aucune
+ * des deux passes n'est encodée : une scène immobile ne paie rien.
  */
 export async function createGpuBounceProbes(
   device: GPUDevice,
@@ -41,12 +36,6 @@ export async function createGpuBounceProbes(
 ) {
   const grid = probeGridOf(proxy.bounds);
   const resident = createGpuBounceProxy(device, proxy);
-  const module = await createCheckedShaderModule(
-    device,
-    BOUNCE_PROBE_SHADER,
-    'BOUNCE_PROBE_SHADER',
-  );
-  const layout = probeLayout(device);
   const uniform = device.createBuffer({
     label: 'WG bounce grid v1',
     size: 64,
@@ -58,41 +47,46 @@ export async function createGpuBounceProbes(
     size: probeBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
-  // La copie que la passe lit : figée avant la mise à jour, si bien qu'un rebond d'ordre supérieur
+  // La copie que les deux passes lisent : figée avant elles, si bien qu'un rebond d'ordre supérieur
   // voit toujours la grille entière de l'image précédente, et jamais une voisine à demi écrite.
   const snapshot = device.createBuffer({
     label: 'WG bounce probes snapshot v1',
     size: probeBytes,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
-  let pipeline: GPUComputePipeline;
-  try {
-    pipeline = device.createComputePipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: 'updateProbes' },
-    });
-  } catch (error) {
+  const release = () => {
     uniform.destroy();
     probes.destroy();
     snapshot.destroy();
     resident.dispose();
+  };
+  let surface: Awaited<ReturnType<typeof createGpuBounceSurface>>;
+  let pipeline: GPUComputePipeline;
+  let group: GPUBindGroup;
+  try {
+    surface = await createGpuBounceSurface(device, resident, lights, { uniform, snapshot });
+    const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE');
+    const layout = bounceLayout(device, [...PROBE_TYPES]);
+    pipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+      compute: { module, entryPoint: 'updateProbes' },
+    });
+    group = bounceGroup(device, layout, [
+      uniform,
+      resident.triangles,
+      resident.albedo,
+      resident.nodeBounds,
+      resident.nodeChildren,
+      null,
+      snapshot,
+      probes,
+      surface.buffer,
+    ]);
+  } catch (error) {
+    release();
     throw error;
   }
-  const group = device.createBindGroup({
-    layout,
-    entries: [
-      { binding: 0, resource: { buffer: uniform } },
-      { binding: 1, resource: { buffer: resident.triangles } },
-      { binding: 2, resource: { buffer: resident.albedo } },
-      { binding: 3, resource: { buffer: resident.nodeBounds } },
-      { binding: 4, resource: { buffer: resident.nodeChildren } },
-      { binding: 5, resource: { buffer: lights } },
-      { binding: 6, resource: { buffer: snapshot } },
-      { binding: 7, resource: { buffer: probes } },
-    ],
-  });
-  // La portée d'un rayon : une fraction de la diagonale de l'emprise. Au-delà, un rayon ne peut
-  // plus rien toucher qui compte, et le faire voyager coûterait sans rien rapporter.
+  // La portée d'un rayon : la diagonale de l'emprise. Au-delà, un rayon ne peut plus rien toucher.
   const diagonal = Math.hypot(
     proxy.bounds[3] - proxy.bounds[0],
     proxy.bounds[4] - proxy.bounds[1],
@@ -106,20 +100,22 @@ export async function createGpuBounceProbes(
   words.set([...grid.counts, grid.probes], 8);
   let irradianceView = false;
   // L'uniforme est écrit une fois à la construction, la grille entière dedans : l'application le
-  // relit à chaque image, même convergée, quand plus aucune passe de sondes n'est encodée.
+  // relit à chaque image, même convergée, quand plus aucune passe n'est encodée.
   device.queue.writeBuffer(uniform, 0, packed);
   let cursor = 0,
     sweep = 0,
-    settled = 0,
     updates = 0;
   const batch = Math.min(BOUNCE_SETTINGS.probesPerFrame, grid.probes);
+  /** Tours complets : un balayage de la grille et un balayage du cache, le plus lent des deux. */
+  const rounds = () => Math.min(sweep, surface.sweeps);
   return {
     grid,
-    proxy: resident as GpuBounceProxy,
+    surface,
+    proxy: resident,
     uniform,
     probes,
-    /** Images d'un balayage complet : c'est la borne du retard de convergence. */
-    sweepFrames: Math.max(1, Math.ceil(grid.probes / Math.max(batch, 1))),
+    /** Images d'un tour complet : c'est la borne du retard de convergence. */
+    sweepFrames: Math.max(Math.ceil(grid.probes / Math.max(batch, 1)), surface.sweepFrames, 1),
     /** Sondes mises à jour par la dernière image encodée, et rayons qu'elles ont lancés. */
     get lastProbes() {
       return updates;
@@ -127,14 +123,14 @@ export async function createGpuBounceProbes(
     get lastRays() {
       return updates * BOUNCE_SETTINGS.raysPerProbe;
     },
-    /** Vrai tant que la grille n'a pas convergé : au-delà, la passe n'est plus encodée. */
+    /** Vrai tant que la série des rebonds n'est pas close : au-delà, plus rien n'est encodé. */
     get working() {
-      return settled < BOUNCE_SETTINGS.settledSweeps;
+      return rounds() < BOUNCE_SETTINGS.settledSweeps;
     },
     /**
      * La vue de diagnostic d'irradiance indirecte : la résolution différée sort alors l'irradiance
      * nue au lieu de l'image. Le drapeau voyage dans le même uniforme que la grille, et il est
-     * relu par le nuanceur d'application, jamais par celui des sondes.
+     * relu par le nuanceur d'application, jamais par ceux des deux passes.
      */
     setIrradianceView(on: boolean) {
       if (irradianceView === on) return;
@@ -142,14 +138,14 @@ export async function createGpuBounceProbes(
       floats[7] = on ? 1 : 0;
       device.queue.writeBuffer(uniform, 0, packed);
     },
-    /** Une lampe a changé : la grille repart, et le retard se remesure depuis cette image. */
+    /** Une lampe a changé : les deux balayages repartent, et le retard se remesure d'ici. */
     restart() {
-      settled = 0;
       sweep = 0;
+      surface.restart();
     },
     /**
-     * Encode un lot de sondes. Rend `false` quand il n'y avait rien à faire : la scène est
-     * immobile, la grille est convergée, et l'étape « Rebond » vaut « non mesuré », jamais zéro.
+     * Encode un tour de cache puis un lot de sondes. Rend `false` quand il n'y avait rien à faire :
+     * la scène est immobile, la série est close, et l'étape « Rebond » vaut « non mesuré ».
      */
     encode(encoder: GPUCommandEncoder, lightsActive: number) {
       updates = 0;
@@ -160,6 +156,7 @@ export async function createGpuBounceProbes(
       words[15] = lightsActive;
       device.queue.writeBuffer(uniform, 0, packed);
       encoder.copyBufferToBuffer(probes, 0, snapshot, 0, probeBytes);
+      surface.encode(encoder);
       const pass = encoder.beginComputePass({ label: BOUNCE_PROBE_PASS });
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, group);
@@ -170,15 +167,12 @@ export async function createGpuBounceProbes(
       if (cursor >= grid.probes) {
         cursor = 0;
         sweep++;
-        settled++;
       }
       return true;
     },
     dispose() {
-      uniform.destroy();
-      probes.destroy();
-      snapshot.destroy();
-      resident.dispose();
+      surface.dispose();
+      release();
     },
   };
 }

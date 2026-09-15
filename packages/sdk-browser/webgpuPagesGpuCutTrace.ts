@@ -29,6 +29,8 @@ function recordStages(rt: WebgpuPagesRuntime) {
     sondesMisesAJour: bounce.probesUpdated,
     rayonsParImage: bounce.raysLaunched,
     sondesDeLaGrille: bounce.probes?.grid.probes ?? 0,
+    maillesMisesAJour: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
+    maillesDuCache: bounce.probes?.surface.texels ?? 0,
   });
   if (!bounce.probes)
     stages.setReason('bounce', {
