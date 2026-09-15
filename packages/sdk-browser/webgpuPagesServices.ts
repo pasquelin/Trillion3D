@@ -137,7 +137,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     desired: run.desired,
     shown: run.shown,
     drawn: run.drawn,
-    drawableScratch: run.drawableScratch,
     uniforms: run.selectionUniforms,
     residentOffsetWords: rows.residentOffsetWords,
     delta: cutDelta,
