@@ -79,8 +79,20 @@ pas sous 4. La charge relevée pendant les séries ci-dessus allait de **24 à 7
 parallèles). **Aucune durée de ce lot n'est un verdict de performance** ; seuls les pixels, les
 empreintes et les compteurs sont retenus. Ce qui a tout de même été observé, à titre indicatif :
 l'étape Ombres tenait 0,75 à 0,98 ms p50 avec un objet mobile et huit lampes — le budget de 1,0 ms —
-avec 72 à 288 pages en attente et un retard maximal de 3,8 ms à 336 ms selon la vue. La remesure au
-calme reste à faire : coût avant/après de l'étape Ombres (immobile, lampe mobile, objet mobile), et
+avec 72 à 288 pages en attente et un retard maximal de 3,8 ms à 336 ms selon la vue. Et, côte à côte
+sur la même série (`--lampe-mobile`, une seule lampe redessinée par image des deux côtés) :
+
+| configuration     | vue      | Ombres GPU p50/p95 avant |       après | charge |
+| ----------------- | -------- | -----------------------: | ----------: | -----: |
+| 8 lampes à ombre  | generale |              0,48 / 0,66 | 0,49 / 0,71 |  29–42 |
+|                   | sol      |              0,48 / 0,71 | 0,55 / 0,74 |        |
+|                   | rue      |              0,34 / 0,54 | 0,29 / 0,51 |        |
+| 30 lampes à ombre | generale |              0,30 / 1,42 | 0,18 / 0,25 |  64–67 |
+|                   | sol      |              0,37 / 0,93 | 0,35 / 1,10 |        |
+|                   | rue      |              0,14 / 0,66 | 0,24 / 0,41 |        |
+
+À cette charge les intervalles se confondent : **ce tableau ne conclut rien**, il dit seulement que
+rien n'a explosé. La remesure au calme reste à faire : coût avant/après de l'étape Ombres (immobile, lampe mobile, objet mobile), et
 le cas `--soleil --camera-mobile`, celui où le budget doit remplacer les 1,6 à 3,9 ms p50 des quatre
 cascades relevés le 15 septembre.
 
