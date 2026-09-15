@@ -1,5 +1,70 @@
 # Journal d'orchestration WebGeometry
 
+## 2026-09-15 — [session village] la scène « Whisperwind Village » entre au banc 15, importée en FBX
+
+Aucune ligne de moteur n'a bougé : le Lab a reçu une entrée de catalogue
+(`15-virtualized-integration/assets/modelCatalog.ts`, commit `d44c995` du Lab) et le FBX a été
+préparé par `prepare()` du SDK, sans Blender et sans conversion préalable — `Village2.fbx` est
+donné tel quel au compilateur, qui l'importe par `ufbx-0.11.3-gltf-2`. Source copiée dans
+`public/benchmark-assets/whisperwind-village/` (non suivie, comme `emerald-square`), cache dans
+`whisperwind-village-derived/`.
+
+### Chiffres d'import
+
+FBX 7300 binaire, créateur « FBX SDK/FBX Plugins version 2020.2 », unité 0,01 m, 409 Mo.
+58 maillages, **10 717 instances**, **172 008 090 triangles**, 81 matériaux, 13 textures déclarées,
+**12 images résolues**, 0 lampe. Import 12,3 s, compilation totale **33,3 s** (101 primitives,
+884 Mo de géométrie source écrite, `formatVersion` 3, `selectedTriangles` = `sourceTriangles`).
+`unsupported` et `notes` du rapport d'import sont **vides** : aucune texture n'est signalée absente
+ni de format refusé.
+
+### Preuve navigateur
+
+Lab servi en lecture seule sur le port 5190, banc 15, chemins publics du SDK (`createExplorer`),
+1280×720, seuil 0 pixel, `dist/` du moteur bâti sur `develop` = `38f1b5c`.
+
+| moteur | création | triangles sélectionnés | `uncoveredTriangles` | textures montées / en attente / écartées |
+| --- | --- | --- | --- | --- |
+| WebGeometry WebGPU · vue générale | 5,4 s | 171 683 459 | **0** | 12 / 0 / 0 |
+| WebGeometry WebGPU · au sol | 5,8 s | 90 952 138 | **0** | 12 / 0 / 0 |
+| Three.js référence · vue générale | 3,0 s | 172 008 090 | non mesuré | non mesuré |
+
+Aucune erreur GPU, aucune erreur de console, `streamingError` nul, `coverageReady` vrai. Chargement
+complet d'une vue borné à **25 s** de bout en bout. Bornes de la scène :
+x −100,49…100,85, y 0,34…47,77, z −78,74…83,40 (mètres).
+
+### Écarts visuels, honnêtement
+
+- **Le témoin Three rend la scène noire** : aucune lampe n'est déclarée et lui seul en dépend. Même
+  silhouette au pixel près que le chemin WebGPU, qui rend l'albédo brut. C'est la convention
+  d'éclairage déjà consignée, pas cette scène.
+- **Cinq des treize PNG sont des images 1×1 noires** dans la source elle-même : les couleurs de base
+  de l'herbe et des ombellifères, et les trois cartes de `M_River`. La végétation sort donc noire des
+  deux côtés — défaut de la source, pas de l'import.
+- **Aucun matériau n'est transparent après import.** `M_River_Opacity_0.png` est la treizième texture
+  du FBX et la seule non résolue : `ufbx::MaterialPbrMap::opacity` n'a ni valeur ni texture sur ces
+  matériaux, donc `materials.rs` ne pose ni `BLEND` ni `MASK`, et rien n'est signalé — ni dans
+  `unsupported`, ni dans `notes`. La rivière et l'océan sont opaques ; l'émissif de `M_River` est
+  bien branché mais pointe une image 1×1 noire. **Défaut d'import constaté, pas corrigé ici.**
+- **Les 7 aperçus de textures couleur sont tous écartés** (`texturePreviews.skipped` =
+  `{"image-missing": 7}`, contre 232/232 posés sur Emerald). Cause : `texture_preview/source.rs`
+  résout l'URI d'une image sous le dossier du glTF consommé, or le glTF importé vit dans
+  `<cache>/native/imports/<clé>/` tandis que les PNG restent au dossier source. Au rendu les textures
+  arrivent quand même (12 montées, 0 écartée), par `resourceBaseUrl` ; seule la pyramide d'aperçus
+  manque. **Constat, pas corrigé ici.**
+- **Le départ au sol du banc 15 échoue sur cette scène.** `navigation.bin` fait 825 Mo
+  (45 855 862 triangles, contre 13,6 Mo et 758 534 sur Emerald) et se charge en 6 s, mais
+  `startPosition` lève « Aucun départ praticable ». La règle sonde le sol à `bounds.min.y` = 0,34 m,
+  le lit du fleuve, alors que le village est sur une butte : au centre des bornes le sol est à
+  4,05 m, hors de la tolérance de marche (0,40 m). Un point libre au sol existe bel et bien et se
+  trouve en balayant les bornes — (−66,94 ; 10,70 ; 2,33), sol à 8,90 m, sans collision — et c'est
+  celui des captures « au sol » ci-dessus. La caméra orbitale, elle, n'est pas concernée.
+
+### Ce qui manque
+
+Les deux défauts d'import ci-dessus (opacité FBX perdue en silence, aperçus de textures introuvables
+après import) et la règle de départ du banc 15, qui suppose un sol au plus bas des bornes.
+
 ## 2026-09-16 — [session lumiere] ombres virtualisées : invalidation par pages, budget en millisecondes (lot ombres virtualisées)
 
 Branche `lot/ombres-virtualisees`, sur `develop` = `d3dcd69`. `tsc` et `npm run check:changed` verts
