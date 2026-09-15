@@ -18,6 +18,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   if (context.signal?.aborted) context.signal.throwIfAborted();
   if (run.lost) throw new Error('WEBGPU_LOST');
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
+  const marks = rt.timing.marks;
+  marks.preStart = performance.now();
   source.updateMatrixWorld(true);
   setWindingEpoch(rows.tableEpoch);
   void rt.texturePump
@@ -39,6 +41,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
       false,
     );
   }
+  marks.blendStart = performance.now();
   for (const item of blendState.blendGpu)
     if (item.sourceMesh) {
       item.matrix.copy(item.sourceMesh.matrixWorld);
