@@ -63,8 +63,7 @@ fn shadowPcf(entry:ShadowFace,local:vec2f,reference:f32,side:f32)->f32{
 fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32{
  let cosine=clamp(dot(N,L),1e-3,1.0);
  let side=max(record.info.z,1.0);
- for(var c=0u;c<SUN_CASCADES;c++){
-  if(c>=cascades){break;}
+ for(var c=0u;c<min(SUN_CASCADES,cascades);c++){
   let entry=record.faces[c];
   if(entry.rect.w<0.5){continue;}
   let m=entry.viewProjection;
@@ -87,7 +86,7 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let record=shadows.items[u32(slice)];
  let faces=u32(record.info.x);
  if(faces==0u){return 1.0;}
- if(light.params.x>KIND_SUN-0.5){return sunShadowFactor(record,faces,P,N,L);}
+ if(isSun(light)){return sunShadowFactor(record,faces,P,N,L);}
  let face=select(0u,pointFaceOf(P-light.positionRange.xyz),faces==POINT_FACES);
  let entry=record.faces[face];
  if(entry.rect.w<0.5){return 1.0;}

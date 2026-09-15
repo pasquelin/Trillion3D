@@ -17,12 +17,14 @@ const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
 const SUN_CASCADES:u32=${LIGHT_SETTINGS.sunCascades}u;
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,}
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,items:array<DirectLight>,}
+/** Le rang du type est un flottant dans le tampon : un seul endroit sait le relire. */
+fn isSun(light:DirectLight)->bool{return light.params.x>KIND_SUN-0.5;}
 /** Direction normalisée vers la lampe et atténuation ; w à zéro quand le point est hors portée. */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // Une lampe directionnelle n'a ni position ni portée : la même irradiance en tout point, jamais
  // atténuée par la distance. Sa direction est celle de la propagation, donc l'incidence en est
  // l'opposée. Le contrat l'a déjà normalisée.
- if(light.params.x>KIND_SUN-0.5){return vec4f(-light.directionCone.xyz,1.0);}
+ if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
  let distance=length(offset);
  let range=light.positionRange.w;
