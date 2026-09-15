@@ -1,3 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
 // Banc de comparaison des calculs : une référence (l'ancien code recopié tel quel dans le fichier de
 // banc) contre l'implémentation optimisée importée du paquet, sur les mêmes entrées. Une ligne du
 // tableau n'est « retenue » que si les deux sorties sont identiques au bit près ET que la mesure
@@ -148,8 +150,20 @@ export function ligneMarkdown(ligne) {
   } |`;
 }
 
+/**
+ * Vérifie l'équivalence bit à bit du domaine, puis dépose ses lignes. Chaque banc recopiait la même
+ * assertion avant son dépôt ; un banc qui l'oubliait mesurait un gain sans prouver l'égalité.
+ */
+export function verifieEtDepose(domaine, intitule, lignes) {
+  test(intitule, () => {
+    for (const ligne of lignes)
+      assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
+  });
+  depose(domaine, lignes);
+}
+
 /** Écrit le fragment du domaine et imprime ses lignes ; `agrege.mjs` assemble le tableau complet. */
-export function depose(domaine, lignes) {
+function depose(domaine, lignes) {
   mkdirSync(FRAGMENTS, { recursive: true });
   writeFileSync(join(FRAGMENTS, `${domaine}.json`), JSON.stringify(lignes, null, 2));
   for (const ligne of lignes) {

@@ -1,11 +1,9 @@
 // A9 et A10 : le sens de parcours d'un cluster, et la caméra gardée pour comparer deux vues.
 // Référence = `webgpuPagesPipelineFor.ts:22-30` et `webgpuPagesRender.ts:32-35` d'avant le lot A.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sameHizView } from '../../../packages/sdk-browser/hizTemporal.ts';
 import { setWindingEpoch, windingCw } from '../../../packages/sdk-browser/webgpuPagesWinding.ts';
-import { compare, depose, graine } from './banc.mjs';
+import { compare, graine, verifieEtDepose } from './banc.mjs';
 import { referenceWindingCw } from './oracles/pages.mjs';
 
 const alea = graine(67);
@@ -91,8 +89,4 @@ const lignes = [
   }),
 ];
 
-test('A9 et A10 rendent exactement les mêmes verdicts', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('pages', lignes);
+verifieEtDepose('pages', 'A9 et A10 rendent exactement les mêmes verdicts', lignes);

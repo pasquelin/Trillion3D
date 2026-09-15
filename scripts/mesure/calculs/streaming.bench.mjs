@@ -1,10 +1,8 @@
 // A12 : l'admission des transferts et le drain des arrivées.
 // Référence = `streamingQueue.ts:22-59` et `arrivalQueue.ts:15-65` d'avant le lot A.
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { findAdmissible, sortStreamJobs } from '../../../packages/sdk-browser/streamingQueue.ts';
 import { createArrivalQueue } from '../../../packages/sdk-browser/arrivalQueue.ts';
-import { compare, depose, graine } from './banc.mjs';
+import { compare, graine, verifieEtDepose } from './banc.mjs';
 import { referenceAdmission, referenceArrivalQueue } from './oracles/streaming.mjs';
 
 const LIMITE = 6,
@@ -80,8 +78,4 @@ const lignes = [
   }),
 ];
 
-test('A12 admet et livre exactement dans le même ordre', () => {
-  for (const ligne of lignes)
-    assert.equal(ligne.difference, null, `${ligne.calcul} : ${ligne.difference}`);
-});
-depose('streaming', lignes);
+verifieEtDepose('streaming', 'A12 admet et livre exactement dans le même ordre', lignes);
