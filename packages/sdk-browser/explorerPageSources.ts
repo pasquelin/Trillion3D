@@ -3,6 +3,7 @@ import { createPageStreamer } from './streamingPages.ts';
 import { loadClusterPages } from './clusterPages.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
 import type { RenderBackend, ExplorerOptions } from './backendTypes.ts';
+import { indexManifestBundles, indexManifestPages } from './manifestPageIndex.ts';
 import type { ClusterManifest } from '../sdk-core/index.ts';
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void;
@@ -17,36 +18,12 @@ export async function createExplorerPageSources(
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
   progress: Progress,
 ) {
-  const pages = [
-    ...new Map(metadata.primitives.flatMap((p) => p.pages).map((p) => [p.url, p])).values(),
-  ];
-  const geometryPages = [
-    ...new Map(
-      metadata.primitives
-        .flatMap((p) => p.pages)
-        .filter((page) => !!page.geometry)
-        .map((page) => [page.geometry!.url, page.geometry!]),
-    ).values(),
-  ];
-  const geometryUrls = new Set(geometryPages.map((page) => page.url));
-  const pageIdByUrl = new Map([
-    ...pages.map((page) => [page.url, page.id] as const),
-    ...metadata.primitives
-      .flatMap((p) => p.pages)
-      .filter((page) => !!page.geometry)
-      .map((page) => [page.geometry!.url, page.id] as const),
-  ]);
+  const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata);
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse');
   const preload = options.preload ?? 'visible';
   // A cluster DAG cuts far below its exact page count, but the cut moves every frame: the resident
   // set must be a superset of it or the cache thrashes. Twice the expected cut, floored at 32768.
-  const bundles = [
-    ...new Map(
-      metadata.primitives
-        .flatMap((p) => p.streams?.pages ?? [])
-        .map((bundle) => [bundle.url, bundle]),
-    ).values(),
-  ];
+  const bundles = indexManifestBundles(metadata);
   const dagPages = bundles.length > 0;
   const attachCap =
     options.maxResidentPages ??
