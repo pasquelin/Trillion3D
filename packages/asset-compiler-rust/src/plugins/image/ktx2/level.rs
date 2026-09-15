@@ -18,13 +18,7 @@ pub(super) fn decode(
 ) -> std::result::Result<DecodedImage, &'static str> {
     let layout = format::layout(surface.format).ok_or(FORMAT_UNSUPPORTED)?;
     let (width, height) = (surface.width, surface.height);
-    if u64::from(width)
-        .saturating_mul(u64::from(height))
-        .saturating_mul(4)
-        > max_alloc
-    {
-        return Err(TOO_LARGE);
-    }
+    crate::plugins::image::rgba8_budget(width, height, max_alloc, TOO_LARGE)?;
     let needed = layout.level_bytes(width, height);
     let level = plain(surface, bytes, needed, max_alloc)?;
     let (width, height) = (width as usize, height as usize);
