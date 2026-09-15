@@ -15,6 +15,10 @@ export const WEBGPU_REQUIRED_LIMITS = [
   'maxTextureArrayLayers',
   'maxStorageBufferBindingSize',
   'maxBufferSize',
+  // La résolution différée lie jusqu'à neuf tampons de stockage — lampes, tuiles, tranches
+  // d'ombre, sondes, les quatre colonnes du proxy résident et l'état de l'ombre lointaine —, une de
+  // plus que le plancher de la norme. On demande ce que l'appareil sait faire, jamais plus.
+  'maxStorageBuffersPerShaderStage',
 ] as const;
 export const baseCapabilities: BackendCapabilities = {
   renderer: 'Three.js WebGL2',

@@ -308,6 +308,120 @@ warnings`, `cargo fmt --check`, `npm run check:lines`, `check:duplicates`, `chec
 **Ce qui reste.** La carte d'opacité séparée n'est toujours pas rendue : glTF 2.0 de base n'a pas
 d'emplacement pour elle, il faudrait recomposer l'alpha dans la couleur de base à l'import. Le
 rapport le dit maintenant au lieu de se taire.
+## 2026-09-15 — lot « ombres lointaines du soleil » : un rayon contre le proxy, et une découpe de cascades qui tient son rapport
+
+Worktree `lot-ombres-lointaines`, branche `lot/ombres-lointaines`, partie de `develop` = `a29e025`,
+rebasée sur `develop` = `4030cb8`. Aucun objet de cache n'est touché : le lot ne lit que
+`proxy.bin`, déjà écrit par le compilateur.
+
+### 1. Au-delà de la dernière cascade, l'ombre se teste
+
+`sunShadowFactor` ne rend plus `1.0` quand aucune cascade ne couvre le point : il tire un rayon
+d'ombre contre le **proxy résident**, par la traversée du rebond (`proxyBlocked`, bornes publiées,
+aucune ligne de géométrie en double). Le rayon est **déterministe** — sa direction est celle du
+soleil, son origine celle du pixel —, donc deux images d'une caméra immobile donnent exactement la
+même ombre lointaine : rien n'est accumulé d'une image à l'autre, il n'y a ni retard, ni traînée,
+ni bruit propre à ce lot. Un rayon par pixel concerné, et zéro pour tous les autres.
+
+Le proxy est celui de la lumière qui rebondit quand elle est allumée — emprunté, jamais tenu en
+double — et chargé par ce lot sinon : l'ombre du soleil est de la fidélité du direct, elle ne
+dépend pas d'un réglage de rebond. Le rayon part d'**une maille de proxy le long de sa propre
+direction** (`sunFarShadowStartCells`), pas d'un relèvement le long de la normale : sur Emerald
+l'erreur certifiée du proxy vaut 5,06 m, relever de deux erreurs aurait fait partir le rayon
+au-dessus des toits.
+
+**Sans proxy dans le cache** : rien n'est gréé, la surface lointaine reste éclairée sans ombre
+portée comme avant, et le diagnostic `sun-far-shadow` publie « ombre lointaine indisponible » avec
+sa raison. Le choix est motivé : étirer la dernière cascade jusqu'au lointain aurait divisé par cinq
+la densité de texels de **toutes** les ombres proches, sur chaque axe — une baisse de qualité pour
+cacher une absence, que `AGENTS.md` refuse.
+
+**Le chemin des transparents n'en bénéficie pas encore.** Depuis le lot « transparents sans
+ambiance », les deux passes qui éclairent partagent le même socle WGSL ; le socle prend maintenant
+l'ombre lointaine en paramètre, la résolution différée opaque reçoit le rayon et la passe de mélange
+reçoit un bouchon qui rend un. La raison est une liaison : le proxy n'est lié qu'à la passe opaque.
+Le manque est écrit dans `sunFarShadowWgsl.ts`, pas deviné.
+
+### 2. Le plancher des cascades, chiffré par le rapport des coutures
+
+À une couture de cascade, la densité de texels change exactement du rapport de la découpe : c'est
+lui, et rien d'autre, qui décide du saut de netteté visible. Il est maintenant **constant et publié**
+(`sunCascadeRatioMax` = 4), la découpe est une suite géométrique de bout en bout, et le plancher du
+plan proche s'en déduit : `distance d'ombre / rapport^cascades`. Le mélange avec une suite uniforme
+(`sunCascadeLambda`) disparaît : il ne servait qu'à rattraper une suite géométrique écrasée par un
+plan proche à un dix-millième du lointain. La première borne reste le plan proche de la caméra : le
+plancher redistribue les bornes intérieures, il ne creuse aucun trou sous le nez de l'observateur.
+
+Emerald, 1280 × 720, `far` = 3441,9 m (vingt fois le rayon du modèle, règle du harnais) :
+
+| cascade | rayon avant | rayon après | ce que ça change        |
+| ------- | ----------: | ----------: | ----------------------- |
+| 0       |      36,8 m |  **11,4 m** | 3,2 fois plus fine      |
+| 1       |      76,0 m |  **45,7 m** | 1,7 fois plus fine      |
+| 2       |     151,0 m |     182,7 m | 1,2 fois plus grossière |
+| 3       |     730,9 m |     730,9 m | inchangée               |
+
+Rapports de couture : 2,07 / 1,99 / **4,84** avant, **4,00 / 4,00 / 4,00** après. Le gain est près de
+la caméra, la perte au milieu, et la portée d'ombre ne bouge pas.
+
+### 3. Profil
+
+Étape `sunFarShadows` (« Ombres lointaines »), avec ses compteurs : pixels testés par rayon lointain,
+pixels assombris, image relevée, triangles du proxy. Le relevé est un diagnostic, donc il reste hors
+de la passe mesurée : le drapeau de comptage ne passe à un **qu'une image sur quinze**, les quatorze
+autres n'exécutent aucun `atomicAdd`. La colonne carte graphique de l'étape vaut `null` avec sa
+raison — le rayon est tiré dans la résolution différée, ses millisecondes sont celles de l'étape
+« Éclairage (résolution) », et les dire deux fois serait les compter deux fois.
+
+### 4. Ce que la mesure dit, et ce qu'elle ne dit pas
+
+**Le cas lointain est hors d'atteinte du harnais sur Emerald.** `scripts/mesure/poses.mjs` pose
+`far` à vingt fois le rayon du modèle ; la distance d'ombre vaut donc quatre rayons, et la sphère
+circonscrite de la dernière cascade porte à environ huit rayons, quand aucun point visible n'est à
+plus de 2,6 rayons de la caméra. Relevé sur Emerald, `--soleil`, vues `rue` et `generale`, avec et
+sans `--lampes 8` : **`pixelsTestes` = 0 partout**. Le défaut décrit — un intérieur lointain en plein
+jour — appartient à un hôte qui serre son plan lointain, comme le banc 16.
+
+**Portes de fidélité, scène de contrôle** (pièce fermée 8 × 3 × 8 m, cache compilé avec proxy,
+1280 × 720, `pixelError 0`, `avant` = `develop` `be5889a`, 20 images, 10 de chauffe) :
+
+| série                       | témoin A/A        | avant / après             | coupe     |
+| --------------------------- | ----------------- | ------------------------- | --------- |
+| `--lampes 4`, soleil éteint | 0 px, max canal 0 | **0 px, max canal 0**     | identique |
+| `--soleil`                  | 0 px, max canal 0 | 222 996 px, max canal 176 | identique |
+
+Les 222 996 pixels viennent **entièrement de la découpe des cascades** : `pixelsTestes` vaut 0 sur
+cette série, aucun rayon lointain n'est tiré. 220 689 pixels s'éclaircissent, 2 307 s'assombrissent,
+et l'image dit pourquoi : **avant, le sol de la pièce était entièrement noir**, auto-ombré par une
+première cascade de 6,3 m de rayon dont un texel couvrait plus que le biais d'ombre ; après, avec un
+rayon de 0,39 m, le sol est éclairé comme il doit l'être. Les quatre cascades de cette scène passent
+de 6,3 / 12,4 / 18,6 / 24,9 m de rayon à 0,39 / 1,55 / 6,22 / 24,9 m : plus fines partout, la
+dernière inchangée.
+
+**Le rayon lointain, vu à l'œuvre** (mêmes réglages, plan lointain de l'hôte serré à 10 m par
+`.mesure/loin.mjs` — les modules du harnais tels quels, ce seul nombre changé) :
+
+| grandeur                                         |                                          valeur |
+| ------------------------------------------------ | ----------------------------------------------: |
+| pixels testés par rayon lointain (image relevée) |                                     **515 312** |
+| pixels assombris par ce rayon                    |                                     **369 861** |
+| écart avant/après                                | 405 197 px, max canal 193, **0 pixel éclairci** |
+| témoin A/A                                       |                               0 px, max canal 0 |
+
+L'image d'avant montrait les murs du fond d'une pièce **fermée** en plein soleil ; celle d'après les
+met à l'ombre. C'est exactement le défaut visé. Sur Emerald, même vérification à `far` = 200 m :
+18 717 pixels testés, 250 assombris. Ce relevé a été rejoué à l'identique après le rebasage, contre
+`develop` `4030cb8` qui porte les ombres virtualisées : mêmes 515 312 et 369 861, même 0 px A/A.
+
+**Coûts : non mesurés au calme.** La charge à une minute est restée entre 5 et 125 pendant toute la
+fenêtre du lot, plusieurs campagnes d'autres sessions en parallèle ; l'attente sous verrou a dépassé
+trente minutes sans jamais descendre sous 4. Sous cette charge, **`develop` seul perd son appareil
+WebGPU sur Emerald** (`WEBGPU_LOST` dans `readBackImage`, vérifié sur le `dist` de `be5889a` sans
+une ligne de ce lot) : aucune campagne Emerald n'a pu aboutir, ni avant ni après. Les seules durées
+relevées le sont donc sur machine chargée et ne valent que par leur ordre de grandeur : sur la scène
+de contrôle, étape « Éclairage (résolution) » p50 **1,94 ms** sans rayon lointain contre **2,36 ms**
+avec 515 312 rayons, soit environ 0,8 ns par rayon. **Le tableau de coût avant/après des trois vues
+d'Emerald reste à relever**, sous verrou et charge inférieure à 4, à la livraison.
 
 ## 2026-09-15 — [session village] la scène « Whisperwind Village » entre au banc 15, importée en FBX
 
@@ -332,11 +446,11 @@ ni de format refusé.
 Lab servi en lecture seule sur le port 5190, banc 15, chemins publics du SDK (`createExplorer`),
 1280×720, seuil 0 pixel, `dist/` du moteur bâti sur `develop` = `38f1b5c`.
 
-| moteur | création | triangles sélectionnés | `uncoveredTriangles` | textures montées / en attente / écartées |
-| --- | --- | --- | --- | --- |
-| WebGeometry WebGPU · vue générale | 5,4 s | 171 683 459 | **0** | 12 / 0 / 0 |
-| WebGeometry WebGPU · au sol | 5,8 s | 90 952 138 | **0** | 12 / 0 / 0 |
-| Three.js référence · vue générale | 3,0 s | 172 008 090 | non mesuré | non mesuré |
+| moteur                            | création | triangles sélectionnés | `uncoveredTriangles` | textures montées / en attente / écartées |
+| --------------------------------- | -------- | ---------------------- | -------------------- | ---------------------------------------- |
+| WebGeometry WebGPU · vue générale | 5,4 s    | 171 683 459            | **0**                | 12 / 0 / 0                               |
+| WebGeometry WebGPU · au sol       | 5,8 s    | 90 952 138             | **0**                | 12 / 0 / 0                               |
+| Three.js référence · vue générale | 3,0 s    | 172 008 090            | non mesuré           | non mesuré                               |
 
 Aucune erreur GPU, aucune erreur de console, `streamingError` nul, `coverageReady` vrai. Chargement
 complet d'une vue borné à **25 s** de bout en bout. Bornes de la scène :
@@ -3900,7 +4014,7 @@ source déjà chargé et par un tampon d'uniformes interne au moteur.
 
 ### 1. Le chargement accepte une primitive hors DAG
 
-`assertCacheIdentity` exigeait une bande d'erreur par cluster de *chaque* primitive. Une primitive
+`assertCacheIdentity` exigeait une bande d'erreur par cluster de _chaque_ primitive. Une primitive
 que le compilateur garde d'un seul tenant — `pass: "shared-blend"` — n'a aucun cluster, donc aucune
 bande, et c'est sa définition, pas une lacune : un cache qui en portait une était refusé en bloc, et
 une eau importée rendait la scène entière illisible. `primitiveIsDrawable` (`geometryContracts.ts`)
@@ -3923,12 +4037,12 @@ pas une transmission.
 
 Après les opaques et après les mélanges, dans l'ordre source, test de profondeur `less` sans
 écriture, même mélange. Deux `copyTextureToTexture` figent le fond — la cible HDR et la profondeur
-vers `rgba16float` et `depth32float` en lecture seule. C'est ce que *toutes* les surfaces
+vers `rgba16float` et `depth32float` en lecture seule. C'est ce que _toutes_ les surfaces
 transmissives lisent : l'ordre entre deux d'entre elles ne change donc pas ce qu'elles voient.
 
 - **Réfraction** : le rayon de vue est dévié par `1/ior`, avancé de `thicknessFactor`, le point de
   sortie reprojeté à l'écran, et c'est là qu'on relit la couleur. Un échantillon dont la profondeur
-  copiée le place *devant* la surface est rejeté : on retombe sur l'échantillon non dévié.
+  copiée le place _devant_ la surface est rejeté : on retombe sur l'échantillon non dévié.
 - **Atténuation** : `exp(-sigma·thickness)` avec `sigma = -log(attenuationColor)/attenuationDistance`.
   Une distance nulle veut dire pas d'atténuation.
 - **Réflexion** : Fresnel de Schlick, `f0 = ((ior-1)/(ior+1))²`, appliqué à ce que la scène déclare —
@@ -4000,8 +4114,8 @@ lampes du harnais sont déclarées par le contrat `SceneLight`, que seul le chem
 que le témoin Three rend toute surface opaque noire pendant que le nôtre rend la vue sans éclairage
 en albédo brut. Contrôle construit pour l'isoler : la **même comparaison sur `classes-materiaux`, une
 scène qui ne porte aucune transmission**, donne **206 471 px (22,40 %)** et **544 747 px (59,11 %)** —
-*plus* que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
-l'arrivée de la transmission le *réduit*, parce que l'eau assombrit notre image vers celle du témoin.
+_plus_ que la scène à transmission. L'écart est donc entièrement la convention d'éclairage, et
+l'arrivée de la transmission le _réduit_, parce que l'eau assombrit notre image vers celle du témoin.
 Une comparaison de fidélité qui porte sur la transmission seule demande que le témoin reçoive les
 lampes du contrat ; ce n'est pas dans ce lot, et c'est nommé ci-dessous.
 

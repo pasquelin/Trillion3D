@@ -8,23 +8,38 @@ interface SunCascade {
   boxCenter: [number, number, number];
 }
 
+/** La distance d'ombre du soleil : la borne au-delà de laquelle aucune cascade ne teste plus rien. */
+function sunShadowFarMetres(view: ShadowViewpoint) {
+  const near = Math.max(1e-3, view.near);
+  return Math.max(near * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
+}
+
 /**
- * Les bornes des cascades le long de l'axe de la caméra. Découpe pratique : le mélange de la suite
- * géométrique — celle qui donne la même erreur relative partout — et de la suite uniforme, dosé par
- * `sunCascadeLambda`. La dernière borne est la distance d'ombre, une fraction publiée du lointain.
+ * Les bornes des cascades le long de l'axe de la caméra : une suite géométrique, la seule qui donne
+ * la même erreur relative partout, donc la même densité de texels d'une cascade à l'autre. La
+ * dernière borne est la distance d'ombre, une fraction publiée du lointain.
+ *
+ * La découpe ne part plus du plan proche de la caméra, qui vaut un dix-millième du lointain : la
+ * suite géométrique y prenait un rapport de quatorze par cascade, et les deux premières se
+ * perdaient sous le mètre ; un mélange avec une suite uniforme les rattrapait, au prix de coutures
+ * déséquilibrées — deux fois entre les premières, près de cinq fois avant la dernière. Le plancher
+ * est maintenant chiffré par le rapport publié : `distance d'ombre / rapport^cascades`, et la suite
+ * est géométrique de bout en bout. Une caméra dont le plan proche dépasse ce plancher garde le sien,
+ * et le rapport n'en est que plus serré.
+ *
+ * La première borne, elle, reste le plan proche de la caméra : le plancher redistribue les bornes
+ * intérieures, il ne creuse aucun trou sous le nez de l'observateur. La sphère de la première
+ * cascade est dominée par sa borne lointaine, si bien que la couvrir depuis le plan proche ne lui
+ * coûte presque aucun texel.
  */
 function sunCascadeSplits(view: ShadowViewpoint, out: Float64Array) {
   const count = LIGHT_SETTINGS.sunCascades;
-  const near = Math.max(1e-3, view.near),
-    far = Math.max(near * 1.001, view.far * LIGHT_SETTINGS.sunShadowFarFraction);
-  const lambda = LIGHT_SETTINGS.sunCascadeLambda;
-  out[0] = near;
-  for (let i = 1; i <= count; i++) {
-    const ratio = i / count;
-    const log = near * Math.pow(far / near, ratio),
-      uniform = near + (far - near) * ratio;
-    out[i] = lambda * log + (1 - lambda) * uniform;
-  }
+  const camera = Math.max(1e-3, view.near),
+    far = sunShadowFarMetres(view);
+  const near = Math.max(camera, far / Math.pow(LIGHT_SETTINGS.sunCascadeRatioMax, count));
+  const step = Math.pow(far / near, 1 / count);
+  out[0] = camera;
+  for (let i = 1; i <= count; i++) out[i] = near * Math.pow(step, i);
 }
 
 const splits = new Float64Array(LIGHT_SETTINGS.sunCascades + 1);
@@ -35,7 +50,7 @@ let pretes = false,
   vuFar = 0,
   vuCount = 0,
   vuFraction = 0,
-  vuLambda = 0;
+  vuRatio = 0;
 
 /**
  * Les bornes de la vue courante, recalculées seulement si la vue ou la découpe ont changé. Elles ne
@@ -46,14 +61,14 @@ let pretes = false,
 function splitsDe(view: ShadowViewpoint) {
   const count = LIGHT_SETTINGS.sunCascades,
     fraction = LIGHT_SETTINGS.sunShadowFarFraction,
-    lambda = LIGHT_SETTINGS.sunCascadeLambda;
+    ratio = LIGHT_SETTINGS.sunCascadeRatioMax;
   if (
     pretes &&
     Object.is(vuNear, view.near) &&
     Object.is(vuFar, view.far) &&
     vuCount === count &&
     Object.is(vuFraction, fraction) &&
-    Object.is(vuLambda, lambda)
+    Object.is(vuRatio, ratio)
   )
     return splits;
   sunCascadeSplits(view, splits);
@@ -62,7 +77,7 @@ function splitsDe(view: ShadowViewpoint) {
   vuFar = view.far;
   vuCount = count;
   vuFraction = fraction;
-  vuLambda = lambda;
+  vuRatio = ratio;
   return splits;
 }
 

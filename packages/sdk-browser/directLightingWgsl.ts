@@ -1,5 +1,6 @@
 import { LIGHT_SETTINGS, POINT_FACES } from '../sdk-core/index.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
+import { SUN_FAR_SHADOW_WGSL, SUN_FAR_STUB_WGSL } from './sunFarShadowWgsl.ts';
 
 const POISSON_16 = [
   [-0.94201624, -0.39906216],
@@ -76,9 +77,10 @@ fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32
   let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
   return shadowPcf(entry,local,ndc.z-shadowBiasMetres(cosine)*scaleZ,side);
  }
- // Au-delà de la dernière cascade, la surface reste éclairée sans ombre portée : approximation
- // nommée, publiée dans le diagnostic, jamais une ombre inventée.
- return 1.0;
+ // Au-delà de la dernière cascade, l'ombre se teste par un rayon contre le proxy résident. Sans
+ // proxy dans le cache, ce rayon rend un, la surface lointaine reste éclairée sans ombre portée,
+ // et le diagnostic dit « ombre lointaine indisponible » : jamais une ombre inventée.
+ return sunFarShadowFactor(P,N,L);
 }
 /** Fraction de lumiere qui atteint le point : 1 en pleine lumiere, 0 entierement dans l'ombre. */
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
@@ -116,9 +118,15 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  * d'éclairement du moteur. Les deux boucles ci-dessous ne diffèrent que par la liste de lampes
  * qu'elles parcourent, jamais par la physique ni par le type de surface. Une lampe hors portée, ou
  * entièrement dans l'ombre, rend exactement zéro.
+ *
+ * `sunFar` est la seule chose que les deux passes ne partagent pas : l'ombre du soleil au-delà de
+ * la dernière cascade se tire contre le proxy résident, et le proxy n'est lié qu'à la résolution
+ * différée opaque. La passe de mélange reçoit le bouchon, qui rend un — le manque est nommé là où
+ * il est écrit, pas deviné.
  */
-const LIGHTING_BASE_WGSL = `
+const lightingBase = (sunFar: string) => `
 ${DIRECT_LIGHT_WGSL}
+${sunFar}
 ${DIRECT_SHADOW_WGSL}
 fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  let incidence=directIncidence(light,P);
@@ -140,7 +148,7 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  * zéro, et un couloir sans fenêtre reste noir en plein jour.
  */
 export const DIRECT_LIGHTING_WGSL = `
-${LIGHTING_BASE_WGSL}
+${lightingBase(SUN_FAR_SHADOW_WGSL)}
 /** La contribution des lampes du contrat au pixel, tuile par tuile et lampe par lampe. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  var result=vec3f(0.0);
@@ -169,7 +177,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * stochastique par pixel est un lot ultérieur (RX2).
  */
 export const DECLARED_LIGHTING_WGSL = `
-${LIGHTING_BASE_WGSL}
+${lightingBase(SUN_FAR_STUB_WGSL)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  var result=vec3f(0.0);
  let count=min(directLights.count,MAX_LIGHTS);

@@ -4,6 +4,7 @@ import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import { ensureBounce } from './webgpuPagesPrepareBounce.ts';
+import { ensureSunFarShadow } from './webgpuPagesPrepareSunFar.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Les quatre flottants que la passe différée relit : lampes, tuiles en X et Y, exposition. */
@@ -47,6 +48,10 @@ export function encodeDirectLights(
   // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
   encodeBounce(rt, device, encoder, active, camera);
+  // L'ombre lointaine du soleil : le proxy est gréé à la première lampe, comme le rebond, et son
+  // relevé de compteurs est encodé avant la passe d'éclairage qui les remplira.
+  ensureSunFarShadow(rt, device);
+  rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
   // La passe peut refuser d'encoder (rejet ou sélection absents) : les pages que l'ordonnanceur
   // venait de sortir de la file y retournent alors, sinon leur carte garderait une profondeur
   // périmée sans que rien ne le dise.
@@ -190,5 +195,10 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   const bounce = active ? rt.bounce.probes : undefined;
   contractResources.bounceGrid = bounce?.uniform;
   contractResources.probes = bounce?.probes;
+  // Le proxy de l'ombre lointaine : lié seulement s'il existe, sans quoi les remplacements de zéro
+  // du programme du contrat laissent la surface lointaine éclairée comme avant ce lot.
+  const sunFar = active ? rt.sunFar.gpu : undefined;
+  contractResources.proxy = sunFar?.buffers();
+  contractResources.sunFarState = contractResources.proxy ? sunFar?.state : undefined;
   return contractResources;
 }

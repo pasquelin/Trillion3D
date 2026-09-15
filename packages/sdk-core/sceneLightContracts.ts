@@ -93,8 +93,30 @@ export const LIGHT_SETTINGS = {
    * une surface reste éclairée sans ombre portée : approximation nommée, publiée dans le diagnostic.
    */
   sunShadowFarFraction: 0.2,
-  /** Mélange des découpes logarithmique et uniforme des cascades : 1 tout log, 0 tout uniforme. */
-  sunCascadeLambda: 0.8,
+  /**
+   * Rapport entre deux bornes consécutives de la découpe des cascades. À une couture, la densité de
+   * texels change exactement de ce rapport : c'est lui, et rien d'autre, qui décide du saut de
+   * netteté visible d'une cascade à la suivante, et le tenir constant est tout ce qu'on demande à
+   * une découpe. Le plancher du plan proche s'en déduit — `distance d'ombre / rapport^cascades` —
+   * au lieu de partir du plan proche de la caméra, un dix-millième du lointain, qui écrasait la
+   * suite géométrique et obligeait à la rattraper par un mélange avec une suite uniforme.
+   */
+  sunCascadeRatioMax: 4,
+  /**
+   * Décalage de l'origine du rayon d'ombre lointain le long de la normale, en mètres. Il ne sert
+   * qu'à quitter le plan de la surface éclairée ; le vrai remède contre l'auto-ombrage est le
+   * départ le long du rayon, ci-dessous.
+   */
+  sunFarShadowOffsetMetres: 0.05,
+  /**
+   * Départ du rayon d'ombre lointain le long de sa propre direction, en mailles du proxy. Le point
+   * éclairé vient de la géométrie fine, l'occulteur du proxy grossier : là où le proxy passe
+   * au-dessus de la vraie surface, un rayon parti de zéro se cognerait à la surface qu'il éclaire.
+   * Une maille du proxy est l'échelle en dessous de laquelle le proxy ne dit rien ; partir de là
+   * saute ce faux contact sans inventer d'ombre. La conséquence est nommée : un occulteur à moins
+   * d'une maille le long du rayon ne porte pas d'ombre lointaine, et celle-là reste aux cascades.
+   */
+  sunFarShadowStartCells: 1,
   /**
    * Recul du plan proche d'une cascade, en rayons de sa sphère : ce qui se tient au-dessus de la
    * cascade, entre elle et le soleil, doit entrer dans la carte pour y projeter son ombre.

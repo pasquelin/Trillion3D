@@ -8,6 +8,7 @@ import {
   directLightingState,
   wantsContractLighting,
 } from './webgpuPagesEncodeLights.ts';
+import { sunFarState } from './webgpuPagesPrepareSunFar.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -25,6 +26,7 @@ function reportProgress(rt: WebgpuPagesRuntime) {
     },
     directLighting: { version: 1, ...directLightingState(rt) },
     bounce: { version: 1, ...bounceState(rt) },
+    sunFarShadows: { version: 1, ...sunFarState(rt) },
     selectedPages: run.shown.length,
     residentPages: run.drawn.length,
     selectedTriangles: run.selectedTriangles,
