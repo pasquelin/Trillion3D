@@ -10,12 +10,12 @@ import {
 import type { GpuBounceProxy } from './gpuBounceProxy.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
 
-/** Ce que la passe de cache lie : la grille, le proxy, les lampes, les sondes figées, le cache. */
+/** Ce que la passe de cache lie : la grille, le proxy et son albédo, les lampes, les sondes figées,
+ *  le cache. Le proxy est en écriture parce que son entête porte des compteurs `atomic` ; cette
+ *  passe n'y écrit rien. */
 const SURFACE_TYPES: (GPUBufferBindingType | null)[] = [
   'uniform',
-  'read-only-storage',
-  'read-only-storage',
-  'read-only-storage',
+  'storage',
   'read-only-storage',
   'read-only-storage',
   'read-only-storage',
@@ -72,10 +72,8 @@ export async function createGpuBounceSurface(
   }
   const group = bounceGroup(device, layout, [
     grid.uniform,
-    proxy.triangles,
+    proxy.buffer,
     proxy.albedo,
-    proxy.nodeBounds,
-    proxy.nodeChildren,
     lights,
     grid.snapshot,
     buffer,
