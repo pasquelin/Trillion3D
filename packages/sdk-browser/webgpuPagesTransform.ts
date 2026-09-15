@@ -1,5 +1,12 @@
 import * as THREE from 'three';
-import { EngineError } from '../sdk-core/index.ts';
+import {
+  BOX_VALUES,
+  EngineError,
+  boxEmpty,
+  boxIsEmpty,
+  boxTransform,
+  boxUnion,
+} from '../sdk-core/index.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -7,7 +14,7 @@ const requested = new THREE.Matrix4(),
   parentInverse = new THREE.Matrix4(),
   movedMin = [0, 0, 0],
   movedMax = [0, 0, 0],
-  moved = new THREE.Box3();
+  moved = new Float64Array(BOX_VALUES);
 
 /** Le nœud nommé de la scène préparée, ou `undefined` : la recherche est un parcours, pas un index. */
 function findNode(source: THREE.Object3D, nodeName: string) {
@@ -38,9 +45,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     throw new EngineError('UNKNOWN_SCENE_NODE', `nœud ${nodeName} absent de la scène préparée`, {
       nodeName,
     });
-  moved.makeEmpty();
+  boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
-    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) moved.union(root.worldBox);
+    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) unionInto(root.worldBox);
   requested.fromArray(matrix as unknown as number[]);
   if (node.parent) {
     parentInverse.copy(node.parent.matrixWorld).invert();
@@ -51,15 +58,22 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   setup.source.updateMatrixWorld(true);
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
-    root.worldBox.copy(root.localBox).applyMatrix4(root.world);
-    moved.union(root.worldBox);
+    boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
+    unionInto(root.worldBox);
   }
   layout.rows.tableEpoch++;
   invalidateOccluderHistory(run);
-  if (moved.isEmpty()) return;
-  moved.min.toArray(movedMin);
-  moved.max.toArray(movedMax);
+  if (boxIsEmpty(moved, 0)) return;
+  for (let axis = 0; axis < 3; axis++) {
+    movedMin[axis] = moved[axis];
+    movedMax[axis] = moved[axis + 3];
+  }
   lights.plan.worldChanged(movedMin, movedMax);
+}
+
+/** Ajoute une boîte monde à la boîte du mouvement. */
+function unionInto(box: Float64Array) {
+  boxUnion(moved, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
 }
 
 /** Vrai quand `mesh` est le nœud déplacé ou l'un de ses descendants. */
