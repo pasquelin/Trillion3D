@@ -32,8 +32,7 @@ const TEXTURE_2D: u32 = 3;
 const MISC_TEXTURECUBE: u32 = 0x4;
 const ALPHA_MODE_MASK: u32 = 0x7;
 const ALPHA_MODE_PREMULTIPLIED: u32 = 2;
-/// Une texture de 2³² pixels de côté n'a que trente-trois niveaux : au-delà, le champ ment.
-const MAX_LEVELS: u32 = 33;
+use crate::plugins::image::blocks::MAX_LEVELS;
 
 /// La surface que le pilote va lire : son codec, sa taille, sa chaîne et où commence le niveau 0.
 pub(super) struct Surface {

@@ -9,6 +9,10 @@
 //! remettre ces octets dans l'ordre du contrat, R, G, B, A.
 use super::DecodedImage;
 
+/// Une texture de 2³² pixels de côté n'a que trente-trois niveaux : au-delà, le champ ment. `dds`
+/// et `ktx2` lisent ce compte dans leur entête respectif et posent la même borne.
+pub(super) const MAX_LEVELS: u32 = 33;
+
 /// La signature d'un décodeur de blocs : les octets du niveau, ses dimensions, les pixels rendus.
 pub(super) type BlockDecode = fn(&[u8], usize, usize, &mut [u32]) -> Result<(), &'static str>;
 
