@@ -2,6 +2,7 @@
 
 ## 2026-09-15 — lot 3 fusionné : une seule classe d'atlas par défaut, la seconde en option
 
+- **Fusion `15297dd`** dans `develop`.
 - **Décision.** Le second groupe d'atlas change l'image (15 142 px, entrée précédente) : il ne peut pas être le défaut. Le lot est fusionné avec **une seule classe d'atlas par défaut**, et la seconde derrière une option publique que l'utilisateur activera s'il accepte l'écart.
 - **Option.** `ExplorerOptions.atlasClasses` : `1` par défaut, `2` au choix de l'hôte. Elle borne `planAtlasClasses` ; à 1, le plan rendu est **exactement** l'allocation d'avant les classes de taille. Le **repli automatique** à deux classes, quand une seule dépasse `maxTextureArrayLayers`, **ignore la borne** : il tient à l'appareil, pas au goût de l'hôte. L'option voyage par `BackendContext.atlasClasses` comme `maxTextureTransferBytesPerFrame`, et `docs/SDK.md` la documente avec l'écart d'image et les octets mesurés à 2. Un test de plus : borne 1, une seule classe même là où deux économiseraient.
 - **Gain de l'option, calculé (jamais mesuré)** : `−872 359 272` o, **−11,5 %** d'octets d'atlas alloués sur Emerald. À 1, gain nul et image inchangée.
