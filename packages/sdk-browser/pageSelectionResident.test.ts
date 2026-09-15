@@ -39,9 +39,15 @@ test('le mode résolu rend la réponse de la fermeture d’avant, sur tout le pr
 
 test('les trois modes sont ceux que la demande décrit, et eux seuls', () => {
   assert.equal(residentModeOf(false, undefined), RESIDENT_ALL);
-  assert.equal(residentModeOf(false, () => false), RESIDENT_ALL);
+  assert.equal(
+    residentModeOf(false, () => false),
+    RESIDENT_ALL,
+  );
   assert.equal(residentModeOf(true, undefined), RESIDENT_ARRAY);
-  assert.equal(residentModeOf(true, () => false), RESIDENT_ASK);
+  assert.equal(
+    residentModeOf(true, () => false),
+    RESIDENT_ASK,
+  );
 });
 
 test('la coupe suit ce mode : sans tableau d’indices, la page est demandée mais pas affichée', () => {
