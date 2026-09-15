@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setGeometryBounds } from './threeBounds.ts';
 import type { PageRec } from './pageSelection.ts';
 import { hashId } from './backendCommon.ts';
 
@@ -13,8 +14,6 @@ export function createExactPagesAttachment(
     salt?: number,
   ) => void,
 ) {
-  const minPoint = new THREE.Vector3(),
-    maxPoint = new THREE.Vector3();
   const release = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
@@ -28,11 +27,7 @@ export function createExactPagesAttachment(
       const geometry = new THREE.BufferGeometry();
       geometry.attributes = { ...rec.attributes };
       geometry.setIndex(indexByUrl.get(rec.url)!);
-      minPoint.fromArray(rec.min);
-      maxPoint.fromArray(rec.max);
-      geometry.boundingBox = new THREE.Box3().set(minPoint, maxPoint);
-      geometry.boundingSphere = new THREE.Sphere();
-      geometry.boundingBox.getBoundingSphere(geometry.boundingSphere);
+      setGeometryBounds(geometry, rec.min, rec.max);
       const copy = new THREE.Mesh(geometry, materialFor(rec));
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(rec.matrix);
