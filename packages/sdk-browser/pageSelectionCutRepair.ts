@@ -1,5 +1,5 @@
 import { cutSelects, projectedClusterError } from './pageSelectionMath.ts';
-import { type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
+import { truncateShown, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 import { flatConeKeeps, flatVisible } from './pageSelectionCutVisit.ts';
 
 const FLAT_ESCALATION_ROUNDS = 3;
@@ -10,7 +10,7 @@ export function rootCoverInto<T extends PageRecord>(
   pages: T[],
   start: number,
 ) {
-  s.shown.length = start;
+  truncateShown(s, start);
   let whole = true;
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i];
@@ -20,6 +20,7 @@ export function rootCoverInto<T extends PageRecord>(
       continue;
     }
     s.shown.push(rec);
+    s.shownTriangles += rec.triangles;
   }
   return whole;
 }
@@ -58,7 +59,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
     if (!raised) break;
     if (round === FLAT_ESCALATION_ROUNDS) hard = true;
   }
-  s.shown.length = start;
+  truncateShown(s, start);
   if (!hard)
     for (let i = 0; i < pages.length; i++) {
       const rec = pages[i];
@@ -73,6 +74,7 @@ export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[
         break;
       }
       s.shown.push(rec);
+      s.shownTriangles += rec.triangles;
     }
   if (!hard) return;
   if (!rootCoverInto(s, pages, start)) s.complete = false;

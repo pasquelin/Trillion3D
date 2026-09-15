@@ -5,6 +5,7 @@ import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
 import {
   fallbackScratch,
   selectionScratch,
+  truncateShown,
   type PageRecord,
   type SelectionState,
 } from './pageSelectionCutState.ts';
@@ -75,7 +76,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     s.flatUseForcing = false;
     return;
   }
-  s.shown.length = startShown;
+  truncateShown(s, startShown);
   s.flatShort = false;
   traverse(s, pages, root.culling);
   s.flatUseForcing = false;
