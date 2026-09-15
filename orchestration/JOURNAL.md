@@ -6154,13 +6154,14 @@ les évalue et ne range pas le résultat. Collections instanciées comptées et 
 couche d'UV, pas de couleurs de sommet, pas de normales personnalisées. Échantillonneur unique : les
 nœuds de coordonnées de texture ne sont pas lus. Transmission et `IOR` du `Principled BSDF` non
 convertis. Essai à blanc sur une scène Blender lourde encore à faire.
+
 ## 2026-09-15 — [compilateur] pilote usd
 
 Septième pilote de scène : une couche USD — `.usda` (texte), `.usdc` (binaire « crate ») ou `.usd`,
 qui peut être l'une ou l'autre — devient la scène intermédiaire glTF. Détection par extension, puis
 par entête : `#usda ` pour le texte, `PXR-USDC` pour le binaire.
 
-**Provenance et voie retenue.** Spécification publique : *OpenUSD Core Specification* de l'AOUSD.
+**Provenance et voie retenue.** Spécification publique : _OpenUSD Core Specification_ de l'AOUSD.
 Les deux voies du brief étaient ouvertes — caisse Rust existante, ou lecteur écrit ici. Évaluation
 de ce qui existe sur crates.io : `usd` et `rust-usd` sont des liaisons vers le C++ de Pixar (donc
 hors politique et hors « un seul exécutable »), `openusd-rs` est explicitement en chantier et figé
@@ -6253,7 +6254,7 @@ charge commence sur un multiple de soixante-quatre octets : l'emballage sert à 
 et ses images en place, jamais à les réduire. Le pilote extrait sous le cache, puis rend au routeur
 ce qu'il a extrait ; il ne lit aucune géométrie et ne réencode rien.
 
-**Provenance.** *OpenUSD Core Specification* de l'AOUSD pour la disposition du paquet, APPNOTE
+**Provenance.** _OpenUSD Core Specification_ de l'AOUSD pour la disposition du paquet, APPNOTE
 6.3.10 de PKWARE pour le conteneur. Aucune caisse nouvelle : la lecture ZIP de `zip.rs` descend dans
 `scene/archive/zip_reader.rs`, que les deux conteneurs partagent — entêtes reconnues, deux passes,
 plafonds, refus `ARCHIVE_*`. `zip.rs` tombe de 105 à 34 lignes.
@@ -6287,15 +6288,15 @@ scène. 220 tests Rust et 4 tests CLI au vert, Clippy sans avertissement, `check
 
 Le pilote `obj` (11 lignes) délègue tout à ufbx 0.11.3 puis à `src/import/*` commun avec FBX ; aucun code OBJ propre. Constat clé par clé :
 
-| Clé MTL | Comportement | Où |
-| --- | --- | --- |
-| `Kd`, `map_Kd`, `Ke`, `map_Ke`, `d` | convertis (base, émission, alpha + BLEND) | `import/materials.rs`, `import/opacity.rs` |
-| `Ns` | rugosité par heuristique ufbx `1 − 0,1·√Ns` | ufbx.c 19377, `materials.rs:35-45` |
-| `map_d` distincte de `map_Kd` | comptée `material-separate-opacity-texture` | `materials.rs:89-93` |
-| `Ks`, `Ni`, `Ka`/`map_Ka` | parsés par ufbx, jamais lus : perte silencieuse | `materials.rs` ne lit ni `specular` ni `ior` |
-| `map_Bump`/`bump`/`norm` | dernier gagne sans garde, silencieux si fichiers différents | ufbx.c 19829-19833 |
-| `-bm`, `-o`, `-s`, `-clamp` | parsés puis inertes (wrap REPEAT, pas de transform) | ufbx.c 17852-17897 vs 22907-23364 |
-| `Tr`, `illum` | absents du parseur ufbx | — |
-| MTL absent ou tronqué | toléré, avertissement en texte libre dans `report.notes`, pas de code nommé | `import/scene.rs:44,63-68` |
+| Clé MTL                             | Comportement                                                                | Où                                           |
+| ----------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
+| `Kd`, `map_Kd`, `Ke`, `map_Ke`, `d` | convertis (base, émission, alpha + BLEND)                                   | `import/materials.rs`, `import/opacity.rs`   |
+| `Ns`                                | rugosité par heuristique ufbx `1 − 0,1·√Ns`                                 | ufbx.c 19377, `materials.rs:35-45`           |
+| `map_d` distincte de `map_Kd`       | comptée `material-separate-opacity-texture`                                 | `materials.rs:89-93`                         |
+| `Ks`, `Ni`, `Ka`/`map_Ka`           | parsés par ufbx, jamais lus : perte silencieuse                             | `materials.rs` ne lit ni `specular` ni `ior` |
+| `map_Bump`/`bump`/`norm`            | dernier gagne sans garde, silencieux si fichiers différents                 | ufbx.c 19829-19833                           |
+| `-bm`, `-o`, `-s`, `-clamp`         | parsés puis inertes (wrap REPEAT, pas de transform)                         | ufbx.c 17852-17897 vs 22907-23364            |
+| `Tr`, `illum`                       | absents du parseur ufbx                                                     | —                                            |
+| MTL absent ou tronqué               | toléré, avertissement en texte libre dans `report.notes`, pas de code nommé | `import/scene.rs:44,63-68`                   |
 
 Aucune dorée `fixtures/obj/` : seul un test ad hoc (`Kd`, `d`, `map_Kd`). Écarts : (1) bloquant, dorée obj à créer sur le motif du corpus `groups-quads-ngons` ; (2) bloquant, MTL absent/tronqué à coder en rapport nommé ; (3) à faire, compter `Ks`/`Ni`/`Ka` ignorés ; (4) à faire, garde sur `bump`/`norm` en conflit ; (5) à faire, compter les options de map jetées ; (6) cosmétique, documenter `Tr`/`illum` non lus par la dépendance. Lot `compilateur/mtl` à lancer dès qu'un Opus de la vague 5 libère sa place.
