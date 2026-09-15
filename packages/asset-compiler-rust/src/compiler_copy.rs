@@ -23,7 +23,7 @@ pub(super) fn copy_source_bin(
                 "Multiple buffers are unsupported",
             ));
         }
-        let padding = (4 - offset % 4) % 4;
+        let padding = crate::shared_math::pad_to_4(offset);
         writer.write_all(&[0u8; 3][..padding])?;
         offset += padding;
         let start = optional_index(v.get("byteOffset"), "bufferView.byteOffset", 0)?;

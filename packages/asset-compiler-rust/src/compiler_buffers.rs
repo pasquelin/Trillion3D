@@ -45,7 +45,7 @@ pub(super) fn concat_gltf_buffers(
     let mut offsets = Vec::new();
     let mut sidecars = Vec::new();
     for (i, buffer) in buffers.iter().enumerate() {
-        let pad = (4 - out.len() % 4) % 4;
+        let pad = crate::shared_math::pad_to_4(out.len());
         out.extend(std::iter::repeat_n(0u8, pad));
         offsets.push(out.len());
         if let Some(uri) = buffer

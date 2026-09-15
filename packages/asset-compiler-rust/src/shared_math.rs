@@ -23,7 +23,11 @@ pub(crate) fn merge_aabb<const N: usize>(
 }
 
 /// Étend une boîte englobante d'un point : la boîte réduite à ce point.
-pub(crate) fn extend_aabb<const N: usize>(low: &mut [f64; N], high: &mut [f64; N], point: [f64; N]) {
+pub(crate) fn extend_aabb<const N: usize>(
+    low: &mut [f64; N],
+    high: &mut [f64; N],
+    point: [f64; N],
+) {
     merge_aabb(low, high, point, point);
 }
 
@@ -68,4 +72,28 @@ pub(crate) fn extend_aabb_f32<const N: usize>(
         low[axis] = low[axis].min(point[axis]);
         high[axis] = high[axis].max(point[axis]);
     }
+}
+
+/// Octets de bourrage pour porter une longueur au multiple de quatre suivant : zéro quand elle y
+/// est déjà. C'est l'alignement que le format binaire du compilateur demande de ses vues.
+pub(crate) fn pad_to_4(length: usize) -> usize {
+    (4 - length % 4) % 4
+}
+
+/// Vecteur unitaire, ou le repli quand la longueur reste sous la garde de 1e-12 : plus court, le
+/// vecteur ne porte plus de direction et la division n'aurait pas de sens. Le repli appartient au
+/// site — une lampe regarde vers `-Z`, une normale absente pointe vers le haut — donc il est passé.
+pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
+    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
+    if length > 1e-12 {
+        [vector[0] / length, vector[1] / length, vector[2] / length]
+    } else {
+        fallback
+    }
+}
+
+/// Millisecondes écoulées depuis un instant : le compilateur ne publie ses durées qu'en
+/// millisecondes, et les convertir au même endroit évite qu'un relevé reparte en secondes.
+pub fn elapsed_ms(since: std::time::Instant) -> f64 {
+    since.elapsed().as_secs_f64() * 1000.0
 }

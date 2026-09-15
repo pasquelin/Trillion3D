@@ -78,7 +78,8 @@ pub fn build_culling_bvh(
         nodes[0].max_parent_error = max_parent_error;
     }
     while let Some((index, start, end)) = queue.pop_front() {
-        let (min, max, sphere, max_parent_error) = node_bounds(&order[start..end], &boxes, clusters);
+        let (min, max, sphere, max_parent_error) =
+            node_bounds(&order[start..end], &boxes, clusters);
         nodes[index].min = min;
         nodes[index].max = max;
         nodes[index].sphere = sphere;
