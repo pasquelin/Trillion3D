@@ -11,8 +11,10 @@ export interface ManifestBinaryDescriptor {
   pageUrl: string;
   geometryUrl: string;
   bundleUrl: string;
-  /** Entrées de la section des aperçus de texture; zéro quand la source n'a aucune image décodable. */
+  /** Entrées de la section des niveaux progressifs; zéro quand la source n'a aucune image décodable. */
   texturePreviews: number;
+  /** Octets de la colonne des pixels : les entrées n'ayant pas de pas fixe, leur total s'écrit ici. */
+  texturePreviewBytes: number;
 }
 interface SlimCulling {
   stride: number;
@@ -74,6 +76,12 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
       'UNSUPPORTED_FORMAT',
       'Manifest binary descriptor has no texture preview count',
       { texturePreviews: descriptor.texturePreviews ?? null },
+    );
+  if (!Number.isSafeInteger(descriptor.texturePreviewBytes) || descriptor.texturePreviewBytes! < 0)
+    throw new EngineError(
+      'UNSUPPORTED_FORMAT',
+      'Manifest binary descriptor has no texture preview byte length',
+      { texturePreviewBytes: descriptor.texturePreviewBytes ?? null },
     );
   if (!Number.isSafeInteger(descriptor.bytes) || descriptor.bytes! < 0)
     throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor has no byte length', {

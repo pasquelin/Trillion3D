@@ -8,13 +8,19 @@ export {
 export {
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
-  PREVIEW_LEVEL_SIZES,
+  PREVIEW_BASE,
+  PREVIEW_MAX_LEVELS,
   TEXTURE_PREVIEW_VERSION,
   assertManifestBinary,
   decodeManifestBinary,
   encodeManifestBinary,
   isBinaryManifest,
   manifestBinaryRanges,
+  previewFirstLevel,
+  previewLastLevel,
+  previewLevelCount,
+  previewLevelSize,
+  previewPixelBytes,
 } from './manifestBinary.ts';
 export type {
   ManifestBinaryDescriptor,
