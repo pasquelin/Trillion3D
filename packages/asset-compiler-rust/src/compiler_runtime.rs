@@ -79,7 +79,7 @@ pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<Runt
             None,
         ),
         PreparedScene::InPlace(name) => load_model_file(&o.source, name, None),
-        PreparedScene::Manifest | PreparedScene::Converted(_) => {
+        PreparedScene::Manifest | PreparedScene::Converted { .. } => {
             let manifest_bytes = fs::read(o.source.join("manifest.json"))?;
             let manifest: Value = serde_json::from_slice(&manifest_bytes)?;
             validate_manifest(&manifest)?;

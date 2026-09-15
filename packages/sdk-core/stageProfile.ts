@@ -65,6 +65,7 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   geometry: 'Géométrie',
   coplanar: 'Couches coplanaires',
   shadows: 'Ombres',
+  sunFarShadows: 'Ombres lointaines (soleil contre le proxy)',
   lightLists: 'Listes de lampes',
   bounce: "Rebond (sondes d'irradiance)",
   lighting: 'Éclairage (résolution)',
