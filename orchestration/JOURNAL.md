@@ -178,6 +178,7 @@ reste lisible, `prepare:models` n'a pas à être relancé.
   profondeur ».
 - Images du harnais conservées : `.mesure/out/lot-coplanaires-v2/` (neuf campagnes, `resume.md`,
   `mesure.json` et les `.png` avant / après / A-A par vue et par seuil).
+
 ## 2026-09-15 — textures en boucle d'images : la priorité lisait une coupe que seul `flush()` remplit
 
 Branche `fix-textures-live`, sur `develop` = `7b7a79f`. Défaut rapporté : dans le Lab, test
