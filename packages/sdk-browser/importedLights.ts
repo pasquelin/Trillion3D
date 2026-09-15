@@ -1,9 +1,4 @@
-import {
-  LIGHT_SETTINGS,
-  validateSceneLight,
-  type SceneLight,
-  type SceneLightStore,
-} from '../sdk-core/index.ts';
+import { validateSceneLight, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
 
 /** Le produit de cache des lampes, à côté du manifeste qui le voisine. Sa version lui est propre. */
 export const IMPORTED_LIGHTS_FILE = 'lights.json';
@@ -26,67 +21,64 @@ export async function loadImportedLights(
   base: string,
   signal?: AbortSignal,
 ): Promise<{ lights: SceneLight[]; rejected: Record<string, number> }> {
-  const empty = { lights: [], rejected: {} };
-  let parsed: ImportedLightsFile;
+  const none = { lights: [], rejected: {} };
+  let file: ImportedLightsFile;
   try {
     const response = await fetch(new URL(IMPORTED_LIGHTS_FILE, base).href, { signal });
-    if (!response.ok) return empty;
-    parsed = (await response.json()) as ImportedLightsFile;
+    if (!response.ok) return none;
+    file = (await response.json()) as ImportedLightsFile;
   } catch {
-    return empty;
+    return none;
   }
-  if (!parsed || typeof parsed !== 'object') return empty;
-  if (parsed.version !== IMPORTED_LIGHTS_VERSION) return empty;
-  if (!Array.isArray(parsed.lights)) return empty;
+  if (!file || typeof file !== 'object') return none;
+  if (file.version !== IMPORTED_LIGHTS_VERSION || !Array.isArray(file.lights)) return none;
   const lights: SceneLight[] = [];
-  const rejected: Record<string, number> = { ...(parsed.rejected ?? {}) };
-  const refuse = (why: string) => {
-    rejected[why] = (rejected[why] ?? 0) + 1;
-  };
-  for (const candidate of parsed.lights) {
+  const rejected: Record<string, number> = { ...(file.rejected ?? {}) };
+  for (const candidate of file.lights) {
+    // Une lampe importée passe la validation publiée du contrat, `validateSceneLight`, celle-là
+    // même que le magasin applique aux lampes de l'hôte : ce chemin n'en tient aucune copie.
     try {
       lights.push(validateSceneLight(candidate as SceneLight));
     } catch {
-      refuse('light-refused-by-contract');
+      rejected['light-refused-by-contract'] = (rejected['light-refused-by-contract'] ?? 0) + 1;
     }
   }
   return { lights, rejected };
 }
 
 /**
+ * Les `room` lampes qui portent le plus loin, rendues dans l'ordre du cache : les directionnelles
+ * d'abord, puis les plus fortes par intensité maximale de canal. Le tri de JavaScript est stable,
+ * si bien que deux lampes de même portée gardent leur rang d'origine.
+ */
+function withinBudget(imported: readonly SceneLight[], room: number): readonly SceneLight[] {
+  if (imported.length <= room) return imported;
+  const reach = (light: SceneLight) =>
+    light.intensity * Math.max(light.color[0], light.color[1], light.color[2]);
+  const kept = new Set(
+    [...imported]
+      .sort(
+        (a, b) =>
+          Number(b.kind === 'directional') - Number(a.kind === 'directional') ||
+          reach(b) - reach(a),
+      )
+      .slice(0, room),
+  );
+  return imported.filter((light) => kept.has(light));
+}
+
+/**
  * Déclare les lampes importées dans le magasin de la session, à l'ouverture et sans que l'hôte ait
  * rien à faire : une scène importée arrive avec ses lumières. L'ombre vient du drapeau que le
- * fichier portait — le runtime plafonne déjà le nombre de cartes remises à jour par image.
- *
- * Le contrat n'accepte que `maxLights` lampes. Au-delà, celles qui portent le plus loin sont
- * gardées : les directionnelles d'abord, puis les plus fortes par intensité maximale de canal. Les
- * autres sont comptées et publiées, jamais silencieusement perdues.
+ * fichier portait — le runtime plafonne déjà le nombre de cartes remises à jour par image. Le
+ * contrat n'accepte que `maxLights` lampes ; au-delà, les moins portantes sont comptées dans
+ * `dropped` et publiées par le diagnostic, jamais silencieusement perdues.
  */
 export function declareImportedLights(
   store: SceneLightStore,
   imported: readonly SceneLight[],
-): { declared: SceneLight[]; dropped: number } {
-  const room = LIGHT_SETTINGS.maxLights - store.count;
-  let keep = imported;
-  if (imported.length > room) {
-    const power = (light: SceneLight) =>
-      light.intensity * Math.max(light.color[0], light.color[1], light.color[2]);
-    keep = [...imported]
-      .map((light, order) => ({ light, order }))
-      .sort(
-        (a, b) =>
-          Number(b.light.kind === 'directional') - Number(a.light.kind === 'directional') ||
-          power(b.light) - power(a.light) ||
-          a.order - b.order,
-      )
-      .slice(0, Math.max(0, room))
-      .sort((a, b) => a.order - b.order)
-      .map((entry) => entry.light);
-  }
-  const declared: SceneLight[] = [];
-  for (const light of keep) {
-    store.add(light);
-    declared.push(light);
-  }
-  return { declared, dropped: imported.length - declared.length };
+): { declared: string[]; dropped: number } {
+  const keep = withinBudget(imported, Math.max(0, store.settings.maxLights - store.count));
+  for (const light of keep) store.add(light);
+  return { declared: keep.map((light) => light.id), dropped: imported.length - keep.length };
 }
