@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -91,18 +92,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     const padded = n + (n % 4 ? 4 - (n % 4) : 0);
     if (padded > pageBytes) pageBytes = padded;
   }
-  const sourceBytes = new Map(
-    allPages.flatMap((page) =>
-      page.array
-        ? [
-            [
-              page.url,
-              new Uint8Array(page.array.buffer, page.array.byteOffset, page.array.byteLength),
-            ] as const,
-          ]
-        : [],
-    ),
-  );
+  const sourceBytes = indexSourceBytes(allPages);
   const frameBudget = context.maxFrameAllocationBytes ?? 256 * 1024 * 1024;
   const reserveHiz = typeof gpuDevice?.createComputePipeline === 'function';
   const textureBudget = Math.max(

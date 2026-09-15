@@ -88,12 +88,24 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
       );
     }
     if (rewrites || moved) rows.rowsChanged = true;
+    // Une ligne qui a gardé sa place porte déjà sa page, son offset de mots, son époque et son rang
+    // inverse : `sourceRowOf` ne l'a rendue que parce que les quatre étaient encore exacts. Seules
+    // les lignes déplacées et les lignes reconstruites ont quelque chose à réécrire. Deux lignes qui
+    // nommeraient la même page auraient la même source, ce qui met `monotone` à faux : le raccourci
+    // ne peut pas laisser passer un rang inverse périmé.
+    const rowPageIndex = rows.rowPageIndex,
+      rowOffsetWords = rows.rowOffsetWords,
+      rowEpoch = rows.rowEpoch,
+      rowOfPage = rows.rowOfPage,
+      residentOffsetWords = rows.residentOffsetWords,
+      epoch = rows.tableEpoch;
     for (let row = 0; row < count; row++) {
+      if (monotone && rows.newRowSource[row] === row) continue;
       const pageIndex = rows.newRowPage[row];
-      rows.rowPageIndex[row] = pageIndex;
-      rows.rowOffsetWords[row] = rows.residentOffsetWords[pageIndex];
-      rows.rowEpoch[row] = rows.tableEpoch;
-      rows.rowOfPage[pageIndex] = row;
+      rowPageIndex[row] = pageIndex;
+      rowOffsetWords[row] = residentOffsetWords[pageIndex];
+      rowEpoch[row] = epoch;
+      rowOfPage[pageIndex] = row;
     }
     // A shorter drawable set leaves the rows past it unread: `tableRows` bounds every pass that walks
     // the table, so they are not cleared, only forgotten.

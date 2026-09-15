@@ -9,21 +9,30 @@ import {
 } from './manifestBinaryFormat.ts';
 import { previewPixelBytes } from './texturePreviewLevels.ts';
 
-function hexDigits(sha: string) {
-  if (sha.length !== 64 || !/^[0-9a-f]{64}$/.test(sha))
-    throw new EngineError(
-      'INVALID_CACHE',
-      'A cache object digest is not 64 lowercase hexadecimal characters',
-      { sha256: sha },
-    );
-  return sha;
-}
+const digestRefuse = (sha: string) =>
+  new EngineError(
+    'INVALID_CACHE',
+    'A cache object digest is not 64 lowercase hexadecimal characters',
+    { sha256: sha },
+  );
 const align8 = (value: number) => (value + 7) & ~7;
 
-/** A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column. */
+/** Les 64 octets d'une empreinte, remplis puis posés : rien n'est écrit si l'empreinte est refusée. */
+const digestScratch = new Uint8Array(64);
+
+/**
+ * A digest as its 64 ASCII hexadecimal characters, at its slot in a sha column. La validation lit les
+ * codes une fois et les garde : une expression régulière parcourait l'empreinte, puis la boucle
+ * d'écriture la parcourait de nouveau, pour chacune des dizaines de milliers de pages d'un manifeste.
+ */
 export function writeSha(target: Uint8Array, slot: number, sha: string) {
-  const text = hexDigits(sha);
-  for (let i = 0; i < 64; i++) target[slot * 64 + i] = text.charCodeAt(i);
+  if (sha.length !== 64) throw digestRefuse(sha);
+  for (let i = 0; i < 64; i++) {
+    const code = sha.charCodeAt(i);
+    if (!((code >= 48 && code <= 57) || (code >= 97 && code <= 102))) throw digestRefuse(sha);
+    digestScratch[i] = code;
+  }
+  target.set(digestScratch, slot * 64);
 }
 /** Every object url a sidecar names follows its template; a cache where one does not is rejected. */
 export function expectTemplate(template: string, url: string, sha: string) {

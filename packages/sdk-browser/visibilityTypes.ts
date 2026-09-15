@@ -127,16 +127,36 @@ export function isTransmissive(material: THREE.Material | THREE.Material[]) {
   return visMaterial(material).transmission > 0;
 }
 
-export function textureRgba(
-  texture: THREE.Texture,
-): { data: Uint8Array; width: number; height: number } | null {
+type TextureRgba = { data: Uint8Array; width: number; height: number };
+/**
+ * Les octets d'une texture, gardés tant qu'elle montre la même image. Le rastériseur et l'échantillon
+ * appellent ceci par texel lu : sans mémoire, chaque texel allouait une vue `Uint8Array` et un objet.
+ * La source est revérifiée à chaque appel — tampon, décalage, longueur, largeur, hauteur — donc une
+ * image remplacée rend bien les nouveaux octets.
+ */
+const rgbaCache = new WeakMap<THREE.Texture, { source: ArrayBufferView; rgba: TextureRgba }>();
+
+export function textureRgba(texture: THREE.Texture): TextureRgba | null {
   const image = texture.image as
     { data?: ArrayBufferView; width?: number; height?: number } | undefined;
   if (!image?.data || !image.width || !image.height) return null;
   const src = image.data;
-  return {
+  const held = rgbaCache.get(texture);
+  if (
+    held &&
+    held.source === src &&
+    held.rgba.width === image.width &&
+    held.rgba.height === image.height &&
+    held.rgba.data.buffer === src.buffer &&
+    held.rgba.data.byteOffset === src.byteOffset &&
+    held.rgba.data.byteLength === src.byteLength
+  )
+    return held.rgba;
+  const rgba: TextureRgba = {
     data: new Uint8Array(src.buffer, src.byteOffset, src.byteLength),
     width: image.width,
     height: image.height,
   };
+  rgbaCache.set(texture, { source: src, rgba });
+  return rgba;
 }

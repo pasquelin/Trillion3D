@@ -81,7 +81,7 @@ export function createWebgpuRowSync(
     for (let i = 0; i < drawn.length && count < drawSlots; i++) {
       const rec = drawn[i];
       if (rec.transparent) continue;
-      const pageIndex = rows.pageIndexByRec.get(rec);
+      const pageIndex = rows.pageIndexOf(rec);
       if (pageIndex === undefined) continue;
       const offsetWords = rows.residentOffsetWords[pageIndex],
         index = rec.array,

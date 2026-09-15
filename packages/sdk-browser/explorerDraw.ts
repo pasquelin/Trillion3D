@@ -21,6 +21,24 @@ type Inputs = {
   state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
 };
 
+/**
+ * Les adresses de l'anneau que rien ne détient encore, au plus `limite`. L'anneau porte des milliers
+ * d'adresses et le lot en prend quelques-unes : la boucle s'arrête au lot plein, là où un filtre de
+ * l'anneau entier construisait un tableau complet pour n'en garder que la tête.
+ */
+export function anneauFroid(
+  ring: readonly string[],
+  streamer: Pick<ReturnType<typeof createPageStreamer>, 'has' | 'loading' | 'failed'>,
+  limite: number,
+) {
+  const cold: string[] = [];
+  for (let i = 0; i < ring.length && cold.length < limite; i++) {
+    const url = ring[i];
+    if (!streamer.has(url) && !streamer.loading(url) && !streamer.failed(url)) cold.push(url);
+  }
+  return cold;
+}
+
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, directGpu, baseline, state } = inputs;
@@ -69,9 +87,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       streaming.lastPrefetch = performance.now();
       const ring = backend.prefetchUrls?.();
       if (ring && ring.length) {
-        const cold = ring
-          .filter((url) => !streamer.has(url) && !streamer.loading(url) && !streamer.failed(url))
-          .slice(0, PREFETCH_BATCH);
+        const cold = anneauFroid(ring, streamer, PREFETCH_BATCH);
         if (cold.length) streaming.startFetch(cold, PRIORITY_PREFETCH);
       }
     }
