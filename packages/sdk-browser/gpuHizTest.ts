@@ -6,15 +6,60 @@ export type HizBoxObserver = {
   observe(index: number, row: number, triangles: number, bounds: Float64Array): void;
 };
 
-/** Reuse one typed buffer for the bounds tested in successive frames. A `sample` handed to a call
- *  makes that call record every box into `counters` as it packs it, never in a second pass. */
+/**
+ * Ce qu'une image laisse à téléverser : les octets de toutes les boîtes, et l'intervalle de celles
+ * que cette image a réécrites. `to < from` dit qu'aucune n'a bougé et qu'il n'y a rien à envoyer.
+ */
+export type HizPackedBoxes = { bytes: ArrayBuffer; from: number; to: number };
+
+/**
+ * Envoie au tampon de test les seules boîtes que l'empaquetage vient de réécrire. Le tampon garde ce
+ * que les images précédentes y ont écrit, et les entrées au-delà de `count` ne sont jamais lues :
+ * `uni.c` borne le noyau. Une image qui ne réempaquette rien n'envoie pas un octet.
+ */
+export function uploadPackedBoxes(device: GPUDevice, target: GPUBuffer, packed: HizPackedBoxes) {
+  if (packed.to < packed.from) return;
+  device.queue.writeBuffer(
+    target,
+    packed.from * 32,
+    packed.bytes,
+    packed.from * 32,
+    (packed.to - packed.from + 1) * 32,
+  );
+}
+
+/** Vrai quand les six valeurs d'une boîte sont exactement celles d'où ses octets ont été écrits.
+ *  `NaN` n'est égal à rien : une borne non finie fait toujours réempaqueter, jamais réutiliser. */
+function sameBox(bounds: Float64Array, held: Float64Array, at: number) {
+  for (let k = 0; k < HIZ_BOUNDS_VALUES; k++) if (bounds[at + k] !== held[at + k]) return false;
+  return true;
+}
+
+/**
+ * Reuse one typed buffer for the bounds tested in successive frames. A `sample` handed to a call
+ * makes that call record every box into `counters` as it packs it, never in a second pass.
+ *
+ * Les octets d'une boîte sont une fonction de ses six valeurs projetées, de la ligne de drapeau
+ * qu'elle renseigne et de la taille de la cible — de rien d'autre. Le paquet précédent est donc gardé
+ * avec les entrées dont il a été écrit : une boîte dont les sept entrées n'ont pas bougé porte déjà
+ * les octets qu'un réempaquetage lui donnerait, au bit près, et ni le calcul ni le téléversement ne
+ * sont refaits. Une caméra immobile ne reprojette rien (`createProjectionHold`), donc aucune boîte ne
+ * bouge et l'image n'envoie pas un octet ; une caméra qui tourne les réécrit toutes, comme avant.
+ */
 export function createHizBoundsPacker(counters?: HizBoxObserver) {
   let bytes = new ArrayBuffer(32);
   let floats = new Float32Array(bytes);
   let ints = new Int32Array(bytes);
   let words = new Uint32Array(bytes);
+  // Les entrées d'où les octets tenus ont été écrits, et combien d'entrées de tête les décrivent.
+  let heldBounds = new Float64Array(HIZ_BOUNDS_VALUES);
+  let heldRows = new Uint32Array(1);
+  let held = 0,
+    heldWidth = -1,
+    heldHeight = -1;
   // The level and clipped rectangle of the box being written, reused by every box of every image.
   const rect = new Int32Array(HIZ_TEST_VALUES);
+  const packed: HizPackedBoxes = { bytes, from: 0, to: -1 };
   return (
     bounds: Float64Array,
     rows: Uint32Array,
@@ -31,10 +76,29 @@ export function createHizBoundsPacker(counters?: HizBoxObserver) {
       floats = new Float32Array(bytes);
       ints = new Int32Array(bytes);
       words = new Uint32Array(bytes);
+      // Les octets tenus vivaient dans le tampon qu'on vient de remplacer : plus rien n'est tenu.
+      held = 0;
     }
+    const slots = Math.max(1, count);
+    if (heldRows.length < slots) {
+      heldBounds = new Float64Array(slots * HIZ_BOUNDS_VALUES);
+      heldRows = new Uint32Array(slots);
+      held = 0;
+    }
+    // Le rectangle dépend de la cible autant que de la boîte : un redimensionnement retire tout.
+    if (width !== heldWidth || height !== heldHeight) {
+      heldWidth = width;
+      heldHeight = height;
+      held = 0;
+    }
+    packed.bytes = bytes;
+    packed.from = 0;
+    packed.to = -1;
     for (let i = 0; i < count; i++) {
       const base = i * 8,
         at = i * HIZ_BOUNDS_VALUES;
+      if (sample) counters!.observe(i, rows[i], sample.triangles[i] ?? 0, bounds);
+      if (i < held && rows[i] === heldRows[i] && sameBox(bounds, heldBounds, at)) continue;
       // The rectangle handed to the kernel is the one clipped to the viewport, in texels of the mip
       // that covers it exactly; `hizTestRectFlat` is the same call the CPU oracle makes, so the two
       // read the same texels of the same level.
@@ -55,8 +119,14 @@ export function createHizBoundsPacker(counters?: HizBoxObserver) {
         words[base + 7] = width;
       }
       floats[base + 4] = bounds[at + 4];
-      if (sample) counters!.observe(i, rows[i], sample.triangles[i] ?? 0, bounds);
+      for (let k = 0; k < HIZ_BOUNDS_VALUES; k++) heldBounds[at + k] = bounds[at + k];
+      heldRows[i] = rows[i];
+      if (packed.to < 0) packed.from = i;
+      packed.to = i;
     }
-    return bytes;
+    // Les entrées au-delà de `count` gardent leurs octets et leurs entrées : le noyau ne les lit pas,
+    // et une image plus large les retrouvera telles quelles.
+    if (count > held) held = count;
+    return packed;
   };
 }
