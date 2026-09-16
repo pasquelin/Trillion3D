@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createExplorerLightApi } from './explorerLightApi.ts';
 import { createFrameGateCore } from './frameGateCore.ts';
+import { hostWorldPlacements, type HostWorldPlacements } from './hostWorldPlacements.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -67,11 +68,11 @@ function banc() {
   const node = new THREE.Object3D();
   node.name = 'volet';
   source.add(node);
-  source.updateMatrixWorld(true);
+  const worlds = hostWorldPlacements(source);
   const gate = createFrameGateCore(1);
   const rows = { tableEpoch: 0 };
   const rt = {
-    setup: { source },
+    setup: { source, worlds },
     layout: { selectionRoots: [], rows },
     run: { gate, temporalHizState: {}, noOccluderHistory: false },
     lights: { plan: { worldChanged: () => {} } },
@@ -84,21 +85,22 @@ function banc() {
     gate.hold.keep(gate.revisions);
     return held;
   };
-  return { rt, node, rows, frame };
+  return { rt, node, rows, frame, worlds };
 }
 
-/** Ce que l'image dessinerait de ce nœud : sa matrice monde, telle que le moteur la lirait. */
-const image = (node: THREE.Object3D) => node.matrixWorld.elements.join(',');
+/** Ce que l'image dessinerait de ce nœud : la matrice monde que LE MOTEUR tient pour lui. */
+const image = (b: { node: THREE.Object3D; worlds: HostWorldPlacements }) =>
+  b.worlds.of(b.node).elements.join(',');
 
 test('une pose change l’image tenue : la porte refuse de resservir la précédente', () => {
   const b = banc();
   b.frame();
   b.frame();
   assert.equal(b.frame(), true, 'rien n’a bougé : l’image est tenue');
-  const avant = image(b.node);
+  const avant = image(b);
   setWebgpuTransform(b.rt, 'volet', pose(0, 1));
   assert.equal(b.frame(), false, 'la pose posée, l’image tenue est refusée');
-  assert.notEqual(image(b.node), avant, 'et le nœud dessiné porte bien la nouvelle pose');
+  assert.notEqual(image(b), avant, 'et le nœud dessiné porte bien la nouvelle pose');
 });
 
 test('la même pose reposée ne périme rien : l’image reste tenue', () => {

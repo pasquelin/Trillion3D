@@ -1,9 +1,10 @@
 import type * as THREE from 'three';
-import { resolveHostSubtree } from './hostWorldMatrices.ts';
 
+/** Les maillages d'un sous-arbre, dans l'ordre du parcours préfixe. Rien n'est remonté ici : les
+ *  matrices monde dont le moteur a besoin sont les siennes (`hostWorldPlacements.ts`), et la scène
+ *  de l'hôte reste telle qu'il l'a laissée. */
 export function meshes(source: THREE.Object3D) {
   const found: THREE.Mesh[] = [];
-  resolveHostSubtree(source);
   source.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) found.push(o as THREE.Mesh);
   });
