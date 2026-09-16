@@ -48,7 +48,10 @@ fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
 }
 @compute @workgroup_size(64)
 fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=uni.clusterCount||drawFlag(i)==0u){return;}
+ let s=id.x;if(s>=liveCount()){return;}
+ // Seules les grappes vivantes portent un drapeau de dessin non nul ; celles du bloc qui n'y sont
+ // pas valent zéro et n'ajoutent rien au rang, exactement comme au parcours complet d'hier.
+ let i=liveAt(s);if(drawFlag(i)==0u){return;}
  let b=i/BLOCK;let begin=b*BLOCK;
  var rank=0u;
  for(var j=begin;j<i;j++){rank=rank+drawFlag(j);}

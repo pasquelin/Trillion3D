@@ -1,11 +1,12 @@
 /**
  * GPU cut of a cluster DAG (`errorModel: dag-group-qem-v1`).
  *
- * Every cluster carries its own screen-error band, so nothing walks a tree. One thread per cluster
- * evaluates `parentErrorPx > pixelError >= lodErrorPx` with the same projection as
- * `clusterErrorPixels`; one thread per culling node turns the primitive's flat hierarchy into an
- * early reject (out of frustum, or a subtree whose largest replacement error already fits the
- * budget). Rejection there is a pure accelerator: a node's box contains every cluster box below it
+ * Every cluster carries its own screen-error band, so no cluster depends on another. One thread per
+ * candidate cluster evaluates `parentErrorPx > pixelError >= lodErrorPx` with the same projection as
+ * `clusterErrorPixels`; the candidates come from a level-by-level descent of the primitive's culling
+ * hierarchy, one indirect pass per level, which rejects a whole subtree at once (out of frustum, or
+ * a subtree whose largest replacement error already fits the budget) and never reads the clusters
+ * below it. Rejection there is a pure accelerator: a node's box contains every cluster box below it
  * and its `maxParentError` bounds every `parentError` below it, so the selected set is identical
  * with or without the hierarchy.
  */

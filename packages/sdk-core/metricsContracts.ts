@@ -67,6 +67,14 @@ export interface FrameMetrics
   pagesLoading?: number | null;
   cacheHits?: number | null;
   cacheMisses?: number | null;
+  /**
+   * Ce que la coupe a écarté sans le retenir. Sur la coupe graphique du DAG, qui descend la
+   * hiérarchie de culling niveau par niveau, ce sont les nœuds écartés par la descente — hors du
+   * tronc, ou dont le plafond d'erreur du remplaçant passe déjà sous le seuil — plus les pages
+   * candidates qu'un test par page écarte ensuite. Un nœud écarté compte pour un, quel que soit le
+   * nombre de pages de son sous-arbre : ces pages ne sont jamais visitées, donc jamais comptées.
+   * La coupe processeur, elle, compte ses propres nœuds testés et ses propres rejets.
+   */
   frustumRejected?: number | null;
   lodLevel?: number | null;
   /**
