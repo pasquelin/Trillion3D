@@ -10,7 +10,7 @@
 //! gauche, le glTF en haut à gauche, donc `v` devient `1 - v`. C'est la convention des pilotes ma,
 //! alembic et usd, et elle laisse les octets des images intacts.
 use super::*;
-use crate::plugins::scene::ngon::Ngon;
+use crate::plugins::scene::{cancel, ngon::Ngon};
 
 /// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe, ou
 /// sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin, ce
@@ -28,17 +28,22 @@ struct Primitive {
 }
 
 /// Construit le maillage glTF d'une géométrie et rend son JSON et son nombre de triangles.
-/// `slots` donne le matériau de chaque emplacement du maillage, quand il en a un.
+/// `slots` donne le matériau de chaque emplacement du maillage, quand il en a un. Le jeton
+/// d'annulation est relu par tranche de faces : un seul maillage énorme s'arrête aussi.
 pub(super) fn mesh_json(
     geometry: &Geometry,
     normals: &[f32],
     slots: &[Option<usize>],
     name: &str,
     out: &mut Out,
-) -> (Value, usize) {
+    cancelled: &AtomicBool,
+) -> Result<(Value, usize)> {
     let mut groups: BTreeMap<u32, Primitive> = BTreeMap::new();
     let mut cutter = Ngon::default();
     for face in 0..geometry.faces() {
+        if cancel::stopped(cancelled, face) {
+            return Err(cancel::refusal());
+        }
         let first = geometry.offsets[face] as usize;
         cutter.begin();
         for vertex in geometry.face(face) {
@@ -77,7 +82,7 @@ pub(super) fn mesh_json(
         }
         primitives.push(primitive);
     }
-    (json!({"name": name, "primitives": primitives}), triangles)
+    Ok((json!({"name": name, "primitives": primitives}), triangles))
 }
 
 impl Primitive {

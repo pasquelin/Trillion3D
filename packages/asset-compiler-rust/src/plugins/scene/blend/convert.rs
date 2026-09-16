@@ -35,6 +35,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         materials: HashMap::new(),
         meshes: HashMap::new(),
         root: &root,
+        cancelled: request.cancelled,
     };
     scene.out.nodes.push(json!({
         "name": name_of(source), "matrix": Z_UP_TO_Y_UP, "children": [],
@@ -49,7 +50,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let mut outside = 0;
     for block in file.of(*b"OB\0\0") {
         if request.cancelled.load(Ordering::Relaxed) {
-            return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+            return Err(cancel::refusal());
         }
         let Some(object) = file.view(block) else {
             continue;
