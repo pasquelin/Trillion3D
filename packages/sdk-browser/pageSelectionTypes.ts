@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { NormalCone } from './pageCone.ts';
+import type { CullingLinks } from './pageSelectionCutForced.ts';
 
 export type PageRec = {
   id: number;
@@ -78,8 +79,16 @@ export type ClusterStructureIndex = {
 export type ClusterRoot<T> = {
   world: THREE.Matrix4;
   pages: T[];
-  /** `bounds` : bornes par nœud dérivées des nœuds et des pages, une fois à la préparation. */
-  culling?: { nodes: Float64Array; stride: number; bounds: Float64Array };
+  /** `bounds` : bornes par nœud dérivées des nœuds et des pages, une fois à la préparation.
+   *  `links` : parent de chaque nœud et nœud feuille de chaque cluster, même préparation partagée.
+   *  `marks` : les nœuds que le forçage touche, propres à ce placement et remis à zéro par image. */
+  culling?: {
+    nodes: Float64Array;
+    stride: number;
+    bounds: Float64Array;
+    links?: CullingLinks;
+    marks?: Int32Array;
+  };
   /** Boîte monde de la racine, six bornes à plat (`mathBox.ts`). */
   worldBox?: Float64Array;
   /** La boîte locale dont `worldBox` est l'image : ce qu'un déplacement de nœud reprojette (R8). */

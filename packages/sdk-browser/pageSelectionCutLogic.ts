@@ -2,6 +2,7 @@ import { maxStretch } from '../sdk-core/index.ts';
 import { projectedClusterError } from './pageSelectionMath.ts';
 import type { MatrixElements } from './matrixElements.ts';
 import { forceScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
+import { markForcedGroup, type CullingLinks, type ForcedMarks } from './pageSelectionCutForced.ts';
 
 export function worldStretch(root: {
   world: MatrixElements;
@@ -71,8 +72,40 @@ export function drawnUnderForcing<T extends PageRecord>(s: SelectionState<T>, re
   );
 }
 
+/** Porte un groupe forcé sur les nœuds de culling que ses clusters traversent, quand la racine en
+ *  tient la carte : la descente de repli lit ensuite ces marques au lieu de tout ouvrir. */
+function markGroup<T extends PageRecord>(
+  s: SelectionState<T>,
+  links: CullingLinks | undefined,
+  marks: ForcedMarks | undefined,
+  group: number,
+  delta: number,
+) {
+  if (links && marks) markForcedGroup(links, marks, s.flatStructure!, group, delta);
+}
+
+/** Retire les marques de forçage laissées par la coupe précédente de cette racine. */
+export function clearForcedMarks<T extends PageRecord>(
+  s: SelectionState<T>,
+  links: CullingLinks | undefined,
+  marks: ForcedMarks | undefined,
+) {
+  const list = s.flatForcedList!,
+    forced = s.flatForced!;
+  for (let i = 0; i < list.length; i++) {
+    forced[list[i]] = 0;
+    markGroup(s, links, marks, list[i], -1);
+  }
+  list.length = 0;
+}
+
 /** Propagate forcing to every finer group until an already coarse group stops the walk. */
-export function forceCoarse<T extends PageRecord>(s: SelectionState<T>, start: number) {
+export function forceCoarse<T extends PageRecord>(
+  s: SelectionState<T>,
+  start: number,
+  links?: CullingLinks,
+  marks?: ForcedMarks,
+) {
   const structure = s.flatStructure!,
     forced = s.flatForced!,
     list = s.flatForcedList!;
@@ -84,6 +117,7 @@ export function forceCoarse<T extends PageRecord>(s: SelectionState<T>, start: n
     if (forced[group]) continue;
     forced[group] = 1;
     list.push(group);
+    markGroup(s, links, marks, group, 1);
     for (let i = structure.childOffsets[group]; i < structure.childOffsets[group + 1]; i++) {
       const producer = structure.sources[structure.children[i]];
       if (producer < 0 || forced[producer]) continue;
