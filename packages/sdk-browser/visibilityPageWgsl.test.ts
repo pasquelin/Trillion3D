@@ -9,11 +9,11 @@ import {
   EDGE_WGSL,
   PAGE_VERTEX_WGSL,
   PAGE_UV_WGSL,
-  WRAP_COORD_WGSL,
   MASK_KEEP_WGSL,
   BARY_WEIGHTS_WGSL,
-  wrapLinear,
 } from './visibilityPageWgsl.ts';
+import { WRAP_COORD_WGSL, wrapLinear } from './visibilityWrapModes.ts';
+import { lineaireThree } from './bench/justesse/adressageCas.mjs';
 import { COLOR_ALPHA_WGSL, COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from './webgpuAtlasWgsl.ts';
 import { rasterSource } from './gpuSmallTrianglesShader.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
@@ -66,20 +66,16 @@ test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans le raster et
 });
 
 // Défaut 7 : en filtrage linéaire sous `Repeat`, la couture d'une période doit mêler le dernier
-// texel et le premier. La règle de référence est réécrite ici, indépendante de `wrapLinear` : le
-// rang bas vient de la coordonnée décalée d'un demi-texel, et chacun des deux rangs subit le mode
-// pour lui-même (OpenGL ES 3.0 § 3.8.10, la même règle que WebGPU).
-const regle = (t: number, taille: number, wrap: THREE.Wrapping): [number, number, number] => {
-  const enroule = (i: number) => {
-    if (wrap === THREE.ClampToEdgeWrapping) return Math.min(taille - 1, Math.max(0, i));
-    const periode = wrap === THREE.RepeatWrapping ? taille : 2 * taille;
-    const j = ((i % periode) + periode) % periode;
-    return j < taille ? j : periode - 1 - j;
-  };
-  const c = t * taille - 0.5,
-    bas = Math.floor(c);
-  return [enroule(bas), enroule(bas + 1), c - bas];
-};
+// texel et le premier. La règle de référence est `lineaireThree` (bench/justesse/adressageCas.mjs),
+// écrite indépendamment de `wrapLinear` et déjà vérifiée contre les vrais échantillonneurs WebGL2 et
+// WebGPU par `bench/justesse/adressage-gpu.mjs` : le rang bas vient de la coordonnée décalée d'un
+// demi-texel, et chacun des deux rangs subit le mode pour lui-même (OpenGL ES 3.0 § 3.8.10, la même
+// règle que WebGPU). La recopier ici en faisait une troisième écriture de la même règle.
+const regle = lineaireThree as (
+  t: number,
+  taille: number,
+  wrap: THREE.Wrapping,
+) => [number, number, number];
 /** La valeur que les deux texels mêlés rendent : l'ordre des prises n'est pas imposé, la couleur si. */
 const valeur = ([i0, i1, poids]: [number, number, number]) => i0 * (1 - poids) + i1 * poids;
 

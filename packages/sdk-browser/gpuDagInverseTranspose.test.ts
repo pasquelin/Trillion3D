@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+import { INVERSE_TRANSPOSE_AVANT_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 
 type Vec = [number, number, number];
 const f = Math.fround;
@@ -102,9 +103,40 @@ test('une 3×3 nulle, infinie ou NaN, ou une colonne nulle, rend le vecteur tel 
   }
 });
 
+// La normalisation, le déterminant et l'adjointe ne dépendent que de la matrice : ils vivent dans
+// `invTranspose3Prep`, calculée une fois là où plusieurs vecteurs subissent la même matrice. Le
+// jugement de dégénérescence n'a pas bougé de place pour autant — c'est lui que ce test tient.
 test('le shader livré ne porte plus de seuil absolu sur le déterminant brut', () => {
-  const corps = DAG_SELECTION_SHADER.split('fn inverseTranspose3')[1].split('\n}')[0];
+  const corps = DAG_SELECTION_SHADER.split('fn invTranspose3Prep')[1].split('\n}')[0];
   assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'seuil absolu sur le determinant brut');
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente');
-  assert.match(corps, /if\(!\(abs\(det\)>1e-20\)\)\{return v;\}/, 'garde relative absente');
+  assert.match(corps, /fini&&abs\(det\)>1e-20/, 'garde relative absente');
+  assert.match(
+    corps,
+    /let fini=\(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
+    'somme nulle, infinie ou NaN non écartée',
+  );
+  assert.match(
+    DAG_SELECTION_SHADER,
+    /return select\(v,p\.facteur\*\(p\.adj\*v\),p\.regulier\);/,
+    'une matrice dégénérée doit rendre le vecteur tel quel',
+  );
+});
+
+// La forme d'avant le défaut 6 vit contre le noyau livré (`inverseTransposeWgsl.ts`), pour que le
+// banc de reproduction la substitue au lieu de la reconstruire par un `String.replace` sur une copie
+// verbatim — copie qui cessait de correspondre dès que le noyau changeait, sans que personne le
+// voie. Une reproduction qui ne reproduit plus rassure à tort : ce test tient ce qui fait sa valeur,
+// le seuil absolu sur la 3×3 brute, présent d'un côté et absent de l'autre. Le GPU réel est mesuré
+// par `bench/justesse/inverse-transposee-petite-echelle.mjs` : 560 suppressions de faces visibles
+// avec la forme d'avant, 54 avec la forme livrée, sur 6 916 cas.
+test('la forme de reproduction du défaut 6 porte encore le seuil absolu, et elle seule', () => {
+  const prep = (texte: string) => texte.split('fn invTranspose3Prep')[1].split('\n}')[0];
+  assert.match(prep(INVERSE_TRANSPOSE_AVANT_WGSL), /abs\(det\)<1e-20/, 'seuil absolu');
+  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_AVANT_WGSL), /let a=m\[0\]\/t/, 'normalisée');
+  assert.doesNotMatch(prep(INVERSE_TRANSPOSE_WGSL), /abs\(det\)<1e-20/, 'seuil absolu revenu');
+  // Hors de la préparation, les deux formes sont le même texte : c'est ce qui permet de substituer
+  // l'une à l'autre dans un nuanceur livré sans rien déplacer d'autre.
+  const suite = (texte: string) => texte.slice(texte.indexOf('fn invTranspose3Apply'));
+  assert.equal(suite(INVERSE_TRANSPOSE_AVANT_WGSL), suite(INVERSE_TRANSPOSE_WGSL));
 });
