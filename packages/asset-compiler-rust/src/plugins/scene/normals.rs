@@ -15,6 +15,9 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+#[cfg(test)]
+mod tests;
+
 /// Ce que ce calcul lit d'un maillage. Les deux tableaux de marques sont lus par leur rang quand il
 /// y est : un tableau vide dit donc « rien de net », ce qui est le maillage entièrement lisse.
 pub(super) struct Surface<'a> {
@@ -80,25 +83,46 @@ impl Surface<'_> {
     /// Réunit les coins que les arêtes douces rejoignent. Une face nette n'y entre pas, une arête
     /// dure est sautée, et une arête que plus de deux faces se partagent n'en réunit aucune : il n'y
     /// a pas d'éventail à y lire, et deviner rendrait un coin au hasard.
+    ///
+    /// Les incidences se comptent **avant** la moindre union : réunir dès la deuxième rencontre,
+    /// c'est décider sans savoir qu'une troisième face existe, donc lisser les deux premières faces
+    /// du fichier et laisser la troisième seule. L'ordre des faces changeait alors la sortie.
     fn weld(&self, join: &mut Join, faces: usize) {
-        let mut seen: HashMap<[u32; 2], Option<[u32; 2]>> = HashMap::new();
+        let mut shared: HashMap<[u32; 2], usize> = HashMap::new();
+        self.edges(faces, |edge, _| {
+            *shared.entry(edge).or_default() += 1;
+        });
+        let mut seen: HashMap<[u32; 2], [u32; 2]> = HashMap::new();
+        let mut pairs: Vec<([u32; 2], [u32; 2])> = Vec::new();
+        self.edges(faces, |edge, side| {
+            if shared.get(&edge) != Some(&2) {
+                return;
+            }
+            match seen.entry(edge) {
+                Entry::Vacant(slot) => {
+                    slot.insert(side);
+                }
+                Entry::Occupied(slot) => pairs.push((side, *slot.get())),
+            }
+        });
+        for (side, other) in pairs {
+            self.pair(join, side, other);
+        }
+    }
+
+    /// Chaque arête douce d'une face lisse, une fois : ses deux sommets ordonnés, qui l'identifient
+    /// quel que soit le sens de parcours de la face, puis ses deux coins.
+    fn edges(&self, faces: usize, mut each: impl FnMut([u32; 2], [u32; 2])) {
         for face in (0..faces).filter(|face| !marked(self.sharp_faces, *face)) {
             let span = self.span(face);
             let (first, length) = (span.start, span.len());
             for corner in span.filter(|corner| !marked(self.sharp_corners, *corner)) {
                 let next = first + (corner - first + 1) % length;
                 let (here, there) = (self.corners[corner], self.corners[next]);
-                let side = [corner as u32, next as u32];
-                match seen.entry([here.min(there), here.max(there)]) {
-                    Entry::Vacant(slot) => {
-                        slot.insert(Some(side));
-                    }
-                    Entry::Occupied(mut slot) => {
-                        if let Some(other) = slot.insert(None) {
-                            self.pair(join, side, other);
-                        }
-                    }
-                }
+                each(
+                    [here.min(there), here.max(there)],
+                    [corner as u32, next as u32],
+                );
             }
         }
     }
