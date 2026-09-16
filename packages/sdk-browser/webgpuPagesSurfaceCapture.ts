@@ -5,7 +5,7 @@ import { collectPendingUrls } from './pageSelection.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
-import { holdHostCamera, resolveCameraWorld } from './cameraWorld.ts';
+import { holdHostCamera, resolveCameraWorld, type HostCamera } from './cameraWorld.ts';
 import {
   drawResidentCut,
   renderForCapture,
@@ -20,11 +20,11 @@ type CaptureOptions = { width: number; height: number; signal?: AbortSignal };
 function copySurfaces(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  view: THREE.PerspectiveCamera,
   options: CaptureOptions,
   reserve: number,
 ): SurfaceCapture {
-  const { gpu, capture, diag } = rt;
+  const { gpu, capture, diag } = rt,
+    eye = rt.run.gate.cam.eye;
   if (!rt.vis.visEnabled || !gpu.surfaces || !gpu.depthTexture)
     throw new Error('SURFACE_CAPTURE_UNAVAILABLE');
   const owned = createSurfaceBuffer(gpuDevice, options.width, options.height, reserve);
@@ -46,7 +46,9 @@ function copySurfaces(
     allocationBytes: reserve,
     depth,
     inverseViewProjection: [...invertMatrix4(new Float64Array(16), viewProj)],
-    cameraWorld: view.getWorldPosition(new THREE.Vector3()).toArray() as [number, number, number],
+    // La vue secondaire vient d'entrer par le contrat : son œil monde est celui que la caméra du
+    // moteur porte, sans relire la caméra de l'hôte ni rien recalculer.
+    cameraWorld: [eye[0], eye[1], eye[2]],
     selectedTriangles: rt.run.selectedTriangles,
     dispose() {
       if (released) return;
@@ -81,7 +83,7 @@ function copySurfaces(
 /** Renders a second camera into owned material surfaces, then restores the main view. */
 export async function captureSurfaceView(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  camera: HostCamera,
   options: CaptureOptions,
 ) {
   const { run, capture, context, diag } = rt,
@@ -141,7 +143,7 @@ export async function captureSurfaceView(
       },
       beforeEncode: throwIfAborted,
     });
-    result = copySurfaces(rt, gpuDevice, view, options, reserve);
+    result = copySurfaces(rt, gpuDevice, options, reserve);
     await gpuDevice.queue.onSubmittedWorkDone();
     throwIfAborted();
     if (run.lost) throw new Error('WEBGPU_LOST');

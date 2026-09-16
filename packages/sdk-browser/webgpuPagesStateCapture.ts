@@ -1,11 +1,11 @@
-import type * as THREE from 'three';
+import type { HostCamera } from './cameraWorld.ts';
 import type { SurfaceCapture } from './surfaceBuffer.ts';
 
 /** The secondary-camera surface capture and the explicit readback of the main image. */
 export interface WebgpuCaptureState {
   captureAllocationBytes: number;
   surfaceCapture: SurfaceCapture | undefined;
-  secondaryCamera: THREE.PerspectiveCamera | undefined;
+  secondaryCamera: HostCamera | undefined;
   surfaceRenderAllowed: boolean;
   capturedRevision: number;
   capturedPixels: Uint8Array | undefined;
