@@ -2,19 +2,30 @@ import { mockDevice } from '../../test/fixtures/gpuPages.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGpuPageCache } from './gpuPages.ts';
-test('reused GPU slots are cleared through the complete fixed-size slot', async () => {
+// Un slot fait la taille du plus gros cluster : une petite page qui le réutilise n'écrit que ses
+// octets, et la queue du slot garde ceux de la page d'avant sans que rien ne les lise — une ligne
+// nomme l'offset de sa page et son nombre d'index, et la visibilité comme l'ombrage refusent tout
+// triangle au-delà (`visibilityShaderId.ts:50`, `visibilityShaderShade.ts:83`). Seul le complément
+// jusqu'au multiple de quatre que `writeBuffer` exige part en plus, à zéro. Les trois pages
+// réutilisent le même slot, et le relevé ne compte que ce qui est réellement transféré.
+test('a reused GPU slot receives only the bytes of its page, padded to what the queue needs', async () => {
   Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
   const { device, writes } = mockDevice();
-  const source = {
-    read: async (key: string) =>
-      new Uint8Array(key === 'large' ? [1, 2, 3, 4, 5, 6, 7, 8] : [9, 10, 11, 12]),
+  const octets: Record<string, number[]> = {
+    large: [1, 2, 3, 4, 5, 6, 7, 8],
+    small: [9, 10, 11, 12],
+    odd: [13, 14, 15, 16, 17],
   };
+  const source = { read: async (key: string) => new Uint8Array(octets[key]) };
   const cache = createGpuPageCache(device, source, { pageBytes: 8, slots: 1 });
-  await cache.load('large');
-  await cache.load('small');
-  assert.equal(writes.length, 2);
-  assert.deepEqual([...writes[1].bytes], [9, 10, 11, 12, 0, 0, 0, 0]);
-  assert.equal(cache.stats().uploadedBytes, 16);
+  const pages = [await cache.load('large'), await cache.load('small'), await cache.load('odd')];
+  const envois = writes.map((write) => [...write.bytes]),
+    slot = pages[0].slot;
+  assert.deepEqual(envois, [octets.large, octets.small, [...octets.odd, 0, 0, 0]]);
+  assert.deepEqual([pages[1].slot, pages[2].slot], [slot, slot]);
+  assert.equal(writes[2].offset, slot * 8);
+  assert.deepEqual([pages[0].bytes, pages[1].bytes, pages[2].bytes], [8, 4, 5]);
+  assert.equal(cache.stats().uploadedBytes, 8 + 4 + 8);
 });
 test('a cache hit does not fence the whole GPU device', async () => {
   Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
@@ -130,7 +141,6 @@ test('an aborted concurrent load does not prevent a separate non-aborted load fo
   assert.equal(page.key, 'a');
   assert.equal(writes.length, 1);
 });
-
 test('GPU diagnostics expose queue, read, upload, pins and eviction while observer errors stay isolated', async () => {
   Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
   const { device } = mockDevice();
@@ -163,7 +173,6 @@ test('GPU diagnostics expose queue, read, upload, pins and eviction while observ
   assert.equal(first.generation, 1);
   await cache.dispose();
 });
-
 test('GPU page read retries once and reports the failed status without changing the load result', async () => {
   Object.assign(globalThis, { GPUBufferUsage: { STORAGE: 1, COPY_DST: 2, COPY_SRC: 4 } });
   const { device } = mockDevice();

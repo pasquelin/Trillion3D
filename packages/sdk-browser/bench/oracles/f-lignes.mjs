@@ -2,12 +2,18 @@
 // et `webgpuRowSync.ts:79` d'avant le lot F, recopiés tels quels.
 import { PAGE_INFO_STRIDE, VIS_TRIANGLE_BITS } from '../../visibilityBuffer.ts';
 import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD } from '../../webgpuPageRow.ts';
+import { createWebgpuRowJournal } from '../../webgpuRowJournal.ts';
 
 /** L'état des lignes avant le lot F : le rang d'une page vivait dans une table de hachage. */
 export function referenceRowState(packedPages, drawSlots) {
   const pageIndexByRec = new Map();
   for (let i = 0; i < packedPages.length; i++) pageIndexByRec.set(packedPages[i], i);
+  // Le journal des pages nommées et des résidences qui ont bougé pendant la passe : postérieur au
+  // lot F, il ne relève pas de l'optimisation que cet oracle départage, et il est repris tel quel
+  // pour que la synchronisation des rangs, partagée, s'exécute des deux côtés à l'identique.
+  const journal = createWebgpuRowJournal(packedPages.length);
   const etat = {
+    ...journal,
     residentFlags: new Uint32Array(packedPages.length),
     residentOffsetWords: new Int32Array(packedPages.length).fill(-1),
     rowPageIndex: new Int32Array(drawSlots).fill(-1),
@@ -30,23 +36,11 @@ export function referenceRowState(packedPages, drawSlots) {
     candidateOverflow: 0,
     packedCount: 0,
     rowsChanged: true,
-    // Le journal des pages dont la résidence a bougé pendant la passe : postérieur au lot F, il ne
-    // relève pas de l'optimisation que cet oracle départage, et il est repris ici tel quel pour que
-    // la synchronisation partagée s'exécute des deux côtés à l'identique.
-    residencyChanges: { pages: new Int32Array(packedPages.length), count: 0, sorted: true },
+    // L'âge de l'allocateur de rangs, lui aussi postérieur au lot F.
+    rowsRevision: 0,
     pageTableFloats: undefined,
     pageTableInts: undefined,
     pageIndexOf: (rec) => pageIndexByRec.get(rec),
-    noteResidencyChange(page) {
-      const journal = etat.residencyChanges;
-      if (journal.count && journal.pages[journal.count - 1] >= page) journal.sorted = false;
-      if (journal.count < journal.pages.length) journal.pages[journal.count++] = page;
-      else journal.sorted = false;
-    },
-    clearResidencyChanges() {
-      etat.residencyChanges.count = 0;
-      etat.residencyChanges.sorted = true;
-    },
     markRowDirty(row) {
       if (row < etat.dirtyFrom) etat.dirtyFrom = row;
       if (row > etat.dirtyTo) etat.dirtyTo = row;
@@ -130,6 +124,10 @@ export function referenceRowCommit(rows, writePageRow) {
     if (count !== rows.rowCount) rows.rowsChanged = true;
     rows.rowCount = count;
     rows.packedCount = count;
+    // Postérieur au lot F, comme le journal : la coupe processeur a posé ses propres rangs, donc
+    // l'allocateur incrémental repart du catalogue. Repris ici pour que les deux côtés avancent
+    // ensemble.
+    rows.rowsRevision++;
   };
   const sourceRowOf = (pageIndex, offsetWords) => {
     const source = rows.rowOfPage[pageIndex];
@@ -138,5 +136,5 @@ export function referenceRowCommit(rows, writePageRow) {
       ? source
       : -1;
   };
-  return { commitRows, sourceRowOf };
+  return { commitRows, sourceRowOf, writePageRow };
 }
