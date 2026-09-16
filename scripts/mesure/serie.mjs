@@ -37,6 +37,8 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     stageProfile: settings.stageProfile,
     // La variante de diagnostic de ce côté : c'est elle qui fait de deux côtés deux variantes.
     variante: side.variante ?? null,
+    // La métrique d'erreur écran de ce côté (EXPÉRIENCE) : `null` laisse la nôtre.
+    erreur: side.erreur ?? null,
     trace: settings.trace === true,
     bounce: settings.bounce,
     importedLights: settings.importedLights,
@@ -68,6 +70,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
     profilParEtape: result.stageProfile ?? null,
     variante: side.variante ?? null,
+    erreur: side.erreur ?? 'certifiee',
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
     // Triangles que l'image relevée a remis au dessin : la coupe moins son trou, comptée sans
