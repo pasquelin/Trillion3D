@@ -12,31 +12,16 @@ import {
   type Vec4,
 } from './bench/oracles/mat4HoistOracle.ts';
 
-// D2 : visibilityShaderId.ts nomme desormais viewProj*world une fois par triangle (computeTriangle)
-// au lieu de le refaire pour chacun des trois sommets de la boite ecran. Structure : le nommage
-// existe reellement. Comportement : les trois sommets projetes avec le produit nomme une fois sont
-// exactement ceux qu'un produit refait pour chacun aurait donnes, sur des matrices hostiles.
+// Le repli materiel dessine TOUTE la coupe opaque : le raster de calcul ayant pris les triangles
+// de toutes tailles, le seuil qui ecartait les petits n'existe plus, et aucun triangle ne peut
+// tomber entre les deux producteurs. Le comportement teste ensuite reste celui du produit hisse :
+// les trois sommets projetes avec le produit nomme une fois sont ceux qu'un produit refait pour
+// chacun aurait donnes, sur des matrices hostiles.
 
-test('computeTriangle nomme viewProj*world une fois et le relit pour les trois sommets', () => {
-  assert.match(VIS_SHADER, /let vp=uni\.viewProj\*page\.world;/);
-  assert.match(VIS_SHADER, /let a=vp\*vec4f\(vertPos\(page\.vertexBase,ia\),1\.0\);/);
-  assert.match(VIS_SHADER, /let b=vp\*vec4f\(vertPos\(page\.vertexBase,ib\),1\.0\);/);
-  assert.match(VIS_SHADER, /let c=vp\*vec4f\(vertPos\(page\.vertexBase,ic\),1\.0\);/);
-  // Le produit ne doit apparaitre qu'une fois dans computeTriangle, pas une fois par sommet.
-  const body = VIS_SHADER.slice(
-    VIS_SHADER.indexOf('fn computeTriangle'),
-    VIS_SHADER.indexOf('@vertex fn vis_vs'),
-  );
-  const code = body
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('//'))
-    .join('\n');
-  const occurrences = code.match(/uni\.viewProj\s*\*\s*page\.world/g) ?? [];
-  assert.equal(
-    occurrences.length,
-    1,
-    'uni.viewProj*page.world ne doit etre ecrit qu une fois hors commentaire',
-  );
+test('le repli materiel ne connait plus de seuil de petit triangle', () => {
+  assert.doesNotMatch(VIS_SHADER, /computeTriangle/);
+  assert.doesNotMatch(VIS_SHADER, /smallThreshold/);
+  assert.match(VIS_SHADER, /if\(vertexIndex>=page\.indexCount\)\{/);
 });
 
 function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Vec4[]) {
