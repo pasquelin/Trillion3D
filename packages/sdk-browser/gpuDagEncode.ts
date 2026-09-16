@@ -22,23 +22,37 @@ export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResou
   // chaque noyau repart de la remise à zéro, l'état final est donc celui d'une exécution unique, et
   // l'écart d'image mesure ce que la répétition a vraiment coûté — attentes entre lancements
   // comprises, que nulle enveloppe de passe ne rapporte.
-  if (resources.repeat) encodeOnce(encoder, resources, resources.repeat === 'tete');
-  encodeOnce(encoder, resources);
+  if (resources.repeat) {
+    encodeOnce(encoder, resources, resources.repeat === 'tete', true);
+    encodeOnce(encoder, resources, false, false);
+    return;
+  }
+  encodeOnce(encoder, resources, false, true);
 }
 
-function encodeOnce(encoder: GPUCommandEncoder, resources: DagResources, headOnly = false) {
+function encodeOnce(
+  encoder: GPUCommandEncoder,
+  resources: DagResources,
+  headOnly: boolean,
+  clear: boolean,
+) {
   const {
     residentCut,
-    pageCount,
-    nodeCount,
     worldCount,
     blockCount,
+    levelCount,
     liveGroupsOffset,
+    queueResetOffset,
+    queueGroupsOffset,
+    candGroupsOffset,
+    drawnGroupsOffset,
     work,
-    liveArgs,
+    zeros,
+    dispatchArgs,
     bindGroup,
     preparePipeline,
-    nodePipeline,
+    clearDrawnPipeline,
+    levelPipelines,
     wantedPipeline,
     escalatePipeline,
     checkPipeline,
@@ -47,27 +61,51 @@ function encodeOnce(encoder: GPUCommandEncoder, resources: DagResources, headOnl
     drawScatterPipeline,
   } = resources;
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
+  // Le mot de tête de l'argument de répartition, recopié hors passe : les deux autres valent un
+  // depuis la création du tampon. C'est la seule raison des coupures entre les passes.
+  const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
+  const alone = (pipeline: GPUComputePipeline) => {
+    const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
+    pass.setBindGroup(0, bindGroup);
+    pass.setPipeline(pipeline);
+    pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+    pass.end();
+  };
+  if (clear) arm(drawnGroupsOffset);
   const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
   pass.setBindGroup(0, bindGroup);
-  const run = (pipeline: GPUComputePipeline, count: number) => {
-    pass.setPipeline(pipeline);
-    pass.dispatchWorkgroups(groups(count));
-  };
-  run(preparePipeline, Math.max(worldCount, blockCount));
-  run(nodePipeline, Math.max(1, nodeCount));
-  run(wantedPipeline, pageCount);
+  // Les dessinées de l'image précédente, et elles seules, reprennent leur drapeau à zéro : plus
+  // aucun parcours de tous les drapeaux, et la préparation qui suit remet le journal à zéro.
+  if (clear) {
+    pass.setPipeline(clearDrawnPipeline);
+    pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+  }
+  pass.setPipeline(preparePipeline);
+  pass.dispatchWorkgroups(groups(Math.max(worldCount, blockCount)));
+  // Passe 0 : une racine par primitive, un compte connu du rangement, donc aucune indirection.
+  pass.setPipeline(levelPipelines[0]);
+  pass.dispatchWorkgroups(groups(worldCount));
   pass.end();
+  // Chaque niveau se répartit sur les seuls nœuds que le niveau précédent a retenus, et remplit la
+  // file opposée — dont le compte doit repartir de zéro avant qu'il n'y écrive.
+  for (let level = 1; level < levelCount; level++) {
+    const source = level & 1;
+    encoder.copyBufferToBuffer(zeros, 0, work, queueResetOffset[1 - source], 8);
+    arm(queueGroupsOffset[source]);
+    alone(levelPipelines[source]);
+  }
+  // Les pages des feuilles retenues, et elles seules : une page sous un nœud rejeté n'est pas lue.
+  arm(candGroupsOffset);
+  alone(wantedPipeline);
   if (headOnly) return;
-  // Le mot de tête de l'argument de répartition, recopié hors passe vers son propre tampon : les
-  // deux autres y valent un depuis sa création. C'est la seule raison de la coupure entre les passes.
-  encoder.copyBufferToBuffer(work, liveGroupsOffset, liveArgs, 0, 4);
+  arm(liveGroupsOffset);
   const live = encoder.beginComputePass({ label: 'WG DAG selection' });
   live.setBindGroup(0, bindGroup);
   // Ces noyaux ne visitent que les grappes vivantes, celles que `dagWanted` vient de lister :
   // leur verdict est celui d'avant, il n'est plus prononcé sur celles dont il ne disait rien.
   const runLive = (pipeline: GPUComputePipeline) => {
     live.setPipeline(pipeline);
-    live.dispatchWorkgroupsIndirect(liveArgs, 0);
+    live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   };
   if (residentCut) {
     for (let round = 0; round < ESCALATION_ROUNDS; round++) runLive(escalatePipeline);
@@ -79,8 +117,7 @@ function encodeOnce(encoder: GPUCommandEncoder, resources: DagResources, headOnl
   if (residentCut) {
     live.setPipeline(drawPrefixPipeline);
     live.dispatchWorkgroups(1);
-    live.setPipeline(drawScatterPipeline);
-    live.dispatchWorkgroups(groups(pageCount));
+    runLive(drawScatterPipeline);
   }
   live.end();
 }
