@@ -38,7 +38,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   if (typeof window !== 'undefined')
     console.info('[web-geometry] couleur de fond reçue par WebGeometry WebGPU', inputColor);
-  const { roots, allPages, blendCopies, prepared, requestCount } = collectClusterPages(
+  const { roots, allPages, blendCopies, prepared, requestCount, worlds } = collectClusterPages(
     source,
     metadata,
     indices,
@@ -51,7 +51,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   for (const rec of allPages)
     if (rec.transparent && rec.sourceMesh && !pagedBlendCopies.has(rec.sourceMesh)) {
       const mesh = rec.sourceMesh,
-        copy = createBlendCopy(mesh, rec.renderOrder);
+        copy = createBlendCopy(mesh, rec.renderOrder, rec.matrix);
       copy.userData.pagedBlend = true;
       pagedBlendCopies.set(mesh, copy);
       blendCopies.push(copy);
@@ -107,6 +107,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   );
   return {
     source,
+    // L'index des matrices monde du moteur : ce que l'image remonte, et ce qu'un nœud déplacé
+    // recalcule. Les fiches, les racines et les copies transparentes en portent les matrices.
+    worlds,
     gpuDevice,
     viewport,
     clearColor,

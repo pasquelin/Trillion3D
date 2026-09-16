@@ -76,6 +76,8 @@ test('createExplorerCamera (autonome) rend les mêmes bornes, centre et rayon qu
   ]);
   const rendu = createExplorerCamera(source, true, associations, metadata, canvas, {});
   // Référence : la même page transformée par la matrice monde du maillage, via Box3.applyMatrix4.
+  // Le témoin résout le graphe lui-même : depuis le lot 8, le moteur ne compose plus celui de l'hôte.
+  source.updateMatrixWorld(true);
   const attendu = new THREE.Box3(
     new THREE.Vector3(-1, -1, -1),
     new THREE.Vector3(1, 1, 1),

@@ -108,9 +108,11 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
   node.matrix.fromArray(local);
   node.matrixAutoUpdate = false;
-  // Seuls les ancêtres du nœud et son sous-arbre changent de matrice monde : le reste de la scène
-  // rendrait les mêmes seize nombres. C'est la liste des nœuds modifiés, tenue par la hiérarchie.
-  node.updateWorldMatrix(true, true);
+  // La pose est posée : l'index du moteur la reprend, et toutes les matrices qu'il tient —  fiches
+  // de page, racines de sélection, copies transparentes — portent la nouvelle place à l'instant
+  // même, sans qu'aucune photo soit à reprendre. La scène de l'hôte, elle, n'est pas remontée : le
+  // moteur ne lit plus ses matrices monde.
+  setup.worlds.refresh();
   // Les boîtes monde des racines déplacées se reprojettent EN LOT, par le gouverneur, dans le tampon
   // réservé à la préparation. Un tampon absent ou rendu passe la main au calcul boîte par boîte, qui
   // rend les mêmes bits — le même `boxTransform` sur les mêmes entrées.
