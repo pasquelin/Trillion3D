@@ -3,9 +3,10 @@
 //! source entre deux compilations ou de lui donner un nom que rien du corpus ne porte.
 use super::*;
 
-/// Un OBJ minuscule, un triangle, un matériau, et la bibliothèque qu'il cite.
-fn obj_source(root: &Path, mtl: &str) -> PathBuf {
-    let source = root.join("obj");
+/// Un OBJ minuscule, un triangle, un matériau, et la bibliothèque qu'il cite, posés dans un dossier
+/// nommé : c'est ce dossier qui résout la bibliothèque.
+fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
+    let source = root.join(folder);
     fs::create_dir_all(&source).expect("dossier obj");
     fs::write(
         source.join("scene.obj"),
@@ -44,7 +45,7 @@ fn import_key(options: &Options) -> (String, Value, Value) {
 #[test]
 fn un_mtl_modifie_donne_une_autre_cle_et_une_autre_couleur() {
     let (root, mut options) = fixture();
-    options.source = obj_source(&root, "newmtl Uni\nKd 1 0 0\n");
+    options.source = obj_source(&root, "obj", "newmtl Uni\nKd 1 0 0\n");
     let (rouge, gltf, _) = import_key(&options);
     assert_eq!(
         gltf["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"],
@@ -74,7 +75,7 @@ fn un_mtl_modifie_donne_une_autre_cle_et_une_autre_couleur() {
 #[test]
 fn une_bibliotheque_absente_est_comptee_par_son_nom() {
     let (root, mut options) = fixture();
-    options.source = obj_source(&root, "");
+    options.source = obj_source(&root, "obj", "");
     let (_, _, manifest) = import_key(&options);
     assert_eq!(
         manifest["unsupported"]["material-library-missing"],
@@ -91,7 +92,7 @@ fn une_bibliotheque_absente_est_comptee_par_son_nom() {
 #[test]
 fn une_bibliotheque_tronquee_est_comptee_par_son_nom() {
     let (root, mut options) = fixture();
-    options.source = obj_source(&root, "newmtl Uni\nKd 0.");
+    options.source = obj_source(&root, "obj", "newmtl Uni\nKd 0.");
     let (_, _, manifest) = import_key(&options);
     assert_eq!(
         manifest["unsupported"]["material-library-truncated"],
@@ -107,7 +108,7 @@ fn une_bibliotheque_tronquee_est_comptee_par_son_nom() {
 #[test]
 fn un_nom_de_texture_a_echapper_reste_relisible() {
     let (root, mut options) = fixture();
-    options.source = obj_source(&root, "newmtl Uni\nKd 1 1 1\nmap_Kd color%red.png\n");
+    options.source = obj_source(&root, "obj", "newmtl Uni\nKd 1 1 1\nmap_Kd color%red.png\n");
     let image = image::RgbaImage::from_fn(8, 8, |x, y| image::Rgba([x as u8, y as u8, 7, 255]));
     let mut png = Vec::new();
     image
@@ -139,6 +140,42 @@ fn un_nom_de_texture_a_echapper_reste_relisible() {
         json!({}),
         "{}",
         result["texturePreviews"]
+    );
+    fs::remove_dir_all(root).expect("nettoyage");
+}
+
+// Comportement : deux OBJ aux octets identiques, posés dans deux dossiers avec chacun sa
+// bibliothèque, ne se servent pas la scène l'un de l'autre. Le relevé des fichiers ouverts appartient
+// au dossier qui les résout ; tenu par le seul contenu de la source, il rendait au second la clé du
+// premier, et avec elle sa couleur.
+#[test]
+fn deux_dossiers_au_meme_obj_gardent_chacun_leur_mtl() {
+    let (root, mut options) = fixture();
+    let a = obj_source(&root, "A", "newmtl Uni\nKd 1 0 0\n");
+    let b = obj_source(&root, "B", "newmtl Uni\nKd 0 1 0\n");
+    let colour = |options: &Options| {
+        import_key(options).1["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"].clone()
+    };
+    options.source = a.clone();
+    assert_eq!(colour(&options), json!([1.0, 0.0, 0.0, 1.0]));
+    options.source = b.clone();
+    assert_eq!(
+        colour(&options),
+        json!([0.0, 1.0, 0.0, 1.0]),
+        "B doit suivre sa propre bibliothèque"
+    );
+    options.source = a;
+    assert_eq!(
+        colour(&options),
+        json!([1.0, 0.0, 0.0, 1.0]),
+        "A garde la sienne après B"
+    );
+    fs::write(b.with_file_name("scene.mtl"), "newmtl Uni\nKd 0 0 1\n").expect("mtl");
+    options.source = b;
+    assert_eq!(
+        colour(&options),
+        json!([0.0, 0.0, 1.0, 1.0]),
+        "la bibliothèque de B modifiée seule doit reconvertir B"
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }
