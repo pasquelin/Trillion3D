@@ -1,8 +1,4 @@
-import {
-  FRUSTUM_PLANE_VALUES,
-  frustumFarPlane,
-  frustumPlanesFromMatrix,
-} from './mathFrustum.ts';
+import { FRUSTUM_PLANE_VALUES, frustumFarPlane, frustumPlanesFromMatrix } from './mathFrustum.ts';
 import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { invertMatrix4 } from './mathMatrix4Inverse.ts';
 
