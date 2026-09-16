@@ -6,7 +6,7 @@ import {
   createFrameRevisions,
 } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';
-import { createHostSceneWatch } from './hostSceneWatch.ts';
+import { createHostSceneWatch, type WatchedSources } from './hostSceneWatch.ts';
 
 /** Ce qu'une image WebGL a produit d'observable : voir `sample` ci-dessous. */
 const WEBGL_HOLD_VALUES = 6;
@@ -26,7 +26,8 @@ export function createWebglFrameGate() {
   const viewRevision = createViewRevision();
   const hold = createFrameHold(WEBGL_HOLD_VALUES);
   const sceneWatch = createHostSceneWatch();
-  let worldsRevision = 0;
+  let worldsRevision = 0,
+    watchRevision = -1;
   return {
     revisions,
     hold,
@@ -49,22 +50,29 @@ export function createWebglFrameGate() {
       );
     },
     /**
-     * Remonte les matrices monde du graphe source et déclare la scène changée quand l'hôte l'a
-     * écrite directement — une pose, une visibilité, une lampe —, sans passer par le moteur. À
-     * appeler AVANT `held()` : sans cela l'image serait tenue sur une scène périmée. La comparaison
-     * est un état contre un état, donc idempotente : une écriture passée par l'API du moteur, qui a
-     * déjà incrémenté la révision, n'en incrémente pas une seconde.
+     * Relit les nœuds source et déclare la scène changée quand l'hôte les a écrits directement —
+     * une pose, une visibilité, une lampe —, sans passer par le moteur. À appeler AVANT `held()` :
+     * sans cela l'image serait tenue sur une scène périmée. Rien n'est remonté ici : seules les
+     * poses locales sont comparées, et la comparaison est idempotente.
+     *
+     * La liste des nœuds relus est refaite après chaque changement de scène, jamais par image : une
+     * instance de plus ou une lampe posée après coup passe par là, et rien d'autre ne l'ajoute.
      */
-    readScene(source: THREE.Object3D) {
-      if (sceneWatch.changed(source)) bumpScene(revisions);
+    readScene(source: THREE.Object3D, drawn: WatchedSources) {
+      if (watchRevision !== revisions.scene) {
+        sceneWatch.observe(source, drawn);
+        watchRevision = revisions.scene;
+      }
+      if (sceneWatch.changed()) bumpScene(revisions);
     },
     /** Vrai quand deux images identiques se sont suivies et que rien n'a bougé depuis. */
     held: () => hold.stable && hold.same(revisions),
-    /** Vrai une fois par révision de scène : les matrices monde que `readScene` vient de remonter
-     *  n'ont pas encore été reprises par ce qui en dépend. */
-    updateWorlds() {
+    /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. Une
+     *  image que rien n'a touchée ne remonte rien : c'est `readScene` qui sait si rien n'a bougé. */
+    updateWorlds(source: THREE.Object3D) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
+      source.updateMatrixWorld(true);
       return true;
     },
     /**
