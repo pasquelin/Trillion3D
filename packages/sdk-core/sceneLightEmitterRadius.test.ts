@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LIGHT_SETTINGS, type SceneLight } from './sceneLightContracts.ts';
 import { validateSceneLight } from './sceneLightValidate.ts';
+import { createSceneLightStore } from './sceneLightStore.ts';
 import { shadowProjection } from './sceneLightShadowMath.ts';
 import { writeFace } from './sceneLightShadowFaces.ts';
 
@@ -82,4 +83,18 @@ test("la face d'ombre d'une lampe reprend le plan proche que son enveloppe impos
   // Toute la géométrie de l'enveloppe tombe devant ce plan : la découpe de profondeur l'écarte de
   // la carte, la lampe éclaire le sol autour d'elle, et rien d'autre dans la scène ne change.
   assert.ok(enveloppe > 0.1526);
+});
+
+test("régler le seul rayon d'émetteur périme bien la carte d'ombre de la lampe", () => {
+  const store = createSceneLightStore();
+  store.add(validateSceneLight(lanterne()));
+  const before = store.epoch;
+  store.set('lanterne', { emitterRadius: 0.25 });
+  // Une mutation identique ne périme rien (lot « mutations idempotentes ») ; celle-ci change la
+  // carte d'ombre de la lampe, donc elle doit être vue.
+  assert.notEqual(store.epoch, before);
+  assert.equal(store.light('lanterne')!.emitterRadius, 0.25);
+  const stable = store.epoch;
+  store.set('lanterne', { emitterRadius: 0.25 });
+  assert.equal(store.epoch, stable);
 });
