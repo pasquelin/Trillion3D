@@ -1,5 +1,5 @@
 /**
- * Contrat du décodage d'une page hors du fil principal, version 1.
+ * Contrat du décodage d'une page hors du fil principal, version 3.
  *
  * Le fil appelant envoie une `PageDecodeRequest`, l'exécutant rend une `PageDecodeAnswer` portant le
  * même `id`. Rien ici ne touche la plateforme : ni `Worker`, ni fetch, ni horloge — l'adaptateur
@@ -12,7 +12,7 @@
  * exactement les mêmes valeurs : le contrat ne dit pas comment le travail voyage, seulement ce qu'il
  * rend.
  */
-export const PAGE_DECODE_PROTOCOL = 2;
+export const PAGE_DECODE_PROTOCOL = 3;
 
 /** `verify` : l'empreinte SHA-256 d'une page. `decode` : ses indices et ses attributs par sommet. */
 export type PageDecodeOp = 'verify' | 'decode';
@@ -25,6 +25,22 @@ export interface PageDecodeRequest {
   source: ArrayBuffer;
   /** Plafond d'octets décodés d'une page de géométrie ; ignoré par `verify`. */
   maxDecodedBytes: number;
+}
+
+/**
+ * Le bail de mémoire partagée d'un worker : le tampon de l'arène, le créneau et la région qu'il
+ * possède, et le nombre de créneaux, qui donne la taille de la zone de contrôle. Posté une seule
+ * fois, à la naissance du worker, et seulement là où la plateforme autorise la mémoire partagée.
+ * Sans bail, le worker répond par transfert de tampons : le contrat ne change pas de forme, le
+ * chemin des octets seul change.
+ */
+export interface PageDecodeShare {
+  protocol: number;
+  id: 0;
+  op: 'share';
+  buffer: SharedArrayBuffer;
+  slot: number;
+  slots: number;
 }
 
 /** Annulation d'une requête encore en file. Un travail déjà commencé va à son terme puis répond
