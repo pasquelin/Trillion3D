@@ -2,7 +2,22 @@ import { maxStretch } from '../sdk-core/index.ts';
 import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from './gpuSelection.ts';
 import { DAG_NODE_FLOATS, CULL_STRIDE, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
 import { flatHierarchy, hierarchyDepth } from './gpuDagHierarchy.ts';
-import { CLUSTER_WORDS, packClusterFlags, residentWords } from './gpuDagLayout.ts';
+import {
+  CLUSTER_WORDS,
+  COLD_CONE,
+  COLD_HAS_BOX,
+  COLD_MAX,
+  COLD_MIN,
+  COLD_OWNER,
+  HOT_FLAGS,
+  HOT_LOD_ERROR,
+  HOT_PARENT_ERROR,
+  HOT_PARENT_SPHERE,
+  HOT_SPHERE,
+  HOT_WORLD,
+  packClusterFlags,
+  residentWords,
+} from './gpuDagLayout.ts';
 
 function writeSphere(
   target: Float32Array,
@@ -91,34 +106,36 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       const rec = root.pages[i],
         dst = cluster * CLUSTER_WORDS;
       pageUrls.push(rec.url);
-      writeSphere(clusters, dst, rec.sphere);
-      writeSphere(clusters, dst + 4, rec.parentSphere ?? rec.sphere);
+      writeSphere(clusters, dst + HOT_SPHERE, rec.sphere);
+      writeSphere(clusters, dst + HOT_PARENT_SPHERE, rec.parentSphere ?? rec.sphere);
       const parent =
         typeof rec.parentError === 'number' && Number.isFinite(rec.parentError)
           ? rec.parentError
           : -1;
-      clusters[dst + 8] = rec.lodError ?? 0;
-      clusters[dst + 9] = parent;
-      clusterInts[dst + 10] = w;
+      clusters[dst + HOT_LOD_ERROR] = rec.lodError ?? 0;
+      clusters[dst + HOT_PARENT_ERROR] = parent;
+      clusterInts[dst + HOT_WORLD] = w;
       // A cluster that no culling leaf owns is unreachable for the CPU cut too; never select it.
-      clusterInts[dst + 11] = packClusterFlags(parent < 0, owner[i] === NONE, rec.level ?? 0);
+      clusterInts[dst + HOT_FLAGS] = packClusterFlags(
+        parent < 0,
+        owner[i] === NONE,
+        rec.level ?? 0,
+      );
       if (parent < 0) rootClusters++;
       const cone = leafCone(rec),
         base = cluster * PAGE_CONE_FLOATS,
         hasBox = rec.min && rec.max ? 1 : 0;
-      pageCones[base] = cone.axis[0];
-      pageCones[base + 1] = cone.axis[1];
-      pageCones[base + 2] = cone.axis[2];
-      pageCones[base + 3] = cone.angle;
-      pageCones[base + 4] = hasBox ? rec.min![0] : 0;
-      pageCones[base + 5] = hasBox ? rec.min![1] : 0;
-      pageCones[base + 6] = hasBox ? rec.min![2] : 0;
-      pageCones[base + 7] = hasBox;
-      pageCones[base + 8] = hasBox ? rec.max![0] : 0;
-      pageCones[base + 9] = hasBox ? rec.max![1] : 0;
-      pageCones[base + 10] = hasBox ? rec.max![2] : 0;
+      pageCones[base + COLD_CONE] = cone.axis[0];
+      pageCones[base + COLD_CONE + 1] = cone.axis[1];
+      pageCones[base + COLD_CONE + 2] = cone.axis[2];
+      pageCones[base + COLD_CONE + 3] = cone.angle;
+      pageCones[base + COLD_HAS_BOX] = hasBox;
+      for (let a = 0; a < 3; a++) {
+        pageCones[base + COLD_MIN + a] = hasBox ? rec.min![a] : 0;
+        pageCones[base + COLD_MAX + a] = hasBox ? rec.max![a] : 0;
+      }
       // Le nœud propriétaire n'est lu que par l'oracle, qui rejoue la descente : il reste au froid.
-      coneInts[base + 11] = owner[i];
+      coneInts[base + COLD_OWNER] = owner[i];
       cluster++;
     }
   }
