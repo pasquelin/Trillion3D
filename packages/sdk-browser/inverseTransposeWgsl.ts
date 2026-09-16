@@ -11,27 +11,52 @@
  * normalisation de `isConformal` — avant le déterminant. Sous 1e-12, s³ lui-même devient dénormal
  * en f32 : seule cette normalisation franchit ce plancher. Somme nulle, infinie ou NaN (lue au
  * bit) : le vecteur est rendu tel quel.
+ *
+ * Tout cela ne dépend que de la matrice : la normalisation, le déterminant et les trois produits
+ * vectoriels de l'adjointe sont donc rassemblés dans `invTranspose3Prep`, calculée une fois, et
+ * `invTranspose3Apply` ne garde par vecteur que le produit 3×3 et le facteur. Un ombrage qui
+ * transforme les trois normales d'un triangle avec la même matrice ne refait plus le prologue trois
+ * fois. Les opérandes et leur ordre par vecteur ne bougent pas — `facteur*(adjointe*v)`, comme
+ * avant — donc le résultat reste celui d'avant, au bit près. `inverseTranspose3` reste l'écriture
+ * publique pour un vecteur isolé.
  */
-export const INVERSE_TRANSPOSE_WGSL = `
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
- if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return v;}
+const NOYAU = (prep: string) => `
+struct InvT3{adj:mat3x3f,facteur:f32,regulier:bool,}
+fn invTranspose3Prep(m:mat3x3f)->InvT3{
+${prep}
+}
+fn invTranspose3Apply(p:InvT3,v:vec3f)->vec3f{
+ return select(v,p.facteur*(p.adj*v),p.regulier);
+}
+fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{return invTranspose3Apply(invTranspose3Prep(m),v);}`;
+
+/** La préparation livrée : la 3×3 normalisée, puis le déterminant et l'adjointe de la normalisée. */
+const PREP_LIVREE = ` let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
+ let fini=(t>0.0)&&(bitcast<u32>(t)&0x7f800000u)!=0x7f800000u;
  let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let det=dot(a,cross(b,c));
- if(!(abs(det)>1e-20)){return v;}
- return (1.0/(det*t))*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
-}`;
+ return InvT3(mat3x3f(cross(b,c),cross(c,a),cross(a,b)),1.0/(det*t),fini&&abs(det)>1e-20);`;
 
 /**
- * Le même texte AVANT la correction du défaut 6 : seuil absolu sur le déterminant BRUT, sans
- * normalisation de la 3×3. Il ne sert qu'aux reproductions de justesse, qui rejouent le défaut en
- * remettant ce texte à la place du texte livré (`gpuDagShader.ts`, `standardLighting.ts`) ; deux
- * écritures seraient deux chances de rejouer autre chose que le défaut mesuré.
+ * La préparation d'AVANT le défaut 6 : seuil absolu `abs(det)<1e-20` sur la 3×3 BRUTE, et facteur
+ * `1/det` au lieu de `1/(det·t)`. `regulier` est la négation exacte de l'ancien garde, celui qui
+ * rendait le vecteur tel quel — donc la même décision, cas pour cas, NaN compris.
  */
-export const INVERSE_TRANSPOSE_AVANT_WGSL = `
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let a=m[0];let b=m[1];let c=m[2];
+const PREP_AVANT_DEFAUT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  let det=dot(a,cross(b,c));
- if(abs(det)<1e-20){return v;}
- return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
-}`;
+ return InvT3(mat3x3f(cross(b,c),cross(c,a),cross(a,b)),1.0/det,!(abs(det)<1e-20));`;
+
+/** Le noyau livré : c'est celui-ci, et lui seul, que les nuanceurs de production insèrent. */
+export const INVERSE_TRANSPOSE_WGSL = NOYAU(PREP_LIVREE);
+
+/**
+ * Le même noyau avec la préparation d'avant le défaut 6, POUR REJOUER LE DÉFAUT SEULEMENT : aucun
+ * nuanceur de production ne l'insère. Il vit ici, contre le texte livré, plutôt que recopié dans un
+ * banc : deux formes voisines dans un fichier bougent ensemble, tandis qu'une copie recollée
+ * ailleurs cesse de correspondre au premier changement du noyau — sans que personne le voie. Le
+ * bloc entier se substitue au bloc livré, structure comprise, donc un banc n'a qu'un `replace` à
+ * faire. Une reproduction ne vaut que tant qu'elle reproduit : GPU réellement exécuté, cette forme
+ * rend 560 suppressions de faces visibles sur 6 916 cas là où la forme livrée en rend 54
+ * (`bench/justesse/inverse-transposee-petite-echelle.mjs`).
+ */
+export const INVERSE_TRANSPOSE_AVANT_WGSL = NOYAU(PREP_AVANT_DEFAUT_6);
