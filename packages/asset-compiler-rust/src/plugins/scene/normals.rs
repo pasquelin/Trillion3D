@@ -89,14 +89,20 @@ impl Surface<'_> {
     /// Les incidences se comptent **avant** la moindre union : réunir dès la deuxième rencontre,
     /// c'est décider sans savoir qu'une troisième face existe, donc lisser les deux premières faces
     /// du fichier et laisser la troisième seule. L'ordre des faces changeait alors la sortie.
+    ///
+    /// Elles se comptent aussi sur **toute** la topologie, marques comprises : une arête que trois
+    /// faces se partagent en garde trois, qu'une de ces faces soit nette ou que l'une d'elles la
+    /// déclare dure. Compter après filtrage en laissait deux, et soudait les deux faces restantes
+    /// comme un bord ordinaire — une arête vive arrondie par la marque censée la trancher. Les
+    /// marques de lissage ne décident donc que des unions.
     fn weld(&self, join: &mut Join, faces: usize) {
         let mut shared: HashMap<[u32; 2], usize> = HashMap::new();
-        self.edges(faces, |edge, _| {
+        self.edges(faces, Edges::Every, |edge, _| {
             *shared.entry(edge).or_default() += 1;
         });
         let mut seen: HashMap<[u32; 2], [u32; 2]> = HashMap::new();
         let mut pairs: Vec<([u32; 2], [u32; 2])> = Vec::new();
-        self.edges(faces, |edge, side| {
+        self.edges(faces, Edges::Smooth, |edge, side| {
             if shared.get(&edge) != Some(&2) {
                 return;
             }
@@ -112,13 +118,15 @@ impl Surface<'_> {
         }
     }
 
-    /// Chaque arête douce d'une face lisse, une fois : ses deux sommets ordonnés, qui l'identifient
-    /// quel que soit le sens de parcours de la face, puis ses deux coins.
-    fn edges(&self, faces: usize, mut each: impl FnMut([u32; 2], [u32; 2])) {
-        for face in (0..faces).filter(|face| !marked(self.sharp_faces, *face)) {
+    /// Chaque arête d'une face, une fois : ses deux sommets ordonnés, qui l'identifient quel que
+    /// soit le sens de parcours de la face, puis ses deux coins. `Edges::Smooth` n'en retient que
+    /// celles qui peuvent lisser ; `Edges::Every` les rend toutes, c'est-à-dire la topologie seule.
+    fn edges(&self, faces: usize, which: Edges, mut each: impl FnMut([u32; 2], [u32; 2])) {
+        let smooth = which == Edges::Smooth;
+        for face in (0..faces).filter(|face| !smooth || !marked(self.sharp_faces, *face)) {
             let span = self.span(face);
             let (first, length) = (span.start, span.len());
-            for corner in span.filter(|corner| !marked(self.sharp_corners, *corner)) {
+            for corner in span.filter(|corner| !smooth || !marked(self.sharp_corners, *corner)) {
                 let next = first + (corner - first + 1) % length;
                 let (here, there) = (self.corners[corner], self.corners[next]);
                 each(
@@ -164,6 +172,15 @@ impl Surface<'_> {
             .get(at..at + 3)
             .map_or([0.0; 3], |found| [found[0], found[1], found[2]])
     }
+}
+
+/// Quelles arêtes un parcours rend : celles que la topologie porte, ou celles qui peuvent lisser.
+#[derive(Clone, Copy, PartialEq)]
+enum Edges {
+    /// Toutes, marques comprises : c'est ce qui compte les faces incidentes d'une arête.
+    Every,
+    /// Les arêtes douces des faces lisses, seules candidates à une union.
+    Smooth,
 }
 
 /// Ce rang est-il marqué ? Un tableau plus court que le domaine ne marque pas ce qu'il ne dit pas.
