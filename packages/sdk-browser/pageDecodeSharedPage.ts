@@ -8,7 +8,6 @@ import {
   INDEX_BYTES,
   MAX_SHARED_ATTRS,
   SHARED_BY_REGION,
-  SHARED_CONSUMED,
   SHARED_READY,
   SHARED_REGION_BYTES,
   STATE,
@@ -87,7 +86,7 @@ function copyOut(arena: PageArena, offset: number, bytes: number) {
 }
 
 /**
- * La page publiée dans un créneau, relue en réponse du contrat et marquée `consumed`. Les tampons
+ * La page publiée dans un créneau, relue en réponse du contrat ; le créneau est libéré ensuite. Les tampons
  * rendus sont ceux d'une réponse ordinaire : l'appelant ne voit pas par où la page est passée.
  */
 export function readSharedPage(arena: PageArena, slot: number): PageDecodeDone {
@@ -128,6 +127,5 @@ export function readSharedPage(arena: PageArena, slot: number): PageDecodeDone {
     // jamais une valeur d'image.
     taskMs: control[base + TASK_US] / 1000,
   };
-  Atomics.store(control, base + STATE, SHARED_CONSUMED);
   return done;
 }

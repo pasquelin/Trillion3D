@@ -64,12 +64,6 @@ test("crossVector3 : la sortie peut aliasser l'une ou l'autre entrée, six lectu
   assert.deepEqual([...surB], [...attendu], 'out === b');
 });
 
-test('crossVector3 : décalage de sortie (outOffset), le reste du tampon inchangé', () => {
-  const out = new Float64Array(6).fill(-1);
-  crossVector3(out, [1, 0, 0], [0, 1, 0], 3);
-  assert.deepEqual([...out], [-1, -1, -1, 0, 0, 1]);
-});
-
 test('transformAffinePoint : identité laisse le point inchangé, translation seule décale', () => {
   const identite = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1];
   const out = transformAffinePoint(new Float64Array(3), identite, 1, 2, 3);

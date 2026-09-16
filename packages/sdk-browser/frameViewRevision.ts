@@ -14,9 +14,9 @@ import { bumpView, type FrameRevisions } from './frameRevisions.ts';
  */
 export function createViewRevision() {
   const fingerprint = createViewFingerprint();
+  // `NaN` ne vaut jamais `cam.far` : la première lecture compte toujours comme un mouvement.
   let far = NaN,
-    quality = NaN,
-    armed = false;
+    quality = NaN;
   return {
     /** Relit la vue de cette image ; incrémente `view` et rend vrai si l'un de ces nombres a bougé. */
     read(
@@ -31,7 +31,6 @@ export function createViewRevision() {
       // rien d'autre n'entre ici. C'est l'ordre que garantit le contrat (`cameraWorld.ts`), et
       // c'est par cette seule empreinte qu'une pose décide de tenir ou de rejouer une image.
       if (
-        armed &&
         far === cam.far &&
         quality === pixelError &&
         fingerprint.same(cam, viewportWidth, viewportHeight)
@@ -40,7 +39,6 @@ export function createViewRevision() {
       fingerprint.keep(cam, viewportWidth, viewportHeight);
       far = cam.far;
       quality = pixelError;
-      armed = true;
       bumpView(revisions);
       return true;
     },

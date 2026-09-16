@@ -101,7 +101,7 @@ function empaquete(coneDuCluster) {
 }
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
-const context = coneContextFor(createConeContext(), world, cameraMoteur(camera));
+const context = coneContextFor(createConeContext(), world, cameraMoteur(camera).eye);
 // Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
 // l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
 const rebase = (packed) => packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);

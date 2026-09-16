@@ -73,7 +73,7 @@ test('coneContextFor : la matrice normale et la position d’œil sont celles de
   world.updateMatrix();
 
   const cam = readCameraWorld(createEngineCamera(), camera);
-  const ctx = coneContextFor(createConeContext(), world.matrix, cam);
+  const ctx = coneContextFor(createConeContext(), world.matrix, cam.eye);
   assert.equal(ctx.conformal, true, 'témoin : une échelle négative uniforme doit rester conforme');
   assertBits(ctx.normal, a9(new THREE.Matrix3().getNormalMatrix(world.matrix)), 'matrice normale');
   const eye = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);

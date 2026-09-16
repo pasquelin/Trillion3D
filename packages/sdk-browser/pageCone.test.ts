@@ -31,7 +31,10 @@ test('OPEN_CONE never rejects', () => {
   cam.position.set(0, 0, 5);
   cam.lookAt(0, 0, 0);
   cam.updateMatrixWorld();
-  assert.equal(coneCullsPage(OPEN_CONE, world, [-1, -1, 0], [1, 1, 0], cameraMoteur(cam)), false);
+  assert.equal(
+    coneCullsPage(OPEN_CONE, world, [-1, -1, 0], [1, 1, 0], cameraMoteur(cam).eye),
+    false,
+  );
 });
 
 test('a +z cone seen from behind the plane is rejected, and perspective spread keeps a grazing bound', () => {
@@ -42,14 +45,17 @@ test('a +z cone seen from behind the plane is rejected, and perspective spread k
   behind.lookAt(0, 0, 0);
   behind.updateMatrixWorld();
   assert.equal(
-    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind)),
+    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind).eye),
     true,
   );
   const grazing = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   grazing.position.set(0, 0, 5);
   grazing.lookAt(0, 0, 0);
   grazing.updateMatrixWorld();
-  assert.equal(coneCullsPage(cone, world, [-1, -1, 0], [1, 1, 0], cameraMoteur(grazing)), false);
+  assert.equal(
+    coneCullsPage(cone, world, [-1, -1, 0], [1, 1, 0], cameraMoteur(grazing).eye),
+    false,
+  );
 });
 
 test('an anisotropic scale does not reject a still-visible cone member', () => {
@@ -64,7 +70,7 @@ test('an anisotropic scale does not reject a still-visible cone member', () => {
     .applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(world));
   assert.ok(visible.dot(cam.position.clone().normalize()) > 0);
   assert.equal(
-    coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], cameraMoteur(cam)),
+    coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], cameraMoteur(cam).eye),
     false,
   );
 });
@@ -78,7 +84,7 @@ test('BackSide materials are not cone-culled from behind', () => {
   behind.updateMatrixWorld();
   const material = new THREE.MeshBasicMaterial({ side: THREE.BackSide });
   assert.equal(
-    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind), material),
+    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], cameraMoteur(behind).eye, material),
     false,
   );
   material.dispose();
@@ -93,7 +99,7 @@ test('le contexte de racine rend le mÃªme rejet que le calcul par cluster, et nâ
   cam.updateMatrixWorld();
   const ctx = createConeContext();
   assert.equal(ctx.ready, false, 'aucune racine lue tant que personne ne demande un rejet');
-  coneContextFor(ctx, world, cameraMoteur(cam));
+  coneContextFor(ctx, world, cameraMoteur(cam).eye);
   assert.equal(ctx.ready, true);
   for (const [min, max] of [
     [
@@ -111,7 +117,7 @@ test('le contexte de racine rend le mÃªme rejet que le calcul par cluster, et nâ
   ])
     assert.equal(
       coneCullsPageWith(ctx, cone, world, min, max),
-      coneCullsPage(cone, world, min, max, cameraMoteur(cam)),
+      coneCullsPage(cone, world, min, max, cameraMoteur(cam).eye),
       `boÃ®te ${min} ${max}`,
     );
 });

@@ -79,21 +79,28 @@ export function createStreamingCache(context: StreamContext) {
       added,
       removed,
     }));
-  const pinRank = (urls: readonly string[], rank: number) => {
-    const url = urls[rank];
-    if (url !== undefined && catalog.has(url)) pinned.add(url);
+  /** Repose l'appartenance entière : les épingles sont exactement les `urls` connues du catalogue. */
+  const resetPins = (urls: Iterable<string>, requested: number) => {
+    const before = pinned.size;
+    pinned.clear();
+    for (const url of urls) if (catalog.has(url)) pinned.add(url);
+    evict();
+    emitRetain(requested, pinned.size, before);
+    return true;
   };
+  /** Les URL désignées par des rangs dans `urls` ; un rang hors table ne désigne rien. */
+  function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: number) {
+    for (let i = 0; i < count; i++) {
+      const url = urls[ranks[i]];
+      if (url !== undefined) yield url;
+    }
+  }
   const retain = (urls: readonly string[]) => {
     if (rankOwner === null && same(urls)) return false;
     rankOwner = null;
     retained.length = urls.length;
     for (let i = 0; i < urls.length; i++) retained[i] = urls[i];
-    const before = pinned.size;
-    pinned.clear();
-    for (const url of urls) if (catalog.has(url)) pinned.add(url);
-    evict();
-    emitRetain(urls.length, pinned.size, before);
-    return true;
+    return resetPins(urls, urls.length);
   };
   /**
    * Les épingles par différence de rangs. Le cas courant ne touche que ce qui a bougé ; une image qui
@@ -106,12 +113,7 @@ export function createStreamingCache(context: StreamContext) {
       rankOwner = urls;
       retained.length = 0;
       const { held, heldCount } = delta;
-      const before = pinned.size;
-      pinned.clear();
-      for (let i = 0; i < heldCount; i++) pinRank(urls, held[i]);
-      evict();
-      emitRetain(heldCount, pinned.size, before);
-      return true;
+      return resetPins(rankUrls(urls, held, heldCount), heldCount);
     }
     if (!delta.enteredCount && !delta.exitedCount) return false;
     let removed = 0;
@@ -120,7 +122,8 @@ export function createStreamingCache(context: StreamContext) {
       if (url !== undefined && pinned.delete(url)) removed++;
     }
     const before = pinned.size;
-    for (let i = 0; i < delta.enteredCount; i++) pinRank(urls, entered[i]);
+    for (const url of rankUrls(urls, entered, delta.enteredCount))
+      if (catalog.has(url)) pinned.add(url);
     evict();
     emitRetain(delta.heldCount, pinned.size - before, removed);
     return true;

@@ -1,4 +1,5 @@
 import { EngineError } from './cacheContracts.ts';
+import { IDENTITY_MATRIX4, copyMatrix4 } from './mathMatrix4.ts';
 
 /**
  * Hiérarchie de transformations du moteur, orientée données : un nœud est un indice dans des
@@ -50,8 +51,6 @@ export const NODE_LOCAL_CHANGED = 4;
 /** `matrixWorldNeedsUpdate` de la référence, que seule sa règle de mise à jour lit. */
 export const NODE_WORLD_NEEDS_UPDATE = 8;
 export const NODE_ALIVE = 16;
-
-const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
 function views(buffer: Float64Array, capacity: number) {
   return Array.from({ length: capacity }, (_, i) => buffer.subarray(i * 16, i * 16 + 16));
@@ -123,8 +122,8 @@ export function addTransformNode(tree: TransformTree, parent = -1) {
   setNodePosition(tree, node, 0, 0, 0);
   setNodeQuaternion(tree, node, 0, 0, 0, 1);
   setNodeScale(tree, node, 1, 1, 1);
-  tree.localViews[node].set(IDENTITY);
-  tree.worldViews[node].set(IDENTITY);
+  tree.localViews[node].set(IDENTITY_MATRIX4);
+  tree.worldViews[node].set(IDENTITY_MATRIX4);
   tree.version[node] = 0;
   tree.seen[node] = 0;
   // Un ordre à jour contient déjà le parent : le nouveau venu se range après lui, en fin d'ordre. Un
@@ -182,8 +181,7 @@ export function setNodeScale(tree: TransformTree, node: number, x: number, y: nu
  * position, rotation et échelle, comme la référence écrase `matrix`.
  */
 export function setNodeLocalMatrix(tree: TransformTree, node: number, m: ArrayLike<number>) {
-  const local = tree.localViews[node];
-  for (let i = 0; i < 16; i++) local[i] = m[i];
+  copyMatrix4(tree.localViews[node], m);
   tree.flags[node] |= NODE_LOCAL_CHANGED | NODE_TRS_DIRTY;
 }
 

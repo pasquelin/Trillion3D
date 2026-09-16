@@ -166,10 +166,6 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
     get lit() {
       return governs && !!store && !store.unlit;
     },
-    /** Vrai quand le contrat a pris la main sur les lampes du graphe source. */
-    get governs() {
-      return governs;
-    },
   };
 }
 

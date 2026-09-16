@@ -52,7 +52,7 @@ test('échelle non uniforme à petite échelle (1e-8, 1e-6, 1e-6), cas déclench
   const cone = triangleCone(POSITIONS, INDICES);
   const world = new THREE.Matrix4().makeScale(1e-8, 1e-6, 1e-6);
   const cam = camera();
-  const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam));
+  const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
   assert.equal(
     coneCullsPageWith(ctx, cone, world, MIN, MAX),
     false,
@@ -70,7 +70,7 @@ test('une 3×3 dégénérée (échelle nulle sur un axe, donc colonne nulle) n�
     [1, 1, 0],
   ] as const) {
     const world = new THREE.Matrix4().makeScale(...echelle);
-    const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam));
+    const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
     assert.equal(ctx.conformal, false, `échelle ${echelle}`);
     assert.equal(
       coneCullsPageWith(ctx, cone, world, [-1, -1, 0], [1, 1, 0]),
@@ -90,7 +90,7 @@ test('une 3×3 avec un terme NaN ou infini n’est pas conforme : le cluster res
   ] as const) {
     const world = new THREE.Matrix4();
     world.elements[index] = valeur;
-    const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam));
+    const ctx = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
     assert.equal(ctx.conformal, false, `terme ${index} = ${valeur}`);
     assert.equal(
       coneCullsPageWith(ctx, cone, world, [-1, -1, 0], [1, 1, 0]),
@@ -113,7 +113,7 @@ test('échelle uniforme de 1e-8 à 1e3, avec rotation : une face dos à la camé
         q,
         new THREE.Vector3(echelle, echelle, echelle),
       );
-      const conforme = coneContextFor(createConeContext(), world, cameraMoteur(camera()));
+      const conforme = coneContextFor(createConeContext(), world, cameraMoteur(camera()).eye);
       assert.equal(conforme.conformal, true, `échelle ${echelle} rotation ${euler}`);
       // La matrice normale du contexte est plate : le test la remet en objet pour l'appliquer.
       const normale = new THREE.Matrix3().fromArray([...conforme.normal]);
@@ -123,7 +123,7 @@ test('échelle uniforme de 1e-8 à 1e3, avec rotation : une face dos à la camé
       cam.position.copy(axeMonde).multiplyScalar(-distance);
       cam.lookAt(0, 0, 0);
       cam.updateMatrixWorld(true);
-      const ctxArriere = coneContextFor(createConeContext(), world, cameraMoteur(cam));
+      const ctxArriere = coneContextFor(createConeContext(), world, cameraMoteur(cam).eye);
       assert.equal(
         coneCullsPageWith(ctxArriere, cone, world, [-1, -1, -1], [1, 1, 1]),
         true,
