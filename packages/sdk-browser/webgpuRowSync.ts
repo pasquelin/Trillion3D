@@ -26,6 +26,8 @@ export function createWebgpuRowSync(
    */
   const syncRows = () => {
     if (!cacheReady() || !rows.pageTableFloats) return;
+    // Le journal ne décrit que cette passe-ci : ce qu'il nommait a déjà été appliqué ou abandonné.
+    rows.clearResidencyChanges();
     mirror.sync();
     if (!mirror.dirty && rows.rowsEpoch === rows.tableEpoch) return;
     mirror.dirty = false;
@@ -42,6 +44,7 @@ export function createWebgpuRowSync(
       const resident = offsetWords >= 0 && !!index;
       if (rows.residentFlags[i] !== (resident ? 1 : 0)) {
         rows.residentFlags[i] = resident ? 1 : 0;
+        rows.noteResidencyChange(i);
         onResidenceChange(rec);
       }
       // Un cluster transparent est résident, demandé et budgété comme les autres, mais il ne réclame

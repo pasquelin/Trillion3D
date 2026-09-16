@@ -1,20 +1,10 @@
 // Lot M2, mathSphere.ts : sphère englobante d'une boîte, confrontée à Box3.getBoundingSphere de
 // Three.js au bit près (Object.is), boîte vide comprise.
 import test from 'node:test';
-import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { boxTransform, sphereFromBounds } from './index.ts';
+import { assertBits, boite3 } from './bench/oracles/volumes.mjs';
 
-const boite3 = (b: ArrayLike<number>) =>
-  new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5]));
-function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
-  assert.equal(actual.length, expected.length);
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(
-      Object.is(actual[i], expected[i]),
-      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
-    );
-}
 const sphereRef = (b: ArrayLike<number>) => {
   const s = boite3(b).getBoundingSphere(new THREE.Sphere());
   return Float64Array.of(s.center.x, s.center.y, s.center.z, s.radius);

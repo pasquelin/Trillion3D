@@ -17,12 +17,17 @@ import {
   FLAG_BACK,
   FLAG_HAS_ORM,
   FLAG_HAS_NORMAL_MAP,
-  FLAG_WRAP_S_REPEAT,
-  FLAG_WRAP_T_REPEAT,
 } from './visibilityBuffer.ts';
+import { wrapModes } from './visibilityWrapModes.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
+/** Mot où vit l'adressage des cartes de la page, un quartet chacune (`visibilityWrapModes.ts`).
+ *  Il occupe un des mots de remplissage de la fiche : la fiche ne grossit pas d'un octet. */
+export const ROW_WRAP_MODES_WORD = 61;
+/** Mot de la ligne où vit le nombre d'indices que la page dessine : ce que la carte lit pour la
+ *  dessiner, et donc le seul compte de sommets qu'un parcours d'image a besoin de relire. */
+export const ROW_INDEX_WORDS = 25;
 /**
  * Le socle d'identifiant d'une ligne du tableau de pages : son rang décalé des bits du triangle,
  * zéro restant libre pour le fond. La première écriture d'une ligne et le retassage qui la déplace
@@ -92,14 +97,12 @@ export function createPageRowWriter({
     if (mat.backSide) flags |= FLAG_BACK;
     if (roughLayer || metalLayer) flags |= FLAG_HAS_ORM;
     if (nrmLayer) flags |= FLAG_HAS_NORMAL_MAP;
-    if (mat.map && mat.map.wrapS !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_S_REPEAT;
-    if (mat.map && mat.map.wrapT !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_T_REPEAT;
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
     assertVisibilityPageTriangles(index.length / 3, rec.url);
     ints[base + 22] = layer;
     ints[base + 23] = flags;
     ints[base + 24] = offsetWords;
-    ints[base + 25] = index.length;
+    ints[base + ROW_INDEX_WORDS] = index.length;
     ints[base + 26] = geo?.vertexBase ?? 0;
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     floats[base + 28] = scale[0];
@@ -140,6 +143,9 @@ export function createPageRowWriter({
     // Unités de profondeur à retrancher pour la couche coplanaire de ce cluster : zéro pour la
     // couche 0, une seule source de calcul pour le chemin matériel comme pour le raster logiciel.
     ints[base + 60] = -depthLayerBias(rec.depthLayer);
+    // Chaque carte adresse sa texture dans son propre mode : la couleur peut se répéter là où les
+    // normales se serrent, et le nuanceur lit le quartet de la carte qu'il échantillonne.
+    ints[base + ROW_WRAP_MODES_WORD] = wrapModes(mat);
     markRowDirty(row);
   };
 }

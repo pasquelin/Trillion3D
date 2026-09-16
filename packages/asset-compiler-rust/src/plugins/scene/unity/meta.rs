@@ -67,18 +67,20 @@ impl ModelImport {
     }
 }
 
+/// Le document d'un `.meta`. Un `.meta` n'a pas d'entête `--- !u!` : c'est du YAML ordinaire, lu
+/// tel quel. Absent ou illisible, il ne rend rien et l'appelant garde ses valeurs par défaut.
+pub(super) fn document(meta: &Path) -> Yaml {
+    read_text(meta)
+        .and_then(|text| YamlLoader::load_from_str(&text).ok())
+        .and_then(|documents| documents.into_iter().next())
+        .unwrap_or(Yaml::BadValue)
+}
+
 /// Lit le `.meta` d'un modèle. Un `.meta` absent, illisible ou muet rend les réglages par défaut :
 /// aucune mise à l'échelle, aucun nom — le pilote retombe alors sur le modèle entier.
 pub(super) fn read(meta: &Path) -> ModelImport {
-    let Some(text) = read_text(meta) else {
-        return ModelImport::default();
-    };
-    let Ok(documents) = YamlLoader::load_from_str(&text) else {
-        return ModelImport::default();
-    };
-    let Some(importer) = documents.first().map(|document| &document["ModelImporter"]) else {
-        return ModelImport::default();
-    };
+    let read = document(meta);
+    let importer = &read["ModelImporter"];
     ModelImport {
         global_scale: setting(importer, "globalScale").unwrap_or(1.0),
         use_file_scale: setting(importer, "useFileScale").unwrap_or(1.0) != 0.0,
@@ -94,13 +96,15 @@ fn setting(importer: &Yaml, key: &str) -> Option<f64> {
 }
 
 /// La table `fileID` → nom. Les projets récents l'écrivent en séquence de couples
-/// `{first: {classe: fileID}, second: nom}` ; les anciens en mappage `fileID: nom`.
+/// `{first: {classe: fileID}, second: nom}` ; les anciens en mappage `fileID: nom`. Un `fileID` se
+/// lit en entier de soixante-quatre bits : par un flottant, `2^53 + 1` retomberait sur `2^53` et
+/// l'entrée nommerait un autre objet que celui que le `.meta` désigne.
 fn names(importer: &Yaml) -> HashMap<i64, String> {
     let mut out = HashMap::new();
     if let Some(table) = importer["fileIDToRecycleName"].as_hash() {
         for (file_id, name) in table {
-            if let (Some(file_id), Some(name)) = (number(file_id), text(name)) {
-                out.insert(file_id as i64, name);
+            if let (Some(file_id), Some(name)) = (integer(file_id), text(name)) {
+                out.insert(file_id, name);
             }
         }
     }
@@ -108,8 +112,8 @@ fn names(importer: &Yaml) -> HashMap<i64, String> {
         let Some((_, file_id)) = pair["first"].as_hash().and_then(|first| first.front()) else {
             continue;
         };
-        if let (Some(file_id), Some(name)) = (number(file_id), text(&pair["second"])) {
-            out.insert(file_id as i64, name);
+        if let (Some(file_id), Some(name)) = (integer(file_id), text(&pair["second"])) {
+            out.insert(file_id, name);
         }
     }
     out

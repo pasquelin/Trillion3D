@@ -3,7 +3,6 @@
 //! compression et profondeur sont des façons d'écrire la même image, jamais de la changer.
 use super::super::image as registry;
 use super::fixture;
-use std::path::PathBuf;
 
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 
@@ -30,13 +29,10 @@ fn opaque() -> Vec<[u8; 4]> {
 
 /// Les pixels d'une fixture, dans l'ordre de lecture de l'image décodée.
 fn pixels(name: &str) -> Vec<[u8; 4]> {
-    let bytes = fixture("tga", name);
-    let decoder = registry::by_head(&bytes).expect("un pilote revendique ces octets");
-    assert_eq!(decoder.name(), "tga", "{name}");
-    let image =
-        super::rgba8(registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|e| panic!("{name}: {e}")));
-    assert_eq!((image.width(), image.height()), (4, 2), "{name}");
-    image.pixels().map(|pixel| pixel.0).collect()
+    super::decoded_rgba8("tga", name, MAX_ALLOC, (4, 2))
+        .pixels()
+        .map(|pixel| pixel.0)
+        .collect()
 }
 
 // Dorée du pilote TGA : les six profils que le pilote annonce lire rendent, pixel par pixel, la
@@ -67,12 +63,7 @@ fn chaque_profil_tga_rend_les_pixels_de_la_reference() {
 // illisible laisse le moteur retomber sur son blanc ; il n'interrompt aucune compilation.
 #[test]
 fn un_tga_illisible_ressort_en_raison_de_rapport_jamais_en_panique() {
-    for extension in ["tga", "tpic", "TGA"] {
-        let path = PathBuf::from(format!("albedo.{extension}"));
-        let decoder = registry::by_extension(&path).expect("revendiqué");
-        assert_eq!(decoder.name(), "tga", "{extension}");
-        assert_eq!(decoder.mime(), "image/x-tga");
-    }
+    super::assert_claims("tga", "image/x-tga", &["tga", "tpic", "TGA"]);
     // Tronqué : l'entête est reconnu, donc le pilote est choisi, et c'est le décodage qui échoue.
     let tronque = fixture("tga", "tronque.tga");
     assert_eq!(
@@ -115,4 +106,30 @@ fn un_tga_illisible_ressort_en_raison_de_rapport_jamais_en_panique() {
         registry::by_head(&tronque[..8]).is_none(),
         "entête incomplet"
     );
+}
+
+/// Un TGA d'un seul pixel en vraies couleurs 24 bits, origine haute : dix-huit octets d'entête puis
+/// le pixel, écrit BGR comme le format le demande. Trois octets écrits, quatre une fois étendus en
+/// RGBA8 : c'est cet écart que le plafond doit voir.
+const ONE_PIXEL: [u8; 21] = [
+    0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 24, 0x20, 10, 20, 30,
+];
+
+// Constat 7 : le plafond d'allocation vaut la taille finale de l'image en RGBA8 — largeur par
+// hauteur par quatre octets —, vérifiée avant tout décodage. Un pixel de trente-deux bits passait
+// sous un plafond de trois octets, puis quatre étaient alloués pour le porter.
+#[test]
+fn le_plafond_couvre_la_taille_rgba8_finale_avant_tout_decodage() {
+    assert_eq!(
+        registry::by_head(&ONE_PIXEL).map(|d| d.name()),
+        Some("tga"),
+        "un TGA d'un pixel reste revendiqué par son entête"
+    );
+    assert_eq!(
+        registry::decode(&ONE_PIXEL, 3).err(),
+        Some("image-too-large"),
+        "un pixel RGBA8 pèse quatre octets, au-dessus d'un plafond de trois"
+    );
+    let decoded = super::rgba8(registry::decode(&ONE_PIXEL, MAX_ALLOC).expect("sous le plafond"));
+    assert_eq!(decoded.into_raw(), vec![30, 20, 10, 255]);
 }

@@ -6,10 +6,12 @@
 //! Ce module ne lit aucun pixel : il rend la surface — codec, dimensions, schéma de supercompression
 //! et bornes du niveau 0 — ou un refus nommé. La chaîne annoncée est vérifiée entière : un KTX2 qui
 //! promet neuf niveaux dont l'un sort du fichier est tronqué, pas à moitié bon.
+use super::{dfd, format};
 use super::{
     DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
     SUPERCOMPRESSION_UNSUPPORTED,
 };
+use crate::plugins::image::{Transfer, MAX_LEVELS};
 
 /// Fin de l'entête fixe : identifiant, quatorze champs et l'index des trois sections.
 const HEADER_END: usize = 80;
@@ -18,7 +20,6 @@ const LEVEL_ENTRY: usize = 24;
 /// `typeSize` vaut un pour tout format compressé en blocs comme pour l'octet non compressé ; une
 /// autre valeur annonce des mots de plusieurs octets à réordonner, hors de la liste déclarée.
 const TYPE_SIZE: u32 = 1;
-use crate::plugins::image::blocks::MAX_LEVELS;
 
 /// `supercompressionScheme` : les trois schémas que ce pilote déclare, sur les quatre numérotés.
 /// ZLIB (3) n'entre pas — aucun encodeur courant ne l'écrit, et un lecteur non exercé ment.
@@ -32,6 +33,12 @@ pub(super) struct Surface {
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) supercompression: u32,
+    /// La fonction de transfert que le fichier déclare : celle du descripteur de format quand il la
+    /// nomme, celle du `vkFormat` sinon, et à défaut le sRGB de convention.
+    pub(super) transfer: Transfer,
+    /// Le descripteur de format lève le drapeau d'alpha prémultiplié : les composantes sont déjà
+    /// multipliées par leur alpha, et le contrat de sortie les demande droites.
+    pub(super) premultiplied: bool,
     /// Les bornes du niveau 0 dans le fichier, telles que l'index les donne.
     pub(super) level: std::ops::Range<usize>,
     /// `uncompressedByteLength` du niveau 0 : ce que la supercompression doit rendre.
@@ -75,6 +82,11 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     // niveau est stocké, et c'est celui-là qu'on lit.
     let levels = levels.max(1) as usize;
     let (level, plain) = chain(bytes, levels)?;
+    let descriptor = dfd::read(bytes);
+    let transfer = descriptor
+        .transfer
+        .or_else(|| format::transfer(format))
+        .unwrap_or(Transfer::Srgb);
     Ok(Surface {
         format,
         width,
@@ -82,6 +94,8 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
         supercompression,
         level,
         plain,
+        transfer,
+        premultiplied: descriptor.premultiplied,
     })
 }
 

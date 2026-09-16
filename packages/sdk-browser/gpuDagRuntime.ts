@@ -4,8 +4,10 @@ import {
   sameSelectionUniforms,
   type GpuCut,
   type GpuSelection,
+  type ResidencyChanges,
   type SelectionUniforms,
 } from './gpuSelection.ts';
+import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from './webgpuResidencyRanges.ts';
 import { FRAME_VEC4 } from './gpuDagTypes.ts';
 import { createDagDispatch } from './gpuDagDispatch.ts';
 import type { createDagResources } from './gpuDagResources.ts';
@@ -13,9 +15,10 @@ import type { createDagResources } from './gpuDagResources.ts';
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 /**
- * La résidence demandée, comparée au miroir compact de l'image précédente : seules les pages dont
- * le drapeau change touchent les cônes, où il vit à un flottant sur douze. Rend vrai si au moins
- * une a changé — la même réponse que la comparaison directe des cônes, valeur flottante comprise.
+ * La résidence demandée, appliquée aux seules pages que le journal des rangs nomme — celles dont le
+ * drapeau vient d'entrer ou de sortir — et à toutes les pages quand il n'en nomme aucune de façon
+ * fiable. Le drapeau vit à un flottant sur douze dans les cônes de page. Les index retenus dans
+ * `touched` sont croissants ; ils disent au dessus quelles plages écrire. Rend leur nombre.
  */
 export function updateResidencyFlags(
   next: Uint32Array,
@@ -23,16 +26,20 @@ export function updateResidencyFlags(
   pageCones: Float32Array,
   stride: number,
   offset: number,
+  changes: ResidencyChanges | undefined,
+  touched: Int32Array,
 ) {
-  let changed = false;
-  for (let j = 0; j < next.length; j++) {
+  let count = 0;
+  const apply = (j: number) => {
     const value = next[j] ? 1 : 0;
-    if (mirror[j] === value) continue;
+    if (mirror[j] === value) return;
     mirror[j] = value;
     pageCones[j * stride + offset] = value;
-    changed = true;
-  }
-  return changed;
+    touched[count++] = j;
+  };
+  if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i]);
+  else for (let j = 0; j < next.length; j++) apply(j);
+  return count;
 }
 
 export function createDagRuntime(resources: DagResources): GpuSelection {
@@ -74,6 +81,10 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   // plutôt que de sauter de douze flottants en douze flottants dans les cônes de page.
   const residence = new Float32Array(pageCount);
   for (let j = 0; j < pageCount; j++) residence[j] = packed.pageCones[j * PAGE_CONE_FLOATS + 11];
+  /** Les pages que la dernière application a réellement changées, et les plages qui les couvrent. */
+  const touched = new Int32Array(pageCount);
+  const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
+  const coneBytes = PAGE_CONE_FLOATS * 4;
   const dispatch = createDagDispatch(resources, state, fail);
   const selection: GpuSelection = {
     residentCut,
@@ -112,12 +123,33 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
       state.lastReadback = undefined;
       return true;
     },
-    updateResidency(next) {
+    updateResidency(next, changes) {
       if (state.disposed || state.dead || !residentCut) return false;
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      if (!updateResidencyFlags(next, residence, packed.pageCones, PAGE_CONE_FLOATS, 11))
-        return false;
-      device.queue.writeBuffer(pageCones, 0, packed.pageCones as Float32Array<ArrayBuffer>);
+      const count = updateResidencyFlags(
+        next,
+        residence,
+        packed.pageCones,
+        PAGE_CONE_FLOATS,
+        11,
+        changes,
+        touched,
+      );
+      if (!count) return false;
+      // Une écriture par plage contiguë, jamais une par page : la totalité des cônes ne repart plus
+      // pour un drapeau, et mille petites écritures ne remplacent pas la seule qu'elles coûtent.
+      const spans = coalesceResidencyRanges(touched, count, ranges);
+      for (let r = 0; r < spans; r++) {
+        const from = ranges[r * 2],
+          bytes = (ranges[r * 2 + 1] - from + 1) * coneBytes;
+        device.queue.writeBuffer(
+          pageCones,
+          from * coneBytes,
+          packed.pageCones.buffer as ArrayBuffer,
+          packed.pageCones.byteOffset + from * coneBytes,
+          bytes,
+        );
+      }
       state.residencyRevision++;
       state.last = null;
       return true;

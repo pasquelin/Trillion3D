@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import type { GpuPassTimings } from '../sdk-core/index.ts';
 import type { createGpuTiming } from './gpuTiming.ts';
 import type { SelectionSubmission } from './gpuSelection.ts';
@@ -48,6 +47,8 @@ export interface WebgpuTimingState {
     bornesToutes: number;
     historiqueOcculteurs: number;
     sansHistorique: number;
+    /** Rectangles d'écran réécrits par cette image ; zéro quand le cache décrivait déjà la vue. */
+    rectanglesProjetes: number;
   };
   /** Ce que l'encodage a téléversé et soumis : des comptes, jamais des durées. */
   encodeCounts: {
@@ -64,6 +65,10 @@ export interface WebgpuTimingState {
   lastCpuLogFrame: number;
   cpuSample: Record<string, unknown> | undefined;
   transparentEncodeMs: number;
+  transparentSelectMs: number;
+  transparentPrepareMs: number;
+  transparentDrawMs: number;
+  transparentSpanUploadBytes: number;
   /**
    * One image, one command buffer. A frame that drives the GPU cut opens it before the selection and
    * every pass it encodes lands in it, so the driver validates one buffer instead of two and the
@@ -107,6 +112,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       bornesToutes: 0,
       historiqueOcculteurs: 0,
       sansHistorique: 0,
+      rectanglesProjetes: 0,
     },
     encodeCounts: {
       lignesTeleversees: 0,
@@ -135,12 +141,11 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     lastCpuLogFrame: -1,
     cpuSample: undefined,
     transparentEncodeMs: 0,
+    transparentSelectMs: 0,
+    transparentPrepareMs: 0,
+    transparentDrawMs: 0,
+    transparentSpanUploadBytes: 0,
     frameEncoder: undefined,
     frameSelection: undefined,
   };
 }
-
-export const cameraPose = (camera: THREE.PerspectiveCamera) => ({
-  position: camera.getWorldPosition(new THREE.Vector3()).toArray(),
-  quaternion: camera.getWorldQuaternion(new THREE.Quaternion()).toArray(),
-});

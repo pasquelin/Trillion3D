@@ -46,6 +46,7 @@ export interface RenderBackend {
       | 'transparentSubmittedTriangles'
       | 'coverageReady'
       | 'coverageBudgetLimited'
+      | 'frameHeld'
       | 'textureUploaded'
       | 'texturePending'
       | 'textureInFlight'

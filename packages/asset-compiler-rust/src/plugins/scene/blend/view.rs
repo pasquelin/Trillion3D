@@ -4,6 +4,10 @@
 //! nombres, pointeurs, chaînes en place, structures imbriquées et structures pointées. Un champ
 //! absent de cette version du format ne fait jamais paniquer — il rend la valeur par défaut que
 //! l'appelant a donnée, et c'est à l'appelant de dire ce qu'il en fait.
+//!
+//! Une vue est bornée **au bloc** qu'elle lit, jamais au fichier : un bloc plus court que la
+//! structure que son entête nomme rendrait sinon les octets du bloc suivant comme s'ils étaient les
+//! siens. Un champ qui déborde du bloc est donc traité comme un champ absent.
 use super::*;
 
 /// Une structure lue à un décalage du fichier.
@@ -12,6 +16,8 @@ pub(super) struct At<'a> {
     pub(super) file: &'a BlendFile,
     pub(super) layout: &'a Layout,
     pub(super) base: usize,
+    /// La fin des octets du bloc atteint : aucun champ ne se lit au-delà.
+    limit: usize,
     /// L'adresse d'origine du bloc atteint : c'est par elle que les pointeurs du fichier se
     /// comparent entre eux. Zéro pour une structure imbriquée, qui n'en a pas.
     pub(super) old: u64,
@@ -24,6 +30,7 @@ impl BlendFile {
             file: self,
             layout: self.dna.layout(block.sdna)?,
             base: block.start,
+            limit: block.start.saturating_add(block.len),
             old: block.old,
         })
     }
@@ -34,6 +41,7 @@ impl BlendFile {
             file: self,
             layout: self.dna.layout(self.dna.index(kind)?)?,
             base: block.start,
+            limit: block.start.saturating_add(block.len),
             old: block.old,
         })
     }
@@ -57,11 +65,17 @@ impl<'a> At<'a> {
     pub(super) fn has(&self, name: &str) -> bool {
         self.layout.field(name).is_some()
     }
-    /// Les octets d'un champ, bornés par le fichier.
+    /// Les octets d'un champ, bornés par le bloc. Un champ dont la fin déborde du bloc — ou dont le
+    /// produit taille par compte déborde — est traité comme absent.
     fn raw(&self, name: &str) -> Option<(&'a Field, &'a [u8])> {
         let field = self.layout.field(name)?;
         let from = self.base.checked_add(field.offset)?;
-        let bytes = self.file.bytes.get(from..from + field.unit * field.count)?;
+        let end = field
+            .unit
+            .checked_mul(field.count)
+            .and_then(|span| from.checked_add(span))
+            .filter(|end| *end <= self.limit)?;
+        let bytes = self.file.bytes.get(from..end)?;
         Some((field, bytes))
     }
     /// Un entier, quelle que soit sa largeur et sa signature déclarées.
@@ -116,6 +130,7 @@ impl<'a> At<'a> {
             file: self.file,
             layout: self.file.dna.layout(kind)?,
             base: self.base.checked_add(field.offset)?,
+            limit: self.limit,
             old: 0,
         })
     }
@@ -140,6 +155,7 @@ impl<'a> At<'a> {
             file: self.file,
             layout: self.layout,
             base: self.base.checked_add(rank.checked_mul(self.layout.size)?)?,
+            limit: self.limit,
             old: self.old,
         })
     }

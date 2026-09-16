@@ -9,6 +9,7 @@ import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix, maxStretch } from '../sd
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
@@ -37,6 +38,11 @@ export type SelectionResult = {
   drawablePageIds?: number[];
 };
 export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult };
+/**
+ * Les pages dont le drapeau de résidence vient de changer, dans l'ordre croissant. `sorted` faux dit
+ * que la liste ne décrit plus l'ensemble : le lecteur repart alors de toutes les pages.
+ */
+export type ResidencyChanges = { pages: Int32Array; count: number; sorted: boolean };
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void;
 export type GpuSelection = {
@@ -46,7 +52,7 @@ export type GpuSelection = {
   readonly maskOffset: number;
   readonly pageCount: number;
   updateWorlds(worldMatrices: Float32Array): boolean;
-  updateResidency(resident: Uint32Array): boolean;
+  updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
   /**
    * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
    * buffer — and takes back the settlement it must call: `true` once that buffer is on the queue,
@@ -118,7 +124,8 @@ export function cameraSelectionUniforms(
   viewport?: [number, number],
   into?: SelectionUniforms,
 ): SelectionUniforms {
-  camera.updateMatrixWorld();
+  // Ancêtres compris : vue, plans et position décrivent la même pose, même sous un rig d'hôte.
+  resolveCameraWorld(camera);
   const { vp, camPos } = scratch;
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
@@ -134,7 +141,7 @@ export function cameraSelectionUniforms(
     viewport,
     into?.pixelScale ?? ([1, 1] as [number, number]),
   );
-  camera.getWorldPosition(camPos);
+  camPos.setFromMatrixPosition(camera.matrixWorld);
   const cameraWorld: [number, number, number] = into?.cameraWorld ?? [camPos.x, camPos.y, camPos.z];
   cameraWorld[0] = camPos.x;
   cameraWorld[1] = camPos.y;

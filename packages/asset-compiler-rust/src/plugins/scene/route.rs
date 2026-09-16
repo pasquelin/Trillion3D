@@ -3,6 +3,9 @@ use super::*;
 use crate::{is_safe_source_name, CompilerError};
 use std::{collections::BTreeMap, fs, io::Read};
 
+#[cfg(test)]
+mod tests;
+
 /// Octets lus en tête d'un fichier dont l'extension n'est revendiquée par aucun pilote.
 const HEAD_BYTES: usize = 32;
 
@@ -36,8 +39,10 @@ pub fn prepare_source(o: &Options, progress: &(dyn Fn(Value) + Sync)) -> Result<
 }
 
 /// Interroge le registre. Un fichier est routé sur lui seul ; un dossier l'est sur tous les fichiers
-/// qu'un même pilote revendique. Deux pilotes servis par le même dossier, c'est une ambiguïté : le
-/// compilateur refuse plutôt que de deviner lequel porte la scène.
+/// **ordinaires** qu'un même pilote revendique — un sous-dossier n'est jamais une source, quel que
+/// soit son nom, et `textures.fbx` reste donc le dossier de ressources qu'il est. Deux pilotes
+/// servis par le même dossier, c'est une ambiguïté : le compilateur refuse plutôt que de deviner
+/// lequel porte la scène.
 ///
 /// Un pilote **de projet** passe avant : il revendique le dossier entier, et les fichiers trouvés
 /// dessous sont ses entrées, pas des sources concurrentes.
@@ -65,6 +70,9 @@ pub fn route(source: &Path) -> Result<Routed> {
             continue;
         };
         let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
         if let Some(plugin) = claim(name, &path) {
             claimed
                 .entry(plugin.name())

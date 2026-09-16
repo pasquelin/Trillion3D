@@ -9,8 +9,8 @@ seconde à la première, puis compare la première à `expected.json`.
 | ------------------- | -------------------------------------------------------------------------------- |
 | `scene.usdz`        | le paquet conforme : entrées stockées telles quelles, charges alignées sur 64 octets, une couche `usdc` et sa texture en sous-dossier |
 | `compressee.usdz`   | une entrée `deflate` : refus `USDZ_LAYOUT_INVALID`, rien n'est extrait            |
-| `sans-scene.usdz`   | un paquet sans couche USD : refus `SOURCE_FORMAT_UNKNOWN` par le routeur           |
-| `deux-scenes.usdz`  | deux couches à la racine : refus `SOURCE_FORMAT_AMBIGUOUS`, le compilateur ne choisit pas |
+| `sans-scene.usdz`   | un paquet qui n'ouvre pas sur une couche USD : refus `USDZ_ROOT_LAYER_MISSING`     |
+| `deux-scenes.usdz`  | deux couches : un triangle d'abord, un quadrilatère ensuite. Le paquet livre la première, et le compte de triangles le dit |
 
 Ce que chaque choix met sous surveillance :
 
@@ -19,8 +19,10 @@ Ce que chaque choix met sous surveillance :
   disant, plutôt que lu quand même ;
 - **une texture en sous-dossier** : les URI relatives du paquet ne sont pas réécrites, le conteneur
   n'aplatit rien, et la racine où les images se résolvent est le dossier extrait ;
-- **le choix de la couche racine** : ni deviné ni pris au premier venu. Aucune couche et plusieurs
-  couches sont deux refus distincts, tous deux rendus par le routeur.
+- **le choix de la couche racine** : ni deviné ni cherché parmi les entrées. La spécification de
+  l'AOUSD veut que la **première** entrée du paquet soit la couche racine ; tout ce qui la suit en
+  est une ressource, jamais une scène candidate. Un paquet qui n'ouvre pas sur une couche USD ne dit
+  donc pas quelle scène il livre, et il est refusé sous son propre nom.
 
 ## Provenance et licences
 
@@ -50,14 +52,23 @@ Ce que chaque choix met sous surveillance :
       a.writestr(e, LAYER * 40)
   with zipfile.ZipFile("sans-scene.usdz", "w") as a:
       aligned(a, "textures/checker.png", b"\x89PNG\r\n\x1a\n")
+  def mesh(name, counts, indices, points):
+      return ('#usda 1.0\n(\n    defaultPrim = "Root"\n)\n\ndef Xform "Root"\n{\n'
+              f'    def Mesh "{name}"\n    {{\n'
+              f'        int[] faceVertexCounts = [{counts}]\n'
+              f'        int[] faceVertexIndices = [{indices}]\n'
+              f'        point3f[] points = [{points}]\n'
+              '    }\n}\n').encode()
   with zipfile.ZipFile("deux-scenes.usdz", "w") as a:
-      aligned(a, "premiere.usda", LAYER); aligned(a, "seconde.usda", LAYER)
+      aligned(a, "premiere.usda", mesh("Triangle", "3", "0, 1, 2", "(0, 0, 0), (1, 0, 0), (0, 1, 0)"))
+      aligned(a, "seconde.usda", mesh("Quad", "4", "0, 1, 2, 3", "(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)"))
   PY
   ```
 
 ## `expected.json`
 
-Le pilote retenu, la chaîne `usdz` → `usd` publiée au rapport, les trois codes de refus, et la scène
+Le pilote retenu, la chaîne `usdz` → `usd` publiée au rapport, les deux codes de refus, le compte de
+triangles du paquet à deux couches, et la scène
 — version de format, version du sidecar binaire, sha256 de `clusters.bin`, comptes de primitives, de
 nœuds et de triangles. La clé de cache n'y figure pas : elle tient l'empreinte de toute
 l'implémentation du compilateur, donc un changement sans rapport la déplacerait ; l'égalité avec la

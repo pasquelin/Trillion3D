@@ -36,12 +36,15 @@ pub(super) struct Builder<'a, 'w> {
     /// Les maillages déjà liés à une suite de matériaux : la clé est le maillage du modèle et les
     /// matériaux que l'instance demande.
     pub(super) bound: HashMap<(usize, Vec<Option<usize>>), usize>,
-    /// Les maillages de modèle déjà réécrits sur place par leur première liaison.
-    pub(super) rebound: HashSet<usize>,
+    /// Les maillages de modèle qu'une première liaison a déjà pris.
+    pub(super) claimed: HashSet<usize>,
+    /// Le maillage du modèle tel qu'il était avant sa première liaison, mis de côté pour que les
+    /// suivantes partent de l'original et non de la variante posée sur place.
+    pub(super) pristine: HashMap<usize, Value>,
+    /// Le nœud écrit pour chaque objet parcouru, par `fileID` de sa transformation et de son
+    /// GameObject : c'est là que se pose ce qu'une instance ajoute sous lui.
+    pub(super) placed: HashMap<i64, usize>,
 }
-
-/// Ce qu'une instance de prefab remplace dans la transformation de sa racine.
-pub(super) type Overrides = HashMap<String, f64>;
 
 impl Builder<'_, '_> {
     /// Les racines d'un fichier : les transformations sans père, et les instances de prefab qui ne
@@ -82,11 +85,11 @@ impl Builder<'_, '_> {
         self.world.check()?;
         let entry = document.get(id)?;
         if entry.class_id == PREFAB_INSTANCE {
-            return self.prefab_instance(document, id, depth);
+            return self.prefab_instance(document, id, changes, depth);
         }
         if entry.stripped {
             let instance = reference(&entry.body["m_PrefabInstance"]).file_id;
-            return self.prefab_instance(document, instance, depth);
+            return self.prefab_instance(document, instance, changes, depth);
         }
         let object_id = reference(&entry.body["m_GameObject"]).file_id;
         let object = document.get(object_id)?;
@@ -100,7 +103,7 @@ impl Builder<'_, '_> {
             self.world.scene.count("inactive", 1);
             return None;
         }
-        let components = self.components(document, &object.body);
+        let components = self.components(document, &object.body, changes);
         let dropped = &self.dropped_renderers(document, &components, dropped);
         let mut node = json!({"name":object.body["m_Name"].as_str().unwrap_or("GameObject")});
         let empty = Overrides::new();
@@ -121,15 +124,26 @@ impl Builder<'_, '_> {
             node["children"] = json!(children);
         }
         self.world.scene.count("gameObjects", 1);
-        Some(self.world.scene.node(node))
+        let index = self.world.scene.node(node);
+        // L'objet qu'une instance ajoute nomme celui de la source sous lequel il se pose, par le
+        // `fileID` de sa transformation ou par celui de son GameObject : les deux mènent ici.
+        self.placed.insert(id, index);
+        self.placed.insert(object_id, index);
+        Some(index)
     }
 
-    /// Les composants d'un GameObject : classe et fileID, dans l'ordre déclaré.
-    fn components(&mut self, document: &Document, object: &Yaml) -> Vec<(u32, i64)> {
+    /// Les composants d'un GameObject : classe et fileID, dans l'ordre déclaré. Ceux qu'une
+    /// instance de prefab retire n'en font pas partie : pour le parcours, ils n'existent pas.
+    fn components(
+        &mut self,
+        document: &Document,
+        object: &Yaml,
+        changes: &Changes,
+    ) -> Vec<(u32, i64)> {
         let mut out = Vec::new();
         for component in sequence(object, "m_Component") {
             let id = reference(&component["component"]).file_id;
-            let Some(entry) = document.get(id) else {
+            let Some(entry) = document.get(id).filter(|_| !changes.structure.removes(id)) else {
                 continue;
             };
             if let Some((_, name)) = IGNORED.iter().find(|(class, _)| *class == entry.class_id) {
@@ -140,7 +154,9 @@ impl Builder<'_, '_> {
         out
     }
 
-    /// Les rendus qu'un `LODGroup` écarte : tout sauf son niveau le plus fin.
+    /// Les rendus qu'un `LODGroup` écarte : ceux que son niveau le plus fin ne cite pas. Un même
+    /// rendu peut figurer à plusieurs niveaux ; il est alors gardé au plus détaillé où il apparaît,
+    /// car l'écarter retirerait du niveau le plus fin une surface que la scène y montre.
     fn dropped_renderers(
         &mut self,
         document: &Document,
@@ -152,13 +168,25 @@ impl Builder<'_, '_> {
             let Some(group) = document.get(*id) else {
                 continue;
             };
-            for level in sequence(&group.body, "m_LODs").iter().skip(1) {
-                for renderer in sequence(level, "renderers") {
-                    dropped.insert(reference(&renderer["renderer"]).file_id);
+            let levels = sequence(&group.body, "m_LODs");
+            let kept: HashSet<i64> = levels
+                .first()
+                .map(|level| renderers(level).collect())
+                .unwrap_or_default();
+            for level in levels.iter().skip(1) {
+                for id in renderers(level).filter(|id| !kept.contains(id)) {
+                    dropped.insert(id);
                     self.world.scene.count("lodDropped", 1);
                 }
             }
         }
         dropped
     }
+}
+
+/// Les rendus qu'un niveau de `LODGroup` cite, par `fileID`.
+fn renderers(level: &Yaml) -> impl Iterator<Item = i64> + '_ {
+    sequence(level, "renderers")
+        .iter()
+        .map(|renderer| reference(&renderer["renderer"]).file_id)
 }

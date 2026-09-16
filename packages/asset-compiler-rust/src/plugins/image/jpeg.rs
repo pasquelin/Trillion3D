@@ -5,7 +5,7 @@
 //! que le PNG 16 bits avait : `zune-jpeg`, le décodeur de la feature, lit la précision dans le
 //! marqueur SOF et refuse tout ce qui n'est pas huit bits, plutôt que de l'abaisser. Le refus sort
 //! donc déjà en `image-decode-failed`, sans profondeur rognée en silence — rien à ajouter ici.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+use super::{crate_image, icc, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static JPEG: Jpeg = Jpeg;
 pub(super) struct Jpeg;
@@ -14,8 +14,11 @@ impl Plugin for Jpeg {
     fn name(&self) -> &'static str {
         "jpeg"
     }
+    /// Le suffixe nomme le comptage des profils colorimétriques : la version entre dans l'identité
+    /// du cache, et une entrée écrite du temps où un profil disparaissait sans un mot ne dit pas la
+    /// même chose que celles d'aujourd'hui.
     fn version(&self) -> &'static str {
-        "jpeg-image-0.25"
+        "jpeg-image-0.25-icc"
     }
     /// Les deux extensions du même format, dans l'ordre où l'on cherche un fichier voisin.
     fn extensions(&self) -> &'static [&'static str] {
@@ -35,7 +38,8 @@ impl ImageDecoder for Jpeg {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
-        crate_image::decode(bytes, max_alloc, image::ImageFormat::Jpeg)
+    ) -> std::result::Result<ImageDecoded, &'static str> {
+        let decoded = crate_image::decode(bytes, max_alloc, image::ImageFormat::Jpeg)?;
+        Ok(decoded.with_notes(icc::jpeg(bytes)))
     }
 }

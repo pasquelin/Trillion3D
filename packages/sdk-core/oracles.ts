@@ -2,9 +2,11 @@ export {
   dot,
   maxStretch,
   clusterErrorPixels,
-  clusterErrorAtDistance,
+  clusterErrorAtDepth,
+  screenErrorBound,
   coneRejects,
 } from './projectionOracles.ts';
+export { matrixWindingCw } from './matrixOrientation.ts';
 export {
   HIZ_BACKGROUND,
   hizReduceCeil,

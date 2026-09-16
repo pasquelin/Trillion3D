@@ -9,10 +9,15 @@
 //! `VkFormat` de plus de huit bits par canal, les ordres d'octets autres que R, G, B, A, et les
 //! treize empreintes ASTC autres que 4 × 4 — la reconstruction par rangée de quatre lignes de
 //! `image::blocks` ne sait promener que des blocs de quatre pixels de haut.
+//! Les deux formats EAC non signés font exception : ils sont développés par `super::eac`, écrit
+//! ici. Le décodeur externe les ramenait à huit bits par troncature et lisait leur champ d'indices
+//! à l'envers ; le module voisin dit lequel des deux défauts fait quoi.
+use super::eac;
 use crate::plugins::image::blocks::BlockDecode;
+use crate::plugins::image::Transfer;
 use texture2ddecoder::{
     decode_astc, decode_bc1, decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5,
-    decode_bc7, decode_eacr, decode_eacrg, decode_etc2_rgb, decode_etc2_rgba1, decode_etc2_rgba8,
+    decode_bc7, decode_etc2_rgb, decode_etc2_rgba1, decode_etc2_rgba8,
 };
 
 /// `VK_FORMAT_UNDEFINED` : le conteneur porte une charge Basis Universal.
@@ -43,8 +48,23 @@ impl Layout {
     }
 }
 
+/// Les `vkFormat` de la liste que le registre Vulkan nomme `_SRGB`. Ils portent exactement les
+/// mêmes octets que leurs jumeaux `_UNORM`, qui suivent ou précèdent immédiatement dans `layout` —
+/// c'est la seule chose qui les sépare, et elle change la lecture de toute la texture.
+const SRGB: &[u32] = &[43, 132, 134, 136, 138, 146, 148, 150, 152, 158];
+
+/// La fonction de transfert que ce `vkFormat` **nomme**, quand il en nomme une. `VK_FORMAT_UNDEFINED`
+/// — le conteneur porte alors une charge Basis Universal — n'en nomme aucune : c'est son descripteur
+/// de format qui parle, et à défaut la convention.
+pub(super) fn transfer(format: u32) -> Option<Transfer> {
+    if SRGB.contains(&format) {
+        return Some(Transfer::Srgb);
+    }
+    layout(format).map(|_| Transfer::Linear)
+}
+
 /// La disposition de ce `vkFormat` : la seule table qui relie un format déclaré à ses octets. Les
-/// variantes `_SRGB` portent les mêmes octets que leurs `_UNORM` — le contrat d'image est déjà sRGB.
+/// variantes `_SRGB` portent les mêmes octets que leurs `_UNORM` ; `SRGB` dit lesquelles.
 pub(super) fn layout(format: u32) -> Option<Layout> {
     let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
     Some(match format {
@@ -72,9 +92,9 @@ pub(super) fn layout(format: u32) -> Option<Layout> {
         // ETC2_R8G8B8A8_UNORM_BLOCK, ETC2_R8G8B8A8_SRGB_BLOCK
         151 | 152 => blocks(16, decode_etc2_rgba8),
         // EAC_R11_UNORM_BLOCK
-        153 => blocks(8, decode_eacr),
+        153 => blocks(8, eac::r11),
         // EAC_R11G11_UNORM_BLOCK
-        155 => blocks(16, decode_eacrg),
+        155 => blocks(16, eac::rg11),
         // ASTC_4x4_UNORM_BLOCK, ASTC_4x4_SRGB_BLOCK
         157 | 158 => blocks(16, astc_4x4),
         _ => return None,

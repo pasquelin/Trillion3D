@@ -9,6 +9,7 @@ use super::codec::{self, Codec};
 use super::{
     CODEC_UNSUPPORTED, DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
 };
+use crate::plugins::image::{Transfer, MAX_LEVELS};
 
 /// Fin de `DDS_HEADER` : quatre octets de nombre magique et cent vingt-quatre d'entête.
 const HEADER_END: usize = 128;
@@ -32,7 +33,6 @@ const TEXTURE_2D: u32 = 3;
 const MISC_TEXTURECUBE: u32 = 0x4;
 const ALPHA_MODE_MASK: u32 = 0x7;
 const ALPHA_MODE_PREMULTIPLIED: u32 = 2;
-use crate::plugins::image::blocks::MAX_LEVELS;
 
 /// La surface que le pilote va lire : son codec, sa taille, sa chaîne et où commence le niveau 0.
 pub(super) struct Surface {
@@ -40,6 +40,10 @@ pub(super) struct Surface {
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) data: usize,
+    /// La fonction de transfert que le fichier déclare. Seul l'entête DX10 la nomme, par la variante
+    /// `_SRGB` ou `_UNORM` de son `dxgiFormat` ; un DDS hérité se tait, et la convention lui prête
+    /// le sRGB — Direct3D 9 n'avait pas de format sRGB, et ses textures de couleur portent la courbe.
+    pub(super) transfer: Transfer,
 }
 
 /// Le mot de trente-deux bits à ce décalage, petit-boutien comme tout le format.
@@ -73,11 +77,14 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     }
     let flags = word(bytes, 80);
     let mut data = HEADER_END;
+    let mut transfer = Transfer::Srgb;
     let codec = if flags & DDPF_FOURCC != 0 {
         let fourcc: [u8; 4] = bytes[84..88].try_into().unwrap_or([0; 4]);
         if &fourcc == b"DX10" {
             data = DX10_END;
-            dx10(bytes)?
+            let (codec, declared) = dx10(bytes)?;
+            transfer = declared;
+            codec
         } else {
             codec::from_fourcc(fourcc).ok_or(CODEC_UNSUPPORTED)?
         }
@@ -105,11 +112,12 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
         width,
         height,
         data,
+        transfer,
     })
 }
 
 /// L'entête DX10 : dimension de ressource, tableau, cube et mode d'alpha, puis le `dxgiFormat`.
-fn dx10(bytes: &[u8]) -> std::result::Result<Codec, &'static str> {
+fn dx10(bytes: &[u8]) -> std::result::Result<(Codec, Transfer), &'static str> {
     if bytes.len() < DX10_END {
         return Err(HEADER_TRUNCATED);
     }
