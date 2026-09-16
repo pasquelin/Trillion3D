@@ -15,14 +15,15 @@ async function compactPasses(
   uniforms: GPUBuffer,
 ) {
   if (typeof device.createComputePipeline !== 'function') return undefined;
+  const readOnly = [0, 2, 7, 8];
   const layout = device.createBindGroupLayout({
-    entries: [0, 1, 2, 3, 4, 5, 6, 7].map((binding) => ({
+    entries: [0, 1, 2, 3, 4, 5, 6, 7, 8].map((binding) => ({
       binding,
       visibility: GPUShaderStage.COMPUTE,
       buffer:
         binding === 1
           ? { type: 'uniform' as const }
-          : binding === 0 || binding === 2 || binding === 7
+          : readOnly.includes(binding)
             ? { type: 'read-only-storage' as const }
             : { type: 'storage' as const },
     })),
@@ -43,9 +44,17 @@ async function compactPasses(
   const bindTo = (mask: GPUBuffer) =>
     device.createBindGroup({
       layout,
-      entries: [bound[0], uniforms, mask, bound[1], bound[2], bound[3], bound[4], bound[5]].map(
-        (buffer, binding) => ({ binding, resource: { buffer } }),
-      ),
+      entries: [
+        bound[0],
+        uniforms,
+        mask,
+        bound[1],
+        bound[2],
+        bound[3],
+        bound[4],
+        bound[5],
+        bound[6],
+      ].map((buffer, binding) => ({ binding, resource: { buffer } })),
     });
   let boundMask = bound[0],
     bindGroup = bindTo(boundMask);
@@ -103,6 +112,15 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
     const groupOffsets = make('WG transparent group offsets', table.groupCount * 4);
     const instanceBuffer = make('WG transparent instances', table.capacity * 4);
     const spanBuffer = make('WG transparent cluster spans', table.capacity * 8);
+    // Le verdict d'occultation de chaque entrée, écrit par le test Hi-Z des transparents un peu plus
+    // tôt dans la même soumission. Zéro avant toute image, et zéro sur une image sans pyramide :
+    // rien n'est alors retiré de la table.
+    // `COPY_SRC` ne sert qu'à l'audit, qui relit les verdicts ; aucune image ne les copie.
+    const occludedBuffer = make(
+      'WG transparent occlusion verdicts',
+      table.capacity * 4,
+      storage | GPUBufferUsage.COPY_SRC,
+    );
     const diagnosticBuffer = make('WG transparent cluster identity', table.capacity * 4);
     const indirectBuffer = make(
       'WG transparent indirect',
@@ -116,11 +134,20 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
     const encode = await compactPasses(
       device,
       table,
-      [entriesBuf, groupCounts, groupOffsets, instanceBuffer, indirectBuffer, itemRangesBuf],
+      [
+        entriesBuf,
+        groupCounts,
+        groupOffsets,
+        instanceBuffer,
+        indirectBuffer,
+        itemRangesBuf,
+        occludedBuffer,
+      ],
       uniforms,
     );
     return {
       instanceBuffer,
+      occludedBuffer,
       spanBuffer,
       diagnosticBuffer,
       indirectBuffer,
