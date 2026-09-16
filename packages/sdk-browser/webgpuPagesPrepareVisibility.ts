@@ -11,6 +11,7 @@ import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { createGpuPartition } from './gpuPartitionFactory.ts';
+import { createGpuRestCompact } from './gpuRestCompact.ts';
 import { prepareTransparentOcclusion } from './webgpuTransparentOcclusionHost.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
@@ -45,7 +46,13 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   for (const rec of rt.setup.allPages)
     if (rec.depthLayer > maxDepthLayer) maxDepthLayer = rec.depthLayer;
   vis.drawLayerSlots = 1 + Math.min(maxDepthLayer, MAX_DEPTH_LAYER);
-  const shaders = await createWebgpuVisibilityShaders(gpuDevice, drawSlots, visUniformSlots(vis));
+  const variant = rt.context?.diagnosticGpuVariant;
+  const shaders = await createWebgpuVisibilityShaders(
+    gpuDevice,
+    drawSlots,
+    visUniformSlots(vis),
+    variant,
+  );
   vis.shadeUniform = shaders.shadeUniform;
   vis.visBindGroupLayout = shaders.visBindGroupLayout;
   vis.zeroFlags = shaders.zeroFlags;
@@ -60,6 +67,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       visModule,
       vis.visBindGroupLayout,
       true,
+      variant,
     );
   } catch (error) {
     diag.diagnosticFailure('hiz-pipeline-fallback', error);
@@ -69,6 +77,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       visModule,
       vis.visBindGroupLayout!,
       false,
+      variant,
     );
   }
   ({
@@ -90,6 +99,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
         vis.visBindGroupLayout!,
         !!vis.gpuHiz && !!vis.visHizRestBack,
         vis.drawLayerSlots,
+        variant,
       );
       diag.engineDiagnostic('coplanar-layers-ready', 'Couches coplanaires prêtes', {
         layers: vis.drawLayerSlots - 1,
@@ -102,7 +112,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       vis.drawLayerSlots = 1;
     }
   ({ shadeBindGroupLayout: vis.shadeBindGroupLayout, shadePipeline: vis.shadePipeline } =
-    await createWebgpuShadePipeline(gpuDevice, shadeModule));
+    await createWebgpuShadePipeline(gpuDevice, shadeModule, variant));
   if (!vis.pageTable)
     vis.pageTable = gpuDevice.createBuffer({
       size: PAGE_INFO_STRIDE,
@@ -165,6 +175,14 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       flags: vis.gpuHiz.flags,
       restBits: vis.gpuDraw.restBitsBuffer,
       slotUsed: vis.gpuDraw.slotUsedBuffer,
+    });
+    // La compaction de la moitié testée lit le verdict de la pyramide et réécrit la liste
+    // d'instances que la compaction de dessin vient de poser : elle n'existe qu'avec les deux.
+    vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, {
+      instances: vis.gpuDraw.instanceBuffer,
+      indirect: vis.gpuDraw.indirectBuffer,
+      slotOffsets: vis.gpuDraw.slotOffsetsBuffer,
+      flags: vis.gpuHiz.flags,
     });
     if (vis.gpuPartition) vis.gpuHiz.attach(vis.gpuPartition.tested, vis.gpuPartition.state);
     else
