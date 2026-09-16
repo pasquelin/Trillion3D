@@ -79,6 +79,12 @@ pub(super) const BUMP_HEIGHT: &str = "ma-bump-height-unsupported";
 /// Un `bump2d` en normales d'espace objet (`bumpInterp` 2) : `normalTexture` de glTF est lue en
 /// espace tangent, et convertir demanderait la pose de la surface au moment du rendu.
 pub(super) const BUMP_OBJECT: &str = "ma-bump-object-space-unsupported";
+/// Un `place2dTexture` qui déplace le placage — répétition, décalage, rotation : `KHR_texture_transform`
+/// le porterait, et l'écrivain glTF de ce dépôt ne déclare pas cette extension.
+pub(super) const TEXTURE_TRANSFORM: &str = "ma-texture-transform-unsupported";
+/// Un `place2dTexture` qui renvoie la texture en miroir (`mirrorU`, `mirrorV`) : aucun mode de
+/// répétition de glTF ne fait ce pliage.
+pub(super) const TEXTURE_MIRROR: &str = "ma-texture-mirror-unsupported";
 /// Une texture dont le fichier est absent, hors du dossier de la source, ou d'un format que le
 /// registre d'images ne lit pas.
 pub(super) const TEXTURE_MISSING: &str = "ma-texture-missing";
