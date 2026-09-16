@@ -2,7 +2,7 @@ use super::{emit, error_value, listen_stdin, run_job, Cancellation};
 use serde_json::{json, Value};
 use std::{
     collections::VecDeque,
-    path::PathBuf,
+    path::{Component, Path, PathBuf},
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -20,6 +20,45 @@ fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
 }
 fn text<'a>(value: Option<&'a Value>, default: &'a str) -> &'a str {
     value.and_then(Value::as_str).unwrap_or(default)
+}
+/// L'identité d'une destination, qu'elle existe déjà ou non. `canonicalize` seul échoue sur un
+/// dossier absent et rend alors le texte brut : `x` et `p/../x` passaient pour deux caches. On
+/// résout donc en deux temps. D'abord le chemin devient absolu et ses `.` disparaissent, chaque `..`
+/// remontant depuis le chemin canonicalisé quand il existe — un `..` derrière un lien symbolique ne
+/// remonte pas là où le texte le dit. Ensuite le plus long préfixe existant est canonicalisé et le
+/// suffixe absent lui est réappliqué. Les séparateurs doublés ne survivent pas au parcours.
+fn cache_identity(path: &Path) -> PathBuf {
+    let mut walked = if path.is_absolute() {
+        PathBuf::new()
+    } else {
+        std::env::current_dir().unwrap_or_default()
+    };
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if let Ok(real) = std::fs::canonicalize(&walked) {
+                    walked = real;
+                }
+                walked.pop();
+            }
+            other => walked.push(other),
+        }
+    }
+    let mut absent = Vec::new();
+    let mut existing = walked.clone();
+    loop {
+        if let Ok(real) = std::fs::canonicalize(&existing) {
+            return absent.iter().rev().fold(real, |path, name| path.join(name));
+        }
+        let Some(name) = existing.file_name().map(std::ffi::OsString::from) else {
+            return walked;
+        };
+        absent.push(name);
+        if !existing.pop() {
+            return walked;
+        }
+    }
 }
 /// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangles":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..}]}`.
 /// Per-job RAM defaults to the batch budget divided by the number of workers.
@@ -40,7 +79,7 @@ fn parse_batch(
     }
     let mut parsed = Vec::new();
     let mut seen = std::collections::HashSet::new();
-    let mut caches = std::collections::HashSet::new();
+    let mut caches = std::collections::HashMap::new();
     for (i, job) in jobs.iter().enumerate() {
         let id = text(job.get("id"), "").to_string();
         let id = if id.is_empty() {
@@ -59,12 +98,12 @@ fn parse_batch(
                 "job {id}: source, cache and resourceBaseUrl are required"
             ));
         }
-        // One cache holds one pointer per scope and prunes itself after each job: two concurrent jobs in it would destroy each other's output.
-        if !caches.insert(
-            std::fs::canonicalize(cache).unwrap_or_else(|_| std::path::PathBuf::from(cache)),
-        ) {
+        // One cache holds one pointer per scope and prunes itself after each job: two jobs writing
+        // it, under whatever spelling, would destroy each other's output.
+        if let Some(other) = caches.insert(cache_identity(Path::new(cache)), (id.clone(), cache)) {
             return Err(format!(
-                "job {id}: cache {cache} is already used by another job of this batch"
+                "job {id}: cache {cache} is the directory that job {} already writes as {}",
+                other.0, other.1
             ));
         }
         let field = |name: &str, default: usize| {

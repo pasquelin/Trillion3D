@@ -1,4 +1,6 @@
 //! End-to-end checks of the executable's protocol: events on stderr, pointer(s) on stdout, exit codes.
+mod common;
+use common::{fixture, lines};
 use serde_json::Value;
 use std::{
     fs,
@@ -6,26 +8,6 @@ use std::{
     path::PathBuf,
     process::{Command, Stdio},
 };
-fn fixture(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
-    let root =
-        std::env::temp_dir().join(format!("web-geometry-cli-{}-{}", std::process::id(), tag));
-    let source = root.join("source");
-    let cache = root.join("cache");
-    let _ = fs::remove_dir_all(&root);
-    fs::create_dir_all(&source).expect("source");
-    fs::write(
-        source.join("quad.obj"),
-        "v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 1 0\nvn 0 0 1\nf 1//1 2//1 4//1 3//1\n",
-    )
-    .expect("obj");
-    (root, source.join("quad.obj"), cache)
-}
-fn lines(text: &str) -> Vec<Value> {
-    text.lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| serde_json::from_str(l).unwrap_or_else(|_| panic!("not JSON: {l}")))
-        .collect()
-}
 #[test]
 fn single_job_prints_a_pointer_and_streams_events() {
     let (root, obj, cache) = fixture("single");
