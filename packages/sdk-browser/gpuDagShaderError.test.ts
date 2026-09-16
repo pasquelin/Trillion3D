@@ -25,15 +25,16 @@ test('la variante reference ne retourne que la constante, et porte la même form
   // La branche du nuanceur, recopiée : mêmes opérandes, même ordre que `referenceScreenError`.
   assert.match(
     code,
-    /if\(!\(depth>uni\.near\)\)\{return INF;\}\n  return \(error\*focal\)\/depth;/,
+    /if\(!\(depth>uni\.near\)\)\{return INF;\}\n  let delta=error\*stretch;\n  return \(delta\*focal\)\/depth;/,
   );
-  for (const [error, depth, focal, near] of [
-    [0.05, 10, 600, 0.1],
-    [0.5, 12, 900, 0.1],
-    [7, 0.05, 512, 0.1],
+  for (const [error, stretch, depth, focal, near] of [
+    [0.05, 1, 10, 600, 0.1],
+    [0.5, 0.02, 12, 900, 0.1],
+    [7, 1.5, 0.05, 512, 0.1],
   ] as const) {
-    const noyau = !(depth > near) ? Infinity : (error * focal) / depth;
-    assert.equal(noyau, referenceScreenError(error, depth, focal, near));
+    const delta = error * stretch;
+    const noyau = !(depth > near) ? Infinity : (delta * focal) / depth;
+    assert.equal(noyau, referenceScreenError(error, stretch, depth, focal, near));
   }
 });
 
