@@ -37,6 +37,7 @@ const cotéDeBase = {
   profilParEtape: null,
   selectedTriangles: null,
   uncoveredTriangles: null,
+  drawnTriangles: null,
   submittedTriangles: null,
   totalSubmittedTriangles: null,
   imageTenue: null,
