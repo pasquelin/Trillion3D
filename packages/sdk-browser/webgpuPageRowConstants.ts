@@ -1,7 +1,9 @@
-import * as THREE from 'three';
 import { clusterHash, visMaterial } from './visibilityBuffer.ts';
 import { wrapModes } from './visibilityWrapModes.ts';
 import type { VisMaterial } from './visibilityTypes.ts';
+
+/** Le matériau tel que la fiche le reçoit de l'hôte : le type que `visMaterial` accepte déjà. */
+type HostMaterial = Parameters<typeof visMaterial>[0];
 
 /** Ce qu'un matériau apporte à une fiche de page : ses champs lus, et son mot d'adressage. */
 type MaterialRow = { version: number; mat: VisMaterial; wrap: number };
@@ -17,11 +19,11 @@ type MaterialRow = { version: number; mat: VisMaterial; wrap: number };
  * quand Three en change la version, la seule mutation que le moteur lui fasse subir.
  */
 export function createPageRowConstants() {
-  const materials = new Map<THREE.Material | THREE.Material[], MaterialRow>();
+  const materials = new Map<HostMaterial, MaterialRow>();
   const hashes = new Map<string, number>();
   return {
     /** Les champs et le mot d'adressage d'un matériau, calculés à sa première fiche. */
-    materialOf(material: THREE.Material | THREE.Material[]) {
+    materialOf(material: HostMaterial) {
       const version = (Array.isArray(material) ? material[0] : material).version;
       const held = materials.get(material);
       if (held && held.version === version) return held;
