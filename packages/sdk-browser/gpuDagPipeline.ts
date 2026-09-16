@@ -37,16 +37,13 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const stage = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-  const resetPipeline = stage('dagReset'),
-    planePipeline = stage('dagPlanes'),
+  const preparePipeline = stage('dagPrepare'),
     nodePipeline = stage('dagNodes');
-  const argsPipeline = stage('dagArgs'),
-    wantedPipeline = stage('dagWanted'),
+  const wantedPipeline = stage('dagWanted'),
     escalatePipeline = stage('dagEscalate'),
     checkPipeline = stage('dagCheck'),
     maskPipeline = stage('dagMask');
-  const drawCountPipeline = stage('dagDrawCount'),
-    drawPrefixPipeline = stage('dagDrawPrefix'),
+  const drawPrefixPipeline = stage('dagDrawPrefix'),
     drawScatterPipeline = stage('dagDrawScatter');
   if (await validationError(device)) return undefined;
   const bindGroup = device.createBindGroup({
@@ -64,15 +61,12 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     ],
   });
   return {
-    resetPipeline,
-    planePipeline,
+    preparePipeline,
     nodePipeline,
-    argsPipeline,
     wantedPipeline,
     escalatePipeline,
     checkPipeline,
     maskPipeline,
-    drawCountPipeline,
     drawPrefixPipeline,
     drawScatterPipeline,
     bindGroup,
