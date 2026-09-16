@@ -5,7 +5,7 @@
  */
 
 /** Exécutions retenues par chemin : la médiane suit alors une minute de jeu, pas une image. */
-export const PATH_WINDOW = 30;
+const PATH_WINDOW = 30;
 /**
  * Résolution d'horloge au-delà de laquelle aucun arbitrage n'est tenté. Un lot du moteur dure des
  * dixièmes de milliseconde : une horloge plus grossière que cela ne rend que des zéros et des sauts,
