@@ -54,18 +54,25 @@ test('la passe de mélange tire le vrai rayon d’ombre lointaine, plus un bouch
   );
 });
 
-test('les deux passes qui éclairent portent exactement la même ombre lointaine', () => {
-  assert.equal(farShadowSource(BLEND_SHADER), farShadowSource(DIRECT_LIGHTING_WGSL));
-  // Le seul écart entre les deux socles est le rang de la liaison du proxy, que les deux
-  // dispositions numérotent différemment : le reste est le même caractère pour caractère.
-  const opaque = DIRECT_LIGHTING_WGSL;
-  const melange = declaredLightingWgsl(SUN_FAR_PROXY_BINDING);
+test('les deux passes qui éclairent tirent le même rayon, aux compteurs près', () => {
+  // Les deux seules lignes qui séparent les deux ombres lointaines sont les compteurs du relevé, que
+  // la passe de mélange ne porte pas : elle lie le proxy en lecture seule pour garder le rejet
+  // anticipé de profondeur. Retirées du côté opaque, les deux corps sont identiques caractère pour
+  // caractère — origine, bornes et réponse du rayon comprises.
+  const compteurs = /^ (let counting=|if\(counting\)\{atomicAdd).*\n/gm;
+  assert.equal(
+    farShadowSource(BLEND_SHADER),
+    farShadowSource(DIRECT_LIGHTING_WGSL).replace(compteurs, ''),
+  );
+  assert.doesNotMatch(farShadowSource(BLEND_SHADER), /atomic/, 'aucun compteur dans le mélange');
+  assert.match(farShadowSource(DIRECT_LIGHTING_WGSL), /atomicAdd\(&proxy\.tested/);
+  // Le reste du socle ne diffère que par le rang de la liaison du proxy et par son accès, que les
+  // deux dispositions ne numérotent ni ne déclarent pareil.
   const socle = (wgsl: string) => wgsl.slice(0, wgsl.indexOf('fn pixelTile('));
-  assert.equal(socle(melange), socle(opaque));
   assert.notEqual(
     socle(declaredLightingWgsl(BLEND_BINDINGS.proxy)),
-    socle(opaque),
-    'seul le rang de liaison sépare les deux modules',
+    socle(DIRECT_LIGHTING_WGSL),
+    'le mélange ne reprend ni le rang ni l’accès de la résolution différée',
   );
 });
 
@@ -80,21 +87,22 @@ test('le proxy résident est lié aux deux passes, sur une seule liaison de stoc
   const inDeferred = entriesOf(deferred.lighting).filter(
     (entry) => entry.binding === SUN_FAR_PROXY_BINDING,
   );
-  for (const [nom, found] of [
-    ['mélange', inBlend],
-    ['différée', inDeferred],
-  ] as Array<[string, GPUBindGroupLayoutEntry[]]>) {
+  // Le mélange lit le proxy, la résolution différée l'écrit : c'est elle seule qui tient les deux
+  // compteurs du relevé, et c'est cette lecture seule qui rend au mélange son rejet anticipé.
+  for (const [nom, found, type] of [
+    ['mélange', inBlend, 'read-only-storage'],
+    ['différée', inDeferred, 'storage'],
+  ] as Array<[string, GPUBindGroupLayoutEntry[], GPUBufferBindingType]>) {
     assert.equal(found.length, 1, `la passe ${nom} lie le proxy une fois et une seule`);
-    assert.equal(
-      found[0].buffer?.type,
-      'storage',
-      `les compteurs atomiques y sont écrits (${nom})`,
-    );
+    assert.equal(found[0].buffer?.type, type, `l’accès de la passe ${nom}`);
     assert.equal(found[0].visibility, GPUShaderStage.FRAGMENT);
   }
-  // La déclaration WGSL suit le rang de la disposition : le nuanceur et le groupe ne peuvent pas
-  // diverger, c'est le même nombre des deux côtés.
-  assert.match(BLEND_SHADER, new RegExp(`@binding\\(${BLEND_BINDINGS.proxy}\\) var<storage,`));
+  // La déclaration WGSL suit le rang ET l'accès de la disposition : le nuanceur et le groupe ne
+  // peuvent pas diverger, ni sur le nombre ni sur le droit d'écrire.
+  assert.match(
+    BLEND_SHADER,
+    new RegExp(`@binding\\(${BLEND_BINDINGS.proxy}\\) var<storage,read> proxy:`),
+  );
   assert.match(
     residentProxyWgsl(SUN_FAR_PROXY_BINDING),
     new RegExp(`@binding\\(${SUN_FAR_PROXY_BINDING}\\) var<storage,read_write> proxy:`),

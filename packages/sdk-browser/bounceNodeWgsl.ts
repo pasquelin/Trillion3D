@@ -35,17 +35,23 @@ export const PROXY_LAYOUT_WORD = 7;
  * passes qui le traversent — sondes, cache de surfaces, et les deux passes qui éclairent — lisent
  * la même structure aux mêmes rangs de mots : une seule façon de décrire le proxy.
  *
- * L'accès est `read_write` partout : les deux compteurs sont des `atomic`, qu'une liaison en
- * lecture seule ne peut pas déclarer. Les passes qui ne comptent rien n'y écrivent jamais.
+ * `writable` dit si la passe peut écrire les deux compteurs du relevé, et rien d'autre : le reste de
+ * l'entête et les trois colonnes sont en lecture des deux côtés. Une passe qui ne compte pas prend la
+ * déclaration en lecture seule, où les compteurs redeviennent des `u32` ordinaires — un `atomic` ne
+ * se déclare pas dans une liaison `read`. Ce n'est pas une préférence de style : sur un processeur
+ * graphique à tuiles, **une liaison de stockage accessible en écriture depuis l'étage de fragments
+ * interdit le rejet anticipé de profondeur** pour tout le pipeline, parce que l'effet de bord doit
+ * avoir lieu même quand la profondeur jetterait le fragment. La passe de mélange paie ce rejet
+ * anticipé en entier ; elle prend donc la déclaration en lecture seule.
  */
-export const residentProxyWgsl = (binding: number) => `
+export const residentProxyWgsl = (binding: number, writable = true) => `
 struct ResidentProxy{
  offsetMetres:f32,startMetres:f32,maxMetres:f32,present:f32,
- counting:u32,tested:atomic<u32>,blocked:atomic<u32>,nodeCount:u32,
+ counting:u32,${writable ? 'tested:atomic<u32>,blocked:atomic<u32>' : 'tested:u32,blocked:u32'},nodeCount:u32,
  trianglesWord:u32,boundsWord:u32,childrenWord:u32,pad:u32,
  words:array<u32>,
 }
-@group(0) @binding(${binding}) var<storage,read_write> proxy:ResidentProxy;`;
+@group(0) @binding(${binding}) var<storage,${writable ? 'read_write' : 'read'}> proxy:ResidentProxy;`;
 
 /**
  * Ce qu'un nœud du proxy porte, et comment un rayon le lit : les sommets d'un triangle, les bornes

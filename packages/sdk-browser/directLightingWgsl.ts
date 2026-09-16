@@ -1,7 +1,7 @@
 import { residentProxyWgsl } from './bounceNodeWgsl.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 import { DIRECT_SHADOW_WGSL } from './directShadowWgsl.ts';
-import { SUN_FAR_SHADOW_WGSL, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
+import { sunFarShadowWgsl, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 
 /**
  * Le socle des deux passes qui éclairent : les types du contrat, la lecture des ombres, et la
@@ -11,13 +11,14 @@ import { SUN_FAR_SHADOW_WGSL, SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.t
  * entièrement dans l'ombre, rend exactement zéro.
  *
  * L'ombre du soleil au-delà de la dernière cascade en fait partie : les deux passes lient le proxy
- * résident et tirent le même rayon. Le seul paramètre est le **rang** de cette liaison, que les
- * deux dispositions numérotent différemment ; le code, lui, est le même caractère pour caractère.
+ * résident et tirent le même rayon. Les deux paramètres sont le **rang** de cette liaison, que les
+ * deux dispositions numérotent différemment, et le droit d'écrire les deux compteurs du relevé ; le
+ * rayon, lui, est le même caractère pour caractère.
  */
-const lightingBase = (proxyBinding: number) => `
+const lightingBase = (proxyBinding: number, writable: boolean) => `
 ${DIRECT_LIGHT_WGSL}
-${residentProxyWgsl(proxyBinding)}
-${SUN_FAR_SHADOW_WGSL}
+${residentProxyWgsl(proxyBinding, writable)}
+${sunFarShadowWgsl(writable)}
 ${DIRECT_SHADOW_WGSL}
 fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  let incidence=directIncidence(light,P);
@@ -50,7 +51,7 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * zéro, et un couloir sans fenêtre reste noir en plein jour.
  */
 export const DIRECT_LIGHTING_WGSL = `
-${lightingBase(SUN_FAR_PROXY_BINDING)}
+${lightingBase(SUN_FAR_PROXY_BINDING, true)}
 /** La contribution des lampes du contrat au pixel, tuile par tuile et lampe par lampe. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  if(u32(view.lightParams.x)==0u){return vec3f(0.0);}
@@ -78,7 +79,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * lampes déclarées, bornée par `MAX_LIGHTS`, constante connue avant l'image (X2).
  */
 export const declaredLightingWgsl = (proxyBinding: number) => `
-${lightingBase(proxyBinding)}
+${lightingBase(proxyBinding, false)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  let tilesX=u32(uni.lightTiles.x);
  let tilesY=u32(uni.lightTiles.y);

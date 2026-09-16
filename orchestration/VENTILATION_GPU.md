@@ -74,8 +74,9 @@ Témoin A/A : 0 px partout. Seule la campagne `presentation-hors-ecran` est brui
 - **Le verdict : « surdessin » est faux, « ombrage caché » est vrai.** Les 43 ms ne sont pas des
   transparents qui se recouvrent : ce sont des fragments entièrement cachés derrière l'opaque,
   ombrés en entier puis jetés par le test de profondeur. Le rejet anticipé ne s'applique pas parce
-  que l'étage de fragments de `BLEND_SHADER` contient un `discard` (alpha-test) **et** une écriture
-  de stockage (`proxy`, en `read_write` dans l'étage de fragments) : deux raisons indépendantes.
+  que l'étage de fragments de `BLEND_SHADER` lie `proxy` en `read_write` : une écriture de stockage
+  possible oblige l'appareil à ombrer avant de tester. Deux causes étaient soupçonnées, le `discard`
+  de l'alpha-test et cette liaison ; **la mesure n'en retient qu'une** (levier 0 ci-dessous).
   `fsPlat`, qui n'a ni l'un ni l'autre, retombe à 7,9 ms sur exactement les mêmes commandes.
 
 ## Contenu réel de « Présentation »
@@ -97,7 +98,18 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
 
 ## Trois leviers, par gain attendu
 
-1. **Ne pas ombrer ce que la profondeur jette — ~36 ms.** Rétablir le rejet de profondeur anticipé
+0. **Fait — la liaison en écriture était la seule cause.** Le proxy résident lié en `read_write` à
+   l'étage de fragments du mélange interdisait le rejet anticipé ; passé en lecture seule (les deux
+   compteurs du relevé restent à la résolution différée), campagne `--avant 18b27295` caméra mobile,
+   même campagne des deux côtés : transparents 49,1 → 21,5 ms et présentation 24,5 → 0,7 ms (`rue`),
+   46,5 → 21,0 et 22,4 → 0,8 (`sol`) ; image 66,2 → 34,7 et 63,3 → 34,1. Écart 0 px, coupe identique,
+   témoin A/A 0 px. Le `discard` de l'alpha-test, lui, **ne coûte rien** : le retirer des deux chemins
+   ne rend que 0,4 ms sur 21 (20,72 contre 21,16 ms, `rue`), dans le bruit de la campagne — la
+   profondeur n'étant pas écrite, il n'empêche pas le test anticipé. Il reste donc en place, et aucune
+   variante de pipeline n'a été créée. Caméra immobile : l'image est tenue (`frameHeld`), zéro appel
+   de mélange, rien à chronométrer ; la preuve y est l'écart 0 px des deux vues.
+
+1. ~~**Ne pas ombrer ce que la profondeur jette — ~36 ms.**~~ Rétablir le rejet de profondeur anticipé
    sur la passe de mélange : sortir le `discard` de l'alpha-test et l'écriture de stockage `proxy`
    de l'étage de fragments du cas courant (variantes de pipeline par matériau), ou faire précéder le
    mélange d'un test de profondeur. Justifié par `plat` et `sommets` à 7,9 ms, image identique, et

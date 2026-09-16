@@ -54,10 +54,14 @@ export async function createWebgpuBlendPipelines(
       { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
       { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      // Le proxy résident de l'ombre lointaine du soleil : en écriture, parce que son entête porte
-      // les deux compteurs `atomic` de l'image relevée. C'est la huitième et dernière liaison de
+      // Le proxy résident de l'ombre lointaine du soleil : en **lecture seule**, et c'est la
+      // condition du rejet anticipé de profondeur de toute la passe. Une liaison accessible en
+      // écriture depuis l'étage de fragments oblige le processeur graphique à ombrer chaque fragment
+      // avant de le tester, effet de bord oblige — ici 4232 appels de fragments entièrement cachés
+      // derrière l'opaque. Le rayon d'ombre est le même ; seuls les deux compteurs du relevé restent
+      // à la résolution différée, qui, elle, peut écrire. C'est la huitième et dernière liaison de
       // stockage de cet étage de fragments, celle que la norme garantit encore.
-      { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'storage' } },
+      { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
       {
         binding: b.volume,
         visibility: GPUShaderStage.FRAGMENT,
