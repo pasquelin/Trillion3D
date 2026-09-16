@@ -28,8 +28,6 @@ export const bumpResources = (revisions: FrameRevisions) => {
   revisions.resources++;
 };
 
-export type FrameHold = ReturnType<typeof createFrameHold>;
-
 /**
  * Le témoin d'une image tenue : les trois révisions de la dernière image produite, et la signature
  * de ce qu'elle a produit.
