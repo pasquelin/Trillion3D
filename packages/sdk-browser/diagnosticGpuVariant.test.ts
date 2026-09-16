@@ -7,6 +7,7 @@ import {
   DIAGNOSTIC_BLEND_WGSL,
   DIAGNOSTIC_GPU_VARIANTS,
   resolveDiagnosticGpuVariant,
+  selectionRepeat,
 } from './diagnosticGpuVariant.ts';
 
 test('aucune variante demandée : rien à vérifier, rien à monter', () => {
@@ -39,6 +40,8 @@ test('chaque variante neutralise un seul facteur, et son étage existe dans le m
     'transparents-sans-couleur': { entryPoint: 'fs', writeMask: 0 },
     'transparents-surdessin': { entryPoint: 'fsPlat', writeMask: 0 },
     'presentation-hors-ecran': { entryPoint: 'fs', writeMask: 0xf },
+    'selection-doublee': { entryPoint: 'fs', writeMask: 0xf },
+    'selection-tete-doublee': { entryPoint: 'fs', writeMask: 0xf },
   };
   for (const variant of DIAGNOSTIC_GPU_VARIANTS) {
     const pipeline = blendVariantPipeline(variant);
@@ -53,4 +56,11 @@ test('le comptage et la présentation hors écran ne sont allumés que par leur 
   const horsEcran = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
   assert.deepEqual(comptant, ['transparents-surdessin']);
   assert.deepEqual(horsEcran, ['presentation-hors-ecran']);
+});
+
+test('seules les deux variantes de la coupe la réencodent, et chacune sa part', () => {
+  assert.equal(selectionRepeat(undefined), null);
+  assert.equal(selectionRepeat('transparents-plat'), null);
+  assert.equal(selectionRepeat('selection-doublee'), 'tout');
+  assert.equal(selectionRepeat('selection-tete-doublee'), 'tete');
 });

@@ -1,6 +1,7 @@
-// La coupe ne visite plus toutes les grappes cinq fois : `dagWanted` liste les vivantes, `dagArgs`
-// en tire le nombre de groupes de travail, et les cinq noyaux qui suivaient se répartissent sur
-// cette liste seule. Ce fichier tient le contrat d'encodage qui le porte.
+// La coupe ne visite plus toutes les grappes cinq fois : `dagWanted` liste les vivantes et compte
+// leurs groupes de travail au fil des ajouts, et les cinq noyaux qui suivaient se répartissent sur
+// cette liste seule. Ce fichier tient le contrat d'encodage qui le porte — dont le nombre de
+// lancements, seul responsable de l'attente que les horodatages n'attribuent à aucun noyau.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeDagKernels } from './gpuDagEncode.ts';
@@ -49,15 +50,12 @@ function encodeurTemoin() {
 }
 
 const PIPELINES = [
-  'reset',
-  'plane',
-  'args',
+  'prepare',
   'node',
   'wanted',
   'escalate',
   'check',
   'mask',
-  'drawCount',
   'drawPrefix',
   'drawScatter',
 ] as const;
@@ -68,8 +66,9 @@ function ressources(residentCut: boolean) {
     pageCount: 4096,
     nodeCount: 64,
     worldCount: 2,
-    liveArgsOffset: 1234,
-    flags: { nom: 'flags' },
+    blockCount: 64,
+    liveGroupsOffset: 1234,
+    work: { nom: 'work' },
     liveArgs: { nom: 'liveArgs' },
     bindGroup: {},
   };
@@ -91,22 +90,33 @@ test('les cinq noyaux de la coupe se répartissent sur la liste des grappes viva
   const groupes = Math.ceil(4096 / 64);
   assert.equal(parNoyau.get('dagWanted'), groupes);
   assert.equal(parNoyau.get('dagDrawScatter'), groupes);
-  assert.equal(parNoyau.get('dagArgs'), 1);
   // Trois escalades, une vérification, un masque : l'ordre et le compte des lancements sont ceux
   // d'avant, seule leur taille change.
   const indirects = lancements.filter((l) => l.groupes === 'indirect');
   assert.equal(indirects.length, ESCALATION_ROUNDS + 2);
   const ordre = lancements.map((l) => l.noyau);
-  assert.ok(ordre.indexOf('dagArgs') > ordre.indexOf('dagWanted'));
-  assert.ok(ordre.indexOf('dagEscalate') > ordre.indexOf('dagArgs'));
+  assert.ok(ordre.indexOf('dagEscalate') > ordre.indexOf('dagWanted'));
+});
+
+test("l'attente entre lancements est bornée par leur nombre : dix, pas treize", () => {
+  const { encoder, lancements } = encodeurTemoin();
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
+  // La préparation porte les seuils, les plans et les comptes de bloc ; le compte de groupes se
+  // tient au fil des ajouts ; le masque compte les dessinées de son bloc. Trois lancements de moins.
+  assert.equal(lancements.length, ESCALATION_ROUNDS + 7);
+  const noyaux = lancements.map((l) => l.noyau);
+  assert.ok(!noyaux.includes('dagArgs') && !noyaux.includes('dagDrawCount'));
+  assert.equal(noyaux[0], 'dagPrepare');
+  // La préparation couvre à la fois les primitives et les blocs de la compaction.
+  assert.equal(lancements[0].groupes, 1);
 });
 
 test("l'argument de répartition est recopié hors passe, entre les deux passes de la coupe", () => {
   const { encoder, copies, passes } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  // WebGPU refuse `flags` à la fois en écriture et en argument dans une même portée : la coupure
-  // entre les deux passes ne porte que cette recopie de trois mots.
-  assert.deepEqual(copies, [{ de: 'flags', decalage: 1234, vers: 'liveArgs', octets: 12 }]);
+  // WebGPU refuse `work` à la fois en écriture et en argument dans une même portée : la coupure
+  // entre les deux passes ne porte que ce mot, les deux autres valant un depuis la création.
+  assert.deepEqual(copies, [{ de: 'work', decalage: 1234, vers: 'liveArgs', octets: 4 }]);
   assert.deepEqual(passes, ['WG DAG selection', 'WG DAG selection']);
 });
 

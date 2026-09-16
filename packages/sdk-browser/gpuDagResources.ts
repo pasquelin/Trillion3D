@@ -7,6 +7,7 @@ export async function createDagResources(
   device: GPUDevice,
   packed: PackedDag,
   residentCut: boolean,
+  repeat: 'tout' | 'tete' | null = null,
 ) {
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const pageCount = packed.pageCount,
@@ -16,7 +17,10 @@ export async function createDagResources(
   // puis les rangs. Une seule copie contiguë rapporte les deux.
   const outputBytes = 16 + pageCount * 4,
     drawnBytes = 16 + pageCount * 4,
-    blockCount = Math.ceil(Math.max(1, pageCount) / SELECTION_WORKGROUP),
+    // Le même compte de blocs que `blockCount()` du noyau, au mot près : deux compteurs vivent
+    // derrière eux dans `work` et le second est recopié vers l'argument de répartition.
+    blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
+    liveGroupsOffset = (worldCount * 2 + blockCount * 2 + 1) * 4,
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
   const uniformData = new Float32Array(UNIFORM_BYTES / 4);
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4);
@@ -37,29 +41,30 @@ export async function createDagResources(
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Les drapeaux de coupe, puis les drapeaux de dessin, puis le rejet par cone retenu par
-    // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes et son
-    // argument de repartition : jamais lus par le CPU, qui ne copie toujours que les drapeaux de
-    // dessin. L'argument vit ici faute d'un neuvieme tampon de stockage : il en est recopie vers
-    // `liveArgs`, car WebGPU interdit le meme tampon en ecriture et en argument de repartition.
+    // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes :
+    // jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
     const flags = device.createBuffer({
-      size: Math.max(16, (nodeCount + pageCount * 3 + 4) * 4),
+      size: Math.max(16, (nodeCount + pageCount * 3) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    // Le seul tampon neuf du lot, et il n'est lie a aucune etape : trois mots d'argument.
+    // Le seul tampon neuf du lot, et il n'est lie a aucune etape : trois mots d'argument, dont les
+    // deux derniers valent un une fois pour toutes. Seul le premier est recopie a chaque image.
     const liveArgs = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
+    device.queue.writeBuffer(liveArgs, 0, new Uint32Array([0, 1, 1, 0]));
     const output = device.createBuffer({
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // Les seuils et drapeaux de couverture par primitive, les comptes et décalages de bloc de la
-    // compaction, puis le compteur des grappes vivantes : aucun tampon de stockage de plus, le
-    // plafond d'une étape est déjà atteint.
+    // compaction, puis le compteur des grappes vivantes et celui de leurs groupes de travail :
+    // aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint. Ce dernier mot part
+    // vers l'argument de répartition, d'où la source de copie.
     const work = device.createBuffer({
-      size: Math.max(8, (worldCount * 2 + blockCount * 2 + 1) * 4),
-      usage: STORAGE,
+      size: Math.max(8, (worldCount * 2 + blockCount * 2 + 2) * 4),
+      usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
       size: Math.max(64, packed.worlds.byteLength),
@@ -126,12 +131,14 @@ export async function createDagResources(
       device,
       packed,
       residentCut,
+      repeat,
       pageCount,
       nodeCount,
       worldCount,
+      blockCount,
       outputBytes,
       readbackBytes,
-      liveArgsOffset: (nodeCount + pageCount * 3) * 4,
+      liveGroupsOffset,
       uniformData,
       frameData,
       buffers,

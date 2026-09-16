@@ -19,6 +19,13 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
   'transparents-surdessin',
   /** La composition n'écrit plus la vue de la chaîne d'échange : présentation hors écran. */
   'presentation-hors-ecran',
+  /** Toute la coupe est encodée DEUX fois. Chaque noyau repart de la remise à zéro, donc l'état
+   *  final et l'image sont ceux d'une seule exécution : l'écart d'image est le coût vrai de la
+   *  sélection, attentes entre lancements comprises, que nulle enveloppe de passe ne rapporte. */
+  'selection-doublee',
+  /** La tête de la coupe — préparation, nœuds, grappes voulues — encodée deux fois, elle aussi
+   *  idempotente. Par soustraction avec la précédente, la queue : escalades, masque, compaction. */
+  'selection-tete-doublee',
 ] as const;
 
 export type DiagnosticGpuVariant = (typeof DIAGNOSTIC_GPU_VARIANTS)[number];
@@ -64,3 +71,7 @@ export const countsBlendOverdraw = (variant?: DiagnosticGpuVariant) =>
 /** Vrai quand la variante compose hors écran : la chaîne d'échange n'est pas touchée de l'image. */
 export const composesOffscreen = (variant?: DiagnosticGpuVariant) =>
   variant === 'presentation-hors-ecran';
+
+/** Ce que la variante fait encoder deux fois dans la coupe : tout, sa tête seule, ou rien. */
+export const selectionRepeat = (variant?: DiagnosticGpuVariant) =>
+  variant === 'selection-doublee' ? 'tout' : variant === 'selection-tete-doublee' ? 'tete' : null;
