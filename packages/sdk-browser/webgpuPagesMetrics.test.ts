@@ -9,6 +9,30 @@ import { referenceVertexBytes } from './bench/oracles/g-octets.mjs';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 
+// Lot triangles synchrones : `drawnTriangles` est recopié tel quel depuis `run.drawnTriangles`, sans
+// la garde `pending` (`gpuFrameActive && !gpuMetricsReady`) qui masque `submittedTriangles` — il n'a
+// jamais attendu de retour de la carte, donc jamais `null` faute de temps là où une coupe existe.
+test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand submittedTriangles est encore en attente', () => {
+  const run = createWebgpuRunState();
+  run.gpuFrameActive = true;
+  run.gpuMetricsReady = false; // Une image encore en vol : submittedTriangles doit valoir null.
+  run.drawnTriangles = 4321;
+  const rt = {
+    run,
+    gpu: { positionBuffers: new Map() },
+    vis: createWebgpuVisState(),
+    timing: {},
+    blendState: createWebgpuBlendState(),
+    services: { bootstrapState: { ready: true } },
+    lights: createWebgpuLightState(),
+    texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0 },
+  } as unknown as WebgpuPagesRuntime;
+
+  const metrics = metricsOf(rt);
+  assert.equal(metrics.drawnTriangles, 4321);
+  assert.equal(metrics.submittedTriangles, null, 'témoin : la garde pending masque bien celui-ci');
+});
+
 test('textureInFlight, textureSlicesUploaded et textureBytesLastFrame reflètent exactement la pompe, texturePending la file en attente', () => {
   const vis = createWebgpuVisState();
   vis.textureJobs.push({} as TextureJob, {} as TextureJob);

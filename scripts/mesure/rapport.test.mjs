@@ -103,3 +103,42 @@ test('l’image tenue à vrai se distingue de l’image tenue à faux, pas seule
   assert.match(relachee, /\| non \|/);
   assert.notEqual(tenue, relachee);
 });
+
+// Lot triangles synchrones : la colonne « couverture » affiche `selected − drawn − uncovered`,
+// attendue à zéro, et un tiret dès qu'un des trois compteurs manque — jamais une valeur déduite.
+test('la colonne couverture affiche selected − drawn − uncovered, et drawnTriangles à côté', () => {
+  const texte = resume(
+    rapport({
+      ...cotéDeBase,
+      selectedTriangles: 900,
+      drawnTriangles: 800,
+      uncoveredTriangles: 100,
+    }),
+  );
+  assert.match(texte, /\| drawnTriangles \| couverture \|/, 'les deux en-têtes, dans cet ordre');
+  assert.match(texte, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, puis la couverture calculée');
+});
+
+test('la couverture est un tiret dès qu’un seul des trois compteurs manque', () => {
+  const sansSelected = resume(
+    rapport({ ...cotéDeBase, selectedTriangles: null, drawnTriangles: 800, uncoveredTriangles: 100 }),
+  );
+  const sansDrawn = resume(
+    rapport({ ...cotéDeBase, selectedTriangles: 900, drawnTriangles: null, uncoveredTriangles: 100 }),
+  );
+  const sansUncovered = resume(
+    rapport({ ...cotéDeBase, selectedTriangles: 900, drawnTriangles: 800, uncoveredTriangles: null }),
+  );
+  // Les trois cellules (selected, drawn, couverture) ensemble : un tiret pour la couverture, jamais
+  // une soustraction dont un opérande `null` a été traité comme zéro.
+  assert.match(sansSelected, /\| — \| 800 \| — \|/);
+  assert.match(sansDrawn, /\| 900 \| — \| — \|/);
+  assert.match(sansUncovered, /\| 900 \| 800 \| — \|/);
+});
+
+test('une couverture non nulle s’affiche telle quelle, sans être réduite à un tiret', () => {
+  const texte = resume(
+    rapport({ ...cotéDeBase, selectedTriangles: 900, drawnTriangles: 750, uncoveredTriangles: 100 }),
+  );
+  assert.match(texte, /\| 50 \|/, 'selected − drawn − uncovered = 50, un vrai trou dans la relation');
+});

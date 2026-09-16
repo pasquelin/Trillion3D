@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
-import { quadScene } from './webgpuPagesTestScenes.ts';
+import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 
 test('encoding-submit : la pose tracée est celle de la caméra du moteur, pas la pose locale de la caméra hôte', async () => {
   installGpuGlobals();
@@ -47,6 +47,46 @@ test('encoding-submit : la pose tracée est celle de la caméra du moteur, pas l
       const pose = event.context.pose as { position: number[] } | null;
       assert.ok(pose, 'la pose ne doit pas être nulle après un rendu');
       assert.deepEqual(pose.position, attendu);
+    }
+  } finally {
+    backend.dispose();
+    fixture.geometry.dispose();
+    fixture.material.dispose();
+  }
+});
+
+// Lot triangles synchrones : la trace publie `run.drawnTriangles` tel quel, sans la garde `pending`
+// qui masquait `submittedTriangles` — la valeur qu'elle protégeait n'a jamais attendu de retour de
+// la carte, elle est donc toujours un nombre dès qu'une image a été soumise, jamais `null`.
+test('encoding-submit : drawnTriangles publie run.drawnTriangles, jamais null une fois l’image soumise', async () => {
+  installGpuGlobals();
+  const events: Array<{ phase: string; context: Record<string, unknown> }> = [];
+  const fixture = quadScene();
+  const { device } = mockGpu();
+  const backend = webgpuPagesBackend({
+    ...fixture,
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+    diagnosticDetail: 'trace' as never,
+    onDiagnostic: (event) => events.push(event),
+  } as never);
+  try {
+    await backend.prepare();
+    const cam = camera();
+    backend.render(cam);
+    await backend.flush?.();
+    backend.render(cam);
+
+    assert.ok(
+      (backend.metrics().drawnTriangles ?? 0) > 0,
+      'témoin : la caméra voit bien le quad, sans quoi 0 ne prouverait rien',
+    );
+    const submissions = events.filter((event) => event.phase === 'encoding-submit');
+    assert.ok(submissions.length > 0, 'au moins une soumission tracée');
+    for (const event of submissions) {
+      assert.equal(typeof event.context.drawnTriangles, 'number');
+      assert.equal(event.context.drawnTriangles, backend.metrics().drawnTriangles);
     }
   } finally {
     backend.dispose();
