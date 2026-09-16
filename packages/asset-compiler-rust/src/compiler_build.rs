@@ -29,8 +29,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let g = &loaded.g;
     let g_bytes = &loaded.g_bytes;
     let manifest = &loaded.manifest;
-    let bin_hash = &loaded.bin_hash;
-    let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":implementation_hash(),"plugins":plugins::fingerprint(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
+    // L'identité du produit, et non les octets bruts de ce que la source déclare : les mesures d'une
+    // conversion en sortent, les images que la scène cite y entrent.
+    let key = compiler_identity::cache_key(o, &loaded, &image_root)?;
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
     // L'ensemble des nœuds de la scène rendue, partagé par la sélection, le proxy et les lampes.

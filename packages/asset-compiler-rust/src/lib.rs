@@ -31,6 +31,7 @@ use std::{
     time::Instant,
 };
 mod compiler_format;
+mod compiler_identity;
 pub use compiler_format::{CLUSTERED_BLEND_FORMAT_VERSION, FORMAT_VERSION, SOURCE_FORMAT_VERSION};
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Per-cluster DAG identity: group QEM error projected through the group bounding sphere.
