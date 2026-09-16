@@ -90,6 +90,7 @@ const AUTORISES = {
   pagesBackendFixture: 'montage de test : il compte ce que des maillages de l’hôte dessinent',
   pagesBackendScenes: 'montage de scène de test : il pose la caméra',
   visibilityBufferFixture: 'montage de scène de test : il pose la caméra et les pages',
+  webgpuCutRepriseFixture: 'montage de test : il pose la caméra hôte que cameraMoteur traduit',
   webgpuPagesTestOccluder: 'montage de scène de test : l’occulteur et sa caméra',
   webgpuPagesTestScenes: 'montage de scènes de test : maillages et matériaux',
 
