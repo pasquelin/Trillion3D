@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
-import { copyBackdrop, writeVolumeUniforms, VOLUME_STRIDE } from './webgpuTransmission.ts';
+import { copyBackdrop, writeVolumeRecords, VOLUME_STRIDE } from './webgpuTransmission.ts';
+import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
 import { FLAG_TRANSMISSIVE } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import type { WebgpuGpuState } from './webgpuPagesStateGpu.ts';
@@ -61,6 +62,10 @@ function prepared() {
     copy(new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.2 }), 2),
   ];
   blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, new THREE.Scene());
+  // La liste transparente de la scène EST la liste de dessin : les tables statiques et le plan
+  // d'encodage se bâtissent avec elle, comme le fait `prepareBlendResources`.
+  buildBlendStatics(blendState);
+  refreshBlendPlan(blendState);
   blendState.visibleBlend.push(...blendState.blendGpu);
   blendState.volumePacked = new Float32Array(blendState.blendGpu.length * (VOLUME_STRIDE / 4));
   return { blendState, gpu };
@@ -83,7 +88,7 @@ test('une surface transmissive est préparée comme les autres mélanges, et mar
 test('le volume glTF du matériau arrive au nuanceur, entrée par entrée', () => {
   const { blendState, gpu } = prepared();
   const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime;
-  writeVolumeUniforms(rt, device);
+  writeVolumeRecords(rt, device);
   const stride = VOLUME_STRIDE / 4,
     volume = blendState.volumePacked.subarray(stride, stride + 8);
   const arrondi = (value: number) => Math.round(value * 100) / 100;
@@ -98,7 +103,7 @@ test('le volume glTF du matériau arrive au nuanceur, entrée par entrée', () =
 function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: WebgpuGpuState) {
   const drawn: number[][] = [];
   let current: number[] = [];
-  const items = blendState.visibleBlend;
+  const items = blendState.blendGpu;
   for (const item of items) item.group = {} as GPUBindGroup;
   const pass = {
     setViewport() {},
@@ -118,6 +123,8 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
     },
     copyTextureToTexture: () => {},
   } as unknown as GPUCommandEncoder;
+  // Les arguments indirects sont écrits par la carte : la passe ne fait que les relire.
+  blendState.argsBuffer = buffer();
   const rt = {
     vis: {
       visEnabled: true,
@@ -150,9 +157,11 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
     bounceGrid: placeholders.bounceGrid,
     probes: placeholders.probes,
   };
-  drawBlendPass(rt, device, encoder, 0, true);
+  // Aucun item paginé ici, et le groupe partagé est posé d'avance pour la même raison.
+  blendState.pagedGroup = {} as GPUBindGroup;
+  drawBlendPass(rt, device, encoder);
   assert.equal(copyBackdrop(rt, encoder), true, 'le fond est figé entre les deux passes');
-  drawBlendPass(rt, device, encoder, 0, true, true);
+  drawBlendPass(rt, device, encoder, true);
   return drawn;
 }
 

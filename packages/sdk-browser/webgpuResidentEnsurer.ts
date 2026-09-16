@@ -1,3 +1,4 @@
+import { UPLOAD_SLICE_MS } from './backendCommon.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { createGpuPageCache } from './gpuPages.ts';
 import type { createWebgpuPageTracking } from './webgpuPageTracking.ts';
@@ -15,12 +16,6 @@ type EnsureOptions = {
   traceEnabled: boolean;
   traceDiagnostic: Trace;
 };
-
-/**
- * Plafond de temps d'une salve de téléversement, en millisecondes de fil principal. Au-delà, la
- * salve rend la main au navigateur et reprend là où elle s'est arrêtée.
- */
-const SLICE_MS = 2;
 
 /**
  * Rend la main à la boucle d'évènements — pas seulement à la file de microtâches.
@@ -90,7 +85,7 @@ export function createWebgpuResidentEnsurer({
       // Budget par image : la salve rend la main dès son plafond atteint. Le travail restant n'est
       // pas abandonné, il reprend après l'image — et une caméra qui a bougé entre-temps est déjà
       // prise en compte, puisque chaque tour relit `wanted` avant de téléverser quoi que ce soit.
-      if (performance.now() - sliceStart >= SLICE_MS) {
+      if (performance.now() - sliceStart >= UPLOAD_SLICE_MS) {
         await yieldToEventLoop();
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
@@ -115,7 +110,8 @@ export function createWebgpuResidentEnsurer({
         durationMs: performance.now() - started,
         elapsedMs: performance.now() - started,
       }),
-      pinned: tracking.traceSet('pins', tracking.pinnedUrls()),
+      // Sondage borné de l'ensemble pinné : il a la taille de la coupe, pas celle de la file.
+      pinned: tracking.traceKeys('pins', tracking.pinned),
     }));
   };
 }

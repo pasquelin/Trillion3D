@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
-import { depthLayerBias } from '../sdk-core/index.ts';
+import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import {
   assertVisibilityPageTriangles,
-  clusterHash,
-  visMaterial,
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
   FLAG_LIT,
@@ -18,7 +16,6 @@ import {
   FLAG_HAS_ORM,
   FLAG_HAS_NORMAL_MAP,
 } from './visibilityBuffer.ts';
-import { wrapModes } from './visibilityWrapModes.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -59,6 +56,8 @@ export function createPageRowWriter({
   dataUvScales,
   markRowDirty,
 }: PageRowResources) {
+  // Ce que le catalogue fixe une fois pour toutes ne se recalcule pas à chaque page qui arrive.
+  const constants = createPageRowConstants();
   return (
     rec: PageRec,
     pageIndex: number,
@@ -69,8 +68,9 @@ export function createPageRowWriter({
     ints: Uint32Array,
   ) => {
     const base = row * (PAGE_INFO_STRIDE / 4),
-      mat = visMaterial(rec.material),
+      material = constants.materialOf(rec.material),
       geo = geometryBlocks.get(rec.attributes);
+    const mat = material.mat;
     const layer = mat.map && mapLayer.has(mat.map) ? mapLayer.get(mat.map)! : 0,
       scale = uvScales[layer] ?? [1, 1];
     const roughLayer =
@@ -107,7 +107,7 @@ export function createPageRowWriter({
     ints[base + ROW_ID_BASE_WORD] = packedRowBase(row);
     floats[base + 28] = scale[0];
     floats[base + 29] = scale[1];
-    ints[base + 30] = clusterHash(rec.clusterId);
+    ints[base + 30] = constants.hashOf(rec.clusterId);
     // The Hi-Z verdict of a row lives at the row's own index, and the rows a frame does not test are
     // cleared on the GPU before the test, so no row ever reads the verdict of an earlier image.
     ints[base + ROW_HIZ_SLOT_WORD] = row;
@@ -142,10 +142,10 @@ export function createPageRowWriter({
     floats[base + 56] = 0;
     // Unités de profondeur à retrancher pour la couche coplanaire de ce cluster : zéro pour la
     // couche 0, une seule source de calcul pour le chemin matériel comme pour le raster logiciel.
-    ints[base + 60] = -depthLayerBias(rec.depthLayer);
+    ints[base + 60] = -constants.biasOf(rec.depthLayer);
     // Chaque carte adresse sa texture dans son propre mode : la couleur peut se répéter là où les
     // normales se serrent, et le nuanceur lit le quartet de la carte qu'il échantillonne.
-    ints[base + ROW_WRAP_MODES_WORD] = wrapModes(mat);
+    ints[base + ROW_WRAP_MODES_WORD] = material.wrap;
     markRowDirty(row);
   };
 }

@@ -76,8 +76,6 @@ export interface WebgpuRunState {
   /** Vrai quand `drawn` est la recopie de `shown` telle qu'elle est. Écrit par les seules fonctions
    *  de recopie de `webgpuPagesHelpers.ts`. */
   drawnMirrorsShown: boolean;
-  /** Where the drawable difference writes its members; nothing downstream reads it. */
-  drawnMembers: PageRec[];
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null;
   pagesExited: number | null;
@@ -165,7 +163,6 @@ export function createWebgpuRunState(): WebgpuRunState {
     desired: [],
     drawn: [],
     ...unmirroredDrawn(),
-    drawnMembers: [],
     pagesEntered: null,
     pagesExited: null,
     opaqueScratch: [],

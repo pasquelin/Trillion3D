@@ -11,7 +11,7 @@ import {
   type SelectionState,
 } from './pageSelectionCutState.ts';
 import { BOUND_STRIDE } from './pageSelectionCutBounds.ts';
-import { nodeDecision, nodeDecisionAtZero } from './pageSelectionCutNode.ts';
+import { subtreeDecision } from './pageSelectionCutNode.ts';
 
 /** Frustum test of a page's world box against the selection planes. */
 function clipRecordBox(min: readonly number[], max: readonly number[]) {
@@ -101,12 +101,19 @@ export function flatConeKeeps<T extends PageRecord>(s: SelectionState<T>, rec: T
 export function traverse<T extends PageRecord>(
   s: SelectionState<T>,
   pages: T[],
-  culling?: { nodes: Float64Array; stride: number; bounds: Float64Array },
+  culling?: {
+    nodes: Float64Array;
+    stride: number;
+    bounds: Float64Array;
+    marks?: Int32Array;
+  },
 ) {
-  // Le repli par forçage ne teste pas la coupe mais le groupe forcé : les bornes de coupe ne le
-  // certifient pas, la descente y reste celle d'avant ce lot.
+  // Le repli par forçage ne teste pas la coupe mais le groupe forcé. Les bornes de coupe le
+  // certifient quand même sur un sous-arbre qu'aucun groupe forcé ne touche : les marques de
+  // forçage le disent en une lecture, et la descente y élague comme la passe ordinaire. Sans
+  // marques — racine montée à la main, primitive sans groupes —, le forçage descend tout.
   const forcing = s.flatUseForcing,
-    hierarchical = !forcing,
+    marks = forcing ? culling?.marks : undefined,
     exact = s.flatExact,
     cones = s.flatCones,
     boxes = s.flatBoxes,
@@ -167,9 +174,8 @@ export function traverse<T extends PageRecord>(
             ) <= s.pixelError
       )
         continue;
-      if (hierarchical) {
-        const at = node * BOUND_STRIDE;
-        const decision = exact ? nodeDecisionAtZero(bounds, at) : nodeDecision(s, bounds, at);
+      if (!forcing || (marks !== undefined && marks[node] === 0)) {
+        const decision = subtreeDecision(s, bounds, node * BOUND_STRIDE, exact, forcing);
         if (decision < 0) continue;
         settled = decision > 0;
       }
