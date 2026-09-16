@@ -52,6 +52,10 @@ const NAME: &str = "alembic";
 /// Le fichier est un Alembic au conteneur HDF5 : un autre format d'emballage, que ce binaire ne lit
 /// pas et n'imite pas. Le refus le nomme plutôt que de laisser croire à un fichier corrompu.
 pub(super) const HDF5_UNSUPPORTED: &str = "alembic-hdf5-unsupported";
+/// L'archive n'a pas été gelée : l'écrivain ne l'a pas close, et ce qu'elle porte est un chantier.
+pub(super) const NOT_FROZEN: &str = "alembic-archive-unfrozen";
+/// L'entête déclare une version du format que ce lecteur ne lit pas.
+pub(super) const VERSION_UNSUPPORTED: &str = "alembic-version-unsupported";
 /// La structure du fichier ne tient pas : entête absente, bloc tronqué, pointeur hors du fichier.
 pub(super) const FILE_INVALID: &str = "alembic-file-invalid";
 /// Un bloc déclare plus d'octets ou d'enfants que le plafond d'allocation du pilote n'en admet.

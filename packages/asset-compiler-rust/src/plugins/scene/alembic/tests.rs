@@ -2,6 +2,7 @@
 //! Ce qu'il produit d'une vraie archive se prouve dans la dorée `src/tests/alembic_golden.rs`.
 
 use super::kind::{kind_of, Kind};
+use super::ogawa::MAGIC;
 use super::*;
 
 mod geometry;
@@ -59,6 +60,29 @@ fn a_truncated_archive_is_refused_without_panicking() {
         refused("root", b"Ogawa\xff\x00\x01\x40\x00\x00\x00\x00\x00\x00\x00"),
         FILE_INVALID
     );
+}
+
+// Comportement 26 : l'entête Ogawa dit trois choses et les trois sont lues. Le drapeau de gel dit
+// que l'écrivain a fini — une archive laissée en plan ne se lit pas —, et la version, écrite sur
+// seize bits en gros-boutien, dit le format : celle du corpus est la première, pas la deux cent
+// cinquante-sixième que donnerait la même paire d'octets lue à l'envers.
+#[test]
+fn the_ogawa_header_names_a_frozen_archive_of_a_known_version() {
+    let head = |frozen: u8, version: [u8; 2]| {
+        let mut bytes = MAGIC.to_vec();
+        bytes.push(frozen);
+        bytes.extend_from_slice(&version);
+        bytes.extend_from_slice(&16u64.to_le_bytes());
+        bytes.extend_from_slice(&0u64.to_le_bytes());
+        bytes
+    };
+    assert_eq!(refused("non-gelee", &head(0x00, [0, 1])), NOT_FROZEN);
+    assert_eq!(refused("version", &head(0xff, [0, 2])), VERSION_UNSUPPORTED);
+    // La même paire d'octets lue à l'envers vaudrait deux cent cinquante-six : elle est refusée.
+    assert_eq!(refused("envers", &head(0xff, [1, 0])), VERSION_UNSUPPORTED);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/alembic/limites/cases.abc");
+    let archive = Archive::open(&path).expect("le corpus s'ouvre");
+    assert_eq!(archive.file.version, 1, "la version du corpus est la première");
 }
 
 // Comportement : un groupe qui déclare plus d'enfants que le plafond d'allocation n'en admet est
