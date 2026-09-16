@@ -1,11 +1,12 @@
 //! A18 et A19 : le verrou d'un cache, vu de l'extérieur, par processus. Ce que ces épreuves
 //! tiennent : un verrou que plus personne ne détient ne bloque rien, un propriétaire vivant fait
-//! renoncer le second dans le délai annoncé.
+//! renoncer le second dans le délai annoncé, et l'attente relit le jeton d'annulation.
 mod common;
 use common::{compiler, fixture, grid_fixture, lines};
 use serde_json::Value;
 use std::{
     fs::{self, File},
+    io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
     process::{Output, Stdio},
     time::{Duration, Instant},
@@ -15,17 +16,20 @@ use std::{
 fn lock_path(cache: &Path) -> PathBuf {
     cache.join("native").join(".lock")
 }
-/// Le verrou pris comme le prend une compilation vivante : le fichier créé s'il manque, jamais
-/// tronqué, puis la prise du système. Le tenir depuis l'épreuve elle-même, et non depuis un
-/// processus qui compile, rend l'épreuve indépendante de toute durée.
-fn hold(cache: &Path) -> File {
+/// Le fichier de verrou ouvert comme l'ouvre une compilation : créé s'il manque, jamais tronqué.
+fn open_lock(cache: &Path) -> File {
     fs::create_dir_all(cache.join("native")).expect("native");
-    let file = fs::OpenOptions::new()
+    fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(false)
         .open(lock_path(cache))
-        .expect("ouverture du verrou");
+        .expect("ouverture du verrou")
+}
+/// Le verrou pris comme le prend une compilation vivante. Le tenir depuis l'épreuve elle-même, et
+/// non depuis un processus qui compile, rend l'épreuve indépendante de toute durée.
+fn hold(cache: &Path) -> File {
+    let file = open_lock(cache);
     file.try_lock()
         .expect("le verrou est libre avant l'épreuve");
     file
@@ -93,6 +97,46 @@ fn a18_un_proprietaire_vivant_fait_renoncer_le_second_dans_le_delai_annonce() {
     assert!(
         waited < Duration::from_secs(10),
         "attente tenue : {waited:?}"
+    );
+    drop(held);
+    fs::remove_dir_all(root).ok();
+}
+
+/// A19 : annulé pendant l'attente du verrou, le second sort en `CANCELLED`, et tout de suite, sans
+/// attendre l'échéance ; le verrou du propriétaire, lui, n'est pas touché.
+#[test]
+fn a19_l_annulation_pendant_l_attente_du_verrou_sort_en_annule() {
+    let (root, source, cache) = fixture("verrou-annule");
+    let held = hold(&cache);
+    let mut second = compiler(&source, &cache)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("second");
+    // Le travail accepté, le contrôle d'annulation d'entrée est passé : ce qui suit ne peut plus
+    // être qu'une annulation lue dans l'attente du verrou, et non au seuil de la compilation.
+    let mut events = BufReader::new(second.stderr.take().expect("événements"));
+    let mut first = String::new();
+    events.read_line(&mut first).expect("premier événement");
+    let accepted: Value = serde_json::from_str(&first).expect("événement JSON");
+    assert_eq!(accepted["event"], "accepted", "{accepted}");
+    std::thread::sleep(Duration::from_millis(200));
+    let sent = Instant::now();
+    second
+        .stdin
+        .take()
+        .expect("entrée")
+        .write_all(b"{\"cancel\":\"*\"}\n")
+        .expect("annulation");
+    let output = second.wait_with_output().expect("fin du second");
+    let answered = sent.elapsed();
+    let refusal = outcome(&output);
+    assert_eq!(refusal["code"], "CANCELLED", "{refusal}");
+    assert!(answered < Duration::from_secs(3), "réponse : {answered:?}");
+    assert!(
+        open_lock(&cache).try_lock().is_err(),
+        "le verrou du propriétaire n'a pas bougé"
     );
     drop(held);
     fs::remove_dir_all(root).ok();

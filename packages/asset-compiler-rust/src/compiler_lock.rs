@@ -49,6 +49,9 @@ impl CacheLock {
                 Err(fs::TryLockError::WouldBlock) => {}
                 Err(fs::TryLockError::Error(error)) => return Err(error.into()),
             }
+            // Attendre un verrou n'est pas une raison de rester sourd : l'hôte qui renonce est
+            // servi au tour suivant, et le verrou de celui qui compile n'est pas touché.
+            check(o)?;
             if Instant::now() >= deadline {
                 return Err(CompilerError::new(
                     "CACHE_LOCKED",
