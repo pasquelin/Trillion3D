@@ -8,7 +8,7 @@ import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { BLEND_SHADER } from './webgpuPagesShaders.ts';
+import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
 /** Un dispositif factice qui rend ce qu'on lui demande de créer, mappage compris. */
 function fakeDevice(writes: Array<[number, number]> = []) {

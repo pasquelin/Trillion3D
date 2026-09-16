@@ -9,6 +9,7 @@ import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { visGroupFor } from './webgpuVisibilityDrawer.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
+import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import { createGpuSmallTriangles } from './gpuSmallTriangles.ts';
 import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
@@ -95,6 +96,12 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     count: 3,
     group: undefined,
   };
+  // La passe transparente lit un plan statique : une entrée porte le rang de l'item et le pipeline
+  // à poser, et les comptes d'instances viennent du tampon d'arguments indirects.
+  const blendState = createWebgpuBlendState();
+  blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number]);
+  blendState.planBlend = Uint32Array.from([1]);
+  Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} });
   const rt = {
     vis,
     gpu: {
@@ -115,7 +122,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     bounce: { probes: undefined },
     // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
     sunFar: { gpu: undefined },
-    blendState: { visibleBlend: [item], lighting: undefined },
+    blendState,
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },
   } as unknown as WebgpuPagesRuntime;
 
@@ -125,21 +132,18 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   // Les deux constructeurs de `shadeBindGroupLayout` : celui de la préparation passe par la même
   // liste partagée que celui-ci, rejoué ici après invalidation du groupe.
   ensureWebgpuShadeBindings(rt, device);
-  // Le constructeur unique de `blendBindGroupLayout`.
+  // Les deux constructeurs de `blendBindGroupLayout` : le groupe que TOUS les items paginés
+  // partagent, sur la géométrie concaténée, puis celui d'un item non paginé, sur ses propres
+  // tampons. Les deux passent par la même liste d'entrées, et la passe les bâtit tous les deux.
   const pass = {
     setViewport() {},
     setBindGroup() {},
     setPipeline() {},
     draw() {},
+    drawIndirect() {},
     end() {},
   };
-  drawBlendPass(
-    rt,
-    device,
-    { beginRenderPass: () => pass } as unknown as GPUCommandEncoder,
-    0,
-    true,
-  );
+  drawBlendPass(rt, device, { beginRenderPass: () => pass } as unknown as GPUCommandEncoder);
 
   // Le constructeur unique du raster logiciel des petits triangles, cinquième paire du chemin :
   // il lit les mêmes classes d'atlas et la même table de slots que les autres passes.
@@ -175,7 +179,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   });
 
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length]);
-  assert.equal(counted.length, 6, 'les cinq constructeurs ont tourné, le résolveur compris');
+  assert.equal(counted.length, 7, 'les six constructeurs ont tourné, le résolveur compris');
   for (const [built, expected] of counted)
     assert.equal(
       built,
@@ -183,13 +187,14 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
       `un groupe lie ${built} entrées pour une disposition de ${expected}`,
     );
   assert.deepEqual(
-    counted.slice(0, 4),
+    counted.slice(0, 5),
     [
       [visCount, visCount],
       [visCount, visCount],
       [shadeCount, shadeCount],
       [blendCount, blendCount],
+      [blendCount, blendCount],
     ],
-    'dans l’ordre : groupe direct, groupe de slot, résolution matérielle, transparents',
+    'dans l’ordre : groupe direct, groupe de slot, résolution matérielle, transparents paginés puis non paginés',
   );
 });
