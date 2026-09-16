@@ -97,3 +97,20 @@ pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
 pub fn elapsed_ms(since: std::time::Instant) -> f64 {
     since.elapsed().as_secs_f64() * 1000.0
 }
+
+/// L'échelle uniforme équivalente d'une matrice 4 × 4 écrite par colonnes : la racine cubique du
+/// volume que sa partie linéaire multiplie. C'est ce qu'il faut pour porter une longueur — le rayon
+/// d'une lampe — d'un espace local vers le monde. Une matrice non uniforme rend la moyenne
+/// géométrique de ses trois échelles, un miroir rend la même échelle que son reflet, et une matrice
+/// dégénérée rend zéro : une longueur nulle, que l'appelant écarte.
+pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
+    let column = |c: usize| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]];
+    let (x, y, z) = (column(0), column(1), column(2));
+    let cross = [
+        y[1] * z[2] - y[2] * z[1],
+        y[2] * z[0] - y[0] * z[2],
+        y[0] * z[1] - y[1] * z[0],
+    ];
+    let determinant = x[0] * cross[0] + x[1] * cross[1] + x[2] * cross[2];
+    determinant.abs().cbrt()
+}

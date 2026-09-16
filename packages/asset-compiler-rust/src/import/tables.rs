@@ -29,6 +29,8 @@ pub(crate) struct SceneTables {
     /// versé ou créé.
     sampler_ids: HashMap<[u32; 4], usize>,
     pub(crate) textures: Vec<Value>,
+    /// Les lampes déclarées par la source, dans l'ordre où les nœuds les instancient.
+    pub(crate) lights: Vec<Value>,
     pub(crate) bin: Bin,
     pub(crate) report: Report,
     /// Ce que le rapport publie en clair : instances, modèles, matériaux, LOD écartés…
@@ -51,6 +53,7 @@ impl SceneTables {
             samplers: Vec::new(),
             sampler_ids: HashMap::new(),
             textures: Vec::new(),
+            lights: Vec::new(),
             bin: Bin {
                 bytes: Vec::new(),
                 views: Vec::new(),
@@ -157,7 +160,9 @@ impl SceneTables {
             textures: &self.textures,
             bin: &self.bin,
         };
-        let gltf_bytes = serde_json::to_vec(&tables.document(plugin, &self.roots()))?;
+        let mut document = tables.document(plugin, &self.roots());
+        super::attach_lights(&mut document, &self.lights);
+        let gltf_bytes = serde_json::to_vec(&document)?;
         write_scene(
             directory,
             &gltf_bytes,

@@ -22,6 +22,10 @@
 //! les octets partent dans le binaire de la scène sans être touchés. Plusieurs objets qui partagent
 //! un maillage partagent le maillage glTF : ce sont des instances.
 //!
+//! Les lampes des quatre types que Blender écrit — ponctuelle, soleil, projecteur, surface — sont
+//! importées avec leur puissance, leur couleur, leur cône et le rayon d'émetteur que leur bloc
+//! `Lamp` déclare.
+//!
 //! **Ce qu'il refuse, par son nom.** Un fichier à pointeurs de 32 bits ou en boutisme gros, une
 //! variante d'entête de bloc qu'il ne décrit pas, un fichier tronqué ou plus gros que son plafond,
 //! un `DNA1` illisible, un maillage hors de la disposition par attributs — celle de Blender 4.4 et
@@ -29,7 +33,7 @@
 //! `CustomData`, ne sont pas lus, faute de fichier de cette époque pour le prouver.
 //!
 //! **Ce qu'il compte au rapport sans le rendre.** Objets qui ne sont pas des maillages (courbes,
-//! textes, métaballes, armatures, lampes, caméras), collections instanciées, modificateurs non
+//! textes, métaballes, armatures, caméras), collections instanciées, modificateurs non
 //! appliqués — le maillage de base sort alors tel quel —, entrées de nuanceur alimentées par un
 //! calcul, émission au-delà de un, images hors de la racine servie ou hors du registre d'images,
 //! remplacement de matériau par un objet, scènes au-delà de la première, objets qu'aucune
@@ -57,6 +61,7 @@ mod dna;
 mod envelope;
 mod file;
 mod images;
+mod light;
 mod material;
 mod mesh;
 mod object;
@@ -96,7 +101,7 @@ impl Plugin for Blend {
     /// La version nomme la disposition lue et les deux décompresseurs : la changer invalide les
     /// caches, donc tout `.blend` déjà compilé est relu.
     fn version(&self) -> &'static str {
-        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-8"
+        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-9"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["blend"]

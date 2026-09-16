@@ -11,8 +11,15 @@ const MAX_DEPTH: usize = 64;
 /// La seule valeur de `visibility` qui retire un prim de la scène ; l'autre, `inherited`, l'y laisse.
 const INVISIBLE: &str = "invisible";
 
-/// Le nœud glTF d'un prim et de sa descendance, ou rien quand il ne porte aucune surface.
-pub(super) fn visit(world: &mut World<'_>, prim: &usd::Prim, depth: usize) -> Option<usize> {
+/// Le nœud glTF d'un prim et de sa descendance, ou rien quand il ne porte ni surface ni lampe.
+/// `scale` est l'échelle du monde accumulée jusqu'au père, `metersPerUnit` compris : une longueur
+/// lue sur ce prim — le rayon d'une lampe — s'écrit en mètres en passant par elle.
+pub(super) fn visit(
+    world: &mut World<'_>,
+    prim: &usd::Prim,
+    depth: usize,
+    scale: f64,
+) -> Option<usize> {
     if depth > MAX_DEPTH {
         world.refuse(world::XFORM_UNSUPPORTED);
         return None;
@@ -42,7 +49,13 @@ pub(super) fn visit(world: &mut World<'_>, prim: &usd::Prim, depth: usize) -> Op
         return None;
     }
     report(world, prim);
-    node(world, prim, type_name, depth)
+    node(world, prim, type_name, (depth, scale))
+}
+
+/// Ce prim est-il une lampe ? Tous les schémas de `UsdLux` nomment ainsi leur type, y compris les
+/// filtres : `light::build` convertit ceux qu'il sait rendre et compte les autres.
+fn is_light(type_name: &str) -> bool {
+    type_name.ends_with("Light") || type_name.ends_with("LightFilter")
 }
 
 /// Ce prim est-il déclaré invisible ? `visibility` ne prend que deux valeurs, et USD l'hérite :
@@ -67,26 +80,37 @@ fn report(world: &mut World<'_>, prim: &usd::Prim) {
     world.scene.report.add_count(world::COMPOSITION, unresolved);
 }
 
-/// Le nœud de ce prim, avec sa transformation locale, son maillage et ses enfants.
-fn node(world: &mut World<'_>, prim: &usd::Prim, type_name: &str, depth: usize) -> Option<usize> {
+/// Le nœud de ce prim, avec sa transformation locale, ce qu'il porte et ses enfants.
+fn node(
+    world: &mut World<'_>,
+    prim: &usd::Prim,
+    type_name: &str,
+    (depth, scale): (usize, f64),
+) -> Option<usize> {
     let mut node = json!({ "name": prim.path().name().unwrap_or("Prim") });
     let local = xform::local(world, prim);
     if local != matrix::IDENTITY {
         node["matrix"] = json!(local);
     }
+    let scale = scale * matrix::uniform_scale(&local);
     if type_name == "Mesh" {
         if let Some(mesh) = mesh::build(world, prim, &data_key(prim)) {
             node["mesh"] = json!(mesh);
             world.count("meshInstances", 1);
         }
     }
+    if is_light(type_name) {
+        if let Some(light) = light::build(world, prim, scale) {
+            node["extensions"] = json!({"KHR_lights_punctual": {"light": light}});
+        }
+    }
     let children: Vec<usize> = prim
         .children()
         .unwrap_or_default()
         .iter()
-        .filter_map(|child| visit(world, child, depth + 1))
+        .filter_map(|child| visit(world, child, depth + 1, scale))
         .collect();
-    if node.get("mesh").is_none() && children.is_empty() {
+    if node.get("mesh").is_none() && node.get("extensions").is_none() && children.is_empty() {
         return None;
     }
     if !children.is_empty() {

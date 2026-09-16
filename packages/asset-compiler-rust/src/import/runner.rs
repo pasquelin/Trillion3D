@@ -121,10 +121,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     let roots: Vec<usize> = (0..importer.nodes.len()).collect();
     let mut gltf = tables.document(plugin, &roots);
     let lights = &importer.lights;
-    if !lights.is_empty() {
-        gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":lights}});
-        gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
-    }
+    crate::import::attach_lights(&mut gltf, lights);
     let gltf_bytes = serde_json::to_vec(&gltf)?;
     progress(
         json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":importer.bin.bytes.len()+gltf_bytes.len()}),

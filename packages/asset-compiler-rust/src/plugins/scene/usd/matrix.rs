@@ -9,6 +9,9 @@ pub(super) use crate::compiler_world::{
     multiply as mul, rotation_matrix, scaling, translation, Mat4, IDENTITY,
 };
 
+/// L'échelle uniforme équivalente d'une matrice, celle qui porte une longueur locale vers le monde.
+pub(super) use crate::shared_math::uniform_scale;
+
 /// La rotation de `degrees` autour de l'axe `axis` (0 = X, 1 = Y, 2 = Z).
 pub(super) fn rotation(axis: usize, degrees: f64) -> Mat4 {
     let (sin, cos) = degrees.to_radians().sin_cos();

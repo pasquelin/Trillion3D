@@ -36,6 +36,10 @@ impl Scene<'_> {
             self.out.report.add("blend-collection-instance-unsupported");
         }
         let kind = object.int("type", -1);
+        if kind == light::OB_LAMP {
+            self.light(object);
+            return Ok(());
+        }
         if kind != object::OB_MESH {
             self.out.count("nonMeshObjects", 1);
             return Ok(());
@@ -70,6 +74,25 @@ impl Scene<'_> {
         self.out.triangles += triangles;
         self.out.count("meshInstances", 1);
         Ok(())
+    }
+
+    /// La lampe d'un objet de type lampe : un nœud de plus sous la racine, à la matrice de
+    /// l'objet. Blender oriente ses lampes vers leur `-Z`, comme le glTF : rien à tourner.
+    fn light(&mut self, object: &At<'_>) {
+        let matrix = object::world(object, 0);
+        let scale = crate::shared_math::uniform_scale(&matrix.map(f64::from));
+        let name = short(object, "Light");
+        let Some(light) = light::build(object.follow("data"), name.clone(), scale, &mut self.out)
+        else {
+            return;
+        };
+        self.out
+            .nodes
+            .push(crate::import::light_node(&name, json!(matrix), light));
+        let rank = self.out.nodes.len() - 1;
+        if let Some(children) = self.out.nodes[0]["children"].as_array_mut() {
+            children.push(json!(rank));
+        }
     }
 
     /// Le maillage glTF d'un bloc `ME`, versé à la première demande.

@@ -17,7 +17,9 @@ pub(super) const VOLUME: &str = "usd-volume-unsupported";
 pub(super) const SKEL: &str = "usd-skel-unsupported";
 /// Une caméra : une scène importée n'en apporte pas, l'hôte place la sienne.
 pub(super) const CAMERA: &str = "usd-camera-unsupported";
-/// Une lampe de `UsdLux` : l'éclairage de la scène ne vient pas de l'import.
+/// Un schéma de `UsdLux` qui ne se ramène pas à une lampe ponctuelle du glTF — `DomeLight`,
+/// `CylinderLight`, `GeometryLight`, `PortalLight`, et tous les `LightFilter`. Les sphères, les
+/// disques, les rectangles et les lampes lointaines, eux, sont importés.
 pub(super) const LIGHT: &str = "usd-light-unsupported";
 /// Une surface paramétrique que ce pilote ne pave pas (`NurbsPatch`).
 pub(super) const PATCH: &str = "usd-patch-unsupported";
@@ -132,7 +134,6 @@ pub(super) fn refusal(type_name: &str) -> Option<&'static str> {
         "SkelRoot" | "Skeleton" | "SkelAnimation" | "BlendShape" => SKEL,
         "Camera" => CAMERA,
         "NurbsPatch" => PATCH,
-        name if name.ends_with("Light") || name.ends_with("LightFilter") => LIGHT,
         _ => return None,
     })
 }
