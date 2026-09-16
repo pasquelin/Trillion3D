@@ -1,4 +1,5 @@
 import { DAG_ERROR_WGSL } from './gpuDagShaderError.ts';
+import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,level:u32,nodeIndex:u32,flags:u32,pad0:u32,pad1:u32,}
 struct CullNode{minimum:vec3f,pad0:f32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
@@ -27,18 +28,6 @@ fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
   if(dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0){return true;}
  }
  return false;
-}
-/** Inverse-transposee 3x3, degenerescence jugee en relatif : la 3x3 est divisee par la somme de
- *  ses valeurs absolues — la normalisation de \`isConformal\` — avant le determinant. Un seuil
- *  absolu jugeait l'echelle, pas la degenerescence : une rotation d'echelle uniforme s donne
- *  det = ±s³, donc s ≲ 2,15e-7 rendait l'axe LOCAL non tourne et supprimait des faces de face. */
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
- if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return v;}
- let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
- let det=dot(a,cross(b,c));
- if(!(abs(det)>1e-20)){return v;}
- return (1.0/(det*t))*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
 }
 /** Miroir GPU de \`isConformal\` (pageCone.ts) : 3x3 divisee par la somme de ses valeurs absolues,
  *  tolerances relatives seules ; somme nulle, infinie ou NaN (lue au bit) : cluster conserve. */
@@ -189,4 +178,5 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
  }
  flags[uni.nodeCount+i]=select(0u,1u,draw);
 }
-${DAG_ERROR_WGSL}`;
+${DAG_ERROR_WGSL}
+${INVERSE_TRANSPOSE_WGSL}`;
