@@ -3,7 +3,9 @@ import type { DiagnosticDetail } from './backendTypes.ts';
 /**
  * Les variantes de DIAGNOSTIC de la carte graphique. Elles n'existent que pour ventiler une durée :
  * chacune neutralise UN facteur de l'image sans toucher aux commandes encodées — mêmes passes,
- * mêmes appels de dessin, même ordre, même tri. L'image rendue DIFFÈRE donc de l'image de
+ * mêmes appels de dessin, même ordre, même tri — à deux exceptions déclarées : la coupe doublée
+ * réencode sa sélection, et `geometrie-une-passe` retire la seconde passe de visibilité ; leurs
+ * durées ne se soustraient pas comme les autres. L'image rendue DIFFÈRE donc de l'image de
  * production par construction : aucune n'est une optimisation, aucune ne se mesure en fidélité, et
  * aucun chemin de production n'en allume une. Le seul moyen est `diagnosticGpuVariant` de
  * `createExplorer`, refusée hors `diagnosticDetail: 'trace'`.

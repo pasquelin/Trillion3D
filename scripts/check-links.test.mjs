@@ -28,3 +28,25 @@ test('reports a broken link in an ordinary file but ignores the same broken link
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('un suffixe `:ligne` ou `:ligne:colonne` désigne un endroit du fichier, pas un autre fichier', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'wg-check-links-'));
+  try {
+    await mkdir(join(directory, 'docs'), { recursive: true });
+    await writeFile(join(directory, 'docs', 'a.ts'), 'export {};\n');
+    await writeFile(
+      join(directory, 'docs', 'lignes.md'),
+      '[ligne](./a.ts:42) [colonne](./a.ts:42:7) [absent](./b.ts:3)\n',
+    );
+
+    const result = checkLinks(directory);
+
+    assert.equal(result.localFileLinks, 3);
+    assert.deepEqual(
+      result.errors.map((e) => e[1]),
+      ['./b.ts:3'],
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
