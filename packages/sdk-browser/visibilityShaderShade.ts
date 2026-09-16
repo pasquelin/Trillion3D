@@ -1,4 +1,4 @@
-import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
+import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts';
 import {
   BARY_WEIGHTS_WGSL,
@@ -16,8 +16,27 @@ import {
 import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
 import { WRAP_MAP } from './visibilityWrapModes.ts';
 
-/** L'adressage de la carte `nom` de cette page : son quartet, jamais les drapeaux du matériau. */
-const adressage = (nom: keyof typeof WRAP_MAP) => `wrapOf(page.wrapModes,${WRAP_MAP[nom]}u)`;
+/**
+ * Ce que chaque carte de `WRAP_MAP` donne à sa lecture : son slot dans la fiche de page et son
+ * échelle. Un rang ajouté à `WRAP_MAP` sans son entrée ici ne compile pas ; sans cette table, une
+ * septième carte se serait lue en serrage sans que rien ne le signale.
+ */
+const CARTE = {
+  base: ['mapIndex', 'uvScale'],
+  rough: ['roughnessIndex', 'roughUvScale'],
+  metal: ['metalnessIndex', 'metalUvScale'],
+  normal: ['normalIndex', 'normalUvScale'],
+  ao: ['aoIndex', 'aoUvScale'],
+  emissive: ['emissiveIndex', 'emissiveUvScale'],
+} as const satisfies Record<keyof typeof WRAP_MAP, readonly [string, string]>;
+
+/** La lecture d'atlas d'une carte : son slot, son échelle, SON quartet, les dérivées du pixel. */
+const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
+  `${fn}(page.${CARTE[nom][0]},page.${CARTE[nom][1]},uv,wrapOf(page.wrapModes,${WRAP_MAP[nom]}u),ddx,ddy)`;
+
+/** Le corps n'est exécuté que si la carte existe : le slot 0 est l'absence de texture. */
+const siCarte = (nom: keyof typeof WRAP_MAP, corps: string) =>
+  `if(page.${CARTE[nom][0]}!=0u){${corps}}`;
 
 export const SHADE_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,padding:array<vec4f,10>,}
@@ -43,7 +62,7 @@ ${BARY_WEIGHTS_WGSL}
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
-${NORMAL_TRANSFORM_WGSL}
+${INVERSE_TRANSPOSE_WGSL}
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,}
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u);}
 fn diagnosticSurface(color:vec3f)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u);}
@@ -100,17 +119,17 @@ fn framebuffer(clip:vec4f)->vec3f{
    }
   }
  }
- let sample=colorSample(page.mapIndex,page.uvScale,uv,${adressage('base')},ddx,ddy);
+ let sample=${lecture('colorSample', 'base')};
  var roughSample=vec4f(1.0);
- if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,uv,${adressage('rough')},ddx,ddy);}
+ ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
  var metalSample=vec4f(1.0);
- if(page.metalnessIndex!=0u){metalSample=dataSample(page.metalnessIndex,page.metalUvScale,uv,${adressage('metal')},ddx,ddy);}
+ ${siCarte('metal', `metalSample=${lecture('dataSample', 'metal')};`)}
  var ao=1.0;
- if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(dataSample(page.aoIndex,page.aoUvScale,uv,${adressage('ao')},ddx,ddy).r-1.0);}
+ ${siCarte('ao', `ao=1.0+page.aoIntensity*(${lecture('dataSample', 'ao')}.r-1.0);`)}
  var emissive=page.emissive.xyz;
- if(page.emissiveIndex!=0u){emissive*=colorSample(page.emissiveIndex,page.emissiveUvScale,uv,${adressage('emissive')},ddx,ddy).rgb;}
+ ${siCarte('emissive', `emissive*=${lecture('colorSample', 'emissive')}.rgb;`)}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
- if(page.normalIndex!=0u){nrmSample=dataSample(page.normalIndex,page.normalUvScale,uv,${adressage('normal')},ddx,ddy);}
+ ${siCarte('normal', `nrmSample=${lecture('dataSample', 'normal')};`)}
  if((page.flags&8u)!=0u){
   rgb=rgb*sample.xyz;
   if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return emptySurface();}
@@ -130,9 +149,13 @@ fn framebuffer(clip:vec4f)->vec3f{
   let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
   let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
   let side=select(1.0,-1.0,(page.flags&256u)!=0u);
-  var n0=xformNormal(page.world,vertN(page.vertexBase,i0))*side;
-  var n1=xformNormal(page.world,vertN(page.vertexBase,i1))*side;
-  var n2=xformNormal(page.world,vertN(page.vertexBase,i2))*side;
+  // Les trois normales du triangle subissent la MÊME matrice : la normalisation, le déterminant et
+  // l'adjointe se calculent une fois pour le pixel, et chaque normale ne garde que le produit 3×3.
+  // xformNormal faisait ce prologue trois fois ; l'opérande et l'ordre par normale ne bougent pas.
+  let invT=invTranspose3Prep(world3);
+  var n0=normalize(invTranspose3Apply(invT,vertN(page.vertexBase,i0)))*side;
+  var n1=normalize(invTranspose3Apply(invT,vertN(page.vertexBase,i1)))*side;
+  var n2=normalize(invTranspose3Apply(invT,vertN(page.vertexBase,i2)))*side;
   var N=normalize(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if((page.flags&16u)!=0u){
    N=normalize(n0*bary.x+n1*bary.y+n2*bary.z);
