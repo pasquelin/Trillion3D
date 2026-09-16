@@ -3,10 +3,8 @@
 // `windingCw` — donc le sens de parcours inversé sous réflexion, comme Three le fait en WebGL
 // (`frontFaceCW = matrixWorld.determinant() < 0`). La seule mesure est le nombre de fragments
 // couverts par cas : l'ensemble des faces que le moteur dessine vraiment, seule vérité terrain
-// opposable à une décision de coupe. Playwright vient de `render-tech-lab`, en lecture seule.
-import { createRequire } from 'node:module';
-import { createServer } from 'node:http';
-import { resolve } from 'node:path';
+// opposable à une décision de coupe. Le harnais Chromium est celui de `pageWebgpu.mjs`.
+import { dansPageWebgpu } from './pageWebgpu.mjs';
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -21,15 +19,10 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) s
 
 /** Exécuté dans la page : deux pipelines (parcours direct, parcours inversé), un compteur par cas. */
 async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, slots }) {
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) return { indisponible: 'aucun adaptateur WebGPU' };
-  const device = await adapter.requestDevice();
-  const erreurs = [];
-  device.addEventListener('uncapturederror', (event) => erreurs.push(event.error.message));
-  const module = device.createShaderModule({ code: shader });
-  const compilation = (await module.getCompilationInfo()).messages
-    .filter((message) => message.type === 'error')
-    .map((message) => message.message);
+  const appareil = await globalThis.ouvrirAppareil();
+  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  const { device, erreurs } = appareil;
+  const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
   const layout = device.createBindGroupLayout({
     entries: [
@@ -106,28 +99,15 @@ async function executer({ shader, sommets, bornes, viewProj, largeur, hauteur, s
   await lecture.mapAsync(GPUMapMode.READ);
   const fragments = Array.from(new Uint32Array(lecture.getMappedRange().slice(0), 0, slots));
   lecture.unmap();
-  await device.queue.onSubmittedWorkDone();
-  const info = adapter.info;
-  device.destroy();
-  return { adaptateur: `${info.vendor} ${info.architecture}`, fragments, erreurs };
+  const info = await appareil.fermer();
+  return { adaptateur: info.court, fragments, erreurs };
 }
 
 /** Rasterise les cas et rend le nombre de fragments couverts par cas. */
 export async function rasterGpu(charge) {
-  const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-  const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
-  const server = createServer((_request, response) => {
-    response.writeHead(200, { 'content-type': 'text/html' });
-    response.end('<!doctype html><title>WebGeometry rasterisation</title>');
-  });
-  await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  try {
-    const page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${server.address().port}/`);
-    return await page.evaluate(executer, { ...charge, shader: RASTER });
-  } finally {
-    await browser.close();
-    await new Promise((done) => server.close(done));
-  }
+  return await dansPageWebgpu(
+    executer,
+    { ...charge, shader: RASTER },
+    { titre: 'WebGeometry rasterisation' },
+  );
 }
