@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { exactPagesBounds } from './explorerScene.ts';
+import { exactPagesBounds } from './exactPagesBounds.ts';
 import type { BoxTransformLot } from './mathBatchRuntime.ts';
 import { emptyWorldBox, hostWorldBounds } from './hostWorldBounds.ts';
 import { framingFromBounds } from './framing.ts';
