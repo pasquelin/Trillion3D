@@ -27,6 +27,9 @@ export async function createGpuHiz(
     bindGroup: GPUBindGroup | undefined;
   let sizes: Array<[number, number]> = [],
     offsets: number[] = [];
+  // La table des mips ne dépend que de la taille de la cible : elle est construite à l'allocation de
+  // la pyramide, et une image qui la demande relit la même, sans reconstruire huit objets.
+  let levelTable: Array<{ offset: number; width: number }> | undefined;
   try {
     const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
     if (!pipelines) return undefined;
@@ -68,6 +71,7 @@ export async function createGpuHiz(
       const packed = pyramidBytes(w, h);
       sizes = packed.sizes;
       offsets = [];
+      levelTable = undefined;
       let texels = 0;
       for (const [levelWidth, levelHeight] of sizes) {
         offsets.push(texels);
@@ -136,7 +140,8 @@ export async function createGpuHiz(
       },
       /** Les mips de la pyramide, avec leur décalage et leur largeur : ce que la partition lit pour
        *  exprimer un rectangle d'écran en texels du mip qui le couvre exactement. */
-      levels: () => sizes.map((size, level) => ({ offset: offsets[level], width: size[0] })),
+      levels: () =>
+        (levelTable ??= sizes.map((size, level) => ({ offset: offsets[level], width: size[0] }))),
       encodeTest(queueDevice, encoder, maxRows, flagRows) {
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);

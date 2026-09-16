@@ -59,7 +59,16 @@ export async function createGpuPartition(
     }
     const writeUniform = createPartitionUniformWriter();
     // Ce que la dernière image a envoyé au noyau, gardé pour l'audit : les matrices sont recopiées
-    // parce que celles de la caméra sont réécrites par l'image suivante.
+    // parce que celles de la caméra sont réécrites par l'image suivante. La copie va dans deux
+    // tableaux alloués une fois pour toutes — l'audit lit la dernière image, jamais une antérieure.
+    const kept: KeptFrame = {
+      rows: 0,
+      width: 0,
+      height: 0,
+      near: 0,
+      view: new Float64Array(16),
+      viewProj: new Float64Array(16),
+    };
     let lastFrame: KeptFrame | undefined;
     const counters = createPartitionCounters(device);
     const cornerBytes = CORNER_VALUES * 4;
@@ -111,15 +120,14 @@ export async function createGpuPartition(
         encoder.clearBuffer(allocated.state, 0, STATE_WORDS * 4);
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
-        writeUniform(device, allocated.uniforms, { ...frame, rows });
-        lastFrame = {
-          rows,
-          width: frame.width,
-          height: frame.height,
-          near: frame.near,
-          view: Float64Array.from(frame.view as ArrayLike<number>),
-          viewProj: Float64Array.from(frame.viewProj as ArrayLike<number>),
-        };
+        writeUniform(device, allocated.uniforms, frame, rows);
+        kept.rows = rows;
+        kept.width = frame.width;
+        kept.height = frame.height;
+        kept.near = frame.near;
+        kept.view.set(frame.view);
+        kept.viewProj.set(frame.viewProj);
+        lastFrame = kept;
         const groups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
         const pass = encoder.beginComputePass({ label: 'WG partition' });
         pass.setBindGroup(0, bindGroup);

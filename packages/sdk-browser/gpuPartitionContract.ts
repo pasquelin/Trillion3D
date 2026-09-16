@@ -93,3 +93,16 @@ export const UNI_VIEW = 0,
   UNI_LEVELS = 48;
 export const MAX_HIZ_LEVELS = 16;
 export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2;
+
+/**
+ * Une coordonnée double écrite en DEUX simples précisions : l'arrondi au plus proche, puis ce qu'il
+ * a laissé. La somme des deux représente le double d'origine à un ulp au carré près, et c'est sous
+ * cette seule forme que les coins et l'ancre entrent dans le noyau (`gpuPartitionMargins.ts`). Les
+ * deux positions sont données séparément parce que les dispositions diffèrent : un coin range son
+ * résidu trois flottants plus loin, l'uniforme quatre.
+ */
+export function writeSplitDouble(out: Float32Array, highAt: number, lowAt: number, value: number) {
+  const high = Math.fround(value);
+  out[highAt] = high;
+  out[lowAt] = value - high;
+}

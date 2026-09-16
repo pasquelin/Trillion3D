@@ -1,4 +1,5 @@
-import { CORNER_VALUES } from './gpuPartitionContract.ts';
+import { CORNER_VALUES, writeSplitDouble } from './gpuPartitionContract.ts';
+import { dirtyRange } from './webgpuRowState.ts';
 import type { GpuPartition } from './gpuPartitionTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -22,17 +23,9 @@ export function createCornerUploadHold() {
  */
 export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition) {
   const { rows, boxCorners, cornerPacked, cornerHold } = rt.layout;
-  const last = rows.packedCount - 1;
-  let from = rows.dirtyFrom,
-    to = Math.min(rows.dirtyTo, last);
-  if (cornerHold.epoch !== rows.tableEpoch) {
-    cornerHold.epoch = rows.tableEpoch;
-    from = 0;
-    to = last;
-  } else if (rows.packedCount > cornerHold.count) {
-    from = Math.min(from, cornerHold.count);
-    to = last;
-  }
+  const stale = cornerHold.epoch !== rows.tableEpoch;
+  if (stale) cornerHold.epoch = rows.tableEpoch;
+  const { from, to } = dirtyRange(rows, stale, cornerHold.count);
   cornerHold.count = rows.packedCount;
   if (to < from) return;
   for (let row = from; row <= to; row++) {
@@ -46,12 +39,13 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition
     // Chaque coordonnée part en deux mots : l'arrondi simple précision, puis ce qu'il a laissé. La
     // somme des deux représente le double d'origine à un ulp au carré près.
     for (let k = 0; k < 8; k++)
-      for (let axis = 0; axis < 3; axis++) {
-        const value = boxCorners.corners[at + k * 3 + axis],
-          high = Math.fround(value);
-        cornerPacked[base + k * 6 + axis] = high;
-        cornerPacked[base + k * 6 + 3 + axis] = value - high;
-      }
+      for (let axis = 0; axis < 3; axis++)
+        writeSplitDouble(
+          cornerPacked,
+          base + k * 6 + axis,
+          base + k * 6 + 3 + axis,
+          boxCorners.corners[at + k * 3 + axis],
+        );
   }
   partition.uploadCorners(cornerPacked, from, to);
 }

@@ -106,7 +106,7 @@ export function drawVis(
   const group = vis.visBindGroup;
   if (rest || !group) return;
   for (let i = 0; i < rows.packedCount; i++) {
-    const pipeline = visPipelineFor(rt, rows.packedRecs[i]!, false);
+    const pipeline = visPipelineFor(rt, rows.packedRecs[i]!);
     if (!pipeline) continue;
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group);

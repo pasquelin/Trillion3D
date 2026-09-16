@@ -73,10 +73,8 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     visPipelineFront: vis.visPipelineFront,
     visPipelineFrontCw: vis.visPipelineFrontCw,
     visHizRestBack: vis.visHizRestBack,
-    visHizRestBackCw: vis.visHizRestBackCw,
     visHizRestNone: vis.visHizRestNone,
     visHizRestFront: vis.visHizRestFront,
-    visHizRestFrontCw: vis.visHizRestFrontCw,
   } = rasterPipelines);
   vis.visLayerPipelines.length = 0;
   if (vis.drawLayerSlots > 1)

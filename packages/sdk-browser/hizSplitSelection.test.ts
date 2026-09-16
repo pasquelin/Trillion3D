@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HIZ_BOUNDS_VALUES, splitOccludersFlat } from './hiz.ts';
+import { HIZ_BOUNDS_VALUES } from './hiz.ts';
+import { splitOccludersFlat } from './hizSplit.ts';
 
 const keyDouble = new Float64Array(1),
   keyWords = new Uint32Array(keyDouble.buffer);
