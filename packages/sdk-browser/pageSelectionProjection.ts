@@ -71,6 +71,9 @@ export function errorFloorAt(
   if (!(error > 0) || !(radius >= 0)) return 0;
   const far = depth + radius * stretch;
   if (!(far > 0)) return Infinity;
+  // Le plancher vaut pour les deux métriques : la variante d'EXPÉRIENCE de la référence externe
+  // rend `ε·étirement·f/profondeur`, que `ε_min·étirement·f/(profondeur la plus lointaine de la
+  // sphère englobante)` minore tout autant que la borne certifiée.
   return (error * stretch * focal) / far;
 }
 

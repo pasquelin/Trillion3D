@@ -98,7 +98,6 @@ export function evaluateDagSelectionKernel(
   const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
     packed,
     records,
-    uniforms,
     nodeFlags,
     planes,
     views,

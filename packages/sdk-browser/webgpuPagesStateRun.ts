@@ -111,6 +111,9 @@ export interface WebgpuRunState {
   frameHeld: boolean;
   /** La révision dont les matrices sont portées à la carte et aux items transparents. */
   worldUploadRevision: number;
+  /** L'origine du repère de rendu des matrices déjà portées à la carte : l'œil de cette image-là.
+   *  Une caméra qui bouge la périme comme un changement de scène périme la révision. */
+  worldUploadOrigin: Float64Array;
   /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
    *  occulteurs, donc la partition que la suivante hérite. */
   occluderSignature: number;
@@ -184,6 +187,8 @@ export function createWebgpuRunState(): WebgpuRunState {
     gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
     frameHeld: false,
     worldUploadRevision: 0,
+    // Pas de repère avant la première image : elle rebase, quoi qu'il arrive.
+    worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
     occluderSignature: 0,
   };
 }
