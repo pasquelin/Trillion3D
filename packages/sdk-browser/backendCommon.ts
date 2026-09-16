@@ -1,5 +1,5 @@
 import { installSceneLighting } from './sceneLighting.ts';
-import type { BackendCapabilities } from '../sdk-core/index.ts';
+import { hslToLinearRgb, type BackendCapabilities } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
 export const DEFAULT_FOV = 55,
@@ -53,8 +53,14 @@ export function hashId(id: string) {
 export function clusterHue(id: string) {
   return (hashId(id) * 0.61803398875) % 1;
 }
+/** Trois composantes linéaires relues aussitôt : la couleur d'un cluster n'alloue rien de plus. */
+const tint = new Float64Array(3);
+
+/** La teinte d'un cluster, calculée par le socle. L'objet couleur rendu est celui que les matériaux
+ *  de l'hôte veulent ; sa construction est la frontière, pas le calcul. */
 export function clusterColor(id: string, saturation = 0.75) {
-  return new THREE.Color().setHSL(clusterHue(id), saturation, 0.55);
+  hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
+  return new THREE.Color(tint[0], tint[1], tint[2]);
 }
 export function lighting(scene: THREE.Scene, clearColor: number, source: THREE.Object3D) {
   return installSceneLighting(scene, source, clearColor);
