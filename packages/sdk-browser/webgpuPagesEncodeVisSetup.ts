@@ -124,6 +124,10 @@ export function encodeRaster(
   // partition, ou sans pyramide, l'image lit des zéros et rastère toute la coupe en une fois.
   const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : vis.zeroFlags;
   const key = (hizFlags === vis.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
+  const mid = twoPass && vis.gpuHiz ? midFrame : undefined;
+  // Les triangles plein écran des résolutions sont des appels de dessin comme les autres : celui
+  // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
+  run.gpuDrawCalls += mid ? 2 : 1;
   return vis.gpuRaster.encode(
     encoder,
     {
@@ -146,6 +150,6 @@ export function encodeRaster(
       groups: vis.rasterGroups,
       groupKey: key,
     },
-    twoPass && vis.gpuHiz ? midFrame : undefined,
+    mid,
   );
 }
