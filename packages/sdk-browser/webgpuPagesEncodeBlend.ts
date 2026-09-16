@@ -98,9 +98,9 @@ export function encodeSurfaceLighting(
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
   // L'entrée d'image a recopié la caméra, ancêtres compris : la position monde se lit sans recalcul.
-  cameraWorldArray[0] = cam.position[0];
-  cameraWorldArray[1] = cam.position[1];
-  cameraWorldArray[2] = cam.position[2];
+  cameraWorldArray[0] = cam.eye[0];
+  cameraWorldArray[1] = cam.eye[1];
+  cameraWorldArray[2] = cam.eye[2];
   gpu.deferred.update(
     inverseViewProj,
     cameraWorldArray,

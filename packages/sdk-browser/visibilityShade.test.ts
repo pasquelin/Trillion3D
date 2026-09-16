@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { referenceShadeVisibility } from './bench/oracles/ombrage.mjs';
 import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function bitExactPixels(a: Uint8Array, b: Uint8Array) {
   assert.equal(a.length, b.length);
@@ -17,7 +18,7 @@ function bitExactPixels(a: Uint8Array, b: Uint8Array) {
 test('an empty scene is pure background, bit for bit', () => {
   const cam = cameraAt();
   const ids = new Uint32Array(4);
-  const optimisee = shadeVisibility(ids, [], cam, [2, 2]);
+  const optimisee = shadeVisibility(ids, [], cameraMoteur(cam), [2, 2]);
   const reference = referenceShadeVisibility(ids, [], cam, [2, 2]);
   bitExactPixels(optimisee, reference);
 });
@@ -30,8 +31,8 @@ test('a MeshBasicMaterial quad shades identically, one pixel and many', () => {
     [1, 1],
     [9, 9],
   ] as [number, number][]) {
-    const ids = rasterVisibilityIds([page], cam, size);
-    const optimisee = shadeVisibility(ids, [page], cam, size);
+    const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
+    const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
     const reference = referenceShadeVisibility(ids, [page], cam, size);
     bitExactPixels(optimisee, reference);
   }
@@ -48,8 +49,8 @@ test('a MeshStandardMaterial quad (lit path) shades identically', () => {
   const { page, geometry } = quad(material, [-1, -1, -0.4], [1, 1, -0.4], 'standard');
   const cam = cameraAt(),
     size: [number, number] = [11, 11];
-  const ids = rasterVisibilityIds([page], cam, size);
-  const optimisee = shadeVisibility(ids, [page], cam, size);
+  const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
+  const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
   const reference = referenceShadeVisibility(ids, [page], cam, size);
   bitExactPixels(optimisee, reference);
   geometry.dispose();
@@ -63,8 +64,8 @@ test('a triangle whose barycentric weights straddle the accept boundary agrees a
   const { page, geometry } = quad(material, [-0.02, -1, -0.4], [0.02, 1, -0.4], 'sliver');
   const cam = cameraAt(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds([page], cam, size);
-  const optimisee = shadeVisibility(ids, [page], cam, size);
+  const ids = rasterVisibilityIds([page], cameraMoteur(cam), size);
+  const optimisee = shadeVisibility(ids, [page], cameraMoteur(cam), size);
   const reference = referenceShadeVisibility(ids, [page], cam, size);
   bitExactPixels(optimisee, reference);
   geometry.dispose();

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './pageSelection.ts';
 import { dagFixture, wideCamera, urls } from './pageSelectionDagFixture.ts';
 import { assertOneRepresentationPerGroup } from './pageSelectionTestHelpers.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('a flat cluster cut selects exactly one level per chain and covers the surface once', () => {
   const fixture = dagFixture();
@@ -45,7 +46,7 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
   cam.position.set(-1.5, 0, 2);
   cam.lookAt(-1.5, 0, 0);
   cam.updateMatrixWorld();
-  const selected = selectVisiblePages(roots, cam, {
+  const selected = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
@@ -65,7 +66,7 @@ test('a missing cluster steps its whole group back to the coarse representation,
     fixture.associations,
     { allowMissing: true },
   );
-  const selected = selectVisiblePages(roots, wideCamera(), {
+  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
@@ -102,7 +103,7 @@ test('a missing coarse cluster keeps stepping back until the pinned root covers 
     fixture.associations,
     { allowMissing: true },
   );
-  const selected = selectVisiblePages(roots, wideCamera(), {
+  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
@@ -127,7 +128,7 @@ test('the fallback covers the surface once for every residency pattern', () => {
       { allowMissing: true },
     );
     for (const pixelError of [0, 4, 20]) {
-      const selected = selectVisiblePages(roots, wideCamera(), {
+      const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
         pixelError,
         viewport: [1280, 720],
         holdResident: true,

@@ -6,6 +6,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals();
@@ -23,7 +24,11 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
     viewport,
   });
   const cam = camera();
-  const cpu = selectVisiblePages(collected.roots, cam, { pixelError: 0, viewport, frame: 1 });
+  const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
+    pixelError: 0,
+    viewport,
+    frame: 1,
+  });
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
   backend.render(cam);

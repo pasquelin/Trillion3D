@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSelectionResult, selectVisiblePages } from './pageSelection.ts';
 import { dag, racine } from './bench/dagC.mjs';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
@@ -38,10 +39,10 @@ function relanceComplete(
   budget: number,
 ) {
   let pixelError = pixelError0;
-  let result = selectVisiblePages(roots, cam, ask(pixelError, 0), []);
+  let result = selectVisiblePages(roots, cameraMoteur(cam), ask(pixelError, 0), []);
   for (let attempt = 0; budget && result.shown.length > budget && attempt < 16; attempt++) {
     pixelError = pixelError > 0 ? pixelError * 2 : 1;
-    result = selectVisiblePages(roots, cam, ask(pixelError, 0), []);
+    result = selectVisiblePages(roots, cameraMoteur(cam), ask(pixelError, 0), []);
   }
   return result;
 }
@@ -73,7 +74,7 @@ test('un premier passage dépassé d’une seule page converge sur la même coup
   const roots = [racine(pages)];
   const cam = camera();
   // Premier passage (seuil 50) : 18 pages pour un budget de 17, dépassé d'une seule page.
-  const neuf = selectVisiblePages(roots, cam, ask(50, 17), []);
+  const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(50, 17), []);
   const ancien = relanceComplete(roots, cam, 50, 17);
   assertSameCut(neuf, ancien, 'dépassement de 1');
 });
@@ -83,7 +84,7 @@ test('un premier passage dépassé d’un ordre de grandeur (10×) converge sur 
   const roots = [racine(pages)];
   const cam = camera();
   // Premier passage (seuil 1) : 1024 pages pour un budget de 100, dépassé d'un peu plus de 10×.
-  const neuf = selectVisiblePages(roots, cam, ask(1, 100), []);
+  const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 100), []);
   const ancien = relanceComplete(roots, cam, 1, 100);
   assertSameCut(neuf, ancien, 'dépassement de 10×');
 });
@@ -92,7 +93,7 @@ test('un budget tenu du premier coup ne déclenche aucune relance, des deux côt
   const pages = dag({ feuilles: 64, seed: 7, residentes: 1 });
   const roots = [racine(pages)];
   const cam = camera();
-  const neuf = selectVisiblePages(roots, cam, ask(1, 1000), []);
+  const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 1000), []);
   const ancien = relanceComplete(roots, cam, 1, 1000);
   assertSameCut(neuf, ancien, 'budget tenu');
   assert.equal(neuf.pixelError, 1, 'aucun doublement du seuil');
@@ -103,7 +104,7 @@ test('un budget que même le seuil le plus grossier ne peut tenir refait la coup
   // minimum atteignable est 2 pages. Un budget de 1 dépasse donc à chaque seuil, jusqu'au dernier.
   const roots = [0, 1].map((i) => racine(dag({ feuilles: 16, seed: 5 + i, residentes: 1 })));
   const cam = camera();
-  const neuf = selectVisiblePages(roots, cam, ask(1, 1), []);
+  const neuf = selectVisiblePages(roots, cameraMoteur(cam), ask(1, 1), []);
   const ancien = relanceComplete(roots, cam, 1, 1);
   assertSameCut(neuf, ancien, 'jamais satisfiable');
   assert.equal(neuf.shown.length, 2, 'minimum incompressible des deux racines');

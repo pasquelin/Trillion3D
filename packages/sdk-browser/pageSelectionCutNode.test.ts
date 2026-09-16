@@ -17,6 +17,7 @@ import {
 } from './pageSelectionCutBounds.ts';
 import type { PageRecord, SelectionState } from './pageSelectionCutState.ts';
 import { referenceNodeDecision } from './bench/oracles/coupe4c.mjs';
+import { cameraMoteur } from './cameraFixture.ts';
 
 const camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.25, 500);
 camera.position.set(3, 2, 9);
@@ -37,7 +38,7 @@ const state = {
   flatElements: view,
   flatStretch: STRETCH,
   flatFocal: FOCAL,
-  camera,
+  cam: cameraMoteur(camera),
 } as unknown as SelectionState<PageRecord>;
 
 const ABSENTE = [0, 0, 0, -1];

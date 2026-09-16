@@ -6,6 +6,7 @@ import { buildHizPyramid, countUnoccluded, visibilityDepth } from './hiz.ts';
 import { HIZ_TEST_VALUES, hizTestRect } from './hizOcclusion.ts';
 import { createHizCounts, HIZ_KERNEL_TEXELS } from './hizCounts.ts';
 import { cameraAt, quad } from '../../test/fixtures/hiz.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('hizTestRect clips rectangle to viewport: entirely inside', () => {
   const into = new Int32Array(HIZ_TEST_VALUES);
@@ -101,11 +102,11 @@ test('counters: tested and kept account for all pages', () => {
   const back = quad(backMat, [-0.2, -0.2, -2], [0.2, 0.2, -2], 'back');
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const occluderIds = rasterVisibilityIds([front.page], cam, size);
-  const occluderDepth = visibilityDepth(occluderIds, [front.page], cam, size);
+  const occluderIds = rasterVisibilityIds([front.page], cameraMoteur(cam), size);
+  const occluderDepth = visibilityDepth(occluderIds, [front.page], cameraMoteur(cam), size);
   const pyramid = buildHizPyramid(occluderDepth, 32, 32);
   const counts = createHizCounts();
-  const kept = countUnoccluded([front.page, back.page], pyramid, cam, size, counts);
+  const kept = countUnoccluded([front.page, back.page], pyramid, cameraMoteur(cam), size, counts);
   assert.equal(counts.tested, 2);
   assert.equal(counts.rejected + kept.length, counts.tested);
   front.geometry.dispose();
@@ -123,11 +124,11 @@ test('counters: triangle counts reflect cluster rejection', () => {
   back.page.array = new Float32Array(12);
   const cam = cameraAt(),
     size: [number, number] = [32, 32];
-  const occluderIds = rasterVisibilityIds([front.page], cam, size);
-  const occluderDepth = visibilityDepth(occluderIds, [front.page], cam, size);
+  const occluderIds = rasterVisibilityIds([front.page], cameraMoteur(cam), size);
+  const occluderDepth = visibilityDepth(occluderIds, [front.page], cameraMoteur(cam), size);
   const pyramid = buildHizPyramid(occluderDepth, 32, 32);
   const counts = createHizCounts();
-  countUnoccluded([front.page, back.page], pyramid, cam, size, counts);
+  countUnoccluded([front.page, back.page], pyramid, cameraMoteur(cam), size, counts);
   assert.equal(counts.testedTriangles, 6 + 4);
   assert.equal(
     counts.rejectedTriangles + (counts.testedTriangles - counts.rejectedTriangles),
@@ -149,7 +150,7 @@ test('counters: oversized pages are counted separately', () => {
   depth.fill(0.5);
   const pyramid = buildHizPyramid(depth, 32, 32);
   const counts = createHizCounts();
-  countUnoccluded([huge.page], pyramid, cam, size, counts);
+  countUnoccluded([huge.page], pyramid, cameraMoteur(cam), size, counts);
   assert.equal(counts.tested, 1);
   assert.equal(counts.oversized, 1);
   assert.equal(counts.oversizedTriangles, 8);

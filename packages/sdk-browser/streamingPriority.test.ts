@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { orderPendingUrls, pixelScaleOf, type PriorityRecord } from './streamingPriority.ts';
 import { referenceOrder } from './bench/oracles/socle-math-priorite.mjs';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
@@ -34,7 +35,12 @@ function record(
 }
 function order(records: PriorityRecord[]) {
   const cam = camera();
-  return orderPendingUrls(records, cam, pixelScaleOf(cam, [1280, 720], [1, 1]), []);
+  return orderPendingUrls(
+    records,
+    cameraMoteur(cam),
+    pixelScaleOf(cameraMoteur(cam).projection, [1280, 720], [1, 1]),
+    [],
+  );
 }
 
 test('at equal error the nearer bundle is asked for first', () => {
@@ -107,7 +113,7 @@ test('orderPendingUrls : matrices hostiles aux zéros signés (axes alignés, ±
   ];
   for (const records of cas) {
     const cam = camera();
-    const recu = orderPendingUrls(records, cam, pixelScale, []);
+    const recu = orderPendingUrls(records, cameraMoteur(cam), pixelScale, []);
     const attendu = referenceOrder(records, cam, pixelScale);
     assert.deepEqual(recu, attendu, `records ${records.map((r) => r.url)}`);
   }

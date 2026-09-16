@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { EngineError } from '../sdk-core/index.ts';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './pageSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('budget pressure down to the pinned roots still publishes a complete, coarser cut', () => {
   const cam = wideCamera(),
@@ -15,7 +16,7 @@ test('budget pressure down to the pinned roots still publishes a complete, coars
     fixture.associations,
   );
   // A budget below the finest cut answers with the next coarser complete cover, at its own threshold.
-  const tight = selectVisiblePages(roots, cam, {
+  const tight = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
     holdResident: true,
@@ -28,7 +29,7 @@ test('budget pressure down to the pinned roots still publishes a complete, coars
   // published must still cover the surface once rather than report an incomplete frame.
   const pinned = new Set(rootCoverage(roots).map((page) => page.url));
   assert.deepEqual([...pinned], ['root']);
-  const starved = selectVisiblePages(roots, cam, {
+  const starved = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 0,
     viewport,
     holdResident: true,

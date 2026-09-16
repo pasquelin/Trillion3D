@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { VisPage } from '../../packages/sdk-browser/visibilityBuffer.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
+import type { EngineCamera } from '../../packages/sdk-browser/cameraWorld.ts';
 import {
   HIZ_BOUNDS_VALUES,
   projectBoxesFlat,
@@ -54,10 +56,10 @@ export function projectBoxToScreen(
   min: number[],
   max: number[],
   matrix: THREE.Matrix4,
-  camera: THREE.PerspectiveCamera,
+  camera: THREE.PerspectiveCamera | EngineCamera,
   viewport: [number, number],
 ): HizBounds {
-  projectBoxesFlat([{ min, max, matrix }], 1, camera, viewport, boxScratch);
+  projectBoxesFlat([{ min, max, matrix }], 1, cameraMoteur(camera), viewport, boxScratch);
   return {
     minX: boxScratch[0],
     minY: boxScratch[1],

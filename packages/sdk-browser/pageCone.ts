@@ -95,9 +95,9 @@ export function coneContextFor(into: ConeContext, world: MatrixElements, cam: En
   into.scale = Math.hypot(e[0], e[1], e[2]);
   normalMatrix3(into.normal, e);
   // La position monde de l'œil vient de la caméra du moteur : une image la pose une fois.
-  into.camX = cam.position[0];
-  into.camY = cam.position[1];
-  into.camZ = cam.position[2];
+  into.camX = cam.eye[0];
+  into.camY = cam.eye[1];
+  into.camZ = cam.eye[2];
   return into;
 }
 

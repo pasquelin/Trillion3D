@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import {
   createCameraFrame,
   decomposeMatrix4,
-  maxStretch,
   updateCameraFrame,
   type CameraFrame,
 } from '../sdk-core/index.ts';
@@ -63,15 +62,14 @@ export interface EngineCamera extends CameraFrame {
   world: Float64Array;
   /** Matrice de projection de la caméra hôte, recopiée telle quelle. */
   projection: Float64Array;
-  /** Position de l'œil dans le monde : la translation de `world`. */
-  position: Float64Array;
+  /** Position de l'œil dans le monde : la translation de `world`. Elle ne se nomme pas `position`,
+   *  qui désigne partout ailleurs la pose LOCALE que le contrat interdit de lire. */
+  eye: Float64Array;
   near: number;
   far: number;
   /** Champ vertical en degrés et rapport d'image, tels que l'hôte les déclare. */
   fov: number;
   aspect: number;
-  /** Le plus grand étirement que la vue impose, moitié caméra de l'étirement objet-vers-vue. */
-  viewStretch: number;
   /** Convention de profondeur de découpe de l'hôte ; elle vaut pour la projection ET pour les plans. */
   depthZeroToOne: boolean;
 }
@@ -81,12 +79,11 @@ export function createEngineCamera(): EngineCamera {
     ...createCameraFrame(),
     world: new Float64Array(16),
     projection: new Float64Array(16),
-    position: new Float64Array(3),
+    eye: new Float64Array(3),
     near: 0,
     far: 0,
     fov: 0,
     aspect: 1,
-    viewStretch: 1,
     depthZeroToOne: false,
   };
 }
@@ -111,10 +108,9 @@ export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineC
   into.aspect = camera.aspect;
   into.depthZeroToOne = camera.coordinateSystem === THREE.WebGPUCoordinateSystem;
   updateCameraFrame(into, into.projection, into.world, into.depthZeroToOne);
-  into.position[0] = into.world[12];
-  into.position[1] = into.world[13];
-  into.position[2] = into.world[14];
-  into.viewStretch = maxStretch(into.view);
+  into.eye[0] = into.world[12];
+  into.eye[1] = into.world[13];
+  into.eye[2] = into.world[14];
   return into;
 }
 
@@ -150,7 +146,7 @@ const poseTranslation = new Float64Array(3),
 export function enginePose(cam: EngineCamera) {
   decomposeMatrix4(cam.world, poseTranslation, poseRotation, poseScale);
   return {
-    position: [cam.position[0], cam.position[1], cam.position[2]],
+    position: [cam.eye[0], cam.eye[1], cam.eye[2]],
     quaternion: [poseRotation[0], poseRotation[1], poseRotation[2], poseRotation[3]],
   };
 }
@@ -183,12 +179,11 @@ export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineC
   into.view.set(from.view);
   into.viewProjection.set(from.viewProjection);
   into.planes.set(from.planes);
-  into.position.set(from.position);
+  into.eye.set(from.eye);
   into.near = from.near;
   into.far = from.far;
   into.fov = from.fov;
   into.aspect = from.aspect;
-  into.viewStretch = from.viewStretch;
   into.depthZeroToOne = from.depthZeroToOne;
   return into;
 }

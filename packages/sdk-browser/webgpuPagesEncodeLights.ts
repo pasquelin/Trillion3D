@@ -110,7 +110,7 @@ function encodeBounce(
   // La position monde de la caméra, posée par l'entrée d'image : les cascades s'y recentrent par
   // pas de maille. Aucune allocation, et rien d'autre de la caméra n'entre dans le rebond — ni sa
   // direction, ni son tronc de vue : une caméra qui pivote ne périmerait alors rien de bon.
-  viewpoint.set(cam.position);
+  viewpoint.set(cam.eye);
   bounce.encoded = probes.encode(encoder, active, viewpoint);
   bounce.probesUpdated = probes.lastProbes;
   bounce.raysLaunched = probes.lastRays;

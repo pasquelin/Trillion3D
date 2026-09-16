@@ -6,8 +6,7 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from './gpuSelection.ts';
-import { createHizCounts } from './hiz.ts';
-import type { HizCounts, TemporalHizState } from './hiz.ts';
+import { createHizCounts, type HizCounts, type TemporalHizState } from './hiz.ts';
 import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 import { createFrameHold, createFrameRevisions, type FrameHold } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';

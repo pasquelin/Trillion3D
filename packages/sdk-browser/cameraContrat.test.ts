@@ -18,6 +18,8 @@ import { resolvePixelError } from './pageSelectionRequests.ts';
 import { sameHizView } from './hizTemporal.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './bench/justesse/cameraRig.mjs';
+import { cameraMoteur } from './cameraFixture.ts';
+import { createEngineCamera, type CameraMotion } from './cameraWorld.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 type Rig = { parent: THREE.Object3D; camera: THREE.PerspectiveCamera };
@@ -66,7 +68,7 @@ test('frontière : la porte d’image tenue voit bouger un rig que l’hôte n�
   /** Une image d'un moteur rendu par Three, réduite à ce que la pose y décide. */
   const image = () => {
     resolveCameraWorld(rig.camera);
-    gate.viewChanged(rig.camera, viewport, 1);
+    gate.viewChanged(cameraMoteur(rig.camera), viewport, 1);
     gate.readScene(source, []);
     const tenue = gate.held();
     gate.keep(0, 0, [], 0, false);
@@ -85,12 +87,16 @@ test('frontière : la porte d’image tenue voit bouger un rig que l’hôte n�
 
 test('frontière : l’historique de vue gèle la pose monde, pas la pose locale', () => {
   const { rig, camera, aplatie } = sousRig(POSES_PARENT[1] as Pose);
-  const gelee = holdCameraWorld(new THREE.PerspectiveCamera(), resolveCameraWorld(camera));
-  assert.deepEqual([...gelee.matrixWorld.elements], [...aplatie.matrixWorld.elements]);
-  assert.equal(sameHizView(gelee, camera), true, 'relu aussitôt, l’historique décrit cette vue-ci');
+  const gelee = holdCameraWorld(createEngineCamera(), cameraMoteur(resolveCameraWorld(camera)));
+  assert.deepEqual([...gelee.world], [...aplatie.matrixWorld.elements]);
+  assert.equal(
+    sameHizView(cameraMoteur(gelee), cameraMoteur(camera)),
+    true,
+    'relu aussitôt, l’historique décrit cette vue-ci',
+  );
   poseRig(rig, DEPLACE_ET_TOURNE, false);
   assert.equal(
-    sameHizView(gelee, camera),
+    sameHizView(cameraMoteur(gelee), cameraMoteur(camera)),
     false,
     'un rig qui bouge seul périme l’historique : la pose locale, elle, n’a pas changé',
   );
@@ -98,7 +104,7 @@ test('frontière : l’historique de vue gèle la pose monde, pas la pose locale
 
 /** Une lecture d'uniformes recopiée aussitôt : le tampon de travail est partagé entre deux appels. */
 const uniformes = (camera: THREE.PerspectiveCamera) => {
-  const u = cameraSelectionUniforms(camera, 1, VIEWPORT);
+  const u = cameraSelectionUniforms(cameraMoteur(camera), 1, VIEWPORT);
   return { view: [...u.view], planes: [...u.planes], cameraWorld: [...u.cameraWorld] };
 };
 
@@ -116,22 +122,26 @@ test('frontière : une fonction appelée seule résout sa propre pose', () => {
 test('frontière : le seuil adaptatif appelé seul mesure la vitesse de l’œil dans le monde', () => {
   const contexte = { pixelError: 1, lodAdaptive: true };
   const rig = creeRig() as Rig,
-    sousRigMotion: { last?: THREE.Vector3; lastMs?: number } = {},
-    aplatieMotion: { last?: THREE.Vector3; lastMs?: number } = {};
+    sousRigMotion: CameraMotion = {},
+    aplatieMotion: CameraMotion = {};
   for (const pose of POSES_PARENT as Pose[]) {
     // Aucune entrée d'image ici : la caméra du rig n'a jamais été remontée par qui que ce soit.
     resolvePixelError(
       contexte,
-      poseRig(rig, pose, false) as THREE.PerspectiveCamera,
+      cameraMoteur(poseRig(rig, pose, false) as THREE.PerspectiveCamera),
       sousRigMotion,
     );
-    resolvePixelError(contexte, cameraAplatie(pose) as THREE.PerspectiveCamera, aplatieMotion);
+    resolvePixelError(
+      contexte,
+      cameraMoteur(cameraAplatie(pose) as THREE.PerspectiveCamera),
+      aplatieMotion,
+    );
     assert.deepEqual(
-      sousRigMotion.last?.toArray(),
-      aplatieMotion.last?.toArray(),
+      [...(sousRigMotion.last ?? [])],
+      [...(aplatieMotion.last ?? [])],
       'la position retenue pour la vitesse doit être celle de l’œil dans le monde',
     );
   }
   // Le test discrimine : sans résolution, la vitesse serait celle de la caméra dans son rig.
-  assert.notDeepEqual(sousRigMotion.last?.toArray(), rig.camera.position.toArray());
+  assert.notDeepEqual([...(sousRigMotion.last ?? [])], rig.camera.position.toArray());
 });

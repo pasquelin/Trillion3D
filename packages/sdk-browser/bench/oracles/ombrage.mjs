@@ -14,6 +14,11 @@ import {
 } from '../../visibilityMath.ts';
 import { shadeLit } from '../../visibilityLighting.ts';
 import { unpackVisibilityId, visMaterial } from '../../visibilityTypes.ts';
+import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
+
+/** L'oracle compare la mise en cache par image, pas la lecture de la caméra : il recopie la caméra
+ *  de l'hôte comme l'entrée d'image le fait, et l'ombrage lit la même. */
+const engineScratch = createEngineCamera();
 
 /** `visibilityShadePixel.ts:15-63` avant le lot A : `visMaterial` et le triangle par pixel. */
 function referenceShadePixel(id, pages, cam, viewProj, width, height, x, y, background) {
@@ -21,7 +26,7 @@ function referenceShadePixel(id, pages, cam, viewProj, width, height, x, y, back
   if (!unpacked) return backgroundRgb(background);
   const page = pages[unpacked.pageIndex];
   if (!page) return backgroundRgb(background);
-  const tri = triangleAt(page, unpacked.triangleIndex, viewProj, width, height);
+  const tri = triangleAt(page, unpacked.triangleIndex, viewProj.elements, width, height);
   if (!tri) return backgroundRgb(background);
   const affine = barycentric(tri.a, tri.b, tri.c, x, y);
   if (!affine) return backgroundRgb(background);
@@ -67,7 +72,7 @@ export function referenceShadeVisibility(
 ) {
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
-  cam.updateMatrixWorld();
+  const engine = readCameraWorld(engineScratch, cam);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     cam.projectionMatrix,
     cam.matrixWorldInverse,
@@ -76,7 +81,7 @@ export function referenceShadeVisibility(
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const o = y * width + x,
-        rgb = referenceShadePixel(ids[o], pages, cam, viewProj, width, height, x, y, background);
+        rgb = referenceShadePixel(ids[o], pages, engine, viewProj, width, height, x, y, background);
       const p = o * 4;
       pixels[p] = rgb[0] ?? bg[0];
       pixels[p + 1] = rgb[1] ?? bg[1];
