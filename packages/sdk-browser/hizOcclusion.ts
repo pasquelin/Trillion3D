@@ -92,7 +92,7 @@ export function hizTestRect(
 }
 
 /** `hizTestRect` over the flat bounds layout `projectBoxesFlat` writes. */
-export function hizTestRectFlat(
+function hizTestRectFlat(
   bounds: Float64Array,
   base: number,
   width: number,
