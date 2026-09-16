@@ -79,6 +79,11 @@ function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
     rowEpoch: rows.rowEpoch.slice(),
     rowOfPage: rows.rowOfPage.slice(),
     residentFlags: rows.residentFlags.slice(),
+    // Le journal des résidences de la passe : ce que le rejet d'ombres et la coupe GPU relisent.
+    residencyChanges: {
+      pages: rows.residencyChanges.pages.slice(0, rows.residencyChanges.count),
+      sorted: rows.residencyChanges.sorted,
+    },
     rowCount: rows.rowCount,
     packedCount: rows.packedCount,
     candidateCount: rows.candidateCount,
