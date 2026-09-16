@@ -7,6 +7,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHostSceneWatch } from './hostSceneWatch.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
+import { exactPagesBackend } from './index.ts';
+import { quadRootsContext, frontCamera } from './pagesBackendScenes.ts';
 
 function graphe() {
   const source = new THREE.Group();
@@ -96,4 +98,29 @@ test('la porte d’image ne tient plus une image quand l’hôte a écrit la sc�
   mesh.position.x = 100;
   gate.readScene(source);
   assert.equal(gate.held(), false, 'la scène a bougé sous l’image tenue');
+});
+
+/** Le moteur Three avec une lampe déclarée dans le graphe source, que l'hôte écrira directement. */
+function moteurEclaire() {
+  const { geometry, material, source, context } = quadRootsContext(true);
+  const lampe = new THREE.PointLight(0xffffff, 1);
+  source.add(lampe);
+  const backend = exactPagesBackend(context);
+  const copie = () =>
+    backend.scene.children.find((child) => (child as THREE.Light).isLight) as THREE.PointLight;
+  return { backend, lampe, copie, dispose: () => (geometry.dispose(), material.dispose()) };
+}
+
+test('une lampe écrite directement par l’hôte est recopiée dès l’image suivante', () => {
+  const { backend, lampe, copie, dispose } = moteurEclaire();
+  const camera = frontCamera();
+  backend.render(camera);
+  assert.equal(copie().intensity, 1, 'la lampe déclarée est recopiée telle quelle');
+  lampe.intensity = 7;
+  lampe.position.x = 9;
+  backend.render(camera);
+  assert.equal(copie().intensity, 7, 'l’intensité écrite par l’hôte n’a pas suivi');
+  assert.equal(copie().position.x, 9, 'la pose écrite par l’hôte n’a pas suivi');
+  backend.dispose();
+  dispose();
 });
