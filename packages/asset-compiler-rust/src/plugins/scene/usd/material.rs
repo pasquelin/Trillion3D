@@ -4,9 +4,8 @@
 //! entrée est ou bien une valeur, ou bien une connexion vers un `UsdUVTexture`, et une entrée
 //! connectée l'emporte sur le facteur, comme dans le reste du compilateur.
 //!
-//! La transparence suit la sémantique de USD et non un type d'objet : `opacityThreshold` écrit et
-//! non nul fait une découpe (`MASK`) à ce seuil, une opacité inférieure à un ou portée par une
-//! texture fait un mélange (`BLEND`), et rien de tout cela laisse la surface opaque.
+//! La transparence suit la sémantique de USD et non un type d'objet ; elle est lue dans
+//! `opacity.rs`, qui dit aussi ce que glTF ne sait pas porter.
 //!
 //! `doubleSided` est une propriété de la géométrie en USD et du matériau en glTF : c'est le
 //! maillage qui l'apporte, et deux maillages qui la déclarent autrement sur le même `Material`
@@ -15,6 +14,9 @@ use super::*;
 
 /// L'identifiant du nœud de surface que ce pilote lit.
 const PREVIEW_SURFACE: &str = "UsdPreviewSurface";
+/// Le canal où glTF lit le métal de sa carte partagée, et celui où il lit la rugosité.
+const METAL_CHANNEL: &str = "outputs:b";
+const ROUGH_CHANNEL: &str = "outputs:g";
 
 /// Le matériau glTF que ce chemin de prim désigne, versé dans les tables à sa première demande.
 pub(super) fn resolve(
@@ -42,14 +44,14 @@ fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<
         return None;
     };
     let mut pbr = json!({});
-    base_colour(world, &shader, &mut pbr);
+    let transparency = base_colour(world, &shader, &mut pbr);
     metallic_roughness(world, &shader, &mut pbr);
     let mut out = json!({
         "name": path.name().unwrap_or("Material"),
         "pbrMetallicRoughness": pbr,
-        "alphaMode": alpha_mode(world, &shader),
+        "alphaMode": opacity::mode(&shader, transparency),
     });
-    if let Some(threshold) = cutoff(&shader) {
+    if let Some(threshold) = opacity::cutoff(&shader) {
         out["alphaCutoff"] = json!(threshold);
     }
     for (usd_name, gltf_name) in [
@@ -78,9 +80,12 @@ fn surface_shader(world: &World<'_>, material: &usd::Prim) -> Option<usd::Prim> 
 
 /// La couleur de base et son alpha : la texture connectée l'emporte sur la couleur écrite, et
 /// l'opacité entre dans le quatrième canal du facteur, comme glTF l'attend.
-fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) {
-    let opacity = scalar(shader, "opacity").unwrap_or(1.0);
-    let colour = match connected_texture(world, shader, "diffuseColor") {
+fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> opacity::Opacity {
+    let diffuse = connection(shader, "inputs:diffuseColor");
+    let textured = diffuse
+        .as_ref()
+        .and_then(|target| texture::resolve(world, target));
+    let colour = match textured {
         Some(texture) => {
             pbr["baseColorTexture"] = texture;
             [1.0, 1.0, 1.0]
@@ -90,25 +95,47 @@ fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) {
             .and_then(read::triple)
             .unwrap_or([1.0, 1.0, 1.0]),
     };
-    pbr["baseColorFactor"] = json!([colour[0], colour[1], colour[2], opacity]);
+    let transparency = opacity::of(world, shader, pbr, diffuse.as_ref());
+    pbr["baseColorFactor"] = json!([colour[0], colour[1], colour[2], transparency.factor]);
+    transparency
 }
 
 /// Le métal et la rugosité. glTF n'a qu'une carte pour les deux ; deux textures distinctes ne s'y
 /// ramènent pas sans recomposer une image, ce qui serait inventer des octets : les facteurs sont
 /// alors seuls portés et l'écart est compté par son nom.
+///
+/// Une carte partagée, elle, l'emporte sur les facteurs écrits, que glTF multiplie par elle : ils
+/// valent un, sans quoi la carte serait annulée. Reste à savoir d'où chaque entrée tire son canal :
+/// glTF prend le métal dans le bleu et la rugosité dans le vert, et un autre canal ne s'y range pas.
 fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) {
-    pbr["metallicFactor"] = json!(scalar(shader, "metallic").unwrap_or(0.0));
-    pbr["roughnessFactor"] = json!(scalar(shader, "roughness").unwrap_or(0.5));
-    let metal = connection(shader, "inputs:metallic").map(|path| path.prim_path());
-    let rough = connection(shader, "inputs:roughness").map(|path| path.prim_path());
-    match (&metal, &rough) {
-        (None, None) => {}
-        (Some(one), Some(other)) if one == other => {
-            if let Some(texture) = texture::resolve(world, one) {
-                pbr["metallicRoughnessTexture"] = texture;
-            }
+    let metal = connection(shader, "inputs:metallic");
+    let rough = connection(shader, "inputs:roughness");
+    let shared = match (&metal, &rough) {
+        (Some(one), Some(other)) if one.prim_path() == other.prim_path() => {
+            texture::resolve(world, one)
         }
-        _ => world.refuse(world::TEXTURE_UNSUPPORTED),
+        (None, None) => None,
+        _ => {
+            world.refuse(world::TEXTURE_UNSUPPORTED);
+            None
+        }
+    };
+    let Some(map) = shared else {
+        pbr["metallicFactor"] = json!(scalar(shader, "metallic").unwrap_or(0.0));
+        pbr["roughnessFactor"] = json!(scalar(shader, "roughness").unwrap_or(0.5));
+        return;
+    };
+    pbr["metallicRoughnessTexture"] = map;
+    pbr["metallicFactor"] = json!(1.0);
+    pbr["roughnessFactor"] = json!(1.0);
+    for (input, channel) in [(metal, METAL_CHANNEL), (rough, ROUGH_CHANNEL)] {
+        let placed = input.is_some_and(|path| {
+            path.split_property()
+                .is_some_and(|(_, name)| name == channel)
+        });
+        if !placed {
+            world.refuse(world::TEXTURE_CHANNEL);
+        }
     }
 }
 
@@ -126,23 +153,6 @@ fn emissive_factor(shader: &usd::Prim, out: &mut Value) {
     }
 }
 
-/// Le mode de transparence de ce matériau.
-fn alpha_mode(world: &mut World<'_>, shader: &usd::Prim) -> &'static str {
-    if cutoff(shader).is_some() {
-        return "MASK";
-    }
-    let textured = connected_texture(world, shader, "opacity").is_some();
-    match textured || scalar(shader, "opacity").unwrap_or(1.0) < 1.0 {
-        true => "BLEND",
-        false => "OPAQUE",
-    }
-}
-
-/// Le seuil de découpe, quand la surface en déclare un qui découpe vraiment.
-fn cutoff(shader: &usd::Prim) -> Option<f64> {
-    scalar(shader, "opacityThreshold").filter(|threshold| *threshold > 0.0)
-}
-
 /// La texture branchée sur une entrée du nœud de surface.
 fn connected_texture(world: &mut World<'_>, shader: &usd::Prim, name: &str) -> Option<Value> {
     let target = connection(shader, &format!("inputs:{name}"))?;
@@ -150,7 +160,7 @@ fn connected_texture(world: &mut World<'_>, shader: &usd::Prim, name: &str) -> O
 }
 
 /// La première connexion d'un attribut.
-fn connection(prim: &usd::Prim, name: &str) -> Option<sdf::Path> {
+pub(super) fn connection(prim: &usd::Prim, name: &str) -> Option<sdf::Path> {
     prim.attribute(name).connections().ok()?.into_iter().next()
 }
 
@@ -160,6 +170,6 @@ fn value(shader: &usd::Prim, name: &str) -> Option<sdf::Value> {
 }
 
 /// Une entrée scalaire du nœud de surface.
-fn scalar(shader: &usd::Prim, name: &str) -> Option<f64> {
+pub(super) fn scalar(shader: &usd::Prim, name: &str) -> Option<f64> {
     value(shader, name).as_ref().and_then(read::number)
 }
