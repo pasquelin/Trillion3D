@@ -20,6 +20,7 @@ mod coplanar_collect;
 mod coplanar_golden;
 mod coplanar_overlap;
 mod flottant_golden;
+mod gltf_scenes;
 mod import_opacite;
 mod ktx2_golden;
 mod ma_driver;
