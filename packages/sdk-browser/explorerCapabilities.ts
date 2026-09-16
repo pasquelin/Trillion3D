@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { detectCapabilities } from './capabilities.ts';
 import { mathBatchMetrics, prepareMathBatch } from './mathBatchState.ts';
+import { pageDecodeTransport } from './pageDecodeShared.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { meshes as objects } from './sceneMeshes.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
@@ -158,6 +159,9 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       bytes: page.bytes,
     })),
     mathBatch: mathBatchMetrics(),
+    // Le chemin des pages décodées : `partage` quand la page est isolée entre origines et que la
+    // mémoire partagée existe, `transfert` partout ailleurs. Annoncé, jamais deviné.
+    pageDecode: pageDecodeTransport(),
     provenance: {
       sdk: SDK_BUILD_PROVENANCE,
       manifestUrl,
