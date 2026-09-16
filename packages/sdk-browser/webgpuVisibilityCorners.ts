@@ -15,10 +15,10 @@ export function createCornerUploadHold() {
  * la plage que la table vient de déclarer sale voyage — le même intervalle que les sphères d'ombre
  * empruntent —, et un âge nouveau redemande les lignes dessinables, une fois.
  *
- * Les coins sont ceux que la double précision calcule (`createBoxCorners`), arrondis en simple
- * précision pour le transport. Cet arrondi entre dans la borne d'erreur que le noyau de projection
- * porte : chaque coordonnée y est majorée par `8u · Σ|termes|`, où l'arrondi de l'entrée compte pour
- * l'un des trois `u` de chaque terme.
+ * Les coins sont ceux que la double précision calcule (`createBoxCorners`), portés chacun par DEUX
+ * simples précisions : la valeur arrondie et son résidu. Le noyau les rapporte à la pose de la
+ * caméra, elle aussi en deux mots, si bien que la magnitude monde ne survit à aucune soustraction et
+ * que sa borne d'erreur ne dépend plus que de la taille du cluster (`gpuPartitionMargins.ts`).
  */
 export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition) {
   const { rows, boxCorners, cornerPacked, cornerHold } = rt.layout;
@@ -43,7 +43,15 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition
       continue;
     }
     const at = boxCorners.at(rows.packedPageIndex[row], rec, rows.tableEpoch);
-    for (let k = 0; k < CORNER_VALUES; k++) cornerPacked[base + k] = boxCorners.corners[at + k];
+    // Chaque coordonnée part en deux mots : l'arrondi simple précision, puis ce qu'il a laissé. La
+    // somme des deux représente le double d'origine à un ulp au carré près.
+    for (let k = 0; k < 8; k++)
+      for (let axis = 0; axis < 3; axis++) {
+        const value = boxCorners.corners[at + k * 3 + axis],
+          high = Math.fround(value);
+        cornerPacked[base + k * 6 + axis] = high;
+        cornerPacked[base + k * 6 + 3 + axis] = value - high;
+      }
   }
   partition.uploadCorners(cornerPacked, from, to);
 }

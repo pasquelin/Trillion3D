@@ -4,6 +4,9 @@ import {
   FLAG_CLIP,
   FLAG_HISTORY,
   FLAG_PREV_REST,
+  HISTO_BITS,
+  HISTO_BLOCK,
+  HISTO_BUCKETS,
   MODE_HISTORY,
   MODE_MEDIAN,
   PARTITION_WORKGROUP,
@@ -29,12 +32,13 @@ import {
  * Le partage occulteurs/testés et l'empaquetage des bornes du test Hi-Z, par ligne résidente.
  *
  * **La règle de partage change, et ne peut pas changer l'image.** Le processeur classait par une
- * médiane exacte des profondeurs (sélection de rang radix, `splitOccludersFlat`). Ici l'image
- * histogramme elle-même ses profondeurs par l'octet de tête de leur clé ordonnable, et le seau où
- * le rang médian tombe devient le seuil : tout le seau frontière part chez les occulteurs. Le
- * partage n'est donc plus exactement une moitié, mais il reste un partage — et la partition ne
- * décide que l'ORDRE de dessin. Un pixel ne peut changer que par le test Hi-Z, dont la borne de
- * profondeur et le rectangle restent conservateurs quelle que soit la moitié où la ligne tombe.
+ * médiane exacte des profondeurs normalisées (sélection de rang radix, `splitOccludersFlat`). Ici
+ * l'image histogramme elle-même les profondeurs de VUE de ses boîtes sur quatre mille quatre-vingt-
+ * seize seaux, et le seau où le rang médian tombe devient le seuil : tout le seau frontière part
+ * chez les occulteurs. Le partage n'est donc plus exactement une moitié, mais il reste un partage —
+ * et la partition ne décide que l'ORDRE de dessin. Un pixel ne peut changer que par le test Hi-Z,
+ * dont la borne de profondeur et le rectangle restent conservateurs quelle que soit la moitié où la
+ * ligne tombe.
  *
  * L'historique d'occulteurs reste préféré quand il partage quelque chose, et il reste alimenté par
  * le verdict Hi-Z de l'image précédente : `projectRows` relit `flags` avant que le test de cette
@@ -48,31 +52,48 @@ fn firstLevel(span:i32)->u32{
  let level=31u-countLeadingZeros(u32(span))-${Math.log2(HIZ_KERNEL_TEXELS) - 1}u;
  return select(level,0u,level>31u);
 }
+var<workgroup> blockTotals:array<u32,${PARTITION_WORKGROUP}>;
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn chooseSplit(@builtin(local_invocation_id) lid:vec3u){
- if(lid.x!=0u){return;}
- let rows=uni.rows;
- let history=atomicLoad(&state[${ST_HISTORY_OCCLUDERS}u]);
- var mode=${MODE_MEDIAN}u;var threshold=255u;var occluders=history;
- if(uni.historyValid!=0u&&history>0u&&history<rows){mode=${MODE_HISTORY}u;}
- else{
-  mode=${MODE_MEDIAN}u;
-  // Le rang cherché parmi les boîtes qui ne coupent pas le plan proche, comme la sélection CPU.
-  let need=max(1u,atomicLoad(&state[${ST_IN_FRONT}u])/2u);
-  var below=0u;var digit=0u;
-  loop{
-   if(digit>=255u){break;}
-   let n=atomicLoad(&state[${STATE_HISTO}u+digit]);
-   if(below+n>=need){break;}
-   below+=n;digit++;
-  }
-  threshold=digit;
-  occluders=below+atomicLoad(&state[${STATE_HISTO}u+digit]);
+ // Balayage à deux niveaux de l'histogramme : chaque fil totalise ses seaux, puis un seul fil
+ // parcourt les soixante-quatre totaux pour trouver le bloc du rang cherché, et enfin les seaux de
+ // ce bloc. Le résultat est celui d'un parcours en série — l'addition en u32 est associative.
+ let lane=lid.x;
+ var total=0u;
+ for(var k=0u;k<${HISTO_BLOCK}u;k++){
+  total+=atomicLoad(&state[${STATE_HISTO}u+lane*${HISTO_BLOCK}u+k]);
  }
- atomicStore(&state[${ST_THRESHOLD}u],threshold);
- atomicStore(&state[${ST_MODE}u],mode);
- let split=uni.hasRest!=0u&&rows>=2u&&occluders>0u&&occluders<rows;
- atomicStore(&state[${ST_TWO_PASS}u],select(0u,1u,split));
+ blockTotals[lane]=total;
+ workgroupBarrier();
+ if(lane==0u){
+  let rows=uni.rows;
+  let history=atomicLoad(&state[${ST_HISTORY_OCCLUDERS}u]);
+  var mode=${MODE_MEDIAN}u;var threshold=${HISTO_BUCKETS - 1}u;var occluders=history;
+  if(uni.historyValid!=0u&&history>0u&&history<rows){mode=${MODE_HISTORY}u;}
+  else{
+   // Le rang cherché parmi les boîtes qui ne coupent pas le plan proche, comme la sélection CPU.
+   let need=max(1u,atomicLoad(&state[${ST_IN_FRONT}u])/2u);
+   var below=0u;var block=0u;
+   loop{
+    if(block>=${PARTITION_WORKGROUP}u-1u){break;}
+    if(below+blockTotals[block]>=need){break;}
+    below+=blockTotals[block];block++;
+   }
+   var digit=block*${HISTO_BLOCK}u;
+   loop{
+    if(digit>=(block+1u)*${HISTO_BLOCK}u-1u){break;}
+    let n=atomicLoad(&state[${STATE_HISTO}u+digit]);
+    if(below+n>=need){break;}
+    below+=n;digit++;
+   }
+   threshold=digit;
+   occluders=below+atomicLoad(&state[${STATE_HISTO}u+digit]);
+  }
+  atomicStore(&state[${ST_THRESHOLD}u],threshold);
+  atomicStore(&state[${ST_MODE}u],mode);
+  let split=uni.hasRest!=0u&&rows>=2u&&occluders>0u&&occluders<rows;
+  atomicStore(&state[${ST_TWO_PASS}u],select(0u,1u,split));
+ }
 }
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn classifyRows(@builtin(global_invocation_id) id:vec3u){
@@ -87,7 +108,7 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
    rest=select(1u,0u,(held&${FLAG_HISTORY}u)!=0u);
   }else{
    // Une boîte qui coupe le plan proche reste dans le reste, où elle n'en cache aucune autre.
-   let bucket=rowData[base+${ROW_KEY}u]>>24u;
+   let bucket=rowData[base+${ROW_KEY}u]>>${32 - HISTO_BITS}u;
    rest=select(0u,1u,clips||bucket>atomicLoad(&state[${ST_THRESHOLD}u]));
   }
  }
