@@ -16,11 +16,17 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { requireDuLab } from '../packages/sdk-browser/bench/justesse/pageWebgpu.mjs';
 import { startServer } from '../scripts/mesure/serveur.mjs';
 import { ASSETS, DEFAULT_SCENE, labManifest } from '../scripts/mesure/scene.mjs';
 import { LAB, checkLabPath, poseAt } from '../scripts/mesure/poses.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
+const SDK_URL = '/sdk/sdk-browser/index.js',
+  MODULES_URL = '/preuve/',
+  MESURE_URL = '/mesure/';
 const POSES = 30;
 /** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. */
 function packageDir(name) {
@@ -37,11 +43,28 @@ assert.ok(
   existsSync(join(ROOT, 'dist/sdk-browser/index.js')),
   'dist absent : lancer `npm run build` avant cette preuve',
 );
+// Le module de page est empaqueté depuis les SOURCES du dépôt — esbuild, celui de Vite, pris dans
+// le Lab en lecture seule —, si bien qu'il lit la référence de production elle-même plutôt qu'une
+// copie. Le paquet est servi comme un fichier ordinaire, au même titre que le dist.
+const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
+const paquet = await esbuild.build({
+  entryPoints: [join(ROOT, 'test/browserFixtures/partitionConservatricePage.mjs')],
+  bundle: true,
+  write: false,
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2022',
+  logLevel: 'error',
+});
+const preuveDir = await mkdtemp(join(tmpdir(), 'wg-preuve-partition-'));
+await writeFile(join(preuveDir, 'audit.js'), paquet.outputFiles[0].text);
+
 const mounts = [
   { prefix: '/vendor/three/', dir: packageDir('three') },
   { prefix: '/vendor/meshoptimizer/', dir: packageDir('meshoptimizer') },
   { prefix: '/benchmark-assets/', dir: ASSETS },
-  { prefix: '/preuve/', dir: join(ROOT, 'test/browserFixtures') },
+  { prefix: '/mesure/', dir: join(ROOT, 'scripts/mesure') },
+  { prefix: '/preuve/', dir: preuveDir },
   { prefix: '/sdk/', dir: join(ROOT, 'dist') },
 ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
 
@@ -61,10 +84,11 @@ try {
     if (r.status() >= 400) erreursPage.push(`HTTP ${r.status()} ${r.url()}`);
   });
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
+  // Les bornes du modèle, lues par le harnais de mesure lui-même : les poses du banc en dépendent,
+  // et une seconde lecture décrirait une autre scène.
   const bounds = await page.evaluate(
-    async (options) =>
-      (await import('/preuve/partitionBoundsPage.mjs')).readSceneBounds(options),
-    { sdkUrl: '/sdk/sdk-browser/index.js', manifestUrl },
+    async (options) => (await import(`${options.mesureUrl}page.mjs`)).readBounds(options),
+    { sdkUrl: SDK_URL, mesureUrl: MESURE_URL, manifestUrl },
   );
   // Trente poses réparties sur toute la trajectoire du banc : la caméra bouge à chaque image.
   const total = 9 * 60;
@@ -72,10 +96,10 @@ try {
     poseAt(bounds, Math.round((i * (total - 1)) / (POSES - 1))),
   );
   resultat = await page.evaluate(
-    async (options) =>
-      (await import('/preuve/partitionConservatricePage.mjs')).auditPoses(options),
+    async (options) => (await import(`${options.modulesUrl}audit.js`)).auditPoses(options),
     {
-      sdkUrl: '/sdk/sdk-browser/index.js',
+      sdkUrl: SDK_URL,
+      modulesUrl: MODULES_URL,
       manifestUrl,
       width: 1012,
       height: 1000,
@@ -113,9 +137,14 @@ assert.ok(
   resultat.images.some((image) => (image.hizRejectedClusters ?? 0) > 0),
   'le test Hi-Z n’a rejeté aucun cluster : la preuve ne porterait sur rien',
 );
+const pourcent = (n) => ((100 * n) / t.margeTexelsCount).toFixed(2);
 console.log(
-  `OK : ${t.clusters} clusters audités sur ${POSES} poses — 0 violation sur les trois règles ; ` +
-    `marge rectangle moyenne ${t.margeTexelsMoyenne?.toFixed(4)} texel (max ${t.margeTexelsMax}), ` +
-    `marge profondeur moyenne ${t.ecartProfondeurMoyen?.toExponential(3)} ` +
-    `(max ${t.ecartProfondeurMax.toExponential(3)})`,
+  `OK : ${t.clusters} clusters audités sur ${POSES} poses — 0 violation sur les trois règles.\n` +
+    `  Rectangle : ${pourcent(t.margeParPalier[0])} % des côtés identiques à la référence, ` +
+    `${pourcent(t.margeParPalier[1])} % à un texel près, ${pourcent(t.margeParPalier[4])} % au-delà ` +
+    `de seize ; moyenne ${t.margeTexelsMoyenne?.toFixed(3)} texel, max ${t.margeTexelsMax}.\n` +
+    `  Profondeur : écart moyen ${t.ecartProfondeurMoyen?.toExponential(3)}, ` +
+    `max ${t.ecartProfondeurMax.toExponential(3)}, toujours sous la référence.\n` +
+    `  Largeur écran < 16 texels : ${t.largeurParPalier[0]} boîtes côté carte, ` +
+    `${t.largeurRefParPalier[0]} côté référence — le test garde la même finesse.`,
 );

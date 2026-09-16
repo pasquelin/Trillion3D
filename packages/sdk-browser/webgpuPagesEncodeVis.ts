@@ -20,16 +20,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** The visibility-buffer image: occluder and rest raster passes, small triangles, material surfaces,
  *  lighting and presentation, all in the image's command buffer. Returns the triangles submitted. */
-export function encodeVis(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-<<<<<<< HEAD
-  cam: EngineCamera,
-  itemsDirty: boolean,
-=======
-  camera: THREE.PerspectiveCamera,
->>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
-) {
+export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
   const { gpu, vis, run, timing, blendState, layout } = rt,
     { rows, drawSlots } = layout;
   if (
@@ -51,16 +42,6 @@ export function encodeVis(
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   ensureGpuSmall(rt, device);
-<<<<<<< HEAD
-  // Occluder/rest partition of the image: the half the previous image drew unoccluded, and the nearest
-  // half by depth when there is no history or the history splits nothing. The boxes feed both the
-  // partition and the Hi-Z test, projected with the view-projection built once for the batch rather
-  // than once per page and once again per tested page.
-  const partition = partitionWebgpuVisibility(rt, cam);
-  const { twoPass } = partition;
-  timing.lastItemsMs = 0;
-=======
->>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
   const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
   const useIndirect = !!vis.gpuDraw && rows.packedCount <= drawSlots;
   // The table holds every row ever claimed, so a row a page keeps stays valid across frames.
@@ -86,7 +67,7 @@ export function encodeVis(
   // comptes par slot que la compaction de dessin lit juste après, et les bornes que le test
   // d'occultation lira plus loin. Elle relit au passage les verdicts de l'image précédente, que le
   // test de celle-ci n'a pas encore remis à zéro : c'est ce qui alimente l'historique d'occulteurs.
-  const { twoPass } = encodeWebgpuPartition(rt, encoder, camera, useIndirect);
+  const { twoPass } = encodeWebgpuPartition(rt, encoder, cam, useIndirect);
   // Les mots de fiche restatent les lignes : le téléversement de leur plage est ce qui consomme
   // le drapeau de changement.
   if (useIndirect) {

@@ -1,10 +1,4 @@
-import {
-  DEPTH_SHRINK,
-  ERR_K,
-  INPUT_K,
-  SCREEN_SLACK_K,
-  wgslFloat,
-} from './gpuPartitionMargins.ts';
+import { DEPTH_SHRINK, ERR_K, INPUT_K, SCREEN_SLACK_K, wgslFloat } from './gpuPartitionMargins.ts';
 import {
   CORNER_VALUES,
   FLAG_CLIP,

@@ -152,9 +152,7 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
 
   // Lignes empaquetées {pageIndex,bin,selectionIndex,couche,triangles} : rien de l'image n'y entre,
   // et la moitié occulteurs/testés vient du tampon que la partition GPU écrit.
-  const items = new Uint32Array([
-    4, BIN_BACK, 0, 0, 1, 1, BIN_NONE, 0, 0, 1, 7, BIN_BACK, 0, 0, 1,
-  ]);
+  const items = new Uint32Array([4, BIN_BACK, 0, 0, 1, 1, BIN_NONE, 0, 0, 1, 7, BIN_BACK, 0, 0, 1]);
   const encoder = device.createCommandEncoder();
   gpu.encode(encoder, items, 3, 0, 2, 768);
   const itemWrites = writes.filter((write) => write.size === 3 * DRAW_ITEM_U32 * 4).length;

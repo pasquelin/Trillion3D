@@ -1,7 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals, mockDrawDevice } from '../../test/fixtures/gpuDraw.ts';
-import { BASE_SLOTS, BIN_BACK, createGpuDraw } from './gpuDraw.ts';
 import { drawShader } from './gpuDrawShader.ts';
 
 // La compaction indirecte reçoit, par slot, le nombre de lignes que la partition GPU y a comptées
