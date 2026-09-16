@@ -24,28 +24,36 @@ export const DIAGNOSTIC_SHADE_WGSL = `
  return diagnosticSurface(vec3f(f32(packed&0xffu)/255.0));
 }`;
 
+/** Le suffixe d'étage du raster (`vis_<suffixe>_fs`, `vis_hiz_<suffixe>_fs`) que chaque variante impose. */
+const VIS_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
+  'geometrie-plat': 'plat',
+  'geometrie-sommets': 'jete',
+};
+
+/** L'étage de la résolution des surfaces que chaque variante impose. */
+const SHADE_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
+  'resolution-plate': 'shade_plat_fs',
+  'resolution-identifiants': 'shade_ids_fs',
+};
+
 /** Vrai quand la variante change un étage de fragments du raster de visibilité. */
 export const variesVisibility = (variant?: DiagnosticGpuVariant) =>
-  variant === 'geometrie-plat' || variant === 'geometrie-sommets';
+  variant !== undefined && variant in VIS_STAGE;
 
 /** Vrai quand la variante change l'étage de fragments de la résolution des surfaces. */
 export const variesShade = (variant?: DiagnosticGpuVariant) =>
-  variant === 'resolution-plate' || variant === 'resolution-identifiants';
+  variant !== undefined && variant in SHADE_STAGE;
 
 /** L'étage de fragments du raster de visibilité, Hi-Z ou non, pour la variante demandée. */
 export function visVariantFragment(hiz: boolean, variant?: DiagnosticGpuVariant) {
-  const base = hiz ? 'vis_hiz' : 'vis';
-  if (variant === 'geometrie-plat') return `${base}_plat_fs`;
-  if (variant === 'geometrie-sommets') return `${base}_jete_fs`;
-  return `${base}_fs`;
+  const base = hiz ? 'vis_hiz' : 'vis',
+    stage = variant && VIS_STAGE[variant];
+  return stage ? `${base}_${stage}_fs` : `${base}_fs`;
 }
 
 /** L'étage de fragments de la résolution des surfaces pour la variante demandée. */
-export function shadeVariantFragment(variant?: DiagnosticGpuVariant) {
-  if (variant === 'resolution-plate') return 'shade_plat_fs';
-  if (variant === 'resolution-identifiants') return 'shade_ids_fs';
-  return 'shade_fs';
-}
+export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
+  (variant && SHADE_STAGE[variant]) || 'shade_fs';
 
 /** Vrai quand la variante n'encode pas la seconde passe de visibilité : les occulteurs seuls. */
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>

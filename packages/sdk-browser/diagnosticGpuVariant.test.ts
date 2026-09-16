@@ -9,6 +9,7 @@ import {
   resolveDiagnosticGpuVariant,
   selectionRepeat,
 } from './diagnosticGpuVariant.ts';
+import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 test('aucune variante demandée : rien à vérifier, rien à monter', () => {
   assert.equal(resolveDiagnosticGpuVariant(undefined, 'summary'), undefined);
@@ -34,24 +35,18 @@ test('un nom inconnu est refusé, même sous « trace »', () => {
 });
 
 test('chaque variante neutralise un seul facteur, et son étage existe dans le module', () => {
-  const attendu = {
-    'transparents-plat': { entryPoint: 'fsPlat', writeMask: 0xf },
-    'transparents-sommets': { entryPoint: 'fsJete', writeMask: 0xf },
-    'transparents-sans-couleur': { entryPoint: 'fs', writeMask: 0 },
-    'transparents-surdessin': { entryPoint: 'fsPlat', writeMask: 0 },
-    'presentation-hors-ecran': { entryPoint: 'fs', writeMask: 0xf },
-    // Ni la coupe ni la géométrie ne touchent au mélange : il garde son étage de production.
-    'selection-doublee': { entryPoint: 'fs', writeMask: 0xf },
-    'selection-tete-doublee': { entryPoint: 'fs', writeMask: 0xf },
-    'geometrie-plat': { entryPoint: 'fs', writeMask: 0xf },
-    'geometrie-sommets': { entryPoint: 'fs', writeMask: 0xf },
-    'geometrie-une-passe': { entryPoint: 'fs', writeMask: 0xf },
-    'resolution-plate': { entryPoint: 'fs', writeMask: 0xf },
-    'resolution-identifiants': { entryPoint: 'fs', writeMask: 0xf },
-  };
+  const attendu: Partial<Record<DiagnosticGpuVariant, { entryPoint: string; writeMask: number }>> =
+    {
+      'transparents-plat': { entryPoint: 'fsPlat', writeMask: 0xf },
+      'transparents-sommets': { entryPoint: 'fsJete', writeMask: 0xf },
+      'transparents-sans-couleur': { entryPoint: 'fs', writeMask: 0 },
+      'transparents-surdessin': { entryPoint: 'fsPlat', writeMask: 0 },
+    };
+  // Toute autre variante — présentation, coupe, géométrie — laisse au mélange son étage de production.
+  const production = { entryPoint: 'fs', writeMask: 0xf };
   for (const variant of DIAGNOSTIC_GPU_VARIANTS) {
     const pipeline = blendVariantPipeline(variant);
-    assert.deepEqual(pipeline, attendu[variant], variant);
+    assert.deepEqual(pipeline, attendu[variant] ?? production, variant);
     if (pipeline.entryPoint !== 'fs')
       assert.match(DIAGNOSTIC_BLEND_WGSL, new RegExp(`@fragment fn ${pipeline.entryPoint}\\(`));
   }
