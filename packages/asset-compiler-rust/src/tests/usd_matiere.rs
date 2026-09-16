@@ -146,3 +146,42 @@ fn an_opacity_carried_by_a_second_image_is_counted_rather_than_loaded_and_droppe
         "la transparence non portée n'est pas annoncée"
     );
 }
+
+// Comportement 48 : une carte métal/rugosité partagée l'emporte sur les facteurs écrits — glTF
+// multiplie la carte par le facteur, donc il vaut un, sans quoi le métal serait annulé.
+#[test]
+fn a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cancelled_by_them() {
+    let inputs = "            float inputs:metallic.connect = </Root/M/T.outputs:b>\n            float inputs:roughness.connect = </Root/M/T.outputs:g>";
+    let run = compile(
+        "metal",
+        &layer(inputs, &texture("T", "checker.png")),
+        &["checker.png"],
+    );
+    let (_, gltf) = run.prepared("usd");
+    assert_eq!(pbr(&gltf)["metallicRoughnessTexture"]["index"], 0);
+    assert_eq!(pbr(&gltf)["metallicFactor"], 1.0, "la carte porte le métal");
+    assert_eq!(pbr(&gltf)["roughnessFactor"], 1.0);
+    assert_eq!(
+        unsupported(&run)["usd-texture-channel-unsupported"],
+        Value::Null
+    );
+}
+
+// Comportement 49 : glTF lit le métal dans le canal bleu de sa carte et la rugosité dans le vert ;
+// une entrée branchée sur un autre canal ne s'y range pas, et c'est compté par son nom.
+#[test]
+fn a_metal_roughness_input_bound_to_another_channel_is_counted_by_its_name() {
+    let inputs = "            float inputs:metallic.connect = </Root/M/T.outputs:r>\n            float inputs:roughness.connect = </Root/M/T.outputs:g>";
+    let run = compile(
+        "canal",
+        &layer(inputs, &texture("T", "checker.png")),
+        &["checker.png"],
+    );
+    assert_eq!(unsupported(&run)["usd-texture-channel-unsupported"], 1);
+    let (_, gltf) = run.prepared("usd");
+    assert_eq!(
+        pbr(&gltf)["metallicRoughnessTexture"]["index"],
+        0,
+        "la carte reste portée, le canal est dit"
+    );
+}
