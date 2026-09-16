@@ -1,7 +1,8 @@
 //! Du fichier Blender à la scène intermédiaire écrite dans le cache.
 //!
-//! Le parcours est celui du fichier : chaque bloc `OB` de type maillage devient un nœud, chaque bloc
-//! `ME` un maillage glTF, versé une seule fois — plusieurs objets qui partagent un même maillage
+//! Le parcours est celui du fichier, borné à la scène active : chaque bloc `OB` de type maillage
+//! qu'une collection de cette scène porte devient un nœud, chaque bloc `ME` un maillage glTF, versé
+//! une seule fois — plusieurs objets qui partagent un même maillage
 //! partagent donc le même, et n'en diffèrent que par leur matrice. Un nœud racine porte la
 //! conversion d'axes, Blender travaillant en Z vers le haut et le glTF en Y vers le haut : une seule
 //! matrice, exacte, plutôt qu'une retouche de chaque sommet.
@@ -40,6 +41,8 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         scene.out.count("scenes", scenes);
         scene.out.report.add_count("blend-extra-scenes", scenes - 1);
     }
+    let active = active::objects(&file);
+    let mut outside = 0;
     for block in file.of(*b"OB\0\0") {
         if request.cancelled.load(Ordering::Relaxed) {
             return Err(CompilerError::new("CANCELLED", "Import cancelled"));
@@ -47,8 +50,19 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         let Some(object) = file.view(block) else {
             continue;
         };
+        if active
+            .as_ref()
+            .is_some_and(|held| !held.contains(&block.old))
+        {
+            outside += 1;
+            continue;
+        }
         scene.object(&object)?;
     }
+    scene
+        .out
+        .report
+        .add_count("blend-object-outside-scene", outside);
     if scene.out.nodes.len() < 2 {
         return Err(CompilerError::new(
             "IMPORT_EMPTY",

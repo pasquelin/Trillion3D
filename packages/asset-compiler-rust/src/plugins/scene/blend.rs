@@ -10,12 +10,15 @@
 //! Apache-2.0, backend Rust pur) pour gzip, `ruzstd` 0.7.3 (MIT, Rust pur) pour Zstandard, toutes
 //! deux déjà au `Cargo.toml` avec leur notice. Rien n'est déchiffré ni contourné.
 //!
-//! **Ce qu'il lit.** Les objets de type maillage et leur matrice monde — position, rotation
+//! **Ce qu'il lit.** La scène active du fichier — celle que son bloc global désigne —, par sa
+//! collection maîtresse et les collections filles que la couche de vue n'exclut pas : les objets de
+//! type maillage qu'elles portent et leur matrice monde — position, rotation
 //! (quaternion, six ordres d'Euler, axe-angle), échelle, valeurs différées, chaîne des pères et
 //! matrice d'accrochage —, les maillages par leurs attributs nommés (`position`, `.corner_vert`,
-//! offsets de faces, `material_index`, `sharp_face`, première couche d'UV de l'auteur), triangulés
-//! en éventail ; les matériaux par leur nœud `Principled BSDF` — couleur de base, métallicité,
-//! rugosité, alpha, émission, normale — et les images qu'ils lient, y compris **empaquetées**, dont
+//! offsets de faces, `material_index`, `sharp_face`, première couche d'UV de l'auteur, dont la
+//! coordonnée V est retournée pour l'origine du glTF), triangulés en éventail ; les matériaux par leur nœud `Principled BSDF` — couleur de base, métallicité,
+//! rugosité, alpha, émission, normale — atteint depuis la sortie active du graphe, et les images
+//! qu'ils lient, y compris **empaquetées**, dont
 //! les octets partent dans le binaire de la scène sans être touchés. Plusieurs objets qui partagent
 //! un maillage partagent le maillage glTF : ce sont des instances.
 //!
@@ -29,18 +32,22 @@
 //! textes, métaballes, armatures, lampes, caméras), collections instanciées, modificateurs non
 //! appliqués — le maillage de base sort alors tel quel —, entrées de nuanceur alimentées par un
 //! calcul, émission au-delà de un, images hors de la racine servie ou hors du registre d'images,
-//! remplacement de matériau par un objet, et scènes au-delà de la première.
+//! remplacement de matériau par un objet, scènes au-delà de la première, objets qu'aucune
+//! collection de la scène active ne porte, nuanceur de surface sans équivalent PBR, et opacité
+//! prise sur une autre image ou un autre canal que l'alpha de la couleur de base.
 use super::*;
 use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
 use crate::{hash, CompilerError};
 use serde_json::{json, Value};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
     sync::atomic::Ordering,
     time::Instant,
 };
 
+mod active;
+mod alpha;
 mod attrs;
 mod build;
 mod bytes;
@@ -89,7 +96,7 @@ impl Plugin for Blend {
     /// La version nomme la disposition lue et les deux décompresseurs : la changer invalide les
     /// caches, donc tout `.blend` déjà compilé est relu.
     fn version(&self) -> &'static str {
-        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-3"
+        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-4"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["blend"]

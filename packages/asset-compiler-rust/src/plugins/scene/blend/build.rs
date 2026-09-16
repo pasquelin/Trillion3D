@@ -5,6 +5,10 @@
 //! groupe devient une primitive avec ses propres accesseurs. Deux coins qui portent exactement le
 //! même sommet, la même normale et la même coordonnée de texture ne sont écrits qu'une fois ; rien
 //! n'est arrondi ni fusionné au-delà de cette égalité exacte.
+//!
+//! Une seule conversion touche les coordonnées de texture : Blender place leur origine en bas à
+//! gauche, le glTF en haut à gauche, donc `v` devient `1 - v`. C'est la convention des pilotes ma,
+//! alembic et usd, et elle laisse les octets des images intacts.
 use super::*;
 use crate::plugins::scene::ngon::Ngon;
 
@@ -84,7 +88,9 @@ impl Primitive {
         let uv = if geometry.uv.is_empty() {
             [0.0, 0.0]
         } else {
-            [geometry.uv[corner * 2], geometry.uv[corner * 2 + 1]]
+            // Blender place l'origine des UV en bas à gauche, le glTF en haut à gauche : seule la
+            // coordonnée V change de sens, et les octets de l'image ne sont jamais retouchés.
+            [geometry.uv[corner * 2], 1.0 - geometry.uv[corner * 2 + 1]]
         };
         let key = [
             vertex,

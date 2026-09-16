@@ -1,9 +1,16 @@
 //! Ce que seul l'intérieur du pilote peut prouver : la lecture d'un fichier à l'ancienne
-//! disposition d'entête, dont le dépôt ne possède aucun exemplaire, et le calcul des normales sur
-//! une géométrie que l'on pose à la main. Tout le reste se prouve depuis la dorée, par le
-//! compilateur entier.
+//! disposition d'entête, dont le dépôt ne possède aucun exemplaire, le calcul des normales sur une
+//! géométrie que l'on pose à la main, et les défauts reproduits en patchant la fixture CC0 par le
+//! SDNA qu'elle porte elle-même — `surgery` pour le patch, `fidelite` et `matiere` pour ce qu'il
+//! prouve. La scène dorée, elle, se compare dans `src/tests/blend_golden.rs`.
 use super::*;
 use crate::tests::ngones::{rendered_area, U_RING};
+
+mod fidelite;
+mod matiere;
+mod sortie;
+mod surgery;
+mod transparence;
 
 /// Écrit un fichier Blender minimal à l'ancienne disposition, depuis la description du format :
 /// entête de douze octets, blocs à champs de trente-deux bits, un `DNA1` d'une seule structure et
