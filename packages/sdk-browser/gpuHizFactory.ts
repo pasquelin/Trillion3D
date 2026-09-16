@@ -142,6 +142,7 @@ export async function createGpuHiz(
        *  exprimer un rectangle d'écran en texels du mip qui le couvre exactement. */
       levels: () =>
         (levelTable ??= sizes.map((size, level) => ({ offset: offsets[level], width: size[0] }))),
+      pyramidBuffer: () => (disposed ? undefined : pyramid),
       encodeTest(queueDevice, encoder, maxRows, flagRows) {
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);

@@ -11,6 +11,7 @@ import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { createGpuPartition } from './gpuPartitionFactory.ts';
+import { prepareTransparentOcclusion } from './webgpuTransparentOcclusionHost.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from './webgpuPagesDrops.ts';
@@ -169,4 +170,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     else
       diag.diagnosticFailure('partition-pipeline-unavailable', new Error('PARTITION_UNAVAILABLE'));
   }
+  // Le test d'occultation des transparents vient en dernier : il emprunte la pyramide, l'uniforme de
+  // la partition et le tampon de verdicts de la compaction, et n'existe pas sans les trois.
+  await prepareTransparentOcclusion(rt, gpuDevice);
 }

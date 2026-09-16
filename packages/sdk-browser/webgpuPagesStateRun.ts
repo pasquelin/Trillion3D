@@ -30,6 +30,9 @@ export interface WebgpuRunState {
   lastCamera: HostCamera | undefined;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
+  /** Vrai quand la pyramide Hi-Z a été construite dans la soumission en cours : le test
+   *  d'occultation des transparents ne dépouille jamais une pyramide d'une autre image. */
+  hizPyramidFresh: boolean;
   gpuMetricsReady: boolean;
   coverageBudgetLimited: boolean;
   /** Screen-error floor the GPU page budget imposes on the cut; 0 when the requested detail fits. */
@@ -129,6 +132,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     lastCamera: undefined,
     gpuSelection: undefined,
     gpuFrameActive: false,
+    hizPyramidFresh: false,
     gpuMetricsReady: false,
     coverageBudgetLimited: false,
     budgetPixelError: 0,
