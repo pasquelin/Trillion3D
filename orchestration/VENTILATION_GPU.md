@@ -143,3 +143,47 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
 le moteur compile le module d'avant, encode les mêmes commandes et ne monte ni requête d'occlusion ni
 compteur : aucun chemin de production n'est modifié. `webgpuBlendOverdraw.ts` porte le comptage,
 publié dans `profilParEtape` sous l'étape « Transparents ».
+
+## Sélection : ventilation par noyau, et le levier qu'elle a désigné
+
+Ventilée en ouvrant une passe par lancement (même build, `--apres dist`, `rue`, p50 GPU, ms). La
+somme de ces enveloppes (3,24 ms) est plus petite que l'enveloppe de la passe unique que la
+production encode (6,77 ms) : la différence est de l'attente que les horodatages par passe
+n'attribuent à aucun noyau. **Ce tableau donne le poids relatif des noyaux, pas leur part des
+6,8 ms.** L'image, elle, ne bouge pas quand on découpe : 13,49 ms des deux façons.
+
+| noyau         | fils avant          | fils après | ms avant | ms après |
+| ------------- | ------------------- | ---------- | -------- | -------- |
+| `dagReset`    | 12                  | 12         | 0,007    | 0,007    |
+| `dagPlanes`   | 12                  | 12         | 0,041    | 0,041    |
+| `dagNodes`    | nœuds de coupe      | idem       | 0,189    | 0,185    |
+| `dagWanted`   | 1 959 792           | idem       | 0,447    | 0,460    |
+| `dagArgs`     | —                   | 1          | —        | 0,004    |
+| `dagEscalate` | 1 959 792 × 3       | 378 479 ×3 | 1,301    | 0,235    |
+| `dagCheck`    | 1 959 792           | 378 479    | 0,429    | 0,069    |
+| `dagMask`     | 1 959 792           | 378 479    | 0,438    | 0,100    |
+| compaction    | 30 622 + 1 + 1,96 M | idem       | 0,301    | 0,302    |
+| **total**     |                     |            | **3,24** | **1,40** |
+
+Taux d'occupation : 378 479 grappes vivantes sur 1 959 792, soit **19,3 %** — 1 581 313 tombent par
+leur nœud de coupe ou par le tronc (compteurs `grappesRejetees` / `grappesDuDag` de l'étape). Les
+cinq noyaux qui suivaient `dagWanted` les visitaient toutes et relisaient 112 octets par grappe pour
+refaire le même rejet : c'était de la bande passante, pas du calcul.
+
+**Fait — répartition indirecte sur les grappes vivantes.** `dagWanted`, qui les parcourt toutes de
+toute façon, dépose l'indice de chaque survivante dans une liste ; `dagArgs` en tire le nombre de
+groupes ; les cinq noyaux se répartissent indirectement dessus. Même verdict : tous commençaient par
+`visible`, et une grappe absente de la liste est exactement une grappe dont `visible` était faux.
+Campagne `--avant fa876ed0` caméra mobile, même campagne des deux côtés : sélection 6,98 → 5,39 ms
+et image 14,57 → 13,01 (`sol`), 6,77 → 5,01 et 13,50 → 11,74 (`rue`). Écart 0 px, coupe identique au
+hachage près, témoin A/A 0 px ; caméra immobile, 0 px et même coupe des deux vues. Aucun tampon de
+stockage de plus : la liste prolonge `flags`, le compteur prolonge `work`, et les trois mots de
+l'argument sont recopiés vers un tampon `INDIRECT` de seize octets — WebGPU refuse un tampon à la
+fois écrit et lu comme argument dans une même portée, d'où la coupure entre les deux passes.
+
+**Reste, non fait.** `dagWanted` (0,46 ms) lit l'enregistrement de 64 octets de chaque grappe pour
+n'y prendre que son nœud et ses drapeaux : un mot compact par grappe le ramènerait vers 0,15 ms,
+au prix d'une région de plus dans `flags`. La coupe incrémentale, elle, n'a pas été tentée : le
+seuil par primitive est un point fixe global (`atomicMax` sur `work[w]` par toutes les grappes
+retenues non résidentes), qu'une frontière seule ne sait pas reproduire sans revisiter tous ses
+contributeurs — à prouver avant d'y toucher.
