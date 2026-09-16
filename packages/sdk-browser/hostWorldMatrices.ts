@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { EngineError } from '../sdk-core/index.ts';
 
 /**
  * La frontière de résolution du graphe hôte.
@@ -32,4 +33,23 @@ export function hostWorldPositionInto(out: Float64Array, o: number, node: THREE.
   out[o] = elements[12];
   out[o + 1] = elements[13];
   out[o + 2] = elements[14];
+}
+
+/**
+ * Refuse une pose dont l'un des seize nombres n'est pas fini. Une transformation NaN ou infinie ne
+ * se transporte dans aucune normale : le noyau d'inverse-transposée la verrait par sa somme non
+ * finie et rendrait le vecteur nul, donc une surface éteinte sans que personne sache pourquoi.
+ * Elle est donc refusée à l'ENTRÉE — au chargement (`explorerScene.ts`) et à chaque pose demandée
+ * (`webgpuPagesTransform.ts`) —, avec le nom du nœud et le rang fautif. C'est le cas 4 de la
+ * convention des normales singulières, écrite dans `inverseTransposeWgsl.ts` ; les cas 1 à 3 y
+ * répondent par un calcul, celui-ci par un refus.
+ */
+export function assertFiniteTransform(elements: ArrayLike<number>, nodeName: string) {
+  for (let index = 0; index < 16; index++)
+    if (!Number.isFinite(elements[index]))
+      throw new EngineError('NON_FINITE_TRANSFORM', `${nodeName}: matrice non finie`, {
+        nodeName,
+        index,
+        value: elements[index],
+      });
 }

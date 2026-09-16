@@ -16,9 +16,21 @@ test('normalMatrix3 : échelle non uniforme, diagonale réciproque terme à term
   assert.deepEqual([out[1], out[2], out[3], out[5], out[6], out[7]], [0, 0, 0, 0, 0, 0]);
 });
 
-test('normalMatrix3 : bloc linéaire de déterminant nul rend la matrice nulle, comme documenté', () => {
-  // Colonne 1 = 2 × colonne 0 : bloc singulier.
+test('normalMatrix3 : bloc singulier de rang 2 rend l’adjointe, la normale du plan d’arrivée', () => {
+  // Colonne 1 = 2 × colonne 0 : bloc singulier, mais de rang 2. Les colonnes (1,0,0) et (0,0,1)
+  // engendrent le plan XZ : la primitive y est APLATIE, ses faces y gardent une aire, et leur
+  // normale monde est ±Y. L'adjointe l'écrit colonne par colonne — b × c = (0, −2, 0),
+  // c × a = (0, 1, 0), a × b = 0 — et toute normale locale hors du noyau y tombe une fois
+  // normalisée. La référence rendait neuf zéros, donc une surface sans normale du tout.
   const m = Float64Array.from([1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  const out = normalMatrix3(new Float64Array(9).fill(9), m);
+  assert.deepEqual([...out], [0, -2, 0, 0, 1, 0, 0, 0, 0]);
+});
+
+test('normalMatrix3 : bloc effondré sur une droite rend la matrice nulle, faute de face', () => {
+  // Les trois colonnes sur l'axe x : la primitive est écrasée sur une droite, aucune face n'y garde
+  // d'aire, et les trois produits vectoriels de colonnes parallèles sont nuls d'eux-mêmes.
+  const m = Float64Array.from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1]);
   const out = normalMatrix3(new Float64Array(9).fill(9), m);
   assert.deepEqual([...out], new Array(9).fill(0));
 });

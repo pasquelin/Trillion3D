@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { meshes as objects } from './sceneMeshes.ts';
+import { assertFiniteTransform } from './hostWorldMatrices.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { replicateInstances } from './replicateInstances.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
@@ -81,6 +82,10 @@ export async function loadPreparedScene(
   const gltf = await new GLTFLoader(manager).loadAsync(new URL(sceneFile, base).href);
   let source: THREE.Object3D = gltf.scene;
   registerSource(source);
+  // Aucune pose non finie n'entre dans le moteur : `meshes` résout le sous-arbre, et chaque matrice
+  // monde est lue une fois. Sans ce refus, un NaN de l'hôte ressortirait en surface éteinte au fond
+  // du nuanceur d'éclairage, loin de sa cause.
+  for (const mesh of objects(source)) assertFiniteTransform(mesh.matrixWorld.elements, mesh.name);
   const sceneLightingSource = options.sceneLighting ?? source;
   signal?.throwIfAborted();
   const associations = gltf.parser.associations as BackendContext['associations'];

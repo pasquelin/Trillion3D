@@ -45,7 +45,7 @@ fn eprouve(N:vec3f)->vec3f{return ${substitution};}
  let V=vec3f(0.0,0.0,1.0);
  let rgb=vec3f(0.8,0.7,0.6);let sky=vec3f(0.6,0.7,0.9);let ground=vec3f(0.2,0.18,0.15);
  let lit=standardLighting(rgb,c.matiere.x,c.matiere.y,N,V,c.lumiere,sky,ground,1.0);
- let vrai=standardLighting(rgb,c.matiere.x,c.matiere.y,normalize(c.vraie.xyz),V,c.lumiere,sky,ground,1.0);
+ let vrai=standardLighting(rgb,c.matiere.x,c.matiere.y,uniteOuZero(c.vraie.xyz),V,c.lumiere,sky,ground,1.0);
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(vrai,0.0);
