@@ -12,16 +12,16 @@ import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
  * et le rejoue. Les racines que le déplacement n'atteint pas repassent par le noyau avec les mêmes
  * entrées qu'à la réservation : leur sortie est ignorée, et rien d'autre ne la lit.
  *
- * LES BOÎTES DES RACINES RESTENT DES TABLEAUX JAVASCRIPT, recopiées dans le tampon au lieu d'en être
- * des vues. La mémoire linéaire du module est celle du décodeur de pages : un décodage replié sur le
- * fil principal (`pageDecodeHost.ts`) y réserve, peut la faire grandir, et détache alors toutes les
- * vues déjà construites. Une vue détachée lit zéro sans rien signaler — une racine partirait à
- * l'origine sans cause lisible. Une recopie, elle, se contente de constater le tampon mort et de
- * rendre la main au chemin JavaScript, boîte par boîte.
+ * LES BOÎTES DES RACINES RESTENT DES TABLEAUX JAVASCRIPT : ce sont celles que la collecte a écrites
+ * sur chaque racine, et elles sont recopiées dans le tampon. La mémoire linéaire du module est celle
+ * du décodeur de pages : un décodage replié sur le fil principal (`pageDecodeHost.ts`) y réserve et
+ * peut la faire grandir au milieu d'une image. Le tampon y survit — `wasmArena.ts` reconstruit ses
+ * vues sur les mêmes octets, aux mêmes offsets —, et `holds()` ne rend la main au chemin JavaScript
+ * que lorsque le tampon a vraiment été rendu ou qu'il ne porte pas ce nombre de racines.
  */
 
-/** Le lot quand il porte encore `n` boîtes, `null` sinon : l'appelant repasse alors boîte par
- *  boîte, par le même noyau et sur les mêmes entrées. */
+/** Le lot quand il porte bien `n` boîtes, `null` sinon : l'appelant repasse alors boîte par boîte,
+ *  par le même noyau et sur les mêmes entrées. */
 export function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
   return lot?.holds(n) ? lot : null;
 }
@@ -67,7 +67,8 @@ let moved = new Uint8Array(0);
 
 /**
  * Rejoue le lot pour les racines que `deplacee` retient. Rend `false` quand le tampon n'est plus
- * jouable : l'appelant reprend alors le calcul boîte par boîte, avec le même résultat.
+ * jouable — rendu, ou d'une autre taille : l'appelant reprend alors le calcul boîte par boîte, avec
+ * le même résultat.
  */
 export function transformRootBoxes(
   lot: BoxTransformLot,
