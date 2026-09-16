@@ -1,22 +1,24 @@
 import type { PageRec } from './pageSelection.ts';
 
-// Deux parcours du catalogue des pages, faits une fois au chargement : la table des octets source et
-// les compteurs du diagnostic des textures.
+// Deux parcours du catalogue des pages, faits une fois au chargement : la table des pages par
+// adresse et les compteurs du diagnostic des textures.
 
 /**
- * Les octets d'index de chaque page, vus comme des octets, par adresse. Une boucle au lieu d'un
- * `flatMap` : chaque page allouait un tableau d'un seul couple, et le tableau intermédiaire portait
- * une entrée par page du catalogue avant d'être dédoublonné. La dernière page d'une adresse
- * l'emporte, comme `new Map(entrées)`.
+ * Les pages du catalogue par adresse de cluster. Le cache GPU lit les octets d'une page au moment
+ * où il la téléverse, et il les lit ICI : la table est posée une fois au chargement et ne bouge
+ * plus, là où une table d'octets tenue à jour coûtait à chaque arrivée une allocation et une
+ * insertion PAR CLUSTER du paquet. La dernière page d'une adresse l'emporte, comme `new Map`.
  */
-export function indexSourceBytes(allPages: readonly PageRec[]) {
-  const sourceBytes = new Map<string, Uint8Array>();
-  for (const page of allPages) {
-    const array = page.array;
-    if (array)
-      sourceBytes.set(page.url, new Uint8Array(array.buffer, array.byteOffset, array.byteLength));
-  }
-  return sourceBytes;
+export function indexPageRecords(allPages: readonly PageRec[]) {
+  const recByUrl = new Map<string, PageRec>();
+  for (const page of allPages) recByUrl.set(page.url, page);
+  return recByUrl;
+}
+
+/** Les octets d'index d'une page, vus comme des octets, ou `undefined` tant qu'elle n'en a pas. */
+export function pageSourceBytes(rec: PageRec | undefined) {
+  const array = rec?.array;
+  return array && new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
 }
 
 /**

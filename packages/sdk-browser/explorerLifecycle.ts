@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { awaitBackendPages } from './awaitBackendPages.ts';
 import { decodePageOffThread, releasePageDecoders } from './pageDecodeHost.ts';
+import { releasePageIntegration } from './pageIntegrationHost.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createComparisonCompositor } from './comparison.ts';
@@ -69,6 +70,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     compositor?.dispose();
     streamer.dispose();
     releasePageDecoders();
+    releasePageIntegration();
     overlays.forEach((material) => material.dispose());
     backends.forEach((backend) => backend.dispose());
     disposeSource(source);
