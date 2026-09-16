@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { rasterVisibility } from './visibilityRaster.ts';
 import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
-import { matrixWindingCw } from './webgpuPagesWinding.ts';
+import { matrixWindingCw } from '../sdk-core/index.ts';
 
 const VUE: [number, number] = [96, 96];
 // Gauche : sens direct. Droite : sens inverse. Même aire, même hauteur, pas de recouvrement.

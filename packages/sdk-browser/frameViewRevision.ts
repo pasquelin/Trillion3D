@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { copyElements, sameElements } from './matrixElements.ts';
+import { createViewFingerprint } from './viewFingerprint.ts';
 import { bumpView, type FrameRevisions } from './frameRevisions.ts';
 
 /**
@@ -7,14 +7,14 @@ import { bumpView, type FrameRevisions } from './frameRevisions.ts';
  * chaque image. Comparer les seize nombres de la vue et ceux de la projection, la résolution et le
  * seuil de qualité EST donc l'origine du changement, au même titre qu'un `setTransform` l'est pour
  * la scène — c'est déjà ce que le Hi-Z temporel fait de son côté (`sameHizView`).
+ *
+ * Vue, projection, plan proche et viewport sont l'empreinte commune aux deux tenues d'image
+ * (`viewFingerprint.ts`) ; la portée du plan lointain et le seuil de qualité n'appartiennent qu'à
+ * celle-ci.
  */
 export function createViewRevision() {
-  const view = new Float64Array(16),
-    projection = new Float64Array(16);
-  let near = NaN,
-    far = NaN,
-    width = -1,
-    height = -1,
+  const fingerprint = createViewFingerprint();
+  let far = NaN,
     quality = NaN,
     armed = false;
   return {
@@ -26,28 +26,18 @@ export function createViewRevision() {
       viewportHeight: number,
       pixelError: number,
     ) {
-      // Ancêtres compris : sous un rig d'hôte, `updateMatrixWorld` relirait une pose périmée et
-      // deux images différentes se donneraient la même révision — l'image serait tenue à tort.
-      camera.updateWorldMatrix(true, false);
-      const now = camera.matrixWorldInverse.elements,
-        nowProjection = camera.projectionMatrix.elements;
+      // La pose de la caméra, ancêtres compris, est celle que l'entrée d'image vient de poser :
+      // `renderWebgpuPages`, `createExactPagesRender` et `createAutonomousRender` appellent tous
+      // `camera.updateWorldMatrix(true, false)` juste avant, et rien d'autre n'entre ici.
       if (
         armed &&
-        near === camera.near &&
         far === camera.far &&
-        width === viewportWidth &&
-        height === viewportHeight &&
         quality === pixelError &&
-        sameElements(view, now) &&
-        sameElements(projection, nowProjection)
+        fingerprint.same(camera, viewportWidth, viewportHeight)
       )
         return false;
-      copyElements(view, now);
-      copyElements(projection, nowProjection);
-      near = camera.near;
+      fingerprint.keep(camera, viewportWidth, viewportHeight);
       far = camera.far;
-      width = viewportWidth;
-      height = viewportHeight;
       quality = pixelError;
       armed = true;
       bumpView(revisions);
