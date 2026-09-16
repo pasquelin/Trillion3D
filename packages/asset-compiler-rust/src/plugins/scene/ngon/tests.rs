@@ -108,3 +108,59 @@ fn the_newell_sum_measures_the_polygon() {
     assert_eq!(normal[1], 0.0);
     assert!((normal[2] - 14.0).abs() < 1e-9, "{normal:?}");
 }
+
+/// L'aire signée d'un triangle de l'anneau, lue dans le plan `z = 0` : positive dans le sens direct.
+fn signed(ring: &[[f64; 3]], face: [usize; 3]) -> f64 {
+    let [a, b, c] = face.map(|rank| ring[rank]);
+    ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2.0
+}
+
+/// Le centre d'un triangle tombe-t-il dans l'anneau ? Un rayon vers la droite compte les côtés qu'il
+/// traverse : un nombre impair le dit dedans.
+fn inside(ring: &[[f64; 3]], face: [usize; 3]) -> bool {
+    let point: Vec<f64> = (0..2)
+        .map(|axis| face.iter().map(|rank| ring[*rank][axis]).sum::<f64>() / 3.0)
+        .collect();
+    let crossings = (0..ring.len())
+        .filter(|rank| {
+            let (here, next) = (ring[*rank], ring[(rank + 1) % ring.len()]);
+            (here[1] > point[1]) != (next[1] > point[1])
+                && point[0]
+                    < here[0] + (point[1] - here[1]) / (next[1] - here[1]) * (next[0] - here[0])
+        })
+        .count();
+    crossings % 2 == 1
+}
+
+// Comportement : une diagonale qui passe par un autre coin vivant n'est pas une oreille. Ce polygone
+// simple d'aire treize pose son dernier coin sur la diagonale du premier triangle candidat ; coupé
+// là, il rendait quatorze et son dernier triangle partait à l'envers, sans rien compter au rapport.
+#[test]
+fn a_diagonal_through_a_corner_is_not_an_ear() {
+    let mut walk = [
+        [-4.0, 0.0],
+        [1.0, -3.0],
+        [-1.0, 3.0],
+        [-3.0, 2.0],
+        [-3.0, 1.0],
+    ];
+    for _ in 0..2 {
+        let ring = flat_ring(&walk);
+        let (triangles, exact) = cut(&ring);
+        assert!(exact, "un polygone simple se découpe en oreilles");
+        assert_eq!(triangles.len(), 3, "cinq coins font trois triangles");
+        assert!(
+            (cut_area(&ring, &triangles) - 13.0).abs() < 1e-9,
+            "{triangles:?}"
+        );
+        let turn = newell(&ring)[2].signum();
+        for face in &triangles {
+            assert!(
+                signed(&ring, *face) * turn > 0.0,
+                "{face:?} part à l'envers"
+            );
+            assert!(inside(&ring, *face), "{face:?} sort de la face");
+        }
+        walk.reverse();
+    }
+}
