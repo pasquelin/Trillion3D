@@ -1,5 +1,6 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { enginePose } from './cameraWorld.ts';
+import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
@@ -34,7 +35,10 @@ export function submitColorCopy(
   presented = false,
 ) {
   const { run, gpu, timing, capture, context } = rt;
-  if (!presented && gpu.presenter && gpu.colorTexture && !capture.secondaryCamera) {
+  // La variante hors écran ne touche la chaîne d'échange d'aucune façon : ni cible de composition,
+  // ni passe de présentation séparée. C'est ce qui isole ce que « Présentation » contient vraiment.
+  const offscreen = composesOffscreen(rt.context?.diagnosticGpuVariant);
+  if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.secondaryCamera) {
     gpu.presenter.present(encoder, gpu.colorTexture, width, height);
     run.gpuDrawCalls++;
   }
