@@ -8,6 +8,7 @@
 //! compressés sont des lignes PackBits, précédées d'une table qui donne la longueur compressée de
 //! chaque ligne de chaque canal — deux octets par entrée en PSD, quatre en PSB.
 use super::lines::Lines;
+use super::sections::{self, Declared};
 use super::{Header, COMPOSITE_MISSING, DATA_TRUNCATED};
 use crate::plugins::image::{blocks, DecodedImage, RGBA8_PIXEL_BYTES};
 
@@ -16,48 +17,30 @@ const MARKER_BYTES: usize = 2;
 /// Les octets d'un pixel du contrat de sortie, comptés comme le plafond d'allocation les compte.
 const RGBA_BYTES: usize = RGBA8_PIXEL_BYTES as usize;
 
-/// Saute les trois sections qui séparent l'entête des données composites, et rend le mode de
-/// compression de celles-ci avec les octets qui le suivent. Un fichier qui s'arrête avant cette
-/// section n'a pas d'image aplatie : on ne recompose pas ses calques à sa place.
+/// Saute les trois sections qui séparent l'entête des données composites, et rend ce qu'elles
+/// déclarent avec le mode de compression du composite et les octets qui le suivent. Un fichier qui
+/// s'arrête avant cette section n'a pas d'image aplatie : on ne recompose pas ses calques à sa place.
 pub(super) fn composite<'a>(
     header: &Header,
     after_header: &'a [u8],
-) -> std::result::Result<(u16, &'a [u8]), &'static str> {
-    let mut rest = after_header;
-    // Les deux premières longueurs tiennent sur quatre octets dans les deux versions du format ;
-    // seule celle de la section des calques double de largeur en PSB.
-    for wide in [false, false, header.psb] {
-        rest = skip(rest, wide)?;
-    }
+) -> std::result::Result<(Declared, u16, &'a [u8]), &'static str> {
+    let (declared, rest) = sections::walk(header, after_header)?;
     if rest.is_empty() {
         return Err(COMPOSITE_MISSING);
     }
     let marker = rest.get(..MARKER_BYTES).ok_or(DATA_TRUNCATED)?;
     Ok((
+        declared,
         u16::from_be_bytes([marker[0], marker[1]]),
         &rest[MARKER_BYTES..],
     ))
-}
-
-/// Une section à longueur préfixée, sautée par sa longueur. Une longueur qui sort du fichier est
-/// une troncature nommée, jamais une lecture à côté.
-fn skip(bytes: &[u8], wide: bool) -> std::result::Result<&[u8], &'static str> {
-    let prefix = if wide { 8 } else { 4 };
-    let field = bytes.get(..prefix).ok_or(DATA_TRUNCATED)?;
-    let length = field
-        .iter()
-        .fold(0u64, |value, byte| value << 8 | u64::from(*byte));
-    let end = usize::try_from(length)
-        .ok()
-        .and_then(|length| prefix.checked_add(length))
-        .ok_or(DATA_TRUNCATED)?;
-    bytes.get(end..).ok_or(DATA_TRUNCATED)
 }
 
 /// L'image RGBA8 du composite. Le tampon part tout à `u8::MAX` : les canaux de couleur du mode sont
 /// toujours écrits, et l'alpha reste donc opaque exactement quand aucun plan ne le porte.
 pub(super) fn decode(
     header: &Header,
+    declared: &Declared,
     compression: u16,
     body: &[u8],
 ) -> std::result::Result<DecodedImage, &'static str> {
@@ -66,7 +49,7 @@ pub(super) fn decode(
     let mut rgba = vec![u8::MAX; width * height * RGBA_BYTES];
     let mut line = vec![0u8; width];
     for channel in 0..header.channels {
-        let targets = targets(header, channel);
+        let targets = targets(header, declared, channel);
         for row in 0..height {
             lines.read(channel * height + row, &mut line)?;
             let start = row * width * RGBA_BYTES;
@@ -86,10 +69,12 @@ pub(super) fn decode(
 
 /// Où va un plan dans le quadruplet de sortie. En niveaux de gris, l'unique canal de couleur porte
 /// les trois composantes ; en RVB, chacun porte la sienne. Le plan qui suit les canaux de couleur
-/// est l'alpha du composite — l'entête n'en admet pas d'autre.
-fn targets(header: &Header, channel: usize) -> &'static [usize] {
+/// n'est l'alpha du composite que si le fichier l'a déclaré — par le signe de son compte de
+/// calques. Sinon c'est un canal alpha enregistré, une sélection : il est lu, pour que le curseur
+/// avance d'un plan, et écrit nulle part. Le tampon garde son alpha opaque.
+fn targets(header: &Header, declared: &Declared, channel: usize) -> &'static [usize] {
     if channel >= header.color_channels {
-        return &[3];
+        return if declared.transparency { &[3] } else { &[] };
     }
     match (header.color_channels, channel) {
         (1, _) => &[0, 1, 2],
