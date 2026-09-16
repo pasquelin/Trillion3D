@@ -16,7 +16,8 @@ const browser = new URL('../packages/sdk-browser/', import.meta.url);
 // est nommée ici avec sa raison. Y ajouter une ligne est une décision, pas un oubli.
 //
 // Depuis le lot de hiérarchie, le moteur ne LIT plus non plus les matrices monde qu'elle compose :
-// il calcule les siennes depuis les poses locales de l'hôte (`hostWorldChain.ts`). La seule mise à jour qui subsiste sert la
+// il calcule les siennes depuis les poses locales de l'hôte (`hostWorldChain.ts` pour une chaîne
+// d'ancêtres, `hostWorldTree.ts` pour un sous-arbre). La seule mise à jour qui subsiste sert la
 // scène de l'hôte, pas un nombre du moteur.
 
 /** Les fichiers du lot : chargement d'une scène, explorateur, et leurs contrats. */
@@ -45,6 +46,7 @@ const M4A = [
   'hostWorldBounds',
   'hostWorldChain',
   'hostWorldMatrices',
+  'hostWorldTree',
   'pageSelectionCollect',
   'pageSelectionHelpers',
   'pagesBackendScenes',
