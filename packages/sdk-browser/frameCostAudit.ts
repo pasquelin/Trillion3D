@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { frustumExcludesBox, type FrameMetrics } from '../sdk-core/index.ts';
+import { cameraPose } from './cameraWorld.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -46,10 +47,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
     camera: run.lastCamera && {
-      // La pose monde, pas la pose locale : sous un rig d'hôte, l'audit dirait sinon la caméra
-      // ailleurs que là où l'image a été dessinée.
-      position: run.lastCamera.getWorldPosition(new THREE.Vector3()).toArray(),
-      quaternion: run.lastCamera.getWorldQuaternion(new THREE.Quaternion()).toArray(),
+      ...cameraPose(run.lastCamera),
       fov: run.lastCamera.fov,
       near: run.lastCamera.near,
       far: run.lastCamera.far,

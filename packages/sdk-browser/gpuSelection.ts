@@ -9,6 +9,7 @@ import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix, maxStretch } from '../sd
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
@@ -124,7 +125,7 @@ export function cameraSelectionUniforms(
   into?: SelectionUniforms,
 ): SelectionUniforms {
   // Ancêtres compris : vue, plans et position décrivent la même pose, même sous un rig d'hôte.
-  camera.updateWorldMatrix(true, false);
+  resolveCameraWorld(camera);
   const { vp, camPos } = scratch;
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;

@@ -1,5 +1,6 @@
 import { adaptivePixelError } from '../sdk-core/index.ts';
 import * as THREE from 'three';
+import { cameraWorldPosition } from './cameraWorld.ts';
 
 const eyeScratch = new THREE.Vector3();
 
@@ -11,8 +12,8 @@ export function resolvePixelError(
   const base = context.pixelError ?? 0;
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   // La vitesse est celle de l'œil dans le monde : un rig qui emporte la caméra la déplace aussi.
-  // L'image a mis la matrice monde à jour, ancêtres compris, avant de demander le seuil.
-  const eye = eyeScratch.setFromMatrixPosition(camera.matrixWorld);
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  const eye = cameraWorldPosition(camera, eyeScratch);
   let speed = 0;
   if (motion.last && motion.lastMs != null) {
     const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);

@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import type { GpuPassTimings } from '../sdk-core/index.ts';
 import type { createGpuTiming } from './gpuTiming.ts';
 import type { SelectionSubmission } from './gpuSelection.ts';
@@ -147,8 +146,3 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     frameSelection: undefined,
   };
 }
-
-export const cameraPose = (camera: THREE.PerspectiveCamera) => ({
-  position: camera.getWorldPosition(new THREE.Vector3()).toArray(),
-  quaternion: camera.getWorldQuaternion(new THREE.Quaternion()).toArray(),
-});

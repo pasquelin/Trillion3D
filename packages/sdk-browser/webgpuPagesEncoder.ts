@@ -1,6 +1,5 @@
-import * as THREE from 'three';
 import { viewProj } from './webgpuPagesHelpers.ts';
-import { cameraPose } from './webgpuPagesStateTiming.ts';
+import { cameraPose, cameraWorldPosition } from './cameraWorld.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
@@ -78,7 +77,7 @@ export function submitColorCopy(
     timing.gpuTiming.submitted(encoder, {
       submission: run.imageRevision,
       viewport: [width, height],
-      cameraWorld: run.lastCamera?.getWorldPosition(new THREE.Vector3()).toArray(),
+      cameraWorld: run.lastCamera && cameraWorldPosition(run.lastCamera).toArray(),
       viewProjection: [...viewProj.elements],
       scope: 'selection-and-render-passes',
       excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
