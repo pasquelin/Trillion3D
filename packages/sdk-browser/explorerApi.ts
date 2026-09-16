@@ -144,6 +144,8 @@ export function createExplorerApi(inputs: Inputs) {
       store: context.sceneLights,
       imported: context.importedLightIds ?? [],
       backends,
+      active: () => state.active,
+      onDiagnostic: context.onDiagnostic,
     }),
     ...createExplorerTelemetryApi(profiler, () => state.active),
   };

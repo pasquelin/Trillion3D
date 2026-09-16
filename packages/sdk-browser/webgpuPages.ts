@@ -47,6 +47,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     refreshSceneLights() {
       refreshSceneLights(rt);
     },
+    /** Le seul moteur qui porte l'atlas d'ombres du contrat : tout le reste se lit dans ses méthodes. */
+    lighting: { shadows: true },
     setTransform(nodeName, matrix) {
       setWebgpuTransform(rt, nodeName, matrix);
     },
