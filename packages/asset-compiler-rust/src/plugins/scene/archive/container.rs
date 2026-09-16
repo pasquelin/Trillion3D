@@ -13,6 +13,9 @@ use std::fs;
 const MARKER: &str = "archive.json";
 /// Le dossier extrait, sous la clé d'extraction : la marque lui tient compagnie sans le polluer.
 const CONTENT: &str = "content";
+/// Le dossier où l'extraction écrit tant qu'elle dure : il devient le dossier extrait d'un seul
+/// renommage, et une extraction refusée l'emporte avec elle.
+const STAGING: &str = "chantier";
 
 /// Extrait puis route une archive. `extract` reçoit le fichier source et la racine d'extraction, et
 /// rend le nombre d'entrées et le total décompressé ; elle n'écrit rien quand elle refuse.
@@ -36,9 +39,7 @@ pub(in super::super) fn container(
     let (content, marker) = (directory.join(CONTENT), directory.join(MARKER));
     let extracted = ready(&marker);
     if extracted.is_none() {
-        let _ = fs::remove_dir_all(&content);
-        fs::create_dir_all(&content)?;
-        let counts = extract(file, &content)?;
+        let counts = whole(&directory, &content, |staging| extract(file, staging))?;
         (request.progress)(
             json!({"phase":"archive","step":"extract","plugin":plugin.name(),"entries":counts.0,"bytes":counts.1}),
         );
@@ -54,6 +55,30 @@ pub(in super::super) fn container(
     )?;
     (request.progress)(json!({"phase":"archive","step":"routed","chain":chain}));
     Ok(scene)
+}
+
+/// Extrait dans un dossier de chantier, puis le renomme d'un coup : le dossier extrait n'apparaît
+/// que complet. Une archive refusée n'en laisse donc aucune trace, pas même un fichier à moitié
+/// écrit — le routeur ne verra jamais un chantier là où il attend une scène.
+fn whole(
+    directory: &Path,
+    content: &Path,
+    extract: impl Fn(&Path) -> Result<(usize, u64)>,
+) -> Result<(usize, u64)> {
+    let staging = directory.join(STAGING);
+    let _ = fs::remove_dir_all(&staging);
+    let _ = fs::remove_dir_all(content);
+    fs::create_dir_all(&staging)?;
+    match extract(&staging) {
+        Ok(counts) => {
+            fs::rename(&staging, content)?;
+            Ok(counts)
+        }
+        Err(refusal) => {
+            let _ = fs::remove_dir_all(&staging);
+            Err(refusal)
+        }
+    }
 }
 
 /// La chaîne d'une extraction déjà faite, ou rien s'il faut (re)faire l'extraction.

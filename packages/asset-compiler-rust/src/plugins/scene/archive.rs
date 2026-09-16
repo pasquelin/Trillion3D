@@ -11,6 +11,8 @@ use crate::{hash, is_safe_source_name, CompilerError};
 use std::sync::atomic::Ordering;
 
 mod container;
+#[cfg(test)]
+mod tests;
 pub(super) mod zip_reader;
 
 pub(super) use container::container;
