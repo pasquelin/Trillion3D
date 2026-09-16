@@ -1,10 +1,10 @@
 /**
- * Ce que le streaming des textures d'une image publie : transferts, atlas et niveaux résidents.
+ * Ce que la pompe de textures, les atlas et la résidence des mips publient sur une image.
  *
- * Ces champs vivent à part de `FrameMetrics` parce qu'ils ont leur propre source : la pompe de
- * textures et la priorité les comptent, pas l'image. Tous sont facultatifs et ajoutés après coup :
- * un lecteur plus ancien les ignore, un moteur qui ne les mesure pas les laisse absents, et `null`
- * dit « non mesuré », jamais une estimation.
+ * Ces champs vivent à part de `FrameMetrics` parce qu'ils décrivent une autre file que l'image :
+ * le transfert découpé des textures avance à son rythme, borné par octets et par image, et les
+ * atlas sont dimensionnés une fois. Tous facultatifs : un moteur sans textures les laisse absents,
+ * `null` dit « non mesuré », jamais une estimation.
  */
 export interface TextureFrameMetrics {
   /**
