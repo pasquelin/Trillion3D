@@ -44,9 +44,16 @@ export function evaluateDagSelectionKernel(
     views.push([...viewMatrix.elements]);
     stretches.push(worldStretch[w] * cameraStretch);
   }
-  const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount));
-  for (let n = 0; n < packed.nodeCount; n++) {
-    const base = n * DAG_NODE_FLOATS,
+  // Descente par niveaux, comme le noyau : un nœud rejeté n'engendre rien, et une feuille jamais
+  // atteinte reste rejetée. Un drapeau non nul dit « ne descends pas ici » ; seules les feuilles
+  // retenues retombent à zéro, et ce sont elles seules que les grappes consultent.
+  const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
+  const frontier: number[] = [];
+  for (let w = 0; w < packed.worldCount; w++)
+    if (packed.rootNodes[w] !== 0xffffffff) frontier.push(packed.rootNodes[w]);
+  while (frontier.length) {
+    const n = frontier.pop() as number,
+      base = n * DAG_NODE_FLOATS,
       w = nodeInts[base + 12];
     if (
       frustumExcludesBox(
@@ -58,10 +65,8 @@ export function evaluateDagSelectionKernel(
         nodes[base + 5],
         nodes[base + 6],
       )
-    ) {
-      nodeFlags[n] = 1;
+    )
       continue;
-    }
     const bound = nodes[base + 7];
     if (
       bound >= 0 &&
@@ -76,8 +81,16 @@ export function evaluateDagSelectionKernel(
         focal,
         near,
       ) <= pixelError
-    )
+    ) {
       nodeFlags[n] = 2;
+      continue;
+    }
+    const children = nodeInts[base + 15];
+    if (children) {
+      for (let c = 0; c < children; c++) frontier.push(nodeInts[base + 3] + c);
+      continue;
+    }
+    nodeFlags[n] = 0;
   }
   const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
     packed,

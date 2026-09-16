@@ -32,6 +32,10 @@ export type PackedDag = {
   pageCones: Float32Array;
   worlds: Float32Array;
   worldStretch: Float32Array;
+  /** Le nœud racine de chaque primitive, d'où part la descente par niveaux ; `SELECTION_NONE` sans. */
+  rootNodes: Uint32Array;
+  /** Profondeur de la hiérarchie la plus profonde : le nombre de passes de la descente. */
+  levelCount: number;
   nodeCount: number;
   worldCount: number;
   pageCount: number;
