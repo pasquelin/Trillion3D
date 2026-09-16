@@ -98,3 +98,42 @@ fn only_a_tangent_space_bump_becomes_a_normal_texture() {
         1
     );
 }
+
+// Constat 21 : `wrapU` et `wrapV` sont deux attributs, et un échantillonneur glTF a deux axes. Seul
+// `wrapU` était lu, et `wrapV` le suivait : une texture répétée sur un axe et bornée sur l'autre
+// sortait bornée des deux côtés.
+#[test]
+fn wrap_u_and_wrap_v_reach_the_two_axes_of_the_sampler() {
+    let body = format!(
+        "createNode lambert -n \"Mat\";\n{}{}connectAttr \"Image.oc\" \"Mat.c\";\n",
+        image("\tsetAttr \".wu\" no;\n"),
+        shaded("Plaque", "Mat"),
+    );
+    let (_, gltf) = compile_ma("ma-wrap", &body).prepared("ma");
+    let sampler = &gltf["samplers"][0];
+    assert_eq!(sampler["wrapS"], json!(33071), "`wrapU` borne l'axe S");
+    assert_eq!(
+        sampler["wrapT"],
+        json!(10497),
+        "`wrapV` absent répète l'axe T : {sampler}"
+    );
+}
+
+// Constat 21, l'autre bout : le placage d'un `place2dTexture` — répétition, décalage, rotation,
+// miroir — ne se porte pas dans un glTF que cet écrivain ne dote pas de `KHR_texture_transform`.
+// Ce qui ne passe pas est compté par son nom au lieu d'être perdu en silence.
+#[test]
+fn a_place2d_texture_placement_is_counted_rather_than_silently_dropped() {
+    let body = format!(
+        "createNode lambert -n \"Mat\";\n{}{}connectAttr \"Image.oc\" \"Mat.c\";\n",
+        image("\tsetAttr \".re\" -type \"double2\" 2 3;\n\tsetAttr \".of\" -type \"double2\" 0.5 0;\n\tsetAttr \".ro\" 30;\n\tsetAttr \".mu\" yes;\n"),
+        shaded("Plaque", "Mat"),
+    );
+    let (manifest, _) = compile_ma("ma-placage", &body).prepared("ma");
+    assert_eq!(
+        manifest["unsupported"]["ma-texture-transform-unsupported"], 1,
+        "{}",
+        manifest["unsupported"]
+    );
+    assert_eq!(manifest["unsupported"]["ma-texture-mirror-unsupported"], 1);
+}
