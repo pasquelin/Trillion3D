@@ -7,6 +7,7 @@ import { collectClusterPages } from '../../pageSelection.ts';
 import { dagFixture } from '../../pageSelectionDagFixture.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.mjs';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 const VIEWPORT = [1280, 720];
 
@@ -24,7 +25,7 @@ async function sequence(device, cameras, pixelError) {
   if (!selection) throw new Error('GPU_SELECTION_UNAVAILABLE');
   const images = [];
   for (const camera of cameras()) {
-    selection.dispatch(cameraSelectionUniforms(camera, pixelError, VIEWPORT));
+    selection.dispatch(cameraSelectionUniforms(cameraMoteur(camera), pixelError, VIEWPORT));
     const result = await selection.flush();
     if (!result) throw new Error('GPU_SELECTION_FAILED');
     images.push({
