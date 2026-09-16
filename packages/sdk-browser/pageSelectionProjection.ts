@@ -1,4 +1,4 @@
-import { clusterErrorAtDepth, screenErrorVariant } from '../sdk-core/index.ts';
+import { clusterErrorAtDepth } from '../sdk-core/index.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 
 /**
@@ -71,10 +71,9 @@ export function errorFloorAt(
   if (!(error > 0) || !(radius >= 0)) return 0;
   const far = depth + radius * stretch;
   if (!(far > 0)) return Infinity;
-  // Le plancher suit la métrique en vigueur : sous la variante d'EXPÉRIENCE de la référence
-  // externe, l'erreur n'est plus étirée (`referenceScreenError`), et `ε·f/(profondeur la plus
-  // lointaine de la sphère englobante)` reste bien en dessous de toute valeur du sous-arbre.
-  if (screenErrorVariant() !== 'certifiee') return (error * focal) / far;
+  // Le plancher vaut pour les deux métriques : la variante d'EXPÉRIENCE de la référence externe
+  // rend `ε·étirement·f/profondeur`, que `ε_min·étirement·f/(profondeur la plus lointaine de la
+  // sphère englobante)` minore tout autant que la borne certifiée.
   return (error * stretch * focal) / far;
 }
 
