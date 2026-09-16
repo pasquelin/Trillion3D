@@ -1,4 +1,8 @@
-import { FRUSTUM_PLANE_VALUES, frustumFarPlane, frustumPlanesFromMatrix } from './mathFrustum.ts';
+import {
+  FRUSTUM_PLANE_VALUES,
+  frustumFarPlane,
+  frustumPlanesFromMatrix,
+} from './mathFrustum.ts';
 import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { invertMatrix4 } from './mathMatrix4Inverse.ts';
 
@@ -87,11 +91,15 @@ export function createCameraFrame(): CameraFrame {
  * qui est tout l'objet du Z inversé —, mais le tronc le garde : sans lui, une image gagnerait d'un
  * coup tous les objets que la caméra ne montrait pas. Omis ou non fini, le lointain reste sans
  * borne (`frustumFarPlane`).
+ *
+ * La projection et la pose monde sont des `Float64Array` possédés, comme les trois tampons de
+ * l'image : le produit ne lit qu'un seul type de tampon (`mathMatrix4.ts`), et l'appelant qui part
+ * d'une matrice de l'hôte la recopie avant d'entrer ici — `readCameraWorld` le fait déjà.
  */
 export function updateCameraFrame(
   frame: CameraFrame,
-  projection: ArrayLike<number>,
-  world: ArrayLike<number>,
+  projection: Float64Array,
+  world: Float64Array,
   far = Infinity,
 ) {
   invertMatrix4(frame.view, world);

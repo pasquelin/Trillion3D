@@ -104,3 +104,14 @@ export function coneInto(r: DagRecords, i: number, cone: { axis: number[]; angle
   for (let a = 0; a < 3; a++) cone.axis[a] = r.cold[base + a];
   cone.angle = r.cold[base + 3];
 }
+
+/**
+ * La colonne de résidence rendue à l'oracle, un mot par grappe : ce que les doubles de tampon lisent
+ * dans le même tampon froid que le nuanceur, au lieu d'un rang recopié chez eux.
+ */
+export function residentFlags(bits: Uint32Array, pageCount: number) {
+  const base = residentBase(pageCount);
+  return Uint32Array.from({ length: pageCount }, (_, page) =>
+    residentBit(bits, base, page) ? 1 : 0,
+  );
+}

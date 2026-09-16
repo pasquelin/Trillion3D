@@ -7,6 +7,12 @@ import {
   type CameraFrame,
 } from '../sdk-core/index.ts';
 import { copyElements } from './matrixElements.ts';
+import {
+  createRenderOriginFrame,
+  holdRenderOriginFrame,
+  updateRenderOriginFrame,
+  type RenderOriginFrame,
+} from './cameraRenderOrigin.ts';
 
 /**
  * LE CONTRAT DE POSE CAMÉRA. Domicile unique de la pose monde d'une caméra dans `sdk-browser` ;
@@ -58,7 +64,7 @@ export type HostCamera = THREE.PerspectiveCamera;
  * La caméra du moteur : les nombres d'une image, dans des tampons possédés et réécrits sur place.
  * Aucune structure de la bibliothèque hôte ne traverse une signature en aval de `readCameraWorld`.
  */
-export interface EngineCamera extends CameraFrame {
+export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** Matrice monde de la caméra hôte, recopiée telle quelle. */
   world: Float64Array;
   /** Projection du moteur, composée de l'optique déclarée par l'hôte : profondeur inversée, plan
@@ -77,6 +83,7 @@ export interface EngineCamera extends CameraFrame {
 export function createEngineCamera(): EngineCamera {
   return {
     ...createCameraFrame(),
+    ...createRenderOriginFrame(),
     world: new Float64Array(16),
     projection: new Float64Array(16),
     eye: new Float64Array(3),
@@ -97,9 +104,10 @@ export function resolveCameraWorld<T extends THREE.Camera>(camera: T): T {
  * PROJECTION non : le moteur la compose de l'optique déclarée (champ, rapport, plan proche, zoom)
  * dans sa propre convention de profondeur — inversée, plan lointain infini — parce que la matrice
  * de l'hôte porte celle de sa bibliothèque et un plan lointain fini. `camera.far` reste lu tel quel
- * pour ce qui en dépend encore (seuil adaptatif, portée des ombres) ; il n'entre plus dans aucune
- * profondeur. `updateCameraFrame` refait ensuite la vue par inversion de la matrice monde, la
- * vue-projection et les six plans du tronc, une fois pour toute l'image.
+ * pour ce qui en dépend encore (seuil adaptatif, portée des ombres) et pour le plan lointain du
+ * tronc, qui le garde ; il n'entre plus dans aucune profondeur. `updateCameraFrame` refait ensuite
+ * la vue par inversion de la matrice monde, la vue-projection et les six plans du tronc, une fois
+ * pour toute l'image.
  */
 export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineCamera {
   resolveCameraWorld(camera);
@@ -110,6 +118,9 @@ export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineC
   into.aspect = camera.aspect;
   perspectiveProjection(into.projection, camera.fov, camera.aspect, camera.near, camera.zoom);
   updateCameraFrame(into, into.projection, into.world, into.far);
+  // Le repère de rendu se pose ici, dans la même passe : ce qui part en simple précision lira la
+  // vue sans translation, jamais une vue absolue accompagnée de mondes relatifs.
+  updateRenderOriginFrame(into, into.view, into.projection, into.far);
   into.eye[0] = into.world[12];
   into.eye[1] = into.world[13];
   into.eye[2] = into.world[14];
@@ -169,6 +180,7 @@ export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineC
   into.view.set(from.view);
   into.viewProjection.set(from.viewProjection);
   into.planes.set(from.planes);
+  holdRenderOriginFrame(into, from);
   into.eye.set(from.eye);
   into.near = from.near;
   into.far = from.far;
