@@ -101,17 +101,18 @@ fn escalate(world:u32,parentPixels:f32){
  if(parentPixels>0.0&&raised<INF){atomicMax(&work[world],bitcast<u32>(raised));}
  else{atomicOr(&work[uni.worldCount+world],1u);}
 }
+/** La remise à zéro et les plans par primitive : deux noyaux hier, un seul lancement aujourd'hui.
+ *  Rien ne les liait — le premier écrit les seuils, les compteurs de sortie et les comptes de bloc,
+ *  le second les plans du tronc —, et seul \`dagNodes\`, qui suit, lit ce que le second écrit. Les
+ *  comptes de bloc de la compaction sont remis à zéro ici parce que \`dagMask\` les accumule. */
 @compute @workgroup_size(64)
-fn dagReset(@builtin(global_invocation_id) id:vec3u){
+fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let w=id.x;
- if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);atomicStore(&work[liveCounter()],0u);}
+ if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);atomicStore(&work[liveCounter()],0u);atomicStore(&work[liveGroups()],0u);}
+ if(w<blockCount()){atomicStore(&work[blockBase()+w],0u);}
  if(w>=uni.worldCount){return;}
  atomicStore(&work[w],bitcast<u32>(max(uni.pixelError,0.0)));
  atomicStore(&work[uni.worldCount+w],0u);
-}
-@compute @workgroup_size(64)
-fn dagPlanes(@builtin(global_invocation_id) id:vec3u){
- let w=id.x;if(w>=uni.worldCount){return;}
  let t=transpose(worlds[w]);let base=w*FRAME;
  for(var i=0u;i<6u;i++){frames[base+i]=t*uni.planes[i];}
 }
@@ -187,7 +188,10 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
    if(draw&&uni.residentCut!=0u&&pageCones[i].resident==0.0){atomicOr(&out.overflow,2u);draw=false;}
   }
  }
- flags[uni.nodeCount+i]=select(0u,1u,draw);
+ let posee=select(0u,1u,draw);
+ flags[uni.nodeCount+i]=posee;
+ // Le compte de dessinées du bloc de cette page, tenu ici plutôt que relu ensuite page par page.
+ if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);}
 }
 ${DAG_ERROR_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}

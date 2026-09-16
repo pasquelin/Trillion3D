@@ -11,6 +11,7 @@
  */
 import type { GpuSelection } from './gpuSelection.ts';
 import type { PackedDag } from './gpuDagTypes.ts';
+import { selectionRepeat, type DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import { createDagResources } from './gpuDagResources.ts';
 import { createDagRuntime } from './gpuDagRuntime.ts';
 export { packDagSelection } from './gpuDagPack.ts';
@@ -21,9 +22,14 @@ export type { PackedDag } from './gpuDagTypes.ts';
 export async function createGpuDagSelection(
   device: GPUDevice,
   packed: PackedDag,
-  options: { residentCut?: boolean } = {},
+  options: { residentCut?: boolean; diagnosticGpuVariant?: DiagnosticGpuVariant } = {},
 ): Promise<GpuSelection | undefined> {
   if (typeof device.createComputePipeline !== 'function' || packed.pageCount < 1) return undefined;
-  const resources = await createDagResources(device, packed, !!options.residentCut);
+  const resources = await createDagResources(
+    device,
+    packed,
+    !!options.residentCut,
+    selectionRepeat(options.diagnosticGpuVariant),
+  );
   return resources ? createDagRuntime(resources) : undefined;
 }
