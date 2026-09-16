@@ -69,16 +69,16 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       await backend.prepare();
       backend.render(camera());
       const metrics = backend.metrics();
-      // Le tronc ne retire plus rien de la liste ni des commandes : la scène porte son item, ses
-      // deux faces sont encodées, et c'est le NOMBRE D'INSTANCES de chaque appel — écrit par la
-      // coupe — qui tombe à zéro pour un item rejeté. Le compte de rejets, lui, est relu à part.
+      // La scène porte son item et la coupe écrit le nombre d'instances de chaque appel ; un item
+      // entièrement hors champ n'est pas encodé du tout, un item partiellement visible garde ses
+      // deux faces. Le compte de rejets, lui, est relu à part.
       assert.equal(metrics.submittedTriangles, 4, item.name);
       assert.equal(metrics.transparentMeshes, 1, item.name);
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name);
-      assert.equal(metrics.transparentDrawCalls, 2, item.name);
+      assert.equal(metrics.transparentDrawCalls, item.visible ? 2 : 0, item.name);
       assert.equal(metrics.transparentSubmittedTriangles, 4, item.name);
       const actual = draws.filter((draw) => draw.entryPoint === 'vs');
-      assert.equal(actual.length, 2, item.name + ' actual GPU commands');
+      assert.equal(actual.length, item.visible ? 2 : 0, item.name + ' actual GPU commands');
       assert.equal(
         actual.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0),
         item.visible ? 4 : 0,
