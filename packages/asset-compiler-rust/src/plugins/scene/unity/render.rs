@@ -49,17 +49,23 @@ impl Builder<'_, '_> {
     }
 
     /// Les matériaux du rendu, emplacement par emplacement : ceux que le `MeshRenderer` déclare, et
-    /// à leur place ceux qu'une instance de prefab remplace. Un emplacement que l'instance laisse
-    /// vide garde celui du rendu.
-    fn materials(&mut self, renderer: &Yaml, replaced: Option<&[Ref]>) -> Vec<Option<usize>> {
+    /// à leur place ceux qu'une instance de prefab nomme. Un emplacement dont l'instance ne dit
+    /// rien garde celui du rendu ; un emplacement qu'elle nomme vide sort sans matériau, puisque
+    /// c'est ce que l'auteur y a mis.
+    fn materials(
+        &mut self,
+        renderer: &Yaml,
+        replaced: Option<&[Option<Ref>]>,
+    ) -> Vec<Option<usize>> {
         let declared = sequence(renderer, "m_Materials");
         let replaced = replaced.unwrap_or(&[]);
         (0..declared.len().max(replaced.len()))
             .map(|slot| {
-                let over = replaced.get(slot).filter(|slot| !slot.is_null()).cloned();
-                let slot =
-                    over.unwrap_or_else(|| declared.get(slot).map(reference).unwrap_or_default());
-                self.material(&slot)
+                let named = match replaced.get(slot) {
+                    Some(Some(over)) => over.clone(),
+                    _ => declared.get(slot).map(reference).unwrap_or_default(),
+                };
+                self.material(&named)
             })
             .collect()
     }
