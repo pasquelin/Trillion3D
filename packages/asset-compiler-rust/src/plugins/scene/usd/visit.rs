@@ -8,6 +8,8 @@ use super::*;
 
 /// Profondeur maximale d'une hiérarchie, instances dépliées comprises.
 const MAX_DEPTH: usize = 64;
+/// La seule valeur de `visibility` qui retire un prim de la scène ; l'autre, `inherited`, l'y laisse.
+const INVISIBLE: &str = "invisible";
 
 /// Le nœud glTF d'un prim et de sa descendance, ou rien quand il ne porte aucune surface.
 pub(super) fn visit(world: &mut World<'_>, prim: &usd::Prim, depth: usize) -> Option<usize> {
@@ -35,8 +37,25 @@ pub(super) fn visit(world: &mut World<'_>, prim: &usd::Prim, depth: usize) -> Op
     if type_name == "GeomSubset" {
         return None;
     }
+    if invisible(world, prim) {
+        world.count("invisible", 1);
+        return None;
+    }
     report(world, prim);
     node(world, prim, type_name, depth)
+}
+
+/// Ce prim est-il déclaré invisible ? `visibility` ne prend que deux valeurs, et USD l'hérite :
+/// une descendance ne revient jamais au visible sous un prim invisible, donc le parcours s'arrête
+/// là et la branche entière sort de la scène.
+fn invisible(world: &mut World<'_>, prim: &usd::Prim) -> bool {
+    let Some((value, sampled)) = read::first(&prim.attribute("visibility")) else {
+        return false;
+    };
+    if sampled {
+        world.refuse(world::TIME_SAMPLE);
+    }
+    read::text(&value).as_deref() == Some(INVISIBLE)
 }
 
 /// Ce que ce prim apporte au rapport sans changer la scène.

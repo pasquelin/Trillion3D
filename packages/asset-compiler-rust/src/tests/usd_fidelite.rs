@@ -116,3 +116,30 @@ fn every_root_of_a_layer_is_converted_and_the_default_prim_comes_first() {
     );
 }
 
+// Comportement 45 : `visibility = invisible` s'hérite — le prim et toute sa descendance sortent de
+// la scène, et le compte le dit.
+#[test]
+fn an_invisible_prim_takes_its_whole_subtree_out_of_the_scene() {
+    let body = format!(
+        r#"{QUAD}
+    def Xform "Cache"
+    {{
+        token visibility = "invisible"
+{QUAD}    }}"#
+    );
+    let run = compile_layer("invisible", &wrap("", &body));
+    assert_eq!(
+        run.result["sourceTriangles"], 2,
+        "seule la surface visible est rendue"
+    );
+    let (manifest, gltf) = run.prepared("usd");
+    assert_eq!(manifest["source"]["counts"]["invisible"], 1);
+    assert!(
+        !gltf["nodes"]
+            .as_array()
+            .expect("nodes")
+            .iter()
+            .any(|node| node["name"] == "Cache"),
+        "le prim invisible ne laisse pas de nœud"
+    );
+}
