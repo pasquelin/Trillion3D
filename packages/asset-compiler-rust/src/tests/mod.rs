@@ -31,6 +31,7 @@ mod ma_xform;
 pub(crate) mod ngones;
 mod obj_golden;
 mod obj_mtl;
+mod obj_texture_cache;
 mod part1;
 mod part2;
 mod part3;

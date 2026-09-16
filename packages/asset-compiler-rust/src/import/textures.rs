@@ -10,6 +10,9 @@ pub(super) struct TextureTable<'a> {
     pub(super) textures: &'a mut Vec<Value>,
     pub(super) sampler_ids: &'a mut HashMap<(u32, u32), usize>,
     pub(super) report: &'a mut Report,
+    /// Le relevé qui porte l'identité de l'import : chaque chemin d'image essayé y entre, présent
+    /// ou non. Sans lui, une image ajoutée près d'une source inchangée ne changeait pas la clé.
+    pub(super) externals: &'a external::Externals,
     pub(super) by_element: HashMap<u32, Option<usize>>,
 }
 /// Une option de map déclarée « on » : la forme `-clamp on` d'une bibliothèque de matériaux, que le
@@ -98,8 +101,19 @@ impl<'a> TextureTable<'a> {
                 siblings.push(candidate.with_extension(extension));
             }
         }
+        // Les chemins déclarés se répètent souvent — nom absolu, nom relatif, nom nu désignent le
+        // même fichier. Les essayer une fois donne la même réponse et un relevé qui se lit.
+        let mut seen = std::collections::HashSet::new();
+        let examined: Vec<PathBuf> = candidates
+            .into_iter()
+            .chain(siblings)
+            .filter(|path| seen.insert(path.clone()))
+            .collect();
         let mut outside = false;
-        for candidate in candidates.iter().chain(siblings.iter()) {
+        for candidate in &examined {
+            // Consulté, donc décisif : son état entre dans l'identité de l'import, qu'il existe ou
+            // non. La boucle s'arrête au premier candidat retenu, et le relevé avec elle.
+            self.externals.note_texture(candidate);
             if !candidate.is_file() {
                 continue;
             }
