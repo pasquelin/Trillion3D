@@ -39,10 +39,14 @@ export function encodeWebgpuVisibilityPasses(
     return [
       ids,
       {
+        // Le niveau 0 de la pyramide est une PROFONDEUR : son fond est le lointain, pas 1. En Z
+        // inversé, l'effacer à 1 remplissait chaque texel non couvert avec le plan proche, et la
+        // réduction au minimum rendait alors 1 sur tout un bloc de fond — assez pour rejeter toute
+        // page qui s'y projette. Ce sont les trous qu'une campagne voyait par milliers de pixels.
         view: gpuHiz.level0View,
         loadOp,
         storeOp: 'store' as const,
-        clearValue: { r: 1, g: 0, b: 0, a: 1 },
+        clearValue: { r: DEPTH_CLEAR, g: 0, b: 0, a: 1 },
       },
     ];
   };
