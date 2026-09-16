@@ -23,6 +23,8 @@ mod ktx2_golden;
 mod ma_driver;
 mod ma_fidelite;
 mod ma_golden;
+mod ma_matiere;
+mod ma_normales;
 mod ma_xform;
 pub(crate) mod ngones;
 mod obj_golden;
