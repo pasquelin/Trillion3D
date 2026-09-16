@@ -1,5 +1,5 @@
 // Le noyau WGSL de sélection du DAG réellement exécuté dans Chromium WebGPU : les tampons empaquetés
-// par `packDagSelection`, les uniformes de `writeDagUniforms`, les passes `dagReset` à `dagMask`
+// par `packDagSelection`, les uniformes de `writeDagUniforms`, les passes `dagPrepare` à `dagMask`
 // dans l'ordre du moteur (coupe non résidente), puis la relecture de la sortie du GPU. Playwright
 // vient de `render-tech-lab`, en lecture seule.
 import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
@@ -49,7 +49,7 @@ async function executer({ shader, cas, workgroup }) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-  const etapes = ['dagReset', 'dagPlanes', 'dagNodes', 'dagWanted', 'dagMask'].map(etape);
+  const etapes = ['dagPrepare', 'dagNodes', 'dagWanted', 'dagMask'].map(etape);
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   const tampon = (taille, octetsSource, usage = STORAGE) => {
     const buffer = device.createBuffer({
@@ -62,13 +62,16 @@ async function executer({ shader, cas, workgroup }) {
   const resultats = [];
   for (const c of cas) {
     const sortieOctets = 16 + c.pageCount * 4;
+    // Les mêmes régions que le moteur : la liste des vivantes prolonge les drapeaux, les compteurs
+    // des blocs et de la liste prolongent les seuils.
+    const blocs = Math.ceil(c.pageCount / workgroup);
     const buffers = [
       tampon(64, c.clusters),
       tampon(64, c.nodes),
       tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-      tampon(Math.max(4, (c.nodeCount + c.pageCount * 2) * 4)),
+      tampon(Math.max(4, (c.nodeCount + c.pageCount * 3) * 4)),
       tampon(sortieOctets),
-      tampon(Math.max(8, c.worldCount * 8)),
+      tampon(Math.max(8, (c.worldCount * 2 + blocs * 2 + 2) * 4)),
       tampon(64, c.worlds),
       tampon(16, c.frames),
       tampon(48, c.pageCones),
@@ -82,8 +85,7 @@ async function executer({ shader, cas, workgroup }) {
       entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
     });
     const comptes = [
-      c.worldCount,
-      c.worldCount,
+      Math.max(c.worldCount, blocs),
       Math.max(1, c.nodeCount),
       c.pageCount,
       c.pageCount,
