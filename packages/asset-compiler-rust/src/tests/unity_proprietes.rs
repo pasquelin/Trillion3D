@@ -7,6 +7,15 @@ use unity_projet::{cube, instancie, mat, mat_blanc, material_named, Projet};
 /// Le GUID du modèle de chaque cas.
 const MODEL: &str = "0000000000000000000000000000000a";
 
+/// Une image d'un pixel, écrite ici même : le registre d'images la reconnaît par son extension.
+const PIXEL: [u8; 70] = [
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+    0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0xf0,
+    0x1f, 0x00, 0x05, 0x00, 0x01, 0xff, 0x89, 0x99, 0x3d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45,
+    0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+];
+
 // Constat 33 : le mode alpha d'un matériau vient de ses propriétés de rendu, jamais de l'alpha de sa
 // couleur. `_Mode: 0` déclare un matériau opaque : l'alpha reste dans le facteur de couleur de base,
 // et le matériau ne devient pas fondu parce que cette valeur est inférieure à un.
@@ -103,4 +112,47 @@ fn the_report_of_the_model_driver_reaches_the_unity_report() {
         "le rapport du pilote modèle remonte tel quel: {}",
         manifest["unsupported"]
     );
+}
+
+// Constat 52 : le `.meta` d'une texture déclare comment l'échantillonner — la répétition de chaque
+// axe et le filtrage. L'échantillonneur glTF les porte : une texture bornée sur un axe et répétée
+// sur l'autre garde ses deux modes, et un filtrage au plus proche n'est pas lissé.
+#[test]
+fn the_texture_importer_of_a_meta_gives_the_sampler_its_wrap_and_filter() {
+    let projet = Projet::new("sampler");
+    let (image, matiere) = (
+        "000000000000000000000000000000f1",
+        "000000000000000000000000000000f2",
+    );
+    projet.asset(
+        "Textures/pixel.png",
+        &PIXEL,
+        image,
+        "TextureImporter:\n  wrapU: 1\n  wrapV: 0\n  filterMode: 0\n  sRGBTexture: 1\n",
+    );
+    projet.data(
+        "Materials/Peinte.mat",
+        matiere,
+        &mat_blanc_texture("Peinte", image),
+    );
+    projet.scene(&cube(100, "Boite", matiere));
+    let (_, gltf) = projet.compile("unity-sampler").prepared("unity");
+    let sampler = &gltf["samplers"][0];
+    assert_eq!(sampler["wrapS"], json!(33071), "`wrapU: 1` borne l'axe S");
+    assert_eq!(sampler["wrapT"], json!(10497), "`wrapV: 0` répète l'axe T");
+    assert_eq!(
+        sampler["magFilter"],
+        json!(9728),
+        "`filterMode: 0` échantillonne au plus proche"
+    );
+    assert_eq!(sampler["minFilter"], json!(9984));
+}
+
+/// Un `.mat` blanc dont la couleur de base porte la texture de ce GUID.
+fn mat_blanc_texture(name: &str, image: &str) -> String {
+    let body = mat_blanc(name, "");
+    body.replace(
+        "m_TexEnvs: []",
+        &format!("m_TexEnvs:\n    - _MainTex:\n        m_Texture: {{fileID: 2800000, guid: {image}, type: 3}}\n        m_Scale: {{x: 1, y: 1}}\n        m_Offset: {{x: 0, y: 0}}"),
+    )
 }
