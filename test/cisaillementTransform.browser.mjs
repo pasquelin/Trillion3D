@@ -12,7 +12,10 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { OPEN_CONE } from '../packages/sdk-browser/pageCone.ts';
-import { packDagSelection } from '../packages/sdk-browser/gpuDagSelection.ts';
+import {
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../packages/sdk-browser/gpuDagSelection.ts';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
 import { cameraMoteur } from '../packages/sdk-browser/cameraFixture.ts';
 import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
@@ -64,15 +67,22 @@ assert.notDeepEqual(
 
 const sphereEtroite = [3.5, 0, 0, 1],
   sphereLarge = [0, 0, 0, 5];
+/** Un appel du noyau : la page empaquetée DANS LE REPÈRE DE RENDU de sa vue — l'œil en est
+ *  l'origine —, comme l'entrée d'image la porte à la carte. Empaqueter en monde absolu sous une vue
+ *  relative mêlerait deux repères dans la même formule, et le tronc trancherait faux. */
+const appel = (nom, world, sphere, uniforms) => ({
+  nom,
+  packed: packedWorldsToRenderOrigin(empaquete(world, sphere), [{ world }], uniforms.cameraWorld),
+  uniforms,
+});
+
+const etroite = vue(3.5, 10),
+  large = vue(0, 60);
 const appels = [
-  { nom: 'etroite:exacte', packed: empaquete(exacte, sphereEtroite), uniforms: vue(3.5, 10) },
-  {
-    nom: 'etroite:recomposee',
-    packed: empaquete(approchee, sphereEtroite),
-    uniforms: vue(3.5, 10),
-  },
-  { nom: 'large:exacte', packed: empaquete(exacte, sphereLarge), uniforms: vue(0, 60) },
-  { nom: 'large:recomposee', packed: empaquete(approchee, sphereLarge), uniforms: vue(0, 60) },
+  appel('etroite:exacte', exacte, sphereEtroite, etroite),
+  appel('etroite:recomposee', approchee, sphereEtroite, etroite),
+  appel('large:exacte', exacte, sphereLarge, large),
+  appel('large:recomposee', approchee, sphereLarge, large),
 ];
 
 const gpu = await selectionGpu(appels);

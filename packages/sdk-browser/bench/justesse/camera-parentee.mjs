@@ -4,7 +4,7 @@
 // déplacé puis tourné entre deux images, sans que l'hôte mette son rig à jour. Chaque site du moteur
 // qui lit la pose d'une caméra (cameraSites.mjs) est appelé image après image avec ce rig, puis avec
 // la caméra sans parent de même pose monde au bit près. Tout écart est un défaut : le script échoue.
-// Le résidu de cohérence des uniformes de sélection (vue appliquée à la position monde) est affiché.
+// Le résidu de cohérence des uniformes de sélection (repère de rendu, cameraSites.mjs) est affiché.
 //
 //   node --experimental-strip-types packages/sdk-browser/bench/justesse/camera-parentee.mjs
 //
@@ -12,7 +12,6 @@
 // passage écrit le fichier, le suivant compare au bit près (avant/après une correction).
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import {
   POSES_PARENT,
   POSES_SANS_PARENT,
@@ -21,22 +20,9 @@ import {
   creeRig,
   poseRig,
 } from './cameraRig.mjs';
-import { SITES } from './cameraSites.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { SITES, residuRepereDeRendu } from './cameraSites.mjs';
 
 const texte = (valeur) => JSON.stringify(valeur);
-
-/** Résidu de la vue appliquée à la position monde : zéro à l'arrondi flottant près si elles concordent. */
-function residu(camera) {
-  const u = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]),
-    v = u.view,
-    [x, y, z] = u.cameraWorld;
-  return Math.hypot(
-    v[0] * x + v[4] * y + v[8] * z + v[12],
-    v[1] * x + v[5] * y + v[9] * z + v[13],
-    v[2] * x + v[6] * y + v[10] * z + v[14],
-  );
-}
 
 async function sequence(site, cameras) {
   const etat = await site.cree?.();
@@ -51,7 +37,7 @@ async function sequence(site, cameras) {
 async function parentee(hote) {
   console.log(`\n— rig ${hote ? 'mis à jour par l’hôte' : 'laissé tel quel par l’hôte'} —`);
   const rigResidu = creeRig();
-  const residus = POSES_PARENT.map((pose) => residu(poseRig(rigResidu, pose, hote)));
+  const residus = POSES_PARENT.map((pose) => residuRepereDeRendu(poseRig(rigResidu, pose, hote)));
   console.log(
     `résidu vue·position par image : ${residus.map((r) => r.toExponential(2)).join(' ')}`,
   );
