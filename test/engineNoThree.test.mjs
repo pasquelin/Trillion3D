@@ -45,6 +45,8 @@ const AUTORISES = {
   exactPagesContractLights:
     'témoin exact : il traduit les lampes du contrat en lampes de la bibliothèque hôte',
   exactPagesMaterials: 'témoin exact : ses matériaux sont ceux de l’hôte',
+  exactPagesUnlitAlbedo:
+    'témoin exact : sa vue sans lumière neutralise les facteurs de matériau de l’hôte',
   exactPagesMetrics: 'témoin exact : il compte ce que le renderer de l’hôte a soumis',
   exactPagesRender: 'témoin exact : il rend par le renderer de l’hôte',
   exactPagesRequests: 'témoin exact : ses demandes partent de son graphe de l’hôte',
