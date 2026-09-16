@@ -34,6 +34,10 @@ pub(super) const COMPOSITION: &str = "usd-composition-invalid";
 pub(super) const TIME_SAMPLE: &str = "usd-animation-first-sample";
 /// Un `Mesh` dont les tableaux obligatoires manquent ou se contredisent.
 pub(super) const MESH_INVALID: &str = "usd-mesh-invalid";
+/// Une face qu'un `Mesh` déclare et que ses tableaux ne portent pas : un indice hors du tableau de
+/// points, un indice négatif, moins de trois coins, ou un indice de primvar qui sort de son
+/// tableau. Elle est retirée de la surface plutôt que repliée sur le premier point.
+pub(super) const FACE_INVALID: &str = "usd-face-invalid";
 /// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe, ou
 /// sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin, ce
 /// qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
@@ -55,6 +59,28 @@ pub(super) const OPACITY_TEXTURE: &str = "usd-opacity-texture-unsupported";
 /// prend le métal dans le canal bleu et la rugosité dans le vert. La carte est portée telle quelle
 /// et l'écart est compté.
 pub(super) const TEXTURE_CHANNEL: &str = "usd-texture-channel-unsupported";
+/// Un mode de répétition que glTF n'a pas — `black`, qui borde l'image de transparent, ou
+/// `useMetadata`, qui laisse le fichier décider : la texture est répétée, comme USD le fait par
+/// défaut, et l'écart est compté.
+pub(super) const TEXTURE_WRAP: &str = "usd-texture-wrap-unsupported";
+/// Un `scale` ou un `bias` de texture qu'un facteur glTF ne porte pas : glTF multiplie sa texture
+/// par un facteur et n'y ajoute rien, donc un `bias` non nul, un `scale` différent d'un canal de
+/// couleur à l'autre ou un `scale` d'alpha qui ne vaut pas un restent hors de la scène.
+pub(super) const TEXTURE_SCALE: &str = "usd-texture-scale-unsupported";
+/// Un `sourceColorSpace` contraire au rôle de l'entrée qui lit la texture : une couleur déclarée
+/// `raw`, ou une donnée déclarée `sRGB`. Les octets passent tels quels, aucun n'est réencodé.
+pub(super) const TEXTURE_COLOUR_SPACE: &str = "usd-texture-colour-space-unsupported";
+/// Un `UsdPreviewSurface` décrit par son flux de travail spéculaire — `useSpecularWorkflow` ou une
+/// couleur spéculaire écrite : le métal et la rugosité de glTF ne le portent pas, et l'approcher
+/// par eux réinventerait la surface.
+pub(super) const SPECULAR_WORKFLOW: &str = "usd-specular-workflow-unsupported";
+/// Un vernis (`clearcoat` non nul, avec sa rugosité) : le glTF de base n'a pas cette couche.
+pub(super) const CLEARCOAT: &str = "usd-clearcoat-unsupported";
+/// Un indice de réfraction autre que celui par défaut : le glTF de base n'en porte pas.
+pub(super) const IOR: &str = "usd-ior-unsupported";
+/// Une normale écrite comme valeur, sans texture pour la porter : glTF n'a pas de normale
+/// constante par matériau, et la surface garde celle de sa géométrie.
+pub(super) const NORMAL_VALUE: &str = "usd-normal-value-unsupported";
 /// Une texture que ce pilote ne peut pas accrocher telle quelle : jeu d'UV autre que celui porté,
 /// motif `<UDIM>`, ou transformation d'UV déclarée.
 pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
@@ -66,6 +92,9 @@ pub(super) struct World<'a> {
     pub(super) scene: &'a mut Scene,
     /// Le dossier contre lequel les URI relatives d'images se résolvent, `scene::image_root`.
     pub(super) images: &'a Path,
+    /// Le même dossier sous sa forme canonique : la composition résout les chemins d'asset sous
+    /// celle-là, et c'est elle qu'il faut retrancher pour retrouver l'URI d'une image.
+    pub(super) root: PathBuf,
     /// Les matériaux déjà résolus, par chemin de prim ; `None` pour un matériau illisible.
     pub(super) materials: HashMap<String, Option<usize>>,
     /// Les maillages déjà construits, par (chemin de la donnée, matériaux liés) : deux instances du

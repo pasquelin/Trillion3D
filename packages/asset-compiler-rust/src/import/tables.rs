@@ -64,10 +64,6 @@ impl SceneTables {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
-    /// Un échantillonneur qui traite ses deux axes de la même façon.
-    pub(crate) fn sampler(&mut self, wrap: u32) -> usize {
-        self.sampler_uv(wrap, wrap)
-    }
     /// Un échantillonneur par couple de modes de répétition, filtré comme le glTF le fait par
     /// défaut. Un format qui borne un axe et répète l'autre porte bien deux modes : les confondre
     /// replie la texture.

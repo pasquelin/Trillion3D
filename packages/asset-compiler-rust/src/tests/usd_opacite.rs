@@ -16,7 +16,7 @@ fn carried_by(channel: &str) -> GoldenRun {
     let tag = format!("opacite-canal-{}", &channel["outputs:".len()..]);
     compile_layer(
         &tag,
-        &layer(&inputs, &texture("T", "checker.png")),
+        &layer(&inputs, &texture("T", "checker.png", "")),
         &["checker.png"],
     )
 }
