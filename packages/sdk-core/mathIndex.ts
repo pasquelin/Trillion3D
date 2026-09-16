@@ -30,7 +30,15 @@ export {
   boxUnion,
 } from './mathBox.ts';
 export { sphereFromBounds } from './mathSphere.ts';
-export { MATRIX_VALUES, boxTransformBatch, multiplyMatrix4Batch } from './mathBatch.ts';
+export {
+  HIERARCHY_ROOT,
+  MATRIX_VALUES,
+  POSITION_VALUES,
+  QUATERNION_VALUES,
+  boxTransformBatch,
+  hierarchyUpdateBatch,
+  multiplyMatrix4Batch,
+} from './mathBatch.ts';
 export {
   MATH_PATH_CONTRACT,
   type MathPath,

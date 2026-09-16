@@ -51,6 +51,14 @@ export type SdkWasm = {
   arena_free(offset: number, bytes: number): void;
   math_box_transform_batch(out: number, boxes: number, mats: number, n: number): void;
   math_multiply_matrix4_batch(out: number, a: number, b: number, n: number): void;
+  math_hierarchy_update_batch(
+    world: number,
+    positions: number,
+    rotations: number,
+    scales: number,
+    parents: number,
+    n: number,
+  ): void;
 };
 type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
