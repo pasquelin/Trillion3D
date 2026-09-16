@@ -7,18 +7,18 @@ use super::*;
 use usd_driver::{temp_dir, wrap};
 
 /// Le rapport d'une couche : les raisons nommées et leur compte.
-fn unsupported(run: &GoldenRun) -> Value {
+pub(super) fn unsupported(run: &GoldenRun) -> Value {
     run.prepared("usd").0["unsupported"].clone()
 }
 
 /// Le `pbrMetallicRoughness` du seul matériau de la couche.
-fn pbr(gltf: &Value) -> Value {
+pub(super) fn pbr(gltf: &Value) -> Value {
     gltf["materials"][0]["pbrMetallicRoughness"].clone()
 }
 
 /// Une couche à un quad lié au matériau `M`, dont le `UsdPreviewSurface` porte `inputs` et dont les
 /// nœuds de texture suivent.
-fn layer(inputs: &str, shaders: &str) -> String {
+pub(super) fn layer(inputs: &str, shaders: &str) -> String {
     let body = format!(
         r#"    def Mesh "Quad" (
         prepend apiSchemas = ["MaterialBindingAPI"]
@@ -47,7 +47,7 @@ fn layer(inputs: &str, shaders: &str) -> String {
 }
 
 /// Un `UsdUVTexture` nommé, sur une image du dossier de la couche.
-fn texture(name: &str, file: &str) -> String {
+pub(super) fn texture(name: &str, file: &str) -> String {
     format!(
         r#"
         def Shader "{name}"
@@ -65,7 +65,7 @@ fn texture(name: &str, file: &str) -> String {
 }
 
 /// Écrit la couche et les images qu'elle cite, puis compile par le harnais commun.
-fn compile(tag: &str, body: &str, files: &[&str]) -> GoldenRun {
+pub(super) fn compile(tag: &str, body: &str, files: &[&str]) -> GoldenRun {
     let dir = temp_dir(tag);
     fs::create_dir_all(dir.join("textures")).expect("dossier des textures");
     let image = golden_dir("usd")
