@@ -1,3 +1,10 @@
+import * as THREE from 'three';
+import {
+  FLAG_WRAP_S_MIRROR,
+  FLAG_WRAP_S_REPEAT,
+  FLAG_WRAP_T_MIRROR,
+  FLAG_WRAP_T_REPEAT,
+} from './visibilityTypes.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
@@ -38,8 +45,40 @@ export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base
 /** Coordonnée de texture d'un sommet de page. */
 export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
 
-/** Répétition ou serrage d'une coordonnée de texture, selon le drapeau du matériau. */
-export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}`;
+/**
+ * Les drapeaux d'adressage de la carte de base, un mode par axe, lus par `wrapUv` : aucun bit en
+ * serrage, `FLAG_WRAP_*_REPEAT` en répétition, `FLAG_WRAP_*_MIRROR` en répétition miroir. Les deux
+ * bits d'un même axe s'excluent, donc `wrapCoord` n'a jamais à arbitrer entre eux. Écrite ici, à
+ * côté du WGSL qui les lit, et appelée par `webgpuPageRow.ts` comme par `webgpuBlendPrepare.ts` :
+ * une page et un lot transparent portant des drapeaux différents adresseraient la même texture de
+ * deux façons.
+ */
+export function wrapFlags(map: THREE.Texture | undefined) {
+  if (!map) return 0;
+  const axis = (wrap: THREE.Wrapping, repeat: number, mirror: number) =>
+    wrap === THREE.ClampToEdgeWrapping
+      ? 0
+      : wrap === THREE.MirroredRepeatWrapping
+        ? mirror
+        : repeat;
+  return (
+    axis(map.wrapS, FLAG_WRAP_S_REPEAT, FLAG_WRAP_S_MIRROR) |
+    axis(map.wrapT, FLAG_WRAP_T_REPEAT, FLAG_WRAP_T_MIRROR)
+  );
+}
+
+/**
+ * La coordonnée de texture ramenée dans [0, 1] selon le mode de chaque axe, pour un échantillonneur
+ * en serrage. Le miroir lit les périodes impaires à rebours : `p` parcourt [0, 2) et `2 - p` est
+ * exact, donc le filtrage linéaire rend la couleur de l'échantillonneur `mirror-repeat` de Three.
+ */
+export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
+ let p=t-2.0*floor(t*0.5);
+ return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
+}
+fn wrapUv(uv:vec2f,flags:u32)->vec2f{
+ return vec2f(wrapCoord(uv.x,(flags&${FLAG_WRAP_S_REPEAT}u)!=0u,(flags&${FLAG_WRAP_S_MIRROR}u)!=0u),wrapCoord(uv.y,(flags&${FLAG_WRAP_T_REPEAT}u)!=0u,(flags&${FLAG_WRAP_T_MIRROR}u)!=0u));
+}`;
 
 /** Aire signée du triangle `(a,b,p)` en coordonnées écran ; le raster en tire ses barycentriques. */
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
@@ -59,7 +98,7 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * raster du tampon de visibilité et la passe de profondeur des ombres les appliquent tous les deux.
  * Une seule écriture : une découpe qui ne serait pas la même des deux côtés ferait une ombre qui ne
  * correspond pas à la silhouette qu'on voit. `flags` : 4 = UV présentes, 8 = carte de base,
- * 32/64 = répétition en S/T, 128 = matériau à masque ; le seuil est `baseColor.w`.
+ * 128 = matériau à masque, et les drapeaux d'adressage de `wrapFlags` ; le seuil est `baseColor.w`.
  *
  * Le shader hôte déclare `uvs`, l'atlas couleur et sa table de slots, puis insère `ATLAS_SLOTS_WGSL`
  * et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y lit le niveau le plus fin déjà résident.
@@ -67,7 +106,7 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
 export const MASK_KEEP_WGSL = `${WRAP_COORD_WGSL}
 fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let raw=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
+ let raw=wrapUv(uv,page.flags);
  // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
  // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
  return colorAlpha(page.mapIndex,page.uvScale,raw)>=page.baseColor.w;

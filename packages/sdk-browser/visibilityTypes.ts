@@ -45,7 +45,9 @@ export const FLAG_LIT = 1,
    */
   FLAG_UNLIT_VIEW = 8192,
   /** Le matériau transmet : la surface lit le fond déjà dessiné au lieu de le mélanger par alpha. */
-  FLAG_TRANSMISSIVE = 16384;
+  FLAG_TRANSMISSIVE = 16384,
+  FLAG_WRAP_S_MIRROR = 32768,
+  FLAG_WRAP_T_MIRROR = 65536;
 export type VisPage = {
   array: Uint32Array;
   attributes: THREE.BufferGeometry['attributes'];

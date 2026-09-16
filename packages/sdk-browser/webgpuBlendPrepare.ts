@@ -9,11 +9,10 @@ import {
   FLAG_LIT,
   FLAG_PAGED,
   FLAG_TRANSMISSIVE,
-  FLAG_WRAP_S_REPEAT,
-  FLAG_WRAP_T_REPEAT,
   isTransmissive,
   visMaterial,
 } from './visibilityBuffer.ts';
+import { wrapFlags } from './visibilityPageWgsl.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import {
   ensureBlendIndexBuffer,
@@ -67,8 +66,7 @@ export function prepareWebgpuBlend(
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
     if (transmits) flags |= FLAG_TRANSMISSIVE;
-    if (mat.map && mat.map.wrapS !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_S_REPEAT;
-    if (mat.map && mat.map.wrapT !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_T_REPEAT;
+    flags |= wrapFlags(mat.map);
     // Static source transforms are baked for this backend. World AABBs remain
     // conservative under rotation, mirroring, nonuniform scale and shear.
     let bounds: Float64Array | undefined;
