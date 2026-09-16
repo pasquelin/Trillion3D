@@ -40,6 +40,11 @@ fn coverAt(t:Tri,sample:vec2f)->vec4f{
  return vec4f(0.0,0.0,0.0,-1.0);
 }
 fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
+ // La seule borne d'image de tout le raster : les pavés de fils dépassent la boîte du triangle dès
+ // qu'elle n'en fait pas un compte rond, et la boîte est déjà serrée au dernier pixel de l'image.
+ // Sans cette borne, un triangle au bord droit ou bas replie ses écritures sur la ligne suivante,
+ // voire hors du plan des identifiants, où elles écrasent l'en-tête des listes de triangles.
+ if(pixel.x>i32(t.hi.x)||pixel.y>i32(t.hi.y)){return;}
  let sample=vec2f(pixel)+vec2f(0.5);
  let cov=coverAt(t,sample);
  if(cov.w<0.0){return;}
