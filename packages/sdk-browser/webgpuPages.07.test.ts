@@ -9,6 +9,7 @@ import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera, rootPage, twoPrimitives } from './webgpuPagesTestScenes.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals();
@@ -124,13 +125,13 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
       material,
     },
   ];
-  const expected = rasterVisibilityIds(pages, cam, [32, 32]);
+  const expected = rasterVisibilityIds(pages, cameraMoteur(cam), [32, 32]);
   const observed = backend.visibilityIds();
   assert.deepEqual(observed, expected);
   assert.deepEqual(observed, backend.visibilityIds());
   const image = compareImages(
     backend.rasterRgba(),
-    shadeVisibility(expected, pages, cam, [32, 32]),
+    shadeVisibility(expected, pages, cameraMoteur(cam), [32, 32]),
   );
   assert.equal(image.maxChannelError, 0);
   const maps = textures.find((t) => t.format === 'rgba8unorm-srgb');

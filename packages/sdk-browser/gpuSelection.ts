@@ -5,7 +5,7 @@
  * screen-error band. This module holds what is common to a kernel and its callers — the uniform
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
-import { FRUSTUM_PLANE_VALUES } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
@@ -144,7 +144,7 @@ export function cameraSelectionUniforms(
     viewport,
     into?.pixelScale ?? ([1, 1] as [number, number]),
   );
-  const position = cam.position;
+  const position = cam.eye;
   const cameraWorld: [number, number, number] = into?.cameraWorld ?? [
     position[0],
     position[1],
@@ -154,7 +154,7 @@ export function cameraSelectionUniforms(
   cameraWorld[1] = position[1];
   cameraWorld[2] = position[2];
   // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
-  const cameraStretch = cam.viewStretch;
+  const cameraStretch = maxStretch(cam.view);
   if (into) {
     into.pixelError = pixelError;
     into.near = cam.near;

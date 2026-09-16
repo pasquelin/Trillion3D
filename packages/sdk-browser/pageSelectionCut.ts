@@ -1,4 +1,4 @@
-import { frustumExcludesBox, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../sdk-core/index.ts';
 import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
   IDENTITY_WORLD,
@@ -52,7 +52,7 @@ export function selectVisiblePages<T extends PageRecord>(
   // par cluster deux relectures de l'état et un appel indirect, sans toucher à la réponse.
   state.residentMode = residentModeOf(hold, options.isResident);
   state.pixelError = options.pixelError ?? 0;
-  state.cameraStretch = cam.viewStretch;
+  state.cameraStretch = maxStretch(cam.view);
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;
   state.flatElements = (roots[0]?.world ?? IDENTITY_WORLD).elements;
   state.flatStretch = 1;

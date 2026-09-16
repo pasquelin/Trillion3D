@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createProjectionHold } from './hizProjectionHold.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function camera() {
   const view = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1000);
@@ -18,7 +19,7 @@ test('the first image projects every slot it is asked for, and no other', () => 
   const hold = createProjectionHold(4);
   const view = camera();
   const pages = Int32Array.from([10, 11, 12, 13]);
-  hold.reframe(view, 1280, 720, 1);
+  hold.reframe(cameraMoteur(view), 1280, 720, 1);
   assert.equal(hold.select(4, mask(1, 0, 1, 0), pages), 2);
   assert.deepEqual(pending(hold, 4), [1, 0, 1, 0]);
   hold.keep(4, pages);
@@ -34,7 +35,7 @@ test('a slot that changes page owes a rectangle, its neighbours do not', () => {
   const hold = createProjectionHold(4);
   const view = camera();
   const pages = Int32Array.from([10, 11, 12, 13]);
-  hold.reframe(view, 1280, 720, 1);
+  hold.reframe(cameraMoteur(view), 1280, 720, 1);
   hold.select(4, undefined, pages);
   hold.keep(4, pages);
   const moved = Int32Array.from([10, 99, 12, 13]);
@@ -49,7 +50,7 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
   const settled = () => {
     const hold = createProjectionHold(4),
       view = camera();
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     hold.select(4, undefined, pages);
     hold.keep(4, pages);
     return { hold, view };
@@ -63,19 +64,19 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
     const rig = new THREE.Group();
     rig.add(view);
     rig.position.x = 3;
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     assert.equal(hold.select(4, undefined, pages), 4, 'rig d’hôte déplacé');
     assert.deepEqual(pending(hold, 4), all);
     hold.keep(4, pages);
     // Et le rig immobile ne les retire pas : le cache tient.
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     assert.equal(hold.select(4, undefined, pages), 0, 'rig immobile');
   }
   {
     const { hold, view } = settled();
     view.position.x += 1e-6;
     view.updateMatrixWorld();
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     assert.equal(hold.select(4, undefined, pages), 4, 'caméra déplacée');
     assert.deepEqual(pending(hold, 4), all);
   }
@@ -83,34 +84,34 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
     const { hold, view } = settled();
     view.fov = 54;
     view.updateProjectionMatrix();
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     hold.select(4, undefined, pages);
     assert.deepEqual(pending(hold, 4), all, 'projection changée');
   }
   {
     const { hold, view } = settled();
-    hold.reframe(view, 640, 720, 1);
+    hold.reframe(cameraMoteur(view), 640, 720, 1);
     hold.select(4, undefined, pages);
     assert.deepEqual(pending(hold, 4), all, 'fenêtre');
   }
   {
     const { hold, view } = settled();
-    hold.reframe(view, 1280, 720, 2);
+    hold.reframe(cameraMoteur(view), 1280, 720, 2);
     hold.select(4, undefined, pages);
     assert.deepEqual(pending(hold, 4), all, 'époque des matrices monde');
   }
   {
     const { hold, view } = settled();
     hold.invalidate();
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     hold.select(4, undefined, pages);
     assert.deepEqual(pending(hold, 4), all, 'table retirée');
   }
   {
     // A view that did not move leaves every rectangle standing, however often it is re-read.
     const { hold, view } = settled();
-    hold.reframe(view, 1280, 720, 1);
-    hold.reframe(view, 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
+    hold.reframe(cameraMoteur(view), 1280, 720, 1);
     assert.equal(hold.select(4, undefined, pages), 0);
   }
 });

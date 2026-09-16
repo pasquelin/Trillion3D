@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './pageSelection.ts';
 import { dagFixture, wideCamera, urls } from './pageSelectionDagFixture.ts';
 import { dagCulling } from './pageSelectionTestHelpers.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('the root cover is what stays pinned for a flat cut', () => {
   const fixture = dagFixture();
@@ -60,7 +61,7 @@ test('the culling hierarchy accelerates the flat cut without changing it', () =>
     accelerated.associations,
   );
   assert.ok(roots[0].culling, 'the hierarchy must be unpacked');
-  const coarse = selectVisiblePages(roots, cam, {
+  const coarse = selectVisiblePages(roots, cameraMoteur(cam), {
     pixelError: 20,
     viewport: [1280, 720],
   });

@@ -13,9 +13,12 @@ import { referenceOrder } from './oracles/socle-math-priorite.mjs';
 import { affines, matrices, points } from './scenesSocle.mjs';
 import { enregistrements, octets } from './scenesSocleConsommateurs.mjs';
 import { essaie, ligne } from './socleLigne.mjs';
+import { createEngineCamera, readCameraWorld } from '../cameraWorld.ts';
 
 export async function lignesConsommateursBrowser() {
   const { liste, camera, echelle } = enregistrements;
+  // L'ordre du moteur lit la caméra qu'il possède ; l'oracle garde celle de la bibliothèque hôte.
+  const vue = readCameraWorld(createEngineCamera(), camera);
   const paquets = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
@@ -26,7 +29,7 @@ export async function lignesConsommateursBrowser() {
       'enregistrements hostiles, par paquets de 30',
       paquets,
       (l) => l.map((p) => essaie(() => referenceOrder(p, camera, echelle))),
-      (l) => l.map((p) => essaie(() => orderPendingUrls(p, camera, echelle, []))),
+      (l) => l.map((p) => essaie(() => orderPendingUrls(p, vue, echelle, []))),
     ),
     await ligne(
       'sphère monde d’un cluster pour les ombres',
@@ -93,7 +96,7 @@ export async function lignesConsommateursBrowser() {
                 new THREE.Matrix4().fromArray(m),
                 attribut,
                 v,
-                new THREE.Matrix4().fromArray(matrices[(i * 11) % matrices.length]),
+                matrices[(i * 11) % matrices.length],
                 1280,
                 720,
               ),
