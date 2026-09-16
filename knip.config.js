@@ -1,8 +1,10 @@
 // The SDK's source entries are public; browser probes are launched by the host, outside npm test.
-// `pageDecodeWorker.ts` is a worker entry point: the pool loads it by URL, never by import.
+// `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
+// integration lane load them by URL, never by import.
 export default {
   entry: [
     'packages/sdk-browser/pageDecodeWorker.ts',
+    'packages/sdk-browser/pageIntegrationWorker.ts',
     'packages/sdk-node/{index,cli}.mts',
     'packages/page-codec/geometryPage.mjs',
     'packages/**/*.test.{ts,mjs}',
