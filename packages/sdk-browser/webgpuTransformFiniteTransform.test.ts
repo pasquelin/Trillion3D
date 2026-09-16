@@ -9,9 +9,10 @@ import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { cisaillee, runtime, scene, versGpu } from './webgpuTransformCisaillementFixture.ts';
 
 test('setWebgpuTransform refuse une matrice NaN ou infinie (NON_FINITE_TRANSFORM), le nœud reste inchangé', () => {
-  const { source, mesh } = scene(),
-    { rt } = runtime(source),
-    intacte = mesh.matrixWorld.elements.slice();
+  const { source, mesh, worlds } = scene(),
+    { rt } = runtime(source, [], worlds),
+    monde = worlds.of(mesh),
+    intacte = monde.elements.slice();
   for (const [index, valeur] of [
     [0, NaN],
     [15, Infinity],
@@ -29,7 +30,7 @@ test('setWebgpuTransform refuse une matrice NaN ou infinie (NON_FINITE_TRANSFORM
       `index ${index}=${valeur} non refusé`,
     );
     assert.deepEqual(
-      Array.from(mesh.matrixWorld.elements),
+      Array.from(monde.elements),
       Array.from(intacte),
       'une pose refusée ne doit laisser aucune trace sur le nœud',
     );

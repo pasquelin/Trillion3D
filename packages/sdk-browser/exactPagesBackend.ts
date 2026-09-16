@@ -31,12 +31,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
     viewport,
     clearColor = DEFAULT_CLEAR_COLOR,
   } = context;
-  const { roots, allPages, blendCopies, bootstrap, requestCount, prepared } = collectClusterPages(
-    source,
-    metadata,
-    indices,
-    associations,
-  );
+  const { roots, allPages, blendCopies, bootstrap, requestCount, prepared, worlds } =
+    collectClusterPages(source, metadata, indices, associations);
   const cap = maxResidentPages ?? Math.max(1024, prepared),
     scene = new THREE.Scene();
   const sceneLights = lighting(scene, clearColor, context.sceneLighting ?? source);
@@ -147,6 +143,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     sceneLights,
     motion,
     roots,
+    worlds,
     viewport,
     cap,
     desired,
