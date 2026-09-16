@@ -23,6 +23,8 @@ export const DRAW_ITEM_U32 = 5;
  * pipeline that carries their depth bias, and the clusters of layer 0 keep the order they had.
  */
 export const slotCount = (layerSlots: number) => BASE_SLOTS * Math.max(1, layerSlots);
+/** Les slots de la moitié testée : les trois modes de face de chaque couche, après les occulteurs. */
+export const restSlotCount = (layerSlots: number) => (BASE_SLOTS / 2) * layerSlots;
 /** Slots que la compaction peut avoir à nommer : toutes les couches que le format de cache décrit.
  *  Les tableaux dimensionnés une fois pour toutes s'y réfèrent ; cela coûte quelques centaines
  *  d'octets et évite de réallouer quand une scène porte des couches. */
