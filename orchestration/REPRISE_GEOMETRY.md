@@ -17,15 +17,16 @@ Ce fichier est la todo de la session Geometry. Tout ce qui n'est pas ici est dan
 Fusionné le 16 sept. au soir : sélection GPU compacte (024b3b01), hôte par différence et streaming par insertion (7a90e39e), compteurs à `null` (5f66f7cc), raster de calcul pour toute la coupe opaque et masquée avec tampon de visibilité et résolution plein écran (b72278c6). Chaque fusion reproduite : image rendue, aucun diagnostic. Verdict Lab attendu sur b72278c6.
 
 Deux audits du 16 sept. (scratchpad de la session, `audit-lag.md` et `audit-architecture.md`, à demander si perdus) disent : la structure est la bonne, la même que la référence (clusters de 128, arbre de détails, erreurs monotones, streaming de pages, coupe GPU, Hi-Z, raster de calcul). Le lag vient de trois habitudes :
+
 1. Le CPU recopie toute la coupe depuis le GPU à chaque image (186 943 fiches à 12 instances, 15,7 Mo, `gpuDagResources.ts:31`) et cinq lecteurs la relisent en entier (`webgpuPagesHostApi.ts:107,167`, `webgpuCutDelta`, `shownFromGpu`, `webgpuTexturePriority.ts:84,120`) : 60 à 75 % des 13 ms CPU.
 2. Ces recopies créent des tableaux neufs ; le ramasse-miettes bloque 20 ms toutes les 5 à 8 images : c'est la saccade.
 3. Les transparents font 4 288 appels de dessin, un par plan (`webgpuBlendDraw.ts:152`) ; l'opaque tient en 6.
 
-| Poste | Référence | Nous (headless 60 Hz) |
-|---|---|---|
-| Total GPU | 4 à 5 ms | 9,5 à 10 ms (part par étape non mesurée) |
-| CPU par image | < 1 ms | 12 à 22 ms p50, 80 ms p95 |
-| Appels de dessin | quelques-uns | 4 331, dont 4 288 transparents |
+| Poste            | Référence    | Nous (headless 60 Hz)                    |
+| ---------------- | ------------ | ---------------------------------------- |
+| Total GPU        | 4 à 5 ms     | 9,5 à 10 ms (part par étape non mesurée) |
+| CPU par image    | < 1 ms       | 12 à 22 ms p50, 80 ms p95                |
+| Appels de dessin | quelques-uns | 4 331, dont 4 288 transparents           |
 
 ## 3. Comment marchent les transparents (pour comprendre les lots 2 et 14)
 
@@ -33,25 +34,26 @@ L'opaque n'a pas d'ordre : la profondeur garde le plus proche. Un matériau en m
 
 ## 4. Todo, dans l'ordre (chaque ligne = un lot, sur ordre écrit)
 
-| # | Quoi | Gain | Effort |
-|---|---|---|---|
-| 1 | Coupe par différence | très élevé | moyen |
-| 2 | Transparents en quelques ordres | élevé | moyen |
-| 3 | Sélection GPU persistante, coupe en une passe | élevé | élevé |
-| 4 | Pompe de textures par différence, puis textures virtuelles | élevé | faible puis élevé |
-| 5 | Une coupe par grappe, placements en index | structurel | très élevé |
-| 6 | Image tenue conservée à l'arrivée d'une page | moyen | faible |
-| 7 | Surveillance de scène par version | faible | faible |
-| 8 | Priorité par erreur d'écran sur WebGPU | moyen | faible |
-| 9 | Partition Hi-Z par visibilité passée, puis Hi-Z deux passes | moyen | moyen |
-| 10 | Filets de sécurité (avant 5) | sûreté | moyen |
-| 11 | Compression des sommets hors ligne | majeur réseau | élevé |
-| 12 | Ombres par la même géométrie | moyen | élevé |
-| 13 | Matériaux par classes | moyen | élevé |
-| 14 | Eau en passe plein écran | moyen | moyen |
-| 15 | Noyaux Rust/Wasm M5 sur la coupe WebGL et les rangs | moyen | moyen |
-| 16 | Compilateur : `DAG_GROUP_MIN`, `CLUSTER_TRIANGLES` | propreté | très faible |
-| 17 | Hiérarchie moteur : pris en charge par le Calculateur (`lot/calc-8-pages-hierarchie-moteur`) ; ne pas toucher `pageSelectionCollect`, `frameGateCore`, `sceneMeshes`, `webgpuPagesTransform` avant sa fusion | fin de la migration hors Three | — |
+| #   | Quoi                                                                                                                                                                                                         | Gain                           | Effort            |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------ | ----------------- |
+| 1   | Coupe par différence                                                                                                                                                                                         | très élevé                     | moyen             |
+| 2   | Transparents en quelques ordres                                                                                                                                                                              | élevé                          | moyen             |
+| 3   | Sélection GPU persistante, coupe en une passe                                                                                                                                                                | élevé                          | élevé             |
+| 4   | Pompe de textures par différence, puis textures virtuelles                                                                                                                                                   | élevé                          | faible puis élevé |
+| 5   | Une coupe par grappe, placements en index                                                                                                                                                                    | structurel                     | très élevé        |
+| 6   | Image tenue conservée à l'arrivée d'une page                                                                                                                                                                 | moyen                          | faible            |
+| 7   | Surveillance de scène par version                                                                                                                                                                            | faible                         | faible            |
+| 8   | Priorité par erreur d'écran sur WebGPU                                                                                                                                                                       | moyen                          | faible            |
+| 9   | Partition Hi-Z par visibilité passée, puis Hi-Z deux passes                                                                                                                                                  | moyen                          | moyen             |
+| 10  | Filets de sécurité (avant 5)                                                                                                                                                                                 | sûreté                         | moyen             |
+| 11  | Compression des sommets hors ligne                                                                                                                                                                           | majeur réseau                  | élevé             |
+| 12  | Ombres par la même géométrie                                                                                                                                                                                 | moyen                          | élevé             |
+| 13  | Matériaux par classes                                                                                                                                                                                        | moyen                          | élevé             |
+| 14  | Eau en passe plein écran                                                                                                                                                                                     | moyen                          | moyen             |
+| 15  | Noyaux Rust/Wasm M5 sur la coupe WebGL et les rangs                                                                                                                                                          | moyen                          | moyen             |
+| 16  | Compilateur : `DAG_GROUP_MIN`, `CLUSTER_TRIANGLES`                                                                                                                                                           | propreté                       | très faible       |
+| 17  | Hiérarchie moteur : pris en charge par le Calculateur (`lot/calc-8-pages-hierarchie-moteur`) ; ne pas toucher `pageSelectionCollect`, `frameGateCore`, `sceneMeshes`, `webgpuPagesTransform` avant sa fusion | fin de la migration hors Three | —                 |
+| 18  | Un mot compact par grappe dans `dagWanted`                                                                                                                                                                   | faible                         | faible            |
 
 Les lots 1 à 4 font disparaître le lag ; 5, 9, 11 rapprochent de la référence ; 10 passe avant 5.
 
@@ -74,5 +76,6 @@ Les lots 1 à 4 font disparaître le lag ; 5, 9, 11 rapprochent de la référenc
 15. **Noyaux Rust/Wasm M5 du Calculateur** sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
 16. **Compilateur** : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
 17. **Hiérarchie moteur** : le Calculateur le code lui-même depuis develop 8250b86c sur `lot/calc-8-pages-hierarchie-moteur` (`pageSelectionCollect.ts`, `frameGateCore.updateWorlds`, `sceneMeshes.ts`, `webgpuPagesTransform.ts`, et ce qu'il faut dans `gpuDag*`/`webgpuPages*`). Interdit d'y toucher avant sa fusion ; il prévient. Le lot 1 devra repartir de develop après cette fusion.
+18. **`dagWanted`** : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection ; coupe incrémentale non tentée, le seuil par primitive est un point fixe global (`atomicMax`).
 
 Ce que la référence a et qu'on ne fera pas : mesh shaders et atomique 64 bits, absents du web, remplacés par nos deux passes atomiques 32 bits. Relevés bruts sous `.mesure/out/` ; `stable.mjs` et `profil.mjs` dans le scratchpad de la session, à recréer s'ils sont perdus (80 lignes sur `scripts/mesure/{options,serveur,page,rapport}.mjs`).
