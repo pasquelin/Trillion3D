@@ -112,7 +112,16 @@ export function planShadowRegions(
       side,
       regionRect(rectScratch, rows, x0, x1, y0, y1),
     );
-    shadows.writeRegion(region, slice, face, faceMatrices, matrixBase, slices.rects);
+    shadows.writeRegion(
+      region,
+      slice,
+      face,
+      faceMatrices,
+      matrixBase,
+      slices.rects,
+      light.position,
+      light.emitterRadius ?? 0,
+    );
     const rect = slice * RECTS_PER_SLICE + face * 3;
     const faceX = slices.rects[rect],
       faceY = slices.rects[rect + 1];
