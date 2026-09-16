@@ -1,6 +1,6 @@
 // G5 et G6 : les deux recherches linéaires du chemin de streaming. G5 marque la demande abandonnée
 // et compacte la file en un passage ; G6 confie l'appartenance de la file d'attente à un `Set`.
-import { compacteFile } from '../streamingQueue.ts';
+import { compacteFile } from '../streamingQueueOrder.ts';
 import { empileEnAttente } from '../explorerDraw.ts';
 import { compare, graine } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeG } from '../../sdk-core/bench/bancG.mjs';
