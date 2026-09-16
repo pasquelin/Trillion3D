@@ -71,14 +71,66 @@ export function wrapFlags(map: THREE.Texture | undefined) {
  * La coordonnée de texture ramenée dans [0, 1] selon le mode de chaque axe, pour un échantillonneur
  * en serrage. Le miroir lit les périodes impaires à rebours : `p` parcourt [0, 2) et `2 - p` est
  * exact, donc le filtrage linéaire rend la couleur de l'échantillonneur `mirror-repeat` de Three.
+ *
+ * Replier la coordonnée suffit au plus proche et au miroir, jamais à la répétition en filtrage
+ * linéaire : dans le demi-texel des deux bords d'une période, la règle de l'échantillonneur mêle le
+ * dernier texel et le premier, que le repli sépare. `wrapUv` rend donc les deux prises et leur
+ * poids — `proche` seule hors couture, puis `loin` et `poids` sur la couture, où l'appelant mêle
+ * lui-même les quatre lectures. `proche` reste le texel que le repli désignait, donc une lecture au
+ * plus proche ne bouge pas ; les deux prises tombent au centre exact d'un texel de bord, si bien que
+ * la lecture ne dépend plus de l'interpolation de la carte mais du mélange que l'appelant écrit.
  */
 export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
  let p=t-2.0*floor(t*0.5);
  return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
 }
-fn wrapUv(uv:vec2f,flags:u32)->vec2f{
- return vec2f(wrapCoord(uv.x,(flags&${FLAG_WRAP_S_REPEAT}u)!=0u,(flags&${FLAG_WRAP_S_MIRROR}u)!=0u),wrapCoord(uv.y,(flags&${FLAG_WRAP_T_REPEAT}u)!=0u,(flags&${FLAG_WRAP_T_MIRROR}u)!=0u));
+struct WrapTaps{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,}
+fn wrapAxis(t:f32,repeat:bool,mirror:bool,texels:f32)->vec4f{
+ let c=wrapCoord(t,repeat,mirror);
+ let demi=0.5/texels;
+ if(!repeat||(c>=demi&&c<=1.0-demi)){return vec4f(c,c,0.0,0.0);}
+ let g=fract(c*texels+0.5);
+ return vec4f(select(1.0-demi,demi,c<demi),select(demi,1.0-demi,c<demi),min(g,1.0-g),1.0);
+}
+fn wrapUv(uv:vec2f,flags:u32,texels:vec2f)->WrapTaps{
+ let x=wrapAxis(uv.x,(flags&${FLAG_WRAP_S_REPEAT}u)!=0u,(flags&${FLAG_WRAP_S_MIRROR}u)!=0u,texels.x);
+ let y=wrapAxis(uv.y,(flags&${FLAG_WRAP_T_REPEAT}u)!=0u,(flags&${FLAG_WRAP_T_MIRROR}u)!=0u,texels.y);
+ return WrapTaps(vec2f(x.x,y.x),vec2f(x.y,y.y),vec2f(x.z,y.z),x.w+y.w>0.0);
 }`;
+
+/**
+ * Miroir processeur de `wrapAxis`, juste au-dessus : les deux texels qu'un filtrage linéaire mêle
+ * sur un axe de `size` texels, le plus proche d'abord, et le poids du second. Hors de la couture
+ * d'une période, ce sont les voisins que l'échantillonneur en serrage donne déjà, bornés comme il
+ * les borne ; sur la couture en répétition, la règle de l'échantillonneur mêle le dernier texel et
+ * le premier, que le repli de la coordonnée sépare — les prises rebouclent alors la période.
+ * Deux langages, une règle : le texte de nuanceur ne se partage pas avec TypeScript.
+ */
+export function wrapLinear(
+  t: number,
+  size: number,
+  wrap: THREE.Wrapping,
+): [number, number, number] {
+  const repeat = wrap === THREE.RepeatWrapping;
+  const p = wrap === THREE.MirroredRepeatWrapping ? t - 2 * Math.floor(t / 2) : 0;
+  const c = repeat
+    ? t - Math.floor(t)
+    : wrap === THREE.ClampToEdgeWrapping
+      ? Math.min(1, Math.max(0, t))
+      : p > 1
+        ? 2 - p
+        : p;
+  const demi = 0.5 / size;
+  if (repeat && (c < demi || c > 1 - demi)) {
+    const u = c * size + 0.5,
+      g = u - Math.floor(u);
+    return c < demi ? [0, size - 1, 1 - g] : [size - 1, 0, g];
+  }
+  const centre = c * size - 0.5,
+    bas = Math.floor(centre);
+  const borne = (i: number) => Math.min(size - 1, Math.max(0, i));
+  return [borne(bas), borne(bas + 1), centre - bas];
+}
 
 /** Aire signée du triangle `(a,b,p)` en coordonnées écran ; le raster en tire ses barycentriques. */
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
@@ -101,15 +153,14 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * 128 = matériau à masque, et les drapeaux d'adressage de `wrapFlags` ; le seuil est `baseColor.w`.
  *
  * Le shader hôte déclare `uvs`, l'atlas couleur et sa table de slots, puis insère `ATLAS_SLOTS_WGSL`
- * et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y lit le niveau le plus fin déjà résident.
+ * (qui porte la règle d'adressage) et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y applique
+ * l'adressage de la page et lit le niveau le plus fin déjà résident.
  */
-export const MASK_KEEP_WGSL = `${WRAP_COORD_WGSL}
-fn maskKeep(page:PageInfo,uv:vec2f)->bool{
+export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let raw=wrapUv(uv,page.flags);
  // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
  // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
- return colorAlpha(page.mapIndex,page.uvScale,raw)>=page.baseColor.w;
+ return colorAlpha(page.mapIndex,page.uvScale,uv,page.flags)>=page.baseColor.w;
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */
