@@ -49,7 +49,7 @@ async function executer({ shader, cas, workgroup }) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-  const etapes = ['dagPrepare', 'dagNodes', 'dagWanted', 'dagMask'].map(etape);
+  const etapes = ['dagPrepare', 'dagLevel0', 'dagWanted', 'dagMask'].map(etape);
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   const tampon = (taille, octetsSource, usage = STORAGE) => {
     const buffer = device.createBuffer({
