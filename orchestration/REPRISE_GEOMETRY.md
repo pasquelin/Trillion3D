@@ -1,4 +1,4 @@
-# Geometry — reprise (16 sept. 2026, 19 h)
+# Geometry — reprise (16 sept. 2026, 20 h)
 
 ## Identité et règles
 
@@ -11,27 +11,26 @@
 
 ## Cibles (Nanite, 1080p, carte génération PS5) et état mesuré en mouvement, 12 instances
 
-| Poste | Nanite | Nous (018c5b72) |
+| Poste | Nanite | Nous (7a90e39e, headless) |
 |---|---|---|
 | Coupe + raster géométrie, GPU | 2 à 4 ms | 5 à 6 ms |
 | Visibilité + matériaux, GPU | 1 à 2 ms | 1 à 2 ms |
 | Transparents, GPU | hors Nanite | 0,2 ms |
-| Total GPU | 4 à 5 ms | 11 ms |
-| CPU par image | < 1 ms | 8 à 14 ms |
+| Total GPU | 4 à 5 ms | 9,4 ms |
+| CPU par image | < 1 ms | 12,8 ms p50 (à confirmer dans le Lab) |
 | Immobile | tenue | tenue, 2 ms |
 
-## Fait (develop local 018c5b72, non poussé, depuis b92e23e)
+## Fait (develop local 7a90e39e, non poussé, depuis b92e23e)
 
-Image tenue + incrémental ; coupe GPU rétablie ; transparents suivent les transformations ; partition Hi-Z, rejet anticipé du mélange, occlusion des transparents, sélection indirecte et par niveaux, géométrie tronquée ; streaming sans attente, worker d'intégration, syncRows incrémental, fiches bornées à 2 ms/image, journal sans débordement, trace bornée ; transparents sur GPU (sélection, fiches par item, hors champ non encodés) ; coupe CPU WebGL élaguée sous forçage ; listes de l'hôte sans ensembles de clés.
+Image tenue + incrémental ; coupe GPU rétablie ; transparents suivent les transformations ; partition Hi-Z, rejet anticipé du mélange, occlusion des transparents, sélection indirecte et par niveaux, géométrie tronquée ; streaming sans attente, worker d'intégration, syncRows incrémental, fiches bornées à 2 ms/image, journal sans débordement, trace bornée ; transparents sur GPU (sélection, fiches par item, hors champ non encodés) ; coupe CPU WebGL élaguée sous forçage ; listes de l'hôte sans ensembles de clés ; M5 du Calculateur (0f95e425) ; sélection GPU compacte : résidence en bits, enregistrements chauds 12 mots / froids, `gpuDagLayout.ts` décodeur unique (024b3b01) ; hôte par delta et rangs numériques, file de streaming par insertion, fusion linéaire du relevé de coupe avec séquence adoptée/publiée (7a90e39e). Reproduction après 7a90e39e : 4 331 appels, GPU 9,4 ms, CPU p50 12,8 ms headless, aucun diagnostic ; verdict Lab attendu.
 
 ## En cours (agents Opus, code seul)
 
-1. `lot/hote-delta` : contrat hôte par delta et rangs numériques, file de priorité par insertion, delta de relevé par fusion linéaire → CPU < 1 ms. Fichiers : explorer*, streaming*, webgpuPages*, webgpuCut*.
-2. `lot/selection-compacte` : enregistrements chauds/froids, résidence en bits, oracle miroir → sélection 1,5 → 0,5 ms. Fichiers : gpuDag*.
+3. `lot/raster-calcul` (worktree isolé depuis 7a90e39e) : raster de calcul pour tous les triangles opaques et masqués, tampon de visibilité, résolution matérielle plein écran, retrait de la passe d'appels de dessin opaque, BLEND inchangé ; départage par identifiant sous égalité de profondeur. Cible GPU géométrie 5 → 3 ms. Relecture Sonnet puis reproduction avant fusion.
+
+Reste de `lot/hote-delta` (non fait, à planifier) : `applyBudget`/`webgpuBudgetRanking.rank` parcourt encore `run.desired` par image ; `pendingUrls` garde son contrat chaîne et son parcours en mouvement.
 
 ## À faire, dans l'ordre
-
-3. Raster de calcul pour tous les triangles (plus de passe matérielle) : GPU géométrie 5 → 3 ms, départage par identifiant gratuit. Le plus gros lot.
 4. Sur verdict « plus de lag » : relever l'interdiction ; écrire d'abord la preuve de navigation sur la scène réelle (pipeline créé, aucune page manquante, appels et CPU dans une enveloppe), puis remettre les tests caducs : `webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11` ; reprendre l'hôte de test de coupe du Calculateur (41dfcccc). Puis simplify, puis confirmation ligne par ligne du tableau Unreal/nous.
 5. Noyaux Rust/Wasm du Calculateur (M5, arène partagée) sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
 6. `webgpuPagesPrepare.ts` à 202 lignes (porte check:lines) à régler au simplify.
