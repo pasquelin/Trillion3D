@@ -67,18 +67,20 @@ impl ModelImport {
     }
 }
 
+/// Le document d'un `.meta`. Un `.meta` n'a pas d'entête `--- !u!` : c'est du YAML ordinaire, lu
+/// tel quel. Absent ou illisible, il ne rend rien et l'appelant garde ses valeurs par défaut.
+pub(super) fn document(meta: &Path) -> Yaml {
+    read_text(meta)
+        .and_then(|text| YamlLoader::load_from_str(&text).ok())
+        .and_then(|documents| documents.into_iter().next())
+        .unwrap_or(Yaml::BadValue)
+}
+
 /// Lit le `.meta` d'un modèle. Un `.meta` absent, illisible ou muet rend les réglages par défaut :
 /// aucune mise à l'échelle, aucun nom — le pilote retombe alors sur le modèle entier.
 pub(super) fn read(meta: &Path) -> ModelImport {
-    let Some(text) = read_text(meta) else {
-        return ModelImport::default();
-    };
-    let Ok(documents) = YamlLoader::load_from_str(&text) else {
-        return ModelImport::default();
-    };
-    let Some(importer) = documents.first().map(|document| &document["ModelImporter"]) else {
-        return ModelImport::default();
-    };
+    let read = document(meta);
+    let importer = &read["ModelImporter"];
     ModelImport {
         global_scale: setting(importer, "globalScale").unwrap_or(1.0),
         use_file_scale: setting(importer, "useFileScale").unwrap_or(1.0) != 0.0,
