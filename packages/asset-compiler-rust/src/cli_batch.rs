@@ -1,129 +1,13 @@
+use super::cli_spec::parse_batch;
 use super::{emit, error_value, listen_stdin, run_job, Cancellation};
-use serde_json::{json, Value};
+use serde_json::json;
+use serde_json::Value;
 use std::{
     collections::VecDeque,
-    path::{Component, Path, PathBuf},
     sync::{Arc, Mutex},
     time::Instant,
 };
-use web_geometry_compiler::{shared_math::elapsed_ms, Options};
-
-fn number(value: Option<&Value>, default: usize) -> Result<usize, String> {
-    match value {
-        None | Some(Value::Null) => Ok(default),
-        Some(v) => v
-            .as_u64()
-            .filter(|n| *n > 0)
-            .map(|n| n as usize)
-            .ok_or_else(|| format!("{v} is not a positive integer")),
-    }
-}
-fn text<'a>(value: Option<&'a Value>, default: &'a str) -> &'a str {
-    value.and_then(Value::as_str).unwrap_or(default)
-}
-/// L'identité d'une destination, qu'elle existe déjà ou non. `canonicalize` seul échoue sur un
-/// dossier absent et rend alors le texte brut : `x` et `p/../x` passaient pour deux caches. On
-/// résout donc en deux temps. D'abord le chemin devient absolu et ses `.` disparaissent, chaque `..`
-/// remontant depuis le chemin canonicalisé quand il existe — un `..` derrière un lien symbolique ne
-/// remonte pas là où le texte le dit. Ensuite le plus long préfixe existant est canonicalisé et le
-/// suffixe absent lui est réappliqué. Les séparateurs doublés ne survivent pas au parcours.
-fn cache_identity(path: &Path) -> PathBuf {
-    let mut walked = if path.is_absolute() {
-        PathBuf::new()
-    } else {
-        std::env::current_dir().unwrap_or_default()
-    };
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                if let Ok(real) = std::fs::canonicalize(&walked) {
-                    walked = real;
-                }
-                walked.pop();
-            }
-            other => walked.push(other),
-        }
-    }
-    let mut absent = Vec::new();
-    let mut existing = walked.clone();
-    loop {
-        if let Ok(real) = std::fs::canonicalize(&existing) {
-            return absent.iter().rev().fold(real, |path, name| path.join(name));
-        }
-        let Some(name) = existing.file_name().map(std::ffi::OsString::from) else {
-            return walked;
-        };
-        absent.push(name);
-        if !existing.pop() {
-            return walked;
-        }
-    }
-}
-/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangles":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..}]}`.
-/// Per-job RAM defaults to the batch budget divided by the number of workers.
-fn parse_batch(
-    spec: &Value,
-    cancellation: &Cancellation,
-) -> Result<(usize, Vec<(String, Options)>), String> {
-    let workers = number(spec.get("workers"), 1)?.min(64);
-    let ram_total = number(spec.get("ramBudgetMb"), 256 * workers)?;
-    let default_threads = number(spec.get("threads"), 2)?;
-    let default_ram = (ram_total / workers).max(64);
-    let jobs = spec
-        .get("jobs")
-        .and_then(Value::as_array)
-        .ok_or("jobs must be an array")?;
-    if jobs.is_empty() {
-        return Err("jobs must not be empty".into());
-    }
-    let mut parsed = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    let mut caches = std::collections::HashMap::new();
-    for (i, job) in jobs.iter().enumerate() {
-        let id = text(job.get("id"), "").to_string();
-        let id = if id.is_empty() {
-            format!("job-{i}")
-        } else {
-            id
-        };
-        if !seen.insert(id.clone()) {
-            return Err(format!("duplicate job id {id}"));
-        }
-        let source = text(job.get("source"), "");
-        let cache = text(job.get("cache"), "");
-        let resource_base = text(job.get("resourceBaseUrl"), "");
-        if source.is_empty() || cache.is_empty() || resource_base.is_empty() {
-            return Err(format!(
-                "job {id}: source, cache and resourceBaseUrl are required"
-            ));
-        }
-        // One cache holds one pointer per scope and prunes itself after each job: two jobs writing
-        // it, under whatever spelling, would destroy each other's output.
-        if let Some(other) = caches.insert(cache_identity(Path::new(cache)), (id.clone(), cache)) {
-            return Err(format!(
-                "job {id}: cache {cache} is the directory that job {} already writes as {}",
-                other.0, other.1
-            ));
-        }
-        let field = |name: &str, default: usize| {
-            number(job.get(name), default).map_err(|e| format!("job {id}: {name} {e}"))
-        };
-        let options = Options {
-            source: PathBuf::from(source),
-            cache: PathBuf::from(cache),
-            resource_base: resource_base.to_string(),
-            scope: text(job.get("scope"), "full").to_string(),
-            triangle_budget: field("triangles", 150000)?,
-            threads: field("threads", default_threads)?,
-            ram_budget_mb: field("ramBudgetMb", default_ram)?,
-            simplification: text(job.get("simplification"), "none").to_string(),
-            cancelled: cancellation.flag(&id),
-        };
-        parsed.push((id, options));
-    }
-    Ok((workers, parsed))
-}
+use web_geometry_compiler::shared_math::elapsed_ms;
 
 pub(super) fn run_batch(spec_path: &str, cancellation: Arc<Cancellation>) -> Result<i32, String> {
     let started = Instant::now();
