@@ -72,3 +72,4 @@ export {
   updateCameraFrame,
   type CameraFrame,
 } from './mathCamera.ts';
+export { viewToRenderOrigin, worldToRenderOrigin } from './mathRenderOrigin.ts';

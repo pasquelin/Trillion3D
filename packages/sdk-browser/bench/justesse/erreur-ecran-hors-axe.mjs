@@ -15,7 +15,11 @@ import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { projectedClusterError } from '../../pageSelectionMath.ts';
 import { cullingBounds } from '../../pageSelectionCutBounds.ts';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
+import {
+  evaluateDagSelectionKernel,
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { cameraMoteur } from '../../cameraFixture.ts';
 
@@ -92,7 +96,13 @@ const nom = (ids) => ids.map((i) => (i === 0 ? 'grossier' : 'fin'));
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
 const empaquete = (avecNoeud) =>
-  packDagSelection([{ world, pages, culling: avecNoeud ? culling : undefined }]);
+  // Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
+  // l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
+  packedWorldsToRenderOrigin(
+    packDagSelection([{ world, pages, culling: avecNoeud ? culling : undefined }]),
+    [{ world }],
+    uniforms.cameraWorld,
+  );
 const aPlat = empaquete(false),
   avecNoeud = empaquete(true);
 const gpu = await selectionGpu([

@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { collectClusterPages, rootCoverage, selectVisiblePages } from './pageSelection.ts';
-import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from './gpuDagSelection.ts';
+import { kernelUniforms } from './gpuDagSelectionTestHelpers.ts';
 import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
@@ -76,10 +76,7 @@ test('double-sided blend pages survive backface cones in CPU and packed GPU sele
   const cam = camera(),
     packed = packDagSelection(roots);
   const cpu = selectVisiblePages(roots, cameraMoteur(cam), {});
-  const gpu = evaluateDagSelectionKernel(
-    packed,
-    cameraSelectionUniforms(cameraMoteur(cam), 0, [960, 540]),
-  );
+  const gpu = evaluateDagSelectionKernel(packed, kernelUniforms(packed, roots, cam, 0, [960, 540]));
   assert.deepEqual(
     cpu.shown.map((page) => page.url),
     ['near'],

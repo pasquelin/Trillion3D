@@ -6,6 +6,12 @@ import {
   type CameraFrame,
 } from '../sdk-core/index.ts';
 import { copyElements } from './matrixElements.ts';
+import {
+  createRenderOriginFrame,
+  holdRenderOriginFrame,
+  updateRenderOriginFrame,
+  type RenderOriginFrame,
+} from './cameraRenderOrigin.ts';
 
 /**
  * LE CONTRAT DE POSE CAMÉRA. Domicile unique de la pose monde d'une caméra dans `sdk-browser` ;
@@ -57,7 +63,7 @@ export type HostCamera = THREE.PerspectiveCamera;
  * La caméra du moteur : les nombres d'une image, dans des tampons possédés et réécrits sur place.
  * Aucune structure de la bibliothèque hôte ne traverse une signature en aval de `readCameraWorld`.
  */
-export interface EngineCamera extends CameraFrame {
+export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** Matrice monde de la caméra hôte, recopiée telle quelle. */
   world: Float64Array;
   /** Matrice de projection de la caméra hôte, recopiée telle quelle. */
@@ -77,6 +83,7 @@ export interface EngineCamera extends CameraFrame {
 export function createEngineCamera(): EngineCamera {
   return {
     ...createCameraFrame(),
+    ...createRenderOriginFrame(),
     world: new Float64Array(16),
     projection: new Float64Array(16),
     eye: new Float64Array(3),
@@ -108,6 +115,9 @@ export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineC
   into.aspect = camera.aspect;
   into.depthZeroToOne = camera.coordinateSystem === THREE.WebGPUCoordinateSystem;
   updateCameraFrame(into, into.projection, into.world, into.depthZeroToOne);
+  // Le repère de rendu se pose ici, dans la même passe : ce qui part en simple précision lira la
+  // vue sans translation, jamais une vue absolue accompagnée de mondes relatifs.
+  updateRenderOriginFrame(into, into.view, into.projection, into.depthZeroToOne);
   into.eye[0] = into.world[12];
   into.eye[1] = into.world[13];
   into.eye[2] = into.world[14];
@@ -167,6 +177,7 @@ export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineC
   into.view.set(from.view);
   into.viewProjection.set(from.viewProjection);
   into.planes.set(from.planes);
+  holdRenderOriginFrame(into, from);
   into.eye.set(from.eye);
   into.near = from.near;
   into.far = from.far;
