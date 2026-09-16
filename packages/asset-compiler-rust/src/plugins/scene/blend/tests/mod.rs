@@ -7,6 +7,7 @@ use super::*;
 use crate::tests::ngones::{rendered_area, U_RING};
 
 mod fidelite;
+mod matiere;
 mod surgery;
 
 /// Écrit un fichier Blender minimal à l'ancienne disposition, depuis la description du format :

@@ -17,7 +17,8 @@
 //! matrice d'accrochage —, les maillages par leurs attributs nommés (`position`, `.corner_vert`,
 //! offsets de faces, `material_index`, `sharp_face`, première couche d'UV de l'auteur, dont la
 //! coordonnée V est retournée pour l'origine du glTF), triangulés en éventail ; les matériaux par leur nœud `Principled BSDF` — couleur de base, métallicité,
-//! rugosité, alpha, émission, normale — et les images qu'ils lient, y compris **empaquetées**, dont
+//! rugosité, alpha, émission, normale — atteint depuis la sortie active du graphe, et les images
+//! qu'ils lient, y compris **empaquetées**, dont
 //! les octets partent dans le binaire de la scène sans être touchés. Plusieurs objets qui partagent
 //! un maillage partagent le maillage glTF : ce sont des instances.
 //!
