@@ -5,7 +5,7 @@
 //! que le PNG 16 bits avait : `zune-jpeg`, le décodeur de la feature, lit la précision dans le
 //! marqueur SOF et refuse tout ce qui n'est pas huit bits, plutôt que de l'abaisser. Le refus sort
 //! donc déjà en `image-decode-failed`, sans profondeur rognée en silence — rien à ajouter ici.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static JPEG: Jpeg = Jpeg;
 pub(super) struct Jpeg;
@@ -35,7 +35,7 @@ impl ImageDecoder for Jpeg {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         crate_image::decode(bytes, max_alloc, image::ImageFormat::Jpeg)
     }
 }
