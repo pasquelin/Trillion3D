@@ -1,17 +1,13 @@
-// Lot M4a, hostWorldMatrices.ts : la frontière unique de résolution du graphe hôte, confrontée au
-// bit près (Object.is) à `updateMatrixWorld`/`updateWorldMatrix` de Three sur un sous-arbre hostile
-// (échelles négatives, non uniformes, cisaillement, matrice singulière, NaN, ±0, infinis, profondeur
-// ≥ 3), plus le forçage du recalcul, l'idempotence et le fait qu'aucun parent n'est remonté.
+// hostWorldMatrices.ts : la frontière de LECTURE du graphe hôte. Deux sujets ici — la pose locale
+// d'un nœud, lue par le moteur et confrontée au bit près (Object.is) à `updateMatrix` de Three sur
+// des poses hostiles (échelles négatives, non uniformes, nulles, `-0`, demi-tour, matrice posée à la
+// main), et le refus d'une pose non finie. La mise à jour de la scène de l'HÔTE, elle, reste
+// confrontée à `updateMatrixWorld(true)` : elle sert encore ses propres lecteurs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
-import {
-  assertFiniteTransform,
-  hostWorldPositionInto,
-  resolveHostNode,
-  resolveHostSubtree,
-} from './hostWorldMatrices.ts';
+import { assertFiniteTransform, hostLocalInto, resolveHostSubtree } from './hostWorldMatrices.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
 /** Chaîne parent → enfant → petit-enfant → arrière-petit-enfant, transforms hostiles comprises. */
@@ -82,71 +78,65 @@ test('resolveHostSubtree ne remonte pas les parents : un ancêtre resté périm�
   assertBits(enfant.matrixWorld.elements, ref.enfant.matrixWorld.elements);
 });
 
-test('resolveHostNode remonte la chaîne des ancêtres : un ancêtre périmé est repris, comme updateWorldMatrix(true, false)', () => {
-  const { racine, enfant } = hostileHierarchy();
-  racine.updateMatrixWorld(true);
-  racine.position.set(100, 100, 100); // racine périmée, jamais remise à jour explicitement
-  resolveHostNode(enfant);
-  const ref = hostileHierarchy();
-  ref.racine.updateMatrixWorld(true);
-  ref.racine.position.set(100, 100, 100);
-  ref.enfant.updateWorldMatrix(true, false);
-  assertBits(racine.matrixWorld.elements, ref.racine.matrixWorld.elements, 'l’ancêtre est repris');
-  assertBits(enfant.matrixWorld.elements, ref.enfant.matrixWorld.elements);
+/** Les poses que la référence compose : échelles négatives, nulle, `-0`, demi-tour, non uniformes. */
+const POSES: [number[], number[], number[]][] = [
+  [
+    [0, 0, 0],
+    [0, 0, 0, 1],
+    [1, 1, 1],
+  ],
+  [
+    [-0, -0, -0],
+    [0, 1, 0, 0],
+    [-1, 2, 0.5],
+  ],
+  [
+    [3, -4, 5],
+    [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
+    [0, 1, 1],
+  ],
+  [
+    [1e150, -1e150, 1e-300],
+    [0.5, 0.5, 0.5, 0.5],
+    [-2, 3, 0.25],
+  ],
+  [
+    [10, 20, 30],
+    [0, 0, 0, 1],
+    [1e-300, 1, -1],
+  ],
+];
+
+test('hostLocalInto rend la matrice locale d’updateMatrix, au bit près, sur des poses hostiles', () => {
+  const obtenu = new Float64Array(16);
+  for (const [position, quaternion, echelle] of POSES) {
+    const node = new THREE.Object3D();
+    node.position.fromArray(position);
+    node.quaternion.fromArray(quaternion);
+    node.scale.fromArray(echelle);
+    hostLocalInto(obtenu, node);
+    node.updateMatrix(); // la référence compose la MÊME pose
+    assertBits(obtenu, node.matrix.elements);
+  }
 });
 
-test('resolveHostNode laisse les enfants en l’état, comme updateWorldMatrix(true, false)', () => {
-  // Hiérarchie propre (sans NaN/infinis) : ce test vérifie une propriété comportementale, pas
-  // l’exactitude bit à bit, et un translate net évite toute ambiguïté avec la contamination NaN.
-  const parent = new THREE.Group();
-  const node = new THREE.Group();
+test('hostLocalInto rend la matrice POSÉE quand l’hôte a coupé la recomposition, sans jamais la recomposer', () => {
+  const node = new THREE.Object3D();
   node.matrixAutoUpdate = false;
-  parent.add(node);
-  const enfant = new THREE.Group();
-  node.add(enfant);
-  resolveHostSubtree(parent); // tout résolu une première fois : identités
-  const enfantAvant = enfant.matrixWorld.elements.slice();
-  // L’hôte réécrit la matrice locale de `node` à la main, sans passer par updateMatrix.
-  node.matrix.elements[12] = 999;
-  resolveHostNode(node);
-  assert.notEqual(
-    node.matrixWorld.elements[12],
-    0,
-    'node, lui, a bien changé : le test n’est pas vide',
-  );
-  assertBits(enfant.matrixWorld.elements, enfantAvant, 'l’enfant ne doit pas être recalculé');
+  // Un cisaillement : aucune pose translation-rotation-échelle ne le donne, donc recomposer se verrait.
+  node.matrix.set(1, 0.7, 0, 5, 0, 1, 0, -3, 0, 0, 0, 0, 0, 0, 0, 1);
+  node.position.set(100, 100, 100); // pose contredisant la matrice : elle ne doit pas être lue
+  const obtenu = new Float64Array(16);
+  hostLocalInto(obtenu, node);
+  assertBits(obtenu, node.matrix.elements);
 });
 
-test('hostWorldPositionInto rend la même translation que getWorldPosition, x/y/z distincts (profondeur 3, échelle négative et non uniforme)', () => {
-  // Composantes distinctes exprès : la contamination NaN de `hostileHierarchy` rendrait un échange
-  // x/y/z indétectable (NaN égale NaN sous Object.is).
-  const racine = new THREE.Group();
-  racine.position.set(10, 20, 30);
-  racine.scale.set(-2, 3, 0.5);
-  const enfant = new THREE.Group();
-  enfant.position.set(1, 2, 3);
-  racine.add(enfant);
-  const feuille = new THREE.Group();
-  feuille.position.set(0.25, -0.5, 7);
-  enfant.add(feuille);
-  resolveHostSubtree(racine);
-  const attendu = new THREE.Vector3();
-  feuille.getWorldPosition(attendu);
-  const obtenu = new Float64Array(5).fill(-1); // décalage non nul pour vérifier l’écriture à `o`
-  hostWorldPositionInto(obtenu, 2, feuille);
-  assertBits(obtenu.subarray(2, 5), [attendu.x, attendu.y, attendu.z]);
-  assert.equal(obtenu[0], -1, 'rien avant le décalage');
-  assert.equal(obtenu[1], -1, 'rien avant le décalage');
-});
-
-test('hostWorldPositionInto rend la même translation que getWorldPosition sur un sous-arbre hostile (NaN, infinis)', () => {
-  const { racine, feuille } = hostileHierarchy();
-  resolveHostSubtree(racine);
-  const attendu = new THREE.Vector3();
-  feuille.getWorldPosition(attendu);
-  const obtenu = new Float64Array(3);
-  hostWorldPositionInto(obtenu, 0, feuille);
-  assertBits(obtenu, [attendu.x, attendu.y, attendu.z]);
+test('hostLocalInto n’écrit rien dans le nœud de l’hôte : sa matrice locale reste celle qu’il portait', () => {
+  const node = new THREE.Object3D();
+  node.position.set(1, 2, 3);
+  const avant = node.matrix.elements.slice(); // identité : `updateMatrix` n’a jamais été appelé
+  hostLocalInto(new Float64Array(16), node);
+  assertBits(node.matrix.elements, avant);
 });
 
 // Cas 4 de la convention des normales singulières (lot normales singulières) : une pose non finie
