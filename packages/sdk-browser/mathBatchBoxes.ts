@@ -4,7 +4,7 @@ import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
 /**
  * Les boîtes monde calculées EN LOT : les deux outils que partagent les sites qui unissent des
- * bornes (`explorerScene.ts`, `hostWorldBounds.ts`), et le tampon des racines de sélection.
+ * bornes (`exactPagesBounds.ts`, `hostWorldBounds.ts`), et le tampon des racines de sélection.
  *
  * Les boîtes monde des racines de sélection, calculées EN LOT par le gouverneur : un seul tampon
  * réservé à la préparation, et plus une allocation ensuite. Le chargement le joue une fois sur

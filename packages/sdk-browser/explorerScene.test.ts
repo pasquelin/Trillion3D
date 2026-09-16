@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadPreparedScene, exactPagesBounds } from './explorerScene.ts';
+import { loadPreparedScene } from './explorerScene.ts';
+import { exactPagesBounds } from './exactPagesBounds.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
 import { indexManifestPages, indexManifestBundles } from './manifestPageIndex.ts';
 import {
@@ -53,7 +54,7 @@ test('loadPreparedScene indexes every glTF texture association and nothing else'
 
 // Lot F, F17 : trois lectures du manifeste passent d'un `find` ou d'un `flatMap` par maillage/page à
 // un seul parcours indexé. `indexManifestPages`/`indexManifestBundles` (manifestPageIndex.ts) et
-// `exactPagesBounds` (explorerScene.ts, via `primitiveFinder`) doivent rendre exactement ce que
+// `exactPagesBounds` (exactPagesBounds.ts, via `primitiveFinder`) doivent rendre exactement ce que
 // rendaient les quatre `flatMap` et le `find` d'avant le lot F. Les oracles sont recopiés tels quels
 // dans `oracles/f-scene.mjs`.
 function pageDe(id: number, url: string, geometryUrl?: string): Page {

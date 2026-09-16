@@ -29,7 +29,7 @@ function item(position: THREE.Vector3, cullable = true) {
     sourceGeometry: geometry,
   } as unknown as BlendGpuItem & { sourceMesh: THREE.Mesh };
   refreshBlendBounds(shaped);
-  return { ...shaped, parent, worlds };
+  return Object.assign(shaped, { parent, worlds });
 }
 
 test('la copie transparente lit la matrice monde que le moteur tient, elle n’en garde pas de photo', () => {

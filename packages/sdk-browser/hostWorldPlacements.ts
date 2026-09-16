@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { hostWorldTree } from './hostWorldTree.ts';
 import { copyElements } from './matrixElements.ts';
-import type { HierarchyLot } from './mathBatchHierarchy.ts';
 
 /**
  * Les matrices monde que LE MOTEUR possède pour les nœuds dessinés de la scène de l'hôte.
@@ -25,31 +24,31 @@ export interface HostWorldPlacements {
   refresh(): void;
 }
 
-/**
- * L'index des matrices monde de `source`, prêt à être lu. `lot` est le tampon de hiérarchie réservé
- * pour ce sous-arbre ; sans lui, la passe est celle de l'arbre du socle (`hostWorldTree.ts`).
- */
-export function hostWorldPlacements(
-  source: THREE.Object3D,
-  lot?: HierarchyLot | null,
-): HostWorldPlacements {
-  const tree = hostWorldTree(source, lot);
-  // Les nœuds demandés, et eux seuls : une scène de quatre-vingt mille nœuds dont douze portent des
-  // pages ne recopie que douze matrices par changement de scène.
-  const placed = new Map<THREE.Object3D, THREE.Matrix4>();
+/** L'index des matrices monde de `source`, prêt à être lu : la passe est celle de l'arbre du socle
+ *  (`hostWorldTree.ts`), qui accepte aussi bien un nœud qui recompose sa pose qu'un nœud posé. */
+export function hostWorldPlacements(source: THREE.Object3D): HostWorldPlacements {
+  const tree = hostWorldTree(source);
+  // Les nœuds demandés, et eux seuls : une scène dont douze nœuds portent des pages ne recopie que
+  // douze matrices par changement de scène. Deux listes parallèles plutôt qu'une table parcourue :
+  // le rafraîchissement est une boucle par indice, sans itérateur ni entrée allouée.
+  const rangs = new Map<THREE.Object3D, number>();
+  const nodes: THREE.Object3D[] = [],
+    matrices: THREE.Matrix4[] = [];
   return {
     of(node) {
-      let matrix = placed.get(node);
-      if (!matrix) {
-        matrix = new THREE.Matrix4();
-        placed.set(node, matrix);
-        copyElements(matrix.elements, tree.world(node));
-      }
+      const rang = rangs.get(node);
+      if (rang !== undefined) return matrices[rang];
+      const matrix = new THREE.Matrix4();
+      copyElements(matrix.elements, tree.world(node));
+      rangs.set(node, nodes.length);
+      nodes.push(node);
+      matrices.push(matrix);
       return matrix;
     },
     refresh() {
       tree.refresh();
-      for (const [node, matrix] of placed) copyElements(matrix.elements, tree.world(node));
+      for (let rang = 0; rang < nodes.length; rang++)
+        copyElements(matrices[rang].elements, tree.world(nodes[rang]));
     },
   };
 }

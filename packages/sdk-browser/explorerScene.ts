@@ -13,10 +13,6 @@ import { prepareMathBatch } from './mathBatchState.ts';
 import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
 
-// Les bornes des pages exactes vivent à côté (`exactPagesBounds.ts`) ; elles restent publiées ici,
-// où le cadrage de caméra, les tests et le banc les ont toujours lues.
-export { exactPagesBounds };
-
 /** La matrice monde d'un maillage au chargement, reprise d'un maillage à l'autre. */
 const monde = new Float64Array(MATRIX_VALUES);
 
