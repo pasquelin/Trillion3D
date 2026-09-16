@@ -11,10 +11,7 @@
 // LAB_ROOT=… node --experimental-strip-types test/reflexionFaceEliminee.browser.mjs
 import assert from 'node:assert/strict';
 import { rasterVisibility } from '../packages/sdk-browser/visibilityRaster.ts';
-import {
-  camera,
-  decisionCpu,
-} from '../packages/sdk-browser/bench/justesse/inverseTransposeCas.mjs';
+import { decisionCpu, vue } from '../packages/sdk-browser/bench/justesse/inverseTransposeCas.mjs';
 import { tousLesCas } from '../packages/sdk-browser/bench/justesse/inverseTransposeEchantillon.mjs';
 import {
   chargeRaster,
@@ -31,7 +28,7 @@ assert.deepEqual(gpu.erreurs ?? [], []);
 const index = tousLesCas.map((_, i) => i);
 const dessineGpu = index.map((i) => gpu.fragments[i] > 0);
 const dessineCpu = index.map((i) => {
-  const { ids } = rasterVisibility([pageVisible(tousLesCas[i])], camera, VUE);
+  const { ids } = rasterVisibility([pageVisible(tousLesCas[i])], vue, VUE);
   return ids.some((identifiant) => identifiant !== 0);
 });
 const coneRejette = tousLesCas.map((cas) => decisionCpu(cas).coneRejette);
