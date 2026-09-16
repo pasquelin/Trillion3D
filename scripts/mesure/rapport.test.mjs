@@ -166,3 +166,9 @@ test('une couverture non nulle s’affiche telle quelle, sans être réduite à 
     'selected − drawn − uncovered = 50, un vrai trou dans la relation',
   );
 });
+
+test('resume() ouvre la section du chemin de calcul, même quand aucun côté n’en publie', () => {
+  const texte = resume(rapport({ ...cotéDeBase }));
+  assert.match(texte, /## Chemin de calcul en lot/);
+  assert.match(texte, /\| relevé absent de ce dist \|/);
+});
