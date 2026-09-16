@@ -53,9 +53,10 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   a.updateMatrixWorld();
   const kept = new THREE.PerspectiveCamera().copy(a, false);
   assert.equal(sameHizView(kept, a), true);
-  // `sameHizView` calls `updateMatrixWorld()` on both cameras, which recomputes the world-inverse
-  // matrix from position/quaternion/scale: a NaN has to enter through those, not through poking the
-  // matrix elements directly, or it would just be overwritten before the comparison runs.
+  // `sameHizView` remonte la caméra de CETTE image — celle d'avant est gelée, sa pose et son inverse
+  // posés une fois par `holdCameraWorld` —, ce qui recompose la matrice monde inverse depuis
+  // position/quaternion/échelle : un NaN doit entrer par là, pas en touchant les éléments à la main,
+  // sinon il serait réécrit avant la comparaison.
   const nanCam = a.clone();
   nanCam.position.x = NaN;
   assert.equal(sameHizView(kept, nanCam), false, 'NaN never compares equal to itself');

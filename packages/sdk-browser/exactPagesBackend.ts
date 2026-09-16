@@ -150,8 +150,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
       return renderState.frameHeld;
     },
   });
-  const renderFrame = createExactPagesRender(
-    renderState,
+  const renderFrame = createExactPagesRender({
+    state: renderState,
     context,
     source,
     blendCopies,
@@ -165,7 +165,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     syncResident,
     cpuProfile,
     gate,
-  );
+  });
   return {
     setDiagnostic(mode) {
       diagnostic = mode;
