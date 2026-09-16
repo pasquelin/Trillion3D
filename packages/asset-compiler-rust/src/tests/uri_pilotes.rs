@@ -10,15 +10,7 @@ const ESCAPED: &str = "co%25lor%20%231%20rouge.png";
 
 /// Un dossier jetable portant l'image au nom malcommode, et la source que le cas y écrit.
 fn source(tag: &str, name: &str, body: &str) -> (PathBuf, PathBuf) {
-    let dir = std::env::temp_dir().join(format!(
-        "wg-uri-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("horloge")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("dossier");
+    let dir = scratch("uri", tag);
     fs::write(dir.join(AWKWARD), b"\x89PNG\r\n\x1a\n").expect("image");
     let file = dir.join(name);
     fs::write(&file, body).expect("source");

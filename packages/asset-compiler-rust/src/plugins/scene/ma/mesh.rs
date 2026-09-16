@@ -136,18 +136,26 @@ fn resolve(
     (loops, slots)
 }
 
+/// Le rang d'une arête signée de Maya et l'extrémité qu'elle désigne : `-(i + 1)` parcourt l'arête
+/// `i` à l'envers, et son coin est alors le second sommet de l'arête. La valeur la plus basse d'un
+/// entier signé n'a pas d'opposé : elle ne désigne aucune arête, au lieu de faire déborder la
+/// négation, et l'appelant compte la face sous `ma-mesh-invalid`.
+pub(super) fn edge_rank(signed: i64) -> Option<(usize, usize)> {
+    match signed < 0 {
+        true => Some((
+            usize::try_from(signed.checked_neg()?.checked_sub(1)?).ok()?,
+            1,
+        )),
+        false => Some((usize::try_from(signed).ok()?, 0)),
+    }
+}
+
 /// Le sommet de départ d'une arête signée. Maya écrit `-(i + 1)` pour une arête parcourue à
 /// l'envers : le coin est alors le second sommet de l'arête `i`. La valeur la plus basse d'un
 /// entier signé n'a pas d'opposé : elle ne donne donc aucun rang, et l'appelant la compte sous
 /// `ma-mesh-invalid`, au lieu de faire déborder la négation.
 pub(super) fn corner(edges: &[[f64; 3]], signed: i64, vertices: usize) -> Option<u32> {
-    let (rank, end) = match signed < 0 {
-        true => (
-            usize::try_from(signed.checked_neg()?.checked_sub(1)?).ok()?,
-            1,
-        ),
-        false => (usize::try_from(signed).ok()?, 0),
-    };
+    let (rank, end) = edge_rank(signed)?;
     let vertex = usize::try_from(*edges.get(rank)?.get(end)? as i64).ok()?;
     (vertex < vertices)
         .then(|| u32::try_from(vertex).ok())

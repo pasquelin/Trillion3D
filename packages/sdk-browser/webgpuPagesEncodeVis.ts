@@ -51,7 +51,7 @@ export function encodeVis(
   // partition and the Hi-Z test, projected with the view-projection built once for the batch rather
   // than once per page and once again per tested page.
   const partition = partitionWebgpuVisibility(rt, cam);
-  const { twoPass, restSignature } = partition;
+  const { twoPass } = partition;
   timing.lastItemsMs = 0;
   const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
   const useIndirect = !!vis.gpuDraw && rows.packedCount <= drawSlots;
@@ -61,7 +61,7 @@ export function encodeVis(
     throw new Error(
       `VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`,
     );
-  const items = buildWebgpuVisibilityItems(rt, twoPass, itemsDirty, restSignature);
+  const items = buildWebgpuVisibilityItems(rt, itemsDirty, partition);
   timing.encodeCounts.fichesTeleversees = itemsDirty ? rows.packedCount : 0;
   // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
   // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.
