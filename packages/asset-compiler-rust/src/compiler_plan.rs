@@ -9,6 +9,26 @@ pub(super) struct BufferPlan {
     pub estimated_working_bytes: usize,
 }
 
+/// Les octets qu'un accessor occupera une fois décodé en tableau dense : `count` éléments de
+/// `composantes` valeurs de quatre octets. Un accessor sans `bufferView`, ou dont un sparse porte
+/// seules quelques valeurs, s'étend pareillement : c'est cette expansion qu'une allocation
+/// demandera, jamais les octets stockés, et elle seule peut faire déborder un entier.
+fn dense_bytes(acc: &Value) -> Result<usize> {
+    let components = match acc.get("type").and_then(Value::as_str) {
+        Some("SCALAR") => 1,
+        Some("VEC2") => 2,
+        Some("VEC3") => 3,
+        Some("VEC4") | Some("MAT2") => 4,
+        Some("MAT3") => 9,
+        Some("MAT4") => 16,
+        _ => return Err(invalid("Unsupported accessor type")),
+    };
+    required_index(acc.get("count"), "accessor.count")?
+        .checked_mul(components)
+        .and_then(|values| values.checked_mul(4))
+        .ok_or_else(|| invalid("Working set overflow"))
+}
+
 pub(super) fn plan_buffers(
     o: &Options,
     g: &Value,
@@ -82,8 +102,12 @@ pub(super) fn plan_buffers(
         accessor_validation::validate(g, bin, *id)?;
     }
     let mut views = BTreeSet::new();
+    let mut decoded_bytes = 0usize;
     for a in &accessors {
         let acc = item(accessor_values, *a, "accessor")?;
+        decoded_bytes = decoded_bytes
+            .checked_add(dense_bytes(acc)?)
+            .ok_or_else(|| invalid("Working set overflow"))?;
         if acc.get("bufferView").is_some() {
             views.insert(required_index(
                 acc.get("bufferView"),
@@ -146,8 +170,13 @@ pub(super) fn plan_buffers(
     }
     estimated_working_bytes = estimated_working_bytes
         .checked_add(bin.len())
+        .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
-    if estimated_working_bytes > o.ram_budget_mb * 1024 * 1024 {
+    if estimated_working_bytes
+        > o.ram_budget_mb
+            .checked_mul(1024 * 1024)
+            .ok_or_else(|| invalid("RAM budget overflow"))?
+    {
         return Err(CompilerError::new(
             "RAM_ADMISSION_BUDGET_EXCEEDED",
             "Estimated working set exceeds configured budget",
