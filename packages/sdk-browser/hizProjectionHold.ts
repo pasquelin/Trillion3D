@@ -30,9 +30,9 @@ export function createProjectionHold(slots: number) {
   return {
     pending,
     /**
-     * L'âge courant des rectangles d'écran : il change dès que la vue, le viewport ou l'âge de la
-     * table retire les rectangles tenus. Ce que d'autres tenues lisent pour savoir si les bornes
-     * projetées qu'elles gardent décrivent encore cette image.
+     * L'âge des rectangles d'écran : il change dès que la vue, le viewport ou l'âge de la table
+     * retire les rectangles tenus. Ce que lit quiconque garde des bornes PROJETÉES et doit savoir
+     * si elles décrivent encore cette image-ci.
      */
     get generation() {
       return generation;
