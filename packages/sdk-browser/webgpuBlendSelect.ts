@@ -1,5 +1,8 @@
 import { BLEND_SELECT_SHADER } from './webgpuBlendSelectShader.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
+import { openValidation, validationError } from './gpuErrorScope.ts';
+import { cleanupFailedHiz } from './gpuHizPipelines.ts';
+import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 
 export type BlendSelect = NonNullable<Awaited<ReturnType<typeof createBlendSelect>>>;
 
@@ -26,6 +29,10 @@ export async function createBlendSelect(
     return buffer;
   };
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const bail = () => {
+    for (const buffer of made) buffer.destroy();
+    return undefined;
+  };
   try {
     const uniforms = make(
       'WG blend frustum uniforms',
@@ -41,34 +48,33 @@ export async function createBlendSelect(
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
     made.push(readback);
+    openValidation(device);
     const module = device.createShaderModule({ code: BLEND_SELECT_SHADER });
-    if (await shaderFailed(device, module)) throw new Error('BLEND_SELECT_SHADER');
-    const layout = device.createBindGroupLayout({
-      entries: [0, 1, 2, 3, 4, 5].map((binding) => ({
-        binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer:
-          binding === 0
-            ? { type: 'uniform' as const }
-            : binding >= 4
-              ? { type: 'storage' as const }
-              : { type: 'read-only-storage' as const },
-      })),
-    });
+    if (await shaderFailed(device, module)) return bail();
+    const layout = bounceLayout(device, [
+      'uniform',
+      'read-only-storage',
+      'read-only-storage',
+      'read-only-storage',
+      'storage',
+      'storage',
+    ]);
     const pipeline = device.createComputePipeline({
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'selectBlendItems' },
     });
-    const bindGroup = device.createBindGroup({
-      layout,
-      // Sans primitive paginee il n'y a aucun compte a lire : le noyau ne touche jamais cette
-      // liaison, et `draws` la remplit — jamais `args`, qu'il ecrit, et qu'un meme groupe ne peut
-      // pas porter deux fois avec deux droits.
-      entries: [uniforms, boxes, draws, counts ?? draws, args, stats].map((buffer, binding) => ({
-        binding,
-        resource: { buffer },
-      })),
-    });
+    // Sans primitive paginee il n'y a aucun compte a lire : le noyau ne touche jamais cette
+    // liaison, et `draws` la remplit — jamais `args`, qu'il ecrit, et qu'un meme groupe ne peut
+    // pas porter deux fois avec deux droits.
+    const bindGroup = bounceGroup(device, layout, [
+      uniforms,
+      boxes,
+      draws,
+      counts ?? draws,
+      args,
+      stats,
+    ]);
+    if (await validationError(device)) return bail();
     const uni = new Float32Array(UNI_WORDS);
     const uniInts = new Uint32Array(uni.buffer);
     const groups = Math.ceil(itemCount / 64);
@@ -121,7 +127,7 @@ export async function createBlendSelect(
         readback
           .mapAsync(GPUMapMode.READ)
           .then(() => {
-            rejected = new Uint32Array(readback.getMappedRange().slice(0))[0];
+            rejected = new Uint32Array(readback.getMappedRange())[0];
             readback.unmap();
             pending = false;
           })
@@ -134,12 +140,7 @@ export async function createBlendSelect(
       },
     };
   } catch {
-    for (const buffer of made)
-      try {
-        buffer.destroy();
-      } catch {
-        /* Un montage partiel du tronc GPU ne doit rien laisser fuir. */
-      }
+    await cleanupFailedHiz(device, made);
     return undefined;
   }
 }

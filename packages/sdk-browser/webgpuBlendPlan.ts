@@ -4,9 +4,14 @@ import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /** Les trois pipelines de la passe, nommes par un rang : une entree de plan les choisit sans test. */
-const PIPELINE_NONE = 0,
-  PIPELINE_FRONT = 1,
+const PIPELINE_NONE = 0;
+export const PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2;
+/** Une entree de plan : le rang de l'item dans les bits hauts, le pipeline dans les deux bas. */
+const PLAN_SHIFT = 2;
+const planEntry = (item: number, pipeline: number) => (item << PLAN_SHIFT) | pipeline;
+export const planItem = (entry: number) => entry >>> PLAN_SHIFT;
+export const planPipeline = (entry: number) => entry & 3;
 /** Aucune primitive paginee derriere cet appel. */
 const UNPAGED = 0xffffffff;
 
@@ -44,7 +49,6 @@ export function buildBlendStatics(blendState: BlendState) {
   const draws = new Uint32Array(Math.max(1, items.length) * 4);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    item.itemIndex = i;
     item.tableBase =
       item.paged && table && item.pagedIndex !== undefined
         ? table.itemRanges[item.pagedIndex * 2]
@@ -89,7 +93,7 @@ export function refreshBlendPlan(blendState: BlendState) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
     for (const side of sidesOf(item)) {
-      into.push(i * 4 + side);
+      into.push(planEntry(i, side));
       if (item.paged) continue;
       if (item.transmissive) transmissionTriangles += item.count / 3;
       else blendTriangles += item.count / 3;

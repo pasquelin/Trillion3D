@@ -10,6 +10,12 @@ export const DEFAULT_FOV = 55,
   PREFETCH_BATCH = 64,
   /** Adresses qu'une image lance au plus, prises en tête de la liste ordonnée par priorité. */
   PAGE_REQUEST_BATCH = 256,
+  /** Pages du cache qu'une image empile au plus dans la file d'arrivées. */
+  ARRIVAL_QUEUE_BATCH = 64,
+  /** Millisecondes qu'une image consacre au plus à intégrer les pages arrivées. */
+  ARRIVAL_BUDGET_MS = 2,
+  /** Millisecondes de fil principal d'une salve de téléversement avant de rendre la main. */
+  UPLOAD_SLICE_MS = 2,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;

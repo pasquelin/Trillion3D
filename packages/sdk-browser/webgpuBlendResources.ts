@@ -26,8 +26,10 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   buildBlendStatics(blendState);
   // La liste transparente de la scene EST la liste de dessin : ce qu'une image en retire, elle le
   // retire par un compte d'instances nul, et les relevés continuent de nommer les items de la scene.
-  blendState.visibleBlend.push(...items);
+  blendState.visibleBlend.length = 0;
+  for (const item of items) blendState.visibleBlend.push(item);
   blendState.itemPacked = new Float32Array(items.length * BLEND_ITEM_WORDS);
+  blendState.itemInts = new Uint32Array(blendState.itemPacked.buffer);
   blendState.itemBuffer = device.createBuffer({
     label: 'WG blend item records',
     size: items.length * BLEND_ITEM_WORDS * 4,
@@ -59,9 +61,9 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
 export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu,
-    packed = blendState.itemPacked;
+    packed = blendState.itemPacked,
+    ints = blendState.itemInts;
   if (!blendState.itemBuffer || !items.length) return;
-  const ints = new Uint32Array(packed.buffer, packed.byteOffset, packed.length);
   for (let i = 0; i < items.length; i++) writeBlendItemRecord(packed, ints, i, items[i], vis);
   device.queue.writeBuffer(
     blendState.itemBuffer,
