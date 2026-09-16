@@ -18,6 +18,8 @@ pub(super) struct Surface {
     normals: Option<primvar::Primvar<[f32; 3]>>,
     uvs: Option<primvar::Primvar<[f32; 2]>>,
     reversed: bool,
+    /// Les faces que `holeIndices` rend invisibles : elles ne sont pas émises.
+    holes: BTreeSet<usize>,
 }
 
 impl Surface {
@@ -27,6 +29,7 @@ impl Surface {
         points: Vec<[f32; 3]>,
         corners: Vec<i64>,
         faces: Vec<(usize, usize)>,
+        holes: BTreeSet<usize>,
     ) -> Self {
         let (count, corner_count) = (points.len(), corners.len());
         let normals =
@@ -46,6 +49,7 @@ impl Surface {
             normals: normals.map(|(primvar, _)| primvar),
             uvs: uvs.map(|(primvar, _)| primvar),
             reversed: mesh::scheme(prim, "orientation").as_deref() == Some("leftHanded"),
+            holes,
         }
     }
 
@@ -63,6 +67,11 @@ impl Surface {
         let mut cutter = Ngon::default();
         let cancelled = world.cancelled;
         for face in &part.faces {
+            // Une face invisible n'entre ni dans le tampon ni dans les indices : ses sommets ne
+            // sont même pas créés, `corner` n'étant appelé que pour les faces émises.
+            if self.holes.contains(face) {
+                continue;
+            }
             let Some((start, count)) = self.faces.get(*face).copied() else {
                 continue;
             };

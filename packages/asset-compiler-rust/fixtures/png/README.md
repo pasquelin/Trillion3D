@@ -25,6 +25,11 @@ référence. C'est voulu : un `to_rgba8()` sur cette source rendrait la référe
 les douze octets de précision disparaîtraient sans un mot. La dorée vérifie qu'on n'en arrive
 jamais là — le pilote lit la profondeur dans l'IHDR et refuse avant de décoder.
 
+La courbe de transfert se lit dans les morceaux, sous une priorité fixe : `iCCP`, puis `sRGB`, puis `gAMA` — une
+gamma de 45 455 est celle de la courbe sRGB, une gamma de 100 000 dit des échantillons linéaires, et toute autre
+est comptée sous `image-transfer-unsupported`. La dorée pose ces morceaux elle-même sur `rgb8.png`, en mémoire :
+ils ne changent pas un pixel, et une fixture par gamma n'apprendrait rien de plus.
+
 `anime.png` porte les morceaux `acTL`, `fcTL`, `IDAT`, `fcTL`, `fdAT` : deux trames, la première
 d'un rouge pur écrite dans `IDAT` — l'image par défaut de la spécification APNG —, la seconde d'un
 vert pur écrite dans `fdAT`. Le contrat ne rend qu'une image : la dorée fixe que c'est bien la
