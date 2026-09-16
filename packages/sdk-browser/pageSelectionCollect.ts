@@ -6,7 +6,7 @@ import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
-import { hostWorldPlacements, type HostWorldPlacements } from './hostWorldPlacements.ts';
+import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
 export function collectClusterPages(
@@ -14,12 +14,11 @@ export function collectClusterPages(
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
-  options: { allowMissing?: boolean; worlds?: HostWorldPlacements } = {},
+  options: { allowMissing?: boolean } = {},
 ) {
   // Les matrices monde des pages et des racines sont celles du MOTEUR, calculées depuis les poses
-  // locales de l'hôte : plus aucune fiche ne porte la `matrixWorld` vivante de son maillage. Un
-  // appelant qui tient déjà l'index le tend — une seule passe de hiérarchie pour toute la scène.
-  const worlds = options.worlds ?? hostWorldPlacements(source);
+  // locales de l'hôte : plus aucune fiche ne porte la `matrixWorld` vivante de son maillage.
+  const worlds = hostWorldPlacements(source);
   const roots: Array<ClusterRoot<PageRec>> = [],
     allPages: PageRec[] = [],
     blendCopies: THREE.Mesh[] = [],
