@@ -108,3 +108,18 @@ export type ClusterRoot<T> = {
  * valeurs séparées se seraient réglées l'une sans l'autre.
  */
 export const ESCALATION_ROUNDS = 3;
+
+/**
+ * Marge relative ajoutée au seuil quand la coupe monte vers un ancêtre résident.
+ *
+ * L'escalade pose `seuil = erreur écran du parent` pour que le cluster absent cesse d'être retenu
+ * (`erreur parent > seuil` devient faux à l'égalité) et que son parent le remplace (`erreur parent
+ * <= seuil` vrai à la même égalité). Les deux bascules tiennent donc sur une égalité EXACTE entre
+ * une valeur écrite par une passe et la même valeur recalculée par une autre. En f32 cette égalité
+ * ne tient pas : le compilateur du pilote contracte les mêmes opérandes différemment d'un point
+ * d'entrée à l'autre, et la valeur relue dérive de quelques unités du dernier bit — le cluster
+ * absent redevient retenu, et son parent ne le remplace pas. Le seuil est donc posé strictement
+ * au-dessus, d'une marge qui couvre largement cette dérive tout en restant quatre ordres de
+ * grandeur sous le pixel : les deux bascules deviennent strictes.
+ */
+export const ESCALATION_SLACK = 1 + 2 ** -14;

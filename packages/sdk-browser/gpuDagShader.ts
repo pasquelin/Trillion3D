@@ -1,5 +1,6 @@
 import { DAG_ERROR_WGSL } from './gpuDagShaderError.ts';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
+import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,level:u32,nodeIndex:u32,flags:u32,pad0:u32,pad1:u32,}
 struct CullNode{minimum:vec3f,pad0:f32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
@@ -88,9 +89,14 @@ fn emitOne(page:u32){
  if(slot>=cap){atomicStore(&out.overflow,1u);return;}
  out.pages[slot]=page;
 }
-/** Raise the primitive's threshold to the replacement band, or demand the pinned cover. */
+/** Raise the primitive's threshold to the replacement band, or demand the pinned cover.
+ *  Le seuil est posé STRICTEMENT au-dessus de l'erreur du parent (marge \`ESCALATION_SLACK\`) : les
+ *  passes qui le relisent recalculent cette erreur dans un autre point d'entrée, où le pilote ne
+ *  rend pas le même f32 au dernier bit près. Une égalité exacte y laissait le cluster absent
+ *  retenu par \`dagMask\` — page non résidente dessinée, donc couverture déclarée incomplète. */
 fn escalate(world:u32,parentPixels:f32){
- if(parentPixels>0.0&&parentPixels<INF){atomicMax(&work[world],bitcast<u32>(parentPixels));}
+ let raised=parentPixels*${ESCALATION_SLACK};
+ if(parentPixels>0.0&&raised<INF){atomicMax(&work[world],bitcast<u32>(raised));}
  else{atomicOr(&work[uni.worldCount+world],1u);}
 }
 @compute @workgroup_size(64)

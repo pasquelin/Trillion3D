@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { sameHizView } from './hiz.ts';
 import { holdCameraWorld } from './cameraWorld.ts';
 import {
-  dropGpuSelection,
+  fallbackToCpuCut,
   invalidateOccluderHistory,
   invalidateTemporalPyramid,
 } from './webgpuPagesDrops.ts';
@@ -92,7 +92,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.frame++;
   run.gpuFrameActive = false;
   run.gpuMetricsReady = false;
-  if (run.gpuSelection?.failed()) dropGpuSelection(rt);
+  if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'relevé de sélection en échec');
   if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
     if (!renderGpuCut(rt, camera, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, camera, pixelError, cpuStart, lightsEnd);
