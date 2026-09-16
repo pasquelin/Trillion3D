@@ -78,3 +78,29 @@ fn a_view_never_reads_past_the_end_of_its_block() {
         "un champ hors du bloc rend le défaut, jamais les octets du bloc suivant"
     );
 }
+
+/// Le code de refus de ces octets lus sous ce plafond.
+fn under(bytes: &[u8], ceiling: usize) -> &'static str {
+    BlendFile::open(bytes, ceiling)
+        .err()
+        .expect("ce fichier devait être refusé")
+        .code
+}
+
+// Constat 25 : le plafond de taille porte sur les octets déballés, quelle que soit l'enveloppe. Un
+// fichier nu passait tel quel, sans être mesuré : le plafond ne valait que pour les compressés.
+#[test]
+fn the_size_ceiling_holds_whatever_the_envelope() {
+    let bare = file(&sdna(&["value"], 1), 0);
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    std::io::Write::write_all(&mut encoder, &bare).expect("compression");
+    let zipped = encoder.finish().expect("trame gzip");
+    for (case, bytes) in [("nu", &bare), ("gzip", &zipped)] {
+        assert_eq!(
+            under(bytes, bare.len() - 1),
+            "blend-too-large",
+            "{case} : les octets déballés dépassent le plafond"
+        );
+    }
+    BlendFile::open(&bare, bare.len()).expect("sous le plafond, le fichier nu s'ouvre");
+}
