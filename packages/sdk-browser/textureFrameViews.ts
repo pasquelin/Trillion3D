@@ -10,7 +10,7 @@ import { maxStretch, multiplyMatrix4 } from '../sdk-core/index.ts';
  * découvre pas une matrice de plus que la plus chargée avant elle.
  */
 export function createFrameViews() {
-  const matrices: Array<THREE.Matrix4 | undefined> = [];
+  const ranks = new Map<THREE.Matrix4, number>();
   const views: Float64Array[] = [];
   const stretches: number[] = [];
   let used = 0;
@@ -18,17 +18,18 @@ export function createFrameViews() {
     /** Ouvre une image : les vues déjà calculées restent, leur association est refaite. */
     reset() {
       used = 0;
+      ranks.clear();
     },
     /** Le rang de la vue de cette matrice, calculée une fois par image. */
     of(matrix: THREE.Matrix4, camView: ArrayLike<number>) {
-      for (let index = 0; index < used; index++) if (matrices[index] === matrix) return index;
+      const known = ranks.get(matrix);
+      if (known !== undefined) return known;
       const at = used++;
       if (views.length <= at) {
         views.push(new Float64Array(16));
         stretches.push(1);
-        matrices.push(undefined);
       }
-      matrices[at] = matrix;
+      ranks.set(matrix, at);
       multiplyMatrix4(views[at], camView, matrix.elements);
       stretches[at] = maxStretch(views[at] as unknown as readonly number[]);
       return at;

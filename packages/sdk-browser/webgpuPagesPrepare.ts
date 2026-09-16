@@ -174,7 +174,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (vis.gpuDraw && selectionRoots.length)
     run.gpuSelection = await createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
       residentCut: true,
-      diagnosticGpuVariant: rt.context?.diagnosticGpuVariant,
+      diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
     });
   capabilities.gpuDriven = !!run.gpuSelection;
   await services.bootstrapState.ensure();
