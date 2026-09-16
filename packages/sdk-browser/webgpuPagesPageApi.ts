@@ -19,7 +19,10 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
       view = rec.array!;
     sourceBytes.set(rec.url, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
   }
-  diag.traceDiagnostic('page-accepted', 'Page CPU acceptée pour résidence GPU', {
+  // Le relevé est une fonction, pas un objet : ses trois balayages de la liste des clusters — un
+  // paquet en porte des centaines — ne s'exécutent que si le détail « trace » est demandé. Construit
+  // d'avance, il coûtait ces balayages à chaque page arrivée, y compris quand personne ne les lisait.
+  diag.traceDiagnostic('page-accepted', 'Page CPU acceptée pour résidence GPU', () => ({
     frame: run.frame,
     url,
     bytes: array.byteLength,
@@ -27,7 +30,7 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
     bootstrap: recs.some((rec) => bootstrapUrls.has(rec.url)),
     wanted: recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec))),
     pinned: recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
-  });
+  }));
 }
 
 /** Releases one request, unless a cluster it carries is pinned, wanted or part of the bootstrap. */
@@ -42,7 +45,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     diag.traceDiagnostic(
       'page-drop-deferred',
       'Abandon de page bootstrap ignoré pour préserver la couverture',
-      { frame: run.frame, url, reason: 'bootstrap-pinned' },
+      () => ({ frame: run.frame, url, reason: 'bootstrap-pinned' }),
     );
     return;
   }
@@ -53,14 +56,14 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     diag.traceDiagnostic(
       'page-drop-deferred',
       'Abandon de page différé pendant la transition de couverture',
-      {
+      () => ({
         frame: run.frame,
         url,
         reason: pinned ? 'pinned' : 'wanted',
         pinned,
         wanted,
         deferred: [...run.deferredDrops],
-      },
+      }),
     );
     return;
   }
@@ -75,11 +78,11 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     gpu.cache?.unload?.(rec.url);
     tracking.unmarkPinned(tracking.keyOf(rec));
   }
-  diag.traceDiagnostic('page-dropped', 'Page CPU/GPU libérée', {
+  diag.traceDiagnostic('page-dropped', 'Page CPU/GPU libérée', () => ({
     frame: run.frame,
     url,
     clusters: recs.length,
     reason: 'host-request',
     deferred: false,
-  });
+  }));
 }
