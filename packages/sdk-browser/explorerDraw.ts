@@ -126,8 +126,14 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       }
     }
     const pendingEnd = performance.now();
-    const visibleUrls = backend.pageUrls?.();
-    if (visibleUrls) streamer.retain(visibleUrls);
+    // Les épingles par différence de rangs quand le moteur sait les dire : l'hôte ne refait plus un
+    // ensemble de chaînes par image. Le repli WebGL, qui ne la porte pas, garde la liste d'adresses.
+    const ranks = backend.retainedRanks?.();
+    if (ranks) streamer.retainRanks(ranks);
+    else {
+      const visibleUrls = backend.pageUrls?.();
+      if (visibleUrls) streamer.retain(visibleUrls);
+    }
     const retainEnd = performance.now();
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);

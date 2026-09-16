@@ -11,6 +11,7 @@ import {
   rootCoverage,
 } from './pageSelection.ts';
 import { lighting } from './webgpuPagesHelpers.ts';
+import { createHostRankDelta } from './webgpuPagesHostRanks.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
 import { defaultTextureBudgetBytes } from './textureBudget.ts';
 
@@ -56,6 +57,15 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
       blendCopies.push(copy);
     }
   blendCopies.sort((a, b) => a.renderOrder - b.renderOrder);
+  // Rang de requête → adresse, posée une fois pour la vie de la scène : la différence que l'hôte
+  // reçoit après le rendu ne porte que des entiers, et c'est cette table qui les traduit.
+  const requestUrls: string[] = new Array<string>(requestCount);
+  for (let i = 0; i < allPages.length; i++) {
+    const rec = allPages[i],
+      rank = rec.requestIndex;
+    if (rank !== undefined && rank >= 0 && rank < requestCount)
+      requestUrls[rank] = rec.streamUrl ?? rec.url;
+  }
   const tracking = createWebgpuPageTracking(allPages);
   diag.traceDiagnostic('page-catalog', 'Catalogue stable des pages WebGPU', {
     backend: 'webgpu-page-raster',
@@ -113,6 +123,9 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // Le dédoublonnage des clés de requête sans table de hachage, partagé par les deux listes que
     // l'hôte demande après le rendu : leur rang est posé une fois pour toutes par le catalogue.
     requestStamps: new RequestStamps(requestCount),
+    requestUrls,
+    // Ce que l'hôte épingle, tenu d'une image à l'autre et publié comme une différence de rangs.
+    hostRanks: createHostRankDelta(requestCount, requestUrls),
     cap,
     slots,
     scene,

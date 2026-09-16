@@ -157,3 +157,30 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
   if (!run.coverageBudgetLimited) stamps.mark(run.desired, urlScratch);
   return urlScratch;
 }
+
+/**
+ * Les mêmes épingles que `pageUrls`, dites comme une différence de rangs : ce qui est entré et ce qui
+ * est sorti depuis l'image précédente. Ni chaîne, ni ensemble de clés, ni allocation — trois listes
+ * parcourues en entiers, et le cache ne touche ensuite que ce qui a bougé. Une image qui a relu le
+ * relevé déjà tenu ne parcourt même plus ces listes : elle redonne la différence vide.
+ */
+export function retainedRanks(rt: WebgpuPagesRuntime) {
+  const { run } = rt,
+    ranks = rt.setup.hostRanks,
+    held = run.ranksHeld;
+  if (
+    run.cutHeld &&
+    held.cut === run.cutEpoch &&
+    held.epoch === run.pageArrayEpoch &&
+    held.limited === run.coverageBudgetLimited
+  )
+    return ranks.hold();
+  held.cut = run.cutEpoch;
+  held.epoch = run.pageArrayEpoch;
+  held.limited = run.coverageBudgetLimited;
+  ranks.begin();
+  ranks.mark(rt.setup.bootstrap);
+  ranks.mark(run.shown);
+  if (!run.coverageBudgetLimited) ranks.mark(run.desired);
+  return ranks.finish();
+}
