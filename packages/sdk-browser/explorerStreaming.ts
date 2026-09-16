@@ -26,14 +26,26 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
   const decodeFailures = new Set<string>();
   // Les arrivées de pages n'entrent plus dans l'image qui les découvre : la file les empile et un
   // drain unique et borné, en tête de `render()`, les fait résider avant la sélection de l'image
-  // suivante. Budget : 512 Kio d'index et 64 pages, soit ce qu'une image accepte de porter.
-  const arrivals = createArrivalQueue(512 * 1024, 64);
+  // suivante. Le plafond est un TEMPS — 2 ms d'intégration par image ; 512 Kio d'index et 64 pages
+  // le doublent sans jamais le remplacer, parce qu'un paquet de streaming porte un nombre de
+  // clusters inconnu d'avance et qu'aucun compte d'octets ne borne alors la durée.
+  const arrivals = createArrivalQueue(512 * 1024, 64, 2);
+  // Ce qu'une image empile au plus. La file n'en livre qu'une poignée par image : en empiler des
+  // milliers d'avance ne ferait qu'ajouter, à chaque image, autant de lectures du cache — et chaque
+  // lecture y remonte son adresse en tête de l'ordre de moindre usage. Le reste repart à l'image
+  // suivante, dans le même ordre de priorité.
+  const QUEUE_BATCH = 64;
   const queueCached = (backend: RenderBackend, missing: readonly string[]) => {
-    for (let i = 0; i < missing.length; i++) {
+    let held = 0;
+    for (let i = 0; i < missing.length && held < QUEUE_BATCH; i++) {
       const url = missing[i];
       if (geometryUrls.has(url)) continue;
       const cached = streamer.get(url);
-      if (cached) arrivals.queue(backend, url, cached);
+      // Le lot compte les pages que le cache TIENT, empilées à l'instant ou déjà en attente : sans
+      // cela une file en retard ferait rebalayer toute la liste à chaque image sans rien empiler.
+      if (!cached) continue;
+      held++;
+      arrivals.queue(backend, url, cached);
     }
   };
   const startFetch = (urls: string[], priority = PRIORITY_VISIBLE) => {
