@@ -29,6 +29,14 @@ export function createProjectionHold(slots: number) {
     heldEpoch = -1;
   return {
     pending,
+    /**
+     * L'âge des rectangles d'écran : il change dès que la vue, le viewport ou l'âge de la table
+     * retire les rectangles tenus. Ce que lit quiconque garde des bornes PROJETÉES et doit savoir
+     * si elles décrivent encore cette image-ci.
+     */
+    get generation() {
+      return generation;
+    },
     /** Re-reads the view every slot shares; a change retires every rectangle at once. */
     reframe(camera: THREE.PerspectiveCamera, width: number, height: number, epoch: number) {
       camera.updateWorldMatrix(true, false);
