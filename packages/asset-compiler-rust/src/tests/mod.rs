@@ -47,6 +47,7 @@ mod unity_proprietes;
 mod unitypackage_golden;
 mod uri_pilotes;
 mod usd_driver;
+mod usd_faces;
 mod usd_fidelite;
 mod usd_golden;
 mod usd_heritage;
