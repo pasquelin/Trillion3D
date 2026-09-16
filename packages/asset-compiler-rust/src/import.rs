@@ -143,6 +143,7 @@ struct Importer<'a> {
 }
 
 mod external;
+pub(crate) mod light;
 mod lighting;
 mod materials;
 pub(crate) mod mesh;
@@ -154,6 +155,7 @@ mod tables;
 mod textures;
 mod write;
 
+pub(crate) use light::{attach_lights, light_node, LightSource};
 use lighting::*;
 use materials::*;
 use mesh::*;

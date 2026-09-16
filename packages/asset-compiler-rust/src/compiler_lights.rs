@@ -36,6 +36,13 @@ const QUARTER_PI: f64 = std::f64::consts::FRAC_PI_4;
 /// réglage se prend. FBX n'a pas d'unité : son `Intensity` est un pourcentage, que ufbx rend en
 /// fraction. Une ponctuelle ou un projecteur prend l'ampoule de 1000 lm dans 4π sr (≈ 79,6 cd par
 /// unité), une directionnelle l'éclairement d'une journée couverte (10 000 lux).
+/// L'intensité photométrique du glTF — candela ou lux — d'une grandeur radiométrique en W/sr ou
+/// W/m². C'est l'inverse exact de la division que ce module fait à la relecture : un pilote dont le
+/// format est radiométrique, comme `UsdLux` et Blender, passe par là plutôt que par un facteur à
+/// lui, et la valeur écrite dans le glTF revient au watt d'origine.
+pub(crate) fn photometric(radiometric: f64) -> f64 {
+    radiometric * LUMENS_PER_WATT
+}
 pub(crate) fn fbx_intensity_scale(kind: &str) -> f64 {
     if kind == "directional" {
         10_000.0
