@@ -73,10 +73,11 @@ fn un_webp_hors_politique_ressort_en_raison_de_rapport_jamais_en_panique() {
         registry::decode(b"RIFF\x04\x00\x00\x00WEBP", MAX_ALLOC).err(),
         Some("image-decode-failed")
     );
-    // Le plafond d'allocation est une limite, pas une suggestion : au-dessus, c'est un refus.
+    // Le plafond d'allocation est une limite, pas une suggestion : au-dessus, c'est un refus, et
+    // il porte son nom — la taille finale en RGBA8 est connue avant que rien ne soit décodé.
     assert_eq!(
         registry::decode(&fixture("webp", "sans-perte.webp"), MAX_ALLOC_TROP_PETIT).err(),
-        Some("image-decode-failed")
+        Some("image-too-large")
     );
     // RIFF sert à d'autres formats : sans le type de formulaire `WEBP`, le pilote ne revendique
     // rien, et ces octets ressortent en format inconnu plutôt qu'en WebP illisible.
