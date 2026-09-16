@@ -1,16 +1,21 @@
-// Défaut de preuve M3b : `test:gpu` a échoué sur quatre hôtes navigateur qui appelaient encore
-// `cameraSelectionUniforms` et `rasterVisibility` avec la caméra HÔTE brute — la signature d'avant
-// le lot (`camera: THREE.PerspectiveCamera`) — alors que le lot les a réécrites pour lire une
-// `EngineCamera` (`cam.planes`, `cam.view`, `cam.viewProjection`). `npm test` ne l'a pas vu : ces
-// hôtes sont des scripts `test/*.browser.mjs`, hors de `npm test`, qui n'exercent le vrai GPU que
-// par `npm run test:gpu`. Ces tests reproduisent l'appel fautif sans navigateur, et confirment le
-// bon.
+// CE QUE CES DEUX API PUBLIQUES ATTENDENT, ET CE QU'ELLES REFUSENT.
 //
 // AVANT (develop, fe285470) : `cameraSelectionUniforms(camera: THREE.PerspectiveCamera, …)` et
 // `rasterVisibility(pages, camera: THREE.PerspectiveCamera, viewport)`.
-// APRÈS (M3b, 36a3f6bb) : `cameraSelectionUniforms(cam: EngineCamera, …)` (gpuSelection.ts:129) et
-// `rasterVisibility(pages, cam: EngineCamera, viewport)` (visibilityRaster.ts:66) — les deux lisent
+// APRÈS (M3b) : `cameraSelectionUniforms(cam: EngineCamera, …)` (gpuSelection.ts) et
+// `rasterVisibility(pages, cam: EngineCamera, viewport)` (visibilityRaster.ts) — les deux lisent
 // `cam.planes`/`cam.view`/`cam.viewProjection`, absents d'une caméra hôte brute.
+//
+// LE CHOIX, ET IL EST DÉFINITIF : ces API prennent la caméra du MOTEUR et rejettent net une caméra
+// hôte brute. Elles ne convertissent pas à la frontière : convertir remettrait `readCameraWorld` —
+// une inversion de matrice et six plans — dans une fonction que la coupe appelle par image, et
+// masquerait le rig non remonté que le contrat existe pour attraper. Un hôte entre donc par
+// `cameraMoteur(…)`, comme l'entrée d'image le fait.
+//
+// `test:gpu` avait échoué sur quatre hôtes de `test/*.browser.mjs` restés sur la caméra brute ; ils
+// sont passés à `cameraMoteur` (montages internes au dépôt, pas des hôtes tiers). `npm test` ne
+// l'avait pas vu : ce sont des scripts hors de `npm test`, que seul `npm run test:gpu` exécute —
+// ces tests-ci reproduisent donc les deux appels sans navigateur, le fautif et le bon.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -37,7 +42,7 @@ function pageTriangle(matrix: THREE.Matrix4): VisPage {
   };
 }
 
-test('cameraSelectionUniforms rejette la caméra hôte brute, la signature d’avant le lot M3b', () => {
+test('cameraSelectionUniforms rejette la caméra hôte brute : elle ne convertit pas à la frontière', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera;
   // `camera` n'a ni `.planes` ni `.view` ni `.viewProjection` : ce que `test:gpu` a découvert sur
@@ -54,7 +59,7 @@ test('cameraSelectionUniforms rejette la caméra hôte brute, la signature d’a
   );
 });
 
-test('rasterVisibility rejette la caméra hôte brute, la signature d’avant le lot M3b', () => {
+test('rasterVisibility rejette la caméra hôte brute : elle ne convertit pas à la frontière', () => {
   const rig = creeRig(),
     camera = poseRig(rig, POSE, true) as THREE.PerspectiveCamera;
   assert.throws(

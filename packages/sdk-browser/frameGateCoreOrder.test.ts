@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createFrameGateCore } from './frameGateCore.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
-import { cameraWorldPosition, type CameraMotion } from './cameraWorld.ts';
+import type { CameraMotion } from './cameraWorld.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './bench/justesse/cameraRig.mjs';
 
 type Pose = (typeof POSES_PARENT)[number];
@@ -46,7 +47,7 @@ test('enterFrame résout la pose avant le seuil adaptatif : la vitesse mesurée 
   const motion: CameraMotion = {};
   poseRig(rig, DEPLACE_ET_TOURNE, false); // jamais remonté : seule `enterFrame` peut le voir.
   gate.enterFrame({ pixelError: 1, lodAdaptive: true }, rig.camera, motion, VIEWPORT, source, []);
-  const eyeAplatie = cameraWorldPosition(cameraAplatie(DEPLACE_ET_TOURNE)).toArray();
+  const eyeAplatie = [...cameraMoteur(cameraAplatie(DEPLACE_ET_TOURNE)).eye];
   assert.deepEqual(
     [...(motion.last ?? [])],
     eyeAplatie,
