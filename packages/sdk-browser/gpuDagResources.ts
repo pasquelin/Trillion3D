@@ -1,5 +1,5 @@
 import { dropValidation } from './gpuErrorScope.ts';
-import { SELECTION_UNIFORM_BYTES as UNIFORM_BYTES } from './gpuSelection.ts';
+import { SELECTION_UNIFORM_BYTES as UNIFORM_BYTES, SELECTION_WORKGROUP } from './gpuSelection.ts';
 import { FRAME_VEC4, type PackedDag } from './gpuDagTypes.ts';
 import { createDagPipeline } from './gpuDagPipeline.ts';
 
@@ -12,8 +12,12 @@ export async function createDagResources(
   const pageCount = packed.pageCount,
     nodeCount = packed.nodeCount,
     worldCount = Math.max(1, packed.worldCount);
+  // La liste compactée des pages dessinables prolonge le relevé : un compte, trois mots de calage,
+  // puis les rangs. Une seule copie contiguë rapporte les deux.
   const outputBytes = 16 + pageCount * 4,
-    readbackBytes = outputBytes + (residentCut ? pageCount * 4 : 0);
+    drawnBytes = 16 + pageCount * 4,
+    blockCount = Math.ceil(Math.max(1, pageCount) / SELECTION_WORKGROUP),
+    readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
   const uniformData = new Float32Array(UNIFORM_BYTES / 4);
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4);
   for (let w = 0; w < packed.worldCount; w++)
@@ -40,10 +44,15 @@ export async function createDagResources(
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const output = device.createBuffer({
-      size: outputBytes,
+      size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    const work = device.createBuffer({ size: Math.max(8, worldCount * 2 * 4), usage: STORAGE });
+    // Les seuils et drapeaux de couverture par primitive, puis les comptes et décalages de bloc de
+    // la compaction : aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint.
+    const work = device.createBuffer({
+      size: Math.max(8, (worldCount * 2 + blockCount * 2) * 4),
+      usage: STORAGE,
+    });
     const worlds = device.createBuffer({
       size: Math.max(64, packed.worlds.byteLength),
       usage: STORAGE,
@@ -112,6 +121,7 @@ export async function createDagResources(
       nodeCount,
       worldCount,
       outputBytes,
+      readbackBytes,
       uniformData,
       frameData,
       buffers,

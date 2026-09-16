@@ -16,12 +16,22 @@ import type { SelectionResult } from './gpuSelection.ts';
 const champs = (releve: SelectionResult | null) =>
   releve && { ...releve, drawablePageIds: releve.drawablePageIds ?? undefined };
 
-function buffer(header: number[], pageIds: number[], mask: number[] = []) {
-  const ints = new Uint32Array(4 + pageIds.length + mask.length);
+function buffer(header: number[], pageIds: number[]) {
+  const ints = new Uint32Array(4 + pageIds.length);
   ints.set(header, 0);
   ints.set(pageIds, 4);
-  ints.set(mask, 4 + pageIds.length);
   return ints.buffer;
+}
+
+/** Le relevé tel que la carte graphique le rend : l'entête et les pages, puis la liste compactée. */
+function withDrawn(header: number[], pageIds: number[], drawn: number[], pageCount: number) {
+  const words = 4 + pageCount;
+  const ints = new Uint32Array(words * 2);
+  ints.set(header, 0);
+  ints.set(pageIds, 4);
+  ints[words] = drawn.length;
+  ints.set(drawn, words + 4);
+  return { bytes: ints.buffer, drawnWordOffset: words };
 }
 
 test('the aborted flag (bit 0 of word 3) makes both implementations return null', () => {
@@ -58,13 +68,19 @@ test('a page count larger than the buffer holds is clamped identically, with and
   assert.equal(optimisee!.pageIds.length, 3);
 });
 
-test('a drawable-page mask matches the reference verdict for every page, dense and sparse alike', () => {
-  const mask = [1, 0, 1, 1, 0, 0, 1, 0];
-  const buf = buffer([2, 0, 0, 0], [5, 6], mask);
-  const optimisee = parseDagOutput(buf, 0, buf.byteLength, mask.length);
-  const reference = referenceParseDagOutput(buf, 0, buf.byteLength, mask.length);
-  assert.deepEqual(champs(optimisee), champs(reference));
-  assert.deepEqual(optimisee!.drawablePageIds, [0, 2, 3, 6]);
+test('la liste dessinable compactée est relue telle quelle, sans parcourir toutes les pages', () => {
+  const { bytes, drawnWordOffset } = withDrawn([2, 0, 0, 0], [5, 6], [0, 2, 3, 6], 8);
+  const releve = parseDagOutput(bytes, 0, bytes.byteLength, drawnWordOffset);
+  assert.deepEqual(releve!.pageIds, [5, 6]);
+  assert.deepEqual(releve!.drawablePageIds, [0, 2, 3, 6]);
+});
+
+test('un compte dessinable plus grand que le relevé est ramené à ce qu il contient', () => {
+  const { bytes, drawnWordOffset } = withDrawn([1, 0, 0, 0], [5], [1, 2], 4);
+  const ints = new Uint32Array(bytes);
+  ints[drawnWordOffset] = 1000;
+  const releve = parseDagOutput(bytes, 0, bytes.byteLength, drawnWordOffset);
+  assert.equal(releve!.drawablePageIds!.length, 4);
 });
 
 test('an empty buffer (all zero) and a zero-length byte range never crash', () => {
