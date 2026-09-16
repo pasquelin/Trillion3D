@@ -29,10 +29,26 @@ export function lot(n) {
     m.decompose(p, q, s);
     return { p, q, s, pa: f64(p.toArray()), qa: f64(q.toArray()), sa: f64(s.toArray()) };
   });
+  // Rangement « tampon plat, sous-vues » : un seul `Float64Array` de seize × `n` nombres, et des
+  // sous-vues dessus — c'est ainsi que le moteur range ses matrices monde (`tree.world` +
+  // `tree.worldViews`, `mathTransformTree.ts`), à côté du rangement « une Float64Array par élément »
+  // ci-dessus (`socle`/`tampons4`), publié sans être retiré.
+  const socleTampon = new Float64Array(n * 16),
+    tamponsTampon = new Float64Array(n * 16);
+  const vues = (tampon) =>
+    Array.from({ length: n }, (_, i) => tampon.subarray(i * 16, i * 16 + 16));
+  const socleVues = vues(socleTampon),
+    tamponsVues = vues(tamponsTampon);
+  for (let i = 0; i < n; i++) socleVues[i].set(f64(three[i].elements));
+
   const l = {
     trs,
     three,
     socle: three.map((m) => f64(m.elements)),
+    socleTampon,
+    socleVues,
+    tamponsTampon,
+    tamponsVues,
     sortie4: Array.from({ length: n }, () => new THREE.Matrix4()),
     sortie3: Array.from({ length: n }, () => new THREE.Matrix3()),
     tampons4: Array.from({ length: n }, () => new Float64Array(16)),
@@ -44,5 +60,6 @@ export function lot(n) {
   // La racine des matrices monde est la même pose des deux côtés : les produits portent les mêmes valeurs.
   l.sortie4[0].copy(three[0]);
   l.tampons4[0].set(l.socle[0]);
+  l.tamponsVues[0].set(l.socleVues[0]);
   return l;
 }
