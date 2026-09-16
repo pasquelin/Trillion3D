@@ -20,12 +20,12 @@
 | Tampon de visibilité, un ombrage par pixel | oui | oui | — |
 | CPU par image quasi nul | oui (96d68279) | à tester | — |
 | Textures progressives, budget | oui | oui | — |
-| Streaming sans attente | oui (a9b3db14, 33e1db88) | à tester | intégration en worker (socle Wasm du Calculateur) |
-| WebGL mobile | coupe CPU 16 ms | non | coupe sur socle Wasm partagé (Calculateur, M5) |
+| Streaming sans attente | oui (a9b3db14, 33e1db88, worker) | à tester | plages de téléversement et fiches de ligne restent sur le fil principal |
+| WebGL mobile | coupe hiérarchique, forçage élagué (11666f9c) | à tester | noyaux Rust/Wasm du Calculateur (M5) quand livrés |
 
-## État au 16 sept. 2026, 17 h 30 — develop local 96d68279, non poussé
+## État au 16 sept. 2026, 18 h — develop local (worker de streaming inclus), non poussé
 
-Fusionnés dans l'ordre depuis b92e23e : image tenue + incrémental (4397df3, corrections c396c459), coupe GPU rétablie (2ddbdafe), reprise coupe incomplète + couleur tenue WebGL (b42948a9), transparents suivent les transformations (Calculateur), partition Hi-Z GPU (1f4a746c), rejet anticipé du mélange (dd3d604d), occlusion des transparents (fa876ed0), sélection indirecte (cc3b5033, a2507150), géométrie tronquée (37a55d59), streaming sans attente (a9b3db14), syncRows incrémental (33e1db88), élagage hiérarchique (fb96ffb2), transparents sur GPU (96d68279).
+Fusionnés dans l'ordre depuis b92e23e : image tenue + incrémental (4397df3, corrections c396c459), coupe GPU rétablie (2ddbdafe), reprise coupe incomplète + couleur tenue WebGL (b42948a9), transparents suivent les transformations (Calculateur), partition Hi-Z GPU (1f4a746c), rejet anticipé du mélange (dd3d604d), occlusion des transparents (fa876ed0), sélection indirecte (cc3b5033, a2507150), géométrie tronquée (37a55d59), streaming sans attente (a9b3db14), syncRows incrémental (33e1db88), élagage hiérarchique (fb96ffb2), transparents sur GPU (96d68279), coupe CPU WebGL élaguée sous forçage (11666f9c), intégration des pages en worker (fusion suivante).
 
 Dernière mesure valable (avant les quatre derniers lots, machine chargée, 12 instances) : WebGPU immobile 2 ms CPU ; mobile CPU 2,5 ms, GPU 10 à 11 ms ; WebGL immobile 5 ms, mobile 41 ms. Navigation à froid : 2 images par seconde avant a9b3db14, non remesurée (interdit).
 

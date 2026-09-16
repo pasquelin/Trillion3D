@@ -6,6 +6,7 @@ import {
 } from './pageSelectionProjection.ts';
 import type { PageRecord, SelectionState } from './pageSelectionCutState.ts';
 import {
+  ALL_SOURCED,
   OWN_CEIL,
   OWN_FLOOR,
   OWN_SPHERE,
@@ -89,4 +90,27 @@ export function nodeDecisionAtZero(values: Float64Array, at: number) {
   if (floorAboveZero(values, values[at + OWN_FLOOR], at + OWN_SPHERE + 3)) return -1;
   if (values[at + OWN_CEIL] !== 0) return 0;
   return floorAboveZero(values, values[at + PARENT_FLOOR], at + PARENT_SPHERE + 3) ? 1 : 0;
+}
+
+/**
+ * Décision d'un sous-arbre pour la passe en cours : -1 rejet, 1 acceptation, 0 indécis.
+ *
+ * L'appelant ne l'appelle, sous repli par forçage, que sur un sous-arbre qu'aucun groupe forcé ne
+ * touche. Là, `forced[source]` et `forced[group]` sont faux partout, et `drawnUnderForcing` se lit
+ * « erreur propre sous le seuil, remplaçant au-dessus » — mot pour mot `cutSelects`, donc les deux
+ * bornes du nœud décident à l'identique — à une exception près : une grappe que rien n'a produite
+ * est dessinée quelle que soit son erreur propre. Le rejet, qui ne repose que sur cette erreur,
+ * demande donc en plus que tout le sous-arbre ait un groupe producteur ; l'acceptation, qui ne
+ * repose que sur le plafond propre et le plancher du remplaçant, n'a rien à demander de plus.
+ */
+export function subtreeDecision<T extends PageRecord>(
+  s: SelectionState<T>,
+  values: Float64Array,
+  at: number,
+  exact: boolean,
+  forcing: boolean,
+) {
+  const decision = exact ? nodeDecisionAtZero(values, at) : nodeDecision(s, values, at);
+  if (decision < 0 && forcing && values[at + ALL_SOURCED] === 0) return 0;
+  return decision;
 }
