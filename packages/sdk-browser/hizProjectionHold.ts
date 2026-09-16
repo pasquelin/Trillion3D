@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { copyElements, sameElements } from './matrixElements.ts';
+import { createViewFingerprint } from './viewFingerprint.ts';
 
 /**
  * Which slots of the screen-rectangle table still describe this image, and which have to be
@@ -19,13 +19,10 @@ export function createProjectionHold(slots: number) {
     heldPage = new Int32Array(size).fill(-1),
     pending = new Uint8Array(size);
   // Vue, projection, plan proche, viewport et révision du monde : tout ce dont un rectangle d'écran
-  // dépend en dehors de la boîte elle-même.
-  const view = new Float64Array(16),
-    projection = new Float64Array(16);
+  // dépend en dehors de la boîte elle-même. Les quatre premiers sont l'empreinte que la révision de
+  // vue des moteurs Three compare aussi (`viewFingerprint.ts`) ; l'âge de la table n'est qu'à nous.
+  const fingerprint = createViewFingerprint();
   let generation = 0,
-    heldNear = NaN,
-    heldWidth = -1,
-    heldHeight = -1,
     heldEpoch = -1;
   return {
     pending,
@@ -40,22 +37,8 @@ export function createProjectionHold(slots: number) {
     /** Re-reads the view every slot shares; a change retires every rectangle at once. */
     reframe(camera: THREE.PerspectiveCamera, width: number, height: number, epoch: number) {
       camera.updateWorldMatrix(true, false);
-      const now = camera.matrixWorldInverse.elements,
-        nowProjection = camera.projectionMatrix.elements;
-      if (
-        heldNear === camera.near &&
-        heldWidth === width &&
-        heldHeight === height &&
-        heldEpoch === epoch &&
-        sameElements(view, now) &&
-        sameElements(projection, nowProjection)
-      )
-        return;
-      copyElements(view, now);
-      copyElements(projection, nowProjection);
-      heldNear = camera.near;
-      heldWidth = width;
-      heldHeight = height;
+      if (heldEpoch === epoch && fingerprint.same(camera, width, height)) return;
+      fingerprint.keep(camera, width, height);
       heldEpoch = epoch;
       generation++;
     },

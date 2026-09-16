@@ -46,22 +46,42 @@ export function createExactPagesRenderState(): ExactPagesRenderState {
   };
 }
 
-export function createExactPagesRender(
-  state: ExactPagesRenderState,
-  context: BackendContext,
-  source: THREE.Object3D,
-  blendCopies: THREE.Mesh[],
-  sceneLights: ReturnType<typeof lighting>,
-  motion: { last?: THREE.Vector3; lastMs?: number },
-  roots: ReadonlyArray<ClusterRoot<PageRec>>,
-  viewport: [number, number] | undefined,
-  cap: number,
-  desired: PageRec[],
-  shown: PageRec[],
-  syncResident: () => void,
-  cpuProfile: ReturnType<typeof createCpuStepProfile>,
-  gate: WebglFrameGate,
-) {
+/** Les étapes processeur d'une image tenue, remises à zéro : la liste ne dépend de rien et se lit
+ *  une fois, pas à chaque image du régime stationnaire que la tenue d'image installe. */
+const EXACT_CPU_STEPS = Object.values(EXACT_CPU_STEP);
+
+export function createExactPagesRender(options: {
+  state: ExactPagesRenderState;
+  context: BackendContext;
+  source: THREE.Object3D;
+  blendCopies: THREE.Mesh[];
+  sceneLights: ReturnType<typeof lighting>;
+  motion: { last?: THREE.Vector3; lastMs?: number };
+  roots: ReadonlyArray<ClusterRoot<PageRec>>;
+  viewport: [number, number] | undefined;
+  cap: number;
+  desired: PageRec[];
+  shown: PageRec[];
+  syncResident: () => void;
+  cpuProfile: ReturnType<typeof createCpuStepProfile>;
+  gate: WebglFrameGate;
+}) {
+  const {
+    state,
+    context,
+    source,
+    blendCopies,
+    sceneLights,
+    motion,
+    roots,
+    viewport,
+    cap,
+    desired,
+    shown,
+    syncResident,
+    cpuProfile,
+    gate,
+  } = options;
   // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout.
   const selectOptions = {
     pixelError: 0,
@@ -86,7 +106,7 @@ export function createExactPagesRender(
    */
   const heldProfile = () => {
     const row = cpuProfile.row;
-    for (const step of Object.values(EXACT_CPU_STEP)) row[step] = 0;
+    for (const step of EXACT_CPU_STEPS) row[step] = 0;
     state.cpuSelectMs = 0;
     state.cpuSelectNodesTested = 0;
   };

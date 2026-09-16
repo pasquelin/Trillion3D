@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { signedArea, type Projected } from './visibilityProjection.ts';
-import { HIZ_BACKGROUND } from '../sdk-core/index.ts';
+import { HIZ_BACKGROUND, matrixWindingCw } from '../sdk-core/index.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
-import { matrixWindingCw } from './webgpuPagesWinding.ts';
 import {
   assertVisibilityPageTriangles,
   packVisibilityId,
