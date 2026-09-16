@@ -152,8 +152,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
-  /** Adopte le relevé en attente et dit si l'image en est changée : listes réécrites ou métriques
-   *  de coupe reprises. L'appelant hors rendu s'en sert pour retirer le témoin d'image tenue. */
+  /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
+   *  Un relevé neuf qui republie les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
@@ -171,7 +171,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.frustumRejected = metrics.frustumRejected;
     run.lodLevel = metrics.lodLevel;
     run.gpuMetricsReady = metrics.ready;
-    return true;
+    return metrics.listsRewritten;
   };
   /**
    * Answers what the image asks the cache for. One cut covers both passes now, and the readback

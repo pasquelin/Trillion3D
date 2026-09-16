@@ -71,6 +71,12 @@ export function createExactPagesRender(
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
+  // Ce que ce moteur dessine, par le nœud source d'où chaque chose sort : une page par racine — les
+  // instances d'un même modèle le nomment toutes —, et les copies transparentes hors DAG.
+  const sourcesDessinees = [
+    ...roots.map((root) => root.pages[0]),
+    ...blendCopies.map((copy) => copy.userData),
+  ];
   /**
    * Une image tenue n'a exécuté aucune étape : son profil le dit en zéros, pas en estimations, et
    * la durée de coupe comme le nombre de nœuds visités valent zéro parce qu'aucune coupe n'a été
@@ -97,14 +103,14 @@ export function createExactPagesRender(
     gate.viewChanged(camera, viewport, state.lastPixelError);
     // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture est ce
     // qui l'annonce, et elle précède la décision de tenir l'image.
-    gate.readScene(source);
+    gate.readScene(source, sourcesDessinees);
     // Rien n'a bougé et les deux images précédentes ont produit la même coupe : la scène attachée
     // est déjà cette image-ci, et l'hôte la redessine telle quelle.
     state.frameHeld = gate.held();
     if (state.frameHeld) return heldProfile();
     const worldStart = performance.now();
     // Les matrices monde et les copies transparentes ne sont fonction que de la scène.
-    const worldsMoved = gate.updateWorlds();
+    const worldsMoved = gate.updateWorlds(source);
     if (worldsMoved)
       for (const copy of blendCopies)
         copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);

@@ -105,12 +105,12 @@ export interface WebgpuRunState {
   /** Vrai quand l'image en cours a été tenue : aucune étape processeur n'a été exécutée. */
   frameHeld: boolean;
   /** La révision de scène pour laquelle la hiérarchie Three porte ses matrices monde à jour.
-   *  Écrite par qui les a remontées : la relecture du graphe, en tête de chaque image. */
+   *  Écrite par qui les a remontées : la première image, ou le déplacement d'un nœud nommé. */
   worldsRevision: number;
-  /** Ce que l'hôte a écrit dans le graphe source sans passer par le moteur ; voir
-   *  `createHostSceneWatch`. Relu en tête d'image, avant toute décision de tenir l'image. */
+  /** Ce que l'hôte écrit sans passer par le moteur, et la révision où sa liste est posée. */
   sceneWatch: ReturnType<typeof createHostSceneWatch>;
-  /** La révision de scène dont les matrices ont été portées à la carte et aux items transparents. */
+  watchRevision: number;
+  /** La révision dont les matrices sont portées à la carte et aux items transparents. */
   worldUploadRevision: number;
   /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
    *  occulteurs, donc la partition que la suivante hérite. */
@@ -193,6 +193,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     frameHeld: false,
     worldsRevision: 0,
     sceneWatch: createHostSceneWatch(),
+    watchRevision: -1,
     worldUploadRevision: 0,
     occluderSignature: 0,
   };
