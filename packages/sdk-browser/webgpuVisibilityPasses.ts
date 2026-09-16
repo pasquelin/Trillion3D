@@ -62,6 +62,10 @@ export function encodeWebgpuVisibilityPasses(
   gpuHiz.encodePyramid(encoder);
   rt.run.hizPyramidFresh = true;
   gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
+  // Le verdict existe maintenant : le suffixe de lignes rejetées sort du compte d'instances avant
+  // que la seconde passe ne lance leurs sommets. Il n'y posait aucun pixel, l'image ne bouge pas.
+  if (vis.gpuRestCompact && vis.pageTable)
+    vis.gpuRestCompact.encode(encoder, 3 * vis.drawLayerSlots, rows.packedCount, vis.pageTable);
   // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
   // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
   if (skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) return;
