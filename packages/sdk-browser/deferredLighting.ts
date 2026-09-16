@@ -24,8 +24,18 @@ const ZERO_DIRECT = [0, 0, 0, 1] as const;
  * matériaux, composé par l'identité, qui est aussi ce que rend une scène sans lampe déclarée — et
  * celui du contrat, exposé puis passé dans ACES. Le second n'est compilé qu'à la première image qui
  * porte une lampe : une scène qui n'en a pas ne le paie jamais.
+ *
+ * `onReady` est appelé à chaque arrivée d'un programme du contrat, DIRECT comme BOUNCE. C'est la
+ * seule annonce de ce changement d'image : la compilation se termine entre deux images, sans que
+ * l'appelant ait rien demandé, et l'image suivante rendrait encore l'albédo brut si personne ne le
+ * disait. Un programme qui arrive alors que sa variante n'est plus demandée fait refaire une image
+ * de plus, jamais une image fausse.
  */
-export async function createDeferredLighting(device: GPUDevice, directLights: GPUBuffer) {
+export async function createDeferredLighting(
+  device: GPUDevice,
+  directLights: GPUBuffer,
+  onReady?: () => void,
+) {
   const uniform = device.createBuffer({
     label: 'WG deferred view v1',
     size: 128,
@@ -115,7 +125,10 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
             },
             bindings,
           ).then(
-            (program) => (variant.program = program),
+            (program) => {
+              variant.program = program;
+              onReady?.();
+            },
             (error) => onFailure?.(error),
           );
         // Le programme du rebond met une image ou deux à se compiler : celui du contrat rend
