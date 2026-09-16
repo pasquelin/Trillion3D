@@ -37,7 +37,7 @@
 //! prise sur une autre image ou un autre canal que l'alpha de la couleur de base.
 use super::*;
 use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
-use crate::plugins::scene::cancel;
+use crate::plugins::scene::{cancel, normals};
 use crate::{hash, CompilerError};
 use serde_json::{json, Value};
 use std::{
@@ -59,7 +59,6 @@ mod file;
 mod images;
 mod material;
 mod mesh;
-mod normals;
 mod object;
 mod out;
 mod shading;
@@ -97,7 +96,7 @@ impl Plugin for Blend {
     /// La version nomme la disposition lue et les deux décompresseurs : la changer invalide les
     /// caches, donc tout `.blend` déjà compilé est relu.
     fn version(&self) -> &'static str {
-        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-5"
+        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-6"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["blend"]
