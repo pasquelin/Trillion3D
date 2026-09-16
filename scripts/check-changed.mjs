@@ -51,7 +51,11 @@ export function relatedTests(files, changed) {
     return (edges.get(file) ?? []).some((dependency) => reachesChanged(dependency, visited));
   };
   return [...files.keys()]
-    .filter((file) => testPattern.test(file) && (file.startsWith('packages/') || changed.has(file)))
+    .filter(
+      (file) =>
+        testPattern.test(file) &&
+        (file.startsWith('packages/') || file.startsWith('scripts/mesure/') || changed.has(file)),
+    )
     .filter((file) => reachesChanged(file))
     .sort();
 }

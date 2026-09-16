@@ -172,9 +172,10 @@ export async function measureView(options) {
   );
   // L'ensemble sélectionné, lu comme dans les lots précédents : voir `pageCoupe.mjs`.
   const selection = coupe.lireCoupe(explorer, options.engineId);
-  const metrics = {};
-  for (const key of Object.keys(last || {}))
-    if (typeof last[key] === 'number' || typeof last[key] === 'boolean') metrics[key] = last[key];
+  // Les mesures scalaires du dernier relevé, `null` compris : une mesure tue serait indistinguable
+  // d'une mesure absente, qu'un lecteur remplacerait par zéro — ce que le contrat interdit.
+  const scalaire = (v) => v === null || typeof v === 'number' || typeof v === 'boolean';
+  const metrics = Object.fromEntries(Object.entries(last ?? {}).filter(([, v]) => scalaire(v)));
   const size = { width: canvas.width, height: canvas.height };
   explorer.dispose();
   canvas.remove();
