@@ -3,6 +3,7 @@ import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts'
 import type { BlendLighting } from './webgpuBindEntries.ts';
 import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
+import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 
 export type BlendGpuItem = {
@@ -50,6 +51,11 @@ export function createWebgpuBlendState() {
      *  before `prepare` built them — or when the scene carries no paged transparent cluster. */
     table: undefined as TransparentTable | undefined,
     compaction: undefined as TransparentCompaction | undefined,
+    /** Le test Hi-Z des grappes transparentes, monté après la pyramide dont il dépend. */
+    occlusion: undefined as TransparentOcclusion | undefined,
+    /** Les coins monde de chaque entrée de la table, et l'âge de la table dont ils sortent. */
+    occlusionCorners: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    occlusionEpoch: -1,
     /** Instances a CPU cut wrote, and the meshes it selected. */
     cpuInstances: new Uint32Array(0),
     cpuInstanceCount: 0,
