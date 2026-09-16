@@ -48,6 +48,7 @@ const POSE_LOCALE = {
   'pageSelectionDagFixture.ts': 'monteur de scène de test : il pose la caméra',
   'pageSelectionBlendFixture.ts': 'monteur de scène de test : il pose la caméra',
   'visibilityBufferFixture.ts': 'monteur de scène de test : il pose la caméra',
+  'webgpuCutRepriseFixture.ts': 'monteur de scène de test : il pose la caméra',
   'pagesBackendScenes.ts': 'monteur de scène de test : il pose la caméra',
   'webgpuPagesTestScenes.ts': 'monteur de scène de test : il pose la caméra',
 };

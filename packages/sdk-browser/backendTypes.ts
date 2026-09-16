@@ -22,6 +22,10 @@ export interface RenderBackend {
   sceneLit?(): boolean;
   /** Le magasin de lampes du contrat a changé : l'image suivante le relira. Absent = lampes ignorées. */
   refreshSceneLights?(): void;
+  /** Ce qu'aucune signature ne dit de l'éclairage de ce moteur : ses ombres, et la phrase qui nomme
+   *  ce qu'il n'applique pas. Le reste des capacités se lit dans les méthodes présentes ; voir
+   *  `lightingCapabilitiesOf`. Absent d'un moteur qui n'a rien de plus à déclarer. */
+  lighting?: { shadows: boolean; reason?: string };
   /** Déplace un nœud nommé de la scène préparée ; appliqué à l'image suivante, sans allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
   prepare(): Promise<void>;

@@ -113,6 +113,8 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
+    // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
+    sunFar: { gpu: undefined },
     blendState: { visibleBlend: [item], lighting: undefined },
     run: { gpuDrawCalls: 0, blendDrawCalls: 0, blendSubmittedTriangles: 0 },
   } as unknown as WebgpuPagesRuntime;

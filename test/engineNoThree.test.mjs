@@ -42,6 +42,8 @@ const AUTORISES = {
   comparison: 'témoin de comparaison : il compose deux images par une scène de l’hôte',
   exactPagesAttachment: 'témoin exact : il attache ses pages au graphe de l’hôte',
   exactPagesBackend: 'témoin exact : moteur écrit avec la bibliothèque hôte',
+  exactPagesContractLights:
+    'témoin exact : il traduit les lampes du contrat en lampes de la bibliothèque hôte',
   exactPagesMaterials: 'témoin exact : ses matériaux sont ceux de l’hôte',
   exactPagesMetrics: 'témoin exact : il compte ce que le renderer de l’hôte a soumis',
   exactPagesRender: 'témoin exact : il rend par le renderer de l’hôte',

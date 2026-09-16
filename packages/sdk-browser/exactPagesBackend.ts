@@ -8,6 +8,11 @@ import { createExactPagesResidency } from './exactPagesResidency.ts';
 import { createExactPagesMaterials } from './exactPagesMaterials.ts';
 import { DEFAULT_CLEAR_COLOR, baseCapabilities, lighting } from './backendCommon.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
+import {
+  attachContractLights,
+  CONTRACT_LIGHTS_LIGHTING,
+  CONTRACT_LIGHTS_UNSUPPORTED,
+} from './exactPagesContractLights.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
@@ -53,6 +58,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
+  // Les lampes du contrat, traduites en lampes Three. Tant que l'hôte n'a ni déclaré de lampe ni
+  // demandé de vue, le graphe source éclaire seul et l'image est celle d'avant, au pixel près.
+  const contract = attachContractLights(scene, context.sceneLights, sceneLights, gate.sceneChanged);
   const motion: CameraMotion = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
@@ -159,7 +167,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
       ...baseCapabilities,
       hierarchy: true,
       eviction: true,
-      unsupported: baseCapabilities.unsupported.filter((item) => item !== 'bounded GPU eviction'),
+      unsupported: CONTRACT_LIGHTS_UNSUPPORTED,
     },
     scene,
     async prepare() {},
@@ -170,6 +178,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
       return renderState.frameHeld;
     },
     ...sceneLightingApi(sceneLights, gate.sceneChanged),
+    /** L'image sort en lumière réelle dès que l'un des deux jeux de lampes en porte une. */
+    sceneLit: () => contract.lit,
+    refreshSceneLights: contract.apply,
+    lighting: CONTRACT_LIGHTS_LIGHTING,
     render: renderFrame,
     ...cpuMethods,
     ...requestMethods,

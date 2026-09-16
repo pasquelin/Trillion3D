@@ -9,7 +9,7 @@
 //!
 //! The metric is positional only: indices keep pointing at the source vertices, so UV, normals and
 //! colours survive untouched, but they do not participate in the simplification error yet.
-use crate::perf::{Timer, PHASES};
+use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
 use crate::{invalid, Result};
 use rayon::prelude::*;

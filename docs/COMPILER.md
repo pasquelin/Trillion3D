@@ -65,7 +65,7 @@ The compiled manifest (`clusters.json`, hundreds of KB to MB) is **never** print
 
 ## Events
 
-Every stderr line is `{"event": <kind>, "job": <id>, ...}`. `accepted`, `progress` and `complete` also carry `ratio`, a whole-job completion estimate from 0 to 1 (source import up to 0.30, glTF import 0.35, clustering 0.35–0.95 spread over the primitives announced by the `import` event, root bundles 0.95–0.99, pointer 1), so a host can draw one bar without knowing the phases. For a single invocation the job id is `"job"`; in batch mode it is the id from the batch file; batch-level lines use `"*"`.
+Every stderr line is `{"event": <kind>, "job": <id>, ...}`. `accepted`, `progress` and `complete` also carry `ratio`, a whole-job completion estimate from 0 to 1 (source import up to 0.30, glTF import 0.35, clustering 0.35–0.95 spread over the primitives announced by the `import` event, root bundles 0.95–0.96, coplanar cuts 0.96–0.97, resident proxy 0.97, lights 0.98, prune 0.99, pointer 1), so a host can draw one bar without knowing the phases. It never goes backwards: a phase this table does not know keeps the last ratio announced, and a job importing several files does not restart its bar. For a single invocation the job id is `"job"`; in batch mode it is the id from the batch file; batch-level lines use `"*"`.
 
 | `event`     | When                                     | Extra fields                                                                        |
 | ----------- | ---------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -86,6 +86,8 @@ Progress phases, in order:
 | `import`        | `completed`, `total`, `ms`, `primitives`, `nodes`                                                                                                                                                                                                    | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect |
 | `primitive`     | `mesh`, `primitive`, `pages`                                                                                                                                                                                                                         | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                     |
 | `bootstrap`     | `completed`, `total`                                                                                                                                                                                                                                 | Root bundles assembled                                                                                         |
+| `proxy`         | `triangles`, `nodes`, `errorMetres`                                                                                                                                                                                                                  | Resident proxy built                                                                                           |
+| `lights`        | `lights`, `rejected`                                                                                                                                                                                                                                 | Scene lights written                                                                                           |
 | `prune`         | `removedKeys`, `removedObjects`, `removedBytes`                                                                                                                                                                                                      | Stale keys, imports and orphan objects removed (only emitted when something was removed)                       |
 | `complete`      | `completed`, `total`, `pruned`                                                                                                                                                                                                                       | Pointer written; `pruned` summarises the cache pruning                                                         |
 
@@ -104,7 +106,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.4.0",
+  "compilerVersion": "0.5.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
@@ -114,7 +116,7 @@ stdout for one job:
   "metrics": {
     "importMs": 1571.7,
     "clusterHierarchyPagesMs": 1822.8,
-    "wallMs": 3394.6,
+    "wallMs": 3411.2,
     "outputGeometryBytes": 58679400,
     "threads": 8,
     "ramBudgetMb": 8192
@@ -130,6 +132,23 @@ A cache never needs to be wiped before recompiling: after every successful job t
 `key` is a SHA-256 over the product's identity: what the source declares, the resources the compile actually consumes, and the options that shape the output — the source manifest, the source binary, **every image the scene links by relative URI** (its fingerprint, `null` when the file is absent), the compiler version, the compiler's own source files, scope, budget, `RESOURCE_BASE_URL` and simplification. Changing any of them produces a new `<key>` directory; the pointer always names the latest one. Nothing is deleted automatically.
 
 Two parts of a manifest are deliberately **outside** that identity, at every level of the document: measured durations (`importMs`, `parseMs`, `ms`) and the absolute path of the machine that converted (`path`). They describe a run, not a product: two conversions of the same bytes never agree on them, and hashing them gave three keys for three identical compilations. Everything else a driver writes into the manifest enters the key, including fields added later — forgetting to exclude a field tightens the identity, forgetting to include one would loosen it. Consequences a consumer can rely on: recompiling the same inputs with the same options yields the same key on any machine and in any cache, and replacing a linked texture beside an unchanged scene yields a different one, because the previews carried by `clusters.bin` are read from those pixels. The cost is one streaming hash per linked image file, once per compile.
+
+## Measurements
+
+Every duration a job publishes belongs to that job alone: its counters are created with the compilation, adopted by the threads of its own pool, and read by nobody else. Two jobs of one batch — side by side or one after the other — never describe each other's work.
+
+| Field                             | Where                        | Meaning                                                                                             |
+| --------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| `metrics.importMs`                | manifest and pointer         | Source routed, loaded, validated, its geometry copied                                               |
+| `metrics.clusterHierarchyPagesMs` | manifest and pointer         | Clustering, paging, coplanar cuts, resident proxy and lights                                        |
+| `metrics.compileMs`               | manifest                     | Wall time up to the moment the manifest is serialized — the last thing a file can know about itself |
+| `metrics.pruneMs`                 | pointer                      | Wall time of the cache purge that follows publication                                               |
+| `metrics.phaseCpuMs`              | manifest                     | CPU time accumulated per phase, over every worker thread                                            |
+| `metrics.wallMs`                  | pointer and `complete` event | Wall time of the whole job, taken once the manifest is written and the cache purged                 |
+
+`clusters.json` is written before the purge, so it carries `compileMs`, never `wallMs`: a file cannot hold a duration measured after it was written. The pointer on stdout and the `complete` event carry `wallMs` and `pruneMs`; `wallMs` is therefore at least `compileMs + pruneMs`, and at least any single phase.
+
+The phases under `phaseCpuMs` **overlap**. They are summed across worker threads, so they measure computing time, not the length of a job: with `threads > 1` their total exceeds `wallMs`, and adding them together is meaningless. Unmeasured values stay `null` (`peakRssBytes`, `cpuMs`, `diskBytesRead`).
 
 ## Batch mode
 
@@ -163,7 +182,7 @@ Two parts of a manifest are deliberately **outside** that identity, at every lev
 
 | Field                                                                   | Meaning                                                                        | Default                                              |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| `workers`                                                               | Jobs running at the same time (1–64)                                           | `1`                                                  |
+| `workers`                                                               | Jobs running at the same time (1–64), lowered until the budget holds them      | `1`                                                  |
 | `ramBudgetMb`                                                           | Total admission budget, split evenly between workers unless a job sets its own | `256 × workers`                                      |
 | `threads`                                                               | Default threads per job                                                        | `2`                                                  |
 | `jobs[].id`                                                             | Job id used in events and the summary; must be unique                          | `job-<index>`                                        |
@@ -177,9 +196,11 @@ Jobs are taken in file order by the first free worker. stdout at the end:
  "jobs": [{"job": "city", "status": "ready", "pointer": {…}}, {"job": "x", "status": "error", "code": "IMPORT_IO_ERROR", "message": "…"}]}
 ```
 
-`jobs` is sorted by id. Exit code 0 only when every job is ready. An invalid batch file is reported as `INVALID_BATCH` before any job starts.
+`jobs` is sorted by id. Exit code 0 only when every job is ready; **exit code 2 with a summary on stdout is the normal outcome of a batch that was not wholly successful**, not a failure of the process. `status` is `partial` when at least one job is ready and at least one is not, `failed` when none is. The summary is printed in all three cases, so a host reads which jobs succeeded there rather than inferring anything from the exit code. Only a batch file the compiler refuses outright prints `{"status":"error","code":"INVALID_BATCH",...}` with no `jobs` at all.
 
 Two jobs of one batch may not write the same cache: each prunes it after publishing, so the second would erase the first job's result. Destinations are compared by identity, not by spelling — the longest existing prefix is canonicalized, symlinks included, and the absent suffix is normalized (`.`, `..`, doubled separators) — so `x` and `p/../x` are one cache. The batch is then refused with `INVALID_BATCH` before any job starts, and the message names both jobs and both spellings. Give each job its own cache directory instead.
+
+`ramBudgetMb` is the budget of the **whole batch**, and the admitted concurrency respects it. A job is never admitted under 64 MiB, so `workers` is lowered until every job that could run at the same time fits in the total: `workers: 2` with `ramBudgetMb: 64` runs one job at a time with 64 MiB, instead of admitting 64 MiB twice under a 64 MiB budget. Per-job `ramBudgetMb` overrides are counted the same way — the largest ones that would run together must fit in the total — and a single job asking for more than the whole batch is refused with `INVALID_BATCH` naming it, before anything starts. A total under 64 MiB is refused outright. The `batch` event publishes the concurrency actually admitted, and each `accepted` event the share its job received. This remains an admission estimate, not an enforced RSS ceiling.
 
 Thousands of models: one batch file, one process, `workers` sized to the machine, `ramBudgetMb` set to what the machine can give. Each job builds its own thread pool of `threads` workers, so `workers × threads` is the CPU ceiling.
 

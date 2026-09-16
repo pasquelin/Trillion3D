@@ -28,6 +28,7 @@ export type {
   DiagnosticObserver,
 } from './diagnosticChannel.ts';
 export type { SurfaceBuffer, SurfaceCapture } from './surfaceBuffer.ts';
+export type { LightingCapabilities } from '../sdk-core/index.ts';
 export { framingFromBounds } from './framing.ts';
 export { presentationColorDiagnostic } from './presentationDiagnostic.ts';
 export { referenceBackend } from './referenceBackend.ts';

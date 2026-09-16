@@ -4,6 +4,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
     let started = Instant::now();
+    // Les compteurs de phase de ce travail, et d'aucun autre : ils suivent le fil jusqu'au retour.
+    let phases = perf::JobPhases::default();
+    let _attached = phases.attach();
     // Tenu jusqu'au retour : deux compilations simultanées d'un même cache s'effaceraient l'une
     // l'autre, chacune purgeant ce que l'autre vient de publier.
     let _lock = CacheLock::acquire(o)?;
@@ -60,8 +63,14 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
     );
     let cluster_start = Instant::now();
+    // La grappe naît et meurt avec ce travail : chacun de ses ouvriers adopte ses compteurs, et le
+    // temps qu'il y passe n'atterrit pas dans le manifeste d'un travail voisin.
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(o.threads)
+        .start_handler({
+            let phases = phases.clone();
+            move |_| phases.adopt()
+        })
         .build()?;
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
     // L'échelle monde de chaque maillage est lue avant la boucle : le seuil du proxy est en mètres,
@@ -87,7 +96,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds) =
         compiler_coplanar::split_compiled(compiled);
     let bootstrap_bundles = {
-        let _t = perf::Timer::new(&perf::PHASES.page_write);
+        let _t = perf::Timer::new(perf::Phase::PageWrite);
         share_bootstrap_bundles(o, &mut primitives)?
     };
     progress(json!({"phase":"bootstrap","completed":bootstrap_bundles,"total":bootstrap_bundles}));
@@ -128,7 +137,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Le proxy résident se construit ici : les coupes grossières sont en main, les aperçus de
     // texture aussi, et c'est le dernier endroit où la hiérarchie de nœuds qui les place existe.
     let scene_proxy = {
-        let _t = perf::Timer::new(&perf::PHASES.manifest);
+        let _t = perf::Timer::new(perf::Phase::Manifest);
         proxy::stage_proxy(&proxy::ProxyInputs {
             g,
             chosen: &chosen,
@@ -159,33 +168,25 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     )?;
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"wallMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
-    // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
-    // columns instead of tokenizing tens of megabytes before its first frame.
-    {
-        let _t = perf::Timer::new(&perf::PHASES.manifest);
-        let templates = manifest_binary::Templates {
-            binary: MANIFEST_BINARY_FILE,
-            page: "../../objects/{sha}.bin",
-            geometry: "../../objects/{sha}.bin",
-            bundle: "../../objects/{sha}.bin",
-        };
-        let (mut slim, binary) = manifest_binary::split(&result, &templates, &texture_previews)?;
-        slim["binary"]["sha256"] = json!(hash(&binary));
-        atomic(&directory.join(MANIFEST_BINARY_FILE), &binary)?;
-        atomic(&directory.join(proxy::SCENE_PROXY_FILE), &proxy_bytes)?;
-        atomic(
-            &directory.join("clusters.json"),
-            &serde_json::to_vec(&slim)?,
-        )?;
-    }
-    atomic(
-        &o.cache.join("native").join(&o.scope).join("manifest.json"),
-        &serde_json::to_vec(
-            &json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{}/clusters.json",key)}),
-        )?,
+    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseCpuMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    publish(
+        &Publication {
+            o,
+            key: &key,
+            directory: &directory,
+            cache_format,
+            proxy_bytes: &proxy_bytes,
+            previews: &texture_previews,
+        },
+        &result,
     )?;
+    // La purge appartient au travail : ses suppressions et sa durée entrent dans ce qu'il annonce.
+    // Le manifeste, lui, est déjà écrit — il ne porte donc que `compileMs`, la durée qu'il pouvait
+    // connaître, et l'appelant reçoit `wallMs`, prise une fois le cache purgé.
+    let prune_start = Instant::now();
     let pruned = prune_cache(o, &key, &result, &progress)?;
+    result["metrics"]["pruneMs"] = json!(shared_math::elapsed_ms(prune_start));
+    result["metrics"]["wallMs"] = json!(shared_math::elapsed_ms(started));
     progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));
     Ok(result)
 }
