@@ -44,6 +44,7 @@ mod part5;
 mod part6;
 mod part7;
 mod psd_golden;
+mod scene_autonome;
 mod simplification_none;
 mod unity_driver;
 mod unity_fidelite;
