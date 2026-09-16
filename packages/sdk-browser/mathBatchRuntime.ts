@@ -5,7 +5,7 @@ import {
   multiplyMatrix4Batch,
   type MathPath,
 } from '../sdk-core/index.ts';
-import { mathClock, mathBatchWasm, mathGovernor, prepareMathBatch } from './mathBatchState.ts';
+import { mathClock, mathBatchWasm, mathGovernor, loadMathBatch } from './mathBatchState.ts';
 import { blocsJavaScript, reserveArena, type ArenaBloc, type ArenaDemande } from './wasmArena.ts';
 
 /**
@@ -27,6 +27,11 @@ interface MathLot {
   readonly n: number;
   /** Vrai quand les vues sont dans la mémoire du module : le calcul se fait sans aucune copie. */
   readonly shared: boolean;
+  /**
+   * Vrai quand le lot porte EXACTEMENT `n` éléments et que ses vues désignent encore leur mémoire —
+   * une réservation faite depuis a pu faire grandir celle du module et les détacher.
+   */
+  holds(n: number): boolean;
   /** Joue le lot et rend le chemin RÉELLEMENT exécuté, qui peut différer de celui demandé. */
   run(): MathPath;
   release(): void;
@@ -49,7 +54,7 @@ export interface MultiplyLot extends MathLot {
 
 /** Les blocs du lot, dans la mémoire du module si possible, sinon dans le tas JavaScript. */
 async function tampon(demandes: readonly ArenaDemande[]) {
-  await prepareMathBatch();
+  await loadMathBatch();
   const wasm = mathBatchWasm();
   const arena = wasm ? reserveArena(wasm, demandes) : null;
   if (wasm && arena) return { wasm, blocs: arena.blocs, release: arena.libere };
@@ -95,6 +100,7 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
     boxes,
     mats,
     out,
+    holds: (count) => count > 0 && boxes.length === count * BOX_VALUES,
     run: () =>
       joue(BOX_TRANSFORM_BATCH, n, wasmRun, () => boxTransformBatch(out, boxes, matViews, n)),
     release,
@@ -112,12 +118,14 @@ export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
   const outViews = vuesF64(sortie),
     aViews = vuesF64(gauche),
     bViews = vuesF64(droite);
+  const a = f64(gauche);
   return {
     n,
     shared: wasm !== null,
-    a: f64(gauche),
+    a,
     b: f64(droite),
     out: f64(sortie),
+    holds: (count) => count > 0 && a.length === count * MATRIX_VALUES,
     run: () =>
       joue(MULTIPLY_MATRIX4_BATCH, n, wasmRun, () =>
         multiplyMatrix4Batch(outViews, aViews, bViews, n),
