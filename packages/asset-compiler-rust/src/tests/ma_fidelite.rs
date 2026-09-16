@@ -7,6 +7,29 @@
 use super::*;
 use ma_driver::{compile_ma, quad, translations};
 
+/// Un maillage de quatre triangles indépendants, de quoi qu'une liaison partielle en laisse.
+fn four_triangles(name: &str, parent: &str) -> String {
+    let vertices: String = (0..4)
+        .map(|face| format!("{face} 0 0  {} 0 0  {face} 1 0  ", face + 1))
+        .collect();
+    let edges: String = (0..4)
+        .flat_map(|face| {
+            [(0, 1), (1, 2), (2, 0)].map(|(from, to)| (3 * face + from, 3 * face + to))
+        })
+        .map(|(from, to)| format!("{from} {to} 0  "))
+        .collect();
+    let records: String = (0..4)
+        .map(|face| format!("\t\tf 3 {} {} {}", 3 * face, 3 * face + 1, 3 * face + 2))
+        .collect::<Vec<String>>()
+        .join("\n");
+    format!(
+        "createNode mesh -n \"{name}\" -p \"{parent}\";\n\
+         \tsetAttr -s 12 \".vt[0:11]\" -type \"float3\" {vertices};\n\
+         \tsetAttr -s 12 \".ed[0:11]\" {edges};\n\
+         \tsetAttr -s 4 \".fc[0:3]\" -type \"polyFaces\"\n{records};\n"
+    )
+}
+
 // Constat 10 : deux transforms nommés `M` sous deux pères différents sont deux nœuds. Maya les
 // distingue par leur chemin complet — `|A|M` et `|B|M` —, et les confondre faisait que le second
 // écrasait le premier : un `setAttr` visant l'un tombait sur l'autre.
@@ -33,5 +56,42 @@ fn two_transforms_of_the_same_name_under_two_parents_stay_two_nodes() {
     assert!(
         moved.contains(&[10.0, 0.0, 0.0]) && moved.contains(&[0.0, 20.0, 0.0]),
         "chaque `setAttr` tombe sur le nœud que son chemin nomme, pas sur l'autre : {moved:?}"
+    );
+}
+
+// Constat 11 : un `shadingEngine` qui ne réclame qu'une partie des faces ne fait pas disparaître
+// les autres. Celles qu'aucun ensemble ne nomme sortent dans une primitive sans matériau, comptées.
+#[test]
+fn the_faces_no_shading_group_claims_still_reach_the_scene() {
+    let body = format!(
+        "createNode transform -n \"T\";\n{}\
+         \tsetAttr \".iog[0].og[0].gcl\" -type \"componentList\" 1 \"f[0:1]\";\n\
+         createNode lambert -n \"Uni\";\n\
+         createNode shadingEngine -n \"UniSG\";\n\
+         connectAttr \"Uni.oc\" \"UniSG.ss\";\n\
+         connectAttr \"TShape.iog.og[0]\" \"UniSG.dsm\" -na;\n",
+        four_triangles("TShape", "T"),
+    );
+    let run = compile_ma("ma-liaison-partielle", &body);
+    assert_eq!(
+        run.result["sourceTriangles"], 4,
+        "les quatre faces sortent, liées ou non"
+    );
+    let (manifest, gltf) = run.prepared("ma");
+    let primitives = gltf["meshes"][0]["primitives"]
+        .as_array()
+        .expect("primitives");
+    assert_eq!(primitives.len(), 2, "une part liée, une part sans matériau");
+    assert_eq!(
+        primitives
+            .iter()
+            .filter(|part| part.get("material").is_none())
+            .count(),
+        1,
+        "les faces sans liaison forment une primitive sans matériau"
+    );
+    assert_eq!(
+        manifest["unsupported"]["ma-face-material-missing"], 2,
+        "les deux faces qu'aucun ensemble ne réclame sont comptées"
     );
 }

@@ -60,6 +60,9 @@ pub(super) const NORMALS_DROPPED: &str = "ma-normals-dropped";
 pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed-flat";
 /// Un groupe de faces d'un `instObjGroups` dont la liste de composants ne désigne pas des faces.
 pub(super) const FACE_MATERIAL_INVALID: &str = "ma-face-material-invalid";
+/// Des faces qu'aucun `shadingGroup` ne réclame, alors que d'autres faces du même maillage sont
+/// liées : elles sortent dans une primitive sans matériau plutôt que d'être jetées.
+pub(super) const FACE_MATERIAL_MISSING: &str = "ma-face-material-missing";
 /// Un nuanceur lié à une surface hors des quatre que ce pilote convertit.
 pub(super) const MATERIAL_UNSUPPORTED: &str = "ma-material-unsupported";
 /// Une transparence de couleur dont les trois canaux diffèrent : glTF n'a qu'un alpha, et c'est
