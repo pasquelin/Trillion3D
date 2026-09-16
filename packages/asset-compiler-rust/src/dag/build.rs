@@ -1,8 +1,12 @@
 use super::*;
 
+/// Construit le DAG des clusters. `strategy` décide si les niveaux grossiers existent : en
+/// `ExactClusters` la construction rend le niveau zéro seul, sans groupe ni réduction, si bien que
+/// la couverture publiée est exactement celle des triangles de la source.
 pub fn build_dag_tallied(
     positions: &[f32],
     indices: &[u32],
+    strategy: DagStrategy,
     checkpoint: &(dyn Fn() -> Result<()> + Sync),
 ) -> Result<(Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>)> {
     checkpoint()?;
@@ -45,6 +49,9 @@ pub fn build_dag_tallied(
     }
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
+    if strategy == DagStrategy::ExactClusters {
+        return Ok((dag, reductions_kept, tallies));
+    }
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;

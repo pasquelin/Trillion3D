@@ -53,8 +53,12 @@ pub(super) fn walk<'a>(
     let profile = profile(rest);
     rest = skip(rest, NARROW)?;
     let wide = if header.psb { WIDE } else { NARROW };
-    let mut declared = layers(rest, wide);
-    declared.profile = profile;
+    let (transparency, layers) = layers(rest, wide);
+    let declared = Declared {
+        transparency,
+        layers,
+        profile,
+    };
     Ok((declared, skip(rest, wide)?))
 }
 
@@ -81,16 +85,16 @@ fn profile(bytes: &[u8]) -> Option<&'static str> {
     None
 }
 
-/// Le compte de calques, lu au début de la section des calques quand elle en porte un. Une section
+/// La transparence déclarée et le compte de calques, lus au début de la section des calques quand
+/// elle en porte un. Une section
 /// vide, ou trop courte pour son bloc d'informations de calques, ne déclare rien : c'est le cas d'un
 /// document sans calque, dont un plan supplémentaire ne peut être qu'une sélection.
-fn layers(bytes: &[u8], wide: usize) -> Declared {
+fn layers(bytes: &[u8], wide: usize) -> (bool, u32) {
     let count = count(bytes, wide);
-    Declared {
-        transparency: count.is_some_and(|count| count < 0),
-        layers: count.map_or(0, |count| count.unsigned_abs().into()),
-        profile: None,
-    }
+    (
+        count.is_some_and(|count| count < 0),
+        count.map_or(0, |count| count.unsigned_abs().into()),
+    )
 }
 
 /// Le compte lui-même, quand la section le porte. Le bloc d'informations de calques ouvre la

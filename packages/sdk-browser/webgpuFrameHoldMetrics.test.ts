@@ -4,7 +4,7 @@
 // qu'elle réaffiche.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createFrameHold, createFrameRevisions } from './frameRevisions.ts';
+import { createFrameGateCore } from './frameGateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from './webgpuPagesCpuSteps.ts';
 import { holdWebgpuFrame } from './webgpuFrameHold.ts';
@@ -14,13 +14,11 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Un moteur dont toutes les conditions de `frameSettled` sont vraies et dont la dernière image
  *  complète a dessiné beaucoup : c'est elle que la tenue ne doit pas republier. */
 function tenue() {
-  const revisions = createFrameRevisions();
-  const frameHold = createFrameHold(HOLD_SIGNATURE_VALUES);
-  frameHold.keep(revisions);
-  frameHold.keep(revisions);
+  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
+  gate.hold.keep(gate.revisions);
+  gate.hold.keep(gate.revisions);
   const run = {
-    revisions,
-    frameHold,
+    gate,
     frameHeld: false,
     frame: 5,
     lost: false,

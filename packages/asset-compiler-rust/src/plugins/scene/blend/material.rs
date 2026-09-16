@@ -70,16 +70,18 @@ fn surface<'a>(graph: &At<'a>, tree: &shading::Tree<'a>, out: &mut Out) -> Optio
 
 /// La sortie du graphe que le fichier marque active ; à défaut de marque, la première écrite.
 fn output<'a>(graph: &At<'a>) -> Option<At<'a>> {
-    let nodes: Vec<At<'a>> = graph
+    let mut first = None;
+    for node in graph
         .list("nodes")
         .into_iter()
         .filter(|node| node.text("idname") == OUTPUT)
-        .collect();
-    nodes
-        .iter()
-        .find(|node| node.int("flag", 0) & DO_OUTPUT != 0)
-        .or(nodes.first())
-        .copied()
+    {
+        if node.int("flag", 0) & DO_OUTPUT != 0 {
+            return Some(node);
+        }
+        first.get_or_insert(node);
+    }
+    first
 }
 
 /// Remplit le matériau glTF depuis les entrées du nœud.

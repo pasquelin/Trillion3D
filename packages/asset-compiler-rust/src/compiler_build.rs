@@ -4,6 +4,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
     let started = Instant::now();
+    // Tenu jusqu'au retour : deux compilations simultanées d'un même cache s'effaceraient l'une
+    // l'autre, chacune purgeant ce que l'autre vient de publier.
+    let _lock = CacheLock::acquire(&o.cache)?;
     // Le routeur choisit le pilote du format et lui fait produire la scène intermédiaire ; tout ce
     // qui suit ne lit qu'un glTF, sans savoir de quel format il vient.
     let progress = with_ratio(progress);
@@ -30,13 +33,15 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let key=hash(serde_json::to_string(&json!({"source":hash(&loaded.manifest_bytes),"binary":bin_hash,"compiler":COMPILER_VERSION,"implementation":implementation_hash(),"plugins":plugins::fingerprint(),"scope":o.scope,"budget":o.triangle_budget,"resourceBase":o.resource_base,"simplification":o.simplification,"errorModel":DAG_ERROR_MODEL}))?.as_bytes());
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
+    // L'ensemble des nœuds de la scène rendue, partagé par la sélection, le proxy et les lampes.
+    let scene_nodes = compiler_nodes::scene_nodes(g)?;
     let NodeSelection {
         chosen,
         selected_triangles,
         skinned_meshes,
         meshes,
         mesh_map,
-    } = select_nodes(o, g)?;
+    } = select_nodes(o, g, &scene_nodes)?;
     let BufferPlan {
         accessors,
         jobs,
@@ -141,7 +146,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Les lampes déclarées par le fichier source, en espace monde, dans le contrat du moteur.
-    stage_scene_lights(g, &directory, &progress)?;
+    stage_scene_lights(g, &scene_nodes, &directory, &progress)?;
     let autonomous_scene = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,

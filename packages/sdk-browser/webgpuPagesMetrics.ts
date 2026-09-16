@@ -83,6 +83,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
     hizCountedFrame,
     cpuSelectMs: run.cpuSelectMs,
+    gpuSelectionFallback: rt.gpu.selectionFallback,
     lightsActive: lights.lightsActive,
     shadowsUpdated: lights.shadowsUpdated,
     shadowFacesDrawn: lights.shadowFaces,
