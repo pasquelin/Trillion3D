@@ -1,18 +1,27 @@
 import { coneCullsPage } from './pageCone.ts';
+import { SELECTION_NONE as NONE, type SelectionUniforms } from './gpuSelection.ts';
+import type { PackedDag } from './gpuDagTypes.ts';
 import {
-  PAGE_CONE_FLOATS,
-  SELECTION_NONE as NONE,
-  type SelectionUniforms,
-} from './gpuSelection.ts';
-import { CLUSTER_FLOATS, CLUSTER_NEVER, type PackedDag } from './gpuDagTypes.ts';
+  bandError,
+  bandSphere,
+  boxInto,
+  coneInto,
+  CLUSTER_NEVER,
+  type DagRecords,
+  flagsOf,
+  hasBoxOf,
+  ownerOf,
+  worldOf,
+} from './gpuDagLayout.ts';
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 import { readCameraWorld } from './cameraWorld.ts';
 
 type PredicateContext = {
   packed: PackedDag;
+  /** Le décodeur unique, ouvert une fois par évaluation et partagé avec le reste de l'oracle. */
+  records: DagRecords;
   uniforms: SelectionUniforms;
-  clusterInts: Uint32Array;
   nodeFlags: Uint8Array;
   planes: Float64Array[];
   views: number[][];
@@ -22,23 +31,13 @@ type PredicateContext = {
 };
 
 export function createDagOraclePredicates(context: PredicateContext) {
-  const { packed, uniforms, clusterInts, nodeFlags, planes, views, stretches, focal, near } =
-    context;
-  const { clusters, pageCones, worlds } = packed;
+  const { packed, records, uniforms, nodeFlags, planes, views, stretches, focal, near } = context;
+  const { worlds } = packed;
   const coneRejects = (index: number, w: number) => {
-    const base = index * PAGE_CONE_FLOATS;
-    if (!pageCones[base + 7]) return false;
+    if (!hasBoxOf(records, index)) return false;
     const { cone, cam, min, max } = dagScratch;
-    cone.axis[0] = pageCones[base];
-    cone.axis[1] = pageCones[base + 1];
-    cone.axis[2] = pageCones[base + 2];
-    cone.angle = pageCones[base + 3];
-    min[0] = pageCones[base + 4];
-    min[1] = pageCones[base + 5];
-    min[2] = pageCones[base + 6];
-    max[0] = pageCones[base + 8];
-    max[1] = pageCones[base + 9];
-    max[2] = pageCones[base + 10];
+    coneInto(records, index, cone);
+    boxInto(records, index, min, max);
     const cw = uniforms.cameraWorld;
     cam.position.set(cw[0], cw[1], cw[2]);
     cam.updateMatrixWorld();
@@ -52,32 +51,32 @@ export function createDagOraclePredicates(context: PredicateContext) {
     );
   };
   const visible = (index: number) => {
-    const base = index * CLUSTER_FLOATS,
-      w = clusterInts[base + 10],
-      node = clusterInts[base + 12];
-    if (clusterInts[base + 13] & CLUSTER_NEVER) return false;
+    // Le nœud propriétaire vit au froid, hors de ce que chaque passe de l'image relit.
+    const node = ownerOf(records, index);
+    if (flagsOf(records, index) & CLUSTER_NEVER) return false;
     if (node !== NONE && nodeFlags[node]) return false;
-    const cone = index * PAGE_CONE_FLOATS;
+    const { min, max } = dagScratch;
+    boxInto(records, index, min, max);
     return !frustumExcludesBox(
-      planes[w],
-      pageCones[cone + 4],
-      pageCones[cone + 5],
-      pageCones[cone + 6],
-      pageCones[cone + 8],
-      pageCones[cone + 9],
-      pageCones[cone + 10],
+      planes[worldOf(records, index)],
+      min[0],
+      min[1],
+      min[2],
+      max[0],
+      max[1],
+      max[2],
     );
   };
   const bandPixels = (index: number, at: number) => {
-    const base = index * CLUSTER_FLOATS,
-      w = clusterInts[base + 10],
-      offset = at === 0 ? 0 : 4;
+    const w = worldOf(records, index),
+      sphere = bandSphere(records, index, at),
+      { hot } = records;
     return projectedError(
-      at === 0 ? clusters[base + 8] : clusters[base + 9],
-      clusters[base + offset],
-      clusters[base + offset + 1],
-      clusters[base + offset + 2],
-      clusters[base + offset + 3],
+      bandError(records, index, at),
+      hot[sphere],
+      hot[sphere + 1],
+      hot[sphere + 2],
+      hot[sphere + 3],
       views[w],
       stretches[w],
       focal,

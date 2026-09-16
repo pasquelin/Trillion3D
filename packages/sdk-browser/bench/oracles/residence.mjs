@@ -3,7 +3,8 @@
 const CONE_FLOATS = 12,
   FLAG = 11;
 
-/** `gpuDagRuntime.ts:94-101` avant le lot A : la colonne de résidence lue à travers les cônes. */
+/** `gpuDagRuntime.ts:94-101` avant le lot A : la colonne de résidence lue à travers les cônes, un
+ *  flottant par grappe. La résidence en bits pose les mêmes verdicts sur bien moins d'octets. */
 export function referenceUpdateResidency(next, pageCones) {
   let changed = false;
   for (let j = 0; j < next.length; j++) {
@@ -15,6 +16,14 @@ export function referenceUpdateResidency(next, pageCones) {
     }
   }
   return changed;
+}
+
+/** La même résidence, relue depuis les bits : un mot pour trente-deux grappes. */
+export function residencyColumn(bits, base, count) {
+  const column = new Float32Array(count);
+  for (let j = 0; j < count; j++)
+    column[j] = (bits[base + (j >>> 5)] & (1 << (j & 31))) !== 0 ? 1 : 0;
+  return column;
 }
 
 /** `gpuDagUniforms.ts:31-52` avant le lot A : spread d'un tableau typé et `push` sans capacité. */
