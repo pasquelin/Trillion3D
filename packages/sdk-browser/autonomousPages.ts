@@ -14,7 +14,7 @@ import type { DecodedGeometryPage } from './geometryPage.ts';
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
-  const { roots, allPages } = collectClusterPages(
+  const { roots, allPages, worlds } = collectClusterPages(
     context.source,
     metadata,
     new Map(),
@@ -87,6 +87,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     gate,
     lighting,
     roots,
+    worlds,
     shown,
     desired,
     bootstrap,
