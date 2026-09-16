@@ -55,10 +55,13 @@ export function createAutonomousRender(options: {
     // adaptatif de la première image qui bouge à nouveau.
     selectOptions.pixelError = resolvePixelError(context, camera, motion);
     gate.viewChanged(camera, context.viewport, selectOptions.pixelError);
+    // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture le dit,
+    // et elle précède la décision de tenir l'image.
+    gate.readScene(context.source);
     state.frameHeld = gate.held();
     if (state.frameHeld) return;
     // Les matrices monde et les lampes recopiées ne sont fonction que de la scène.
-    if (gate.updateWorlds(context.source)) lighting.update();
+    if (gate.updateWorlds()) lighting.update();
     const selected = selectVisiblePages(roots, camera, selectOptions, shown);
     desired.length = 0;
     for (let i = 0; i < selected.wanted.length; i++) desired.push(selected.wanted[i] as PageRec);

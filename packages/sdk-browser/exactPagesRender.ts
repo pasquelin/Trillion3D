@@ -95,13 +95,16 @@ export function createExactPagesRender(
     // adaptatif de la première image qui bouge à nouveau.
     state.lastPixelError = resolvePixelError(context, camera, motion);
     gate.viewChanged(camera, viewport, state.lastPixelError);
+    // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture est ce
+    // qui l'annonce, et elle précède la décision de tenir l'image.
+    gate.readScene(source);
     // Rien n'a bougé et les deux images précédentes ont produit la même coupe : la scène attachée
     // est déjà cette image-ci, et l'hôte la redessine telle quelle.
     state.frameHeld = gate.held();
     if (state.frameHeld) return heldProfile();
     const worldStart = performance.now();
     // Les matrices monde et les copies transparentes ne sont fonction que de la scène.
-    const worldsMoved = gate.updateWorlds(source);
+    const worldsMoved = gate.updateWorlds();
     if (worldsMoved)
       for (const copy of blendCopies)
         copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);
