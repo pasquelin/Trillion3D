@@ -71,7 +71,7 @@ pub(super) fn material_json(
         out["normalTexture"] = json!({"index":index,"scale":scale});
     }
     emission(&properties, &mut out, scene, project, table);
-    alpha(&properties, &mut out, color[3], scene);
+    alpha(&properties, &mut out, scene);
     if properties.float(&CULL, 2.0) == 0.0 {
         out["doubleSided"] = json!(true);
     }
@@ -112,17 +112,18 @@ fn emission(
 }
 
 /// Le mode de rendu : `_Mode` chez Standard (0 opaque, 1 découpé, 2 fondu, 3 transparent), `_Surface`
-/// et le drapeau de découpe chez URP et HDRP. La décision se prend sur ces propriétés, jamais sur un
-/// nom de matériau ni un type d'objet. Un matériau déclaré transparent reste fondu, même quand il
-/// déclare aussi une découpe : `MASK` rendrait ses pixels opaques ou absents, et une transparence
-/// convertie en masquage est une perte d'image. La découpe alors non rendue est comptée, et son
-/// seuil n'est pas écrit — le glTF ne lit `alphaCutoff` que sous `MASK`.
-fn alpha(properties: &Properties<'_>, out: &mut Value, opacity: f64, scene: &mut Scene) {
+/// et le drapeau de découpe chez URP et HDRP. La décision se prend sur ces propriétés seules, jamais
+/// sur un nom de matériau, un type d'objet ni l'alpha de la couleur de base : cet alpha est un
+/// facteur, que le glTF garde dans `baseColorFactor` et qu'un matériau opaque ne regarde pas. Un
+/// matériau déclaré transparent reste fondu, même quand il déclare aussi une découpe : `MASK`
+/// rendrait ses pixels opaques ou absents, et une transparence convertie en masquage est une perte
+/// d'image. La découpe alors non rendue est comptée, et son seuil n'est pas écrit — le glTF ne lit
+/// `alphaCutoff` que sous `MASK`.
+fn alpha(properties: &Properties<'_>, out: &mut Value, scene: &mut Scene) {
     let mode = properties.float(&["_Mode"], 0.0);
     let surface = properties.float(&["_Surface"], 0.0);
     let clipped = properties.float(&ALPHA_CLIP, 0.0) >= 0.5 || mode == 1.0;
-    let blended = surface >= 0.5 || mode >= 2.0;
-    if blended {
+    if surface >= 0.5 || mode >= 2.0 {
         out["alphaMode"] = json!("BLEND");
         if clipped {
             scene.report.add("unity-material-clip-and-blend");
@@ -130,8 +131,6 @@ fn alpha(properties: &Properties<'_>, out: &mut Value, opacity: f64, scene: &mut
     } else if clipped {
         out["alphaMode"] = json!("MASK");
         out["alphaCutoff"] = json!(properties.float(&CUTOFF, 0.5));
-    } else if opacity < 1.0 && opacity > 0.0 && mode == 0.0 && surface == 0.0 {
-        out["alphaMode"] = json!("BLEND");
     }
 }
 
