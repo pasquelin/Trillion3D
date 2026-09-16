@@ -1,4 +1,5 @@
-import { createExactPagesRender } from './exactPagesRender.ts';
+import { createExactPagesRender, createExactPagesRenderState } from './exactPagesRender.ts';
+import { createWebglFrameGate } from './webglFrameGate.ts';
 import { createExactPagesCpu } from './exactPagesCpu.ts';
 import { createExactPagesMetrics } from './exactPagesMetrics.ts';
 import { createExactPagesRequests, createExactPagesRequestData } from './exactPagesRequests.ts';
@@ -49,18 +50,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
     if (rec.array && !indexByUrl.has(rec.url))
       indexByUrl.set(rec.url, new THREE.BufferAttribute(rec.array, 1));
   let diagnostic: DiagnosticMode = 'beauty';
-  const renderState = {
-    visible: 0,
-    selectedTriangles: 0,
-    frame: 0,
-    overBudget: false,
-    frustumRejected: 0,
-    lodLevel: 0,
-    lastCamera: undefined as THREE.PerspectiveCamera | undefined,
-    lastPixelError: 0,
-    cpuSelectMs: 0,
-    cpuSelectNodesTested: 0,
-  };
+  const renderState = createExactPagesRenderState();
+  const gate = createWebglFrameGate();
   const motion: { last?: THREE.Vector3; lastMs?: number } = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
@@ -102,6 +93,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   );
   const requestMethods = createExactPagesRequests({
     ...requestData,
+    resourcesChanged: gate.resourcesChanged,
     bootstrap,
     desired,
     shown,
@@ -154,6 +146,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     get cpuSelectNodesTested() {
       return renderState.cpuSelectNodesTested;
     },
+    get frameHeld() {
+      return renderState.frameHeld;
+    },
   });
   const renderFrame = createExactPagesRender(
     renderState,
@@ -169,10 +164,12 @@ export const exactPagesBackend: BackendFactory = (context) => {
     shown,
     syncResident,
     cpuProfile,
+    gate,
   );
   return {
     setDiagnostic(mode) {
       diagnostic = mode;
+      gate.sceneChanged();
       paintBlend();
       syncResident();
     },
@@ -188,11 +185,14 @@ export const exactPagesBackend: BackendFactory = (context) => {
     get overBudget() {
       return renderState.overBudget;
     },
-    ...sceneLightingApi(sceneLights),
+    ...sceneLightingApi(sceneLights, gate.sceneChanged),
     render: renderFrame,
     ...cpuMethods,
     ...requestMethods,
-    syncResident,
+    syncResident() {
+      gate.resourcesChanged();
+      syncResident();
+    },
     ...metricMethods,
   };
 };
