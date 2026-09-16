@@ -81,6 +81,7 @@ export type {
   PageDecodeGeometryPayload,
   PageDecodeOp,
   PageDecodeRequest,
+  PageDecodeShare,
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
 export * from './mathIndex.ts';
