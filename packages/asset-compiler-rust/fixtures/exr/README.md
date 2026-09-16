@@ -5,7 +5,7 @@ du sous-ensemble ; quatre sont là pour être refusés, chacun par son nom.
 
 | fichier                   | ce qu'il porte                                    | ce qu'il met sous surveillance                                                                                                            |
 | ------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `demi.exr`                | 2 × 2, canaux `A`, `B`, `G`, `R` en demi-flottant | l'ordre de lecture, les quatre canaux, un alpha qui n'est ni 0 ni 1, et la dé-prémultiplication   |
+| `demi.exr`                | 2 × 2, canaux `A`, `B`, `G`, `R` en demi-flottant | l'ordre de lecture, les quatre canaux, un alpha qui n'est ni 0 ni 1, et la dé-prémultiplication                                           |
 | `flottant.exr`            | 2 × 2, canaux `B`, `G`, `R` en simple flottant    | les mêmes valeurs RGB que `demi.exr` — le demi s'étend sans arrondi — et l'alpha opaque que la spécification impose quand le canal manque |
 | `canaux-xyz.exr`          | 2 × 2, canaux `X`, `Y`, `Z`                       | un jeu de canaux d'un autre nom : refus `exr-channels-unsupported`                                                                        |
 | `profond.exr`             | `demi.exr` au drapeau de données profondes        | le champ de version suffit : refus `exr-deep-unsupported` avant toute autre lecture                                                       |
