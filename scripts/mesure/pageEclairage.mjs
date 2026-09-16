@@ -42,6 +42,8 @@ export async function measureView(options) {
     // différente par construction, et le SDK la refuse hors du détail « trace ».
     diagnosticDetail: options.trace ? 'trace' : 'summary',
     ...(options.variante ? { diagnosticGpuVariant: options.variante } : {}),
+    // La métrique d'erreur écran de l'EXPÉRIENCE : absente, l'explorateur garde la nôtre.
+    ...(options.erreur ? { screenError: options.erreur } : {}),
     // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
     stageProfile: options.stageProfile === true,
     // Idem pour la lumière qui rebondit : le moteur l'éteint par défaut, le banc peut l'allumer.
