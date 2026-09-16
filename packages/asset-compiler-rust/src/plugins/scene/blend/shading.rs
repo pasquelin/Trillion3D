@@ -41,6 +41,11 @@ pub(super) fn factor(
 }
 
 /// L'émission : couleur multipliée par son intensité, bornée à [0, 1] comme le glTF l'exige.
+///
+/// Une image branchée sur la couleur d'émission **remplace** la couleur déclarée, que Blender
+/// n'évalue alors plus : le facteur du glTF ne porte plus que l'intensité, que le glTF multiplie
+/// par l'image. Prendre la couleur remplacée éteindrait l'émission dès que l'auteur y a laissé du
+/// noir.
 pub(super) fn emission(
     node: &At<'_>,
     tree: &Tree<'_>,
@@ -53,8 +58,15 @@ pub(super) fn emission(
         return;
     };
     let strength = socket_value(node, "Emission Strength", 1.0);
-    let color = value(&socket, 0.0);
-    let scaled: Vec<f32> = color.iter().take(3).map(|part| part * strength).collect();
+    let linked = texture(&socket, tree, root, images, out);
+    let scaled: Vec<f32> = match linked {
+        Some(_) => vec![strength; 3],
+        None => value(&socket, 0.0)
+            .iter()
+            .take(3)
+            .map(|part| part * strength)
+            .collect(),
+    };
     if scaled.iter().any(|part| *part > 1.0) {
         out.report.add("blend-emission-clamped");
     }
@@ -64,7 +76,7 @@ pub(super) fn emission(
             .map(|part| part.clamp(0.0, 1.0))
             .collect::<Vec<f32>>());
     }
-    if let Some(index) = texture(&socket, tree, root, images, out) {
+    if let Some(index) = linked {
         gltf["emissiveTexture"] = json!({"index": index});
     }
 }

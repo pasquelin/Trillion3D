@@ -6,7 +6,6 @@
 //! sont des fichiers que Blender aurait pu écrire, et le pilote les relit par le même chemin que
 //! la fixture d'origine.
 use super::*;
-use std::sync::atomic::AtomicBool;
 
 /// L'entête d'un bloc à champs de soixante-quatre bits, celui de la fixture.
 const HEADER: usize = 32;
@@ -80,6 +79,16 @@ pub(super) fn link_field(file: &BlendFile, material: &str, tosock: u64, name: &s
     field(file, link.old, &[name])
 }
 
+/// Le rang de la valeur déclarée d'une entrée de nœud : elle vit dans le bloc que son champ
+/// `default_value` désigne.
+pub(super) fn declared_field(file: &BlendFile, socket: u64, name: &str) -> usize {
+    let held = file
+        .at(socket)
+        .and_then(|block| file.view(block))
+        .expect("l'entrée");
+    field(file, held.pointer("default_value"), &[name])
+}
+
 /// La fixture dont le SDNA ne décrit plus le champ nommé : son nom est réécrit dans la section des
 /// noms, à longueur égale. C'est exactement ce que porte un fichier écrit avant ce champ.
 pub(super) fn without_field(name: &str) -> Vec<u8> {
@@ -133,48 +142,4 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     added.extend_from_slice(&data);
     bytes.splice(end..end, added);
     bytes
-}
-
-/// Compile ces octets par le pilote dans un dossier jetable, et rend le glTF et le manifeste qu'il
-/// a écrits — le manifeste porte les comptes et les codes du rapport.
-pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
-    let root = std::env::temp_dir().join(format!(
-        "wg-blend-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("horloge")
-            .as_nanos()
-    ));
-    let source = root.join("scene.blend");
-    fs::create_dir_all(&root).expect("dossier");
-    fs::write(&source, bytes).expect("écriture");
-    let cache = root.join("cache");
-    let directory = convert::convert(
-        &SceneRequest {
-            source: &source,
-            inputs: std::slice::from_ref(&source),
-            cache: &cache,
-            cancelled: &AtomicBool::new(false),
-            progress: &|_| {},
-        },
-        &BLEND,
-    )
-    .expect("conversion");
-    let read = |name: &str| -> Value {
-        serde_json::from_slice(&fs::read(directory.join(name)).expect(name)).expect(name)
-    };
-    let pair = (read("model.gltf"), read("manifest.json"));
-    fs::remove_dir_all(&root).expect("nettoyage");
-    pair
-}
-
-/// Le matériau glTF de ce nom, dans une scène compilée.
-pub(super) fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
-    gltf["materials"]
-        .as_array()
-        .expect("materials")
-        .iter()
-        .find(|material| material["name"] == json!(name))
-        .unwrap_or_else(|| panic!("aucun matériau nommé {name}"))
 }
