@@ -1,6 +1,12 @@
-import { boxConeRejects, linearPartScale, normalMatrix3 } from '../sdk-core/index.ts';
+import {
+  CONE_LENGTH_RATIO,
+  CONE_ORTHO_EPS,
+  HALF_PI,
+  boxConeRejects,
+  linearPartScale,
+  normalMatrix3,
+} from '../sdk-core/index.ts';
 import * as THREE from 'three';
-import type { EngineCamera } from './cameraWorld.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
@@ -16,7 +22,7 @@ const loneContext = createConeContext();
  * longueur et être orthogonales à 1e-4 près, en relatif. Aucune tolérance absolue : une échelle
  * minuscule n'accepte pas plus de déformation qu'une échelle unité. Une 3×3 nulle, infinie ou NaN,
  * ou une colonne nulle, n'est pas conforme : le cluster est conservé.
- *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances. L'échelle
+ *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances (`mathCone.ts`). L'échelle
  *  vient de `linearPartScale` (`mathSingular.ts`), la somme que la règle de singularité emploie déjà :
  *  mêmes neuf termes, même ordre, donc les mêmes bits qu'auparavant.
  */
@@ -37,8 +43,8 @@ function isConformal(e: ArrayLike<number>) {
     lz2 = z0 * z0 + z1 * z1 + z2 * z2;
   const maxl = Math.max(lx2, ly2, lz2),
     minl = Math.min(lx2, ly2, lz2);
-  if (maxl > minl * 1.0001) return false;
-  const eps = maxl * 1e-4;
+  if (maxl > minl * CONE_LENGTH_RATIO) return false;
+  const eps = maxl * CONE_ORTHO_EPS;
   return (
     Math.abs(x0 * y0 + x1 * y1 + x2 * y2) <= eps &&
     Math.abs(x0 * z0 + x1 * z1 + x2 * z2) <= eps &&
@@ -79,24 +85,24 @@ export function createConeContext(): ConeContext {
   };
 }
 
-/** Remplit le contexte pour une transformation de racine et une caméra. */
-export function coneContextFor(into: ConeContext, world: MatrixElements, cam: EngineCamera) {
+/** Remplit le contexte pour une transformation de racine et la position monde de l'œil. */
+export function coneContextFor(into: ConeContext, world: MatrixElements, eye: ArrayLike<number>) {
   const e = world.elements;
   into.ready = true;
   into.conformal = isConformal(e);
   if (!into.conformal) return into;
   into.scale = Math.hypot(e[0], e[1], e[2]);
   normalMatrix3(into.normal, e);
-  // La position monde de l'œil vient de la caméra du moteur : une image la pose une fois.
-  into.camX = cam.eye[0];
-  into.camY = cam.eye[1];
-  into.camZ = cam.eye[2];
+  // La position monde de l'œil vient de la caméra du moteur (`cam.eye`) : une image la pose une fois.
+  into.camX = eye[0];
+  into.camY = eye[1];
+  into.camZ = eye[2];
   return into;
 }
 
 /** Le rejet de cône d'un cluster, le contexte de sa racine étant déjà posé.
- *  Miroir CPU de `coneRejectsBox` (gpuDagShader.ts) : mêmes tolérances relatives 1.0001 et 1e-4,
- *  mêmes opérandes, deux langages — le texte ne se partage pas, la règle si. */
+ *  Miroir CPU de `coneRejectsBox` (gpuDagShader.ts) : mêmes tolérances (`mathCone.ts`), mêmes
+ *  opérandes, deux langages — le texte ne se partage pas, la règle si. */
 export function coneCullsPageWith(
   ctx: ConeContext,
   cone: NormalCone,
@@ -110,7 +116,7 @@ export function coneCullsPageWith(
     if (side === THREE.DoubleSide || side === THREE.BackSide) return false;
   }
   if (!ctx.conformal) return false;
-  if (cone.angle >= Math.PI / 2) return false;
+  if (cone.angle >= HALF_PI) return false;
   return boxConeRejects(
     cone.axis,
     cone.angle,
@@ -131,11 +137,11 @@ export function coneCullsPage(
   world: MatrixElements,
   min: number[],
   max: number[],
-  cam: EngineCamera,
+  eye: ArrayLike<number>,
   material?: THREE.Material | THREE.Material[],
 ): boolean {
   return coneCullsPageWith(
-    coneContextFor(loneContext, world, cam),
+    coneContextFor(loneContext, world, eye),
     cone,
     world,
     min,
