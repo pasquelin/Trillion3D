@@ -41,7 +41,7 @@ export function coneSkipsPage(
   if (pageIsDoubleSided(rec.material)) return false;
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax;
-  if (!ctx.ready) coneContextFor(ctx, world, cam);
+  if (!ctx.ready) coneContextFor(ctx, world, cam.eye);
   return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material);
 }
 

@@ -4,7 +4,7 @@
 //! qu'une fois la taille connue et le plafond d'allocation appliqué. Il lit les quatre canaux,
 //! vérifie que la surface rendue est celle qui était annoncée, puis ramène les échantillons à un
 //! alpha droit.
-use super::{DecodedImage, ImageDecoded, UNREADABLE};
+use super::{DecodedImage, ImageDecoded, Transfer, UNREADABLE};
 use ::exr::image::RgbaChannels;
 use ::exr::math::Vec2;
 use ::exr::prelude::traits::{read, ReadChannels, ReadLayers};
@@ -41,11 +41,14 @@ pub(super) fn read_all(
         return Err(UNREADABLE);
     }
     straight(&mut data);
-    Ok(ImageDecoded::linear(DecodedImage::RgbaF32 {
-        width,
-        height,
-        data,
-    }))
+    Ok(ImageDecoded::new(
+        DecodedImage::RgbaF32 {
+            width,
+            height,
+            data,
+        },
+        Transfer::Linear,
+    ))
 }
 
 /// Les échantillons associés ramenés à un alpha droit, pixel par pixel et en place. Un alpha de un
