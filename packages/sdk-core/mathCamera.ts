@@ -1,4 +1,4 @@
-import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix } from './mathFrustum.ts';
+import { FRUSTUM_PLANE_VALUES, frustumFarPlane, frustumPlanesFromMatrix } from './mathFrustum.ts';
 import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { invertMatrix4 } from './mathMatrix4Inverse.ts';
 
@@ -82,14 +82,21 @@ export function createCameraFrame(): CameraFrame {
  * Réécrit l'image : vue = inverse de `world` (nulle pour une matrice monde singulière, comme la
  * référence), vue-projection = `projection · vue`, et les six plans du tronc de cette
  * vue-projection. Une seule convention de profondeur traverse les trois.
+ *
+ * `far` est le plan lointain que l'hôte DÉCLARE. La projection n'en a plus — elle est infinie, ce
+ * qui est tout l'objet du Z inversé —, mais le tronc le garde : sans lui, une image gagnerait d'un
+ * coup tous les objets que la caméra ne montrait pas. Omis ou non fini, le lointain reste sans
+ * borne (`frustumFarPlane`).
  */
 export function updateCameraFrame(
   frame: CameraFrame,
   projection: ArrayLike<number>,
   world: ArrayLike<number>,
+  far = Infinity,
 ) {
   invertMatrix4(frame.view, world);
   multiplyMatrix4(frame.viewProjection, projection, frame.view);
   frustumPlanesFromMatrix(frame.planes, frame.viewProjection);
+  frustumFarPlane(frame.planes, 16, frame.view, far, true);
   return frame;
 }

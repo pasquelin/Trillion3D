@@ -101,7 +101,12 @@ export function joueNous(scenario) {
         break;
       case 'image':
         updateNodeMatrixWorld(tree, n);
-        updateCameraFrame(image, cameras[op[1]].projection, tree.worldViews[n]);
+        updateCameraFrame(
+          image,
+          cameras[op[1]].projection,
+          tree.worldViews[n],
+          cameras[op[1]].spec.far,
+        );
         sorties.push([
           rang,
           ...cameras[op[1]].projection,
