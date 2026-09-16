@@ -31,3 +31,32 @@ fn an_object_no_collection_of_the_active_scene_holds_is_counted_and_left_out() {
         manifest["unsupported"]
     );
 }
+
+// Comportement : Blender place l'origine des UV en bas à gauche, le glTF en haut à gauche. La
+// coordonnée V est donc retournée à l'écriture, exactement comme les pilotes ma, alembic et usd le
+// font, sans quoi toute texture importée sort à l'envers.
+#[test]
+fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
+    let geometry = Geometry {
+        positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        corners: vec![0, 1, 2],
+        offsets: vec![0, 3],
+        uv: vec![0.0, 0.0, 1.0, 0.25, 0.5, 1.0],
+        material: vec![0],
+        sharp: vec![true],
+    };
+    let mut out = Out::new();
+    let normals = normals::corners(&geometry);
+    let (mesh, _) = build::mesh_json(&geometry, &normals, &[None], "UV", &mut out);
+    let written: Vec<f32> = read(&out, &mesh["primitives"][0]["attributes"]["TEXCOORD_0"])
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|word| f32::from_le_bytes(*word))
+        .collect();
+    assert_eq!(
+        written,
+        vec![0.0, 1.0, 1.0, 0.75, 0.5, 0.0],
+        "u est conservé, v est retourné"
+    );
+}
