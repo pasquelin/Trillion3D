@@ -35,10 +35,23 @@ fn truncated() -> CompilerError {
     )
 }
 
-/// Défait l'enveloppe : un fichier nu passe tel quel, un flux gzip ou Zstandard est décompressé
-/// sous le plafond annoncé.
+/// Le plafond, vérifié sur les octets déballés : c'est la même aide pour les trois enveloppes, pour
+/// un fichier nu, mesuré avant d'être copié, et pour ce qui est lu depuis le disque.
+pub(super) fn within(length: usize, ceiling: usize) -> Result<()> {
+    if length > ceiling {
+        return Err(refused(
+            "blend-too-large",
+            format!("blend: {length} bytes go past the {ceiling}-byte ceiling this reader admits"),
+        ));
+    }
+    Ok(())
+}
+
+/// Défait l'enveloppe : un fichier nu passe tel quel, un flux gzip ou Zstandard est décompressé.
+/// Le plafond porte sur les octets déballés, quelle que soit l'enveloppe.
 pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Vec<u8>> {
     if raw.starts_with(MAGIC) {
+        within(raw.len(), ceiling)?;
         return Ok(raw.to_vec());
     }
     let mut out = Vec::new();
@@ -55,12 +68,7 @@ pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Vec<u8>> {
             "blend: this file starts neither with BLENDER nor with a gzip or Zstandard frame",
         ));
     }
-    if out.len() > ceiling {
-        return Err(refused(
-            "blend-too-large",
-            format!("blend: the file expands beyond the {ceiling}-byte ceiling"),
-        ));
-    }
+    within(out.len(), ceiling)?;
     Ok(out)
 }
 
