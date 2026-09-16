@@ -23,8 +23,8 @@ User order: scene fidelity/OBJ cache, crashes, remaining families; one batch at 
 - C USD fidelity: **merged** (5fb7a38), 35,36,37,38,40,41; `usd-openusd-0.7.0-gltf-3`, codes `usd-opacity-texture-unsupported`, `usd-texture-channel-unsupported`; goldens changed by version string only. Remaining for J: 39,42–46; `usd/texture.rs` still writes the raw URI.
 - D' fixes on merged batches: **merged** (4c31066f). COMP-01 ngon closed-triangle test, COMP-02 external-import record keyed by resolving directory, COMP-03 only `outputs:a` carries opacity (else `usd-texture-channel-unsupported`); all three reproduced first. Versions ma/alembic/blend `-gltf-3`, usd `-gltf-4`; goldens by version string only. Remaining: old `imports-externes/<base>.json` records in an existing cache are orphaned, never read.
 - D Unity fidelity: **merged** (69a79fa), 29,30,32,31; `unity-yaml-rust2-0.13-gltf-3`, codes `unity-model-hierarchy-invalid`, `unity-prefab-override-unplaced`; goldens: version string, four `-0.0` → `0.0`. Remaining: 33,34,47–52 (J); earlier `unity-*` codes undocumented; an override aimed at an object inside a model is counted, not applied.
-- E Maya fidelity: **next**, 10,11,12,13; `plugins/scene/ma/`.
-- F Blend fidelity: 14,15,16,17,18; `plugins/scene/blend/`.
+- E Maya fidelity: **merged** (4b7e1c1), 10,11,12,13; `ma-mel-subset-1-gltf-4`, codes `ma-name-ambiguous`, `ma-face-material-missing`, `ma-shape-intermediate`, `ma-matrix-unsupported` (`ma-shear-unsupported` removed, shear composed); golden: version and `rule` prose only. Remaining: `joint` nodes not traversed (`jointOrient`, `segmentScaleCompensate` untouched); an ambiguous short name yields the first node written.
+- F Blend fidelity: **next**, 14,15,16,17,18; `plugins/scene/blend/`.
 - G crashes/bounds: 23,24,28,7,25,27; `ma/mesh.rs`, `blend/dna.rs`, `unity/patch.rs`, `crate_image.rs`, `blend/envelope.rs`.
 - H routing/archives: 3,4,5,6,26; `route.rs`, `unitypackage.rs`, `zip_reader.rs`, `usdz.rs`, `alembic/ogawa.rs`.
 - I image fidelity: 8,53–58; `png.rs`, `exr.rs`, `psd/pixels.rs`, `ktx2/`, `dds/codec.rs`, `crate_image.rs`.
