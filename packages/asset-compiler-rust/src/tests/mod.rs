@@ -36,6 +36,7 @@ mod unity_driver;
 mod unity_golden;
 mod unitypackage_golden;
 mod usd_driver;
+mod usd_fidelite;
 mod usd_golden;
 mod usd_rapport;
 mod usd_refus;
