@@ -18,7 +18,21 @@ const occurrences = (texte: string, motif: RegExp) => texte.match(motif)?.length
 test('les normales d’éclairage ne jugent plus la dégénérescence sur le déterminant brut', () => {
   assert.doesNotMatch(NORMAL_TRANSFORM_WGSL, /abs\(det\)<1e-20/, 'seuil absolu encore présent');
   assert.match(NORMAL_TRANSFORM_WGSL, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/);
-  assert.match(NORMAL_TRANSFORM_WGSL, /if\(!\(abs\(det\)>1e-20\)\)\{return v;\}/);
+  assert.match(NORMAL_TRANSFORM_WGSL, /fini&&abs\(det\)>1e-20/);
+  assert.match(NORMAL_TRANSFORM_WGSL, /return select\(v,p\.facteur\*\(p\.adj\*v\),p\.regulier\);/);
+});
+
+// Le prologue — normalisation, déterminant, adjointe — ne dépend que de la matrice : l'ombrage du
+// tampon de visibilité le calcule une fois par pixel et applique les trois normales du triangle
+// dessus. L'écriture reste unique, seul l'endroit où on la coupe a changé.
+test('la préparation ne dépend que de la matrice, l’application que du vecteur', () => {
+  assert.match(INVERSE_TRANSPOSE_WGSL, /fn invTranspose3Prep\(m:mat3x3f\)->InvT3\{/);
+  assert.match(INVERSE_TRANSPOSE_WGSL, /fn invTranspose3Apply\(p:InvT3,v:vec3f\)->vec3f\{/);
+  assert.doesNotMatch(
+    INVERSE_TRANSPOSE_WGSL.split('fn invTranspose3Apply')[1].split('\n}')[0],
+    /\bm\b|cross|det/,
+    'l’application par vecteur ne doit rien recalculer de la matrice',
+  );
 });
 
 test('le noyau de sélection et l’éclairage lisent la même écriture, au caractère près', () => {
