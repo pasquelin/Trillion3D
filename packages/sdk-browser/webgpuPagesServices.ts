@@ -61,13 +61,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // Origine du changement de ressources : la page entre dans la résidence ou en sort.
     (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
-  const pageSource = {
-    read: async (key: string) => {
-      const bytes = sourceBytes.get(key);
-      if (!bytes) throw new Error('Missing page');
-      return bytes;
-    },
-  };
+  const read = async (key: string) =>
+    sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
+  const pageSource = { read };
   const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
   /**
    * The sets residency is decided with, and the difference the GPU readback is read as. Both outlive
