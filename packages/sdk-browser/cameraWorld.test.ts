@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 import {
   createEngineCamera,
+  enginePose,
   holdCameraWorld,
   readCameraWorld,
   resolveCameraWorld,
@@ -150,4 +151,46 @@ test('holdCameraWorld : copie au bit près, indépendante de la source modifiée
   readCameraWorld(source, camera);
   assert.notDeepEqual([...source.world], avant, 'témoin : la source, elle, a bien changé');
   assert.deepEqual([...gelee.world], avant, 'la copie gelée reste celle d’avant la nouvelle image');
+});
+
+test('enginePose : la position égale getWorldPosition, sous le même rig hostile (profondeur 3, cisaillement, échelle négative non uniforme)', () => {
+  const camera = hostileRig();
+  const attendu = resolveCameraWorld(camera).getWorldPosition(new THREE.Vector3());
+  const obtenu = enginePose(readCameraWorld(createEngineCamera(), camera));
+  assertBits(obtenu.position, attendu.toArray());
+});
+
+test('enginePose : le quaternion égale getWorldQuaternion, sous le même rig hostile (à l’arrondi de la normalisation près)', () => {
+  const camera = hostileRig();
+  const attendu = resolveCameraWorld(camera).getWorldQuaternion(new THREE.Quaternion());
+  const obtenu = enginePose(readCameraWorld(createEngineCamera(), camera));
+  const proche = (a: number, b: number) => Math.abs(a - b) <= 1e-9;
+  assert.ok(
+    ['x', 'y', 'z', 'w'].every((k, i) =>
+      proche(obtenu.quaternion[i], (attendu as unknown as Record<string, number>)[k]),
+    ),
+    `quaternion ${obtenu.quaternion} !== ${attendu.toArray()}`,
+  );
+  // Témoin : sous ce rig, la pose locale de la caméra n'est ni la position ni l'orientation publiées.
+  assert.notDeepEqual(obtenu.position, camera.position.toArray());
+});
+
+test('enginePose : rejoue la même caméra hôte, jumelle sans parent — même position, même quaternion que Three', () => {
+  // Une caméra plate, sans ancêtre, discrimine : si `enginePose` lisait la pose LOCALE au lieu de la
+  // translation de `world`, elle continuerait de coïncider avec Three ici, masquant le défaut que le
+  // test précédent, lui, débusque sous un rig.
+  const camera = new THREE.PerspectiveCamera(60, 4 / 3, 0.5, 200);
+  camera.position.set(-8, 4.5, 13.25);
+  camera.rotation.set(-0.3, 1.1, 0.4);
+  camera.updateProjectionMatrix();
+  const attenduP = resolveCameraWorld(camera).getWorldPosition(new THREE.Vector3());
+  const attenduQ = camera.getWorldQuaternion(new THREE.Quaternion());
+  const obtenu = enginePose(readCameraWorld(createEngineCamera(), camera));
+  assertBits(obtenu.position, attenduP.toArray());
+  const proche = (a: number, b: number) => Math.abs(a - b) <= 1e-9;
+  assert.ok(
+    ['x', 'y', 'z', 'w'].every((k, i) =>
+      proche(obtenu.quaternion[i], (attenduQ as unknown as Record<string, number>)[k]),
+    ),
+  );
 });
