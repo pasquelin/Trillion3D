@@ -102,6 +102,18 @@ for (const [nom, texte] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
     );
   });
 
+// `wrapModes` et les lectures des deux nuanceurs se dérivent maintenant de `WRAP_MAP`. Ce test tient
+// la dérivation par l'autre bout : tout rang du mot est lu une fois, et une seule, dans chaque
+// nuanceur. Une septième carte ajoutée à `WRAP_MAP` mais jamais lue adresserait en serrage sans que
+// rien ne le dise — c'est ce silence-là qui échoue ici.
+test('chaque rang de WRAP_MAP est lu une fois et une seule par les deux nuanceurs', () => {
+  const fois = (texte: string, motif: string) => texte.split(motif).length - 1;
+  for (const rang of Object.values(WRAP_MAP)) {
+    assert.equal(fois(SHADE_SHADER, `wrapOf(page.wrapModes,${rang}u)`), 1, `rang ${rang}, ombrage`);
+    assert.equal(fois(BLEND_SHADER, `blendWrap(${rang}u)`), 1, `rang ${rang}, lot transparent`);
+  }
+});
+
 test('la découpe alpha adresse la carte de base par son quartet, jamais par les drapeaux', () => {
   assert.ok(
     MASK_KEEP_WGSL.includes(
