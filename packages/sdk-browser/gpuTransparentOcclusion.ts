@@ -1,6 +1,7 @@
 import { CORNER_VALUES, PARTITION_WORKGROUP } from './gpuPartitionContract.ts';
 import { transparentOcclusionShader } from './gpuTransparentOcclusionWgsl.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
+import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -35,15 +36,12 @@ export async function createTransparentOcclusion(
   });
   let disposed = false;
   try {
-    const layout = device.createBindGroupLayout({
-      entries: (
-        ['read-only-storage', 'read-only-storage', 'storage', 'uniform'] as GPUBufferBindingType[]
-      ).map((type, binding) => ({
-        binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type },
-      })),
-    });
+    const layout = bounceLayout(device, [
+      'read-only-storage',
+      'read-only-storage',
+      'storage',
+      'uniform',
+    ]);
     const module = device.createShaderModule({ code: transparentOcclusionShader(entryCount) });
     if (await shaderFailed(device, module)) {
       corners.destroy();
@@ -58,13 +56,12 @@ export async function createTransparentOcclusion(
     let bound: GPUBuffer | undefined, bindGroup: GPUBindGroup | undefined;
     const bindTo = (pyramid: GPUBuffer) => {
       bound = pyramid;
-      bindGroup = device.createBindGroup({
-        layout,
-        entries: [corners, pyramid, sources.occluded, sources.uniforms].map((buffer, binding) => ({
-          binding,
-          resource: { buffer },
-        })),
-      });
+      bindGroup = bounceGroup(device, layout, [
+        corners,
+        pyramid,
+        sources.occluded,
+        sources.uniforms,
+      ]);
     };
     const groups = Math.max(1, Math.ceil(entryCount / PARTITION_WORKGROUP));
     const cornerBytes = CORNER_VALUES * 4;
@@ -85,11 +82,11 @@ export async function createTransparentOcclusion(
        * dépouiller : le tampon repart à zéro, et la compaction garde toutes ses entrées.
        */
       encode(encoder: GPUCommandEncoder, pyramidFresh: boolean) {
-        if (disposed) return false;
+        if (disposed) return;
         const pyramid = pyramidFresh ? sources.pyramid() : undefined;
         if (!pyramid) {
           encoder.clearBuffer(sources.occluded, 0, entryCount * 4);
-          return false;
+          return;
         }
         if (pyramid !== bound || !bindGroup) bindTo(pyramid);
         const pass = encoder.beginComputePass({ label: 'WG transparent occlusion' });
@@ -97,7 +94,6 @@ export async function createTransparentOcclusion(
         pass.setBindGroup(0, bindGroup!);
         pass.dispatchWorkgroups(groups);
         pass.end();
-        return true;
       },
       dispose() {
         disposed = true;

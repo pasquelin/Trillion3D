@@ -17,9 +17,7 @@ pub(super) fn radius(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> 
     bound_nodes(e, node)
         .into_iter()
         .filter_map(|candidate| reach(e, candidate, centre))
-        .fold(None, |best: Option<f64>, value| {
-            Some(best.map_or(value, |best| best.min(value)))
-        })
+        .min_by(f64::total_cmp)
 }
 
 /// Les nœuds qui peuvent porter l'enveloppe : le parent de la lampe et ses frères directs. Une

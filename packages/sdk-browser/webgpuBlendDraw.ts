@@ -89,7 +89,7 @@ export function drawBlendPass(
     : undefined;
   const pass = encoder.beginRenderPass({
     label: transmissive ? 'WG transmission' : 'WG transparents',
-    ...(overdraw ? { occlusionQuerySet: overdraw.set } : {}),
+    occlusionQuerySet: overdraw?.set,
     colorAttachments: [
       {
         view: vis.visEnabled && gpu.hdrView ? gpu.hdrView : gpu.colorView!,
