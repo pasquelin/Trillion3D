@@ -13,22 +13,28 @@ const unitaire = (v) => {
 };
 
 /**
- * Transformation monde `échelle ∘ rotation`, normale locale `normale`, et normale monde vraie.
- * `kind` vaut `uniforme` (échelle s sur les trois axes, déterminant s³) ou `anisotrope` (s, 1,7 s,
- * 0,6 s) : le premier isole le défaut, le second vérifie qu'une inverse-transposée non triviale
- * reste juste. La translation ne change pas une normale : elle est laissée nulle.
+ * La transformation monde `échelle ∘ rotation` de la famille de matrices que les reproductions des
+ * défauts 6 et 9 éprouvent toutes les deux. `kind` vaut `uniforme` (échelle s sur les trois axes,
+ * déterminant s³) ou toute autre valeur pour l'échelle anisotrope (s, 1,7 s, 0,6 s) : le premier
+ * isole le défaut du seuil, le second vérifie qu'une inverse-transposée non triviale reste juste.
+ * La translation est laissée nulle : elle ne change ni une normale ni un recentrage.
  */
-export function construireCas({ s, kind, axis, angleDeg, normale, lumiere, metal, rugosite }) {
+export function poseMonde({ s, kind, axis, angleDeg }) {
   const echelle = kind === 'uniforme' ? [s, s, s] : [s, s * 1.7, s * 0.6];
   const quaternion = new THREE.Quaternion().setFromAxisAngle(
     new THREE.Vector3(...axis).normalize(),
     (angleDeg * Math.PI) / 180,
   );
-  const world = new THREE.Matrix4().compose(
+  return new THREE.Matrix4().compose(
     new THREE.Vector3(),
     quaternion,
     new THREE.Vector3(...echelle),
   );
+}
+
+/** Transformation monde, normale locale `normale`, et normale monde vraie en f64 (Three). */
+export function construireCas({ s, kind, axis, angleDeg, normale, lumiere, metal, rugosite }) {
+  const world = poseMonde({ s, kind, axis, angleDeg });
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(world);
   const vraie = new THREE.Vector3(...normale).applyMatrix3(normalMatrix).normalize();
   return {

@@ -16,19 +16,12 @@ import { cutSelects, projectedClusterError } from '../../pageSelectionMath.ts';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
+import { lois, xorshift32 } from './tirage.mjs';
 
 const N = Number(process.argv[2] ?? 20000);
 const SEUIL = 0.75;
 const VIEWPORT = [1600, 900];
-let graine = 0x2545f491;
-const hasard = () => {
-  graine ^= graine << 13;
-  graine ^= graine >>> 17;
-  graine ^= graine << 5;
-  return (graine >>> 0) / 4294967296;
-};
-const entre = (a, b) => a + (b - a) * hasard();
-const log = (a, b) => a * (b / a) ** hasard();
+const { hasard, entre, log } = lois(xorshift32(0x2545f491));
 
 const camera = new THREE.PerspectiveCamera(75, VIEWPORT[0] / VIEWPORT[1], 0.05, 2000);
 camera.position.set(3, -2, 7);
