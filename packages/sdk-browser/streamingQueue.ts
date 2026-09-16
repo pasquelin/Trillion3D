@@ -1,37 +1,5 @@
-import type { Job, StreamContext } from './streamingTypes.ts';
-
-/** L'ordre d'admission d'une file : priorité, puis ordre d'arrivée. */
-export function sortStreamJobs(queue: { priority: number; order: number }[]) {
-  queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
-}
-
-/**
- * Retire de la file, en un seul passage et sans déranger l'ordre, les travaux qu'une annulation a
- * marqués. Une rafale d'annulations — ce qu'une caméra rapide produit à chaque image — payait
- * jusqu'ici un balayage de la file par demande abandonnée pour y retrouver sa place.
- */
-export function compacteFile(queue: Job[]) {
-  let garde = 0;
-  for (let i = 0; i < queue.length; i++)
-    if (queue[i].state !== 'dropped') queue[garde++] = queue[i];
-  queue.length = garde;
-}
-
-/**
- * Le premier travail que le budget de transfert laisse partir, ou -1. Le premier transfert d'une
- * file part toujours : sans lui rien n'avancerait quand une seule page dépasse le budget.
- */
-export function findAdmissible(
-  queue: readonly { url: string }[],
-  active: number,
-  activeBytes: number,
-  bytesOf: (url: string) => number | undefined,
-  maxTransferBytes: number,
-) {
-  for (let i = 0; i < queue.length; i++)
-    if (active === 0 || activeBytes + (bytesOf(queue[i].url) ?? 0) <= maxTransferBytes) return i;
-  return -1;
-}
+import type { StreamContext } from './streamingTypes.ts';
+import { compacteFile, findAdmissible, insereTravail } from './streamingQueueOrder.ts';
 
 export function createStreamingQueue(
   context: StreamContext,
@@ -59,14 +27,9 @@ export function createStreamingQueue(
       compacteFile(queue);
       state.dropped = 0;
     }
-    // La file n'est triée qu'une fois par passage : rien n'y entre pendant la boucle, et retirer un
-    // travail ne dérange pas l'ordre. Le tri repartait de zéro à chaque tour du `while`.
-    let triee = false;
+    // La file est tenue en ordre par ses insertions : elle n'est plus triée du tout. Ni le
+    // compactage, ni le retrait d'un travail admis ne dérangent cet ordre.
     while (state.active < limit && queue.length) {
-      if (!triee) {
-        sortStreamJobs(queue);
-        triee = true;
-      }
       const at = findAdmissible(queue, state.active, state.activeBytes, octetsDe, maxTransferBytes);
       if (at < 0) break;
       const job = queue.splice(at, 1)[0];
@@ -146,9 +109,19 @@ export function createStreamingQueue(
         reject,
       };
       jobs.set(url, job);
-      queue.push(job);
+      insereTravail(queue, job);
     } else {
-      job.priority = Math.min(job.priority, priority);
+      const raised = priority < job.priority;
+      job.priority = raised ? priority : job.priority;
+      // Une demande qui gagne en urgence remonte : elle est reposée à sa nouvelle place, la seule
+      // écriture de priorité qui puisse déranger l'ordre. Un travail déjà parti n'est plus en file.
+      if (raised && job.state === 'queued') {
+        const at = queue.indexOf(job);
+        if (at >= 0) {
+          queue.splice(at, 1);
+          insereTravail(queue, job);
+        }
+      }
       emit('page-request-coalesced', 'Demande jointe à une lecture en cours', () => ({
         version: 1,
         url,
