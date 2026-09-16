@@ -16,6 +16,31 @@ type EnsureOptions = {
   traceDiagnostic: Trace;
 };
 
+/**
+ * Plafond de temps d'une salve de téléversement, en millisecondes de fil principal. Au-delà, la
+ * salve rend la main au navigateur et reprend là où elle s'est arrêtée.
+ */
+const SLICE_MS = 2;
+
+/**
+ * Rend la main à la boucle d'évènements — pas seulement à la file de microtâches.
+ *
+ * `await cache.load(...)` n'attend qu'une promesse déjà résolue quand les octets sont en mémoire :
+ * la boucle entière s'exécute alors en une seule tâche, et ni le rendu, ni `requestAnimationFrame`,
+ * ni les évènements de la page n'ont la moindre occasion de passer. Un `MessageChannel` est une
+ * vraie tâche, sans le plafond de quatre millisecondes qu'un `setTimeout` imbriqué finit par subir :
+ * l'image qui attendait passe, et la salve suivante reprend aussitôt après.
+ */
+const yieldToEventLoop = () =>
+  new Promise<void>((done) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      done();
+    };
+    channel.port2.postMessage(0);
+  });
+
 /** Loads newly wanted pages without acting on a stale camera cut. */
 export function createWebgpuResidentEnsurer({
   getCache,
@@ -54,6 +79,7 @@ export function createWebgpuResidentEnsurer({
         elapsedMs: null,
       }),
     );
+    let sliceStart = performance.now();
     for (let i = 0; i < wanted.length; i++) {
       const rec = wanted[i],
         key = tracking.keyOf(rec);
@@ -61,6 +87,15 @@ export function createWebgpuResidentEnsurer({
       signal?.throwIfAborted();
       if (isLost()) throw new Error('WEBGPU_LOST');
       if (!hasBytes(rec) || cache.get(rec.url)) continue;
+      // Budget par image : la salve rend la main dès son plafond atteint. Le travail restant n'est
+      // pas abandonné, il reprend après l'image — et une caméra qui a bougé entre-temps est déjà
+      // prise en compte, puisque chaque tour relit `wanted` avant de téléverser quoi que ce soit.
+      if (performance.now() - sliceStart >= SLICE_MS) {
+        await yieldToEventLoop();
+        cache = getCache();
+        if (isLost() || !cache) throw new Error('WEBGPU_LOST');
+        sliceStart = performance.now();
+      }
       try {
         await cache.load(rec.url, signal);
       } catch (error) {
