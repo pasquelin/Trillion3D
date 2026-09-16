@@ -37,6 +37,15 @@ fn matrix_of(gltf: &Value, name: &str) -> Vec<f64> {
         .collect()
 }
 
+/// Le nœud racine de la scène, celui qui porte l'unité et l'axe haut de la couche.
+fn scene_root(gltf: &Value) -> &Value {
+    gltf["nodes"]
+        .as_array()
+        .expect("nodes")
+        .last()
+        .expect("racine")
+}
+
 // Comportement 42 : les trois lettres d'un `rotateXYZ` … `rotateZYX` nomment l'**ordre** des
 // rotations, jamais l'ordre des composantes : les angles restent écrits `(x, y, z)`. Un seul angle
 // non nul tourne donc autour de son propre axe, sous les six ordres.
@@ -63,5 +72,20 @@ fn the_letters_of_a_euler_order_name_the_order_not_the_axis_of_each_angle() {
             );
         }
     }
+}
+
+// Comportement 43 : une couche qui ne déclare pas `metersPerUnit` est en centimètres, ce que la
+// spécification pose comme valeur par défaut — la lire en mètres agrandit la scène cent fois.
+#[test]
+fn a_layer_without_meters_per_unit_is_read_in_centimetres() {
+    let run = compile_layer("unite", &wrap("", QUAD));
+    let (_, gltf) = run.prepared("usd");
+    let root = scene_root(&gltf);
+    assert_eq!(root["name"], "usd-root");
+    assert_eq!(
+        root["matrix"],
+        json!([0.01, 0., 0., 0., 0., 0.01, 0., 0., 0., 0., 0.01, 0., 0., 0., 0., 1.]),
+        "l'unité implicite de USD est le centimètre"
+    );
 }
 
