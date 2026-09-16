@@ -139,32 +139,46 @@ test('perspective uniform object split is not screen uniform', () => {
   assert.ok(middle - start > 0.5);
 });
 
-test('a cluster error projects as error x stretch x focal over the distance to its sphere', () => {
-  // Sphere of radius 1 centred 10 in front: the nearest point is 9 away.
-  assert.ok(Math.abs(clusterErrorPixels(0.5, 1, 0, 0, 10, 1, 600, 0.1) - (0.5 * 600) / 9) < 1e-9);
+test('a cluster error projects as the certified screen bound of its sphere', () => {
+  // Sphere of radius 1 centred 10 in front (view depth -z): minimum depth 9, side reach 1, the
+  // moved point no closer than 8.5. The bound is (delta*focal/9) * (sqrt(81 + 1) / 8.5).
+  const axial = ((0.5 * 600) / 9) * (Math.sqrt(9 * 9 + 1) / 8.5);
+  assert.ok(Math.abs(clusterErrorPixels(0.5, 1, 0, 0, -10, 1, 600, 0.1) - axial) < 1e-9);
+  const pointlike = ((0.5 * 2 * 600) / 10) * (10 / 9);
   assert.ok(
-    Math.abs(clusterErrorPixels(0.5, 2, 0, 0, 10, 0, 600, 0.1) - (0.5 * 2 * 600) / 10) < 1e-9,
+    Math.abs(clusterErrorPixels(0.5, 2, 0, 0, -10, 0, 600, 0.1) - pointlike) < 1e-9,
+    'a radius-free sphere still pays the depth it loses by moving toward the eye',
+  );
+  assert.ok(
+    clusterErrorPixels(0.5, 1, 8, 0, -10, 1, 600, 0.1) >
+      clusterErrorPixels(0.5, 1, 0, 0, -10, 1, 600, 0.1),
+    'off the view axis the same sphere announces more, which is the whole point of the bound',
   );
   assert.equal(
-    clusterErrorPixels(0, 1, 0, 0, 0.05, 1, 600, 0.1),
+    clusterErrorPixels(0, 1, 0, 0, -0.05, 1, 600, 0.1),
     0,
     'exact geometry never needs refining',
   );
   assert.equal(
-    clusterErrorPixels(Infinity, 1, 0, 0, 10, 1, 600, 0.1),
+    clusterErrorPixels(Infinity, 1, 0, 0, -10, 1, 600, 0.1),
     Infinity,
     'a cluster with no replacement always wins',
   );
   assert.equal(
-    clusterErrorPixels(0.5, 1, 0, 0, 1, 1, 600, 0.1),
+    clusterErrorPixels(0.5, 1, 0, 0, -1, 1, 600, 0.1),
     Infinity,
     'a sphere reaching the near plane refines',
   );
-  assert.throws(() => clusterErrorPixels(-1, 1, 0, 0, 10, 1, 600, 0.1), /invalides/);
+  assert.equal(
+    clusterErrorPixels(0.5, 1, 0, 0, 10, 1, 600, 0.1),
+    Infinity,
+    'a sphere behind the eye refines',
+  );
+  assert.throws(() => clusterErrorPixels(-1, 1, 0, 0, -10, 1, 600, 0.1), /invalides/);
   // Monotone in the error and in an enclosing sphere, which is what keeps one cut per chain.
-  const small = clusterErrorPixels(0.5, 1, 0, 0, 10, 1, 600, 0.1);
-  assert.ok(clusterErrorPixels(0.6, 1, 0, 0, 10, 1, 600, 0.1) > small);
-  assert.ok(clusterErrorPixels(0.5, 1, 0, 0, 10, 2, 600, 0.1) > small);
+  const small = clusterErrorPixels(0.5, 1, 0, 0, -10, 1, 600, 0.1);
+  assert.ok(clusterErrorPixels(0.6, 1, 0, 0, -10, 1, 600, 0.1) > small);
+  assert.ok(clusterErrorPixels(0.5, 1, 0, 0, -10, 2, 600, 0.1) > small);
 });
 
 test('maxStretch rejects non-finite matrix elements', () => {
