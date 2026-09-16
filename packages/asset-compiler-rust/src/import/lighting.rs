@@ -67,13 +67,27 @@ impl Importer<'_> {
             return;
         }
         // FBX ne porte pas d'unité photométrique : son intensité est un pourcentage, que le réglage
-        // publié de `compiler_lights` rend en candela ou en lux, comme le glTF.
-        let intensity = light.intensity * crate::compiler_lights::fbx_intensity_scale(kind);
-        let mut json = json!({"name":&*light.element.name,"type":kind,"color":[light.color.x,light.color.y,light.color.z],"intensity":intensity,"extras":{"castsShadow":light.cast_shadows}});
-        if kind == "spot" {
-            json["spot"] = json!({"innerConeAngle":light.inner_angle.to_radians(),"outerConeAngle":light.outer_angle.to_radians().max(0.001)});
-        }
-        self.lights.push(json);
-        self.nodes.push(json!({"name":&*node.element.name,"matrix":matrix,"extensions":{"KHR_lights_punctual":{"light":self.lights.len()-1}}}));
+        // publié de `compiler_lights` rend en candela ou en lux, comme le glTF. Et FBX ne déclare
+        // aucun rayon d'émetteur : le compilateur le mesure alors sur le corps émissif de la lampe.
+        let source = crate::import::LightSource {
+            name: light.element.name.to_string(),
+            kind,
+            colour: [light.color.x, light.color.y, light.color.z],
+            intensity: light.intensity * crate::compiler_lights::fbx_intensity_scale(kind),
+            cone: (kind == "spot").then(|| {
+                (
+                    light.inner_angle.to_radians(),
+                    light.outer_angle.to_radians().max(0.001),
+                )
+            }),
+            casts_shadow: Some(light.cast_shadows),
+            emitter_radius: None,
+        };
+        self.lights.push(source.json());
+        self.nodes.push(crate::import::light_node(
+            &node.element.name,
+            json!(matrix),
+            self.lights.len() - 1,
+        ));
     }
 }

@@ -68,13 +68,16 @@ fn traverse(
         meshes: HashMap::new(),
         cancelled: request.cancelled,
     };
+    // La racine porte l'unité de la couche : une longueur lue sous elle, comme le rayon d'une
+    // lampe, se met en mètres par cette même échelle, et le parcours la descend avec lui.
+    let unit = layer::meters_per_unit(stage);
     let children: Vec<usize> = roots(stage)
         .iter()
-        .filter_map(|prim| visit::visit(&mut world, prim, 0))
+        .filter_map(|prim| visit::visit(&mut world, prim, 0, unit))
         .collect();
     let root = json!({
         "name": "usd-root",
-        "matrix": matrix::root(layer::meters_per_unit(stage), layer::z_up(stage)),
+        "matrix": matrix::root(unit, layer::z_up(stage)),
         "children": children,
     });
     world.scene.node(root);
