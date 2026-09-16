@@ -3,79 +3,21 @@
 // produit, le moteur dessinait alors une autre transformation que celle demandée. Ces tests tiennent
 // la matrice monde effective — celle qui part au GPU par `root.world.elements` — contre celle
 // demandée, sur des matrices à cisaillement, sous parent, et sur les cas conformes qui ne doivent
-// pas bouger.
+// pas bouger. Le refus d'une pose non finie est dans `webgpuTransformFiniteTransform.test.ts`, à
+// part pour tenir les deux fichiers sous 200 lignes ; les fixtures sont communes aux deux.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BOX_VALUES, boxTransform } from '../sdk-core/index.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
-import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
-import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
-
-/** Deux axes non orthogonaux : `y` pousse `x`. Aucune décomposition TRS ne rend cette matrice. */
-function cisaillee(facteur = 3, tx = 0) {
-  return new THREE.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
-}
-
-const versGpu = (m: THREE.Matrix4) => new Float32Array(m.elements);
-
-function proche(
-  obtenu: ArrayLike<number>,
-  attendu: ArrayLike<number>,
-  tolerance: number,
-  quoi: string,
-) {
-  for (let i = 0; i < attendu.length; i++)
-    assert.ok(
-      Math.abs(obtenu[i] - attendu[i]) <= tolerance,
-      `${quoi}[${i}] : ${obtenu[i]} au lieu de ${attendu[i]}`,
-    );
-}
-
-function scene(nom = 'cible') {
-  const source = new THREE.Object3D(),
-    mesh = new THREE.Mesh();
-  mesh.name = nom;
-  source.add(mesh);
-  source.updateMatrixWorld(true);
-  return { source, mesh };
-}
-
-/** Une racine de sélection minimale : ce que la transformation reprojette et ce qu'elle envoie. */
-function racine(mesh: THREE.Object3D, local: number[]) {
-  const localBox = Float64Array.from(local),
-    worldBox = new Float64Array(BOX_VALUES);
-  boxTransform(worldBox, 0, localBox, 0, mesh.matrixWorld.elements);
-  return {
-    world: mesh.matrixWorld,
-    pages: [{ sourceMesh: mesh } as unknown as PageRec],
-    worldBox,
-    localBox,
-  } as ClusterRoot<PageRec>;
-}
-
-function runtime(source: THREE.Object3D, roots: Array<ClusterRoot<PageRec>> = []) {
-  const mouvements: Array<{ min: number[]; max: number[] }> = [],
-    layout = { selectionRoots: roots, rows: { tableEpoch: 0 } },
-    // L'état d'image du moteur, tel que le runtime le porte : `setWebgpuTransform` y incrémente la
-    // révision de scène et y aligne `worldsRevision`. Un état partiel masquerait ce contrat.
-    run = createWebgpuRunState();
-  run.noOccluderHistory = false;
-  run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState;
-  const rt = {
-    setup: { source },
-    layout,
-    run,
-    lights: {
-      plan: {
-        worldChanged: (min: number[], max: number[]) =>
-          mouvements.push({ min: [...min], max: [...max] }),
-      },
-    },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, layout, run, mouvements };
-}
+import {
+  cisaillee,
+  proche,
+  racine,
+  runtime,
+  scene,
+  versGpu,
+} from './webgpuTransformCisaillementFixture.ts';
 
 test('la matrice monde à cisaillement demandée est celle que le nœud porte, au bit près', () => {
   const { source, mesh } = scene(),
