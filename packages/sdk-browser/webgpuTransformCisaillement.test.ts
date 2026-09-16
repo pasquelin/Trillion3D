@@ -3,12 +3,14 @@
 // produit, le moteur dessinait alors une autre transformation que celle demandée. Ces tests tiennent
 // la matrice monde effective — celle qui part au GPU par `root.world.elements` — contre celle
 // demandée, sur des matrices à cisaillement, sous parent, et sur les cas conformes qui ne doivent
-// pas bouger. Le refus d'une pose non finie est dans `webgpuTransformFiniteTransform.test.ts`, à
-// part pour tenir les deux fichiers sous 200 lignes ; les fixtures sont communes aux deux.
+// pas bouger. Le monde vérifié est celui que LE MOTEUR tient (`hostWorldPlacements.ts`) : depuis le
+// lot 8 c'est lui que les fiches, les racines et le GPU portent, et la scène de l'hôte n'est plus
+// remontée par le moteur. Le refus d'une pose non finie est dans `webgpuTransformFiniteTransform.test.ts`,
+// à part pour tenir les deux fichiers sous 200 lignes ; les fixtures sont communes aux deux.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { BOX_VALUES, boxTransform } from '../sdk-core/index.ts';
+import { BOX_VALUES, boxTransform, determinantMatrix4 } from '../sdk-core/index.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import {
   cisaillee,
@@ -20,21 +22,21 @@ import {
 } from './webgpuTransformCisaillementFixture.ts';
 
 test('la matrice monde à cisaillement demandée est celle que le nœud porte, au bit près', () => {
-  const { source, mesh } = scene(),
-    { rt } = runtime(source),
+  const { source, mesh, worlds } = scene(),
+    { rt } = runtime(source, [], worlds),
     demandee = versGpu(cisaillee(3, 6));
   setWebgpuTransform(rt, 'cible', demandee);
-  assert.deepEqual(Array.from(mesh.matrixWorld.elements), Array.from(demandee));
+  assert.deepEqual(Array.from(worlds.of(mesh).elements), Array.from(demandee));
 });
 
 test('une image suivante ne recompose pas la matrice posée depuis position, rotation et échelle', () => {
-  const { source, mesh } = scene(),
-    { rt } = runtime(source),
+  const { source, mesh, worlds } = scene(),
+    { rt } = runtime(source, [], worlds),
     demandee = versGpu(cisaillee(3, 6));
   setWebgpuTransform(rt, 'cible', demandee);
-  source.updateMatrixWorld(true);
-  source.updateMatrixWorld(true);
-  assert.deepEqual(Array.from(mesh.matrixWorld.elements), Array.from(demandee));
+  worlds.refresh();
+  worlds.refresh();
+  assert.deepEqual(Array.from(worlds.of(mesh).elements), Array.from(demandee));
 });
 
 test('sous un parent tourné et mis à l échelle, le monde obtenu reste le monde demandé', () => {
@@ -47,11 +49,10 @@ test('sous un parent tourné et mis à l échelle, le monde obtenu reste le mond
   parent.scale.set(2, 0.5, 4);
   parent.add(mesh);
   source.add(parent);
-  source.updateMatrixWorld(true);
-  const { rt } = runtime(source),
+  const { rt, worlds } = runtime(source),
     demandee = versGpu(cisaillee(3, 6));
   setWebgpuTransform(rt, 'cible', demandee);
-  proche(mesh.matrixWorld.elements, demandee, 1e-5, 'monde sous parent');
+  proche(worlds.of(mesh).elements, demandee, 1e-5, 'monde sous parent');
 });
 
 test('un parent lui-même cisaillé ne fausse pas le monde demandé pour son enfant', () => {
@@ -61,30 +62,29 @@ test('un parent lui-même cisaillé ne fausse pas le monde demandé pour son enf
   mesh.name = 'cible';
   parent.add(mesh);
   source.add(parent);
-  source.updateMatrixWorld(true);
-  const { rt } = runtime(source);
+  const { rt, worlds } = runtime(source);
   parent.name = 'porteur';
   setWebgpuTransform(rt, 'porteur', versGpu(cisaillee(2, 1)));
   const demandee = versGpu(cisaillee(3, 6));
   setWebgpuTransform(rt, 'cible', demandee);
-  proche(mesh.matrixWorld.elements, demandee, 1e-5, 'monde sous parent cisaillé');
+  proche(worlds.of(mesh).elements, demandee, 1e-5, 'monde sous parent cisaillé');
 });
 
 test('la matrice envoyée au GPU par la racine de sélection porte le cisaillement', () => {
-  const { source, mesh } = scene(),
-    root = racine(mesh, [-1, -1, -1, 1, 1, 1]),
-    { rt } = runtime(source, [root]),
+  const { source, mesh, worlds } = scene(),
+    root = racine(mesh, [-1, -1, -1, 1, 1, 1], worlds),
+    { rt } = runtime(source, [root], worlds),
     demandee = versGpu(cisaillee(3, 6));
   setWebgpuTransform(rt, 'cible', demandee);
   assert.deepEqual(Array.from(root.world.elements), Array.from(demandee));
 });
 
 test('la boîte monde reprojetée est l image de la boîte locale par la matrice cisaillée', () => {
-  const { source, mesh } = scene(),
+  const { source, mesh, worlds } = scene(),
     local = [-1, -1, -1, 1, 1, 1],
-    root = racine(mesh, local),
+    root = racine(mesh, local, worlds),
     avant = Array.from(root.worldBox!),
-    { rt, mouvements } = runtime(source, [root]),
+    { rt, mouvements } = runtime(source, [root], worlds),
     demandee = versGpu(cisaillee(3, 6));
   setWebgpuTransform(rt, 'cible', demandee);
   const attendu = new Float64Array(BOX_VALUES);
@@ -99,8 +99,8 @@ test('la boîte monde reprojetée est l image de la boîte locale par la matrice
 });
 
 test('une matrice conforme translation-rotation-échelle reste exacte, champs compris', () => {
-  const { source, mesh } = scene(),
-    { rt } = runtime(source),
+  const { source, mesh, worlds } = scene(),
+    { rt } = runtime(source, [], worlds),
     conforme = new THREE.Matrix4().compose(
       new THREE.Vector3(2, -1, 3),
       new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, -0.5, 0.2)),
@@ -108,28 +108,32 @@ test('une matrice conforme translation-rotation-échelle reste exacte, champs co
     ),
     demandee = versGpu(conforme);
   setWebgpuTransform(rt, 'cible', demandee);
-  assert.deepEqual(Array.from(mesh.matrixWorld.elements), Array.from(demandee));
+  assert.deepEqual(Array.from(worlds.of(mesh).elements), Array.from(demandee));
   proche([mesh.position.x, mesh.position.y, mesh.position.z], [2, -1, 3], 1e-6, 'position');
   proche([mesh.scale.x, mesh.scale.y, mesh.scale.z], [1.5, 1.5, 1.5], 1e-6, 'échelle');
 });
 
 test('une échelle négative garde son déterminant négatif, donc son sens de faces', () => {
-  const { source, mesh } = scene(),
-    { rt } = runtime(source),
+  const { source, mesh, worlds } = scene(),
+    { rt } = runtime(source, [], worlds),
     demandee = versGpu(new THREE.Matrix4().makeScale(1, -2, 3));
   setWebgpuTransform(rt, 'cible', demandee);
-  assert.deepEqual(Array.from(mesh.matrixWorld.elements), Array.from(demandee));
-  assert.ok(mesh.matrixWorld.determinant() < 0, 'déterminant négatif conservé');
+  const monde = worlds.of(mesh);
+  assert.deepEqual(Array.from(monde.elements), Array.from(demandee));
+  assert.ok(
+    determinantMatrix4(Float64Array.from(monde.elements)) < 0,
+    'déterminant négatif conservé',
+  );
 });
 
 test('deux déplacements successifs ne s accumulent pas et la table est déclarée changée', () => {
-  const { source, mesh } = scene(),
-    { rt, layout, run } = runtime(source),
+  const { source, mesh, worlds } = scene(),
+    { rt, layout, run } = runtime(source, [], worlds),
     premier = versGpu(cisaillee(3, 6)),
     second = versGpu(cisaillee(-2, -4));
   setWebgpuTransform(rt, 'cible', premier);
   setWebgpuTransform(rt, 'cible', second);
-  assert.deepEqual(Array.from(mesh.matrixWorld.elements), Array.from(second));
+  assert.deepEqual(Array.from(worlds.of(mesh).elements), Array.from(second));
   assert.equal(layout.rows.tableEpoch, 2);
   assert.equal(run.noOccluderHistory, true);
   assert.equal(run.temporalHizState.pyramid, undefined);
@@ -137,5 +141,5 @@ test('deux déplacements successifs ne s accumulent pas et la table est déclar�
   // dessiné là où il était ; `worldsRevision` suit, la hiérarchie portant déjà ces matrices.
   assert.equal(run.gate.revisions.scene, 3, 'une révision de scène par déplacement');
   // La hiérarchie porte déjà les matrices de cette révision : rien à remonter.
-  assert.equal(run.gate.updateWorlds(source), false);
+  assert.equal(run.gate.updateWorlds(worlds), false);
 });

@@ -61,6 +61,8 @@ export function createExactPagesRender(options: {
   sceneLights: ReturnType<typeof lighting>;
   motion: CameraMotion;
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
+  /** L'index des matrices monde du moteur, remonté une fois par révision de scène. */
+  worlds: { refresh(): void };
   viewport: [number, number] | undefined;
   cap: number;
   desired: PageRec[];
@@ -77,6 +79,7 @@ export function createExactPagesRender(options: {
     sceneLights,
     motion,
     roots,
+    worlds,
     viewport,
     cap,
     desired,
@@ -127,7 +130,7 @@ export function createExactPagesRender(options: {
     const worldStart = performance.now();
     // Les matrices monde ne sont fonction que de la scène. Les copies transparentes n'ont rien à
     // reprendre : chacune porte la matrice monde de son maillage source, pas une photo de celle-ci.
-    const worldsMoved = gate.updateWorlds(source);
+    const worldsMoved = gate.updateWorlds(worlds);
     const lightsStart = performance.now();
     // Les lampes recopiées dans la scène de rendu ne lisent que le graphe source : même révision.
     if (worldsMoved) sceneLights.update();
