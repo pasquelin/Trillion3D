@@ -3,7 +3,6 @@
 //! fixture réelle en mêlerait dix. Rien n'est écrit hors du dossier jetable, et les modèles sont
 //! des glTF binaires écrits ici même — des données, pas des assets d'éditeur.
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// L'entête que l'éditeur écrit en tête de chaque fichier sérialisé.
 pub(super) const HEAD: &str = "%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n";
@@ -23,14 +22,7 @@ impl Drop for Projet {
 
 impl Projet {
     pub(super) fn new(tag: &str) -> Projet {
-        let root = std::env::temp_dir().join(format!(
-            "wg-unity-projet-{tag}-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
-        ));
+        let root = scratch("unity-projet", tag);
         fs::create_dir_all(root.join("Assets")).expect("Assets");
         Projet { root }
     }

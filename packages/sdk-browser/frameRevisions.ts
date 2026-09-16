@@ -39,6 +39,9 @@ export type FrameHold = ReturnType<typeof createFrameHold>;
  * qu'aucune écriture ne les annonce — l'historique d'occulteurs, la pyramide temporelle, les
  * verdicts d'occultation relus avec un retard. Deux images qui ont produit exactement le même
  * travail en produiraient une troisième identique ; une seule ne prouve rien.
+ *
+ * Rien n'oublie ce témoin sans dire pourquoi : ce qui change l'image incrémente la révision qui
+ * nomme ce qu'il a changé, et `same` devient faux du même coup.
  */
 export function createFrameHold(values: number) {
   const held = new Float64Array(values);
@@ -47,13 +50,10 @@ export function createFrameHold(values: number) {
   let scene = -1,
     view = -1,
     resources = -1,
-    armed = false,
     stable = false;
+  // Aucune image retenue : les trois révisions gardées valent `-1`, qu'aucun compteur n'atteint.
   const same = (revisions: FrameRevisions) =>
-    armed &&
-    scene === revisions.scene &&
-    view === revisions.view &&
-    resources === revisions.resources;
+    scene === revisions.scene && view === revisions.view && resources === revisions.resources;
   return {
     sample,
     /** Vrai quand les révisions n'ont pas bougé depuis l'image retenue. */
@@ -71,12 +71,6 @@ export function createFrameHold(values: number) {
       scene = revisions.scene;
       view = revisions.view;
       resources = revisions.resources;
-      armed = true;
-    },
-    /** Oublie tout : l'image suivante refait le travail, quoi qu'en disent les compteurs. */
-    invalidate() {
-      armed = false;
-      stable = false;
     },
   };
 }

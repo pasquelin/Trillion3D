@@ -16,16 +16,7 @@ pub(super) fn plugin(name: &str) -> &'static dyn plugins::scene::ScenePlugin {
 
 /// Un dossier jetable, nommé par le cas qui l'utilise.
 pub(super) fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "wg-usd-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
+    scratch("usd", tag)
 }
 
 /// Écrit une couche jetable et la compile par le harnais commun. Le dossier source s'efface une

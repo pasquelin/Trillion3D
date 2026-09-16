@@ -33,9 +33,9 @@ pub(super) struct Builder<'a, 'w> {
     pub(super) builtins: Builtins,
     pub(super) materials: HashMap<String, Option<usize>>,
     pub(super) documents: HashMap<PathBuf, Rc<Document>>,
-    /// Les maillages déjà liés à une suite de matériaux : la clé est le maillage du modèle et les
-    /// matériaux que l'instance demande.
-    pub(super) bound: HashMap<(usize, Vec<Option<usize>>), usize>,
+    /// Les maillages déjà liés à une suite de matériaux : par maillage du modèle, la variante que
+    /// chaque suite de matériaux demandée a reçue.
+    pub(super) bound: HashMap<usize, HashMap<Vec<Option<usize>>, usize>>,
     /// Les maillages de modèle qu'une première liaison a déjà pris.
     pub(super) claimed: HashSet<usize>,
     /// Le maillage du modèle tel qu'il était avant sa première liaison, mis de côté pour que les

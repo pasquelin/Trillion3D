@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import { resolvePixelError } from './pageSelection.ts';
 import { sameHizView } from './hiz.ts';
-import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
+import { holdCameraWorld } from './cameraWorld.ts';
 import {
   dropGpuSelection,
   invalidateOccluderHistory,
@@ -11,7 +10,6 @@ import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import { holdWebgpuFrame } from './webgpuFrameHold.ts';
-import { bumpScene } from './frameRevisions.ts';
 import { refreshBlendWorlds } from './webgpuBlendWorlds.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -29,32 +27,14 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
   run.lastCamera = camera;
-  // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
-  // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
-  resolveCameraWorld(camera);
-  // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
-  // adaptatif de la première image qui bouge à nouveau.
-  const pixelError = resolvePixelError(context, camera, run.motion);
-  run.viewRevision.read(
-    run.revisions,
-    camera,
-    rt.setup.viewport[0],
-    rt.setup.viewport[1],
-    pixelError,
-  );
-  // L'hôte a le droit d'écrire le graphe source sans passer par le moteur — la pose d'un nœud, la
-  // visibilité, une lampe. Aucune révision ne l'annonce : la relecture est ce qui l'annonce, et elle
-  // précède la décision de tenir l'image. Elle ne remonte rien : elle compare des poses locales,
-  // sur les seuls nœuds source, une liste refaite après chaque changement de scène et jamais par
-  // image — douze instances d'un même modèle relisent ce modèle une fois.
-  if (run.watchRevision !== run.revisions.scene) {
-    run.sceneWatch.observe(source, [
-      ...selectionRoots.map((root) => root.pages[0]),
-      ...blendState.blendGpu,
-    ]);
-    run.watchRevision = run.revisions.scene;
-  }
-  if (run.sceneWatch.changed()) bumpScene(run.revisions);
+  // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`. La liste des nœuds que
+  // l'hôte peut écrire n'est construite qu'à un changement de scène, jamais par image — douze
+  // instances d'un même modèle relisent ce modèle une fois.
+  run.gate.enterFrame(context, camera, run.motion, rt.setup.viewport, source, () => [
+    ...selectionRoots.map((root) => root.pages[0]),
+    ...blendState.blendGpu,
+  ]);
+  const pixelError = run.gate.pixelError;
   // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
   // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
   if (holdWebgpuFrame(rt, gpuDevice)) return;
@@ -69,13 +49,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
   // retrouverait toutes à l'identique. Elles ne sont donc remontées qu'à un changement de révision
   // de scène, et `setWebgpuTransform` n'y remonte déjà que le sous-arbre qu'il a déplacé.
-  if (run.worldsRevision !== run.revisions.scene) {
-    run.worldsRevision = run.revisions.scene;
-    source.updateMatrixWorld(true);
-  }
-  const worldsMoved = run.worldUploadRevision !== run.revisions.scene;
+  run.gate.updateWorlds(source);
+  const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   if (worldsMoved) {
-    run.worldUploadRevision = run.revisions.scene;
+    run.worldUploadRevision = run.gate.revisions.scene;
     for (let i = 0; i < selectionRoots.length; i++)
       worldUpdates.set(selectionRoots[i].world.elements, i * 16);
     // A moved root invalidates every row's world matrix, which is the only shared input to a row the

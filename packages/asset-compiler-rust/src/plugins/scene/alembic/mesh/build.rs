@@ -6,9 +6,9 @@
 use super::super::geom::Geometry;
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
-use crate::plugins::scene::ngon::Ngon;
+use crate::plugins::scene::{cancel, ngon::Ngon};
 use crate::{CompilerError, Result};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::atomic::AtomicBool};
 
 /// Un morceau en construction, avec la table des coins déjà émis.
 #[derive(Default)]
@@ -29,12 +29,15 @@ pub(super) struct Builder {
 
 impl Builder {
     /// Ajoute une face, lue à l'envers et découpée en oreilles. Rend `false` quand la face n'a pas
-    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte.
+    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte. Le
+    /// découpeur relit le jeton d'annulation par tranche de faces : un seul maillage énorme
+    /// s'arrête aussi, et la conversion se refuse alors entière.
     pub(super) fn face(
         &mut self,
         geometry: &Geometry,
         face: usize,
         corners: std::ops::Range<usize>,
+        cancelled: &AtomicBool,
     ) -> Result<bool> {
         // La face se lit à l'envers, coin par coin : chaque coin est émis une fois, dans cet ordre,
         // avant que le découpage ne dise quels triangles les relient.
@@ -45,7 +48,9 @@ impl Builder {
             self.ring.push(rank);
             self.cutter.corner(point(geometry, corner));
         }
-        let exact = self.cutter.cut();
+        let Some(exact) = self.cutter.cut(cancelled) else {
+            return Err(cancel::refusal());
+        };
         for triangle in self.cutter.triangles() {
             let corners = triangle.map(|rank| self.ring[rank]);
             self.indices.extend_from_slice(&corners);

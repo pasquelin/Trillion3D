@@ -4,7 +4,6 @@ import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPag
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
-import { bumpResources } from './frameRevisions.ts';
 import { createTexturePriority } from './webgpuTexturePriority.ts';
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLayout.ts';
@@ -93,11 +92,11 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     onLevel: (slot, level, pyramid) => {
       if (pyramid) vis.slots?.markLevel(slot, level, pyramid);
       // Origine du changement de ressources : un niveau progressif vient d'atteindre l'atlas.
-      bumpResources(run.revisions);
+      run.gate.resourcesChanged();
     },
     onColorReady: (slots) => {
       vis.slots?.markReady(slots);
-      bumpResources(run.revisions);
+      run.gate.resourcesChanged();
     },
     onFailure: diag.diagnosticFailure,
     onAbandon: (details) =>

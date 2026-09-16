@@ -10,16 +10,16 @@
 //! présence pour en écrire l'URI. Leurs octets n'entrent dans la scène intermédiaire que lorsque le
 //! fichier de scène les porte lui-même, et l'empreinte de ce fichier les couvre déjà.
 use super::*;
-use std::{
-    fs::File,
-    io::{Read, Seek, SeekFrom},
-    sync::Mutex,
-};
+use std::{fs::File, sync::Mutex};
 
 /// Une bibliothèque de matériaux citée par la source — le `.mtl` d'un OBJ.
 pub(super) const MATERIAL_LIBRARY: &str = "material-library";
+/// Un cache de géométrie, que la source cite pour la déformation d'un maillage.
+const GEOMETRY_CACHE: &str = "geometry-cache";
+/// Le fichier de scène lui-même, celui que le lecteur ouvre le premier.
+const MAIN_MODEL: &str = "model";
 /// Les natures de fichier externe qu'un lecteur peut demander, dans l'ordre du contrat ufbx.
-const KINDS: [&str; 3] = [MATERIAL_LIBRARY, "geometry-cache", "model"];
+const KINDS: [&str; 3] = [MATERIAL_LIBRARY, GEOMETRY_CACHE, MAIN_MODEL];
 
 /// Un fichier ouvert pendant l'import, et l'empreinte de ce qu'il contenait.
 pub(super) struct External {
@@ -39,8 +39,8 @@ pub(super) struct External {
 fn kind_of(type_: ufbx::OpenFileType) -> &'static str {
     match type_ {
         ufbx::OpenFileType::ObjMtl => MATERIAL_LIBRARY,
-        ufbx::OpenFileType::GeometryCache => KINDS[1],
-        ufbx::OpenFileType::MainModel => KINDS[2],
+        ufbx::OpenFileType::GeometryCache => GEOMETRY_CACHE,
+        ufbx::OpenFileType::MainModel => MAIN_MODEL,
     }
 }
 
@@ -48,26 +48,17 @@ fn kind_named(name: &str) -> Option<&'static str> {
     KINDS.into_iter().find(|kind| *kind == name)
 }
 
-/// Le dernier octet d'un fichier : une bibliothèque texte qui ne finit pas par une fin de ligne a
-/// été coupée. Seul cet octet est lu, jamais le fichier entier.
-fn unterminated(path: &Path) -> bool {
-    let Ok(mut file) = File::open(path) else {
-        return false;
-    };
-    let Ok(end) = file.seek(SeekFrom::End(0)) else {
-        return false;
-    };
-    if end == 0 || file.seek(SeekFrom::Start(end - 1)).is_err() {
-        return false;
-    }
-    let mut last = [0u8; 1];
-    file.read_exact(&mut last).is_ok() && last[0] != b'\n' && last[0] != b'\r'
-}
-
-/// Ce qu'on sait d'un fichier externe maintenant : son empreinte, ou son absence.
+/// Ce qu'on sait d'un fichier externe maintenant : son empreinte, ou son absence. La passe de
+/// hachage rend aussi le dernier octet du fichier : une bibliothèque texte qui ne finit pas par une
+/// fin de ligne a été coupée, et le fichier n'est pas rouvert pour le constater.
 fn describe(path: &Path, kind: &'static str) -> External {
-    let digest = crate::hash_file(path).ok();
-    let truncated = kind == MATERIAL_LIBRARY && digest.is_some() && unterminated(path);
+    let read = crate::hash_file_tail(path).ok();
+    let truncated = kind == MATERIAL_LIBRARY
+        && read
+            .as_ref()
+            .and_then(|(_, last)| *last)
+            .is_some_and(|last| last != b'\n' && last != b'\r');
+    let digest = read.map(|(digest, _)| digest);
     External {
         path: path.to_string_lossy().into_owned(),
         name: path
