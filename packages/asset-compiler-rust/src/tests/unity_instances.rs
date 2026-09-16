@@ -1,7 +1,7 @@
 //! Ce qu'une instance de prefab pose, retire et remplace, et ce qu'un maillage partagé garde de
 //! propre à chaque instance. Les propriétés de matériau et de texture sont dans `unity_proprietes.rs`.
 use super::*;
-use unity_projet::{cube, node_named, Projet};
+use unity_projet::{cube, materiau, node_named, objet, Projet, BUILTIN};
 
 /// Les GUID des fichiers de chaque cas.
 const MAT: &str = "000000000000000000000000000000a1";
@@ -58,5 +58,55 @@ fn the_outer_overrides_of_a_nested_prefab_reach_its_objects() {
         node_named(&gltf, "Boite").expect("l'objet du prefab imbriqué")["translation"],
         json!([5.0, 0.0, 0.0]),
         "la retouche extérieure l'emporte sur celle du prefab imbriqué"
+    );
+}
+
+// Constat 47 : une instance ne fait pas que replacer sa source. Elle en retire des composants, elle
+// lui ajoute des objets, et elle lui ajoute des composants. Un rendu retiré n'émet rien, un objet
+// ajouté sort sous l'objet qu'il vise, et ce qui reste hors de portée est compté par son nom.
+#[test]
+fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
+    let projet = Projet::new("prefab-retire");
+    projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
+    projet.data(
+        "Prefabs/Source.prefab",
+        SOURCE,
+        &format!("{}{}", cube(100, "Gardee", MAT), cube(200, "Retiree", MAT)),
+    );
+    projet.scene(&format!(
+        "{}{}",
+        instance(
+            5000,
+            SOURCE,
+            &"    m_Modifications: []\n    m_RemovedComponents:\n    - {fileID: 203, guid: 000000000000000000000000000000a2, type: 3}\n    m_AddedGameObjects:\n    - targetCorrespondingSourceObject: {fileID: 101, guid: 000000000000000000000000000000a2, type: 3}\n      insertionIndex: -1\n      addedObject: {fileID: 701}\n    m_AddedComponents:\n    - targetCorrespondingSourceObject: {fileID: 100, guid: 000000000000000000000000000000a2, type: 3}\n      addedObject: {fileID: 801}\n".to_string()
+        ),
+        objet(700, "Ajoutee", BUILTIN, &materiau(MAT), 5001)
+    ));
+    let (manifest, gltf) = projet.compile("unity-prefab-retire").prepared("unity");
+    assert!(
+        node_named(&gltf, "Retiree").expect("l'objet reste")["mesh"].is_null(),
+        "un rendu retiré par l'instance n'émet aucun maillage"
+    );
+    let gardee = node_named(&gltf, "Gardee").expect("l'objet gardé");
+    let ajoutee = node_named(&gltf, "Ajoutee").expect("l'objet ajouté");
+    assert!(
+        gardee["children"]
+            .as_array()
+            .is_some_and(|children| children.contains(
+                &gltf["nodes"]
+                    .as_array()
+                    .expect("nodes")
+                    .iter()
+                    .position(|node| node == ajoutee)
+                    .map(|rank| json!(rank))
+                    .expect("le rang de l'objet ajouté")
+            )),
+        "l'objet ajouté sort sous l'objet que l'instance vise"
+    );
+    assert_eq!(
+        manifest["unsupported"]["unity-prefab-added-component-unconverted"],
+        json!(1),
+        "le composant ajouté est compté par son nom: {}",
+        manifest["unsupported"]
     );
 }
