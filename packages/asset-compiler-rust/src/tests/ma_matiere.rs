@@ -23,6 +23,42 @@ fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("aucun matériau nommé {name}"))
 }
 
+// Constat 19 : une image branchée sur la couleur ne fait pas disparaître le poids scalaire qui la
+// multiplie. `.dc` d'un lambert et `.e` d'un `standardSurface` rendaient des facteurs blancs, donc
+// une surface deux fois trop claire ; ils passent maintenant au facteur, la texture restant en place.
+#[test]
+fn the_scalar_weight_of_a_textured_colour_reaches_the_gltf_factor() {
+    let body = format!(
+        "createNode lambert -n \"Mat\";\n\
+         \tsetAttr \".dc\" 0.5;\n\
+         createNode standardSurface -n \"Lueur\";\n\
+         \tsetAttr \".e\" 0.25;\n{}{}{}\
+         connectAttr \"Image.oc\" \"Mat.c\";\n\
+         connectAttr \"Image.oc\" \"Lueur.ec\";\n",
+        image(""),
+        shaded("Plaque", "Mat"),
+        shaded("Lampe", "Lueur"),
+    );
+    let (_, gltf) = compile_ma("ma-poids-texture", &body).prepared("ma");
+    let diffuse = material(&gltf, "Mat");
+    assert_eq!(
+        diffuse["pbrMetallicRoughness"]["baseColorFactor"],
+        json!([0.5, 0.5, 0.5, 1.0]),
+        "le poids diffus multiplie la texture : {diffuse}"
+    );
+    assert!(
+        diffuse["pbrMetallicRoughness"]["baseColorTexture"]["index"].is_number(),
+        "la texture reste accrochée : {diffuse}"
+    );
+    let lit = material(&gltf, "Lueur");
+    assert_eq!(
+        lit["emissiveFactor"],
+        json!([0.25, 0.25, 0.25]),
+        "le poids d'émission multiplie la texture : {lit}"
+    );
+    assert!(lit["emissiveTexture"]["index"].is_number(), "{lit}");
+}
+
 // Constat 20 : un `bump2d` n'est une carte de normales que lorsque `bumpInterp` le dit. Pris pour
 // tel quel qu'il soit, un relief en hauteur sortait en `normalTexture`, ce qui éclaire la surface
 // par une image qui n'en décrit pas l'orientation. Seul le mode tangent passe, `bumpDepth` portant
