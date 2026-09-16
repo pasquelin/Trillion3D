@@ -26,9 +26,10 @@ export function createViewRevision() {
       viewportHeight: number,
       pixelError: number,
     ) {
-      // La pose de la caméra, ancêtres compris, est celle que l'entrée d'image vient de poser :
-      // `renderWebgpuPages`, `createExactPagesRender` et `createAutonomousRender` appellent tous
-      // `camera.updateWorldMatrix(true, false)` juste avant, et rien d'autre n'entre ici.
+      // La pose de la caméra, ancêtres compris, est celle que l'entrée d'image vient de résoudre :
+      // toute entrée appelle `resolveCameraWorld` avant le seuil adaptatif et avant cette lecture,
+      // et rien d'autre n'entre ici. C'est l'ordre que garantit le contrat (`cameraWorld.ts`), et
+      // c'est par cette seule empreinte qu'une pose décide de tenir ou de rejouer une image.
       if (
         armed &&
         far === camera.far &&

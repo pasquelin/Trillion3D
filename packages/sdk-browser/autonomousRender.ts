@@ -3,6 +3,7 @@ import { resolvePixelError, selectVisiblePages, type PageRec } from './pageSelec
 import type { BackendContext } from './backendTypes.ts';
 import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 /** Ce que l'image autonome a décidé, et si elle a été tenue. */
 export type AutonomousRenderState = {
@@ -49,9 +50,9 @@ export function createAutonomousRender(options: {
   };
   const sourcesDessinees = roots.map((root) => root.pages[0]);
   return (camera: THREE.PerspectiveCamera) => {
-    // La caméra aussi, ancêtres compris : un rig d'hôte n'appartient pas à la scène préparée, et
-    // `updateWorlds` ne remonte que celle-ci. Avant tout le reste, comme dans les autres moteurs.
-    camera.updateWorldMatrix(true, false);
+    // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
+    // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
+    resolveCameraWorld(camera);
     // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
     // adaptatif de la première image qui bouge à nouveau.
     selectOptions.pixelError = resolvePixelError(context, camera, motion);

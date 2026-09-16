@@ -4,6 +4,7 @@ import { backgroundRgb, triangleAt, uvDerivatives } from './visibilityMath.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
 import { shadePixel } from './visibilityShadePixel.ts';
 import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 /** Documented visbuffer beauty: MeshBasicMaterial = source color × map (same 8-bit path as rasterPages). MeshStandardMaterial = Cook-Torrance GGX microfacet BRDF with the explorer hemisphere/directional lights. */
 export function shadeVisibility(
@@ -15,7 +16,8 @@ export function shadeVisibility(
 ) {
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
-  camera.updateWorldMatrix(true, false);
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
@@ -47,7 +49,8 @@ export function visibilityUvDerivatives(
   const [width, height] = viewport,
     unpacked = unpackVisibilityId(ids[y * width + x]);
   if (!unpacked) return null;
-  camera.updateWorldMatrix(true, false);
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
