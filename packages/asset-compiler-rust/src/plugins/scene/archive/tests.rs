@@ -6,6 +6,7 @@ use super::*;
 use std::fs;
 
 mod paquet;
+mod usdz;
 mod zip;
 
 /// Un dossier jetable, nommé par le cas qui l'utilise.
