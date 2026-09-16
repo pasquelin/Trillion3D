@@ -147,8 +147,12 @@ export function createWebgpuRowSlots(
     free.count = 0;
     written.changed = true;
     claims.clear();
-    for (let page = 0; page < packedPages.length; page++)
-      if (release(page) && !place(page)) denied++;
+    for (let page = 0; page < packedPages.length; page++) {
+      if (!release(page) || place(page)) continue;
+      // La table est pleine : la page garde sa réclamation et la reprendra quand un rang se libère.
+      denied++;
+      claims.add(page);
+    }
   };
 
   /** Ce que l'image doit à la table de lignes : les pages que le cache a nommées, et ce que la file
@@ -160,8 +164,8 @@ export function createWebgpuRowSlots(
     if (full) rebuild();
     else {
       // Les départs d'abord, les arrivées ensuite : un rang rendu par une page nommée tard doit
-      // pouvoir servir à une page nommée tôt. Les deux passes gardent l'ordre croissant que le
-      // journal des résidences exige.
+      // pouvoir servir à une page nommée tôt, sinon une arrivée déborde devant une table qui va se
+      // vider. Les pages sont vues dans l'ordre du catalogue, comme la reconstruction les verrait.
       sortPages(rows.touched.pages, rows.touched.count);
       for (let i = 0; i < rows.touched.count; i++) {
         const page = rows.touched.pages[i];
@@ -171,6 +175,8 @@ export function createWebgpuRowSlots(
       closeFreeRows();
     }
     rows.clearTouched();
+    // Départs et arrivées se nomment chacun dans leur ordre : la sélection GPU les veut rangés.
+    rows.sortResidencyChanges();
     epoch = rows.tableEpoch;
     revision = ++rows.rowsRevision;
     if (written.changed || rows.packedCount !== count) rows.rowsChanged = true;
