@@ -128,6 +128,8 @@ function passes(blendState: ReturnType<typeof prepared>['blendState'], gpu: Webg
     gpu,
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
+    // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
+    sunFar: { gpu: undefined },
     blendState,
     run: {
       gpuDrawCalls: 0,

@@ -9,6 +9,7 @@ import {
   type SceneLight,
   type SceneLightingView,
 } from './sceneLightContracts.ts';
+import { sameSceneEnvironment, sameSceneLight } from './sceneLightEqual.ts';
 import { validateSceneEnvironment, validateSceneLight } from './sceneLightValidate.ts';
 
 /** Champ d'une lampe dans le tampon, en flottants depuis sa base. Quatre `vec4f` par lampe. */
@@ -139,6 +140,9 @@ export function createSceneLightStore() {
       if (slot === undefined || !current)
         throw new EngineError('UNKNOWN_SCENE_LIGHT', `lampe ${id} inconnue`, { id });
       const merged = validateSceneLight({ ...current, ...patch, id });
+      // Une lampe reposée à l'identique n'est pas un changement : ni sa révision ni l'époque ne
+      // bougent, donc l'ordonnanceur ne périme aucune page d'ombre et l'image tenue le reste.
+      if (sameSceneLight(current, merged)) return;
       records.set(id, merged);
       revision[slot]++;
       write(slot, merged);
@@ -172,7 +176,10 @@ export function createSceneLightStore() {
       epoch++;
     },
     setEnvironment(next: SceneEnvironment) {
-      environment = validateSceneEnvironment(next);
+      const validated = validateSceneEnvironment(next);
+      // Même règle que `set` : une exposition reposée telle quelle ne périme pas l'image.
+      if (environment && sameSceneEnvironment(environment, validated)) return;
+      environment = validated;
       epoch++;
     },
     /** Note la tranche d'atlas qu'une lampe occupe, sans toucher au reste de ses champs. La révision
