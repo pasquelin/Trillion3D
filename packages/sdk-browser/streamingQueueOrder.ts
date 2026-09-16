@@ -1,10 +1,5 @@
 import type { Job } from './streamingTypes.ts';
 
-/** L'ordre d'admission d'une file : priorité, puis ordre d'arrivée. */
-export function sortStreamJobs(queue: { priority: number; order: number }[]) {
-  queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
-}
-
 /**
  * Le rang d'insertion d'une priorité dans une file déjà en ordre : le premier travail que celle-ci
  * précède. Une recherche dichotomique, donc un logarithme de comparaisons là où retrier toute la

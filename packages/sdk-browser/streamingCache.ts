@@ -68,12 +68,16 @@ export function createStreamingCache(context: StreamContext) {
    *  d'ailleurs — d'une liste d'adresses, ou d'un autre moteur. La différence suivante reprend alors
    *  l'appartenance entière avant de suivre les rangs à nouveau. */
   let rankOwner: readonly string[] | null = null;
-  const emitRetain = (requested: number) =>
+  /** Les épingles publiées en comptes : `added` et `removed` ne sont plus des listes recopiées à
+   *  chaque image, mais ce que la différence appliquée vient d'ajouter et de retirer. */
+  const emitRetain = (requested: number, added: number, removed: number) =>
     emit('page-retain', 'Épingles de pages mises à jour', () => ({
       version: 1,
       requested,
       retained: pinned.size,
       changed: true,
+      added,
+      removed,
     }));
   const pinRank = (urls: readonly string[], rank: number) => {
     const url = urls[rank];
@@ -84,10 +88,11 @@ export function createStreamingCache(context: StreamContext) {
     rankOwner = null;
     retained.length = urls.length;
     for (let i = 0; i < urls.length; i++) retained[i] = urls[i];
+    const before = pinned.size;
     pinned.clear();
     for (const url of urls) if (catalog.has(url)) pinned.add(url);
     evict();
-    emitRetain(urls.length);
+    emitRetain(urls.length, pinned.size, before);
     return true;
   };
   /**
@@ -100,21 +105,24 @@ export function createStreamingCache(context: StreamContext) {
     if (rankOwner !== urls) {
       rankOwner = urls;
       retained.length = 0;
-      pinned.clear();
       const { held, heldCount } = delta;
+      const before = pinned.size;
+      pinned.clear();
       for (let i = 0; i < heldCount; i++) pinRank(urls, held[i]);
       evict();
-      emitRetain(heldCount);
+      emitRetain(heldCount, pinned.size, before);
       return true;
     }
     if (!delta.enteredCount && !delta.exitedCount) return false;
+    let removed = 0;
     for (let i = 0; i < delta.exitedCount; i++) {
       const url = urls[exited[i]];
-      if (url !== undefined) pinned.delete(url);
+      if (url !== undefined && pinned.delete(url)) removed++;
     }
+    const before = pinned.size;
     for (let i = 0; i < delta.enteredCount; i++) pinRank(urls, entered[i]);
     evict();
-    emitRetain(delta.heldCount);
+    emitRetain(delta.heldCount, pinned.size - before, removed);
     return true;
   };
   return { touch, evict, retain, retainRanks };
