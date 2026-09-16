@@ -15,7 +15,7 @@
 //! multi-parties, canaux absents, canaux d'un autre nom (AOV, `Y`/`RY`/`BY`, profondeur), entiers
 //! 32 bits, chroma sous-échantillonnée. Un fichier hors sous-ensemble laisse le moteur retomber sur
 //! son blanc ; il n'est jamais deviné ni approché.
-use super::{float_budget, DecodedImage, ImageDecoder, Plugin};
+use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin};
 use ::exr::image::RgbaChannels;
 use ::exr::math::Vec2;
 use ::exr::meta::attribute::SampleType;
@@ -78,7 +78,7 @@ impl ImageDecoder for Exr {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         let (width, height) = subset(bytes, max_alloc)?;
         pixels(bytes, width, height)
     }
@@ -152,7 +152,7 @@ fn pixels(
     bytes: &[u8],
     width: u32,
     height: u32,
-) -> std::result::Result<DecodedImage, &'static str> {
+) -> std::result::Result<ImageDecoded, &'static str> {
     let stride = width as usize;
     let image = read()
         .no_deep_data()
@@ -175,9 +175,9 @@ fn pixels(
     if data.len() != stride * height as usize * 4 {
         return Err(UNREADABLE);
     }
-    Ok(DecodedImage::RgbaF32 {
+    Ok(ImageDecoded::linear(DecodedImage::RgbaF32 {
         width,
         height,
         data,
-    })
+    }))
 }

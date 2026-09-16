@@ -10,6 +10,7 @@ mod blocks;
 mod bmp;
 mod crate_image;
 mod dds;
+mod decoded;
 mod exr;
 mod gif;
 mod hdr;
@@ -21,10 +22,13 @@ mod tga;
 mod tiff;
 mod webp;
 
+pub use decoded::{ImageDecoded, Transfer};
+
 /// Version du contrat des pilotes d'image. La changer impose de relire chaque pilote, et invalide
-/// les caches : depuis `image-plugin-2`, un pilote peut rendre une seconde sortie que tout
-/// consommateur doit trancher explicitement.
-pub const VERSION: &str = "image-plugin-2";
+/// les caches : depuis `image-plugin-3`, un pilote rend un `ImageDecoded` — les pixels, la fonction
+/// de transfert que le fichier déclare, et les raisons nommées de ce qu'il déclarait sans que la
+/// sortie sache le porter.
+pub const VERSION: &str = "image-plugin-3";
 
 /// Le registre : un pilote par format. Ajouter un format, c'est un module et une ligne ici.
 pub static DECODERS: &[&dyn ImageDecoder] = &[
@@ -42,12 +46,14 @@ pub static DECODERS: &[&dyn ImageDecoder] = &[
     &gif::GIF,
 ];
 
-/// Ce qu'un pilote rend. Deux sorties, et aucun pont de l'une vers l'autre : ramener un flottant à
-/// huit bits demanderait une courbe de report de tons, donc une perte que la source n'avait pas, ce
-/// que la politique d'import interdit. Un consommateur qui ne sait traiter qu'une variante refuse
-/// l'autre par une raison de rapport nommée.
+/// Ce qu'un pilote rend comme pixels. Deux sorties, et aucun pont de l'une vers l'autre : ramener un
+/// flottant à huit bits demanderait une courbe de report de tons, donc une perte que la source
+/// n'avait pas, ce que la politique d'import interdit. Un consommateur qui ne sait traiter qu'une
+/// variante refuse l'autre par une raison de rapport nommée. Les deux portent un **alpha droit** :
+/// un format à alpha associé est dé-prémultiplié par son pilote, jamais rendu tel quel.
 pub enum DecodedImage {
-    /// RGBA 8 bits par canal, sRGB, alpha droit, au moins un pixel.
+    /// RGBA 8 bits par canal, alpha droit, au moins un pixel. `ImageDecoded::transfer` dit dans
+    /// quelle fonction de transfert ces octets sont écrits : le contrat ne présume plus le sRGB.
     Rgba8(image::RgbaImage),
     /// RGBA 32 bits flottants par canal, **linéaire** et à alpha droit, au moins un pixel : ce que
     /// rendent les formats à grande gamme dynamique. `data` porte `width * height * 4` valeurs, un
@@ -117,7 +123,7 @@ pub trait ImageDecoder: Plugin + Sync {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str>;
+    ) -> std::result::Result<ImageDecoded, &'static str>;
 }
 
 /// Le pilote qui revendique l'extension de ce chemin.
@@ -144,7 +150,7 @@ pub fn extensions() -> impl Iterator<Item = &'static str> {
 
 /// Décode des octets par le pilote qui les reconnaît. Un format hors registre rend la raison de
 /// rapport `image-format-unknown`.
-pub fn decode(bytes: &[u8], max_alloc: u64) -> std::result::Result<DecodedImage, &'static str> {
+pub fn decode(bytes: &[u8], max_alloc: u64) -> std::result::Result<ImageDecoded, &'static str> {
     by_head(bytes)
         .ok_or("image-format-unknown")?
         .decode(bytes, max_alloc)

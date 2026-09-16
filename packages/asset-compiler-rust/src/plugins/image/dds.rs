@@ -25,7 +25,7 @@
 //! RGBA8, BGRA8 et BGRX8. Tout le reste — BC6H flottant, variantes signées, `DXT2`/`DXT4` à alpha
 //! prémultiplié, formats 16 bits, YUV, cubes, volumes, tableaux — est un refus nommé, jamais une
 //! panique : une texture illisible laisse le moteur retomber sur son blanc.
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod blocks;
 mod codec;
@@ -77,7 +77,11 @@ impl ImageDecoder for Dds {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
-        blocks::decode(&header::parse(bytes)?, bytes, max_alloc)
+    ) -> std::result::Result<ImageDecoded, &'static str> {
+        Ok(ImageDecoded::srgb(blocks::decode(
+            &header::parse(bytes)?,
+            bytes,
+            max_alloc,
+        )?))
     }
 }

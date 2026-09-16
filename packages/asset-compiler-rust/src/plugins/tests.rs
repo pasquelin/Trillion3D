@@ -19,11 +19,20 @@ mod webp;
 
 /// Les pixels d'un pilote qui rend du RGBA8. Le contrat a deux sorties : un test qui attend la
 /// première le dit, plutôt que de laisser un `let` irréfutable le supposer.
-fn rgba8(decoded: image::DecodedImage) -> ::image::RgbaImage {
-    match decoded {
+fn rgba8(decoded: image::ImageDecoded) -> ::image::RgbaImage {
+    match decoded.image {
         image::DecodedImage::Rgba8(pixels) => pixels,
         image::DecodedImage::RgbaF32 { .. } => panic!("ce pilote doit rendre du RGBA8"),
     }
+}
+
+/// Ce qu'un pilote a déclaré autour des pixels : sa fonction de transfert et les raisons nommées
+/// de ce que le fichier portait sans que la sortie sache le porter, dans l'ordre où il les a posées.
+fn declared(pilote: &str, name: &str, max_alloc: u64) -> (image::Transfer, Vec<&'static str>) {
+    let bytes = fixture(pilote, name);
+    let decoded =
+        image::decode(&bytes, max_alloc).unwrap_or_else(|error| panic!("{name}: {error}"));
+    (decoded.transfer, decoded.notes)
 }
 
 /// L'image RGBA8 que le registre rend pour une fixture de `fixtures/<pilote>/` : ce pilote la
@@ -67,8 +76,8 @@ fn assert_refusals(pilote: &str, max_alloc: u64, cases: &[(&str, &str)]) {
 }
 
 /// Les valeurs d'un pilote qui rend du flottant, avec les dimensions qu'il annonce.
-fn rgba_f32(decoded: image::DecodedImage) -> (u32, u32, Vec<f32>) {
-    match decoded {
+fn rgba_f32(decoded: image::ImageDecoded) -> (u32, u32, Vec<f32>) {
+    match decoded.image {
         image::DecodedImage::RgbaF32 {
             width,
             height,

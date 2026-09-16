@@ -66,6 +66,7 @@
     "base": 64,
     "colorTextures": 1,
     "maxLevels": 7,
+    "notes": {},
     "pixelBytes": 44,
     "previews": 1,
     "skipped": {},
