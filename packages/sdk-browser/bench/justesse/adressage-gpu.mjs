@@ -12,7 +12,7 @@
 // 32 bits de u·taille.
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { WRAP_COORD_WGSL, wrapFlags } from '../../visibilityPageWgsl.ts';
+import { wrapNibble } from '../../visibilityWrapModes.ts';
 import {
   bilan,
   cas,
@@ -22,40 +22,13 @@ import {
   somme,
   TAILLES,
 } from './adressageCas.mjs';
-import { executerDansChromium } from './adressageGpuPage.mjs';
+import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.mjs';
 
-/** Les drapeaux écrits par `webgpuPageRow.ts` et `webgpuBlendPrepare.ts`, par la même fonction. */
-const drapeaux = (c) => wrapFlags({ wrapS: c.wrapS, wrapT: c.wrapT });
-/** Le bit qui, dans ce banc seul, demande le mélange des prises : les lots au plus proche ne
- *  veulent qu'un texel, les lots linéaires la lecture entière. `wrapUv` ne lit pas ce bit. */
-const MELANGE = 1;
+/** Le quartet d'adressage d'une carte, celui que `webgpuPageRow.ts` et `webgpuBlendPrepare.ts`
+ *  rangent dans le mot de la page, par la même fonction. */
+const drapeaux = (c) => wrapNibble({ wrapS: c.wrapS, wrapT: c.wrapT });
 /** Un demi niveau sur 255 : la quantification du poids que l'échantillonneur s'autorise. */
 const TOLERANCE = 0.5;
-
-const SHADER = `${WRAP_COORD_WGSL}
-struct Cas{uv:vec2f,flags:u32,pad:u32,}
-@group(0) @binding(0) var maps:texture_2d_array<f32>;
-@group(0) @binding(1) var moteur:sampler;
-@group(0) @binding(2) var three:sampler;
-@group(0) @binding(3) var<storage,read> lot:array<Cas>;
-struct Sortie{@location(0) moteur:vec4f,@location(1) three:vec4f,}
-@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
- let p=array(vec2f(-1.0,-1.0),vec2f(3.0,-1.0),vec2f(-1.0,3.0));return vec4f(p[i],0.0,1.0);
-}
-// Le mélange des quatre prises, transcrit du gabarit que webgpuAtlasWgsl.ts engendre pour
-// colorSample, dataSample et colorAlpha : mêmes prises, même ordre, même expression.
-@fragment fn fs(@builtin(position) q:vec4f)->Sortie{
- let c=lot[u32(q.x)];
- let t=wrapUv(c.uv,c.flags,vec2f(textureDimensions(maps,0)));
- var lu=textureSampleLevel(maps,moteur,t.proche,0,0.0);
- if((c.flags&${MELANGE}u)!=0u&&t.couture){
-  let s10=textureSampleLevel(maps,moteur,vec2f(t.loin.x,t.proche.y),0,0.0);
-  let s01=textureSampleLevel(maps,moteur,vec2f(t.proche.x,t.loin.y),0,0.0);
-  let s11=textureSampleLevel(maps,moteur,t.loin,0,0.0);
-  lu=mix(mix(lu,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
- }
- return Sortie(lu,textureSampleLevel(maps,three,c.uv,0,0.0));
-}`;
 
 const ADRESSE = new Map([
   [THREE.ClampToEdgeWrapping, 'clamp-to-edge'],
@@ -89,7 +62,7 @@ for (const filtre of ['nearest', 'linear'])
   });
 
 const sorties = await executerDansChromium({
-  shader: SHADER,
+  shader: NUANCEUR_PRISES,
   textures: TAILLES.map(([largeur, hauteur]) => ({
     largeur,
     hauteur,
