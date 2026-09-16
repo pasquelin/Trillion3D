@@ -8,6 +8,10 @@
 //! sans en recomposer une troisième, ce qui serait inventer des octets.
 use super::*;
 
+/// Le canal où glTF lit l'opacité d'une image : l'alpha de la texture de couleur de base, et lui
+/// seul. Un autre canal de la même image ne s'y range pas sans recomposer des octets.
+const ALPHA_CHANNEL: &str = "outputs:a";
+
 /// Ce que l'opacité de la surface a donné : le facteur qui entre dans `baseColorFactor`, et si
 /// l'alpha d'une image le module encore.
 #[derive(Clone, Copy)]
@@ -26,20 +30,27 @@ pub(super) fn of(
     diffuse: Option<&sdf::Path>,
 ) -> Opacity {
     let factor = material::scalar(shader, "opacity").unwrap_or(1.0);
+    let written = Opacity {
+        factor,
+        textured: false,
+    };
     let Some(target) = material::connection(shader, "inputs:opacity") else {
-        return Opacity {
-            factor,
-            textured: false,
-        };
+        return written;
     };
     let carried = diffuse.map(sdf::Path::prim_path) == Some(target.prim_path())
         && pbr.get("baseColorTexture").is_some();
     if !carried {
         world.refuse(world::OPACITY_TEXTURE);
-        return Opacity {
-            factor,
-            textured: false,
-        };
+        return written;
+    }
+    // L'image est bien celle que glTF portera ; reste le canal, car glTF n'en lit qu'un. Un autre
+    // canal de cette image donnerait une transparence lue ailleurs qu'écrite : la valeur reprend.
+    if !target
+        .split_property()
+        .is_some_and(|(_, name)| name == ALPHA_CHANNEL)
+    {
+        world.refuse(world::TEXTURE_CHANNEL);
+        return written;
     }
     Opacity {
         factor: 1.0,
