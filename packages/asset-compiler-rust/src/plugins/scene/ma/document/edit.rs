@@ -15,15 +15,17 @@ impl Document {
             .map_or_else(|| format!("{kind}{}", self.nodes.len()), str::to_string);
         let parent = command
             .text(&["p", "parent"])
-            .and_then(|parent| self.by_name.get(leaf(parent)).copied());
+            .and_then(|parent| self.find(parent));
+        let full = path::under(self, parent, &name);
         self.nodes.push(Node {
             kind,
             name: name.clone(),
+            path: full,
             parent,
             attrs: HashMap::new(),
         });
         let id = self.nodes.len() - 1;
-        self.by_name.insert(name, id);
+        self.remember(&name, id);
         self.current = Some(id);
     }
 
@@ -33,8 +35,8 @@ impl Document {
             self.report.add(report::ATTRIBUTE_INVALID);
             return;
         };
-        let target = match &path.node {
-            Some(name) => self.by_name.get(leaf(name)).copied(),
+        let target = match path.node.clone() {
+            Some(name) => self.find(&name),
             None => self.current,
         };
         let Some(target) = target else {
@@ -74,9 +76,9 @@ impl Document {
             .filter_map(|written| written.split_once('.'));
         match (ends.next(), ends.next()) {
             (Some((source, source_attr)), Some((target, target_attr))) => self.links.push(Link {
-                source: leaf(source).to_string(),
+                source: source.to_string(),
                 source_attr: source_attr.to_string(),
-                target: leaf(target).to_string(),
+                target: target.to_string(),
                 target_attr: target_attr.to_string(),
             }),
             _ => self.report.add(report::ATTRIBUTE_INVALID),
@@ -99,11 +101,15 @@ impl Document {
     /// `parent -add` de formes maillées sous un autre transform : des instances. Toute autre forme
     /// de la commande est comptée — rejouer un déplacement de branche changerait la scène.
     pub(super) fn reparent(&mut self, command: &Command) {
-        let named: Vec<usize> = command
+        let written: Vec<String> = command
             .operands
             .iter()
-            .filter_map(|token| self.by_name.get(leaf(token.text())).copied())
+            .map(|token| token.text().to_string())
             .collect();
+        let mut named: Vec<usize> = Vec::new();
+        for token in &written {
+            named.extend(self.find(token));
+        }
         let usable = named.split_last().filter(|(host, shapes)| {
             named.len() == command.operands.len()
                 && command.switch(&["add", "a"])
@@ -124,12 +130,9 @@ impl Document {
     /// Le nœud que `select` désigne, quand ce fichier le porte. Les nœuds par défaut de Maya —
     /// `:time1`, `:renderPartition` — ne sont pas créés par le fichier : ils ne sont pas trouvés,
     /// et les `setAttr` qui les suivent sont comptés plutôt que versés sur un nœud au hasard.
-    pub(super) fn selected(&self, command: &Command) -> Option<usize> {
-        command
-            .operands
-            .last()
-            .and_then(|token| self.by_name.get(leaf(token.text())))
-            .copied()
+    pub(super) fn selected(&mut self, command: &Command) -> Option<usize> {
+        let last = command.operands.last()?.text().to_string();
+        self.find(&last)
     }
 }
 
