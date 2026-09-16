@@ -11,6 +11,7 @@ import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
 import type { CameraMotion, EngineCamera } from './cameraWorld.ts';
+import type { HostWorldPlacements } from './hostWorldPlacements.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -62,7 +63,7 @@ export function createExactPagesRender(options: {
   motion: CameraMotion;
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
   /** L'index des matrices monde du moteur, remonté une fois par révision de scène. */
-  worlds: { refresh(): void };
+  worlds: HostWorldPlacements;
   viewport: [number, number] | undefined;
   cap: number;
   desired: PageRec[];

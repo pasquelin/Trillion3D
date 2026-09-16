@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { meshes as objects } from './sceneMeshes.ts';
-import { hostWorldChainInto } from './hostWorldChain.ts';
+import { hostWorldTree } from './hostWorldTree.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
 import {
@@ -19,14 +19,11 @@ import type { BackendContext } from './backendTypes.ts';
  * d'une scène autonome, dont les bornes ne sont pas celles des géométries de l'hôte mais celles que
  * le compilateur a écrites page par page.
  *
- * La matrice monde de chaque maillage est celle que LE MOTEUR calcule depuis les poses locales de la
- * chaîne d'ancêtres (`hostWorldChain.ts`) : la scène de l'hôte n'est pas remontée pour cela, et une
- * pose écrite sans composition est reprise telle quelle. La transformation et l'union sont celles du
- * socle, donc celles de la référence, terme à terme.
+ * Les matrices monde sont celles que LE MOTEUR calcule depuis les poses locales, en UNE passe sur le
+ * sous-arbre (`hostWorldTree.ts`) comme le font les bornes de l'hôte : la scène de l'hôte n'est pas
+ * remontée pour cela, et une pose écrite sans composition est reprise telle quelle. La
+ * transformation et l'union sont celles du socle, donc celles de la référence, terme à terme.
  */
-
-/** La matrice monde d'un maillage, reprise d'un maillage à l'autre : rien n'est alloué par nœud. */
-const monde = new Float64Array(MATRIX_VALUES);
 
 /** Une boîte à plat de travail, reprise d'une page à l'autre : rien n'est alloué par page. */
 const page = new Float64Array(BOX_VALUES);
@@ -82,6 +79,7 @@ export function exactPagesBounds(
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives);
   const enLot = lotBoxesReady(lot, exactPagesCount(source, associations, metadata));
+  const mondes = hostWorldTree(source);
   let n = 0;
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
@@ -89,8 +87,8 @@ export function exactPagesBounds(
       onMissing(mesh);
       continue;
     }
-    // La matrice monde est CALCULÉE par le moteur, une fois par maillage, depuis les poses locales.
-    const world = hostWorldChainInto(monde, mesh);
+    // La matrice monde est celle que le moteur a calculée pour ce maillage, lue une fois.
+    const world = mondes.world(mesh);
     for (const item of primitive.pages)
       if (exacte(item)) {
         if (enLot) {

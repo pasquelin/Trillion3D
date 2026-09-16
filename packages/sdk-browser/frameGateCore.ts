@@ -16,15 +16,13 @@ import {
   type HostCamera,
 } from './cameraWorld.ts';
 import { resolvePixelError } from './pageSelection.ts';
+import type { HostWorldPlacements } from './hostWorldPlacements.ts';
 
 export type FrameGateCore = ReturnType<typeof createFrameGateCore>;
 
 /** Ce que l'entrée d'image relit du graphe source, ou de quoi le relire quand la liste elle-même
  *  n'est refaite qu'à un changement de scène : l'appel n'a alors rien à construire par image. */
 type FrameGateSources = WatchedSources | (() => WatchedSources);
-
-/** L'index des matrices monde que l'image remonte : celui du MOTEUR (`hostWorldPlacements.ts`). */
-type FrameGateWorlds = { refresh(): void };
 
 /**
  * La porte d'image commune aux deux moteurs : les trois révisions, l'origine de la vue, la relecture
@@ -94,7 +92,7 @@ export function createFrameGateCore(holdValues: number) {
     /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. Une
      *  image que rien n'a touchée ne remonte rien : c'est `readScene` qui sait si rien n'a bougé.
      *  Ce qui est remonté est l'index du moteur : la scène de l'hôte n'est ni lue ni écrite. */
-    updateWorlds(worlds: FrameGateWorlds) {
+    updateWorlds(worlds: HostWorldPlacements) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
       worlds.refresh();

@@ -81,7 +81,7 @@ const CALCULS = [
 /** Fichier → ligne exacte → pourquoi cette ligne est une frontière de l'hôte et non un calcul. */
 const FRONTIERE = {
   'hostWorldPlacements.ts': {
-    'matrix = new THREE.Matrix4();': 'le contenant qu’une page porte, rempli par le socle',
+    'const matrix = new THREE.Matrix4();': 'le contenant qu’une page porte, rempli par le socle',
   },
   'hostWorldMatrices.ts': {
     'node.updateMatrixWorld(true);':
