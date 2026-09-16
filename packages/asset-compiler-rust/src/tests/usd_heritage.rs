@@ -1,6 +1,7 @@
-//! Ce qu'un prim tient de ses ancêtres : le matériau que `material:binding` lie plus haut.
+//! Ce qu'un prim tient de ses ancêtres : le matériau que `material:binding` lie plus haut, et le
+//! `doubleSided` que la géométrie déclare sans qu'aucun matériau ne soit lié.
 //!
-//! Les textures ont leur propre fichier, `usd_matiere.rs`.
+//! Les textures ont leur propre fichier, `usd_textures.rs` ; les faces invalides `usd_faces.rs`.
 use super::*;
 use usd_driver::{compile_layer, wrap};
 
@@ -104,5 +105,46 @@ fn a_material_bound_on_an_ancestor_reaches_the_prims_that_do_not_bind_one() {
         bound(&gltf, 0),
         ["M"],
         "la liaison plus forte que sa descendance l'emporte"
+    );
+}
+
+// Comportement 51 : `doubleSided` est une propriété de la géométrie en USD et du matériau en glTF.
+// Un maillage double face sans matériau lié en reçoit un, partagé par tous ceux qui sont dans son
+// cas ; un maillage lié, lui, obtient une variante double face de son matériau, jamais une mutation
+// de celui que les autres maillages citent.
+#[test]
+fn a_double_sided_mesh_without_a_binding_still_carries_its_two_faces() {
+    let body = quad("Quad", "        uniform bool doubleSided = 1\n");
+    let (_, gltf) = compile_layer("double-seul", &wrap("", &body)).prepared("usd");
+    let materials = gltf["materials"].as_array().expect("materials").clone();
+    assert_eq!(materials.len(), 1, "un seul matériau par défaut");
+    assert_eq!(
+        materials[0]["doubleSided"],
+        json!(true),
+        "le double face du maillage arrive au matériau"
+    );
+    assert_eq!(bound(&gltf, 0), [materials[0]["name"].clone()]);
+
+    let body = format!(
+        "    rel material:binding = </Root/M>\n{}{}{PAIR}",
+        quad("Simple", ""),
+        quad("Face", "        uniform bool doubleSided = 1\n")
+    );
+    let (_, gltf) = compile_layer("double-variante", &wrap("", &body)).prepared("usd");
+    let sides: Vec<Value> = gltf["materials"]
+        .as_array()
+        .expect("materials")
+        .iter()
+        .map(|material| material["doubleSided"].clone())
+        .collect();
+    assert_eq!(
+        sides,
+        [Value::Null, json!(true)],
+        "le matériau partagé reste simple face, sa variante porte les deux"
+    );
+    assert_eq!(
+        bound(&gltf, 0),
+        ["M"],
+        "le maillage simple face garde le sien"
     );
 }

@@ -14,6 +14,9 @@ use super::*;
 
 /// L'identifiant du nœud de surface que ce pilote lit.
 const PREVIEW_SURFACE: &str = "UsdPreviewSurface";
+/// Le nom du matériau que les surfaces double face sans liaison partagent. Une clé de matériau
+/// résolu porte toujours un chemin de prim et un `#` : aucune ne se confond avec celle-ci.
+const DOUBLE_SIDED: &str = "usd-double-sided";
 /// La couleur diffuse implicite d'un `UsdPreviewSurface`, telle que la spécification la pose : un
 /// gris, jamais le blanc — une surface lue blanche renvoie cinq fois trop de lumière.
 const DEFAULT_DIFFUSE: [f64; 3] = [0.18, 0.18, 0.18];
@@ -57,7 +60,7 @@ fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<
     if let Some(threshold) = opacity::cutoff(&shader) {
         out["alphaCutoff"] = json!(threshold);
     }
-    emissive(world, &shader, &mut out);
+    extras::emissive(world, &shader, &mut out);
     extras::occlusion(world, &shader, &mut out);
     extras::counted(world, &shader);
     if let Some(bound) = connected_texture(world, &shader, "normal", false) {
@@ -68,6 +71,23 @@ fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<
     }
     world.scene.materials.push(out);
     Some(world.scene.materials.len() - 1)
+}
+
+/// Le matériau qu'une surface double face reçoit quand aucun `Material` ne la lie. `doubleSided`
+/// est une propriété de la géométrie en USD et du matériau en glTF : sans matériau pour la porter,
+/// les deux faces se perdraient. Un seul matériau sert à toutes les surfaces dans ce cas.
+pub(super) fn double_sided(world: &mut World<'_>) -> Option<usize> {
+    if let Some(known) = world.materials.get(DOUBLE_SIDED) {
+        return *known;
+    }
+    world
+        .scene
+        .materials
+        .push(json!({"name": DOUBLE_SIDED, "doubleSided": true}));
+    let rank = world.scene.materials.len() - 1;
+    world.materials.insert(DOUBLE_SIDED.to_string(), Some(rank));
+    world.count("materials", 1);
+    Some(rank)
 }
 
 /// Le `Shader` de type `UsdPreviewSurface` que `outputs:surface` du matériau atteint.
@@ -141,27 +161,8 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
     }
 }
 
-/// L'émission : la carte connectée l'emporte sur la couleur écrite, que glTF multiplierait par
-/// elle, et la couleur écrite ne voyage que lorsqu'elle éclaire vraiment.
-fn emissive(world: &mut World<'_>, shader: &usd::Prim, out: &mut Value) {
-    let colour = match connected_texture(world, shader, "emissiveColor", true) {
-        Some(bound) => {
-            let factor = bound.factor(world);
-            out["emissiveTexture"] = bound.value;
-            Some([factor; 3])
-        }
-        None => value(shader, "emissiveColor")
-            .as_ref()
-            .and_then(read::triple)
-            .filter(|colour| colour.iter().any(|channel| *channel > 0.0)),
-    };
-    if let Some(colour) = colour {
-        out["emissiveFactor"] = json!(colour);
-    }
-}
-
 /// La texture branchée sur une entrée du nœud de surface, et le rôle de cette entrée.
-fn connected_texture(
+pub(super) fn connected_texture(
     world: &mut World<'_>,
     shader: &usd::Prim,
     name: &str,

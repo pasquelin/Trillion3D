@@ -67,3 +67,22 @@ fn written_normal(shader: &usd::Prim) -> bool {
         .and_then(read::triple)
         .is_some_and(|normal| normal != DEFAULT_NORMAL)
 }
+
+/// L'émission : la carte connectée l'emporte sur la couleur écrite, que glTF multiplierait par
+/// elle, et la couleur écrite ne voyage que lorsqu'elle éclaire vraiment.
+pub(super) fn emissive(world: &mut World<'_>, shader: &usd::Prim, out: &mut Value) {
+    let colour = match material::connected_texture(world, shader, "emissiveColor", true) {
+        Some(bound) => {
+            let factor = bound.factor(world);
+            out["emissiveTexture"] = bound.value;
+            Some([factor; 3])
+        }
+        None => material::value(shader, "emissiveColor")
+            .as_ref()
+            .and_then(read::triple)
+            .filter(|colour| colour.iter().any(|channel| *channel > 0.0)),
+    };
+    if let Some(colour) = colour {
+        out["emissiveFactor"] = json!(colour);
+    }
+}
