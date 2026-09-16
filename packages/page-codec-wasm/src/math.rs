@@ -108,7 +108,7 @@ fn box_transform_one(out: &mut [f64], boxes: &[f64], m: &[f64]) {
 /// `multiplyMatrix4` d'une paire : les trente-deux entrées sont lues avant la première écriture, et
 /// chaque terme est la somme de quatre produits sans zéro initial — une somme commencée à `0`
 /// changerait le signe d'un zéro négatif.
-fn multiply_matrix4_one(out: &mut [f64], a: &[f64], b: &[f64]) {
+pub(crate) fn multiply_matrix4_one(out: &mut [f64], a: &[f64], b: &[f64]) {
     let (a11, a12, a13, a14) = (a[0], a[4], a[8], a[12]);
     let (a21, a22, a23, a24) = (a[1], a[5], a[9], a[13]);
     let (a31, a32, a33, a34) = (a[2], a[6], a[10], a[14]);

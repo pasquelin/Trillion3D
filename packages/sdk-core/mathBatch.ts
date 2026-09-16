@@ -1,5 +1,6 @@
 import { BOX_VALUES, boxTransform } from './mathBox.ts';
 import { multiplyMatrix4 } from './mathMatrix4.ts';
+import { composeMatrix4 } from './mathMatrix4Trs.ts';
 
 /**
  * Les opérations du socle mathématique jouées EN LOT : `n` éléments rangés à plat, une seule entrée
@@ -40,4 +41,40 @@ export function multiplyMatrix4Batch(
   n: number,
 ) {
   for (let i = 0; i < n; i++) multiplyMatrix4(out[i], a[i], b[i]);
+}
+
+/** Flottants d'une position ou d'une échelle, et d'un quaternion `(x, y, z, w)`, rangés à plat. */
+export const POSITION_VALUES = 3;
+export const QUATERNION_VALUES = 4;
+
+/**
+ * La HIÉRARCHIE ENTIÈRE mise à jour en une passe : `n` nœuds rangés parents avant enfants, chacun
+ * composant sa matrice locale puis la multipliant par la matrice monde de son parent. C'est le
+ * parcours de `mathTransformTreeUpdate.ts`, avec ses deux mêmes formules dans le même ordre, sur des
+ * tampons à plat : le noyau WebAssembly le reproduit terme à terme.
+ *
+ * `parents[i]` DOIT être l'indice d'un nœud déjà mis à jour, donc strictement inférieur à `i` ; toute
+ * autre valeur — la sentinelle `HIERARCHY_ROOT` comprise — fait du nœud une racine, dont la matrice
+ * monde est sa matrice locale. La règle est la même des deux côtés : aucune entrée, si hostile
+ * soit-elle, ne peut les faire diverger.
+ */
+export const HIERARCHY_ROOT = 0xffffffff;
+
+export function hierarchyUpdateBatch(
+  worldViews: readonly Float64Array[],
+  positions: readonly Float64Array[],
+  rotations: readonly Float64Array[],
+  scales: readonly Float64Array[],
+  parents: Uint32Array,
+  n: number,
+  local: Float64Array,
+) {
+  for (let i = 0; i < n; i++) {
+    composeMatrix4(local, positions[i], rotations[i], scales[i]);
+    const parent = parents[i],
+      world = worldViews[i];
+    // Une boucle : `TypedArray.prototype.set` sur une vue coûte un appel natif.
+    if (parent >= i) for (let k = 0; k < MATRIX_VALUES; k++) world[k] = local[k];
+    else multiplyMatrix4(world, worldViews[parent], local);
+  }
 }
