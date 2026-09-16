@@ -11,6 +11,7 @@ import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { createGpuPartition } from './gpuPartitionFactory.ts';
+import { createGpuRestCompact } from './gpuRestCompact.ts';
 import { prepareTransparentOcclusion } from './webgpuTransparentOcclusionHost.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
@@ -174,6 +175,14 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       flags: vis.gpuHiz.flags,
       restBits: vis.gpuDraw.restBitsBuffer,
       slotUsed: vis.gpuDraw.slotUsedBuffer,
+    });
+    // La compaction de la moitié testée lit le verdict de la pyramide et réécrit la liste
+    // d'instances que la compaction de dessin vient de poser : elle n'existe qu'avec les deux.
+    vis.gpuRestCompact = await createGpuRestCompact(gpuDevice, {
+      instances: vis.gpuDraw.instanceBuffer,
+      indirect: vis.gpuDraw.indirectBuffer,
+      slotOffsets: vis.gpuDraw.slotOffsetsBuffer,
+      flags: vis.gpuHiz.flags,
     });
     if (vis.gpuPartition) vis.gpuHiz.attach(vis.gpuPartition.tested, vis.gpuPartition.state);
     else

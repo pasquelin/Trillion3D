@@ -3,6 +3,7 @@ import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
 import type { GpuDraw } from './gpuDraw.ts';
+import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { MaterialLayerIndex } from './webgpuTexturePriority.ts';
@@ -56,6 +57,8 @@ export interface WebgpuVisState {
   pipelineBlendFront: GPURenderPipeline | undefined;
   pipelineBlendBack: GPURenderPipeline | undefined;
   gpuDraw: GpuDraw | undefined;
+  /** La compaction de la moitié testée, entre le test d'occultation et la seconde passe. */
+  gpuRestCompact: GpuRestCompact | undefined;
   shadeBindGroupLayout: GPUBindGroupLayout | undefined;
   shadeBindGroup: GPUBindGroup | undefined;
   // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection: both
@@ -116,6 +119,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     pipelineBlendFront: undefined,
     pipelineBlendBack: undefined,
     gpuDraw: undefined,
+    gpuRestCompact: undefined,
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
