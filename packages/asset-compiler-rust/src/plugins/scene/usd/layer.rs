@@ -8,13 +8,18 @@
 //! source, la seule que ce pilote reçoive.
 use super::*;
 
-/// L'unité de la couche, en mètres par unité.
+/// L'unité implicite d'une couche USD : le centimètre. Une couche qui ne déclare rien n'est pas en
+/// mètres, et la lire ainsi agrandit sa scène cent fois.
+const DEFAULT_METERS_PER_UNIT: f64 = 0.01;
+
+/// L'unité de la couche, en mètres par unité. Une valeur absente, nulle ou non finie retombe sur
+/// l'unité implicite plutôt que d'inventer une échelle.
 pub(super) fn meters_per_unit(stage: &usd::Stage) -> f64 {
     metadata(stage, "metersPerUnit")
         .as_ref()
         .and_then(read::number)
         .filter(|scale| scale.is_finite() && *scale > 0.0)
-        .unwrap_or(1.0)
+        .unwrap_or(DEFAULT_METERS_PER_UNIT)
 }
 
 /// L'axe haut de la couche. USD le déclare `Y` par défaut.
