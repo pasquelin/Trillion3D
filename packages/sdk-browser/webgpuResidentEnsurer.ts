@@ -110,7 +110,8 @@ export function createWebgpuResidentEnsurer({
         durationMs: performance.now() - started,
         elapsedMs: performance.now() - started,
       }),
-      pinned: tracking.traceSet('pins', tracking.pinnedUrls()),
+      // Sondage borné de l'ensemble pinné : il a la taille de la coupe, pas celle de la file.
+      pinned: tracking.traceKeys('pins', tracking.pinned),
     }));
   };
 }
