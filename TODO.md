@@ -1,0 +1,85 @@
+# Backlog
+
+Une ligne = une tâche. Les règles de travail sont dans `AGENTS.md`, l'historique dans Git,
+la cible du moteur dans [`docs/SPEC_MOTEUR_SANS_THREE.md`](docs/SPEC_MOTEUR_SANS_THREE.md).
+
+## Géométrie
+
+Les lots 1 à 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la référence ; 10 passe avant 5.
+
+1. Coupe par différence : le GPU garde la liste des grappes et ne renvoie que l'entrant/sortant dans deux tampons réservés une fois ; les cinq lecteurs (pages gardées, pages à charger, relevé de coupe, journal, priorité des textures) mettent à jour leurs compteurs sans tableau neuf ; même contrat pour la coupe CPU du repli WebGL2. À fondre dedans : classement du budget encore O(coupe) (`webgpuBudgetRanking.ts:128`), `maxStretch`/`frames` recalculés quand seule l'origine bouge (`gpuDagRuntime.ts:121`), compteur de pages sans octets dans l'image tenue (`webgpuFrameHold.ts:11`). Fichiers `gpuDag*`, `webgpuCut*`, `webgpuPagesHost*`, `webgpuTexturePriority*`, `webgpuBudget*`, `streaming*`. Gain très élevé.
+2. Transparents en quelques ordres : le plan trié fond → avant reste, mais le GPU le lit seul, un ordre par tranche et par pipeline, les 12 placements d'un item en instances ; supprime les 68 608 octets d'arguments réécrits par image (`webgpuBlendArgs.ts:46`). Fichiers `webgpuBlend*`, `webgpuTransparent*`. Gain élevé (4 331 appels aujourd'hui, dont 4 288 transparents).
+3. Sélection GPU persistante, coupe en une passe : 1 959 792 grappes revisitées par image pour 21 955 utiles, en 42 lancements (`gpuDagEncode.ts:91`) ; garder la sélection d'avant et la corriger, puis passe unique à fils persistants. Fichiers `gpuDag*`.
+4. Pompe de textures : (a) note mise à jour seulement par grappe entrée/sortie, file par insertion ; (b) textures virtuelles — 1 pixel sur 16 incrémente un compteur par tuile dans la passe de résolution, lu par `mapAsync` une image en retard, texture d'indirection pour l'atlas ; en WebGL2 par une petite image relue. Deux lots.
+5. Une coupe par grappe, placements en index : 163 316 grappes × 12 placements = 1 959 792 fiches de 96 octets (`webgpuPagesLayout.ts:25`, `gpuDagPack.ts:153`) ; fiches uniques, placement en index dans la fiche de travail. Mémoire GPU ÷ 12. Après 1–4 et 10.
+6. Image tenue conservée à l'arrivée d'une page qui ne change rien à l'écran (`webgpuPagesPageApi.ts:37-44`).
+7. Surveillance de scène par version : `hostSceneWatch` compare 4 300 nœuds × 18 valeurs par image (`frameGateCore.ts:125`).
+8. Priorité par erreur d'écran sur WebGPU (`webgpuPagesHostApi.ts:123`), comme le chemin WebGL2 (`streamingPriority.ts:66`) : à cache froid le lointain arrive avant le proche.
+9. Hi-Z : choisir les occulteurs par visibilité passée au lieu de la médiane de profondeur (557 352 lignes classées pour 21 955 testées), puis deux passes — dessiner le visible, bâtir la pyramide, re-tester les rejetés dans la même image.
+10. Filets de sécurité (sur verdict « plus de lag », avant le lot 5) : preuve de navigation sur la scène réelle ; réécriture des tests caducs (`webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11`, hôte de test de coupe du Calculateur, et les six `webgpuPages` rouges depuis b72278c6) en disant pour chacun si c'est le test ou le code qui est faux ; banc bit à bit du raster de calcul contre l'ancien raster matériel ; simplify puis tableau référence / nous mesuré.
+11. Compression des sommets hors ligne : positions quantifiées par grappe (14–16 bits/axe), normales 2 octets, UV entiers — ~3× moins que les ~48 octets par triangle actuels. Compilateur Rust, nouvelle version de format de page.
+12. Ombres par la même géométrie : même sélection, même raster, mêmes pages depuis la lumière.
+13. Matériaux par classes : une passe par matériau avec profondeur matérielle au lieu d'un branchement par pixel.
+14. Eau en passe plein écran dédiée (copie du fond déjà en place pour la transmission).
+15. Noyaux Rust/Wasm M5 sur la coupe WebGL, la coupe de secours et la reconstruction des rangs.
+16. Compilateur : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
+17. Hiérarchie moteur : pris en charge par le Calculateur (`lot/calc-8-pages-hierarchie-moteur`) ; ne pas toucher `pageSelectionCollect`, `frameGateCore`, `sceneMeshes`, `webgpuPagesTransform` avant sa fusion. Le lot 1 repart de develop après.
+18. `dagWanted` : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection.
+
+Hors périmètre, faute de support web : mesh shaders et atomique 64 bits, remplacés par nos deux passes atomiques 32 bits.
+
+## Lumière
+
+1. Image stable d'abord : caméra mobile, 8 lampes + soleil donne 0 / 1 392 / 6 278 px sur 3 exécutions identiques et 14 erreurs de page par exécution. Isoler deux fois chaque cas — caméra fixe, soleil seul, lampes seules, ombres coupées, aucune lampe — et lire les erreurs. Fini quand 3 exécutions donnent 0 px.
+2. Occulteurs d'ombre hors écran (`webgpuPagesEncodeShadowPass.ts`) : un mur derrière la caméra doit ombrer le sol visible.
+3. Proxy lointain et rebond qui suivent les objets déplacés (`webgpuPagesTransform.ts`) : une porte déplacée déplace l'ombre lointaine et le rebond.
+4. Toutes les lampes contributrices par tuile : retirer le plafond de 32 et donner une profondeur de tuile aux surfaces transparentes contre le ciel (`gpuLightTilesShader.ts`). 33 lampes, aucune perdue.
+5. Test d'ombre du rebond pour chaque lampe (`bounceSurfaceWgsl.ts`) : aucune fuite à travers un mur avec 5 lampes.
+6. Rejet des occulteurs dans le budget d'ombres (`stageMapping.ts`), puis saut du test derrière une surface, atlas à la demande, proxy seulement avec un soleil, profondeur conservée sur un simple changement de couleur. 0 px.
+7. Miroirs : repartir de develop, réutiliser la fixture `classes-materiaux/miroir.gltf` et les patches `.mesure/patches/lot-reflet/` (+ `lot-reflet.bundle`, base d48b66a) comme lecture, trouver pourquoi on/off = 0 px. Fini quand les cubes apparaissent dans le sol métallique.
+8. Copies publiques de lampes détachées (`explorerLightApi.ts`) : muter une copie ne touche jamais l'interne.
+9. Coût GPU de la vue au sol, 3,65 → 6,49 ms à 0 px : bissection, sur machine calme seulement.
+10. Après 7 : réflexions rugueuses, ombres colorées semi-transparentes, translucidité du feuillage.
+11. Rebond 3 (`lot/rebond-3`) : cascades de sondes autour de la caméra, budget en millisecondes plutôt qu'en nombres de maillages et de rayons, base d'harmoniques sphériques d'ordre 2, activé par défaut quand le budget tient.
+12. Ombres des matériaux en mélange : une grappe transparente n'obtient pas de ligne de visibilité (`webgpuRowSync.ts`), n'entre jamais dans la table des rangs dessinés des cartes d'ombre et n'ombre rien. L'ombre atténuée et colorée d'une surface semi-transparente reste un lot à part.
+13. Éclairage stochastique par pixel (RX2) : le rejet par tuile est livré, l'échantillonnage non. L'historique doit passer par une cible de rendu supplémentaire en ping-pong, pas un tampon de stockage. Demande aussi un banc où les lampes atteignent vraiment les surfaces transparentes.
+
+Manques de test connus : `webgpuBindBudget.test.ts` ne couvre pas `createDeferredLayouts` ; rien n'exécute `prepareWebgpuPages` de bout en bout.
+
+## Textures
+
+Critère de tout lot : même rendu que la référence, sous contrainte du chargement web, à cache froid, en traversant la ville.
+
+1. Verdict de l'utilisateur sur T1 (fusionné f43f6a44) : route `/?test=15-virtualized-integration`, ce que la caméra regarde net d'abord.
+2. T1b — compteurs textures dans le Lab (octets résidents / budget, textures au bon niveau, niveaux manquants) : une ligne dans le panneau du banc 15, rien d'autre.
+3. T1c — vraie libération : les niveaux nets devenus inutiles rendus au budget (atlas alloué d'avance aujourd'hui) ; sans ça le budget ne tient pas sur petite machine.
+4. T2 — traversée à cache froid : temps par image plafonné pour les transferts, report à l'image suivante, aperçu dessiné tant que le niveau manque ; regarder p95 et pic, pas la médiane.
+5. T3 — priorité exacte par lecture de l'image rendue, si T1 se trompe sur des cas vus par l'utilisateur (aujourd'hui : estimation par taille à l'écran).
+6. T4 — tuiles, seulement si la mémoire reste le problème après T1c.
+7. T5 — compression GPU sans perte de pixel visible (RGBA brut aujourd'hui, 7,56 Go sur Emerald) : à étudier seulement avec un format qui rend la même image.
+
+## Compilateur
+
+1. Réutiliser un produit compilé complet quand chaque empreinte de dépendance et le produit existent déjà, au lieu de reconstruire le DAG.
+2. Coupe linéaire pour les n-gones convexes dans `ngon.rs` (quadratique aujourd'hui, 8 000 coins = 113 ms) ; les faces concaves gardent la coupe en oreilles.
+3. Décoder chaque image partagée une seule fois dans `texture_preview.rs` (cache borné par empreinte, une pyramide par seuil MASK).
+4. Extraire un unitypackage en une passe, en gardant CRC, bornes, annulation et sans publication partielle.
+5. Admission avant import, et points d'annulation dans les longues coupes de n-gones et le calcul des normales.
+6. Garder les blocs DDS/KTX2 sur le GPU sans les décoder.
+7. Accepter en entrée le glTF compressé Draco et meshopt.
+8. Map industrielle sur le banc 15.
+9. Vérification de licence FAB pour le corpus.
+
+Les optimisations 1 à 5 doivent rendre les mêmes octets qu'avant.
+
+## Calculateur
+
+1. Sur go de l'utilisateur : notre propre moteur de rendu WebGL2, puis l'API hôte sans types Three. `PageRec.matrix` et `ClusterRoot.world` sont déjà des matrices remplies par le moteur (`hostWorldPlacements.ts`) ; les aplatir en `Float64Array` ne demande rien à l'hôte, seuls ses lecteurs — `addInstance`/`updateInstance` et les moteurs témoins — prennent encore un `THREE.Matrix4`. Une trentaine de fichiers lisent `.elements`.
+2. Rafraîchissement ciblé d'un nœud déplacé : `setWebgpuTransform` recalcule tout l'index moteur (`hostWorldPlacements.refresh`) là où `updateWorldMatrix(true, true)` ne parcourait que les ancêtres et le sous-arbre — hors chemin d'image, mais O(scène) par `setTransform`. `updateNodeWorldMatrix` (`packages/sdk-core/mathTransformTreeUpdate.ts`) suffit.
+3. À mesurer quand c'est commode : gain des pages en mémoire partagée (`--isolation on` vs off) et du chemin Wasm (`--chemin-math js` vs `wasm`) ; `normalMatrix3` par fragment dans `visibilityShadingNormal.ts` ; listes de lampes de `gpuLightTilesShader` à ciel ouvert.
+
+## Décisions à trancher (utilisateur)
+
+- Textures : `atlasClasses` 2 (−872 Mo, 15 142 px changent au loin) ; go T4 ; go T5.
+- Lumière D1 : en WebGL, `unlit` rend les métaux noirs (ambiant π sur le PBR, chemin Three en cours de retrait). Correctif prêt en commit non référencé b57ebd89 (`git branch hold/unlit-albedo-three b57ebd89` pour le garder) : soit déclarer « non fidèle sur les métaux » dans les capacités WebGL, soit en faire le premier lot du moteur WebGL2 sans Three.
+- Lumière 10 : alpha binaire BLEND → MASK à l'import, en conflit avec la règle de transparence d'`AGENTS.md`.
