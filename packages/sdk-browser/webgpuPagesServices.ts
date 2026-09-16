@@ -14,6 +14,7 @@ import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
+import { pageSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -24,7 +25,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots, gpuWanted } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
-    { sourceBytes, byUrl } = rt.setup;
+    { recByUrl, byUrl } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
     residentOffsetWords: rows.residentOffsetWords,
@@ -32,7 +33,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    onOffsetChange: (page, offset) => (rows.touchPage(page), updateTransparentSpan(rt, page, offset)),
+    onOffsetChange: (page, offset) => (
+      rows.touchPage(page),
+      updateTransparentSpan(rt, page, offset)
+    ),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
@@ -63,12 +67,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   );
   const pageSource = {
     read: async (key: string) => {
-      const bytes = sourceBytes.get(key);
+      const bytes = pageSourceBytes(recByUrl.get(key));
       if (!bytes) throw new Error('Missing page');
       return bytes;
     },
   };
-  const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
+  const hasBytes = (rec: PageRec) => !!(rec.array || recByUrl.get(rec.url)?.array);
   /**
    * The sets residency is decided with, and the difference the GPU readback is read as. Both outlive
    * the image: an image that moves no page touches neither.

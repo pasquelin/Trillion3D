@@ -5,23 +5,6 @@
 const TOUCHED_SLOTS = 128;
 
 /**
- * Tri croissant en place d'un début de tableau d'index de page, par insertion et sans allocation.
- * Les listes triées ici tiennent quelques dizaines d'entrées, presque toujours déjà ordonnées : la
- * boucle ne déplace alors rien du tout.
- */
-export function sortPages(pages: Int32Array, count: number) {
-  for (let i = 1; i < count; i++) {
-    const page = pages[i];
-    let j = i - 1;
-    while (j >= 0 && pages[j] > page) {
-      pages[j + 1] = pages[j];
-      j--;
-    }
-    pages[j + 1] = page;
-  }
-}
-
-/**
  * Les deux listes bornées qui pilotent la table de lignes.
  *
  * `touched` nomme les pages dont la résidence ou l'emplacement dans le cache vient de bouger :
