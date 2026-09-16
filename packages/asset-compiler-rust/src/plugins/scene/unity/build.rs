@@ -154,7 +154,9 @@ impl Builder<'_, '_> {
         out
     }
 
-    /// Les rendus qu'un `LODGroup` écarte : tout sauf son niveau le plus fin.
+    /// Les rendus qu'un `LODGroup` écarte : ceux que son niveau le plus fin ne cite pas. Un même
+    /// rendu peut figurer à plusieurs niveaux ; il est alors gardé au plus détaillé où il apparaît,
+    /// car l'écarter retirerait du niveau le plus fin une surface que la scène y montre.
     fn dropped_renderers(
         &mut self,
         document: &Document,
@@ -166,13 +168,25 @@ impl Builder<'_, '_> {
             let Some(group) = document.get(*id) else {
                 continue;
             };
-            for level in sequence(&group.body, "m_LODs").iter().skip(1) {
-                for renderer in sequence(level, "renderers") {
-                    dropped.insert(reference(&renderer["renderer"]).file_id);
+            let levels = sequence(&group.body, "m_LODs");
+            let kept: HashSet<i64> = levels
+                .first()
+                .map(|level| renderers(level).collect())
+                .unwrap_or_default();
+            for level in levels.iter().skip(1) {
+                for id in renderers(level).filter(|id| !kept.contains(id)) {
+                    dropped.insert(id);
                     self.world.scene.count("lodDropped", 1);
                 }
             }
         }
         dropped
     }
+}
+
+/// Les rendus qu'un niveau de `LODGroup` cite, par `fileID`.
+fn renderers(level: &Yaml) -> impl Iterator<Item = i64> + '_ {
+    sequence(level, "renderers")
+        .iter()
+        .map(|renderer| reference(&renderer["renderer"]).file_id)
 }
