@@ -1,3 +1,5 @@
+import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
+
 /** Shared opaque/forward lighting. Match the explorer's Three.js standard
  * material with punctual light and hemisphere irradiance, without an envMap. */
 export const STANDARD_LIGHTING_WGSL = `
@@ -23,11 +25,7 @@ fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f,sk
 }`;
 
 export const NORMAL_TRANSFORM_WGSL = `
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let a=m[0];let b=m[1];let c=m[2];let det=dot(a,cross(b,c));
- if(abs(det)<1e-20){return v;}
- return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
-}
+${INVERSE_TRANSPOSE_WGSL}
 fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
  return normalize(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
 }`;
