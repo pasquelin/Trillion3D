@@ -16,6 +16,7 @@ import { invalidateLightPages } from './sceneLightShadowInvalidate.ts';
 import { pageRowsOf } from './sceneLightShadowPages.ts';
 import { createShadowCounts, screenCoverage } from './sceneLightShadowCounts.ts';
 import { createShadowAdmission } from './sceneLightShadowAdmit.ts';
+import { createShadowRelease } from './sceneLightShadowRelease.ts';
 
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
@@ -39,6 +40,7 @@ export function createShadowPlan(capacity: number) {
   let byPage = true;
   const coverage = new Float64Array(LIGHT_SETTINGS.maxLights);
   const queue = createShadowAdmission(regions, budget, counts);
+  const release = createShadowRelease();
   return {
     slices,
     regions,
@@ -67,21 +69,19 @@ export function createShadowPlan(capacity: number) {
       queue.reset();
       counts.beginFrame();
       slices.dirty.beginFrame();
+      // Avant toute demande de tranche : celles que plus aucune lampe vivante à ombre ne réclame
+      // repartent au pot commun. C'est le seul endroit où une tranche est rendue.
+      release(slices, store);
       let casters = 0;
       for (let slot = 0; slot < store.count; slot++)
         if (packed[SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS + LIGHT_FIELD.castsShadow])
           casters++;
       for (let slot = 0; slot < store.count; slot++) {
         const base = SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS;
-        let slice = store.sliceOf(slot);
         coverage[slot] = 0;
-        if (packed[base + LIGHT_FIELD.castsShadow] === 0) {
-          if (slice >= 0) {
-            slices.free(slice);
-            store.assignSlice(slot, -1);
-          }
-          continue;
-        }
+        // Sa tranche a déjà été rendue par `release` : la lampe passe son tour, sans autre effet.
+        if (packed[base + LIGHT_FIELD.castsShadow] === 0) continue;
+        let slice = store.sliceOf(slot);
         const kind = packed[base + LIGHT_FIELD.kind];
         const sun = kind === LIGHT_KIND.directional;
         // Le soleil éclaire tout l'écran : sa priorité est maximale. Une ponctuelle vaut la part
