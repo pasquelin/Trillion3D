@@ -9,12 +9,12 @@
 // LAB_ROOT=… node --experimental-strip-types test/inverseTransposeePetiteEchelle.browser.mjs
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
-import { packDagSelection } from '../packages/sdk-browser/gpuDagSelection.ts';
 import {
   camera,
   VIEWPORT,
   construireCas,
   decisionCpu,
+  empaqueteCas,
   veriteTerrain,
 } from '../packages/sdk-browser/bench/justesse/inverseTransposeCas.mjs';
 import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
@@ -29,22 +29,7 @@ const cas = ECHELLES.flatMap((s) =>
 );
 
 const uniforms = cameraSelectionUniforms(camera, 0, VIEWPORT);
-const packed = packDagSelection(
-  cas.map((c) => ({
-    world: c.world,
-    pages: [
-      {
-        url: '0',
-        lodError: 0,
-        parentError: null,
-        sphere: [0, 0, 0, c.worldSize],
-        min: c.min,
-        max: c.max,
-        cone: c.cone,
-      },
-    ],
-  })),
-);
+const packed = empaqueteCas(cas);
 const gpu = await selectionGpu([{ nom: 'lot', packed, uniforms }]);
 const indisponible = gpu.indisponible ?? null;
 const gardees = new Set(gpu.resultats?.find((r) => r.nom === 'lot')?.pages ?? []);

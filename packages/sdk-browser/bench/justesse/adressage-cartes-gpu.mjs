@@ -7,20 +7,11 @@
 //     packages/sdk-browser/bench/justesse/adressage-cartes-gpu.mjs
 // Bloquant : tout écart bit à bit hors couture de période, et sur la couture toute lecture qui
 // s'écarte de la règle exacte de plus d'un demi niveau sur 255.
-import * as THREE from 'three';
 import { wrapOf } from '../../visibilityWrapModes.ts';
 import { ROW_WRAP_MODES_WORD } from '../../webgpuPageRow.ts';
-import { lineaireThree, melange, surCouture } from './adressageCas.mjs';
+import { ADRESSE, regleNormalisee, surCouture, TOLERANCE } from './adressageCas.mjs';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.mjs';
 import { CARTES, ligneDePageMelangee, TEXTURE, UV } from './adressageCartes.mjs';
-
-/** Un demi niveau sur 255 : la quantification du poids que l'échantillonneur s'autorise. */
-const TOLERANCE = 0.5;
-const ADRESSE = new Map([
-  [THREE.ClampToEdgeWrapping, 'clamp-to-edge'],
-  [THREE.RepeatWrapping, 'repeat'],
-  [THREE.MirroredRepeatWrapping, 'mirror-repeat'],
-]);
 
 const { ints } = ligneDePageMelangee();
 const lots = CARTES.map(({ carte, wrapS, wrapT }) => ({
@@ -39,8 +30,7 @@ const sorties = await executerDansChromium({
 });
 
 /** La couleur exacte de la règle sur l'axe de la composante `k`, les deux texels mêlés. */
-const regle = (uv, wrap, k) =>
-  melange(lineaireThree(uv[k], k ? TEXTURE.hauteur : TEXTURE.largeur, wrap)) / 255;
+const regle = (uv, wrap, k) => regleNormalisee(uv[k], k ? TEXTURE.hauteur : TEXTURE.largeur, wrap);
 
 let bloquants = 0,
   couturesEprouvees = 0;
