@@ -66,6 +66,8 @@ export class FlakyNodeWorker {
   onmessageerror = null;
   #count = 0;
   postMessage(message) {
+    // Le bail de mémoire partagée n'est pas un travail : il ne consomme pas la réponse unique.
+    if (message.op === 'share') return;
     this.#count++;
     if (this.#count === 1) {
       queueMicrotask(() =>
