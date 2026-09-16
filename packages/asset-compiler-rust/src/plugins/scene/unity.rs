@@ -45,6 +45,8 @@ mod prefab;
 mod project;
 mod render;
 mod textures;
+#[cfg(test)]
+mod tests;
 mod transform;
 mod yaml;
 
@@ -73,7 +75,7 @@ impl Plugin for Unity {
     /// La version nomme le lecteur YAML et la génération de la conversion : la changer invalide les
     /// caches, donc toute scène Unity déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "unity-yaml-rust2-0.13-gltf-3"
+        "unity-yaml-rust2-0.13-gltf-4"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["unity"]

@@ -40,6 +40,7 @@ mod unity_fidelite;
 mod unity_golden;
 mod unity_projet;
 mod unitypackage_golden;
+mod uri_pilotes;
 mod usd_driver;
 mod usd_fidelite;
 mod usd_golden;
