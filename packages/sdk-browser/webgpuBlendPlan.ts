@@ -81,10 +81,19 @@ export function refreshBlendPlan(blendState: BlendState) {
     boxes = blendState.boxesPacked;
   const blend: number[] = [],
     transmission: number[] = [];
+  // Les triangles que chaque passe SOUMET : un item double face en soumet deux fois les siens,
+  // puisqu'il porte deux entrées de plan. Compté ici, avec le plan, et jamais par image.
+  let blendTriangles = 0,
+    transmissionTriangles = 0;
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
-    for (const side of sidesOf(item)) into.push(i * 4 + side);
+    for (const side of sidesOf(item)) {
+      into.push(i * 4 + side);
+      if (item.paged) continue;
+      if (item.transmissive) transmissionTriangles += item.count / 3;
+      else blendTriangles += item.count / 3;
+    }
     const base = i * 8,
       box = item.bounds;
     if (!box) {
@@ -100,4 +109,6 @@ export function refreshBlendPlan(blendState: BlendState) {
   }
   blendState.planBlend = Uint32Array.from(blend);
   blendState.planTransmission = Uint32Array.from(transmission);
+  blendState.blendTriangles = blendTriangles;
+  blendState.transmissionTriangles = transmissionTriangles;
 }
