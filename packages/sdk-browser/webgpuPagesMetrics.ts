@@ -43,6 +43,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
     uncoveredTriangles: run.uncoveredTriangles,
+    drawnTriangles: run.drawnTriangles,
     residentPages: run.gpuFrameActive ? (stats?.residentPages ?? 0) : run.drawn.length,
     cacheEvictions: stats?.evictions ?? 0,
     geometryAllocationBytes: (stats?.allocatedBytes ?? 0) + vertexBytes,
