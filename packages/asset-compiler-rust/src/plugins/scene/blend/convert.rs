@@ -17,6 +17,10 @@ const Z_UP_TO_Y_UP: [f32; 16] = [
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
     let source = single(request.inputs)?;
+    // Le plafond vaut d'abord pour ce qui est lu depuis le disque : un fichier plus gros que lui ne
+    // rentre pas davantage une fois déballé, et il n'est pas chargé en mémoire pour le découvrir.
+    let on_disk = usize::try_from(fs::metadata(source)?.len()).unwrap_or(usize::MAX);
+    envelope::within(on_disk, MAX_BYTES)?;
     let raw = fs::read(source)?;
     let digest = hash(&raw);
     let file = BlendFile::open(&raw, MAX_BYTES)?;
@@ -31,6 +35,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         materials: HashMap::new(),
         meshes: HashMap::new(),
         root: &root,
+        cancelled: request.cancelled,
     };
     scene.out.nodes.push(json!({
         "name": name_of(source), "matrix": Z_UP_TO_Y_UP, "children": [],
@@ -45,7 +50,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let mut outside = 0;
     for block in file.of(*b"OB\0\0") {
         if request.cancelled.load(Ordering::Relaxed) {
-            return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+            return Err(cancel::refusal());
         }
         let Some(object) = file.view(block) else {
             continue;
