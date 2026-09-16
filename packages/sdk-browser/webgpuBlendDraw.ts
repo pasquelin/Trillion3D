@@ -5,6 +5,7 @@ import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
 import { countsBlendOverdraw } from './diagnosticGpuVariant.ts';
 import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
+import { PIPELINE_BACK, PIPELINE_FRONT, planItem, planPipeline } from './webgpuBlendPlan.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -61,6 +62,9 @@ function blendBindGroup(
  * `transmissive` dit laquelle des deux passes on encode : les melanges d'abord, puis, une fois le
  * fond fige, les surfaces qui le relisent.
  */
+/** Le tableau de decalages dynamiques, alloue une fois : `setBindGroup` le lit sur place. */
+const offsets = [0];
+
 export function drawBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -103,14 +107,14 @@ export function drawBlendPass(
     boundGroup: GPUBindGroup | undefined;
   for (let i = 0; i < plan.length; i++) {
     const entry = plan[i],
-      index = entry >>> 2,
+      index = planItem(entry),
       item = items[index];
-    if (boundPipeline !== (entry & 3)) {
-      boundPipeline = entry & 3;
+    if (boundPipeline !== planPipeline(entry)) {
+      boundPipeline = planPipeline(entry);
       pass.setPipeline(
-        boundPipeline === 1
+        boundPipeline === PIPELINE_FRONT
           ? vis.pipelineBlendFront!
-          : boundPipeline === 2
+          : boundPipeline === PIPELINE_BACK
             ? vis.pipelineBlendBack!
             : vis.pipelineBlendTextured!,
       );
@@ -120,8 +124,14 @@ export function drawBlendPass(
       : (item.group ??= blendBindGroup(rt, device, item, lighting));
     // Le volume du materiau est la SEULE chose qui reste a decaler par item, et seule la passe de
     // transmission le lit : la passe de melange pose son groupe une fois pour toute la liste.
-    if (transmissive) pass.setBindGroup(0, group, [index * VOLUME_STRIDE]);
-    else if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group), [0]);
+    // Les decalages sont lus a l'appel : un seul tableau de module, reecrit, suffit.
+    if (transmissive) {
+      offsets[0] = index * VOLUME_STRIDE;
+      pass.setBindGroup(0, group, offsets);
+    } else if (group !== boundGroup) {
+      offsets[0] = 0;
+      pass.setBindGroup(0, (boundGroup = group), offsets);
+    }
     pass.drawIndirect(args, index * 16);
   }
   overdraw?.end(pass);

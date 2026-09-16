@@ -35,8 +35,6 @@ export type BlendGpuItem = {
   paged?: boolean;
   /** Rank of a paged item in the transparent table: the base its instances are written at. */
   pagedIndex?: number;
-  /** Rang de l'item dans la scene : l'indice de sa fiche, de sa boite et de son argument indirect. */
-  itemIndex?: number;
   /** Base de sa liste de grappes dans la table transparente, zero pour un item non pagine. */
   tableBase?: number;
   /** Premier sommet de sa geometrie dans les tampons concatenes, zero pour un item non pagine. */
@@ -89,6 +87,8 @@ export function createWebgpuBlendState() {
     /** Les fiches d'items et l'uniforme de vue : un tampon de scène, un tampon d'image. */
     itemBuffer: undefined as GPUBuffer | undefined,
     itemPacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    /** La vue entière des fiches, sur le même tampon : allouée avec elles, jamais par image. */
+    itemInts: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     viewBuffer: undefined as GPUBuffer | undefined,
     viewPacked: view,
     viewInts: new Uint32Array(view.buffer),
