@@ -9,7 +9,7 @@ import { createViewRevision } from './frameViewRevision.ts';
 import { createHostSceneWatch } from './hostSceneWatch.ts';
 
 /** Ce qu'une image WebGL a produit d'observable : voir `sample` ci-dessous. */
-export const WEBGL_HOLD_VALUES = 6;
+const WEBGL_HOLD_VALUES = 6;
 
 export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
 

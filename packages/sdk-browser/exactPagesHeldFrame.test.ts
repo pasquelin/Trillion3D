@@ -5,24 +5,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exactPagesBackend } from './index.ts';
-import { dagLevel, DAG } from './pagesBackendFixture.ts';
-import { quadScene, quadCluster, frontCamera } from './pagesBackendScenes.ts';
+import { quadRootsContext, frontCamera } from './pagesBackendScenes.ts';
 
 function moteur() {
-  const { geometry, material, mesh, source } = quadScene();
-  const level = dagLevel([quadCluster(0), quadCluster(1)], [quadCluster(2)], 0.001);
-  const context = {
-    source,
-    metadata: { ...DAG, primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }] },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-      ['2', new Uint32Array([0, 1, 2])],
-    ]),
-    associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
-    pixelError: 0,
-    viewport: [960, 540] as [number, number],
-  };
+  const { geometry, material, context } = quadRootsContext(true);
   return {
     backend: exactPagesBackend(context),
     camera: frontCamera(),
