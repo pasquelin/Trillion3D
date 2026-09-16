@@ -41,11 +41,17 @@ export function streamCutResidency(
  * relevé revient à chaque image et la coupe reste bloquée sur lui, caméra immobile, même une fois
  * les octets manquants arrivés. La sélection soumet ici son propre tampon de commandes, aucune passe
  * de dessin ne l'accompagne.
+ *
+ * Rend faux quand l'envoi échoue : l'attente n'a alors plus aucun moyen de produire le relevé qu'elle
+ * espère, et l'appelant abandonne la sélection GPU comme il le fait sur le chemin complet. L'échec
+ * n'est annoncé qu'ici, une seule fois par envoi perdu.
  */
 export function dispatchWaitingSelection(rt: WebgpuPagesRuntime, selection: GpuSelection) {
   try {
     selection.dispatch(rt.run.selectionUniforms);
+    return true;
   } catch (error) {
     rt.diag.diagnosticFailure('gpu-selection-dispatch-failed', error);
+    return false;
   }
 }
