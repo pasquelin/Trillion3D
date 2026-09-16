@@ -120,21 +120,28 @@ impl Ngon {
     }
 
     /// Ce rang est-il une oreille ? Son coin ne doit pas rentrer dans le polygone, et aucun autre
-    /// sommet vivant ne doit tomber franchement dans son triangle. Un coin aligné passe : son
-    /// triangle est d'aire nulle, donc il n'ajoute aucune surface et la coupe avance toujours.
+    /// sommet vivant ne doit tomber dans son triangle, bord compris : un sommet posé sur la diagonale
+    /// y reste après la coupe, du mauvais côté du bord restant, et le triangle suivant part à
+    /// l'envers. Un coin aligné ou doublé passe : son triangle est d'aire nulle, donc il n'ajoute
+    /// aucune surface, ne contient rien, et la coupe avance toujours.
     fn is_ear(&self, rank: usize, turn: f64) -> bool {
         let [a, b, c] = self.ear(rank);
-        if turn * side(a, b, c) < 0.0 {
+        let area = turn * side(a, b, c);
+        if area < 0.0 {
             return false;
+        }
+        if area == 0.0 {
+            return true;
         }
         let (before, after) = self.neighbours(rank);
         let corners = [self.alive[before], self.alive[rank], self.alive[after]];
         !self.alive.iter().any(|other| {
             !corners.contains(other) && {
                 let point = self.flat[*other];
-                turn * side(a, b, point) > 0.0
-                    && turn * side(b, c, point) > 0.0
-                    && turn * side(c, a, point) > 0.0
+                ![a, b, c].contains(&point)
+                    && turn * side(a, b, point) >= 0.0
+                    && turn * side(b, c, point) >= 0.0
+                    && turn * side(c, a, point) >= 0.0
             }
         })
     }
