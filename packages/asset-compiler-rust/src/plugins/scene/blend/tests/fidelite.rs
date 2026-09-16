@@ -47,7 +47,15 @@ fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
     };
     let mut out = Out::new();
     let normals = normals::corners(&geometry);
-    let (mesh, _) = build::mesh_json(&geometry, &normals, &[None], "UV", &mut out);
+    let (mesh, _) = build::mesh_json(
+        &geometry,
+        &normals,
+        &[None],
+        "UV",
+        &mut out,
+        &std::sync::atomic::AtomicBool::new(false),
+    )
+    .expect("le maillage");
     let written: Vec<f32> = read(&out, &mesh["primitives"][0]["attributes"]["TEXCOORD_0"])
         .as_chunks::<4>()
         .0

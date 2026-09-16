@@ -37,12 +37,13 @@
 //! prise sur une autre image ou un autre canal que l'alpha de la couleur de base.
 use super::*;
 use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
+use crate::plugins::scene::cancel;
 use crate::{hash, CompilerError};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs,
-    sync::atomic::Ordering,
+    sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
 
