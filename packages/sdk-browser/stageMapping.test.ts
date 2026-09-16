@@ -77,3 +77,14 @@ test('l’éclairage direct garde ses valeurs même quand une autre étape est i
   );
   assert.deepEqual(timings, { gpuLightListsMs: 3, gpuShadowsMs: 2, gpuLightingMs: 4 });
 });
+
+test('les trois passes des transparents se somment sur leur étape, jamais sur geometry', () => {
+  const deposits = collect(
+    sample([
+      { name: 'WG transparents', gpuMs: 2 },
+      { name: 'WG transmission', gpuMs: 3 },
+      { name: 'WG transparent compaction', gpuMs: 1 },
+    ]),
+  );
+  assert.deepEqual(deposits, [['transparents', 6]]);
+});

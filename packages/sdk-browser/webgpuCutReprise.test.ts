@@ -24,7 +24,7 @@ const VIEWPORT: [number, number] = [512, 512];
  * résidence simulés. La page n'a pas encore ses octets ; `arrive()` les lui donne, comme le ferait
  * le décodage d'un transfert processeur.
  */
-function banc() {
+function banc(panne?: 'debordement' | 'envoi') {
   const hote = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
   hote.position.z = 5;
   hote.updateMatrixWorld(true);
@@ -45,7 +45,8 @@ function banc() {
     transparent: false,
     packedIndex: 0,
   } as unknown as PageRec & { array?: Uint32Array };
-  const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0 };
+  const comptes = { queue: 0, sync: 0, residence: 0, envois: 0, attentes: 0, disposes: 0 };
+  const codes: string[] = [];
   const residentFlags = new Uint32Array(1);
   // Ce que la sélection GPU croit de la résidence, et le relevé qu'elle en tire à chaque envoi.
   let vueResidence = 0;
@@ -66,8 +67,12 @@ function banc() {
       vueResidence = flags[0]!;
       return change;
     },
+    dispose() {
+      comptes.disposes++;
+    },
     dispatch() {
       comptes.envois++;
+      if (panne === 'envoi') throw new Error('ENVOI_PERDU');
       // La sélection calcule la complétude : une page voulue et résidente fait un relevé complet.
       releve = {
         uniforms,
@@ -103,7 +108,7 @@ function banc() {
   const rows = {
     // Déjà posée : `ensurePageTable` n'a pas d'appareil à solliciter sur ce banc.
     pageTableFloats: new Float32Array(4),
-    candidateOverflow: 0,
+    candidateOverflow: panne === 'debordement' ? 1 : 0,
     candidateCount: 1,
     residentFlags,
     residencyChanges: undefined,
@@ -121,13 +126,14 @@ function banc() {
       frame: 0,
       imageRevision: 1,
     },
-    gpu: { cache: {}, cutIncomplete: false },
+    gpu: { cache: {}, cutIncomplete: false, selectionFallback: false },
+    capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
       traceDiagnostic: () => {
         comptes.attentes++;
       },
-      engineDiagnostic: () => {},
-      diagnosticFailure: () => {},
+      engineDiagnostic: (code: string) => codes.push(code),
+      diagnosticFailure: (code: string) => codes.push(code),
     },
     context: {},
     layout: { rows, drawSlots: 4 },
@@ -153,6 +159,7 @@ function banc() {
   return {
     camera,
     comptes,
+    codes,
     shown,
     desired,
     rt,
@@ -196,4 +203,29 @@ test('la page arrivée, la coupe redevient complète sans que la caméra bouge',
     ['p0'],
     'et la page est dessinée',
   );
+});
+
+test('une attente qui déborde des identifiants de visibilité replie sur la coupe processeur', () => {
+  const b = banc('debordement');
+  for (let i = 0; i < 3; i++) b.image();
+  assert.ok(b.codes.includes('gpu-selection-capacity'), 'la capacité est annoncée');
+  assert.ok(b.codes.includes('gpu-selection-fallback'), 'le repli processeur est annoncé');
+  assert.equal(b.rt.run.gpuSelection, undefined, 'aucune sélection GPU n’est conservée');
+  assert.equal(b.comptes.envois, 0, 'aucun envoi depuis un relevé que la capacité interdit');
+  assert.equal(b.comptes.attentes, 0, 'et l’image n’attend pas un relevé qui ne viendra jamais');
+});
+
+test('une attente dont l’envoi échoue replie une fois, elle ne réessaie pas trois fois', () => {
+  const b = banc('envoi');
+  for (let i = 0; i < 3; i++) b.image();
+  assert.equal(
+    b.codes.filter((code) => code === 'gpu-selection-dispatch-failed').length,
+    1,
+    'un seul échec annoncé : le repli a eu lieu dès le premier',
+  );
+  assert.ok(b.codes.includes('gpu-selection-fallback'), 'le repli processeur est annoncé');
+  assert.equal(b.rt.run.gpuSelection, undefined, 'aucune sélection GPU n’est conservée');
+  assert.equal(b.comptes.envois, 1, 'un seul envoi tenté');
+  assert.equal(b.comptes.attentes, 0, 'aucune image n’a attendu');
+  assert.deepEqual(b.shown, [], 'rien n’est dessiné depuis une couverture incomplète');
 });
