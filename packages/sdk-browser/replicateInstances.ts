@@ -3,6 +3,7 @@ import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../sdk-core/index.ts
 import type { MultiplyLot } from './mathBatchRuntime.ts';
 import { ENGINE_OWNED } from './hostSceneWatch.ts';
 import { hostWorldBounds } from './hostWorldBounds.ts';
+import { meshes as objects } from './sceneMeshes.ts';
 import { resolveHostSubtree } from './hostWorldMatrices.ts';
 import { copyElements } from './matrixElements.ts';
 
@@ -35,10 +36,7 @@ export function replicateInstances(
     sizeZ = empty ? 0 : bounds[5] - bounds[2];
   const [columns, rows] = count === 12 ? [4, 3] : [Math.sqrt(count), Math.sqrt(count)],
     group = new THREE.Group(),
-    meshes: THREE.Mesh[] = [];
-  source.traverse((object) => {
-    if ((object as THREE.Mesh).isMesh) meshes.push(object as THREE.Mesh);
-  });
+    meshes = objects(source);
   // Les produits partent EN LOT par le gouverneur quand le tampon porte exactement une copie par
   // place. Sinon chaque produit se fait sur place, par le même `multiplyMatrix4` et sur les mêmes
   // entrées : les mêmes bits.
