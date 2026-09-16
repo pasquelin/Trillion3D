@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { depthLayerBias } from '../sdk-core/index.ts';
-import { BASE_SLOTS, BIN_BACK, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from './gpuDraw.ts';
+import { BASE_SLOTS, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from './gpuDraw.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import type { PageRec } from './pageSelection.ts';
@@ -56,7 +56,11 @@ test('la couche coplanaire d’une ligne va dans son mot de fiche, plafonnée, e
     2,
     'une couche plus profonde que la scène n’a de slots se pince à la dernière',
   );
-  assert.equal(layout.drawItemWords[4], 1, 'les triangles de la ligne sortent de sa ligne de table');
+  assert.equal(
+    layout.drawItemWords[4],
+    1,
+    'les triangles de la ligne sortent de sa ligne de table',
+  );
   assert.equal(layout.drawItemWords[DRAW_ITEM_U32 + 4], 3);
   assert.equal(hold.total, 4, 'le total des triangles dessinables suit les deux lignes');
 });

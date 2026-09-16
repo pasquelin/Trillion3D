@@ -43,9 +43,7 @@ export interface PartitionAudit {
  * les entrées d'où elle les a tirés. `null` quand aucune partition ne tourne ou qu'aucune image ne
  * l'a encore encodée.
  */
-export async function readPartitionAudit(
-  rt: WebgpuPagesRuntime,
-): Promise<PartitionAudit | null> {
+export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<PartitionAudit | null> {
   const partition = rt.vis.gpuPartition,
     device = rt.setup.gpuDevice,
     frame = partition?.lastFrame;

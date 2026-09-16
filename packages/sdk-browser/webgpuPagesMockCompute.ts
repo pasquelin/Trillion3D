@@ -79,7 +79,9 @@ export function simulateComputeDispatch(
     const maskBytes = byBinding.get(6)?.data;
     const mask = maskBytes ? new Uint32Array(maskBytes.buffer) : undefined;
     const filtered =
-      uni[4] && mask ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0) : source;
+      uni[4] && mask
+        ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0)
+        : source;
     const result = evaluateDrawCompact(
       count > slotCap ? source : filtered,
       maxVertexCount,
