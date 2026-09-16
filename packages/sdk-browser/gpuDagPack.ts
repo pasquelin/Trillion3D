@@ -10,6 +10,7 @@ import {
   type PackedDag,
 } from './gpuDagTypes.ts';
 import { flatHierarchy, hierarchyDepth } from './gpuDagHierarchy.ts';
+import { residentWords } from './gpuDagLayout.ts';
 
 function writeSphere(
   target: Float32Array,
@@ -41,7 +42,11 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     clusterInts = new Uint32Array(clusters.buffer);
   const nodes = new Float32Array(Math.max(1, nodeCount) * DAG_NODE_FLOATS),
     nodeInts = new Uint32Array(nodes.buffer);
-  const pageCones = new Float32Array(Math.max(1, clusterCount) * PAGE_CONE_FLOATS);
+  // Les bits de résidence prolongent les enregistrements froids : un mot pour trente-deux grappes,
+  // écrit par delta plutôt qu'un flottant par grappe réécrit page par page.
+  const pageCones = new Float32Array(
+    Math.max(1, clusterCount) * PAGE_CONE_FLOATS + residentWords(Math.max(1, clusterCount)),
+  );
   const worldSlots = Math.max(1, roots.length);
   const worlds = new Float32Array(worldSlots * 16),
     worldStretch = new Float32Array(worldSlots),
@@ -122,7 +127,6 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       pageCones[base + 8] = hasBox ? rec.max![0] : 0;
       pageCones[base + 9] = hasBox ? rec.max![1] : 0;
       pageCones[base + 10] = hasBox ? rec.max![2] : 0;
-      pageCones[base + 11] = 0;
       cluster++;
     }
   }
