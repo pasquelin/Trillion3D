@@ -8,23 +8,20 @@ const browser = new URL('../packages/sdk-browser/', import.meta.url);
 //
 // Les nombres du moteur sont calculés par le socle de `sdk-core`, jamais par la bibliothèque 3D de
 // l'hôte : mêmes formules, même ordre d'opérations flottantes, tampons plats, aucune allocation par
-// image. Ce que l'hôte POSSÈDE reste à lui — sa scène, sa caméra, ses matériaux — et le moteur a le
-// droit de lui demander de mettre son graphe à jour, puis de LIRE `matrixWorld`.
-//
-// Ce qu'il n'a plus le droit de faire, c'est de CALCULER par elle : recomposer une matrice monde,
-// transformer une boîte, extraire une position, inverser, décomposer. Chaque ligne qui en garde une
-// est nommée ici avec sa raison. Y ajouter une ligne est une décision, pas un oubli.
-//
-// Depuis le lot de hiérarchie, le moteur ne LIT plus non plus les matrices monde qu'elle compose :
-// il calcule les siennes depuis les poses locales de l'hôte (`hostWorldChain.ts` pour une chaîne
-// d'ancêtres, `hostWorldTree.ts` pour un sous-arbre). La seule mise à jour qui subsiste sert la
-// scène de l'hôte, pas un nombre du moteur.
+// image. Ce que l'hôte POSSÈDE reste à lui — sa scène, sa caméra, ses matériaux —, et le moteur n'a
+// plus le droit de CALCULER par elle : recomposer une matrice monde, transformer une boîte, extraire
+// une position, inverser, décomposer. Il ne LIT plus non plus les matrices monde qu'elle compose :
+// les siennes viennent des poses locales (`hostWorldChain.ts` pour une chaîne, `hostWorldTree.ts`
+// pour un sous-arbre, `hostWorldPlacements.ts` pour celles que les pages portent), et la seule mise
+// à jour qui subsiste sert la scène de l'hôte. Chaque ligne qui garde un calcul est nommée ici avec
+// sa raison : y ajouter une ligne est une décision, pas un oubli.
 
 /** Les fichiers du lot : chargement d'une scène, explorateur, et leurs contrats. */
 const M4A = [
   'awaitBackendPages',
   'backendCommon',
   'backendTypes',
+  'exactPagesBounds',
   'explorerBackends',
   'explorerCamera',
   'explorerCameraApi',
@@ -46,6 +43,7 @@ const M4A = [
   'hostWorldBounds',
   'hostWorldChain',
   'hostWorldMatrices',
+  'hostWorldPlacements',
   'hostWorldTree',
   'pageSelectionCollect',
   'pageSelectionHelpers',
@@ -82,6 +80,9 @@ const CALCULS = [
 
 /** Fichier → ligne exacte → pourquoi cette ligne est une frontière de l'hôte et non un calcul. */
 const FRONTIERE = {
+  'hostWorldPlacements.ts': {
+    'matrix = new THREE.Matrix4();': 'le contenant qu’une page porte, rempli par le socle',
+  },
   'hostWorldMatrices.ts': {
     'node.updateMatrixWorld(true);':
       'la scène est à l’hôte : elle reste à jour POUR LUI, et le moteur n’en lit plus rien',
@@ -147,13 +148,14 @@ test('chaque fichier du lot M4a existe encore sous son nom', async () => {
     );
 });
 
-// LA MATRICE QUE L'HÔTE ÉCRIT EST RECOPIÉE, JAMAIS CALCULÉE.
+// LA MATRICE D'UNE PAGE EST RECOPIÉE, JAMAIS CALCULÉE.
 //
-// `RenderBackend.addInstance/updateInstance`, `PageRec.matrix` et `ClusterRoot.world` restent des
-// objets de la bibliothèque hôte : c'est l'hôte qui les écrit, et les aplatir l'obligerait à changer
-// ce qu'il tend. Ce que le moteur en fait est fermé : il lit les seize flottants de `.elements` et
-// les donne au socle. Aucune multiplication, inversion, décomposition ni recopie par la bibliothèque
-// hôte ne survit hors des témoins et des lignes nommées ici, qui ÉCRIVENT une pose de l'hôte.
+// `PageRec.matrix` et `ClusterRoot.world` sont des matrices de la bibliothèque hôte remplies par le
+// MOTEUR (`hostWorldPlacements.ts`) ; `RenderBackend.addInstance/updateInstance` en reçoit de
+// l'hôte. Les aplatir obligerait l'hôte à changer ce qu'il tend. Ce que le moteur en fait est fermé :
+// il lit les seize flottants de `.elements` et les donne au socle. Aucune multiplication, inversion,
+// décomposition ni recopie par la bibliothèque hôte ne survit hors des témoins et des lignes nommées
+// ici, qui ÉCRIVENT une pose de l'hôte.
 const CALCULE_UNE_MATRICE =
   /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/;
 

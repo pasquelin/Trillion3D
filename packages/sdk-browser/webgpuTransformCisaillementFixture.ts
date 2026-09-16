@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BOX_VALUES, boxTransform } from '../sdk-core/index.ts';
 import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
+import { hostWorldPlacements, type HostWorldPlacements } from './hostWorldPlacements.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
@@ -29,29 +30,35 @@ export function proche(
     );
 }
 
+/** La scène de l'hôte ET l'index de matrices monde du moteur, celui que le déplacement recalcule. */
 export function scene(nom = 'cible') {
   const source = new THREE.Object3D(),
     mesh = new THREE.Mesh();
   mesh.name = nom;
   source.add(mesh);
-  source.updateMatrixWorld(true);
-  return { source, mesh };
+  return { source, mesh, worlds: hostWorldPlacements(source) };
 }
 
-/** Une racine de sélection minimale : ce que la transformation reprojette et ce qu'elle envoie. */
-export function racine(mesh: THREE.Object3D, local: number[]) {
+/** Une racine de sélection minimale : ce que la transformation reprojette et ce qu'elle envoie. La
+ *  matrice qu'elle porte est celle du moteur, comme toute racine collectée. */
+export function racine(mesh: THREE.Object3D, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
-    worldBox = new Float64Array(BOX_VALUES);
-  boxTransform(worldBox, 0, localBox, 0, mesh.matrixWorld.elements);
+    worldBox = new Float64Array(BOX_VALUES),
+    world = worlds.of(mesh);
+  boxTransform(worldBox, 0, localBox, 0, world.elements);
   return {
-    world: mesh.matrixWorld,
+    world,
     pages: [{ sourceMesh: mesh } as unknown as PageRec],
     worldBox,
     localBox,
   } as ClusterRoot<PageRec>;
 }
 
-export function runtime(source: THREE.Object3D, roots: Array<ClusterRoot<PageRec>> = []) {
+export function runtime(
+  source: THREE.Object3D,
+  roots: Array<ClusterRoot<PageRec>> = [],
+  worlds: HostWorldPlacements = hostWorldPlacements(source),
+) {
   const mouvements: Array<{ min: number[]; max: number[] }> = [],
     layout = { selectionRoots: roots, rows: { tableEpoch: 0 } },
     // L'état d'image du moteur, tel que le runtime le porte : `setWebgpuTransform` y incrémente la
@@ -60,7 +67,7 @@ export function runtime(source: THREE.Object3D, roots: Array<ClusterRoot<PageRec
   run.noOccluderHistory = false;
   run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState;
   const rt = {
-    setup: { source },
+    setup: { source, worlds },
     layout,
     run,
     lights: {
@@ -70,5 +77,5 @@ export function runtime(source: THREE.Object3D, roots: Array<ClusterRoot<PageRec
       },
     },
   } as unknown as WebgpuPagesRuntime;
-  return { rt, layout, run, mouvements };
+  return { rt, layout, run, mouvements, worlds };
 }
