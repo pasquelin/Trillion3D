@@ -19,7 +19,6 @@ import {
   DEPTH_COMPARE,
   DEPTH_NEAR,
   depthDistance,
-  depthFromDistance,
   depthNearer,
 } from './depthConvention.ts';
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from './hizCorners.ts';
@@ -71,7 +70,7 @@ test('la profondeur du moteur est inversée : le plan proche vaut 1, le lointain
   assert.equal(DEPTH_CLEAR, 0);
   assert.equal(depthNearer(DEPTH_NEAR, DEPTH_CLEAR), true);
   assert.equal(depthNearer(DEPTH_CLEAR, DEPTH_NEAR), false);
-  assert.equal(depthFromDistance(NEAR, NEAR), 1);
+  assert.equal(depthDistance(NEAR, NEAR), 1);
   assert.equal(depthDistance(1, NEAR), NEAR);
   assert.equal(depthDistance(DEPTH_CLEAR, NEAR), Infinity);
 });
@@ -92,7 +91,7 @@ test('profondeur → distance et distance → profondeur sont réciproques sur l
   assert.ok(p!.z > 0 && p!.z < 1, `profondeur ${p!.z} hors de la plage du moteur`);
   const distance = depthDistance(p!.z, NEAR);
   assert.ok(
-    Math.abs(depthFromDistance(distance, NEAR) - p!.z) < 1e-12,
+    Math.abs(depthDistance(distance, NEAR) - p!.z) < 1e-12,
     'la conversion aller-retour doit rendre la même profondeur',
   );
 });

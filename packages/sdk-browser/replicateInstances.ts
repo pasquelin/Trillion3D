@@ -4,7 +4,7 @@ import type { MultiplyLot } from './mathBatchRuntime.ts';
 import { ENGINE_OWNED } from './hostSceneWatch.ts';
 import { hostWorldBounds } from './hostWorldBounds.ts';
 import { resolveHostSubtree } from './hostWorldMatrices.ts';
-import { copyElements, writeElements } from './matrixElements.ts';
+import { copyElements } from './matrixElements.ts';
 
 /**
  * Les trois tampons possédés de la réplication : la pose du groupe, la pose posée d'une copie et
@@ -57,7 +57,7 @@ export function replicateInstances(
         copyElements(placed, mesh.matrixWorld.elements);
         placed[12] += (x - (columns - 1) / 2) * sizeX;
         placed[14] += (z - (rows - 1) / 2) * sizeZ;
-        writeElements(copy.matrix.elements, placed);
+        copyElements(copy.matrix.elements, placed);
         // Le groupe et ses copies appartiennent au moteur : la matrice monde d'une copie est le
         // produit de celle du groupe par sa matrice posée, celui-là même que la référence calculait
         // en remontant le groupe entier. Le socle l'écrit, terme à terme, sans seconde passe.
@@ -67,7 +67,7 @@ export function replicateInstances(
           enLot.b.set(placed, at);
           copies.push(copy);
         } else
-          writeElements(copy.matrixWorld.elements, multiplyMatrix4(product, groupWorld, placed));
+          copyElements(copy.matrixWorld.elements, multiplyMatrix4(product, groupWorld, placed));
         const association = associations.get(mesh);
         if (association) associations.set(copy, association);
         group.add(copy);
