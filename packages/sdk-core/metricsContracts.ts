@@ -38,7 +38,10 @@ export interface FrameMetrics extends ShadowFrameMetrics, OcclusionFrameMetrics 
   cpuSubmitMs: number | null;
   gpuMs: number | null;
   drawCalls: number;
-  triangles: number;
+  /** Triangles soumis au dessin de cette image, tels que `totalSubmittedTriangles` les compte, ou
+   *  tels que le renderer de l'hôte les a dessinés quand c'est lui qui dessine. `null` quand ni
+   *  l'un ni l'autre n'a compté : un zéro se lirait comme une image vide. */
+  triangles: number | null;
   clusters: number | null;
   selectedTriangles: number | null;
   residentPages: number | null;
