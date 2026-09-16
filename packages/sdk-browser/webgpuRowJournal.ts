@@ -1,3 +1,5 @@
+import { sortPages } from '../sdk-core/index.ts';
+
 /**
  * Les deux listes qui pilotent la table de lignes.
  *
@@ -8,19 +10,30 @@
  * des 124 000 pages qui coûtait le pic de l'image.
  *
  * `residencyChanges` est ce que la passe a effectivement changé : les pages dont le DRAPEAU de
- * résidence a basculé, dans l'ordre croissant. La sélection GPU n'écrit que leurs plages tant que
- * `sorted` tient ; un index qui revient en arrière la renvoie à toutes les pages.
+ * résidence a basculé. La sélection GPU n'écrit que leurs plages tant que `sorted` tient, et la
+ * liste est RANGÉE à la fin de la passe plutôt que remplie dans l'ordre : une page qui part et une
+ * page qui arrive ne se nomment pas dans le même ordre, et exiger que les index montent renvoyait
+ * la sélection au parcours des 124 000 pages dès qu'une passe mêlait les deux. Le marquage par page
+ * interdit le doublon, donc la liste ne peut pas non plus déborder.
  */
 export function createWebgpuRowJournal(pageCount: number) {
-  const residencyChanges = { pages: new Int32Array(pageCount), count: 0, sorted: true };
+  const changedMarks = new Uint8Array(Math.max(1, pageCount));
+  const residencyChanges = {
+    pages: new Int32Array(Math.max(1, pageCount)),
+    count: 0,
+    sorted: true,
+  };
   const noteResidencyChange = (page: number) => {
-    if (residencyChanges.count && residencyChanges.pages[residencyChanges.count - 1] >= page)
-      residencyChanges.sorted = false;
-    if (residencyChanges.count < residencyChanges.pages.length)
-      residencyChanges.pages[residencyChanges.count++] = page;
-    else residencyChanges.sorted = false;
+    if (changedMarks[page]) return;
+    changedMarks[page] = 1;
+    residencyChanges.pages[residencyChanges.count++] = page;
+  };
+  /** Range le journal : la sélection GPU lit des plages, donc des index qui montent. */
+  const sortResidencyChanges = () => {
+    sortPages(residencyChanges.pages, residencyChanges.count);
   };
   const clearResidencyChanges = () => {
+    for (let i = 0; i < residencyChanges.count; i++) changedMarks[residencyChanges.pages[i]] = 0;
     residencyChanges.count = 0;
     residencyChanges.sorted = true;
   };
@@ -38,6 +51,7 @@ export function createWebgpuRowJournal(pageCount: number) {
   return {
     residencyChanges,
     noteResidencyChange,
+    sortResidencyChanges,
     clearResidencyChanges,
     touched,
     touchPage,
