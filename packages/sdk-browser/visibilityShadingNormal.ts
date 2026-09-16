@@ -75,14 +75,27 @@ export function shadingNormal(
       scaleVector3(n, side);
     }
   if (vertexNormals) {
-    copyScaledVector3(frameN, vertexNormals[0], bary.w0);
-    addScaledVector3(frameN, vertexNormals[1], bary.w1);
-    addScaledVector3(frameN, vertexNormals[2], bary.w2);
-    normalizeVector3(frameN);
-    if (mat.doubleSided) scaleVector3(frameN, face);
-    Nx = frameN[0];
-    Ny = frameN[1];
-    Nz = frameN[2];
+    // Interpolation, normalisation et côté tenus en scalaires : mêmes opérations dans le même
+    // ordre que `copyScaledVector3`, `addScaledVector3`, `normalizeVector3` et `scaleVector3`,
+    // sans les aller-retours par un tampon dont la valeur n'est jamais relue.
+    const v0 = vertexNormals[0],
+      v1 = vertexNormals[1],
+      v2 = vertexNormals[2];
+    const w0 = bary.w0,
+      w1 = bary.w1,
+      w2 = bary.w2;
+    Nx = v0[0] * w0 + v1[0] * w1 + v2[0] * w2;
+    Ny = v0[1] * w0 + v1[1] * w1 + v2[1] * w2;
+    Nz = v0[2] * w0 + v1[2] * w1 + v2[2] * w2;
+    const inverse = 1 / (Math.sqrt(Nx * Nx + Ny * Ny + Nz * Nz) || 1);
+    Nx *= inverse;
+    Ny *= inverse;
+    Nz *= inverse;
+    if (mat.doubleSided) {
+      Nx *= face;
+      Ny *= face;
+      Nz *= face;
+    }
   } else {
     const length = Math.hypot(Nx, Ny, Nz) || 1;
     Nx *= screenFace / length;
@@ -91,11 +104,11 @@ export function shadingNormal(
   }
   if (mat.normalMap) {
     const nrm = sampleLinear(mat.normalMap, uv[0], uv[1]);
-    const mapN = [
-      (nrm[0] * 2 - 1) * mat.normalScale,
-      (nrm[1] * 2 - 1) * mat.normalScaleY,
-      nrm[2] * 2 - 1,
-    ];
+    // Les trois composantes de la carte en scalaires : un tableau ici, c'est une allocation par
+    // pixel ombré d'une surface qui porte une carte de normales.
+    const mapX = (nrm[0] * 2 - 1) * mat.normalScale,
+      mapY = (nrm[1] * 2 - 1) * mat.normalScaleY,
+      mapZ = nrm[2] * 2 - 1;
     const T = frameT,
       B = frameB;
     if (tangentAttr && vertexNormals) {
@@ -131,7 +144,7 @@ export function shadingNormal(
         dv1 = uvb[1] - uva[1],
         du2 = uvc[0] - uva[0],
         dv2 = uvc[1] - uva[1];
-      // `q1` occupe `frameN`, comme le repère de l'hôte : sa valeur d'avant est déjà recopiée.
+      // `q1` occupe `frameN`, comme le repère de l'hôte ; c'est sa seule écriture de la passe.
       frameN[0] = cy * Nz - cz * Ny;
       frameN[1] = cz * Nx - cx * Nz;
       frameN[2] = cx * Ny - cy * Nx;
@@ -150,16 +163,20 @@ export function shadingNormal(
       scaleVector3(T, face);
       scaleVector3(B, face);
     }
-    scaleVector3(T, mapN[0]);
-    addScaledVector3(T, B, mapN[1]);
-    frameN[0] = Nx;
-    frameN[1] = Ny;
-    frameN[2] = Nz;
-    addScaledVector3(T, frameN, mapN[2]);
-    normalizeVector3(T);
-    Nx = T[0];
-    Ny = T[1];
-    Nz = T[2];
+    // La normale géométrique est déjà en scalaires : la recopier dans un tampon pour l'ajouter ne
+    // servait qu'à passer par `addScaledVector3`.
+    scaleVector3(T, mapX);
+    addScaledVector3(T, B, mapY);
+    let tx = T[0] + Nx * mapZ,
+      ty = T[1] + Ny * mapZ,
+      tz = T[2] + Nz * mapZ;
+    const inverse = 1 / (Math.sqrt(tx * tx + ty * ty + tz * tz) || 1);
+    tx *= inverse;
+    ty *= inverse;
+    tz *= inverse;
+    Nx = tx;
+    Ny = ty;
+    Nz = tz;
   }
   frameOut[0] = Nx;
   frameOut[1] = Ny;
