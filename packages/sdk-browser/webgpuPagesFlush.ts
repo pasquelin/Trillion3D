@@ -126,7 +126,9 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   // its layer lands is shaded from layer 0, so the image of one camera keeps changing while the
   // queue drains. `render` still admits at most `textureBudget` bytes per frame; the explicit
   // barrier drains the rest here, outside the measured loop, so a flushed pose is settled.
-  while (gpuDevice && vis.textureJobs.length) await rt.texturePump.pump();
+  // Le budget d'octets engagés est levé ici : une capture de référence doit converger, et une file
+  // que le budget refuse ne se viderait jamais. En boucle d'images libre, il s'applique.
+  while (gpuDevice && vis.textureJobs.length) await rt.texturePump.pump(true);
   await rt.texturePump.pending;
   await services.bootstrapState.ensure();
   await services.residency.pending;

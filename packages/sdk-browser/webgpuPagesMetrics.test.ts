@@ -44,6 +44,8 @@ test('textureInFlight, textureSlicesUploaded et textureBytesLastFrame reflètent
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
     lights: createWebgpuLightState(),
+    textureLedger: { committed: 0, budget: 0, evictions: 0 },
+    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
     texturePump: { uploaded: 5, skipped: 1, inFlight: 2, slices: 7, bytesLastPass: 123 },
   } as unknown as WebgpuPagesRuntime;
 
@@ -67,6 +69,8 @@ test('textureLevelsUploaded reflète la pompe ; les métriques d’atlas sont nu
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
     lights: createWebgpuLightState(),
+    textureLedger: { committed: 0, budget: 0, evictions: 0 },
+    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
     texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0, levels: 3 },
   } as unknown as WebgpuPagesRuntime;
   const metrics = metricsOf(rt);
@@ -98,6 +102,8 @@ test('les métriques d’atlas reflètent les octets et classes calculés une fo
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
     lights: createWebgpuLightState(),
+    textureLedger: { committed: 0, budget: 0, evictions: 0 },
+    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
     texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0, levels: 0 },
   } as unknown as WebgpuPagesRuntime;
   const metrics = metricsOf(rt);

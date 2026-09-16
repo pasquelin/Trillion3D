@@ -46,7 +46,26 @@ function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
     stages = timing.stages;
   if (!stages) return;
-  stages.frameCpu((add) => addCpuSteps(CPU.stages, timing.cpuProfile.row, add));
+  stages.frameCpu((add) => {
+    addCpuSteps(CPU.stages, timing.cpuProfile.row, add);
+    // L'ordre des textures est calculé dans la pompe, hors de la ligne des bornes processeur : il se
+    // dépose ici, et seulement tant que la file porte du travail. Une file vide n'a pas coûté zéro,
+    // elle n'a rien fait du tout — l'étape reste « non mesuré ».
+    if (rt.vis.textureJobs.length) add('textures', rt.texturePriority.lastMs);
+  });
+  const demand = rt.texturePriority.counters;
+  stages.setCounts('textures', {
+    couchesAuNiveauVoulu: demand.atWanted,
+    couchesVisibles: demand.visible,
+    niveauxManquants: Math.round(demand.missingAverage * 100),
+    octetsEngages: rt.textureLedger.committed,
+    evictions: rt.textureLedger.evictions,
+  });
+  if (!rt.vis.textureJobs.length)
+    stages.setReason('textures', {
+      cpu: 'file vide : aucun ordre à calculer',
+      gpu: 'les transferts passent par la file de la carte, sans passe horodatée',
+    });
   // Ce que la passe d'ombres a réellement redessiné : des compteurs, jamais des durées. Les six
   // compteurs d'avant sont gardés tels quels — le Lab les lit — et les pages s'y ajoutent :
   // `pagesInvalidees` est ce qui est entré en file à cette image, `pagesRedessinees` ce que les
