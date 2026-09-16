@@ -33,15 +33,10 @@ function versPage(nom, packed, uniforms) {
 
 /** Exécuté dans la page : un pipeline, tous les cas, la sortie `Output` relue pour chacun. */
 async function executer({ shader, cas, workgroup }) {
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) return { indisponible: 'aucun adaptateur WebGPU' };
-  const device = await adapter.requestDevice();
-  const erreurs = [];
-  device.addEventListener('uncapturederror', (event) => erreurs.push(event.error.message));
-  const module = device.createShaderModule({ code: shader });
-  const compilation = (await module.getCompilationInfo()).messages
-    .filter((message) => message.type === 'error')
-    .map((message) => message.message);
+  const appareil = await globalThis.ouvrirAppareil();
+  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  const { device, erreurs } = appareil;
+  const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
   const lu = 'read-only-storage',
     ecrit = 'storage';
@@ -115,10 +110,8 @@ async function executer({ shader, cas, workgroup }) {
     });
     for (const buffer of [...buffers, lecture]) buffer.destroy();
   }
-  await device.queue.onSubmittedWorkDone();
-  const info = adapter.info;
-  device.destroy();
-  return { adaptateur: `${info.vendor} ${info.architecture}`, resultats, erreurs };
+  const info = await appareil.fermer();
+  return { adaptateur: info.court, resultats, erreurs };
 }
 
 /**
