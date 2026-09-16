@@ -33,6 +33,23 @@ ordre source conservé. Cette primitive n'a donc aucun cluster, donc aucune band
 `assertCacheIdentity` l'accepte à ce titre depuis le lot de l'eau ; une primitive `shared-blend` qui
 porterait quand même des pages reste refusée.
 
+## `emetteur-sphere` — l'exclusion sphérique de l'émetteur
+
+| maillage | matériau | rôle |
+|---|---|---|
+| `sol` | `sol`, opaque | reçoit l'ombre |
+| `occultant-diagonale` | `occultant`, opaque | à 0,3121 m du centre de la lampe (0,19 ; 0,18 ; 0,17 relatif) — hors de la sphère de rayon 0,20 m |
+| `occultant-proche` | `occultant`, opaque | à 0,15 m du centre de la lampe — dans la sphère |
+
+26 triangles, une lampe ponctuelle (`lampe`, `KHR_lights_punctual`, portée 3 m). Aucun format source
+ne porte `emitterRadius` (`docs/SDK.md`) : le glTF ne le déclare donc pas — le compilateur l'ignorerait
+de toute façon. Le champ est ajouté après coup dans le `lights.json` du cache compilé, à la main,
+`"emitterRadius": 0.2` sur la lampe — un artefact de cache est une donnée, pas le compilateur, et
+`loadImportedLights` (`packages/sdk-browser/importedLights.ts`) le valide par le même contrat que les
+lampes de l'hôte. Reproduction de l'audit VERIFICATION_STABILISATION_5896648_2026-09-16 (défaut 4) :
+`occultant-diagonale` est hors de la sphère mais tombait dans le cube que l'ancien plan proche
+excluait ; `occultant-proche` tombe dans les deux, avant comme après.
+
 ## Compiler et mesurer
 
 Depuis la racine du dépôt :
