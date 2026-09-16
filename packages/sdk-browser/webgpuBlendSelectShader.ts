@@ -19,7 +19,6 @@ export const BLEND_SELECT_SHADER = `struct Uni{planes:array<vec4f,6>,itemCount:u
 @group(0) @binding(2) var<storage,read> draws:array<vec4u>;
 @group(0) @binding(3) var<storage,read> counts:array<u32>;
 @group(0) @binding(4) var<storage,read_write> args:array<u32>;
-@group(0) @binding(5) var<storage,read_write> stats:array<atomic<u32>>;
 @compute @workgroup_size(64)
 fn selectBlendItems(@builtin(global_invocation_id) gid:vec3u){
  let item=gid.x;
@@ -41,7 +40,7 @@ fn selectBlendItems(@builtin(global_invocation_id) gid:vec3u){
  let d=draws[item];
  // Un item pagine tire son compte d'instances de la compaction ; un item non pagine en dessine une.
  var instances=select(1u,counts[d.x*4u+1u],d.x!=0xffffffffu);
- if(rejected){instances=0u;atomicAdd(&stats[0],1u);}
+ if(rejected){instances=0u;}
  let o=item*4u;
  args[o]=d.y;
  args[o+1u]=instances;
