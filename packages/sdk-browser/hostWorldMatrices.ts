@@ -1,38 +1,58 @@
 import type * as THREE from 'three';
-import { EngineError } from '../sdk-core/index.ts';
+import {
+  EngineError,
+  POSITION_VALUES,
+  QUATERNION_VALUES,
+  composeMatrix4,
+} from '../sdk-core/index.ts';
+import { copyElements } from './matrixElements.ts';
 
 /**
- * La frontière de résolution du graphe hôte.
+ * La frontière de lecture du graphe hôte.
  *
- * La scène appartient à l'hôte : c'est lui qui écrit les poses locales de ses nœuds, et c'est sa
- * bibliothèque qui les compose. Le moteur ne recompose aucune matrice monde — il demande ici, une
- * fois par passe, que le graphe soit à jour, puis ne lit plus que `node.matrixWorld`.
+ * La scène appartient à l'hôte : c'est lui qui écrit les POSES LOCALES de ses nœuds. Ce qu'il en
+ * compose ne regarde plus le moteur — les matrices monde dont le moteur a besoin sont les SIENNES,
+ * calculées par le socle depuis ces poses locales : `hostWorldChain.ts` pour la chaîne d'ancêtres
+ * d'un nœud, `hostWorldTree.ts` pour un sous-arbre entier.
  *
- * Ces deux fonctions sont les seules du paquet à appeler une mise à jour de matrice de l'hôte au
- * chargement ; tout le reste des calculs passe par le socle de `sdk-core`. Le test de structure
- * `test/engineNoThreeMath.test.mjs` le tient.
+ * Il ne reste donc ici que deux gestes : LIRE la pose locale d'un nœud, et refuser une pose non
+ * finie. Le seul appel de composition qui subsiste tient la scène de l'HÔTE à jour pour ses propres
+ * lecteurs et pour les `matrixWorld` vivantes qu'il prête encore (`pageSelectionCollect.ts`) ; aucun
+ * nombre du moteur n'en sort. Le test `test/engineNoThreeMath.test.mjs` tient cette frontière.
  */
 
-/** Le sous-arbre entier de `node` : ce qu'on demande avant de parcourir une scène pour la lire. */
+/** Le sous-arbre entier de `node` remis à jour DANS LA SCÈNE DE L'HÔTE, pour ses propres lecteurs. */
 export function resolveHostSubtree(node: THREE.Object3D) {
   node.updateMatrixWorld(true);
 }
 
-/** La seule chaîne des ancêtres de `node`, ses enfants laissés en l'état : sa matrice monde à lui. */
-export function resolveHostNode(node: THREE.Object3D) {
-  node.updateWorldMatrix(true, false);
-}
+const position = new Float64Array(POSITION_VALUES),
+  rotation = new Float64Array(QUATERNION_VALUES),
+  scale = new Float64Array(POSITION_VALUES);
 
 /**
- * La translation de la matrice monde de `node`, écrite à plat en `out[o..o+2]`. C'est ce que rendait
- * `getWorldPosition` : les trois dernières entrées de la colonne de translation, rien de plus. Le
- * nœud doit avoir été résolu.
+ * La matrice LOCALE de `node`, écrite dans `out`. C'est `updateMatrix` de la référence : un nœud qui
+ * recompose rend le produit translation-rotation-échelle de sa pose, composé par le socle et aux
+ * mêmes bits ; un nœud dont l'hôte a coupé la recomposition rend la matrice qu'il a posée, telle
+ * quelle. Rien de la bibliothèque hôte n'est appelé — les dix nombres de la pose sont LUS.
  */
-export function hostWorldPositionInto(out: Float64Array, o: number, node: THREE.Object3D) {
-  const elements = node.matrixWorld.elements;
-  out[o] = elements[12];
-  out[o + 1] = elements[13];
-  out[o + 2] = elements[14];
+export function hostLocalInto(out: Float64Array, node: THREE.Object3D) {
+  if (!node.matrixAutoUpdate) {
+    copyElements(out, node.matrix.elements);
+    return out;
+  }
+  const { position: p, quaternion: q, scale: s } = node;
+  position[0] = p.x;
+  position[1] = p.y;
+  position[2] = p.z;
+  rotation[0] = q.x;
+  rotation[1] = q.y;
+  rotation[2] = q.z;
+  rotation[3] = q.w;
+  scale[0] = s.x;
+  scale[1] = s.y;
+  scale[2] = s.z;
+  return composeMatrix4(out, position, rotation, scale);
 }
 
 /**
