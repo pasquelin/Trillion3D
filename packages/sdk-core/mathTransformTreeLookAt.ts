@@ -38,15 +38,22 @@ function lookAtRows(
   let zx = viewer ? wx - x : x - wx,
     zy = viewer ? wy - y : y - wy,
     zz = viewer ? wz - z : z - wz;
-  if (zx * zx + zy * zy + zz * zz === 0) zz = 1;
-  let inverse = 1 / (Math.sqrt(zx * zx + zy * zy + zz * zz) || 1);
+  // Le carré de la norme est gardé : la référence le calcule deux fois de suite (`lengthSq` puis
+  // `normalize`), et il ne change que dans la branche dégénérée, qui le recalcule.
+  let carre = zx * zx + zy * zy + zz * zz;
+  if (carre === 0) {
+    zz = 1;
+    carre = zx * zx + zy * zy + zz * zz;
+  }
+  let inverse = 1 / (Math.sqrt(carre) || 1);
   zx *= inverse;
   zy *= inverse;
   zz *= inverse;
   let xx = uy * zz - uz * zy,
     xy = uz * zx - ux * zz,
     xz = ux * zy - uy * zx;
-  if (xx * xx + xy * xy + xz * xz === 0) {
+  carre = xx * xx + xy * xy + xz * xz;
+  if (carre === 0) {
     if (Math.abs(uz) === 1) zx += 0.0001;
     else zz += 0.0001;
     inverse = 1 / (Math.sqrt(zx * zx + zy * zy + zz * zz) || 1);
@@ -56,8 +63,9 @@ function lookAtRows(
     xx = uy * zz - uz * zy;
     xy = uz * zx - ux * zz;
     xz = ux * zy - uy * zx;
+    carre = xx * xx + xy * xy + xz * xz;
   }
-  inverse = 1 / (Math.sqrt(xx * xx + xy * xy + xz * xz) || 1);
+  inverse = 1 / (Math.sqrt(carre) || 1);
   xx *= inverse;
   xy *= inverse;
   xz *= inverse;
@@ -72,14 +80,21 @@ function lookAtRows(
   rows[8] = zz;
 }
 
-/** `extractRotation` de la matrice monde `m` : chaque colonne multipliée par `1 / sa longueur`. */
-function extractRotationRows(m: ArrayLike<number>) {
+/**
+ * `extractRotation` de la matrice monde rangée en `world[at..at+15]` : chaque colonne multipliée par
+ * `1 / sa longueur`. La matrice est lue dans le tampon plat de l'arbre, jamais par la vue du nœud :
+ * une lecture de moins, et un seul type de tableau pour toute la fonction.
+ */
+function extractRotationRows(world: Float64Array, at: number) {
   for (let column = 0; column < 3; column++) {
-    const c = column * 4;
-    const inverse = 1 / Math.sqrt(m[c] * m[c] + m[c + 1] * m[c + 1] + m[c + 2] * m[c + 2]);
-    rows[column] = m[c] * inverse;
-    rows[3 + column] = m[c + 1] * inverse;
-    rows[6 + column] = m[c + 2] * inverse;
+    const c = at + column * 4;
+    const x = world[c],
+      y = world[c + 1],
+      z = world[c + 2];
+    const inverse = 1 / Math.sqrt(x * x + y * y + z * z);
+    rows[column] = x * inverse;
+    rows[3 + column] = y * inverse;
+    rows[6 + column] = z * inverse;
   }
 }
 
@@ -98,11 +113,12 @@ export function lookAtNode(
   viewer: boolean,
 ) {
   updateNodeWorldMatrix(tree, node, true, false);
-  lookAtRows(tree.world, node * 16, x, y, z, up, viewer);
+  const world = tree.world;
+  lookAtRows(world, node * 16, x, y, z, up, viewer);
   writeRotationQuaternion(own, rows);
   const parent = tree.parent[node];
   if (parent >= 0) {
-    extractRotationRows(tree.worldViews[parent]);
+    extractRotationRows(world, parent * 16);
     writeRotationQuaternion(parentRotation, rows);
     // Conjugué du parent, puis produit `conjugué × propre` de `premultiply`.
     const ax = -parentRotation[0],
