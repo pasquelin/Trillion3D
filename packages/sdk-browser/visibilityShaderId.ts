@@ -61,7 +61,7 @@ fn computeTriangle(page:PageInfo,triangle:u32)->bool{
  let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);
- if(page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]!=0u){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]==1u){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  if(vertexIndex>=page.indexCount||computeTriangle(page,vertexIndex/3u)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let id=indices[page.pageOffset+vertexIndex];
  let p=vertPos(page.vertexBase,id);

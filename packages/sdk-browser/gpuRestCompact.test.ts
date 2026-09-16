@@ -9,7 +9,7 @@ import { BASE_SLOTS } from './gpuDraw.ts';
 // prédicats sont lus dans les deux textes : un `hizSlot` invalide, ou un verdict nul.
 test('la troncature de la moitié testée applique le prédicat de l’étage de sommets', () => {
   assert.ok(
-    VIS_SHADER.includes('page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]!=0u'),
+    VIS_SHADER.includes('page.hizSlot!=0xffffffffu&&hizFlags[page.hizSlot]==1u'),
     'l’étage de sommets écarte une ligne rejetée',
   );
   assert.ok(
