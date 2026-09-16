@@ -6,6 +6,7 @@ import {
   createFrameRevisions,
 } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';
+import { createHostSceneWatch } from './hostSceneWatch.ts';
 
 /** Ce qu'une image WebGL a produit d'observable : voir `sample` ci-dessous. */
 export const WEBGL_HOLD_VALUES = 6;
@@ -24,6 +25,7 @@ export function createWebglFrameGate() {
   const revisions = createFrameRevisions();
   const viewRevision = createViewRevision();
   const hold = createFrameHold(WEBGL_HOLD_VALUES);
+  const sceneWatch = createHostSceneWatch();
   let worldsRevision = 0;
   return {
     revisions,
@@ -46,13 +48,23 @@ export function createWebglFrameGate() {
         pixelError,
       );
     },
+    /**
+     * Remonte les matrices monde du graphe source et déclare la scène changée quand l'hôte l'a
+     * écrite directement — une pose, une visibilité, une lampe —, sans passer par le moteur. À
+     * appeler AVANT `held()` : sans cela l'image serait tenue sur une scène périmée. La comparaison
+     * est un état contre un état, donc idempotente : une écriture passée par l'API du moteur, qui a
+     * déjà incrémenté la révision, n'en incrémente pas une seconde.
+     */
+    readScene(source: THREE.Object3D) {
+      if (sceneWatch.changed(source)) bumpScene(revisions);
+    },
     /** Vrai quand deux images identiques se sont suivies et que rien n'a bougé depuis. */
     held: () => hold.stable && hold.same(revisions),
-    /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. */
-    updateWorlds(source: THREE.Object3D) {
+    /** Vrai une fois par révision de scène : les matrices monde que `readScene` vient de remonter
+     *  n'ont pas encore été reprises par ce qui en dépend. */
+    updateWorlds() {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
-      source.updateMatrixWorld(true);
       return true;
     },
     /**
