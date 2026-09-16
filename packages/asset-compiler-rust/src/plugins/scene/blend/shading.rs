@@ -121,16 +121,14 @@ pub(super) fn socket_value(node: &At<'_>, name: &str, default: f32) -> f32 {
 
 impl<'a> Tree<'a> {
     /// Les liens du graphe, indexés par l'entrée qu'ils alimentent.
-    pub(super) fn read(material: &At<'a>) -> Tree<'a> {
+    pub(super) fn read(graph: &At<'a>) -> Tree<'a> {
         let mut links = HashMap::new();
-        if let Some(tree) = material.follow("nodetree") {
-            for link in tree.list("links") {
-                links.insert(link.pointer("tosock"), link.pointer("fromnode"));
-            }
+        for link in graph.list("links") {
+            links.insert(link.pointer("tosock"), link.pointer("fromnode"));
         }
         Tree {
             links,
-            file: material.file,
+            file: graph.file,
         }
     }
     /// Le nœud qui alimente cette entrée, s'il y en a un.

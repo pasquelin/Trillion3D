@@ -47,6 +47,48 @@ pub(super) fn field(file: &BlendFile, old: u64, path: &[&str]) -> usize {
     at
 }
 
+/// Réécrit des octets à un rang donné du fichier.
+pub(super) fn put(bytes: &mut [u8], at: usize, value: &[u8]) {
+    bytes[at..at + value.len()].copy_from_slice(value);
+}
+
+/// L'adresse d'une entrée ou d'une sortie nommée d'un nœud du graphe d'un matériau.
+pub(super) fn socket(
+    file: &BlendFile,
+    material: &str,
+    node: &str,
+    side: &str,
+    wanted: &str,
+) -> u64 {
+    tree(file, material)
+        .list("nodes")
+        .into_iter()
+        .filter(|held| held.text("name") == node)
+        .flat_map(|held| held.list(side))
+        .find(|held| held.text("identifier") == wanted)
+        .map(|held| held.old)
+        .unwrap_or_else(|| panic!("{node} n'a pas de {side} nommée {wanted}"))
+}
+
+/// Le rang d'un champ d'un lien du graphe, le lien étant retrouvé par l'entrée qu'il alimente.
+pub(super) fn link_field(file: &BlendFile, material: &str, tosock: u64, name: &str) -> usize {
+    let link = tree(file, material)
+        .list("links")
+        .into_iter()
+        .find(|link| link.pointer("tosock") == tosock)
+        .expect("le lien demandé");
+    field(file, link.old, &[name])
+}
+
+/// Le graphe de nœuds d'un matériau nommé.
+fn tree<'a>(file: &'a BlendFile, material: &str) -> At<'a> {
+    file.at(named(file, material))
+        .and_then(|block| file.view(block))
+        .expect("le matériau")
+        .follow("nodetree")
+        .expect("son graphe")
+}
+
 /// La fixture augmentée d'un objet maillage qu'aucune collection de la scène ne porte : le bloc
 /// d'un objet existant, recopié sous une autre adresse et un autre nom, glissé avant `ENDB`.
 pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
@@ -104,4 +146,14 @@ pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
     let pair = (read("model.gltf"), read("manifest.json"));
     fs::remove_dir_all(&root).expect("nettoyage");
     pair
+}
+
+/// Le matériau glTF de ce nom, dans une scène compilée.
+pub(super) fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
+    gltf["materials"]
+        .as_array()
+        .expect("materials")
+        .iter()
+        .find(|material| material["name"] == json!(name))
+        .unwrap_or_else(|| panic!("aucun matériau nommé {name}"))
 }
