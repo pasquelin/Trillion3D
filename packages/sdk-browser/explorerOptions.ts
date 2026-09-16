@@ -41,6 +41,10 @@ export interface ExplorerOptions {
   pointsOfInterest?: PointOfInterest[];
   maxFrameAllocationBytes?: number;
   maxTextureTransferBytesPerFrame?: number;
+  /** Octets de textures que la session s'autorise à engager sur la carte graphique. Par défaut, une
+   *  valeur tirée des limites de l'appareil et bornée. Ce qui dépasse attend son tour : l'ordre sert
+   *  d'abord ce que la caméra regarde, et la file finit par se vider sans qu'aucun niveau soit perdu. */
+  textureBudgetBytes?: number;
   /** Atlas size classes the prepared WebGPU renderer may allocate. Defaults to 1. */
   atlasClasses?: 1 | 2;
   sceneLighting?: THREE.Object3D;
