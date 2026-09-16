@@ -10,11 +10,24 @@ import {
 } from './pageIntegrationContracts.ts';
 
 /**
- * Tri croissant en place d'un début de tableau d'index de page, par insertion et sans allocation.
- * Les listes triées ici tiennent quelques dizaines d'entrées, presque toujours déjà ordonnées : la
- * boucle ne déplace alors rien du tout.
+ * Longueur au-delà de laquelle l'insertion cesse d'être le meilleur tri : jusque-là une liste
+ * presque ordonnée ne déplace rien, au-delà une liste en désordre coûterait son carré.
+ */
+const SORT_INSERTION_MAX = 64;
+
+/**
+ * Tri croissant en place d'un début de tableau d'index de page.
+ *
+ * Les listes triées ici tiennent presque toujours quelques dizaines d'entrées déjà ordonnées :
+ * l'insertion ne déplace alors rien du tout et n'alloue rien. Une liste longue — la file des pages
+ * qui attendent leur fiche pendant une rafale d'arrivées — passe par le tri du tableau typé, en
+ * n log n, au prix d'une seule vue sur le début du tableau.
  */
 export function sortPages(pages: Int32Array, count: number) {
+  if (count > SORT_INSERTION_MAX) {
+    pages.subarray(0, count).sort();
+    return;
+  }
   for (let i = 1; i < count; i++) {
     const page = pages[i];
     let j = i - 1;

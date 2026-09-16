@@ -47,7 +47,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
           'queue',
           items.map((page) => page.url),
         ),
-        wanted: tracking.traceSet('wanted', tracking.wantedUrls()),
+        wanted: tracking.traceKeys('wanted', tracking.wanted),
         loaded: tracking.traceSet(
           'queue.loaded',
           items.filter((page) => !!getCache()?.get(page.url)).map((page) => page.url),
@@ -89,11 +89,9 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
           scope: 'async-residency-job',
           durationMs: performance.now() - started,
           elapsedMs: performance.now() - queuedAt,
-          pages: tracking.traceSet('job', tracking.wantedUrls()),
-          loaded: tracking.traceSet(
-            'job.loaded',
-            tracking.wantedUrls().filter((url) => !!getCache()?.get(url)),
-          ),
+          // L'ensemble demandé est relevé par sondage borné, et ce que le cache en tient est le
+          // compte qu'il tient déjà : filtrer l'ensemble entier le parcourait deux fois de plus.
+          pages: tracking.traceKeys('job', tracking.wanted),
           residentPages: getCache()?.stats().residentPages ?? null,
           queueWaitMs: started - queuedAt,
           cpuWorkIncluded: true,
