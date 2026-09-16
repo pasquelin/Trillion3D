@@ -1,3 +1,4 @@
+import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
 import { blendLightResources, sameLighting } from './webgpuBlendLighting.ts';
@@ -104,11 +105,19 @@ export function drawBlendPass(
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
   let boundPipeline = -1,
-    boundGroup: GPUBindGroup | undefined;
+    boundGroup: GPUBindGroup | undefined,
+    encoded = 0;
+  const planes = blendState.blendPlanes;
   for (let i = 0; i < plan.length; i++) {
     const entry = plan[i],
       index = planItem(entry),
-      item = items[index];
+      item = items[index],
+      box = item.bounds;
+    // Le noyau met a zero les instances d'un item hors champ, mais un appel encode reste un appel
+    // soumis : le tronc est reteste ici, en double precision, et l'item entierement hors champ
+    // n'est pas encode du tout. Le noyau reste conservateur au-dela de ce test.
+    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) continue;
+    encoded++;
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
       pass.setPipeline(
@@ -137,8 +146,8 @@ export function drawBlendPass(
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
-  run.gpuDrawCalls += plan.length;
-  run.blendDrawCalls += plan.length;
+  run.gpuDrawCalls += encoded;
+  run.blendDrawCalls += encoded;
   run.blendUnpagedTriangles += transmissive
     ? blendState.transmissionTriangles
     : blendState.blendTriangles;
