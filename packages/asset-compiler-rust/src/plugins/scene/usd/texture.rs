@@ -13,9 +13,34 @@ const UV_SET: &str = "st";
 /// Le motif d'un jeu de textures par tuile, qui désigne plusieurs fichiers et non un.
 const UDIM: &str = "<UDIM>";
 
-/// La texture glTF que cette connexion désigne, sous la forme que glTF attend d'un emplacement de
-/// texture : `{"index": …}`.
-pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path) -> Option<Value> {
+/// Ce qu'une texture accrochée rend à l'entrée qui la lit : son emplacement glTF, et le facteur
+/// que glTF porte à la place du `scale` du nœud de texture — un pour un `scale` absent.
+pub(super) struct Bound {
+    pub(super) value: Value,
+    /// Le facteur unique auquel `scale` et `bias` se ramènent, `None` quand ils n'y tiennent pas.
+    scale: Option<f64>,
+}
+
+impl Bound {
+    /// Le facteur à écrire là où glTF en a un ; un `scale` qui ne s'y ramène pas est compté.
+    pub(super) fn factor(&self, world: &mut World<'_>) -> f64 {
+        self.scale.unwrap_or_else(|| {
+            world.refuse(world::TEXTURE_SCALE);
+            1.0
+        })
+    }
+    /// L'emplacement seul, là où glTF n'a pas de facteur : un `scale` qui ne vaut pas un est compté.
+    pub(super) fn plain(self, world: &mut World<'_>) -> Value {
+        if self.scale != Some(1.0) {
+            world.refuse(world::TEXTURE_SCALE);
+        }
+        self.value
+    }
+}
+
+/// La texture glTF que cette connexion désigne. `colour` dit le rôle de l'entrée qui la lit — une
+/// couleur ou une donnée —, ce dont dépend l'espace de couleur que le fichier doit porter.
+pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -> Option<Bound> {
     let shader = world.stage.prim(target.prim_path()).ok()?;
     let id = read::first(&shader.attribute("info:id")).and_then(|(value, _)| read::text(&value));
     if id.as_deref() != Some(UV_TEXTURE) {
@@ -32,8 +57,12 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path) -> Option<Value
         world.refuse(world::TEXTURE_UNSUPPORTED);
     }
     let index = image(world, file)?;
-    let sampler = world.scene.sampler(wrap(&shader));
-    Some(texture(world, index, sampler))
+    sampling::colour_space(world, &shader, colour);
+    let sampler = sampling::sampler(world, &shader);
+    Some(Bound {
+        value: texture(world, index, sampler),
+        scale: sampling::scale(&shader),
+    })
 }
 
 /// Le rang de l'image, versée à la première demande, ou `None` quand le fichier ne se lit pas.
@@ -126,17 +155,4 @@ fn uv_set(world: &World<'_>, shader: &usd::Prim) -> Option<String> {
         .next()?;
     let reader = world.stage.prim(target.prim_path()).ok()?;
     read::first(&reader.attribute("inputs:varname")).and_then(|(value, _)| read::text(&value))
-}
-
-/// Le mode de répétition, lu sur `wrapS` — la scène intermédiaire n'en porte qu'un par
-/// échantillonneur, et `wrapT` suit. Un mode que glTF n'a pas répète, comme le fait USD par défaut.
-fn wrap(shader: &usd::Prim) -> u32 {
-    let mode = read::first(&shader.attribute("inputs:wrapS"))
-        .and_then(|(value, _)| read::text(&value))
-        .unwrap_or_default();
-    match mode.as_str() {
-        "clamp" => 33071,
-        "mirror" => 33648,
-        _ => 10497,
-    }
 }

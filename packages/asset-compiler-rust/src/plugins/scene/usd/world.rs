@@ -55,6 +55,17 @@ pub(super) const OPACITY_TEXTURE: &str = "usd-opacity-texture-unsupported";
 /// prend le métal dans le canal bleu et la rugosité dans le vert. La carte est portée telle quelle
 /// et l'écart est compté.
 pub(super) const TEXTURE_CHANNEL: &str = "usd-texture-channel-unsupported";
+/// Un mode de répétition que glTF n'a pas — `black`, qui borde l'image de transparent, ou
+/// `useMetadata`, qui laisse le fichier décider : la texture est répétée, comme USD le fait par
+/// défaut, et l'écart est compté.
+pub(super) const TEXTURE_WRAP: &str = "usd-texture-wrap-unsupported";
+/// Un `scale` ou un `bias` de texture qu'un facteur glTF ne porte pas : glTF multiplie sa texture
+/// par un facteur et n'y ajoute rien, donc un `bias` non nul, un `scale` différent d'un canal de
+/// couleur à l'autre ou un `scale` d'alpha qui ne vaut pas un restent hors de la scène.
+pub(super) const TEXTURE_SCALE: &str = "usd-texture-scale-unsupported";
+/// Un `sourceColorSpace` contraire au rôle de l'entrée qui lit la texture : une couleur déclarée
+/// `raw`, ou une donnée déclarée `sRGB`. Les octets passent tels quels, aucun n'est réencodé.
+pub(super) const TEXTURE_COLOUR_SPACE: &str = "usd-texture-colour-space-unsupported";
 /// Une texture que ce pilote ne peut pas accrocher telle quelle : jeu d'UV autre que celui porté,
 /// motif `<UDIM>`, ou transformation d'UV déclarée.
 pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
