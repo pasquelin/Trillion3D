@@ -90,6 +90,9 @@ export function createExplorerMetrics(
     metricsScratch.hizOversizedTriangles = backendMetrics.hizOversizedTriangles ?? null;
     metricsScratch.hizCountedFrame = backendMetrics.hizCountedFrame ?? null;
     metricsScratch.lodLevel = backendMetrics.lodLevel ?? null;
+    // Le témoin d'image tenue appartient à l'image que l'hôte vient de demander : sans cette
+    // recopie, `explorer.render()` publiait `null` alors que le moteur avait bien tenu l'image.
+    metricsScratch.frameHeld = backendMetrics.frameHeld ?? null;
     metricsScratch.submittedTriangles = backendMetrics.submittedTriangles ?? null;
     metricsScratch.transparentMeshes = backendMetrics.transparentMeshes ?? null;
     metricsScratch.transparentFrustumRejected = backendMetrics.transparentFrustumRejected ?? null;

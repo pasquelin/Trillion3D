@@ -66,6 +66,8 @@ export type ExactPagesRequestContext = {
   readonly lastPixelError: number;
   readonly frame: number;
   urlStamp: number;
+  /** Prévenu quand des octets de page arrivent ou partent : c'est une écriture de ressources. */
+  resourcesChanged: () => void;
 };
 
 export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
@@ -89,6 +91,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     indexByUrl,
     disposeGeometry,
     scene,
+    resourcesChanged,
   } = ctx;
   return {
     pendingUrls() {
@@ -111,6 +114,12 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     prefetchUrls() {
       prefetchScratch.length = 0;
       if (!ctx.lastCamera || !bootstrap.length) return prefetchScratch;
+      // Rien tant que la coupe visible est incomplète. L'anneau se dispute sinon le cache avec ce
+      // que l'image montre : la page visible entre, la page de l'anneau la pousse dehors, la coupe
+      // retombe sur un remplaçant plus grossier, l'anneau se déplace — et deux couvertures
+      // équivalentes se relaient sans fin sur une pose immobile, sans jamais cesser de demander.
+      const visible = desired.length ? desired : shown;
+      for (let i = 0; i < visible.length; i++) if (!visible[i].array) return prefetchScratch;
       // A ring around the cut: what a twice-finer threshold would select. Asked for only when nothing
       // visible is missing, at a priority the visible cut always outranks.
       const ring = selectVisiblePages(
@@ -150,10 +159,12 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       if (!recs) return;
       acceptPageArray(recs, array);
       batches.acceptPage(recs, array);
+      resourcesChanged();
     },
     dropPage(url: string) {
       const recs = byUrl.get(url);
       if (!recs) return;
+      resourcesChanged();
       batches.dropPage(recs);
       for (let i = 0; i < recs.length; i++) {
         const rec = recs[i];

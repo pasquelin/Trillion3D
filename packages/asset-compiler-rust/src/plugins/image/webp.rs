@@ -13,8 +13,9 @@
 //! **Brevets.** La concession de brevets de libwebp (licence BSD-3 assortie d'un *additional IP
 //! rights grant*) porte sur les implémentations conformes de la spécification, `image-webp`
 //! compris. Note documentaire, pas un avis d'avocat : la politique juridique du dépôt est dans
-//! `orchestration/COMPILATEUR_IMPORT.md`.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+//! `packages/asset-compiler-rust/FORMATS.md`.
+use super::crate_image::{self, ANIMATED};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static WEBP: Webp = Webp;
 pub(super) struct Webp;
@@ -25,8 +26,6 @@ const HEADER_BYTES: usize = 12;
 const CHUNK_HEADER_BYTES: usize = 8;
 /// Le flux avec perte : refusé sans être décodé, la règle de fidélité l'interdit.
 const LOSSY: &str = "image-lossy-unsupported";
-/// Une animation n'est pas une texture : refusée, jamais aplatie sur une image choisie d'office.
-const ANIMATED: &str = "image-animation-unsupported";
 
 impl Plugin for Webp {
     fn name(&self) -> &'static str {
@@ -58,7 +57,7 @@ impl ImageDecoder for Webp {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         admitted(bytes)?;
         crate_image::decode(bytes, max_alloc, image::ImageFormat::WebP)
     }

@@ -27,7 +27,9 @@ export function writeBlendUniforms(
     uniformPacked.byteOffset,
     uniformPacked.length,
   );
-  const cam = lastCamera?.position;
+  // L'œil en repère monde, lu dans la matrice que l'image a mise à jour : la position locale d'une
+  // caméra parentée n'est pas où elle regarde.
+  const cam = lastCamera?.matrixWorld.elements;
   // Une seule question par image, pas par maillage : l'image est-elle éclairée par des lampes
   // déclarées ? Sinon les transparents sortent leur albédo brut, comme les opaques (P6).
   const unlit = wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW;
@@ -77,9 +79,9 @@ export function writeBlendUniforms(
     uniformPacked[base + 41] = scale[1];
     packedInts[base + 42] = mat.emissiveMap ? (mapLayer.get(mat.emissiveMap) ?? 0) : 0;
     uniformPacked[base + 43] = mat.alphaTest;
-    uniformPacked[base + 44] = cam?.x ?? 0;
-    uniformPacked[base + 45] = cam?.y ?? 0;
-    uniformPacked[base + 46] = cam?.z ?? 0;
+    uniformPacked[base + 44] = cam?.[12] ?? 0;
+    uniformPacked[base + 45] = cam?.[13] ?? 0;
+    uniformPacked[base + 46] = cam?.[14] ?? 0;
     uniformPacked[base + 47] = 1;
     uniformPacked[base + 48] = mat.roughness;
     uniformPacked[base + 49] = mat.metalness;
@@ -95,6 +97,7 @@ export function writeBlendUniforms(
     // déclarées. Zéro quand aucune liste n'a été encodée, jamais celles d'une autre image.
     uniformPacked[base + 60] = tiles[1];
     uniformPacked[base + 61] = tiles[2];
+    packedInts[base + 62] = item.wrapModes;
   }
   device.queue.writeBuffer(
     uniformBuffer,

@@ -1,12 +1,13 @@
 //! Les tableaux d'un `Mesh`, et la primitive glTF qu'une partie de matériau en tire.
 //!
-//! Les polygones sont triangulés en éventail depuis le premier coin de la face, ce qui est exact
-//! pour toute face convexe et reste la lecture littérale des coins pour les autres. Le sens de
-//! parcours suit `orientation` : `rightHanded`, la valeur par défaut de USD, est déjà celui de
+//! Les polygones sont triangulés par oreilles dans le plan de leur normale, ce qui conserve l'aire
+//! et la silhouette d'une face concave comme d'une face convexe. Le sens de parcours suit
+//! `orientation` : `rightHanded`, la valeur par défaut de USD, est déjà celui de
 //! glTF ; `leftHanded` renverse chaque triangle plutôt que de retourner les normales. Les
 //! coordonnées de texture passent de l'origine en bas à gauche de USD à celle de glTF, en haut.
 use super::*;
 use crate::import::{primitive, Vertices};
+use crate::plugins::scene::ngon::Ngon;
 
 /// Les tableaux d'une surface, lus une fois pour toutes ses parties.
 pub(super) struct Surface {
@@ -56,25 +57,36 @@ impl Surface {
     ) -> Option<(Value, usize)> {
         let mut out = Vertices::default();
         let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
-        // Un seul éventail, vidé d'une face à l'autre : la boucle passe sur chaque face de la
-        // partie, et une allocation par face ne servirait qu'à refaire le même tampon.
-        let mut fan: Vec<u32> = Vec::new();
+        // Un seul anneau et un seul découpeur, vidés d'une face à l'autre : la boucle passe sur
+        // chaque face de la partie, et une allocation par face ne referait que le même tampon.
+        let mut corners: Vec<u32> = Vec::new();
+        let mut cutter = Ngon::default();
         for face in &part.faces {
             let Some((start, count)) = self.faces.get(*face).copied() else {
                 continue;
             };
-            fan.clear();
-            fan.extend(
-                (0..count)
-                    .filter_map(|offset| self.corner(&mut out, &mut unique, start + offset, *face)),
-            );
-            if fan.len() < 3 || fan.len() < count {
+            corners.clear();
+            corners
+                .extend((0..count).filter_map(|offset| {
+                    self.corner(&mut out, &mut unique, start + offset, *face)
+                }));
+            // Moins de trois coins, ou un coin que les tableaux ne portent pas : la face n'est
+            // pas une surface, elle sort de la scène et son compte le dit.
+            if corners.len() < 3 || corners.len() < count {
+                world.refuse(world::FACE_INVALID);
                 continue;
             }
-            for step in 1..count - 1 {
+            cutter.begin();
+            for offset in 0..count {
+                cutter.corner(self.point(start + offset));
+            }
+            if !cutter.cut() {
+                world.refuse(world::NGON_UNCUT);
+            }
+            for [a, b, c] in cutter.triangles() {
                 match self.reversed {
-                    true => out.indices.extend([fan[0], fan[step + 1], fan[step]]),
-                    false => out.indices.extend([fan[0], fan[step], fan[step + 1]]),
+                    true => out.indices.extend([corners[*a], corners[*c], corners[*b]]),
+                    false => out.indices.extend([corners[*a], corners[*b], corners[*c]]),
                 }
             }
         }
@@ -85,6 +97,19 @@ impl Surface {
         let scene = &mut world.scene;
         let value = primitive(&out, &mut scene.bin, &mut scene.accessors, part.material);
         Some((value, triangles))
+    }
+
+    /// La position d'un coin, en double, telle que le découpage du polygone la lit. Un coin hors
+    /// des tables donne l'origine : `corner` a déjà écarté la face dont les tableaux se contredisent.
+    fn point(&self, corner: usize) -> [f64; 3] {
+        let point = self
+            .corners
+            .get(corner)
+            .copied()
+            .and_then(|index| usize::try_from(index).ok());
+        point
+            .and_then(|rank| self.points.get(rank))
+            .map_or([0.0; 3], |axes| axes.map(f64::from))
     }
 
     /// Le sommet glTF d'un coin de face, créé à sa première rencontre. Rien n'est écrit tant que
@@ -98,8 +123,14 @@ impl Surface {
         face: usize,
     ) -> Option<u32> {
         let point = usize::try_from(*self.corners.get(corner)?).ok()?;
-        let normal = self.normals.as_ref().map(|n| n.slot(corner, face, point));
-        let uv = self.uvs.as_ref().map(|uv| uv.slot(corner, face, point));
+        let normal = match self.normals.as_ref() {
+            Some(values) => Some(values.slot(corner, face, point)?),
+            None => None,
+        };
+        let uv = match self.uvs.as_ref() {
+            Some(values) => Some(values.slot(corner, face, point)?),
+            None => None,
+        };
         let key = [
             u32::try_from(point).ok()?,
             normal.unwrap_or(0),

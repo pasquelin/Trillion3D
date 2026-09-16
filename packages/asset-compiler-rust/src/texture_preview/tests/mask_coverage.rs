@@ -18,7 +18,7 @@ fn mask_coverage_is_preserved_within_one_texel_at_every_level() {
         .filter(|&(x, y)| covered_at(x, y))
         .count();
     let target = covered_source as f32 / (SIDE * SIDE) as f32;
-    let (first, pixels) = reduce::pyramid(&source, Some(cutoff));
+    let (first, pixels) = reduce::pyramid(&source, Transfer::Srgb, Some(cutoff));
     assert_eq!(first, 2, "256 px descend à 64 px pour tenir sous la base");
     for index in 0..preview_level_count(SIDE, SIDE) as usize {
         let (columns, rows) = level_size(SIDE, SIDE, index);
@@ -39,7 +39,7 @@ fn mask_coverage_is_preserved_within_one_texel_at_every_level() {
 fn alpha_is_unchanged_without_a_mask_cutoff() {
     let (width, height) = (32u32, 32u32);
     let source = rgba_from(width, height, |x, _y| [10, 20, 30, (x * 8) as u8]);
-    let (_first, pixels) = reduce::pyramid(&source, None);
+    let (_first, pixels) = reduce::pyramid(&source, Transfer::Srgb, None);
     let level = level_bytes(width, height, &pixels, 1);
     for column in 0..16usize {
         let (a0, a1) = ((2 * column * 8) as i32, ((2 * column + 1) * 8) as i32);

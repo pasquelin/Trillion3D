@@ -14,7 +14,9 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart;
   steps[CPU_STEP.lightsMs] = m.lightsEnd - m.cpuStart;
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.lightsEnd;
-  steps[CPU_STEP.transparentSelectMs] = m.transparentSelectEnd - m.adoptEnd;
+  steps[CPU_STEP.transparentSelectMs] = timing.transparentSelectMs;
+  steps[CPU_STEP.transparentPrepareMs] = timing.transparentPrepareMs;
+  steps[CPU_STEP.transparentDrawMs] = timing.transparentDrawMs;
   steps[CPU_STEP.transparentEncodeMs] = timing.transparentEncodeMs;
   steps[CPU_STEP.admissionMs] = m.admissionEnd - m.transparentSelectEnd;
   steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd;
@@ -31,6 +33,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
       timing.lastProjectMs -
       timing.lastPartitionMs -
       timing.lastItemsMs -
+      timing.transparentSelectMs -
       timing.transparentEncodeMs -
       timing.lastQueueSubmitMs,
   );
@@ -45,7 +48,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     frame: run.frame,
     submission: run.imageRevision,
     scope: 'backend-render-call',
-    totalMs: m.cpuEnd - m.cpuStart,
+    totalMs: m.cpuEnd - m.preStart,
     lightsMs: m.lightsEnd - m.cpuStart,
     selectionMs: m.selectionEnd - m.lightsEnd,
     residencyScheduleAndTargetsMs: m.encodeStart - m.selectionEnd,

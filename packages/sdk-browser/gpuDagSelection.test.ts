@@ -15,8 +15,9 @@ import { packed, kernelUrls, cpuUrls, VIEWPORT } from './gpuDagSelectionTestHelp
 import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
 
 test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {
-  // The WGSL band test is `error x stretch x focal / distance`, with Infinity at the near plane.
-  // Replaying it against the published oracle keeps the GPU and CPU cuts on one formula.
+  // The WGSL band test is the certified bound of `screenErrorBound`: minimum depth, side reach and
+  // the moved point's closest depth, with Infinity at the near plane. Replaying it against the
+  // published oracle keeps the GPU and CPU cuts on one formula.
   const cam = wideCamera();
   const uniforms = cameraSelectionUniforms(cam, 1, VIEWPORT);
   const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
@@ -36,14 +37,27 @@ test('the kernel projects a cluster error exactly like clusterErrorPixels', () =
       vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13],
       vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
     const expected = clusterErrorPixels(error, stretch, vx, vy, vz, radius, focal, cam.near);
-    const distance = Math.sqrt(vx * vx + vy * vy + vz * vz) - radius * stretch;
+    // `projected` de `gpuDagShaderError.ts`, recopié : mêmes opérandes, même ordre.
+    const reach = radius * stretch,
+      shift = error * stretch;
+    const nearest = -vz - reach,
+      closest = nearest - shift,
+      side = Math.sqrt(vx * vx + vy * vy) + reach;
+    const slant = Math.sqrt(nearest * nearest + side * side);
     const kernel =
-      error === 0 ? 0 : distance > cam.near ? (error * stretch * focal) / distance : Infinity;
+      error === 0
+        ? 0
+        : !(closest > cam.near) || !(slant >= nearest && slant < Infinity)
+          ? Infinity
+          : ((shift * focal) / nearest) * (slant / closest);
     assert.equal(kernel, expected, `error ${error} radius ${radius}`);
   }
-  // The shader carries the same three terms, in the same order.
-  assert.match(DAG_SELECTION_SHADER, /let distance=length\(v\)-sphere\.w\*stretch;/);
-  assert.match(DAG_SELECTION_SHADER, /return \(error\*stretch\*focal\)\/distance;/);
+  // The shader carries the same terms, in the same order.
+  assert.match(
+    DAG_SELECTION_SHADER,
+    /let nearest=-v\.z-reach;let closest=nearest-shift;let side=sqrt\(v\.x\*v\.x\+v\.y\*v\.y\)\+reach;/,
+  );
+  assert.match(DAG_SELECTION_SHADER, /return \(\(shift\*focal\)\/nearest\)\*\(slant\/closest\);/);
 });
 
 test('the GPU flat cut selects the same single cluster per chain as the CPU cut', () => {

@@ -6,18 +6,18 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
 /**
  * The transparent draw list of one image.
  *
- * Paged primitives are always listed: how many of their clusters survive is the compaction's answer,
- * not the CPU's, and a primitive whose cut is empty simply draws zero instances. Only an unpaged
- * primitive — one whole mesh, outside the cluster DAG — is still culled here, against its own world
- * box, exactly as before.
+ * Reject whole primitives outside the current frustum before preparing uniforms or commands.
+ * The GPU still selects clusters inside each surviving primitive. A CPU cut also omits items
+ * with no selected cluster. Filtering preserves source order and never reads back a GPU mask.
  */
-export function selectWebgpuBlend(blendState: BlendState) {
+export function selectWebgpuBlend(blendState: BlendState, drawn?: readonly PageRec[]) {
+  const selected = blendState.cpuSelectedMeshes;
+  selected.clear();
+  if (drawn)
+    for (const rec of drawn) if (rec.transparent && rec.sourceMesh) selected.add(rec.sourceMesh);
   let rejected = 0;
   for (const item of blendState.blendGpu) {
-    if (item.paged) {
-      blendState.visibleBlend.push(item);
-      continue;
-    }
+    if (drawn && item.paged && (!item.sourceMesh || !selected.has(item.sourceMesh))) continue;
     const box = item.bounds;
     if (
       box &&

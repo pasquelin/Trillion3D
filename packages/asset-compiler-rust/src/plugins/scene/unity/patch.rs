@@ -6,21 +6,27 @@
 //! d'un objet, matériau d'un emplacement, activation d'un rendu — et compte les autres, propriété
 //! par propriété : le nombre d'un manque se lit au rapport plutôt que de se deviner.
 use super::*;
-use std::collections::HashMap;
 
 /// Ce qu'une instance remplace, visé par visé.
 #[derive(Default)]
 pub(super) struct Changes {
-    transforms: HashMap<i64, Overrides>,
-    active: HashMap<i64, bool>,
-    enabled: HashMap<i64, bool>,
-    materials: HashMap<i64, Vec<Ref>>,
+    transforms: BTreeMap<i64, Overrides>,
+    active: BTreeMap<i64, bool>,
+    enabled: BTreeMap<i64, bool>,
+    /// Les emplacements de matériau que l'instance remplace : `None` quand elle ne dit rien de
+    /// cet emplacement, `Some` quand elle le nomme — la référence vide comprise, qui vide
+    /// l'emplacement au lieu de garder celui du prefab.
+    materials: BTreeMap<i64, Vec<Option<Ref>>>,
     /// Le nom de la racine : la seule retouche de nom qu'une instance porte.
     pub(super) name: Option<String>,
     /// Les retouches que le pilote sait appliquer.
     applied: usize,
     /// Les autres, comptées par propriété.
     ignored: BTreeMap<String, usize>,
+    /// Les retouches d'emplacement de matériau dont l'indice ne décrit aucun rendu.
+    unplaceable: usize,
+    /// Ce que l'instance change dans la structure de sa source, et non dans ses propriétés.
+    pub(super) structure: Structure,
 }
 
 /// Les préfixes d'une transformation locale : les trois grandeurs que le glTF porte, et rien
@@ -39,6 +45,7 @@ impl Changes {
             };
             changes.read_one(target, path, change);
         }
+        changes.structure = Structure::read(modification);
         changes
     }
 
@@ -72,9 +79,13 @@ impl Changes {
             self.name = change["value"].as_str().map(str::to_string);
             self.applied += 1;
         } else if let Some(slot) = material_slot(path) {
+            let Some(len) = slot.checked_add(1).filter(|len| *len <= MAX_SLOTS) else {
+                self.unplaceable += 1;
+                return;
+            };
             let slots = self.materials.entry(target).or_default();
-            cover(slots, slot + 1);
-            slots[slot] = reference(&change["objectReference"]);
+            cover(slots, len);
+            slots[slot] = Some(reference(&change["objectReference"]));
             self.applied += 1;
         } else {
             self.count(path);
@@ -98,6 +109,35 @@ impl Changes {
         *self.ignored.entry(name).or_insert(0) += 1;
     }
 
+    /// Pose les retouches d'une instance extérieure par-dessus celles-ci : un prefab imbriqué
+    /// applique d'abord les siennes, puis celles de l'instance qui le contient — l'ordre de
+    /// nidification, le dernier mot à la plus extérieure. Le nom de racine ne se transmet pas : il
+    /// vise la racine de l'instance qui le porte, non celle du prefab qu'elle contient.
+    pub(super) fn overlay(&mut self, outer: &Changes) {
+        for (target, values) in &outer.transforms {
+            let mine = self.transforms.entry(*target).or_default();
+            mine.extend(values.iter().map(|(path, value)| (path.clone(), *value)));
+        }
+        let pairs = |table: &BTreeMap<i64, bool>| -> Vec<(i64, bool)> {
+            table
+                .iter()
+                .map(|(target, flag)| (*target, *flag))
+                .collect()
+        };
+        self.structure.overlay(&outer.structure);
+        self.active.extend(pairs(&outer.active));
+        self.enabled.extend(pairs(&outer.enabled));
+        for (target, slots) in &outer.materials {
+            let mine = self.materials.entry(*target).or_default();
+            cover(mine, slots.len());
+            for (slot, replaced) in slots.iter().enumerate() {
+                if replaced.is_some() {
+                    mine[slot] = replaced.clone();
+                }
+            }
+        }
+    }
+
     pub(super) fn transform(&self, target: i64) -> Option<&Overrides> {
         self.transforms.get(&target)
     }
@@ -107,38 +147,34 @@ impl Changes {
     pub(super) fn enabled(&self, target: i64) -> Option<bool> {
         self.enabled.get(&target).copied()
     }
-    pub(super) fn materials(&self, target: i64) -> Option<&[Ref]> {
+    pub(super) fn materials(&self, target: i64) -> Option<&[Option<Ref>]> {
         self.materials.get(&target).map(Vec::as_slice)
     }
 
-    /// Les retouches de toutes les cibles en une seule table : une instance de modèle n'a qu'une
-    /// racine, et le `fileID` que la cible nomme appartient au fichier importé, pas à la scène.
-    pub(super) fn merged_transform(&self) -> Overrides {
-        let mut out = Overrides::new();
-        for values in self.transforms.values() {
-            out.extend(values.iter().map(|(path, value)| (path.clone(), *value)));
-        }
-        out
+    /// Les cibles des retouches de transformation, par `fileID` croissant : le même fichier se
+    /// relit dans le même ordre, et chaque suite de valeurs reste celle de son seul objet.
+    pub(super) fn transform_targets(&self) -> impl Iterator<Item = (i64, &Overrides)> {
+        self.transforms
+            .iter()
+            .map(|(target, values)| (*target, values))
     }
-    /// De même pour les matériaux : les emplacements de toutes les cibles, dans l'ordre.
-    pub(super) fn merged_materials(&self) -> Vec<Ref> {
-        let mut out: Vec<Ref> = Vec::new();
-        for slots in self.materials.values() {
-            cover(&mut out, slots.len());
-            for (slot, reference) in slots.iter().enumerate() {
-                if !reference.is_null() {
-                    out[slot] = reference.clone();
-                }
-            }
-        }
-        out
+    /// De même pour les emplacements de matériau.
+    pub(super) fn material_targets(&self) -> impl Iterator<Item = (i64, &[Option<Ref>])> {
+        self.materials
+            .iter()
+            .map(|(target, slots)| (*target, slots.as_slice()))
     }
 
     /// Ce que l'instance a changé, et ce qu'elle demandait que ce pilote ne rend pas : le total,
     /// puis le détail par propriété, pour qu'un manque se voie et se chiffre.
     pub(super) fn report(&self, scene: &mut Scene) {
         scene.count("prefabOverridesApplied", self.applied);
-        scene.count("prefabOverridesIgnored", self.ignored.values().sum());
+        scene.count(
+            "prefabOverridesIgnored",
+            self.ignored.values().sum::<usize>() + self.unplaceable,
+        );
+        scene.report.add_count(SLOT_INVALID, self.unplaceable);
+        self.structure.report(scene);
         for (property, count) in &self.ignored {
             scene.report.add_count(
                 &format!("unity-prefab-modification-ignored:{property}"),
@@ -146,50 +182,4 @@ impl Changes {
             );
         }
     }
-}
-
-/// Allonge la suite d'emplacements jusqu'à `len`, les nouveaux emplacements vides.
-fn cover(slots: &mut Vec<Ref>, len: usize) {
-    if slots.len() < len {
-        slots.resize(len, Ref::default());
-    }
-}
-
-/// `m_Materials.Array.data[2]` désigne le troisième emplacement de matériau du rendu.
-fn material_slot(path: &str) -> Option<usize> {
-    path.strip_prefix("m_Materials.Array.data[")?
-        .strip_suffix(']')?
-        .parse::<usize>()
-        .ok()
-}
-
-/// La transformation locale, telle que Unity l'écrit, une fois les surcharges d'instance appliquées
-/// puis la conversion d'axes faite.
-pub(super) fn local_trs(body: &Yaml, overrides: &Overrides) -> Trs {
-    let at = |path: &str, value: f64| overrides.get(path).copied().unwrap_or(value);
-    let position = vec3(&body["m_LocalPosition"], [0.0, 0.0, 0.0]);
-    let rotation = vec4(
-        &body["m_LocalRotation"],
-        ["x", "y", "z", "w"],
-        [0., 0., 0., 1.],
-    );
-    let scale = vec3(&body["m_LocalScale"], [1.0, 1.0, 1.0]);
-    Trs::from_unity(
-        [
-            at("m_LocalPosition.x", position[0]),
-            at("m_LocalPosition.y", position[1]),
-            at("m_LocalPosition.z", position[2]),
-        ],
-        [
-            at("m_LocalRotation.x", rotation[0]),
-            at("m_LocalRotation.y", rotation[1]),
-            at("m_LocalRotation.z", rotation[2]),
-            at("m_LocalRotation.w", rotation[3]),
-        ],
-        [
-            at("m_LocalScale.x", scale[0]),
-            at("m_LocalScale.y", scale[1]),
-            at("m_LocalScale.z", scale[2]),
-        ],
-    )
 }

@@ -74,7 +74,10 @@ pub(in super::super) fn extract(
         }
         let room = LIMITS.bytes - written;
         let mut file = fs::File::create(&path)?;
-        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut file)?;
+        // La charge est lue ici : une entrée que l'index annonçait et qui ne se déplie pas est une
+        // archive illisible, pas une panne du disque.
+        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut file)
+            .map_err(|error| unreadable(source, error))?;
         under_byte_limit(written)?;
     }
     Ok((archive.len(), written))

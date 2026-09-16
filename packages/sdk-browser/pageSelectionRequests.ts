@@ -1,5 +1,8 @@
 import { adaptivePixelError } from '../sdk-core/index.ts';
 import * as THREE from 'three';
+import { cameraWorldPosition } from './cameraWorld.ts';
+
+const eyeScratch = new THREE.Vector3();
 
 export function resolvePixelError(
   context: { pixelError?: number; lodAdaptive?: boolean },
@@ -8,13 +11,16 @@ export function resolvePixelError(
 ) {
   const base = context.pixelError ?? 0;
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  // La vitesse est celle de l'œil dans le monde : un rig qui emporte la caméra la déplace aussi.
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  const eye = cameraWorldPosition(camera, eyeScratch);
   let speed = 0;
   if (motion.last && motion.lastMs != null) {
     const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);
-    speed = camera.position.distanceTo(motion.last) / dt;
+    speed = eye.distanceTo(motion.last) / dt;
   }
   if (!motion.last) motion.last = new THREE.Vector3();
-  motion.last.copy(camera.position);
+  motion.last.copy(eye);
   motion.lastMs = now;
   if (!context.lodAdaptive || !(base > 0)) return base;
   return adaptivePixelError(base, speed, Math.max(camera.far * 0.05, 1));

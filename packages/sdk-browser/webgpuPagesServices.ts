@@ -1,4 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
+import { updateTransparentSpan } from './webgpuTransparentSpans.ts';
 import { createWebgpuResidencyMirror } from './webgpuResidencyMirror.ts';
 import { createPageRowWriter } from './webgpuPageRow.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
@@ -13,6 +14,7 @@ import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
+import { bumpResources } from './frameRevisions.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -31,6 +33,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
+    onOffsetChange: (page, offset) => updateTransparentSpan(rt, page, offset),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
@@ -45,13 +48,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     dataUvScales: rt.vis.dataUvScales,
     markRowDirty: rows.markRowDirty,
   });
-  /**
-   * Applies the cache's arrivals and departures to the residency mirror. The mirror is the only
-   * incremental state on this path, so the journal that feeds it is checked against the cache on every
-   * drain: the journal's own resident count — every key it saw, rowed or not — must equal the cache's.
-   * A disagreement means an entry moved without a record, and the mirror is rebuilt from the cache
-   * instead of being left to drift into a hole.
-   */
+  // Le miroir de résidence est le seul état incrémental de ce chemin : son journal est vérifié
+  // contre le cache à chaque vidange, et reconstruit au moindre désaccord plutôt que de dériver.
   const { commitRows, sourceRowOf } = createWebgpuRowCommit(rows, writePageRow);
   const { syncRows, syncRowsFromCut } = createWebgpuRowSync(
     rows,
@@ -61,7 +59,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     drawSlots,
     () => !!gpu.cache,
     { commitRows, sourceRowOf },
-    (rec) => noteResidenceChange(rt.lights, rec),
+    // Origine du changement de ressources : la page entre dans la résidence ou en sort.
+    (rec) => (bumpResources(run.revisions), noteResidenceChange(rt.lights, rec)),
   );
   const pageSource = {
     read: async (key: string) => {
@@ -153,6 +152,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
+  /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
+   *  Un relevé neuf qui republie les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
@@ -160,7 +161,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // Une adoption qui a réécrit les listes les fait changer d'âge, où qu'elle se produise : au
     // rendu comme dans la vidange, qui en rejoue une après que l'hôte a pris ses listes.
     if (metrics.listsRewritten) run.cutEpoch++;
-    if (!adopted) return;
+    if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
     run.uncoveredTriangles = metrics.uncoveredTriangles;
@@ -170,6 +171,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.frustumRejected = metrics.frustumRejected;
     run.lodLevel = metrics.lodLevel;
     run.gpuMetricsReady = metrics.ready;
+    return metrics.listsRewritten;
   };
   /**
    * Answers what the image asks the cache for. One cut covers both passes now, and the readback

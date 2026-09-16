@@ -8,6 +8,7 @@ import { compteMateriauxEtTangentes, indexSourceBytes } from '../webgpuPagesCata
 import { compare, graine } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeF } from '../../sdk-core/bench/bancF.mjs';
 import {
+  entreeCones,
   referenceCompteMateriauxEtTangentes,
   referenceIndexSourceBytes,
   referencePrepareCones,
@@ -37,7 +38,7 @@ const hostiles = catalogueDePages({ pages: 400, materiaux: 8, seed: 23 }).map((r
 
 const passeCones = (fn) => (liste) => {
   const copies = liste.map((rec) => ({ ...rec, cone: undefined }));
-  fn({ setup: { allPages: copies } });
+  fn(entreeCones(copies));
   return copies.map((rec) => (rec.cone ? Float64Array.from(rec.cone) : null));
 };
 
