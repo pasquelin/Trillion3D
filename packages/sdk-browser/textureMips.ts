@@ -3,6 +3,54 @@ export function mipLevelCountFor(width: number, height: number) {
   return 1 + Math.floor(Math.log2(Math.max(width, height)));
 }
 
+/**
+ * La disposition et le programme de réduction, construits UNE FOIS par appareil et par format.
+ *
+ * La chaîne de mips est régénérée à chaque texture qui achève son transfert : recompiler le même
+ * programme et la même disposition à chacune faisait payer une compilation de pipeline par texture,
+ * sur le chemin même qui doit rendre l'image nette au plus vite. Le cache est tenu par appareil,
+ * donc un appareil perdu emporte ses pipelines avec lui.
+ */
+type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
+const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
+
+const MIP_SHADER = `
+ @group(0) @binding(0) var source:texture_2d<f32>;
+ @group(0) @binding(1) var<uniform> extent:vec4u;
+ @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
+  return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
+ }
+ @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{
+  let p=vec2i(pos.xy)*2;let hi=vec2i(extent.xy)-vec2i(1);
+  return (textureLoad(source,min(p,hi),0)+textureLoad(source,min(p+vec2i(1,0),hi),0)
+   +textureLoad(source,min(p+vec2i(0,1),hi),0)+textureLoad(source,min(p+vec2i(1,1),hi),0))*0.25;
+ }`;
+
+function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
+  let byFormat = pipelines.get(device);
+  if (!byFormat) pipelines.set(device, (byFormat = new Map()));
+  const held = byFormat.get(format);
+  if (held) return held;
+  const layout = device.createBindGroupLayout({
+    entries: [
+      { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
+      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+    ],
+  });
+  const module = device.createShaderModule({ code: MIP_SHADER });
+  const built: MipPipeline = {
+    layout,
+    pipeline: device.createRenderPipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+      vertex: { module, entryPoint: 'vs' },
+      fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+      primitive: { topology: 'triangle-list' },
+    }),
+  };
+  byFormat.set(format, built);
+  return built;
+}
+
 /** Generate material mip levels once during preparation, averaging in the texture's
  * declared color space. Clamp to each layer's image rather than its padded area. */
 export async function generateMaterialMips(
@@ -16,31 +64,7 @@ export async function generateMaterialMips(
 ) {
   const levels = mipLevelCountFor(width, height);
   if (levels === 1) return;
-  const layout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } },
-      { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-    ],
-  });
-  const module = device.createShaderModule({
-    code: `
- @group(0) @binding(0) var source:texture_2d<f32>;
- @group(0) @binding(1) var<uniform> extent:vec4u;
- @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
-  return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
- }
- @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{
-  let p=vec2i(pos.xy)*2;let hi=vec2i(extent.xy)-vec2i(1);
-  return (textureLoad(source,min(p,hi),0)+textureLoad(source,min(p+vec2i(1,0),hi),0)
-   +textureLoad(source,min(p+vec2i(0,1),hi),0)+textureLoad(source,min(p+vec2i(1,1),hi),0))*0.25;
- }`,
-  });
-  const pipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    vertex: { module, entryPoint: 'vs' },
-    fragment: { module, entryPoint: 'fs', targets: [{ format }] },
-    primitive: { topology: 'triangle-list' },
-  });
+  const { layout, pipeline } = mipPipeline(device, format);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   const packed = new Uint32Array((scales.length * (levels - 1) * stride) / 4);
   for (let layer = 0; layer < scales.length; layer++)

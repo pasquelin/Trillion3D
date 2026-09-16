@@ -98,7 +98,9 @@ test('en boucle d’images sans flush, la texture de la surface la plus lourde p
   try {
     await backend.prepare();
     // Boucle d'images ordinaire : aucun `flush()`, aucune barrière, la pompe avance sous le budget.
-    for (let frame = 0; frame < 4; frame++) {
+    // La préparation ne transfère plus aucune pleine résolution : tant qu'aucune caméra n'a dicté
+    // d'ordre, seules les queues d'aperçus partent. Les deux textures partent donc dans la boucle.
+    for (let frame = 0; frame < 8; frame++) {
       backend.render(camera());
       await Promise.resolve();
     }

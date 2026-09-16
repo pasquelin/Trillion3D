@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
+import { createTextureBudget } from './textureBudget.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
@@ -51,6 +52,7 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
     ],
     used: 1,
     slotWords: new Uint32Array(4),
+    texels: new Float64Array(4),
     bytes: 0,
     destroy() {},
   };
@@ -64,7 +66,10 @@ function buildPump(jobs: TextureJob[], budget: number, order?: (jobs: TextureJob
     budget,
     colorAtlas: () => colorAtlas,
     dataAtlas: () => undefined,
+    ledger: createTextureBudget({ budget: Number.MAX_SAFE_INTEGER, scoreOf: () => 0 }),
     order: order ?? (() => {}),
+    onResident: () => {},
+    screenKnown: () => true,
     onLevel: (slot, level) => levels.push([slot, level]),
     onColorReady: (slots) => colorReady.push([...slots]),
     onFailure: (phase, error) => failures.push({ phase, error }),
