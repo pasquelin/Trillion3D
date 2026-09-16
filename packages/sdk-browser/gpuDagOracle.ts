@@ -1,7 +1,7 @@
 import { frustumExcludesBox, frustumPlanesToLocal } from '../sdk-core/index.ts';
 import type { PackedDag } from './gpuDagTypes.ts';
 import { DAG_NODE_FLOATS } from './gpuDagTypes.ts';
-import { CLUSTER_ROOT, CLUSTER_WORDS, clusterLevel } from './gpuDagLayout.ts';
+import { CLUSTER_ROOT, clusterLevel, dagRecords, flagsOf, worldOf } from './gpuDagLayout.ts';
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
@@ -24,8 +24,10 @@ export function evaluateDagSelectionKernel(
 ) {
   if (resident && resident.length !== packed.pageCount)
     throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-  const { clusters, nodes, worlds, worldStretch } = packed;
-  const clusterInts = new Uint32Array(clusters.buffer),
+  const { nodes, worlds, worldStretch } = packed;
+  // Le décodeur unique de la disposition compacte : le même que le double de tampon relit, si bien
+  // qu'aucun rang de champ n'est écrit ailleurs qu'une fois, dans `gpuDagLayout.ts`.
+  const records = dagRecords(packed),
     nodeInts = new Uint32Array(nodes.buffer);
   const cameraStretch = uniforms.cameraStretch ?? 1,
     focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]),
@@ -95,8 +97,8 @@ export function evaluateDagSelectionKernel(
   }
   const { coneRejects, visible, bandPixels, selects } = createDagOraclePredicates({
     packed,
+    records,
     uniforms,
-    clusterInts,
     nodeFlags,
     planes,
     views,
@@ -119,15 +121,14 @@ export function evaluateDagSelectionKernel(
   const thresholds = new Float64Array(Math.max(1, packed.worldCount)).fill(Math.max(pixelError, 0));
   const missing = new Uint8Array(Math.max(1, packed.worldCount));
   for (let i = 0; i < packed.pageCount; i++) {
-    const base = i * CLUSTER_WORDS,
-      w = clusterInts[base + 10];
+    const w = worldOf(records, i);
     if (!visible(i)) {
       frustumRejected++;
       continue;
     }
     if (!selects(i, pixelError)) continue;
     if (cone(i, w)) continue;
-    const level = clusterLevel(clusterInts[base + 11]);
+    const level = clusterLevel(flagsOf(records, i));
     if (level > lodLevel) lodLevel = level;
     pageIds.push(i);
     if (!resident || resident[i]) continue;
@@ -148,8 +149,7 @@ export function evaluateDagSelectionKernel(
     let raised = false;
     for (let i = 0; i < packed.pageCount; i++) {
       if (resident[i]) continue;
-      const base = i * CLUSTER_WORDS,
-        w = clusterInts[base + 10];
+      const w = worldOf(records, i);
       if (!visible(i) || !selects(i, thresholds[w]) || cone(i, w)) continue;
       const parent = bandPixels(i, 1) * ESCALATION_SLACK;
       if (parent > 0 && Number.isFinite(parent)) {
@@ -166,19 +166,17 @@ export function evaluateDagSelectionKernel(
     if (round === ESCALATION_ROUNDS)
       for (let i = 0; i < packed.pageCount; i++) {
         if (resident[i]) continue;
-        const base = i * CLUSTER_WORDS,
-          w = clusterInts[base + 10];
+        const w = worldOf(records, i);
         if (visible(i) && selects(i, thresholds[w]) && !cone(i, w)) missing[w] = 1;
       }
   }
   let complete = true;
   for (let i = 0; i < packed.pageCount; i++) {
-    const base = i * CLUSTER_WORDS,
-      w = clusterInts[base + 10];
+    const w = worldOf(records, i);
     if (!visible(i) || cone(i, w)) continue;
     let draw: boolean;
     if (missing[w]) {
-      draw = !!(clusterInts[base + 11] & CLUSTER_ROOT);
+      draw = !!(flagsOf(records, i) & CLUSTER_ROOT);
       if (draw && !resident[i]) {
         complete = false;
         draw = false;
