@@ -15,15 +15,31 @@ contient pas.
 | ---------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
 | `rgb-brut.psd`         | 4 × 2, RVB 8 bits, compression 0              | les trois plans tels quels, un canal entier après l'autre                   |
 | `rgb-rle.psd`          | 4 × 2, RVB 8 bits, compression 1              | PackBits : mêmes pixels que `rgb-brut.psd`, une plage et un paquet brut dans la même ligne |
-| `rgba-rle.psd`         | 4 × 2, RVB + alpha, compression 1             | le quatrième plan est l'alpha du composite, lu droit : un pixel transparent et une plage à un quart d'opacité |
+| `rgba-rle.psd`         | 4 × 2, RVB + un plan de plus, compression 1   | rien ne déclare la transparence : le quatrième plan est un canal alpha enregistré, lu, écrit nulle part et compté `psd-alpha-channel-ignored` |
 | `gris-brut.psd`        | 4 × 2, niveaux de gris 8 bits, compression 0  | l'unique canal de couleur porte les trois composantes, sans profil ni matrice |
-| `gris-alpha-rle.psd`   | 4 × 2, gris + alpha, compression 1            | le second plan d'un mode à un seul canal de couleur est l'alpha             |
+| `gris-alpha-rle.psd`   | 4 × 2, gris + un plan de plus, compression 1  | le même cas dans un mode à un seul canal de couleur                         |
 | `grand-format.psb`     | 4 × 2, RVB 8 bits, PSB, compression 1         | la version 2 du format : longueur de la section des calques sur huit octets, compte d'octets d'une ligne sur quatre |
 
 Les cinq fichiers 4 × 2 portent le même composite — trois pixels identiques, un pixel isolé, puis
 une couleur vive et une plage de gris. C'est la preuve que la compression, le mode de couleur et la
 version du format ne changent pas un octet du résultat. `src/plugins/tests/psd.rs` compare les
 pixels **un par un** à une référence écrite en clair dans le test.
+
+## Le plan de plus : transparence ou sélection
+
+Aucune des douze fixtures ne porte de section de calques : leur quatrième plan n'est donc **pas**
+déclaré comme la transparence du document. C'est un canal alpha enregistré — une sélection —, que
+le pilote lit pour avancer d'un plan et n'écrit nulle part, en le comptant sous
+`psd-alpha-channel-ignored`. La dorée le dit maintenant tout haut : elle affirmait auparavant que
+le plan suivant les canaux de couleur **était** l'alpha du composite, ce qui trouait une texture
+dont le document ne portait qu'une sélection.
+
+Le cas de la vraie transparence, et celui des calques, se construisent dans le test : il reprend
+`rgba-rle.psd` et `rgb-rle.psd` et remplace leur section de calques vide par une section qui porte
+un compte de calques, l'entier signé de seize bits par lequel la spécification d'Adobe déclare, par
+son signe, que le premier plan d'alpha du composite est la transparence du document. Le pilote ne
+lit que ce champ et saute le reste de la section par sa longueur : ces cas ne prétendent donc pas
+écrire un enregistrement de calque entier, ils mettent en défaut exactement le champ qui décide.
 
 ## Ce que le pilote refuse, et sous quel nom
 
