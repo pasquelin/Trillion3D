@@ -13,10 +13,6 @@ Le détail de diagnostic est `trace` des deux côtés pour que les deux paient l
 Scène : cache du Lab, 12 instances, 1280 × 720, aucune lampe déclarée (`lampesActives: 0`), donc vue
 sans éclairage. Sorties sous `.mesure/out/vent-<variante>/`.
 
-La campagne a été lancée **depuis ce worktree**, pas depuis le dépôt principal : `diagnosticGpuVariant`
-n'existe que sur cette branche et le harnais du dépôt principal ne saurait pas le passer. Ce harnais-ci
-est celui de `develop` plus les seuls drapeaux `--variante` / `--variante-<côté>`.
-
 ## Les étapes se recouvrent-elles ?
 
 Oui, et il faut dire lequel contient lequel. Les étapes sont **disjointes par définition** :
@@ -107,14 +103,10 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
    ne rend que 0,4 ms sur 21 (20,72 contre 21,16 ms, `rue`), dans le bruit de la campagne — la
    profondeur n'étant pas écrite, il n'empêche pas le test anticipé. Il reste donc en place, et aucune
    variante de pipeline n'a été créée. Caméra immobile : l'image est tenue (`frameHeld`), zéro appel
-   de mélange, rien à chronométrer ; la preuve y est l'écart 0 px des deux vues.
+   de mélange, rien à chronométrer ; la preuve y est l'écart 0 px des deux vues. Le levier « ne pas
+   ombrer ce que la profondeur jette », qui attendait ~36 ms, est donc clos par là.
 
-1. ~~**Ne pas ombrer ce que la profondeur jette — ~36 ms.**~~ Rétablir le rejet de profondeur anticipé
-   sur la passe de mélange : sortir le `discard` de l'alpha-test et l'écriture de stockage `proxy`
-   de l'étage de fragments du cas courant (variantes de pipeline par matériau), ou faire précéder le
-   mélange d'un test de profondeur. Justifié par `plat` et `sommets` à 7,9 ms, image identique, et
-   par les 0 fragment comptés. La présentation suit : 22 → 0,4 ms. Image ~56 → ~21 ms.
-2. ~~**Occlure les grappes transparentes — ~7 ms et 4200 appels.**~~ **Fait, et bien plus que 7 ms.**
+1. ~~**Occlure les grappes transparentes — ~7 ms et 4200 appels.**~~ **Fait, et bien plus que 7 ms.**
    La compaction des transparents teste chaque grappe contre la pyramide Hi-Z de l'image avec les
    MÊMES règles que la partition opaque — la même projection conservatrice (`gpuBoxProjectWgsl.ts`),
    le même choix de mip et le même dépouillement (`gpuHizRectWgsl.ts`), et le MÊME tampon d'uniforme,
@@ -126,23 +118,22 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
    `test/partitionGpuConservatrice.browser.mjs` rejoue la référence double précision sur la
    profondeur relue — 6 391 446 grappes retirées sur 32 225 760 examinées, 30 poses, 0 violation.
    Le nombre d'appels, lui, NE bouge pas (4232 / 4288) : ils dessinent zéro instance.
-3. **Réduire le nombre d'appels — plancher atteint, rien à gagner.** 4232 appels pour 2116 items
-   visibles, 4288 pour 2144 : exactement DEUX par item, parce que chaque item transparent visible de
-   ce banc est double face et que ses deux appels demandent deux pipelines opposés — jamais
-   fusionnables. Entre deux items, `drawBlendPass` repose un groupe de liaison à chaque fois : les
-   décalages dynamiques d'uniforme et de volume sont par item. Le plancher de la fusion des appels
-   CONSÉCUTIFS partageant pipeline, groupe de liaison et couche vaut donc 4232 sur 4232, soit 0 % —
-   très loin des 20 % qui justifieraient le lot. Et le prix restant est borné : la passe entière vaut
-   0,21 ms GPU. Le coût qui reste est processeur (1,9 ms d'encodage), et il demanderait des
-   paramètres par item indexés par instance, pas une fusion d'appels.
+2. **Réduire le nombre d'appels — plancher atteint, rien à gagner.** Exactement DEUX appels par item
+   visible (4232 pour 2116, 4288 pour 2144) : chaque item est double face et ses deux appels
+   demandent deux pipelines opposés, jamais fusionnables ; entre deux items, `drawBlendPass` repose
+   un groupe de liaison, les décalages d'uniforme et de volume étant par item. La fusion des appels
+   CONSÉCUTIFS partageant pipeline, liaison et couche vaut donc 0 %. Le prix restant est borné :
+   0,21 ms GPU pour toute la passe, et 1,9 ms processeur d'encodage qui demanderait des paramètres
+   par item indexés par instance, pas une fusion d'appels.
 
 ## Le code de diagnostic
 
-`packages/sdk-browser/diagnosticGpuVariant.ts` déclare les cinq variantes, les refuse hors
-`diagnosticDetail: 'trace'` et refuse un nom inconnu (`diagnosticGpuVariant.test.ts`). Sans variante,
-le moteur compile le module d'avant, encode les mêmes commandes et ne monte ni requête d'occlusion ni
-compteur : aucun chemin de production n'est modifié. `webgpuBlendOverdraw.ts` porte le comptage,
-publié dans `profilParEtape` sous l'étape « Transparents ».
+`packages/sdk-browser/diagnosticGpuVariant.ts` déclare les sept variantes — cinq pour le mélange et
+la présentation, deux qui réencodent la coupe —, les refuse hors `diagnosticDetail: 'trace'` et
+refuse un nom inconnu (`diagnosticGpuVariant.test.ts`). Sans variante, le moteur compile le module
+d'avant, encode les mêmes commandes et ne monte ni requête d'occlusion ni compteur : aucun chemin de
+production n'est modifié. `webgpuBlendOverdraw.ts` porte le comptage, publié dans `profilParEtape`
+sous l'étape « Transparents ».
 
 ## Sélection : ventilation par noyau, et le levier qu'elle a désigné
 
@@ -181,9 +172,28 @@ stockage de plus : la liste prolonge `flags`, le compteur prolonge `work`, et le
 l'argument sont recopiés vers un tampon `INDIRECT` de seize octets — WebGPU refuse un tampon à la
 fois écrit et lu comme argument dans une même portée, d'où la coupure entre les deux passes.
 
-**Reste, non fait.** `dagWanted` (0,46 ms) lit l'enregistrement de 64 octets de chaque grappe pour
-n'y prendre que son nœud et ses drapeaux : un mot compact par grappe le ramènerait vers 0,15 ms,
-au prix d'une région de plus dans `flags`. La coupe incrémentale, elle, n'a pas été tentée : le
-seuil par primitive est un point fixe global (`atomicMax` sur `work[w]` par toutes les grappes
-retenues non résidentes), qu'une frontière seule ne sait pas reproduire sans revisiter tous ses
-contributeurs — à prouver avant d'y toucher.
+**Les 3,6 ms d'attente n'appartiennent pas à la sélection.** Mesuré par répétition idempotente, la
+seule soustraction qui ne change pas l'image : `selection-doublee` réencode toute la coupe avant
+celle qui compte, `selection-tete-doublee` sa tête seule, et chaque noyau repartant de la remise à
+zéro, l'état final est celui d'une exécution unique (0 px, même coupe, mêmes compteurs Hi-Z). `rue`,
+caméra mobile, même dist des deux côtés : référence 5,05 / 5,09 ms, doublée 6,54 et 6,85 — une coupe
+entière vaut donc **1,5 à 1,8 ms**, ce que la somme des noyaux (1,40 ms) disait déjà. Tête doublée :
+5,66 et 5,84 contre 5,05, soit 0,6 à 0,8 ms pour préparation + nœuds + grappes voulues. L'enveloppe
+de 5,0 ms sur-rapporte donc de ~3,4 ms : ses deux passes ouvrent le tampon de commandes et couvrent
+ce que l'appareil finit de l'image précédente, comme « présentation » couvre la queue des
+transparents. **Il n'y a pas 5 ms à gagner dans la sélection, il y en a 1,5.**
+
+**Fait — trois lancements de moins sur treize.** La préparation porte seuils, plans et comptes de
+bloc d'un seul coup ; le compte de groupes de la liste vivante se tient au fil des ajouts (le rang
+multiple de 64 l'incrémente) au lieu d'un noyau d'un seul fil ; le masque compte lui-même les
+dessinées de son bloc, ce qui retire un noyau et deux millions de drapeaux relus. Campagne
+`--avant cc3b5033` caméra mobile, machine chargée : sélection 5,84 → 5,08 et image 14,19 → 12,84
+(`sol`), 5,26 → 5,44 et 12,36 → 12,67 (`rue`), témoin A/A 5,27 et 12,32 — **le gain est dans le
+bruit**, ce que la mesure ci-dessus prédit. Écart 0 px, coupe identique au hachage, caméra immobile
+0 px et même coupe.
+
+**Reste, non fait.** `dagWanted` domine le peu qui reste : 64 octets de grappe et 48 de cône par
+grappe, dont 80 % tombent. Un mot compact par grappe (nœud, drapeaux, monde) éviterait
+l'enregistrement des rejetées — à mesurer contre les 0,6 ms que vaut toute la tête. La coupe
+incrémentale n'a pas été tentée : le seuil par primitive est un point fixe global (`atomicMax` sur
+`work[w]`) qu'une frontière seule ne sait pas reproduire sans revisiter ses contributeurs.

@@ -3,14 +3,18 @@
  *
  * `dagMask` laisse un drapeau par page derrière `flags[nodeCount + i]`. Le processeur le relisait en
  * entier — cent mille mots par relevé, dont quinze mille utiles — pour en tirer la liste croissante
- * des pages à dessiner. Ces trois noyaux la rendent déjà compactée : le relevé ne rapporte plus
- * qu'un compte et ce compte d'identifiants.
+ * des pages à dessiner. Ces deux noyaux la rendent déjà compactée : le relevé ne rapporte plus qu'un
+ * compte et ce compte d'identifiants.
  *
  * L'ordre est celui de l'ancien parcours, page par page croissante, et non celui d'un compteur
- * atomique : chaque bloc de soixante-quatre pages compte ses drapeaux, un balayage en deux temps
- * donne à chaque bloc son décalage, puis chaque page retrouve son rang dans son propre bloc. Somme
- * en u32, associative ; le décalage d'un bloc ne dépend que des blocs qui le précèdent. La liste
- * rendue est donc terme pour terme celle que le processeur construisait.
+ * atomique : chaque bloc de soixante-quatre pages connaît le nombre de ses dessinées, un balayage en
+ * deux temps donne à chaque bloc son décalage, puis chaque page retrouve son rang dans son propre
+ * bloc. Somme en u32, associative ; le décalage d'un bloc ne dépend que des blocs qui le précèdent.
+ * La liste rendue est donc terme pour terme celle que le processeur construisait.
+ *
+ * Le compte d'un bloc n'est plus relu après coup : `dagMask`, seul à poser un drapeau de dessin,
+ * l'accumule dans le bloc de sa propre page. Un lancement de moins, et deux millions de drapeaux
+ * relus en moins — la somme reste celle des mêmes termes, l'addition d'entiers étant commutative.
  *
  * Aucun tampon neuf : le plafond d'une étape est de huit tampons de stockage, déjà atteint. Les
  * comptes et décalages de bloc vivent derrière les seuils de `work`, la liste derrière les pages
@@ -22,14 +26,6 @@ fn drawFlag(i:u32)->u32{return flags[uni.nodeCount+i];}
 fn blockCount()->u32{return (uni.clusterCount+BLOCK-1u)/BLOCK;}
 /** Premier mot de la zone des blocs dans \`work\`, après les seuils et les drapeaux de couverture. */
 fn blockBase()->u32{return uni.worldCount*2u;}
-@compute @workgroup_size(64)
-fn dagDrawCount(@builtin(global_invocation_id) id:vec3u){
- let b=id.x;if(b>=blockCount()){return;}
- let begin=b*BLOCK;let end=min(begin+BLOCK,uni.clusterCount);
- var total=0u;
- for(var i=begin;i<end;i++){total=total+drawFlag(i);}
- atomicStore(&work[blockBase()+b],total);
-}
 var<workgroup> laneTotals:array<u32,64>;
 @compute @workgroup_size(64)
 fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
