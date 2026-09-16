@@ -19,6 +19,10 @@ export type BlendGpuItem = {
   sourceGeometry: THREE.BufferGeometry;
   /** Boîte monde de l'item, six bornes à plat (`mathBox.ts`) ; absente, l'item n'est pas rejeté. */
   bounds?: Float64Array;
+  /** Le tampon que cette boîte occupe, alloué une fois pour l'item quand il est rejetable par le
+   *  tronc. Absent, l'item n'a jamais de boîte ; présent, `bounds` le désigne ou vaut `undefined`
+   *  parce que les bornes obtenues n'étaient pas exploitables (`webgpuBlendWorlds.ts`). */
+  worldBox?: Float64Array;
   rgba: [number, number, number, number];
   map?: THREE.Texture;
   flags: number;

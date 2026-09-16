@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { boxTransform } from '../sdk-core/index.ts';
 import { resolvePixelError } from './pageSelection.ts';
-import { readThreeBox } from './threeBounds.ts';
 import { sameHizView } from './hiz.ts';
 import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
 import {
@@ -14,36 +12,8 @@ import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import { holdWebgpuFrame } from './webgpuFrameHold.ts';
 import { bumpScene } from './frameRevisions.ts';
-import type { BlendGpuItem } from './webgpuBlendState.ts';
+import { refreshBlendWorlds } from './webgpuBlendWorlds.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-
-/** Vrai quand deux matrices portent exactement les mêmes seize nombres. Un `NaN` d'un côté n'est
- *  jamais « le même » : la boîte repart, ce qui est le côté sûr. */
-function sameMatrix(held: readonly number[], world: readonly number[]) {
-  for (let i = 0; i < 16; i++) if (held[i] !== world[i]) return false;
-  return true;
-}
-
-/**
- * La matrice d'un item transparent et la boîte monde qu'elle transporte sont fonction de la seule
- * matrice monde de son maillage source. Une matrice que la scène n'a pas bougée rendrait les mêmes
- * seize nombres, donc la même boîte : elle est comparée au lieu d'être recopiée, et les huit coins
- * ne repartent que là où quelque chose a bougé. Rend le nombre d'items qui ont bougé.
- */
-export function refreshBlendWorlds(items: readonly BlendGpuItem[]) {
-  let moved = 0;
-  for (const item of items) {
-    const mesh = item.sourceMesh;
-    if (!mesh || sameMatrix(item.matrix.elements, mesh.matrixWorld.elements)) continue;
-    item.matrix.copy(mesh.matrixWorld);
-    if (item.bounds && item.sourceGeometry.boundingBox) {
-      readThreeBox(item.bounds, item.sourceGeometry.boundingBox);
-      boxTransform(item.bounds, 0, item.bounds, 0, item.matrix.elements);
-    }
-    moved++;
-  }
-  return moved;
-}
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -128,8 +98,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
     );
   }
   marks.blendStart = performance.now();
-  // Les items transparents ne portent que la matrice monde de leur maillage source : la même liste
-  // de nœuds modifiés les gouverne, et une scène immobile ne les fait plus visiter.
+  // Un item transparent LIT la matrice monde de son maillage source : rien n'est à recopier. Seule
+  // sa boîte monde, qui est un calcul, se refait — et seulement quand la scène a changé de matrices.
   if (worldsMoved) refreshBlendWorlds(blendState.blendGpu);
   const cpuStart = performance.now();
   // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un

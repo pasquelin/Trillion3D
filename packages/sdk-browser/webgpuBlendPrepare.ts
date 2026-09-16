@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { BOX_VALUES, boxIsEmpty, boxTransform } from '../sdk-core/index.ts';
-import { readThreeBox } from './threeBounds.ts';
+import { BOX_VALUES } from '../sdk-core/index.ts';
+import { refreshBlendBounds } from './webgpuBlendWorlds.ts';
 import {
   FLAG_BACK,
   FLAG_DOUBLE,
@@ -66,17 +66,14 @@ export function prepareWebgpuBlend(
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
     if (transmits) flags |= FLAG_TRANSMISSIVE;
-    // Static source transforms are baked for this backend. World AABBs remain
-    // conservative under rotation, mirroring, nonuniform scale and shear.
-    let bounds: Float64Array | undefined;
+    // Aucune transformation n'est cuite ici : l'item porte la matrice monde vivante de son maillage
+    // source, et sa boîte est POSÉE par le même chemin que celui qui la reprendra après un
+    // déplacement. La boîte monde reste conservative sous rotation, miroir, échelle non uniforme et
+    // cisaillement — c'est `boxTransform` qui le garantit, pas une décomposition.
+    let worldBox: Float64Array | undefined;
     if (copy.frustumCulled) {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
-      if (copy.geometry.boundingBox) {
-        const box = new Float64Array(BOX_VALUES);
-        readThreeBox(box, copy.geometry.boundingBox);
-        boxTransform(box, 0, box, 0, copy.matrix.elements);
-        if (!boxIsEmpty(box, 0) && box.every(Number.isFinite)) bounds = box;
-      }
+      if (copy.geometry.boundingBox) worldBox = new Float64Array(BOX_VALUES);
     }
     const item = {
       transmissive: transmits,
@@ -89,7 +86,8 @@ export function prepareWebgpuBlend(
       matrix: copy.matrix,
       sourceMesh: copy.userData.sourceMesh as THREE.Mesh | undefined,
       sourceGeometry: copy.geometry,
-      bounds,
+      worldBox,
+      bounds: undefined as Float64Array | undefined,
       rgba: [mat.baseColor[0], mat.baseColor[1], mat.baseColor[2], opacity] as [
         number,
         number,
@@ -102,6 +100,7 @@ export function prepareWebgpuBlend(
       wrapModes: wrapModes(mat),
       paged,
     };
+    refreshBlendBounds(item);
     blendState.blendGpu.push(item);
     if (paged && item.sourceMesh) blendState.pagedBlendGpu.set(item.sourceMesh, item);
     scene.remove(copy);
