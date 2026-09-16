@@ -40,7 +40,8 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
   const resetPipeline = stage('dagReset'),
     planePipeline = stage('dagPlanes'),
     nodePipeline = stage('dagNodes');
-  const wantedPipeline = stage('dagWanted'),
+  const argsPipeline = stage('dagArgs'),
+    wantedPipeline = stage('dagWanted'),
     escalatePipeline = stage('dagEscalate'),
     checkPipeline = stage('dagCheck'),
     maskPipeline = stage('dagMask');
@@ -66,6 +67,7 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
     resetPipeline,
     planePipeline,
     nodePipeline,
+    argsPipeline,
     wantedPipeline,
     escalatePipeline,
     checkPipeline,
