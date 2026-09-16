@@ -6,6 +6,7 @@
 //! A JSON line `{"cancel":"*"}` or `{"cancel":"<job>"}` on stdin cancels; killing the process is also safe
 //! because every output file is written atomically.
 mod cli_batch;
+mod cli_spec;
 use cli_batch::run_batch;
 use serde_json::{json, Value};
 use std::{

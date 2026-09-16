@@ -180,7 +180,7 @@ The phases under `phaseCpuMs` **overlap**. They are summed across worker threads
 
 | Field                                                                   | Meaning                                                                        | Default                                              |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| `workers`                                                               | Jobs running at the same time (1–64)                                           | `1`                                                  |
+| `workers`                                                               | Jobs running at the same time (1–64), lowered until the budget holds them      | `1`                                                  |
 | `ramBudgetMb`                                                           | Total admission budget, split evenly between workers unless a job sets its own | `256 × workers`                                      |
 | `threads`                                                               | Default threads per job                                                        | `2`                                                  |
 | `jobs[].id`                                                             | Job id used in events and the summary; must be unique                          | `job-<index>`                                        |
@@ -197,6 +197,8 @@ Jobs are taken in file order by the first free worker. stdout at the end:
 `jobs` is sorted by id. Exit code 0 only when every job is ready. An invalid batch file is reported as `INVALID_BATCH` before any job starts.
 
 Two jobs of one batch may not write the same cache: each prunes it after publishing, so the second would erase the first job's result. Destinations are compared by identity, not by spelling — the longest existing prefix is canonicalized, symlinks included, and the absent suffix is normalized (`.`, `..`, doubled separators) — so `x` and `p/../x` are one cache. The batch is then refused with `INVALID_BATCH` before any job starts, and the message names both jobs and both spellings. Give each job its own cache directory instead.
+
+`ramBudgetMb` is the budget of the **whole batch**, and the admitted concurrency respects it. A job is never admitted under 64 MiB, so `workers` is lowered until every job that could run at the same time fits in the total: `workers: 2` with `ramBudgetMb: 64` runs one job at a time with 64 MiB, instead of admitting 64 MiB twice under a 64 MiB budget. Per-job `ramBudgetMb` overrides are counted the same way — the largest ones that would run together must fit in the total — and a single job asking for more than the whole batch is refused with `INVALID_BATCH` naming it, before anything starts. A total under 64 MiB is refused outright. The `batch` event publishes the concurrency actually admitted, and each `accepted` event the share its job received. This remains an admission estimate, not an enforced RSS ceiling.
 
 Thousands of models: one batch file, one process, `workers` sized to the machine, `ramBudgetMb` set to what the machine can give. Each job builds its own thread pool of `threads` workers, so `workers × threads` is the CPU ceiling.
 
