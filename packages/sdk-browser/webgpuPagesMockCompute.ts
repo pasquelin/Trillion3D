@@ -41,8 +41,7 @@ function simulateBlendSelect(bind: ComputeBind) {
   const boxes = new Float32Array(boxBytes.buffer, boxBytes.byteOffset, boxBytes.byteLength / 4);
   const draws = words(byBinding.get(2)!.data),
     counts = words(byBinding.get(3)!.data),
-    args = words(byBinding.get(4)!.data),
-    stats = words(byBinding.get(5)!.data);
+    args = words(byBinding.get(4)!.data);
   for (let item = 0; item < itemCount; item++) {
     const lo = item * 8,
       hi = lo + 4;
@@ -66,10 +65,7 @@ function simulateBlendSelect(bind: ComputeBind) {
     }
     const d = item * 4;
     let instances = draws[d] !== 0xffffffff ? counts[draws[d] * 4 + 1] : 1;
-    if (rejected) {
-      instances = 0;
-      stats[0]++;
-    }
+    if (rejected) instances = 0;
     args[d] = draws[d + 1];
     args[d + 1] = instances;
     args[d + 2] = draws[d + 2];
