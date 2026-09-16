@@ -5,7 +5,7 @@
  "buffers": [
   {
    "uri": "emetteur-sphere.bin",
-   "byteLength": 552
+   "byteLength": 720
   }
  ],
  "bufferViews": [
@@ -38,6 +38,16 @@
    "buffer": 0,
    "byteOffset": 408,
    "byteLength": 144
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 552,
+   "byteLength": 72
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 624,
+   "byteLength": 96
   }
  ],
  "accessors": [
@@ -106,6 +116,28 @@
    "componentType": 5125,
    "count": 36,
    "type": "SCALAR"
+  },
+  {
+   "bufferView": 6,
+   "componentType": 5126,
+   "count": 6,
+   "type": "VEC3",
+   "min": [
+    -0.2,
+    -0.2,
+    -0.2
+   ],
+   "max": [
+    0.2,
+    0.2,
+    0.2
+   ]
+  },
+  {
+   "bufferView": 7,
+   "componentType": 5125,
+   "count": 24,
+   "type": "SCALAR"
   }
  ],
  "materials": [
@@ -129,6 +161,23 @@
      0.75,
      0.35,
      0.2,
+     1
+    ]
+   }
+  },
+  {
+   "name": "enveloppe",
+   "doubleSided": false,
+   "emissiveFactor": [
+    1.0,
+    0.95,
+    0.85
+   ],
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.02,
+     0.02,
+     0.02,
      1
     ]
    }
@@ -170,6 +219,18 @@
      "material": 1
     }
    ]
+  },
+  {
+   "name": "enveloppe-lampe",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 6
+     },
+     "indices": 7,
+     "material": 2
+    }
+   ]
   }
  ],
  "nodes": [
@@ -197,6 +258,15 @@
      "light": 0
     }
    }
+  },
+  {
+   "mesh": 3,
+   "name": "enveloppe-lampe",
+   "translation": [
+    0.0,
+    0.6,
+    0.0
+   ]
   }
  ],
  "scenes": [
@@ -205,7 +275,8 @@
     0,
     1,
     2,
-    3
+    3,
+    4
    ]
   }
  ],
