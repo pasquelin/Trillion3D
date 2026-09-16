@@ -72,3 +72,85 @@ fn le_vkformat_nomme_le_transfert_quand_le_descripteur_se_tait() {
         assert_eq!(declared(case, &file).0, expected, "{case}");
     }
 }
+
+/// `KHR_DF_FLAG_ALPHA_PREMULTIPLIED`, le premier bit des drapeaux du bloc de base.
+const PREMULTIPLIED: u8 = 1;
+
+/// Un niveau RGBA8 de 4 × 4 dont chaque ligne porte une valeur différente : de quoi voir un
+/// retournement vertical. `line` donne le quadruplet de la ligne.
+fn rows(line: impl Fn(usize) -> [u8; 4]) -> Vec<u8> {
+    (0..4).flat_map(|row| line(row).repeat(4)).collect()
+}
+
+// Reproduction du constat 57 : le descripteur de format lève le drapeau d'alpha prémultiplié, et le
+// contrat de sortie demande un alpha droit. Le pilote ne lisait pas ce drapeau : les couleurs déjà
+// multipliées par leur alpha sortaient telles quelles, puis l'aperçu les prémultipliait une
+// seconde fois. Chaque composante est désormais divisée par l'alpha du texel, sans diviser par zéro.
+#[test]
+fn le_drapeau_premultiplie_du_descripteur_ramene_lalpha_a_droit() {
+    // Ligne 0 : un demi-gris prémultiplié à mi-alpha, qui vaut un blanc droit. Ligne 1 : un noir,
+    // qui reste noir. Ligne 2 : un alpha nul, sous lequel il n'y a pas de couleur droite à
+    // retrouver. Ligne 3 : un texel opaque, que la division laisse exactement tel quel.
+    let level = rows(|row| match row {
+        0 => [128, 128, 128, 128],
+        1 => [0, 0, 0, 128],
+        2 => [10, 20, 30, 0],
+        _ => [7, 8, 9, 255],
+    });
+    let file = bytes::described(
+        RGBA8_SRGB,
+        SIDE,
+        SIDE,
+        &level,
+        1,
+        Some((SRGB, PREMULTIPLIED)),
+        &[],
+    );
+    let attendu = rows(|row| match row {
+        0 => [255, 255, 255, 128],
+        1 => [0, 0, 0, 128],
+        2 => [10, 20, 30, 0],
+        _ => [7, 8, 9, 255],
+    });
+    let (_, notes, pixels) = declared("prémultiplié", &file);
+    assert_eq!(pixels, attendu);
+    assert!(notes.is_empty(), "le drapeau est appliqué, pas compté");
+    // Sans le drapeau, les mêmes octets sortent tels quels : c'est bien lui qui décide.
+    let droit = bytes::described(RGBA8_SRGB, SIDE, SIDE, &level, 1, Some((SRGB, 0)), &[]);
+    assert_eq!(declared("droit", &droit).2, level);
+}
+
+// Reproduction du constat 57, seconde moitié : les clés `KTXorientation` et `KTXswizzle` étaient
+// ignorées sans un mot. L'orientation par défaut du format est `rd` — vers la droite, vers le bas —,
+// celle du contrat ; `ru` demande un retournement vertical, que le pilote applique. Tout le reste
+// est compté par son nom, jamais appliqué de travers.
+#[test]
+fn les_cles_dorientation_et_de_permutation_sont_appliquees_ou_comptees() {
+    let level = rows(|row| [row as u8 * 10, 0, 0, 255]);
+    let file =
+        |keys: &[(&str, &str)]| bytes::described(RGBA8_SRGB, SIDE, SIDE, &level, 1, None, keys);
+    // `rd` est l'orientation du contrat : rien ne bouge, rien n'est compté.
+    let (_, notes, pixels) = declared("rd", &file(&[("KTXorientation", "rd")]));
+    assert_eq!(pixels, level);
+    assert!(notes.is_empty());
+    // `ru` écrit ses lignes du bas vers le haut : le pilote les remet dans l'ordre du contrat.
+    let (_, notes, pixels) = declared("ru", &file(&[("KTXorientation", "ru")]));
+    assert_eq!(pixels, rows(|row| [(3 - row) as u8 * 10, 0, 0, 255]));
+    assert!(
+        notes.is_empty(),
+        "un retournement s'applique, il ne se compte pas"
+    );
+    // Une orientation qui part vers la gauche demanderait un retournement horizontal que le pilote
+    // ne déclare pas : elle est comptée, et les texels restent où le fichier les a mis.
+    let (_, notes, pixels) = declared("lu", &file(&[("KTXorientation", "lu")]));
+    assert_eq!(pixels, level);
+    assert_eq!(notes, vec!["ktx2-orientation-unsupported"]);
+    // Une permutation de canaux autre que l'identité est comptée de la même façon.
+    let (_, notes, pixels) = declared("bgra", &file(&[("KTXswizzle", "bgra")]));
+    assert_eq!(pixels, level);
+    assert_eq!(notes, vec!["ktx2-swizzle-unsupported"]);
+    // `rgba` est l'identité : elle ne compte rien.
+    assert!(declared("rgba", &file(&[("KTXswizzle", "rgba")]))
+        .1
+        .is_empty());
+}
