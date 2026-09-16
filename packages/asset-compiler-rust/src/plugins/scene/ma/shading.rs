@@ -29,9 +29,19 @@ pub(super) fn resolve(document: &mut Document) -> Graph {
     let mut inputs = HashMap::new();
     let mut surfaces: HashMap<usize, usize> = HashMap::new();
     let mut members: Vec<(usize, usize, Option<String>)> = Vec::new();
-    for link in &document.links {
-        let ends = document.by_name.get(&link.source).copied();
-        let Some((source, target)) = ends.zip(document.by_name.get(&link.target).copied()) else {
+    // Les deux bouts de chaque liaison sont résolus d'abord : un nom y est un chemin de scène, et
+    // le résoudre compte ce qu'il a d'ambigu, donc il touche au rapport du document.
+    let ends: Vec<Option<(usize, usize)>> = (0..document.links.len())
+        .map(|rank| {
+            let (source, target) = (
+                document.links[rank].source.clone(),
+                document.links[rank].target.clone(),
+            );
+            document.find(&source).zip(document.find(&target))
+        })
+        .collect();
+    for (link, ends) in document.links.iter().zip(&ends) {
+        let Some((source, target)) = *ends else {
             continue;
         };
         let into = root(&link.target_attr);

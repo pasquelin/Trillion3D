@@ -20,6 +20,8 @@ mod coplanar_overlap;
 mod flottant_golden;
 mod import_opacite;
 mod ktx2_golden;
+mod ma_driver;
+mod ma_fidelite;
 mod ma_golden;
 pub(crate) mod ngones;
 mod obj_golden;
