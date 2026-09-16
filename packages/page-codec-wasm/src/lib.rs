@@ -117,12 +117,17 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
 mod tests {
     use super::*;
 
-    fn page() -> Vec<u8> {
+    fn mots(words: [u32; 8]) -> Vec<u8> {
         let mut out = Vec::new();
-        for word in [MAGIC, VERSION, 3, 6, 0, STRIDE as u32, 0, 0] {
+        for word in words {
             out.extend_from_slice(&word.to_le_bytes());
         }
         out
+    }
+
+    /// Un en-tête dont toutes les bornes passent : seul le corps, vide, lui manque.
+    fn page() -> Vec<u8> {
+        mots([MAGIC, VERSION, 3, 6, 0, STRIDE as u32, 0, 0])
     }
 
     #[test]
@@ -131,7 +136,20 @@ mod tests {
         let mut faux = page();
         faux[0] ^= 1;
         assert_eq!(decode(&faux, 1 << 24).unwrap_err(), PageError::Version);
-        assert_eq!(decode(&page(), 1 << 24).unwrap_err(), PageError::Bounds);
+        for bornes in [
+            [MAGIC, VERSION, 0, 6, 0, STRIDE as u32, 0, 0],
+            [MAGIC, VERSION, 65536, 6, 0, STRIDE as u32, 0, 0],
+            [MAGIC, VERSION, 3, 0, 0, STRIDE as u32, 0, 0],
+            [MAGIC, VERSION, 3, 4, 0, STRIDE as u32, 0, 0],
+            [MAGIC, VERSION, 3, 6, 32, STRIDE as u32, 0, 0],
+            [MAGIC, VERSION, 3, 6, 0, STRIDE as u32 + 4, 0, 0],
+            [MAGIC, VERSION, 3, 6, 0, STRIDE as u32, 8, 0],
+        ] {
+            assert_eq!(
+                decode(&mots(bornes), 1 << 24).unwrap_err(),
+                PageError::Bounds
+            );
+        }
     }
 
     #[test]
