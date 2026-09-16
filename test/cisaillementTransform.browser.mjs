@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { OPEN_CONE } from '../packages/sdk-browser/pageCone.ts';
 import { packDagSelection } from '../packages/sdk-browser/gpuDagSelection.ts';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
+import { cameraMoteur } from '../packages/sdk-browser/cameraFixture.ts';
 import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
@@ -50,7 +51,7 @@ function vue(x, fov) {
   camera.position.set(x, 0, 10);
   camera.lookAt(x, 0, 0);
   camera.updateMatrixWorld(true);
-  return cameraSelectionUniforms(camera, 0, VIEWPORT);
+  return cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
 }
 
 const exacte = cisaillee(),
