@@ -9,13 +9,13 @@ use crate::{decode, OPTIONAL};
 /// 5 offset des indices, 6 offset des positions, 7 à 11 offsets des attributs facultatifs (0 = absent).
 const RESULT_WORDS: usize = 12;
 
-fn fuite<T>(valeurs: Vec<T>) -> u32 {
+pub(crate) fn fuite<T>(valeurs: Vec<T>) -> u32 {
     let boite = valeurs.into_boxed_slice();
     Box::into_raw(boite) as *mut T as u32
 }
 
 /// Rend une allocation faite par `fuite` : la capacité d'une boîte tranchée vaut sa longueur.
-unsafe fn rends<T>(offset: u32, len: usize) {
+pub(crate) unsafe fn rends<T>(offset: u32, len: usize) {
     if offset != 0 {
         drop(Vec::from_raw_parts(offset as *mut T, len, len));
     }
