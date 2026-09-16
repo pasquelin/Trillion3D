@@ -71,7 +71,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
    */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
   const cutDelta = createCutDelta(packedPages, run.desired);
-  const drawnDelta = createCutDelta(packedPages, run.drawnMembers);
+  // La coupe dessinable ne sert que par sa différence : aucune liste d'enregistrements n'en est
+  // tirée. `shownFromGpu` écrit déjà `run.shown` à partir des mêmes identifiants.
+  const drawnDelta = createCutDelta(packedPages);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,
