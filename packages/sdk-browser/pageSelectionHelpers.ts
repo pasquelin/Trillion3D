@@ -188,11 +188,6 @@ export function streamPlacement(
     : undefined;
 }
 
-export function objects(source: THREE.Object3D) {
-  const meshes: THREE.Mesh[] = [];
-  source.updateMatrixWorld(true);
-  source.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
-  });
-  return meshes;
-}
+/** Les maillages d'un graphe hôte résolu. Une seule traversée dans le paquet, celle de
+ *  `sceneMeshes.ts` : la sélection lisait la même, mot pour mot. */
+export { meshes as objects } from './sceneMeshes.ts';

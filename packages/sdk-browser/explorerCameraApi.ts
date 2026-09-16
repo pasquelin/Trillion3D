@@ -55,7 +55,11 @@ export function createExplorerCameraApi(inputs: Inputs) {
     },
     resetHome() {
       check();
-      camera.position.copy(center).add(homeOffset);
+      camera.position.set(
+        center.x + homeOffset.x,
+        center.y + homeOffset.y,
+        center.z + homeOffset.z,
+      );
       lookAtTarget.copy(center);
       camera.lookAt(center);
       camera.updateMatrixWorld();

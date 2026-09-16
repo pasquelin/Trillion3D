@@ -87,7 +87,7 @@ const passeBounds = (fn) => (entree) => {
   const boite = fn(entree.source, entree.associations, entree.metadata, (mesh) =>
     manquants.push(mesh.id),
   );
-  return { boite: [...boite.min.toArray(), ...boite.max.toArray()], manquants };
+  return { boite: boiteVersTableau(boite), manquants };
 };
 
 const passeIndex = (pages, bundles) => (metadata) => {
