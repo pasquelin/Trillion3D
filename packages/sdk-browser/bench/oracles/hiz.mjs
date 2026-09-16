@@ -7,13 +7,17 @@ import { projectVisibilityVertex } from '../../visibilityProjection.ts';
 import { unpackVisibilityId } from '../../visibilityTypes.ts';
 
 const viewProjScratch = new THREE.Matrix4();
+/** La vue-projection de l'oracle et la convention de profondeur de la caméra qu'il a reçue : les
+ *  deux voyagent ensemble, comme dans la caméra du moteur. Réécrit par appel, jamais réalloué. */
+const depthCam = { viewProjection: viewProjScratch.elements, depthZeroToOne: false };
 /** `hizDepth.ts:25-84` avant le lot A : trois projections par pixel. */
 export function referenceVisibilityDepth(ids, pages, cam, viewport) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(HIZ_BACKGROUND);
   cam.updateMatrixWorld();
-  const viewProj = viewProjScratch.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+  viewProjScratch.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+  depthCam.depthZeroToOne = cam.coordinateSystem === THREE.WebGPUCoordinateSystem;
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const unpacked = unpackVisibilityId(ids[y * width + x]);
@@ -24,30 +28,9 @@ export function referenceVisibilityDepth(ids, pages, cam, viewport) {
         base = unpacked.triangleIndex * 3;
       if (base + 2 >= index.length) continue;
       const p = page.attributes.position;
-      const a = projectVisibilityVertex(
-        page.matrix,
-        p,
-        index[base],
-        viewProj.elements,
-        width,
-        height,
-      );
-      const b = projectVisibilityVertex(
-        page.matrix,
-        p,
-        index[base + 1],
-        viewProj.elements,
-        width,
-        height,
-      );
-      const c = projectVisibilityVertex(
-        page.matrix,
-        p,
-        index[base + 2],
-        viewProj.elements,
-        width,
-        height,
-      );
+      const a = projectVisibilityVertex(page.matrix, p, index[base], depthCam, width, height);
+      const b = projectVisibilityVertex(page.matrix, p, index[base + 1], depthCam, width, height);
+      const c = projectVisibilityVertex(page.matrix, p, index[base + 2], depthCam, width, height);
       if (!a || !b || !c) continue;
       const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
       if (area === 0) continue;

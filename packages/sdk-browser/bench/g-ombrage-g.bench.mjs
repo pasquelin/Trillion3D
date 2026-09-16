@@ -58,6 +58,8 @@ const viewProj = new THREE.Matrix4().multiplyMatrices(
   camera.projectionMatrix,
   camera.matrixWorldInverse,
 );
+/** La vue-projection du banc et la convention de profondeur de sa caméra, qui est celle de WebGL. */
+const depthCam = { viewProjection: viewProj.elements, depthZeroToOne: false };
 
 const matiere = (cartes) => ({
   baseColor: [0.8, 0.6, 0.4],
@@ -80,7 +82,7 @@ const matiere = (cartes) => ({
 /** Un lot de pixels : la même page, le même triangle, des poids et des matières qui varient. */
 function pixels(nombre, cartes, hostiles) {
   const p = page(0x77 ^ nombre),
-    tri = triangleAt(p, 0, viewProj.elements, 1600, 900),
+    tri = triangleAt(p, 0, depthCam, 1600, 900),
     mat = matiere(cartes);
   const lot = [];
   for (let i = 0; i < nombre; i++) {

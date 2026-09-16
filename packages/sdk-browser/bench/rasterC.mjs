@@ -125,9 +125,8 @@ export function rasterAvec(fill) {
       ids = new Uint32Array(width * height),
       depth = new Float32Array(width * height);
     depth.fill(Infinity);
-    // Le sujet comparé est le REMPLISSAGE, pas la lecture de la caméra : la vue-projection vient de
-    // la caméra du moteur, comme dans le paquet.
-    const viewProj = cam.viewProjection;
+    // Le sujet comparé est le REMPLISSAGE, pas la lecture de la caméra : la vue-projection et sa
+    // convention de profondeur viennent de la caméra du moteur, comme dans le paquet.
     for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
       const page = pages[pageIndex],
         index = page.array;
@@ -139,7 +138,7 @@ export function rasterAvec(fill) {
           : page.material.side;
       const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
       for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-        const tri = triangleAt(page, t, viewProj, width, height);
+        const tri = triangleAt(page, t, cam, width, height);
         if (!tri) continue;
         const area =
           (tri.b.x - tri.a.x) * (tri.c.y - tri.a.y) - (tri.c.x - tri.a.x) * (tri.b.y - tri.a.y);

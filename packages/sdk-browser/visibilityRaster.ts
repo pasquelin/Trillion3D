@@ -70,7 +70,6 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
   depth.fill(Infinity);
-  const viewProj = cam.viewProjection;
   for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
     const page = pages[pageIndex],
       index = page.array;
@@ -87,7 +86,7 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
     const positif = (side === THREE.BackSide) !== matrixWindingCw(page.matrix.elements);
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
-      const tri = triangleAt(page, t, viewProj, width, height);
+      const tri = triangleAt(page, t, cam, width, height);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
       if (side !== THREE.DoubleSide && (positif ? area <= 0 : area >= 0)) continue;
