@@ -12,6 +12,7 @@ import { quadrillage } from './scenesC.mjs';
 import { compareC, deposeC } from './bancC.mjs';
 import { compteur, note, ulpEntre } from './ecartsC.mjs';
 import { camera, coupe } from './scenes.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 /** L'écart d'une image : combien de pixels changent d'identifiant, combien changent de profondeur. */
 function differencesImage(attendu, obtenu, nom) {
@@ -34,9 +35,12 @@ function differencesImage(attendu, obtenu, nom) {
   return c;
 }
 
-const cam = camera(6, 0.1, 16 / 9);
+// La caméra hôte du décor, et celle du moteur qui en découle : posées une fois, jamais par tour.
+const hote = camera(6, 0.1, 16 / 9),
+  hoteCarre = camera(3, 0.1, 1);
+const cam = cameraMoteur(hote);
 const image = [1280, 720];
-const carre = camera(3, 0.1, 1);
+const carre = cameraMoteur(hoteCarre);
 const grande = { pages: coupe({ pages: 400, triangles: 24, hostile: true, seed: 7 }), cam, image };
 const rase = {
   pages: coupe({ pages: 24, triangles: 24, hostile: true, seed: 23, taille: 2.2 }),

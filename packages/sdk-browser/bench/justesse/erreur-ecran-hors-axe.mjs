@@ -17,6 +17,7 @@ import { cullingBounds } from '../../pageSelectionCutBounds.ts';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 const SEUIL = 0.4;
 const VIEWPORT = [1920, 1080];
@@ -81,12 +82,15 @@ const culling = { nodes, stride: 15 };
 function coupeCpu(avecNoeud) {
   const root = { world, pages, cones: false };
   if (avecNoeud) root.culling = { ...culling, bounds: cullingBounds(culling, pages) };
-  const { shown } = selectVisiblePages([root], camera, { pixelError: SEUIL, viewport: VIEWPORT });
+  const { shown } = selectVisiblePages([root], cameraMoteur(camera), {
+    pixelError: SEUIL,
+    viewport: VIEWPORT,
+  });
   return shown.map((rec) => (rec.id === 0 ? 'grossier' : 'fin'));
 }
 const nom = (ids) => ids.map((i) => (i === 0 ? 'grossier' : 'fin'));
 
-const uniforms = cameraSelectionUniforms(camera, SEUIL, VIEWPORT);
+const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
 const empaquete = (avecNoeud) =>
   packDagSelection([{ world, pages, culling: avecNoeud ? culling : undefined }]);
 const aPlat = empaquete(false),

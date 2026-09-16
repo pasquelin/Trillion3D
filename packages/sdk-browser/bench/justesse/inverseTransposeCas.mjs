@@ -15,6 +15,7 @@ import {
 import { packDagSelection } from '../../gpuDagSelection.ts';
 import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { poseMonde } from './normaleEclairageCas.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 export const VIEWPORT = [1000, 1000];
 // Caméra fixe : sur -Z, elle regarde l'origine où chaque objet est recentré quelle que soit sa
@@ -23,6 +24,8 @@ export const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
 camera.position.set(0, 0, -9);
 camera.lookAt(0, 0, 0);
 camera.updateMatrixWorld(true);
+/** La caméra du moteur de ce décor, posée une fois : le CPU et le noyau GPU lisent la même. */
+export const vue = cameraMoteur(camera);
 const WORLD_PLANES = new Float64Array(24);
 frustumPlanesFromMatrix(
   WORLD_PLANES,
@@ -130,7 +133,7 @@ export function dansLeChamp(cas) {
 
 /** `coneCullsPageWith` et `selectVisiblePages`, comme le lot 1 : la même page, les deux entrées. */
 export function decisionCpu(cas) {
-  const ctx = coneContextFor(createConeContext(), cas.world, camera);
+  const ctx = coneContextFor(createConeContext(), cas.world, vue);
   const coneRejette = coneCullsPageWith(ctx, cas.cone, cas.world, cas.min, cas.max);
   const box = new THREE.Box3(
     new THREE.Vector3(...cas.min),
@@ -149,7 +152,7 @@ export function decisionCpu(cas) {
     cones: true,
     worldBox: new Float64Array([...box.min.toArray(), ...box.max.toArray()]),
   };
-  const triangles = selectVisiblePages([root], camera, {
+  const triangles = selectVisiblePages([root], vue, {
     pixelError: 0,
     viewport: VIEWPORT,
   }).displayedTriangles;
