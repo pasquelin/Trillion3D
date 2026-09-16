@@ -20,36 +20,44 @@ function graphe() {
   return { source, mesh, lampe, soleil };
 }
 
-test('la première lecture annonce un changement, la suivante n’annonce rien', () => {
+/** Les nœuds relus : les modèles source de ce qui est dessiné, les lampes, et leurs ancêtres. */
+const dessine = (...meshes: THREE.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
+
+function veille(source: THREE.Object3D, ...meshes: THREE.Object3D[]) {
   const watch = createHostSceneWatch();
+  watch.observe(source, dessine(...meshes));
+  return watch;
+}
+
+test('la première lecture annonce un changement, la suivante n’annonce rien', () => {
   const { source } = graphe();
-  assert.equal(watch.changed(source), true, 'rien n’est encore connu de ce graphe');
-  assert.equal(watch.changed(source), false, 'une relecture sans écriture doit être muette');
-  assert.equal(watch.changed(source), false, 'et le rester');
+  const watch = veille(source);
+  assert.equal(watch.changed(), true, 'rien n’est encore connu de ce graphe');
+  assert.equal(watch.changed(), false, 'une relecture sans écriture doit être muette');
+  assert.equal(watch.changed(), false, 'et le rester');
 });
 
 test('une pose écrite directement par l’hôte est vue, une seule fois', () => {
-  const watch = createHostSceneWatch();
   const { source, mesh } = graphe();
-  watch.changed(source);
+  const watch = veille(source, mesh);
+  watch.changed();
   mesh.position.x = 100;
-  assert.equal(watch.changed(source), true, 'le déplacement direct doit être vu');
-  assert.equal(watch.changed(source), false, 'et ne pas être annoncé deux fois');
-  assert.equal(mesh.matrixWorld.elements[12], 100, 'la relecture remonte les matrices monde');
+  assert.equal(watch.changed(), true, 'le déplacement direct doit être vu');
+  assert.equal(watch.changed(), false, 'et ne pas être annoncé deux fois');
 });
 
 test('la visibilité écrite directement par l’hôte est vue', () => {
-  const watch = createHostSceneWatch();
   const { source, mesh } = graphe();
-  watch.changed(source);
+  const watch = veille(source, mesh);
+  watch.changed();
   mesh.visible = false;
-  assert.equal(watch.changed(source), true);
-  assert.equal(watch.changed(source), false);
+  assert.equal(watch.changed(), true);
+  assert.equal(watch.changed(), false);
 });
 
 test('l’intensité, la couleur, la portée et la pose d’une lampe sont vues', () => {
-  const watch = createHostSceneWatch();
   const { source, lampe } = graphe();
+  const watch = veille(source);
   for (const ecriture of [
     () => (lampe.intensity = 7),
     () => (lampe.position.x = 9),
@@ -57,46 +65,49 @@ test('l’intensité, la couleur, la portée et la pose d’une lampe sont vues'
     () => (lampe.distance = 42),
     () => (lampe.decay = 3),
   ]) {
-    watch.changed(source);
+    watch.changed();
     ecriture();
-    assert.equal(watch.changed(source), true, `écriture non vue : ${ecriture}`);
-    assert.equal(watch.changed(source), false, 'annoncée deux fois');
+    assert.equal(watch.changed(), true, `écriture non vue : ${ecriture}`);
+    assert.equal(watch.changed(), false, 'annoncée deux fois');
   }
 });
 
 test('la cible d’une lampe directionnelle, hors du graphe source, est vue', () => {
-  const watch = createHostSceneWatch();
   const { source, soleil } = graphe();
-  watch.changed(source);
+  const watch = veille(source);
+  watch.changed();
   soleil.target.position.set(0, -5, 0);
-  assert.equal(watch.changed(source), true, 'la direction du soleil a changé');
-  assert.equal(watch.changed(source), false);
+  assert.equal(watch.changed(), true, 'la direction du soleil a changé');
+  assert.equal(watch.changed(), false);
 });
 
 test('un nœud ajouté ou retiré par l’hôte est vu', () => {
-  const watch = createHostSceneWatch();
   const { source } = graphe();
-  watch.changed(source);
-  const ajout = new THREE.Object3D();
+  const watch = veille(source);
+  watch.changed();
+  const ajout = new THREE.PointLight(0xff0000, 2);
   source.add(ajout);
-  assert.equal(watch.changed(source), true, 'un nœud de plus');
+  watch.observe(source, []);
+  assert.equal(watch.changed(), true, 'une lampe de plus');
   source.remove(ajout);
-  assert.equal(watch.changed(source), true, 'un nœud de moins');
-  assert.equal(watch.changed(source), false);
+  watch.observe(source, []);
+  assert.equal(watch.changed(), true, 'une lampe de moins');
+  assert.equal(watch.changed(), false);
 });
 
 test('la porte d’image ne tient plus une image quand l’hôte a écrit la scène', () => {
   const gate = createWebglFrameGate();
   const { source, mesh } = graphe();
   const coupe = [{ id: 1 }] as Array<{ id: number }>;
-  gate.readScene(source);
+  const dessins = dessine(mesh);
+  gate.readScene(source, dessins);
   gate.keep(1, 3, coupe, 0, false);
-  gate.readScene(source);
+  gate.readScene(source, dessins);
   gate.keep(1, 3, coupe, 0, false);
-  gate.readScene(source);
+  gate.readScene(source, dessins);
   assert.equal(gate.held(), true, 'sans écriture, l’image doit être tenue');
   mesh.position.x = 100;
-  gate.readScene(source);
+  gate.readScene(source, dessins);
   assert.equal(gate.held(), false, 'la scène a bougé sous l’image tenue');
 });
 
