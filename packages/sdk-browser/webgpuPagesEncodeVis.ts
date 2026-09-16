@@ -1,7 +1,6 @@
 import type { EngineCamera } from './cameraWorld.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
-import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
-import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
+import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
 import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
@@ -23,8 +22,12 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function encodeVis(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
+<<<<<<< HEAD
   cam: EngineCamera,
   itemsDirty: boolean,
+=======
+  camera: THREE.PerspectiveCamera,
+>>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
 ) {
   const { gpu, vis, run, timing, blendState, layout } = rt,
     { rows, drawSlots } = layout;
@@ -47,6 +50,7 @@ export function encodeVis(
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   ensureGpuSmall(rt, device);
+<<<<<<< HEAD
   // Occluder/rest partition of the image: the half the previous image drew unoccluded, and the nearest
   // half by depth when there is no history or the history splits nothing. The boxes feed both the
   // partition and the Hi-Z test, projected with the view-projection built once for the batch rather
@@ -54,6 +58,8 @@ export function encodeVis(
   const partition = partitionWebgpuVisibility(rt, cam);
   const { twoPass } = partition;
   timing.lastItemsMs = 0;
+=======
+>>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
   const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
   const useIndirect = !!vis.gpuDraw && rows.packedCount <= drawSlots;
   // The table holds every row ever claimed, so a row a page keeps stays valid across frames.
@@ -65,7 +71,6 @@ export function encodeVis(
   // Les mots de fiche ne suivent que la table de lignes : la plage sale de cette image-ci, et rien
   // de plus. Il faut les tenir à jour AVANT `uploadDirtyRows`, qui referme cette plage.
   const words = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, vis.gpuDraw);
-  const items = buildWebgpuVisibilityItems(rt, itemsDirty, partition);
   timing.encodeCounts.fichesTeleversees = Math.max(0, words.to - words.from + 1);
   // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
   // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.
@@ -73,6 +78,11 @@ export function encodeVis(
   uploadDirtyRows(rt, device);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);
+  // La partition de l'image ouvre le tampon de commandes : elle écrit les bits de reste et les
+  // comptes par slot que la compaction de dessin lit juste après, et les bornes que le test
+  // d'occultation lira plus loin. Elle relit au passage les verdicts de l'image précédente, que le
+  // test de celle-ci n'a pas encore remis à zéro : c'est ce qui alimente l'historique d'occulteurs.
+  const { twoPass } = encodeWebgpuPartition(rt, encoder, camera, useIndirect);
   // Les mots de fiche restatent les lignes : le téléversement de leur plage est ce qui consomme
   // le drapeau de changement.
   if (useIndirect) {
@@ -82,23 +92,16 @@ export function encodeVis(
       rows.packedCount,
       words.from,
       words.to,
-      layout.drawRestBits,
       maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
-      layout.binInstances,
     );
     clearDrawItemWords(words);
     rows.rowsChanged = false;
   }
-  const vertices = encodeWebgpuVisibilityPasses(
-    rt,
-    device,
-    encoder,
-    partition,
-    items,
-    tableRows,
-    useIndirect,
-  );
+  encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect);
+  // Les compteurs que la carte vient d'écrire — partition et verdicts d'occultation — sont copiés
+  // une image sur quinze, et mappés une fois l'image soumise. Aucune image n'attend ce retour.
+  if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);
   encodeSmallTriangles(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
   const shadePass = encoder.beginRenderPass({
@@ -115,5 +118,8 @@ export function encodeVis(
   shadePass.end();
   const presented = encodeSurfaceLighting(rt, device, encoder, cam, rows.packedCount);
   submitColorCopy(rt, device, encoder, height, width, presented);
-  return vertices / 3 + run.blendSubmittedTriangles;
+  // Les triangles soumis sont ceux de toutes les lignes dessinables : les deux moitiés sont
+  // dessinées, et un cluster que le test d'occultation rejette a quand même été soumis. Le total
+  // est tenu par la table de lignes, sur sa seule plage sale.
+  return layout.itemWordsHold.total + run.blendSubmittedTriangles;
 }

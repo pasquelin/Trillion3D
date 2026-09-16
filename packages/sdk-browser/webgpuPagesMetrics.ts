@@ -26,11 +26,12 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const stats = gpu.cache?.stats();
   const vertexBytes = vertexBytesOf(gpu, vis);
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
-  // What the occlusion test eliminated, from the path that ran it: the GPU verdicts of the last
-  // image whose flags came back, or the CPU oracle's own image where no GPU test runs. Null when
-  // neither has counted one, never a number standing in for an unmeasured one.
-  const gpuHizCounts = vis.gpuHiz?.counts();
-  const [hiz, hizCountedFrame] = vis.gpuHiz
+  // Ce que le test d'occultation a éliminé, du chemin qui l'a fait tourner : les compteurs que la
+  // carte a écrits sur la dernière image relevée, ou ceux de l'oracle processeur là où aucun test
+  // GPU ne tourne. `null` quand ni l'un ni l'autre n'a compté d'image — jamais un nombre à la place
+  // d'un nombre non mesuré.
+  const gpuHizCounts = vis.gpuPartition?.counts();
+  const [hiz, hizCountedFrame] = vis.gpuPartition
     ? [gpuHizCounts, gpuHizCounts?.frame ?? null]
     : run.cpuHizCounted
       ? [run.cpuHizCounts, run.frame]
