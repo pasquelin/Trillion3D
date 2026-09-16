@@ -1,5 +1,5 @@
 export async function setup() {
-  const { createGpuSmallTriangles } = await import('/packages/sdk-browser/gpuSmallTriangles.ts');
+  const { createGpuRaster } = await import('/packages/sdk-browser/gpuRaster.ts');
   const { VIS_SHADER } = await import('/packages/sdk-browser/visibilityBuffer.ts');
   const adapter = await navigator.gpu?.requestAdapter();
   if (!adapter) throw new Error('WEBGPU_ADAPTER_UNAVAILABLE');
@@ -73,7 +73,7 @@ export async function setup() {
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
   });
   device.pushErrorScope('validation');
-  const raster = createGpuSmallTriangles(device, 32, 32, 2);
+  const raster = createGpuRaster(device, 32, 32, 2);
   const row = 256,
     readback = device.createBuffer({
       size: row * 32,

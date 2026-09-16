@@ -37,8 +37,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   // Rows are the visibility buffer's, and only opaque clusters ever claim one.
   const drawSlots = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
   const rows = createWebgpuRowState(packedPages, drawSlots);
-  /** Every triangle of every drawable row: the bound the small-triangle list can never exceed. */
-  const smallTriangleCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
+  /** Tout triangle de toute ligne dessinable : la borne qu'une liste du raster ne peut dépasser. */
+  const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
   /**
    * World-space corners of every page's box, kept across images and rebuilt only when the epoch of the
    * shared inputs changes — the same epoch a row is rewritten on. A moving camera reprojects them every
@@ -65,7 +65,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     gpuWanted,
     drawSlots,
     rows,
-    smallTriangleCapacity,
+    rasterCapacity,
     boxCorners,
     cornerPacked,
     cornerHold,
