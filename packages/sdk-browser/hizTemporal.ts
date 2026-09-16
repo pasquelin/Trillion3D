@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rasterVisibility, type VisPage } from './visibilityBuffer.ts';
 import { buildHizPyramid } from './hizDepth.ts';
+import { holdCameraWorld } from './cameraWorld.ts';
 import { countUnoccluded, filterUnoccluded } from './hizUnoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './hizCounts.ts';
 import { splitOccludersInto } from './hizSplit.ts';
@@ -21,8 +22,8 @@ export function sameHizView(
   current: THREE.PerspectiveCamera,
 ) {
   if (!previous) return false;
-  previous.updateMatrixWorld();
-  current.updateMatrixWorld();
+  previous.updateWorldMatrix(true, false);
+  current.updateWorldMatrix(true, false);
   const equal = (a: readonly number[], b: readonly number[]) =>
     a.length === b.length && a.every((value, i) => Math.abs(value - b[i]) <= 1e-7);
   return (
@@ -41,7 +42,7 @@ function retiens(
   depth: Float32Array,
 ) {
   history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1], history.pyramid);
-  history.camera = (history.camera ?? new THREE.PerspectiveCamera()).copy(camera, false);
+  history.camera = holdCameraWorld(history.camera ?? new THREE.PerspectiveCamera(), camera);
   if (!history.viewport) history.viewport = [viewport[0], viewport[1]];
   else {
     history.viewport[0] = viewport[0];

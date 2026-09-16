@@ -73,7 +73,7 @@ export function rasterVisibility(
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
   depth.fill(Infinity);
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

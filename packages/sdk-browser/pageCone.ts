@@ -98,8 +98,9 @@ export function coneContextFor(
   const e = world.elements;
   into.scale = Math.hypot(e[0], e[1], e[2]);
   into.normal.getNormalMatrix(world);
-  camera.updateMatrixWorld();
-  camera.getWorldPosition(cameraWorld);
+  // Ancêtres compris, puis la position lue dans la matrice au lieu d'être recalculée.
+  camera.updateWorldMatrix(true, false);
+  cameraWorld.setFromMatrixPosition(camera.matrixWorld);
   into.camX = cameraWorld.x;
   into.camY = cameraWorld.y;
   into.camZ = cameraWorld.z;

@@ -48,6 +48,9 @@ export function createAutonomousRender(options: {
     holdResident: true,
   };
   return (camera: THREE.PerspectiveCamera) => {
+    // La caméra aussi, ancêtres compris : un rig d'hôte n'appartient pas à la scène préparée, et
+    // `updateWorlds` ne remonte que celle-ci. Avant tout le reste, comme dans les autres moteurs.
+    camera.updateWorldMatrix(true, false);
     // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
     // adaptatif de la première image qui bouge à nouveau.
     selectOptions.pixelError = resolvePixelError(context, camera, motion);

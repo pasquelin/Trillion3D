@@ -46,8 +46,10 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
     camera: run.lastCamera && {
-      position: run.lastCamera.position.toArray(),
-      quaternion: run.lastCamera.quaternion.toArray(),
+      // La pose monde, pas la pose locale : sous un rig d'hôte, l'audit dirait sinon la caméra
+      // ailleurs que là où l'image a été dessinée.
+      position: run.lastCamera.getWorldPosition(new THREE.Vector3()).toArray(),
+      quaternion: run.lastCamera.getWorldQuaternion(new THREE.Quaternion()).toArray(),
       fov: run.lastCamera.fov,
       near: run.lastCamera.near,
       far: run.lastCamera.far,
