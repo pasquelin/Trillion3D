@@ -44,9 +44,9 @@ mod patch;
 mod prefab;
 mod project;
 mod render;
-mod textures;
 #[cfg(test)]
 mod tests;
+mod textures;
 mod transform;
 mod yaml;
 

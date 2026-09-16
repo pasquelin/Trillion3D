@@ -43,7 +43,12 @@ fn a_usdz_whose_first_entry_is_not_a_usd_layer_is_refused_by_name() {
             Entry::stored("scene.usda", LAYER),
         ],
     ] {
-        let run = outcome("usdz-sans-couche", &USDZ, "paquet.usdz", &zip_bytes(&entries, true));
+        let run = outcome(
+            "usdz-sans-couche",
+            &USDZ,
+            "paquet.usdz",
+            &zip_bytes(&entries, true),
+        );
         assert_eq!(run.code, ROOT_LAYER, "{}", entries[0].name);
         assert!(extracted(&run.dir).is_empty(), "{}", entries[0].name);
         cleanup(run.dir);
@@ -60,7 +65,12 @@ fn every_entry_after_the_root_layer_is_a_resource_not_a_scene() {
         Entry::stored("seconde.usda", LAYER),
         Entry::stored("maillage.obj", OBJ),
     ];
-    let run = outcome("usdz-ressources", &USDZ, "paquet.usdz", &zip_bytes(&entries, true));
+    let run = outcome(
+        "usdz-ressources",
+        &USDZ,
+        "paquet.usdz",
+        &zip_bytes(&entries, true),
+    );
     assert_eq!(run.code, "accepté");
     assert_eq!(inner(&run), "\"usd\"", "la couche racine livre la scène");
     cleanup(run.dir);

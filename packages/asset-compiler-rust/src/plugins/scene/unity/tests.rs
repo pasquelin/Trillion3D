@@ -32,7 +32,9 @@ fn a_project_asset_is_named_by_an_escaped_uri() {
     let source = root.join("Assets");
     let project = Project::index(&source, &source, &AtomicBool::new(false)).expect("projet");
     let asset = project.asset(GUID).expect("l'image est indexée");
-    let uri = project.relative_uri(asset).expect("elle est sous la racine");
+    let uri = project
+        .relative_uri(asset)
+        .expect("elle est sous la racine");
     assert_eq!(uri, "Textures/co%25lor%20%231%20rouge.png");
     assert_eq!(
         crate::uri::decode(&uri).as_deref(),

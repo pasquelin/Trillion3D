@@ -82,7 +82,10 @@ fn the_ogawa_header_names_a_frozen_archive_of_a_known_version() {
     assert_eq!(refused("envers", &head(0xff, [1, 0])), VERSION_UNSUPPORTED);
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/alembic/limites/cases.abc");
     let archive = Archive::open(&path).expect("le corpus s'ouvre");
-    assert_eq!(archive.file.version, 1, "la version du corpus est la première");
+    assert_eq!(
+        archive.file.version, 1,
+        "la version du corpus est la première"
+    );
 }
 
 // Comportement : un groupe qui déclare plus d'enfants que le plafond d'allocation n'en admet est

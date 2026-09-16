@@ -8,13 +8,12 @@
 //! entrée de premier niveau est un dossier nommé par le GUID de l'asset. Ce dossier porte
 //! `pathname` — le chemin cible dans le projet, sur sa première ligne —, `asset` — les octets du
 //! fichier, absent quand l'entrée décrit un dossier du projet —, `asset.meta` — les métadonnées
-//! d'import — et parfois `preview.png`, une vignette de l'éditeur qui n'appartient pas au projet et
-//! qu'on laisse donc de côté.
+//! d'import — et parfois `preview.png`, vignette de l'éditeur laissée de côté : elle n'est pas du projet.
 //!
 //! Provenance : format d'archive ouvert (POSIX 1003.1-1988 ustar, RFC 1952 pour gzip), lu par les
 //! caisses `tar` 0.4.46 et `flate2` 1.1.10 (MIT OU Apache-2.0), en décompression seule, `flate2` sur
-//! son backend Rust pur et `tar` sans `xattr`. Aucun code, SDK ni bibliothèque d'éditeur n'entre
-//! ici, et rien n'est déchiffré ni contourné.
+//! son backend Rust pur et `tar` sans `xattr`. Aucun code, SDK ni bibliothèque d'éditeur n'entre ici,
+//! et rien n'est déchiffré ni contourné.
 use super::*;
 use crate::{is_safe_source_name, CompilerError};
 use flate2::read::GzDecoder;
@@ -56,7 +55,9 @@ impl ScenePlugin for UnityPackage {
         head.starts_with(GZIP_MAGIC)
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        archive::container(request, self, None, |file, root| extract(request, file, root))
+        archive::container(request, self, None, |file, root| {
+            extract(request, file, root)
+        })
     }
 }
 
@@ -175,8 +176,7 @@ fn ended<R: Read>(archive: tar::Archive<R>, source: &Path) -> Result<()> {
 }
 
 /// Le GUID et le membre d'une entrée `<guid>/<membre>`. Une entrée plus profonde, posée à la racine
-/// du paquet ou nommée hors des noms de source sûrs n'appartient pas à la structure documentée :
-/// elle n'est pas reconstruite.
+/// du paquet ou nommée hors des noms de source sûrs n'est pas de la structure documentée : laissée.
 fn split<R: Read>(entry: &tar::Entry<'_, R>) -> Option<(String, String)> {
     let path = entry.path().ok()?;
     let mut parts = path.components();
@@ -185,16 +185,16 @@ fn split<R: Read>(entry: &tar::Entry<'_, R>) -> Option<(String, String)> {
     (parts.next().is_none() && is_safe_source_name(&guid)).then_some((guid, member))
 }
 
-/// La première ligne de `pathname`, qui porte le chemin cible ; l'éditeur peut en écrire une
-/// seconde, l'ancien chemin d'un asset déplacé, dont le projet reconstruit n'a que faire.
+/// La première ligne de `pathname` : le chemin cible. La seconde, quand l'éditeur en écrit une, est
+/// l'ancien chemin d'un asset déplacé, dont le projet reconstruit n'a que faire.
 fn first_line(entry: &mut impl Read) -> std::io::Result<String> {
     let mut text = String::new();
     Read::take(entry, MAX_PATHNAME_BYTES).read_to_string(&mut text)?;
     Ok(text.lines().next().unwrap_or_default().trim().to_string())
 }
 
-/// Le refus d'un paquet que `tar` n'ouvre pas : un gzip tronqué ou corrompu arrive ici en erreur
-/// d'entrée-sortie, et sort nommé `ARCHIVE_UNREADABLE` sans qu'un octet ait été écrit.
+/// Le refus d'un paquet illisible : un gzip tronqué ou corrompu arrive ici en erreur
+/// d'entrée-sortie, et sort nommé `ARCHIVE_UNREADABLE` sans qu'un octet reste écrit.
 fn unreadable(source: &Path) -> impl Fn(std::io::Error) -> CompilerError + '_ {
     move |error| archive::unreadable(source, error)
 }
