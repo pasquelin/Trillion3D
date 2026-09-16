@@ -10,17 +10,25 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { OPEN_CONE, triangleCone } from '../packages/sdk-browser/pageCone.ts';
-import { packDagSelection } from '../packages/sdk-browser/gpuDagSelection.ts';
+import {
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../packages/sdk-browser/gpuDagSelection.ts';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
 import { cameraMoteur } from '../packages/sdk-browser/cameraFixture.ts';
 import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
 
-function empaquete(world, page) {
-  return packDagSelection([
-    { world, pages: [{ url: '0', lodError: 0, parentError: null, ...page }] },
-  ]);
+/** La page empaquetée DANS LE REPÈRE DE RENDU de `uniforms` — l'œil en est l'origine —, comme
+ *  l'entrée d'image la porte à la carte. Empaqueter en monde absolu sous une vue relative mêlerait
+ *  deux repères dans la même formule, et le tronc comme le cône trancheraient faux. */
+function empaquete(world, page, uniforms) {
+  return packedWorldsToRenderOrigin(
+    packDagSelection([{ world, pages: [{ url: '0', lodError: 0, parentError: null, ...page }] }]),
+    [{ world }],
+    uniforms.cameraWorld,
+  );
 }
 
 /** Cas déclencheur : deux vrais triangles, échelle (1e-8, 1e-6, 1e-6), face visible et grande —
@@ -37,11 +45,12 @@ function casDeclencheur() {
   camera.lookAt(0, 0, -0.5);
   camera.updateMatrixWorld(true);
   const sphere = [0, 0, -0.5, 2];
+  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
   return {
     nom: 'declencheur',
-    uniforms: cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT),
-    avecCone: empaquete(world, { sphere, min, max, cone }),
-    sansCone: empaquete(world, { sphere, min, max, cone: OPEN_CONE }),
+    uniforms,
+    avecCone: empaquete(world, { sphere, min, max, cone }, uniforms),
+    sansCone: empaquete(world, { sphere, min, max, cone: OPEN_CONE }, uniforms),
   };
 }
 
@@ -64,11 +73,12 @@ function casConformeDosCamera() {
   camera.lookAt(centre);
   camera.updateMatrixWorld(true);
   const sphere = [...centre.toArray(), 3];
+  const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
   return {
     nom: 'conformeDosCamera',
-    uniforms: cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT),
-    avecCone: empaquete(world, { sphere, min, max, cone }),
-    sansCone: empaquete(world, { sphere, min, max, cone: OPEN_CONE }),
+    uniforms,
+    avecCone: empaquete(world, { sphere, min, max, cone }, uniforms),
+    sansCone: empaquete(world, { sphere, min, max, cone: OPEN_CONE }, uniforms),
   };
 }
 

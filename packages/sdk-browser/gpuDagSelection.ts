@@ -15,7 +15,7 @@ import type { PackedDag } from './gpuDagTypes.ts';
 import { selectionRepeat, type DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import { createDagResources } from './gpuDagResources.ts';
 import { createDagRuntime } from './gpuDagRuntime.ts';
-export { packDagSelection } from './gpuDagPack.ts';
+export { packDagSelection, packedWorldsToRenderOrigin } from './gpuDagPack.ts';
 export { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 export { evaluateDagSelectionKernel } from './gpuDagOracle.ts';
 export type { PackedDag } from './gpuDagTypes.ts';

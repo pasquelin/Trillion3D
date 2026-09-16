@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateDagSelectionKernel } from './gpuDagSelection.ts';
-import { cameraSelectionUniforms, PAGE_CONE_FLOATS } from './gpuSelection.ts';
+import { PAGE_CONE_FLOATS } from './gpuSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
-import { packed } from './gpuDagSelectionTestHelpers.ts';
-import { cameraMoteur } from './cameraFixture.ts';
+import { kernelUniforms, packed } from './gpuDagSelectionTestHelpers.ts';
 
 // D5 : gpuDagShader.ts calcule desormais coneRejects une seule fois par page visible (dagWanted) et
 // le relit dans dagEscalate/dagCheck/dagMask au lieu de le refaire. evaluateDagSelectionKernel porte
@@ -15,7 +14,7 @@ import { cameraMoteur } from './cameraFixture.ts';
 
 function assertSameSelection(
   dag: ReturnType<typeof packed>['dag'],
-  uniforms: ReturnType<typeof cameraSelectionUniforms>,
+  uniforms: ReturnType<typeof kernelUniforms>,
   resident?: Uint32Array,
 ) {
   const recomputed = evaluateDagSelectionKernel(dag, uniforms, resident, false);
@@ -29,18 +28,18 @@ function assertSameSelection(
 }
 
 test('scene normale : cache et recalcul choisissent les memes pages, plusieurs pixelError', () => {
-  const { dag } = packed(dagFixture());
+  const { dag, roots } = packed(dagFixture());
   const cam = wideCamera();
   for (const pixelError of [0, 1, 3.4, 20, 200]) {
-    const uniforms = cameraSelectionUniforms(cameraMoteur(cam), pixelError, [1280, 720]);
+    const uniforms = kernelUniforms(dag, roots, cam, pixelError, [1280, 720]);
     assertSameSelection(dag, uniforms);
   }
 });
 
 test('resident cut : cache et recalcul escaladent aux memes pages absentes', () => {
-  const { dag } = packed(dagFixture());
+  const { dag, roots } = packed(dagFixture());
   const cam = wideCamera();
-  const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, [1280, 720]);
+  const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
   const allMissing = new Uint32Array(dag.pageCount); // aucune page residente
   assertSameSelection(dag, uniforms, allMissing);
   const allResident = new Uint32Array(dag.pageCount).fill(1);
@@ -48,22 +47,22 @@ test('resident cut : cache et recalcul escaladent aux memes pages absentes', () 
 });
 
 test('cone dégénéré : hasBox a zero pour toutes les pages, coneRejects toujours faux', () => {
-  const { dag } = packed(dagFixture());
+  const { dag, roots } = packed(dagFixture());
   for (let i = 0; i < dag.pageCount; i++) dag.pageCones[i * PAGE_CONE_FLOATS + 7] = 0;
   const cam = wideCamera();
-  const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, [1280, 720]);
+  const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
   const result = assertSameSelection(dag, uniforms);
   // Sans boite de cone, coneRejects rend toujours faux : aucune page visible n'est ecartee par lui.
   assert.ok(result.pageIds.length > 0);
 });
 
 test('camera loin de tout : toutes les pages sont hors frustum, le cache reste vide', () => {
-  const { dag } = packed(dagFixture());
+  const { dag, roots } = packed(dagFixture());
   const cam = wideCamera();
   cam.position.set(1e6, 0, 0);
   cam.lookAt(2e6, 0, 0);
   cam.updateMatrixWorld();
-  const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, [1280, 720]);
+  const uniforms = kernelUniforms(dag, roots, cam, 1, [1280, 720]);
   const result = assertSameSelection(dag, uniforms, new Uint32Array(dag.pageCount));
   assert.equal(result.frustumRejected, dag.pageCount);
   assert.equal(result.pageIds.length, 0);
