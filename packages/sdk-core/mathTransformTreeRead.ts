@@ -18,11 +18,10 @@ const decomposedPosition = new Float64Array(3),
 /** Position monde : la colonne de translation de la matrice monde. */
 export function nodeWorldPosition<T extends NumberSink>(out: T, tree: TransformTree, node: number) {
   updateNodeWorldMatrix(tree, node, true, false);
-  const at = node * 16,
-    world = tree.world;
-  out[0] = world[at + 12];
-  out[1] = world[at + 13];
-  out[2] = world[at + 14];
+  const world = tree.worldViews[node];
+  out[0] = world[12];
+  out[1] = world[13];
+  out[2] = world[14];
   return out;
 }
 
