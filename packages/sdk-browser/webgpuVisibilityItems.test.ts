@@ -76,14 +76,21 @@ function copieLayout(layout: ReturnType<typeof runtime>['layout']) {
   };
 }
 
+/** La partition d'une image, telle que `partitionWebgpuVisibility` la rend. */
+const cle = (twoPass: boolean, restDigest: number) => ({
+  twoPass,
+  restDigest,
+  occluders: 0,
+  projectionGeneration: 0,
+});
+
 function memeSortie(a: ReturnType<typeof runtime>, twoPass: boolean, itemsDirty: boolean) {
   const copie = copieLayout(a.layout);
   const attendu = referenceBuildItems({ layout: copie, vis: a.rt.vis }, twoPass, itemsDirty);
   const { occluderVertices, restVertices, testedCount } = buildWebgpuVisibilityItems(
     a.rt,
-    twoPass,
     itemsDirty,
-    0,
+    cle(twoPass, 0),
   );
   assert.deepEqual(
     { occluderVertices, restVertices, testedCount },
@@ -112,7 +119,7 @@ test('une seule ligne, occluder pur (rest = 0)', () => {
 test('items non « dirty » : les mots ne sont pas réécrits, seuls les compteurs se recalculent', () => {
   const a = runtime(5, 3);
   // Une première passe pose des mots ; la seconde, non dirty, doit relire ces mots tels quels.
-  buildWebgpuVisibilityItems(a.rt, true, true, 0);
+  buildWebgpuVisibilityItems(a.rt, true, cle(true, 0));
   const motsAvant = a.layout.drawItemWords.slice();
   memeSortie(a, true, false);
   assert.deepEqual(a.layout.drawItemWords, motsAvant, 'les mots d’item ne bougent pas');
@@ -149,21 +156,21 @@ test('le compte de sommets est celui de la ligne du tableau de pages, pas celui 
   // la carte dessine. Les deux ne divergent que si une ligne a été posée sans être réécrite.
   a.layout.rows.pageTableInts[0 * rowWords + ROW_INDEX_WORDS] = 6;
   a.layout.hizRest[0] = 0;
-  const avant = buildWebgpuVisibilityItems(a.rt, true, true, 0).occluderVertices;
+  const avant = buildWebgpuVisibilityItems(a.rt, true, cle(true, 0)).occluderVertices;
   a.layout.rows.pageTableInts[0 * rowWords + ROW_INDEX_WORDS] = 9;
-  const apres = buildWebgpuVisibilityItems(a.rt, true, true, 0).occluderVertices;
+  const apres = buildWebgpuVisibilityItems(a.rt, true, cle(true, 0)).occluderVertices;
   assert.equal(apres - avant, 3);
 });
 
 test('table sans ligne sale et dépendances inchangées : les fiches sont tenues, pas reconstruites', () => {
   const a = runtime(8, 3);
-  const premier = buildWebgpuVisibilityItems(a.rt, true, true, 7);
+  const premier = buildWebgpuVisibilityItems(a.rt, true, cle(true, 7));
   const bacsAvant = a.layout.binInstances.slice();
   // Plus aucune ligne sale : la table de l'image précédente décrit encore celle-ci.
   a.layout.rows.dirtyFrom = 1;
   a.layout.rows.dirtyTo = -1;
   a.layout.binInstances.fill(0); // ce qu'une reconstruction réécrirait, et que le témoin laisse à zéro
-  const tenu = buildWebgpuVisibilityItems(a.rt, true, false, 7);
+  const tenu = buildWebgpuVisibilityItems(a.rt, false, cle(true, 7));
   assert.equal(tenu, premier, 'le même témoin est rendu');
   assert.equal(a.rt.timing.lastItemsMs, 0, 'aucun temps de construction');
   assert.ok(
@@ -171,6 +178,6 @@ test('table sans ligne sale et dépendances inchangées : les fiches sont tenues
     'les compteurs par bac n’ont pas été réécrits',
   );
   // Une seule dépendance qui bouge — ici la partition occulteurs/testés — et tout est reconstruit.
-  buildWebgpuVisibilityItems(a.rt, true, false, 8);
+  buildWebgpuVisibilityItems(a.rt, false, cle(true, 8));
   assert.deepEqual(a.layout.binInstances, bacsAvant, 'reconstruction à l’identique');
 });

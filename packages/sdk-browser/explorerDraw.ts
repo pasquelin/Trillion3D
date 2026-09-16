@@ -165,7 +165,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     // réaffichée d'une commande, et la scène n'est pas reparcourue. Sans image gardée à cette
     // taille — la première, ou un redimensionnement — l'image est dessinée puis gardée.
     ownedRenderer.getDrawingBufferSize(drawingSize);
-    const tenue = backend.metrics().frameHeld === true && !target && heldFrame.holds(drawingSize);
+    const tenue = backend.frameHeld === true && !target && heldFrame.holds(drawingSize);
     if (tenue) heldFrame.present(ownedRenderer);
     else {
       ownedRenderer.render(backend.scene, camera);

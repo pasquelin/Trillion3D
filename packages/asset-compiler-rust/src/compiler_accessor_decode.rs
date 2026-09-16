@@ -82,7 +82,7 @@ impl Accessor<'_> {
         if self.normalized || !matches!(self.component, 5121 | 5123 | 5125) {
             return Err(invalid("Indices require an unsigned integer accessor"));
         }
-        let mut out = Vec::with_capacity(self.count);
+        let mut out = reserve(self.count)?;
         if !self.has_buffer_view {
             out.resize(self.count, 0);
         } else if self.width == 1 && self.stride == self.bytes && self.component != 5126 {
@@ -140,7 +140,7 @@ impl Accessor<'_> {
             .count
             .checked_mul(self.width)
             .ok_or_else(|| invalid("Accessor offset overflow"))?;
-        let mut out = Vec::with_capacity(n);
+        let mut out = reserve(n)?;
         if !self.has_buffer_view {
             out.resize(n, 0.0);
         } else if self.component == 5126 && self.stride == self.width * self.bytes {

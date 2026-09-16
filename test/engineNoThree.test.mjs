@@ -48,8 +48,9 @@ const SANS_HOTE = [
   'visibilityProjection.ts',
   'visibilityShade.ts',
   'visibilityShadePixel.ts',
-  // L'empreinte de vue et les seize flottants d'une matrice.
+  // L'empreinte de vue, la porte d'image des moteurs Three et les seize flottants d'une matrice.
   'frameViewRevision.ts',
+  'webglFrameGate.ts',
   'matrixElements.ts',
   'viewFingerprint.ts',
   // L'image WebGPU : entrée, coupes, encodage, traces.

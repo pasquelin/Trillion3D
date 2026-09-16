@@ -7,7 +7,7 @@ export function encodeWebgpuVisibilityPasses(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  partition: { occluders: number; twoPass: boolean },
+  partition: { occluders: number; twoPass: boolean; restDigest: number },
   items: { occluderVertices: number; restVertices: number; testedCount: number },
   tableRows: number,
   useIndirect: boolean,
@@ -26,7 +26,7 @@ export function encodeWebgpuVisibilityPasses(
     idsView = vis.visView!,
     depthTarget = gpu.depthView!,
     [width, height] = gpu.targetSize,
-    { occluders, twoPass } = partition,
+    { occluders, twoPass, restDigest } = partition,
     { occluderVertices, restVertices, testedCount } = items;
   const visColors = (loadOp: 'clear' | 'load') => {
     const ids: {
@@ -86,16 +86,12 @@ export function encodeWebgpuVisibilityPasses(
   if (gpuHiz) {
     // The occluders of this image are the first pass of the next one, unless the view or a world moves.
     drawnOccluderUrls.fill(0);
-    // La moitié testée est hachée dans l'ordre des lignes au passage : deux images qui partagent
-    // cette signature partagent l'historique d'occulteurs que la suivante hérite, sans qu'un second
-    // parcours du tableau d'urls n'ait à le vérifier.
-    let signature = 0;
-    for (let i = 0; i < rows.packedCount; i++) {
-      const rest = hizRest[i];
-      if (!rest) drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] = 1;
-      signature = (signature * 31 + rest) | 0;
-    }
-    run.occluderSignature = signature;
+    for (let i = 0; i < rows.packedCount; i++)
+      if (!hizRest[i]) drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] = 1;
+    // La moitié testée, hachée dans l'ordre des lignes : deux images qui partagent cette signature
+    // partagent l'historique d'occulteurs que la suivante hérite. C'est le condensé que la partition
+    // de cette image-ci a déjà rendu — `hizRest` n'est écrit que là —, pas un second parcours.
+    run.occluderSignature = restDigest;
     run.noOccluderHistory = occluders === 0;
   }
   return vertices;

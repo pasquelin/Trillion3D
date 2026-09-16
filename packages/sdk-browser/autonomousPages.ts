@@ -114,6 +114,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     get overBudget() {
       return state.overBudget;
     },
+    get frameHeld() {
+      return state.frameHeld;
+    },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (bootstrap.length > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');

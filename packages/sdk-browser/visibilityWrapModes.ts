@@ -58,6 +58,10 @@ export function wrapNibble(map: THREE.Texture | undefined) {
   );
 }
 
+/** Les couples nom/rang de `WRAP_MAP`, lus une fois : le mot d'un matériau est écrit par ligne de
+ *  page, et `Object.entries` en rendait un tableau neuf à chacune. */
+const WRAP_ENTRIES = Object.entries(WRAP_MAP) as [keyof typeof WRAP_MAP, number][];
+
 /**
  * Le mot d'adressage d'un matériau : le quartet de chacune de ses cartes à son rang. Écrit par
  * `webgpuPageRow.ts` dans la fiche de page et par `webgpuBlendPrepare.ts` dans l'uniforme d'un lot
@@ -67,8 +71,7 @@ export function wrapNibble(map: THREE.Texture | undefined) {
  */
 export function wrapModes(mat: VisMaterial) {
   let mot = 0;
-  for (const [nom, rang] of Object.entries(WRAP_MAP))
-    mot |= wrapNibble(mat[WRAP_SOURCE[nom as keyof typeof WRAP_MAP]]) << (4 * rang);
+  for (const [nom, rang] of WRAP_ENTRIES) mot |= wrapNibble(mat[WRAP_SOURCE[nom]]) << (4 * rang);
   return mot;
 }
 

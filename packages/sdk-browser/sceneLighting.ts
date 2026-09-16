@@ -96,8 +96,9 @@ export function installSceneLighting(
  */
 export function sceneLightingApi(
   lighting: ReturnType<typeof installSceneLighting>,
-  /** Prévenu quand les lampes du graphe source changent : c'est une écriture de scène. */
-  sceneChanged: () => void = () => {},
+  /** Prévenu quand les lampes du graphe source changent : c'est une écriture de scène. Un moteur
+   *  qui reparcourt la scène à chaque image n'a rien à en faire et le dit par un appel vide. */
+  sceneChanged: () => void,
 ) {
   return {
     refreshSceneLighting: () => {

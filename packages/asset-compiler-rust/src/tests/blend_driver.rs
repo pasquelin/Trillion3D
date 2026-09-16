@@ -10,20 +10,6 @@ fn source() -> PathBuf {
     golden_dir("blend/procedural-materials").join("scene.blend")
 }
 
-/// Un dossier jetable, nommé par le cas qui l'utilise.
-fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "wg-blend-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
-}
-
 /// Passe la source par le routeur puis par le pilote qu'il choisit, et rend ce qu'il a écrit.
 fn converted(from: &Path, cache: &Path) -> PathBuf {
     let prepared = match route(from).expect("routage") {
@@ -56,7 +42,7 @@ fn scene_gltf(directory: &Path) -> Value {
 // éventail, une primitive par indice de matériau de face, et chaque primitive porte ses UV.
 #[test]
 fn one_shared_mesh_becomes_one_gltf_mesh_instanced_three_times() {
-    let cache = scratch("instances");
+    let cache = scratch("blend", "instances");
     let gltf = scene_gltf(&converted(&source(), &cache));
     let nodes = gltf["nodes"].as_array().expect("nodes");
     assert_eq!(nodes.len(), 4, "une racine d'axes et trois instances");
@@ -90,7 +76,7 @@ fn one_shared_mesh_becomes_one_gltf_mesh_instanced_three_times() {
 // pour octet, le même glTF intermédiaire que l'original compressé en Zstandard.
 #[test]
 fn a_gzipped_file_gives_exactly_the_same_scene_as_the_zstandard_one() {
-    let dir = scratch("gzip");
+    let dir = scratch("blend", "gzip");
     let plain = unpacked();
     assert!(
         plain.starts_with(b"BLENDER"),
@@ -103,7 +89,7 @@ fn a_gzipped_file_gives_exactly_the_same_scene_as_the_zstandard_one() {
     let raw = dir.join("brut").join("scene.blend");
     fs::create_dir_all(raw.parent().expect("dossier")).expect("dossier");
     fs::write(&raw, &plain).expect("écriture");
-    let cache = scratch("gzip-cache");
+    let cache = scratch("blend", "gzip-cache");
     let from_gzip = fs::read(converted(&gzipped, &cache).join("model.gltf")).expect("gzip");
     let from_raw = fs::read(converted(&raw, &cache).join("model.gltf")).expect("brut");
     let from_zstd = fs::read(converted(&source(), &cache).join("model.gltf")).expect("zstd");
@@ -120,7 +106,7 @@ fn a_gzipped_file_gives_exactly_the_same_scene_as_the_zstandard_one() {
 // pour octet — le PNG que Blender a avalé, pas une réécriture.
 #[test]
 fn a_packed_image_is_carried_through_byte_for_byte() {
-    let cache = scratch("packed");
+    let cache = scratch("blend", "packed");
     let directory = converted(&source(), &cache);
     let gltf = scene_gltf(&directory);
     let bin = fs::read(directory.join("model.bin")).expect("model.bin");

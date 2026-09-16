@@ -175,7 +175,7 @@
   "notes": [],
   "plugin": {
     "name": "obj",
-    "version": "obj-ufbx-0.11.3-gltf-5"
+    "version": "obj-ufbx-0.11.3-gltf-6"
   },
   "roots": [0],
   "rule": "Le pilote rend ce que la bibliothèque déclare et compte le reste par son nom : la normale l'emporte sur le relief, l'opacité reste un mélange et jamais une découpe, -clamp devient le mode de bord de l'échantillonneur, et couleur ambiante, spéculaire, indice de réfraction, décalage, échelle et force de relief sont comptés faute de place dans le modèle métal-rugosité de glTF.",
@@ -195,7 +195,7 @@
   ],
   "scenePlugin": {
     "name": "obj",
-    "version": "obj-ufbx-0.11.3-gltf-5"
+    "version": "obj-ufbx-0.11.3-gltf-6"
   },
   "selectedNodes": [0],
   "sidecarSha256": "07af4f082d81041d0c9d4c739626ec51eda5ae07721eea5383157c048a8d99b3",

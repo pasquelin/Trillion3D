@@ -11,7 +11,6 @@ import {
   multiplyMatrix4,
 } from '../sdk-core/index.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
-import { bumpScene } from './frameRevisions.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const requested = new THREE.Matrix4(),
@@ -85,9 +84,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   }
   layout.rows.tableEpoch++;
   // Origine du changement de scène : les matrices monde de ce sous-arbre viennent d'être réécrites.
-  bumpScene(run.revisions);
+  run.gate.sceneChanged();
   // La hiérarchie porte déjà les matrices de cette révision : l'image suivante ne la remonte pas.
-  run.worldsRevision = run.revisions.scene;
+  run.gate.noteWorldsUpdated();
   invalidateOccluderHistory(run);
   if (boxIsEmpty(moved, 0)) return;
   for (let axis = 0; axis < 3; axis++) {

@@ -32,8 +32,33 @@ export function resetHizHistory(run: WebgpuRunState) {
   run.temporalHizState.viewport = undefined;
 }
 
+/**
+ * Le repli sur la coupe processeur, annoncé. La sélection GPU n'est abandonnée que sur un échec
+ * réel — capacité des identifiants, envoi en erreur, encodage perdu, relevé en échec —, jamais
+ * parce qu'une page voulue n'est pas encore arrivée. Un banc qui mesurerait la coupe processeur en
+ * croyant mesurer la coupe GPU le lit dans `gpuSelectionFallback` et dans ce diagnostic, émis une
+ * seule fois par session.
+ */
+export function fallbackToCpuCut(
+  rt: WebgpuPagesRuntime,
+  reason: string,
+  details: Record<string, unknown> = {},
+) {
+  if (!rt.gpu.selectionFallback) {
+    rt.gpu.selectionFallback = true;
+    rt.diag.engineDiagnostic(
+      'gpu-selection-fallback',
+      'Avertissement : sélection GPU abandonnée, la coupe processeur dessine désormais',
+      { reason, ...details },
+    );
+  }
+  dropGpuSelection(rt);
+}
+
 export function dropGpuSelection(rt: WebgpuPagesRuntime) {
-  rt.run.frameHold.invalidate();
+  // Origine du changement de ressources : la sélection par la carte n'est plus une capacité de ce
+  // moteur, et l'image suivante refait sa coupe sans elle.
+  rt.run.gate.resourcesChanged();
   rt.run.gpuSelection?.dispose();
   rt.run.gpuSelection = undefined;
   rt.capabilities.gpuDriven = false;
@@ -62,7 +87,8 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
 export function dropVis(rt: WebgpuPagesRuntime) {
   const { vis, capabilities } = rt,
     { rows, drawSlots } = rt.layout;
-  rt.run.frameHold.invalidate();
+  // Origine du changement de ressources : le tampon de visibilité n'est plus une capacité.
+  rt.run.gate.resourcesChanged();
   vis.visEnabled = false;
   vis.visPipelineBack = undefined;
   vis.visPipelineBackCw = undefined;

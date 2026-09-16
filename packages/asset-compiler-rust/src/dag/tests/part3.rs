@@ -3,7 +3,9 @@ use super::*;
 #[test]
 fn every_group_owns_its_children_and_its_coarse_replacement() {
     let (positions, indices) = grid(160);
-    let (dag, groups, _) = build_dag_tallied(&positions, &indices, &|| Ok(())).expect("dag");
+    let (dag, groups, _) =
+        build_dag_tallied(&positions, &indices, DagStrategy::QemEndpoints, &|| Ok(()))
+            .expect("dag");
     assert!(!groups.is_empty());
     let mut owned = vec![0usize; dag.len()];
     let mut produced = vec![0usize; dag.len()];
@@ -56,7 +58,9 @@ fn every_group_owns_its_children_and_its_coarse_replacement() {
 fn a_group_and_its_replacement_cover_the_same_triangles_once() {
     // Fallback safety: swapping a group's children for its outputs must not leave or duplicate area.
     let (positions, indices) = grid(160);
-    let (dag, groups, _) = build_dag_tallied(&positions, &indices, &|| Ok(())).expect("dag");
+    let (dag, groups, _) =
+        build_dag_tallied(&positions, &indices, DagStrategy::QemEndpoints, &|| Ok(()))
+            .expect("dag");
     let area = |ids: &[u32]| -> f64 {
         ids.as_chunks::<3>()
             .0
@@ -119,7 +123,9 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
             ]);
         }
     }
-    let (dag, _, _) = build_dag_tallied(&positions, &indices, &|| Ok(())).expect("dag");
+    let (dag, _, _) =
+        build_dag_tallied(&positions, &indices, DagStrategy::QemEndpoints, &|| Ok(()))
+            .expect("dag");
     let leaves: usize = dag
         .iter()
         .filter(|c| c.level == 0)
@@ -142,7 +148,9 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_without_error() {
 #[test]
 fn build_honours_cancellation() {
     let (positions, indices) = grid(32);
-    let error = build_dag_tallied(&positions, &indices, &|| Err(invalid("cancelled")))
-        .expect_err("cancelled");
+    let error = build_dag_tallied(&positions, &indices, DagStrategy::QemEndpoints, &|| {
+        Err(invalid("cancelled"))
+    })
+    .expect_err("cancelled");
     assert!(error.to_string().contains("cancelled"));
 }

@@ -60,7 +60,7 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -
     sampling::colour_space(world, &shader, colour);
     let sampler = sampling::sampler(world, &shader);
     Some(Bound {
-        value: texture(world, index, sampler),
+        value: json!({ "index": world.scene.texture(index, sampler) }),
         scale: sampling::scale(&shader),
     })
 }
@@ -71,45 +71,12 @@ fn image(world: &mut World<'_>, file: &sdf::AssetPath) -> Option<usize> {
         world.refuse(world::TEXTURE_MISSING);
         return None;
     };
-    if let Some(known) = world.images_by_uri.get(&relative) {
-        return Some(*known);
-    }
-    let path = world.images.join(&relative);
-    let Some(decoder) = crate::plugins::image::by_extension(&path).filter(|_| path.is_file())
-    else {
+    let Some(mime) = crate::import::readable(world.images, &relative) else {
         world.refuse(world::TEXTURE_MISSING);
-        world.scene.report.notes.push(format!(
-            "texture illisible ou hors registre d'images: {relative}"
-        ));
+        world.scene.image_unreadable(&relative);
         return None;
     };
-    let name = relative.rsplit('/').next().unwrap_or(&relative).to_string();
-    // Une URI glTF, pas le chemin sous la racine : `%`, `#`, l'espace et tout ce qui n'est pas un
-    // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
-    let uri = crate::uri::encode_relative(Path::new(&relative));
-    world
-        .scene
-        .images
-        .push(json!({"name":name,"mimeType":decoder.mime(),"uri":uri}));
-    let index = world.scene.images.len() - 1;
-    world.images_by_uri.insert(relative, index);
-    Some(index)
-}
-
-/// Le rang de la texture qui lie cette image à cet échantillonneur, versée une seule fois.
-fn texture(world: &mut World<'_>, source: usize, sampler: usize) -> Value {
-    let entry = json!({"source":source,"sampler":sampler});
-    let known = world
-        .scene
-        .textures
-        .iter()
-        .position(|value| *value == entry);
-    let index = known.unwrap_or_else(|| {
-        world.scene.textures.push(entry);
-        world.scene.count("textures", 1);
-        world.scene.textures.len() - 1
-    });
-    json!({ "index": index })
+    Some(world.scene.image(relative, mime))
 }
 
 /// Le chemin de l'image sous la racine où le compilateur relira ses octets. Un chemin d'asset
@@ -122,27 +89,9 @@ fn under_root(world: &World<'_>, asset: &sdf::AssetPath) -> Option<String> {
         .map(Path::new)
         .and_then(|path| path.strip_prefix(&world.root).ok())
         .map(|path| path.to_string_lossy().replace('\\', "/"));
-    relative(under.as_deref().unwrap_or(asset.as_str()))
-}
-
-/// Le chemin d'un asset sous la racine des images. Un chemin absolu, un chemin qui remonte au-dessus
-/// de la racine ou un nom de fichier dangereux n'en a pas : la texture est comptée absente plutôt
-/// que lue hors du dossier de la source.
-fn relative(file: &str) -> Option<String> {
-    if file.starts_with('/') || file.contains(':') {
-        return None;
-    }
-    let mut parts: Vec<&str> = Vec::new();
-    for part in file
-        .split('/')
-        .filter(|part| !part.is_empty() && *part != ".")
-    {
-        if !crate::is_safe_source_name(part) {
-            return None;
-        }
-        parts.push(part);
-    }
-    (!parts.is_empty()).then(|| parts.join("/"))
+    // Une couche USD sépare les segments d'un chemin d'asset par une barre oblique, et une seule :
+    // une barre inverse y appartient au nom, elle n'y coupe rien.
+    crate::safe_relative(under.as_deref().unwrap_or(asset.as_str()), &['/'])
 }
 
 /// Le jeu de coordonnées que le lecteur de primvar branché sur `inputs:st` désigne.

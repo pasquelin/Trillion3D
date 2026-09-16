@@ -100,8 +100,6 @@ pub(super) struct World<'a> {
     /// Les maillages déjà construits, par (chemin de la donnée, matériaux liés) : deux instances du
     /// même prototype aux mêmes matériaux citent le même maillage glTF.
     pub(super) meshes: HashMap<(String, Vec<Option<usize>>), usize>,
-    /// Les images déjà versées, par URI relative.
-    pub(super) images_by_uri: HashMap<String, usize>,
     pub(super) cancelled: &'a AtomicBool,
 }
 

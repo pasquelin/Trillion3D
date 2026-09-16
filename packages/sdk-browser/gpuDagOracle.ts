@@ -4,7 +4,7 @@ import { CLUSTER_FLOATS, DAG_NODE_FLOATS, CLUSTER_ROOT } from './gpuDagTypes.ts'
 import type { SelectionUniforms, SelectionResult } from './gpuSelection.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 import { createDagOraclePredicates } from './gpuDagOraclePredicates.ts';
-import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
+import { ESCALATION_ROUNDS, ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
 /**
  * Node oracle for the kernel, in the same shape the shader uses. Not called by the renderer.
@@ -116,7 +116,7 @@ export function evaluateDagSelectionKernel(
     if (clusterInts[base + 11] > lodLevel) lodLevel = clusterInts[base + 11];
     pageIds.push(i);
     if (!resident || resident[i]) continue;
-    const parent = bandPixels(i, 1);
+    const parent = bandPixels(i, 1) * ESCALATION_SLACK;
     if (parent > 0 && Number.isFinite(parent)) thresholds[w] = Math.max(thresholds[w], parent);
     else missing[w] = 1;
   }
@@ -136,7 +136,7 @@ export function evaluateDagSelectionKernel(
       const base = i * CLUSTER_FLOATS,
         w = clusterInts[base + 10];
       if (!visible(i) || !selects(i, thresholds[w]) || cone(i, w)) continue;
-      const parent = bandPixels(i, 1);
+      const parent = bandPixels(i, 1) * ESCALATION_SLACK;
       if (parent > 0 && Number.isFinite(parent)) {
         if (parent > thresholds[w]) {
           thresholds[w] = parent;

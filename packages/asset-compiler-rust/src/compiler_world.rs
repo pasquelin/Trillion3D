@@ -112,21 +112,12 @@ pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
     let nodes = values(g, "nodes")?;
     let mut world = vec![IDENTITY; nodes.len()];
     let mut is_child = vec![false; nodes.len()];
-    for node in nodes {
-        for child in node
-            .get("children")
-            .and_then(Value::as_array)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-        {
-            let id = required_index(Some(child), "node.children")?;
-            if id >= nodes.len() {
-                return Err(invalid("node.children index is out of bounds"));
-            }
-            if is_child[id] {
+    for id in 0..nodes.len() {
+        for child in crate::compiler_nodes::children_of(nodes, id)? {
+            if is_child[child] {
                 return Err(invalid("A node is the child of two parents"));
             }
-            is_child[id] = true;
+            is_child[child] = true;
         }
     }
     let mut stack: Vec<(usize, Mat4, usize)> = (0..nodes.len())
@@ -139,17 +130,8 @@ pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
         }
         let matrix = multiply(&parent, &local_matrix(&nodes[id])?);
         world[id] = matrix;
-        for child in nodes[id]
-            .get("children")
-            .and_then(Value::as_array)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-        {
-            stack.push((
-                required_index(Some(child), "node.children")?,
-                matrix,
-                depth + 1,
-            ));
+        for child in crate::compiler_nodes::children_of(nodes, id)? {
+            stack.push((child, matrix, depth + 1));
         }
     }
     Ok(world)

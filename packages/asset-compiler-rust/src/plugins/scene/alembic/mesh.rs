@@ -13,7 +13,6 @@
 use self::build::Builder;
 use super::geom::Geometry;
 use super::TOPOLOGY_INVALID;
-use crate::plugins::scene::cancel;
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -96,9 +95,6 @@ pub(super) fn parts(
     let mut builders: HashMap<Option<usize>, Builder> = HashMap::new();
     let mut at = 0usize;
     for (face, count) in geometry.counts.iter().enumerate() {
-        if cancel::stopped(cancelled, face) {
-            return Err(cancel::refusal());
-        }
         let sides = usize::try_from(*count).unwrap_or(0);
         let corners = at..at.saturating_add(sides);
         at = corners.end;
@@ -114,7 +110,7 @@ pub(super) fn parts(
         }
         let owner = owner.get(face).copied().flatten();
         let builder = builders.entry(owner).or_default();
-        if !builder.face(geometry, face, corners)? {
+        if !builder.face(geometry, face, corners, cancelled)? {
             counted.uncut += 1;
         }
     }

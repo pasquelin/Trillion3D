@@ -11,7 +11,7 @@
 //! coin de face, lui, se lit dans `corner`.
 use super::*;
 use crate::import::{primitive, Vertices};
-use crate::plugins::scene::{cancel, ngon::Ngon};
+use crate::plugins::scene::ngon::Ngon;
 
 /// Une part de matériau : son matériau glTF, et les faces qu'elle porte.
 struct Part {
@@ -110,12 +110,8 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
     let mut out = Vertices::default();
     let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
     let mut cutter = Ngon::default();
-    for (done, face) in part.faces.iter().enumerate() {
-        // Le jeton est relu par tranche de faces : un seul maillage énorme s'arrête aussi. Ce qui
-        // est déjà posé reste en place, et `convert` refuse la scène entière ensuite.
-        if cancel::stopped(world.cancelled, done) {
-            break;
-        }
+    let cancelled = world.cancelled;
+    for face in &part.faces {
         let ring = surface.loops.get(*face).map_or(0, Vec::len);
         if ring < 3 {
             continue;
@@ -126,8 +122,12 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
         if corners.len() != ring {
             continue;
         }
-        if !surface.cut(&mut cutter, *face) {
-            world.refuse(report::NGON_UNCUT);
+        // Le découpeur relit le jeton par tranche de faces : un seul maillage énorme s'arrête
+        // aussi. Ce qui est déjà posé reste en place, et `convert` refuse la scène entière ensuite.
+        match surface.cut(&mut cutter, *face, cancelled) {
+            None => break,
+            Some(false) => world.refuse(report::NGON_UNCUT),
+            Some(true) => {}
         }
         for [a, b, c] in cutter.triangles() {
             out.indices.extend([corners[*a], corners[*b], corners[*c]]);

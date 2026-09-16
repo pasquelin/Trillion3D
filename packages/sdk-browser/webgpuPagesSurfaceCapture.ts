@@ -133,7 +133,7 @@ export async function captureSurfaceView(
     run.motion.last = undefined;
     run.motion.lastMs = undefined;
     renderForCapture(rt, view);
-    await drawResidentCut(rt, gpuDevice, view, {
+    await drawResidentCut(rt, gpuDevice, {
       admitted: () => {
         const missing = collectPendingUrls(run.desired, []);
         if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);

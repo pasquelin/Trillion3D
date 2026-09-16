@@ -46,6 +46,20 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
     (root, options)
 }
 
+/// Un dossier jetable, nommé par le pilote qui le demande et le cas qui l'utilise.
+pub(super) fn scratch(prefix: &str, tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "wg-{prefix}-{tag}-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos()
+    ));
+    fs::create_dir_all(&dir).expect("temp dir");
+    dir
+}
+
 pub(super) fn read_json(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("read")).expect("json")
 }
@@ -75,5 +89,42 @@ pub(super) fn written_gltf(options: &Options, key: &str) -> Value {
             .join("native/slice")
             .join(key)
             .join("source.gltf"),
+    )
+}
+
+/// Un OBJ minuscule, un triangle, un matériau, et la bibliothèque qu'il cite, posés dans un dossier
+/// nommé : c'est ce dossier qui résout la bibliothèque.
+pub(super) fn obj_source(root: &Path, folder: &str, mtl: &str) -> PathBuf {
+    let source = root.join(folder);
+    fs::create_dir_all(&source).expect("dossier obj");
+    fs::write(
+        source.join("scene.obj"),
+        "mtllib scene.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvn 0 0 1\nusemtl Uni\nf 1//1 2//1 3//1\n",
+    )
+    .expect("obj");
+    if !mtl.is_empty() {
+        fs::write(source.join("scene.mtl"), mtl).expect("mtl");
+    }
+    source.join("scene.obj")
+}
+
+/// Compile et rend la clé de la scène intermédiaire avec ce que l'import en a écrit. La clé se lit
+/// dans l'avancement du pilote : c'est elle que le cache réutilise, ou non.
+pub(super) fn import_key(options: &Options) -> (String, Value, Value) {
+    let keys = std::sync::Mutex::new(Vec::new());
+    compile(options, |report| {
+        if report["phase"] == "import-source" {
+            if let Some(key) = report["key"].as_str() {
+                keys.lock().expect("clés").push(key.to_string());
+            }
+        }
+    })
+    .expect("compile obj");
+    let key = keys.into_inner().expect("clés").pop().expect("une clé");
+    let directory = options.cache.join("native").join("imports").join(&key);
+    (
+        key,
+        read_json(&directory.join("model.gltf")),
+        read_json(&directory.join("manifest.json")),
     )
 }

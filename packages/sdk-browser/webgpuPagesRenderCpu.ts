@@ -95,7 +95,7 @@ export function renderCpuCut(
     gpuDevice = rt.setup.gpuDevice!,
     cache = gpu.cache!;
   // La coupe processeur réécrit les listes elle-même : aucune image tenue ne s'appuie sur la sienne.
-  run.frameHold.invalidate();
+  run.gate.resourcesChanged();
   // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
   // and the GPU cut re-seeds from nothing when it takes the image back.
   services.invalidateCut();

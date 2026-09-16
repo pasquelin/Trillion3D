@@ -12,6 +12,9 @@ use super::*;
 
 /// Le dossier qu'un projet Maya réserve aux textures.
 const IMAGES_DIRECTORY: &str = "sourceimages";
+/// Ce qui sépare les segments d'un chemin écrit par Maya : la machine qui a exporté peut être une
+/// machine Windows, et le chemin qu'elle a écrit porte alors des barres inverses.
+const SEPARATORS: &[char] = &['/', '\\'];
 /// Les deux modes de répétition d'un échantillonneur glTF : répéter, ou borner au dernier texel.
 const REPEAT: u32 = 10497;
 const CLAMP: u32 = 33071;
@@ -50,79 +53,40 @@ pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
         .and_then(|attr| attr.texts().first().cloned())?;
     let index = image(world, &written)?;
     let sampler = sampler(world, node);
-    Some(slot(world, index, sampler))
+    Some(json!({ "index": world.scene.texture(index, sampler) }))
 }
 
 /// Le rang de l'image, versée à la première demande, ou rien quand le fichier ne se lit pas.
 fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
     let images = world.images;
-    let Some((relative, decoder)) = candidates(written)
+    let Some((relative, mime)) = candidates(written)
         .into_iter()
-        .find_map(|path| readable(images, &path).map(|decoder| (path, decoder)))
+        .find_map(|path| crate::import::readable(images, &path).map(|mime| (path, mime)))
     else {
         world.refuse(report::TEXTURE_MISSING);
-        world.scene.report.notes.push(format!(
-            "texture illisible ou hors registre d'images: {written}"
-        ));
+        world.scene.image_unreadable(written);
         return None;
     };
-    if let Some(known) = world.images_by_uri.get(&relative) {
-        return Some(*known);
-    }
-    let name = relative.rsplit('/').next().unwrap_or(&relative).to_string();
-    // Une URI glTF, pas le chemin sous la racine : `%`, `#`, l'espace et tout ce qui n'est pas un
-    // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
-    let uri = crate::uri::encode_relative(Path::new(&relative));
-    world
-        .scene
-        .images
-        .push(json!({"name":name,"mimeType":decoder,"uri":uri}));
-    let index = world.scene.images.len() - 1;
-    world.images_by_uri.insert(relative, index);
-    Some(index)
+    Some(world.scene.image(relative, mime))
 }
 
 /// Les chemins où chercher l'image sous la racine, dans l'ordre : le chemin écrit quand il est
 /// relatif et sûr, puis son seul nom de fichier à la racine des images, puis ce nom sous
 /// `sourceimages`.
 fn candidates(written: &str) -> Vec<String> {
-    let parts: Vec<&str> = written
-        .split(['/', '\\'])
-        .filter(|part| !part.is_empty() && *part != ".")
-        .collect();
-    let Some(name) = parts.last().filter(|name| crate::is_safe_source_name(name)) else {
+    let name = written
+        .rsplit(SEPARATORS)
+        .find(|part| !part.is_empty() && *part != ".")
+        .filter(|name| crate::is_safe_source_name(name));
+    let Some(name) = name else {
         return Vec::new();
     };
-    let mut out = Vec::new();
-    if !written.starts_with('/')
-        && !written.contains(':')
-        && parts.iter().all(|part| crate::is_safe_source_name(part))
-    {
-        out.push(parts.join("/"));
-    }
-    out.push((*name).to_string());
+    let mut out: Vec<String> = crate::safe_relative(written, SEPARATORS)
+        .into_iter()
+        .collect();
+    out.push(name.to_string());
     out.push(format!("{IMAGES_DIRECTORY}/{name}"));
     out
-}
-
-/// Le type MIME du pilote d'image qui revendique cette URI sous la racine, quand le fichier y est.
-fn readable(root: &Path, uri: &str) -> Option<&'static str> {
-    let path = root.join(uri);
-    crate::plugins::image::by_extension(&path)
-        .filter(|_| path.is_file())
-        .map(|decoder| decoder.mime())
-}
-
-/// Le rang de la texture qui lie cette image à cet échantillonneur, versée une seule fois.
-fn slot(world: &mut World<'_>, source: usize, sampler: usize) -> Value {
-    let entry = json!({"source":source,"sampler":sampler});
-    let known = world.scene.textures.iter().position(|kept| *kept == entry);
-    let index = known.unwrap_or_else(|| {
-        world.scene.textures.push(entry);
-        world.scene.count("textures", 1);
-        world.scene.textures.len() - 1
-    });
-    json!({ "index": index })
 }
 
 /// L'échantillonneur de ce nœud `file`, lu sur le `place2dTexture` branché sur ses coordonnées.

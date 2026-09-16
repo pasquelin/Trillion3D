@@ -118,15 +118,11 @@ impl Changes {
             let mine = self.transforms.entry(*target).or_default();
             mine.extend(values.iter().map(|(path, value)| (path.clone(), *value)));
         }
-        let pairs = |table: &BTreeMap<i64, bool>| -> Vec<(i64, bool)> {
-            table
-                .iter()
-                .map(|(target, flag)| (*target, *flag))
-                .collect()
-        };
         self.structure.overlay(&outer.structure);
-        self.active.extend(pairs(&outer.active));
-        self.enabled.extend(pairs(&outer.enabled));
+        self.active
+            .extend(outer.active.iter().map(|(&target, &flag)| (target, flag)));
+        self.enabled
+            .extend(outer.enabled.iter().map(|(&target, &flag)| (target, flag)));
         for (target, slots) in &outer.materials {
             let mine = self.materials.entry(*target).or_default();
             cover(mine, slots.len());
