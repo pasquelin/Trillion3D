@@ -1,4 +1,4 @@
-import { boxConeRejects, normalMatrix3 } from '../sdk-core/index.ts';
+import { boxConeRejects, linearPartScale, normalMatrix3 } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { MatrixElements } from './matrixElements.ts';
@@ -16,19 +16,12 @@ const loneContext = createConeContext();
  * longueur et être orthogonales à 1e-4 près, en relatif. Aucune tolérance absolue : une échelle
  * minuscule n'accepte pas plus de déformation qu'une échelle unité. Une 3×3 nulle, infinie ou NaN,
  * ou une colonne nulle, n'est pas conforme : le cluster est conservé.
- *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances.
+ *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances. L'échelle
+ *  vient de `linearPartScale` (`mathSingular.ts`), la somme que la règle de singularité emploie déjà :
+ *  mêmes neuf termes, même ordre, donc les mêmes bits qu'auparavant.
  */
 function isConformal(e: ArrayLike<number>) {
-  const t =
-    Math.abs(e[0]) +
-    Math.abs(e[1]) +
-    Math.abs(e[2]) +
-    Math.abs(e[4]) +
-    Math.abs(e[5]) +
-    Math.abs(e[6]) +
-    Math.abs(e[8]) +
-    Math.abs(e[9]) +
-    Math.abs(e[10]);
+  const t = linearPartScale(e);
   if (!(t > 0) || !Number.isFinite(t)) return false;
   const x0 = e[0] / t,
     x1 = e[1] / t,
