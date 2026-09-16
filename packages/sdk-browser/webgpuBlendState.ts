@@ -103,8 +103,10 @@ export function createWebgpuBlendState() {
     boxesPacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     planBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     planTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
-    /** Triangles que les items non paginés soumettent, un compte de scène et non d'image. */
-    unpagedTriangles: 0,
+    /** Triangles que les items non paginés soumettent dans chaque passe, deux fois pour un item
+     *  double face : un compte de scène, bâti avec le plan, et non un compte d'image. */
+    blendTriangles: 0,
+    transmissionTriangles: 0,
     /** Le groupe de liaison que TOUS les items paginés partagent. */
     pagedGroup: undefined as GPUBindGroup | undefined,
   };

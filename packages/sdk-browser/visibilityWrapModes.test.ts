@@ -19,7 +19,7 @@ import {
 import { visMaterial } from './visibilityTypes.ts';
 import { ROW_WRAP_MODES_WORD } from './webgpuPageRow.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
-import { BLEND_SHADER } from './webgpuPagesShaders.ts';
+import { BLEND_SHADER } from './webgpuBlendShader.ts';
 import { MASK_KEEP_WGSL } from './visibilityPageWgsl.ts';
 import { CARTES, ligneDePageMelangee, materielMelange } from './bench/justesse/adressageCartes.mjs';
 
@@ -81,13 +81,16 @@ const APPELS = {
     `dataSample(page.aoIndex,page.aoUvScale,uv,wrapOf(page.wrapModes,${WRAP_MAP.ao}u)`,
     `colorSample(page.emissiveIndex,page.emissiveUvScale,uv,wrapOf(page.wrapModes,${WRAP_MAP.emissive}u)`,
   ],
+  // Le mélange lit maintenant la fiche de l'item en variables plates : les rangs de cartes arrivent
+  // par `in.ids` et `in.maps`, et le mot d'adressage par `wrap`. Même lien vérifié : cette carte-ci
+  // lue avec ce quartet-ci.
   BLEND_SHADER: [
-    `colorSample(uni.mapIndex,uni.uvScale,in.uv,blendWrap(${WRAP_MAP.base}u)`,
-    `dataSample(uni.roughIndex,scales[uni.roughIndex].xy,in.uv,blendWrap(${WRAP_MAP.rough}u)`,
-    `dataSample(uni.metalIndex,scales[uni.metalIndex].xy,in.uv,blendWrap(${WRAP_MAP.metal}u)`,
-    `dataSample(uni.normalIndex,scales[uni.normalIndex].xy,in.uv,blendWrap(${WRAP_MAP.normal}u)`,
-    `dataSample(uni.aoIndex,scales[uni.aoIndex].xy,in.uv,blendWrap(${WRAP_MAP.ao}u)`,
-    `colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,in.uv,blendWrap(${WRAP_MAP.emissive}u)`,
+    `colorSample(in.ids.x,in.uvA.xy,in.uv,wrapOf(wrap,${WRAP_MAP.base}u)`,
+    `dataSample(in.maps.x,scales[in.maps.x].xy,in.uv,wrapOf(wrap,${WRAP_MAP.rough}u)`,
+    `dataSample(in.maps.y,scales[in.maps.y].xy,in.uv,wrapOf(wrap,${WRAP_MAP.metal}u)`,
+    `dataSample(in.maps.z,scales[in.maps.z].xy,in.uv,wrapOf(wrap,${WRAP_MAP.normal}u)`,
+    `dataSample(in.maps.w,scales[in.maps.w].xy,in.uv,wrapOf(wrap,${WRAP_MAP.ao}u)`,
+    `colorSample(in.ids.z,scales[in.ids.z].zw,in.uv,wrapOf(wrap,${WRAP_MAP.emissive}u)`,
   ],
 };
 
@@ -110,7 +113,7 @@ test('chaque rang de WRAP_MAP est lu une fois et une seule par les deux nuanceur
   const fois = (texte: string, motif: string) => texte.split(motif).length - 1;
   for (const rang of Object.values(WRAP_MAP)) {
     assert.equal(fois(SHADE_SHADER, `wrapOf(page.wrapModes,${rang}u)`), 1, `rang ${rang}, ombrage`);
-    assert.equal(fois(BLEND_SHADER, `blendWrap(${rang}u)`), 1, `rang ${rang}, lot transparent`);
+    assert.equal(fois(BLEND_SHADER, `wrapOf(wrap,${rang}u)`), 1, `rang ${rang}, lot transparent`);
   }
 });
 

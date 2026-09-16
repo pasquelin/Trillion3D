@@ -69,16 +69,20 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       await backend.prepare();
       backend.render(camera());
       const metrics = backend.metrics();
-      assert.equal(metrics.submittedTriangles, item.visible ? 4 : 0, item.name);
-      assert.equal(metrics.transparentMeshes, item.visible ? 1 : 0, item.name);
+      // Le tronc ne retire plus rien de la liste ni des commandes : la scène porte son item, ses
+      // deux faces sont encodées, et c'est le NOMBRE D'INSTANCES de chaque appel — écrit par la
+      // coupe — qui tombe à zéro pour un item rejeté. Le compte de rejets, lui, est relu à part.
+      assert.equal(metrics.submittedTriangles, 4, item.name);
+      assert.equal(metrics.transparentMeshes, 1, item.name);
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name);
-      assert.equal(metrics.transparentDrawCalls, item.visible ? 2 : 0, item.name);
-      assert.equal(metrics.transparentSubmittedTriangles, item.visible ? 4 : 0, item.name);
+      assert.equal(metrics.transparentDrawCalls, 2, item.name);
+      assert.equal(metrics.transparentSubmittedTriangles, 4, item.name);
       const actual = draws.filter((draw) => draw.entryPoint === 'vs');
+      assert.equal(actual.length, 2, item.name + ' actual GPU commands');
       assert.equal(
-        actual.reduce((sum, draw) => sum + draw.vertexCount / 3, 0),
+        actual.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0),
         item.visible ? 4 : 0,
-        item.name + ' actual GPU commands',
+        item.name + ' triangles réellement dessinés',
       );
     } finally {
       backend.dispose();
@@ -91,7 +95,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
 test('transparent selection follows each camera without retaining an old rejected list', async () => {
   installGpuGlobals();
   const fixture = quadScene(),
-    { device } = mockGpu();
+    { device, draws } = mockGpu();
   fixture.metadata.primitives[0].pass = 'shared-blend';
   fixture.material.transparent = true;
   const backend = webgpuPagesBackend({
@@ -100,19 +104,29 @@ test('transparent selection follows each camera without retaining an old rejecte
     maxResidentPages: 2,
     viewport: [32, 32],
   });
+  // Les triangles que la dernière image a réellement dessinés : le plan est le même d'une image à
+  // l'autre, seul le nombre d'instances que la coupe écrit change.
+  const dessines = () => {
+    const image = draws.splice(0, draws.length).filter((draw) => draw.entryPoint === 'vs');
+    return image.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0);
+  };
   try {
     await backend.prepare();
     const cam = camera();
+    draws.length = 0;
     backend.render(cam);
     assert.equal(backend.metrics().submittedTriangles, 2);
+    assert.equal(dessines(), 2);
     cam.lookAt(100, 0, 5);
     cam.updateMatrixWorld();
     backend.render(cam);
-    assert.equal(backend.metrics().submittedTriangles, 0);
+    assert.equal(backend.metrics().transparentFrustumRejected, 1, 'le tronc rejette');
+    assert.equal(dessines(), 0, 'la caméra détournée ne dessine plus rien');
     cam.lookAt(0, 0, 0);
     cam.updateMatrixWorld();
     backend.render(cam);
-    assert.equal(backend.metrics().submittedTriangles, 2);
+    assert.equal(backend.metrics().transparentFrustumRejected, 0, 'aucune liste de rejet gardée');
+    assert.equal(dessines(), 2, 'l’item revient sans rien avoir perdu');
   } finally {
     backend.dispose();
     fixture.geometry.dispose();

@@ -129,6 +129,8 @@ export function drawBlendPass(
   overdraw?.after(encoder);
   run.gpuDrawCalls += plan.length;
   run.blendDrawCalls += plan.length;
-  run.blendUnpagedTriangles += transmissive ? 0 : blendState.unpagedTriangles;
+  run.blendUnpagedTriangles += transmissive
+    ? blendState.transmissionTriangles
+    : blendState.blendTriangles;
   run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles;
 }
