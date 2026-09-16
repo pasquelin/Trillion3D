@@ -12,6 +12,7 @@ import {
 } from './pageSelectionCutState.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -33,7 +34,8 @@ export function selectVisiblePages<T extends PageRecord>(
     hold = !!options.holdResident;
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
   const { worldPlanes, matrix, viewMatrix } = selectionScratch;
-  camera.updateWorldMatrix(true, false);
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   frustumPlanesFromMatrix(
     worldPlanes,
     matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
