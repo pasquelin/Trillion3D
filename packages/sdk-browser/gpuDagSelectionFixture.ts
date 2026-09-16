@@ -1,4 +1,5 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
+import { bytesOf } from './webgpuPagesTestGlobals.ts';
 
 export function installGpuGlobals() {
   Object.assign(globalThis, {
@@ -111,16 +112,16 @@ export function mockDagDevice(
       finish: () => ({}),
     }),
     queue: {
-      writeBuffer(buffer: Buf, offset: number, data: BufferSource) {
-        const bytes =
-          data instanceof ArrayBuffer
-            ? new Uint8Array(data)
-            : new Uint8Array(
-                (data as ArrayBufferView).buffer,
-                (data as ArrayBufferView).byteOffset,
-                (data as ArrayBufferView).byteLength,
-              );
-        buffer.data.set(bytes, offset);
+      // La tranche écrite est celle que l'appelant nomme : la résidence n'envoie plus tous les cônes
+      // mais une plage contiguë, décrite par `dataOffset` et `size` comme le fait WebGPU.
+      writeBuffer(
+        buffer: Buf,
+        offset: number,
+        data: BufferSource,
+        dataOffset?: number,
+        size?: number,
+      ) {
+        buffer.data.set(bytesOf(data, dataOffset, size), offset);
         if (buffer.size === 256) uniformWriteCount++;
       },
       submit() {},
