@@ -1,5 +1,5 @@
 /** Pages sautées qu'une même écriture couvre plutôt que d'en ouvrir une seconde. */
-export const RESIDENCY_RANGE_GAP = 64;
+const RESIDENCY_RANGE_GAP = 64;
 /** Plages au plus par vidange : au-delà, tout est écrit d'un coup. Des milliers de petites écritures
  *  coûtent plus que la seule qu'elles remplacent. */
 export const RESIDENCY_RANGE_MAX = 32;
