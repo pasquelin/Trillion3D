@@ -23,7 +23,11 @@ type Inputs = {
  * `refreshSceneLights` lui manque, sa capacité manquante est déclarée dans son diagnostic.
  *
  * `setTransform` va au moteur actif s'il sait déplacer un nœud ; sinon l'appel est refusé par un
- * `EngineError` nommé, jamais par une exception anonyme.
+ * `EngineError` nommé, jamais par une exception anonyme. Il ne dessine rien : il marque la scène
+ * modifiée, et le rendu suivant — le `render()` de l'hôte, ou le rafraîchissement de résidence déjà
+ * planifié — la prend. Dix poses posées avant une image coûtent une soumission, pas onze : la porte
+ * d'image refuse de tenir l'image précédente dès la première pose, l'écran ne garde donc jamais une
+ * pose périmée.
  */
 export function createExplorerLightApi(inputs: Inputs) {
   const { check, store, imported, backends } = inputs;
@@ -111,7 +115,6 @@ export function createExplorerLightApi(inputs: Inputs) {
           'aucun moteur de cette session ne déplace un nœud nommé',
           { nodeName },
         );
-      for (const backend of backends) backend.syncResident?.();
     },
   };
 }

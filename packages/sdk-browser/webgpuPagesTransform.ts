@@ -46,14 +46,19 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     throw new EngineError('UNKNOWN_SCENE_NODE', `nœud ${nodeName} absent de la scène préparée`, {
       nodeName,
     });
-  boxEmpty(moved, 0);
-  for (const root of layout.selectionRoots)
-    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) unionInto(root.worldBox);
   requested.fromArray(matrix as unknown as number[]);
   if (node.parent) {
     parentInverse.copy(node.parent.matrixWorld).invert();
     requested.premultiply(parentInverse);
   }
+  // Une pose identique à celle que ce nœud porte déjà — et posée par ici, d'où `matrixAutoUpdate`
+  // à faux — ne change aucune matrice monde : la déclarer changée périmerait des pages d'ombre et
+  // refuserait l'image tenue pour un résultat identique au pixel près. L'écriture directe d'un
+  // hôte laisse `node.matrix` différent et repasse donc par le chemin complet.
+  if (!node.matrixAutoUpdate && sameMatrix(node.matrix.elements, requested.elements)) return;
+  boxEmpty(moved, 0);
+  for (const root of layout.selectionRoots)
+    if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) unionInto(root.worldBox);
   // La matrice locale fait foi, pas les trois champs : toute matrice n'est pas un produit
   // translation-rotation-échelle. Un cisaillement — deux axes non orthogonaux, ce que produit une
   // échelle non uniforme sous une rotation — ne s'y décompose pas, et `updateMatrixWorld`
@@ -84,6 +89,12 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     movedMax[axis] = moved[axis + 3];
   }
   lights.plan.worldChanged(movedMin, movedMax);
+}
+
+/** Deux matrices colonne-major, seize nombres à seize nombres. */
+function sameMatrix(a: readonly number[], b: readonly number[]) {
+  for (let i = 0; i < 16; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
 /** Ajoute une boîte monde à la boîte du mouvement. */
