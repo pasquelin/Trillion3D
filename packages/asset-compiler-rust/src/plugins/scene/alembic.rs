@@ -69,7 +69,7 @@ impl Plugin for Alembic {
     /// La version nomme le lecteur — écrit ici, sur le conteneur Ogawa — et la génération de la
     /// conversion : la changer invalide les caches, donc toute scène Alembic déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "alembic-ogawa-1-gltf-2"
+        "alembic-ogawa-1-gltf-3"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["abc"]
