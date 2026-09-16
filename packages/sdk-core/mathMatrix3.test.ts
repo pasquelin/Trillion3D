@@ -27,6 +27,38 @@ test('normalMatrix3 : bloc singulier de rang 2 rend l’adjointe, la normale du 
   assert.deepEqual([...out], [0, -2, 0, 0, 1, 0, 0, 0, 0]);
 });
 
+test('normalMatrix3 : rang 2, plusieurs normales de sommet distinctes tombent toutes sur la normale de la face', () => {
+  // LE contre-exemple de l'audit : triangle local (0,0,0), (1,0,0), (0,1,0), échelle (1,1,0) puis
+  // 90° autour de Y. Ry(90°) envoie x sur −z et z sur x ; composée avec diag(1,1,0), ses colonnes
+  // sont (0,0,−1), (0,1,0), (0,0,0) — la primitive est aplatie sur le plan XY monde, arêtes
+  // transformées (0,0,−1) et (0,1,0), produit vectoriel (1,0,0) : la normale de FACE est +X.
+  const m = Float64Array.from([0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+  const n = normalMatrix3(new Float64Array(9), m);
+  // L'adjointe de rang 1 ne garde que la composante z de la normale locale (colonnes 0 et 1
+  // nulles) : trois normales de sommet différentes, mais de composante z positive comme sur une
+  // face qui n'a pas changé de côté, doivent toutes retomber sur +X une fois unitaires — la face
+  // aplatie n'a plus qu'une seule normale, celle de la face, et le lissage par sommet disparaît.
+  const normalesLocales: Array<[number, number, number]> = [
+    [0, 0, 1],
+    [0.5, 0.3, 0.8],
+    [-0.2, 0.9, 0.4],
+  ];
+  for (const [x, y, z] of normalesLocales) {
+    const rendue: [number, number, number] = [
+      n[0] * x + n[3] * y + n[6] * z,
+      n[1] * x + n[4] * y + n[7] * z,
+      n[2] * x + n[5] * y + n[8] * z,
+    ];
+    const norme = Math.hypot(...rendue);
+    assert.ok(norme > 0, `normale de sommet (${x},${y},${z}) : rendue nulle, ${rendue}`);
+    assert.deepEqual(
+      [rendue[0] / norme, rendue[1] / norme, rendue[2] / norme],
+      [1, 0, 0],
+      `normale de sommet (${x},${y},${z}) : ${rendue}, attendu la normale de face +X`,
+    );
+  }
+});
+
 test('normalMatrix3 : bloc effondré sur une droite rend la matrice nulle, faute de face', () => {
   // Les trois colonnes sur l'axe x : la primitive est écrasée sur une droite, aucune face n'y garde
   // d'aire, et les trois produits vectoriels de colonnes parallèles sont nuls d'eux-mêmes.
