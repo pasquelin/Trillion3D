@@ -29,22 +29,28 @@ function box(
   for (let i = from; i < from + count; i++) {
     const rec = pages[i];
     if (!rec.min || !rec.max) return { min: [-INF, -INF, -INF], max: [INF, INF, INF] };
-    for (let a = 0; a < 3; a++) {
-      if (rec.min[a] < min[a]) min[a] = rec.min[a];
-      if (rec.max[a] > max[a]) max[a] = rec.max[a];
-    }
+    expand(min, max, rec.min, rec.max);
   }
   return { min, max };
+}
+
+/** Étend `[min, max]` à la boîte `[childMin, childMax]`, axe par axe. */
+function expand(
+  min: number[],
+  max: number[],
+  childMin: ArrayLike<number>,
+  childMax: ArrayLike<number>,
+) {
+  for (let a = 0; a < 3; a++) {
+    if (childMin[a] < min[a]) min[a] = childMin[a];
+    if (childMax[a] > max[a]) max[a] = childMax[a];
+  }
 }
 
 function merge(children: Built[]): Built {
   const min = [INF, INF, INF],
     max = [-INF, -INF, -INF];
-  for (const child of children)
-    for (let a = 0; a < 3; a++) {
-      if (child.min[a] < min[a]) min[a] = child.min[a];
-      if (child.max[a] > max[a]) max[a] = child.max[a];
-    }
+  for (const child of children) expand(min, max, child.min, child.max);
   return { min, max, first: 0, pages: 0, children };
 }
 

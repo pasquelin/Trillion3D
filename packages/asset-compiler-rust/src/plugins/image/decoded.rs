@@ -35,20 +35,12 @@ pub struct ImageDecoded {
 }
 
 impl ImageDecoded {
-    /// Le cas ordinaire : une image dont les octets sont encodés en sRGB, et rien à signaler.
-    pub fn srgb(image: DecodedImage) -> Self {
+    /// Une image décodée et sa fonction de transfert — lue dans le fichier, ou prêtée par la
+    /// convention du format (sRGB pour les octets, linéaire pour les flottants) — rien à signaler.
+    pub fn new(image: DecodedImage, transfer: Transfer) -> Self {
         Self {
             image,
-            transfer: Transfer::Srgb,
-            notes: Vec::new(),
-        }
-    }
-
-    /// Une image dont les échantillons sont proportionnels à la lumière.
-    pub fn linear(image: DecodedImage) -> Self {
-        Self {
-            image,
-            transfer: Transfer::Linear,
+            transfer,
             notes: Vec::new(),
         }
     }

@@ -1,4 +1,4 @@
-import { multiplyMatrix4 } from './mathMatrix4.ts';
+import { copyMatrix4, multiplyMatrix4 } from './mathMatrix4.ts';
 import { crossVector3, dotVector3 } from './mathVector.ts';
 import { LIGHT_SETTINGS } from './sceneLightContracts.ts';
 
@@ -138,5 +138,5 @@ export function composeFace(
   // recopie vers le tampon du GPU est la seule conversion en simple précision. Une face par lampe et
   // par image ; le décalage ne valait pas seize indices calculés dans le produit le plus chaud.
   multiplyMatrix4(faceScratch, projScratch, viewScratch);
-  for (let i = 0; i < 16; i++) out[base + i] = faceScratch[i];
+  copyMatrix4(out, faceScratch, base);
 }

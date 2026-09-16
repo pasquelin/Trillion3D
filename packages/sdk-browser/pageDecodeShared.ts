@@ -7,8 +7,7 @@
  *
  *   `free` → `decoding` (le fil principal arme le créneau avant de poster la requête)
  *          → `ready`    (le worker a fini d'écrire sa région et publie)
- *          → `consumed` (le fil principal a recopié la page hors de la région)
- *          → `free`     (le créneau reprend du service)
+ *          → `free`     (le fil principal a recopié la page hors de la région)
  *
  * `lost` remplace `ready` quand le worker meurt au milieu d'une page : l'attente se réveille, la
  * région n'est pas lue, et le créneau redevient `free`. Il n'y a jamais de boucle d'attente : le
@@ -17,8 +16,7 @@
  * région écrits avant elle.
  */
 export const SHARED_FREE = 0,
-  SHARED_READY = 2,
-  SHARED_CONSUMED = 3;
+  SHARED_READY = 2;
 const SHARED_DECODING = 1,
   SHARED_LOST = 4;
 /** La page est venue par transfert de tampons (page trop grande, refus, annulation), ou par la
