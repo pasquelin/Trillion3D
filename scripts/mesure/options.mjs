@@ -59,6 +59,14 @@ export function parseArgs(argv) {
   return flags;
 }
 
+/** Le chemin des calculs en lot imposé à la campagne, ou `auto` : le gouverneur arbitre alors. */
+function mathPathOf(flags) {
+  const value = flags.get('chemin-math') ?? 'auto';
+  if (value !== 'auto' && value !== 'js' && value !== 'wasm')
+    throw new Error('--chemin-math doit valoir auto, js ou wasm');
+  return value;
+}
+
 /** Les options du harnais, validées : moteur, vues, seuils d'erreur, réglages, dossier de sortie. */
 export function readOptions(argv, root) {
   const flags = parseArgs(argv);
@@ -109,6 +117,11 @@ export function readOptions(argv, root) {
     // `--isolation on` pose COOP/COEP sur le serveur du harnais : la page devient isolée entre
     // origines et le SDK prend son chemin de mémoire partagée. `off` par défaut.
     isolation: (flags.get('isolation') ?? 'off') === 'on',
+    // `--chemin-math js|wasm` impose le chemin des calculs en lot pour toute la campagne : c'est
+    // ainsi que les deux chemins se mesurent l'un contre l'autre, à scène et poses identiques.
+    // `auto`, le défaut, laisse le gouverneur arbitrer par la mesure ; le relevé dit alors ce qu'il
+    // a choisi, opération par opération. Aucun seuil n'est imposé ici.
+    mathPath: mathPathOf(flags),
   };
   const isolation = flags.get('isolation') ?? 'off';
   if (isolation !== 'on' && isolation !== 'off')

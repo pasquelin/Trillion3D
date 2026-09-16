@@ -2,6 +2,7 @@
 // Les calculs sont ceux du SDK : mêmes quantiles, même comparaison d'images que le Lab.
 import { loadavg } from 'node:os';
 import { compareImages, summarize } from '../../packages/sdk-core/index.ts';
+import { cheminsCalcul } from './rapportCalcul.mjs';
 
 /** p50/p95/p99 d'une série, ou `null` si elle est vide : rien n'est déduit d'une série absente. */
 export const distribution = (values) => summarize(values ?? []);
@@ -130,6 +131,13 @@ export function resume(report) {
     "en même temps. « non mesuré » n'est pas zéro.",
     '',
     ...etapes(report),
+    '## Chemin de calcul en lot',
+    '',
+    'Le chemin publié est celui que le gouverneur a choisi par la mesure, opération par opération :',
+    "aucun seuil n'est écrit dans le code, et « non mesuré » n'est pas zéro.",
+    '',
+    ...cheminsCalcul(report),
+    '',
     '## Témoin A/A et écart avant/après',
     '',
     '| vue | pixelError | témoin A/A (même côté, deux captures) | avant vs après |',

@@ -16,46 +16,14 @@ export async function measureView(options) {
   // jamais la cause, et le banc vient la chercher là.
   const lost = (globalThis.incidentsGpu = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
+  const reglages = await import(`${options.modulesUrl}pageExplorateur.mjs`);
   const explorer = await sdk.createExplorer(canvas, {
     onDiagnostic: (event) => {
       if (event.phase !== 'gpu-uncaptured-error' && event.phase !== 'gpu-device-lost') return;
       const cause = event.context ?? {};
       lost.push(`${event.phase} : ${cause.error ?? cause.message ?? cause.reason ?? ''}`);
     },
-    manifestUrl: options.manifestUrl,
-    scope: 'full',
-    width: options.width,
-    height: options.height,
-    pixelRatio: 1,
-    replicaCount: options.instances ?? 1,
-    detail: 'source',
-    pixelError: options.pixelError,
-    lodAdaptive: false,
-    maxResidentPages: options.maxPages,
-    preload: 'visible',
-    ...(options.autonome ? { autonomousGeometry: true } : { backends: [factory] }),
-    // Le groupe de lampes du témoin : vide à la création, rempli du magasin juste après.
-    ...(eclairage ? { sceneLighting: eclairage.groupe } : {}),
-    comparisonLayout: 'single',
-    clearColor: 0x2a303c,
-    // Une variante de DIAGNOSTIC du moteur, quand le banc en demande une : elle rend une image
-    // différente par construction, et le SDK la refuse hors du détail « trace ».
-    diagnosticDetail: options.trace ? 'trace' : 'summary',
-    ...(options.variante ? { diagnosticGpuVariant: options.variante } : {}),
-    // La métrique d'erreur écran de l'EXPÉRIENCE : absente, l'explorateur garde la nôtre.
-    ...(options.erreur ? { screenError: options.erreur } : {}),
-    // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
-    stageProfile: options.stageProfile === true,
-    // Idem pour la lumière qui rebondit : le moteur l'éteint par défaut, le banc peut l'allumer.
-    bounce: options.bounce === true,
-    // Les lampes que le fichier source portait : le moteur les déclare seul, le banc peut les taire.
-    importedLights: options.importedLights !== false,
-    // Le budget de l'étape Ombres et l'invalidation par pages : sans ces options, le moteur garde
-    // ses propres réglages publiés.
-    ...(typeof options.shadowBudgetMs === 'number'
-      ? { shadowBudgetMs: options.shadowBudgetMs }
-      : {}),
-    ...(options.shadowPages === false ? { shadowPageInvalidation: false } : {}),
+    ...reglages.optionsExplorateur(options, factory, eclairage),
   });
   // Ce que le fichier a apporté, avant tout ajout du banc. Un dist plus ancien que le lot d'import
   // des lampes n'a pas cette fonction : la mesure rend `null`, jamais un compte inventé.
@@ -192,6 +160,9 @@ export async function measureView(options) {
     stageProfile,
     selection,
     metrics,
+    // Le relevé du gouverneur de chemin de calcul : un objet, donc écarté par le filtre scalaire
+    // ci-dessus. Sans lui, rien ne dirait quel chemin la campagne a réellement joué.
+    mathBatch: last?.mathBatch ?? null,
     size,
     lost,
     captureStatus: response.status,
