@@ -90,6 +90,9 @@ export function dropGpuHiz(rt: WebgpuPagesRuntime) {
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {
   dropGpuPartition(rt);
+  // La compaction de la moitié testée ne nomme que les tampons de la compaction de dessin.
+  rt.vis.gpuRestCompact?.dispose();
+  rt.vis.gpuRestCompact = undefined;
   rt.vis.gpuDraw?.dispose();
   rt.vis.gpuDraw = undefined;
   if (!rt.capabilities.unsupported.includes('indirect draw'))

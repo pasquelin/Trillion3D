@@ -64,9 +64,7 @@ Témoin A/A : 0 px partout. Seule la campagne `presentation-hors-ecran` est brui
   n'est pas mesuré (une requête d'occlusion ne rend qu'une somme) et reste `null`. Corollaire vérifié
   indépendamment : les cinq variantes rendent une image **identique au pixel près** à la référence —
   la passe de mélange ne pose aucun pixel de ces deux images.
-- **Nombre d'appels : 4232 (`rue`) et 4288 (`sol`) appels de mélange** pour 2116 maillages visibles
-  (deux faces chacun), 9452 rejetés par le tronc — contre 15 appels pour tout le reste de l'image
-  (`appelsDeDessin` 4247, `appelsDeMelange` 4232). Aucun ne pose un pixel.
+- **Appels : 4232 (`rue`) et 4288 (`sol`) de mélange, 15 pour tout le reste** (détail au levier 2).
 - **Le verdict : « surdessin » est faux, « ombrage caché » est vrai.** Les 43 ms ne sont pas des
   transparents qui se recouvrent : ce sont des fragments entièrement cachés derrière l'opaque,
   ombrés en entier puis jetés par le test de profondeur. Le rejet anticipé ne s'applique pas parce
@@ -107,11 +105,10 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
    ombrer ce que la profondeur jette », qui attendait ~36 ms, est donc clos par là.
 
 1. ~~**Occlure les grappes transparentes — ~7 ms et 4200 appels.**~~ **Fait, et bien plus que 7 ms.**
-   La compaction des transparents teste chaque grappe contre la pyramide Hi-Z de l'image avec les
-   MÊMES règles que la partition opaque — la même projection conservatrice (`gpuBoxProjectWgsl.ts`),
-   le même choix de mip et le même dépouillement (`gpuHizRectWgsl.ts`), et le MÊME tampon d'uniforme,
-   celui que la partition vient d'écrire. Une grappe entièrement derrière l'opaque sort de la table ;
-   l'ordre des retenues ne bouge pas. Campagne `--avant dd3d604d` caméra mobile, même campagne des
+   La compaction des transparents teste chaque grappe contre la pyramide Hi-Z avec les MÊMES règles
+   que la partition opaque — même projection conservatrice (`gpuBoxProjectWgsl.ts`), même choix de
+   mip, même dépouillement (`gpuHizRectWgsl.ts`), même uniforme, celui que la partition vient
+   d'écrire. Une grappe entièrement derrière l'opaque sort de la table, l'ordre ne bouge pas. Campagne `--avant dd3d604d` caméra mobile, même campagne des
    deux côtés : transparents 21,25 → 0,21 ms et présentation 0,65 → 0,02 ms (`rue`), 20,75 → 0,20 et
    0,67 → 0,03 (`sol`) ; image 33,05 → 13,15 et 32,98 → 13,90. Écart 0 px, coupe identique, témoin
    A/A 0 px ; caméra immobile, l'image est tenue, 0 px des deux vues. Preuve par grappe :
@@ -122,18 +119,16 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
    visible (4232 pour 2116, 4288 pour 2144) : chaque item est double face et ses deux appels
    demandent deux pipelines opposés, jamais fusionnables ; entre deux items, `drawBlendPass` repose
    un groupe de liaison, les décalages d'uniforme et de volume étant par item. La fusion des appels
-   CONSÉCUTIFS partageant pipeline, liaison et couche vaut donc 0 %. Le prix restant est borné :
-   0,21 ms GPU pour toute la passe, et 1,9 ms processeur d'encodage qui demanderait des paramètres
-   par item indexés par instance, pas une fusion d'appels.
+   CONSÉCUTIFS vaut donc 0 %, et le prix restant est borné : 0,21 ms GPU pour toute la passe, et
+   1,9 ms processeur d'encodage, qui demanderait des paramètres par item indexés par instance.
 
 ## Le code de diagnostic
 
-`packages/sdk-browser/diagnosticGpuVariant.ts` déclare les sept variantes — cinq pour le mélange et
-la présentation, deux qui réencodent la coupe —, les refuse hors `diagnosticDetail: 'trace'` et
-refuse un nom inconnu (`diagnosticGpuVariant.test.ts`). Sans variante, le moteur compile le module
+`diagnosticGpuVariant.ts` déclare les douze variantes — cinq pour le mélange et la présentation, deux
+qui réencodent la coupe, cinq pour la géométrie (`diagnosticGpuGeometry.ts`) —, les refuse hors
+`diagnosticDetail: 'trace'` et refuse un nom inconnu. Sans variante, le moteur compile les modules
 d'avant, encode les mêmes commandes et ne monte ni requête d'occlusion ni compteur : aucun chemin de
-production n'est modifié. `webgpuBlendOverdraw.ts` porte le comptage, publié dans `profilParEtape`
-sous l'étape « Transparents ».
+production n'est modifié. `webgpuBlendOverdraw.ts` porte le comptage, sous « Transparents ».
 
 ## Sélection : ventilation par noyau, et le levier qu'elle a désigné
 
@@ -197,3 +192,9 @@ grappe, dont 80 % tombent. Un mot compact par grappe (nœud, drapeaux, monde) é
 l'enregistrement des rejetées — à mesurer contre les 0,6 ms que vaut toute la tête. La coupe
 incrémentale n'a pas été tentée : le seuil par primitive est un point fixe global (`atomicMax` sur
 `work[w]`) qu'une frontière seule ne sait pas reproduire sans revisiter ses contributeurs.
+
+## Géométrie : ventilation, et le levier
+
+Ventilée par les cinq variantes de `diagnosticGpuGeometry.ts` (tableau en commit) : sur 6,4 ms, ~4,5
+sont sommets, le fragment ≤ 1,0, la résolution ≤ 0,9. **Fait : troncature du suffixe rejeté de la
+moitié testée** (`gpuRestCompact.ts`) : 5,81 → 4,53 ms (`rue`), 0 px, coupe identique, A/A 0 px.
