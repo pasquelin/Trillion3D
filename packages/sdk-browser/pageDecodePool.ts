@@ -1,4 +1,17 @@
 import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
+import {
+  ID,
+  SHARED_BY_REGION,
+  SHARED_READY,
+  STATUS,
+  awaitSharedPage,
+  beginSharedPage,
+  freeSharedPage,
+  loseSharedPage,
+  sharedField,
+} from './pageDecodeShared.ts';
+import { readSharedPage } from './pageDecodeSharedPage.ts';
+import type { PageArena } from './pageDecodeShared.ts';
 import type { PageDecodeAnswer, PageDecodeRequest } from '../sdk-core/index.ts';
 
 type Waiting = {
@@ -23,8 +36,12 @@ const workerError = (id: number): PageDecodeAnswer => ({
  * `Worker`, module introuvable, `crypto` absent — laisse donc l'appelant avec ses octets intacts et
  * son repli synchrone. Après le démarrage, la disparition d'un worker casse le pool : les travaux en
  * vol répondent `PAGE_DECODE_WORKER`, et tout ce qui suit repart sur le repli.
+ *
+ * Avec une arène, chaque worker reçoit à sa naissance un créneau et la région qui lui correspond, et
+ * les pages décodées reviennent par là plutôt que par message. Le créneau porte l'indice du worker :
+ * un worker, une région, un seul écrivain. Sans arène, rien ne change.
  */
-export function createPageDecodePool(size: number) {
+export function createPageDecodePool(size: number, arena?: PageArena) {
   const idle: Worker[] = [],
     all: Worker[] = [],
     queue: Waiting[] = [];
@@ -46,6 +63,18 @@ export function createPageDecodePool(size: number) {
     worker.onerror = () => breakPool();
     worker.onmessageerror = () => breakPool();
     all.push(worker);
+    if (arena)
+      worker.postMessage(
+        {
+          protocol: PAGE_DECODE_PROTOCOL,
+          id: 0,
+          op: 'share',
+          buffer: arena.buffer,
+          slot: all.length - 1,
+          slots: arena.slots,
+        },
+        [],
+      );
     return worker;
   };
   const receive = (worker: Worker, answer: PageDecodeAnswer) => {
@@ -58,9 +87,22 @@ export function createPageDecodePool(size: number) {
     else if (pending.size) worker.terminate();
     else breakPool();
   };
+  /** La page publiée dans le créneau, ou rien quand le worker l'a perdue ou répondue par message.
+   *  Le créneau redevient libre dans tous les cas : une mort en plein décodage ne le confisque pas. */
+  const collect = async (worker: Worker, shared: PageArena, slot: number, id: number) => {
+    const state = await awaitSharedPage(shared, slot);
+    const served =
+      state === SHARED_READY &&
+      sharedField(shared, slot, STATUS) === SHARED_BY_REGION &&
+      sharedField(shared, slot, ID) === id;
+    const answer = served ? readSharedPage(shared, slot) : undefined;
+    freeSharedPage(shared, slot);
+    if (answer && alive) receive(worker, answer);
+  };
   const breakPool = () => {
     if (!alive) return;
     alive = false;
+    if (arena) for (let slot = 0; slot < arena.slots; slot++) loseSharedPage(arena, slot);
     const lost = [...pending.values(), ...queue.splice(0)];
     pending.clear();
     owner.clear();
@@ -74,12 +116,15 @@ export function createPageDecodePool(size: number) {
       const worker = idle.pop() ?? spawn();
       pending.set(waiting.request.id, waiting);
       owner.set(waiting.request.id, worker);
+      const slot = arena && waiting.request.op === 'decode' ? all.indexOf(worker) : -1;
+      if (arena && slot >= 0) beginSharedPage(arena, slot, waiting.request.id);
       try {
         worker.postMessage(waiting.request, waiting.transfer);
       } catch {
         breakPool();
         return;
       }
+      if (arena && slot >= 0) void collect(worker, arena, slot, waiting.request.id);
     }
   };
   const submit = (op: PageDecodeRequest['op'], source: ArrayBuffer, maxDecodedBytes: number) => {

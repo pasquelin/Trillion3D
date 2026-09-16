@@ -61,9 +61,24 @@ function takeCapture(req, url, captures, res) {
   });
 }
 
-/** Écoute sur `port`, sert `mounts`, dépose les captures dans `captures`. */
-export function startServer({ port, mounts, captures }) {
+/**
+ * Les en-têtes qui isolent la page entre origines, et rien d'autre. Sans eux, `crossOriginIsolated`
+ * est faux dans le navigateur et le SDK garde son chemin de transfert : c'est ce drapeau, et lui
+ * seul, qui met le harnais du côté de la mémoire partagée. Faux par défaut, pour que la mesure de
+ * référence ne change pas de chemin sans qu'on le demande.
+ */
+const ISOLATION = {
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-embedder-policy': 'require-corp',
+  'cross-origin-resource-policy': 'same-origin',
+};
+
+/** Écoute sur `port`, sert `mounts`, dépose les captures dans `captures`. `isolation` pose COOP et
+ *  COEP sur chaque réponse ; le Lab, lui, n'est pas touché. */
+export function startServer({ port, mounts, captures, isolation = false }) {
   const server = http.createServer((req, res) => {
+    if (isolation)
+      for (const [name, value] of Object.entries(ISOLATION)) res.setHeader(name, value);
     const url = new URL(req.url, 'http://127.0.0.1');
     if (req.method === 'POST' && url.pathname === '/capture')
       return takeCapture(req, url, captures, res);

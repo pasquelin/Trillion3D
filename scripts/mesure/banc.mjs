@@ -80,7 +80,12 @@ async function main() {
     errors: [],
   };
 
-  const server = await startServer({ port: settings.port, mounts, captures });
+  const server = await startServer({
+    port: settings.port,
+    mounts,
+    captures,
+    isolation: settings.isolation,
+  });
   const port = server.address().port;
   report.settings = { ...settings, port };
   const { chromium } = createRequire(join(options.LAB, 'package.json'))('playwright');
