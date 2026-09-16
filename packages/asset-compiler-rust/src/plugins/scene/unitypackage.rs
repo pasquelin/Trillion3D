@@ -56,7 +56,7 @@ impl ScenePlugin for UnityPackage {
         head.starts_with(GZIP_MAGIC)
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        archive::container(request, self, |file, root| extract(request, file, root))
+        archive::container(request, self, None, |file, root| extract(request, file, root))
     }
 }
 

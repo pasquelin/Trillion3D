@@ -22,19 +22,10 @@ const STAGING: &str = "chantier";
 pub(in super::super) fn container(
     request: &SceneRequest<'_>,
     plugin: &dyn ScenePlugin,
+    pinned: Option<&str>,
     extract: impl Fn(&Path, &Path) -> Result<(usize, u64)>,
 ) -> Result<PreparedScene> {
-    let [file] = request.inputs else {
-        let kind = plugin.extensions().first().copied().unwrap_or_default();
-        return Err(CompilerError::new(
-            "SOURCE_FORMAT_AMBIGUOUS",
-            format!(
-                "{}: a source directory carries exactly one .{kind}, found {}",
-                plugin.name(),
-                request.inputs.len()
-            ),
-        ));
-    };
+    let file = only_input(request, plugin)?;
     let directory = extraction_dir(request, plugin, &crate::hash_file(file)?);
     let (content, marker) = (directory.join(CONTENT), directory.join(MARKER));
     let extracted = ready(&marker);
@@ -44,7 +35,7 @@ pub(in super::super) fn container(
             json!({"phase":"archive","step":"extract","plugin":plugin.name(),"entries":counts.0,"bytes":counts.1}),
         );
     }
-    let (scene, inner) = compose(request, &content)?;
+    let (scene, inner) = compose(request, &content, pinned)?;
     let chain = match inner {
         Some(_) => chain(plugin, inner),
         None => extracted.unwrap_or_else(|| chain(plugin, None)),
@@ -92,13 +83,22 @@ fn ready(marker: &Path) -> Option<Value> {
 fn compose(
     request: &SceneRequest<'_>,
     extracted: &Path,
+    pinned: Option<&str>,
 ) -> Result<(PreparedScene, Option<&'static dyn ScenePlugin>)> {
-    let root = single_root(extracted);
-    match route(&root)? {
+    // Un format qui nomme lui-même sa source ne laisse rien à choisir au routeur : les autres
+    // fichiers extraits sont ses ressources, jamais des scènes candidates.
+    let (root, source) = match pinned {
+        Some(name) => (extracted.to_path_buf(), safe_join(extracted, name)?),
+        None => {
+            let root = single_root(extracted);
+            (root.clone(), root)
+        }
+    };
+    match route(&source)? {
         Routed::Manifest => Ok((PreparedScene::converted(root.clone(), &root), None)),
         Routed::Driver(inner, inputs) => {
             let inner_request = SceneRequest {
-                source: &root,
+                source: &source,
                 inputs: &inputs,
                 cache: request.cache,
                 cancelled: request.cancelled,
