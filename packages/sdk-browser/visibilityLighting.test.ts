@@ -144,7 +144,10 @@ test('visibilityLighting lit Nx/Ny/Nz depuis normal[0]/[1]/[2], pas permutés', 
   // Normale de sommet aux trois composantes distinctes et non symétriques : toute permutation de
   // Nx/Ny/Nz dans `shadeLit` s'écarterait de l'oracle, qui lit n.x/n.y/n.z dans cet ordre.
   const valeurs = [0.15, 0.55, 0.82];
-  const normal = new THREE.BufferAttribute(Float32Array.from([...valeurs, ...valeurs, ...valeurs]), 3);
+  const normal = new THREE.BufferAttribute(
+    Float32Array.from([...valeurs, ...valeurs, ...valeurs]),
+    3,
+  );
   const page = pageOf({ attributes: { normal } });
   assertSameShading({ page }, 'Nx/Ny/Nz non permutés');
 });

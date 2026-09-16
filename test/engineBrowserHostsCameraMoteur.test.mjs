@@ -35,9 +35,16 @@ test('cisaillementTransform.browser.mjs et coneEchelleNonUniforme.browser.mjs ap
 });
 
 test('inverseTransposeePetiteEchelle.browser.mjs appelle cameraSelectionUniforms(vue, ...), pas la caméra hôte', async () => {
-  const texte = await readFile(new URL('inverseTransposeePetiteEchelle.browser.mjs', testDir), 'utf8');
+  const texte = await readFile(
+    new URL('inverseTransposeePetiteEchelle.browser.mjs', testDir),
+    'utf8',
+  );
   assert.match(texte, /\bvue,\n/, 'doit importer `vue` de inverseTransposeCas.mjs');
-  assert.doesNotMatch(texte, /\bcamera,\n/, 'ne doit plus importer `camera` de inverseTransposeCas.mjs');
+  assert.doesNotMatch(
+    texte,
+    /\bcamera,\n/,
+    'ne doit plus importer `camera` de inverseTransposeCas.mjs',
+  );
   assert.match(texte, /cameraSelectionUniforms\(\s*vue\s*,/, 'l’appel doit passer `vue`');
   assert.doesNotMatch(
     texte,
