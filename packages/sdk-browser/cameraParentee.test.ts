@@ -34,16 +34,35 @@ async function releve(site: Site, camera: (pose: Pose) => unknown) {
   return images;
 }
 
-/** Résidu de la vue appliquée à la position monde : nul à l'arrondi près si elles concordent. */
-function residu(camera: Parameters<typeof cameraSelectionUniforms>[0]) {
-  const u = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);
-  const v = u.view,
-    [x, y, z] = u.cameraWorld;
-  return Math.hypot(
-    v[0]! * x! + v[4]! * y! + v[8]! * z! + v[12]!,
-    v[1]! * x! + v[5]! * y! + v[9]! * z! + v[13]!,
-    v[2]! * x! + v[6]! * y! + v[10]! * z! + v[14]!,
-  );
+/** Un point monde passé par une matrice 4×4 colonne-major. */
+function applique(m: ArrayLike<number>, [x, y, z]: [number, number, number]) {
+  return [
+    m[0]! * x + m[4]! * y + m[8]! * z + m[12]!,
+    m[1]! * x + m[5]! * y + m[9]! * z + m[13]!,
+    m[2]! * x + m[6]! * y + m[10]! * z + m[14]!,
+  ];
+}
+
+/**
+ * Résidu de la composition du repère de rendu. Les uniformes publient une vue SANS translation et
+ * la position monde de l'œil, qui est l'origine de ce repère : toute la translation est passée dans
+ * les matrices monde, que le moteur ramène à cette origine. Appliquer la vue relative à un point
+ * ainsi ramené doit donc rendre, à l'arrondi simple précision près, ce que la vue absolue rend du
+ * même point. Non nul dès que la position publiée n'est pas celle de la vue — un rig non remonté,
+ * par exemple : c'est elle, désormais, qui porte le déplacement de la caméra.
+ */
+function residu(camera: Parameters<typeof cameraMoteur>[0]) {
+  const cam = cameraMoteur(camera);
+  const u = cameraSelectionUniforms(cam, 1, [1280, 720]);
+  const sonde: [number, number, number] = [12, -7, 31];
+  const ramene: [number, number, number] = [
+    sonde[0] - u.cameraWorld[0],
+    sonde[1] - u.cameraWorld[1],
+    sonde[2] - u.cameraWorld[2],
+  ];
+  const absolu = applique(cam.view, sonde),
+    relatif = applique(u.view, ramene);
+  return Math.hypot(absolu[0]! - relatif[0]!, absolu[1]! - relatif[1]!, absolu[2]! - relatif[2]!);
 }
 
 for (const hote of [false, true]) {
@@ -57,12 +76,14 @@ for (const hote of [false, true]) {
         assert.equal(parentee[i], aplatie[i], `image ${i} : le rig ne donne pas la pose aplatie`);
     });
 
-  test(`uniformes de sélection : vue et position monde concordent, rig ${contrat}`, () => {
+  test(`uniformes de sélection : vue relative et origine de rendu concordent, rig ${contrat}`, () => {
     const rig = creeRig();
     for (const pose of POSES_PARENT)
       assert.ok(
-        residu(poseRig(rig, pose, hote) as Parameters<typeof cameraSelectionUniforms>[0]) <= 1e-6,
-        'la vue et la position monde décrivent deux caméras différentes',
+        // Le seuil est celui de l'arrondi simple précision d'une sonde à quelques dizaines de
+        // mètres ; une pose fausse, elle, se compte en mètres.
+        residu(poseRig(rig, pose, hote) as Parameters<typeof cameraMoteur>[0]) <= 1e-4,
+        'la vue relative et l’origine du repère de rendu décrivent deux caméras différentes',
       );
   });
 }
