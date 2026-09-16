@@ -159,7 +159,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Les lampes déclarées par le fichier source, en espace monde, dans le contrat du moteur.
-    stage_scene_lights(g, &scene_nodes, &directory, &progress)?;
+    stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal) = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,
