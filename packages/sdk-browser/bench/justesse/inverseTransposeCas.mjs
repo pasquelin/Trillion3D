@@ -135,7 +135,7 @@ export function dansLeChamp(cas) {
 
 /** `coneCullsPageWith` et `selectVisiblePages`, comme le lot 1 : la même page, les deux entrées. */
 export function decisionCpu(cas) {
-  const ctx = coneContextFor(createConeContext(), cas.world, vue);
+  const ctx = coneContextFor(createConeContext(), cas.world, vue.eye);
   const coneRejette = coneCullsPageWith(ctx, cas.cone, cas.world, cas.min, cas.max);
   const box = new THREE.Box3(
     new THREE.Vector3(...cas.min),

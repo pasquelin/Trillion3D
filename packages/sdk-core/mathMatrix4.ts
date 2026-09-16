@@ -148,3 +148,17 @@ export function linearPartDeterminant(m: ArrayLike<number>) {
     m[2] * (m[4] * m[9] - m[5] * m[8])
   );
 }
+
+/** L'identité colonne-major, lue et jamais écrite : la pose d'un nœud ou d'une racine sans pose. */
+export const IDENTITY_MATRIX4: Float64Array = new Float64Array([
+  1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+]);
+
+/**
+ * Recopie les seize flottants de `m` dans `out`, chacun à son décalage. Une boucle plutôt que
+ * `TypedArray.prototype.set` : sur une vue, `set` coûte un appel natif, et les sorties ne sont pas
+ * toutes typées (matrices de l'hôte, tampons GPU en simple précision — la seule conversion, ici).
+ */
+export function copyMatrix4(out: NumberSink, m: ArrayLike<number>, outAt = 0, mAt = 0) {
+  for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i];
+}

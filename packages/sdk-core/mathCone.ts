@@ -1,6 +1,20 @@
 import { coneRejects } from './projectionOracles.ts';
 
 /**
+ * Tolérances du rejet de cône, partagées par le miroir processeur (`pageCone.ts`) et le nuanceur
+ * (`gpuDagShader.ts`) : une transformation est conforme quand ses colonnes ont la même longueur à
+ * `CONE_LENGTH_RATIO` près et sont orthogonales à `CONE_ORTHO_EPS` près, en relatif ; un cône d'angle
+ * ≥ `HALF_PI` ne rejette jamais. Les variantes `_WGSL` sont le texte inséré dans le nuanceur, comme
+ * `SINGULAR_DETERMINANT_WGSL` (`mathSingular.ts`).
+ */
+export const CONE_LENGTH_RATIO = 1.0001;
+export const CONE_ORTHO_EPS = 1e-4;
+export const HALF_PI = Math.PI / 2;
+export const CONE_LENGTH_RATIO_WGSL = CONE_LENGTH_RATIO.toString();
+export const CONE_ORTHO_EPS_WGSL = CONE_ORTHO_EPS.toExponential();
+export const HALF_PI_WGSL = HALF_PI.toString();
+
+/**
  * Demi-angle sous lequel une sphère est vue depuis un point : `asin(r / d)`, borné à [0, 1] avant
  * l'arc sinus. Un point dans la sphère, ou une distance NaN, la voit de partout : π.
  */
