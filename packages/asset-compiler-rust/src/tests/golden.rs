@@ -16,8 +16,8 @@ pub(super) struct GoldenRun {
     pub binary: Vec<u8>,
     /// Ce que la compilation a publié en chemin : l'étape d'un pilote se prouve dans son rapport.
     pub reports: Vec<Value>,
-    /// Le cache jetable : c'est là qu'un pilote a laissé la scène intermédiaire qu'il a écrite.
-    cache: PathBuf,
+    /// Le cache jetable : scène intermédiaire d'un pilote et produits publiés par le compilateur.
+    pub(super) cache: PathBuf,
     root: PathBuf,
 }
 impl Drop for GoldenRun {
