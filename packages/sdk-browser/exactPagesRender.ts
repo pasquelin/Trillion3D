@@ -10,6 +10,7 @@ import { lighting } from './backendCommon.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
+import type { CameraMotion, EngineCamera } from './cameraWorld.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -19,6 +20,8 @@ export type ExactPagesRenderState = {
   frustumRejected: number;
   lodLevel: number;
   lastCamera: THREE.PerspectiveCamera | undefined;
+  /** La caméra du moteur, absente tant qu'aucune image n'a été rendue. */
+  cam: EngineCamera | undefined;
   lastPixelError: number;
   /** Temps de la coupe de clusters seule, entre l'appel de sélection et son retour : ni le seuil
    *  adaptatif, ni la résidence, ni les rangs, ni la soumission. */
@@ -38,6 +41,7 @@ export function createExactPagesRenderState(): ExactPagesRenderState {
     frustumRejected: 0,
     lodLevel: 0,
     lastCamera: undefined,
+    cam: undefined,
     lastPixelError: 0,
     cpuSelectMs: 0,
     cpuSelectNodesTested: 0,
@@ -55,7 +59,7 @@ export function createExactPagesRender(options: {
   source: THREE.Object3D;
   blendCopies: THREE.Mesh[];
   sceneLights: ReturnType<typeof lighting>;
-  motion: { last?: THREE.Vector3; lastMs?: number };
+  motion: CameraMotion;
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
   viewport: [number, number] | undefined;
   cap: number;
@@ -112,11 +116,13 @@ export function createExactPagesRender(options: {
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
     state.lastCamera = camera;
-    // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`. Rien n'a bougé et
-    // les deux images précédentes ont produit la même coupe : la scène attachée est déjà cette
-    // image-ci, et l'hôte la redessine telle quelle.
+    // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`, qui recopie aussi
+    // la caméra de l'hôte dans celle du moteur. Rien n'a bougé et les deux images précédentes ont
+    // produit la même coupe : la scène attachée est déjà cette image-ci, et l'hôte la redessine
+    // telle quelle.
     state.frameHeld = gate.enterFrame(context, camera, motion, viewport, source, sourcesDessinees);
     state.lastPixelError = gate.pixelError;
+    const cam = (state.cam = gate.cam);
     if (state.frameHeld) return heldProfile();
     const worldStart = performance.now();
     // Les matrices monde ne sont fonction que de la scène. Les copies transparentes n'ont rien à
@@ -132,7 +138,7 @@ export function createExactPagesRender(options: {
     // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif et la
     // caméra sont posés avant cette borne ; la résidence et la soumission sont après.
     const cutStart = performance.now();
-    const selected = selectVisiblePages(roots, camera, selectOptions, shown);
+    const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     state.cpuSelectMs = performance.now() - cutStart;
     // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
     // Selection already answered the budget with a coarser threshold, so the cover is kept whole and

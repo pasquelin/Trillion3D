@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { LightingExperimentRenderState } from './lightingObservationContracts.ts';
 import type { ObservationResources } from './lightingObservationResources.ts';
 import { createObservationTransforms } from './lightingObservationTransforms.ts';
@@ -58,10 +59,14 @@ export function createObservationMeshes(
       mesh.matrix.copy(original.matrixWorld);
       mesh.renderOrder = meshIndex;
       scene.add(mesh);
-      const restTransform = (surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis))
-        .clone()
-        .invert()
-        .multiply(original.matrixWorld);
+      // La pose de repos relative à la base, `base⁻¹ · monde`, que chaque image recompose avec la base.
+      const restTransform = new THREE.Matrix4(),
+        rest = restTransform.elements;
+      invertMatrix4(
+        rest,
+        (surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis)).elements,
+      );
+      multiplyMatrix4(rest, rest, original.matrixWorld.elements);
       copies.push({ mesh, surface, restTransform });
       const index = geometry.getIndex(),
         position = geometry.getAttribute('position');
@@ -94,7 +99,7 @@ export function createObservationMeshes(
       for (const copy of copies) {
         if (copy.surface >= 0) surfaceBasis(copy.surface, basis);
         else sphereBasis(basis);
-        copy.mesh.matrix.multiplyMatrices(basis, copy.restTransform);
+        multiplyMatrix4(copy.mesh.matrix.elements, basis.elements, copy.restTransform.elements);
         copy.mesh.matrixWorldNeedsUpdate = true;
       }
     },

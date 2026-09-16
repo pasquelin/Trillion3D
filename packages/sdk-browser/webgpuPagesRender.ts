@@ -1,6 +1,5 @@
-import * as THREE from 'three';
 import { sameHizView } from './hiz.ts';
-import { holdCameraWorld } from './cameraWorld.ts';
+import { createEngineCamera, holdCameraWorld, type HostCamera } from './cameraWorld.ts';
 import {
   fallbackToCpuCut,
   invalidateOccluderHistory,
@@ -15,7 +14,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
-export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   const { run, gpu, vis, capture, context, diag, blendState } = rt,
     { gpuDevice, source } = rt.setup,
     { selectionRoots, worldUpdates, rows } = rt.layout;
@@ -27,14 +26,16 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
   run.lastCamera = camera;
-  // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`. La liste des nœuds que
-  // l'hôte peut écrire n'est construite qu'à un changement de scène, jamais par image — douze
-  // instances d'un même modèle relisent ce modèle une fois.
+  // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`, qui recopie aussi la
+  // caméra de l'hôte dans celle du moteur — tout ce qui suit ne lit plus que celle-ci. La liste des
+  // nœuds que l'hôte peut écrire n'est construite qu'à un changement de scène, jamais par image —
+  // douze instances d'un même modèle relisent ce modèle une fois.
   run.gate.enterFrame(context, camera, run.motion, rt.setup.viewport, source, () => [
     ...selectionRoots.map((root) => root.pages[0]),
     ...blendState.blendGpu,
   ]);
-  const pixelError = run.gate.pixelError;
+  const pixelError = run.gate.pixelError,
+    cam = run.gate.cam;
   // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
   // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
   if (holdWebgpuFrame(rt, gpuDevice)) return;
@@ -62,17 +63,14 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
       invalidateOccluderHistory(run);
     }
   }
-  if (!sameHizView(run.previousHizView, camera)) {
+  if (!sameHizView(run.previousHizView, cam)) {
     // Une caméra qui bouge périme la pyramide temporelle, pas la moitié occulteuse : celle-ci nomme
     // des pages, elle ne choisit que la passe où un cluster est dessiné, et la pyramide de cette
     // image-ci reste seule juge de ce qui est retiré. La garder évite de projeter toutes les boîtes
     // et de les reclasser à chaque image de déplacement.
     invalidateTemporalPyramid(run);
     // La pose monde est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
-    run.previousHizView = holdCameraWorld(
-      run.previousHizView ?? new THREE.PerspectiveCamera(),
-      camera,
-    );
+    run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);
   }
   marks.blendStart = performance.now();
   // Un item transparent LIT la matrice monde de son maillage source : rien n'est à recopier. Seule
@@ -94,6 +92,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'relevé de sélection en échec');
   if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
-    if (!renderGpuCut(rt, camera, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
-  } else renderCpuCut(rt, camera, pixelError, cpuStart, lightsEnd);
+    if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
+  } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
 }

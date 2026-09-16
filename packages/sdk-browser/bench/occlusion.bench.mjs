@@ -10,6 +10,7 @@ import { buildHizPyramid } from '../hizDepth.ts';
 import { compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { boites, camera } from './scenes.mjs';
 import { referenceCountUnoccluded, referenceSplitOccluders } from './oracles/occlusion.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const LARGEUR = 640,
   HAUTEUR = 360;
@@ -41,7 +42,7 @@ const lignes = [
       return { occluders: urls(split.occluders), rest: urls(split.rest) };
     },
     optimisee: (pages) => {
-      splitOccludersInto(pages, cam, viewport, occluders, rest);
+      splitOccludersInto(pages, cameraMoteur(cam), viewport, occluders, rest);
       return { occluders: urls(occluders), rest: urls(rest) };
     },
     options: { tours: 200, budgetMs: 2000 },
@@ -59,7 +60,10 @@ const lignes = [
     },
     optimisee: (pages) => {
       const counts = createHizCounts();
-      return { kept: urls(countUnoccluded(pages, pyramide, cam, viewport, counts)), counts };
+      return {
+        kept: urls(countUnoccluded(pages, pyramide, cameraMoteur(cam), viewport, counts)),
+        counts,
+      };
     },
     options: { tours: 200, budgetMs: 2000 },
   }),

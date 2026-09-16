@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { dagCulling } from './pageSelectionTestHelpers.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 const ASK = {
   pixelError: 0,
@@ -30,7 +31,7 @@ function rootsOf(fixture: ReturnType<typeof dagFixture>) {
 /** Clusters demandés et montrés par une coupe, à plat puis hiérarchique, sous la même caméra. */
 function bothCuts(cam: THREE.PerspectiveCamera) {
   const cut = (fixture: ReturnType<typeof dagFixture>) => {
-    const result = selectVisiblePages(rootsOf(fixture), cam, ASK);
+    const result = selectVisiblePages(rootsOf(fixture), cameraMoteur(cam), ASK);
     fixture.geometry.dispose();
     return {
       shown: result.shown.map((page) => page.url).sort(),
@@ -63,7 +64,7 @@ test('un nœud accepté en bloc ne montre que des clusters sous le seuil (monoto
   const fixture = hierarchicalFixture();
   const roots = rootsOf(fixture);
   for (const pixelError of [0, 0.01, 0.02, 0.1, 0.2, 1]) {
-    const result = selectVisiblePages(roots, wideCamera(), { ...ASK, pixelError });
+    const result = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, pixelError });
     for (const cluster of result.shown)
       if (cluster.lodError !== undefined)
         assert.ok(
@@ -87,7 +88,7 @@ test('nodesTested est un entier positif ou nul après une image de coupe hiérar
   const fixture = hierarchicalFixture();
   const roots = rootsOf(fixture);
   for (let image = 0; image < 3; image++) {
-    const { nodesTested } = selectVisiblePages(roots, wideCamera(), { ...ASK });
+    const { nodesTested } = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK });
     assert.ok(Number.isInteger(nodesTested) && nodesTested >= 0, `nodesTested = ${nodesTested}`);
   }
   fixture.geometry.dispose();
@@ -112,8 +113,8 @@ test('la coupe hiérarchique réutilise son résultat et ses tableaux d’une im
     pixelError: 0,
   };
   const ask = { ...ASK, result, wanted };
-  const first = selectVisiblePages(roots, cam, ask, shown);
-  const second = selectVisiblePages(roots, cam, { ...ask }, shown);
+  const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
+  const second = selectVisiblePages(roots, cameraMoteur(cam), { ...ask }, shown);
   assert.equal(second, first, 'objet résultat réutilisé');
   assert.equal(second.shown, shown, 'tableau shown réutilisé');
   assert.equal(second.wanted, wanted, 'tableau wanted réutilisé');

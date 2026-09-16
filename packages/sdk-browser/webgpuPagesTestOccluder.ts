@@ -1,3 +1,4 @@
+import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import * as THREE from 'three';
 import assert from 'node:assert/strict';
 import { compareImages } from '../sdk-core/index.ts';
@@ -91,9 +92,10 @@ export function assertOccluderImage(
     visibilityIds(): Uint32Array;
   },
   shown: PageRec[],
-  cam: THREE.PerspectiveCamera,
+  camera: THREE.PerspectiveCamera,
   viewport: [number, number],
 ) {
+  const cam = readCameraWorld(createEngineCamera(), camera);
   const visPages = shown
     .filter((page) => page.array)
     .map((page) => ({ ...page, array: page.array! }));

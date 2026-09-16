@@ -24,7 +24,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
       row = i,
       base = i * (UNIFORM_STRIDE / 4),
       color = pageRgb(rt, rec);
-    uniformPacked.set(viewProj.elements, base);
+    uniformPacked.set(viewProj, base);
     uniformPacked.set(rec.matrix.elements, base + 16);
     uniformPacked[base + 32] = color[0];
     uniformPacked[base + 33] = color[1];

@@ -1,5 +1,18 @@
 import * as THREE from 'three';
 import { LIGHT_SETTINGS, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
+import { baseCapabilities } from './backendCommon.ts';
+
+/** Un moteur rendu par Three applique les lampes du contrat ; seules leurs ombres lui manquent —
+ *  Three n'en fournirait qu'au prix d'une carte par lampe, six faces pour une ponctuelle, hors
+ *  budget d'image. Les deux constantes disent cela dans les capacités publiées par le moteur. */
+export const CONTRACT_LIGHTS_LIGHTING = {
+  shadows: false,
+  reason: "lampes du contrat sans ombre portée ; la vue 'bounce' y vaut la vue éclairée",
+};
+const RETIRES = ['bounded GPU eviction', 'contract scene lights with shadow atlas'];
+export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
+  .filter((item) => !RETIRES.includes(item))
+  .concat('contract scene light shadows');
 
 /**
  * Albédo brut par la lumière, et non par les matériaux : un matériau standard rend

@@ -6,12 +6,18 @@ import {
   boxIsEmpty,
   boxTransform,
   boxUnion,
+  decomposeMatrix4,
+  invertMatrix4,
+  multiplyMatrix4,
 } from '../sdk-core/index.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const requested = new THREE.Matrix4(),
-  parentInverse = new THREE.Matrix4(),
+  parentInverse = new Float64Array(16),
+  trs = new Float64Array(3),
+  trsRotation = new Float64Array(4),
+  trsScale = new Float64Array(3),
   movedMin = [0, 0, 0],
   movedMax = [0, 0, 0],
   moved = new Float64Array(BOX_VALUES);
@@ -46,10 +52,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     throw new EngineError('UNKNOWN_SCENE_NODE', `nœud ${nodeName} absent de la scène préparée`, {
       nodeName,
     });
-  requested.fromArray(matrix as unknown as number[]);
+  const local = requested.fromArray(matrix as unknown as number[]).elements;
   if (node.parent) {
-    parentInverse.copy(node.parent.matrixWorld).invert();
-    requested.premultiply(parentInverse);
+    invertMatrix4(parentInverse, node.parent.matrixWorld.elements);
+    multiplyMatrix4(local, parentInverse, local);
   }
   // Une pose identique à celle que ce nœud porte déjà — et posée par ici, d'où `matrixAutoUpdate`
   // à faux — ne change aucune matrice monde : la déclarer changée périmerait des pages d'ombre et
@@ -64,9 +70,13 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // échelle non uniforme sous une rotation — ne s'y décompose pas, et `updateMatrixWorld`
   // recomposerait `matrix` depuis `position`, `quaternion` et `scale` par-dessus celle posée ici,
   // laissant le moteur dessiner une autre transformation que celle demandée. Couper la
-  // recomposition sur le seul nœud déplacé est ce qui la préserve intacte. `decompose` renseigne
-  // quand même les trois champs, exacts sans cisaillement et approchés sinon, pour qui les lit.
-  requested.decompose(node.position, node.quaternion, node.scale);
+  // recomposition sur le seul nœud déplacé est ce qui la préserve intacte. La décomposition du
+  // socle renseigne quand même les trois champs, aux mêmes bits que `Matrix4.decompose` : exacts
+  // sans cisaillement et approchés sinon, pour qui les lit.
+  decomposeMatrix4(local, trs, trsRotation, trsScale);
+  node.position.set(trs[0], trs[1], trs[2]);
+  node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
+  node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
   node.matrix.copy(requested);
   node.matrixAutoUpdate = false;
   // Seuls les ancêtres du nœud et son sous-arbre changent de matrice monde : le reste de la scène

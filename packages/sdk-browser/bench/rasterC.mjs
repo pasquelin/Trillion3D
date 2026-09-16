@@ -125,11 +125,9 @@ export function rasterAvec(fill) {
       ids = new Uint32Array(width * height),
       depth = new Float32Array(width * height);
     depth.fill(Infinity);
-    cam.updateMatrixWorld();
-    const viewProj = new THREE.Matrix4().multiplyMatrices(
-      cam.projectionMatrix,
-      cam.matrixWorldInverse,
-    );
+    // Le sujet comparé est le REMPLISSAGE, pas la lecture de la caméra : la vue-projection vient de
+    // la caméra du moteur, comme dans le paquet.
+    const viewProj = cam.viewProjection;
     for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
       const page = pages[pageIndex],
         index = page.array;

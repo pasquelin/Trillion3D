@@ -1,4 +1,4 @@
-import { clipPlanesFromMatrix } from '../sdk-core/index.ts';
+import { clipPlanesFromMatrix, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { ConeContext } from './pageCone.ts';
 import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCutLogic.ts';
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
@@ -17,12 +17,12 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   const pages = root.pages;
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch;
   s.flatWorld = root.world;
-  s.flatElements = viewMatrix.elements;
+  s.flatElements = viewMatrix;
   s.flatStretch = worldStretch(root) * s.cameraStretch;
   s.flatFocal = Math.max(pixelScale[0], pixelScale[1]);
   // Les chemins à seuil nul ne consultent ni caméra ni sphère : ils ne valent que si les trois
   // scalaires de l'image sont ceux qu'un quotient strictement positif demande.
-  const near = s.camera.near;
+  const near = s.cam.near;
   s.flatExact =
     s.pixelError === 0 &&
     s.flatStretch > 0 &&
@@ -39,10 +39,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // Une racine qui déclare que toutes ses pages portent leur boîte sort cette vérification du
   // chemin par cluster. Le silence vaut « je n'ai rien déclaré » : la coupe s'en assure comme avant.
   s.flatBoxes = root.boxes === true;
-  clipPlanesFromMatrix(
-    planes,
-    clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix).elements,
-  );
+  clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix));
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;

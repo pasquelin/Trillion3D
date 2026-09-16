@@ -6,11 +6,12 @@ import { rasterVisibility } from '../visibilityRaster.ts';
 import { compare, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { camera, coupe, rectangles } from './scenes.mjs';
 import { referenceHizTestRect, referenceVisibilityDepth } from './oracles/hiz.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const image = (largeur, hauteur, pages) => {
   const cam = camera(6, 0.1, largeur / hauteur),
     viewport = [largeur, hauteur];
-  return { ids: rasterVisibility(pages, cam, viewport).ids, pages, cam, viewport };
+  return { ids: rasterVisibility(pages, cameraMoteur(cam), viewport).ids, pages, cam, viewport };
 };
 const pages = coupe({ pages: 900, triangles: 48 });
 const profondeur = [
@@ -45,7 +46,8 @@ const lignes = [
     cas: profondeur,
     reference: ({ ids, pages: p, cam, viewport }) =>
       referenceVisibilityDepth(ids, p, cam, viewport),
-    optimisee: ({ ids, pages: p, cam, viewport }) => visibilityDepth(ids, p, cam, viewport),
+    optimisee: ({ ids, pages: p, cam, viewport }) =>
+      visibilityDepth(ids, p, cameraMoteur(cam), viewport),
     options: { tours: 200, budgetMs: 2000 },
   }),
   await compare({

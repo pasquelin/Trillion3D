@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { projectBoxesFlat, splitOccludersFlat } from './hiz.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -6,7 +6,7 @@ const viewportScratch: [number, number] = [1, 1];
 
 /** Reuses the previous occluder half or splits projected bounds when history cannot partition.
  *  Writes the partition and projection timings into `rt.timing`. */
-export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { layout, run, vis, timing } = rt,
     { rows, boxCorners, hizBounds, hizProjection, hizRest } = layout,
     { drawnOccluderUrls, urlIndexOfPage } = layout;
@@ -23,7 +23,7 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
     epoch: rows.tableEpoch,
   };
   // Only the rectangles the view or the row table moved under are reprojected; the rest stand.
-  hizProjection.reframe(camera, viewportScratch[0], viewportScratch[1], rows.tableEpoch);
+  hizProjection.reframe(cam, viewportScratch[0], viewportScratch[1], rows.tableEpoch);
   // La projection se chronomètre elle-même, dans les deux branches : la moitié testée seule, ou
   // toutes les boîtes quand l'historique ne partage rien. Sans cela le second cas se déposait sur la
   // partition, et une caméra mobile — qui n'emprunte que lui — n'aurait montré aucune projection.
@@ -37,7 +37,7 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
       projectBoxesFlat(
         rows.packedRecs,
         rows.packedCount,
-        camera,
+        cam,
         viewportScratch,
         hizBounds,
         hizProjection.pending,
