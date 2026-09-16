@@ -49,7 +49,7 @@ web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/e
 
 `simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
 
-A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` says which nodes were kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`).
+A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` says which nodes were kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`), and so is a `children` chain that closes back on itself: the whole node table is checked for cycles before anything is published, whether or not the rendered scene reaches them, because the published document carries every node. A node with no parent that no scene names is not a cycle and stays accepted, uncompiled.
 
 ## The three streams
 
@@ -104,7 +104,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.3.0",
+  "compilerVersion": "0.4.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
