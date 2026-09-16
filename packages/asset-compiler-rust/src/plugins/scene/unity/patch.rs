@@ -13,7 +13,10 @@ pub(super) struct Changes {
     transforms: BTreeMap<i64, Overrides>,
     active: BTreeMap<i64, bool>,
     enabled: BTreeMap<i64, bool>,
-    materials: BTreeMap<i64, Vec<Ref>>,
+    /// Les emplacements de matériau que l'instance remplace : `None` quand elle ne dit rien de
+    /// cet emplacement, `Some` quand elle le nomme — la référence vide comprise, qui vide
+    /// l'emplacement au lieu de garder celui du prefab.
+    materials: BTreeMap<i64, Vec<Option<Ref>>>,
     /// Le nom de la racine : la seule retouche de nom qu'une instance porte.
     pub(super) name: Option<String>,
     /// Les retouches que le pilote sait appliquer.
@@ -87,7 +90,7 @@ impl Changes {
             };
             let slots = self.materials.entry(target).or_default();
             cover(slots, len);
-            slots[slot] = reference(&change["objectReference"]);
+            slots[slot] = Some(reference(&change["objectReference"]));
             self.applied += 1;
         } else {
             self.count(path);
@@ -133,7 +136,9 @@ impl Changes {
             let mine = self.materials.entry(*target).or_default();
             cover(mine, slots.len());
             for (slot, replaced) in slots.iter().enumerate() {
-                mine[slot] = replaced.clone();
+                if replaced.is_some() {
+                    mine[slot] = replaced.clone();
+                }
             }
         }
     }
@@ -147,7 +152,7 @@ impl Changes {
     pub(super) fn enabled(&self, target: i64) -> Option<bool> {
         self.enabled.get(&target).copied()
     }
-    pub(super) fn materials(&self, target: i64) -> Option<&[Ref]> {
+    pub(super) fn materials(&self, target: i64) -> Option<&[Option<Ref>]> {
         self.materials.get(&target).map(Vec::as_slice)
     }
 
@@ -159,7 +164,7 @@ impl Changes {
             .map(|(target, values)| (*target, values))
     }
     /// De même pour les emplacements de matériau.
-    pub(super) fn material_targets(&self) -> impl Iterator<Item = (i64, &[Ref])> {
+    pub(super) fn material_targets(&self) -> impl Iterator<Item = (i64, &[Option<Ref>])> {
         self.materials
             .iter()
             .map(|(target, slots)| (*target, slots.as_slice()))
@@ -184,10 +189,10 @@ impl Changes {
     }
 }
 
-/// Allonge la suite d'emplacements jusqu'à `len`, les nouveaux emplacements vides.
-fn cover(slots: &mut Vec<Ref>, len: usize) {
+/// Allonge la suite d'emplacements jusqu'à `len`, les nouveaux emplacements non nommés.
+fn cover(slots: &mut Vec<Option<Ref>>, len: usize) {
     if slots.len() < len {
-        slots.resize(len, Ref::default());
+        slots.resize(len, None);
     }
 }
 
