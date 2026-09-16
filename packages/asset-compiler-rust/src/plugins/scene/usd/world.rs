@@ -66,6 +66,17 @@ pub(super) const TEXTURE_SCALE: &str = "usd-texture-scale-unsupported";
 /// Un `sourceColorSpace` contraire au rôle de l'entrée qui lit la texture : une couleur déclarée
 /// `raw`, ou une donnée déclarée `sRGB`. Les octets passent tels quels, aucun n'est réencodé.
 pub(super) const TEXTURE_COLOUR_SPACE: &str = "usd-texture-colour-space-unsupported";
+/// Un `UsdPreviewSurface` décrit par son flux de travail spéculaire — `useSpecularWorkflow` ou une
+/// couleur spéculaire écrite : le métal et la rugosité de glTF ne le portent pas, et l'approcher
+/// par eux réinventerait la surface.
+pub(super) const SPECULAR_WORKFLOW: &str = "usd-specular-workflow-unsupported";
+/// Un vernis (`clearcoat` non nul, avec sa rugosité) : le glTF de base n'a pas cette couche.
+pub(super) const CLEARCOAT: &str = "usd-clearcoat-unsupported";
+/// Un indice de réfraction autre que celui par défaut : le glTF de base n'en porte pas.
+pub(super) const IOR: &str = "usd-ior-unsupported";
+/// Une normale écrite comme valeur, sans texture pour la porter : glTF n'a pas de normale
+/// constante par matériau, et la surface garde celle de sa géométrie.
+pub(super) const NORMAL_VALUE: &str = "usd-normal-value-unsupported";
 /// Une texture que ce pilote ne peut pas accrocher telle quelle : jeu d'UV autre que celui porté,
 /// motif `<UDIM>`, ou transformation d'UV déclarée.
 pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
