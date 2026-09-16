@@ -40,8 +40,14 @@ test('chaque variante neutralise un seul facteur, et son étage existe dans le m
     'transparents-sans-couleur': { entryPoint: 'fs', writeMask: 0 },
     'transparents-surdessin': { entryPoint: 'fsPlat', writeMask: 0 },
     'presentation-hors-ecran': { entryPoint: 'fs', writeMask: 0xf },
+    // Ni la coupe ni la géométrie ne touchent au mélange : il garde son étage de production.
     'selection-doublee': { entryPoint: 'fs', writeMask: 0xf },
     'selection-tete-doublee': { entryPoint: 'fs', writeMask: 0xf },
+    'geometrie-plat': { entryPoint: 'fs', writeMask: 0xf },
+    'geometrie-sommets': { entryPoint: 'fs', writeMask: 0xf },
+    'geometrie-une-passe': { entryPoint: 'fs', writeMask: 0xf },
+    'resolution-plate': { entryPoint: 'fs', writeMask: 0xf },
+    'resolution-identifiants': { entryPoint: 'fs', writeMask: 0xf },
   };
   for (const variant of DIAGNOSTIC_GPU_VARIANTS) {
     const pipeline = blendVariantPipeline(variant);

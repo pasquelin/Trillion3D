@@ -3,6 +3,7 @@ import { BOUNCE_PROBE_PASS } from './bounceProbeWgsl.ts';
 import { BOUNCE_SURFACE_PASS } from './bounceSurfaceWgsl.ts';
 import { DEFERRED_LIGHTING_PASS } from './deferredLighting.ts';
 import { LIGHT_TILES_PASS } from './gpuLightTiles.ts';
+import { REST_COMPACT_PASS } from './gpuRestCompact.ts';
 import { SHADOW_PASS } from './gpuShadowAtlas.ts';
 import type { StageAdd } from './stageProfiler.ts';
 
@@ -16,6 +17,7 @@ const PASS_STAGES: Readonly<Record<string, string>> = Object.freeze({
   'WG DAG selection': 'selection',
   'WG partition': 'partition',
   'WG draw compaction': 'selection',
+  [REST_COMPACT_PASS]: 'geometry',
   'WG HiZ pyramid': 'hiZ',
   'WG HiZ test': 'hiZ',
   'WG clear': 'geometry',
