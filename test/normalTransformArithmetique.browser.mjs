@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import {
   angleEntre,
   unitaire,
+  verdictNormale,
   xformNormalModele,
 } from '../packages/sdk-browser/bench/justesse/inverseTransposeF32.mjs';
 import {
@@ -32,14 +33,19 @@ assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
 assert.deepEqual(gpu.compilation ?? [], [], 'le nuanceur d’éclairage ne compile pas');
 assert.deepEqual(gpu.erreurs ?? [], [], 'erreurs WebGPU pendant l’exécution');
 
+// Le critère : direction ORIENTÉE, vecteur nul ou non fini refusé, norme vérifiée unitaire. Un
+// écart `NaN` ne satisfait aucune comparaison, donc une normale perdue tombe au lieu de passer.
 const lignes = TOUS.map((cas, i) => {
   const rendueGpu = gpu.lignes[i].rendue;
   const rendueModele = xformNormalModele(cas.world, cas.normale);
+  const auVrai = verdictNormale(rendueGpu, cas.vraie, DECROCHE_DEG);
   return {
     nom: cas.nom,
     degenere: cas.degenere ?? false,
     ecartAuModeleDeg: angleEntre(rendueGpu, rendueModele) * DEG,
-    ecartAuVraiDeg: angleEntre(rendueGpu, cas.vraie) * DEG,
+    ecartAuVraiDeg: auVrai.ecartDeg,
+    normeGpu: auVrai.norme,
+    auVrai,
     rendueGpu,
     rendueModele,
   };
@@ -70,26 +76,18 @@ for (const ligne of lignes)
       `${ligne.ecartAuModeleDeg}° d'écart, le modèle a dérivé du texte livré`,
   );
 
-// 2. Et il rend la bonne normale : celle de la surface tournée, à toute échelle.
+// 2. Et il rend la bonne normale : celle de la surface tournée, du bon CÔTÉ, unitaire, à toute
+//    échelle. Le verdict porte les trois exigences ; son `raison` dit laquelle a manqué.
 for (const ligne of lignes.filter((l) => !l.degenere))
-  assert.ok(
-    ligne.ecartAuVraiDeg < DECROCHE_DEG,
-    `${ligne.nom} : la normale d'éclairage a décroché de ${ligne.ecartAuVraiDeg}°`,
-  );
+  assert.ok(ligne.auVrai.ok, `${ligne.nom} : ${ligne.auVrai.raison} — rendue ${ligne.rendueGpu}`);
 
 // 3. Les gardes, sur le vrai GPU : une 3×3 nulle, à colonne nulle, infinie ou NaN rend le vecteur
 //    tel quel — donc, après `normalize`, la normale locale unitaire, et jamais un NaN dans
 //    l'éclairage. Le bitcast du garde est du WGSL : aucun modèle JS ne prouve qu'il fait cela.
 for (const ligne of lignes.filter((l) => l.degenere)) {
   const attendu = unitaire(TOUS.find((cas) => cas.nom === ligne.nom).normale);
-  assert.ok(
-    ligne.rendueGpu.every(Number.isFinite),
-    `${ligne.nom} : le GPU a propagé ${ligne.rendueGpu} dans l'éclairage`,
-  );
-  assert.ok(
-    angleEntre(ligne.rendueGpu, attendu) * DEG < 1e-3,
-    `${ligne.nom} : le GPU rend ${ligne.rendueGpu} au lieu de ${attendu}`,
-  );
+  const verdict = verdictNormale(ligne.rendueGpu, attendu, DECROCHE_DEG);
+  assert.ok(verdict.ok, `${ligne.nom} : ${verdict.raison} — le GPU rend ${ligne.rendueGpu}`);
 }
 
 console.log(

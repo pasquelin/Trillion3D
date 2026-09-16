@@ -51,7 +51,7 @@ const BALAYAGE = [3e-7, 2.5e-7, 2.2e-7, 2.16e-7, 2.155e-7, 2.154e-7, 2.15e-7, 2.
 );
 
 async function mesure(transform, liste = cas) {
-  const gpu = await eclairageGpu(liste, transform);
+  const gpu = await eclairageGpu(liste, { transform });
   assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
   assert.deepEqual(gpu.compilation ?? [], [], 'compilation WGSL');
   assert.deepEqual(gpu.erreurs ?? [], [], 'erreurs WebGPU');
