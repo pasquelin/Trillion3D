@@ -89,3 +89,30 @@ fn a_layer_without_meters_per_unit_is_read_in_centimetres() {
     );
 }
 
+// Comportement 44 : `defaultPrim` nomme le point d'entrée de l'asset, il ne retranche pas le reste
+// de la couche : les deux racines sont converties, celle qu'il désigne en tête.
+#[test]
+fn every_root_of_a_layer_is_converted_and_the_default_prim_comes_first() {
+    let body = format!(
+        "#usda 1.0\n(\n    defaultPrim = \"B\"\n)\n\ndef Xform \"A\"\n{{\n{QUAD}}}\n\ndef Xform \"B\"\n{{\n{QUAD}}}\n"
+    );
+    let run = compile_layer("racines", &body);
+    assert_eq!(
+        run.result["sourceTriangles"], 4,
+        "les deux racines sont converties"
+    );
+    let (_, gltf) = run.prepared("usd");
+    let nodes = gltf["nodes"].as_array().expect("nodes");
+    let children: Vec<&Value> = scene_root(&gltf)["children"]
+        .as_array()
+        .expect("children")
+        .iter()
+        .map(|rank| &nodes[rank.as_u64().expect("rang") as usize]["name"])
+        .collect();
+    assert_eq!(
+        children,
+        ["B", "A"],
+        "le defaultPrim ouvre la scène, l'autre racine suit"
+    );
+}
+
