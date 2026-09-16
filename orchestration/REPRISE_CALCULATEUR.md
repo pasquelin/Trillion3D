@@ -18,6 +18,8 @@ Confirm title `Calculateur` with `get_session("self")`. Follow `AGENTS.md`; plan
 5. **Two `?? 0` left**: `explorerMetrics.ts:98`, `explorerRender.ts:114`.
 6. **Mip seam** (gutter per level in the atlas compiler; deletes `wrapUv`, `WrapTaps`, the four taps).
 
+7. Then R7/R8 (WebGL2 renderer, host API without Three types).
+
 ## Workflow
 
 - Opus: code, reproductions, benches; Sonnet: tests, campaigns, read-only audits. Worktree from `develop`; never stash or push. A fresh worktree has no `node_modules`: symlink the repo's. `LAB_ROOT=/Users/pasquelin/Applications/render-tech-lab` for `test:gpu` and `scripts/mesure`; never port 5174.
