@@ -100,7 +100,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
   // à poser, et les comptes d'instances viennent du tampon d'arguments indirects.
   const blendState = createWebgpuBlendState();
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number]);
-  blendState.planBlend = Uint32Array.from([1]);
+  blendState.orderBlend = Uint32Array.from([1]);
   Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} });
   const rt = {
     vis,
