@@ -62,12 +62,7 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed = blendState.itemPacked;
   if (!blendState.itemBuffer || !items.length) return;
   const ints = new Uint32Array(packed.buffer, packed.byteOffset, packed.length);
-  let unpagedTriangles = 0;
-  for (let i = 0; i < items.length; i++) {
-    writeBlendItemRecord(packed, ints, i, items[i], vis);
-    if (!items[i].paged) unpagedTriangles += items[i].count / 3;
-  }
-  blendState.unpagedTriangles = unpagedTriangles;
+  for (let i = 0; i < items.length; i++) writeBlendItemRecord(packed, ints, i, items[i], vis);
   device.queue.writeBuffer(
     blendState.itemBuffer,
     0,

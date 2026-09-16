@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { BLEND_SHADER } from './webgpuPagesShaders.ts';
+import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
 /**
  * Le rejet anticipé de profondeur de la passe de mélange, gardé par son étage de fragments.

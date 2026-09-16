@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
+import { buildBlendStatics, refreshBlendPlan } from './webgpuBlendPlan.ts';
+import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const FRONT = 'front' as unknown as GPURenderPipeline,
@@ -23,6 +25,8 @@ const item = (side: THREE.Side, negatif = false) => {
 
 function joue(items: ReturnType<typeof item>[]) {
   const pipelines: unknown[] = [];
+  // Le rang de l'item dont chaque appel relit l'argument indirect : c'est lui qui remplace le compte
+  // d'index que la boucle posait, maintenant que la carte écrit le nombre d'instances.
   const draws: number[] = [];
   const pass = {
     setViewport() {},
@@ -30,15 +34,24 @@ function joue(items: ReturnType<typeof item>[]) {
     setPipeline(pipeline: unknown) {
       pipelines.push(pipeline);
     },
-    draw(count: number) {
-      draws.push(count);
+    drawIndirect(_args: GPUBuffer, offset: number) {
+      draws.push(offset / 16);
     },
-    drawIndirect() {},
     end() {},
   };
   // Les groupes de liaison sont rebâtis à la première passe, quand les ressources d'éclairage
   // entrent dans la clé : le stub en donne assez pour que la construction aboutisse.
   const atlas = { classes: Array.from({ length: 16 }, () => ({ view: {} })) };
+  // L'ordre des pipelines n'est plus décidé dans la boucle d'encodage : il est cuit dans le plan
+  // statique, une entrée par face, bâtie avec la scène. On le bâtit donc ici comme la préparation.
+  const blendState = Object.assign(createWebgpuBlendState(), {
+    argsBuffer: {} as GPUBuffer,
+    itemBuffer: {} as GPUBuffer,
+    viewBuffer: {} as GPUBuffer,
+  });
+  blendState.blendGpu.push(...(items as unknown as (typeof blendState.blendGpu)[number][]));
+  buildBlendStatics(blendState);
+  refreshBlendPlan(blendState);
   const rt = {
     vis: {
       visEnabled: true,
@@ -70,7 +83,7 @@ function joue(items: ReturnType<typeof item>[]) {
     bounce: { probes: undefined },
     // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
     sunFar: { gpu: undefined },
-    blendState: { visibleBlend: items, compaction: undefined, lighting: undefined },
+    blendState,
     run: {
       gpuDrawCalls: 0,
       blendDrawCalls: 0,
@@ -83,8 +96,6 @@ function joue(items: ReturnType<typeof item>[]) {
     rt,
     { createBindGroup: () => ({}) } as unknown as GPUDevice,
     { beginRenderPass: () => pass } as unknown as GPUCommandEncoder,
-    0,
-    true,
   );
   return { pipelines, draws, calls: rt.run.blendDrawCalls };
 }
@@ -99,7 +110,8 @@ test('la passe de mélange ne pose un pipeline que lorsqu’il change', () => {
     item(THREE.BackSide),
   ]);
   assert.equal(suite.calls, 5, 'chaque item est dessiné, comme avant');
-  assert.deepEqual(suite.draws, [3, 3, 3, 3, 3]);
+  // Chaque appel relit l'argument indirect de SON item, au rang de l'item dans la scène.
+  assert.deepEqual(suite.draws, [0, 1, 2, 3, 4]);
   assert.deepEqual(suite.pipelines, [BACK, FRONT], 'un pipeline par changement, dans l’ordre');
 });
 
