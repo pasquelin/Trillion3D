@@ -11,13 +11,15 @@ import {
   invertMatrix4,
   multiplyMatrix4,
 } from '../sdk-core/index.ts';
-import { assertFiniteTransform, resolveHostNode } from './hostWorldMatrices.ts';
+import { assertFiniteTransform } from './hostWorldMatrices.ts';
+import { hostWorldChainInto } from './hostWorldChain.ts';
 import { sameElements } from './matrixElements.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import { transformRootBoxes } from './mathBatchBoxes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const local = new Float64Array(16),
+  parentWorld = new Float64Array(16),
   parentInverse = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
@@ -63,24 +65,23 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   if (node.parent) {
     // La pose demandée est une pose MONDE : la ramener dans le repère du parent demande la matrice
     // monde du parent, et l'hôte a le droit d'avoir écrit une pose locale au-dessus sans remonter
-    // le graphe. Sans cette résolution, l'inversion porterait sur un parent périmé — un enfant
-    // demandé à x = 3 sous un parent passé à x = 10 finirait à x = 13 —, et la comparaison qui suit
-    // jugerait « sans effet » une demande refaite après le déplacement du parent. La résolution
-    // précède donc l'inversion ET la décision. La frontière du paquet est la seule façon de
-    // remonter une chaîne d'ancêtres ; elle n'alloue rien et rappelée sur un graphe déjà à jour
-    // elle ne change aucun bit.
-    resolveHostNode(node.parent);
+    // le graphe. Le moteur la CALCULE donc lui-même, depuis les poses locales de la chaîne
+    // d'ancêtres (`hostWorldChain.ts`), sans rien demander ni écrire à l'hôte. Sans ce calcul,
+    // l'inversion porterait sur un parent périmé — un enfant demandé à x = 3 sous un parent passé à
+    // x = 10 finirait à x = 13 —, et la comparaison qui suit jugerait « sans effet » une demande
+    // refaite après le déplacement du parent. Il précède donc l'inversion ET la décision.
+    hostWorldChainInto(parentWorld, node.parent);
     // Un parent écrasé sur un plan ou une droite n'a pas d'inverse : le socle rendrait seize zéros
     // et le nœud partirait silencieusement à l'origine. Le déterminant est le seul test qui
     // distingue ce cas de la sortie, et il attrape aussi une matrice non finie.
-    const parentDeterminant = determinantMatrix4(node.parent.matrixWorld.elements);
+    const parentDeterminant = determinantMatrix4(parentWorld);
     if (parentDeterminant === 0 || !Number.isFinite(parentDeterminant))
       throw new EngineError(
         'SINGULAR_PARENT_TRANSFORM',
         `${nodeName}: matrice monde du parent non inversible`,
         { nodeName, parentName: node.parent.name, determinant: parentDeterminant },
       );
-    invertMatrix4(parentInverse, node.parent.matrixWorld.elements);
+    invertMatrix4(parentInverse, parentWorld);
     multiplyMatrix4(local, parentInverse, local);
   }
   // Une pose identique à celle que ce nœud porte déjà — et posée par ici, d'où `matrixAutoUpdate`
