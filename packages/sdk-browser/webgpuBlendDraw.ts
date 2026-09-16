@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { matrixWindingCw } from '../sdk-core/index.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
 import { directLightResources } from './webgpuPagesLightResources.ts';
@@ -149,7 +150,9 @@ export function drawBlendPass(
     );
     const material = Array.isArray(item.material) ? item.material[0] : item.material;
     // Un seul déterminant : l'appel rendait deux fois la même valeur pour choisir les deux faces.
-    const renverse = item.matrix.determinant() < 0;
+    // Et une seule écriture de la règle, celle de sdk-core : sur la 3×3 d'une matrice monde affine
+    // le verdict est celui de la 4×4, pour neuf multiplications au lieu d'une trentaine.
+    const renverse = matrixWindingCw(item.matrix.elements);
     const front = renverse ? pipelineBlendFront : pipelineBlendBack,
       back = renverse ? pipelineBlendBack : pipelineBlendFront;
     // A paged item draws one instance per cluster the compaction kept: the count is the GPU's.
