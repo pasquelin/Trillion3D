@@ -110,8 +110,10 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     fillMetrics(state.active);
     const frameEnd = performance.now();
     metricsScratch.cpuFrameMs = frameEnd - start;
-    if (metricsScratch.drawCalls < 0)
-      metricsScratch.drawCalls = ownedRenderer?.info.render.calls ?? 0;
+    // Les appels de dessin de cette image : ceux du moteur, ou ceux du renderer de l'hôte quand
+    // c'est lui qui dessine. `null` quand aucun des deux ne les compte — jamais zéro.
+    if (metricsScratch.drawCalls == null)
+      metricsScratch.drawCalls = ownedRenderer?.info.render.calls ?? null;
     // Les triangles soumis de cette image : ceux que le moteur a comptés, ou ceux que le renderer de
     // l'hôte a dessinés quand c'est lui qui dessine. `null` quand aucun des deux ne les a comptés —
     // un zéro publié ici se lirait comme une image vide, et c'est ce que le contrat interdit.
