@@ -55,7 +55,9 @@ function blendBindGroup(
  * Encode une passe transparente : un `drawIndirect` par entree du plan, rien d'autre.
  *
  * Le plan est statique (`webgpuBlendPlan.ts`) : il porte le rang de l'item et le pipeline a poser,
- * dans l'ordre source de la scene, faces arriere puis faces avant pour un item double face. La
+ * faces arriere puis faces avant pour un item double face. La liste parcourue ici est ce meme plan
+ * range du plus lointain au plus proche par `webgpuBlendOrder.ts`, puisqu'un melange n'ecrit pas la
+ * profondeur et que seul l'ordre d'encodage le departage. La
  * boucle ne fait donc plus ni produit de matrice, ni lecture de materiau, ni allocation ; le
  * nombre d'instances de chaque appel est celui que la carte vient d'ecrire, zero pour un item que
  * le tronc a rejete.
@@ -74,7 +76,7 @@ export function drawBlendPass(
 ) {
   const { gpu, vis, run, blendState } = rt,
     items = blendState.blendGpu,
-    plan = transmissive ? blendState.planTransmission : blendState.planBlend,
+    plan = transmissive ? blendState.orderTransmission : blendState.orderBlend,
     args = blendState.argsBuffer;
   if (!plan.length || !args) return;
   // L'atlas d'ombres et la grille de sondes n'existent pas des la premiere image : un groupe bati
