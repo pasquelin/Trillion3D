@@ -10,8 +10,19 @@ export function mockDevice(limits: Record<string, number> = { maxBufferSize: 102
       },
     }),
     queue: {
-      writeBuffer: (_buffer: unknown, offset: number, data: Uint8Array) =>
-        writes.push({ offset, bytes: new Uint8Array(data) }),
+      // `dataOffset` et `size` sont respectés : ce qui part vraiment sur la carte est ce que le
+      // relevé doit montrer, et une page qui n'écrit que ses octets se distingue d'un slot entier.
+      writeBuffer: (
+        _buffer: unknown,
+        offset: number,
+        data: Uint8Array,
+        dataOffset = 0,
+        size = data.byteLength - dataOffset,
+      ) =>
+        writes.push({
+          offset,
+          bytes: new Uint8Array(data.buffer, data.byteOffset + dataOffset, size).slice(),
+        }),
       onSubmittedWorkDone: async () => {
         fences++;
       },
