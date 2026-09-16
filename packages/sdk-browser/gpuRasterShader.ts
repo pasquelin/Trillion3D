@@ -9,6 +9,8 @@ import { SMALL_BINDINGS } from './webgpuBindLayout.ts';
 import { RASTER_TRI_WGSL } from './gpuRasterTriWgsl.ts';
 import { RASTER_PIXEL_WGSL } from './gpuRasterPixelWgsl.ts';
 import { rasterKernels } from './gpuRasterKernelsWgsl.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
+import { wgslFloat } from './gpuPartitionMargins.ts';
 
 export { DISPATCH_SPAN, LIST_HEADER } from './gpuRasterContract.ts';
 
@@ -83,4 +85,4 @@ fn offset(pos:vec4f)->u32{return u32(pos.y)*u32(uni.viewport.x)+u32(pos.x);}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 @fragment fn one(@builtin(position) pos:vec4f)->One{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
 @fragment fn two(@builtin(position) pos:vec4f)->Two{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
-@fragment fn hiz(@builtin(position) pos:vec4f)->@location(0) f32{let d=bitcast<f32>(frame[offset(pos)]);if(d>=1.0){discard;}return d;}`;
+@fragment fn hiz(@builtin(position) pos:vec4f)->@location(0) f32{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslFloat(DEPTH_CLEAR)}){discard;}return d;}`;

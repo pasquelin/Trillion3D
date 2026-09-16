@@ -1,3 +1,6 @@
+import { DEPTH_CLEAR, DEPTH_NEAR } from './depthConvention.ts';
+import { wgslFloat } from './gpuPartitionMargins.ts';
+
 /**
  * Ce qu'un pixel du tampon de visibilité reçoit, et le départage de deux triangles qui tombent
  * exactement à la même profondeur.
@@ -6,21 +9,22 @@
  * coup « cette profondeur ET cet identifiant ». Deux passes le font sans verrou et sans dépendre de
  * l'ordre des fils :
  *
- * 1. toutes les classes posent leur profondeur par `atomicMin` sur les bits IEEE-754 — pour une
- *    profondeur positive ces bits croissent avec la valeur, donc le minimum entier est le plus
- *    proche ;
+ * 1. toutes les classes posent leur profondeur par `atomicMax` sur les bits IEEE-754 — pour une
+ *    profondeur positive ces bits croissent avec la valeur, et la profondeur du moteur est
+ *    INVERSÉE (1 au plan proche, 0 à l'infini), donc le maximum entier est le plus proche ;
  * 2. toutes les classes relisent la profondeur devenue définitive et, pour le seul triangle dont la
  *    profondeur est EXACTEMENT celle-là, posent leur identifiant par `atomicMin`.
  *
- * `min` est commutatif et associatif : le résultat ne dépend ni de l'ordre des fils, ni de l'ordre
- * des lancements, ni du découpage en classes. Et comme l'identifiant vaut `(ligne+1)<<8 | triangle`,
- * le minimum est le plus petit rang de ligne, puis le plus petit triangle : à profondeur égale, le
- * gagnant est toujours le même, d'une image à l'autre et d'une machine à l'autre. C'est le seul
- * endroit où l'image peut différer d'un raster matériel, qui départage, lui, par l'ordre de soumission.
+ * `max` et `min` sont commutatifs et associatifs : le résultat ne dépend ni de l'ordre des fils, ni
+ * de l'ordre des lancements, ni du découpage en classes. Et comme l'identifiant vaut
+ * `(ligne+1)<<8 | triangle`, le minimum est le plus petit rang de ligne, puis le plus petit
+ * triangle : à profondeur égale, le gagnant est toujours le même, d'une image à l'autre et d'une
+ * machine à l'autre. C'est le seul endroit où l'image peut différer d'un raster matériel, qui
+ * départage, lui, par l'ordre de soumission.
  *
  * La couche coplanaire du cluster est un décalage entier sur la clé de profondeur, appliqué avant
- * l'empaquetage : retrancher des unités rapproche exactement d'autant de derniers bits. Zéro pour la
- * couche 0.
+ * l'empaquetage : en profondeur inversée, AJOUTER des unités rapproche exactement d'autant de
+ * derniers bits, plafonné aux bits du plan proche. Zéro pour la couche 0.
  */
 export const RASTER_PIXEL_WGSL = `
 /** Les poids barycentriques du pixel dans le sous-triangle qui le couvre ; \`w<0\` : aucun. */
@@ -43,7 +47,8 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if(cov.w>0.5){qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}
  let wa=cov.x;let wb=cov.y;let wc=cov.z;
  let depth=wa*t.ca.z/t.ca.w+wb*qb.z/qb.w+wc*qc.z/qc.w;
- if(depth<0.0||depth>=1.0){return;}
+ // Le plan lointain est infini : la profondeur descend vers le lointain sans jamais l'atteindre.
+ if(depth<=${wgslFloat(DEPTH_CLEAR)}||depth>${wgslFloat(DEPTH_NEAR)}){return;}
  let page=pages[t.row];
  if((page.flags&128u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
@@ -52,8 +57,8 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);
- let bits=select(raw,select(0u,raw-page.depthBias,raw>page.depthBias),page.depthBias>0u);
+ let bits=min(bitcast<u32>(${wgslFloat(DEPTH_NEAR)}),raw+page.depthBias);
  if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(t.triangle&0xffu));}}
- else{atomicMin(&work[offset],bits);}
+ else{atomicMax(&work[offset],bits);}
 }
 `;
