@@ -9,10 +9,17 @@ use super::*;
 const TEX_IMAGE: &str = "ShaderNodeTexImage";
 const NORMAL_MAP: &str = "ShaderNodeNormalMap";
 
-/// Le graphe d'un matériau : quel nœud alimente quelle entrée.
+/// Le graphe d'un matériau : quel nœud alimente quelle entrée, et par quelle sortie.
 pub(super) struct Tree<'a> {
-    links: HashMap<u64, u64>,
+    links: HashMap<u64, (u64, u64)>,
     file: &'a BlendFile,
+}
+
+/// Ce qu'un lien apporte à une entrée : le nœud d'où il part, et l'identifiant de sa sortie — le
+/// canal, quand ce nœud est une image.
+pub(super) struct Link<'a> {
+    pub(super) node: At<'a>,
+    pub(super) socket: String,
 }
 
 /// Une grandeur scalaire : la valeur déclarée, et un compte quand une entrée branchée la remplace
@@ -124,7 +131,10 @@ impl<'a> Tree<'a> {
     pub(super) fn read(graph: &At<'a>) -> Tree<'a> {
         let mut links = HashMap::new();
         for link in graph.list("links") {
-            links.insert(link.pointer("tosock"), link.pointer("fromnode"));
+            links.insert(
+                link.pointer("tosock"),
+                (link.pointer("fromnode"), link.pointer("fromsock")),
+            );
         }
         Tree {
             links,
@@ -133,7 +143,18 @@ impl<'a> Tree<'a> {
     }
     /// Le nœud qui alimente cette entrée, s'il y en a un.
     pub(super) fn source(&self, socket: &At<'a>) -> Option<At<'a>> {
-        let node = self.links.get(&socket.old)?;
-        self.file.view(self.file.at(*node)?)
+        self.link(socket).map(|link| link.node)
+    }
+    /// Le lien qui alimente cette entrée : son nœud et la sortie d'où il part.
+    pub(super) fn link(&self, socket: &At<'a>) -> Option<Link<'a>> {
+        let (node, from) = self.links.get(&socket.old)?;
+        let node = self.file.view(self.file.at(*node)?)?;
+        let socket = self
+            .file
+            .at(*from)
+            .and_then(|block| self.file.view(block))
+            .map(|socket| socket.text("identifier"))
+            .unwrap_or_default();
+        Some(Link { node, socket })
     }
 }
