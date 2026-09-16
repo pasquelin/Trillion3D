@@ -22,6 +22,21 @@ function withoutGpuSelection(rt: WebgpuPagesRuntime, reason: string) {
   return false;
 }
 
+/** Le débordement des identifiants de visibilité : seule la coupe processeur sait encore choisir un
+ *  sous-ensemble représentable. L'image en attente le subit comme l'image complète. */
+function withoutCandidateCapacity(rt: WebgpuPagesRuntime) {
+  const { rows } = rt.layout;
+  rt.diag.engineDiagnostic(
+    'gpu-selection-capacity',
+    'Sélection CPU requise par la capacité des identifiants de visibilité',
+    {
+      residentCandidates: rows.candidateCount + rows.candidateOverflow,
+      maxCandidates: rt.layout.drawSlots,
+    },
+  );
+  return withoutGpuSelection(rt, 'capacité des identifiants de visibilité');
+}
+
 /** One image driven by the GPU cluster cut: the mask of the current frame decides the draw, the
  *  readback of the previous one decides streaming and metrics. Returns false when the caller must
  *  render the image again through the CPU cut. */
@@ -68,24 +83,17 @@ export function renderGpuCut(
     // La couverture incomplète n'atteint jamais l'écran : l'image affichée reste la précédente. Mais
     // l'attente continue de réclamer les pages manquantes, de synchroniser la résidence et d'envoyer
     // la sélection — c'est le seul envoi qui peut produire le relevé complet de la reprise.
-    if (streamCutResidency(rt, gpuDevice, run.gpuSelection))
-      dispatchWaitingSelection(rt, run.gpuSelection);
+    // Un débordement ou un envoi perdu ôtent à l'attente tout moyen d'aboutir : elle ne peut plus
+    // attendre un relevé que personne ne produira, et la coupe processeur reprend l'image.
+    if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) return withoutCandidateCapacity(rt);
+    if (!dispatchWaitingSelection(rt, run.gpuSelection))
+      return withoutGpuSelection(rt, 'envoi de la sélection en erreur');
     traceGpuCutWaiting(rt);
     return true;
   }
   marks.admissionEnd = performance.now();
-  if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) {
-    // The CPU fallback can still select a representable visible subset.
-    diag.engineDiagnostic(
-      'gpu-selection-capacity',
-      'Sélection CPU requise par la capacité des identifiants de visibilité',
-      {
-        residentCandidates: rows.candidateCount + rows.candidateOverflow,
-        maxCandidates: rt.layout.drawSlots,
-      },
-    );
-    return withoutGpuSelection(rt, 'capacité des identifiants de visibilité');
-  }
+  // The CPU fallback can still select a representable visible subset.
+  if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) return withoutCandidateCapacity(rt);
   try {
     rt.timing.frameSelection = run.gpuSelection.dispatch(
       run.selectionUniforms,
