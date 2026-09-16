@@ -3,13 +3,11 @@
 // différente et la ligne tombe : le rattachement ne change aucun bit.
 import * as THREE from 'three';
 import { srgbToLinear } from '../../sdk-core/index.ts';
-import { viewDistanceOf } from '../pageSelectionProjection.ts';
 import { orderPendingUrls } from '../streamingPriority.ts';
 import { linearToSrgb8 } from '../visibilityMath.ts';
 import { projectVisibilityVertex } from '../visibilityProjection.ts';
 import { setWindingEpoch, windingCw } from '../webgpuPagesWinding.ts';
 import { noteResidenceChange } from '../webgpuShadowBounds.ts';
-import { referenceViewDistance } from './oracles/formules-ts.mjs';
 import * as ancien from './oracles/socle-math.mjs';
 import { referenceOrder } from './oracles/socle-math-priorite.mjs';
 import { affines, matrices, points } from './scenesSocle.mjs';
@@ -65,14 +63,6 @@ export async function lignesConsommateursBrowser() {
           setWindingEpoch(i + 1);
           return windingCw({ matrix: { elements: e } });
         }),
-    ),
-    await ligne(
-      'distance de vue du centre',
-      'packages/sdk-browser/pageSelectionProjection.ts',
-      'poses × points',
-      matrices,
-      (l) => l.flatMap((e) => points.map((p) => referenceViewDistance(p, 0, e))),
-      (l) => l.flatMap((e) => points.map((p) => viewDistanceOf(p[0], p[1], p[2], e))),
     ),
     await ligne(
       'sommet projeté du tampon de visibilité',
