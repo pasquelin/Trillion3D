@@ -101,7 +101,9 @@ const parEchelle = Object.fromEntries(
 );
 
 // Les suppressions qui restent après le lot : toutes des réflexions (déterminant négatif), que le
-// CPU supprime aussi, à toute échelle — un défaut distinct du 6, hors de ce lot.
+// CPU supprime aussi, à toute échelle. Ce ne sont PAS des faces visibles : `veriteTerrain` ignore
+// que le moteur échange la face éliminée sous réflexion, et le lot du défaut 10 a mesuré, GPU
+// réellement exécuté, que le moteur n'en dessine aucune — voir `reflexion-cone.mjs`.
 const residus = {
   total: suppressionsApres.length,
   miroirs: suppressionsApres.filter((i) => tousLesCas[i].miroir).length,
@@ -164,7 +166,7 @@ assert.deepEqual(
 assert.equal(
   residus.total,
   residus.miroirs,
-  'toute suppression restante doit être une réflexion (défaut distinct)',
+  'toute suppression restante doit être une réflexion, que le moteur ne dessine pas (défaut 10)',
 );
 assert.equal(residus.total, residus.cpuRejetteAussi, 'et le CPU doit la supprimer aussi');
 assert.equal(apres.rejets[1], false, 'témoin grande échelle : det ≫ 1e-20, le GPU garde');
@@ -178,6 +180,7 @@ assert.equal(
 
 console.error(
   `Verdict : défaut 6 RÉEL — ${suppressionsAvant.length}/${tousLesCas.length} faces visibles ` +
-    `supprimées avant le lot, ${suppressionsApres.length} après (toutes des réflexions, défaut ` +
-    `distinct que le CPU partage), 0 sélection changée hors bande. Adaptateur ${apres.adaptateur}.`,
+    `supprimées avant le lot, ${suppressionsApres.length} après (toutes des réflexions, que le ` +
+    `moteur ne dessine pas : voir reflexion-cone.mjs), 0 sélection changée hors bande. ` +
+    `Adaptateur ${apres.adaptateur}.`,
 );

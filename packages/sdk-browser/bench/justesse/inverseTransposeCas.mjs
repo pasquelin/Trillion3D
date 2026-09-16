@@ -68,7 +68,12 @@ export function construireCas({ s, kind, worldSize, axis, angleDeg, miroir = fal
   return { positions, indices, cone, min, max, world, s, kind, worldSize, axis, angleDeg, miroir };
 }
 
-/** Vérité terrain : vrais sommets transformés, orientation réelle, champ, aire en pixels. */
+/**
+ * Orientation géométrique BRUTE : vrais sommets transformés, `cross(e1, e2)` contre la caméra,
+ * champ, aire en pixels. Ce n'est pas ce que le moteur dessine — sous réflexion il échange la face
+ * éliminée (`windingCw`), et `avantVisible` désigne alors la face opposée à celle qui sort à
+ * l'écran. Pour la vérité du moteur, mesurée par rasterisation réelle, voir `reflexion-cone.mjs`.
+ */
 export function veriteTerrain(cas) {
   const triangles = [
     [0, 1, 2],
