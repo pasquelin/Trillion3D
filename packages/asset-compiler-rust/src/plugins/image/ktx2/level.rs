@@ -6,8 +6,9 @@
 //! qui rendrait autre chose que cette longueur est un refus, pas un tampon à moitié rempli.
 use super::format::{self, Layout};
 use super::header::{self, Surface};
-use super::{DecodedImage, DATA_TRUNCATED, FORMAT_UNSUPPORTED, TOO_LARGE};
+use super::{DATA_TRUNCATED, FORMAT_UNSUPPORTED, TOO_LARGE};
 use crate::plugins::image::blocks as shared;
+use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 use std::borrow::Cow;
 use std::io::Read;

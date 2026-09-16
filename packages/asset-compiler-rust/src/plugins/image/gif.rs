@@ -23,7 +23,7 @@
 //! Le parcours des blocs est fait ici, avant tout décodage, parce que le décodeur rendrait sinon la
 //! première image d'une animation sans que personne ne l'ait demandé.
 use super::crate_image::{self, ANIMATED};
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static GIF: Gif = Gif;
 pub(super) struct Gif;
@@ -76,7 +76,7 @@ impl ImageDecoder for Gif {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         if carries_several_images(bytes) {
             return Err(ANIMATED);
         }
