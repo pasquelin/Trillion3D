@@ -16,12 +16,20 @@
 //! demanderait un profil, une matrice ou une palette que le pilote choisirait à la place de la
 //! source. L'alpha du composite est lu tel quel, droit : rien n'est démultiplié.
 //!
+//! **Un plan de plus n'est pas forcément de la transparence.** Un document Photoshop peut porter,
+//! à côté de ses canaux de couleur, un canal alpha enregistré — une sélection —, que le composite
+//! écrit au même endroit qu'une transparence. Seul le fichier lève l'ambiguïté : le compte de
+//! calques de la section des calques est signé, et son signe négatif annonce que le premier canal
+//! alpha du composite porte la transparence du document. Sans cette déclaration, le plan est une
+//! sélection : il est lu, écrit nulle part, et compté. Voir `sections.rs`.
+//!
 //! **Sous-ensemble accepté** : modes RVB et niveaux de gris, huit bits par canal, avec ou sans un
 //! plan d'alpha, données composites brutes ou compressées par plages (PackBits), PSD comme PSB.
 use super::{surface_budget, ImageDecoded, ImageDecoder, Plugin, RGBA8_PIXEL_BYTES};
 
 mod lines;
 mod pixels;
+mod sections;
 
 pub(super) static PSD: Psd = Psd;
 pub(super) struct Psd;
@@ -56,6 +64,12 @@ const COLOR_MODE_UNSUPPORTED: &str = "psd-color-mode-unsupported";
 /// Plus d'un canal au-delà des canaux de couleur du mode : rien dans l'entête ne dit si ce plan est
 /// une transparence, une sélection enregistrée ou une couleur d'appoint.
 const CHANNELS_UNSUPPORTED: &str = "psd-channels-unsupported";
+/// Un plan de plus que les canaux de couleur, que rien ne déclare comme transparence : un canal
+/// alpha enregistré, c'est-à-dire une sélection. Il est lu — le curseur doit avancer d'un plan — et
+/// écrit nulle part : le prendre pour de la transparence trouait la texture. Compté, jamais tu.
+const ALPHA_IGNORED: &str = "psd-alpha-channel-ignored";
+/// Le fichier porte des calques, et seul le composite aplati sort de ce pilote. Compté, jamais tu.
+const LAYERS_FLATTENED: &str = "psd-layers-flattened";
 /// Une compression du composite hors du sous-ensemble : les deux variantes ZIP de la spécification.
 const COMPRESSION_UNSUPPORTED: &str = "psd-compression-unsupported";
 /// Le fichier s'arrête avant sa section de données composites : il n'y a pas d'image aplatie à lire.
@@ -83,8 +97,11 @@ impl Plugin for Psd {
     fn name(&self) -> &'static str {
         "psd"
     }
+    /// Le numéro monte avec ce que le pilote rend. Il est passé à 2 quand un plan supplémentaire a
+    /// cessé d'être pris pour de la transparence sans déclaration : une entrée de cache écrite du
+    /// temps de cette hypothèse portait un alpha qui n'était pas celui du document.
     fn version(&self) -> &'static str {
-        "psd-composite-aplati-1"
+        "psd-composite-aplati-2"
     }
     /// `.psd` et `.psb` sont les deux extensions du format. L'extension ne fait que désigner le
     /// pilote : ce sont les octets qui décident.
@@ -123,12 +140,12 @@ impl ImageDecoder for Psd {
             max_alloc,
             TOO_LARGE,
         )?;
-        let (compression, body) = pixels::composite(&header, rest)?;
-        Ok(ImageDecoded::srgb(pixels::decode(
-            &header,
-            compression,
-            body,
-        )?))
+        let (declared, compression, body) = pixels::composite(&header, rest)?;
+        let image = pixels::decode(&header, &declared, compression, body)?;
+        let alpha_plane = header.channels > header.color_channels;
+        Ok(ImageDecoded::srgb(image)
+            .with_notes((alpha_plane && !declared.transparency).then_some(ALPHA_IGNORED))
+            .with_notes((declared.layers > 0).then_some(LAYERS_FLATTENED)))
     }
 }
 
