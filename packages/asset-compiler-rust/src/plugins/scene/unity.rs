@@ -45,6 +45,7 @@ mod patch;
 mod prefab;
 mod project;
 mod render;
+mod retarget;
 mod structure;
 #[cfg(test)]
 mod tests;
@@ -62,6 +63,7 @@ use overrides::{cover, local_trs, material_slot, Overrides, MAX_SLOTS, SLOT_INVA
 use parts::{mesh_nodes, model_matrices, Parts};
 use patch::Changes;
 use project::{assets_root, meta_of, read_text, Project};
+use retarget::{retarget, Rule};
 use structure::{Structure, ADDED_UNPLACED};
 use textures::Textures;
 use transform::Trs;
@@ -79,7 +81,7 @@ impl Plugin for Unity {
     /// La version nomme le lecteur YAML et la génération de la conversion : la changer invalide les
     /// caches, donc toute scène Unity déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "unity-yaml-rust2-0.13-gltf-5"
+        "unity-yaml-rust2-0.13-gltf-6"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["unity"]
