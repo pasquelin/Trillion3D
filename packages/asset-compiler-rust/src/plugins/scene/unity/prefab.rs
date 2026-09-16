@@ -8,15 +8,19 @@
 use super::*;
 
 impl Builder<'_, '_> {
+    /// `outer` porte les retouches de l'instance qui contient celle-ci, quand un prefab en
+    /// instancie un autre : elles se posent par-dessus les siennes, dans l'ordre de nidification.
     pub(super) fn prefab_instance(
         &mut self,
         document: &Rc<Document>,
         id: i64,
+        outer: &Changes,
         depth: usize,
     ) -> Option<usize> {
         let entry = document.get(id)?;
-        let changes = Changes::read(&entry.body["m_Modification"]);
+        let mut changes = Changes::read(&entry.body["m_Modification"]);
         changes.report(self.world.scene);
+        changes.overlay(outer);
         let source = reference(&entry.body["m_SourcePrefab"]);
         let guid = source.guid.as_ref()?;
         let Some(asset) = self.world.project.asset(guid).map(Path::to_path_buf) else {
