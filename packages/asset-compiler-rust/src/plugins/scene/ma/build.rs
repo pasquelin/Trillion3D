@@ -7,6 +7,8 @@
 //! fois. Un transform invisible n'est pas parcouru : ce que le fichier cache ne s'affiche pas.
 use super::*;
 
+mod shape;
+
 /// Profondeur maximale d'une hiérarchie : un fichier dont les pères bouclent ne fait pas déborder
 /// la pile, il est coupé et compté.
 const MAX_DEPTH: usize = 256;
@@ -68,7 +70,7 @@ pub(super) fn scene(
         images_by_uri: HashMap::new(),
         cancelled: request.cancelled,
     };
-    ignored(&mut world);
+    shape::ignored(&mut world);
     let children: Vec<usize> = (0..document.nodes.len())
         .filter(|node| document.nodes[*node].parent.is_none())
         .filter_map(|node| visit(&mut world, node, 0))
@@ -81,20 +83,6 @@ pub(super) fn scene(
         "children": children,
     }));
     world.scene.counts.clone()
-}
-
-/// Compte, par son type, chaque nœud que ce pilote ne convertit pas : caméras, lampes, surfaces
-/// paramétriques, squelettes, nœuds d'outil, nœuds de script. Rien de tout cela n'est un échec.
-fn ignored(world: &mut World<'_>) {
-    let document = world.document;
-    for node in document.nodes.iter().filter(|node| {
-        !report::is_transform(&node.kind) && !report::is_mesh(&node.kind) && !shades(&node.kind)
-    }) {
-        world
-            .scene
-            .report
-            .add(&format!("{}:{}", report::NODE_IGNORED, node.kind));
-    }
 }
 
 /// Le nœud glTF d'un `transform` et de sa descendance, ou rien quand il ne porte aucune surface.
@@ -117,7 +105,7 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
     }
     let name = entry.name.clone();
     let matrix = xform::local(entry, document.degrees_per_unit, &mut world.scene.report);
-    let meshes = shapes(world, node);
+    let meshes = shape::shapes(world, node);
     // Les enfants sont posés avant leur père : un nœud glTF cite ses enfants par leur rang.
     let mut children: Vec<usize> = meshes
         .iter()
@@ -143,30 +131,4 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
         out["children"] = json!(children);
     }
     Some(world.scene.node(out))
-}
-
-/// Les maillages glTF que ce transform porte : ses formes filles, puis celles qu'un `parent -add`
-/// lui accroche. Chaque forme n'est construite qu'une fois, quel que soit le nombre de transforms
-/// qui la citent.
-fn shapes(world: &mut World<'_>, node: usize) -> Vec<usize> {
-    let own: Vec<usize> = world.kids[node]
-        .iter()
-        .copied()
-        .filter(|shape| report::is_mesh(&world.document.nodes[*shape].kind))
-        .collect();
-    let added = world.added[node].clone();
-    own.into_iter()
-        .chain(added)
-        .filter_map(|shape| mesh::build(world, shape))
-        .collect()
-}
-
-/// Ce nœud décrit-il le nuançage — un nuanceur, un ensemble, une image, un placage ? Ces nœuds
-/// n'entrent pas dans la hiérarchie : les matériaux les lisent, et ils ne sont donc pas comptés.
-fn shades(kind: &str) -> bool {
-    report::is_shader(kind)
-        || matches!(
-            kind,
-            "shadingEngine" | "file" | "place2dTexture" | "bump2d" | "materialInfo" | "groupId"
-        )
 }
