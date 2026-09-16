@@ -5,8 +5,9 @@ import { DAG_LIVE_WGSL } from './gpuDagLiveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
 import { DAG_RECORD_WGSL } from './gpuDagRecordWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
+import { CLUSTER_LEVEL_SHIFT } from './gpuDagLayout.ts';
 
-export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,level:u32,nodeIndex:u32,flags:u32,pad0:u32,pad1:u32,}
+export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
@@ -132,7 +133,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
  if(!selects(cluster,e,stretch,focal,uni.pixelError)){return;}
  if(rejected){return;}
- atomicMax(&out.lodLevel,cluster.level);
+ atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
  emitOne(i);
  if(uni.residentCut==0u||isResident(i)){return;}
  escalate(w,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
