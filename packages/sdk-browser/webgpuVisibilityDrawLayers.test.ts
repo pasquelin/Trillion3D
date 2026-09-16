@@ -10,7 +10,7 @@ import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
+import { buildWebgpuVisibilityItems, createVisibilityItemsHold } from './webgpuVisibilityItems.ts';
 import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
@@ -46,7 +46,13 @@ test('buildWebgpuVisibilityItems packs each row’s coplanar layer into its item
       packedRecs: [recA, recB],
       packedPageIndex: Int32Array.from([0, 1]),
       pageTableInts,
+      tableEpoch: 1,
+      rowsEpoch: 1,
+      dirtyFrom: 0,
+      dirtyTo: 1,
     },
+    // Le témoin des fiches, désarmé : la construction se fait, elle n'est pas tenue.
+    itemsHold: createVisibilityItemsHold(),
     hizRest: new Uint8Array(2),
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
     binInstances: new Uint32Array(MAX_DRAW_SLOTS),
@@ -61,7 +67,7 @@ test('buildWebgpuVisibilityItems packs each row’s coplanar layer into its item
     vis: { drawLayerSlots: 3 },
     timing: { lastItemsMs: 0 },
   } as unknown as WebgpuPagesRuntime;
-  buildWebgpuVisibilityItems(rt, false, true);
+  buildWebgpuVisibilityItems(rt, false, true, 0);
   assert.equal(
     layout.drawItemWords[0 * DRAW_ITEM_U32 + 3],
     0,
