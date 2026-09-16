@@ -2,9 +2,19 @@ import { pageDecodeStats } from './pageDecodeHost.ts';
 import { EngineProfiler } from './telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
 import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
+import { BACKEND_METRIC_KEYS } from './backendMetricKeys.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 
 type State = () => { loaded: number; pageBytesRead: number; streamingError: string | null };
+
+/** Recopie une mesure du moteur dans le relevé de l'hôte : `null` quand ce moteur ne la tient pas. */
+function publishMetric<K extends (typeof BACKEND_METRIC_KEYS)[number]>(
+  into: FrameMetrics,
+  from: FrameMetrics,
+  key: K,
+) {
+  into[key] = (from[key] ?? null) as FrameMetrics[K];
+}
 
 export function createExplorerMetrics(
   metadata: ClusterManifest,
@@ -71,34 +81,16 @@ export function createExplorerMetrics(
     const { loaded, pageBytesRead, streamingError } = state();
     const backendMetrics = backend.metrics() as FrameMetrics;
     const stream = streamer.stats();
-    metricsScratch.coverageReady = backendMetrics.coverageReady ?? null;
-    metricsScratch.coverageBudgetLimited = backendMetrics.coverageBudgetLimited ?? null;
+    // Chaque mesure que le moteur publie telle quelle, dans l'ordre du contrat : `null` dit « non
+    // tenue par ce moteur », jamais « zéro ». Le témoin d'image tenue en fait partie — sans cette
+    // recopie, `explorer.render()` publiait `null` alors que le moteur avait bien tenu l'image.
+    for (const key of BACKEND_METRIC_KEYS) publishMetric(metricsScratch, backendMetrics, key);
     metricsScratch.streamingError = streamingError;
     metricsScratch.clusters = backendMetrics.clusters;
     metricsScratch.selectedTriangles = backendMetrics.selectedTriangles;
-    metricsScratch.uncoveredTriangles = backendMetrics.uncoveredTriangles ?? null;
     metricsScratch.residentPages = backendMetrics.residentPages;
-    metricsScratch.pagesDetached = backendMetrics.pagesDetached ?? null;
-    metricsScratch.cacheEvictions = backendMetrics.cacheEvictions ?? stream.evictions;
     metricsScratch.geometryAllocationBytes = backendMetrics.geometryAllocationBytes;
-    metricsScratch.frustumRejected = backendMetrics.frustumRejected ?? null;
-    metricsScratch.hizTestedClusters = backendMetrics.hizTestedClusters ?? null;
-    metricsScratch.hizRejectedClusters = backendMetrics.hizRejectedClusters ?? null;
-    metricsScratch.hizOversizedClusters = backendMetrics.hizOversizedClusters ?? null;
-    metricsScratch.hizTestedTriangles = backendMetrics.hizTestedTriangles ?? null;
-    metricsScratch.hizRejectedTriangles = backendMetrics.hizRejectedTriangles ?? null;
-    metricsScratch.hizOversizedTriangles = backendMetrics.hizOversizedTriangles ?? null;
-    metricsScratch.hizCountedFrame = backendMetrics.hizCountedFrame ?? null;
-    metricsScratch.lodLevel = backendMetrics.lodLevel ?? null;
-    // Le témoin d'image tenue appartient à l'image que l'hôte vient de demander : sans cette
-    // recopie, `explorer.render()` publiait `null` alors que le moteur avait bien tenu l'image.
-    metricsScratch.frameHeld = backendMetrics.frameHeld ?? null;
-    metricsScratch.submittedTriangles = backendMetrics.submittedTriangles ?? null;
-    metricsScratch.transparentMeshes = backendMetrics.transparentMeshes ?? null;
-    metricsScratch.transparentFrustumRejected = backendMetrics.transparentFrustumRejected ?? null;
-    metricsScratch.transparentDrawCalls = backendMetrics.transparentDrawCalls ?? null;
-    metricsScratch.transparentSubmittedTriangles =
-      backendMetrics.transparentSubmittedTriangles ?? null;
+    metricsScratch.cacheEvictions = backendMetrics.cacheEvictions ?? stream.evictions;
     metricsScratch.totalSubmittedTriangles =
       backendMetrics.totalSubmittedTriangles ??
       (backendMetrics.submittedTriangles == null
@@ -110,37 +102,8 @@ export function createExplorerMetrics(
     metricsScratch.pagesLoading = stream.loading;
     metricsScratch.cacheHits = stream.hits;
     metricsScratch.cacheMisses = stream.misses;
-    metricsScratch.cpuSelectMs = backendMetrics.cpuSelectMs ?? null;
-    metricsScratch.cpuSelectNodesTested = backendMetrics.cpuSelectNodesTested ?? null;
-    metricsScratch.cpuSubmitMs = backendMetrics.cpuSubmitMs ?? null;
-    metricsScratch.gpuMs = backendMetrics.gpuMs ?? null;
-    metricsScratch.gpuPassMs = backendMetrics.gpuPassMs ?? null;
-    metricsScratch.gpuFrameMs = backendMetrics.gpuFrameMs ?? null;
-    metricsScratch.gpuHostGapMs = backendMetrics.gpuHostGapMs ?? null;
-    metricsScratch.vramBytes = backendMetrics.vramBytes ?? null;
     metricsScratch.drawCalls =
       typeof backendMetrics.drawCalls === 'number' ? backendMetrics.drawCalls : -1;
-    metricsScratch.textureUploaded = backendMetrics.textureUploaded ?? null;
-    metricsScratch.texturePending = backendMetrics.texturePending ?? null;
-    metricsScratch.textureInFlight = backendMetrics.textureInFlight ?? null;
-    metricsScratch.textureSlicesUploaded = backendMetrics.textureSlicesUploaded ?? null;
-    metricsScratch.textureBytesLastFrame = backendMetrics.textureBytesLastFrame ?? null;
-    metricsScratch.textureSkipped = backendMetrics.textureSkipped ?? null;
-    metricsScratch.textureLevelsUploaded = backendMetrics.textureLevelsUploaded ?? null;
-    metricsScratch.textureAtlasBytesCalculated = backendMetrics.textureAtlasBytesCalculated ?? null;
-    metricsScratch.textureAtlasClassBytesCalculated =
-      backendMetrics.textureAtlasClassBytesCalculated ?? null;
-    metricsScratch.textureAtlasClassesUsed = backendMetrics.textureAtlasClassesUsed ?? null;
-    metricsScratch.lightsActive = backendMetrics.lightsActive ?? null;
-    metricsScratch.shadowsUpdated = backendMetrics.shadowsUpdated ?? null;
-    metricsScratch.shadowFacesDrawn = backendMetrics.shadowFacesDrawn ?? null;
-    metricsScratch.shadowDrawCalls = backendMetrics.shadowDrawCalls ?? null;
-    metricsScratch.shadowPagesDrawn = backendMetrics.shadowPagesDrawn ?? null;
-    metricsScratch.shadowPagesPending = backendMetrics.shadowPagesPending ?? null;
-    metricsScratch.shadowWaitMs = backendMetrics.shadowWaitMs ?? null;
-    metricsScratch.gpuLightListsMs = backendMetrics.gpuLightListsMs ?? null;
-    metricsScratch.gpuShadowsMs = backendMetrics.gpuShadowsMs ?? null;
-    metricsScratch.gpuLightingMs = backendMetrics.gpuLightingMs ?? null;
     const decode = pageDecodeStats();
     metricsScratch.pagesDecodedOffThread = decode.offThread;
     metricsScratch.pagesDecodedWasm = decode.wasm;

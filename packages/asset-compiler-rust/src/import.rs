@@ -160,6 +160,6 @@ use mesh::*;
 use opacity::*;
 pub(crate) use primitive::{primitive, Vertices};
 pub use runner::import_source;
-pub(crate) use tables::SceneTables;
+pub(crate) use tables::{readable, SceneTables};
 use textures::*;
 pub(crate) use write::{write_scene, Tables};

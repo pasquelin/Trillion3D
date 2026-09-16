@@ -4,12 +4,19 @@ import { cameraPose } from './cameraWorld.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/** La question posée à l'URL, et la réponse qu'elle a donnée : la chaîne est relue à chaque appel —
+ *  l'audit est interrogé par image — mais elle n'est analysée qu'une fois par chaîne. */
+let auditSearch: string | undefined,
+  auditEnabled = false;
+
 /** Audit opt-in, sans trace par image : ajouter `wgFrameAudit=1` à l'URL de l'hôte. */
 export function frameCostAuditEnabled() {
-  return (
-    typeof location !== 'undefined' &&
-    new URLSearchParams(location.search).get('wgFrameAudit') === '1'
-  );
+  const search = typeof location === 'undefined' ? undefined : location.search;
+  if (search !== auditSearch) {
+    auditSearch = search;
+    auditEnabled = search !== undefined && new URLSearchParams(search).get('wgFrameAudit') === '1';
+  }
+  return auditEnabled;
 }
 
 /** La sérialisation et la console restent hors de l'appel de rendu mesuré. */
@@ -77,7 +84,6 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
 /** Vue hôte, avec vrais compteurs Three quand ce moteur possède le rendu WebGL.
  * Les percentiles CPU détaillés sont publiés séparément par les profils existants. */
 export function createHostFrameCostAudit() {
-  const enabled = frameCostAuditEnabled();
   let last = -Infinity;
   return (
     backend: string,
@@ -85,7 +91,7 @@ export function createHostFrameCostAudit() {
     metrics: FrameMetrics,
     renderer: THREE.WebGLRenderer | null,
   ) => {
-    if (!enabled) return;
+    if (!frameCostAuditEnabled()) return;
     const now = performance.now();
     if (now - last < 2000) return;
     last = now;
