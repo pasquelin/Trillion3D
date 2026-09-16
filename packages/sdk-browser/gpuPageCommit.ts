@@ -59,11 +59,18 @@ export function commitGpuPage(
     }));
   }
   const uploadStarted = now();
-  staging.fill(0, bytes.byteLength);
+  // Un slot fait la taille du PLUS GROS cluster de la scène. Écrire le slot entier ferait payer à
+  // chaque page — même minuscule — un effacement, une recopie et un transfert de cette taille-là,
+  // alors que rien ne lit jamais la queue du slot : une ligne de la table de pages nomme son offset
+  // et son nombre de triangles, et la passe de visibilité ne sort pas de cette plage. Seuls les
+  // octets de la page partent donc, complétés jusqu'au multiple de quatre que `writeBuffer` exige.
+  const size = bytes.byteLength,
+    padded = size + (size % 4 ? 4 - (size % 4) : 0);
   staging.set(bytes);
-  device.queue.writeBuffer(buffer, slot * pageBytes, staging);
+  if (padded !== size) staging.fill(0, size, padded);
+  device.queue.writeBuffer(buffer, slot * pageBytes, staging, 0, padded);
   const uploadDurationMs = report ? performance.now() - uploadStarted : null;
-  state.uploadedBytes += pageBytes;
+  state.uploadedBytes += padded;
   const page = {
     key,
     slot,
@@ -81,7 +88,7 @@ export function commitGpuPage(
     offset: slot * pageBytes,
     generation: page.generation,
     actualDataBytes: bytes.byteLength,
-    uploadedBytes: pageBytes,
+    uploadedBytes: padded,
     uploadDurationMs,
     gpuMs: null,
     drawDetached: false,
@@ -92,7 +99,7 @@ export function commitGpuPage(
     slot,
     generation: page.generation,
     actualDataBytes: bytes.byteLength,
-    uploadedBytes: pageBytes,
+    uploadedBytes: padded,
     durationMs: report ? performance.now() - requestStarted : null,
   }));
   return page;
