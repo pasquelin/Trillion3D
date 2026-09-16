@@ -14,6 +14,7 @@ import {
   structureIndex,
 } from './pageSelectionHelpers.ts';
 import { cullingBounds } from './pageSelectionCutBounds.ts';
+import { cullingLinks, type CullingLinks } from './pageSelectionCutForced.ts';
 
 /**
  * Ce qu'un objet source porte une fois, quel que soit le nombre de fois qu'on le pose dans la
@@ -42,6 +43,7 @@ type Shape = {
   structure: ReturnType<typeof structureIndex>;
   culling: ReturnType<typeof cullingNodes>;
   bounds: Float64Array | undefined;
+  links: CullingLinks | undefined;
   local: Float64Array;
 };
 
@@ -155,6 +157,7 @@ export function createPrimitiveTemplates(indices: Map<string, Uint32Array>, allo
               template.pages.map((entry) => entry.cut),
             )
           : undefined,
+        links: culling ? cullingLinks(culling, template.pages.length) : undefined,
         local: localBox(primitive, culling),
       };
       template.shape = shape;
