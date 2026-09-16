@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import { maxStretch, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { copyElements } from './matrixElements.ts';
 
 /**
  * Les vues d'une image, une par matrice monde rencontrée.
@@ -13,6 +14,9 @@ export function createFrameViews() {
   const ranks = new Map<THREE.Matrix4, number>();
   const views: Float64Array[] = [];
   const stretches: number[] = [];
+  // La pose de l'hôte recopiée dans un tampon possédé : le produit du socle ne lit et n'écrit que
+  // des `Float64Array`. Seize nombres par matrice distincte, une fois par image.
+  const world = new Float64Array(16);
   let used = 0;
   return {
     /** Ouvre une image : les vues déjà calculées restent, leur association est refaite. */
@@ -21,7 +25,7 @@ export function createFrameViews() {
       ranks.clear();
     },
     /** Le rang de la vue de cette matrice, calculée une fois par image. */
-    of(matrix: THREE.Matrix4, camView: ArrayLike<number>) {
+    of(matrix: THREE.Matrix4, camView: Float64Array) {
       const known = ranks.get(matrix);
       if (known !== undefined) return known;
       const at = used++;
@@ -30,7 +34,8 @@ export function createFrameViews() {
         stretches.push(1);
       }
       ranks.set(matrix, at);
-      multiplyMatrix4(views[at], camView, matrix.elements);
+      copyElements(world, matrix.elements);
+      multiplyMatrix4(views[at], camView, world);
       stretches[at] = maxStretch(views[at] as unknown as readonly number[]);
       return at;
     },

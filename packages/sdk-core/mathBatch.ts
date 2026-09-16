@@ -1,5 +1,5 @@
 import { BOX_VALUES, boxTransform } from './mathBox.ts';
-import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
+import { multiplyMatrix4 } from './mathMatrix4.ts';
 
 /**
  * Les opérations du socle mathématique jouées EN LOT : `n` éléments rangés à plat, une seule entrée
@@ -34,9 +34,9 @@ export function boxTransformBatch(
 
 /** `n` produits `out[i] = a[i] · b[i]`, les trois côtés donnés en sous-vues de seize nombres. */
 export function multiplyMatrix4Batch(
-  out: readonly NumberSink[],
-  a: readonly ArrayLike<number>[],
-  b: readonly ArrayLike<number>[],
+  out: readonly Float64Array[],
+  a: readonly Float64Array[],
+  b: readonly Float64Array[],
   n: number,
 ) {
   for (let i = 0; i < n; i++) multiplyMatrix4(out[i], a[i], b[i]);
