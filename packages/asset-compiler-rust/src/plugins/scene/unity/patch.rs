@@ -108,6 +108,32 @@ impl Changes {
         *self.ignored.entry(name).or_insert(0) += 1;
     }
 
+    /// Pose les retouches d'une instance extérieure par-dessus celles-ci : un prefab imbriqué
+    /// applique d'abord les siennes, puis celles de l'instance qui le contient — l'ordre de
+    /// nidification, le dernier mot à la plus extérieure. Le nom de racine ne se transmet pas : il
+    /// vise la racine de l'instance qui le porte, non celle du prefab qu'elle contient.
+    pub(super) fn overlay(&mut self, outer: &Changes) {
+        for (target, values) in &outer.transforms {
+            let mine = self.transforms.entry(*target).or_default();
+            mine.extend(values.iter().map(|(path, value)| (path.clone(), *value)));
+        }
+        let pairs = |table: &BTreeMap<i64, bool>| -> Vec<(i64, bool)> {
+            table
+                .iter()
+                .map(|(target, flag)| (*target, *flag))
+                .collect()
+        };
+        self.active.extend(pairs(&outer.active));
+        self.enabled.extend(pairs(&outer.enabled));
+        for (target, slots) in &outer.materials {
+            let mine = self.materials.entry(*target).or_default();
+            cover(mine, slots.len());
+            for (slot, replaced) in slots.iter().enumerate() {
+                mine[slot] = replaced.clone();
+            }
+        }
+    }
+
     pub(super) fn transform(&self, target: i64) -> Option<&Overrides> {
         self.transforms.get(&target)
     }
@@ -166,35 +192,4 @@ fn material_slot(path: &str) -> Option<usize> {
         .strip_suffix(']')?
         .parse::<usize>()
         .ok()
-}
-
-/// La transformation locale, telle que Unity l'écrit, une fois les surcharges d'instance appliquées
-/// puis la conversion d'axes faite.
-pub(super) fn local_trs(body: &Yaml, overrides: &Overrides) -> Trs {
-    let at = |path: &str, value: f64| overrides.get(path).copied().unwrap_or(value);
-    let position = vec3(&body["m_LocalPosition"], [0.0, 0.0, 0.0]);
-    let rotation = vec4(
-        &body["m_LocalRotation"],
-        ["x", "y", "z", "w"],
-        [0., 0., 0., 1.],
-    );
-    let scale = vec3(&body["m_LocalScale"], [1.0, 1.0, 1.0]);
-    Trs::from_unity(
-        [
-            at("m_LocalPosition.x", position[0]),
-            at("m_LocalPosition.y", position[1]),
-            at("m_LocalPosition.z", position[2]),
-        ],
-        [
-            at("m_LocalRotation.x", rotation[0]),
-            at("m_LocalRotation.y", rotation[1]),
-            at("m_LocalRotation.z", rotation[2]),
-            at("m_LocalRotation.w", rotation[3]),
-        ],
-        [
-            at("m_LocalScale.x", scale[0]),
-            at("m_LocalScale.y", scale[1]),
-            at("m_LocalScale.z", scale[2]),
-        ],
-    )
 }
