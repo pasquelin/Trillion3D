@@ -83,6 +83,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
   });
+  // Le cadrage rejoue le tampon réservé au chargement, puis le rend : c'est son dernier lecteur.
   const cameraState = createExplorerCamera(
     source,
     autonomous,
@@ -90,7 +91,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     metadata,
     canvas,
     options,
+    loadedScene.framingLot,
   );
+  loadedScene.framingLot?.release();
   return {
     source,
     pageSources,
