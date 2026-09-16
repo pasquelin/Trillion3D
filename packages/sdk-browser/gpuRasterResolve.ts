@@ -1,4 +1,5 @@
 import type { GpuRasterInput } from './gpuRasterTypes.ts';
+import { DEPTH_CLEAR, DEPTH_COMPARE } from './depthConvention.ts';
 
 /**
  * Les résolutions matérielles plein écran du tampon de visibilité.
@@ -41,7 +42,7 @@ export function createRasterResolves(
       depthStencil: {
         format: 'depth32float' as const,
         depthWriteEnabled: true,
-        depthCompare: 'less' as const,
+        depthCompare: DEPTH_COMPARE,
       },
     });
   const one = makeFinal(false),
@@ -61,7 +62,10 @@ export function createRasterResolves(
         { binding: 1, resource: { buffer: uniform, offset: 0, size: 96 } },
       ],
     }));
-  /** Une pièce jointe de couleur effacée à la valeur que son attachement attend. */
+  /**
+   * Une pièce jointe de couleur effacée à la valeur que son attachement attend. Le niveau zéro de
+   * la pyramide est une profondeur : il s'efface au lointain, que la convention seule connaît.
+   */
   const cleared = (view: GPUTextureView, r: number) => ({
     view,
     loadOp: 'clear' as const,
@@ -86,15 +90,18 @@ export function createRasterResolves(
     idsFor = input.idsView;
     depthFor = input.depthView;
     hizFor = input.hizView;
-    hizPass = { label: 'WG raster occluder hiz', colorAttachments: [cleared(input.hizView!, 1)] };
+    hizPass = {
+      label: 'WG raster occluder hiz',
+      colorAttachments: [cleared(input.hizView!, DEPTH_CLEAR)],
+    };
     finalPass = {
       label: 'WG raster resolve',
       colorAttachments: input.hizView
-        ? [cleared(input.idsView, 0), cleared(input.hizView, 1)]
+        ? [cleared(input.idsView, 0), cleared(input.hizView, DEPTH_CLEAR)]
         : [cleared(input.idsView, 0)],
       depthStencilAttachment: {
         view: input.depthView,
-        depthClearValue: 1,
+        depthClearValue: DEPTH_CLEAR,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
       },
