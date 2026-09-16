@@ -48,6 +48,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     shadowBudgetMs: settings.shadowBudgetMs,
     shadowPages: settings.shadowPages,
     shadowDigest: settings.shadowDigest,
+    mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
     movingNodeRadius: settings.movingNodeRadius,
   });
@@ -118,6 +119,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
       residentes: metrics.residentPages ?? null,
       couvertureLimiteeParBudget: metrics.coverageBudgetLimited ?? null,
     },
+    // Le relevé du gouverneur de chemin de calcul : mode demandé, disponibilité du module, et pour
+    // chaque opération en lot le chemin réellement joué avec les médianes des deux. `null` quand le
+    // dist mesuré est antérieur au gouverneur — non mesuré, et non pas « chemin JavaScript ».
+    cheminCalcul: result.mathBatch ?? null,
     lampes: lights ? lights.resume : null,
     // Les lampes venues du fichier source, telles que le moteur les a déclarées à l'ouverture.
     lampesFichier: result.importedLights ?? null,
