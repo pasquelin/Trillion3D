@@ -115,7 +115,12 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
     // Le verdict d'occultation de chaque entrée, écrit par le test Hi-Z des transparents un peu plus
     // tôt dans la même soumission. Zéro avant toute image, et zéro sur une image sans pyramide :
     // rien n'est alors retiré de la table.
-    const occludedBuffer = make('WG transparent occlusion verdicts', table.capacity * 4);
+    // `COPY_SRC` ne sert qu'à l'audit, qui relit les verdicts ; aucune image ne les copie.
+    const occludedBuffer = make(
+      'WG transparent occlusion verdicts',
+      table.capacity * 4,
+      storage | GPUBufferUsage.COPY_SRC,
+    );
     const diagnosticBuffer = make('WG transparent cluster identity', table.capacity * 4);
     const indirectBuffer = make(
       'WG transparent indirect',
