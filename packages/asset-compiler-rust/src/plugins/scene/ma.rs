@@ -22,7 +22,8 @@
 //! cisaillement, échelle, chacun écrit d'un bloc ou composante par composante —, `inheritsTransform`
 //! et la visibilité comprises ; les `mesh` par leurs sommets `.vt`, leurs arêtes `.ed`, leurs faces
 //! `.fc` (découpées par oreilles dans le plan de leur normale), le premier jeu
-//! d'UV `.uvst[0].uvsp` et les normales `.n` quand elles y sont ; les matériaux `lambert`, `phong`,
+//! d'UV `.uvst[0].uvsp`, les normales `.n` quand elles y sont et le drapeau de dureté de chaque
+//! arête sinon ; les matériaux `lambert`, `phong`,
 //! `blinn` et `standardSurface` vers `pbrMetallicRoughness` ; les nœuds `file` liés par
 //! `connectAttr`, avec le mode de répétition de leur `place2dTexture` ; la liaison matériau ↔
 //! maillage par les `shadingEngine` (`.iog` vers `.dsm`), y compris par groupes de faces ; et
@@ -50,6 +51,7 @@ mod faces;
 mod lex;
 mod material;
 mod mesh;
+mod normal;
 mod report;
 mod shading;
 #[cfg(test)]
@@ -92,7 +94,7 @@ impl Plugin for Ma {
     /// la génération de la conversion : la changer invalide les caches, donc toute scène Maya ASCII
     /// déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "ma-mel-subset-1-gltf-5"
+        "ma-mel-subset-1-gltf-6"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ma"]

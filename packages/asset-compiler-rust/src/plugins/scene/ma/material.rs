@@ -51,7 +51,7 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     pbr["baseColorFactor"] = json!([colour[0], colour[1], colour[2], alpha]);
     let mut out = json!({"name": name, "pbrMetallicRoughness": pbr});
     emission(world, shader, standard, &mut out);
-    if let Some(texture) = through_bump(world, shader) {
+    if let Some(texture) = normal::through_bump(world, shader) {
         out["normalTexture"] = texture;
     }
     let veiled = opacity_texture(world, shader, standard);
@@ -70,22 +70,24 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
 }
 
 /// La couleur de base, et la texture qui la porte quand une image y est branchée. glTF multiplie sa
-/// texture par son facteur : le facteur passe donc au blanc, comme partout ailleurs dans ce dépôt.
+/// texture par son facteur : le facteur ne porte donc que ce que la texture ne dit pas, c'est-à-dire
+/// le poids scalaire — `base` ou `diffuse` — qui multiplie la couleur du nuanceur. Une image
+/// remplace la couleur, jamais son poids.
 fn base(world: &mut World<'_>, shader: usize, standard: bool, pbr: &mut Value) -> [f64; 3] {
     let document = world.document;
     let names: &[&str] = match standard {
         true => &["bc", "baseColor"],
         false => &["c", "color"],
     };
-    if let Some(texture) = texture::connected(world, shader, names) {
-        pbr["baseColorTexture"] = texture;
-        return [1.0, 1.0, 1.0];
-    }
     let node = &document.nodes[shader];
     let weight = match standard {
         true => number(node, &["b", "base"], 1.0),
         false => number(node, &["dc", "diffuse"], 1.0),
     };
+    if let Some(texture) = texture::connected(world, shader, names) {
+        pbr["baseColorTexture"] = texture;
+        return [weight.clamp(0.0, 1.0); 3];
+    }
     let colour = node
         .attr(names)
         .and_then(Attr::triple)
@@ -94,27 +96,29 @@ fn base(world: &mut World<'_>, shader: usize, standard: bool, pbr: &mut Value) -
 }
 
 /// L'émission de la surface : l'incandescence d'un `lambert`, `phong` ou `blinn`, la couleur
-/// d'émission d'un `standardSurface` multipliée par son poids.
+/// d'émission d'un `standardSurface` multipliée par son poids. Le poids vaut aussi quand une image
+/// porte la couleur : c'est lui, et non le blanc, que `emissiveFactor` porte alors.
 fn emission(world: &mut World<'_>, shader: usize, standard: bool, out: &mut Value) {
     let document = world.document;
     let names: &[&str] = match standard {
         true => &["ec", "emissionColor"],
         false => &["ic", "incandescence"],
     };
-    if let Some(texture) = texture::connected(world, shader, names) {
-        out["emissiveTexture"] = texture;
-        out["emissiveFactor"] = json!([1.0, 1.0, 1.0]);
-        return;
-    }
     let node = &document.nodes[shader];
     let weight = match standard {
         true => number(node, &["e", "emission"], 0.0),
         false => 1.0,
     };
-    let Some(colour) = node.attr(names).and_then(Attr::triple) else {
-        return;
+    let lit = match texture::connected(world, shader, names) {
+        Some(texture) => {
+            out["emissiveTexture"] = texture;
+            [weight; 3]
+        }
+        None => match node.attr(names).and_then(Attr::triple) {
+            Some(colour) => colour.map(|channel| channel * weight),
+            None => return,
+        },
     };
-    let lit = colour.map(|channel| channel * weight);
     if lit.iter().any(|channel| *channel > 1.0) {
         world.refuse(report::EMISSION_CLAMPED);
     }
@@ -160,17 +164,6 @@ fn roughness(node: &Node) -> f64 {
 /// Le nombre de l'un de ces attributs, ou la valeur neutre quand le fichier ne l'écrit pas.
 fn number(node: &Node, names: &[&str], neutral: f64) -> f64 {
     node.attr(names).and_then(Attr::scalar).unwrap_or(neutral)
-}
-
-/// La normale branchée sur `normalCamera`. Maya y met un `bump2d`, dont l'image est l'entrée
-/// `bumpValue` : la traverser rend la texture, et toute autre source est comptée.
-fn through_bump(world: &mut World<'_>, shader: usize) -> Option<Value> {
-    let (document, graph) = (world.document, world.graph);
-    let (source, _) = graph.input(shader, &["n", "normalCamera"])?;
-    if document.nodes[source].kind == "bump2d" {
-        return texture::connected(world, source, &["bv", "bumpValue"]);
-    }
-    texture::of(world, source)
 }
 
 /// Une image branchée sur l'opacité ou la transparence. glTF ne porte l'opacité que dans l'alpha de

@@ -12,6 +12,23 @@ use super::*;
 
 /// Le dossier qu'un projet Maya réserve aux textures.
 const IMAGES_DIRECTORY: &str = "sourceimages";
+/// Les deux modes de répétition d'un échantillonneur glTF : répéter, ou borner au dernier texel.
+const REPEAT: u32 = 10497;
+const CLAMP: u32 = 33071;
+/// Les composantes du placage d'un `place2dTexture` qu'un glTF sans `KHR_texture_transform` ne
+/// porte pas, chacune avec la valeur qui ne déplace rien. Maya les écrit d'un bloc ou composante
+/// par composante, et les deux écritures disent la même chose.
+const PLACEMENTS: &[(&[&str], f64)] = &[
+    (&["re", "repeatUV"], 1.0),
+    (&["reu", "repeatU"], 1.0),
+    (&["rev", "repeatV"], 1.0),
+    (&["of", "offset"], 0.0),
+    (&["ofu", "offsetU"], 0.0),
+    (&["ofv", "offsetV"], 0.0),
+    (&["ro", "rotateUV"], 0.0),
+];
+/// Les deux miroirs d'un `place2dTexture` : aucun mode de répétition de glTF ne fait ce pliage.
+const MIRRORS: &[&[&str]] = &[&["mu", "mirrorU"], &["mv", "mirrorV"]];
 
 /// La texture glTF branchée sur l'une de ces entrées d'un nœud, sous la forme que glTF attend d'un
 /// emplacement de texture : `{"index": …}`.
@@ -32,8 +49,7 @@ pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
         .attr(&["ftn", "fileTextureName"])
         .and_then(|attr| attr.texts().first().cloned())?;
     let index = image(world, &written)?;
-    let mode = wrap(world, node);
-    let sampler = world.scene.sampler(mode);
+    let sampler = sampler(world, node);
     Some(slot(world, index, sampler))
 }
 
@@ -109,20 +125,47 @@ fn slot(world: &mut World<'_>, source: usize, sampler: usize) -> Value {
     json!({ "index": index })
 }
 
-/// Le mode de répétition, lu sur le `place2dTexture` branché sur les coordonnées du nœud `file`.
-/// Maya répète par défaut : `wrapU` ou `wrapV` explicitement faux borne, et la scène intermédiaire
-/// n'en porte qu'un par échantillonneur, donc c'est `wrapU` qui décide et `wrapV` qui suit.
-fn wrap(world: &World<'_>, node: usize) -> u32 {
-    let placed = world
+/// L'échantillonneur de ce nœud `file`, lu sur le `place2dTexture` branché sur ses coordonnées.
+/// Maya répète par défaut, et `wrapU` comme `wrapV` bornent séparément l'axe qu'ils nomment. Ce
+/// même nœud porte le placage — répétition, décalage, rotation, miroir —, que la sortie ne porte
+/// pas : ce qui ne passe pas est compté par son nom plutôt que perdu en silence.
+fn sampler(world: &mut World<'_>, node: usize) -> usize {
+    let document = world.document;
+    let place = world
         .graph
         .input(node, &["uv", "uvCoord"])
-        .map(|(source, _)| &world.document.nodes[source]);
-    let repeats = placed
-        .and_then(|place| place.attr(&["wu", "wrapU"]))
-        .and_then(Attr::flag)
-        .unwrap_or(true);
-    match repeats {
-        true => 10497,
-        false => 33071,
+        .map(|(source, _)| &document.nodes[source]);
+    if let Some(place) = place {
+        if MIRRORS
+            .iter()
+            .any(|names| place.attr(names).and_then(Attr::flag) == Some(true))
+        {
+            world.refuse(report::TEXTURE_MIRROR);
+        }
+        if PLACEMENTS
+            .iter()
+            .any(|(names, neutral)| moved(place, names, *neutral))
+        {
+            world.refuse(report::TEXTURE_TRANSFORM);
+        }
     }
+    let repeats = |names: &[&str]| match place
+        .and_then(|place| place.attr(names))
+        .and_then(Attr::flag)
+        .unwrap_or(true)
+    {
+        true => REPEAT,
+        false => CLAMP,
+    };
+    world
+        .scene
+        .sampler_uv(repeats(&["wu", "wrapU"]), repeats(&["wv", "wrapV"]))
+}
+
+/// Cette composante du placage est-elle écrite ailleurs qu'à sa valeur neutre ?
+fn moved(place: &Node, names: &[&str], neutral: f64) -> bool {
+    place
+        .attr(names)
+        .map(Attr::numbers)
+        .is_some_and(|values| values.iter().any(|value| *value != neutral))
 }

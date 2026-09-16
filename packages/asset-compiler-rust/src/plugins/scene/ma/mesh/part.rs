@@ -7,7 +7,8 @@
 //!
 //! Une primitive glTF porte ses attributs pour tous ses sommets ou pour aucun. Une part dont une
 //! face seulement porte des coordonnées de texture n'en porte donc aucune, et l'écart est compté :
-//! donner `(0, 0)` aux autres inventerait un placage que le fichier n'écrit pas.
+//! donner `(0, 0)` aux autres inventerait un placage que le fichier n'écrit pas. Ce que devient un
+//! coin de face, lui, se lit dans `corner`.
 use super::*;
 use crate::import::{primitive, Vertices};
 use crate::plugins::scene::{cancel, ngon::Ngon};
@@ -139,61 +140,4 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
     let scene = &mut world.scene;
     let value = primitive(&out, &mut scene.bin, &mut scene.accessors, part.material);
     Some((value, triangles))
-}
-
-impl Surface {
-    /// Verse l'anneau d'une face dans le découpeur et le coupe. Rend `false` quand la face n'a pas
-    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte.
-    fn cut(&self, cutter: &mut Ngon, face: usize) -> bool {
-        cutter.begin();
-        for vertex in self.loops.get(face).map_or(&[][..], Vec::as_slice) {
-            let point = self.positions.get(*vertex as usize);
-            cutter.corner(point.copied().unwrap_or_default());
-        }
-        cutter.cut()
-    }
-
-    /// Le sommet glTF d'un coin de face, créé à sa première rencontre. Trois rangs l'identifient :
-    /// sa position, sa coordonnée de texture et l'endroit où se lit sa normale. Deux coins qui les
-    /// partagent tous les trois sont le même sommet.
-    fn corner(
-        &self,
-        out: &mut Vertices,
-        unique: &mut HashMap<[u32; 3], u32>,
-        (face, rank): (usize, usize),
-        textured: bool,
-    ) -> Option<u32> {
-        let vertex = *self.loops.get(face)?.get(rank)?;
-        let uv = textured
-            .then(|| self.uv_slots.get(face)?.get(rank).copied())
-            .flatten()
-            .and_then(|slot| usize::try_from(slot).ok())
-            .filter(|slot| *slot < self.uvs.len());
-        let shade = match self.shading {
-            Shading::Vertex => vertex as usize,
-            Shading::Corner => self.bases.get(face)? + rank,
-            Shading::Face => face,
-        };
-        let key = [
-            vertex,
-            uv.and_then(|slot| u32::try_from(slot).ok())
-                .unwrap_or(u32::MAX),
-            u32::try_from(shade).ok()?,
-        ];
-        if let Some(known) = unique.get(&key) {
-            return Some(*known);
-        }
-        let id = u32::try_from(unique.len()).ok()?;
-        let position = self.positions.get(vertex as usize)?;
-        out.positions.extend(position.map(|axis| axis as f32));
-        let written = self.normals.get(shade).copied().unwrap_or([0.0, 1.0, 0.0]);
-        let normal = crate::shared_math::normalized_or(written, [0.0, 1.0, 0.0]);
-        out.normals.extend(normal.map(|axis| axis as f32));
-        if textured {
-            let [u, v] = uv.map_or([0.0, 0.0], |slot| self.uvs[slot]);
-            out.uvs.extend([u as f32, 1.0 - v as f32]);
-        }
-        unique.insert(key, id);
-        Some(id)
-    }
 }
