@@ -1,5 +1,5 @@
 import { createSynchronousCanvasCapture } from './gpuPresentation.ts';
-import { collectPendingUrls, pageRequestUrl } from './pageSelection.ts';
+import { collectPendingUrls } from './pageSelection.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { defaultEngineCamera } from './cameraWorld.ts';
@@ -152,10 +152,8 @@ export function pageUrls(rt: WebgpuPagesRuntime) {
   held.limited = run.coverageBudgetLimited;
   urlScratch.length = 0;
   stamps.begin();
-  for (const list of [rt.setup.bootstrap, run.shown, run.coverageBudgetLimited ? [] : run.desired])
-    for (let i = 0; i < list.length; i++) {
-      const rec = list[i];
-      if (stamps.first(rec.requestIndex)) urlScratch.push(pageRequestUrl(rec));
-    }
+  stamps.mark(rt.setup.bootstrap, urlScratch);
+  stamps.mark(run.shown, urlScratch);
+  if (!run.coverageBudgetLimited) stamps.mark(run.desired, urlScratch);
   return urlScratch;
 }
