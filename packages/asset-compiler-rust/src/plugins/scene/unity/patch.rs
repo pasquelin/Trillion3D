@@ -22,6 +22,8 @@ pub(super) struct Changes {
     ignored: BTreeMap<String, usize>,
     /// Les retouches d'emplacement de matériau dont l'indice ne décrit aucun rendu.
     unplaceable: usize,
+    /// Ce que l'instance change dans la structure de sa source, et non dans ses propriétés.
+    pub(super) structure: Structure,
 }
 
 /// Les préfixes d'une transformation locale : les trois grandeurs que le glTF porte, et rien
@@ -45,6 +47,7 @@ impl Changes {
             };
             changes.read_one(target, path, change);
         }
+        changes.structure = Structure::read(modification);
         changes
     }
 
@@ -123,6 +126,7 @@ impl Changes {
                 .map(|(target, flag)| (*target, *flag))
                 .collect()
         };
+        self.structure.overlay(&outer.structure);
         self.active.extend(pairs(&outer.active));
         self.enabled.extend(pairs(&outer.enabled));
         for (target, slots) in &outer.materials {
@@ -170,6 +174,7 @@ impl Changes {
             self.ignored.values().sum::<usize>() + self.unplaceable,
         );
         scene.report.add_count(SLOT_INVALID, self.unplaceable);
+        self.structure.report(scene);
         for (property, count) in &self.ignored {
             scene.report.add_count(
                 &format!("unity-prefab-modification-ignored:{property}"),
