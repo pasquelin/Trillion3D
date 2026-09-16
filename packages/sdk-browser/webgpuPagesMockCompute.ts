@@ -1,6 +1,7 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
 import { evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
+import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -124,6 +125,13 @@ export function simulateComputeDispatch(
     const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
     flags.fill(0, packed.nodeCount);
     for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
+    // La coupe compacte ensuite ces drapeaux : le relevé ne rapporte que le compte et ses rangs.
+    compactDrawnPages(
+      byBinding.get(3)!.data,
+      byBinding.get(4)!.data,
+      packed.nodeCount,
+      packed.pageCount,
+    );
   }
   const out = byBinding.get(4)!.data;
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
