@@ -1,4 +1,5 @@
-import { FLAG_CLIP, ROW_DATA_U32, ROW_NEAREST } from './gpuPartitionContract.ts';
+import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from './gpuPartitionContract.ts';
+import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 
 /** Doubles d'une boîte monde : huit coins de trois coordonnées, comme `createBoxCorners` les tient.
  *  C'est la disposition de la RÉFÉRENCE, pas celle du tampon en deux mots que le noyau lit. */
@@ -64,9 +65,9 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     const base = row * ROW_DATA_U32;
     for (let k = 0; k < 4; k++) rect[row * 4 + k] = ints[base + k];
     nearest[row] = floats[base + ROW_NEAREST];
-    clips[row] = words[base + ROW_NEAREST + 1] & FLAG_CLIP ? 1 : 0;
+    clips[row] = words[base + ROW_FLAGS] & FLAG_CLIP ? 1 : 0;
     const rec = table.packedRecs[row];
-    layers[row] = rec ? Math.min(rec.depthLayer, Math.max(0, rt.vis.drawLayerSlots - 1)) : 0;
+    layers[row] = rec ? Math.min(rec.depthLayer, visLayerTop(rt.vis)) : 0;
     if (!rec) continue;
     // Les coins que la carte a lus sont ceux-ci, arrondis en simple précision pour le transport :
     // la référence part donc des mêmes doubles, et l'arrondi entre dans la borne d'erreur du noyau.

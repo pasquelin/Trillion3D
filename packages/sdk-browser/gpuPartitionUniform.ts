@@ -7,6 +7,7 @@ import {
   UNI_SCALARS,
   UNI_VIEW,
   UNI_VIEW_PROJ,
+  writeSplitDouble,
 } from './gpuPartitionContract.ts';
 
 /** Ce qu'une image dit à la partition, et rien de plus : deux matrices, une ancre, sept entiers. */
@@ -56,19 +57,18 @@ function writeAnchored(
 export function createPartitionUniformWriter() {
   const words = new Uint32Array(UNIFORM_U32),
     floats = new Float32Array(words.buffer);
-  return (device: GPUDevice, target: GPUBuffer, frame: PartitionFrame) => {
+  // `rows` arrive à part : l'appelant le plafonne à la capacité du tampon, et le passer ainsi évite
+  // de recopier l'image entière dans un objet neuf à chaque appel.
+  return (device: GPUDevice, target: GPUBuffer, frame: PartitionFrame, rows: number) => {
     writeAnchored(floats, UNI_VIEW, frame.view, frame.anchor);
     writeAnchored(floats, UNI_VIEW_PROJ, frame.viewProj, frame.anchor);
     // L'ancre part elle aussi en deux mots : le noyau retranche les deux, et l'écart qu'il obtient
     // vaut celui du double d'origine à un ulp au carré près.
-    for (let i = 0; i < 3; i++) {
-      const high = Math.fround(frame.anchor[i]);
-      floats[UNI_ANCHOR + i] = high;
-      floats[UNI_ANCHOR_LOW + i] = frame.anchor[i] - high;
-    }
+    for (let i = 0; i < 3; i++)
+      writeSplitDouble(floats, UNI_ANCHOR + i, UNI_ANCHOR_LOW + i, frame.anchor[i]);
     floats[UNI_ANCHOR + 3] = frame.near;
     floats[UNI_ANCHOR_LOW + 3] = 0;
-    words[UNI_SCALARS] = frame.rows;
+    words[UNI_SCALARS] = rows;
     words[UNI_SCALARS + 1] = frame.width;
     words[UNI_SCALARS + 2] = frame.height;
     words[UNI_SCALARS + 3] = Math.min(frame.levels.length, MAX_HIZ_LEVELS);

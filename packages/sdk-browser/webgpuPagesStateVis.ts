@@ -33,10 +33,8 @@ export interface WebgpuVisState {
   gpuSmall: GpuSmallTriangles | undefined;
   hybridUnavailable: boolean;
   visHizRestBack: GPURenderPipeline | undefined;
-  visHizRestBackCw: GPURenderPipeline | undefined;
   visHizRestNone: GPURenderPipeline | undefined;
   visHizRestFront: GPURenderPipeline | undefined;
-  visHizRestFrontCw: GPURenderPipeline | undefined;
   /**
    * Pipelines des couches coplanaires au-dessus de 0 : mêmes modules et mêmes états que la couche 0,
    * plus le décalage de profondeur de la couche en unités matérielles. Une scène sans surface
@@ -103,10 +101,8 @@ export function createWebgpuVisState(): WebgpuVisState {
     gpuSmall: undefined,
     hybridUnavailable: false,
     visHizRestBack: undefined,
-    visHizRestBackCw: undefined,
     visHizRestNone: undefined,
     visHizRestFront: undefined,
-    visHizRestFrontCw: undefined,
     visLayerPipelines: [],
     drawLayerSlots: 1,
     gpuPartition: undefined,

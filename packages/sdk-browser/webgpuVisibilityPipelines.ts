@@ -67,8 +67,6 @@ export function createWebgpuVisibilityRasterPipelines(
       visHizRestBack: hiz ? make('vis_hiz_vs', fragment, 'back') : undefined,
       visHizRestNone: hiz ? make('vis_hiz_vs', fragment, 'none') : undefined,
       visHizRestFront: hiz ? make('vis_hiz_vs', fragment, 'front') : undefined,
-      visHizRestBackCw: hiz ? make('vis_hiz_vs', fragment, 'back', 'cw') : undefined,
-      visHizRestFrontCw: hiz ? make('vis_hiz_vs', fragment, 'front', 'cw') : undefined,
     };
   });
 }

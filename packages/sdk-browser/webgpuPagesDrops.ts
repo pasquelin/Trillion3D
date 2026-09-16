@@ -78,10 +78,8 @@ export function dropGpuHiz(rt: WebgpuPagesRuntime) {
   vis.gpuHiz = undefined;
   vis.visHizBindGroup = undefined;
   vis.visHizRestBack = undefined;
-  vis.visHizRestBackCw = undefined;
   vis.visHizRestNone = undefined;
   vis.visHizRestFront = undefined;
-  vis.visHizRestFrontCw = undefined;
   resetHizHistory(rt.run);
 }
 

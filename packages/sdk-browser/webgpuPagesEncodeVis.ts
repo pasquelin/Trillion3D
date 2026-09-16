@@ -5,6 +5,7 @@ import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
 import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
+import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import { uploadDirtyRows } from './webgpuPagesEncodeDraws.ts';
@@ -52,7 +53,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     );
   // Les mots de fiche ne suivent que la table de lignes : la plage sale de cette image-ci, et rien
   // de plus. Il faut les tenir à jour AVANT `uploadDirtyRows`, qui referme cette plage.
-  const words = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, vis.gpuDraw);
+  const words = refreshDrawItemWords(rt, visLayerTop(rt.vis), vis.gpuDraw);
   timing.encodeCounts.fichesTeleversees = Math.max(0, words.to - words.from + 1);
   // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
   // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.

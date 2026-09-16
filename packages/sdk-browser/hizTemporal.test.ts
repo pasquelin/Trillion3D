@@ -9,13 +9,12 @@ import {
   createBoxCorners,
   filterUnoccluded,
   projectBoxesFlat,
-  splitOccludersFlat,
   visibilityDepth,
   applyTemporalHiz,
   type HizPage,
   type TemporalHizState,
 } from './hiz.ts';
-import { splitOccludersInto } from './hizSplit.ts';
+import { splitOccludersFlat, splitOccludersInto } from './hizSplit.ts';
 import { cameraAt, projectBoxToScreen, quad } from '../../test/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
