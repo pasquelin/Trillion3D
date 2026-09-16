@@ -53,6 +53,7 @@ mod unity_instances;
 mod unity_maillages;
 mod unity_projet;
 mod unity_proprietes;
+mod unity_sparse;
 mod unitypackage_golden;
 mod uri_pilotes;
 mod usd_driver;
