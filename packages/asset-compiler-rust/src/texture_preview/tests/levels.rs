@@ -24,7 +24,7 @@ fn each_level_is_the_exact_2x2_average_of_the_previous_one() {
             255,
         ]
     });
-    let (first, pixels) = reduce::pyramid(&source, None);
+    let (first, pixels) = reduce::pyramid(&source, Transfer::Srgb, None);
     assert_eq!(first, 0, "une source de 32 px tient déjà sous la base");
     let count = preview_level_count(width, height) as usize;
     for index in 0..count - 1 {

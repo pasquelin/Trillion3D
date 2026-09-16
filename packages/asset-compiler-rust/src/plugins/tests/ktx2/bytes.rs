@@ -45,15 +45,41 @@ pub(super) fn container(format: u32, width: u32, height: u32, level: &[u8]) -> V
 /// Le même, dont l'entête annonce `levels` niveaux alors qu'un seul est écrit : les entrées
 /// supplémentaires pointent au-delà de la fin du fichier, donc la chaîne annoncée ment.
 pub(super) fn chain(format: u32, width: u32, height: u32, level: &[u8], levels: u32) -> Vec<u8> {
+    described(format, width, height, level, levels, None, &[])
+}
+
+/// Le même conteneur, avec le descripteur de format et les clés que le pilote lit pour savoir ce
+/// que le fichier déclare autour de ses pixels. `dfd` donne le `transferFunction` et les `flags` du
+/// bloc de base ; `keys` donne les entrées de la section clé-valeur, dans l'ordre.
+pub(super) fn described(
+    format: u32,
+    width: u32,
+    height: u32,
+    level: &[u8],
+    levels: u32,
+    dfd: Option<(u8, u8)>,
+    keys: &[(&str, &str)],
+) -> Vec<u8> {
     let count = levels.max(1) as usize;
-    let data = HEADER_END + count * LEVEL_ENTRY;
+    let descriptor = dfd.map(|(transfer, flags)| block(transfer, flags));
+    let pairs = key_values(keys);
+    let index = HEADER_END + count * LEVEL_ENTRY;
+    let dfd_at = descriptor.as_ref().map_or(0, |_| index);
+    let dfd_len = descriptor.as_ref().map_or(0, Vec::len);
+    let kvd_at = if pairs.is_empty() { 0 } else { index + dfd_len };
+    let data = index + dfd_len + pairs.len();
     let mut out = Vec::with_capacity(data + level.len());
     out.extend_from_slice(&MAGIC);
     for value in [format, 1, width, height, 0, 0, 1, levels, 0] {
         put(&mut out, value);
     }
-    for _ in 0..4 {
-        put(&mut out, 0);
+    for value in [
+        dfd_at as u32,
+        dfd_len as u32,
+        kvd_at as u32,
+        pairs.len() as u32,
+    ] {
+        put(&mut out, value);
     }
     for _ in 0..2 {
         put64(&mut out, 0);
@@ -66,7 +92,42 @@ pub(super) fn chain(format: u32, width: u32, height: u32, level: &[u8], levels: 
             put64(&mut out, value);
         }
     }
+    out.extend_from_slice(&descriptor.unwrap_or_default());
+    out.extend_from_slice(&pairs);
     out.extend_from_slice(level);
+    out
+}
+
+/// Le descripteur de format, réduit à son bloc de base sans échantillon : sa taille totale, puis le
+/// bloc lui-même — identifiant du fournisseur et type, version et taille du bloc, modèle de
+/// couleur, primaires, fonction de transfert, drapeaux, géométrie du bloc de texels et poids des
+/// plans. Seuls les deux octets du milieu intéressent le pilote.
+fn block(transfer: u8, flags: u8) -> Vec<u8> {
+    let mut out = Vec::new();
+    put(&mut out, 28);
+    put(&mut out, 0);
+    put(&mut out, 24 << 16 | 2);
+    // Modèle RVB avec alpha, primaires BT.709, puis la fonction de transfert et les drapeaux.
+    out.extend_from_slice(&[1, 1, transfer, flags]);
+    out.extend_from_slice(&[0; 12]);
+    out
+}
+
+/// La section clé-valeur : chaque entrée porte sa longueur sur quatre octets, puis sa clé terminée
+/// par un zéro, puis sa valeur terminée par un zéro, le tout complété jusqu'au multiple de quatre.
+fn key_values(keys: &[(&str, &str)]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for (key, value) in keys {
+        let mut entry = Vec::from(key.as_bytes());
+        entry.push(0);
+        entry.extend_from_slice(value.as_bytes());
+        entry.push(0);
+        put(&mut out, entry.len() as u32);
+        out.extend_from_slice(&entry);
+        while out.len() % 4 != 0 {
+            out.push(0);
+        }
+    }
     out
 }
 
