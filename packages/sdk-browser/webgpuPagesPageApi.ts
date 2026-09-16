@@ -4,6 +4,7 @@ import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 /** Takes the bytes of one request; each cluster it carries gets its own view at its own offset. */
 export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array) {
   const { run, diag } = rt,
+    { rows } = rt.layout,
     { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
   run.deferredDrops.delete(url);
   const recs = byUrl.get(url);
@@ -16,7 +17,9 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
   run.gate.resourcesChanged();
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i],
-      view = rec.array!;
+      view = rec.array!,
+      page = rows.pageIndexOf(rec);
+    if (page !== undefined) rows.touchPage(page);
     sourceBytes.set(rec.url, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
   }
   // Le relevé est une fonction, pas un objet : ses trois balayages de la liste des clusters — un
@@ -36,6 +39,7 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
 /** Releases one request, unless a cluster it carries is pinned, wanted or part of the bootstrap. */
 export function dropPage(rt: WebgpuPagesCore, url: string) {
   const { run, gpu, diag } = rt,
+    { rows } = rt.layout,
     { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
   const recs = byUrl.get(url);
   if (!recs) return;
@@ -71,7 +75,11 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
   run.pageArrayEpoch++;
   run.gate.resourcesChanged();
   for (let i = 0; i < recs.length; i++) {
-    const rec = recs[i];
+    const rec = recs[i],
+      page = rows.pageIndexOf(rec);
+    // Les octets d'un cluster sont ce qui le rend dessinable au même titre que sa place en cache :
+    // la page est nommée ici pour que la synchronisation des rangs la revoie.
+    if (page !== undefined) rows.touchPage(page);
     rec.array = undefined;
     rec.indexBytes = rec.triangles * 12;
     sourceBytes.delete(rec.url);

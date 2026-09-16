@@ -32,7 +32,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    onOffsetChange: (page, offset) => updateTransparentSpan(rt, page, offset),
+    onOffsetChange: (page, offset) => (rows.touchPage(page), updateTransparentSpan(rt, page, offset)),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
@@ -49,7 +49,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   });
   // Le miroir de résidence est le seul état incrémental de ce chemin : son journal est vérifié
   // contre le cache à chaque vidange, et reconstruit au moindre désaccord plutôt que de dériver.
-  const { commitRows, sourceRowOf } = createWebgpuRowCommit(rows, writePageRow);
+  const commit = createWebgpuRowCommit(rows, writePageRow);
   const { syncRows, syncRowsFromCut } = createWebgpuRowSync(
     rows,
     mirror,
@@ -57,7 +57,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.drawn,
     drawSlots,
     () => !!gpu.cache,
-    { commitRows, sourceRowOf },
+    commit,
     // Origine du changement de ressources : la page entre dans la résidence ou en sort.
     (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
