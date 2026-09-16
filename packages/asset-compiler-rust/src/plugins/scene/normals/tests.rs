@@ -5,9 +5,7 @@
 use super::*;
 
 /// Cinq sommets : l'arête partagée, puis un sommet libre par face.
-const POINTS: [f32; 15] = [
-    0., 0., 0., 1., 0., 0., 0., 1., 0., 0., -1., 0., 0., 0., 1.,
-];
+const POINTS: [f32; 15] = [0., 0., 0., 1., 0., 0., 0., 1., 0., 0., -1., 0., 0., 0., 1.];
 /// Trois triangles qui se partagent tous l'arête `0–1`, chacun dans son propre plan.
 const FAN: [[u32; 3]; 3] = [[0, 1, 2], [1, 0, 3], [0, 1, 4]];
 

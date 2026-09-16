@@ -158,10 +158,7 @@ fn la_courbe_declaree_par_les_morceaux_est_portee_par_le_contrat() {
     // convention le veut pour un fichier qui se tait, et l'écart est compté par son nom.
     assert_eq!(
         declares(&with_chunk("rgb8.png", b"gAMA", &gamma(50_000))),
-        (
-            registry::Transfer::Srgb,
-            vec!["image-transfer-unsupported"]
-        ),
+        (registry::Transfer::Srgb, vec!["image-transfer-unsupported"]),
         "une courbe inhabituelle se compte"
     );
     // La priorité : un morceau `sRGB` l'emporte sur `gAMA`, un profil `iCCP` sur les deux — c'est
@@ -174,10 +171,7 @@ fn la_courbe_declaree_par_les_morceaux_est_portee_par_le_contrat() {
     );
     assert_eq!(
         declares(&with_chunk("icc-autre.png", b"gAMA", &gamma(100_000))),
-        (
-            registry::Transfer::Srgb,
-            vec!["image-icc-profile-ignored"]
-        ),
+        (registry::Transfer::Srgb, vec!["image-icc-profile-ignored"]),
         "un profil colorimétrique l'emporte sur gAMA, et reste compté seul"
     );
     // Un fichier qui ne déclare rien garde la courbe que la convention lui prête.

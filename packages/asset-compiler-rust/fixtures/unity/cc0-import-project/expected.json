@@ -255,7 +255,7 @@
   "notes": [],
   "plugin": {
     "name": "unity",
-    "version": "unity-yaml-rust2-0.13-gltf-5"
+    "version": "unity-yaml-rust2-0.13-gltf-6"
   },
   "roots": [3, 7, 11, 15, 16, 17, 19, 22, 26],
   "rule": "Unity est en main gauche, le glTF en main droite : z devient -z, le quaternion (x, y, z, w) devient (-x, -y, z, w), l echelle ne bouge pas. Prop_Model, pose en (1, 2, 3) et tourne d un quart de tour autour de Y, sort en (1, 2, -3) avec (0, -0.7071067811865476, 0, 0.7071067811865476), echelle 2 ; rugosite = 1 - lissage, donc 0,75 donne 0,25. Seul le niveau de LOD le plus fin est garde : dix rendus ecartes. L echelle d import vaut globalScale x (useFileScale ? fileScale : 1) / unite du fichier, soit 2 ici : les matrices des noeuds du modele sont multipliees par 2, sa geometrie ne bouge pas. Le fileID 4300002 est nomme Icosphere.001 par internalIDToNameTable : seul ce maillage est retenu, 80 triangles ; le fileID 4300000, absent de la table, laisse instancier le modele entier et le fait est compte. Les retouches de prefab qui changent la geometrie ou le rendu sont appliquees, les autres comptees par propriete. Le rapport du pilote qui a lu le modele remonte dans celui de la scene : les trois materiaux du FBX declarent une couleur speculaire que le glTF ne porte pas, comptee material-specular-color.",

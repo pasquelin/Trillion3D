@@ -28,11 +28,7 @@ fn refusal(tag: &str, gltf_nodes: Value, scenes: Option<Value>) -> Option<String
 #[test]
 fn un_cycle_de_noeuds_est_refuse_avant_publication() {
     assert_eq!(
-        refusal(
-            "auto",
-            json!([{"mesh":0,"children":[0]},{"mesh":0}]),
-            None
-        ),
+        refusal("auto", json!([{"mesh":0,"children":[0]},{"mesh":0}]), None),
         Some("auto:INVALID_GLTF".into()),
         "un nœud son propre enfant ferme un cycle"
     );
