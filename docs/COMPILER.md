@@ -37,7 +37,7 @@ web-geometry-compiler --version
 | threads             | Worker threads for clustering and simplification (1–64)                                                                                                                                                                                              | `2`      |
 | `RAM_MB`            | Admission budget: the job is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`) when its estimated working set exceeds it. This is a guard, not an enforced limit                                                                                             | `256`    |
 | `RESOURCE_BASE_URL` | URL prefix under which the host serves the **source** directory; relative image URIs are rewritten against it                                                                                                                                        | required |
-| simplification      | `none` keeps exact clusters only; `qem-endpoints` builds the coarser levels of the DAG                                                                                                                                                               | `none`   |
+| simplification      | `none` keeps exact clusters only — one DAG level, every cluster a root; `qem-endpoints` builds the coarser levels above them                                                                                                                         | `none`   |
 
 Examples:
 
@@ -46,6 +46,10 @@ web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets
 web-geometry-compiler scenes/london cache/london full 150000 8 8192 /assets/london/ qem-endpoints   # a folder of FBX files
 web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
 ```
+
+`simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
+
+A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` says which nodes were kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`).
 
 ## The three streams
 
@@ -100,7 +104,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.1.0",
+  "compilerVersion": "0.2.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
@@ -201,7 +205,7 @@ When `SOURCE` is a `.fbx`/`.obj` file, or a directory holding such files and nei
   manifest.json    source manifest read by the compile step, plus an import report
 ```
 
-`<import-key>` hashes every input file, the driver's name and version, **and every file the reader opened on top of them** — the `.mtl` an OBJ cites, absence included. An unchanged source read by the same driver is imported once and reused (`import-source/reused`); a touched, deleted or newly appearing material library gives another key, so the scene served always matches the library on disk. The compile step then behaves exactly as for a hand-made glTF folder.
+`<import-key>` hashes every input file, the driver's name and version, **every file the reader opened on top of them** — the `.mtl` an OBJ cites, absence included — **and every image path the texture resolution tried**: the candidate path, whether it was there, and its bytes when it was. Images are never opened by the reader, but their mere presence picks the URI the intermediate glTF carries, so leaving them out of the key served the scene compiled before the image existed. An unchanged source read by the same driver is imported once and reused (`import-source/reused`); a touched, deleted or newly appearing material library **or texture** gives another key, so the scene served always matches what is on disk. The import manifest still lists only the files the reader opened, never the dozens of candidate paths; what the resolution kept is read in `images`. The compile step then behaves exactly as for a hand-made glTF folder.
 
 What is carried:
 
