@@ -51,8 +51,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
     .pump()
     .catch((error) => diag.diagnosticFailure('progressive-texture-mips-failed', error));
   // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
-  // retrouverait toutes à l'identique. Elles ne sont donc remontées qu'à un changement de révision
-  // de scène, et `setWebgpuTransform` n'y remonte déjà que le sous-arbre qu'il a déplacé.
+  // retrouverait toutes à l'identique. L'index du moteur n'est donc recalculé qu'à un changement de
+  // révision de scène, et un nœud que `setWebgpuTransform` vient de déplacer l'a déjà recalculé.
   run.gate.updateWorlds(rt.setup.worlds);
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // Ce qui part vers le noyau de coupe est ramené à l'œil (`cameraRenderOrigin.ts`) : une caméra
