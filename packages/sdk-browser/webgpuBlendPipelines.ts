@@ -1,5 +1,5 @@
-import { BLEND_SHADER } from './webgpuPagesShaders.ts';
-import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import { BLEND_SHADER } from './webgpuBlendShader.ts';
+import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
 import { VOLUME_SIZE } from './webgpuTransmission.ts';
@@ -27,8 +27,11 @@ export async function createWebgpuBlendPipelines(
       {
         binding: b.uniform,
         visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: UNIFORM_STRIDE },
+        buffer: { type: 'uniform', minBindingSize: BLEND_VIEW_SIZE },
       },
+      // La fiche de chaque item, lue au rang que l'indice de sommet porte : c'est elle qui remplace
+      // le decalage dynamique d'uniforme, et donc le groupe de liaison par appel.
+      { binding: b.items, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       ...b.maps.map((binding) => atlasLayoutEntry(binding)),
       { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
       ...b.dataMaps.map((binding) => atlasLayoutEntry(binding)),

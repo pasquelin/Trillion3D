@@ -73,11 +73,11 @@ export function copyBackdrop(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder)
   return true;
 }
 
-/** Le volume d'un item par entrée, dans l'ordre de la liste de dessin : le décalage dynamique de la
- *  liaison est le rang de l'item, le même que celui de son uniforme principal. */
-export function writeVolumeUniforms(rt: WebgpuPagesRuntime, device: GPUDevice) {
+/** Le volume de chaque item, au rang que l'item porte dans la scène : c'est le décalage dynamique
+ *  que la passe de transmission pose. Écrit avec les fiches, jamais par image. */
+export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, blendState } = rt,
-    items = blendState.visibleBlend,
+    items = blendState.blendGpu,
     packed = blendState.volumePacked;
   if (!gpu.volumeBuffer || !items.length) return;
   for (let i = 0; i < items.length; i++) {
