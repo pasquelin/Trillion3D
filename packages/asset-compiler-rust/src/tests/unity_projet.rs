@@ -115,3 +115,13 @@ pub(super) fn node_named<'a>(gltf: &'a Value, name: &str) -> Option<&'a Value> {
         .iter()
         .find(|node| node["name"] == name)
 }
+
+/// Le matériau de ce nom, tel que le pilote l'a écrit.
+pub(super) fn material_named<'a>(gltf: &'a Value, name: &str) -> &'a Value {
+    gltf["materials"]
+        .as_array()
+        .expect("materials")
+        .iter()
+        .find(|material| material["name"] == name)
+        .unwrap_or_else(|| panic!("le matériau {name}"))
+}
