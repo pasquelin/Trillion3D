@@ -13,7 +13,15 @@
  *
  * où `hauteur_écran / (2 × tan(fov/2))` est exactement la focale en pixels `focal` que le moteur
  * passe déjà aux deux métriques, et `distance` la profondeur de vue du centre de la sphère. Aucun
- * terme latéral, aucun étirement, une seule garde au plan proche.
+ * terme latéral, aucun rayon englobant, aucun déplacement au dénominateur, une garde au plan
+ * proche et rien d'autre.
+ *
+ * L'erreur d'un cluster est rangée dans les unités de sa primitive, la distance se lit en unités de
+ * vue : `stretch` reste donc en facteur, il ne fait que convertir les unes dans les autres. Sans
+ * lui la comparaison mesurerait l'échelle de la scène et non la forme de la métrique — vérifié :
+ * sur la scène du banc l'échelle est bien inférieure à 1, et l'omettre inversait le verdict. Pour
+ * une transformation conforme `maxStretch` vaut exactement cette échelle uniforme ; c'est seulement
+ * hors conforme que le terme anisotrope sépare encore les deux métriques.
  *
  * Source publique de la formule : B. Karis, R. Stubbe et G. Wihlidal, présentation de la référence
  * externe sur la géométrie virtualisée, cours « Advances in Real-Time Rendering in Games »,
@@ -41,16 +49,19 @@ export function screenErrorVariant(): ScreenErrorVariant {
 }
 
 /**
- * L'erreur écran de la référence externe : `erreur × focale / profondeur`, l'infini quand la
- * profondeur du centre n'atteint pas le plan proche. Miroir WGSL dans `gpuDagShaderError.ts`,
- * mêmes opérandes et même ordre, au f32 près. L'appelant a déjà traité l'erreur nulle ou infinie.
+ * L'erreur écran de la référence externe : `(erreur × étirement) × focale / profondeur`, l'infini
+ * quand la profondeur du centre n'atteint pas le plan proche. Miroir WGSL dans
+ * `gpuDagShaderError.ts`, mêmes opérandes et même ordre, au f32 près. L'appelant a déjà traité
+ * l'erreur nulle ou infinie.
  */
 export function referenceScreenError(
   error: number,
+  stretch: number,
   depth: number,
   focal: number,
   near: number,
 ): number {
   if (!(depth > near)) return Infinity;
-  return (error * focal) / depth;
+  const shift = error * stretch;
+  return (shift * focal) / depth;
 }

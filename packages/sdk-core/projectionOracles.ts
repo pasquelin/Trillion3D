@@ -111,9 +111,9 @@ export function screenErrorBound(
   focal: number,
   near: number,
 ): number {
-  // Commutateur d'EXPÉRIENCE (`screenErrorVariant.ts`) : hors `certifiee`, la métrique de la
-  // référence externe remplace la borne ici, pour toute la sélection processeur d'un coup.
-  if (screenErrorVariant() !== 'certifiee') return referenceScreenError(error, depth, focal, near);
+  // Commutateur d'EXPÉRIENCE (`screenErrorVariant.ts`), lu ici pour toute la sélection processeur.
+  if (screenErrorVariant() !== 'certifiee')
+    return referenceScreenError(error, stretch, depth, focal, near);
   const reach = radius * stretch,
     shift = error * stretch;
   const nearest = depth - reach,

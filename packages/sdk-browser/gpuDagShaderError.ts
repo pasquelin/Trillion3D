@@ -19,7 +19,7 @@ ${REFERENCE_ERROR_DECL}
 /** Majorant du déplacement écran de tout point de la sphère déplacé d'au plus \`error\` : profondeur
  *  minimale m, distance a l'axe l, rayon et erreur etires rho et delta,
  *  E = (delta*f/m)*(sqrt(m*m+(l+rho)^2)/(m-delta)) ; plan proche atteint : INF.
- *  Sous \`REFERENCE_ERROR\`, la projection simple de la reference externe : error*f/profondeur. */
+ *  Sous \`REFERENCE_ERROR\`, la projection simple de la reference externe : delta*f/profondeur. */
 fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)){return INF;}
@@ -27,7 +27,8 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  if(REFERENCE_ERROR){
   let depth=-v.z;
   if(!(depth>uni.near)){return INF;}
-  return (error*focal)/depth;
+  let delta=error*stretch;
+  return (delta*focal)/depth;
  }
  let reach=sphere.w*stretch;let shift=error*stretch;
  let nearest=-v.z-reach;let closest=nearest-shift;let side=sqrt(v.x*v.x+v.y*v.y)+reach;
