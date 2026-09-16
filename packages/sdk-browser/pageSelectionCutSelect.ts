@@ -51,7 +51,9 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     s.flatForcedList.length = 0;
   }
   const startWanted = s.wantedCount,
-    startShown = s.shownCount;
+    startShown = s.shownCount,
+    startRejected = s.frustumRejected,
+    startNodes = s.nodesTested;
   s.flatUseForcing = false;
   s.flatMissing = false;
   traverse(s, pages, root.culling);
@@ -87,6 +89,12 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     return;
   }
   truncateShown(s, startShown);
+  // La première descente est abandonnée : ses rejets par le tronc et ses nœuds visités le sont avec
+  // elle, comme les pages qu'elle avait retenues. Sans cela, deux images qui portent exactement la
+  // même coupe annoncent deux parcours différents selon que le repli s'est armé ou non, et le
+  // témoin d'image tenue ne les voit jamais identiques.
+  s.frustumRejected = startRejected;
+  s.nodesTested = startNodes;
   s.flatShort = false;
   traverse(s, pages, root.culling);
   s.flatUseForcing = false;

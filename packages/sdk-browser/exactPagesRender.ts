@@ -138,13 +138,6 @@ export function createExactPagesRender(
     row[EXACT_CPU_STEP.pendingMs] = 0;
     row[EXACT_CPU_STEP.retainMs] = 0;
     row[EXACT_CPU_STEP.submitMs] = 0;
-    gate.keep(
-      state.visible,
-      state.selectedTriangles,
-      state.frustumRejected,
-      state.lodLevel,
-      shown.length,
-      state.overBudget,
-    );
+    gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
 }

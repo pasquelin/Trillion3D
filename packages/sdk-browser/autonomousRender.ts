@@ -72,13 +72,6 @@ export function createAutonomousRender(options: {
       for (let i = 0; i < bootstrap.length; i++) shown.push(bootstrap[i]);
     }
     sync();
-    gate.keep(
-      state.visible,
-      state.selectedTriangles,
-      state.frustumRejected,
-      state.lodLevel,
-      shown.length,
-      state.overBudget,
-    );
+    gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
 }
