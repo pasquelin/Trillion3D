@@ -26,6 +26,7 @@ mod identite_import;
 mod identite_textures;
 mod import_opacite;
 mod ktx2_golden;
+mod lampes_emetteur;
 mod ma_driver;
 mod ma_fidelite;
 mod ma_golden;
