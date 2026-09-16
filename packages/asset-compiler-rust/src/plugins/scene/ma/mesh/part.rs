@@ -101,13 +101,8 @@ fn parts(world: &mut World<'_>, node: usize, faces: usize) -> Vec<Part> {
 
 /// Une part en primitive glTF, avec son nombre de triangles.
 fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value, usize)> {
-    let textured = !surface.uvs.is_empty()
-        && part.faces.iter().all(|face| {
-            surface
-                .uv_slots
-                .get(*face)
-                .is_some_and(|slots| !slots.is_empty())
-        });
+    let carried = |face: &usize| surface.uv_slots.get(*face).is_some_and(|uv| !uv.is_empty());
+    let textured = !surface.uvs.is_empty() && part.faces.iter().all(carried);
     if !textured && !surface.uvs.is_empty() {
         world.refuse(report::UV_DROPPED);
     }
