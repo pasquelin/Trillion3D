@@ -24,8 +24,8 @@ export const WASM_ARENA_CONTRACT = 1;
 /** Alignement de chaque bloc, en octets : celui d'un `f64`, qui couvre aussi 32 bits. */
 const ALIGNEMENT = 8;
 
-export type ArenaType = 'f64' | 'f32' | 'u32';
-export type ArenaView = Float64Array | Float32Array | Uint32Array;
+type ArenaType = 'f64' | 'f32' | 'u32';
+type ArenaView = Float64Array | Float32Array | Uint32Array;
 
 const TAILLES: Record<ArenaType, number> = { f64: 8, f32: 4, u32: 4 };
 const CONSTRUCTEURS = {

@@ -23,41 +23,44 @@ pub const MATRIX_VALUES: usize = 16;
 /// Flottants des huit coins transformés d'une boîte.
 const CORNER_VALUES: usize = 24;
 
-/// `Math.min` : NaN contamine, et `-0` l'emporte sur `+0`.
+/// `Math.min` : NaN contamine, et `-0` l'emporte sur `+0`. C'est `minimum` d'IEEE-754-2019, que
+/// `f64::min` de Rust n'est PAS — celui-là est `minNum`, qui écarte un NaN au lieu de le propager —
+/// et que `f64::minimum` sera quand il sortira du provisoire. En attendant, la comparaison d'abord :
+/// sur des coordonnées ordinaires, l'un des deux premiers tests répond, et la suite ne coûte rien.
 #[inline]
 fn js_min(a: f64, b: f64) -> f64 {
-    if a.is_nan() || b.is_nan() {
-        return f64::NAN;
-    }
     if a < b {
-        return a;
-    }
-    if b < a {
-        return b;
-    }
-    if a.is_sign_negative() {
         a
-    } else {
+    } else if b < a {
         b
+    } else if a == b {
+        // Égaux : seul `-0` contre `+0` reste à départager, et JavaScript rend `-0`.
+        if a.is_sign_negative() {
+            a
+        } else {
+            b
+        }
+    } else {
+        // Aucune comparaison vraie : l'un des deux est NaN, et `Math.min` le propage.
+        f64::NAN
     }
 }
 
-/// `Math.max` : NaN contamine, et `+0` l'emporte sur `-0`.
+/// `Math.max` : NaN contamine, et `+0` l'emporte sur `-0`. `maximum` d'IEEE-754-2019.
 #[inline]
 fn js_max(a: f64, b: f64) -> f64 {
-    if a.is_nan() || b.is_nan() {
-        return f64::NAN;
-    }
     if a > b {
-        return a;
-    }
-    if b > a {
-        return b;
-    }
-    if a.is_sign_positive() {
         a
-    } else {
+    } else if b > a {
         b
+    } else if a == b {
+        if a.is_sign_positive() {
+            a
+        } else {
+            b
+        }
+    } else {
+        f64::NAN
     }
 }
 
