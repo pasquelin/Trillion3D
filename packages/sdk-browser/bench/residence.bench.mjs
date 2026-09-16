@@ -3,11 +3,16 @@
 // d'avant le lot A, recopiés tels quels.
 import { maxStretch } from '../../sdk-core/index.ts';
 import { comptePagesResidentes } from '../autonomousResidency.ts';
-import { updateResidencyFlags } from '../gpuDagRuntime.ts';
+import { updateResidencyBits } from '../gpuDagRuntime.ts';
 import { parseDagOutput } from '../gpuDagUniforms.ts';
 import { PAGE_CONE_FLOATS } from '../gpuSelection.ts';
+import { residentBase, residentWords } from '../gpuDagLayout.ts';
 import { compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
-import { referenceParseDagOutput, referenceUpdateResidency } from './oracles/residence.mjs';
+import {
+  referenceParseDagOutput,
+  referenceUpdateResidency,
+  residencyColumn,
+} from './oracles/residence.mjs';
 
 /** La largeur du cône vient du moteur : un banc qui la redéclare peut comparer à faux. Le rang du
  *  drapeau de résidence, lui, est écrit en clair dans le moteur (`gpuDagRuntime.ts`) ; le banc le
@@ -32,10 +37,13 @@ const conesNeufs = () => {
   for (let j = 0; j < PAGES * CONE_FLOATS; j++) cones[j] = alea();
   return cones;
 };
-const conesReference = conesNeufs(),
-  conesOptimisee = conesReference.slice(),
-  miroir = new Float32Array(PAGES);
-for (let j = 0; j < PAGES; j++) miroir[j] = conesOptimisee[j * CONE_FLOATS + FLAG];
+const conesReference = conesNeufs();
+/** Les bits de résidence de l'optimisée, un mot pour trente-deux pages, et les mots qu'elle touche. */
+const base = residentBase(PAGES),
+  bits = new Uint32Array(base + residentWords(PAGES)),
+  motsTouches = new Int32Array(residentWords(PAGES));
+for (let j = 0; j < PAGES; j++)
+  if (conesReference[j * CONE_FLOATS + FLAG] >= 0.5) bits[base + (j >>> 5)] |= 1 << (j & 31);
 const colonne = (cones) => {
   const sortie = new Float32Array(PAGES);
   for (let j = 0; j < PAGES; j++) sortie[j] = cones[j * CONE_FLOATS + FLAG];
@@ -85,7 +93,7 @@ const lignes = [
     reference: passe(
       () => ({
         drapeaux: images.map((next) => referenceUpdateResidency(next, conesReference)),
-        colonne: colonne(conesReference),
+        colonne: colonne(conesReference).map((v) => (v >= 0.5 ? 1 : 0)),
       }),
       (masque) => referenceParseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
       () => {
@@ -97,10 +105,10 @@ const lignes = [
     ),
     optimisee: passe(
       () => ({
-        drapeaux: images.map((next) =>
-          updateResidencyFlags(next, miroir, conesOptimisee, CONE_FLOATS, FLAG),
+        drapeaux: images.map(
+          (next) => updateResidencyBits(next, bits, base, undefined, motsTouches) > 0,
         ),
-        colonne: colonne(conesOptimisee),
+        colonne: residencyColumn(bits, base, PAGES),
       }),
       (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
       () => {

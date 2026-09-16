@@ -3,13 +3,13 @@ import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './gpuDagCompactWgsl.ts';
 import { DAG_LIVE_WGSL } from './gpuDagLiveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
+import { DAG_RECORD_WGSL } from './gpuDagRecordWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,level:u32,nodeIndex:u32,flags:u32,pad0:u32,pad1:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
-struct PageCone{cone:vec4f,minimum:vec3f,hasBox:f32,maximum:vec3f,resident:f32,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(1) var<storage, read> nodes:array<CullNode>;
 @group(0) @binding(2) var<uniform> uni:Uniforms;
@@ -18,7 +18,7 @@ struct PageCone{cone:vec4f,minimum:vec3f,hasBox:f32,maximum:vec3f,resident:f32,}
 @group(0) @binding(5) var<storage, read_write> work:array<atomic<u32>>;
 @group(0) @binding(6) var<storage, read> worlds:array<mat4x4f>;
 @group(0) @binding(7) var<storage, read_write> frames:array<vec4f>;
-@group(0) @binding(8) var<storage, read> pageCones:array<PageCone>;
+@group(0) @binding(8) var<storage, read> cold:array<u32>;
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
@@ -68,9 +68,8 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  return d<-sin(cone.w+spread)&&(cone.w+spread)<1.57079632679;
 }
 fn coneRejects(index:u32,cluster:Cluster)->bool{
- let rec=pageCones[index];
- if(rec.hasBox==0.0){return false;}
- return coneRejectsBox(rec.cone,rec.minimum,rec.maximum,worlds[cluster.worldIndex]);
+ if(hasBox(index)==0.0){return false;}
+ return coneRejectsBox(coneOf(index),boxMin(index),boxMax(index),worlds[cluster.worldIndex]);
 }
 /** Le rejet par cone ne depend que de la page, de son monde et de la camera : il vaut donc la meme
  *  chose pour les cinq passes d'une meme image. \`dagWanted\` le calcule une fois par page visible et
@@ -81,8 +80,7 @@ fn coneCache(index:u32)->u32{return uni.nodeCount+uni.clusterCount+index;}
 fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(index:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
- let rec=pageCones[index];
- return !outsideFrustum(cluster.worldIndex*FRAME,rec.minimum,rec.maximum);
+ return !outsideFrustum(cluster.worldIndex*FRAME,boxMin(index),boxMax(index));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
 fn emitOne(page:u32){
@@ -136,14 +134,14 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  if(rejected){return;}
  atomicMax(&out.lodLevel,cluster.level);
  emitOne(i);
- if(uni.residentCut==0u||pageCones[i].resident!=0.0){return;}
+ if(uni.residentCut==0u||isResident(i)){return;}
  escalate(w,projected(cluster.parentError,cluster.parentSphere,e,stretch,focal));
 }
 @compute @workgroup_size(64)
 fn dagEscalate(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=liveCount()||uni.residentCut==0u){return;}
  let i=liveAt(s);
- if(pageCones[i].resident!=0.0){return;}
+ if(isResident(i)){return;}
  let cluster=clusters[i];
  let w=cluster.worldIndex;
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
@@ -155,7 +153,7 @@ fn dagEscalate(@builtin(global_invocation_id) id:vec3u){
 fn dagCheck(@builtin(global_invocation_id) id:vec3u){
  let s=id.x;if(s>=liveCount()||uni.residentCut==0u){return;}
  let i=liveAt(s);
- if(pageCones[i].resident!=0.0){return;}
+ if(isResident(i)){return;}
  let cluster=clusters[i];
  let w=cluster.worldIndex;
  let e=uni.view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
@@ -174,12 +172,12 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
   if(uni.residentCut!=0u&&atomicLoad(&work[uni.worldCount+w])!=0u){
    // No resident ancestor replaces the missing cluster: this primitive falls back to its pinned roots.
    draw=(cluster.flags&1u)!=0u;
-   if(draw&&pageCones[i].resident==0.0){atomicOr(&out.overflow,2u);draw=false;}
+   if(draw&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;}
   }else{
    let e=uni.view*worlds[w];
    let threshold=select(uni.pixelError,bitcast<f32>(atomicLoad(&work[w])),uni.residentCut!=0u);
    draw=selects(cluster,e,stretchOf(w),focalPixels(),threshold);
-   if(draw&&uni.residentCut!=0u&&pageCones[i].resident==0.0){atomicOr(&out.overflow,2u);draw=false;}
+   if(draw&&uni.residentCut!=0u&&!isResident(i)){atomicOr(&out.overflow,2u);draw=false;}
   }
  }
  let posee=select(0u,1u,draw);
@@ -191,4 +189,5 @@ ${DAG_ERROR_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}
 ${DAG_LIVE_WGSL}
-${DAG_LEVEL_WGSL}`;
+${DAG_LEVEL_WGSL}
+${DAG_RECORD_WGSL}`;
