@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { EngineError } from '../sdk-core/index.ts';
-import { PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
+import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from './backendCommon.ts';
 import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
@@ -82,13 +82,23 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const missing = backend.pendingUrls?.() ?? [];
     if (missing.length > 0) {
       streaming.queueCached(backend, missing);
-      const needFetch = missing.filter(
-        (url) =>
+      // Budget par image sur les demandes aussi : à cache froid la liste des manquantes compte les
+      // pages de toute la ville, et en faire chaque image un tableau filtré puis une promesse par
+      // adresse coûtait plus que le rendu. La liste est ordonnée par priorité — l'absence la plus
+      // coûteuse d'abord —, donc la tête suffit ; ce qui reste repart à l'image suivante, plus court
+      // de ce qui vient d'arriver. Le balayage, lui, va jusqu'au bout : une adresse en échec ne
+      // consomme pas le lot et ne bloque donc jamais celles qui la suivent.
+      const needFetch: string[] = [];
+      for (let i = 0; i < missing.length && needFetch.length < PAGE_REQUEST_BATCH; i++) {
+        const url = missing[i];
+        if (
           (geometryUrls.has(url) || !streamer.has(url)) &&
           !streamer.loading(url) &&
           !streamer.failed(url) &&
-          !streaming.decodeFailures.has(url),
-      );
+          !streaming.decodeFailures.has(url)
+        )
+          needFetch.push(url);
+      }
       if (needFetch.length > 0) {
         if (!measuring && !streaming.promise) streaming.startFetch(needFetch);
         else if (!measuring && streaming.promise) {

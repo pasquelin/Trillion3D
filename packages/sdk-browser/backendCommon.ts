@@ -8,6 +8,8 @@ export const DEFAULT_FOV = 55,
   DEFAULT_HEIGHT = 540,
   DEFAULT_PAGE_WORKERS = 32,
   PREFETCH_BATCH = 64,
+  /** Adresses qu'une image lance au plus, prises en tête de la liste ordonnée par priorité. */
+  PAGE_REQUEST_BATCH = 256,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
