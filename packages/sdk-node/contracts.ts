@@ -82,6 +82,7 @@ export interface CompilationPointer extends CompilationSummary {
     importMs: number;
     clusterHierarchyPagesMs: number;
     wallMs: number;
+    pruneMs: number;
     outputGeometryBytes: number;
     threads: number;
     ramBudgetMb: number;

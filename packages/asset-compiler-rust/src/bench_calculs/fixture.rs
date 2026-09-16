@@ -87,7 +87,7 @@ fn compile_one(name: &str) -> (f64, Value) {
     .expect("clusters.json est du JSON");
     // Les phases appartiennent au travail qui les a dépensées : le relevé les porte par fixture,
     // puisqu'aucun compteur ne les additionne plus d'une compilation à l'autre.
-    let record = json!({"fixture":name,"ms":ms,"phasesMs":result["metrics"]["phaseCpuMs"],
+    let record = json!({"fixture":name,"ms":ms,"phasesMs":result["metrics"]["phaseElapsedMs"],
       "manifesteAllege":hash(serde_json::to_vec(&stable(slim)).expect("manifeste").as_slice()),
       "fichiers":files.iter().map(|(n,d)|json!([n,d])).collect::<Vec<Value>>(),
       "objets":objects.iter().map(|(_,d)|json!(d)).collect::<Vec<Value>>()});

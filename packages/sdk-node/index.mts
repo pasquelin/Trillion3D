@@ -64,7 +64,24 @@ export async function prepare(
   const manifest = JSON.parse(
     await readFile(join(output, 'native', pointer.scope, pointer.url), 'utf8'),
   ) as CompilationResult;
-  return { ...manifest, url: pointer.url, pointer: pointer.pointer, cache: pointer.cache };
+  return {
+    ...manifest,
+    metrics: withFinalMetrics(manifest, pointer),
+    url: pointer.url,
+    pointer: pointer.pointer,
+    cache: pointer.cache,
+  };
+}
+/**
+ * The manifest is serialized before the cache is pruned, so it cannot hold what comes after it —
+ * the purge and the job's own duration. Those live on the pointer alone, and a caller that only
+ * reads the returned result would otherwise never see them. The manifest stays authoritative for
+ * every measurement it does carry; the pointer only fills in what is missing.
+ */
+function withFinalMetrics(manifest: CompilationResult, pointer: CompilationPointer) {
+  const carried = (manifest.metrics ?? {}) as Record<string, unknown>;
+  const final = Object.entries(pointer.metrics ?? {}).filter(([name]) => !(name in carried));
+  return { ...carried, ...Object.fromEntries(final) };
 }
 /**
  * Prepares many models in one compiler process. `jobs` entries: {id, source, cache, scope, triangles,
