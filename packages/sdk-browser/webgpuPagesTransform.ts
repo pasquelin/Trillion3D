@@ -111,7 +111,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // rendrait les mêmes seize nombres. C'est la liste des nœuds modifiés, tenue par la hiérarchie.
   node.updateWorldMatrix(true, true);
   // Les boîtes monde des racines déplacées se reprojettent EN LOT, par le gouverneur, dans le tampon
-  // réservé à la préparation. Un tampon absent ou détaché rend la main au calcul boîte par boîte, qui
+  // réservé à la préparation. Un tampon absent ou rendu passe la main au calcul boîte par boîte, qui
   // rend les mêmes bits — le même `boxTransform` sur les mêmes entrées.
   const enLot =
     !!layout.rootBoxes &&
