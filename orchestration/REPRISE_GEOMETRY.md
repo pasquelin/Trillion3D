@@ -51,6 +51,7 @@ L'opaque n'a pas d'ordre : la profondeur garde le plus proche. Un matériau en m
 | 14 | Eau en passe plein écran | moyen | moyen |
 | 15 | Noyaux Rust/Wasm M5 sur la coupe WebGL et les rangs | moyen | moyen |
 | 16 | Compilateur : `DAG_GROUP_MIN`, `CLUSTER_TRIANGLES` | propreté | très faible |
+| 17 | Hiérarchie moteur : `pageSelectionCollect` et `frameGateCore.updateWorlds` lisent l'index du moteur (demande du Calculateur) | fin de la migration hors Three | moyen |
 
 Les lots 1 à 4 font disparaître le lag ; 5, 9, 11 rapprochent de la référence ; 10 passe avant 5.
 
@@ -65,12 +66,13 @@ Les lots 1 à 4 font disparaître le lag ; 5, 9, 11 rapprochent de la référenc
 7. **Surveillance de scène.** `hostSceneWatch` compare 4 300 nœuds × 18 valeurs par image (`frameGateCore.ts:125`) ; passer par un compteur de version.
 8. **Priorité par erreur d'écran.** Le chemin WebGL2 l'a (`streamingPriority.ts:66`), pas WebGPU (`webgpuPagesHostApi.ts:123`) : à cache froid le lointain peut arriver avant le proche.
 9. **Hi-Z.** La partition choisit les occulteurs par médiane de profondeur (557 352 lignes classées pour 21 955 testées) ; les choisir par visibilité passée. Puis deux passes : dessiner ce qui était visible, bâtir la pyramide, re-tester les rejetés dans la même image.
-10. **Filets de sécurité, sur verdict « plus de lag ».** (1) Preuve de navigation sur la scène réelle : pipeline créé, aucune page manquante, appels et CPU dans une enveloppe. (2) Tests caducs réécrits pour le contrat d'aujourd'hui : `webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11`, hôte de test de coupe du Calculateur. (3) Banc bit à bit du raster de calcul contre l'ancien raster matériel. (4) Simplify, puis tableau référence / nous mesuré.
+10. **Filets de sécurité, sur verdict « plus de lag ».** (1) Preuve de navigation sur la scène réelle : pipeline créé, aucune page manquante, appels et CPU dans une enveloppe. (2) Tests caducs réécrits pour le contrat d'aujourd'hui : `webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11`, hôte de test de coupe du Calculateur, et les six tests `webgpuPages` rouges depuis b72278c6 signalés par le Calculateur (raster consumes the GPU cache, vis drawIndirect, GPU Hi-Z pyramid, moving opaque cameras, GPU streaming wanted pages, GPU camera jumps) : pour chacun, dire si c'est le test ou le code qui est faux avant d'adapter. (3) Banc bit à bit du raster de calcul contre l'ancien raster matériel. (4) Simplify, puis tableau référence / nous mesuré.
 11. **Compression des sommets.** ~48 octets par triangle aujourd'hui ; la référence quantifie les positions par grappe (14 à 16 bits par axe), normales sur 2 octets, UV en entiers : ~3 fois moins. Compilateur Rust, nouvelle version de format de page.
 12. **Ombres par la même géométrie** : même sélection, même raster, mêmes pages depuis la lumière.
 13. **Matériaux par classes** : une passe par matériau avec profondeur matérielle au lieu d'un branchement par pixel.
 14. **Eau en passe plein écran dédiée** (copie du fond déjà en place pour la transmission).
 15. **Noyaux Rust/Wasm M5 du Calculateur** sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
 16. **Compilateur** : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
+17. **Hiérarchie moteur** (demande du Calculateur, 16 sept. 23 h) : `pageSelectionCollect.ts` (`PageRec.matrix`, `ClusterRoot.world` encore en `THREE.Matrix4` vivants) et `frameGateCore.updateWorlds` (`updateMatrixWorld`) doivent lire l'index du moteur (`hostWorldChain.ts`/`hostWorldTree.ts`, fusionnés par le Calculateur). Périmètre `gpuDag*`/`webgpuPages*`, à coordonner avec le lot 7.
 
 Ce que la référence a et qu'on ne fera pas : mesh shaders et atomique 64 bits, absents du web, remplacés par nos deux passes atomiques 32 bits. Relevés bruts sous `.mesure/out/` ; `stable.mjs` et `profil.mjs` dans le scratchpad de la session, à recréer s'ils sont perdus (80 lignes sur `scripts/mesure/{options,serveur,page,rapport}.mjs`).
