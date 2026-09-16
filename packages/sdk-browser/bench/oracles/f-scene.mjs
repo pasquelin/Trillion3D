@@ -11,6 +11,9 @@ export function referenceExactPagesBounds(
   onMissing,
   into = new THREE.Box3(),
 ) {
+  // `meshes` résolvait le sous-arbre de l'hôte avant le lot 8 ; le témoin le résout maintenant
+  // lui-même, puisqu'il lit `matrixWorld` — ce qu'il calcule ne change pas d'un bit.
+  source.updateMatrixWorld(true);
   for (const mesh of objects(source)) {
     const association = associations.get(mesh);
     const primitive = metadata.primitives.find(

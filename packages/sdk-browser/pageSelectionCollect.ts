@@ -6,6 +6,7 @@ import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
 import { indexPageRequests } from './pageSelectionRequests.ts';
+import { hostWorldPlacements, type HostWorldPlacements } from './hostWorldPlacements.ts';
 import type { PageRec, ClusterRoot } from './pageSelectionTypes.ts';
 
 export function collectClusterPages(
@@ -13,8 +14,12 @@ export function collectClusterPages(
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: Map<THREE.Object3D, { meshes?: number; primitives?: number }>,
-  options: { allowMissing?: boolean } = {},
+  options: { allowMissing?: boolean; worlds?: HostWorldPlacements } = {},
 ) {
+  // Les matrices monde des pages et des racines sont celles du MOTEUR, calculées depuis les poses
+  // locales de l'hôte : plus aucune fiche ne porte la `matrixWorld` vivante de son maillage. Un
+  // appelant qui tient déjà l'index le tend — une seule passe de hiérarchie pour toute la scène.
+  const worlds = options.worlds ?? hostWorldPlacements(source);
   const roots: Array<ClusterRoot<PageRec>> = [],
     allPages: PageRec[] = [],
     blendCopies: THREE.Mesh[] = [],
@@ -27,8 +32,9 @@ export function collectClusterPages(
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
+    const world = worlds.of(mesh);
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      blendCopies.push(createBlendCopy(mesh, order++));
+      blendCopies.push(createBlendCopy(mesh, order++, world));
       continue;
     }
     const sourceIndices = mesh.geometry.getIndex();
@@ -70,7 +76,7 @@ export function collectClusterPages(
         transparent,
         sourceMesh: mesh,
         sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,
-        matrix: mesh.matrixWorld,
+        matrix: world,
         renderOrder: order,
         attached: false,
         cone: undefined,
@@ -88,9 +94,9 @@ export function collectClusterPages(
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
     const worldBox = new Float64Array(BOX_VALUES);
-    boxTransform(worldBox, 0, shape.local, 0, mesh.matrixWorld.elements);
+    boxTransform(worldBox, 0, shape.local, 0, world.elements);
     roots.push({
-      world: mesh.matrixWorld,
+      world,
       pages,
       // Les nœuds, leurs bornes et leurs liens appartiennent à la primitive et sont partagés par
       // tous ses placements ; seules les marques de forçage sont propres à ce placement-ci.
@@ -120,6 +126,7 @@ export function collectClusterPages(
   return {
     roots,
     allPages,
+    worlds,
     blendCopies,
     bootstrap,
     requestCount: indexPageRequests(allPages),

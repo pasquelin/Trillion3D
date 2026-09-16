@@ -1,9 +1,10 @@
 // Défaut : la pose monde demandée était ramenée dans le repère du parent par la matrice monde que
 // le parent portait, À JOUR OU NON. Un hôte a le droit d'écrire `parent.position.x = 10` sans
 // remonter le graphe (`updateMatrixWorld`) avant de poser l'enfant — c'est le contrat que
-// `resolveHostNode` tient dans `webgpuPagesTransform.ts`. Ces tests passent par l'API PUBLIQUE de
+// `hostWorldChainInto` tient dans `webgpuPagesTransform.ts`. Ces tests passent par l'API PUBLIQUE de
 // l'explorateur (`explorer.setTransform`, `createExplorerLightApi`), pas par la fonction interne
-// `setWebgpuTransform` appelée directement : c'est ce que l'hôte appelle réellement.
+// `setWebgpuTransform` appelée directement : c'est ce que l'hôte appelle réellement. Le monde vérifié
+// est celui que LE MOTEUR tient (`hostWorldPlacements.ts`), qui est celui qu'il dessine.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -11,6 +12,7 @@ import { EngineError } from '../sdk-core/index.ts';
 import { createExplorerLightApi } from './explorerLightApi.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
+import { hostWorldPlacements } from './hostWorldPlacements.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -31,12 +33,15 @@ function banc() {
   parent.name = 'porteur';
   parent.add(mesh);
   source.add(parent);
-  source.updateMatrixWorld(true);
+  // Les matrices monde que le moteur dessine : c'est l'index, pas la scène de l'hôte, que le
+  // déplacement recalcule et que ces tests interrogent.
+  const worlds = hostWorldPlacements(source);
+  const monde = worlds.of(mesh);
   const run = createWebgpuRunState();
   run.noOccluderHistory = false;
   run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState;
   const rt = {
-    setup: { source },
+    setup: { source, worlds },
     layout: { selectionRoots: [], rows: { tableEpoch: 0 } },
     run,
     lights: { plan: { worldChanged: () => {} } },
@@ -52,7 +57,7 @@ function banc() {
     imported: [],
     backends: [backend],
   });
-  return { rt, source, parent, mesh, explorer };
+  return { rt, source, parent, mesh, explorer, worlds, monde };
 }
 
 const demandee = () =>
@@ -68,7 +73,7 @@ test(
   'un parent déplacé, tourné et mis à l’échelle par l’hôte SANS updateMatrixWorld : le monde de ' +
     'l’enfant est quand même le monde demandé (justesse géométrique)',
   () => {
-    const { parent, mesh, explorer, source } = banc();
+    const { parent, explorer, worlds, monde } = banc();
     // L'hôte écrit directement les champs, sans jamais rappeler updateMatrixWorld — exactement le
     // geste que la résolution doit couvrir : parent.matrixWorld reste celui d'avant ce déplacement.
     parent.position.set(10, 4, -3);
@@ -76,11 +81,11 @@ test(
     parent.scale.set(2, 3, 0.5);
     const demandeeIci = demandee();
     explorer.setTransform('cible', demandeeIci);
-    proche(mesh.matrixWorld.elements, demandeeIci, 1e-9);
-    // Stabilisation : le rendu suivant remonte le graphe. La pose posée ne doit pas bouger.
-    source.updateMatrixWorld(true);
-    source.updateMatrixWorld(true);
-    proche(mesh.matrixWorld.elements, demandeeIci, 1e-9);
+    proche(monde.elements, demandeeIci, 1e-9);
+    // Stabilisation : le rendu suivant remonte l'index. La pose posée ne doit pas bouger.
+    worlds.refresh();
+    worlds.refresh();
+    proche(monde.elements, demandeeIci, 1e-9);
   },
 );
 
@@ -88,11 +93,11 @@ test(
   'la même demande refaite après un nouveau déplacement du parent n’est pas « sans effet » : le ' +
     'monde reste le monde demandé et les pages d’ombre sont invalidées (justesse géométrique)',
   () => {
-    const { rt, parent, mesh, explorer, source } = banc();
+    const { rt, parent, explorer, worlds, monde } = banc();
     const demandeeIci = demandee();
     explorer.setTransform('cible', demandeeIci);
-    source.updateMatrixWorld(true);
-    proche(mesh.matrixWorld.elements, demandeeIci, 1e-9);
+    worlds.refresh();
+    proche(monde.elements, demandeeIci, 1e-9);
     // La révision se stabilise : refaire, avant tout mouvement, la même demande ne doit rien changer.
     const epoqueStable = rt.layout.rows.tableEpoch;
     (rt.run as ReturnType<typeof createWebgpuRunState>).noOccluderHistory = false;
@@ -118,8 +123,8 @@ test(
       true,
       'l’historique d’occulteurs doit être jeté, pas resservi périmé',
     );
-    source.updateMatrixWorld(true);
-    proche(mesh.matrixWorld.elements, demandeeIci, 1e-9);
+    worlds.refresh();
+    proche(monde.elements, demandeeIci, 1e-9);
   },
 );
 

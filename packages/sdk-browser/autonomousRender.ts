@@ -35,13 +35,16 @@ export function createAutonomousRender(options: {
   gate: WebglFrameGate;
   lighting: ReturnType<typeof installSceneLighting>;
   roots: Parameters<typeof selectVisiblePages>[0];
+  /** L'index des matrices monde du moteur, remonté une fois par révision de scène. */
+  worlds: { refresh(): void };
   shown: PageRec[];
   desired: PageRec[];
   bootstrap: PageRec[];
   cap: number;
   sync: () => void;
 }) {
-  const { state, context, gate, lighting, roots, shown, desired, bootstrap, cap, sync } = options;
+  const { state, context, gate, lighting, roots, worlds, shown, desired, bootstrap, cap, sync } =
+    options;
   const motion: CameraMotion = {};
   // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout, et
   // la coupe écrit `desired` elle-même au lieu d'être recopiée dedans.
@@ -67,7 +70,7 @@ export function createAutonomousRender(options: {
     selectOptions.pixelError = gate.pixelError;
     if (state.frameHeld) return;
     // Les matrices monde et les lampes recopiées ne sont fonction que de la scène.
-    if (gate.updateWorlds(context.source)) lighting.update();
+    if (gate.updateWorlds(worlds)) lighting.update();
     const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
     state.visible = selected.visible;
     state.selectedTriangles = selected.selectedTriangles;

@@ -53,7 +53,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
   // retrouverait toutes à l'identique. Elles ne sont donc remontées qu'à un changement de révision
   // de scène, et `setWebgpuTransform` n'y remonte déjà que le sous-arbre qu'il a déplacé.
-  run.gate.updateWorlds(source);
+  run.gate.updateWorlds(rt.setup.worlds);
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // Ce qui part vers le noyau de coupe est ramené à l'œil (`cameraRenderOrigin.ts`) : une caméra
   // qui bouge change donc ces seize nombres tout autant qu'un nœud déplacé. Les deux causes mènent

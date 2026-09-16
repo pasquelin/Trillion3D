@@ -73,6 +73,7 @@ const AUTORISES = {
   explorerPrepare: 'frontière : il prépare le graphe source de l’hôte',
   explorerRender: 'frontière : la boucle d’image de l’hôte, ses cibles et ses textures',
   explorerRenderFallback: 'frontière : le repli quand le renderer de l’hôte lève',
+  exactPagesBounds: 'frontière : il parcourt le graphe source de l’hôte pour en borner les pages',
   explorerScene: 'frontière : il construit la scène préparée de l’hôte',
   frameGateCore: 'frontière : la porte d’image relit le nœud source de l’hôte',
   hostSceneLightState: 'frontière : les lampes déclarées deviennent des lampes de l’hôte',
@@ -80,6 +81,8 @@ const AUTORISES = {
   hostWorldBounds: 'frontière : les bornes du graphe de l’hôte, rendues à plat',
   hostWorldChain: 'frontière : il lit la chaîne d’ancêtres d’un nœud de l’hôte',
   hostWorldMatrices: 'frontière : la pose locale d’un nœud de l’hôte, lue à plat',
+  hostWorldPlacements:
+    'frontière : le contenant de matrice que l’hôte attache et que les témoins dessinent, rempli par le moteur',
   hostWorldTree: 'frontière : il lit les poses locales d’un sous-arbre de l’hôte',
   pageSelectionCollect: 'frontière : il parcourt le graphe source de l’hôte',
   replicateInstances: 'frontière : il réplique des nœuds du graphe de l’hôte',

@@ -17,8 +17,9 @@ import { copyElements } from './matrixElements.ts';
  *
  * Il ne reste donc ici que deux gestes : LIRE la pose locale d'un nœud, et refuser une pose non
  * finie. Le seul appel de composition qui subsiste tient la scène de l'HÔTE à jour pour ses propres
- * lecteurs et pour les `matrixWorld` vivantes qu'il prête encore (`pageSelectionCollect.ts`) ; aucun
- * nombre du moteur n'en sort. Le test `test/engineNoThreeMath.test.mjs` tient cette frontière.
+ * lecteurs — la réplication (`replicateInstances.ts`) part des matrices monde qu'il porte ; aucun
+ * nombre que le moteur dessine n'en sort, les siennes sont celles de `hostWorldPlacements.ts`. Le
+ * test `test/engineNoThreeMath.test.mjs` tient cette frontière.
  */
 
 /** Le sous-arbre entier de `node` remis à jour DANS LA SCÈNE DE L'HÔTE, pour ses propres lecteurs. */

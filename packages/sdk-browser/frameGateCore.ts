@@ -23,6 +23,9 @@ export type FrameGateCore = ReturnType<typeof createFrameGateCore>;
  *  n'est refaite qu'à un changement de scène : l'appel n'a alors rien à construire par image. */
 type FrameGateSources = WatchedSources | (() => WatchedSources);
 
+/** L'index des matrices monde que l'image remonte : celui du MOTEUR (`hostWorldPlacements.ts`). */
+type FrameGateWorlds = { refresh(): void };
+
 /**
  * La porte d'image commune aux deux moteurs : les trois révisions, l'origine de la vue, la relecture
  * du graphe que l'hôte peut écrire, et le témoin d'image tenue. `holdValues` est le nombre de valeurs
@@ -89,11 +92,12 @@ export function createFrameGateCore(holdValues: number) {
     /** Vrai quand deux images identiques se sont suivies et que rien n'a bougé depuis. */
     held: () => hold.stable && hold.same(revisions),
     /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. Une
-     *  image que rien n'a touchée ne remonte rien : c'est `readScene` qui sait si rien n'a bougé. */
-    updateWorlds(source: THREE.Object3D) {
+     *  image que rien n'a touchée ne remonte rien : c'est `readScene` qui sait si rien n'a bougé.
+     *  Ce qui est remonté est l'index du moteur : la scène de l'hôte n'est ni lue ni écrite. */
+    updateWorlds(worlds: FrameGateWorlds) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
-      source.updateMatrixWorld(true);
+      worlds.refresh();
       return true;
     },
     /** La hiérarchie porte déjà les matrices de la révision en cours : écrit par qui vient de les

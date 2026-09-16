@@ -32,6 +32,9 @@ export function referenceCollectClusterPages(
     bootstrap = [];
   const structures = new Map();
   let order = 0;
+  // `meshes` résolvait le sous-arbre de l'hôte avant le lot 8 ; le témoin le résout maintenant
+  // lui-même, puisqu'il lit `matrixWorld` — ce qu'il calcule ne change pas d'un bit.
+  source.updateMatrixWorld(true);
   for (const mesh of objects(source)) {
     const association = associations.get(mesh),
       primitive = metadata.primitives.find(
