@@ -1,12 +1,17 @@
 import type * as THREE from 'three';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
-import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
+import {
+  createSelectionUniforms,
+  type GpuSelection,
+  type SelectionUniforms,
+} from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
 import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 import { createFrameHold, createFrameRevisions, type FrameHold } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';
+import { createEngineCamera, type CameraMotion, type EngineCamera } from './cameraWorld.ts';
 import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
 import { createHostSceneWatch } from './hostSceneWatch.ts';
 import type { FrameRevisions } from './frameRevisions.ts';
@@ -27,6 +32,8 @@ export interface WebgpuRunState {
   diagnostic: DiagnosticMode;
   diagnosticPixelError: number;
   lastCamera: THREE.PerspectiveCamera | undefined;
+  /** La caméra du moteur : l'entrée d'image l'y recopie une fois, tout l'aval la lit. */
+  cam: EngineCamera;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
   gpuMetricsReady: boolean;
@@ -49,13 +56,13 @@ export interface WebgpuRunState {
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
-  previousHizView: THREE.PerspectiveCamera | undefined;
+  previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
   /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
   cpuHizCounts: HizCounts;
   cpuHizCounted: boolean;
   rowsSyncedFrame: number;
-  motion: { last?: THREE.Vector3; lastMs?: number };
+  motion: CameraMotion;
   selectionUniforms: SelectionUniforms;
   /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
   selectResult: SelectionResult<PageRec>;
@@ -132,6 +139,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     diagnostic: 'beauty',
     diagnosticPixelError: 0,
     lastCamera: undefined,
+    cam: createEngineCamera(),
     gpuSelection: undefined,
     gpuFrameActive: false,
     gpuMetricsReady: false,
@@ -156,14 +164,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     cpuHizCounted: false,
     rowsSyncedFrame: -1,
     motion: {},
-    selectionUniforms: {
-      planes: new Float32Array(24),
-      view: new Float32Array(16),
-      pixelScale: [1, 1],
-      pixelError: 0,
-      near: 0.1,
-      cameraWorld: [0, 0, 0],
-    },
+    selectionUniforms: createSelectionUniforms(),
     selectResult: createSelectionResult(),
     cpuSelectMs: null,
     shown: [],

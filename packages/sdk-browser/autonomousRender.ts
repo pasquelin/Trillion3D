@@ -3,7 +3,7 @@ import { resolvePixelError, selectVisiblePages, type PageRec } from './pageSelec
 import type { BackendContext } from './backendTypes.ts';
 import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import { createEngineCamera, readCameraWorld, type CameraMotion } from './cameraWorld.ts';
 
 /** Ce que l'image autonome a décidé, et si elle a été tenue. */
 export type AutonomousRenderState = {
@@ -42,21 +42,22 @@ export function createAutonomousRender(options: {
   sync: () => void;
 }) {
   const { state, context, gate, lighting, roots, shown, desired, bootstrap, cap, sync } = options;
-  const motion: { last?: THREE.Vector3; lastMs?: number } = {};
+  const motion: CameraMotion = {};
   const selectOptions = {
     pixelError: 0,
     viewport: context.viewport,
     holdResident: true,
   };
+  const engineCam = createEngineCamera();
   const sourcesDessinees = roots.map((root) => root.pages[0]);
   return (camera: THREE.PerspectiveCamera) => {
-    // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
-    // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
-    resolveCameraWorld(camera);
+    // Entrée d'image : la pose monde, ancêtres compris, est résolue et recopiée ici une fois, avant
+    // le seuil adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
+    const cam = readCameraWorld(engineCam, camera);
     // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
     // adaptatif de la première image qui bouge à nouveau.
-    selectOptions.pixelError = resolvePixelError(context, camera, motion);
-    gate.viewChanged(camera, context.viewport, selectOptions.pixelError);
+    selectOptions.pixelError = resolvePixelError(context, cam, motion);
+    gate.viewChanged(cam, context.viewport, selectOptions.pixelError);
     // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture le dit,
     // et elle précède la décision de tenir l'image.
     gate.readScene(context.source, sourcesDessinees);
@@ -64,7 +65,7 @@ export function createAutonomousRender(options: {
     if (state.frameHeld) return;
     // Les matrices monde et les lampes recopiées ne sont fonction que de la scène.
     if (gate.updateWorlds(context.source)) lighting.update();
-    const selected = selectVisiblePages(roots, camera, selectOptions, shown);
+    const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     desired.length = 0;
     for (let i = 0; i < selected.wanted.length; i++) desired.push(selected.wanted[i] as PageRec);
     state.visible = selected.visible;

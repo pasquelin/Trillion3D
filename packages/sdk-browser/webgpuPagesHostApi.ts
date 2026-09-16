@@ -1,9 +1,9 @@
-import * as THREE from 'three';
 import { createSynchronousCanvasCapture } from './gpuPresentation.ts';
 import { collectPendingUrls, pageRequestUrl } from './pageSelection.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { bumpScene } from './frameRevisions.ts';
+import { defaultEngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -74,19 +74,21 @@ function drawnOpaquePages(rt: WebgpuPagesRuntime) {
     .map((rec) => ({ ...rec, array: rec.array! }));
 }
 
+/** La caméra que les oracles lisent : celle de la dernière image, ou celle d'une caméra hôte neuve
+ *  tant qu'aucune image n'a été rendue. */
+function engineCameraOf(rt: WebgpuPagesRuntime) {
+  return rt.run.lastCamera ? rt.run.cam : defaultEngineCamera();
+}
+
 export function visibilityIds(rt: WebgpuPagesRuntime) {
   const size = rt.setup.viewport ?? rt.gpu.targetSize;
-  return rasterVisibilityIds(
-    drawnOpaquePages(rt),
-    rt.run.lastCamera ?? new THREE.PerspectiveCamera(),
-    size,
-  );
+  return rasterVisibilityIds(drawnOpaquePages(rt), engineCameraOf(rt), size);
 }
 
 export function rasterRgba(rt: WebgpuPagesRuntime) {
   const size = rt.setup.viewport ?? rt.gpu.targetSize,
     pages = drawnOpaquePages(rt),
-    cam = rt.run.lastCamera ?? new THREE.PerspectiveCamera();
+    cam = engineCameraOf(rt);
   return shadeVisibility(
     rasterVisibilityIds(pages, cam, size),
     pages,

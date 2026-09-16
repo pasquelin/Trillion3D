@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import {
   HIZ_BOUNDS_VALUES,
   projectCornersInto,
@@ -6,29 +5,22 @@ import {
   type BoxCorners,
 } from './hizCorners.ts';
 import type { HizPage } from './hizTypes.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
-
-const viewProjScratch = new THREE.Matrix4();
+import type { EngineCamera } from './cameraWorld.ts';
 
 export function projectBoxesFlat(
   pages: ArrayLike<HizPage | undefined>,
   count: number,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   into: Float64Array,
   only?: Uint8Array,
   world?: { corners: BoxCorners; pageIndex: Int32Array; epoch: number },
 ) {
   const [width, height] = viewport;
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  resolveCameraWorld(camera);
-  const viewProj = viewProjScratch.multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse,
-  );
-  const view = camera.matrixWorldInverse.elements,
-    elements = viewProj.elements,
-    near = camera.near;
+  // Vue, vue-projection et plan proche viennent de la caméra du moteur : une image les pose une fois.
+  const view = cam.view,
+    elements = cam.viewProjection,
+    near = cam.near;
   for (let i = 0; i < count; i++) {
     if (only && !only[i]) continue;
     const page = pages[i];

@@ -1,29 +1,29 @@
 import { adaptivePixelError } from '../sdk-core/index.ts';
-import * as THREE from 'three';
-import { cameraWorldPosition } from './cameraWorld.ts';
-
-const eyeScratch = new THREE.Vector3();
+import type { CameraMotion, EngineCamera } from './cameraWorld.ts';
 
 export function resolvePixelError(
   context: { pixelError?: number; lodAdaptive?: boolean },
-  camera: THREE.PerspectiveCamera,
-  motion: { last?: THREE.Vector3; lastMs?: number },
+  cam: EngineCamera,
+  motion: CameraMotion,
 ) {
   const base = context.pixelError ?? 0;
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   // La vitesse est celle de l'œil dans le monde : un rig qui emporte la caméra la déplace aussi.
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  const eye = cameraWorldPosition(camera, eyeScratch);
+  // La position vient de la caméra du moteur, ancêtres résolus par l'entrée d'image.
+  const eye = cam.position;
   let speed = 0;
   if (motion.last && motion.lastMs != null) {
     const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);
-    speed = eye.distanceTo(motion.last) / dt;
+    const dx = eye[0] - motion.last[0],
+      dy = eye[1] - motion.last[1],
+      dz = eye[2] - motion.last[2];
+    speed = Math.sqrt(dx * dx + dy * dy + dz * dz) / dt;
   }
-  if (!motion.last) motion.last = new THREE.Vector3();
-  motion.last.copy(eye);
+  if (!motion.last) motion.last = new Float64Array(3);
+  motion.last.set(eye);
   motion.lastMs = now;
   if (!context.lodAdaptive || !(base > 0)) return base;
-  return adaptivePixelError(base, speed, Math.max(camera.far * 0.05, 1));
+  return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1));
 }
 /** The request key of a record: its streaming bundle when the cache has one, its own page otherwise. */
 export function pageRequestUrl<T extends { url: string; streamUrl?: string }>(rec: T) {

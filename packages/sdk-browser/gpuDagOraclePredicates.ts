@@ -7,6 +7,7 @@ import {
 import { CLUSTER_FLOATS, CLUSTER_NEVER, type PackedDag } from './gpuDagTypes.ts';
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
+import { readCameraWorld } from './cameraWorld.ts';
 
 type PredicateContext = {
   packed: PackedDag;
@@ -42,7 +43,13 @@ export function createDagOraclePredicates(context: PredicateContext) {
     cam.position.set(cw[0], cw[1], cw[2]);
     cam.updateMatrixWorld();
     dagScratch.world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
-    return coneCullsPage(cone, dagScratch.world, min, max, cam);
+    return coneCullsPage(
+      cone,
+      dagScratch.world,
+      min,
+      max,
+      readCameraWorld(dagScratch.engineCam, cam),
+    );
   };
   const visible = (index: number) => {
     const base = index * CLUSTER_FLOATS,

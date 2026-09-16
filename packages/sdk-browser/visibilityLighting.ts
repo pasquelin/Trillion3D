@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { sampleLinear, sampleMap, triangleAt } from './visibilityMath.ts';
 import { shadingNormal } from './visibilityShadingNormal.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /** L'éclairage hémisphérique fixe du chemin CPU : soleil normalisé, ciel et sol. Rien ici ne dépend
  *  du pixel, et tout y était pourtant recalculé — `Math.hypot` et `new THREE.Color` compris — à
@@ -35,7 +36,7 @@ export function shadeLit(
   rgb: [number, number, number],
   metalness: number,
   roughness: number,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
 ): [number, number, number] {
   const world: [number, number, number] = [
     tri.a.worldX * bary.w0 + tri.b.worldX * bary.w1 + tri.c.worldX * bary.w2,
@@ -47,11 +48,11 @@ export function shadeLit(
   const Nx = normal.x,
     Ny = normal.y,
     Nz = normal.z;
-  // L'œil en repère monde, pris dans la matrice que le raster vient de mettre à jour.
-  const eye = camera.matrixWorld.elements;
-  const vx = eye[12] - world[0],
-    vy = eye[13] - world[1],
-    vz = eye[14] - world[2],
+  // L'œil en repère monde, pris dans la caméra du moteur que l'entrée d'image a recopiée.
+  const eye = cam.position;
+  const vx = eye[0] - world[0],
+    vy = eye[1] - world[1],
+    vz = eye[2] - world[2],
     vLen = Math.hypot(vx, vy, vz) || 1;
   const Vx = vx / vLen,
     Vy = vy / vLen,

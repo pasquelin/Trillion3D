@@ -1,7 +1,11 @@
-import * as THREE from 'three';
 import { resolvePixelError } from './pageSelection.ts';
 import { sameHizView } from './hiz.ts';
-import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
+import {
+  createEngineCamera,
+  holdCameraWorld,
+  readCameraWorld,
+  type HostCamera,
+} from './cameraWorld.ts';
 import {
   dropGpuSelection,
   invalidateOccluderHistory,
@@ -17,7 +21,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
-export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   const { run, gpu, vis, capture, context, diag, blendState } = rt,
     { gpuDevice, source } = rt.setup,
     { selectionRoots, worldUpdates, rows } = rt.layout;
@@ -29,19 +33,14 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
   run.lastCamera = camera;
-  // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
-  // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
-  resolveCameraWorld(camera);
+  // Entrée d'image : la pose monde, ancêtres compris, est résolue et recopiée ici une fois — vue,
+  // vue-projection, plans du tronc et position —, avant le seuil adaptatif et avant l'empreinte de
+  // vue. Tout ce qui suit lit cette structure. Contrat et garanties : `cameraWorld.ts`.
+  const cam = readCameraWorld(run.cam, camera);
   // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
   // adaptatif de la première image qui bouge à nouveau.
-  const pixelError = resolvePixelError(context, camera, run.motion);
-  run.viewRevision.read(
-    run.revisions,
-    camera,
-    rt.setup.viewport[0],
-    rt.setup.viewport[1],
-    pixelError,
-  );
+  const pixelError = resolvePixelError(context, cam, run.motion);
+  run.viewRevision.read(run.revisions, cam, rt.setup.viewport[0], rt.setup.viewport[1], pixelError);
   // L'hôte a le droit d'écrire le graphe source sans passer par le moteur — la pose d'un nœud, la
   // visibilité, une lampe. Aucune révision ne l'annonce : la relecture est ce qui l'annonce, et elle
   // précède la décision de tenir l'image. Elle ne remonte rien : elle compare des poses locales,
@@ -85,17 +84,14 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
       invalidateOccluderHistory(run);
     }
   }
-  if (!sameHizView(run.previousHizView, camera)) {
+  if (!sameHizView(run.previousHizView, cam)) {
     // Une caméra qui bouge périme la pyramide temporelle, pas la moitié occulteuse : celle-ci nomme
     // des pages, elle ne choisit que la passe où un cluster est dessiné, et la pyramide de cette
     // image-ci reste seule juge de ce qui est retiré. La garder évite de projeter toutes les boîtes
     // et de les reclasser à chaque image de déplacement.
     invalidateTemporalPyramid(run);
     // La pose monde est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
-    run.previousHizView = holdCameraWorld(
-      run.previousHizView ?? new THREE.PerspectiveCamera(),
-      camera,
-    );
+    run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);
   }
   marks.blendStart = performance.now();
   // Un item transparent LIT la matrice monde de son maillage source : rien n'est à recopier. Seule
@@ -117,6 +113,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) dropGpuSelection(rt);
   if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
-    if (!renderGpuCut(rt, camera, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
-  } else renderCpuCut(rt, camera, pixelError, cpuStart, lightsEnd);
+    if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
+  } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
 }

@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import {
   LIGHT_KIND,
   RECTS_PER_SLICE,
@@ -12,8 +11,8 @@ import {
 } from '../sdk-core/index.ts';
 import { MAX_SHADOW_REGIONS } from './gpuShadowAtlas.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
-const scratchVector = new THREE.Vector3();
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
   forward: [number, number, number];
@@ -41,16 +40,25 @@ const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS);
  * et lointain. Les cascades du soleil en dérivent entièrement — elles suivent la caméra et rien
  * d'autre.
  */
-function shadowViewpointOf(camera: THREE.PerspectiveCamera) {
-  // Lues dans la matrice monde que l'image a mise à jour, ancêtres compris, sans la recalculer :
-  // l'axe est celui de `Camera.getWorldDirection`, troisième colonne normalisée puis opposée.
-  const world = camera.matrixWorld.elements;
-  scratchVector.setFromMatrixPosition(camera.matrixWorld).toArray(viewpoint.position);
-  scratchVector.set(world[8], world[9], world[10]).normalize().negate().toArray(viewpoint.forward);
-  viewpoint.halfFovY = Math.max(1e-3, (camera.fov * Math.PI) / 360);
-  viewpoint.aspect = Math.max(1e-3, camera.aspect);
-  viewpoint.near = camera.near;
-  viewpoint.far = camera.far;
+function shadowViewpointOf(cam: EngineCamera) {
+  // Lues dans la matrice monde que l'entrée d'image a recopiée, ancêtres compris : l'axe est celui
+  // de `Camera.getWorldDirection`, troisième colonne normalisée puis opposée — même division par la
+  // longueur, même signe, mêmes bits.
+  const world = cam.world;
+  viewpoint.position[0] = cam.position[0];
+  viewpoint.position[1] = cam.position[1];
+  viewpoint.position[2] = cam.position[2];
+  const fx = world[8],
+    fy = world[9],
+    fz = world[10];
+  const inverse = 1 / (Math.sqrt(fx * fx + fy * fy + fz * fz) || 1);
+  viewpoint.forward[0] = -(fx * inverse);
+  viewpoint.forward[1] = -(fy * inverse);
+  viewpoint.forward[2] = -(fz * inverse);
+  viewpoint.halfFovY = Math.max(1e-3, (cam.fov * Math.PI) / 360);
+  viewpoint.aspect = Math.max(1e-3, cam.aspect);
+  viewpoint.near = cam.near;
+  viewpoint.far = cam.far;
   return viewpoint;
 }
 
@@ -61,7 +69,7 @@ function shadowViewpointOf(camera: THREE.PerspectiveCamera) {
  */
 export function planShadowRegions(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   frame: number,
   nowMs: number,
 ) {
@@ -75,7 +83,7 @@ export function planShadowRegions(
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
   if (!shadows || !store.count) return 0;
-  const view = shadowViewpointOf(camera);
+  const view = shadowViewpointOf(cam);
   const count = plan.plan(store, view, frame, nowMs);
   const { regions, slices } = plan;
   let flushes = 0,

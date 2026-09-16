@@ -1,10 +1,10 @@
-import type * as THREE from 'three';
 import type { HizFlat } from '../sdk-core/index.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 export type HizPage = {
   min: number[];
   max: number[];
-  matrix: THREE.Matrix4;
+  matrix: MatrixElements;
   url?: string;
   clusterId?: string;
 };

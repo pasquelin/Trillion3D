@@ -11,7 +11,12 @@ import { lighting } from './backendCommon.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import {
+  createEngineCamera,
+  readCameraWorld,
+  type CameraMotion,
+  type EngineCamera,
+} from './cameraWorld.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -21,6 +26,8 @@ export type ExactPagesRenderState = {
   frustumRejected: number;
   lodLevel: number;
   lastCamera: THREE.PerspectiveCamera | undefined;
+  /** La caméra du moteur, absente tant qu'aucune image n'a été rendue. */
+  cam: EngineCamera | undefined;
   lastPixelError: number;
   /** Temps de la coupe de clusters seule, entre l'appel de sélection et son retour : ni le seuil
    *  adaptatif, ni la résidence, ni les rangs, ni la soumission. */
@@ -40,6 +47,7 @@ export function createExactPagesRenderState(): ExactPagesRenderState {
     frustumRejected: 0,
     lodLevel: 0,
     lastCamera: undefined,
+    cam: undefined,
     lastPixelError: 0,
     cpuSelectMs: 0,
     cpuSelectNodesTested: 0,
@@ -57,7 +65,7 @@ export function createExactPagesRender(options: {
   source: THREE.Object3D;
   blendCopies: THREE.Mesh[];
   sceneLights: ReturnType<typeof lighting>;
-  motion: { last?: THREE.Vector3; lastMs?: number };
+  motion: CameraMotion;
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
   viewport: [number, number] | undefined;
   cap: number;
@@ -114,13 +122,13 @@ export function createExactPagesRender(options: {
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
     state.lastCamera = camera;
-    // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
-    // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
-    resolveCameraWorld(camera);
+    // Entrée d'image : la pose monde, ancêtres compris, est résolue et recopiée ici une fois, avant
+    // le seuil adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
+    const cam = (state.cam = readCameraWorld(state.cam ?? createEngineCamera(), camera));
     // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
     // adaptatif de la première image qui bouge à nouveau.
-    state.lastPixelError = resolvePixelError(context, camera, motion);
-    gate.viewChanged(camera, viewport, state.lastPixelError);
+    state.lastPixelError = resolvePixelError(context, cam, motion);
+    gate.viewChanged(cam, viewport, state.lastPixelError);
     // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture est ce
     // qui l'annonce, et elle précède la décision de tenir l'image.
     gate.readScene(source, sourcesDessinees);
@@ -142,7 +150,7 @@ export function createExactPagesRender(options: {
     // `cpuSelectMs` ne doit dire qu'une chose : la coupe de clusters. Le seuil adaptatif et la
     // caméra sont posés avant cette borne ; la résidence et la soumission sont après.
     const cutStart = performance.now();
-    const selected = selectVisiblePages(roots, camera, selectOptions, shown);
+    const selected = selectVisiblePages(roots, cam, selectOptions, shown);
     state.cpuSelectMs = performance.now() - cutStart;
     // Truncating a DAG cut would punch holes: its clusters are a partition, not a priority list.
     // Selection already answered the budget with a coarser threshold, so the cover is kept whole and

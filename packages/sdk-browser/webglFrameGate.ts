@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import {
   bumpResources,
   bumpScene,
@@ -37,13 +38,13 @@ export function createWebglFrameGate() {
     resourcesChanged: () => bumpResources(revisions),
     /** Relit la vue de cette image ; rend vrai si l'un de ses nombres a bougé. */
     viewChanged(
-      camera: THREE.PerspectiveCamera,
+      cam: EngineCamera,
       viewport: readonly [number, number] | undefined,
       pixelError: number,
     ) {
       return viewRevision.read(
         revisions,
-        camera,
+        cam,
         viewport ? viewport[0] : -1,
         viewport ? viewport[1] : -1,
         pixelError,

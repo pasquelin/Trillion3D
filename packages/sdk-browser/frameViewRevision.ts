@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
 import { createViewFingerprint } from './viewFingerprint.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 import { bumpView, type FrameRevisions } from './frameRevisions.ts';
 
 /**
@@ -21,24 +21,24 @@ export function createViewRevision() {
     /** Relit la vue de cette image ; incrémente `view` et rend vrai si l'un de ces nombres a bougé. */
     read(
       revisions: FrameRevisions,
-      camera: THREE.PerspectiveCamera,
+      cam: EngineCamera,
       viewportWidth: number,
       viewportHeight: number,
       pixelError: number,
     ) {
-      // La pose de la caméra, ancêtres compris, est celle que l'entrée d'image vient de résoudre :
-      // toute entrée appelle `resolveCameraWorld` avant le seuil adaptatif et avant cette lecture,
-      // et rien d'autre n'entre ici. C'est l'ordre que garantit le contrat (`cameraWorld.ts`), et
+      // La pose de la caméra, ancêtres compris, est celle que l'entrée d'image vient de recopier :
+      // toute entrée appelle `readCameraWorld` avant le seuil adaptatif et avant cette lecture, et
+      // rien d'autre n'entre ici. C'est l'ordre que garantit le contrat (`cameraWorld.ts`), et
       // c'est par cette seule empreinte qu'une pose décide de tenir ou de rejouer une image.
       if (
         armed &&
-        far === camera.far &&
+        far === cam.far &&
         quality === pixelError &&
-        fingerprint.same(camera, viewportWidth, viewportHeight)
+        fingerprint.same(cam, viewportWidth, viewportHeight)
       )
         return false;
-      fingerprint.keep(camera, viewportWidth, viewportHeight);
-      far = camera.far;
+      fingerprint.keep(cam, viewportWidth, viewportHeight);
+      far = cam.far;
       quality = pixelError;
       armed = true;
       bumpView(revisions);

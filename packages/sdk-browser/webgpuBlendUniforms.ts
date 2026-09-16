@@ -27,9 +27,9 @@ export function writeBlendUniforms(
     uniformPacked.byteOffset,
     uniformPacked.length,
   );
-  // L'œil en repère monde, lu dans la matrice que l'image a mise à jour : la position locale d'une
-  // caméra parentée n'est pas où elle regarde.
-  const cam = lastCamera?.matrixWorld.elements;
+  // L'œil en repère monde, pris dans la caméra du moteur : la position locale d'une caméra
+  // parentée n'est pas où elle regarde.
+  const eye = lastCamera ? run.cam.position : undefined;
   // Une seule question par image, pas par maillage : l'image est-elle éclairée par des lampes
   // déclarées ? Sinon les transparents sortent leur albédo brut, comme les opaques (P6).
   const unlit = wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW;
@@ -38,7 +38,7 @@ export function writeBlendUniforms(
     blendState,
     rt.layout.packedPages,
     diagnostic,
-    lastCamera,
+    eye && run.cam,
     viewport,
     diagnosticPixelError,
   );
@@ -48,7 +48,7 @@ export function writeBlendUniforms(
       mat = visMaterial(item.material);
     const layer = item.map && mapLayer.has(item.map) ? mapLayer.get(item.map)! : 0,
       scale = uvScales[layer] ?? [1, 1];
-    uniformPacked.set(viewProj.elements, base);
+    uniformPacked.set(viewProj, base);
     uniformPacked.set(item.matrix.elements, base + 16);
     uniformPacked[base + 32] = item.rgba[0];
     uniformPacked[base + 33] = item.rgba[1];
@@ -79,9 +79,9 @@ export function writeBlendUniforms(
     uniformPacked[base + 41] = scale[1];
     packedInts[base + 42] = mat.emissiveMap ? (mapLayer.get(mat.emissiveMap) ?? 0) : 0;
     uniformPacked[base + 43] = mat.alphaTest;
-    uniformPacked[base + 44] = cam?.[12] ?? 0;
-    uniformPacked[base + 45] = cam?.[13] ?? 0;
-    uniformPacked[base + 46] = cam?.[14] ?? 0;
+    uniformPacked[base + 44] = eye?.[0] ?? 0;
+    uniformPacked[base + 45] = eye?.[1] ?? 0;
+    uniformPacked[base + 46] = eye?.[2] ?? 0;
     uniformPacked[base + 47] = 1;
     uniformPacked[base + 48] = mat.roughness;
     uniformPacked[base + 49] = mat.metalness;

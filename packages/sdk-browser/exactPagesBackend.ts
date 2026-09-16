@@ -14,6 +14,7 @@ import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import * as THREE from 'three';
+import type { CameraMotion } from './cameraWorld.ts';
 
 export const exactPagesBackend: BackendFactory = (context) => {
   const {
@@ -52,7 +53,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
-  const motion: { last?: THREE.Vector3; lastMs?: number } = {};
+  const motion: CameraMotion = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
     () => renderState.frame,
@@ -65,8 +66,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
     get diagnostic() {
       return diagnostic;
     },
-    get lastCamera() {
-      return renderState.lastCamera;
+    get cam() {
+      return renderState.cam;
     },
     get lastPixelError() {
       return renderState.lastPixelError;
@@ -103,8 +104,8 @@ export const exactPagesBackend: BackendFactory = (context) => {
     indexByUrl,
     disposeGeometry,
     scene,
-    get lastCamera() {
-      return renderState.lastCamera;
+    get cam() {
+      return renderState.cam;
     },
     get lastPixelError() {
       return renderState.lastPixelError;

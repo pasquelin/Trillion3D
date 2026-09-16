@@ -1,4 +1,3 @@
-import type * as THREE from 'three';
 import { triangleAt } from './visibilityMath.ts';
 import {
   unpackVisibilityId,
@@ -21,7 +20,7 @@ export type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>;
  */
 export function createVisibilityFrame(
   pages: VisPage[],
-  viewProj: THREE.Matrix4,
+  viewProj: ArrayLike<number>,
   width: number,
   height: number,
 ) {

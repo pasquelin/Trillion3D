@@ -1,10 +1,11 @@
+import { invertMatrix4 } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { checkSurfaceSize, createSurfaceBuffer, type SurfaceCapture } from './surfaceBuffer.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
-import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
+import { holdHostCamera, resolveCameraWorld } from './cameraWorld.ts';
 import {
   drawResidentCut,
   renderForCapture,
@@ -44,7 +45,7 @@ function copySurfaces(
     ...owned,
     allocationBytes: reserve,
     depth,
-    inverseViewProjection: viewProj.clone().invert().elements.slice(),
+    inverseViewProjection: [...invertMatrix4(new Float64Array(16), viewProj)],
     cameraWorld: view.getWorldPosition(new THREE.Vector3()).toArray() as [number, number, number],
     selectedTriangles: rt.run.selectedTriangles,
     dispose() {
@@ -103,7 +104,7 @@ export async function captureSurfaceView(
   // Entrée de capture : la caméra vient de l'hôte comme celle d'une image. La copie détachée garde
   // la pose monde ; un clone la ramènerait à sa pose locale sous un rig.
   resolveCameraWorld(camera);
-  const view = holdCameraWorld(new THREE.PerspectiveCamera(), camera);
+  const view = holdHostCamera(new THREE.PerspectiveCamera(), camera);
   view.aspect = options.width / options.height;
   view.updateProjectionMatrix();
   view.updateMatrixWorld();

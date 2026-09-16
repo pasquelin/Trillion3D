@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
@@ -22,7 +22,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function encodeVis(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   itemsDirty: boolean,
 ) {
   const { gpu, vis, run, timing, blendState, layout } = rt,
@@ -43,14 +43,14 @@ export function encodeVis(
   const idsView = vis.visView,
     depthTarget = gpu.depthView;
   const [width, height] = gpu.targetSize;
-  if (!rows.packedCount) return encodeEmptySurfaces(rt, device, camera, depthTarget);
+  if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
   ensureGpuSmall(rt, device);
   // Occluder/rest partition of the image: the half the previous image drew unoccluded, and the nearest
   // half by depth when there is no history or the history splits nothing. The boxes feed both the
   // partition and the Hi-Z test, projected with the view-projection built once for the batch rather
   // than once per page and once again per tested page.
-  const partition = partitionWebgpuVisibility(rt, camera);
+  const partition = partitionWebgpuVisibility(rt, cam);
   const { twoPass, restSignature } = partition;
   timing.lastItemsMs = 0;
   const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
@@ -106,7 +106,7 @@ export function encodeVis(
     run.gpuDrawCalls++;
   }
   shadePass.end();
-  const presented = encodeSurfaceLighting(rt, device, encoder, camera, rows.packedCount);
+  const presented = encodeSurfaceLighting(rt, device, encoder, cam, rows.packedCount);
   submitColorCopy(rt, device, encoder, height, width, presented);
   return vertices / 3 + run.blendSubmittedTriangles;
 }
