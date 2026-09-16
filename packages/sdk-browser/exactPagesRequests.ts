@@ -4,7 +4,6 @@ import {
   acceptPageArray,
   collectPendingUrls,
   indexPagesByUrl,
-  pageRequestUrl,
   RequestStamps,
   selectVisiblePages,
   type PageRec,
@@ -25,12 +24,6 @@ export function createExactPagesRequestData(allPages: PageRec[], requestCount: n
   const prefetchScratch: string[] = [],
     prefetchShown: PageRec[] = [];
   const pixelScaleScratch: number[] = [1, 1];
-  const markRequests = (list: readonly PageRec[]) => {
-    for (let i = 0; i < list.length; i++) {
-      const rec = list[i];
-      if (requestStamps.first(rec.requestIndex)) urlScratch.push(pageRequestUrl(rec));
-    }
-  };
   return {
     byUrl,
     pendingScratch,
@@ -41,7 +34,6 @@ export function createExactPagesRequestData(allPages: PageRec[], requestCount: n
     prefetchScratch,
     prefetchShown,
     pixelScaleScratch,
-    markRequests,
   };
 }
 
@@ -59,7 +51,6 @@ export type ExactPagesRequestContext = {
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
   urlScratch: string[];
   bundled: boolean;
-  markRequests: (list: readonly PageRec[]) => void;
   batches: ClusterBatches;
   byUrl: Map<string, PageRec[]>;
   indexByUrl: Map<string, THREE.BufferAttribute>;
@@ -89,7 +80,6 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     roots,
     urlScratch,
     bundled,
-    markRequests,
     batches,
     byUrl,
     indexByUrl,
@@ -149,9 +139,9 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       // hachage ni allocation, sur une coupe qui compte des milliers de pages à chaque image.
       if (bundled) {
         requestStamps.begin();
-        markRequests(bootstrap);
-        markRequests(shown);
-        markRequests(desired);
+        requestStamps.mark(bootstrap, urlScratch);
+        requestStamps.mark(shown, urlScratch);
+        requestStamps.mark(desired, urlScratch);
         return urlScratch;
       }
       ctx.urlStamp++;

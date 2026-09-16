@@ -66,6 +66,33 @@ export class RequestStamps {
     this.stamps[index] = this.current;
     return true;
   }
+  /**
+   * Ajoute à `into` l'adresse de requête de chaque enregistrement dont le rang n'a pas encore été vu
+   * depuis `begin()`. Le dédoublonnage et l'écriture tiennent dans une seule boucle, sur le tableau
+   * d'estampilles lu en champ et sur des rangs de `into` écrits directement : une coupe de cent
+   * mille enregistrements ne paie plus un appel ni un empilement par enregistrement. `missing`
+   * n'en garde que les pages sans octets — la liste des adresses encore attendues.
+   */
+  mark(
+    list: readonly { url: string; streamUrl?: string; array?: Uint32Array; requestIndex?: number }[],
+    into: string[],
+    missing = false,
+  ) {
+    const { stamps, current } = this;
+    let count = into.length;
+    for (let i = 0; i < list.length; i++) {
+      const rec = list[i],
+        index = rec.requestIndex;
+      if (missing && rec.array) continue;
+      if (index !== undefined && index >= 0 && index < stamps.length) {
+        if (stamps[index] === current) continue;
+        stamps[index] = current;
+      }
+      into[count++] = rec.streamUrl ?? rec.url;
+    }
+    into.length = count;
+    return into;
+  }
 }
 export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   pages: readonly T[],
@@ -86,19 +113,19 @@ export function collectPendingUrls<
   T extends { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number },
 >(shown: readonly T[], into: string[], stamps?: RequestStamps) {
   into.length = 0;
-  if (stamps) stamps.begin();
-  const seen = stamps ? undefined : vuesSansEstampille;
-  seen?.clear();
+  if (stamps) {
+    stamps.begin();
+    return stamps.mark(shown, into, true);
+  }
+  // Le repli sans estampilles : un hôte qui n'a pas numéroté ses requêtes déduplique par les chaînes.
+  const seen = vuesSansEstampille;
+  seen.clear();
   for (let i = 0; i < shown.length; i++) {
     const rec = shown[i];
     if (rec.array) continue;
     const key = pageRequestUrl(rec);
-    if (stamps) {
-      if (!stamps.first(rec.requestIndex)) continue;
-    } else {
-      if (seen!.has(key)) continue;
-      seen!.add(key);
-    }
+    if (seen.has(key)) continue;
+    seen.add(key);
     into.push(key);
   }
   return into;

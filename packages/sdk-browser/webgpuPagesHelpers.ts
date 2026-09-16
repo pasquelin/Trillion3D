@@ -81,19 +81,22 @@ export function shownFromGpu(
   into: PageRec[] | undefined,
   residentOffsetWords: Int32Array,
 ) {
-  if (into) into.length = 0;
   let selected = 0,
     uncovered = 0,
-    transparent = 0;
+    transparent = 0,
+    count = 0;
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i],
       rec = pages[id];
     if (!rec) continue;
-    if (into) into.push(rec);
+    // Écriture par rang plutôt qu'empilement : la coupe d'une ville se recopie sans repasser par la
+    // longueur du tableau à chaque enregistrement.
+    if (into) into[count++] = rec;
     selected += rec.triangles;
     if (rec.transparent) transparent += rec.triangles;
     if (residentOffsetWords[id] < 0 || !rec.array) uncovered += rec.triangles;
   }
+  if (into) into.length = count;
   gpuCutCounts.selectedTriangles = selected;
   // Ce que l'image remet au dessin : la coupe publiée moins ses grappes sans ligne de résidence.
   // Une soustraction hors de la boucle, sur deux compteurs que la boucle tenait déjà.
@@ -136,10 +139,14 @@ export function markDrawnMirrored(run: DrawnMirrorFlag) {
 export function markDrawnDiverged(run: DrawnMirrorFlag) {
   run.drawnMirrorsShown = false;
 }
+/** Recopie `source` dans `target`, rang par rang : ni empilement, ni vidage préalable. */
+export function copyPages<T>(target: T[], source: readonly T[]) {
+  for (let i = 0; i < source.length; i++) target[i] = source[i];
+  target.length = source.length;
+}
 /** Refait `drawn` depuis `shown`, que le drapeau soit levé ou non. */
 export function copyDrawnFromShown(run: DrawnMirror) {
-  run.drawn.length = 0;
-  appendAll(run.drawn, run.shown);
+  copyPages(run.drawn, run.shown);
   markDrawnMirrored(run);
 }
 /** Refait `drawn` depuis `shown` s'il n'en est plus la recopie ; rend vrai s'il l'a fait. */
