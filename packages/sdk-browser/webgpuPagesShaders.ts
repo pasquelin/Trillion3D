@@ -108,9 +108,9 @@ ${TRIANGLE_PALETTE_WGSL}
  out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);
  if((uni.flags&256u)!=0u){out.normal=-out.normal;}
  if((uni.flags&2048u)!=0u){
-  out.tangent=normalize((uni.world*vec4f(normals[id*7u+3u],normals[id*7u+4u],normals[id*7u+5u],0.0)).xyz);
+  out.tangent=uniteOuZero((uni.world*vec4f(normals[id*7u+3u],normals[id*7u+4u],normals[id*7u+5u],0.0)).xyz);
   if((uni.flags&256u)!=0u){out.tangent=-out.tangent;}
-  out.bitangent=normalize(cross(out.normal,out.tangent)*normals[id*7u+6u]);
+  out.bitangent=uniteOuZero(cross(out.normal,out.tangent)*normals[id*7u+6u]);
  }
  let i=id*2u;out.uv=vec2f(uvs[i],uvs[i+1u]);
  return out;
@@ -118,15 +118,19 @@ ${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
  let q0=dpdx(in.view);let q1=dpdy(in.view);
+ // uniteOuZero rend normalize partout où le vecteur n'est pas nul : mêmes bits qu'avant sur une
+ // surface ordinaire, vecteur nul — et non NaN — sur une face effondrée, dont un NaN gagnerait les
+ // pixels voisins par les dérivées d'écran. Une pose de rang 2 n'y arrive pas nulle : xformNormal
+ // lui a déjà donné la normale de la face aplatie.
  // La normale géométrique vient des dérivées d'écran : elle regarde déjà l'observateur, quelle que
  // soit la face rasterisée. Seule une normale de sommet, qui pointe vers le dehors déclaré, se
  // retourne sur le dos d'un matériau à deux faces — la retourner aussi enverrait la géométrique à
  // l'opposé de la lumière, et la surface rendrait exactement zéro. Même règle que la résolution
  // opaque, qui ne retourne que la normale interpolée.
- var N=normalize(-cross(q0,q1));
+ var N=uniteOuZero(-cross(q0,q1));
  let face=select(-1.0,1.0,front);
  if((uni.flags&16u)!=0u){
-  N=normalize(in.normal);
+  N=uniteOuZero(in.normal);
   if((uni.flags&2u)!=0u){N*=face;}
  }
  let sample=colorSample(uni.mapIndex,uni.uvScale,in.uv,blendWrap(${WRAP_MAP.base}u),gradX,gradY);
@@ -155,10 +159,10 @@ ${TRIANGLE_PALETTE_WGSL}
   let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,in.uv,blendWrap(${WRAP_MAP.normal}u),gradX,gradY).xyz*2.0-vec3f(1.0);
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
-  if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}
+  if((uni.flags&2048u)!=0u){T=uniteOuZero(in.tangent);B=uniteOuZero(in.bitangent);}
   if((uni.flags&2u)!=0u&&(uni.flags&16u)!=0u){T*=face;B*=face;}
   let tbnScale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
-  N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
+  N=uniteOuZero(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
  }
  var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
  if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,in.uv,blendWrap(${WRAP_MAP.emissive}u),gradX,gradY).rgb;}

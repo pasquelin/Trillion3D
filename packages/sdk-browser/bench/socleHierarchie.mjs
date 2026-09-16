@@ -11,7 +11,7 @@ import {
   normalMatrix3,
 } from '../../sdk-core/index.ts';
 import { graine } from '../../sdk-core/bench/banc.mjs';
-import { f64, trs } from './socleLigne.mjs';
+import { f64, normaleReference, trs } from './socleLigne.mjs';
 
 /** Un nœud des deux côtés : l'objet de la référence et les tampons du socle. */
 function noeud(p, q, s) {
@@ -150,7 +150,7 @@ export function lectureReference(n) {
     f64(o.getWorldScale(new THREE.Vector3()).toArray()),
     o.matrixWorld.determinant(),
     Math.sign(o.matrixWorld.determinant()),
-    f64(new THREE.Matrix3().getNormalMatrix(o.matrixWorld).elements),
+    normaleReference(o.matrixWorld),
     f64(o.matrixWorld.clone().invert().elements),
   ];
 }
