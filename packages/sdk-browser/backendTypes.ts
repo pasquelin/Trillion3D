@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { HostCamera } from './cameraWorld.ts';
 import type {
   BackendCapabilities,
   ClusterManifest,
@@ -24,7 +25,7 @@ export interface RenderBackend {
   /** Déplace un nœud nommé de la scène préparée ; appliqué à l'image suivante, sans allocation (R8). */
   setTransform?(nodeName: string, matrix: Float32Array): void;
   prepare(): Promise<void>;
-  render(camera: THREE.PerspectiveCamera): void;
+  render(camera: HostCamera): void;
   readonly overBudget: boolean;
   /** Vrai quand la dernière image rendue a été tenue : rien n'a été resélectionné ni remonté, et la
    *  scène attachée EST cette image-ci. Lu par image ; absent d'un moteur qui ne tient rien. */
@@ -64,7 +65,7 @@ export interface RenderBackend {
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   captureSurfaceView?(
-    camera: THREE.PerspectiveCamera,
+    camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
   ): Promise<import('./surfaceBuffer.ts').SurfaceCapture>;
   rasterRgba?(): Uint8Array;

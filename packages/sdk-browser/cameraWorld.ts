@@ -121,28 +121,16 @@ export function defaultEngineCamera() {
   return (defaultEngine ??= readCameraWorld(createEngineCamera(), new THREE.PerspectiveCamera()));
 }
 
-/** La position de l'œil dans le monde, ancêtres compris. */
-export function cameraWorldPosition(camera: THREE.Camera, into = new THREE.Vector3()) {
-  return into.setFromMatrixPosition(resolveCameraWorld(camera).matrixWorld);
-}
-
-/** L'orientation de la caméra dans le monde, ancêtres compris. */
-function cameraWorldQuaternion(camera: THREE.Camera, into = new THREE.Quaternion()) {
-  return resolveCameraWorld(camera).getWorldQuaternion(into);
-}
-
-/** La pose monde telle que la publient les traces et les diagnostics : position et orientation. */
-export const cameraPose = (camera: THREE.Camera) => ({
-  position: cameraWorldPosition(camera).toArray(),
-  quaternion: cameraWorldQuaternion(camera).toArray(),
-});
-
 const poseTranslation = new Float64Array(3),
   poseRotation = new Float64Array(4),
   poseScale = new Float64Array(3);
 
-/** La même pose, lue dans la caméra du moteur : la décomposition du socle rend les bits de
- *  `Matrix4.decompose`, dont `getWorldQuaternion` n'est que l'appel. */
+/**
+ * La pose monde que publient les traces et les diagnostics, lue dans la caméra du moteur : l'œil est
+ * la translation de `world`, et la décomposition du socle rend les bits de `Matrix4.decompose`, dont
+ * `getWorldQuaternion` n'est que l'appel. Aucune caméra de l'hôte n'entre ici : la pose publiée est
+ * celle de l'image dessinée, ancêtres compris, parce que `readCameraWorld` l'a résolue en tête.
+ */
 export function enginePose(cam: EngineCamera) {
   decomposeMatrix4(cam.world, poseTranslation, poseRotation, poseScale);
   return {
