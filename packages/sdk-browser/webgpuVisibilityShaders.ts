@@ -1,12 +1,20 @@
 import { shaderErrors } from './gpuShaderModule.ts';
 import { SHADE_SHADER, VIS_SHADER } from './visibilityBuffer.ts';
 import { VIS_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import {
+  DIAGNOSTIC_SHADE_WGSL,
+  DIAGNOSTIC_VIS_WGSL,
+  variesShade,
+  variesVisibility,
+} from './diagnosticGpuGeometry.ts';
+import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation. */
 export async function createWebgpuVisibilityShaders(
   device: GPUDevice,
   drawSlots: number,
   uniformSlots = 7,
+  variant?: DiagnosticGpuVariant,
 ) {
   const shadeUniform = device.createBuffer({
     size: 256,
@@ -46,8 +54,14 @@ export async function createWebgpuVisibilityShaders(
     size: uniformSlots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const visModule = device.createShaderModule({ code: VIS_SHADER });
-  const shadeModule = device.createShaderModule({ code: SHADE_SHADER });
+  // Sans variante, les deux modules sont exactement ceux d'avant : la production ne compile aucun
+  // étage de diagnostic.
+  const visModule = device.createShaderModule({
+    code: variesVisibility(variant) ? VIS_SHADER + DIAGNOSTIC_VIS_WGSL : VIS_SHADER,
+  });
+  const shadeModule = device.createShaderModule({
+    code: variesShade(variant) ? SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL : SHADE_SHADER,
+  });
   if ((await shaderErrors(visModule)).length) throw new Error('VIS_SHADER');
   const shadeErrors = await shaderErrors(shadeModule);
   if (shadeErrors.length)
