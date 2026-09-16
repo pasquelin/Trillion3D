@@ -1,7 +1,7 @@
 import type { GpuPartition } from './gpuPartitionTypes.ts';
 import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
-import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
+import type { GpuRaster } from './gpuRaster.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 import type { GpuRestCompact } from './gpuRestCompact.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
@@ -31,7 +31,7 @@ export interface WebgpuVisState {
   visPipelineFrontCw: GPURenderPipeline | undefined;
   shadePipeline: GPURenderPipeline | undefined;
   gpuHiz: GpuHiz | undefined;
-  gpuSmall: GpuSmallTriangles | undefined;
+  gpuRaster: GpuRaster | undefined;
   hybridUnavailable: boolean;
   visHizRestBack: GPURenderPipeline | undefined;
   visHizRestNone: GPURenderPipeline | undefined;
@@ -64,7 +64,7 @@ export interface WebgpuVisState {
   // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection: both
   // sets are built from buffers that outlive the frame, so a frame never rebuilds a bind group.
   visSlotGroups: Array<GPUBindGroup | undefined>;
-  smallGroups: Array<unknown>;
+  rasterGroups: Array<unknown>;
   concatPos: GPUBuffer | undefined;
   concatUv: GPUBuffer | undefined;
   concatNrm: GPUBuffer | undefined;
@@ -101,7 +101,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     visPipelineFrontCw: undefined,
     shadePipeline: undefined,
     gpuHiz: undefined,
-    gpuSmall: undefined,
+    gpuRaster: undefined,
     hybridUnavailable: false,
     visHizRestBack: undefined,
     visHizRestNone: undefined,
@@ -123,7 +123,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,
     visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
-    smallGroups: new Array(8).fill(undefined),
+    rasterGroups: new Array(8).fill(undefined),
     concatPos: undefined,
     concatUv: undefined,
     concatNrm: undefined,

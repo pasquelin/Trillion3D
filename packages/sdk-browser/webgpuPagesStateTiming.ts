@@ -58,6 +58,8 @@ export interface WebgpuTimingState {
     fichesTeleversees: number;
     appelsDeDessin: number;
     appelsDeMelange: number;
+    /** Les lancements du raster de calcul, comptés à part : ce ne sont pas des appels de dessin. */
+    lancementsDeCalcul: number;
   };
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
   /** Vrai quand l'image a rempli sa ligne de bornes et attend d'être classée par l'hôte. */
@@ -119,6 +121,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       fichesTeleversees: 0,
       appelsDeDessin: 0,
       appelsDeMelange: 0,
+      lancementsDeCalcul: 0,
     },
     cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
     rowFilled: false,

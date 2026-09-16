@@ -1,13 +1,15 @@
 import type { EngineCamera } from './cameraWorld.ts';
-import { createGpuSmallTriangles } from './gpuSmallTriangles.ts';
+import { createGpuRaster } from './gpuRaster.ts';
 import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
 import { writeWebgpuVisibilityUniforms } from './webgpuVisibilityUniforms.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
+import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
+import type { GpuRasterInput } from './gpuRasterTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 
@@ -61,24 +63,31 @@ export function encodeEmptySurfaces(
   return run.blendSubmittedTriangles;
 }
 
-/** Creates the small-triangle compute raster once, and remembers when the device cannot host it. */
-export function ensureGpuSmall(rt: WebgpuPagesRuntime, device: GPUDevice) {
+/**
+ * Ce qu'une image donne au raster de calcul, tenu d'une image à l'autre : chacun de ses champs est
+ * réécrit avant chaque encodage, et l'encodage le consomme avant de rendre la main. L'écrire en
+ * clair à chaque image allouait un objet de dix-huit champs par image.
+ */
+const rasterInput = {} as GpuRasterInput;
+
+/** Crée le raster de calcul une fois, et retient l'appareil qui ne peut pas l'héberger. */
+export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, capture, capabilities, diag } = rt,
     [width, height] = rt.gpu.targetSize;
-  if (vis.gpuSmall || vis.hybridUnavailable || typeof device.createComputePipeline !== 'function')
+  if (vis.gpuRaster || vis.hybridUnavailable || typeof device.createComputePipeline !== 'function')
     return;
   try {
     checkFrameBudget(
       rt,
       width,
       height,
-      capture.captureAllocationBytes + width * height * 8 + rt.layout.smallTriangleCapacity * 4,
+      capture.captureAllocationBytes + width * height * 8 + rt.layout.rasterCapacity * 8,
     );
-    vis.gpuSmall = createGpuSmallTriangles(device, width, height, rt.layout.smallTriangleCapacity);
-    grantCapability(capabilities, 'small-triangle compute raster');
+    vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
+    grantCapability(capabilities, 'opaque compute raster');
   } catch (error) {
     vis.hybridUnavailable = true;
-    diag.diagnosticFailure('small-triangle-compute-unavailable', error);
+    diag.diagnosticFailure('opaque-compute-raster-unavailable', error);
   }
 }
 
@@ -89,8 +98,13 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
   ensureWebgpuVisibilityBindings(rt, device);
 }
 
-/** Rasterises the small triangles the raster passes skipped, when the compute path is available. */
-export function encodeSmallTriangles(
+/**
+ * Rastère en calcul TOUS les triangles opaques et masqués de la coupe, et rend le nombre de
+ * lancements encodés. `midFrame` porte la pyramide et le test d'occultation : ils tombent entre la
+ * profondeur des occulteurs et celle de la moitié testée, là où le raster matériel les mettait.
+ * Rend `null` — et rien n'est encodé — quand une ressource manque : l'appelant reprend le matériel.
+ */
+export function encodeRaster(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
   twoPass: boolean,
@@ -98,10 +112,11 @@ export function encodeSmallTriangles(
   maxVertexCount: number,
   idsView: GPUTextureView,
   depthTarget: GPUTextureView,
+  midFrame: (encoder: GPUCommandEncoder) => void,
 ) {
   const { vis, gpu, run } = rt;
   if (
-    !vis.gpuSmall ||
+    !vis.gpuRaster ||
     !gpu.cache ||
     !vis.concatPos ||
     !vis.concatUv ||
@@ -112,29 +127,33 @@ export function encodeSmallTriangles(
     !vis.slots ||
     !vis.mapsSampler
   )
-    return;
-  // Every row carries its own Hi-Z slot, so a frame that ran no occlusion test is handed the zero
-  // flags: the pyramid verdicts of the previous image do not describe this one.
+    return null;
+  // Le partage occulteurs/testés voyage par le mot de verdict que la partition a écrit : sans
+  // partition, ou sans pyramide, l'image lit des zéros et rastère toute la coupe en une fois.
   const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : vis.zeroFlags;
-  const smallKey = (hizFlags === vis.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
-  vis.gpuSmall.encode(encoder, {
-    indices: gpu.cache.buffer,
-    positions: vis.concatPos,
-    pages: vis.pageTable,
-    hizFlags,
-    uniform: vis.visUniform,
-    uvs: vis.concatUv,
-    colorAtlas: vis.colorAtlas,
-    slots: vis.slots,
-    sampler: vis.mapsSampler,
-    pageRows: tableRows,
-    maxTriangles: Math.ceil(maxVertexCount / 3),
-    idsView: idsView,
-    depthView: depthTarget,
-    hizView: vis.gpuHiz?.level0View,
-    selection: run.gpuFrameActive ? run.gpuSelection : undefined,
-    groups: vis.smallGroups,
-    groupKey: smallKey,
-  });
-  run.gpuDrawCalls++;
+  const key = (hizFlags === vis.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0);
+  const mid = twoPass && vis.gpuHiz ? midFrame : undefined;
+  // Les triangles plein écran des résolutions sont des appels de dessin comme les autres : celui
+  // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
+  run.gpuDrawCalls += mid ? 2 : 1;
+  const input = rasterInput;
+  input.indices = gpu.cache.buffer;
+  input.positions = vis.concatPos;
+  input.pages = vis.pageTable;
+  input.hizFlags = hizFlags;
+  input.uniform = vis.visUniform;
+  input.uvs = vis.concatUv;
+  input.colorAtlas = vis.colorAtlas;
+  input.slots = vis.slots;
+  input.sampler = vis.mapsSampler;
+  input.pageRows = tableRows;
+  input.maxTriangles = Math.ceil(maxVertexCount / 3);
+  input.idsView = idsView;
+  input.depthView = depthTarget;
+  input.hizView = vis.gpuHiz?.level0View;
+  input.selection = run.gpuFrameActive ? run.gpuSelection : undefined;
+  input.skipRest = skipsSecondaryPass(rt.context?.diagnosticGpuVariant);
+  input.groups = vis.rasterGroups;
+  input.groupKey = key;
+  return vis.gpuRaster.encode(encoder, input, mid);
 }

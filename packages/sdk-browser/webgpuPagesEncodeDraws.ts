@@ -29,7 +29,7 @@ export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   vis.visBindGroup = undefined;
   vis.visHizBindGroup = undefined;
   vis.visSlotGroups.fill(undefined);
-  vis.smallGroups.fill(undefined);
+  vis.rasterGroups.fill(undefined);
   vis.pageTable = device.createBuffer({
     label: 'WG page table',
     size: bytes,
@@ -60,6 +60,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     { rows } = rt.layout,
     { viewport } = rt.setup;
   run.gpuDrawCalls = 0;
+  run.gpuComputeDispatches = 0;
   run.blendDrawCalls = 0;
   run.blendFrustumRejected = 0;
   timing.transparentEncodeMs = 0;

@@ -5,14 +5,50 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 
 /**
- * Encode la passe de visibilité primaire puis, quand les ressources de la moitié testée existent, la
- * pyramide, le test d'occultation et la passe secondaire.
+ * La pyramide Hi-Z, son test d'occultation et la recompaction qu'il permet : ce qui sépare la moitié
+ * occulteurs de la moitié testée, quel que soit le producteur de l'image.
  *
- * Aucune de ces trois décisions ne dépend plus d'un compte que le processeur aurait établi ligne par
- * ligne : les commandes indirectes disent combien d'instances chaque moitié dessine, et le noyau
- * d'occultation lit lui-même le nombre de boîtes que la partition lui a compactées. Une image dont
- * la carte a tout mis du côté des occulteurs encode donc quand même sa seconde passe, qui dessine
- * zéro instance — et l'image est la même.
+ * Aucune de ces décisions ne dépend d'un compte que le processeur aurait établi ligne par ligne : le
+ * noyau d'occultation lit lui-même le nombre de boîtes que la partition lui a compactées. Une image
+ * dont la carte a tout mis du côté des occulteurs encode donc quand même cette étape, qui n'élimine
+ * rien — et l'image est la même.
+ *
+ * Le verdict qu'elle écrit est à trois valeurs et c'est ce que le raster de calcul lit : `0` pour une
+ * ligne de la moitié occulteurs, `1` pour une ligne testée que la pyramide rejette, `2` pour une
+ * ligne testée qu'elle garde. La partition a posé les `0` et les `2` avant cette étape ; le test ne
+ * fait que ramener certains `2` à `1`.
+ */
+export function encodeHizMidFrame(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  tableRows: number,
+) {
+  const { vis } = rt,
+    { rows } = rt.layout,
+    { gpuHiz } = vis;
+  if (!gpuHiz) return;
+  gpuHiz.encodePyramid(encoder);
+  rt.run.hizPyramidFresh = true;
+  gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
+  // Le verdict existe maintenant : le suffixe de lignes rejetées sort du compte d'instances avant
+  // que la seconde passe ne lance leurs sommets. Il n'y posait aucun pixel, l'image ne bouge pas.
+  if (vis.gpuRestCompact && vis.pageTable)
+    vis.gpuRestCompact.encode(
+      encoder,
+      restSlotCount(vis.drawLayerSlots),
+      rows.packedCount,
+      vis.pageTable,
+    );
+}
+
+/**
+ * Le raster matériel du tampon de visibilité : la passe primaire, puis, quand les ressources de la
+ * moitié testée existent, la pyramide, le test d'occultation et la passe secondaire.
+ *
+ * C'est le repli de l'appareil qui ne peut pas héberger le raster de calcul — il n'y a plus qu'ici
+ * que la géométrie opaque passe par des appels de dessin. Quand le raster de calcul existe, c'est
+ * lui qui produit ces mêmes attachements, et aucun de ces appels n'est encodé.
  */
 export function encodeWebgpuVisibilityPasses(
   rt: WebgpuPagesRuntime,
@@ -23,7 +59,6 @@ export function encodeWebgpuVisibilityPasses(
   useIndirect: boolean,
 ) {
   const { vis, gpu } = rt,
-    { rows } = rt.layout,
     { gpuHiz } = vis,
     idsView = vis.visView!,
     depthTarget = gpu.depthView!,
@@ -65,18 +100,7 @@ export function encodeWebgpuVisibilityPasses(
   visPass.end();
   rt.run.hizPyramidFresh = false;
   if (!twoPass || !gpuHiz) return;
-  gpuHiz.encodePyramid(encoder);
-  rt.run.hizPyramidFresh = true;
-  gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
-  // Le verdict existe maintenant : le suffixe de lignes rejetées sort du compte d'instances avant
-  // que la seconde passe ne lance leurs sommets. Il n'y posait aucun pixel, l'image ne bouge pas.
-  if (vis.gpuRestCompact && vis.pageTable)
-    vis.gpuRestCompact.encode(
-      encoder,
-      restSlotCount(vis.drawLayerSlots),
-      rows.packedCount,
-      vis.pageTable,
-    );
+  encodeHizMidFrame(rt, device, encoder, tableRows);
   // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
   // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
   if (skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) return;
