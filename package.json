@@ -63,7 +63,7 @@
     "check:duplicates": "jscpd packages scripts test --format typescript,javascript,rust --cross-formats js-ts --min-lines 12 --min-tokens 100 --reporters console --exit-code 1 --no-tips",
     "check:unused": "knip",
     "validate": "node scripts/validate.mjs",
-    "check:structure": "node --test test/engineStructure.test.mjs && tsc -p tsconfig.core.json --noEmit",
+    "check:structure": "node --test test/engineStructure.test.mjs test/engineNoThreeMath.test.mjs && tsc -p tsconfig.core.json --noEmit",
     "check:links": "node scripts/check-links.mjs",
     "check:dts": "node scripts/rewrite-dts-extensions.mjs --check"
   },
