@@ -37,7 +37,7 @@ export function submitColorCopy(
   const { run, gpu, timing, capture, context } = rt;
   // La variante hors écran ne touche la chaîne d'échange d'aucune façon : ni cible de composition,
   // ni passe de présentation séparée. C'est ce qui isole ce que « Présentation » contient vraiment.
-  const offscreen = composesOffscreen(rt.context?.diagnosticGpuVariant);
+  const offscreen = composesOffscreen(context.diagnosticGpuVariant);
   if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.secondaryCamera) {
     gpu.presenter.present(encoder, gpu.colorTexture, width, height);
     run.gpuDrawCalls++;

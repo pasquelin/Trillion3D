@@ -35,17 +35,33 @@ export function uploadRowCorners(rt: WebgpuPagesRuntime, partition: GpuPartition
       cornerPacked.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    const at = boxCorners.at(rows.packedPageIndex[row], rec, rows.tableEpoch);
-    // Chaque coordonnée part en deux mots : l'arrondi simple précision, puis ce qu'il a laissé. La
-    // somme des deux représente le double d'origine à un ulp au carré près.
-    for (let k = 0; k < 8; k++)
-      for (let axis = 0; axis < 3; axis++)
-        writeSplitDouble(
-          cornerPacked,
-          base + k * 6 + axis,
-          base + k * 6 + 3 + axis,
-          boxCorners.corners[at + k * 3 + axis],
-        );
+    packBoxCorners(
+      cornerPacked,
+      base,
+      boxCorners.corners,
+      boxCorners.at(rows.packedPageIndex[row], rec, rows.tableEpoch),
+    );
   }
   partition.uploadCorners(cornerPacked, from, to);
+}
+
+/**
+ * Les huit coins d'une boîte, lus dans `corners` à partir de `at`, écrits dans `packed` à partir de
+ * `base`. Chaque coordonnée part en deux mots : l'arrondi simple précision, puis ce qu'il a laissé.
+ * La somme des deux représente le double d'origine à un ulp au carré près.
+ */
+export function packBoxCorners(
+  packed: Float32Array,
+  base: number,
+  corners: ArrayLike<number>,
+  at: number,
+) {
+  for (let k = 0; k < 8; k++)
+    for (let axis = 0; axis < 3; axis++)
+      writeSplitDouble(
+        packed,
+        base + k * 6 + axis,
+        base + k * 6 + 3 + axis,
+        corners[at + k * 3 + axis],
+      );
 }

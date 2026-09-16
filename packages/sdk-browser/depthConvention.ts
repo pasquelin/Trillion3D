@@ -41,5 +41,4 @@ export function depthToZeroOne(ndcZ: number, depthZeroToOne: boolean) {
 export function viewProjectionZeroToOne(out: Float64Array, cam: DepthCamera) {
   if (cam.depthZeroToOne) out.set(cam.viewProjection);
   else multiplyMatrix4(out, remapMinusOneToOne, cam.viewProjection);
-  return out;
 }

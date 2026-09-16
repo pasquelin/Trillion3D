@@ -47,13 +47,7 @@ impl<'a> Emitter<'a> {
     /// Écrit `emitterRadius` sur une lampe déjà convertie, quand la scène en donne un qui tient le
     /// contrat. Une directionnelle n'a ni position ni portée : le champ lui est refusé sans compte,
     /// puisque aucune sphère ne se pose autour d'une source qui n'a pas de centre.
-    pub(super) fn attach(
-        &self,
-        entry: &mut Value,
-        light: &Value,
-        node: usize,
-        counts: &mut BTreeMap<&'static str, usize>,
-    ) {
+    pub(super) fn attach(&self, entry: &mut Value, light: &Value, node: usize, counts: &mut Tally) {
         let (Some(range), Some(centre)) =
             (entry.get("range").and_then(Value::as_f64), centre_of(entry))
         else {

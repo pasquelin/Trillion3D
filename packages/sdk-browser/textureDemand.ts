@@ -88,13 +88,6 @@ export function createTextureDemand() {
       ensure(slot);
       if (level < finest[slot]) finest[slot] = level;
     },
-    /** Tout est de nouveau à transférer : une scène rechargée repart de la queue. */
-    clearResidency() {
-      finest.fill(TAIL_LEVEL + 1);
-      wanted.fill(TAIL_LEVEL);
-      stable.fill(0);
-      known.fill(0);
-    },
     /**
      * Arrête les niveaux voulus de l'image à partir des empreintes déposées et de la largeur en
      * texels de chaque couche, puis compte ce que l'hôte affiche. Un niveau ne devient le niveau
@@ -143,7 +136,6 @@ export function createTextureDemand() {
     /** Écart entre ce qui est résident et ce que l'écran demande, en niveaux de mip. */
     gapOf: (slot: number) =>
       slot < wanted.length ? Math.max(0, finest[slot] - wanted[slot]) : TAIL_LEVEL,
-    wantedOf: (slot: number) => (slot < wanted.length ? wanted[slot] : TAIL_LEVEL),
     areaOf: (slot: number) => (slot < area.length ? area[slot] : 0),
     counters,
     /** Couches connues de la scène, aperçu de repli exclu. */

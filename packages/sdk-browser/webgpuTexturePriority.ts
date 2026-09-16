@@ -5,7 +5,7 @@ import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import { boundsScreenRadius, pixelScaleOf, worldBoxScreenRadius } from './streamingPriority.ts';
 import { openUvSpanBudget, uvSpanOf } from './textureUvSpan.ts';
-import { createTextureDemand, TAIL_LEVEL } from './textureDemand.ts';
+import { createTextureDemand } from './textureDemand.ts';
 import { createFrameViews } from './textureFrameViews.ts';
 
 /** Couches d'atlas qu'un matériau lit : ce qui relie une surface dessinée aux textures à transférer. */
@@ -133,11 +133,6 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
     markLevel(kind: TextureJob['kind'], slot: number, level: number) {
       demandOf(kind).markLevel(slot, level);
     },
-    /** Une couche repart de sa queue : seule une scène rechargée le demande. */
-    clearResidency() {
-      color.clearResidency();
-      data.clearResidency();
-    },
     /** Vrai dès qu'une caméra exploitable a mesuré une image : avant, aucune pleine résolution ne
      *  part, seules les queues d'aperçus. Une préparation ne dépense pas le budget d'une image dans
      *  un ordre que l'écran n'a pas encore dicté. */
@@ -155,6 +150,5 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
     get layers() {
       return color.layers;
     },
-    TAIL_LEVEL,
   };
 }

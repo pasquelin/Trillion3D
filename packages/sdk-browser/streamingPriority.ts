@@ -103,9 +103,8 @@ export function orderPendingUrls(
       distance = Math.hypot(centre[0], centre[1], centre[2]);
     } else {
       // No cluster error: fall back on the screen footprint of the bounds, which orders the same way.
-      project(frame.view, boundsSphere(record, bounds), centre);
+      pixels = boundsScreenRadius(record, frame.view, frame.stretch, focal, near);
       distance = Math.hypot(centre[0], centre[1], centre[2]);
-      pixels = (centre[3] * frame.stretch * focal) / Math.max(distance, near);
     }
     const held = slots.get(key);
     if (!held) {
@@ -134,9 +133,13 @@ export function boundsScreenRadius(
   focal: number,
   near: number,
 ) {
-  project(view, boundsSphere(record as PriorityRecord, bounds), centre);
-  const distance = Math.hypot(centre[0], centre[1], centre[2]);
-  return (centre[3] * stretch * focal) / Math.max(distance, near);
+  return sphereScreenRadius(
+    boundsSphere(record as PriorityRecord, bounds),
+    view,
+    stretch,
+    focal,
+    near,
+  );
 }
 
 /** Rayon écran, en pixels, d'une boîte monde à six bornes à plat vue par `view`. */
@@ -151,7 +154,18 @@ export function worldBoxScreenRadius(
   bounds[1] = (box[1] + box[4]) / 2;
   bounds[2] = (box[2] + box[5]) / 2;
   bounds[3] = Math.hypot(box[3] - bounds[0], box[4] - bounds[1], box[5] - bounds[2]);
-  project(view, bounds, centre);
+  return sphereScreenRadius(bounds, view, stretch, focal, near);
+}
+
+/** Rayon écran d'une sphère `[x, y, z, r]` vue par `view` ; `centre` garde la projection. */
+function sphereScreenRadius(
+  sphere: Float64Array,
+  view: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+) {
+  project(view, sphere, centre);
   const distance = Math.hypot(centre[0], centre[1], centre[2]);
   return (centre[3] * stretch * focal) / Math.max(distance, near);
 }

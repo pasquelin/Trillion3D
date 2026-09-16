@@ -117,7 +117,7 @@ export function encodeSurfaceLighting(
   // Diagnostic seul : la variante hors écran ne demande pas la vue de la chaîne d'échange. La passe
   // de composition reste la même, à une cible de couleur près — c'est ce qui isole la présentation.
   const presentation =
-    capture.secondaryCamera || composesOffscreen(rt.context?.diagnosticGpuVariant)
+    capture.secondaryCamera || composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;

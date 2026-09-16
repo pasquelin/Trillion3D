@@ -1,6 +1,7 @@
-import { CORNER_VALUES, writeSplitDouble } from './gpuPartitionContract.ts';
+import { CORNER_VALUES } from './gpuPartitionContract.ts';
 import { createTransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { packBoxCorners } from './webgpuVisibilityCorners.ts';
 
 /**
  * Monte le test d'occultation des grappes transparentes, une fois que tout ce qu'il emprunte existe.
@@ -53,15 +54,7 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    const at = boxCorners.at(page, packedPages[page], epoch);
-    for (let k = 0; k < 8; k++)
-      for (let axis = 0; axis < 3; axis++)
-        writeSplitDouble(
-          packed,
-          base + k * 6 + axis,
-          base + k * 6 + 3 + axis,
-          boxCorners.corners[at + k * 3 + axis],
-        );
+    packBoxCorners(packed, base, boxCorners.corners, boxCorners.at(page, packedPages[page], epoch));
   }
   occlusion.uploadCorners(packed, 0, table.capacity - 1);
 }

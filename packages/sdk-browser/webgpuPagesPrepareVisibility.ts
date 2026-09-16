@@ -32,7 +32,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     } = await createWebgpuBlendPipelines(
       gpuDevice,
       blendState.blendGpu,
-      rt.context?.diagnosticGpuVariant,
+      rt.context.diagnosticGpuVariant,
     ));
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);

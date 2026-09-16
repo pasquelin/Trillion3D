@@ -1,3 +1,4 @@
+import { readbackBytesPerRow } from './gpuPresentation.ts';
 /**
  * Les deux relectures que les outils de preuve font, et qu'aucune image ne fait.
  *
@@ -44,7 +45,7 @@ export async function readGpuTextureR32F(
   height: number,
 ): Promise<Float32Array | undefined> {
   if (width < 1 || height < 1 || typeof device.createBuffer !== 'function') return undefined;
-  const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
+  const bytesPerRow = readbackBytesPerRow(width);
   const staging = device.createBuffer({
     label: 'WG r32float readback',
     size: bytesPerRow * height,

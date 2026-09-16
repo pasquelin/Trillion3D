@@ -25,6 +25,8 @@ test('metricsOf publie drawnTriangles depuis run.drawnTriangles, même quand sub
     blendState: createWebgpuBlendState(),
     services: { bootstrapState: { ready: true } },
     lights: createWebgpuLightState(),
+    textureLedger: { committed: 0, budget: 0, evictions: 0 },
+    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
     texturePump: { uploaded: 0, skipped: 0, inFlight: 0, slices: 0, bytesLastPass: 0 },
   } as unknown as WebgpuPagesRuntime;
 
