@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { LIGHT_SETTINGS, type SceneLight, type SceneLightStore } from '../sdk-core/index.ts';
 import { baseCapabilities } from './backendCommon.ts';
+import { createUnlitAlbedo } from './exactPagesUnlitAlbedo.ts';
 
 /** Un moteur rendu par Three applique les lampes du contrat ; seules leurs ombres lui manquent —
  *  Three n'en fournirait qu'au prix d'une carte par lampe, six faces pour une ponctuelle, hors
@@ -15,10 +16,9 @@ export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
   .concat('contract scene light shadows');
 
 /**
- * Albédo brut par la lumière, et non par les matériaux : un matériau standard rend
- * `irradiance · albédo / π` en diffus, donc une irradiance ambiante de π rend exactement l'albédo.
- * C'est la vue `unlit` du contrat obtenue sans toucher à un seul matériau de la scène — donc sans
- * lui inventer une seconde version qui pourrait diverger de celle que l'image éclairée montre.
+ * Albédo brut par la lumière : un matériau rend `irradiance · albédo / π` en diffus, donc une
+ * irradiance ambiante de π rend l'albédo — à condition que rien n'écarte sa réponse de cet albédo,
+ * ce dont `createUnlitAlbedo` se charge le temps de l'image, matériaux de l'image éclairée compris.
  */
 const UNLIT_IRRADIANCE = Math.PI;
 /** Distance de l'œil d'une directionnelle : elle n'a pas de position, seule sa direction compte. */
@@ -103,6 +103,7 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
   const ambient = new THREE.AmbientLight(0xffffff, UNLIT_IRRADIANCE);
   ambient.visible = false;
   group.add(ambient);
+  const albedo = createUnlitAlbedo(scene);
   // Le type de la lampe est retenu à côté d'elle : régler une ponctuelle en projecteur change
   // l'objet Three, et comparer des chaînes de type coûterait une allocation par lampe et par passe.
   const lights = new Map<string, { light: THREE.Light; kind: SceneLight['kind'] }>();
@@ -143,6 +144,7 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
       if (!store) return false;
       const wanted = store.count > 0 || store.lightingView !== 'auto';
       if (!wanted) {
+        albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
         group.visible = false;
@@ -155,6 +157,7 @@ function createContractLights(scene: THREE.Scene, store: SceneLightStore | undef
       epoch = store.epoch;
       // `unlit` — demandée, ou `auto` sans lampe — ne montre aucune lampe : l'ambiance rend l'albédo.
       ambient.visible = store.unlit;
+      albedo.setEnabled(store.unlit);
       if (store.unlit) dropAll();
       else rebuild();
       return true;
