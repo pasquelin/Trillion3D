@@ -65,6 +65,7 @@ function frameSettled(rt: WebgpuPagesRuntime) {
 function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitMs: number) {
   const { run, timing } = rt;
   run.gpuDrawCalls = presented ? 1 : 0;
+  run.gpuComputeDispatches = 0;
   run.blendDrawCalls = 0;
   run.submittedTriangles = 0;
   run.blendSubmittedTriangles = 0;
