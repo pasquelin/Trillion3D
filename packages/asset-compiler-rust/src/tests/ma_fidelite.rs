@@ -95,3 +95,30 @@ fn the_faces_no_shading_group_claims_still_reach_the_scene() {
         "les deux faces qu'aucun ensemble ne réclame sont comptées"
     );
 }
+
+// Constat 12 : une forme intermédiaire est un état de travail que Maya ne dessine jamais, et une
+// forme invisible est cachée par le fichier. Ni l'une ni l'autre n'entre dans la scène.
+#[test]
+fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
+    let body = format!(
+        "createNode transform -n \"T\";\n{}{}\tsetAttr \".io\" yes;\n{}\tsetAttr \".v\" no;\n",
+        quad("TShape", "T"),
+        quad("TWork", "T"),
+        quad("THidden", "T"),
+    );
+    let run = compile_ma("ma-formes-cachees", &body);
+    assert_eq!(
+        run.result["sourceTriangles"], 2,
+        "seule la forme que Maya dessine est rendue"
+    );
+    let (manifest, gltf) = run.prepared("ma");
+    let names: Vec<&str> = gltf["meshes"]
+        .as_array()
+        .expect("meshes")
+        .iter()
+        .filter_map(|mesh| mesh["name"].as_str())
+        .collect();
+    assert_eq!(names, ["TShape"], "ni la forme de travail ni la cachée");
+    assert_eq!(manifest["unsupported"]["ma-shape-intermediate"], 1);
+    assert_eq!(manifest["source"]["counts"]["invisible"], 1);
+}

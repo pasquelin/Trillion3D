@@ -31,6 +31,8 @@ pub(super) const HIERARCHY_TOO_DEEP: &str = "ma-hierarchy-too-deep";
 /// Un cisaillement (`.sh`) déclaré : glTF ne porte pas de cisaillement dans une matrice de nœud
 /// sans le mêler à la rotation, donc il n'est pas composé.
 pub(super) const SHEAR_UNSUPPORTED: &str = "ma-shear-unsupported";
+/// Une forme intermédiaire : l'entrée d'un historique de construction, que Maya n'affiche jamais.
+pub(super) const SHAPE_INTERMEDIATE: &str = "ma-shape-intermediate";
 /// Un maillage dont les tableaux se contredisent : coin hors de la table des arêtes, arête hors de
 /// la table des sommets, ou `.vt` absent.
 pub(super) const MESH_INVALID: &str = "ma-mesh-invalid";
