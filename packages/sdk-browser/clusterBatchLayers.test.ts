@@ -6,7 +6,7 @@ import { BatchGroup } from './clusterBatchPrimitive.ts';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import { attributes } from './clusterBatchesFixture.ts';
-import { depthLayerBias } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/index.ts';
 
 const page = (extra: Partial<BatchPage>): BatchPage => ({
   id: 0,
@@ -57,7 +57,8 @@ test('the twin batch material carries polygonOffset with the layer bias in its u
   const biased = built.layerGroups[0]!.get(4)!.biased as THREE.MeshBasicMaterial;
   assert.equal(biased.polygonOffset, true);
   assert.equal(biased.polygonOffsetFactor, 0);
-  assert.equal(biased.polygonOffsetUnits, depthLayerBias(4));
+  // Chemin WebGL2, profondeur directe : le décalage vers l'œil est NÉGATIF.
+  assert.equal(biased.polygonOffsetUnits, -depthLayerUnits(4));
   assert.notEqual(biased, pages[0].material, 'le matériau biaisé est un clone, pas l’original');
 });
 

@@ -1,10 +1,10 @@
-import { DEPTH_SHRINK, ERR_K, INPUT_K, SCREEN_SLACK_K, wgslFloat } from './gpuPartitionMargins.ts';
+import { DEPTH_GROW, ERR_K, INPUT_K, SCREEN_SLACK_K, wgslFloat } from './gpuPartitionMargins.ts';
 import { CORNER_VALUES, FLAG_CLIP } from './gpuPartitionContract.ts';
 
 const K = wgslFloat(ERR_K),
   IN = wgslFloat(INPUT_K),
   SLACK = wgslFloat(SCREEN_SLACK_K),
-  SHRINK = wgslFloat(DEPTH_SHRINK);
+  GROW = wgslFloat(DEPTH_GROW);
 
 /**
  * L'uniforme que TOUS les noyaux de projection partagent, à l'octet près : la partition l'écrit une
@@ -43,9 +43,9 @@ export const PARTITION_UNI_WGSL = `struct Uni{
  *     `ceil` : le rectangle rendu CONTIENT donc celui que la double précision calculait ;
  *  2. une boîte qui touche ou traverse le plan proche — ou dont un dénominateur n'est pas sûrement
  *     positif — porte le drapeau de coupe, et une boîte qui le porte n'est jamais rejetée ;
- *  3. la profondeur la plus proche descend de l'écart de chaque coin, puis de deux ulps entiers
- *     avant le biais de couche : elle MINORE donc ce que le cluster écrira, comme
- *     `hizNearestBound` le garantissait en double précision.
+ *  3. la profondeur la plus proche MONTE de l'écart de chaque coin, puis de deux ulps entiers avant
+ *     le biais de couche : la profondeur du moteur étant inversée, c'est la MAJORER qui rend le
+ *     rejet sûr, exactement comme `hizNearestBound` le garantit en double précision.
  */
 export const BOX_PROJECT_WGSL = `
 /** Ce qu'une boîte projetée rend : son rectangle non découpé, sa borne de profondeur, la profondeur
@@ -69,12 +69,12 @@ fn slackOf(term:vec3f)->f32{return ${K}*term.y+${IN}*term.z;}
 fn quotientSlack(value:f32,num:vec3f,den:vec3f)->f32{
  return (slackOf(num)+abs(value)*slackOf(den))/den.x+${K}*abs(value);
 }
-/** Le biais de couche coplanaire sur les bits d'une profondeur : miroir de \`biasedDepthBits\`. */
+/** Le biais de couche coplanaire sur les bits d'une profondeur : miroir de \`biasedDepthBits\`.
+ *  Profondeur inversée : rapprocher de l'œil, c'est AJOUTER des unités, plafonnées aux bits de 1. */
 fn biasedDepth(value:f32,layer:u32)->f32{
  if(layer==0u){return value;}
  let units=min(layer,15u)*16u;
- let bits=bitcast<u32>(value);
- return bitcast<f32>(select(0u,bits-units,bits>=units));
+ return bitcast<f32>(min(0x3f800000u,bitcast<u32>(value)+units));
 }
 /** Image ordonnable d'un flottant : la comparaison non signée des clés rend l'ordre des flottants. */
 fn depthKey(value:f32)->u32{
@@ -82,7 +82,9 @@ fn depthKey(value:f32)->u32{
  return select(bits^0x80000000u,~bits,(bits&0x80000000u)!=0u);
 }
 fn projectBox(slot:u32,layer:u32)->BoxProj{
- var lowX=1.0e30;var highX=-1.0e30;var lowY=1.0e30;var highY=-1.0e30;var lowZ=1.0e30;
+ var lowX=1.0e30;var highX=-1.0e30;var lowY=1.0e30;var highY=-1.0e30;
+ // Profondeur inversee : le coin le plus PROCHE est celui dont la profondeur est la plus GRANDE.
+ var nearestZ=-1.0e30;
  // La profondeur de VUE du coin le plus proche : la clé de partage, jamais celle du test Hi-Z.
  var lowView=1.0e30;
  var clips=false;
@@ -111,7 +113,7 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   let nx=cx.x/cw.x;let ny=cy.x/cw.x;let nz=cz.x/cw.x;
   lowX=min(lowX,nx-quotientSlack(nx,cx,cw));highX=max(highX,nx+quotientSlack(nx,cx,cw));
   lowY=min(lowY,ny-quotientSlack(ny,cy,cw));highY=max(highY,ny+quotientSlack(ny,cy,cw));
-  lowZ=min(lowZ,nz-quotientSlack(nz,cz,cw));
+  nearestZ=max(nearestZ,nz+quotientSlack(nz,cz,cw));
  }
  if(clips){return BoxProj(vec4i(0,0,0,0),0.0,lowView,${FLAG_CLIP}u);}
  let wF=f32(uni.width);let hF=f32(uni.height);
@@ -121,8 +123,8 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   i32(floor((1.0-(highY*0.5+0.5))*hF-slack)),
   i32(ceil((highX*0.5+0.5)*wF+slack)),
   i32(ceil((1.0-(lowY*0.5+0.5))*hF+slack)));
- var nearest=lowZ*0.5+0.5;
- if(nearest>0.0){nearest=biasedDepth(nearest*${SHRINK},layer);}
+ var nearest=nearestZ;
+ if(nearest>0.0){nearest=biasedDepth(nearest*${GROW},layer);}
  return BoxProj(rect,nearest,lowView,0u);
 }
 `;

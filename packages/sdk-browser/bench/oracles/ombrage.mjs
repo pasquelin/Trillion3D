@@ -79,7 +79,7 @@ export function referenceShadeVisibility(
   );
   // L'oracle garde sa vue-projection de la bibliothèque hôte ; la convention de profondeur, elle,
   // vient de la caméra du moteur, qui l'a lue sur la caméra hôte.
-  const depthCam = { viewProjection: viewProj.elements, depthZeroToOne: engine.depthZeroToOne };
+  const depthCam = { viewProjection: viewProj.elements };
   const bg = backgroundRgb(background);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {

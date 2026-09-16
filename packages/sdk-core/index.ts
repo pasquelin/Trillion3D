@@ -8,7 +8,7 @@ export { assertSceneProxy, decodeSceneProxy } from './sceneProxy.ts';
 export {
   DEPTH_LAYER_BIAS_UNITS,
   MAX_DEPTH_LAYER,
-  depthLayerBias,
+  depthLayerUnits,
   biasedDepthBits,
 } from './depthLayer.ts';
 export {

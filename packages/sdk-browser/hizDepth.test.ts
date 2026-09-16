@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { HIZ_BACKGROUND } from '../sdk-core/index.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 import { packVisibilityId, rasterVisibilityIds } from './visibilityBuffer.ts';
 import { visibilityDepth } from './hiz.ts';
 import { referenceVisibilityDepth } from './bench/oracles/hiz.mjs';
@@ -31,7 +31,7 @@ test('an id with no matching page falls back to background, bit for bit', () => 
   const ids = new Uint32Array(4).fill(packVisibilityId(3, 0));
   const optimisee = visibilityDepth(ids, [], cameraMoteur(cam), [2, 2]);
   const reference = referenceVisibilityDepth(ids, [], cam, [2, 2]);
-  assert.ok(optimisee.every((z) => z === HIZ_BACKGROUND));
+  assert.ok(optimisee.every((z) => z === DEPTH_CLEAR));
   bitExactDepth(optimisee, reference);
 });
 

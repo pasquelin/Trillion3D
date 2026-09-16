@@ -1,5 +1,6 @@
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
-import { depthLayerBias } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/index.ts';
+import { DEPTH_COMPARE } from './depthConvention.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
 import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
@@ -41,7 +42,7 @@ export function createWebgpuVisibilityRasterPipelines(
   const depth: GPUDepthStencilState = {
     format: 'depth32float',
     depthWriteEnabled: true,
-    depthCompare: 'less',
+    depthCompare: DEPTH_COMPARE,
   };
   const targets: GPUColorTargetState[] = hiz
     ? [{ format: 'r32uint' }, { format: 'r32float' }]
@@ -107,8 +108,9 @@ export function createWebgpuCoplanarLayerPipelines(
               depthStencil: {
                 format: 'depth32float',
                 depthWriteEnabled: true,
-                depthCompare: 'less',
-                depthBias: depthLayerBias(layer),
+                depthCompare: DEPTH_COMPARE,
+                // Profondeur inversée : rapprocher de l'œil, c'est AJOUTER des unités.
+                depthBias: depthLayerUnits(layer),
               },
             }),
           );

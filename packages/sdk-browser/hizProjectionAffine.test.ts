@@ -30,7 +30,7 @@ function rectangle(
   near: number,
 ) {
   const into = new Float64Array(HIZ_BOUNDS_VALUES);
-  projectCornersInto(corners, 0, view.elements, viewProj.elements, near, 1280, 720, false, into, 0);
+  projectCornersInto(corners, 0, view.elements, viewProj.elements, near, 1280, 720, into, 0);
   return [...into];
 }
 

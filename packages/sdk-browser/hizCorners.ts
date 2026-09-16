@@ -1,5 +1,4 @@
 import { boxCornersInto } from '../sdk-core/index.ts';
-import { depthToZeroOne } from './depthConvention.ts';
 import type { HizPage } from './hizTypes.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
@@ -16,7 +15,6 @@ export function projectCornersInto(
   near: number,
   width: number,
   height: number,
-  depthZeroToOne: boolean,
   into: Float64Array,
   base: number,
 ) {
@@ -24,7 +22,9 @@ export function projectCornersInto(
     lowY = Infinity,
     highX = -Infinity,
     highY = -Infinity,
-    lowZ = Infinity,
+    // En profondeur inversée, le coin le PLUS PROCHE est celui dont la profondeur est la PLUS
+    // GRANDE : la borne que le test d'occultation compare est donc un maximum.
+    nearestZ = -Infinity,
     clipsNear = false,
     projected = 0;
   const v = viewElements,
@@ -61,7 +61,7 @@ export function projectCornersInto(
     if (ndcX > highX) highX = ndcX;
     if (ndcY < lowY) lowY = ndcY;
     if (ndcY > highY) highY = ndcY;
-    if (ndcZ < lowZ) lowZ = ndcZ;
+    if (ndcZ > nearestZ) nearestZ = ndcZ;
     projected++;
   }
   if (!projected || clipsNear) {
@@ -74,14 +74,14 @@ export function projectCornersInto(
     return;
   }
   // Le passage du repère normalisé à l'écran est monotone coordonnée par coordonnée — croissant en
-  // x et en profondeur, décroissant en y : l'extremum de l'image est l'image de l'extremum, au bit
-  // près. Les cinq conversions se font une fois par boîte au lieu de vingt-quatre. La profondeur
-  // est la seule des trois dont la convention dépend de l'hôte : `depthConvention` la tranche.
+  // x, décroissant en y : l'extremum de l'image est l'image de l'extremum, au bit près. Les quatre
+  // conversions se font une fois par boîte au lieu de vingt-quatre. La profondeur, elle, est déjà
+  // dans `[0, 1]` : la projection du moteur n'en sort jamais autrement (`depthConvention.ts`).
   into[base] = Math.floor((lowX * 0.5 + 0.5) * width);
   into[base + 1] = Math.floor((1 - (highY * 0.5 + 0.5)) * height);
   into[base + 2] = Math.ceil((highX * 0.5 + 0.5) * width);
   into[base + 3] = Math.ceil((1 - (lowY * 0.5 + 0.5)) * height);
-  into[base + 4] = depthToZeroOne(lowZ, depthZeroToOne);
+  into[base + 4] = nearestZ;
   into[base + 5] = 0;
 }
 const cornerScratch = new Float64Array(BOX_CORNER_VALUES);
@@ -100,7 +100,6 @@ export function projectBoxInto(
   near: number,
   width: number,
   height: number,
-  depthZeroToOne: boolean,
   into: Float64Array,
   base: number,
 ) {
@@ -113,7 +112,6 @@ export function projectBoxInto(
     near,
     width,
     height,
-    depthZeroToOne,
     into,
     base,
   );

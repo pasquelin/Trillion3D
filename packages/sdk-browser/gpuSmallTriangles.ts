@@ -3,6 +3,7 @@ import { SMALL_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.t
 import { smallBindEntries } from './webgpuBindEntries.ts';
 import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { WebgpuAtlasSlots } from './webgpuAtlasSlots.ts';
+import { DEPTH_COMPARE } from './depthConvention.ts';
 
 /**
  * `capacity` is how many small triangles one image can hold: every triangle of every drawable row, so
@@ -79,7 +80,11 @@ export function createGpuSmallTriangles(
         targets: two ? [{ format: 'r32uint' }, { format: 'r32float' }] : [{ format: 'r32uint' }],
       },
       primitive: { topology: 'triangle-list' },
-      depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
+      depthStencil: {
+        format: 'depth32float',
+        depthWriteEnabled: true,
+        depthCompare: DEPTH_COMPARE,
+      },
     });
   const one = makeResolve(false),
     two = makeResolve(true);

@@ -1,5 +1,9 @@
 // Lot M2, mathFrustumBox.ts : boîte contre le tronc de vue — dedans, dehors, à cheval, et une boîte
 // qui coupe le plan proche —, confrontée à Frustum.intersectsBox et Frustum.containsPoint de Three.js.
+//
+// La découpe est `[0, 1]` des deux côtés ; seul le SENS de la profondeur diffère, ce qui échange le
+// plan PROCHE et le plan LOIN. Les six plans sont donc le même ensemble, dans un autre ordre — et
+// un verdict de boîte ne lit qu'un ensemble.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
@@ -13,7 +17,7 @@ import { boite3 } from './bench/oracles/volumes.mjs';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(50, 1.3, 0.5, 200);
-  cam.coordinateSystem = THREE.WebGLCoordinateSystem;
+  cam.coordinateSystem = THREE.WebGPUCoordinateSystem;
   cam.updateProjectionMatrix();
   cam.position.set(0, 0, 10);
   cam.lookAt(0, 0, 0);
@@ -21,9 +25,9 @@ function camera() {
   return new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 }
 const vp = camera();
-const tronc = new THREE.Frustum().setFromProjectionMatrix(vp, THREE.WebGLCoordinateSystem);
+const tronc = new THREE.Frustum().setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
 const plans = new Float64Array(24);
-frustumPlanesFromMatrix(plans, vp.elements, false);
+frustumPlanesFromMatrix(plans, vp.elements);
 const brut = new Float64Array(24);
 clipPlanesFromMatrix(brut, vp.elements);
 

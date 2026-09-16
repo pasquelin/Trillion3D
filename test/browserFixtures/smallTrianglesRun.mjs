@@ -1,4 +1,5 @@
 import { setup } from './smallTrianglesSetup.mjs';
+import { DEPTH_CLEAR } from '../../packages/sdk-browser/depthConvention.ts';
 
 export async function run() {
   const {
@@ -83,7 +84,7 @@ export async function run() {
       ],
       depthStencilAttachment: {
         view: depth.createView(),
-        depthClearValue: 1,
+        depthClearValue: DEPTH_CLEAR,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
       },
