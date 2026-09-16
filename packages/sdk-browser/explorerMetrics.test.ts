@@ -9,19 +9,20 @@ import type { ExplorerOptions, RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 
 const streamer = {
-  stats: () => ({ evictions: 0, loaded: 0, bytesRead: 0, requested: 0, loading: 0, hits: 0, misses: 0 }),
+  stats: () => ({
+    evictions: 0,
+    loaded: 0,
+    bytesRead: 0,
+    requested: 0,
+    loading: 0,
+    hits: 0,
+    misses: 0,
+  }),
 } as unknown as ReturnType<typeof createPageStreamer>;
 const state = () => ({ loaded: 0, pageBytesRead: 0, streamingError: null });
 
 function harnais() {
-  return createExplorerMetrics(
-    {} as ClusterManifest,
-    {} as ExplorerOptions,
-    streamer,
-    0,
-    0,
-    state,
-  );
+  return createExplorerMetrics({} as ClusterManifest, {} as ExplorerOptions, streamer, 0, 0, state);
 }
 
 test('drawnTriangles vaut null avant toute image relevée : aucune coupe n’a encore été publiée', () => {
@@ -43,5 +44,9 @@ test('drawnTriangles retombe à null quand le moteur ne le publie plus (moteur q
   fillMetrics({ metrics: () => ({ drawnTriangles: 42 }) } as unknown as RenderBackend);
   assert.equal(metricsScratch.drawnTriangles, 42);
   fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend);
-  assert.equal(metricsScratch.drawnTriangles, null, 'jamais la valeur de l’image précédente conservée');
+  assert.equal(
+    metricsScratch.drawnTriangles,
+    null,
+    'jamais la valeur de l’image précédente conservée',
+  );
 });

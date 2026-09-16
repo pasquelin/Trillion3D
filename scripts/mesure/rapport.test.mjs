@@ -121,13 +121,28 @@ test('la colonne couverture affiche selected − drawn − uncovered, et drawnTr
 
 test('la couverture est un tiret dès qu’un seul des trois compteurs manque', () => {
   const sansSelected = resume(
-    rapport({ ...cotéDeBase, selectedTriangles: null, drawnTriangles: 800, uncoveredTriangles: 100 }),
+    rapport({
+      ...cotéDeBase,
+      selectedTriangles: null,
+      drawnTriangles: 800,
+      uncoveredTriangles: 100,
+    }),
   );
   const sansDrawn = resume(
-    rapport({ ...cotéDeBase, selectedTriangles: 900, drawnTriangles: null, uncoveredTriangles: 100 }),
+    rapport({
+      ...cotéDeBase,
+      selectedTriangles: 900,
+      drawnTriangles: null,
+      uncoveredTriangles: 100,
+    }),
   );
   const sansUncovered = resume(
-    rapport({ ...cotéDeBase, selectedTriangles: 900, drawnTriangles: 800, uncoveredTriangles: null }),
+    rapport({
+      ...cotéDeBase,
+      selectedTriangles: 900,
+      drawnTriangles: 800,
+      uncoveredTriangles: null,
+    }),
   );
   // Les trois cellules (selected, drawn, couverture) ensemble : un tiret pour la couverture, jamais
   // une soustraction dont un opérande `null` a été traité comme zéro.
@@ -138,7 +153,16 @@ test('la couverture est un tiret dès qu’un seul des trois compteurs manque', 
 
 test('une couverture non nulle s’affiche telle quelle, sans être réduite à un tiret', () => {
   const texte = resume(
-    rapport({ ...cotéDeBase, selectedTriangles: 900, drawnTriangles: 750, uncoveredTriangles: 100 }),
+    rapport({
+      ...cotéDeBase,
+      selectedTriangles: 900,
+      drawnTriangles: 750,
+      uncoveredTriangles: 100,
+    }),
   );
-  assert.match(texte, /\| 50 \|/, 'selected − drawn − uncovered = 50, un vrai trou dans la relation');
+  assert.match(
+    texte,
+    /\| 50 \|/,
+    'selected − drawn − uncovered = 50, un vrai trou dans la relation',
+  );
 });
