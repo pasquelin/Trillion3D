@@ -14,14 +14,44 @@ export const MODES = [
   ['MirroredRepeat', THREE.MirroredRepeatWrapping],
 ];
 
-/** Le texel que l'échantillonneur au plus proche retient sur un axe de `taille` texels. */
-export function texelThree(t, taille, wrap) {
-  const i = Math.floor(t * taille);
+/** Le rang de texel `i` ramené dans l'image par le mode d'adressage, seul, sans sa coordonnée. */
+function enroule(i, taille, wrap) {
   if (wrap === THREE.ClampToEdgeWrapping) return Math.min(taille - 1, Math.max(0, i));
   const periode = wrap === THREE.RepeatWrapping ? taille : 2 * taille;
   const j = ((i % periode) + periode) % periode;
   return j < taille ? j : periode - 1 - j;
 }
+
+/** Le texel que l'échantillonneur au plus proche retient sur un axe de `taille` texels. */
+export function texelThree(t, taille, wrap) {
+  return enroule(Math.floor(t * taille), taille, wrap);
+}
+
+/**
+ * Les deux texels que l'échantillonneur mêle en filtrage linéaire sur un axe, et le poids du
+ * second : la coordonnée décalée d'un demi-texel donne le rang bas, et chacun des deux rangs subit
+ * le mode d'adressage pour lui-même (§ 3.8.10). Sous `Repeat`, les deux rangs d'une couture de
+ * période sont donc le dernier texel et le premier, que replier la coordonnée sépare.
+ */
+export function lineaireThree(t, taille, wrap) {
+  const c = t * taille - 0.5,
+    bas = Math.floor(c);
+  return [enroule(bas, taille, wrap), enroule(bas + 1, taille, wrap), c - bas];
+}
+
+/** L'octet que les deux texels mêlés rendent sur leur axe : rouge = 20 + 40x, vert = 20 + 40y. */
+export const melange = ([i0, i1, poids]) => (20 + 40 * i0) * (1 - poids) + (20 + 40 * i1) * poids;
+
+/**
+ * La couture d'une période : sous `Repeat`, les deux texels mêlés ne sont pas voisins dans l'image,
+ * l'un est le dernier et l'autre le premier. Le serrage et le miroir y lisent deux fois le même
+ * texel de bord, ce que le repli de la coordonnée rend déjà — eux n'ont pas de couture.
+ */
+export const surCouture = (t, taille, wrap) => {
+  if (wrap !== THREE.RepeatWrapping) return false;
+  const [i0, i1] = lineaireThree(t, taille, wrap);
+  return i1 !== i0 + 1;
+};
 
 /** Vrai quand la coordonnée tombe, à 1e-3 texel près, sur la frontière de deux texels. */
 export const surFrontiere = (t, taille) => Math.abs(t * taille - Math.round(t * taille)) < 1e-3;
@@ -89,6 +119,7 @@ export function cas() {
               v,
               eprouve,
               frontiere: surFrontiere(t, taille),
+              couture: surCouture(t, taille, axe === 'u' ? wrapS : wrapT),
               attendu: [texelThree(u, largeur, wrapS), texelThree(v, hauteur, wrapT)],
             });
           }
@@ -111,13 +142,14 @@ export function bilan(nom, liste, ecart) {
   };
   for (const c of liste) {
     const k = c.axe === 'u' ? 0 : 1;
-    compte(`${c.eprouve}${c.frontiere ? ' (frontière)' : ''}`, ecart(c, k));
+    const marques = `${c.frontiere ? ' (frontière)' : ''}${c.couture ? ' (couture)' : ''}`;
+    compte(`${c.eprouve}${marques}`, ecart(c, k));
     compte(`${k ? c.nomS : c.nomT} (axe fixé)`, ecart(c, 1 - k));
   }
   console.log(`\n${nom}`);
   for (const [cle, l] of Object.entries(lignes).sort())
     console.log(
-      `  ${cle.padEnd(28)} ${String(l.ecarts).padStart(4)} écarts / ${l.cas}${l.exemple ? `  ex. ${l.exemple}` : ''}`,
+      `  ${cle.padEnd(38)} ${String(l.ecarts).padStart(4)} écarts / ${l.cas}${l.exemple ? `  ex. ${l.exemple}` : ''}`,
     );
   return lignes;
 }
