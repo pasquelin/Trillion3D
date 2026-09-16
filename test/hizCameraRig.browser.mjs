@@ -1,14 +1,14 @@
 // Preuve par le moteur réel : un rig d'hôte déplacé, scène immobile, coupe inchangée — les bornes
-// PROJETÉES envoyées au test Hi-Z sont celles de la nouvelle vue, et une vue immobile ne les refait
-// pas.
+// PROJETÉES envoyées au test Hi-Z sont celles de la nouvelle vue.
 //
-// Ces bornes sont des rectangles d'écran, tenus d'une image à l'autre derrière une empreinte de vue.
-// Sous un rig, la caméra n'a pas de pose locale nouvelle : sans résolution de la chaîne d'ancêtres,
-// l'empreinte ne voit rien bouger et le cache est tenu à tort. Les deux moitiés de la preuve :
-//   (a) le rig bouge → des rectangles sont réécrits, et l'image est celle d'un moteur neuf placé
-//       d'emblée à la même pose monde, octet pour octet ;
-//   (b) plus rien ne bouge → aucun rectangle n'est réécrit, donc le cache est bien tenu et la
-//       correction n'a pas été obtenue en supprimant l'optimisation.
+// Ces bornes sont des rectangles d'écran, que la partition GPU calcule par image depuis les matrices
+// de vue que le processeur lui envoie. Sous un rig, la caméra n'a pas de pose locale nouvelle : sans
+// résolution de la chaîne d'ancêtres, ces matrices seraient celles de la vue précédente et le test
+// Hi-Z trancherait sur les rectangles d'une autre vue. Les deux moitiés de la preuve :
+//   (a) le rig bouge → l'image est celle d'un moteur neuf placé d'emblée à la même pose monde,
+//       octet pour octet ;
+//   (b) l'image qui suit, immobile, l'est encore — et elle n'a pas été tenue, donc elle a bien été
+//       dessinée depuis les mêmes matrices plutôt que recopiée.
 //
 //   node --experimental-strip-types test/hizCameraRig.browser.mjs
 //   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
@@ -40,23 +40,20 @@ for (const etape of etapes) {
       'des rectangles d’écran d’une vue précédente sont encore testés',
   );
 }
-// (a) Le rig déplacé retire les rectangles tenus. La première pose est à zéro : le rig n'a pas
-// encore bougé et l'image de départ les a déjà posés.
-for (const etape of etapes.slice(1))
-  assert.ok(
-    etape.projetesApresDeplacement > 0,
-    `en ${etape.x}, le rig a bougé et aucun rectangle n’a été réécrit : ` +
-      'la pose de la caméra n’a pas été résolue avant l’empreinte de vue',
-  );
-// (b) Rien ne bouge : le cache tient. Une image tenue n'encode rien et ne compte rien — elle ne
-// prouverait pas la tenue du cache, elle la contournerait.
+// (a) et (b) : la partition traite toutes les lignes dessinables à chaque image, et les deux images
+// de chaque pose valent celle du témoin. Une image tenue n'encode rien et ne compte rien — elle ne
+// prouverait pas la résolution du rig, elle la contournerait.
 for (const etape of etapes) {
+  assert.ok(
+    etape.lignesApresDeplacement > 0 && etape.lignesImmobile === etape.lignesApresDeplacement,
+    `en ${etape.x}, la partition n’a pas traité les mêmes lignes aux deux images`,
+  );
   assert.equal(etape.tenueImmobile, false, `en ${etape.x}, l’image immobile a été tenue`);
   assert.equal(
-    etape.projetesImmobile,
+    etape.ecartImmobile,
     0,
-    `en ${etape.x}, une vue immobile a réécrit ${etape.projetesImmobile} rectangles : ` +
-      'le cache ne tient plus rien',
+    `en ${etape.x}, l’image immobile diffère du témoin sur ${etape.ecartImmobile} pixels : ` +
+      'des matrices d’une vue précédente sont encore projetées',
   );
 }
 // Sans bascule d'occultation le long des poses, l'égalité avec le témoin ne prouverait rien : la
@@ -65,5 +62,5 @@ const vues = etapes.map((etape) => etape.dalle);
 assert.equal(Math.min(...vues), 0, 'la dalle n’est jamais occultée : le test Hi-Z ne tranche rien');
 assert.ok(Math.max(...vues) > 0, 'la dalle n’est jamais visible : le test Hi-Z ne tranche rien');
 console.log(
-  `OK : ${etapes.length} poses de rig, rectangles refaits au déplacement et tenus à l’arrêt — ${resultat.adaptateur}`,
+  `OK : ${etapes.length} poses de rig, image identique au témoin en mouvement et à l’arrêt — ${resultat.adaptateur}`,
 );

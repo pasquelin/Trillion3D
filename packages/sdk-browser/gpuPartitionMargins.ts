@@ -19,6 +19,23 @@ const U = 2 ** -24;
 export const ERR_K = 8 * U;
 
 /**
+ * Ce que coûte l'arrondi des ENTRÉES du produit scalaire, rapporté à la magnitude monde des coins.
+ *
+ * Les coins et l'ancre voyagent chacun en DEUX simples précisions, si bien que tous deux
+ * représentent leur double d'origine à `u²` près. L'écart `d = (coinHaut − ancreHaut) + (coinBas −
+ * ancreBas)` ne fait plus alors que trois arrondis, chacun majoré par `u|d|` : l'écart d'entrée
+ * d'une coordonnée est donc majoré par `3u|d|`, et sa part dans un produit scalaire par
+ * `Σ|m_i| · 3u|d_i|`. Le noyau prend **quatre** `u` : la marge couvre les termes du second ordre.
+ *
+ * La magnitude monde a disparu de cette borne, et c'est tout l'objet de l'ancrage. Un coin porté par
+ * un seul flottant vaudrait `x(1 ± u)`, et sur un modèle urbain — coordonnées à cinq chiffres,
+ * caméra dans la rue — cette seule erreur-là élargissait le rectangle conservateur de plusieurs
+ * texels, jusqu'à retirer au test d'occultation tout pouvoir de rejet. Relativement à la caméra et
+ * en double mot, les termes sont de l'ordre de la taille du cluster, et la borne aussi.
+ */
+export const INPUT_K = 4 * U;
+
+/**
  * Ce que coûte le seul passage du repère normalisé à l'écran, en texels, rapporté au plus grand
  * côté de la cible : `(v·0,5+0,5)·côté` et `(1−(v·0,5+0,5))·côté` ne font que trois arrondis
  * simples, et la soustraction à 1 borne son propre écart par `2u`. Quatre `u` couvrent les deux.

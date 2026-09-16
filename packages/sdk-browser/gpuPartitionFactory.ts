@@ -1,11 +1,16 @@
-import { CORNER_VALUES, PARTITION_WORKGROUP, STATE_WORDS } from './gpuPartitionContract.ts';
+import {
+  CORNER_VALUES,
+  PARTITION_WORKGROUP,
+  ROW_DATA_U32,
+  STATE_WORDS,
+} from './gpuPartitionContract.ts';
 import { createGpuPartitionBuffers, createGpuPartitionLayout } from './gpuPartitionBuffers.ts';
 import { createPartitionUniformWriter, type PartitionFrame } from './gpuPartitionUniform.ts';
 import { createPartitionCounters } from './gpuPartitionCounters.ts';
 import { PARTITION_SHADER } from './gpuPartitionShader.ts';
 import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
-import type { GpuPartition, PartitionSources } from './gpuPartitionTypes.ts';
+import type { GpuPartition, KeptFrame, PartitionSources } from './gpuPartitionTypes.ts';
 
 /**
  * La partition d'une image, faite par la carte : projection des boîtes, partage occulteurs/testés,
@@ -53,9 +58,36 @@ export async function createGpuPartition(
       return undefined;
     }
     const writeUniform = createPartitionUniformWriter();
+    // Ce que la dernière image a envoyé au noyau, gardé pour l'audit : les matrices sont recopiées
+    // parce que celles de la caméra sont réécrites par l'image suivante.
+    let lastFrame: KeptFrame | undefined;
     const counters = createPartitionCounters(device);
     const cornerBytes = CORNER_VALUES * 4;
     return {
+      get lastFrame() {
+        return lastFrame;
+      },
+      async readRowData(wanted: number) {
+        const count = Math.min(wanted, allocated.rows);
+        if (disposed || count < 1 || typeof device.createBuffer !== 'function') return undefined;
+        const bytes = count * ROW_DATA_U32 * 4;
+        const staging = device.createBuffer({
+          label: 'WG partition rows readback',
+          size: bytes,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+        try {
+          const encoder = device.createCommandEncoder({ label: 'WG partition rows readback' });
+          encoder.copyBufferToBuffer(allocated.rowData, 0, staging, 0, bytes);
+          device.queue.submit([encoder.finish()]);
+          await staging.mapAsync(GPUMapMode.READ);
+          const copy = new Uint32Array(staging.getMappedRange().slice(0));
+          staging.unmap();
+          return copy;
+        } finally {
+          staging.destroy();
+        }
+      },
       corners: allocated.corners,
       tested: allocated.tested,
       state: allocated.state,
@@ -80,6 +112,14 @@ export async function createGpuPartition(
         encoder.clearBuffer(sources.restBits);
         encoder.clearBuffer(sources.slotUsed);
         writeUniform(device, allocated.uniforms, { ...frame, rows });
+        lastFrame = {
+          rows,
+          width: frame.width,
+          height: frame.height,
+          near: frame.near,
+          view: Float64Array.from(frame.view as ArrayLike<number>),
+          viewProj: Float64Array.from(frame.viewProj as ArrayLike<number>),
+        };
         const groups = Math.max(1, Math.ceil(rows / PARTITION_WORKGROUP));
         const pass = encoder.beginComputePass({ label: 'WG partition' });
         pass.setBindGroup(0, bindGroup);

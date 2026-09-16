@@ -1,4 +1,10 @@
-import { DEPTH_SHRINK, ERR_K, SCREEN_SLACK_K, wgslFloat } from './gpuPartitionMargins.ts';
+import {
+  DEPTH_SHRINK,
+  ERR_K,
+  INPUT_K,
+  SCREEN_SLACK_K,
+  wgslFloat,
+} from './gpuPartitionMargins.ts';
 import {
   CORNER_VALUES,
   FLAG_CLIP,
@@ -9,12 +15,14 @@ import {
   ROW_FLAGS,
   ROW_KEY,
   ROW_NEAREST,
+  HISTO_BITS,
   STATE_HISTO,
   ST_HISTORY_OCCLUDERS,
   ST_IN_FRONT,
 } from './gpuPartitionContract.ts';
 
 const K = wgslFloat(ERR_K),
+  IN = wgslFloat(INPUT_K),
   SLACK = wgslFloat(SCREEN_SLACK_K),
   SHRINK = wgslFloat(DEPTH_SHRINK);
 
@@ -25,7 +33,11 @@ const K = wgslFloat(ERR_K),
  * Le processeur projetait les huit coins monde en double précision. Ici la même arithmétique tourne
  * en `f32`, donc chaque produit scalaire porte une erreur d'arrondi. Elle n'est pas supposée : elle
  * est BORNÉE, terme par terme, par la somme des valeurs absolues des quatre produits qui composent
- * ce produit scalaire (`gpuPartitionMargins.ts` porte la démonstration du facteur).
+ * ce produit scalaire, plus la part des arrondis d'entrée (`gpuPartitionMargins.ts` porte les deux
+ * démonstrations). Les coins entrent RELATIVEMENT à un point d'ancrage — la pose de la caméra —,
+ * chacun porté par deux simples précisions, et les matrices reçues sont déjà composées avec cette
+ * translation : sans quoi la borne, qui ne sait pas que les termes d'un modèle urbain se compensent,
+ * rendrait des rectangles de centaines de texels et le test d'occultation ne trancherait plus rien.
  *
  * De cette borne découlent les trois règles :
  *  1. chaque coin élargit son point normalisé de son propre écart avant d'entrer dans le minimum et
@@ -38,15 +50,23 @@ const K = wgslFloat(ERR_K),
  *     `hizNearestBound` le garantissait en double précision.
  */
 export const PARTITION_PROJECT_WGSL = `
-/** Valeur d'un produit scalaire de quatre termes, et la somme des valeurs absolues qui borne son
- *  erreur d'arrondi. Miroir GPU des quatre produits de \`projectCornersInto\`. */
-fn dot4(a:f32,b:f32,c:f32,d:f32,x:f32,y:f32,z:f32)->vec2f{
- let pa=a*x;let pb=b*y;let pc=c*z;
- return vec2f(pa+pb+pc+d,abs(pa)+abs(pb)+abs(pc)+abs(d));
+/**
+ * Un produit scalaire de quatre termes sur un point ancré, et de quoi borner son erreur :
+ * la valeur, la somme des valeurs absolues des termes, et la part des arrondis d'entrée —
+ * \`Σ|m_i| · 3u|d_i|\`, où \`d\` est l'écart du coin à l'ancre.
+ */
+fn dot4(a0:f32,a1:f32,a2:f32,a3:f32,d:vec3f,mag:vec3f)->vec3f{
+ let p=vec3f(a0*d.x,a1*d.y,a2*d.z);
+ return vec3f(
+  p.x+p.y+p.z+a3,
+  abs(p.x)+abs(p.y)+abs(p.z)+abs(a3),
+  abs(a0)*mag.x+abs(a1)*mag.y+abs(a2)*mag.z);
 }
+/** L'écart majorant d'un produit scalaire : arrondis de calcul et arrondis d'entrée réunis. */
+fn slackOf(term:vec3f)->f32{return ${K}*term.y+${IN}*term.z;}
 /** Écart majorant d'un quotient dont le numérateur et le dénominateur portent chacun le leur. */
-fn quotientSlack(value:f32,num:vec2f,den:vec2f)->f32{
- return (${K}*num.y+abs(value)*${K}*den.y)/den.x+${K}*abs(value);
+fn quotientSlack(value:f32,num:vec3f,den:vec3f)->f32{
+ return (slackOf(num)+abs(value)*slackOf(den))/den.x+${K}*abs(value);
 }
 /** Le biais de couche coplanaire sur les bits d'une profondeur : miroir de \`biasedDepthBits\`. */
 fn biasedDepth(value:f32,layer:u32)->f32{
@@ -72,23 +92,31 @@ fn projectRows(@builtin(global_invocation_id) id:vec3u){
  if((held&${FLAG_PREV_REST}u)!=0u){drawn=select(1u,0u,flags[i]!=0u);}
  if(drawn!=0u){atomicAdd(&state[${ST_HISTORY_OCCLUDERS}u],1u);}
  var lowX=1.0e30;var highX=-1.0e30;var lowY=1.0e30;var highY=-1.0e30;var lowZ=1.0e30;
+ // La profondeur de VUE du coin le plus proche : la clé de partage, jamais celle du test Hi-Z.
+ var lowView=1.0e30;
  var clips=false;
  let m=uni.viewProj;let v=uni.view;
  for(var k=0u;k<8u;k++){
-  let at=i*${CORNER_VALUES}u+k*3u;
-  let x=corners[at];let y=corners[at+1u];let z=corners[at+2u];
-  let vz=dot4(v[0][2],v[1][2],v[2][2],v[3][2],x,y,z);
-  let vd=dot4(v[0][3],v[1][3],v[2][3],v[3][3],x,y,z);
+  let at=i*${CORNER_VALUES}u+k*6u;
+  // Le coin en deux mots, rapporté à l'ancre elle aussi en deux mots : la magnitude monde ne
+  // survit à aucune de ces soustractions, et la borne d'entrée ne dépend plus que de l'écart.
+  let high=vec3f(corners[at],corners[at+1u],corners[at+2u]);
+  let low=vec3f(corners[at+3u],corners[at+4u],corners[at+5u]);
+  let d=(high-uni.anchorHigh)+(low-uni.anchorLow);
+  let mag=abs(d);
+  let vz=dot4(v[0][2],v[1][2],v[2][2],v[3][2],d,mag);
+  let vd=dot4(v[0][3],v[1][3],v[2][3],v[3][3],d,mag);
   // Un dénominateur de vue qui n'est pas sûrement positif rend la profondeur de vue indécidable :
   // la boîte part en coupe, où rien ne la rejette.
-  if(!(vd.x>${K}*vd.y)){clips=true;break;}
+  if(!(vd.x>slackOf(vd))){clips=true;break;}
   let depth=-(vz.x/vd.x);
   if(depth-quotientSlack(depth,vz,vd)<=uni.near){clips=true;break;}
-  let cw=dot4(m[0][3],m[1][3],m[2][3],m[3][3],x,y,z);
-  if(!(cw.x>${K}*cw.y)||!(abs(cw.x)<3.0e38)){clips=true;break;}
-  let cx=dot4(m[0][0],m[1][0],m[2][0],m[3][0],x,y,z);
-  let cy=dot4(m[0][1],m[1][1],m[2][1],m[3][1],x,y,z);
-  let cz=dot4(m[0][2],m[1][2],m[2][2],m[3][2],x,y,z);
+  lowView=min(lowView,depth);
+  let cw=dot4(m[0][3],m[1][3],m[2][3],m[3][3],d,mag);
+  if(!(cw.x>slackOf(cw))||!(abs(cw.x)<3.0e38)){clips=true;break;}
+  let cx=dot4(m[0][0],m[1][0],m[2][0],m[3][0],d,mag);
+  let cy=dot4(m[0][1],m[1][1],m[2][1],m[3][1],d,mag);
+  let cz=dot4(m[0][2],m[1][2],m[2][2],m[3][2],d,mag);
   let nx=cx.x/cw.x;let ny=cy.x/cw.x;let nz=cz.x/cw.x;
   lowX=min(lowX,nx-quotientSlack(nx,cx,cw));highX=max(highX,nx+quotientSlack(nx,cx,cw));
   lowY=min(lowY,ny-quotientSlack(ny,cy,cw));highY=max(highY,ny+quotientSlack(ny,cy,cw));
@@ -107,7 +135,7 @@ fn projectRows(@builtin(global_invocation_id) id:vec3u){
   if(nearest>0.0){nearest=biasedDepth(nearest*${SHRINK},items[i].layer);}
   bits=0u;
   atomicAdd(&state[${ST_IN_FRONT}u],1u);
-  atomicAdd(&state[${STATE_HISTO}u+(depthKey(nearest)>>24u)],1u);
+  atomicAdd(&state[${STATE_HISTO}u+(depthKey(lowView)>>${32 - HISTO_BITS}u)],1u);
  }
  rowData[base]=bitcast<u32>(rect.x);
  rowData[base+1u]=bitcast<u32>(rect.y);
@@ -115,6 +143,6 @@ fn projectRows(@builtin(global_invocation_id) id:vec3u){
  rowData[base+3u]=bitcast<u32>(rect.w);
  rowData[base+${ROW_NEAREST}u]=bitcast<u32>(nearest);
  rowData[base+${ROW_FLAGS}u]=bits|select(0u,${FLAG_HISTORY}u,drawn!=0u);
- rowData[base+${ROW_KEY}u]=depthKey(nearest);
+ rowData[base+${ROW_KEY}u]=depthKey(lowView);
 }
 `;

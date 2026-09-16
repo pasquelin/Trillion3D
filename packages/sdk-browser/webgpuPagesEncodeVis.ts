@@ -1,6 +1,7 @@
 import type { EngineCamera } from './cameraWorld.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
+import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
 import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
@@ -75,6 +76,9 @@ export function encodeVis(
   // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
   // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.
   if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
+  // Les coins monde des mêmes lignes, sur le même intervalle : ce que la projection GPU lit. Comme
+  // les deux au-dessus, il se prend AVANT `uploadDirtyRows`, qui referme cette plage.
+  if (vis.gpuPartition) uploadRowCorners(rt, vis.gpuPartition);
   uploadDirtyRows(rt, device);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);

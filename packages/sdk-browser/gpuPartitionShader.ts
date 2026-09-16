@@ -17,8 +17,10 @@ export const PARTITION_SHADER = `struct DrawItem{pageIndex:u32,bin:u32,selection
 struct Uni{
  view:mat4x4f,
  viewProj:mat4x4f,
+ anchorHigh:vec3f,near:f32,
+ anchorLow:vec3f,pad1:f32,
  rows:u32,width:u32,height:u32,levels:u32,
- layerTop:u32,historyValid:u32,hasRest:u32,near:f32,
+ layerTop:u32,historyValid:u32,hasRest:u32,pad0:u32,
  levelOffset:array<vec4u,4>,
  levelWidth:array<vec4u,4>,
 }

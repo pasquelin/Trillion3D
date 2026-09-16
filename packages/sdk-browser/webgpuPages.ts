@@ -1,4 +1,5 @@
 import { readShadowAtlasDigest } from './gpuShadowDigest.ts';
+import { readPartitionAudit } from './webgpuPartitionAudit.ts';
 import { disabledStageProfile } from '../sdk-core/index.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
@@ -122,6 +123,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         rt.timing.stages?.profile() ??
         disabledStageProfile('webgpu-page-raster', 'profil par étape non demandé par l’hôte')
       );
+    },
+    partitionAudit() {
+      return readPartitionAudit(rt);
     },
     shadowAtlasDigest() {
       const device = rt.setup.gpuDevice;
