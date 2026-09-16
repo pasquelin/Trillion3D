@@ -1,3 +1,4 @@
+import { createWebgpuRowJournal } from './webgpuRowJournal.ts';
 import type { PageRec } from './pageSelection.ts';
 
 /** Stable row and residency arrays shared by the cut, visibility pass, and cache journal. */
@@ -22,23 +23,8 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     return index !== undefined && packedPages[index] === rec ? index : undefined;
   };
 
-  /**
-   * Le journal des pages dont le drapeau de résidence a changé pendant la dernière synchronisation
-   * des rangs. `sorted` tombe si un index revient en arrière : la liste ne décrit alors plus des
-   * plages croissantes et le lecteur repart de toutes les pages.
-   */
-  const residencyChanges = { pages: new Int32Array(packedPages.length), count: 0, sorted: true };
-  const noteResidencyChange = (page: number) => {
-    if (residencyChanges.count && residencyChanges.pages[residencyChanges.count - 1] >= page)
-      residencyChanges.sorted = false;
-    if (residencyChanges.count < residencyChanges.pages.length)
-      residencyChanges.pages[residencyChanges.count++] = page;
-    else residencyChanges.sorted = false;
-  };
-  const clearResidencyChanges = () => {
-    residencyChanges.count = 0;
-    residencyChanges.sorted = true;
-  };
+  /** Les pages nommées par le cache et celles dont le drapeau de résidence vient de basculer. */
+  const journal = createWebgpuRowJournal(packedPages.length);
   const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
   const rowPageIndex = new Int32Array(drawSlots).fill(-1);
   const rowOffsetWords = new Int32Array(drawSlots).fill(-1);
@@ -58,6 +44,12 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     dirtyTo = -1;
   let candidateCount = 0,
     candidateOverflow = 0;
+  /**
+   * L'âge de la table de lignes elle-même. Toute écriture des rangs par un autre chemin que
+   * l'allocateur incrémental l'avance, et celui-ci reconstruit alors plutôt que de croire à une
+   * correspondance page → rang qu'il n'a pas posée.
+   */
+  let rowsRevision = 0;
   let packedCount = 0,
     rowsChanged = true;
   let pageTableFloats: Float32Array | undefined, pageTableInts: Uint32Array | undefined;
@@ -67,10 +59,8 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
   };
 
   return {
+    ...journal,
     residentFlags,
-    residencyChanges,
-    noteResidencyChange,
-    clearResidencyChanges,
     pageIndicesByUrl,
     pageIndexOf,
     residentOffsetWords,
@@ -121,6 +111,12 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     },
     set candidateCount(value: number) {
       candidateCount = value;
+    },
+    get rowsRevision() {
+      return rowsRevision;
+    },
+    set rowsRevision(value: number) {
+      rowsRevision = value;
     },
     get candidateOverflow() {
       return candidateOverflow;
