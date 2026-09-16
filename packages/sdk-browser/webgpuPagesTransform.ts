@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import {
   BOX_VALUES,
   EngineError,
@@ -10,10 +10,11 @@ import {
   invertMatrix4,
   multiplyMatrix4,
 } from '../sdk-core/index.ts';
+import { sameElements } from './matrixElements.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-const requested = new THREE.Matrix4(),
+const local = new Float64Array(16),
   parentInverse = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
@@ -52,7 +53,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     throw new EngineError('UNKNOWN_SCENE_NODE', `nœud ${nodeName} absent de la scène préparée`, {
       nodeName,
     });
-  const local = requested.fromArray(matrix as unknown as number[]).elements;
+  for (let i = 0; i < 16; i++) local[i] = matrix[i];
   if (node.parent) {
     invertMatrix4(parentInverse, node.parent.matrixWorld.elements);
     multiplyMatrix4(local, parentInverse, local);
@@ -61,7 +62,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // à faux — ne change aucune matrice monde : la déclarer changée périmerait des pages d'ombre et
   // refuserait l'image tenue pour un résultat identique au pixel près. L'écriture directe d'un
   // hôte laisse `node.matrix` différent et repasse donc par le chemin complet.
-  if (!node.matrixAutoUpdate && sameMatrix(node.matrix.elements, requested.elements)) return;
+  if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
     if (root.worldBox && isUnder(root.pages[0]?.sourceMesh, node)) unionInto(root.worldBox);
@@ -77,7 +78,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   node.position.set(trs[0], trs[1], trs[2]);
   node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
   node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
-  node.matrix.copy(requested);
+  node.matrix.fromArray(local);
   node.matrixAutoUpdate = false;
   // Seuls les ancêtres du nœud et son sous-arbre changent de matrice monde : le reste de la scène
   // rendrait les mêmes seize nombres. C'est la liste des nœuds modifiés, tenue par la hiérarchie.
@@ -99,12 +100,6 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     movedMax[axis] = moved[axis + 3];
   }
   lights.plan.worldChanged(movedMin, movedMax);
-}
-
-/** Deux matrices colonne-major, seize nombres à seize nombres. */
-function sameMatrix(a: readonly number[], b: readonly number[]) {
-  for (let i = 0; i < 16; i++) if (a[i] !== b[i]) return false;
-  return true;
 }
 
 /** Ajoute une boîte monde à la boîte du mouvement. */

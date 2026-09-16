@@ -163,9 +163,6 @@ const ECRIT_L_HOTE = {
       'la copie détachée d’une caméra hôte : elle POSE la pose monde, elle ne la calcule pas',
     'into.matrixWorld.copy(into.matrix);': 'la même copie, résolue sur place faute de parent',
   },
-  'webgpuPagesTransform.ts': {
-    'node.matrix.copy(requested);': 'l’hôte déplace un nœud de SA scène : le moteur la lui écrit',
-  },
 };
 
 test('le moteur lit la matrice de l’hôte, il ne calcule pas avec', async () => {
