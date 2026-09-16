@@ -18,10 +18,19 @@ import {
 } from '../../inverseTransposeWgsl.ts';
 import { campagne, construireCas, ecart, luminance } from './normaleEclairageCas.mjs';
 import { eclairageGpu } from './normaleEclairageGpu.mjs';
+import { substitueFormeAvant } from './substitutionAvant.mjs';
 
-/** Le texte d'avant le lot, remis dans le texte livré : même morceau que pour le défaut 6. */
-const AVANT = NORMAL_TRANSFORM_WGSL.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_AVANT_WGSL);
-assert.notEqual(AVANT, NORMAL_TRANSFORM_WGSL, 'le texte livré est celui d’avant le lot');
+// Le texte d'avant le lot, remis dans le texte livré : même morceau que pour le défaut 6, et même
+// garde — `substitutionAvant.mjs` échoue en nommant ce qui manque si le bloc n'est plus trouvé,
+// apparaît deux fois, ou se recolle de travers. Un texte « différent » ne prouverait rien.
+const AVANT = substitueFormeAvant({
+  texte: NORMAL_TRANSFORM_WGSL,
+  livre: INVERSE_TRANSPOSE_WGSL,
+  avant: INVERSE_TRANSPOSE_AVANT_WGSL,
+  nom: 'NORMAL_TRANSFORM_WGSL (standardLighting.ts)',
+  origine: 'packages/sdk-browser/inverseTransposeWgsl.ts',
+  marqueur: 'abs(det)<1e-20',
+});
 
 const cas = campagne();
 const DECROCHE_DEG = 1e-3;
