@@ -1,6 +1,5 @@
 import { maxStretch } from '../sdk-core/index.ts';
 import {
-  PAGE_CONE_FLOATS,
   sameSelectionUniforms,
   type GpuCut,
   type GpuSelection,
@@ -9,33 +8,37 @@ import {
 } from './gpuSelection.ts';
 import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from './webgpuResidencyRanges.ts';
 import { FRAME_VEC4 } from './gpuDagTypes.ts';
+import { residentBase, residentWords } from './gpuDagLayout.ts';
 import { createDagDispatch } from './gpuDagDispatch.ts';
 import type { createDagResources } from './gpuDagResources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 /**
- * La résidence demandée, appliquée aux seules pages que le journal des rangs nomme — celles dont le
- * drapeau vient d'entrer ou de sortir — et à toutes les pages quand il n'en nomme aucune de façon
- * fiable. Le drapeau vit à un flottant sur douze dans les cônes de page. Les index retenus dans
- * `touched` sont croissants ; ils disent au dessus quelles plages écrire. Rend leur nombre.
+ * La résidence demandée, posée en bits : un mot pour trente-deux grappes, qui est à lui seul son
+ * propre miroir — la comparaison relit le bit qu'elle s'apprête à écrire, sans tableau parallèle.
+ * Seules les pages que le journal des rangs nomme sont visitées, toutes quand il n'en nomme aucune
+ * de façon fiable. `touched` reçoit les rangs de mot touchés, croissants et sans répétition : ce sont
+ * eux que le dessus écrit, non les pages. Rend leur nombre.
  */
-export function updateResidencyFlags(
+export function updateResidencyBits(
   next: Uint32Array,
-  mirror: Float32Array,
-  pageCones: Float32Array,
-  stride: number,
-  offset: number,
+  bits: Uint32Array,
+  base: number,
   changes: ResidencyChanges | undefined,
   touched: Int32Array,
 ) {
-  let count = 0;
+  let count = 0,
+    last = -1;
   const apply = (j: number) => {
-    const value = next[j] ? 1 : 0;
-    if (mirror[j] === value) return;
-    mirror[j] = value;
-    pageCones[j * stride + offset] = value;
-    touched[count++] = j;
+    const word = j >>> 5,
+      mask = 1 << (j & 31),
+      current = bits[base + word];
+    if (((current & mask) !== 0) === !!next[j]) return;
+    bits[base + word] = next[j] ? current | mask : current & ~mask;
+    if (word === last) return;
+    touched[count++] = word;
+    last = word;
   };
   if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i]);
   else for (let j = 0; j < next.length; j++) apply(j);
@@ -77,14 +80,17 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     state.lastReadback = undefined;
   };
   const previousWorlds = packed.worlds.slice();
-  // Miroir compact des drapeaux de résidence : la comparaison d'une image lit ce tableau contigu
-  // plutôt que de sauter de douze flottants en douze flottants dans les cônes de page.
-  const residence = new Float32Array(pageCount);
-  for (let j = 0; j < pageCount; j++) residence[j] = packed.pageCones[j * PAGE_CONE_FLOATS + 11];
-  /** Les pages que la dernière application a réellement changées, et les plages qui les couvrent. */
-  const touched = new Int32Array(pageCount);
+  // Les bits de résidence prolongent les enregistrements froids, dans le même tampon : la même vue
+  // sert de miroir à la comparaison et de source à l'écriture, sans tableau parallèle.
+  const residentWord = residentBase(pageCount),
+    bits = new Uint32Array(
+      packed.pageCones.buffer,
+      packed.pageCones.byteOffset,
+      packed.pageCones.length,
+    );
+  /** Les mots que la dernière application a réellement changés, et les plages qui les couvrent. */
+  const touched = new Int32Array(Math.max(1, residentWords(pageCount)));
   const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
-  const coneBytes = PAGE_CONE_FLOATS * 4;
   const dispatch = createDagDispatch(resources, state, fail);
   const selection: GpuSelection = {
     residentCut,
@@ -126,27 +132,20 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     updateResidency(next, changes) {
       if (state.disposed || state.dead || !residentCut) return false;
       if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED');
-      const count = updateResidencyFlags(
-        next,
-        residence,
-        packed.pageCones,
-        PAGE_CONE_FLOATS,
-        11,
-        changes,
-        touched,
-      );
+      const count = updateResidencyBits(next, bits, residentWord, changes, touched);
       if (!count) return false;
-      // Une écriture par plage contiguë, jamais une par page : la totalité des cônes ne repart plus
-      // pour un drapeau, et mille petites écritures ne remplacent pas la seule qu'elles coûtent.
+      // Une écriture par plage contiguë de mots, jamais une par page : ce qui part vers la carte
+      // n'est plus qu'un bit par grappe, et mille petites écritures ne valent pas la seule qu'elles
+      // remplacent.
       const spans = coalesceResidencyRanges(touched, count, ranges);
       for (let r = 0; r < spans; r++) {
-        const from = ranges[r * 2],
-          bytes = (ranges[r * 2 + 1] - from + 1) * coneBytes;
+        const from = (residentWord + ranges[r * 2]) * 4,
+          bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * 4;
         device.queue.writeBuffer(
           pageCones,
-          from * coneBytes,
+          from,
           packed.pageCones.buffer as ArrayBuffer,
-          packed.pageCones.byteOffset + from * coneBytes,
+          packed.pageCones.byteOffset + from,
           bytes,
         );
       }
