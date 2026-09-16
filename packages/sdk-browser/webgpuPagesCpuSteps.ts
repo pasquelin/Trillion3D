@@ -100,6 +100,14 @@ function recordStages(rt: WebgpuPagesRuntime) {
   const overdraw = rt.blendState.overdraw;
   if (overdraw)
     stages.setCounts('transparents', overdraw.pull(rt.gpu.targetSize[0] * rt.gpu.targetSize[1]));
+  // Le taux d'occupation de la coupe : combien de grappes le DAG porte, combien le tronc et les
+  // nœuds en écartent, combien la coupe en retient. C'est ce rapport qui dit ce que coûte un noyau
+  // qui visite toutes les grappes plutôt que les seules vivantes.
+  stages.setCounts('selection', {
+    grappesRejetees: rt.run.frustumRejected,
+    pagesVoulues: rt.run.visible,
+    grappesDuDag: rt.run.gpuSelection?.pageCount ?? 0,
+  });
   stages.setCounts('partition', timing.partitionCounts);
   timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
   timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;

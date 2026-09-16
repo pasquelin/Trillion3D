@@ -78,6 +78,12 @@ export function mockDagDevice(
         setBindGroup(_i: number, group: typeof bind) {
           bind = group;
         },
+        // Les cinq noyaux qui suivent `dagWanted` se répartissent sur la liste des grappes vivantes :
+        // c'est la carte graphique qui en dimensionne la répartition, et le double rejoue le même
+        // noyau quel que soit le chemin par lequel il est lancé.
+        dispatchWorkgroupsIndirect(this: { dispatchWorkgroups(): void }) {
+          this.dispatchWorkgroups();
+        },
         dispatchWorkgroups() {
           // The whole kernel is replayed once, on its last stage; the earlier stages still have to run.
           const stage = pipeline?.entryPoint;

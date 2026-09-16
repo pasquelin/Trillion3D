@@ -1,5 +1,4 @@
 import {
-  SELECTION_WORKGROUP as WORKGROUP,
   copySelectionUniforms,
   sameSelectionUniforms,
   type GpuCut,
@@ -8,7 +7,7 @@ import {
 } from './gpuSelection.ts';
 import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './gpuDagUniforms.ts';
 import type { createDagResources } from './gpuDagResources.ts';
-import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
+import { encodeDagKernels } from './gpuDagEncode.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -35,29 +34,13 @@ export function createDagDispatch(
     device,
     packed,
     residentCut,
-    pageCount,
-    nodeCount,
-    worldCount,
     outputBytes,
     readbackBytes,
     uniformData,
     uniforms,
     output,
     readback,
-    bindGroup,
-    resetPipeline,
-    planePipeline,
-    nodePipeline,
-    wantedPipeline,
-    escalatePipeline,
-    checkPipeline,
-    maskPipeline,
-    drawCountPipeline,
-    drawPrefixPipeline,
-    drawScatterPipeline,
   } = resources;
-  const blockCount = Math.max(1, Math.ceil(pageCount / WORKGROUP));
-  const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
   // Une fente de relecture, un jeu de tableaux : le relevé les réécrit au lieu de les rallouer. Le
   // couple rendu à l'appelant reste neuf à chaque relecture, pour qu'il distingue toujours deux
   // relevés par identité — c'est ce que l'adoption compare pour savoir si la coupe a bougé.
@@ -91,30 +74,7 @@ export function createDagDispatch(
     if (compute) {
       writeDagUniforms(uniformData, packed, next, residentCut);
       device.queue.writeBuffer(uniforms, 0, uniformData);
-      const pass = encoder.beginComputePass({ label: 'WG DAG selection' });
-      pass.setBindGroup(0, bindGroup);
-      const run = (pipeline: GPUComputePipeline, count: number) => {
-        pass.setPipeline(pipeline);
-        pass.dispatchWorkgroups(groups(count));
-      };
-      run(resetPipeline, worldCount);
-      run(planePipeline, worldCount);
-      run(nodePipeline, Math.max(1, nodeCount));
-      run(wantedPipeline, pageCount);
-      if (residentCut) {
-        for (let round = 0; round < ESCALATION_ROUNDS; round++) run(escalatePipeline, pageCount);
-        run(checkPipeline, pageCount);
-      }
-      run(maskPipeline, pageCount);
-      // La liste des pages dessinables est compactée ici, dans l'ordre croissant : le relevé ne
-      // rapporte plus un drapeau par page mais le seul compte et ses rangs.
-      if (residentCut) {
-        run(drawCountPipeline, blockCount);
-        pass.setPipeline(drawPrefixPipeline);
-        pass.dispatchWorkgroups(1);
-        run(drawScatterPipeline, pageCount);
-      }
-      pass.end();
+      encodeDagKernels(encoder, resources);
       state.lastSubmitted = copySelectionUniforms(next);
       state.submittedResidencyRevision = state.residencyRevision;
     }

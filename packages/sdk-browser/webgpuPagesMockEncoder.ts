@@ -104,8 +104,10 @@ export function createMockCommandEncoderFactory(inputs: {
       setBindGroup(_i: number, group: typeof computeBind) {
         computeBind = group;
       },
+      // Les noyaux qui se répartissent sur la liste des grappes vivantes passent par ici : le double
+      // rejoue le même noyau quel que soit le chemin par lequel la carte graphique le lance.
       dispatchWorkgroupsIndirect() {
-        if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
+        simulateComputeDispatch(computePipeline, computeBind, computes, packed);
       },
       dispatchWorkgroups() {
         simulateComputeDispatch(computePipeline, computeBind, computes, packed);
