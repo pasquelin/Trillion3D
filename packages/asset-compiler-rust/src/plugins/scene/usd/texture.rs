@@ -38,29 +38,32 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path) -> Option<Value
 
 /// Le rang de l'image, versée à la première demande, ou `None` quand le fichier ne se lit pas.
 fn image(world: &mut World<'_>, file: &str) -> Option<usize> {
-    let Some(uri) = uri(file) else {
+    let Some(relative) = relative(file) else {
         world.refuse(world::TEXTURE_MISSING);
         return None;
     };
-    if let Some(known) = world.images_by_uri.get(&uri) {
+    if let Some(known) = world.images_by_uri.get(&relative) {
         return Some(*known);
     }
-    let path = world.images.join(&uri);
+    let path = world.images.join(&relative);
     let Some(decoder) = crate::plugins::image::by_extension(&path).filter(|_| path.is_file())
     else {
         world.refuse(world::TEXTURE_MISSING);
         world.scene.report.notes.push(format!(
-            "texture illisible ou hors registre d'images: {uri}"
+            "texture illisible ou hors registre d'images: {relative}"
         ));
         return None;
     };
-    let name = uri.rsplit('/').next().unwrap_or(&uri).to_string();
+    let name = relative.rsplit('/').next().unwrap_or(&relative).to_string();
+    // Une URI glTF, pas le chemin sous la racine : `%`, `#`, l'espace et tout ce qui n'est pas un
+    // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+    let uri = crate::uri::encode_relative(Path::new(&relative));
     world
         .scene
         .images
-        .push(json!({"name":name,"mimeType":decoder.mime(),"uri":uri.clone()}));
+        .push(json!({"name":name,"mimeType":decoder.mime(),"uri":uri}));
     let index = world.scene.images.len() - 1;
-    world.images_by_uri.insert(uri, index);
+    world.images_by_uri.insert(relative, index);
     Some(index)
 }
 
@@ -80,10 +83,10 @@ fn texture(world: &mut World<'_>, source: usize, sampler: usize) -> Value {
     json!({ "index": index })
 }
 
-/// L'URI d'un chemin d'asset, relative à la racine des images. Un chemin absolu, un chemin qui
-/// remonte au-dessus de la racine ou un nom de fichier dangereux n'a pas d'URI : la texture est
-/// comptée absente plutôt que lue hors du dossier de la source.
-fn uri(file: &str) -> Option<String> {
+/// Le chemin d'un asset sous la racine des images. Un chemin absolu, un chemin qui remonte au-dessus
+/// de la racine ou un nom de fichier dangereux n'en a pas : la texture est comptée absente plutôt
+/// que lue hors du dossier de la source.
+fn relative(file: &str) -> Option<String> {
     if file.starts_with('/') || file.contains(':') {
         return None;
     }
