@@ -26,7 +26,11 @@ function requiredDirection(value: unknown, id: string, why: string): [number, nu
   return direction(value, id);
 }
 /** Un champ qu'un type de lampe n'utilise pas est refusé, jamais accepté puis ignoré. */
-function unused(light: SceneLight, field: 'position' | 'range' | 'coneAngle', why: string) {
+function unused(
+  light: SceneLight,
+  field: 'position' | 'range' | 'coneAngle' | 'emitterRadius',
+  why: string,
+) {
   if (light[field] !== undefined)
     throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${field} ${why}`, { field });
 }
@@ -34,6 +38,21 @@ function unused(light: SceneLight, field: 'position' | 'range' | 'coneAngle', wh
 function range(value: unknown, id: string): number {
   if (!finite(value) || value <= 0)
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: portée doit être > 0`, { range: value });
+  return value;
+}
+/**
+ * Le rayon de l'enveloppe qui porte la source, en mètres : strictement positif et strictement
+ * inférieur à la portée. Une enveloppe aussi large que la portée ne laisserait sortir aucune ombre,
+ * et le plan proche de la carte rejoindrait son plan lointain : le contrat le refuse au lieu de
+ * rendre une carte dégénérée.
+ */
+function emitterRadius(value: unknown, range: number, id: string): number {
+  if (!finite(value) || value <= 0 || value >= range)
+    throw new EngineError(
+      'INVALID_SCENE_LIGHT',
+      `${id}: rayon d'émetteur attendu dans (0, portée)`,
+      { emitterRadius: value, range },
+    );
   return value;
 }
 /** Le demi-angle du cône d'un projecteur, en radians, strictement dans `(0, π/2)`. */
@@ -79,6 +98,11 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     unused(light, 'position', "n'existe pas pour une lampe directionnelle");
     unused(light, 'range', "n'existe pas pour une lampe directionnelle : elle porte partout");
     unused(light, 'coneAngle', "n'existe que pour un projecteur");
+    unused(
+      light,
+      'emitterRadius',
+      "n'existe pas pour une lampe directionnelle : elle n'a pas de position",
+    );
     validated.direction = requiredDirection(
       light.direction,
       id,
@@ -88,6 +112,8 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   }
   validated.position = vector(light.position, 'position', id);
   validated.range = range(light.range, id);
+  if (light.emitterRadius !== undefined)
+    validated.emitterRadius = emitterRadius(light.emitterRadius, validated.range, id);
   if (light.kind === 'spot') {
     validated.direction = requiredDirection(
       light.direction,
