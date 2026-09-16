@@ -12,6 +12,17 @@ pub(super) struct TextureTable<'a> {
     pub(super) report: &'a mut Report,
     pub(super) by_element: HashMap<u32, Option<usize>>,
 }
+/// Une option de map déclarée « on » : la forme `-clamp on` d'une bibliothèque de matériaux, que le
+/// lecteur range en propriété brute sans jamais l'appliquer.
+fn switched_on(texture: &ufbx::Texture, name: &str) -> bool {
+    texture
+        .element
+        .props
+        .find_prop(name)
+        .map(|prop| prop.value_int != 0)
+        .unwrap_or(false)
+}
+
 impl<'a> TextureTable<'a> {
     pub(super) fn wrap(mode: ufbx::WrapMode) -> u32 {
         match mode {
@@ -20,7 +31,13 @@ impl<'a> TextureTable<'a> {
         }
     }
     pub(super) fn sampler(&mut self, texture: &ufbx::Texture) -> usize {
-        let key = (Self::wrap(texture.wrap_u), Self::wrap(texture.wrap_v));
+        // `-clamp on` vaut le mode de bord des deux axes : une option que la source déclare et que
+        // glTF sait porter telle quelle ne se compte pas, elle se convertit.
+        let key = if switched_on(texture, "clamp") {
+            (33071, 33071)
+        } else {
+            (Self::wrap(texture.wrap_u), Self::wrap(texture.wrap_v))
+        };
         if let Some(id) = self.sampler_ids.get(&key) {
             return *id;
         }
@@ -96,11 +113,9 @@ impl<'a> TextureTable<'a> {
                 outside = true;
                 continue;
             };
-            let uri = relative
-                .components()
-                .map(|c| c.as_os_str().to_string_lossy().to_string())
-                .collect::<Vec<_>>()
-                .join("/");
+            // Une URI glTF, pas un chemin : `%`, `#`, `?`, l'espace et tout ce qui n'est pas un
+            // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+            let uri = crate::uri::encode_relative(&relative);
             return Some(json!({"name":name,"mimeType":mime,"uri":uri}));
         }
         self.report.add(if outside {

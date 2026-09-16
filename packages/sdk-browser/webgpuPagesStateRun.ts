@@ -4,8 +4,12 @@ import { createSelectionResult, type PageRec, type SelectionResult } from './pag
 import type { GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { createHizCounts } from './hiz.ts';
 import type { HizCounts, TemporalHizState } from './hiz.ts';
-import type { SurfaceCapture } from './surfaceBuffer.ts';
 import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
+import { createFrameHold, createFrameRevisions, type FrameHold } from './frameRevisions.ts';
+import { createViewRevision } from './frameViewRevision.ts';
+import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
+import { createHostSceneWatch } from './hostSceneWatch.ts';
+import type { FrameRevisions } from './frameRevisions.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
@@ -92,19 +96,25 @@ export interface WebgpuRunState {
   /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
   requestedScratch: Set<string>;
   transitionScratch: Set<string>;
-}
-
-/** The secondary-camera surface capture and the explicit readback of the main image. */
-export interface WebgpuCaptureState {
-  captureAllocationBytes: number;
-  surfaceCapture: SurfaceCapture | undefined;
-  secondaryCamera: THREE.PerspectiveCamera | undefined;
-  surfaceRenderAllowed: boolean;
-  capturedRevision: number;
-  capturedPixels: Uint8Array | undefined;
-  capturePending: Promise<void> | undefined;
-  captureStreamingDeferrals: number;
-  captureDeferralLogged: boolean;
+  /** Les trois révisions de la scène, de la vue et des ressources, incrémentées à l'origine. */
+  revisions: FrameRevisions;
+  /** L'origine de la révision de vue : la pose, la résolution et la qualité déjà vues. */
+  viewRevision: ReturnType<typeof createViewRevision>;
+  /** Ce que l'image précédente a produit, et si l'image suivante peut être tenue. */
+  frameHold: FrameHold;
+  /** Vrai quand l'image en cours a été tenue : aucune étape processeur n'a été exécutée. */
+  frameHeld: boolean;
+  /** La révision de scène pour laquelle la hiérarchie Three porte ses matrices monde à jour.
+   *  Écrite par qui les a remontées : la première image, ou le déplacement d'un nœud nommé. */
+  worldsRevision: number;
+  /** Ce que l'hôte écrit sans passer par le moteur, et la révision où sa liste est posée. */
+  sceneWatch: ReturnType<typeof createHostSceneWatch>;
+  watchRevision: number;
+  /** La révision dont les matrices sont portées à la carte et aux items transparents. */
+  worldUploadRevision: number;
+  /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
+   *  occulteurs, donc la partition que la suivante hérite. */
+  occluderSignature: number;
 }
 
 export function createWebgpuRunState(): WebgpuRunState {
@@ -177,19 +187,14 @@ export function createWebgpuRunState(): WebgpuRunState {
     urlsHeld: { epoch: -1, cut: -1, limited: false },
     requestedScratch: new Set<string>(),
     transitionScratch: new Set<string>(),
-  };
-}
-
-export function createWebgpuCaptureState(): WebgpuCaptureState {
-  return {
-    captureAllocationBytes: 0,
-    surfaceCapture: undefined,
-    secondaryCamera: undefined,
-    surfaceRenderAllowed: false,
-    capturedRevision: -1,
-    capturedPixels: undefined,
-    capturePending: undefined,
-    captureStreamingDeferrals: 0,
-    captureDeferralLogged: false,
+    revisions: createFrameRevisions(),
+    viewRevision: createViewRevision(),
+    frameHold: createFrameHold(HOLD_SIGNATURE_VALUES),
+    frameHeld: false,
+    worldsRevision: 0,
+    sceneWatch: createHostSceneWatch(),
+    watchRevision: -1,
+    worldUploadRevision: 0,
+    occluderSignature: 0,
   };
 }

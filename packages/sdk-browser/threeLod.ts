@@ -13,6 +13,15 @@ import {
 import { isTransmissive } from './visibilityBuffer.ts';
 import { setGeometryBounds } from './threeBounds.ts';
 import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../sdk-core/index.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
+
+/** Ce que ce moteur ne prétend pas faire, avec ou sans niveaux de détail. */
+const HORS_PORTEE = [
+  'GPU-driven selection/indirect draw',
+  'occlusion culling',
+  'bounded GPU eviction',
+  'physical VRAM instrumentation',
+];
 
 /** Distance-based THREE.LOD from the same source meshes. Coarse levels exist only when QEM pages are present and loaded. */
 export const threeLodBackend: BackendFactory = (context) => {
@@ -103,21 +112,7 @@ export const threeLodBackend: BackendFactory = (context) => {
       gpuDriven: false,
       simplification: levels > 1,
       eviction: false,
-      unsupported:
-        levels > 1
-          ? [
-              'GPU-driven selection/indirect draw',
-              'occlusion culling',
-              'bounded GPU eviction',
-              'physical VRAM instrumentation',
-            ]
-          : [
-              'general mesh LOD simplification',
-              'GPU-driven selection/indirect draw',
-              'occlusion culling',
-              'bounded GPU eviction',
-              'physical VRAM instrumentation',
-            ],
+      unsupported: levels > 1 ? HORS_PORTEE : ['general mesh LOD simplification', ...HORS_PORTEE],
     },
     get overBudget() {
       return overBudget;
@@ -145,7 +140,8 @@ export const threeLodBackend: BackendFactory = (context) => {
     render(camera) {
       context.source.updateMatrixWorld(true);
       sceneLights.update();
-      camera.updateMatrixWorld();
+      // Entrée d'image : la pose monde, ancêtres compris, avant toute lecture (`cameraWorld.ts`).
+      resolveCameraWorld(camera);
       selectedTriangles = 0;
       lodLevel = 0;
       overBudget = false;

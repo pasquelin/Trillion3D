@@ -2,12 +2,13 @@
 //!
 //! Le maillage est décrit par coins : un tableau d'offsets dit où chaque face commence dans la
 //! suite des coins, et chaque coin renvoie à un sommet. Les UV vivent au coin, l'indice de matériau
-//! et le marquage « face nette » vivent à la face. Les n-gones sont triangulés en éventail depuis
-//! leur premier coin, ce qui conserve exactement les sommets, l'aire et l'orientation d'une face
-//! plane et convexe — ce que Blender garantit de ses faces exportées.
+//! et le marquage « face nette » vivent à la face. Les n-gones sont coupés en oreilles dans le plan
+//! de leur normale, ce qui conserve exactement les sommets, l'aire et l'orientation d'une face
+//! plane, qu'elle soit convexe ou creusée.
 //!
 //! Aucune normale n'est stockée dans un fichier Blender : elles sont calculées à la lecture, à plat
-//! pour une face nette, moyennées par aire pour une face lisse.
+//! pour une face nette, moyennées par aire pour une face lisse, et coupées sur les arêtes que
+//! `sharp_edge` marque — c'est `.corner_edge` qui dit quelle arête part de chaque coin.
 use super::*;
 
 /// Plafonds de lecture d'un maillage, pour qu'un fichier abîmé ne demande jamais une allocation
@@ -26,6 +27,8 @@ pub(super) struct Geometry {
     pub(super) uv: Vec<f32>,
     pub(super) material: Vec<u32>,
     pub(super) sharp: Vec<bool>,
+    /// L'arête qui mène de ce coin au suivant de sa face est dure ; vide quand aucune ne l'est.
+    pub(super) sharp_corners: Vec<bool>,
 }
 
 impl Geometry {
@@ -37,6 +40,16 @@ impl Geometry {
         let from = self.offsets[rank] as usize;
         let to = self.offsets[rank + 1] as usize;
         &self.corners[from..to]
+    }
+    /// La surface que le calcul commun des normales lit.
+    pub(super) fn surface(&self) -> normals::Surface<'_> {
+        normals::Surface {
+            positions: &self.positions,
+            corners: &self.corners,
+            offsets: &self.offsets,
+            sharp_faces: &self.sharp,
+            sharp_corners: &self.sharp_corners,
+        }
     }
 }
 
@@ -53,7 +66,8 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
     let vertices = mesh.int("totvert", 0).max(0) as usize;
     let corner_count = mesh.int("totloop", 0).max(0) as usize;
     let faces = mesh.int("totpoly", 0).max(0) as usize;
-    if vertices > MAX_VERTICES || corner_count > MAX_CORNERS {
+    let edges = mesh.int("totedge", 0).max(0) as usize;
+    if vertices > MAX_VERTICES || corner_count > MAX_CORNERS || edges > MAX_CORNERS {
         return Err(refused(
             "blend-too-large",
             format!("blend: mesh {name} announces more vertices or corners than this reader reads"),
@@ -88,6 +102,7 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
         .map(|attr| attr.bools(faces))
         .filter(|values| values.len() == faces)
         .unwrap_or_else(|| vec![false; faces]);
+    let sharp_corners = hard(&table, &corners, edges);
     Ok(Geometry {
         positions,
         corners: corners.iter().map(|vertex| *vertex as u32).collect(),
@@ -95,7 +110,36 @@ pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
         uv: uv(&table, corner_count),
         material,
         sharp,
+        sharp_corners,
     })
+}
+
+/// L'arête dure de chaque coin. Blender marque la dureté à l'arête, et `.corner_edge` dit quelle
+/// arête part de chaque coin : un maillage sans `sharp_edge` rend un tableau vide, qui ne marque
+/// rien, plutôt qu'un tableau de faux aussi long que ses coins.
+fn hard(table: &[(String, attrs::Attr<'_>)], corners: &[i32], edges: usize) -> Vec<bool> {
+    let Some(sharp) = named(table, "sharp_edge", attrs::EDGE, attrs::BOOLEAN)
+        .map(|attr| attr.bools(edges))
+        .filter(|values| values.iter().any(|edge| *edge))
+    else {
+        return Vec::new();
+    };
+    named(table, ".corner_edge", attrs::CORNER, attrs::INT32)
+        .map(|attr| attr.ints(corners.len()))
+        .filter(|values| values.len() == corners.len())
+        .map(|values| {
+            values
+                .iter()
+                .map(|edge| {
+                    usize::try_from(*edge)
+                        .ok()
+                        .and_then(|edge| sharp.get(edge))
+                        .copied()
+                        .unwrap_or(false)
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// L'attribut du nom, du domaine et du type demandés, quand le maillage le porte.

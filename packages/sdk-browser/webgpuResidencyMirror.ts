@@ -10,6 +10,7 @@ type MirrorOptions = {
   engineDiagnostic: ReturnType<typeof createWebgpuDiagnostics>['engineDiagnostic'];
   getCache: () => Cache | undefined;
   getFrame: () => number;
+  onOffsetChange?: (page: number, offset: number) => void;
 };
 
 /** Tracks cache arrivals and departures, including transparent keys outside the row table. */
@@ -21,6 +22,14 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
     residencySlots: number[] = [];
   let journalResident = 0;
   let dirty = true;
+
+  const setOffsets = (pages: number[], offset: number) => {
+    for (const page of pages) {
+      if (residentOffsetWords[page] === offset) continue;
+      residentOffsetWords[page] = offset;
+      options.onOffsetChange?.(page, offset);
+    }
+  };
 
   const sync = () => {
     const cache = getCache();
@@ -41,7 +50,7 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
         else residentOutsideTable.delete(key);
         continue;
       }
-      for (let i = 0; i < pages.length; i++) residentOffsetWords[pages[i]] = offsetWords;
+      setOffsets(pages, offsetWords);
     }
     const resident = cache.stats().residentPages;
     if (journalResident === resident) return;
@@ -66,7 +75,7 @@ export function createWebgpuResidencyMirror(options: MirrorOptions) {
         continue;
       }
       const offsetWords = page ? page.offset / 4 : -1;
-      for (let i = 0; i < pages.length; i++) residentOffsetWords[pages[i]] = offsetWords;
+      setOffsets(pages, offsetWords);
     }
   };
 

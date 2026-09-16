@@ -5,15 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { clipPlanesFromMatrix, frustumPlanesFromMatrix, frustumPlanesToLocal } from './index.ts';
+import { assertBits } from './bench/oracles/volumes.mjs';
 
-function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
-  assert.equal(actual.length, expected.length);
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(
-      Object.is(actual[i], expected[i]),
-      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
-    );
-}
 /** Les six plans de Three.js recopiés à plat, normal puis constante. */
 function planesFromThreeFrustum(
   m: THREE.Matrix4,

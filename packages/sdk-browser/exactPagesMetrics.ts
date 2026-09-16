@@ -23,6 +23,7 @@ type MetricsContext = {
   readonly lodLevel: number;
   readonly cpuSelectMs: number;
   readonly cpuSelectNodesTested: number;
+  readonly frameHeld: boolean;
 };
 
 export function createExactPagesMetrics(ctx: MetricsContext) {
@@ -86,6 +87,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         displayDetachments: counters.displayDetachments + batched.detachments,
         pageRangeWrites: batched.pageRangeWrites,
         subDraws: batched.subDraws,
+        frameHeld: ctx.frameHeld,
       };
     },
     dispose() {

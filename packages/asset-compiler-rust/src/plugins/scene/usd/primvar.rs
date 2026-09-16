@@ -58,8 +58,10 @@ impl<T: Copy> Primvar<T> {
         }
     }
     /// Le rang du tableau dont ce coin dépend. `corner` est le rang du coin dans toute la surface,
-    /// `face` celui de sa face, `point` l'indice de point que la face cite à ce coin.
-    pub(super) fn slot(&self, corner: usize, face: usize, point: usize) -> u32 {
+    /// `face` celui de sa face, `point` l'indice de point que la face cite à ce coin. Un rang qui
+    /// sort du tableau d'indices, ou un indice négatif, ne désigne rien : `None`, jamais le rang
+    /// zéro, qui donnerait à ce coin la valeur d'un autre.
+    pub(super) fn slot(&self, corner: usize, face: usize, point: usize) -> Option<u32> {
         let raw = match self.spread {
             Spread::Constant => 0,
             Spread::Uniform => face,
@@ -67,10 +69,9 @@ impl<T: Copy> Primvar<T> {
             Spread::FaceVarying => corner,
         };
         let Some(indices) = &self.indices else {
-            return raw.min(u32::MAX as usize) as u32;
+            return u32::try_from(raw).ok();
         };
-        let indexed = indices.get(raw).copied().unwrap_or(0);
-        u32::try_from(indexed).unwrap_or(0)
+        u32::try_from(*indices.get(raw)?).ok()
     }
     /// La valeur d'un rang, ou `None` quand le tableau est plus court que ce que les indices disent.
     pub(super) fn get(&self, slot: u32) -> Option<T> {

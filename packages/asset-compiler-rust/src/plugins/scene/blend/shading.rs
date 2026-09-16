@@ -9,10 +9,17 @@ use super::*;
 const TEX_IMAGE: &str = "ShaderNodeTexImage";
 const NORMAL_MAP: &str = "ShaderNodeNormalMap";
 
-/// Le graphe d'un matériau : quel nœud alimente quelle entrée.
+/// Le graphe d'un matériau : quel nœud alimente quelle entrée, et par quelle sortie.
 pub(super) struct Tree<'a> {
-    links: HashMap<u64, u64>,
+    links: HashMap<u64, (u64, u64)>,
     file: &'a BlendFile,
+}
+
+/// Ce qu'un lien apporte à une entrée : le nœud d'où il part, et l'identifiant de sa sortie — le
+/// canal, quand ce nœud est une image.
+pub(super) struct Link<'a> {
+    pub(super) node: At<'a>,
+    pub(super) socket: String,
 }
 
 /// Une grandeur scalaire : la valeur déclarée, et un compte quand une entrée branchée la remplace
@@ -34,6 +41,11 @@ pub(super) fn factor(
 }
 
 /// L'émission : couleur multipliée par son intensité, bornée à [0, 1] comme le glTF l'exige.
+///
+/// Une image branchée sur la couleur d'émission **remplace** la couleur déclarée, que Blender
+/// n'évalue alors plus : le facteur du glTF ne porte plus que l'intensité, que le glTF multiplie
+/// par l'image. Prendre la couleur remplacée éteindrait l'émission dès que l'auteur y a laissé du
+/// noir.
 pub(super) fn emission(
     node: &At<'_>,
     tree: &Tree<'_>,
@@ -46,8 +58,15 @@ pub(super) fn emission(
         return;
     };
     let strength = socket_value(node, "Emission Strength", 1.0);
-    let color = value(&socket, 0.0);
-    let scaled: Vec<f32> = color.iter().take(3).map(|part| part * strength).collect();
+    let linked = texture(&socket, tree, root, images, out);
+    let scaled: Vec<f32> = match linked {
+        Some(_) => vec![strength; 3],
+        None => value(&socket, 0.0)
+            .iter()
+            .take(3)
+            .map(|part| part * strength)
+            .collect(),
+    };
     if scaled.iter().any(|part| *part > 1.0) {
         out.report.add("blend-emission-clamped");
     }
@@ -57,7 +76,7 @@ pub(super) fn emission(
             .map(|part| part.clamp(0.0, 1.0))
             .collect::<Vec<f32>>());
     }
-    if let Some(index) = texture(&socket, tree, root, images, out) {
+    if let Some(index) = linked {
         gltf["emissiveTexture"] = json!({"index": index});
     }
 }
@@ -121,21 +140,33 @@ pub(super) fn socket_value(node: &At<'_>, name: &str, default: f32) -> f32 {
 
 impl<'a> Tree<'a> {
     /// Les liens du graphe, indexés par l'entrée qu'ils alimentent.
-    pub(super) fn read(material: &At<'a>) -> Tree<'a> {
+    pub(super) fn read(graph: &At<'a>) -> Tree<'a> {
         let mut links = HashMap::new();
-        if let Some(tree) = material.follow("nodetree") {
-            for link in tree.list("links") {
-                links.insert(link.pointer("tosock"), link.pointer("fromnode"));
-            }
+        for link in graph.list("links") {
+            links.insert(
+                link.pointer("tosock"),
+                (link.pointer("fromnode"), link.pointer("fromsock")),
+            );
         }
         Tree {
             links,
-            file: material.file,
+            file: graph.file,
         }
     }
     /// Le nœud qui alimente cette entrée, s'il y en a un.
     pub(super) fn source(&self, socket: &At<'a>) -> Option<At<'a>> {
-        let node = self.links.get(&socket.old)?;
-        self.file.view(self.file.at(*node)?)
+        self.link(socket).map(|link| link.node)
+    }
+    /// Le lien qui alimente cette entrée : son nœud et la sortie d'où il part.
+    pub(super) fn link(&self, socket: &At<'a>) -> Option<Link<'a>> {
+        let (node, from) = self.links.get(&socket.old)?;
+        let node = self.file.view(self.file.at(*node)?)?;
+        let socket = self
+            .file
+            .at(*from)
+            .and_then(|block| self.file.view(block))
+            .map(|socket| socket.text("identifier"))
+            .unwrap_or_default();
+        Some(Link { node, socket })
     }
 }

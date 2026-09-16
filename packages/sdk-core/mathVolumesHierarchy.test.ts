@@ -11,15 +11,7 @@ import {
   frustumPlanesFromMatrix,
   sphereFromBounds,
 } from './index.ts';
-
-function assertBits(actual: ArrayLike<number>, expected: ArrayLike<number>) {
-  assert.equal(actual.length, expected.length);
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(
-      Object.is(actual[i], expected[i]),
-      `composante ${i} : ${actual[i]} !== ${expected[i]}`,
-    );
-}
+import { assertBits } from './bench/oracles/volumes.mjs';
 
 /** Chaîne racine → parent tourné à échelle non uniforme → enfant à échelle négative → petit-enfant. */
 function chaineProfondeurQuatre() {

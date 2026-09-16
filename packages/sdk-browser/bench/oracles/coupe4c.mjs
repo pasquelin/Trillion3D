@@ -24,12 +24,14 @@ export function referenceProjectedClusterError(error, sphere, offset, e, stretch
   return clusterErrorPixels(error, stretch, c[0], c[1], c[2], sphere[offset + 3], focal, near);
 }
 
-/** `errorFloorPixels` d'avant le lot 4c : le centre déjà projeté, sa racine carrée ici. */
+/** `errorFloorPixels` d'avant le lot 4c, sur la profondeur que la borne corrigée du défaut 3
+ *  utilise (`−vue(C).z`) là où l'ancienne prenait la distance à l'œil : le plancher reste le
+ *  minorant d'un sous-arbre, la preuve est au site de `errorFloorAt`. */
 export function referenceErrorFloorPixels(error, stretch, c, radius, focal) {
   if (error === 0) return 0;
   if (error === Infinity) return Infinity;
   if (!(error > 0) || !(radius >= 0)) return 0;
-  const far = Math.sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2]) + radius * stretch;
+  const far = -c[2] + radius * stretch;
   if (!(far > 0)) return Infinity;
   return (error * stretch * focal) / far;
 }

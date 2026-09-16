@@ -3,20 +3,27 @@
 Six fichiers minuscules et une scène. Deux fichiers portent la même image dans les deux précisions
 du sous-ensemble ; quatre sont là pour être refusés, chacun par son nom.
 
-| fichier | ce qu'il porte | ce qu'il met sous surveillance |
-| --- | --- | --- |
-| `demi.exr` | 2 × 2, canaux `A`, `B`, `G`, `R` en demi-flottant | l'ordre de lecture, les quatre canaux, un alpha qui n'est ni 0 ni 1 |
-| `flottant.exr` | 2 × 2, canaux `B`, `G`, `R` en simple flottant | les mêmes valeurs RGB que `demi.exr` — le demi s'étend sans arrondi — et l'alpha opaque que la spécification impose quand le canal manque |
-| `canaux-xyz.exr` | 2 × 2, canaux `X`, `Y`, `Z` | un jeu de canaux d'un autre nom : refus `exr-channels-unsupported` |
-| `profond.exr` | `demi.exr` au drapeau de données profondes | le champ de version suffit : refus `exr-deep-unsupported` avant toute autre lecture |
-| `multi-parties.exr` | `demi.exr` au drapeau multi-parties | refus `exr-multipart-unsupported` : rien ne dit quelle partie est la texture |
-| `tronque.exr` | 40 des 395 octets de `demi.exr` | le nombre magique est là, l'entête non : refus `exr-header-invalid` |
-| `scene.gltf`, `scene.bin` | un quad dont la couleur de base est `demi.exr` | le chemin complet jusqu'au rapport des aperçus, où la texture flottante est nommée |
+| fichier                   | ce qu'il porte                                    | ce qu'il met sous surveillance                                                                                                            |
+| ------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `demi.exr`                | 2 × 2, canaux `A`, `B`, `G`, `R` en demi-flottant | l'ordre de lecture, les quatre canaux, un alpha qui n'est ni 0 ni 1, et la dé-prémultiplication                                           |
+| `flottant.exr`            | 2 × 2, canaux `B`, `G`, `R` en simple flottant    | les mêmes valeurs RGB que `demi.exr` — le demi s'étend sans arrondi — et l'alpha opaque que la spécification impose quand le canal manque |
+| `canaux-xyz.exr`          | 2 × 2, canaux `X`, `Y`, `Z`                       | un jeu de canaux d'un autre nom : refus `exr-channels-unsupported`                                                                        |
+| `profond.exr`             | `demi.exr` au drapeau de données profondes        | le champ de version suffit : refus `exr-deep-unsupported` avant toute autre lecture                                                       |
+| `multi-parties.exr`       | `demi.exr` au drapeau multi-parties               | refus `exr-multipart-unsupported` : rien ne dit quelle partie est la texture                                                              |
+| `tronque.exr`             | 40 des 395 octets de `demi.exr`                   | le nombre magique est là, l'entête non : refus `exr-header-invalid`                                                                       |
+| `scene.gltf`, `scene.bin` | un quad dont la couleur de base est `demi.exr`    | le chemin complet jusqu'au rapport des aperçus, où la texture flottante est nommée                                                        |
 
 Les deux fichiers lisibles portent la même image RGB, et `src/plugins/tests/exr.rs` compare leurs
 valeurs **une par une** à une référence écrite en clair dans le test. Les valeurs choisies — 0, ⅛,
 ¼, ½, ¾, 1, 1,5, 2, 3, 4, 8, 16 — sont exactes en demi comme en simple précision : un écart ne peut
 venir que du pilote, jamais de l'encodage.
+
+Le test écrit **deux** références pour `demi.exr` : `STOCKE`, ce que le fichier porte — des
+échantillons associés à leur alpha, comme la spécification d'OpenEXR les définit —, et `DROIT`, ce
+que le contrat rend une fois chaque composante divisée par l'alpha du pixel. Les deux pixels dont
+l'alpha n'est ni 0 ni 1 changent, celui d'alpha nul ne change pas : sous un alpha nul il n'y a pas
+de couleur droite à retrouver, et rien n'est divisé par zéro. Les quotients — 4, 8, 3, 6, 12 —
+sont exacts en simple précision.
 
 Les deux fichiers à drapeau ne diffèrent de `demi.exr` que par le champ de version, celui-là même
 que la spécification définit pour annoncer des parties profondes ou multiples. C'est exactement ce
@@ -45,8 +52,9 @@ Les deux EXR 256 × 256 de `test-assets/textures/hdr-matrix/` (`float16.exr` et 
 CC0-1.0, produits par un encodeur tiers et relus par FFmpeg au moment de leur entrée au corpus)
 couvrent le cas d'un fichier écrit ailleurs. Le pilote a été passé dessus pendant le développement ;
 ils ne sont pas commis ici — huit cent mille octets de pixels qu'on ne peut pas écrire en clair ne
-font pas une fixture minimale. Les dimensions et les bornes relevées sont dans
-`orchestration/JOURNAL.md`.
+font pas une fixture minimale. Les deux se décodent, en 256 × 256 chacun, canaux `R`, `G`, `B` sans
+alpha (le pilote rend donc l'alpha opaque), avec des valeurs RGB comprises entre 0 et 8 exactement —
+la rampe linéaire 0..8 que le manifeste du corpus annonce et que FFmpeg avait relue.
 
 ## Provenance du lecteur
 

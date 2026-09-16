@@ -110,3 +110,31 @@ fn a_unity_data_file_is_recognised_by_its_head() {
     }
     fs::remove_dir_all(dir).expect("cleanup");
 }
+
+// Constat 28 : une retouche de prefab qui vise un emplacement de matériau hors de ce qu'un rendu
+// porte — `2^64 − 1` — est comptée sous son nom. L'indice était cru tel quel : allonger la suite
+// d'emplacements jusque-là débordait, et arrêtait la compilation par une panique.
+#[test]
+fn a_material_slot_override_beyond_what_a_renderer_carries_is_counted() {
+    const MODEL: &str = "0000000000000000000000000000000a";
+    let projet = unity_projet::Projet::new("emplacement");
+    projet.model(
+        "Models/Piece.glb",
+        MODEL,
+        json!([{"name":"Piece","mesh":0}]),
+        "",
+    );
+    projet.scene(&format!(
+        "--- !u!1001 &5000\nPrefabInstance:\n  serializedVersion: 2\n  m_Modification:\n    m_TransformParent: {{fileID: 0}}\n    m_Modifications:\n    - target: {{fileID: 100000, guid: {MODEL}, type: 3}}\n      propertyPath: m_Materials.Array.data[18446744073709551615]\n      value:\n      objectReference: {{fileID: 0}}\n    - target: {{fileID: 100000, guid: {MODEL}, type: 3}}\n      propertyPath: m_Name\n      value: Instance\n      objectReference: {{fileID: 0}}\n  m_SourcePrefab: {{fileID: 100100000, guid: {MODEL}, type: 3}}\n"
+    ));
+    let run = projet.compile("unity-emplacement");
+    let (manifest, gltf) = run.prepared("unity");
+    assert_eq!(
+        manifest["unsupported"]["unity-prefab-material-slot-invalid"], 1,
+        "l'emplacement hors borne est compté, jamais réservé"
+    );
+    assert!(
+        unity_projet::node_named(&gltf, "Instance").is_some(),
+        "le reste de l'instance sort inchangé : {gltf}"
+    );
+}

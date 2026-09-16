@@ -45,6 +45,22 @@ fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Ve
         .map(Some)
 }
 
+/// La translation de `by`. Partagée avec les pilotes de scène qui composent leurs matrices.
+pub(super) fn translation(by: [f64; 3]) -> Mat4 {
+    let mut out = IDENTITY;
+    out[12..15].copy_from_slice(&by);
+    out
+}
+
+/// La mise à l'échelle de `by`, axe par axe.
+pub(super) fn scaling(by: [f64; 3]) -> Mat4 {
+    let mut out = IDENTITY;
+    for axis in 0..3 {
+        out[axis * 4 + axis] = by[axis];
+    }
+    out
+}
+
 /// The rotation of a glTF unit quaternion `(x, y, z, w)`, column by column. Shared with the scene
 /// plugins that compose their own matrices.
 pub(super) fn rotation_matrix([x, y, z, w]: [f64; 4]) -> Mat4 {

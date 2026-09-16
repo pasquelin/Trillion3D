@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { projectedClusterError } from './pageSelectionMath.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 const diagnosticErrorView = new THREE.Matrix4();
 const diagnosticPixelScale = [1, 1];
@@ -14,7 +15,8 @@ export function projectedPageError(
   viewport: readonly [number, number],
 ) {
   if ((rec.lodError ?? 0) === 0) return 0;
-  camera.updateMatrixWorld();
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const view = diagnosticErrorView.multiplyMatrices(camera.matrixWorldInverse, rec.matrix);
   const stretch = maxStretch(rec.matrix.elements) * maxStretch(camera.matrixWorldInverse.elements);
   const scale = pixelScaleOf(camera, viewport, diagnosticPixelScale);

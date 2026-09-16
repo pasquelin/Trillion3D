@@ -5,6 +5,7 @@
 //! masques de bits. Les trois chemins arrivent ici et rendent `None` pour tout ce qui n'est pas
 //! dans la liste : c'est l'appelant qui en fait un refus nommé.
 use crate::plugins::image::blocks::BlockDecode;
+use crate::plugins::image::Transfer;
 use texture2ddecoder::{decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5, decode_bc7};
 
 /// Les codecs déclarés. Rien ici n'est « deviné » : chaque variante a été inscrite exprès, avec
@@ -92,6 +93,9 @@ impl Codec {
 /// Le codec d'un `dwFourCC` de Direct3D 9. `DXT2` et `DXT4` portent les mêmes blocs que `DXT3` et
 /// `DXT5` mais un alpha prémultiplié : le contrat d'image demande un alpha droit, donc ils sont
 /// refusés plutôt que rendus faux. `BC4S` et `BC5S` sont signés, hors liste eux aussi.
+///
+/// Aucun de ces noms ne déclare de fonction de transfert : Direct3D 9 n'avait pas de format sRGB.
+/// C'est l'appelant qui prête alors le sRGB de convention à la surface.
 pub(super) fn from_fourcc(fourcc: [u8; 4]) -> Option<Codec> {
     Some(match &fourcc {
         b"DXT1" => Codec::Bc1,
@@ -103,30 +107,40 @@ pub(super) fn from_fourcc(fourcc: [u8; 4]) -> Option<Codec> {
     })
 }
 
-/// Le codec d'un `dxgiFormat` de l'entête DX10, par les valeurs de l'énumération `DXGI_FORMAT`.
-/// Les variantes `_SRGB` portent les mêmes octets que leurs `_UNORM` — le contrat d'image est déjà
-/// sRGB —, les `_TYPELESS` ne déclarent pas leur interprétation et les signées, les flottantes
-/// (BC6H), les 16 bits et les YUV sortent de la liste.
-pub(super) fn from_dxgi(format: u32) -> Option<Codec> {
+/// Le codec d'un `dxgiFormat` de l'entête DX10 et la fonction de transfert que ce nom **déclare**,
+/// par les valeurs de l'énumération `DXGI_FORMAT`. Une variante `_SRGB` porte exactement les mêmes
+/// octets que son `_UNORM` et ne veut pas dire la même chose : l'une annonce des échantillons
+/// proportionnels à la lumière, l'autre des octets encodés par la courbe sRGB. Les `_TYPELESS` ne
+/// déclarent pas leur interprétation ; les signées, les flottantes (BC6H), les 16 bits et les YUV
+/// sortent de la liste.
+pub(super) fn from_dxgi(format: u32) -> Option<(Codec, Transfer)> {
+    let linear = Transfer::Linear;
+    let srgb = Transfer::Srgb;
     Some(match format {
         // R8G8B8A8_UNORM, R8G8B8A8_UNORM_SRGB
-        28 | 29 => Codec::Rgba8,
+        28 => (Codec::Rgba8, linear),
+        29 => (Codec::Rgba8, srgb),
         // BC1_UNORM, BC1_UNORM_SRGB
-        71 | 72 => Codec::Bc1,
+        71 => (Codec::Bc1, linear),
+        72 => (Codec::Bc1, srgb),
         // BC2_UNORM, BC2_UNORM_SRGB
-        74 | 75 => Codec::Bc2,
+        74 => (Codec::Bc2, linear),
+        75 => (Codec::Bc2, srgb),
         // BC3_UNORM, BC3_UNORM_SRGB
-        77 | 78 => Codec::Bc3,
-        // BC4_UNORM
-        80 => Codec::Bc4,
-        // BC5_UNORM
-        83 => Codec::Bc5,
+        77 => (Codec::Bc3, linear),
+        78 => (Codec::Bc3, srgb),
+        // BC4_UNORM, BC5_UNORM : un et deux canaux interpolés, sans variante sRGB au registre.
+        80 => (Codec::Bc4, linear),
+        83 => (Codec::Bc5, linear),
         // B8G8R8A8_UNORM, B8G8R8A8_UNORM_SRGB
-        87 | 91 => Codec::Bgra8,
+        87 => (Codec::Bgra8, linear),
+        91 => (Codec::Bgra8, srgb),
         // B8G8R8X8_UNORM, B8G8R8X8_UNORM_SRGB
-        88 | 93 => Codec::Bgrx8,
+        88 => (Codec::Bgrx8, linear),
+        93 => (Codec::Bgrx8, srgb),
         // BC7_UNORM, BC7_UNORM_SRGB
-        98 | 99 => Codec::Bc7,
+        98 => (Codec::Bc7, linear),
+        99 => (Codec::Bc7, srgb),
         _ => return None,
     })
 }

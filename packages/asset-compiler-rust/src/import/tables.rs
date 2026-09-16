@@ -7,6 +7,10 @@
 //! Rien n'est jamais écrit à côté de la source.
 use super::*;
 
+/// Le filtrage qu'un échantillonneur porte sans mention contraire : linéaire à l'agrandissement,
+/// linéaire entre mipmaps au rétrécissement.
+const DEFAULT_FILTER: [u32; 2] = [9729, 9987];
+
 /// Les tables du glTF en cours d'écriture.
 pub(crate) struct SceneTables {
     pub(crate) nodes: Vec<Value>,
@@ -17,8 +21,9 @@ pub(crate) struct SceneTables {
     pub(crate) accessors: Vec<Value>,
     pub(crate) images: Vec<Value>,
     pub(crate) samplers: Vec<Value>,
-    /// Le premier échantillonneur de chaque mode de répétition `wrapS`, versé ou créé.
-    sampler_ids: HashMap<u64, usize>,
+    /// Le premier échantillonneur de chaque réglage — répétition des deux axes, puis filtrage —,
+    /// versé ou créé.
+    sampler_ids: HashMap<[u32; 4], usize>,
     pub(crate) textures: Vec<Value>,
     pub(crate) bin: Bin,
     pub(crate) report: Report,
@@ -59,24 +64,45 @@ impl SceneTables {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
-    /// Un échantillonneur par mode de répétition, partagé par toutes les textures qui le demandent,
-    /// y compris celles d'un modèle versé qui déclare déjà ce mode.
-    pub(crate) fn sampler(&mut self, wrap: u32) -> usize {
-        if let Some(known) = self.sampler_ids.get(&u64::from(wrap)) {
+    /// Un échantillonneur par couple de modes de répétition, filtré comme le glTF le fait par
+    /// défaut. Un format qui borne un axe et répète l'autre porte bien deux modes : les confondre
+    /// replie la texture.
+    pub(crate) fn sampler_uv(&mut self, wrap_s: u32, wrap_t: u32) -> usize {
+        self.sampler_filtered([wrap_s, wrap_t, DEFAULT_FILTER[0], DEFAULT_FILTER[1]])
+    }
+    /// Un échantillonneur par réglage complet — `wrapS`, `wrapT`, `magFilter`, `minFilter` —,
+    /// partagé par toutes les textures qui le demandent, y compris celles d'un modèle versé qui
+    /// déclare déjà ce réglage. Le filtrage appartient à la texture, comme sa répétition : deux
+    /// textures qui ne s'échantillonnent pas pareil ne partagent pas un échantillonneur.
+    pub(crate) fn sampler_filtered(&mut self, setting: [u32; 4]) -> usize {
+        if let Some(known) = self.sampler_ids.get(&setting) {
             return *known;
         }
+        let [wrap_s, wrap_t, mag, min] = setting;
         self.samplers
-            .push(json!({"magFilter":9729,"minFilter":9987,"wrapS":wrap,"wrapT":wrap}));
+            .push(json!({"magFilter":mag,"minFilter":min,"wrapS":wrap_s,"wrapT":wrap_t}));
         let id = self.samplers.len() - 1;
-        self.sampler_ids.insert(u64::from(wrap), id);
+        self.sampler_ids.insert(setting, id);
         id
     }
-    /// Note les échantillonneurs versés depuis un modèle : le premier de chaque mode sert ensuite.
+    /// Note les échantillonneurs versés depuis un modèle : le premier de chaque réglage sert
+    /// ensuite. Un modèle qui n'écrit pas son filtrage prend celui du glTF par défaut.
     pub(crate) fn share_samplers(&mut self, ids: &[usize]) {
         for id in ids {
-            if let Some(wrap) = self.samplers[*id]["wrapS"].as_u64() {
-                self.sampler_ids.entry(wrap).or_insert(*id);
-            }
+            let sampler = &self.samplers[*id];
+            let read = |key: &str, default: u32| {
+                sampler[key].as_u64().unwrap_or(u64::from(default)) as u32
+            };
+            let setting = match [&sampler["wrapS"], &sampler["wrapT"]].map(Value::as_u64) {
+                [Some(wrap_s), Some(wrap_t)] => [
+                    wrap_s as u32,
+                    wrap_t as u32,
+                    read("magFilter", DEFAULT_FILTER[0]),
+                    read("minFilter", DEFAULT_FILTER[1]),
+                ],
+                _ => continue,
+            };
+            self.sampler_ids.entry(setting).or_insert(*id);
         }
     }
     /// Note un fichier de données lu : son chemin, sa taille et son empreinte entrent dans la clé.

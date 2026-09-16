@@ -30,9 +30,23 @@ export function referenceRowState(packedPages, drawSlots) {
     candidateOverflow: 0,
     packedCount: 0,
     rowsChanged: true,
+    // Le journal des pages dont la résidence a bougé pendant la passe : postérieur au lot F, il ne
+    // relève pas de l'optimisation que cet oracle départage, et il est repris ici tel quel pour que
+    // la synchronisation partagée s'exécute des deux côtés à l'identique.
+    residencyChanges: { pages: new Int32Array(packedPages.length), count: 0, sorted: true },
     pageTableFloats: undefined,
     pageTableInts: undefined,
     pageIndexOf: (rec) => pageIndexByRec.get(rec),
+    noteResidencyChange(page) {
+      const journal = etat.residencyChanges;
+      if (journal.count && journal.pages[journal.count - 1] >= page) journal.sorted = false;
+      if (journal.count < journal.pages.length) journal.pages[journal.count++] = page;
+      else journal.sorted = false;
+    },
+    clearResidencyChanges() {
+      etat.residencyChanges.count = 0;
+      etat.residencyChanges.sorted = true;
+    },
     markRowDirty(row) {
       if (row < etat.dirtyFrom) etat.dirtyFrom = row;
       if (row > etat.dirtyTo) etat.dirtyTo = row;

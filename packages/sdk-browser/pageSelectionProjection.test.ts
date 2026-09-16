@@ -9,8 +9,10 @@ import {
   cutSelectsAtZero,
   errorFloorAt,
   projectedErrorAt,
-  viewDistance,
-  viewDistanceOf,
+  viewDepth,
+  viewDepthOf,
+  viewLateral,
+  viewLateralOf,
 } from './pageSelectionProjection.ts';
 import {
   referenceCutSelects,
@@ -106,19 +108,22 @@ test('une erreur propre mal formée est refusée des deux côtés quand la sphè
   }
 });
 
-test('la distance partagée rend les projections d’avant le lot, aux mêmes bits', () => {
+test('les grandeurs partagées rendent les projections du chemin général, aux mêmes bits', () => {
   for (const sphere of SPHERES) {
     if (!sphere) continue;
-    const distance = viewDistance(sphere, 0, view);
+    const lateral = viewLateral(sphere, 0, view),
+      depth = viewDepth(sphere, 0, view);
     const centre = referenceProjectCentre(sphere, 0, view);
-    assert.equal(distance, Math.hypot(centre[0], centre[1], centre[2]));
+    assert.equal(lateral, Math.sqrt(centre[0] * centre[0] + centre[1] * centre[1]));
+    assert.equal(depth, -centre[2]);
     for (const error of ERRORS) {
       assert.deepEqual(
         verdict(() =>
           Object.is(
             projectedErrorAt(
               error as number | null | undefined,
-              distance,
+              lateral,
+              depth,
               sphere[3],
               STRETCH,
               FOCAL,
@@ -132,7 +137,7 @@ test('la distance partagée rend les projections d’avant le lot, aux mêmes bi
       );
       assert.ok(
         Object.is(
-          errorFloorAt(error as number, distance, sphere[3], STRETCH, FOCAL),
+          errorFloorAt(error as number, depth, sphere[3], STRETCH, FOCAL),
           referenceErrorFloorPixels(
             error,
             STRETCH,
@@ -154,18 +159,21 @@ test('la distance partagée rend les projections d’avant le lot, aux mêmes bi
   }
 });
 
-test('viewDistanceOf composante par composante rend la même distance que viewDistance sur la sphère', () => {
+test('composante par composante, l axe et la profondeur valent ceux tirés de la sphère', () => {
   for (const sphere of SPHERES) {
     if (!sphere) continue;
     assert.equal(
-      viewDistanceOf(sphere[0], sphere[1], sphere[2], view),
-      viewDistance(sphere, 0, view),
+      viewLateralOf(sphere[0], sphere[1], sphere[2], view),
+      viewLateral(sphere, 0, view),
     );
+    assert.equal(viewDepthOf(sphere[0], sphere[1], sphere[2], view), viewDepth(sphere, 0, view));
   }
 });
 
-test('viewDistanceOf se propage en NaN et rend zéro à l’origine du repère', () => {
-  assert.ok(Number.isNaN(viewDistanceOf(NaN, 0, 0, view)));
+test('l axe et la profondeur se propagent en NaN et valent zéro à l’origine du repère', () => {
+  assert.ok(Number.isNaN(viewLateralOf(NaN, 0, 0, view)));
+  assert.ok(Number.isNaN(viewDepthOf(0, 0, NaN, view)));
   const originView = new THREE.Matrix4().identity().elements;
-  assert.equal(viewDistanceOf(0, 0, 0, originView), 0);
+  assert.equal(viewLateralOf(0, 0, 0, originView), 0);
+  assert.equal(viewDepthOf(0, 0, 0, originView), -0);
 });

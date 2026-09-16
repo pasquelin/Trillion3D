@@ -4,6 +4,7 @@ import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCut
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
 import {
   fallbackScratch,
+  residentUnder,
   selectionScratch,
   truncateShown,
   type PageRecord,
@@ -32,6 +33,12 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     Number.isFinite(near);
   // Le contexte de cône appartient à cette racine : il sera posé au premier cluster qui en a un.
   (s.flatCone as ConeContext).ready = false;
+  // Une racine qui déclare n'avoir aucun cône sort le cône du chemin par cluster. Le silence vaut
+  // « je n'ai rien déclaré » : la coupe teste alors chaque page, comme avant ce lot.
+  s.flatCones = root.cones !== false;
+  // Une racine qui déclare que toutes ses pages portent leur boîte sort cette vérification du
+  // chemin par cluster. Le silence vaut « je n'ai rien déclaré » : la coupe s'en assure comme avant.
+  s.flatBoxes = root.boxes === true;
   clipPlanesFromMatrix(
     planes,
     clip.multiplyMatrices(s.camera.projectionMatrix, viewMatrix).elements,
@@ -43,8 +50,10 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     for (let i = 0; i < s.flatForcedList.length; i++) s.flatForced[s.flatForcedList[i]] = 0;
     s.flatForcedList.length = 0;
   }
-  const startWanted = s.wanted.length,
-    startShown = s.shown.length;
+  const startWanted = s.wantedCount,
+    startShown = s.shownCount,
+    startRejected = s.frustumRejected,
+    startNodes = s.nodesTested;
   s.flatUseForcing = false;
   s.flatMissing = false;
   traverse(s, pages, root.culling);
@@ -55,12 +64,12 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   }
   const fallbackQueue = fallbackScratch as T[];
   fallbackQueue.length = 0;
-  for (let i = startWanted; i < s.wanted.length; i++) fallbackQueue.push(s.wanted[i]);
+  for (let i = startWanted; i < s.wantedCount; i++) fallbackQueue.push(s.wanted[i]);
   s.flatUseForcing = true;
   let forcedAny = false;
   while (fallbackQueue.length) {
     const rec = fallbackQueue.pop() as T;
-    if (s.pageResident(rec)) continue;
+    if (residentUnder(s, rec, s.residentMode)) continue;
     if (!drawnUnderForcing(s, rec)) continue;
     const own = rec.group;
     if (own == null || own < 0) continue;
@@ -80,6 +89,12 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     return;
   }
   truncateShown(s, startShown);
+  // La première descente est abandonnée : ses rejets par le tronc et ses nœuds visités le sont avec
+  // elle, comme les pages qu'elle avait retenues. Sans cela, deux images qui portent exactement la
+  // même coupe annoncent deux parcours différents selon que le repli s'est armé ou non, et le
+  // témoin d'image tenue ne les voit jamais identiques.
+  s.frustumRejected = startRejected;
+  s.nodesTested = startNodes;
   s.flatShort = false;
   traverse(s, pages, root.culling);
   s.flatUseForcing = false;

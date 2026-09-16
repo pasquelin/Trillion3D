@@ -19,14 +19,14 @@ test('the first image projects every slot it is asked for, and no other', () => 
   const view = camera();
   const pages = Int32Array.from([10, 11, 12, 13]);
   hold.reframe(view, 1280, 720, 1);
-  assert.equal(hold.select(4, mask(1, 0, 1, 0), pages), true);
+  assert.equal(hold.select(4, mask(1, 0, 1, 0), pages), 2);
   assert.deepEqual(pending(hold, 4), [1, 0, 1, 0]);
   hold.keep(4, pages);
   // Asked for again, unchanged: nothing to project.
-  assert.equal(hold.select(4, mask(1, 0, 1, 0), pages), false);
+  assert.equal(hold.select(4, mask(1, 0, 1, 0), pages), 0);
   assert.deepEqual(pending(hold, 4), [0, 0, 0, 0]);
   // The other half was never projected, so it is what the next image owes.
-  assert.equal(hold.select(4, mask(0, 1, 0, 1), pages), true);
+  assert.equal(hold.select(4, mask(0, 1, 0, 1), pages), 2);
   assert.deepEqual(pending(hold, 4), [0, 1, 0, 1]);
 });
 
@@ -38,10 +38,10 @@ test('a slot that changes page owes a rectangle, its neighbours do not', () => {
   hold.select(4, undefined, pages);
   hold.keep(4, pages);
   const moved = Int32Array.from([10, 99, 12, 13]);
-  assert.equal(hold.select(4, undefined, moved), true);
+  assert.equal(hold.select(4, undefined, moved), 1);
   assert.deepEqual(pending(hold, 4), [0, 1, 0, 0]);
   hold.keep(4, moved);
-  assert.equal(hold.select(4, undefined, moved), false);
+  assert.equal(hold.select(4, undefined, moved), 0);
 });
 
 test('the view, the viewport or the world epoch moving retires every rectangle at once', () => {
@@ -56,11 +56,27 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
   };
   const all = [1, 1, 1, 1];
   {
+    // Sous un rig d'hôte, la caméra n'a pas de pose locale nouvelle : c'est un ancêtre qui a bougé,
+    // et l'hôte n'est pas tenu de remonter quoi que ce soit. Le cache doit quand même repartir,
+    // sans quoi le test Hi-Z recevrait les rectangles de la vue précédente.
+    const { hold, view } = settled();
+    const rig = new THREE.Group();
+    rig.add(view);
+    rig.position.x = 3;
+    hold.reframe(view, 1280, 720, 1);
+    assert.equal(hold.select(4, undefined, pages), 4, 'rig d’hôte déplacé');
+    assert.deepEqual(pending(hold, 4), all);
+    hold.keep(4, pages);
+    // Et le rig immobile ne les retire pas : le cache tient.
+    hold.reframe(view, 1280, 720, 1);
+    assert.equal(hold.select(4, undefined, pages), 0, 'rig immobile');
+  }
+  {
     const { hold, view } = settled();
     view.position.x += 1e-6;
     view.updateMatrixWorld();
     hold.reframe(view, 1280, 720, 1);
-    assert.equal(hold.select(4, undefined, pages), true, 'caméra déplacée');
+    assert.equal(hold.select(4, undefined, pages), 4, 'caméra déplacée');
     assert.deepEqual(pending(hold, 4), all);
   }
   {
@@ -95,6 +111,6 @@ test('the view, the viewport or the world epoch moving retires every rectangle a
     const { hold, view } = settled();
     hold.reframe(view, 1280, 720, 1);
     hold.reframe(view, 1280, 720, 1);
-    assert.equal(hold.select(4, undefined, pages), false);
+    assert.equal(hold.select(4, undefined, pages), 0);
   }
 });

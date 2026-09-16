@@ -63,6 +63,7 @@ fn traverse(
         stage,
         scene,
         images,
+        root: fs::canonicalize(images).unwrap_or_else(|_| images.to_path_buf()),
         materials: HashMap::new(),
         meshes: HashMap::new(),
         images_by_uri: HashMap::new(),
@@ -81,18 +82,22 @@ fn traverse(
     world.scene.counts.clone()
 }
 
-/// Les prims par lesquels le parcours commence : le `defaultPrim` de la couche s'il en désigne un
-/// qui existe, sinon toutes les racines de la scène.
+/// Les prims par lesquels le parcours commence : toutes les racines de la scène. `defaultPrim`
+/// nomme le point d'entrée de l'asset, il ne retranche rien de la couche — il passe donc en tête,
+/// et les autres racines suivent dans l'ordre où la composition les présente.
 fn roots(stage: &usd::Stage) -> Vec<usd::Prim> {
-    let named = stage
-        .default_prim()
-        .and_then(|name| stage.prim(format!("/{}", name.as_str())).ok())
-        .filter(|prim| prim.is_defined().unwrap_or(false));
-    match named {
-        Some(prim) => vec![prim],
-        None => stage
-            .prim("/")
-            .map(|root| root.children().unwrap_or_default())
-            .unwrap_or_default(),
+    let mut roots = stage
+        .prim("/")
+        .map(|root| root.children().unwrap_or_default())
+        .unwrap_or_default();
+    let named = stage.default_prim().map(|name| name.as_str().to_string());
+    let first = named.and_then(|name| {
+        roots
+            .iter()
+            .position(|prim| prim.path().name() == Some(name.as_str()))
+    });
+    if let Some(rank) = first {
+        roots[..=rank].rotate_right(1);
     }
+    roots
 }

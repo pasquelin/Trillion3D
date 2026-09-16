@@ -89,6 +89,17 @@ export type ClusterRoot<T> = {
   structure?: ClusterStructureIndex;
   forced?: Uint8Array;
   forcedList?: number[];
+  /** Ce que la racine déclare de ses cônes de normales, une fois pour toutes à la préparation :
+   *  `false` dit qu'aucune de ses pages n'en porte, et la coupe cesse alors de lire `cone` par
+   *  cluster. Absent ou `true`, la coupe teste chaque page comme avant. Qui pose un cône sur une
+   *  page pose ce drapeau sur sa racine : c'est le seul contrat qui rend l'omission visible. */
+  cones?: boolean;
+  /** Ce que la racine déclare des boîtes de ses pages, une fois pour toutes à la préparation :
+   *  `true` dit que chacune porte `min` et `max`, et la coupe cesse alors de s'en assurer par
+   *  cluster sous un nœud entièrement dans le tronc. Absent ou `false`, elle teste chaque page
+   *  comme avant. Qui construit une page sans boîte ne déclare rien : c'est le seul contrat qui
+   *  rend l'omission visible. */
+  boxes?: boolean;
 };
 
 /**

@@ -7,13 +7,6 @@
 //! relatives au dossier servi.
 use super::*;
 
-/// Ce qu'un modèle versé laisse à instancier : ses nœuds porteurs de maillage.
-#[derive(Clone)]
-pub(super) struct Parts {
-    /// Nom, matrice locale telle que le modèle la donne, rang du maillage dans la scène.
-    pub(super) nodes: Vec<(String, Value, usize)>,
-}
-
 /// Recopie les tables du modèle dans la scène. `prefix` est le chemin du dossier du modèle,
 /// relativement au dossier servi : les images du modèle y sont nommées.
 pub(super) fn merge(gltf: &Value, buffers: &[Vec<u8>], prefix: &str, scene: &mut Scene) -> Parts {
@@ -29,10 +22,10 @@ pub(super) fn merge(gltf: &Value, buffers: &[Vec<u8>], prefix: &str, scene: &mut
     merge_meshes(gltf, &accessors, &materials, scene)
 }
 
-fn array<'a>(gltf: &'a Value, name: &str) -> &'a [Value] {
+pub(super) fn array<'a>(gltf: &'a Value, name: &str) -> &'a [Value] {
     gltf[name].as_array().map_or(&[][..], Vec::as_slice)
 }
-fn index(value: &Value, map: &[usize]) -> Option<usize> {
+pub(super) fn index(value: &Value, map: &[usize]) -> Option<usize> {
     map.get(value.as_u64()? as usize).copied()
 }
 
@@ -171,13 +164,7 @@ fn merge_meshes(
         scene.mesh_triangles.push(triangles);
         map.push(scene.meshes.len() - 1);
     }
-    let mut nodes = Vec::new();
-    for node in array(gltf, "nodes") {
-        let Some(mesh) = index(&node["mesh"], &map) else {
-            continue;
-        };
-        let name = node["name"].as_str().unwrap_or("mesh").to_string();
-        nodes.push((name, node["matrix"].clone(), mesh));
+    Parts {
+        nodes: mesh_nodes(gltf, &map, &model_matrices(gltf, scene)),
     }
-    Parts { nodes }
 }

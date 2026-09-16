@@ -86,8 +86,16 @@ export function encodeWebgpuVisibilityPasses(
   if (gpuHiz) {
     // The occluders of this image are the first pass of the next one, unless the view or a world moves.
     drawnOccluderUrls.fill(0);
-    for (let i = 0; i < rows.packedCount; i++)
-      if (!hizRest[i]) drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] = 1;
+    // La moitié testée est hachée dans l'ordre des lignes au passage : deux images qui partagent
+    // cette signature partagent l'historique d'occulteurs que la suivante hérite, sans qu'un second
+    // parcours du tableau d'urls n'ait à le vérifier.
+    let signature = 0;
+    for (let i = 0; i < rows.packedCount; i++) {
+      const rest = hizRest[i];
+      if (!rest) drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] = 1;
+      signature = (signature * 31 + rest) | 0;
+    }
+    run.occluderSignature = signature;
     run.noOccluderHistory = occluders === 0;
   }
   return vertices;

@@ -11,6 +11,8 @@ use crate::{hash, is_safe_source_name, CompilerError};
 use std::sync::atomic::Ordering;
 
 mod container;
+#[cfg(test)]
+mod tests;
 pub(super) mod zip_reader;
 
 pub(super) use container::container;
@@ -83,6 +85,26 @@ pub(super) fn safe_join(root: &Path, name: &str) -> Result<PathBuf> {
         return Err(refused());
     }
     Ok(out)
+}
+
+/// L'unique archive que ce conteneur a reçue. Un dossier qui en porte plusieurs est une ambiguïté :
+/// le compilateur ne devine pas laquelle emballe la scène.
+pub(super) fn only_input<'a>(
+    request: &SceneRequest<'a>,
+    plugin: &dyn ScenePlugin,
+) -> Result<&'a Path> {
+    let [file] = request.inputs else {
+        let kind = plugin.extensions().first().copied().unwrap_or_default();
+        return Err(CompilerError::new(
+            "SOURCE_FORMAT_AMBIGUOUS",
+            format!(
+                "{}: a source directory carries exactly one .{kind}, found {}",
+                plugin.name(),
+                request.inputs.len()
+            ),
+        ));
+    };
+    Ok(file)
 }
 
 /// Annulation, à vérifier à chaque entrée : une archive de dix mille fichiers s'arrête sur demande.

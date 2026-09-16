@@ -4,6 +4,7 @@ import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
+  residentModeOf,
   selectionScratch,
   selectionState,
   type PageRecord,
@@ -11,6 +12,7 @@ import {
 } from './pageSelectionCutState.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -32,7 +34,8 @@ export function selectVisiblePages<T extends PageRecord>(
     hold = !!options.holdResident;
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
   const { worldPlanes, matrix, viewMatrix } = selectionScratch;
-  camera.updateMatrixWorld();
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   frustumPlanesFromMatrix(
     worldPlanes,
     matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
@@ -40,7 +43,6 @@ export function selectVisiblePages<T extends PageRecord>(
   );
   pixelScaleOf(camera, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
-  shown.length = 0;
   const wanted = options.wanted ?? ([] as T[]);
   // L'état de la coupe est posé sur l'objet réutilisé : une image de rendu n'alloue rien ici.
   const state = selectionState<T>();
@@ -50,6 +52,9 @@ export function selectVisiblePages<T extends PageRecord>(
   state.wanted = wanted;
   state.shown = shown;
   state.isResident = options.isResident;
+  // La règle de résidence ne dépend que de la demande : la dire ici, c'est retirer de la boucle
+  // par cluster deux relectures de l'état et un appel indirect, sans toucher à la réponse.
+  state.residentMode = residentModeOf(hold, options.isResident);
   state.pixelError = options.pixelError ?? 0;
   state.cameraStretch = maxStretch(camera.matrixWorldInverse.elements);
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;
@@ -66,8 +71,8 @@ export function selectVisiblePages<T extends PageRecord>(
   state.budget = budget;
   const sweep = () => {
     state.over = false;
-    shown.length = 0;
-    wanted.length = 0;
+    state.shownCount = 0;
+    state.wantedCount = 0;
     state.wantedTriangles = 0;
     state.shownTriangles = 0;
     state.frustumRejected = 0;
@@ -99,6 +104,10 @@ export function selectVisiblePages<T extends PageRecord>(
     sweep();
   }
   state.budget = 0;
+  // La coupe est finie : les deux listes prennent ici leur longueur, et une seule fois. Elles
+  // gardent ainsi leur capacité d'une image à l'autre, au lieu de la reperdre à chaque passage.
+  shown.length = state.shownCount;
+  wanted.length = state.wantedCount;
   // Les deux sommes sont tenues à la retenue : plus aucun balayage des fiches après la coupe.
   const displayedTriangles = state.shownTriangles;
   let selectedTriangles = state.wantedTriangles;

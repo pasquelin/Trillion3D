@@ -29,8 +29,6 @@ export const FLAG_LIT = 1,
   FLAG_HAS_UV = 4,
   FLAG_HAS_MAP = 8,
   FLAG_HAS_NORMAL = 16,
-  FLAG_WRAP_S_REPEAT = 32,
-  FLAG_WRAP_T_REPEAT = 64,
   FLAG_MASK = 128,
   FLAG_BACK = 256,
   FLAG_HAS_ORM = 512,
@@ -46,6 +44,8 @@ export const FLAG_LIT = 1,
   FLAG_UNLIT_VIEW = 8192,
   /** Le matériau transmet : la surface lit le fond déjà dessiné au lieu de le mélanger par alpha. */
   FLAG_TRANSMISSIVE = 16384;
+// Les bits 32, 64, 32768 et 65536 sont libres : ils portaient l'adressage d'une seule carte, que
+// `visibilityWrapModes.ts` loge désormais par carte, dans un mot à lui.
 export type VisPage = {
   array: Uint32Array;
   attributes: THREE.BufferGeometry['attributes'];

@@ -17,6 +17,7 @@ pub(super) const FLOAT2: i64 = 6;
 pub(super) const FLOAT3: i64 = 7;
 /// Domaines : sommet, arête, face, coin de face.
 pub(super) const POINT: i64 = 0;
+pub(super) const EDGE: i64 = 1;
 pub(super) const FACE: i64 = 2;
 pub(super) const CORNER: i64 = 3;
 /// Plafond du nombre d'attributs lus dans un maillage : au-delà, le magasin n'en est pas un.
@@ -106,10 +107,11 @@ pub(super) fn attributes<'a>(mesh: &At<'a>) -> Vec<(String, Attr<'a>)> {
         } else {
             data.int("size", 0).max(0) as usize
         };
-        let Some(values) = data
-            .block("data")
-            .filter(|bytes| bytes.len() >= count * width)
-        else {
+        let Some(values) = data.block("data").filter(|bytes| {
+            count
+                .checked_mul(width)
+                .is_some_and(|span| bytes.len() >= span)
+        }) else {
             continue;
         };
         out.push((

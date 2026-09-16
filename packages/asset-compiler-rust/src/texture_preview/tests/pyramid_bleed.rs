@@ -15,7 +15,7 @@ fn a_hard_edge_does_not_bleed_the_transparent_side_color_into_the_opaque_side() 
             [0, 255, 0, 0]
         }
     });
-    let (_first, pixels) = reduce::pyramid(&source, None);
+    let (_first, pixels) = reduce::pyramid(&source, Transfer::Srgb, None);
     assert_eq!(level_size(width, height, 1), (16, 16));
     let level = level_bytes(width, height, &pixels, 1);
     for row in 0..16usize {

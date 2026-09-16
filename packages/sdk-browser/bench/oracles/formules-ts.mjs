@@ -15,29 +15,6 @@ export function referenceOutsidePlanes(planes, minX, minY, minZ, maxX, maxY, max
   return false;
 }
 
-/** `gpuDagOracleMath.ts:52-71` d'avant : la distance de vue y était écrite en ligne. */
-export function referenceProjectedError(error, sx, sy, sz, radius, e, stretch, focal, near) {
-  if (error === 0) return 0;
-  if (!(error > 0)) return Infinity;
-  const vx = e[0] * sx + e[4] * sy + e[8] * sz + e[12];
-  const vy = e[1] * sx + e[5] * sy + e[9] * sz + e[13];
-  const vz = e[2] * sx + e[6] * sy + e[10] * sz + e[14];
-  const distance = Math.sqrt(vx * vx + vy * vy + vz * vz) - radius * stretch;
-  if (!(distance > near)) return Infinity;
-  return (error * stretch * focal) / distance;
-}
-
-/** `pageSelectionProjection.ts:8-16` d'avant : la même racine, lue depuis une sphère rangée. */
-export function referenceViewDistance(sphere, offset, e) {
-  const cx = sphere[offset],
-    cy = sphere[offset + 1],
-    cz = sphere[offset + 2];
-  const vx = e[0] * cx + e[4] * cy + e[8] * cz + e[12];
-  const vy = e[1] * cx + e[5] * cy + e[9] * cz + e[13];
-  const vz = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
-  return Math.sqrt(vx * vx + vy * vy + vz * vz);
-}
-
 /** `visibilityMath.ts:50-58` d'avant : aire signée et barycentriques affines en ligne. */
 export function referenceBarycentric(a, b, c, x, y) {
   const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);

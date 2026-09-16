@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { cameraWorldPosition } from './cameraWorld.ts';
 import type { AssetScope, FrameMetrics } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
@@ -17,6 +18,8 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   scope: AssetScope;
   frameNumber: number;
 };
+
+const poseScratch = new THREE.Vector3();
 
 export function emitExplorerFrameDiagnostic(inputs: Inputs) {
   const {
@@ -53,7 +56,9 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
       frame: frameNumber,
       backend: active.id,
       camera: {
-        position: camera.position.toArray(),
+        // La pose monde, pas la pose locale : sous un rig d'hôte, le diagnostic dirait sinon la
+        // caméra ailleurs que là où l'image a été dessinée.
+        position: cameraWorldPosition(camera, poseScratch).toArray(),
         target: lookAtTarget.toArray(),
         fov: camera.fov,
         near: camera.near,

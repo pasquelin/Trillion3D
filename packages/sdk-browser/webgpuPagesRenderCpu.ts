@@ -94,6 +94,8 @@ export function renderCpuCut(
     { bootstrapUrls, slots, viewport } = rt.setup,
     gpuDevice = rt.setup.gpuDevice!,
     cache = gpu.cache!;
+  // La coupe processeur réécrit les listes elle-même : aucune image tenue ne s'appuie sur la sienne.
+  run.frameHold.invalidate();
   // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
   // and the GPU cut re-seeds from nothing when it takes the image back.
   services.invalidateCut();
@@ -184,6 +186,6 @@ export function renderCpuCut(
   const cpuEnd = performance.now();
   timing.lastSubmitMs = cpuEnd - encodeStart;
   timing.cpuSample = cpuSampleOf(rt, { cpuStart, lightsEnd, selectionEnd, encodeStart }, cpuEnd);
-  publishCpuProfile(timing, run, rt.diag);
+  publishCpuProfile(rt);
   traceCpuFrame(rt, camera);
 }

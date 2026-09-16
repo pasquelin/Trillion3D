@@ -162,21 +162,25 @@ pub(super) fn text(value: &Yaml) -> Option<String> {
     }
 }
 
-/// Un `fileID` : un entier de soixante-quatre bits, lu comme tel. Le faire passer par un flottant
-/// l'abîmerait au-delà de 2^53, et un vrai projet en porte — `33000010677178610` désigne alors un
-/// objet qui n'existe pas, et le composant qu'il nomme reste invisible.
-fn file_id(value: &Yaml) -> i64 {
+/// Un entier de soixante-quatre bits, lu comme tel. Le faire passer par un flottant l'abîmerait
+/// au-delà de 2^53, et un vrai projet en porte — `33000010677178610` désigne alors un objet qui
+/// n'existe pas, et le composant qu'il nomme reste invisible. Unity écrit ses identifiants signés,
+/// et quelques-uns au-delà de `i64::MAX` en non signé : les deux nomment le même objet.
+pub(super) fn integer(value: &Yaml) -> Option<i64> {
     match value {
-        Yaml::Integer(value) => *value,
-        Yaml::Real(text) | Yaml::String(text) => text.parse::<i64>().unwrap_or(0),
-        _ => 0,
+        Yaml::Integer(value) => Some(*value),
+        Yaml::Real(text) | Yaml::String(text) => text
+            .parse::<i64>()
+            .ok()
+            .or_else(|| text.parse::<u64>().ok().map(|value| value as i64)),
+        _ => None,
     }
 }
 
 /// Une référence `{fileID: …, guid: …}`.
 pub(super) fn reference(value: &Yaml) -> Ref {
     Ref {
-        file_id: file_id(&value["fileID"]),
+        file_id: integer(&value["fileID"]).unwrap_or(0),
         guid: text(&value["guid"]),
     }
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { rasterVisibility, type VisPage } from './visibilityBuffer.ts';
 import { buildHizPyramid } from './hizDepth.ts';
+import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
 import { countUnoccluded, filterUnoccluded } from './hizUnoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './hizCounts.ts';
 import { splitOccludersInto } from './hizSplit.ts';
@@ -15,19 +16,26 @@ export type TemporalHizState = {
   viewport?: [number, number];
 };
 
+/** Même tolérance, même parcours, sans allouer : `Array.prototype.every` demandait une fermeture
+ *  par matrice comparée, deux fois par appel et à chaque image. */
+function presqueEgaux(a: readonly number[], b: readonly number[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (!(Math.abs(a[i] - b[i]) <= 1e-7)) return false;
+  return true;
+}
+
 /** Reuse depth only for an identical view. Any camera movement, cut or projection change starts a new history. */
 export function sameHizView(
   previous: THREE.PerspectiveCamera | undefined,
   current: THREE.PerspectiveCamera,
 ) {
   if (!previous) return false;
-  previous.updateMatrixWorld();
-  current.updateMatrixWorld();
-  const equal = (a: readonly number[], b: readonly number[]) =>
-    a.length === b.length && a.every((value, i) => Math.abs(value - b[i]) <= 1e-7);
+  // `previous` est la caméra gelée par `holdCameraWorld` : matrice figée, pose et inverse posés une
+  // fois pour toutes. La remonter referait chaque image la même copie et la même inversion 4×4.
+  resolveCameraWorld(current);
   return (
-    equal(previous.matrixWorldInverse.elements, current.matrixWorldInverse.elements) &&
-    equal(previous.projectionMatrix.elements, current.projectionMatrix.elements)
+    presqueEgaux(previous.matrixWorldInverse.elements, current.matrixWorldInverse.elements) &&
+    presqueEgaux(previous.projectionMatrix.elements, current.projectionMatrix.elements)
   );
 }
 
@@ -41,7 +49,7 @@ function retiens(
   depth: Float32Array,
 ) {
   history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1], history.pyramid);
-  history.camera = (history.camera ?? new THREE.PerspectiveCamera()).copy(camera, false);
+  history.camera = holdCameraWorld(history.camera ?? new THREE.PerspectiveCamera(), camera);
   if (!history.viewport) history.viewport = [viewport[0], viewport[1]];
   else {
     history.viewport[0] = viewport[0];

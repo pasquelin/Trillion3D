@@ -10,18 +10,22 @@
 //!
 //! **Le décodage est un repli, pas la destination.** La règle du dépôt veut qu'une texture reçue
 //! déjà compressée pour le GPU garde ses blocs compressés sur le GPU quand la machine les accepte.
-//! Ce lot ne construit pas cette chaîne — transport, atlas et GPU sont un autre chantier — et le
-//! contrat `DecodedImage` n'a qu'une variante `Rgba8` que le cœur déconstruit par `let` irréfutable
-//! (`src/texture_preview.rs`). Ce qu'il faudra ajouter est écrit dans `orchestration/JOURNAL.md` :
-//! une variante `DecodedImage::Blocks` portant le codec, les dimensions et les octets bruts de la
-//! surface. Le pilote est déjà découpé pour cela : `codec` nomme le codec et sa géométrie de bloc,
-//! `header` rend la surface et l'offset de ses octets, `blocks` n'est que la reconstruction.
+//! Ce lot ne construit pas cette chaîne — transport, atlas et GPU sont un autre chantier. `DecodedImage`
+//! a aujourd'hui deux variantes, `Rgba8` et `RgbaF32` (`image-plugin-2`), et ce pilote ne rend que la
+//! première. Ce qu'il faudra ajouter, exactement : une troisième variante
+//! `DecodedImage::Blocks { codec, width, height, data }`, un `match` chez le consommateur
+//! (`src/texture_preview.rs:134`, aujourd'hui `Rgba8` lu et `RgbaF32` refusé par
+//! `image-float-unsupported`) qui la demande explicitement, et un pilote qui la rend. Le pilote est
+//! déjà découpé pour cela : `codec` nomme le codec et sa géométrie de bloc, `header` rend la surface
+//! et l'offset de ses octets bruts, `blocks` n'est que la reconstruction — la seule partie qui
+//! deviendra le repli. BC6H (HDR flottant) n'attend donc plus le contrat, qui a déjà sa sortie
+//! flottante : il attend cette variante `Blocks`, comme les autres codecs bruts.
 //!
 //! Codecs déclarés un par un : BC1, BC2, BC3, BC4, BC5, BC7, et les surfaces non compressées
 //! RGBA8, BGRA8 et BGRX8. Tout le reste — BC6H flottant, variantes signées, `DXT2`/`DXT4` à alpha
 //! prémultiplié, formats 16 bits, YUV, cubes, volumes, tableaux — est un refus nommé, jamais une
 //! panique : une texture illisible laisse le moteur retomber sur son blanc.
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod blocks;
 mod codec;
@@ -50,8 +54,11 @@ impl Plugin for Dds {
     fn name(&self) -> &'static str {
         "dds"
     }
+    /// Le suffixe nomme la fonction de transfert portée jusqu'à la sortie. Il a été ajouté avec
+    /// elle, parce que la version entre dans l'identité du cache : une entrée écrite du temps où
+    /// toute surface était rendue sRGB porte un aperçu décodé deux fois.
     fn version(&self) -> &'static str {
-        "dds-texture2ddecoder-0.1.2"
+        "dds-texture2ddecoder-0.1.2-transfert"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["dds"]
@@ -73,7 +80,9 @@ impl ImageDecoder for Dds {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
-        blocks::decode(&header::parse(bytes)?, bytes, max_alloc)
+    ) -> std::result::Result<ImageDecoded, &'static str> {
+        let surface = header::parse(bytes)?;
+        let image = blocks::decode(&surface, bytes, max_alloc)?;
+        Ok(ImageDecoded::srgb(image).with_transfer(surface.transfer))
     }
 }

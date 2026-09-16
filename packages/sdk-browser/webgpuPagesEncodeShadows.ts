@@ -42,8 +42,11 @@ const flushedSlices = new Int32Array(MAX_SHADOW_REGIONS);
  * d'autre.
  */
 function shadowViewpointOf(camera: THREE.PerspectiveCamera) {
-  camera.getWorldPosition(scratchVector).toArray(viewpoint.position);
-  camera.getWorldDirection(scratchVector).toArray(viewpoint.forward);
+  // Lues dans la matrice monde que l'image a mise à jour, ancêtres compris, sans la recalculer :
+  // l'axe est celui de `Camera.getWorldDirection`, troisième colonne normalisée puis opposée.
+  const world = camera.matrixWorld.elements;
+  scratchVector.setFromMatrixPosition(camera.matrixWorld).toArray(viewpoint.position);
+  scratchVector.set(world[8], world[9], world[10]).normalize().negate().toArray(viewpoint.forward);
   viewpoint.halfFovY = Math.max(1e-3, (camera.fov * Math.PI) / 360);
   viewpoint.aspect = Math.max(1e-3, camera.aspect);
   viewpoint.near = camera.near;

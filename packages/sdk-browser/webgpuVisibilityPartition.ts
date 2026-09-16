@@ -27,10 +27,13 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   // La projection se chronomètre elle-même, dans les deux branches : la moitié testée seule, ou
   // toutes les boîtes quand l'historique ne partage rien. Sans cela le second cas se déposait sur la
   // partition, et une caméra mobile — qui n'emprunte que lui — n'aurait montré aucune projection.
-  let projectMs = 0;
+  let projectMs = 0,
+    rectangles = 0;
   const project = (only: Uint8Array | undefined) => {
     const start = performance.now();
-    if (hizProjection.select(rows.packedCount, only, rows.packedPageIndex))
+    const besoin = hizProjection.select(rows.packedCount, only, rows.packedPageIndex);
+    rectangles += besoin;
+    if (besoin)
       projectBoxesFlat(
         rows.packedRecs,
         rows.packedCount,
@@ -67,11 +70,20 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
     hizRest.fill(0, 0, rows.packedCount);
     occluders = rows.packedCount;
   }
-  const partitionMs = performance.now() - partitionStart;
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
   if (twoPass && !boundsForAll) project(hizRest);
+  // La moitié testée, hachée dans l'ordre des lignes, avec le nombre d'occulteurs ET l'âge des
+  // rectangles d'écran : c'est, en dehors de la table de lignes, tout ce dont les fiches de dessin
+  // et les bornes projetées dépendent.
+  //
+  // L'âge de projection en fait partie parce que les bornes envoyées au test Hi-Z sont des
+  // rectangles d'ÉCRAN : une caméra qui bouge sans changer la partition des pages les réécrit
+  // toutes. Sans lui, l'image testait les rectangles de la caméra précédente et pouvait rejeter à
+  // tort des surfaces visibles.
+  let restSignature = (occluders * 31 + hizProjection.generation) | 0;
+  for (let i = 0; i < rows.packedCount; i++) restSignature = (restSignature * 31 + hizRest[i]) | 0;
   timing.lastProjectMs = projectMs;
-  timing.lastPartitionMs = partitionMs - projectMs;
+  timing.lastPartitionMs = performance.now() - partitionStart - projectMs;
   const counts = timing.partitionCounts;
   counts.lignes = rows.packedCount;
   counts.occulteurs = occluders;
@@ -80,5 +92,9 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   counts.bornesToutes = boundsForAll ? 1 : 0;
   counts.historiqueOcculteurs = historyOccluders;
   counts.sansHistorique = noHistory ? 1 : 0;
-  return { occluders, twoPass };
+  // Combien de rectangles d'écran cette image a dû réécrire : zéro quand le cache décrit déjà la
+  // vue. C'est ce qui rend observable, du dehors, qu'une vue nouvelle — un rig d'hôte déplacé, par
+  // exemple — retire bien les rectangles tenus, et qu'une vue immobile ne les retire pas.
+  counts.rectanglesProjetes = rectangles;
+  return { occluders, twoPass, restSignature };
 }

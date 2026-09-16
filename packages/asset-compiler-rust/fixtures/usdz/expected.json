@@ -7,15 +7,15 @@
     },
     {
       "name": "usd",
-      "version": "usd-openusd-0.7.0-gltf-1"
+      "version": "usd-openusd-0.7.0-gltf-6"
     }
   ],
+  "deuxCouchesTriangles": 1,
   "refus": {
     "compressee": "USDZ_LAYOUT_INVALID",
-    "deuxScenes": "SOURCE_FORMAT_AMBIGUOUS",
-    "sansScene": "SOURCE_FORMAT_UNKNOWN"
+    "sansScene": "USDZ_ROOT_LAYER_MISSING"
   },
-  "rule": "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache, son contenu routé comme n'importe quelle source, et la scène qui en sort est exactement celle de la même couche lue hors paquet. Un paquet mal disposé ou dont la couche racine n'est pas une est refusé par son code, jamais extrait à moitié.",
+  "rule": "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache et la scène qui en sort est exactement celle de la même couche lue hors paquet. La couche racine est la première entrée du paquet, jamais une couche cherchée parmi les autres : celles-là sont des ressources. Un paquet mal disposé ou qui n'ouvre pas sur une couche USD est refusé par son code, jamais extrait à moitié.",
   "scene": {
     "formatVersion": 4,
     "manifestBinaryVersion": 4,

@@ -6,6 +6,7 @@
 use super::super::geom::Geometry;
 use super::super::TOPOLOGY_INVALID;
 use super::Part;
+use crate::plugins::scene::ngon::Ngon;
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 
@@ -13,6 +14,10 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub(super) struct Builder {
     unique: HashMap<(u32, u32, u32), u32>,
+    /// Le découpeur de polygones et les sommets de la face courante, réutilisés d'une face à
+    /// l'autre : un maillage de mille faces n'alloue pas mille anneaux.
+    cutter: Ngon,
+    ring: Vec<u32>,
     positions: Vec<f32>,
     normals: Vec<f32>,
     uvs: Vec<f32>,
@@ -23,32 +28,29 @@ pub(super) struct Builder {
 }
 
 impl Builder {
-    /// Ajoute une face, lue à l'envers et découpée en éventail.
+    /// Ajoute une face, lue à l'envers et découpée en oreilles. Rend `false` quand la face n'a pas
+    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte.
     pub(super) fn face(
         &mut self,
         geometry: &Geometry,
         face: usize,
         corners: std::ops::Range<usize>,
-    ) -> Result<()> {
-        // L'éventail se lit à l'envers, coin par coin : la plage suffit, un tableau intermédiaire
-        // par face n'ajouterait qu'une allocation. Les coins sont visités dans le même ordre.
-        let mut ring = corners.rev();
-        let Some(start) = ring.next() else {
-            return Ok(());
-        };
-        let first = self.corner(geometry, face, start)?;
-        let Some(mut previous) = ring.next() else {
-            return Ok(());
-        };
-        for next in ring {
-            let (second, third) = (
-                self.corner(geometry, face, previous)?,
-                self.corner(geometry, face, next)?,
-            );
-            self.indices.extend_from_slice(&[first, second, third]);
-            previous = next;
+    ) -> Result<bool> {
+        // La face se lit à l'envers, coin par coin : chaque coin est émis une fois, dans cet ordre,
+        // avant que le découpage ne dise quels triangles les relient.
+        self.ring.clear();
+        self.cutter.begin();
+        for corner in corners.rev() {
+            let rank = self.corner(geometry, face, corner)?;
+            self.ring.push(rank);
+            self.cutter.corner(point(geometry, corner));
         }
-        Ok(())
+        let exact = self.cutter.cut();
+        for triangle in self.cutter.triangles() {
+            let corners = triangle.map(|rank| self.ring[rank]);
+            self.indices.extend_from_slice(&corners);
+        }
+        Ok(exact)
     }
 
     /// Le rang glTF de ce coin, émis une seule fois par triplet distinct.
@@ -127,4 +129,21 @@ impl Builder {
             max: self.max,
         }
     }
+}
+
+/// La position du sommet d'un coin, en double, telle que le découpage la lit. Un coin hors des
+/// tables donne l'origine : `corner` a déjà refusé le fichier dont les tableaux se contredisent.
+fn point(geometry: &Geometry, corner: usize) -> [f64; 3] {
+    let vertex = geometry
+        .corners
+        .get(corner)
+        .copied()
+        .and_then(|index| usize::try_from(index).ok())
+        .unwrap_or_default();
+    geometry
+        .positions
+        .get(vertex * 3..vertex * 3 + 3)
+        .map_or([0.0; 3], |axes| {
+            [f64::from(axes[0]), f64::from(axes[1]), f64::from(axes[2])]
+        })
 }

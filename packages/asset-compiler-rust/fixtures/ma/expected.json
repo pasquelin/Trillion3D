@@ -1,0 +1,192 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "max": [1.0, 1.0, 0.0],
+      "min": [0.0, 0.0, 0.0],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 4,
+      "max": [1.0, 2.0, 0.0],
+      "min": [0.0, 1.0, 0.0],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    }
+  ],
+  "case": "Un fichier Maya ASCII : une hiérarchie transform en centimètres, un mesh de deux quadrilatères dont le second réutilise une arête du premier à l'envers, deux instObjGroups d'une face chacun nuancés par deux shadingEngine, une seconde pose de la forme par parent -add, un lambert opaque, un standardSurface métallique translucide à texture de couleur, une caméra, un select sur un nœud absent du fichier et une commande python.",
+  "compiled": {
+    "selectedTriangles": 8,
+    "totalNodes": 2
+  },
+  "counts": {
+    "materials": 2,
+    "textures": 1
+  },
+  "files": [
+    {
+      "bytes": 2106,
+      "file": "scene.ma",
+      "sha256": "6ced376eef428e96d67723159586a4623238f71179babd8c8e6dee0745427ddd"
+    }
+  ],
+  "formatVersion": 4,
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "checker.png",
+      "uri": "textures/checker.png"
+    }
+  ],
+  "materials": [
+    {
+      "alphaMode": "OPAQUE",
+      "name": "Uni",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [0.7200000000000001, 0.09000000000000001, 0.09000000000000001, 1.0],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "alphaMode": "BLEND",
+      "emissiveFactor": [0.1, 0.1, 0.1],
+      "name": "Verre",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [1.0, 1.0, 1.0, 0.5],
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 1.0,
+        "roughnessFactor": 0.2
+      }
+    }
+  ],
+  "meshNames": ["PlaqueShape"],
+  "meshNodes": 2,
+  "meshes": [
+    {
+      "name": "PlaqueShape",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "matrix": [
+        4.440892098500626e-16, 0.0, -2.0, 0.0, 0.0, 2.0, 0.0, 0.0, 2.0, 0.0, 4.440892098500626e-16,
+        0.0, 10.0, 0.0, 0.0, 1.0
+      ],
+      "mesh": 0,
+      "name": "Plaque"
+    },
+    {
+      "children": [0],
+      "name": "Racine"
+    },
+    {
+      "matrix": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 30.0, 1.0],
+      "mesh": 0,
+      "name": "Copie"
+    },
+    {
+      "children": [1, 2],
+      "matrix": [0.01, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 1.0],
+      "name": "ma-root"
+    }
+  ],
+  "notes": [],
+  "plugin": {
+    "name": "ma",
+    "version": "ma-mel-subset-1-gltf-6"
+  },
+  "roots": [3],
+  "rule": "Le pilote rend les données du fichier et rien d'autre : aucune commande n'est exécutée, un nœud est identifié par son chemin de scène, une pose se compose dans l'ordre complet du format, les faces sont résolues par leurs arêtes signées puis découpées par oreilles dans le plan de leur normale, un groupe de faces devient une primitive à part et ce qu'aucun ne réclame en fait une sans matériau, les formes intermédiaires et invisibles restent dehors, les normales absentes sont calculées depuis la géométrie et le drapeau de dureté de chaque arête, le mode de répétition de chaque axe suit son propre attribut, lambert et standardSurface vont vers pbrMetallicRoughness, l'unité linéaire est portée par la racine de la scène, et tout ce qui reste est compté par son nom.",
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 33071,
+      "wrapT": 10497
+    }
+  ],
+  "scenePlugin": {
+    "name": "ma",
+    "version": "ma-mel-subset-1-gltf-6"
+  },
+  "selectedNodes": [0, 2],
+  "sidecarSha256": "0e02bfe9a7cdbfe2386c7cb4e28ffadfd33e0772a7f3b3702fcf0356fd82ce22",
+  "sourceTriangles": 8,
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "trianglesAcrossNodes": 8,
+  "unsupported": {
+    "ma-attribute-unattached": 1,
+    "ma-command-ignored:python": 1,
+    "ma-node-ignored:camera": 1,
+    "ma-normals-computed": 1
+  }
+}

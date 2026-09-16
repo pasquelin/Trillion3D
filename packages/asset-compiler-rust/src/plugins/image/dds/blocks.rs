@@ -7,15 +7,23 @@
 //! Pour une surface non compressée, les octets sont déjà là : on les remet dans le même ordre.
 use super::codec::{Layout, Order};
 use super::header::Surface;
-use super::{DecodedImage, DATA_TRUNCATED, TOO_LARGE};
+use super::{DATA_TRUNCATED, TOO_LARGE};
 use crate::plugins::image::blocks as shared;
+use crate::plugins::image::DecodedImage;
+use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 
 pub(super) fn decode(
     surface: &Surface,
     bytes: &[u8],
     max_alloc: u64,
 ) -> std::result::Result<DecodedImage, &'static str> {
-    crate::plugins::image::rgba8_budget(surface.width, surface.height, max_alloc, TOO_LARGE)?;
+    surface_budget(
+        surface.width,
+        surface.height,
+        RGBA8_PIXEL_BYTES,
+        max_alloc,
+        TOO_LARGE,
+    )?;
     let level = &bytes[surface.data..];
     let (width, height) = (surface.width as usize, surface.height as usize);
     let rgba = match surface.codec.layout() {

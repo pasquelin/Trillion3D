@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { RenderBackend } from './backendTypes.ts';
 import type { PageRec } from './pageSelection.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 export const RASTER_BACKGROUND = 0x171d28;
 const BACKGROUND = RASTER_BACKGROUND;
@@ -42,7 +43,8 @@ export function rasterPageRecords(
 ) {
   const [width, height] = size,
     pixels = opaqueBackgroundRgba(width, height, BACKGROUND);
-  camera.updateMatrixWorld();
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
@@ -101,7 +103,8 @@ export function rasterPages(
 ) {
   const [width, height] = viewport,
     pixels = opaqueBackgroundRgba(width, height, background);
-  camera.updateMatrixWorld();
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

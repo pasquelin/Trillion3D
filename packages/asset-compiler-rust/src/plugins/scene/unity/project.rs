@@ -102,20 +102,16 @@ impl Project {
         self.by_guid.get(guid).map(PathBuf::as_path)
     }
 
-    /// Le chemin d'un asset relativement au dossier servi, tel qu'il entre dans un `uri` de glTF.
-    /// `None` quand l'asset est hors de ce dossier : le moteur ne pourrait pas le demander.
+    /// L'URI d'un asset relativement au dossier servi, échappée comme toute référence relative
+    /// d'URI : `%`, `#`, l'espace et tout ce qui n'est pas un caractère non réservé s'y écrivent en
+    /// `%XX`, sinon le moteur demanderait un autre fichier, ou rien. `None` quand l'asset est hors
+    /// de ce dossier : le moteur ne pourrait pas le demander.
     pub(super) fn relative_uri(&self, asset: &Path) -> Option<String> {
         let relative = normalise(asset)
             .strip_prefix(normalise(&self.source_dir))
             .map(Path::to_path_buf)
             .ok()?;
-        Some(
-            relative
-                .components()
-                .map(|part| part.as_os_str().to_string_lossy().to_string())
-                .collect::<Vec<_>>()
-                .join("/"),
-        )
+        Some(crate::uri::encode_relative(&relative))
     }
 }
 

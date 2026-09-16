@@ -69,9 +69,10 @@ fn packed<'a>(image: &At<'a>) -> Option<&'a [u8]> {
     file.block("data").and_then(|bytes| bytes.get(..size))
 }
 
-/// L'URI d'une image seulement désignée, relative à la racine servie. Une image qui vit hors de
-/// cette racine n'a pas d'URI : elle est comptée, et la scène continue sans elle.
-fn linked(declared: &str, root: &Path) -> Option<String> {
+/// L'URI d'une image seulement désignée, relative à la racine servie et échappée comme toute
+/// référence relative d'URI. Une image qui vit hors de cette racine n'a pas d'URI : elle est
+/// comptée, et la scène continue sans elle.
+pub(super) fn linked(declared: &str, root: &Path) -> Option<String> {
     let relative = declared.strip_prefix("//").unwrap_or(declared);
     let path = Path::new(relative);
     let absolute = if path.is_absolute() {
@@ -79,15 +80,9 @@ fn linked(declared: &str, root: &Path) -> Option<String> {
     } else {
         root.join(path)
     };
-    let inside = normalise(&absolute)
-        .strip_prefix(normalise(root))
-        .ok()?
-        .to_path_buf();
-    Some(
-        inside
-            .components()
-            .map(|part| part.as_os_str().to_string_lossy().to_string())
-            .collect::<Vec<String>>()
-            .join("/"),
-    )
+    let under = normalise(&absolute);
+    let inside = under.strip_prefix(normalise(root)).ok()?;
+    // Une URI glTF, pas un chemin : `%`, `#`, l'espace et tout ce qui n'est pas un caractère non
+    // réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+    Some(crate::uri::encode_relative(inside))
 }

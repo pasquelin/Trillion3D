@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { prepareCones } from './webgpuPagesPrepare.ts';
 import { indexSourceBytes, compteMateriauxEtTangentes } from './webgpuPagesCatalogue.ts';
 import {
+  entreeCones,
   referencePrepareCones,
   referenceIndexSourceBytes,
   referenceCompteMateriauxEtTangentes,
@@ -25,8 +26,10 @@ function triangle(material: THREE.Material, attributes: THREE.BufferGeometry['at
     cone: undefined,
   } as unknown as PageRec;
 }
-function runtime(allPages: PageRec[]) {
-  return { setup: { allPages } } as unknown as WebgpuPagesRuntime;
+/** L'entrée de `prepareCones`, celle du banc : une seule écriture pour les deux, sans quoi l'une
+ *  des deux reste à l'ancien contrat sans que rien ne le dise. */
+function runtime(allPages: PageRec[], roots?: Array<{ cones?: boolean; pages: PageRec[] }>) {
+  return entreeCones(allPages, roots) as unknown as WebgpuPagesRuntime;
 }
 const positions = (values: number[]) => new THREE.Float32BufferAttribute(values, 3);
 
@@ -37,6 +40,20 @@ function memeCones(pages: PageRec[]) {
   referencePrepareCones(runtime(b));
   for (let i = 0; i < a.length; i++) assert.deepEqual(a[i].cone, b[i].cone, `page ${i}`);
 }
+
+test('l’entrée partagée porte des racines, et un cluster ordinaire en ressort avec un vrai cône', () => {
+  // Deux fonctions qui ne posent rien seraient d’accord sur rien : l’égalité avec l’oracle ne dit
+  // pas, à elle seule, qu’un cône a été posé. `prepareCones` lit les pages par racine — une entrée
+  // qui n’en porterait pas lui ferait tout ignorer en silence, et c’est exactement la panne que ce
+  // correctif ferme. Ce test l’exige donc des deux côtés : des racines, et un cône non vide.
+  const entree = entreeCones([]) as { setup: { allPages: PageRec[]; roots: unknown[] } };
+  assert.ok(Array.isArray(entree.setup.roots), 'l’entrée du banc doit porter ses racines');
+  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
+  const page = triangle(new THREE.MeshBasicMaterial({ side: THREE.FrontSide }), attributes);
+  prepareCones(runtime([page]));
+  assert.ok(page.cone, 'un cluster à une face doit recevoir son cône');
+  assert.equal(page.cone!.axis.length, 3);
+});
 
 test('un attribut position simple, non normalisé, prend le même cône que la copie sommet par sommet', () => {
   const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
@@ -124,4 +141,20 @@ test('compteMateriauxEtTangentes sur un catalogue et une table de géométries v
     compteMateriauxEtTangentes([], new Map()),
     referenceCompteMateriauxEtTangentes([], new Map()),
   );
+});
+
+test('poser un cône déclare sa racine ; une racine dont aucune page ne reçoit de cône reste déclarée nue', () => {
+  // `collectClusterPages` déclare `cones: false` ; sans ce relevé, la coupe ne lirait plus le cône
+  // que cette préparation vient d'écrire, et le rejet de cône disparaîtrait sans bruit. Une page
+  // sans octets d'index ne reçoit aucun cône : sa racine n'a rien à déclarer.
+  const attributes = { position: positions([0, 0, 0, 1, 0, 0, 0, 1, 0]) };
+  const porte = triangle(new THREE.MeshBasicMaterial(), attributes);
+  const nue = { ...triangle(new THREE.MeshBasicMaterial(), attributes), array: undefined };
+  const roots = [
+    { cones: false, pages: [porte] },
+    { cones: false, pages: [nue as unknown as PageRec] },
+  ];
+  prepareCones(runtime([porte, nue as unknown as PageRec], roots));
+  assert.equal(roots[0].cones, true);
+  assert.equal(roots[1].cones, false);
 });

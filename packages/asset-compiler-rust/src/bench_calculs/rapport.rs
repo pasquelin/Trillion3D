@@ -1,5 +1,5 @@
 //! Sortie du banc : le tableau Markdown sur la console, le même tableau et ses chiffres bruts dans
-//! `orchestration/mesures/`.
+//! `.mesure/out/calculs/`, hors dépôt.
 use super::harness::Row;
 use serde_json::{json, Value};
 use std::path::PathBuf;
@@ -73,7 +73,7 @@ fn shell(command: &str, args: &[&str]) -> Value {
 
 pub(crate) fn mesures_dir() -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../orchestration/mesures")
+        .join("../../.mesure/out/calculs")
         .components()
         .collect::<PathBuf>();
     let _ = std::fs::create_dir_all(&dir);
