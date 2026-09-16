@@ -3,6 +3,7 @@ import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { writeBlendView } from './webgpuBlendUniforms.ts';
 import { writeBlendArgsCpu } from './webgpuBlendArgs.ts';
 import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
+import { orderBlendPasses, orderVisibleBlend } from './webgpuBlendOrder.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './webgpuBlendFallback.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
 import { copyBackdrop } from './webgpuTransmission.ts';
@@ -51,6 +52,9 @@ export function encodeBlend(
   );
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
+  // L'œil monde de l'image, celui-là même que l'uniforme de vue publie : sans caméra, aucune image
+  // n'est classée et les listes gardent l'ordre qu'elles avaient.
+  const eye = run.lastCamera ? run.gate.cam.eye : undefined;
   // The compaction reads the mask this very frame's cluster cut wrote, a few commands earlier in the
   // same buffer, and writes the instance list the pass below draws from.
   encodeTransparentInstances(rt, encoder);
@@ -59,6 +63,7 @@ export function encodeBlend(
       blendState,
       run.gpuFrameActive ? undefined : run.drawn,
     );
+    orderVisibleBlend(blendState, eye);
     ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
     writeFallbackBlendUniforms(rt, device, uniformBase);
     const ready = performance.now();
@@ -72,6 +77,9 @@ export function encodeBlend(
   // d'instances a zero pour ce qu'il rejette. Sans etage de calcul, le processeur ecrit les memes
   // arguments. Le compteur de rejets, lui, ne vient d'aucune relecture : `drawBlendPass` le tient
   // en retestant le tronc en double precision, sur l'image qu'il encode.
+  // Le classement du plus lointain au plus proche, repris ici et à chaque image : un mélange ne pose
+  // pas de profondeur, donc rien d'autre que cet ordre ne départage deux surfaces transparentes.
+  orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
   if (blendState.select) blendState.select.encode(encoder, blendState.blendPlanes);
   else writeBlendArgsCpu(blendState, device);
