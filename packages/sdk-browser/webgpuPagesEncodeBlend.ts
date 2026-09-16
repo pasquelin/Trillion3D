@@ -69,14 +69,12 @@ export function encodeBlend(
     return;
   }
   // Le tronc passe par la carte : un noyau d'un fil par item ecrit les arguments indirects, compte
-  // d'instances a zero pour ce qu'il rejette. Le compteur de rejets se relit une image plus tard,
-  // hors de l'image mesuree. Sans etage de calcul, le processeur ecrit les memes arguments.
+  // d'instances a zero pour ce qu'il rejette. Sans etage de calcul, le processeur ecrit les memes
+  // arguments. Le compteur de rejets, lui, ne vient d'aucune relecture : `drawBlendPass` le tient
+  // en retestant le tronc en double precision, sur l'image qu'il encode.
   writeBlendView(rt, device);
-  if (blendState.select) {
-    run.blendFrustumRejected = blendState.select.frustumRejected();
-    blendState.select.readStats();
-    blendState.select.encode(encoder, blendState.blendPlanes);
-  } else run.blendFrustumRejected = writeBlendArgsCpu(blendState, device);
+  if (blendState.select) blendState.select.encode(encoder, blendState.blendPlanes);
+  else writeBlendArgsCpu(blendState, device);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
