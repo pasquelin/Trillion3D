@@ -22,6 +22,13 @@ trois valeurs sur onze bits — 4, 5 et 13 — deviennent les octets 0, 1 et 2 p
 proche, là où la troncature du décodeur externe rendait 0, 0 et 1 et où sa lecture inversée du champ
 d'indices déplaçait les texels. Le bloc dit donc à la fois l'arrondi et la place des texels.
 
+Ils couvrent aussi ce qu'un conteneur **déclare** autour de ses texels : la fonction de transfert de
+son descripteur de format — la même charge utile déclarée linéaire puis sRGB —, le drapeau d'alpha
+prémultiplié du même descripteur, et les clés `KTXorientation` et `KTXswizzle`. Le pilote applique
+ce qui s'applique (dé-prémultiplication, retournement vertical pour `ru`) et compte le reste sous
+`ktx2-orientation-unsupported` ou `ktx2-swizzle-unsupported`. Les quatre fichiers du dossier
+déclarent tous `transferFunction` sRGB et aucun drapeau : leurs texels ne bougent pas.
+
 `scene.gltf`, `scene.bin` et `expected.json` sont la dorée compilée : trois quads, un matériau
 opaque et une texture par fichier de la première moitié du tableau, passés par le compilateur entier.
 Leur régénération est décrite dans l'entête de `src/tests/ktx2_golden.rs`.
