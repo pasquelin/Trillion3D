@@ -1,39 +1,39 @@
-# Geometry — reprise
+# Geometry — reprise (16 sept. 2026, 19 h)
 
 ## Identité et règles
 
 - Confirmer le titre `Geometry` par `get_session("self")`. Suivre `AGENTS.md`. Voisins : Lumière, Calculateur, Compilateur, Validateur (seul à pousser `origin/develop`).
-- Fable orchestre sans coder ; Opus 5 code en worktree ; Sonnet 5 lit et audite, ne commet jamais. Réponses ≤ 5 lignes, pas de relais des attentes.
-- Ordre de l'utilisateur, 16 sept. 2026 : **interdiction formelle de tests et de campagnes de mesure**. Les agents codent, compilent (`tsc --noEmit`) et livrent ; fusion locale dans develop, reconstruction de `dist/` (le Lab sur 5174 lit `../webGeometry/dist`), puis l'utilisateur teste lui-même dans le Lab. Reprendre tests, simplify et validation seulement sur son ordre explicite.
-- Règle d'or : le même rendu qu'Unreal sous la contrainte du chargement web. L'image n'attend jamais une arrivée. Toute mesure future couvre la traversée de la ville à cache froid, pas seulement des poses préchargées ; p95 et pic, pas la médiane.
-- Imports relatifs uniquement ; jamais de chemin absolu de la machine dans un fichier livré ou jetable.
-- Fidélité : référence = develop ≥ 37a55d59 aux seuils 0 et 1. Les écarts au seuil 1 contre une base antérieure (égalités de profondeur aux coutures LOD, ≤ 93 px, déterministes) sont acceptés, pas un lot de départage par identifiant (casserait le rejet anticipé).
+- Fable orchestre sans coder ; Opus 5 code en worktree ; Sonnet 5 relit en lecture seule avant fusion. Réponses ≤ 5 lignes, tableau seulement si demandé.
+- **Interdiction formelle de tests et de campagnes** (ordre du 16 sept.) tant que l'utilisateur lague en se déplaçant. Cycle : l'agent code et compile (`tsc --noEmit`) → relecture Sonnet du diff (invariants, doublons, chemins absolus) → fusion locale → `npm run build` (le Lab 5174 lit `dist/`) → **reproduction sur la scène réelle avant de dire « à tester »** (script scratch : 12 instances, pose sol, caméra fixe puis mobile ; lire appels, CPU, GPU, diagnostics) → verdict de l'utilisateur dans le Lab, mode debug « Désactivé ». Cette reproduction a attrapé trois régressions le 16 sept. (shader `fwidth` non uniforme, « Missing page » par adresse partagée entre placements, 23 151 appels hors champ) ; sans elle rien ne protège.
+- Règle d'or : le même rendu qu'Unreal sous la contrainte du chargement web. L'image n'attend jamais une arrivée ; tout par delta, jamais par parcours de la coupe ou du catalogue par image ; aucune allocation par image.
+- Imports relatifs uniquement ; jamais de chemin absolu de la machine, même dans un script jetable.
+- Fidélité : référence = develop ≥ 37a55d59, seuils 0 et 1. Les écarts au seuil 1 contre une base antérieure (égalités de profondeur aux coutures LOD, ≤ 93 px) sont acceptés ; pas de départage par identifiant sur la passe matérielle.
 
-## Tableau Unreal / nous (audit lecture seule du 16 sept.)
+## Cibles (Nanite, 1080p, carte génération PS5) et état mesuré en mouvement, 12 instances
 
-| Ligne | En place | Optimisé | Reste |
-|---|---|---|---|
-| Clusters 128, DAG, erreur écran | oui | oui | — |
-| Coupe DAG sur GPU | oui | oui (fb96ffb2) | vérifier les 7 à 8 passes par niveau au Lab |
-| Hi-Z deux passes, historique, partition GPU | oui | oui | — |
-| Raster calcul petits, matériel gros | oui | oui | départage par identifiant seulement pour les petits |
-| Tampon de visibilité, un ombrage par pixel | oui | oui | — |
-| CPU par image quasi nul | oui (96d68279) | à tester | — |
-| Textures progressives, budget | oui | oui | — |
-| Streaming sans attente | oui (a9b3db14, 33e1db88, worker) | à tester | plages de téléversement et fiches de ligne restent sur le fil principal |
-| WebGL mobile | coupe hiérarchique, forçage élagué (11666f9c) | à tester | noyaux Rust/Wasm du Calculateur (M5) quand livrés |
+| Poste | Nanite | Nous (018c5b72) |
+|---|---|---|
+| Coupe + raster géométrie, GPU | 2 à 4 ms | 5 à 6 ms |
+| Visibilité + matériaux, GPU | 1 à 2 ms | 1 à 2 ms |
+| Transparents, GPU | hors Nanite | 0,2 ms |
+| Total GPU | 4 à 5 ms | 11 ms |
+| CPU par image | < 1 ms | 8 à 14 ms |
+| Immobile | tenue | tenue, 2 ms |
 
-## État au 16 sept. 2026, 18 h — develop local (worker de streaming inclus), non poussé
+## Fait (develop local 018c5b72, non poussé, depuis b92e23e)
 
-Fusionnés dans l'ordre depuis b92e23e : image tenue + incrémental (4397df3, corrections c396c459), coupe GPU rétablie (2ddbdafe), reprise coupe incomplète + couleur tenue WebGL (b42948a9), transparents suivent les transformations (Calculateur), partition Hi-Z GPU (1f4a746c), rejet anticipé du mélange (dd3d604d), occlusion des transparents (fa876ed0), sélection indirecte (cc3b5033, a2507150), géométrie tronquée (37a55d59), streaming sans attente (a9b3db14), syncRows incrémental (33e1db88), élagage hiérarchique (fb96ffb2), transparents sur GPU (96d68279), coupe CPU WebGL élaguée sous forçage (11666f9c), intégration des pages en worker (fusion suivante).
+Image tenue + incrémental ; coupe GPU rétablie ; transparents suivent les transformations ; partition Hi-Z, rejet anticipé du mélange, occlusion des transparents, sélection indirecte et par niveaux, géométrie tronquée ; streaming sans attente, worker d'intégration, syncRows incrémental, fiches bornées à 2 ms/image, journal sans débordement, trace bornée ; transparents sur GPU (sélection, fiches par item, hors champ non encodés) ; coupe CPU WebGL élaguée sous forçage ; listes de l'hôte sans ensembles de clés.
 
-Dernière mesure valable (avant les quatre derniers lots, machine chargée, 12 instances) : WebGPU immobile 2 ms CPU ; mobile CPU 2,5 ms, GPU 10 à 11 ms ; WebGL immobile 5 ms, mobile 41 ms. Navigation à froid : 2 images par seconde avant a9b3db14, non remesurée (interdit).
+## En cours (agents Opus, code seul)
 
-Tests devenus caducs, non adaptés sur ordre : `webgpuRowCommit.test.ts`, `gpuDagLive.test.ts`, `gpuDagSelection*.test.ts`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11`.
+1. `lot/hote-delta` : contrat hôte par delta et rangs numériques, file de priorité par insertion, delta de relevé par fusion linéaire → CPU < 1 ms. Fichiers : explorer*, streaming*, webgpuPages*, webgpuCut*.
+2. `lot/selection-compacte` : enregistrements chauds/froids, résidence en bits, oracle miroir → sélection 1,5 → 0,5 ms. Fichiers : gpuDag*.
 
-## Suite, dans l'ordre
+## À faire, dans l'ordre
 
-1. Verdict de l'utilisateur dans le Lab (WebGPU puis WebGL, traversée à froid).
-2. Sur son ordre : simplify des lots, remise des tests caducs, puis confirmation ligne par ligne du tableau avec preuve par le code.
-3. Quand le Calculateur livre M5 (Rust/Wasm, tampon partagé, mêmes bits) : coupe WebGL sur ce socle (entrée matrice vue-projection + seuil, sortie liste compacte ordonnée), coupe de secours WebGPU, reconstruction des rangs, intégration des pages en worker.
-4. Fusions locales en attente de validation et de push par le Validateur ; relevés bruts sous `.mesure/out/` du checkout principal.
+3. Raster de calcul pour tous les triangles (plus de passe matérielle) : GPU géométrie 5 → 3 ms, départage par identifiant gratuit. Le plus gros lot.
+4. Sur verdict « plus de lag » : relever l'interdiction ; écrire d'abord la preuve de navigation sur la scène réelle (pipeline créé, aucune page manquante, appels et CPU dans une enveloppe), puis remettre les tests caducs : `webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11` ; reprendre l'hôte de test de coupe du Calculateur (41dfcccc). Puis simplify, puis confirmation ligne par ligne du tableau Unreal/nous.
+5. Noyaux Rust/Wasm du Calculateur (M5, arène partagée) sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
+6. `webgpuPagesPrepare.ts` à 202 lignes (porte check:lines) à régler au simplify.
+
+Relevés bruts sous `.mesure/out/` du checkout principal ; scripts de reproduction dans le scratchpad de la session (stable.mjs, profil.mjs, heldpx.mjs : à recréer si perdus, ils tiennent en 60 lignes chacun sur `scripts/mesure/{options,serveur,page}.mjs`).
