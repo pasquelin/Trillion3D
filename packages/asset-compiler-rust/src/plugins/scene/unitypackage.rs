@@ -35,8 +35,7 @@ const PATHNAME: &str = "pathname";
 const ASSET: &str = "asset";
 /// Les métadonnées d'import, posées à côté de l'asset sous le nom que l'éditeur leur donne.
 const META: &str = "asset.meta";
-/// Plafond de lecture d'un `pathname` : un chemin de projet tient dans quelques dizaines d'octets,
-/// au-delà l'entrée ne porte pas un chemin et le paquet sort de sa structure.
+/// Plafond de lecture d'un `pathname` : au-delà, l'entrée ne porte pas un chemin de projet.
 const MAX_PATHNAME_BYTES: u64 = 64 * 1024;
 
 impl Plugin for UnityPackage {
@@ -79,8 +78,7 @@ fn extract(request: &SceneRequest<'_>, source: &Path, root: &Path) -> Result<(us
     if targets.is_empty() {
         return Err(archive::empty(source));
     }
-    let file = BufReader::new(fs::File::open(source)?);
-    let mut archive = tar::Archive::new(GzDecoder::new(file));
+    let mut archive = open(source)?;
     let mut written = 0u64;
     for entry in archive.entries().map_err(unreadable(source))? {
         archive::check(request)?;
@@ -102,9 +100,11 @@ fn extract(request: &SceneRequest<'_>, source: &Path, root: &Path) -> Result<(us
         }
         let room = archive::LIMITS.bytes - written;
         let mut out = fs::File::create(&destination)?;
-        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut out)?;
+        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut out)
+            .map_err(unreadable(source))?;
         archive::under_byte_limit(written)?;
     }
+    ended(archive, source)?;
     for target in targets.values().filter(|target| !target.file) {
         fs::create_dir_all(archive::safe_join(root, &target.path)?)?;
     }
@@ -119,8 +119,7 @@ fn index(
     source: &Path,
     root: &Path,
 ) -> Result<(BTreeMap<String, Target>, usize)> {
-    let file = BufReader::new(fs::File::open(source)?);
-    let mut archive = tar::Archive::new(GzDecoder::new(file));
+    let mut archive = open(source)?;
     let mut targets: BTreeMap<String, Target> = BTreeMap::new();
     let (mut entries, mut declared) = (0usize, 0u64);
     for entry in archive.entries().map_err(unreadable(source))? {
@@ -155,9 +154,24 @@ fn index(
             _ => {}
         }
     }
+    ended(archive, source)?;
     // Un dossier de GUID sans `pathname` n'a pas de place dans le projet : il n'est pas écrit.
     targets.retain(|_, target| !target.path.is_empty());
     Ok((targets, entries))
+}
+
+/// Le paquet ouvert : le flux gzip déballé au fil de la lecture, lu comme une archive tar.
+fn open(source: &Path) -> Result<tar::Archive<GzDecoder<BufReader<fs::File>>>> {
+    let file = BufReader::new(fs::File::open(source)?);
+    Ok(tar::Archive::new(GzDecoder::new(file)))
+}
+
+/// Lit ce qui reste du flux après la dernière entrée du tar : le pied de gzip, qui porte le condensé
+/// CRC32 des octets déballés et leur nombre (RFC 1952). `tar` s'arrête avant lui, et sans cette
+/// lecture un paquet tronqué ou au pied menteur passerait pour entier.
+fn ended<R: Read>(archive: tar::Archive<R>, source: &Path) -> Result<()> {
+    std::io::copy(&mut archive.into_inner(), &mut std::io::sink()).map_err(unreadable(source))?;
+    Ok(())
 }
 
 /// Le GUID et le membre d'une entrée `<guid>/<membre>`. Une entrée plus profonde, posée à la racine
