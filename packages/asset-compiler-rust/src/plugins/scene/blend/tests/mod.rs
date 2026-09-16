@@ -6,6 +6,7 @@
 use super::*;
 use crate::tests::ngones::{rendered_area, U_RING};
 
+mod bornes;
 mod fidelite;
 mod matiere;
 mod sortie;
