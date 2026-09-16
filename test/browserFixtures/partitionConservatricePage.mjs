@@ -5,10 +5,12 @@
 // de profondeur de CHAQUE ligne résidente — avec les coins monde en double précision et les matrices
 // d'où elle l'a tiré. La référence est recalculée sur ces mêmes entrées et les deux sont comparées
 // cluster par cluster (`partitionReference.mjs`).
-import { compareAudit, emptyTotals } from '/preuve/partitionReference.mjs';
+
+import { compareAudit, emptyTotals } from './partitionReference.mjs';
 
 export async function auditPoses(options) {
   const sdk = await import(options.sdkUrl);
+
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   const evenements = [];

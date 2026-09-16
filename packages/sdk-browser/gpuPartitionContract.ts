@@ -80,7 +80,6 @@ export const ST_TESTED = 0,
 export const MODE_MEDIAN = 0,
   MODE_HISTORY = 1;
 
-
 /**
  * Mots de l'uniforme : vue (16) et vue-projection (16), toutes deux DÉJÀ composées avec la
  * translation de l'ancre ; l'ancre en deux simples précisions, avec le plan proche ; puis les
