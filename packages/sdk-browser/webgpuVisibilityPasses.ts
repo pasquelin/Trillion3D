@@ -1,5 +1,6 @@
 import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
+import { restSlotCount } from './gpuDrawContract.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -65,7 +66,12 @@ export function encodeWebgpuVisibilityPasses(
   // Le verdict existe maintenant : le suffixe de lignes rejetées sort du compte d'instances avant
   // que la seconde passe ne lance leurs sommets. Il n'y posait aucun pixel, l'image ne bouge pas.
   if (vis.gpuRestCompact && vis.pageTable)
-    vis.gpuRestCompact.encode(encoder, 3 * vis.drawLayerSlots, rows.packedCount, vis.pageTable);
+    vis.gpuRestCompact.encode(
+      encoder,
+      restSlotCount(vis.drawLayerSlots),
+      rows.packedCount,
+      vis.pageTable,
+    );
   // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
   // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
   if (skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) return;

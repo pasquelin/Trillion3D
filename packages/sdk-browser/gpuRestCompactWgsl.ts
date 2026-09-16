@@ -1,4 +1,5 @@
 import { PAGE_INFO_STRUCT_WGSL } from './visibilityPageWgsl.ts';
+import { BASE_SLOTS } from './gpuDrawContract.ts';
 
 /** Les fils d'un groupe de travail de la marque : une tuile d'instances de la moitié testée. */
 export const REST_COMPACT_WORKGROUP = 64;
@@ -33,7 +34,7 @@ struct Uniforms{restSlots:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(5) var<storage, read_write> dernieres:array<atomic<u32>>;
 @group(0) @binding(6) var<uniform> uni:Uniforms;
 /** Le rang du slot testé numéro \`n\` : trois modes de face par couche, après les trois occulteurs. */
-fn restSlotAt(n:u32)->u32{return (n/3u)*6u+3u+n%3u;}
+fn restSlotAt(n:u32)->u32{return (n/${BASE_SLOTS / 2}u)*${BASE_SLOTS}u+${BASE_SLOTS / 2}u+n%${BASE_SLOTS / 2}u;}
 /** Le prédicat de l'étage de sommets : une ligne rejetée par la pyramide n'écrit aucun pixel. */
 fn vivante(ligne:u32)->bool{
  let hizSlot=pages[ligne].hizSlot;
