@@ -65,13 +65,17 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
   }
 });
 
-test('clustered transparency does not duplicate forward attributes in opaque GPU buffers', async () => {
+test('clustered transparency reads the opaque geometry instead of copying it', async () => {
   installGpuGlobals();
   const allocations: number[] = [];
-  for (const pass of ['shared-blend', 'clustered-blend']) {
+  // La passe transparente paginée lit la géométrie CONCATÉNÉE, celle que la passe opaque lit déjà :
+  // c'est ce qui lui permet de partager un seul groupe de liaison pour tous ses items. La même
+  // primitive doit donc coûter exactement la même chose, qu'on la dessine opaque ou transparente ;
+  // une copie propre aux transparents se verrait ici comme un supplément d'octets.
+  for (const pass of ['exact-clusters', 'clustered-blend']) {
     const fixture = quadScene(),
       { device } = mockGpu();
-    fixture.material.transparent = true;
+    fixture.material.transparent = pass === 'clustered-blend';
     fixture.metadata.primitives[0].pass = pass;
     const positions = new Float32Array(3000);
     positions.set(fixture.geometry.getAttribute('position').array);
@@ -94,10 +98,9 @@ test('clustered transparency does not duplicate forward attributes in opaque GPU
   }
   assert.ok(
     allocations[1] <= allocations[0] + 1024,
-    'page indices may add slots; forward vertices must not be copied into opaque position/UV/normal buffers',
+    'page indices may add slots; forward vertices must not be copied a second time',
   );
 });
-
 test('clustered transparency switches LOD with resident coverage and retains both face passes', async () => {
   installGpuGlobals();
   const fixture = coarseQuadScene(),
