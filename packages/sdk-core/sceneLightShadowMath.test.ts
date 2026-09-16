@@ -63,3 +63,45 @@ test('composeFace : axes et zéros signés hostiles, perspective et orthographiq
         }
   assert.ok(compares >= 200, `${compares} comparaisons, jeu trop petit`);
 });
+
+// Lot perf-2 : `composeFace` compose désormais à part (`multiplyMatrix4` sans décalage) puis recopie
+// ses seize nombres à `out[base..base+15]`. Le test ci-dessus ne porte que sur `base = 0` ; les
+// appelants réels (`sceneLightShadowFaces.ts`, `sceneLightSunFaces.ts`) empaquettent plusieurs faces
+// dans un même tampon à des décalages non nuls. Ce test tient la recopie : bit à bit contre la même
+// référence à un décalage quelconque, et rien d'écrit hors des seize indices ciblés.
+test('composeFace : la recopie à un décalage non nul rend les mêmes bits, sans toucher au reste du tampon', () => {
+  const BASE = 32; // une troisième face dans un tampon de faces packées à seize flottants chacune
+  const eyes: ReadonlyArray<readonly [number, number, number]> = [
+    [0, 0, 0],
+    [3, -4, 5],
+    [-0, -0, -0],
+  ];
+  const avants: ReadonlyArray<readonly [number, number, number]> = [
+    [1, 0, 0],
+    [0, -1, 0],
+    [0, 0, -1],
+  ];
+  for (const oeil of eyes)
+    for (const avant of avants)
+      for (const perspective of [true, false]) {
+        const proj = new Float32Array(16);
+        if (perspective) {
+          referenceShadowProjection(proj, Math.PI / 2, 10);
+          shadowProjection(Math.PI / 2, 10);
+        } else {
+          referenceShadowOrthographic(proj, 5, 100);
+          shadowOrthographic(5, 100);
+        }
+        // Rempli d'une sentinelle avant la face : les deux côtés partent du même tampon « sale », et
+        // un écart hors de [BASE, BASE+16[ — recopie décalée d'un cran, garde débordante — le montre.
+        const gardeAttendu = new Float32Array(BASE + 16).fill(7),
+          gardeRecu = new Float32Array(BASE + 16).fill(7);
+        referenceComposeFace(gardeAttendu, BASE, oeil, avant, proj);
+        composeFace(gardeRecu, BASE, oeil, avant);
+        for (let i = 0; i < BASE + 16; i++)
+          assert.ok(
+            Object.is(gardeAttendu[i], gardeRecu[i]),
+            `oeil=${oeil} avant=${avant} i=${i} : ${gardeAttendu[i]} ≠ ${gardeRecu[i]}`,
+          );
+      }
+});
