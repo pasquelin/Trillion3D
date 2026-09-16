@@ -1,6 +1,6 @@
 /**
  * Oracle D1/D2 : produit `viewProj * world` calculé une fois et relu pour plusieurs sommets, contre
- * le même produit refait pour chacun. Les deux shaders (gpuSmallTrianglesShader.ts,
+ * le même produit refait pour chacun. Les deux shaders (gpuRasterShader.ts,
  * visibilityShaderId.ts) appliquent exactement cette transformation ; ce module porte l'algèbre en
  * JS (mat4x4f colonne-majeure, comme WGSL) pour la vérifier sur des matrices hostiles — miroir,
  * quasi-singulière, à grande échelle — sans dépendre d'une exécution GPU.

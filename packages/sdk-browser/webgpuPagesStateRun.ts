@@ -51,6 +51,8 @@ export interface WebgpuRunState {
   drawnTriangles: number;
   blendFrustumRejected: number;
   gpuDrawCalls: number;
+  /** Les lancements de calcul de l'image : le raster opaque n'est pas un appel de dessin. */
+  gpuComputeDispatches: number;
   lastProgressMs: number;
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
@@ -149,6 +151,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     drawnTriangles: 0,
     blendFrustumRejected: 0,
     gpuDrawCalls: 0,
+    gpuComputeDispatches: 0,
     lastProgressMs: 0,
     renderPathLogged: false,
     outputDiagnosticLogged: false,
