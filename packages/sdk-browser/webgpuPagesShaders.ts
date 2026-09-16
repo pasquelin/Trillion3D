@@ -11,6 +11,7 @@ import {
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { FLAG_PAGED, FLAG_TRANSMISSIVE, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
+import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
@@ -41,7 +42,7 @@ ${TRIANGLE_PALETTE_WGSL}
 }
 `;
 
-export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,lightTiles:vec4f,}
+export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,lightTiles:vec2f,wrapModes:u32,padWrap:u32,}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
@@ -66,6 +67,9 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TRANSMISSION_WGSL}
 ${ATLAS_SLOTS_WGSL}
+// L'adressage d'une carte de ce matériau : son quartet, jamais les drapeaux — un lot transparent
+// adresse ses six cartes comme une page opaque adresse les siennes.
+fn blendWrap(map:u32)->u32{return wrapOf(uni.wrapModes,map);}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
@@ -125,7 +129,7 @@ ${TRIANGLE_PALETTE_WGSL}
   N=normalize(in.normal);
   if((uni.flags&2u)!=0u){N*=face;}
  }
- let sample=colorSample(uni.mapIndex,uni.uvScale,in.uv,uni.flags,gradX,gradY);
+ let sample=colorSample(uni.mapIndex,uni.uvScale,in.uv,blendWrap(${WRAP_MAP.base}u),gradX,gradY);
  let alpha=sample.w*in.color.w;
  if((uni.flags&0x40000000u)!=0u){
   if(alpha<=0.01||alpha<uni.alphaTest){discard;}
@@ -144,11 +148,11 @@ ${TRIANGLE_PALETTE_WGSL}
  // transmissive laisse voir, jamais la couleur déjà éclairée.
  let baseTint=rgb;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
- if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,in.uv,uni.flags,gradX,gradY).g;}
- if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,in.uv,uni.flags,gradX,gradY).b;}
- if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,in.uv,uni.flags,gradX,gradY).r-1.0);}
+ if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,in.uv,blendWrap(${WRAP_MAP.rough}u),gradX,gradY).g;}
+ if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,in.uv,blendWrap(${WRAP_MAP.metal}u),gradX,gradY).b;}
+ if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,in.uv,blendWrap(${WRAP_MAP.ao}u),gradX,gradY).r-1.0);}
  if(uni.normalIndex!=0u){
-  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,in.uv,uni.flags,gradX,gradY).xyz*2.0-vec3f(1.0);
+  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,in.uv,blendWrap(${WRAP_MAP.normal}u),gradX,gradY).xyz*2.0-vec3f(1.0);
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
   if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}
@@ -157,7 +161,7 @@ ${TRIANGLE_PALETTE_WGSL}
   N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
  }
  var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
- if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,in.uv,uni.flags,gradX,gradY).rgb;}
+ if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,in.uv,blendWrap(${WRAP_MAP.emissive}u),gradX,gradY).rgb;}
  if(alpha<uni.alphaTest){discard;}
  // Aucune lampe déclarée, ou vue sans éclairage demandée : l'albédo brut, exactement comme la
  // résolution opaque. Ni ambiance, ni ciel, ni soleil par défaut (P6).

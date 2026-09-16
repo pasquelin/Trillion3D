@@ -13,7 +13,8 @@
 //   LAB_ROOT=…/render-tech-lab node --experimental-strip-types test/gpuTextureWrap.browser.mjs
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { wrapFlags, WRAP_COORD_WGSL } from '../packages/sdk-browser/visibilityPageWgsl.ts';
+import { WRAP_COORD_WGSL } from '../packages/sdk-browser/visibilityPageWgsl.ts';
+import { wrapNibble } from '../packages/sdk-browser/visibilityWrapModes.ts';
 import {
   lineaireThree,
   melange,
@@ -24,7 +25,7 @@ import { executerDansChromium } from '../packages/sdk-browser/bench/justesse/adr
 
 // Le nuanceur attendu par `executerDansChromium` : une texture, un échantillonneur « moteur » (le
 // WGSL de production sous serrage, comme l'atlas), un échantillonneur « three » réglé au mode natif,
-// un lot de cas empaquetés (uv, drapeaux). Reste écrit ici, à la ligne, sans reprendre la mise en
+// un lot de cas empaquetés (uv, quartet d'adressage). Reste écrit ici, à la ligne, sans la mise en
 // forme compacte de la reproduction ; le mélange des quatre prises est celui que
 // webgpuAtlasWgsl.ts engendre pour colorSample, dataSample et colorAlpha.
 const NUANCEUR = `
@@ -105,7 +106,7 @@ const lots = [UV, COUTURES].flatMap((uv) =>
     adresseS: adresse,
     adresseT: adresse,
     uv: uv.flat(),
-    flags: uv.map(() => wrapFlags({ wrapS: wrap, wrapT: wrap })),
+    flags: uv.map(() => wrapNibble({ wrapS: wrap, wrapT: wrap })),
   })),
 );
 

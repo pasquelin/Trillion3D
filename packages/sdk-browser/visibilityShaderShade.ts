@@ -14,6 +14,10 @@ import {
   atlasTextures,
 } from './webgpuAtlasWgsl.ts';
 import { SHADE_BINDINGS } from './webgpuBindLayout.ts';
+import { WRAP_MAP } from './visibilityWrapModes.ts';
+
+/** L'adressage de la carte `nom` de cette page : son quartet, jamais les drapeaux du matériau. */
+const adressage = (nom: keyof typeof WRAP_MAP) => `wrapOf(page.wrapModes,${WRAP_MAP[nom]}u)`;
 
 export const SHADE_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct ShadeUni{viewProj:mat4x4f,viewport:vec4f,pageCount:u32,mode:u32,pad0:u32,pad1:u32,padding:array<vec4f,10>,}
@@ -96,17 +100,17 @@ fn framebuffer(clip:vec4f)->vec3f{
    }
   }
  }
- let sample=colorSample(page.mapIndex,page.uvScale,uv,page.flags,ddx,ddy);
+ let sample=colorSample(page.mapIndex,page.uvScale,uv,${adressage('base')},ddx,ddy);
  var roughSample=vec4f(1.0);
- if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,uv,page.flags,ddx,ddy);}
+ if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,uv,${adressage('rough')},ddx,ddy);}
  var metalSample=vec4f(1.0);
- if(page.metalnessIndex!=0u){metalSample=dataSample(page.metalnessIndex,page.metalUvScale,uv,page.flags,ddx,ddy);}
+ if(page.metalnessIndex!=0u){metalSample=dataSample(page.metalnessIndex,page.metalUvScale,uv,${adressage('metal')},ddx,ddy);}
  var ao=1.0;
- if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(dataSample(page.aoIndex,page.aoUvScale,uv,page.flags,ddx,ddy).r-1.0);}
+ if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(dataSample(page.aoIndex,page.aoUvScale,uv,${adressage('ao')},ddx,ddy).r-1.0);}
  var emissive=page.emissive.xyz;
- if(page.emissiveIndex!=0u){emissive*=colorSample(page.emissiveIndex,page.emissiveUvScale,uv,page.flags,ddx,ddy).rgb;}
+ if(page.emissiveIndex!=0u){emissive*=colorSample(page.emissiveIndex,page.emissiveUvScale,uv,${adressage('emissive')},ddx,ddy).rgb;}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
- if(page.normalIndex!=0u){nrmSample=dataSample(page.normalIndex,page.normalUvScale,uv,page.flags,ddx,ddy);}
+ if(page.normalIndex!=0u){nrmSample=dataSample(page.normalIndex,page.normalUvScale,uv,${adressage('normal')},ddx,ddy);}
  if((page.flags&8u)!=0u){
   rgb=rgb*sample.xyz;
   if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return emptySurface();}
