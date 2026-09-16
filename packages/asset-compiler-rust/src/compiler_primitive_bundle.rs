@@ -67,13 +67,13 @@ pub(super) fn bundle_dag_pages(
       let cluster=&dag[order[rank]];
       let offset=payload.len();
       let mut min=[f64::INFINITY;3];let mut max=[f64::NEG_INFINITY;3];
-      {let _t=perf::Timer::new(&perf::PHASES.page_bytes);
+      {let _t=perf::Timer::new(perf::Phase::PageBytes);
        for &id in &cluster.indices{let index=id as usize;if index*3+2>=pos.len(){return Err(invalid("Invalid cluster index"));}payload.extend_from_slice(&id.to_le_bytes());crate::shared_math::extend_aabb(&mut min,&mut max,[pos[index*3] as f64,pos[index*3+1] as f64,pos[index*3+2] as f64]);}}
       let bytes=&payload[offset..];
-      let digest={let _t=perf::Timer::new(&perf::PHASES.page_hash);hash(bytes)};
+      let digest={let _t=perf::Timer::new(perf::Phase::PageHash);hash(bytes)};
       let name=format!("../../objects/{}.bin",digest);let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
-      {let _t=perf::Timer::new(&perf::PHASES.page_write);if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{store_object(&target,bytes)?;}}
-      let (geometry,packed_reused)={let _t=perf::Timer::new(&perf::PHASES.page_packed);store_packed(&cluster.indices)?};if packed_reused{reused+=1;}
+      {let _t=perf::Timer::new(perf::Phase::PageWrite);if target.exists()&&hash_file(&target)?==digest{reused+=1;}else{store_object(&target,bytes)?;}}
+      let (geometry,packed_reused)={let _t=perf::Timer::new(perf::Phase::PagePacked);store_packed(&cluster.indices)?};if packed_reused{reused+=1;}
       let finite_parent=cluster.parent_error.is_finite();
       emitted.push((base_id+rank,json!({"id":base_id+rank,"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
        "role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
@@ -84,9 +84,9 @@ pub(super) fn bundle_dag_pages(
        "source":match cluster.source{Some(index)=>json!(index),None=>Value::Null},
        "stream":bundle_index,"streamOffset":offset})));
      }
-     let digest={let _t=perf::Timer::new(&perf::PHASES.page_hash);hash(&payload)};
+     let digest={let _t=perf::Timer::new(perf::Phase::PageHash);hash(&payload)};
      let target=o.cache.join("native").join("objects").join(format!("{}.bin",digest));
-     {let _t=perf::Timer::new(&perf::PHASES.page_write);if !(target.exists()&&hash_file(&target)?==digest){store_object(&target,&payload)?;}}
+     {let _t=perf::Timer::new(perf::Phase::PageWrite);if !(target.exists()&&hash_file(&target)?==digest){store_object(&target,&payload)?;}}
      Ok(Bundle{url:format!("../../objects/{}.bin",digest),digest,bytes:payload.len(),count:members.len(),pages:emitted,reused})
     }).collect::<Result<Vec<_>>>()?;
     let mut ordered: Vec<Option<Value>> = vec![None; order.len()];

@@ -112,7 +112,7 @@ pub(super) fn reduce_group(
     }
     let locks = input.locks;
     let simplified = {
-        let _t = Timer::new(&PHASES.simplify);
+        let _t = Timer::new(Phase::Simplify);
         simplify_with_locked_vertices(
             positions,
             &merged,
@@ -132,7 +132,7 @@ pub(super) fn reduce_group(
         return Ok(Err(GroupOutcome::UnusableError));
     }
     let clusters = {
-        let _t = Timer::new(&PHASES.resplit);
+        let _t = Timer::new(Phase::Resplit);
         cluster_triangles(positions, &simplified.indices, DAG_CLUSTER_TRIANGLES)?
     };
     Ok(Ok(GroupReduction {

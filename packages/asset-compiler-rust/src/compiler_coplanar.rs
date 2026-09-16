@@ -48,7 +48,7 @@ pub(super) fn stage_depth_layers(
         mesh_map,
         cluster_planes,
     } = *scene;
-    let _t = perf::Timer::new(&perf::PHASES.coplanar);
+    let _t = perf::Timer::new(perf::Phase::Coplanar);
     let bounds = coplanar::CoplanarBounds::default();
     let source_mesh: BTreeMap<usize, usize> =
         mesh_map.iter().map(|(old, new)| (*new, *old)).collect();
