@@ -10,7 +10,7 @@
 //! donner `(0, 0)` aux autres inventerait un placage que le fichier n'écrit pas.
 use super::*;
 use crate::import::{primitive, Vertices};
-use crate::plugins::scene::ngon::Ngon;
+use crate::plugins::scene::{cancel, ngon::Ngon};
 
 /// Une part de matériau : son matériau glTF, et les faces qu'elle porte.
 struct Part {
@@ -114,7 +114,12 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
     let mut out = Vertices::default();
     let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
     let mut cutter = Ngon::default();
-    for face in &part.faces {
+    for (done, face) in part.faces.iter().enumerate() {
+        // Le jeton est relu par tranche de faces : un seul maillage énorme s'arrête aussi. Ce qui
+        // est déjà posé reste en place, et `convert` refuse la scène entière ensuite.
+        if cancel::stopped(world.cancelled, done) {
+            break;
+        }
         let ring = surface.loops.get(*face).map_or(0, Vec::len);
         if ring < 3 {
             continue;
