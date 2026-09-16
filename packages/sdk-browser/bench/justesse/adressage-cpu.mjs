@@ -2,6 +2,9 @@
 // raster de visibilité (test alpha) contre la règle de Three, sur tous les cas d'`adressageCas`.
 // Défaut 7 : `wrapLinear`, le miroir processeur de la règle d'adressage du nuanceur, contre la
 // règle entière de l'échantillonneur en filtrage linéaire — la couture d'une période comprise.
+// Défaut 8 : un matériau dont les six cartes n'ont pas le même mode. Le chemin processeur lit le
+// mode dans la texture qu'il échantillonne (`texelAt`), pas dans un drapeau de matériau : on le
+// compte carte par carte plutôt que de le déduire de la lecture du code.
 //   node --experimental-strip-types packages/sdk-browser/bench/justesse/adressage-cpu.mjs [sortie.json]
 // Code de retour 1 au premier écart. `sortie.json` reçoit les texels lus, pour comparer deux commits.
 import { writeFileSync } from 'node:fs';
@@ -9,7 +12,16 @@ import * as THREE from 'three';
 import { sampleLinear, wrapTexel } from '../../visibilityMath.ts';
 import { wrapLinear } from '../../visibilityPageWgsl.ts';
 import { rasterVisibility } from '../../visibilityRaster.ts';
-import { bilan, cas, lineaireThree, melange, octetsTexture, somme } from './adressageCas.mjs';
+import {
+  bilan,
+  cas,
+  lineaireThree,
+  melange,
+  octetsTexture,
+  somme,
+  texelThree,
+} from './adressageCas.mjs';
+import { CARTES, materielMelange, TEXTURE, UV } from './adressageCartes.mjs';
 
 const textures = new Map();
 function carte(c) {
@@ -97,6 +109,31 @@ const lineaire = (c, k) => {
 ecarts += somme(
   bilan(`CPU wrapLinear contre la règle de l'échantillonneur (${tous.length} cas)`, tous, lineaire),
 );
+
+/**
+ * Défaut 8, processeur : chaque carte du matériau mixte, lue par la vraie `sampleLinear`, contre le
+ * texel de la règle dans le mode de cette carte-là. Zéro écart attendu de part et d'autre du lot :
+ * le défaut n'existe que sur le chemin carte graphique, où le mot d'adressage voyageait à part.
+ */
+const materiau = materielMelange();
+const image = {
+  data: octetsTexture(TEXTURE.largeur, TEXTURE.hauteur),
+  width: TEXTURE.largeur,
+  height: TEXTURE.hauteur,
+};
+console.log('\nDéfaut 8 : chaque carte du matériau mixte, lue par sampleLinear (processeur)');
+for (const { nom, champ, wrapS, wrapT } of CARTES) {
+  const map = Object.assign(materiau[champ], { image, flipY: false });
+  let ecartsCarte = 0;
+  for (const [u, v] of UV) {
+    const [r, g] = sampleLinear(map, u, v);
+    const lu = [Math.round((r * 255 - 20) / 40), Math.round((g * 255 - 20) / 40)];
+    const attendu = [texelThree(u, TEXTURE.largeur, wrapS), texelThree(v, TEXTURE.hauteur, wrapT)];
+    if (lu[0] !== attendu[0] || lu[1] !== attendu[1]) ecartsCarte++;
+  }
+  ecarts += ecartsCarte;
+  console.log(`  ${nom.padEnd(10)} ${String(ecartsCarte).padStart(3)} écarts / ${UV.length}`);
+}
 
 /** Pour mémoire : `Texture.transformUv`, la règle processeur de Three, contredit sa propre
  *  carte graphique sur les frontières ; elle n'est pas la référence, on compte seulement. */

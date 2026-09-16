@@ -97,6 +97,7 @@ export function writeBlendUniforms(
     // déclarées. Zéro quand aucune liste n'a été encodée, jamais celles d'une autre image.
     uniformPacked[base + 60] = tiles[1];
     uniformPacked[base + 61] = tiles[2];
+    packedInts[base + 62] = item.wrapModes;
   }
   device.queue.writeBuffer(
     uniformBuffer,

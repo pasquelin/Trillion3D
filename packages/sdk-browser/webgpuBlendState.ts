@@ -22,6 +22,8 @@ export type BlendGpuItem = {
   rgba: [number, number, number, number];
   map?: THREE.Texture;
   flags: number;
+  /** L'adressage des six cartes du matériau, un quartet chacune (`visibilityWrapModes.ts`). */
+  wrapModes: number;
   group?: GPUBindGroup;
   paged?: boolean;
   /** Rank of a paged item in the transparent table: the base its instances are written at. */

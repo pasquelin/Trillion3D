@@ -12,16 +12,9 @@ import {
   WRAP_COORD_WGSL,
   MASK_KEEP_WGSL,
   BARY_WEIGHTS_WGSL,
-  wrapFlags,
   wrapLinear,
 } from './visibilityPageWgsl.ts';
 import { COLOR_ALPHA_WGSL, COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from './webgpuAtlasWgsl.ts';
-import {
-  FLAG_WRAP_S_REPEAT,
-  FLAG_WRAP_T_REPEAT,
-  FLAG_WRAP_S_MIRROR,
-  FLAG_WRAP_T_MIRROR,
-} from './visibilityTypes.ts';
 import { rasterSource } from './gpuSmallTrianglesShader.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
 import { VIS_SHADER } from './visibilityShaderId.ts';
@@ -72,34 +65,6 @@ test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans le raster et
   eachOnce(BARY_WEIGHTS_WGSL, { SMALL_SHADER, SHADE_SHADER });
 });
 
-// Défaut 4 : `wrapFlags` pose un bit par axe, jamais les deux modes à la fois sur le même axe, et
-// aucun bit tant que l'axe est en serrage — le même drapeau que `webgpuPageRow.ts` et
-// `webgpuBlendPrepare.ts` écrivent dans la page, lu par `wrapUv` au-dessus.
-test('wrapFlags pose le bit de répétition ou de miroir par axe, aucun bit en serrage', () => {
-  const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) =>
-    ({ wrapS, wrapT }) as THREE.Texture;
-  assert.equal(wrapFlags(undefined), 0, 'aucune carte');
-  assert.equal(wrapFlags(carte(THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping)), 0);
-  assert.equal(
-    wrapFlags(carte(THREE.RepeatWrapping, THREE.RepeatWrapping)),
-    FLAG_WRAP_S_REPEAT | FLAG_WRAP_T_REPEAT,
-  );
-  assert.equal(
-    wrapFlags(carte(THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping)),
-    FLAG_WRAP_S_MIRROR | FLAG_WRAP_T_MIRROR,
-  );
-  assert.equal(
-    wrapFlags(carte(THREE.MirroredRepeatWrapping, THREE.RepeatWrapping)),
-    FLAG_WRAP_S_MIRROR | FLAG_WRAP_T_REPEAT,
-    'un mode différent par axe pose un bit différent par axe',
-  );
-  assert.equal(
-    wrapFlags(carte(THREE.ClampToEdgeWrapping, THREE.MirroredRepeatWrapping)),
-    FLAG_WRAP_T_MIRROR,
-    'S en serrage ne pose aucun bit S',
-  );
-});
-
 // Défaut 7 : en filtrage linéaire sous `Repeat`, la couture d'une période doit mêler le dernier
 // texel et le premier. La règle de référence est réécrite ici, indépendante de `wrapLinear` : le
 // rang bas vient de la coordonnée décalée d'un demi-texel, et chacun des deux rangs subit le mode
@@ -144,7 +109,7 @@ test('wrapLinear mêle les deux texels de la règle, couture d’une période co
 // Le repli d'une coordonnée ne peut pas reboucler une période : les deux prises et leur poids sont
 // donc portés jusqu'aux lectures d'atlas, qui mêlent quatre lectures sur la couture et une seule
 // ailleurs. Une lecture qui reprendrait la coordonnée repliée seule rouvrirait le défaut.
-test('les lectures d’atlas reçoivent les drapeaux de la page et mêlent quatre prises', () => {
+test('les lectures d’atlas reçoivent le quartet de leur carte et mêlent quatre prises', () => {
   assert.match(
     WRAP_COORD_WGSL,
     /struct WrapTaps\{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,\}/,
@@ -154,7 +119,7 @@ test('les lectures d’atlas reçoivent les drapeaux de la page et mêlent quatr
     COLOR_ALPHA_WGSL,
     DATA_SAMPLE_WGSL,
   })) {
-    assert.match(bloc, /,uv:vec2f,flags:u32/, `${nom} doit recevoir les drapeaux`);
+    assert.match(bloc, /,uv:vec2f,wrap:u32/, `${nom} doit recevoir le quartet de sa carte`);
     assert.match(bloc, /if\(!t\.couture\)\{return /, `${nom} doit garder la lecture unique`);
     assert.match(
       bloc,
