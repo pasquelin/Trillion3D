@@ -5,65 +5,66 @@ use super::*;
 const CACHE_LOCK_FILE: &str = ".lock";
 /// Au-delà, une compilation en attente renonce plutôt que d'attendre sans fin.
 const WAIT: std::time::Duration = std::time::Duration::from_secs(30);
-/// Un verrou que personne ne relâche — compilation tuée, machine redémarrée — cesse de compter
-/// passé ce délai, sinon un cache resterait bloqué jusqu'à une intervention manuelle. Il est bien
-/// au-delà de toute compilation, donc une compilation vivante ne se fait pas prendre son verrou.
-const STALE: std::time::Duration = std::time::Duration::from_secs(6 * 3600);
+/// Raccourcit l'attente ci-dessus, en millisecondes : un hôte qui préfère un refus immédiat, ou une
+/// épreuve qui ne veut pas durer trente secondes, pose cette variable. Valeur illisible ignorée.
+const WAIT_ENV: &str = "WG_CACHE_LOCK_WAIT_MS";
+/// Un tour d'attente : assez court pour qu'une annulation soit lue sans délai sensible, assez long
+/// pour que l'attente ne coûte rien.
+const STEP: std::time::Duration = std::time::Duration::from_millis(20);
 
 /// Exclusion mutuelle sur un cache. Un cache ne garde qu'un pointeur par scope et se purge après
 /// chaque écriture : deux compilations qui l'écrivent en même temps effacent la clef et les objets
-/// que l'autre vient de publier. Le verrou est un fichier créé en exclusion mutuelle et retiré à la
-/// sortie, y compris en erreur ou en panique, puisque c'est `Drop` qui le retire.
+/// que l'autre vient de publier.
+///
+/// L'exclusion est celle que le système tient sur le fichier `<cache>/native/.lock` : elle suit le
+/// processus et non le fichier, donc le système la relâche dès que son propriétaire meurt, y
+/// compris tué net ou emporté par un redémarrage. Le fichier, lui, n'est jamais effacé : son
+/// existence ne dit rien, seule sa prise compte, et effacer le fichier d'un vivant lui prendrait
+/// son cache.
 pub(super) struct CacheLock {
-    path: PathBuf,
+    file: File,
 }
 
-fn abandoned(path: &Path) -> bool {
-    fs::metadata(path)
-        .and_then(|data| data.modified())
+/// L'attente avant de renoncer, telle que la variable d'environnement la fixe, sinon `WAIT`.
+fn wait() -> std::time::Duration {
+    std::env::var(WAIT_ENV)
         .ok()
-        .and_then(|at| at.elapsed().ok())
-        .is_some_and(|age| age > STALE)
+        .and_then(|value| value.parse().ok())
+        .map_or(WAIT, std::time::Duration::from_millis)
 }
 
 impl CacheLock {
-    pub(super) fn acquire(cache: &Path) -> Result<Self> {
-        let native = cache.join("native");
+    pub(super) fn acquire(o: &Options) -> Result<Self> {
+        let native = o.cache.join("native");
         fs::create_dir_all(&native)?;
-        let path = native.join(CACHE_LOCK_FILE);
-        let deadline = Instant::now() + WAIT;
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(native.join(CACHE_LOCK_FILE))?;
+        let deadline = Instant::now() + wait();
         loop {
-            match fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&path)
-            {
-                Ok(mut file) => {
-                    let _ = write!(file, "{}", std::process::id());
-                    return Ok(Self { path });
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(error) => return Err(error.into()),
+            match file.try_lock() {
+                Ok(()) => return Ok(Self { file }),
+                Err(fs::TryLockError::WouldBlock) => {}
+                Err(fs::TryLockError::Error(error)) => return Err(error.into()),
             }
             if Instant::now() >= deadline {
                 return Err(CompilerError::new(
                     "CACHE_LOCKED",
                     format!(
                         "Cache {} is being written by another compilation",
-                        cache.display()
+                        o.cache.display()
                     ),
                 ));
             }
-            if abandoned(&path) {
-                let _ = fs::remove_file(&path);
-            }
-            std::thread::sleep(std::time::Duration::from_millis(20));
+            std::thread::sleep(STEP);
         }
     }
 }
 
 impl Drop for CacheLock {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+        let _ = self.file.unlock();
     }
 }
