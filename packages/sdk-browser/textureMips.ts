@@ -14,6 +14,24 @@ export function mipLevelCountFor(width: number, height: number) {
 type MipPipeline = { layout: GPUBindGroupLayout; pipeline: GPURenderPipeline };
 const pipelines = new WeakMap<GPUDevice, Map<GPUTextureFormat, MipPipeline>>();
 
+/**
+ * Les couleurs sont moyennées, l'alpha est la MÉDIANE des quatre texels — jamais leur moyenne.
+ *
+ * L'alpha d'une carte de feuillage n'est pas une couleur : c'est ce qu'un matériau à masque compare
+ * à son seuil. Une moyenne tire chaque niveau vers l'alpha moyen de la carte ; au-dessus du seuil,
+ * la silhouette grossit d'un niveau à l'autre jusqu'à ce que le quad entier passe le test, perde ses
+ * trous et se peigne en rectangle opaque devant ce qui est derrière — ce que le chargement rendait
+ * visible, puisque la découpe lit alors le niveau le plus fin RÉSIDENT, donc un niveau grossier.
+ *
+ * La médiane de quatre valeurs, elle, passe un seuil DONNÉ exactement quand deux des quatre texels
+ * le passent : le texel grossier est gardé quand la moitié de ce qu'il recouvre l'était, et la
+ * couverture du seuil se conserve d'un niveau au suivant sans dépendre du seuil. C'est ce qui la
+ * rend applicable ici : le seuil appartient au matériau, la chaîne de mips à une couche d'atlas que
+ * plusieurs matériaux partagent, et rien à cet endroit ne sait quel seuil lui sera appliqué.
+ *
+ * Triée décroissante, la médiane est la moyenne des deux valeurs du milieu : `u` est la deuxième,
+ * `v` la troisième, six comparaisons sans tri ni branche.
+ */
 const MIP_SHADER = `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
@@ -22,8 +40,12 @@ const MIP_SHADER = `
  }
  @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{
   let p=vec2i(pos.xy)*2;let hi=vec2i(extent.xy)-vec2i(1);
-  return (textureLoad(source,min(p,hi),0)+textureLoad(source,min(p+vec2i(1,0),hi),0)
-   +textureLoad(source,min(p+vec2i(0,1),hi),0)+textureLoad(source,min(p+vec2i(1,1),hi),0))*0.25;
+  let s0=textureLoad(source,min(p,hi),0);let s1=textureLoad(source,min(p+vec2i(1,0),hi),0);
+  let s2=textureLoad(source,min(p+vec2i(0,1),hi),0);let s3=textureLoad(source,min(p+vec2i(1,1),hi),0);
+  let mean=(s0+s1+s2+s3)*0.25;
+  let u=min(max(s0.w,s1.w),max(s2.w,s3.w));
+  let v=max(min(s0.w,s1.w),min(s2.w,s3.w));
+  return vec4f(mean.rgb,(u+v)*0.5);
  }`;
 
 function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
@@ -51,8 +73,9 @@ function mipPipeline(device: GPUDevice, format: GPUTextureFormat): MipPipeline {
   return built;
 }
 
-/** Generate material mip levels once during preparation, averaging in the texture's
- * declared color space. Clamp to each layer's image rather than its padded area. */
+/** Generate material mip levels once during preparation, averaging color in the texture's
+ * declared color space and taking the median of alpha so threshold coverage survives each level.
+ * Clamp to each layer's image rather than its padded area. */
 export async function generateMaterialMips(
   device: GPUDevice,
   texture: GPUTexture,
