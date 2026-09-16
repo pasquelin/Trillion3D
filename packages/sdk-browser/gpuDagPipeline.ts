@@ -1,4 +1,6 @@
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+import { withScreenErrorVariant } from './gpuDagShaderError.ts';
+import { screenErrorVariant } from '../sdk-core/index.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 
@@ -32,7 +34,12 @@ export async function createDagPipeline(device: GPUDevice, buffers: DagBuffers) 
       { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: readOnly },
     ],
   });
-  const module = device.createShaderModule({ code: DAG_SELECTION_SHADER });
+  // La variante d'erreur écran est figée à la compilation du nuanceur : elle ne change plus de
+  // l'ouverture de la session à sa fermeture, et le texte par défaut est rendu caractère pour
+  // caractère (`withScreenErrorVariant`).
+  const module = device.createShaderModule({
+    code: withScreenErrorVariant(DAG_SELECTION_SHADER, screenErrorVariant()),
+  });
   if (await shaderFailed(device, module)) return undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const stage = (entryPoint: string) =>
