@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { OPEN_CONE, triangleCone } from '../packages/sdk-browser/pageCone.ts';
 import { packDagSelection } from '../packages/sdk-browser/gpuDagSelection.ts';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
+import { cameraMoteur } from '../packages/sdk-browser/cameraFixture.ts';
 import { selectionGpu } from '../packages/sdk-browser/bench/justesse/noyauSelectionGpu.mjs';
 
 const VIEWPORT = [1000, 1000];
@@ -38,7 +39,7 @@ function casDeclencheur() {
   const sphere = [0, 0, -0.5, 2];
   return {
     nom: 'declencheur',
-    uniforms: cameraSelectionUniforms(camera, 0, VIEWPORT),
+    uniforms: cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT),
     avecCone: empaquete(world, { sphere, min, max, cone }),
     sansCone: empaquete(world, { sphere, min, max, cone: OPEN_CONE }),
   };
@@ -65,7 +66,7 @@ function casConformeDosCamera() {
   const sphere = [...centre.toArray(), 3];
   return {
     nom: 'conformeDosCamera',
-    uniforms: cameraSelectionUniforms(camera, 0, VIEWPORT),
+    uniforms: cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT),
     avecCone: empaquete(world, { sphere, min, max, cone }),
     sansCone: empaquete(world, { sphere, min, max, cone: OPEN_CONE }),
   };
