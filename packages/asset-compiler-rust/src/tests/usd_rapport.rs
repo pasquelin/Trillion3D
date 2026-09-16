@@ -38,7 +38,7 @@ fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
     {{
     }}
 
-    def DistantLight "Soleil"
+    def DomeLight "Ciel"
     {{
     }}
 
