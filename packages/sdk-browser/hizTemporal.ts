@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { rasterVisibility, type VisPage } from './visibilityBuffer.ts';
 import { buildHizPyramid } from './hizDepth.ts';
-import { holdCameraWorld } from './cameraWorld.ts';
+import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
 import { countUnoccluded, filterUnoccluded } from './hizUnoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './hizCounts.ts';
 import { splitOccludersInto } from './hizSplit.ts';
@@ -32,7 +32,7 @@ export function sameHizView(
   if (!previous) return false;
   // `previous` est la caméra gelée par `holdCameraWorld` : matrice figée, pose et inverse posés une
   // fois pour toutes. La remonter referait chaque image la même copie et la même inversion 4×4.
-  current.updateWorldMatrix(true, false);
+  resolveCameraWorld(current);
   return (
     presqueEgaux(previous.matrixWorldInverse.elements, current.matrixWorldInverse.elements) &&
     presqueEgaux(previous.projectionMatrix.elements, current.projectionMatrix.elements)

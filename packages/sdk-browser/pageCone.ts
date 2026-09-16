@@ -1,5 +1,6 @@
 import { boxConeRejects } from '../sdk-core/index.ts';
 import * as THREE from 'three';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
 /** Never rejects. */
@@ -99,7 +100,7 @@ export function coneContextFor(
   into.scale = Math.hypot(e[0], e[1], e[2]);
   into.normal.getNormalMatrix(world);
   // Ancêtres compris, puis la position lue dans la matrice au lieu d'être recalculée.
-  camera.updateWorldMatrix(true, false);
+  resolveCameraWorld(camera);
   cameraWorld.setFromMatrixPosition(camera.matrixWorld);
   into.camX = cameraWorld.x;
   into.camY = cameraWorld.y;
