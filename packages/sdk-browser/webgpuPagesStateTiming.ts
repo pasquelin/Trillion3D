@@ -47,6 +47,8 @@ export interface WebgpuTimingState {
     bornesToutes: number;
     historiqueOcculteurs: number;
     sansHistorique: number;
+    /** Rectangles d'écran réécrits par cette image ; zéro quand le cache décrivait déjà la vue. */
+    rectanglesProjetes: number;
   };
   /** Ce que l'encodage a téléversé et soumis : des comptes, jamais des durées. */
   encodeCounts: {
@@ -110,6 +112,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       bornesToutes: 0,
       historiqueOcculteurs: 0,
       sansHistorique: 0,
+      rectanglesProjetes: 0,
     },
     encodeCounts: {
       lignesTeleversees: 0,

@@ -1,6 +1,7 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
+import { createBlendCopy } from './blendCopyMesh.ts';
 import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
@@ -27,13 +28,7 @@ export function collectClusterPages(
     const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      const copy = new THREE.Mesh(mesh.geometry, mesh.material);
-      copy.matrixAutoUpdate = false;
-      copy.matrix.copy(mesh.matrixWorld);
-      copy.frustumCulled = mesh.frustumCulled;
-      copy.renderOrder = order++;
-      copy.userData.sourceMesh = mesh;
-      blendCopies.push(copy);
+      blendCopies.push(createBlendCopy(mesh, order++));
       continue;
     }
     const sourceIndices = mesh.geometry.getIndex();
