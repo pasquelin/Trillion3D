@@ -3,10 +3,7 @@ import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
 import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
 import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
-import {
-  encodeHizMidFrame,
-  encodeWebgpuVisibilityPasses,
-} from './webgpuVisibilityPasses.ts';
+import { encodeHizMidFrame, encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
