@@ -47,6 +47,10 @@ pub(super) const XFORM_INVALID: &str = "usd-xform-invalid";
 pub(super) const SURFACE_UNSUPPORTED: &str = "usd-surface-unsupported";
 /// Une texture dont le fichier est absent, ou hors du dossier de la source.
 pub(super) const TEXTURE_MISSING: &str = "usd-texture-missing";
+/// Une opacité portée par une image que la couleur de base ne porte pas : glTF ne lit l'alpha que
+/// dans `baseColorTexture`, et deux images distinctes ne s'y ramènent pas sans en recomposer une
+/// troisième. Le matériau garde alors l'opacité écrite, et rien de l'image d'opacité n'est versé.
+pub(super) const OPACITY_TEXTURE: &str = "usd-opacity-texture-unsupported";
 /// Une texture que ce pilote ne peut pas accrocher telle quelle : jeu d'UV autre que celui porté,
 /// motif `<UDIM>`, ou transformation d'UV déclarée.
 pub(super) const TEXTURE_UNSUPPORTED: &str = "usd-texture-unsupported";
