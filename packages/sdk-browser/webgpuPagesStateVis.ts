@@ -1,3 +1,4 @@
+import type { GpuPartition } from './gpuPartitionTypes.ts';
 import type * as THREE from 'three';
 import type { GpuHiz } from './gpuHiz.ts';
 import type { GpuSmallTriangles } from './gpuSmallTriangles.ts';
@@ -44,6 +45,8 @@ export interface WebgpuVisState {
   visLayerPipelines: Array<GPURenderPipeline | undefined>;
   /** Une de plus que la couche coplanaire la plus profonde de la scène ; 1 quand il n'y en a pas. */
   drawLayerSlots: number;
+  /** La partition GPU de l'image : projection, partage et bornes d'occultation par ligne. */
+  gpuPartition: GpuPartition | undefined;
   visBindGroupLayout: GPUBindGroupLayout | undefined;
   visBindGroup: GPUBindGroup | undefined;
   visHizBindGroup: GPUBindGroup | undefined;
@@ -106,6 +109,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     visHizRestFrontCw: undefined,
     visLayerPipelines: [],
     drawLayerSlots: 1,
+    gpuPartition: undefined,
     visBindGroupLayout: undefined,
     visBindGroup: undefined,
     visHizBindGroup: undefined,

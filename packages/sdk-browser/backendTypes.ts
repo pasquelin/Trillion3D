@@ -50,6 +50,9 @@ export interface RenderBackend {
   resetStageProfile?(): void;
   /** Empreinte de l'atlas d'ombres, bit pour bit : la preuve du dessin par pages, jamais une image. */
   shadowAtlasDigest?(): Promise<import('./gpuShadowDigest.ts').ShadowAtlasDigest | null>;
+  /** Ce que la partition GPU de la dernière image a écrit, et les entrées d'où elle l'a tiré : la
+   *  preuve, cluster par cluster, que ses rectangles et ses profondeurs sont conservateurs. */
+  partitionAudit?(): Promise<import('./webgpuPartitionAudit.ts').PartitionAudit | null>;
   pendingUrls?(): string[];
   /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
    *  so a small camera move finds them already resident. */

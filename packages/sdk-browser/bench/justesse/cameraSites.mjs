@@ -6,7 +6,6 @@ import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import { collectClusterPages } from '../../pageSelection.ts';
 import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { boundsFor, projectBoxesFlat } from '../../hizProjection.ts';
-import { createProjectionHold } from '../../hizProjectionHold.ts';
 import { applyTemporalHiz, sameHizView } from '../../hizTemporal.ts';
 import { visibilityDepth } from '../../hizDepth.ts';
 import { rasterPages } from '../../pageRaster.ts';
@@ -83,16 +82,6 @@ const sitesPurs = [
       const bounds = boundsFor(vis.length);
       projectBoxesFlat(vis, vis.length, moteur(camera), VIEWPORT, bounds);
       return liste(bounds);
-    },
-  },
-  {
-    nom: 'createProjectionHold.reframe (Hi-Z, tenue)',
-    cree: () => ({ hold: createProjectionHold(4), index: new Int32Array([0, 1, 2, 3]) }),
-    mesure: ({ hold, index }, camera) => {
-      hold.reframe(moteur(camera), VIEWPORT[0], VIEWPORT[1], 0);
-      const reprojette = hold.select(4, undefined, index);
-      hold.keep(4, index);
-      return reprojette;
     },
   },
   {

@@ -50,6 +50,9 @@ export interface WebgpuRunState {
   renderPathLogged: boolean;
   outputDiagnosticLogged: boolean;
   noOccluderHistory: boolean;
+  /** Âge de la table dont l'historique d'occulteurs par ligne est sorti : une table nouvelle
+   *  redistribue les lignes, donc cet historique-là ne décrit plus rien. */
+  occluderHistoryEpoch: number;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
   /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
@@ -142,6 +145,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     renderPathLogged: false,
     outputDiagnosticLogged: false,
     noOccluderHistory: true,
+    occluderHistoryEpoch: -1,
     previousHizView: undefined,
     temporalHizState: {},
     cpuHizCounts: createHizCounts(),
