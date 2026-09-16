@@ -44,14 +44,16 @@ export const INPUT_K = 4 * U;
 export const SCREEN_SLACK_K = 4 * U;
 
 /**
- * Le facteur qui descend la borne de profondeur avant qu'elle ne voyage jusqu'au noyau.
+ * Le facteur qui ÉLÈVE la borne de profondeur avant qu'elle ne voyage jusqu'au noyau.
  *
- * Deux ulps : le premier rattrape l'arrondi au plus proche de la conversion `(lowZ·0,5+0,5)`, qui
- * peut faire MONTER la valeur d'un demi-ulp, le second est le `SHRINK` que `hizNearestBound`
+ * La profondeur du moteur est inversée : une boîte n'est rejetée que si sa borne la plus proche est
+ * PLUS PETITE que l'occulteur, donc une borne conservatrice est une borne qui MAJORE ce que le
+ * cluster écrira — l'opposé du sens qu'elle avait en profondeur directe. Deux ulps de marge : le
+ * premier rattrape l'arrondi au plus proche du transport, le second est celui que `hizNearestBound`
  * applique déjà en double précision. La multiplication en simple précision est monotone, donc une
- * entrée inférieure ou égale à celle du processeur rend une sortie inférieure ou égale à la sienne.
+ * entrée supérieure ou égale à celle du processeur rend une sortie supérieure ou égale à la sienne.
  */
-export const DEPTH_SHRINK = (1 - 2 ** -23) * (1 - U);
+export const DEPTH_GROW = (1 + 2 ** -23) * (1 + U);
 
 /** Un littéral WGSL `f32` qui porte tous les chiffres significatifs de la constante. */
 export const wgslFloat = (value: number) => {

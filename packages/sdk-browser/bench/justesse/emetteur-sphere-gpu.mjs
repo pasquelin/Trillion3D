@@ -19,6 +19,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
+import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../depthConvention.ts';
 
 /** Le centre et le rayon de la lampe : ceux du produit de cache donné, sinon ceux de l'audit. */
 function emetteur(chemin) {
@@ -42,7 +43,7 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) fromEmitter:vec3f,}
 }`;
 
 /** Exécuté dans la page : un pipeline de profondeur seule, un triangle par cas, la carte relue. */
-async function executer({ shader, cas, size, triangle }) {
+async function executer({ shader, cas, size, triangle, depthCompare, depthClear }) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
@@ -67,7 +68,7 @@ async function executer({ shader, cas, size, triangle }) {
     vertex: { module, entryPoint: 'vs', buffers },
     fragment: { module, entryPoint: 'fs', targets: [] },
     primitive: { topology: 'triangle-list', cullMode: 'none' },
-    depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
+    depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare },
   });
   const screenBuffer = device.createBuffer({
     size: triangle.length * 4,
@@ -101,7 +102,7 @@ async function executer({ shader, cas, size, triangle }) {
       colorAttachments: [],
       depthStencilAttachment: {
         view: depthTexture.createView(),
-        depthClearValue: 1,
+        depthClearValue: depthClear,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
       },
@@ -144,7 +145,16 @@ const cas = [
   { nom: 'sans-rayon-meme-point', emitter: [...centre, 0], world: au([0.19, 0, 0]) },
 ];
 // 64 texels : `bytesPerRow` (4 octets par texel de profondeur) doit être un multiple de 256.
-const argument = { shader: SHADER, cas, size: 64, triangle: [-0.8, -0.8, 0.8, -0.8, 0.0, 0.8] };
+// `executer` est sérialisée puis évaluée DANS la page : la convention de profondeur du moteur y
+// entre par l'argument, jamais par une fermeture sur un import de Node.
+const argument = {
+  shader: SHADER,
+  cas,
+  size: 64,
+  triangle: [-0.8, -0.8, 0.8, -0.8, 0.0, 0.8],
+  depthCompare: DEPTH_COMPARE,
+  depthClear: DEPTH_CLEAR,
+};
 const resultat = await dansPageWebgpu(executer, argument, {
   titre: 'WebGeometry exclusion sphérique',
 });
@@ -154,18 +164,21 @@ assert.equal(resultat.indisponible ?? null, null, String(resultat.indisponible))
 assert.deepEqual(resultat.compilation ?? [], []);
 assert.deepEqual(resultat.erreurs, []);
 const par = Object.fromEntries(resultat.resultats.map((r) => [r.nom, r]));
+// Profondeur INVERSÉE : la carte part du lointain (`DEPTH_CLEAR`) et un fragment écrit 0,5, donc
+// « une ombre est portée » se lit sur le MAXIMUM, et « rien n'est écrit » sur une carte restée
+// entière à la valeur d'effacement.
 assert.ok(
-  par['diagonale-hors-sphere'].min < 1,
+  par['diagonale-hors-sphere'].max > DEPTH_CLEAR,
   'le point diagonal, hors sphère, doit porter son ombre (profondeur écrite)',
 );
 assert.equal(
   par['dans-la-sphere'].min,
-  1,
+  DEPTH_CLEAR,
   'le point à 0,19 m, dans la sphère, ne doit rien écrire',
 );
-assert.equal(par['dans-la-sphere'].max, 1);
+assert.equal(par['dans-la-sphere'].max, DEPTH_CLEAR);
 assert.ok(
-  par['sans-rayon-meme-point'].min < 1,
+  par['sans-rayon-meme-point'].max > DEPTH_CLEAR,
   'une lampe sans rayon ne doit rien exclure, même au même point',
 );
 

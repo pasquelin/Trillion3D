@@ -5,7 +5,7 @@ import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
-import { depthLayerBias } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/index.ts';
 
 // Comportement 22 : writePageRow écrit le biais en unités positives à l'emplacement depthBias de
 // la ligne de table ; une ligne de couche 0 garde ce champ à zéro.
@@ -46,11 +46,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
         sawZeroBias = true;
         continue;
       }
-      assert.equal(
-        bias,
-        -depthLayerBias(5),
-        'row depthBias equals the positive form of the layer bias',
-      );
+      assert.equal(bias, depthLayerUnits(5), 'row depthBias equals the layer units');
       assert.ok(bias > 0, 'writePageRow stores the bias in positive units');
       sawPositiveBias = true;
     }

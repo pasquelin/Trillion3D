@@ -2,6 +2,7 @@ import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import { restSlotCount } from './gpuDrawContract.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 
 /**
  * Encode la passe de visibilité primaire puis, quand les ressources de la moitié testée existent, la
@@ -38,10 +39,14 @@ export function encodeWebgpuVisibilityPasses(
     return [
       ids,
       {
+        // Le niveau 0 de la pyramide est une PROFONDEUR : son fond est le lointain, pas 1. En Z
+        // inversé, l'effacer à 1 remplissait chaque texel non couvert avec le plan proche, et la
+        // réduction au minimum rendait alors 1 sur tout un bloc de fond — assez pour rejeter toute
+        // page qui s'y projette. Ce sont les trous qu'une campagne voyait par milliers de pixels.
         view: gpuHiz.level0View,
         loadOp,
         storeOp: 'store' as const,
-        clearValue: { r: 1, g: 0, b: 0, a: 1 },
+        clearValue: { r: DEPTH_CLEAR, g: 0, b: 0, a: 1 },
       },
     ];
   };
@@ -50,7 +55,7 @@ export function encodeWebgpuVisibilityPasses(
     colorAttachments: visColors('clear'),
     depthStencilAttachment: {
       view: depthTarget,
-      depthClearValue: 1,
+      depthClearValue: DEPTH_CLEAR,
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },

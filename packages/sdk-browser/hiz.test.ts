@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { HIZ_BACKGROUND } from '../sdk-core/index.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 import { rasterVisibilityIds } from './visibilityBuffer.ts';
 import {
   buildHizPyramid,
@@ -29,7 +29,7 @@ test('Hi-Z history is invalidated by camera motion and projection cuts', () => {
   assert.equal(sameHizView(cameraMoteur(previous), cameraMoteur(current)), false);
 });
 
-test('visibility depth after the visbuffer uses background 1 and closer-wins z', () => {
+test('visibility depth after the visbuffer uses the far value as background and larger-wins z', () => {
   const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   const { page, geometry } = quad(material, [-1, -1, 0], [1, 1, 0], 'front');
   const cam = cameraAt(),
@@ -43,7 +43,7 @@ test('visibility depth after the visbuffer uses background 1 and closer-wins z',
   let background = 0;
   for (let i = 0; i < depth.length; i++)
     if (ids[i] === 0) {
-      assert.equal(depth[i], HIZ_BACKGROUND);
+      assert.equal(depth[i], DEPTH_CLEAR);
       background++;
     }
   assert.ok(background > 0);
@@ -56,14 +56,15 @@ test('a box that crosses the near plane is never Hi-Z rejected', () => {
   const bounds = projectBoxToScreen([-2, -2, -2], [2, 2, 2], new THREE.Matrix4(), cam, [32, 32]);
   assert.equal(bounds.clipsNear, true);
   const depth = new Float32Array(32 * 32);
-  depth.fill(0.2);
+  depth.fill(0.8);
   const pyramid = buildHizPyramid(depth, 32, 32);
   assert.equal(hizRejects(pyramid, bounds), false);
 });
 
 test('the screen rectangle is rounded outward and a single background hole cannot hide', () => {
   const depth = new Float32Array(4);
-  depth.set([0.2, 0.3, 0.4, 1]);
+  // Profondeur inversée : le trou de fond est le LOINTAIN, zéro.
+  depth.set([0.8, 0.7, 0.6, DEPTH_CLEAR]);
   const pyramid = buildHizPyramid(depth, 2, 2);
   const bounds = projectBoxToScreen(
     [-1, -1, 0],
@@ -81,15 +82,16 @@ test('the screen rectangle is rounded outward and a single background hole canno
 test('an integer-edge screen max includes that pixel so a hole there cannot hide', () => {
   const depth = new Float32Array(16);
   depth.fill(0.2);
-  depth[2 * 4 + 2] = 1;
+  depth[2 * 4 + 2] = DEPTH_CLEAR;
   const pyramid = buildHizPyramid(depth, 4, 4);
+  // Sans le trou, une borne de 0,1 serait derrière les 0,2 de l'empreinte et donc rejetée.
   assert.equal(
     hizRejects(pyramid, {
       minX: 0,
       minY: 0,
       maxX: 2,
       maxY: 2,
-      nearestDepth: 0.8,
+      nearestDepth: 0.1,
       clipsNear: false,
     }),
     false,
