@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PAGE_DECODE_PROTOCOL } from '../sdk-core/index.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
-import { decodeGeometryPageWasm, prepareGeometryPageWasm } from './geometryPageWasm.ts';
+import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts';
 import { encodeGeometryPage } from '../page-codec/geometryPage.mjs';
 import { runPageDecodeTask } from './pageDecodeTask.ts';
 import type { PageDecodeDone } from '../sdk-core/index.ts';
@@ -16,7 +16,7 @@ const MAX = 16 * 1024 * 1024;
 const MODULE = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
 
 test.before(async () => {
-  assert.ok(await prepareGeometryPageWasm(MODULE), 'le module wasm réel doit s’instancier');
+  assert.ok(await prepareSdkWasm(MODULE), 'le module wasm réel doit s’instancier');
 });
 
 /** Une valeur identique octet pour octet des trois côtés, ou le premier écart. */

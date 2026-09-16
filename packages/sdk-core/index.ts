@@ -86,6 +86,23 @@ export {
   boxUnion,
 } from './mathBox.ts';
 export { sphereFromBounds } from './mathSphere.ts';
+export { MATRIX_VALUES, batchViews, boxTransformBatch, multiplyMatrix4Batch } from './mathBatch.ts';
+export {
+  MATH_PATH_CONTRACT,
+  type MathPath,
+  type MathPathMetrics,
+  type MathPathMode,
+  type MathPathOperation,
+} from './mathPathContracts.ts';
+export {
+  PATH_EXPLORE_EVERY,
+  PATH_MIN_SAMPLES,
+  PATH_SWITCH_MARGIN,
+  PATH_SWITCH_RUNS,
+  createPathGovernor,
+  type PathGovernor,
+} from './mathPathGovernor.ts';
+export { CLOCK_RESOLUTION_MS, PATH_WINDOW, estimateClockResolutionMs } from './mathPathWindow.ts';
 export {
   FRUSTUM_PLANE_VALUES,
   clipPlanesFromMatrix,

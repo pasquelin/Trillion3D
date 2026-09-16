@@ -1,5 +1,10 @@
 import type * as THREE from 'three';
-import type { AssetScope, CameraPose, PreparationProgress } from '../sdk-core/index.ts';
+import type {
+  AssetScope,
+  CameraPose,
+  MathPathMode,
+  PreparationProgress,
+} from '../sdk-core/index.ts';
 import type { ComparisonLayout } from './comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from './backendTypes.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
@@ -67,5 +72,9 @@ export interface ExplorerOptions {
   /** Déclarer les lampes que le fichier source portait, lues dans le cache. Allumé par défaut :
    *  une scène importée arrive avec ses lumières. `false` ouvre la scène sans aucune d'elles. */
   importedLights?: boolean;
+  /** Chemin des opérations de calcul en lot : `'auto'` par défaut, la mesure arbitrant entre le
+   *  JavaScript de référence et le module WebAssembly. `'js'` ou `'wasm'` l'imposent pour une
+   *  campagne ; `'wasm'` retombe sur `'js'` là où le module manque, et le dit dans les métriques. */
+  mathPath?: MathPathMode;
   logInterval?: number;
 }
