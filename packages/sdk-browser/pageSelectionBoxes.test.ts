@@ -8,6 +8,7 @@ import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { dagCulling } from './pageSelectionTestHelpers.ts';
 import { blendFixture } from './pageSelectionBlendFixture.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 const ASK = { pixelError: 0, viewport: [1280, 720] as [number, number], holdResident: true };
 
@@ -26,7 +27,7 @@ function racines() {
 }
 
 const montres = (roots: ReadonlyArray<ClusterRoot<PageRec>>) =>
-  selectVisiblePages(roots, wideCamera(), ASK).shown.map((page) => page.url);
+  selectVisiblePages(roots, cameraMoteur(wideCamera()), ASK).shown.map((page) => page.url);
 
 test('la collecte déclare des boîtes, ce qui est vrai de toutes ses pages', () => {
   const fixture = blendFixture();

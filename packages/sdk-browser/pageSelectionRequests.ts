@@ -10,7 +10,7 @@ export function resolvePixelError(
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
   // La vitesse est celle de l'œil dans le monde : un rig qui emporte la caméra la déplace aussi.
   // La position vient de la caméra du moteur, ancêtres résolus par l'entrée d'image.
-  const eye = cam.position;
+  const eye = cam.eye;
   let speed = 0;
   if (motion.last && motion.lastMs != null) {
     const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);

@@ -49,7 +49,7 @@ export function shadeLit(
     Ny = normal.y,
     Nz = normal.z;
   // L'œil en repère monde, pris dans la caméra du moteur que l'entrée d'image a recopiée.
-  const eye = cam.position;
+  const eye = cam.eye;
   const vx = eye[0] - world[0],
     vy = eye[1] - world[1],
     vz = eye[2] - world[2],

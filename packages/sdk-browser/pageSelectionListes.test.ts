@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { dagCulling } from './pageSelectionTestHelpers.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 const ASK = { pixelError: 0, viewport: [1280, 720] as [number, number], holdResident: true };
 
@@ -36,12 +37,12 @@ test('les listes réutilisées ne gardent rien de la coupe précédente, plus co
   const { fixture, roots } = racines();
   const shown: PageRec[] = [],
     wanted: PageRec[] = [];
-  const large = selectVisiblePages(roots, wideCamera(), { ...ASK, wanted }, shown);
+  const large = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, wanted }, shown);
   const pleine = large.shown.length;
   assert.ok(pleine > 0);
   assert.equal(large.wanted.length, pleine);
 
-  const vide = selectVisiblePages(roots, ailleurs(), { ...ASK, wanted }, shown);
+  const vide = selectVisiblePages(roots, cameraMoteur(ailleurs()), { ...ASK, wanted }, shown);
   assert.equal(vide.shown.length, 0);
   assert.equal(vide.wanted.length, 0);
   assert.equal(shown.length, 0);
@@ -52,7 +53,7 @@ test('les listes réutilisées ne gardent rien de la coupe précédente, plus co
   assert.equal(vide.displayedTriangles, 0);
 
   // Et la liste repart à sa pleine longueur sans garder de trace du passage à vide.
-  const encore = selectVisiblePages(roots, wideCamera(), { ...ASK, wanted }, shown);
+  const encore = selectVisiblePages(roots, cameraMoteur(wideCamera()), { ...ASK, wanted }, shown);
   assert.equal(encore.shown.length, pleine);
   assert.deepEqual(
     encore.shown.map((page) => page.url),
