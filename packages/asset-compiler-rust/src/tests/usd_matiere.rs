@@ -4,7 +4,7 @@
 //! Chaque cas est une couche minuscule écrite ici, à côté d'une vraie image : une texture qui ne se
 //! lit pas ne prouverait rien de ce qui suit sa résolution.
 use super::*;
-use usd_driver::{temp_dir, wrap};
+use usd_driver::wrap;
 
 /// Le rapport d'une couche : les raisons nommées et leur compte.
 pub(super) fn unsupported(run: &GoldenRun) -> Value {
@@ -64,22 +64,14 @@ pub(super) fn texture(name: &str, file: &str) -> String {
     )
 }
 
-/// Écrit la couche et les images qu'elle cite, puis compile par le harnais commun.
+/// Écrit la couche et les images qu'elle cite sous `textures/`, puis compile par le harnais commun.
 pub(super) fn compile(tag: &str, body: &str, files: &[&str]) -> GoldenRun {
-    let dir = temp_dir(tag);
-    fs::create_dir_all(dir.join("textures")).expect("dossier des textures");
-    let image = golden_dir("usd")
-        .join("minuscule")
-        .join("textures")
-        .join("checker.png");
-    for file in files {
-        fs::copy(&image, dir.join("textures").join(file)).expect("image");
-    }
-    let source = dir.join("scene.usda");
-    fs::write(&source, body).expect("couche");
-    let run = compile_golden_source(&source, tag);
-    fs::remove_dir_all(&dir).ok();
-    run
+    let images: Vec<String> = files
+        .iter()
+        .map(|file| format!("textures/{file}"))
+        .collect();
+    let paths: Vec<&str> = images.iter().map(String::as_str).collect();
+    usd_textures::compile_files(tag, &[("scene.usda", body)], &paths)
 }
 
 // Comportement 46 : une opacité branchée sur l'alpha de la texture de couleur de base arrive dans
