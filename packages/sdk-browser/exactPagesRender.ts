@@ -129,11 +129,9 @@ export function createExactPagesRender(options: {
     state.frameHeld = gate.held();
     if (state.frameHeld) return heldProfile();
     const worldStart = performance.now();
-    // Les matrices monde et les copies transparentes ne sont fonction que de la scène.
+    // Les matrices monde ne sont fonction que de la scène. Les copies transparentes n'ont rien à
+    // reprendre : chacune porte la matrice monde de son maillage source, pas une photo de celle-ci.
     const worldsMoved = gate.updateWorlds(source);
-    if (worldsMoved)
-      for (const copy of blendCopies)
-        copy.matrix.copy((copy.userData.sourceMesh as THREE.Mesh).matrixWorld);
     const lightsStart = performance.now();
     // Les lampes recopiées dans la scène de rendu ne lisent que le graphe source : même révision.
     if (worldsMoved) sceneLights.update();

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createBlendCopy } from './blendCopyMesh.ts';
 import { indexSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
@@ -49,12 +50,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   for (const rec of allPages)
     if (rec.transparent && rec.sourceMesh && !pagedBlendCopies.has(rec.sourceMesh)) {
       const mesh = rec.sourceMesh,
-        copy = new THREE.Mesh(mesh.geometry, mesh.material);
-      copy.matrixAutoUpdate = false;
-      copy.frustumCulled = mesh.frustumCulled;
-      copy.matrix.copy(mesh.matrixWorld);
-      copy.renderOrder = rec.renderOrder;
-      copy.userData.sourceMesh = mesh;
+        copy = createBlendCopy(mesh, rec.renderOrder);
       copy.userData.pagedBlend = true;
       pagedBlendCopies.set(mesh, copy);
       blendCopies.push(copy);

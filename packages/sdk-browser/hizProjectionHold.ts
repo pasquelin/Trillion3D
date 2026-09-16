@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { resolveCameraWorld } from './cameraWorld.ts';
 import { createViewFingerprint } from './viewFingerprint.ts';
 
 /**
@@ -34,29 +35,36 @@ export function createProjectionHold(slots: number) {
     get generation() {
       return generation;
     },
-    /** Re-reads the view every slot shares; a change retires every rectangle at once. */
+    /**
+     * Relit la vue que tous les créneaux partagent ; un changement retire tous les rectangles d'un
+     * coup. La pose passe par LE CONTRAT (`cameraWorld.ts`) : sous un rig d'hôte, une caméra dont
+     * seul un ancêtre a bougé n'a pas de pose locale nouvelle, et l'empreinte — qui compare
+     * `matrixWorldInverse` — ne verrait rien bouger si la chaîne n'était pas résolue d'abord. Le
+     * cache serait alors tenu à tort et le test Hi-Z recevrait les rectangles de la vue précédente.
+     */
     reframe(camera: THREE.PerspectiveCamera, width: number, height: number, epoch: number) {
-      camera.updateWorldMatrix(true, false);
+      resolveCameraWorld(camera);
       if (heldEpoch === epoch && fingerprint.same(camera, width, height)) return;
       fingerprint.keep(camera, width, height);
       heldEpoch = epoch;
       generation++;
     },
     /**
-     * Marks the slots the caller must project — those it asks for whose rectangle is not the current
-     * one — and answers whether there is any. The mask is the caller's `only` argument.
+     * Marque les créneaux que l'appelant doit projeter — ceux qu'il demande dont le rectangle n'est
+     * pas celui de cette vue-ci — et rend COMBIEN il y en a. Le masque est l'argument `only` de
+     * l'appelant ; zéro veut dire que le cache décrit déjà cette image.
      */
     select(count: number, only: Uint8Array | undefined, pageIndex: Int32Array) {
-      let any = 0;
+      let besoin = 0;
       for (let i = 0; i < count; i++) {
         const need =
           (!only || only[i] !== 0) && (stamp[i] !== generation || heldPage[i] !== pageIndex[i])
             ? 1
             : 0;
         pending[i] = need;
-        any |= need;
+        besoin += need;
       }
-      return any !== 0;
+      return besoin;
     },
     /** Records the rectangles the caller has just written. */
     keep(count: number, pageIndex: Int32Array) {
