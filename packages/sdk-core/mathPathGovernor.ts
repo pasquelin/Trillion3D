@@ -23,7 +23,7 @@ import {
 /** Exécutions minimales avant tout arbitrage : sous ce nombre, une seule valeur ferait la médiane. */
 export const PATH_MIN_SAMPLES = 5;
 /** Avance exigée de l'autre chemin. En deçà, l'écart tient au bruit de la machine, pas au code. */
-export const PATH_SWITCH_MARGIN = 0.2;
+const PATH_SWITCH_MARGIN = 0.2;
 /** Exécutions consécutives à cette avance avant de basculer : une rafale, pas un accident. */
 export const PATH_SWITCH_RUNS = 5;
 /** Une exécution sur autant joue l'autre chemin pour rafraîchir sa médiane sans coûter une image. */
