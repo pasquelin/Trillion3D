@@ -23,15 +23,19 @@ export function createWebgpuRowSync(
   const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
   /**
    * Rows for the drawable set. Ce que l'image doit à la table ne dépend plus que des pages dont le
-   * cache vient de changer l'emplacement : le catalogue entier n'est reparcouru qu'à une
-   * reconstruction, que l'allocateur de rangs décide seul.
+   * cache vient de changer l'emplacement, et de ce que le budget de temps de l'image précédente a
+   * laissé à écrire : le catalogue entier n'est reparcouru qu'à une reconstruction, que
+   * l'allocateur de rangs décide seul, et plus jamais parce qu'une liste a débordé.
    */
   const syncRows = () => {
     if (!cacheReady() || !rows.pageTableFloats) return;
     // Le journal ne décrit que cette passe-ci : ce qu'il nommait a déjà été appliqué ou abandonné.
     rows.clearResidencyChanges();
     mirror.sync();
-    if (!mirror.dirty && !rows.touched.count && rows.rowsEpoch === rows.tableEpoch) return;
+    // Des fiches encore dues rappellent la passe même si le cache n'a plus rien bougé : elles
+    // portent des pages que l'image précédente a laissées hors de la résidence, faute de temps.
+    if (!mirror.dirty && !rows.touched.count && !slots.pending && rows.rowsEpoch === rows.tableEpoch)
+      return;
     mirror.dirty = false;
     rows.rowsEpoch = rows.tableEpoch;
     slots.apply();

@@ -29,7 +29,13 @@ export function createWebgpuPinUpdater(options: {
   const { traceEnabled, traceDiagnostic } = options;
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet(tracking.keyCount);
-  const pinsBefore = new Set<string>();
+  /**
+   * Ce que le relevé des pins publie : la DIFFÉRENCE de l'image, jamais l'ensemble pinné. Le
+   * recopier et le filtrer coûtait quatre parcours de la coupe par image dès que la trace était
+   * demandée, alors que les pins changent d'une poignée de clés.
+   */
+  const added: string[] = [],
+    removed: string[] = [];
   return (
     cache: Cache | undefined,
     shown: PageRec[],
@@ -37,17 +43,16 @@ export function createWebgpuPinUpdater(options: {
     drop: (key: string) => void,
   ) => {
     if (!cache) return;
-    // `added`/`removed` only feed the trace record, so the copy that computes them is taken only then.
-    if (traceEnabled) {
-      pinsBefore.clear();
-      for (const url of tracking.pinnedUrls()) pinsBefore.add(url);
-    }
+    added.length = 0;
+    removed.length = 0;
     const { entering, leaving } = sets;
     for (let i = leaving.count - 1; i >= 0; i--) {
       const key = leaving.list[i];
       waiting.remove(key);
       if (!tracking.pinned.remove(key)) continue;
-      cache.unpin(tracking.pageCatalog[key]);
+      const url = tracking.pageCatalog[key];
+      if (traceEnabled) removed.push(url);
+      cache.unpin(url);
     }
     leaving.clear();
     for (let i = entering.count - 1; i >= 0; i--) {
@@ -71,6 +76,7 @@ export function createWebgpuPinUpdater(options: {
         if (!cache.get(url)) continue;
         cache.pin(url);
         tracking.markPinned(key);
+        if (traceEnabled) added.push(url);
       }
       waiting.remove(key);
     }
@@ -86,23 +92,15 @@ export function createWebgpuPinUpdater(options: {
           kept = tracking.keep.has(tracking.keyOf(recs[i]));
       if (!kept) drop(key);
     }
-    if (!traceEnabled) return;
-    const pinned = tracking.pinnedUrls(),
-      pinnedSet = new Set(pinned);
-    const added = pinned.filter((url) => !pinsBefore.has(url)),
-      removed = [...pinsBefore].filter((url) => !pinnedSet.has(url));
-    if (added.length || removed.length)
-      traceDiagnostic('residency-pins', 'Pins GPU mis à jour', () => ({
-        frame,
-        added: tracking.traceSet('pins.added', added),
-        removed: tracking.traceSet('pins.removed', removed),
-        pinned: tracking.traceSet('pins', pinned),
-        bootstrap: tracking.traceSet('pins.bootstrap', [...bootstrapUrls]),
-        wanted: tracking.traceSet('pins.wanted', tracking.wantedUrls()),
-        shown: tracking.traceSet(
-          'pins.shown',
-          shown.map((page) => page.url),
-        ),
-      }));
+    if (!traceEnabled || (!added.length && !removed.length)) return;
+    traceDiagnostic('residency-pins', 'Pins GPU mis à jour', () => ({
+      frame,
+      added: tracking.traceSet('pins.added', added),
+      removed: tracking.traceSet('pins.removed', removed),
+      pinned: tracking.traceKeys('pins', tracking.pinned),
+      bootstrap: tracking.traceSet('pins.bootstrap', [...bootstrapUrls]),
+      wanted: tracking.traceKeys('pins.wanted', tracking.wanted),
+      shown: tracking.traceRecs('pins.shown', shown),
+    }));
   };
 }
