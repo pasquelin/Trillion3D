@@ -7,6 +7,11 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
  *  couches coplanaires de la scène : sans couche, c'est exactement le tampon d'avant. */
 export const visUniformSlots = (vis: WebgpuVisState) => slotCount(vis.drawLayerSlots) + 1;
 
+/** La couche coplanaire la plus haute qu'un slot indirect nomme. Le nombre de slots vaut `1 + min(
+ *  couche la plus profonde, MAX_DEPTH_LAYER)` et retombe à 1 sur toute défaillance : il ne descend
+ *  jamais sous 1, et le sommet ne descend donc jamais sous 0. */
+export const visLayerTop = (vis: WebgpuVisState) => vis.drawLayerSlots - 1;
+
 /** Uploads visibility and material resolve uniforms for the current cut, creating the two uniform
  *  buffers on `rt.vis` the first time. */
 export function writeWebgpuVisibilityUniforms(

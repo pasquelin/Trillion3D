@@ -2,6 +2,7 @@ import { DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { visBin } from './webgpuPagesPipelineFor.ts';
+import { dirtyRange } from './webgpuRowState.ts';
 import type { GpuDraw } from './gpuDraw.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -44,8 +45,7 @@ export function refreshDrawItemWords(
   target: GpuDraw | undefined,
 ) {
   const { rows, drawItemWords, itemWordsHold: hold } = rt.layout;
-  const last = rows.packedCount - 1,
-    rowWords = PAGE_INFO_STRIDE / 4,
+  const rowWords = PAGE_INFO_STRIDE / 4,
     ints = rows.pageTableInts;
   // Les lignes qui viennent de sortir du rang dessinable quittent le total : une boucle bornée par
   // ce qui a changé, jamais par le nombre de lignes résidentes.
@@ -53,20 +53,14 @@ export function refreshDrawItemWords(
     hold.total -= hold.triangles[row];
     hold.triangles[row] = 0;
   }
-  let from = rows.dirtyFrom,
-    to = Math.min(rows.dirtyTo, last);
-  if (hold.layerSlots !== layerSlots || hold.target !== target) {
-    hold.layerSlots = layerSlots;
-    hold.target = target;
-    from = 0;
-    to = last;
-  }
   // Une ligne qui entre dans le rang dessinable y entre avec ses mots : elle est sale, ou elle vient
   // d'être écrite. Élargir la plage jusqu'à elle coûte ce que le rang a grandi, et rien de plus.
-  if (rows.packedCount > hold.heldCount) {
-    from = Math.min(from, hold.heldCount);
-    to = last;
+  const stale = hold.layerSlots !== layerSlots || hold.target !== target;
+  if (stale) {
+    hold.layerSlots = layerSlots;
+    hold.target = target;
   }
+  const { from, to } = dirtyRange(rows, stale, hold.heldCount);
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row]!,
       word = row * DRAW_ITEM_U32;

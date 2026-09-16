@@ -45,28 +45,18 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   return vis.visLayerPipelines[visLayerPipelineIndex(layer, within >= 3, within % 3)];
 }
 
-export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec, rest: boolean) {
+/** Le pipeline d'un cluster dessiné SANS compaction indirecte. Ce chemin-là ne connaît pas la
+ *  moitié testée : sans compaction il n'y a pas de partition, et l'image tient en une passe. */
+export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const { vis } = rt;
   const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);
-  if (layer > 0) return vis.visLayerPipelines[visLayerPipelineIndex(layer, rest, visCullSlot(rec))];
+  if (layer > 0)
+    return vis.visLayerPipelines[visLayerPipelineIndex(layer, false, visCullSlot(rec))];
   const side = materialSide(rec.material),
     cw = windingCw(rec);
-  if (side === THREE.DoubleSide) return rest ? vis.visHizRestNone : vis.visPipelineNone;
-  if (side === THREE.BackSide)
-    return rest
-      ? cw
-        ? vis.visHizRestFrontCw
-        : vis.visHizRestFront
-      : cw
-        ? vis.visPipelineFrontCw
-        : vis.visPipelineFront;
-  return rest
-    ? cw
-      ? vis.visHizRestBackCw
-      : vis.visHizRestBack
-    : cw
-      ? vis.visPipelineBackCw
-      : vis.visPipelineBack;
+  if (side === THREE.DoubleSide) return vis.visPipelineNone;
+  if (side === THREE.BackSide) return cw ? vis.visPipelineFrontCw : vis.visPipelineFront;
+  return cw ? vis.visPipelineBackCw : vis.visPipelineBack;
 }
 
 export const visBin = (rec: PageRec): 0 | 1 | 2 => {
