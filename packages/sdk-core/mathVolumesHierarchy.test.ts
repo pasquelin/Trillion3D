@@ -123,7 +123,7 @@ test('frustumExcludesBox pour une caméra posée dans la hiérarchie égale !Fru
   );
   const tronc = new THREE.Frustum().setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
   const plans = new Float64Array(24);
-  frustumPlanesFromMatrix(plans, vp.elements, true);
+  frustumPlanesFromMatrix(plans, vp.elements);
 
   for (const noeud of [parent, enfant, petitEnfant]) {
     for (const b of boitesLocales) {

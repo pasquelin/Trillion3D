@@ -1,5 +1,6 @@
 import {
   FRUSTUM_PLANE_VALUES,
+  frustumFarPlane,
   frustumPlanesFromMatrix,
   multiplyMatrix4,
   viewToRenderOrigin,
@@ -37,18 +38,21 @@ export function createRenderOriginFrame(): RenderOriginFrame {
 }
 
 /**
- * Réécrit les trois matrices depuis la vue et la projection absolues de l'image. `planesZeroToOne`
- * est la convention de profondeur du consommateur, comme pour les plans absolus.
+ * Réécrit les trois matrices depuis la vue et la projection absolues de l'image. `far` est le plan
+ * lointain que l'hôte déclare : la projection du moteur n'en a plus — elle est infinie —, et le
+ * tronc relatif le garde exactement comme le tronc absolu (`updateCameraFrame`). Il se lit dans la
+ * vue RELATIVE, celle-là même dont ces plans décrivent le tronc.
  */
 export function updateRenderOriginFrame(
   frame: RenderOriginFrame,
   view: Float64Array,
   projection: Float64Array,
-  planesZeroToOne: boolean,
+  far = Infinity,
 ) {
   viewToRenderOrigin(frame.viewRelative, view);
   multiplyMatrix4(frame.viewProjectionRelative, projection, frame.viewRelative);
-  frustumPlanesFromMatrix(frame.planesRelative, frame.viewProjectionRelative, planesZeroToOne);
+  frustumPlanesFromMatrix(frame.planesRelative, frame.viewProjectionRelative);
+  frustumFarPlane(frame.planesRelative, 16, frame.viewRelative, far, true);
   return frame;
 }
 

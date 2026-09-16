@@ -16,6 +16,10 @@ const splitKeyDouble = new Float64Array(1),
  * `splitOrder[0..n-1]` porte leurs indices dans l'ordre des candidats. Image ordonnable d'un double :
  * tous les bits d'un négatif inversés, le bit de signe d'un positif posé, de sorte que la comparaison
  * non signée de (haut, bas) rende l'ordre des doubles.
+ *
+ * La profondeur du moteur est INVERSÉE : le plus proche porte la plus grande profondeur. La clé est
+ * donc celle de son OPPOSÉ, si bien que l'ordre croissant des clés reste celui du plus proche au
+ * plus lointain — et que tout ce qui suit (tri stable, sélection de rang) ne change pas d'une ligne.
  */
 function chargeCles(count: number, bounds: Float64Array) {
   if (splitLow.length < count) {
@@ -27,7 +31,7 @@ function chargeCles(count: number, bounds: Float64Array) {
   let inFront = 0;
   for (let i = 0; i < count; i++) {
     if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) continue;
-    splitKeyDouble[0] = bounds[i * HIZ_BOUNDS_VALUES + 4];
+    splitKeyDouble[0] = -bounds[i * HIZ_BOUNDS_VALUES + 4];
     const low = splitKeyWords[0],
       high = splitKeyWords[1];
     const negative = (high & 0x80000000) !== 0;

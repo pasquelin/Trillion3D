@@ -3,7 +3,7 @@
 // `fillAffine` est le candidat refusé, une division par triangle et des pas constants. Les garder
 // côte à côte est ce qui rend le refus reproductible.
 import * as THREE from 'three';
-import { HIZ_BACKGROUND } from '../../sdk-core/index.ts';
+import { DEPTH_CLEAR } from '../depthConvention.ts';
 import { perspectiveBary, triangleAt, wrapTexel } from '../visibilityMath.ts';
 import {
   assertVisibilityPageTriangles,
@@ -156,7 +156,7 @@ export function rasterAvec(fill) {
         fill(ids, depth, width, height, tri.a, tri.b, tri.c, packed, masque);
       }
     }
-    for (let i = 0; i < depth.length; i++) if (depth[i] === Infinity) depth[i] = HIZ_BACKGROUND;
+    for (let i = 0; i < depth.length; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;
     return { ids, depth };
   };
 }

@@ -1,5 +1,5 @@
 import { transformAffinePoint, transformHomogeneousPoint } from '../sdk-core/index.ts';
-import { depthToZeroOne, type DepthCamera } from './depthConvention.ts';
+import type { DepthCamera } from './depthConvention.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
 /** Le sommet monde du dernier point projeté, et son point en espace de découpe : relus aussitôt,
@@ -39,7 +39,7 @@ export function projectVisibilityVertex(
   return {
     x: (ndcX * 0.5 + 0.5) * width,
     y: (1 - (ndcY * 0.5 + 0.5)) * height,
-    z: depthToZeroOne(ndcZ, cam.depthZeroToOne),
+    z: ndcZ,
     invW: 1 / cw,
     worldX: v[0],
     worldY: v[1],

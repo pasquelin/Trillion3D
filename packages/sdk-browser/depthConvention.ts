@@ -1,44 +1,65 @@
-import { multiplyMatrix4 } from '../sdk-core/index.ts';
-
 /**
- * LA CONVENTION DE PROFONDEUR DE L'HÔTE, APPLIQUÉE.
+ * LA CONVENTION DE PROFONDEUR DU MOTEUR : UNE SEULE, INVERSÉE, PLAN LOINTAIN INFINI.
  *
- * LE FAIT. La profondeur de découpe d'une caméra hôte vaut `[−1, 1]` en convention WebGL et
- * `[0, 1]` en convention WebGPU. `cameraWorld.readCameraWorld` est le seul site qui la DÉCIDE : il
- * la lit sur la caméra hôte et la pose dans `EngineCamera.depthZeroToOne`, d'où elle vaut déjà pour
- * les six plans du tronc. Ce fichier est le seul qui la CONVERTIT, et tout ce qui rend une
- * profondeur en `[0, 1]` — la vue-projection que le GPU lit, les bornes Hi-Z, le raster de
- * visibilité — passe par ici. Sans cela, la moitié du moteur honorait la convention de l'hôte
- * pendant que l'autre moitié ramenait toujours `[−1, 1]` vers `[0, 1]`, et une caméra `[0, 1]`
- * repassait par une conversion déjà faite.
+ * LE FAIT. La profondeur normalisée du moteur va de 1 au plan proche à 0 à l'infini, et elle ne
+ * dépend plus de la caméra hôte : `readCameraWorld` ne recopie plus la matrice de projection de
+ * l'hôte, il en compose une avec `perspectiveProjection` (sdk-core/mathCamera.ts), dont la ligne de
+ * profondeur ne contient aucun plan lointain — `ndc = near / distance`. Il n'y a donc plus deux
+ * conventions à réconcilier : il n'y en a qu'une, et ce fichier en est le domicile.
  *
- * CE QUI NE CHANGE PAS. Les abscisses et les ordonnées normalisées valent `[−1, 1]` dans les deux
- * conventions : leur passage à l'écran ne dépend de rien et reste là où il est. Pour une caméra
- * WebGL — celle que `createExplorerCamera` construit, celle du banc — chaque fonction d'ici rend
- * exactement les bits de l'arithmétique qu'elle remplace.
+ * POURQUOI. Une profondeur en simple précision porte ses bits près de zéro et la division
+ * perspective les porte près du plan proche ; les mettre tête-bêche les répartit. Deux points
+ * séparés d'un mètre à un million d'unités gardent alors des profondeurs distinctes, là où la
+ * convention directe les écrasait sur la même valeur.
+ *
+ * CE QUE CE FICHIER TRANCHE, et que personne d'autre ne redécide :
+ *  - la comparaison de profondeur des pipelines (`DEPTH_COMPARE`) et des atlas d'ombre ;
+ *  - la valeur d'effacement d'une cible de profondeur (`DEPTH_CLEAR`), qui est le lointain ;
+ *  - le sens des extrema : ce qu'est « plus proche » (`depthNearer`), donc le sens de la réduction
+ *    Hi-Z, qui garde le PLUS LOINTAIN d'un carré, donc le MINIMUM ;
+ *  - la conversion d'une profondeur normalisée en distance à l'œil (`depthDistance`) et l'inverse.
+ *
+ * CE QUI NE CHANGE PAS. Les abscisses et les ordonnées normalisées valent `[−1, 1]` et leur passage
+ * à l'écran ne dépend de rien d'ici. Le chemin WebGL2 de l'hôte, lui, dessine avec la projection de
+ * la bibliothèque hôte, en profondeur DIRECTE : il signe lui-même le décalage de couche coplanaire
+ * (`clusterBatchLayers.ts`) et ne lit rien de ce fichier.
  */
 
-/** Profondeur de découpe de −1 à 1 ramenée à 0 → 1, colonne-major. */
-const remapMinusOneToOne = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 1]);
+/** La comparaison de profondeur de tous les pipelines : en profondeur inversée, le plus grand gagne. */
+export const DEPTH_COMPARE: GPUCompareFunction = 'greater';
+
+/** Profondeur du plan proche. Rien ne peut être plus proche. */
+export const DEPTH_NEAR = 1;
 
 /**
- * Une vue-projection ET la convention de profondeur dans laquelle elle sort : les deux voyagent
- * ensemble, parce qu'une profondeur normalisée ne se lit pas sans savoir d'où elle vient. Une
- * `EngineCamera` en est une ; un oracle qui en monte une le déclare, il ne le suppose plus.
+ * Profondeur du lointain, donc la valeur d'effacement d'une cible de profondeur et le fond des
+ * tampons de profondeur logiciels. Avec le plan lointain infini, aucune surface ne l'atteint.
  */
-export type DepthCamera = { viewProjection: Float64Array; depthZeroToOne: boolean };
+export const DEPTH_CLEAR = 0;
 
-/** Une profondeur normalisée de l'hôte, rendue dans `[0, 1]`. */
-export function depthToZeroOne(ndcZ: number, depthZeroToOne: boolean) {
-  return depthZeroToOne ? ndcZ : ndcZ * 0.5 + 0.5;
+/** `a` est-il strictement plus proche de l'œil que `b` ? Le seul endroit qui le dise. */
+export function depthNearer(a: number, b: number) {
+  return a > b;
 }
 
 /**
- * La vue-projection que le GPU lit, écrite dans `out` : profondeur en `[0, 1]`, quelle que soit la
- * convention de l'hôte. Une caméra qui y est déjà est recopiée — multiplier par l'identité
- * changerait un zéro négatif en zéro positif sans rien apporter.
+ * La distance à l'œil d'une profondeur normalisée, `near` étant le plan proche de la projection :
+ * `ndc = near / distance`, donc `distance = near / ndc`. Une profondeur nulle — le lointain — rend
+ * l'infini, ce qu'elle décrit.
  */
-export function viewProjectionZeroToOne(out: Float64Array, cam: DepthCamera) {
-  if (cam.depthZeroToOne) out.set(cam.viewProjection);
-  else multiplyMatrix4(out, remapMinusOneToOne, cam.viewProjection);
+export function depthDistance(depth: number, near: number) {
+  return near / depth;
 }
+
+/** L'inverse : la profondeur normalisée d'un point à `distance` de l'œil. */
+export function depthFromDistance(distance: number, near: number) {
+  return near / distance;
+}
+
+/**
+ * Une vue-projection et rien d'autre : ce qu'un lecteur de profondeur a besoin de connaître d'une
+ * caméra. Une `EngineCamera` en est une. Le type survit à la disparition des deux conventions parce
+ * qu'un oracle peut monter une vue-projection sans monter une caméra entière ; c'est un tampon
+ * possédé, comme partout où le socle multiplie des matrices (`mathMatrix4.ts`).
+ */
+export type DepthCamera = { viewProjection: Float64Array };

@@ -50,9 +50,9 @@ export function* groupesCamera() {
       },
       (_, tour) => {
         poseNous(tour);
-        perspectiveProjection(projection, 60, 16 / 9, 0.1, 2000, 1, false);
+        perspectiveProjection(projection, 60, 16 / 9, 0.1, 1);
         updateNodeMatrixWorld(tree, noeud);
-        updateCameraFrame(image, projection, tree.worldViews[noeud], false);
+        updateCameraFrame(image, projection, tree.worldViews[noeud]);
       },
       verifie,
     ),
@@ -73,7 +73,7 @@ export function* groupesCamera() {
         poseNous(tour);
         lookAtNode(tree, noeud, 0, 0, 0, haut, true);
         updateNodeMatrixWorld(tree, noeud);
-        updateCameraFrame(image, projection, tree.worldViews[noeud], false);
+        updateCameraFrame(image, projection, tree.worldViews[noeud]);
       },
       verifie,
     ),

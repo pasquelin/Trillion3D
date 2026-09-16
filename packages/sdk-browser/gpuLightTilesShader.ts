@@ -1,4 +1,5 @@
 import { LIGHT_SETTINGS } from '../sdk-core/index.ts';
+import { DEPTH_CLEAR, DEPTH_NEAR } from './depthConvention.ts';
 import { DIRECT_LIGHT_WGSL } from './directLightWgsl.ts';
 
 const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
@@ -12,12 +13,16 @@ const WORDS = Math.ceil(LIGHT_SETTINGS.maxLights / 32);
  * nombre demandé est écrit à côté du nombre retenu.
  *
  * **Deux listes par tuile, deux tranches de profondeur.** La liste des opaques couvre la tranche
- * entre les deux profondeurs de la tuile, la plus serrée qui soit : c'est celle d'avant ce lot, au
- * bit près, et la résolution différée n'y perd ni une lampe ni une milliseconde. La liste du mélange
- * couvre la tranche du plan proche au fond opaque, et le tronc entier là où nul opaque ne couvre la
- * tuile : une surface de mélange est dessinée **devant** l'opaque de son pixel, et une boîte qui
- * commence à sa profondeur lui retirerait des lampes déclarées — un feuillage devant le ciel n'en
- * garderait aucune. Une seule passe, une seule réduction de profondeur, deux compactions.
+ * entre les deux profondeurs de la tuile, la plus serrée qui soit, et la résolution différée n'y
+ * perd ni une lampe ni une milliseconde. La liste du mélange couvre la tranche du plan proche au
+ * fond opaque, et le monde entier là où nul opaque ne couvre la tuile : une surface de mélange est
+ * dessinée **devant** l'opaque de son pixel, et une boîte qui commence à sa profondeur lui
+ * retirerait des lampes déclarées — un feuillage devant le ciel n'en garderait aucune. Une seule
+ * passe, une seule réduction de profondeur, deux compactions.
+ *
+ * La profondeur est INVERSÉE (`depthConvention.ts`) : le plus proche est le plus GRAND, le fond
+ * vaut zéro, et le plan lointain est infini — une tuile sans opaque n'a donc aucune borne arrière
+ * à déprojeter, et prend le monde entier plutôt qu'un point à l'infini.
  */
 export const LIGHT_TILES_SHADER = `
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,counts:vec4f,}
@@ -86,8 +91,8 @@ fn maskTotal(mask:u32)->u32{
 @compute @workgroup_size(${LIGHT_SETTINGS.tileSize},${LIGHT_SETTINGS.tileSize},1)
 fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index) lane:u32){
  if(lane==0u){
-  atomicStore(&nearest,0xffffffffu);
-  atomicStore(&farthest,0u);
+  atomicStore(&nearest,0u);
+  atomicStore(&farthest,0xffffffffu);
   atomicStore(&covered,0u);
   for(var word=0u;word<${2 * WORDS}u;word++){atomicStore(&hits[word],0u);}
  }
@@ -95,20 +100,24 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  let pixel=vec2u(tile.x*TILE_SIZE+lane%TILE_SIZE,tile.y*TILE_SIZE+lane/TILE_SIZE);
  if(pixel.x<u32(view.viewport.x)&&pixel.y<u32(view.viewport.y)){
   let z=textureLoad(depth,vec2i(pixel),0);
-  if(z<1.0){
-   atomicMin(&nearest,bitcast<u32>(z));
-   atomicMax(&farthest,bitcast<u32>(z));
+  if(z>${DEPTH_CLEAR}.0){
+   atomicMax(&nearest,bitcast<u32>(z));
+   atomicMin(&farthest,bitcast<u32>(z));
    atomicStore(&covered,1u);
   }
  }
  workgroupBarrier();
  if(lane==0u){
-  // Une tuile sans géométrie garderait des bornes non numériques : elle prend le tronc entier.
-  let any=atomicLoad(&covered)==1u;
-  let front=select(0.0,bitcast<f32>(atomicLoad(&nearest)),any);
-  let back=select(1.0,bitcast<f32>(atomicLoad(&farthest)),any);
-  opaqueBox=tileBox(tile.xy,front,back);
-  blendBox=tileBox(tile.xy,0.0,back);
+  if(atomicLoad(&covered)==1u){
+   let front=bitcast<f32>(atomicLoad(&nearest));
+   let back=bitcast<f32>(atomicLoad(&farthest));
+   opaqueBox=tileBox(tile.xy,front,back);
+   blendBox=tileBox(tile.xy,${DEPTH_NEAR}.0,back);
+  }else{
+   // Rien à déprojeter au fond : le monde entier, où aucune lampe n'est rejetée.
+   var whole:Box;whole.lo=vec3f(-1.0e30);whole.hi=vec3f(1.0e30);
+   opaqueBox=whole;blendBox=whole;
+  }
  }
  workgroupBarrier();
  let count=min(lights.count,MAX_LIGHTS);
