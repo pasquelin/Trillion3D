@@ -1,5 +1,7 @@
 import type { ShadowFrameMetrics } from './shadowMetricsContracts.ts';
+import type { OcclusionFrameMetrics } from './occlusionMetricsContracts.ts';
 export type { ShadowFrameMetrics } from './shadowMetricsContracts.ts';
+export type { OcclusionFrameMetrics } from './occlusionMetricsContracts.ts';
 
 /** One timed GPU pass. `gpuMs` is null when the device returned no usable pair of timestamps. */
 export interface GpuPassTiming {
@@ -30,7 +32,7 @@ export interface GpuPassTimings {
  * timestamp query.
  */
 export type GpuFrameMs = number | null;
-export interface FrameMetrics extends ShadowFrameMetrics {
+export interface FrameMetrics extends ShadowFrameMetrics, OcclusionFrameMetrics {
   rafIntervalMs: number | null;
   cpuFrameMs: number;
   cpuSubmitMs: number | null;
@@ -40,6 +42,8 @@ export interface FrameMetrics extends ShadowFrameMetrics {
   clusters: number | null;
   selectedTriangles: number | null;
   residentPages: number | null;
+  /** Triangles soumis : sur le chemin WebGPU par pages, toutes les lignes dessinables — l'occultation
+   *  rejette après la soumission —, tenues par la table, donc exact et de cette image-ci. */
   submittedTriangles?: number | null;
   /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
   totalSubmittedTriangles?: number | null;
@@ -131,26 +135,6 @@ export interface FrameMetrics extends ShadowFrameMetrics {
   textureAtlasBytesCalculated?: number | null;
   textureAtlasClassBytesCalculated?: number[] | null;
   textureAtlasClassesUsed?: number | null;
-  /**
-   * What the Hi-Z occlusion test did on one image: clusters handed to it, clusters it eliminated, and
-   * clusters whose level-0 screen footprint is wider than the 16-texel test kernel and which therefore
-   * answer from a coarser mip. `hiz*Triangles` are the triangles those same clusters carry. The GPU
-   * path reads its verdicts back, so its counters describe an earlier image than the one that returned
-   * them, the way `gpuPassMs` does. Null on a backend that runs no occlusion test, on a device whose
-   * verdicts cannot be read back, and before the first image has been counted.
-   */
-  hizTestedClusters?: number | null;
-  hizRejectedClusters?: number | null;
-  hizOversizedClusters?: number | null;
-  hizTestedTriangles?: number | null;
-  hizRejectedTriangles?: number | null;
-  hizOversizedTriangles?: number | null;
-  /**
-   * The image the six counters above describe. It is the current image where the oracle counts on the
-   * CPU, and an earlier one on the GPU path, whose verdicts are read back; without it a reader cannot
-   * tell a count of this image from a count the last tested image left behind. Null when none.
-   */
-  hizCountedFrame?: number | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
   /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */
@@ -166,7 +150,8 @@ export interface FrameMetrics extends ShadowFrameMetrics {
    *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
   cpuSelectMs?: number | null;
   /** Vrai quand le moteur avait une sélection GPU et l'a abandonnée : ce qui est mesuré depuis est la
-   *  coupe processeur de secours. Un repli émet aussi le diagnostic `gpu-selection-fallback`, une fois. */
+   *  coupe processeur de secours. Un repli émet aussi le diagnostic `gpu-selection-fallback`, une
+   *  fois ; l'hôte le recopie tel quel, et il est absent d'un moteur sans sélection GPU. */
   gpuSelectionFallback?: boolean;
   /** Nœuds de hiérarchie sur lesquels la coupe de cette image a posé un test — tronc de vision ou
    *  décision de niveau de détail. Un nœud déjà tranché et entièrement visible n'en reçoit aucun :

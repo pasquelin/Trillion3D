@@ -10,6 +10,7 @@ import { shadeBindEntries } from './webgpuBindEntries.ts';
 import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
+import { createGpuPartition } from './gpuPartitionFactory.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { dropGpuHiz, dropVis, grantCapability } from './webgpuPagesDrops.ts';
@@ -152,4 +153,18 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
   );
   vis.gpuDraw = await createGpuDraw(gpuDevice, drawSlots, vis.drawLayerSlots);
   if (vis.gpuDraw) grantCapability(capabilities, 'indirect draw');
+  // La partition se monte en dernier : elle écrit les tampons de la compaction et relit les verdicts
+  // de la pyramide. Sans elle, les bits de reste restent à zéro et tous les slots sont compactés —
+  // l'image se dessine en une passe, sans occultation, et rien ne tombe en silence.
+  if (vis.gpuDraw && vis.gpuHiz) {
+    vis.gpuPartition = await createGpuPartition(gpuDevice, drawSlots, {
+      items: vis.gpuDraw.itemsBuffer,
+      flags: vis.gpuHiz.flags,
+      restBits: vis.gpuDraw.restBitsBuffer,
+      slotUsed: vis.gpuDraw.slotUsedBuffer,
+    });
+    if (vis.gpuPartition) vis.gpuHiz.attach(vis.gpuPartition.tested, vis.gpuPartition.state);
+    else
+      diag.diagnosticFailure('partition-pipeline-unavailable', new Error('PARTITION_UNAVAILABLE'));
+  }
 }

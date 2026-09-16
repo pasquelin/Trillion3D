@@ -26,6 +26,7 @@ export const BACKEND_METRIC_KEYS = [
   'transparentDrawCalls',
   'transparentSubmittedTriangles',
   'cpuSelectMs',
+  'gpuSelectionFallback',
   'cpuSelectNodesTested',
   'cpuSubmitMs',
   'gpuMs',

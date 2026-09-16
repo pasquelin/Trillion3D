@@ -2,9 +2,9 @@ import type { PackedDag } from './gpuDagTypes.ts';
 import type { SelectionResult, SelectionUniforms } from './gpuSelection.ts';
 
 /**
- * Les tableaux d'une fente de relecture, réutilisés d'une lecture à l'autre. Le relevé de la coupe
- * en remplit deux dont l'un couvre toutes les pages du DAG : les rallouer à chaque relecture jetait
- * cent mille éléments au ramasse-miettes par relecture, pour y réécrire exactement les mêmes rangs.
+ * Les tableaux d'une fente de relecture, réutilisés d'une lecture à l'autre : les rallouer à chaque
+ * relecture jetait des dizaines de milliers d'éléments au ramasse-miettes, pour y réécrire
+ * exactement les mêmes rangs.
  */
 export type DagOutputScratch = { result: SelectionResult; drawable: number[] };
 export const createDagOutputScratch = (): DagOutputScratch => ({
@@ -39,16 +39,17 @@ export function writeDagUniforms(
   target[51] = uniforms.cameraStretch ?? 1;
 }
 
+/** `drawnWordOffset` : rang du compte de la liste compactée dans le relevé, 0 quand il n'y en a pas. */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
   byteLength: number,
-  maskPageCount: number,
+  drawnWordOffset: number,
   scratch: DagOutputScratch = createDagOutputScratch(),
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4));
   if (((ints[3] ?? 0) & 1) !== 0) return null;
-  const count = Math.min(ints[0] ?? 0, Math.max(0, ints.length - 4 - maskPageCount));
+  const count = Math.min(ints[0] ?? 0, Math.max(0, (drawnWordOffset || ints.length) - 4));
   // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
   // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
   const { result, drawable } = scratch,
@@ -59,11 +60,15 @@ export function parseDagOutput(
   result.lodLevel = ints[2] ?? 0;
   result.complete = ((ints[3] ?? 0) & 2) === 0;
   result.drawablePageIds = undefined;
-  if (maskPageCount) {
-    const offset = ints.length - maskPageCount;
-    let found = 0;
-    for (let i = 0; i < maskPageCount; i++) if (ints[offset + i]) drawable[found++] = i;
-    drawable.length = found;
+  // La liste dessinable arrive déjà compactée, dans l'ordre croissant : le processeur ne parcourt
+  // plus un drapeau par page du DAG, seulement les rangs que la carte graphique a retenus.
+  if (drawnWordOffset) {
+    const drawnCount = Math.min(
+      ints[drawnWordOffset] ?? 0,
+      Math.max(0, ints.length - drawnWordOffset - 4),
+    );
+    drawable.length = drawnCount;
+    for (let i = 0; i < drawnCount; i++) drawable[i] = ints[drawnWordOffset + 4 + i];
     result.drawablePageIds = drawable;
   }
   return result;

@@ -1,6 +1,7 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
-import { evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
+import { DRAW_ITEM_U32, evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
+import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -61,8 +62,8 @@ export function simulateComputeDispatch(
     const items: DrawItem[] = [];
     for (let i = 0; i < n; i++)
       items.push({
-        pageIndex: itemInts[i * 4],
-        bin: itemInts[i * 4 + 1] as 0 | 1 | 2,
+        pageIndex: itemInts[i * DRAW_ITEM_U32],
+        bin: itemInts[i * DRAW_ITEM_U32 + 1] as 0 | 1 | 2,
         rest: restAt(i),
       });
     const source =
@@ -78,7 +79,9 @@ export function simulateComputeDispatch(
     const maskBytes = byBinding.get(6)?.data;
     const mask = maskBytes ? new Uint32Array(maskBytes.buffer) : undefined;
     const filtered =
-      uni[4] && mask ? source.filter((_, i) => mask[uni[5] + itemInts[i * 4 + 2]] !== 0) : source;
+      uni[4] && mask
+        ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0)
+        : source;
     const result = evaluateDrawCompact(
       count > slotCap ? source : filtered,
       maxVertexCount,
@@ -124,6 +127,13 @@ export function simulateComputeDispatch(
     const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
     flags.fill(0, packed.nodeCount);
     for (const id of result.drawablePageIds ?? []) flags[packed.nodeCount + id] = 1;
+    // La coupe compacte ensuite ces drapeaux : le relevé ne rapporte que le compte et ses rangs.
+    compactDrawnPages(
+      byBinding.get(3)!.data,
+      byBinding.get(4)!.data,
+      packed.nodeCount,
+      packed.pageCount,
+    );
   }
   const out = byBinding.get(4)!.data;
   const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
