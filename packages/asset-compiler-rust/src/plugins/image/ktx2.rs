@@ -29,7 +29,7 @@
 //! niveau qui sort du fichier est un refus. Tout le reste — cubes, tableaux, volumes, `vkFormat`
 //! hors liste, supercompression inconnue, fichier tronqué, plafond d'allocation dépassé — est un
 //! refus nommé, jamais une panique : une texture illisible laisse le moteur retomber sur son blanc.
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
 mod format;
@@ -90,12 +90,13 @@ impl ImageDecoder for Ktx2 {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         let surface = header::parse(bytes)?;
-        if surface.format == format::UNDEFINED {
-            basis::decode(&surface, bytes, max_alloc)
+        let image = if surface.format == format::UNDEFINED {
+            basis::decode(&surface, bytes, max_alloc)?
         } else {
-            level::decode(&surface, bytes, max_alloc)
-        }
+            level::decode(&surface, bytes, max_alloc)?
+        };
+        Ok(ImageDecoded::srgb(image))
     }
 }
