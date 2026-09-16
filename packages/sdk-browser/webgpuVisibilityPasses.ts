@@ -56,8 +56,10 @@ export function encodeWebgpuVisibilityPasses(
   visPass.setViewport(0, 0, width, height, 0, 1);
   drawVis(rt, device, visPass, false, useIndirect);
   visPass.end();
+  rt.run.hizPyramidFresh = false;
   if (!twoPass || !gpuHiz) return;
   gpuHiz.encodePyramid(encoder);
+  rt.run.hizPyramidFresh = true;
   gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
   const restPass = encoder.beginRenderPass({
     label: 'WG visibility secondary',

@@ -1,4 +1,5 @@
 import { refreshTransparentSpans } from './webgpuTransparentSpans.ts';
+import { refreshTransparentCorners } from './webgpuTransparentOcclusionHost.ts';
 import { writeCpuTransparentInstances } from './webgpuBlendSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -17,6 +18,11 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
   refreshTransparentSpans(rt);
   const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
   if (selection && compaction.encode) {
+    // Le verdict d'occultation est écrit juste avant la compaction, dans la même soumission et sur
+    // la pyramide de cette image-ci : la compaction ne lit jamais celui d'une autre.
+    refreshTransparentCorners(rt);
+    if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh);
+    else encoder.clearBuffer(compaction.occludedBuffer);
     compaction.encode(encoder, selection.maskBuffer, selection.maskOffset);
     return;
   }
