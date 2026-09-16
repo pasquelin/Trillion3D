@@ -94,7 +94,7 @@ impl Plugin for Ma {
     /// la génération de la conversion : la changer invalide les caches, donc toute scène Maya ASCII
     /// déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "ma-mel-subset-1-gltf-6"
+        "ma-mel-subset-1-gltf-7"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ma"]
