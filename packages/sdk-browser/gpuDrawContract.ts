@@ -9,8 +9,13 @@ export const BIN_BACK = 0,
 export const BASE_SLOTS = 6;
 export const UNIFORM_BYTES = 32,
   WORKGROUP = 64;
-/** u32 per packed draw item: pageIndex (the page-table row), bin, selectionIndex, depth layer. */
-export const DRAW_ITEM_U32 = 4;
+/**
+ * u32 par fiche de dessin : la ligne de la table de pages, son bac de pipeline, son index de page
+ * dans le catalogue de sélection, sa couche coplanaire, et ses triangles. Les cinq sont des
+ * propriétés de la LIGNE, jamais de l'image : la partition GPU lit les deux derniers pour compter
+ * ses slots et peser un rejet d'occultation, sans qu'aucun parcours par image ne les rassemble.
+ */
+export const DRAW_ITEM_U32 = 5;
 /**
  * Slots a compaction needs for `layerSlots` coplanar layers — one layer means the six slots this
  * path has always had, and a scene with no stacked coplanar surface asks for exactly that. Each
@@ -29,6 +34,7 @@ export type DrawItem = {
   rest: 0 | 1;
   selectionIndex?: number;
   layer?: number;
+  triangles?: number;
 };
 export type CompactResult = {
   instances: Uint32Array; // compacted pageIndex in input order
@@ -45,15 +51,15 @@ export type SlotLayout = {
 };
 export type GpuDraw = {
   /**
-   * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,layer}. Those four are
-   * properties of the page-table row and not of the frame, so only the rows `[itemsFrom, itemsTo]`
-   * — the ones a page arriving, leaving or changing rank has just rewritten — travel to the card;
-   * `itemsTo < itemsFrom` sends nothing. `restBits` is the frame's occluder/rest partition, one bit
-   * per item; nothing here allocates.
+   * `items` holds `count` packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five
+   * are properties of the page-table row and not of the frame, so only the rows `[itemsFrom,
+   * itemsTo]` — the ones a page arriving, leaving or changing rank has just rewritten — travel to
+   * the card; `itemsTo < itemsFrom` sends nothing. Nothing here allocates.
    *
-   * `slotItems` is what the caller counted per slot for this image — at least `slots` entries. A
-   * slot it counted at zero is skipped entirely by the compaction, so a coplanar layer no cluster
-   * of this batch or of this half reaches costs nothing. Omit it and every slot is compacted.
+   * La moitié occulteurs/testés de chaque ligne (`restBits`) et le nombre de lignes de chaque slot
+   * (`slotUsed`) ne sont plus téléversés : la partition GPU les écrit dans ces mêmes tampons, dans
+   * le même tampon de commandes et avant cette passe. Sans partition ils gardent ce que leur
+   * création leur a donné — aucune ligne dans la moitié testée, tous les slots compactés.
    */
   encode(
     encoder: GPUCommandEncoder,
@@ -61,11 +67,16 @@ export type GpuDraw = {
     count: number,
     itemsFrom: number,
     itemsTo: number,
-    restBits: Uint32Array,
     maxVertexCount: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
-    slotItems?: Uint32Array,
   ): void;
+  /** Les fiches de dessin telles que la carte les tient : ce que la partition GPU lit pour
+   *  connaître le bac, la couche et les triangles de chaque ligne. */
+  itemsBuffer: GPUBuffer;
+  /** Les bits de reste de l'image, un par ligne : ce que la partition GPU écrit avant la passe. */
+  restBitsBuffer: GPUBuffer;
+  /** Les lignes comptées par slot indirect : ce que la partition GPU écrit avant la passe. */
+  slotUsedBuffer: GPUBuffer;
   indirectBuffer: GPUBuffer; // slots × 16 bytes
   instanceBuffer: GPUBuffer; // slotCap u32 page indices, ordered
   slotOffsetsBuffer: GPUBuffer; // the per-slot group offsets locate each slot in instanceBuffer

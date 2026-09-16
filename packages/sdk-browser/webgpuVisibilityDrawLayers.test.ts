@@ -4,13 +4,11 @@ import * as THREE from 'three';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { depthLayerBias } from '../sdk-core/index.ts';
 import { BASE_SLOTS, BIN_BACK, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from './gpuDraw.ts';
-import { HIZ_BOUNDS_VALUES } from './hiz.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import { buildWebgpuVisibilityItems, createVisibilityItemsHold } from './webgpuVisibilityItems.ts';
 import { createDrawItemWordsHold, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
@@ -21,30 +19,25 @@ import { createWebgpuCoplanarLayerPipelines } from './webgpuVisibilityPipelines.
 // coplanaires a lui aussi été réappliqué. `webgpuPageRow.ts` reste couvert par
 // `webgpuPages.19.test.ts` et n'a pas de test ici.
 
-// webgpuVisibilityItems.ts
-test('la couche coplanaire d’une ligne va dans son mot de fiche et compte dans son propre bac', () => {
+// webgpuVisibilityItemWords.ts
+test('la couche coplanaire d’une ligne va dans son mot de fiche, plafonnée, et ses triangles avec', () => {
   const material = new THREE.MeshBasicMaterial();
-  const recA = {
-    array: Uint32Array.from([0, 1, 2]),
-    depthLayer: 0,
-    material,
-    matrix: new THREE.Matrix4(),
-  } as unknown as PageRec;
-  const recB = {
-    array: Uint32Array.from([0, 1, 2]),
-    depthLayer: 5,
-    material,
-    matrix: new THREE.Matrix4(),
-  } as unknown as PageRec;
+  const rec = (depthLayer: number) =>
+    ({
+      array: Uint32Array.from([0, 1, 2]),
+      depthLayer,
+      material,
+      matrix: new THREE.Matrix4(),
+    }) as unknown as PageRec;
   // Les deux lignes du tableau de pages portent les trois indices que chaque page dessine.
   const rowWords = PAGE_INFO_STRIDE / 4;
   const pageTableInts = new Uint32Array(2 * rowWords);
   pageTableInts[ROW_INDEX_WORDS] = 3;
-  pageTableInts[rowWords + ROW_INDEX_WORDS] = 3;
+  pageTableInts[rowWords + ROW_INDEX_WORDS] = 9;
   const layout = {
     rows: {
       packedCount: 2,
-      packedRecs: [recA, recB],
+      packedRecs: [rec(0), rec(5)],
       packedPageIndex: Int32Array.from([0, 1]),
       pageTableInts,
       tableEpoch: 1,
@@ -52,50 +45,24 @@ test('la couche coplanaire d’une ligne va dans son mot de fiche et compte dans
       dirtyFrom: 0,
       dirtyTo: 1,
     },
-    // Le témoin des fiches, désarmé : la construction se fait, elle n'est pas tenue.
-    itemsHold: createVisibilityItemsHold(),
-    itemWordsHold: createDrawItemWordsHold(),
-    hizRest: new Uint8Array(2),
+    itemWordsHold: createDrawItemWordsHold(2),
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
-    binInstances: new Uint32Array(MAX_DRAW_SLOTS),
-    drawRestBits: new Uint32Array(1),
-    hizTestedBounds: new Float64Array(2 * HIZ_BOUNDS_VALUES),
-    hizBounds: new Float64Array(2 * HIZ_BOUNDS_VALUES),
-    hizTestedRows: new Uint32Array(2),
-    hizTestedTriangles: new Uint32Array(2),
   };
-  const rt = {
-    layout,
-    vis: { drawLayerSlots: 3 },
-    timing: { lastItemsMs: 0 },
-  } as unknown as WebgpuPagesRuntime;
-  refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined);
-  buildWebgpuVisibilityItems(rt, true, {
-    twoPass: false,
-    restDigest: 0,
-    occluders: 0,
-    projectionGeneration: 0,
-  });
+  const rt = { layout, vis: { drawLayerSlots: 3 } } as unknown as WebgpuPagesRuntime;
+  const hold = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined);
+  assert.equal(layout.drawItemWords[3], 0, 'la ligne de couche 0 garde la couche 0');
   assert.equal(
-    layout.drawItemWords[0 * DRAW_ITEM_U32 + 3],
-    0,
-    'layer-0 row keeps layer 0 in its item word',
-  );
-  assert.equal(
-    layout.drawItemWords[1 * DRAW_ITEM_U32 + 3],
+    layout.drawItemWords[DRAW_ITEM_U32 + 3],
     2,
-    'a deeper layer than the scene has slots for clamps to the last one (drawLayerSlots - 1)',
+    'une couche plus profonde que la scène n’a de slots se pince à la dernière',
   );
-  assert.equal(
-    layout.binInstances[BASE_SLOTS * 2 + BIN_BACK],
-    1,
-    'the clamped layer gets its own slot count, not the layer-0 one',
-  );
-  assert.equal(layout.binInstances[BIN_BACK], 1, 'the layer-0 row still counts at the base slot');
+  assert.equal(layout.drawItemWords[4], 1, 'les triangles de la ligne sortent de sa ligne de table');
+  assert.equal(layout.drawItemWords[DRAW_ITEM_U32 + 4], 3);
+  assert.equal(hold.total, 4, 'le total des triangles dessinables suit les deux lignes');
 });
 
 // webgpuVisibilityDrawer.ts
-test('drawVis draws each coplanar layer’s non-empty slots through its own indirect command, in the same order as layer 0', () => {
+test('drawVis dessine les slots de chaque couche coplanaire par leur propre commande indirecte', () => {
   const drawCalls: number[] = [];
   const pass = {
     setPipeline() {},
@@ -105,12 +72,13 @@ test('drawVis draws each coplanar layer’s non-empty slots through its own indi
     },
   } as unknown as GPURenderPassEncoder;
   const device = { createBindGroup: (desc: unknown) => desc } as unknown as GPUDevice;
-  const binInstances = new Uint32Array(MAX_DRAW_SLOTS);
-  binInstances[BASE_SLOTS + BIN_BACK] = 1; // layer 1, occluder, back cull: the only non-empty slot
   const rt = {
     vis: {
       drawLayerSlots: 2,
-      visLayerPipelines: [{} as GPURenderPipeline],
+      visPipelineBack: {},
+      visPipelineNone: {},
+      visPipelineFront: {},
+      visLayerPipelines: new Array(10).fill({} as GPURenderPipeline),
       visBindGroupLayout: {},
       concatPos: {},
       concatUv: {},
@@ -126,17 +94,19 @@ test('drawVis draws each coplanar layer’s non-empty slots through its own indi
     },
     gpu: { cache: { buffer: {} } },
     run: { gpuDrawCalls: 0 },
-    layout: { rows: { packedCount: 0 }, binInstances, hizRest: new Uint8Array(0) },
+    layout: { rows: { packedCount: 0 } },
   } as unknown as WebgpuPagesRuntime;
 
-  drawVis(rt, device, pass, false, true, true);
+  drawVis(rt, device, pass, false, true);
 
+  // Le nombre d'appels ne dépend plus que des slots : trois modes de découpe par couche, chacun
+  // à son propre décalage indirect. Un slot vide dessine zéro instance, la carte le sait seule.
   assert.deepEqual(
     drawCalls,
-    [(BASE_SLOTS + BIN_BACK) * 16],
-    'only the layer-1 slot drew, at its own indirect offset',
+    [0, 16, 32, BASE_SLOTS * 16, (BASE_SLOTS + 1) * 16, (BASE_SLOTS + 2) * 16],
+    'les trois slots de chaque couche sont dessinés dans l’ordre des couches',
   );
-  assert.equal(rt.run.gpuDrawCalls, 1);
+  assert.equal(rt.run.gpuDrawCalls, 6);
 });
 
 // webgpuVisibilityUniforms.ts

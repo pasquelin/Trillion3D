@@ -16,7 +16,7 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   const { run, timing, lights } = rt,
     { rows } = rt.layout,
     counts = timing.partitionCounts,
-    hiz = rt.vis.gpuHiz?.counts();
+    hiz = rt.vis.gpuPartition?.counts();
   into[0] = rows.tableEpoch;
   into[1] = rows.rowsEpoch;
   into[2] = rows.packedCount;
@@ -36,7 +36,7 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   into[16] = run.blendFrustumRejected;
   into[17] = counts.occulteurs;
   into[18] = counts.testees;
-  into[19] = run.occluderSignature;
+  into[19] = counts.historiqueOcculteurs;
   into[20] = lights.shadowsUpdated;
   into[21] = lights.shadowFaces;
   into[22] = hiz ? hiz.rejected : -1;

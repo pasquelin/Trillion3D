@@ -100,10 +100,13 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowDirty(row);
     }
   }
-  const itemsDirty = rows.rowsChanged;
   if (vis.visEnabled && vis.visPipelineBack && vis.shadePipeline && vis.visView) {
     try {
+<<<<<<< HEAD
       return encodeVis(rt, device, cam, itemsDirty);
+=======
+      return encodeVis(rt, device, camera);
+>>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
     } catch (error) {
       abandonFrameEncoder(rt);
       timing.gpuTiming?.cancelUnsubmitted();

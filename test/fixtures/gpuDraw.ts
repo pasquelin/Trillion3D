@@ -49,6 +49,9 @@ export function mockDrawDevice(options: { failCompile?: boolean } = {}) {
     pushErrorScope() {},
     popErrorScope: async () => null,
     createCommandEncoder: () => ({
+      clearBuffer(buffer: { data: Uint8Array }, offset = 0, size?: number) {
+        buffer.data.fill(0, offset, size === undefined ? undefined : offset + size);
+      },
       beginComputePass: () => ({
         setPipeline(next: { entryPoint: string }) {
           pipeline = next;

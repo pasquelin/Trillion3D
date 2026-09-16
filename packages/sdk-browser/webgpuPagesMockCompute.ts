@@ -1,5 +1,5 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
-import { evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
+import { DRAW_ITEM_U32, evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
 import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
 
@@ -62,8 +62,8 @@ export function simulateComputeDispatch(
     const items: DrawItem[] = [];
     for (let i = 0; i < n; i++)
       items.push({
-        pageIndex: itemInts[i * 4],
-        bin: itemInts[i * 4 + 1] as 0 | 1 | 2,
+        pageIndex: itemInts[i * DRAW_ITEM_U32],
+        bin: itemInts[i * DRAW_ITEM_U32 + 1] as 0 | 1 | 2,
         rest: restAt(i),
       });
     const source =
@@ -79,7 +79,7 @@ export function simulateComputeDispatch(
     const maskBytes = byBinding.get(6)?.data;
     const mask = maskBytes ? new Uint32Array(maskBytes.buffer) : undefined;
     const filtered =
-      uni[4] && mask ? source.filter((_, i) => mask[uni[5] + itemInts[i * 4 + 2]] !== 0) : source;
+      uni[4] && mask ? source.filter((_, i) => mask[uni[5] + itemInts[i * DRAW_ITEM_U32 + 2]] !== 0) : source;
     const result = evaluateDrawCompact(
       count > slotCap ? source : filtered,
       maxVertexCount,

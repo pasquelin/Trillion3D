@@ -64,8 +64,16 @@ export function dropGpuSelection(rt: WebgpuPagesRuntime) {
   rt.capabilities.gpuDriven = false;
 }
 
+/** La partition vit avec la pyramide et la compaction : elle écrit dans l'une et lit dans l'autre. */
+function dropGpuPartition(rt: WebgpuPagesRuntime) {
+  rt.vis.gpuPartition?.dispose();
+  rt.vis.gpuPartition = undefined;
+  rt.run.occluderHistoryEpoch = -1;
+}
+
 export function dropGpuHiz(rt: WebgpuPagesRuntime) {
   const { vis } = rt;
+  dropGpuPartition(rt);
   vis.gpuHiz?.dispose();
   vis.gpuHiz = undefined;
   vis.visHizBindGroup = undefined;
@@ -78,6 +86,7 @@ export function dropGpuHiz(rt: WebgpuPagesRuntime) {
 }
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {
+  dropGpuPartition(rt);
   rt.vis.gpuDraw?.dispose();
   rt.vis.gpuDraw = undefined;
   if (!rt.capabilities.unsupported.includes('indirect draw'))
@@ -149,7 +158,6 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   rows.candidateCount = 0;
   rows.packedCount = 0;
   rows.rowsChanged = true;
-  rt.layout.hizProjection.invalidate();
   capabilities.materials = UNTEXTURED_MATERIALS;
   vis.textureJobs.length = 0;
   for (const item of VIS_FEATURES)

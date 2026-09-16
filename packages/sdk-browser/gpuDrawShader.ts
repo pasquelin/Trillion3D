@@ -26,7 +26,7 @@ import { BASE_SLOTS, slotCount } from './gpuDrawContract.ts';
 export const drawShader = (layerSlots: number) => {
   const slots = slotCount(layerSlots);
   const top = Math.max(0, Math.max(1, layerSlots) - 1);
-  return `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,}
+  return `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}
 struct Uniforms{count:u32,maxVertexCount:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,pad0:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;

@@ -1,33 +1,30 @@
 import { drawVis } from './webgpuVisibilityDrawer.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** Encodes primary and tested visibility passes, updates the occluder history on `rt.run` and
- *  returns the vertices the passes drew. */
+/**
+ * Encode la passe de visibilité primaire puis, quand les ressources de la moitié testée existent, la
+ * pyramide, le test d'occultation et la passe secondaire.
+ *
+ * Aucune de ces trois décisions ne dépend plus d'un compte que le processeur aurait établi ligne par
+ * ligne : les commandes indirectes disent combien d'instances chaque moitié dessine, et le noyau
+ * d'occultation lit lui-même le nombre de boîtes que la partition lui a compactées. Une image dont
+ * la carte a tout mis du côté des occulteurs encode donc quand même sa seconde passe, qui dessine
+ * zéro instance — et l'image est la même.
+ */
 export function encodeWebgpuVisibilityPasses(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  partition: { occluders: number; twoPass: boolean; restDigest: number },
-  items: { occluderVertices: number; restVertices: number; testedCount: number },
+  twoPass: boolean,
   tableRows: number,
   useIndirect: boolean,
 ) {
-  const { vis, gpu, run } = rt,
-    {
-      rows,
-      hizRest,
-      hizTestedBounds,
-      hizTestedRows,
-      hizCountSample,
-      drawnOccluderUrls,
-      urlIndexOfPage,
-    } = rt.layout,
+  const { vis, gpu } = rt,
+    { rows } = rt.layout,
     { gpuHiz } = vis,
     idsView = vis.visView!,
     depthTarget = gpu.depthView!,
-    [width, height] = gpu.targetSize,
-    { occluders, twoPass, restDigest } = partition,
-    { occluderVertices, restVertices, testedCount } = items;
+    [width, height] = gpu.targetSize;
   const visColors = (loadOp: 'clear' | 'load') => {
     const ids: {
       view: GPUTextureView;
@@ -57,42 +54,17 @@ export function encodeWebgpuVisibilityPasses(
     },
   });
   visPass.setViewport(0, 0, width, height, 0, 1);
-  drawVis(rt, device, visPass, false, twoPass, useIndirect);
+  drawVis(rt, device, visPass, false, useIndirect);
   visPass.end();
-  let vertices = twoPass ? occluderVertices : occluderVertices + restVertices;
-  if (twoPass && gpuHiz) {
-    gpuHiz.encodePyramid(encoder);
-    // The verdicts this image copies back are the verdicts of this image.
-    hizCountSample.frame = run.frame;
-    gpuHiz.encodeTest(
-      device,
-      encoder,
-      hizTestedBounds,
-      hizTestedRows,
-      testedCount,
-      tableRows,
-      hizCountSample,
-    );
-    const restPass = encoder.beginRenderPass({
-      label: 'WG visibility secondary',
-      colorAttachments: visColors('load'),
-      depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
-    });
-    restPass.setViewport(0, 0, width, height, 0, 1);
-    drawVis(rt, device, restPass, true, twoPass, useIndirect);
-    restPass.end();
-    vertices += restVertices;
-  }
-  if (gpuHiz) {
-    // The occluders of this image are the first pass of the next one, unless the view or a world moves.
-    drawnOccluderUrls.fill(0);
-    for (let i = 0; i < rows.packedCount; i++)
-      if (!hizRest[i]) drawnOccluderUrls[urlIndexOfPage[rows.packedPageIndex[i]]] = 1;
-    // La moitié testée, hachée dans l'ordre des lignes : deux images qui partagent cette signature
-    // partagent l'historique d'occulteurs que la suivante hérite. C'est le condensé que la partition
-    // de cette image-ci a déjà rendu — `hizRest` n'est écrit que là —, pas un second parcours.
-    run.occluderSignature = restDigest;
-    run.noOccluderHistory = occluders === 0;
-  }
-  return vertices;
+  if (!twoPass || !gpuHiz) return;
+  gpuHiz.encodePyramid(encoder);
+  gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
+  const restPass = encoder.beginRenderPass({
+    label: 'WG visibility secondary',
+    colorAttachments: visColors('load'),
+    depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
+  });
+  restPass.setViewport(0, 0, width, height, 0, 1);
+  drawVis(rt, device, restPass, true, useIndirect);
+  restPass.end();
 }

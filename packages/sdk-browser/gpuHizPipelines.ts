@@ -20,6 +20,7 @@ export async function createHizPipelines(device: GPUDevice, uniformBytes: number
       },
       { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
     ],
   });
   const module = device.createShaderModule({ code: HIZ_SHADER });
