@@ -132,10 +132,15 @@ fn resolve(
 }
 
 /// Le sommet de départ d'une arête signée. Maya écrit `-(i + 1)` pour une arête parcourue à
-/// l'envers : le coin est alors le second sommet de l'arête `i`.
+/// l'envers : le coin est alors le second sommet de l'arête `i`. La valeur la plus basse d'un
+/// entier signé n'a pas d'opposé : elle ne donne donc aucun rang, et l'appelant la compte sous
+/// `ma-mesh-invalid`, au lieu de faire déborder la négation.
 pub(super) fn corner(edges: &[[f64; 3]], signed: i64, vertices: usize) -> Option<u32> {
     let (rank, end) = match signed < 0 {
-        true => (usize::try_from(-signed - 1).ok()?, 1),
+        true => (
+            usize::try_from(signed.checked_neg()?.checked_sub(1)?).ok()?,
+            1,
+        ),
         false => (usize::try_from(signed).ok()?, 0),
     };
     let vertex = usize::try_from(*edges.get(rank)?.get(end)? as i64).ok()?;
