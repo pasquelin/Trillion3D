@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BOX_VALUES, boxTransform } from '../sdk-core/index.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
+import { createWebgpuRunState } from './webgpuPagesStateRun.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
 
@@ -57,7 +58,11 @@ function racine(mesh: THREE.Object3D, local: number[]) {
 function runtime(source: THREE.Object3D, roots: Array<ClusterRoot<PageRec>> = []) {
   const mouvements: Array<{ min: number[]; max: number[] }> = [],
     layout = { selectionRoots: roots, rows: { tableEpoch: 0 } },
-    run = { noOccluderHistory: false, temporalHizState: { pyramid: {}, camera: {} } };
+    // L'état d'image du moteur, tel que le runtime le porte : `setWebgpuTransform` y incrémente la
+    // révision de scène et y aligne `worldsRevision`. Un état partiel masquerait ce contrat.
+    run = createWebgpuRunState();
+  run.noOccluderHistory = false;
+  run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState;
   const rt = {
     setup: { source },
     layout,
@@ -186,4 +191,8 @@ test('deux déplacements successifs ne s accumulent pas et la table est déclar�
   assert.equal(layout.rows.tableEpoch, 2);
   assert.equal(run.noOccluderHistory, true);
   assert.equal(run.temporalHizState.pyramid, undefined);
+  // Sans cet incrément, la porte d'image tiendrait l'image précédente et le nœud déplacé resterait
+  // dessiné là où il était ; `worldsRevision` suit, la hiérarchie portant déjà ces matrices.
+  assert.equal(run.revisions.scene, 3, 'une révision de scène par déplacement');
+  assert.equal(run.worldsRevision, run.revisions.scene);
 });
