@@ -20,14 +20,19 @@ pub(super) const ATTRIBUTE_INVALID: &str = "ma-attribute-invalid";
 /// Une commande `parent` que ce pilote ne rejoue pas : elle ne cite pas une forme maillée et un
 /// transform connus, ou elle retire au lieu d'ajouter.
 pub(super) const PARENT_UNSUPPORTED: &str = "ma-parent-unsupported";
+/// Un nom de nœud que le fichier écrit sans chemin alors que plusieurs nœuds le portent : Maya
+/// aurait exigé le chemin complet. C'est le premier nœud écrit qui répond, et l'écart est compté.
+pub(super) const NAME_AMBIGUOUS: &str = "ma-name-ambiguous";
 /// Un nœud `transform` dont les nombres ne sont pas finis : il reste à l'identité.
 pub(super) const TRANSFORM_INVALID: &str = "ma-transform-invalid";
 /// Une hiérarchie plus profonde que ce que ce pilote parcourt, une chaîne de pères circulaire
 /// comprise : la branche est coupée là, sans faire déborder la pile.
 pub(super) const HIERARCHY_TOO_DEEP: &str = "ma-hierarchy-too-deep";
-/// Un cisaillement (`.sh`) déclaré : glTF ne porte pas de cisaillement dans une matrice de nœud
-/// sans le mêler à la rotation, donc il n'est pas composé.
-pub(super) const SHEAR_UNSUPPORTED: &str = "ma-shear-unsupported";
+/// Une matrice écrite autrement que par ses seize nombres — la forme longue `xform` de `setAttr` :
+/// elle n'est pas devinée, et le nœud garde la pose que ses autres attributs lui donnent.
+pub(super) const MATRIX_UNSUPPORTED: &str = "ma-matrix-unsupported";
+/// Une forme intermédiaire : l'entrée d'un historique de construction, que Maya n'affiche jamais.
+pub(super) const SHAPE_INTERMEDIATE: &str = "ma-shape-intermediate";
 /// Un maillage dont les tableaux se contredisent : coin hors de la table des arêtes, arête hors de
 /// la table des sommets, ou `.vt` absent.
 pub(super) const MESH_INVALID: &str = "ma-mesh-invalid";
@@ -57,6 +62,9 @@ pub(super) const NORMALS_DROPPED: &str = "ma-normals-dropped";
 pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed-flat";
 /// Un groupe de faces d'un `instObjGroups` dont la liste de composants ne désigne pas des faces.
 pub(super) const FACE_MATERIAL_INVALID: &str = "ma-face-material-invalid";
+/// Des faces qu'aucun `shadingGroup` ne réclame, alors que d'autres faces du même maillage sont
+/// liées : elles sortent dans une primitive sans matériau plutôt que d'être jetées.
+pub(super) const FACE_MATERIAL_MISSING: &str = "ma-face-material-missing";
 /// Un nuanceur lié à une surface hors des quatre que ce pilote convertit.
 pub(super) const MATERIAL_UNSUPPORTED: &str = "ma-material-unsupported";
 /// Une transparence de couleur dont les trois canaux diffèrent : glTF n'a qu'un alpha, et c'est
