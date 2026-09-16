@@ -40,9 +40,9 @@ pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
 /// Le rang de l'image, versée à la première demande, ou rien quand le fichier ne se lit pas.
 fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
     let images = world.images;
-    let Some((uri, decoder)) = candidates(written)
+    let Some((relative, decoder)) = candidates(written)
         .into_iter()
-        .find_map(|uri| readable(images, &uri).map(|decoder| (uri, decoder)))
+        .find_map(|path| readable(images, &path).map(|decoder| (path, decoder)))
     else {
         world.refuse(report::TEXTURE_MISSING);
         world.scene.report.notes.push(format!(
@@ -50,21 +50,25 @@ fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
         ));
         return None;
     };
-    if let Some(known) = world.images_by_uri.get(&uri) {
+    if let Some(known) = world.images_by_uri.get(&relative) {
         return Some(*known);
     }
-    let name = uri.rsplit('/').next().unwrap_or(&uri).to_string();
+    let name = relative.rsplit('/').next().unwrap_or(&relative).to_string();
+    // Une URI glTF, pas le chemin sous la racine : `%`, `#`, l'espace et tout ce qui n'est pas un
+    // caractère non réservé s'échappe, sinon le consommateur relit un autre nom, ou rien.
+    let uri = crate::uri::encode_relative(Path::new(&relative));
     world
         .scene
         .images
-        .push(json!({"name":name,"mimeType":decoder,"uri":uri.clone()}));
+        .push(json!({"name":name,"mimeType":decoder,"uri":uri}));
     let index = world.scene.images.len() - 1;
-    world.images_by_uri.insert(uri, index);
+    world.images_by_uri.insert(relative, index);
     Some(index)
 }
 
-/// Les URI où chercher l'image, dans l'ordre : le chemin écrit quand il est relatif et sûr, puis
-/// son seul nom de fichier à la racine des images, puis ce nom sous `sourceimages`.
+/// Les chemins où chercher l'image sous la racine, dans l'ordre : le chemin écrit quand il est
+/// relatif et sûr, puis son seul nom de fichier à la racine des images, puis ce nom sous
+/// `sourceimages`.
 fn candidates(written: &str) -> Vec<String> {
     let parts: Vec<&str> = written
         .split(['/', '\\'])
