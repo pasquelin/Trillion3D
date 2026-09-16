@@ -36,7 +36,6 @@ const RESOLVENT = {
   'sceneLighting.ts': 'cible de lampe, pas de caméra',
   'hostSceneLightState.ts': 'cible de lampe, pas de caméra',
   'webgpuPagesTransform.ts': 'sous-arbre de scène déplacé par l’hôte, pas de caméra',
-  'hizProjectionHold.ts': 'tenue des rectangles projetés : lot en cours dans une autre session',
 };
 
 /** Qui a le droit de toucher une pose LOCALE de caméra, ou de la résoudre par un accesseur Three. */
@@ -61,6 +60,7 @@ const LISENT_LA_POSE = {
   'pageSelectionDiagnostic.ts': 'erreur écran affichée — résout (appelable seule)',
   'pageSelectionRequests.ts': 'seuil adaptatif — résout (appelable seule)',
   'hizProjection.ts': 'rectangles Hi-Z — résout (appelable seule)',
+  'hizProjectionHold.ts': 'tenue des rectangles projetés — résout (appelable seule)',
   'hizDepth.ts': 'profondeur Hi-Z — résout (appelable seule)',
   'pageCone.ts': 'rejet de cône — résout (appelable seule)',
   'pageRaster.ts': 'oracle raster — résout (appelable seule)',
