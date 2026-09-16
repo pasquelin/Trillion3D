@@ -20,7 +20,11 @@ import {
 } from '../../pageCone.ts';
 import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
+import {
+  evaluateDagSelectionKernel,
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { cameraMoteur } from '../../cameraFixture.ts';
 
@@ -98,8 +102,11 @@ function empaquete(coneDuCluster) {
 
 const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
 const context = coneContextFor(createConeContext(), world, cameraMoteur(camera));
-const avecCone = empaquete(cone),
-  sansCone = empaquete(OPEN_CONE);
+// Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
+// l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
+const rebase = (packed) => packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
+const avecCone = rebase(empaquete(cone)),
+  sansCone = rebase(empaquete(OPEN_CONE));
 const gpu = await selectionGpu([
   { nom: 'avecCone', packed: avecCone, uniforms },
   { nom: 'sansCone', packed: sansCone, uniforms },
