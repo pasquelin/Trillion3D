@@ -70,11 +70,35 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     variante: side.variante ?? null,
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
-    // Compteurs Hi-Z : le moteur ne les publie pas encore dans ses métriques. `null`, jamais déduit.
+    // Triangles que l'image relevée a remis au dessin : la coupe moins son trou, comptée sans
+    // attendre le retour de la carte. Avec les deux voisins, `selected − drawn − uncovered` doit
+    // valoir zéro ; `resume.md` en fait sa colonne « couverture ». `null` hors de ce moteur.
+    drawnTriangles: metrics.drawnTriangles ?? null,
+    // Triangles réellement soumis au dessin, relevés sur la dernière image mesurée — `imageDuReleve`
+    // la nomme. `submittedTriangles` est la passe opaque, `totalSubmittedTriangles` y ajoute les
+    // passes transparentes. `null` quand le compte de la carte n'était pas encore revenu à ce
+    // moment-là : la coupe choisie sur la carte publie ses totaux après coup.
+    submittedTriangles: metrics.submittedTriangles ?? null,
+    totalSubmittedTriangles: metrics.totalSubmittedTriangles ?? null,
+    imageDuReleve: settings.frames > 0 ? settings.frames - 1 : null,
+    // L'image relevée a-t-elle été tenue ? Une image tenue ne réencode qu'une présentation : ses
+    // triangles soumis valent zéro parce qu'elle n'a rien dessiné, non parce que rien n'a compté.
+    // Sans ce témoin, ce zéro-là ne se distingue pas d'une image vide. `null` hors de ce moteur.
+    imageTenue: metrics.frameHeld ?? null,
+    // Repli de la sélection : vrai quand ce moteur avait une coupe choisie sur la carte graphique et
+    // l'a abandonnée pour la coupe processeur de secours. `null` sur un moteur sans coupe GPU.
+    repliSelectionGpu: metrics.gpuSelectionFallback ?? null,
+    // Compteurs d'occultation du contrat, sous leurs noms de contrat : le relevé les cherchait sous
+    // des noms qui n'ont jamais existé et publiait donc `null` là où le moteur comptait. `image`
+    // nomme celle qu'ils décrivent — antérieure sur le chemin GPU. `null` = non compté.
     hiZ: {
-      tested: metrics.hiZTested ?? null,
-      rejected: metrics.hiZRejected ?? null,
-      beyond16Texels: metrics.hiZBeyond16Texels ?? null,
+      tested: metrics.hizTestedClusters ?? null,
+      rejected: metrics.hizRejectedClusters ?? null,
+      beyond16Texels: metrics.hizOversizedClusters ?? null,
+      testedTriangles: metrics.hizTestedTriangles ?? null,
+      rejectedTriangles: metrics.hizRejectedTriangles ?? null,
+      beyond16TexelsTriangles: metrics.hizOversizedTriangles ?? null,
+      image: metrics.hizCountedFrame ?? null,
     },
     selection: {
       source: result.selection.source,

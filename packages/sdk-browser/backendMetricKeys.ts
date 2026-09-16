@@ -9,6 +9,7 @@ export const BACKEND_METRIC_KEYS = [
   'coverageReady',
   'coverageBudgetLimited',
   'uncoveredTriangles',
+  'drawnTriangles',
   'pagesDetached',
   'frustumRejected',
   'hizTestedClusters',

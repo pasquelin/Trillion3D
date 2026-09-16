@@ -8,21 +8,37 @@
 // déclarait juste une normale perdue. `aucune` (le nuanceur intact) sert de témoin dans ce même
 // fichier : sans lui, un critère devenu trop strict passerait aussi inaperçu.
 //
+// Les cas ordinaires (`CAS`) ne suffisent pas à couvrir le noyau : `GARDES` éprouve les quatre
+// replis dégénérés (somme nulle, déterminant nul, coefficient infini, coefficient NaN), où le noyau
+// doit rendre la normale locale TELLE QUELLE plutôt que de la transformer, et `REGULIERE_MINUSCULE`
+// éprouve le témoin de non-gourmandise du garde : une rotation minuscule mais régulière, que le
+// garde ne doit pas confisquer. La substitution enveloppe la sortie ENTIÈRE de la fonction, replis
+// compris : les mêmes deux mutations doivent donc y être refusées aussi sûrement que sur les cas
+// ordinaires.
+//
 // LAB_ROOT=… node --experimental-strip-types test/normaleEclairageSubstitutionsRefusees.browser.mjs
 import assert from 'node:assert/strict';
 import { verdictNormale } from '../packages/sdk-browser/bench/justesse/inverseTransposeF32.mjs';
-import { CAS, DECROCHE_DEG } from '../packages/sdk-browser/bench/justesse/normalTransformCas.mjs';
+import {
+  CAS,
+  DECROCHE_DEG,
+  GARDES,
+  REGULIERE_MINUSCULE,
+} from '../packages/sdk-browser/bench/justesse/normalTransformCas.mjs';
 import {
   SUBSTITUTIONS,
   eclairageGpu,
 } from '../packages/sdk-browser/bench/justesse/normaleEclairageGpu.mjs';
 
+/** Ordinaires, gardes et témoin de non-gourmandise : tous les cas que ce fichier éprouve. */
+const TOUS = [...CAS, ...GARDES, REGULIERE_MINUSCULE];
+
 async function verdicts(substitution) {
-  const gpu = await eclairageGpu(CAS, { substitution });
+  const gpu = await eclairageGpu(TOUS, { substitution });
   assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
   assert.deepEqual(gpu.compilation ?? [], [], `substitution « ${substitution} » : compilation`);
   assert.deepEqual(gpu.erreurs ?? [], [], `substitution « ${substitution} » : erreurs GPU`);
-  return CAS.map((cas, i) => ({
+  return TOUS.map((cas, i) => ({
     nom: cas.nom,
     verdict: verdictNormale(gpu.lignes[i].rendue, cas.vraie, DECROCHE_DEG),
   }));
@@ -35,7 +51,7 @@ const intacte = await verdicts(SUBSTITUTIONS.aucune);
 console.log(
   JSON.stringify(
     {
-      cas: CAS.length,
+      cas: TOUS.length,
       opposeeRefus: opposee.filter((l) => !l.verdict.ok).length,
       nulleRefus: nulle.filter((l) => !l.verdict.ok).length,
       intacteRefus: intacte.filter((l) => !l.verdict.ok).length,
@@ -74,6 +90,6 @@ for (const { nom, verdict } of intacte)
   assert.ok(verdict.ok, `${nom} : nuanceur intact refusé — ${verdict.raison}`);
 
 console.log(
-  `OK : ${CAS.length} cas — N→−N refusés ${opposee.length}/${opposee.length}, N→0 refusés ` +
+  `OK : ${TOUS.length} cas — N→−N refusés ${opposee.length}/${opposee.length}, N→0 refusés ` +
     `${nulle.length}/${nulle.length}, intact accepté ${intacte.length}/${intacte.length}.`,
 );

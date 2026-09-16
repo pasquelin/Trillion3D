@@ -38,7 +38,10 @@ export interface FrameMetrics extends ShadowFrameMetrics, OcclusionFrameMetrics 
   cpuSubmitMs: number | null;
   gpuMs: number | null;
   drawCalls: number;
-  triangles: number;
+  /** Triangles soumis au dessin de cette image, tels que `totalSubmittedTriangles` les compte, ou
+   *  tels que le renderer de l'hôte les a dessinés quand c'est lui qui dessine. `null` quand ni
+   *  l'un ni l'autre n'a compté : un zéro se lirait comme une image vide. */
+  triangles: number | null;
   clusters: number | null;
   selectedTriangles: number | null;
   residentPages: number | null;
@@ -146,6 +149,16 @@ export interface FrameMetrics extends ShadowFrameMetrics, OcclusionFrameMetrics 
    *  covering ancestor. A real hole in the image: zero is the only healthy value. Null when a backend
    *  cannot tell (it draws the cut it selected, so it never has one). */
   uncoveredTriangles?: number | null;
+  /**
+   * Triangles que l'IMAGE COURANTE remet au dessin : sa coupe de clusters, opaques et transparents de
+   * la hiérarchie confondus, moins les grappes sans page résidente que `uncoveredTriangles` compte.
+   * Les maillages transparents hors hiérarchie n'y sont pas (`transparentSubmittedTriangles`), et le
+   * rejet d'occultation ne s'en retire pas (`hizRejectedTriangles`). Compté sur la même passe que
+   * `uncoveredTriangles`, à l'adoption de la coupe : aucun retour asynchrone de la carte n'est
+   * attendu, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.
+   * Relation de couverture attendue sur ce relevé : `selected − drawn − uncovered = 0`.
+   */
+  drawnTriangles?: number | null;
   /** Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule.
    *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
   cpuSelectMs?: number | null;
