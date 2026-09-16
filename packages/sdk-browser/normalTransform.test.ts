@@ -23,6 +23,7 @@ import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import {
   angleEntre,
   unitaire,
+  verdictNormale,
   xformNormalAvantLeLot,
   xformNormalModele,
 } from './bench/justesse/inverseTransposeF32.mjs';
@@ -35,15 +36,15 @@ import {
   SEUIL,
 } from './bench/justesse/normalTransformCas.mjs';
 
-/** L'écart angulaire, en degrés, entre la normale qu'une écriture rend et la normale vraie. */
-const ecartDeg = (cas: { vraie: number[] }, rendue: number[]) =>
-  angleEntre(rendue, cas.vraie) * DEG;
+/** Le verdict — direction orientée, vecteur nul refusé, norme unitaire — d'une écriture sur un cas. */
+const verdict = (cas: { vraie: number[] }, rendue: number[]) =>
+  verdictNormale(rendue, cas.vraie, DECROCHE_DEG);
 
 test('la normale d’éclairage suit la rotation à toute échelle, de 1e3 à 1e-16', () => {
   assert.ok(CAS.length >= 300, `échantillon trop petit : ${CAS.length}`);
   for (const cas of CAS) {
-    const ecart = ecartDeg(cas, xformNormalModele(cas.world, cas.normale));
-    assert.ok(ecart < DECROCHE_DEG, `${cas.nom} : la normale a décroché de ${ecart}°`);
+    const v = verdict(cas, xformNormalModele(cas.world, cas.normale));
+    assert.ok(v.ok, `${cas.nom} : ${v.raison}`);
   }
   // Sans rotation effective, ces cas ne prouveraient rien : la normale vraie doit avoir bougé.
   const tournees = CAS.filter(
@@ -55,7 +56,7 @@ test('la normale d’éclairage suit la rotation à toute échelle, de 1e3 à 1e
 test('le seuil absolu d’avant le lot décrochait, et exactement sous s³ = 1e-20', () => {
   const decroches = CAS.filter(
     (cas: { world: number[]; normale: number[]; vraie: number[] }) =>
-      ecartDeg(cas, xformNormalAvantLeLot(cas.world, cas.normale)) >= DECROCHE_DEG,
+      !verdict(cas, xformNormalAvantLeLot(cas.world, cas.normale)).ok,
   );
   assert.ok(decroches.length > 0, 'la reproduction ne reproduit plus : cas à revoir');
   // Ce que le lot devait changer, et rien d'autre : au-dessus du seuil, l'ancienne écriture était
@@ -91,11 +92,11 @@ test('les quatre gardes : somme nulle, déterminant nul, somme infinie, somme Na
       `${cas.nom} : le vecteur doit être rendu tel quel, jamais un NaN propagé à l'éclairage`,
     );
   // Et le garde ne doit pas être gourmand : une matrice minuscule mais régulière passe.
-  const ecart = ecartDeg(
+  const v = verdict(
     REGULIERE_MINUSCULE,
     xformNormalModele(REGULIERE_MINUSCULE.world, REGULIERE_MINUSCULE.normale),
   );
-  assert.ok(ecart < DECROCHE_DEG, `${REGULIERE_MINUSCULE.nom} : prise par le garde (${ecart}°)`);
+  assert.ok(v.ok, `${REGULIERE_MINUSCULE.nom} : prise par le garde — ${v.raison}`);
 });
 
 // --- Écriture unique et compilation --------------------------------------------------------------
