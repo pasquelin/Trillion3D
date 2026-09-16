@@ -30,9 +30,11 @@ use std::{
 use yaml_rust2::yaml::Yaml;
 
 mod assets;
+mod attach;
 mod build;
 mod builtin;
 mod convert;
+mod instance;
 mod materials;
 mod merge;
 mod meta;
