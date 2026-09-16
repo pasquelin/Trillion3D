@@ -89,7 +89,9 @@ test('pose dont la ligne (1e16, −1e16, 3) traverse une tangente tout à un', (
 test('pose dont la matrice des normales vaut [[1,1,1],[0,1,0],[0,0,1]], normales (1e16,1,1)', () => {
   // Bloc 3×3 tel que transposée(inverse(bloc)) === [[1,1,1],[0,1,0],[0,0,1]] : vérifié directement
   // contre `normalMatrix3` avant d'écrire ce test.
-  const matrix = new THREE.Matrix4().fromArray([1, -1, -1, 0, -0, 1, -0, 0, 0, -0, 1, 0, 5, -3, 2, 1]);
+  const matrix = new THREE.Matrix4().fromArray([
+    1, -1, -1, 0, -0, 1, -0, 0, 0, -0, 1, 0, 5, -3, 2, 1,
+  ]);
   const normal = attribut([1e16, 1, 1, 1e16, 1, 1, 1e16, 1, 1], 3);
   const uv = attribut([0, 0, 1, 0, 0, 1], 2);
   const page = {
@@ -110,7 +112,11 @@ test('échelle négative et cisaillement, sans normale de sommet ni carte : la n
     2, 0.5, 0, 0, 0, -3, 0, 0, 0.25, 0, 0.5, 0, 1, 2, 3, 1,
   ]);
   const uv = attribut([0, 0, 1, 0, 0, 1], 2);
-  const page = { array: new Uint32Array([0, 1, 2]), attributes: { uv }, matrix } as unknown as VisPage;
+  const page = {
+    array: new Uint32Array([0, 1, 2]),
+    attributes: { uv },
+    matrix,
+  } as unknown as VisPage;
   for (const backSide of [false, true])
     for (const screenFace of [1, -1])
       assertSameNormal(page, materiau({ backSide }), screenFace, `bs${backSide} sf${screenFace}`);
@@ -119,7 +125,11 @@ test('échelle négative et cisaillement, sans normale de sommet ni carte : la n
 test('NaN et infinis dans les poids barycentriques et les tangentes, carte sans normale de sommet', () => {
   const matrix = new THREE.Matrix4();
   const uv = attribut([0, 0, 1, 0, 0.5, 1], 2);
-  const page = { array: new Uint32Array([0, 1, 2]), attributes: { uv }, matrix } as unknown as VisPage;
+  const page = {
+    array: new Uint32Array([0, 1, 2]),
+    attributes: { uv },
+    matrix,
+  } as unknown as VisPage;
   const mat = materiau({ normalMap: carteNormales() });
   const baryHostile = { w0: NaN, w1: Infinity, w2: -Infinity };
   const optimisee = shadingNormal(page, TRI, baryHostile, UV, mat, 1);
