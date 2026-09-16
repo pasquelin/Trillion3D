@@ -49,7 +49,7 @@ test("une lampe directionnelle n'a pas d'enveloppe, et le contrat refuse de lui 
   );
 });
 
-test("le plan proche d'une carte d'ombre monte au rayon d'émetteur, et jamais en dessous", () => {
+test("le plan proche d'une carte d'ombre ne vient que de la portée de la lampe", () => {
   // Le réglage de portée 30 m donne le plan proche relevé par le vérificateur : 0,15 m.
   const sans = shadowProjection(Math.PI / 2, 30).near;
   assert.equal(
@@ -57,15 +57,9 @@ test("le plan proche d'une carte d'ombre monte au rayon d'émetteur, et jamais e
     Math.max(LIGHT_SETTINGS.shadowNearMin, 30 * LIGHT_SETTINGS.shadowNearFraction),
   );
   assert.equal(sans, 0.15);
-  // Les parois de la lanterne se tiennent à 0,1464 m et 0,1526 m : sans le champ, elles entrent
-  // dans la carte et éteignent leur propre lampe.
-  assert.ok(0.1526 > sans && 0.14643 < sans);
-  assert.equal(shadowProjection(Math.PI / 2, 30, 0.25).near, 0.25);
-  // Un rayon plus petit que le plan proche dérivé de la portée ne l'abaisse pas.
-  assert.equal(shadowProjection(Math.PI / 2, 30, 0.05).near, 0.15);
 });
 
-test("la face d'ombre d'une lampe reprend le plan proche que son enveloppe impose", () => {
+test("la face d'ombre garde ce plan proche, que la lampe déclare une enveloppe ou non", () => {
   const matrices = new Float32Array(16);
   const nu = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne()), 0, view, 1024).near;
   const enveloppe = writeFace(
@@ -79,10 +73,10 @@ test("la face d'ombre d'une lampe reprend le plan proche que son enveloppe impos
     1024,
   ).near;
   assert.equal(nu, 0.15);
-  assert.equal(enveloppe, 0.25);
-  // Toute la géométrie de l'enveloppe tombe devant ce plan : la découpe de profondeur l'écarte de
-  // la carte, la lampe éclaire le sol autour d'elle, et rien d'autre dans la scène ne change.
-  assert.ok(enveloppe > 0.1526);
+  // L'enveloppe n'est plus retirée par un plan proche relevé — qui retirerait un cube, jusqu'à √3
+  // fois le rayon dans les diagonales — mais par la distance au centre de la lampe, là où la
+  // profondeur d'ombre s'écrit. La projection, elle, ne bouge pas d'un texel.
+  assert.equal(enveloppe, nu);
 });
 
 test("régler le seul rayon d'émetteur périme bien la carte d'ombre de la lampe", () => {
