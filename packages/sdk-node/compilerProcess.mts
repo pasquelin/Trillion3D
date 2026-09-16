@@ -34,6 +34,21 @@ function lineReader(onLine: (line: string) => void, onOverflow: () => void) {
   };
 }
 /**
+ * A batch prints its summary whatever happened to its jobs: exit code 2 only says "not every job is
+ * ready", and the summary says which ones were not. Reading the exit code alone turned a `partial`
+ * batch — one model prepared, one refused — into an IO error carrying no jobs at all, although the
+ * summary had already been decoded. A refusal of the batch itself (`{"status":"error"}`, no `jobs`)
+ * is not a summary and still rejects.
+ */
+function isBatchSummary(output: unknown): boolean {
+  const summary = output as { status?: unknown; jobs?: unknown } | null;
+  return (
+    !!summary &&
+    Array.isArray(summary.jobs) &&
+    (summary.status === 'ready' || summary.status === 'partial' || summary.status === 'failed')
+  );
+}
+/**
  * Runs the native compiler once. Node only launches it, forwards events and cancellation, and reads
  * the pointer it prints; the compiled manifest is read back from disk, never streamed through here.
  */
@@ -122,6 +137,10 @@ export function runCompiler<T>(
         output = JSON.parse(stdout) as T;
       } catch {
         /* Missing or partial pointer: reported below. */
+      }
+      if (isBatchSummary(output)) {
+        finish(resolve, output as T);
+        return;
       }
       if (code !== 0) {
         finish(
