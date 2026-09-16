@@ -1,22 +1,35 @@
-import * as THREE from 'three';
-import { transformHomogeneousPoint } from '../sdk-core/index.ts';
+import { transformAffinePoint, transformHomogeneousPoint } from '../sdk-core/index.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
-const projectScratch = new THREE.Vector3();
-/** Le point en espace de découpe du dernier sommet projeté : relu aussitôt, jamais conservé. */
+/** Le sommet monde du dernier point projeté, et son point en espace de découpe : relus aussitôt,
+ *  jamais conservés. Une matrice monde est affine, quatrième ligne `(0, 0, 0, 1)` : la
+ *  transformation affine du socle est alors bit pour bit la projective, dont `1 / w` vaut 1. */
+const worldScratch = new Float64Array(3);
 const clipScratch = new Float64Array(4);
 
+/** Les trois coordonnées d'un sommet, telles que les rend un attribut de géométrie de l'hôte. */
+export type VertexReader = {
+  getX(index: number): number;
+  getY(index: number): number;
+  getZ(index: number): number;
+};
+
 export function projectVisibilityVertex(
-  matrix: THREE.Matrix4,
-  position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  matrix: MatrixElements,
+  position: VertexReader,
   vi: number,
-  viewProj: THREE.Matrix4,
+  viewProj: ArrayLike<number>,
   width: number,
   height: number,
 ) {
-  const v = projectScratch
-    .set(position.getX(vi), position.getY(vi), position.getZ(vi))
-    .applyMatrix4(matrix);
-  const clip = transformHomogeneousPoint(clipScratch, viewProj.elements, v.x, v.y, v.z);
+  const v = transformAffinePoint(
+    worldScratch,
+    matrix.elements,
+    position.getX(vi),
+    position.getY(vi),
+    position.getZ(vi),
+  );
+  const clip = transformHomogeneousPoint(clipScratch, viewProj, v[0], v[1], v[2]);
   const cw = clip[3];
   if (cw === 0 || !Number.isFinite(cw)) return null;
   const ndcX = clip[0] / cw,
@@ -27,9 +40,9 @@ export function projectVisibilityVertex(
     y: (1 - (ndcY * 0.5 + 0.5)) * height,
     z: ndcZ * 0.5 + 0.5,
     invW: 1 / cw,
-    worldX: v.x,
-    worldY: v.y,
-    worldZ: v.z,
+    worldX: v[0],
+    worldY: v[1],
+    worldZ: v[2],
   };
 }
 

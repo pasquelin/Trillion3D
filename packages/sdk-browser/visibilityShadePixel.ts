@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import {
   attr2,
   barycentric,
@@ -9,6 +8,7 @@ import {
 } from './visibilityMath.ts';
 import { shadeLit } from './visibilityLighting.ts';
 import type { VisibilityFrame } from './visibilityFrame.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 type Rgb = [number, number, number];
 
@@ -28,7 +28,7 @@ function encode(c: Rgb, srgb: boolean): Rgb {
 export function shadePixel(
   frame: VisibilityFrame,
   id: number,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   x: number,
   y: number,
   fond: Rgb,
@@ -58,6 +58,6 @@ export function shadePixel(
       1,
       Math.max(0, roughness * sampleLinear(mat.roughnessMap, uv[0], uv[1])[1]),
     );
-  if (mat.lit) rgb = shadeLit(page, tri, affine, bary, uv, mat, rgb, metalness, roughness, camera);
+  if (mat.lit) rgb = shadeLit(page, tri, affine, bary, uv, mat, rgb, metalness, roughness, cam);
   return encode(rgb, !!mat.map || mat.lit);
 }

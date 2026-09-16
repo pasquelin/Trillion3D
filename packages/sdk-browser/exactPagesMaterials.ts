@@ -1,3 +1,4 @@
+import type { EngineCamera } from './cameraWorld.ts';
 import { clusterColor, hashId } from './backendCommon.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorColor } from './diagnosticColors.ts';
@@ -13,7 +14,8 @@ type MaterialsOptions = {
   blendCopies: THREE.Mesh[];
   viewport: readonly [number, number] | undefined;
   readonly diagnostic: DiagnosticMode;
-  readonly lastCamera: THREE.PerspectiveCamera | undefined;
+  /** La caméra du moteur de la dernière image, absente tant qu'aucune image n'a été rendue. */
+  readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
 };
 
@@ -64,9 +66,9 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
       material = new THREE.MeshBasicMaterial({ color, side });
       diagnosticMaterials.set(key, material);
     }
-    if (options.diagnostic === 'screen-error' && options.lastCamera) {
+    if (options.diagnostic === 'screen-error' && options.cam) {
       const color = screenErrorColor(
-        projectedPageError(rec, options.lastCamera, options.viewport ?? [1, 1]),
+        projectedPageError(rec, options.cam, options.viewport ?? [1, 1]),
         options.lastPixelError,
       );
       (material as THREE.MeshBasicMaterial).color.setRGB(...color);

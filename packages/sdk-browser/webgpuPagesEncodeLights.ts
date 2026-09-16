@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { PAGES_RING, uploadSceneLights } from './webgpuPagesStateLights.ts';
 import { planShadowRegions } from './webgpuPagesEncodeShadows.ts';
 import { encodeShadowAtlas } from './webgpuPagesEncodeShadowPass.ts';
@@ -21,7 +21,7 @@ export function encodeDirectLights(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   inverseViewProjection: ArrayLike<number>,
 ) {
   const { lights, gpu } = rt,
@@ -39,14 +39,14 @@ export function encodeDirectLights(
   const frame = rt.run.frame,
     nowMs = performance.now(),
     pagesSlot = frame % PAGES_RING;
-  const regions = planShadowRegions(rt, camera, frame, nowMs);
+  const regions = planShadowRegions(rt, cam, frame, nowMs);
   // Le chronomètre de la passe revient avec du retard : l'image doit laisser derrière elle le
   // nombre de pages qu'elle a redessinées, sinon le relevé ne saurait pas ce qu'il chiffre.
   lights.pagesByFrame[pagesSlot] = lights.shadowPages;
   // Le tampon part au GPU avant les listes par tuile : la passe de mélange le lit directement, sans
   // tuile, et doit rester éclairée même sur un appareil qui n'a pas pu gréer les listes.
   uploadSceneLights(device, lights);
-  encodeBounce(rt, device, encoder, active, camera);
+  encodeBounce(rt, device, encoder, active, cam);
   // L'ombre lointaine du soleil : le proxy est gréé à la première lampe, comme le rebond, et son
   // relevé de compteurs est encodé avant la passe d'éclairage qui les remplira.
   ensureSunFarShadow(rt, device);
@@ -86,7 +86,7 @@ function encodeBounce(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   active: number,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
 ) {
   const { bounce, lights } = rt;
   // Une lampe existe : c'est le signal qui déclenche la lecture du proxy résident, une seule fois.
@@ -107,13 +107,10 @@ function encodeBounce(
     bounce.lightEpoch = lights.store.epoch;
     probes.restart();
   }
-  // La position monde de la caméra, lue dans sa matrice : les cascades s'y recentrent par pas de
-  // maille. Aucune allocation, et rien d'autre de la caméra n'entre dans le rebond — ni sa
+  // La position monde de la caméra, posée par l'entrée d'image : les cascades s'y recentrent par
+  // pas de maille. Aucune allocation, et rien d'autre de la caméra n'entre dans le rebond — ni sa
   // direction, ni son tronc de vue : une caméra qui pivote ne périmerait alors rien de bon.
-  const world = camera.matrixWorld.elements;
-  viewpoint[0] = world[12];
-  viewpoint[1] = world[13];
-  viewpoint[2] = world[14];
+  viewpoint.set(cam.position);
   bounce.encoded = probes.encode(encoder, active, viewpoint);
   bounce.probesUpdated = probes.lastProbes;
   bounce.raysLaunched = probes.lastRays;

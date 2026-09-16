@@ -78,7 +78,7 @@ export function submitColorCopy(
       submission: run.imageRevision,
       viewport: [width, height],
       cameraWorld: run.lastCamera && cameraWorldPosition(run.lastCamera).toArray(),
-      viewProjection: [...viewProj.elements],
+      viewProjection: [...viewProj],
       scope: 'selection-and-render-passes',
       excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
       drawCalls: run.gpuDrawCalls,

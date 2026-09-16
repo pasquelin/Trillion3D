@@ -29,7 +29,7 @@ export function writeWebgpuVisibilityUniforms(
   const visInts = new Uint32Array(visUniPacked.buffer);
   for (let slot = 0; slot < slots; slot++) {
     const base = slot * 64;
-    visUniPacked.set(viewProj.elements, base);
+    visUniPacked.set(viewProj, base);
     visUniPacked[base + 16] = width;
     visUniPacked[base + 17] = height;
     visUniPacked[base + 18] = hasGpuSmall ? 7 : 0;
@@ -45,7 +45,7 @@ export function writeWebgpuVisibilityUniforms(
     size: 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }));
-  shadeUniPacked.set(viewProj.elements, 0);
+  shadeUniPacked.set(viewProj, 0);
   shadeUniPacked[16] = width;
   shadeUniPacked[17] = height;
   const shadeInts = new Uint32Array(shadeUniPacked.buffer);
