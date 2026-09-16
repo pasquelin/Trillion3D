@@ -31,7 +31,7 @@ export function visibilityDepth(
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(HIZ_BACKGROUND);
-  const frame = createVisibilityFrame(pages, cam.viewProjection, width, height);
+  const frame = createVisibilityFrame(pages, cam, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const triangle = frame.triangle(ids[y * width + x]);

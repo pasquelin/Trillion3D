@@ -1,4 +1,5 @@
 import { boxCornersInto } from '../sdk-core/index.ts';
+import { depthToZeroOne } from './depthConvention.ts';
 import type { HizPage } from './hizTypes.ts';
 import type { MatrixElements } from './matrixElements.ts';
 
@@ -15,6 +16,7 @@ export function projectCornersInto(
   near: number,
   width: number,
   height: number,
+  depthZeroToOne: boolean,
   into: Float64Array,
   base: number,
 ) {
@@ -73,12 +75,13 @@ export function projectCornersInto(
   }
   // Le passage du repère normalisé à l'écran est monotone coordonnée par coordonnée — croissant en
   // x et en profondeur, décroissant en y : l'extremum de l'image est l'image de l'extremum, au bit
-  // près. Les cinq conversions se font une fois par boîte au lieu de vingt-quatre.
+  // près. Les cinq conversions se font une fois par boîte au lieu de vingt-quatre. La profondeur
+  // est la seule des trois dont la convention dépend de l'hôte : `depthConvention` la tranche.
   into[base] = Math.floor((lowX * 0.5 + 0.5) * width);
   into[base + 1] = Math.floor((1 - (highY * 0.5 + 0.5)) * height);
   into[base + 2] = Math.ceil((highX * 0.5 + 0.5) * width);
   into[base + 3] = Math.ceil((1 - (lowY * 0.5 + 0.5)) * height);
-  into[base + 4] = lowZ * 0.5 + 0.5;
+  into[base + 4] = depthToZeroOne(lowZ, depthZeroToOne);
   into[base + 5] = 0;
 }
 const cornerScratch = new Float64Array(BOX_CORNER_VALUES);
@@ -97,6 +100,7 @@ export function projectBoxInto(
   near: number,
   width: number,
   height: number,
+  depthZeroToOne: boolean,
   into: Float64Array,
   base: number,
 ) {
@@ -109,6 +113,7 @@ export function projectBoxInto(
     near,
     width,
     height,
+    depthZeroToOne,
     into,
     base,
   );

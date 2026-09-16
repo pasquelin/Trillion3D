@@ -22,6 +22,9 @@ export async function lignesConsommateursBrowser() {
   const paquets = [];
   for (let i = 0; i < liste.length; i += 30) paquets.push(liste.slice(i, i + 30));
   const attribut = new THREE.BufferAttribute(Float32Array.from(points.flat()), 3);
+  // Le sujet comparé est la projection d'un sommet, pas la lecture d'une convention : les couples
+  // vue-projection/convention sont montés une fois, hors des boucles mesurées.
+  const vuesProjetees = matrices.map((e) => ({ viewProjection: e, depthZeroToOne: false }));
   return [
     await ligne(
       'file de streaming : ordre rendu',
@@ -96,7 +99,7 @@ export async function lignesConsommateursBrowser() {
                 new THREE.Matrix4().fromArray(m),
                 attribut,
                 v,
-                matrices[(i * 11) % matrices.length],
+                vuesProjetees[(i * 11) % vuesProjetees.length],
                 1280,
                 720,
               ),

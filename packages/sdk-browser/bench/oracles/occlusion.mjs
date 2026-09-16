@@ -20,6 +20,7 @@ function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
     cam.near,
     viewport[0],
     viewport[1],
+    cam.coordinateSystem === THREE.WebGPUCoordinateSystem,
     boundsScratch,
     0,
   );
