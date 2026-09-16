@@ -61,20 +61,50 @@ export function createRasterResolves(
         { binding: 1, resource: { buffer: uniform, offset: 0, size: 96 } },
       ],
     }));
+  /** Une pièce jointe de couleur effacée à la valeur que son attachement attend. */
+  const cleared = (view: GPUTextureView, r: number) => ({
+    view,
+    loadOp: 'clear' as const,
+    storeOp: 'store' as const,
+    clearValue: { r, g: 0, b: 0, a: 1 },
+  });
+  /**
+   * Les deux descripteurs de passe, gardés tels quels jusqu'au prochain jeu de vues. Ils ne
+   * dépendent que des vues, et les vues ne changent qu'au redimensionnement de la cible — qui
+   * libère ce raster tout entier. Les reconstruire par image allouait sept objets pour réécrire
+   * les mêmes champs.
+   */
+  let idsFor: GPUTextureView | undefined,
+    depthFor: GPUTextureView | undefined,
+    hizFor: GPUTextureView | undefined,
+    hizPass: GPURenderPassDescriptor | undefined,
+    finalPass: GPURenderPassDescriptor | undefined;
+  /** Refait les deux descripteurs quand, et seulement quand, une des trois vues a changé. */
+  const refresh = (input: GpuRasterInput) => {
+    if (idsFor === input.idsView && depthFor === input.depthView && hizFor === input.hizView)
+      return;
+    idsFor = input.idsView;
+    depthFor = input.depthView;
+    hizFor = input.hizView;
+    hizPass = { label: 'WG raster occluder hiz', colorAttachments: [cleared(input.hizView!, 1)] };
+    finalPass = {
+      label: 'WG raster resolve',
+      colorAttachments: input.hizView
+        ? [cleared(input.idsView, 0), cleared(input.hizView, 1)]
+        : [cleared(input.idsView, 0)],
+      depthStencilAttachment: {
+        view: input.depthView,
+        depthClearValue: 1,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      },
+    };
+  };
   return {
     /** La profondeur des occulteurs, telle que la pyramide la réduit. Rien d'autre n'est écrit. */
     encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
-      const pass = encoder.beginRenderPass({
-        label: 'WG raster occluder hiz',
-        colorAttachments: [
-          {
-            view: input.hizView!,
-            loadOp: 'clear',
-            storeOp: 'store',
-            clearValue: { r: 1, g: 0, b: 0, a: 1 },
-          },
-        ],
-      });
+      refresh(input);
+      const pass = encoder.beginRenderPass(hizPass!);
       pass.setViewport(0, 0, width, height, 0, 1);
       pass.setPipeline(hizOnly);
       pass.setBindGroup(0, bound(input.uniform));
@@ -82,42 +112,11 @@ export function createRasterResolves(
       pass.end();
     },
     /** L'image close : identifiants, profondeur, et la pyramide remise à la coupe entière. */
-    encodeFinal(
-      encoder: GPUCommandEncoder,
-      input: GpuRasterInput,
-      width: number,
-      height: number,
-    ) {
-      const view = input.hizView;
-      const pass = encoder.beginRenderPass({
-        label: 'WG raster resolve',
-        colorAttachments: [
-          {
-            view: input.idsView,
-            loadOp: 'clear' as const,
-            storeOp: 'store' as const,
-            clearValue: { r: 0, g: 0, b: 0, a: 1 },
-          },
-          ...(view
-            ? [
-                {
-                  view,
-                  loadOp: 'clear' as const,
-                  storeOp: 'store' as const,
-                  clearValue: { r: 1, g: 0, b: 0, a: 1 },
-                },
-              ]
-            : []),
-        ],
-        depthStencilAttachment: {
-          view: input.depthView,
-          depthClearValue: 1,
-          depthLoadOp: 'clear',
-          depthStoreOp: 'store',
-        },
-      });
+    encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
+      refresh(input);
+      const pass = encoder.beginRenderPass(finalPass!);
       pass.setViewport(0, 0, width, height, 0, 1);
-      pass.setPipeline(view ? two : one);
+      pass.setPipeline(input.hizView ? two : one);
       pass.setBindGroup(0, bound(input.uniform));
       pass.draw(3);
       pass.end();

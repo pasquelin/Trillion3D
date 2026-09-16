@@ -9,6 +9,7 @@ import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
 import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
+import type { GpuRasterInput } from './gpuRasterTypes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { DEPTH_CLEAR } from './depthConvention.ts';
 
@@ -61,6 +62,13 @@ export function encodeEmptySurfaces(
   submitColorCopy(rt, device, encoder, height, width, presented);
   return run.blendSubmittedTriangles;
 }
+
+/**
+ * Ce qu'une image donne au raster de calcul, tenu d'une image à l'autre : chacun de ses champs est
+ * réécrit avant chaque encodage, et l'encodage le consomme avant de rendre la main. L'écrire en
+ * clair à chaque image allouait un objet de dix-huit champs par image.
+ */
+const rasterInput = {} as GpuRasterInput;
 
 /** Crée le raster de calcul une fois, et retient l'appareil qui ne peut pas l'héberger. */
 export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -128,28 +136,24 @@ export function encodeRaster(
   // Les triangles plein écran des résolutions sont des appels de dessin comme les autres : celui
   // qui clôt l'image, et celui de la pyramide quand la moitié testée existe. Le compte les porte.
   run.gpuDrawCalls += mid ? 2 : 1;
-  return vis.gpuRaster.encode(
-    encoder,
-    {
-      indices: gpu.cache.buffer,
-      positions: vis.concatPos,
-      pages: vis.pageTable,
-      hizFlags,
-      uniform: vis.visUniform,
-      uvs: vis.concatUv,
-      colorAtlas: vis.colorAtlas,
-      slots: vis.slots,
-      sampler: vis.mapsSampler,
-      pageRows: tableRows,
-      maxTriangles: Math.ceil(maxVertexCount / 3),
-      idsView,
-      depthView: depthTarget,
-      hizView: vis.gpuHiz?.level0View,
-      selection: run.gpuFrameActive ? run.gpuSelection : undefined,
-      skipRest: skipsSecondaryPass(rt.context?.diagnosticGpuVariant),
-      groups: vis.rasterGroups,
-      groupKey: key,
-    },
-    mid,
-  );
+  const input = rasterInput;
+  input.indices = gpu.cache.buffer;
+  input.positions = vis.concatPos;
+  input.pages = vis.pageTable;
+  input.hizFlags = hizFlags;
+  input.uniform = vis.visUniform;
+  input.uvs = vis.concatUv;
+  input.colorAtlas = vis.colorAtlas;
+  input.slots = vis.slots;
+  input.sampler = vis.mapsSampler;
+  input.pageRows = tableRows;
+  input.maxTriangles = Math.ceil(maxVertexCount / 3);
+  input.idsView = idsView;
+  input.depthView = depthTarget;
+  input.hizView = vis.gpuHiz?.level0View;
+  input.selection = run.gpuFrameActive ? run.gpuSelection : undefined;
+  input.skipRest = skipsSecondaryPass(rt.context?.diagnosticGpuVariant);
+  input.groups = vis.rasterGroups;
+  input.groupKey = key;
+  return vis.gpuRaster.encode(encoder, input, mid);
 }
