@@ -13,7 +13,7 @@ import {
   transformHomogeneousPoint,
 } from '../../sdk-core/index.ts';
 import { chainesHostiles, lectureReference, lectureSocle } from './socleHierarchie.mjs';
-import { f64, ligne, m4, trs, trsReference } from './socleLigne.mjs';
+import { f64, ligne, m4, normaleReference, trs, trsReference } from './socleLigne.mjs';
 import { affines, matrices, paires, paires32, points } from './scenesSocle.mjs';
 
 const v3 = (p) => new THREE.Vector3(p[0], p[1], p[2]);
@@ -80,7 +80,7 @@ async function lignesOperations() {
       'packages/sdk-core/mathMatrix3.ts',
       'matrices hostiles',
       matrices,
-      (l) => l.map((m) => f64(new THREE.Matrix3().getNormalMatrix(m4(m)).elements)),
+      (l) => l.map((m) => normaleReference(m4(m))),
       (l) => l.map((m) => normalMatrix3(new Float64Array(9), m)),
     ),
     await ligne(

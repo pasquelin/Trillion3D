@@ -95,6 +95,8 @@ const AUTORISES = {
   webgpuCutRepriseFixture: 'montage de test : il pose la caméra hôte que cameraMoteur traduit',
   webgpuPagesTestOccluder: 'montage de scène de test : l’occulteur et sa caméra',
   webgpuPagesTestScenes: 'montage de scènes de test : maillages et matériaux',
+  webgpuTransformCisaillementFixture:
+    'montage de test : scène et runtime minimaux pour `setWebgpuTransform`',
 
   // 3. Ressources de l'hôte : matériaux, textures, géométries, couleurs, constantes de face.
   backendTypes: 'contrat : les ressources de l’hôte qu’un moteur reçoit',
