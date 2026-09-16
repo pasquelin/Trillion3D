@@ -171,7 +171,13 @@ export function simulateComputeDispatch(
   const resident = residentCut
     ? residentFlags(words(byBinding.get(8)!.data), packed.pageCount)
     : undefined;
-  const result = evaluateDagSelectionKernel(packed, uniforms, resident);
+  // Les matrices monde se lisent DANS LE TAMPON lié, là où le nuanceur les lit : l'entrée d'image
+  // les y écrit ramenées à l'œil, et la vue comme les plans du même bloc d'uniformes sont de ce
+  // repère-là. Une copie faite à l'empaquetage y mettrait des mondes absolus sous une vue sans
+  // translation — deux repères dans une même formule, et plus une seule page retenue.
+  const tampon = byBinding.get(6)!.data;
+  const worlds = new Float32Array(tampon.buffer, tampon.byteOffset, packed.worlds.length);
+  const result = evaluateDagSelectionKernel({ ...packed, worlds }, uniforms, resident);
   if (residentCut) {
     const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
     flags.fill(0, packed.nodeCount);
