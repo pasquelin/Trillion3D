@@ -89,7 +89,7 @@ function lignesLot(n) {
   const ligne = (nom, three, socle) => mesure({ ligne: nom, charge, operations: n, three, socle });
   return [
     ligne(
-      'matrices monde d’une hiérarchie',
+      'matrices monde d’une hiérarchie (une Float64Array par élément)',
       () => {
         for (let i = 1; i < n; i++)
           l.sortie4[i].multiplyMatrices(l.sortie4[l.parents[i]], l.three[i]);
@@ -97,6 +97,19 @@ function lignesLot(n) {
       () => {
         for (let i = 1; i < n; i++)
           multiplyMatrix4(l.tampons4[i], l.tampons4[l.parents[i]], l.socle[i]);
+      },
+    ),
+    ligne(
+      // Le rangement réel du moteur : un tampon plat et des sous-vues (`tree.world` + `worldViews`,
+      // `mathTransformTree.ts`), à côté de la ligne « une Float64Array par élément » ci-dessus.
+      'matrices monde d’une hiérarchie (tampon plat, sous-vues)',
+      () => {
+        for (let i = 1; i < n; i++)
+          l.sortie4[i].multiplyMatrices(l.sortie4[l.parents[i]], l.three[i]);
+      },
+      () => {
+        for (let i = 1; i < n; i++)
+          multiplyMatrix4(l.tamponsVues[i], l.tamponsVues[l.parents[i]], l.socleVues[i]);
       },
     ),
     ligne(

@@ -29,6 +29,31 @@ export function essaie(fn) {
 export const f64 = (e) => Float64Array.from(e);
 export const m4 = (e) => new THREE.Matrix4().fromArray(e);
 
+const colonne3 = (e, k) => new THREE.Vector3(e[k], e[k + 1], e[k + 2]);
+
+/**
+ * La matrice des normales de la RÉFÉRENCE, convention des faces aplaties comprise.
+ *
+ * `Matrix3.getNormalMatrix` rend la matrice NULLE dès que la 3×3 est singulière : une primitive
+ * écrasée sur un plan y perdrait toute normale, alors que ses faces gardent une aire et une
+ * orientation. Le moteur rend l'ADJOINTE dans ce cas (`packages/sdk-core/mathMatrix3.ts`), c'est à
+ * dire le produit vectoriel des arêtes transformées, que l'ombrage normalise ensuite. Cette écriture
+ * dit la même convention avec les `crossVectors` et le `dot` de la bibliothèque hôte, sur les trois
+ * colonnes de la 3×3 : elle ne partage aucune ligne avec le socle, et le déterminant qu'elle teste
+ * est celui-là même que le socle calcule — `a · (b × c)`, mêmes produits, même ordre, même zéro.
+ */
+export function normaleReference(matrice) {
+  const e = matrice.elements;
+  const a = colonne3(e, 0),
+    b = colonne3(e, 4),
+    c = colonne3(e, 8);
+  const x = new THREE.Vector3().crossVectors(b, c);
+  if (a.dot(x) !== 0) return f64(new THREE.Matrix3().getNormalMatrix(matrice).elements);
+  const y = new THREE.Vector3().crossVectors(c, a),
+    z = new THREE.Vector3().crossVectors(a, b);
+  return f64([...x.toArray(), ...y.toArray(), ...z.toArray()]);
+}
+
 /** Position, quaternion et échelle rendus par le socle. */
 export function trs(m) {
   const p = new Float64Array(3),

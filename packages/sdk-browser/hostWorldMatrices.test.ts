@@ -5,7 +5,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { hostWorldPositionInto, resolveHostNode, resolveHostSubtree } from './hostWorldMatrices.ts';
+import { EngineError } from '../sdk-core/index.ts';
+import {
+  assertFiniteTransform,
+  hostWorldPositionInto,
+  resolveHostNode,
+  resolveHostSubtree,
+} from './hostWorldMatrices.ts';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
 
 /** Chaîne parent → enfant → petit-enfant → arrière-petit-enfant, transforms hostiles comprises. */
@@ -141,4 +147,49 @@ test('hostWorldPositionInto rend la même translation que getWorldPosition sur u
   const obtenu = new Float64Array(3);
   hostWorldPositionInto(obtenu, 0, feuille);
   assertBits(obtenu, [attendu.x, attendu.y, attendu.z]);
+});
+
+// Cas 4 de la convention des normales singulières (lot normales singulières) : une pose non finie
+// n'entre jamais dans le moteur, elle est refusée ici même, avant toute inversion ou toute lecture
+// de normale.
+test('assertFiniteTransform : une matrice entièrement finie passe sans lever', () => {
+  const m = new THREE.Matrix4().compose(
+    new THREE.Vector3(1, -2, 3),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0.3, -0.5, 0.2)),
+    new THREE.Vector3(-2, 3, 0.5),
+  ).elements;
+  assert.doesNotThrow(() => assertFiniteTransform(m, 'noeud'));
+});
+
+test('assertFiniteTransform : NaN à n’importe quel des seize indices lève NON_FINITE_TRANSFORM avec le nom du nœud et le rang fautif', () => {
+  for (let index = 0; index < 16; index++) {
+    const m = new THREE.Matrix4().identity().elements.slice();
+    m[index] = NaN;
+    assert.throws(
+      () => assertFiniteTransform(m, 'cible'),
+      (erreur: unknown) =>
+        erreur instanceof EngineError &&
+        erreur.code === 'NON_FINITE_TRANSFORM' &&
+        erreur.details.nodeName === 'cible' &&
+        erreur.details.index === index &&
+        Number.isNaN(erreur.details.value as number),
+      `index ${index} : NaN non refusé`,
+    );
+  }
+});
+
+test('assertFiniteTransform : un infini, positif ou négatif, lève NON_FINITE_TRANSFORM', () => {
+  for (const valeur of [Infinity, -Infinity]) {
+    const m = new THREE.Matrix4().identity().elements.slice();
+    m[5] = valeur;
+    assert.throws(
+      () => assertFiniteTransform(m, 'lampe'),
+      (erreur: unknown) =>
+        erreur instanceof EngineError &&
+        erreur.code === 'NON_FINITE_TRANSFORM' &&
+        erreur.details.index === 5 &&
+        erreur.details.value === valeur,
+      `${valeur} non refusé`,
+    );
+  }
 });
