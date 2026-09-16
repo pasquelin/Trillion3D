@@ -160,7 +160,7 @@ fn coarseGroup(group:vec3u,lane:vec3u,mode:u32){
  if(t.ok==0u){return;}
  rasterPixel(t,vec2i(t.lo)+vec2i(lane.xy),mode==2u);
 }
-/** Le pavé (tx,ty) d'une boîte, quand il tombe encore dedans. */
+// Le pixel du pavé (tx,ty) d'une boîte : rasterPixel écarte ceux qui sortent de l'image.
 fn tilePixel(t:Tri,lane:vec3u,tx:u32,ty:u32)->vec2i{
  return vec2i(t.lo)+vec2i(i32(tx*${TILE}u+lane.x),i32(ty*${TILE}u+lane.y));
 }
@@ -172,8 +172,7 @@ fn largeGroup(group:vec3u,lane:vec3u,mode:u32){
  let cols=tileCols(t);let rows=tileRows(t);
  for(var ty=0u;ty<rows;ty=ty+1u){
   for(var tx=0u;tx<cols;tx=tx+1u){
-   let pixel=tilePixel(t,lane,tx,ty);
-   if(pixel.x<=i32(t.hi.x)&&pixel.y<=i32(t.hi.y)){rasterPixel(t,pixel,mode==2u);}
+   rasterPixel(t,tilePixel(t,lane,tx,ty),mode==2u);
   }
  }
 }
@@ -186,8 +185,7 @@ fn hugeGroup(group:vec3u,lane:vec3u,mode:u32){
  if(t.ok==0u||group.y>=tileRows(t)){return;}
  let cols=tileCols(t);
  for(var tx=0u;tx<cols;tx=tx+1u){
-  let pixel=tilePixel(t,lane,tx,group.y);
-  if(pixel.x<=i32(t.hi.x)&&pixel.y<=i32(t.hi.y)){rasterPixel(t,pixel,mode==2u);}
+  rasterPixel(t,tilePixel(t,lane,tx,group.y),mode==2u);
  }
 }
 ${entryPoints()}
