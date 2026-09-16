@@ -5,13 +5,15 @@
 // l'écrive : tant que son arrivée n'incrémentait aucune révision, deux images identiques figeaient
 // l'albédo brut d'`unlit` jusqu'à une invalidation étrangère. Le rappel `onReady` de
 // `createDeferredLighting` répare ça à l'origine du changement, et c'est ce que ce fichier prouve
-// avec les vraies briques : `createDeferredLighting`, `resourceArrived`, `holdWebgpuFrame`,
+// avec les vraies briques : `createDeferredLighting`, `run.gate.resourcesChanged`, `holdWebgpuFrame`,
 // `keepWebgpuFrame`. Le `rt` est monté à la main, réduit à ce que `frameSettled` lit.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './webgpuFrameHold.ts';
-import { createFrameHold, createFrameRevisions, resourceArrived } from './frameRevisions.ts';
+import { createFrameGateCore } from './frameGateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
+import { createCpuStepProfile } from './cpuProfile.ts';
+import { CPU_STEP_NAMES } from './webgpuPagesCpuSteps.ts';
 import { createDeferredLighting } from './deferredLighting.ts';
 import type { DirectLightResources } from './deferredLightingProgram.ts';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
@@ -62,8 +64,7 @@ const surface = { views: () => [view(), view(), view(), view()] } as unknown as 
  */
 function settledRt() {
   const run = {
-    frameHold: createFrameHold(HOLD_SIGNATURE_VALUES),
-    revisions: createFrameRevisions(),
+    gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),
     lost: false,
     gpuFrameActive: true,
     gpuMetricsReady: true,
@@ -112,7 +113,19 @@ function settledRt() {
     bounce: { probes: undefined as unknown },
     capture: { secondaryCamera: false, capturePending: false },
     services: { bootstrapState: { ready: true }, residency: { busy: false } },
-    timing: { frameEncoder: undefined as unknown, partitionCounts: { occulteurs: 0, testees: 0 } },
+    timing: {
+      frameEncoder: undefined as unknown,
+      partitionCounts: { occulteurs: 0, testees: 0, historiqueOcculteurs: 0 },
+      // `recordHeldFrameWork` écrit la ligne d'une image tenue dans le vrai profil, comme en
+      // production : un objet à la main n'aurait pas la largeur exacte de `CPU_STEP`.
+      cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
+      rowFilled: false,
+      cpuSample: undefined as Record<string, unknown> | undefined,
+      lastGpuPassMs: null as number | null,
+      lastGpuFrameMs: null as number | null,
+      lastGpuHostGapMs: null as number | null,
+      lastSubmitMs: null as number | null,
+    },
     texturePump: { inFlight: false },
     gpu: {
       presenter: undefined as unknown,
@@ -129,7 +142,7 @@ test('GEO-02 : le programme du contrat qui finit de compiler casse l’image ten
   const rt = settledRt();
   // Le branchement de `webgpuPagesPrepare.ts`, mot pour mot.
   const lighting = await createDeferredLighting(h.device, {} as GPUBuffer, () =>
-    resourceArrived(rt.run),
+    rt.run.gate.resourcesChanged(),
   );
   rt.gpu.deferred = lighting;
 
@@ -140,16 +153,20 @@ test('GEO-02 : le programme du contrat qui finit de compiler casse l’image ten
     keepWebgpuFrame(rt);
   }
   assert.equal(lighting.usesContract, false, 'la compilation démarre, le rendu reste unlit');
-  assert.equal(rt.run.frameHold.stable, true, 'deux images identiques de suite arment la tenue');
+  assert.equal(rt.run.gate.hold.stable, true, 'deux images identiques de suite arment la tenue');
   // Tenir pendant la compilation reste juste : rien n'a encore changé l'image.
   assert.equal(holdWebgpuFrame(rt, h.device), true);
   const frameTenue = rt.run.frame;
 
   // Le programme arrive : le rappel incrémente les ressources et casse la tenue.
-  const ressources = rt.run.revisions.resources;
+  const ressources = rt.run.gate.revisions.resources;
   h.finishCompilation();
   await lighting.settle();
-  assert.equal(rt.run.revisions.resources, ressources + 1, 'le programme arrivé est une ressource');
+  assert.equal(
+    rt.run.gate.revisions.resources,
+    ressources + 1,
+    'le programme arrivé est une ressource',
+  );
   assert.equal(holdWebgpuFrame(rt, h.device), false, 'l’image suivante est refaite');
   assert.equal(rt.run.frameHeld, false);
 
