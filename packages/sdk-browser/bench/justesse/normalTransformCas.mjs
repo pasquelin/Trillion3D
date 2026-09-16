@@ -10,7 +10,7 @@ import { construireCas } from './normaleEclairageCas.mjs';
 export const SEUIL = Math.cbrt(1e-20);
 /** Le décrochage : au-delà, la normale n'est plus celle de la surface tournée. */
 export const DECROCHE_DEG = 1e-3;
-export const DEG = 180 / Math.PI;
+export { DEG } from './inverseTransposeF32.mjs';
 
 const AXES = [
   [1, 0, 0],
@@ -73,12 +73,21 @@ export const GARDES = [
   ...MATIERE,
 }));
 
-/** Le témoin de non-gourmandise du garde : minuscule mais régulière, elle doit tourner. */
+/**
+ * Le témoin de non-gourmandise du garde : minuscule mais régulière, elle doit tourner.
+ *
+ * `ROTATION_MINUSCULE` est diag(1e-8, −1e-8, −1e-8) : une rotation d'un demi-tour autour de x,
+ * d'échelle 1e-8, de déterminant +1e-24. Son inverse-transposée est diag(1e8, −1e8, −1e8), et la
+ * normale locale [0,6, −0,8, 0] donne [6e7, 8e7, 0], soit [0,6, 0,8, 0] une fois unitaire. Le
+ * demi-tour retourne y et z ; il ne retourne pas x. L'attente portée ici était [−0,6, −0,8, 0],
+ * l'OPPOSÉ : le critère d'alors prenait la valeur absolue du produit scalaire, confondait N et −N,
+ * et validait cette erreur à zéro degré. Le critère orienté de `verdictNormale` la refuse.
+ */
 export const REGULIERE_MINUSCULE = {
   nom: 'rotation d’échelle 1e-8 (régulière)',
   world: pose(ROTATION_MINUSCULE),
   normale: NORMALE_GARDE,
-  vraie: [-0.6, -0.8, 0],
+  vraie: [0.6, 0.8, 0],
   degenere: false,
   ...MATIERE,
 };
