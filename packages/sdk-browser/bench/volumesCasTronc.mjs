@@ -32,7 +32,7 @@ const un = (nom, entree) => [{ nom, entree, taille: entree.length }];
 const deux = (nom, entree, nomH, entreeH) => [...un(nom, entree), ...un(nomH, entreeH)];
 const plans = (vp, webgpu, Type = Float64Array) => {
   const sortie = new Type(24);
-  frustumPlanesFromMatrix(sortie, vp, webgpu);
+  frustumPlanesFromMatrix(sortie, vp);
   return sortie;
 };
 /** Les plans simple précision des uniformes de sélection, ramenés sous chaque placement. */

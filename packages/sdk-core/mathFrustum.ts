@@ -2,10 +2,15 @@
  * Plans d'un tronc de vue, rangés à plat : vingt-quatre flottants, quatre par plan `a, b, c, d`,
  * tournés vers l'intérieur — un point est dedans quand `a·x + b·y + c·z + d >= 0` pour les six.
  *
- * Ordre des plans, celui de Three.js : droite (`w − x`), gauche (`w + x`), bas (`w + y`), haut
- * (`w − y`), loin (`w − z`), proche. Le plan proche vaut `w + z` quand la profondeur de découpe va
- * de −1 à 1 (WebGL), `z` quand elle va de 0 à 1 (WebGPU). Les lignes combinées sont celles de la
- * matrice colonne-major `m` : `x = (m0, m4, m8, m12)`, `w = (m3, m7, m11, m15)`.
+ * Ordre des plans, celui de la référence : droite (`w − x`), gauche (`w + x`), bas (`w + y`), haut
+ * (`w − y`), loin, proche. La profondeur du moteur est INVERSÉE dans `[0, 1]` — plan proche à 1,
+ * lointain à 0 (`mathCamera.ts`) — donc le plan LOIN est `z >= 0` et le plan PROCHE `w − z >= 0`,
+ * l'inverse exact des rôles qu'ils ont en profondeur directe. Les lignes combinées sont celles de
+ * la matrice colonne-major `m` : `x = (m0, m4, m8, m12)`, `w = (m3, m7, m11, m15)`.
+ *
+ * Plan lointain infini : la ligne `z` de la projection est `(0, 0, 0, near)`, donc le plan LOIN
+ * sort de normale nulle. Un tel plan ne borne rien, et c'est exactement ce que le lointain infini
+ * veut dire : `writePlane` l'écrit tout à zéro, et `0 >= 0` laisse tout point dedans.
  */
 
 /** Flottants des six plans d'un tronc. */
@@ -25,7 +30,9 @@ function writePlane(
   normalize: boolean,
 ) {
   if (normalize) {
-    const inverse = 1.0 / Math.sqrt(a * a + b * b + c * c);
+    // Normale nulle : le plan ne borne rien. Normaliser rendrait des NaN, qui rejetteraient tout.
+    const length = Math.sqrt(a * a + b * b + c * c);
+    const inverse = length > 0 ? 1.0 / length : 0;
     a *= inverse;
     b *= inverse;
     c *= inverse;
@@ -37,12 +44,7 @@ function writePlane(
   out[at + 3] = d;
 }
 
-function writePlanes(
-  out: Float32Array | Float64Array,
-  m: ArrayLike<number>,
-  depthZeroToOne: boolean,
-  normalize: boolean,
-) {
+function writePlanes(out: Float32Array | Float64Array, m: ArrayLike<number>, normalize: boolean) {
   const m0 = m[0],
     m1 = m[1],
     m2 = m[2],
@@ -63,9 +65,8 @@ function writePlanes(
   writePlane(out, 4, m3 + m0, m7 + m4, m11 + m8, m15 + m12, normalize);
   writePlane(out, 8, m3 + m1, m7 + m5, m11 + m9, m15 + m13, normalize);
   writePlane(out, 12, m3 - m1, m7 - m5, m11 - m9, m15 - m13, normalize);
-  writePlane(out, 16, m3 - m2, m7 - m6, m11 - m10, m15 - m14, normalize);
-  if (depthZeroToOne) writePlane(out, 20, m2, m6, m10, m14, normalize);
-  else writePlane(out, 20, m3 + m2, m7 + m6, m11 + m10, m15 + m14, normalize);
+  writePlane(out, 16, m2, m6, m10, m14, normalize);
+  writePlane(out, 20, m3 - m2, m7 - m6, m11 - m10, m15 - m14, normalize);
 }
 
 /**
@@ -73,21 +74,17 @@ function writePlanes(
  * projection seule pour des plans en repère de vue. Normaux unitaires : `a·x + b·y + c·z + d` est
  * une distance signée. Une matrice dégénérée rend des plans NaN ou infinis, sans lever.
  */
-export function frustumPlanesFromMatrix(
-  out: Float32Array | Float64Array,
-  m: ArrayLike<number>,
-  depthZeroToOne: boolean,
-) {
-  writePlanes(out, m, depthZeroToOne, true);
+export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
+  writePlanes(out, m, true);
 }
 
 /**
- * Les mêmes six plans sans normalisation, profondeur WebGL : les sommes et différences brutes des
- * lignes de `m`. Le signe de `a·x + b·y + c·z + d` décide seul, sans racine carrée ni division —
- * c'est la forme du test exact d'une coupe, où normaliser déplacerait l'arrondi.
+ * Les mêmes six plans sans normalisation : les sommes et différences brutes des lignes de `m`. Le
+ * signe de `a·x + b·y + c·z + d` décide seul, sans racine carrée ni division — c'est la forme du
+ * test exact d'une coupe, où normaliser déplacerait l'arrondi.
  */
 export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
-  writePlanes(out, m, false, false);
+  writePlanes(out, m, false);
 }
 
 /**

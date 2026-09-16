@@ -2,7 +2,7 @@
 // de `hizOcclusion.ts` d'avant le lot C, recopiés tels quels : une ligne de `number[]` par rangée et
 // par niveau, réallouée à chaque image. L'optimisée écrit tous les niveaux dans un seul
 // `Float32Array` repris d'une image à l'autre. Les valeurs viennent du visbuffer, déjà en simple
-// précision, et la réduction est un maximum : l'égalité attendue est bit à bit, sans tolérance.
+// précision, et la réduction est un minimum : l'égalité attendue est bit à bit, sans tolérance.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hizBuildPyramid, hizFootprintFar, hizOccluded } from '../../sdk-core/index.ts';
@@ -57,7 +57,7 @@ function referenceRejects(pyramid, bounds, bias = 0) {
   return hizOccluded(bounds.nearestDepth, far, bias);
 }
 
-/** La profondeur d'une vraie image : fond à 1, triangles dégénérés, sommets derrière la caméra. */
+/** La profondeur d'une vraie image : fond au lointain, triangles dégénérés, sommets derrière la caméra. */
 function profondeur(width, height, pages, seed) {
   const depth = rasterVisibility(pages, cameraMoteur(camera(6, 0.1, width / height)), [
     width,

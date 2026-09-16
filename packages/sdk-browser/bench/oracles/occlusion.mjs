@@ -1,16 +1,20 @@
 // Oracles purs de A3 et A4, sans effet de bord : `occlusion.bench.mjs` les mesure, les tests
 // unitaires les importent comme référence.
 import * as THREE from 'three';
+import { perspectiveProjection } from '../../../sdk-core/index.ts';
 import { HIZ_BOUNDS_VALUES, projectBoxInto } from '../../hizCorners.ts';
 import { hizOversized } from '../../hizCounts.ts';
 import { hizRejects } from '../../hizOcclusion.ts';
 
-const viewProjScratch = new THREE.Matrix4();
+const viewProjScratch = new THREE.Matrix4(),
+  projScratch = new THREE.Matrix4();
 const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
 /** `hizProjection.ts:65-92` avant le lot A : un objet `HizBounds` alloué par boîte et par image. */
 function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
   cam.updateMatrixWorld();
-  const viewProj = viewProjScratch.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+  // La projection du moteur, pas celle de l'hôte : profondeur inversée, plan lointain infini.
+  perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
+  const viewProj = viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse);
   projectBoxInto(
     min,
     max,
@@ -20,7 +24,6 @@ function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
     cam.near,
     viewport[0],
     viewport[1],
-    cam.coordinateSystem === THREE.WebGPUCoordinateSystem,
     boundsScratch,
     0,
   );
@@ -29,13 +32,14 @@ function referenceProjectBoxToScreen(min, max, world, cam, viewport) {
   return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3], nearestDepth: b[4], clipsNear: false };
 }
 
-/** `hizSplit.ts:70-91` avant le lot A : `.map` d'objets, `.sort` par comparateur, deux `.filter`. */
+/** `hizSplit.ts:70-91` avant le lot A : `.map` d'objets, `.sort` par comparateur, deux `.filter`.
+ *  Profondeur inversée : le plus proche porte la plus GRANDE profondeur, donc l'ordre est décroissant. */
 export function referenceSplitOccluders(pages, cam, viewport) {
   const ranked = pages.map((page, index) => {
     const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
     return { page, index, nearest: bounds.nearestDepth, clipsNear: bounds.clipsNear };
   });
-  ranked.sort((a, b) => a.nearest - b.nearest || a.index - b.index);
+  ranked.sort((a, b) => b.nearest - a.nearest || a.index - b.index);
   const inFront = ranked.filter((item) => !item.clipsNear),
     crossing = ranked.filter((item) => item.clipsNear);
   if (!inFront.length) return { occluders: [], rest: pages };

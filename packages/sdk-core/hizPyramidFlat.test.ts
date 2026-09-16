@@ -2,7 +2,7 @@
 // `Float32Array` repris d'une image à l'autre (hizPyramidFlat.ts). La référence est l'implémentation
 // d'avant le lot C, toujours présente et inchangée : `hizBuildPyramid`/`hizFootprintFar` de
 // `hizOracles.ts`, exportées telles quelles pour continuer à servir d'oracle. L'égalité attendue est
-// bit à bit (`Object.is`), sans tolérance : la réduction est un maximum ou un minimum, jamais une
+// bit à bit (`Object.is`), sans tolérance : la réduction est un minimum, jamais une
 // opération arithmétique qui pourrait arrondir différemment.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,14 +58,12 @@ test('une image 1×1 ne réduit rien, des deux côtés', () => {
   assert.equal(flat.count, 1);
 });
 
-test('des dimensions impaires (33×19) réduisent identiquement, y compris reversedZ', () => {
+test('des dimensions impaires (33×19) réduisent identiquement', () => {
   const depth = new Float32Array(33 * 19);
   for (let i = 0; i < depth.length; i++) depth[i] = Math.sin(i * 0.37) * 0.5 + 0.5;
-  for (const reversedZ of [false, true]) {
-    const flat = hizBuildFlat(depth, 33, 19, undefined, reversedZ);
-    const nested = hizBuildPyramid(rows(depth, 33, 19), reversedZ);
-    assertSamePyramid(flat, nested, `33×19 reversedZ=${reversedZ}`);
-  }
+  const flat = hizBuildFlat(depth, 33, 19);
+  const nested = hizBuildPyramid(rows(depth, 33, 19));
+  assertSamePyramid(flat, nested, '33×19');
 });
 
 test('NaN, Infinity, -Infinity et -0 se propagent à l’identique', () => {

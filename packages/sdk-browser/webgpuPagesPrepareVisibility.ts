@@ -7,7 +7,7 @@ import {
 } from './webgpuVisibilityPipelines.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
 import { shadeBindEntries } from './webgpuBindEntries.ts';
-import { MAX_DEPTH_LAYER, depthLayerBias } from '../sdk-core/index.ts';
+import { MAX_DEPTH_LAYER, depthLayerUnits } from '../sdk-core/index.ts';
 import { createGpuHiz } from './gpuHiz.ts';
 import { createGpuDraw } from './gpuDraw.ts';
 import { createGpuPartition } from './gpuPartitionFactory.ts';
@@ -106,7 +106,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       diag.engineDiagnostic('coplanar-layers-ready', 'Couches coplanaires prêtes', {
         layers: vis.drawLayerSlots - 1,
         pipelines: vis.visLayerPipelines.length,
-        biasUnitsPerLayer: -depthLayerBias(1),
+        biasUnitsPerLayer: depthLayerUnits(1),
       });
     } catch (error) {
       diag.diagnosticFailure('coplanar-layer-pipelines-failed', error);

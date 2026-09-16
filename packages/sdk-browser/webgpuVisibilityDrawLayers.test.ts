@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
-import { depthLayerBias } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/index.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32, MAX_DRAW_SLOTS, slotCount } from './gpuDraw.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
@@ -163,7 +163,7 @@ test('createWebgpuCoplanarLayerPipelines builds five cull pipelines per extra la
   const two = await createWebgpuCoplanarLayerPipelines(device, visModule, bindGroupLayout, true, 2);
   assert.equal(two.length, 10, 'five cull modes, occluder and tested, for the one extra layer');
   assert.ok(
-    created.slice(-10).every((entry) => entry.depthBias === depthLayerBias(1)),
+    created.slice(-10).every((entry) => entry.depthBias === depthLayerUnits(1)),
     'every pipeline of layer 1 carries that layer’s depth bias',
   );
 });
