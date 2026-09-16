@@ -51,6 +51,7 @@ mod faces;
 mod lex;
 mod material;
 mod mesh;
+mod normal;
 mod report;
 mod shading;
 #[cfg(test)]

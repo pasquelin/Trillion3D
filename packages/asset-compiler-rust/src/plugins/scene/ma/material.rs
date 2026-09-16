@@ -51,7 +51,7 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     pbr["baseColorFactor"] = json!([colour[0], colour[1], colour[2], alpha]);
     let mut out = json!({"name": name, "pbrMetallicRoughness": pbr});
     emission(world, shader, standard, &mut out);
-    if let Some(texture) = through_bump(world, shader) {
+    if let Some(texture) = normal::through_bump(world, shader) {
         out["normalTexture"] = texture;
     }
     let veiled = opacity_texture(world, shader, standard);
@@ -160,17 +160,6 @@ fn roughness(node: &Node) -> f64 {
 /// Le nombre de l'un de ces attributs, ou la valeur neutre quand le fichier ne l'écrit pas.
 fn number(node: &Node, names: &[&str], neutral: f64) -> f64 {
     node.attr(names).and_then(Attr::scalar).unwrap_or(neutral)
-}
-
-/// La normale branchée sur `normalCamera`. Maya y met un `bump2d`, dont l'image est l'entrée
-/// `bumpValue` : la traverser rend la texture, et toute autre source est comptée.
-fn through_bump(world: &mut World<'_>, shader: usize) -> Option<Value> {
-    let (document, graph) = (world.document, world.graph);
-    let (source, _) = graph.input(shader, &["n", "normalCamera"])?;
-    if document.nodes[source].kind == "bump2d" {
-        return texture::connected(world, source, &["bv", "bumpValue"]);
-    }
-    texture::of(world, source)
 }
 
 /// Une image branchée sur l'opacité ou la transparence. glTF ne porte l'opacité que dans l'alpha de

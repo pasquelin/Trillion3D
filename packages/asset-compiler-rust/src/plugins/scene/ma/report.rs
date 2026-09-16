@@ -72,6 +72,13 @@ pub(super) const MATERIAL_UNSUPPORTED: &str = "ma-material-unsupported";
 pub(super) const TRANSPARENCY_COLOUR: &str = "ma-transparency-colour-unsupported";
 /// Une émission au-delà de un, que `emissiveFactor` ne porte pas : elle est ramenée et comptée.
 pub(super) const EMISSION_CLAMPED: &str = "ma-emission-clamped";
+/// Un `bump2d` en relief de hauteur (`bumpInterp` 0) : glTF ne porte pas de carte de hauteur, et la
+/// prendre pour une carte de normales éclairerait la surface par une image qui n'en dit pas
+/// l'orientation. Le relief est compté, la surface reste sans `normalTexture`.
+pub(super) const BUMP_HEIGHT: &str = "ma-bump-height-unsupported";
+/// Un `bump2d` en normales d'espace objet (`bumpInterp` 2) : `normalTexture` de glTF est lue en
+/// espace tangent, et convertir demanderait la pose de la surface au moment du rendu.
+pub(super) const BUMP_OBJECT: &str = "ma-bump-object-space-unsupported";
 /// Une texture dont le fichier est absent, hors du dossier de la source, ou d'un format que le
 /// registre d'images ne lit pas.
 pub(super) const TEXTURE_MISSING: &str = "ma-texture-missing";
