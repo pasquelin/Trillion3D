@@ -62,10 +62,9 @@ export function submitColorCopy(
     width,
     height,
     drawCalls: run.gpuDrawCalls,
-    drawnTriangles:
-      run.gpuFrameActive && !run.gpuMetricsReady
-        ? null
-        : run.drawn.reduce((sum, page) => sum + page.triangles, 0),
+    // Compteur synchrone de la coupe, tenu là où le trou l'est : rien n'attend ici le retour du
+    // compte de la carte, et la garde qui le masquait ne portait donc sur rien.
+    drawnTriangles: run.drawnTriangles,
     transparent: { drawCalls: run.blendDrawCalls, submittedTriangles: run.blendSubmittedTriangles },
     presentation: capture.secondaryCamera
       ? 'surface-capture'

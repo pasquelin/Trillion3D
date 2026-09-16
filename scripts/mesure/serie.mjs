@@ -66,6 +66,10 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     profilParEtape: result.stageProfile ?? null,
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
+    // Triangles que l'image relevée a remis au dessin : la coupe moins son trou, comptée sans
+    // attendre le retour de la carte. Avec les deux voisins, `selected − drawn − uncovered` doit
+    // valoir zéro ; `resume.md` en fait sa colonne « couverture ». `null` hors de ce moteur.
+    drawnTriangles: metrics.drawnTriangles ?? null,
     // Triangles réellement soumis au dessin, relevés sur la dernière image mesurée — `imageDuReleve`
     // la nomme. `submittedTriangles` est la passe opaque, `totalSubmittedTriangles` y ajoute les
     // passes transparentes. `null` quand le compte de la carte n'était pas encore revenu à ce
