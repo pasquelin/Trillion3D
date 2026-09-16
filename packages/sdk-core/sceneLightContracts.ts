@@ -23,6 +23,16 @@ export interface SceneLight {
   /** Ponctuelle et projecteur seulement : la portée en mètres, où l'énergie s'annule exactement. */
   range?: number;
   coneAngle?: number;
+  /**
+   * Ponctuelle et projecteur seulement : le rayon, en mètres, de l'enveloppe qui porte la source.
+   * Une lampe réelle est toujours logée dans quelque chose — verre de lanterne, réflecteur, abat-jour
+   * —, et cette enveloppe est de la géométrie comme une autre : sans ce champ, elle entre dans la
+   * carte d'ombre de sa propre lampe et l'éteint. Déclaré, il devient le plan proche de cette carte,
+   * donc rien de ce qui se tient à moins de ce rayon de la source n'y projette d'ombre. C'est une
+   * propriété de la lampe, jamais un nom d'objet ni un type de matériau : le moteur ne connaît que
+   * des surfaces. Strictement positif et strictement inférieur à la portée ; absent, rien ne change.
+   */
+  emitterRadius?: number;
   castsShadow: boolean;
 }
 /**
