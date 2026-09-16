@@ -32,6 +32,7 @@ mod ma_golden;
 mod ma_matiere;
 mod ma_normales;
 mod ma_xform;
+mod mesures_travail;
 pub(crate) mod ngones;
 mod obj_golden;
 mod obj_mtl;
