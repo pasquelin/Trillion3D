@@ -45,15 +45,11 @@ export function depthNearer(a: number, b: number) {
 /**
  * La distance à l'œil d'une profondeur normalisée, `near` étant le plan proche de la projection :
  * `ndc = near / distance`, donc `distance = near / ndc`. Une profondeur nulle — le lointain — rend
- * l'infini, ce qu'elle décrit.
+ * l'infini, ce qu'elle décrit. La formule est sa propre inverse : la même fonction rend la
+ * profondeur normalisée d'un point à `distance` de l'œil.
  */
 export function depthDistance(depth: number, near: number) {
   return near / depth;
-}
-
-/** L'inverse : la profondeur normalisée d'un point à `distance` de l'œil. */
-export function depthFromDistance(distance: number, near: number) {
-  return near / distance;
 }
 
 /**
