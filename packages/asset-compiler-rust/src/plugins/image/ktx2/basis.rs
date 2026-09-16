@@ -10,8 +10,9 @@
 //! La cible est RGBA8 et rien d'autre. Garder les blocs compressés jusqu'au GPU est un autre
 //! chantier, qui demandera une variante de plus au contrat `DecodedImage` ; il ne commence pas ici.
 use super::header::Surface;
-use super::{DecodedImage, DATA_TRUNCATED, TOO_LARGE, TRANSCODE_FAILED};
+use super::{DATA_TRUNCATED, TOO_LARGE, TRANSCODE_FAILED};
 use crate::plugins::image::blocks as shared;
+use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 use basisu::{DecodeFlags, TargetFormat, Transcoder};
 

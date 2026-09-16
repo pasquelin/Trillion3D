@@ -18,7 +18,7 @@
 //! Refusés, nommés, jamais devinés : BigTIFF, multi-pages, palette, CMJN, YCbCr, CIELab, alpha
 //! associé (prémultiplié), configuration séparée, JPEG-in-TIFF, CCITT, et toute profondeur autre
 //! que 8 bits. Le 16 bits a sa propre raison : voir `DEPTH`.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
 
 mod profile;
 
@@ -69,7 +69,7 @@ impl ImageDecoder for Tiff {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         profile::check(bytes)?;
         crate_image::decode(bytes, max_alloc, image::ImageFormat::Tiff)
     }

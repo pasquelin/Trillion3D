@@ -15,7 +15,7 @@
 //! compris. Note documentaire, pas un avis d'avocat : la politique juridique du dépôt est dans
 //! `packages/asset-compiler-rust/FORMATS.md`.
 use super::crate_image::{self, ANIMATED};
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static WEBP: Webp = Webp;
 pub(super) struct Webp;
@@ -57,7 +57,7 @@ impl ImageDecoder for Webp {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         admitted(bytes)?;
         crate_image::decode(bytes, max_alloc, image::ImageFormat::WebP)
     }

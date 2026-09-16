@@ -10,18 +10,24 @@
 //! Aucun niveau intermédiaire n'est un fichier : au-dessus de `PREVIEW_BASE`, le niveau suivant est
 //! l'image source elle-même, inchangée, que l'hôte charge déjà.
 //!
-//! Chaîne de calcul, dans cet ordre : décodage → sRGB vers linéaire → prémultiplication par alpha →
-//! moyenne de boîte vers le niveau le plus fin porté → chaque niveau suivant par moyenne 2×2 du
-//! précédent → pour chaque niveau, dé-prémultiplication au tout dernier pas, linéaire vers sRGB,
-//! RGBA8 alpha droit. Le prémultiplié ne vit que dans ce module.
+//! Chaîne de calcul, dans cet ordre : décodage → la courbe **que le fichier a déclarée** vers le
+//! linéaire → prémultiplication par alpha → moyenne de boîte vers le niveau le plus fin porté →
+//! chaque niveau suivant par moyenne 2×2 du précédent → pour chaque niveau, dé-prémultiplication au
+//! tout dernier pas, linéaire vers sRGB, RGBA8 alpha droit. Le prémultiplié ne vit que dans ce
+//! module. La première courbe n'est pas toujours celle du sRGB : un conteneur GPU qui nomme une
+//! variante `_UNORM`, ou dont le descripteur de format déclare un transfert linéaire, porte des
+//! échantillons déjà proportionnels à la lumière, que la courbe sRGB décoderait une seconde fois.
+//! La sortie, elle, reste du sRGB dans tous les cas : c'est le format exact de la vraie texture, et
+//! ce que le sidecar binaire transporte — sa version ne bouge donc pas.
 //!
 //! Un décodage impossible — un format hors du registre des pilotes d'image, un PNG corrompu, une
 //! image absente — est une entrée de rapport nommée et aucun niveau : la compilation n'échoue jamais pour une texture, et le moteur retombe
 //! sur son blanc.
 use super::*;
-use crate::plugins::image::DecodedImage;
+use crate::plugins::image::{DecodedImage, Transfer};
 
 mod collect;
+mod curves;
 mod levels;
 mod reduce;
 mod source;
@@ -99,6 +105,9 @@ pub(super) fn stage_texture_previews(
     let images = inputs.g.get("images").and_then(Value::as_array);
     let mut previews = Vec::new();
     let mut skipped: BTreeMap<&'static str, usize> = BTreeMap::new();
+    // Les raisons qu'un pilote pose à côté d'une image qu'il a bien rendue : ce que le fichier
+    // déclarait et que la sortie ne porte pas. Comptées par texture, jamais confondues avec un refus.
+    let mut notes: BTreeMap<&'static str, usize> = BTreeMap::new();
     for entry in &wanted {
         check(inputs.o)?;
         let (Some(textures), Some(images)) = (textures, images) else {
@@ -106,14 +115,19 @@ pub(super) fn stage_texture_previews(
             continue;
         };
         match one_preview(inputs, textures, images, entry) {
-            Ok(preview) => previews.push(preview),
+            Ok((preview, declared)) => {
+                for note in declared {
+                    *notes.entry(note).or_default() += 1;
+                }
+                previews.push(preview);
+            }
             Err(reason) => *skipped.entry(reason).or_default() += 1,
         }
     }
     let pixel_bytes: usize = previews.iter().map(|entry| entry.pixels.len()).sum();
     let report = json!({"version":TEXTURE_PREVIEW_VERSION,"base":PREVIEW_BASE,
         "maxLevels":PREVIEW_MAX_LEVELS,"colorTextures":wanted.len(),"previews":previews.len(),
-        "pixelBytes":pixel_bytes,"skipped":skipped});
+        "pixelBytes":pixel_bytes,"skipped":skipped,"notes":notes});
     Ok((previews, report))
 }
 
@@ -122,7 +136,7 @@ fn one_preview(
     textures: &[Value],
     images: &[Value],
     entry: &collect::ColorTexture,
-) -> std::result::Result<TexturePreview, &'static str> {
+) -> std::result::Result<(TexturePreview, Vec<&'static str>), &'static str> {
     let texture = textures.get(entry.texture).ok_or("texture-out-of-bounds")?;
     let image_index = texture
         .get("source")
@@ -130,15 +144,16 @@ fn one_preview(
         .ok_or("texture-without-image")? as usize;
     let image = images.get(image_index).ok_or("image-out-of-bounds")?;
     let (bytes, provenance) = source::image_bytes(inputs, image)?;
-    let decoded = match crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC)? {
+    let source = crate::plugins::image::decode(&bytes, PREVIEW_MAX_ALLOC)?;
+    let decoded = match source.image {
         DecodedImage::Rgba8(pixels) => pixels,
         // Un aperçu est du RGBA8 sRGB, le format exact de la vraie texture. Y faire entrer une
         // image flottante demanderait un report de tons, c'est-à-dire une perte que la source
         // n'avait pas : la texture est nommée au rapport et n'a pas d'aperçu, jamais rognée.
         DecodedImage::RgbaF32 { .. } => return Err("image-float-unsupported"),
     };
-    let (first_level, pixels) = reduce::pyramid(&decoded, entry.cutoff);
-    Ok(TexturePreview {
+    let (first_level, pixels) = reduce::pyramid(&decoded, source.transfer, entry.cutoff);
+    let preview = TexturePreview {
         texture: u32::try_from(entry.texture).map_err(|_| "texture-out-of-bounds")?,
         image: u32::try_from(image_index).map_err(|_| "image-out-of-bounds")?,
         width: decoded.width(),
@@ -147,5 +162,6 @@ fn one_preview(
         sha256: hash(&bytes),
         first_level,
         pixels,
-    })
+    };
+    Ok((preview, source.notes))
 }

@@ -8,6 +8,13 @@
 //! exactement, un simple flottant y passe tel quel. Rien n'est ramené à huit bits, rien n'est
 //! reporté en tons, rien n'est remis à l'échelle — d'où la variante `DecodedImage::RgbaF32`.
 //!
+//! **L'alpha d'un OpenEXR est associé.** La « Technical Introduction to OpenEXR » définit les
+//! composantes RGB comme déjà multipliées par l'alpha du pixel ; le contrat de sortie, lui, demande
+//! un alpha droit. Ce pilote divise donc chaque composante par l'alpha avant de rendre l'image —
+//! sans quoi l'aperçu, qui prémultiplie à son tour, prémultiplierait une seconde fois et assombrirait
+//! toute surface translucide. Un pixel d'alpha nul garde ses composantes : sous un alpha nul il n'y
+//! a pas de couleur droite à retrouver, et rien n'est divisé par zéro.
+//!
 //! **Sous-ensemble accepté**, déclaré ici et nulle part ailleurs : une seule partie, plate (non
 //! profonde), à son plus grand niveau de résolution, avec les canaux `R`, `G`, `B` et, s'il y en a
 //! un, `A` — en demi ou simple précision, sans sous-échantillonnage. Les canaux sont lus par leur
@@ -15,12 +22,12 @@
 //! multi-parties, canaux absents, canaux d'un autre nom (AOV, `Y`/`RY`/`BY`, profondeur), entiers
 //! 32 bits, chroma sous-échantillonnée. Un fichier hors sous-ensemble laisse le moteur retomber sur
 //! son blanc ; il n'est jamais deviné ni approché.
-use super::{float_budget, DecodedImage, ImageDecoder, Plugin};
-use ::exr::image::RgbaChannels;
+use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin};
 use ::exr::math::Vec2;
 use ::exr::meta::attribute::SampleType;
 use ::exr::meta::MetaData;
-use ::exr::prelude::traits::{read, ReadChannels, ReadLayers};
+
+mod samples;
 
 pub(super) static EXR: Exr = Exr;
 pub(super) struct Exr;
@@ -55,8 +62,11 @@ impl Plugin for Exr {
     fn name(&self) -> &'static str {
         "exr"
     }
+    /// Le suffixe nomme l'alpha rendu. Il a été ajouté avec la dé-prémultiplication, parce que la
+    /// version entre dans l'identité du cache : sans elle, une entrée écrite du temps où les
+    /// échantillons associés sortaient tels quels serait relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "exr-openexr-2.0-exrs-1.74.2"
+        "exr-openexr-2.0-exrs-1.74.2-alpha-droit"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["exr"]
@@ -78,9 +88,9 @@ impl ImageDecoder for Exr {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         let (width, height) = subset(bytes, max_alloc)?;
-        pixels(bytes, width, height)
+        samples::read_all(bytes, width, height)
     }
 }
 
@@ -142,42 +152,4 @@ fn channels(header: &::exr::meta::header::Header) -> std::result::Result<(), &'s
     } else {
         Err(CHANNELS)
     }
-}
-
-/// Les pixels du seul calque, à son plus grand niveau de résolution, rangés ligne du haut d'abord.
-/// Un fichier sans canal `A` rend un alpha opaque, comme le prescrit la spécification. La lecture
-/// est séquentielle : le compilateur borne ses propres fils, un décodeur de texture ne lui en prend
-/// pas d'autres dans le dos.
-fn pixels(
-    bytes: &[u8],
-    width: u32,
-    height: u32,
-) -> std::result::Result<DecodedImage, &'static str> {
-    let stride = width as usize;
-    let image = read()
-        .no_deep_data()
-        .largest_resolution_level()
-        .rgba_channels(
-            move |size: Vec2<usize>, _: &RgbaChannels| vec![0.0_f32; size.area() * 4],
-            move |data: &mut Vec<f32>, at: Vec2<usize>, (r, g, b, a): (f32, f32, f32, f32)| {
-                let base = (at.y() * stride + at.x()) * 4;
-                if let Some(pixel) = data.get_mut(base..base + 4) {
-                    pixel.copy_from_slice(&[r, g, b, a]);
-                }
-            },
-        )
-        .first_valid_layer()
-        .all_attributes()
-        .non_parallel()
-        .from_buffered(std::io::Cursor::new(bytes))
-        .map_err(|_| UNREADABLE)?;
-    let data = image.layer_data.channel_data.pixels;
-    if data.len() != stride * height as usize * 4 {
-        return Err(UNREADABLE);
-    }
-    Ok(DecodedImage::RgbaF32 {
-        width,
-        height,
-        data,
-    })
 }

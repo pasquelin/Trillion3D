@@ -25,7 +25,7 @@
 //! RGBA8, BGRA8 et BGRX8. Tout le reste — BC6H flottant, variantes signées, `DXT2`/`DXT4` à alpha
 //! prémultiplié, formats 16 bits, YUV, cubes, volumes, tableaux — est un refus nommé, jamais une
 //! panique : une texture illisible laisse le moteur retomber sur son blanc.
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod blocks;
 mod codec;
@@ -54,8 +54,11 @@ impl Plugin for Dds {
     fn name(&self) -> &'static str {
         "dds"
     }
+    /// Le suffixe nomme la fonction de transfert portée jusqu'à la sortie. Il a été ajouté avec
+    /// elle, parce que la version entre dans l'identité du cache : une entrée écrite du temps où
+    /// toute surface était rendue sRGB porte un aperçu décodé deux fois.
     fn version(&self) -> &'static str {
-        "dds-texture2ddecoder-0.1.2"
+        "dds-texture2ddecoder-0.1.2-transfert"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["dds"]
@@ -77,7 +80,9 @@ impl ImageDecoder for Dds {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
-        blocks::decode(&header::parse(bytes)?, bytes, max_alloc)
+    ) -> std::result::Result<ImageDecoded, &'static str> {
+        let surface = header::parse(bytes)?;
+        let image = blocks::decode(&surface, bytes, max_alloc)?;
+        Ok(ImageDecoded::srgb(image).with_transfer(surface.transfer))
     }
 }

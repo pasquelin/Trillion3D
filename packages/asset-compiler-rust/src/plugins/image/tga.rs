@@ -8,7 +8,7 @@
 //! pilote reconnaît donc un TGA de deux façons : son extension, par le registre, puis la structure
 //! de son entête — chaque champ dans son domaine et les champs cohérents entre eux. Le pied de la
 //! 2.0, quand les octets fournis vont jusque-là, suffit à lui seul.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static TGA: Tga = Tga;
 pub(super) struct Tga;
@@ -51,7 +51,7 @@ impl ImageDecoder for Tga {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         crate_image::decode(bytes, max_alloc, image::ImageFormat::Tga)
     }
 }

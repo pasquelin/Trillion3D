@@ -23,7 +23,7 @@
 //! par le décodeur : c'est une perte, elle est donc écartée avant tout décodage, par un nom. Les
 //! compressions qui emballent un autre format (`BI_JPEG`, `BI_PNG`) et celles hors du format lu
 //! (`BI_ALPHABITFIELDS`, les variantes CMJN) sont nommées de la même façon.
-use super::{crate_image, DecodedImage, ImageDecoder, Plugin};
+use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
 
 pub(super) static BMP: Bmp = Bmp;
 pub(super) struct Bmp;
@@ -94,7 +94,7 @@ impl ImageDecoder for Bmp {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         admitted(bytes)?;
         crate_image::decode(bytes, max_alloc, image::ImageFormat::Bmp)
     }
