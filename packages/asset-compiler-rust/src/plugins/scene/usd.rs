@@ -35,6 +35,7 @@ use std::{
 mod convert;
 mod extras;
 mod layer;
+mod light;
 mod material;
 mod matrix;
 mod mesh;
@@ -68,7 +69,7 @@ impl Plugin for Usd {
     /// La version nomme le lecteur et la génération de la conversion : la changer invalide les
     /// caches, donc toute scène USD déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "usd-openusd-0.7.0-gltf-7"
+        "usd-openusd-0.7.0-gltf-8"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["usd", "usda", "usdc"]
