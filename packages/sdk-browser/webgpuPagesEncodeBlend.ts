@@ -7,6 +7,7 @@ import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
+import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import { directLightResources, wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { EngineCamera } from './cameraWorld.ts';
@@ -113,9 +114,12 @@ export function encodeSurfaceLighting(
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
   encodeBlend(rt, device, encoder, uniformBase);
-  const presentation = capture.secondaryCamera
-    ? undefined
-    : gpu.presenter?.targetView(width, height);
+  // Diagnostic seul : la variante hors écran ne demande pas la vue de la chaîne d'échange. La passe
+  // de composition reste la même, à une cible de couleur près — c'est ce qui isole la présentation.
+  const presentation =
+    capture.secondaryCamera || composesOffscreen(rt.context?.diagnosticGpuVariant)
+      ? undefined
+      : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
   gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation);
   return !!presentation;
