@@ -11,6 +11,7 @@ import {
   VIS_TRIANGLE_MASK,
   type VisPage,
 } from './visibilityTypes.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 function fillIds(
   ids: Uint32Array,
@@ -73,7 +74,8 @@ export function rasterVisibility(
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
   depth.fill(Infinity);
-  camera.updateWorldMatrix(true, false);
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

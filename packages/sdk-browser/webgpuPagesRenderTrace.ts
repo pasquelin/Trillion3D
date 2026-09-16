@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { urlsOf } from './webgpuPagesHelpers.ts';
-import { cameraPose } from './webgpuPagesStateTiming.ts';
+import { cameraPose } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every full frame snapshot starts from the same identity: backend, frame, submission, pose and
