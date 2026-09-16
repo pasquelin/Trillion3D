@@ -85,7 +85,11 @@ export function createWebgpuCutAdopter(options: {
     // même catalogue, rendent les mêmes enregistrements dans le même ordre. Un relevé dont ils sont
     // déjà faits ne les refait donc pas — seuls les comptes sont relus, et eux seuls dépendent de la
     // résidence. La liste est parcourue une fois au lieu d'être vidée puis repoussée trois fois.
-    const held = cut === shownCut;
+    // `shown` est une fonction de la seule suite d'identifiants dessinables : un relevé neuf qui
+    // republie la même suite rend les mêmes fiches, aux mêmes rangs. La différence vient de le dire,
+    // donc ni `shown` ni sa recopie `drawn` ne sont refaits. `shownCut` nul veut dire que ces listes
+    // viennent d'ailleurs — la coupe processeur les a réécrites — et là tout est refait.
+    const held = cut === shownCut || (shownCut !== null && !drawnDelta.changed);
     const counts = shownFromGpu(
       packedPages,
       cut.result.drawablePageIds,
