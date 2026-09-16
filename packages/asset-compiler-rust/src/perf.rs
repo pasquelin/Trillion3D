@@ -5,9 +5,11 @@
 //! à simplifier. Chaque compilation crée donc ses propres compteurs, les attache au fil qui la mène
 //! et à chaque ouvrier de sa grappe, et ne relit qu'eux.
 //!
-//! Ces durées se chevauchent : elles s'additionnent d'un fil à l'autre et mesurent du temps de
-//! calcul, jamais celui d'un travail. Le manifeste les publie sous `phaseCpuMs`, et leur somme n'est
-//! le total de rien.
+//! Ces durées se chevauchent : chaque chronomètre mesure le temps **écoulé** entre sa naissance et
+//! sa mort, et ces intervalles s'additionnent d'un fil à l'autre. Du temps écoulé n'est pas du temps
+//! de processeur : une attente, une écriture ou un fil préempté entrent dans la phase sans qu'aucun
+//! calcul ait lieu. Le manifeste les publie donc sous `phaseElapsedMs`, leur somme n'est le total de
+//! rien, et `cpuMs` reste nul tant que personne ne mesure vraiment le processeur.
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::sync::{
@@ -25,7 +27,7 @@ macro_rules! phases {
   pub enum Phase{$($variant),*}
   impl Phases{
    fn slot(&self,phase:Phase)->&AtomicU64{match phase{$(Phase::$variant=>&self.$field),*}}
-   /// Milliseconds per phase, as a flat object.
+   /// Elapsed milliseconds accumulated per phase, as a flat object.
    fn report(&self)->Value{json!({$($label:(self.$field.load(Ordering::Relaxed) as f64)/1.0e6),*})}
   }
  }
@@ -82,8 +84,9 @@ impl Drop for Attached {
     }
 }
 
-/// Ajoute sa durée de vie au compteur du travail attaché au fil courant. Un fil qui n'en sert aucun
-/// ne compte rien plutôt que d'alimenter le travail d'un autre.
+/// Ajoute sa durée de vie — le temps écoulé, pas celui du processeur — au compteur du travail
+/// attaché au fil courant. Un fil qui n'en sert aucun ne compte rien plutôt que d'alimenter le
+/// travail d'un autre.
 pub struct Timer {
     start: Instant,
     phases: Option<Arc<Phases>>,
