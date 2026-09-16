@@ -88,6 +88,13 @@ deux côtés, sinon l'écart mesuré porte d'abord les ombres que seul le moteur
   Par défaut 1. Un lot qui touche aux instances se mesure aux deux nombres, et le rapport porte
   dans chaque ligne la mémoire de géométrie publiée par le moteur (colonne « géométrie (Mo) » :
   octets du cache de pages plus tampons de sommets, `null` si le moteur ne la publie pas).
+- `--chemin-math auto|js|wasm` (par défaut `auto`) : le chemin des calculs en lot du socle. `auto`
+  laisse le gouverneur arbitrer par la mesure — aucun seuil n'est écrit dans le code —, `js` et
+  `wasm` l'imposent pour toute la campagne, ce qui met les deux chemins face à face à scène, poses
+  et cache identiques. Le tableau « Chemin de calcul en lot » de `resume.md` publie, par côté et par
+  opération, le chemin réellement joué, les deux médianes en nanosecondes par élément, les bascules
+  et les éléments traités ; le relevé complet est dans `series[].sides[].cheminCalcul`. Une médiane
+  qu'aucune exécution n'a nourrie vaut « non mesuré », jamais zéro.
 - `--visible` : ouvre une vraie fenêtre. Sans fenêtre, l'affichage plafonne à 60 Hz sur ce Mac.
 - `--images-profil` (120 par défaut) : les images de la boucle de profil, jouée après la boucle
   mesurée et sans la remplacer. Elle rend la main au navigateur entre deux images, parce que les

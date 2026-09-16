@@ -8,6 +8,7 @@
 //! chargeur JavaScript refait ses vues là et nulle part ailleurs.
 
 use crate::math::{box_transform_batch, multiply_matrix4_batch, BOX_VALUES, MATRIX_VALUES};
+use crate::math_hierarchy::{hierarchy_update_batch, POSITION_VALUES, QUATERNION_VALUES};
 use crate::wasm::{fuite, rends};
 
 /// Version du contrat de cette ABI. Le chargeur refuse un module qui ne rend pas celle qu'il attend.
@@ -78,6 +79,31 @@ pub unsafe extern "C" fn math_multiply_matrix4_batch(out: u32, a: u32, b: u32, n
         core::slice::from_raw_parts_mut(out as *mut f64, values),
         core::slice::from_raw_parts(a as *const f64, values),
         core::slice::from_raw_parts(b as *const f64, values),
+        n,
+    );
+}
+
+/// La hiérarchie entière : `n` nœuds rangés parents avant enfants. Les offsets sont des octets,
+/// alignés sur huit, sauf `parents`, qui porte `n` mots de 32 bits alignés sur quatre.
+///
+/// # Safety
+/// Les cinq plages doivent tenir dans des réservations vivantes d'`arena_alloc`, être disjointes, et
+/// porter respectivement `16 · n`, `3 · n`, `4 · n` et `3 · n` flottants, puis `n` entiers.
+#[no_mangle]
+pub unsafe extern "C" fn math_hierarchy_update_batch(
+    world: u32,
+    positions: u32,
+    rotations: u32,
+    scales: u32,
+    parents: u32,
+    n: usize,
+) {
+    hierarchy_update_batch(
+        core::slice::from_raw_parts_mut(world as *mut f64, n * MATRIX_VALUES),
+        core::slice::from_raw_parts(positions as *const f64, n * POSITION_VALUES),
+        core::slice::from_raw_parts(rotations as *const f64, n * QUATERNION_VALUES),
+        core::slice::from_raw_parts(scales as *const f64, n * POSITION_VALUES),
+        core::slice::from_raw_parts(parents as *const u32, n),
         n,
     );
 }

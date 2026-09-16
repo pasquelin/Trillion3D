@@ -5,12 +5,17 @@ import type { SdkWasm } from './geometryPageWasm.ts';
  * lesquels JavaScript pose ses vues typées. Les deux côtés lisent et écrivent les mêmes octets ;
  * rien n'est recopié sur le chemin de calcul.
  *
- * LA CROISSANCE, À UN SEUL ENDROIT. `WebAssembly.Memory.grow` remplace le `ArrayBuffer` et détache
- * toutes les vues déjà construites : une vue caduque lit zéro sans rien signaler. Ici, la seule
- * fonction qui peut faire grandir la mémoire est `reserveArena`, qui alloue une fois pour tout le
- * lot puis construit TOUTES les vues après. Tant qu'un tampon est vivant, les appels de calcul
- * n'allouent rien — les noyaux écrivent dans les blocs qu'on leur désigne — donc aucune vue ne
- * devient caduque en cours d'image. Réserver par lot, jamais par image.
+ * LA CROISSANCE, TENUE PAR UNE GÉNÉRATION. `WebAssembly.Memory.grow` remplace le `ArrayBuffer` et
+ * détache toutes les vues déjà construites : une vue caduque lit zéro sans rien signaler. N'importe
+ * quelle allocation du module peut la provoquer — un décodage de page replié sur le fil principal
+ * autant qu'une seconde réservation —, donc l'interdire ailleurs ne suffisait pas. Ici, `blocs()`
+ * compare le tampon courant du module à celui qui portait les vues et les RECONSTRUIT toutes quand
+ * il a changé, en comptant une génération de plus. Les octets, eux, survivent : `grow` recopie la
+ * mémoire, et un bloc garde donc son offset et son contenu. Rien n'est jamais recopié par nous.
+ *
+ * Un appelant ne garde donc pas une vue d'une image à l'autre : il la redemande par `blocs()`, qui
+ * ne coûte qu'une comparaison de tampon tant que la mémoire n'a pas bougé. Les offsets, eux, sont
+ * stables pour toute la vie du tampon — ce sont eux que les fonctions du module reçoivent.
  *
  * Un bloc porte son propre type : `Float64Array` pour les matrices, les boîtes, les sphères et les
  * erreurs, `Float32Array` pour ce qui arrive déjà en simple précision, `Uint32Array` pour les
@@ -52,7 +57,13 @@ export interface ArenaBloc {
 }
 
 export interface Arena {
-  readonly blocs: readonly ArenaBloc[];
+  /**
+   * Les blocs du tampon, leurs vues reconstruites si la mémoire du module a grandi depuis le dernier
+   * appel. Vide une fois le tampon rendu : plus aucune vue ne désigne une mémoire à nous.
+   */
+  blocs(): readonly ArenaBloc[];
+  /** Reconstructions subies depuis la réservation. Zéro dit que la mémoire n'a jamais bougé. */
+  generation(): number;
   readonly octets: number;
   /** Les `n` premiers éléments d'un bloc : la partie utile d'une sortie à taille variable. */
   liste(index: number, n: number): ArenaView;
@@ -96,24 +107,36 @@ export function reserveArena(wasm: SdkWasm, demandes: readonly ArenaDemande[]): 
   }
   const base = wasm.arena_alloc(octets);
   if (!base) return null;
-  // Après cette allocation, et seulement après, la mémoire linéaire est à sa taille définitive pour
-  // la durée du tampon : toutes les vues se construisent ici.
-  const memoire = wasm.memory.buffer;
-  const blocs: ArenaBloc[] = plan.map(({ demande, debut }) =>
-    bloc(
-      demande,
-      base + debut,
-      new CONSTRUCTEURS[demande.type](memoire, base + debut, demande.longueur),
-    ),
-  );
+  const construit = () =>
+    plan.map(({ demande, debut }) =>
+      bloc(
+        demande,
+        base + debut,
+        new CONSTRUCTEURS[demande.type](wasm.memory.buffer, base + debut, demande.longueur),
+      ),
+    );
+  let blocs = construit();
+  let porteur = wasm.memory.buffer;
+  let generation = 0;
   let rendu = false;
+  /** Les blocs à jour : une comparaison de tampon, et une reconstruction seulement s'il a changé. */
+  const actuels = () => {
+    if (!rendu && wasm.memory.buffer !== porteur) {
+      porteur = wasm.memory.buffer;
+      generation++;
+      blocs = construit();
+    }
+    return blocs;
+  };
   return {
-    blocs,
+    blocs: actuels,
+    generation: () => generation,
     octets,
-    liste: (index, n) => blocs[index].vue.subarray(0, n),
+    liste: (index, n) => actuels()[index].vue.subarray(0, n),
     libere: () => {
       if (rendu) return;
       rendu = true;
+      blocs = [];
       wasm.arena_free(base, octets);
     },
   };
