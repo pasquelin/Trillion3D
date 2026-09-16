@@ -82,32 +82,41 @@ export function planArrivalHere(url: string, words: number, specs: Int32Array | 
  * transports : le plan rendu est le même aux bits près, puisque c'est la même arithmétique
  * d'entiers dans le même ordre.
  *
+ * Le retour dit lequel des deux a servi : un PLAN quand il était déjà là — pas de file ouverte, ou
+ * rien à planifier — et une PROMESSE seulement quand un message est réellement parti. L'appelant
+ * n'attend donc jamais un aller-retour qui n'a pas lieu : une arrivée planifiée en ligne est
+ * livrable dans le tour où elle s'empile, et c'est ce que le drain applique.
+ *
  * Aucun octet de page ne voyage : la fiche d'une requête — offsets, triangles, rangs de page — ne
  * tient que des entiers du catalogue, et elle ne part qu'à la première arrivée de cette adresse.
  * Le tampon du cache reste donc intact chez son propriétaire, ni copié ni détaché.
  */
-export async function planArrival(
+export function planArrival(
   url: string,
   words: number,
   specs: Int32Array | undefined,
-): Promise<ArrivalPlan | undefined> {
+): ArrivalPlan | undefined | Promise<ArrivalPlan | undefined> {
   const open = openLane();
-  if (!open) return planArrivalHere(url, words, specs);
+  // Sans fiche, et sans fiche déjà connue de la file, il n'y a rien à faire planifier : le repli en
+  // ligne le dit tout de suite plutôt que de faire traverser un message pour un refus.
+  if (!open || (!specs && !laneKnown.has(url))) return planArrivalHere(url, words, specs);
   const send = !laneKnown.has(url);
   if (send && specs) laneKnown.add(url);
-  const answer = await open.submit(
+  const sent = open.submit(
     url,
     words,
     send && specs ? (specs.slice().buffer as ArrayBuffer) : null,
   );
-  // Un worker disparu, ou un worker sans la fiche, ne perd rien : les octets sont restés chez leur
-  // propriétaire, et le fil principal sait faire le même plan.
-  if (!answer.ok) {
-    if (!open.alive) laneKnown = new Set();
-    else laneKnown.delete(url);
-    return planArrivalHere(url, words, specs);
-  }
-  return read(answer, true);
+  return sent.then((answer) => {
+    // Un worker disparu, ou un worker sans la fiche, ne perd rien : les octets sont restés chez leur
+    // propriétaire, et le fil principal sait faire le même plan.
+    if (!answer.ok) {
+      if (!open.alive) laneKnown = new Set();
+      else laneKnown.delete(url);
+      return planArrivalHere(url, words, specs);
+    }
+    return read(answer, true);
+  });
 }
 
 /** Plans faits hors fil, temps cumulé des plans, présence d'un worker. `null` quand rien n'a été
