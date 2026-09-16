@@ -106,7 +106,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.5.0",
+  "compilerVersion": "0.6.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
@@ -143,12 +143,12 @@ Every duration a job publishes belongs to that job alone: its counters are creat
 | `metrics.clusterHierarchyPagesMs` | manifest and pointer         | Clustering, paging, coplanar cuts, resident proxy and lights                                        |
 | `metrics.compileMs`               | manifest                     | Wall time up to the moment the manifest is serialized — the last thing a file can know about itself |
 | `metrics.pruneMs`                 | pointer                      | Wall time of the cache purge that follows publication                                               |
-| `metrics.phaseCpuMs`              | manifest                     | CPU time accumulated per phase, over every worker thread                                            |
+| `metrics.phaseElapsedMs`          | manifest                     | Elapsed time accumulated per phase, over every worker thread                                        |
 | `metrics.wallMs`                  | pointer and `complete` event | Wall time of the whole job, taken once the manifest is written and the cache purged                 |
 
-`clusters.json` is written before the purge, so it carries `compileMs`, never `wallMs`: a file cannot hold a duration measured after it was written. The pointer on stdout and the `complete` event carry `wallMs` and `pruneMs`; `wallMs` is therefore at least `compileMs + pruneMs`, and at least any single phase.
+`clusters.json` is written before the purge, so it carries `compileMs`, never `wallMs`: a file cannot hold a duration measured after it was written. The pointer on stdout and the `complete` event carry `wallMs` and `pruneMs`; `wallMs` is therefore at least `compileMs + pruneMs`; it bounds a single phase only when one thread did the work.
 
-The phases under `phaseCpuMs` **overlap**. They are summed across worker threads, so they measure computing time, not the length of a job: with `threads > 1` their total exceeds `wallMs`, and adding them together is meaningless. Unmeasured values stay `null` (`peakRssBytes`, `cpuMs`, `diskBytesRead`).
+The phases under `phaseElapsedMs` **overlap**, and each one is elapsed time — the interval a stage lived through, the same clock as `compileMs` and `wallMs`. Elapsed is not CPU: a wait, a disk write or a descheduled thread lands in the phase that was open, so a host callback that sleeps 250 ms inside a phase adds 250 ms to it, and no process used a processor meanwhile. They are also summed across worker threads: with `threads > 1` their total exceeds `wallMs`, and adding them together is meaningless. Nothing here measures processor time; unmeasured values stay `null` (`peakRssBytes`, `cpuMs`, `diskBytesRead`).
 
 ## Batch mode
 
