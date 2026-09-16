@@ -8,7 +8,7 @@
  * de grappe et son cône de page pour refaire le même rejet. C'est de la bande passante, pas du
  * calcul : ces passes lisent 112 octets par grappe et rien d'autre ne les retient.
  *
- * `dagWanted`, qui les parcourt toutes de toute façon, dépose donc l'indice de chaque survivante
+ * `dagWanted`, qui parcourt les candidates de la descente, dépose donc l'indice de chaque survivante
  * dans une liste, et les cinq noyaux se répartissent indirectement sur cette liste seule. Le verdict
  * de chacun est inchangé : ils commençaient tous par `visible`, et une grappe absente de la liste est
  * précisément une grappe dont `visible` était faux — donc une grappe dont ils ne faisaient rien.
@@ -18,8 +18,8 @@
  * incrémente le compte lui-même. Il vaut donc exactement `ceil(vivantes / 64)`, sans lancement de
  * plus et sans la latence fixe qu'un lancement d'un seul fil paie quand même.
  *
- * Le masque est la seule des cinq à écrire pour toutes : `dagWanted` remet son drapeau de dessin à
- * zéro au passage, ce que le masque faisait pour les rejetées.
+ * Le masque est la seule des cinq à écrire un drapeau de dessin ; celles qu'il ne visite pas valent
+ * déjà zéro, `dagClearDrawn` ayant effacé les seules qui valaient un — celles de l'image d'avant.
  *
  * L'ordre d'écriture de la liste est celui d'un compteur atomique, donc indéterminé. Aucun des cinq
  * n'en dépend : trois accumulent par `atomicMax` et `atomicOr`, commutatifs, et le masque écrit à

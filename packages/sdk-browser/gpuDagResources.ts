@@ -20,12 +20,24 @@ export async function createDagResources(
     // Le même compte de blocs que `blockCount()` du noyau, au mot près : deux compteurs vivent
     // derrière eux dans `work` et le second est recopié vers l'argument de répartition.
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
-    liveGroupsOffset = (worldCount * 2 + blockCount * 2 + 1) * 4,
+    // Derrière les seuils et les blocs : compteur et groupes de la liste vivante, puis ceux des deux
+    // files de la descente, de la liste des candidates et du journal des dessinées.
+    workBase = worldCount * 2 + blockCount * 2,
+    liveGroupsOffset = (workBase + 1) * 4,
+    queueResetOffset = [(workBase + 2) * 4, (workBase + 4) * 4],
+    queueGroupsOffset = [(workBase + 3) * 4, (workBase + 5) * 4],
+    candGroupsOffset = (workBase + 7) * 4,
+    drawnGroupsOffset = (workBase + 9) * 4,
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
   const uniformData = new Float32Array(UNIFORM_BYTES / 4);
-  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4);
-  for (let w = 0; w < packed.worldCount; w++)
+  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
+    frameInts = new Uint32Array(frameData.buffer);
+  for (let w = 0; w < packed.worldCount; w++) {
     frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
+    // La racine de la primitive voyage avec son étirement : la préparation la dépose dans la file de
+    // la passe 0 sans qu'un tampon de stockage de plus soit lié à l'étape.
+    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
+  }
   const buffers: GPUBuffer[] = [];
   try {
     const clusters = device.createBuffer({
@@ -40,20 +52,24 @@ export async function createDagResources(
       size: UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Les drapeaux de coupe, puis les drapeaux de dessin, puis le rejet par cone retenu par
-    // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes :
-    // jamais lus par le CPU, qui ne copie toujours que les drapeaux de dessin.
+    // La file de la passe paire de la descente, puis les drapeaux de dessin, puis le rejet par cone
+    // retenu par `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes
+    // vivantes, puis la liste des candidates — qui sert aussi de journal des dessinées de l'image
+    // précédente —, puis la file de la passe impaire : jamais lus par le CPU, qui ne copie toujours
+    // que les drapeaux de dessin.
     const flags = device.createBuffer({
-      size: Math.max(16, (nodeCount + pageCount * 3) * 4),
+      size: Math.max(16, (nodeCount * 2 + pageCount * 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    // Le seul tampon neuf du lot, et il n'est lie a aucune etape : trois mots d'argument, dont les
-    // deux derniers valent un une fois pour toutes. Seul le premier est recopie a chaque image.
-    const liveArgs = device.createBuffer({
+    // Trois mots d'argument, dont les deux derniers valent un une fois pour toutes : seul le premier
+    // est recopié, une fois par répartition indirecte. Les passes se suivant, un seul tampon suffit.
+    const dispatchArgs = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
-    device.queue.writeBuffer(liveArgs, 0, new Uint32Array([0, 1, 1, 0]));
+    device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
+    // La source des remises à zéro de compteur entre deux passes : un tampon neuf vaut zéro.
+    const zeros = device.createBuffer({ size: 16, usage: GPUBufferUsage.COPY_SRC });
     const output = device.createBuffer({
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
@@ -63,7 +79,7 @@ export async function createDagResources(
     // aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint. Ce dernier mot part
     // vers l'argument de répartition, d'où la source de copie.
     const work = device.createBuffer({
-      size: Math.max(8, (worldCount * 2 + blockCount * 2 + 2) * 4),
+      size: Math.max(8, (workBase + 10) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
@@ -93,7 +109,8 @@ export async function createDagResources(
       nodes,
       uniforms,
       flags,
-      liveArgs,
+      dispatchArgs,
+      zeros,
       output,
       work,
       worlds,
@@ -138,7 +155,12 @@ export async function createDagResources(
       blockCount,
       outputBytes,
       readbackBytes,
+      levelCount: packed.levelCount,
       liveGroupsOffset,
+      queueResetOffset,
+      queueGroupsOffset,
+      candGroupsOffset,
+      drawnGroupsOffset,
       uniformData,
       frameData,
       buffers,
@@ -146,7 +168,8 @@ export async function createDagResources(
       nodes,
       uniforms,
       flags,
-      liveArgs,
+      dispatchArgs,
+      zeros,
       output,
       work,
       worlds,
