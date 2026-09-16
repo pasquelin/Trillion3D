@@ -95,7 +95,12 @@ fn binding(world: &mut World<'_>, prim: &usd::Prim, double_sided: bool) -> Optio
             strongest = Some(target);
         }
     }
-    material::resolve(world, &strongest.or(nearest)?, double_sided)
+    match strongest.or(nearest) {
+        Some(target) => material::resolve(world, &target, double_sided),
+        // Sans matériau à qui porter le double face, les deux faces sortiraient de la scène.
+        None if double_sided => material::double_sided(world),
+        None => None,
+    }
 }
 
 /// La cible de `material:binding` écrite sur ce prim, sans rien hériter.
