@@ -151,7 +151,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Les lampes déclarées par le fichier source, en espace monde, dans le contrat du moteur.
     stage_scene_lights(g, &scene_nodes, &directory, &progress)?;
-    let autonomous_scene = compiler_autonomous::write_autonomous_scene(
+    let (autonomous_scene, autonomous_refusal) = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,
         &primitives,
@@ -161,6 +161,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     if o.simplification == "none" {
         unsupported.insert(0, "simplification");
     }
+    unsupported.extend(autonomous_refusal);
     let cache_format = if primitives
         .iter()
         .any(|primitive| primitive["pass"] == "clustered-blend")
