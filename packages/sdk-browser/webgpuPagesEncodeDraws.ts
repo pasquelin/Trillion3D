@@ -100,10 +100,9 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowDirty(row);
     }
   }
-  const itemsDirty = rows.rowsChanged;
   if (vis.visEnabled && vis.visPipelineBack && vis.shadePipeline && vis.visView) {
     try {
-      return encodeVis(rt, device, cam, itemsDirty);
+      return encodeVis(rt, device, cam);
     } catch (error) {
       abandonFrameEncoder(rt);
       timing.gpuTiming?.cancelUnsubmitted();

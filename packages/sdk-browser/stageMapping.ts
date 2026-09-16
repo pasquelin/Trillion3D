@@ -14,6 +14,7 @@ import type { StageAdd } from './stageProfiler.ts';
  */
 const PASS_STAGES: Readonly<Record<string, string>> = Object.freeze({
   'WG DAG selection': 'selection',
+  'WG partition': 'partition',
   'WG draw compaction': 'selection',
   'WG HiZ pyramid': 'hiZ',
   'WG HiZ test': 'hiZ',
@@ -52,8 +53,6 @@ export const WEBGPU_STAGES = [
   'hostPages',
   'uploads',
   'partition',
-  'boxes',
-  'drawItems',
   'encode',
   'submit',
   'hiZ',

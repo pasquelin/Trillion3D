@@ -36,19 +36,21 @@ export interface WebgpuTimingState {
   /** Profil par étape publié par `stageProfile()` ; absent quand l'hôte ne l'a pas demandé. */
   stages: StageProfiler | undefined;
   // Encode-side step durations of the current image, reported by the `cpu-timing` diagnostic.
-  lastProjectMs: number;
+  /** Ce que l'encodage de la partition a coûté au processeur : les coins que la table vient de
+   *  changer, une matrice vue-projection, et trois lancements de calcul. Jamais une ligne. */
   lastPartitionMs: number;
-  lastItemsMs: number;
   /** Ce que la partition de l'image a décidé : des comptes, jamais des durées. */
   partitionCounts: {
     lignes: number;
     occulteurs: number;
     testees: number;
+    /** Boîtes qui ne coupent pas le plan proche, donc partageables par profondeur. */
     bornesToutes: number;
     historiqueOcculteurs: number;
     sansHistorique: number;
-    /** Rectangles d'écran réécrits par cette image ; zéro quand le cache décrivait déjà la vue. */
-    rectanglesProjetes: number;
+    /** L'image que ces comptes décrivent : ils sont écrits par la carte et relus périodiquement,
+     *  donc jamais ceux de l'image courante. `-1` tant qu'aucun relevé n'est revenu. */
+    imageRelevee: number;
   };
   /** Ce que l'encodage a téléversé et soumis : des comptes, jamais des durées. */
   encodeCounts: {
@@ -102,9 +104,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
     lastSubmitMs: null,
     lastQueueSubmitMs: 0,
     stages,
-    lastProjectMs: 0,
     lastPartitionMs: 0,
-    lastItemsMs: 0,
     partitionCounts: {
       lignes: 0,
       occulteurs: 0,
@@ -112,7 +112,7 @@ export function createWebgpuTimingState(stages?: StageProfiler): WebgpuTimingSta
       bornesToutes: 0,
       historiqueOcculteurs: 0,
       sansHistorique: 0,
-      rectanglesProjetes: 0,
+      imageRelevee: -1,
     },
     encodeCounts: {
       lignesTeleversees: 0,

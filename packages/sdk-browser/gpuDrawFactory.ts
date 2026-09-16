@@ -79,32 +79,19 @@ export async function createGpuDraw(
       bindGroup = makeBindGroup(boundMask);
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
     return {
-      encode(encoder, items, count, itemsDirty, restBits, maxVertexCount, selection, slotItems) {
+      encode(encoder, items, count, itemsFrom, itemsTo, maxVertexCount, selection) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
-        if (slotItems)
-          device.queue.writeBuffer(
-            slotUsedBuf,
-            0,
-            slotItems.buffer as ArrayBuffer,
-            slotItems.byteOffset,
-            SLOTS * 4,
-          );
-        if (n && itemsDirty)
+        // La plage que la table de lignes vient de réécrire, et elle seule : une image qui ne voit
+        // ni arrivée ni éviction de page n'envoie pas un octet de fiche.
+        const last = Math.min(itemsTo, n - 1);
+        if (last >= itemsFrom)
           device.queue.writeBuffer(
             itemsBuf,
-            0,
+            itemsFrom * DRAW_ITEM_U32 * 4,
             items.buffer as ArrayBuffer,
-            items.byteOffset,
-            n * DRAW_ITEM_U32 * 4,
-          );
-        if (n)
-          device.queue.writeBuffer(
-            restBuf,
-            0,
-            restBits.buffer as ArrayBuffer,
-            restBits.byteOffset,
-            Math.ceil(n / 32) * 4,
+            items.byteOffset + itemsFrom * DRAW_ITEM_U32 * 4,
+            (last - itemsFrom + 1) * DRAW_ITEM_U32 * 4,
           );
         // Only the groups the frame's items reach are counted and prefixed. The groups past them hold zero
         // by construction and nothing reads them, so bounding the serial prefix by the live count is exact.
@@ -131,6 +118,9 @@ export async function createGpuDraw(
         pass.dispatchWorkgroups(liveGroups);
         pass.end();
       },
+      itemsBuffer: itemsBuf,
+      restBitsBuffer: restBuf,
+      slotUsedBuffer: slotUsedBuf,
       indirectBuffer,
       instanceBuffer,
       slotOffsetsBuffer: groupOffsets,

@@ -5,9 +5,11 @@
 // Sans cette résolution, l'empreinte de vue de la tenue des rectangles d'écran ne verrait aucun
 // changement et le test Hi-Z recevrait les rectangles de la vue précédente.
 //
-// Deux relevés par pose : combien de rectangles l'image a réécrits (`rectanglesProjetes`, compteur
-// public de l'étape « partition »), et l'image elle-même, comparée à celle d'un moteur neuf placé
-// d'emblée à la même pose monde.
+// Les rectangles d'écran ne sont plus tenus : la partition GPU les reprojette à chaque image, pour
+// toutes les lignes résidentes, depuis les matrices que l'image lui envoie. Ce qui reste à prouver
+// est donc exactement la résolution du rig — deux images par pose, celle qui suit le déplacement et
+// celle qui ne bouge plus, chacune comparée octet pour octet à un moteur neuf placé d'emblée à la
+// même pose monde. Des matrices d'une vue précédente feraient diverger l'une ou l'autre.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { ouvrirAppareil } from '../../packages/sdk-browser/bench/justesse/appareilWebgpu.mjs';
@@ -53,7 +55,8 @@ const differences = (a, b) => {
   return n;
 };
 
-const rectangles = (backend) => comptesEtape(backend, 'partition')?.rectanglesProjetes ?? null;
+/** Les lignes que la partition de l'image a traitées : toutes les lignes dessinables, chaque image. */
+const lignes = (backend) => comptesEtape(backend, 'partition')?.lignes ?? null;
 
 /** Combien de pixels portent la couleur de la dalle lointaine : ce que l'occultation lui retire. */
 function dallePixels(pixels) {
@@ -97,17 +100,19 @@ export async function executer() {
       // L'hôte écrit le rig et RIEN d'autre : ni `updateMatrixWorld`, ni la caméra.
       rig.position.x = x;
       const bouge = await image(backend, camera);
-      const projetesApresDeplacement = rectangles(backend);
-      // Contre-test : plus rien ne bouge. Le cache doit tenir, donc ne rien reprojeter.
+      const lignesApresDeplacement = lignes(backend);
+      // Contre-test : plus rien ne bouge. L'image doit rester celle du témoin, pas une image tenue.
       const immobile = await image(backend, camera);
+      const temoin = await poseNeuve(device, x, onDiag);
       etapes.push({
         x,
-        projetesApresDeplacement,
-        projetesImmobile: rectangles(backend),
+        lignesApresDeplacement,
+        lignesImmobile: lignes(backend),
         tenueImmobile: immobile.metriques.frameHeld,
         clusters: bouge.metriques.clusters,
         dalle: dallePixels(bouge.pixels),
-        ecart: differences(bouge.pixels, await poseNeuve(device, x, onDiag)),
+        ecart: differences(bouge.pixels, temoin),
+        ecartImmobile: differences(immobile.pixels, temoin),
       });
     }
   } catch (error) {

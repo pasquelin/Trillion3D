@@ -1,5 +1,5 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
-import { bytesOf } from './webgpuPagesTestGlobals.ts';
+import { bytesOf, compactDrawnPages } from './webgpuPagesTestGlobals.ts';
 
 export function installGpuGlobals() {
   Object.assign(globalThis, {
@@ -80,10 +80,21 @@ export function mockDagDevice(
         },
         dispatchWorkgroups() {
           // The whole kernel is replayed once, on its last stage; the earlier stages still have to run.
-          if (pipeline?.entryPoint !== 'dagMask' || !bind) return;
+          const stage = pipeline?.entryPoint;
+          if ((stage !== 'dagMask' && stage !== 'dagDrawScatter') || !bind) return;
           const byBinding = new Map(
             bind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
           );
+          // La compaction relit les drapeaux de dessin, comme les trois noyaux qu'elle remplace.
+          if (stage === 'dagDrawScatter') {
+            compactDrawnPages(
+              byBinding.get(3)!.data,
+              byBinding.get(4)!.data,
+              packed.nodeCount,
+              packed.pageCount,
+            );
+            return;
+          }
           const { uniforms, residentCut } = readUniforms(byBinding.get(2)!.data);
           const resident = residentCut
             ? Uint32Array.from(

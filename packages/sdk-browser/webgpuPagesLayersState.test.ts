@@ -5,7 +5,8 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { quadScene } from './webgpuPagesTestScenes.ts';
-import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
+import { BASE_SLOTS, DRAW_ITEM_U32 } from './gpuDraw.ts';
+import { CORNER_VALUES } from './gpuPartitionContract.ts';
 import type { PageRec } from './pageSelection.ts';
 import { createWebgpuVisState } from './webgpuPagesStateVis.ts';
 import { createWebgpuPagesLayout } from './webgpuPagesLayout.ts';
@@ -38,10 +39,12 @@ test('createWebgpuVisState starts with drawLayerSlots at one and no coplanar lay
 });
 
 // webgpuPagesLayout.ts
-test('createWebgpuPagesLayout sizes binInstances for every namable coplanar layer, not just the six base slots', () => {
+test('createWebgpuPagesLayout dimensionne les coins monde par ligne dessinable, pour la partition GPU', () => {
   const layout = createWebgpuPagesLayout(fakeSetup());
-  assert.equal(layout.binInstances.length, MAX_DRAW_SLOTS);
-  assert.ok(layout.binInstances.length > BASE_SLOTS, 'sized beyond the six base slots up front');
+  // Les comptes par slot ne vivent plus ici : la partition GPU les écrit dans le tampon de la
+  // compaction. Ce que la disposition tient encore, ce sont les coins que cette partition lit.
+  assert.equal(layout.cornerPacked.length, layout.drawSlots * CORNER_VALUES);
+  assert.equal(layout.drawItemWords.length, layout.drawSlots * DRAW_ITEM_U32);
 });
 
 // webgpuPagesPipelineFor.ts

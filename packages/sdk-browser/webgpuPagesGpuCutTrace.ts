@@ -23,16 +23,12 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd;
   steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd;
   steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.residencyUploadEnd;
-  steps[CPU_STEP.projectBoxesMs] = timing.lastProjectMs;
   steps[CPU_STEP.partitionMs] = timing.lastPartitionMs;
-  steps[CPU_STEP.itemsMs] = timing.lastItemsMs;
   // L'encodage restant exclut la soumission elle-même : les deux étapes ne se recouvrent jamais.
   steps[CPU_STEP.encodeRestMs] = Math.max(
     0,
     submitMs -
-      timing.lastProjectMs -
       timing.lastPartitionMs -
-      timing.lastItemsMs -
       timing.transparentSelectMs -
       timing.transparentEncodeMs -
       timing.lastQueueSubmitMs,

@@ -1,5 +1,6 @@
 import { DAG_ERROR_WGSL } from './gpuDagShaderError.ts';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
+import { DAG_COMPACT_WGSL } from './gpuDagCompactWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,level:u32,nodeIndex:u32,flags:u32,pad0:u32,pad1:u32,}
@@ -84,7 +85,7 @@ fn visible(index:u32,cluster:Cluster)->bool{
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*uni.cameraStretch;}
 fn emitOne(page:u32){
- let cap=arrayLength(&out.pages);
+ let cap=uni.clusterCount;
  let slot=atomicAdd(&out.count,1u);
  if(slot>=cap){atomicStore(&out.overflow,1u);return;}
  out.pages[slot]=page;
@@ -185,4 +186,5 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
  flags[uni.nodeCount+i]=select(0u,1u,draw);
 }
 ${DAG_ERROR_WGSL}
-${INVERSE_TRANSPOSE_WGSL}`;
+${INVERSE_TRANSPOSE_WGSL}
+${DAG_COMPACT_WGSL}`;
