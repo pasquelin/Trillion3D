@@ -5,6 +5,7 @@ import { assertFiniteTransform } from './hostWorldMatrices.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { replicateInstances } from './replicateInstances.ts';
 import { emptyWorldBox, hostBoundsLot, hostWorldBounds } from './hostWorldBounds.ts';
+import { hostWorldLot } from './hostWorldTree.ts';
 import {
   BOX_VALUES,
   EngineError,
@@ -179,11 +180,14 @@ export async function loadPreparedScene(
     autonomous || replicas > 1
       ? await sceneBoundsLot(source, associations, metadata, autonomous)
       : null;
+  // Le tampon des matrices monde que le moteur compose lui-même, à la taille du sous-arbre.
+  const mondes = !autonomous && replicas > 1 ? await hostWorldLot(source) : null;
   const preparedBounds = autonomous
     ? exactPagesBounds(source, associations, metadata, manquante, undefined, bornes)
     : replicas > 1
-      ? hostWorldBounds(source, undefined, bornes)
+      ? hostWorldBounds(source, undefined, bornes, mondes)
       : undefined;
+  mondes?.release();
   const instances =
     replicas > 1 ? await createMultiplyLot(replicas * objects(source).length) : null;
   source = replicateInstances(source, associations, replicas, preparedBounds, instances);

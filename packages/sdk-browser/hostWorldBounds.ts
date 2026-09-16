@@ -2,14 +2,16 @@ import type * as THREE from 'three';
 import { BOX_VALUES, MATRIX_VALUES, boxEmpty, boxTransform, boxUnion } from '../sdk-core/index.ts';
 import { lotBoxesReady, unionLotBoxes } from './mathBatchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
-import { resolveHostSubtree } from './hostWorldMatrices.ts';
+import { hostWorldTree } from './hostWorldTree.ts';
+import type { HierarchyLot } from './mathBatchHierarchy.ts';
 
 /**
  * Bornes monde d'un sous-arbre de l'hôte, calculées par le socle sur des boîtes à plat.
  *
  * C'est la règle de `Box3.setFromObject` de la référence, terme à terme : tout objet du sous-arbre
  * qui porte une géométrie donne sa boîte locale, transformée par sa matrice monde, et l'union des
- * huit coins est prise. Un objet qui tient sa propre boîte — les maillages instanciés — la préfère à
+ * huit coins est prise. La matrice monde est celle que LE MOTEUR calcule depuis les poses locales de
+ * l'hôte (`hostWorldTree.ts`), jamais celle que sa bibliothèque compose. Un objet qui tient sa propre boîte — les maillages instanciés — la préfère à
  * celle de sa géométrie, comme chez elle. La transformation et l'union sont celles de `mathBox.ts` :
  * les mêmes bits, boîtes vides, NaN et infinis compris.
  */
@@ -57,23 +59,24 @@ function bornes(source: THREE.Object3D) {
 
 /** Le lot qui porte les boîtes de ce sous-arbre, ou `null` quand il n'en a aucune. */
 export async function hostBoundsLot(source: THREE.Object3D) {
-  resolveHostSubtree(source);
   const n = bornes(source);
   return n ? await createBoxTransformLot(n) : null;
 }
 
 /**
  * Union des bornes monde de `source` et de sa descendance dans `into`, qui doit arriver vide ou
- * déjà commencée. Le sous-arbre est résolu une fois, au lieu d'un appel par objet. Quand `lot` porte
- * exactement ces boîtes, elles partent EN LOT par le gouverneur ; sinon chacune passe seule, par le
- * même `boxTransform` et sur les mêmes entrées.
+ * déjà commencée. Les matrices monde du sous-arbre sont calculées une fois, en une passe : `worlds`
+ * est le tampon de hiérarchie réservé pour lui, et sans lui la passe se fait sur l'arbre du socle.
+ * Quand `lot` porte exactement ces boîtes, elles partent EN LOT par le gouverneur ; sinon chacune
+ * passe seule, par le même `boxTransform` et sur les mêmes entrées.
  */
 export function hostWorldBounds(
   source: THREE.Object3D,
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
+  worlds?: HierarchyLot | null,
 ) {
-  resolveHostSubtree(source);
+  const mondes = hostWorldTree(source, worlds);
   const enLot = lotBoxesReady(lot, bornes(source));
   let n = 0;
   source.traverse((object) => {
@@ -87,11 +90,12 @@ export function hostWorldBounds(
     out[at + 3] = box.max.x;
     out[at + 4] = box.max.y;
     out[at + 5] = box.max.z;
+    const world = mondes.world(object);
     if (enLot) {
-      enLot.mats.set(object.matrixWorld.elements, n++ * MATRIX_VALUES);
+      enLot.mats.set(world, n++ * MATRIX_VALUES);
       return;
     }
-    boxTransform(local, 0, local, 0, object.matrixWorld.elements);
+    boxTransform(local, 0, local, 0, world);
     boxUnion(into, 0, local[0], local[1], local[2], local[3], local[4], local[5]);
   });
   if (!enLot) return into;

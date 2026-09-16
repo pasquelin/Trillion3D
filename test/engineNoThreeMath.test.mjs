@@ -14,6 +14,11 @@ const browser = new URL('../packages/sdk-browser/', import.meta.url);
 // Ce qu'il n'a plus le droit de faire, c'est de CALCULER par elle : recomposer une matrice monde,
 // transformer une boîte, extraire une position, inverser, décomposer. Chaque ligne qui en garde une
 // est nommée ici avec sa raison. Y ajouter une ligne est une décision, pas un oubli.
+//
+// Depuis le lot de hiérarchie, le moteur ne LIT plus non plus les matrices monde qu'elle compose :
+// il calcule les siennes depuis les poses locales de l'hôte (`hostWorldChain.ts` pour une chaîne
+// d'ancêtres, `hostWorldTree.ts` pour un sous-arbre). La seule mise à jour qui subsiste sert la
+// scène de l'hôte, pas un nombre du moteur.
 
 /** Les fichiers du lot : chargement d'une scène, explorateur, et leurs contrats. */
 const M4A = [
@@ -39,7 +44,9 @@ const M4A = [
   'hostSceneLightState',
   'hostSceneWatch',
   'hostWorldBounds',
+  'hostWorldChain',
   'hostWorldMatrices',
+  'hostWorldTree',
   'pageSelectionCollect',
   'pageSelectionHelpers',
   'pagesBackendScenes',
@@ -77,9 +84,7 @@ const CALCULS = [
 const FRONTIERE = {
   'hostWorldMatrices.ts': {
     'node.updateMatrixWorld(true);':
-      'la frontière elle-même : la scène est à l’hôte, sa mise à jour aussi',
-    'node.updateWorldMatrix(true, false);':
-      'la même frontière, pour la seule chaîne d’ancêtres d’un nœud',
+      'la scène est à l’hôte : elle reste à jour POUR LUI, et le moteur n’en lit plus rien',
   },
   'explorerCamera.ts': {
     'const bounds = new THREE.Box3(':
