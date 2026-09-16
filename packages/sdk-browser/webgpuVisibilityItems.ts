@@ -6,12 +6,39 @@ import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { visBin } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
+/**
+ * Ce dont les fiches de dessin, les compteurs par bac et les bornes testées dépendent, et rien
+ * d'autre : la table de lignes telle qu'elle est — son âge, son âge de rangs, son nombre de lignes,
+ * et le fait qu'aucun octet de ligne n'ait changé —, la partition occulteurs/testés de cette image,
+ * et le nombre de couches coplanaires que le dessin indirect adresse.
+ *
+ * Tout cela inchangé, les tableaux que la boucle écrirait porteraient déjà exactement ce qu'ils
+ * portent : les fiches, les compteurs par bac et les bornes de la moitié testée restent en place.
+ */
+export function createVisibilityItemsHold() {
+  return {
+    armed: false,
+    tableEpoch: -1,
+    rowsEpoch: -1,
+    packedCount: -1,
+    restSignature: 0,
+    twoPass: false,
+    layerSlots: -1,
+    occluderVertices: 0,
+    restVertices: 0,
+    testedCount: 0,
+  };
+}
+
+export type VisibilityItemsHold = ReturnType<typeof createVisibilityItemsHold>;
+
 /** Builds stable indirect draw items and the tested half's compact Hi-Z bounds; the time it took
  *  lands in `rt.timing.lastItemsMs`. */
 export function buildWebgpuVisibilityItems(
   rt: WebgpuPagesRuntime,
   twoPass: boolean,
   itemsDirty: boolean,
+  restSignature: number,
 ) {
   const {
     rows,
@@ -23,7 +50,23 @@ export function buildWebgpuVisibilityItems(
     hizBounds,
     hizTestedRows,
     hizTestedTriangles,
+    itemsHold,
   } = rt.layout;
+  const layerSlots = rt.vis.drawLayerSlots - 1;
+  if (
+    itemsHold.armed &&
+    !itemsDirty &&
+    rows.dirtyTo < rows.dirtyFrom &&
+    itemsHold.tableEpoch === rows.tableEpoch &&
+    itemsHold.rowsEpoch === rows.rowsEpoch &&
+    itemsHold.packedCount === rows.packedCount &&
+    itemsHold.restSignature === restSignature &&
+    itemsHold.twoPass === twoPass &&
+    itemsHold.layerSlots === layerSlots
+  ) {
+    rt.timing.lastItemsMs = 0;
+    return itemsHold;
+  }
   let occluderVertices = 0,
     restVertices = 0,
     testedCount = 0;
@@ -33,8 +76,7 @@ export function buildWebgpuVisibilityItems(
   const packedRecs = rows.packedRecs,
     packedPageIndex = rows.packedPageIndex,
     pageTableInts = rows.pageTableInts!,
-    rowWords = PAGE_INFO_STRIDE / 4,
-    layerSlots = rt.vis.drawLayerSlots - 1;
+    rowWords = PAGE_INFO_STRIDE / 4;
   for (let i = 0; i < rows.packedCount; i++) {
     const row = i,
       rest = hizRest[i],
@@ -70,5 +112,15 @@ export function buildWebgpuVisibilityItems(
     }
   }
   rt.timing.lastItemsMs = performance.now() - itemsStart;
-  return { occluderVertices, restVertices, testedCount };
+  itemsHold.armed = true;
+  itemsHold.tableEpoch = rows.tableEpoch;
+  itemsHold.rowsEpoch = rows.rowsEpoch;
+  itemsHold.packedCount = rows.packedCount;
+  itemsHold.restSignature = restSignature;
+  itemsHold.twoPass = twoPass;
+  itemsHold.layerSlots = layerSlots;
+  itemsHold.occluderVertices = occluderVertices;
+  itemsHold.restVertices = restVertices;
+  itemsHold.testedCount = testedCount;
+  return itemsHold;
 }

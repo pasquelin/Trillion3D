@@ -66,6 +66,8 @@ export type ExactPagesRequestContext = {
   readonly lastPixelError: number;
   readonly frame: number;
   urlStamp: number;
+  /** Prévenu quand des octets de page arrivent ou partent : c'est une écriture de ressources. */
+  resourcesChanged: () => void;
 };
 
 export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
@@ -89,6 +91,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     indexByUrl,
     disposeGeometry,
     scene,
+    resourcesChanged,
   } = ctx;
   return {
     pendingUrls() {
@@ -150,10 +153,12 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       if (!recs) return;
       acceptPageArray(recs, array);
       batches.acceptPage(recs, array);
+      resourcesChanged();
     },
     dropPage(url: string) {
       const recs = byUrl.get(url);
       if (!recs) return;
+      resourcesChanged();
       batches.dropPage(recs);
       for (let i = 0; i < recs.length; i++) {
         const rec = recs[i];

@@ -69,6 +69,10 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   }
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
   if (twoPass && !boundsForAll) project(hizRest);
+  // La moitié testée, hachée dans l'ordre des lignes : c'est, avec le nombre d'occulteurs, ce dont
+  // les fiches de dessin et les bornes projetées dépendent en dehors de la table de lignes.
+  let restSignature = occluders;
+  for (let i = 0; i < rows.packedCount; i++) restSignature = (restSignature * 31 + hizRest[i]) | 0;
   timing.lastProjectMs = projectMs;
   timing.lastPartitionMs = performance.now() - partitionStart - projectMs;
   const counts = timing.partitionCounts;
@@ -79,5 +83,5 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   counts.bornesToutes = boundsForAll ? 1 : 0;
   counts.historiqueOcculteurs = historyOccluders;
   counts.sansHistorique = noHistory ? 1 : 0;
-  return { occluders, twoPass };
+  return { occluders, twoPass, restSignature };
 }

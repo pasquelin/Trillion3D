@@ -6,7 +6,7 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from './gpuSelection.ts';
-import { writeDagUniforms, parseDagOutput } from './gpuDagUniforms.ts';
+import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './gpuDagUniforms.ts';
 import type { createDagResources } from './gpuDagResources.ts';
 import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
 
@@ -54,6 +54,10 @@ export function createDagDispatch(
     maskPipeline,
   } = resources;
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
+  // Une fente de relecture, un jeu de tableaux : le relevé les réécrit au lieu de les rallouer. Le
+  // couple rendu à l'appelant reste neuf à chaque relecture, pour qu'il distingue toujours deux
+  // relevés par identité — c'est ce que l'adoption compare pour savoir si la coupe a bougé.
+  const scratch = [createDagOutputScratch(), createDagOutputScratch()];
   const dispatch: GpuSelection['dispatch'] = (next, shared) => {
     if (state.disposed || state.dead) return;
     const compute =
@@ -124,7 +128,13 @@ export function createDagDispatch(
           try {
             await readback[i].mapAsync(GPUMapMode.READ);
             const bytes = readback[i].getMappedRange();
-            const parsed = parseDagOutput(bytes, 0, bytes.byteLength, residentCut ? pageCount : 0);
+            const parsed = parseDagOutput(
+              bytes,
+              0,
+              bytes.byteLength,
+              residentCut ? pageCount : 0,
+              scratch[i],
+            );
             readback[i].unmap();
             state.mapped[i] = false;
             if (!parsed) {

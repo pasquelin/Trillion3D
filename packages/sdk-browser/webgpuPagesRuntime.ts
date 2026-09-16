@@ -4,6 +4,7 @@ import { createWebgpuPagesServices, type WebgpuPagesServices } from './webgpuPag
 import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
+import { bumpResources } from './frameRevisions.ts';
 import { createTexturePriority } from './webgpuTexturePriority.ts';
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLayout.ts';
@@ -12,12 +13,8 @@ import { createWebgpuVisState, type WebgpuVisState } from './webgpuPagesStateVis
 import { createWebgpuLightState, type WebgpuLightState } from './webgpuPagesStateLights.ts';
 import { createWebgpuBounceState, type WebgpuBounceState } from './webgpuPagesStateBounce.ts';
 import { createWebgpuSunFarState, type WebgpuSunFarState } from './webgpuPagesStateSunFar.ts';
-import {
-  createWebgpuCaptureState,
-  createWebgpuRunState,
-  type WebgpuCaptureState,
-  type WebgpuRunState,
-} from './webgpuPagesStateRun.ts';
+import { createWebgpuRunState, type WebgpuRunState } from './webgpuPagesStateRun.ts';
+import { createWebgpuCaptureState, type WebgpuCaptureState } from './webgpuPagesStateCapture.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -95,8 +92,13 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     order: priority.order,
     onLevel: (slot, level, pyramid) => {
       if (pyramid) vis.slots?.markLevel(slot, level, pyramid);
+      // Origine du changement de ressources : un niveau progressif vient d'atteindre l'atlas.
+      bumpResources(run.revisions);
     },
-    onColorReady: (slots) => vis.slots?.markReady(slots),
+    onColorReady: (slots) => {
+      vis.slots?.markReady(slots);
+      bumpResources(run.revisions);
+    },
     onFailure: diag.diagnosticFailure,
     onAbandon: (details) =>
       diag.engineDiagnostic(

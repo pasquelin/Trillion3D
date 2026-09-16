@@ -38,6 +38,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   return {
     coverageReady: services.bootstrapState.ready,
     coverageBudgetLimited: run.coverageBudgetLimited,
+    frameHeld: run.frameHeld,
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
     uncoveredTriangles: run.uncoveredTriangles,
