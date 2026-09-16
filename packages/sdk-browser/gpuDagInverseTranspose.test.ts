@@ -10,6 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
+import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/index.ts';
 import { INVERSE_TRANSPOSE_AVANT_WGSL, INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import {
   angleEntre,
@@ -92,6 +93,14 @@ test('le shader livré ne porte plus de seuil absolu sur le déterminant brut', 
   assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'seuil absolu sur le determinant brut');
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente');
   assert.match(corps, /fini&&abs\(det\)>1e-20/, 'garde relative absente');
+  // Et ce nombre n'est pas écrit dans le nuanceur : il vient de la constante partagée avec le
+  // processeur (`mathSingular.ts`), rendue en texte. Un seuil changé d'un seul côté est impossible.
+  assert.equal(SINGULAR_DETERMINANT_WGSL, '1e-20', 'le seuil rendu n’est plus celui du nuanceur');
+  assert.match(
+    corps,
+    new RegExp(`fini&&abs\\(det\\)>${SINGULAR_DETERMINANT_WGSL}`),
+    'seuil partagé',
+  );
   assert.match(
     corps,
     /let fini=\(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,

@@ -49,8 +49,13 @@ for (let i = 0; i < 12 * 16; i++) {
 for (let i = 0; i < 200; i++) matrices.push(Float64Array.from({ length: 16 }, bord));
 matrices.push(new Float64Array(16), new Float64Array(16).fill(-0));
 
-/** Les mêmes, arrondies en simple précision : les tampons de rendu sont des `Float32Array`. */
-const matrices32 = matrices.map((m) => Float32Array.from(m));
+/**
+ * Les mêmes, ARRONDIES en simple précision mais tenues en double : c'est ainsi qu'un tampon de rendu
+ * entre dans le socle depuis ce lot. Le produit ne lit et n'écrit qu'un seul type de tampon
+ * (`mathMatrix4.ts`), et la conversion en simple précision se fait à l'ENVOI, sur le résultat. Les
+ * valeurs, elles, sont exactement celles d'un `Float32Array`, donc les mêmes bits qu'avant.
+ */
+const matrices32 = matrices.map((m) => Float64Array.from(Float32Array.from(m)));
 
 /** Les affines seules : dernière ligne `(0, 0, 0, 1)` exacte, le domaine d'une pose de nœud. */
 export const affines = matrices.filter(
