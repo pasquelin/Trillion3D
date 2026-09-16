@@ -73,16 +73,61 @@ export function maxStretch(elements: ArrayLike<number>): number {
 }
 
 /**
- * Screen-pixel error of one cluster of a DAG cut.
+ * Erreur écran certifiée d'un cluster (C4) : un majorant, en pixels, du déplacement à l'écran de
+ * tout point d'une sphère déplacé d'au plus ε, sous projection perspective, hors axe compris.
  *
- * `error x stretch x focal / distance`, where the distance is measured from the eye to the nearest
- * point of the cluster's bounding sphere. No extra margin is added. The near plane is the single
- * conservative case: a sphere that reaches it reports Infinity, which refines.
- * A zero error projects to zero pixels everywhere, so exact geometry stays selectable even against
- * the near plane; an infinite error marks a cluster with no replacement, always selectable too.
+ * Repère de vue : œil à l'origine, regard vers −z, profondeur d = −z ; pixel (f_x·x/d, f_y·y/d),
+ * f = max(f_x, f_y). La primitive passe en vue par une application affine d'étirement maximal s :
+ * la sphère objet (c, r) tient dans la boule de vue (C, ρ = r·s), un déplacement objet d'au plus ε
+ * y devient un déplacement Δ d'au plus δ = ε·s.
  *
- * `centre` is the sphere centre in view space (eye at the origin); `radius` is in object space and
- * is stretched by the same factor as the error.
+ * 1. Un point P = (x, y, d) de la boule va en P' = P + Δ, de profondeur d' = d + Δd. Avec
+ *    q = (x, y)/d : π(P') − π(P) = f·(Δxy − q·Δd)/d'. L'application Δ ↦ Δxy − q·Δd a pour norme
+ *    √(1 + |q|²) (valeurs propres de I + q·qᵀ : 1 et 1 + |q|²) ; donc, quelle que soit la direction
+ *    de Δ — perpendiculaire à l'axe, en profondeur vers la caméra ou à l'opposé, oblique —,
+ *    |π(P') − π(P)| ≤ f·δ·√(1 + |q|²) / d'.
+ * 2. Sur la boule : d ≥ m = −C_z − ρ, la profondeur minimale ; |(x, y)| ≤ ℓ + ρ, où ℓ = |(C_x, C_y)|
+ *    est la distance du centre à l'axe de vue ; donc |q| ≤ (ℓ + ρ)/m, et d' ≥ m − δ.
+ * 3. Si m − δ > near (donc > 0) : E = f·δ·√(m² + (ℓ + ρ)²) / (m·(m − δ)). Sinon la boule, ou l'un
+ *    de ses points déplacé, atteint le plan proche : infini, qui raffine.
+ *
+ * Monotonie de la coupe : m est l'infimum de la profondeur sur la boule et ℓ + ρ le supremum de la
+ * distance à l'axe ; une boule contenue dans une autre annonce donc moins, une erreur plus grande
+ * plus. Le long du rayon (C → k·C, k > 1, profondeur du centre C_d > 0), (kℓ + ρ)/(k·C_d − ρ) et
+ * 1/(k·C_d − ρ − δ) décroissent : l'erreur annoncée décroît avec la distance. Les deux bornes de
+ * l'étape 2 viennent de deux points différents de la boule : E est serrée pour une petite sphère,
+ * large quand la boule frôle le plan proche loin de l'axe (`bench/justesse/erreur-ecran-borne.mjs`).
+ *
+ * Aucune garde ici : l'appelant a déjà traité l'erreur nulle, infinie ou invalide. Une profondeur
+ * ou une distance à l'axe non finie rend l'infini. L'ordre des opérations, (δ·f)/m puis un facteur
+ * √/(m − δ) ≥ 1, garde le résultat arrondi au-dessus du plancher `errorFloorAt` de sdk-browser.
+ * Miroir WGSL : `projected` de `gpuDagShader.ts`, mêmes opérandes, même ordre.
+ */
+export function screenErrorBound(
+  error: number,
+  stretch: number,
+  lateral: number,
+  depth: number,
+  radius: number,
+  focal: number,
+  near: number,
+): number {
+  const reach = radius * stretch,
+    shift = error * stretch;
+  const nearest = depth - reach,
+    closest = nearest - shift,
+    side = lateral + reach;
+  // Le plan proche d'abord : la racine de l'hypoténuse était prise puis jetée quand il est atteint.
+  if (!(closest > near)) return Infinity;
+  const slant = Math.sqrt(nearest * nearest + side * side);
+  if (!(slant >= nearest && slant < Infinity)) return Infinity;
+  return ((shift * focal) / nearest) * (slant / closest);
+}
+
+/**
+ * `screenErrorBound` d'un cluster dont le centre de vue est donné, paramètres validés. Une erreur
+ * nulle rend 0 partout, plan proche compris, et une erreur infinie (aucun remplaçant) l'infini :
+ * les deux restent sélectionnables. `radius` est en unités objet, étiré comme l'erreur.
  */
 export function clusterErrorPixels(
   clusterError: number,
@@ -96,28 +141,21 @@ export function clusterErrorPixels(
 ): number {
   if (clusterError === 0) return 0;
   if (clusterError === Infinity) return Infinity;
-  if (!Number.isFinite(centreX) || !Number.isFinite(centreY) || !Number.isFinite(centreZ)) {
-    throw new Error('Parametres de cluster invalides');
-  }
-  return clusterErrorAtDistance(
-    clusterError,
-    stretch,
-    Math.sqrt(centreX * centreX + centreY * centreY + centreZ * centreZ),
-    radius,
-    focal,
-    near,
-  );
+  // Aucune garde sur le centre : un NaN ou un ±infini en x ou en y rend un `lateral` que
+  // `clusterErrorAtDepth` refuse du même message, ses deux court-circuits étant déjà posés ici.
+  const lateral = Math.sqrt(centreX * centreX + centreY * centreY);
+  return clusterErrorAtDepth(clusterError, stretch, lateral, -centreZ, radius, focal, near);
 }
 
 /**
- * La meme erreur projetee, la distance du centre au point de vue etant deja connue. Un appelant qui
- * a deux bornes a poser sur la meme sphere ne paie qu'une racine carree : la soustraction, la garde
- * de plan proche et la division sont celles de `clusterErrorPixels`, aux memes bits pres.
+ * La même erreur projetée quand la distance du centre à l'axe de vue et sa profondeur (−z de vue)
+ * sont déjà connues : un nœud qui pose plancher et plafond sur la même sphère partage sa profondeur.
  */
-export function clusterErrorAtDistance(
+export function clusterErrorAtDepth(
   clusterError: number,
   stretch: number,
-  centreDistance: number,
+  lateral: number,
+  depth: number,
   radius: number,
   focal: number,
   near: number,
@@ -135,13 +173,12 @@ export function clusterErrorAtDistance(
     focal <= 0 ||
     !Number.isFinite(near) ||
     near <= 0 ||
-    !Number.isFinite(centreDistance)
+    !(lateral >= 0 && lateral < Infinity) ||
+    !Number.isFinite(depth)
   ) {
     throw new Error('Parametres de cluster invalides');
   }
-  const distance = centreDistance - radius * stretch;
-  if (!(distance > near)) return Infinity;
-  return (clusterError * stretch * focal) / distance;
+  return screenErrorBound(clusterError, stretch, lateral, depth, radius, focal, near);
 }
 
 /** Rejet de cône normal pour le culling de faces arrière. */

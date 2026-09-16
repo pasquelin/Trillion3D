@@ -17,12 +17,25 @@ function conesWith(count: number, seed: (j: number) => number) {
   return cones;
 }
 
+/**
+ * Le balayage complet, tel que l'oracle le fait : sans journal de rangs, toutes les pages sont
+ * relues. `updateResidencyFlags` rend le nombre de pages retenues et les nomme dans `touched` ; le
+ * verdict que l'oracle rend est ce nombre ramené à un booléen.
+ */
+function balayage(next: Uint32Array, mirror: Float32Array, cones: Float32Array) {
+  const touched = new Int32Array(Math.max(1, next.length));
+  const count = updateResidencyFlags(next, mirror, cones, STRIDE, OFFSET, undefined, touched);
+  for (let i = 1; i < count; i++)
+    assert.ok(touched[i] > touched[i - 1], 'les index retenus sont croissants');
+  return { changed: count > 0, count, touched: touched.slice(0, count) };
+}
+
 test('no page changing flags nothing, matching the reference exactly', () => {
   const next = new Uint32Array(0);
   const conesOptimisee = conesWith(0, () => 0),
     conesReference = conesOptimisee.slice();
   const mirror = new Float32Array(0);
-  assert.equal(updateResidencyFlags(next, mirror, conesOptimisee, STRIDE, OFFSET), false);
+  assert.equal(balayage(next, mirror, conesOptimisee).changed, false);
   assert.equal(referenceUpdateResidency(next, conesReference), false);
 });
 
@@ -34,13 +47,13 @@ test('every page flips, some pages do not: same changed verdict, same cone bytes
   const mirror = new Float32Array(count);
   for (let j = 0; j < count; j++) mirror[j] = conesOptimisee[j * STRIDE + OFFSET];
 
-  const changedOptimisee = updateResidencyFlags(next, mirror, conesOptimisee, STRIDE, OFFSET);
+  const optimisee = balayage(next, mirror, conesOptimisee);
   const changedReference = referenceUpdateResidency(next, conesReference);
-  assert.equal(changedOptimisee, changedReference);
+  assert.equal(optimisee.changed, changedReference);
   assert.deepEqual([...conesOptimisee], [...conesReference]);
 
   // A second pass with the same `next` changes nothing more: the mirror already reflects it.
-  assert.equal(updateResidencyFlags(next, mirror, conesOptimisee, STRIDE, OFFSET), false);
+  assert.equal(balayage(next, mirror, conesOptimisee).changed, false);
 });
 
 test('a single page toggling on then off is reflected bit for bit, both directions', () => {
@@ -48,18 +61,36 @@ test('a single page toggling on then off is reflected bit for bit, both directio
     conesReference = conesOptimisee.slice();
   const mirror = new Float32Array(1);
   mirror[0] = conesOptimisee[OFFSET];
-  assert.equal(
-    updateResidencyFlags(new Uint32Array([1]), mirror, conesOptimisee, STRIDE, OFFSET),
-    true,
-  );
+  assert.equal(balayage(new Uint32Array([1]), mirror, conesOptimisee).changed, true);
   assert.equal(referenceUpdateResidency(new Uint32Array([1]), conesReference), true);
   assert.equal(conesOptimisee[OFFSET], conesReference[OFFSET]);
-  assert.equal(
-    updateResidencyFlags(new Uint32Array([0]), mirror, conesOptimisee, STRIDE, OFFSET),
-    true,
-  );
+  assert.equal(balayage(new Uint32Array([0]), mirror, conesOptimisee).changed, true);
   assert.equal(referenceUpdateResidency(new Uint32Array([0]), conesReference), true);
   assert.equal(conesOptimisee[OFFSET], conesReference[OFFSET]);
+});
+
+test('le journal des rangs trié pose les mêmes drapeaux que le balayage complet', () => {
+  const count = 40;
+  const next = new Uint32Array(count).map((_, j) => (j % 7 === 0 ? 1 : 0));
+  const conesJournal = conesWith(count, (j) => (j % STRIDE === OFFSET ? 0 : 0.5));
+  const conesBalayage = conesJournal.slice();
+  // Le journal ne nomme que les pages dont la résidence a bougé, dans l'ordre croissant.
+  const pages = Int32Array.from({ length: count }, (_, j) => j).filter((j) => j % 7 === 0);
+  const changes = { pages: Int32Array.from(pages), count: pages.length, sorted: true };
+  const touched = new Int32Array(count);
+  const retenues = updateResidencyFlags(
+    next,
+    new Float32Array(count),
+    conesJournal,
+    STRIDE,
+    OFFSET,
+    changes,
+    touched,
+  );
+  assert.equal(retenues, pages.length, 'une page retenue par entrée du journal');
+  assert.deepEqual([...touched.slice(0, retenues)], [...pages]);
+  balayage(next, new Float32Array(count), conesBalayage);
+  assert.deepEqual([...conesJournal], [...conesBalayage]);
 });
 
 test('maxStretch on a subarray view gives the same value as on the equivalent freshly built array', () => {

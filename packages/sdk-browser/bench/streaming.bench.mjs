@@ -42,20 +42,18 @@ const admission = (fn) => (jeu) => fn(jeu.slice(), octetsDe);
 /** Cinq mille arrivées pour huit destinataires, avec doublons : une page déjà en attente n'entre
  *  pas deux fois, une page déjà livrée peut revenir. */
 function arrivees(fabrique) {
-  const livrees = [],
-    touchees = [];
+  const livrees = [];
   const cibles = [];
   for (let c = 0; c < 8; c++)
     cibles.push({
       acceptPage: (url) => livrees.push(`${c}:${url}`),
-      syncResident: () => touchees.push(c),
     });
   const file = fabrique(64 * 1024 * 1024, 4096);
   const octets = new Uint32Array(16);
   for (let i = 0; i < 5000; i++) file.queue(cibles[i % 8], `page-${i % 900}.bin`, octets);
   let livrs = 0;
   for (let d = 0; d < 4; d++) livrs += file.drain();
-  return { livrees, touchees, livrs };
+  return { livrees, livrs };
 }
 
 const lignes = [

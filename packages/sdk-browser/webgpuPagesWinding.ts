@@ -1,4 +1,4 @@
-import { linearPartDeterminant } from '../sdk-core/index.ts';
+import { matrixWindingCw } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelectionTypes.ts';
 
 /**
@@ -20,7 +20,7 @@ export function setWindingEpoch(valeur: number) {
 
 export function windingCw(rec: PageRec) {
   if (rec.windingEpoch === epoque && rec.windingCw !== undefined) return rec.windingCw;
-  const cw = linearPartDeterminant(rec.matrix.elements) < 0;
+  const cw = matrixWindingCw(rec.matrix.elements);
   rec.windingEpoch = epoque;
   rec.windingCw = cw;
   return cw;

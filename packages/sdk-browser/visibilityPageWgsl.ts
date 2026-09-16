@@ -1,3 +1,4 @@
+import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
@@ -6,7 +7,7 @@ import { VIS_BINDINGS } from './webgpuBindLayout.ts';
  * partagée par le raster du visibility buffer et par les passes de profondeur des ombres — deux
  * copies de cette structure seraient deux chances de la voir dériver.
  */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}`;
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,pad5c:u32,pad5d:u32,}`;
 
 /** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -38,9 +39,6 @@ export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base
 /** Coordonnée de texture d'un sommet de page. */
 export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
 
-/** Répétition ou serrage d'une coordonnée de texture, selon le drapeau du matériau. */
-export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool)->f32{return select(clamp(t,0.0,1.0),fract(t),repeat);}`;
-
 /** Aire signée du triangle `(a,b,p)` en coordonnées écran ; le raster en tire ses barycentriques. */
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
 
@@ -59,18 +57,18 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * raster du tampon de visibilité et la passe de profondeur des ombres les appliquent tous les deux.
  * Une seule écriture : une découpe qui ne serait pas la même des deux côtés ferait une ombre qui ne
  * correspond pas à la silhouette qu'on voit. `flags` : 4 = UV présentes, 8 = carte de base,
- * 32/64 = répétition en S/T, 128 = matériau à masque ; le seuil est `baseColor.w`.
+ * 128 = matériau à masque ; le seuil est `baseColor.w`, et le mode d'adressage de la carte de base
+ * vient du mot par carte, jamais des drapeaux du matériau.
  *
  * Le shader hôte déclare `uvs`, l'atlas couleur et sa table de slots, puis insère `ATLAS_SLOTS_WGSL`
- * et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y lit le niveau le plus fin déjà résident.
+ * (qui porte la règle d'adressage) et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y applique
+ * l'adressage de la page et lit le niveau le plus fin déjà résident.
  */
-export const MASK_KEEP_WGSL = `${WRAP_COORD_WGSL}
-fn maskKeep(page:PageInfo,uv:vec2f)->bool{
+export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- let raw=vec2f(wrapCoord(uv.x,(page.flags&32u)!=0u),wrapCoord(uv.y,(page.flags&64u)!=0u));
  // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
  // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
- return colorAlpha(page.mapIndex,page.uvScale,raw)>=page.baseColor.w;
+ return colorAlpha(page.mapIndex,page.uvScale,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u))>=page.baseColor.w;
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */

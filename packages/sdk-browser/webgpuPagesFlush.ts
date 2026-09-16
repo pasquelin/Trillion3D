@@ -108,6 +108,12 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, capture, timing, diag, services } = rt,
     { gpuDevice } = rt.setup;
+  // Le témoin d'image tenue n'est PAS retiré d'office : un hôte qui vide à chaque image n'aurait
+  // alors jamais d'image tenue. Chaque drainage qui change réellement l'image l'annonce lui-même —
+  // une texture qui arrive et une page qui entre ou sort de la résidence incrémentent la révision
+  // des ressources, une sélection abandonnée retire le témoin. Reste l'adoption d'un relevé, qui se
+  // rejoue ici après que l'hôte a pris ses listes : elle est retirée plus bas, et seulement quand
+  // elle a changé quelque chose.
   await Promise.resolve();
   // Le programme du contrat d'éclairage se compile hors de l'image. Si une lampe l'attendait, la
   // pose est redessinée avec lui avant toute lecture : une pose vidée est une pose éclairée.
@@ -138,7 +144,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
     try {
       await run.gpuSelection.flush();
       if (run.gpuSelection.failed()) dropGpuSelection(rt);
-      else if (run.gpuFrameActive) services.adoptGpuCut();
+      else if (run.gpuFrameActive && services.adoptGpuCut()) run.frameHold.invalidate();
     } catch (error) {
       diag.diagnosticFailure('gpu-selection-fallback', error);
       dropGpuSelection(rt);

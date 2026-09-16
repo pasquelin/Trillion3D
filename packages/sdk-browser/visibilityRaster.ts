@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { signedArea, type Projected } from './visibilityProjection.ts';
-import { HIZ_BACKGROUND } from '../sdk-core/index.ts';
+import { HIZ_BACKGROUND, matrixWindingCw } from '../sdk-core/index.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
 import {
   assertVisibilityPageTriangles,
@@ -11,6 +11,7 @@ import {
   VIS_TRIANGLE_MASK,
   type VisPage,
 } from './visibilityTypes.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 function fillIds(
   ids: Uint32Array,
@@ -73,7 +74,8 @@ export function rasterVisibility(
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
   depth.fill(Infinity);
-  camera.updateMatrixWorld();
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,
@@ -87,16 +89,17 @@ export function rasterVisibility(
       : Array.isArray(page.material)
         ? page.material[0].side
         : page.material.side;
+    // Une réflexion renverse le sens de parcours à l'écran : la face à éliminer est l'autre, comme
+    // `visBin` le fait pour les pipelines WebGPU et Three pour WebGL (`frontFaceCW`). Sans cette
+    // bascule, ce rasteriseur dessinait sous réflexion exactement les faces que le rejet par cône
+    // supprime — et son propre ombrage (`visibilityLighting`) retournait déjà le signe, lui.
+    const positif = (side === THREE.BackSide) !== matrixWindingCw(page.matrix.elements);
     const triangles = assertVisibilityPageTriangles((index.length / 3) | 0);
     for (let t = 0; t < triangles && t <= VIS_TRIANGLE_MASK; t++) {
       const tri = triangleAt(page, t, viewProj, width, height);
       if (!tri) continue;
       const area = signedArea(tri.a, tri.b, tri.c);
-      if (side !== THREE.DoubleSide) {
-        if (side === THREE.BackSide) {
-          if (area <= 0) continue;
-        } else if (area >= 0) continue;
-      }
+      if (side !== THREE.DoubleSide && (positif ? area <= 0 : area >= 0)) continue;
       const mat = visMaterial(page.material);
       if (mat.alphaTest > 0 && mat.map) {
         const uv = page.attributes.uv;

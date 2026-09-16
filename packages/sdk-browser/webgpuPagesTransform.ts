@@ -11,6 +11,7 @@ import {
   multiplyMatrix4,
 } from '../sdk-core/index.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
+import { bumpScene } from './frameRevisions.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const requested = new THREE.Matrix4(),
@@ -33,10 +34,11 @@ function findNode(source: THREE.Object3D, nodeName: string) {
 
 /**
  * Déplace un nœud nommé de la scène préparée (R8). La matrice est une matrice monde colonne-major :
- * elle est ramenée dans le repère du parent, puis décomposée, pour que `updateMatrixWorld` la
- * retrouve à l'identique. Les boîtes monde des primitives déplacées sont reprojetées, l'historique
- * d'occulteurs est jeté, et la boîte du mouvement est déclarée à l'ordonnanceur d'ombres — les
- * tranches des lampes dont la portée touche cette boîte redeviennent candidates.
+ * elle est ramenée dans le repère du parent, puis posée telle quelle comme matrice locale, pour que
+ * `updateMatrixWorld` la retrouve à l'identique. Les boîtes monde des primitives déplacées sont
+ * reprojetées, l'historique d'occulteurs est jeté, et la boîte du mouvement est déclarée à
+ * l'ordonnanceur d'ombres — les tranches des lampes dont la portée touche cette boîte redeviennent
+ * candidates.
  *
  * Rien n'est dessiné ici : le déplacement prend effet à l'image suivante, sans allocation par image.
  */
@@ -59,18 +61,33 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     invertMatrix4(parentInverse, node.parent.matrixWorld.elements);
     multiplyMatrix4(local, parentInverse, local);
   }
+  // La matrice locale fait foi, pas les trois champs : toute matrice n'est pas un produit
+  // translation-rotation-échelle. Un cisaillement — deux axes non orthogonaux, ce que produit une
+  // échelle non uniforme sous une rotation — ne s'y décompose pas, et `updateMatrixWorld`
+  // recomposerait `matrix` depuis `position`, `quaternion` et `scale` par-dessus celle posée ici,
+  // laissant le moteur dessiner une autre transformation que celle demandée. Couper la
+  // recomposition sur le seul nœud déplacé est ce qui la préserve intacte. La décomposition du
+  // socle renseigne quand même les trois champs, aux mêmes bits que `Matrix4.decompose` : exacts
+  // sans cisaillement et approchés sinon, pour qui les lit.
   decomposeMatrix4(local, trs, trsRotation, trsScale);
   node.position.set(trs[0], trs[1], trs[2]);
   node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
   node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
   node.matrix.copy(requested);
-  setup.source.updateMatrixWorld(true);
+  node.matrixAutoUpdate = false;
+  // Seuls les ancêtres du nœud et son sous-arbre changent de matrice monde : le reste de la scène
+  // rendrait les mêmes seize nombres. C'est la liste des nœuds modifiés, tenue par la hiérarchie.
+  node.updateWorldMatrix(true, true);
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
     boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     unionInto(root.worldBox);
   }
   layout.rows.tableEpoch++;
+  // Origine du changement de scène : les matrices monde de ce sous-arbre viennent d'être réécrites.
+  bumpScene(run.revisions);
+  // La hiérarchie porte déjà les matrices de cette révision : l'image suivante ne la remonte pas.
+  run.worldsRevision = run.revisions.scene;
   invalidateOccluderHistory(run);
   if (boxIsEmpty(moved, 0)) return;
   for (let axis = 0; axis < 3; axis++) {

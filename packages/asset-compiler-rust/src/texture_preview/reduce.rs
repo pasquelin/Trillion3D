@@ -1,3 +1,4 @@
+use super::curves::{linear_to_srgb, transfer_table};
 use super::*;
 
 /// Pas et borne de la recherche binaire d'échelle d'alpha. Seize pas séparent deux alphas d'octet.
@@ -7,16 +8,22 @@ const MAX_ALPHA_SCALE: f32 = 16.0;
 const MIN_ALPHA: f32 = 1e-6;
 
 /// Les octets d'une entrée : les niveaux RGBA8 sRGB à alpha droit, du plus fin porté au 1×1, et le
-/// rang de ce premier niveau dans la chaîne de mips de la source. `cutoff`, quand il est donné, est
-/// le seuil de découpe dont la couverture doit être préservée.
-pub(super) fn pyramid(source: &image::RgbaImage, cutoff: Option<f32>) -> (u32, Vec<u8>) {
+/// rang de ce premier niveau dans la chaîne de mips de la source. `transfer` est la fonction de
+/// transfert que le pilote a lue dans le fichier : c'est elle qui dit comment ramener les octets
+/// reçus en linéaire, et la supposer sRGB décodait une seconde fois une texture qui l'était déjà.
+/// `cutoff`, quand il est donné, est le seuil de découpe dont la couverture doit être préservée.
+pub(super) fn pyramid(
+    source: &image::RgbaImage,
+    transfer: Transfer,
+    cutoff: Option<f32>,
+) -> (u32, Vec<u8>) {
     let (width, height) = (source.width(), source.height());
     let (first, last) = (
         preview_first_level(width, height),
         preview_last_level(width, height),
     );
     let mut size = preview_level_size(width, height, first);
-    let mut levels = vec![box_reduce(source, size)];
+    let mut levels = vec![box_reduce(source, transfer, size)];
     for level in first + 1..=last {
         let next = preview_level_size(width, height, level);
         levels.push(halve(levels.last().expect("niveau précédent"), size, next));
@@ -38,8 +45,8 @@ pub(super) fn pyramid(source: &image::RgbaImage, cutoff: Option<f32>) -> (u32, V
 /// Moyenne de boîte de l'image pleine résolution vers le niveau le plus fin porté, en linéaire
 /// prémultiplié. Chaque case couvre au moins un texel source ; quand la cible a les dimensions de
 /// la source, chaque case vaut exactement un texel et le niveau est la source, sans perte.
-fn box_reduce(source: &image::RgbaImage, target: (u32, u32)) -> Vec<[f32; 4]> {
-    let table = srgb_table();
+fn box_reduce(source: &image::RgbaImage, transfer: Transfer, target: (u32, u32)) -> Vec<[f32; 4]> {
+    let table = transfer_table(transfer);
     let (width, height) = (source.width() as u64, source.height() as u64);
     let raw = source.as_raw();
     let (columns, rows) = (u64::from(target.0), u64::from(target.1));
@@ -154,34 +161,4 @@ fn encode_level(texels: &[[f32; 4]], scale: f32, out: &mut Vec<u8>) {
         }
         out.push(((alpha * scale).clamp(0.0, 1.0) * 255.0).round() as u8);
     }
-}
-
-/// Les 256 valeurs d'octet sRGB en linéaire, construites une fois pour toute la compilation.
-///
-/// La même courbe qu'`albedo.rs::srgb_to_linear`, mais en `f32` : 214 des 256 entrées diffèrent de
-/// la version `f64` arrondie, et la moyenne de boîte s'accumule en `f32` puis en `f64`. Remplacer
-/// la table par un appel changerait les octets de l'aperçu ; les deux exemplaires restent.
-fn srgb_table() -> &'static [f32; 256] {
-    static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
-    TABLE.get_or_init(|| {
-        let mut table = [0f32; 256];
-        for (value, slot) in table.iter_mut().enumerate() {
-            let encoded = value as f32 / 255.0;
-            *slot = if encoded <= 0.04045 {
-                encoded / 12.92
-            } else {
-                ((encoded + 0.055) / 1.055).powf(2.4)
-            };
-        }
-        table
-    })
-}
-
-fn linear_to_srgb(value: f32) -> u8 {
-    let encoded = if value <= 0.0031308 {
-        value * 12.92
-    } else {
-        1.055 * value.powf(1.0 / 2.4) - 0.055
-    };
-    (encoded.clamp(0.0, 1.0) * 255.0).round() as u8
 }

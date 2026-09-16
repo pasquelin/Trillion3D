@@ -1,6 +1,7 @@
 import { disabledStageProfile } from '../sdk-core/index.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { createStageProfiler } from './stageProfiler.ts';
+import { logFrameCostAudit } from './frameCostAudit.ts';
 import { addCpuSteps, cpuStepTable, WEBGL_STAGES } from './stageMapping.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { HostCpuStep } from './hostCpuProfile.ts';
@@ -89,6 +90,7 @@ export function createExactPagesCpu(
       cpuLogFrame = frame;
       const steps = cpuProfile.summary();
       if (!steps) return;
+      logFrameCostAudit('exact-cluster-pages', { kind: 'cpu-profile', frame, steps });
       try {
         onDiagnostic?.({
           phase: 'cpu-timing',

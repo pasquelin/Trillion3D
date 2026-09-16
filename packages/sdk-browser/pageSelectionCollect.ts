@@ -1,6 +1,7 @@
 import { BOX_VALUES, boxTransform, type ClusterManifest } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { isTransmissive } from './visibilityBuffer.ts';
+import { createBlendCopy } from './blendCopyMesh.ts';
 import { objects } from './pageSelectionHelpers.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { createPrimitiveTemplates } from './pageSelectionTemplate.ts';
@@ -27,13 +28,7 @@ export function collectClusterPages(
     const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
     if (primitive.pass === 'shared-blend' || isTransmissive(mesh.material)) {
-      const copy = new THREE.Mesh(mesh.geometry, mesh.material);
-      copy.matrixAutoUpdate = false;
-      copy.matrix.copy(mesh.matrixWorld);
-      copy.frustumCulled = mesh.frustumCulled;
-      copy.renderOrder = order++;
-      copy.userData.sourceMesh = mesh;
-      blendCopies.push(copy);
+      blendCopies.push(createBlendCopy(mesh, order++));
       continue;
     }
     const sourceIndices = mesh.geometry.getIndex();
@@ -103,6 +98,13 @@ export function collectClusterPages(
       structure,
       forced: structure ? new Uint8Array(structure.groupCount) : undefined,
       forcedList: structure ? [] : undefined,
+      // Aucune page collectée ne porte de cône : `prepareCones` est le seul à en poser, et il
+      // relève ce drapeau en même temps. Le moteur WebGL2 ne l'appelle pas et ne paie donc plus
+      // une lecture de `cone` par cluster testé.
+      cones: false,
+      // Chaque fiche reçoit `min` et `max` du manifeste, que le contrat de page rend obligatoires :
+      // la racine le déclare, et la coupe cesse de le vérifier par cluster.
+      boxes: true,
     });
     // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
     // always has something to fall back on.

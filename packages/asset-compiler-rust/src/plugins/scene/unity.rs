@@ -21,7 +21,7 @@ use crate::import::{f32_bytes, normalise, SceneTables as Scene};
 use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     rc::Rc,
     sync::atomic::Ordering,
@@ -30,17 +30,24 @@ use std::{
 use yaml_rust2::yaml::Yaml;
 
 mod assets;
+mod attach;
 mod build;
 mod builtin;
 mod convert;
+mod instance;
 mod materials;
 mod merge;
 mod meta;
 mod models;
+mod overrides;
+mod parts;
 mod patch;
 mod prefab;
 mod project;
 mod render;
+mod structure;
+#[cfg(test)]
+mod tests;
 mod textures;
 mod transform;
 mod yaml;
@@ -48,11 +55,14 @@ mod yaml;
 use build::*;
 use builtin::*;
 use convert::convert;
-use merge::Parts;
+use merge::{array, index};
 use meta::ModelImport;
 use models::Models;
-use patch::{local_trs, Changes};
+use overrides::{cover, local_trs, material_slot, Overrides, MAX_SLOTS, SLOT_INVALID};
+use parts::{mesh_nodes, model_matrices, Parts};
+use patch::Changes;
 use project::{assets_root, meta_of, read_text, Project};
+use structure::{Structure, ADDED_UNPLACED};
 use textures::Textures;
 use transform::Trs;
 use yaml::*;
@@ -69,7 +79,7 @@ impl Plugin for Unity {
     /// La version nomme le lecteur YAML et la génération de la conversion : la changer invalide les
     /// caches, donc toute scène Unity déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "unity-yaml-rust2-0.13-gltf-2"
+        "unity-yaml-rust2-0.13-gltf-5"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["unity"]

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ENGINE_OWNED } from './hostSceneWatch.ts';
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
 export function replicateInstances(
   source: THREE.Object3D,
@@ -21,6 +22,9 @@ export function replicateInstances(
     for (let x = 0; x < columns; x++)
       for (const mesh of meshes) {
         const copy = new THREE.Mesh(mesh.geometry, mesh.material);
+        // Cette copie appartient au moteur : l'hôte ne l'a jamais vue et ne peut pas l'écrire.
+        // Ce qui relit le graphe à la recherche d'une écriture de l'hôte la saute donc entière.
+        copy.userData[ENGINE_OWNED] = true;
         copy.matrixAutoUpdate = false;
         copy.matrix.copy(mesh.matrixWorld);
         copy.matrix.elements[12] += (x - (columns - 1) / 2) * size.x;

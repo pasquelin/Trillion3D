@@ -11,7 +11,7 @@ import {
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { FLAG_PAGED, FLAG_TRANSMISSIVE, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
-import { WRAP_COORD_WGSL } from './visibilityPageWgsl.ts';
+import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
@@ -42,7 +42,7 @@ ${TRIANGLE_PALETTE_WGSL}
 }
 `;
 
-export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,lightTiles:vec4f,}
+export const BLEND_SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mapIndex:u32,flags:u32,uvScale:vec2f,emissiveIndex:u32,alphaTest:f32,camPos:vec4f,roughness:f32,metalness:f32,normalScale:vec2f,roughIndex:u32,metalIndex:u32,normalIndex:u32,aoIndex:u32,aoIntensity:f32,emissiveR:f32,emissiveG:f32,emissiveB:f32,lightTiles:vec2f,wrapModes:u32,padWrap:u32,}
 @group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
 @group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
@@ -67,11 +67,13 @@ ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 ${TRANSMISSION_WGSL}
 ${ATLAS_SLOTS_WGSL}
+// L'adressage d'une carte de ce matériau : son quartet, jamais les drapeaux — un lot transparent
+// adresse ses six cartes comme une page opaque adresse les siennes.
+fn blendWrap(map:u32)->u32{return wrapOf(uni.wrapModes,map);}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
-${WRAP_COORD_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 // A paged transparent primitive draws one instance per cluster the GPU compaction kept, in the
 // order the compaction wrote them, which is the source order the scene recorded. An unpaged one
@@ -116,12 +118,18 @@ ${TRIANGLE_PALETTE_WGSL}
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
  let gradX=dpdx(in.uv);let gradY=dpdy(in.uv);
  let q0=dpdx(in.view);let q1=dpdy(in.view);
+ // La normale géométrique vient des dérivées d'écran : elle regarde déjà l'observateur, quelle que
+ // soit la face rasterisée. Seule une normale de sommet, qui pointe vers le dehors déclaré, se
+ // retourne sur le dos d'un matériau à deux faces — la retourner aussi enverrait la géométrique à
+ // l'opposé de la lumière, et la surface rendrait exactement zéro. Même règle que la résolution
+ // opaque, qui ne retourne que la normale interpolée.
  var N=normalize(-cross(q0,q1));
- if((uni.flags&16u)!=0u){N=normalize(in.normal);}
  let face=select(-1.0,1.0,front);
- if((uni.flags&2u)!=0u){N*=face;}
- let wrapped=vec2f(wrapCoord(in.uv.x,(uni.flags&32u)!=0u),wrapCoord(in.uv.y,(uni.flags&64u)!=0u));
- let sample=colorSample(uni.mapIndex,uni.uvScale,wrapped,gradX,gradY);
+ if((uni.flags&16u)!=0u){
+  N=normalize(in.normal);
+  if((uni.flags&2u)!=0u){N*=face;}
+ }
+ let sample=colorSample(uni.mapIndex,uni.uvScale,in.uv,blendWrap(${WRAP_MAP.base}u),gradX,gradY);
  let alpha=sample.w*in.color.w;
  if((uni.flags&0x40000000u)!=0u){
   if(alpha<=0.01||alpha<uni.alphaTest){discard;}
@@ -140,20 +148,20 @@ ${TRIANGLE_PALETTE_WGSL}
  // transmissive laisse voir, jamais la couleur déjà éclairée.
  let baseTint=rgb;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
- if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,wrapped,gradX,gradY).g;}
- if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,wrapped,gradX,gradY).b;}
- if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,wrapped,gradX,gradY).r-1.0);}
+ if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,in.uv,blendWrap(${WRAP_MAP.rough}u),gradX,gradY).g;}
+ if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,in.uv,blendWrap(${WRAP_MAP.metal}u),gradX,gradY).b;}
+ if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,in.uv,blendWrap(${WRAP_MAP.ao}u),gradX,gradY).r-1.0);}
  if(uni.normalIndex!=0u){
-  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,wrapped,gradX,gradY).xyz*2.0-vec3f(1.0);
+  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,in.uv,blendWrap(${WRAP_MAP.normal}u),gradX,gradY).xyz*2.0-vec3f(1.0);
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
   if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}
-  if((uni.flags&2u)!=0u){T*=face;B*=face;}
+  if((uni.flags&2u)!=0u&&(uni.flags&16u)!=0u){T*=face;B*=face;}
   let tbnScale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
   N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
  }
  var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
- if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,wrapped,gradX,gradY).rgb;}
+ if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,in.uv,blendWrap(${WRAP_MAP.emissive}u),gradX,gradY).rgb;}
  if(alpha<uni.alphaTest){discard;}
  // Aucune lampe déclarée, ou vue sans éclairage demandée : l'albédo brut, exactement comme la
  // résolution opaque. Ni ambiance, ni ciel, ni soleil par défaut (P6).
