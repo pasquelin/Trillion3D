@@ -5,6 +5,7 @@ import { PRIORITY_PREFETCH } from './streamingPriority.ts';
 import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
+import { createHeldFrame } from './explorerHeldFrame.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -65,6 +66,10 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
    * reviennent, derniers maillons de la chaîne (P4). Le drapeau vient des lampes installées, jamais
    * d'un réglage d'hôte, et n'est écrit que lorsqu'il change : Three recompile ses programmes sinon.
    */
+  // La dernière image complète, gardée pour qu'une image tenue la réaffiche au lieu de redessiner
+  // la scène entière. Voir `createHeldFrame` : le canevas ne garde rien d'une image à l'autre.
+  const heldFrame = createHeldFrame();
+  const drawingSize = new THREE.Vector2();
   const setDisplayChain = (backend: RenderBackend) => {
     const tone = backend.sceneLit?.() === false ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
     if (ownedRenderer.toneMapping !== tone) ownedRenderer.toneMapping = tone;
@@ -156,7 +161,16 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     }
     setDisplayChain(backend);
     gpuTimer?.begin();
-    ownedRenderer.render(backend.scene, camera);
+    // Une image tenue ne peut pas différer de la précédente : le moteur vient de le dire. Elle est
+    // réaffichée d'une commande, et la scène n'est pas reparcourue. Sans image gardée à cette
+    // taille — la première, ou un redimensionnement — l'image est dessinée puis gardée.
+    ownedRenderer.getDrawingBufferSize(drawingSize);
+    const tenue = backend.metrics().frameHeld === true && !target && heldFrame.holds(drawingSize);
+    if (tenue) heldFrame.present(ownedRenderer);
+    else {
+      ownedRenderer.render(backend.scene, camera);
+      if (!target) heldFrame.keep(ownedRenderer, drawingSize);
+    }
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
