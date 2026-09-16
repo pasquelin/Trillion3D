@@ -122,6 +122,36 @@ test('échelle négative et cisaillement, sans normale de sommet ni carte : la n
       assertSameNormal(page, materiau({ backSide }), screenFace, `bs${backSide} sf${screenFace}`);
 });
 
+// perf(socle) 61bff6e4 : les trois composantes de la carte de normales (`mapN`) ne passent plus par
+// un tableau littéral, alloué à chaque pixel ombré d'une surface qui porte une carte. `shadingNormal`
+// rend toujours `frameOut`, le même tampon de module (documenté en tête de fichier : « aucune
+// allocation, [...] rendu dans l'un d'eux ») ; le vérifier sur de nombreux appels enchaînés, chacun
+// avec une carte de normales et des repères différents, est la même méthode que le test
+// « allocation » de `mathTransformTreeUpdate.test.ts` : l'identité du tampon rendu, et non un compte
+// d'allocations, atteste qu'aucun tampon n'est fabriqué en cours de route.
+test('surface à carte de normales : mille pixels ombrés de suite rendent toujours le même tampon', () => {
+  const matrix = new THREE.Matrix4().fromArray([
+    1, 0.2, 0, 0, -0.1, 1, 0.3, 0, 0, -0.2, 1, 0, 1, 2, 3, 1,
+  ]);
+  const normal = attribut([0, 0, 1, 0.1, 0, 1, 0, 0.1, 1], 3);
+  const tangent = attribut([1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1], 4);
+  const uv = attribut([0, 0, 1, 0, 0, 1], 2);
+  const page = {
+    array: new Uint32Array([0, 1, 2]),
+    attributes: { normal, tangent, uv },
+    matrix,
+  } as unknown as VisPage;
+  const mat = materiau({ normalMap: carteNormales(), normalScale: 1.3, normalScaleY: 0.7 });
+  let premierTampon: Float64Array | undefined;
+  for (let i = 0; i < 1000; i++) {
+    const bary = { w0: (i % 7) / 7, w1: ((i + 1) % 5) / 5, w2: ((i + 2) % 3) / 3 };
+    const uvPixel: [number, number] = [(i % 11) / 11, (i % 13) / 13];
+    const rendu = shadingNormal(page, TRI, bary, uvPixel, mat, i % 2 === 0 ? 1 : -1);
+    if (i === 0) premierTampon = rendu;
+    assert.equal(rendu, premierTampon, `pixel ${i} : un nouveau tampon a été fabriqué`);
+  }
+});
+
 test('NaN et infinis dans les poids barycentriques et les tangentes, carte sans normale de sommet', () => {
   const matrix = new THREE.Matrix4();
   const uv = attribut([0, 0, 1, 0, 0.5, 1], 2);
