@@ -15,6 +15,7 @@ use super::fixture;
 
 mod bytes;
 mod codecs;
+mod descripteur;
 mod refus;
 
 const MAX_ALLOC: u64 = 64 * 1024 * 1024;

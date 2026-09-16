@@ -9,6 +9,7 @@ mod image_source;
 mod levels;
 mod mask_coverage;
 mod pyramid_bleed;
+mod transfert;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
 pub(super) fn temp_dir(tag: &str) -> PathBuf {

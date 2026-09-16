@@ -35,6 +35,7 @@
 use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
+mod dfd;
 mod eac;
 mod format;
 mod header;
@@ -73,7 +74,7 @@ impl Plugin for Ktx2 {
     /// raison : une entrée écrite du temps du décodeur externe porte des texels mélangés et
     /// tronqués, et serait sans lui relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11"
+        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11-dfd"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ktx2"]
@@ -103,6 +104,6 @@ impl ImageDecoder for Ktx2 {
         } else {
             level::decode(&surface, bytes, max_alloc)?
         };
-        Ok(ImageDecoded::srgb(image))
+        Ok(ImageDecoded::srgb(image).with_transfer(surface.transfer))
     }
 }

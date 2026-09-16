@@ -9,7 +9,7 @@ fn a_source_under_the_base_carries_its_own_full_resolution() {
     let source = rgba_from(width, height, |x, y| {
         [(x * 60) as u8, (y * 60) as u8, 10, 255]
     });
-    let (first, pixels) = reduce::pyramid(&source, None);
+    let (first, pixels) = reduce::pyramid(&source, Transfer::Srgb, None);
     assert_eq!(first, 0);
     assert_eq!(level_size(width, height, 0), (4, 4));
     let level0 = level_bytes(width, height, &pixels, 0);
@@ -31,7 +31,7 @@ fn a_source_under_the_base_carries_its_own_full_resolution() {
 fn odd_dimensions_reduce_without_panicking() {
     let (width, height) = (17u32, 9u32);
     let source = rgba_from(width, height, |_x, _y| [37, 201, 88, 255]);
-    let (first, pixels) = reduce::pyramid(&source, None);
+    let (first, pixels) = reduce::pyramid(&source, Transfer::Srgb, None);
     assert_eq!(first, 0);
     assert_eq!(pixels.len(), preview_pixel_bytes(width, height));
     assert_eq!(preview_level_count(width, height), 5);

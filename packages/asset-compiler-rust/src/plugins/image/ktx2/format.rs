@@ -14,6 +14,7 @@
 //! à l'envers ; le module voisin dit lequel des deux défauts fait quoi.
 use super::eac;
 use crate::plugins::image::blocks::BlockDecode;
+use crate::plugins::image::Transfer;
 use texture2ddecoder::{
     decode_astc, decode_bc1, decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5,
     decode_bc7, decode_etc2_rgb, decode_etc2_rgba1, decode_etc2_rgba8,
@@ -47,8 +48,23 @@ impl Layout {
     }
 }
 
+/// Les `vkFormat` de la liste que le registre Vulkan nomme `_SRGB`. Ils portent exactement les
+/// mêmes octets que leurs jumeaux `_UNORM`, qui suivent ou précèdent immédiatement dans `layout` —
+/// c'est la seule chose qui les sépare, et elle change la lecture de toute la texture.
+const SRGB: &[u32] = &[43, 132, 134, 136, 138, 146, 148, 150, 152, 158];
+
+/// La fonction de transfert que ce `vkFormat` **nomme**, quand il en nomme une. `VK_FORMAT_UNDEFINED`
+/// — le conteneur porte alors une charge Basis Universal — n'en nomme aucune : c'est son descripteur
+/// de format qui parle, et à défaut la convention.
+pub(super) fn transfer(format: u32) -> Option<Transfer> {
+    if SRGB.contains(&format) {
+        return Some(Transfer::Srgb);
+    }
+    layout(format).map(|_| Transfer::Linear)
+}
+
 /// La disposition de ce `vkFormat` : la seule table qui relie un format déclaré à ses octets. Les
-/// variantes `_SRGB` portent les mêmes octets que leurs `_UNORM` — le contrat d'image est déjà sRGB.
+/// variantes `_SRGB` portent les mêmes octets que leurs `_UNORM` ; `SRGB` dit lesquelles.
 pub(super) fn layout(format: u32) -> Option<Layout> {
     let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
     Some(match format {

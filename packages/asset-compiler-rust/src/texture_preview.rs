@@ -10,18 +10,24 @@
 //! Aucun niveau intermédiaire n'est un fichier : au-dessus de `PREVIEW_BASE`, le niveau suivant est
 //! l'image source elle-même, inchangée, que l'hôte charge déjà.
 //!
-//! Chaîne de calcul, dans cet ordre : décodage → sRGB vers linéaire → prémultiplication par alpha →
-//! moyenne de boîte vers le niveau le plus fin porté → chaque niveau suivant par moyenne 2×2 du
-//! précédent → pour chaque niveau, dé-prémultiplication au tout dernier pas, linéaire vers sRGB,
-//! RGBA8 alpha droit. Le prémultiplié ne vit que dans ce module.
+//! Chaîne de calcul, dans cet ordre : décodage → la courbe **que le fichier a déclarée** vers le
+//! linéaire → prémultiplication par alpha → moyenne de boîte vers le niveau le plus fin porté →
+//! chaque niveau suivant par moyenne 2×2 du précédent → pour chaque niveau, dé-prémultiplication au
+//! tout dernier pas, linéaire vers sRGB, RGBA8 alpha droit. Le prémultiplié ne vit que dans ce
+//! module. La première courbe n'est pas toujours celle du sRGB : un conteneur GPU qui nomme une
+//! variante `_UNORM`, ou dont le descripteur de format déclare un transfert linéaire, porte des
+//! échantillons déjà proportionnels à la lumière, que la courbe sRGB décoderait une seconde fois.
+//! La sortie, elle, reste du sRGB dans tous les cas : c'est le format exact de la vraie texture, et
+//! ce que le sidecar binaire transporte — sa version ne bouge donc pas.
 //!
 //! Un décodage impossible — un format hors du registre des pilotes d'image, un PNG corrompu, une
 //! image absente — est une entrée de rapport nommée et aucun niveau : la compilation n'échoue jamais pour une texture, et le moteur retombe
 //! sur son blanc.
 use super::*;
-use crate::plugins::image::DecodedImage;
+use crate::plugins::image::{DecodedImage, Transfer};
 
 mod collect;
+mod curves;
 mod levels;
 mod reduce;
 mod source;
@@ -146,7 +152,7 @@ fn one_preview(
         // n'avait pas : la texture est nommée au rapport et n'a pas d'aperçu, jamais rognée.
         DecodedImage::RgbaF32 { .. } => return Err("image-float-unsupported"),
     };
-    let (first_level, pixels) = reduce::pyramid(&decoded, entry.cutoff);
+    let (first_level, pixels) = reduce::pyramid(&decoded, source.transfer, entry.cutoff);
     let preview = TexturePreview {
         texture: u32::try_from(entry.texture).map_err(|_| "texture-out-of-bounds")?,
         image: u32::try_from(image_index).map_err(|_| "image-out-of-bounds")?,

@@ -11,6 +11,7 @@ use super::super::image as registry;
 mod bytes;
 mod refus;
 mod sans_compression;
+mod transfert;
 
 const MAX_ALLOC: u64 = 64 * 1024 * 1024;
 /// Les blocs BCn couvrent 4 × 4 pixels : la dorée en pose exactement un par codec.

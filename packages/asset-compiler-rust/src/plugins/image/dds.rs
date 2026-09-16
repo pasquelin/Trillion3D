@@ -54,8 +54,11 @@ impl Plugin for Dds {
     fn name(&self) -> &'static str {
         "dds"
     }
+    /// Le suffixe nomme la fonction de transfert portée jusqu'à la sortie. Il a été ajouté avec
+    /// elle, parce que la version entre dans l'identité du cache : une entrée écrite du temps où
+    /// toute surface était rendue sRGB porte un aperçu décodé deux fois.
     fn version(&self) -> &'static str {
-        "dds-texture2ddecoder-0.1.2"
+        "dds-texture2ddecoder-0.1.2-transfert"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["dds"]
@@ -78,10 +81,8 @@ impl ImageDecoder for Dds {
         bytes: &[u8],
         max_alloc: u64,
     ) -> std::result::Result<ImageDecoded, &'static str> {
-        Ok(ImageDecoded::srgb(blocks::decode(
-            &header::parse(bytes)?,
-            bytes,
-            max_alloc,
-        )?))
+        let surface = header::parse(bytes)?;
+        let image = blocks::decode(&surface, bytes, max_alloc)?;
+        Ok(ImageDecoded::srgb(image).with_transfer(surface.transfer))
     }
 }
