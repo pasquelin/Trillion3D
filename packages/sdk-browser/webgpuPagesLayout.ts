@@ -7,6 +7,7 @@ import { createCornerUploadHold } from './webgpuVisibilityCorners.ts';
 import { createDrawItemWordsHold } from './webgpuVisibilityItemWords.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
+import type { BoxTransformLot } from './mathBatchRuntime.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 
@@ -52,6 +53,9 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   const drawItemWords = new Uint32Array(drawSlots * DRAW_ITEM_U32);
   const itemWordsHold = createDrawItemWordsHold(drawSlots);
   return {
+    /** Le lot de boîtes des racines, réservé à la préparation et rejoué à chaque déplacement de
+     *  nœud ; `null` tant que la préparation n'a pas eu lieu ou quand le lot n'est pas gréable. */
+    rootBoxes: null as BoxTransformLot | null,
     opaqueRoots,
     transparentRoots,
     selectionRoots,
