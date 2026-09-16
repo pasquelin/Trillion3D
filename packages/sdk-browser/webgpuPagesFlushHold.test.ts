@@ -9,12 +9,14 @@ import { flushWebgpuPages } from './webgpuPagesFlush.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Un état de vidange minimal : aucune carte, aucune texture, aucune résidence en vol. */
-function vidange(adopte?: () => boolean) {
+function vidange(adopte?: () => boolean, arme = true) {
   const revisions = createFrameRevisions();
   const frameHold = createFrameHold(HOLD_SIGNATURE_VALUES);
   // Deux images consécutives identiques : le témoin est armé et stable, comme après deux rendus.
-  frameHold.keep(revisions);
-  frameHold.keep(revisions);
+  if (arme) {
+    frameHold.keep(revisions);
+    frameHold.keep(revisions);
+  }
   const run = {
     revisions,
     frameHold,
@@ -77,4 +79,21 @@ test('une vidange dont l’adoption ne change rien laisse le témoin debout', as
   const { rt, frameHold } = vidange(() => false);
   await flushWebgpuPages(rt);
   assert.equal(frameHold.stable, true, 'aucune liste réécrite, aucune raison de refaire l’image');
+});
+
+test('trois images et trois vidanges sans écriture : la troisième est tenue', async () => {
+  // Ce que fait un hôte qui vide par image — le harnais, le Lab : rendre, vider, recommencer. La
+  // carte rend un relevé par image, identique à pose immobile, donc l'adoption ne réécrit rien.
+  let adoptions = 0;
+  const { rt, frameHold, revisions } = vidange(() => (adoptions++, false), false);
+  let tenues = 0;
+  for (let image = 0; image < 3; image++) {
+    // Une image complète : elle est rangée avec la signature de ce qu'elle a produit.
+    if (frameHold.stable && frameHold.same(revisions)) tenues++;
+    else frameHold.keep(revisions);
+    await flushWebgpuPages(rt);
+  }
+  assert.equal(adoptions, 3, 'la vidange rejoue bien une adoption par image');
+  assert.equal(tenues, 1, 'la troisième image doit être tenue');
+  assert.equal(frameHold.stable, true, 'le témoin a survécu aux trois vidanges');
 });

@@ -75,9 +75,17 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   );
   // L'hôte a le droit d'écrire le graphe source sans passer par le moteur — la pose d'un nœud, la
   // visibilité, une lampe. Aucune révision ne l'annonce : la relecture est ce qui l'annonce, et elle
-  // précède la décision de tenir l'image comme la remontée des matrices, qu'elle a déjà faite.
-  if (run.sceneWatch.changed(source)) bumpScene(run.revisions);
-  run.worldsRevision = run.revisions.scene;
+  // précède la décision de tenir l'image. Elle ne remonte rien : elle compare des poses locales,
+  // sur les seuls nœuds source, une liste refaite après chaque changement de scène et jamais par
+  // image — douze instances d'un même modèle relisent ce modèle une fois.
+  if (run.watchRevision !== run.revisions.scene) {
+    run.sceneWatch.observe(source, [
+      ...selectionRoots.map((root) => root.pages[0]),
+      ...blendState.blendGpu,
+    ]);
+    run.watchRevision = run.revisions.scene;
+  }
+  if (run.sceneWatch.changed()) bumpScene(run.revisions);
   // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
   // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
   if (holdWebgpuFrame(rt, gpuDevice)) return;
@@ -89,8 +97,13 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   void rt.texturePump
     .pump()
     .catch((error) => diag.diagnosticFailure('progressive-texture-mips-failed', error));
-  // Les matrices monde sont déjà remontées par la relecture ci-dessus ; ce qui reste incrémental
-  // est leur TÉLÉVERSEMENT, borné par le nombre de racines de sélection et non par les pages.
+  // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
+  // retrouverait toutes à l'identique. Elles ne sont donc remontées qu'à un changement de révision
+  // de scène, et `setWebgpuTransform` n'y remonte déjà que le sous-arbre qu'il a déplacé.
+  if (run.worldsRevision !== run.revisions.scene) {
+    run.worldsRevision = run.revisions.scene;
+    source.updateMatrixWorld(true);
+  }
   const worldsMoved = run.worldUploadRevision !== run.revisions.scene;
   if (worldsMoved) {
     run.worldUploadRevision = run.revisions.scene;
