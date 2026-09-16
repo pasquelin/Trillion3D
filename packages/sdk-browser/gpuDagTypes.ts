@@ -1,12 +1,9 @@
 import * as THREE from 'three';
 import type { NormalCone } from './pageCone.ts';
 
-export const CLUSTER_FLOATS = 16,
-  DAG_NODE_FLOATS = 16,
+export const DAG_NODE_FLOATS = 16,
   FRAME_VEC4 = 7,
   CULL_STRIDE = 15;
-export const CLUSTER_ROOT = 1,
-  CLUSTER_NEVER = 2;
 type DagCluster = {
   url: string;
   lodError?: number;
