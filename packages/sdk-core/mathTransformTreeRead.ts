@@ -1,5 +1,6 @@
 import { determinantMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { decomposeMatrix4 } from './mathMatrix4Trs.ts';
+import { normalizeVector3 } from './mathVector.ts';
 import type { TransformTree } from './mathTransformTree.ts';
 import { updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
 
@@ -43,14 +44,6 @@ export function nodeWorldScale<T extends NumberSink>(out: T, tree: TransformTree
   return out;
 }
 
-/** `v.normalize()` de la référence : chaque composante multipliée par `1 / (longueur || 1)`. */
-export function normalize(v: NumberSink) {
-  const inverse = 1 / (Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1);
-  v[0] *= inverse;
-  v[1] *= inverse;
-  v[2] *= inverse;
-}
-
 /**
  * Direction monde : la troisième colonne normalisée (une colonne nulle reste nulle). `cameraForward`
  * la retourne, comme la caméra de la référence : une caméra regarde vers son `−z`.
@@ -67,7 +60,7 @@ export function nodeWorldDirection<T extends NumberSink>(
   direction[0] = world[at + 8];
   direction[1] = world[at + 9];
   direction[2] = world[at + 10];
-  normalize(direction);
+  normalizeVector3(direction);
   // Calculée en double avant l'écriture : une sortie simple précision n'arrondit qu'une fois.
   const sign = cameraForward ? -1 : 1;
   out[0] = sign * direction[0];

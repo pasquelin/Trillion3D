@@ -1,6 +1,5 @@
 // Lot M3a, mathTransformTreeRead.ts : lectures monde (position, quaternion, échelle, direction),
-// mise à jour automatique des ancêtres avant lecture, sens des faces (déterminant négatif), et
-// `normalize` sur un vecteur nul.
+// mise à jour automatique des ancêtres avant lecture et sens des faces (déterminant négatif).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -18,7 +17,6 @@ import {
   nodeWorldPosition,
   nodeWorldQuaternion,
   nodeWorldScale,
-  normalize,
 } from './mathTransformTreeRead.ts';
 
 const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
@@ -96,14 +94,4 @@ test('nodeWorldMirrorsFaces : un déterminant nul (échelle nulle) ne renverse r
   const out = new Float64Array(3);
   nodeWorldPosition(out, tree, node);
   assert.equal(nodeWorldMirrorsFaces(tree, node), false);
-});
-
-test('normalize : un vecteur nul reste nul, un vecteur ordinaire devient de longueur 1', () => {
-  const nul = new Float64Array([0, 0, 0]);
-  normalize(nul);
-  assert.deepEqual([...nul], [0, 0, 0]);
-  const v = new Float64Array([3, 0, 4]);
-  normalize(v);
-  assert.ok(proche(Math.hypot(v[0], v[1], v[2]), 1));
-  assert.ok(proche(v[0], 0.6) && v[1] === 0 && proche(v[2], 0.8));
 });

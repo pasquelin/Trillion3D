@@ -63,9 +63,16 @@ export { invertMatrix4 } from './mathMatrix4Inverse.ts';
 export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
 export { normalMatrix3 } from './mathMatrix3.ts';
 export {
+  addScaledVector3,
+  applyMatrix3Vector3,
+  copyScaledVector3,
   crossVector3,
   dotVector3,
+  lengthSqVector3,
+  normalizeVector3,
+  scaleVector3,
   transformAffinePoint,
+  transformDirectionVector3,
   transformHomogeneousPoint,
 } from './mathVector.ts';
 export { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';

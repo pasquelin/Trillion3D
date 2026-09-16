@@ -3,9 +3,12 @@ import assert from 'node:assert/strict';
 import {
   crossVector3,
   dotVector3,
+  normalizeVector3,
   transformAffinePoint,
   transformHomogeneousPoint,
 } from './mathVector.ts';
+
+const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
 
 test('dotVector3 : produit scalaire des trois premières composantes seulement', () => {
   assert.equal(dotVector3([1, 2, 3], [4, 5, 6]), 32);
@@ -59,4 +62,14 @@ test('transformHomogeneousPoint : porte la quatrième composante, division laiss
   const proj = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0];
   const out = transformHomogeneousPoint(new Float64Array(4), proj, 2, 4, -10);
   assert.deepEqual([...out], [2, 4, -10, 10]);
+});
+
+test('normalizeVector3 : un vecteur nul reste nul, un vecteur ordinaire devient de longueur 1', () => {
+  const nul = new Float64Array([0, 0, 0]);
+  normalizeVector3(nul);
+  assert.deepEqual([...nul], [0, 0, 0]);
+  const v = new Float64Array([3, 0, 4]);
+  normalizeVector3(v);
+  assert.ok(proche(Math.hypot(v[0], v[1], v[2]), 1));
+  assert.ok(proche(v[0], 0.6) && v[1] === 0 && proche(v[2], 0.8));
 });

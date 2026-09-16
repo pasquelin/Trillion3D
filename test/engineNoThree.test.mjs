@@ -110,7 +110,6 @@ const AUTORISES = {
   visibilityLighting: 'couleur du matériau hôte',
   visibilityMath: 'attributs, textures et modes de répétition de l’hôte',
   visibilityRaster: 'constantes de face du matériau hôte',
-  visibilityShadingNormal: 'repère tangent du raster témoin, encore en vecteurs de l’hôte',
   visibilityTypes: 'contrat : matériaux, textures et couleurs de l’hôte',
   visibilityWrapModes: 'modes de répétition de la texture hôte',
   webgpuAtlasCommon: 'textures de l’hôte rangées en atlas',

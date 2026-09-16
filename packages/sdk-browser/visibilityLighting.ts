@@ -45,9 +45,9 @@ export function shadeLit(
   ];
   const screenFace = affine.area * tri.a.invW * tri.b.invW * tri.c.invW < 0 ? 1 : -1;
   const normal = shadingNormal(page, tri, bary, uv, mat, screenFace);
-  const Nx = normal.x,
-    Ny = normal.y,
-    Nz = normal.z;
+  const Nx = normal[0],
+    Ny = normal[1],
+    Nz = normal[2];
   // L'œil en repère monde, pris dans la caméra du moteur que l'entrée d'image a recopiée.
   const eye = cam.eye;
   const vx = eye[0] - world[0],
