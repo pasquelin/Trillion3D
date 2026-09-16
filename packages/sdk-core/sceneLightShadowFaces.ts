@@ -48,7 +48,9 @@ export const SHADOW_CULL_FLOATS = 8;
  * armé, le volume que celui-ci oppose à la région `rect` de cette face. Les deux partent du même axe
  * et du même champ — un seul calcul, donc aucun risque qu'ils visent des directions différentes. Une
  * ponctuelle prend l'axe de `POINT_FACE_AXES` et 90° ; un projecteur prend sa direction et son cône
- * élargi ; une directionnelle prend la cascade `face`, qui suit la caméra.
+ * élargi ; une directionnelle prend la cascade `face`, qui suit la caméra. Le rayon d'émetteur de la
+ * lampe, quand elle en déclare un, devient le plancher du plan proche de sa carte : son enveloppe
+ * n'occulte plus sa propre lumière.
  *
  * `rect` est la part de la face à redessiner, en coordonnées normalisées ; `FULL_FACE` par défaut,
  * et le volume est alors exactement celui d'avant l'invalidation par pages. Un cluster dont la
@@ -72,7 +74,7 @@ export function writeFace(
   const point = light.kind === 'point';
   const forward = point ? POINT_FACE_AXES[face] : lightDirection(light);
   const fov = point ? Math.PI / 2 : spotFov(light.coneAngle!);
-  const planes = shadowProjection(fov, light.range!);
+  const planes = shadowProjection(fov, light.range!, light.emitterRadius ?? 0);
   composeFace(matrices, matBase, light.position!, forward);
   // Le plan lointain de la face, pas la portée : les deux ne coïncident que si la portée dépasse le
   // plan proche, et un cluster entre les deux doit rester dessiné.
