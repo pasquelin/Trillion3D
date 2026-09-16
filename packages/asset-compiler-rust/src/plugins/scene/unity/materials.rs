@@ -22,6 +22,7 @@ const METALLIC_MAP: [&str; 3] = ["_MaskMap", "_MetallicGlossMap", "_MetallicRema
 const CUTOFF: [&str; 2] = ["_AlphaCutoff", "_Cutoff"];
 const ALPHA_CLIP: [&str; 2] = ["_AlphaCutoffEnable", "_AlphaClip"];
 const CULL: [&str; 2] = ["_CullMode", "_Cull"];
+const SURFACE: [&str; 2] = ["_SurfaceType", "_Surface"];
 
 /// Les tables de propriétés d'un `Material` sérialisé.
 struct Properties<'a> {
@@ -111,8 +112,10 @@ fn emission(
     }
 }
 
-/// Le mode de rendu : `_Mode` chez Standard (0 opaque, 1 découpé, 2 fondu, 3 transparent), `_Surface`
-/// et le drapeau de découpe chez URP et HDRP. La décision se prend sur ces propriétés seules, jamais
+/// Le mode de rendu : `_Mode` chez Standard (0 opaque, 1 découpé, 2 fondu, 3 transparent),
+/// `_SurfaceType` ou `_Surface` chez URP et HDRP (0 opaque, 1 transparent) et le drapeau de découpe
+/// (`_AlphaCutoffEnable`, `_AlphaClip`) avec son seuil (`_AlphaCutoff`, `_Cutoff`). Un matériau qui
+/// ne déclare aucun de ces modes est opaque. La décision se prend sur ces propriétés seules, jamais
 /// sur un nom de matériau, un type d'objet ni l'alpha de la couleur de base : cet alpha est un
 /// facteur, que le glTF garde dans `baseColorFactor` et qu'un matériau opaque ne regarde pas. Un
 /// matériau déclaré transparent reste fondu, même quand il déclare aussi une découpe : `MASK`
@@ -121,7 +124,7 @@ fn emission(
 /// `alphaCutoff` que sous `MASK`.
 fn alpha(properties: &Properties<'_>, out: &mut Value, scene: &mut Scene) {
     let mode = properties.float(&["_Mode"], 0.0);
-    let surface = properties.float(&["_Surface"], 0.0);
+    let surface = properties.float(&SURFACE, 0.0);
     let clipped = properties.float(&ALPHA_CLIP, 0.0) >= 0.5 || mode == 1.0;
     if surface >= 0.5 || mode >= 2.0 {
         out["alphaMode"] = json!("BLEND");
