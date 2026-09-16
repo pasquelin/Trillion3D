@@ -47,6 +47,7 @@ export function createAutonomousRender(options: {
     viewport: context.viewport,
     holdResident: true,
   };
+  const sourcesDessinees = roots.map((root) => root.pages[0]);
   return (camera: THREE.PerspectiveCamera) => {
     // La caméra aussi, ancêtres compris : un rig d'hôte n'appartient pas à la scène préparée, et
     // `updateWorlds` ne remonte que celle-ci. Avant tout le reste, comme dans les autres moteurs.
@@ -55,6 +56,9 @@ export function createAutonomousRender(options: {
     // adaptatif de la première image qui bouge à nouveau.
     selectOptions.pixelError = resolvePixelError(context, camera, motion);
     gate.viewChanged(camera, context.viewport, selectOptions.pixelError);
+    // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture le dit,
+    // et elle précède la décision de tenir l'image.
+    gate.readScene(context.source, sourcesDessinees);
     state.frameHeld = gate.held();
     if (state.frameHeld) return;
     // Les matrices monde et les lampes recopiées ne sont fonction que de la scène.
@@ -72,13 +76,6 @@ export function createAutonomousRender(options: {
       for (let i = 0; i < bootstrap.length; i++) shown.push(bootstrap[i]);
     }
     sync();
-    gate.keep(
-      state.visible,
-      state.selectedTriangles,
-      state.frustumRejected,
-      state.lodLevel,
-      shown.length,
-      state.overBudget,
-    );
+    gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
 }

@@ -114,3 +114,30 @@ test('un nouveau relevé refait la liste, et l’invalidation oublie celui qui �
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(b.shown, attendu, 'le relevé oublié est relu en entier');
 });
+
+test('un relevé NEUF qui republie les mêmes identifiants ne réécrit rien', () => {
+  const b = banc([0, 1, 2, 3, 4]);
+  assert.equal(b.adopter.adopt(), true);
+  const contenu = [...b.shown];
+  // C'est le cas d'une pose immobile : la carte rend un relevé par image, et ce relevé est le même.
+  // Un objet différent portant la même suite d'identifiants ne change pas l'image d'un pixel.
+  for (let image = 0; image < 3; image++) {
+    b.montre({
+      uniforms: b.cut.uniforms,
+      result: {
+        pageIds: [0, 1, 2, 3, 4],
+        drawablePageIds: [0, 1, 2, 3, 4],
+        frustumRejected: 0,
+        lodLevel: 0,
+      },
+    } as GpuCut);
+    assert.equal(b.adopter.adopt(), true, 'le relevé est bien adopté');
+    assert.equal(
+      b.adopter.metrics.listsRewritten,
+      false,
+      'un relevé identique ne réécrit aucune liste : le témoin d’image tenue doit survivre',
+    );
+    assert.equal(b.adopter.metrics.cutHeld, true);
+    assert.deepEqual(b.shown, contenu, 'et la liste affichée est la même');
+  }
+});

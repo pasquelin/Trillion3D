@@ -13,6 +13,7 @@ import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import { holdWebgpuFrame } from './webgpuFrameHold.ts';
+import { bumpScene } from './frameRevisions.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -72,6 +73,19 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
     rt.setup.viewport[1],
     pixelError,
   );
+  // L'hôte a le droit d'écrire le graphe source sans passer par le moteur — la pose d'un nœud, la
+  // visibilité, une lampe. Aucune révision ne l'annonce : la relecture est ce qui l'annonce, et elle
+  // précède la décision de tenir l'image. Elle ne remonte rien : elle compare des poses locales,
+  // sur les seuls nœuds source, une liste refaite après chaque changement de scène et jamais par
+  // image — douze instances d'un même modèle relisent ce modèle une fois.
+  if (run.watchRevision !== run.revisions.scene) {
+    run.sceneWatch.observe(source, [
+      ...selectionRoots.map((root) => root.pages[0]),
+      ...blendState.blendGpu,
+    ]);
+    run.watchRevision = run.revisions.scene;
+  }
+  if (run.sceneWatch.changed()) bumpScene(run.revisions);
   // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
   // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
   if (holdWebgpuFrame(rt, gpuDevice)) return;

@@ -71,10 +71,24 @@ export function createExactPagesRender(
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
-  /** Une image tenue n'a exécuté aucune étape : son profil le dit en zéros, pas en estimations. */
+  // Ce que ce moteur dessine, par le nœud source d'où chaque chose sort : une page par racine — les
+  // instances d'un même modèle le nomment toutes —, et les copies transparentes hors DAG.
+  const sourcesDessinees = [
+    ...roots.map((root) => root.pages[0]),
+    ...blendCopies.map((copy) => copy.userData),
+  ];
+  /**
+   * Une image tenue n'a exécuté aucune étape : son profil le dit en zéros, pas en estimations, et
+   * la durée de coupe comme le nombre de nœuds visités valent zéro parce qu'aucune coupe n'a été
+   * faite — jamais ceux de la dernière image qui en a fait une. Ce que l'image MONTRE reste décrit
+   * par la coupe qu'elle réaffiche : pages retenues, triangles sélectionnés, rejet par le tronc et
+   * niveau de détail ne bougent pas, puisque c'est la même coupe.
+   */
   const heldProfile = () => {
     const row = cpuProfile.row;
     for (const step of Object.values(EXACT_CPU_STEP)) row[step] = 0;
+    state.cpuSelectMs = 0;
+    state.cpuSelectNodesTested = 0;
   };
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
@@ -87,6 +101,9 @@ export function createExactPagesRender(
     // adaptatif de la première image qui bouge à nouveau.
     state.lastPixelError = resolvePixelError(context, camera, motion);
     gate.viewChanged(camera, viewport, state.lastPixelError);
+    // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture est ce
+    // qui l'annonce, et elle précède la décision de tenir l'image.
+    gate.readScene(source, sourcesDessinees);
     // Rien n'a bougé et les deux images précédentes ont produit la même coupe : la scène attachée
     // est déjà cette image-ci, et l'hôte la redessine telle quelle.
     state.frameHeld = gate.held();
@@ -130,13 +147,6 @@ export function createExactPagesRender(
     row[EXACT_CPU_STEP.pendingMs] = 0;
     row[EXACT_CPU_STEP.retainMs] = 0;
     row[EXACT_CPU_STEP.submitMs] = 0;
-    gate.keep(
-      state.visible,
-      state.selectedTriangles,
-      state.frustumRejected,
-      state.lodLevel,
-      shown.length,
-      state.overBudget,
-    );
+    gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
   };
 }
