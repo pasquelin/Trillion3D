@@ -46,12 +46,6 @@ import {
  * l'appelant le déclare caduc dès que la table de lignes change d'âge.
  */
 export const PARTITION_CLASSIFY_WGSL = `
-/** Miroir GPU de \`premierNiveau\` (hizOcclusion.ts) : plus bas mip qui puisse tenir dans le noyau. */
-fn firstLevel(span:i32)->u32{
- if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
- let level=31u-countLeadingZeros(u32(span))-${Math.log2(HIZ_KERNEL_TEXELS) - 1}u;
- return select(level,0u,level>31u);
-}
 var<workgroup> blockTotals:array<u32,${PARTITION_WORKGROUP}>;
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn chooseSplit(@builtin(local_invocation_id) lid:vec3u){
@@ -127,14 +121,8 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
  let x1=min(unclipped.z,i32(uni.width)-1);let y1=min(unclipped.w,i32(uni.height)-1);
  var level=0u;var found=false;
  if(!clips&&x1>=x0&&y1>=y0){
-  var l=firstLevel(max(x1-x0,y1-y0));
-  loop{
-   if(l>=uni.levels){break;}
-   if((x1>>l)-(x0>>l)<${HIZ_KERNEL_TEXELS}&&(y1>>l)-(y0>>l)<${HIZ_KERNEL_TEXELS}){
-    level=l;found=true;break;
-   }
-   l++;
-  }
+  let pick=hizLevelFor(vec4i(x0,y0,x1,y1),uni.levels);
+  level=pick.x;found=pick.y!=0u;
  }
  let slot=atomicAdd(&state[${ST_TESTED}u],1u)*${TESTED_U32}u;
  if(found){
