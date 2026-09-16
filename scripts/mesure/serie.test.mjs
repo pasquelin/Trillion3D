@@ -92,6 +92,36 @@ test('runSerie publie null, jamais 0 ou false déduits, quand ce moteur ne compt
   }
 });
 
+// Lot triangles synchrones : `drawnTriangles` est lu depuis `metrics.drawnTriangles`, comme les
+// autres compteurs de triangles — présent quand le moteur le publie, `null` sinon, jamais déduit.
+test('runSerie publie drawnTriangles depuis les métriques, et null quand ce moteur ne le compte pas', async () => {
+  const { ctx, side, OUT } = await contexte();
+  try {
+    const { row: avecCompteur } = await runSerie(
+      ctx,
+      page({ selectedTriangles: 900, uncoveredTriangles: 100, drawnTriangles: 800 }),
+      side,
+      'salon',
+      1,
+      { position: [0, 0, 0] },
+      new Map(),
+    );
+    assert.equal(avecCompteur.drawnTriangles, 800);
+    const { row: sansCompteur } = await runSerie(
+      ctx,
+      page({}),
+      side,
+      'salon',
+      1,
+      { position: [0, 0, 0] },
+      new Map(),
+    );
+    assert.equal(sansCompteur.drawnTriangles, null);
+  } finally {
+    await rm(OUT, { recursive: true, force: true });
+  }
+});
+
 test('runSerie lit les six compteurs Hi-Z sous leurs noms de contrat, avec l’image qu’ils décrivent', async () => {
   const { ctx, side, OUT } = await contexte();
   try {
