@@ -127,8 +127,8 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   rt.blendState.pagedGroup = undefined;
   rt.blendState.overdraw?.dispose();
   rt.blendState.overdraw = undefined;
-  vis.gpuSmall?.dispose();
-  vis.gpuSmall = undefined;
+  vis.gpuRaster?.dispose();
+  vis.gpuRaster = undefined;
   dropGpuDraw(rt);
   dropGpuHiz(rt);
   vis.concatPos?.destroy();
@@ -143,7 +143,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.materialScales?.destroy();
   vis.materialScales = undefined;
   vis.visSlotGroups.fill(undefined);
-  vis.smallGroups.fill(undefined);
+  vis.rasterGroups.fill(undefined);
   vis.concatPos =
     vis.concatUv =
     vis.concatNrm =

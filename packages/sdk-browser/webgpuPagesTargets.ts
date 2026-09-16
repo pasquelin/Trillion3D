@@ -61,8 +61,8 @@ export function ensureTargets(
   vis.shadeBindGroup = undefined;
   vis.visBindGroup = undefined;
   vis.visHizBindGroup = undefined;
-  vis.gpuSmall?.dispose();
-  vis.gpuSmall = undefined;
+  vis.gpuRaster?.dispose();
+  vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
   capture.capturedRevision = -1;
   const usage =
