@@ -34,6 +34,10 @@ pub(super) const COMPOSITION: &str = "usd-composition-invalid";
 pub(super) const TIME_SAMPLE: &str = "usd-animation-first-sample";
 /// Un `Mesh` dont les tableaux obligatoires manquent ou se contredisent.
 pub(super) const MESH_INVALID: &str = "usd-mesh-invalid";
+/// Une face qu'un `Mesh` déclare et que ses tableaux ne portent pas : un indice hors du tableau de
+/// points, un indice négatif, moins de trois coins, ou un indice de primvar qui sort de son
+/// tableau. Elle est retirée de la surface plutôt que repliée sur le premier point.
+pub(super) const FACE_INVALID: &str = "usd-face-invalid";
 /// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe, ou
 /// sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin, ce
 /// qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
