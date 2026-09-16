@@ -80,6 +80,27 @@ pub(super) fn link_field(file: &BlendFile, material: &str, tosock: u64, name: &s
     field(file, link.old, &[name])
 }
 
+/// La fixture dont le SDNA ne décrit plus le champ nommé : son nom est réécrit dans la section des
+/// noms, à longueur égale. C'est exactement ce que porte un fichier écrit avant ce champ.
+pub(super) fn without_field(name: &str) -> Vec<u8> {
+    let mut bytes = fixture();
+    let needle: Vec<u8> = format!("{name}\0").into_bytes();
+    let mut renamed = needle.clone();
+    let last = renamed.len() - 2;
+    renamed[last] = b'_';
+    let found: Vec<usize> = bytes
+        .windows(needle.len())
+        .enumerate()
+        .filter(|(_, window)| *window == needle.as_slice())
+        .map(|(at, _)| at)
+        .collect();
+    assert!(!found.is_empty(), "le SDNA ne nomme pas {name}");
+    for at in found {
+        put(&mut bytes, at, &renamed);
+    }
+    bytes
+}
+
 /// Le graphe de nœuds d'un matériau nommé.
 fn tree<'a>(file: &'a BlendFile, material: &str) -> At<'a> {
     file.at(named(file, material))

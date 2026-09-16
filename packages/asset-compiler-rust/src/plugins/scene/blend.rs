@@ -32,8 +32,9 @@
 //! textes, métaballes, armatures, lampes, caméras), collections instanciées, modificateurs non
 //! appliqués — le maillage de base sort alors tel quel —, entrées de nuanceur alimentées par un
 //! calcul, émission au-delà de un, images hors de la racine servie ou hors du registre d'images,
-//! remplacement de matériau par un objet, scènes au-delà de la première, et objets qu'aucune
-//! collection de la scène active ne porte.
+//! remplacement de matériau par un objet, scènes au-delà de la première, objets qu'aucune
+//! collection de la scène active ne porte, nuanceur de surface sans équivalent PBR, et opacité
+//! prise sur une autre image ou un autre canal que l'alpha de la couleur de base.
 use super::*;
 use crate::import::{f32_bytes, normalise, write_scene, Bin, Report, Tables};
 use crate::{hash, CompilerError};
@@ -46,6 +47,7 @@ use std::{
 };
 
 mod active;
+mod alpha;
 mod attrs;
 mod build;
 mod bytes;

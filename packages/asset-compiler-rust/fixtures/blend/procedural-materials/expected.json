@@ -23,7 +23,7 @@
         "alphaMode": "BLEND",
         "name": "Transparent",
         "pbrMetallicRoughness": {
-          "baseColorFactor": [1.0, 1.0, 1.0, 0.4000000059604645],
+          "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
           "baseColorTexture": {
             "index": 0
           },
