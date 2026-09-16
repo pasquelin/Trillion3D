@@ -26,6 +26,16 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
   /** La tête de la coupe — préparation, nœuds, grappes voulues — encodée deux fois, elle aussi
    *  idempotente. Par soustraction avec la précédente, la queue : escalades, masque, compaction. */
   'selection-tete-doublee',
+  /** Le raster de visibilité n'applique plus le masque d'opacité : ni lecture d'atlas, ni rejet. */
+  'geometrie-plat',
+  /** Le raster de visibilité écarte immédiatement : il ne reste que les sommets et les triangles. */
+  'geometrie-sommets',
+  /** La seconde passe de visibilité n'est pas encodée : les occulteurs seuls. */
+  'geometrie-une-passe',
+  /** La résolution des surfaces ne lit rien et rend une valeur constante. */
+  'resolution-plate',
+  /** La résolution des surfaces ne lit que le tampon de visibilité, sans matériau ni atlas. */
+  'resolution-identifiants',
 ] as const;
 
 export type DiagnosticGpuVariant = (typeof DIAGNOSTIC_GPU_VARIANTS)[number];
