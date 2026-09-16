@@ -48,7 +48,9 @@ impl Dna {
         }
         at = (at + 3) & !3;
         tag(bytes, &mut at, b"STRC")?;
-        let total = u32::from_le_bytes(word(bytes, &mut at)?) as usize;
+        // Une structure pèse au moins son type et son nombre de champs : le compte est borné par ce
+        // que le bloc porte encore, et rien n'est réservé avant de l'avoir cru.
+        let total = count(bytes, &mut at, 4)?;
         let mut structs = Vec::with_capacity(total);
         for _ in 0..total {
             structs.push(layout(bytes, &mut at, &names, &types, &lengths)?);
@@ -92,6 +94,17 @@ fn tag(bytes: &[u8], at: &mut usize, expected: &[u8; 4]) -> Result<()> {
     Ok(())
 }
 
+/// Le compte d'une section, borné par ce que le bloc peut encore porter : chaque entrée y pèse au
+/// moins `unit` octets, donc un compte qui ne tient pas dans le reste du bloc ment.
+fn count(bytes: &[u8], at: &mut usize, unit: usize) -> Result<usize> {
+    let total = u32::from_le_bytes(word(bytes, at)?) as usize;
+    let room = bytes.len().saturating_sub(*at);
+    match total.checked_mul(unit) {
+        Some(needed) if needed <= room => Ok(total),
+        _ => Err(invalid()),
+    }
+}
+
 fn word<const N: usize>(bytes: &[u8], at: &mut usize) -> Result<[u8; N]> {
     let found: [u8; N] = bytes
         .get(*at..*at + N)
@@ -105,8 +118,9 @@ fn word<const N: usize>(bytes: &[u8], at: &mut usize) -> Result<[u8; N]> {
 /// Une section de chaînes : son étiquette, son compte, puis les chaînes, le tout aligné sur quatre.
 fn strings(bytes: &[u8], at: &mut usize, label: &[u8; 4]) -> Result<Vec<String>> {
     tag(bytes, at, label)?;
-    let total = u32::from_le_bytes(word(bytes, at)?) as usize;
-    let mut out = Vec::with_capacity(total.min(1 << 16));
+    // Une chaîne pèse au moins son zéro terminal : le compte tient donc dans le reste du bloc.
+    let total = count(bytes, at, 1)?;
+    let mut out = Vec::with_capacity(total);
     for _ in 0..total {
         let rest = bytes.get(*at..).ok_or_else(invalid)?;
         let end = rest
@@ -143,7 +157,7 @@ fn layout(
         } else {
             *lengths.get(kind).ok_or_else(invalid)?
         };
-        let count = elements(name);
+        let count = elements(name).ok_or_else(invalid)?;
         fields.insert(
             key(name).to_string(),
             Field {
@@ -154,7 +168,10 @@ fn layout(
                 pointer,
             },
         );
-        offset += unit * count;
+        offset = unit
+            .checked_mul(count)
+            .and_then(|span| offset.checked_add(span))
+            .ok_or_else(invalid)?;
     }
     // La taille déclarée par `TLEN` fait foi — c'est celle du pas d'un tableau de structures ; la
     // somme des champs ne sert que si le fichier n'en déclare pas.
@@ -180,16 +197,17 @@ fn key(name: &str) -> &str {
 }
 
 /// Le nombre d'éléments qu'un nom de champ déclare : le produit de ses dimensions, une pour un
-/// champ simple.
-fn elements(name: &str) -> usize {
-    let mut total = 1;
+/// champ simple. Rien quand ce produit déborde — le nom ment alors sur ce que le fichier porte.
+fn elements(name: &str) -> Option<usize> {
+    let mut total: usize = 1;
     let mut rest = name;
     while let Some(open) = rest.find('[') {
         let Some(close) = rest[open..].find(']') else {
             break;
         };
-        total *= rest[open + 1..open + close].parse::<usize>().unwrap_or(1);
+        let dimension = rest[open + 1..open + close].parse::<usize>().unwrap_or(1);
+        total = total.checked_mul(dimension)?;
         rest = &rest[open + close + 1..];
     }
-    total
+    Some(total)
 }
