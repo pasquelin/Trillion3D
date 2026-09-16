@@ -106,10 +106,11 @@ pub(super) fn attributes<'a>(mesh: &At<'a>) -> Vec<(String, Attr<'a>)> {
         } else {
             data.int("size", 0).max(0) as usize
         };
-        let Some(values) = data
-            .block("data")
-            .filter(|bytes| bytes.len() >= count * width)
-        else {
+        let Some(values) = data.block("data").filter(|bytes| {
+            count
+                .checked_mul(width)
+                .is_some_and(|span| bytes.len() >= span)
+        }) else {
             continue;
         };
         out.push((

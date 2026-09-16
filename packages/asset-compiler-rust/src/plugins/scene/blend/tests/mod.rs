@@ -6,6 +6,7 @@
 use super::*;
 use crate::tests::ngones::{rendered_area, U_RING};
 
+mod bornes;
 mod fidelite;
 mod matiere;
 mod sortie;
@@ -157,7 +158,15 @@ fn a_concave_polygon_keeps_its_own_area() {
     };
     let mut out = Out::new();
     let normals = normals::corners(&geometry);
-    let (mesh, triangles) = build::mesh_json(&geometry, &normals, &[None], "U", &mut out);
+    let (mesh, triangles) = build::mesh_json(
+        &geometry,
+        &normals,
+        &[None],
+        "U",
+        &mut out,
+        &std::sync::atomic::AtomicBool::new(false),
+    )
+    .expect("le maillage");
     assert_eq!(triangles, 6, "huit coins font six triangles");
     assert_eq!(out.counts.get("blend-ngon-untriangulable"), None);
     let primitive = &mesh["primitives"][0];

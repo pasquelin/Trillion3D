@@ -122,3 +122,31 @@ fn an_intermediate_or_invisible_shape_never_reaches_the_scene() {
     assert_eq!(manifest["unsupported"]["ma-shape-intermediate"], 1);
     assert_eq!(manifest["source"]["counts"]["invisible"], 1);
 }
+
+// Constat 23 : une face qui cite l'arête `i64::MIN` est refusée sous son nom. Maya écrit `-(i + 1)`
+// pour une arête parcourue à l'envers, et la valeur la plus basse n'a pas d'opposé : la nier
+// débordait, ce qui arrêtait la compilation par une panique au lieu d'un refus compté.
+#[test]
+fn a_face_citing_the_lowest_edge_index_is_refused_by_name() {
+    let body = format!(
+        "createNode transform -n \"T\";\n{}\
+         createNode transform -n \"H\";\n\
+         createNode mesh -n \"HShape\" -p \"H\";\n\
+         \tsetAttr -s 4 \".vt[0:3]\" -type \"float3\" 0 0 0  1 0 0  1 1 0  0 1 0;\n\
+         \tsetAttr -s 4 \".ed[0:3]\" 0 1 0  1 2 0  2 3 0  3 0 0;\n\
+         \tsetAttr -s 1 \".fc[0:0]\" -type \"polyFaces\"\n\
+         \t\tf 4 {} 1 2 3;\n",
+        quad("TShape", "T"),
+        i64::MIN,
+    );
+    let run = compile_ma("ma-arete-minimale", &body);
+    assert_eq!(
+        run.result["sourceTriangles"], 2,
+        "seule la forme saine est rendue"
+    );
+    let (manifest, _) = run.prepared("ma");
+    assert_eq!(
+        manifest["unsupported"]["ma-mesh-invalid"], 1,
+        "l'arête hors table est comptée sous son nom"
+    );
+}

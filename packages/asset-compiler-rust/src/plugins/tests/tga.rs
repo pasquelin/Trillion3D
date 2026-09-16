@@ -107,3 +107,29 @@ fn un_tga_illisible_ressort_en_raison_de_rapport_jamais_en_panique() {
         "entête incomplet"
     );
 }
+
+/// Un TGA d'un seul pixel en vraies couleurs 24 bits, origine haute : dix-huit octets d'entête puis
+/// le pixel, écrit BGR comme le format le demande. Trois octets écrits, quatre une fois étendus en
+/// RGBA8 : c'est cet écart que le plafond doit voir.
+const ONE_PIXEL: [u8; 21] = [
+    0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 24, 0x20, 10, 20, 30,
+];
+
+// Constat 7 : le plafond d'allocation vaut la taille finale de l'image en RGBA8 — largeur par
+// hauteur par quatre octets —, vérifiée avant tout décodage. Un pixel de trente-deux bits passait
+// sous un plafond de trois octets, puis quatre étaient alloués pour le porter.
+#[test]
+fn le_plafond_couvre_la_taille_rgba8_finale_avant_tout_decodage() {
+    assert_eq!(
+        registry::by_head(&ONE_PIXEL).map(|d| d.name()),
+        Some("tga"),
+        "un TGA d'un pixel reste revendiqué par son entête"
+    );
+    assert_eq!(
+        registry::decode(&ONE_PIXEL, 3).err(),
+        Some("image-too-large"),
+        "un pixel RGBA8 pèse quatre octets, au-dessus d'un plafond de trois"
+    );
+    let decoded = super::rgba8(registry::decode(&ONE_PIXEL, MAX_ALLOC).expect("sous le plafond"));
+    assert_eq!(decoded.into_raw(), vec![30, 20, 10, 255]);
+}
