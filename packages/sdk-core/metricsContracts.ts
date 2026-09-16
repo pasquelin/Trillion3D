@@ -74,6 +74,13 @@ export interface FrameMetrics extends ShadowFrameMetrics {
   coverageReady?: boolean | null;
   /** Requested detail cannot coexist with the pinned fallback within the GPU page budget. */
   coverageBudgetLimited?: boolean | null;
+  /**
+   * Vrai quand l'image a été tenue : ni la scène, ni la vue, ni les ressources n'ont bougé, aucun
+   * travail asynchrone n'était en attente, et aucune étape processeur n'a été exécutée. Les autres
+   * mesures de cette image sont celles de l'image d'origine, à l'identique — c'est la même image.
+   * Absent d'un moteur qui ne tient pas ses images.
+   */
+  frameHeld?: boolean | null;
   /** Sticky loading error; failed URLs require an explorer reload after three attempts. */
   streamingError?: string | null;
   /**

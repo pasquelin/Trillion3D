@@ -1,6 +1,17 @@
 import type { PackedDag } from './gpuDagTypes.ts';
 import type { SelectionResult, SelectionUniforms } from './gpuSelection.ts';
 
+/**
+ * Les tableaux d'une fente de relecture, réutilisés d'une lecture à l'autre. Le relevé de la coupe
+ * en remplit deux dont l'un couvre toutes les pages du DAG : les rallouer à chaque relecture jetait
+ * cent mille éléments au ramasse-miettes par relecture, pour y réécrire exactement les mêmes rangs.
+ */
+export type DagOutputScratch = { result: SelectionResult; drawable: number[] };
+export const createDagOutputScratch = (): DagOutputScratch => ({
+  result: { pageIds: [], frustumRejected: 0, lodLevel: 0 },
+  drawable: [],
+});
+
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
@@ -33,23 +44,23 @@ export function parseDagOutput(
   byteOffset: number,
   byteLength: number,
   maskPageCount: number,
+  scratch: DagOutputScratch = createDagOutputScratch(),
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4));
   if (((ints[3] ?? 0) & 1) !== 0) return null;
   const count = Math.min(ints[0] ?? 0, Math.max(0, ints.length - 4 - maskPageCount));
   // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
   // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
-  const pageIds = new Array<number>(count);
+  const { result, drawable } = scratch,
+    pageIds = result.pageIds;
+  pageIds.length = count;
   for (let i = 0; i < count; i++) pageIds[i] = ints[4 + i];
-  const result: SelectionResult = {
-    pageIds,
-    frustumRejected: ints[1] ?? 0,
-    lodLevel: ints[2] ?? 0,
-    complete: ((ints[3] ?? 0) & 2) === 0,
-  };
+  result.frustumRejected = ints[1] ?? 0;
+  result.lodLevel = ints[2] ?? 0;
+  result.complete = ((ints[3] ?? 0) & 2) === 0;
+  result.drawablePageIds = undefined;
   if (maskPageCount) {
-    const drawable = new Array<number>(maskPageCount),
-      offset = ints.length - maskPageCount;
+    const offset = ints.length - maskPageCount;
     let found = 0;
     for (let i = 0; i < maskPageCount; i++) if (ints[offset + i]) drawable[found++] = i;
     drawable.length = found;

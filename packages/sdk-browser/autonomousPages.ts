@@ -1,11 +1,7 @@
 import * as THREE from 'three';
-import {
-  collectClusterPages,
-  indexPagesByUrl,
-  resolvePixelError,
-  selectVisiblePages,
-  type PageRec,
-} from './pageSelection.ts';
+import { collectClusterPages, indexPagesByUrl, type PageRec } from './pageSelection.ts';
+import { createAutonomousRender, createAutonomousRenderState } from './autonomousRender.ts';
+import { createWebglFrameGate } from './webglFrameGate.ts';
 import { decodePageOffThread } from './pageDecodeHost.ts';
 import { createAutonomousGeometry } from './autonomousGeometry.ts';
 import { createAutonomousInstances } from './autonomousInstances.ts';
@@ -13,6 +9,7 @@ import { prepareAutonomousManifest, autonomousBootstrap } from './autonomousMani
 import { comptePagesResidentes, createAutonomousResidency } from './autonomousResidency.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
 import type { BackendFactory } from './backendTypes.ts';
+import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
@@ -44,13 +41,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.material] as const)),
     colorMaterials = new Map<THREE.Material, THREE.Material>();
   const modifiedPages = new Set<string>();
-  let visible = 0,
-    selectedTriangles = 0,
-    frustumRejected = 0,
-    lodLevel = 0,
-    overBudget = false,
-    ready = false;
-  const motion: { last?: THREE.Vector3; lastMs?: number } = {};
+  const state = createAutonomousRenderState(),
+    gate = createWebglFrameGate();
+  let ready = false;
   const geometryStore = createAutonomousGeometry({
     scene,
     allPages,
@@ -76,6 +69,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     colorMaterials,
     geometryStore,
     cap,
+    sceneChanged: gate.sceneChanged,
   });
   const residency = createAutonomousResidency({
     bootstrapUrls,
@@ -86,6 +80,18 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     retained,
     byUrl,
     geometryStore,
+  });
+  const renderFrame = createAutonomousRender({
+    state,
+    context,
+    gate,
+    lighting,
+    roots,
+    shown,
+    desired,
+    bootstrap,
+    cap,
+    sync,
   });
   return {
     id: 'autonomous-pages-webgl',
@@ -106,7 +112,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       ],
     },
     get overBudget() {
-      return overBudget;
+      return state.overBudget;
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
@@ -124,55 +130,43 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       sync();
     },
     render(camera) {
-      if (!ready) return;
-      context.source.updateMatrixWorld(true);
-      lighting.update();
-      const selected = selectVisiblePages(
-        roots,
-        camera,
-        {
-          pixelError: resolvePixelError(context, camera, motion),
-          viewport: context.viewport,
-          holdResident: true,
-        },
-        shown,
-      );
-      desired.length = 0;
-      desired.push(...selected.wanted);
-      visible = selected.visible;
-      selectedTriangles = selected.selectedTriangles;
-      frustumRejected = selected.frustumRejected;
-      lodLevel = selected.lodLevel;
-      overBudget = shown.length > cap;
-      if (overBudget) {
-        shown.length = 0;
-        shown.push(...bootstrap);
-      }
-      sync();
+      if (ready) renderFrame(camera);
     },
     ...instances,
-    ...sceneLightingApi(lighting),
+    ...sceneLightingApi(lighting, gate.sceneChanged),
     ...residency,
-    acceptGeometryPage,
+    dropPage(url: string) {
+      gate.resourcesChanged();
+      residency.dropPage(url);
+    },
+    acceptGeometryPage(url: string, data: DecodedGeometryPage) {
+      gate.resourcesChanged();
+      acceptGeometryPage(url, data);
+    },
     replaceGeometryPage(url, data) {
       if (!byUrl.has(url)) throw new Error('AUTONOMOUS_PAGE_MISSING');
+      gate.resourcesChanged();
       storeGeometryPage(url, data);
       modifiedPages.add(url);
     },
-    syncResident: sync,
+    syncResident() {
+      gate.resourcesChanged();
+      sync();
+    },
     metrics() {
       return {
-        clusters: visible,
-        selectedTriangles,
+        clusters: state.visible,
+        selectedTriangles: state.selectedTriangles,
         residentPages: comptePagesResidentes(allPages),
         geometryAllocationBytes: geometryStore.state.allocationBytes,
         cacheEvictions: residency.cacheEvictions,
-        frustumRejected,
-        lodLevel,
+        frustumRejected: state.frustumRejected,
+        lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         drawCalls: shown.length,
         coverageReady: ready,
-        coverageBudgetLimited: overBudget,
+        coverageBudgetLimited: state.overBudget,
+        frameHeld: state.frameHeld,
       };
     },
     dispose() {

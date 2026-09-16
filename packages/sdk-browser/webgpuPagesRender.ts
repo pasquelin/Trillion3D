@@ -11,6 +11,7 @@ import {
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
+import { holdWebgpuFrame } from './webgpuFrameHold.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -55,21 +56,46 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
+  run.lastCamera = camera;
+  // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
+  // adaptatif de la première image qui bouge à nouveau.
+  const pixelError = resolvePixelError(context, camera, run.motion);
+  run.viewRevision.read(
+    run.revisions,
+    camera,
+    rt.setup.viewport[0],
+    rt.setup.viewport[1],
+    pixelError,
+  );
+  // Ni la scène, ni la vue, ni les ressources n'ont bougé, et rien n'est en vol : l'image précédente
+  // est celle-ci. Aucune étape processeur n'est exécutée en dessous.
+  if (holdWebgpuFrame(rt, gpuDevice)) return;
+  run.diagnosticPixelError = pixelError;
   // Rien n'est tenu par défaut : seule l'adoption d'un relevé déjà lu le déclare, et tout chemin
   // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
   run.cutHeld = false;
-  source.updateMatrixWorld(true);
   setWindingEpoch(rows.tableEpoch);
   void rt.texturePump
     .pump()
     .catch((error) => diag.diagnosticFailure('progressive-texture-mips-failed', error));
-  for (let i = 0; i < selectionRoots.length; i++)
-    worldUpdates.set(selectionRoots[i].world.elements, i * 16);
-  // A moved root invalidates every row's world matrix, which is the only shared input to a row the
-  // scene can still change after `prepare()`.
-  if (run.gpuSelection?.updateWorlds(worldUpdates)) {
-    rows.tableEpoch++;
-    invalidateOccluderHistory(run);
+  // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
+  // retrouverait toutes à l'identique. Elles ne sont donc remontées qu'à un changement de révision
+  // de scène, et `setWebgpuTransform` n'y remonte déjà que le sous-arbre qu'il a déplacé.
+  if (run.worldsRevision !== run.revisions.scene) {
+    run.worldsRevision = run.revisions.scene;
+    source.updateMatrixWorld(true);
+  }
+  const worldsMoved = run.worldUploadRevision !== run.revisions.scene;
+  if (worldsMoved) {
+    run.worldUploadRevision = run.revisions.scene;
+    for (let i = 0; i < selectionRoots.length; i++)
+      worldUpdates.set(selectionRoots[i].world.elements, i * 16);
+    // A moved root invalidates every row's world matrix, which is the only shared input to a row the
+    // scene can still change after `prepare()`.
+    if (run.gpuSelection?.updateWorlds(worldUpdates)) {
+      rows.tableEpoch++;
+      invalidateOccluderHistory(run);
+    }
   }
   if (!sameHizView(run.previousHizView, camera)) {
     // Une caméra qui bouge périme la pyramide temporelle, pas la moitié occulteuse : celle-ci nomme
@@ -84,13 +110,14 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
     );
   }
   marks.blendStart = performance.now();
-  refreshBlendWorlds(blendState.blendGpu);
+  // Les items transparents ne portent que la matrice monde de leur maillage source : la même liste
+  // de nœuds modifiés les gouverne, et une scène immobile ne les fait plus visiter.
+  if (worldsMoved) refreshBlendWorlds(blendState.blendGpu);
   const cpuStart = performance.now();
   // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un
   // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU
   // « Lumières » vaut donc zéro parce que le travail a disparu, pas parce qu'il n'est pas mesuré.
   const lightsEnd = cpuStart;
-  run.lastCamera = camera;
   run.overBudget = false;
   run.submittedTriangles = 0;
   run.blendPagedTriangles = 0;
@@ -98,8 +125,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
-  const pixelError = resolvePixelError(context, camera, run.motion);
-  run.diagnosticPixelError = pixelError;
   run.gpuFrameActive = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) dropGpuSelection(rt);

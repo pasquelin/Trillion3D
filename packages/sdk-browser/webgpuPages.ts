@@ -19,6 +19,7 @@ import {
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { endCpuFrame, hostCpuStep } from './webgpuPagesCpuSteps.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
+import { bumpScene } from './frameRevisions.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
 export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 
@@ -41,6 +42,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     setDiagnostic(mode) {
       run.diagnostic = mode;
+      // La vue de diagnostic change les lignes de la table et l'ombrage : la scène est à refaire.
+      bumpScene(run.revisions);
     },
     refreshSceneLights() {
       refreshSceneLights(rt);

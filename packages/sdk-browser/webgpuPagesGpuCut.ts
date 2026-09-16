@@ -6,6 +6,7 @@ import { dropGpuSelection } from './webgpuPagesDrops.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws, ensurePageTable } from './webgpuPagesEncodeDraws.ts';
 import { admitGpuCut } from './webgpuPagesGpuCutAdmission.ts';
+import { keepWebgpuFrame } from './webgpuFrameHold.ts';
 import {
   recordGpuCutTiming,
   traceGpuCutFrame,
@@ -34,7 +35,10 @@ export function renderGpuCut(
     { rows } = rt.layout,
     { gpuDevice, viewport, clearColor } = rt.setup,
     marks = rt.timing.marks;
-  if (!gpuDevice || !gpu.cache || !run.gpuSelection) return true;
+  if (!gpuDevice || !gpu.cache || !run.gpuSelection) {
+    run.frameHold.invalidate();
+    return true;
+  }
   run.gpuFrameActive = true;
   run.cpuSelectMs = null;
   marks.cpuStart = cpuStart;
@@ -53,6 +57,8 @@ export function renderGpuCut(
   if (run.gpuMetricsReady) run.visible = run.desired.length;
   admitGpuCut(rt, pixelError, budgeted);
   if (!services.bootstrapState.ready) {
+    // L'image n'est pas complète : rien ne peut être tenu sur elle.
+    run.frameHold.invalidate();
     run.gpuMetricsReady = false;
     traceGpuCutWaiting(rt);
     return true;
@@ -78,7 +84,11 @@ export function renderGpuCut(
     );
     return withoutGpuSelection(rt);
   }
-  if (run.gpuSelection.updateResidency(rows.residentFlags)) run.gpuMetricsReady = false;
+  // Le journal des rangs nomme les pages qui viennent d'entrer ou de sortir : la comparaison des
+  // deux mille trois cents pages du DAG n'a plus lieu, et seules leurs plages sont réécrites.
+  if (run.gpuSelection.updateResidency(rows.residentFlags, rows.residencyChanges))
+    run.gpuMetricsReady = false;
+  rows.clearResidencyChanges();
   marks.residencyUploadEnd = performance.now();
   try {
     rt.timing.frameSelection = run.gpuSelection.dispatch(
@@ -122,5 +132,8 @@ export function renderGpuCut(
   if (run.gpuMetricsReady) run.submittedTriangles = run.drawnTriangles + run.blendUnpagedTriangles;
   recordGpuCutTiming(rt);
   traceGpuCutFrame(rt, camera);
+  // L'image a été encodée et soumise en entier : elle seule autorise une tenue, et seulement si la
+  // précédente lui était déjà identique.
+  keepWebgpuFrame(rt);
   return true;
 }

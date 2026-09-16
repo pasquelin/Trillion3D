@@ -14,6 +14,8 @@ type InstanceEnvironment = {
   colorMaterials: Map<THREE.Material, THREE.Material>;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   cap: number;
+  /** Prévenu par chaque point d'entrée qui écrit la scène : c'est là qu'est l'origine. */
+  sceneChanged: () => void;
 };
 
 /**
@@ -49,6 +51,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
     colorMaterials,
     geometryStore,
     cap,
+    sceneChanged,
   } = env;
   // `pages[i]` est le clone de `bases[i]` : le couple est posé à la création, pas reconstruit en table
   // de hachage à chaque déplacement de l'instance.
@@ -59,6 +62,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
   const { geometryBytes, removeRecords, sync } = geometryStore;
   return {
     addInstance(id: string, transform: THREE.Matrix4) {
+      sceneChanged();
       if (instances.has(id) || !id) throw new Error('AUTONOMOUS_INSTANCE_ID');
       if (bootstrap.length + baseBootstrap.length > cap) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const mapped = new Map<PageRec, PageRec>();
@@ -97,11 +101,13 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       });
     },
     updateInstance(id: string, transform: THREE.Matrix4) {
+      sceneChanged();
       const instance = instances.get(id);
       if (!instance) throw new Error('AUTONOMOUS_INSTANCE_MISSING');
       deplaceInstance(instance, baseRoots, transform);
     },
     removeInstance(id: string) {
+      sceneChanged();
       const instance = instances.get(id);
       if (!instance) throw new Error('AUTONOMOUS_INSTANCE_MISSING');
       const removed = new Set(instance.roots);
@@ -111,6 +117,7 @@ export function createAutonomousInstances(env: InstanceEnvironment) {
       sync();
     },
     updateMaterial(primitive: string, material: THREE.Material) {
+      sceneChanged();
       const records = allPages.filter(
         (rec) =>
           rec.clusterId.startsWith(`${primitive}/`) || rec.clusterId.includes(`/${primitive}/`),

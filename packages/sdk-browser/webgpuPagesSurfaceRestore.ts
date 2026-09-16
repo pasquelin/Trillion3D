@@ -8,6 +8,8 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 /** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
 export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
   rt.capture.surfaceRenderAllowed = true;
+  // Une capture rend depuis une autre caméra et rétablit ensuite l'image : rien n'y est tenu.
+  rt.run.frameHold.invalidate();
   try {
     renderWebgpuPages(rt, camera);
   } finally {
