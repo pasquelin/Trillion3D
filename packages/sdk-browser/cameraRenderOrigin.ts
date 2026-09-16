@@ -42,8 +42,8 @@ export function createRenderOriginFrame(): RenderOriginFrame {
  */
 export function updateRenderOriginFrame(
   frame: RenderOriginFrame,
-  view: ArrayLike<number>,
-  projection: ArrayLike<number>,
+  view: Float64Array,
+  projection: Float64Array,
   planesZeroToOne: boolean,
 ) {
   viewToRenderOrigin(frame.viewRelative, view);
