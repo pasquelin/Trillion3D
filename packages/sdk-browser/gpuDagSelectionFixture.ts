@@ -1,5 +1,6 @@
 import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts';
 import { bytesOf, compactDrawnPages } from './webgpuPagesTestGlobals.ts';
+import { residentBase, residentBit } from './gpuDagLayout.ts';
 
 export function installGpuGlobals() {
   Object.assign(globalThis, {
@@ -102,10 +103,17 @@ export function mockDagDevice(
             return;
           }
           const { uniforms, residentCut } = readUniforms(byBinding.get(2)!.data);
+          // La résidence vit en bits derrière les enregistrements froids : le double la relit par
+          // le décodeur partagé, comme le nuanceur, plutôt qu'à un rang recopié ici.
+          const bits = new Uint32Array(
+            packed.pageCones.buffer,
+            packed.pageCones.byteOffset,
+            packed.pageCones.length,
+          );
+          const base = residentBase(packed.pageCount);
           const resident = residentCut
-            ? Uint32Array.from(
-                { length: packed.pageCount },
-                (_, id) => packed.pageCones[id * 12 + 11],
+            ? Uint32Array.from({ length: packed.pageCount }, (_, id) =>
+                residentBit(bits, base, id) ? 1 : 0,
               )
             : undefined;
           const result = evaluateDagSelectionKernel(packed, uniforms, resident);
