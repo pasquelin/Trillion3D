@@ -152,13 +152,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
   /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
-   *  Un relevé neuf qui republie les mêmes identifiants dans le même ordre n'en réécrit aucune. */
+   *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
-    // Une adoption qui a réécrit les listes les fait changer d'âge, où qu'elle se produise : au
-    // rendu comme dans la vidange, qui en rejoue une après que l'hôte a pris ses listes.
+    gpu.cutIncomplete = metrics.incomplete;
+    // Une adoption qui réécrit les listes les fait changer d'âge, au rendu comme dans la vidange.
     if (metrics.listsRewritten) run.cutEpoch++;
     if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;

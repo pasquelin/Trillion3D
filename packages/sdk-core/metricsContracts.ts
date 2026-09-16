@@ -165,6 +165,9 @@ export interface FrameMetrics extends ShadowFrameMetrics {
   /** Temps CPU de la coupe de clusters de cette image, mesuré autour de la sélection seule.
    *  Null sur un moteur qui ne choisit pas sa coupe sur le processeur. */
   cpuSelectMs?: number | null;
+  /** Vrai quand le moteur avait une sélection GPU et l'a abandonnée : ce qui est mesuré depuis est la
+   *  coupe processeur de secours. Un repli émet aussi le diagnostic `gpu-selection-fallback`, une fois. */
+  gpuSelectionFallback?: boolean;
   /** Nœuds de hiérarchie sur lesquels la coupe de cette image a posé un test — tronc de vision ou
    *  décision de niveau de détail. Un nœud déjà tranché et entièrement visible n'en reçoit aucun :
    *  il est traversé, pas testé. C'est la mesure du travail réel d'une coupe hiérarchique ; une

@@ -41,6 +41,10 @@ export function createWebgpuCutAdopter(options: {
      *  pas qu'au rendu : la vidange en rejoue une après coup, donc tout lecteur de ces listes doit
      *  savoir qu'elles ont bougé sous lui, pas seulement que l'image en cours les tenait. */
     listsRewritten: false,
+    /** Vrai quand le relevé adopté déclare une couverture incomplète : une page que le noyau veut
+     *  dessiner n'est pas encore arrivée. L'image ATTEND cette page, elle ne jette pas la sélection
+     *  GPU — le repli processeur est réservé à un échec réel de la sélection. */
+    incomplete: false,
     ready: false,
     visible: 0,
     selectedTriangles: 0,
@@ -56,6 +60,7 @@ export function createWebgpuCutAdopter(options: {
   const adopt = () => {
     metrics.cutHeld = false;
     metrics.listsRewritten = false;
+    metrics.incomplete = false;
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
     const { packedPages, desired, shown, drawn, delta, drawnDelta } = options;
@@ -75,7 +80,10 @@ export function createWebgpuCutAdopter(options: {
     metrics.listsRewritten = !metrics.cutHeld;
     metrics.visible = desired.length;
     if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
-    if (cut.result.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
+    if (cut.result.complete === false) {
+      metrics.incomplete = true;
+      return false;
+    }
     // Le contenu de `shown` est une fonction du seul relevé : les mêmes identifiants, lus dans le
     // même catalogue, rendent les mêmes enregistrements dans le même ordre. Un relevé dont ils sont
     // déjà faits ne les refait donc pas — seuls les comptes sont relus, et eux seuls dépendent de la
