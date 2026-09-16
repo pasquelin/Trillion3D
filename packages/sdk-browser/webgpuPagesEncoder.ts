@@ -2,6 +2,7 @@ import { viewProj } from './webgpuPagesHelpers.ts';
 import { enginePose } from './cameraWorld.ts';
 import { composesOffscreen } from './diagnosticGpuVariant.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.gpuTiming && !rt.capture.secondaryCamera
@@ -113,7 +114,7 @@ export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
     ],
     depthStencilAttachment: {
       view: rt.gpu.depthView!,
-      depthClearValue: 1,
+      depthClearValue: DEPTH_CLEAR,
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },

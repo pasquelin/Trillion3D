@@ -112,7 +112,8 @@ export function createSurfaceBuffer(
   };
 }
 export interface SurfaceCapture extends SurfaceBuffer {
-  /** WebGPU depth [0,1], background 1. Includes opaque/masked geometry only. */
+  /** Profondeur inversée dans [0,1], fond au lointain (`depthConvention.ts`). Géométrie opaque et
+   *  à masque seulement. */
   readonly depth: GPUTexture;
   readonly inverseViewProjection: ReadonlyArray<number>;
   readonly cameraWorld: readonly [number, number, number];

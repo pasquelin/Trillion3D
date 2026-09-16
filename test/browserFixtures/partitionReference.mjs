@@ -21,9 +21,9 @@ const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
 export function compareAudit(audit, total) {
   const { rows, view, viewProj, near, width, height, corners, layers } = audit;
   for (let row = 0; row < rows; row++) {
-    // La partition ramène elle-même la profondeur normalisée dans [0, 1] (`lowZ * 0.5 + 0.5`) :
-    // la référence reçoit donc la convention de l'hôte, non convertie, comme le noyau la reçoit.
-    projectCornersInto(corners, row * 24, view, viewProj, near, width, height, false, scratch, 0);
+    // Une seule convention de profondeur (`depthConvention.ts`) : la référence lit la même
+    // vue-projection que le noyau, et sa borne se compare directement à celle qu'il a écrite.
+    projectCornersInto(corners, row * 24, view, viewProj, near, width, height, scratch, 0);
     total.clusters++;
     if (scratch[5] !== 0) {
       total.coupes++;
@@ -63,8 +63,9 @@ export function compareAudit(audit, total) {
     const palier = (w) => (w < 16 ? 0 : w < 64 ? 1 : w < 256 ? 2 : 3);
     total.largeurParPalier[palier(Math.max(gx1 - gx0, gy1 - gy0))]++;
     total.largeurRefParPalier[palier(Math.max(rx1 - rx0, ry1 - ry0))]++;
-    // Règle 3 : minoration. L'écart est ce que la carte a descendu sous la référence.
-    const ecart = hizNearestBound(scratch[4], layers[row]) - audit.nearest[row];
+    // Règle 3 : majoration. La profondeur est inversée, donc une borne sûre MAJORE ce que le
+    // cluster écrira : l'écart est ce que la carte a monté au-dessus de la référence.
+    const ecart = audit.nearest[row] - hizNearestBound(scratch[4], layers[row]);
     if (ecart < 0) total.violations3++;
     total.ecartProfondeurSomme += ecart;
     if (ecart > total.ecartProfondeurMax) total.ecartProfondeurMax = ecart;

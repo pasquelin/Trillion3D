@@ -59,7 +59,7 @@ const viewProj = new THREE.Matrix4().multiplyMatrices(
   camera.matrixWorldInverse,
 );
 /** La vue-projection du banc et la convention de profondeur de sa caméra, qui est celle de WebGL. */
-const depthCam = { viewProjection: viewProj.elements, depthZeroToOne: false };
+const depthCam = { viewProjection: viewProj.elements };
 
 const matiere = (cartes) => ({
   baseColor: [0.8, 0.6, 0.4],

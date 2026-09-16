@@ -8,6 +8,7 @@ import {
   DIAGNOSTIC_BLEND_WGSL,
   type DiagnosticGpuVariant,
 } from './diagnosticGpuVariant.ts';
+import { DEPTH_COMPARE } from './depthConvention.ts';
 
 /** Builds the forward-material pipelines for transparent draws. */
 export async function createWebgpuBlendPipelines(
@@ -104,7 +105,11 @@ export async function createWebgpuBlendPipelines(
         ],
       },
       primitive: { topology: 'triangle-list', cullMode, frontFace: 'ccw' },
-      depthStencil: { format: 'depth32float', depthWriteEnabled: false, depthCompare: 'less' },
+      depthStencil: {
+        format: 'depth32float',
+        depthWriteEnabled: false,
+        depthCompare: DEPTH_COMPARE,
+      },
     };
     return device.createRenderPipelineAsync
       ? device.createRenderPipelineAsync(descriptor)

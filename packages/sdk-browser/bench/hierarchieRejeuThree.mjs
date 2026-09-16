@@ -13,6 +13,38 @@ import * as THREE from 'three';
 
 const systeme = (webgpu) => (webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem);
 
+/**
+ * La projection de Three portée dans la convention du moteur : profondeur INVERSÉE, plan lointain
+ * INFINI (`depthConvention.ts`). Seule la ligne de profondeur change — `m10 = 0`, `m14 = near`,
+ * c'est-à-dire `ndc = near / distance` —, et elle est la même quelle que soit la convention de
+ * découpe déclarée : `makePerspective` ne fait varier que ces deux termes-là. Tout le reste reste le
+ * témoin de Three au bit près : champ, rapport, zoom et colonne perspective.
+ */
+function projectionMoteur(out, camera) {
+  out.copy(camera.projectionMatrix);
+  out.elements[10] = 0;
+  out.elements[14] = camera.near;
+  return out;
+}
+
+/**
+ * Les six plans du tronc dans la convention du moteur, bâtis avec les primitives de Three.
+ * Renverser la profondeur échange les plans PROCHE et LOIN ; et le lointain ne se lit plus dans la
+ * projection, qui n'en a plus, mais dans la vue : un point est dedans quand `far + z >= 0`. Un
+ * `far` non fini laisse en place le plan que la projection infinie donne — de normale nulle, donc
+ * non numérique une fois normalisé, donc qui ne rejette rien : un lointain sans borne.
+ */
+function plansMoteur(tronc, vp, view, far) {
+  tronc.setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
+  const brut = tronc.planes.flatMap((plan) => [...plan.normal.toArray(), plan.constant]);
+  const sortie = [...brut.slice(0, 16), ...brut.slice(20, 24), ...brut.slice(16, 20)];
+  if (!Number.isFinite(far)) return sortie;
+  const v = view.elements;
+  const loin = new THREE.Plane(new THREE.Vector3(v[2], v[6], v[10]), v[14] + far).normalize();
+  sortie.splice(16, 4, loin.normal.x, loin.normal.y, loin.normal.z, loin.constant);
+  return sortie;
+}
+
 function regleCameraThree(camera, spec) {
   for (const cle of ['fov', 'aspect', 'near', 'far', 'zoom'])
     if (cle in spec) camera[cle] = spec[cle];
@@ -26,6 +58,7 @@ export function joueThree(scenario) {
     vivants = [],
     sorties = [];
   const vp = new THREE.Matrix4(),
+    proj = new THREE.Matrix4(),
     tronc = new THREE.Frustum();
   const v = new THREE.Vector3(),
     q = new THREE.Quaternion();
@@ -89,14 +122,14 @@ export function joueThree(scenario) {
         break;
       case 'image':
         o.updateMatrixWorld();
-        vp.multiplyMatrices(o.projectionMatrix, o.matrixWorldInverse);
-        tronc.setFromProjectionMatrix(vp, systeme(op[2]));
+        projectionMoteur(proj, o);
+        vp.multiplyMatrices(proj, o.matrixWorldInverse);
         sorties.push([
           rang,
-          ...o.projectionMatrix.elements,
+          ...proj.elements,
           ...o.matrixWorldInverse.elements,
           ...vp.elements,
-          ...tronc.planes.flatMap((plan) => [...plan.normal.toArray(), plan.constant]),
+          ...plansMoteur(tronc, vp, o.matrixWorldInverse, o.far),
         ]);
         break;
       case 'instantane':

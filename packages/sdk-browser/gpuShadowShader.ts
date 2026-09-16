@@ -62,7 +62,8 @@ ${PAGE_MASK_WGSL}
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){discard;}
  if(!maskKeep(pages[in.instance],in.uv)){discard;}
 }
-/** Remet la tranche à la profondeur maximale sans effacer le reste de l'atlas. */
+/** Remet la tranche au LOINTAIN sans effacer le reste de l'atlas. La profondeur des faces est
+ *  inversée comme celle de la caméra (\`depthConvention.ts\`) : le lointain vaut zéro. */
 @vertex fn shadow_clear_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
- return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),1.0,1.0);
+ return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
 }`;
