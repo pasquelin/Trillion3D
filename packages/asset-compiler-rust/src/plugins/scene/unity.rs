@@ -58,7 +58,7 @@ use convert::convert;
 use merge::{array, index};
 use meta::ModelImport;
 use models::Models;
-use overrides::{local_trs, Overrides};
+use overrides::{cover, local_trs, material_slot, Overrides, MAX_SLOTS, SLOT_INVALID};
 use parts::{mesh_nodes, model_matrices, Parts};
 use patch::Changes;
 use project::{assets_root, meta_of, read_text, Project};

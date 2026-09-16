@@ -33,11 +33,6 @@ pub(super) struct Changes {
 /// d'autre — l'indice d'angles d'Euler que l'éditeur garde à côté du quaternion n'en est pas une.
 const TRANSFORM: [&str; 3] = ["m_LocalPosition.", "m_LocalRotation.", "m_LocalScale."];
 
-/// Emplacements de matériau au plus dans un rendu. Un indice au-delà ne décrit aucun rendu que
-/// l'éditeur ait pu écrire : il est compté sous ce nom, jamais réservé.
-const MAX_SLOTS: usize = 1 << 16;
-const SLOT_INVALID: &str = "unity-prefab-material-slot-invalid";
-
 impl Changes {
     /// Lit `m_Modifications`.
     pub(super) fn read(modification: &Yaml) -> Changes {
@@ -187,19 +182,4 @@ impl Changes {
             );
         }
     }
-}
-
-/// Allonge la suite d'emplacements jusqu'à `len`, les nouveaux emplacements non nommés.
-fn cover(slots: &mut Vec<Option<Ref>>, len: usize) {
-    if slots.len() < len {
-        slots.resize(len, None);
-    }
-}
-
-/// `m_Materials.Array.data[2]` désigne le troisième emplacement de matériau du rendu.
-fn material_slot(path: &str) -> Option<usize> {
-    path.strip_prefix("m_Materials.Array.data[")?
-        .strip_suffix(']')?
-        .parse::<usize>()
-        .ok()
 }

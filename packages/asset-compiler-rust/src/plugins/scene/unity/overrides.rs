@@ -1,10 +1,17 @@
-//! Ce qu'une instance de prefab remplace dans une transformation locale.
+//! Ce qu'une instance de prefab remplace : les valeurs d'une transformation locale, et les
+//! emplacements de matériau d'un rendu.
 //!
 //! Chaque retouche nomme la propriété qu'elle vise par son chemin sérialisé — `m_LocalPosition.x`,
-//! `m_LocalRotation.w`, `m_LocalScale.y` — et ne remplace que celle-là : les autres gardent ce que
-//! le prefab source déclare. C'est donc la transformation source, retouche par retouche, qui entre
-//! dans la conversion d'axes, jamais une transformation reconstruite de zéro.
+//! `m_LocalRotation.w`, `m_LocalScale.y`, `m_Materials.Array.data[2]` — et ne remplace que
+//! celle-là : les autres gardent ce que le prefab source déclare. C'est donc la transformation
+//! source, retouche par retouche, qui entre dans la conversion d'axes, jamais une transformation
+//! reconstruite de zéro.
 use super::*;
+
+/// Emplacements de matériau au plus dans un rendu. Un indice au-delà ne décrit aucun rendu que
+/// l'éditeur ait pu écrire : il est compté sous ce nom, jamais réservé.
+pub(super) const MAX_SLOTS: usize = 1 << 16;
+pub(super) const SLOT_INVALID: &str = "unity-prefab-material-slot-invalid";
 
 /// Ce qu'une instance de prefab remplace, par chemin de propriété.
 pub(super) type Overrides = HashMap<String, f64>;
@@ -38,4 +45,19 @@ pub(super) fn local_trs(body: &Yaml, overrides: &Overrides) -> Trs {
             at("m_LocalScale.z", scale[2]),
         ],
     )
+}
+
+/// Allonge la suite d'emplacements jusqu'à `len`, les nouveaux emplacements non nommés.
+pub(super) fn cover(slots: &mut Vec<Option<Ref>>, len: usize) {
+    if slots.len() < len {
+        slots.resize(len, None);
+    }
+}
+
+/// `m_Materials.Array.data[2]` désigne le troisième emplacement de matériau du rendu.
+pub(super) fn material_slot(path: &str) -> Option<usize> {
+    path.strip_prefix("m_Materials.Array.data[")?
+        .strip_suffix(']')?
+        .parse::<usize>()
+        .ok()
 }
