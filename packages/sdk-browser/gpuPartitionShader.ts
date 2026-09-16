@@ -13,12 +13,15 @@ import { PARTITION_PROJECT_WGSL } from './gpuPartitionProjectWgsl.ts';
  *
  * Huit tampons de stockage exactement, le plafond d'une étape : les bits de reste et les comptes par
  * slot sont ceux de la compaction de dessin, écrits ici plutôt que téléversés, et `flags` est le
- * tampon de verdicts du test Hi-Z, lu seulement — il porte encore ceux de l'image précédente.
+ * tampon de verdicts : `projectRows` y lit ceux de l'image précédente, puis `classifyRows` y pose
+ * ceux de celle-ci — `0` pour la moitié occulteurs, `2` pour la moitié testée, que le test Hi-Z
+ * ramènera à `1` sur les lignes qu'il rejette. C'est par ce mot, et non par un tampon de plus, que le
+ * raster de calcul apprend de quelle moitié une ligne est.
  */
 export const PARTITION_SHADER = `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}
 ${PARTITION_UNI_WGSL}@group(0) @binding(0) var<storage, read> corners:array<f32>;
 @group(0) @binding(1) var<storage, read> items:array<DrawItem>;
-@group(0) @binding(2) var<storage, read> flags:array<u32>;
+@group(0) @binding(2) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(3) var<storage, read_write> rowData:array<u32>;
 @group(0) @binding(4) var<storage, read_write> tested:array<u32>;
 @group(0) @binding(5) var<storage, read_write> restBits:array<atomic<u32>>;

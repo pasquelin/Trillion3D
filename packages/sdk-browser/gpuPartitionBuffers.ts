@@ -55,7 +55,7 @@ export function createGpuPartitionLayout(device: GPUDevice) {
   const kinds: GPUBufferBindingType[] = [
     'read-only-storage',
     'read-only-storage',
-    'read-only-storage',
+    'storage',
     'storage',
     'storage',
     'storage',

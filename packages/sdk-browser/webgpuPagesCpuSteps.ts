@@ -130,6 +130,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
   stages.setCounts('partition', timing.partitionCounts);
   timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
   timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
+  timing.encodeCounts.lancementsDeCalcul = rt.run.gpuComputeDispatches;
   stages.setCounts('encode', timing.encodeCounts);
 }
 
