@@ -14,6 +14,9 @@ use super::*;
 
 /// L'identifiant du nœud de surface que ce pilote lit.
 const PREVIEW_SURFACE: &str = "UsdPreviewSurface";
+/// Le canal où glTF lit le métal de sa carte partagée, et celui où il lit la rugosité.
+const METAL_CHANNEL: &str = "outputs:b";
+const ROUGH_CHANNEL: &str = "outputs:g";
 
 /// Le matériau glTF que ce chemin de prim désigne, versé dans les tables à sa première demande.
 pub(super) fn resolve(
@@ -100,19 +103,39 @@ fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> op
 /// Le métal et la rugosité. glTF n'a qu'une carte pour les deux ; deux textures distinctes ne s'y
 /// ramènent pas sans recomposer une image, ce qui serait inventer des octets : les facteurs sont
 /// alors seuls portés et l'écart est compté par son nom.
+///
+/// Une carte partagée, elle, l'emporte sur les facteurs écrits, que glTF multiplie par elle : ils
+/// valent un, sans quoi la carte serait annulée. Reste à savoir d'où chaque entrée tire son canal :
+/// glTF prend le métal dans le bleu et la rugosité dans le vert, et un autre canal ne s'y range pas.
 fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) {
-    pbr["metallicFactor"] = json!(scalar(shader, "metallic").unwrap_or(0.0));
-    pbr["roughnessFactor"] = json!(scalar(shader, "roughness").unwrap_or(0.5));
-    let metal = connection(shader, "inputs:metallic").map(|path| path.prim_path());
-    let rough = connection(shader, "inputs:roughness").map(|path| path.prim_path());
-    match (&metal, &rough) {
-        (None, None) => {}
-        (Some(one), Some(other)) if one == other => {
-            if let Some(texture) = texture::resolve(world, one) {
-                pbr["metallicRoughnessTexture"] = texture;
-            }
+    let metal = connection(shader, "inputs:metallic");
+    let rough = connection(shader, "inputs:roughness");
+    let shared = match (&metal, &rough) {
+        (Some(one), Some(other)) if one.prim_path() == other.prim_path() => {
+            texture::resolve(world, one)
         }
-        _ => world.refuse(world::TEXTURE_UNSUPPORTED),
+        (None, None) => None,
+        _ => {
+            world.refuse(world::TEXTURE_UNSUPPORTED);
+            None
+        }
+    };
+    let Some(map) = shared else {
+        pbr["metallicFactor"] = json!(scalar(shader, "metallic").unwrap_or(0.0));
+        pbr["roughnessFactor"] = json!(scalar(shader, "roughness").unwrap_or(0.5));
+        return;
+    };
+    pbr["metallicRoughnessTexture"] = map;
+    pbr["metallicFactor"] = json!(1.0);
+    pbr["roughnessFactor"] = json!(1.0);
+    for (input, channel) in [(metal, METAL_CHANNEL), (rough, ROUGH_CHANNEL)] {
+        let placed = input.is_some_and(|path| {
+            path.split_property()
+                .is_some_and(|(_, name)| name == channel)
+        });
+        if !placed {
+            world.refuse(world::TEXTURE_CHANNEL);
+        }
     }
 }
 
