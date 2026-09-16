@@ -37,6 +37,7 @@ mod layer;
 mod material;
 mod matrix;
 mod mesh;
+mod opacity;
 mod primvar;
 mod read;
 mod subset;
