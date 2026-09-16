@@ -8,17 +8,14 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>) {
   return true;
 }
 
-export function copyElements(held: Float64Array, now: ArrayLike<number>) {
-  for (let i = 0; i < 16; i++) held[i] = now[i];
-}
-
 /**
- * Le chemin inverse : les seize flottants d'un tampon possédé posés dans une matrice de l'HÔTE. Le
- * socle ne calcule que dans des `Float64Array` — un seul type de tampon pour le produit et l'inverse
- * (`mathMatrix4.ts`) — et les matrices de la bibliothèque hôte sont des tableaux ordinaires : un
- * résultat destiné à l'hôte se compose donc à part, puis se recopie ici.
+ * Dans les deux sens : une matrice de l'HÔTE recopiée dans un tampon possédé, ou un résultat du
+ * socle posé dans une matrice de l'hôte. Le socle ne calcule que dans des `Float64Array` — un seul
+ * type de tampon pour le produit et l'inverse (`mathMatrix4.ts`) — et les matrices de la
+ * bibliothèque hôte sont des tableaux ordinaires : un résultat destiné à l'hôte se compose donc à
+ * part, puis se recopie ici.
  */
-export function writeElements(into: { [index: number]: number }, from: Float64Array) {
+export function copyElements(into: { [index: number]: number }, from: ArrayLike<number>) {
   for (let i = 0; i < 16; i++) into[i] = from[i];
 }
 

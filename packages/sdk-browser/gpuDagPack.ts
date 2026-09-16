@@ -168,7 +168,16 @@ export function packedWorldsToRenderOrigin(
   roots: readonly DagRoot[],
   origin: ArrayLike<number>,
 ) {
-  for (let w = 0; w < roots.length; w++)
-    worldToRenderOrigin(packed.worlds, roots[w].world.elements, origin, w * 16);
+  rootWorldsToRenderOrigin(packed.worlds, roots, origin);
   return packed;
+}
+
+/** La boucle elle-même : chaque racine, seize flottants, rebasée à `origin` dans `worlds`. */
+export function rootWorldsToRenderOrigin(
+  worlds: Float32Array,
+  roots: readonly DagRoot[],
+  origin: ArrayLike<number>,
+) {
+  for (let w = 0; w < roots.length; w++)
+    worldToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
 }

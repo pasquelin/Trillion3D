@@ -3,6 +3,7 @@ import { awaitBackendPages } from './awaitBackendPages.ts';
 import { decodePageOffThread, releasePageDecoders } from './pageDecodeHost.ts';
 import { releasePageIntegration } from './pageIntegrationHost.ts';
 import { disposeSource } from './explorerDisposeSource.ts';
+import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createComparisonCompositor } from './comparison.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -107,12 +108,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           }
         }
       });
-      const ranks = backend.retainedRanks?.();
-      if (ranks) streamer.retainRanks(ranks);
-      else {
-        const urls = backend.pageUrls?.();
-        if (urls) streamer.retain(urls);
-      }
+      retainVisiblePages(backend, streamer);
     }
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
