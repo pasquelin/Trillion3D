@@ -1,10 +1,13 @@
 import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './gpuRestCompactWgsl.ts';
 import { MAX_DRAW_SLOTS } from './gpuDraw.ts';
-import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
+import { openValidation, validationError } from './gpuErrorScope.ts';
+import { cleanupFailedHiz } from './gpuHizPipelines.ts';
+import { bounceGroup, bounceLayout } from './bounceBindings.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
 
 /** L'étiquette de la passe, celle que le profil par étape range dans « Géométrie ». */
 export const REST_COMPACT_PASS = 'WG rest truncation';
+const REST_PASS = { label: REST_COMPACT_PASS } as const;
 
 export type GpuRestCompact = {
   /**
@@ -33,38 +36,35 @@ export async function createGpuRestCompact(
   },
 ): Promise<GpuRestCompact | undefined> {
   if (typeof device.createComputePipeline !== 'function') return undefined;
-  const owned: GPUBuffer[] = [];
+  let owned: GPUBuffer[] = [];
+  const bail = () => {
+    for (const buffer of owned) buffer.destroy();
+    return undefined;
+  };
   try {
     const uniforms = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    // Indexé par le rang du slot testé : la moitié des slots de dessin.
     const last = device.createBuffer({
       label: 'WG rest last survivor',
-      size: MAX_DRAW_SLOTS * 4,
+      size: (MAX_DRAW_SLOTS / 2) * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-    owned.push(uniforms, last);
+    owned = [uniforms, last];
     openValidation(device);
-    const storage = { type: 'storage' } as const,
-      readOnly = { type: 'read-only-storage' } as const;
-    const layout = device.createBindGroupLayout({
-      entries: [0, 1, 2, 3, 4, 5, 6].map((binding) => ({
-        binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer:
-          binding === 6
-            ? ({ type: 'uniform' } as const)
-            : binding === 1 || binding === 5
-              ? storage
-              : readOnly,
-      })),
-    });
+    const layout = bounceLayout(device, [
+      'read-only-storage',
+      'storage',
+      'read-only-storage',
+      'read-only-storage',
+      'read-only-storage',
+      'storage',
+      'uniform',
+    ]);
     const module = device.createShaderModule({ code: REST_COMPACT_SHADER });
-    if (await shaderFailed(device, module)) {
-      for (const buffer of owned) buffer.destroy();
-      return undefined;
-    }
+    if (await shaderFailed(device, module)) return bail();
     const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
     const markPipeline = device.createComputePipeline({
       layout: pipelineLayout,
@@ -74,38 +74,37 @@ export async function createGpuRestCompact(
       layout: pipelineLayout,
       compute: { module, entryPoint: 'restApply' },
     });
-    if (await validationError(device)) {
-      for (const buffer of owned) buffer.destroy();
-      return undefined;
-    }
+    if (await validationError(device)) return bail();
     const uniData = new Uint32Array(4);
-    const zeros = new Uint32Array(MAX_DRAW_SLOTS);
     let disposed = false,
       boundPages: GPUBuffer | undefined,
-      bindGroup: GPUBindGroup | undefined;
+      boundSlots = 0,
+      bindGroup!: GPUBindGroup;
     return {
       encode(encoder, restSlots, rows, pages) {
         if (disposed || restSlots < 1 || rows < 1) return;
-        if (!bindGroup || boundPages !== pages) {
+        if (boundPages !== pages) {
           boundPages = pages;
-          bindGroup = device.createBindGroup({
-            layout,
-            entries: [
-              buffers.instances,
-              buffers.indirect,
-              buffers.slotOffsets,
-              pages,
-              buffers.flags,
-              last,
-              uniforms,
-            ].map((buffer, binding) => ({ binding, resource: { buffer } })),
-          });
+          bindGroup = bounceGroup(device, layout, [
+            buffers.instances,
+            buffers.indirect,
+            buffers.slotOffsets,
+            pages,
+            buffers.flags,
+            last,
+            uniforms,
+          ]);
         }
-        uniData[0] = restSlots;
-        device.queue.writeBuffer(uniforms, 0, uniData);
+        // Le nombre de slots testés est fixé par la préparation : l'uniforme n'est écrit qu'à son
+        // changement.
+        if (boundSlots !== restSlots) {
+          boundSlots = restSlots;
+          uniData[0] = restSlots;
+          device.queue.writeBuffer(uniforms, 0, uniData);
+        }
         // Aucune image ne lit le rang d'une image antérieure : il repart de zéro avant la marque.
-        device.queue.writeBuffer(last, 0, zeros);
-        const pass = encoder.beginComputePass({ label: REST_COMPACT_PASS });
+        encoder.clearBuffer(last, 0, restSlots * 4);
+        const pass = encoder.beginComputePass(REST_PASS);
         pass.setBindGroup(0, bindGroup);
         pass.setPipeline(markPipeline);
         pass.dispatchWorkgroups(Math.ceil(rows / REST_COMPACT_WORKGROUP), restSlots);
@@ -119,13 +118,7 @@ export async function createGpuRestCompact(
       },
     };
   } catch {
-    await dropValidation(device);
-    for (const buffer of owned)
-      try {
-        buffer.destroy();
-      } catch {
-        /* Un montage partiel ne doit rien laisser fuir. */
-      }
+    await cleanupFailedHiz(device, owned);
     return undefined;
   }
 }

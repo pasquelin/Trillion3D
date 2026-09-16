@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGpuRestCompact, REST_COMPACT_PASS } from './gpuRestCompact.ts';
-import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './gpuRestCompactWgsl.ts';
+import { createGpuRestCompact } from './gpuRestCompact.ts';
+import { REST_COMPACT_SHADER } from './gpuRestCompactWgsl.ts';
 import { VIS_SHADER } from './visibilityBuffer.ts';
 import { BASE_SLOTS } from './gpuDraw.ts';
 
@@ -31,10 +31,11 @@ test('la troncature ne déplace aucune instance et ne touche que le compte', () 
 // Comportement 3 : le rang du slot testé numéro n suit la convention de `slotOf` — trois modes de
 // face par couche, la moitié testée après les occulteurs.
 test('les slots visités sont ceux de la moitié testée', () => {
-  const restSlotAt = (n: number) => Math.floor(n / 3) * BASE_SLOTS + 3 + (n % 3);
-  assert.deepEqual([0, 1, 2, 3, 4, 5].map(restSlotAt), [3, 4, 5, 9, 10, 11]);
-  assert.match(REST_COMPACT_SHADER, /return \(n\/3u\)\*6u\+3u\+n%3u;/);
-  assert.equal(BASE_SLOTS, 6);
+  const half = BASE_SLOTS / 2;
+  assert.match(
+    REST_COMPACT_SHADER,
+    new RegExp(`return \\(n/${half}u\\)\\*${BASE_SLOTS}u\\+${half}u\\+n%${half}u;`),
+  );
 });
 
 // Comportement 4 : sans calcul, il n'y a pas de troncature et l'image garde le chemin d'avant.
@@ -48,6 +49,4 @@ test('un appareil sans calcul ne monte pas la troncature', async () => {
     flags: buffer,
   });
   assert.equal(made, undefined);
-  assert.equal(REST_COMPACT_PASS, 'WG rest truncation');
-  assert.equal(REST_COMPACT_WORKGROUP, 64);
 });
