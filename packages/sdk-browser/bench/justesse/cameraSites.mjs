@@ -6,7 +6,6 @@ import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import { collectClusterPages } from '../../pageSelection.ts';
 import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { boundsFor, projectBoxesFlat } from '../../hizProjection.ts';
-import { createProjectionHold } from '../../hizProjectionHold.ts';
 import { applyTemporalHiz, sameHizView } from '../../hizTemporal.ts';
 import { visibilityDepth } from '../../hizDepth.ts';
 import { rasterPages } from '../../pageRaster.ts';
@@ -86,6 +85,7 @@ const sitesPurs = [
     },
   },
   {
+<<<<<<< HEAD
     nom: 'createProjectionHold.reframe (Hi-Z, tenue)',
     cree: () => ({ hold: createProjectionHold(4), index: new Int32Array([0, 1, 2, 3]) }),
     mesure: ({ hold, index }, camera) => {
@@ -96,6 +96,8 @@ const sitesPurs = [
     },
   },
   {
+=======
+>>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
     // L'historique tenu par l'image doit décrire la vue de cette image : relu aussitôt, il est égal.
     nom: 'applyTemporalHiz + sameHizView (Hi-Z, historique)',
     cree: () => ({ ...pagesDag(), history: {} }),

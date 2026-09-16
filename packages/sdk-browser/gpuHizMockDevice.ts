@@ -34,35 +34,3 @@ export function hizDevice(overrides: HizDeviceOverrides = {}) {
     ...overrides,
   } as unknown as GPUDevice;
 }
-
-/** L'encodeur minimal que `encodeTest` demande : un effacement et une passe de calcul. */
-export const hizEncoder = () =>
-  ({
-    clearBuffer() {},
-    beginComputePass: () => ({
-      setPipeline() {},
-      setBindGroup() {},
-      dispatchWorkgroups() {},
-      end() {},
-    }),
-  }) as unknown as GPUCommandEncoder;
-
-/** Un appareil qui note les téléversements vers le tampon de boîtes, reconnu par sa taille. */
-export function hizBoundsWatcher(boundsBytes: number) {
-  const writes: Array<{ offset: number; length: number; data: ArrayBuffer }> = [];
-  const device = hizDevice({
-    queue: {
-      writeBuffer(
-        buffer: { size: number },
-        offset: number,
-        data: ArrayBuffer,
-        start: number,
-        length: number,
-      ) {
-        if (buffer.size === boundsBytes)
-          writes.push({ offset, length, data: data.slice(start, start + length) });
-      },
-    },
-  });
-  return { device, writes };
-}
