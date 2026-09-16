@@ -24,7 +24,6 @@ export function writeWebgpuVisibilityUniforms(
   if (vis.visUniPacked.length !== slots * 64) vis.visUniPacked = new Float32Array(slots * 64);
   const { visUniPacked, shadeUniPacked } = vis,
     [width, height] = rt.gpu.targetSize,
-    hasGpuRaster = !!vis.gpuRaster,
     { gpuFrameActive, diagnostic } = run,
     maskOffset = run.gpuSelection?.maskOffset ?? 0;
   const visUniform = (vis.visUniform ??= device.createBuffer({
@@ -37,7 +36,9 @@ export function writeWebgpuVisibilityUniforms(
     visUniPacked.set(viewProj, base);
     visUniPacked[base + 16] = width;
     visUniPacked[base + 17] = height;
-    visUniPacked[base + 18] = hasGpuRaster ? 7 : 0;
+    // Le mot qui portait le seuil des petits triangles ne sert plus : le raster de calcul prend
+    // TOUTE la coupe opaque, et le repli matériel la redessine entière. Il reste du remplissage.
+    visUniPacked[base + 18] = 0;
     // The compute raster splits the page row over two dispatch dimensions; it needs the live count.
     visInts[base + 19] = tableRows;
     visInts[base + 20] = Math.max(0, slot - 1);

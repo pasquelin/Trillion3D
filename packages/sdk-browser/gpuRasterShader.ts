@@ -24,7 +24,7 @@ export { DISPATCH_SPAN, LIST_HEADER } from './gpuRasterContract.ts';
  * seuil sur les mêmes coordonnées.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
-struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
+struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}`;
 
 export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO}
 @group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
@@ -73,7 +73,7 @@ ${rasterKernels(capacity)}`;
  * occulteurs avant que le moindre identifiant n'ait été départagé, elle n'écrit donc que le niveau
  * zéro. `one` et `two` closent l'image, quand la profondeur est définitive et l'identifiant choisi.
  */
-export const RESOLVE = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,smallThreshold:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}
+export const RESOLVE = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,pad0:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,}
 @group(0) @binding(0) var<storage,read> frame:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}

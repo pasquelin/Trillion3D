@@ -20,7 +20,7 @@ import {
 // matrices hostiles (miroir, quasi-singuliere, grande echelle) — pas d'approximation.
 
 test('la passe de tri calcule vp/det une fois par groupe et les relit par triangle', () => {
-  const shader = rasterSource(4096);
+  const shader = rasterSource(4096, 16);
   assert.match(shader, /var<workgroup> rowVp:mat4x4f;/);
   assert.match(shader, /var<workgroup> rowDet:f32;/);
   assert.match(
