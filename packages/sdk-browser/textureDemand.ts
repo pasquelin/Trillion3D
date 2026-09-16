@@ -13,7 +13,7 @@
  */
 
 /** Niveau « queue résidente seule » : tout ce qui est hors champ le demande. */
-export const TAIL_LEVEL = 15;
+const TAIL_LEVEL = 15;
 /** Images consécutives durant lesquelles un niveau doit être demandé avant d'être publié. */
 const STABLE_FRAMES = 3;
 /** Un niveau plus grossier ne devient le niveau publié qu'au-delà de cette marge : sans elle, un
