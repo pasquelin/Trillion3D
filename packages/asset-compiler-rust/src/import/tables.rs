@@ -59,23 +59,30 @@ impl SceneTables {
         self.nodes.push(node);
         self.nodes.len() - 1
     }
-    /// Un échantillonneur par mode de répétition, partagé par toutes les textures qui le demandent,
-    /// y compris celles d'un modèle versé qui déclare déjà ce mode.
+    /// Un échantillonneur qui traite ses deux axes de la même façon.
     pub(crate) fn sampler(&mut self, wrap: u32) -> usize {
-        if let Some(known) = self.sampler_ids.get(&u64::from(wrap)) {
+        self.sampler_uv(wrap, wrap)
+    }
+    /// Un échantillonneur par couple de modes de répétition, partagé par toutes les textures qui le
+    /// demandent, y compris celles d'un modèle versé qui déclare déjà ce couple. Un format qui borne
+    /// un axe et répète l'autre porte bien deux modes : les confondre replie la texture.
+    pub(crate) fn sampler_uv(&mut self, wrap_s: u32, wrap_t: u32) -> usize {
+        let key = u64::from(wrap_s) << 32 | u64::from(wrap_t);
+        if let Some(known) = self.sampler_ids.get(&key) {
             return *known;
         }
         self.samplers
-            .push(json!({"magFilter":9729,"minFilter":9987,"wrapS":wrap,"wrapT":wrap}));
+            .push(json!({"magFilter":9729,"minFilter":9987,"wrapS":wrap_s,"wrapT":wrap_t}));
         let id = self.samplers.len() - 1;
-        self.sampler_ids.insert(u64::from(wrap), id);
+        self.sampler_ids.insert(key, id);
         id
     }
     /// Note les échantillonneurs versés depuis un modèle : le premier de chaque mode sert ensuite.
     pub(crate) fn share_samplers(&mut self, ids: &[usize]) {
         for id in ids {
-            if let Some(wrap) = self.samplers[*id]["wrapS"].as_u64() {
-                self.sampler_ids.entry(wrap).or_insert(*id);
+            let axes = [&self.samplers[*id]["wrapS"], &self.samplers[*id]["wrapT"]];
+            if let [Some(wrap_s), Some(wrap_t)] = axes.map(Value::as_u64) {
+                self.sampler_ids.entry(wrap_s << 32 | wrap_t).or_insert(*id);
             }
         }
     }
