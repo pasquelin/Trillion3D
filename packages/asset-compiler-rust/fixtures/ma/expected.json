@@ -157,7 +157,7 @@
   "notes": [],
   "plugin": {
     "name": "ma",
-    "version": "ma-mel-subset-1-gltf-2"
+    "version": "ma-mel-subset-1-gltf-3"
   },
   "roots": [3],
   "rule": "Le pilote rend les données du fichier et rien d'autre : aucune commande n'est exécutée, les faces sont résolues par leurs arêtes signées puis triangulées en éventail, un groupe de faces devient une primitive à part, les normales absentes sont calculées à plat, lambert et standardSurface vont vers pbrMetallicRoughness, l'unité linéaire est portée par la racine de la scène, et tout ce qui reste est compté par son nom.",
@@ -171,7 +171,7 @@
   ],
   "scenePlugin": {
     "name": "ma",
-    "version": "ma-mel-subset-1-gltf-2"
+    "version": "ma-mel-subset-1-gltf-3"
   },
   "selectedNodes": [0, 2],
   "sidecarSha256": "0e02bfe9a7cdbfe2386c7cb4e28ffadfd33e0772a7f3b3702fcf0356fd82ce22",
