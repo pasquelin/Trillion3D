@@ -30,6 +30,9 @@ export function installSceneLighting(
 ) {
   scene.background = new THREE.Color(clearColor);
   let pairs: Array<{ original: THREE.Light; copy: THREE.Light; target?: THREE.Object3D }> = [];
+  // Les lampes du graphe source s'effacent quand un autre contrat d'éclairage prend la main : deux
+  // jeux de lampes superposés ne seraient l'éclairage de personne.
+  let enabled = true;
   const update = () => {
     for (const { original, copy, target } of pairs) {
       original.updateWorldMatrix(true, false);
@@ -38,7 +41,7 @@ export function installSceneLighting(
       copy.scale.set(1, 1, 1);
       copy.color.copy(original.color);
       copy.intensity = original.intensity;
-      copy.visible = visible(original);
+      copy.visible = enabled && visible(original);
       if (target) {
         const sourceTarget = (original as THREE.DirectionalLight).target;
         sourceTarget.updateWorldMatrix(true, false);
@@ -79,9 +82,15 @@ export function installSceneLighting(
   return {
     update,
     refresh,
+    /** Éteint ou rallume les lampes du graphe source, sans les retirer ni les recopier. */
+    setEnabled(next: boolean) {
+      if (enabled === next) return;
+      enabled = next;
+      update();
+    },
     /** Vrai dès qu'une lampe du graphe source est installée : le seul signal de la vue éclairée. */
     get lit() {
-      return pairs.length > 0;
+      return enabled && pairs.length > 0;
     },
   };
 }

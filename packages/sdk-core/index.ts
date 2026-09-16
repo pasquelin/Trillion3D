@@ -148,6 +148,7 @@ export type {
   SceneLightingView,
   ShadowViewpoint,
 } from './sceneLightContracts.ts';
+export type { LightingCapabilities } from './sceneLightCapabilities.ts';
 export { validateSceneEnvironment, validateSceneLight } from './sceneLightValidate.ts';
 export { LIGHT_FIELD, createSceneLightStore } from './sceneLightStore.ts';
 export type { SceneLightStore } from './sceneLightStore.ts';

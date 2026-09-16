@@ -25,6 +25,7 @@ export function sameSceneLight(a: SceneLight, b: SceneLight) {
     a.castsShadow === b.castsShadow &&
     a.range === b.range &&
     a.coneAngle === b.coneAngle &&
+    a.emitterRadius === b.emitterRadius &&
     sameVector(a.color, b.color) &&
     sameVector(a.position, b.position) &&
     sameVector(a.direction, b.direction)

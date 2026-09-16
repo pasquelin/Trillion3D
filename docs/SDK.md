@@ -89,6 +89,28 @@ Beyond the last cascade the sun's shadow is one ray per pixel against the reside
 
 `setLightingView(view)` selects what the opaque path outputs. `'lit'` is real lighting and nothing else. `'unlit'` is the raw-albedo diagnostic view: base colour as authored, with no light, no ambient and no emission, for geometry benchmarks that compare images pixel by pixel. It is a diagnostic view, not a light. `'auto'` is the default: the unlit view while no light is declared, real lighting as soon as one is. Declaring a light therefore changes the image; declaring none never leaves a black frame.
 
+### What a backend actually does with the lights
+
+`explorer.lightingCapabilities()` reports what the **active** backend applies, not what the contract publishes: `{ sceneLights, lightingView, shadows, transforms, reason? }`. A call the store accepts is not proof of lighting — the store belongs to the session and every backend shares it, so a backend that never reads it leaves the image exactly as it was. `sceneLights` and `lightingView` are read from the backend itself (it reads the store, or it does not); `transforms` is read from `setTransform`; `shadows` is declared by the backend, because no signature says it. `reason` names in one sentence what is not applied. Selecting another backend changes the answer.
+
+The first `addLight`, `setLight` or `setLightingView` made against a backend without `sceneLights` emits one `scene-lights-unsupported` diagnostic per session — the store still accepts the light, because the host may select a backend that applies it later.
+
+`webgpu-page-raster` applies everything, shadow atlas included. `exact-cluster-pages` (Three.js WebGL2) applies the contract lights and the lighting view, without cast shadows: Three would need one shadow map per light — six faces for a point light — far outside any frame budget, and `'bounce'` there renders the lit view. `reference` and `three-lod` apply none.
+
+### The contract lights on the Three.js path
+
+`exact-cluster-pages` translates the same `SceneLight` store into Three lights, refreshed on every store revision. A `point` becomes a `PointLight` with `decay = 2` and `distance = range`, a `spot` a `SpotLight` with the same plus `angle = coneAngle` and the `penumbra` whose inner cosine equals `cos(coneAngle) + spotEdgeSoftness`, a `directional` a `DirectionalLight` placed at `-direction` with its target at the origin. The radiometric convention is carried unchanged, not approximated: `intensity` stays W/sr for a point and a spot, and Three with `decay = 2` and `distance = range` evaluates `pow(clamp(1 - (d/range)^4, 0, 1), 2) / d^2` — term for term the attenuation of the deferred lighting shader (`directLightWgsl.ts`); a directional light carries irradiance on both paths. Colours are written in the linear working space, so no sRGB transfer is applied on the way in. What is **not** equal is the surface model: Three evaluates its own Cook-Torrance, the WebGPU path its own. Same incident irradiance, different image.
+
+`'unlit'` on that path is obtained by lighting, not by substituting materials: a standard material returns `irradiance * albedo / pi` in diffuse, so one white ambient light of irradiance pi returns exactly the albedo. Named deviation from the WebGPU `'unlit'`: a material's own emission is still added, because the materials are untouched.
+
+The contract only takes over once the host has used it — one light declared, or one view requested. Until then the source light graph lights alone and the image is the one from before, pixel for pixel. From then on the source graph's lights are switched off: two superimposed sets of lights would be nobody's lighting.
+
+### A luminaire does not block its own light
+
+A real light always sits inside something — a lantern glass, a reflector, a shade — and that envelope is geometry like any other: it enters its own light's shadow map and puts the light out. `SceneLight.emitterRadius` (metres, strictly positive and strictly below `range`, point and spot only, refused on a directional which has no position) declares the radius of that envelope. It becomes the floor of the near plane of **that light's** shadow map, so nothing within that radius of the source casts a shadow there — depth clipping removes it, at no per-cluster cost and with no change to any shader. A triangle that starts inside the radius and extends beyond it still occludes beyond it, which is what a wall crossing the envelope should do. The shadow lookup already returns "lit" for a point in front of a near plane, so a receiver inside the envelope is lit, as it must be.
+
+It is a property of the light, never a name, a scene or a material class: the engine only knows surfaces. Without the field nothing changes and the current behaviour — an envelope 0.15 m from a 30 m-range source falls inside the 0.15 m near plane and occludes — stands as documented. `lights.json` and the compiler carry the field only if a source format declares one; none does today.
+
 ### Lights imported from the source file
 
 An imported scene arrives with its own lights. The native compiler reads the lights the source file
