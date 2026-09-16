@@ -72,14 +72,3 @@ export function createFrameHold(values: number) {
     },
   };
 }
-
-/**
- * Une ressource d'image arrivée hors du fil de l'image : un programme qui finit de compiler, un
- * proxy adopté à la résolution d'une promesse. Aucune étape de l'image en cours ne l'écrira, et
- * l'image suivante la lirait sans qu'aucun compteur ne l'annonce : c'est donc ici, à l'arrivée,
- * que la révision des ressources est incrémentée et la tenue cassée.
- */
-export const resourceArrived = (run: { revisions: FrameRevisions; frameHold: FrameHold }) => {
-  bumpResources(run.revisions);
-  run.frameHold.invalidate();
-};

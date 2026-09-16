@@ -50,7 +50,13 @@ export function createFrameGateCore(holdValues: number) {
     },
     /** La scène a bougé : matrices, matériaux, instances, lampes, vue de diagnostic. */
     sceneChanged: () => bumpScene(revisions),
-    /** Les ressources ont bougé : octets d'une page, résidence, géométrie remplacée. */
+    /**
+     * Les ressources ont bougé : octets d'une page, résidence, géométrie remplacée, et tout ce
+     * qui arrive hors du fil de l'image — un programme qui finit de compiler, un proxy adopté à
+     * la résolution d'une promesse. Aucune étape de l'image en cours ne l'écrira, et l'image
+     * suivante la lirait sans qu'aucun compteur ne l'annonce : c'est donc à l'arrivée que la
+     * révision est incrémentée, ce qui casse la tenue du même coup.
+     */
     resourcesChanged: () => bumpResources(revisions),
     /** La cible ne porte plus l'image de cette vue : une capture y a rendu depuis une autre caméra. */
     viewReplaced: () => bumpView(revisions),

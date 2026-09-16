@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { createDeferredLighting } from './deferredLighting.ts';
-import { resourceArrived } from './frameRevisions.ts';
 import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
 import { prepareWebgpuPresentation } from './webgpuPresentationSetup.ts';
 import { createGpuPageCache } from './gpuPages.ts';
@@ -103,7 +102,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   // Le programme du contrat finit de compiler entre deux images : son arrivée est une ressource
   // neuve, et sans ce compteur l'image tenue continuerait de présenter l'albédo brut.
   gpu.deferred = await createDeferredLighting(gpuDevice, rt.lights.buffer, () =>
-    resourceArrived(run),
+    run.gate.resourcesChanged(),
   );
   context.signal?.throwIfAborted();
   ({
