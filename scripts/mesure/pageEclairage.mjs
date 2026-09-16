@@ -38,7 +38,10 @@ export async function measureView(options) {
     ...(eclairage ? { sceneLighting: eclairage.groupe } : {}),
     comparisonLayout: 'single',
     clearColor: 0x2a303c,
-    diagnosticDetail: 'summary',
+    // Une variante de DIAGNOSTIC du moteur, quand le banc en demande une : elle rend une image
+    // différente par construction, et le SDK la refuse hors du détail « trace ».
+    diagnosticDetail: options.trace ? 'trace' : 'summary',
+    ...(options.variante ? { diagnosticGpuVariant: options.variante } : {}),
     // Le découpage par étape n'existe que si on le demande ; il est éteint partout ailleurs.
     stageProfile: options.stageProfile === true,
     // Idem pour la lumière qui rebondit : le moteur l'éteint par défaut, le banc peut l'allumer.

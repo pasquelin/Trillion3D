@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { AssetScope, CameraPose, PreparationProgress } from '../sdk-core/index.ts';
 import type { ComparisonLayout } from './comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from './backendTypes.ts';
+import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 export type PointOfInterest = { id: string; label: string; pose: CameraPose };
 export interface ExplorerOptions {
@@ -49,6 +50,10 @@ export interface ExplorerOptions {
   bounceBudgetMs?: number;
   /** Chronométrer chaque étape de l'image et publier `explorer.stageProfile()`. Éteint par défaut. */
   stageProfile?: boolean;
+  /** Une variante de DIAGNOSTIC de la carte graphique (`diagnosticGpuVariant.ts`) : elle neutralise
+   *  un facteur de l'image pour en ventiler la durée, et rend donc une image différente de celle de
+   *  production. Absente par défaut ; refusée hors `diagnosticDetail: 'trace'`. */
+  diagnosticGpuVariant?: DiagnosticGpuVariant;
   /** Budget de l'étape Ombres, en millisecondes de carte graphique par image. 1,0 par défaut : les
    *  pages invalidées au-delà attendent leur tour, jamais perdues, leur retard publié. */
   shadowBudgetMs?: number;

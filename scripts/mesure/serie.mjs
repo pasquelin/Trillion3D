@@ -35,6 +35,9 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     width: settings.width,
     height: settings.height,
     stageProfile: settings.stageProfile,
+    // La variante de diagnostic de ce côté : c'est elle qui fait de deux côtés deux variantes.
+    variante: side.variante ?? null,
+    trace: settings.trace === true,
     bounce: settings.bounce,
     importedLights: settings.importedLights,
     profileFrames: settings.profileFrames,
@@ -64,6 +67,7 @@ export async function runSerie(ctx, page, side, view, pixelError, pose, captures
     gpuFrameMs: ENGINE.id === 'webgpu-page-raster' ? distribution(result.gpuFrameMs) : null,
     // Découpage par étape publié par le moteur : p50/p95, processeur et carte graphique séparés.
     profilParEtape: result.stageProfile ?? null,
+    variante: side.variante ?? null,
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
     // Compteurs Hi-Z : le moteur ne les publie pas encore dans ses métriques. `null`, jamais déduit.

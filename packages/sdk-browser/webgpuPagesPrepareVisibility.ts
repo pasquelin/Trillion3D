@@ -28,7 +28,11 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       pipelineBlendTextured: vis.pipelineBlendTextured,
       pipelineBlendFront: vis.pipelineBlendFront,
       pipelineBlendBack: vis.pipelineBlendBack,
-    } = await createWebgpuBlendPipelines(gpuDevice, blendState.blendGpu));
+    } = await createWebgpuBlendPipelines(
+      gpuDevice,
+      blendState.blendGpu,
+      rt.context?.diagnosticGpuVariant,
+    ));
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;
