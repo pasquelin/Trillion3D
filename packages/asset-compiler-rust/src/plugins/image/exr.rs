@@ -22,7 +22,7 @@
 //! multi-parties, canaux absents, canaux d'un autre nom (AOV, `Y`/`RY`/`BY`, profondeur), entiers
 //! 32 bits, chroma sous-échantillonnée. Un fichier hors sous-ensemble laisse le moteur retomber sur
 //! son blanc ; il n'est jamais deviné ni approché.
-use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin};
+use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer};
 use ::exr::math::Vec2;
 use ::exr::meta::attribute::SampleType;
 use ::exr::meta::MetaData;

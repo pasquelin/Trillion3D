@@ -1,3 +1,5 @@
+import { IDENTITY_MATRIX4, copyMatrix4 } from '../sdk-core/index.ts';
+
 /**
  * Les seize flottants d'une matrice, comparés ou recopiés : savoir si la vue a bougé, ou si la pose
  * demandée est celle qu'un nœud porte déjà. Chaque lecteur écrivait sa propre boucle ; ils lisent
@@ -16,7 +18,7 @@ export function sameElements(held: ArrayLike<number>, now: ArrayLike<number>) {
  * part, puis se recopie ici.
  */
 export function copyElements(into: { [index: number]: number }, from: ArrayLike<number>) {
-  for (let i = 0; i < 16; i++) into[i] = from[i];
+  copyMatrix4(into, from);
 }
 
 /**
@@ -25,7 +27,4 @@ export function copyElements(into: { [index: number]: number }, from: ArrayLike<
  */
 export type MatrixElements = { readonly elements: ArrayLike<number> };
 
-/** L'identité colonne-major, lue et jamais écrite : la transformation d'une racine sans pose. */
-export const IDENTITY_ELEMENTS: Float64Array = new Float64Array([
-  1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
-]);
+export { IDENTITY_MATRIX4 as IDENTITY_ELEMENTS };

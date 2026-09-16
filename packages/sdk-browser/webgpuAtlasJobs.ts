@@ -25,6 +25,8 @@ export type TextureJob = {
   level: number;
   /** 0 pour un niveau progressif du sidecar, 1 pour la pleine résolution. */
   stage: number;
+  /** Utilité posée par la file avant chaque tri (`webgpuTexturePriority.ts`), lue par le comparateur. */
+  score: number;
   /** Les niveaux que sa texture attend ; seul un niveau progressif en porte, et la résidence de la
    *  couche s'y lit sans table parallèle tenue à côté de la file. */
   pyramid?: SlotPyramid;
@@ -55,6 +57,7 @@ function textureJob(
     ...place,
     level,
     stage,
+    score: 0,
     bytes: rows * bytesPerRow,
     rows,
     bytesPerRow,

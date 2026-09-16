@@ -1,10 +1,11 @@
 import * as THREE from 'three';
+import { IDENTITY_MATRIX4 } from '../sdk-core/index.ts';
 import { DrawRanges } from './clusterBatchRange.ts';
 
 /** Matrice identité unique partagée : le lot ne transporte aucune transformation, la matrice monde reste celle de l'objet. */
 export function identityMatrixTexture() {
   const data = new Float32Array(4 * 4 * 4);
-  data.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  data.set(IDENTITY_MATRIX4);
   const texture = new THREE.DataTexture(data, 4, 4, THREE.RGBAFormat, THREE.FloatType);
   texture.needsUpdate = true;
   return texture;

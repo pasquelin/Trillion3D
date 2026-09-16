@@ -117,8 +117,6 @@ impl ImageDecoder for Ktx2 {
             level::decode(&surface, bytes, max_alloc)?
         };
         let notes = declared::apply(&mut image, surface.premultiplied, bytes);
-        Ok(ImageDecoded::srgb(image)
-            .with_transfer(surface.transfer)
-            .with_notes(notes))
+        Ok(ImageDecoded::new(image, surface.transfer).with_notes(notes))
     }
 }
