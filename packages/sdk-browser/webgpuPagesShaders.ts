@@ -11,7 +11,6 @@ import {
 } from './webgpuAtlasWgsl.ts';
 import { BLEND_BINDINGS } from './webgpuBindLayout.ts';
 import { FLAG_PAGED, FLAG_TRANSMISSIVE, FLAG_UNLIT_VIEW } from './visibilityBuffer.ts';
-import { WRAP_COORD_WGSL } from './visibilityPageWgsl.ts';
 import { TRANSMISSION_WGSL } from './webgpuTransmissionWgsl.ts';
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,}
@@ -71,7 +70,6 @@ ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:vec2f,@location(2) view:vec3f,@location(3) normal:vec3f,@location(4) tangent:vec3f,@location(5) bitangent:vec3f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,}
-${WRAP_COORD_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 // A paged transparent primitive draws one instance per cluster the GPU compaction kept, in the
 // order the compaction wrote them, which is the source order the scene recorded. An unpaged one
@@ -127,8 +125,7 @@ ${TRIANGLE_PALETTE_WGSL}
   N=normalize(in.normal);
   if((uni.flags&2u)!=0u){N*=face;}
  }
- let wrapped=wrapUv(in.uv,uni.flags);
- let sample=colorSample(uni.mapIndex,uni.uvScale,wrapped,gradX,gradY);
+ let sample=colorSample(uni.mapIndex,uni.uvScale,in.uv,uni.flags,gradX,gradY);
  let alpha=sample.w*in.color.w;
  if((uni.flags&0x40000000u)!=0u){
   if(alpha<=0.01||alpha<uni.alphaTest){discard;}
@@ -147,11 +144,11 @@ ${TRIANGLE_PALETTE_WGSL}
  // transmissive laisse voir, jamais la couleur déjà éclairée.
  let baseTint=rgb;
  var rough=uni.roughness;var metal=uni.metalness;var ao=1.0;
- if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,wrapped,gradX,gradY).g;}
- if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,wrapped,gradX,gradY).b;}
- if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,wrapped,gradX,gradY).r-1.0);}
+ if(uni.roughIndex!=0u){rough*=dataSample(uni.roughIndex,scales[uni.roughIndex].xy,in.uv,uni.flags,gradX,gradY).g;}
+ if(uni.metalIndex!=0u){metal*=dataSample(uni.metalIndex,scales[uni.metalIndex].xy,in.uv,uni.flags,gradX,gradY).b;}
+ if(uni.aoIndex!=0u){ao+=uni.aoIntensity*(dataSample(uni.aoIndex,scales[uni.aoIndex].xy,in.uv,uni.flags,gradX,gradY).r-1.0);}
  if(uni.normalIndex!=0u){
-  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,wrapped,gradX,gradY).xyz*2.0-vec3f(1.0);
+  let mapN=dataSample(uni.normalIndex,scales[uni.normalIndex].xy,in.uv,uni.flags,gradX,gradY).xyz*2.0-vec3f(1.0);
   var T=-(cross(q1,N)*gradX.x+cross(N,q0)*gradY.x);
   var B=-(cross(q1,N)*gradX.y+cross(N,q0)*gradY.y);
   if((uni.flags&2048u)!=0u){T=normalize(in.tangent);B=normalize(in.bitangent);}
@@ -160,7 +157,7 @@ ${TRIANGLE_PALETTE_WGSL}
   N=normalize(T*tbnScale*mapN.x*uni.normalScale.x+B*tbnScale*mapN.y*uni.normalScale.y+N*mapN.z);
  }
  var emissive=vec3f(uni.emissiveR,uni.emissiveG,uni.emissiveB);
- if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,wrapped,gradX,gradY).rgb;}
+ if(uni.emissiveIndex!=0u){emissive*=colorSample(uni.emissiveIndex,scales[uni.emissiveIndex].zw,in.uv,uni.flags,gradX,gradY).rgb;}
  if(alpha<uni.alphaTest){discard;}
  // Aucune lampe déclarée, ou vue sans éclairage demandée : l'albédo brut, exactement comme la
  // résolution opaque. Ni ambiance, ni ciel, ni soleil par défaut (P6).
