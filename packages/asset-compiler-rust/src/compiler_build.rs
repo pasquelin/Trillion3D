@@ -157,19 +157,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         &primitives,
         &output_views,
     )?;
-    let mut unsupported = vec!["hard RSS enforcement", "N-API binding"];
-    if o.simplification == "none" {
-        unsupported.insert(0, "simplification");
-    }
-    unsupported.extend(autonomous_refusal);
-    let cache_format = if primitives
-        .iter()
-        .any(|primitive| primitive["pass"] == "clustered-blend")
-    {
-        CLUSTERED_BLEND_FORMAT_VERSION
-    } else {
-        FORMAT_VERSION
-    };
+    let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
+    let cache_format = compiler_format::cache_format(&primitives);
     let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"wallMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
     // columns instead of tokenizing tens of megabytes before its first frame.
