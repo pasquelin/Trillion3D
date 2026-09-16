@@ -21,7 +21,9 @@ const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
 export function compareAudit(audit, total) {
   const { rows, view, viewProj, near, width, height, corners, layers } = audit;
   for (let row = 0; row < rows; row++) {
-    projectCornersInto(corners, row * 24, view, viewProj, near, width, height, scratch, 0);
+    // La partition ramène elle-même la profondeur normalisée dans [0, 1] (`lowZ * 0.5 + 0.5`) :
+    // la référence reçoit donc la convention de l'hôte, non convertie, comme le noyau la reçoit.
+    projectCornersInto(corners, row * 24, view, viewProj, near, width, height, false, scratch, 0);
     total.clusters++;
     if (scratch[5] !== 0) {
       total.coupes++;

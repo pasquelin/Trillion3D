@@ -1,5 +1,6 @@
 import { readShadowAtlasDigest } from './gpuShadowDigest.ts';
 import { readPartitionAudit } from './webgpuPartitionAudit.ts';
+import { readTransparentOcclusionAudit } from './webgpuTransparentOcclusionAudit.ts';
 import { disabledStageProfile } from '../sdk-core/index.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
@@ -126,6 +127,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     partitionAudit() {
       return readPartitionAudit(rt);
+    },
+    transparentOcclusionAudit() {
+      return readTransparentOcclusionAudit(rt);
     },
     shadowAtlasDigest() {
       const device = rt.setup.gpuDevice;
