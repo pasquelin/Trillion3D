@@ -4,7 +4,8 @@ import {
   SELECTION_NONE as NONE,
   type SelectionUniforms,
 } from './gpuSelection.ts';
-import { CLUSTER_FLOATS, CLUSTER_NEVER, type PackedDag } from './gpuDagTypes.ts';
+import type { PackedDag } from './gpuDagTypes.ts';
+import { CLUSTER_NEVER, CLUSTER_WORDS, COLD_WORDS } from './gpuDagLayout.ts';
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
 import { readCameraWorld } from './cameraWorld.ts';
@@ -25,6 +26,7 @@ export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, uniforms, clusterInts, nodeFlags, planes, views, stretches, focal, near } =
     context;
   const { clusters, pageCones, worlds } = packed;
+  const coneInts = new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCones.length);
   const coneRejects = (index: number, w: number) => {
     const base = index * PAGE_CONE_FLOATS;
     if (!pageCones[base + 7]) return false;
@@ -52,10 +54,11 @@ export function createDagOraclePredicates(context: PredicateContext) {
     );
   };
   const visible = (index: number) => {
-    const base = index * CLUSTER_FLOATS,
+    const base = index * CLUSTER_WORDS,
       w = clusterInts[base + 10],
-      node = clusterInts[base + 12];
-    if (clusterInts[base + 13] & CLUSTER_NEVER) return false;
+      // Le nœud propriétaire vit au froid, hors de ce que chaque passe de l'image relit.
+      node = coneInts[index * COLD_WORDS + 11];
+    if (clusterInts[base + 11] & CLUSTER_NEVER) return false;
     if (node !== NONE && nodeFlags[node]) return false;
     const cone = index * PAGE_CONE_FLOATS;
     return !frustumExcludesBox(
@@ -69,7 +72,7 @@ export function createDagOraclePredicates(context: PredicateContext) {
     );
   };
   const bandPixels = (index: number, at: number) => {
-    const base = index * CLUSTER_FLOATS,
+    const base = index * CLUSTER_WORDS,
       w = clusterInts[base + 10],
       offset = at === 0 ? 0 : 4;
     return projectedError(
