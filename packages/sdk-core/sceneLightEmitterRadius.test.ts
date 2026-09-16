@@ -79,6 +79,41 @@ test("la face d'ombre garde ce plan proche, que la lampe déclare une enveloppe 
   assert.equal(enveloppe, nu);
 });
 
+test("le point diagonal de l'audit franchit la projection et tombe hors de la sphère, un point plus proche y tombe", () => {
+  // Reproduction de repros.mts (audit VERIFICATION_STABILISATION_5896648) : lampe à l'origine,
+  // portée 30 m, rayon d'émetteur 0,20 m. Le point (0,19 ; 0,18 ; 0,17) est celui que l'ancien plan
+  // proche relevé rejetait des six faces ; il doit désormais être accepté par au moins une d'elles,
+  // puisque la projection ne dépend plus que de la portée.
+  const light = validateSceneLight(lanterne(0.2));
+  const point = [0.19, 0.18, 0.17] as const;
+  const accepted = Array.from({ length: 6 }, (_, face) => {
+    const matrices = new Float32Array(16);
+    writeFace(matrices, 0, null, 0, light, face, view, 1024);
+    const clip = Array.from(
+      { length: 4 },
+      (_, i) =>
+        matrices[i] * point[0] +
+        matrices[4 + i] * point[1] +
+        matrices[8 + i] * point[2] +
+        matrices[12 + i],
+    );
+    return (
+      clip[3] > 0 &&
+      Math.abs(clip[0]) <= clip[3] &&
+      Math.abs(clip[1]) <= clip[3] &&
+      clip[2] >= 0 &&
+      clip[2] <= clip[3]
+    );
+  });
+  assert.ok(accepted.some(Boolean), 'le point doit appartenir à au moins une face');
+  const distance = Math.hypot(...point);
+  assert.ok(distance > 0.2, `distance ${distance} devrait dépasser le rayon 0,2`);
+  assert.ok(Math.abs(distance - 0.3121) < 1e-3);
+  // Un point à 0,19 m du centre, lui, tombe dans la sphère : c'est le fragment que le nuanceur
+  // d'ombre écarte (`gpuShadowShader.ts`), pas la face qui l'accepte tout de même.
+  assert.ok(Math.hypot(0.19, 0, 0) < 0.2);
+});
+
 test("régler le seul rayon d'émetteur périme bien la carte d'ombre de la lampe", () => {
   const store = createSceneLightStore();
   store.add(validateSceneLight(lanterne()));
