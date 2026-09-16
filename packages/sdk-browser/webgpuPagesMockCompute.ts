@@ -2,6 +2,7 @@ import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts
 import { DRAW_ITEM_U32, evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
 import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
+import { residentFlags } from './gpuDagLayout.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -169,9 +170,10 @@ export function simulateComputeDispatch(
     cameraStretch: f32[51],
   };
   const residentCut = !!uniInts[47];
-  const cones = new Float32Array(byBinding.get(8)!.data.buffer);
+  // La résidence vit en bits derrière les enregistrements froids : le double la relit par le
+  // décodeur partagé, dans le tampon que l'hôte écrit, là où le nuanceur la lit.
   const resident = residentCut
-    ? Uint32Array.from({ length: packed.pageCount }, (_, i) => cones[i * 12 + 11])
+    ? residentFlags(words(byBinding.get(8)!.data), packed.pageCount)
     : undefined;
   const result = evaluateDagSelectionKernel(packed, uniforms, resident);
   if (residentCut) {
