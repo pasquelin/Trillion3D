@@ -203,7 +203,7 @@ When `SOURCE` is a `.fbx`/`.obj` file, or a directory holding such files and nei
   manifest.json    source manifest read by the compile step, plus an import report
 ```
 
-`<import-key>` hashes every input file, the driver's name and version, **and every file the reader opened on top of them** — the `.mtl` an OBJ cites, absence included. An unchanged source read by the same driver is imported once and reused (`import-source/reused`); a touched, deleted or newly appearing material library gives another key, so the scene served always matches the library on disk. The compile step then behaves exactly as for a hand-made glTF folder.
+`<import-key>` hashes every input file, the driver's name and version, **every file the reader opened on top of them** — the `.mtl` an OBJ cites, absence included — **and every image path the texture resolution tried**: the candidate path, whether it was there, and its bytes when it was. Images are never opened by the reader, but their mere presence picks the URI the intermediate glTF carries, so leaving them out of the key served the scene compiled before the image existed. An unchanged source read by the same driver is imported once and reused (`import-source/reused`); a touched, deleted or newly appearing material library **or texture** gives another key, so the scene served always matches what is on disk. The import manifest still lists only the files the reader opened, never the dozens of candidate paths; what the resolution kept is read in `images`. The compile step then behaves exactly as for a hand-made glTF folder.
 
 What is carried:
 
