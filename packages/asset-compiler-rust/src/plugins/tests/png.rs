@@ -56,7 +56,7 @@ fn un_png_seize_bits_ressort_en_raison_de_rapport_jamais_rogne() {
     // sans quoi une entrée écrite du temps de l'abaissement silencieux serait relue comme juste.
     assert_eq!(
         registry::by_head(&bytes).map(|pilote| pilote.version()),
-        Some("png-image-0.25-depth8-apng")
+        Some("png-image-0.25-depth8-apng-icc")
     );
     // C'est la profondeur qui refuse, pas la taille : la raison ne bouge pas avec le plafond
     // d'allocation, et elle sort sans qu'un seul pixel ait été décodé.
