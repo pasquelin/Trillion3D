@@ -8,6 +8,7 @@ mod dds;
 mod exr;
 mod gif;
 mod hdr;
+mod icc;
 mod image_registry;
 mod ktx2;
 mod png;
