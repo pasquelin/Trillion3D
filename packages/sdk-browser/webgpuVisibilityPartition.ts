@@ -69,9 +69,15 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   }
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
   if (twoPass && !boundsForAll) project(hizRest);
-  // La moitié testée, hachée dans l'ordre des lignes : c'est, avec le nombre d'occulteurs, ce dont
-  // les fiches de dessin et les bornes projetées dépendent en dehors de la table de lignes.
-  let restSignature = occluders;
+  // La moitié testée, hachée dans l'ordre des lignes, avec le nombre d'occulteurs ET l'âge des
+  // rectangles d'écran : c'est, en dehors de la table de lignes, tout ce dont les fiches de dessin
+  // et les bornes projetées dépendent.
+  //
+  // L'âge de projection en fait partie parce que les bornes envoyées au test Hi-Z sont des
+  // rectangles d'ÉCRAN : une caméra qui bouge sans changer la partition des pages les réécrit
+  // toutes. Sans lui, l'image testait les rectangles de la caméra précédente et pouvait rejeter à
+  // tort des surfaces visibles.
+  let restSignature = (occluders * 31 + hizProjection.generation) | 0;
   for (let i = 0; i < rows.packedCount; i++) restSignature = (restSignature * 31 + hizRest[i]) | 0;
   timing.lastProjectMs = projectMs;
   timing.lastPartitionMs = performance.now() - partitionStart - projectMs;
