@@ -9,9 +9,25 @@
 // le seul point que le nuanceur évalue, exactement celui de la reproduction.
 //
 // node --experimental-strip-types packages/sdk-browser/bench/justesse/emetteur-sphere-gpu.mjs
+//   [<cache>/native/full/<clé>/lights.json]
 // (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
+//
+// Sans argument, le centre et le rayon sont ceux de la reproduction, écrits ici. Avec le
+// `lights.json` qu'une compilation vient de publier, ils sortent de la première lampe qui porte un
+// `emitterRadius` : la chaîne complète — fixture, compilateur, nuanceur — est alors éprouvée sans
+// qu'une valeur soit recopiée à la main. Les points d'essai restent relatifs au centre de la lampe.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
+
+/** Le centre et le rayon de la lampe : ceux du produit de cache donné, sinon ceux de l'audit. */
+function emetteur(chemin) {
+  if (!chemin) return { centre: [0, 0, 0], rayon: 0.2, source: 'reproduction' };
+  const fichier = JSON.parse(readFileSync(chemin, 'utf8'));
+  const lampe = (fichier.lights ?? []).find((light) => typeof light.emitterRadius === 'number');
+  assert.ok(lampe, `aucune lampe ne porte emitterRadius dans ${chemin}`);
+  return { centre: lampe.position, rayon: lampe.emitterRadius, source: chemin };
+}
 
 const SHADER = `struct Uni{emitter:vec4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;
@@ -120,17 +136,19 @@ async function executer({ shader, cas, size, triangle }) {
   return { adaptateur: info.court, resultats, erreurs };
 }
 
+const { centre, rayon, source } = emetteur(process.argv[2]);
+const au = (offset) => centre.map((axe, i) => axe + offset[i]);
 const cas = [
-  { nom: 'diagonale-hors-sphere', emitter: [0, 0, 0, 0.2], world: [0.19, 0.18, 0.17] },
-  { nom: 'dans-la-sphere', emitter: [0, 0, 0, 0.2], world: [0.19, 0, 0] },
-  { nom: 'sans-rayon-meme-point', emitter: [0, 0, 0, 0], world: [0.19, 0, 0] },
+  { nom: 'diagonale-hors-sphere', emitter: [...centre, rayon], world: au([0.19, 0.18, 0.17]) },
+  { nom: 'dans-la-sphere', emitter: [...centre, rayon], world: au([0.19, 0, 0]) },
+  { nom: 'sans-rayon-meme-point', emitter: [...centre, 0], world: au([0.19, 0, 0]) },
 ];
 // 64 texels : `bytesPerRow` (4 octets par texel de profondeur) doit être un multiple de 256.
 const argument = { shader: SHADER, cas, size: 64, triangle: [-0.8, -0.8, 0.8, -0.8, 0.0, 0.8] };
 const resultat = await dansPageWebgpu(executer, argument, {
   titre: 'WebGeometry exclusion sphérique',
 });
-console.log(JSON.stringify(resultat, null, 2));
+console.log(JSON.stringify({ source, centre, rayon, ...resultat }, null, 2));
 
 assert.equal(resultat.indisponible ?? null, null, String(resultat.indisponible));
 assert.deepEqual(resultat.compilation ?? [], []);
