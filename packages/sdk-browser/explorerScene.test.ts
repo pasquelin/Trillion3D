@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadPreparedScene, exactPagesBounds } from './explorerScene.ts';
+import { emptyWorldBox } from './hostWorldBounds.ts';
 import { indexManifestPages, indexManifestBundles } from './manifestPageIndex.ts';
 import {
   referenceExactPagesBounds,
@@ -127,4 +128,64 @@ test('exactPagesBounds rend la même boîte que la référence, une page « coar
   assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
   assert.deepEqual(manques, manquesRef);
   assert.deepEqual(manques, [meshMissing]);
+});
+
+// Lot M4a : `exactPagesBounds` calcule maintenant par `boxTransform`/`boxUnion` du socle au lieu de
+// `Box3.applyMatrix4`/`union`. Vérifié au bit près sur des matrices hostiles — échelle négative,
+// cisaillement, matrice singulière, NaN — et une hiérarchie de profondeur 3.
+test('exactPagesBounds s’accorde avec la référence sur des matrices hostiles, hiérarchie de profondeur 3', () => {
+  const geometry = new THREE.BufferGeometry();
+  const racine = new THREE.Group();
+  racine.scale.set(-3, 1, 1); // échelle négative
+  const enfant = new THREE.Group();
+  enfant.matrixAutoUpdate = false;
+  enfant.matrix.set(1, 0.6, 0, 2, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1); // cisaillement, ligne z nulle
+  racine.add(enfant);
+  const singulier = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+  enfant.add(singulier);
+  const petitEnfant = new THREE.Group();
+  petitEnfant.position.set(NaN, 5, -0);
+  enfant.add(petitEnfant);
+  const nanMesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+  petitEnfant.add(nanMesh);
+  const source = new THREE.Group();
+  source.add(racine);
+  const page0 = pageDe(0, 'p/0');
+  page0.min = [-1, -2, -3];
+  page0.max = [4, 5, 6];
+  const metadata = {
+    primitives: [
+      { mesh: 0, primitive: 0, pages: [page0] },
+      { mesh: 1, primitive: 0, pages: [page0] },
+    ],
+  } as unknown as ClusterManifest;
+  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
+    [singulier, { meshes: 0, primitives: 0 }],
+    [nanMesh, { meshes: 1, primitives: 0 }],
+  ]);
+  const obtenu = exactPagesBounds(source, associations, metadata, () => {});
+  const attendu = referenceExactPagesBounds(source, associations, metadata, () => {});
+  assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
+});
+
+// Lot M4a : aucune allocation par page — un seul tampon de travail pour toute la boucle. Vérifié en
+// repassant la même sortie `into` d’un appel à l’autre : c’est elle qui revient, jamais un objet neuf.
+test('exactPagesBounds réutilise la sortie `into` au lieu d’en allouer une par page', () => {
+  const geometry = new THREE.BufferGeometry();
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+  const source = new THREE.Group();
+  source.add(mesh);
+  const pages = Array.from({ length: 50 }, (_, i) => {
+    const p = pageDe(i, `p/${i}`);
+    p.min = [i, i, i];
+    p.max = [i + 1, i + 1, i + 1];
+    return p;
+  });
+  const metadata = { primitives: [{ mesh: 0, primitive: 0, pages }] } as unknown as ClusterManifest;
+  const associations = new Map<THREE.Mesh, { meshes: number; primitives: number }>([
+    [mesh, { meshes: 0, primitives: 0 }],
+  ]);
+  const into = emptyWorldBox();
+  const rendu = exactPagesBounds(source, associations, metadata, () => {}, into);
+  assert.equal(rendu, into, 'la même instance de tampon revient, quel que soit le nombre de pages');
 });
