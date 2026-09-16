@@ -50,7 +50,12 @@ fn damaged(kind: &str) -> Vec<u8> {
 // est lu jusqu'au bout, et ce qui ne s'y termine pas est refusé sous le nom des archives illisibles.
 #[test]
 fn a_package_whose_gzip_footer_lies_is_refused_as_unreadable() {
-    let sain = outcome("paquet-sain", &UNITYPACKAGE, "sain.unitypackage", &package());
+    let sain = outcome(
+        "paquet-sain",
+        &UNITYPACKAGE,
+        "sain.unitypackage",
+        &package(),
+    );
     assert_eq!(
         sain.code, "SOURCE_FORMAT_UNKNOWN",
         "le paquet sain se lit entier"
