@@ -47,6 +47,31 @@ export {
   pageDecodeFailureCode,
   pageDecodeWorkerCount,
 } from './pageDecodeContracts.ts';
+export {
+  PAGE_INTEGRATION_FAILURES,
+  PAGE_INTEGRATION_PROTOCOL,
+  PAGE_SLICE_STRIDE,
+  PAGE_SPEC_STRIDE,
+  SLICE_OFFSET_WORDS,
+  SLICE_PAGE_INDEX,
+  SLICE_WORDS,
+  SPEC_PAGE_INDEX,
+  SPEC_STREAM_OFFSET,
+  SPEC_TRIANGLES,
+} from './pageIntegrationContracts.ts';
+export type {
+  PageIntegrationAnswer,
+  PageIntegrationDone,
+  PageIntegrationFailed,
+  PageIntegrationFailureCode,
+  PageIntegrationRequest,
+} from './pageIntegrationContracts.ts';
+export {
+  createPageIntegrationPlan,
+  planPageIntegration,
+  sortPages,
+} from './pageIntegrationPlan.ts';
+export type { PageIntegrationPlan } from './pageIntegrationPlan.ts';
 export type {
   PageDecodeAnswer,
   PageDecodeCancel,
@@ -58,85 +83,7 @@ export type {
   PageDecodeRequest,
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
-export { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './mathMatrix4.ts';
-export { invertMatrix4 } from './mathMatrix4Inverse.ts';
-export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
-export { normalMatrix3 } from './mathMatrix3.ts';
-export {
-  addScaledVector3,
-  applyMatrix3Vector3,
-  copyScaledVector3,
-  crossVector3,
-  dotVector3,
-  lengthSqVector3,
-  normalizeVector3,
-  scaleVector3,
-  transformAffinePoint,
-  transformDirectionVector3,
-  transformHomogeneousPoint,
-} from './mathVector.ts';
-export { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';
-export {
-  BOX_VALUES,
-  boxCornersInto,
-  boxEmpty,
-  boxExpandByPoint,
-  boxIsEmpty,
-  boxTransform,
-  boxUnion,
-} from './mathBox.ts';
-export { sphereFromBounds } from './mathSphere.ts';
-export { MATRIX_VALUES, boxTransformBatch, multiplyMatrix4Batch } from './mathBatch.ts';
-export {
-  MATH_PATH_CONTRACT,
-  type MathPath,
-  type MathPathMetrics,
-  type MathPathMode,
-  type MathPathOperation,
-} from './mathPathContracts.ts';
-export {
-  PATH_EXPLORE_EVERY,
-  PATH_MIN_SAMPLES,
-  PATH_SWITCH_MARGIN,
-  PATH_SWITCH_RUNS,
-  createPathGovernor,
-  type PathGovernor,
-} from './mathPathGovernor.ts';
-export { CLOCK_RESOLUTION_MS, PATH_WINDOW, estimateClockResolutionMs } from './mathPathWindow.ts';
-export {
-  FRUSTUM_PLANE_VALUES,
-  clipPlanesFromMatrix,
-  frustumPlanesFromMatrix,
-  frustumPlanesToLocal,
-} from './mathFrustum.ts';
-export { frustumClipBox, frustumExcludesBox } from './mathFrustumBox.ts';
-export { boxConeRejects } from './mathCone.ts';
-export {
-  addTransformNode,
-  createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
-  setNodePosition,
-  setNodeQuaternion,
-  setNodeScale,
-  type TransformTree,
-} from './mathTransformTree.ts';
-export { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
-export { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
-export {
-  nodeWorldDirection,
-  nodeWorldMirrorsFaces,
-  nodeWorldPosition,
-  nodeWorldQuaternion,
-  nodeWorldScale,
-} from './mathTransformTreeRead.ts';
-export { lookAtNode } from './mathTransformTreeLookAt.ts';
-export {
-  createCameraFrame,
-  perspectiveProjection,
-  updateCameraFrame,
-  type CameraFrame,
-} from './mathCamera.ts';
+export * from './mathIndex.ts';
 export { compareImages } from './compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */

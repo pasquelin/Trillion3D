@@ -35,6 +35,8 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       blendState.blendGpu,
       rt.context.diagnosticGpuVariant,
     ));
+    // Une disposition neuve périme le groupe partagé des items paginés comme ceux des autres.
+    blendState.pagedGroup = undefined;
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
     vis.blendBindGroupLayout = undefined;

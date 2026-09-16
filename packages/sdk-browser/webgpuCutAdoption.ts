@@ -1,12 +1,8 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { sameSelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
-import { shownFromGpu } from './webgpuPagesHelpers.ts';
+import { copyPages, shownFromGpu } from './webgpuPagesHelpers.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
-
-function appendPages(target: PageRec[], source: readonly PageRec[]) {
-  for (let i = 0; i < source.length; i++) target.push(source[i]);
-}
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -97,8 +93,7 @@ export function createWebgpuCutAdopter(options: {
       options.residentOffsetWords,
     );
     if (!held) {
-      drawn.length = 0;
-      appendPages(drawn, shown);
+      copyPages(drawn, shown);
       options.onDrawnMirrored();
       shownCut = cut;
     }

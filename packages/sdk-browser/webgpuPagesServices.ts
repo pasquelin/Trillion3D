@@ -32,7 +32,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    onOffsetChange: (page, offset) => (rows.touchPage(page), updateTransparentSpan(rt, page, offset)),
+    onOffsetChange: (page, words) => (rows.touchPage(page), updateTransparentSpan(rt, page, words)),
   });
   /**
    * Writes one page-table row. Called when a cluster claims a row, when its GPU slot moves, or when a
@@ -61,13 +61,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // Origine du changement de ressources : la page entre dans la résidence ou en sort.
     (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
-  const pageSource = {
-    read: async (key: string) => {
-      const bytes = sourceBytes.get(key);
-      if (!bytes) throw new Error('Missing page');
-      return bytes;
-    },
-  };
+  const read = async (key: string) =>
+    sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
+  const pageSource = { read };
   const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
   /**
    * The sets residency is decided with, and the difference the GPU readback is read as. Both outlive
@@ -75,7 +71,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
    */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages });
   const cutDelta = createCutDelta(packedPages, run.desired);
-  const drawnDelta = createCutDelta(packedPages, run.drawnMembers);
+  // La coupe dessinable ne sert que par sa différence : aucune liste d'enregistrements n'en est
+  // tirée. `shownFromGpu` écrit déjà `run.shown` à partir des mêmes identifiants.
+  const drawnDelta = createCutDelta(packedPages);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
     sets: residencySets,

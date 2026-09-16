@@ -15,12 +15,16 @@ import type { ClusterCut } from './pageSelectionMath.ts';
  * Un plafond sous le seuil vaut donc pour chaque cluster du sous-arbre, un plancher au-dessus du
  * seuil aussi, et la décision prise au nœud est mot pour mot celle qu'aurait rendue la descente.
  */
-export const BOUND_STRIDE = 11;
+export const BOUND_STRIDE = 12;
 export const OWN_FLOOR = 0,
   OWN_CEIL = 1,
   PARENT_FLOOR = 2,
   OWN_SPHERE = 3,
-  PARENT_SPHERE = 7;
+  PARENT_SPHERE = 7,
+  /** 1 quand chaque cluster du sous-arbre a un groupe producteur. Le repli par forçage dessine
+   *  sans condition une grappe que rien n'a produite : un sous-arbre qui en contient une ne peut
+   *  pas être rejeté sur la seule erreur propre. */
+  ALL_SOURCED = 11;
 
 /** Étend la sphère englobante rangée en `at` pour couvrir celle lue en `from`.
  *  Rayon négatif : accumulateur encore vide. */
@@ -75,6 +79,8 @@ function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
     else if (own > values[at + OWN_CEIL]) values[at + OWN_CEIL] = own;
   }
   if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0);
+  const producer = rec.source;
+  if (producer === undefined || producer === null || producer < 0) values[at + ALL_SOURCED] = 0;
   // Un cluster que rien ne remplace se projette à l'infini : il ne baisse aucun plancher.
   const parent = rec.parentError;
   if (parent === undefined || parent === null) return;
@@ -93,6 +99,7 @@ function foldChild(values: Float64Array, at: number, from: number) {
     values[at + PARENT_FLOOR] = values[from + PARENT_FLOOR];
   growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE);
   growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE);
+  if (values[from + ALL_SOURCED] === 0) values[at + ALL_SOURCED] = 0;
 }
 
 /**
@@ -114,6 +121,7 @@ export function cullingBounds(
     values[at + PARENT_FLOOR] = Infinity;
     values[at + OWN_SPHERE + 3] = -1;
     values[at + PARENT_SPHERE + 3] = -1;
+    values[at + ALL_SOURCED] = 1;
     const children = nodes[base + 12];
     if (children > 0) {
       const first = nodes[base + 11];

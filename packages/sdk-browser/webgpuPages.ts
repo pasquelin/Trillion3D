@@ -20,6 +20,7 @@ import {
   visibilityIds,
 } from './webgpuPagesHostApi.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
+import { createArrivalSpecs } from './pageArrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './webgpuPagesCpuSteps.ts';
 import { setWebgpuTransform } from './webgpuPagesTransform.ts';
 import { disposeWebgpuPages, metricsOf } from './webgpuPagesMetrics.ts';
@@ -31,6 +32,9 @@ export { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 export const webgpuPagesBackend: BackendFactory = (context) => {
   const rt = createWebgpuPagesRuntime(context);
   const { run, setup, diag } = rt;
+  // La fiche d'entiers d'une requête, posée une fois par adresse : c'est tout ce que l'intégration
+  // hors fil reçoit d'une arrivée.
+  const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
   const onGpuError = (event: GPUUncapturedErrorEvent) => {
     diag.diagnosticFailure('gpu-uncaptured-error', event.error);
     run.lost = true;
@@ -105,8 +109,11 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     pageUrls() {
       return pageUrls(rt);
     },
-    acceptPage(url, array) {
-      acceptPage(rt, url, array);
+    pageSpecs(url) {
+      return pageSpecs(url);
+    },
+    acceptPage(url, array, plan) {
+      acceptPage(rt, url, array, plan);
     },
     dropPage(url) {
       dropPage(rt, url);
