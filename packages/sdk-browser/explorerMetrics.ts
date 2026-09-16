@@ -32,7 +32,7 @@ export function createExplorerMetrics(
     cpuSubmitMs: null,
     gpuMs: null,
     drawCalls: 0,
-    triangles: 0,
+    triangles: null,
     clusters: null,
     selectedTriangles: null,
     residentPages: null,
