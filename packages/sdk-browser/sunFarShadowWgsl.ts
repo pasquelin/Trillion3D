@@ -25,8 +25,6 @@ import { BOUNCE_TRACE_WGSL } from './bounceTraceWgsl.ts';
 /** Le rang de la liaison du proxy résident dans la disposition de la résolution différée. */
 export const SUN_FAR_PROXY_BINDING = 13;
 
-export const SUN_FAR_SHADOW_WGSL = `
-${BOUNCE_TRACE_WGSL}
 /**
  * La fraction de soleil qui atteint un point qu'aucune cascade ne couvre : zéro si le proxy coupe
  * le rayon, un sinon. Le rayon part d'une maille de proxy plus loin, sans quoi la surface grossière
@@ -36,18 +34,20 @@ ${BOUNCE_TRACE_WGSL}
  * exactement comme avant ce lot : l'indisponibilité est dite dans le diagnostic, jamais comblée par
  * une ombre inventée ni par une cascade étirée qui diviserait par cinq la densité des ombres proches.
  *
- * Les deux compteurs ne montent que sur les images relevées : sur les autres, la passe mesurée ne
- * porte aucun diagnostic.
+ * `counting` n'ajoute que les deux compteurs du relevé, jamais une ligne de physique : le rayon, son
+ * origine, ses bornes et sa réponse sont les mêmes des deux côtés, caractère pour caractère. Une
+ * passe les prend quand elle peut écrire le proxy ; la passe de mélange ne le peut pas, parce qu'une
+ * écriture de stockage dans son étage de fragments lui coûterait le rejet anticipé de profondeur, et
+ * avec lui l'ombrage de milliers de fragments que la profondeur jette ensuite.
  */
+export const sunFarShadowWgsl = (counting: boolean) => `
+${BOUNCE_TRACE_WGSL}
 fn sunFarShadowFactor(P:vec3f,N:vec3f,L:vec3f)->f32{
  if(proxy.present<0.5){return 1.0;}
- let counting=proxy.counting>0u;
- if(counting){atomicAdd(&proxy.tested,1u);}
- // Le rayon part d'une maille de proxy plus loin le long de sa propre direction : c'est ce départ,
+${counting ? ' let counting=proxy.counting>0u;\n if(counting){atomicAdd(&proxy.tested,1u);}\n' : ''} // Le rayon part d'une maille de proxy plus loin le long de sa propre direction : c'est ce départ,
  // et non un relèvement massif le long de la normale, qui saute la surface grossière sur laquelle
  // le point se tient. Le relèvement, lui, ne sert qu'à quitter son plan exact.
  let origin=P+N*proxy.offsetMetres+L*proxy.startMetres;
  if(!proxyBlocked(origin,L,max(proxy.maxMetres-proxy.startMetres,0.0))){return 1.0;}
- if(counting){atomicAdd(&proxy.blocked,1u);}
- return 0.0;
+${counting ? ' if(counting){atomicAdd(&proxy.blocked,1u);}\n' : ''} return 0.0;
 }`;
