@@ -85,7 +85,6 @@ export interface RenderBackend {
   dispose(): void;
 }
 export type DiagnosticDetail = 'summary' | 'trace';
-export type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 export type BackendDiagnostic = {
   phase: string;

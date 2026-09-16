@@ -2,6 +2,7 @@
 // qui le décrit, et la caméra de face. Rien n'y nomme une scène du banc — le moteur ne voit que des
 // passes et des matériaux, comme pour n'importe quelle scène importée.
 import * as THREE from 'three';
+import { ouvrirAppareil } from '../../packages/sdk-browser/bench/justesse/appareilWebgpu.mjs';
 
 export const VIEWPORT = [96, 96];
 
@@ -136,4 +137,43 @@ export function libere(backend, canvas, scene) {
   canvas.remove();
   for (const g of scene.geometries) g.dispose();
   for (const m of scene.materials) m.dispose();
+}
+
+/** Combien de quadruplets RGBA diffèrent entre deux images de même taille. */
+export function difference(a, b) {
+  let n = 0;
+  for (let i = 0; i < a.length; i += 4)
+    if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2] || a[i + 3] !== b[i + 3])
+      n++;
+  return n;
+}
+
+/** Le nombre de pixels qui portent le rouge du carreau plutôt que le bleu du fond. */
+export function redCount(pixels) {
+  let n = 0;
+  for (let i = 0; i < pixels.length; i += 4)
+    if (pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40) n++;
+  return n;
+}
+
+/**
+ * L'enveloppe commune d'une preuve à deux passes (paginée, non paginée) : ouvre l'appareil, exécute
+ * `sequence(device, pagine, evenements)` pour chacune, referme l'appareil. `sequence` porte toute la
+ * mise en scène propre à la preuve ; cette fonction ne porte que ce que chaque preuve à deux passes
+ * répète à l'identique.
+ */
+export async function executerPasses(sequence) {
+  const appareil = await ouvrirAppareil();
+  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  const { device, erreurs } = appareil;
+  const evenements = [],
+    passes = {};
+  try {
+    for (const pagine of [false, true])
+      passes[pagine ? 'pagine' : 'non-pagine'] = await sequence(device, pagine, evenements);
+  } catch (error) {
+    return { erreur: String(error) + (error?.stack ?? ''), passes, evenements, erreurs };
+  }
+  const info = await appareil.fermer();
+  return { adaptateur: info.court, passes, evenements, erreurs };
 }
