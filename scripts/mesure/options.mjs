@@ -8,67 +8,17 @@ import { lightingSettings } from './optionsEclairage.mjs';
 export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
 export { labManifest, sceneOf } from './scene.mjs';
 export { resolveSides } from './dists.mjs';
+export {
+  ENGINES,
+  engineOf,
+  equipSide,
+  resolveCache,
+  sideReport,
+  variantOf,
+} from './optionsCote.mjs';
+import { ENGINES } from './optionsCote.mjs';
 
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-
-// Drapeaux copiés littéralement de `render-tech-lab/scripts/headless/lib.mjs` (BASE_FLAGS) et de
-// `shots.mjs` (`--enable-unsafe-webgpu`). Le Lab n'est pas modifié ; ces lignes en sont la copie.
-const BASE_FLAGS = [
-  '--disable-backgrounding-occluded-windows',
-  '--disable-renderer-backgrounding',
-  '--disable-background-timer-throttling',
-  '--enable-gpu-benchmarking',
-];
-const WEBGPU_FLAGS = [...BASE_FLAGS, '--enable-unsafe-webgpu'];
-
-// Le moteur autonome WebGL2 est le seul des trois à décoder lui-même des pages de géométrie :
-// c'est par lui que `pagesDecodedWasm` cesse d'être nul en campagne. L'explorateur ne le choisit pas
-// par une liste de moteurs mais par le réglage `autonomousGeometry`, et il refuse qu'on lui nomme
-// les deux à la fois ; `autonome` porte cette différence jusqu'à la page de mesure, qui passe alors
-// le réglage au lieu de la liste. Il exige aussi un cache dont toutes les primitives sont des
-// clusters exacts — le compilateur n'écrit `autonomousScene` que dans ce cas — sinon l'explorateur
-// refuse par `AUTONOMOUS_SCENE_UNAVAILABLE`.
-// `three` dit que le moteur dessine par Three.js, donc qu'il recopie les lampes d'un graphe source
-// au lieu de lire le magasin du contrat : à celui-là seul, l'hôte pose les lampes en Three.
-export const ENGINES = {
-  webgl: {
-    backend: 'exactPagesBackend',
-    id: 'exact-cluster-pages',
-    flags: BASE_FLAGS,
-    three: true,
-  },
-  webgpu: { backend: 'webgpuPagesBackend', id: 'webgpu-page-raster', flags: WEBGPU_FLAGS },
-  webgl2: {
-    backend: 'autonomousPagesBackend',
-    id: 'autonomous-pages-webgl',
-    flags: BASE_FLAGS,
-    autonome: true,
-    three: true,
-  },
-};
-
-/** Le moteur d'un côté : `--moteur-<côté>` s'il est donné, sinon celui de la campagne. C'est ce qui
- *  met le moteur face au témoin en une seule exécution — mêmes poses, mêmes lampes, même cache. */
-export function engineOf(flags, name, fallback) {
-  const engine = flags.get(`moteur-${name}`) ?? fallback;
-  if (!ENGINES[engine])
-    throw new Error(`--moteur-${name} doit valoir ${Object.keys(ENGINES).join(', ')}`);
-  return ENGINES[engine];
-}
-
-/**
- * Le cache d'un côté. La valeur nomme le dossier « derived » — celui qui contient `native/full` —
- * ou directement `native/full` ; c'est le dossier derived qui est rendu, parce que le manifeste
- * compilé désigne ses paquets par `../../objects/`, hors de `native/full`. Sans valeur, le côté
- * garde le cache du Lab.
- */
-export function resolveCache(value) {
-  if (!value) return undefined;
-  const dir = resolve(value);
-  for (const candidate of [dir, join(dir, '../..')])
-    if (existsSync(join(candidate, 'native/full/manifest.json'))) return resolve(candidate);
-  throw new Error(`cache sans native/full/manifest.json : ${dir}`);
-}
 
 /** Le dossier d'un paquet installé, cherché comme Node le cherche : de la racine vers le haut. Un
  *  worktree sans `node_modules` à lui trouve ainsi ceux de l'arbre de travail principal. */
@@ -149,6 +99,9 @@ export function readOptions(argv, root) {
     // `--profil off` rejoue la même série sans le chronométrage par étape : c'est la porte de
     // fidélité, deux exécutions dont seule cette option diffère.
     stageProfile: (flags.get('profil') ?? 'on') !== 'off',
+    // Une campagne de ventilation met le détail « trace » des DEUX côtés, y compris celui qui ne
+    // porte aucune variante : sans cela les deux côtés ne paieraient pas le même diagnostic.
+    trace: [...flags.keys()].some((name) => name === 'variante' || name.startsWith('variante-')),
     profileFrames: number('images-profil', 120),
     // Le mode sans fenêtre plafonne l'affichage à 60 Hz sur cette machine : `--visible` ouvre une
     // vraie fenêtre quand la cadence compte.
