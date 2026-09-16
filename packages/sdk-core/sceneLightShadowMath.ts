@@ -68,7 +68,6 @@ const right = new Float64Array(3),
 /** Matrice de vue colonne-major d'une caméra en `eye` regardant le long de `forward`. */
 function shadowView(
   out: Float32Array,
-  base: number,
   eye: readonly [number, number, number],
   forward: readonly [number, number, number],
 ) {
@@ -87,25 +86,26 @@ function shadowView(
     faceBasis[3 + axis] = upward[axis];
     faceBasis[6 + axis] = forward[axis];
   }
-  out[base] = right[0];
-  out[base + 1] = upward[0];
-  out[base + 2] = -fx;
-  out[base + 3] = 0;
-  out[base + 4] = right[1];
-  out[base + 5] = upward[1];
-  out[base + 6] = -fy;
-  out[base + 7] = 0;
-  out[base + 8] = right[2];
-  out[base + 9] = upward[2];
-  out[base + 10] = -fz;
-  out[base + 11] = 0;
-  out[base + 12] = -dotVector3(right, eye);
-  out[base + 13] = -dotVector3(upward, eye);
-  out[base + 14] = dotVector3(forward, eye);
-  out[base + 15] = 1;
+  out[0] = right[0];
+  out[1] = upward[0];
+  out[2] = -fx;
+  out[3] = 0;
+  out[4] = right[1];
+  out[5] = upward[1];
+  out[6] = -fy;
+  out[7] = 0;
+  out[8] = right[2];
+  out[9] = upward[2];
+  out[10] = -fz;
+  out[11] = 0;
+  out[12] = -dotVector3(right, eye);
+  out[13] = -dotVector3(upward, eye);
+  out[14] = dotVector3(forward, eye);
+  out[15] = 1;
 }
 
-const viewScratch = new Float32Array(16);
+const viewScratch = new Float32Array(16),
+  faceScratch = new Float32Array(16);
 
 /**
  * Vue puis projection, composées dans `out` : le seul chemin par lequel une face obtient sa matrice.
@@ -117,6 +117,10 @@ export function composeFace(
   eye: readonly [number, number, number],
   forward: readonly [number, number, number],
 ) {
-  shadowView(viewScratch, 0, eye, forward);
-  multiplyMatrix4(out, projScratch, viewScratch, base);
+  shadowView(viewScratch, eye, forward);
+  // Composée à part puis recopiée : `multiplyMatrix4` n'écrit qu'aux seize indices constants, et une
+  // recopie entre deux `Float32Array` ne change pas un bit. Une face par lampe et par image ; le
+  // décalage ne valait pas seize indices calculés dans le produit le plus chaud du moteur.
+  multiplyMatrix4(faceScratch, projScratch, viewScratch);
+  for (let i = 0; i < 16; i++) out[base + i] = faceScratch[i];
 }
