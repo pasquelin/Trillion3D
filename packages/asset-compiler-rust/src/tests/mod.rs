@@ -39,6 +39,7 @@ mod part5;
 mod part6;
 mod part7;
 mod psd_golden;
+mod simplification_none;
 mod unity_driver;
 mod unity_fidelite;
 mod unity_golden;

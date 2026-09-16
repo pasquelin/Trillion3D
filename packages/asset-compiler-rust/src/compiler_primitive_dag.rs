@@ -46,7 +46,12 @@ pub(super) fn build_dag_primitive(
     proxy_demand: crate::proxy::cut::CutDemand,
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
-    let (dag, groups, tallies) = crate::dag::build_dag_tallied(pos, index_values, &|| check(o))?;
+    let (dag, groups, tallies) = crate::dag::build_dag_tallied(
+        pos,
+        index_values,
+        crate::dag::DagStrategy::named(&o.simplification),
+        &|| check(o),
+    )?;
     if dag
         .iter()
         .filter(|c| c.level == 0)
