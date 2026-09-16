@@ -49,13 +49,9 @@ async function main() {
     avant: flags.get('avant'),
     root: ROOT,
   });
-  // `--cache-avant` / `--cache-apres` : chaque côté peut jouer son propre cache compilé, rendu sous
-  // son propre préfixe. Sans l'option, le côté lit le cache du Lab, comme avant. `--moteur-<côté>`
-  // lui donne son propre moteur ; les drapeaux de Chromium sont alors ceux dont les côtés ont besoin.
-  for (const side of sides) {
-    side.cache = options.resolveCache(flags.get(`cache-${side.name}`));
-    side.engine = options.engineOf(flags, side.name, settings.engine);
-  }
+  // Chaque côté a son cache compilé (`--cache-<côté>`, sinon celui du Lab), son moteur
+  // (`--moteur-<côté>`, les drapeaux de Chromium étant la réunion) et sa variante (`--variante-<côté>`).
+  for (const side of sides) options.equipSide(side, flags, settings);
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // La scène mesurée est celle des caches nommés ; sans aucun, celle que le Lab garde par défaut.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache);
@@ -79,12 +75,7 @@ async function main() {
     settings,
     flags: FLAGS,
     ressources: resources,
-    sides: Object.fromEntries(
-      sides.map((s) => [
-        s.name,
-        { dist: s.dist, from: s.from, cache: s.cache ?? null, moteur: s.engine.id },
-      ]),
-    ),
+    sides: Object.fromEntries(sides.map(options.sideReport)),
     series: [],
     errors: [],
   };

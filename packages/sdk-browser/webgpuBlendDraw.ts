@@ -2,45 +2,12 @@ import * as THREE from 'three';
 import { matrixWindingCw } from '../sdk-core/index.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
-import { directLightResources } from './webgpuPagesLightResources.ts';
+import { blendLightResources, sameLighting } from './webgpuBlendLighting.ts';
+import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
+import { countsBlendOverdraw } from './diagnosticGpuVariant.ts';
 import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-
-/**
- * Les ressources d'éclairage que la passe de mélange lie : exactement celles que la résolution
- * opaque vient de résoudre, et les remplaçants de la résolution différée pour celles qui n'existent
- * pas encore. Une seule résolution pour les deux passes, donc aucune lumière propre au mélange (P6).
- */
-function blendLightResources(rt: WebgpuPagesRuntime): BlendLighting {
-  const { placeholders } = rt.gpu.deferred!,
-    contract = directLightResources(rt);
-  return {
-    directLights: rt.lights.buffer!,
-    shadowSlices: contract.slices ?? placeholders.slices,
-    shadowAtlas: contract.atlas ?? placeholders.atlasView,
-    shadowSampler: placeholders.sampler,
-    bounceGrid: contract.bounceGrid ?? placeholders.bounceGrid,
-    probes: contract.probes ?? placeholders.probes,
-    tileLights: contract.tiles ?? placeholders.tiles,
-    proxy: contract.proxy ?? placeholders.proxy,
-  };
-}
-
-/** Vrai quand deux résolutions successives ont donné exactement les mêmes ressources. */
-function sameLighting(previous: BlendLighting | undefined, current: BlendLighting) {
-  return (
-    !!previous &&
-    previous.directLights === current.directLights &&
-    previous.shadowSlices === current.shadowSlices &&
-    previous.shadowAtlas === current.shadowAtlas &&
-    previous.shadowSampler === current.shadowSampler &&
-    previous.bounceGrid === current.bounceGrid &&
-    previous.probes === current.probes &&
-    previous.tileLights === current.tileLights &&
-    previous.proxy === current.proxy
-  );
-}
 
 /** The bind group of one transparent item: its own attributes, the shared cluster lists, the atlas. */
 function blendBindGroup(
@@ -115,8 +82,14 @@ export function drawBlendPass(
     bound = pipeline;
     pass.setPipeline(pipeline);
   };
+  // Diagnostic seul : la variante de comptage ouvre une requête d'occlusion autour de la passe. La
+  // passe, ses appels et leur ordre sont inchangés — seule la requête s'ajoute au descripteur.
+  const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
+    ? (blendState.overdraw ??= createBlendOverdraw(device))
+    : undefined;
   const pass = encoder.beginRenderPass({
     label: transmissive ? 'WG transmission' : 'WG transparents',
+    ...(overdraw ? { occlusionQuerySet: overdraw.set } : {}),
     colorAttachments: [
       {
         view: vis.visEnabled && gpu.hdrView ? gpu.hdrView : gpu.colorView!,
@@ -127,6 +100,7 @@ export function drawBlendPass(
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
+  overdraw?.begin(pass, transmissive);
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     if (!!item.transmissive !== transmissive) continue;
@@ -189,7 +163,9 @@ export function drawBlendPass(
       draw();
     }
   }
+  overdraw?.end(pass);
   pass.end();
+  overdraw?.after(encoder);
   run.gpuDrawCalls += drawCalls;
   run.blendDrawCalls += drawCalls;
   run.blendUnpagedTriangles += unpaged;

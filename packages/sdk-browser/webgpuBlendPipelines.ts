@@ -3,10 +3,22 @@ import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import { BLEND_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
 import { VOLUME_SIZE } from './webgpuTransmission.ts';
+import {
+  blendVariantPipeline,
+  DIAGNOSTIC_BLEND_WGSL,
+  type DiagnosticGpuVariant,
+} from './diagnosticGpuVariant.ts';
 
 /** Builds the forward-material pipelines for transparent draws. */
-export async function createWebgpuBlendPipelines(device: GPUDevice, items: BlendGpuItem[]) {
+export async function createWebgpuBlendPipelines(
+  device: GPUDevice,
+  items: BlendGpuItem[],
+  variant?: DiagnosticGpuVariant,
+) {
   const b = BLEND_BINDINGS;
+  // Sans variante, le module et les cibles sont exactement ceux d'avant : la production ne compile
+  // aucun étage de diagnostic et n'a aucun masque d'écriture à elle.
+  const { entryPoint, writeMask } = blendVariantPipeline(variant);
   const blendBindGroupLayout = device.createBindGroupLayout({
     entries: [
       { binding: b.indices, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
@@ -63,17 +75,20 @@ export async function createWebgpuBlendPipelines(device: GPUDevice, items: Blend
       },
     ],
   });
-  const blendModule = device.createShaderModule({ code: BLEND_SHADER });
+  const blendModule = device.createShaderModule({
+    code: variant ? BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL : BLEND_SHADER,
+  });
   const makeBlend = (cullMode: GPUCullMode) => {
     const descriptor: GPURenderPipelineDescriptor = {
       layout: device.createPipelineLayout({ bindGroupLayouts: [blendBindGroupLayout] }),
       vertex: { module: blendModule, entryPoint: 'vs' },
       fragment: {
         module: blendModule,
-        entryPoint: 'fs',
+        entryPoint,
         targets: [
           {
             format: 'rgba16float' as GPUTextureFormat,
+            writeMask,
             blend: {
               color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
               alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },

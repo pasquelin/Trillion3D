@@ -80,6 +80,8 @@ export interface RenderBackend {
   dispose(): void;
 }
 export type DiagnosticDetail = 'summary' | 'trace';
+export type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
+import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 export type BackendDiagnostic = {
   phase: string;
   message: string;
@@ -134,6 +136,9 @@ export interface BackendContext {
   bounceBudgetMs?: number;
   /** Chronométrer chaque étape de l'image. Éteint par défaut : seuls le banc et le harnais l'allument. */
   stageProfile?: boolean;
+  /** La variante de DIAGNOSTIC retenue par l'hôte, déjà vérifiée (`diagnosticGpuVariant.ts`).
+   *  Absente en production : un moteur sans elle encode exactement ce qu'il encodait. */
+  diagnosticGpuVariant?: DiagnosticGpuVariant;
   /** Budget de l'étape Ombres, en millisecondes de carte graphique par image. Voir `LIGHT_SETTINGS`. */
   shadowBudgetMs?: number;
   /** Invalidation des cartes d'ombre page par page. Allumée par défaut. */

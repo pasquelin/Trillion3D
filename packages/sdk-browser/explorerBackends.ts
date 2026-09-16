@@ -5,6 +5,7 @@ import { DEFAULT_BACKENDS } from './defaultBackends.ts';
 import { DEFAULT_CLEAR_COLOR } from './backendCommon.ts';
 import { createSceneLightStore } from '../sdk-core/index.ts';
 import { createSceneProxyReader } from './sceneProxyLoad.ts';
+import { resolveDiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 import { declareImportedLights, loadImportedLights } from './importedLights.ts';
 import type { BackendContext, RenderBackend } from './backendTypes.ts';
 import type { createExplorerPageSources } from './explorerPageSources.ts';
@@ -83,6 +84,11 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     atlasClasses: options.atlasClasses ?? 1,
     stageProfile: options.stageProfile === true,
+    // La variante de diagnostic est vérifiée ici, une fois : hors `trace`, elle est refusée.
+    diagnosticGpuVariant: resolveDiagnosticGpuVariant(
+      options.diagnosticGpuVariant,
+      diagnosticChannel.detail,
+    ),
     shadowBudgetMs: options.shadowBudgetMs,
     shadowPageInvalidation: options.shadowPageInvalidation,
     sceneLighting: sceneLightingSource,

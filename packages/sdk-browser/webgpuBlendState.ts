@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../sdk-core/index.ts';
 import type { BlendLighting } from './webgpuBindEntries.ts';
+import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
 
@@ -68,6 +69,8 @@ export function createWebgpuBlendState() {
     /** Per-catalogue-entry cluster identity, and the mode it was written for. */
     clusterIdentity: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     diagnosticMode: undefined as DiagnosticMode | undefined,
+    /** Le compteur de surdessin, monté par la seule variante de diagnostic qui le demande. */
+    overdraw: undefined as BlendOverdraw | undefined,
   };
   return state;
 }
