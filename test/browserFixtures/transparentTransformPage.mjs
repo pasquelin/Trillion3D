@@ -3,8 +3,14 @@
 // pixels et les compteurs publics de l'autre.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
-import { ouvrirAppareil } from '../../packages/sdk-browser/bench/justesse/appareilWebgpu.mjs';
-import { VIEWPORT, cameraFace, image, libere, moteur } from './preuveSceneCommune.mjs';
+import {
+  VIEWPORT,
+  cameraFace,
+  executerPasses,
+  image,
+  libere,
+  moteur,
+} from './preuveSceneCommune.mjs';
 import { sceneTransparente } from './transparentTransformScene.mjs';
 
 const point = new THREE.Vector3();
@@ -99,17 +105,5 @@ async function sequence(device, pagine, evenements) {
 }
 
 export async function executer() {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
-  const { device, erreurs } = appareil;
-  const evenements = [],
-    passes = {};
-  try {
-    for (const pagine of [false, true])
-      passes[pagine ? 'pagine' : 'non-pagine'] = await sequence(device, pagine, evenements);
-  } catch (error) {
-    return { erreur: String(error) + (error?.stack ?? ''), passes, evenements, erreurs };
-  }
-  const info = await appareil.fermer();
-  return { adaptateur: info.court, passes, evenements, erreurs };
+  return executerPasses(sequence);
 }
