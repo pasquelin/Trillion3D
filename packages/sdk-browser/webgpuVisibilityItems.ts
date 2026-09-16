@@ -3,7 +3,6 @@ import { hizNearestBound } from './hizNearestBound.ts';
 import { BASE_SLOTS, DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
-import { visBin } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -32,8 +31,9 @@ export function createVisibilityItemsHold() {
   };
 }
 
-/** Builds stable indirect draw items and the tested half's compact Hi-Z bounds; the time it took
- *  lands in `rt.timing.lastItemsMs`. */
+/** Compte les bacs de l'image et empaquette les bornes Hi-Z de la moitié testée à partir des mots
+ *  de fiche que `refreshDrawItemWords` tient ; le temps que cela prend va dans
+ *  `rt.timing.lastItemsMs`. */
 export function buildWebgpuVisibilityItems(
   rt: WebgpuPagesRuntime,
   itemsDirty: boolean,
@@ -81,21 +81,12 @@ export function buildWebgpuVisibilityItems(
   const itemsStart = performance.now();
   binInstances.fill(0);
   const packedRecs = rows.packedRecs,
-    packedPageIndex = rows.packedPageIndex,
     pageTableInts = rows.pageTableInts!,
     rowWords = PAGE_INFO_STRIDE / 4;
   for (let i = 0; i < rows.packedCount; i++) {
     const row = i,
       rest = hizRest[i],
       word = i * DRAW_ITEM_U32;
-    if (itemsDirty) {
-      const rec = packedRecs[i]!;
-      drawItemWords[word] = row;
-      drawItemWords[word + 1] = visBin(rec);
-      drawItemWords[word + 2] = packedPageIndex[i];
-      // La couche coplanaire appartient à la ligne de la table, pas à l'image : elle voyage avec l'item.
-      drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);
-    }
     binInstances[drawItemWords[word + 1] + (rest ? 3 : 0) + BASE_SLOTS * drawItemWords[word + 3]]++;
     if (rest) drawRestBits[i >> 5] |= 1 << (i & 31);
     // Le compte d'indices est lu dans la ligne du tableau de pages, là où la carte le lit pour
