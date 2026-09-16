@@ -15,7 +15,7 @@ function sunCascadeSplits(view, out) {
 
 const splits = new Float64Array(LIGHT_SETTINGS.sunCascades + 1);
 const sphere = { distance: 0, radius: 0 };
-const cascade = { center: [0, 0, 0], radius: 1, boxCenter: [0, 0, 0], boxRadius: 1 };
+const cascade = { center: [0, 0, 0], radius: 1, boxCenter: [0, 0, 0] };
 
 function frustumSphere(view, near, far) {
   const tanY = Math.tan(view.halfFovY),
@@ -44,7 +44,5 @@ export function referenceSunCascadeOf(view, axis, index, side) {
   cascade.radius = radius;
   const back = (radius * (LIGHT_SETTINGS.sunCascadeDepthScale - 1)) / 2;
   for (let a = 0; a < 3; a++) cascade.boxCenter[a] = cascade.center[a] - axis[a] * back;
-  const halfDepth = (radius * (LIGHT_SETTINGS.sunCascadeDepthScale + 1)) / 2;
-  cascade.boxRadius = Math.hypot(radius, radius, halfDepth);
   return cascade;
 }
