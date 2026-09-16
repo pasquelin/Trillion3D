@@ -1,7 +1,6 @@
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { projectedPageError } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
-import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
 import { drawWebgpuFallback } from './webgpuFallbackDraw.ts';
 import { viewProjectionZeroToOne } from './depthConvention.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
@@ -64,7 +63,6 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   run.gpuDrawCalls = 0;
   run.blendDrawCalls = 0;
   run.blendFrustumRejected = 0;
-  blendState.visibleBlend.length = 0;
   timing.transparentEncodeMs = 0;
   timing.transparentSelectMs = 0;
   timing.transparentPrepareMs = 0;
@@ -75,12 +73,6 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   // Les plans du tronc sont ceux que l'entrée d'image a posés, dans la convention de profondeur de
   // l'hôte : un seul site la choisit, et elle vaut pour la projection comme pour les plans.
   blendState.blendPlanes.set(cam.planes);
-  const blendSelectStart = performance.now();
-  run.blendFrustumRejected = selectWebgpuBlend(
-    blendState,
-    run.gpuFrameActive ? undefined : run.drawn,
-  );
-  timing.transparentSelectMs = performance.now() - blendSelectStart;
   viewProjectionZeroToOne(viewProj, cam);
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) rt.services.syncRowsFromCut();

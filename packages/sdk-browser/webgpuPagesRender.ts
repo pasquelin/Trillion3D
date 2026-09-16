@@ -10,6 +10,7 @@ import { renderCpuCut } from './webgpuPagesRenderCpu.ts';
 import { setWindingEpoch } from './webgpuPagesWinding.ts';
 import { holdWebgpuFrame } from './webgpuFrameHold.ts';
 import { refreshBlendWorlds } from './webgpuBlendWorlds.ts';
+import { refreshBlendScene } from './webgpuBlendResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
@@ -75,7 +76,12 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   marks.blendStart = performance.now();
   // Un item transparent LIT la matrice monde de son maillage source : rien n'est à recopier. Seule
   // sa boîte monde, qui est un calcul, se refait — et seulement quand la scène a changé de matrices.
-  if (worldsMoved) refreshBlendWorlds(blendState.blendGpu);
+  if (worldsMoved && gpuDevice) {
+    refreshBlendWorlds(blendState.blendGpu);
+    // Les fiches, les boites et le plan suivent la scene, pas la camera : c'est ici, et nulle part
+    // dans l'image, que la liste transparente se reparcourt.
+    refreshBlendScene(rt, gpuDevice);
+  }
   const cpuStart = performance.now();
   // Plus aucune lumière de scène n'est empaquetée par image : les lampes déclarées vivent dans un
   // magasin que l'encodage ne repousse au GPU que si sa révision a bougé (P6). L'étape CPU

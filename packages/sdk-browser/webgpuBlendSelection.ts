@@ -4,15 +4,18 @@ import type { createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /**
- * The transparent draw list of one image.
+ * La liste de dessin transparente du CHEMIN DE REPLI, celui des appareils sans tampon de
+ * visibilité.
  *
- * Reject whole primitives outside the current frustum before preparing uniforms or commands.
- * The GPU still selects clusters inside each surviving primitive. A CPU cut also omits items
- * with no selected cluster. Filtering preserves source order and never reads back a GPU mask.
+ * Le chemin de production, lui, ne parcourt plus les items par image : le tronc est testé par un
+ * noyau de calcul qui écrit directement les arguments indirects (`webgpuBlendSelect.ts`). Ici, le
+ * tronc rejette les primitives entières, la coupe processeur omet les items sans grappe
+ * sélectionnée, et l'ordre source est préservé.
  */
 export function selectWebgpuBlend(blendState: BlendState, drawn?: readonly PageRec[]) {
   const selected = blendState.cpuSelectedMeshes;
   selected.clear();
+  blendState.visibleBlend.length = 0;
   if (drawn)
     for (const rec of drawn) if (rec.transparent && rec.sourceMesh) selected.add(rec.sourceMesh);
   let rejected = 0;

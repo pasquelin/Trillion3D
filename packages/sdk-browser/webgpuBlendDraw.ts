@@ -1,6 +1,4 @@
-import * as THREE from 'three';
-import { matrixWindingCw } from '../sdk-core/index.ts';
-import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
+import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
 import { blendLightResources, sameLighting } from './webgpuBlendLighting.ts';
 import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
@@ -9,11 +7,16 @@ import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
-/** The bind group of one transparent item: its own attributes, the shared cluster lists, the atlas. */
+/**
+ * Le groupe de liaison d'une passe de melange : les tampons de sommets, les fiches d'items, les
+ * atlas et l'eclairage. Un item pagine lit le cache de pages et la geometrie concatenee, donc TOUS
+ * les items pagines partagent ce groupe ; un item non pagine porte ses propres tampons et garde le
+ * sien.
+ */
 function blendBindGroup(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  item: BlendGpuItem,
+  item: BlendGpuItem | undefined,
   lighting: BlendLighting,
 ) {
   const { gpu, vis, blendState } = rt,
@@ -22,15 +25,16 @@ function blendBindGroup(
   return device.createBindGroup({
     layout: vis.blendBindGroupLayout!,
     entries: blendBindEntries({
-      indices: item.index ?? gpu.cache!.buffer,
-      positions: item.position,
-      uvs: item.uv ?? zero,
-      uniform: gpu.uniformBuffer!,
-      uniformSize: UNIFORM_STRIDE,
+      indices: item?.index ?? gpu.cache!.buffer,
+      positions: item?.position ?? vis.concatPos!,
+      uvs: item ? (item.uv ?? zero) : vis.concatUv!,
+      uniform: blendState.viewBuffer!,
+      uniformSize: BLEND_VIEW_SIZE,
+      items: blendState.itemBuffer!,
       colorAtlas: vis.colorAtlas!,
       sampler: vis.mapsSampler!,
       dataAtlas: vis.dataAtlas!,
-      normals: item.normal ?? zero,
+      normals: item ? (item.normal ?? zero) : vis.concatNrm!,
       scales: vis.materialScales!,
       ...lighting,
       clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
@@ -46,44 +50,38 @@ function blendBindGroup(
 }
 
 /**
- * Encodes the transparent back/front passes in source order and counts them on `rt.run`.
+ * Encode une passe transparente : un `drawIndirect` par entree du plan, rien d'autre.
  *
- * `transmissive` dit laquelle des deux passes on encode : les mélanges d'abord, puis, une fois le
- * fond figé, les surfaces qui le relisent. Les deux parcourent la même liste dans le même ordre, si
- * bien que l'ordre source d'une scène est celui des deux passes bout à bout.
+ * Le plan est statique (`webgpuBlendPlan.ts`) : il porte le rang de l'item et le pipeline a poser,
+ * dans l'ordre source de la scene, faces arriere puis faces avant pour un item double face. La
+ * boucle ne fait donc plus ni produit de matrice, ni lecture de materiau, ni allocation ; le
+ * nombre d'instances de chaque appel est celui que la carte vient d'ecrire, zero pour un item que
+ * le tronc a rejete.
+ *
+ * `transmissive` dit laquelle des deux passes on encode : les melanges d'abord, puis, une fois le
+ * fond fige, les surfaces qui le relisent.
  */
 export function drawBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  uniformBase: number,
-  textured: boolean,
   transmissive = false,
 ) {
   const { gpu, vis, run, blendState } = rt,
-    items = blendState.visibleBlend,
-    { pipelineBlendTextured, pipelineBlendFront, pipelineBlendBack } = vis,
-    indirect = blendState.compaction?.indirectBuffer;
-  let drawCalls = 0,
-    unpaged = 0;
-  // L'atlas d'ombres et la grille de sondes n'existent pas dès la première image : un groupe bâti
-  // sur les remplaçants doit être refait le jour où les vraies ressources arrivent, sinon les
-  // transparents liraient une grille vide pendant que les opaques lisent la bonne.
-  const lighting = textured ? blendLightResources(rt) : undefined;
-  if (lighting && !sameLighting(blendState.lighting, lighting)) {
+    items = blendState.blendGpu,
+    plan = transmissive ? blendState.planTransmission : blendState.planBlend,
+    args = blendState.argsBuffer;
+  if (!plan.length || !args) return;
+  // L'atlas d'ombres et la grille de sondes n'existent pas des la premiere image : un groupe bati
+  // sur les remplacants doit etre refait le jour ou les vraies ressources arrivent.
+  const lighting = blendLightResources(rt);
+  if (!sameLighting(blendState.lighting, lighting)) {
     blendState.lighting = lighting;
+    blendState.pagedGroup = undefined;
     for (const item of items) item.group = undefined;
   }
-  // Le pipeline courant de la passe : le reposer à l'identique ne change rien à l'état, et une
-  // liste triée par ordre source enchaîne presque toujours des items qui demandent le même.
-  let bound: GPURenderPipeline | undefined;
-  const bind = (pipeline: GPURenderPipeline) => {
-    if (pipeline === bound) return;
-    bound = pipeline;
-    pass.setPipeline(pipeline);
-  };
-  // Diagnostic seul : la variante de comptage ouvre une requête d'occlusion autour de la passe. La
-  // passe, ses appels et leur ordre sont inchangés — seule la requête s'ajoute au descripteur.
+  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined, lighting);
+  // Diagnostic seul : la variante de comptage ouvre une requete d'occlusion autour de la passe.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
     : undefined;
@@ -101,73 +99,36 @@ export function drawBlendPass(
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (!!item.transmissive !== transmissive) continue;
-    if (!item.group)
-      item.group = textured
-        ? blendBindGroup(rt, device, item, lighting!)
-        : device.createBindGroup({
-            layout: gpu.bindGroupLayout!,
-            entries: [
-              { binding: 0, resource: { buffer: item.index ?? gpu.cache!.buffer } },
-              { binding: 1, resource: { buffer: item.position } },
-              { binding: 2, resource: { buffer: gpu.uniformBuffer!, size: UNIFORM_STRIDE } },
-            ],
-          });
-    pass.setBindGroup(
-      0,
-      item.group,
-      textured
-        ? [(uniformBase + i) * UNIFORM_STRIDE, i * VOLUME_STRIDE]
-        : [(uniformBase + i) * UNIFORM_STRIDE],
-    );
-    const material = Array.isArray(item.material) ? item.material[0] : item.material;
-    // Un seul déterminant : l'appel rendait deux fois la même valeur pour choisir les deux faces.
-    // Et une seule écriture de la règle, celle de sdk-core : sur la 3×3 d'une matrice monde affine
-    // le verdict est celui de la 4×4, pour neuf multiplications au lieu d'une trentaine.
-    const renverse = matrixWindingCw(item.matrix.elements);
-    const front = renverse ? pipelineBlendFront : pipelineBlendBack,
-      back = renverse ? pipelineBlendBack : pipelineBlendFront;
-    // A paged item draws one instance per cluster the compaction kept: the count is the GPU's.
-    const draw = () => {
-      if (item.paged && indirect && item.pagedIndex !== undefined)
-        pass.drawIndirect(indirect, item.pagedIndex * 16);
-      else {
-        pass.draw(item.count);
-        unpaged += item.count / 3;
-      }
-      drawCalls++;
-    };
-    if (
-      textured &&
-      material.side === THREE.DoubleSide &&
-      !material.forceSinglePass &&
-      front &&
-      back
-    ) {
-      bind(back);
-      draw();
-      bind(front);
-      draw();
-    } else {
-      bind(
-        textured
-          ? material.side === THREE.FrontSide
-            ? front!
-            : material.side === THREE.BackSide
-              ? back!
-              : pipelineBlendTextured!
-          : gpu.pipelineBlend!,
+  let boundPipeline = -1,
+    boundGroup: GPUBindGroup | undefined;
+  for (let i = 0; i < plan.length; i++) {
+    const entry = plan[i],
+      index = entry >>> 2,
+      item = items[index];
+    if (boundPipeline !== (entry & 3)) {
+      boundPipeline = entry & 3;
+      pass.setPipeline(
+        boundPipeline === 1
+          ? vis.pipelineBlendFront!
+          : boundPipeline === 2
+            ? vis.pipelineBlendBack!
+            : vis.pipelineBlendTextured!,
       );
-      draw();
     }
+    const group = item.paged
+      ? blendState.pagedGroup!
+      : (item.group ??= blendBindGroup(rt, device, item, lighting));
+    // Le volume du materiau est la SEULE chose qui reste a decaler par item, et seule la passe de
+    // transmission le lit : la passe de melange pose son groupe une fois pour toute la liste.
+    if (transmissive) pass.setBindGroup(0, group, [index * VOLUME_STRIDE]);
+    else if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group), [0]);
+    pass.drawIndirect(args, index * 16);
   }
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
-  run.gpuDrawCalls += drawCalls;
-  run.blendDrawCalls += drawCalls;
-  run.blendUnpagedTriangles += unpaged;
+  run.gpuDrawCalls += plan.length;
+  run.blendDrawCalls += plan.length;
+  run.blendUnpagedTriangles += transmissive ? 0 : blendState.unpagedTriangles;
   run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles;
 }
