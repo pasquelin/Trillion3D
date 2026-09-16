@@ -16,6 +16,35 @@ fn instancie(name: &str, mesh: &str) -> String {
     )
 }
 
+// Constat 29 : un modèle référencé par la scène a sa propre hiérarchie, et chaque nœud y porte sa
+// transformation — écrite en matrice ou en translation, rotation et échelle. Le pilote les compose
+// jusqu'au maillage : l'enfant versé sort à la place que le modèle lui donne, pas à l'origine.
+#[test]
+fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
+    let projet = Projet::new("modele-transformations");
+    projet.model(
+        "Models/Piece.glb",
+        MODEL,
+        json!([
+            {"name":"Bati","translation":[10.0,0.0,0.0],"children":[1]},
+            {"name":"Piece","mesh":0,"translation":[0.0,5.0,0.0]},
+        ]),
+        "",
+    );
+    projet.scene(&instancie(
+        "Socle",
+        &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),
+    ));
+    let run = projet.compile("unity-modele-transformations");
+    let (_, gltf) = run.prepared("unity");
+    let node = node_named(&gltf, "Piece").expect("le nœud du modèle");
+    assert_eq!(
+        node["matrix"],
+        json!([1.0, 0., 0., 0., 0., 1.0, 0., 0., 0., 0., 1.0, 0., 10.0, 5.0, 0.0, 1.0]),
+        "la matrice du père du modèle se compose avec celle de son maillage"
+    );
+}
+
 // Constat 31 : un `fileID` de soixante-quatre bits nomme un objet précis. Lu au travers d'un
 // flottant, `2^53 + 1` retombe sur `2^53` : la table de noms du `.meta` ne rend plus rien et le
 // modèle entier est instancié à la place du seul maillage demandé.
