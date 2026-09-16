@@ -5,13 +5,29 @@ que `src/plugins/tests/ktx2/bytes.rs` écrit champ par champ depuis la spécific
 
 ## 1. Les cinq fichiers
 
-| fichier | ce qu'il porte | ce qu'il prouve |
-| --- | --- | --- |
-| `base.ktx2` | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0 | un niveau non compressé ressort octet pour octet ; ses seize texels sont écrits en clair dans `src/plugins/tests/ktx2.rs` |
-| `base-zstd.ktx2` | le même niveau sous `KTX_SS_ZSTD` | la supercompression n'est qu'un emballage : défaite, elle rend exactement les mêmes texels |
-| `uastc.ktx2` | 16 × 16, `VK_FORMAT_UNDEFINED`, charge UASTC LDR 4 × 4 | le chemin Basis Universal sans supercompression, seize blocs de seize octets |
-| `basis.ktx2` | 256 × 256, `VK_FORMAT_UNDEFINED`, charge ETC1S sous `KTX_SS_BASIS_LZ` | le chemin Basis Universal supercompressé, codebooks compris, tel qu'un encodeur tiers l'écrit |
-| `tronque.ktx2` | quarante octets de `basis.ktx2` | l'identifiant est là, l'entête non, et le refus est nommé |
+| fichier          | ce qu'il porte                                                        | ce qu'il prouve                                                                                                           |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `base.ktx2`      | 4 × 4, `VK_FORMAT_R8G8B8A8_SRGB`, `supercompressionScheme` 0          | un niveau non compressé ressort octet pour octet ; ses seize texels sont écrits en clair dans `src/plugins/tests/ktx2.rs` |
+| `base-zstd.ktx2` | le même niveau sous `KTX_SS_ZSTD`                                     | la supercompression n'est qu'un emballage : défaite, elle rend exactement les mêmes texels                                |
+| `uastc.ktx2`     | 16 × 16, `VK_FORMAT_UNDEFINED`, charge UASTC LDR 4 × 4                | le chemin Basis Universal sans supercompression, seize blocs de seize octets                                              |
+| `basis.ktx2`     | 256 × 256, `VK_FORMAT_UNDEFINED`, charge ETC1S sous `KTX_SS_BASIS_LZ` | le chemin Basis Universal supercompressé, codebooks compris, tel qu'un encodeur tiers l'écrit                             |
+| `tronque.ktx2`   | quarante octets de `basis.ktx2`                                       | l'identifiant est là, l'entête non, et le refus est nommé                                                                 |
+
+## 2. Les conteneurs du test
+
+Ils couvrent les `vkFormat` que le tableau des codecs nomme, un bloc par cas, avec les valeurs de
+référence de la spécification du codec plutôt que celles du décodeur. Depuis le lot « images
+fidélité », les deux formats EAC non signés y ont leur propre cas : un bloc écrit à la main dont
+trois valeurs sur onze bits — 4, 5 et 13 — deviennent les octets 0, 1 et 2 par arrondi au plus
+proche, là où la troncature du décodeur externe rendait 0, 0 et 1 et où sa lecture inversée du champ
+d'indices déplaçait les texels. Le bloc dit donc à la fois l'arrondi et la place des texels.
+
+Ils couvrent aussi ce qu'un conteneur **déclare** autour de ses texels : la fonction de transfert de
+son descripteur de format — la même charge utile déclarée linéaire puis sRGB —, le drapeau d'alpha
+prémultiplié du même descripteur, et les clés `KTXorientation` et `KTXswizzle`. Le pilote applique
+ce qui s'applique (dé-prémultiplication, retournement vertical pour `ru`) et compte le reste sous
+`ktx2-orientation-unsupported` ou `ktx2-swizzle-unsupported`. Les quatre fichiers du dossier
+déclarent tous `transferFunction` sRGB et aucun drapeau : leurs texels ne bougent pas.
 
 `scene.gltf`, `scene.bin` et `expected.json` sont la dorée compilée : trois quads, un matériau
 opaque et une texture par fichier de la première moitié du tableau, passés par le compilateur entier.
