@@ -30,6 +30,8 @@ pub(super) struct World<'a> {
     pub(super) meshes: HashMap<usize, Option<usize>>,
     /// Les images déjà versées, par URI relative.
     pub(super) images_by_uri: HashMap<String, usize>,
+    /// Les nœuds glTF qui n'héritent pas de leur père : la racine de la scène les reprend.
+    detached: Vec<usize>,
     pub(super) cancelled: &'a AtomicBool,
 }
 
@@ -68,13 +70,15 @@ pub(super) fn scene(
         materials: HashMap::new(),
         meshes: HashMap::new(),
         images_by_uri: HashMap::new(),
+        detached: Vec::new(),
         cancelled: request.cancelled,
     };
     shape::ignored(&mut world);
-    let children: Vec<usize> = (0..document.nodes.len())
+    let mut children: Vec<usize> = (0..document.nodes.len())
         .filter(|node| document.nodes[*node].parent.is_none())
         .filter_map(|node| visit(&mut world, node, 0))
         .collect();
+    children.append(&mut world.detached);
     (request.progress)(json!({"phase":"import-source","step":"nodes","plugin":NAME,
         "nodes":document.nodes.len(),"roots":children.len()}));
     world.scene.node(json!({
@@ -130,5 +134,12 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
     if !children.is_empty() {
         out["children"] = json!(children);
     }
-    Some(world.scene.node(out))
+    let rank = world.scene.node(out);
+    // Un nœud qui n'hérite pas de son père se pose dans le repère de la scène : la racine le
+    // reprend, elle qui ne porte que l'unité du fichier, et son père ne le cite pas.
+    if !xform::inherits(entry) {
+        world.detached.push(rank);
+        return None;
+    }
+    Some(rank)
 }

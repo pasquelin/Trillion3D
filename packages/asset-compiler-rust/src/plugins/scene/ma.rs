@@ -16,9 +16,12 @@
 //! et tout inconnu compris. Aucune substitution, aucune expression, aucun script n'est évalué ; un
 //! nœud `scriptNode` est un nœud compté comme un autre, son texte n'est jamais lu comme du code.
 //!
-//! **Ce qu'il lit.** La hiérarchie des `transform` — translation, rotation dans l'ordre déclaré par
-//! `rotateOrder`, échelle, pivots de rotation et d'échelle, visibilité —, les `mesh` par leurs
-//! sommets `.vt`, leurs arêtes `.ed`, leurs faces `.fc` (triangulées en éventail), le premier jeu
+//! **Ce qu'il lit.** La hiérarchie des `transform`, chacun identifié par son chemin de scène
+//! `|pere|enfant` comme dans Maya, et posé par la composition complète du format — matrice du père
+//! décalé, translation, pivots, rotation dans l'ordre déclaré par `rotateOrder`, axe de rotation,
+//! cisaillement, échelle, chacun écrit d'un bloc ou composante par composante —, `inheritsTransform`
+//! et la visibilité comprises ; les `mesh` par leurs sommets `.vt`, leurs arêtes `.ed`, leurs faces
+//! `.fc` (découpées par oreilles dans le plan de leur normale), le premier jeu
 //! d'UV `.uvst[0].uvsp` et les normales `.n` quand elles y sont ; les matériaux `lambert`, `phong`,
 //! `blinn` et `standardSurface` vers `pbrMetallicRoughness` ; les nœuds `file` liés par
 //! `connectAttr`, avec le mode de répétition de leur `place2dTexture` ; la liaison matériau ↔
@@ -89,7 +92,7 @@ impl Plugin for Ma {
     /// la génération de la conversion : la changer invalide les caches, donc toute scène Maya ASCII
     /// déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "ma-mel-subset-1-gltf-3"
+        "ma-mel-subset-1-gltf-4"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ma"]
