@@ -8,6 +8,9 @@
 use super::*;
 use crate::compiler_world::{world_matrices, Mat4};
 
+mod naming;
+use naming::unique_id;
+
 /// Efficacité lumineuse de la conversion photométrique → radiométrique, en lumens par watt. C'est
 /// `K_cd`, la constante de définition de la candela (683 lm/W à 540 THz). Une candela vaut donc
 /// 1/683 W/sr et un lux 1/683 W/m². Choix publié dans `docs/SDK.md`, pas une constante enfouie.
@@ -122,35 +125,14 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
     }
     Ok(entry)
 }
-/// Un identifiant unique et stable : le nom de la lampe ou du nœud, sinon son rang, et un suffixe
-/// quand deux nœuds portent le même nom. L'hôte s'en sert pour régler ou retirer la lampe.
-fn unique_id(light: &Value, node: &Value, index: usize, seen: &mut BTreeSet<String>) -> String {
-    let named = |value: &Value| {
-        value
-            .get("name")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|name| !name.is_empty())
-            .map(str::to_string)
-    };
-    let base = named(light)
-        .or_else(|| named(node))
-        .unwrap_or_else(|| format!("gltf-light-{index}"));
-    let mut id = base.clone();
-    let mut suffix = 2;
-    while !seen.insert(id.clone()) {
-        id = format!("{base}#{suffix}");
-        suffix += 1;
-    }
-    id
-}
 fn report(lights: Vec<Value>, rejected: BTreeMap<&'static str, usize>) -> Value {
     json!({"version":SCENE_LIGHTS_VERSION,"sceneLightVersion":SCENE_LIGHT_CONTRACT,"units":{"lumensPerWatt":LUMENS_PER_WATT,"rangeCutoffIrradiance":RANGE_CUTOFF_IRRADIANCE,"maxRange":MAX_RANGE},"count":lights.len(),"lights":lights,"rejected":rejected})
 }
-/// Les lampes du glTF, dans l'ordre des nœuds qui les instancient, en espace monde. Une lampe dont
-/// le type, la matrice ou l'intensité ne tient pas le contrat est comptée dans `rejected` et laissée
-/// de côté : une compilation ne meurt jamais sur une lampe, elle le dit.
-fn scene_lights(g: &Value) -> Result<Value> {
+/// Les lampes du glTF, dans l'ordre des nœuds qui les instancient, en espace monde. Seuls les nœuds
+/// de la scène rendue comptent : une lampe posée dans une autre scène n'éclaire pas celle-ci. Une
+/// lampe dont le type, la matrice ou l'intensité ne tient pas le contrat est comptée dans `rejected`
+/// et laissée de côté : une compilation ne meurt jamais sur une lampe, elle le dit.
+fn scene_lights(g: &Value, scene_nodes: &BTreeSet<usize>) -> Result<Value> {
     let mut rejected: BTreeMap<&'static str, usize> = BTreeMap::new();
     let (Some(nodes), Some(declared)) = (
         g.get("nodes").and_then(Value::as_array),
@@ -163,6 +145,9 @@ fn scene_lights(g: &Value) -> Result<Value> {
     let mut seen = BTreeSet::new();
     let mut lights = Vec::new();
     for (index, node) in nodes.iter().enumerate() {
+        if !scene_nodes.contains(&index) {
+            continue;
+        }
         let Some(slot) = node
             .pointer("/extensions/KHR_lights_punctual/light")
             .and_then(Value::as_u64)
@@ -185,10 +170,11 @@ fn scene_lights(g: &Value) -> Result<Value> {
 /// Sa version ne bouge donc pas, et un lecteur qui ignore ce fichier lit le cache comme avant.
 pub(super) fn stage_scene_lights(
     g: &Value,
+    scene_nodes: &BTreeSet<usize>,
     directory: &Path,
     progress: impl Fn(Value),
 ) -> Result<()> {
-    let lights = scene_lights(g)?;
+    let lights = scene_lights(g, scene_nodes)?;
     atomic(
         &directory.join(SCENE_LIGHTS_FILE),
         &serde_json::to_vec(&lights)?,
