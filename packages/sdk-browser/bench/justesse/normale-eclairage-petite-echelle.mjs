@@ -12,19 +12,15 @@
 //   packages/sdk-browser/bench/justesse/normale-eclairage-petite-echelle.mjs
 import assert from 'node:assert/strict';
 import { NORMAL_TRANSFORM_WGSL } from '../../standardLighting.ts';
+import {
+  INVERSE_TRANSPOSE_AVANT_WGSL,
+  INVERSE_TRANSPOSE_WGSL,
+} from '../../inverseTransposeWgsl.ts';
 import { campagne, construireCas, ecart, luminance } from './normaleEclairageCas.mjs';
 import { eclairageGpu } from './normaleEclairageGpu.mjs';
 
-/** Le texte d'avant le lot : seuil absolu sur le déterminant brut, sans normalisation de la 3×3. */
-const AVANT = `
-fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let a=m[0];let b=m[1];let c=m[2];let det=dot(a,cross(b,c));
- if(abs(det)<1e-20){return v;}
- return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
-}
-fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return normalize(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
-}`;
+/** Le texte d'avant le lot, remis dans le texte livré : même morceau que pour le défaut 6. */
+const AVANT = NORMAL_TRANSFORM_WGSL.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_AVANT_WGSL);
 assert.notEqual(AVANT, NORMAL_TRANSFORM_WGSL, 'le texte livré est celui d’avant le lot');
 
 const cas = campagne();

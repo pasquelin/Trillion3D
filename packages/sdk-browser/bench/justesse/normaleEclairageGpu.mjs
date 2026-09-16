@@ -31,15 +31,10 @@ ${transform}
 
 /** Exécuté dans la page : un pipeline, tous les cas d'un coup, la sortie relue. */
 async function executer({ shader, entree, nombre, groupe }) {
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) return { indisponible: 'aucun adaptateur WebGPU' };
-  const device = await adapter.requestDevice();
-  const erreurs = [];
-  device.addEventListener('uncapturederror', (event) => erreurs.push(event.error.message));
-  const module = device.createShaderModule({ code: shader });
-  const compilation = (await module.getCompilationInfo()).messages
-    .filter((message) => message.type === 'error')
-    .map((message) => message.message);
+  const appareil = await globalThis.ouvrirAppareil();
+  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  const { device, erreurs } = appareil;
+  const { module, compilation } = await appareil.compile(shader);
   if (compilation.length) return { compilation, erreurs };
   const layout = device.createBindGroupLayout({
     entries: ['read-only-storage', 'storage'].map((type, binding) => ({
@@ -76,10 +71,8 @@ async function executer({ shader, entree, nombre, groupe }) {
   await lecture.mapAsync(GPUMapMode.READ);
   const valeurs = Array.from(new Float32Array(lecture.getMappedRange().slice(0)));
   lecture.unmap();
-  await device.queue.onSubmittedWorkDone();
-  const info = adapter.info;
-  device.destroy();
-  return { adaptateur: `${info.vendor} ${info.architecture}`, valeurs, erreurs };
+  const info = await appareil.fermer();
+  return { adaptateur: info.court, valeurs, erreurs };
 }
 
 /**

@@ -21,3 +21,17 @@ fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
  if(!(abs(det)>1e-20)){return v;}
  return (1.0/(det*t))*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
 }`;
+
+/**
+ * Le même texte AVANT la correction du défaut 6 : seuil absolu sur le déterminant BRUT, sans
+ * normalisation de la 3×3. Il ne sert qu'aux reproductions de justesse, qui rejouent le défaut en
+ * remettant ce texte à la place du texte livré (`gpuDagShader.ts`, `standardLighting.ts`) ; deux
+ * écritures seraient deux chances de rejouer autre chose que le défaut mesuré.
+ */
+export const INVERSE_TRANSPOSE_AVANT_WGSL = `
+fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
+ let a=m[0];let b=m[1];let c=m[2];
+ let det=dot(a,cross(b,c));
+ if(abs(det)<1e-20){return v;}
+ return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
+}`;

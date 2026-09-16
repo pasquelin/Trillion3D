@@ -12,7 +12,9 @@ import {
   createConeContext,
   triangleCone,
 } from '../../pageCone.ts';
+import { packDagSelection } from '../../gpuDagSelection.ts';
 import { selectVisiblePages } from '../../pageSelectionCut.ts';
+import { poseMonde } from './normaleEclairageCas.mjs';
 
 export const VIEWPORT = [1000, 1000];
 // Caméra fixe : sur -Z, elle regarde l'origine où chaque objet est recentré quelle que soit sa
@@ -42,22 +44,14 @@ function geometrieLocale(L) {
 /**
  * Rotation + échelle (uniforme ou non), recentrées à l'origine monde quelle que soit la rotation.
  * `miroir` inverse la troisième colonne de la 3×3 : la transformation reste conforme (colonnes
- * orthogonales de même longueur) mais son déterminant change de signe.
+ * orthogonales de même longueur) mais son déterminant change de signe. La pose vient de
+ * `poseMonde` : les défauts 6 et 9 éprouvent la même famille de matrices.
  */
 export function construireCas({ s, kind, worldSize, axis, angleDeg, miroir = false }) {
   const L = worldSize / s;
   const { positions, indices, min, max } = geometrieLocale(L);
   const cone = triangleCone(positions, indices);
-  const scaleVec = kind === 'uniforme' ? [s, s, s] : [s, s * 1.7, s * 0.6];
-  const quaternion = new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(...axis).normalize(),
-    (angleDeg * Math.PI) / 180,
-  );
-  const world = new THREE.Matrix4().compose(
-    new THREE.Vector3(),
-    quaternion,
-    new THREE.Vector3(...scaleVec),
-  );
+  const world = poseMonde({ s, kind, axis, angleDeg });
   if (miroir) for (const k of [8, 9, 10]) world.elements[k] = -world.elements[k];
   const centerLocal = new THREE.Vector3(
     (min[0] + max[0]) / 2,
@@ -106,6 +100,27 @@ export function veriteTerrain(cas) {
   return { triangles, avantVisible };
 }
 
+/** Ce qu'une page de cas porte toujours : sa boîte locale, son cône, une erreur de niveau nulle. */
+const pageDuCas = (cas) => ({
+  url: '0',
+  lodError: 0,
+  min: cas.min,
+  max: cas.max,
+  cone: cas.cone,
+});
+
+/**
+ * Les cas empaquetés pour le noyau GPU : une racine par cas, une page par racine, la sphère du cas
+ * pour rayon. Écrit une seule fois pour la campagne comme pour la preuve `test/` du défaut 6.
+ */
+export const empaqueteCas = (liste) =>
+  packDagSelection(
+    liste.map((cas) => ({
+      world: cas.world,
+      pages: [{ ...pageDuCas(cas), parentError: null, sphere: [0, 0, 0, cas.worldSize] }],
+    })),
+  );
+
 /** Le cluster est-il dans le champ (boîte locale contre les plans ramenés en repère local) ? */
 export function dansLeChamp(cas) {
   const local = new Float64Array(24);
@@ -122,13 +137,9 @@ export function decisionCpu(cas) {
     new THREE.Vector3(...cas.max),
   ).applyMatrix4(cas.world);
   const page = {
+    ...pageDuCas(cas),
     id: '0',
-    url: '0',
     triangles: 2,
-    min: cas.min,
-    max: cas.max,
-    cone: cas.cone,
-    lodError: 0,
     matrix: cas.world,
     material: new THREE.MeshBasicMaterial({ side: THREE.FrontSide }),
   };
