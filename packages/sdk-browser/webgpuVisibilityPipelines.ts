@@ -2,6 +2,8 @@ import { SURFACE_FORMATS } from './surfaceBuffer.ts';
 import { depthLayerBias } from '../sdk-core/index.ts';
 import { openValidation, validationError } from './gpuErrorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntry, readOnly } from './webgpuBindLayout.ts';
+import { shadeVariantFragment, visVariantFragment } from './diagnosticGpuGeometry.ts';
+import type { DiagnosticGpuVariant } from './diagnosticGpuVariant.ts';
 
 /** Modes de face d'un jeu de couche, dans l'ordre : dos, aucune, face, dos inversé, face inversée. */
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
@@ -33,6 +35,7 @@ export function createWebgpuVisibilityRasterPipelines(
   visModule: GPUShaderModule,
   bindGroupLayout: GPUBindGroupLayout,
   hiz: boolean,
+  variant?: DiagnosticGpuVariant,
 ) {
   const layout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
   const depth: GPUDepthStencilState = {
@@ -57,7 +60,7 @@ export function createWebgpuVisibilityRasterPipelines(
       depthStencil: depth,
     });
   return scoped(device, () => {
-    const fragment = hiz ? 'vis_hiz_fs' : 'vis_fs';
+    const fragment = visVariantFragment(hiz, variant);
     return {
       visPipelineBack: make('vis_vs', fragment, 'back'),
       visPipelineBackCw: make('vis_vs', fragment, 'back', 'cw'),
@@ -83,12 +86,13 @@ export function createWebgpuCoplanarLayerPipelines(
   bindGroupLayout: GPUBindGroupLayout,
   hiz: boolean,
   layerSlots: number,
+  variant?: DiagnosticGpuVariant,
 ) {
   const layout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
   const targets: GPUColorTargetState[] = hiz
     ? [{ format: 'r32uint' }, { format: 'r32float' }]
     : [{ format: 'r32uint' }];
-  const fragment = hiz ? 'vis_hiz_fs' : 'vis_fs';
+  const fragment = visVariantFragment(hiz, variant);
   return scoped(device, () => {
     const pipelines: GPURenderPipeline[] = [];
     for (let layer = 1; layer < layerSlots; layer++)
@@ -113,7 +117,11 @@ export function createWebgpuCoplanarLayerPipelines(
 }
 
 /** Builds the material resolve pipeline after shader compilation succeeds. */
-export function createWebgpuShadePipeline(device: GPUDevice, shadeModule: GPUShaderModule) {
+export function createWebgpuShadePipeline(
+  device: GPUDevice,
+  shadeModule: GPUShaderModule,
+  variant?: DiagnosticGpuVariant,
+) {
   const b = SHADE_BINDINGS;
   const fragment = GPUShaderStage.FRAGMENT;
   const shadeBindGroupLayout = device.createBindGroupLayout({
@@ -143,7 +151,7 @@ export function createWebgpuShadePipeline(device: GPUDevice, shadeModule: GPUSha
       vertex: { module: shadeModule, entryPoint: 'shade_vs' },
       fragment: {
         module: shadeModule,
-        entryPoint: 'shade_fs',
+        entryPoint: shadeVariantFragment(variant),
         targets: SURFACE_FORMATS.map((format) => ({ format })),
       },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
