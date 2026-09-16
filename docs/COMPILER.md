@@ -148,7 +148,7 @@ Every duration a job publishes belongs to that job alone: its counters are creat
 
 `clusters.json` is written before the purge, so it carries `compileMs`, never `wallMs`: a file cannot hold a duration measured after it was written. The pointer on stdout and the `complete` event carry `wallMs` and `pruneMs`; `wallMs` is therefore at least `compileMs + pruneMs`; it bounds a single phase only when one thread did the work.
 
-The phases under `phaseElapsedMs` **overlap**, and each one is elapsed time — the interval a stage lived through, the same clock as `compileMs` and `wallMs`. Elapsed is not CPU: a wait, a disk write or a descheduled thread lands in the phase that was open, so a host callback that sleeps 250 ms inside a phase adds 250 ms to it, and no process used a processor meanwhile. They are also summed across worker threads: with `threads > 1` their total exceeds `wallMs`, and adding them together is meaningless. Nothing here measures processor time; unmeasured values stay `null` (`peakRssBytes`, `cpuMs`, `diskBytesRead`).
+The phases under `phaseElapsedMs` **overlap**, and each one is elapsed time — the interval a stage lived through, the same clock as `compileMs` and `wallMs`. Elapsed is not CPU: a wait, a disk write or a descheduled thread lands in the phase that was open, so a host callback that sleeps 250 ms inside a phase adds 250 ms to it, and no process used a processor meanwhile. They are also summed across worker threads: with `threads > 1` their total can exceed `wallMs` (it need not: the phases are partial and their real concurrency depends on the job), and adding them together is meaningless. Nothing here measures processor time; unmeasured values stay `null` (`peakRssBytes`, `cpuMs`, `diskBytesRead`).
 
 ## Batch mode
 
