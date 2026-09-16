@@ -56,24 +56,30 @@ export function createWebglFrameGate() {
       return true;
     },
     /**
-     * Range l'image qui vient d'être produite. Les six nombres décrivent la coupe entière : deux
-     * images qui les partagent ont attaché exactement les mêmes clusters, donc dessinent la même
-     * image — et la coupe suivante, qui relit `shown`, repartirait du même point fixe.
+     * Range l'image qui vient d'être produite. Les six nombres décrivent la COUPE, et rien du
+     * parcours qui l'a trouvée : deux images qui les partagent ont attaché exactement les mêmes
+     * clusters, dans le même ordre, donc dessinent la même image.
+     *
+     * L'identité de la coupe est le hachage des identifiants affichés, pas un compteur de parcours.
+     * Un rejet par le tronc compte des nœuds visités : le repli par forçage redescend l'arbre et en
+     * comptait deux fois, si bien que deux images à coupe identique paraissaient différentes et
+     * qu'une pose immobile ne convergeait jamais.
      */
     keep(
       visible: number,
       selectedTriangles: number,
-      frustumRejected: number,
+      shown: ReadonlyArray<{ id: number }>,
       lodLevel: number,
-      shown: number,
       overBudget: boolean,
     ) {
+      let digest = shown.length;
+      for (let i = 0; i < shown.length; i++) digest = (Math.imul(digest, 31) + shown[i].id) | 0;
       const sample = hold.sample;
       sample[0] = visible;
       sample[1] = selectedTriangles;
-      sample[2] = frustumRejected;
+      sample[2] = digest;
       sample[3] = lodLevel;
-      sample[4] = shown;
+      sample[4] = shown.length;
       sample[5] = overBudget ? 1 : 0;
       hold.keep(revisions);
     },
