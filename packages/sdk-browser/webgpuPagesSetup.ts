@@ -7,7 +7,6 @@ import { createWebgpuPageTracking } from './webgpuPageTracking.ts';
 import {
   collectClusterPages,
   indexPagesByUrl,
-  pageRequestUrl,
   RequestStamps,
   rootCoverage,
 } from './pageSelection.ts';
@@ -75,10 +74,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by cluster (`rec.url`), because that is the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(allPages);
-  const bundledPages = allPages.some((page) => page.streamUrl !== undefined);
-  const requestUrlByPage = bundledPages
-    ? new Map(allPages.map((page) => [page.url, pageRequestUrl(page)] as const))
-    : undefined;
   const cap = maxResidentPages ?? Math.max(1024, prepared);
   const uniquePages = Math.max(1, new Set(allPages.map((page) => page.url)).size);
   const slots = Math.max(1, Math.min(cap, uniquePages));
@@ -115,7 +110,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     bootstrapKeys,
     bootstrapKey,
     byUrl,
-    requestUrlByPage,
     // Le dédoublonnage des clés de requête sans table de hachage, partagé par les deux listes que
     // l'hôte demande après le rendu : leur rang est posé une fois pour toutes par le catalogue.
     requestStamps: new RequestStamps(requestCount),

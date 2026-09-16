@@ -20,11 +20,12 @@ export function createWebgpuPinUpdater(options: {
   sets: WebgpuResidencySets;
   bootstrapUrls: Set<string>;
   deferredDrops: Set<string>;
-  requestUrlByPage: Map<string, string> | undefined;
+  /** Les clusters que porte chaque requête : un abandon différé nomme la requête, pas le cluster. */
+  byUrl: Map<string, PageRec[]>;
   traceEnabled: boolean;
   traceDiagnostic: Trace;
 }) {
-  const { tracking, sets, bootstrapUrls, deferredDrops, requestUrlByPage } = options;
+  const { tracking, sets, bootstrapUrls, deferredDrops, byUrl } = options;
   const { traceEnabled, traceDiagnostic } = options;
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
   const waiting = createDenseKeySet(tracking.keyCount);
@@ -73,15 +74,17 @@ export function createWebgpuPinUpdater(options: {
       }
       waiting.remove(key);
     }
-    if (deferredDrops.size) {
-      // The kept keys are clusters; a deferred drop names the request that carries them.
-      const keepUrls = new Set<string>();
-      for (let i = 0; i < tracking.keep.count; i++)
-        keepUrls.add(tracking.pageCatalog[tracking.keep.list[i]]);
-      const keepRequests = requestUrlByPage
-        ? new Set([...keepUrls].map((url) => requestUrlByPage.get(url) ?? url))
-        : keepUrls;
-      for (const key of deferredDrops) if (!keepRequests.has(key)) drop(key);
+    // Les clés gardées sont des clusters, un abandon différé nomme la requête qui les porte. La
+    // question se pose donc requête par requête — une poignée — et non en recopiant l'ensemble gardé
+    // dans deux tables de chaînes à chaque image où un abandon attend, ce que le nombre de clusters
+    // d'une ville rend impraticable : le catalogue dit déjà quels clusters une requête porte.
+    for (const key of deferredDrops) {
+      const recs = byUrl.get(key);
+      let kept = false;
+      if (recs)
+        for (let i = 0; i < recs.length && !kept; i++)
+          kept = tracking.keep.has(tracking.keyOf(recs[i]));
+      if (!kept) drop(key);
     }
     if (!traceEnabled) return;
     const pinned = tracking.pinnedUrls(),
