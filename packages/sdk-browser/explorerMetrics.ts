@@ -33,7 +33,7 @@ export function createExplorerMetrics(
     cpuSelectNodesTested: null,
     cpuSubmitMs: null,
     gpuMs: null,
-    drawCalls: 0,
+    drawCalls: null,
     triangles: null,
     clusters: null,
     selectedTriangles: null,
@@ -95,19 +95,22 @@ export function createExplorerMetrics(
     metricsScratch.residentPages = backendMetrics.residentPages;
     metricsScratch.geometryAllocationBytes = backendMetrics.geometryAllocationBytes;
     metricsScratch.cacheEvictions = backendMetrics.cacheEvictions ?? stream.evictions;
+    // Un total composé n'existe que si chacune de ses parts est comptée : un moteur qui ne compte
+    // pas sa passe transparente laisse le total à `null`, sans quoi la seule passe opaque passerait
+    // pour le compte exact de l'image.
     metricsScratch.totalSubmittedTriangles =
       backendMetrics.totalSubmittedTriangles ??
-      (backendMetrics.submittedTriangles == null
+      (backendMetrics.submittedTriangles == null ||
+      backendMetrics.transparentSubmittedTriangles == null
         ? null
-        : backendMetrics.submittedTriangles + (backendMetrics.transparentSubmittedTriangles ?? 0));
+        : backendMetrics.submittedTriangles + backendMetrics.transparentSubmittedTriangles);
     metricsScratch.pageLoads = stream.loaded || loaded;
     metricsScratch.pageBytesRead = stream.bytesRead || pageBytesRead;
     metricsScratch.pagesRequested = stream.requested;
     metricsScratch.pagesLoading = stream.loading;
     metricsScratch.cacheHits = stream.hits;
     metricsScratch.cacheMisses = stream.misses;
-    metricsScratch.drawCalls =
-      typeof backendMetrics.drawCalls === 'number' ? backendMetrics.drawCalls : -1;
+    metricsScratch.drawCalls = backendMetrics.drawCalls ?? null;
     const decode = pageDecodeStats();
     metricsScratch.pagesDecodedOffThread = decode.offThread;
     metricsScratch.pagesDecodedWasm = decode.wasm;
