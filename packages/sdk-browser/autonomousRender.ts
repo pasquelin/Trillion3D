@@ -4,6 +4,7 @@ import type { BackendContext } from './backendTypes.ts';
 import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
 import type { CameraMotion } from './cameraWorld.ts';
+import type { HostWorldPlacements } from './hostWorldPlacements.ts';
 
 /** Ce que l'image autonome a décidé, et si elle a été tenue. */
 export type AutonomousRenderState = {
@@ -36,7 +37,7 @@ export function createAutonomousRender(options: {
   lighting: ReturnType<typeof installSceneLighting>;
   roots: Parameters<typeof selectVisiblePages>[0];
   /** L'index des matrices monde du moteur, remonté une fois par révision de scène. */
-  worlds: { refresh(): void };
+  worlds: HostWorldPlacements;
   shown: PageRec[];
   desired: PageRec[];
   bootstrap: PageRec[];

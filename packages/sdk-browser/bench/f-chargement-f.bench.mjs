@@ -4,7 +4,7 @@
 // scalaires. F17 parcourt les pages du manifeste une seule fois et réutilise une boîte de travail.
 import * as THREE from 'three';
 import { collectClusterPages } from '../pageSelectionCollect.ts';
-import { exactPagesBounds } from '../explorerScene.ts';
+import { exactPagesBounds } from '../exactPagesBounds.ts';
 import { indexManifestBundles, indexManifestPages } from '../manifestPageIndex.ts';
 import { compare } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeF } from '../../sdk-core/bench/bancF.mjs';
@@ -120,7 +120,7 @@ const lignes = [
   }),
   await compare({
     calcul: 'F17 bornes des pages exactes',
-    fichier: 'packages/sdk-browser/explorerScene.ts',
+    fichier: 'packages/sdk-browser/exactPagesBounds.ts',
     cas,
     reference: passeBounds(referenceExactPagesBounds),
     optimisee: passeBounds(exactPagesBounds),
