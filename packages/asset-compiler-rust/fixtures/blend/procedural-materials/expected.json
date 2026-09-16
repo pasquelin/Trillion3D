@@ -69,7 +69,7 @@
     "notes": [],
     "plugin": {
       "name": "blend",
-      "version": "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-6"
+      "version": "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-7"
     },
     "unsupported": {
       "blend-emission-clamped": 1
