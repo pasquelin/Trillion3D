@@ -1,4 +1,5 @@
 import { acceptPageArray } from './pageSelection.ts';
+import { bumpResources } from './frameRevisions.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 /** Takes the bytes of one request; each cluster it carries gets its own view at its own offset. */
@@ -13,6 +14,7 @@ export function acceptPage(rt: WebgpuPagesCore, url: string, array: Uint32Array)
   acceptPageArray(recs, array);
   // Des octets sont arrivés : la liste des pages encore attendues n'est plus celle d'avant.
   run.pageArrayEpoch++;
+  bumpResources(run.revisions);
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i],
       view = rec.array!;
@@ -65,6 +67,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
   }
   run.deferredDrops.delete(url);
   run.pageArrayEpoch++;
+  bumpResources(run.revisions);
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i];
     rec.array = undefined;
