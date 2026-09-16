@@ -24,6 +24,9 @@ const STORED: ::zip::CompressionMethod = ::zip::CompressionMethod::Stored;
 /// Le paquet n'est pas disposé comme la spécification le demande : une entrée est compressée, ou sa
 /// charge ne commence pas sur un multiple de soixante-quatre octets.
 const LAYOUT: &str = "USDZ_LAYOUT_INVALID";
+/// La première entrée du paquet n'est pas une couche USD : le paquet ne dit donc pas quelle scène
+/// il livre, et les entrées suivantes ne sont que ses ressources.
+pub(super) const ROOT_LAYER: &str = "USDZ_ROOT_LAYER_MISSING";
 
 impl Plugin for Usdz {
     fn name(&self) -> &'static str {
@@ -46,18 +49,22 @@ impl ScenePlugin for Usdz {
         archive::zip_reader::accepts_head(head)
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        archive::container(request, self, |file, root| {
-            layout(file)?;
+        let source = archive::only_input(request, self)?;
+        let layer = layout(source)?;
+        archive::container(request, self, Some(&layer), |file, root| {
             archive::zip_reader::extract(request, file, root)
         })
     }
 }
 
-/// Juge la disposition du paquet avant qu'un octet soit écrit : chaque entrée est stockée telle
-/// quelle et sa charge est alignée. Une entrée dont la charge ne s'annonce pas est refusée aussi :
-/// c'est un entête local que le lecteur n'a pas su placer.
-fn layout(source: &Path) -> Result<()> {
+/// Juge la disposition du paquet avant qu'un octet soit écrit, et rend la couche racine qu'il
+/// déclare. Chaque entrée est stockée telle quelle et sa charge est alignée ; une entrée dont la
+/// charge ne s'annonce pas est refusée aussi, c'est un entête local que le lecteur n'a pas su
+/// placer. La spécification veut ensuite que la **première** entrée soit la couche USD du paquet :
+/// c'est elle qui porte la scène, et tout ce qui la suit n'en est qu'une ressource.
+fn layout(source: &Path) -> Result<String> {
     let mut archive = archive::zip_reader::open(source)?;
+    let mut first: Option<String> = None;
     for index in 0..archive.len() {
         let entry = archive
             .by_index(index)
@@ -77,8 +84,30 @@ fn layout(source: &Path) -> Result<()> {
                 ))
             }
         }
+        first.get_or_insert_with(|| entry.name().to_string());
     }
-    Ok(())
+    first
+        .filter(|name| is_layer(name))
+        .ok_or_else(|| missing(source))
+}
+
+/// Ce nom est-il celui d'une couche USD ? Ce sont les extensions du pilote `usd` qui le disent :
+/// c'est lui qui lira la couche, et elles ne se déclarent qu'une fois.
+fn is_layer(name: &str) -> bool {
+    super::super::extension_of(name)
+        .is_some_and(|extension| super::usd::USD.extensions().contains(&extension.as_str()))
+}
+
+/// Le refus d'un paquet dont la première entrée n'est pas une couche USD : il ne dit donc pas quelle
+/// scène il livre, et le compilateur ne la cherche pas parmi ses ressources.
+fn missing(source: &Path) -> CompilerError {
+    CompilerError::new(
+        ROOT_LAYER,
+        format!(
+            "{}: the first entry of a USDZ package is its root USD layer; this package opens with something else",
+            source.to_string_lossy()
+        ),
+    )
 }
 
 /// Le refus d'un paquet mal disposé, nommant l'entrée en cause.

@@ -5,10 +5,11 @@
 use super::*;
 
 const CASE: &str = "Un paquet USDZ conforme — entrées stockées telles quelles, charges alignées sur soixante-quatre octets — portant une couche usdc et sa texture en sous-dossier.";
-const RULE: &str = "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache, son contenu routé comme n'importe quelle source, et la scène qui en sort est exactement celle de la même couche lue hors paquet. Un paquet mal disposé ou dont la couche racine n'est pas une est refusé par son code, jamais extrait à moitié.";
+const RULE: &str = "Un conteneur ne change rien à la scène qu'il emballe : le paquet est extrait sous le cache et la scène qui en sort est exactement celle de la même couche lue hors paquet. La couche racine est la première entrée du paquet, jamais une couche cherchée parmi les autres : celles-là sont des ressources. Un paquet mal disposé ou qui n'ouvre pas sur une couche USD est refusé par son code, jamais extrait à moitié.";
 
 // Comportement 41 : une scène lue à travers son paquet USDZ est exactement la scène lue hors
-// paquet, la chaîne des deux pilotes est consignée, et les trois paquets piégés sont refusés.
+// paquet, la chaîne des deux pilotes est consignée, les paquets piégés sont refusés par leur code,
+// et un paquet qui porte deux couches livre celle de sa première entrée.
 #[test]
 fn a_packaged_scene_compiles_to_the_same_thing_as_the_layer_outside_the_package() {
     let dir = golden_dir("usdz");
@@ -55,8 +56,11 @@ fn digest(dir: &Path, run: &GoldenRun) -> Value {
       "refus": {
         "compressee": refused_golden_source(&dir.join("compressee.usdz"), "usdz-compressee"),
         "sansScene": refused_golden_source(&dir.join("sans-scene.usdz"), "usdz-sans-scene"),
-        "deuxScenes": refused_golden_source(&dir.join("deux-scenes.usdz"), "usdz-deux-scenes"),
       },
+      // Deux couches à la racine : la première porte un triangle, la seconde un quadrilatère. Le
+      // compte de triangles dit donc laquelle le paquet a livrée, sans rien deviner.
+      "deuxCouchesTriangles":
+        compile_golden_source(&dir.join("deux-scenes.usdz"), "usdz-deux-scenes").result["sourceTriangles"],
       "scene": {
         "formatVersion": run.result["formatVersion"],
         "manifestBinaryVersion": run.slim["binary"]["version"],
