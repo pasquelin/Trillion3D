@@ -6,7 +6,6 @@ import {
   PAGE_INFO_STRUCT_WGSL,
   PAGE_UV_WGSL,
   PAGE_VERTEX_WGSL,
-  WRAP_COORD_WGSL,
 } from './visibilityPageWgsl.ts';
 import {
   ATLAS_SLOTS_WGSL,
@@ -37,7 +36,6 @@ fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],no
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
-${WRAP_COORD_WGSL}
 ${ATLAS_SLOTS_WGSL}
 ${COLOR_SAMPLE_WGSL}
 ${DATA_SAMPLE_WGSL}
@@ -98,18 +96,17 @@ fn framebuffer(clip:vec4f)->vec3f{
    }
   }
  }
- let wrapD=wrapUv(uv,page.flags);
- let sample=colorSample(page.mapIndex,page.uvScale,wrapD,ddx,ddy);
+ let sample=colorSample(page.mapIndex,page.uvScale,uv,page.flags,ddx,ddy);
  var roughSample=vec4f(1.0);
- if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,wrapD,ddx,ddy);}
+ if(page.roughnessIndex!=0u){roughSample=dataSample(page.roughnessIndex,page.roughUvScale,uv,page.flags,ddx,ddy);}
  var metalSample=vec4f(1.0);
- if(page.metalnessIndex!=0u){metalSample=dataSample(page.metalnessIndex,page.metalUvScale,wrapD,ddx,ddy);}
+ if(page.metalnessIndex!=0u){metalSample=dataSample(page.metalnessIndex,page.metalUvScale,uv,page.flags,ddx,ddy);}
  var ao=1.0;
- if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(dataSample(page.aoIndex,page.aoUvScale,wrapD,ddx,ddy).r-1.0);}
+ if(page.aoIndex!=0u){ao=1.0+page.aoIntensity*(dataSample(page.aoIndex,page.aoUvScale,uv,page.flags,ddx,ddy).r-1.0);}
  var emissive=page.emissive.xyz;
- if(page.emissiveIndex!=0u){emissive*=colorSample(page.emissiveIndex,page.emissiveUvScale,wrapD,ddx,ddy).rgb;}
+ if(page.emissiveIndex!=0u){emissive*=colorSample(page.emissiveIndex,page.emissiveUvScale,uv,page.flags,ddx,ddy).rgb;}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
- if(page.normalIndex!=0u){nrmSample=dataSample(page.normalIndex,page.normalUvScale,wrapD,ddx,ddy);}
+ if(page.normalIndex!=0u){nrmSample=dataSample(page.normalIndex,page.normalUvScale,uv,page.flags,ddx,ddy);}
  if((page.flags&8u)!=0u){
   rgb=rgb*sample.xyz;
   if((page.flags&128u)!=0u&&sample.w<page.baseColor.w){return emptySurface();}
