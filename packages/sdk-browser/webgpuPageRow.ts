@@ -17,9 +17,8 @@ import {
   FLAG_BACK,
   FLAG_HAS_ORM,
   FLAG_HAS_NORMAL_MAP,
-  FLAG_WRAP_S_REPEAT,
-  FLAG_WRAP_T_REPEAT,
 } from './visibilityBuffer.ts';
+import { wrapFlags } from './visibilityPageWgsl.ts';
 
 export const ROW_ID_BASE_WORD = 27,
   ROW_HIZ_SLOT_WORD = 31;
@@ -95,8 +94,7 @@ export function createPageRowWriter({
     if (mat.backSide) flags |= FLAG_BACK;
     if (roughLayer || metalLayer) flags |= FLAG_HAS_ORM;
     if (nrmLayer) flags |= FLAG_HAS_NORMAL_MAP;
-    if (mat.map && mat.map.wrapS !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_S_REPEAT;
-    if (mat.map && mat.map.wrapT !== THREE.ClampToEdgeWrapping) flags |= FLAG_WRAP_T_REPEAT;
+    flags |= wrapFlags(mat.map);
     // A page holding more triangles than the identifier's eight low bits would alias the next page.
     assertVisibilityPageTriangles(index.length / 3, rec.url);
     ints[base + 22] = layer;
