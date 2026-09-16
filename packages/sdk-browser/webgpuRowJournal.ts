@@ -1,16 +1,11 @@
 /**
- * Nombre de pages qu'une passe peut nommer avant qu'un parcours du catalogue ne coûte moins que
- * leur tri. Au-delà, la liste déborde et la synchronisation des rangs se reconstruit d'un bloc.
- */
-const TOUCHED_SLOTS = 128;
-
-/**
- * Les deux listes bornées qui pilotent la table de lignes.
+ * Les deux listes qui pilotent la table de lignes.
  *
  * `touched` nomme les pages dont la résidence ou l'emplacement dans le cache vient de bouger :
  * c'est la seule entrée de la synchronisation des rangs, qui ne parcourt donc plus le catalogue.
- * Elle déborde plutôt que de grandir — au-delà de `TOUCHED_SLOTS` pages nommées, tout reconstruire
- * coûte moins cher que de suivre chacune.
+ * Elle a la taille du catalogue et un marquage par page, si bien qu'une page ne s'y inscrit qu'une
+ * fois et qu'elle ne peut plus déborder : aucune rafale d'arrivées ne déclenche plus le parcours
+ * des 124 000 pages qui coûtait le pic de l'image.
  *
  * `residencyChanges` est ce que la passe a effectivement changé : les pages dont le DRAPEAU de
  * résidence a basculé, dans l'ordre croissant. La sélection GPU n'écrit que leurs plages tant que
@@ -29,18 +24,16 @@ export function createWebgpuRowJournal(pageCount: number) {
     residencyChanges.count = 0;
     residencyChanges.sorted = true;
   };
-  const touched = {
-    pages: new Int32Array(Math.max(1, Math.min(pageCount, TOUCHED_SLOTS))),
-    count: 0,
-    overflow: false,
-  };
+  const touchedMarks = new Uint8Array(Math.max(1, pageCount));
+  const touched = { pages: new Int32Array(Math.max(1, pageCount)), count: 0 };
   const touchPage = (page: number) => {
-    if (touched.count < touched.pages.length) touched.pages[touched.count++] = page;
-    else touched.overflow = true;
+    if (touchedMarks[page]) return;
+    touchedMarks[page] = 1;
+    touched.pages[touched.count++] = page;
   };
   const clearTouched = () => {
+    for (let i = 0; i < touched.count; i++) touchedMarks[touched.pages[i]] = 0;
     touched.count = 0;
-    touched.overflow = false;
   };
   return {
     residencyChanges,
