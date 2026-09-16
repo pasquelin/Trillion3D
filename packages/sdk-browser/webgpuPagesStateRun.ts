@@ -100,6 +100,7 @@ export interface WebgpuRunState {
    *  refaire. Une liste n'est gardée que si tout ce dont elle dépend est encore celui-là. */
   pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean };
   urlsHeld: { epoch: number; cut: number; limited: boolean };
+  ranksHeld: { epoch: number; cut: number; limited: boolean };
   /** Ensembles d'urls d'une image : remplis puis vidés, jamais réalloués. */
   requestedScratch: Set<string>;
   transitionScratch: Set<string>;
@@ -177,6 +178,7 @@ export function createWebgpuRunState(): WebgpuRunState {
     pageArrayEpoch: 0,
     pendingHeld: { epoch: -1, cut: -1, limited: false, ready: false },
     urlsHeld: { epoch: -1, cut: -1, limited: false },
+    ranksHeld: { epoch: -1, cut: -1, limited: false },
     requestedScratch: new Set<string>(),
     transitionScratch: new Set<string>(),
     gate: createFrameGateCore(HOLD_SIGNATURE_VALUES),

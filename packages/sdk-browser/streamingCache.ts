@@ -1,7 +1,7 @@
-import type { StreamContext } from './streamingTypes.ts';
+import type { HostRetentionDelta, StreamContext } from './streamingTypes.ts';
 
 export function createStreamingCache(context: StreamContext) {
-  const { cache, state, maxPages, maxCachedBytes, pinned, jobs, emit, onEvict } = context;
+  const { cache, state, maxPages, maxCachedBytes, pinned, jobs, emit, onEvict, catalog } = context;
   const touch = (url: string, array: Uint8Array) => {
     const held = cache.get(url);
     if (held) state.cachedBytes -= held.byteLength;
@@ -64,14 +64,58 @@ export function createStreamingCache(context: StreamContext) {
     for (let i = 0; i < urls.length; i++) if (retained[i] !== urls[i]) return false;
     return true;
   };
+  /** L'émetteur de la dernière différence de rangs appliquée, ou `null` quand les épingles viennent
+   *  d'ailleurs — d'une liste d'adresses, ou d'un autre moteur. La différence suivante reprend alors
+   *  l'appartenance entière avant de suivre les rangs à nouveau. */
+  let rankOwner: readonly string[] | null = null;
+  const emitRetain = (requested: number) =>
+    emit('page-retain', 'Épingles de pages mises à jour', () => ({
+      version: 1,
+      requested,
+      retained: pinned.size,
+      changed: true,
+    }));
+  const pinRank = (urls: readonly string[], rank: number) => {
+    const url = urls[rank];
+    if (url !== undefined && catalog.has(url)) pinned.add(url);
+  };
   const retain = (urls: readonly string[]) => {
-    if (same(urls)) return false;
+    if (rankOwner === null && same(urls)) return false;
+    rankOwner = null;
     retained.length = urls.length;
     for (let i = 0; i < urls.length; i++) retained[i] = urls[i];
     pinned.clear();
-    for (const url of urls) if (context.catalog.has(url)) pinned.add(url);
+    for (const url of urls) if (catalog.has(url)) pinned.add(url);
     evict();
+    emitRetain(urls.length);
     return true;
   };
-  return { touch, evict, retain };
+  /**
+   * Les épingles par différence de rangs. Le cas courant ne touche que ce qui a bougé ; une image qui
+   * garde le même ensemble ne touche rien du tout. La reprise après un autre émetteur repose
+   * l'appartenance entière, une fois, puis repart en différence.
+   */
+  const retainRanks = (delta: HostRetentionDelta) => {
+    const { urls, entered, exited } = delta;
+    if (rankOwner !== urls) {
+      rankOwner = urls;
+      retained.length = 0;
+      pinned.clear();
+      const { held, heldCount } = delta;
+      for (let i = 0; i < heldCount; i++) pinRank(urls, held[i]);
+      evict();
+      emitRetain(heldCount);
+      return true;
+    }
+    if (!delta.enteredCount && !delta.exitedCount) return false;
+    for (let i = 0; i < delta.exitedCount; i++) {
+      const url = urls[exited[i]];
+      if (url !== undefined) pinned.delete(url);
+    }
+    for (let i = 0; i < delta.enteredCount; i++) pinRank(urls, entered[i]);
+    evict();
+    emitRetain(delta.heldCount);
+    return true;
+  };
+  return { touch, evict, retain, retainRanks };
 }

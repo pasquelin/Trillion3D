@@ -1,5 +1,23 @@
 import type { BackendDiagnostic } from './backendTypes.ts';
 
+/**
+ * Ce qu'une image dit au cache des pages qu'elle garde : une différence de RANGS de requête, pas une
+ * liste d'adresses. Le rang est posé une fois pour toutes par le catalogue, `urls` le traduit, et
+ * seules les entrées et les sorties sont parcourues — une coupe de quinze mille pages qui n'en
+ * change que dix ne coûte donc plus dix mille hachages de chaînes par image. `held` porte
+ * l'appartenance entière : elle sert à reprendre la main quand un autre moteur a écrit les épingles.
+ */
+export interface HostRetentionDelta {
+  /** Rang de requête → adresse. La même table pour la vie de la scène : son identité dit l'émetteur. */
+  readonly urls: readonly string[];
+  readonly entered: Int32Array;
+  readonly enteredCount: number;
+  readonly exited: Int32Array;
+  readonly exitedCount: number;
+  readonly held: Int32Array;
+  readonly heldCount: number;
+}
+
 export interface StreamPage {
   url: string;
   bytes: number;
