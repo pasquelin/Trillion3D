@@ -14,7 +14,6 @@ import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
-import { pageSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -25,7 +24,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots, gpuWanted } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
-    { recByUrl, byUrl } = rt.setup;
+    { sourceBytes, byUrl } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
     residentOffsetWords: rows.residentOffsetWords,
@@ -65,14 +64,10 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // Origine du changement de ressources : la page entre dans la résidence ou en sort.
     (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
-  const pageSource = {
-    read: async (key: string) => {
-      const bytes = pageSourceBytes(recByUrl.get(key));
-      if (!bytes) throw new Error('Missing page');
-      return bytes;
-    },
-  };
-  const hasBytes = (rec: PageRec) => !!(rec.array || recByUrl.get(rec.url)?.array);
+  const read = async (key: string) =>
+    sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'));
+  const pageSource = { read };
+  const hasBytes = (rec: PageRec) => !!(rec.array || sourceBytes.has(rec.url));
   /**
    * The sets residency is decided with, and the difference the GPU readback is read as. Both outlive
    * the image: an image that moves no page touches neither.

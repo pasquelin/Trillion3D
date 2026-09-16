@@ -4,15 +4,20 @@ import type { PageRec } from './pageSelection.ts';
 // adresse et les compteurs du diagnostic des textures.
 
 /**
- * Les pages du catalogue par adresse de cluster. Le cache GPU lit les octets d'une page au moment
- * où il la téléverse, et il les lit ICI : la table est posée une fois au chargement et ne bouge
- * plus, là où une table d'octets tenue à jour coûtait à chaque arrivée une allocation et une
- * insertion PAR CLUSTER du paquet. La dernière page d'une adresse l'emporte, comme `new Map`.
+ * Les octets d'index de chaque page, vus comme des octets, par adresse de cluster.
+ *
+ * Douze placements d'un même objet partagent l'adresse de leurs clusters : une table « une page par
+ * adresse » ne peut pas dire lequel porte les octets à l'instant où le cache les demande. La table
+ * est donc tenue par adresse, posée au chargement depuis les pages déjà servies, complétée à chaque
+ * arrivée et vidée à chaque abandon — une vue par cluster, jamais une copie.
  */
-export function indexPageRecords(allPages: readonly PageRec[]) {
-  const recByUrl = new Map<string, PageRec>();
-  for (const page of allPages) recByUrl.set(page.url, page);
-  return recByUrl;
+export function indexSourceBytes(allPages: readonly PageRec[]) {
+  const sourceBytes = new Map<string, Uint8Array>();
+  for (const page of allPages) {
+    const bytes = pageSourceBytes(page);
+    if (bytes) sourceBytes.set(page.url, bytes);
+  }
+  return sourceBytes;
 }
 
 /** Les octets d'index d'une page, vus comme des octets, ou `undefined` tant qu'elle n'en a pas. */

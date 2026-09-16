@@ -1,5 +1,6 @@
 import { acceptPageArray } from './pageSelection.ts';
 import { applyArrivalPlan } from './pageArrivalSpecs.ts';
+import { pageSourceBytes } from './webgpuPagesCatalogue.ts';
 import type { ArrivalPlan } from './pageIntegrationHost.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
@@ -18,7 +19,7 @@ export function acceptPage(
 ) {
   const { run, diag } = rt,
     { rows } = rt.layout,
-    { byUrl, tracking, bootstrapUrls } = rt.setup;
+    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
   run.deferredDrops.delete(url);
   const recs = byUrl.get(url);
   if (!recs) return;
@@ -26,6 +27,12 @@ export function acceptPage(
   // view — not the bundle — is what the GPU cache uploads under the cluster key.
   const planned = applyArrivalPlan(recs, array, plan);
   if (!planned) acceptPageArray(recs, array);
+  // Le cache lit les octets d'un cluster par son adresse, que douze placements partagent : la table
+  // par adresse est ce qui les lui rend, quel que soit le placement qui vient de les recevoir.
+  for (let i = 0; i < recs.length; i++) {
+    const bytes = pageSourceBytes(recs[i]);
+    if (bytes) sourceBytes.set(recs[i].url, bytes);
+  }
   // Des octets sont arrivés : la liste des pages encore attendues n'est plus celle d'avant.
   run.pageArrayEpoch++;
   run.gate.resourcesChanged();
@@ -53,7 +60,7 @@ export function acceptPage(
 export function dropPage(rt: WebgpuPagesCore, url: string) {
   const { run, gpu, diag } = rt,
     { rows } = rt.layout,
-    { byUrl, tracking, bootstrapUrls } = rt.setup;
+    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
   const recs = byUrl.get(url);
   if (!recs) return;
   // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
@@ -95,6 +102,7 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     if (page !== undefined) rows.touchPage(page);
     rec.array = undefined;
     rec.indexBytes = rec.triangles * 12;
+    sourceBytes.delete(rec.url);
     gpu.cache?.unload?.(rec.url);
     tracking.unmarkPinned(tracking.keyOf(rec));
   }
