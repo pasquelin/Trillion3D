@@ -1,6 +1,8 @@
 import { adaptivePixelError } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 
+const eyeScratch = new THREE.Vector3();
+
 export function resolvePixelError(
   context: { pixelError?: number; lodAdaptive?: boolean },
   camera: THREE.PerspectiveCamera,
@@ -8,13 +10,16 @@ export function resolvePixelError(
 ) {
   const base = context.pixelError ?? 0;
   const now = typeof performance !== 'undefined' ? performance.now() : 0;
+  // La vitesse est celle de l'œil dans le monde : un rig qui emporte la caméra la déplace aussi.
+  // L'image a mis la matrice monde à jour, ancêtres compris, avant de demander le seuil.
+  const eye = eyeScratch.setFromMatrixPosition(camera.matrixWorld);
   let speed = 0;
   if (motion.last && motion.lastMs != null) {
     const dt = Math.max((now - motion.lastMs) / 1000, 1e-4);
-    speed = camera.position.distanceTo(motion.last) / dt;
+    speed = eye.distanceTo(motion.last) / dt;
   }
   if (!motion.last) motion.last = new THREE.Vector3();
-  motion.last.copy(camera.position);
+  motion.last.copy(eye);
   motion.lastMs = now;
   if (!context.lodAdaptive || !(base > 0)) return base;
   return adaptivePixelError(base, speed, Math.max(camera.far * 0.05, 1));
