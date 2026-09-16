@@ -8,6 +8,12 @@ use super::*;
 
 /// Le nom de la famille de sous-ensembles qui lie les matériaux.
 const FAMILY: &str = "materialBind";
+/// La relation qui lie un matériau à un prim et à sa descendance.
+const BINDING: &str = "material:binding";
+/// La métadonnée qui donne sa force à une liaison, et la seule valeur qui la rend plus forte que
+/// les liaisons de la descendance du prim qui la porte.
+const STRENGTH: &str = "bindMaterialAs";
+const STRONGER: &str = "strongerThanDescendants";
 
 /// Une partie du maillage : son matériau, et les faces qu'elle porte.
 pub(super) struct Part {
@@ -71,15 +77,55 @@ fn subset_faces(prim: &usd::Prim, faces: usize) -> Option<Vec<usize>> {
     )
 }
 
-/// Le matériau que `material:binding` désigne sur ce prim, résolu et versé dans les tables.
+/// Le matériau que ce prim reçoit. `material:binding` se résout en remontant les ancêtres et la
+/// liaison la plus proche gagne : un `GeomSubset` qui n'en déclare pas prend celle de son maillage,
+/// et un maillage celle du groupe qui le porte. Une liaison déclarée plus forte que sa descendance
+/// l'emporte sur celles d'en dessous, et la plus haute de celles-là sur les autres.
 fn binding(world: &mut World<'_>, prim: &usd::Prim, double_sided: bool) -> Option<usize> {
-    let target = prim
-        .relationship("material:binding")
+    let mut nearest = None;
+    let mut strongest = None;
+    for path in prim.path().ancestors_below_root() {
+        let Some(target) = bound_at(world, &path) else {
+            continue;
+        };
+        if nearest.is_none() {
+            nearest = Some(target.clone());
+        }
+        if stronger(world, &path) {
+            strongest = Some(target);
+        }
+    }
+    match strongest.or(nearest) {
+        Some(target) => material::resolve(world, &target, double_sided),
+        // Sans matériau à qui porter le double face, les deux faces sortiraient de la scène.
+        None if double_sided => material::double_sided(world),
+        None => None,
+    }
+}
+
+/// La cible de `material:binding` écrite sur ce prim, sans rien hériter.
+fn bound_at(world: &World<'_>, path: &sdf::Path) -> Option<sdf::Path> {
+    world
+        .stage
+        .prim(path.clone())
+        .ok()?
+        .relationship(BINDING)
         .forwarded_targets()
         .ok()?
         .into_iter()
-        .next()?;
-    material::resolve(world, &target, double_sided)
+        .next()
+}
+
+/// Cette liaison est-elle déclarée plus forte que celles de sa descendance ?
+fn stronger(world: &World<'_>, path: &sdf::Path) -> bool {
+    path.append_property(BINDING)
+        .ok()
+        .and_then(|property| world.stage.field::<sdf::Value>(property, STRENGTH).ok())
+        .flatten()
+        .as_ref()
+        .and_then(read::text)
+        .as_deref()
+        == Some(STRONGER)
 }
 
 /// Un attribut de ce prim lu en texte.
