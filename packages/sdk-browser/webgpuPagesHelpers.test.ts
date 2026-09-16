@@ -18,7 +18,12 @@ function page(id: number, triangles: number, resident: boolean): PageRec {
 test('shownFromGpu : drawn = selected − uncovered quand des grappes de la coupe n’ont pas de page résidente', () => {
   // Quatre grappes sélectionnées : deux résidentes (10, 30 triangles), deux non résidentes faute de
   // ligne dans `residentOffsetWords` (5) ou de tampon (7).
-  const pages: PageRec[] = [page(0, 10, true), page(1, 5, true), page(2, 30, true), page(3, 7, false)];
+  const pages: PageRec[] = [
+    page(0, 10, true),
+    page(1, 5, true),
+    page(2, 30, true),
+    page(3, 7, false),
+  ];
   const residentOffsetWords = new Int32Array([0, -1, 4, 8]); // id 1 : pas de ligne de résidence.
   const ids = [0, 1, 2, 3];
 
