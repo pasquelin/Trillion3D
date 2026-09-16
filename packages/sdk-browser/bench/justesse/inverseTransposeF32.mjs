@@ -9,6 +9,8 @@
 // `gpuDagInverseTranspose.test.ts` (sélection) et la preuve navigateur lisent tous les trois la même
 // arithmétique, au lieu d'en tenir chacun une copie.
 
+import { SINGULAR_DETERMINANT } from '../../../sdk-core/mathSingular.ts';
+
 export const f = Math.fround;
 export const croix = (a, b) => [
   f(f(a[1] * b[2]) - f(a[2] * b[1])),
@@ -115,7 +117,7 @@ export function apresLeLot(m, v) {
   const n = m.map((col) => divise(col, t));
   const det = point(n[0], croix(n[1], n[2]));
   const porte = cofacteur(n, v);
-  if (!(Math.abs(det) > 1e-20)) return porte;
+  if (!(Math.abs(det) > SINGULAR_DETERMINANT)) return porte;
   return divise(porte, f(det * t));
 }
 
