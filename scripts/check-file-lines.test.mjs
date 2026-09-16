@@ -1,6 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lineCount, lineLimitViolations } from './check-file-lines.mjs';
+import { lineCount, lineLimitViolations, nulSeparated } from './check-file-lines.mjs';
+
+test('le séparateur nul est une option, jamais un chemin derrière le `--`', () => {
+  // Le défaut réparé : `-z` posé en fin d'arguments devenait le seul chemin filtré, et la liste
+  // des fichiers modifiés revenait vide quoi qu'on change.
+  assert.deepEqual(nulSeparated(['diff', '--name-only', 'develop', '--']), [
+    'diff',
+    '--name-only',
+    'develop',
+    '-z',
+    '--',
+  ]);
+  assert.deepEqual(nulSeparated(['ls-files', '-co', '--exclude-standard']), [
+    'ls-files',
+    '-co',
+    '--exclude-standard',
+    '-z',
+  ]);
+});
 
 test('counts physical lines, including an unterminated final line', () => {
   assert.equal(lineCount('one\ntwo\n'), 2);

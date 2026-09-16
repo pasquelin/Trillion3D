@@ -2,13 +2,17 @@ import type { DirectLightResources } from './deferredLightingProgram.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
- * Vrai quand l'image doit être éclairée par les lampes déclarées. Faux dans la vue sans éclairage,
- * qu'elle soit demandée par l'hôte ou qu'elle vienne du défaut d'une scène sans lampe : dans les
- * deux cas le programme du contrat n'a rien à faire, et l'albédo brut sort tel quel.
+ * Vrai quand l'image doit être éclairée par les lampes déclarées. Faux dans la seule vue sans
+ * éclairage : `unlit` demandée par l'hôte, ou `auto` sur une scène sans lampe — là, l'albédo brut
+ * sort tel quel.
+ *
+ * Le nombre de lampes n'entre pas dans la décision. Une vue `lit` explicitement demandée éclaire
+ * même sans lampe : le contrat sort alors du noir, émissifs conservés, et c'est la réponse juste —
+ * une scène qu'aucune source n'éclaire est noire. La faire retomber sur l'albédo rendait une pièce
+ * claire quand l'hôte venait d'éteindre toutes ses lampes, sans qu'aucune extinction se voie.
  */
 export function wantsContractLighting(rt: WebgpuPagesRuntime) {
-  const { store } = rt.lights;
-  return store.count > 0 && !store.unlit;
+  return !rt.lights.store.unlit;
 }
 
 const contractResources: DirectLightResources = {};

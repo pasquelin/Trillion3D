@@ -68,6 +68,8 @@ function joue(items: ReturnType<typeof item>[]) {
     },
     lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
     bounce: { probes: undefined },
+    // Vue `lit` sans lampe : le contrat éclaire, donc la passe lie ses ressources par défaut.
+    sunFar: { gpu: undefined },
     blendState: { visibleBlend: items, compaction: undefined, lighting: undefined },
     run: {
       gpuDrawCalls: 0,

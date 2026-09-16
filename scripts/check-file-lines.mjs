@@ -5,10 +5,21 @@ import { pathToFileURL } from 'node:url';
 export const MAX_LINES = 200;
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
 
+/**
+ * `-z` est une option, pas un chemin. Placé après le `--` qui ouvre la liste des fichiers, il est
+ * lu comme un chemin à filtrer : `diff --name-only <ref> -- -z` ne rend alors aucun nom, et la
+ * porte de lignes déclarait « aucun fichier modifié » quoi qu'on change. Il est donc inséré avant
+ * le séparateur, ou en fin d'arguments quand il n'y en a pas.
+ */
+export function nulSeparated(args) {
+  const separator = args.indexOf('--');
+  return separator === -1
+    ? [...args, '-z']
+    : [...args.slice(0, separator), '-z', ...args.slice(separator)];
+}
+
 function gitPaths(args) {
-  return execFileSync('git', [...args, '-z'], { encoding: 'utf8' })
-    .split('\0')
-    .filter(Boolean);
+  return execFileSync('git', nulSeparated(args), { encoding: 'utf8' }).split('\0').filter(Boolean);
 }
 
 export function lineCount(source) {
