@@ -1,4 +1,5 @@
 import { drawVis } from './webgpuVisibilityDrawer.ts';
+import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -61,6 +62,9 @@ export function encodeWebgpuVisibilityPasses(
   gpuHiz.encodePyramid(encoder);
   rt.run.hizPyramidFresh = true;
   gpuHiz.encodeTest(device, encoder, rows.packedCount, tableRows);
+  // La seule variante de diagnostic qui touche aux commandes encodées : elle laisse la moitié
+  // testée hors de l'image pour peser les occulteurs seuls, et rend donc une image incomplète.
+  if (skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) return;
   const restPass = encoder.beginRenderPass({
     label: 'WG visibility secondary',
     colorAttachments: visColors('load'),
