@@ -3,6 +3,12 @@
 Une ligne = une tâche. Les règles de travail sont dans `AGENTS.md`, l'historique dans Git,
 la cible du moteur dans [`docs/SPEC_MOTEUR_SANS_THREE.md`](docs/SPEC_MOTEUR_SANS_THREE.md).
 
+**Règle principale (décision du 17 septembre 2026) : tenir les performances de la référence.**
+À chaque choix, on prend sa solution, pas un contournement : budget fixe en mémoire et en
+millisecondes, tuiles et pages résidentes par ce que l'image regarde vraiment, compression à la
+cuisson, travail nul dans une scène immobile. Quand sa solution coûte des pixels, c'est un coût
+déclaré, mesuré et publié, pas un refus (`AGENTS.md`, « Performance parity »).
+
 ## Géométrie
 
 Les lots 1 à 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la référence ; 10 passe avant 5.
@@ -39,24 +45,28 @@ Hors périmètre, faute de support web : mesh shaders et atomique 64 bits, rempl
 7. Miroirs : repartir de develop, réutiliser la fixture `classes-materiaux/miroir.gltf` et les patches `.mesure/patches/lot-reflet/` (+ `lot-reflet.bundle`, base d48b66a) comme lecture, trouver pourquoi on/off = 0 px. Fini quand les cubes apparaissent dans le sol métallique.
 8. Copies publiques de lampes détachées (`explorerLightApi.ts`) : muter une copie ne touche jamais l'interne.
 9. Coût GPU de la vue au sol, 3,65 → 6,49 ms à 0 px : bissection, sur machine calme seulement.
-10. Après 7 : réflexions rugueuses, ombres colorées semi-transparentes, translucidité du feuillage.
+10. Après 7 : réflexions rugueuses, ombres colorées semi-transparentes, translucidité du feuillage. Aucune conversion BLEND → MASK à l'import : la référence ne reclasse jamais un matériau, elle exige que la donnée arrive déjà masquée (sa géométrie virtualisée n'accepte que l'opaque et le masqué). Le travail est côté compilateur, pas côté moteur.
 11. Rebond 3 (`lot/rebond-3`) : cascades de sondes autour de la caméra, budget en millisecondes plutôt qu'en nombres de maillages et de rayons, base d'harmoniques sphériques d'ordre 2, activé par défaut quand le budget tient.
 12. Ombres des matériaux en mélange : une grappe transparente n'obtient pas de ligne de visibilité (`webgpuRowSync.ts`), n'entre jamais dans la table des rangs dessinés des cartes d'ombre et n'ombre rien. L'ombre atténuée et colorée d'une surface semi-transparente reste un lot à part.
 13. Éclairage stochastique par pixel (RX2) : le rejet par tuile est livré, l'échantillonnage non. L'historique doit passer par une cible de rendu supplémentaire en ping-pong, pas un tampon de stockage. Demande aussi un banc où les lampes atteignent vraiment les surfaces transparentes.
+
+14. Vue sans lumière : reprendre le correctif b57ebd89 (« unlit WebGL publie l'albédo brut, métal compris »), aujourd'hui commit non référencé — `git branch hold/unlit-albedo-three b57ebd89` avant qu'il soit ramassé. La référence affiche la couleur de base telle quelle, métaux compris ; notre noir vient de l'ambiant π appliqué sur le PBR, où le diffus d'un métal est nul par construction. Pas de capacité « non fidèle sur les métaux » à déclarer.
 
 Manques de test connus : `webgpuBindBudget.test.ts` ne couvre pas `createDeferredLayouts` ; rien n'exécute `prepareWebgpuPages` de bout en bout.
 
 ## Textures
 
-Critère de tout lot : même rendu que la référence, sous contrainte du chargement web, à cache froid, en traversant la ville.
+Cible : textures virtuelles comme la référence — retour de l'image rendue pour la priorité, tuiles de
+taille fixe dans un pool à budget constant, blocs compressés. `atlasClasses` 2 est abandonné : c'était
+le pansement en attendant les tuiles (l'atlas dimensionné sur la plus grande texture disparaît avec T4).
 
 1. Verdict de l'utilisateur sur T1 (fusionné f43f6a44) : route `/?test=15-virtualized-integration`, ce que la caméra regarde net d'abord.
 2. T1b — compteurs textures dans le Lab (octets résidents / budget, textures au bon niveau, niveaux manquants) : une ligne dans le panneau du banc 15, rien d'autre.
-3. T1c — vraie libération : les niveaux nets devenus inutiles rendus au budget (atlas alloué d'avance aujourd'hui) ; sans ça le budget ne tient pas sur petite machine.
+3. T1c — vraie libération : les niveaux nets devenus inutiles rendus au budget (atlas alloué d'avance aujourd'hui) ; sans ça le budget ne tient pas sur petite machine, et le pool fixe de T4 en dépend.
 4. T2 — traversée à cache froid : temps par image plafonné pour les transferts, report à l'image suivante, aperçu dessiné tant que le niveau manque ; regarder p95 et pic, pas la médiane.
-5. T3 — priorité exacte par lecture de l'image rendue, si T1 se trompe sur des cas vus par l'utilisateur (aujourd'hui : estimation par taille à l'écran).
-6. T4 — tuiles, seulement si la mémoire reste le problème après T1c.
-7. T5 — compression GPU sans perte de pixel visible (RGBA brut aujourd'hui, 7,56 Go sur Emerald) : à étudier seulement avec un format qui rend la même image.
+5. T3 — priorité par lecture de l'image rendue au lieu de l'estimation par taille à l'écran : 1 pixel sur 16 incrémente un compteur par tuile demandée dans la passe de résolution, lu par `mapAsync` une image en retard. C'est le retour d'image de la référence, et le même mécanisme que le lot Géométrie 4b : un seul chemin pour les deux.
+6. T4 — tuiles de taille fixe dans un pool physique à budget constant, seules les tuiles vues résidentes, texture d'indirection pour dire où est chaque tuile (ou quel niveau grossier prendre en attendant). Plus conditionnel : c'est la solution de la référence, elle remplace l'atlas par texture et les classes de taille.
+7. T5 — compression GPU des blocs à la cuisson (BC sur ordinateur, ASTC sur mobile), perte acceptée et jugée à l'œil, tuiles comprises : c'est le seul moyen de tenir le budget mémoire de la référence (7,56 Go de RGBA brut sur Emerald aujourd'hui). À livrer avec les images avant/après et l'écart mesuré publié ; les seuils 0 px du banc ne s'appliquent pas à ce lot, ils restent entiers pour la géométrie et l'éclairage.
 
 ## Compilateur
 
@@ -69,6 +79,7 @@ Critère de tout lot : même rendu que la référence, sous contrainte du charge
 7. Accepter en entrée le glTF compressé Draco et meshopt.
 8. Map industrielle sur le banc 15.
 9. Vérification de licence FAB pour le corpus.
+10. Classer en masqué, à l'import, tout matériau dont l'alpha est réellement binaire et qui arrive déclaré en mélange, quand la donnée source le dit — sans jamais reclasser un vrai transparent. C'est ce qui remplace la conversion BLEND → MASK côté moteur (Lumière 10).
 
 Les optimisations 1 à 5 doivent rendre les mêmes octets qu'avant.
 
@@ -78,8 +89,10 @@ Les optimisations 1 à 5 doivent rendre les mêmes octets qu'avant.
 2. Rafraîchissement ciblé d'un nœud déplacé : `setWebgpuTransform` recalcule tout l'index moteur (`hostWorldPlacements.refresh`) là où `updateWorldMatrix(true, true)` ne parcourait que les ancêtres et le sous-arbre — hors chemin d'image, mais O(scène) par `setTransform`. `updateNodeWorldMatrix` (`packages/sdk-core/mathTransformTreeUpdate.ts`) suffit.
 3. À mesurer quand c'est commode : gain des pages en mémoire partagée (`--isolation on` vs off) et du chemin Wasm (`--chemin-math js` vs `wasm`) ; `normalMatrix3` par fragment dans `visibilityShadingNormal.ts` ; listes de lampes de `gpuLightTilesShader` à ciel ouvert.
 
-## Décisions à trancher (utilisateur)
+## Décisions tranchées
 
-- Textures : `atlasClasses` 2 (−872 Mo, 15 142 px changent au loin) ; go T4 ; go T5.
-- Lumière D1 : en WebGL, `unlit` rend les métaux noirs (ambiant π sur le PBR, chemin Three en cours de retrait). Correctif prêt en commit non référencé b57ebd89 (`git branch hold/unlit-albedo-three b57ebd89` pour le garder) : soit déclarer « non fidèle sur les métaux » dans les capacités WebGL, soit en faire le premier lot du moteur WebGL2 sans Three.
-- Lumière 10 : alpha binaire BLEND → MASK à l'import, en conflit avec la règle de transparence d'`AGENTS.md`.
+- 17 sept. 2026 — tenir les performances de la référence est la règle principale ; à chaque arbitrage on prend sa solution.
+- `atlasClasses` 2 : abandonné, remplacé par les tuiles et le pool à budget fixe (Textures 6).
+- T4 et T5 : lancés, plus conditionnels ; T5 accepte une perte de texture mesurée et publiée.
+- Vue sans lumière en WebGL : correctif b57ebd89 repris (Lumière 14), pas de capacité manquante déclarée.
+- BLEND → MASK : jamais converti par le moteur ; le compilateur classe correctement à l'import (Compilateur 10).
