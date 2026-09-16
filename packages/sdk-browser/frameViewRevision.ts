@@ -26,7 +26,9 @@ export function createViewRevision() {
       viewportHeight: number,
       pixelError: number,
     ) {
-      camera.updateMatrixWorld();
+      // Ancêtres compris : sous un rig d'hôte, `updateMatrixWorld` relirait une pose périmée et
+      // deux images différentes se donneraient la même révision — l'image serait tenue à tort.
+      camera.updateWorldMatrix(true, false);
       const now = camera.matrixWorldInverse.elements,
         nowProjection = camera.projectionMatrix.elements;
       if (

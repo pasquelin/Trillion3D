@@ -14,7 +14,7 @@ export function projectedPageError(
   viewport: readonly [number, number],
 ) {
   if ((rec.lodError ?? 0) === 0) return 0;
-  camera.updateMatrixWorld();
+  camera.updateWorldMatrix(true, false);
   const view = diagnosticErrorView.multiplyMatrices(camera.matrixWorldInverse, rec.matrix);
   const stretch = maxStretch(rec.matrix.elements) * maxStretch(camera.matrixWorldInverse.elements);
   const scale = pixelScaleOf(camera, viewport, diagnosticPixelScale);
