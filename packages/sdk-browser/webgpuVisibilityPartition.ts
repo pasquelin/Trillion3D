@@ -72,16 +72,17 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   }
   // Only the tested half needs a screen rectangle, and the history branch has projected nothing yet.
   if (twoPass && !boundsForAll) project(hizRest);
-  // La moitié testée, hachée dans l'ordre des lignes, avec le nombre d'occulteurs ET l'âge des
-  // rectangles d'écran : c'est, en dehors de la table de lignes, tout ce dont les fiches de dessin
-  // et les bornes projetées dépendent.
+  // La moitié testée, hachée dans l'ordre des lignes, et une seule fois : le condensé brut sert à la
+  // fois de clé aux fiches de dessin et d'historique d'occulteurs à l'image suivante. Le nombre
+  // d'occulteurs et l'âge des rectangles d'écran voyagent à côté de lui, comparés pour eux-mêmes :
+  // les mêler au condensé faisait deux parcours du tableau pour une seule question.
   //
-  // L'âge de projection en fait partie parce que les bornes envoyées au test Hi-Z sont des
+  // L'âge de projection appartient à cette clé parce que les bornes envoyées au test Hi-Z sont des
   // rectangles d'ÉCRAN : une caméra qui bouge sans changer la partition des pages les réécrit
   // toutes. Sans lui, l'image testait les rectangles de la caméra précédente et pouvait rejeter à
   // tort des surfaces visibles.
-  let restSignature = (occluders * 31 + hizProjection.generation) | 0;
-  for (let i = 0; i < rows.packedCount; i++) restSignature = (restSignature * 31 + hizRest[i]) | 0;
+  let restDigest = 0;
+  for (let i = 0; i < rows.packedCount; i++) restDigest = (restDigest * 31 + hizRest[i]) | 0;
   timing.lastProjectMs = projectMs;
   timing.lastPartitionMs = performance.now() - partitionStart - projectMs;
   const counts = timing.partitionCounts;
@@ -96,5 +97,5 @@ export function partitionWebgpuVisibility(rt: WebgpuPagesRuntime, camera: THREE.
   // vue. C'est ce qui rend observable, du dehors, qu'une vue nouvelle — un rig d'hôte déplacé, par
   // exemple — retire bien les rectangles tenus, et qu'une vue immobile ne les retire pas.
   counts.rectanglesProjetes = rectangles;
-  return { occluders, twoPass, restSignature };
+  return { occluders, twoPass, restDigest, projectionGeneration: hizProjection.generation };
 }

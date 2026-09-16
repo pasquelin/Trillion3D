@@ -144,7 +144,8 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
     try {
       await run.gpuSelection.flush();
       if (run.gpuSelection.failed()) dropGpuSelection(rt);
-      else if (run.gpuFrameActive && services.adoptGpuCut()) run.frameHold.invalidate();
+      // Origine du changement de ressources : l'adoption d'un relevé a réécrit les listes de coupe.
+      else if (run.gpuFrameActive && services.adoptGpuCut()) run.gate.resourcesChanged();
     } catch (error) {
       diag.diagnosticFailure('gpu-selection-fallback', error);
       dropGpuSelection(rt);

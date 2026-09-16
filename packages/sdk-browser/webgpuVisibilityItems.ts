@@ -21,7 +21,9 @@ export function createVisibilityItemsHold() {
     tableEpoch: -1,
     rowsEpoch: -1,
     packedCount: -1,
-    restSignature: 0,
+    restDigest: 0,
+    occluders: -1,
+    projectionGeneration: -1,
     twoPass: false,
     layerSlots: -1,
     occluderVertices: 0,
@@ -34,10 +36,15 @@ export function createVisibilityItemsHold() {
  *  lands in `rt.timing.lastItemsMs`. */
 export function buildWebgpuVisibilityItems(
   rt: WebgpuPagesRuntime,
-  twoPass: boolean,
   itemsDirty: boolean,
-  restSignature: number,
+  partition: {
+    occluders: number;
+    twoPass: boolean;
+    restDigest: number;
+    projectionGeneration: number;
+  },
 ) {
+  const { twoPass, restDigest, occluders, projectionGeneration } = partition;
   const {
     rows,
     hizRest,
@@ -58,7 +65,9 @@ export function buildWebgpuVisibilityItems(
     itemsHold.tableEpoch === rows.tableEpoch &&
     itemsHold.rowsEpoch === rows.rowsEpoch &&
     itemsHold.packedCount === rows.packedCount &&
-    itemsHold.restSignature === restSignature &&
+    itemsHold.restDigest === restDigest &&
+    itemsHold.occluders === occluders &&
+    itemsHold.projectionGeneration === projectionGeneration &&
     itemsHold.twoPass === twoPass &&
     itemsHold.layerSlots === layerSlots
   ) {
@@ -114,7 +123,9 @@ export function buildWebgpuVisibilityItems(
   itemsHold.tableEpoch = rows.tableEpoch;
   itemsHold.rowsEpoch = rows.rowsEpoch;
   itemsHold.packedCount = rows.packedCount;
-  itemsHold.restSignature = restSignature;
+  itemsHold.restDigest = restDigest;
+  itemsHold.occluders = occluders;
+  itemsHold.projectionGeneration = projectionGeneration;
   itemsHold.twoPass = twoPass;
   itemsHold.layerSlots = layerSlots;
   itemsHold.occluderVertices = occluderVertices;

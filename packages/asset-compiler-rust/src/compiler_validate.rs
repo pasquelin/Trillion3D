@@ -29,17 +29,24 @@ pub(super) fn hash(b: &[u8]) -> String {
     format!("{:x}", Sha256::digest(b))
 }
 pub(super) fn hash_file(p: &Path) -> Result<String> {
+    Ok(hash_file_tail(p)?.0)
+}
+/// L'empreinte du fichier et son dernier octet, d'une seule passe de lecture : un appelant qui veut
+/// savoir comment le fichier finit n'a pas à le rouvrir derrière. `None` pour un fichier vide.
+pub(super) fn hash_file_tail(p: &Path) -> Result<(String, Option<u8>)> {
     let mut f = File::open(p)?;
     let mut h = Sha256::new();
     let mut block = [0u8; 65536];
+    let mut last = None;
     loop {
         let n = f.read(&mut block)?;
         if n == 0 {
             break;
         }
         h.update(&block[..n]);
+        last = Some(block[n - 1]);
     }
-    Ok(format!("{:x}", h.finalize()))
+    Ok((format!("{:x}", h.finalize()), last))
 }
 pub(super) fn is_safe_source_name(name: &str) -> bool {
     !name.is_empty()
@@ -51,6 +58,27 @@ pub(super) fn is_safe_source_name(name: &str) -> bool {
         && !name.contains("..")
         && !name.contains('\0')
 }
+/// Le chemin d'une ressource sous la racine servie, assaini. Un chemin absolu, un chemin qui nomme
+/// un volume, ou dont un segment n'est pas un nom de fichier sûr — il remonterait au-dessus de la
+/// racine — n'en a pas : la ressource est comptée absente plutôt que lue hors du dossier source.
+/// `separators` dit ce qui sépare les segments dans le format d'origine.
+pub(super) fn safe_relative(file: &str, separators: &[char]) -> Option<String> {
+    if file.starts_with('/') || file.contains(':') {
+        return None;
+    }
+    let mut parts: Vec<&str> = Vec::new();
+    for part in file
+        .split(separators)
+        .filter(|part| !part.is_empty() && *part != ".")
+    {
+        if !is_safe_source_name(part) {
+            return None;
+        }
+        parts.push(part);
+    }
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
 pub(super) fn triangle_fingerprint<'a>(triangles: impl Iterator<Item = &'a [u32]>) -> u64 {
     let mut total = 0u64;
     for tri in triangles {

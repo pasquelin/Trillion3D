@@ -81,12 +81,8 @@ fn compute(surface: &mut Surface, polygons: &[faces::Face], edges: &[[f64; 3]], 
 /// qui ne change rien à sa dureté. La valeur la plus basse d'un entier signé n'a pas d'opposé, donc
 /// ne désigne aucune arête ; la face entière est déjà comptée ailleurs sous `ma-mesh-invalid`.
 fn is_hard(edges: &[[f64; 3]], signed: Option<i64>) -> bool {
-    let rank = match signed {
-        Some(signed) if signed < 0 => signed.checked_neg().and_then(|value| value.checked_sub(1)),
-        Some(signed) => Some(signed),
-        None => None,
-    };
-    rank.and_then(|rank| usize::try_from(rank).ok())
-        .and_then(|rank| edges.get(rank))
+    signed
+        .and_then(super::edge_rank)
+        .and_then(|(rank, _)| edges.get(rank))
         .is_some_and(|edge| edge[2] != 0.0)
 }

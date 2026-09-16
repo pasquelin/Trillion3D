@@ -97,7 +97,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt;
-  if (!run.frameHold.stable || !run.frameHold.same(run.revisions) || !frameSettled(rt)) {
+  if (!run.gate.held() || !frameSettled(rt)) {
     run.frameHeld = false;
     return false;
   }
@@ -119,6 +119,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /** Range l'image qui vient d'être encodée et soumise en entier : elle seule autorise une tenue. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
-  sampleWebgpuFrame(rt, rt.run.frameHold.sample);
-  rt.run.frameHold.keep(rt.run.revisions);
+  const { gate } = rt.run;
+  sampleWebgpuFrame(rt, gate.hold.sample);
+  gate.hold.keep(gate.revisions);
 }

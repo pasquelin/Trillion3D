@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import {
   createSelectionResult,
-  resolvePixelError,
   selectVisiblePages,
   type PageRec,
   type ClusterRoot,
@@ -11,7 +10,6 @@ import { lighting } from './backendCommon.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -114,19 +112,11 @@ export function createExactPagesRender(options: {
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
     state.lastCamera = camera;
-    // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
-    // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
-    resolveCameraWorld(camera);
-    // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
-    // adaptatif de la première image qui bouge à nouveau.
-    state.lastPixelError = resolvePixelError(context, camera, motion);
-    gate.viewChanged(camera, viewport, state.lastPixelError);
-    // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture est ce
-    // qui l'annonce, et elle précède la décision de tenir l'image.
-    gate.readScene(source, sourcesDessinees);
-    // Rien n'a bougé et les deux images précédentes ont produit la même coupe : la scène attachée
-    // est déjà cette image-ci, et l'hôte la redessine telle quelle.
-    state.frameHeld = gate.held();
+    // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`. Rien n'a bougé et
+    // les deux images précédentes ont produit la même coupe : la scène attachée est déjà cette
+    // image-ci, et l'hôte la redessine telle quelle.
+    state.frameHeld = gate.enterFrame(context, camera, motion, viewport, source, sourcesDessinees);
+    state.lastPixelError = gate.pixelError;
     if (state.frameHeld) return heldProfile();
     const worldStart = performance.now();
     // Les matrices monde ne sont fonction que de la scène. Les copies transparentes n'ont rien à

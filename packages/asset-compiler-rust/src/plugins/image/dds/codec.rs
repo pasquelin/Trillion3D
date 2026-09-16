@@ -107,6 +107,10 @@ pub(super) fn from_fourcc(fourcc: [u8; 4]) -> Option<Codec> {
     })
 }
 
+/// Les `dxgiFormat` de la liste que le registre `DXGI_FORMAT` nomme `_SRGB`. Ils portent exactement
+/// les mêmes octets que leurs jumeaux `_UNORM`, qui les précèdent immédiatement au registre.
+const SRGB: &[u32] = &[29, 72, 75, 78, 91, 93, 99];
+
 /// Le codec d'un `dxgiFormat` de l'entête DX10 et la fonction de transfert que ce nom **déclare**,
 /// par les valeurs de l'énumération `DXGI_FORMAT`. Une variante `_SRGB` porte exactement les mêmes
 /// octets que son `_UNORM` et ne veut pas dire la même chose : l'une annonce des échantillons
@@ -114,35 +118,31 @@ pub(super) fn from_fourcc(fourcc: [u8; 4]) -> Option<Codec> {
 /// déclarent pas leur interprétation ; les signées, les flottantes (BC6H), les 16 bits et les YUV
 /// sortent de la liste.
 pub(super) fn from_dxgi(format: u32) -> Option<(Codec, Transfer)> {
-    let linear = Transfer::Linear;
-    let srgb = Transfer::Srgb;
-    Some(match format {
+    let codec = match format {
         // R8G8B8A8_UNORM, R8G8B8A8_UNORM_SRGB
-        28 => (Codec::Rgba8, linear),
-        29 => (Codec::Rgba8, srgb),
+        28 | 29 => Codec::Rgba8,
         // BC1_UNORM, BC1_UNORM_SRGB
-        71 => (Codec::Bc1, linear),
-        72 => (Codec::Bc1, srgb),
+        71 | 72 => Codec::Bc1,
         // BC2_UNORM, BC2_UNORM_SRGB
-        74 => (Codec::Bc2, linear),
-        75 => (Codec::Bc2, srgb),
+        74 | 75 => Codec::Bc2,
         // BC3_UNORM, BC3_UNORM_SRGB
-        77 => (Codec::Bc3, linear),
-        78 => (Codec::Bc3, srgb),
+        77 | 78 => Codec::Bc3,
         // BC4_UNORM, BC5_UNORM : un et deux canaux interpolés, sans variante sRGB au registre.
-        80 => (Codec::Bc4, linear),
-        83 => (Codec::Bc5, linear),
+        80 => Codec::Bc4,
+        83 => Codec::Bc5,
         // B8G8R8A8_UNORM, B8G8R8A8_UNORM_SRGB
-        87 => (Codec::Bgra8, linear),
-        91 => (Codec::Bgra8, srgb),
+        87 | 91 => Codec::Bgra8,
         // B8G8R8X8_UNORM, B8G8R8X8_UNORM_SRGB
-        88 => (Codec::Bgrx8, linear),
-        93 => (Codec::Bgrx8, srgb),
+        88 | 93 => Codec::Bgrx8,
         // BC7_UNORM, BC7_UNORM_SRGB
-        98 => (Codec::Bc7, linear),
-        99 => (Codec::Bc7, srgb),
+        98 | 99 => Codec::Bc7,
         _ => return None,
-    })
+    };
+    let transfer = match SRGB.contains(&format) {
+        true => Transfer::Srgb,
+        false => Transfer::Linear,
+    };
+    Some((codec, transfer))
 }
 
 /// Le codec d'une surface non compressée, par ses masques `dwRBitMask`, `dwGBitMask`,

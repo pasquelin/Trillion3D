@@ -33,7 +33,9 @@ export function resetHizHistory(run: WebgpuRunState) {
 }
 
 export function dropGpuSelection(rt: WebgpuPagesRuntime) {
-  rt.run.frameHold.invalidate();
+  // Origine du changement de ressources : la sélection par la carte n'est plus une capacité de ce
+  // moteur, et l'image suivante refait sa coupe sans elle.
+  rt.run.gate.resourcesChanged();
   rt.run.gpuSelection?.dispose();
   rt.run.gpuSelection = undefined;
   rt.capabilities.gpuDriven = false;
@@ -62,7 +64,8 @@ function dropGpuDraw(rt: WebgpuPagesRuntime) {
 export function dropVis(rt: WebgpuPagesRuntime) {
   const { vis, capabilities } = rt,
     { rows, drawSlots } = rt.layout;
-  rt.run.frameHold.invalidate();
+  // Origine du changement de ressources : le tampon de visibilité n'est plus une capacité.
+  rt.run.gate.resourcesChanged();
   vis.visEnabled = false;
   vis.visPipelineBack = undefined;
   vis.visPipelineBackCw = undefined;

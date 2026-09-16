@@ -128,27 +128,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     get diagnostic() {
       return diagnostic;
     },
-    get visible() {
-      return renderState.visible;
-    },
-    get selectedTriangles() {
-      return renderState.selectedTriangles;
-    },
-    get frustumRejected() {
-      return renderState.frustumRejected;
-    },
-    get lodLevel() {
-      return renderState.lodLevel;
-    },
-    get cpuSelectMs() {
-      return renderState.cpuSelectMs;
-    },
-    get cpuSelectNodesTested() {
-      return renderState.cpuSelectNodesTested;
-    },
-    get frameHeld() {
-      return renderState.frameHeld;
-    },
+    state: renderState,
   });
   const renderFrame = createExactPagesRender({
     state: renderState,
@@ -184,6 +164,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     async prepare() {},
     get overBudget() {
       return renderState.overBudget;
+    },
+    get frameHeld() {
+      return renderState.frameHeld;
     },
     ...sceneLightingApi(sceneLights, gate.sceneChanged),
     render: renderFrame,

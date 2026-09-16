@@ -2,13 +2,17 @@
 // de vue de l'image. La tenue des fiches de visibilité les gardait pourtant sur la seule table de
 // lignes et la partition occulteurs/testés : une caméra qui bougeait sans changer cette partition
 // faisait tester à l'image les rectangles de la caméra précédente, et des surfaces visibles
-// pouvaient être rejetées à tort. La signature que la partition rend porte désormais l'âge des
+// pouvaient être rejetées à tort. La clé que la partition rend porte désormais l'âge des
 // rectangles, qui change dès que la vue, le viewport ou l'âge de la table les retire.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { createWebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+
+/** La clé que la tenue des fiches de visibilité compare, champ par champ. */
+const cle = (partition: ReturnType<typeof partitionWebgpuVisibility>) =>
+  [partition.occluders, partition.projectionGeneration, partition.restDigest].join('/');
 
 /** Deux pages dont l'historique ne partage que la première : la partition rend deux passes, donc
  *  une moitié testée, donc des bornes projetées à envoyer au noyau. */
@@ -28,24 +32,24 @@ function moteur() {
   };
 }
 
-test('vue immobile : la signature de partition ne bouge pas d’une image à l’autre', () => {
+test('vue immobile : la clé de partition ne bouge pas d’une image à l’autre', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
   const premiere = partitionWebgpuVisibility(rt, vue);
   assert.equal(premiere.twoPass, true, 'sans moitié testée, il n’y a aucune borne à tenir');
   for (let i = 0; i < 3; i++)
     assert.equal(
-      partitionWebgpuVisibility(rt, vue).restSignature,
-      premiere.restSignature,
-      'la signature change sans que rien ne bouge : la tenue ne s’appliquerait jamais',
+      cle(partitionWebgpuVisibility(rt, vue)),
+      cle(premiere),
+      'la clé change sans que rien ne bouge : la tenue ne s’appliquerait jamais',
     );
   dispose();
 });
 
-test('caméra déplacée, partition des pages identique : la signature change avec les rectangles', () => {
+test('caméra déplacée, partition des pages identique : la clé change avec les rectangles', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const avant = partitionWebgpuVisibility(rt, vue).restSignature;
+  const avant = cle(partitionWebgpuVisibility(rt, vue));
   const partitionAvant = Array.from(rt.layout.hizRest.subarray(0, 2));
   vue.position.set(1.5, 0.5, vue.position.z);
   vue.updateMatrixWorld();
@@ -56,7 +60,7 @@ test('caméra déplacée, partition des pages identique : la signature change av
     'la partition des pages a changé : le cas n’est plus celui qu’on veut tenir',
   );
   assert.notEqual(
-    apres.restSignature,
+    cle(apres),
     avant,
     'les bornes projetées de la caméra précédente auraient été tenues',
   );
@@ -66,21 +70,21 @@ test('caméra déplacée, partition des pages identique : la signature change av
 test('cible redimensionnée, même caméra : la signature change aussi', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const avant = partitionWebgpuVisibility(rt, vue).restSignature;
+  const avant = cle(partitionWebgpuVisibility(rt, vue));
   rt.gpu.targetSize[0] = 64;
   assert.notEqual(
-    partitionWebgpuVisibility(rt, vue).restSignature,
+    cle(partitionWebgpuVisibility(rt, vue)),
     avant,
     'un rectangle d’écran dépend de la cible autant que de la caméra',
   );
   dispose();
 });
 
-test('âge de table changé : la signature change, les boîtes ne décrivent plus les mêmes pages', () => {
+test('âge de table changé : la clé change, les boîtes ne décrivent plus les mêmes pages', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const avant = partitionWebgpuVisibility(rt, vue).restSignature;
+  const avant = cle(partitionWebgpuVisibility(rt, vue));
   rt.layout.rows.tableEpoch++;
-  assert.notEqual(partitionWebgpuVisibility(rt, vue).restSignature, avant);
+  assert.notEqual(cle(partitionWebgpuVisibility(rt, vue)), avant);
   dispose();
 });

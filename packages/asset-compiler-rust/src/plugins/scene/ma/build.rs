@@ -28,8 +28,6 @@ pub(super) struct World<'a> {
     pub(super) materials: HashMap<usize, Option<usize>>,
     /// Les maillages déjà construits, par rang de nœud `mesh`.
     pub(super) meshes: HashMap<usize, Option<usize>>,
-    /// Les images déjà versées, par URI relative.
-    pub(super) images_by_uri: HashMap<String, usize>,
     /// Les nœuds glTF qui n'héritent pas de leur père : la racine de la scène les reprend.
     detached: Vec<usize>,
     pub(super) cancelled: &'a AtomicBool,
@@ -69,7 +67,6 @@ pub(super) fn scene(
         added,
         materials: HashMap::new(),
         meshes: HashMap::new(),
-        images_by_uri: HashMap::new(),
         detached: Vec::new(),
         cancelled: request.cancelled,
     };

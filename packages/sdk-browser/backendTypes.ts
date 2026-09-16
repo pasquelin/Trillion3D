@@ -1,12 +1,12 @@
 import type * as THREE from 'three';
 import type {
-  FrameMetrics,
   BackendCapabilities,
   ClusterManifest,
   SceneLightStore,
   StageProfile,
 } from '../sdk-core/index.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
+import type { BackendMetrics } from './backendMetricKeys.ts';
 
 export type { BackendCapabilities };
 
@@ -26,49 +26,11 @@ export interface RenderBackend {
   prepare(): Promise<void>;
   render(camera: THREE.PerspectiveCamera): void;
   readonly overBudget: boolean;
+  /** Vrai quand la dernière image rendue a été tenue : rien n'a été resélectionné ni remonté, et la
+   *  scène attachée EST cette image-ci. Lu par image ; absent d'un moteur qui ne tient rien. */
+  readonly frameHeld?: boolean;
   scene: THREE.Scene;
-  metrics(): Partial<
-    Pick<
-      FrameMetrics,
-      | 'clusters'
-      | 'selectedTriangles'
-      | 'residentPages'
-      | 'geometryAllocationBytes'
-      | 'pagesDetached'
-      | 'cacheEvictions'
-      | 'frustumRejected'
-      | 'lodLevel'
-      | 'submittedTriangles'
-      | 'totalSubmittedTriangles'
-      | 'transparentMeshes'
-      | 'transparentFrustumRejected'
-      | 'transparentDrawCalls'
-      | 'transparentSubmittedTriangles'
-      | 'coverageReady'
-      | 'coverageBudgetLimited'
-      | 'frameHeld'
-      | 'textureUploaded'
-      | 'texturePending'
-      | 'textureInFlight'
-      | 'textureSlicesUploaded'
-      | 'textureBytesLastFrame'
-      | 'textureSkipped'
-      | 'textureLevelsUploaded'
-      | 'textureAtlasBytesCalculated'
-      | 'textureAtlasClassBytesCalculated'
-      | 'textureAtlasClassesUsed'
-      | 'lightsActive'
-      | 'shadowsUpdated'
-      | 'gpuLightListsMs'
-      | 'gpuShadowsMs'
-      | 'gpuLightingMs'
-      | 'shadowFacesDrawn'
-      | 'shadowDrawCalls'
-      | 'shadowPagesDrawn'
-      | 'shadowPagesPending'
-      | 'shadowWaitMs'
-    >
-  > & {
+  metrics(): BackendMetrics & {
     drawCalls?: number;
     batchRebuilds?: number;
     batchIndexBytesUpdated?: number;

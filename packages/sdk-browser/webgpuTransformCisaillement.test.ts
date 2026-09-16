@@ -193,6 +193,7 @@ test('deux déplacements successifs ne s accumulent pas et la table est déclar�
   assert.equal(run.temporalHizState.pyramid, undefined);
   // Sans cet incrément, la porte d'image tiendrait l'image précédente et le nœud déplacé resterait
   // dessiné là où il était ; `worldsRevision` suit, la hiérarchie portant déjà ces matrices.
-  assert.equal(run.revisions.scene, 3, 'une révision de scène par déplacement');
-  assert.equal(run.worldsRevision, run.revisions.scene);
+  assert.equal(run.gate.revisions.scene, 3, 'une révision de scène par déplacement');
+  // La hiérarchie porte déjà les matrices de cette révision : rien à remonter.
+  assert.equal(run.gate.updateWorlds(source), false);
 });

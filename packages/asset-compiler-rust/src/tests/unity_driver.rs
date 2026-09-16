@@ -24,20 +24,6 @@ fn prepare(source: &Path, cache: &Path) -> std::result::Result<PathBuf, (&'stati
     }
 }
 
-/// Un dossier jetable, nommé par le cas qui l'utilise.
-fn temp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "wg-unity-{tag}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock")
-            .as_nanos()
-    ));
-    fs::create_dir_all(&dir).expect("temp dir");
-    dir
-}
-
 /// L'entête que l'éditeur écrit en tête de chaque fichier sérialisé.
 const HEAD: &[u8] = b"%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n";
 
@@ -45,7 +31,7 @@ const HEAD: &[u8] = b"%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n";
 // sans panique ni allocation non bornée — la fixture `limites` est le fichier de 31 octets.
 #[test]
 fn a_truncated_unity_file_is_refused_with_a_code() {
-    let cache = temp_dir("truncated");
+    let cache = scratch("unity", "truncated");
     let source = golden_dir("unity/limites").join("truncated.unity");
     let (code, message) = prepare(&source, &cache).expect_err("a truncated scene is refused");
     assert_eq!(code, "IMPORT_ERROR");
@@ -57,7 +43,7 @@ fn a_truncated_unity_file_is_refused_with_a_code() {
 // demande qu'on lui en désigne une, plutôt que d'en choisir une à la place de l'appelant.
 #[test]
 fn several_scenes_in_one_directory_are_refused_and_named() {
-    let dir = temp_dir("scenes");
+    let dir = scratch("unity", "scenes");
     fs::write(dir.join("Map.unity"), HEAD).expect("first");
     fs::write(dir.join("Other.unity"), HEAD).expect("second");
     let (code, message) = prepare(&dir, &dir).expect_err("two scenes are refused");
@@ -87,7 +73,7 @@ fn a_unity_project_directory_wins_over_the_models_it_carries() {
         }
         Routed::Manifest => panic!("routed to the manifest"),
     }
-    let dir = temp_dir("modeles");
+    let dir = scratch("unity", "modeles");
     fs::write(dir.join("a.fbx"), b"Kaydara FBX Binary  ").expect("fbx");
     fs::write(dir.join("b.obj"), b"v 0 0 0\n").expect("obj");
     let refusal = route(&dir)
@@ -101,7 +87,7 @@ fn a_unity_project_directory_wins_over_the_models_it_carries() {
 // la directive de tag que l'éditeur écrit en tête de chaque fichier sérialisé.
 #[test]
 fn a_unity_data_file_is_recognised_by_its_head() {
-    let dir = temp_dir("head");
+    let dir = scratch("unity", "head");
     let file = dir.join("scene-without-extension");
     fs::write(&file, HEAD).expect("write");
     match route(&file).expect("a headed file is claimed") {

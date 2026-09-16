@@ -6,6 +6,8 @@
 //! compilateur sache lire. Ce qui est ici ne dépend d'aucun format : seul le remplissage en dépend.
 //! Rien n'est jamais écrit à côté de la source.
 use super::*;
+mod media;
+pub(crate) use media::readable;
 
 /// Le filtrage qu'un échantillonneur porte sans mention contraire : linéaire à l'agrandissement,
 /// linéaire entre mipmaps au rétrécissement.
@@ -20,6 +22,8 @@ pub(crate) struct SceneTables {
     pub(crate) materials: Vec<Value>,
     pub(crate) accessors: Vec<Value>,
     pub(crate) images: Vec<Value>,
+    /// Les images déjà versées, par URI relative : une URI n'entre qu'une fois dans la table.
+    images_by_uri: HashMap<String, usize>,
     pub(crate) samplers: Vec<Value>,
     /// Le premier échantillonneur de chaque réglage — répétition des deux axes, puis filtrage —,
     /// versé ou créé.
@@ -43,6 +47,7 @@ impl SceneTables {
             materials: Vec::new(),
             accessors: Vec::new(),
             images: Vec::new(),
+            images_by_uri: HashMap::new(),
             samplers: Vec::new(),
             sampler_ids: HashMap::new(),
             textures: Vec::new(),

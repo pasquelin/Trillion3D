@@ -9,15 +9,21 @@ use crate::import::Vertices;
 use crate::plugins::scene::ngon::Ngon;
 
 impl Surface {
-    /// Verse l'anneau d'une face dans le découpeur et le coupe. Rend `false` quand la face n'a pas
-    /// donné toutes ses oreilles : elle sort alors en éventail, et l'appelant la compte.
-    pub(super) fn cut(&self, cutter: &mut Ngon, face: usize) -> bool {
+    /// Verse l'anneau d'une face dans le découpeur et le coupe. Rend `None` quand l'annulation
+    /// arrête le découpage, `Some(false)` quand la face n'a pas donné toutes ses oreilles : elle
+    /// sort alors en éventail, et l'appelant la compte.
+    pub(super) fn cut(
+        &self,
+        cutter: &mut Ngon,
+        face: usize,
+        cancelled: &AtomicBool,
+    ) -> Option<bool> {
         cutter.begin();
         for vertex in self.loops.get(face).map_or(&[][..], Vec::as_slice) {
             let point = self.positions.get(*vertex as usize);
             cutter.corner(point.copied().unwrap_or_default());
         }
-        cutter.cut()
+        cutter.cut(cancelled)
     }
 
     /// Le sommet glTF d'un coin de face, créé à sa première rencontre. Trois rangs l'identifient :

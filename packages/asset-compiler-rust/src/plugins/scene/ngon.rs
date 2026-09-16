@@ -13,6 +13,8 @@
 //! en éventail, et la coupe le dit à l'appelant, qui le compte sous son propre nom.
 #[cfg(test)]
 mod tests;
+use super::cancel;
+use std::sync::atomic::AtomicBool;
 
 /// Un découpeur réutilisable : l'anneau, sa projection, les rangs encore vivants et les triangles
 /// servent d'une face à l'autre, pour qu'un maillage de mille faces n'alloue pas mille fois.
@@ -22,6 +24,9 @@ pub(super) struct Ngon {
     flat: Vec<[f64; 2]>,
     alive: Vec<usize>,
     triangles: Vec<[usize; 3]>,
+    /// Les faces que ce découpeur a déjà coupées : c'est ce compte qui borne la relecture du jeton
+    /// d'annulation, une fois par tranche.
+    done: usize,
 }
 
 impl Ngon {
@@ -35,16 +40,23 @@ impl Ngon {
         self.ring.push(point);
     }
 
-    /// Découpe l'anneau. Rend `false` quand une oreille a manqué — polygone qui se recoupe, ou sans
-    /// plan : les triangles rendus retombent alors sur l'éventail, et l'appelant compte la face.
-    pub(super) fn cut(&mut self) -> bool {
+    /// Découpe l'anneau. Rend `None` quand le jeton d'annulation est levé : le découpeur le relit
+    /// lui-même, par tranche de faces, pour qu'un seul maillage énorme s'arrête aussi, et aucun
+    /// pilote n'a à s'en souvenir. Rend `Some(false)` quand une oreille a manqué — polygone qui se
+    /// recoupe, ou sans plan : les triangles rendus retombent alors sur l'éventail, et l'appelant
+    /// compte la face.
+    pub(super) fn cut(&mut self, cancelled: &AtomicBool) -> Option<bool> {
+        if cancel::stopped(cancelled, self.done) {
+            return None;
+        }
+        self.done += 1;
         self.triangles.clear();
         if self.ring.len() < 3 {
-            return true;
+            return Some(true);
         }
         let Some(turn) = self.project() else {
             self.fan();
-            return false;
+            return Some(false);
         };
         self.alive.clear();
         self.alive.extend(0..self.ring.len());
@@ -64,7 +76,7 @@ impl Ngon {
         }
         self.triangles
             .push([self.alive[0], self.alive[1], self.alive[2]]);
-        exact
+        Some(exact)
     }
 
     /// Les triangles de la dernière coupe, en rangs de coins de l'anneau.

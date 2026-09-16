@@ -46,6 +46,20 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
     (root, options)
 }
 
+/// Un dossier jetable, nommé par le pilote qui le demande et le cas qui l'utilise.
+pub(super) fn scratch(prefix: &str, tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!(
+        "wg-{prefix}-{tag}-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos()
+    ));
+    fs::create_dir_all(&dir).expect("temp dir");
+    dir
+}
+
 pub(super) fn read_json(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("read")).expect("json")
 }

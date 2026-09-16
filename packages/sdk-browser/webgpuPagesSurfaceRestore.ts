@@ -9,7 +9,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
   rt.capture.surfaceRenderAllowed = true;
   // Une capture rend depuis une autre caméra et rétablit ensuite l'image : rien n'y est tenu.
-  rt.run.frameHold.invalidate();
+  rt.run.gate.viewReplaced();
   try {
     renderWebgpuPages(rt, camera);
   } finally {

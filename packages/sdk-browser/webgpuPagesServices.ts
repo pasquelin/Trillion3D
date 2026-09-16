@@ -14,7 +14,6 @@ import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
-import { bumpResources } from './frameRevisions.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -60,7 +59,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     () => !!gpu.cache,
     { commitRows, sourceRowOf },
     // Origine du changement de ressources : la page entre dans la résidence ou en sort.
-    (rec) => (bumpResources(run.revisions), noteResidenceChange(rt.lights, rec)),
+    (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
   const pageSource = {
     read: async (key: string) => {

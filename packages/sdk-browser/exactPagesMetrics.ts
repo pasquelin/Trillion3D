@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { geometryBytes } from './sceneMeshes.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { PageRec } from './pageSelection.ts';
+import type { ExactPagesRenderState } from './exactPagesRender.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 
@@ -17,13 +18,9 @@ type MetricsContext = {
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
   readonly diagnostic: DiagnosticMode;
-  readonly visible: number;
-  readonly selectedTriangles: number;
-  readonly frustumRejected: number;
-  readonly lodLevel: number;
-  readonly cpuSelectMs: number;
-  readonly cpuSelectNodesTested: number;
-  readonly frameHeld: boolean;
+  /** Ce que l'image en cours a décidé, lu tel quel : le relevé ne recopie pas champ par champ ce que
+   *  l'état de rendu porte déjà. */
+  state: ExactPagesRenderState;
 };
 
 export function createExactPagesMetrics(ctx: MetricsContext) {
@@ -38,6 +35,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
     release,
     disposeGeometry,
     scene,
+    state,
   } = ctx;
   return {
     metrics() {
@@ -67,15 +65,15 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         0,
       );
       return {
-        cpuSelectMs: ctx.cpuSelectMs,
-        cpuSelectNodesTested: ctx.cpuSelectNodesTested,
-        clusters: ctx.visible,
-        selectedTriangles: ctx.selectedTriangles,
+        cpuSelectMs: state.cpuSelectMs,
+        cpuSelectNodesTested: state.cpuSelectNodesTested,
+        clusters: state.visible,
+        selectedTriangles: state.selectedTriangles,
         residentPages: attached.length,
         pagesDetached: counters.pagesDetached,
         geometryAllocationBytes: bytes,
-        frustumRejected: ctx.frustumRejected,
-        lodLevel: ctx.lodLevel,
+        frustumRejected: state.frustumRejected,
+        lodLevel: state.lodLevel,
         submittedTriangles: submitted,
         totalSubmittedTriangles: submitted + transparentSubmittedTriangles,
         transparentMeshes: blendCopies.length,
@@ -87,7 +85,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         displayDetachments: counters.displayDetachments + batched.detachments,
         pageRangeWrites: batched.pageRangeWrites,
         subDraws: batched.subDraws,
-        frameHeld: ctx.frameHeld,
+        frameHeld: state.frameHeld,
       };
     },
     dispose() {

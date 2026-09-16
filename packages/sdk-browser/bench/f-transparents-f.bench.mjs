@@ -109,7 +109,9 @@ const lignes = [
     fichier: 'packages/sdk-browser/webgpuVisibilityItems.ts',
     cas: casItems,
     reference: passeItems(referenceBuildItems),
-    optimisee: passeItems(buildWebgpuVisibilityItems),
+    optimisee: passeItems((rt, twoPass, itemsDirty) =>
+      buildWebgpuVisibilityItems(rt, itemsDirty, { twoPass }),
+    ),
     options: { chauffe: 10, tours: 200, budgetMs: 3000 },
   }),
 ];

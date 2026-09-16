@@ -67,7 +67,12 @@ test('buildWebgpuVisibilityItems packs each row’s coplanar layer into its item
     vis: { drawLayerSlots: 3 },
     timing: { lastItemsMs: 0 },
   } as unknown as WebgpuPagesRuntime;
-  buildWebgpuVisibilityItems(rt, false, true, 0);
+  buildWebgpuVisibilityItems(rt, true, {
+    twoPass: false,
+    restDigest: 0,
+    occluders: 0,
+    projectionGeneration: 0,
+  });
   assert.equal(
     layout.drawItemWords[0 * DRAW_ITEM_U32 + 3],
     0,
