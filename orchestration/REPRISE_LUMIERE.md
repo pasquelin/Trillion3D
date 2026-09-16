@@ -16,3 +16,20 @@ Confirm title `Lumière` with `get_session("self")`. Follow `AGENTS.md` and `SPE
 User decisions pending: D1, WebGL `unlit` renders metals black (ambient π on PBR, Three path being removed) — fix exists as unreferenced commit b57ebd89 (`git branch hold/unlit-albedo-three b57ebd89` to keep it): declare "not faithful on metals" in WebGL capabilities, or first batch of the Three-free WebGL2 renderer. Discard `lot/banc-fiable` (worktree `lot-banc-fiable`, one unproven commit, need now covered by the compiler) and the Lab duplicate `lot/banc16-refonte` (worktree `render-tech-lab-banc16-refonte`).
 
 Done and on develop, for orientation only: GEO-02 (program and far-proxy arrival through `run.gate.resourcesChanged()`); emitter radius is a sphere, no longer the near-plane cube (`gpuShadowShader.ts` discard by distance, fixture `classes-materiaux/emetteur-sphere.gltf`, GPU test `bench/justesse/emetteur-sphere-gpu.mjs`, compiler 0.7.0 emits `emitterRadius`); a removed light returns its shadow slice (`sceneLightShadowRelease.ts`, bench 16 three "all off" cycles stay at 155.02); bench G8 follows `SunCascade` without `boxRadius`; `sceneLit` read per frame; `unlit` identity composition on WebGPU; two-slice tile lists; far shadow on the blend pass. Images: `.mesure/out/emetteur-sphere/`, `.mesure/out/ombres-lampe-retiree/`, `.mesure/out/aa-*`. Audits: `docs/AUDIT_BANC16_2026-09-16.md`, `docs/VERIFICATION_STABILISATION_5896648_2026-09-16.md` (untracked, break `check:links` in the main checkout only). Engine notes from bench 16: `triangles` GPU counter can read 0 on a held frame while `selectedTriangles` > 0; no way to bind a `SceneLight` to a node, hosts apply the same pose to both. Test gaps: `webgpuBindBudget.test.ts` misses `createDeferredLayouts`; nothing runs `prepareWebgpuPages` end to end. Delete this file when the list is empty.
+
+## Vision: Unreal (Lumen, virtual shadow maps) versus us
+
+| Topic | Unreal | Us today | Gap / todo |
+|---|---|---|---|
+| Direct lights | Deferred, every light per tile, no practical cap | Deferred, lights per tile, cap of 32 per tile, 64 per scene | Lift the cap (todo 4) |
+| Sun shadow | One huge virtual map, only visible pages drawn, updated on change | Camera-following cascades + far proxy, page invalidation | Same idea, coarser; offscreen casters missing (todo 2) |
+| Light shadows | One virtual map per light, cached across frames | 4096² atlas, 4 maps refreshed per frame, emitter radius as a sphere | Shadow for every light in the bounce, budget in ms (todo 5, 6) |
+| Indirect light | Lumen: surface cache + screen and world probes, traced against a proxy, converges over frames | Resident proxy + damped probes + surface cache, first bounce shipped | Same architecture, less mature: bounce follows moved objects (todo 3), wall leakage (todo 5), tighten error against the oracle |
+| Reflections | Traced on the surface cache, sharp mirrors by hardware tracing when available | Mirror view per reflective surface, coded but black image | Working planar mirror (todo 7), then rough reflections (todo 10) |
+| Transparents | Forward lit, shadow and bounce approximated | Exact light loop, far shadow on the blend pass | Tile depth against the sky (todo 4), colored glass shadows (todo 10) |
+| Area / emissive sources | Rect lights, emissives feed Lumen | Point and spot with emitter radius; emissives visible but do not light | Emissives as bounce sources, later |
+| Baking | Optional, never required with Lumen | Refused by the user: everything dynamic | Same choice |
+| Frame rate | Quality drops on a slow machine (resolution, rays) | Fixed budget in ms, light converges, final image identical everywhere | Our rule is stricter; hold it on modest machines |
+| Proof | None, judged by eye | Bit for bit, A/A, oracle | Image still unstable with a mobile camera (todo 1, first) |
+
+Same battle plan as Lumen (exact direct, damped indirect on a proxy, reflections on the same cache) with two harder choices on our side: nothing baked, and a frame rate that never moves. What separates us today is maturity, not architecture: stable image, complete shadows, working mirrors.
