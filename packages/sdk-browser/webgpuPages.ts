@@ -6,6 +6,7 @@ import type { BackendFactory } from './backendTypes.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './webgpuPagesRuntime.ts';
 import { prepareGpuTiming, watchGpuDevice } from './webgpuPagesPrepareTiming.ts';
 import { prepareWebgpuPages } from './webgpuPagesPrepare.ts';
+import { reserveRootBoxes } from './mathBatchBoxes.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { flushWebgpuPages } from './webgpuPagesFlush.ts';
 import { captureSurfaceView } from './webgpuPagesSurfaceCapture.ts';
@@ -66,6 +67,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       watchGpuDevice(rt, gpuDevice, onGpuError);
       try {
         await prepareWebgpuPages(rt, gpuDevice);
+        // Le lot des boîtes monde des racines est réservé en dernier : la mémoire linéaire du
+        // module ne grandira plus derrière lui, et un déplacement de nœud n'allouera plus rien.
+        rt.layout.rootBoxes = await reserveRootBoxes(rt.layout.selectionRoots);
       } catch (error) {
         diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
