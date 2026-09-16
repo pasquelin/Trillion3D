@@ -3,7 +3,10 @@ import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { encodeWebgpuPartition } from './webgpuVisibilityPartition.ts';
 import { uploadRowCorners } from './webgpuVisibilityCorners.ts';
 import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
-import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
+import {
+  encodeHizMidFrame,
+  encodeWebgpuVisibilityPasses,
+} from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { visLayerTop } from './webgpuVisibilityUniforms.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
@@ -12,8 +15,8 @@ import { uploadDirtyRows } from './webgpuPagesEncodeDraws.ts';
 import { uploadClusterSpheres } from './webgpuShadowBounds.ts';
 import {
   encodeEmptySurfaces,
-  encodeSmallTriangles,
-  ensureGpuSmall,
+  encodeRaster,
+  ensureGpuRaster,
   ensureVisBindings,
   surfaceColorAttachments,
 } from './webgpuPagesEncodeVisSetup.ts';
@@ -42,7 +45,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const [width, height] = gpu.targetSize;
   if (!rows.packedCount) return encodeEmptySurfaces(rt, device, cam, depthTarget);
   ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
-  ensureGpuSmall(rt, device);
+  ensureGpuRaster(rt, device);
   const maxVertexCount = Math.max(1, rt.setup.pageBytes / 4);
   const useIndirect = !!vis.gpuDraw && rows.packedCount <= drawSlots;
   // The table holds every row ever claimed, so a row a page keeps stays valid across frames.
@@ -84,11 +87,22 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     clearDrawItemWords(words);
     rows.rowsChanged = false;
   }
-  encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect);
+  // Le raster de calcul est le producteur de l'image opaque : profondeur, identifiants et niveau
+  // zéro de la pyramide sortent tous de lui. Le matériel ne dessine plus de géométrie opaque — il
+  // ne reprend la main que sur l'appareil qui ne peut pas héberger ce raster.
+  run.gpuComputeDispatches = 0;
+  rt.run.hizPyramidFresh = false;
+  const dispatched = vis.gpuRaster
+    ? encodeRaster(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget, (mid) =>
+        encodeHizMidFrame(rt, device, mid, tableRows),
+      )
+    : null;
+  if (dispatched === null)
+    encodeWebgpuVisibilityPasses(rt, device, encoder, twoPass, tableRows, useIndirect);
+  else run.gpuComputeDispatches = dispatched;
   // Les compteurs que la carte vient d'écrire — partition et verdicts d'occultation — sont copiés
   // une image sur quinze, et mappés une fois l'image soumise. Aucune image n'attend ce retour.
   if (vis.gpuPartition?.countsDue(run.frame)) vis.gpuPartition.encodeCounts(encoder, run.frame);
-  encodeSmallTriangles(rt, encoder, twoPass, tableRows, maxVertexCount, idsView, depthTarget);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView) throw new Error('DEFERRED_UNAVAILABLE');
   const shadePass = encoder.beginRenderPass({
     label: 'WG material surfaces v1',

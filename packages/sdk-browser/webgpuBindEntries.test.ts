@@ -11,7 +11,7 @@ import { visGroupFor } from './webgpuVisibilityDrawer.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { BASE_SLOTS, MAX_DRAW_SLOTS } from './gpuDraw.ts';
-import { createGpuSmallTriangles } from './gpuSmallTriangles.ts';
+import { createGpuRaster } from './gpuRaster.ts';
 import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
 import type { WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -160,7 +160,7 @@ test('chaque constructeur de groupe de liaison lie exactement les entrées de sa
     beginComputePass: () => smallPass,
     beginRenderPass: () => pass,
   } as unknown as GPUCommandEncoder;
-  createGpuSmallTriangles(device, 4, 4, 8).encode(smallEncoder, {
+  createGpuRaster(device, 4, 4, 8).encode(smallEncoder, {
     indices: {} as GPUBuffer,
     positions: {} as GPUBuffer,
     pages: {} as GPUBuffer,

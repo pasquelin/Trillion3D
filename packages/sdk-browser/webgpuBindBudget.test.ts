@@ -4,7 +4,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
 import { createWebgpuShadePipeline } from './webgpuVisibilityPipelines.ts';
 import { createWebgpuBlendPipelines } from './webgpuBlendPipelines.ts';
-import { createGpuSmallTriangles } from './gpuSmallTriangles.ts';
+import { createGpuRaster } from './gpuRaster.ts';
 
 /** Le dispositif factice des dispositions : il ne garde que ce qu'on lui demande de créer. */
 function recordingDevice() {
@@ -70,6 +70,6 @@ function smallComputeLayout(device: GPUDevice) {
       return descriptor;
     },
   } as unknown as GPUDevice;
-  createGpuSmallTriangles(recording, 4, 4, 8);
+  createGpuRaster(recording, 4, 4, 8);
   return layouts[0];
 }

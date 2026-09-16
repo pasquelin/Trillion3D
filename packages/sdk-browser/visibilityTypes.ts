@@ -87,7 +87,7 @@ export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };
 /**
  * Miroir CPU de l'empaquetage que les nuanceurs écrivent en ligne
  * (`page.packedBase|(triangle&0xffu)` dans `visibilityShaderId.ts` et
- * `gpuSmallTrianglesShader.ts`, `id>>8u` / `id&0xffu` au dépaquetage dans
+ * `gpuRasterPixelWgsl.ts`, `id>>8u` / `id&0xffu` au dépaquetage dans
  * `visibilityShaderShade.ts`). Deux langages : le texte ne se partage pas, la disposition si.
  */
 export function packVisibilityId(pageIndex: number, triangleIndex: number) {

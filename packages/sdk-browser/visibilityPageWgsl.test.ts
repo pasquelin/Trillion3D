@@ -15,7 +15,7 @@ import {
 import { WRAP_COORD_WGSL, wrapLinear } from './visibilityWrapModes.ts';
 import { lineaireThree } from './bench/justesse/adressageCas.mjs';
 import { COLOR_ALPHA_WGSL, COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from './webgpuAtlasWgsl.ts';
-import { rasterSource } from './gpuSmallTrianglesShader.ts';
+import { rasterSource } from './gpuRasterShader.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
 import { VIS_SHADER } from './visibilityShaderId.ts';
 import { SHADOW_DEPTH_SHADER } from './gpuShadowShader.ts';

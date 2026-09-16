@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rasterSource } from './gpuSmallTrianglesShader.ts';
+import { rasterSource } from './gpuRasterShader.ts';
 import {
   hoisted,
   perVertex,
@@ -13,7 +13,7 @@ import {
   type Vec4,
 } from './bench/oracles/mat4HoistOracle.ts';
 
-// D1 : gpuSmallTrianglesShader.ts calcule desormais viewProj*world et le determinant de la partie
+// D1 : gpuRasterShader.ts calcule desormais viewProj*world et le determinant de la partie
 // lineaire une fois par page (par groupe de travail) au lieu de les refaire pour chaque triangle.
 // Structure : le partage existe reellement dans le shader. Comportement : le produit et le
 // determinant hisses valent exactement ce que le calcul par triangle aurait donne, sur des
