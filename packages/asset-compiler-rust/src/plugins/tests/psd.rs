@@ -5,6 +5,8 @@
 use super::super::image as registry;
 use super::{assert_claims, assert_refusals, decoded_rgba8, fixture};
 
+mod declarations;
+
 const MAX_ALLOC: u64 = 4 * 1024 * 1024;
 /// Les dimensions de toutes les fixtures : deux lignes de quatre pixels, la plus petite image où
 /// une plage de trois pixels et un pixel isolé tiennent dans la même ligne compressée.
@@ -68,18 +70,6 @@ fn les_deux_ecritures_du_composite_rendent_les_pixels_de_la_reference() {
         pixels("gris-brut.psd"),
         GRIS.to_vec(),
         "un canal de couleur porte les trois composantes"
-    );
-}
-
-// Comportement du pilote : le plan qui suit les canaux de couleur est l'alpha du composite, lu tel
-// quel et droit — aucune couleur n'est démultipliée, aucun pixel transparent n'est repeint.
-#[test]
-fn le_plan_qui_suit_les_canaux_de_couleur_est_lalpha_du_composite() {
-    assert_eq!(pixels("rgba-rle.psd"), avec_alpha(RVB), "rgba-rle.psd");
-    assert_eq!(
-        pixels("gris-alpha-rle.psd"),
-        avec_alpha(GRIS),
-        "gris-alpha-rle.psd"
     );
 }
 
