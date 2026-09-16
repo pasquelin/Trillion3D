@@ -19,22 +19,21 @@ export function createBlendArgsBuffer(device: GPUDevice, itemCount: number) {
 
 /**
  * Le repli processeur du tronc, pour un appareil sans etage de calcul : la meme regle que la
- * reference double precision, puisque c'est elle qu'il appelle. Rend le nombre d'items rejetes.
+ * reference double precision, puisque c'est elle qu'il appelle. Le compte de rejets n'est pas rendu
+ * ici : c'est l'encodage de la passe qui le tient, sur le meme verdict (`webgpuBlendDraw.ts`).
  */
 export function writeBlendArgsCpu(blendState: BlendState, device: GPUDevice) {
   const { blendGpu, drawsPacked, argsBuffer, cpuItemCounts } = blendState;
-  if (!argsBuffer) return 0;
+  if (!argsBuffer) return;
   if (blendState.argsPacked.length < blendGpu.length * 4)
     blendState.argsPacked = new Uint32Array(Math.max(4, blendGpu.length * 4));
   const args = blendState.argsPacked;
-  let rejected = 0;
   for (let i = 0; i < blendGpu.length; i++) {
     const item = blendGpu[i],
       box = item.bounds;
     const out =
       !!box &&
       frustumExcludesBox(blendState.blendPlanes, box[0], box[1], box[2], box[3], box[4], box[5]);
-    if (out) rejected++;
     args[i * 4] = drawsPacked[i * 4 + 1];
     args[i * 4 + 1] = out
       ? 0
@@ -45,5 +44,4 @@ export function writeBlendArgsCpu(blendState: BlendState, device: GPUDevice) {
     args[i * 4 + 3] = 0;
   }
   device.queue.writeBuffer(argsBuffer, 0, args.buffer as ArrayBuffer, 0, blendGpu.length * 16);
-  return rejected;
 }

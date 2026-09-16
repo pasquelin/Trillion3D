@@ -2,6 +2,7 @@
 // levée, et la décomposition TRS lue des deux côtés dans la même forme.
 import * as THREE from 'three';
 import { decomposeMatrix4 } from '../../sdk-core/index.ts';
+import { SINGULAR_DETERMINANT, normalizedLinearDeterminant } from '../../sdk-core/mathSingular.ts';
 import { compare } from '../../sdk-core/bench/banc.mjs';
 
 const options = { chauffe: 1, tours: 5, budgetMs: 200 };
@@ -32,23 +33,29 @@ export const m4 = (e) => new THREE.Matrix4().fromArray(e);
 const colonne3 = (e, k) => new THREE.Vector3(e[k], e[k + 1], e[k + 2]);
 
 /**
- * La matrice des normales de la RÉFÉRENCE, convention des faces aplaties comprise.
+ * La matrice des normales de la RÉFÉRENCE, convention des matrices singulières comprise.
  *
- * `Matrix3.getNormalMatrix` rend la matrice NULLE dès que la 3×3 est singulière : une primitive
- * écrasée sur un plan y perdrait toute normale, alors que ses faces gardent une aire et une
- * orientation. Le moteur rend l'ADJOINTE dans ce cas (`packages/sdk-core/mathMatrix3.ts`), c'est à
- * dire le produit vectoriel des arêtes transformées, que l'ombrage normalise ensuite. Cette écriture
- * dit la même convention avec les `crossVectors` et le `dot` de la bibliothèque hôte, sur les trois
- * colonnes de la 3×3 : elle ne partage aucune ligne avec le socle, et le déterminant qu'elle teste
- * est celui-là même que le socle calcule — `a · (b × c)`, mêmes produits, même ordre, même zéro.
+ * `Matrix3.getNormalMatrix` rend la matrice NULLE dès que la 3×3 est singulière — et des NaN dès que
+ * son déterminant brut déborde : une primitive écrasée sur un plan y perdrait toute normale, alors
+ * que ses faces gardent une aire et une orientation. Le moteur rend l'ADJOINTE dans ce cas
+ * (`packages/sdk-core/mathMatrix3.ts`), c'est à dire le produit vectoriel des arêtes transformées,
+ * que l'ombrage normalise ensuite, et neuf zéros quand l'échelle n'est ni finie ni strictement
+ * positive. Les VALEURS restent celles de la bibliothèque hôte là où le moteur promet la parité —
+ * `getNormalMatrix` sur une matrice régulière —, et ailleurs celles des `crossVectors` de l'hôte,
+ * qui ne partagent aucune ligne avec le socle. Seule la BRANCHE vient de la règle unique du moteur
+ * (`mathSingular.ts`) : un oracle qui jugerait la singularité autrement que le code jugé ne
+ * comparerait plus les mêmes cas.
  */
 export function normaleReference(matrice) {
   const e = matrice.elements;
+  const normalise = normalizedLinearDeterminant(e);
+  if (Number.isNaN(normalise)) return f64(new Array(9).fill(0));
   const a = colonne3(e, 0),
     b = colonne3(e, 4),
     c = colonne3(e, 8);
   const x = new THREE.Vector3().crossVectors(b, c);
-  if (a.dot(x) !== 0) return f64(new THREE.Matrix3().getNormalMatrix(matrice).elements);
+  if (a.dot(x) !== 0 && Math.abs(normalise) > SINGULAR_DETERMINANT)
+    return f64(new THREE.Matrix3().getNormalMatrix(matrice).elements);
   const y = new THREE.Vector3().crossVectors(c, a),
     z = new THREE.Vector3().crossVectors(a, b);
   return f64([...x.toArray(), ...y.toArray(), ...z.toArray()]);

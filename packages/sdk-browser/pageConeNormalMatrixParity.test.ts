@@ -25,8 +25,6 @@ const CAS_HOSTILES: THREE.Matrix4[] = [
   new THREE.Matrix4().set(1, 0, 0, 0, 0.6, 1, 0, 0, 0, 0.3, 1, 0, 0, 0, 0, 1),
   // Échelle non uniforme, un axe négatif.
   new THREE.Matrix4().makeScale(2, -3, 0.5),
-  // NaN et ±0.
-  new THREE.Matrix4().set(NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1),
 ];
 
 for (const [i, m] of CAS_HOSTILES.entries()) {
@@ -37,6 +35,23 @@ for (const [i, m] of CAS_HOSTILES.entries()) {
     assertBits(out, a9(ref), 'matrice normale');
   });
 }
+
+test('normalMatrix3 : sur une 3×3 non finie, la convention du moteur remplace celle de Three', () => {
+  // La parité avec Three vaut sur les matrices RÉGULIÈRES, et elle s'arrête là : le moteur a sa
+  // propre convention pour les matrices singulières (l'adjointe, `mathMatrix3.ts`) et pour les
+  // échelles non finies (neuf zéros, la règle de `mathSingular.ts`, celle du noyau WGSL). Three, sur
+  // ce NaN mêlé de ±0, propageait des NaN dans les neuf termes — donc dans l'axe de cône, puis dans
+  // l'éclairage. Ce test tient l'écart, plutôt que de laisser un jour la parité le reprendre.
+  const m = new THREE.Matrix4().set(NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  const ref = a9(new THREE.Matrix3().getNormalMatrix(m));
+  assert.ok(
+    [...ref].every((v) => Number.isNaN(v)),
+    `Three rendait neuf NaN, or ${[...ref]}`,
+  );
+  const out = new Float64Array(9).fill(9);
+  normalMatrix3(out, m.elements);
+  assertBits(out, new Float64Array(9), 'matrice normale du moteur');
+});
 
 test('coneContextFor : la matrice normale et la position d’œil sont celles de Three, échelle négative comprise, sous un rig', () => {
   const grandparent = new THREE.Object3D();

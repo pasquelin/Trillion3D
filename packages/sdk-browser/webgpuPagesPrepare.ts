@@ -154,11 +154,15 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   await prepareDirectLights(rt, gpuDevice);
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
-  if (vis.gpuDraw && selectionRoots.length)
+  if (vis.gpuDraw && selectionRoots.length) {
     run.gpuSelection = await createGpuDagSelection(gpuDevice, packDagSelection(selectionRoots), {
       residentCut: true,
       diagnosticGpuVariant: rt.context.diagnosticGpuVariant,
     });
+    // La carte vient de recevoir des matrices monde ABSOLUES : aucune origine de rendu n'y est
+    // encore posée, et la première image les ramènera à l'œil où qu'il soit alors.
+    run.worldUploadOrigin.fill(NaN);
+  }
   capabilities.gpuDriven = !!run.gpuSelection;
   await services.bootstrapState.ensure();
   diag.engineDiagnostic('render-capabilities', 'Chemins de rendu prêts', {

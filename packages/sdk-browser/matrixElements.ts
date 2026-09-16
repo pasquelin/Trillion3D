@@ -13,6 +13,16 @@ export function copyElements(held: Float64Array, now: ArrayLike<number>) {
 }
 
 /**
+ * Le chemin inverse : les seize flottants d'un tampon possédé posés dans une matrice de l'HÔTE. Le
+ * socle ne calcule que dans des `Float64Array` — un seul type de tampon pour le produit et l'inverse
+ * (`mathMatrix4.ts`) — et les matrices de la bibliothèque hôte sont des tableaux ordinaires : un
+ * résultat destiné à l'hôte se compose donc à part, puis se recopie ici.
+ */
+export function writeElements(into: { [index: number]: number }, from: Float64Array) {
+  for (let i = 0; i < 16; i++) into[i] = from[i];
+}
+
+/**
  * Une matrice 4×4 colonne-major que l'HÔTE possède — la pose d'un nœud de sa scène. Le moteur n'en
  * lit que les seize flottants : aucune structure de la bibliothèque hôte ne traverse une signature.
  */

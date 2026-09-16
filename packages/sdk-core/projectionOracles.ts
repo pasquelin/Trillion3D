@@ -1,7 +1,6 @@
-/**
- * Oracles mathématiques et algorithmes de référence pour Web Geometry.
- * Référence pure TypeScript (sans DOM ni dépendances plateforme).
- */
+// Oracles mathématiques et algorithmes de référence pour Web Geometry : TypeScript pur, sans DOM
+// ni dépendance plateforme.
+import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts';
 
 /** Produit scalaire de deux vecteurs de même dimension. */
 export function dot(left: readonly number[], right: readonly number[]): number {
@@ -112,6 +111,9 @@ export function screenErrorBound(
   focal: number,
   near: number,
 ): number {
+  // Commutateur d'EXPÉRIENCE (`screenErrorVariant.ts`), lu ici pour toute la sélection processeur.
+  if (screenErrorVariant() !== 'certifiee')
+    return referenceScreenError(error, stretch, depth, focal, near);
   const reach = radius * stretch,
     shift = error * stretch;
   const nearest = depth - reach,

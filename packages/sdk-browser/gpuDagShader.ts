@@ -9,6 +9,9 @@ import { CLUSTER_LEVEL_SHIFT } from './gpuDagLayout.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
+// \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que
+// le noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui
+// releve le bloc.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
@@ -46,7 +49,10 @@ fn isConformal(m:mat3x3f)->bool{
  let eps=maxl*1e-4;
  return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
 }
-/** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances, memes operandes. */
+/** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances, memes operandes.
+ *  \`world\` est une matrice monde du REPERE DE RENDU, ou la camera est l'origine : le vecteur qui va
+ *  du centre de la boite vers l'oeil est l'oppose de ce centre, et la soustraction de deux positions
+ *  lointaines n'existe plus. Meme geometrie que le miroir processeur, lui en monde absolu. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(cone.w>=1.57079632679){return false;}
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
@@ -54,7 +60,7 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
  let center=(world*vec4f(c,1.0)).xyz;
  let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
- let toCam=uni.cameraWorld-center;
+ let toCam=-center;
  let dist=length(toCam);
  if(dist==0.0){return false;}
  let view=toCam/dist;

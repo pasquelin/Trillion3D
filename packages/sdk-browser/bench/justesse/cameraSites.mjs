@@ -131,3 +131,28 @@ const sitesPurs = [
 ];
 
 export const SITES = [...sitesPurs, ...sitesMoteurs];
+
+/** Un point monde passé par une matrice 4×4 colonne-major. */
+const applique = (m, [x, y, z]) => [
+  m[0] * x + m[4] * y + m[8] * z + m[12],
+  m[1] * x + m[5] * y + m[9] * z + m[13],
+  m[2] * x + m[6] * y + m[10] * z + m[14],
+];
+
+/**
+ * Résidu de la composition du repère de rendu. Les uniformes de sélection publient une vue SANS
+ * translation et la position monde de l'œil, qui est l'origine de ce repère : toute la translation
+ * est passée dans les matrices monde, que le moteur ramène à cette origine. Appliquer la vue
+ * relative à un point ainsi ramené doit rendre, à l'arrondi simple précision près, ce que la vue
+ * absolue rend du même point. Non nul dès que la position publiée n'est pas celle de la vue — un rig
+ * non remonté, par exemple : c'est elle, désormais, qui porte le déplacement de la caméra.
+ */
+export function residuRepereDeRendu(camera) {
+  const cam = moteur(camera),
+    u = cameraSelectionUniforms(cam, 1, VIEWPORT);
+  const sonde = [12, -7, 31];
+  const ramene = sonde.map((valeur, i) => valeur - u.cameraWorld[i]);
+  const absolu = applique(cam.view, sonde),
+    relatif = applique(u.view, ramene);
+  return Math.hypot(absolu[0] - relatif[0], absolu[1] - relatif[1], absolu[2] - relatif[2]);
+}

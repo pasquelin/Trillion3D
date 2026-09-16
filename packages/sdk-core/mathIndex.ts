@@ -5,6 +5,7 @@ export { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './ma
 export { invertMatrix4 } from './mathMatrix4Inverse.ts';
 export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
 export { normalMatrix3 } from './mathMatrix3.ts';
+export { SINGULAR_DETERMINANT_WGSL, linearPartScale } from './mathSingular.ts';
 export {
   addScaledVector3,
   applyMatrix3Vector3,
@@ -73,3 +74,4 @@ export {
   updateCameraFrame,
   type CameraFrame,
 } from './mathCamera.ts';
+export { viewToRenderOrigin, worldToRenderOrigin } from './mathRenderOrigin.ts';

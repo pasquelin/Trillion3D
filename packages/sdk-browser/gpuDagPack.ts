@@ -1,4 +1,4 @@
-import { maxStretch } from '../sdk-core/index.ts';
+import { maxStretch, worldToRenderOrigin } from '../sdk-core/index.ts';
 import { leafCone, PAGE_CONE_FLOATS, SELECTION_NONE as NONE } from './gpuSelection.ts';
 import { DAG_NODE_FLOATS, CULL_STRIDE, type DagRoot, type PackedDag } from './gpuDagTypes.ts';
 import { flatHierarchy, hierarchyDepth } from './gpuDagHierarchy.ts';
@@ -154,4 +154,21 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     rootCount: rootClusters,
     pageUrls,
   };
+}
+
+/**
+ * Ramène les matrices monde empaquetées dans le REPÈRE DE RENDU dont `origin` est l'origine —
+ * l'œil de l'image (`sdk-core/mathRenderOrigin.ts`). `packDagSelection` les rend en monde absolu :
+ * le moteur les rebase par image avant de les porter à la carte, et c'est par ici qu'un appelant du
+ * noyau sans moteur — oracle, banc, montage de test — se met dans le repère des uniformes qu'il
+ * fabrique. Les matrices des racines, en double, sont la source : la soustraction précède l'arrondi.
+ */
+export function packedWorldsToRenderOrigin(
+  packed: PackedDag,
+  roots: readonly DagRoot[],
+  origin: ArrayLike<number>,
+) {
+  for (let w = 0; w < roots.length; w++)
+    worldToRenderOrigin(packed.worlds, roots[w].world.elements, origin, w * 16);
+  return packed;
 }
