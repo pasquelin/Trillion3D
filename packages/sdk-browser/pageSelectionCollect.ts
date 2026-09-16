@@ -92,7 +92,14 @@ export function collectClusterPages(
     roots.push({
       world: mesh.matrixWorld,
       pages,
-      culling: culling && { ...culling, bounds: shape.bounds! },
+      // Les nœuds, leurs bornes et leurs liens appartiennent à la primitive et sont partagés par
+      // tous ses placements ; seules les marques de forçage sont propres à ce placement-ci.
+      culling: culling && {
+        ...culling,
+        bounds: shape.bounds!,
+        links: shape.links,
+        marks: structure ? new Int32Array(culling.nodes.length / culling.stride) : undefined,
+      },
       worldBox,
       localBox: shape.local.slice(),
       structure,
