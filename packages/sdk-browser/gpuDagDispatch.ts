@@ -39,8 +39,8 @@ export function createDagDispatch(
     nodeCount,
     worldCount,
     outputBytes,
+    readbackBytes,
     uniformData,
-    flags,
     uniforms,
     output,
     readback,
@@ -52,7 +52,11 @@ export function createDagDispatch(
     escalatePipeline,
     checkPipeline,
     maskPipeline,
+    drawCountPipeline,
+    drawPrefixPipeline,
+    drawScatterPipeline,
   } = resources;
+  const blockCount = Math.max(1, Math.ceil(pageCount / WORKGROUP));
   const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
   // Une fente de relecture, un jeu de tableaux : le relevé les réécrit au lieu de les rallouer. Le
   // couple rendu à l'appelant reste neuf à chaque relecture, pour qu'il distingue toujours deux
@@ -102,14 +106,21 @@ export function createDagDispatch(
         run(checkPipeline, pageCount);
       }
       run(maskPipeline, pageCount);
+      // La liste des pages dessinables est compactée ici, dans l'ordre croissant : le relevé ne
+      // rapporte plus un drapeau par page mais le seul compte et ses rangs.
+      if (residentCut) {
+        run(drawCountPipeline, blockCount);
+        pass.setPipeline(drawPrefixPipeline);
+        pass.dispatchWorkgroups(1);
+        run(drawScatterPipeline, pageCount);
+      }
       pass.end();
       state.lastSubmitted = copySelectionUniforms(next);
       state.submittedResidencyRevision = state.residencyRevision;
     }
     if (copy) {
-      encoder.copyBufferToBuffer(output, 0, readback[i], 0, outputBytes);
-      if (residentCut)
-        encoder.copyBufferToBuffer(flags, nodeCount * 4, readback[i], outputBytes, pageCount * 4);
+      // Le relevé et la liste compactée se suivent dans le même tampon : une seule copie.
+      encoder.copyBufferToBuffer(output, 0, readback[i], 0, readbackBytes);
     }
     const captured = copy ? copySelectionUniforms(next) : undefined;
     const capturedWorldRevision = state.worldRevision,
@@ -132,7 +143,7 @@ export function createDagDispatch(
               bytes,
               0,
               bytes.byteLength,
-              residentCut ? pageCount : 0,
+              residentCut ? outputBytes / 4 : 0,
               scratch[i],
             );
             readback[i].unmap();
