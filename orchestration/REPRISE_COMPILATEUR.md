@@ -10,7 +10,7 @@ Confirm title with `get_session("self")`; refresh `list_sessions` before messagi
 - Deliver head SHA, merge-base, named reproduction tests, gate results, added report codes, changed driver versions/goldens, remaining work. Validateur merges/simplifies/validates/pushes; then remove batch worktree/branch.
 - Status: 11 scene + 12 image drivers merged (`packages/asset-compiler-rust/FORMATS.md`). Go required: GPU-preserved DDS/KTX2 blocks, Draco/meshopt input, Industrial Map on bench 15, FAB license.
 
-## Driver audit — 2026-09-15, f6ac76f — **all 58 findings closed on 2026-09-16** (batches A–J + D' merged locally, not pushed, `validate` pending). Open before validate: browser proof of the Blender V flip (batch F) and of the EXR/PSD/EAC pixel changes (batch I); every leftover is listed per batch below.
+## Driver audit — 2026-09-15, f6ac76f — **all 58 findings closed on 2026-09-16** (batches A–J + D' merged locally, not pushed, `validate` pending). Browser proof done 2026-09-16 (`.mesure/out/preuve-compilateur-2026-09-16/`, untracked): Blender V flip **yes**, PSD 4th plane **yes**; EXR alpha not renderable (`texture_preview` skips floats), KTX2 EAC/linear fixtures do not exist in the repo, PNG gamma only feeds the progressive preview (no rendered difference expected). Every leftover is listed per batch below.
 
 58 findings. Read-only audit: 268 library + 4 CLI tests pass; 48 images decoded; **no browser proof**. Temporary reproductions: `/tmp/wg-plugin-audit`, `/tmp/wg-scenes-audit`, `/tmp/wg-plugin-usd-audit`, `/tmp/wg-plugin-unity-audit`; recreate as tests. P1: scene corruption, nondeterminism or process termination; P2: fidelity, robustness, resources, diagnostics. Passing tests/goldens may encode bugs.
 
