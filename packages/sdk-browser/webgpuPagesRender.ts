@@ -1,7 +1,7 @@
 import { sameHizView } from './hiz.ts';
 import { createEngineCamera, holdCameraWorld, type HostCamera } from './cameraWorld.ts';
 import { sameRenderOrigin } from './cameraRenderOrigin.ts';
-import { worldToRenderOrigin } from '../sdk-core/index.ts';
+import { rootWorldsToRenderOrigin } from './gpuDagPack.ts';
 import {
   fallbackToCpuCut,
   invalidateOccluderHistory,
@@ -65,8 +65,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
     run.worldUploadRevision = run.gate.revisions.scene;
     run.worldUploadOrigin.set(cam.eye);
     // La soustraction se fait en double, l'arrondi simple précision vient après elle.
-    for (let i = 0; i < selectionRoots.length; i++)
-      worldToRenderOrigin(worldUpdates, selectionRoots[i].world.elements, cam.eye, i * 16);
+    rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
     // A moved root invalidates every row's world matrix, which is the only shared input to a row the
     // scene can still change after `prepare()`.
     if (run.gpuSelection?.updateWorlds(worldUpdates) && worldsMoved) {

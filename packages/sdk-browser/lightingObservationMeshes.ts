@@ -3,7 +3,7 @@ import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { LightingExperimentRenderState } from './lightingObservationContracts.ts';
 import type { ObservationResources } from './lightingObservationResources.ts';
 import { createObservationTransforms } from './lightingObservationTransforms.ts';
-import { copyElements, writeElements } from './matrixElements.ts';
+import { copyElements } from './matrixElements.ts';
 import { vertexShader, fragmentShader } from './lightingObservationShaders.ts';
 
 export function createObservationMeshes(
@@ -107,7 +107,7 @@ export function createObservationMeshes(
         if (copy.surface >= 0) surfaceBasis(copy.surface, basis);
         else sphereBasis(basis);
         copyElements(basisWorld, basis.elements);
-        writeElements(
+        copyElements(
           copy.mesh.matrix.elements,
           multiplyMatrix4(composed, basisWorld, copy.restTransform),
         );

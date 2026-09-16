@@ -6,6 +6,7 @@ import { createWebglFrameTimer } from './webglFrameTimer.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { HostCpuProfile } from './hostCpuProfile.ts';
 import { createHeldFrame } from './explorerHeldFrame.ts';
+import { retainVisiblePages } from './retainVisiblePages.ts';
 import type { createPageStreamer } from './streamingPages.ts';
 import type { createExplorerStreaming } from './explorerStreaming.ts';
 import type { ExplorerHostState } from './explorerHostState.ts';
@@ -126,14 +127,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       }
     }
     const pendingEnd = performance.now();
-    // Les épingles par différence de rangs quand le moteur sait les dire : l'hôte ne refait plus un
-    // ensemble de chaînes par image. Le repli WebGL, qui ne la porte pas, garde la liste d'adresses.
-    const ranks = backend.retainedRanks?.();
-    if (ranks) streamer.retainRanks(ranks);
-    else {
-      const visibleUrls = backend.pageUrls?.();
-      if (visibleUrls) streamer.retain(visibleUrls);
-    }
+    retainVisiblePages(backend, streamer);
     const retainEnd = performance.now();
     steps.cpuStep?.('pendingMs', pendingEnd - renderEnd);
     steps.cpuStep?.('retainMs', retainEnd - pendingEnd);
