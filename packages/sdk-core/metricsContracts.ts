@@ -76,8 +76,18 @@ export interface FrameMetrics extends ShadowFrameMetrics {
   coverageBudgetLimited?: boolean | null;
   /**
    * Vrai quand l'image a été tenue : ni la scène, ni la vue, ni les ressources n'ont bougé, aucun
-   * travail asynchrone n'était en attente, et aucune étape processeur n'a été exécutée. Les autres
-   * mesures de cette image sont celles de l'image d'origine, à l'identique — c'est la même image.
+   * travail asynchrone n'était en attente, et aucune étape processeur n'a été exécutée. Les pixels
+   * affichés sont ceux de l'image d'origine, au bit près.
+   *
+   * Ce que l'image tenue a FAIT est publié comme tel, jamais recopié du dernier rendu complet :
+   * `drawCalls`, `triangles`, `submittedTriangles` et `totalSubmittedTriangles` ne comptent que la
+   * présentation, et les durées processeur et graphiques d'étape valent zéro quand l'étape n'a pas
+   * tourné, `null` quand rien ne l'a chronométrée. Un moteur qui ne soumet pas lui-même son image —
+   * l'hôte redessinant le graphe qu'il tient — compte en revanche les appels que cet hôte émet.
+   *
+   * Ce que l'image tenue MONTRE reste décrit par la coupe qu'elle réaffiche : `clusters`,
+   * `selectedTriangles`, `frustumRejected`, `lodLevel` et `residentPages` sont ceux de l'image
+   * d'origine, puisque c'est la même coupe.
    * Absent d'un moteur qui ne tient pas ses images.
    */
   frameHeld?: boolean | null;

@@ -71,10 +71,18 @@ export function createExactPagesRender(
     wanted: desired,
     result: createSelectionResult<PageRec>(),
   };
-  /** Une image tenue n'a exécuté aucune étape : son profil le dit en zéros, pas en estimations. */
+  /**
+   * Une image tenue n'a exécuté aucune étape : son profil le dit en zéros, pas en estimations, et
+   * la durée de coupe comme le nombre de nœuds visités valent zéro parce qu'aucune coupe n'a été
+   * faite — jamais ceux de la dernière image qui en a fait une. Ce que l'image MONTRE reste décrit
+   * par la coupe qu'elle réaffiche : pages retenues, triangles sélectionnés, rejet par le tronc et
+   * niveau de détail ne bougent pas, puisque c'est la même coupe.
+   */
   const heldProfile = () => {
     const row = cpuProfile.row;
     for (const step of Object.values(EXACT_CPU_STEP)) row[step] = 0;
+    state.cpuSelectMs = 0;
+    state.cpuSelectNodesTested = 0;
   };
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
