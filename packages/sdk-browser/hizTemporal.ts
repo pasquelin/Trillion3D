@@ -1,7 +1,6 @@
-import * as THREE from 'three';
 import { rasterVisibility, type VisPage } from './visibilityBuffer.ts';
 import { buildHizPyramid } from './hizDepth.ts';
-import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
+import { createEngineCamera, holdCameraWorld, type EngineCamera } from './cameraWorld.ts';
 import { countUnoccluded, filterUnoccluded } from './hizUnoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './hizCounts.ts';
 import { splitOccludersInto } from './hizSplit.ts';
@@ -12,30 +11,26 @@ export type TemporalHizState = {
   /** La pyramide de la passe 1, distincte de celle de l'historique : les deux vivent dans la même
    *  image, chacune garde son tampon d'une image sur l'autre. */
   passPyramid?: HizPyramid;
-  camera?: THREE.PerspectiveCamera;
+  camera?: EngineCamera;
   viewport?: [number, number];
 };
 
 /** Même tolérance, même parcours, sans allouer : `Array.prototype.every` demandait une fermeture
  *  par matrice comparée, deux fois par appel et à chaque image. */
-function presqueEgaux(a: readonly number[], b: readonly number[]) {
+function presqueEgaux(a: ArrayLike<number>, b: ArrayLike<number>) {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (!(Math.abs(a[i] - b[i]) <= 1e-7)) return false;
   return true;
 }
 
 /** Reuse depth only for an identical view. Any camera movement, cut or projection change starts a new history. */
-export function sameHizView(
-  previous: THREE.PerspectiveCamera | undefined,
-  current: THREE.PerspectiveCamera,
-) {
+export function sameHizView(previous: EngineCamera | undefined, current: EngineCamera) {
   if (!previous) return false;
-  // `previous` est la caméra gelée par `holdCameraWorld` : matrice figée, pose et inverse posés une
-  // fois pour toutes. La remonter referait chaque image la même copie et la même inversion 4×4.
-  resolveCameraWorld(current);
+  // `previous` est la caméra gardée par `holdCameraWorld` : les mêmes seize nombres de vue et de
+  // projection que l'entrée d'image a recopiés, sans rien à remonter ni à réinverser.
   return (
-    presqueEgaux(previous.matrixWorldInverse.elements, current.matrixWorldInverse.elements) &&
-    presqueEgaux(previous.projectionMatrix.elements, current.projectionMatrix.elements)
+    presqueEgaux(previous.view, current.view) &&
+    presqueEgaux(previous.projection, current.projection)
   );
 }
 
@@ -44,12 +39,12 @@ export function sameHizView(
  *  Même pose, même pyramide, sans allocation. */
 function retiens(
   history: TemporalHizState,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   depth: Float32Array,
 ) {
   history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1], history.pyramid);
-  history.camera = holdCameraWorld(history.camera ?? new THREE.PerspectiveCamera(), camera);
+  history.camera = holdCameraWorld(history.camera ?? createEngineCamera(), cam);
   if (!history.viewport) history.viewport = [viewport[0], viewport[1]];
   else {
     history.viewport[0] = viewport[0];
@@ -65,7 +60,7 @@ function retiens(
  */
 export function applyTemporalHiz<T extends HizPage & VisPage>(
   selected: T[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   history: TemporalHizState = {},
   counts: HizCounts = createHizCounts(),
@@ -78,13 +73,13 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
 } {
   resetHizCounts(counts);
   if (selected.length < 2) {
-    retiens(history, camera, viewport, rasterVisibility(selected, camera, viewport).depth);
+    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport).depth);
     return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
   }
   const hasPrev = !!(
     history.pyramid &&
     history.camera &&
-    sameHizView(history.camera, camera) &&
+    sameHizView(history.camera, cam) &&
     history.viewport &&
     history.viewport[0] === viewport[0] &&
     history.viewport[1] === viewport[1]
@@ -99,24 +94,24 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
       (unoccludedSet.has(selected[i]) ? occluders : rest).push(selected[i]);
   }
   if (!occluders.length || !rest.length)
-    splitOccludersInto(selected, camera, viewport, occluders, rest);
+    splitOccludersInto(selected, cam, viewport, occluders, rest);
 
   if (!occluders.length || !rest.length) {
-    retiens(history, camera, viewport, rasterVisibility(selected, camera, viewport).depth);
+    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport).depth);
     return { shown: selected, hizRejected: 0, occluders, history, counts };
   }
 
-  const visPass1 = rasterVisibility(occluders, camera, viewport);
+  const visPass1 = rasterVisibility(occluders, cam, viewport);
   history.passPyramid = buildHizPyramid(
     visPass1.depth,
     viewport[0],
     viewport[1],
     history.passPyramid,
   );
-  const disoccluded = countUnoccluded(rest, history.passPyramid, camera, viewport, counts);
+  const disoccluded = countUnoccluded(rest, history.passPyramid, cam, viewport, counts);
   const shown = [...occluders, ...disoccluded];
 
-  retiens(history, camera, viewport, rasterVisibility(shown, camera, viewport).depth);
+  retiens(history, cam, viewport, rasterVisibility(shown, cam, viewport).depth);
 
   return { shown, hizRejected: rest.length - disoccluded.length, occluders, history, counts };
 }

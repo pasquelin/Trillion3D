@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { createGpuSmallTriangles } from './gpuSmallTriangles.ts';
 import { ensureWebgpuVisibilityBindings } from './webgpuVisibilityBindings.ts';
 import { ensureWebgpuShadeBindings } from './webgpuShadeBindings.ts';
@@ -37,7 +37,7 @@ export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
 export function encodeEmptySurfaces(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   depthTarget: GPUTextureView,
 ) {
   const { gpu, run } = rt;
@@ -55,7 +55,7 @@ export function encodeEmptySurfaces(
     },
   });
   pass.end();
-  const presented = encodeSurfaceLighting(rt, device, encoder, camera, 0);
+  const presented = encodeSurfaceLighting(rt, device, encoder, cam, 0);
   submitColorCopy(rt, device, encoder, height, width, presented);
   return run.blendSubmittedTriangles;
 }

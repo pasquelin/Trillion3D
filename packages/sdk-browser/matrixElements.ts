@@ -11,3 +11,14 @@ export function sameElements(held: Float64Array, now: ArrayLike<number>) {
 export function copyElements(held: Float64Array, now: ArrayLike<number>) {
   for (let i = 0; i < 16; i++) held[i] = now[i];
 }
+
+/**
+ * Une matrice 4×4 colonne-major que l'HÔTE possède — la pose d'un nœud de sa scène. Le moteur n'en
+ * lit que les seize flottants : aucune structure de la bibliothèque hôte ne traverse une signature.
+ */
+export type MatrixElements = { readonly elements: ArrayLike<number> };
+
+/** L'identité colonne-major, lue et jamais écrite : la transformation d'une racine sans pose. */
+export const IDENTITY_ELEMENTS: Float64Array = new Float64Array([
+  1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+]);

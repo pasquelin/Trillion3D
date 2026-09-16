@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './webgpuPagesEncoder.ts';
@@ -26,7 +26,7 @@ function withoutGpuSelection(rt: WebgpuPagesRuntime) {
  *  render the image again through the CPU cut. */
 export function renderGpuCut(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   pixelError: number,
   cpuStart: number,
   lightsEnd: number,
@@ -46,7 +46,7 @@ export function renderGpuCut(
   // `budgetPixelError` carries the previous frame's verdict, the same feedback `pageBudget` applies
   // on the CPU path.
   const budgeted = Math.max(pixelError, run.budgetPixelError);
-  cameraSelectionUniforms(camera, budgeted, viewport, run.selectionUniforms);
+  cameraSelectionUniforms(cam, budgeted, viewport, run.selectionUniforms);
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0;
   run.pagesExited = 0;
@@ -118,7 +118,7 @@ export function renderGpuCut(
   }
   marks.encodeStart = performance.now();
   try {
-    encodeDraws(rt, gpuDevice, camera);
+    encodeDraws(rt, gpuDevice, cam);
   } catch (error) {
     abandonFrameEncoder(rt);
     if (context.gpuCanvas) throw error;
@@ -131,7 +131,7 @@ export function renderGpuCut(
   // where they are drawn.
   if (run.gpuMetricsReady) run.submittedTriangles = run.drawnTriangles + run.blendUnpagedTriangles;
   recordGpuCutTiming(rt);
-  traceGpuCutFrame(rt, camera);
+  traceGpuCutFrame(rt, cam);
   // L'image a été encodée et soumise en entier : elle seule autorise une tenue, et seulement si la
   // précédente lui était déjà identique.
   keepWebgpuFrame(rt);

@@ -1,33 +1,26 @@
-import * as THREE from 'three';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
 import { backgroundRgb, triangleAt, uvDerivatives } from './visibilityMath.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
 import { shadePixel } from './visibilityShadePixel.ts';
 import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /** Documented visbuffer beauty: MeshBasicMaterial = source color × map (same 8-bit path as rasterPages). MeshStandardMaterial = Cook-Torrance GGX microfacet BRDF with the explorer hemisphere/directional lights. */
 export function shadeVisibility(
   ids: Uint32Array,
   pages: VisPage[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
 ) {
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  resolveCameraWorld(camera);
-  const viewProj = new THREE.Matrix4().multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse,
-  );
   const bg = backgroundRgb(background) as [number, number, number];
-  const frame = createVisibilityFrame(pages, viewProj, width, height);
+  const frame = createVisibilityFrame(pages, cam.viewProjection, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const o = y * width + x,
-        rgb = shadePixel(frame, ids[o], camera, x, y, bg);
+        rgb = shadePixel(frame, ids[o], cam, x, y, bg);
       const p = o * 4;
       pixels[p] = rgb[0] ?? bg[0];
       pixels[p + 1] = rgb[1] ?? bg[1];
@@ -41,7 +34,7 @@ export function shadeVisibility(
 export function visibilityUvDerivatives(
   ids: Uint32Array,
   pages: VisPage[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   x: number,
   y: number,
@@ -49,15 +42,9 @@ export function visibilityUvDerivatives(
   const [width, height] = viewport,
     unpacked = unpackVisibilityId(ids[y * width + x]);
   if (!unpacked) return null;
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  resolveCameraWorld(camera);
-  const viewProj = new THREE.Matrix4().multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse,
-  );
   const page = pages[unpacked.pageIndex];
   if (!page) return null;
-  const tri = triangleAt(page, unpacked.triangleIndex, viewProj, width, height);
+  const tri = triangleAt(page, unpacked.triangleIndex, cam.viewProjection, width, height);
   if (!tri) return null;
   const uv = page.attributes.uv;
   const uva: [number, number] = uv ? [uv.getX(tri.i0), uv.getY(tri.i0)] : [0, 0];

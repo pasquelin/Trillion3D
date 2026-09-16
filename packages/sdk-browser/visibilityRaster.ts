@@ -11,7 +11,7 @@ import {
   VIS_TRIANGLE_MASK,
   type VisPage,
 } from './visibilityTypes.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 function fillIds(
   ids: Uint32Array,
@@ -65,21 +65,12 @@ function fillIds(
 }
 
 /** CPU visbuffer: packed IDs plus NDC z (background 1). Closest z wins; equal z keeps the first write. */
-export function rasterVisibility(
-  pages: VisPage[],
-  camera: THREE.PerspectiveCamera,
-  viewport: [number, number],
-) {
+export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: [number, number]) {
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
   depth.fill(Infinity);
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  resolveCameraWorld(camera);
-  const viewProj = new THREE.Matrix4().multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse,
-  );
+  const viewProj = cam.viewProjection;
   for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
     const page = pages[pageIndex],
       index = page.array;
@@ -138,8 +129,8 @@ export function rasterVisibility(
 
 export function rasterVisibilityIds(
   pages: VisPage[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
 ) {
-  return rasterVisibility(pages, camera, viewport).ids;
+  return rasterVisibility(pages, cam, viewport).ids;
 }

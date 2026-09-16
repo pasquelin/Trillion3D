@@ -1,7 +1,7 @@
-import * as THREE from 'three';
 import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
 import { boundsFor, projectBoxesFlat } from './hizProjection.ts';
 import type { HizPage } from './hizTypes.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 let splitLow = new Uint32Array(0),
   splitHigh = new Uint32Array(0),
@@ -129,7 +129,7 @@ export function splitOccludersFlat(count: number, bounds: Float64Array, rest: Ui
  */
 export function splitOccludersInto<T extends HizPage>(
   pages: T[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   occluders: T[],
   rest: T[],
@@ -138,7 +138,7 @@ export function splitOccludersInto<T extends HizPage>(
   rest.length = 0;
   const count = pages.length,
     bounds = boundsFor(count);
-  projectBoxesFlat(pages, count, camera, viewport, bounds);
+  projectBoxesFlat(pages, count, cam, viewport, bounds);
   const inFront = rangParProfondeur(count, bounds);
   if (!inFront) {
     for (let i = 0; i < count; i++) rest.push(pages[i]);
