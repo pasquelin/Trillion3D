@@ -3,7 +3,7 @@
 // systématiquement, d'avant le lot A, dans `bench/oracles/streaming.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compacteFile, findAdmissible, sortStreamJobs } from './streamingQueue.ts';
+import { compacteFile, findAdmissible, sortStreamJobs } from './streamingQueueOrder.ts';
 import { referenceAdmission } from './bench/oracles/streaming.mjs';
 import type { Job } from './streamingTypes.ts';
 
