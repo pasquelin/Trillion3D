@@ -41,6 +41,7 @@ export { createPathGovernor, type PathGovernor } from './mathPathGovernor.ts';
 export {
   FRUSTUM_PLANE_VALUES,
   clipPlanesFromMatrix,
+  frustumFarPlane,
   frustumPlanesFromMatrix,
   frustumPlanesToLocal,
 } from './mathFrustum.ts';

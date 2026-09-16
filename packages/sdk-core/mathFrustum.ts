@@ -9,8 +9,9 @@
  * la matrice colonne-major `m` : `x = (m0, m4, m8, m12)`, `w = (m3, m7, m11, m15)`.
  *
  * Plan lointain infini : la ligne `z` de la projection est `(0, 0, 0, near)`, donc le plan LOIN
- * sort de normale nulle. Un tel plan ne borne rien, et c'est exactement ce que le lointain infini
- * veut dire : `writePlane` l'écrit tout à zéro, et `0 >= 0` laisse tout point dedans.
+ * sort de normale nulle et, normalisé, de composantes non numériques — aucune comparaison ne le
+ * satisfait, donc il ne rejette rien, ce qui est exactement ce que le lointain infini veut dire.
+ * `frustumFarPlane` le remplace par le lointain que l'hôte déclare quand il y en a un.
  */
 
 /** Flottants des six plans d'un tronc. */
@@ -30,9 +31,7 @@ function writePlane(
   normalize: boolean,
 ) {
   if (normalize) {
-    // Normale nulle : le plan ne borne rien. Normaliser rendrait des NaN, qui rejetteraient tout.
-    const length = Math.sqrt(a * a + b * b + c * c);
-    const inverse = length > 0 ? 1.0 / length : 0;
+    const inverse = 1.0 / Math.sqrt(a * a + b * b + c * c);
     a *= inverse;
     b *= inverse;
     c *= inverse;
@@ -85,6 +84,27 @@ export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: Arr
  */
 export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
   writePlanes(out, m, false);
+}
+
+/**
+ * Le plan LOINTAIN d'un tronc dont la projection n'en a pas, écrit dans `out` à `at`.
+ *
+ * La projection du moteur a un plan lointain INFINI : sa ligne de profondeur ne borne plus rien et
+ * `writePlanes` en tire un plan nul, qui ne rejette personne. Le tronc, lui, garde le lointain que
+ * l'hôte DÉCLARE — sans quoi une scène gagnerait d'un coup tous les objets que la caméra ne montrait
+ * pas. Ce plan-là ne se lit pas dans la matrice de découpe mais dans la VUE, dont la troisième ligne
+ * donne la profondeur de vue `z` : un point est dedans quand `far + z >= 0`. Un `far` non fini laisse
+ * le plan nul en place, c'est-à-dire un lointain réellement sans borne.
+ */
+export function frustumFarPlane(
+  out: Float32Array | Float64Array,
+  at: number,
+  view: ArrayLike<number>,
+  far: number,
+  normalize: boolean,
+) {
+  if (!Number.isFinite(far)) return;
+  writePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize);
 }
 
 /**

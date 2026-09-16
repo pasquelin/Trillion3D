@@ -43,8 +43,9 @@ function hostileRig(fov = 50, aspect = 16 / 9) {
 
 /** La référence Three : ancêtres résolus, puis une caméra à plat qui porte la même `matrixWorld` au
  *  bit près — `updateMatrixWorld` y met alors à jour `matrixWorldInverse` comme le ferait l'hôte —
- *  et la projection du MOTEUR. Ses deux derniers plans sont échangés : c'est le seul effet du
- *  renversement de la profondeur sur un tronc. */
+ *  et la projection du MOTEUR. Deux effets du renversement de la profondeur sur le tronc : les deux
+ *  derniers plans s'échangent, et le LOINTAIN ne vient plus de la projection — infinie — mais du
+ *  `far` que l'hôte déclare, lu dans la vue (`Plane` de Three, normalisé comme `writePlane`). */
 function threeReference(camera: HostCamera) {
   resolveCameraWorld(camera);
   const { fov, aspect, near, zoom } = camera;
@@ -61,8 +62,13 @@ function threeReference(camera: HostCamera) {
     .setFromProjectionMatrix(viewProjection, THREE.WebGPUCoordinateSystem)
     .planes.forEach((p, i) => brut.set([p.normal.x, p.normal.y, p.normal.z, p.constant], i * 4));
   const planes = brut.slice();
-  planes.set(brut.subarray(20, 24), 16);
   planes.set(brut.subarray(16, 20), 20);
+  const v = flat.matrixWorldInverse.elements;
+  const loin = new THREE.Plane(
+    new THREE.Vector3(v[2], v[6], v[10]),
+    v[14] + camera.far,
+  ).normalize();
+  planes.set([loin.normal.x, loin.normal.y, loin.normal.z, loin.constant], 16);
   const eye = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
   return { view: flat.matrixWorldInverse, viewProjection, planes, projection, eye };
 }
