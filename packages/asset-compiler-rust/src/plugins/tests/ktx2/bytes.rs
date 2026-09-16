@@ -105,3 +105,17 @@ pub(super) fn astc_void_extent(color: [u8; 4]) -> Vec<u8> {
     }
     block
 }
+
+/// Un bloc EAC d'un canal, écrit depuis la spécification d'OpenGL ES 3.0 : le mot de base sur huit
+/// bits, puis le multiplicateur et la table de modificateurs sur quatre bits chacun, puis seize
+/// indices de trois bits — le texel 0 dans les bits de poids fort des quarante-huit qui restent.
+/// Les texels s'y suivent colonne par colonne : le texel `n` est à la colonne `n / 4`, ligne `n % 4`.
+pub(super) fn eac(base: u8, multiplier: u8, table: u8, indices: [u8; 16]) -> Vec<u8> {
+    let mut field = 0u64;
+    for (texel, index) in indices.into_iter().enumerate() {
+        field |= u64::from(index & 7) << (45 - 3 * texel);
+    }
+    let mut block = vec![base, multiplier << 4 | (table & 0xf)];
+    block.extend_from_slice(&field.to_be_bytes()[2..]);
+    block
+}

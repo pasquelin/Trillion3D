@@ -10,7 +10,10 @@
 //!   C'est un portage du transcodeur de référence de Binomial, vérifié octet pour octet contre lui.
 //! - `texture2ddecoder` 0.1.2 (MIT ou Apache-2.0) développe les blocs déjà compressés pour le GPU,
 //!   par le socle `image::blocks` que ce pilote partage avec `dds` : le codec se nomme par
-//!   `vkFormat` ici et par `dwFourCC` là, mais promener les pixels est le même travail.
+//!   `vkFormat` ici et par `dwFourCC` là, mais promener les pixels est le même travail. Les deux
+//!   formats EAC non signés font exception : `eac.rs`, écrit ici depuis la spécification d'OpenGL
+//!   ES 3.0, les développe en onze bits puis arrondit — le décodeur externe les tronquait et lisait
+//!   leur champ d'indices à l'envers.
 //! - `ruzstd` 0.7.3 (MIT, Rust pur) défait la supercompression Zstandard d'un niveau.
 //!
 //! **On n'ajoute aucune perte.** Une charge ETC1S, UASTC ou BCn a déjà perdu ce qu'elle devait
@@ -32,6 +35,7 @@
 use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
+mod eac;
 mod format;
 mod header;
 mod level;
@@ -65,9 +69,11 @@ impl Plugin for Ktx2 {
         "ktx2"
     }
     /// Les trois lecteurs entrent dans la version : changer l'un d'eux change ce que le pilote
-    /// rend, donc l'identité du cache.
+    /// rend, donc l'identité du cache. Le suffixe nomme le décodeur EAC écrit ici, pour la même
+    /// raison : une entrée écrite du temps du décodeur externe porte des texels mélangés et
+    /// tronqués, et serait sans lui relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3"
+        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ktx2"]
