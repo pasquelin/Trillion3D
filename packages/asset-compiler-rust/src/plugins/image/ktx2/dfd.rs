@@ -3,8 +3,10 @@
 //!
 //! La spécification de Khronos place ce descripteur dans une section que l'entête désigne par un
 //! décalage et une longueur. Il ouvre sur sa taille totale, puis sur un bloc de base dont ce module
-//! lit `transferFunction` : l'octet qui dit si les échantillons sont encodés par la courbe sRGB ou
-//! proportionnels à la lumière. L'ignorer revenait à éclaircir ou assombrir une texture entière.
+//! lit deux octets : `transferFunction`, qui dit si les échantillons sont encodés par la courbe
+//! sRGB ou proportionnels à la lumière, et `flags`, dont le premier bit annonce un alpha
+//! prémultiplié. Les ignorer revenait à éclaircir ou assombrir une texture entière, et à laisser
+//! passer des couleurs déjà multipliées par leur alpha là où le contrat demande un alpha droit.
 //!
 //! Ce module ne juge rien et ne refuse rien : un descripteur absent, tronqué ou muet rend
 //! simplement une déclaration vide, et c'est l'appelant qui décide de ce qu'il en fait.
@@ -15,18 +17,24 @@ const OFFSET: usize = 48;
 const LENGTH: usize = 52;
 /// La taille totale du descripteur ouvre la section ; le bloc de base commence juste après.
 const TOTAL_SIZE: usize = 4;
-/// Dans le bloc de base : la fonction de transfert.
+/// Dans le bloc de base : la fonction de transfert, puis les drapeaux.
 const TRANSFER: usize = 10;
+const FLAGS: usize = 11;
 
 /// `KHR_DF_TRANSFER_LINEAR` et `KHR_DF_TRANSFER_SRGB`. Zéro est `KHR_DF_TRANSFER_UNSPECIFIED`, et
 /// toute autre valeur nomme une courbe que ce pilote ne déclare pas : dans les deux cas le fichier
 /// n'a rien dit d'utilisable, et l'appelant s'en remet au `vkFormat`.
 const LINEAR: u8 = 1;
 const SRGB: u8 = 2;
+/// `KHR_DF_FLAG_ALPHA_PREMULTIPLIED`, le premier bit des drapeaux du bloc de base : les composantes
+/// du texel sont déjà multipliées par son alpha, là où le contrat de sortie les demande droites.
+const PREMULTIPLIED: u8 = 1;
+
 /// Ce que le descripteur déclare. `transfer` est vide quand le fichier n'a pas de descripteur, que
 /// celui-ci est tronqué, ou qu'il laisse la fonction de transfert indéterminée.
 pub(super) struct Descriptor {
     pub(super) transfer: Option<Transfer>,
+    pub(super) premultiplied: bool,
 }
 
 /// Le descripteur de ce fichier, ou une déclaration vide. Les bornes de la section sont vérifiées
@@ -39,6 +47,7 @@ pub(super) fn read(bytes: &[u8]) -> Descriptor {
             Some(SRGB) => Some(Transfer::Srgb),
             _ => None,
         },
+        premultiplied: byte(FLAGS).is_some_and(|flags| flags & PREMULTIPLIED != 0),
     }
 }
 

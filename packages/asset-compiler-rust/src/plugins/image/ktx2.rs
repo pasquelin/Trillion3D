@@ -28,6 +28,11 @@
 //! `header` rend la surface et les bornes de son niveau 0, `format` nomme le codec et sa géométrie
 //! de bloc, `level` et `basis` ne sont que la reconstruction.
 //!
+//! **Ce que le fichier déclare autour de ses texels** est lu, pas sauté : `dfd` rend la fonction de
+//! transfert et le drapeau d'alpha prémultiplié du descripteur de format, `keys` rend les clés
+//! `KTXorientation` et `KTXswizzle`, et `declared` applique ce qui s'applique — dé-prémultiplication,
+//! retournement vertical — en comptant le reste par une raison nommée.
+//!
 //! Seul le niveau 0 est consommé, comme chez `dds` ; la chaîne annoncée est vérifiée entière, un
 //! niveau qui sort du fichier est un refus. Tout le reste — cubes, tableaux, volumes, `vkFormat`
 //! hors liste, supercompression inconnue, fichier tronqué, plafond d'allocation dépassé — est un
@@ -35,10 +40,12 @@
 use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
+mod declared;
 mod dfd;
 mod eac;
 mod format;
 mod header;
+mod keys;
 mod level;
 
 pub(super) static KTX2: Ktx2 = Ktx2;
@@ -64,6 +71,11 @@ const DATA_TRUNCATED: &str = "ktx2-data-truncated";
 const TOO_LARGE: &str = "ktx2-image-too-large";
 /// Une charge Basis Universal que le transcodeur refuse : codec hors liste, vidéo, flux corrompu.
 const TRANSCODE_FAILED: &str = "ktx2-transcode-failed";
+/// La clé `KTXorientation` demande un sens que le pilote ne sait pas ramener à celui du contrat —
+/// un départ vers la gauche, une troisième dimension. Compté, jamais appliqué de travers.
+const ORIENTATION_UNSUPPORTED: &str = "ktx2-orientation-unsupported";
+/// La clé `KTXswizzle` demande une permutation de canaux autre que l'identité. Compté de même.
+const SWIZZLE_UNSUPPORTED: &str = "ktx2-swizzle-unsupported";
 
 impl Plugin for Ktx2 {
     fn name(&self) -> &'static str {
@@ -74,7 +86,7 @@ impl Plugin for Ktx2 {
     /// raison : une entrée écrite du temps du décodeur externe porte des texels mélangés et
     /// tronqués, et serait sans lui relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11-dfd"
+        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11-dfd-cles"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ktx2"]
@@ -99,11 +111,14 @@ impl ImageDecoder for Ktx2 {
         max_alloc: u64,
     ) -> std::result::Result<ImageDecoded, &'static str> {
         let surface = header::parse(bytes)?;
-        let image = if surface.format == format::UNDEFINED {
+        let mut image = if surface.format == format::UNDEFINED {
             basis::decode(&surface, bytes, max_alloc)?
         } else {
             level::decode(&surface, bytes, max_alloc)?
         };
-        Ok(ImageDecoded::srgb(image).with_transfer(surface.transfer))
+        let notes = declared::apply(&mut image, surface.premultiplied, bytes);
+        Ok(ImageDecoded::srgb(image)
+            .with_transfer(surface.transfer)
+            .with_notes(notes))
     }
 }

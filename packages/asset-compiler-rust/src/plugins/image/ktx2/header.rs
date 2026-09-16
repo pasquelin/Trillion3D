@@ -36,6 +36,9 @@ pub(super) struct Surface {
     /// La fonction de transfert que le fichier déclare : celle du descripteur de format quand il la
     /// nomme, celle du `vkFormat` sinon, et à défaut le sRGB de convention.
     pub(super) transfer: Transfer,
+    /// Le descripteur de format lève le drapeau d'alpha prémultiplié : les composantes sont déjà
+    /// multipliées par leur alpha, et le contrat de sortie les demande droites.
+    pub(super) premultiplied: bool,
     /// Les bornes du niveau 0 dans le fichier, telles que l'index les donne.
     pub(super) level: std::ops::Range<usize>,
     /// `uncompressedByteLength` du niveau 0 : ce que la supercompression doit rendre.
@@ -79,7 +82,8 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
     // niveau est stocké, et c'est celui-là qu'on lit.
     let levels = levels.max(1) as usize;
     let (level, plain) = chain(bytes, levels)?;
-    let transfer = dfd::read(bytes)
+    let descriptor = dfd::read(bytes);
+    let transfer = descriptor
         .transfer
         .or_else(|| format::transfer(format))
         .unwrap_or(Transfer::Srgb);
@@ -91,6 +95,7 @@ pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> 
         level,
         plain,
         transfer,
+        premultiplied: descriptor.premultiplied,
     })
 }
 
