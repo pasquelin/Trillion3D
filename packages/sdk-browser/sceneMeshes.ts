@@ -1,8 +1,9 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
+import { resolveHostSubtree } from './hostWorldMatrices.ts';
 
 export function meshes(source: THREE.Object3D) {
   const found: THREE.Mesh[] = [];
-  source.updateMatrixWorld(true);
+  resolveHostSubtree(source);
   source.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) found.push(o as THREE.Mesh);
   });
