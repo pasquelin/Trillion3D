@@ -6,15 +6,14 @@
 //! d'un objet, matériau d'un emplacement, activation d'un rendu — et compte les autres, propriété
 //! par propriété : le nombre d'un manque se lit au rapport plutôt que de se deviner.
 use super::*;
-use std::collections::HashMap;
 
 /// Ce qu'une instance remplace, visé par visé.
 #[derive(Default)]
 pub(super) struct Changes {
-    transforms: HashMap<i64, Overrides>,
-    active: HashMap<i64, bool>,
-    enabled: HashMap<i64, bool>,
-    materials: HashMap<i64, Vec<Ref>>,
+    transforms: BTreeMap<i64, Overrides>,
+    active: BTreeMap<i64, bool>,
+    enabled: BTreeMap<i64, bool>,
+    materials: BTreeMap<i64, Vec<Ref>>,
     /// Le nom de la racine : la seule retouche de nom qu'une instance porte.
     pub(super) name: Option<String>,
     /// Les retouches que le pilote sait appliquer.
@@ -111,27 +110,18 @@ impl Changes {
         self.materials.get(&target).map(Vec::as_slice)
     }
 
-    /// Les retouches de toutes les cibles en une seule table : une instance de modèle n'a qu'une
-    /// racine, et le `fileID` que la cible nomme appartient au fichier importé, pas à la scène.
-    pub(super) fn merged_transform(&self) -> Overrides {
-        let mut out = Overrides::new();
-        for values in self.transforms.values() {
-            out.extend(values.iter().map(|(path, value)| (path.clone(), *value)));
-        }
-        out
+    /// Les cibles des retouches de transformation, par `fileID` croissant : le même fichier se
+    /// relit dans le même ordre, et chaque suite de valeurs reste celle de son seul objet.
+    pub(super) fn transform_targets(&self) -> impl Iterator<Item = (i64, &Overrides)> {
+        self.transforms
+            .iter()
+            .map(|(target, values)| (*target, values))
     }
-    /// De même pour les matériaux : les emplacements de toutes les cibles, dans l'ordre.
-    pub(super) fn merged_materials(&self) -> Vec<Ref> {
-        let mut out: Vec<Ref> = Vec::new();
-        for slots in self.materials.values() {
-            cover(&mut out, slots.len());
-            for (slot, reference) in slots.iter().enumerate() {
-                if !reference.is_null() {
-                    out[slot] = reference.clone();
-                }
-            }
-        }
-        out
+    /// De même pour les emplacements de matériau.
+    pub(super) fn material_targets(&self) -> impl Iterator<Item = (i64, &[Ref])> {
+        self.materials
+            .iter()
+            .map(|(target, slots)| (*target, slots.as_slice()))
     }
 
     /// Ce que l'instance a changé, et ce qu'elle demandait que ce pilote ne rend pas : le total,

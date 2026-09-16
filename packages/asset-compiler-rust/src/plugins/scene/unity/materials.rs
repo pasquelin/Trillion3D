@@ -112,19 +112,25 @@ fn emission(
 }
 
 /// Le mode de rendu : `_Mode` chez Standard (0 opaque, 1 découpé, 2 fondu, 3 transparent), `_Surface`
-/// et le drapeau de découpe chez URP et HDRP. Un matériau transparent ne devient jamais masqué.
+/// et le drapeau de découpe chez URP et HDRP. La décision se prend sur ces propriétés, jamais sur un
+/// nom de matériau ni un type d'objet. Un matériau déclaré transparent reste fondu, même quand il
+/// déclare aussi une découpe : `MASK` rendrait ses pixels opaques ou absents, et une transparence
+/// convertie en masquage est une perte d'image. La découpe alors non rendue est comptée, et son
+/// seuil n'est pas écrit — le glTF ne lit `alphaCutoff` que sous `MASK`.
 fn alpha(properties: &Properties<'_>, out: &mut Value, opacity: f64, scene: &mut Scene) {
     let mode = properties.float(&["_Mode"], 0.0);
     let surface = properties.float(&["_Surface"], 0.0);
     let clipped = properties.float(&ALPHA_CLIP, 0.0) >= 0.5 || mode == 1.0;
     let blended = surface >= 0.5 || mode >= 2.0;
-    if clipped {
-        out["alphaMode"] = json!("MASK");
-        out["alphaCutoff"] = json!(properties.float(&CUTOFF, 0.5));
-        if blended {
+    if blended {
+        out["alphaMode"] = json!("BLEND");
+        if clipped {
             scene.report.add("unity-material-clip-and-blend");
         }
-    } else if blended || (opacity < 1.0 && mode == 0.0 && surface == 0.0 && opacity > 0.0) {
+    } else if clipped {
+        out["alphaMode"] = json!("MASK");
+        out["alphaCutoff"] = json!(properties.float(&CUTOFF, 0.5));
+    } else if opacity < 1.0 && opacity > 0.0 && mode == 0.0 && surface == 0.0 {
         out["alphaMode"] = json!("BLEND");
     }
 }

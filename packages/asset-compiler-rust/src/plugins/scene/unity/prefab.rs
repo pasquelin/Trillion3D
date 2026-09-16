@@ -53,31 +53,4 @@ impl Builder<'_, '_> {
         let name = asset.file_stem()?.to_string_lossy().to_string();
         Some(self.world.scene.node(json!({"name":name,"children":nodes})))
     }
-
-    /// Une instance dont la source est un modèle : le pilote du format le convertit, l'instance ne
-    /// porte plus que sa transformation, son nom et, s'ils sont déclarés, ses matériaux.
-    fn model_instance(&mut self, asset: &Path, changes: &Changes) -> Option<usize> {
-        let parts = self.models.parts(asset, self.world)?;
-        let materials: Vec<Option<usize>> = changes
-            .merged_materials()
-            .iter()
-            .map(|slot| self.material(slot))
-            .collect();
-        let children = self.attach(&parts, &materials);
-        let name = changes.name.clone().or_else(|| {
-            asset
-                .file_stem()
-                .map(|stem| stem.to_string_lossy().to_string())
-        })?;
-        let mut node = json!({"name":name,"children":children});
-        // Une instance de modèle n'a pas de transformation propre dans le fichier : tout vient des
-        // retouches, et l'identité quand il n'y en a pas.
-        let trs = local_trs(&Yaml::BadValue, &changes.merged_transform());
-        if trs.is_finite() {
-            trs.write(&mut node);
-        } else {
-            self.world.scene.report.add("unity-invalid-transform");
-        }
-        Some(self.world.scene.node(node))
-    }
 }

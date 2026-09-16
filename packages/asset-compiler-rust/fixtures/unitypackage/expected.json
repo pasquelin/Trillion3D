@@ -12,7 +12,7 @@
     },
     {
       "name": "unity",
-      "version": "unity-yaml-rust2-0.13-gltf-2"
+      "version": "unity-yaml-rust2-0.13-gltf-3"
     }
   ],
   "refus": {
@@ -24,7 +24,7 @@
     "formatVersion": 3,
     "plugin": {
       "name": "unity",
-      "version": "unity-yaml-rust2-0.13-gltf-2"
+      "version": "unity-yaml-rust2-0.13-gltf-3"
     },
     "files": [
       {

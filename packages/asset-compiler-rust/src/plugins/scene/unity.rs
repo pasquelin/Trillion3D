@@ -30,13 +30,16 @@ use std::{
 use yaml_rust2::yaml::Yaml;
 
 mod assets;
+mod attach;
 mod build;
 mod builtin;
 mod convert;
+mod instance;
 mod materials;
 mod merge;
 mod meta;
 mod models;
+mod parts;
 mod patch;
 mod prefab;
 mod project;
@@ -48,9 +51,10 @@ mod yaml;
 use build::*;
 use builtin::*;
 use convert::convert;
-use merge::Parts;
+use merge::{array, index};
 use meta::ModelImport;
 use models::Models;
+use parts::{mesh_nodes, model_matrices, Parts};
 use patch::{local_trs, Changes};
 use project::{assets_root, meta_of, read_text, Project};
 use textures::Textures;
@@ -69,7 +73,7 @@ impl Plugin for Unity {
     /// La version nomme le lecteur YAML et la génération de la conversion : la changer invalide les
     /// caches, donc toute scène Unity déjà compilée est relue.
     fn version(&self) -> &'static str {
-        "unity-yaml-rust2-0.13-gltf-2"
+        "unity-yaml-rust2-0.13-gltf-3"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["unity"]
