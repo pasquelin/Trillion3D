@@ -1,22 +1,29 @@
 import type { PageRec } from './pageSelection.ts';
 
-// Deux parcours du catalogue des pages, faits une fois au chargement : la table des octets source et
-// les compteurs du diagnostic des textures.
+// Deux parcours du catalogue des pages, faits une fois au chargement : la table des pages par
+// adresse et les compteurs du diagnostic des textures.
 
 /**
- * Les octets d'index de chaque page, vus comme des octets, par adresse. Une boucle au lieu d'un
- * `flatMap` : chaque page allouait un tableau d'un seul couple, et le tableau intermédiaire portait
- * une entrée par page du catalogue avant d'être dédoublonné. La dernière page d'une adresse
- * l'emporte, comme `new Map(entrées)`.
+ * Les octets d'index de chaque page, vus comme des octets, par adresse de cluster.
+ *
+ * Douze placements d'un même objet partagent l'adresse de leurs clusters : une table « une page par
+ * adresse » ne peut pas dire lequel porte les octets à l'instant où le cache les demande. La table
+ * est donc tenue par adresse, posée au chargement depuis les pages déjà servies, complétée à chaque
+ * arrivée et vidée à chaque abandon — une vue par cluster, jamais une copie.
  */
 export function indexSourceBytes(allPages: readonly PageRec[]) {
   const sourceBytes = new Map<string, Uint8Array>();
   for (const page of allPages) {
-    const array = page.array;
-    if (array)
-      sourceBytes.set(page.url, new Uint8Array(array.buffer, array.byteOffset, array.byteLength));
+    const bytes = pageSourceBytes(page);
+    if (bytes) sourceBytes.set(page.url, bytes);
   }
   return sourceBytes;
+}
+
+/** Les octets d'index d'une page, vus comme des octets, ou `undefined` tant qu'elle n'en a pas. */
+export function pageSourceBytes(rec: PageRec | undefined) {
+  const array = rec?.array;
+  return array && new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
 }
 
 /**

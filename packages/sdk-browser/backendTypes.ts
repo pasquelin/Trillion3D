@@ -63,7 +63,13 @@ export interface RenderBackend {
    *  so a small camera move finds them already resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
-  acceptPage?(url: string, array: Uint32Array): void;
+  /** La fiche d'entiers du catalogue pour une requête : ce que l'intégration hors fil planifie. */
+  pageSpecs?(url: string): Int32Array | undefined;
+  acceptPage?(
+    url: string,
+    array: Uint32Array,
+    plan?: import('./pageIntegrationHost.ts').ArrivalPlan,
+  ): void;
   acceptGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
   replaceGeometryPage?(url: string, data: import('./geometryPage.ts').DecodedGeometryPage): void;
   /** Additional prepared-scene instance; supported by backends that own mutable scene records. */

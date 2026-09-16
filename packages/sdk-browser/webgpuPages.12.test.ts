@@ -75,7 +75,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   const fixture = quadScene(),
     other = quadScene(),
     legacy = quadScene(),
-    { device, writes } = mockGpu();
+    { device, writes, draws } = mockGpu();
   fixture.material.transparent = true;
   fixture.material.side = THREE.DoubleSide;
   fixture.metadata.primitives[0].pass = 'clustered-blend';
@@ -108,13 +108,23 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     maxResidentPages: 6,
     viewport: [32, 32],
   });
+  // Les triangles que l'image a réellement dessinés : le plan d'encodage ne bouge plus d'une image
+  // à l'autre, c'est le nombre d'instances que la coupe écrit qui tombe à zéro. Un item double face
+  // dessine ses triangles deux fois, une fois par passe de face.
+  const dessines = () =>
+    draws
+      .splice(0, draws.length)
+      .filter((draw) => draw.entryPoint === 'vs')
+      .reduce((sum, draw) => sum + (draw.vertexCount * (draw.instanceCount ?? 0)) / 3, 0);
   try {
     await backend.prepare();
     const cam = camera();
+    draws.length = 0;
     backend.render(cam);
     // Two paged meshes of two triangles, counted once each, and one whole mesh outside the DAG
     // drawn by both face passes.
     assert.equal(backend.metrics().transparentSubmittedTriangles, 8);
+    assert.equal(dessines(), 12, 'trois maillages, deux faces chacun');
     const uploads = writes.length;
     otherMesh.position.x = 100;
     backend.render(cam);
@@ -123,29 +133,33 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
       6,
       'another paged mesh can disappear without changing this mesh cut',
     );
+    assert.equal(dessines(), 8);
+    // Le tronc d'un item NON paginé passe par la carte : son appel reste encodé, avec un compte
+    // d'instances nul. Le compte soumis, lui, ne décrit plus que ce que l'encodage a posé.
     legacyMesh.position.x = 100;
     backend.render(cam);
-    assert.equal(
-      backend.metrics().transparentSubmittedTriangles,
-      2,
-      'legacy bounds update while the paged cut stays unchanged',
-    );
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 6);
+    assert.equal(dessines(), 4, 'legacy bounds update while the paged cut stays unchanged');
     mesh.position.x = 100;
     backend.render(cam);
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 0);
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 4);
+    assert.equal(dessines(), 0);
     mesh.position.x = 0;
     backend.render(cam);
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      2,
+      6,
       'cached pages become visible again',
     );
+    assert.equal(dessines(), 4);
     legacyMesh.position.x = 0;
     backend.render(cam);
     assert.equal(backend.metrics().transparentSubmittedTriangles, 6);
+    assert.equal(dessines(), 8);
     otherMesh.position.x = 0;
     backend.render(cam);
     assert.equal(backend.metrics().transparentSubmittedTriangles, 8);
+    assert.equal(dessines(), 12);
     assert.equal(
       writes.slice(uploads).filter((write) => write.bytes.byteLength === 24).length,
       0,

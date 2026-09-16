@@ -5,6 +5,7 @@ import type { BlendOverdraw } from './webgpuBlendOverdraw.ts';
 import type { TransparentCompaction } from './webgpuTransparentCompact.ts';
 import type { TransparentOcclusion } from './gpuTransparentOcclusion.ts';
 import type { TransparentTable } from './webgpuTransparentTable.ts';
+import type { BlendSelect } from './webgpuBlendSelect.ts';
 
 export type BlendGpuItem = {
   /** Le matériau transmet : l'item est dessiné dans la passe de transmission, pas dans le mélange. */
@@ -34,10 +35,16 @@ export type BlendGpuItem = {
   paged?: boolean;
   /** Rank of a paged item in the transparent table: the base its instances are written at. */
   pagedIndex?: number;
+  /** Base de sa liste de grappes dans la table transparente, zero pour un item non pagine. */
+  tableBase?: number;
+  /** Premier sommet de sa geometrie dans les tampons concatenes, zero pour un item non pagine. */
+  vertexBase?: number;
 };
 
 /** Reused transparent draw lists and GPU resources for one backend instance. */
 export function createWebgpuBlendState() {
+  /** Les vingt-quatre mots de l'uniforme de vue, et leur vue entière : alloués une fois. */
+  const view = new Float32Array(24);
   const blendGpu: BlendGpuItem[] = [];
   const pagedBlendGpu = new Map<THREE.Mesh, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
@@ -77,6 +84,31 @@ export function createWebgpuBlendState() {
     diagnosticMode: undefined as DiagnosticMode | undefined,
     /** Le compteur de surdessin, monté par la seule variante de diagnostic qui le demande. */
     overdraw: undefined as BlendOverdraw | undefined,
+    /** Les fiches d'items et l'uniforme de vue : un tampon de scène, un tampon d'image. */
+    itemBuffer: undefined as GPUBuffer | undefined,
+    itemPacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    /** La vue entière des fiches, sur le même tampon : allouée avec elles, jamais par image. */
+    itemInts: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    viewBuffer: undefined as GPUBuffer | undefined,
+    viewPacked: view,
+    viewInts: new Uint32Array(view.buffer),
+    /** Le tronc GPU des items, et les arguments indirects que lui — ou son repli — écrit. */
+    select: undefined as BlendSelect | undefined,
+    argsBuffer: undefined as GPUBuffer | undefined,
+    argsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    /** Ce que l'indice de sommet décale pour nommer l'item qui le porte. */
+    itemShift: 1,
+    /** Tables statiques du plan d'encodage (`webgpuBlendPlan.ts`). */
+    drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    boxesPacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
+    planBlend: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    planTransmission: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
+    /** Triangles que les items non paginés soumettent dans chaque passe, deux fois pour un item
+     *  double face : un compte de scène, bâti avec le plan, et non un compte d'image. */
+    blendTriangles: 0,
+    transmissionTriangles: 0,
+    /** Le groupe de liaison que TOUS les items paginés partagent. */
+    pagedGroup: undefined as GPUBindGroup | undefined,
   };
   return state;
 }

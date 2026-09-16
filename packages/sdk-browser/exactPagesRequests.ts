@@ -4,13 +4,14 @@ import {
   acceptPageArray,
   collectPendingUrls,
   indexPagesByUrl,
-  pageRequestUrl,
   RequestStamps,
   selectVisiblePages,
   type PageRec,
   type ClusterRoot,
 } from './pageSelection.ts';
 import { orderPendingUrls, pixelScaleOf } from './streamingPriority.ts';
+import { applyArrivalPlan, createArrivalSpecs } from './pageArrivalSpecs.ts';
+import type { ArrivalPlan } from './pageIntegrationHost.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 
 export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
@@ -23,12 +24,6 @@ export function createExactPagesRequestData(allPages: PageRec[], requestCount: n
   const prefetchScratch: string[] = [],
     prefetchShown: PageRec[] = [];
   const pixelScaleScratch: number[] = [1, 1];
-  const markRequests = (list: readonly PageRec[]) => {
-    for (let i = 0; i < list.length; i++) {
-      const rec = list[i];
-      if (requestStamps.first(rec.requestIndex)) urlScratch.push(pageRequestUrl(rec));
-    }
-  };
   return {
     byUrl,
     pendingScratch,
@@ -39,7 +34,6 @@ export function createExactPagesRequestData(allPages: PageRec[], requestCount: n
     prefetchScratch,
     prefetchShown,
     pixelScaleScratch,
-    markRequests,
   };
 }
 
@@ -57,7 +51,6 @@ export type ExactPagesRequestContext = {
   roots: ReadonlyArray<ClusterRoot<PageRec>>;
   urlScratch: string[];
   bundled: boolean;
-  markRequests: (list: readonly PageRec[]) => void;
   batches: ClusterBatches;
   byUrl: Map<string, PageRec[]>;
   indexByUrl: Map<string, THREE.BufferAttribute>;
@@ -87,7 +80,6 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     roots,
     urlScratch,
     bundled,
-    markRequests,
     batches,
     byUrl,
     indexByUrl,
@@ -95,7 +87,11 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     scene,
     resourcesChanged,
   } = ctx;
+  // Le rang de page de la coupe WebGL vit dans les lots, pas dans une table de pages : la fiche ne
+  // porte donc que la place de chaque enregistrement dans le paquet et sa taille.
+  const pageSpecs = createArrivalSpecs(byUrl, () => undefined);
   return {
+    pageSpecs,
     pendingUrls() {
       // The root cover is requested first and never dropped: it is what the cut falls back on.
       missingRoots.length = 0;
@@ -143,9 +139,9 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       // hachage ni allocation, sur une coupe qui compte des milliers de pages à chaque image.
       if (bundled) {
         requestStamps.begin();
-        markRequests(bootstrap);
-        markRequests(shown);
-        markRequests(desired);
+        requestStamps.mark(bootstrap, urlScratch);
+        requestStamps.mark(shown, urlScratch);
+        requestStamps.mark(desired, urlScratch);
         return urlScratch;
       }
       ctx.urlStamp++;
@@ -156,10 +152,12 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     },
     // One request carries a whole bundle: every record it holds takes the view at its own offset, and
     // each of those views is what the batch writes into the primitive's index buffer.
-    acceptPage(url: string, array: Uint32Array) {
+    acceptPage(url: string, array: Uint32Array, plan?: ArrivalPlan) {
       const recs = byUrl.get(url);
       if (!recs) return;
-      acceptPageArray(recs, array);
+      // Les vues du paquet viennent du plan calculé hors fil ; sans plan, le même calcul se refait
+      // en ligne, au même résultat. Les lots n'écrivent ensuite que les plages ainsi nommées.
+      if (!applyArrivalPlan(recs, array, plan)) acceptPageArray(recs, array);
       batches.acceptPage(recs, array);
       resourcesChanged();
     },

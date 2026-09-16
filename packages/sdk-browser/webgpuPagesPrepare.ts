@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { createDeferredLighting } from './deferredLighting.ts';
 import { createSceneLightContractBuffer } from './webgpuPagesStateLights.ts';
 import { prepareWebgpuPresentation } from './webgpuPresentationSetup.ts';
-import { createGpuPageCache } from './gpuPages.ts';
 import { createWebgpuPagesPipelines } from './webgpuPagesPipelines.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
 import { createTransparentTable } from './webgpuTransparentTable.ts';
+import { prepareBlendResources } from './webgpuBlendResources.ts';
 import { createTransparentCompaction } from './webgpuTransparentCompact.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { VOLUME_STRIDE, createVolumeBuffer } from './webgpuTransmission.ts';
@@ -19,6 +19,7 @@ import { dropVis, grantCapability } from './webgpuPagesDrops.ts';
 import { prepareWebgpuTextures } from './webgpuPagesPrepareTextures.ts';
 import { prepareWebgpuVisibility } from './webgpuPagesPrepareVisibility.ts';
 import { prepareDirectLights } from './webgpuPagesPrepareLights.ts';
+import { createWebgpuPagesCache } from './webgpuPagesPrepareCache.ts';
 import { type WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every cluster carries its own cone; a double-sided or back-facing material keeps it open.
@@ -61,28 +62,6 @@ export function prepareCones(rt: WebgpuPagesRuntime) {
     }
 }
 
-function cacheOptions(rt: WebgpuPagesRuntime) {
-  const { diag, run } = rt,
-    { pageBytes, slots } = rt.setup;
-  return (
-    diag.traceEnabled
-      ? {
-          pageBytes,
-          slots,
-          onDiagnostic: (event: {
-            phase: string;
-            message: string;
-            context: Record<string, unknown>;
-          }) =>
-            diag.traceDiagnostic(`cache-${event.phase}`, event.message, () => ({
-              ...event.context,
-              frame: run.frame,
-            })),
-        }
-      : { pageBytes, slots }
-  ) as Parameters<typeof createGpuPageCache>[2];
-}
-
 /** Builds every GPU resource an image needs; called once, after the device and lighting exist. */
 export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { gpu, vis, run, context, diag, capabilities, blendState, services } = rt,
@@ -120,7 +99,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
         : 'texture-only',
     imageReadbackDuringRender: false,
   });
-  gpu.cache = createGpuPageCache(gpuDevice, services.pageSource, cacheOptions(rt));
+  gpu.cache = createWebgpuPagesCache(rt, gpuDevice);
   ({
     bindGroupLayout: gpu.bindGroupLayout,
     pipelineBack: gpu.pipelineBack,
@@ -161,6 +140,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureUniform(rt, gpuDevice, cap);
   try {
     await prepareWebgpuTextures(rt, gpuDevice);
+    // Les fiches d'items citent les couches d'atlas : elles se montent donc APRÈS les textures.
+    await prepareBlendResources(rt, gpuDevice);
     await prepareWebgpuVisibility(rt, gpuDevice);
   } catch (error) {
     diag.diagnosticFailure('material-pipeline-failed', error);

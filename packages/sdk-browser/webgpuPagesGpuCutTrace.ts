@@ -96,20 +96,10 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       { source: 'gpu', decision: 'current-frame-mask' },
       {
         coverage: {
-          loaded: tracking.traceSet(
-            'frame.loaded',
-            rows.packedRecs.slice(0, rows.packedCount).map((page) => page!.url),
-          ),
-          wanted: tracking.traceSet(
-            'frame.wanted',
-            run.desired.map((page) => page.url),
-          ),
-          shown: run.gpuMetricsReady
-            ? tracking.traceSet(
-                'frame.shown',
-                run.shown.map((page) => page.url),
-              )
-            : null,
+          // Trois relevés bornés : le mode trace ne recopie plus la coupe entière par image.
+          loaded: tracking.traceRecs('frame.loaded', rows.packedRecs, rows.packedCount),
+          wanted: tracking.traceRecs('frame.wanted', run.desired),
+          shown: run.gpuMetricsReady ? tracking.traceRecs('frame.shown', run.shown) : null,
           ready: rt.services.bootstrapState.ready,
         },
         budget: { slots, limited: run.coverageBudgetLimited },

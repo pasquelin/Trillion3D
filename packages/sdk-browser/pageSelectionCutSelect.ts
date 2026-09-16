@@ -1,6 +1,11 @@
 import { clipPlanesFromMatrix, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { ConeContext } from './pageCone.ts';
-import { drawnUnderForcing, forceCoarse, worldStretch } from './pageSelectionCutLogic.ts';
+import {
+  clearForcedMarks,
+  drawnUnderForcing,
+  forceCoarse,
+  worldStretch,
+} from './pageSelectionCutLogic.ts';
 import { rootCoverInto, repairFlat } from './pageSelectionCutRepair.ts';
 import {
   fallbackScratch,
@@ -43,10 +48,11 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;
-  if (s.flatForced && s.flatForcedList) {
-    for (let i = 0; i < s.flatForcedList.length; i++) s.flatForced[s.flatForcedList[i]] = 0;
-    s.flatForcedList.length = 0;
-  }
+  // Les marques de forçage de la coupe précédente tombent avec les groupes qui les portaient :
+  // elles se défont groupe par groupe, jamais par un balayage de tous les nœuds de la primitive.
+  const links = root.culling?.links,
+    marks = root.culling?.marks;
+  if (s.flatForced && s.flatForcedList) clearForcedMarks(s, links, marks);
   const startWanted = s.wantedCount,
     startShown = s.shownCount,
     startRejected = s.frustumRejected,
@@ -71,7 +77,7 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
     const own = rec.group;
     if (own == null || own < 0) continue;
     if (s.flatForced[own]) continue;
-    forceCoarse(s, own);
+    forceCoarse(s, own, links, marks);
     forcedAny = true;
     for (
       let i = s.flatStructure.outputOffsets[own];

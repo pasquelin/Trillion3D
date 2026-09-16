@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, SHADE_SHADER } from './visibilityBuffer.ts';
-import { BLEND_SHADER } from './webgpuPagesShaders.ts';
+import { BLEND_SHADER } from './webgpuBlendShader.ts';
 
 /** Le corps de la branche de la normale de sommet, celle qui suit la normale géométrique. */
 function vertexNormalBranch(wgsl: string) {
@@ -41,7 +41,9 @@ test('seule une normale de sommet se retourne sur le dos d’un matériau à deu
   }
   // Le repère tangent suit la même règle : il ne se retourne qu'avec la normale qui l'oriente.
   const tangent = new RegExp(
-    `&${FLAG_DOUBLE}u\\)!=0u&&\\([a-z]+\\.flags&${FLAG_HAS_NORMAL}u\\)!=0u\\)\\{T\\*=face;B\\*=face;\\}`,
+    // L'opaque lit les drapeaux sur sa fiche de page, le mélange dans une variable locale tirée de
+    // ses variables plates : `page.flags` d'un côté, `flags` de l'autre, même règle vérifiée.
+    `&${FLAG_DOUBLE}u\\)!=0u&&\\((?:[a-z]+\\.)?flags&${FLAG_HAS_NORMAL}u\\)!=0u\\)\\{T\\*=face;B\\*=face;\\}`,
   );
   for (const [nom, wgsl] of [
     ['mélange', BLEND_SHADER],
