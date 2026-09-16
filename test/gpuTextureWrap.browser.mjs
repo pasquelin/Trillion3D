@@ -1,4 +1,4 @@
-// Défauts 4 et 7, GPU : le WGSL de production (`wrapUv`/`wrapCoord`, visibilityPageWgsl.ts)
+// Défauts 4 et 7, GPU : le WGSL de production (`wrapUv`/`wrapCoord`, visibilityWrapModes.ts)
 // échantillonné par une vraie carte graphique WebGPU dans Chromium (Playwright de render-tech-lab,
 // en lecture seule), contre l'échantillonneur natif réglé sur le même mode d'adressage — le tout sur
 // une texture à texels tous distincts, en filtrage linéaire. Deux séries :

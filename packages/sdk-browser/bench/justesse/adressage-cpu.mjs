@@ -10,7 +10,7 @@
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { sampleLinear, wrapTexel } from '../../visibilityMath.ts';
-import { wrapLinear } from '../../visibilityPageWgsl.ts';
+import { wrapLinear } from '../../visibilityWrapModes.ts';
 import { rasterVisibility } from '../../visibilityRaster.ts';
 import {
   bilan,

@@ -1,12 +1,6 @@
 import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
-// Ré-export temporaire : la règle d'adressage a rejoint le mot qui la commande, dans
-// `visibilityWrapModes.ts`. Deux fichiers l'importent encore d'ici, tenus par une autre session au
-// moment de ce lot : `bench/justesse/adressageGpuPage.mjs` et `bench/justesse/adressage-cpu.mjs`.
-// À basculer sur `visibilityWrapModes.ts`, puis à supprimer — ces deux lignes et rien d'autre.
-export { WRAP_COORD_WGSL, wrapLinear } from './visibilityWrapModes.ts';
-
 /**
  * La géométrie d'une page telle que le GPU la lit : la description d'un cluster, l'uniforme de son
  * slot de dessin, et la résolution du rang de page d'une instance indirecte. Une seule déclaration,
