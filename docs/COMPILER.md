@@ -49,6 +49,8 @@ web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/e
 
 `simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
 
+A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` says which nodes were kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`).
+
 ## The three streams
 
 The process talks through stdin, stdout and stderr only. There is no socket, no temporary protocol file, no environment contract.
