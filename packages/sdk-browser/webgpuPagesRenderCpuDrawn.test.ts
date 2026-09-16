@@ -30,7 +30,10 @@ test('coupe processeur (visibility buffer indisponible) : drawnTriangles = selec
   await backend.flush();
   backend.render(camera());
   const metrics = backend.metrics();
-  assert.ok((metrics.selectedTriangles ?? 0) > 0, 'témoin : la coupe a bien sélectionné des triangles');
+  assert.ok(
+    (metrics.selectedTriangles ?? 0) > 0,
+    'témoin : la coupe a bien sélectionné des triangles',
+  );
   assert.equal(metrics.uncoveredTriangles, 0);
   assert.equal(metrics.drawnTriangles, metrics.selectedTriangles);
   backend.dispose();
