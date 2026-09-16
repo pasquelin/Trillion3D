@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import {
-  FLAG_WRAP_S_MIRROR,
-  FLAG_WRAP_S_REPEAT,
-  FLAG_WRAP_T_MIRROR,
-  FLAG_WRAP_T_REPEAT,
-} from './visibilityTypes.ts';
+  WRAP_MAP,
+  WRAP_OF_WGSL,
+  WRAP_S_MIRROR,
+  WRAP_S_REPEAT,
+  WRAP_T_MIRROR,
+  WRAP_T_REPEAT,
+} from './visibilityWrapModes.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
 
 /**
@@ -13,7 +15,7 @@ import { VIS_BINDINGS } from './webgpuBindLayout.ts';
  * partagée par le raster du visibility buffer et par les passes de profondeur des ombres — deux
  * copies de cette structure seraient deux chances de la voir dériver.
  */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,pad5b:u32,pad5c:u32,pad5d:u32,}`;
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,uvScale:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,roughUvScale:vec2f,metalUvScale:vec2f,normalUvScale:vec2f,aoIndex:u32,aoIntensity:f32,aoUvScale:vec2f,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,emissiveUvScale:vec2f,normalScaleY:f32,pad1:f32,pad4:vec4f,depthBias:u32,wrapModes:u32,pad5c:u32,pad5d:u32,}`;
 
 /** La description d'un cluster, suivie de l'uniforme d'une passe de géométrie de page. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -46,31 +48,12 @@ export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base
 export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
 
 /**
- * Les drapeaux d'adressage de la carte de base, un mode par axe, lus par `wrapUv` : aucun bit en
- * serrage, `FLAG_WRAP_*_REPEAT` en répétition, `FLAG_WRAP_*_MIRROR` en répétition miroir. Les deux
- * bits d'un même axe s'excluent, donc `wrapCoord` n'a jamais à arbitrer entre eux. Écrite ici, à
- * côté du WGSL qui les lit, et appelée par `webgpuPageRow.ts` comme par `webgpuBlendPrepare.ts` :
- * une page et un lot transparent portant des drapeaux différents adresseraient la même texture de
- * deux façons.
- */
-export function wrapFlags(map: THREE.Texture | undefined) {
-  if (!map) return 0;
-  const axis = (wrap: THREE.Wrapping, repeat: number, mirror: number) =>
-    wrap === THREE.ClampToEdgeWrapping
-      ? 0
-      : wrap === THREE.MirroredRepeatWrapping
-        ? mirror
-        : repeat;
-  return (
-    axis(map.wrapS, FLAG_WRAP_S_REPEAT, FLAG_WRAP_S_MIRROR) |
-    axis(map.wrapT, FLAG_WRAP_T_REPEAT, FLAG_WRAP_T_MIRROR)
-  );
-}
-
-/**
  * La coordonnée de texture ramenée dans [0, 1] selon le mode de chaque axe, pour un échantillonneur
  * en serrage. Le miroir lit les périodes impaires à rebours : `p` parcourt [0, 2) et `2 - p` est
  * exact, donc le filtrage linéaire rend la couleur de l'échantillonneur `mirror-repeat` de Three.
+ *
+ * `wrapUv` reçoit le quartet de la carte lue, pas les drapeaux du matériau : la couleur d'une page
+ * peut se répéter là où ses normales se serrent (`visibilityWrapModes.ts`).
  *
  * Replier la coordonnée suffit au plus proche et au miroir, jamais à la répétition en filtrage
  * linéaire : dans le demi-texel des deux bords d'une période, la règle de l'échantillonneur mêle le
@@ -80,7 +63,8 @@ export function wrapFlags(map: THREE.Texture | undefined) {
  * plus proche ne bouge pas ; les deux prises tombent au centre exact d'un texel de bord, si bien que
  * la lecture ne dépend plus de l'interpolation de la carte mais du mélange que l'appelant écrit.
  */
-export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
+export const WRAP_COORD_WGSL = `${WRAP_OF_WGSL}
+fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
  let p=t-2.0*floor(t*0.5);
  return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
 }
@@ -92,9 +76,9 @@ fn wrapAxis(t:f32,repeat:bool,mirror:bool,texels:f32)->vec4f{
  let g=fract(c*texels+0.5);
  return vec4f(select(1.0-demi,demi,c<demi),select(demi,1.0-demi,c<demi),min(g,1.0-g),1.0);
 }
-fn wrapUv(uv:vec2f,flags:u32,texels:vec2f)->WrapTaps{
- let x=wrapAxis(uv.x,(flags&${FLAG_WRAP_S_REPEAT}u)!=0u,(flags&${FLAG_WRAP_S_MIRROR}u)!=0u,texels.x);
- let y=wrapAxis(uv.y,(flags&${FLAG_WRAP_T_REPEAT}u)!=0u,(flags&${FLAG_WRAP_T_MIRROR}u)!=0u,texels.y);
+fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
+ let x=wrapAxis(uv.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u,texels.x);
+ let y=wrapAxis(uv.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u,texels.y);
  return WrapTaps(vec2f(x.x,y.x),vec2f(x.y,y.y),vec2f(x.z,y.z),x.w+y.w>0.0);
 }`;
 
@@ -150,7 +134,8 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * raster du tampon de visibilité et la passe de profondeur des ombres les appliquent tous les deux.
  * Une seule écriture : une découpe qui ne serait pas la même des deux côtés ferait une ombre qui ne
  * correspond pas à la silhouette qu'on voit. `flags` : 4 = UV présentes, 8 = carte de base,
- * 128 = matériau à masque, et les drapeaux d'adressage de `wrapFlags` ; le seuil est `baseColor.w`.
+ * 128 = matériau à masque ; le seuil est `baseColor.w`, et le mode d'adressage de la carte de base
+ * vient du mot par carte, jamais des drapeaux du matériau.
  *
  * Le shader hôte déclare `uvs`, l'atlas couleur et sa table de slots, puis insère `ATLAS_SLOTS_WGSL`
  * (qui porte la règle d'adressage) et `COLOR_ALPHA_WGSL` avant ce bloc : `colorAlpha` y applique
@@ -160,7 +145,7 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
  // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
  // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
- return colorAlpha(page.mapIndex,page.uvScale,uv,page.flags)>=page.baseColor.w;
+ return colorAlpha(page.mapIndex,page.uvScale,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u))>=page.baseColor.w;
 }`;
 
 /** Le test de masque précédé de la coordonnée de texture qu'un sommet de page lui fournit. */
