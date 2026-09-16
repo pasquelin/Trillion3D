@@ -83,7 +83,7 @@ function writeLight(light: THREE.Light, source: SceneLight) {
  * l'image est celle d'avant ce lot, au pixel près. Dès qu'il l'a fait, le graphe source s'efface :
  * deux jeux de lampes superposés ne seraient l'éclairage de personne.
  */
-export function createContractLights(scene: THREE.Scene, store: SceneLightStore | undefined) {
+function createContractLights(scene: THREE.Scene, store: SceneLightStore | undefined) {
   const group = new THREE.Group();
   group.visible = false;
   scene.add(group);
