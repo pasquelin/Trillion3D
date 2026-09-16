@@ -1,3 +1,4 @@
+import { mathBatchMetrics } from './mathBatchState.ts';
 import { pageDecodeStats } from './pageDecodeHost.ts';
 import { EngineProfiler } from './telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
@@ -74,6 +75,7 @@ export function createExplorerMetrics(
     pagesDecodedOffThread: null,
     pagesDecodedWasm: null,
     pageDecodeMs: null,
+    mathBatch: null,
   };
   const profiler = new EngineProfiler();
   profiler.setMetadata(metadata);
@@ -109,6 +111,7 @@ export function createExplorerMetrics(
     metricsScratch.pagesDecodedOffThread = decode.offThread;
     metricsScratch.pagesDecodedWasm = decode.wasm;
     metricsScratch.pageDecodeMs = decode.decodeMs;
+    metricsScratch.mathBatch = mathBatchMetrics();
   };
   return { metricsScratch, profiler, fillMetrics };
 }

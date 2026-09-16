@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { detectCapabilities } from './capabilities.ts';
+import { mathBatchMetrics, prepareMathBatch } from './mathBatchState.ts';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { meshes as objects } from './sceneMeshes.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
@@ -32,6 +33,10 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const { pages, geometryPages, attachCap, cacheCap } = pageSources;
   let gpuDevice: GPUDevice | undefined;
   let renderer: THREE.WebGLRenderer | undefined;
+  // Le chemin des calculs en lot est décidé ici, avec les autres capacités, et jamais en silence :
+  // module absent, contrat de calcul inconnu ou horloge trop grossière laissent tout sur le chemin
+  // JavaScript, et le relevé ci-dessous en porte la raison.
+  await prepareMathBatch(options.mathPath ?? 'auto');
   const capabilities = await detectCapabilities('webgl', canvas);
   if (!capabilities.renderer) {
     emit({
@@ -148,6 +153,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       url: page.url,
       bytes: page.bytes,
     })),
+    mathBatch: mathBatchMetrics(),
     provenance: {
       sdk: SDK_BUILD_PROVENANCE,
       manifestUrl,

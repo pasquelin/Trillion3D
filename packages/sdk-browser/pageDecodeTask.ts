@@ -26,7 +26,7 @@ let decodeur: Promise<Decodeur> | undefined;
 
 async function chargeDecodeur(): Promise<Decodeur> {
   const codec = await import('./geometryPageWasm.ts');
-  if (await codec.prepareGeometryPageWasm())
+  if (await codec.prepareSdkWasm())
     return { decode: codec.decodeGeometryPageWasm, wasm: true };
   const js = await import('./geometryPage.ts');
   return { decode: js.decodeGeometryPage, wasm: false };
