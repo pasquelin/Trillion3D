@@ -141,7 +141,7 @@
   "notes": [],
   "plugin": {
     "name": "usd",
-    "version": "usd-openusd-0.7.0-gltf-6"
+    "version": "usd-openusd-0.7.0-gltf-7"
   },
   "primitives": 2,
   "rule": "Le pilote rend la scène composée et rien d'autre : polygones triangulés en éventail, une primitive par partie de matériau, normales et primvars:st résolues par leur interpolation, UsdPreviewSurface vers pbrMetallicRoughness, et l'unité comme l'axe haut de la couche portés par la racine de la scène.",
@@ -155,7 +155,7 @@
   ],
   "scenePlugin": {
     "name": "usd",
-    "version": "usd-openusd-0.7.0-gltf-6"
+    "version": "usd-openusd-0.7.0-gltf-7"
   },
   "selectedNodes": [0],
   "selectedTriangles": 4,
