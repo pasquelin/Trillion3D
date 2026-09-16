@@ -8,7 +8,9 @@ use crate::tests::ngones::{rendered_area, U_RING};
 
 mod fidelite;
 mod matiere;
+mod sortie;
 mod surgery;
+mod transparence;
 
 /// Écrit un fichier Blender minimal à l'ancienne disposition, depuis la description du format :
 /// entête de douze octets, blocs à champs de trente-deux bits, un `DNA1` d'une seule structure et

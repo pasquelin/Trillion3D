@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn an_object_no_collection_of_the_active_scene_holds_is_counted_and_left_out() {
     let bytes = surgery::with_stray_object(b"OBStray");
-    let (gltf, manifest) = surgery::compiled(&bytes, "orphelin");
+    let (gltf, manifest) = sortie::compiled(&bytes, "orphelin");
     let names: Vec<&str> = gltf["nodes"]
         .as_array()
         .expect("nodes")
