@@ -1,5 +1,4 @@
 import type { PageRec } from './pageSelection.ts';
-import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 export type CutDelta = ReturnType<typeof createCutDelta>;
 
@@ -11,19 +10,28 @@ export type CutDelta = ReturnType<typeof createCutDelta>;
  * `pages` — the record array the caller owns — is written in the order the readback published, which
  * is the order the page budget ranks and the host streams in; whatever the caller appended after the
  * cut (the transparent cut, which the GPU never selects) is dropped on every update and re-appended
- * by the caller. Nothing is allocated once the scene is known: the two difference lists and the
- * membership index are sized to the page count at construction, and an image that adopts the cut it
- * already holds writes nothing at all.
+ * by the caller. Un appelant qui ne veut que la différence l'omet : aucune liste d'enregistrements
+ * n'est alors bâtie, et le relevé ne coûte plus que sa propre longueur.
+ *
+ * Rien n'est alloué une fois la scène connue, et rien n'est appelé par page : l'appartenance est une
+ * marque d'époque lue à même un tableau typé — l'époque du relevé pour le dédoublonnage, celle du
+ * relevé précédent pour l'entrée —, les sorties se lisent sur la liste des retenues d'avant, et une
+ * image qui adopte le relevé qu'elle tient déjà n'écrit rien du tout.
  */
-export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]) {
+export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[]) {
   const capacity = Math.max(1, packedPages.length);
-  const members = createDenseKeySet(capacity);
-  const stamp = new Int32Array(capacity).fill(-1);
+  /** L'époque du relevé où l'identifiant a été retenu pour la dernière fois. */
+  const mark = new Int32Array(capacity).fill(-1);
   const entered = new Int32Array(capacity),
     exited = new Int32Array(capacity);
+  /** Les identifiants retenus par le relevé précédent et par celui en cours : deux tampons échangés,
+   *  jamais réalloués, parce que les sorties se lisent sur l'ancien pendant que le neuf s'écrit. */
+  let kept = new Int32Array(capacity),
+    keptNext = new Int32Array(capacity);
   /** La suite d'identifiants que le dernier relevé a publiée, pour la comparer telle quelle. */
   const published = new Int32Array(capacity);
   let epoch = 0,
+    keptCount = 0,
     enteredCount = 0,
     exitedCount = 0,
     publishedCount = -1,
@@ -38,7 +46,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
       return exitedCount;
     },
     get count() {
-      return members.count;
+      return keptCount;
     },
     /**
      * Faux quand le relevé appliqué porte exactement la même suite d'identifiants que le précédent,
@@ -51,14 +59,17 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
     },
     /** Drops the caller's suffix and reports no difference: the cut is the one already held. */
     hold() {
-      changed = pages.length !== members.count;
-      pages.length = members.count;
+      changed = pages ? pages.length !== keptCount : false;
+      if (pages) pages.length = keptCount;
       enteredCount = 0;
       exitedCount = 0;
     },
     /** Forgets the cut held: the CPU cut rewrote the records this index describes. */
     invalidate() {
-      members.clear();
+      // Une époque sautée : aucune marque ne vaudra jamais celle-là, donc plus aucun identifiant
+      // n'est membre au prochain relevé, et la liste des retenues repart vide.
+      epoch++;
+      keptCount = 0;
       enteredCount = 0;
       exitedCount = 0;
       publishedCount = -1;
@@ -66,30 +77,39 @@ export function createCutDelta(packedPages: readonly PageRec[], pages: PageRec[]
     },
     /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
     apply(ids: readonly number[]) {
+      const previous = epoch;
       epoch++;
       enteredCount = 0;
       exitedCount = 0;
-      pages.length = 0;
       // Une suite plus longue que le catalogue ne se garde pas : elle est déclarée changée.
       let same = ids.length === publishedCount && ids.length <= capacity;
       publishedCount = ids.length <= capacity ? ids.length : -1;
+      let count = 0;
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i];
         if (i < capacity && published[i] !== id) {
           published[i] = id;
           same = false;
         }
-        if (id < 0 || id >= capacity || stamp[id] === epoch || !packedPages[id]) continue;
-        stamp[id] = epoch;
-        pages.push(packedPages[id]);
-        if (!members.has(id)) entered[enteredCount++] = id;
+        if (id < 0 || id >= capacity) continue;
+        const seen = mark[id];
+        if (seen === epoch) continue;
+        const rec = packedPages[id];
+        if (!rec) continue;
+        mark[id] = epoch;
+        if (pages) pages[count] = rec;
+        keptNext[count++] = id;
+        if (seen !== previous) entered[enteredCount++] = id;
       }
-      for (let i = members.count - 1; i >= 0; i--) {
-        const id = members.list[i];
-        if (stamp[id] !== epoch) exited[exitedCount++] = id;
+      if (pages) pages.length = count;
+      for (let i = 0; i < keptCount; i++) {
+        const id = kept[i];
+        if (mark[id] !== epoch) exited[exitedCount++] = id;
       }
-      for (let i = 0; i < exitedCount; i++) members.remove(exited[i]);
-      for (let i = 0; i < enteredCount; i++) members.add(entered[i]);
+      const swap = kept;
+      kept = keptNext;
+      keptNext = swap;
+      keptCount = count;
       changed = !same;
     },
   };
