@@ -70,22 +70,24 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
 }
 
 /// La couleur de base, et la texture qui la porte quand une image y est branchée. glTF multiplie sa
-/// texture par son facteur : le facteur passe donc au blanc, comme partout ailleurs dans ce dépôt.
+/// texture par son facteur : le facteur ne porte donc que ce que la texture ne dit pas, c'est-à-dire
+/// le poids scalaire — `base` ou `diffuse` — qui multiplie la couleur du nuanceur. Une image
+/// remplace la couleur, jamais son poids.
 fn base(world: &mut World<'_>, shader: usize, standard: bool, pbr: &mut Value) -> [f64; 3] {
     let document = world.document;
     let names: &[&str] = match standard {
         true => &["bc", "baseColor"],
         false => &["c", "color"],
     };
-    if let Some(texture) = texture::connected(world, shader, names) {
-        pbr["baseColorTexture"] = texture;
-        return [1.0, 1.0, 1.0];
-    }
     let node = &document.nodes[shader];
     let weight = match standard {
         true => number(node, &["b", "base"], 1.0),
         false => number(node, &["dc", "diffuse"], 1.0),
     };
+    if let Some(texture) = texture::connected(world, shader, names) {
+        pbr["baseColorTexture"] = texture;
+        return [weight.clamp(0.0, 1.0); 3];
+    }
     let colour = node
         .attr(names)
         .and_then(Attr::triple)
@@ -94,27 +96,29 @@ fn base(world: &mut World<'_>, shader: usize, standard: bool, pbr: &mut Value) -
 }
 
 /// L'émission de la surface : l'incandescence d'un `lambert`, `phong` ou `blinn`, la couleur
-/// d'émission d'un `standardSurface` multipliée par son poids.
+/// d'émission d'un `standardSurface` multipliée par son poids. Le poids vaut aussi quand une image
+/// porte la couleur : c'est lui, et non le blanc, que `emissiveFactor` porte alors.
 fn emission(world: &mut World<'_>, shader: usize, standard: bool, out: &mut Value) {
     let document = world.document;
     let names: &[&str] = match standard {
         true => &["ec", "emissionColor"],
         false => &["ic", "incandescence"],
     };
-    if let Some(texture) = texture::connected(world, shader, names) {
-        out["emissiveTexture"] = texture;
-        out["emissiveFactor"] = json!([1.0, 1.0, 1.0]);
-        return;
-    }
     let node = &document.nodes[shader];
     let weight = match standard {
         true => number(node, &["e", "emission"], 0.0),
         false => 1.0,
     };
-    let Some(colour) = node.attr(names).and_then(Attr::triple) else {
-        return;
+    let lit = match texture::connected(world, shader, names) {
+        Some(texture) => {
+            out["emissiveTexture"] = texture;
+            [weight; 3]
+        }
+        None => match node.attr(names).and_then(Attr::triple) {
+            Some(colour) => colour.map(|channel| channel * weight),
+            None => return,
+        },
     };
-    let lit = colour.map(|channel| channel * weight);
     if lit.iter().any(|channel| *channel > 1.0) {
         world.refuse(report::EMISSION_CLAMPED);
     }
