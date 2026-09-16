@@ -4,20 +4,33 @@
 // linéaire (le filtrage réel de l'échantillonneur du moteur, comparé bit à bit).
 //   LAB_ROOT=…/render-tech-lab node --experimental-strip-types \
 //     packages/sdk-browser/bench/justesse/adressage-gpu.mjs [sortie.json]
-// Bloquant : tout écart au plus proche hors frontière ; tout écart linéaire en serrage et en miroir.
+// Bloquant : tout écart au plus proche hors frontière ; tout écart linéaire bit à bit hors couture ;
+// et, sur la couture d'une période, toute lecture qui s'écarte de la règle exacte de plus d'un demi
+// niveau sur 255 — le mélange que le moteur écrit lui-même ne peut pas retrouver, bit pour bit, le
+// poids que l'échantillonneur quantifie, mais il doit rendre la même couleur à ce niveau près.
 // Pour mémoire seulement : au plus proche sur une frontière exacte, le texel dépend de l'arrondi
-// 32 bits de u·taille ; en linéaire sous Repeat, la couture d'une période lit le bord serré au lieu
-// du texel de la période voisine (défaut distinct, présent avant ce lot et laissé tel quel).
+// 32 bits de u·taille.
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { WRAP_COORD_WGSL, wrapFlags } from '../../visibilityPageWgsl.ts';
-import { bilan, cas, octetsTexture, somme, TAILLES } from './adressageCas.mjs';
+import {
+  bilan,
+  cas,
+  lineaireThree,
+  melange,
+  octetsTexture,
+  somme,
+  TAILLES,
+} from './adressageCas.mjs';
 import { executerDansChromium } from './adressageGpuPage.mjs';
 
 /** Les drapeaux écrits par `webgpuPageRow.ts` et `webgpuBlendPrepare.ts`, par la même fonction. */
 const drapeaux = (c) => wrapFlags({ wrapS: c.wrapS, wrapT: c.wrapT });
-/** L'appel des passes de géométrie, d'ombrage et de mélange, au caractère près. */
-const APPEL = 'wrapUv(c.uv,c.flags)';
+/** Le bit qui, dans ce banc seul, demande le mélange des prises : les lots au plus proche ne
+ *  veulent qu'un texel, les lots linéaires la lecture entière. `wrapUv` ne lit pas ce bit. */
+const MELANGE = 1;
+/** Un demi niveau sur 255 : la quantification du poids que l'échantillonneur s'autorise. */
+const TOLERANCE = 0.5;
 
 const SHADER = `${WRAP_COORD_WGSL}
 struct Cas{uv:vec2f,flags:u32,pad:u32,}
@@ -29,10 +42,19 @@ struct Sortie{@location(0) moteur:vec4f,@location(1) three:vec4f,}
 @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
  let p=array(vec2f(-1.0,-1.0),vec2f(3.0,-1.0),vec2f(-1.0,3.0));return vec4f(p[i],0.0,1.0);
 }
+// Le mélange des quatre prises, transcrit du gabarit que webgpuAtlasWgsl.ts engendre pour
+// colorSample, dataSample et colorAlpha : mêmes prises, même ordre, même expression.
 @fragment fn fs(@builtin(position) q:vec4f)->Sortie{
  let c=lot[u32(q.x)];
- let wrapped=${APPEL};
- return Sortie(textureSampleLevel(maps,moteur,wrapped,0,0.0),textureSampleLevel(maps,three,c.uv,0,0.0));
+ let t=wrapUv(c.uv,c.flags,vec2f(textureDimensions(maps,0)));
+ var lu=textureSampleLevel(maps,moteur,t.proche,0,0.0);
+ if((c.flags&${MELANGE}u)!=0u&&t.couture){
+  let s10=textureSampleLevel(maps,moteur,vec2f(t.loin.x,t.proche.y),0,0.0);
+  let s01=textureSampleLevel(maps,moteur,vec2f(t.proche.x,t.loin.y),0,0.0);
+  let s11=textureSampleLevel(maps,moteur,t.loin,0,0.0);
+  lu=mix(mix(lu,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
+ }
+ return Sortie(lu,textureSampleLevel(maps,three,c.uv,0,0.0));
 }`;
 
 const ADRESSE = new Map([
@@ -61,7 +83,7 @@ for (const filtre of ['nearest', 'linear'])
           adresseS,
           adresseT,
           uv,
-          flags: membres.map(drapeaux),
+          flags: membres.map((c) => drapeaux(c) | (filtre === 'linear' ? MELANGE : 0)),
         });
       }
   });
@@ -101,6 +123,23 @@ const lineaire = (c, k) => {
     b = three[i * 4 + k];
   return Object.is(a, b) ? null : exemple(c, `moteur=${a * 255}`, `Three=${b * 255}`);
 };
+/** La couleur exacte de la règle : les deux texels de l'axe `k`, mêlés en double précision. */
+const regle = (c, k) =>
+  melange(lineaireThree(k ? c.v : c.u, k ? c.hauteur : c.largeur, k ? c.wrapT : c.wrapS));
+/** L'écart d'un côté à la règle exacte, en niveaux sur 255 ; `null` sous la tolérance. */
+const contreRegle = (cote) => (c, k) => {
+  const { i, [cote]: valeurs } = lecture.linear.get(c);
+  const lu = valeurs[i * 4 + k] * 255,
+    attendu = regle(c, k);
+  return Math.abs(lu - attendu) <= TOLERANCE ? null : exemple(c, `lu=${lu}`, `règle=${attendu}`);
+};
+/** Le pire écart d'un côté à la règle, toutes composantes éprouvées : le bruit propre du filtrage. */
+const pire = (cote) =>
+  tous.reduce((m, c) => {
+    const { i, [cote]: valeurs } = lecture.linear.get(c);
+    const k = c.axe === 'u' ? 0 : 1;
+    return Math.max(m, Math.abs(valeurs[i * 4 + k] * 255 - regle(c, k)));
+  }, 0);
 
 const n = tous.length;
 bilan(
@@ -118,9 +157,24 @@ const lineaires = bilan(
   tous,
   lineaire,
 );
+bilan(
+  `Échantillonneur de Three en linéaire contre la règle exacte, ±${TOLERANCE}/255 (${n} cas)`,
+  tous,
+  contreRegle('three'),
+);
+const exacts = bilan(
+  `WGSL du moteur en linéaire contre la règle exacte, ±${TOLERANCE}/255 (${n} cas)`,
+  tous,
+  contreRegle('moteur'),
+);
+console.log(
+  `\nPire écart à la règle exacte : moteur ${pire('moteur').toFixed(4)}/255,` +
+    ` échantillonneur de Three ${pire('three').toFixed(4)}/255`,
+);
 const bloquants =
   somme(proches, (cle) => !cle.includes('frontière')) +
-  somme(lineaires, (cle) => !cle.startsWith('Repeat') || cle.includes('axe fixé'));
+  somme(lineaires, (cle) => !cle.includes('couture')) +
+  somme(exacts);
 if (process.argv[2]) writeFileSync(process.argv[2], JSON.stringify(sorties.map((s) => s.moteur)));
 console.log(`\nGPU : ${bloquants} écarts bloquants`);
 process.exitCode = bloquants ? 1 : 0;
