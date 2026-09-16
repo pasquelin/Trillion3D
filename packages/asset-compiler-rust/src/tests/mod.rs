@@ -64,6 +64,7 @@ mod usd_faces;
 mod usd_fidelite;
 mod usd_golden;
 mod usd_heritage;
+mod usd_lampes;
 mod usd_matiere;
 mod usd_opacite;
 mod usd_rapport;

@@ -68,7 +68,12 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .out
         .report
         .add_count("blend-object-outside-scene", outside);
-    if scene.out.nodes.len() < 2 {
+    if !scene
+        .out
+        .nodes
+        .iter()
+        .any(|node| node.get("mesh").is_some())
+    {
         return Err(CompilerError::new(
             "IMPORT_EMPTY",
             format!("blend: {} carries no mesh object", source.display()),
