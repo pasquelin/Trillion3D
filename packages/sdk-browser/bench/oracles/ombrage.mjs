@@ -21,12 +21,12 @@ import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
 const engineScratch = createEngineCamera();
 
 /** `visibilityShadePixel.ts:15-63` avant le lot A : `visMaterial` et le triangle par pixel. */
-function referenceShadePixel(id, pages, cam, viewProj, width, height, x, y, background) {
+function referenceShadePixel(id, pages, cam, depthCam, width, height, x, y, background) {
   const unpacked = unpackVisibilityId(id);
   if (!unpacked) return backgroundRgb(background);
   const page = pages[unpacked.pageIndex];
   if (!page) return backgroundRgb(background);
-  const tri = triangleAt(page, unpacked.triangleIndex, viewProj.elements, width, height);
+  const tri = triangleAt(page, unpacked.triangleIndex, depthCam, width, height);
   if (!tri) return backgroundRgb(background);
   const affine = barycentric(tri.a, tri.b, tri.c, x, y);
   if (!affine) return backgroundRgb(background);
@@ -77,11 +77,14 @@ export function referenceShadeVisibility(
     cam.projectionMatrix,
     cam.matrixWorldInverse,
   );
+  // L'oracle garde sa vue-projection de la bibliothèque hôte ; la convention de profondeur, elle,
+  // vient de la caméra du moteur, qui l'a lue sur la caméra hôte.
+  const depthCam = { viewProjection: viewProj.elements, depthZeroToOne: engine.depthZeroToOne };
   const bg = backgroundRgb(background);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const o = y * width + x,
-        rgb = referenceShadePixel(ids[o], pages, engine, viewProj, width, height, x, y, background);
+        rgb = referenceShadePixel(ids[o], pages, engine, depthCam, width, height, x, y, background);
       const p = o * 4;
       pixels[p] = rgb[0] ?? bg[0];
       pixels[p + 1] = rgb[1] ?? bg[1];
