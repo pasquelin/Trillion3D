@@ -4,8 +4,9 @@ import { mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './webgpuPagesEncoder.ts';
 import { fallbackToCpuCut } from './webgpuPagesDrops.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
-import { encodeDraws, ensurePageTable } from './webgpuPagesEncodeDraws.ts';
+import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import { admitGpuCut } from './webgpuPagesGpuCutAdmission.ts';
+import { dispatchWaitingSelection, streamCutResidency } from './webgpuPagesGpuCutStream.ts';
 import { keepWebgpuFrame } from './webgpuFrameHold.ts';
 import {
   recordGpuCutTiming,
@@ -63,19 +64,17 @@ export function renderGpuCut(
     // arrivée, ce qui met l'image en attente sans jamais jeter la sélection GPU.
     run.gate.resourcesChanged();
     run.gpuMetricsReady = false;
+    marks.admissionEnd = performance.now();
+    // La couverture incomplète n'atteint jamais l'écran : l'image affichée reste la précédente. Mais
+    // l'attente continue de réclamer les pages manquantes, de synchroniser la résidence et d'envoyer
+    // la sélection — c'est le seul envoi qui peut produire le relevé complet de la reprise.
+    if (streamCutResidency(rt, gpuDevice, run.gpuSelection))
+      dispatchWaitingSelection(rt, run.gpuSelection);
     traceGpuCutWaiting(rt);
     return true;
   }
   marks.admissionEnd = performance.now();
-  services.queueCutResidency(run.desired);
-  // Enumerate the bounded resident candidates once. GPU selection and compaction
-  // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
-  marks.queueEnd = performance.now();
-  ensurePageTable(rt, gpuDevice);
-  services.syncRows();
-  run.rowsSyncedFrame = run.frame;
-  marks.rowsEnd = performance.now();
-  if (rows.candidateOverflow) {
+  if (!streamCutResidency(rt, gpuDevice, run.gpuSelection)) {
     // The CPU fallback can still select a representable visible subset.
     diag.engineDiagnostic(
       'gpu-selection-capacity',
@@ -87,12 +86,6 @@ export function renderGpuCut(
     );
     return withoutGpuSelection(rt, 'capacité des identifiants de visibilité');
   }
-  // Le journal des rangs nomme les pages qui viennent d'entrer ou de sortir : la comparaison des
-  // deux mille trois cents pages du DAG n'a plus lieu, et seules leurs plages sont réécrites.
-  if (run.gpuSelection.updateResidency(rows.residentFlags, rows.residencyChanges))
-    run.gpuMetricsReady = false;
-  rows.clearResidencyChanges();
-  marks.residencyUploadEnd = performance.now();
   try {
     rt.timing.frameSelection = run.gpuSelection.dispatch(
       run.selectionUniforms,
