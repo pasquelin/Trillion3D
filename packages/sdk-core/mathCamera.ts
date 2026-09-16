@@ -77,11 +77,15 @@ export function createCameraFrame(): CameraFrame {
  * Réécrit l'image : vue = inverse de `world` (nulle pour une matrice monde singulière, comme la
  * référence), vue-projection = `projection · vue`, plans du tronc dans la convention
  * `planesDepthZeroToOne` — celle que lit le consommateur, pas forcément celle de la projection.
+ *
+ * La projection et la pose monde sont des `Float64Array` possédés, comme les trois tampons de
+ * l'image : le produit ne lit qu'un seul type de tampon (`mathMatrix4.ts`), et l'appelant qui part
+ * d'une matrice de l'hôte la recopie avant d'entrer ici — `readCameraWorld` le fait déjà.
  */
 export function updateCameraFrame(
   frame: CameraFrame,
-  projection: ArrayLike<number>,
-  world: ArrayLike<number>,
+  projection: Float64Array,
+  world: Float64Array,
   planesDepthZeroToOne: boolean,
 ) {
   invertMatrix4(frame.view, world);
