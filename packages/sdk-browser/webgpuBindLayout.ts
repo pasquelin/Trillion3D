@@ -98,6 +98,10 @@ export const BLEND_BINDINGS = (() => {
     /** Le proxy résident, celui-là même que traverse la résolution opaque : l'ombre du soleil
      *  au-delà de la dernière cascade se tire ici par le même rayon, sur une seule liaison. */
     proxy: rest + 17,
+    /** Les paramètres de chaque item transparent, indexés par son rang dans la scène : la matrice
+     *  monde, la couleur, les six cartes et leurs facteurs. Ils ne dépendent pas de l'image, si
+     *  bien qu'un appel n'a plus ni décalage dynamique ni groupe de liaison à lui. */
+    items: rest + 18,
   };
 })();
 

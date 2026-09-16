@@ -27,6 +27,55 @@ function simulateTransparentCompaction(bind: ComputeBind) {
   words(byBinding.get(6)!.data).set(result.indirect);
 }
 
+/**
+ * Rejoue le tronc transparent : le meme oracle que `BLEND_SELECT_SHADER`, un item par tour. Un
+ * appel garde l'argument indirect que la compaction lui a donne, ou tombe a zero instance.
+ */
+function simulateBlendSelect(bind: ComputeBind) {
+  const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]));
+  const uniBytes = byBinding.get(0)!.data;
+  const planes = new Float32Array(uniBytes.buffer, uniBytes.byteOffset, 24);
+  const itemCount = words(uniBytes)[24];
+  const boxBytes = byBinding.get(1)!.data;
+  const boxes = new Float32Array(boxBytes.buffer, boxBytes.byteOffset, boxBytes.byteLength / 4);
+  const draws = words(byBinding.get(2)!.data),
+    counts = words(byBinding.get(3)!.data),
+    args = words(byBinding.get(4)!.data),
+    stats = words(byBinding.get(5)!.data);
+  for (let item = 0; item < itemCount; item++) {
+    const lo = item * 8,
+      hi = lo + 4;
+    let rejected = false;
+    // Sans boite exploitable, l'item n'est jamais rejete : c'est la regle du chemin processeur.
+    if (boxes[lo + 3] !== 0) {
+      let span = 0;
+      for (let axis = 0; axis < 3; axis++)
+        span = Math.max(span, Math.abs(boxes[lo + axis]), Math.abs(boxes[hi + axis]));
+      for (let p = 0; p < 6 && !rejected; p++) {
+        const nx = planes[p * 4],
+          ny = planes[p * 4 + 1],
+          nz = planes[p * 4 + 2],
+          nw = planes[p * 4 + 3];
+        const corner =
+          nx * boxes[(nx > 0 ? hi : lo) + 0] +
+          ny * boxes[(ny > 0 ? hi : lo) + 1] +
+          nz * boxes[(nz > 0 ? hi : lo) + 2];
+        rejected = corner + nw < -(1e-5 * (Math.abs(nw) + span + 1));
+      }
+    }
+    const d = item * 4;
+    let instances = draws[d] !== 0xffffffff ? counts[draws[d] * 4 + 1] : 1;
+    if (rejected) {
+      instances = 0;
+      stats[0]++;
+    }
+    args[d] = draws[d + 1];
+    args[d + 1] = instances;
+    args[d + 2] = draws[d + 2];
+    args[d + 3] = 0;
+  }
+}
+
 export function simulateComputeDispatch(
   computePipeline: { entryPoint: string } | undefined,
   computeBind: ComputeBind | undefined,
@@ -36,6 +85,8 @@ export function simulateComputeDispatch(
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
   if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
     return simulateTransparentCompaction(computeBind);
+  if (computePipeline?.entryPoint === 'selectBlendItems' && computeBind)
+    return simulateBlendSelect(computeBind);
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {
     const byBinding = new Map(
       computeBind.entries.map((entry) => [entry.binding, entry.resource.buffer]),
