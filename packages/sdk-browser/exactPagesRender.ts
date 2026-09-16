@@ -11,6 +11,7 @@ import { lighting } from './backendCommon.ts';
 import { createCpuStepProfile } from './cpuProfile.ts';
 import { EXACT_CPU_STEP } from './exactPagesCpu.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 export type ExactPagesRenderState = {
   visible: number;
@@ -113,10 +114,9 @@ export function createExactPagesRender(options: {
   return (camera: THREE.PerspectiveCamera) => {
     state.frame++;
     state.lastCamera = camera;
-    // La caméra aussi, ancêtres compris : un rig d'hôte n'appartient pas à la scène préparée, et
-    // `updateWorlds` ne remonte que celle-ci. Avant tout le reste : la vitesse du seuil adaptatif,
-    // la révision de vue, la coupe et le raster lisent tous cette même pose.
-    camera.updateWorldMatrix(true, false);
+    // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
+    // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
+    resolveCameraWorld(camera);
     // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
     // adaptatif de la première image qui bouge à nouveau.
     state.lastPixelError = resolvePixelError(context, camera, motion);
