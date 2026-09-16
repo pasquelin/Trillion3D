@@ -194,7 +194,7 @@ Jobs are taken in file order by the first free worker. stdout at the end:
  "jobs": [{"job": "city", "status": "ready", "pointer": {…}}, {"job": "x", "status": "error", "code": "IMPORT_IO_ERROR", "message": "…"}]}
 ```
 
-`jobs` is sorted by id. Exit code 0 only when every job is ready. An invalid batch file is reported as `INVALID_BATCH` before any job starts.
+`jobs` is sorted by id. Exit code 0 only when every job is ready; **exit code 2 with a summary on stdout is the normal outcome of a batch that was not wholly successful**, not a failure of the process. `status` is `partial` when at least one job is ready and at least one is not, `failed` when none is. The summary is printed in all three cases, so a host reads which jobs succeeded there rather than inferring anything from the exit code. Only a batch file the compiler refuses outright prints `{"status":"error","code":"INVALID_BATCH",...}` with no `jobs` at all.
 
 Two jobs of one batch may not write the same cache: each prunes it after publishing, so the second would erase the first job's result. Destinations are compared by identity, not by spelling — the longest existing prefix is canonicalized, symlinks included, and the absent suffix is normalized (`.`, `..`, doubled separators) — so `x` and `p/../x` are one cache. The batch is then refused with `INVALID_BATCH` before any job starts, and the message names both jobs and both spellings. Give each job its own cache directory instead.
 
