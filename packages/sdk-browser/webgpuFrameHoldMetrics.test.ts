@@ -83,6 +83,8 @@ function tenue() {
       },
     },
     texturePump: { inFlight: 0, uploaded: 0, skipped: 0, slices: 0, bytesLastPass: 0, levels: 0 },
+    textureLedger: { committed: 0, budget: 0, evictions: 0 },
+    texturePriority: { counters: { atWanted: 0, visible: 0, missingAverage: 0 }, layers: 0 },
     lights: { plan: { counts: { pendingPages: 0, waitedMs: 0 } } },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },

@@ -122,6 +122,40 @@ export function orderPendingUrls(
   for (let index = 0; index < ordered.length; index++) into.push(ordered[index].url);
   return into;
 }
+/**
+ * Rayon écran, en pixels, de la boîte d'un enregistrement vu par `view`. C'est la mesure que la
+ * priorité des textures emploie : ce que l'œil voit d'une surface, et non ce qu'elle porte de
+ * triangles. Les tampons de travail sont ceux du module, réécrits sur place.
+ */
+export function boundsScreenRadius(
+  record: Pick<PriorityRecord, 'min' | 'max'>,
+  view: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+) {
+  project(view, boundsSphere(record as PriorityRecord, bounds), centre);
+  const distance = Math.hypot(centre[0], centre[1], centre[2]);
+  return (centre[3] * stretch * focal) / Math.max(distance, near);
+}
+
+/** Rayon écran, en pixels, d'une boîte monde à six bornes à plat vue par `view`. */
+export function worldBoxScreenRadius(
+  box: ArrayLike<number>,
+  view: ArrayLike<number>,
+  stretch: number,
+  focal: number,
+  near: number,
+) {
+  bounds[0] = (box[0] + box[3]) / 2;
+  bounds[1] = (box[1] + box[4]) / 2;
+  bounds[2] = (box[2] + box[5]) / 2;
+  bounds[3] = Math.hypot(box[3] - bounds[0], box[4] - bounds[1], box[5] - bounds[2]);
+  project(view, bounds, centre);
+  const distance = Math.hypot(centre[0], centre[1], centre[2]);
+  return (centre[3] * stretch * focal) / Math.max(distance, near);
+}
+
 /** Pixels par unité d'étendue en repère de vue à profondeur unité, d'une projection et d'un viewport. */
 export function pixelScaleOf<T extends number[]>(
   projection: ArrayLike<number>,

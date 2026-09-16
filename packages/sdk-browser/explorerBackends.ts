@@ -83,6 +83,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     maxFrameAllocationBytes: options.maxFrameAllocationBytes,
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     atlasClasses: options.atlasClasses ?? 1,
+    textureBudgetBytes: options.textureBudgetBytes,
     stageProfile: options.stageProfile === true,
     // La variante de diagnostic est vérifiée ici, une fois : hors `trace`, elle est refusée.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(

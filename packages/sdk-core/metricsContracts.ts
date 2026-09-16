@@ -138,6 +138,21 @@ export interface FrameMetrics extends ShadowFrameMetrics, OcclusionFrameMetrics 
   textureAtlasBytesCalculated?: number | null;
   textureAtlasClassBytesCalculated?: number[] | null;
   textureAtlasClassesUsed?: number | null;
+  /**
+   * Ce que l'écran demande des textures et ce que la session engage pour le servir.
+   * `textureResidentBytes` : octets engagés sur la carte, niveaux achevés et lignes déjà écrites.
+   * `textureBudgetBytes` : la borne posée par l'hôte ou tirée des limites de l'appareil.
+   * `textureAtWantedLevel` sur `textureLayers` : couches dont le niveau de mip que l'écran réclame
+   * est résident, sur le nombre de couches de la scène. `textureMissingLevels` : niveaux manquants
+   * en moyenne sur les couches visibles. `textureEvictions` : transferts en cours défaits pour
+   * laisser passer plus utile ; aucun niveau achevé n'est jamais défait.
+   */
+  textureResidentBytes?: number | null;
+  textureBudgetBytes?: number | null;
+  textureAtWantedLevel?: number | null;
+  textureLayers?: number | null;
+  textureMissingLevels?: number | null;
+  textureEvictions?: number | null;
   /** Latest GPU pass sample of this backend; null when the device exposes no timestamp queries. */
   gpuPassMs?: GpuPassTimings | null;
   /** GPU duration of the image `gpuPassMs.frame` describes. Never added to a `cpu*` field. */

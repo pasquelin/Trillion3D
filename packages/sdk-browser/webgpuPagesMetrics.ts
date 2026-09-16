@@ -62,6 +62,12 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     textureSlicesUploaded: rt.texturePump.slices,
     textureBytesLastFrame: rt.texturePump.bytesLastPass,
     textureLevelsUploaded: rt.texturePump.levels,
+    textureResidentBytes: rt.textureLedger.committed,
+    textureBudgetBytes: rt.textureLedger.budget,
+    textureEvictions: rt.textureLedger.evictions,
+    textureAtWantedLevel: rt.texturePriority.counters.atWanted,
+    textureLayers: rt.texturePriority.layers,
+    textureMissingLevels: rt.texturePriority.counters.missingAverage,
     // Octets calculés depuis les dimensions, les couches et les formats alloués : rien n'est mesuré
     // sur l'appareil ici, et un atlas encore absent ne vaut pas zéro mais `null`.
     textureAtlasBytesCalculated:

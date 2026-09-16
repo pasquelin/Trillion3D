@@ -1,103 +1,160 @@
 import type * as THREE from 'three';
+import { maxStretch } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
+import { boundsScreenRadius, pixelScaleOf, worldBoxScreenRadius } from './streamingPriority.ts';
+import { openUvSpanBudget, uvSpanOf } from './textureUvSpan.ts';
+import { createTextureDemand, TAIL_LEVEL } from './textureDemand.ts';
+import { createFrameViews } from './textureFrameViews.ts';
 
 /** Couches d'atlas qu'un matériau lit : ce qui relie une surface dessinée aux textures à transférer. */
 type MaterialAtlasLayers = { color: readonly number[]; data: readonly number[] };
 export type MaterialLayerIndex = Map<THREE.Material | THREE.Material[], MaterialAtlasLayers>;
 
-/** Ce que l'image précédente a demandé au cache, seule source de la priorité. */
+/** La caméra que l'ordre lit : sa vue, sa projection et son plan proche, rien d'autre. */
+export type PriorityCamera = {
+  view: Float64Array;
+  projection: Float64Array;
+  near: number;
+};
+
+/** Ce que l'image en cours donne à l'ordre. */
 type PriorityInputs = {
   index: MaterialLayerIndex | undefined;
-  /** La coupe que l'image demande au cache : les deux chemins de coupe la réécrivent à chaque
-   *  image, y compris quand aucun relevé de sélection n'a encore été adopté. */
+  /** La coupe que l'image demande au cache : les deux chemins de coupe la réécrivent à chaque image. */
   requested: readonly PageRec[];
   blend: readonly BlendGpuItem[];
+  cam: PriorityCamera | undefined;
+  viewport: readonly number[] | undefined;
+  /** Largeur en texels de chaque couche, couleur et données, posée une fois à la préparation. */
+  colorTexels: Float64Array | undefined;
+  dataTexels: Float64Array | undefined;
 };
 
 /**
- * L'ordre de transfert, recalculé à chaque image à partir d'un signal que le moteur produit déjà :
- * les pages que la coupe demande au cache (`run.desired`) et les maillages transparents visibles
- * (`blendState.visibleBlend`). Aucune passe GPU, aucune lecture bloquante — ces deux listes sont
- * réécrites par la coupe de chaque image et se lisent à coût nul.
+ * L'ordre de transfert des textures, dicté par l'écran.
  *
- * C'est bien la coupe demandée, et pas la coupe dessinée : `run.drawn` n'est refait que lorsqu'un
- * relevé de sélection est adopté, ce qui n'arrive en pratique qu'à `flush()`. En boucle d'images
- * libre il reste vide, puis figé sur un vieux relevé — le poids de chaque slot vaut alors zéro, la
- * file n'est plus réordonnée et les textures arrivent dans l'ordre de l'atlas, pas dans celui que la
- * caméra dicte.
+ * Ce qui décide n'est plus le nombre de triangles d'une surface mais sa place à l'écran : l'empreinte
+ * projetée des clusters que la coupe demande, croisée avec l'étendue uv de leur géométrie, donne le
+ * niveau de mip que chaque couche appelle vraiment (texel par pixel). Le poids d'un travail est
+ * l'écart entre ce qui est résident et ce niveau, multiplié par l'aire écran de la couche : ce que
+ * la caméra regarde devient net d'abord, le lointain et le hors champ attendent leur tour.
  *
- * Les niveaux progressifs passent d'abord, tous, avant toute pleine résolution : la queue de mips
- * d'une texture tient en quelques kilooctets, celle de la scène entière dans une fraction du budget
- * d'une image, alors qu'une seule pleine résolution le remplit entièrement. Les faire attendre
- * derrière des mégaoctets laisserait des surfaces au remplissage blanc pendant des centaines
- * d'images ; les passer d'abord donne une image lisible dès la première.
+ * Les niveaux progressifs passent toujours avant toute pleine résolution, et la couleur avant les
+ * données : une queue de mips tient en quelques kilooctets et rend l'image lisible dès la première
+ * image, tandis qu'une couche de données absente ne montre que les facteurs scalaires du matériau.
+ * Un travail dont la couche est déjà au niveau voulu pèse zéro : il part en fin de file, sans jamais
+ * être abandonné — la file finit par se vider et l'image finale est celle d'avant, au pixel près.
  *
- * Vient ensuite la couleur avant les données. Une couche couleur qui manque se voit — la surface
- * reste au niveau grossier de sa pyramide — alors qu'une couche de données qui manque rend le
- * remplissage du matériau, normale plate ou blanc, c'est-à-dire ses facteurs scalaires. Les données
- * pèsent ici deux fois la couleur en octets : les servir d'abord retiendrait la couleur pendant des
- * centaines d'images pour un gain invisible.
- *
- * Vient enfin le poids : le nombre de triangles demandés par les surfaces qui lisent le slot. Une
- * texture que la caméra regarde de près pèse plus qu'une texture au loin, donc sa pleine résolution
- * arrive la première. À poids égal, un niveau déjà entamé passe devant un niveau intact, ce qui
- * borne le nombre de transferts à moitié faits ; à étage, nature, poids et avancement égaux l'ordre
- * d'origine est conservé. Un niveau entamé peut donc être relégué entre deux tranches, jamais au
- * milieu d'une tranche.
+ * Rien n'est alloué par image : les empreintes, les niveaux et les vues vivent dans des tampons
+ * possédés, réécrits sur place, qui ne grandissent qu'à la découverte d'une scène.
  */
-/**
- * Les poids d'un étage, tenus dans un tableau de doubles au lieu d'un tableau JavaScript agrandi
- * d'une case par couche. Le nombre de couches n'est pas connu quand la file naît — l'index des
- * matériaux est refait à chaque scène chargée — donc la capacité double au lieu d'être fixée
- * d'avance. Les poids restent des doubles, `triangles` valant `count / 3` sur un transparent : une
- * addition IEEE 754 dans `Float64Array` est celle d'un `number`, à l'octet près. Les cases au-delà
- * de la dernière couche vue valent zéro des deux côtés, que la capacité les couvre ou non.
- */
-type Weights = { values: Float64Array };
-
 export function createTexturePriority(inputs: () => PriorityInputs) {
-  const colorWeights: Weights = { values: new Float64Array(0) };
-  const dataWeights: Weights = { values: new Float64Array(0) };
-  const bump = (weights: Weights, layers: readonly number[], triangles: number) => {
-    for (const layer of layers) {
-      if (layer >= weights.values.length) {
-        let taille = weights.values.length || 8;
-        while (taille <= layer) taille *= 2;
-        const grandi = new Float64Array(taille);
-        grandi.set(weights.values);
-        weights.values = grandi;
+  const color = createTextureDemand(),
+    data = createTextureDemand();
+  const frames = createFrameViews();
+  const pixelScale: [number, number] = [1, 1];
+  let lastMs = 0;
+  /** Vrai dès qu'une image a été mesurée avec une caméra exploitable. */
+  let screenKnown = false;
+  const demandOf = (kind: TextureJob['kind']) => (kind === 'color' ? color : data);
+
+  /** Dépose l'empreinte d'une surface sur les couches que son matériau lit. */
+  const deposit = (layers: MaterialAtlasLayers | undefined, pixels: number, uvSpan: number) => {
+    if (!layers || !(pixels > 0)) return;
+    const areaPixels = pixels * pixels;
+    color.add(layers.color, pixels, areaPixels, uvSpan);
+    data.add(layers.data, pixels, areaPixels, uvSpan);
+  };
+
+  /** Mesure l'image : empreinte écran de chaque couche, puis niveau voulu avec hystérésis. */
+  const measure = () => {
+    const { index, requested, blend, cam, viewport, colorTexels, dataTexels } = inputs();
+    color.reset();
+    data.reset();
+    frames.reset();
+    openUvSpanBudget();
+    const camStretch = cam ? maxStretch(cam.view as unknown as readonly number[]) : 0;
+    if (index && cam && camStretch > 0) {
+      screenKnown = true;
+      pixelScaleOf(cam.projection, viewport, pixelScale);
+      const focal = Math.max(pixelScale[0], pixelScale[1]),
+        near = cam.near || 1e-3;
+      for (let i = 0; i < requested.length; i++) {
+        const page = requested[i];
+        const at = frames.of(page.matrix, cam.view);
+        const radius = boundsScreenRadius(page, frames.view(at), frames.stretch(at), focal, near);
+        deposit(index.get(page.material), 2 * radius, uvSpanOf(page.attributes));
       }
-      weights.values[layer] += triangles;
+      for (let i = 0; i < blend.length; i++) {
+        const item = blend[i];
+        if (!item.bounds) continue;
+        const radius = worldBoxScreenRadius(item.bounds, cam.view, camStretch, focal, near);
+        deposit(index.get(item.material), 2 * radius, uvSpanOf(item.sourceGeometry?.attributes));
+      }
     }
+    color.settle(colorTexels);
+    data.settle(dataTexels);
   };
-  const addWeight = (layers: MaterialAtlasLayers | undefined, triangles: number) => {
-    if (!layers) return;
-    bump(colorWeights, layers.color, triangles);
-    bump(dataWeights, layers.data, triangles);
+
+  /**
+   * L'utilité d'un travail : l'aire écran de sa couche par le nombre de niveaux qui lui manquent.
+   *
+   * Une couche déjà au niveau que l'écran demande pèse zéro et part en fin de file — le lointain et
+   * le hors champ, dont la queue d'aperçus suffit, n'y prennent plus la place de ce que la caméra
+   * regarde. Ils ne sont pas abandonnés pour autant : quand plus rien d'utile n'attend, la file se
+   * vide et l'image finale reste celle d'avant, au pixel près.
+   */
+  const scoreOf = (job: TextureJob) => {
+    const demand = demandOf(job.kind);
+    const gap = demand.gapOf(job.slot);
+    return gap > 0 ? demand.areaOf(job.slot) * gap : 0;
   };
-  const weightOf = (job: TextureJob) =>
-    (job.kind === 'color' ? colorWeights : dataWeights).values[job.slot] ?? 0;
   /** La couleur avant les données : seule la couleur manquante se voit. */
   const rank = (job: TextureJob) => (job.kind === 'color' ? 0 : 1);
-  /** Réordonne la file en place ; sans signal exploitable, elle garde l'ordre où elle a été bâtie. */
   const order = (jobs: TextureJob[]) => {
-    if (jobs.length < 2) return;
-    const { index, requested, blend } = inputs();
-    colorWeights.values.fill(0);
-    dataWeights.values.fill(0);
-    if (index) {
-      for (const page of requested) addWeight(index.get(page.material), page.triangles);
-      for (const item of blend) addWeight(index.get(item.material), item.count / 3);
-    }
-    jobs.sort(
-      (a, b) =>
-        a.stage - b.stage ||
-        rank(a) - rank(b) ||
-        weightOf(b) - weightOf(a) ||
-        (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
-    );
+    const started = performance.now();
+    measure();
+    if (jobs.length > 1)
+      jobs.sort(
+        (a, b) =>
+          a.stage - b.stage ||
+          rank(a) - rank(b) ||
+          scoreOf(b) - scoreOf(a) ||
+          (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
+      );
+    lastMs = performance.now() - started;
   };
-  return { order };
+  return {
+    order,
+    scoreOf,
+    /** Un niveau de plus est résident sur ce slot ; la pleine résolution vaut le niveau zéro. */
+    markLevel(kind: TextureJob['kind'], slot: number, level: number) {
+      demandOf(kind).markLevel(slot, level);
+    },
+    /** Une couche repart de sa queue : seule une scène rechargée le demande. */
+    clearResidency() {
+      color.clearResidency();
+      data.clearResidency();
+    },
+    /** Vrai dès qu'une caméra exploitable a mesuré une image : avant, aucune pleine résolution ne
+     *  part, seules les queues d'aperçus. Une préparation ne dépense pas le budget d'une image dans
+     *  un ordre que l'écran n'a pas encore dicté. */
+    get screenKnown() {
+      return screenKnown;
+    },
+    /** Coût processeur de la dernière passe de priorité, déposé sur l'étape « textures ». */
+    get lastMs() {
+      return lastMs;
+    },
+    /** Ce que l'hôte affiche : couches au niveau voulu, couches visibles, niveaux manquants. */
+    get counters() {
+      return color.counters;
+    },
+    get layers() {
+      return color.layers;
+    },
+    TAIL_LEVEL,
+  };
 }

@@ -52,6 +52,7 @@ export const WEBGPU_STAGES = [
   'residency',
   'hostPages',
   'uploads',
+  'textures',
   'partition',
   'encode',
   'submit',
