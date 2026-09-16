@@ -24,28 +24,6 @@ for (let i = 0; i < 400; i++) {
   casPlans.push({ planes, boite });
 }
 
-/** Des matrices de vue : ordinaires, aplaties sur un axe, et une sur trente pleine de NaN. */
-const matrices = [];
-for (let i = 0; i < 200; i++) {
-  const m = new Float64Array(16);
-  for (let k = 0; k < 16; k++) m[k] = alea() * 4 - 2;
-  if (i % 13 === 0) m[5] = 0;
-  if (i % 31 === 0) m[10] = NaN;
-  matrices.push(m);
-}
-
-/** Ce qu'une erreur projetée reçoit : erreur, sphère, matrice, étirement, focale, plan proche. */
-export const casProjection = [];
-for (let i = 0; i < 2000; i++)
-  casProjection.push({
-    error: i % 7 === 0 ? nombre() : alea() * 10,
-    sphere: [alea() * 200 - 100, alea() * 200 - 100, alea() * 200 - 100, alea() * 5],
-    e: matrices[i % matrices.length],
-    stretch: i % 9 === 0 ? nombre() : alea() * 3,
-    focal: i % 5 === 0 ? nombre() : alea() * 1000,
-    near: i % 3 === 0 ? nombre() : alea(),
-  });
-
 /** Des triangles écran : ordinaires, hors champ, dégénérés, et certains à sommet non fini. */
 const point = (i) => ({
   x: i % 19 === 0 ? nombre() : alea() * 2000 - 500,
