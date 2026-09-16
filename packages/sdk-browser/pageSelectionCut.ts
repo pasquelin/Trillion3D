@@ -9,9 +9,17 @@ import {
   type PageRecord,
   type SelectionResult,
 } from './pageSelectionCutState.ts';
+import { copyElements } from './matrixElements.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
 import type { EngineCamera } from './cameraWorld.ts';
+
+/**
+ * La pose monde d'une racine recopiée dans un tampon possédé, une fois par racine et par passage :
+ * le produit du socle ne lit et n'écrit que des `Float64Array` (`mathMatrix4.ts`), et les matrices
+ * de la bibliothèque hôte sont des tableaux ordinaires.
+ */
+const rootWorld = new Float64Array(16);
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
@@ -82,7 +90,8 @@ export function selectVisiblePages<T extends PageRecord>(
         state.frustumRejected++;
         continue;
       }
-      multiplyMatrix4(viewMatrix, cam.view, root.world.elements);
+      copyElements(rootWorld, root.world.elements);
+      multiplyMatrix4(viewMatrix, cam.view, rootWorld);
       selectFlat(state, root);
     }
   };

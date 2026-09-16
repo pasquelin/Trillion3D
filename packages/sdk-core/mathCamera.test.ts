@@ -8,7 +8,7 @@ import { multiplyMatrix4 } from './mathMatrix4.ts';
 import { createCameraFrame, perspectiveProjection, updateCameraFrame } from './mathCamera.ts';
 
 const proche = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol;
-const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+const IDENTITY = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
 test('perspectiveProjection : champ de 90°, rapport 1, near=1 — plan proche à z=-1 mappé à -1 (WebGL) ou 0 (WebGPU)', () => {
   const near = 1,
@@ -57,7 +57,8 @@ test('perspectiveProjection : dernière colonne perspective standard (0,0,-1,0)'
 test('updateCameraFrame : vue = inverse de la matrice monde, vue-projection = projection · vue', () => {
   const frame = createCameraFrame();
   const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 100, 1, false);
-  const world = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 3, 4, 5, 1]; // translation pure
+  // translation pure, dans un tampon possédé : le socle ne lit qu'un seul type de tampon.
+  const world = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 3, 4, 5, 1]);
   updateCameraFrame(frame, projection, world, false);
   const vueAttendue = invertMatrix4(new Float64Array(16), world);
   assert.deepEqual([...frame.view], [...vueAttendue]);
@@ -68,7 +69,7 @@ test('updateCameraFrame : vue = inverse de la matrice monde, vue-projection = pr
 test('updateCameraFrame : une matrice monde singulière rend une vue nulle, comme l’inverse de la référence', () => {
   const frame = createCameraFrame();
   const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 100, 1, false);
-  const singuliere = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const singuliere = new Float64Array(16);
   updateCameraFrame(frame, projection, singuliere, false);
   assert.deepEqual([...frame.view], new Array(16).fill(0));
 });
@@ -80,7 +81,12 @@ test('allocation : les tampons d’une CameraFrame sont les mêmes objets d’un
     plans = frame.planes;
   const projection = perspectiveProjection(new Float64Array(16), 60, 1, 0.1, 100, 1, false);
   updateCameraFrame(frame, projection, IDENTITY, false);
-  updateCameraFrame(frame, projection, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1], true);
+  updateCameraFrame(
+    frame,
+    projection,
+    Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1]),
+    true,
+  );
   assert.equal(frame.view, vue);
   assert.equal(frame.viewProjection, vp);
   assert.equal(frame.planes, plans);

@@ -14,16 +14,22 @@ export type NumberSink = { [index: number]: number };
  * `a` ou `b`. Chaque terme est la somme de quatre produits, sans zéro initial : une somme commencée
  * à `0` changerait le signe d'un zéro négatif.
  *
+ * UN SEUL TYPE DE TAMPON, `Float64Array`, EN ENTRÉE COMME EN SORTIE. Les quarante-huit accès de ce
+ * corps sont quarante-huit sites de lecture et d'écriture indexées, partagés par TOUS les appelants :
+ * un seul appelant qui passe un `Float32Array` ou un tableau ordinaire les rend polymorphes, et les
+ * boucles chaudes — les matrices monde d'une hiérarchie, les lots — le paient ensuite à chaque
+ * élément. Les appelants qui partent d'une matrice de la bibliothèque hôte la recopient donc d'abord
+ * dans un tampon possédé : seize nombres copiés une fois par racine ou par matrice distincte, contre
+ * un site polymorphe pour des milliers de nœuds. La simple précision est une conversion d'ENVOI :
+ * elle se fait en recopiant le résultat dans le tampon du GPU, jamais en écrivant ici, et ne change
+ * aucun bit — chaque terme est calculé en double puis arrondi une fois, comme avant.
+ *
  * Les seize indices d'écriture sont des constantes. Un décalage de sortie en paramètre les rendrait
  * calculés, donc payables d'une addition et d'un contrôle de bornes chacun : mesuré à 6 % du produit
  * entier. Un appelant qui compose dans un grand tampon lui passe une sous-vue, ou compose à part puis
  * recopie ses seize nombres.
  */
-export function multiplyMatrix4<T extends NumberSink>(
-  out: T,
-  a: ArrayLike<number>,
-  b: ArrayLike<number>,
-) {
+export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Array) {
   const a11 = a[0],
     a12 = a[4],
     a13 = a[8],

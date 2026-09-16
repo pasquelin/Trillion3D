@@ -67,6 +67,32 @@ test('normalMatrix3 : bloc effondré sur une droite rend la matrice nulle, faute
   assert.deepEqual([...out], new Array(9).fill(0));
 });
 
+test('normalMatrix3 : un déterminant brut non nul mais de forme dégénérée rend l’adjointe, comme le noyau WGSL', () => {
+  // La règle unique du moteur (`mathSingular.ts`) juge le déterminant NORMALISÉ. Ici le déterminant
+  // brut vaut 5e-324 — non nul, donc l'ancien test `det === 0` laissait passer —, mais son inverse
+  // vaut l'infini : chaque terme sortait infini ou NaN. Normalisé, il tombe sous le seuil, donc
+  // l'adjointe part telle quelle et la normale du plan d'arrivée survit. La carte décidait déjà
+  // ainsi ; le processeur décide comme elle.
+  const m = Float64Array.from([1, 0, 0, 0, 1, 5e-324, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+  const out = normalMatrix3(new Float64Array(9).fill(9), m);
+  assert.deepEqual([...out], [5e-324, -1, 0, 0, 1, 0, 0, 0, 5e-324]);
+  // La normale locale +Z reste portée sur +Z : le plan d'arrivée est bien retrouvé.
+  const z: [number, number, number] = [out[6], out[7], out[8]];
+  assert.ok(z[2] > 0 && z[0] === 0 && z[1] === 0, `normale de +Z : ${z}`);
+});
+
+test('normalMatrix3 : une échelle non finie rend neuf zéros, comme le noyau WGSL', () => {
+  // Échelle nulle, infinie ou NaN : la 3×3 normalisée ne vaut rien, le noyau WGSL remplace alors son
+  // adjointe par zéro, et le processeur fait de même. C'est un écart ASSUMÉ avec la bibliothèque de
+  // référence, qui propageait des NaN ; une pose non finie est refusée à l'entrée du moteur
+  // (`hostWorldMatrices.ts`), et rien de non fini ne doit repartir dans l'éclairage.
+  for (const m of [
+    Float64Array.from([NaN, 0, 0, 0, 0, -0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    Float64Array.from([Infinity, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+  ])
+    assert.deepEqual([...normalMatrix3(new Float64Array(9).fill(9), m)], new Array(9).fill(0));
+});
+
 test('normalMatrix3 : préserve la perpendicularité normale/tangente sous cisaillement', () => {
   // Cisaillement en x selon y : une normale et une tangente perpendiculaires dans l'espace objet
   // doivent le rester dans l'espace transformé une fois la normale portée par la matrice normale.

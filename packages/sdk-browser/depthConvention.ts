@@ -26,7 +26,7 @@ const remapMinusOneToOne = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 
  * ensemble, parce qu'une profondeur normalisée ne se lit pas sans savoir d'où elle vient. Une
  * `EngineCamera` en est une ; un oracle qui en monte une le déclare, il ne le suppose plus.
  */
-export type DepthCamera = { viewProjection: ArrayLike<number>; depthZeroToOne: boolean };
+export type DepthCamera = { viewProjection: Float64Array; depthZeroToOne: boolean };
 
 /** Une profondeur normalisée de l'hôte, rendue dans `[0, 1]`. */
 export function depthToZeroOne(ndcZ: number, depthZeroToOne: boolean) {
