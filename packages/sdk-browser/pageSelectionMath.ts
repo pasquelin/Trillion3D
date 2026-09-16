@@ -1,5 +1,5 @@
-import { clusterErrorAtDistance } from '../sdk-core/index.ts';
-import { viewDistance } from './pageSelectionProjection.ts';
+import { clusterErrorAtDepth } from '../sdk-core/index.ts';
+import { viewDepth, viewLateral } from './pageSelectionProjection.ts';
 
 export type ClusterCut = {
   lodError?: number;
@@ -23,10 +23,11 @@ export function projectedClusterError(
   if (error === 0) return 0;
   if (error == null || error === Infinity) return Infinity;
   if (!sphere) return Infinity;
-  return clusterErrorAtDistance(
+  return clusterErrorAtDepth(
     error,
     stretch,
-    viewDistance(sphere, offset, e),
+    viewLateral(sphere, offset, e),
+    viewDepth(sphere, offset, e),
     sphere[offset + 3],
     focal,
     near,

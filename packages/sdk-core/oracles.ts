@@ -2,7 +2,8 @@ export {
   dot,
   maxStretch,
   clusterErrorPixels,
-  clusterErrorAtDistance,
+  clusterErrorAtDepth,
+  screenErrorBound,
   coneRejects,
 } from './projectionOracles.ts';
 export {
