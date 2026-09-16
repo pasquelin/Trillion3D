@@ -34,6 +34,8 @@ export function createShadowSliceTable() {
     atlas,
     dirty,
     rects,
+    /** Les tranches prises, pour que la libération sache lesquelles plus aucune lampe ne réclame. */
+    taken,
     faces,
     side,
     revision,
