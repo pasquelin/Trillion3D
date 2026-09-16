@@ -56,10 +56,10 @@ pub(super) const FACE_INVALID: &str = "ma-face-record-invalid";
 pub(super) const UV_DROPPED: &str = "ma-uv-dropped";
 /// Des normales écartées : `.n` ne compte ni un vecteur par sommet ni un par coin de face.
 pub(super) const NORMALS_DROPPED: &str = "ma-normals-dropped";
-/// Aucune normale écrite : elles sont calculées **à plat**, une par face, par la somme de Newell.
-/// Maya ne stocke pas les groupes de lissage d'un maillage qu'il n'a pas encore évalué, et lisser
-/// sans eux inventerait une continuité que le fichier ne déclare pas.
-pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed-flat";
+/// Aucune normale écrite : elles sont calculées depuis la géométrie et le drapeau de dureté de
+/// chaque arête, la seule marque de lissage qu'un `.ma` porte — lisse d'un bout à l'autre d'une
+/// arête douce, coupé sur une arête dure.
+pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed";
 /// Un groupe de faces d'un `instObjGroups` dont la liste de composants ne désigne pas des faces.
 pub(super) const FACE_MATERIAL_INVALID: &str = "ma-face-material-invalid";
 /// Des faces qu'aucun `shadingGroup` ne réclame, alors que d'autres faces du même maillage sont

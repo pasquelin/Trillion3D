@@ -1,14 +1,15 @@
 //! Ce que seul l'intérieur du pilote peut prouver : la lecture d'un fichier à l'ancienne
-//! disposition d'entête, dont le dépôt ne possède aucun exemplaire, le calcul des normales sur une
+//! disposition d'entête, dont le dépôt ne possède aucun exemplaire, le découpage d'un n-gone sur une
 //! géométrie que l'on pose à la main, et les défauts reproduits en patchant la fixture CC0 par le
-//! SDNA qu'elle porte elle-même — `surgery` pour le patch, `fidelite` et `matiere` pour ce qu'il
-//! prouve. La scène dorée, elle, se compare dans `src/tests/blend_golden.rs`.
+//! SDNA qu'elle porte elle-même — `surgery` pour le patch, `fidelite`, `matiere` et `normales` pour
+//! ce qu'il prouve. La scène dorée, elle, se compare dans `src/tests/blend_golden.rs`.
 use super::*;
 use crate::tests::ngones::{rendered_area, U_RING};
 
 mod bornes;
 mod fidelite;
 mod matiere;
+mod normales;
 mod sortie;
 mod surgery;
 mod transparence;
@@ -115,33 +116,6 @@ fn refusal(bytes: &[u8]) -> &'static str {
         .code
 }
 
-// Comportement : une face nette garde sa propre normale sur chacun de ses coins ; une face lisse
-// reçoit la moyenne des faces qui touchent chacun de ses sommets. Deux triangles en toit le disent.
-#[test]
-fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
-    let roof = |sharp: bool| Geometry {
-        positions: vec![
-            0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 2.0, 0.0, 0.0, 2.0, 1.0, 0.0,
-        ],
-        corners: vec![0, 1, 2, 1, 3, 4],
-        offsets: vec![0, 3, 6],
-        uv: Vec::new(),
-        material: vec![0, 0],
-        sharp: vec![sharp, sharp],
-    };
-    let flat = normals::corners(&roof(true));
-    assert_eq!(flat.len(), 18);
-    // Le premier versant monte, le second descend : leurs normales penchent en sens contraire.
-    assert!(flat[0] < 0.0 && flat[9] > 0.0, "{flat:?}");
-    for corner in 0..3 {
-        assert_eq!(&flat[0..3], &flat[corner * 3..corner * 3 + 3]);
-    }
-    let smooth = normals::corners(&roof(false));
-    // Le sommet 1 est partagé par les deux faces : sa normale moyennée est verticale.
-    assert!(smooth[3].abs() < 1e-6, "{smooth:?}");
-    assert!((smooth[5] - 1.0).abs() < 1e-6, "{smooth:?}");
-}
-
 // Comportement : un polygone concave garde exactement l'aire qu'il porte. L'éventail depuis le
 // premier coin traversait le creux du U et rendait onze pour sept ; les oreilles rendent sept.
 #[test]
@@ -156,9 +130,10 @@ fn a_concave_polygon_keeps_its_own_area() {
         uv: Vec::new(),
         material: vec![0],
         sharp: vec![true],
+        sharp_corners: Vec::new(),
     };
     let mut out = Out::new();
-    let normals = normals::corners(&geometry);
+    let normals = normals::corners(&geometry.surface()).normals;
     let (mesh, triangles) = build::mesh_json(
         &geometry,
         &normals,
