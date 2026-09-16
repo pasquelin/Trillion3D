@@ -2,10 +2,8 @@
 // par `packDagSelection`, les uniformes de `writeDagUniforms`, les passes `dagReset` à `dagMask`
 // dans l'ordre du moteur (coupe non résidente), puis la relecture de la sortie du GPU. Playwright
 // vient de `render-tech-lab`, en lecture seule.
-import { createRequire } from 'node:module';
-import { createServer } from 'node:http';
-import { resolve } from 'node:path';
 import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
+import { dansPageWebgpu } from './pageWebgpu.mjs';
 import { writeDagUniforms } from '../../gpuDagUniforms.ts';
 import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
 import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
@@ -128,24 +126,9 @@ async function executer({ shader, cas, workgroup }) {
  * sélectionnées. `shader` remplace le texte du noyau pour comparer deux versions sur les mêmes cas.
  */
 export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
-  const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-  const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
-  const server = createServer((_request, response) => {
-    response.writeHead(200, { 'content-type': 'text/html' });
-    response.end('<!doctype html><title>WebGeometry noyau de sélection</title>');
+  return await dansPageWebgpu(executer, {
+    shader,
+    cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),
+    workgroup: SELECTION_WORKGROUP,
   });
-  await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  try {
-    const page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${server.address().port}/`);
-    return await page.evaluate(executer, {
-      shader,
-      cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),
-      workgroup: SELECTION_WORKGROUP,
-    });
-  } finally {
-    await browser.close();
-    await new Promise((done) => server.close(done));
-  }
 }
