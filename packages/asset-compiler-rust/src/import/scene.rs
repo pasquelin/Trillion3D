@@ -97,6 +97,7 @@ impl<'a> Importer<'a> {
                 textures: &mut self.textures,
                 sampler_ids: &mut self.sampler_ids,
                 report: &mut self.report,
+                externals: &self.externals,
                 by_element: HashMap::new(),
             };
             for material in &scene.materials {

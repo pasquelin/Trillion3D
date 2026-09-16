@@ -6,9 +6,10 @@
 //! fichier dont le contenu change. Le relevé d'une conversion précédente sert d'avance — il donne la
 //! clé sans relire la source —, et quand il se trompe la conversion qui suit écrit la vraie clé.
 //!
-//! Les textures liées n'en sont pas : l'import ne les ouvre jamais, il ne fait que constater leur
-//! présence pour en écrire l'URI. Leurs octets n'entrent dans la scène intermédiaire que lorsque le
-//! fichier de scène les porte lui-même, et l'empreinte de ce fichier les couvre déjà.
+//! Les textures liées y entrent aussi, sans être ouvertes. L'import ne lit pas leurs octets : il
+//! constate quel candidat existe pour écrire une URI, et c'est ce constat — le chemin essayé, sa
+//! présence, son empreinte quand il est là — qui décide du contenu du glTF intermédiaire. Laissé
+//! hors de la clé, une image ajoutée à côté d'une source inchangée laissait servir la scène d'avant.
 use super::*;
 use std::{fs::File, sync::Mutex};
 
@@ -20,6 +21,9 @@ const GEOMETRY_CACHE: &str = "geometry-cache";
 const MAIN_MODEL: &str = "model";
 /// Les natures de fichier externe qu'un lecteur peut demander, dans l'ordre du contrat ufbx.
 const KINDS: [&str; 3] = [MATERIAL_LIBRARY, GEOMETRY_CACHE, MAIN_MODEL];
+/// Un chemin d'image essayé pendant la résolution d'une texture. Jamais ouvert par le lecteur : son
+/// état seul — présent ou non, et alors son empreinte — décide de l'URI que la scène portera.
+pub(super) const TEXTURE_CANDIDATE: &str = "texture-candidate";
 
 /// Un fichier ouvert pendant l'import, et l'empreinte de ce qu'il contenait.
 pub(super) struct External {
@@ -45,7 +49,10 @@ fn kind_of(type_: ufbx::OpenFileType) -> &'static str {
 }
 
 fn kind_named(name: &str) -> Option<&'static str> {
-    KINDS.into_iter().find(|kind| *kind == name)
+    KINDS
+        .into_iter()
+        .chain([TEXTURE_CANDIDATE])
+        .find(|kind| *kind == name)
 }
 
 /// Ce qu'on sait d'un fichier externe maintenant : son empreinte, ou son absence. La passe de
@@ -91,6 +98,12 @@ impl Externals {
         self.0.lock().expect("fichiers externes").push(entry);
         opened.map(ufbx::Stream::File)
     }
+    /// Note un chemin d'image essayé et ce qu'on y a trouvé. Rien n'est ouvert pour le lecteur :
+    /// c'est la décision de résolution, et non des octets consommés, qui entre ainsi dans la clé.
+    pub(super) fn note_texture(&self, path: &Path) {
+        let entry = describe(path, TEXTURE_CANDIDATE);
+        self.0.lock().expect("fichiers externes").push(entry);
+    }
     /// Le nombre de fichiers déjà ouverts : une borne pour ne rapporter qu'un fichier de scène.
     pub(super) fn opened(&self) -> usize {
         self.0.lock().expect("fichiers externes").len()
@@ -131,11 +144,14 @@ pub(super) fn key(base: &str, files: &[External]) -> String {
     hash(material.as_bytes())
 }
 
-/// Ce que le manifeste publie de chaque fichier externe : jamais son chemin complet.
+/// Ce que le manifeste publie de chaque fichier **ouvert** : jamais son chemin complet. Les chemins
+/// d'image essayés restent dans la clé seule — ils se comptent par dizaines et ne sont la source de
+/// rien : ce que la résolution a retenu se lit dans `images` du glTF.
 pub(super) fn manifest(files: &[External]) -> Value {
     Value::Array(
         files
             .iter()
+            .filter(|file| file.kind != TEXTURE_CANDIDATE)
             .map(|file| {
                 json!({"file":file.name,"kind":file.kind,"sha256":file.digest,"truncated":file.truncated})
             })
@@ -143,48 +159,5 @@ pub(super) fn manifest(files: &[External]) -> Value {
     )
 }
 
-/// Le relevé d'une conversion précédente vit hors de `imports/`, qui ne porte que des scènes, et
-/// appartient au dossier qui résout les dépendances autant qu'aux entrées : deux sources aux mêmes
-/// octets posées ailleurs n'ouvrent pas les mêmes fichiers. La clé définitive reste par contenu.
-fn probe_path(cache: &Path, base: &str, root: &Path) -> PathBuf {
-    let stamp = hash(format!("{base}\n{}", root.to_string_lossy()).as_bytes());
-    let folder = cache.join("native").join("imports-externes");
-    folder.join(format!("{stamp}.json"))
-}
-
-/// Les fichiers qu'une conversion précédente des mêmes entrées, ici, avait ouverts, rehachés.
-pub(super) fn expected(cache: &Path, base: &str, root: &Path) -> Vec<External> {
-    let Ok(bytes) = fs::read(probe_path(cache, base, root)) else {
-        return Vec::new();
-    };
-    let Ok(listed) = serde_json::from_slice::<Value>(&bytes) else {
-        return Vec::new();
-    };
-    listed
-        .as_array()
-        .map(|files| files.iter().filter_map(reread).collect())
-        .unwrap_or_default()
-}
-
-fn reread(entry: &Value) -> Option<External> {
-    let path = entry.get("path")?.as_str()?;
-    let kind = kind_named(entry.get("kind")?.as_str()?)?;
-    Some(describe(Path::new(path), kind))
-}
-
-/// Écrit le relevé, ou l'efface quand l'import n'a rien ouvert d'autre que sa source.
-pub(super) fn write_probe(cache: &Path, base: &str, root: &Path, files: &[External]) -> Result<()> {
-    let path = probe_path(cache, base, root);
-    if files.is_empty() {
-        let _ = fs::remove_file(&path);
-        return Ok(());
-    }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let listed: Vec<Value> = files
-        .iter()
-        .map(|file| json!({"path":file.path,"kind":file.kind}))
-        .collect();
-    atomic(&path, &serde_json::to_vec(&Value::Array(listed))?)
-}
+mod probe;
+pub(super) use probe::{expected, write_probe};
