@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
+import { depthLayerBias } from '../sdk-core/index.ts';
 import { createPageRowConstants } from './webgpuPageRowConstants.ts';
 import {
   assertVisibilityPageTriangles,
@@ -142,7 +143,7 @@ export function createPageRowWriter({
     floats[base + 56] = 0;
     // Unités de profondeur à retrancher pour la couche coplanaire de ce cluster : zéro pour la
     // couche 0, une seule source de calcul pour le chemin matériel comme pour le raster logiciel.
-    ints[base + 60] = -constants.biasOf(rec.depthLayer);
+    ints[base + 60] = -depthLayerBias(rec.depthLayer);
     // Chaque carte adresse sa texture dans son propre mode : la couleur peut se répéter là où les
     // normales se serrent, et le nuanceur lit le quartet de la carte qu'il échantillonne.
     ints[base + ROW_WRAP_MODES_WORD] = material.wrap;

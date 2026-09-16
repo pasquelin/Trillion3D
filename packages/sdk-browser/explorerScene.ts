@@ -113,16 +113,14 @@ function manquante(): never {
   );
 }
 
-/** Le tampon des bornes du chargement, à la taille exacte du calcul qui va suivre. */
-function boundsLot(
+/** Le tampon des bornes de la scène, à la taille exacte du calcul qui va suivre. */
+function sceneBoundsLot(
   source: THREE.Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   autonomous: boolean,
-  replicas: number,
 ) {
-  if (autonomous) return exactPagesLot(source, associations, metadata);
-  return replicas > 1 ? hostBoundsLot(source) : Promise.resolve(null);
+  return autonomous ? exactPagesLot(source, associations, metadata) : hostBoundsLot(source);
 }
 
 export async function loadPreparedScene(
@@ -177,7 +175,10 @@ export async function loadPreparedScene(
   // Les tampons du chargement, réservés avant d'être écrits et rendus sitôt lus : les bornes de la
   // scène — pages exactes d'une scène autonome, boîtes de l'hôte sinon, et seulement quand la
   // réplication les réclame — puis les matrices des répliques. Réserver par lot, jamais par image.
-  const bornes = await boundsLot(source, associations, metadata, autonomous, replicas);
+  const bornes =
+    autonomous || replicas > 1
+      ? await sceneBoundsLot(source, associations, metadata, autonomous)
+      : null;
   const preparedBounds = autonomous
     ? exactPagesBounds(source, associations, metadata, manquante, undefined, bornes)
     : replicas > 1
@@ -190,8 +191,6 @@ export async function loadPreparedScene(
   bornes?.release();
   // Le cadrage de la caméra reprend ces mêmes bornes sur la scène FINALE : son tampon est réservé
   // ici, à la taille qu'elle a une fois répliquée, et rendu par l'appelant.
-  const framingLot = autonomous
-    ? await exactPagesLot(source, associations, metadata)
-    : await hostBoundsLot(source);
+  const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
   return { source, sceneLightingSource, associations, textureIndices, framingLot };
 }
