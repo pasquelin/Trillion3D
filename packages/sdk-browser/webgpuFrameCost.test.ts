@@ -48,9 +48,15 @@ test('paged transparent commands disappear outside the view and return with both
         mock.writes.length = 0;
         backend.render(view);
         const blend = mock.draws.filter((d) => d.entryPoint === 'vs');
-        assert.equal(blend.length, x ? 0 : 4, 'encode only the current view, not the old readback');
+        // Le plan d'encodage suit la scène, plus la vue : les quatre appels — deux items, deux
+        // faces — sont toujours posés, et c'est le compte d'instances que la coupe écrit qui tombe
+        // à zéro hors champ. Rien n'y vient de la relecture de l'image précédente.
+        assert.equal(blend.length, 4, 'deux items à deux faces, quelle que soit la vue');
         assert.equal(backend.metrics().transparentDrawCalls, blend.length);
-        if (!x) assert.ok(blend.every((d) => d.instanceCount === 2));
+        assert.ok(
+          blend.every((d) => d.instanceCount === (x ? 0 : 2)),
+          'draw only the current view, not the old readback',
+        );
         assert.equal(
           mock.writes.filter((w) => w.label === 'WG transparent cluster spans').length,
           0,
