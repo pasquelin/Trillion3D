@@ -1,3 +1,5 @@
+// Le dispositif du banc de reprise de coupe GPU, séparé de ses cas pour qu'aucun des deux fichiers
+// ne dépasse la limite de lignes. Les cas vivent dans `webgpuCutReprise.test.ts`.
 import * as THREE from 'three';
 import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';

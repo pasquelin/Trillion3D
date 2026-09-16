@@ -11,7 +11,7 @@ pub fn build_dag_tallied(
 ) -> Result<(Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>)> {
     checkpoint()?;
     let weld = {
-        let _t = Timer::new(&PHASES.weld);
+        let _t = Timer::new(Phase::Weld);
         weld_positions(positions, indices)
     };
     // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
@@ -24,7 +24,7 @@ pub fn build_dag_tallied(
     }
     let mut dag: Vec<DagCluster> = Vec::new();
     let level0 = {
-        let _t = Timer::new(&PHASES.cluster_level0);
+        let _t = Timer::new(Phase::ClusterLevel0);
         cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)?
     };
     for cluster in level0 {
@@ -63,7 +63,7 @@ pub fn build_dag_tallied(
             .map(|&id| dag[id].indices.as_slice())
             .collect();
         let adjacency_by_slot = {
-            let _t = Timer::new(&PHASES.adjacency);
+            let _t = Timer::new(Phase::Adjacency);
             cluster_adjacency(&lists)
         };
         let centres: Vec<[f64; 3]> = current
@@ -74,14 +74,14 @@ pub fn build_dag_tallied(
             })
             .collect();
         let groups = {
-            let _t = Timer::new(&PHASES.grouping);
+            let _t = Timer::new(Phase::Grouping);
             group_clusters(&centres, &adjacency_by_slot, DAG_GROUP_MAX)
         };
         if groups.len() >= current.len() {
             break;
         }
         let locks = {
-            let _t = Timer::new(&PHASES.locks);
+            let _t = Timer::new(Phase::Locks);
             level_locks(&weld, &lists, &groups)
         };
         let input = GroupReductionInput {

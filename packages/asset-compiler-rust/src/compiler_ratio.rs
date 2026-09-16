@@ -4,9 +4,13 @@ use serde_json::{json, Value};
 
 /// Whole-job completion estimate attached to every progress event, so a host draws one bar without
 /// knowing the phases: source import (FBX/OBJ) up to 0.30, glTF import 0.35, clustering 0.35–0.95
-/// spread over the primitives announced by the `import` event, root bundles 0.95–0.99, prune 0.99, pointer 1.
+/// spread over the primitives announced by the `import` event, root bundles 0.95–0.96, coplanar cuts
+/// 0.96–0.97, resident proxy 0.97, lights 0.98, prune 0.99, pointer 1.
+///
+/// Cette estimation ne recule jamais : une phase que la table ne connaît pas garde le dernier
+/// avancement atteint, et un travail qui importe plusieurs fichiers ne recommence pas sa barre.
 pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sync {
-    let state = std::sync::Mutex::new((0usize, 0usize));
+    let state = std::sync::Mutex::new((0usize, 0usize, 0.0f64));
     move |mut event: Value| {
         let frac = |e: &Value| {
             let total = e["total"].as_f64().unwrap_or(0.0);
@@ -40,12 +44,18 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
                     0.35
                 }
             }
-            Some("bootstrap") => 0.95 + 0.02 * frac(&event),
-            Some("coplanar") => 0.97 + 0.02 * frac(&event),
+            Some("bootstrap") => 0.95 + 0.01 * frac(&event),
+            Some("coplanar") => 0.96 + 0.01 * frac(&event),
+            Some("proxy") => 0.97,
+            Some("lights") => 0.98,
             Some("prune") => 0.99,
             Some("complete") => 1.0,
-            _ => 0.0,
+            _ => guard.2,
         };
+        // La barre d'un hôte ne redescend pas : une phase plus lente que prévu, ou inconnue de cette
+        // table, tient l'avancement déjà annoncé plutôt que de le reprendre à zéro.
+        let ratio = ratio.max(guard.2);
+        guard.2 = ratio;
         if let Some(object) = event.as_object_mut() {
             object.insert("ratio".into(), json!((ratio * 1000.0).round() / 1000.0));
         }

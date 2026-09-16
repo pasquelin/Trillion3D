@@ -3,7 +3,7 @@
 //! et après les optimisations ; deux exécutions identiques ont exactement les mêmes empreintes.
 use super::rapport::{mesures_dir, today};
 use crate::compiler_validate::hash;
-use crate::{compile, perf, Options};
+use crate::{compile, Options};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::{atomic::AtomicBool, Arc};
@@ -85,7 +85,9 @@ fn compile_one(name: &str) -> (f64, Value) {
         &std::fs::read(directory.join("clusters.json")).expect("clusters.json"),
     )
     .expect("clusters.json est du JSON");
-    let record = json!({"fixture":name,"ms":ms,
+    // Les phases appartiennent au travail qui les a dépensées : le relevé les porte par fixture,
+    // puisqu'aucun compteur ne les additionne plus d'une compilation à l'autre.
+    let record = json!({"fixture":name,"ms":ms,"phasesMs":result["metrics"]["phaseCpuMs"],
       "manifesteAllege":hash(serde_json::to_vec(&stable(slim)).expect("manifeste").as_slice()),
       "fichiers":files.iter().map(|(n,d)|json!([n,d])).collect::<Vec<Value>>(),
       "objets":objects.iter().map(|(_,d)|json!(d)).collect::<Vec<Value>>()});
@@ -104,8 +106,7 @@ pub(crate) fn run() -> (f64, String) {
         records.push(record);
     }
     let path = mesures_dir().join(format!("calculs-natif-{}-fixtures-{label}.json", today()));
-    let payload = json!({"label":label,"totalMs":total,"phasesMs":perf::PHASES.report(),
-      "fixtures":records});
+    let payload = json!({"label":label,"totalMs":total,"fixtures":records});
     let _ = std::fs::write(
         &path,
         serde_json::to_vec_pretty(&payload).unwrap_or_default(),
