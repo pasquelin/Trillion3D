@@ -1,9 +1,12 @@
 import type { DecodedGeometryPage } from './geometryPage.ts';
 
 /**
- * Chargeur du décodeur de pages compilé en WebAssembly (`packages/page-codec-wasm`).
+ * Chargeur du module WebAssembly du SDK (`packages/page-codec-wasm`) et décodeur de pages qui s'en
+ * sert. Il n'y a qu'un module, donc qu'une instanciation et qu'une mémoire linéaire pour tout le
+ * process : `prepareSdkWasm` la mémorise, et les noyaux de calcul en lot du socle
+ * (`wasmArena.ts`, `mathBatchRuntime.ts`) travaillent dans cette même mémoire.
  *
- * Le module n'importe rien et n'exporte que sa mémoire linéaire et quatre fonctions : la page
+ * Le module n'importe rien et n'exporte que sa mémoire linéaire et ses fonctions : la page
  * compressée est écrite dans cette mémoire, le décodeur y dépose ses tampons et rend leurs offsets.
  * Rien n'est recopié entre les deux. Les tampons rendus à l'appelant, eux, sont bien des copies :
  * ils survivent au `page_release` et peuvent être transférés à un autre fil.
@@ -35,16 +38,23 @@ const CAUSES = [
 ];
 const MOTS = 12;
 
-type Codec = {
+/** Les exports du module, décodeur de pages et calcul en lot confondus. */
+export type SdkWasm = {
   memory: WebAssembly.Memory;
   page_alloc(len: number): number;
   page_free(offset: number, len: number): void;
   page_decode(offset: number, len: number, maxDecodedBytes: number): number;
   page_release(offset: number): void;
+  math_contract(): number;
+  math_simd(): number;
+  arena_alloc(bytes: number): number;
+  arena_free(offset: number, bytes: number): void;
+  math_box_transform_batch(out: number, boxes: number, mats: number, n: number): void;
+  math_multiply_matrix4_batch(out: number, a: number, b: number, n: number): void;
 };
 type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
-let attente: Promise<Codec | null> | null = null;
+let attente: Promise<SdkWasm | null> | null = null;
 
 /** La ressource livrée à côté du module : le navigateur la prend par son URL, pas par le disque. */
 async function ressource(): Promise<BufferSource> {
@@ -53,12 +63,12 @@ async function ressource(): Promise<BufferSource> {
   return await reponse.arrayBuffer();
 }
 
-async function instancie(source: SourceWasm): Promise<Codec | null> {
+async function instancie(source: SourceWasm): Promise<SdkWasm | null> {
   try {
     if (typeof WebAssembly === 'undefined') return null;
     const octets = typeof source === 'function' ? await source() : source;
     const { instance } = await WebAssembly.instantiate(octets, {});
-    return instance.exports as unknown as Codec;
+    return instance.exports as unknown as SdkWasm;
   } catch {
     return null;
   }
@@ -68,13 +78,13 @@ async function instancie(source: SourceWasm): Promise<Codec | null> {
  * Instancie le module une fois pour toutes et dit s'il est disponible. L'hôte peut fournir les
  * octets — c'est ce que fait Node, qui ne sait pas suivre une URL de fichier avec `fetch`.
  */
-export function prepareGeometryPageWasm(source: SourceWasm = ressource): Promise<Codec | null> {
+export function prepareSdkWasm(source: SourceWasm = ressource): Promise<SdkWasm | null> {
   attente ??= instancie(source);
   return attente;
 }
 
 /** Les tampons du bloc de résultat, copiés hors de la mémoire linéaire avant qu'elle ne bouge. */
-function copie(codec: Codec, bloc: number): DecodedGeometryPage {
+function copie(codec: SdkWasm, bloc: number): DecodedGeometryPage {
   const mots = new Uint32Array(codec.memory.buffer, bloc, MOTS);
   if (mots[0]) throw new Error(CAUSES[mots[0]] ?? 'GEOMETRY_PAGE_BOUNDS');
   const vertexCount = mots[1],
@@ -102,7 +112,7 @@ export async function decodeGeometryPageWasm(
   data: Uint8Array,
   maxDecodedBytes = 16 * 1024 * 1024,
 ): Promise<DecodedGeometryPage> {
-  const codec = await prepareGeometryPageWasm();
+  const codec = await prepareSdkWasm();
   if (!codec) {
     const { decodeGeometryPage } = await import('./geometryPage.ts');
     return decodeGeometryPage(data, maxDecodedBytes);

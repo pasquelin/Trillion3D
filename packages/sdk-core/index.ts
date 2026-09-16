@@ -83,68 +83,7 @@ export type {
   PageDecodeRequest,
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
-export { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './mathMatrix4.ts';
-export { invertMatrix4 } from './mathMatrix4Inverse.ts';
-export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
-export { normalMatrix3 } from './mathMatrix3.ts';
-export {
-  addScaledVector3,
-  applyMatrix3Vector3,
-  copyScaledVector3,
-  crossVector3,
-  dotVector3,
-  lengthSqVector3,
-  normalizeVector3,
-  scaleVector3,
-  transformAffinePoint,
-  transformDirectionVector3,
-  transformHomogeneousPoint,
-} from './mathVector.ts';
-export { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';
-export {
-  BOX_VALUES,
-  boxCornersInto,
-  boxEmpty,
-  boxExpandByPoint,
-  boxIsEmpty,
-  boxTransform,
-  boxUnion,
-} from './mathBox.ts';
-export { sphereFromBounds } from './mathSphere.ts';
-export {
-  FRUSTUM_PLANE_VALUES,
-  clipPlanesFromMatrix,
-  frustumPlanesFromMatrix,
-  frustumPlanesToLocal,
-} from './mathFrustum.ts';
-export { frustumClipBox, frustumExcludesBox } from './mathFrustumBox.ts';
-export { boxConeRejects } from './mathCone.ts';
-export {
-  addTransformNode,
-  createTransformTree,
-  setNodeAutoUpdate,
-  setNodeLocalMatrix,
-  setNodePosition,
-  setNodeQuaternion,
-  setNodeScale,
-  type TransformTree,
-} from './mathTransformTree.ts';
-export { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
-export { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
-export {
-  nodeWorldDirection,
-  nodeWorldMirrorsFaces,
-  nodeWorldPosition,
-  nodeWorldQuaternion,
-  nodeWorldScale,
-} from './mathTransformTreeRead.ts';
-export { lookAtNode } from './mathTransformTreeLookAt.ts';
-export {
-  createCameraFrame,
-  perspectiveProjection,
-  updateCameraFrame,
-  type CameraFrame,
-} from './mathCamera.ts';
+export * from './mathIndex.ts';
 export { compareImages } from './compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */

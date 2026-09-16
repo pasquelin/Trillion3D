@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { PAGE_DECODE_PROTOCOL } from '../../sdk-core/index.ts';
-import { prepareGeometryPageWasm } from '../geometryPageWasm.ts';
+import { prepareSdkWasm } from '../geometryPageWasm.ts';
 import { RACINE, compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { encodeGeometryPage } from '../../page-codec/geometryPage.mjs';
 import { decodeGeometryPage } from '../geometryPage.ts';
@@ -30,7 +30,7 @@ const alea = graine(211);
 // chargeur. Sans cela le banc comparerait le décodeur JavaScript à lui-même, et ne dirait rien du
 // chemin réellement livré, qui passe par le module WebAssembly dès qu'il s'instancie.
 const MODULE = readFileSync(join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'));
-if (!(await prepareGeometryPageWasm(MODULE)))
+if (!(await prepareSdkWasm(MODULE)))
   throw new Error('H2_WASM_ABSENT : lancer `npm run build:wasm`');
 
 /** Une page complète : les six attributs, donc le pas de 72 octets qu'exige le décodeur. */
@@ -75,10 +75,10 @@ writeFileSync(
     `import { runPageDecodeTask } from ${JSON.stringify(
       new URL('../pageDecodeTask.ts', import.meta.url).href,
     )};\n` +
-    `import { prepareGeometryPageWasm } from ${JSON.stringify(
+    `import { prepareSdkWasm } from ${JSON.stringify(
       new URL('../geometryPageWasm.ts', import.meta.url).href,
     )};\n` +
-    `await prepareGeometryPageWasm(readFileSync(${JSON.stringify(
+    `await prepareSdkWasm(readFileSync(${JSON.stringify(
       join(RACINE, 'packages', 'sdk-browser', 'pageCodec.wasm'),
     )}));\n` +
     `parentPort.on('message', async (requete) => {\n` +
