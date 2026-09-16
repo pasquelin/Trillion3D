@@ -101,6 +101,37 @@ et non couverts, compteurs Hi-Z, hash de l'ensemble sélectionné, budget de pag
 début et à la fin —, plus le témoin A/A (même côté joué deux fois) et l'écart avant/après en pixels
 et par canal. `null` = non mesuré, jamais déduit ; tout ce qui est lancé est arrêté, même sur erreur.
 
+### Les compteurs de triangles et de repli
+
+Tous sont lus sur **une seule image** : la dernière de la boucle mesurée, dont l'indice est publié à
+côté d'eux dans `series[].sides[].imageDuReleve`. Aucun n'est cumulé sur la série.
+
+- `selectedTriangles` : les triangles de la coupe de clusters que cette image a choisie, avant tout
+  rejet postérieur (tronc de vision, occultation). `null` si le moteur ne tient pas de coupe.
+- `submittedTriangles` : les triangles que cette image a réellement soumis au dessin de la passe
+  opaque ; l'occultation en rejette une part après la soumission, ils y sont donc comptés. `null`
+  quand le moteur choisit sa coupe sur la carte graphique et que le compte n'en était pas encore
+  revenu au moment du relevé — un chiffre plus tard n'est pas un chiffre de cette image-là.
+- `totalSubmittedTriangles` : le même compte, les passes transparentes en plus. `null` aux mêmes
+  conditions. C'est lui, et lui seul, que `metrics.triangles` reprend, pour les hôtes qui lisent
+  encore ce nom ; il vaut `null` quand rien ne l'a compté, et jamais zéro.
+- `imageTenue` (contrat `frameHeld`) : vrai quand l'image relevée a été **tenue** — rien n'avait
+  bougé, le moteur n'a réencodé qu'une présentation. Elle n'a alors dessiné aucun cluster, donc ses
+  triangles soumis valent zéro : c'est le compte exact de ce qu'elle a fait, et non une mesure
+  absente. Un banc à caméra fixe tient presque toujours sa dernière image ; lire `submittedTriangles`
+  sans lire cette colonne fait prendre une image tenue pour une image vide. `null` hors de ce moteur.
+- `uncoveredTriangles` : les triangles que la coupe publiée nomme mais que l'image ne peut pas
+  dessiner — aucune page résidente, aucun ancêtre couvrant. C'est un trou dans l'image : zéro est la
+  seule valeur saine. `null` sur un moteur qui dessine exactement ce qu'il a sélectionné.
+- `hiZ` (contrat `hiz*Clusters`, `hiz*Triangles`, `hizCountedFrame`) : ce que le test d'occultation
+  a reçu, éliminé et renvoyé vers un mip plus grossier, en clusters et en triangles. Sur le chemin
+  GPU ils décrivent une image **antérieure** à celle du relevé : `hiZ.image` la nomme, et le tableau
+  la met entre parenthèses. `null` quand aucune image n'a encore été comptée.
+- `repliSelectionGpu` (contrat `gpuSelectionFallback`) : vrai quand ce moteur avait une coupe choisie
+  sur la carte graphique et l'a abandonnée pour la coupe processeur de secours — tout ce qui est
+  mesuré ensuite décrit ce secours, pas la coupe GPU. `null` sur un moteur sans coupe GPU, le témoin
+  WebGL par exemple ; `resume.md` l'affiche en `oui` / `non` / `—`.
+
 `resume.md` porte aussi la section « Coût par étape » : une ligne par étape de l'image, colonne CPU
 et colonne GPU en p50/p95, jamais additionnées, plus les compteurs d'ombres (lampes, faces
 redessinées, appels de dessin), le moyen de mesure carte graphique retenu par l'appareil et le coût
