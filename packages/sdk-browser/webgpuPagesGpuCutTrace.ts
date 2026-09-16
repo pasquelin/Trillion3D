@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
 import { frameTraceSnapshot } from './webgpuPagesRenderTrace.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -75,7 +75,7 @@ export function traceGpuCutWaiting(rt: WebgpuPagesRuntime) {
 }
 
 /** The per-frame trace records of a GPU-cut image; both are built lazily and only when tracing. */
-export function traceGpuCutFrame(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, diag } = rt,
     { rows } = rt.layout,
     { tracking, slots } = rt.setup;
@@ -96,7 +96,7 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, camera: THREE.Perspecti
   diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
     frameTraceSnapshot(
       rt,
-      camera,
+      cam,
       { source: 'gpu', decision: 'current-frame-mask' },
       {
         coverage: {

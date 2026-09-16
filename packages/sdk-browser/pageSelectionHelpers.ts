@@ -1,3 +1,5 @@
+import type { EngineCamera } from './cameraWorld.ts';
+import type { MatrixElements } from './matrixElements.ts';
 import {
   clusterSphereValid,
   pageCarriesClusterError,
@@ -31,15 +33,15 @@ export function coneSkipsPage(
     material?: THREE.Material | THREE.Material[];
   },
   ctx: ConeContext,
-  world: THREE.Matrix4,
-  camera: THREE.PerspectiveCamera,
+  world: MatrixElements,
+  cam: EngineCamera,
   fallbackMin: number[],
   fallbackMax: number[],
 ) {
   if (pageIsDoubleSided(rec.material)) return false;
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax;
-  if (!ctx.ready) coneContextFor(ctx, world, camera);
+  if (!ctx.ready) coneContextFor(ctx, world, cam);
   return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material);
 }
 

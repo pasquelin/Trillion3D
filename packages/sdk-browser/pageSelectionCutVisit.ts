@@ -81,14 +81,10 @@ function take<T extends PageRecord>(
       ? drawnUnderForcing(s, rec)
       : exact
         ? cutSelectsAtZero(rec)
-        : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.camera.near, s.pixelError))
+        : cutSelects(rec, s.flatElements, s.flatStretch, s.flatFocal, s.cam.near, s.pixelError))
   )
     return;
-  if (
-    cones &&
-    rec.cone &&
-    coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, rec.min!, rec.max!)
-  )
+  if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
     return;
   keep(s, rec, forcing, resident);
 }
@@ -99,7 +95,7 @@ export function flatVisible<T extends PageRecord>(s: SelectionState<T>, rec: T) 
 
 export function flatConeKeeps<T extends PageRecord>(s: SelectionState<T>, rec: T) {
   if (!s.flatCones || !rec.cone) return true;
-  return !coneSkipsPage(rec, s.flatCone, s.flatWorld, s.camera, rec.min!, rec.max!);
+  return !coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!);
 }
 
 export function traverse<T extends PageRecord>(
@@ -167,7 +163,7 @@ export function traverse<T extends PageRecord>(
               s.flatElements,
               s.flatStretch,
               s.flatFocal,
-              s.camera.near,
+              s.cam.near,
             ) <= s.pixelError
       )
         continue;

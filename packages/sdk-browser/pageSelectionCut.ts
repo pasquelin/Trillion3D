@@ -1,5 +1,4 @@
-import { frustumExcludesBox, frustumPlanesFromMatrix, maxStretch } from '../sdk-core/index.ts';
-import * as THREE from 'three';
+import { frustumExcludesBox, multiplyMatrix4 } from '../sdk-core/index.ts';
 import { selectFlat } from './pageSelectionCutSelect.ts';
 import {
   IDENTITY_WORLD,
@@ -12,12 +11,12 @@ import {
 } from './pageSelectionCutState.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /** Select the requested LOD cut and the resident cut that can be displayed this frame. */
 export function selectVisiblePages<T extends PageRecord>(
   roots: ReadonlyArray<ClusterRoot<T>>,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   options: {
     pixelError?: number;
     viewport?: [number, number];
@@ -33,20 +32,17 @@ export function selectVisiblePages<T extends PageRecord>(
   const viewport = options.viewport,
     hold = !!options.holdResident;
   const budget = options.pageBudget && options.pageBudget > 0 ? options.pageBudget : 0;
-  const { worldPlanes, matrix, viewMatrix } = selectionScratch;
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  resolveCameraWorld(camera);
-  frustumPlanesFromMatrix(
-    worldPlanes,
-    matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
-    false,
-  );
-  pixelScaleOf(camera, viewport, selectionScratch.pixelScale);
+  const { viewMatrix } = selectionScratch;
+  // Les plans du tronc monde sont ceux que l'entrée d'image a posés, dans la convention de
+  // profondeur de l'hôte : une image les calcule une fois, pour tous ses consommateurs, et rien
+  // n'est recopié ici.
+  const worldPlanes = cam.planes;
+  pixelScaleOf(cam.projection, viewport, selectionScratch.pixelScale);
   const shown = into ?? ([] as T[]);
   const wanted = options.wanted ?? ([] as T[]);
   // L'état de la coupe est posé sur l'objet réutilisé : une image de rendu n'alloue rien ici.
   const state = selectionState<T>();
-  state.camera = camera;
+  state.cam = cam;
   state.hold = hold;
   state.rootFallback = hold && !!options.rootFallback;
   state.wanted = wanted;
@@ -56,7 +52,7 @@ export function selectVisiblePages<T extends PageRecord>(
   // par cluster deux relectures de l'état et un appel indirect, sans toucher à la réponse.
   state.residentMode = residentModeOf(hold, options.isResident);
   state.pixelError = options.pixelError ?? 0;
-  state.cameraStretch = maxStretch(camera.matrixWorldInverse.elements);
+  state.cameraStretch = cam.viewStretch;
   state.flatWorld = roots[0]?.world ?? IDENTITY_WORLD;
   state.flatElements = (roots[0]?.world ?? IDENTITY_WORLD).elements;
   state.flatStretch = 1;
@@ -86,7 +82,7 @@ export function selectVisiblePages<T extends PageRecord>(
         state.frustumRejected++;
         continue;
       }
-      viewMatrix.multiplyMatrices(camera.matrixWorldInverse, root.world);
+      multiplyMatrix4(viewMatrix, cam.view, root.world.elements);
       selectFlat(state, root);
     }
   };

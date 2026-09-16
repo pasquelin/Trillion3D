@@ -1,9 +1,9 @@
-import * as THREE from 'three';
 import { HIZ_BOUNDS_VALUES } from './hizCorners.ts';
 import { hizRejectsFlat } from './hizOcclusion.ts';
 import { boundsFor, projectBoxesFlat } from './hizProjection.ts';
 import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } from './hizCounts.ts';
 import type { HizPage, HizPyramid } from './hizTypes.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
 const discardedCounts = createHizCounts();
@@ -11,12 +11,12 @@ const discardedCounts = createHizCounts();
 export function filterUnoccluded<T extends HizPage>(
   pages: T[],
   pyramid: HizPyramid,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   bias = 0,
 ) {
   resetHizCounts(discardedCounts);
-  return countUnoccluded(pages, pyramid, camera, viewport, discardedCounts, bias);
+  return countUnoccluded(pages, pyramid, cam, viewport, discardedCounts, bias);
 }
 
 /**
@@ -27,14 +27,14 @@ export function filterUnoccluded<T extends HizPage>(
 export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> }>(
   pages: T[],
   pyramid: HizPyramid,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
   counts: HizCounts,
   bias = 0,
 ) {
   const kept: T[] = [],
     bounds = boundsFor(pages.length);
-  projectBoxesFlat(pages, pages.length, camera, viewport, bounds);
+  projectBoxesFlat(pages, pages.length, cam, viewport, bounds);
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i],
       base = i * HIZ_BOUNDS_VALUES;

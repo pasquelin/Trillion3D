@@ -1,12 +1,12 @@
-import type * as THREE from 'three';
 import { copyDrawnFromShown } from './webgpuPagesHelpers.ts';
+import { readCameraWorld, type HostCamera } from './cameraWorld.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
-export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera) {
   rt.capture.surfaceRenderAllowed = true;
   // Une capture rend depuis une autre caméra et rétablit ensuite l'image : rien n'y est tenu.
   rt.run.frameHold.invalidate();
@@ -22,7 +22,7 @@ export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.Perspecti
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  camera: THREE.PerspectiveCamera,
+  camera: HostCamera,
   hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
 ) {
   const { run, gpu, services } = rt;
@@ -33,11 +33,12 @@ export async function drawResidentCut(
     throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
   copyDrawnFromShown(run);
   hooks.beforeEncode?.();
-  run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
+  // La caméra hôte repasse par le contrat : l'encodage ne lit que la caméra du moteur.
+  run.submittedTriangles = encodeDraws(rt, gpuDevice, readCameraWorld(run.cam, camera));
 }
 
 export type SavedView = {
-  main: THREE.PerspectiveCamera;
+  main: HostCamera;
   size: [number, number];
   diagnostic: WebgpuPagesRuntime['run']['diagnostic'];
   motion: WebgpuPagesRuntime['run']['motion'];

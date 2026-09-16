@@ -1,10 +1,10 @@
 import { maxStretch } from '../sdk-core/index.ts';
-import * as THREE from 'three';
 import { projectedClusterError } from './pageSelectionMath.ts';
+import type { MatrixElements } from './matrixElements.ts';
 import { forceScratch, type PageRecord, type SelectionState } from './pageSelectionCutState.ts';
 
 export function worldStretch(root: {
-  world: THREE.Matrix4;
+  world: MatrixElements;
   stretch?: number;
   stretchKey?: Float64Array;
 }) {
@@ -51,7 +51,7 @@ export function drawnUnderForcing<T extends PageRecord>(s: SelectionState<T>, re
       s.flatElements,
       s.flatStretch,
       s.flatFocal,
-      s.camera.near,
+      s.cam.near,
     ) > s.pixelError
   )
     return false;
@@ -66,7 +66,7 @@ export function drawnUnderForcing<T extends PageRecord>(s: SelectionState<T>, re
       s.flatElements,
       s.flatStretch,
       s.flatFocal,
-      s.camera.near,
+      s.cam.near,
     ) > s.pixelError
   );
 }
@@ -95,7 +95,7 @@ export function forceCoarse<T extends PageRecord>(s: SelectionState<T>, start: n
           s.flatElements,
           s.flatStretch,
           s.flatFocal,
-          s.camera.near,
+          s.cam.near,
         ) <= s.pixelError
       )
         continue;

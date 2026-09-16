@@ -11,7 +11,7 @@ export function backgroundRgb(background: number) {
 export function triangleAt(
   page: VisPage,
   triangleIndex: number,
-  viewProj: THREE.Matrix4,
+  viewProj: ArrayLike<number>,
   width: number,
   height: number,
 ) {

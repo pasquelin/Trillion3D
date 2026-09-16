@@ -1,3 +1,4 @@
+import type { EngineCamera } from './cameraWorld.ts';
 import * as THREE from 'three';
 import {
   acceptPageArray,
@@ -62,7 +63,8 @@ export type ExactPagesRequestContext = {
   indexByUrl: Map<string, THREE.BufferAttribute>;
   disposeGeometry: (geometry: THREE.BufferGeometry) => void;
   scene: THREE.Scene;
-  readonly lastCamera: THREE.PerspectiveCamera | undefined;
+  /** La caméra du moteur de la dernière image, absente tant qu'aucune image n'a été rendue. */
+  readonly cam: EngineCamera | undefined;
   readonly lastPixelError: number;
   readonly frame: number;
   urlStamp: number;
@@ -102,18 +104,18 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       if (missingRoots.length)
         return collectPendingUrls(missingRoots, pendingScratch, requestStamps);
       const waiting = desired.length ? desired : shown;
-      if (!ctx.lastCamera) return collectPendingUrls(waiting, pendingScratch, requestStamps);
+      if (!ctx.cam) return collectPendingUrls(waiting, pendingScratch, requestStamps);
       // Most costly absence first: what the viewer sees wrong the longest is fetched last, not first.
       return orderPendingUrls(
         waiting,
-        ctx.lastCamera,
-        pixelScaleOf(ctx.lastCamera, viewport, pixelScaleScratch),
+        ctx.cam,
+        pixelScaleOf(ctx.cam.projection, viewport, pixelScaleScratch),
         pendingScratch,
       );
     },
     prefetchUrls() {
       prefetchScratch.length = 0;
-      if (!ctx.lastCamera || !bootstrap.length) return prefetchScratch;
+      if (!ctx.cam || !bootstrap.length) return prefetchScratch;
       // Rien tant que la coupe visible est incomplète. L'anneau se dispute sinon le cache avec ce
       // que l'image montre : la page visible entre, la page de l'anneau la pousse dehors, la coupe
       // retombe sur un remplaçant plus grossier, l'anneau se déplace — et deux couvertures
@@ -124,7 +126,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       // visible is missing, at a priority the visible cut always outranks.
       const ring = selectVisiblePages(
         roots,
-        ctx.lastCamera,
+        ctx.cam,
         {
           pixelError: ctx.lastPixelError > 0 ? ctx.lastPixelError * 0.5 : 0.5,
           viewport,

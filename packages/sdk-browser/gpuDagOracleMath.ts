@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import { screenErrorBound } from '../sdk-core/index.ts';
 import { viewDepthOf, viewLateralOf } from './pageSelectionProjection.ts';
+import { createEngineCamera } from './cameraWorld.ts';
 
 export const dagScratch = {
   view: new THREE.Matrix4(),
   world: new THREE.Matrix4(),
   viewMatrix: new THREE.Matrix4(),
   cam: new THREE.PerspectiveCamera(),
+  /** La caméra du moteur que l'oracle recopie depuis celle qu'il vient de poser. */
+  engineCam: createEngineCamera(),
   cone: { axis: [0, 0, 1] as [number, number, number], angle: Math.PI },
   min: [0, 0, 0] as number[],
   max: [0, 0, 0] as number[],
