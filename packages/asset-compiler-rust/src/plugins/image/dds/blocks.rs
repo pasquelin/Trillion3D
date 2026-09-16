@@ -7,8 +7,9 @@
 //! Pour une surface non compressée, les octets sont déjà là : on les remet dans le même ordre.
 use super::codec::{Layout, Order};
 use super::header::Surface;
-use super::{DecodedImage, DATA_TRUNCATED, TOO_LARGE};
+use super::{DATA_TRUNCATED, TOO_LARGE};
 use crate::plugins::image::blocks as shared;
+use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 
 pub(super) fn decode(

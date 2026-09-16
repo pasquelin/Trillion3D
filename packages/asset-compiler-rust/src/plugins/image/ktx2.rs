@@ -10,7 +10,10 @@
 //!   C'est un portage du transcodeur de référence de Binomial, vérifié octet pour octet contre lui.
 //! - `texture2ddecoder` 0.1.2 (MIT ou Apache-2.0) développe les blocs déjà compressés pour le GPU,
 //!   par le socle `image::blocks` que ce pilote partage avec `dds` : le codec se nomme par
-//!   `vkFormat` ici et par `dwFourCC` là, mais promener les pixels est le même travail.
+//!   `vkFormat` ici et par `dwFourCC` là, mais promener les pixels est le même travail. Les deux
+//!   formats EAC non signés font exception : `eac.rs`, écrit ici depuis la spécification d'OpenGL
+//!   ES 3.0, les développe en onze bits puis arrondit — le décodeur externe les tronquait et lisait
+//!   leur champ d'indices à l'envers.
 //! - `ruzstd` 0.7.3 (MIT, Rust pur) défait la supercompression Zstandard d'un niveau.
 //!
 //! **On n'ajoute aucune perte.** Une charge ETC1S, UASTC ou BCn a déjà perdu ce qu'elle devait
@@ -25,15 +28,24 @@
 //! `header` rend la surface et les bornes de son niveau 0, `format` nomme le codec et sa géométrie
 //! de bloc, `level` et `basis` ne sont que la reconstruction.
 //!
+//! **Ce que le fichier déclare autour de ses texels** est lu, pas sauté : `dfd` rend la fonction de
+//! transfert et le drapeau d'alpha prémultiplié du descripteur de format, `keys` rend les clés
+//! `KTXorientation` et `KTXswizzle`, et `declared` applique ce qui s'applique — dé-prémultiplication,
+//! retournement vertical — en comptant le reste par une raison nommée.
+//!
 //! Seul le niveau 0 est consommé, comme chez `dds` ; la chaîne annoncée est vérifiée entière, un
 //! niveau qui sort du fichier est un refus. Tout le reste — cubes, tableaux, volumes, `vkFormat`
 //! hors liste, supercompression inconnue, fichier tronqué, plafond d'allocation dépassé — est un
 //! refus nommé, jamais une panique : une texture illisible laisse le moteur retomber sur son blanc.
-use super::{DecodedImage, ImageDecoder, Plugin};
+use super::{ImageDecoded, ImageDecoder, Plugin};
 
 mod basis;
+mod declared;
+mod dfd;
+mod eac;
 mod format;
 mod header;
+mod keys;
 mod level;
 
 pub(super) static KTX2: Ktx2 = Ktx2;
@@ -59,15 +71,22 @@ const DATA_TRUNCATED: &str = "ktx2-data-truncated";
 const TOO_LARGE: &str = "ktx2-image-too-large";
 /// Une charge Basis Universal que le transcodeur refuse : codec hors liste, vidéo, flux corrompu.
 const TRANSCODE_FAILED: &str = "ktx2-transcode-failed";
+/// La clé `KTXorientation` demande un sens que le pilote ne sait pas ramener à celui du contrat —
+/// un départ vers la gauche, une troisième dimension. Compté, jamais appliqué de travers.
+const ORIENTATION_UNSUPPORTED: &str = "ktx2-orientation-unsupported";
+/// La clé `KTXswizzle` demande une permutation de canaux autre que l'identité. Compté de même.
+const SWIZZLE_UNSUPPORTED: &str = "ktx2-swizzle-unsupported";
 
 impl Plugin for Ktx2 {
     fn name(&self) -> &'static str {
         "ktx2"
     }
     /// Les trois lecteurs entrent dans la version : changer l'un d'eux change ce que le pilote
-    /// rend, donc l'identité du cache.
+    /// rend, donc l'identité du cache. Le suffixe nomme le décodeur EAC écrit ici, pour la même
+    /// raison : une entrée écrite du temps du décodeur externe porte des texels mélangés et
+    /// tronqués, et serait sans lui relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3"
+        "ktx2-basisu-0.1.0-texture2ddecoder-0.1.2-ruzstd-0.7.3-eac11-dfd-cles"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["ktx2"]
@@ -90,12 +109,16 @@ impl ImageDecoder for Ktx2 {
         &self,
         bytes: &[u8],
         max_alloc: u64,
-    ) -> std::result::Result<DecodedImage, &'static str> {
+    ) -> std::result::Result<ImageDecoded, &'static str> {
         let surface = header::parse(bytes)?;
-        if surface.format == format::UNDEFINED {
-            basis::decode(&surface, bytes, max_alloc)
+        let mut image = if surface.format == format::UNDEFINED {
+            basis::decode(&surface, bytes, max_alloc)?
         } else {
-            level::decode(&surface, bytes, max_alloc)
-        }
+            level::decode(&surface, bytes, max_alloc)?
+        };
+        let notes = declared::apply(&mut image, surface.premultiplied, bytes);
+        Ok(ImageDecoded::srgb(image)
+            .with_transfer(surface.transfer)
+            .with_notes(notes))
     }
 }

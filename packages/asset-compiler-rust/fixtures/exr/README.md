@@ -5,7 +5,7 @@ du sous-ensemble ; quatre sont là pour être refusés, chacun par son nom.
 
 | fichier                   | ce qu'il porte                                    | ce qu'il met sous surveillance                                                                                                            |
 | ------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `demi.exr`                | 2 × 2, canaux `A`, `B`, `G`, `R` en demi-flottant | l'ordre de lecture, les quatre canaux, un alpha qui n'est ni 0 ni 1                                                                       |
+| `demi.exr`                | 2 × 2, canaux `A`, `B`, `G`, `R` en demi-flottant | l'ordre de lecture, les quatre canaux, un alpha qui n'est ni 0 ni 1, et la dé-prémultiplication                                           |
 | `flottant.exr`            | 2 × 2, canaux `B`, `G`, `R` en simple flottant    | les mêmes valeurs RGB que `demi.exr` — le demi s'étend sans arrondi — et l'alpha opaque que la spécification impose quand le canal manque |
 | `canaux-xyz.exr`          | 2 × 2, canaux `X`, `Y`, `Z`                       | un jeu de canaux d'un autre nom : refus `exr-channels-unsupported`                                                                        |
 | `profond.exr`             | `demi.exr` au drapeau de données profondes        | le champ de version suffit : refus `exr-deep-unsupported` avant toute autre lecture                                                       |
@@ -17,6 +17,13 @@ Les deux fichiers lisibles portent la même image RGB, et `src/plugins/tests/exr
 valeurs **une par une** à une référence écrite en clair dans le test. Les valeurs choisies — 0, ⅛,
 ¼, ½, ¾, 1, 1,5, 2, 3, 4, 8, 16 — sont exactes en demi comme en simple précision : un écart ne peut
 venir que du pilote, jamais de l'encodage.
+
+Le test écrit **deux** références pour `demi.exr` : `STOCKE`, ce que le fichier porte — des
+échantillons associés à leur alpha, comme la spécification d'OpenEXR les définit —, et `DROIT`, ce
+que le contrat rend une fois chaque composante divisée par l'alpha du pixel. Les deux pixels dont
+l'alpha n'est ni 0 ni 1 changent, celui d'alpha nul ne change pas : sous un alpha nul il n'y a pas
+de couleur droite à retrouver, et rien n'est divisé par zéro. Les quotients — 4, 8, 3, 6, 12 —
+sont exacts en simple précision.
 
 Les deux fichiers à drapeau ne diffèrent de `demi.exr` que par le champ de version, celui-là même
 que la spécification définit pour annoncer des parties profondes ou multiples. C'est exactement ce
