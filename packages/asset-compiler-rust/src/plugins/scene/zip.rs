@@ -27,7 +27,7 @@ impl ScenePlugin for Zip {
         archive::zip_reader::accepts_head(head)
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        archive::container(request, self, |file, root| {
+        archive::container(request, self, None, |file, root| {
             archive::zip_reader::extract(request, file, root)
         })
     }
