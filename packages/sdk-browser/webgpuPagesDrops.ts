@@ -66,6 +66,11 @@ export function dropGpuSelection(rt: WebgpuPagesRuntime) {
 
 /** La partition vit avec la pyramide et la compaction : elle écrit dans l'une et lit dans l'autre. */
 function dropGpuPartition(rt: WebgpuPagesRuntime) {
+  // Le test d'occultation des transparents lit l'uniforme de la partition : il part avec elle, et
+  // la table transparente retrouve toutes ses entrées.
+  rt.blendState.occlusion?.dispose();
+  rt.blendState.occlusion = undefined;
+  rt.blendState.occlusionEpoch = -1;
   rt.vis.gpuPartition?.dispose();
   rt.vis.gpuPartition = undefined;
   rt.run.occluderHistoryEpoch = -1;

@@ -18,6 +18,9 @@ export async function createGpuHiz(
   if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
     return undefined;
   const cap = Math.max(1, maxBounds);
+  // `COPY_SRC` ne sert qu'aux outils de preuve, qui relisent la profondeur ; aucune image ne copie.
+  const level0Usage =
+    GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC;
   const uniData = new Float32Array(UNIFORM_BYTES / 4);
   const buffers: GPUBuffer[] = [];
   let disposed = false,
@@ -27,8 +30,7 @@ export async function createGpuHiz(
     bindGroup: GPUBindGroup | undefined;
   let sizes: Array<[number, number]> = [],
     offsets: number[] = [];
-  // La table des mips ne dépend que de la taille de la cible : elle est construite à l'allocation de
-  // la pyramide, et une image qui la demande relit la même, sans reconstruire huit objets.
+  // La table des mips ne dépend que de la taille de la cible : bâtie à l'allocation, relue telle.
   let levelTable: Array<{ offset: number; width: number }> | undefined;
   try {
     const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
@@ -82,7 +84,7 @@ export async function createGpuHiz(
       level0 = device.createTexture({
         size: { width: w, height: h },
         format: 'r32float',
-        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        usage: level0Usage,
       });
       level0View = level0.createView();
       pyramid = device.createBuffer({
@@ -142,6 +144,7 @@ export async function createGpuHiz(
        *  exprimer un rectangle d'écran en texels du mip qui le couvre exactement. */
       levels: () =>
         (levelTable ??= sizes.map((size, level) => ({ offset: offsets[level], width: size[0] }))),
+      pyramidBuffer: () => (disposed ? undefined : pyramid),
       encodeTest(queueDevice, encoder, maxRows, flagRows) {
         if (disposed || !bindGroup || bounds === idle) return 0;
         const rows = Math.min(maxRows, cap);

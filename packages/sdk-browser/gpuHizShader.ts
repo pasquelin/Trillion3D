@@ -1,4 +1,5 @@
 import { ST_REJECTED, ST_REJECTED_TRIANGLES, ST_TESTED } from './gpuPartitionContract.ts';
+import { HIZ_FAR_WGSL } from './gpuHizRectWgsl.ts';
 
 /**
  * Les trois noyaux de la pyramide Hi-Z. Le test ne reçoit plus ni compte ni octets du processeur :
@@ -32,20 +33,7 @@ fn reduceHiz(@builtin(global_invocation_id) id:vec3u){
  }
  pyramid[uni.d+id.y*uni.e+id.x]=far;
 }
-fn footprintFar(b:Bounds)->f32{
- let x0=b.minX;let y0=b.minY;let x1=b.maxX+1;let y1=b.maxY+1;
- if(x1<=x0||y1<=y0){return 1.0;}
- if(x1-x0>16||y1-y0>16){return 1.0;}
- var far=-1.0e30;var hit=false;
- for(var y=y0;y<y1;y++){
-  for(var x=x0;x<x1;x++){
-   far=max(far,pyramid[b.pad0+u32(y)*b.pad1+u32(x)]);
-   hit=true;
-  }
- }
- if(!hit){return 1.0;}
- return far;
-}
+${HIZ_FAR_WGSL}
 // Seules les boîtes que l'image teste voyagent jusqu'ici, chacune portant la ligne de verdict dont
 // elle répond ; les lignes que l'image ne teste pas ont été remises à zéro avant cette passe. Le
 // nombre de boîtes est celui que la partition a compacté : le processeur ne le connaît pas.
@@ -55,7 +43,7 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
  let b=bounds[i];
  let row=b.rowAndClip>>1u;
  if((b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=0u;return;}
- let far=footprintFar(b);
+ let far=pyramidFar(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1);
  let bias=bitcast<f32>(uni.d);
  let reject=select(0u,1u,b.nearest>far+bias);
  flags[row]=reject;

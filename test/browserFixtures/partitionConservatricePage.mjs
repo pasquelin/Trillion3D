@@ -7,6 +7,7 @@
 // cluster par cluster (`partitionReference.mjs`).
 
 import { compareAudit, emptyTotals } from './partitionReference.mjs';
+import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.mjs';
 
 export async function auditPoses(options) {
   const sdk = await import(options.sdkUrl);
@@ -35,6 +36,8 @@ export async function auditPoses(options) {
     },
   });
   const total = emptyTotals();
+  const occultation = emptyOcclusionTotals();
+  const violationsOccultation = [];
   const images = [];
   try {
     // Chauffe : la résidence se remplit avant que la première pose ne soit auditée, si bien que
@@ -51,9 +54,15 @@ export async function auditPoses(options) {
       if (!audit) return { erreur: 'aucune partition GPU : l’audit n’a rien rendu', evenements };
       const avant = { ...total };
       compareAudit(audit, total);
+      // Les grappes transparentes ne sont pas des lignes : leur audit est à part, et il porte sur
+      // ce que la carte a RETIRÉ de la table — chacune doit rester rejetée par la référence.
+      const rejets = await explorer.transparentOcclusionAudit();
+      const avantRejets = occultation.rejetees;
+      if (rejets) violationsOccultation.push(...checkOcclusionAudit(rejets, occultation));
       const metriques = frame ?? {};
       images.push({
         lignes: audit.rows,
+        transparentsRejetes: occultation.rejetees - avantRejets,
         clusters: total.clusters - avant.clusters,
         coupes: total.coupes - avant.coupes,
         cpuSelectMs: metriques.cpuSelectMs ?? null,
@@ -74,6 +83,8 @@ export async function auditPoses(options) {
   return {
     evenements,
     images,
+    occultation,
+    violationsOccultation,
     total: {
       ...total,
       margeTexelsMoyenne: total.margeTexelsCount

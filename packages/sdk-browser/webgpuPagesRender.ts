@@ -89,6 +89,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   run.blendDrawCalls = 0;
   run.frame++;
   run.gpuFrameActive = false;
+  run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'relevé de sélection en échec');
   if (!capture.secondaryCamera && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {

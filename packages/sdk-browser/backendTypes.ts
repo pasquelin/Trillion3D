@@ -53,6 +53,11 @@ export interface RenderBackend {
   /** Ce que la partition GPU de la dernière image a écrit, et les entrées d'où elle l'a tiré : la
    *  preuve, cluster par cluster, que ses rectangles et ses profondeurs sont conservateurs. */
   partitionAudit?(): Promise<import('./webgpuPartitionAudit.ts').PartitionAudit | null>;
+  /** Ce que le test d'occultation des transparents a rejeté, et la profondeur contre laquelle il
+   *  l'a fait : la preuve qu'aucune grappe retirée n'aurait posé de pixel. */
+  transparentOcclusionAudit?(): Promise<
+    import('./webgpuTransparentOcclusionAudit.ts').TransparentOcclusionAudit | null
+  >;
   pendingUrls?(): string[];
   /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
    *  so a small camera move finds them already resident. */

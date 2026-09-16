@@ -34,6 +34,10 @@ export type GpuPartition = {
   state: GPUBuffer;
   /** Le rectangle d'écran et la borne de profondeur de chaque ligne, tels que le noyau les a écrits. */
   rowData: GPUBuffer;
+  /** L'entrée de l'image, telle que `encode` l'a écrite : matrices ancrées, plan proche, taille de
+   *  cible et table des mips. Le test d'occultation des transparents lit ce MÊME tampon, pour que
+   *  les deux projections de l'image partagent l'arithmétique et non seulement la règle. */
+  uniforms: GPUBuffer;
   uploadCorners(packed: Float32Array, from: number, to: number): void;
   encode(encoder: GPUCommandEncoder, frame: PartitionFrame): void;
   /** Vrai quand l'intervalle du relevé périodique est écoulé et qu'aucun n'est en route. */

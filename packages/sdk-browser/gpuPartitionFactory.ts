@@ -10,6 +10,7 @@ import { createPartitionCounters } from './gpuPartitionCounters.ts';
 import { PARTITION_SHADER } from './gpuPartitionShader.ts';
 import { dropValidation, openValidation, validationError } from './gpuErrorScope.ts';
 import { shaderFailed } from './gpuShaderModule.ts';
+import { readGpuBuffer } from './gpuReadback.ts';
 import type { GpuPartition, KeptFrame, PartitionSources } from './gpuPartitionTypes.ts';
 
 /**
@@ -78,29 +79,14 @@ export async function createGpuPartition(
       },
       async readRowData(wanted: number) {
         const count = Math.min(wanted, allocated.rows);
-        if (disposed || count < 1 || typeof device.createBuffer !== 'function') return undefined;
-        const bytes = count * ROW_DATA_U32 * 4;
-        const staging = device.createBuffer({
-          label: 'WG partition rows readback',
-          size: bytes,
-          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-        });
-        try {
-          const encoder = device.createCommandEncoder({ label: 'WG partition rows readback' });
-          encoder.copyBufferToBuffer(allocated.rowData, 0, staging, 0, bytes);
-          device.queue.submit([encoder.finish()]);
-          await staging.mapAsync(GPUMapMode.READ);
-          const copy = new Uint32Array(staging.getMappedRange().slice(0));
-          staging.unmap();
-          return copy;
-        } finally {
-          staging.destroy();
-        }
+        if (disposed || count < 1) return undefined;
+        return readGpuBuffer(device, allocated.rowData, count * ROW_DATA_U32 * 4);
       },
       corners: allocated.corners,
       tested: allocated.tested,
       state: allocated.state,
       rowData: allocated.rowData,
+      uniforms: allocated.uniforms,
       /** Les coins monde des lignes `[from, to]`, sur l'intervalle sale de la table et lui seul. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;

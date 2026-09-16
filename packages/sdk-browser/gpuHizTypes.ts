@@ -14,6 +14,9 @@ export type GpuHiz = {
   /** Les mips de la pyramide, décalage et largeur : ce que la partition lit pour exprimer un
    *  rectangle d'écran en texels du mip qui le couvre exactement. */
   levels(): Array<{ offset: number; width: number }>;
+  /** Le tampon de la pyramide elle-même, que le test d'occultation des transparents dépouille avec
+   *  la table de `levels()`. Il change d'identité à chaque redimensionnement de la cible. */
+  pyramidBuffer(): GPUBuffer | undefined;
   /**
    * Teste les boîtes que la partition a compactées ; leur nombre vit dans l'état, et le processeur
    * ne le lit pas. `maxRows` borne le lancement — toute ligne dessinable peut avoir été testée —, et
