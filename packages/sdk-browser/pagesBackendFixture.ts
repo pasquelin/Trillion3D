@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 
 export function drawnIndices(mesh: THREE.Mesh) {
   const index = mesh.geometry.getIndex();

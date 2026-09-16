@@ -1,5 +1,4 @@
-import * as THREE from 'three';
-import { cameraWorldPosition } from './cameraWorld.ts';
+import { createEngineCamera, readCameraWorld, type HostCamera } from './cameraWorld.ts';
 import type { AssetScope, FrameMetrics } from '../sdk-core/index.ts';
 import type { RenderBackend } from './backendTypes.ts';
 import type { createPageStreamer } from './streamingPages.ts';
@@ -9,8 +8,10 @@ import type { ExplorerEmitters } from './explorerSession.ts';
 type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
   active: RenderBackend;
-  camera: THREE.PerspectiveCamera;
-  lookAtTarget: THREE.Vector3;
+  camera: HostCamera;
+  /** La cible que l'hôte relit entre deux poses. Lue par ses trois nombres : la trace n'a pas à
+   *  nommer un type de calcul de la bibliothèque hôte pour publier un point. */
+  lookAtTarget: { x: number; y: number; z: number };
   metricsScratch: FrameMetrics;
   pageIdByUrl: Map<string, number>;
   streamer: ReturnType<typeof createPageStreamer>;
@@ -19,7 +20,9 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   frameNumber: number;
 };
 
-const poseScratch = new THREE.Vector3();
+/** La caméra du moteur de la trace, allouée une fois. Le diagnostic est hors de la passe mesurée —
+ *  il est publié après la fermeture de `cpuFrameMs` — et il n'est recopié que sous `trace`. */
+const diagnosticCam = createEngineCamera();
 
 export function emitExplorerFrameDiagnostic(inputs: Inputs) {
   const {
@@ -38,7 +41,8 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
   // Snapshot construction and enqueueing happen after cpuFrameMs is closed;
   // the channel defers all observer work to a later microtask.
   if (diagnosticChannel.enabled && diagnosticChannel.detail === 'trace') {
-    const pendingUrls = [...(active.pendingUrls?.() ?? [])],
+    const { eye } = readCameraWorld(diagnosticCam, camera),
+      pendingUrls = [...(active.pendingUrls?.() ?? [])],
       protectedOrRequestedPageIds = [
         ...new Set(
           [...pendingUrls, ...(active.pageUrls?.() ?? [])].map(
@@ -57,12 +61,13 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
       backend: active.id,
       camera: {
         // La pose monde, pas la pose locale : sous un rig d'hôte, le diagnostic dirait sinon la
-        // caméra ailleurs que là où l'image a été dessinée.
-        position: cameraWorldPosition(camera, poseScratch).toArray(),
-        target: lookAtTarget.toArray(),
-        fov: camera.fov,
-        near: camera.near,
-        far: camera.far,
+        // caméra ailleurs que là où l'image a été dessinée. `readCameraWorld` résout les ancêtres
+        // et recopie la pose dans la caméra du moteur, comme le fait une entrée d'image.
+        position: [eye[0], eye[1], eye[2]],
+        target: [lookAtTarget.x, lookAtTarget.y, lookAtTarget.z],
+        fov: diagnosticCam.fov,
+        near: diagnosticCam.near,
+        far: diagnosticCam.far,
       },
       timestamp: Date.now(),
       metrics: { ...metricsScratch },

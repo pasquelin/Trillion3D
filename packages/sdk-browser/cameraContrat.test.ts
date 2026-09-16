@@ -7,12 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {
-  cameraPose,
-  cameraWorldPosition,
-  holdCameraWorld,
-  resolveCameraWorld,
-} from './cameraWorld.ts';
+import { enginePose, holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { resolvePixelError } from './pageSelectionRequests.ts';
 import { sameHizView } from './hizTemporal.ts';
@@ -46,18 +41,18 @@ test('contrat : la pose résolue sous un parent déplacé et tourné est la pose
     'la matrice monde résolue doit être celle de la caméra aplatie, au bit près',
   );
   assert.deepEqual(
-    cameraWorldPosition(camera).toArray(),
-    cameraWorldPosition(aplatie).toArray(),
+    [...cameraMoteur(camera).eye],
+    [...cameraMoteur(aplatie).eye],
     'la position lue par le contrat doit être celle de l’œil dans le monde',
   );
   // Le test discrimine : la pose locale, elle, nomme un point qui n'existe pas dans le monde.
-  assert.notDeepEqual(camera.position.toArray(), cameraWorldPosition(aplatie).toArray());
+  assert.notDeepEqual(camera.position.toArray(), [...cameraMoteur(aplatie).eye]);
 });
 
 test('contrat : la pose publiée est la pose monde, jamais la pose locale', () => {
   const { camera, aplatie } = sousRig(DEPLACE_ET_TOURNE);
-  assert.deepEqual(cameraPose(camera), cameraPose(aplatie));
-  assert.notDeepEqual(cameraPose(camera).position, camera.position.toArray());
+  assert.deepEqual(enginePose(cameraMoteur(camera)), enginePose(cameraMoteur(aplatie)));
+  assert.notDeepEqual(enginePose(cameraMoteur(camera)).position, camera.position.toArray());
 });
 
 test('frontière : la porte d’image tenue voit bouger un rig que l’hôte n’a pas remonté', () => {

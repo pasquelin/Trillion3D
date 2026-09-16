@@ -1,5 +1,4 @@
-import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
-import * as THREE from 'three';
+import { createEngineCamera, readCameraWorld, type HostCamera } from './cameraWorld.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from './gpuDagSelection.ts';
@@ -21,7 +20,7 @@ const helperCam = createEngineCamera();
 export function kernelUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
-  camera: THREE.PerspectiveCamera,
+  camera: HostCamera,
   resident?: Uint32Array,
   field: 'pageIds' | 'drawablePageIds' = 'pageIds',
 ) {
@@ -37,7 +36,7 @@ export function kernelUrls(
 export function cpuUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
-  camera: THREE.PerspectiveCamera,
+  camera: HostCamera,
 ) {
   const { roots } = collectClusterPages(
     fixture.source,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 
 const browser = new URL('../packages/sdk-browser/', import.meta.url);
 
@@ -140,4 +140,57 @@ test('chaque fichier du lot M4a existe encore sous son nom', async () => {
       readFile(new URL(file, browser), 'utf8'),
       `${file} a été renommé ou supprimé : la liste du lot M4a doit suivre`,
     );
+});
+
+// LA MATRICE QUE L'HÔTE ÉCRIT EST RECOPIÉE, JAMAIS CALCULÉE.
+//
+// `RenderBackend.addInstance/updateInstance`, `PageRec.matrix` et `ClusterRoot.world` restent des
+// objets de la bibliothèque hôte : c'est l'hôte qui les écrit, et les aplatir l'obligerait à changer
+// ce qu'il tend. Ce que le moteur en fait est fermé : il lit les seize flottants de `.elements` et
+// les donne au socle. Aucune multiplication, inversion, décomposition ni recopie par la bibliothèque
+// hôte ne survit hors des témoins et des lignes nommées ici, qui ÉCRIVENT une pose de l'hôte.
+const CALCULE_UNE_MATRICE =
+  /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/;
+
+/** Les témoins sont écrits avec la bibliothèque hôte : la règle ne les vise pas. */
+const TEMOINS =
+  /^(?:referenceBackend|threeLod|threeBounds|exactPages|autonomous|clusterBatch|blendCopyMesh|comparison|lightingObservation)/;
+
+/** Fichier → ligne exacte → pourquoi elle POSE une matrice de l'hôte au lieu d'en calculer une. */
+const ECRIT_L_HOTE = {
+  'cameraWorld.ts': {
+    'into.matrix.copy(camera.matrixWorld);':
+      'la copie détachée d’une caméra hôte : elle POSE la pose monde, elle ne la calcule pas',
+    'into.matrixWorld.copy(into.matrix);': 'la même copie, résolue sur place faute de parent',
+  },
+  'webgpuPagesTransform.ts': {
+    'node.matrix.copy(requested);': 'l’hôte déplace un nœud de SA scène : le moteur la lui écrit',
+  },
+};
+
+test('le moteur lit la matrice de l’hôte, il ne calcule pas avec', async () => {
+  const fichiers = (await readdir(browser)).filter(
+    (nom) => nom.endsWith('.ts') && !nom.endsWith('.test.ts'),
+  );
+  assert.ok(fichiers.length > 100, 'le paquet navigateur doit être trouvé');
+  const fuites = [],
+    inutiles = [];
+  for (const file of fichiers) {
+    if (TEMOINS.test(file)) continue;
+    const permis = ECRIT_L_HOTE[file] ?? {},
+      vues = new Set();
+    const texte = await readFile(new URL(file, browser), 'utf8');
+    for (const ligne of texte
+      .split('\n')
+      .filter((l) => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && CALCULE_UNE_MATRICE.test(l))
+      .map((l) => l.trim())) {
+      if (permis[ligne]) vues.add(ligne);
+      else fuites.push(`${file} calcule une matrice de l’hôte : ${ligne}`);
+    }
+    for (const ligne of Object.keys(permis))
+      if (!vues.has(ligne))
+        inutiles.push(`${file} déclare une écriture qui n’existe plus : ${ligne}`);
+  }
+  assert.deepEqual(fuites, [], `frontière déclarée dans ${import.meta.url}`);
+  assert.deepEqual(inutiles, [], 'une écriture disparue se retire de la liste');
 });

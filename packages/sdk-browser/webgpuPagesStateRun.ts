@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostCamera } from './cameraWorld.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { createSelectionResult, type PageRec, type SelectionResult } from './pageSelection.ts';
 import {
@@ -27,7 +27,7 @@ export interface WebgpuRunState {
   imageRevision: number;
   diagnostic: DiagnosticMode;
   diagnosticPixelError: number;
-  lastCamera: THREE.PerspectiveCamera | undefined;
+  lastCamera: HostCamera | undefined;
   gpuSelection: GpuSelection | undefined;
   gpuFrameActive: boolean;
   gpuMetricsReady: boolean;
