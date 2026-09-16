@@ -53,7 +53,7 @@ async function lignesOperations() {
         l.map(([a, b]) =>
           Float32Array.from(new THREE.Matrix4().multiplyMatrices(m4(a), m4(b)).elements),
         ),
-      (l) => l.map(([a, b]) => multiplyMatrix4(new Float32Array(16), a, b)),
+      (l) => l.map(([a, b]) => Float32Array.from(multiplyMatrix4(new Float64Array(16), a, b))),
     ),
     await ligne(
       'inverse 4×4, singulières comprises',

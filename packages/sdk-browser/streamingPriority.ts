@@ -4,7 +4,7 @@ import {
   multiplyMatrix4,
   transformAffinePoint,
 } from '../sdk-core/index.ts';
-import type { MatrixElements } from './matrixElements.ts';
+import { copyElements, type MatrixElements } from './matrixElements.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
 export interface PriorityRecord {
@@ -21,7 +21,7 @@ export interface PriorityRecord {
 }
 /** Ce que l'ordre lit de la caméra du moteur : sa vue et son plan proche, rien d'autre. */
 export interface PriorityCamera {
-  view: ArrayLike<number>;
+  view: Float64Array;
   near: number;
 }
 
@@ -37,7 +37,10 @@ function project(view: ArrayLike<number>, sphere: ArrayLike<number>, out: Float6
   out[3] = sphere[3];
 }
 const centre = new Float64Array(4),
-  bounds = new Float64Array(4);
+  bounds = new Float64Array(4),
+  // La pose de l'hôte recopiée dans un tampon possédé : le produit du socle ne lit et n'écrit que
+  // des `Float64Array` (`mathMatrix4.ts`). Seize nombres par matrice DISTINCTE, pas par fiche.
+  worldMirror = new Float64Array(16);
 function boundsSphere(record: PriorityRecord, out: Float64Array) {
   out[0] = (record.min[0] + record.max[0]) / 2;
   out[1] = (record.min[1] + record.max[1]) / 2;
@@ -78,7 +81,8 @@ export function orderPendingUrls(
     let frame = views.get(record.matrix);
     if (!frame) {
       const view = new Float64Array(16);
-      multiplyMatrix4(view, cam.view, record.matrix.elements);
+      copyElements(worldMirror, record.matrix.elements);
+      multiplyMatrix4(view, cam.view, worldMirror);
       frame = { view, stretch: maxStretch(view as unknown as readonly number[]) };
       views.set(record.matrix, frame);
     }

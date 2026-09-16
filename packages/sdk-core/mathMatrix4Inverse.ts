@@ -1,11 +1,16 @@
-import type { NumberSink } from './mathMatrix4.ts';
-
 /**
  * `out = m⁻¹` par les cofacteurs. Un déterminant exactement nul rend la matrice nulle, comme la
- * référence : l'appelant qui doit distinguer ce cas teste le déterminant, jamais la sortie. Les
- * seize entrées sont lues avant la première écriture, donc `out` peut être `m`.
+ * référence : l'appelant qui doit distinguer ce cas teste le déterminant, jamais la sortie. C'est la
+ * PARITÉ AVEC LA RÉFÉRENCE qui fixe ce seuil, et non la règle de singularité du moteur
+ * (`mathSingular.ts`), qui ne vaut que là où une normale est transportée. Les seize entrées sont lues
+ * avant la première écriture, donc `out` peut être `m`.
+ *
+ * La sortie est un `Float64Array` possédé, comme celle du produit : un inverse sert d'entrée à un
+ * produit, et les deux doivent écrire dans le même type de tampon. L'entrée reste une lecture
+ * quelconque — une matrice de l'hôte s'inverse une fois par image, là où le produit tourne par
+ * millier.
  */
-export function invertMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>) {
+export function invertMatrix4(out: Float64Array, m: ArrayLike<number>) {
   const n11 = m[0],
     n21 = m[1],
     n31 = m[2],
