@@ -32,6 +32,29 @@ export function resetHizHistory(run: WebgpuRunState) {
   run.temporalHizState.viewport = undefined;
 }
 
+/**
+ * Le repli sur la coupe processeur, annoncé. La sélection GPU n'est abandonnée que sur un échec
+ * réel — capacité des identifiants, envoi en erreur, encodage perdu, relevé en échec —, jamais
+ * parce qu'une page voulue n'est pas encore arrivée. Un banc qui mesurerait la coupe processeur en
+ * croyant mesurer la coupe GPU le lit dans `gpuSelectionFallback` et dans ce diagnostic, émis une
+ * seule fois par session.
+ */
+export function fallbackToCpuCut(
+  rt: WebgpuPagesRuntime,
+  reason: string,
+  details: Record<string, unknown> = {},
+) {
+  if (!rt.gpu.selectionFallback) {
+    rt.gpu.selectionFallback = true;
+    rt.diag.engineDiagnostic(
+      'gpu-selection-fallback',
+      'Avertissement : sélection GPU abandonnée, la coupe processeur dessine désormais',
+      { reason, ...details },
+    );
+  }
+  dropGpuSelection(rt);
+}
+
 export function dropGpuSelection(rt: WebgpuPagesRuntime) {
   // Origine du changement de ressources : la sélection par la carte n'est plus une capacité de ce
   // moteur, et l'image suivante refait sa coupe sans elle.

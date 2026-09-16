@@ -2,7 +2,7 @@ import { readGpuImage, readbackBytesPerRow } from './gpuPresentation.ts';
 import { collectPendingUrls } from './pageSelection.ts';
 import { outputColorDiagnostic } from './webgpuPagesHelpers.ts';
 import { checkFrameBudget } from './webgpuPagesTargets.ts';
-import { dropGpuSelection } from './webgpuPagesDrops.ts';
+import { fallbackToCpuCut } from './webgpuPagesDrops.ts';
 import { bounceState, directLightingState } from './webgpuPagesEncodeLights.ts';
 import { wantsContractLighting } from './webgpuPagesLightResources.ts';
 import { sunFarState } from './webgpuPagesPrepareSunFar.ts';
@@ -143,12 +143,12 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime) {
   if (run.gpuSelection) {
     try {
       await run.gpuSelection.flush();
-      if (run.gpuSelection.failed()) dropGpuSelection(rt);
+      if (run.gpuSelection.failed()) fallbackToCpuCut(rt, 'relevé de sélection en échec');
       // Origine du changement de ressources : l'adoption d'un relevé a réécrit les listes de coupe.
       else if (run.gpuFrameActive && services.adoptGpuCut()) run.gate.resourcesChanged();
     } catch (error) {
-      diag.diagnosticFailure('gpu-selection-fallback', error);
-      dropGpuSelection(rt);
+      diag.diagnosticFailure('gpu-selection-flush-failed', error);
+      fallbackToCpuCut(rt, 'vidange de la sélection en erreur');
     }
   }
   if (
