@@ -1,8 +1,11 @@
 import { invertMatrix4 } from '../sdk-core/index.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
-import { writeBlendUniforms } from './webgpuBlendUniforms.ts';
+import { writeBlendView } from './webgpuBlendUniforms.ts';
+import { writeBlendArgsCpu } from './webgpuBlendArgs.ts';
+import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
+import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './webgpuBlendFallback.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
-import { copyBackdrop, writeVolumeUniforms } from './webgpuTransmission.ts';
+import { copyBackdrop } from './webgpuTransmission.ts';
 import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { clearValueOf } from './webgpuPagesEncoder.ts';
@@ -24,7 +27,7 @@ export function encodeBlend(
   const { gpu, vis, run, timing, blendState, diag } = rt;
   if (
     !gpu.pipelineBlend ||
-    !blendState.visibleBlend.length ||
+    !blendState.blendGpu.length ||
     !gpu.colorView ||
     !gpu.depthView ||
     !gpu.uniformBuffer
@@ -38,28 +41,54 @@ export function encodeBlend(
     vis.dataAtlas &&
     vis.materialScales &&
     vis.slots &&
-    gpu.zeroUv
+    vis.concatPos &&
+    vis.concatUv &&
+    vis.concatNrm &&
+    gpu.zeroUv &&
+    blendState.itemBuffer &&
+    blendState.viewBuffer &&
+    blendState.argsBuffer
   );
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
   // The compaction reads the mask this very frame's cluster cut wrote, a few commands earlier in the
   // same buffer, and writes the instance list the pass below draws from.
   encodeTransparentInstances(rt, encoder);
-  ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
-  writeBlendUniforms(rt, device, uniformBase, textured);
-  if (textured) writeVolumeUniforms(rt, device);
+  if (!textured) {
+    run.blendFrustumRejected = selectWebgpuBlend(
+      blendState,
+      run.gpuFrameActive ? undefined : run.drawn,
+    );
+    ensureUniform(rt, device, uniformBase + blendState.visibleBlend.length);
+    writeFallbackBlendUniforms(rt, device, uniformBase);
+    const ready = performance.now();
+    timing.transparentPrepareMs += ready - cpuStart;
+    drawFallbackBlendPass(rt, device, encoder, uniformBase);
+    timing.transparentDrawMs += performance.now() - ready;
+    timing.transparentEncodeMs += performance.now() - cpuStart;
+    return;
+  }
+  // Le tronc passe par la carte : un noyau d'un fil par item ecrit les arguments indirects, compte
+  // d'instances a zero pour ce qu'il rejette. Le compteur de rejets se relit une image plus tard,
+  // hors de l'image mesuree. Sans etage de calcul, le processeur ecrit les memes arguments.
+  writeBlendView(rt, device);
+  if (blendState.select) {
+    run.blendFrustumRejected = blendState.select.frustumRejected();
+    blendState.select.readStats();
+    blendState.select.encode(encoder, blendState.blendPlanes);
+  } else run.blendFrustumRejected = writeBlendArgsCpu(blendState, device);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
-  drawBlendPass(rt, device, encoder, uniformBase, textured);
-  // La transmission vient après les mélanges, sur un fond figé : les deux copies séparent les deux
-  // passes, si bien qu'aucune surface transmissive ne lit une image à demi composée.
-  if (blendState.transmissive && textured && copyBackdrop(rt, encoder))
-    drawBlendPass(rt, device, encoder, uniformBase, textured, true);
+  drawBlendPass(rt, device, encoder);
+  // La transmission vient apres les melanges, sur un fond fige : les deux copies separent les deux
+  // passes, si bien qu'aucune surface transmissive ne lit une image a demi composee.
+  if (blendState.transmissive && copyBackdrop(rt, encoder))
+    drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
   timing.transparentEncodeMs += finished - cpuStart;
   if (diag.traceEnabled)
-    diag.traceDiagnostic('transparent-encoding', 'Transparents sélectionnés et encodés', () => ({
+    diag.traceDiagnostic('transparent-encoding', 'Transparents selectionnes et encodes', () => ({
       frame: run.frame,
       submission: run.imageRevision,
       candidates: blendState.blendGpu.length,
@@ -69,7 +98,7 @@ export function encodeBlend(
       submittedTriangles: run.blendSubmittedTriangles,
       transmissiveMeshes: blendState.transmissive,
       encodeMs: timing.transparentEncodeMs,
-      passes: blendState.visibleBlend.length ? 2 : 0,
+      passes: blendState.planTransmission.length ? 2 : 1,
     }));
 }
 

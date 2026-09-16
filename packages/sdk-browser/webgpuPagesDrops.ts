@@ -124,6 +124,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.pipelineBlendFront = undefined;
   vis.pipelineBlendBack = undefined;
   for (const item of rt.blendState.blendGpu) item.group = undefined;
+  rt.blendState.pagedGroup = undefined;
   rt.blendState.overdraw?.dispose();
   rt.blendState.overdraw = undefined;
   vis.gpuSmall?.dispose();

@@ -115,7 +115,19 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
    `test/partitionGpuConservatrice.browser.mjs` rejoue la référence double précision sur la
    profondeur relue — 6 391 446 grappes retirées sur 32 225 760 examinées, 30 poses, 0 violation.
    Le nombre d'appels, lui, NE bouge pas (4232 / 4288) : ils dessinent zéro instance.
-2. **Réduire le nombre d'appels — plancher atteint, rien à gagner.** Exactement DEUX appels par item
+2. **Code écrit, non mesuré — le travail processeur par item a disparu.** Les paramètres de chaque
+   item vivent dans un tampon de stockage indexé par le rang que l'indice de sommet porte
+   (`webgpuBlendItems.ts`) : plus de décalage dynamique d'uniforme, donc plus de groupe de liaison
+   par appel — tous les items paginés partagent un groupe, sur la géométrie concaténée que la passe
+   opaque lit déjà. Le tronc passe par un noyau de calcul conservateur qui écrit les arguments
+   indirects, compte d'instances nul pour ce qu'il rejette (`webgpuBlendSelect.ts`), et le plan
+   d'encodage — rang d'item, pipeline — est statique (`webgpuBlendPlan.ts`). Restent par image : une
+   écriture d'uniforme de vue de 96 octets, un lancement de noyau, et un `drawIndirect` par appel.
+   `multiDrawIndirect` n'est PAS applicable : un item double face demande deux pipelines opposés
+   dans l'ordre dos puis face, et les fusionner imposerait de séparer les deux faces en deux passes,
+   ce qui changerait l'ordre de mélange. Aucun chiffre ici : ce lot n'a pas été mesuré.
+
+3. ~~**Réduire le nombre d'appels — plancher atteint, rien à gagner.**~~ Exactement DEUX appels par item
    visible (4232 pour 2116, 4288 pour 2144) : chaque item est double face et ses deux appels
    demandent deux pipelines opposés, jamais fusionnables ; entre deux items, `drawBlendPass` repose
    un groupe de liaison, les décalages d'uniforme et de volume étant par item. La fusion des appels

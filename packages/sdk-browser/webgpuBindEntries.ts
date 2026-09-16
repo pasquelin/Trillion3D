@@ -63,8 +63,12 @@ export type BlendBindResources = AtlasResources &
     indices: GPUBuffer;
     positions: GPUBuffer;
     uvs: GPUBuffer;
+    /** L'uniforme de VUE de l'image : projection, oeil, tuiles de lampes, drapeaux de diagnostic.
+     *  Un seul pour toute la passe, et il ne porte plus rien qui appartienne a un item. */
     uniform: GPUBuffer;
     uniformSize: number;
+    /** Les fiches d'items, indexees par le rang de l'item dans la scene (`webgpuBlendItems.ts`). */
+    items: GPUBuffer;
     dataAtlas: WebgpuAtlas;
     normals: GPUBuffer;
     scales: GPUBuffer;
@@ -147,6 +151,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.positions, resource: { buffer: r.positions } },
     { binding: b.uvs, resource: { buffer: r.uvs } },
     { binding: b.uniform, resource: { buffer: r.uniform, size: r.uniformSize } },
+    { binding: b.items, resource: { buffer: r.items } },
     ...atlasEntries(b.maps, r.colorAtlas),
     { binding: b.sampler, resource: r.sampler },
     ...atlasEntries(b.dataMaps, r.dataAtlas),

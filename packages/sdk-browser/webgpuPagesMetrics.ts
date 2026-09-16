@@ -131,6 +131,15 @@ export function disposeWebgpuPages(
   blendState.dirtySpans.clear();
   pagedBlendCopies.clear();
   blendState.visibleBlend.length = 0;
+  blendState.select?.dispose();
+  blendState.select = undefined;
+  blendState.itemBuffer?.destroy();
+  blendState.itemBuffer = undefined;
+  blendState.viewBuffer?.destroy();
+  blendState.viewBuffer = undefined;
+  blendState.argsBuffer?.destroy();
+  blendState.argsBuffer = undefined;
+  blendState.pagedGroup = undefined;
   gpu.uniformBuffer?.destroy();
   gpu.uniformBuffer = undefined;
   gpu.volumeBuffer?.destroy();

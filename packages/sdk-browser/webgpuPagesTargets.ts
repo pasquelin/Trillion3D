@@ -98,6 +98,7 @@ export function ensureTargets(
   // Les groupes de liaison d'un item transparent nomment les vues du fond : elles viennent de
   // changer, donc ils sont refaits à la première image qui suit.
   for (const item of blendState.blendGpu) item.group = undefined;
+  blendState.pagedGroup = undefined;
   gpu.targetSize = [width, height];
   try {
     vis.visTexture = device.createTexture({

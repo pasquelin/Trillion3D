@@ -9,7 +9,7 @@ type GeometryBlock = {
 };
 type GeometryBlocks = Map<THREE.BufferGeometry['attributes'], GeometryBlock>;
 
-/** Packs each unique opaque geometry once for visibility and shade passes. */
+/** Packs each unique paged geometry once for the visibility, shade and transparent passes. */
 export function prepareWebgpuGeometry(
   device: GPUDevice,
   allPages: PageRec[],
@@ -17,7 +17,7 @@ export function prepareWebgpuGeometry(
 ) {
   let vertexCount = 0;
   for (const rec of allPages) {
-    if (rec.transparent || geometryBlocks.has(rec.attributes)) continue;
+    if (geometryBlocks.has(rec.attributes)) continue;
     const n = rec.attributes.position?.count ?? 0;
     geometryBlocks.set(rec.attributes, {
       vertexBase: vertexCount,
@@ -34,7 +34,7 @@ export function prepareWebgpuGeometry(
     nrm = new Float32Array(vertexCount * 7),
     filled = new Set<THREE.BufferGeometry['attributes']>();
   for (const rec of allPages) {
-    if (rec.transparent || filled.has(rec.attributes)) continue;
+    if (filled.has(rec.attributes)) continue;
     filled.add(rec.attributes);
     const block = geometryBlocks.get(rec.attributes)!;
     const p = rec.attributes.position,
