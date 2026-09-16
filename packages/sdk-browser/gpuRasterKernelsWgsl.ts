@@ -15,6 +15,8 @@ import {
   TILE_ROWS,
   rasterEntry,
 } from './gpuRasterContract.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
+import { wgslFloat } from './gpuPartitionMargins.ts';
 
 /** Les douze points d'entrée : quatre classes de taille, chacune dans les trois modes de l'image. */
 const entryPoints = () =>
@@ -47,7 +49,8 @@ const LIST_S:u32=LIST+${LIST_HEADER}u;
 const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
 @compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
  let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}
- atomicStore(&work[offset],bitcast<u32>(1.0));atomicStore(&work[pixels+offset],0xffffffffu);
+ // Profondeur inversée : le tampon part du LOINTAIN, et c'est le PLUS GRAND qui gagne ensuite.
+ atomicStore(&work[offset],bitcast<u32>(${wgslFloat(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
 }
 /** Le verdict d'une ligne : 0 occulteur, 1 testée et rejetée, 2 testée et gardée. */
 fn rowVerdict(page:PageInfo)->u32{
