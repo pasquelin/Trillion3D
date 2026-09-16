@@ -6,13 +6,13 @@ use std::time::Duration;
 
 /// Les millisecondes cumulées d'une phase nommée, telles que le manifeste les publie.
 fn phase(result: &Value, name: &str) -> f64 {
-    result["metrics"]["phaseCpuMs"][name]
+    result["metrics"]["phaseElapsedMs"][name]
         .as_f64()
         .unwrap_or_else(|| panic!("phase {name} absente de {}", result["metrics"]))
 }
 /// La plus longue des phases cumulées d'un travail, avec son nom.
 fn longest_phase(result: &Value) -> (String, f64) {
-    result["metrics"]["phaseCpuMs"]
+    result["metrics"]["phaseElapsedMs"]
         .as_object()
         .expect("les phases")
         .iter()
@@ -127,6 +127,32 @@ fn a14_la_duree_annoncee_contient_la_publication_et_la_purge() {
     assert!(
         wall >= floor,
         "durée annoncée {wall} ms sous le plancher observé {floor} ms"
+    );
+    fs::remove_dir_all(root).expect("nettoyage");
+}
+
+// Constat V03 : ces durées sont du temps écoulé, jamais du temps de processeur. L'épreuve le montre
+// et le fixe : une attente franche tenue dans le rappel d'un jalon de la phase coplanaire s'ajoute à
+// cette phase, alors qu'aucun processeur n'a travaillé pendant ce temps. Le nom publié dit donc
+// « écoulé », et `cpuMs` reste `null` tant que personne ne le mesure vraiment.
+#[test]
+fn v03_une_attente_dans_un_rappel_entre_dans_la_duree_ecoulee_de_la_phase() {
+    let (root, options) = fixture();
+    let attente = Duration::from_millis(250);
+    let result = compile(&options, |event| {
+        if event["phase"] == "coplanar" && event["step"] == "done" {
+            std::thread::sleep(attente);
+        }
+    })
+    .expect("compilation");
+    let coplanar = phase(&result, "coplanarMs");
+    assert!(
+        coplanar >= attente.as_secs_f64() * 1000.0,
+        "l'attente du rappel n'entre pas dans la phase : {coplanar} ms"
+    );
+    assert!(
+        result["metrics"]["cpuMs"].is_null(),
+        "le temps de processeur n'est pas mesuré, il reste nul"
     );
     fs::remove_dir_all(root).expect("nettoyage");
 }
