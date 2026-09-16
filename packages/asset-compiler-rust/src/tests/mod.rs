@@ -20,6 +20,7 @@ mod coplanar_collect;
 mod coplanar_golden;
 mod coplanar_overlap;
 mod flottant_golden;
+mod gltf_cycle;
 mod gltf_scenes;
 mod identite_import;
 mod identite_textures;
