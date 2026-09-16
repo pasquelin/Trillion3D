@@ -95,6 +95,11 @@ function recordStages(rt: WebgpuPagesRuntime) {
       cpu: bounce.reason ?? 'rebond absent',
       gpu: bounce.reason ?? 'rebond absent',
     });
+  // Diagnostic seul : le comptage du surdessin des transparents, quand la variante le monte. Le
+  // maximum par pixel n'est pas mesurable par requête d'occlusion : il n'est pas publié.
+  const overdraw = rt.blendState.overdraw;
+  if (overdraw)
+    stages.setCounts('transparents', overdraw.pull(rt.gpu.targetSize[0] * rt.gpu.targetSize[1]));
   stages.setCounts('partition', timing.partitionCounts);
   timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
   timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
