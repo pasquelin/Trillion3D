@@ -39,11 +39,25 @@ export const ENGINES = {
   },
 };
 
-/** Le cache, le moteur et la variante de diagnostic d'un côté, lus une fois de la ligne de commande. */
+/** Le cache, le moteur, la variante de diagnostic et la métrique d'erreur d'un côté. */
 export function equipSide(side, flags, settings) {
   side.cache = resolveCache(flags.get(`cache-${side.name}`));
   side.engine = engineOf(flags, side.name, settings.engine);
   side.variante = variantOf(flags, side.name);
+  side.erreur = screenErrorOf(flags, side.name);
+}
+
+/**
+ * La métrique d'erreur écran d'un côté : `--erreur-<côté>`, sinon `--erreur`, sinon la nôtre.
+ * `certifiee` est notre borne, `reference` la projection simple de la référence externe. C'est
+ * l'option de l'EXPÉRIENCE `calculs/exp-erreur-ecran` : deux côtés qui ne diffèrent que par elle
+ * mesurent la même tête avec deux métriques.
+ */
+function screenErrorOf(flags, name) {
+  const value = flags.get(`erreur-${name}`) ?? flags.get('erreur') ?? null;
+  if (value !== null && value !== 'certifiee' && value !== 'reference')
+    throw new Error(`--erreur-${name} doit valoir certifiee ou reference`);
+  return value;
 }
 
 /** Ce qu'un côté publie de lui-même dans le relevé : son dist, son cache, son moteur, sa variante. */
@@ -55,6 +69,7 @@ export const sideReport = (side) => [
     cache: side.cache ?? null,
     moteur: side.engine.id,
     variante: side.variante,
+    erreur: side.erreur ?? 'certifiee',
   },
 ];
 
