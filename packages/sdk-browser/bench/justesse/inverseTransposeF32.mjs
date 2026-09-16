@@ -102,21 +102,31 @@ export function avantLeLot(m, v) {
   return divise(cofacteur(m, v), det);
 }
 
-/** Le noyau livré, en f32 : 3×3 divisée par la somme de ses valeurs absolues avant le déterminant. */
+/**
+ * Le noyau livré, en f32 : 3×3 divisée par la somme de ses valeurs absolues avant le déterminant,
+ * puis la convention des matrices singulières d'`inverseTransposeWgsl.ts`. Somme nulle, infinie ou
+ * NaN : l'adjointe est mise à zéro par le noyau, donc le produit est le vecteur nul. Déterminant
+ * normalisé sous le seuil mais adjointe non nulle : l'adjointe SEULE, sans le facteur `1/(det·t)`
+ * qui vaudrait ±∞ — c'est le produit vectoriel des arêtes transformées, à 1/t² près.
+ */
 export function apresLeLot(m, v) {
   const t = m.reduce((s, col) => f(s + col.reduce((k, x) => f(k + Math.abs(x)), 0)), 0);
-  if (!(t > 0) || !Number.isFinite(t)) return v;
+  if (!(t > 0) || !Number.isFinite(t)) return [0, 0, 0];
   const n = m.map((col) => divise(col, t));
   const det = point(n[0], croix(n[1], n[2]));
-  if (!(Math.abs(det) > 1e-20)) return v;
-  return divise(cofacteur(n, v), f(det * t));
+  const porte = cofacteur(n, v);
+  if (!(Math.abs(det) > 1e-20)) return porte;
+  return divise(porte, f(det * t));
 }
+
+/** `uniteOuZero` du noyau : `normalize(v)`, sauf sur un vecteur nul ou non fini où il rend zéro. */
+export const uniteOuZero = (a) => (point(a, a) > 0 ? unitaire(a) : [0, 0, 0]);
 
 /**
  * `xformNormal(world, n)` du nuanceur d'éclairage : l'inverse-transposée de la 3×3 monde appliquée
  * à la normale locale, puis renormalisée. `world` est la 4×4 rangée par colonnes.
  */
-export const xformNormalModele = (world, n) => unitaire(apresLeLot(colonnes3(world), n));
+export const xformNormalModele = (world, n) => uniteOuZero(apresLeLot(colonnes3(world), n));
 
 /** La même composition avec la forme d'avant le lot, pour dire ce que le défaut rendait. */
 export const xformNormalAvantLeLot = (world, n) => unitaire(avantLeLot(colonnes3(world), n));

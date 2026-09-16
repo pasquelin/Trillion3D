@@ -6,7 +6,7 @@ import { BLEND_SHADER } from './webgpuPagesShaders.ts';
 
 /** Le corps de la branche de la normale de sommet, celle qui suit la normale géométrique. */
 function vertexNormalBranch(wgsl: string) {
-  const geometric = wgsl.indexOf('var N=normalize(');
+  const geometric = wgsl.indexOf('var N=uniteOuZero(');
   assert.notEqual(geometric, -1, 'le nuanceur part bien d’une normale géométrique');
   const start = wgsl.indexOf(`&${FLAG_HAS_NORMAL}u)!=0u){`, geometric);
   assert.notEqual(start, -1, 'la normale de sommet a bien sa branche');

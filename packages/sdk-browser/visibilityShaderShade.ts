@@ -147,18 +147,26 @@ fn framebuffer(clip:vec4f)->vec3f{
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
+  // Le sens de face d'une pose singulière ne vient PAS de son déterminant nul : sur une face
+  // aplatie, l'adjointe a déjà mis la normale du côté du produit vectoriel des arêtes transformées,
+  // et il ne reste que le côté d'où l'écran la voit. Le test de déterminant ci-dessous rend
+  // exactement cela à déterminant nul — face y vaut screenFace —, comme matrixWindingCw côté CPU.
   let face=screenFace*select(-1.0,1.0,determinant(world3)>=0.0);
   let side=select(1.0,-1.0,(page.flags&256u)!=0u);
   // Les trois normales du triangle subissent la MÊME matrice : la normalisation, le déterminant et
   // l'adjointe se calculent une fois pour le pixel, et chaque normale ne garde que le produit 3×3.
   // xformNormal faisait ce prologue trois fois ; l'opérande et l'ordre par normale ne bougent pas.
+  // uniteOuZero rend normalize sur tout vecteur non nul, donc les mêmes bits qu'avant sur une pose
+  // régulière ; il ne diffère que là où normalize rendrait NaN — face effondrée, triangle dégénéré.
+  // Sur une pose de rang 2, invTranspose3Apply rend la normale de la FACE transformée : les trois
+  // normales de sommets y tombent sur la même direction, et l'interpolation la conserve.
   let invT=invTranspose3Prep(world3);
-  var n0=normalize(invTranspose3Apply(invT,vertN(page.vertexBase,i0)))*side;
-  var n1=normalize(invTranspose3Apply(invT,vertN(page.vertexBase,i1)))*side;
-  var n2=normalize(invTranspose3Apply(invT,vertN(page.vertexBase,i2)))*side;
-  var N=normalize(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
+  var n0=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i0)))*side;
+  var n1=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i1)))*side;
+  var n2=uniteOuZero(invTranspose3Apply(invT,vertN(page.vertexBase,i2)))*side;
+  var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
   if((page.flags&16u)!=0u){
-   N=normalize(n0*bary.x+n1*bary.y+n2*bary.z);
+   N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if((page.flags&2u)!=0u){N*=face;}
   }
   if(page.normalIndex!=0u){
@@ -179,7 +187,7 @@ fn framebuffer(clip:vec4f)->vec3f{
     let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));T*=scale;B*=scale;
    }
    if((page.flags&2u)!=0u&&(page.flags&16u)!=0u){T*=face;B*=face;}
-   N=normalize(T*mapN.x+B*mapN.y+N*mapN.z);
+   N=uniteOuZero(T*mapN.x+B*mapN.y+N*mapN.z);
   }
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),select(1u,2u,(page.flags&1u)!=0u));
 }

@@ -8,21 +8,26 @@
 // déclarait juste une normale perdue. `aucune` (le nuanceur intact) sert de témoin dans ce même
 // fichier : sans lui, un critère devenu trop strict passerait aussi inaperçu.
 //
-// Les cas ordinaires (`CAS`) ne suffisent pas à couvrir le noyau : `GARDES` éprouve les quatre
-// replis dégénérés (somme nulle, déterminant nul, coefficient infini, coefficient NaN), où le noyau
-// doit rendre la normale locale TELLE QUELLE plutôt que de la transformer, et `REGULIERE_MINUSCULE`
-// éprouve le témoin de non-gourmandise du garde : une rotation minuscule mais régulière, que le
-// garde ne doit pas confisquer. La substitution enveloppe la sortie ENTIÈRE de la fonction, replis
-// compris : les mêmes deux mutations doivent donc y être refusées aussi sûrement que sur les cas
-// ordinaires.
+// Les cas ordinaires (`CAS`) ne suffisent pas à couvrir le noyau : `APLATIES` éprouve les poses
+// singulières qui laissent à la face une aire monde, où le noyau doit rendre la normale de la FACE
+// transformée, et `REGULIERE_MINUSCULE` éprouve le témoin de non-gourmandise du garde — une
+// rotation minuscule mais régulière, que le garde ne doit pas confisquer. La substitution enveloppe
+// la sortie ENTIÈRE de la fonction, cas singuliers compris : les mêmes deux mutations doivent donc
+// y être refusées aussi sûrement que sur les cas ordinaires.
+//
+// `EFFONDREES` reste HORS des trois boucles, et c'est une propriété du critère, pas une commodité :
+// sur une face sans aire monde le nuanceur intact rend DÉJÀ le vecteur nul, donc la mutation N→0 ne
+// change rien et N→−N non plus. Une mutation qu'on ne peut pas voir ne prouve rien ; ces cas-là
+// sont éprouvés par leur valeur exacte dans `test/normalTransformArithmetique.browser.mjs`.
 //
 // LAB_ROOT=… node --experimental-strip-types test/normaleEclairageSubstitutionsRefusees.browser.mjs
 import assert from 'node:assert/strict';
 import { verdictNormale } from '../packages/sdk-browser/bench/justesse/inverseTransposeF32.mjs';
 import {
+  APLATIES,
   CAS,
   DECROCHE_DEG,
-  GARDES,
+  EFFONDREES,
   REGULIERE_MINUSCULE,
 } from '../packages/sdk-browser/bench/justesse/normalTransformCas.mjs';
 import {
@@ -30,11 +35,13 @@ import {
   eclairageGpu,
 } from '../packages/sdk-browser/bench/justesse/normaleEclairageGpu.mjs';
 
-/** Ordinaires, gardes et témoin de non-gourmandise : tous les cas que ce fichier éprouve. */
-const TOUS = [...CAS, ...GARDES, REGULIERE_MINUSCULE];
+/** Ordinaires, aplatis et témoin de non-gourmandise : les cas dont la normale a une DIRECTION. */
+const TOUS = [...CAS, ...APLATIES, REGULIERE_MINUSCULE];
+/** Le nuanceur les voit aussi, pour que le texte exécuté soit exactement celui de l'autre preuve. */
+const TOUTES = [...TOUS, ...EFFONDREES];
 
 async function verdicts(substitution) {
-  const gpu = await eclairageGpu(TOUS, { substitution });
+  const gpu = await eclairageGpu(TOUTES, { substitution });
   assert.equal(gpu.indisponible ?? null, null, String(gpu.indisponible));
   assert.deepEqual(gpu.compilation ?? [], [], `substitution « ${substitution} » : compilation`);
   assert.deepEqual(gpu.erreurs ?? [], [], `substitution « ${substitution} » : erreurs GPU`);

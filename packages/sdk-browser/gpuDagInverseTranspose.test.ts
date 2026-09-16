@@ -57,21 +57,31 @@ test('hors de la bande du seuil, la direction rendue est celle d’avant à 1e-6
     }
 });
 
-test('une 3×3 nulle, infinie ou NaN, ou une colonne nulle, rend le vecteur tel quel', () => {
+test('3×3 nulle, infinie ou NaN : adjointe mise à zéro, donc vecteur nul, jamais le local', () => {
   const nulle: [Vec, Vec, Vec] = [
     [0, 0, 0],
     [0, 0, 0],
     [0, 0, 0],
   ];
-  assert.deepEqual(apresLeLot(nulle, AXE), AXE);
-  const colonneNulle = tourneeDe180(1e-8);
-  colonneNulle[1] = [0, 0, 0];
-  assert.deepEqual(apresLeLot(colonneNulle, AXE), AXE);
+  assert.deepEqual(apresLeLot(nulle, AXE), [0, 0, 0]);
   for (const valeur of [Infinity, -Infinity, NaN]) {
     const abimee = tourneeDe180(1);
     abimee[0][0] = valeur;
-    assert.deepEqual(apresLeLot(abimee, AXE), AXE);
+    assert.deepEqual(apresLeLot(abimee, AXE), [0, 0, 0]);
   }
+});
+
+// Une colonne nulle n'efface pas la primitive : elle l'écrase sur un PLAN, où l'axe de cône garde
+// une direction. `tourneeDe180(1e-8)` privée de sa colonne y a pour colonnes (1e-8, 0, 0), (0,0,0)
+// et (0, 0, −1e-8) : le plan d'arrivée est XZ, et l'adjointe de la 3×3 normalisée vaut
+// mat3(0, (0, −0,25, 0), 0). Appliquée à l'axe local (0,0,1) elle rend le vecteur NUL — l'axe local
+// est dans le noyau —, appliquée à (0, 1, 0) elle rend (0, −0,25, 0), soit −Y une fois unitaire.
+// L'ancien repli rendait l'axe LOCAL non tourné dans les deux cas.
+test('une colonne nulle : l’adjointe porte la normale du plan, pas l’axe local', () => {
+  const colonneNulle = tourneeDe180(1e-8);
+  colonneNulle[1] = [0, 0, 0];
+  assert.deepEqual(apresLeLot(colonneNulle, AXE), [0, 0, 0]);
+  assert.deepEqual(unitaire(apresLeLot(colonneNulle, [0, 1, 0])), [0, -1, 0]);
 });
 
 // La normalisation, le déterminant et l'adjointe ne dépendent que de la matrice : ils vivent dans
@@ -89,8 +99,13 @@ test('le shader livré ne porte plus de seuil absolu sur le déterminant brut', 
   );
   assert.match(
     DAG_SELECTION_SHADER,
-    /return select\(v,p\.facteur\*\(p\.adj\*v\),p\.regulier\);/,
-    'une matrice dégénérée doit rendre le vecteur tel quel',
+    /let porte=p\.adj\*v;\n return select\(porte,p\.facteur\*porte,p\.regulier\);/,
+    'une matrice singulière doit rendre l’adjointe, pas le vecteur local ni un facteur infini',
+  );
+  assert.match(
+    corps,
+    /select\(z,cross\(b,c\),fini\),select\(z,cross\(c,a\),fini\),select\(z,cross\(a,b\),fini\)/,
+    'une somme non finie doit annuler l’adjointe : `m/t` n’y vaut plus rien',
   );
 });
 
@@ -107,8 +122,14 @@ test('la forme de reproduction du défaut 6 porte encore le seuil absolu, et ell
   assert.match(prep(INVERSE_TRANSPOSE_AVANT_WGSL), /abs\(det\)<1e-20/, 'seuil absolu');
   assert.doesNotMatch(prep(INVERSE_TRANSPOSE_AVANT_WGSL), /let a=m\[0\]\/t/, 'normalisée');
   assert.doesNotMatch(prep(INVERSE_TRANSPOSE_WGSL), /abs\(det\)<1e-20/, 'seuil absolu revenu');
-  // Hors de la préparation, les deux formes sont le même texte : c'est ce qui permet de substituer
-  // l'une à l'autre dans un nuanceur livré sans rien déplacer d'autre.
-  const suite = (texte: string) => texte.slice(texte.indexOf('fn invTranspose3Apply'));
+  // Les deux formes ne diffèrent qu'en DEUX endroits, et il faut les deux : la préparation, et le
+  // repli d'une matrice singulière. Le défaut était de rendre le vecteur LOCAL — c'est ce que la
+  // forme d'avant doit continuer à faire, sans quoi la reproduction rendrait la normale corrigée au
+  // beau milieu du défaut. Tout le reste est le même texte, d'où la substitution du bloc entier.
+  const repli = (texte: string) =>
+    texte.split('let porte=p.adj*v;')[1].split(';')[0].replace('\n return select(', '');
+  assert.equal(repli(INVERSE_TRANSPOSE_AVANT_WGSL), 'v,p.facteur*porte,p.regulier)');
+  assert.equal(repli(INVERSE_TRANSPOSE_WGSL), 'porte,p.facteur*porte,p.regulier)');
+  const suite = (texte: string) => texte.slice(texte.indexOf('fn inverseTranspose3'));
   assert.equal(suite(INVERSE_TRANSPOSE_AVANT_WGSL), suite(INVERSE_TRANSPOSE_WGSL));
 });

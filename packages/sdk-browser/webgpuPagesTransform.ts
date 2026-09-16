@@ -11,7 +11,7 @@ import {
   invertMatrix4,
   multiplyMatrix4,
 } from '../sdk-core/index.ts';
-import { resolveHostNode } from './hostWorldMatrices.ts';
+import { assertFiniteTransform, resolveHostNode } from './hostWorldMatrices.ts';
 import { sameElements } from './matrixElements.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -55,6 +55,9 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     throw new EngineError('UNKNOWN_SCENE_NODE', `nœud ${nodeName} absent de la scène préparée`, {
       nodeName,
     });
+  // Une pose non finie est refusée ici, avant toute inversion : plus loin elle deviendrait une
+  // matrice monde NaN, puis une normale nulle, puis une surface noire sans cause lisible.
+  assertFiniteTransform(matrix, nodeName);
   for (let i = 0; i < 16; i++) local[i] = matrix[i];
   if (node.parent) {
     // La pose demandée est une pose MONDE : la ramener dans le repère du parent demande la matrice

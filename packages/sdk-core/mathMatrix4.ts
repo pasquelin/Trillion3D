@@ -10,15 +10,19 @@
 export type NumberSink = { [index: number]: number };
 
 /**
- * `out[outOffset..] = a · b`. Les trente-deux entrées sont lues avant la première écriture, donc
- * `out` peut être `a` ou `b`. Chaque terme est la somme de quatre produits, sans zéro initial : une
- * somme commencée à `0` changerait le signe d'un zéro négatif.
+ * `out = a · b`. Les trente-deux entrées sont lues avant la première écriture, donc `out` peut être
+ * `a` ou `b`. Chaque terme est la somme de quatre produits, sans zéro initial : une somme commencée
+ * à `0` changerait le signe d'un zéro négatif.
+ *
+ * Les seize indices d'écriture sont des constantes. Un décalage de sortie en paramètre les rendrait
+ * calculés, donc payables d'une addition et d'un contrôle de bornes chacun : mesuré à 6 % du produit
+ * entier. Un appelant qui compose dans un grand tampon lui passe une sous-vue, ou compose à part puis
+ * recopie ses seize nombres.
  */
 export function multiplyMatrix4<T extends NumberSink>(
   out: T,
   a: ArrayLike<number>,
   b: ArrayLike<number>,
-  outOffset = 0,
 ) {
   const a11 = a[0],
     a12 = a[4],
@@ -52,22 +56,22 @@ export function multiplyMatrix4<T extends NumberSink>(
     b42 = b[7],
     b43 = b[11],
     b44 = b[15];
-  out[outOffset] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41;
-  out[outOffset + 4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42;
-  out[outOffset + 8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43;
-  out[outOffset + 12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44;
-  out[outOffset + 1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41;
-  out[outOffset + 5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42;
-  out[outOffset + 9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43;
-  out[outOffset + 13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44;
-  out[outOffset + 2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41;
-  out[outOffset + 6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42;
-  out[outOffset + 10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43;
-  out[outOffset + 14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44;
-  out[outOffset + 3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41;
-  out[outOffset + 7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42;
-  out[outOffset + 11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43;
-  out[outOffset + 15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
+  out[0] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41;
+  out[4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42;
+  out[8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43;
+  out[12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44;
+  out[1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41;
+  out[5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42;
+  out[9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43;
+  out[13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44;
+  out[2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41;
+  out[6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42;
+  out[10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43;
+  out[14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44;
+  out[3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41;
+  out[7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42;
+  out[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43;
+  out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
   return out;
 }
 

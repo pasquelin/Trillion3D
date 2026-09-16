@@ -12,10 +12,7 @@
 // `SOCLE_COURT=1` ne fait que vérifier que le script tourne : quelques répétitions, rien à citer. JSON
 // et tableau vont sous `.mesure/out/calculs/`, hors dépôt. La campagne officielle se lance sans lui,
 // sous le verrou de mesure, machine calme.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { rejoueEnProcessusNeuf } from '../../sdk-core/bench/bancProcessusNeuf.mjs';
 
 if (process.env.SOCLE_PARTIE === 'performance') {
   const { entete, publie } = await import('./socleMesure.mjs');
@@ -37,10 +34,5 @@ if (process.env.SOCLE_PARTIE === 'performance') {
     `le socle rend les bits de la référence et du code qu'il remplace (${noeudsHierarchie.length} nœuds hiérarchiques)`,
     lignes,
   );
-  const performance = spawnSync(
-    process.execPath,
-    ['--expose-gc', '--experimental-strip-types', fileURLToPath(import.meta.url)],
-    { stdio: 'inherit', env: { ...process.env, SOCLE_PARTIE: 'performance' } },
-  );
-  test('la partie performance a tourné jusqu’au bout', () => assert.equal(performance.status, 0));
+  rejoueEnProcessusNeuf(import.meta.url, 'SOCLE_PARTIE');
 }

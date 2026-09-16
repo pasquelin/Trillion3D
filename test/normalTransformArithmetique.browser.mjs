@@ -12,7 +12,6 @@
 import assert from 'node:assert/strict';
 import {
   angleEntre,
-  unitaire,
   verdictNormale,
   xformNormalModele,
 } from '../packages/sdk-browser/bench/justesse/inverseTransposeF32.mjs';
@@ -41,6 +40,7 @@ const lignes = TOUS.map((cas, i) => {
   const auVrai = verdictNormale(rendueGpu, cas.vraie, DECROCHE_DEG);
   return {
     nom: cas.nom,
+    effondree: cas.effondree ?? false,
     degenere: cas.degenere ?? false,
     ecartAuModeleDeg: angleEntre(rendueGpu, rendueModele) * DEG,
     ecartAuVraiDeg: auVrai.ecartDeg,
@@ -50,7 +50,9 @@ const lignes = TOUS.map((cas, i) => {
     rendueModele,
   };
 });
-const pire = (cle) => lignes.reduce((x, l) => Math.max(x, l[cle]), 0);
+/** Les lignes qui ONT une direction : une face effondrée rend le vecteur nul, dont l'angle est NaN. */
+const orientees = lignes.filter((l) => !l.effondree);
+const pire = (cle) => orientees.reduce((x, l) => Math.max(x, l[cle]), 0);
 console.log(
   JSON.stringify(
     {
@@ -60,7 +62,9 @@ console.log(
       gardes: GARDES.length + 1,
       pireEcartAuModeleDeg: pire('ecartAuModeleDeg'),
       pireEcartAuVraiDeg: pire('ecartAuVraiDeg'),
-      gardesRendus: lignes.filter((l) => l.degenere).map((l) => ({ nom: l.nom, gpu: l.rendueGpu })),
+      gardesRendus: lignes
+        .filter((l) => l.degenere)
+        .map((l) => ({ nom: l.nom, gpu: l.rendueGpu, attendu: l.auVrai.ecartDeg })),
     },
     null,
     2,
@@ -69,7 +73,7 @@ console.log(
 
 // 1. Le nuanceur livré rend ce que le modèle rend. La tolérance couvre le seul écart attendu : le
 //    `normalize` du GPU et celui du modèle n'arrondissent pas au même ULP f32.
-for (const ligne of lignes)
+for (const ligne of orientees)
   assert.ok(
     ligne.ecartAuModeleDeg < 1e-3,
     `${ligne.nom} : le shader rend ${ligne.rendueGpu}, le modèle ${ligne.rendueModele} — ` +
@@ -77,18 +81,23 @@ for (const ligne of lignes)
   );
 
 // 2. Et il rend la bonne normale : celle de la surface tournée, du bon CÔTÉ, unitaire, à toute
-//    échelle. Le verdict porte les trois exigences ; son `raison` dit laquelle a manqué.
-for (const ligne of lignes.filter((l) => !l.degenere))
+//    échelle — y compris quand la pose APLATIT la primitive sur un plan, où la normale attendue est
+//    celle de la face transformée, calculée à la main dans `normalTransformCas.mjs`. Le verdict
+//    porte les trois exigences ; son `raison` dit laquelle a manqué.
+for (const ligne of orientees)
   assert.ok(ligne.auVrai.ok, `${ligne.nom} : ${ligne.auVrai.raison} — rendue ${ligne.rendueGpu}`);
 
-// 3. Les gardes, sur le vrai GPU : une 3×3 nulle, à colonne nulle, infinie ou NaN rend le vecteur
-//    tel quel — donc, après `normalize`, la normale locale unitaire, et jamais un NaN dans
-//    l'éclairage. Le bitcast du garde est du WGSL : aucun modèle JS ne prouve qu'il fait cela.
-for (const ligne of lignes.filter((l) => l.degenere)) {
-  const attendu = unitaire(TOUS.find((cas) => cas.nom === ligne.nom).normale);
-  const verdict = verdictNormale(ligne.rendueGpu, attendu, DECROCHE_DEG);
-  assert.ok(verdict.ok, `${ligne.nom} : ${verdict.raison} — le GPU rend ${ligne.rendueGpu}`);
-}
+// 3. Les poses qui EFFONDRENT la face, sur le vrai GPU : 3×3 nulle, rang 1, somme infinie ou NaN.
+//    Une face sans aire monde n'a pas de normale : le shader rend le vecteur nul, exactement, et
+//    jamais un NaN — que les dérivées d'écran répandraient sur les pixels voisins — ni la normale
+//    locale d'une surface qui n'existe plus. Le bitcast du garde est du WGSL : aucun modèle JS ne
+//    prouve qu'il fait cela.
+for (const ligne of lignes.filter((l) => l.effondree))
+  assert.deepEqual(
+    ligne.rendueGpu,
+    [0, 0, 0],
+    `${ligne.nom} : le GPU rend ${ligne.rendueGpu}, attendu le vecteur nul`,
+  );
 
 console.log(
   `OK : ${lignes.length} cas, le texte d'éclairage du moteur compilé et exécuté — pire écart au ` +
