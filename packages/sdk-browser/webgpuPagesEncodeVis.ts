@@ -2,6 +2,7 @@ import type { EngineCamera } from './cameraWorld.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { buildWebgpuVisibilityItems } from './webgpuVisibilityItems.ts';
+import { clearDrawItemWords, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { encodeWebgpuVisibilityPasses } from './webgpuVisibilityPasses.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import { createRenderEncoder, submitColorCopy } from './webgpuPagesEncoder.ts';
@@ -61,26 +62,32 @@ export function encodeVis(
     throw new Error(
       `VISIBILITY_ID_RANGE: ${tableRows} pages exceed the ${VIS_MAX_PAGES} a visibility identifier addresses`,
     );
+  // Les mots de fiche ne suivent que la table de lignes : la plage sale de cette image-ci, et rien
+  // de plus. Il faut les tenir à jour AVANT `uploadDirtyRows`, qui referme cette plage.
+  const words = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, vis.gpuDraw);
   const items = buildWebgpuVisibilityItems(rt, itemsDirty, partition);
-  timing.encodeCounts.fichesTeleversees = itemsDirty ? rows.packedCount : 0;
+  timing.encodeCounts.fichesTeleversees = Math.max(0, words.to - words.from + 1);
   // Les sphères monde des lignes que la table vient de changer, sur le même intervalle sale que la
   // table elle-même : c'est ce que le rejet des ombres lit, et rien d'autre ne les écrit.
   if (rt.lights.cull) uploadClusterSpheres(rt, device, rows.dirtyFrom, rows.dirtyTo);
   uploadDirtyRows(rt, device);
   ensureVisBindings(rt, device, tableRows);
   const encoder = createRenderEncoder(rt, device);
-  // The item words restate the rows, so the upload is what consumes the changed flag.
+  // Les mots de fiche restatent les lignes : le téléversement de leur plage est ce qui consomme
+  // le drapeau de changement.
   if (useIndirect) {
     vis.gpuDraw!.encode(
       encoder,
       layout.drawItemWords,
       rows.packedCount,
-      itemsDirty,
+      words.from,
+      words.to,
       layout.drawRestBits,
       maxVertexCount,
       run.gpuFrameActive ? run.gpuSelection : undefined,
       layout.binInstances,
     );
+    clearDrawItemWords(words);
     rows.rowsChanged = false;
   }
   const vertices = encodeWebgpuVisibilityPasses(

@@ -10,6 +10,7 @@ import { DRAW_ITEM_U32 } from './gpuDraw.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { buildWebgpuVisibilityItems, createVisibilityItemsHold } from './webgpuVisibilityItems.ts';
+import { createDrawItemWordsHold, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { referenceBuildItems } from './bench/oracles/f-transparents.mjs';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -45,6 +46,7 @@ function runtime(n: number, drawLayerSlots: number) {
     },
     /** Ce que la dernière construction a produit, comme `webgpuPagesLayout.ts` le pose. */
     itemsHold: createVisibilityItemsHold(),
+    itemWordsHold: createDrawItemWordsHold(),
     hizRest: Uint8Array.from({ length: n }, (_, i) => i % 3 === 0), // un tiers « rest »
     drawItemWords: new Uint32Array(Math.max(1, n) * DRAW_ITEM_U32),
     binInstances: new Uint32Array(4096),
@@ -86,7 +88,12 @@ const cle = (twoPass: boolean, restDigest: number) => ({
 
 function memeSortie(a: ReturnType<typeof runtime>, twoPass: boolean, itemsDirty: boolean) {
   const copie = copieLayout(a.layout);
-  const attendu = referenceBuildItems({ layout: copie, vis: a.rt.vis }, twoPass, itemsDirty);
+  // Les mots de fiche sont désormais tenus à part, sur la plage sale de la table de lignes : ils
+  // sont donc toujours à jour, quoi que l'image pense de la table. L'oracle les écrit dans sa
+  // boucle, ce qui demande sa branche « dirty » ; le reste de ce qu'il rend ne s'en trouve pas
+  // changé, puisque cette branche ne fait qu'écrire les mots que la production a déjà posés.
+  const attendu = referenceBuildItems({ layout: copie, vis: a.rt.vis }, twoPass, true);
+  refreshDrawItemWords(a.rt, a.rt.vis.drawLayerSlots - 1, undefined);
   const { occluderVertices, restVertices, testedCount } = buildWebgpuVisibilityItems(
     a.rt,
     itemsDirty,
@@ -119,6 +126,7 @@ test('une seule ligne, occluder pur (rest = 0)', () => {
 test('items non « dirty » : les mots ne sont pas réécrits, seuls les compteurs se recalculent', () => {
   const a = runtime(5, 3);
   // Une première passe pose des mots ; la seconde, non dirty, doit relire ces mots tels quels.
+  refreshDrawItemWords(a.rt, a.rt.vis.drawLayerSlots - 1, undefined);
   buildWebgpuVisibilityItems(a.rt, true, cle(true, 0));
   const motsAvant = a.layout.drawItemWords.slice();
   memeSortie(a, true, false);
@@ -151,6 +159,7 @@ test('grand nombre de lignes, dirty et non dirty, deux passes : équivalence bit
 
 test('le compte de sommets est celui de la ligne du tableau de pages, pas celui de l’objet', () => {
   const a = runtime(3, 3);
+  refreshDrawItemWords(a.rt, a.rt.vis.drawLayerSlots - 1, undefined);
   const rowWords = PAGE_INFO_STRIDE / 4;
   // La ligne dit six indices là où l'objet en porte trois : la fiche suit la ligne, qui est ce que
   // la carte dessine. Les deux ne divergent que si une ligne a été posée sans être réécrite.
@@ -164,6 +173,7 @@ test('le compte de sommets est celui de la ligne du tableau de pages, pas celui 
 
 test('table sans ligne sale et dépendances inchangées : les fiches sont tenues, pas reconstruites', () => {
   const a = runtime(8, 3);
+  refreshDrawItemWords(a.rt, a.rt.vis.drawLayerSlots - 1, undefined);
   const premier = buildWebgpuVisibilityItems(a.rt, true, cle(true, 7));
   const bacsAvant = a.layout.binInstances.slice();
   // Plus aucune ligne sale : la table de l'image précédente décrit encore celle-ci.

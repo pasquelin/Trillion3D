@@ -50,7 +50,8 @@ test('gpuDraw.encode writes the CPU per-slot counts as slotUsed, and a slot coun
     withCounts.device.createCommandEncoder(),
     items,
     2,
-    true,
+    0,
+    1,
     rest,
     768,
     undefined,
@@ -73,7 +74,7 @@ test('gpuDraw.encode writes the CPU per-slot counts as slotUsed, and a slot coun
     BASE_SLOTS,
     'a scene with no coplanar layer keeps six slots',
   );
-  gpuWithoutCounts.encode(withoutCounts.device.createCommandEncoder(), items, 2, true, rest, 768);
+  gpuWithoutCounts.encode(withoutCounts.device.createCommandEncoder(), items, 2, 0, 1, rest, 768);
 
   const indirectWith = gpuWithCounts.indirectBuffer as unknown as { data: Uint8Array };
   const indirectWithout = gpuWithoutCounts.indirectBuffer as unknown as { data: Uint8Array };
