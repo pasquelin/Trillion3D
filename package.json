@@ -41,7 +41,7 @@
     "build": "tsc -p tsconfig.json && node scripts/rewrite-dts-extensions.mjs && node scripts/copy-resources.mjs && node scripts/write-build-provenance.mjs",
     "build:native": "cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml",
     "build:wasm": "node scripts/build-wasm.mjs",
-    "test": "node --experimental-strip-types --test packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs scripts/*.test.mjs test/*.test.mjs",
+    "test": "node --experimental-strip-types --test packages/sdk-core/*.test.ts packages/sdk-browser/*.test.ts packages/sdk-node/*.test.mjs scripts/*.test.mjs scripts/mesure/*.test.mjs test/*.test.mjs",
     "bench:calculs": "node --experimental-strip-types --test --test-concurrency=1 packages/*/bench/*.bench.mjs && node scripts/mesure/calculs/agrege.mjs",
     "test:changed": "node scripts/check-changed.mjs --tests-only",
     "test:gpu": "node --experimental-strip-types --test --test-concurrency=1 packages/sdk-browser/bench/justesse/*-*.mjs test/cisaillementTransform.browser.mjs test/coneEchelleNonUniforme.browser.mjs test/coupeGpuTenue.browser.mjs test/gpuTextureWrap.browser.mjs test/hizCameraRig.browser.mjs test/imageTenueCouleur.browser.mjs test/inverseTransposeePetiteEchelle.browser.mjs test/normalTransformArithmetique.browser.mjs test/normaleEclairagePetiteEchelle.browser.mjs test/reflexionFaceEliminee.browser.mjs test/transparentTransform.browser.mjs",
