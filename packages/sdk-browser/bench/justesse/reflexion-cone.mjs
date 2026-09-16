@@ -20,13 +20,11 @@ import assert from 'node:assert/strict';
 import { rasterVisibility } from '../../visibilityRaster.ts';
 import { camera, decisionCpu, veriteTerrain } from './inverseTransposeCas.mjs';
 import { tousLesCas } from './inverseTransposeEchantillon.mjs';
-import { chargeRaster, pageVisible, sensDuMoteur, VUE } from './reflexionCas.mjs';
-import { rasterGpu } from './noyauRasterGpu.mjs';
+import { pageVisible, sensDuMoteur, VUE } from './reflexionCas.mjs';
+import { dessineParLeMoteur } from './inverseTransposeOracle.mjs';
 
-// --- Ce que le GPU dessine réellement -----------------------------------------------------------
-const gpu = await rasterGpu(chargeRaster(tousLesCas));
-assert.equal(gpu.indisponible ?? null, null, `GPU indisponible : ${gpu.indisponible}`);
-assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], [], 'WGSL');
+// --- Ce que le GPU dessine réellement : l'oracle d'orientation vraie, écrit une seule fois -------
+const gpu = await dessineParLeMoteur(tousLesCas);
 
 // --- Ce que le CPU dessine, et ce que le cône décide --------------------------------------------
 const pixelsCpu = tousLesCas.map((cas) => {
@@ -40,7 +38,7 @@ const cpus = tousLesCas.map(decisionCpu);
 
 const index = tousLesCas.map((_, i) => i);
 const compte = (predicat) => index.filter(predicat).length;
-const dessineGpu = (i) => gpu.fragments[i] > 0;
+const dessineGpu = (i) => gpu.dessine[i];
 const dessineCpu = (i) => pixelsCpu[i] > 0;
 const miroir = (i) => tousLesCas[i].miroir;
 const rejette = (i) => cpus[i].coneRejette;
