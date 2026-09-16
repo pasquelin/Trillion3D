@@ -6,15 +6,16 @@
 //
 // CE QUE CE FICHIER TIENT, ET COMMENT. Il ne lit plus le texte du nuanceur à coups de motifs : une
 // suite d'`assert.match` sur du WGSL casse au premier reformatage et ne garantit aucune
-// arithmétique. Il éprouve le CALCUL — `xformNormal` = normalize(inverseTranspose3(mat3(world), n))
+// arithmétique. Il éprouve le CALCUL — `xformNormal` = uniteOuZero(inverseTranspose3(mat3(world), n))
 // — sur le modèle f32 de `bench/justesse/inverseTransposeF32.mjs` : la rotation suivie à toute
-// échelle, les quatre gardes de dégénérescence, et le seuil lui-même franchi des deux côtés.
+// échelle, les poses singulières — aplaties puis effondrées — et le seuil franchi des deux côtés.
 // Ce modèle n'est pas le nuanceur : `test/normalTransformArithmetique.browser.mjs` exécute le texte
 // livré dans Chromium WebGPU sur EXACTEMENT ces cas (`bench/justesse/normalTransformCas.mjs`) et
 // exige qu'il rende ce que le modèle rend — c'est là, aussi, qu'un nuanceur qui ne compile pas fait
 // échouer la preuve. Restent ici les seuls contrôles de texte qui portent sur la COMPILATION et
 // l'écriture unique : une déclaration en double ne compilerait pas, et deux copies de
-// l'arithmétique dériveraient l'une de l'autre — c'était exactement le défaut 9.
+// l'arithmétique dériveraient l'une de l'autre — c'était exactement le défaut 9. Le CRITÈRE qui
+// juge une normale rendue est éprouvé à part, dans `normalTransformCritere.test.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
@@ -22,17 +23,17 @@ import { NORMAL_TRANSFORM_WGSL } from './standardLighting.ts';
 import { DAG_SELECTION_SHADER } from './gpuDagShader.ts';
 import {
   angleEntre,
-  TOLERANCE_NORME,
   unitaire,
   verdictNormale,
   xformNormalAvantLeLot,
   xformNormalModele,
 } from './bench/justesse/inverseTransposeF32.mjs';
 import {
+  APLATIES,
   CAS,
   DECROCHE_DEG,
   DEG,
-  GARDES,
+  EFFONDREES,
   REGULIERE_MINUSCULE,
   SEUIL,
 } from './bench/justesse/normalTransformCas.mjs';
@@ -85,12 +86,25 @@ test('hors de la bande du seuil, le lot n’a pas bougé la normale rendue', () 
   }
 });
 
-test('les quatre gardes : somme nulle, déterminant nul, somme infinie, somme NaN', () => {
-  for (const cas of GARDES)
+test('poses singulières : la face aplatie garde sa normale, la face effondrée n’en a plus', () => {
+  // Une attente par cas, calculée à la main dans `normalTransformCas.mjs` : le produit vectoriel
+  // des arêtes transformées pour les rang 2, le vecteur nul pour les effondrées. L'ancienne attente
+  // — la normale LOCALE rendue telle quelle — décrivait le défaut, pas la convention : sur
+  // `échelle (1,1,0) puis 90° autour de Y` elle laissait +Z là où la face transformée regarde +X.
+  for (const cas of APLATIES) {
+    const v = verdict(cas, xformNormalModele(cas.world, cas.normale));
+    assert.ok(v.ok, `${cas.nom} : ${v.raison}`);
+    const ecart = angleEntre(cas.vraie, unitaire(cas.normale)) * DEG;
+    assert.ok(
+      ecart > 10,
+      `${cas.nom} : la normale locale et la vraie ne diffèrent que de ${ecart}°`,
+    );
+  }
+  for (const cas of EFFONDREES)
     assert.deepEqual(
       xformNormalModele(cas.world, cas.normale),
-      unitaire(cas.normale),
-      `${cas.nom} : le vecteur doit être rendu tel quel, jamais un NaN propagé à l'éclairage`,
+      [0, 0, 0],
+      `${cas.nom} : une face sans aire monde ne s'éclaire pas — zéro, jamais un NaN ni la locale`,
     );
   // Et le garde ne doit pas être gourmand : une matrice minuscule mais régulière passe.
   const v = verdict(
@@ -99,72 +113,6 @@ test('les quatre gardes : somme nulle, déterminant nul, somme infinie, somme Na
   );
   assert.ok(v.ok, `${REGULIERE_MINUSCULE.nom} : prise par le garde — ${v.raison}`);
 });
-
-// --- Le critère lui-même, sur des vecteurs choisis à la main, sans passer par le noyau ------------
-
-test('angleEntre/verdictNormale : direction ORIENTÉE, N et −N ne sont plus confondus (justesse)', () => {
-  const N = [0, 0, 1];
-  const moinsN = [0, 0, -1];
-  assert.ok(Math.abs(angleEntre(N, N)) < 1e-12, 'deux directions identiques : angle nul');
-  assert.ok(
-    Math.abs(angleEntre(N, moinsN) - Math.PI) < 1e-12,
-    'deux directions opposées : π, pas 0 comme sous une valeur absolue du produit scalaire',
-  );
-  const oppose = verdict({ vraie: N }, moinsN);
-  assert.ok(!oppose.ok, 'une normale rendue opposée à l’attendue doit être refusée');
-  assert.ok(Math.abs(oppose.ecartDeg - 180) < 1e-9, `écart ${oppose.ecartDeg}°, attendu 180°`);
-});
-
-test('angleEntre/verdictNormale : vecteur nul ou non fini rend NaN, jamais 0 (justesse)', () => {
-  for (const v of [
-    [0, 0, 0],
-    [NaN, 0, 0],
-    [Infinity, 0, 0],
-    [0, -Infinity, 0],
-  ])
-    assert.ok(Number.isNaN(angleEntre(v, [0, 0, 1])), `angleEntre([${v}], N) doit être NaN`);
-  const rendueNulle = verdict({ vraie: [0, 0, 1] }, [0, 0, 0]);
-  assert.ok(!rendueNulle.ok, 'un vecteur nul est refusé, jamais accepté à 0°');
-  assert.ok(Number.isNaN(rendueNulle.ecartDeg), 'écart NaN, jamais 0° comme atan2(0, 0)');
-  assert.match(rendueNulle.raison ?? '', /sans direction/, `raison : ${rendueNulle.raison}`);
-});
-
-test('verdictNormale : une norme hors tolérance est refusée même dans la bonne direction (justesse)', () => {
-  const tropCourte = verdict({ vraie: [0, 0, 1] }, [0, 0, 0.9]);
-  assert.ok(
-    !tropCourte.ok,
-    'une normale non unitaire doit être refusée, même parfaitement alignée',
-  );
-  assert.match(tropCourte.raison ?? '', /norme/, `raison inattendue : ${tropCourte.raison}`);
-  const dansLaTolerance = verdict({ vraie: [0, 0, 1] }, [0, 0, 1 + 1e-7]);
-  assert.ok(dansLaTolerance.ok, `1e-7 sous ${TOLERANCE_NORME} : ne doit pas être refusée`);
-});
-
-test(
-  'REGULIERE_MINUSCULE : inverse-transposée calculée à la main, indépendamment du noyau, donne ' +
-    '[0,6 ; 0,8 ; 0] (justesse géométrique)',
-  () => {
-    // diag(1e-8, −1e-8, −1e-8) est sa propre transposée ; son inverse est diag(1e8, −1e8, −1e8).
-    // Appliquée à la normale locale [0,6, −0,8, 0] : [0,6·1e8, −0,8·(−1e8), 0] = [6e7, 8e7, 0].
-    // Arithmétique double ordinaire, sans `Math.fround` ni `cofacteur` : ce calcul ne réutilise rien
-    // du noyau éprouvé, il en est le témoin indépendant.
-    const brut = [0.6 * 1e8, -0.8 * -1e8, 0];
-    const norme = Math.hypot(brut[0], brut[1], brut[2]);
-    const main = [brut[0] / norme, brut[1] / norme, brut[2] / norme];
-    assert.deepEqual(
-      main,
-      [0.6, 0.8, 0],
-      'le calcul à la main ne tombe pas sur la valeur attendue',
-    );
-    assert.deepEqual(REGULIERE_MINUSCULE.vraie, main, 'le témoin s’écarte de la valeur à la main');
-    const rendue = xformNormalModele(REGULIERE_MINUSCULE.world, REGULIERE_MINUSCULE.normale);
-    const v = verdictNormale(rendue, main, DECROCHE_DEG);
-    assert.ok(
-      v.ok,
-      `${REGULIERE_MINUSCULE.nom} : le noyau rend [${rendue}], au lieu de [${main}] — ${v.raison}`,
-    );
-  },
-);
 
 // --- Écriture unique et compilation --------------------------------------------------------------
 const occurrences = (texte: string, motif: RegExp) => texte.match(motif)?.length ?? 0;
@@ -175,7 +123,12 @@ test('le noyau de sélection et l’éclairage lisent la même écriture, au car
     ['sélection du DAG', DAG_SELECTION_SHADER],
   ] as const) {
     assert.ok(shader.includes(INVERSE_TRANSPOSE_WGSL), `${nom} : texte partagé absent`);
-    for (const fonction of ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply'])
+    for (const fonction of [
+      'inverseTranspose3',
+      'invTranspose3Prep',
+      'invTranspose3Apply',
+      'uniteOuZero',
+    ])
       assert.equal(
         occurrences(shader, new RegExp(`fn ${fonction}\\(`, 'g')),
         1,
@@ -188,7 +141,10 @@ test('la normale d’éclairage passe par l’inverse-transposée partagée, san
   const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0];
   assert.equal(occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g), 1, 'xformNormal en double');
   assert.ok(corps.includes('inverseTranspose3('), 'xformNormal n’appelle plus le noyau partagé');
-  assert.ok(corps.includes('normalize('), 'xformNormal doit rendre une direction unitaire');
+  assert.ok(
+    corps.includes('uniteOuZero('),
+    'xformNormal doit rendre une direction unitaire ou nulle',
+  );
   assert.doesNotMatch(
     corps,
     /\bdet\b|cross\(/,

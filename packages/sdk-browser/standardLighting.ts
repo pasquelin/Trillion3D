@@ -24,8 +24,17 @@ fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f,sk
  return diffuse*(hemi*ao+vec3f(direct))+D*Vis*F*direct;
 }`;
 
+/**
+ * La normale MONDE d'une normale locale sous une pose monde : l'inverse-transposée de la 3×3 quand
+ * elle est régulière, la normale de la face transformée quand la pose aplatit la primitive sur un
+ * plan, le vecteur nul quand elle l'effondre sur une droite ou un point — la convention entière est
+ * écrite dans `inverseTransposeWgsl.ts`. `uniteOuZero` plutôt que `normalize` : `normalize` du
+ * vecteur nul rend NaN, et un NaN d'ombrage se propage par les dérivées d'écran aux pixels voisins.
+ * Sur un vecteur non nul, `uniteOuZero` RENVOIE `normalize(v)` : le cas régulier ne bouge d'aucun
+ * bit.
+ */
 export const NORMAL_TRANSFORM_WGSL = `
 ${INVERSE_TRANSPOSE_WGSL}
 fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return normalize(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
+ return uniteOuZero(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
 }`;
