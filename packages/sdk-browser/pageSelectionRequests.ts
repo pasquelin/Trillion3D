@@ -74,7 +74,12 @@ export class RequestStamps {
    * n'en garde que les pages sans octets — la liste des adresses encore attendues.
    */
   mark(
-    list: readonly { url: string; streamUrl?: string; array?: Uint32Array; requestIndex?: number }[],
+    list: readonly {
+      url: string;
+      streamUrl?: string;
+      array?: Uint32Array;
+      requestIndex?: number;
+    }[],
     into: string[],
     missing = false,
   ) {

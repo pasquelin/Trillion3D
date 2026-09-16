@@ -34,7 +34,12 @@ export function createWebgpuRowSync(
     mirror.sync();
     // Des fiches encore dues rappellent la passe même si le cache n'a plus rien bougé : elles
     // portent des pages que l'image précédente a laissées hors de la résidence, faute de temps.
-    if (!mirror.dirty && !rows.touched.count && !slots.pending && rows.rowsEpoch === rows.tableEpoch)
+    if (
+      !mirror.dirty &&
+      !rows.touched.count &&
+      !slots.pending &&
+      rows.rowsEpoch === rows.tableEpoch
+    )
       return;
     mirror.dirty = false;
     rows.rowsEpoch = rows.tableEpoch;
