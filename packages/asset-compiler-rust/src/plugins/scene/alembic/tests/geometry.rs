@@ -5,6 +5,12 @@ use super::super::geom::Geometry;
 use super::super::mesh::{parts, FaceSet};
 use super::super::TOPOLOGY_INVALID;
 use crate::tests::ngones::{rendered_area, U_RING};
+use std::sync::atomic::AtomicBool;
+
+/// Un jeton d'annulation jamais levé : ces cas mesurent le découpage, pas l'arrêt.
+fn running() -> AtomicBool {
+    AtomicBool::new(false)
+}
 
 /// Un maillage de trois faces sur six positions : un triangle, un pentagone, et une face de deux
 /// côtés, qui ne porte aucune surface.
@@ -34,7 +40,7 @@ fn faces_are_fanned_backwards_and_split_by_face_set() {
             faces: vec![1, 0],
         },
     ];
-    let (parts, counted) = parts(&three_faces(), &facesets).expect("morceaux");
+    let (parts, counted) = parts(&three_faces(), &facesets, &running()).expect("morceaux");
     assert_eq!(counted.overlaps, 1, "la face 1 est revendiquée deux fois");
     assert_eq!(counted.degenerate, 1, "la face de deux côtés est comptée");
     assert_eq!(parts.len(), 2, "un morceau par face set servi");
@@ -65,7 +71,7 @@ fn faces_are_fanned_backwards_and_split_by_face_set() {
 fn a_face_index_outside_the_positions_is_refused_by_name() {
     let mut geometry = three_faces();
     geometry.corners[0] = 99;
-    let refusal = parts(&geometry, &[])
+    let refusal = parts(&geometry, &[], &running())
         .err()
         .expect("cette topologie devait être refusée");
     assert_eq!(refusal.code, TOPOLOGY_INVALID);
@@ -86,10 +92,20 @@ fn a_concave_polygon_keeps_its_own_area() {
         uv: None,
         dropped: Vec::new(),
     };
-    let (parts, counted) = parts(&geometry, &[]).expect("morceaux");
+    let (parts, counted) = parts(&geometry, &[], &running()).expect("morceaux");
     assert_eq!(counted.uncut, 0, "un U simple se découpe entièrement");
     assert_eq!(parts.len(), 1, "un seul morceau, sans face set");
     assert_eq!(parts[0].indices.len(), 18, "huit coins font six triangles");
     let area = rendered_area(&parts[0].positions, &parts[0].indices);
     assert!((area - 7.0).abs() < 1e-5, "aire rendue {area}, attendue 7");
+}
+
+// Constat 27 : l'annulation se relit à l'intérieur d'un maillage. Vérifiée entre objets seulement,
+// un seul maillage à un million de faces les posait toutes avant de s'arrêter.
+#[test]
+fn a_raised_token_stops_a_mesh_before_its_last_face() {
+    let Err(refusal) = parts(&three_faces(), &[], &AtomicBool::new(true)) else {
+        panic!("le maillage devait être abandonné");
+    };
+    assert_eq!(refusal.code, "CANCELLED");
 }
