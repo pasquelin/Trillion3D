@@ -15,8 +15,10 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+mod join;
 #[cfg(test)]
 mod tests;
+use join::Join;
 
 /// Ce que ce calcul lit d'un maillage. Les deux tableaux de marques sont lus par leur rang quand il
 /// y est : un tableau vide dit donc « rien de net », ce qui est le maillage entièrement lisse.
@@ -176,33 +178,4 @@ fn unit(vector: [f32; 3]) -> [f32; 3] {
         return [0.0, 0.0, 0.0];
     }
     [vector[0] / length, vector[1] / length, vector[2] / length]
-}
-
-/// L'union-recherche des coins : deux coins réunis sont du même éventail, donc de même normale.
-struct Join {
-    parent: Vec<u32>,
-}
-
-impl Join {
-    fn new(count: usize) -> Self {
-        Self {
-            parent: (0..count as u32).collect(),
-        }
-    }
-    /// Le représentant du groupe de ce coin, le chemin étant raccourci au passage.
-    fn root(&mut self, mut node: u32) -> u32 {
-        while self.parent[node as usize] != node {
-            let up = self.parent[node as usize];
-            self.parent[node as usize] = self.parent[up as usize];
-            node = self.parent[node as usize];
-        }
-        node
-    }
-    /// Réunit deux groupes sous le plus petit de leurs représentants.
-    fn unite(&mut self, left: u32, right: u32) {
-        let (left, right) = (self.root(left), self.root(right));
-        if left != right {
-            self.parent[left.max(right) as usize] = left.min(right);
-        }
-    }
 }
