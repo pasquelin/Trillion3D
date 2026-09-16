@@ -42,6 +42,24 @@ impl SparseAccessor<'_> {
         Ok(index)
     }
 }
+/// Réservation faillible d'une expansion dense. Une capacité qu'aucune machine ne peut adresser
+/// décrit un fichier invalide, un défaut d'allocation un dépassement du budget mémoire : ni l'une ni
+/// l'autre ne doit terminer le processus, ce que `Vec::with_capacity` faisait.
+pub(super) fn reserve<T>(n: usize) -> Result<Vec<T>> {
+    if n.checked_mul(size_of::<T>())
+        .is_none_or(|bytes| bytes > isize::MAX as usize)
+    {
+        return Err(invalid("Accessor expansion exceeds addressable memory"));
+    }
+    let mut out = Vec::new();
+    out.try_reserve_exact(n).map_err(|_| {
+        CompilerError::new(
+            "RAM_ADMISSION_BUDGET_EXCEEDED",
+            "Accessor expansion could not be allocated",
+        )
+    })?;
+    Ok(out)
+}
 pub(super) struct Accessor<'a> {
     pub(super) bin: &'a [u8],
     pub(super) base: usize,

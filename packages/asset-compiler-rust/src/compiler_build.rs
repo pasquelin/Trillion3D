@@ -4,6 +4,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
     let started = Instant::now();
+    // Tenu jusqu'au retour : deux compilations simultanées d'un même cache s'effaceraient l'une
+    // l'autre, chacune purgeant ce que l'autre vient de publier.
+    let _lock = CacheLock::acquire(&o.cache)?;
     // Le routeur choisit le pilote du format et lui fait produire la scène intermédiaire ; tout ce
     // qui suit ne lit qu'un glTF, sans savoir de quel format il vient.
     let progress = with_ratio(progress);
