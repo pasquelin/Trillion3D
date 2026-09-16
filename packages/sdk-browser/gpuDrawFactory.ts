@@ -79,7 +79,17 @@ export async function createGpuDraw(
       bindGroup = makeBindGroup(boundMask);
     const uniData = new Uint32Array(UNIFORM_BYTES / 4);
     return {
-      encode(encoder, items, count, itemsDirty, restBits, maxVertexCount, selection, slotItems) {
+      encode(
+        encoder,
+        items,
+        count,
+        itemsFrom,
+        itemsTo,
+        restBits,
+        maxVertexCount,
+        selection,
+        slotItems,
+      ) {
         if (disposed) return;
         const n = Math.min(count, slotCap);
         if (slotItems)
@@ -90,13 +100,16 @@ export async function createGpuDraw(
             slotItems.byteOffset,
             SLOTS * 4,
           );
-        if (n && itemsDirty)
+        // La plage que la table de lignes vient de réécrire, et elle seule : une image qui ne voit
+        // ni arrivée ni éviction de page n'envoie pas un octet de fiche.
+        const last = Math.min(itemsTo, n - 1);
+        if (last >= itemsFrom)
           device.queue.writeBuffer(
             itemsBuf,
-            0,
+            itemsFrom * DRAW_ITEM_U32 * 4,
             items.buffer as ArrayBuffer,
-            items.byteOffset,
-            n * DRAW_ITEM_U32 * 4,
+            items.byteOffset + itemsFrom * DRAW_ITEM_U32 * 4,
+            (last - itemsFrom + 1) * DRAW_ITEM_U32 * 4,
           );
         if (n)
           device.queue.writeBuffer(

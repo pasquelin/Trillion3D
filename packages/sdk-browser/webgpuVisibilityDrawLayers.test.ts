@@ -11,6 +11,7 @@ import type { PageRec } from './pageSelection.ts';
 import type { WebgpuVisState } from './webgpuPagesStateVis.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { buildWebgpuVisibilityItems, createVisibilityItemsHold } from './webgpuVisibilityItems.ts';
+import { createDrawItemWordsHold, refreshDrawItemWords } from './webgpuVisibilityItemWords.ts';
 import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { visUniformSlots } from './webgpuVisibilityUniforms.ts';
 import { createWebgpuVisibilityShaders } from './webgpuVisibilityShaders.ts';
@@ -21,7 +22,7 @@ import { createWebgpuCoplanarLayerPipelines } from './webgpuVisibilityPipelines.
 // `webgpuPages.19.test.ts` et n'a pas de test ici.
 
 // webgpuVisibilityItems.ts
-test('buildWebgpuVisibilityItems packs each row’s coplanar layer into its item word and its own bin slot', () => {
+test('la couche coplanaire d’une ligne va dans son mot de fiche et compte dans son propre bac', () => {
   const material = new THREE.MeshBasicMaterial();
   const recA = {
     array: Uint32Array.from([0, 1, 2]),
@@ -53,6 +54,7 @@ test('buildWebgpuVisibilityItems packs each row’s coplanar layer into its item
     },
     // Le témoin des fiches, désarmé : la construction se fait, elle n'est pas tenue.
     itemsHold: createVisibilityItemsHold(),
+    itemWordsHold: createDrawItemWordsHold(),
     hizRest: new Uint8Array(2),
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
     binInstances: new Uint32Array(MAX_DRAW_SLOTS),
@@ -67,6 +69,7 @@ test('buildWebgpuVisibilityItems packs each row’s coplanar layer into its item
     vis: { drawLayerSlots: 3 },
     timing: { lastItemsMs: 0 },
   } as unknown as WebgpuPagesRuntime;
+  refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined);
   buildWebgpuVisibilityItems(rt, true, {
     twoPass: false,
     restDigest: 0,
