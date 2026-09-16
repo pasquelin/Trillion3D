@@ -1,4 +1,4 @@
-import { WRAP_COORD_WGSL } from './visibilityPageWgsl.ts';
+import { WRAP_COORD_WGSL } from './visibilityWrapModes.ts';
 import { ATLAS_CLASS_COUNT } from './webgpuAtlasClasses.ts';
 
 /**
@@ -44,7 +44,7 @@ fn atlasLod(px:vec2f,py:vec2f)->f32{return 0.5*log2(max(max(dot(px,px),dot(py,py
 ${texels('colorTexels', 'let word=colorSlots[slot].x;', 'maps')}`;
 
 /** Le choix de classe : une comparaison par classe, la dernière restant le cas par défaut. */
-const dispatch = (name: string, args: string, load: string, call: string, base = name) =>
+const dispatch = (name: string, args: string, load: string, call: string, base: string) =>
   `fn ${name}(slot:u32,${args}{
  ${load}let layer=atlasLayer(word);
  ${CLASSES.slice(0, -1)
@@ -60,16 +60,19 @@ const dispatch = (name: string, args: string, load: string, call: string, base =
  * la couture d'une période en répétition, où la règle de l'échantillonneur mêle le dernier texel de
  * la texture et le premier. Replier la coordonnée les sépare et aucun mode d'échantillonneur en
  * serrage ne les rapproche : c'est la lecture, pas la coordonnée, qui doit reboucler.
+ *
+ * Sans bit de répétition, `wrapUv` rendrait la coordonnée repliée et une couture fausse : le
+ * premier chemin la replie donc directement, et s'épargne le compte de texels — un second
+ * chargement du mot de slot que la lecture tient déjà, une chaîne de dispatch de classe et un
+ * `textureDimensions`, jusqu'à six fois par pixel. Le repli rendu est le même, au bit près.
+ *
+ * `name` nomme la lecture publique, et `name + 'At'` la lecture par classe qu'elle dispatche : les
+ * deux se dérivent l'une de l'autre, jamais deux paramètres qui pourraient se contredire.
  */
-const wrapped = (
-  name: string,
-  at: string,
-  compte: string,
-  args: string,
-  call: string,
-  out: string,
-) =>
-  `fn ${name}(slot:u32,scale:vec2f,uv:vec2f,wrap:u32${args})->${out}{
+const wrapped = (name: string, compte: string, args: string, call: string, out: string) => {
+  const at = `${name}At`;
+  return `fn ${name}(slot:u32,scale:vec2f,uv:vec2f,wrap:u32${args})->${out}{
+ if(!wrapRepete(wrap)){return ${at}(slot,scale,wrapReplie(uv,wrap)${call});}
  let t=wrapUv(uv,wrap,${compte}(slot,scale));
  if(!t.couture){return ${at}(slot,scale,t.proche${call});}
  let s00=${at}(slot,scale,t.proche${call});
@@ -78,6 +81,7 @@ const wrapped = (
  let s11=${at}(slot,scale,t.loin${call});
  return mix(mix(s00,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
 }`;
+};
 
 const COLOR_LOAD = 'let entry=colorSlots[slot];let word=entry.x;';
 const DATA_LOAD = 'let word=dataSlots[slot];';
@@ -107,18 +111,18 @@ const dataClass = (index: number) =>
 /** Lecture de l'atlas couleur : `colorSample(slot, uvScale, uv, wrap, ddx, ddy)`. */
 export const COLOR_SAMPLE_WGSL = `${CLASSES.map(colorClass).join('\n')}
 ${dispatch('colorSampleAt', 'scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f', COLOR_LOAD, 'entry.y,scale,uv,ddx,ddy', 'colorSample')}
-${wrapped('colorSample', 'colorSampleAt', 'colorTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
+${wrapped('colorSample', 'colorTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
 
 /** Découpe alpha de l'atlas couleur : `colorAlpha(slot, uvScale, uv, wrap)`. */
 export const COLOR_ALPHA_WGSL = `${CLASSES.map(alphaClass).join('\n')}
 ${dispatch('colorAlphaAt', 'scale:vec2f,uv:vec2f)->f32', COLOR_LOAD, 'entry.y,scale,uv', 'colorAlpha')}
-${wrapped('colorAlpha', 'colorAlphaAt', 'colorTexels', '', '', 'f32')}`;
+${wrapped('colorAlpha', 'colorTexels', '', '', 'f32')}`;
 
 /** Lecture de l'atlas de données : `dataSample(slot, uvScale, uv, wrap, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${CLASSES.map(dataClass).join('\n')}
 ${texels('dataTexels', DATA_LOAD, 'dataMaps')}
 ${dispatch('dataSampleAt', 'scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f', DATA_LOAD, 'scale,uv,ddx,ddy', 'dataSample')}
-${wrapped('dataSample', 'dataSampleAt', 'dataTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
+${wrapped('dataSample', 'dataTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
 
 /** Les déclarations de texture d'un atlas, une par classe, aux liaisons que la disposition donne. */
 export const atlasTextures = (bindings: readonly number[], name: string) =>

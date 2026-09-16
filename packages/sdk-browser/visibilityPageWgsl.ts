@@ -1,13 +1,11 @@
-import * as THREE from 'three';
-import {
-  WRAP_MAP,
-  WRAP_OF_WGSL,
-  WRAP_S_MIRROR,
-  WRAP_S_REPEAT,
-  WRAP_T_MIRROR,
-  WRAP_T_REPEAT,
-} from './visibilityWrapModes.ts';
+import { WRAP_MAP } from './visibilityWrapModes.ts';
 import { VIS_BINDINGS } from './webgpuBindLayout.ts';
+
+// Ré-export temporaire : la règle d'adressage a rejoint le mot qui la commande, dans
+// `visibilityWrapModes.ts`. Deux fichiers l'importent encore d'ici, tenus par une autre session au
+// moment de ce lot : `bench/justesse/adressageGpuPage.mjs` et `bench/justesse/adressage-cpu.mjs`.
+// À basculer sur `visibilityWrapModes.ts`, puis à supprimer — ces deux lignes et rien d'autre.
+export { WRAP_COORD_WGSL, wrapLinear } from './visibilityWrapModes.ts';
 
 /**
  * La géométrie d'une page telle que le GPU la lit : la description d'un cluster, l'uniforme de son
@@ -46,75 +44,6 @@ export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base
 
 /** Coordonnée de texture d'un sommet de page. */
 export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
-
-/**
- * La coordonnée de texture ramenée dans [0, 1] selon le mode de chaque axe, pour un échantillonneur
- * en serrage. Le miroir lit les périodes impaires à rebours : `p` parcourt [0, 2) et `2 - p` est
- * exact, donc le filtrage linéaire rend la couleur de l'échantillonneur `mirror-repeat` de Three.
- *
- * `wrapUv` reçoit le quartet de la carte lue, pas les drapeaux du matériau : la couleur d'une page
- * peut se répéter là où ses normales se serrent (`visibilityWrapModes.ts`).
- *
- * Replier la coordonnée suffit au plus proche et au miroir, jamais à la répétition en filtrage
- * linéaire : dans le demi-texel des deux bords d'une période, la règle de l'échantillonneur mêle le
- * dernier texel et le premier, que le repli sépare. `wrapUv` rend donc les deux prises et leur
- * poids — `proche` seule hors couture, puis `loin` et `poids` sur la couture, où l'appelant mêle
- * lui-même les quatre lectures. `proche` reste le texel que le repli désignait, donc une lecture au
- * plus proche ne bouge pas ; les deux prises tombent au centre exact d'un texel de bord, si bien que
- * la lecture ne dépend plus de l'interpolation de la carte mais du mélange que l'appelant écrit.
- */
-export const WRAP_COORD_WGSL = `${WRAP_OF_WGSL}
-fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
- let p=t-2.0*floor(t*0.5);
- return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
-}
-struct WrapTaps{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,}
-fn wrapAxis(t:f32,repeat:bool,mirror:bool,texels:f32)->vec4f{
- let c=wrapCoord(t,repeat,mirror);
- let demi=0.5/texels;
- if(!repeat||(c>=demi&&c<=1.0-demi)){return vec4f(c,c,0.0,0.0);}
- let g=fract(c*texels+0.5);
- return vec4f(select(1.0-demi,demi,c<demi),select(demi,1.0-demi,c<demi),min(g,1.0-g),1.0);
-}
-fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
- let x=wrapAxis(uv.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u,texels.x);
- let y=wrapAxis(uv.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u,texels.y);
- return WrapTaps(vec2f(x.x,y.x),vec2f(x.y,y.y),vec2f(x.z,y.z),x.w+y.w>0.0);
-}`;
-
-/**
- * Miroir processeur de `wrapAxis`, juste au-dessus : les deux texels qu'un filtrage linéaire mêle
- * sur un axe de `size` texels, le plus proche d'abord, et le poids du second. Hors de la couture
- * d'une période, ce sont les voisins que l'échantillonneur en serrage donne déjà, bornés comme il
- * les borne ; sur la couture en répétition, la règle de l'échantillonneur mêle le dernier texel et
- * le premier, que le repli de la coordonnée sépare — les prises rebouclent alors la période.
- * Deux langages, une règle : le texte de nuanceur ne se partage pas avec TypeScript.
- */
-export function wrapLinear(
-  t: number,
-  size: number,
-  wrap: THREE.Wrapping,
-): [number, number, number] {
-  const repeat = wrap === THREE.RepeatWrapping;
-  const p = wrap === THREE.MirroredRepeatWrapping ? t - 2 * Math.floor(t / 2) : 0;
-  const c = repeat
-    ? t - Math.floor(t)
-    : wrap === THREE.ClampToEdgeWrapping
-      ? Math.min(1, Math.max(0, t))
-      : p > 1
-        ? 2 - p
-        : p;
-  const demi = 0.5 / size;
-  if (repeat && (c < demi || c > 1 - demi)) {
-    const u = c * size + 0.5,
-      g = u - Math.floor(u);
-    return c < demi ? [0, size - 1, 1 - g] : [size - 1, 0, g];
-  }
-  const centre = c * size - 0.5,
-    bas = Math.floor(centre);
-  const borne = (i: number) => Math.min(size - 1, Math.max(0, i));
-  return [borne(bas), borne(bas + 1), centre - bas];
-}
 
 /** Aire signée du triangle `(a,b,p)` en coordonnées écran ; le raster en tire ses barycentriques. */
 export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
