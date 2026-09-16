@@ -70,7 +70,10 @@ impl Surface {
                 .extend((0..count).filter_map(|offset| {
                     self.corner(&mut out, &mut unique, start + offset, *face)
                 }));
+            // Moins de trois coins, ou un coin que les tableaux ne portent pas : la face n'est
+            // pas une surface, elle sort de la scène et son compte le dit.
             if corners.len() < 3 || corners.len() < count {
+                world.refuse(world::FACE_INVALID);
                 continue;
             }
             cutter.begin();
@@ -120,8 +123,14 @@ impl Surface {
         face: usize,
     ) -> Option<u32> {
         let point = usize::try_from(*self.corners.get(corner)?).ok()?;
-        let normal = self.normals.as_ref().map(|n| n.slot(corner, face, point));
-        let uv = self.uvs.as_ref().map(|uv| uv.slot(corner, face, point));
+        let normal = match self.normals.as_ref() {
+            Some(values) => Some(values.slot(corner, face, point)?),
+            None => None,
+        };
+        let uv = match self.uvs.as_ref() {
+            Some(values) => Some(values.slot(corner, face, point)?),
+            None => None,
+        };
         let key = [
             u32::try_from(point).ok()?,
             normal.unwrap_or(0),
