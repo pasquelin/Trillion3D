@@ -28,11 +28,17 @@ fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  }
  return false;
 }
+/** Inverse-transposee 3x3, degenerescence jugee en relatif : la 3x3 est divisee par la somme de
+ *  ses valeurs absolues — la normalisation de \`isConformal\` — avant le determinant. Un seuil
+ *  absolu jugeait l'echelle, pas la degenerescence : une rotation d'echelle uniforme s donne
+ *  det = ±s³, donc s ≲ 2,15e-7 rendait l'axe LOCAL non tourne et supprimait des faces de face. */
 fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{
- let a=m[0];let b=m[1];let c=m[2];
+ let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
+ if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return v;}
+ let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let det=dot(a,cross(b,c));
- if(abs(det)<1e-20){return v;}
- return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
+ if(!(abs(det)>1e-20)){return v;}
+ return (1.0/(det*t))*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);
 }
 /** Miroir GPU de \`isConformal\` (pageCone.ts) : 3x3 divisee par la somme de ses valeurs absolues,
  *  tolerances relatives seules ; somme nulle, infinie ou NaN (lue au bit) : cluster conserve. */
