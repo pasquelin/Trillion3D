@@ -1,7 +1,30 @@
+import { visLayerTop } from './webgpuVisibilityUniforms.ts';
+import type { PartitionFrame } from './gpuPartitionUniform.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const noLevels: Array<{ offset: number; width: number }> = [];
+const noMatrix = new Float64Array(16);
+
+/**
+ * L'entrée de la partition, remplie à chaque image dans le MÊME objet : `encode` l'écrit dans
+ * l'uniforme et recopie dans ses propres tableaux ce que l'audit garde, si bien que rien ici n'a
+ * besoin d'être neuf. L'ancre est un tuple tenu de même, pour que la pose de la caméra n'alloue pas.
+ */
+const anchor: [number, number, number] = [0, 0, 0];
+const frame: PartitionFrame = {
+  view: noMatrix,
+  viewProj: noMatrix,
+  anchor,
+  near: 0,
+  rows: 0,
+  width: 0,
+  height: 0,
+  levels: noLevels,
+  layerTop: 0,
+  historyValid: false,
+  hasRest: false,
+};
 
 /**
  * La partition occulteurs/testés de l'image, encodée pour la carte.
@@ -41,21 +64,22 @@ export function encodeWebgpuPartition(
   // L'historique est tenu PAR LIGNE : il ne décrit plus rien dès que la table change d'âge, parce
   // qu'une ligne peut alors porter une autre page. C'est la seule condition qui s'y ajoute.
   const historyValid = !run.noOccluderHistory && run.occluderHistoryEpoch === rows.tableEpoch;
-  partition.encode(encoder, {
-    view: cam.view,
-    viewProj: cam.viewProjection,
-    // L'ancre de la projection : l'œil dans le monde. Les coins n'entrent dans le noyau que par leur
-    // écart à elle, ce qui garde la borne d'erreur serrée quelle que soit la taille du modèle.
-    anchor: [cam.eye[0], cam.eye[1], cam.eye[2]],
-    near: cam.near,
-    rows: rows.packedCount,
-    width: gpu.targetSize[0],
-    height: gpu.targetSize[1],
-    levels: twoPass ? vis.gpuHiz!.levels() : noLevels,
-    layerTop: Math.max(0, vis.drawLayerSlots - 1),
-    historyValid,
-    hasRest: twoPass,
-  });
+  frame.view = cam.view;
+  frame.viewProj = cam.viewProjection;
+  // L'ancre de la projection : l'œil dans le monde. Les coins n'entrent dans le noyau que par leur
+  // écart à elle, ce qui garde la borne d'erreur serrée quelle que soit la taille du modèle.
+  anchor[0] = cam.eye[0];
+  anchor[1] = cam.eye[1];
+  anchor[2] = cam.eye[2];
+  frame.near = cam.near;
+  frame.rows = rows.packedCount;
+  frame.width = gpu.targetSize[0];
+  frame.height = gpu.targetSize[1];
+  frame.levels = twoPass ? vis.gpuHiz!.levels() : noLevels;
+  frame.layerTop = visLayerTop(vis);
+  frame.historyValid = historyValid;
+  frame.hasRest = twoPass;
+  partition.encode(encoder, frame);
   run.noOccluderHistory = false;
   run.occluderHistoryEpoch = rows.tableEpoch;
   // Ce que l'encodage de la partition coûte au processeur : un uniforme et trois lancements, jamais

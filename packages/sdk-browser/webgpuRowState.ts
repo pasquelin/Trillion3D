@@ -154,3 +154,33 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     },
   };
 }
+
+/** Ce que `dirtyRange` vient de calculer, rendu tel quel : le tampon est relu sur-le-champ par son
+ *  appelant, avant tout autre appel, et aucune image n'alloue donc pour porter deux entiers. */
+const dirty = { from: 0, to: -1 };
+
+/**
+ * La plage de lignes qu'un témoin doit réécrire : celle que la table déclare sale, bornée au rang
+ * dessinable. Un témoin périmé — l'âge de la table a changé, ou ce qu'il décrivait n'existe plus —
+ * redemande toute la table ; sinon un rang qui a grandi élargit la plage jusqu'aux lignes qui
+ * viennent d'y entrer. `held` est le nombre de lignes que le témoin tenait, jamais négatif.
+ */
+export function dirtyRange(
+  rows: { dirtyFrom: number; dirtyTo: number; packedCount: number },
+  stale: boolean,
+  held: number,
+) {
+  const last = rows.packedCount - 1;
+  let from = rows.dirtyFrom,
+    to = Math.min(rows.dirtyTo, last);
+  if (stale) {
+    from = 0;
+    to = last;
+  } else if (rows.packedCount > held) {
+    from = Math.min(from, held);
+    to = last;
+  }
+  dirty.from = from;
+  dirty.to = to;
+  return dirty;
+}
