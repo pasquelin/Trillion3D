@@ -11,8 +11,10 @@
 //! **Ce que le fichier déclare autour des pixels** se lit dans ses morceaux, pas dans son image.
 //! Un PNG animé (APNG) porte un morceau `acTL` et plusieurs trames ; le contrat n'en rend qu'une —
 //! l'image par défaut, celle des `IDAT`, comme la spécification APNG la définit — et le pilote
-//! compte l'animation plutôt que de laisser les autres trames disparaître sans un mot.
-use super::{crate_image, ImageDecoded, ImageDecoder, Plugin};
+//! compte l'animation plutôt que de laisser les autres trames disparaître sans un mot. Un morceau
+//! `iCCP` porte un profil colorimétrique que la sortie ne porte pas : son nom, écrit en clair devant
+//! le profil compressé, suffit à dire s'il s'agit du sRGB de la sortie ou d'autre chose à compter.
+use super::{crate_image, icc, ImageDecoded, ImageDecoder, Plugin};
 
 mod chunks;
 
@@ -32,6 +34,9 @@ const DEPTH: &str = "image-depth-unsupported";
 const ANIMATION: &str = "image-animation-first-frame";
 /// Le morceau qui déclare l'animation : compte de trames et compte de répétitions.
 const ANIMATION_CHUNK: &[u8] = b"acTL";
+/// Le morceau qui porte un profil colorimétrique : son nom en clair, un octet de méthode de
+/// compression, puis le profil compressé. Seul le nom se lit sans décompresser quoi que ce soit.
+const PROFILE_CHUNK: &[u8] = b"iCCP";
 
 /// Le type du premier morceau, qui est toujours l'IHDR : signature de huit octets, puis la longueur
 /// du morceau sur quatre.
@@ -49,7 +54,7 @@ impl Plugin for Png {
     /// sans elle, une entrée produite quand le 16 bits était abaissé, ou quand un APNG était aplati
     /// sans un mot, continuerait d'être relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "png-image-0.25-depth8-apng"
+        "png-image-0.25-depth8-apng-icc"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["png"]
@@ -83,6 +88,18 @@ impl ImageDecoder for Png {
 /// morceau coupé : un fichier tronqué est jugé par le décodeur de pixels, pas deviné ici.
 fn declarations(bytes: &[u8]) -> Vec<&'static str> {
     chunks::of(bytes)
-        .filter_map(|(kind, _)| (kind == ANIMATION_CHUNK).then_some(ANIMATION))
+        .filter_map(|(kind, data)| match kind {
+            ANIMATION_CHUNK => Some(ANIMATION),
+            PROFILE_CHUNK => icc::note(name(data)),
+            _ => None,
+        })
         .collect()
+}
+
+/// Le nom d'un profil, la partie du morceau `iCCP` qui précède le premier octet nul. Le profil
+/// lui-même est compressé : son nom est tout ce que ce pilote lit, et c'est ce que la spécification
+/// lui demande d'écrire en clair.
+fn name(chunk: &[u8]) -> &[u8] {
+    let end = chunk.iter().position(|byte| *byte == 0);
+    &chunk[..end.unwrap_or(chunk.len())]
 }
