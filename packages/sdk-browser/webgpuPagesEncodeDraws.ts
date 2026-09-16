@@ -1,10 +1,10 @@
-import { multiplyMatrix4 } from '../sdk-core/index.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { projectedPageError } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
 import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
 import { drawWebgpuFallback } from './webgpuFallbackDraw.ts';
-import { remap, viewProj } from './webgpuPagesHelpers.ts';
+import { viewProjectionZeroToOne } from './depthConvention.ts';
+import { viewProj } from './webgpuPagesHelpers.ts';
 import { ensureUniform } from './webgpuPagesPipelineFor.ts';
 import {
   abandonFrameEncoder,
@@ -81,7 +81,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
     run.gpuFrameActive ? undefined : run.drawn,
   );
   timing.transparentSelectMs = performance.now() - blendSelectStart;
-  multiplyMatrix4(viewProj, remap, cam.viewProjection);
+  viewProjectionZeroToOne(viewProj, cam);
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) rt.services.syncRowsFromCut();
   else if (run.rowsSyncedFrame !== run.frame) {

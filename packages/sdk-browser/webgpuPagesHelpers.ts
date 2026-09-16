@@ -5,8 +5,6 @@ import { clusterHue } from './backendCommon.ts';
 /** La vue-projection de l'image telle que le GPU la lit, remise à plat : seize flottants réécrits
  *  à chaque image, jamais réalloués. */
 export const viewProj = new Float64Array(16);
-/** Profondeur de découpe de −1 à 1 ramenée à 0 → 1, colonne-major. */
-export const remap = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 1]);
 const colorScratch = new THREE.Color();
 export const PAGES_GREEN: [number, number, number] = [0.204, 0.827, 0.6];
 /** Ceiling on the screen error the GPU page budget may impose; past it the root cover is the cut. */

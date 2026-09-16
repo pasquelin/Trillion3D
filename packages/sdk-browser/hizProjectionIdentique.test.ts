@@ -91,7 +91,18 @@ function compare(
   const into = new Float64Array(HIZ_BOUNDS_VALUES);
   let projected = 0;
   for (const corners of boxes) {
-    projectCornersInto(corners, 0, view.elements, viewProj.elements, near, 1280, 720, into, 0);
+    projectCornersInto(
+      corners,
+      0,
+      view.elements,
+      viewProj.elements,
+      near,
+      1280,
+      720,
+      false,
+      into,
+      0,
+    );
     const expected = reference(corners, view.elements, viewProj.elements, near, 1280, 720);
     for (let k = 0; k < HIZ_BOUNDS_VALUES; k++)
       assert.ok(

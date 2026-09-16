@@ -16,7 +16,7 @@ export function shadeVisibility(
   const [width, height] = viewport,
     pixels = new Uint8Array(width * height * 4);
   const bg = backgroundRgb(background) as [number, number, number];
-  const frame = createVisibilityFrame(pages, cam.viewProjection, width, height);
+  const frame = createVisibilityFrame(pages, cam, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const o = y * width + x,
@@ -44,7 +44,7 @@ export function visibilityUvDerivatives(
   if (!unpacked) return null;
   const page = pages[unpacked.pageIndex];
   if (!page) return null;
-  const tri = triangleAt(page, unpacked.triangleIndex, cam.viewProjection, width, height);
+  const tri = triangleAt(page, unpacked.triangleIndex, cam, width, height);
   if (!tri) return null;
   const uv = page.attributes.uv;
   const uva: [number, number] = uv ? [uv.getX(tri.i0), uv.getY(tri.i0)] : [0, 0];
