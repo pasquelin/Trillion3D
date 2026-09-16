@@ -46,6 +46,29 @@ pub(super) fn triple(value: &sdf::Value) -> Option<[f64; 3]> {
     })
 }
 
+/// Les composantes d'une valeur scalaire ou vectorielle, quelle que soit sa largeur : le `scale` et
+/// le `bias` d'une texture s'écrivent en `float4`, mais une couche les écrit parfois plus court.
+pub(super) fn components(value: &sdf::Value) -> Option<Vec<f64>> {
+    if let Some(one) = number(value) {
+        return Some(vec![one]);
+    }
+    if let Some(three) = triple(value) {
+        return Some(three.to_vec());
+    }
+    Some(match value {
+        sdf::Value::Vec4f(v) => vec![
+            f64::from(v.x),
+            f64::from(v.y),
+            f64::from(v.z),
+            f64::from(v.w),
+        ],
+        sdf::Value::Vec4d(v) => vec![v.x, v.y, v.z, v.w],
+        sdf::Value::Vec2f(v) => vec![f64::from(v.x), f64::from(v.y)],
+        sdf::Value::Vec2d(v) => vec![v.x, v.y],
+        _ => return None,
+    })
+}
+
 /// Un tableau de triplets : des points, des normales ou des couleurs par sommet.
 pub(super) fn triples(value: &sdf::Value) -> Option<Vec<[f32; 3]>> {
     Some(match value {

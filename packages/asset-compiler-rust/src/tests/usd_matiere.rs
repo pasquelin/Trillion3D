@@ -46,15 +46,16 @@ pub(super) fn layer(inputs: &str, shaders: &str) -> String {
     wrap("", &body)
 }
 
-/// Un `UsdUVTexture` nommé, sur une image du dossier de la couche.
-pub(super) fn texture(name: &str, file: &str) -> String {
+/// Un `UsdUVTexture` nommé, sur une image du dossier de la couche, qui porte `extra` entre ses
+/// entrées — un mode de répétition, une échelle, un espace de couleur.
+pub(super) fn texture(name: &str, file: &str, extra: &str) -> String {
     format!(
         r#"
         def Shader "{name}"
         {{
             uniform token info:id = "UsdUVTexture"
             asset inputs:file = @./textures/{file}@
-            float outputs:a
+{extra}            float outputs:a
             float outputs:b
             float outputs:g
             float outputs:r
@@ -83,7 +84,7 @@ fn an_opacity_bound_to_the_base_colour_texture_reaches_the_alpha_and_the_blend_m
     let inputs = "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>\n            float inputs:opacity = 0.25\n            float inputs:opacity.connect = </Root/M/T.outputs:a>";
     let run = compile(
         "opacite",
-        &layer(inputs, &texture("T", "checker.png")),
+        &layer(inputs, &texture("T", "checker.png", "")),
         &["checker.png"],
     );
     let (_, gltf) = run.prepared("usd");
@@ -102,7 +103,7 @@ fn an_opacity_bound_to_the_base_colour_texture_reaches_the_alpha_and_the_blend_m
     let cut = format!("{inputs}\n            float inputs:opacityThreshold = 0.5");
     let run = compile(
         "decoupe",
-        &layer(&cut, &texture("T", "checker.png")),
+        &layer(&cut, &texture("T", "checker.png", "")),
         &["checker.png"],
     );
     let (_, gltf) = run.prepared("usd");
@@ -118,8 +119,8 @@ fn an_opacity_carried_by_a_second_image_is_counted_rather_than_loaded_and_droppe
     let inputs = "            color3f inputs:diffuseColor.connect = </Root/M/T.outputs:rgb>\n            float inputs:opacity.connect = </Root/M/U.outputs:a>";
     let shaders = format!(
         "{}{}",
-        texture("T", "checker.png"),
-        texture("U", "autre.png")
+        texture("T", "checker.png", ""),
+        texture("U", "autre.png", "")
     );
     let run = compile(
         "opacite-separee",
@@ -146,7 +147,7 @@ fn a_shared_metal_roughness_texture_wins_over_the_factors_instead_of_being_cance
     let inputs = "            float inputs:metallic.connect = </Root/M/T.outputs:b>\n            float inputs:roughness.connect = </Root/M/T.outputs:g>";
     let run = compile(
         "metal",
-        &layer(inputs, &texture("T", "checker.png")),
+        &layer(inputs, &texture("T", "checker.png", "")),
         &["checker.png"],
     );
     let (_, gltf) = run.prepared("usd");
@@ -166,7 +167,7 @@ fn a_metal_roughness_input_bound_to_another_channel_is_counted_by_its_name() {
     let inputs = "            float inputs:metallic.connect = </Root/M/T.outputs:r>\n            float inputs:roughness.connect = </Root/M/T.outputs:g>";
     let run = compile(
         "canal",
-        &layer(inputs, &texture("T", "checker.png")),
+        &layer(inputs, &texture("T", "checker.png", "")),
         &["checker.png"],
     );
     assert_eq!(unsupported(&run)["usd-texture-channel-unsupported"], 1);

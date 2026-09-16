@@ -40,6 +40,7 @@ mod mesh;
 mod opacity;
 mod primvar;
 mod read;
+mod sampling;
 mod subset;
 mod surface;
 mod texture;

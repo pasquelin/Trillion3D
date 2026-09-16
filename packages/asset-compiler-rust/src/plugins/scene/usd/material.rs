@@ -54,15 +54,10 @@ fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<
     if let Some(threshold) = opacity::cutoff(&shader) {
         out["alphaCutoff"] = json!(threshold);
     }
-    for (usd_name, gltf_name) in [
-        ("emissiveColor", "emissiveTexture"),
-        ("normal", "normalTexture"),
-    ] {
-        if let Some(texture) = connected_texture(world, &shader, usd_name) {
-            out[gltf_name] = texture;
-        }
+    emissive(world, &shader, &mut out);
+    if let Some(bound) = connected_texture(world, &shader, "normal", false) {
+        out["normalTexture"] = bound.plain(world);
     }
-    emissive_factor(&shader, &mut out);
     if double_sided {
         out["doubleSided"] = json!(true);
     }
@@ -84,11 +79,12 @@ fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> op
     let diffuse = connection(shader, "inputs:diffuseColor");
     let textured = diffuse
         .as_ref()
-        .and_then(|target| texture::resolve(world, target));
+        .and_then(|target| texture::resolve(world, target, true));
     let colour = match textured {
-        Some(texture) => {
-            pbr["baseColorTexture"] = texture;
-            [1.0, 1.0, 1.0]
+        Some(bound) => {
+            let factor = bound.factor(world);
+            pbr["baseColorTexture"] = bound.value;
+            [factor; 3]
         }
         None => value(shader, "diffuseColor")
             .as_ref()
@@ -112,7 +108,7 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
     let rough = connection(shader, "inputs:roughness");
     let shared = match (&metal, &rough) {
         (Some(one), Some(other)) if one.prim_path() == other.prim_path() => {
-            texture::resolve(world, one)
+            texture::resolve(world, one, false)
         }
         (None, None) => None,
         _ => {
@@ -125,9 +121,10 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
         pbr["roughnessFactor"] = json!(scalar(shader, "roughness").unwrap_or(0.5));
         return;
     };
-    pbr["metallicRoughnessTexture"] = map;
-    pbr["metallicFactor"] = json!(1.0);
-    pbr["roughnessFactor"] = json!(1.0);
+    let factor = map.factor(world);
+    pbr["metallicRoughnessTexture"] = map.value;
+    pbr["metallicFactor"] = json!(factor);
+    pbr["roughnessFactor"] = json!(factor);
     for (input, channel) in [(metal, METAL_CHANNEL), (rough, ROUGH_CHANNEL)] {
         let placed = input.is_some_and(|path| {
             path.split_property()
@@ -139,10 +136,15 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
     }
 }
 
-/// La couleur d'émission écrite, quand elle n'est pas nulle.
-fn emissive_factor(shader: &usd::Prim, out: &mut Value) {
-    let colour = match out.get("emissiveTexture") {
-        Some(_) => Some([1.0, 1.0, 1.0]),
+/// L'émission : la carte connectée l'emporte sur la couleur écrite, que glTF multiplierait par
+/// elle, et la couleur écrite ne voyage que lorsqu'elle éclaire vraiment.
+fn emissive(world: &mut World<'_>, shader: &usd::Prim, out: &mut Value) {
+    let colour = match connected_texture(world, shader, "emissiveColor", true) {
+        Some(bound) => {
+            let factor = bound.factor(world);
+            out["emissiveTexture"] = bound.value;
+            Some([factor; 3])
+        }
         None => value(shader, "emissiveColor")
             .as_ref()
             .and_then(read::triple)
@@ -153,10 +155,15 @@ fn emissive_factor(shader: &usd::Prim, out: &mut Value) {
     }
 }
 
-/// La texture branchée sur une entrée du nœud de surface.
-fn connected_texture(world: &mut World<'_>, shader: &usd::Prim, name: &str) -> Option<Value> {
+/// La texture branchée sur une entrée du nœud de surface, et le rôle de cette entrée.
+fn connected_texture(
+    world: &mut World<'_>,
+    shader: &usd::Prim,
+    name: &str,
+    colour: bool,
+) -> Option<texture::Bound> {
     let target = connection(shader, &format!("inputs:{name}"))?;
-    texture::resolve(world, &target)
+    texture::resolve(world, &target, colour)
 }
 
 /// La première connexion d'un attribut.
