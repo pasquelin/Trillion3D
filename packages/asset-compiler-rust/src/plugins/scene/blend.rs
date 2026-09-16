@@ -96,7 +96,7 @@ impl Plugin for Blend {
     /// La version nomme la disposition lue et les deux décompresseurs : la changer invalide les
     /// caches, donc tout `.blend` déjà compilé est relu.
     fn version(&self) -> &'static str {
-        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-7"
+        "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-8"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["blend"]
