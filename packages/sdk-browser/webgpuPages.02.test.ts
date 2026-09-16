@@ -59,10 +59,11 @@ test('texture uploads obey the per-frame source-byte budget, and a flush settles
     maxTextureTransferBytesPerFrame: 16,
   });
   try {
-    // One layer per frame is the budget a render is allowed to spend; it advances by exactly one.
+    // La préparation ne transfère aucune pleine résolution : tant qu'aucune caméra n'a dicté d'ordre,
+    // le budget d'une image ne part pas dans l'ordre de l'atlas. Une image en dépense une couche.
     await backend.prepare();
-    assert.equal(backend.metrics().textureUploaded, 1);
-    assert.equal(backend.metrics().texturePending, 3);
+    assert.equal(backend.metrics().textureUploaded, 0);
+    assert.equal(backend.metrics().texturePending, 4);
     // The readiness barrier drains the rest, so two renders of one camera cannot differ because a
     // material layer landed between them.
     backend.render(camera());

@@ -5,6 +5,7 @@ import { createWebgpuDiagnostics } from './webgpuPagesDiagnostics.ts';
 import { createWebgpuBlendState } from './webgpuBlendState.ts';
 import { createWebgpuTexturePump } from './webgpuTexturePump.ts';
 import { createTexturePriority } from './webgpuTexturePriority.ts';
+import { createTextureBudget } from './textureBudget.ts';
 import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './webgpuPagesSetup.ts';
 import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './webgpuPagesLayout.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './webgpuPagesStateGpu.ts';
@@ -62,6 +63,9 @@ export interface WebgpuPagesRuntime {
   capabilities: BackendCapabilities;
   blendState: ReturnType<typeof createWebgpuBlendState>;
   texturePump: ReturnType<typeof createWebgpuTexturePump>;
+  /** L'ordre dicté par l'écran et le registre d'octets engagés qu'il alimente. */
+  texturePriority: ReturnType<typeof createTexturePriority>;
+  textureLedger: ReturnType<typeof createTextureBudget>;
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices;
 }
@@ -81,14 +85,25 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     index: vis.materialLayers,
     requested: run.desired,
     blend: blendState.visibleBlend,
+    cam: run.gate.cam,
+    viewport: setup.viewport,
+    colorTexels: vis.colorAtlas?.texels,
+    dataTexels: vis.dataAtlas?.texels,
   }));
+  const textureLedger = createTextureBudget({
+    budget: setup.textureResidencyBudget,
+    scoreOf: priority.scoreOf,
+  });
   const texturePump = createWebgpuTexturePump({
     device: setup.gpuDevice,
     jobs: vis.textureJobs,
     budget: setup.textureBudget,
+    ledger: textureLedger,
     colorAtlas: () => vis.colorAtlas,
     dataAtlas: () => vis.dataAtlas,
     order: priority.order,
+    onResident: priority.markLevel,
+    screenKnown: () => priority.screenKnown,
     onLevel: (slot, level, pyramid) => {
       if (pyramid) vis.slots?.markLevel(slot, level, pyramid);
       // Origine du changement de ressources : un niveau progressif vient d'atteindre l'atlas.
@@ -149,6 +164,8 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     capabilities,
     blendState,
     texturePump,
+    texturePriority: priority,
+    textureLedger,
   };
   return { ...core, services: createWebgpuPagesServices(core) };
 }

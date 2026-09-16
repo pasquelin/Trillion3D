@@ -57,6 +57,7 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   residency: 'Admission et file de résidence',
   hostPages: 'Listes de pages rendues à l’hôte',
   uploads: 'Téléversements',
+  textures: 'Textures : ordre et transferts vers les atlas',
   partition: 'Partition occulteurs / testés',
   encode: 'Encodage des passes',
   submit: 'Soumission',
