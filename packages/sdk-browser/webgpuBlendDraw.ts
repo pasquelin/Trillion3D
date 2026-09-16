@@ -106,7 +106,8 @@ export function drawBlendPass(
   overdraw?.begin(pass, transmissive);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
-    encoded = 0;
+    encoded = 0,
+    rejete = -1;
   const planes = blendState.blendPlanes;
   for (let i = 0; i < plan.length; i++) {
     const entry = plan[i],
@@ -115,8 +116,15 @@ export function drawBlendPass(
       box = item.bounds;
     // Le noyau met a zero les instances d'un item hors champ, mais un appel encode reste un appel
     // soumis : le tronc est reteste ici, en double precision, et l'item entierement hors champ
-    // n'est pas encode du tout. Le noyau reste conservateur au-dela de ce test.
-    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) continue;
+    // n'est pas encode du tout. Le noyau reste conservateur au-dela de ce test, donc ce verdict-ci
+    // est aussi LE compte de rejets de l'image : il est mesure la ou il retire l'appel. Les deux
+    // entrees d'un item double face se suivent, seule la premiere compte — comme le chemin de
+    // repli, le compteur compte des items.
+    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
+      if (index !== rejete) run.blendFrustumRejected++;
+      rejete = index;
+      continue;
+    }
     encoded++;
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
