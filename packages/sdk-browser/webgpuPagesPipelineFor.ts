@@ -96,6 +96,7 @@ export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: num
     gpu.uniformBuffer?.destroy();
     gpu.bindGroups.clear();
     for (const item of rt.blendState.blendGpu) item.group = undefined;
+    rt.blendState.pagedGroup = undefined;
     gpu.uniformBuffer = device.createBuffer({
       size: bytes,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
