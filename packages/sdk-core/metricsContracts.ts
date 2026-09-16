@@ -41,7 +41,9 @@ export interface FrameMetrics
   cpuFrameMs: number;
   cpuSubmitMs: number | null;
   gpuMs: number | null;
-  drawCalls: number;
+  /** Appels de dessin de cette image. `null` quand ni le moteur ni le renderer de l'hôte ne les
+   *  compte : un zéro se lirait comme une image sans aucun dessin. */
+  drawCalls: number | null;
   /** Triangles soumis au dessin de cette image, tels que `totalSubmittedTriangles` les compte, ou
    *  tels que le renderer de l'hôte les a dessinés quand c'est lui qui dessine. `null` quand ni
    *  l'un ni l'autre n'a compté : un zéro se lirait comme une image vide. */
