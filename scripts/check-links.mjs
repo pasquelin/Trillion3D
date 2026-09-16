@@ -90,6 +90,9 @@ function splitTarget(t) {
   }
   const query = path.indexOf('?');
   if (query !== -1) path = path.slice(0, query);
+  // `chemin.ts:42` ou `chemin.ts:42:7` : la ligne et la colonne désignent un endroit du fichier,
+  // pas un autre fichier. Seul le chemin doit exister.
+  path = path.replace(/(:\d+){1,2}$/, '');
   return { path, fragment };
 }
 
