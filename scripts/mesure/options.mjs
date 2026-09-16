@@ -8,14 +8,7 @@ import { lightingSettings } from './optionsEclairage.mjs';
 export { LAB, PATH_VERSION, VIEWS, checkLabPath, poseAt } from './poses.mjs';
 export { labManifest, sceneOf } from './scene.mjs';
 export { resolveSides } from './dists.mjs';
-export {
-  ENGINES,
-  engineOf,
-  equipSide,
-  resolveCache,
-  sideReport,
-  variantOf,
-} from './optionsCote.mjs';
+export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './optionsCote.mjs';
 import { ENGINES } from './optionsCote.mjs';
 
 export const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
