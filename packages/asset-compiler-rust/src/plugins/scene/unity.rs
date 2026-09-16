@@ -21,7 +21,7 @@ use crate::import::{f32_bytes, normalise, SceneTables as Scene};
 use crate::{hash, hash_file, CompilerError};
 use serde_json::{json, Value};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     rc::Rc,
     sync::atomic::Ordering,
@@ -45,6 +45,7 @@ mod patch;
 mod prefab;
 mod project;
 mod render;
+mod structure;
 #[cfg(test)]
 mod tests;
 mod textures;
@@ -61,6 +62,7 @@ use overrides::{local_trs, Overrides};
 use parts::{mesh_nodes, model_matrices, Parts};
 use patch::Changes;
 use project::{assets_root, meta_of, read_text, Project};
+use structure::{Structure, ADDED_UNPLACED};
 use textures::Textures;
 use transform::Trs;
 use yaml::*;

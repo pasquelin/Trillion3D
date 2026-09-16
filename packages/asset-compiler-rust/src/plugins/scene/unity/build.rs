@@ -38,6 +38,9 @@ pub(super) struct Builder<'a, 'w> {
     pub(super) bound: HashMap<(usize, Vec<Option<usize>>), usize>,
     /// Les maillages de modèle déjà réécrits sur place par leur première liaison.
     pub(super) rebound: HashSet<usize>,
+    /// Le nœud écrit pour chaque objet parcouru, par `fileID` de sa transformation et de son
+    /// GameObject : c'est là que se pose ce qu'une instance ajoute sous lui.
+    pub(super) placed: HashMap<i64, usize>,
 }
 
 impl Builder<'_, '_> {
@@ -97,7 +100,7 @@ impl Builder<'_, '_> {
             self.world.scene.count("inactive", 1);
             return None;
         }
-        let components = self.components(document, &object.body);
+        let components = self.components(document, &object.body, changes);
         let dropped = &self.dropped_renderers(document, &components, dropped);
         let mut node = json!({"name":object.body["m_Name"].as_str().unwrap_or("GameObject")});
         let empty = Overrides::new();
@@ -118,15 +121,26 @@ impl Builder<'_, '_> {
             node["children"] = json!(children);
         }
         self.world.scene.count("gameObjects", 1);
-        Some(self.world.scene.node(node))
+        let index = self.world.scene.node(node);
+        // L'objet qu'une instance ajoute nomme celui de la source sous lequel il se pose, par le
+        // `fileID` de sa transformation ou par celui de son GameObject : les deux mènent ici.
+        self.placed.insert(id, index);
+        self.placed.insert(object_id, index);
+        Some(index)
     }
 
-    /// Les composants d'un GameObject : classe et fileID, dans l'ordre déclaré.
-    fn components(&mut self, document: &Document, object: &Yaml) -> Vec<(u32, i64)> {
+    /// Les composants d'un GameObject : classe et fileID, dans l'ordre déclaré. Ceux qu'une
+    /// instance de prefab retire n'en font pas partie : pour le parcours, ils n'existent pas.
+    fn components(
+        &mut self,
+        document: &Document,
+        object: &Yaml,
+        changes: &Changes,
+    ) -> Vec<(u32, i64)> {
         let mut out = Vec::new();
         for component in sequence(object, "m_Component") {
             let id = reference(&component["component"]).file_id;
-            let Some(entry) = document.get(id) else {
+            let Some(entry) = document.get(id).filter(|_| !changes.structure.removes(id)) else {
                 continue;
             };
             if let Some((_, name)) = IGNORED.iter().find(|(class, _)| *class == entry.class_id) {
