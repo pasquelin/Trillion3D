@@ -66,7 +66,6 @@ fn traverse(
         root: fs::canonicalize(images).unwrap_or_else(|_| images.to_path_buf()),
         materials: HashMap::new(),
         meshes: HashMap::new(),
-        images_by_uri: HashMap::new(),
         cancelled: request.cancelled,
     };
     let children: Vec<usize> = roots(stage)

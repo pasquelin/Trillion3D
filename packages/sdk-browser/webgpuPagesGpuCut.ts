@@ -36,7 +36,8 @@ export function renderGpuCut(
     { gpuDevice, viewport, clearColor } = rt.setup,
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) {
-    run.frameHold.invalidate();
+    // Origine du changement de ressources : l'appareil, le cache ou la sélection ont disparu.
+    run.gate.resourcesChanged();
     return true;
   }
   run.gpuFrameActive = true;
@@ -57,8 +58,9 @@ export function renderGpuCut(
   if (run.gpuMetricsReady) run.visible = run.desired.length;
   admitGpuCut(rt, pixelError, budgeted);
   if (!services.bootstrapState.ready) {
-    // L'image n'est pas complète : rien ne peut être tenu sur elle.
-    run.frameHold.invalidate();
+    // L'image n'est pas complète : rien ne peut être tenu sur elle. Origine du changement de
+    // ressources : l'amorçage n'a pas encore toutes ses pages.
+    run.gate.resourcesChanged();
     run.gpuMetricsReady = false;
     traceGpuCutWaiting(rt);
     return true;

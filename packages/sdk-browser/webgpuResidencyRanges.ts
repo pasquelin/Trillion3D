@@ -16,29 +16,28 @@ export function coalesceResidencyRanges(sorted: Int32Array, count: number, into:
   let ranges = 0,
     from = sorted[0],
     to = sorted[0];
+  /** Écrit la plage courante et rend vrai. Rend faux quand il y en aurait une de plus que
+   *  `RESIDENCY_RANGE_MAX` : la seule plage couvrant tout est alors écrite à sa place. */
+  const close = () => {
+    if (ranges === RESIDENCY_RANGE_MAX) {
+      into[0] = sorted[0];
+      into[1] = sorted[count - 1];
+      return false;
+    }
+    into[ranges * 2] = from;
+    into[ranges * 2 + 1] = to;
+    ranges++;
+    return true;
+  };
   for (let i = 1; i < count; i++) {
     const page = sorted[i];
     if (page - to <= RESIDENCY_RANGE_GAP) {
       to = page;
       continue;
     }
-    if (ranges === RESIDENCY_RANGE_MAX) {
-      into[0] = sorted[0];
-      into[1] = sorted[count - 1];
-      return 1;
-    }
-    into[ranges * 2] = from;
-    into[ranges * 2 + 1] = to;
-    ranges++;
+    if (!close()) return 1;
     from = page;
     to = page;
   }
-  if (ranges === RESIDENCY_RANGE_MAX) {
-    into[0] = sorted[0];
-    into[1] = sorted[count - 1];
-    return 1;
-  }
-  into[ranges * 2] = from;
-  into[ranges * 2 + 1] = to;
-  return ranges + 1;
+  return close() ? ranges : 1;
 }

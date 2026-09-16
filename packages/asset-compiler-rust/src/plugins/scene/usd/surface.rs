@@ -61,6 +61,7 @@ impl Surface {
         // chaque face de la partie, et une allocation par face ne referait que le même tampon.
         let mut corners: Vec<u32> = Vec::new();
         let mut cutter = Ngon::default();
+        let cancelled = world.cancelled;
         for face in &part.faces {
             let Some((start, count)) = self.faces.get(*face).copied() else {
                 continue;
@@ -80,8 +81,12 @@ impl Surface {
             for offset in 0..count {
                 cutter.corner(self.point(start + offset));
             }
-            if !cutter.cut() {
-                world.refuse(world::NGON_UNCUT);
+            // Le découpeur relit le jeton par tranche de faces : un seul maillage énorme s'arrête
+            // aussi. Ce qui est posé reste en place, et `convert` refuse la scène entière ensuite.
+            match cutter.cut(cancelled) {
+                None => break,
+                Some(false) => world.refuse(world::NGON_UNCUT),
+                Some(true) => {}
             }
             for [a, b, c] in cutter.triangles() {
                 match self.reversed {
@@ -102,14 +107,15 @@ impl Surface {
     /// La position d'un coin, en double, telle que le découpage du polygone la lit. Un coin hors
     /// des tables donne l'origine : `corner` a déjà écarté la face dont les tableaux se contredisent.
     fn point(&self, corner: usize) -> [f64; 3] {
-        let point = self
-            .corners
-            .get(corner)
-            .copied()
-            .and_then(|index| usize::try_from(index).ok());
-        point
+        self.point_index(corner)
             .and_then(|rank| self.points.get(rank))
             .map_or([0.0; 3], |axes| axes.map(f64::from))
+    }
+
+    /// Le rang du point qu'un coin désigne, quand les tables portent ce coin et que son indice est
+    /// un rang : c'est la seule lecture de `corners` du découpage.
+    fn point_index(&self, corner: usize) -> Option<usize> {
+        usize::try_from(*self.corners.get(corner)?).ok()
     }
 
     /// Le sommet glTF d'un coin de face, créé à sa première rencontre. Rien n'est écrit tant que
@@ -122,7 +128,7 @@ impl Surface {
         corner: usize,
         face: usize,
     ) -> Option<u32> {
-        let point = usize::try_from(*self.corners.get(corner)?).ok()?;
+        let point = self.point_index(corner)?;
         let normal = match self.normals.as_ref() {
             Some(values) => Some(values.slot(corner, face, point)?),
             None => None,

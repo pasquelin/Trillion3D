@@ -18,7 +18,7 @@ fn cut(ring: &[[f64; 3]]) -> (Vec<[usize; 3]>, bool) {
     for point in ring {
         ngon.corner(*point);
     }
-    let exact = ngon.cut();
+    let exact = ngon.cut(&AtomicBool::new(false)).expect("jeton au repos");
     (ngon.triangles().to_vec(), exact)
 }
 
