@@ -79,28 +79,33 @@ fn operation(
 
 /// Les rotations d'Euler : `rotateX`, `rotateY`, `rotateZ` autour d'un seul axe, et les six ordres
 /// `rotateXYZ` … `rotateZYX`, dont les lettres nomment les axes **dans l'ordre d'application au
-/// point**. La matrice compose donc la dernière lettre en premier ; l'inverse renverse l'ordre et
-/// les signes.
+/// point**, la première étant la plus locale. La matrice compose donc la dernière lettre en
+/// premier ; l'inverse renverse l'ordre et les signes.
+///
+/// Les trois angles, eux, restent rangés `(x, y, z)` sous les six ordres : le nom de l'opération
+/// dit dans quel ordre les rotations s'appliquent, jamais dans quel ordre les angles sont écrits.
+/// Chaque axe lit donc sa propre composante, et `rotateZYX = (90, 0, 0)` est un quart de tour
+/// autour de X.
 fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     let axes: Vec<usize> = kind
         .strip_prefix("rotate")?
         .chars()
         .map(|axis| "XYZ".find(axis))
         .collect::<Option<_>>()?;
-    let angles: Vec<f64> = match axes.len() {
-        1 => vec![read::number(value)?],
-        3 => read::triple(value)?.to_vec(),
+    let mut steps: Vec<(usize, f64)> = match axes[..] {
+        [axis] => vec![(axis, read::number(value)?)],
+        [_, _, _] => {
+            let angles = read::triple(value)?;
+            axes.iter().map(|axis| (*axis, angles[*axis])).collect()
+        }
         _ => return None,
     };
-    let mut out = matrix::IDENTITY;
-    let mut steps: Vec<(usize, f64)> = axes
-        .into_iter()
-        .zip(angles)
-        .map(|(axis, angle)| (axis, if inverted { -angle } else { angle }))
-        .collect();
-    if !inverted {
+    if inverted {
+        steps.iter_mut().for_each(|step| step.1 = -step.1);
+    } else {
         steps.reverse();
     }
+    let mut out = matrix::IDENTITY;
     for (axis, angle) in steps {
         out = matrix::mul(&out, &matrix::rotation(axis, angle));
     }

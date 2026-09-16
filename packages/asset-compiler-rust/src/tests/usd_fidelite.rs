@@ -1,0 +1,67 @@
+//! Ce que la couche dit de sa scène et que le pilote doit rendre tel quel : l'axe de chaque angle
+//! d'Euler, l'unité implicite, toutes les racines, et ce qu'un prim invisible emporte.
+//!
+//! Les matériaux ont leur propre fichier, `usd_matiere.rs` ; ce qui est seulement compté est dans
+//! `usd_rapport.rs`.
+use super::*;
+use usd_driver::{compile_layer, wrap, QUAD};
+
+/// Les six ordres d'Euler que USD nomme.
+const ORDERS: [&str; 6] = ["XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX"];
+
+/// Le quart de tour autour de X, de Y puis de Z, tel que glTF écrit sa matrice.
+const QUARTERS: [[f64; 16]; 3] = [
+    [
+        1., 0., 0., 0., 0., 0., 1., 0., 0., -1., 0., 0., 0., 0., 0., 1.,
+    ],
+    [
+        0., 0., -1., 0., 0., 1., 0., 0., 1., 0., 0., 0., 0., 0., 0., 1.,
+    ],
+    [
+        0., 1., 0., 0., -1., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
+    ],
+];
+
+/// La matrice du nœud de ce nom, arrondie au millionième.
+fn matrix_of(gltf: &Value, name: &str) -> Vec<f64> {
+    gltf["nodes"]
+        .as_array()
+        .expect("nodes")
+        .iter()
+        .find(|node| node["name"] == name)
+        .unwrap_or_else(|| panic!("le nœud {name}"))["matrix"]
+        .as_array()
+        .expect("matrix")
+        .iter()
+        .map(|value| (value.as_f64().expect("nombre") * 1e6).round() / 1e6)
+        .collect()
+}
+
+// Comportement 42 : les trois lettres d'un `rotateXYZ` … `rotateZYX` nomment l'**ordre** des
+// rotations, jamais l'ordre des composantes : les angles restent écrits `(x, y, z)`. Un seul angle
+// non nul tourne donc autour de son propre axe, sous les six ordres.
+#[test]
+fn the_letters_of_a_euler_order_name_the_order_not_the_axis_of_each_angle() {
+    for order in ORDERS {
+        for (axis, quarter) in QUARTERS.iter().enumerate() {
+            let mut angles = [0.0; 3];
+            angles[axis] = 90.0;
+            let body = format!(
+                r#"    def Xform "Tourne"
+    {{
+        float3 xformOp:rotate{order} = ({}, {}, {})
+        uniform token[] xformOpOrder = ["xformOp:rotate{order}"]
+{QUAD}    }}"#,
+                angles[0], angles[1], angles[2]
+            );
+            let run = compile_layer("euler", &wrap("", &body));
+            let (_, gltf) = run.prepared("usd");
+            assert_eq!(
+                matrix_of(&gltf, "Tourne"),
+                quarter.to_vec(),
+                "rotate{order} : la composante {axis} est l'angle de son propre axe"
+            );
+        }
+    }
+}
+
