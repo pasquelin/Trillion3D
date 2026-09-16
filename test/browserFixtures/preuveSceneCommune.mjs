@@ -93,8 +93,9 @@ export function cameraFace(x = 0) {
   return camera;
 }
 
-/** Le moteur WebGPU réel monté sur une scène bâtie, avec sa propre toile. */
-export function moteur(webgpuPagesBackend, scene, device, onDiagnostic) {
+/** Le moteur WebGPU réel monté sur une scène bâtie, avec sa propre toile. `options` complète le
+ *  contexte de l'hôte — `stageProfile: true` pour lire les compteurs publics par étape. */
+export function moteur(webgpuPagesBackend, scene, device, onDiagnostic, options = {}) {
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   const backend = webgpuPagesBackend({
@@ -109,15 +110,24 @@ export function moteur(webgpuPagesBackend, scene, device, onDiagnostic) {
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
     onDiagnostic,
+    ...options,
   });
   return { backend, canvas };
 }
 
-/** Rend une image et relit ses pixels et ses compteurs publics. */
+/** Rend une image et relit ses pixels et ses compteurs publics. La borne d'image est refermée comme
+ *  le fait un hôte : c'est elle qui publie les compteurs par étape. */
 export async function image(backend, camera) {
   backend.render(camera);
+  backend.cpuFrameEnd?.();
   await backend.flush();
   return { pixels: backend.capture(), metriques: backend.metrics() };
+}
+
+/** Les compteurs publics d'une étape du profil, ou `null` quand l'hôte ne l'a pas demandé. */
+export function comptesEtape(backend, etape) {
+  const profil = backend.stageProfile?.();
+  return profil?.stages?.find((entree) => entree.stage === etape)?.counts ?? null;
 }
 
 /** Libère la scène et le moteur d'une preuve. */
