@@ -86,7 +86,7 @@ export {
   boxUnion,
 } from './mathBox.ts';
 export { sphereFromBounds } from './mathSphere.ts';
-export { MATRIX_VALUES, batchViews, boxTransformBatch, multiplyMatrix4Batch } from './mathBatch.ts';
+export { MATRIX_VALUES, boxTransformBatch, multiplyMatrix4Batch } from './mathBatch.ts';
 export {
   MATH_PATH_CONTRACT,
   type MathPath,

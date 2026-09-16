@@ -19,11 +19,11 @@ import { blocsJavaScript, reserveArena, type ArenaBloc, type ArenaDemande } from
  * nomme, et `run()` lui rapporte ce que l'exécution a coûté.
  */
 
-/** Les noms sous lesquels le gouverneur tient ses médianes. */
-export const BOX_TRANSFORM_BATCH = 'boxTransformBatch';
-export const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch';
+/** Les noms sous lesquels le gouverneur tient ses médianes, et les clés du relevé publié. */
+const BOX_TRANSFORM_BATCH = 'boxTransformBatch';
+const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch';
 
-export interface MathLot {
+interface MathLot {
   readonly n: number;
   /** Vrai quand les vues sont dans la mémoire du module : le calcul se fait sans aucune copie. */
   readonly shared: boolean;

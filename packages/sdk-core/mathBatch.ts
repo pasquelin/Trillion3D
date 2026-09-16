@@ -16,13 +16,6 @@ import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
 /** Flottants d'une matrice 4×4 rangée à plat. */
 export const MATRIX_VALUES = 16;
 
-/** Sous-vues de `pas` nombres sur un tampon plat, construites une fois pour tout le lot. */
-export function batchViews(buffer: Float64Array, pas: number, n: number) {
-  const vues: Float64Array[] = new Array(n);
-  for (let i = 0; i < n; i++) vues[i] = buffer.subarray(i * pas, i * pas + pas);
-  return vues;
-}
-
 /**
  * `n` boîtes transformées par `n` matrices : `out[i] = boxTransform(boxes[i], mats[i])`. `out` et
  * `boxes` portent six nombres par élément, `mats` une sous-vue de seize par élément.
