@@ -47,6 +47,31 @@ export {
   pageDecodeFailureCode,
   pageDecodeWorkerCount,
 } from './pageDecodeContracts.ts';
+export {
+  PAGE_INTEGRATION_FAILURES,
+  PAGE_INTEGRATION_PROTOCOL,
+  PAGE_SLICE_STRIDE,
+  PAGE_SPEC_STRIDE,
+  SLICE_OFFSET_WORDS,
+  SLICE_PAGE_INDEX,
+  SLICE_WORDS,
+  SPEC_PAGE_INDEX,
+  SPEC_STREAM_OFFSET,
+  SPEC_TRIANGLES,
+} from './pageIntegrationContracts.ts';
+export type {
+  PageIntegrationAnswer,
+  PageIntegrationDone,
+  PageIntegrationFailed,
+  PageIntegrationFailureCode,
+  PageIntegrationRequest,
+} from './pageIntegrationContracts.ts';
+export {
+  createPageIntegrationPlan,
+  planPageIntegration,
+  sortPages,
+} from './pageIntegrationPlan.ts';
+export type { PageIntegrationPlan } from './pageIntegrationPlan.ts';
 export type {
   PageDecodeAnswer,
   PageDecodeCancel,
