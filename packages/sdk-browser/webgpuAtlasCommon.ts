@@ -36,6 +36,9 @@ export type WebgpuAtlas = {
   used: number;
   /** Mot de slot de chaque texture, classe et couche empaquetées ; l'indice 0 est le repli. */
   slotWords: Uint32Array<ArrayBuffer>;
+  /** Largeur en texels de la texture source de chaque slot : ce que l'écran compare à ses pixels
+   *  pour nommer le niveau de mip utile. L'indice 0 est le remplissage, de largeur nulle. */
+  texels: Float64Array;
   /** Octets alloués, calculés depuis les dimensions et les formats — jamais mesurés. */
   bytes: number;
   destroy(): void;
@@ -147,6 +150,7 @@ export function prepareWebgpuAtlas(
     spec.fillFor(sourceAt[classIndex][layer]),
   );
   const slotWords = new Uint32Array(maps.length + 1);
+  const texels = new Float64Array(maps.length + 1);
   for (let index = 0; index < maps.length; index++) {
     const slot = index + 1,
       classIndex = plan.slotClass[index],
@@ -168,6 +172,7 @@ export function prepareWebgpuAtlas(
       errorCode: spec.errorCode,
     });
     uvScales[slot] = scale;
+    texels[slot] = entry.size[0] * scale[0];
     entry.scales[layer] = scale;
     textureJobs.push(job);
   }
@@ -175,6 +180,7 @@ export function prepareWebgpuAtlas(
     classes,
     used: plan.used,
     slotWords,
+    texels,
     bytes: plan.bytes.reduce((total, value) => total + value, 0),
     destroy() {
       for (const entry of classes) entry.texture.destroy();
