@@ -34,6 +34,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let key = compiler_identity::cache_key(o, &loaded, &image_root)?;
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
+    // Une hiérarchie qui se referme sur elle-même est refusée avant toute publication : le parcours
+    // des matrices monde part des nœuds sans père, et ne verrait jamais un cycle fermé.
+    compiler_nodes::check_acyclic(g)?;
     // L'ensemble des nœuds de la scène rendue, partagé par la sélection, le proxy et les lampes.
     let scene_nodes = compiler_nodes::scene_nodes(g)?;
     let NodeSelection {
