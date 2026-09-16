@@ -14,17 +14,10 @@
 // node --experimental-strip-types packages/sdk-browser/bench/justesse/erreur-ecran-borne.mjs [cas]
 import assert from 'node:assert/strict';
 import { clusterErrorPixels, maxStretch } from '../../../sdk-core/index.ts';
+import { lois, mulberry32 } from './tirage.mjs';
 
 const CAS = Number(process.argv[2] ?? 20000);
-let graine = 0x9e3779b9;
-const hasard = () => {
-  graine = (graine + 0x6d2b79f5) | 0;
-  let t = Math.imul(graine ^ (graine >>> 15), 1 | graine);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
-const entre = (a, b) => a + (b - a) * hasard();
-const log = (a, b) => a * (b / a) ** hasard();
+const { hasard, entre, log } = lois(mulberry32(0x9e3779b9));
 const unitaire = () => {
   const z = entre(-1, 1),
     a = entre(0, 2 * Math.PI),

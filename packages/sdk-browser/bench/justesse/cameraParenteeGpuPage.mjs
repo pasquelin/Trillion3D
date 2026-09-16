@@ -6,6 +6,7 @@ import { createGpuDagSelection, packDagSelection } from '../../gpuDagSelection.t
 import { collectClusterPages } from '../../pageSelection.ts';
 import { dagFixture } from '../../pageSelectionDagFixture.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.mjs';
+import { ouvrirAppareil } from './appareilWebgpu.mjs';
 
 const VIEWPORT = [1280, 720];
 
@@ -36,11 +37,9 @@ async function sequence(device, cameras, pixelError) {
 }
 
 export async function executer(pixelErrors) {
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) return { indisponible: 'aucun adaptateur WebGPU' };
-  const device = await adapter.requestDevice();
-  const erreurs = [];
-  device.addEventListener('uncapturederror', (event) => erreurs.push(event.error.message));
+  const appareil = await ouvrirAppareil();
+  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  const { device, erreurs } = appareil;
   const cas = [];
   for (const pixelError of pixelErrors) {
     const rig = creeRig();
@@ -60,8 +59,6 @@ export async function executer(pixelErrors) {
     );
     cas.push({ pixelError, avecParent, sansParent });
   }
-  await device.queue.onSubmittedWorkDone();
-  const info = adapter.info;
-  device.destroy();
-  return { adaptateur: `${info.vendor} ${info.architecture}`, cas, erreurs };
+  const info = await appareil.fermer();
+  return { adaptateur: info.court, cas, erreurs };
 }

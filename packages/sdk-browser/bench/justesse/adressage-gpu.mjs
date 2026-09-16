@@ -11,9 +11,9 @@
 // Pour mémoire seulement : au plus proche sur une frontière exacte, le texel dépend de l'arrondi
 // 32 bits de u·taille.
 import { writeFileSync } from 'node:fs';
-import * as THREE from 'three';
 import { wrapNibble } from '../../visibilityWrapModes.ts';
 import {
+  ADRESSE,
   bilan,
   cas,
   lineaireThree,
@@ -21,20 +21,14 @@ import {
   octetsTexture,
   somme,
   TAILLES,
+  TOLERANCE,
 } from './adressageCas.mjs';
 import { executerDansChromium, MELANGE, NUANCEUR_PRISES } from './adressageGpuPage.mjs';
 
 /** Le quartet d'adressage d'une carte, celui que `webgpuPageRow.ts` et `webgpuBlendPrepare.ts`
  *  rangent dans le mot de la page, par la même fonction. */
 const drapeaux = (c) => wrapNibble({ wrapS: c.wrapS, wrapT: c.wrapT });
-/** Un demi niveau sur 255 : la quantification du poids que l'échantillonneur s'autorise. */
-const TOLERANCE = 0.5;
 
-const ADRESSE = new Map([
-  [THREE.ClampToEdgeWrapping, 'clamp-to-edge'],
-  [THREE.RepeatWrapping, 'repeat'],
-  [THREE.MirroredRepeatWrapping, 'mirror-repeat'],
-]);
 const tous = cas();
 const lots = [];
 for (const filtre of ['nearest', 'linear'])

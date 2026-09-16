@@ -1,8 +1,7 @@
-// Défaut 4 : l'exécution WebGPU des lots d'adressage dans un vrai Chromium. Playwright est chargé
-// depuis `render-tech-lab`, en lecture seule (`LAB_ROOT`, par défaut le voisin du dépôt).
-import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
+// Défaut 4 : l'exécution WebGPU des lots d'adressage dans un vrai Chromium. Le harnais et
+// l'ouverture de l'appareil sont ceux de `pageWebgpu.mjs` et `appareilWebgpu.mjs`.
 import { WRAP_COORD_WGSL } from '../../visibilityPageWgsl.ts';
+import { dansPageWebgpu } from './pageWebgpu.mjs';
 
 /** Le bit qui, dans ces bancs seuls, demande le mélange des prises : les lots au plus proche ne
  *  veulent qu'un texel, les lots linéaires la lecture entière. `wrapUv` ne lit que le quartet bas
@@ -45,19 +44,11 @@ struct Sortie{@location(0) moteur:vec4f,@location(1) three:vec4f,}
  * brute sous l'échantillonneur réglé avec le mode de la carte, comme Three le règle.
  */
 async function executer({ shader, textures, lots }) {
-  const adapter = await navigator.gpu.requestAdapter();
-  const device = await adapter.requestDevice();
-  // La carte réellement obtenue, rendue avec le relevé : `adapter.info` n'est pas clonable, on n'en
-  // garde que les champs de texte.
-  const info = adapter.info ?? {};
-  const adaptateur = ['vendor', 'architecture', 'device', 'description']
-    .map((champ) => info[champ])
-    .filter(Boolean)
-    .join(' / ');
-  const erreurs = [];
-  device.onuncapturederror = (e) => erreurs.push(e.error.message);
-  const module = device.createShaderModule({ code: shader });
-  const messages = (await module.getCompilationInfo()).messages.map((m) => m.message);
+  const appareil = await globalThis.ouvrirAppareil();
+  if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
+  const { device, erreurs } = appareil;
+  const { module, compilation } = await appareil.compile(shader);
+  if (compilation.length) return { compilation, erreurs, sorties: [] };
   const cible = { format: 'rgba32float' };
   const pipeline = device.createRenderPipeline({
     layout: 'auto',
@@ -138,29 +129,20 @@ async function executer({ shader, textures, lots }) {
     }
     sorties.push({ moteur: lu[0], three: lu[1] });
   }
-  return { adaptateur, messages, erreurs, sorties };
+  // La carte réellement obtenue, rendue avec le relevé : un écart de bord en dépend.
+  const info = await appareil.fermer();
+  return { adaptateur: info.complet, compilation, erreurs, sorties };
 }
 
-/** Lance Chromium, exécute les lots sur une origine locale servie par interception, referme. */
+/** Lance Chromium, exécute les lots sur une page locale, referme. */
 export async function executerDansChromium(argument) {
-  const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-  const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  try {
-    const page = await browser.newPage();
-    const origine = 'http://127.0.0.1:9/';
-    const body = '<!doctype html><title>adressage</title>';
-    await page.route(`${origine}**`, (r) =>
-      r.fulfill({ status: 200, contentType: 'text/html', body }),
+  const resultat = await dansPageWebgpu(executer, argument, { titre: 'adressage' });
+  if (resultat.indisponible) throw new Error(resultat.indisponible);
+  if (resultat.compilation.length || resultat.erreurs.length)
+    throw new Error(
+      JSON.stringify({ compilation: resultat.compilation, erreurs: resultat.erreurs }),
     );
-    await page.goto(origine);
-    const resultat = await page.evaluate(executer, argument);
-    if (resultat.messages.length || resultat.erreurs.length)
-      throw new Error(JSON.stringify({ messages: resultat.messages, erreurs: resultat.erreurs }));
-    // La carte qui a rendu le relevé, consignée avec lui : un écart de bord dépend de l'adaptateur.
-    console.log(`Adaptateur WebGPU : ${resultat.adaptateur || 'non renseigné'}`);
-    return resultat.sorties;
-  } finally {
-    await browser.close();
-  }
+  // La carte qui a rendu le relevé, consignée avec lui : un écart de bord dépend de l'adaptateur.
+  console.log(`Adaptateur WebGPU : ${resultat.adaptateur || 'non renseigné'}`);
+  return resultat.sorties;
 }

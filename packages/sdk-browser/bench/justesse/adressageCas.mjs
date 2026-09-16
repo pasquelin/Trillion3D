@@ -14,6 +14,22 @@ export const MODES = [
   ['MirroredRepeat', THREE.MirroredRepeatWrapping],
 ];
 
+/**
+ * Le mode d'adressage WebGPU de chaque mode de carte Three, celui que `WebGLTextures` donne à
+ * l'échantillonneur : la table de tous les bancs GPU d'adressage, écrite une seule fois.
+ */
+export const ADRESSE = new Map([
+  [THREE.ClampToEdgeWrapping, 'clamp-to-edge'],
+  [THREE.RepeatWrapping, 'repeat'],
+  [THREE.MirroredRepeatWrapping, 'mirror-repeat'],
+]);
+
+/** Les modes éprouvés côté GPU : nom lisible, mode de carte Three, mode d'adressage WebGPU. */
+export const MODES_GPU = MODES.map(([nom, wrap]) => ({ nom, wrap, adresse: ADRESSE.get(wrap) }));
+
+/** Un demi niveau sur 255 : la quantification du poids que l'échantillonneur s'autorise. */
+export const TOLERANCE = 0.5;
+
 /** Le rang de texel `i` ramené dans l'image par le mode d'adressage, seul, sans sa coordonnée. */
 function enroule(i, taille, wrap) {
   if (wrap === THREE.ClampToEdgeWrapping) return Math.min(taille - 1, Math.max(0, i));
@@ -41,6 +57,9 @@ export function lineaireThree(t, taille, wrap) {
 
 /** L'octet que les deux texels mêlés rendent sur leur axe : rouge = 20 + 40x, vert = 20 + 40y. */
 export const melange = ([i0, i1, poids]) => (20 + 40 * i0) * (1 - poids) + (20 + 40 * i1) * poids;
+
+/** La couleur exacte de la règle sur un axe, les deux texels mêlés, ramenée à [0, 1]. */
+export const regleNormalisee = (t, taille, wrap) => melange(lineaireThree(t, taille, wrap)) / 255;
 
 /**
  * La couture d'une période : sous `Repeat`, les deux texels mêlés ne sont pas voisins dans l'image,

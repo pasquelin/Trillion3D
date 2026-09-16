@@ -9,15 +9,12 @@
 //   node packages/sdk-browser/bench/justesse/camera-parentee-gpu.mjs
 //   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import { createRequire } from 'node:module';
-import { createServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
 
 const ici = dirname(fileURLToPath(import.meta.url));
-const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
-const depuisLab = createRequire(resolve(labRoot, 'package.json'));
-const { chromium } = depuisLab('playwright');
-const esbuild = createRequire(depuisLab.resolve('vite'))('esbuild');
+const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
 
 const paquet = await esbuild.build({
   entryPoints: [resolve(ici, 'cameraParenteeGpuPage.mjs')],
@@ -29,32 +26,13 @@ const paquet = await esbuild.build({
   target: 'es2022',
   logLevel: 'error',
 });
-const code = paquet.outputFiles[0].text;
-
-const server = createServer((request, response) => {
-  const script = request.url === '/page.js';
-  response.writeHead(200, { 'content-type': script ? 'text/javascript' : 'text/html' });
-  response.end(
-    script ? code : '<!doctype html><title>Caméra parentée</title><script src="/page.js"></script>',
-  );
-});
-await new Promise((ready) => server.listen(0, '127.0.0.1', ready));
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
-let resultat;
-try {
-  const page = await browser.newPage();
-  const erreursPage = [];
-  page.on('pageerror', (error) => erreursPage.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}/`);
-  resultat = await page.evaluate(
-    (pixelErrors) => globalThis.cameraParentee.executer(pixelErrors),
-    [0, 3.5],
-  );
-  resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
-} finally {
-  await browser.close();
-  await new Promise((done) => server.close(done));
-}
+const erreursPage = [];
+const resultat = await dansPageWebgpu(
+  (pixelErrors) => globalThis.cameraParentee.executer(pixelErrors),
+  [0, 3.5],
+  { titre: 'Caméra parentée', script: paquet.outputFiles[0].text, erreursPage },
+);
+resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
 
 if (resultat.indisponible) throw new Error(resultat.indisponible);
 console.log(`adaptateur : ${resultat.adaptateur}`);
