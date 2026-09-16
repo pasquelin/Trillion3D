@@ -20,11 +20,18 @@ pub(super) struct Changes {
     applied: usize,
     /// Les autres, comptées par propriété.
     ignored: BTreeMap<String, usize>,
+    /// Les retouches d'emplacement de matériau dont l'indice ne décrit aucun rendu.
+    unplaceable: usize,
 }
 
 /// Les préfixes d'une transformation locale : les trois grandeurs que le glTF porte, et rien
 /// d'autre — l'indice d'angles d'Euler que l'éditeur garde à côté du quaternion n'en est pas une.
 const TRANSFORM: [&str; 3] = ["m_LocalPosition.", "m_LocalRotation.", "m_LocalScale."];
+
+/// Emplacements de matériau au plus dans un rendu. Un indice au-delà ne décrit aucun rendu que
+/// l'éditeur ait pu écrire : il est compté sous ce nom, jamais réservé.
+const MAX_SLOTS: usize = 1 << 16;
+const SLOT_INVALID: &str = "unity-prefab-material-slot-invalid";
 
 impl Changes {
     /// Lit `m_Modifications`.
@@ -71,8 +78,12 @@ impl Changes {
             self.name = change["value"].as_str().map(str::to_string);
             self.applied += 1;
         } else if let Some(slot) = material_slot(path) {
+            let Some(len) = slot.checked_add(1).filter(|len| *len <= MAX_SLOTS) else {
+                self.unplaceable += 1;
+                return;
+            };
             let slots = self.materials.entry(target).or_default();
-            cover(slots, slot + 1);
+            cover(slots, len);
             slots[slot] = reference(&change["objectReference"]);
             self.applied += 1;
         } else {
@@ -128,7 +139,11 @@ impl Changes {
     /// puis le détail par propriété, pour qu'un manque se voie et se chiffre.
     pub(super) fn report(&self, scene: &mut Scene) {
         scene.count("prefabOverridesApplied", self.applied);
-        scene.count("prefabOverridesIgnored", self.ignored.values().sum());
+        scene.count(
+            "prefabOverridesIgnored",
+            self.ignored.values().sum::<usize>() + self.unplaceable,
+        );
+        scene.report.add_count(SLOT_INVALID, self.unplaceable);
         for (property, count) in &self.ignored {
             scene.report.add_count(
                 &format!("unity-prefab-modification-ignored:{property}"),
