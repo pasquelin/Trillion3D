@@ -7,6 +7,7 @@ import { createWebgpuPagesPipelines } from './webgpuPagesPipelines.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import { prepareWebgpuBlend } from './webgpuBlendPrepare.ts';
 import { createTransparentTable } from './webgpuTransparentTable.ts';
+import { prepareBlendResources } from './webgpuBlendResources.ts';
 import { createTransparentCompaction } from './webgpuTransparentCompact.ts';
 import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { VOLUME_STRIDE, createVolumeBuffer } from './webgpuTransmission.ts';
@@ -159,6 +160,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   ensureUniform(rt, gpuDevice, cap);
   try {
     await prepareWebgpuTextures(rt, gpuDevice);
+    // Les fiches d'items citent les couches d'atlas : elles se montent donc APRÈS les textures.
+    await prepareBlendResources(rt, gpuDevice);
     await prepareWebgpuVisibility(rt, gpuDevice);
   } catch (error) {
     diag.diagnosticFailure('material-pipeline-failed', error);
