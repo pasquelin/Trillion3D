@@ -45,9 +45,9 @@ function shadowViewpointOf(cam: EngineCamera) {
   // de `Camera.getWorldDirection`, troisième colonne normalisée puis opposée — même division par la
   // longueur, même signe, mêmes bits.
   const world = cam.world;
-  viewpoint.position[0] = cam.position[0];
-  viewpoint.position[1] = cam.position[1];
-  viewpoint.position[2] = cam.position[2];
+  viewpoint.position[0] = cam.eye[0];
+  viewpoint.position[1] = cam.eye[1];
+  viewpoint.position[2] = cam.eye[2];
   const fx = world[8],
     fy = world[9],
     fz = world[10];

@@ -8,6 +8,7 @@ import { buildHizPyramid, countUnoccluded, createHizCounts, type HizPage } from 
 import { splitOccludersInto } from './hizSplit.ts';
 import { referenceCountUnoccluded, referenceSplitOccluders } from './bench/oracles/occlusion.mjs';
 import { cameraAt } from '../../test/fixtures/hiz.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function box(min: number[], max: number[], tag: number) {
   return { min, max, matrix: new THREE.Matrix4(), tag } as HizPage & { tag: number };
@@ -21,7 +22,7 @@ function assertSplitAgrees(
 ) {
   const occluders: (HizPage & { tag: number })[] = [],
     rest: (HizPage & { tag: number })[] = [];
-  splitOccludersInto(pages, cam, viewport, occluders, rest);
+  splitOccludersInto(pages, cameraMoteur(cam), viewport, occluders, rest);
   const reference = referenceSplitOccluders(pages, cam, viewport);
   assert.deepEqual(
     occluders.map((p) => p.tag),
@@ -65,7 +66,7 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     box([-10, -10, -3], [10, 10, -3], 2), // Oversized: too wide for the level-0 kernel.
   ];
   const countsOptimisee = createHizCounts();
-  const kept = countUnoccluded(pages, pyramid, cam, viewport, countsOptimisee);
+  const kept = countUnoccluded(pages, pyramid, cameraMoteur(cam), viewport, countsOptimisee);
   const countsReference = {
     tested: 0,
     testedTriangles: 0,

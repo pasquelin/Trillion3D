@@ -9,6 +9,7 @@ import { shadeLit } from './visibilityLighting.ts';
 import { referenceShadeLit } from './bench/oracles/g-ombrage.mjs';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function vertex(worldX: number, worldY: number, worldZ: number, invW = 1): Projected {
   return { x: 0, y: 0, z: 0, invW, worldX, worldY, worldZ };
@@ -88,10 +89,11 @@ function assertSameShading(cas: Cas, label: string) {
     cas.rgb ?? [0.2, 0.5, 0.9],
     cas.metalness ?? 0.3,
     cas.roughness ?? 0.5,
-    CAMERA,
   ] as const;
-  const optimisee = shadeLit(...a);
-  const reference = referenceShadeLit(...a);
+  // L'optimisée lit la caméra du moteur ; l'oracle garde la caméra de la bibliothèque hôte, qui est
+  // ce dont il prouve l'équivalence. Même œil, mêmes bits.
+  const optimisee = shadeLit(...a, cameraMoteur(CAMERA));
+  const reference = referenceShadeLit(...a, CAMERA);
   for (let c = 0; c < 3; c++)
     assert.ok(
       Object.is(optimisee[c], reference[c]),
