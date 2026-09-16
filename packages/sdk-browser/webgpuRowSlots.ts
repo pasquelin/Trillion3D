@@ -1,6 +1,5 @@
-import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
-import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD, packedRowBase } from './webgpuPageRow.ts';
 import { sortPages } from './webgpuRowJournal.ts';
+import { createWebgpuRowWriters } from './webgpuRowWriters.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { createPageRowWriter } from './webgpuPageRow.ts';
 import type { createWebgpuRowState } from './webgpuRowState.ts';
@@ -28,62 +27,28 @@ export function createWebgpuRowSlots(
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec) => void,
 ) {
-  const rowWords = PAGE_INFO_STRIDE / 4;
   /** Les rangs rendus par cette passe-ci, en attente d'un repreneur ou d'un comblement. */
   const free = { rows: new Int32Array(Math.max(1, drawSlots)), count: 0 };
+  const {
+    assign,
+    moveRow,
+    state: written,
+  } = createWebgpuRowWriters(rows, packedPages, writePageRow);
   let count = 0,
     candidates = 0,
     positioned = 0,
     epoch = -1,
-    revision = -1,
-    changed = false;
-
-  /** Pose la page `page` au rang `row` : la ligne est écrite, donc déclarée sale, par l'écrivain. */
-  const assign = (row: number, page: number, offsetWords: number) => {
-    const rec = packedPages[page];
-    rows.packedRecs[row] = rec;
-    rows.packedPositions[row] = rows.pagePositions[page];
-    rows.packedPageIndex[row] = page;
-    rows.rowPageIndex[row] = page;
-    rows.rowOffsetWords[row] = offsetWords;
-    rows.rowEpoch[row] = rows.tableEpoch;
-    rows.rowOfPage[page] = row;
-    changed = true;
-    writePageRow(
-      rec,
-      page,
-      row,
-      offsetWords,
-      rec.array!,
-      rows.pageTableFloats!,
-      rows.pageTableInts!,
-    );
-  };
-
-  /** Déplace la ligne `from` au rang `to` : les mots de la ligne, puis les deux qui SONT le rang. */
-  const moveRow = (from: number, to: number) => {
-    const ints = rows.pageTableInts!,
-      page = rows.packedPageIndex[from],
-      base = to * rowWords;
-    rows.pageTableFloats!.copyWithin(base, from * rowWords, (from + 1) * rowWords);
-    ints[base + ROW_ID_BASE_WORD] = packedRowBase(to);
-    ints[base + ROW_HIZ_SLOT_WORD] = to;
-    rows.packedRecs[to] = rows.packedRecs[from];
-    rows.packedPositions[to] = rows.packedPositions[from];
-    rows.packedPageIndex[to] = page;
-    rows.rowPageIndex[to] = page;
-    rows.rowOffsetWords[to] = rows.rowOffsetWords[from];
-    rows.rowEpoch[to] = rows.rowEpoch[from];
-    rows.rowOfPage[page] = to;
-    rows.markRowDirty(to);
-    changed = true;
-  };
+    revision = -1;
 
   /**
-   * Met une page d'accord avec sa résidence : le drapeau, le journal, puis le rang. Idempotente —
-   * une page nommée deux fois par la même passe ne change rien la seconde fois.
+   * Met le drapeau de résidence d'une page à jour et lui reprend le rang qu'elle ne mérite plus.
+   * Rend `true` quand la page réclame un rang. Idempotente — une page nommée deux fois par la même
+   * passe ne change rien la seconde fois.
+   *
+   * Un cluster transparent est résident, demandé et budgété comme les autres, mais il ne réclame pas
+   * de ligne du tampon de visibilité : il se dessine dans la passe de mélange.
    */
-  const update = (page: number) => {
+  const release = (page: number) => {
     const rec = packedPages[page],
       offsetWords = rows.residentOffsetWords[page];
     const position = rows.pagePositions[page];
@@ -98,18 +63,22 @@ export function createWebgpuRowSlots(
         if (position) positioned += step;
       }
     }
+    if (resident && !rec.transparent && position) return true;
     const row = rows.rowOfPage[page];
-    // Un cluster transparent est résident, demandé et budgété comme les autres, mais il ne réclame
-    // pas de ligne du tampon de visibilité : il se dessine dans la passe de mélange.
-    if (!resident || rec.transparent || !position) {
-      if (row < 0) return;
-      rows.rowOfPage[page] = -1;
-      free.rows[free.count++] = row;
-      changed = true;
-      return;
-    }
+    if (row < 0) return false;
+    rows.rowOfPage[page] = -1;
+    free.rows[free.count++] = row;
+    written.changed = true;
+    return false;
+  };
+
+  /** Pose une page qui réclame un rang : le sien s'il est encore exact, sinon un rang rendu ou la fin. */
+  const place = (page: number) => {
+    const offsetWords = rows.residentOffsetWords[page],
+      row = rows.rowOfPage[page];
     if (row >= 0) {
-      if (rows.rowOffsetWords[row] === offsetWords && rows.rowEpoch[row] === rows.tableEpoch) return;
+      if (rows.rowOffsetWords[row] === offsetWords && rows.rowEpoch[row] === rows.tableEpoch)
+        return;
       assign(row, page, offsetWords);
       return;
     }
@@ -141,13 +110,25 @@ export function createWebgpuRowSlots(
     free.count = 0;
   };
 
-  /** Toute la table refaite depuis le catalogue : l'ordre des rangs y est celui des pages. */
+  /**
+   * Toute la table refaite depuis le catalogue : l'ordre des rangs y est celui des pages. Les deux
+   * comptes sont recomptés plutôt que suivis, puisque le catalogue est de toute façon parcouru.
+   */
   const rebuild = () => {
     rows.rowOfPage.fill(-1);
     count = 0;
     free.count = 0;
-    changed = true;
-    for (let page = 0; page < packedPages.length; page++) update(page);
+    written.changed = true;
+    let placeable = 0,
+      wanted = 0;
+    for (let page = 0; page < packedPages.length; page++) {
+      if (release(page)) place(page);
+      if (!rows.residentFlags[page] || packedPages[page].transparent) continue;
+      placeable++;
+      if (rows.pagePositions[page]) wanted++;
+    }
+    candidates = placeable;
+    positioned = wanted;
   };
 
   /**
@@ -157,19 +138,30 @@ export function createWebgpuRowSlots(
    * débordent, exactement comme avant.
    */
   const apply = () => {
-    changed = false;
-    if (revision !== rows.rowsRevision || epoch !== rows.tableEpoch || rows.touched.overflow)
-      rebuild();
+    written.changed = false;
+    const full =
+      revision !== rows.rowsRevision || epoch !== rows.tableEpoch || rows.touched.overflow;
+    if (full) rebuild();
     else {
       sortPages(rows.touched.pages, rows.touched.count);
-      for (let i = 0; i < rows.touched.count; i++) update(rows.touched.pages[i]);
+      // Les départs d'abord, les arrivées ensuite : un rang rendu par une page nommée tard doit
+      // pouvoir servir à une page nommée tôt, sinon une arrivée déborde devant une table qui va se
+      // vider. Les deux passes gardent l'ordre croissant que le journal des résidences exige.
+      let wanted = 0;
+      for (let i = 0; i < rows.touched.count; i++) {
+        const page = rows.touched.pages[i];
+        if (release(page)) rows.touched.pages[wanted++] = page;
+      }
+      for (let i = 0; i < wanted; i++) place(rows.touched.pages[i]);
       closeFreeRows();
     }
     rows.clearTouched();
-    if (positioned > drawSlots) rebuild();
+    // Plus de pages à placer que de rangs tenus : un débordement passé a laissé une page sans rang
+    // alors que la table a de la place. Le catalogue tranche, exactement comme avant.
+    if (!full && positioned > count) rebuild();
     epoch = rows.tableEpoch;
     revision = ++rows.rowsRevision;
-    if (changed || rows.packedCount !== count) rows.rowsChanged = true;
+    if (written.changed || rows.packedCount !== count) rows.rowsChanged = true;
     rows.rowCount = count;
     rows.packedCount = count;
     rows.candidateCount = candidates;

@@ -59,16 +59,45 @@ function monte(
   rows.pageTableInts = new Uint32Array(tampon);
   for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = { slot: i } as unknown as GPUBuffer;
   const commit = fabriqueCommit(rows, ecrivain);
+  /** La coupe processeur de l'image : c'est elle, et elle seule, qui atteint `commitRows`. */
+  const coupe: PageRec[] = [];
   const sync = createWebgpuRowSync(
     rows,
     { sync: () => {}, dirty: true },
     pages,
-    [],
+    coupe,
     SLOTS,
     () => true,
     commit,
   );
-  return { rows, sync };
+  return { rows, sync, pages, coupe };
+}
+
+type Monte = ReturnType<typeof monte>;
+
+/**
+ * Une image. Le miroir de résidence pose les offsets et nomme, comme lui, chaque page qu'il déplace ;
+ * puis un seul des deux chemins de rangs passe, comme dans le moteur : la coupe GPU laisse la
+ * synchronisation des rangs suivre la résidence, la coupe processeur nomme ses propres rangs. Ce
+ * dernier est le seul à atteindre `commitRows`, donc le seul où F4 se voit.
+ */
+function image(monté: Monte, plan: Plan) {
+  const { rows, pages, coupe } = monté;
+  for (let page = 0; page < plan.offsets.length; page++) {
+    if (rows.residentOffsetWords[page] === plan.offsets[page]) continue;
+    rows.residentOffsetWords[page] = plan.offsets[page];
+    rows.touchPage(page);
+  }
+  if (!plan.coupeProcesseur) {
+    rows.rowsEpoch = -1;
+    monté.sync.syncRows();
+    return;
+  }
+  coupe.length = 0;
+  for (let page = 0; page < pages.length; page++)
+    if (rows.residentOffsetWords[page] >= 0 && pages[page].array) coupe.push(pages[page]);
+  if (plan.descendante) coupe.reverse();
+  monté.sync.syncRowsFromCut();
 }
 
 function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
@@ -92,18 +121,33 @@ function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
   };
 }
 
-/** Huit images hostiles : vide, une seule page, tout résident, ordre inversé, époque relancée. */
-function images(): Int32Array[] {
-  const vide = new Int32Array(PAGES).fill(-1);
-  const uneSeule = new Int32Array(PAGES).fill(-1);
-  uneSeule[0] = 4;
-  const tout = new Int32Array(PAGES);
-  for (let i = 0; i < PAGES; i++) tout[i] = i * 8;
-  const inverse = new Int32Array(PAGES);
-  for (let i = 0; i < PAGES; i++) inverse[i] = (PAGES - 1 - i) * 8;
-  const decale = new Int32Array(PAGES);
-  for (let i = 0; i < PAGES; i++) decale[i] = i < PAGES - 1 ? (i + 1) * 8 : -1;
-  return [vide, uneSeule, tout, tout, inverse, decale, vide, tout];
+type Plan = { offsets: Int32Array; coupeProcesseur: boolean; descendante?: boolean };
+
+/**
+ * Neuf images hostiles : vide, une seule page, tout résident, une page qui part par le DEVANT — les
+ * rangs suivants se décalent alors d'un bloc, ce que F4 déplace au lieu de le réécrire — et son
+ * retour, un ordre de coupe inversé qui interdit le déplacement, et une époque de table relancée.
+ */
+function images(): Plan[] {
+  const offsets = (rempli: (page: number) => number) =>
+    Int32Array.from({ length: PAGES }, (_, page) => rempli(page));
+  const vide = offsets(() => -1);
+  const uneSeule = offsets((page) => (page ? -1 : 4));
+  const tout = offsets((page) => page * 8);
+  const sansPremiere = offsets((page) => (page ? page * 8 : -1));
+  const inverse = offsets((page) => (PAGES - 1 - page) * 8);
+  const decale = offsets((page) => (page < PAGES - 1 ? (page + 1) * 8 : -1));
+  return [
+    { offsets: vide, coupeProcesseur: false },
+    { offsets: uneSeule, coupeProcesseur: false },
+    { offsets: tout, coupeProcesseur: false },
+    { offsets: tout, coupeProcesseur: true },
+    { offsets: sansPremiere, coupeProcesseur: true },
+    { offsets: tout, coupeProcesseur: true },
+    { offsets: inverse, coupeProcesseur: true, descendante: true },
+    { offsets: decale, coupeProcesseur: false },
+    { offsets: tout, coupeProcesseur: true },
+  ];
 }
 
 test('F4 : la table des lignes reste identique image après image, y compris vide, inversée et rejouée', () => {
@@ -111,17 +155,13 @@ test('F4 : la table des lignes reste identique image après image, y compris vid
   const ref = monte(referenceRowState, referenceRowCommit);
   const seq = images();
   for (let tour = 0; tour < seq.length; tour++) {
-    neuf.rows.residentOffsetWords.set(seq[tour]);
-    ref.rows.residentOffsetWords.set(seq[tour]);
-    if (tour === 6) {
+    if (tour === 8) {
       // Une époque de table relancée sans changement de résidence : invalide tous les rangs source.
       neuf.rows.tableEpoch += 1;
       ref.rows.tableEpoch += 1;
     }
-    neuf.rows.rowsEpoch = -1;
-    ref.rows.rowsEpoch = -1;
-    neuf.sync.syncRows();
-    ref.sync.syncRows();
+    image(neuf, seq[tour]);
+    image(ref, seq[tour]);
     assert.deepEqual(etatComplet(neuf.rows), etatComplet(ref.rows), `image ${tour}`);
   }
 });

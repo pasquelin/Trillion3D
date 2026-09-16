@@ -20,13 +20,7 @@ export function createWebgpuRowSync(
   /** Appelée quand une page entre dans la résidence ou en sort, avant que la ligne ne change. */
   onResidenceChange: (rec: PageRec) => void = () => {},
 ) {
-  const slots = createWebgpuRowSlots(
-    rows,
-    packedPages,
-    drawSlots,
-    writePageRow,
-    onResidenceChange,
-  );
+  const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
   /**
    * Rows for the drawable set. Ce que l'image doit à la table ne dépend plus que des pages dont le
    * cache vient de changer l'emplacement : le catalogue entier n'est reparcouru qu'à une
