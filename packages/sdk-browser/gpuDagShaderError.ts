@@ -14,8 +14,9 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
  let v=(e*vec4f(sphere.xyz,1.0)).xyz;
  let reach=sphere.w*stretch;let shift=error*stretch;
  let nearest=-v.z-reach;let closest=nearest-shift;let side=sqrt(v.x*v.x+v.y*v.y)+reach;
+ if(!(closest>uni.near)){return INF;}
  let slant=sqrt(nearest*nearest+side*side);
- if(!(closest>uni.near)||!(slant>=nearest&&slant<INF)){return INF;}
+ if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
 }
 fn selects(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32,threshold:f32)->bool{
