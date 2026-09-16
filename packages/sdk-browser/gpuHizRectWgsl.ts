@@ -32,22 +32,24 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec2u{
 }
 `;
 
-/** La profondeur la plus LOINTAINE de l'empreinte d'une boîte dans un mip de la pyramide. Un
- *  rectangle vide ou plus large que le noyau rend 1, la valeur qui ne rejette jamais. Le noyau
- *  hôte déclare `pyramid`, le seul tampon que cette fonction lit. */
+/** La profondeur la plus LOINTAINE de l'empreinte d'une boîte dans un mip de la pyramide — donc,
+ *  en profondeur inversée, le MINIMUM. Un rectangle vide ou plus large que le noyau rend
+ *  `HIZ_NOTHING`, la valeur qui ne rejette jamais. Le noyau hôte déclare `pyramid`, le seul tampon
+ *  que cette fonction lit. */
 export const HIZ_FAR_WGSL = `
+const HIZ_NOTHING:f32=-1.0e30;
 fn pyramidFar(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32)->f32{
  let x0=minX;let y0=minY;let x1=maxX+1;let y1=maxY+1;
- if(x1<=x0||y1<=y0){return 1.0;}
- if(x1-x0>${HIZ_KERNEL_TEXELS}||y1-y0>${HIZ_KERNEL_TEXELS}){return 1.0;}
- var far=-1.0e30;var hit=false;
+ if(x1<=x0||y1<=y0){return HIZ_NOTHING;}
+ if(x1-x0>${HIZ_KERNEL_TEXELS}||y1-y0>${HIZ_KERNEL_TEXELS}){return HIZ_NOTHING;}
+ var far=1.0e30;var hit=false;
  for(var y=y0;y<y1;y++){
   for(var x=x0;x<x1;x++){
-   far=max(far,pyramid[offset+u32(y)*width+u32(x)]);
+   far=min(far,pyramid[offset+u32(y)*width+u32(x)]);
    hit=true;
   }
  }
- if(!hit){return 1.0;}
+ if(!hit){return HIZ_NOTHING;}
  return far;
 }
 `;

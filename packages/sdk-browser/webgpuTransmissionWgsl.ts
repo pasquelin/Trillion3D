@@ -18,7 +18,8 @@ struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,att
 // Le fond que la surface laisse voir. Le rayon de vue est dévié par l'indice du matériau, avancé de
 // son épaisseur, reprojeté à l'écran : c'est là qu'on relit la couleur déjà dessinée. Un échantillon
 // dont la profondeur copiée le place devant la surface montrerait un objet situé devant le verre :
-// on retombe alors sur l'échantillon non dévié. Le volume atténue ensuite selon sa couleur.
+// on retombe alors sur l'échantillon non dévié. La profondeur est inversée, donc « derrière » est
+// « plus petit ». Le volume atténue ensuite selon sa couleur.
 fn transmittedBackdrop(P:vec3f,N:vec3f,V:vec3f,fragXY:vec2f,fragZ:f32)->vec3f{
  let size=vec2f(textureDimensions(backdrop));
  let last=size-vec2f(1.0);
@@ -32,7 +33,7 @@ fn transmittedBackdrop(P:vec3f,N:vec3f,V:vec3f,fragXY:vec2f,fragZ:f32)->vec3f{
    deviated=vec2i(clamp(vec2f((ndc.x*0.5+0.5)*size.x,(0.5-ndc.y*0.5)*size.y),vec2f(0.0),last));
   }
  }
- let chosen=select(straight,deviated,textureLoad(backdropDepth,deviated,0)>=fragZ);
+ let chosen=select(straight,deviated,textureLoad(backdropDepth,deviated,0)<=fragZ);
  var attenuation=vec3f(1.0);
  if(volume.attenuationDistance>0.0){
   let sigma=-log(clamp(volume.attenuationColor.rgb,vec3f(1e-5),vec3f(1.0)))/volume.attenuationDistance;

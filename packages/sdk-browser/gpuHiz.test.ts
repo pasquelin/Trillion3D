@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HIZ_BACKGROUND, hizBuildPyramid, hizReduceCeil } from '../sdk-core/index.ts';
+import { hizBuildPyramid, hizReduceCeil } from '../sdk-core/index.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 import { buildHizPyramid, hizRejects, type HizBounds } from './hiz.ts';
 import {
   evaluateHizReduce,
@@ -40,17 +41,17 @@ test('Hi-Z level sizes reduce by ceil 2 until a single texel', () => {
   assert.deepEqual(hizLevelSizes(1, 1), [[1, 1]]);
 });
 
-test('packed GPU pyramid matches the JS ceil-max oracle including a background hole', () => {
+test('packed GPU pyramid matches the JS ceil-min oracle including a background hole', () => {
   const depth = [
-    [0.2, 0.3],
-    [0.4, HIZ_BACKGROUND],
+    [0.8, 0.7],
+    [0.6, DEPTH_CLEAR],
   ];
   const packed = packHizPyramid(depth);
   const reduced = evaluateHizReduce(packed.data, packed.sizes[0][0], packed.sizes[0][1]);
-  assert.deepEqual(hizReduceCeil(depth), [[HIZ_BACKGROUND]]);
+  assert.deepEqual(hizReduceCeil(depth), [[DEPTH_CLEAR]]);
   assert.equal(reduced.width, 1);
   assert.equal(reduced.height, 1);
-  assert.equal(reduced.data[0], HIZ_BACKGROUND);
+  assert.equal(reduced.data[0], DEPTH_CLEAR);
   assert.deepEqual(
     hizBuildPyramid(depth).map((level) => level.map((row) => [...row])),
     hizBuildPyramid(depth),
@@ -59,7 +60,7 @@ test('packed GPU pyramid matches the JS ceil-max oracle including a background h
 
 test('GPU Hi-Z test kernel matches hizRejects and never rejects a background hole or a near clip', () => {
   const depth = new Float32Array(4);
-  depth.set([0.2, 0.3, 0.4, HIZ_BACKGROUND]);
+  depth.set([0.8, 0.7, 0.6, DEPTH_CLEAR]);
   const pyramid = buildHizPyramid(depth, 2, 2);
   const packed = packHizPyramid(levelZero(pyramid));
   const hole: HizBounds = {
@@ -67,7 +68,7 @@ test('GPU Hi-Z test kernel matches hizRejects and never rejects a background hol
     minY: 0,
     maxX: 1,
     maxY: 1,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
   const near: HizBounds = {
@@ -75,7 +76,7 @@ test('GPU Hi-Z test kernel matches hizRejects and never rejects a background hol
     minY: 0,
     maxX: 1,
     maxY: 1,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: true,
   };
   const edge: HizBounds = {
@@ -83,17 +84,17 @@ test('GPU Hi-Z test kernel matches hizRejects and never rejects a background hol
     minY: 0,
     maxX: 2,
     maxY: 2,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
-  const closed = buildHizPyramid(new Float32Array([0.2, 0.3, 0.4, 0.5]), 2, 2);
+  const closed = buildHizPyramid(new Float32Array([0.8, 0.7, 0.6, 0.5]), 2, 2);
   const closedPacked = packHizPyramid(levelZero(closed));
   const occluded: HizBounds = {
     minX: 0,
     minY: 0,
     maxX: 1,
     maxY: 1,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
   const equal: HizBounds = {
@@ -115,8 +116,8 @@ test('GPU Hi-Z test kernel matches hizRejects and never rejects a background hol
 
 test('an integer-edge max is inclusive so a hole on that pixel cannot hide', () => {
   const depth = new Float32Array(16);
-  depth.fill(0.2);
-  depth[2 * 4 + 2] = HIZ_BACKGROUND;
+  depth.fill(0.8);
+  depth[2 * 4 + 2] = DEPTH_CLEAR;
   const pyramid = buildHizPyramid(depth, 4, 4);
   const packed = packHizPyramid(levelZero(pyramid));
   const bounds: HizBounds = {
@@ -124,7 +125,7 @@ test('an integer-edge max is inclusive so a hole on that pixel cannot hide', () 
     minY: 0,
     maxX: 2,
     maxY: 2,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), false);
@@ -133,14 +134,14 @@ test('an integer-edge max is inclusive so a hole on that pixel cannot hide', () 
 
 test('a covered 33 by 19 footprint can reject through a reduced Hi-Z level', () => {
   const depth = new Float32Array(33 * 19);
-  depth.fill(0.2);
+  depth.fill(0.8);
   const pyramid = buildHizPyramid(depth, 33, 19);
   const bounds: HizBounds = {
     minX: 0,
     minY: 0,
     maxX: 32,
     maxY: 18,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), true);
@@ -149,15 +150,15 @@ test('a covered 33 by 19 footprint can reject through a reduced Hi-Z level', () 
 
 test('a background pixel at the far edge of a large footprint prevents rejection', () => {
   const depth = new Float32Array(33 * 19);
-  depth.fill(0.2);
-  depth[18 * 33 + 32] = HIZ_BACKGROUND;
+  depth.fill(0.8);
+  depth[18 * 33 + 32] = DEPTH_CLEAR;
   const pyramid = buildHizPyramid(depth, 33, 19);
   const bounds: HizBounds = {
     minX: 0,
     minY: 0,
     maxX: 32,
     maxY: 18,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), false);
@@ -166,25 +167,26 @@ test('a background pixel at the far edge of a large footprint prevents rejection
 
 test('a footprint extending outside the viewport is tested on its clipped part and rejected', () => {
   const depth = new Float32Array(33 * 19);
-  depth.fill(0.2);
+  depth.fill(0.8);
   const pyramid = buildHizPyramid(depth, 33, 19);
   const bounds: HizBounds = {
     minX: 0,
     minY: 0,
     maxX: 33,
     maxY: 18,
-    nearestDepth: 0.8,
+    nearestDepth: 0.2,
     clipsNear: false,
   };
   assert.equal(hizRejects(pyramid, bounds), true);
   assert.deepEqual([...evaluateHizTest(packHizPyramid(levelZero(pyramid)), [bounds])], [1]);
 });
 
-test('Hi-Z compute shader declares this-frame max reduction with background 1', () => {
+test('Hi-Z compute shader declares this-frame min reduction, background at the far value', () => {
   assert.match(HIZ_SHADER, /@compute[\s\S]*fn copyDepth/);
   assert.match(HIZ_SHADER, /@compute[\s\S]*fn reduceHiz/);
   assert.match(HIZ_SHADER, /@compute[\s\S]*fn testHiz/);
-  assert.match(HIZ_SHADER, /max\(/);
+  assert.match(HIZ_SHADER, /min\(/);
+  assert.doesNotMatch(HIZ_SHADER, /far=max\(/);
   assert.match(HIZ_SHADER, /texture_2d<f32>/);
   assert.doesNotMatch(HIZ_SHADER, /texture_depth_2d/);
   assert.match(HIZ_SHADER, /array<f32>/);

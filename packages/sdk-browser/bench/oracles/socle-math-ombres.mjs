@@ -2,24 +2,27 @@
 // d'ombre d'avant le rattachement, recopiés tels quels depuis `develop` au commit d016f88.
 import { LIGHT_SETTINGS } from '../../../sdk-core/sceneLightContracts.ts';
 
-/** `sceneLightShadowMath.ts:14-46` d'avant, écrits dans un tampon donné plutôt que dans le module. */
+/** `sceneLightShadowMath.ts:14-46` d'avant, écrits dans un tampon donné plutôt que dans le module.
+ *  Seule la ligne de profondeur suit la convention du moteur — inversée, plan proche à 1 : c'est
+ *  l'ENTRÉE du produit que l'oracle témoigne, pas la formule de projection. */
 export function referenceShadowProjection(proj, fov, range) {
   const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
     far = Math.max(near * 1.001, range);
   const f = 1 / Math.tan(fov / 2),
-    depth = far / (near - far);
+    depth = near / (far - near);
   proj.fill(0);
   proj[0] = f;
   proj[5] = f;
   proj[10] = depth;
   proj[11] = -1;
-  proj[14] = near * depth;
+  proj[14] = far * depth;
 }
 export function referenceShadowOrthographic(proj, halfExtent, far) {
   proj.fill(0);
   proj[0] = 1 / halfExtent;
   proj[5] = 1 / halfExtent;
-  proj[10] = -1 / far;
+  proj[10] = 1 / far;
+  proj[14] = 1;
   proj[15] = 1;
 }
 

@@ -9,6 +9,7 @@ import { encodeSurfaceLighting } from './webgpuPagesEncodeBlend.ts';
 import type { SurfaceBuffer } from './surfaceBuffer.ts';
 import { grantCapability } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 
 let attachmentsFor: GPUTextureView[] | undefined,
   attachments: GPURenderPassColorAttachment[] | undefined;
@@ -49,7 +50,7 @@ export function encodeEmptySurfaces(
     colorAttachments: surfaceColorAttachments(gpu.surfaces),
     depthStencilAttachment: {
       view: depthTarget,
-      depthClearValue: 1,
+      depthClearValue: DEPTH_CLEAR,
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },

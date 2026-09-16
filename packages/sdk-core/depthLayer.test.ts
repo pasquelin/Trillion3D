@@ -1,40 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEPTH_LAYER_BIAS_UNITS, depthLayerBias, biasedDepthBits } from './depthLayer.ts';
+import { DEPTH_LAYER_BIAS_UNITS, depthLayerUnits, biasedDepthBits } from './depthLayer.ts';
 import { assertFormat } from './cacheContracts.ts';
 
-// Comportement 14 : depthLayerBias rend 0 pour 0/undefined/négatif et −16 × couche sinon
-test('depthLayerBias returns 0 for undefined or non-positive layers', () => {
-  assert.equal(depthLayerBias(undefined), 0);
-  assert.equal(depthLayerBias(0), 0);
-  assert.equal(depthLayerBias(-1), 0);
-  assert.equal(depthLayerBias(-100), 0);
-  assert.equal(depthLayerBias(NaN), 0);
-  assert.equal(depthLayerBias(Infinity), 0);
+// Comportement 14 : depthLayerUnits rend 0 pour 0/undefined/négatif et 16 × couche sinon
+test('depthLayerUnits returns 0 for undefined or non-positive layers', () => {
+  assert.equal(depthLayerUnits(undefined), 0);
+  assert.equal(depthLayerUnits(0), 0);
+  assert.equal(depthLayerUnits(-1), 0);
+  assert.equal(depthLayerUnits(-100), 0);
+  assert.equal(depthLayerUnits(NaN), 0);
+  assert.equal(depthLayerUnits(Infinity), 0);
 });
 
-test('depthLayerBias computes negative units for positive layers', () => {
-  assert.equal(depthLayerBias(1), -DEPTH_LAYER_BIAS_UNITS);
-  assert.equal(depthLayerBias(2), -2 * DEPTH_LAYER_BIAS_UNITS);
-  assert.equal(depthLayerBias(5), -5 * DEPTH_LAYER_BIAS_UNITS);
-  assert.equal(depthLayerBias(15), -15 * DEPTH_LAYER_BIAS_UNITS);
-  assert.equal(depthLayerBias(16), -15 * DEPTH_LAYER_BIAS_UNITS); // Capped at 15
-  assert.equal(depthLayerBias(1000), -15 * DEPTH_LAYER_BIAS_UNITS); // Capped at 15
+test('depthLayerUnits computes a positive magnitude for positive layers', () => {
+  assert.equal(depthLayerUnits(1), DEPTH_LAYER_BIAS_UNITS);
+  assert.equal(depthLayerUnits(2), 2 * DEPTH_LAYER_BIAS_UNITS);
+  assert.equal(depthLayerUnits(5), 5 * DEPTH_LAYER_BIAS_UNITS);
+  assert.equal(depthLayerUnits(15), 15 * DEPTH_LAYER_BIAS_UNITS);
+  assert.equal(depthLayerUnits(16), 15 * DEPTH_LAYER_BIAS_UNITS); // Capped at 15
+  assert.equal(depthLayerUnits(1000), 15 * DEPTH_LAYER_BIAS_UNITS); // Capped at 15
 });
 
-// Comportement 15 : biasedDepthBits retranche le biais aux bits et sature à 0
-test('biasedDepthBits subtracts bias from bits and clamps at 0', () => {
+// Comportement 15 : profondeur inversée — biasedDepthBits AJOUTE les unités et sature aux bits de 1
+test('biasedDepthBits adds the layer units to the bits', () => {
   const bits = 1000;
-  const result = biasedDepthBits(bits, 1);
-  const bias = depthLayerBias(1);
-  assert.equal(result, (bits + bias) >>> 0);
+  assert.equal(biasedDepthBits(bits, 1), bits + depthLayerUnits(1));
 });
 
-test('biasedDepthBits clamps negative results to 0', () => {
-  const bits = 10;
-  const layer = 15;
-  const result = biasedDepthBits(bits, layer);
-  assert.equal(result, 0); // bits + bias would be negative, clamped to 0
+test('biasedDepthBits clamps at the bits of 1.0, the near plane', () => {
+  const ONE_BITS = 0x3f800000;
+  assert.equal(biasedDepthBits(ONE_BITS - 8, 15), ONE_BITS);
+  assert.equal(biasedDepthBits(ONE_BITS, 1), ONE_BITS);
 });
 
 test('biasedDepthBits preserves bits for layer 0 or undefined', () => {

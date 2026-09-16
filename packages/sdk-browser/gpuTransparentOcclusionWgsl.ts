@@ -12,8 +12,8 @@ import { PARTITION_WORKGROUP } from './gpuPartitionContract.ts';
  * la fidélité exige :
  *
  *  - le biais de couche coplanaire est celui de la couche la PLUS HAUTE que l'image nomme, pour
- *    toutes les entrées. Une grappe n'annonce pas la sienne ici, et le biais ne fait que baisser la
- *    borne de profondeur : le prendre maximal rejette moins, jamais plus ;
+ *    toutes les entrées. Une grappe n'annonce pas la sienne ici, et le biais ne fait que RAPPROCHER
+ *    la borne de profondeur : le prendre maximal rejette moins, jamais plus ;
  *  - une boîte qui coupe le plan proche, un rectangle vide hors écran, une image sans pyramide
  *    (`uni.levels == 0`) et une empreinte qu'aucun mip ne couvre ne rejettent rien du tout ;
  *  - le verdict est écrit pour CHAQUE entrée à chaque image, jamais accumulé : une image qui
@@ -47,7 +47,7 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u){
     let l=pick.x;
     let far=pyramidFar(x0>>l,y0>>l,x1>>l,y1>>l,
      uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u]);
-    reject=select(0u,1u,box.nearest>far);
+    reject=select(0u,1u,box.nearest<far);
    }
   }
  }

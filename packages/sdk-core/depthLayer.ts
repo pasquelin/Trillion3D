@@ -2,10 +2,13 @@
  * Coplanar depth layers at render time.
  *
  * The compiler stacks the opaque surfaces that share a plane and writes one layer per cluster. Here
- * that layer becomes a depth bias in whole hardware units — units of the depth buffer's own last
+ * that layer becomes a depth offset in whole hardware units — units of the depth buffer's own last
  * bit — applied identically on every path: the WebGPU pipeline's `depthBias`, the software raster's
- * integer offset on the packed depth key, and WebGL2's `polygonOffset` units. Nothing is computed
- * per pixel, no vertex moves, and a cluster of layer 0 draws exactly as it did before.
+ * integer offset on the packed depth key, and WebGL2's `polygonOffset` units. This file publishes
+ * the MAGNITUDE only; each path applies the sign its own depth test needs, because the engine draws
+ * in reversed depth (nearer = larger, `depthConvention.ts`) while the WebGL2 host path draws in
+ * direct depth (nearer = smaller). Nothing is computed per pixel, no vertex moves, and a cluster of
+ * layer 0 draws exactly as it did before.
  *
  * Calibration. Two triangulations of one plane interpolate the same geometric depth, so the only
  * thing that separates them is float32 rounding. Measured on the `full-overlap` fixture — the two
@@ -30,21 +33,26 @@ export const DEPTH_LAYER_BIAS_UNITS = 16;
 /** Layers live in four bits of the cache, so the deepest stack the compiler can describe is 15. */
 export const MAX_DEPTH_LAYER = 15;
 
-/** The depth bias of a layer, in hardware units. Negative: a higher layer draws nearer the camera,
- *  which is what wins under a `less` depth test. Every path reads this one function. */
-export function depthLayerBias(layer: number | undefined) {
+/** How many hardware units a layer moves a cluster TOWARDS the camera, as a magnitude: zero or
+ *  more, never signed. Every path reads this one function and signs it for its own depth test. */
+export function depthLayerUnits(layer: number | undefined) {
   if (!layer || !Number.isFinite(layer) || layer <= 0) return 0;
-  return -Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS;
+  return Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS;
 }
 
+/** Bits of `1.0` in float32: the near plane of the engine's reversed depth, and the ceiling no
+ *  biased depth may cross. */
+const ONE_BITS = 0x3f800000;
+
 /**
- * The same bias applied straight to the bits of a float32 depth, for the software raster, which
- * compares packed integer keys instead of running a depth test. For a depth in [0, 1) the IEEE-754
- * bit pattern grows with the value, so subtracting units is subtracting that many last bits; the
- * result is clamped at zero so a near-plane cluster can never wrap around to the far end.
+ * The same offset applied straight to the bits of a float32 depth, for the software raster, which
+ * compares packed integer keys instead of running a depth test. For a depth in [0, 1] the IEEE-754
+ * bit pattern grows with the value, and the engine's depth is reversed — nearer is larger — so
+ * moving a cluster towards the camera is ADDING that many last bits; the result is clamped at the
+ * bits of 1.0 so a near-plane cluster can never wrap past the near plane.
  */
 export function biasedDepthBits(bits: number, layer: number | undefined) {
-  const bias = depthLayerBias(layer);
-  if (bias === 0) return bits >>> 0;
-  return Math.max(0, (bits >>> 0) + bias) >>> 0;
+  const units = depthLayerUnits(layer);
+  if (units === 0) return bits >>> 0;
+  return Math.min(ONE_BITS, (bits >>> 0) + units) >>> 0;
 }

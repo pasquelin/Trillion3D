@@ -9,6 +9,7 @@ import { splitOccludersInto } from './hizSplit.ts';
 import { referenceCountUnoccluded, referenceSplitOccluders } from './bench/oracles/occlusion.mjs';
 import { cameraAt } from '../../test/fixtures/hiz.ts';
 import { cameraMoteur } from './cameraFixture.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 
 function box(min: number[], max: number[], tag: number) {
   return { min, max, matrix: new THREE.Matrix4(), tag } as HizPage & { tag: number };
@@ -58,7 +59,8 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     viewport: [number, number] = [48, 48];
   const depth = new Float32Array(48 * 48);
   depth.fill(0.3);
-  depth[24 * 48 + 24] = 1; // A hole that must keep whatever falls behind it.
+  // Un trou de fond — le lointain, zéro — hors de l'empreinte de la petite boîte, qui reste rejetée.
+  depth[0] = DEPTH_CLEAR;
   const pyramid = buildHizPyramid(depth, 48, 48);
   const pages = [
     box([-0.05, -0.05, -3], [0.05, 0.05, -3], 0), // Small and far: expected to be rejected.

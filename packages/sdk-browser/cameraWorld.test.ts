@@ -1,12 +1,19 @@
 // `cameraWorld.ts` pris fonction par fonction, confronté à Three au bit près (`Object.is`), sous un
 // rig hostile : trois niveaux d'ancêtres, cisaillement au premier, échelle négative ET non uniforme
 // au second — rien qu'une décomposition TRS ne rend. `readCameraWorld` doit produire les mêmes
-// nombres que `projectionMatrix.clone().multiply(matrixWorldInverse)` et `Frustum` de Three, dans
-// les deux conventions de profondeur, avec ou sans matrice monde singulière, NaN ou infinie.
+// nombres que `projectionMatrix.clone().multiply(matrixWorldInverse)` et `Frustum` de Three, avec
+// ou sans matrice monde singulière, NaN ou infinie.
+//
+// La PROJECTION, elle, n'est plus celle de l'hôte : le moteur la compose de l'optique déclarée, en
+// profondeur inversée et plan lointain infini (`depthConvention.ts`). La référence Three reçoit
+// donc cette projection-là, et ses six plans sont ceux du moteur avec les deux derniers échangés —
+// en profondeur inversée, le plan qui borne le proche est celui que la profondeur directe appelait
+// loin.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { assertBits } from '../sdk-core/bench/oracles/volumes.mjs';
+import { perspectiveProjection } from '../sdk-core/index.ts';
 import {
   createEngineCamera,
   enginePose,
@@ -35,27 +42,35 @@ function hostileRig(fov = 50, aspect = 16 / 9) {
 }
 
 /** La référence Three : ancêtres résolus, puis une caméra à plat qui porte la même `matrixWorld` au
- *  bit près — `updateMatrixWorld` y met alors à jour `matrixWorldInverse` comme le ferait l'hôte. */
+ *  bit près — `updateMatrixWorld` y met alors à jour `matrixWorldInverse` comme le ferait l'hôte —
+ *  et la projection du MOTEUR. Deux effets du renversement de la profondeur sur le tronc : les deux
+ *  derniers plans s'échangent, et le LOINTAIN ne vient plus de la projection — infinie — mais du
+ *  `far` que l'hôte déclare, lu dans la vue (`Plane` de Three, normalisé comme `writePlane`). */
 function threeReference(camera: HostCamera) {
   resolveCameraWorld(camera);
-  const flat = new THREE.PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far);
-  flat.coordinateSystem = camera.coordinateSystem;
+  const { fov, aspect, near, zoom } = camera;
+  const flat = new THREE.PerspectiveCamera(fov, aspect, near, camera.far);
   flat.matrixAutoUpdate = false;
   flat.matrix.copy(camera.matrixWorld);
   flat.matrixWorld.copy(flat.matrix);
-  flat.projectionMatrix.copy(camera.projectionMatrix);
+  const projection = perspectiveProjection(new Float64Array(16), fov, aspect, near, zoom);
+  flat.projectionMatrix.fromArray([...projection]);
   flat.updateMatrixWorld(true);
   const viewProjection = flat.projectionMatrix.clone().multiply(flat.matrixWorldInverse);
-  const frustum = new THREE.Frustum().setFromProjectionMatrix(
-    viewProjection,
-    camera.coordinateSystem,
-  );
-  const planes = new Float64Array(24);
-  frustum.planes.forEach((p, i) =>
-    planes.set([p.normal.x, p.normal.y, p.normal.z, p.constant], i * 4),
-  );
+  const brut = new Float64Array(24);
+  new THREE.Frustum()
+    .setFromProjectionMatrix(viewProjection, THREE.WebGPUCoordinateSystem)
+    .planes.forEach((p, i) => brut.set([p.normal.x, p.normal.y, p.normal.z, p.constant], i * 4));
+  const planes = brut.slice();
+  planes.set(brut.subarray(16, 20), 20);
+  const v = flat.matrixWorldInverse.elements;
+  const loin = new THREE.Plane(
+    new THREE.Vector3(v[2], v[6], v[10]),
+    v[14] + camera.far,
+  ).normalize();
+  planes.set([loin.normal.x, loin.normal.y, loin.normal.z, loin.constant], 16);
   const eye = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
-  return { view: flat.matrixWorldInverse, viewProjection, planes, eye };
+  return { view: flat.matrixWorldInverse, viewProjection, planes, projection, eye };
 }
 
 for (const webgpu of [false, true]) {
@@ -66,12 +81,13 @@ for (const webgpu of [false, true]) {
     const ref = threeReference(camera);
     const into = readCameraWorld(createEngineCamera(), camera);
     assertBits(into.world, camera.matrixWorld.elements);
-    assertBits(into.projection, camera.projectionMatrix.elements);
+    // La projection du moteur ne dépend plus de la convention de l'hôte : les mêmes seize nombres
+    // pour les deux passages de la boucle.
+    assertBits(into.projection, ref.projection);
     assertBits(into.view, ref.view.elements);
     assertBits(into.viewProjection, ref.viewProjection.elements);
     assertBits(into.planes, ref.planes);
     assertBits(into.eye, ref.eye.toArray());
-    assert.equal(into.depthZeroToOne, webgpu);
   });
 }
 
@@ -79,20 +95,8 @@ test('readCameraWorld : idempotente, et la seconde lecture n’alloue aucun nouv
   const camera = hostileRig();
   const into = createEngineCamera();
   readCameraWorld(into, camera);
-  const [world, view, viewProjection, planes, eye] = [
-    into.world,
-    into.view,
-    into.viewProjection,
-    into.planes,
-    into.eye,
-  ];
-  const premiere = [
-    ...into.world,
-    ...into.view,
-    ...into.viewProjection,
-    ...into.planes,
-    ...into.eye,
-  ];
+  const { world, view, viewProjection, planes, eye } = into;
+  const premiere = [...world, ...view, ...viewProjection, ...planes, ...eye];
   readCameraWorld(into, camera); // rien n'a bougé : même caméra, même rig.
   assert.equal(into.world, world, 'même tampon `world`');
   assert.equal(into.view, view, 'même tampon `view`');
@@ -142,8 +146,8 @@ test('holdCameraWorld : copie au bit près, indépendante de la source modifiée
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'] as const)
     assertBits(gelee[champ], source[champ]);
   assert.deepEqual(
-    [gelee.near, gelee.far, gelee.fov, gelee.aspect, gelee.depthZeroToOne],
-    [source.near, source.far, source.fov, source.aspect, source.depthZeroToOne],
+    [gelee.near, gelee.far, gelee.fov, gelee.aspect],
+    [source.near, source.far, source.fov, source.aspect],
   );
   // La source est réécrite par une image suivante : la copie gelée ne doit pas bouger.
   const avant = [...gelee.world];

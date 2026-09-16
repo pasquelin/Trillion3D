@@ -1,10 +1,9 @@
 // Preuve par le moteur réel : la même caméra physique (near 2,8, far 12), un carreau incliné qui
-// traverse le plan proche, rendue sous les deux conventions de profondeur de découpe — `[−1, 1]`
+// traverse le plan proche, rendue alors que l'hôte bascule sa convention de découpe — `[−1, 1]`
 // côté WebGL, `[0, 1]` côté WebGPU — donne la même image au pixel près, dans les deux sens.
-// `depthConvention.ts` est le seul site qui convertit ; `readCameraWorld` est le seul qui décide de
-// la convention à lire sur `camera.coordinateSystem`. Un changement de convention doit casser la
-// tenue de l'image tenue — sans quoi la première image sous la nouvelle convention resterait celle
-// de l'ancienne, jamais recalculée.
+// Depuis le lot « Z inversé », le moteur ne lit plus cette convention : il compose sa propre
+// projection, en profondeur inversée et plan lointain infini. Le basculement ne change donc AUCUN
+// nombre du moteur, et l'image tenue doit le rester — c'est ce que ce test vérifie.
 //
 //   LAB_ROOT=… node --experimental-strip-types test/depthConventionMoteurComplet.browser.mjs
 import assert from 'node:assert/strict';
@@ -33,22 +32,14 @@ for (const [passe, r] of Object.entries(resultat.passes)) {
   );
   assert.equal(
     r.etapes.find((e) => e.nom === 'webgpu-0').tenue,
-    false,
-    dit('la première image après le passage en WebGPU est restée tenue'),
-  );
-  assert.ok(
-    r.etapes.some((e) => e.nom.startsWith('webgpu-') && e.tenue),
-    dit('l’image WebGPU ne s’est jamais restabilisée'),
+    true,
+    dit('le passage en WebGPU a fait recalculer une image que rien ne change'),
   );
   assert.equal(r.versWebgpu, 0, dit('la convention WebGPU dessine autre chose que WebGL'));
   assert.equal(
     r.etapes.find((e) => e.nom === 'retour-0').tenue,
-    false,
-    dit('la première image après le retour en WebGL est restée tenue'),
-  );
-  assert.ok(
-    r.etapes.some((e) => e.nom.startsWith('retour-') && e.tenue),
-    dit('l’image de retour ne s’est jamais restabilisée'),
+    true,
+    dit('le retour en WebGL a fait recalculer une image que rien ne change'),
   );
   assert.equal(r.versRetour, 0, dit('le retour en WebGL ne redonne pas la même image'));
 }

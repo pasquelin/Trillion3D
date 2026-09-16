@@ -37,7 +37,9 @@ const SHADOW_NORMAL_TEXELS:f32=${LIGHT_SETTINGS.shadowNormalOffsetTexels};
 const POISSON:array<vec2f,${LIGHT_SETTINGS.pcfTaps}>=array<vec2f,${LIGHT_SETTINGS.pcfTaps}>(${POISSON_16.map(
   ([x, y]) => `vec2f(${x},${y})`,
 ).join(',')});
-/** Biais en mètres au point considéré : une surface rasante a besoin de plus de marge qu'une de face. */
+/** Biais en mètres au point considéré : une surface rasante a besoin de plus de marge qu'une de face.
+ *  La marge s'AJOUTE à la référence, la profondeur des ombres étant inversée comme celle de la
+ *  caméra : rapprocher la référence de la lampe, c'est l'augmenter. */
 fn shadowBiasMetres(cosine:f32)->f32{
  return SHADOW_BIAS+min(SHADOW_SLOPE*sqrt(1.0-cosine*cosine)/cosine,SHADOW_SLOPE_MAX);
 }
@@ -73,7 +75,7 @@ fn sunShadowFactor(record:ShadowSlice,cascades:u32,P:vec3f,N:vec3f,L:vec3f)->f32
   let ndc=clip.xyz/clip.w;
   if(abs(ndc.x)>1.0||abs(ndc.y)>1.0||ndc.z<0.0||ndc.z>1.0){continue;}
   let local=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5);
-  return shadowPcf(entry,local,ndc.z-shadowBiasMetres(cosine)*scaleZ,side);
+  return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scaleZ,side);
  }
  // Au-delà de la dernière cascade, l'ombre se teste par un rayon contre le proxy résident. Sans
  // proxy dans le cache, ce rayon rend un, la surface lointaine reste éclairée sans ombre portée,
@@ -107,5 +109,5 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
  let near=record.info.w;
  let far=max(near*1.001,light.positionRange.w);
  let scale=near*far/((far-near)*max(clip.w*clip.w,1e-4));
- return shadowPcf(entry,local,ndc.z-shadowBiasMetres(cosine)*scale,side);
+ return shadowPcf(entry,local,ndc.z+shadowBiasMetres(cosine)*scale,side);
 }`;

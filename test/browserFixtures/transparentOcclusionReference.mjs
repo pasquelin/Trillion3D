@@ -8,7 +8,7 @@
 //
 // Ce qui est vérifié, pour CHAQUE grappe transparente que la carte a retirée : la référence, sur
 // ses propres bornes — plus serrées que celles de la carte —, la rejette elle aussi. Autrement dit
-// `nearest > far + biais` tient encore quand on refuse tout à la carte : sa marge d'erreur, son
+// `nearest < far − biais` tient encore quand on refuse tout à la carte : sa marge d'erreur, son
 // rectangle élargi et son mip plus grossier. Zéro violation est la seule valeur acceptable.
 import { HIZ_BOUNDS_VALUES, projectCornersInto } from '../../packages/sdk-browser/hizCorners.ts';
 import { hizNearestBound } from '../../packages/sdk-browser/hizNearestBound.ts';
@@ -28,8 +28,8 @@ export function emptyOcclusionTotals() {
  * par pose, depuis la profondeur relue, et sert à toutes les grappes de cette pose.
  */
 export function checkOcclusionAudit(audit, total) {
-  // La partition GPU ramène elle-même la profondeur normalisée de l'hôte dans [0, 1] : la référence
-  // reçoit donc la même convention que le noyau, faute de quoi les deux bornes ne se comparent pas.
+  // Une seule convention de profondeur traverse le moteur (`depthConvention.ts`) : la référence et
+  // le noyau lisent la même vue-projection, donc leurs bornes se comparent directement.
   const pyramid = buildHizPyramid(audit.depth, audit.width, audit.height);
   total.poses++;
   total.examinees += audit.examined;
@@ -44,7 +44,6 @@ export function checkOcclusionAudit(audit, total) {
       audit.near,
       audit.width,
       audit.height,
-      false,
       scratch,
       0,
     );

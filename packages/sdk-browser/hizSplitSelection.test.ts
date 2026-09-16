@@ -6,9 +6,11 @@ import { splitOccludersFlat } from './hizSplit.ts';
 const keyDouble = new Float64Array(1),
   keyWords = new Uint32Array(keyDouble.buffer);
 
-/** L'image ordonnable d'une profondeur : ce sur quoi le partage ordonne, et rien d'autre. */
+/** L'image ordonnable d'une profondeur : ce sur quoi le partage ordonne, et rien d'autre. La
+ *  profondeur du moteur est inversée — le plus proche est le plus grand —, donc la clé est celle de
+ *  l'OPPOSÉ, et l'ordre croissant des clés reste celui du plus proche au plus lointain. */
 function orderable(value: number) {
-  keyDouble[0] = value;
+  keyDouble[0] = -value;
   const low = keyWords[0],
     high = keyWords[1];
   const negative = (high & 0x80000000) !== 0;
