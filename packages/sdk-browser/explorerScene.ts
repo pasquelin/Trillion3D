@@ -3,34 +3,49 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { meshes as objects } from './sceneMeshes.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { replicateInstances } from './replicateInstances.ts';
-import { EngineError, type ClusterManifest } from '../sdk-core/index.ts';
+import { emptyWorldBox } from './hostWorldBounds.ts';
+import {
+  BOX_VALUES,
+  EngineError,
+  boxTransform,
+  boxUnion,
+  type ClusterManifest,
+} from '../sdk-core/index.ts';
 import type { BackendContext, ExplorerOptions } from './backendTypes.ts';
 import type { ExplorerEmitters } from './explorerSession.ts';
 
-/** World bounds of the exact pages of every mesh of `source`; `onMissing` decides what a mesh
- *  without a prepared primitive does, and the mesh is skipped once it returns. */
+/** Une boîte à plat de travail, reprise d'une page à l'autre : rien n'est alloué par page. */
+const page = new Float64Array(BOX_VALUES);
+
+/** World bounds of the exact pages of every mesh of `source`, à plat `[minX..maxZ]` ; `onMissing`
+ *  decides what a mesh without a prepared primitive does, and the mesh is skipped once it returns.
+ *  La transformation et l'union sont celles du socle, donc celles de la référence, terme à terme. */
 export function exactPagesBounds(
   source: THREE.Object3D,
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
   onMissing: (mesh: THREE.Mesh) => void,
-  into = new THREE.Box3(),
+  into = emptyWorldBox(),
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives);
-  // Une boîte et ses deux bornes, reprises d'une page à l'autre : la transformation et l'union sont
-  // celles de Three.js, mot pour mot, mais sans les trois objets que chaque page allouait.
-  const page = new THREE.Box3();
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) {
       onMissing(mesh);
       continue;
     }
+    // La matrice monde du nœud hôte se LIT, une fois par maillage : le moteur ne la recompose pas.
+    const world = mesh.matrixWorld.elements;
     for (const item of primitive.pages)
       if ((item.role ?? 'exact') === 'exact') {
-        page.min.fromArray(item.min);
-        page.max.fromArray(item.max);
-        into.union(page.applyMatrix4(mesh.matrixWorld));
+        page[0] = item.min[0];
+        page[1] = item.min[1];
+        page[2] = item.min[2];
+        page[3] = item.max[0];
+        page[4] = item.max[1];
+        page[5] = item.max[2];
+        boxTransform(page, 0, page, 0, world);
+        boxUnion(into, 0, page[0], page[1], page[2], page[3], page[4], page[5]);
       }
   }
   return into;
