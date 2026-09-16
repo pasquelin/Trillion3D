@@ -132,6 +132,8 @@ const AUTORISES = {
   webgpuPagesStateVis: 'contrat : géométries et textures de l’hôte',
   webgpuPositions: 'attribut de position de la géométrie hôte',
   webgpuPresentationSetup: 'la présentation passe par une scène et un matériau de l’hôte',
+  textureFrameViews: 'matrice monde de la racine hôte',
+  textureUvSpan: 'attribut uv de la géométrie hôte',
   webgpuTexturePriority: 'textures du matériau hôte',
 };
 

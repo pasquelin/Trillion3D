@@ -13,6 +13,7 @@ import {
 } from './pageSelection.ts';
 import { lighting } from './webgpuPagesHelpers.ts';
 import { RASTER_BACKGROUND } from './pageRaster.ts';
+import { defaultTextureBudgetBytes } from './textureBudget.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
@@ -126,5 +127,13 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     frameBudget,
     reserveHiz,
     textureBudget,
+    // Octets de textures que la session s'autorise à engager sur la carte : ce que l'hôte demande,
+    // sinon une valeur tirée des limites de l'appareil et bornée des deux côtés.
+    textureResidencyBudget: Math.max(
+      1,
+      Number.isFinite(context.textureBudgetBytes)
+        ? context.textureBudgetBytes!
+        : defaultTextureBudgetBytes(gpuDevice),
+    ),
   };
 }

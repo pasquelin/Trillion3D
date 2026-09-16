@@ -1,6 +1,7 @@
 import { regenerateClassMips, type WebgpuAtlas } from './webgpuAtlasCommon.ts';
 import type { TextureJob } from './webgpuAtlasJobs.ts';
 import type { SlotPyramid } from './webgpuAtlasSlots.ts';
+import type { createTextureBudget } from './textureBudget.ts';
 
 /** Tranches qu'un appareil peut refuser pour un même niveau avant qu'il quitte la file :
  *  au troisième refus il est abandonné, compté dans `textureSkipped`, plus jamais réessayé. */
@@ -33,6 +34,12 @@ export function createWebgpuTexturePump(options: {
   dataAtlas: () => WebgpuAtlas | undefined;
   /** Réordonne la file selon ce que la caméra regarde, entre deux tranches seulement. */
   order: (jobs: TextureJob[]) => void;
+  /** Le registre d'octets engagés : il admet un niveau, ou défait un transfert moins utile. */
+  ledger: ReturnType<typeof createTextureBudget>;
+  /** Un niveau de plus est résident sur ce slot, quelle que soit sa nature. */
+  onResident: (kind: TextureJob['kind'], slot: number, level: number) => void;
+  /** Vrai dès qu'une caméra a dicté un ordre : avant, seules les queues d'aperçus partent. */
+  screenKnown: () => boolean;
   /** Un niveau progressif de plus est résident sur ce slot, dans la pyramide que porte son travail. */
   onLevel: (slot: number, level: number, pyramid: SlotPyramid | undefined) => void;
   /** Les slots couleur dont la vraie texture est transférée et remipmappée passent à « prêt ». */
@@ -51,6 +58,7 @@ export function createWebgpuTexturePump(options: {
   const colorClasses: ClassLayers = new Map(),
     dataClasses: ClassLayers = new Map();
   const finished = (job: TextureJob) => {
+    options.onResident(job.kind, job.slot, job.level);
     if (job.stage === 0) {
       levels++;
       options.onLevel(job.slot, job.level, job.pyramid);
@@ -63,12 +71,28 @@ export function createWebgpuTexturePump(options: {
     else byClass.set(job.classIndex, [job.layer]);
     if (job.kind === 'color') readySlots.push(job.slot);
   };
-  /** Transfère des tranches tant que le budget de l'image en laisse tenir une, file en tête. */
-  const admit = () => {
-    const { jobs, budget } = options;
-    let admitted = 0;
-    while (jobs.length) {
-      const job = jobs[0];
+  /**
+   * Transfère des tranches tant que le budget de l'image en laisse tenir une. La file est parcourue
+   * dans son ordre : un niveau que le registre d'octets refuse est sauté, jamais abandonné — il
+   * repassera quand la caméra le rendra utile ou qu'un transfert moins utile aura libéré sa place.
+   */
+  const admit = (unbounded: boolean) => {
+    const { jobs, budget, ledger } = options;
+    let admitted = 0,
+      at = 0;
+    while (at < jobs.length) {
+      const job = jobs[at];
+      // Avant la première caméra, la pleine résolution attend : la préparation transfère les queues
+      // d'aperçus, qui rendent l'image lisible, et laisse l'écran dicter la suite. Une barrière
+      // explicite (`flush`) passe outre — elle doit converger, caméra ou non.
+      if (job.stage === 1 && !unbounded && !options.screenKnown()) {
+        at++;
+        continue;
+      }
+      if (!ledger.admits(job, jobs, unbounded)) {
+        at++;
+        continue;
+      }
       const room = Math.floor((budget - admitted) / job.bytesPerRow);
       // La ligne est indivisible : sans cette première ligne admise hors budget, une texture dont
       // une seule ligne dépasse le budget d'une image n'avancerait jamais.
@@ -79,7 +103,8 @@ export function createWebgpuTexturePump(options: {
       } catch (error) {
         options.onFailure('progressive-texture-upload-failed', error);
         if (++job.failures >= MAX_FAILURES) {
-          jobs.shift();
+          ledger.commit(-job.nextRow * job.bytesPerRow);
+          jobs.splice(at, 1);
           skipped++;
           options.onAbandon({
             reason: 'transfer-refused',
@@ -95,15 +120,17 @@ export function createWebgpuTexturePump(options: {
       }
       job.nextRow += rows;
       admitted += rows * job.bytesPerRow;
+      ledger.commit(rows * job.bytesPerRow);
       slices++;
-      // Un niveau inachevé garde la tête : le budget de l'image est épuisé à une ligne près.
+      // Un niveau inachevé garde sa place : le budget de l'image est épuisé à une ligne près.
       if (job.nextRow < job.rows) break;
-      jobs.shift();
+      jobs.splice(at, 1);
       finished(job);
     }
     bytesLastPass = admitted;
   };
-  const pump = () => {
+  /** `unbounded` lève le budget d'octets engagés : seul `flush()` le demande, pour converger. */
+  const pump = (unbounded = false) => {
     const { device, jobs } = options;
     if (pending || !jobs.length || !device) return pending ?? Promise.resolve();
     const run = async () => {
@@ -111,7 +138,7 @@ export function createWebgpuTexturePump(options: {
       colorClasses.clear();
       dataClasses.clear();
       options.order(jobs);
-      admit();
+      admit(unbounded);
       const color = options.colorAtlas(),
         data = options.dataAtlas();
       if (color && colorClasses.size) {
