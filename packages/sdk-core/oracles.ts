@@ -6,6 +6,12 @@ export {
   screenErrorBound,
   coneRejects,
 } from './projectionOracles.ts';
+export {
+  referenceScreenError,
+  screenErrorVariant,
+  setScreenErrorVariant,
+  type ScreenErrorVariant,
+} from './screenErrorVariant.ts';
 export { matrixWindingCw } from './matrixOrientation.ts';
 export {
   HIZ_BACKGROUND,

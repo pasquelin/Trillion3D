@@ -4,6 +4,7 @@ import type {
   CameraPose,
   MathPathMode,
   PreparationProgress,
+  ScreenErrorVariant,
 } from '../sdk-core/index.ts';
 import type { ComparisonLayout } from './comparison.ts';
 import type { BackendDiagnostic, BackendFactory, DiagnosticDetail } from './backendTypes.ts';
@@ -76,5 +77,9 @@ export interface ExplorerOptions {
    *  JavaScript de référence et le module WebAssembly. `'js'` ou `'wasm'` l'imposent pour une
    *  campagne ; `'wasm'` retombe sur `'js'` là où le module manque, et le dit dans les métriques. */
   mathPath?: MathPathMode;
+  /** EXPÉRIENCE de mesure (`sdk-core/screenErrorVariant.ts`) : la métrique d'erreur écran des
+   *  clusters. `'certifiee'` par défaut, la nôtre ; `'reference'` met la projection simple de la
+   *  référence externe, processeur et carte graphique au même résultat au f32 près. */
+  screenError?: ScreenErrorVariant;
   logInterval?: number;
 }
