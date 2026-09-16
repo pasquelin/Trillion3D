@@ -7,17 +7,22 @@ use super::*;
 use usd_driver::{compile_layer, wrap};
 use usd_matiere::unsupported;
 
-/// Compile un maillage seul et rend son nombre de triangles et le compte des faces invalides.
-fn mesh_run(tag: &str, attributes: &str) -> (Value, Value) {
+/// Compile un maillage seul, au schéma de subdivision que le cas nomme.
+fn mesh_layer(tag: &str, attributes: &str, scheme: &str) -> GoldenRun {
     let body = format!(
         r#"
     def Mesh "Quad"
     {{
-{attributes}        uniform token subdivisionScheme = "none"
+{attributes}        uniform token subdivisionScheme = "{scheme}"
     }}
 "#
     );
-    let run = compile_layer(tag, &wrap("", &body));
+    compile_layer(tag, &wrap("", &body))
+}
+
+/// Le nombre de triangles d'un maillage sans subdivision, et le compte de ses faces invalides.
+fn mesh_run(tag: &str, attributes: &str) -> (Value, Value) {
+    let run = mesh_layer(tag, attributes, "none");
     let faces = unsupported(&run)["usd-face-invalid"].clone();
     (run.result["sourceTriangles"].clone(), faces)
 }
@@ -71,5 +76,49 @@ fn a_face_whose_indices_leave_the_arrays_is_counted_and_dropped_never_clamped() 
         mesh_run("face-primvar", &primvar),
         (json!(2), json!(1)),
         "un indice de primvar négatif retire sa face au lieu de lire le rang zéro"
+    );
+}
+
+/// Le ruban entier, ses deux quadrilatères, et les trous que le cas déclare.
+fn ribbon(holes: &str) -> String {
+    format!("        int[] faceVertexCounts = [4, 4]\n        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]\n{POINTS}        int[] holeIndices = [{holes}]\n")
+}
+
+// Constat A11 : `holeIndices` nomme les faces qu'OpenUSD rend invisibles. Elles étaient lues nulle
+// part : le ruban sortait entier, quatre triangles, et le rapport ne disait rien. Elles sortent
+// maintenant de la surface et sont comptées, quel que soit le schéma de subdivision — une face
+// invisible l'est avant toute subdivision.
+#[test]
+fn les_faces_de_holeindices_sortent_de_la_surface_et_sont_comptees() {
+    let run = mesh_layer("trou", &ribbon("1"), "none");
+    assert_eq!(
+        (
+            run.result["sourceTriangles"].clone(),
+            unsupported(&run)["usd-face-hole"].clone()
+        ),
+        (json!(2), json!(1)),
+        "la face nommée sort du ruban et son retrait est compté"
+    );
+
+    let subdivided = mesh_layer("trou-subdivise", &ribbon("1"), "catmullClark");
+    assert_eq!(
+        (
+            subdivided.result["sourceTriangles"].clone(),
+            unsupported(&subdivided)["usd-face-hole"].clone(),
+            unsupported(&subdivided)["usd-subdivision-unsupported"].clone()
+        ),
+        (json!(2), json!(1), json!(1)),
+        "le trou vaut aussi sous une subdivision non rendue"
+    );
+
+    let outside = mesh_layer("trou-hors", &ribbon("7"), "none");
+    assert_eq!(
+        (
+            outside.result["sourceTriangles"].clone(),
+            unsupported(&outside)["usd-face-hole"].clone(),
+            unsupported(&outside)["usd-face-invalid"].clone()
+        ),
+        (json!(4), Value::Null, json!(1)),
+        "un indice de trou hors du tableau des faces est une face invalide, pas un trou"
     );
 }

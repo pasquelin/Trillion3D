@@ -27,6 +27,7 @@ pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, key: &str) -> Optio
     let double_sided = read::first(&prim.attribute("doubleSided"))
         .and_then(|(value, _)| read::flag(&value))
         .unwrap_or(false);
+    let holes = holes(world, prim, faces.len());
     let parts = subset::parts(world, prim, faces.len(), double_sided);
     let identity = (
         key.to_string(),
@@ -35,7 +36,7 @@ pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, key: &str) -> Optio
     if let Some(known) = world.meshes.get(&identity) {
         return Some(*known);
     }
-    let surface = surface::Surface::read(world, prim, points, corners, faces);
+    let surface = surface::Surface::read(world, prim, points, corners, faces, holes);
     emit(world, prim, &surface, &parts, identity)
 }
 
@@ -105,6 +106,32 @@ fn array<T>(
             None
         }
     }
+}
+
+/// Les faces que `holeIndices` nomme. OpenUSD les rend invisibles, et le schéma de subdivision n'y
+/// change rien : une face invisible l'est avant toute subdivision. Chaque face retirée est comptée
+/// une fois — un indice répété ne retire qu'une face —, et un indice qui sort du tableau des faces
+/// est compté comme toute face qu'un maillage déclare et que ses tableaux ne portent pas.
+fn holes(world: &mut World<'_>, prim: &usd::Prim, faces: usize) -> BTreeSet<usize> {
+    let mut out = BTreeSet::new();
+    let Some((value, sampled)) = read::first(&prim.attribute("holeIndices")) else {
+        return out;
+    };
+    if sampled {
+        world.refuse(world::TIME_SAMPLE);
+    }
+    let Some(indices) = read::integers(&value) else {
+        world.refuse(world::MESH_INVALID);
+        return out;
+    };
+    for index in indices {
+        match usize::try_from(index).ok().filter(|face| *face < faces) {
+            Some(face) if out.insert(face) => world.refuse(world::FACE_HOLE),
+            Some(_) => {}
+            None => world.refuse(world::FACE_INVALID),
+        }
+    }
+    out
 }
 
 /// Un attribut du maillage lu en texte — `subdivisionScheme`, `orientation`.

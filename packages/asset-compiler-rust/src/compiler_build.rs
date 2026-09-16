@@ -34,6 +34,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let key = compiler_identity::cache_key(o, &loaded, &image_root)?;
     let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
+    // Une hiérarchie qui se referme sur elle-même est refusée avant toute publication : le parcours
+    // des matrices monde part des nœuds sans père, et ne verrait jamais un cycle fermé.
+    compiler_nodes::check_acyclic(g)?;
     // L'ensemble des nœuds de la scène rendue, partagé par la sélection, le proxy et les lampes.
     let scene_nodes = compiler_nodes::scene_nodes(g)?;
     let NodeSelection {
@@ -148,24 +151,14 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Les lampes déclarées par le fichier source, en espace monde, dans le contrat du moteur.
     stage_scene_lights(g, &scene_nodes, &directory, &progress)?;
-    let autonomous_scene = compiler_autonomous::write_autonomous_scene(
+    let (autonomous_scene, autonomous_refusal) = compiler_autonomous::write_autonomous_scene(
         &directory,
         &source,
         &primitives,
         &output_views,
     )?;
-    let mut unsupported = vec!["hard RSS enforcement", "N-API binding"];
-    if o.simplification == "none" {
-        unsupported.insert(0, "simplification");
-    }
-    let cache_format = if primitives
-        .iter()
-        .any(|primitive| primitive["pass"] == "clustered-blend")
-    {
-        CLUSTERED_BLEND_FORMAT_VERSION
-    } else {
-        FORMAT_VERSION
-    };
+    let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
+    let cache_format = compiler_format::cache_format(&primitives);
     let result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"proxy":proxy_descriptor,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen,"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"wallMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phases":perf::PHASES.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     // The manifest travels as a small JSON plus a binary of typed-array columns: a reader maps the
     // columns instead of tokenizing tens of megabytes before its first frame.

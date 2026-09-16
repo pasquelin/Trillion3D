@@ -1,19 +1,49 @@
 use super::*;
 
+/// Ce que ce format ne porte pas : l'animation des nœuds, le skinning, les poids de morphing. Les
+/// annoncer puis les retirer promettait au consommateur une scène qu'il n'aurait pas reconnue ;
+/// c'est le mode entier qui est refusé pour ces scènes, et ce refus est compté par ce nom.
+pub(super) const ANIMATED: &str = "autonomous-scene-animated";
+
+/// La scène source déclare-t-elle du mouvement ou de la déformation ? Une animation ou un skinning
+/// vide ne déclare rien : c'est ce que le fichier porte qui décide, pas la présence du tableau.
+fn deformed(source: &Value) -> bool {
+    let declared = |name: &str| {
+        source
+            .get(name)
+            .and_then(Value::as_array)
+            .is_some_and(|items| !items.is_empty())
+    };
+    declared("animations")
+        || declared("skins")
+        || source
+            .get("nodes")
+            .and_then(Value::as_array)
+            .is_some_and(|nodes| {
+                nodes
+                    .iter()
+                    .any(|node| node.get("skin").is_some() || node.get("weights").is_some())
+            })
+}
+
 /// The self-contained glTF a host loads when it draws the cache without the source: same nodes,
 /// same materials, same images, but every primitive reduced to a single degenerate triangle. The
-/// geometry itself comes from the cluster pages. `Value::Null` when the cache is not eligible.
+/// geometry itself comes from the cluster pages. `Value::Null` when the cache is not eligible, with
+/// the named reason when it is the source's own movement that puts it out of reach.
 pub(super) fn write_autonomous_scene(
     directory: &Path,
     source: &Value,
     primitives: &[Value],
     output_views: &[Value],
-) -> Result<Value> {
+) -> Result<(Value, Option<&'static str>)> {
     if !primitives.is_empty()
         && primitives
             .iter()
             .all(|primitive| primitive["pass"] == "exact-clusters")
     {
+        if deformed(source) {
+            return Ok((Value::Null, Some(ANIMATED)));
+        }
         let mut scene = source.clone();
         let mut scene_bytes = vec![0u8; 44];
         for (i, value) in [0u16, 1, 2].iter().enumerate() {
@@ -63,21 +93,9 @@ pub(super) fn write_autonomous_scene(
                 }
             }
         }
-        if let Some(object) = scene.as_object_mut() {
-            object.remove("skins");
-            object.remove("animations");
-        }
-        if let Some(nodes) = scene.get_mut("nodes").and_then(Value::as_array_mut) {
-            for node in nodes {
-                if let Some(object) = node.as_object_mut() {
-                    object.remove("skin");
-                    object.remove("weights");
-                }
-            }
-        }
         atomic(&directory.join("scene.bin"), &scene_bytes)?;
         atomic(&directory.join("scene.gltf"), &serde_json::to_vec(&scene)?)?;
-        return Ok(json!("scene.gltf"));
+        return Ok((json!("scene.gltf"), None));
     }
-    Ok(Value::Null)
+    Ok((Value::Null, None))
 }

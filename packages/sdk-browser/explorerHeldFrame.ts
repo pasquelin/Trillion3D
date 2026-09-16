@@ -19,7 +19,13 @@ export function createHeldFrame() {
     width = 0,
     height = 0,
     kept = false;
-  const material = new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false });
+  // Le tampon copié porte déjà la sortie d'affichage : la correction de tonalité lui a été appliquée
+  // avant la copie, et la réappliquer éclaircirait l'image tenue à chaque présentation.
+  const material = new THREE.MeshBasicMaterial({
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
   quad.frustumCulled = false;
@@ -43,9 +49,21 @@ export function createHeldFrame() {
       renderer.copyFramebufferToTexture(texture);
       kept = true;
     },
-    /** Réaffiche l'image gardée : un quad plein écran, une commande, rien de la scène. */
+    /**
+     * Réaffiche l'image gardée : un quad plein écran, une commande, rien de la scène.
+     *
+     * La copie est un relevé brut du tampon de dessin : elle porte déjà la conversion de sortie et
+     * la correction de tonalité de l'image complète. La reposer telle quelle exige donc que rien ne
+     * la retouche — `toneMapped` est faux sur le matériau, et la conversion de sortie est neutre le
+     * temps de cette commande. Sans cela, des valeurs déjà encodées seraient relues comme linéaires
+     * puis réencodées, et l'image tenue s'éclaircirait. La copie reste sans espace couleur déclaré :
+     * une texture sRGB ne peut pas recevoir `copyFramebufferToTexture`.
+     */
     present(renderer: THREE.WebGLRenderer) {
+      const sortie = renderer.outputColorSpace;
+      renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
       renderer.render(scene, camera);
+      renderer.outputColorSpace = sortie;
     },
   };
 }

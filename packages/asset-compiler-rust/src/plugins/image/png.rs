@@ -14,7 +14,7 @@
 //! compte l'animation plutôt que de laisser les autres trames disparaître sans un mot. Un morceau
 //! `iCCP` porte un profil colorimétrique que la sortie ne porte pas : son nom, écrit en clair devant
 //! le profil compressé, suffit à dire s'il s'agit du sRGB de la sortie ou d'autre chose à compter.
-use super::{crate_image, icc, ImageDecoded, ImageDecoder, Plugin};
+use super::{crate_image, icc, ImageDecoded, ImageDecoder, Plugin, Transfer};
 
 mod chunks;
 
@@ -37,6 +37,18 @@ const ANIMATION_CHUNK: &[u8] = b"acTL";
 /// Le morceau qui porte un profil colorimétrique : son nom en clair, un octet de méthode de
 /// compression, puis le profil compressé. Seul le nom se lit sans décompresser quoi que ce soit.
 const PROFILE_CHUNK: &[u8] = b"iCCP";
+/// Le morceau qui déclare la sortie écrite dans l'espace sRGB, et l'intention de rendu avec.
+const SRGB_CHUNK: &[u8] = b"sRGB";
+/// Le morceau qui déclare la gamma du fichier, multipliée par cent mille sur quatre octets.
+const GAMMA_CHUNK: &[u8] = b"gAMA";
+/// La gamma d'une image écrite dans la courbe sRGB : 1/2,2, que la spécification arrondit ainsi.
+const SRGB_GAMMA: u32 = 45_455;
+/// La gamma d'une image dont les échantillons sont proportionnels à la lumière : 1 exactement.
+const LINEAR_GAMMA: u32 = 100_000;
+/// Une gamma qui n'est ni celle de la courbe sRGB ni l'unité. Le contrat porte deux courbes et ne
+/// sait pas en appliquer une troisième : l'image sort traitée en sRGB, comme le veut la convention
+/// pour un fichier qui se tait, et l'écart est compté plutôt que passé sous silence.
+const TRANSFER: &str = "image-transfer-unsupported";
 
 /// Le type du premier morceau, qui est toujours l'IHDR : signature de huit octets, puis la longueur
 /// du morceau sur quatre.
@@ -54,7 +66,7 @@ impl Plugin for Png {
     /// sans elle, une entrée produite quand le 16 bits était abaissé, ou quand un APNG était aplati
     /// sans un mot, continuerait d'être relue comme si elle était juste.
     fn version(&self) -> &'static str {
-        "png-image-0.25-depth8-apng-icc"
+        "png-image-0.25-depth8-apng-icc-gama"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["png"]
@@ -80,20 +92,47 @@ impl ImageDecoder for Png {
             return Err(DEPTH);
         }
         let decoded = crate_image::decode(bytes, max_alloc, image::ImageFormat::Png)?;
-        Ok(decoded.with_notes(declarations(bytes)))
+        let (transfer, notes) = declarations(bytes);
+        Ok(decoded.with_transfer(transfer).with_notes(notes))
     }
 }
 
-/// Ce que les morceaux déclarent et que la sortie ne porte pas. Le parcours s'arrête au premier
-/// morceau coupé : un fichier tronqué est jugé par le décodeur de pixels, pas deviné ici.
-fn declarations(bytes: &[u8]) -> Vec<&'static str> {
-    chunks::of(bytes)
-        .filter_map(|(kind, data)| match kind {
-            ANIMATION_CHUNK => Some(ANIMATION),
-            PROFILE_CHUNK => icc::note(name(data)),
-            _ => None,
-        })
-        .collect()
+/// La courbe que le fichier déclare, et ce qu'il déclare d'autre que la sortie ne porte pas. Le
+/// parcours s'arrête au premier morceau coupé : un fichier tronqué est jugé par le décodeur de
+/// pixels, pas deviné ici.
+///
+/// La priorité est celle du format, du plus précis au plus vague : un profil `iCCP` décrit la
+/// courbe lui-même, un morceau `sRGB` la nomme, et `gAMA` seul ne dit qu'une gamma. Les deux
+/// premiers laissent donc la sortie en sRGB — le profil est déjà compté comme non converti —, et
+/// c'est faute d'eux que la gamma décide.
+fn declarations(bytes: &[u8]) -> (Transfer, Vec<&'static str>) {
+    let mut notes = Vec::new();
+    let mut described = false;
+    let mut gamma = None;
+    for (kind, data) in chunks::of(bytes) {
+        match kind {
+            ANIMATION_CHUNK => notes.push(ANIMATION),
+            PROFILE_CHUNK => {
+                described = true;
+                notes.extend(icc::note(name(data)));
+            }
+            SRGB_CHUNK => described = true,
+            GAMMA_CHUNK => {
+                gamma = data
+                    .get(..4)
+                    .map(|value| u32::from_be_bytes([value[0], value[1], value[2], value[3]]));
+            }
+            _ => {}
+        }
+    }
+    match gamma.filter(|_| !described) {
+        Some(LINEAR_GAMMA) => (Transfer::Linear, notes),
+        Some(SRGB_GAMMA) | None => (Transfer::Srgb, notes),
+        Some(_) => {
+            notes.push(TRANSFER);
+            (Transfer::Srgb, notes)
+        }
+    }
 }
 
 /// Le nom d'un profil, la partie du morceau `iCCP` qui précède le premier octet nul. Le profil
