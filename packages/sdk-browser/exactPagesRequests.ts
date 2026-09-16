@@ -11,6 +11,8 @@ import {
   type ClusterRoot,
 } from './pageSelection.ts';
 import { orderPendingUrls, pixelScaleOf } from './streamingPriority.ts';
+import { applyArrivalPlan, createArrivalSpecs } from './pageArrivalSpecs.ts';
+import type { ArrivalPlan } from './pageIntegrationHost.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 
 export function createExactPagesRequestData(allPages: PageRec[], requestCount: number) {
@@ -95,7 +97,11 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     scene,
     resourcesChanged,
   } = ctx;
+  // Le rang de page de la coupe WebGL vit dans les lots, pas dans une table de pages : la fiche ne
+  // porte donc que la place de chaque enregistrement dans le paquet et sa taille.
+  const pageSpecs = createArrivalSpecs(byUrl, () => undefined);
   return {
+    pageSpecs,
     pendingUrls() {
       // The root cover is requested first and never dropped: it is what the cut falls back on.
       missingRoots.length = 0;
@@ -156,10 +162,12 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
     },
     // One request carries a whole bundle: every record it holds takes the view at its own offset, and
     // each of those views is what the batch writes into the primitive's index buffer.
-    acceptPage(url: string, array: Uint32Array) {
+    acceptPage(url: string, array: Uint32Array, plan?: ArrivalPlan) {
       const recs = byUrl.get(url);
       if (!recs) return;
-      acceptPageArray(recs, array);
+      // Les vues du paquet viennent du plan calculé hors fil ; sans plan, le même calcul se refait
+      // en ligne, au même résultat. Les lots n'écrivent ensuite que les plages ainsi nommées.
+      if (!applyArrivalPlan(recs, array, plan)) acceptPageArray(recs, array);
       batches.acceptPage(recs, array);
       resourcesChanged();
     },
