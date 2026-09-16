@@ -104,7 +104,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.2.0",
+  "compilerVersion": "0.3.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
@@ -127,7 +127,7 @@ stdout for one job:
 
 A cache never needs to be wiped before recompiling: after every successful job the compiler removes the other keys of the scope, the stale FBX/OBJ imports and every object under `objects/` that no surviving manifest (either scope) references. Deleting a large cache by hand costs tens of seconds (Emerald: 80 000 files); recompiling over it costs nothing extra.
 
-`key` is a SHA-256 over the source manifest, the source binary, the compiler version, the compiler's own source files, scope, budget, `RESOURCE_BASE_URL` and simplification. Changing any of them produces a new `<key>` directory; the pointer always names the latest one. Nothing is deleted automatically.
+`key` is a SHA-256 over the product's identity: what the source declares, the resources the compile actually consumes, and the options that shape the output — the source manifest, the source binary, **every image the scene links by relative URI** (its fingerprint, `null` when the file is absent), the compiler version, the compiler's own source files, scope, budget, `RESOURCE_BASE_URL` and simplification. Changing any of them produces a new `<key>` directory; the pointer always names the latest one. Nothing is deleted automatically.
 
 ## Batch mode
 

@@ -6,7 +6,7 @@
 //! La règle est celle de glTF 2.0, qui veut une référence relative RFC 3986 : tout octet hors des
 //! caractères non réservés `A-Z a-z 0-9 - . _ ~` s'écrit `%XX`, et le séparateur de composants est
 //! le seul `/` qui subsiste.
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Les caractères qu'une URI porte sans échappement.
 fn unreserved(byte: u8) -> bool {
@@ -52,6 +52,25 @@ pub(crate) fn decode(uri: &str) -> Option<String> {
         }
     }
     String::from_utf8(out).ok()
+}
+
+/// Le fichier qu'une URI d'image de glTF désigne sous une racine de résolution, sans jamais en
+/// sortir : chaque composant doit être un nom de fichier ordinaire, ni `.`, ni `..`, ni racine, ni
+/// séparateur de plateforme. Le refus est nommé — c'est une ligne de rapport pour l'appelant qui en
+/// tient un, et l'absence d'empreinte pour celui qui calcule une identité.
+pub(crate) fn resolve_under(root: &Path, uri: &str) -> Result<PathBuf, &'static str> {
+    if !crate::relative_image_uri(uri) {
+        return Err("image-uri-not-relative");
+    }
+    let relative = decode(uri).ok_or("image-uri-undecodable")?;
+    let mut path = root.to_path_buf();
+    for component in relative.split('/') {
+        if !crate::is_safe_source_name(component) {
+            return Err("image-uri-outside-source");
+        }
+        path.push(component);
+    }
+    Ok(path)
 }
 
 #[cfg(test)]
