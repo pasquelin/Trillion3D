@@ -107,8 +107,12 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           }
         }
       });
-      const urls = backend.pageUrls?.();
-      if (urls) streamer.retain(urls);
+      const ranks = backend.retainedRanks?.();
+      if (ranks) streamer.retainRanks(ranks);
+      else {
+        const urls = backend.pageUrls?.();
+        if (urls) streamer.retain(urls);
+      }
     }
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
