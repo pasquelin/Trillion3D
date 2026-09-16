@@ -113,6 +113,10 @@ export function refreshBlendPlan(blendState: BlendState) {
   }
   blendState.planBlend = Uint32Array.from(blend);
   blendState.planTransmission = Uint32Array.from(transmission);
+  // L'ordre de peinture repart de l'ordre source : c'est la seule fois qu'il est semé, et le
+  // classement par image le reprend ensuite sur place, sans jamais rallouer.
+  blendState.orderBlend = blendState.planBlend.slice();
+  blendState.orderTransmission = blendState.planTransmission.slice();
   blendState.blendTriangles = blendTriangles;
   blendState.transmissionTriangles = transmissionTriangles;
 }
