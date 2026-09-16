@@ -114,14 +114,27 @@ il y a 36 ms d'ombrage caché dont la présentation porte la queue.
    de l'étage de fragments du cas courant (variantes de pipeline par matériau), ou faire précéder le
    mélange d'un test de profondeur. Justifié par `plat` et `sommets` à 7,9 ms, image identique, et
    par les 0 fragment comptés. La présentation suit : 22 → 0,4 ms. Image ~56 → ~21 ms.
-2. **Occlure les grappes transparentes — ~7 ms et 4200 appels.** `webgpuTransparentCompact.ts` ne
-   lit que le masque de la coupe ; il n'a ni Hi-Z ni requête d'occlusion, et `capabilities` déclare
-   « occlusion culling » non supporté. Rien ne retire une grappe transparente entièrement cachée,
-   alors que la pyramide Hi-Z de l'image existe déjà. Justifié par les 0 fragment et les 4232 appels.
-3. **Réduire le nombre d'appels — une part des 7,9 ms.** 4232 appels de mélange contre 15 pour tout
-   le reste. La ventilation ne sépare pas la soumission des appels de la rasterisation : la variante
-   (d) « un seul appel par matériau » n'a pas été implémentée, l'ordre source par item étant la
-   sémantique de la passe. Ce levier est le plancher qui restera après 1 et 2, à chiffrer à part.
+2. ~~**Occlure les grappes transparentes — ~7 ms et 4200 appels.**~~ **Fait, et bien plus que 7 ms.**
+   La compaction des transparents teste chaque grappe contre la pyramide Hi-Z de l'image avec les
+   MÊMES règles que la partition opaque — la même projection conservatrice (`gpuBoxProjectWgsl.ts`),
+   le même choix de mip et le même dépouillement (`gpuHizRectWgsl.ts`), et le MÊME tampon d'uniforme,
+   celui que la partition vient d'écrire. Une grappe entièrement derrière l'opaque sort de la table ;
+   l'ordre des retenues ne bouge pas. Campagne `--avant dd3d604d` caméra mobile, même campagne des
+   deux côtés : transparents 21,25 → 0,21 ms et présentation 0,65 → 0,02 ms (`rue`), 20,75 → 0,20 et
+   0,67 → 0,03 (`sol`) ; image 33,05 → 13,15 et 32,98 → 13,90. Écart 0 px, coupe identique, témoin
+   A/A 0 px ; caméra immobile, l'image est tenue, 0 px des deux vues. Preuve par grappe :
+   `test/partitionGpuConservatrice.browser.mjs` rejoue la référence double précision sur la
+   profondeur relue — 6 391 446 grappes retirées sur 32 225 760 examinées, 30 poses, 0 violation.
+   Le nombre d'appels, lui, NE bouge pas (4232 / 4288) : ils dessinent zéro instance.
+3. **Réduire le nombre d'appels — plancher atteint, rien à gagner.** 4232 appels pour 2116 items
+   visibles, 4288 pour 2144 : exactement DEUX par item, parce que chaque item transparent visible de
+   ce banc est double face et que ses deux appels demandent deux pipelines opposés — jamais
+   fusionnables. Entre deux items, `drawBlendPass` repose un groupe de liaison à chaque fois : les
+   décalages dynamiques d'uniforme et de volume sont par item. Le plancher de la fusion des appels
+   CONSÉCUTIFS partageant pipeline, groupe de liaison et couche vaut donc 4232 sur 4232, soit 0 % —
+   très loin des 20 % qui justifieraient le lot. Et le prix restant est borné : la passe entière vaut
+   0,21 ms GPU. Le coût qui reste est processeur (1,9 ms d'encodage), et il demanderait des
+   paramètres par item indexés par instance, pas une fusion d'appels.
 
 ## Le code de diagnostic
 
