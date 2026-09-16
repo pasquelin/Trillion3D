@@ -8,7 +8,7 @@
 //!
 //! Tout ce qui est lu ici est borné deux fois : par la taille du fichier, et par un plafond nommé.
 //! Un pointeur corrompu ne fait donc ni paniquer ni allouer un gigaoctet — il rend un refus nommé.
-use super::{FILE_INVALID, HDF5_UNSUPPORTED, SIZE_UNSUPPORTED};
+use super::{FILE_INVALID, HDF5_UNSUPPORTED, NOT_FROZEN, SIZE_UNSUPPORTED, VERSION_UNSUPPORTED};
 use crate::{CompilerError, Result};
 use memmap2::Mmap;
 use std::{fs::File, path::Path};
@@ -17,6 +17,10 @@ use std::{fs::File, path::Path};
 pub(super) const MAGIC: &[u8] = b"Ogawa";
 /// L'entête du conteneur HDF5, l'emballage historique d'Alembic, que ce pilote ne lit pas.
 const HDF5_MAGIC: &[u8] = b"\x89HDF";
+/// L'octet que l'écrivain pose en refermant l'archive : elle est alors complète, donc lisible.
+const FROZEN: u8 = 0xff;
+/// La seule version du format que ce lecteur lit, et la seule que le format ait publiée.
+const VERSION: u16 = 1;
 /// Le bit qui distingue une donnée d'un groupe dans un pointeur d'enfant.
 const DATA_BIT: u64 = 0x8000_0000_0000_0000;
 /// Le reste du pointeur : l'adresse du bloc dans le fichier.
@@ -69,10 +73,25 @@ impl Ogawa {
         if !map.starts_with(MAGIC) {
             return Err(invalid(format!("{name}: no Ogawa header")));
         }
-        let version = match map.get(6..8) {
-            Some(&[low, high]) => u16::from_le_bytes([low, high]),
-            _ => return Err(invalid(format!("{name}: header is truncated"))),
+        // Les trois octets qui suivent `Ogawa` : le drapeau de gel, puis la version sur seize bits
+        // en gros-boutien — le format écrit `00 01` pour la version un, que lire à l'envers
+        // donnerait deux cent cinquante-six.
+        let Some(&[frozen, high, low]) = map.get(5..8) else {
+            return Err(invalid(format!("{name}: header is truncated")));
         };
+        if frozen != FROZEN {
+            return Err(CompilerError::new(
+                NOT_FROZEN,
+                format!("{name}: this Alembic archive was never frozen; the writer left it open, and what it holds is a work in progress"),
+            ));
+        }
+        let version = u16::from_be_bytes([high, low]);
+        if version != VERSION {
+            return Err(CompilerError::new(
+                VERSION_UNSUPPORTED,
+                format!("{name}: this Alembic archive declares format version {version}; this reader reads version {VERSION}"),
+            ));
+        }
         let root_at =
             read_u64(&map, 8).ok_or_else(|| invalid(format!("{name}: header is truncated")))?;
         let mut archive = Ogawa {
