@@ -30,7 +30,9 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
 
 pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
     let (positions, indices) = grid(n);
-    let (dag, _, _) = build_dag_tallied(&positions, &indices, &|| Ok(())).expect("dag");
+    let (dag, _, _) =
+        build_dag_tallied(&positions, &indices, DagStrategy::QemEndpoints, &|| Ok(()))
+            .expect("dag");
     (positions, indices, dag)
 }
 

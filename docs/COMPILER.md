@@ -37,7 +37,7 @@ web-geometry-compiler --version
 | threads             | Worker threads for clustering and simplification (1–64)                                                                                                                                                                                              | `2`      |
 | `RAM_MB`            | Admission budget: the job is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`) when its estimated working set exceeds it. This is a guard, not an enforced limit                                                                                             | `256`    |
 | `RESOURCE_BASE_URL` | URL prefix under which the host serves the **source** directory; relative image URIs are rewritten against it                                                                                                                                        | required |
-| simplification      | `none` keeps exact clusters only; `qem-endpoints` builds the coarser levels of the DAG                                                                                                                                                               | `none`   |
+| simplification      | `none` keeps exact clusters only — one DAG level, every cluster a root; `qem-endpoints` builds the coarser levels above them                                                                                                                         | `none`   |
 
 Examples:
 
@@ -46,6 +46,8 @@ web-geometry-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets
 web-geometry-compiler scenes/london cache/london full 150000 8 8192 /assets/london/ qem-endpoints   # a folder of FBX files
 web-geometry-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
 ```
+
+`simplification` says what the cluster DAG is allowed to hold, not how fast it is built. In `none` the DAG stops at level 0: its clusters partition the source triangles exactly, nothing replaces them, every cluster is a root, and `"simplification": false` in the manifest means precisely that no cluster carries a surface the source does not have. In `qem-endpoints` each level groups 8 to 32 clusters, simplifies the group with its border locked and re-splits the result; the level-0 partition is the same in both modes.
 
 ## The three streams
 
@@ -100,7 +102,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.1.0",
+  "compilerVersion": "0.2.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
