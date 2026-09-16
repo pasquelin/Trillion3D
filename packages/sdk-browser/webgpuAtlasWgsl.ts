@@ -95,7 +95,11 @@ const colorClass = (index: number) =>
  return textureSampleLevel(maps${index},mapsSampler,uv*scale,layer,level);
 }`;
 
-/** Découpe alpha : sans dérivées, on lit le niveau le plus fin résident, et le 0 une fois prêt. */
+/**
+ * Découpe alpha : sans dérivées, on lit le niveau le plus fin résident, et le 0 une fois prêt.
+ * Ce niveau grossier ne fausse pas la découpe parce que la chaîne est fabriquée à la médiane de
+ * l'alpha (`textureMips.ts`), qui conserve la couverture du seuil d'un niveau au suivant.
+ */
 const alphaClass = (index: number) =>
   `fn colorAlpha${index}(layer:i32,lod:u32,scale:vec2f,uv:vec2f)->f32{
  let level=select(atlasFinest(lod),0.0,lod==ATLAS_READY);

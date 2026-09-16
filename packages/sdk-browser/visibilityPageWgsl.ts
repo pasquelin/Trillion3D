@@ -66,8 +66,11 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  */
 export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f)->bool{
  if((page.flags&128u)==0u||(page.flags&8u)==0u){return true;}
- // Chaque niveau progressif préserve la couverture du seuil, donc la découpe est juste dès le
- // premier niveau reçu ; une couche prête relit le niveau 0, exactement comme avant ce lot.
+ // Les niveaux de la chaîne prennent la MÉDIANE de l'alpha, jamais sa moyenne : un texel grossier
+ // passe le seuil quand la moitié de ce qu'il recouvre le passait, donc la couverture du seuil
+ // traverse les niveaux et la découpe reste juste dès le premier niveau reçu. Une moyenne, elle,
+ // faisait grossir la silhouette niveau après niveau et rendait le quad opaque pendant le
+ // chargement. Une couche prête relit le niveau 0, exactement comme avant ce lot.
  return colorAlpha(page.mapIndex,page.uvScale,uv,wrapOf(page.wrapModes,${WRAP_MAP.base}u))>=page.baseColor.w;
 }`;
 
