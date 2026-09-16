@@ -24,7 +24,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots, gpuWanted } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey, slots } = rt.setup,
-    { sourceBytes, requestUrlByPage } = rt.setup;
+    { sourceBytes, byUrl } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
     residentOffsetWords: rows.residentOffsetWords,
@@ -81,7 +81,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     sets: residencySets,
     bootstrapUrls,
     deferredDrops: run.deferredDrops,
-    requestUrlByPage,
+    byUrl,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
   });
