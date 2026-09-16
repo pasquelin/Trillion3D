@@ -6,6 +6,7 @@ import {
   type BoxCorners,
 } from './hizCorners.ts';
 import type { HizPage } from './hizTypes.ts';
+import { resolveCameraWorld } from './cameraWorld.ts';
 
 const viewProjScratch = new THREE.Matrix4();
 
@@ -19,7 +20,8 @@ export function projectBoxesFlat(
   world?: { corners: BoxCorners; pageIndex: Int32Array; epoch: number },
 ) {
   const [width, height] = viewport;
-  camera.updateWorldMatrix(true, false);
+  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
+  resolveCameraWorld(camera);
   const viewProj = viewProjScratch.multiplyMatrices(
     camera.projectionMatrix,
     camera.matrixWorldInverse,

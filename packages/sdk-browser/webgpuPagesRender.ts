@@ -3,7 +3,7 @@ import { boxTransform } from '../sdk-core/index.ts';
 import { resolvePixelError } from './pageSelection.ts';
 import { readThreeBox } from './threeBounds.ts';
 import { sameHizView } from './hiz.ts';
-import { holdCameraWorld } from './cameraWorld.ts';
+import { holdCameraWorld, resolveCameraWorld } from './cameraWorld.ts';
 import {
   dropGpuSelection,
   invalidateOccluderHistory,
@@ -59,10 +59,9 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
   run.lastCamera = camera;
-  // Une fois pour toute l'image, ancêtres compris : un rig d'hôte n'appartient pas à la scène
-  // préparée. Avant tout le reste, car la vitesse du seuil adaptatif, la révision de vue, la coupe,
-  // l'encodage, les ombres et les lumières lisent tous cette même pose.
-  camera.updateWorldMatrix(true, false);
+  // Entrée d'image : la pose monde, ancêtres compris, est résolue ici une fois, avant le seuil
+  // adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
+  resolveCameraWorld(camera);
   // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
   // adaptatif de la première image qui bouge à nouveau.
   const pixelError = resolvePixelError(context, camera, run.motion);
