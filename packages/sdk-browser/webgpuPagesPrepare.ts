@@ -132,6 +132,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
   for (let i = 0; i < packedPages.length; i++)
     rows.pagePositions[i] = gpu.positionBuffers.get(packedPages[i].attributes);
+  // Tampons de position neufs : la synchronisation des rangs repart du catalogue.
+  rows.rowsRevision++;
   gpu.zeroUv = gpuDevice.createBuffer({
     size: 8,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,

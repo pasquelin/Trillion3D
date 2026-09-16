@@ -161,6 +161,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   rows.rowOffsetWords.fill(-1);
   rows.rowEpoch.fill(0);
   rows.rowCount = 0;
+  rows.rowsRevision++;
   rows.dirtyFrom = drawSlots;
   rows.dirtyTo = -1;
   rows.candidateCount = 0;

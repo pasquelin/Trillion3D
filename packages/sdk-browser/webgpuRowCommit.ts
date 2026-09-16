@@ -112,6 +112,9 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
     if (count !== rows.rowCount) rows.rowsChanged = true;
     rows.rowCount = count;
     rows.packedCount = count;
+    // La coupe processeur a posé ses propres rangs : l'allocateur incrémental ne peut plus croire à
+    // la correspondance page → rang qu'il tenait, et repart du catalogue à sa prochaine passe.
+    rows.rowsRevision++;
   };
   /** Where the previous image wrote this page, or -1 when its row cannot be reused as it stands. */
   const sourceRowOf = (pageIndex: number, offsetWords: number) => {
@@ -121,5 +124,5 @@ export function createWebgpuRowCommit(rows: Rows, writePageRow: Writer) {
       ? source
       : -1;
   };
-  return { commitRows, sourceRowOf };
+  return { commitRows, sourceRowOf, writePageRow };
 }
