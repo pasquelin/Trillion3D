@@ -22,23 +22,23 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path) -> Option<Value
         world.refuse(world::TEXTURE_UNSUPPORTED);
         return None;
     }
-    let file =
-        read::first(&shader.attribute("inputs:file")).and_then(|(value, _)| read::asset(&value))?;
-    if file.contains(UDIM) {
+    let (value, _) = read::first(&shader.attribute("inputs:file"))?;
+    let file = read::asset(&value)?;
+    if file.as_str().contains(UDIM) {
         world.refuse(world::TEXTURE_UNSUPPORTED);
         return None;
     }
     if uv_set(world, &shader).as_deref().unwrap_or(UV_SET) != UV_SET {
         world.refuse(world::TEXTURE_UNSUPPORTED);
     }
-    let index = image(world, &file)?;
+    let index = image(world, file)?;
     let sampler = world.scene.sampler(wrap(&shader));
     Some(texture(world, index, sampler))
 }
 
 /// Le rang de l'image, versée à la première demande, ou `None` quand le fichier ne se lit pas.
-fn image(world: &mut World<'_>, file: &str) -> Option<usize> {
-    let Some(relative) = relative(file) else {
+fn image(world: &mut World<'_>, file: &sdf::AssetPath) -> Option<usize> {
+    let Some(relative) = under_root(world, file) else {
         world.refuse(world::TEXTURE_MISSING);
         return None;
     };
@@ -81,6 +81,19 @@ fn texture(world: &mut World<'_>, source: usize, sampler: usize) -> Value {
         world.scene.textures.len() - 1
     });
     json!({ "index": index })
+}
+
+/// Le chemin de l'image sous la racine où le compilateur relira ses octets. Un chemin d'asset
+/// s'ancre sur la couche qui l'écrit — référence, sous-couche ou charge —, et c'est ce chemin
+/// résolu qui revient sous la racine : une couche rangée dans un sous-dossier y trouve ses images.
+/// Faute de résolution, le chemin écrit est ancré sur la racine, comme une couche seule le demande.
+fn under_root(world: &World<'_>, asset: &sdf::AssetPath) -> Option<String> {
+    let under = asset
+        .resolved_path()
+        .map(Path::new)
+        .and_then(|path| path.strip_prefix(&world.root).ok())
+        .map(|path| path.to_string_lossy().replace('\\', "/"));
+    relative(under.as_deref().unwrap_or(asset.as_str()))
 }
 
 /// Le chemin d'un asset sous la racine des images. Un chemin absolu, un chemin qui remonte au-dessus

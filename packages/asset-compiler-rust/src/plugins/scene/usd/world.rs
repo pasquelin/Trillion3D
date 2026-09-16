@@ -66,6 +66,9 @@ pub(super) struct World<'a> {
     pub(super) scene: &'a mut Scene,
     /// Le dossier contre lequel les URI relatives d'images se résolvent, `scene::image_root`.
     pub(super) images: &'a Path,
+    /// Le même dossier sous sa forme canonique : la composition résout les chemins d'asset sous
+    /// celle-là, et c'est elle qu'il faut retrancher pour retrouver l'URI d'une image.
+    pub(super) root: PathBuf,
     /// Les matériaux déjà résolus, par chemin de prim ; `None` pour un matériau illisible.
     pub(super) materials: HashMap<String, Option<usize>>,
     /// Les maillages déjà construits, par (chemin de la donnée, matériaux liés) : deux instances du

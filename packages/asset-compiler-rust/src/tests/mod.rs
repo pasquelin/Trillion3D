@@ -54,5 +54,6 @@ mod usd_matiere;
 mod usd_opacite;
 mod usd_rapport;
 mod usd_refus;
+mod usd_textures;
 mod usdz_golden;
 mod zip_golden;

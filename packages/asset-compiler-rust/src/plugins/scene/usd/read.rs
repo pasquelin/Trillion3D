@@ -101,11 +101,11 @@ pub(super) fn flag(value: &sdf::Value) -> Option<bool> {
     }
 }
 
-/// Le chemin d'asset écrit dans la couche, avant toute résolution : c'est lui que le pilote résout
-/// lui-même, contre la racine où le compilateur relira les images.
-pub(super) fn asset(value: &sdf::Value) -> Option<String> {
+/// Le chemin d'asset d'une valeur, tel que la composition l'a rendu : le chemin écrit dans la
+/// couche, et celui qu'elle a résolu contre le dossier de cette couche quand le fichier y est.
+pub(super) fn asset(value: &sdf::Value) -> Option<&sdf::AssetPath> {
     match value {
-        sdf::Value::AssetPath(path) => Some(path.authored_path.clone()),
+        sdf::Value::AssetPath(path) => Some(path),
         _ => None,
     }
 }
