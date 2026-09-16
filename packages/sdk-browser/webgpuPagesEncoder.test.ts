@@ -32,7 +32,11 @@ test('encoding-submit : la pose tracée est celle de la caméra du moteur, pas l
     rig.add(hostCamera);
     rig.updateWorldMatrix(true, false);
     const attendu = hostCamera.getWorldPosition(new THREE.Vector3()).toArray();
-    assert.notDeepEqual(attendu, hostCamera.position.toArray(), 'témoin : le rig déplace bien l’œil');
+    assert.notDeepEqual(
+      attendu,
+      hostCamera.position.toArray(),
+      'témoin : le rig déplace bien l’œil',
+    );
 
     backend.render(hostCamera);
     await backend.flush?.();
