@@ -2,10 +2,11 @@ import { DAG_ERROR_WGSL } from './gpuDagShaderError.ts';
 import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
 import { DAG_COMPACT_WGSL } from './gpuDagCompactWgsl.ts';
 import { DAG_LIVE_WGSL } from './gpuDagLiveWgsl.ts';
+import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,level:u32,nodeIndex:u32,flags:u32,pad0:u32,pad1:u32,}
-struct CullNode{minimum:vec3f,pad0:f32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
+struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
 struct PageCone{cone:vec4f,minimum:vec3f,hasBox:f32,maximum:vec3f,resident:f32,}
@@ -80,7 +81,6 @@ fn coneCache(index:u32)->u32{return uni.nodeCount+uni.clusterCount+index;}
 fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(index:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
- if(cluster.nodeIndex!=0xffffffffu&&flags[cluster.nodeIndex]!=0u){return false;}
  let rec=pageCones[index];
  return !outsideFrustum(cluster.worldIndex*FRAME,rec.minimum,rec.maximum);
 }
@@ -103,35 +103,29 @@ fn escalate(world:u32,parentPixels:f32){
 }
 /** La remise à zéro et les plans par primitive : deux noyaux hier, un seul lancement aujourd'hui.
  *  Rien ne les liait — le premier écrit les seuils, les compteurs de sortie et les comptes de bloc,
- *  le second les plans du tronc —, et seul \`dagNodes\`, qui suit, lit ce que le second écrit. Les
- *  comptes de bloc de la compaction sont remis à zéro ici parce que \`dagMask\` les accumule. */
+ *  le second les plans du tronc —, et seule la descente, qui suit, lit ce que le second écrit. Les
+ *  comptes de bloc de la compaction sont remis à zéro ici parce que \`dagMask\` les accumule, et la
+ *  file de la passe 0 reçoit la racine de chaque primitive. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  let w=id.x;
- if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);atomicStore(&work[liveCounter()],0u);atomicStore(&work[liveGroups()],0u);}
+ if(w==0u){atomicStore(&out.count,0u);atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);atomicStore(&out.overflow,0u);resetCounters();}
  if(w<blockCount()){atomicStore(&work[blockBase()+w],0u);}
  if(w>=uni.worldCount){return;}
+ // La racine de la primitive ouvre la descente : un fil, une racine, aucun compteur à disputer.
+ flags[queueBase(0u)+w]=rootOf(w);
  atomicStore(&work[w],bitcast<u32>(max(uni.pixelError,0.0)));
  atomicStore(&work[uni.worldCount+w],0u);
  let t=transpose(worlds[w]);let base=w*FRAME;
  for(var i=0u;i<6u;i++){frames[base+i]=t*uni.planes[i];}
 }
 @compute @workgroup_size(64)
-fn dagNodes(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=uni.nodeCount){return;}
- let node=nodes[i];let base=node.worldIndex*FRAME;
- if(outsideFrustum(base,node.minimum,node.maximum)){flags[i]=1u;return;}
- if(node.maxParentError>=0.0){
-  let e=uni.view*worlds[node.worldIndex];
-  if(projected(node.maxParentError,node.sphere,e,stretchOf(node.worldIndex),focalPixels())<=uni.pixelError){flags[i]=2u;return;}
- }
- flags[i]=0u;
-}
-@compute @workgroup_size(64)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=uni.clusterCount){return;}
+ let s=id.x;if(s>=atomicLoad(&work[candCounter()])){return;}
+ // Seules les pages des feuilles retenues : une page sous un nœud rejeté n'est jamais lue, et son
+ // drapeau de dessin vaut déjà zéro — \`dagClearDrawn\` a effacé les seules qui valaient un.
+ let i=flags[candBase()+s];
  let cluster=clusters[i];
- flags[uni.nodeCount+i]=0u;
  if(!visible(i,cluster)){atomicAdd(&out.frustumRejected,1u);return;}
  liveAppend(i);
  let rejected=coneRejects(i,cluster);
@@ -191,9 +185,10 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u){
  let posee=select(0u,1u,draw);
  flags[uni.nodeCount+i]=posee;
  // Le compte de dessinées du bloc de cette page, tenu ici plutôt que relu ensuite page par page.
- if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);}
+ if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);}
 }
 ${DAG_ERROR_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}
-${DAG_LIVE_WGSL}`;
+${DAG_LIVE_WGSL}
+${DAG_LEVEL_WGSL}`;
