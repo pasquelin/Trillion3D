@@ -1,38 +1,39 @@
-# Geometry — reprise (16 sept. 2026, 20 h)
+# Geometry — reprise (16 sept. 2026, 21 h)
 
-## Identité et règles
+## Rôle et cycle
 
-- Confirmer le titre `Geometry` par `get_session("self")`. Suivre `AGENTS.md`. Voisins : Lumière, Calculateur, Compilateur, Validateur (seul à pousser `origin/develop`).
-- Fable orchestre sans coder ; Opus 5 code en worktree ; Sonnet 5 relit en lecture seule avant fusion. Réponses ≤ 5 lignes, tableau seulement si demandé.
-- **Interdiction formelle de tests et de campagnes** (ordre du 16 sept.) tant que l'utilisateur lague en se déplaçant. Cycle : l'agent code et compile (`tsc --noEmit`) → relecture Sonnet du diff (invariants, doublons, chemins absolus) → fusion locale → `npm run build` (le Lab 5174 lit `dist/`) → **reproduction sur la scène réelle avant de dire « à tester »** (script scratch : 12 instances, pose sol, caméra fixe puis mobile ; lire appels, CPU, GPU, diagnostics) → verdict de l'utilisateur dans le Lab, mode debug « Désactivé ». Cette reproduction a attrapé trois régressions le 16 sept. (shader `fwidth` non uniforme, « Missing page » par adresse partagée entre placements, 23 151 appels hors champ) ; sans elle rien ne protège.
-- Règle d'or : le même rendu qu'Unreal sous la contrainte du chargement web. L'image n'attend jamais une arrivée ; tout par delta, jamais par parcours de la coupe ou du catalogue par image ; aucune allocation par image.
-- Imports relatifs uniquement ; jamais de chemin absolu de la machine, même dans un script jetable.
-- Fidélité : référence = develop ≥ 37a55d59, seuils 0 et 1. Les écarts au seuil 1 contre une base antérieure (égalités de profondeur aux coutures LOD, ≤ 93 px) sont acceptés ; pas de départage par identifiant sur la passe matérielle.
+- `get_session("self")` doit dire `Geometry`. Suivre `AGENTS.md`. Voisins : Lumière, Calculateur, Compilateur, Validateur (seul à pousser `origin/develop`). Prévenir le Calculateur à chaque fusion avec le SHA.
+- Fable orchestre sans coder. Un Opus 5 par lot, worktree isolé, branche `lot/<nom>` depuis `develop` (contrôler `merge-base` au lancement : les worktrees d'agents partent parfois d'un vieux SHA). Sonnet 5 relit chaque diff en lecture seule ; un bloquant retourne à l'Opus, puis contre-relecture ciblée. Périmètres de fichiers disjoints pour les lots parallèles.
+- **Tests et campagnes interdits** (ordre du 16 sept.) jusqu'au verdict « plus de lag ». Autorisés : `tsc --noEmit`, `check:lines`, `check:duplicates`, `build`.
+- Cycle : code → relecture → fusion locale `--no-ff` → `npm run build` (le Lab 5174 lit `dist/`) → reproduction scratch `stable.mjs` (12 instances, pose sol puis caméra mobile ; appels, CPU, GPU, diagnostics `lost|fallback|fail`, image rendue) → « à tester » ; l'utilisateur juge seul dans le Lab, debug « Désactivé ». Jamais de push. Réponses ≤ 5 lignes.
+- Règle d'or : le rendu de la référence de géométrie virtualisée sous la contrainte du chargement web. L'image n'attend jamais une arrivée ; tout par delta, jamais par parcours de la coupe ou du catalogue par image ; aucune allocation par image. Valeur non mesurée = `null`.
+- Fidélité : référence = develop ≥ 37a55d59, seuils 0 et 1 ; égalités de profondeur départagées par identifiant acceptées. Imports relatifs ; aucun chemin absolu, même jetable ; aucun nom du produit d'Epic ni de son moteur, commits compris.
 
-## Cibles (Nanite, 1080p, carte génération PS5) et état mesuré en mouvement, 12 instances
+## Cibles (1080p, carte génération PS5) et dernier relevé headless, 12 instances en mouvement
 
-| Poste | Nanite | Nous (7a90e39e, headless) |
+| Poste | Référence | Nous (5f66f7cc) |
 |---|---|---|
 | Coupe + raster géométrie, GPU | 2 à 4 ms | 5 à 6 ms |
 | Visibilité + matériaux, GPU | 1 à 2 ms | 1 à 2 ms |
-| Transparents, GPU | hors Nanite | 0,2 ms |
-| Total GPU | 4 à 5 ms | 9,4 ms |
-| CPU par image | < 1 ms | 12,8 ms p50 (à confirmer dans le Lab) |
+| Transparents, GPU | hors référence | 0,2 ms |
+| Total GPU | 4 à 5 ms | 9,6 ms |
+| CPU par image | < 1 ms | 13 ms p50 (Lab à confirmer) |
 | Immobile | tenue | tenue, 2 ms |
 
-## Fait (develop local 7a90e39e, non poussé, depuis b92e23e)
+Le harnais headless ne remonte que la dernière image pour `drawCalls` (4 331) et `frameHeld` ; CPU p95 ≈ 80 ms = pointes de streaming.
 
-Image tenue + incrémental ; coupe GPU rétablie ; transparents suivent les transformations ; partition Hi-Z, rejet anticipé du mélange, occlusion des transparents, sélection indirecte et par niveaux, géométrie tronquée ; streaming sans attente, worker d'intégration, syncRows incrémental, fiches bornées à 2 ms/image, journal sans débordement, trace bornée ; transparents sur GPU (sélection, fiches par item, hors champ non encodés) ; coupe CPU WebGL élaguée sous forçage ; listes de l'hôte sans ensembles de clés ; M5 du Calculateur (0f95e425) ; sélection GPU compacte : résidence en bits, enregistrements chauds 12 mots / froids, `gpuDagLayout.ts` décodeur unique (024b3b01) ; hôte par delta et rangs numériques, file de streaming par insertion, fusion linéaire du relevé de coupe avec séquence adoptée/publiée (7a90e39e). Reproduction après 7a90e39e : 4 331 appels, GPU 9,4 ms, CPU p50 12,8 ms headless, aucun diagnostic ; verdict Lab attendu.
+## Fait (develop local 5f66f7cc, non poussé)
 
-## En cours (agents Opus, code seul)
+Base b92e23e → 018c5b72 : image tenue + incrémental, coupe GPU, partition Hi-Z, transparents GPU, streaming sans attente, fiches et trace bornées. Depuis : M5 Calculateur (0f95e425) ; `lot/selection-compacte` (024b3b01) : résidence en bits, `Cluster` chaud 12 mots, `gpuDagLayout.ts` décodeur unique ; `lot/hote-delta` (7a90e39e) : rangs numériques `webgpuPagesHostRanks.ts`, file de streaming par insertion `streamingQueueOrder.ts`, fusion linéaire du relevé avec séquences adoptée/publiée dans `webgpuCutAdoption.ts` ; `lot/compteurs-null` (5f66f7cc). Chaque fusion reproduite : image rendue, 4 331 appels, aucun diagnostic.
 
-3. `lot/raster-calcul` (worktree isolé depuis 7a90e39e) : raster de calcul pour tous les triangles opaques et masqués, tampon de visibilité, résolution matérielle plein écran, retrait de la passe d'appels de dessin opaque, BLEND inchangé ; départage par identifiant sous égalité de profondeur. Cible GPU géométrie 5 → 3 ms. Relecture Sonnet puis reproduction avant fusion.
+## En cours
 
-Reste de `lot/hote-delta` (non fait, à planifier) : `applyBudget`/`webgpuBudgetRanking.rank` parcourt encore `run.desired` par image ; `pendingUrls` garde son contrat chaîne et son parcours en mouvement.
+- `lot/raster-calcul` (Opus, worktree depuis 67830582) : raster de calcul pour tous les triangles opaques et masqués, tampon de visibilité, résolution matérielle plein écran, retrait de la passe d'appels de dessin opaque, BLEND inchangé, départage par identifiant. Cible GPU géométrie 5 → 3 ms. Fichiers `gpuRaster*`, `webgpuPages*`, `gpuDraw*`, `pageRaster*`, `gpuSmallTriangles*`. Puis relecture, fusion, build, reproduction.
 
 ## À faire, dans l'ordre
-4. Sur verdict « plus de lag » : relever l'interdiction ; écrire d'abord la preuve de navigation sur la scène réelle (pipeline créé, aucune page manquante, appels et CPU dans une enveloppe), puis remettre les tests caducs : `webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11` ; reprendre l'hôte de test de coupe du Calculateur (41dfcccc). Puis simplify, puis confirmation ligne par ligne du tableau Unreal/nous.
-5. Noyaux Rust/Wasm du Calculateur (M5, arène partagée) sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
-6. `webgpuPagesPrepare.ts` à 202 lignes (porte check:lines) à régler au simplify.
 
-Relevés bruts sous `.mesure/out/` du checkout principal ; scripts de reproduction dans le scratchpad de la session (stable.mjs, profil.mjs, heldpx.mjs : à recréer si perdus, ils tiennent en 60 lignes chacun sur `scripts/mesure/{options,serveur,page}.mjs`).
+1. Reste CPU : `applyBudget`/`webgpuBudgetRanking.rank` parcourt `run.desired` par image ; `pendingUrls` garde son contrat chaîne et son parcours en mouvement.
+2. Sur verdict « plus de lag » : lever l'interdiction ; d'abord la preuve de navigation sur la scène réelle (pipeline créé, aucune page manquante, appels et CPU dans une enveloppe), puis remettre les tests caducs (`webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11`) et l'hôte de test de coupe du Calculateur (41dfcccc) ; simplify ; confirmation ligne par ligne du tableau.
+3. Noyaux Rust/Wasm du Calculateur (M5, arène partagée) sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
+
+Relevés bruts sous `.mesure/out/` du checkout principal. `stable.mjs` (80 lignes sur `scripts/mesure/{options,serveur,page,rapport}.mjs`) vit dans le scratchpad de la session ; à recréer s'il est perdu.
