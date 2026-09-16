@@ -13,19 +13,13 @@ const planes = { near: 0, far: 0, halfFov: 0 };
  * source pour la projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au
  * bord, et jamais un réglage caché.
  *
- * `minNear` est le plancher que la lampe impose à ce plan proche — le rayon de son enveloppe
- * d'émetteur, zéro quand elle n'en déclare pas. Une surface plus proche de la source que ce rayon
- * tombe devant le plan proche : la découpe de profondeur l'écarte de la carte, donc elle n'y projette
- * rien. C'est la projection elle-même qui applique la règle, sans un test de plus par cluster et
- * sans coût, et la même valeur repart au shader de lecture — qui rend « éclairé » pour un point à
- * l'intérieur de ce rayon, exactement comme pour un point devant n'importe quel plan proche.
+ * Le rayon d'enveloppe d'un émetteur ne touche pas ce plan : relever le plan proche d'une face
+ * retire un cube, jusqu'à √3 fois sa valeur dans les diagonales, et non la sphère annoncée. Le
+ * rayon est donc appliqué là où la profondeur d'ombre s'écrit, par distance au centre de la lampe
+ * (`gpuShadowShader.ts`), et ce plan proche reste celui que la portée donne à toute lampe.
  */
-export function shadowProjection(fov: number, range: number, minNear = 0) {
-  const near = Math.max(
-      LIGHT_SETTINGS.shadowNearMin,
-      range * LIGHT_SETTINGS.shadowNearFraction,
-      minNear,
-    ),
+export function shadowProjection(fov: number, range: number) {
+  const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
     far = Math.max(near * 1.001, range);
   const f = 1 / Math.tan(fov / 2),
     depth = far / (near - far);
