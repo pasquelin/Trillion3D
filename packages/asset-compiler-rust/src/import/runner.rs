@@ -14,6 +14,15 @@ fn reusable(directory: &Path, plugin: &dyn ScenePlugin) -> bool {
         && directory.join("model.bin").is_file()
 }
 
+/// Le dossier depuis lequel le lecteur résout les fichiers que la source cite.
+fn source_root(inputs: &[PathBuf]) -> PathBuf {
+    inputs
+        .first()
+        .and_then(|input| input.parent())
+        .unwrap_or(Path::new("."))
+        .to_path_buf()
+}
+
 /// La base de la clé : le pilote, sa version, le nom et les octets de chaque entrée revendiquée.
 /// Ce que l'import ouvre en plus — bibliothèques de matériaux, caches — s'y ajoute ensuite.
 fn base_key(plugin: &dyn ScenePlugin, inputs: &[PathBuf], hashes: &[String]) -> String {
@@ -52,10 +61,14 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         .collect::<Result<Vec<memmap2::Mmap>>>()?;
     let hashes: Vec<String> = mapped.iter().map(|m| hash(m)).collect();
     let base = base_key(plugin, inputs, &hashes);
+    // Le dossier qui résout les dépendances de la source : c'est lui, et non les seuls octets
+    // d'entrée, qui dit quels fichiers externes la lecture ouvrira.
+    let root = source_root(inputs);
+    let root = fs::canonicalize(&root).unwrap_or(root);
     let imports = cache.join("native").join("imports");
     // Le relevé de la conversion précédente donne la clé sans relire la source. Quand il se trompe —
     // une bibliothèque qui change de nom —, la conversion écrit la vraie clé et le corrige.
-    let key = external::key(&base, &external::expected(cache, &base));
+    let key = external::key(&base, &external::expected(cache, &base, &root));
     let directory = imports.join(&key);
     if reusable(&directory, plugin) {
         progress(json!({"phase":"import-source","step":"reused","key":key,"files":inputs.len()}));
@@ -130,7 +143,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         &importer.report,
         || json!({"plugin":crate::plugins::provenance(plugin),"path":source.to_string_lossy(),"files":importer.files,"external":external_json,"key":key,"meshes":importer.meshes.len(),"materials":importer.materials.len(),"images":importer.images.len(),"lights":lights.len(),"importMs":crate::shared_math::elapsed_ms(started)}),
     )?;
-    external::write_probe(cache, &base, &externals)?;
+    external::write_probe(cache, &base, &root, &externals)?;
     progress(
         json!({"phase":"import-source","step":"complete","key":key,"triangles":triangles,"meshNodes":mesh_nodes,"ms":crate::shared_math::elapsed_ms(started)}),
     );
