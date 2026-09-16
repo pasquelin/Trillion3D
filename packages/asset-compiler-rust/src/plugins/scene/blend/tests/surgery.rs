@@ -143,3 +143,42 @@ pub(super) fn with_stray_object(name: &[u8]) -> Vec<u8> {
     bytes.splice(end..end, added);
     bytes
 }
+
+/// La fixture dont l'attribut `sharp_face` du premier maillage devient un `sharp_edge` : même
+/// magasin, même bloc de valeurs, seuls le nom et le domaine sont réécrits — par le SDNA du
+/// fichier, comme partout ici. `hard` dit si les arêtes ainsi marquées le sont toutes ou aucune.
+pub(super) fn with_sharp_edges(hard: bool) -> Vec<u8> {
+    let mut bytes = fixture();
+    let (name_at, domain_at, width, values_at, count) = {
+        let file = BlendFile::open(&bytes, MAX_BYTES).expect("la fixture");
+        let mesh = file
+            .of(*b"ME\0\0")
+            .next()
+            .and_then(|block| file.view(block))
+            .expect("un maillage de la fixture");
+        let storage = mesh
+            .inner("attribute_storage")
+            .expect("son magasin d'attributs");
+        let head = storage.follow("dna_attributes").expect("ses attributs");
+        let entry = (0..storage.int("dna_attributes_num", 0).max(0) as usize)
+            .filter_map(|rank| head.item(rank))
+            .find(|entry| {
+                entry.file.text_at(entry.pointer("name")).as_deref() == Some("sharp_face")
+            })
+            .expect("l'attribut sharp_face de la fixture");
+        let domain = entry.layout.field("domain").expect("le champ domain");
+        let data = entry.follow("data").expect("le bloc de valeurs");
+        let values = file.at(data.pointer("data")).expect("ses octets");
+        (
+            file.at(entry.pointer("name")).expect("le nom").start,
+            entry.base + domain.offset,
+            domain.unit,
+            values.start,
+            (data.int("size", 0).max(1) as usize).min(values.len),
+        )
+    };
+    put(&mut bytes, name_at, b"sharp_edge\0");
+    put(&mut bytes, domain_at, &1u64.to_le_bytes()[..width]);
+    put(&mut bytes, values_at, &vec![u8::from(hard); count]);
+    bytes
+}
