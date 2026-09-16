@@ -66,21 +66,29 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
             return None;
         }
     };
-    let (directory, file, key, unit) = match &prepared {
+    let (directory, file, key) = match &prepared {
         PreparedScene::Converted { directory, .. } => (
             directory.clone(),
             "model.gltf".to_string(),
             directory.file_name()?.to_string_lossy().to_string(),
-            unit_meters(directory),
         ),
         PreparedScene::InPlace(file) => (
             asset.parent()?.to_path_buf(),
             file.clone(),
             hash_file(asset).ok()?,
-            1.0,
         ),
         PreparedScene::Manifest => return None,
     };
+    // Le manifeste que le pilote du modèle a écrit porte l'unité du fichier et son rapport. Un
+    // modèle lu sur place n'en écrit pas : son dossier est celui de la source, pas une conversion.
+    let manifest = match prepared {
+        PreparedScene::Converted { .. } => read_manifest(&directory),
+        _ => None,
+    };
+    let unit = manifest.as_ref().map_or(1.0, unit_meters);
+    if let Some(manifest) = &manifest {
+        carry_report(manifest, &name, world.scene);
+    }
     let (gltf, buffers) = match load_gltf(&directory, &file) {
         Some(loaded) => loaded,
         None => {
@@ -100,15 +108,37 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     Some(scaled(parts, meta.scale(unit)))
 }
 
+/// Le manifeste qu'un pilote de scène a écrit à côté de sa conversion.
+fn read_manifest(directory: &Path) -> Option<Value> {
+    let bytes = fs::read(directory.join("manifest.json")).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
 /// L'unité déclarée par le fichier modèle, telle que son pilote l'a consignée. Un modèle dont le
 /// manifeste ne la dit pas est en mètres, comme le glTF.
-fn unit_meters(directory: &Path) -> f64 {
-    fs::read(directory.join("manifest.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
-        .and_then(|manifest| manifest["source"]["files"][0]["originalUnitMeters"].as_f64())
+fn unit_meters(manifest: &Value) -> f64 {
+    manifest["source"]["files"][0]["originalUnitMeters"]
+        .as_f64()
         .filter(|unit| unit.is_finite() && *unit > 0.0)
         .unwrap_or(1.0)
+}
+
+/// Ce que le pilote du modèle n'a pas su rendre appartient aussi à la scène qui le cite : ses codes
+/// remontent sous leur propre nom — deux modèles auxquels la même chose manque s'additionnent — et
+/// ses notes prennent le nom du modèle, sans quoi on ne saurait pas duquel elles parlent.
+fn carry_report(manifest: &Value, name: &str, scene: &mut Scene) {
+    if let Some(unsupported) = manifest["unsupported"].as_object() {
+        for (code, count) in unsupported {
+            if let Some(count) = count.as_u64() {
+                scene.report.add_count(code, count as usize);
+            }
+        }
+    }
+    for note in manifest["notes"].as_array().map_or(&[][..], Vec::as_slice) {
+        if let Some(note) = note.as_str() {
+            scene.report.notes.push(format!("{name}: {note}"));
+        }
+    }
 }
 
 /// Applique le facteur d'échelle d'import du modèle : la géométrie reste exactement celle que son

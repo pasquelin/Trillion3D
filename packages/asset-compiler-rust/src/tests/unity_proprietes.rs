@@ -2,7 +2,10 @@
 //! alpha d'un matériau, les réglages d'import d'une texture, et le rapport du pilote qui a lu un
 //! modèle. Les cas d'instances et de maillages sont dans `unity_instances.rs`.
 use super::*;
-use unity_projet::{cube, mat, mat_blanc, material_named, Projet};
+use unity_projet::{cube, instancie, mat, mat_blanc, material_named, Projet};
+
+/// Le GUID du modèle de chaque cas.
+const MODEL: &str = "0000000000000000000000000000000a";
 
 // Constat 33 : le mode alpha d'un matériau vient de ses propriétés de rendu, jamais de l'alpha de sa
 // couleur. `_Mode: 0` déclare un matériau opaque : l'alpha reste dans le facteur de couleur de base,
@@ -78,5 +81,26 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
         material_named(&gltf, "Plein")["alphaMode"],
         Value::Null,
         "ni `_Mode` ni `_SurfaceType` : le matériau est opaque"
+    );
+}
+
+// Constat 51 : le modèle qu'une scène cite est lu par le pilote de son format, qui compte lui aussi
+// ce qu'il n'a pas su rendre. Ce rapport appartient à la scène Unity : ses codes y remontent sous
+// leur propre nom, et deux modèles qui manquent la même chose s'additionnent.
+#[test]
+fn the_report_of_the_model_driver_reaches_the_unity_report() {
+    let projet = Projet::new("rapport-modele");
+    let obj = b"mtllib absente.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nusemtl Uni\nf 1 2 3\n";
+    projet.model_bytes("Models/Triangle.obj", MODEL, obj, "");
+    projet.scene(&instancie(
+        "Socle",
+        &format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}"),
+    ));
+    let (manifest, _) = projet.compile("unity-rapport-modele").prepared("unity");
+    assert_eq!(
+        manifest["unsupported"]["material-library-missing"],
+        json!(1),
+        "le rapport du pilote modèle remonte tel quel: {}",
+        manifest["unsupported"]
     );
 }
