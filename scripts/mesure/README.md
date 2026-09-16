@@ -108,12 +108,23 @@ côté d'eux dans `series[].sides[].imageDuReleve`. Aucun n'est cumulé sur la s
 
 - `selectedTriangles` : les triangles de la coupe de clusters que cette image a choisie, avant tout
   rejet postérieur (tronc de vision, occultation). `null` si le moteur ne tient pas de coupe.
-- `submittedTriangles` : les triangles que cette image a réellement soumis au dessin de la passe
-  opaque ; l'occultation en rejette une part après la soumission, ils y sont donc comptés. `null`
+- `drawnTriangles` : les triangles que cette image remet au dessin — la coupe publiée, opaques et
+  transparents de la hiérarchie confondus, moins les grappes qu'aucune page résidente ne porte
+  (`uncoveredTriangles`). Il est compté **sur l'image du relevé elle-même**, au moment où la coupe
+  est adoptée, sans attendre aucun retour de la carte graphique : c'est ce qui le distingue de
+  `submittedTriangles`, et pourquoi il ne vaut jamais `null` faute de temps. Le rejet d'occultation
+  ne s'en retire pas ; `hiZ.rejectedTriangles` le compte à part. `null` hors de ce moteur.
+- `couverture` (colonne de `resume.md`, calculée par le rapport) :
+  `selectedTriangles − drawnTriangles − uncoveredTriangles`. **Zéro est la valeur attendue** : chaque
+  triangle de la coupe est soit remis au dessin, soit compté comme trou. Autre chose signifie que
+  l'un des trois compteurs décrit une autre image. Un tiret quand l'un des trois manque.
+- `submittedTriangles` : un compte tout autre — les triangles que cette image a réellement soumis au
+  dessin de la passe opaque, relevés par la carte graphique elle-même et non sur la coupe ; l'occultation en rejette une part après la soumission, ils y sont donc comptés. `null`
   quand le moteur choisit sa coupe sur la carte graphique et que le compte n'en était pas encore
   revenu au moment du relevé — un chiffre plus tard n'est pas un chiffre de cette image-là.
-- `totalSubmittedTriangles` : le même compte, les passes transparentes en plus. `null` aux mêmes
-  conditions. C'est lui, et lui seul, que `metrics.triangles` reprend, pour les hôtes qui lisent
+- `totalSubmittedTriangles` : le même compte de la carte, les passes transparentes en plus. `null`
+  aux mêmes conditions — sur banc à caméra mobile, la coupe change à chaque image et ce retour
+  asynchrone n'arrive jamais : les deux valent alors `null` là où `drawnTriangles` est chiffré. C'est lui, et lui seul, que `metrics.triangles` reprend, pour les hôtes qui lisent
   encore ce nom ; il vaut `null` quand rien ne l'a compté, et jamais zéro.
 - `imageTenue` (contrat `frameHeld`) : vrai quand l'image relevée a été **tenue** — rien n'avait
   bougé, le moteur n'a réencodé qu'une présentation. Elle n'a alors dessiné aucun cluster, donc ses
