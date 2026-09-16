@@ -49,7 +49,7 @@ test("une lampe directionnelle n'a pas d'enveloppe, et le contrat refuse de lui 
   );
 });
 
-test("le plan proche d'une carte d'ombre monte au rayon d'émetteur, et jamais en dessous", () => {
+test("le plan proche d'une carte d'ombre ne vient que de la portée de la lampe", () => {
   // Le réglage de portée 30 m donne le plan proche relevé par le vérificateur : 0,15 m.
   const sans = shadowProjection(Math.PI / 2, 30).near;
   assert.equal(
@@ -57,15 +57,9 @@ test("le plan proche d'une carte d'ombre monte au rayon d'émetteur, et jamais e
     Math.max(LIGHT_SETTINGS.shadowNearMin, 30 * LIGHT_SETTINGS.shadowNearFraction),
   );
   assert.equal(sans, 0.15);
-  // Les parois de la lanterne se tiennent à 0,1464 m et 0,1526 m : sans le champ, elles entrent
-  // dans la carte et éteignent leur propre lampe.
-  assert.ok(0.1526 > sans && 0.14643 < sans);
-  assert.equal(shadowProjection(Math.PI / 2, 30, 0.25).near, 0.25);
-  // Un rayon plus petit que le plan proche dérivé de la portée ne l'abaisse pas.
-  assert.equal(shadowProjection(Math.PI / 2, 30, 0.05).near, 0.15);
 });
 
-test("la face d'ombre d'une lampe reprend le plan proche que son enveloppe impose", () => {
+test("la face d'ombre garde ce plan proche, que la lampe déclare une enveloppe ou non", () => {
   const matrices = new Float32Array(16);
   const nu = writeFace(matrices, 0, null, 0, validateSceneLight(lanterne()), 0, view, 1024).near;
   const enveloppe = writeFace(
@@ -79,10 +73,45 @@ test("la face d'ombre d'une lampe reprend le plan proche que son enveloppe impos
     1024,
   ).near;
   assert.equal(nu, 0.15);
-  assert.equal(enveloppe, 0.25);
-  // Toute la géométrie de l'enveloppe tombe devant ce plan : la découpe de profondeur l'écarte de
-  // la carte, la lampe éclaire le sol autour d'elle, et rien d'autre dans la scène ne change.
-  assert.ok(enveloppe > 0.1526);
+  // L'enveloppe n'est plus retirée par un plan proche relevé — qui retirerait un cube, jusqu'à √3
+  // fois le rayon dans les diagonales — mais par la distance au centre de la lampe, là où la
+  // profondeur d'ombre s'écrit. La projection, elle, ne bouge pas d'un texel.
+  assert.equal(enveloppe, nu);
+});
+
+test("le point diagonal de l'audit franchit la projection et tombe hors de la sphère, un point plus proche y tombe", () => {
+  // Reproduction de repros.mts (audit VERIFICATION_STABILISATION_5896648) : lampe à l'origine,
+  // portée 30 m, rayon d'émetteur 0,20 m. Le point (0,19 ; 0,18 ; 0,17) est celui que l'ancien plan
+  // proche relevé rejetait des six faces ; il doit désormais être accepté par au moins une d'elles,
+  // puisque la projection ne dépend plus que de la portée.
+  const light = validateSceneLight(lanterne(0.2));
+  const point = [0.19, 0.18, 0.17] as const;
+  const accepted = Array.from({ length: 6 }, (_, face) => {
+    const matrices = new Float32Array(16);
+    writeFace(matrices, 0, null, 0, light, face, view, 1024);
+    const clip = Array.from(
+      { length: 4 },
+      (_, i) =>
+        matrices[i] * point[0] +
+        matrices[4 + i] * point[1] +
+        matrices[8 + i] * point[2] +
+        matrices[12 + i],
+    );
+    return (
+      clip[3] > 0 &&
+      Math.abs(clip[0]) <= clip[3] &&
+      Math.abs(clip[1]) <= clip[3] &&
+      clip[2] >= 0 &&
+      clip[2] <= clip[3]
+    );
+  });
+  assert.ok(accepted.some(Boolean), 'le point doit appartenir à au moins une face');
+  const distance = Math.hypot(...point);
+  assert.ok(distance > 0.2, `distance ${distance} devrait dépasser le rayon 0,2`);
+  assert.ok(Math.abs(distance - 0.3121) < 1e-3);
+  // Un point à 0,19 m du centre, lui, tombe dans la sphère : c'est le fragment que le nuanceur
+  // d'ombre écarte (`gpuShadowShader.ts`), pas la face qui l'accepte tout de même.
+  assert.ok(Math.hypot(0.19, 0, 0) < 0.2);
 });
 
 test("régler le seul rayon d'émetteur périme bien la carte d'ombre de la lampe", () => {
