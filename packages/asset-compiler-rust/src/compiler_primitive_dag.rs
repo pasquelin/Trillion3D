@@ -109,7 +109,7 @@ pub(super) fn build_dag_primitive(
     let dag_report = json!({"depth":depth,"clusterTriangles":crate::dag::DAG_CLUSTER_TRIANGLES,"groupMin":crate::dag::DAG_GROUP_MIN,"groupMax":crate::dag::DAG_GROUP_MAX,"levels":level_stats,"groups":group_stats});
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
-        let _t = perf::Timer::new(&perf::PHASES.culling);
+        let _t = perf::Timer::new(perf::Phase::Culling);
         crate::dag::build_culling_bvh(pos, &dag)
     };
     let base_id = 0usize;

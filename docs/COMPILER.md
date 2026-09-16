@@ -104,7 +104,7 @@ stdout for one job:
   "pointer": "/abs/cache/native/full/manifest.json",
   "cache": "/abs/cache",
   "formatVersion": 1,
-  "compilerVersion": "0.4.0",
+  "compilerVersion": "0.5.0",
   "selectedTriangles": 1132930,
   "sourceTriangles": 1132930,
   "selectedNodes": 283,
@@ -114,7 +114,7 @@ stdout for one job:
   "metrics": {
     "importMs": 1571.7,
     "clusterHierarchyPagesMs": 1822.8,
-    "wallMs": 3394.6,
+    "wallMs": 3411.2,
     "outputGeometryBytes": 58679400,
     "threads": 8,
     "ramBudgetMb": 8192
@@ -130,6 +130,23 @@ A cache never needs to be wiped before recompiling: after every successful job t
 `key` is a SHA-256 over the product's identity: what the source declares, the resources the compile actually consumes, and the options that shape the output — the source manifest, the source binary, **every image the scene links by relative URI** (its fingerprint, `null` when the file is absent), the compiler version, the compiler's own source files, scope, budget, `RESOURCE_BASE_URL` and simplification. Changing any of them produces a new `<key>` directory; the pointer always names the latest one. Nothing is deleted automatically.
 
 Two parts of a manifest are deliberately **outside** that identity, at every level of the document: measured durations (`importMs`, `parseMs`, `ms`) and the absolute path of the machine that converted (`path`). They describe a run, not a product: two conversions of the same bytes never agree on them, and hashing them gave three keys for three identical compilations. Everything else a driver writes into the manifest enters the key, including fields added later — forgetting to exclude a field tightens the identity, forgetting to include one would loosen it. Consequences a consumer can rely on: recompiling the same inputs with the same options yields the same key on any machine and in any cache, and replacing a linked texture beside an unchanged scene yields a different one, because the previews carried by `clusters.bin` are read from those pixels. The cost is one streaming hash per linked image file, once per compile.
+
+## Measurements
+
+Every duration a job publishes belongs to that job alone: its counters are created with the compilation, adopted by the threads of its own pool, and read by nobody else. Two jobs of one batch — side by side or one after the other — never describe each other's work.
+
+| Field                             | Where                        | Meaning                                                                                             |
+| --------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| `metrics.importMs`                | manifest and pointer         | Source routed, loaded, validated, its geometry copied                                               |
+| `metrics.clusterHierarchyPagesMs` | manifest and pointer         | Clustering, paging, coplanar cuts, resident proxy and lights                                        |
+| `metrics.compileMs`               | manifest                     | Wall time up to the moment the manifest is serialized — the last thing a file can know about itself |
+| `metrics.pruneMs`                 | pointer                      | Wall time of the cache purge that follows publication                                               |
+| `metrics.phaseCpuMs`              | manifest                     | CPU time accumulated per phase, over every worker thread                                            |
+| `metrics.wallMs`                  | pointer and `complete` event | Wall time of the whole job, taken once the manifest is written and the cache purged                 |
+
+`clusters.json` is written before the purge, so it carries `compileMs`, never `wallMs`: a file cannot hold a duration measured after it was written. The pointer on stdout and the `complete` event carry `wallMs` and `pruneMs`; `wallMs` is therefore at least `compileMs + pruneMs`, and at least any single phase.
+
+The phases under `phaseCpuMs` **overlap**. They are summed across worker threads, so they measure computing time, not the length of a job: with `threads > 1` their total exceeds `wallMs`, and adding them together is meaningless. Unmeasured values stay `null` (`peakRssBytes`, `cpuMs`, `diskBytesRead`).
 
 ## Batch mode
 
