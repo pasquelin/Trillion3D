@@ -175,6 +175,9 @@ export function renderCpuCut(
   run.blendPagedTriangles = triangleSum(run.drawn, true);
   // The CPU cut draws what it selected; what the Hi-Z pass drops is occluded, not missing.
   run.uncoveredTriangles = 0;
+  // Aucune grappe sans résidence n'a survécu aux vérifications ci-dessus : la coupe entière part au
+  // dessin, et le rejet d'occultation ne s'en retire pas ici — `hizRejectedTriangles` le compte.
+  run.drawnTriangles = run.selectedTriangles;
   traceDrawnVerify(rt, performance.now() - drawnVerifyStarted);
   const [width, height] = viewport ?? gpu.targetSize,
     targetStarted = performance.now();
