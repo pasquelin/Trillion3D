@@ -7,9 +7,11 @@ import {
   boxTransform,
   boxUnion,
   decomposeMatrix4,
+  determinantMatrix4,
   invertMatrix4,
   multiplyMatrix4,
 } from '../sdk-core/index.ts';
+import { resolveHostNode } from './hostWorldMatrices.ts';
 import { sameElements } from './matrixElements.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -55,13 +57,34 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
     });
   for (let i = 0; i < 16; i++) local[i] = matrix[i];
   if (node.parent) {
+    // La pose demandée est une pose MONDE : la ramener dans le repère du parent demande la matrice
+    // monde du parent, et l'hôte a le droit d'avoir écrit une pose locale au-dessus sans remonter
+    // le graphe. Sans cette résolution, l'inversion porterait sur un parent périmé — un enfant
+    // demandé à x = 3 sous un parent passé à x = 10 finirait à x = 13 —, et la comparaison qui suit
+    // jugerait « sans effet » une demande refaite après le déplacement du parent. La résolution
+    // précède donc l'inversion ET la décision. La frontière du paquet est la seule façon de
+    // remonter une chaîne d'ancêtres ; elle n'alloue rien et rappelée sur un graphe déjà à jour
+    // elle ne change aucun bit.
+    resolveHostNode(node.parent);
+    // Un parent écrasé sur un plan ou une droite n'a pas d'inverse : le socle rendrait seize zéros
+    // et le nœud partirait silencieusement à l'origine. Le déterminant est le seul test qui
+    // distingue ce cas de la sortie, et il attrape aussi une matrice non finie.
+    const parentDeterminant = determinantMatrix4(node.parent.matrixWorld.elements);
+    if (parentDeterminant === 0 || !Number.isFinite(parentDeterminant))
+      throw new EngineError(
+        'SINGULAR_PARENT_TRANSFORM',
+        `${nodeName}: matrice monde du parent non inversible`,
+        { nodeName, parentName: node.parent.name, determinant: parentDeterminant },
+      );
     invertMatrix4(parentInverse, node.parent.matrixWorld.elements);
     multiplyMatrix4(local, parentInverse, local);
   }
   // Une pose identique à celle que ce nœud porte déjà — et posée par ici, d'où `matrixAutoUpdate`
   // à faux — ne change aucune matrice monde : la déclarer changée périmerait des pages d'ombre et
   // refuserait l'image tenue pour un résultat identique au pixel près. L'écriture directe d'un
-  // hôte laisse `node.matrix` différent et repasse donc par le chemin complet.
+  // hôte laisse `node.matrix` différent et repasse donc par le chemin complet. `local` est exprimé
+  // dans le repère du parent VENANT D'ÊTRE RÉSOLU : un parent déplacé donne un autre `local` pour
+  // la même pose monde demandée, et la demande n'est donc pas jugée sans effet.
   if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return;
   boxEmpty(moved, 0);
   for (const root of layout.selectionRoots)
