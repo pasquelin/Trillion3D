@@ -1,7 +1,11 @@
 //! Helpers shared by the executable's end-to-end test binaries.
 #![allow(dead_code)]
 use serde_json::Value;
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 /// A source tree holding one quad and an empty cache directory, both under a per-tag temporary root.
 pub fn fixture(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
@@ -23,4 +27,50 @@ pub fn lines(text: &str) -> Vec<Value> {
         .filter(|l| !l.trim().is_empty())
         .map(|l| serde_json::from_str(l).unwrap_or_else(|_| panic!("not JSON: {l}")))
         .collect()
+}
+
+/// Une source plus lourde que le quadrilatère : une grille de `side × side` quadrilatères, assez
+/// grande pour qu'une compilation dure encore quand un autre processus vient la regarder tenir le
+/// verrou du cache.
+pub fn grid_fixture(tag: &str, side: usize) -> (PathBuf, PathBuf, PathBuf) {
+    let (root, quad, cache) = fixture(tag);
+    let grid = quad.with_file_name("grille.obj");
+    fs::remove_file(&quad).expect("quad");
+    fs::write(&grid, grid_obj(side)).expect("obj");
+    (root, grid, cache)
+}
+fn grid_obj(side: usize) -> String {
+    let mut text = String::new();
+    for y in 0..=side {
+        for x in 0..=side {
+            text.push_str(&format!("v {x} {y} 0\n"));
+        }
+    }
+    text.push_str("vn 0 0 1\n");
+    let rank = |x: usize, y: usize| y * (side + 1) + x + 1;
+    for y in 0..side {
+        for x in 0..side {
+            let (a, b) = (rank(x, y), rank(x + 1, y));
+            let (c, d) = (rank(x + 1, y + 1), rank(x, y + 1));
+            text.push_str(&format!("f {a}//1 {b}//1 {c}//1 {d}//1\n"));
+        }
+    }
+    text
+}
+
+/// La ligne de commande d'un travail unique : la source, le cache, puis les réglages que les
+/// épreuves du verrou ne font pas varier.
+pub fn compiler(source: &Path, cache: &Path) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_web-geometry-compiler"));
+    command.args([
+        source.to_str().expect("source"),
+        cache.to_str().expect("cache"),
+        "full",
+        "150000",
+        "1",
+        "2048",
+        "/assets/",
+        "none",
+    ]);
+    command
 }
