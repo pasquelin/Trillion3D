@@ -1,4 +1,4 @@
-import { sortPages } from './webgpuRowJournal.ts';
+import { sortPages } from '../sdk-core/index.ts';
 import { createWebgpuRowWriters } from './webgpuRowWriters.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { createPageRowWriter } from './webgpuPageRow.ts';
