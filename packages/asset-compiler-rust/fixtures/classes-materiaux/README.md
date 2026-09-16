@@ -40,15 +40,18 @@ porterait quand même des pages reste refusée.
 | `sol` | `sol`, opaque | reçoit l'ombre |
 | `occultant-diagonale` | `occultant`, opaque | à 0,3121 m du centre de la lampe (0,19 ; 0,18 ; 0,17 relatif) — hors de la sphère de rayon 0,20 m |
 | `occultant-proche` | `occultant`, opaque | à 0,15 m du centre de la lampe — dans la sphère |
+| `enveloppe-lampe` | `enveloppe`, `emissiveFactor` non nul | le luminaire autour de la lampe : six sommets à 0,20 m de son centre |
 
-26 triangles, une lampe ponctuelle (`lampe`, `KHR_lights_punctual`, portée 3 m). Aucun format source
-ne porte `emitterRadius` (`docs/SDK.md`) : le glTF ne le déclare donc pas — le compilateur l'ignorerait
-de toute façon. Le champ est ajouté après coup dans le `lights.json` du cache compilé, à la main,
-`"emitterRadius": 0.2` sur la lampe — un artefact de cache est une donnée, pas le compilateur, et
-`loadImportedLights` (`packages/sdk-browser/importedLights.ts`) le valide par le même contrat que les
-lampes de l'hôte. Reproduction de l'audit VERIFICATION_STABILISATION_5896648_2026-09-16 (défaut 4) :
+34 triangles, une lampe ponctuelle (`lampe`, `KHR_lights_punctual`, portée 3 m). Le glTF ne déclare
+aucun rayon : `KHR_lights_punctual` n'en porte pas (`docs/SDK.md`). C'est le compilateur qui écrit
+`"emitterRadius": 0.2` dans `lights.json`, mesuré sur `enveloppe-lampe` — le frère émissif de la
+lampe, un octaèdre dont les six sommets sont à 0,20 m de son centre — et compté sous
+`light-emitter-radius-derived`. Rien n'est ajouté à la main : `loadImportedLights`
+(`packages/sdk-browser/importedLights.ts`) valide la valeur par le même contrat que les lampes de
+l'hôte. Reproduction de l'audit VERIFICATION_STABILISATION_5896648_2026-09-16 (défaut 4) :
 `occultant-diagonale` est hors de la sphère mais tombait dans le cube que l'ancien plan proche
-excluait ; `occultant-proche` tombe dans les deux, avant comme après.
+excluait ; `occultant-proche` tombe dans les deux, avant comme après, et traverse l'enveloppe —
+c'est le mur qui coupe le verre, et il occulte au-delà d'elle.
 
 ## Compiler et mesurer
 
