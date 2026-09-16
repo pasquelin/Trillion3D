@@ -33,6 +33,7 @@ use std::{
 };
 
 mod convert;
+mod extras;
 mod layer;
 mod material;
 mod matrix;

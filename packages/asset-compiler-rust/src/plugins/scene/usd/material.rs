@@ -14,6 +14,9 @@ use super::*;
 
 /// L'identifiant du nœud de surface que ce pilote lit.
 const PREVIEW_SURFACE: &str = "UsdPreviewSurface";
+/// La couleur diffuse implicite d'un `UsdPreviewSurface`, telle que la spécification la pose : un
+/// gris, jamais le blanc — une surface lue blanche renvoie cinq fois trop de lumière.
+const DEFAULT_DIFFUSE: [f64; 3] = [0.18, 0.18, 0.18];
 /// Le canal où glTF lit le métal de sa carte partagée, et celui où il lit la rugosité.
 const METAL_CHANNEL: &str = "outputs:b";
 const ROUGH_CHANNEL: &str = "outputs:g";
@@ -55,6 +58,8 @@ fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<
         out["alphaCutoff"] = json!(threshold);
     }
     emissive(world, &shader, &mut out);
+    extras::occlusion(world, &shader, &mut out);
+    extras::counted(world, &shader);
     if let Some(bound) = connected_texture(world, &shader, "normal", false) {
         out["normalTexture"] = bound.plain(world);
     }
@@ -89,7 +94,7 @@ fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> op
         None => value(shader, "diffuseColor")
             .as_ref()
             .and_then(read::triple)
-            .unwrap_or([1.0, 1.0, 1.0]),
+            .unwrap_or(DEFAULT_DIFFUSE),
     };
     let transparency = opacity::of(world, shader, pbr, diffuse.as_ref());
     pbr["baseColorFactor"] = json!([colour[0], colour[1], colour[2], transparency.factor]);
@@ -172,7 +177,7 @@ pub(super) fn connection(prim: &usd::Prim, name: &str) -> Option<sdf::Path> {
 }
 
 /// La valeur écrite d'une entrée du nœud de surface.
-fn value(shader: &usd::Prim, name: &str) -> Option<sdf::Value> {
+pub(super) fn value(shader: &usd::Prim, name: &str) -> Option<sdf::Value> {
     read::first(&shader.attribute(format!("inputs:{name}"))).map(|(value, _)| value)
 }
 
