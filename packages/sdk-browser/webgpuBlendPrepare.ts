@@ -52,16 +52,19 @@ export function prepareWebgpuBlend(
     // Les trois autres tampons appartiennent à la géométrie, pas au placement : neuf instances d'un
     // objet les écrivent une fois. Les octets sont les mêmes, l'ordre des items aussi.
     const index = paged ? undefined : ensureBlendIndexBuffer(device, idx, gpu);
-    const uv = ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
+    const uv = paged ? undefined : ensureBlendUvBuffer(device, copy.geometry.attributes, gpu);
     const tangentAttr = copy.geometry.attributes.tangent;
-    const normal = ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
+    const normal = paged
+      ? undefined
+      : ensureBlendNormalBuffer(device, copy.geometry.attributes, gpu);
+    const hasNormal = paged ? !!copy.geometry.attributes.normal : !!normal;
     const opacity = Array.isArray(copy.material)
       ? ((copy.material[0] as THREE.MeshBasicMaterial).opacity ?? 1)
       : ((copy.material as THREE.MeshBasicMaterial).opacity ?? 1);
     let flags = 0;
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
-    if (normal) flags |= FLAG_HAS_NORMAL;
+    if (hasNormal) flags |= FLAG_HAS_NORMAL;
     if (tangentAttr) flags |= FLAG_HAS_TANGENT;
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
