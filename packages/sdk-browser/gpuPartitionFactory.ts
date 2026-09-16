@@ -101,6 +101,7 @@ export async function createGpuPartition(
       tested: allocated.tested,
       state: allocated.state,
       rowData: allocated.rowData,
+      uniforms: allocated.uniforms,
       /** Les coins monde des lignes `[from, to]`, sur l'intervalle sale de la table et lui seul. */
       uploadCorners(packed: Float32Array, from: number, to: number) {
         if (disposed || to < from) return;

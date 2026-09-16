@@ -11,6 +11,11 @@ import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './webgpuTransparentTable.ts
  *
  * Item ranges are aligned on the group, so no group spans two items and each item's instances are
  * written inside its own range — the base a draw reads is known before the image starts.
+ *
+ * Une entrée sort de la liste pour deux raisons seulement : la coupe ne l'a pas sélectionnée, ou le
+ * test Hi-Z des transparents l'a trouvée ENTIÈREMENT derrière l'opaque déjà dessiné
+ * (`gpuTransparentOcclusionWgsl.ts`). Ni l'une ni l'autre ne réordonne quoi que ce soit : la sortie
+ * reste l'ordre de la table, privé de ses entrées retirées.
  */
 export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupCount:u32,itemCount:u32,selectionOffset:u32,vertexCount:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> entries:array<u32>;
@@ -21,9 +26,11 @@ export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupC
 @group(0) @binding(5) var<storage, read_write> instances:array<u32>;
 @group(0) @binding(6) var<storage, read_write> indirect:array<u32>;
 @group(0) @binding(7) var<storage, read> itemRanges:array<u32>;
+@group(0) @binding(8) var<storage, read> occluded:array<u32>;
 fn selected(i:u32)->bool{
  let cluster=entries[i];
  if(cluster==${TRANSPARENT_NONE}u){return false;}
+ if(occluded[i]!=0u){return false;}
  return selectionMask[uni.selectionOffset+cluster]!=0u;
 }
 @compute @workgroup_size(64)
