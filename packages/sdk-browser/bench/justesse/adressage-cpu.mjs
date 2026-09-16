@@ -1,12 +1,15 @@
 // Défaut 4, côté processeur : le vrai `wrapTexel`, la vraie lecture `sampleLinear` et le vrai
 // raster de visibilité (test alpha) contre la règle de Three, sur tous les cas d'`adressageCas`.
+// Défaut 7 : `wrapLinear`, le miroir processeur de la règle d'adressage du nuanceur, contre la
+// règle entière de l'échantillonneur en filtrage linéaire — la couture d'une période comprise.
 //   node --experimental-strip-types packages/sdk-browser/bench/justesse/adressage-cpu.mjs [sortie.json]
 // Code de retour 1 au premier écart. `sortie.json` reçoit les texels lus, pour comparer deux commits.
 import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { sampleLinear, wrapTexel } from '../../visibilityMath.ts';
+import { wrapLinear } from '../../visibilityPageWgsl.ts';
 import { rasterVisibility } from '../../visibilityRaster.ts';
-import { bilan, cas, octetsTexture, somme } from './adressageCas.mjs';
+import { bilan, cas, lineaireThree, melange, octetsTexture, somme } from './adressageCas.mjs';
 
 const textures = new Map();
 function carte(c) {
@@ -76,6 +79,25 @@ let ecarts = 0;
 for (const chemin of ['wrapTexel', 'sampleLinear', 'raster'])
   ecarts += somme(bilan(`CPU ${chemin} contre Three (${tous.length} cas)`, tous, ecart(chemin)));
 
+/**
+ * Défaut 7 : la couleur que le filtrage linéaire doit rendre sur l'axe éprouvé, les deux texels de
+ * la règle mêlés en double précision, contre ceux que `wrapLinear` désigne. Les deux calculs
+ * partent de la même coordonnée 32 bits, donc leur accord est exact et non approché.
+ */
+const lineaire = (c, k) => {
+  const t = k ? c.v : c.u,
+    taille = k ? c.hauteur : c.largeur,
+    wrap = k ? c.wrapT : c.wrapS;
+  const lu = melange(wrapLinear(t, taille, wrap)),
+    attendu = melange(lineaireThree(t, taille, wrap));
+  return Math.abs(lu - attendu) <= 1e-9
+    ? null
+    : `${c.largeur}x${c.hauteur} S=${c.nomS} T=${c.nomT} uv=(${c.u}, ${c.v}) règle=${attendu} lu=${lu}`;
+};
+ecarts += somme(
+  bilan(`CPU wrapLinear contre la règle de l'échantillonneur (${tous.length} cas)`, tous, lineaire),
+);
+
 /** Pour mémoire : `Texture.transformUv`, la règle processeur de Three, contredit sa propre
  *  carte graphique sur les frontières ; elle n'est pas la référence, on compte seulement. */
 const transformUv = (c, k) => {
@@ -89,5 +111,5 @@ const transformUv = (c, k) => {
 bilan('Pour mémoire, Texture.transformUv contre la carte graphique', tous, transformUv);
 
 if (process.argv[2]) writeFileSync(process.argv[2], JSON.stringify(lus));
-console.log(`\nCPU : ${ecarts} écarts sur ${tous.length * 6} composantes lues`);
+console.log(`\nCPU : ${ecarts} écarts sur ${tous.length * 8} composantes lues`);
 process.exitCode = ecarts ? 1 : 0;
