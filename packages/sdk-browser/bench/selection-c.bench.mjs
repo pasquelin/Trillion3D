@@ -11,6 +11,7 @@ import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
 import { compareC, deposeC, ligneDecrite } from './bancC.mjs';
 import { camera } from './scenes.mjs';
 import { dag, etatDeCoupe, racine } from './dagC.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const cam = camera(9, 0.1, 16 / 9);
 const image = [1280, 720];
@@ -36,10 +37,20 @@ function demande(entree, pixelError, pageBudget) {
 function referenceCoupe(entree) {
   const budget = entree.budget;
   let pixelError = entree.pixelError;
-  let result = selectVisiblePages(entree.roots, cam, demande(entree, pixelError, 0), entree.shown);
+  let result = selectVisiblePages(
+    entree.roots,
+    cameraMoteur(cam),
+    demande(entree, pixelError, 0),
+    entree.shown,
+  );
   for (let attempt = 0; budget && result.shown.length > budget && attempt < 16; attempt++) {
     pixelError = pixelError > 0 ? pixelError * 2 : 1;
-    result = selectVisiblePages(entree.roots, cam, demande(entree, pixelError, 0), entree.shown);
+    result = selectVisiblePages(
+      entree.roots,
+      cameraMoteur(cam),
+      demande(entree, pixelError, 0),
+      entree.shown,
+    );
   }
   return etatDeCoupe(result);
 }
@@ -47,7 +58,7 @@ function referenceCoupe(entree) {
 function optimiseeCoupe(entree) {
   const result = selectVisiblePages(
     entree.roots,
-    cam,
+    cameraMoteur(cam),
     demande(entree, entree.pixelError, entree.budget),
     entree.shown,
   );

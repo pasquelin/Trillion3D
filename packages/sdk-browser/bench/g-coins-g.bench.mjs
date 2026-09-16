@@ -12,6 +12,7 @@ import { HIZ_BOUNDS_VALUES, createBoxCorners, projectBoxesFlat } from '../hiz.ts
 import { compare } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeG } from '../../sdk-core/bench/bancG.mjs';
 import { boites, camera } from './scenes.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const LARGEUR = 640,
   HAUTEUR = 360;
@@ -54,13 +55,21 @@ const lignes = [
     fichier: 'packages/sdk-browser/hizUnoccluded.ts, hizSplit.ts',
     cas: jeux,
     reference: (e) => {
-      projectBoxesFlat(e.pages, e.pages.length, cam, viewport, e.sansCache);
+      projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.sansCache);
       return e.sansCache;
     },
     optimisee: (e) => {
       // Une image neuve à chaque tour : le cache paie sa première projection, comme en vrai.
       e.monde.epoch = (e.monde.epoch + 1) | 0 || 1;
-      projectBoxesFlat(e.pages, e.pages.length, cam, viewport, e.avecCache, undefined, e.monde);
+      projectBoxesFlat(
+        e.pages,
+        e.pages.length,
+        cameraMoteur(cam),
+        viewport,
+        e.avecCache,
+        undefined,
+        e.monde,
+      );
       return e.avecCache;
     },
     options: { tours: 200, budgetMs: 4000, alterne: true },

@@ -26,7 +26,7 @@ import {
   INVERSE_TRANSPOSE_WGSL,
 } from '../../inverseTransposeWgsl.ts';
 import {
-  camera,
+  vue,
   VIEWPORT,
   dansLeChamp,
   decisionCpu,
@@ -57,7 +57,7 @@ const champs = tousLesCas.map(dansLeChamp);
 const moteur = await dessineParLeMoteur(tousLesCas);
 
 // --- GPU réellement exécuté, un seul lot de dispatch par version --------------------------------
-const uniforms = cameraSelectionUniforms(camera, 0, VIEWPORT);
+const uniforms = cameraSelectionUniforms(vue, 0, VIEWPORT);
 const packed = empaqueteCas(tousLesCas);
 
 /** Les pages rejetées par le noyau WGSL, pour un texte de shader donné. */

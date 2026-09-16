@@ -22,13 +22,14 @@ import { camera, decisionCpu, veriteTerrain } from './inverseTransposeCas.mjs';
 import { tousLesCas } from './inverseTransposeEchantillon.mjs';
 import { pageVisible, sensDuMoteur, VUE } from './reflexionCas.mjs';
 import { dessineParLeMoteur } from './inverseTransposeOracle.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 // --- Ce que le GPU dessine réellement : l'oracle d'orientation vraie, écrit une seule fois -------
 const gpu = await dessineParLeMoteur(tousLesCas);
 
 // --- Ce que le CPU dessine, et ce que le cône décide --------------------------------------------
 const pixelsCpu = tousLesCas.map((cas) => {
-  const { ids } = rasterVisibility([pageVisible(cas)], camera, VUE);
+  const { ids } = rasterVisibility([pageVisible(cas)], cameraMoteur(camera), VUE);
   let n = 0;
   for (const identifiant of ids) if (identifiant !== 0) n++;
   return n;
