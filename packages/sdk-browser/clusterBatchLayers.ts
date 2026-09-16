@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { depthLayerBias } from '../sdk-core/index.ts';
+import { depthLayerUnits } from '../sdk-core/index.ts';
 import type { BatchPage } from './clusterBatchRange.ts';
 import { BatchGroup } from './clusterBatchPrimitive.ts';
 
@@ -18,7 +18,9 @@ function biasedMaterial(material: THREE.Material, layer: number) {
   const clone = material.clone();
   clone.polygonOffset = true;
   clone.polygonOffsetFactor = 0;
-  clone.polygonOffsetUnits = depthLayerBias(layer);
+  // Ce chemin dessine avec la projection de la bibliothèque hôte, en profondeur DIRECTE : s'y
+  // rapprocher de l'œil, c'est RETRANCHER des unités — l'opposé du chemin du moteur.
+  clone.polygonOffsetUnits = -depthLayerUnits(layer);
   return clone;
 }
 

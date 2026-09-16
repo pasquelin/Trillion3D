@@ -8,10 +8,11 @@ const projScratch = new Float32Array(16);
 const planes = { near: 0, far: 0, halfFov: 0 };
 
 /**
- * Projection perspective pour l'espace de découpe WebGPU, profondeur normalisée dans `[0, 1]`,
- * colonne-major, écrite dans le tampon rendu. `near` est dérivé de la seule portée : une seule
- * source pour la projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au
- * bord, et jamais un réglage caché.
+ * Projection perspective d'une face d'ombre, profondeur INVERSÉE dans `[0, 1]` comme celle de la
+ * caméra (`depthConvention.ts`) : le plan proche se projette sur 1, le lointain sur 0, et l'atlas
+ * se compare en `greater`. `near` est dérivé de la seule portée : une seule source pour la
+ * projection et pour le rejet, sinon les deux pourraient diverger d'un cheveu au bord, et jamais un
+ * réglage caché.
  *
  * Le rayon d'enveloppe d'un émetteur ne touche pas ce plan : relever le plan proche d'une face
  * retire un cube, jusqu'à √3 fois sa valeur dans les diagonales, et non la sphère annoncée. Le
@@ -22,13 +23,13 @@ export function shadowProjection(fov: number, range: number) {
   const near = Math.max(LIGHT_SETTINGS.shadowNearMin, range * LIGHT_SETTINGS.shadowNearFraction),
     far = Math.max(near * 1.001, range);
   const f = 1 / Math.tan(fov / 2),
-    depth = far / (near - far);
+    depth = near / (far - near);
   projScratch.fill(0);
   projScratch[0] = f;
   projScratch[5] = f;
   projScratch[10] = depth;
   projScratch[11] = -1;
-  projScratch[14] = near * depth;
+  projScratch[14] = far * depth;
   planes.near = near;
   planes.far = far;
   planes.halfFov = fov / 2;
@@ -36,15 +37,17 @@ export function shadowProjection(fov: number, range: number) {
 }
 
 /**
- * Projection orthographique d'une cascade, profondeur normalisée dans `[0, 1]`, colonne-major. Le
- * plan proche est à l'œil : celui-ci est déjà reculé vers la lampe de toute la profondeur voulue.
- * Une orthographie n'a ni plan proche ni ouverture à publier : les deux sortent nuls.
+ * Projection orthographique d'une cascade, profondeur INVERSÉE dans `[0, 1]`, colonne-major : l'œil
+ * se projette sur 1 et le plan lointain sur 0. Le plan proche est à l'œil : celui-ci est déjà reculé
+ * vers la lampe de toute la profondeur voulue. Une orthographie n'a ni plan proche ni ouverture à
+ * publier : les deux sortent nuls.
  */
 export function shadowOrthographic(halfExtent: number, far: number) {
   projScratch.fill(0);
   projScratch[0] = 1 / halfExtent;
   projScratch[5] = 1 / halfExtent;
-  projScratch[10] = -1 / far;
+  projScratch[10] = 1 / far;
+  projScratch[14] = 1;
   projScratch[15] = 1;
   planes.near = 0;
   planes.far = far;

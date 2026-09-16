@@ -27,11 +27,7 @@ camera.updateMatrixWorld(true);
 /** La caméra du moteur de ce décor, posée une fois : le CPU et le noyau GPU lisent la même. */
 export const vue = cameraMoteur(camera);
 const WORLD_PLANES = new Float64Array(24);
-frustumPlanesFromMatrix(
-  WORLD_PLANES,
-  new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
-  false,
-);
+frustumPlanesFromMatrix(WORLD_PLANES, vue.viewProjection);
 
 /**
  * Deux triangles partageant l'origine locale, comme le lot 1 : normales (±1,0,1)/√2, cône local

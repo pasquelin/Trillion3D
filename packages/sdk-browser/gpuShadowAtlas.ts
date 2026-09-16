@@ -8,6 +8,7 @@ import {
 } from '../sdk-core/index.ts';
 import { SHADOW_DEPTH_SHADER } from './gpuShadowShader.ts';
 import { createCheckedShaderModule } from './gpuShaderModule.ts';
+import { DEPTH_COMPARE } from './depthConvention.ts';
 
 /** Étiquette de la passe mesurée ; `gpuShadowsMs` est lu sous ce nom. */
 export const SHADOW_PASS = 'WG shadow atlas v1';
@@ -86,7 +87,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       // matériau à masque d'opacité, et ne rend rien.
       fragment: { module, entryPoint: 'shadow_fs', targets: [] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: depthState('less'),
+      depthStencil: depthState(DEPTH_COMPARE),
     });
     const clear = device.createRenderPipeline({
       label: 'WG shadow slice clear v1',

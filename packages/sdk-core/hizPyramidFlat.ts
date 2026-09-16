@@ -1,10 +1,11 @@
-import { HIZ_BACKGROUND } from './hizOracles.ts';
+import { HIZ_NOTHING } from './hizOracles.ts';
 
 /**
  * La pyramide Hi-Z du chemin par image : un seul `Float32Array` pour tous les niveaux, un décalage
  * et une taille par niveau. Les valeurs sont celles du visbuffer, déjà en simple précision, et la
- * réduction est un maximum : rien n'y est arrondi, la disposition plate rend exactement ce que
- * rendait la pyramide en tableaux de tableaux, sans allouer une ligne par rangée et par image.
+ * réduction garde le PLUS LOINTAIN d'un carré de 2×2 — un minimum, la profondeur du moteur étant
+ * inversée : rien n'y est arrondi, la disposition plate rend exactement ce que rendait la pyramide
+ * en tableaux de tableaux, sans allouer une ligne par rangée et par image.
  *
  * Miroir de production de `hizReduceCeil` (hizOracles.ts), qui reste l'oracle : deux écritures
  * volontaires de la même réduction, que le test d'équivalence oppose l'une à l'autre.
@@ -62,10 +63,10 @@ export function hizFlatLayout(width: number, height: number, into?: HizFlat): Hi
 }
 
 /**
- * Réduction plafond 2×2, niveau par niveau, dans le tampon déjà posé. Le candidat part de l'infini
- * du bon signe et passe par `Math.max`/`Math.min` comme avant : un NaN se propage à l'identique.
+ * Réduction plafond 2×2, niveau par niveau, dans le tampon déjà posé. Le candidat part de `Infinity`
+ * et passe par `Math.min` : un NaN se propage comme il le faisait.
  */
-function reduire(pyramid: HizFlat, level: number, reversedZ: boolean) {
+function reduire(pyramid: HizFlat, level: number) {
   const { data, offsets, widths, heights } = pyramid;
   const srcWidth = widths[level - 1],
     srcHeight = heights[level - 1],
@@ -79,12 +80,10 @@ function reduire(pyramid: HizFlat, level: number, reversedZ: boolean) {
     for (let x = 0; x < width; x++) {
       const startCol = x * 2,
         lastCol = startCol + 2 < srcWidth ? startCol + 2 : srcWidth;
-      let candidate = reversedZ ? Infinity : -Infinity;
+      let candidate = Infinity;
       for (let r = startRow; r < lastRow; r++)
-        for (let c = startCol; c < lastCol; c++) {
-          const v = data[src + r * srcWidth + c];
-          candidate = reversedZ ? Math.min(candidate, v) : Math.max(candidate, v);
-        }
+        for (let c = startCol; c < lastCol; c++)
+          candidate = Math.min(candidate, data[src + r * srcWidth + c]);
       data[dst + y * width + x] = candidate;
     }
   }
@@ -96,19 +95,18 @@ export function hizBuildFlat(
   width: number,
   height: number,
   into?: HizFlat,
-  reversedZ = false,
 ): HizFlat {
   if (depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE');
   const pyramid = hizFlatLayout(width, height, into);
   const { data } = pyramid;
   for (let i = 0, n = width * height; i < n; i++) data[i] = depth[i];
-  for (let level = 1; level < pyramid.count; level++) reduire(pyramid, level, reversedZ);
+  for (let level = 1; level < pyramid.count; level++) reduire(pyramid, level);
   return pyramid;
 }
 
 /**
  * Profondeur de l'occulteur le plus lointain sur le rectangle de niveau 0 semi-ouvert
- * [x0,x1)×[y0,y1). Rectangle vide ou hors champ : le fond, qui ne peut rien cacher.
+ * [x0,x1)×[y0,y1). Rectangle vide ou hors champ : `HIZ_NOTHING`, qui ne peut rien cacher.
  */
 export function hizFootprintFarFlat(
   pyramid: HizFlat,
@@ -117,32 +115,29 @@ export function hizFootprintFarFlat(
   x1: number,
   y1: number,
   level: number,
-  reversedZ = false,
 ): number {
-  if (level < 0 || level >= pyramid.count || x1 <= x0 || y1 <= y0)
-    return reversedZ ? 0 : HIZ_BACKGROUND;
+  if (level < 0 || level >= pyramid.count || x1 <= x0 || y1 <= y0) return HIZ_NOTHING;
   const width = pyramid.widths[level],
     height = pyramid.heights[level],
     base = pyramid.offsets[level],
     data = pyramid.data;
-  if (width === 0) return reversedZ ? 0 : HIZ_BACKGROUND;
+  if (width === 0) return HIZ_NOTHING;
   const scale = 2 ** level;
   const minX = Math.floor(x0 / scale),
     maxX = Math.floor((x1 - 1) / scale);
   const minY = Math.floor(y0 / scale),
     maxY = Math.floor((y1 - 1) / scale);
-  let far = reversedZ ? Infinity : -Infinity,
+  let far = Infinity,
     hit = false;
   for (let y = minY; y <= maxY; y++) {
     if (y < 0 || y >= height) continue;
     const row = base + y * width;
     for (let x = minX; x <= maxX; x++) {
       if (x < 0 || x >= width) continue;
-      const v = data[row + x];
-      far = reversedZ ? Math.min(far, v) : Math.max(far, v);
+      far = Math.min(far, data[row + x]);
       hit = true;
     }
   }
-  if (!hit) return reversedZ ? 0 : HIZ_BACKGROUND;
+  if (!hit) return HIZ_NOTHING;
   return far;
 }

@@ -2,6 +2,7 @@ import { drawVis } from './webgpuVisibilityDrawer.ts';
 import { skipsSecondaryPass } from './diagnosticGpuGeometry.ts';
 import { restSlotCount } from './gpuDrawContract.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 
 /**
  * Encode la passe de visibilité primaire puis, quand les ressources de la moitié testée existent, la
@@ -50,7 +51,7 @@ export function encodeWebgpuVisibilityPasses(
     colorAttachments: visColors('clear'),
     depthStencilAttachment: {
       view: depthTarget,
-      depthClearValue: 1,
+      depthClearValue: DEPTH_CLEAR,
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },

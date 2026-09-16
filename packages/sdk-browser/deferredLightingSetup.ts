@@ -2,6 +2,7 @@ import { PROBE_FLOATS, SHADOW_SLICE_FLOATS } from '../sdk-core/index.ts';
 import { BOUNCE_GRID_BYTES } from './bounceUniform.ts';
 import { PROXY_HEADER_BYTES } from './bounceNodeWgsl.ts';
 import { SUN_FAR_PROXY_BINDING } from './sunFarShadowWgsl.ts';
+import { DEPTH_COMPARE } from './depthConvention.ts';
 
 /**
  * Le remplaçant du proxy résident : un entête de zéros et quatre mots derrière lui. La présence y
@@ -88,9 +89,10 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     format: 'depth32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
   });
+  // La comparaison de l'atlas d'ombres est celle du moteur : profondeur inversée, donc `greater`.
   const sampler = device.createSampler({
     label: 'WG shadow comparison',
-    compare: 'less',
+    compare: DEPTH_COMPARE,
     magFilter: 'linear',
     minFilter: 'linear',
   });

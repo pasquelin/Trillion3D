@@ -19,6 +19,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
+import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../depthConvention.ts';
 
 /** Le centre et le rayon de la lampe : ceux du produit de cache donné, sinon ceux de l'audit. */
 function emetteur(chemin) {
@@ -67,7 +68,7 @@ async function executer({ shader, cas, size, triangle }) {
     vertex: { module, entryPoint: 'vs', buffers },
     fragment: { module, entryPoint: 'fs', targets: [] },
     primitive: { topology: 'triangle-list', cullMode: 'none' },
-    depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
+    depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: DEPTH_COMPARE },
   });
   const screenBuffer = device.createBuffer({
     size: triangle.length * 4,
@@ -101,7 +102,7 @@ async function executer({ shader, cas, size, triangle }) {
       colorAttachments: [],
       depthStencilAttachment: {
         view: depthTexture.createView(),
-        depthClearValue: 1,
+        depthClearValue: DEPTH_CLEAR,
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
       },

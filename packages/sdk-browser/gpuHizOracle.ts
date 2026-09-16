@@ -43,7 +43,8 @@ export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHi
   return { data, sizes, offsets };
 }
 
-/** One ceil-2×2 max reduction of a packed level (background 1). */
+/** One ceil-2×2 min reduction of a packed level: the farthest of each square, the engine's depth
+ *  being reversed. */
 export function evaluateHizReduce(src: Float32Array, srcWidth: number, srcHeight: number) {
   const reduced = hizReduceCeil(rowsOf(src, srcWidth, srcHeight));
   const height = reduced.length,

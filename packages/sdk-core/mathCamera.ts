@@ -3,30 +3,35 @@ import { multiplyMatrix4, type NumberSink } from './mathMatrix4.ts';
 import { invertMatrix4 } from './mathMatrix4Inverse.ts';
 
 /**
- * Caméra perspective du moteur, dans les deux conventions de profondeur de découpe — `[-1, 1]`
- * (WebGL, `depthZeroToOne` faux) et `[0, 1]` (WebGPU) — et matrices d'une image : vue,
- * vue-projection, plans du tronc. La pose de la caméra est un nœud de la hiérarchie de
- * transformations ; sa matrice monde entre ici.
+ * Caméra perspective du moteur, en PROFONDEUR INVERSÉE et plan lointain infini : le plan proche se
+ * projette sur 1, l'infini sur 0, et la découpe reste `[0, 1]`. C'est la convention unique du
+ * moteur, celle que `depthConvention.ts` (sdk-browser) publie aux pipelines et aux lecteurs de
+ * profondeur ; aucune autre n'est portée ici.
  *
- * Formules de `updateProjectionMatrix` de la référence puis de `makePerspective`, terme à terme : les
- * mêmes bits. Ni vue décalée (`setViewOffset`), ni décalage de film, ni projection orthographique :
- * le moteur n'en pose aucune.
+ * POURQUOI. Une profondeur en simple précision concentre ses bits près de zéro, et la division
+ * perspective concentre déjà la profondeur près du plan proche : les deux effets s'annulent quand
+ * le plan proche vaut 1 et le lointain 0, si bien qu'à mille kilomètres deux surfaces voisines
+ * gardent encore des profondeurs distinctes là où la convention directe les écrasait sur la même
+ * valeur. Le plan lointain n'entre plus dans la formule — plus de `far - near` au dénominateur,
+ * donc plus rien à régler et rien qui sature : `ndc = near / distance`.
+ *
+ * Ni vue décalée (`setViewOffset`), ni décalage de film, ni projection orthographique : le moteur
+ * n'en pose aucune.
  */
 
 const DEG2RAD = Math.PI / 180;
 
 /**
- * Projection perspective d'une caméra de champ vertical `fov` degrés, rapport `aspect`, plans `near`
- * et `far`, grossissement `zoom`.
+ * Projection perspective d'une caméra de champ vertical `fov` degrés, rapport `aspect`, plan proche
+ * `near`, grossissement `zoom`. Profondeur inversée, plan lointain infini : `near` se projette sur
+ * 1, l'infini sur 0. Aucun plan lointain n'entre ici, donc aucune division par lui.
  */
 export function perspectiveProjection<T extends NumberSink>(
   out: T,
   fov: number,
   aspect: number,
   near: number,
-  far: number,
   zoom: number,
-  depthZeroToOne: boolean,
 ) {
   const top = (near * Math.tan(DEG2RAD * 0.5 * fov)) / zoom;
   const height = 2 * top,
@@ -34,8 +39,6 @@ export function perspectiveProjection<T extends NumberSink>(
   const left = -0.5 * width,
     right = left + width,
     bottom = top - height;
-  const c = depthZeroToOne ? -far / (far - near) : -(far + near) / (far - near);
-  const d = depthZeroToOne ? (-far * near) / (far - near) : (-2 * far * near) / (far - near);
   out[0] = (2 * near) / (right - left);
   out[1] = 0;
   out[2] = 0;
@@ -46,11 +49,13 @@ export function perspectiveProjection<T extends NumberSink>(
   out[7] = 0;
   out[8] = (right + left) / (right - left);
   out[9] = (top + bottom) / (top - bottom);
-  out[10] = c;
+  // `z_découpe = near` et `w_découpe = -z_vue` : la profondeur normalisée vaut `near / distance`,
+  // qui vaut 1 au plan proche et tend vers 0 sans jamais l'atteindre.
+  out[10] = 0;
   out[11] = -1;
   out[12] = 0;
   out[13] = 0;
-  out[14] = d;
+  out[14] = near;
   out[15] = 0;
   return out;
 }
@@ -75,17 +80,16 @@ export function createCameraFrame(): CameraFrame {
 
 /**
  * Réécrit l'image : vue = inverse de `world` (nulle pour une matrice monde singulière, comme la
- * référence), vue-projection = `projection · vue`, plans du tronc dans la convention
- * `planesDepthZeroToOne` — celle que lit le consommateur, pas forcément celle de la projection.
+ * référence), vue-projection = `projection · vue`, et les six plans du tronc de cette
+ * vue-projection. Une seule convention de profondeur traverse les trois.
  */
 export function updateCameraFrame(
   frame: CameraFrame,
   projection: ArrayLike<number>,
   world: ArrayLike<number>,
-  planesDepthZeroToOne: boolean,
 ) {
   invertMatrix4(frame.view, world);
   multiplyMatrix4(frame.viewProjection, projection, frame.view);
-  frustumPlanesFromMatrix(frame.planes, frame.viewProjection, planesDepthZeroToOne);
+  frustumPlanesFromMatrix(frame.planes, frame.viewProjection);
   return frame;
 }

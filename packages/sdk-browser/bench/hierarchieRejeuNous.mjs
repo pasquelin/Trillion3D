@@ -25,7 +25,7 @@ import {
 } from '../../sdk-core/index.ts';
 
 const projectionNous = (sortie, s) =>
-  perspectiveProjection(sortie, s.fov, s.aspect, s.near, s.far, s.zoom, s.webgpu);
+  perspectiveProjection(sortie, s.fov, s.aspect, s.near, s.zoom);
 
 /** Les mêmes opérations sur la hiérarchie et la caméra de sdk-core. */
 export function joueNous(scenario) {
@@ -101,7 +101,7 @@ export function joueNous(scenario) {
         break;
       case 'image':
         updateNodeMatrixWorld(tree, n);
-        updateCameraFrame(image, cameras[op[1]].projection, tree.worldViews[n], op[2]);
+        updateCameraFrame(image, cameras[op[1]].projection, tree.worldViews[n]);
         sorties.push([
           rang,
           ...cameras[op[1]].projection,

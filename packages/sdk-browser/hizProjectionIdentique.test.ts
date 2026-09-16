@@ -23,7 +23,8 @@ function reference(
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity,
-    nearest = Infinity;
+    // Profondeur inversée : le coin le plus proche porte la profondeur la plus grande.
+    nearest = -Infinity;
   for (let i = 0; i < 8; i++) {
     const x = corners[i * 3],
       y = corners[i * 3 + 1],
@@ -35,12 +36,12 @@ function reference(
     if (cw <= 0 || !Number.isFinite(cw)) return [0, 0, 0, 0, 0, 1];
     const sx = ((e[0] * x + e[4] * y + e[8] * z + e[12]) / cw) * 0.5 + 0.5,
       sy = 1 - (((e[1] * x + e[5] * y + e[9] * z + e[13]) / cw) * 0.5 + 0.5),
-      sz = ((e[2] * x + e[6] * y + e[10] * z + e[14]) / cw) * 0.5 + 0.5;
+      sz = (e[2] * x + e[6] * y + e[10] * z + e[14]) / cw;
     minX = Math.min(minX, sx * width);
     maxX = Math.max(maxX, sx * width);
     minY = Math.min(minY, sy * height);
     maxY = Math.max(maxY, sy * height);
-    nearest = Math.min(nearest, sz);
+    nearest = Math.max(nearest, sz);
   }
   return [
     Math.floor(minX),
@@ -91,18 +92,7 @@ function compare(
   const into = new Float64Array(HIZ_BOUNDS_VALUES);
   let projected = 0;
   for (const corners of boxes) {
-    projectCornersInto(
-      corners,
-      0,
-      view.elements,
-      viewProj.elements,
-      near,
-      1280,
-      720,
-      false,
-      into,
-      0,
-    );
+    projectCornersInto(corners, 0, view.elements, viewProj.elements, near, 1280, 720, into, 0);
     const expected = reference(corners, view.elements, viewProj.elements, near, 1280, 720);
     for (let k = 0; k < HIZ_BOUNDS_VALUES; k++)
       assert.ok(

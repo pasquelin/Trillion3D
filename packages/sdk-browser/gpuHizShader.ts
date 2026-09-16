@@ -25,11 +25,12 @@ fn copyDepth(@builtin(global_invocation_id) id:vec3u){
 fn reduceHiz(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=uni.e||id.y>=uni.f){return;}
  let x0=id.x*2u;let y0=id.y*2u;
+ // Profondeur inversee : le plus LOINTAIN d'un carre est le MINIMUM.
  var far=pyramid[uni.a+y0*uni.b+x0];
- if(x0+1u<uni.b){far=max(far,pyramid[uni.a+y0*uni.b+x0+1u]);}
+ if(x0+1u<uni.b){far=min(far,pyramid[uni.a+y0*uni.b+x0+1u]);}
  if(y0+1u<uni.c){
-  far=max(far,pyramid[uni.a+(y0+1u)*uni.b+x0]);
-  if(x0+1u<uni.b){far=max(far,pyramid[uni.a+(y0+1u)*uni.b+x0+1u]);}
+  far=min(far,pyramid[uni.a+(y0+1u)*uni.b+x0]);
+  if(x0+1u<uni.b){far=min(far,pyramid[uni.a+(y0+1u)*uni.b+x0+1u]);}
  }
  pyramid[uni.d+id.y*uni.e+id.x]=far;
 }
@@ -45,7 +46,7 @@ fn testHiz(@builtin(global_invocation_id) id:vec3u){
  if((b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=0u;return;}
  let far=pyramidFar(b.minX,b.minY,b.maxX,b.maxY,b.pad0,b.pad1);
  let bias=bitcast<f32>(uni.d);
- let reject=select(0u,1u,b.nearest>far+bias);
+ let reject=select(0u,1u,b.nearest<far-bias);
  flags[row]=reject;
  if(reject!=0u){
   atomicAdd(&state[${ST_REJECTED}u],1u);

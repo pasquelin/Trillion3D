@@ -1,23 +1,26 @@
 // Oracles purs de A1 et A5, sans effet de bord : `hiz.bench.mjs` les mesure, les tests unitaires les
 // importent comme référence. Importer ce module n'exécute ni banc ni écriture de fichier.
 import * as THREE from 'three';
-import { HIZ_BACKGROUND } from '../../../sdk-core/index.ts';
+import { perspectiveProjection } from '../../../sdk-core/index.ts';
+import { DEPTH_CLEAR } from '../../depthConvention.ts';
 import { HIZ_KERNEL_TEXELS } from '../../hizCounts.ts';
 import { projectVisibilityVertex } from '../../visibilityProjection.ts';
 import { unpackVisibilityId } from '../../visibilityTypes.ts';
 
-const viewProjScratch = new THREE.Matrix4();
-/** La vue-projection de l'oracle et la convention de profondeur de la caméra qu'il a reçue : les
- *  deux voyagent ensemble, comme dans la caméra du moteur. Réécrit par appel, jamais réalloué. */
-const depthCam = { viewProjection: viewProjScratch.elements, depthZeroToOne: false };
+const viewProjScratch = new THREE.Matrix4(),
+  projScratch = new THREE.Matrix4();
+/** La vue-projection de l'oracle : le moteur n'a qu'une convention de profondeur, donc il n'y a
+ *  plus rien à faire voyager avec elle. Réécrit par appel, jamais réalloué. */
+const depthCam = { viewProjection: viewProjScratch.elements };
 /** `hizDepth.ts:25-84` avant le lot A : trois projections par pixel. */
 export function referenceVisibilityDepth(ids, pages, cam, viewport) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
-  depth.fill(HIZ_BACKGROUND);
+  depth.fill(DEPTH_CLEAR);
   cam.updateMatrixWorld();
-  viewProjScratch.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
-  depthCam.depthZeroToOne = cam.coordinateSystem === THREE.WebGPUCoordinateSystem;
+  // La projection du moteur, pas celle de l'hôte : profondeur inversée, plan lointain infini.
+  perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
+  viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const unpacked = unpackVisibilityId(ids[y * width + x]);

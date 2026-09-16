@@ -1,4 +1,5 @@
-import { HIZ_BACKGROUND, hizBuildFlat } from '../sdk-core/index.ts';
+import { hizBuildFlat } from '../sdk-core/index.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import type { VisPage } from './visibilityBuffer.ts';
@@ -6,7 +7,7 @@ import type { HizPyramid } from './hizTypes.ts';
 import type { EngineCamera } from './cameraWorld.ts';
 
 /**
- * Standard Hi-Z pyramid from visbuffer depth (background 1, max reduction). La pyramide est plate :
+ * Pyramide Hi-Z du visbuffer : fond au lointain, réduction vers le plus lointain. La pyramide est plate :
  * un seul tampon pour tous les niveaux. `into` la reprend d'une image sur l'autre — même taille,
  * mêmes décalages, aucune ligne réallouée ; sinon une pyramide neuve est posée.
  */
@@ -20,7 +21,7 @@ export function buildHizPyramid(
   return hizBuildFlat(depth, width, height, into);
 }
 
-/** NDC z of the visbuffer winner. Background pixels stay 1. Les sommets d'un triangle ne sont
+/** NDC z of the visbuffer winner. Background pixels stay at the far value. Les sommets d'un triangle ne sont
  *  projetés qu'une fois par image, jamais une fois par pixel : mêmes opérandes, moins souvent. */
 export function visibilityDepth(
   ids: Uint32Array,
@@ -30,7 +31,7 @@ export function visibilityDepth(
 ) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
-  depth.fill(HIZ_BACKGROUND);
+  depth.fill(DEPTH_CLEAR);
   const frame = createVisibilityFrame(pages, cam, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {

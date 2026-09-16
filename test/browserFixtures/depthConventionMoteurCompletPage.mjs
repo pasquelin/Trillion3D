@@ -1,8 +1,10 @@
 // Côté page de la preuve « convention de profondeur, moteur complet » : la même caméra physique
 // (near 2,8, far 12), un carreau transparent incliné qui traverse le plan proche, et seule la
-// convention de profondeur déclarée par l'hôte change — `coordinateSystem`, comme le ferait un hôte
-// qui bascule son renderer. Le moteur recalcule sa projection pour chaque convention
-// (`readCameraWorld`, `depthConvention.ts`) ; l'image doit rester identique au pixel près.
+// convention de découpe déclarée par l'hôte change — `coordinateSystem`, comme le ferait un hôte
+// qui bascule son renderer. Le moteur n'en lit plus rien : il compose sa propre projection, en
+// profondeur inversée et plan lointain infini (`readCameraWorld`, `depthConvention.ts`). L'image
+// doit rester identique au pixel près, et l'image tenue doit le RESTER — il n'y a plus rien à
+// recalculer quand l'hôte change d'avis.
 import * as THREE from 'three';
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import {

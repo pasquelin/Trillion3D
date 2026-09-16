@@ -8,7 +8,7 @@ export {
 } from './projectionOracles.ts';
 export { matrixWindingCw } from './matrixOrientation.ts';
 export {
-  HIZ_BACKGROUND,
+  HIZ_NOTHING,
   hizReduceCeil,
   hizBuildPyramid,
   hizFootprintFar,

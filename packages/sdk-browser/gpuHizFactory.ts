@@ -8,7 +8,7 @@ const WORKGROUP = 8,
   UNIFORM_BYTES = 256,
   MAX_LEVELS = 16;
 
-/** This-frame Hi-Z from the visbuffer r32float depth (background 1, max reduction). Missing compute returns undefined. */
+/** Hi-Z de l'image : profondeur inversée, réduction au minimum. Sans calcul, rend `undefined`. */
 export async function createGpuHiz(
   device: GPUDevice,
   width: number,

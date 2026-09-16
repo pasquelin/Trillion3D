@@ -5,6 +5,7 @@ import { UNIFORM_STRIDE } from './webgpuBlendUniforms.ts';
 import { ROW_INDEX_WORDS } from './webgpuPageRow.ts';
 import { bindGroupFor, pageRgb, pipelineFor } from './webgpuPagesPipelineFor.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import { DEPTH_CLEAR } from './depthConvention.ts';
 
 /** Uploads and draws opaque rows through the non-visibility fallback pipeline; the draws count on
  *  `rt.run.gpuDrawCalls` and the open encoder comes back with the vertices drawn. */
@@ -54,7 +55,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ],
     depthStencilAttachment: {
       view: gpu.depthView!,
-      depthClearValue: 1,
+      depthClearValue: DEPTH_CLEAR,
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },

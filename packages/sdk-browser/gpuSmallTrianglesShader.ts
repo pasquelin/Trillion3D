@@ -56,7 +56,8 @@ fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.
 ${MASK_KEEP_WGSL}
 @compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
  let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}
- atomicStore(&work[offset],bitcast<u32>(1.0));atomicStore(&work[pixels+offset],0xffffffffu);
+ // Profondeur inversee : le tampon part du LOINTAIN (0) et le gagnant est le maximum.
+ atomicStore(&work[offset],bitcast<u32>(0.0));atomicStore(&work[pixels+offset],0xffffffffu);
 }
 // Everything a triangle decides before a pixel is named. The binning pass evaluates it once per
 // triangle and the two raster passes replay it for the survivors only, from the same inputs, so the
@@ -89,16 +90,17 @@ fn rasterPixel(t:Tri,lane:vec2u,writeId:bool){
  let bw=baryWeights(t.a,t.b,t.c,sample,t.area);let wa=bw.x;let wb=bw.y;let wc=bw.z;
  if(wa<0.0||wb<0.0||wc<0.0){return;}
  let depth=wa*t.ca.z/t.ca.w+wb*t.cb.z/t.cb.w+wc*t.cc.z/t.cc.w;
- if(depth<0.0||depth>=1.0){return;}
+ if(depth<=0.0||depth>1.0){return;}
  if((page.flags&128u)!=0u){let inv=wa/t.ca.w+wb/t.cb.w+wc/t.cc.w;let tc=(uv(page,t.ia)*(wa/t.ca.w)+uv(page,t.ib)*(wb/t.cb.w)+uv(page,t.ic)*(wc/t.cc.w))/inv;if(!maskKeep(page,tc)){return;}}
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  // La couche coplanaire du cluster est un décalage entier sur la clé de profondeur, appliqué avant
- // l'empaquetage : pour une profondeur positive, les bits IEEE-754 croissent avec la valeur, donc
- // retrancher des unités rapproche exactement d'autant de derniers bits. Zéro pour la couche 0.
+ // l'empaquetage : pour une profondeur positive, les bits IEEE-754 croissent avec la valeur, et la
+ // profondeur du moteur est inversée, donc AJOUTER des unités rapproche exactement d'autant de
+ // derniers bits, plafonné aux bits du plan proche. Zéro pour la couche 0.
  let raw=bitcast<u32>(depth);
- let bits=select(raw,select(0u,raw-page.depthBias,raw>page.depthBias),page.depthBias>0u);
+ let bits=min(0x3f800000u,raw+page.depthBias);
  if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(triangle&0xffu));}}
- else{atomicMin(&work[offset],bits);}
+ else{atomicMax(&work[offset],bits);}
 }
 // A dispatch dimension tops out at 65 535 groups, far below the page count a replicated scene
 // reaches, so the page row is split over y and z and bounded against the live row count.
