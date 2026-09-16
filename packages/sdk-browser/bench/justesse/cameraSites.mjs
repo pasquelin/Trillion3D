@@ -85,19 +85,6 @@ const sitesPurs = [
     },
   },
   {
-<<<<<<< HEAD
-    nom: 'createProjectionHold.reframe (Hi-Z, tenue)',
-    cree: () => ({ hold: createProjectionHold(4), index: new Int32Array([0, 1, 2, 3]) }),
-    mesure: ({ hold, index }, camera) => {
-      hold.reframe(moteur(camera), VIEWPORT[0], VIEWPORT[1], 0);
-      const reprojette = hold.select(4, undefined, index);
-      hold.keep(4, index);
-      return reprojette;
-    },
-  },
-  {
-=======
->>>>>>> 19202c87 (perf(coupe gpu): la partition, la projection et les bornes Hi-Z passent sur la carte)
     // L'historique tenu par l'image doit décrire la vue de cette image : relu aussitôt, il est égal.
     nom: 'applyTemporalHiz + sameHizView (Hi-Z, historique)',
     cree: () => ({ ...pagesDag(), history: {} }),
