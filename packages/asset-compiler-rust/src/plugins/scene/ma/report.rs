@@ -20,6 +20,9 @@ pub(super) const ATTRIBUTE_INVALID: &str = "ma-attribute-invalid";
 /// Une commande `parent` que ce pilote ne rejoue pas : elle ne cite pas une forme maillée et un
 /// transform connus, ou elle retire au lieu d'ajouter.
 pub(super) const PARENT_UNSUPPORTED: &str = "ma-parent-unsupported";
+/// Un nom de nœud que le fichier écrit sans chemin alors que plusieurs nœuds le portent : Maya
+/// aurait exigé le chemin complet. C'est le premier nœud écrit qui répond, et l'écart est compté.
+pub(super) const NAME_AMBIGUOUS: &str = "ma-name-ambiguous";
 /// Un nœud `transform` dont les nombres ne sont pas finis : il reste à l'identité.
 pub(super) const TRANSFORM_INVALID: &str = "ma-transform-invalid";
 /// Une hiérarchie plus profonde que ce que ce pilote parcourt, une chaîne de pères circulaire

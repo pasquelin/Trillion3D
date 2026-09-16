@@ -7,11 +7,15 @@
 use super::*;
 
 mod edit;
+mod path;
 
-/// Un nœud du fichier : son type, son nom, son père, et ses attributs écrits.
+/// Un nœud du fichier : son type, son nom, son chemin, son père, et ses attributs écrits.
 pub(super) struct Node {
     pub(super) kind: String,
     pub(super) name: String,
+    /// Le chemin complet du nœud dans la scène, `|A|M`, qui seul l'identifie : deux nœuds de même
+    /// nom court sous deux pères différents sont deux nœuds, et Maya les distingue par là.
+    pub(super) path: String,
     pub(super) parent: Option<usize>,
     pub(super) attrs: HashMap<String, Attr>,
 }
@@ -35,8 +39,8 @@ pub(super) struct Link {
 /// Le fichier lu en entier.
 pub(super) struct Document {
     pub(super) nodes: Vec<Node>,
-    /// Le rang de chaque nœud par son nom.
-    pub(super) by_name: HashMap<String, usize>,
+    /// Les rangs des nœuds de chaque nom court, dans l'ordre où le fichier les écrit.
+    by_name: HashMap<String, Vec<usize>>,
     pub(super) links: Vec<Link>,
     /// Les formes qu'un `parent -add` accroche sous un second transform : `(transform, forme)`.
     pub(super) instances: Vec<(usize, usize)>,
