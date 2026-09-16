@@ -6,9 +6,10 @@ import {
   createFrameRevisions,
 } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';
+import { createHostSceneWatch, type WatchedSources } from './hostSceneWatch.ts';
 
 /** Ce qu'une image WebGL a produit d'observable : voir `sample` ci-dessous. */
-export const WEBGL_HOLD_VALUES = 6;
+const WEBGL_HOLD_VALUES = 6;
 
 export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
 
@@ -24,7 +25,9 @@ export function createWebglFrameGate() {
   const revisions = createFrameRevisions();
   const viewRevision = createViewRevision();
   const hold = createFrameHold(WEBGL_HOLD_VALUES);
-  let worldsRevision = 0;
+  const sceneWatch = createHostSceneWatch();
+  let worldsRevision = 0,
+    watchRevision = -1;
   return {
     revisions,
     hold,
@@ -46,9 +49,26 @@ export function createWebglFrameGate() {
         pixelError,
       );
     },
+    /**
+     * Relit les nœuds source et déclare la scène changée quand l'hôte les a écrits directement —
+     * une pose, une visibilité, une lampe —, sans passer par le moteur. À appeler AVANT `held()` :
+     * sans cela l'image serait tenue sur une scène périmée. Rien n'est remonté ici : seules les
+     * poses locales sont comparées, et la comparaison est idempotente.
+     *
+     * La liste des nœuds relus est refaite après chaque changement de scène, jamais par image : une
+     * instance de plus ou une lampe posée après coup passe par là, et rien d'autre ne l'ajoute.
+     */
+    readScene(source: THREE.Object3D, drawn: WatchedSources) {
+      if (watchRevision !== revisions.scene) {
+        sceneWatch.observe(source, drawn);
+        watchRevision = revisions.scene;
+      }
+      if (sceneWatch.changed()) bumpScene(revisions);
+    },
     /** Vrai quand deux images identiques se sont suivies et que rien n'a bougé depuis. */
     held: () => hold.stable && hold.same(revisions),
-    /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. */
+    /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. Une
+     *  image que rien n'a touchée ne remonte rien : c'est `readScene` qui sait si rien n'a bougé. */
     updateWorlds(source: THREE.Object3D) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
@@ -56,24 +76,30 @@ export function createWebglFrameGate() {
       return true;
     },
     /**
-     * Range l'image qui vient d'être produite. Les six nombres décrivent la coupe entière : deux
-     * images qui les partagent ont attaché exactement les mêmes clusters, donc dessinent la même
-     * image — et la coupe suivante, qui relit `shown`, repartirait du même point fixe.
+     * Range l'image qui vient d'être produite. Les six nombres décrivent la COUPE, et rien du
+     * parcours qui l'a trouvée : deux images qui les partagent ont attaché exactement les mêmes
+     * clusters, dans le même ordre, donc dessinent la même image.
+     *
+     * L'identité de la coupe est le hachage des identifiants affichés, pas un compteur de parcours.
+     * Un rejet par le tronc compte des nœuds visités : le repli par forçage redescend l'arbre et en
+     * comptait deux fois, si bien que deux images à coupe identique paraissaient différentes et
+     * qu'une pose immobile ne convergeait jamais.
      */
     keep(
       visible: number,
       selectedTriangles: number,
-      frustumRejected: number,
+      shown: ReadonlyArray<{ id: number }>,
       lodLevel: number,
-      shown: number,
       overBudget: boolean,
     ) {
+      let digest = shown.length;
+      for (let i = 0; i < shown.length; i++) digest = (Math.imul(digest, 31) + shown[i].id) | 0;
       const sample = hold.sample;
       sample[0] = visible;
       sample[1] = selectedTriangles;
-      sample[2] = frustumRejected;
+      sample[2] = digest;
       sample[3] = lodLevel;
-      sample[4] = shown;
+      sample[4] = shown.length;
       sample[5] = overBudget ? 1 : 0;
       hold.keep(revisions);
     },

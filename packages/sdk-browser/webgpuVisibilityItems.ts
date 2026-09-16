@@ -30,8 +30,6 @@ export function createVisibilityItemsHold() {
   };
 }
 
-export type VisibilityItemsHold = ReturnType<typeof createVisibilityItemsHold>;
-
 /** Builds stable indirect draw items and the tested half's compact Hi-Z bounds; the time it took
  *  lands in `rt.timing.lastItemsMs`. */
 export function buildWebgpuVisibilityItems(

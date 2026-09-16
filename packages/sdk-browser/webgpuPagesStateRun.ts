@@ -8,6 +8,7 @@ import { unmirroredDrawn } from './webgpuPagesHelpers.ts';
 import { createFrameHold, createFrameRevisions, type FrameHold } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';
 import { HOLD_SIGNATURE_VALUES } from './webgpuFrameSignature.ts';
+import { createHostSceneWatch } from './hostSceneWatch.ts';
 import type { FrameRevisions } from './frameRevisions.ts';
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
@@ -106,7 +107,10 @@ export interface WebgpuRunState {
   /** La révision de scène pour laquelle la hiérarchie Three porte ses matrices monde à jour.
    *  Écrite par qui les a remontées : la première image, ou le déplacement d'un nœud nommé. */
   worldsRevision: number;
-  /** La révision de scène dont les matrices ont été portées à la carte et aux items transparents. */
+  /** Ce que l'hôte écrit sans passer par le moteur, et la révision où sa liste est posée. */
+  sceneWatch: ReturnType<typeof createHostSceneWatch>;
+  watchRevision: number;
+  /** La révision dont les matrices sont portées à la carte et aux items transparents. */
   worldUploadRevision: number;
   /** Signature ordonnée de la moitié testée : deux images qui la partagent partagent leurs
    *  occulteurs, donc la partition que la suivante hérite. */
@@ -188,6 +192,8 @@ export function createWebgpuRunState(): WebgpuRunState {
     frameHold: createFrameHold(HOLD_SIGNATURE_VALUES),
     frameHeld: false,
     worldsRevision: 0,
+    sceneWatch: createHostSceneWatch(),
+    watchRevision: -1,
     worldUploadRevision: 0,
     occluderSignature: 0,
   };

@@ -152,6 +152,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
+  /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
+   *  Un relevé neuf qui republie les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
@@ -159,7 +161,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     // Une adoption qui a réécrit les listes les fait changer d'âge, où qu'elle se produise : au
     // rendu comme dans la vidange, qui en rejoue une après que l'hôte a pris ses listes.
     if (metrics.listsRewritten) run.cutEpoch++;
-    if (!adopted) return;
+    if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
     run.uncoveredTriangles = metrics.uncoveredTriangles;
@@ -169,6 +171,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.frustumRejected = metrics.frustumRejected;
     run.lodLevel = metrics.lodLevel;
     run.gpuMetricsReady = metrics.ready;
+    return metrics.listsRewritten;
   };
   /**
    * Answers what the image asks the cache for. One cut covers both passes now, and the readback

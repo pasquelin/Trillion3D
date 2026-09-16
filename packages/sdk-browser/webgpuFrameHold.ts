@@ -1,4 +1,5 @@
 import { sampleWebgpuFrame } from './webgpuFrameSignature.ts';
+import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
 
@@ -53,6 +54,38 @@ function frameSettled(rt: WebgpuPagesRuntime) {
 }
 
 /**
+ * Ce qu'une image tenue a réellement fait, publié comme tel.
+ *
+ * Elle n'a encodé qu'une présentation : aucun cluster n'a été dessiné, aucune passe n'a tourné,
+ * aucune étape processeur n'a été exécutée. Republier les compteurs de dessin et les durées du
+ * dernier rendu complet décrirait un travail que cette image-ci n'a pas fait. Les métriques de la
+ * COUPE — pages retenues, triangles sélectionnés, rejet par le tronc, pages résidentes — restent
+ * intactes : c'est la même coupe, réaffichée, et elle décrit toujours ce que l'image montre.
+ */
+function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitMs: number) {
+  const { run, timing } = rt;
+  run.gpuDrawCalls = presented ? 1 : 0;
+  run.blendDrawCalls = 0;
+  run.submittedTriangles = 0;
+  run.blendSubmittedTriangles = 0;
+  run.cpuSelectMs = null;
+  // Aucune passe n'a été chronométrée sur l'appareil : « non mesuré », jamais la durée d'une autre.
+  timing.lastGpuPassMs = null;
+  timing.lastGpuFrameMs = null;
+  timing.lastGpuHostGapMs = null;
+  timing.lastSubmitMs = submitMs;
+  const steps = timing.cpuProfile.row;
+  steps.fill(0);
+  steps[CPU_STEP.queueSubmitMs] = submitMs;
+  steps[CPU_STEP.encodeSubmitMs] = submitMs;
+  steps[CPU_STEP.submitMs] = submitMs;
+  steps[CPU_STEP.totalMs] = submitMs;
+  timing.rowFilled = true;
+  // Le relevé détaillé décrit une image encodée ; celle-ci n'en est pas une, et n'en republie pas.
+  timing.cpuSample = undefined;
+}
+
+/**
  * L'image tenue. Aucune étape processeur n'est exécutée et rien n'est réencodé : la cible couleur de
  * l'image précédente EST cette image-ci, au bit près, puisque rien de ce dont elle dépend n'a bougé.
  * Elle est simplement réaffichée.
@@ -69,12 +102,18 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     return false;
   }
   run.frameHeld = true;
-  if (!gpu.presenter || !gpu.colorTexture) return true;
-  const encoder = device.createCommandEncoder({ label: 'WG image tenue' });
-  gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
-  device.queue.submit([encoder.finish()]);
-  run.imageRevision++;
-  if (gpu.canvasTexture) gpu.canvasTexture.needsUpdate = true;
+  run.frame++;
+  const start = performance.now();
+  let presented = false;
+  if (gpu.presenter && gpu.colorTexture) {
+    const encoder = device.createCommandEncoder({ label: 'WG image tenue' });
+    gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
+    device.queue.submit([encoder.finish()]);
+    run.imageRevision++;
+    if (gpu.canvasTexture) gpu.canvasTexture.needsUpdate = true;
+    presented = true;
+  }
+  recordHeldFrameWork(rt, presented, performance.now() - start);
   return true;
 }
 
