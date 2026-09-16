@@ -1,35 +1,48 @@
-import * as THREE from 'three';
+import { transformAffinePoint, transformHomogeneousPoint } from '../sdk-core/index.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
-const projectScratch = new THREE.Vector3();
+/** Le sommet monde du dernier point projeté, et son point en espace de découpe : relus aussitôt,
+ *  jamais conservés. Une matrice monde est affine, quatrième ligne `(0, 0, 0, 1)` : la
+ *  transformation affine du socle est alors bit pour bit la projective, dont `1 / w` vaut 1. */
+const worldScratch = new Float64Array(3);
+const clipScratch = new Float64Array(4);
+
+/** Les trois coordonnées d'un sommet, telles que les rend un attribut de géométrie de l'hôte. */
+export type VertexReader = {
+  getX(index: number): number;
+  getY(index: number): number;
+  getZ(index: number): number;
+};
 
 export function projectVisibilityVertex(
-  matrix: THREE.Matrix4,
-  position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+  matrix: MatrixElements,
+  position: VertexReader,
   vi: number,
-  viewProj: THREE.Matrix4,
+  viewProj: ArrayLike<number>,
   width: number,
   height: number,
 ) {
-  const v = projectScratch
-    .set(position.getX(vi), position.getY(vi), position.getZ(vi))
-    .applyMatrix4(matrix);
-  const e = viewProj.elements;
-  const cx = e[0] * v.x + e[4] * v.y + e[8] * v.z + e[12],
-    cy = e[1] * v.x + e[5] * v.y + e[9] * v.z + e[13],
-    cz = e[2] * v.x + e[6] * v.y + e[10] * v.z + e[14],
-    cw = e[3] * v.x + e[7] * v.y + e[11] * v.z + e[15];
+  const v = transformAffinePoint(
+    worldScratch,
+    matrix.elements,
+    position.getX(vi),
+    position.getY(vi),
+    position.getZ(vi),
+  );
+  const clip = transformHomogeneousPoint(clipScratch, viewProj, v[0], v[1], v[2]);
+  const cw = clip[3];
   if (cw === 0 || !Number.isFinite(cw)) return null;
-  const ndcX = cx / cw,
-    ndcY = cy / cw,
-    ndcZ = cz / cw;
+  const ndcX = clip[0] / cw,
+    ndcY = clip[1] / cw,
+    ndcZ = clip[2] / cw;
   return {
     x: (ndcX * 0.5 + 0.5) * width,
     y: (1 - (ndcY * 0.5 + 0.5)) * height,
     z: ndcZ * 0.5 + 0.5,
     invW: 1 / cw,
-    worldX: v.x,
-    worldY: v.y,
-    worldZ: v.z,
+    worldX: v[0],
+    worldY: v[1],
+    worldZ: v[2],
   };
 }
 

@@ -24,9 +24,30 @@ export function referenceVisibilityDepth(ids, pages, cam, viewport) {
         base = unpacked.triangleIndex * 3;
       if (base + 2 >= index.length) continue;
       const p = page.attributes.position;
-      const a = projectVisibilityVertex(page.matrix, p, index[base], viewProj, width, height);
-      const b = projectVisibilityVertex(page.matrix, p, index[base + 1], viewProj, width, height);
-      const c = projectVisibilityVertex(page.matrix, p, index[base + 2], viewProj, width, height);
+      const a = projectVisibilityVertex(
+        page.matrix,
+        p,
+        index[base],
+        viewProj.elements,
+        width,
+        height,
+      );
+      const b = projectVisibilityVertex(
+        page.matrix,
+        p,
+        index[base + 1],
+        viewProj.elements,
+        width,
+        height,
+      );
+      const c = projectVisibilityVertex(
+        page.matrix,
+        p,
+        index[base + 2],
+        viewProj.elements,
+        width,
+        height,
+      );
       if (!a || !b || !c) continue;
       const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
       if (area === 0) continue;

@@ -14,6 +14,7 @@ import {
 } from './pageSelectionCutState.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 /** `pageSelectionCutState.ts` avant ce lot : la résidence relue sur l'état, cluster par cluster. */
 function oracle<T extends PageRecord>(
@@ -61,15 +62,18 @@ test('la coupe suit ce mode : sans tableau d’indices, la page est demandée ma
   for (const page of allPages) page.array = undefined;
   const cam = camera();
   // Rien n'est tenu : la résidence n'est pas une question, tout ce qui est choisi est affiché.
-  const libre = selectVisiblePages(roots, cam, { holdResident: false });
+  const libre = selectVisiblePages(roots, cameraMoteur(cam), { holdResident: false });
   assert.equal(libre.shown.length, libre.wanted.length || libre.shown.length);
   assert.ok(libre.shown.length > 0);
   // Tenu sans réponse de l'hôte : la résidence est le tableau d'indices, qu'aucune page n'a.
-  const tenu = selectVisiblePages(roots, cam, { holdResident: true });
+  const tenu = selectVisiblePages(roots, cameraMoteur(cam), { holdResident: true });
   assert.equal(tenu.shown.length, 0);
   assert.equal(tenu.complete, false);
   // Tenu avec réponse de l'hôte : c'est elle qui tranche, pas le tableau d'indices.
-  const demande = selectVisiblePages(roots, cam, { holdResident: true, isResident: () => true });
+  const demande = selectVisiblePages(roots, cameraMoteur(cam), {
+    holdResident: true,
+    isResident: () => true,
+  });
   assert.ok(demande.shown.length > 0);
   assert.equal(demande.complete, true);
   fixture.geometry.dispose();

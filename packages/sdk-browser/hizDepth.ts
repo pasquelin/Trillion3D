@@ -1,12 +1,9 @@
-import * as THREE from 'three';
 import { HIZ_BACKGROUND, hizBuildFlat } from '../sdk-core/index.ts';
 import { createVisibilityFrame } from './visibilityFrame.ts';
 import { barycentricAt, signedArea } from './visibilityProjection.ts';
 import type { VisPage } from './visibilityBuffer.ts';
 import type { HizPyramid } from './hizTypes.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
-
-const viewProjScratch = new THREE.Matrix4();
+import type { EngineCamera } from './cameraWorld.ts';
 
 /**
  * Standard Hi-Z pyramid from visbuffer depth (background 1, max reduction). La pyramide est plate :
@@ -28,19 +25,13 @@ export function buildHizPyramid(
 export function visibilityDepth(
   ids: Uint32Array,
   pages: VisPage[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   viewport: [number, number],
 ) {
   const [width, height] = viewport,
     depth = new Float32Array(width * height);
   depth.fill(HIZ_BACKGROUND);
-  // Fonction appelable seule : elle résout sa propre pose (contrat : `cameraWorld.ts`).
-  resolveCameraWorld(camera);
-  const viewProj = viewProjScratch.multiplyMatrices(
-    camera.projectionMatrix,
-    camera.matrixWorldInverse,
-  );
-  const frame = createVisibilityFrame(pages, viewProj, width, height);
+  const frame = createVisibilityFrame(pages, cam.viewProjection, width, height);
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const triangle = frame.triangle(ids[y * width + x]);

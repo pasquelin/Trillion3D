@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { hostWorldPositionInto, resolveHostNode } from './hostWorldMatrices.ts';
 
 /** Place réservée à une lampe : couleur, intensité, portée, décroissance, cône, sol, et la position
  *  monde de sa cible quand elle en porte une. Une place fixe, comme celle d'un nœud. */
@@ -38,11 +39,8 @@ export function readLightInto(light: THREE.Light, held: Float64Array, at: number
   scratch[10] = ground ? ground.b : 0;
   const target = shaped.target;
   if (target) {
-    target.updateWorldMatrix(true, false);
-    const elements = target.matrixWorld.elements;
-    scratch[11] = elements[12];
-    scratch[12] = elements[13];
-    scratch[13] = elements[14];
+    resolveHostNode(target);
+    hostWorldPositionInto(scratch, 11, target);
   } else scratch[11] = scratch[12] = scratch[13] = 0;
   let moved = false;
   for (let k = 0; k < LIGHT_SLOTS; k++)

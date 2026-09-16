@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import { selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { applyTemporalHiz, resetHizCounts } from './hiz.ts';
 import {
@@ -28,7 +28,7 @@ import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 function selectCpuCut(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   pixelError: number,
   pinnedOnly: boolean,
 ) {
@@ -38,7 +38,7 @@ function selectCpuCut(
   const result = pinnedOnly ? undefined : rt.run.selectResult;
   return selectVisiblePages(
     roots,
-    camera,
+    cam,
     {
       pixelError,
       viewport,
@@ -55,7 +55,7 @@ function selectCpuCut(
 }
 
 /** Drops the occluded half of a complete CPU cut when the temporal pyramid can vouch for it. */
-function cullWithTemporalHiz(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, vis, diag } = rt,
     ready = run.readyScratch;
   ready.length = 0;
@@ -65,7 +65,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCa
   try {
     const cut = applyTemporalHiz(
       partitionByPass(ready, false, run.opaqueScratch) as Array<PageRec & { array: Uint32Array }>,
-      camera,
+      cam,
       rt.setup.viewport ?? rt.gpu.targetSize,
       run.temporalHizState,
       run.cpuHizCounts,
@@ -85,7 +85,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCa
 /** One image driven by the CPU reference cut, drawn only once the cut is entirely resident. */
 export function renderCpuCut(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   pixelError: number,
   cpuStart: number,
   lightsEnd: number,
@@ -105,7 +105,7 @@ export function renderCpuCut(
   run.pagesEntered = null;
   run.pagesExited = null;
   const cpuSelectionStarted = performance.now();
-  const selected = selectCpuCut(rt, camera, pixelError, false);
+  const selected = selectCpuCut(rt, cam, pixelError, false);
   run.cpuSelectMs = performance.now() - cpuSelectionStarted;
   traceCpuSelection(rt, selected, run.cpuSelectMs);
   run.desired.length = 0;
@@ -141,7 +141,7 @@ export function renderCpuCut(
       { cpuStart, lightsEnd, selectionEnd: loadingEnd },
       loadingEnd,
     );
-    traceCpuFrameWaiting(rt, camera, requested);
+    traceCpuFrameWaiting(rt, cam, requested);
     return;
   }
   if (selected.complete === false) throw new Error('GPU_COVERAGE_INCOMPLETE');
@@ -153,7 +153,7 @@ export function renderCpuCut(
   for (const url of requested) transition.add(url);
   for (let i = 0; i < run.shown.length; i++) transition.add(run.shown[i].url);
   if (!run.coverageBudgetLimited && transition.size > slots) {
-    const fallback = selectCpuCut(rt, camera, pixelError, true);
+    const fallback = selectCpuCut(rt, cam, pixelError, true);
     if (!fallback.complete) throw new Error('GPU_COVERAGE_INCOMPLETE');
     run.shown.length = 0;
     appendAll(run.shown, fallback.shown);
@@ -162,7 +162,7 @@ export function renderCpuCut(
   traceTransition(rt, requested, transition, transitionStarted);
   if (run.shown.some((page) => !services.hasBytes(page)))
     throw new Error('GPU_COVERAGE_BYTES_MISSING');
-  const culled = cullWithTemporalHiz(rt, camera);
+  const culled = cullWithTemporalHiz(rt, cam);
   const selectionEnd = performance.now();
   const queueStarted = performance.now();
   services.queueResident(run.coverageBudgetLimited ? [] : run.desired);
@@ -182,10 +182,10 @@ export function renderCpuCut(
   traceTargetsEnsured(rt, width, height, targetStarted);
   logFirstCpuRenderPath(rt);
   const encodeStart = performance.now();
-  run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
+  run.submittedTriangles = encodeDraws(rt, gpuDevice, cam);
   const cpuEnd = performance.now();
   timing.lastSubmitMs = cpuEnd - encodeStart;
   timing.cpuSample = cpuSampleOf(rt, { cpuStart, lightsEnd, selectionEnd, encodeStart }, cpuEnd);
   publishCpuProfile(rt);
-  traceCpuFrame(rt, camera);
+  traceCpuFrame(rt, cam);
 }

@@ -8,7 +8,13 @@ import {
 } from './frameRevisions.ts';
 import { createViewRevision } from './frameViewRevision.ts';
 import { createHostSceneWatch, type WatchedSources } from './hostSceneWatch.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import {
+  createEngineCamera,
+  readCameraWorld,
+  type CameraMotion,
+  type EngineCamera,
+  type HostCamera,
+} from './cameraWorld.ts';
 import { resolvePixelError } from './pageSelection.ts';
 
 export type FrameGateCore = ReturnType<typeof createFrameGateCore>;
@@ -27,12 +33,17 @@ export function createFrameGateCore(holdValues: number) {
   const viewRevision = createViewRevision();
   const hold = createFrameHold(holdValues);
   const sceneWatch = createHostSceneWatch();
+  // La caméra que le moteur possède : l'entrée d'image y recopie celle de l'hôte, une fois, et tout
+  // l'aval la lit. Allouée ici, jamais par image.
+  const cam = createEngineCamera();
   let worldsRevision = 0,
     watchRevision = -1,
     pixelError = 0;
   const gate = {
     revisions,
     hold,
+    /** La caméra du moteur de l'image en cours, telle que `enterFrame` vient de la recopier. */
+    cam,
     /** Le seuil de qualité que `enterFrame` vient de résoudre pour l'image en cours. */
     get pixelError() {
       return pixelError;
@@ -44,14 +55,10 @@ export function createFrameGateCore(holdValues: number) {
     /** La cible ne porte plus l'image de cette vue : une capture y a rendu depuis une autre caméra. */
     viewReplaced: () => bumpView(revisions),
     /** Relit la vue de cette image ; rend vrai si l'un de ses nombres a bougé. */
-    viewChanged(
-      camera: THREE.PerspectiveCamera,
-      viewport: readonly [number, number] | undefined,
-      error: number,
-    ) {
+    viewChanged(vue: EngineCamera, viewport: readonly [number, number] | undefined, error: number) {
       return viewRevision.read(
         revisions,
-        camera,
+        vue,
         viewport ? viewport[0] : -1,
         viewport ? viewport[1] : -1,
         error,
@@ -91,7 +98,8 @@ export function createFrameGateCore(holdValues: number) {
     /**
      * L'entrée d'image, dans l'ordre que tout moteur suit, et qui porte le verdict de tenue.
      *
-     * La pose monde de la caméra, ancêtres compris, est résolue d'abord et une seule fois : le seuil
+     * La pose monde de la caméra, ancêtres compris, est résolue et recopiée dans la caméra du
+     * moteur d'abord et une seule fois — vue, vue-projection, plans du tronc, œil : le seuil
      * adaptatif la lit, puis l'empreinte de vue (contrat et garanties : `cameraWorld.ts`). La vitesse
      * de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil adaptatif de
      * la première image qui bouge à nouveau. Enfin l'hôte a le droit d'écrire le graphe source sans
@@ -99,15 +107,15 @@ export function createFrameGateCore(holdValues: number) {
      */
     enterFrame(
       context: { pixelError?: number; lodAdaptive?: boolean },
-      camera: THREE.PerspectiveCamera,
-      motion: { last?: THREE.Vector3; lastMs?: number },
+      camera: HostCamera,
+      motion: CameraMotion,
       viewport: readonly [number, number] | undefined,
       source: THREE.Object3D,
       drawn: FrameGateSources,
     ) {
-      resolveCameraWorld(camera);
-      pixelError = resolvePixelError(context, camera, motion);
-      gate.viewChanged(camera, viewport, pixelError);
+      readCameraWorld(cam, camera);
+      pixelError = resolvePixelError(context, cam, motion);
+      gate.viewChanged(cam, viewport, pixelError);
       gate.readScene(source, drawn);
       return gate.held();
     },

@@ -20,6 +20,9 @@ type Inputs = {
   options: ExplorerOptions;
 };
 
+/** La cible de la vue capturée, reprise d'une capture à l'autre : rien n'est alloué par appel. */
+const captureTarget = new THREE.Vector3();
+
 export function createExplorerViewportApi(inputs: Inputs) {
   const {
     check,
@@ -47,7 +50,7 @@ export function createExplorerViewportApi(inputs: Inputs) {
       view.near = pose.near;
       view.far = pose.far;
       view.aspect = size.width / size.height;
-      view.lookAt(new THREE.Vector3().fromArray(pose.target));
+      view.lookAt(captureTarget.fromArray(pose.target));
       view.updateProjectionMatrix();
       view.updateMatrixWorld();
       setCapturingSurface(true);

@@ -22,6 +22,7 @@ import {
   texelThree,
 } from './adressageCas.mjs';
 import { CARTES, materielMelange, TEXTURE, UV } from './adressageCartes.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 const textures = new Map();
 function carte(c) {
@@ -58,7 +59,7 @@ function texelRaster(c) {
   };
   const garde = (rang) => {
     materiau.alphaTest = (10 + 10 * rang) / 255;
-    return rasterVisibility([page], camera, [1, 1]).ids[0] !== 0;
+    return rasterVisibility([page], cameraMoteur(camera), [1, 1]).ids[0] !== 0;
   };
   if (!garde(0)) return null;
   let bas = 0,

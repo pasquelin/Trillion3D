@@ -22,12 +22,13 @@ import {
   poseRig,
 } from './cameraRig.mjs';
 import { SITES } from './cameraSites.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 const texte = (valeur) => JSON.stringify(valeur);
 
 /** Résidu de la vue appliquée à la position monde : zéro à l'arrondi flottant près si elles concordent. */
 function residu(camera) {
-  const u = cameraSelectionUniforms(camera, 1, [1280, 720]),
+  const u = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]),
     v = u.view,
     [x, y, z] = u.cameraWorld;
   return Math.hypot(

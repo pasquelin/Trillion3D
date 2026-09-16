@@ -3,6 +3,7 @@
  * GPU, ni DOM. Rangée ici, à côté de `maxStretch`, elle se teste sans navigateur et le rasteriseur
  * CPU du tampon de visibilité n'a plus à la lire dans un module `webgpu*`.
  */
+import { linearPartDeterminant } from './mathMatrix4.ts';
 
 /**
  * La transformation renverse-t-elle l'orientation ? Le déterminant de la 3×3 d'une matrice monde
@@ -14,12 +15,10 @@
  * y sont multipliés par zéro. Neuf multiplications au lieu d'une trentaine, et le même verdict —
  * sauf sur une matrice singulière à l'arrondi près, qui aplatit la primitive sur un plan ou une
  * droite et n'a plus de face à montrer.
+ *
+ * Ce déterminant n'est écrit qu'une fois, dans `linearPartDeterminant` du socle mathématique :
+ * mêmes produits, mêmes sommes, même ordre, donc le même signe aux mêmes bits.
  */
 export function matrixWindingCw(elements: ArrayLike<number>) {
-  return (
-    elements[0] * (elements[5] * elements[10] - elements[6] * elements[9]) -
-      elements[1] * (elements[4] * elements[10] - elements[6] * elements[8]) +
-      elements[2] * (elements[4] * elements[9] - elements[5] * elements[8]) <
-    0
-  );
+  return linearPartDeterminant(elements) < 0;
 }

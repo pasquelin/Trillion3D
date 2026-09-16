@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../packages/sdk-browser/gpuSelection.ts';
 import {
-  camera,
+  vue,
   VIEWPORT,
   construireCas,
   decisionCpu,
@@ -28,7 +28,7 @@ const cas = ECHELLES.flatMap((s) =>
   })),
 );
 
-const uniforms = cameraSelectionUniforms(camera, 0, VIEWPORT);
+const uniforms = cameraSelectionUniforms(vue, 0, VIEWPORT);
 const packed = empaqueteCas(cas);
 const gpu = await selectionGpu([{ nom: 'lot', packed, uniforms }]);
 const indisponible = gpu.indisponible ?? null;
