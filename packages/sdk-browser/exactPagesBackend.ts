@@ -8,12 +8,24 @@ import { createExactPagesResidency } from './exactPagesResidency.ts';
 import { createExactPagesMaterials } from './exactPagesMaterials.ts';
 import { DEFAULT_CLEAR_COLOR, baseCapabilities, lighting } from './backendCommon.ts';
 import { sceneLightingApi } from './sceneLighting.ts';
+import { attachContractLights } from './exactPagesContractLights.ts';
 import { collectClusterPages, type PageRec } from './pageSelection.ts';
 import { ClusterBatches } from './clusterBatches.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { disposeTriangleGeometry } from './triangleDiagnostic.ts';
 import type { BackendFactory } from './backendTypes.ts';
 import * as THREE from 'three';
+
+/** Ce moteur applique les lampes du contrat ; seules leurs ombres lui manquent — Three n'en
+ *  fournirait qu'au prix d'une carte par lampe, six faces pour une ponctuelle, hors budget d'image. */
+const EXACT_PAGES_LIGHTING = {
+  shadows: false,
+  reason: "lampes du contrat sans ombre portée ; la vue 'bounce' y vaut la vue éclairée",
+};
+const RETIRES = ['bounded GPU eviction', 'contract scene lights with shadow atlas'];
+const EXACT_PAGES_UNSUPPORTED = baseCapabilities.unsupported
+  .filter((item) => !RETIRES.includes(item))
+  .concat('contract scene light shadows');
 
 export const exactPagesBackend: BackendFactory = (context) => {
   const {
@@ -52,6 +64,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
   let diagnostic: DiagnosticMode = 'beauty';
   const renderState = createExactPagesRenderState();
   const gate = createWebglFrameGate();
+  // Les lampes du contrat, traduites en lampes Three. Tant que l'hôte n'a ni déclaré de lampe ni
+  // demandé de vue, le graphe source éclaire seul et l'image est celle d'avant, au pixel près.
+  const contract = attachContractLights(scene, context.sceneLights, sceneLights, gate.sceneChanged);
   const motion: { last?: THREE.Vector3; lastMs?: number } = {};
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
@@ -158,7 +173,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
       ...baseCapabilities,
       hierarchy: true,
       eviction: true,
-      unsupported: baseCapabilities.unsupported.filter((item) => item !== 'bounded GPU eviction'),
+      unsupported: EXACT_PAGES_UNSUPPORTED,
     },
     scene,
     async prepare() {},
@@ -169,6 +184,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
       return renderState.frameHeld;
     },
     ...sceneLightingApi(sceneLights, gate.sceneChanged),
+    /** L'image sort en lumière réelle dès que l'un des deux jeux de lampes en porte une. */
+    sceneLit: () => contract.lit,
+    refreshSceneLights: contract.apply,
+    lighting: EXACT_PAGES_LIGHTING,
     render: renderFrame,
     ...cpuMethods,
     ...requestMethods,
