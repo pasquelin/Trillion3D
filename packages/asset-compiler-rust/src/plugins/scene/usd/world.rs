@@ -38,6 +38,9 @@ pub(super) const MESH_INVALID: &str = "usd-mesh-invalid";
 /// points, un indice négatif, moins de trois coins, ou un indice de primvar qui sort de son
 /// tableau. Elle est retirée de la surface plutôt que repliée sur le premier point.
 pub(super) const FACE_INVALID: &str = "usd-face-invalid";
+/// Une face que `holeIndices` nomme : OpenUSD la rend invisible, quel que soit le schéma de
+/// subdivision. Elle est retirée de l'émission plutôt que rendue pleine, et ce compte le dit.
+pub(super) const FACE_HOLE: &str = "usd-face-hole";
 /// Une face que la coupe par oreilles n'a pas su découper entièrement : polygone qui se recoupe, ou
 /// sans plan — coins tous alignés, aire nulle. Elle sort en éventail depuis son premier coin, ce
 /// qui peut la remplir au-delà de sa silhouette, et c'est ce que ce compte dit.
