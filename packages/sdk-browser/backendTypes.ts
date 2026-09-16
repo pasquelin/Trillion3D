@@ -63,6 +63,9 @@ export interface RenderBackend {
    *  so a small camera move finds them already resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
+  /** Les mêmes épingles que `pageUrls`, dites par différence de rangs de requête : l'hôte n'a plus à
+   *  refaire un ensemble de chaînes par image. Un moteur qui ne l'implémente pas garde `pageUrls`. */
+  retainedRanks?(): import('./streamingTypes.ts').HostRetentionDelta;
   /** La fiche d'entiers du catalogue pour une requête : ce que l'intégration hors fil planifie. */
   pageSpecs?(url: string): Int32Array | undefined;
   acceptPage?(

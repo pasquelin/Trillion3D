@@ -36,6 +36,23 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     exitedCount = 0,
     publishedCount = -1,
     changed = true;
+  /**
+   * Vrai quand `ids` est exactement la suite que le dernier relevé appliqué a publiée. Une passe
+   * d'entiers, sans une seule écriture : c'est elle qui autorise à ne rien refaire du tout — ni les
+   * marques, ni les retenues, ni les enregistrements — quand un relevé neuf republie la même coupe.
+   */
+  const samePublished = (ids: readonly number[]) => {
+    if (ids.length !== publishedCount || ids.length > capacity) return false;
+    for (let i = 0; i < ids.length; i++) if (published[i] !== ids[i]) return false;
+    return true;
+  };
+  /** Le relevé tenu : le suffixe de l'appelant tombe, et aucune différence n'est publiée. */
+  const hold = () => {
+    changed = pages ? pages.length !== keptCount : false;
+    if (pages) pages.length = keptCount;
+    enteredCount = 0;
+    exitedCount = 0;
+  };
   return {
     entered,
     exited,
@@ -58,12 +75,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
       return changed;
     },
     /** Drops the caller's suffix and reports no difference: the cut is the one already held. */
-    hold() {
-      changed = pages ? pages.length !== keptCount : false;
-      if (pages) pages.length = keptCount;
-      enteredCount = 0;
-      exitedCount = 0;
-    },
+    hold,
     /** Forgets the cut held: the CPU cut rewrote the records this index describes. */
     invalidate() {
       // Une époque sautée : aucune marque ne vaudra jamais celle-là, donc plus aucun identifiant
@@ -77,6 +89,9 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     },
     /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
     apply(ids: readonly number[]) {
+      // Un relevé neuf qui republie la même suite décrit la coupe déjà tenue : elle est tenue, et
+      // pas une des quinze mille fiches n'est réécrite.
+      if (samePublished(ids)) return hold();
       const previous = epoch;
       epoch++;
       enteredCount = 0;

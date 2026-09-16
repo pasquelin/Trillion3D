@@ -16,6 +16,7 @@ import {
   pendingUrls,
   rasterRgba,
   refreshSceneLights,
+  retainedRanks,
   syncResident,
   visibilityIds,
 } from './webgpuPagesHostApi.ts';
@@ -108,6 +109,9 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     pageUrls() {
       return pageUrls(rt);
+    },
+    retainedRanks() {
+      return retainedRanks(rt);
     },
     pageSpecs(url) {
       return pageSpecs(url);

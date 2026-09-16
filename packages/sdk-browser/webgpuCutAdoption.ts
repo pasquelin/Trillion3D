@@ -54,6 +54,12 @@ export function createWebgpuCutAdopter(options: {
   let lastCut: GpuCut | null = null;
   /** Le relevé dont `shown` et `drawn` sont faits, ou `null` quand ils viennent d'ailleurs. */
   let shownCut: GpuCut | null = null;
+  /** L'âge de la suite d'identifiants dessinables : il avance à chaque fois qu'un relevé en publie
+   *  une autre, adoptée ou non. `shownSeq` est celui de la suite dont `shown` est réellement fait :
+   *  un relevé appliqué puis rejeté — uniformes différents, couverture incomplète — les sépare, et
+   *  c'est ce qui interdit de tenir `shown` sur une suite que l'image n'a jamais adoptée. */
+  let drawnSeq = 0,
+    shownSeq = -1;
   const adopt = () => {
     metrics.cutHeld = false;
     metrics.listsRewritten = false;
@@ -69,6 +75,7 @@ export function createWebgpuCutAdopter(options: {
       drawnDelta.apply(cut.result.drawablePageIds);
       lastCut = cut;
     }
+    if (drawnDelta.changed) drawnSeq++;
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
     // landed — must not replay the previous one, which would count every page twice.
     options.onCutDelta(delta);
@@ -85,7 +92,12 @@ export function createWebgpuCutAdopter(options: {
     // même catalogue, rendent les mêmes enregistrements dans le même ordre. Un relevé dont ils sont
     // déjà faits ne les refait donc pas — seuls les comptes sont relus, et eux seuls dépendent de la
     // résidence. La liste est parcourue une fois au lieu d'être vidée puis repoussée trois fois.
-    const held = cut === shownCut;
+    // `shown` est une fonction de la seule suite d'identifiants dessinables : un relevé neuf qui
+    // republie la MÊME suite que celle dont `shown` est fait rend les mêmes fiches, aux mêmes rangs,
+    // et ni `shown` ni sa recopie `drawn` ne sont refaits. La comparaison porte sur l'âge de la suite
+    // adoptée, pas sur la dernière différence appliquée : un relevé appliqué puis rejeté a fait
+    // avancer l'âge sans rien écrire. `shownCut` nul veut dire que ces listes viennent d'ailleurs.
+    const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq);
     const counts = shownFromGpu(
       packedPages,
       cut.result.drawablePageIds,
@@ -96,6 +108,7 @@ export function createWebgpuCutAdopter(options: {
       copyPages(drawn, shown);
       options.onDrawnMirrored();
       shownCut = cut;
+      shownSeq = drawnSeq;
     }
     metrics.ready = true;
     metrics.selectedTriangles = counts.selectedTriangles;
@@ -110,6 +123,7 @@ export function createWebgpuCutAdopter(options: {
   const invalidate = () => {
     lastCut = null;
     shownCut = null;
+    shownSeq = -1;
     options.delta.invalidate();
     options.drawnDelta.invalidate();
   };

@@ -1,6 +1,7 @@
 // A12 : l'admission des transferts et le drain des arrivées.
 // Référence = `streamingQueue.ts:22-59` et `arrivalQueue.ts:15-65` d'avant le lot A.
-import { findAdmissible, sortStreamJobs } from '../streamingQueue.ts';
+import { findAdmissible } from '../streamingQueueOrder.ts';
+import { sortStreamJobs } from '../streamingQueueOrderFixture.ts';
 import { createArrivalQueue } from '../arrivalQueue.ts';
 import { compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { referenceAdmission, referenceArrivalQueue } from './oracles/streaming.mjs';

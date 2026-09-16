@@ -91,7 +91,7 @@ export function createPageStreamer(
     emit,
     abortError,
   };
-  const { touch, evict, retain: retainPages } = createStreamingCache(context);
+  const { touch, evict, retain, retainRanks } = createStreamingCache(context);
   const loadOne = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const indexViews = new WeakMap<Uint8Array, Uint32Array>();
@@ -132,18 +132,9 @@ export function createPageStreamer(
       state.requested++;
       return subscribe(url, requestSignal, 0);
     },
-    retain(urls: readonly string[]) {
-      const before = onDiagnostic ? new Set(pinned) : undefined;
-      const changed = retainPages(urls);
-      emit('page-retain', 'Épingles de pages mises à jour', () => ({
-        version: 1,
-        requested: urls.length,
-        retained: pinned.size,
-        changed,
-        added: [...pinned].filter((url) => !before?.has(url)),
-        removed: [...(before ?? [])].filter((url) => !pinned.has(url)),
-      }));
-    },
+    retain,
+    /** Les épingles par différence de rangs : ni liste d'adresses, ni ensemble refait par image. */
+    retainRanks,
     async request(
       urls: readonly string[],
       options: { signal?: AbortSignal; priority?: number } = {},
