@@ -115,6 +115,7 @@ mod compiler_accessor_decode;
 mod compiler_accessor_types;
 mod compiler_args;
 mod compiler_autonomous;
+pub mod compiler_budget;
 mod compiler_buffers;
 mod compiler_build;
 mod compiler_bundles;
