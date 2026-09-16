@@ -26,6 +26,29 @@ pub const DAG_MAX_LEVELS: usize = 32;
 /// meshopt's relative error ceiling. Large enough to always reach the triangle target.
 const SIMPLIFY_ERROR_CEILING: f32 = 1.0;
 
+/// Ce que l'option `simplification` demande à la construction. Le mode n'est pas une préférence de
+/// vitesse : il dit si le DAG a le droit de porter, au-dessus des clusters exacts, une surface que
+/// la source ne contient pas.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DagStrategy {
+    /// `none` : le seul niveau zéro, partition exacte des triangles de la source. Aucun groupe n'est
+    /// réduit, donc aucun cluster n'est remplacé et chacun reste une racine.
+    ExactClusters,
+    /// `qem-endpoints` : les niveaux grossiers, chaque groupe réduit par QEM bord verrouillé.
+    QemEndpoints,
+}
+impl DagStrategy {
+    /// La stratégie que nomme l'option. Toute autre orthographe est déjà refusée par la validation
+    /// des options : seul `none` retient la construction.
+    pub fn named(option: &str) -> Self {
+        if option == "none" {
+            Self::ExactClusters
+        } else {
+            Self::QemEndpoints
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DagCluster {
     /// Triangle list in the source vertex buffer, three indices per triangle.

@@ -5,7 +5,7 @@ use super::ufbx_driver::UfbxDriver;
 /// OBJ est un format texte sans entête : aucun nombre magique ne le reconnaît, seule l'extension.
 pub(super) static OBJ: UfbxDriver = UfbxDriver {
     name: "obj",
-    version: "obj-ufbx-0.11.3-gltf-5",
+    version: "obj-ufbx-0.11.3-gltf-6",
     extensions: &["obj"],
     magic: b"",
 };
