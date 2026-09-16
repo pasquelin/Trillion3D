@@ -97,11 +97,11 @@ pub(super) fn compile_primitive(
         ((0..positions.count as u32).collect(), positions.count / 3)
     };
     let pos = {
-        let _t = perf::Timer::new(&perf::PHASES.decode);
+        let _t = perf::Timer::new(perf::Phase::Decode);
         positions.collect_f32()?
     };
     let topology = {
-        let _t = perf::Timer::new(&perf::PHASES.topology);
+        let _t = perf::Timer::new(perf::Phase::Topology);
         crate::topology::classify_topology(&index_values, positions.count)?
     };
     let is_skinned_or_morph = p.get("targets").is_some()
