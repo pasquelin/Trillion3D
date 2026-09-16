@@ -80,6 +80,7 @@ const AUTORISES = {
   hostWorldBounds: 'frontière : les bornes du graphe de l’hôte, rendues à plat',
   hostWorldChain: 'frontière : il lit la chaîne d’ancêtres d’un nœud de l’hôte',
   hostWorldMatrices: 'frontière : la pose locale d’un nœud de l’hôte, lue à plat',
+  hostWorldTree: 'frontière : il lit les poses locales d’un sous-arbre de l’hôte',
   pageSelectionCollect: 'frontière : il parcourt le graphe source de l’hôte',
   replicateInstances: 'frontière : il réplique des nœuds du graphe de l’hôte',
   sceneLighting: 'frontière : les lampes du contrat posées dans la scène de l’hôte',
