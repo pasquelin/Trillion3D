@@ -129,8 +129,7 @@ fn the_ma_driver_keeps_the_area_of_a_concave_polygon() {
          \t\tf 8 0 1 2 3 4 5 6 7;\n",
         corners(" ", "  ", "", "")
     );
-    let dir = std::env::temp_dir().join(format!("wg-ma-ngone-{}", std::process::id()));
-    fs::create_dir_all(&dir).expect("dossier");
+    let dir = scratch("ma", "ngone");
     let source = dir.join("u.ma");
     fs::write(&source, scene).expect("scène");
     let run = compile_golden_source(&source, "ma-ngone");

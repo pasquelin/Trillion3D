@@ -29,7 +29,7 @@ export function writeBlendUniforms(
   );
   // L'œil en repère monde, pris dans la caméra du moteur : la position locale d'une caméra
   // parentée n'est pas où elle regarde.
-  const eye = lastCamera ? run.cam.eye : undefined;
+  const eye = lastCamera ? run.gate.cam.eye : undefined;
   // Une seule question par image, pas par maillage : l'image est-elle éclairée par des lampes
   // déclarées ? Sinon les transparents sortent leur albédo brut, comme les opaques (P6).
   const unlit = wantsContractLighting(rt) ? 0 : FLAG_UNLIT_VIEW;
@@ -38,7 +38,7 @@ export function writeBlendUniforms(
     blendState,
     rt.layout.packedPages,
     diagnostic,
-    eye && run.cam,
+    eye && run.gate.cam,
     viewport,
     diagnosticPixelError,
   );

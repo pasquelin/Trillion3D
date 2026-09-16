@@ -41,15 +41,15 @@ pub(super) fn mesh_json(
     let mut groups: BTreeMap<u32, Primitive> = BTreeMap::new();
     let mut cutter = Ngon::default();
     for face in 0..geometry.faces() {
-        if cancel::stopped(cancelled, face) {
-            return Err(cancel::refusal());
-        }
         let first = geometry.offsets[face] as usize;
         cutter.begin();
         for vertex in geometry.face(face) {
             cutter.corner(slice3(&geometry.positions, *vertex as usize).map(f64::from));
         }
-        if !cutter.cut() {
+        let Some(exact) = cutter.cut(cancelled) else {
+            return Err(cancel::refusal());
+        };
+        if !exact {
             out.count(NGON_UNCUT, 1);
         }
         let group = groups.entry(geometry.material[face]).or_default();

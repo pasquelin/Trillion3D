@@ -1,81 +1,22 @@
-import type * as THREE from 'three';
-import type { EngineCamera } from './cameraWorld.ts';
-import {
-  bumpResources,
-  bumpScene,
-  createFrameHold,
-  createFrameRevisions,
-} from './frameRevisions.ts';
-import { createViewRevision } from './frameViewRevision.ts';
-import { createHostSceneWatch, type WatchedSources } from './hostSceneWatch.ts';
+import { createFrameGateCore } from './frameGateCore.ts';
 
-/** Ce qu'une image WebGL a produit d'observable : voir `sample` ci-dessous. */
+/** Ce qu'une image WebGL a produit d'observable : voir `keep` ci-dessous. */
 const WEBGL_HOLD_VALUES = 6;
 
 export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
 
 /**
- * La porte d'image des moteurs rendus par Three : les trois révisions, l'origine de la vue, et le
- * témoin d'image tenue.
+ * La porte d'image des moteurs rendus par Three : le noyau commun (`frameGateCore.ts`), et la seule
+ * chose qui leur appartienne en propre, la signature de l'image qu'ils viennent de produire.
  *
  * Un moteur WebGL ne soumet rien lui-même — l'hôte rend le graphe qu'il tient. Une image tenue n'a
  * donc rien à réémettre : la scène attachée EST déjà l'image, et ne rien faire la redonne au pixel
  * près. Ce qui est supprimé est la coupe, la remontée des matrices et la mise à jour des lampes.
  */
 export function createWebglFrameGate() {
-  const revisions = createFrameRevisions();
-  const viewRevision = createViewRevision();
-  const hold = createFrameHold(WEBGL_HOLD_VALUES);
-  const sceneWatch = createHostSceneWatch();
-  let worldsRevision = 0,
-    watchRevision = -1;
-  return {
-    revisions,
-    hold,
-    /** La scène a bougé : matrices, matériaux, instances, lampes, vue de diagnostic. */
-    sceneChanged: () => bumpScene(revisions),
-    /** Les ressources ont bougé : octets d'une page, résidence, géométrie remplacée. */
-    resourcesChanged: () => bumpResources(revisions),
-    /** Relit la vue de cette image ; rend vrai si l'un de ses nombres a bougé. */
-    viewChanged(
-      cam: EngineCamera,
-      viewport: readonly [number, number] | undefined,
-      pixelError: number,
-    ) {
-      return viewRevision.read(
-        revisions,
-        cam,
-        viewport ? viewport[0] : -1,
-        viewport ? viewport[1] : -1,
-        pixelError,
-      );
-    },
-    /**
-     * Relit les nœuds source et déclare la scène changée quand l'hôte les a écrits directement —
-     * une pose, une visibilité, une lampe —, sans passer par le moteur. À appeler AVANT `held()` :
-     * sans cela l'image serait tenue sur une scène périmée. Rien n'est remonté ici : seules les
-     * poses locales sont comparées, et la comparaison est idempotente.
-     *
-     * La liste des nœuds relus est refaite après chaque changement de scène, jamais par image : une
-     * instance de plus ou une lampe posée après coup passe par là, et rien d'autre ne l'ajoute.
-     */
-    readScene(source: THREE.Object3D, drawn: WatchedSources) {
-      if (watchRevision !== revisions.scene) {
-        sceneWatch.observe(source, drawn);
-        watchRevision = revisions.scene;
-      }
-      if (sceneWatch.changed()) bumpScene(revisions);
-    },
-    /** Vrai quand deux images identiques se sont suivies et que rien n'a bougé depuis. */
-    held: () => hold.stable && hold.same(revisions),
-    /** Remonte la hiérarchie une fois par révision de scène ; rend vrai quand elle l'a fait. Une
-     *  image que rien n'a touchée ne remonte rien : c'est `readScene` qui sait si rien n'a bougé. */
-    updateWorlds(source: THREE.Object3D) {
-      if (worldsRevision === revisions.scene) return false;
-      worldsRevision = revisions.scene;
-      source.updateMatrixWorld(true);
-      return true;
-    },
+  const core = createFrameGateCore(WEBGL_HOLD_VALUES);
+  // Le noyau est complété, jamais recopié : un étalement figerait la valeur de ses accesseurs.
+  return Object.assign(core, {
     /**
      * Range l'image qui vient d'être produite. Les six nombres décrivent la COUPE, et rien du
      * parcours qui l'a trouvée : deux images qui les partagent ont attaché exactement les mêmes
@@ -95,14 +36,14 @@ export function createWebglFrameGate() {
     ) {
       let digest = shown.length;
       for (let i = 0; i < shown.length; i++) digest = (Math.imul(digest, 31) + shown[i].id) | 0;
-      const sample = hold.sample;
+      const sample = core.hold.sample;
       sample[0] = visible;
       sample[1] = selectedTriangles;
       sample[2] = digest;
       sample[3] = lodLevel;
       sample[4] = shown.length;
       sample[5] = overBudget ? 1 : 0;
-      hold.keep(revisions);
+      core.hold.keep(core.revisions);
     },
-  };
+  });
 }

@@ -14,7 +14,6 @@ import { createWebgpuResidencyQueue } from './webgpuResidencyQueue.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { acceptPage, dropPage } from './webgpuPagesPageApi.ts';
 import { markDrawnMirrored } from './webgpuPagesHelpers.ts';
-import { bumpResources } from './frameRevisions.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>;
@@ -60,7 +59,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     () => !!gpu.cache,
     { commitRows, sourceRowOf },
     // Origine du changement de ressources : la page entre dans la résidence ou en sort.
-    (rec) => (bumpResources(run.revisions), noteResidenceChange(rt.lights, rec)),
+    (rec) => (run.gate.resourcesChanged(), noteResidenceChange(rt.lights, rec)),
   );
   const pageSource = {
     read: async (key: string) => {
@@ -153,13 +152,13 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   if (!run.desired.length)
     for (let i = 0; i < gpuWanted.length; i++) run.desired.push(gpuWanted[i]);
   /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
-   *  Un relevé neuf qui republie les mêmes identifiants dans le même ordre n'en réécrit aucune. */
+   *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
     const adopted = cutAdopter.adopt(),
       metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
-    // Une adoption qui a réécrit les listes les fait changer d'âge, où qu'elle se produise : au
-    // rendu comme dans la vidange, qui en rejoue une après que l'hôte a pris ses listes.
+    gpu.cutIncomplete = metrics.incomplete;
+    // Une adoption qui réécrit les listes les fait changer d'âge, au rendu comme dans la vidange.
     if (metrics.listsRewritten) run.cutEpoch++;
     if (!adopted) return metrics.listsRewritten;
     run.visible = metrics.visible;

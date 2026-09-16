@@ -58,7 +58,8 @@ export const referenceBackend: BackendFactory = ({
     scene,
     setDiagnostic: applyDiagnostic,
     async prepare() {},
-    ...sceneLightingApi(sceneLights),
+    // Ce moteur reparcourt la scène à chaque image : aucune révision n'a à l'apprendre.
+    ...sceneLightingApi(sceneLights, () => {}),
     render() {
       source.updateMatrixWorld(true);
       sceneLights.update();

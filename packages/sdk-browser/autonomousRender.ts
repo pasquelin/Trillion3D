@@ -1,9 +1,9 @@
 import type * as THREE from 'three';
-import { resolvePixelError, selectVisiblePages, type PageRec } from './pageSelection.ts';
+import { createSelectionResult, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import type { BackendContext } from './backendTypes.ts';
 import type { installSceneLighting } from './sceneLighting.ts';
 import type { WebglFrameGate } from './webglFrameGate.ts';
-import { createEngineCamera, readCameraWorld, type CameraMotion } from './cameraWorld.ts';
+import type { CameraMotion } from './cameraWorld.ts';
 
 /** Ce que l'image autonome a décidé, et si elle a été tenue. */
 export type AutonomousRenderState = {
@@ -43,31 +43,32 @@ export function createAutonomousRender(options: {
 }) {
   const { state, context, gate, lighting, roots, shown, desired, bootstrap, cap, sync } = options;
   const motion: CameraMotion = {};
+  // Demande et résultat de la coupe, posés une fois : une image de rendu n'alloue rien du tout, et
+  // la coupe écrit `desired` elle-même au lieu d'être recopiée dedans.
   const selectOptions = {
     pixelError: 0,
     viewport: context.viewport,
     holdResident: true,
+    wanted: desired,
+    result: createSelectionResult<PageRec>(),
   };
-  const engineCam = createEngineCamera();
   const sourcesDessinees = roots.map((root) => root.pages[0]);
   return (camera: THREE.PerspectiveCamera) => {
-    // Entrée d'image : la pose monde, ancêtres compris, est résolue et recopiée ici une fois, avant
-    // le seuil adaptatif et avant l'empreinte de vue. Contrat et garanties : `cameraWorld.ts`.
-    const cam = readCameraWorld(engineCam, camera);
-    // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
-    // adaptatif de la première image qui bouge à nouveau.
-    selectOptions.pixelError = resolvePixelError(context, cam, motion);
-    gate.viewChanged(cam, context.viewport, selectOptions.pixelError);
-    // L'hôte a le droit d'écrire le graphe source sans passer par le moteur : la relecture le dit,
-    // et elle précède la décision de tenir l'image.
-    gate.readScene(context.source, sourcesDessinees);
-    state.frameHeld = gate.held();
+    // Entrée d'image : l'ordre et ses garanties vivent dans `frameGateCore.ts`, qui recopie aussi
+    // la caméra de l'hôte dans celle du moteur — la coupe ne lit plus que celle-ci.
+    state.frameHeld = gate.enterFrame(
+      context,
+      camera,
+      motion,
+      context.viewport,
+      context.source,
+      sourcesDessinees,
+    );
+    selectOptions.pixelError = gate.pixelError;
     if (state.frameHeld) return;
     // Les matrices monde et les lampes recopiées ne sont fonction que de la scène.
     if (gate.updateWorlds(context.source)) lighting.update();
-    const selected = selectVisiblePages(roots, cam, selectOptions, shown);
-    desired.length = 0;
-    for (let i = 0; i < selected.wanted.length; i++) desired.push(selected.wanted[i] as PageRec);
+    const selected = selectVisiblePages(roots, gate.cam, selectOptions, shown);
     state.visible = selected.visible;
     state.selectedTriangles = selected.selectedTriangles;
     state.frustumRejected = selected.frustumRejected;

@@ -32,12 +32,7 @@ pub(super) fn shaded(name: &str, shader: &str) -> String {
 
 /// Écrit une scène jetable sous l'entête du format et la compile par le harnais commun des dorées.
 pub(super) fn compile_ma(tag: &str, body: &str) -> GoldenRun {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("clock")
-        .as_nanos();
-    let dir = std::env::temp_dir().join(format!("wg-ma-{tag}-{}-{stamp}", std::process::id()));
-    fs::create_dir_all(&dir).expect("dossier");
+    let dir = scratch("ma", tag);
     let source = dir.join("scene.ma");
     // Le pilote ne décode pas l'image : il demande au registre si ce nom se lit et si le fichier
     // est là. Un fichier PNG posé à côté suffit donc à ce que les textures d'une scène jetable

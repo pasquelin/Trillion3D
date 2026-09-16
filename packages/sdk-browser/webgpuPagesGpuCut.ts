@@ -2,7 +2,7 @@ import type { EngineCamera } from './cameraWorld.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { mirrorDrawnFromShown } from './webgpuPagesHelpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './webgpuPagesEncoder.ts';
-import { dropGpuSelection } from './webgpuPagesDrops.ts';
+import { fallbackToCpuCut } from './webgpuPagesDrops.ts';
 import { ensureTargets } from './webgpuPagesTargets.ts';
 import { encodeDraws, ensurePageTable } from './webgpuPagesEncodeDraws.ts';
 import { admitGpuCut } from './webgpuPagesGpuCutAdmission.ts';
@@ -15,8 +15,8 @@ import {
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Gives the image up to the CPU cut after the GPU selection let it down. */
-function withoutGpuSelection(rt: WebgpuPagesRuntime) {
-  dropGpuSelection(rt);
+function withoutGpuSelection(rt: WebgpuPagesRuntime, reason: string) {
+  fallbackToCpuCut(rt, reason);
   rt.run.gpuFrameActive = false;
   return false;
 }
@@ -36,7 +36,8 @@ export function renderGpuCut(
     { gpuDevice, viewport, clearColor } = rt.setup,
     marks = rt.timing.marks;
   if (!gpuDevice || !gpu.cache || !run.gpuSelection) {
-    run.frameHold.invalidate();
+    // Origine du changement de ressources : l'appareil, le cache ou la sélection ont disparu.
+    run.gate.resourcesChanged();
     return true;
   }
   run.gpuFrameActive = true;
@@ -56,9 +57,11 @@ export function renderGpuCut(
   marks.transparentSelectEnd = marks.adoptEnd;
   if (run.gpuMetricsReady) run.visible = run.desired.length;
   admitGpuCut(rt, pixelError, budgeted);
-  if (!services.bootstrapState.ready) {
-    // L'image n'est pas complète : rien ne peut être tenu sur elle.
-    run.frameHold.invalidate();
+  if (!services.bootstrapState.ready || gpu.cutIncomplete) {
+    // L'image n'est pas complète : rien ne peut être tenu sur elle. Origine du changement de
+    // ressources : l'amorçage n'a pas encore toutes ses pages — ou une page voulue n'est pas encore
+    // arrivée, ce qui met l'image en attente sans jamais jeter la sélection GPU.
+    run.gate.resourcesChanged();
     run.gpuMetricsReady = false;
     traceGpuCutWaiting(rt);
     return true;
@@ -82,7 +85,7 @@ export function renderGpuCut(
         maxCandidates: rt.layout.drawSlots,
       },
     );
-    return withoutGpuSelection(rt);
+    return withoutGpuSelection(rt, 'capacité des identifiants de visibilité');
   }
   // Le journal des rangs nomme les pages qui viennent d'entrer ou de sortir : la comparaison des
   // deux mille trois cents pages du DAG n'a plus lieu, et seules leurs plages sont réécrites.
@@ -98,7 +101,7 @@ export function renderGpuCut(
   } catch (error) {
     abandonFrameEncoder(rt);
     diag.diagnosticFailure('gpu-selection-dispatch-failed', error);
-    return withoutGpuSelection(rt);
+    return withoutGpuSelection(rt, 'envoi de la sélection en erreur');
   }
   // Une image dont ni l'adoption ni la coupe processeur n'a touché ces listes repousserait
   // quatre-vingt mille enregistrements déjà en place : le drapeau le dit, la recopie s'en abstient.
@@ -122,7 +125,7 @@ export function renderGpuCut(
   } catch (error) {
     abandonFrameEncoder(rt);
     if (context.gpuCanvas) throw error;
-    return withoutGpuSelection(rt);
+    return withoutGpuSelection(rt, 'encodage du dessin en erreur');
   }
   // An encode path that returned without submitting would strand the selection's readback slot.
   abandonFrameEncoder(rt);
