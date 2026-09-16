@@ -15,30 +15,29 @@
 //   packages/sdk-browser/bench/justesse/inverse-transposee-petite-echelle.mjs
 import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { packDagSelection } from '../../gpuDagSelection.ts';
 import { DAG_SELECTION_SHADER } from '../../gpuDagShader.ts';
+import {
+  INVERSE_TRANSPOSE_AVANT_WGSL,
+  INVERSE_TRANSPOSE_WGSL,
+} from '../../inverseTransposeWgsl.ts';
 import {
   camera,
   VIEWPORT,
   dansLeChamp,
   decisionCpu,
+  empaqueteCas,
   veriteTerrain,
 } from './inverseTransposeCas.mjs';
 import { DETERMINISTES, HORS_BANDE, SCALES, tousLesCas } from './inverseTransposeEchantillon.mjs';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 
-// --- Le texte d'avant le lot, reconstruit dans le shader livré ----------------------------------
-const CORRIGE = ` let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
- if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return v;}
- let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
- let det=dot(a,cross(b,c));
- if(!(abs(det)>1e-20)){return v;}
- return (1.0/(det*t))*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);`;
-const AVANT = ` let a=m[0];let b=m[1];let c=m[2];
- let det=dot(a,cross(b,c));
- if(abs(det)<1e-20){return v;}
- return (1.0/det)*(mat3x3f(cross(b,c),cross(c,a),cross(a,b))*v);`;
-const SHADER_AVANT = DAG_SELECTION_SHADER.replace(CORRIGE, AVANT);
+// --- Le texte d'avant le lot, remis dans le shader livré -----------------------------------------
+// Les deux textes viennent d'`inverseTransposeWgsl.ts` : le banc ne réécrit ni le seuil corrigé ni
+// celui d'avant, sans quoi il rejouerait sa propre variante du défaut plutôt que le défaut.
+const SHADER_AVANT = DAG_SELECTION_SHADER.replace(
+  INVERSE_TRANSPOSE_WGSL,
+  INVERSE_TRANSPOSE_AVANT_WGSL,
+);
 assert.notEqual(SHADER_AVANT, DAG_SELECTION_SHADER, 'le texte corrigé n’a pas été retrouvé');
 
 // --- CPU et vérité terrain, un passage JS ordinaire ---------------------------------------------
@@ -48,22 +47,7 @@ const champs = tousLesCas.map(dansLeChamp);
 
 // --- GPU réellement exécuté, un seul lot de dispatch par version --------------------------------
 const uniforms = cameraSelectionUniforms(camera, 0, VIEWPORT);
-const packed = packDagSelection(
-  tousLesCas.map((cas) => ({
-    world: cas.world,
-    pages: [
-      {
-        url: '0',
-        lodError: 0,
-        parentError: null,
-        sphere: [0, 0, 0, cas.worldSize],
-        min: cas.min,
-        max: cas.max,
-        cone: cas.cone,
-      },
-    ],
-  })),
-);
+const packed = empaqueteCas(tousLesCas);
 
 /** Les pages rejetées par le noyau WGSL, pour un texte de shader donné. */
 async function rejetsGpu(shader) {
