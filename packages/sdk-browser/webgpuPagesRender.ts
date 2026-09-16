@@ -1,5 +1,7 @@
 import { sameHizView } from './hiz.ts';
 import { createEngineCamera, holdCameraWorld, type HostCamera } from './cameraWorld.ts';
+import { sameRenderOrigin } from './cameraRenderOrigin.ts';
+import { worldToRenderOrigin } from '../sdk-core/index.ts';
 import {
   fallbackToCpuCut,
   invalidateOccluderHistory,
@@ -53,13 +55,21 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // de scène, et `setWebgpuTransform` n'y remonte déjà que le sous-arbre qu'il a déplacé.
   run.gate.updateWorlds(source);
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
-  if (worldsMoved) {
+  // Ce qui part vers le noyau de coupe est ramené à l'œil (`cameraRenderOrigin.ts`) : une caméra
+  // qui bouge change donc ces seize nombres tout autant qu'un nœud déplacé. Les deux causes mènent
+  // au même renvoi, mais elles ne périment pas la même chose — une surface a bougé dans un cas,
+  // dans l'autre on réécrit le même point dans un repère plus proche, et rien de ce que les fiches
+  // ou les occulteurs décrivent n'a changé.
+  const originMoved = !sameRenderOrigin(run.worldUploadOrigin, cam.eye);
+  if (worldsMoved || originMoved) {
     run.worldUploadRevision = run.gate.revisions.scene;
+    run.worldUploadOrigin.set(cam.eye);
+    // La soustraction se fait en double, l'arrondi simple précision vient après elle.
     for (let i = 0; i < selectionRoots.length; i++)
-      worldUpdates.set(selectionRoots[i].world.elements, i * 16);
+      worldToRenderOrigin(worldUpdates, selectionRoots[i].world.elements, cam.eye, i * 16);
     // A moved root invalidates every row's world matrix, which is the only shared input to a row the
     // scene can still change after `prepare()`.
-    if (run.gpuSelection?.updateWorlds(worldUpdates)) {
+    if (run.gpuSelection?.updateWorlds(worldUpdates) && worldsMoved) {
       rows.tableEpoch++;
       invalidateOccluderHistory(run);
     }

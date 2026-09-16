@@ -1,5 +1,5 @@
 import { coneCullsPage } from './pageCone.ts';
-import { SELECTION_NONE as NONE, type SelectionUniforms } from './gpuSelection.ts';
+import { SELECTION_NONE as NONE } from './gpuSelection.ts';
 import type { PackedDag } from './gpuDagTypes.ts';
 import {
   bandError,
@@ -21,7 +21,6 @@ type PredicateContext = {
   packed: PackedDag;
   /** Le décodeur unique, ouvert une fois par évaluation et partagé avec le reste de l'oracle. */
   records: DagRecords;
-  uniforms: SelectionUniforms;
   nodeFlags: Uint8Array;
   planes: Float64Array[];
   views: number[][];
@@ -31,15 +30,17 @@ type PredicateContext = {
 };
 
 export function createDagOraclePredicates(context: PredicateContext) {
-  const { packed, records, uniforms, nodeFlags, planes, views, stretches, focal, near } = context;
+  const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
   const { worlds } = packed;
   const coneRejects = (index: number, w: number) => {
     if (!hasBoxOf(records, index)) return false;
     const { cone, cam, min, max } = dagScratch;
     coneInto(records, index, cone);
     boxInto(records, index, min, max);
-    const cw = uniforms.cameraWorld;
-    cam.position.set(cw[0], cw[1], cw[2]);
+    // Les matrices monde du noyau sont celles du repère de rendu, dont `cameraWorld` des uniformes est
+    // l'origine : la caméra y est à zéro. L'oracle pose donc la sienne à zéro — mettre la position
+    // monde ici mêlerait un opérande absolu à des boîtes relatives, et le cône trancherait faux.
+    cam.position.set(0, 0, 0);
     cam.updateMatrixWorld();
     dagScratch.world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
     return coneCullsPage(

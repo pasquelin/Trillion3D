@@ -12,7 +12,7 @@ import {
   createConeContext,
   triangleCone,
 } from '../../pageCone.ts';
-import { packDagSelection } from '../../gpuDagSelection.ts';
+import { packDagSelection, packedWorldsToRenderOrigin } from '../../gpuDagSelection.ts';
 import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { poseMonde } from './normaleEclairageCas.mjs';
 import { cameraMoteur } from '../../cameraFixture.ts';
@@ -116,12 +116,18 @@ const pageDuCas = (cas) => ({
  * Les cas empaquetés pour le noyau GPU : une racine par cas, une page par racine, la sphère du cas
  * pour rayon. Écrit une seule fois pour la campagne comme pour la preuve `test/` du défaut 6.
  */
+// Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
+// l'œil, comme le moteur les lui porte, sans quoi vue relative et monde absolu se mêleraient.
 export const empaqueteCas = (liste) =>
-  packDagSelection(
-    liste.map((cas) => ({
-      world: cas.world,
-      pages: [{ ...pageDuCas(cas), parentError: null, sphere: [0, 0, 0, cas.worldSize] }],
-    })),
+  packedWorldsToRenderOrigin(
+    packDagSelection(
+      liste.map((cas) => ({
+        world: cas.world,
+        pages: [{ ...pageDuCas(cas), parentError: null, sphere: [0, 0, 0, cas.worldSize] }],
+      })),
+    ),
+    liste,
+    vue.eye,
   );
 
 /** Le cluster est-il dans le champ (boîte locale contre les plans ramenés en repère local) ? */

@@ -14,7 +14,11 @@ import * as THREE from 'three';
 import { maxStretch } from '../../../sdk-core/index.ts';
 import { cutSelects, projectedClusterError } from '../../pageSelectionMath.ts';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
+import {
+  evaluateDagSelectionKernel,
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { lois, xorshift32 } from './tirage.mjs';
 import { cameraMoteur } from '../../cameraFixture.ts';
@@ -64,6 +68,10 @@ for (let i = 0; i < N; i++) {
   pages[i].max = [GRAND, GRAND, GRAND];
 }
 const packed = packDagSelection([{ world, pages }]);
+// Le noyau travaille dans le repère de rendu : les matrices monde empaquetées sont ramenées à
+// l'œil, exactement comme le moteur les lui porte, sans quoi vue relative et monde absolu se
+// mêleraient dans la même formule.
+packedWorldsToRenderOrigin(packed, [{ world }], uniforms.cameraWorld);
 const gpu = await selectionGpu([{ nom: 'echantillon', packed, uniforms }]);
 assert.equal(gpu.indisponible ?? null, null);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);

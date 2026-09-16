@@ -11,7 +11,13 @@ import {
 } from './gpuDagSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { dagCulling } from './pageSelectionTestHelpers.ts';
-import { packed, kernelUrls, cpuUrls, VIEWPORT } from './gpuDagSelectionTestHelpers.ts';
+import {
+  cpuUrls,
+  kernelUniforms,
+  kernelUrls,
+  packed,
+  VIEWPORT,
+} from './gpuDagSelectionTestHelpers.ts';
 import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
 import { cameraMoteur } from './cameraFixture.ts';
 
@@ -95,11 +101,11 @@ test('the GPU flat cut selects the same single cluster per chain as the CPU cut'
 
 test('a cut with nothing resident but the roots publishes the root cover', () => {
   const fixture = dagFixture();
-  const { dag } = packed(fixture);
+  const { dag, roots } = packed(fixture);
   const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0)));
   const result = evaluateDagSelectionKernel(
     dag,
-    cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT),
+    kernelUniforms(dag, roots, wideCamera(), 0),
     resident,
   );
   assert.deepEqual(
@@ -119,12 +125,12 @@ test('a cut with nothing resident but the roots publishes the root cover', () =>
 
 test('a missing cluster is replaced by its nearest resident ancestor, not by the root', () => {
   const fixture = dagFixture();
-  const { dag } = packed(fixture);
+  const { dag, roots } = packed(fixture);
   // Every cluster is resident except one leaf: its group replacement covers the gap on its own.
   const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'leaf0' ? 0 : 1)));
   const result = evaluateDagSelectionKernel(
     dag,
-    cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT),
+    kernelUniforms(dag, roots, wideCamera(), 0),
     resident,
   );
   const drawn = (result.drawablePageIds ?? []).map((id) => dag.pageUrls[id]).sort();
@@ -157,11 +163,14 @@ test('an empty cluster set does not allocate a GPU selection', async () => {
 test('GPU selection readback page ids match the CPU oracle for the same camera', async () => {
   installGpuGlobals();
   const fixture = dagFixture();
-  const { dag } = packed(fixture);
+  const { dag, roots } = packed(fixture);
   const cam = wideCamera();
+  // Le repère de rendu se pose AVANT la création : la carte reçoit les matrices déjà ramenées à
+  // l'œil, comme le moteur les lui porte par image.
+  const uniforms = kernelUniforms(dag, roots, cam, 3.4);
   const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag);
   assert.ok(selection);
-  selection.dispatch(cameraSelectionUniforms(cameraMoteur(cam), 3.4, VIEWPORT));
+  selection.dispatch(uniforms);
   const gpu = await selection.flush();
   assert.ok(gpu);
   assert.deepEqual(gpu.pageIds.map((id) => dag.pageUrls[id]).sort(), cpuUrls(fixture, 3.4, cam));
