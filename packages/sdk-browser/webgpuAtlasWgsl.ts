@@ -54,7 +54,8 @@ const dispatch = (name: string, args: string, load: string, call: string, base =
 }`;
 
 /**
- * La lecture publique d'un atlas : l'adressage de la page appliqué à la coordonnée brute, puis une
+ * La lecture publique d'un atlas : `wrap` est le quartet d'adressage de la carte lue, pas celui du
+ * matériau — une même page adresse ses six cartes chacune dans son propre mode. Puis une
  * seule lecture hors couture — exactement celle d'avant ce lot, au bit près — et quatre mêlées sur
  * la couture d'une période en répétition, où la règle de l'échantillonneur mêle le dernier texel de
  * la texture et le premier. Replier la coordonnée les sépare et aucun mode d'échantillonneur en
@@ -68,8 +69,8 @@ const wrapped = (
   call: string,
   out: string,
 ) =>
-  `fn ${name}(slot:u32,scale:vec2f,uv:vec2f,flags:u32${args})->${out}{
- let t=wrapUv(uv,flags,${compte}(slot,scale));
+  `fn ${name}(slot:u32,scale:vec2f,uv:vec2f,wrap:u32${args})->${out}{
+ let t=wrapUv(uv,wrap,${compte}(slot,scale));
  if(!t.couture){return ${at}(slot,scale,t.proche${call});}
  let s00=${at}(slot,scale,t.proche${call});
  let s10=${at}(slot,scale,vec2f(t.loin.x,t.proche.y)${call});
@@ -103,17 +104,17 @@ const dataClass = (index: number) =>
  return textureSampleGrad(dataMaps${index},mapsSampler,uv*scale,layer,ddx*scale,ddy*scale);
 }`;
 
-/** Lecture de l'atlas couleur : `colorSample(slot, uvScale, uv, flags, ddx, ddy)`. */
+/** Lecture de l'atlas couleur : `colorSample(slot, uvScale, uv, wrap, ddx, ddy)`. */
 export const COLOR_SAMPLE_WGSL = `${CLASSES.map(colorClass).join('\n')}
 ${dispatch('colorSampleAt', 'scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f', COLOR_LOAD, 'entry.y,scale,uv,ddx,ddy', 'colorSample')}
 ${wrapped('colorSample', 'colorSampleAt', 'colorTexels', ',ddx:vec2f,ddy:vec2f', ',ddx,ddy', 'vec4f')}`;
 
-/** Découpe alpha de l'atlas couleur : `colorAlpha(slot, uvScale, uv, flags)`. */
+/** Découpe alpha de l'atlas couleur : `colorAlpha(slot, uvScale, uv, wrap)`. */
 export const COLOR_ALPHA_WGSL = `${CLASSES.map(alphaClass).join('\n')}
 ${dispatch('colorAlphaAt', 'scale:vec2f,uv:vec2f)->f32', COLOR_LOAD, 'entry.y,scale,uv', 'colorAlpha')}
 ${wrapped('colorAlpha', 'colorAlphaAt', 'colorTexels', '', '', 'f32')}`;
 
-/** Lecture de l'atlas de données : `dataSample(slot, uvScale, uv, flags, ddx, ddy)`. */
+/** Lecture de l'atlas de données : `dataSample(slot, uvScale, uv, wrap, ddx, ddy)`. */
 export const DATA_SAMPLE_WGSL = `${CLASSES.map(dataClass).join('\n')}
 ${texels('dataTexels', DATA_LOAD, 'dataMaps')}
 ${dispatch('dataSampleAt', 'scale:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f', DATA_LOAD, 'scale,uv,ddx,ddy', 'dataSample')}
