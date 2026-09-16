@@ -5,6 +5,7 @@ import { createProjectionHold } from './hizProjectionHold.ts';
 import type { HizCountSample } from './gpuHiz.ts';
 import { DRAW_ITEM_U32, MAX_DRAW_SLOTS } from './gpuDraw.ts';
 import { createVisibilityItemsHold } from './webgpuVisibilityItems.ts';
+import { createDrawItemWordsHold } from './webgpuVisibilityItemWords.ts';
 import { VIS_MAX_PAGES } from './visibilityBuffer.ts';
 import type { WebgpuPagesSetup } from './webgpuPagesSetup.ts';
 
@@ -73,7 +74,9 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   /** What the GPU test reads the triangles of a verdict from, and the image those verdicts belong to. */
   const hizCountSample: HizCountSample = { triangles: hizTestedTriangles, frame: 0 };
   const hizRest = new Uint8Array(drawSlots);
+  /** Les fiches de dessin, tenues d'une image à l'autre : seule une ligne qui change les réécrit. */
   const drawItemWords = new Uint32Array(drawSlots * DRAW_ITEM_U32);
+  const itemWordsHold = createDrawItemWordsHold();
   const drawRestBits = new Uint32Array(Math.max(1, Math.ceil(drawSlots / 32)));
   /** Lignes par slot indirect (pipeline, moitié, puis couche coplanaire) : un slot que rien ne
    *  remplit ne vaut pas un appel de dessin. Dimensionné pour toutes les couches nommables. */
@@ -102,6 +105,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     hizCountSample,
     hizRest,
     drawItemWords,
+    itemWordsHold,
     drawRestBits,
     binInstances,
     itemsHold,
