@@ -14,6 +14,7 @@ mod decoded;
 mod exr;
 mod gif;
 mod hdr;
+mod icc;
 mod jpeg;
 mod ktx2;
 mod png;

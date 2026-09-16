@@ -14,7 +14,9 @@
 //! bits par canal entrent. Seize ou trente-deux bits sont refusés par leur nom plutôt que rognés ;
 //! CMJN, Lab, indexé, duotone, multicanal et bitmap le sont aussi, parce que les convertir
 //! demanderait un profil, une matrice ou une palette que le pilote choisirait à la place de la
-//! source. L'alpha du composite est lu tel quel, droit : rien n'est démultiplié.
+//! source. L'alpha du composite est lu tel quel, droit : rien n'est démultiplié. Un document qui
+//! porte un profil colorimétrique — sa ressource d'image 1039 — le voit compté, jamais appliqué :
+//! convertir demanderait une gestion de couleur, qui n'est pas de ce pilote.
 //!
 //! **Un plan de plus n'est pas forcément de la transparence.** Un document Photoshop peut porter,
 //! à côté de ses canaux de couleur, un canal alpha enregistré — une sélection —, que le composite
@@ -101,7 +103,7 @@ impl Plugin for Psd {
     /// cessé d'être pris pour de la transparence sans déclaration : une entrée de cache écrite du
     /// temps de cette hypothèse portait un alpha qui n'était pas celui du document.
     fn version(&self) -> &'static str {
-        "psd-composite-aplati-2"
+        "psd-composite-aplati-3"
     }
     /// `.psd` et `.psb` sont les deux extensions du format. L'extension ne fait que désigner le
     /// pilote : ce sont les octets qui décident.
@@ -144,6 +146,7 @@ impl ImageDecoder for Psd {
         let image = pixels::decode(&header, &declared, compression, body)?;
         let alpha_plane = header.channels > header.color_channels;
         Ok(ImageDecoded::srgb(image)
+            .with_notes(declared.profile)
             .with_notes((alpha_plane && !declared.transparency).then_some(ALPHA_IGNORED))
             .with_notes((declared.layers > 0).then_some(LAYERS_FLATTENED)))
     }

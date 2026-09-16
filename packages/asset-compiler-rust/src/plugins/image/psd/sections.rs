@@ -8,7 +8,12 @@
 //! le premier canal alpha du composite porte la transparence du document. C'est la seule
 //! déclaration qui sépare une transparence d'un canal alpha enregistré — une sélection —, et sans
 //! elle un quatrième plan pris pour de l'alpha troue la texture.
+//!
+//! La section des ressources d'image est lue de la même façon, pour une seule de ses entrées : la
+//! ressource 1039, qui porte le profil colorimétrique du document. La sortie du contrat est du sRGB
+//! et ce lot ne convertit aucune couleur : un autre profil est compté, jamais appliqué.
 use super::{Header, DATA_TRUNCATED};
+use crate::plugins::image::icc;
 
 /// La largeur du champ de longueur de la section des calques, et de celui du bloc d'informations de
 /// calques qu'elle ouvre : quatre octets en PSD, huit en PSB.
@@ -16,6 +21,12 @@ const WIDE: usize = 8;
 const NARROW: usize = 4;
 /// Le compte de calques lui-même, deux octets signés.
 const COUNT_BYTES: usize = 2;
+/// La signature que chaque bloc de la section des ressources d'image porte en tête.
+const RESOURCE: &[u8] = b"8BIM";
+/// L'identifiant de la ressource qui porte le profil colorimétrique du document.
+const ICC_PROFILE: u16 = 1039;
+/// Ce qu'un bloc de ressource porte avant son nom : sa signature et son identifiant.
+const RESOURCE_HEAD: usize = 6;
 
 /// Ce que les sections déclarent, et que l'entête seul ne dit pas.
 pub(super) struct Declared {
@@ -25,6 +36,9 @@ pub(super) struct Declared {
     /// Le nombre de calques du fichier. Seul le composite sort du pilote : au-delà de zéro, c'est
     /// une raison de rapport, jamais un silence.
     pub(super) layers: u32,
+    /// La raison à compter pour le profil colorimétrique du document, quand il n'est pas celui de
+    /// la sortie.
+    pub(super) profile: Option<&'static str>,
 }
 
 /// Saute les trois sections et rend ce qu'elles déclarent avec les octets qui les suivent. Une
@@ -36,10 +50,35 @@ pub(super) fn walk<'a>(
     // Les deux premières longueurs tiennent sur quatre octets dans les deux versions du format ;
     // seule celle de la section des calques double de largeur en PSB.
     let mut rest = skip(after_header, NARROW)?;
+    let profile = profile(rest);
     rest = skip(rest, NARROW)?;
     let wide = if header.psb { WIDE } else { NARROW };
-    let declared = layers(rest, wide);
+    let mut declared = layers(rest, wide);
+    declared.profile = profile;
     Ok((declared, skip(rest, wide)?))
+}
+
+/// La raison à compter pour la ressource 1039, cherchée bloc par bloc dans la section des
+/// ressources d'image. Un bloc est la signature `8BIM`, l'identifiant sur deux octets, un nom Pascal
+/// complété jusqu'à une longueur paire, la longueur des données, puis les données elles-mêmes,
+/// complétées de la même façon. Une section absente ou incohérente ne déclare rien.
+fn profile(bytes: &[u8]) -> Option<&'static str> {
+    let mut rest = field(bytes, NARROW).and_then(|length| bytes.get(NARROW..NARROW + length))?;
+    while let Some(head) = rest.get(..RESOURCE_HEAD) {
+        if !head.starts_with(RESOURCE) {
+            return None;
+        }
+        let id = u16::from_be_bytes([head[4], head[5]]);
+        let name = usize::from(*rest.get(RESOURCE_HEAD)?) + 1;
+        let at = RESOURCE_HEAD + name.next_multiple_of(2);
+        let length = field(rest.get(at..)?, NARROW)?;
+        let data = rest.get(at + NARROW..at + NARROW + length)?;
+        if id == ICC_PROFILE {
+            return icc::note(data);
+        }
+        rest = rest.get(at + NARROW + length.next_multiple_of(2)..)?;
+    }
+    None
 }
 
 /// Le compte de calques, lu au début de la section des calques quand elle en porte un. Une section
@@ -50,6 +89,7 @@ fn layers(bytes: &[u8], wide: usize) -> Declared {
     Declared {
         transparency: count.is_some_and(|count| count < 0),
         layers: count.map_or(0, |count| count.unsigned_abs().into()),
+        profile: None,
     }
 }
 
