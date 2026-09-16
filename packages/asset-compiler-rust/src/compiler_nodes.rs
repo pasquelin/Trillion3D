@@ -28,6 +28,48 @@ pub(super) fn children_of(nodes: &[Value], id: usize) -> Result<Vec<usize>> {
     Ok(out)
 }
 
+/// L'état d'un nœud dans le parcours qui cherche un cycle : jamais vu, en cours de parcours, ou
+/// entièrement parcouru. Retrouver un nœud en cours de parcours, c'est être revenu sur ses pas.
+#[derive(Clone, Copy, PartialEq)]
+enum Visit {
+    Unseen,
+    Walking,
+    Done,
+}
+
+/// Refuse une hiérarchie de nœuds qui se referme sur elle-même. Le parcours des matrices monde part
+/// des nœuds sans père : un cycle fermé n'en a aucun, il n'était donc jamais parcouru et partait
+/// publié tel quel, à faire tourner sans fin le parcours du consommateur. Tous les nœuds sont
+/// visités, pas seulement ceux que la scène rendue nomme, parce que c'est le document entier qui
+/// est publié. Un nœud sans père et hors de la scène n'est pas un cycle : il n'est jamais revu.
+pub(super) fn check_acyclic(g: &Value) -> Result<()> {
+    let nodes = values(g, "nodes")?;
+    let mut state = vec![Visit::Unseen; nodes.len()];
+    for start in 0..nodes.len() {
+        if state[start] != Visit::Unseen {
+            continue;
+        }
+        state[start] = Visit::Walking;
+        let mut stack = vec![(start, children_of(nodes, start)?)];
+        while let Some((id, rest)) = stack.last_mut() {
+            let Some(child) = rest.pop() else {
+                state[*id] = Visit::Done;
+                stack.pop();
+                continue;
+            };
+            match state[child] {
+                Visit::Walking => return Err(invalid("node.children closes a cycle")),
+                Visit::Done => {}
+                Visit::Unseen => {
+                    state[child] = Visit::Walking;
+                    stack.push((child, children_of(nodes, child)?));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Les racines de la scène rendue. glTF 2.0 §3.5 : un document ne rend qu'une scène — celle que
 /// `scene` nomme, sinon la première déclarée. Sans `scenes`, le document n'en désigne aucune : le
 /// compilateur prend alors toutes les racines de la hiérarchie, et `docs/COMPILER.md` l'écrit.
