@@ -32,8 +32,7 @@ export function replicateInstances(
   // Les produits partent EN LOT par le gouverneur quand le tampon porte exactement une copie par
   // place, et que ses vues désignent encore la mémoire du module. Sinon chaque produit se fait sur
   // place, par le même `multiplyMatrix4` et sur les mêmes entrées : les mêmes bits.
-  const attendu = rows * columns * meshes.length * MATRIX_VALUES;
-  const enLot = lot && attendu > 0 && lot.a.length === attendu ? lot : null;
+  const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null;
   const copies: THREE.Mesh[] = [];
   for (let z = 0; z < rows; z++)
     for (let x = 0; x < columns; x++)

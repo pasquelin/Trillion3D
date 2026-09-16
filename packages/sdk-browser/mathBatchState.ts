@@ -32,9 +32,14 @@ export function mathGovernor(): PathGovernor {
  * Charge le module une fois pour la session et déclare au gouverneur ce qui est jouable. `mode`
  * impose un chemin pour une campagne (`'js'` ou `'wasm'`) ou laisse la mesure arbitrer (`'auto'`).
  */
-export function prepareMathBatch(mode: MathPathMode = 'auto'): Promise<void> {
+export function prepareMathBatch(mode: MathPathMode): Promise<void> {
+  mathGovernor().setMode(mode);
+  return loadMathBatch();
+}
+
+/** Le module, chargé une fois pour la session ; le mode du gouverneur n'y touche pas. */
+export function loadMathBatch(): Promise<void> {
   const g = mathGovernor();
-  g.setMode(mode);
   attente ??= (async () => {
     const wasm = await prepareSdkWasm();
     if (!wasm) return g.setWasm(false, null, 'module WebAssembly indisponible');

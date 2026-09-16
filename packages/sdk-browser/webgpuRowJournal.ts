@@ -1,4 +1,5 @@
 import { sortPages } from '../sdk-core/index.ts';
+import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 /**
  * Les deux listes qui pilotent la table de lignes.
@@ -17,44 +18,36 @@ import { sortPages } from '../sdk-core/index.ts';
  * interdit le doublon, donc la liste ne peut pas non plus déborder.
  */
 export function createWebgpuRowJournal(pageCount: number) {
-  const changedMarks = new Uint8Array(Math.max(1, pageCount));
+  const changed = createDenseKeySet(pageCount);
   const residencyChanges = {
-    pages: new Int32Array(Math.max(1, pageCount)),
-    count: 0,
+    pages: changed.list,
+    get count() {
+      return changed.count;
+    },
     sorted: true,
-  };
-  const noteResidencyChange = (page: number) => {
-    if (changedMarks[page]) return;
-    changedMarks[page] = 1;
-    residencyChanges.pages[residencyChanges.count++] = page;
   };
   /** Range le journal : la sélection GPU lit des plages, donc des index qui montent. */
   const sortResidencyChanges = () => {
-    sortPages(residencyChanges.pages, residencyChanges.count);
+    sortPages(changed.list, changed.count);
   };
   const clearResidencyChanges = () => {
-    for (let i = 0; i < residencyChanges.count; i++) changedMarks[residencyChanges.pages[i]] = 0;
-    residencyChanges.count = 0;
+    changed.clear();
     residencyChanges.sorted = true;
   };
-  const touchedMarks = new Uint8Array(Math.max(1, pageCount));
-  const touched = { pages: new Int32Array(Math.max(1, pageCount)), count: 0 };
-  const touchPage = (page: number) => {
-    if (touchedMarks[page]) return;
-    touchedMarks[page] = 1;
-    touched.pages[touched.count++] = page;
-  };
-  const clearTouched = () => {
-    for (let i = 0; i < touched.count; i++) touchedMarks[touched.pages[i]] = 0;
-    touched.count = 0;
+  const touchedSet = createDenseKeySet(pageCount);
+  const touched = {
+    pages: touchedSet.list,
+    get count() {
+      return touchedSet.count;
+    },
   };
   return {
     residencyChanges,
-    noteResidencyChange,
+    noteResidencyChange: (page: number) => void changed.add(page),
     sortResidencyChanges,
     clearResidencyChanges,
     touched,
-    touchPage,
-    clearTouched,
+    touchPage: (page: number) => void touchedSet.add(page),
+    clearTouched: touchedSet.clear,
   };
 }

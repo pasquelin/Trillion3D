@@ -20,13 +20,10 @@ import type { ClusterRoot, PageRec } from './pageSelectionTypes.ts';
  * rendre la main au chemin JavaScript, boîte par boîte.
  */
 
-/**
- * Le lot, quand il porte EXACTEMENT `n` boîtes et que ses vues désignent encore la mémoire du
- * module — une réservation faite depuis a pu la faire grandir et les détacher. `null` sinon :
- * l'appelant repasse alors boîte par boîte, par le même noyau et sur les mêmes entrées.
- */
+/** Le lot quand il porte encore `n` boîtes, `null` sinon : l'appelant repasse alors boîte par
+ *  boîte, par le même noyau et sur les mêmes entrées. */
 export function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
-  return lot && n > 0 && lot.boxes.length === n * BOX_VALUES ? lot : null;
+  return lot?.holds(n) ? lot : null;
 }
 
 /** Union dans `into` des `n` premières boîtes que le lot vient de rendre. */
@@ -65,6 +62,9 @@ export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
   return lot;
 }
 
+/** Les racines retenues par le dernier rejeu, une fois par racine : le prédicat remonte la hiérarchie. */
+let moved = new Uint8Array(0);
+
 /**
  * Rejoue le lot pour les racines que `deplacee` retient. Rend `false` quand le tampon n'est plus
  * jouable : l'appelant reprend alors le calcul boîte par boîte, avec le même résultat.
@@ -74,9 +74,13 @@ export function transformRootBoxes(
   roots: readonly ClusterRoot<PageRec>[],
   deplacee: (root: ClusterRoot<PageRec>) => boolean,
 ) {
-  if (roots.length !== lot.n || !lotBoxesReady(lot, lot.n)) return false;
-  for (let i = 0; i < roots.length; i++) if (deplacee(roots[i])) ecrit(lot, i, roots[i]);
+  if (roots.length !== lot.n || !lot.holds(lot.n)) return false;
+  if (moved.length < roots.length) moved = new Uint8Array(roots.length);
+  for (let i = 0; i < roots.length; i++) {
+    moved[i] = deplacee(roots[i]) ? 1 : 0;
+    if (moved[i]) ecrit(lot, i, roots[i]);
+  }
   lot.run();
-  for (let i = 0; i < roots.length; i++) if (deplacee(roots[i])) relit(lot, i, roots[i]);
+  for (let i = 0; i < roots.length; i++) if (moved[i]) relit(lot, i, roots[i]);
   return true;
 }

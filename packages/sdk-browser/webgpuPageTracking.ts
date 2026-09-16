@@ -52,21 +52,10 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
    * promet, et jamais l'inventaire exact d'un ensemble.
    */
   const scratch: string[] = [];
-  const publish = (
-    name: string,
-    count: number,
-    urls?: readonly string[],
-    recs?: PageList,
-    keys?: Int32Array,
-  ) => {
+  const publish = (name: string, count: number, urlAt: (index: number) => string) => {
     const size = Math.min(count, TRACE_SAMPLE);
     scratch.length = 0;
-    for (let k = 0; k < size; k++) {
-      const index = Math.floor((k * count) / size);
-      scratch.push(
-        urls ? urls[index] : keys ? pageCatalog[keys[index]] : (recs?.[index]?.url ?? ''),
-      );
-    }
+    for (let k = 0; k < size; k++) scratch.push(urlAt(Math.floor((k * count) / size)));
     const previous = traceSets.get(name);
     const sampled = count > size;
     if (
@@ -78,16 +67,23 @@ export function createWebgpuPageTracking(allPages: PageRec[]) {
       return { revision: previous.revision, changed: false, count, sampled };
     const next = { revision: (previous?.revision ?? 0) + 1, count, sample: [...scratch] };
     traceSets.set(name, next);
-    return { revision: next.revision, changed: true, count, sampled, pageIds: pageRefs(next.sample) };
+    return {
+      revision: next.revision,
+      changed: true,
+      count,
+      sampled,
+      pageIds: pageRefs(next.sample),
+    };
   };
-  const traceSet = (name: string, urls: readonly string[]) => publish(name, urls.length, urls);
+  const traceSet = (name: string, urls: readonly string[]) =>
+    publish(name, urls.length, (index) => urls[index]);
   /** Le même relevé, tiré des enregistrements eux-mêmes : aucune liste d'adresses n'est construite
    *  pour lui. `count` borne la liste quand seul son début est valable, comme la table de lignes. */
   const traceRecs = (name: string, pages: PageList, count = pages.length) =>
-    publish(name, count, undefined, pages);
+    publish(name, count, (index) => pages[index]?.url ?? '');
   /** Le même relevé, tiré d'un ensemble dense de clés, sans en recopier une seule adresse. */
   const traceKeys = (name: string, set: { list: Int32Array; count: number }) =>
-    publish(name, set.count, undefined, undefined, set.list);
+    publish(name, set.count, (index) => pageCatalog[set.list[index]]);
   return {
     pageCatalog,
     pageCatalogIds,
