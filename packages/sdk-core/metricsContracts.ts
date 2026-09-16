@@ -1,3 +1,4 @@
+import type { MathPathMetrics } from './mathPathContracts.ts';
 import type { TextureFrameMetrics } from './textureMetricsContracts.ts';
 import type { ShadowFrameMetrics } from './shadowMetricsContracts.ts';
 import type { OcclusionFrameMetrics } from './occlusionMetricsContracts.ts';
@@ -159,6 +160,10 @@ export interface FrameMetrics
    *  tourné, donc si la ressource `.wasm` a bien été trouvée et instanciée par cet hôte. */
   pagesDecodedWasm?: number | null;
   pageDecodeMs?: number | null;
+  /** L'état du gouverneur de chemin de calcul (`mathPathGovernor.ts`) : chemin courant de chaque
+   *  opération en lot, médianes des deux chemins, bascules. `null` sur un hôte qui n'a pas ouvert
+   *  de lot — non mesuré, et non pas « chemin JavaScript ». */
+  mathBatch?: MathPathMetrics | null;
   /**
    * L'intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont
    * le plan — la place de chaque cluster dans le paquet et les rangs de page qu'il remue — a été

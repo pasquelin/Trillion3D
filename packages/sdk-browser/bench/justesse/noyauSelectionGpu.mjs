@@ -15,13 +15,18 @@ function versPage(nom, packed, uniforms) {
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, false);
   const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
-  for (let w = 0; w < packed.worldCount; w++)
+  const frameInts = new Uint32Array(frames.buffer);
+  for (let w = 0; w < packed.worldCount; w++) {
     frames[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
+    // La racine de la primitive voyage avec son étirement : la descente par niveaux part d'elle.
+    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
+  }
   return {
     nom,
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
     worldCount: Math.max(1, packed.worldCount),
+    levelCount: packed.levelCount,
     clusters: octets(packed.clusters),
     nodes: octets(packed.nodes),
     worlds: octets(packed.worlds),
@@ -49,7 +54,12 @@ async function executer({ shader, cas, workgroup }) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const etape = (entryPoint) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-  const etapes = ['dagPrepare', 'dagLevel0', 'dagWanted', 'dagMask'].map(etape);
+  const preparePipeline = etape('dagPrepare');
+  // La descente par niveaux : la passe 0 part des racines, chaque passe suivante bascule entre les
+  // deux files que `levelStep` remplit en alternance (piste : `gpuDagLevelWgsl.ts`).
+  const levelPipelines = [etape('dagLevel0'), etape('dagLevel1')];
+  const wantedPipeline = etape('dagWanted');
+  const maskPipeline = etape('dagMask');
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
   const tampon = (taille, octetsSource, usage = STORAGE) => {
     const buffer = device.createBuffer({
@@ -59,19 +69,26 @@ async function executer({ shader, cas, workgroup }) {
     if (octetsSource) device.queue.writeBuffer(buffer, 0, new Uint8Array(octetsSource));
     return buffer;
   };
+  // Une seule source de zéros, réutilisée pour remettre à zéro la file cible d'une passe de niveau
+  // avant qu'elle n'y écrive (compteur et compte de groupes, deux mots).
+  const zeros = device.createBuffer({ size: 16, usage: GPUBufferUsage.COPY_SRC });
+  const groupes = (n) => Math.max(1, Math.ceil(n / workgroup));
   const resultats = [];
   for (const c of cas) {
     const sortieOctets = 16 + c.pageCount * 4;
-    // Les mêmes régions que le moteur : la liste des vivantes prolonge les drapeaux, les compteurs
-    // des blocs et de la liste prolongent les seuils.
-    const blocs = Math.ceil(c.pageCount / workgroup);
+    const blockCount = groupes(c.pageCount);
+    // Les mêmes régions que le moteur (`gpuDagResources.ts`) : après les seuils par primitive et les
+    // compteurs de bloc viennent le compteur des vivantes, puis les deux files de la descente, la
+    // liste des candidates et le journal des dessinées — deux mots chacun (compteur, groupes).
+    const workBase = c.worldCount * 2 + blockCount * 2;
+    const queueResetOffset = [(workBase + 2) * 4, (workBase + 4) * 4];
     const buffers = [
       tampon(64, c.clusters),
       tampon(64, c.nodes),
       tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-      tampon(Math.max(4, (c.nodeCount + c.pageCount * 3) * 4)),
+      tampon(Math.max(16, (c.nodeCount * 2 + c.pageCount * 4) * 4)),
       tampon(sortieOctets),
-      tampon(Math.max(8, (c.worldCount * 2 + blocs * 2 + 2) * 4)),
+      tampon(Math.max(8, (workBase + 10) * 4)),
       tampon(64, c.worlds),
       tampon(16, c.frames),
       tampon(48, c.pageCones),
@@ -84,20 +101,35 @@ async function executer({ shader, cas, workgroup }) {
       layout,
       entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
     });
-    const comptes = [
-      Math.max(c.worldCount, blocs),
-      Math.max(1, c.nodeCount),
-      c.pageCount,
-      c.pageCount,
-    ];
     const encoder = device.createCommandEncoder();
-    const pass = encoder.beginComputePass();
-    pass.setBindGroup(0, group);
-    etapes.forEach((pipeline, i) => {
-      pass.setPipeline(pipeline);
-      pass.dispatchWorkgroups(Math.max(1, Math.ceil(comptes[i] / workgroup)));
-    });
-    pass.end();
+    const tete = encoder.beginComputePass();
+    tete.setBindGroup(0, group);
+    tete.setPipeline(preparePipeline);
+    tete.dispatchWorkgroups(groupes(Math.max(c.worldCount, blockCount)));
+    // Passe 0 : une racine par primitive, dispatché à plat comme la préparation.
+    tete.setPipeline(levelPipelines[0]);
+    tete.dispatchWorkgroups(groupes(c.nodeCount));
+    tete.end();
+    // Chaque niveau suivant se répartit sur les seuls nœuds que le niveau précédent a retenus ; la
+    // file où il écrit doit valoir zéro avant, faute de quoi elle prolongerait un niveau d'avant.
+    for (let niveau = 1; niveau < c.levelCount; niveau++) {
+      const source = niveau & 1;
+      encoder.copyBufferToBuffer(zeros, 0, buffers[5], queueResetOffset[1 - source], 8);
+      const passe = encoder.beginComputePass();
+      passe.setBindGroup(0, group);
+      passe.setPipeline(levelPipelines[source]);
+      passe.dispatchWorkgroups(groupes(c.nodeCount));
+      passe.end();
+    }
+    // Les pages des feuilles retenues, puis leur verdict : les deux passes finales visitent au plus
+    // `pageCount` grappes, un majorant sûr de la liste des candidates et de celle des vivantes.
+    const fin = encoder.beginComputePass();
+    fin.setBindGroup(0, group);
+    fin.setPipeline(wantedPipeline);
+    fin.dispatchWorkgroups(groupes(c.pageCount));
+    fin.setPipeline(maskPipeline);
+    fin.dispatchWorkgroups(groupes(c.pageCount));
+    fin.end();
     encoder.copyBufferToBuffer(buffers[4], 0, lecture, 0, sortieOctets);
     device.queue.submit([encoder.finish()]);
     await lecture.mapAsync(GPUMapMode.READ);

@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodeGeometryPage } from '../geometryPage.ts';
-import { decodeGeometryPageWasm, prepareGeometryPageWasm } from '../geometryPageWasm.ts';
+import { decodeGeometryPageWasm, prepareSdkWasm } from '../geometryPageWasm.ts';
 import { RACINE, compare, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { page, pageBrute, sommetsPlats } from './pagesH2b.mjs';
 
@@ -15,7 +15,7 @@ const FRAGMENTS = join(RACINE, '.mesure', 'calculs-h2b');
 
 // Node ne suit pas une URL de fichier avec `fetch` : l'hôte fournit les octets, comme prévu par le
 // chargeur. Sans module, la ligne mesurerait le décodeur JS contre lui-même : autant s'arrêter.
-const codec = await prepareGeometryPageWasm(readFileSync(MODULE));
+const codec = await prepareSdkWasm(readFileSync(MODULE));
 if (!codec) throw new Error('H2B_WASM_ABSENT : lancer `npm run build:wasm`');
 
 const dense = await page(65535, true),

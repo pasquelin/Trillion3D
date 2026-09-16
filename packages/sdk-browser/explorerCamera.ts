@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { exactPagesBounds } from './explorerScene.ts';
+import type { BoxTransformLot } from './mathBatchRuntime.ts';
 import { emptyWorldBox, hostWorldBounds } from './hostWorldBounds.ts';
 import { framingFromBounds } from './framing.ts';
 import { DEFAULT_FOV } from './backendCommon.ts';
@@ -16,11 +17,13 @@ export function createExplorerCamera(
   metadata: ClusterManifest,
   canvas: HTMLCanvasElement,
   options: ExplorerOptions,
+  /** Le tampon des boîtes du cadrage, réservé au chargement ; `null` le laisse en JavaScript. */
+  lot?: BoxTransformLot | null,
 ) {
   const flat = emptyWorldBox();
   // A mesh without a prepared primitive simply does not frame the camera.
-  if (autonomous) exactPagesBounds(source, associations, metadata, () => {}, flat);
-  else hostWorldBounds(source, flat);
+  if (autonomous) exactPagesBounds(source, associations, metadata, () => {}, flat, lot);
+  else hostWorldBounds(source, flat, lot);
   sphereFromBounds(framingSphere, 0, flat[0], flat[1], flat[2], flat[3], flat[4], flat[5]);
   const radius = framingSphere[3];
   if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds');

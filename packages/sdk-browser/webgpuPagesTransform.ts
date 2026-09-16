@@ -14,6 +14,7 @@ import {
 import { assertFiniteTransform, resolveHostNode } from './hostWorldMatrices.ts';
 import { sameElements } from './matrixElements.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
+import { transformRootBoxes } from './mathBatchBoxes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 const local = new Float64Array(16),
@@ -109,9 +110,17 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // Seuls les ancêtres du nœud et son sous-arbre changent de matrice monde : le reste de la scène
   // rendrait les mêmes seize nombres. C'est la liste des nœuds modifiés, tenue par la hiérarchie.
   node.updateWorldMatrix(true, true);
+  // Les boîtes monde des racines déplacées se reprojettent EN LOT, par le gouverneur, dans le tampon
+  // réservé à la préparation. Un tampon absent ou détaché rend la main au calcul boîte par boîte, qui
+  // rend les mêmes bits — le même `boxTransform` sur les mêmes entrées.
+  const enLot =
+    !!layout.rootBoxes &&
+    transformRootBoxes(layout.rootBoxes, layout.selectionRoots, (root) =>
+      isUnder(root.pages[0]?.sourceMesh, node),
+    );
   for (const root of layout.selectionRoots) {
     if (!root.localBox || !root.worldBox || !isUnder(root.pages[0]?.sourceMesh, node)) continue;
-    boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
+    if (!enLot) boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
     unionInto(root.worldBox);
   }
   layout.rows.tableEpoch++;
