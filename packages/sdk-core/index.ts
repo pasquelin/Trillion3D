@@ -68,7 +68,7 @@ export {
   transformAffinePoint,
   transformHomogeneousPoint,
 } from './mathVector.ts';
-export { linearToSrgb, srgbToLinear } from './mathColor.ts';
+export { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';
 export {
   BOX_VALUES,
   boxCornersInto,

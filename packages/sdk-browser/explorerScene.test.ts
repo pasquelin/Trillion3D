@@ -124,8 +124,7 @@ test('exactPagesBounds rend la même boîte que la référence, une page « coar
   const attendu = referenceExactPagesBounds(source, associations, metadata, (m) =>
     manquesRef.push(m),
   );
-  assert.deepEqual(obtenu.min.toArray(), attendu.min.toArray());
-  assert.deepEqual(obtenu.max.toArray(), attendu.max.toArray());
+  assert.deepEqual(Array.from(obtenu), [...attendu.min.toArray(), ...attendu.max.toArray()]);
   assert.deepEqual(manques, manquesRef);
   assert.deepEqual(manques, [meshMissing]);
 });
