@@ -117,8 +117,10 @@ export function screenErrorBound(
   const nearest = depth - reach,
     closest = nearest - shift,
     side = lateral + reach;
+  // Le plan proche d'abord : la racine de l'hypoténuse était prise puis jetée quand il est atteint.
+  if (!(closest > near)) return Infinity;
   const slant = Math.sqrt(nearest * nearest + side * side);
-  if (!(closest > near) || !(slant >= nearest && slant < Infinity)) return Infinity;
+  if (!(slant >= nearest && slant < Infinity)) return Infinity;
   return ((shift * focal) / nearest) * (slant / closest);
 }
 
@@ -139,9 +141,8 @@ export function clusterErrorPixels(
 ): number {
   if (clusterError === 0) return 0;
   if (clusterError === Infinity) return Infinity;
-  if (!Number.isFinite(centreX) || !Number.isFinite(centreY)) {
-    throw new Error('Parametres de cluster invalides');
-  }
+  // Aucune garde sur le centre : un NaN ou un ±infini en x ou en y rend un `lateral` que
+  // `clusterErrorAtDepth` refuse du même message, ses deux court-circuits étant déjà posés ici.
   const lateral = Math.sqrt(centreX * centreX + centreY * centreY);
   return clusterErrorAtDepth(clusterError, stretch, lateral, -centreZ, radius, focal, near);
 }
