@@ -45,6 +45,41 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
     );
 }
 
+// Constat 30 : les retouches d'une instance de modèle nomment chacune leur objet. Celle qui vise la
+// racine s'y applique ; celle qui vise un objet que le pilote ne rend pas à part est comptée, jamais
+// versée dans la transformation d'un autre. Dix exécutions rendent la même scène, octet pour octet.
+#[test]
+fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
+    let projet = Projet::new("retouches");
+    projet.model(
+        "Models/Paire.glb",
+        MODEL,
+        json!([{"name":"Gauche","mesh":0},{"name":"Droite","mesh":0}]),
+        "  - first:\n      4: 400002\n    second: Droite\n",
+    );
+    projet.scene(&format!(
+        "--- !u!1001 &5000\nPrefabInstance:\n  serializedVersion: 2\n  m_Modification:\n    m_TransformParent: {{fileID: 0}}\n    m_Modifications:\n    - target: {{fileID: 400000, guid: {MODEL}, type: 3}}\n      propertyPath: m_LocalPosition.x\n      value: 7\n      objectReference: {{fileID: 0}}\n    - target: {{fileID: 400002, guid: {MODEL}, type: 3}}\n      propertyPath: m_LocalPosition.x\n      value: 2\n      objectReference: {{fileID: 0}}\n    - target: {{fileID: 100000, guid: {MODEL}, type: 3}}\n      propertyPath: m_Name\n      value: Instance\n      objectReference: {{fileID: 0}}\n  m_SourcePrefab: {{fileID: 100100000, guid: {MODEL}, type: 3}}\n"
+    ));
+    let first = projet.compile("unity-retouches").prepared("unity").1;
+    assert_eq!(
+        node_named(&first, "Instance").expect("la racine de l'instance")["translation"],
+        json!([7.0, 0.0, 0.0]),
+        "la retouche de la racine s'applique seule, sans la valeur de l'autre objet"
+    );
+    let (manifest, _) = projet.compile("unity-retouches").prepared("unity");
+    assert_eq!(
+        manifest["unsupported"]["unity-prefab-override-unplaced"], 1,
+        "la retouche visant un objet du modèle est comptée, pas mélangée"
+    );
+    for _ in 0..9 {
+        assert_eq!(
+            projet.compile("unity-retouches").prepared("unity").1,
+            first,
+            "deux exécutions de la même scène rendent la même scène intermédiaire"
+        );
+    }
+}
+
 // Constat 31 : un `fileID` de soixante-quatre bits nomme un objet précis. Lu au travers d'un
 // flottant, `2^53 + 1` retombe sur `2^53` : la table de noms du `.meta` ne rend plus rien et le
 // modèle entier est instancié à la place du seul maillage demandé.
