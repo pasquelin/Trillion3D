@@ -42,3 +42,47 @@ test('V02 prepare() rend les mesures finales du pointeur avec celles du manifest
     await rm(root, { recursive: true, force: true });
   }
 });
+
+/**
+ * Un compilateur en toc : il dépose le manifeste demandé puis annonce le pointeur. Il fixe les deux
+ * relevés, ce que le vrai binaire ne permet pas, et rend la règle de fusion observable.
+ */
+async function faux(root, manifeste, pointeur) {
+  const chemin = join(root, 'faux-compilateur.mjs');
+  await writeFile(
+    chemin,
+    `#!/usr/bin/env node
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+const [, , , sortie, portee] = process.argv;
+const pointeur = ${JSON.stringify(pointeur)};
+await mkdir(join(sortie, 'native', portee), { recursive: true });
+await writeFile(join(sortie, 'native', portee, pointeur.url), ${JSON.stringify(JSON.stringify(manifeste))});
+process.stdout.write(JSON.stringify(pointeur));
+`,
+    { mode: 0o755 },
+  );
+  return chemin;
+}
+
+test('le manifeste garde la priorité, le pointeur comble les mesures finales', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'web-geometry-fusion-'));
+  try {
+    const manifeste = { status: 'ready', metrics: { importMs: 1, compileMs: 2 } };
+    const pointeur = {
+      status: 'ready',
+      scope: 'full',
+      url: 'quad.json',
+      pointer: 'quad',
+      cache: 'c',
+      metrics: { importMs: 999, wallMs: 40, pruneMs: 5 },
+    };
+    const result = await prepare(await quad(root), join(root, 'cache'), 'full', 150000, {
+      executable: await faux(root, manifeste, pointeur),
+      resourceBaseUrl: '/assets/',
+    });
+    assert.deepEqual(result.metrics, { importMs: 1, compileMs: 2, wallMs: 40, pruneMs: 5 });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
