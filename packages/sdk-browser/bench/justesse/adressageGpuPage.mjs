@@ -2,6 +2,42 @@
 // depuis `render-tech-lab`, en lecture seule (`LAB_ROOT`, par défaut le voisin du dépôt).
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { WRAP_COORD_WGSL } from '../../visibilityPageWgsl.ts';
+
+/** Le bit qui, dans ces bancs seuls, demande le mélange des prises : les lots au plus proche ne
+ *  veulent qu'un texel, les lots linéaires la lecture entière. `wrapUv` ne lit que le quartet bas
+ *  du mot, donc ce bit de tête ne peut pas se confondre avec un mode d'adressage. */
+export const MELANGE = 0x80000000;
+
+/**
+ * Le nuanceur des lots : le WGSL d'adressage du moteur d'un côté, l'échantillonneur natif réglé au
+ * mode de la carte de l'autre. Le mélange des quatre prises est transcrit du gabarit que
+ * `webgpuAtlasWgsl.ts` engendre pour `colorSample`, `dataSample` et `colorAlpha` : mêmes prises,
+ * même ordre, même expression. Un seul texte pour les deux bancs d'adressage — deux copies
+ * seraient deux chances de voir la lecture éprouvée dériver de la lecture de production.
+ */
+export const NUANCEUR_PRISES = `${WRAP_COORD_WGSL}
+struct Cas{uv:vec2f,flags:u32,pad:u32,}
+@group(0) @binding(0) var maps:texture_2d_array<f32>;
+@group(0) @binding(1) var moteur:sampler;
+@group(0) @binding(2) var three:sampler;
+@group(0) @binding(3) var<storage,read> lot:array<Cas>;
+struct Sortie{@location(0) moteur:vec4f,@location(1) three:vec4f,}
+@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
+ let p=array(vec2f(-1.0,-1.0),vec2f(3.0,-1.0),vec2f(-1.0,3.0));return vec4f(p[i],0.0,1.0);
+}
+@fragment fn fs(@builtin(position) q:vec4f)->Sortie{
+ let c=lot[u32(q.x)];
+ let t=wrapUv(c.uv,c.flags,vec2f(textureDimensions(maps,0)));
+ var lu=textureSampleLevel(maps,moteur,t.proche,0,0.0);
+ if((c.flags&${MELANGE}u)!=0u&&t.couture){
+  let s10=textureSampleLevel(maps,moteur,vec2f(t.loin.x,t.proche.y),0,0.0);
+  let s01=textureSampleLevel(maps,moteur,vec2f(t.proche.x,t.loin.y),0,0.0);
+  let s11=textureSampleLevel(maps,moteur,t.loin,0,0.0);
+  lu=mix(mix(lu,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
+ }
+ return Sortie(lu,textureSampleLevel(maps,three,c.uv,0,0.0));
+}`;
 
 /**
  * Dans la page : un rendu par lot (texture, modes, filtrage) sur deux cibles flottantes, relues.

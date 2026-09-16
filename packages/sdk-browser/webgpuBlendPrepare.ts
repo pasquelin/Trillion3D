@@ -12,7 +12,7 @@ import {
   isTransmissive,
   visMaterial,
 } from './visibilityBuffer.ts';
-import { wrapFlags } from './visibilityPageWgsl.ts';
+import { wrapModes } from './visibilityWrapModes.ts';
 import { ensureWebgpuPositionBuffer } from './webgpuPositions.ts';
 import {
   ensureBlendIndexBuffer,
@@ -66,7 +66,6 @@ export function prepareWebgpuBlend(
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
     if (transmits) flags |= FLAG_TRANSMISSIVE;
-    flags |= wrapFlags(mat.map);
     // Static source transforms are baked for this backend. World AABBs remain
     // conservative under rotation, mirroring, nonuniform scale and shear.
     let bounds: Float64Array | undefined;
@@ -99,6 +98,8 @@ export function prepareWebgpuBlend(
       ],
       map: mat.map,
       flags,
+      // Chaque carte du matériau adresse sa texture dans son propre mode, comme une page opaque.
+      wrapModes: wrapModes(mat),
       paged,
     };
     blendState.blendGpu.push(item);
