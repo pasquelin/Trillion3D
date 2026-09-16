@@ -4,17 +4,10 @@
 //!
 //! Le doré du pilote est dans `unity_golden.rs`, ses refus dans `unity_driver.rs`.
 use super::*;
-use unity_projet::{material_named, node_named, Projet};
+use unity_projet::{cube, instancie, mat_blanc, material_named, node_named, Projet};
 
 /// Le GUID du modèle de chaque cas, et celui de la scène qui le cite.
 const MODEL: &str = "0000000000000000000000000000000a";
-
-/// Un objet qui instancie le modèle entier, transformation neutre.
-fn instancie(name: &str, mesh: &str) -> String {
-    format!(
-        "--- !u!1 &100\nGameObject:\n  serializedVersion: 6\n  m_Component:\n  - component: {{fileID: 101}}\n  - component: {{fileID: 102}}\n  - component: {{fileID: 103}}\n  m_Name: {name}\n  m_IsActive: 1\n--- !u!4 &101\nTransform:\n  m_GameObject: {{fileID: 100}}\n  m_LocalRotation: {{x: 0, y: 0, z: 0, w: 1}}\n  m_LocalPosition: {{x: 0, y: 0, z: 0}}\n  m_LocalScale: {{x: 1, y: 1, z: 1}}\n  m_Children: []\n  m_Father: {{fileID: 0}}\n--- !u!33 &102\nMeshFilter:\n  m_GameObject: {{fileID: 100}}\n  m_Mesh: {mesh}\n--- !u!23 &103\nMeshRenderer:\n  m_GameObject: {{fileID: 100}}\n  m_Enabled: 1\n  m_Materials: []\n"
-    )
-}
 
 // Constat 29 : un modèle référencé par la scène a sa propre hiérarchie, et chaque nœud y porte sa
 // transformation — écrite en matrice ou en translation, rotation et échelle. Le pilote les compose
@@ -119,7 +112,7 @@ fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
     projet.data(
         "Materials/Melange.mat",
         melange,
-        &mat(
+        &mat_blanc(
             "Melange",
             "    - _Surface: 1\n    - _AlphaClip: 1\n    - _Cutoff: 0.25\n",
         ),
@@ -127,7 +120,7 @@ fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
     projet.data(
         "Materials/Decoupe.mat",
         decoupe,
-        &mat("Decoupe", "    - _Mode: 1\n    - _Cutoff: 0.25\n"),
+        &mat_blanc("Decoupe", "    - _Mode: 1\n    - _Cutoff: 0.25\n"),
     );
     projet.scene(&format!(
         "{}{}",
@@ -153,24 +146,4 @@ fn a_material_that_is_both_transparent_and_cut_out_stays_blended() {
     );
     assert_eq!(masque["alphaCutoff"], 0.25);
     assert_eq!(manifest["unsupported"]["unity-material-clip-and-blend"], 1);
-}
-
-/// Un `.mat` dont les flottants sont ceux du cas.
-fn mat(name: &str, floats: &str) -> String {
-    format!(
-        "--- !u!21 &2100000\nMaterial:\n  serializedVersion: 8\n  m_Name: {name}\n  m_SavedProperties:\n    serializedVersion: 3\n    m_TexEnvs: []\n    m_Floats:\n{floats}    m_Colors:\n    - _BaseColor: {{r: 1, g: 1, b: 1, a: 1}}\n"
-    )
-}
-
-/// Un cube intégré de l'éditeur, portant le matériau de ce GUID.
-fn cube(id: u32, name: &str, guid: &str) -> String {
-    format!(
-        "--- !u!1 &{id}\nGameObject:\n  serializedVersion: 6\n  m_Component:\n  - component: {{fileID: {}}}\n  - component: {{fileID: {}}}\n  - component: {{fileID: {}}}\n  m_Name: {name}\n  m_IsActive: 1\n--- !u!4 &{}\nTransform:\n  m_GameObject: {{fileID: {id}}}\n  m_LocalRotation: {{x: 0, y: 0, z: 0, w: 1}}\n  m_LocalPosition: {{x: 0, y: 0, z: 0}}\n  m_LocalScale: {{x: 1, y: 1, z: 1}}\n  m_Children: []\n  m_Father: {{fileID: 0}}\n--- !u!33 &{}\nMeshFilter:\n  m_GameObject: {{fileID: {id}}}\n  m_Mesh: {{fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}}\n--- !u!23 &{}\nMeshRenderer:\n  m_GameObject: {{fileID: {id}}}\n  m_Enabled: 1\n  m_Materials:\n  - {{fileID: 2100000, guid: {guid}, type: 2}}\n",
-        id + 1,
-        id + 2,
-        id + 3,
-        id + 1,
-        id + 2,
-        id + 3
-    )
 }
