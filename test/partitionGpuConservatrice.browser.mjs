@@ -137,6 +137,20 @@ assert.ok(
   resultat.images.some((image) => (image.hizRejectedClusters ?? 0) > 0),
   'le test Hi-Z n’a rejeté aucun cluster : la preuve ne porterait sur rien',
 );
+// Les grappes transparentes passent le MÊME test, sur la même pyramide : chacune que la carte a
+// retirée doit rester rejetée par la référence, sur ses bornes en double précision.
+const occ = resultat.occultation;
+assert.deepEqual(
+  resultat.violationsOccultation,
+  [],
+  'des grappes transparentes retirées restent visibles pour la référence',
+);
+assert.ok(occ.examinees > 0, 'aucune grappe transparente n’a été examinée');
+assert.ok(
+  occ.rejetees > 0,
+  'le test d’occultation des transparents n’a rien rejeté : rien à prouver',
+);
+assert.equal(occ.violations, 0, `${occ.violations} grappes transparentes rejetées à tort`);
 const pourcent = (n) => ((100 * n) / t.margeTexelsCount).toFixed(2);
 console.log(
   `OK : ${t.clusters} clusters audités sur ${POSES} poses — 0 violation sur les trois règles.\n` +
@@ -147,4 +161,9 @@ console.log(
     `max ${t.ecartProfondeurMax.toExponential(3)}, toujours sous la référence.\n` +
     `  Largeur écran < 16 texels : ${t.largeurParPalier[0]} boîtes côté carte, ` +
     `${t.largeurRefParPalier[0]} côté référence — le test garde la même finesse.`,
+);
+console.log(
+  `OK : ${occ.rejetees} grappes transparentes retirées sur ${occ.examinees} examinées ` +
+    `(${occ.poses} poses) — 0 violation : la référence les rejette toutes, ` +
+    `dont ${occ.horsEcran} dont le rectangle de référence ne touche aucun pixel.`,
 );

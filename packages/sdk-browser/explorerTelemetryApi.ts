@@ -37,6 +37,12 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
     partitionAudit() {
       return active().partitionAudit?.() ?? Promise.resolve(null);
     },
+    /** Les grappes transparentes que le test d'occultation a rejetées sur la dernière image, avec
+     *  leurs coins monde et la profondeur de l'image : de quoi vérifier, grappe par grappe, que
+     *  chacune était entièrement derrière l'opaque. */
+    transparentOcclusionAudit() {
+      return active().transparentOcclusionAudit?.() ?? Promise.resolve(null);
+    },
     /** Vide la fenêtre du profil du moteur actif, pour ne mesurer que ce qui vient ensuite. */
     resetStageProfile() {
       active().resetStageProfile?.();
