@@ -109,7 +109,7 @@ export function readCameraWorld(into: EngineCamera, camera: HostCamera): EngineC
   into.fov = camera.fov;
   into.aspect = camera.aspect;
   perspectiveProjection(into.projection, camera.fov, camera.aspect, camera.near, camera.zoom);
-  updateCameraFrame(into, into.projection, into.world);
+  updateCameraFrame(into, into.projection, into.world, into.far);
   into.eye[0] = into.world[12];
   into.eye[1] = into.world[13];
   into.eye[2] = into.world[14];

@@ -1,4 +1,4 @@
-import { clipPlanesFromMatrix, multiplyMatrix4 } from '../sdk-core/index.ts';
+import { clipPlanesFromMatrix, frustumFarPlane, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { ConeContext } from './pageCone.ts';
 import {
   clearForcedMarks,
@@ -45,6 +45,8 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   // chemin par cluster. Le silence vaut « je n'ai rien déclaré » : la coupe s'en assure comme avant.
   s.flatBoxes = root.boxes === true;
   clipPlanesFromMatrix(planes, multiplyMatrix4(clip, s.cam.projection, viewMatrix));
+  // La projection du moteur n'a plus de plan lointain : le tronc garde celui que l'hôte déclare.
+  frustumFarPlane(planes, 16, viewMatrix, s.cam.far, false);
   s.flatStructure = root.structure;
   s.flatForced = root.forced;
   s.flatForcedList = root.forcedList;
