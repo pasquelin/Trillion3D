@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createHostFrameCostAudit, gpuFrameCostSnapshot } from './frameCostAudit.ts';
+import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import type { FrameMetrics } from '../sdk-core/index.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -56,6 +57,44 @@ test('audit opt-in : relevé borné, différé, sans modifier la sélection ni i
       42,
       'les valeurs appartiennent à la frame capturée',
     );
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'location', descriptor);
+    else Reflect.deleteProperty(globalThis, 'location');
+  }
+});
+
+test('gpuFrameCostSnapshot : la pose publiée est celle de la caméra du moteur (run.gate.cam), sous un rig', () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
+  Object.defineProperty(globalThis, 'location', {
+    configurable: true,
+    value: { search: '?wgFrameAudit=1' },
+  });
+  try {
+    // Rig à deux niveaux que personne ne remonte ailleurs : la caméra hôte locale reste triviale,
+    // seul le rig porte la translation. `run.lastCamera` n'est ici qu'un marqueur de vérité — sa
+    // forme ne doit jamais être lue pour la pose, seule `run.gate.cam` (déjà résolue) compte.
+    const rig = new THREE.Object3D();
+    rig.position.set(3, -6, 9);
+    const hostCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    rig.add(hostCamera);
+    rig.updateWorldMatrix(true, false);
+    const cam = readCameraWorld(createEngineCamera(), hostCamera);
+    const rt = {
+      blendState: { visibleBlend: [], blendGpu: [], blendPlanes: new Array(24).fill(0) },
+      run: { lastCamera: {}, gate: { cam }, blendDrawCalls: 0 },
+      timing: {},
+      gpu: { targetSize: [32, 32] },
+    } as unknown as WebgpuPagesRuntime;
+    const snapshot = gpuFrameCostSnapshot(rt)!;
+    assert.deepEqual(snapshot.camera!.position, [...cam.eye]);
+    assert.notDeepEqual(
+      snapshot.camera!.position,
+      hostCamera.position.toArray(),
+      'la pose locale de la caméra hôte (l’origine sous ce rig) n’est pas la pose publiée',
+    );
+    assert.equal(snapshot.camera!.fov, cam.fov);
+    assert.equal(snapshot.camera!.near, cam.near);
+    assert.equal(snapshot.camera!.far, cam.far);
   } finally {
     if (descriptor) Object.defineProperty(globalThis, 'location', descriptor);
     else Reflect.deleteProperty(globalThis, 'location');

@@ -17,6 +17,7 @@ import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
 import { lois, xorshift32 } from './tirage.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 const N = Number(process.argv[2] ?? 20000);
 const SEUIL = 0.75;
@@ -35,7 +36,7 @@ const world = new THREE.Matrix4().compose(
 const view = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world).elements;
 const versObjet = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, world).invert();
 const stretch = maxStretch(world.elements) * maxStretch(camera.matrixWorldInverse.elements);
-const uniforms = cameraSelectionUniforms(camera, SEUIL, VIEWPORT);
+const uniforms = cameraSelectionUniforms(cameraMoteur(camera), SEUIL, VIEWPORT);
 const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
 const p00 = camera.projectionMatrix.elements[0],
   p11 = camera.projectionMatrix.elements[5];

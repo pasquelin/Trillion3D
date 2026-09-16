@@ -1,5 +1,5 @@
 import { viewProj } from './webgpuPagesHelpers.ts';
-import { cameraPose, cameraWorldPosition } from './cameraWorld.ts';
+import { enginePose } from './cameraWorld.ts';
 import type { WebgpuPagesCore } from './webgpuPagesRuntime.ts';
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
@@ -58,7 +58,7 @@ export function submitColorCopy(
   rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
     frame: run.frame,
     submission: run.imageRevision,
-    pose: run.lastCamera ? cameraPose(run.lastCamera) : null,
+    pose: run.lastCamera ? enginePose(run.gate.cam) : null,
     width,
     height,
     drawCalls: run.gpuDrawCalls,
@@ -77,8 +77,8 @@ export function submitColorCopy(
     timing.gpuTiming.submitted(encoder, {
       submission: run.imageRevision,
       viewport: [width, height],
-      cameraWorld: run.lastCamera && cameraWorldPosition(run.lastCamera).toArray(),
-      viewProjection: [...viewProj.elements],
+      cameraWorld: run.lastCamera && [...run.gate.cam.eye],
+      viewProjection: [...viewProj],
       scope: 'selection-and-render-passes',
       excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
       drawCalls: run.gpuDrawCalls,

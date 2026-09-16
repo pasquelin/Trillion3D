@@ -6,6 +6,7 @@ import { triangleAt } from '../visibilityMath.ts';
 import { compare, graine } from '../../sdk-core/bench/banc.mjs';
 import { verifieEtDeposeG } from '../../sdk-core/bench/bancG.mjs';
 import { referenceShadeLit } from './oracles/g-ombrage.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const alea = graine(0x6017);
 /** Poids barycentriques hostiles : zéro signé, NaN, infinis, dénormal. */
@@ -79,7 +80,7 @@ const matiere = (cartes) => ({
 /** Un lot de pixels : la même page, le même triangle, des poids et des matières qui varient. */
 function pixels(nombre, cartes, hostiles) {
   const p = page(0x77 ^ nombre),
-    tri = triangleAt(p, 0, viewProj, 1600, 900),
+    tri = triangleAt(p, 0, viewProj.elements, 1600, 900),
     mat = matiere(cartes);
   const lot = [];
   for (let i = 0; i < nombre; i++) {
@@ -100,8 +101,11 @@ function pixels(nombre, cartes, hostiles) {
   return lot;
 }
 
+/** La caméra du moteur du décor : l'ombrage optimisé ne lit plus que celle-ci. */
+const vue = cameraMoteur(camera);
+
 /** Un tour : chaque pixel du lot ombré, les trois canaux écrits bout à bout. */
-const passe = (ombre) => (lot) => {
+const passe = (ombre, oeil) => (lot) => {
   const sortie = new Float64Array(lot.length * 3);
   for (let i = 0; i < lot.length; i++) {
     const p = lot[i];
@@ -115,7 +119,7 @@ const passe = (ombre) => (lot) => {
       p.rgb,
       p.metalness,
       p.roughness,
-      camera,
+      oeil,
     );
     sortie[i * 3] = rgb[0];
     sortie[i * 3 + 1] = rgb[1];
@@ -143,8 +147,8 @@ const lignes = [
       { nom: 'un seul pixel', entree: pixels(1, false, false), taille: 1 },
       { nom: 'aucun pixel', entree: [], taille: 0 },
     ],
-    reference: passe(referenceShadeLit),
-    optimisee: passe(shadeLit),
+    reference: passe(referenceShadeLit, camera),
+    optimisee: passe(shadeLit, vue),
     options: { tours: 200, budgetMs: 4000, alterne: true },
   }),
 ];

@@ -12,6 +12,7 @@ import { rasterVisibility } from '../visibilityRaster.ts';
 import { compareC, deposeC } from './bancC.mjs';
 import { graine } from '../../sdk-core/bench/banc.mjs';
 import { camera, coupe, rectangles } from './scenes.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 /** `hizDepth.ts:9-17` avant le lot C : une ligne de `number[]` par rangée. */
 function referenceRowsOf(depth, width, height) {
@@ -58,7 +59,10 @@ function referenceRejects(pyramid, bounds, bias = 0) {
 
 /** La profondeur d'une vraie image : fond à 1, triangles dégénérés, sommets derrière la caméra. */
 function profondeur(width, height, pages, seed) {
-  const depth = rasterVisibility(pages, camera(6, 0.1, width / height), [width, height]).depth;
+  const depth = rasterVisibility(pages, cameraMoteur(camera(6, 0.1, width / height)), [
+    width,
+    height,
+  ]).depth;
   const alea = graine(seed);
   // Quelques valeurs hostiles que le visbuffer ne produit pas mais que la pyramide doit traverser.
   for (let i = 0; i < depth.length; i += 4099)

@@ -1,6 +1,6 @@
 import { boxCornersInto } from '../sdk-core/index.ts';
-import type * as THREE from 'three';
 import type { HizPage } from './hizTypes.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 export const HIZ_BOUNDS_VALUES = 6;
 
@@ -91,7 +91,7 @@ const cornerScratch = new Float64Array(BOX_CORNER_VALUES);
 export function projectBoxInto(
   min: readonly number[],
   max: readonly number[],
-  world: THREE.Matrix4,
+  world: MatrixElements,
   viewElements: ArrayLike<number>,
   viewProjElements: ArrayLike<number>,
   near: number,

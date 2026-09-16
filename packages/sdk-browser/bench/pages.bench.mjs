@@ -5,6 +5,7 @@ import { sameHizView } from '../hizTemporal.ts';
 import { setWindingEpoch, windingCw } from '../webgpuPagesWinding.ts';
 import { compare, graine, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { referenceWindingCw } from './oracles/pages.mjs';
+import { createEngineCamera, holdCameraWorld, readCameraWorld } from '../cameraWorld.ts';
 
 const alea = graine(67);
 /** Des clusters posés au hasard, dont un sur sept est réfléchi : son sens de parcours s'inverse. */
@@ -39,6 +40,8 @@ const imageDeSens = (sens, pose) => (recs) => {
 };
 
 const vue = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 200);
+// La caméra du moteur de l'image en cours, réécrite comme le fait une entrée d'image.
+const courante = createEngineCamera();
 let gardeeReference,
   gardeeOptimisee = undefined;
 const parcoursDeVue = (garder) => (images) => {
@@ -52,14 +55,17 @@ const parcoursDeVue = (garder) => (images) => {
   elements.set(vue.matrixWorldInverse.elements);
   return { verdicts, elements };
 };
+// La référence alloue une caméra du moteur par image ; l'optimisée recopie dans celle qu'elle garde.
 const referenceVue = parcoursDeVue((camera) => {
-  const verdict = sameHizView(gardeeReference, camera);
-  gardeeReference = camera.clone();
+  const lue = readCameraWorld(courante, camera);
+  const verdict = sameHizView(gardeeReference, lue);
+  gardeeReference = holdCameraWorld(createEngineCamera(), lue);
   return verdict;
 });
 const optimiseeVue = parcoursDeVue((camera) => {
-  const verdict = sameHizView(gardeeOptimisee, camera);
-  gardeeOptimisee = (gardeeOptimisee ?? new THREE.PerspectiveCamera()).copy(camera, false);
+  const lue = readCameraWorld(courante, camera);
+  const verdict = sameHizView(gardeeOptimisee, lue);
+  gardeeOptimisee = holdCameraWorld(gardeeOptimisee ?? createEngineCamera(), lue);
   return verdict;
 });
 

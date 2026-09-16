@@ -5,11 +5,11 @@
  * screen-error band. This module holds what is common to a kernel and its callers — the uniform
  * block, the readback shape and the page-cone convention — so neither side owns the other.
  */
-import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix, maxStretch } from '../sdk-core/index.ts';
+import { FRUSTUM_PLANE_VALUES, maxStretch } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { OPEN_CONE, type NormalCone } from './pageCone.ts';
 import { pixelScaleOf } from './streamingPriority.ts';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 const NONE = 0xffffffff,
   UNIFORM_BYTES = 256,
@@ -68,12 +68,20 @@ export type GpuSelection = {
   dispose(): void;
 };
 
-const scratch = {
-  vp: new THREE.Matrix4(),
-  camPos: new THREE.Vector3(),
-};
 const planeScratch = new Float32Array(FRUSTUM_PLANE_VALUES),
   viewScratch = new Float32Array(16);
+
+/** Le bloc d'uniformes d'une coupe, alloué une fois : l'image le réécrit, elle ne le refait pas. */
+export function createSelectionUniforms(): SelectionUniforms {
+  return {
+    planes: new Float32Array(FRUSTUM_PLANE_VALUES),
+    view: new Float32Array(16),
+    pixelScale: [1, 1],
+    pixelError: 0,
+    near: 0.1,
+    cameraWorld: [0, 0, 0],
+  };
+}
 
 export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms) {
   if (
@@ -119,38 +127,37 @@ export function leafCone(page: {
 }
 
 export function cameraSelectionUniforms(
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   pixelError: number,
   viewport?: [number, number],
   into?: SelectionUniforms,
 ): SelectionUniforms {
-  // Ancêtres compris : vue, plans et position décrivent la même pose, même sous un rig d'hôte.
-  resolveCameraWorld(camera);
-  const { vp, camPos } = scratch;
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
-  // Profondeur WebGL, comme le tronc de Three.js par défaut : le noyau lit ces plans tels quels.
-  frustumPlanesFromMatrix(
-    planes,
-    vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).elements,
-    false,
-  );
-  view.set(camera.matrixWorldInverse.elements);
+  // Vue, plans et position décrivent la même pose, ancêtres compris : l'entrée d'image les a posés
+  // une fois dans la caméra du moteur, et le noyau les lit tels quels. La simple précision
+  // n'arrondit qu'ici, comme avant : les plans sont calculés en double puis écrits une seule fois.
+  planes.set(cam.planes);
+  view.set(cam.view);
   const pixelScale = pixelScaleOf(
-    camera,
+    cam.projection,
     viewport,
     into?.pixelScale ?? ([1, 1] as [number, number]),
   );
-  camPos.setFromMatrixPosition(camera.matrixWorld);
-  const cameraWorld: [number, number, number] = into?.cameraWorld ?? [camPos.x, camPos.y, camPos.z];
-  cameraWorld[0] = camPos.x;
-  cameraWorld[1] = camPos.y;
-  cameraWorld[2] = camPos.z;
+  const position = cam.eye;
+  const cameraWorld: [number, number, number] = into?.cameraWorld ?? [
+    position[0],
+    position[1],
+    position[2],
+  ];
+  cameraWorld[0] = position[0];
+  cameraWorld[1] = position[1];
+  cameraWorld[2] = position[2];
   // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
-  const cameraStretch = maxStretch(camera.matrixWorldInverse.elements);
+  const cameraStretch = maxStretch(cam.view);
   if (into) {
     into.pixelError = pixelError;
-    into.near = camera.near;
+    into.near = cam.near;
     into.cameraWorld = cameraWorld;
     into.cameraStretch = cameraStretch;
     return into;
@@ -160,7 +167,7 @@ export function cameraSelectionUniforms(
     view: view.slice(),
     pixelScale: [pixelScale[0], pixelScale[1]],
     pixelError,
-    near: camera.near,
+    near: cam.near,
     cameraWorld: [cameraWorld[0], cameraWorld[1], cameraWorld[2]],
     cameraStretch,
   };

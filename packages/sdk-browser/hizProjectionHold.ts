@@ -1,6 +1,5 @@
-import type * as THREE from 'three';
-import { resolveCameraWorld } from './cameraWorld.ts';
 import { createViewFingerprint } from './viewFingerprint.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /**
  * Which slots of the screen-rectangle table still describe this image, and which have to be
@@ -37,15 +36,15 @@ export function createProjectionHold(slots: number) {
     },
     /**
      * Relit la vue que tous les créneaux partagent ; un changement retire tous les rectangles d'un
-     * coup. La pose passe par LE CONTRAT (`cameraWorld.ts`) : sous un rig d'hôte, une caméra dont
-     * seul un ancêtre a bougé n'a pas de pose locale nouvelle, et l'empreinte — qui compare
-     * `matrixWorldInverse` — ne verrait rien bouger si la chaîne n'était pas résolue d'abord. Le
-     * cache serait alors tenu à tort et le test Hi-Z recevrait les rectangles de la vue précédente.
+     * coup. La vue vient de la caméra du moteur, que l'entrée d'image a recopiée par LE CONTRAT
+     * (`cameraWorld.ts`) : sous un rig d'hôte, une caméra dont seul un ancêtre a bougé n'a pas de
+     * pose locale nouvelle, et l'empreinte ne verrait rien bouger si la chaîne n'était pas résolue
+     * d'abord. Le cache serait tenu à tort et le test Hi-Z recevrait les rectangles de la vue
+     * précédente.
      */
-    reframe(camera: THREE.PerspectiveCamera, width: number, height: number, epoch: number) {
-      resolveCameraWorld(camera);
-      if (heldEpoch === epoch && fingerprint.same(camera, width, height)) return;
-      fingerprint.keep(camera, width, height);
+    reframe(cam: EngineCamera, width: number, height: number, epoch: number) {
+      if (heldEpoch === epoch && fingerprint.same(cam, width, height)) return;
+      fingerprint.keep(cam, width, height);
       heldEpoch = epoch;
       generation++;
     },

@@ -10,6 +10,7 @@ import {
 } from './pageSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { assertOneRepresentationPerGroup, withBundles } from './pageSelectionTestHelpers.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('a streaming bundle is one request that makes every cluster it carries drawable', () => {
   const fixture = dagFixture();
@@ -44,7 +45,7 @@ test('a streaming bundle is one request that makes every cluster it carries draw
       `${rec.url} reads the wrong slice of its bundle`,
     );
   }
-  const selected = selectVisiblePages(roots, wideCamera(), {
+  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
@@ -73,7 +74,7 @@ test('only the root bundle resident still covers the surface once', () => {
     ['bundle-roots'],
   );
   acceptPageArray(indexPagesByUrl(allPages).get('bundle-roots')!, bundled.roots);
-  const selected = selectVisiblePages(roots, wideCamera(), {
+  const selected = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
@@ -103,13 +104,13 @@ test('a cut wider than the page budget is answered by a coarser cut, not by drop
     fixture.indices,
     fixture.associations,
   );
-  const full = selectVisiblePages(roots, wideCamera(), {
+  const full = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,
   });
   assert.equal(full.shown.length, 4);
-  const tight = selectVisiblePages(roots, wideCamera(), {
+  const tight = selectVisiblePages(roots, cameraMoteur(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
     holdResident: true,

@@ -4,8 +4,8 @@
 // dessus, caméra immobile, même une fois les octets arrivés.
 //
 // Le relevé complet de la reprise n'est pas fourni par le test : il est produit par la sélection
-// simulée, à partir des drapeaux de résidence que l'image en attente lui a publiés. Le dispositif
-// lui-même est dans `webgpuCutRepriseFixture.ts`.
+// simulée, à partir des drapeaux de résidence que l'image en attente lui a publiés. Le banc lui-même
+// (`banc()`) vit dans `webgpuCutRepriseFixture.ts`, pour tenir sous 200 lignes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { banc } from './webgpuCutRepriseFixture.ts';

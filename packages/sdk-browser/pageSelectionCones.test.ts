@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
 import type { ClusterRoot } from './pageSelectionTypes.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 /** Une fixture dont la page la plus proche porte un cône qui regarde à l'opposé de la caméra :
  *  honoré, il la rejette ; ignoré, elle reste. Le matériau est à une seule face, sans quoi le rejet
@@ -24,7 +25,7 @@ function fixtureAvecCone() {
 }
 
 function urls(roots: ReadonlyArray<ClusterRoot<PageRec>>) {
-  return selectVisiblePages(roots, camera(), {}).shown.map((page) => page.url);
+  return selectVisiblePages(roots, cameraMoteur(camera()), {}).shown.map((page) => page.url);
 }
 
 test('la collecte déclare une racine sans cône, ce qui est vrai de toutes ses pages', () => {

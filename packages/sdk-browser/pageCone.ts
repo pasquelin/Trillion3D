@@ -1,6 +1,7 @@
-import { boxConeRejects } from '../sdk-core/index.ts';
+import { boxConeRejects, normalMatrix3 } from '../sdk-core/index.ts';
 import * as THREE from 'three';
-import { resolveCameraWorld } from './cameraWorld.ts';
+import type { EngineCamera } from './cameraWorld.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 export type NormalCone = { axis: [number, number, number]; angle: number };
 /** Never rejects. */
@@ -8,7 +9,6 @@ export const OPEN_CONE: NormalCone = { axis: [0, 0, 1], angle: Math.PI };
 export { triangleCone } from './pageConeBuild.ts';
 
 const loneContext = createConeContext();
-const cameraWorld = new THREE.Vector3();
 
 /**
  * Conformité d'une transformation, indépendante de son échelle : la 3×3 est divisée par la somme
@@ -18,8 +18,7 @@ const cameraWorld = new THREE.Vector3();
  * ou une colonne nulle, n'est pas conforme : le cluster est conservé.
  *  Miroir CPU de `isConformal` (gpuDagShader.ts) : même normalisation, mêmes tolérances.
  */
-function isConformal(world: THREE.Matrix4) {
-  const e = world.elements;
+function isConformal(e: ArrayLike<number>) {
   const t =
     Math.abs(e[0]) +
     Math.abs(e[1]) +
@@ -68,7 +67,7 @@ export type ConeContext = {
   ready: boolean;
   conformal: boolean;
   scale: number;
-  normal: THREE.Matrix3;
+  normal: Float64Array;
   camX: number;
   camY: number;
   camZ: number;
@@ -80,7 +79,7 @@ export function createConeContext(): ConeContext {
     ready: false,
     conformal: false,
     scale: 1,
-    normal: new THREE.Matrix3(),
+    normal: new Float64Array(9),
     camX: 0,
     camY: 0,
     camZ: 0,
@@ -88,23 +87,17 @@ export function createConeContext(): ConeContext {
 }
 
 /** Remplit le contexte pour une transformation de racine et une caméra. */
-export function coneContextFor(
-  into: ConeContext,
-  world: THREE.Matrix4,
-  camera: THREE.PerspectiveCamera,
-) {
-  into.ready = true;
-  into.conformal = isConformal(world);
-  if (!into.conformal) return into;
+export function coneContextFor(into: ConeContext, world: MatrixElements, cam: EngineCamera) {
   const e = world.elements;
+  into.ready = true;
+  into.conformal = isConformal(e);
+  if (!into.conformal) return into;
   into.scale = Math.hypot(e[0], e[1], e[2]);
-  into.normal.getNormalMatrix(world);
-  // Ancêtres compris, puis la position lue dans la matrice au lieu d'être recalculée.
-  resolveCameraWorld(camera);
-  cameraWorld.setFromMatrixPosition(camera.matrixWorld);
-  into.camX = cameraWorld.x;
-  into.camY = cameraWorld.y;
-  into.camZ = cameraWorld.z;
+  normalMatrix3(into.normal, e);
+  // La position monde de l'œil vient de la caméra du moteur : une image la pose une fois.
+  into.camX = cam.eye[0];
+  into.camY = cam.eye[1];
+  into.camZ = cam.eye[2];
   return into;
 }
 
@@ -114,7 +107,7 @@ export function coneContextFor(
 export function coneCullsPageWith(
   ctx: ConeContext,
   cone: NormalCone,
-  world: THREE.Matrix4,
+  world: MatrixElements,
   min: number[],
   max: number[],
   material?: THREE.Material | THREE.Material[],
@@ -131,7 +124,7 @@ export function coneCullsPageWith(
     min,
     max,
     world.elements,
-    ctx.normal.elements,
+    ctx.normal,
     ctx.scale,
     ctx.camX,
     ctx.camY,
@@ -142,14 +135,14 @@ export function coneCullsPageWith(
 /** Le même rejet pour un appelant qui n'a pas de contexte : il en pose un pour ce seul cluster. */
 export function coneCullsPage(
   cone: NormalCone,
-  world: THREE.Matrix4,
+  world: MatrixElements,
   min: number[],
   max: number[],
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   material?: THREE.Material | THREE.Material[],
 ): boolean {
   return coneCullsPageWith(
-    coneContextFor(loneContext, world, camera),
+    coneContextFor(loneContext, world, cam),
     cone,
     world,
     min,

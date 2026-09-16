@@ -13,13 +13,14 @@ import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { dagCulling } from './pageSelectionTestHelpers.ts';
 import { packed, kernelUrls, cpuUrls, VIEWPORT } from './gpuDagSelectionTestHelpers.ts';
 import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('the kernel projects a cluster error exactly like clusterErrorPixels', () => {
   // The WGSL band test is the certified bound of `screenErrorBound`: minimum depth, side reach and
   // the moved point's closest depth, with Infinity at the near plane. Replaying it against the
   // published oracle keeps the GPU and CPU cuts on one formula.
   const cam = wideCamera();
-  const uniforms = cameraSelectionUniforms(cam, 1, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(cameraMoteur(cam), 1, VIEWPORT);
   const focal = Math.max(uniforms.pixelScale[0], uniforms.pixelScale[1]);
   const world = new THREE.Matrix4().makeRotationY(0.7).setPosition(1, -2, 3);
   const view = new THREE.Matrix4().multiplyMatrices(cam.matrixWorldInverse, world),
@@ -98,7 +99,7 @@ test('a cut with nothing resident but the roots publishes the root cover', () =>
   const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0)));
   const result = evaluateDagSelectionKernel(
     dag,
-    cameraSelectionUniforms(wideCamera(), 0, VIEWPORT),
+    cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT),
     resident,
   );
   assert.deepEqual(
@@ -123,7 +124,7 @@ test('a missing cluster is replaced by its nearest resident ancestor, not by the
   const resident = Uint32Array.from(dag.pageUrls.map((url) => (url === 'leaf0' ? 0 : 1)));
   const result = evaluateDagSelectionKernel(
     dag,
-    cameraSelectionUniforms(wideCamera(), 0, VIEWPORT),
+    cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT),
     resident,
   );
   const drawn = (result.drawablePageIds ?? []).map((id) => dag.pageUrls[id]).sort();
@@ -160,7 +161,7 @@ test('GPU selection readback page ids match the CPU oracle for the same camera',
   const cam = wideCamera();
   const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag);
   assert.ok(selection);
-  selection.dispatch(cameraSelectionUniforms(cam, 3.4, VIEWPORT));
+  selection.dispatch(cameraSelectionUniforms(cameraMoteur(cam), 3.4, VIEWPORT));
   const gpu = await selection.flush();
   assert.ok(gpu);
   assert.deepEqual(gpu.pageIds.map((id) => dag.pageUrls[id]).sort(), cpuUrls(fixture, 3.4, cam));

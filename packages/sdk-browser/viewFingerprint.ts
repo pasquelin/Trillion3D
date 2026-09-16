@@ -1,5 +1,5 @@
-import type * as THREE from 'three';
 import { copyElements, sameElements } from './matrixElements.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /**
  * L'empreinte d'une vue d'image : les seize nombres de la vue, les seize de la projection, le plan
@@ -9,8 +9,8 @@ import { copyElements, sameElements } from './matrixElements.ts';
  * suite de comparaisons. Une seule écriture ; ce qui distingue une tenue de l'autre, portée du plan
  * lointain et seuil de qualité d'un côté, âge de la table de l'autre, reste chez elle.
  *
- * Aucune tolérance, et rien qui se lise ailleurs que sur la caméra : une vue qui a bougé d'un
- * dernier bit est une vue différente.
+ * Aucune tolérance, et rien qui se lise ailleurs que sur la caméra du moteur : une vue qui a bougé
+ * d'un dernier bit est une vue différente.
  */
 export function createViewFingerprint() {
   const view = new Float64Array(16),
@@ -21,20 +21,20 @@ export function createViewFingerprint() {
     height = -1;
   return {
     /** Vrai quand la vue, la projection, le plan proche et le viewport sont ceux déjà retenus. */
-    same(camera: THREE.PerspectiveCamera, viewportWidth: number, viewportHeight: number) {
+    same(cam: EngineCamera, viewportWidth: number, viewportHeight: number) {
       return (
-        near === camera.near &&
+        near === cam.near &&
         width === viewportWidth &&
         height === viewportHeight &&
-        sameElements(view, camera.matrixWorldInverse.elements) &&
-        sameElements(projection, camera.projectionMatrix.elements)
+        sameElements(view, cam.view) &&
+        sameElements(projection, cam.projection)
       );
     },
     /** Retient cette vue-ci, sans rien allouer. */
-    keep(camera: THREE.PerspectiveCamera, viewportWidth: number, viewportHeight: number) {
-      copyElements(view, camera.matrixWorldInverse.elements);
-      copyElements(projection, camera.projectionMatrix.elements);
-      near = camera.near;
+    keep(cam: EngineCamera, viewportWidth: number, viewportHeight: number) {
+      copyElements(view, cam.view);
+      copyElements(projection, cam.projection);
+      near = cam.near;
       width = viewportWidth;
       height = viewportHeight;
     },

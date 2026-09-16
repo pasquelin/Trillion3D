@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { dagFixture } from './pageSelectionDagFixture.ts';
 import { createWebglFrameGate } from './webglFrameGate.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 /** La fixture DAG, toutes pages résidentes, vue serrée sur la moitié gauche : les clusters de
  *  droite sortent du tronc et s'y font compter. */
@@ -37,7 +38,7 @@ function coupe() {
   return {
     pages,
     shown,
-    tour: () => selectVisiblePages(roots, camera, options, shown),
+    tour: () => selectVisiblePages(roots, cameraMoteur(camera), options, shown),
   };
 }
 

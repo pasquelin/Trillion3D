@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { createEngineCamera, readCameraWorld, type HostCamera } from './cameraWorld.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from './gpuDagSelection.ts';
@@ -15,17 +15,19 @@ export function packed(fixture: ReturnType<typeof dagFixture>) {
   return { roots, dag: packDagSelection(roots) };
 }
 
+const helperCam = createEngineCamera();
+
 export function kernelUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
-  cam: THREE.PerspectiveCamera,
+  camera: HostCamera,
   resident?: Uint32Array,
   field: 'pageIds' | 'drawablePageIds' = 'pageIds',
 ) {
   const { dag } = packed(fixture);
   const result = evaluateDagSelectionKernel(
     dag,
-    cameraSelectionUniforms(cam, pixelError, VIEWPORT),
+    cameraSelectionUniforms(readCameraWorld(helperCam, camera), pixelError, VIEWPORT),
     resident,
   );
   return { result, urls: (result[field] ?? []).map((id) => dag.pageUrls[id]).sort() };
@@ -34,7 +36,7 @@ export function kernelUrls(
 export function cpuUrls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
-  cam: THREE.PerspectiveCamera,
+  camera: HostCamera,
 ) {
   const { roots } = collectClusterPages(
     fixture.source,
@@ -42,7 +44,10 @@ export function cpuUrls(
     fixture.indices,
     fixture.associations,
   );
-  return selectVisiblePages(roots, cam, { pixelError, viewport: VIEWPORT })
+  return selectVisiblePages(roots, readCameraWorld(helperCam, camera), {
+    pixelError,
+    viewport: VIEWPORT,
+  })
     .shown.map((page) => page.url)
     .sort();
 }

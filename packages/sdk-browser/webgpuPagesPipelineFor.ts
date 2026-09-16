@@ -124,7 +124,7 @@ export function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, num
   if (run.diagnostic === 'screen-error')
     return run.lastCamera
       ? screenErrorColor(
-          projectedPageError(rec, run.lastCamera, rt.setup.viewport),
+          projectedPageError(rec, run.gate.cam, rt.setup.viewport),
           run.diagnosticPixelError,
         )
       : [0, 1, 0.12];

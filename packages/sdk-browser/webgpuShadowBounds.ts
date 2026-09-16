@@ -1,3 +1,4 @@
+import { transformAffinePoint } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuLightState } from './webgpuPagesStateLights.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -18,9 +19,7 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
   const hx = (rec.max[0] - rec.min[0]) / 2,
     hy = (rec.max[1] - rec.min[1]) / 2,
     hz = (rec.max[2] - rec.min[2]) / 2;
-  out[base] = e[0] * cx + e[4] * cy + e[8] * cz + e[12];
-  out[base + 1] = e[1] * cx + e[5] * cy + e[9] * cz + e[13];
-  out[base + 2] = e[2] * cx + e[6] * cy + e[10] * cz + e[14];
+  transformAffinePoint(out, e, cx, cy, cz, base);
   out[base + 3] = Math.hypot(
     Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,
     Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,

@@ -1,5 +1,10 @@
-import { clusterErrorPixels, maxStretch } from '../sdk-core/index.ts';
-import type * as THREE from 'three';
+import {
+  clusterErrorPixels,
+  maxStretch,
+  multiplyMatrix4,
+  transformAffinePoint,
+} from '../sdk-core/index.ts';
+import type { MatrixElements } from './matrixElements.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
 export interface PriorityRecord {
@@ -12,10 +17,11 @@ export interface PriorityRecord {
   parentSphere?: number[] | null;
   min: number[];
   max: number[];
-  matrix: THREE.Matrix4;
+  matrix: MatrixElements;
 }
+/** Ce que l'ordre lit de la caméra du moteur : sa vue et son plan proche, rien d'autre. */
 export interface PriorityCamera {
-  matrixWorldInverse: THREE.Matrix4;
+  view: ArrayLike<number>;
   near: number;
 }
 
@@ -24,23 +30,10 @@ export interface PriorityCamera {
 export const PRIORITY_VISIBLE = 1,
   PRIORITY_PREFETCH = 3;
 
-function composeView(view: Float64Array, camera: ArrayLike<number>, world: ArrayLike<number>) {
-  for (let column = 0; column < 4; column++)
-    for (let row = 0; row < 4; row++) {
-      let sum = 0;
-      for (let k = 0; k < 4; k++) sum += camera[k * 4 + row] * world[column * 4 + k];
-      view[column * 4 + row] = sum;
-    }
-}
 /** View-space centre of a sphere given in the space `view` maps from; the radius is carried along
  *  untouched, exactly as the selection does, and stretched by the caller where it is used. */
 function project(view: ArrayLike<number>, sphere: ArrayLike<number>, out: Float64Array) {
-  const cx = sphere[0],
-    cy = sphere[1],
-    cz = sphere[2];
-  out[0] = view[0] * cx + view[4] * cy + view[8] * cz + view[12];
-  out[1] = view[1] * cx + view[5] * cy + view[9] * cz + view[13];
-  out[2] = view[2] * cx + view[6] * cy + view[10] * cz + view[14];
+  transformAffinePoint(out, view, sphere[0], sphere[1], sphere[2]);
   out[3] = sphere[3];
 }
 const centre = new Float64Array(4),
@@ -69,15 +62,15 @@ interface Slot {
  */
 export function orderPendingUrls(
   records: readonly PriorityRecord[],
-  camera: PriorityCamera,
+  cam: PriorityCamera,
   pixelScale: readonly number[],
   into: string[],
 ): string[] {
   into.length = 0;
   const focal = Math.max(pixelScale[0], pixelScale[1]),
-    near = camera.near;
+    near = cam.near;
   const slots = new Map<string, Slot>();
-  const views = new Map<THREE.Matrix4, { view: Float64Array; stretch: number }>();
+  const views = new Map<MatrixElements, { view: Float64Array; stretch: number }>();
   for (let index = 0; index < records.length; index++) {
     const record = records[index];
     if (record.array) continue;
@@ -85,7 +78,7 @@ export function orderPendingUrls(
     let frame = views.get(record.matrix);
     if (!frame) {
       const view = new Float64Array(16);
-      composeView(view, camera.matrixWorldInverse.elements, record.matrix.elements);
+      multiplyMatrix4(view, cam.view, record.matrix.elements);
       frame = { view, stretch: maxStretch(view as unknown as readonly number[]) };
       views.set(record.matrix, frame);
     }
@@ -129,15 +122,15 @@ export function orderPendingUrls(
   for (let index = 0; index < ordered.length; index++) into.push(ordered[index].url);
   return into;
 }
-/** Pixels per unit of view-space extent at unit depth, from a camera and its viewport. */
+/** Pixels par unité d'étendue en repère de vue à profondeur unité, d'une projection et d'un viewport. */
 export function pixelScaleOf<T extends number[]>(
-  camera: { projectionMatrix: THREE.Matrix4 },
+  projection: ArrayLike<number>,
   viewport: readonly number[] | undefined,
   into: T,
 ) {
   const width = viewport?.[0] ?? 1,
     height = viewport?.[1] ?? 1;
-  into[0] = (width * Math.abs(camera.projectionMatrix.elements[0])) / 2;
-  into[1] = (height * Math.abs(camera.projectionMatrix.elements[5])) / 2;
+  into[0] = (width * Math.abs(projection[0])) / 2;
+  into[1] = (height * Math.abs(projection[5])) / 2;
   return into;
 }
