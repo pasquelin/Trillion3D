@@ -132,11 +132,13 @@ ${TRIANGLE_PALETTE_WGSL}
  }
  let sample=colorSample(in.ids.x,in.uvA.xy,in.uv,wrapOf(wrap,${WRAP_MAP.base}u),gradX,gradY);
  let alpha=sample.w*in.color.w;
+ // \`fwidth\` exige un flot de contrôle uniforme : les drapeaux viennent de la fiche par item, donc
+ // la dérivée est prise avant toute condition qui en dépend et n'est lue que par la vue « fil de fer ».
+ let width=fwidth(in.bary);
  if((flags&0x40000000u)!=0u){
   if(alpha<=0.01||alpha<in.uvA.z){discard;}
   var color=vec3f(0.204,0.827,0.6);
   if((flags&0x20000000u)!=0u){
-   let width=fwidth(in.bary);
    let edge=1.0-min(min(smoothstep(0.0,width.x*1.2,in.bary.x),smoothstep(0.0,width.y*1.2,in.bary.y)),smoothstep(0.0,width.z*1.2,in.bary.z));
    color=mix(hashColor(in.tri),vec3f(0.04,0.05,0.07),edge);
   }else if((flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
