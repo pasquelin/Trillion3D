@@ -36,8 +36,11 @@ pub(super) struct Builder<'a, 'w> {
     /// Les maillages déjà liés à une suite de matériaux : la clé est le maillage du modèle et les
     /// matériaux que l'instance demande.
     pub(super) bound: HashMap<(usize, Vec<Option<usize>>), usize>,
-    /// Les maillages de modèle déjà réécrits sur place par leur première liaison.
-    pub(super) rebound: HashSet<usize>,
+    /// Les maillages de modèle qu'une première liaison a déjà pris.
+    pub(super) claimed: HashSet<usize>,
+    /// Le maillage du modèle tel qu'il était avant sa première liaison, mis de côté pour que les
+    /// suivantes partent de l'original et non de la variante posée sur place.
+    pub(super) pristine: HashMap<usize, Value>,
     /// Le nœud écrit pour chaque objet parcouru, par `fileID` de sa transformation et de son
     /// GameObject : c'est là que se pose ce qu'une instance ajoute sous lui.
     pub(super) placed: HashMap<i64, usize>,

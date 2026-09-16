@@ -1,12 +1,15 @@
 //! Ce qu'une instance de prefab pose, retire et remplace, et ce qu'un maillage partagé garde de
 //! propre à chaque instance. Les propriétés de matériau et de texture sont dans `unity_proprietes.rs`.
 use super::*;
-use unity_projet::{cube, materiau, node_named, objet, Projet, BUILTIN};
+use unity_projet::{cube, material_index, materiau, node_named, objet, Projet, BUILTIN};
 
 /// Les GUID des fichiers de chaque cas.
 const MAT: &str = "000000000000000000000000000000a1";
 const SOURCE: &str = "000000000000000000000000000000a2";
 const OUTER: &str = "000000000000000000000000000000a3";
+
+/// Le GUID du modèle de chaque cas.
+const MODEL: &str = "0000000000000000000000000000000a";
 
 /// Un `.mat` uni, le plus court que le pilote lise.
 fn matiere(name: &str) -> String {
@@ -133,4 +136,53 @@ fn a_null_material_override_leaves_its_slot_without_a_material() {
         Value::Null,
         "l'emplacement vidé sort sans matériau"
     );
+}
+
+// Constat 49 : deux rendus qui désignent le même maillage de modèle ne portent pas les mêmes
+// matériaux. Le maillage versé est partagé ; chaque liaison différente en reçoit sa variante, et
+// celui qu'une instance a déjà posé sans liaison n'est jamais réécrit sous elle.
+#[test]
+fn two_renderers_that_share_a_mesh_keep_their_own_materials() {
+    let projet = Projet::new("maillage-partage");
+    let (rouge, verte) = (
+        "000000000000000000000000000000b1",
+        "000000000000000000000000000000b2",
+    );
+    projet.data("Materials/Rouge.mat", rouge, &matiere("Rouge"));
+    projet.data("Materials/Verte.mat", verte, &matiere("Verte"));
+    projet.model(
+        "Models/Piece.glb",
+        MODEL,
+        json!([{"name":"Piece","mesh":0}]),
+        "",
+    );
+    let mesh = format!("{{fileID: 4300000, guid: {MODEL}, type: 3}}");
+    projet.scene(&format!(
+        "{}{}{}",
+        objet(100, "Nue", &mesh, "[]", 0),
+        objet(200, "Rouge", &mesh, &materiau(rouge), 0),
+        objet(300, "Verte", &mesh, &materiau(verte), 0)
+    ));
+    let (_, gltf) = projet.compile("unity-maillage-partage").prepared("unity");
+    assert_eq!(
+        material_of_child(&gltf, "Nue"),
+        Value::Null,
+        "le rendu qui ne déclare aucun matériau garde le maillage du modèle tel quel"
+    );
+    assert_eq!(
+        material_of_child(&gltf, "Rouge"),
+        material_index(&gltf, "Rouge")
+    );
+    assert_eq!(
+        material_of_child(&gltf, "Verte"),
+        material_index(&gltf, "Verte")
+    );
+}
+
+/// Le matériau que porte le maillage du premier enfant de ce nœud.
+fn material_of_child(gltf: &Value, name: &str) -> Value {
+    let node = node_named(gltf, name).unwrap_or_else(|| panic!("le nœud {name}"));
+    let child = node["children"][0].as_u64().expect("un enfant") as usize;
+    let mesh = gltf["nodes"][child]["mesh"].as_u64().expect("un maillage") as usize;
+    gltf["meshes"][mesh]["primitives"][0]["material"].clone()
 }

@@ -35,26 +35,33 @@ impl Builder<'_, '_> {
         children
     }
 
-    /// Le maillage du modèle lié à cette suite de matériaux. Sans matériau déclaré, le maillage du
-    /// modèle est repris tel quel ; sinon une variante est versée, partagée par les instances qui
-    /// demandent la même liaison.
+    /// Le maillage du modèle lié à cette suite de matériaux. Chaque suite distincte — la suite vide
+    /// comprise, qui garde les matériaux du modèle — a sa variante, partagée par les instances qui
+    /// demandent la même liaison. La première venue garde le maillage du modèle : elle le réécrit
+    /// sur place quand elle le lie, une copie de l'original mise de côté pour les suivantes. Un
+    /// maillage déjà posé sous une instance n'est ainsi jamais réécrit sous elle.
     fn bound_mesh(&mut self, mesh: usize, materials: &[Option<usize>]) -> usize {
-        if materials.is_empty() {
-            return mesh;
-        }
         let key = (mesh, materials.to_vec());
         if let Some(known) = self.bound.get(&key) {
             return *known;
         }
-        // La première liaison réécrit le maillage du modèle sur place : sans elle, le maillage
-        // d'origine resterait dans le document sans que rien ne le nomme.
-        if self.rebound.insert(mesh) {
-            bind(&mut self.world.scene.meshes[mesh], materials);
+        if self.claimed.insert(mesh) {
+            if !materials.is_empty() {
+                let original = self.world.scene.meshes[mesh].clone();
+                self.pristine.insert(mesh, original);
+                bind(&mut self.world.scene.meshes[mesh], materials);
+            }
             self.bound.insert(key, mesh);
             return mesh;
         }
-        let mut copy = self.world.scene.meshes[mesh].clone();
-        bind(&mut copy, materials);
+        let mut copy = self
+            .pristine
+            .get(&mesh)
+            .unwrap_or(&self.world.scene.meshes[mesh])
+            .clone();
+        if !materials.is_empty() {
+            bind(&mut copy, materials);
+        }
         self.world.scene.meshes.push(copy);
         let triangles = self.world.scene.mesh_triangles[mesh];
         self.world.scene.mesh_triangles.push(triangles);
