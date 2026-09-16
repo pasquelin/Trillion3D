@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { invertMatrix4 } from '../sdk-core/index.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { writeBlendUniforms } from './webgpuBlendUniforms.ts';
 import { encodeTransparentInstances } from './webgpuTransparentDraw.ts';
@@ -9,9 +9,9 @@ import { clearValueOf } from './webgpuPagesEncoder.ts';
 import { encodeDirectLights } from './webgpuPagesEncodeLights.ts';
 import { directLightResources, wantsContractLighting } from './webgpuPagesLightResources.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
-const inverseViewProj = new THREE.Matrix4(),
-  cameraWorldScratch = new THREE.Vector3(),
+const inverseViewProj = new Float64Array(16),
   cameraWorldArray: [number, number, number] = [0, 0, 0];
 
 export function encodeBlend(
@@ -78,7 +78,7 @@ export function encodeSurfaceLighting(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
@@ -86,9 +86,9 @@ export function encodeSurfaceLighting(
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
-  inverseViewProj.copy(viewProj).invert();
+  invertMatrix4(inverseViewProj, viewProj);
   // Les ombres et les listes de lampes s'encodent avant la résolution : elles en sont les entrées.
-  const direct = encodeDirectLights(rt, device, encoder, camera, inverseViewProj.elements);
+  const direct = encodeDirectLights(rt, device, encoder, cam, inverseViewProj);
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
@@ -97,13 +97,12 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
-  // L'image a mis la caméra à jour, ancêtres compris : sa matrice monde se lit sans recalcul.
-  cameraWorldScratch.setFromMatrixPosition(camera.matrixWorld);
-  cameraWorldArray[0] = cameraWorldScratch.x;
-  cameraWorldArray[1] = cameraWorldScratch.y;
-  cameraWorldArray[2] = cameraWorldScratch.z;
+  // L'entrée d'image a recopié la caméra, ancêtres compris : la position monde se lit sans recalcul.
+  cameraWorldArray[0] = cam.eye[0];
+  cameraWorldArray[1] = cam.eye[1];
+  cameraWorldArray[2] = cam.eye[2];
   gpu.deferred.update(
-    inverseViewProj.elements,
+    inverseViewProj,
     cameraWorldArray,
     width,
     height,

@@ -31,7 +31,7 @@ export function rootCoverInto<T extends PageRecord>(
 
 /** Raise the threshold to a resident ancestor when group structure is unavailable. */
 export function repairFlat<T extends PageRecord>(s: SelectionState<T>, pages: T[], start: number) {
-  const near = s.camera.near;
+  const near = s.cam.near;
   let threshold = s.pixelError,
     hard = false;
   for (let round = 0; round <= ESCALATION_ROUNDS; round++) {

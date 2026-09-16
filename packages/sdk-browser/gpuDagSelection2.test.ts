@@ -5,6 +5,7 @@ import { createGpuDagSelection } from './gpuDagSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
 import { installGpuGlobals, mockDagDevice } from './gpuDagSelectionFixture.ts';
 import { packed, VIEWPORT } from './gpuDagSelectionTestHelpers.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals();
@@ -20,7 +21,7 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
   };
   const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
-  const uniforms = cameraSelectionUniforms(wideCamera(), 0, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT);
   const abandoned = selection.dispatch(uniforms, device.createCommandEncoder());
   assert.equal(typeof abandoned, 'function', 'a shared buffer hands back its settlement');
   assert.equal(submits, 0, 'the selection does not submit a buffer it does not own');
@@ -42,7 +43,7 @@ test('unchanged uniforms skip a second GPU dispatch', async () => {
   const { device, uniformWrites } = mockDagDevice(dag);
   const selection = await createGpuDagSelection(device, dag);
   assert.ok(selection);
-  const uniforms = cameraSelectionUniforms(wideCamera(), 0, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT);
   selection.dispatch(uniforms);
   await selection.flush();
   const afterFirst = uniformWrites();
@@ -59,7 +60,7 @@ test('updating an instance world matrix invalidates the old GPU cut', async () =
   const { dag } = packed(fixture);
   const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag);
   assert.ok(selection);
-  const uniforms = cameraSelectionUniforms(wideCamera(), 0, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT);
   selection.dispatch(uniforms);
   assert.equal((await selection.flush())?.pageIds.length, 4);
   const moved = dag.worlds.slice();
@@ -79,7 +80,7 @@ test('the resident mask recomputes for residency changes with an unchanged camer
   const { device, uniformWrites } = mockDagDevice(dag);
   const selection = await createGpuDagSelection(device, dag, { residentCut: true });
   assert.ok(selection);
-  const uniforms = cameraSelectionUniforms(wideCamera(), 0, VIEWPORT);
+  const uniforms = cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT);
   const mask = () =>
     [
       ...new Uint32Array(
@@ -114,7 +115,7 @@ test('a failed readback marks GPU selection dead', async () => {
   const { dag } = packed(fixture);
   const selection = await createGpuDagSelection(mockDagDevice(dag, { failMap: true }).device, dag);
   assert.ok(selection);
-  selection.dispatch(cameraSelectionUniforms(wideCamera(), 0, VIEWPORT));
+  selection.dispatch(cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT));
   assert.equal(await selection.flush(), null);
   assert.equal(selection.failed(), true);
   assert.equal(selection.peek(), null);
@@ -135,7 +136,7 @@ test('readback from an older resident cut cannot restore an invalidated drawable
   });
   assert.ok(selection);
   selection.updateResidency(Uint32Array.from(dag.pageUrls.map((url) => (url === 'root' ? 1 : 0))));
-  selection.dispatch(cameraSelectionUniforms(wideCamera(), 0, VIEWPORT));
+  selection.dispatch(cameraSelectionUniforms(cameraMoteur(wideCamera()), 0, VIEWPORT));
   selection.updateResidency(new Uint32Array(dag.pageCount).fill(1));
   release();
   assert.equal(await selection.flush(), null);

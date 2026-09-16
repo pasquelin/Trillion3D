@@ -1,6 +1,8 @@
 import { FRUSTUM_PLANE_VALUES } from '../sdk-core/index.ts';
 import * as THREE from 'three';
 import { createConeContext, type ConeContext, type NormalCone } from './pageCone.ts';
+import type { EngineCamera } from './cameraWorld.ts';
+import { IDENTITY_ELEMENTS, type MatrixElements } from './matrixElements.ts';
 import type { ClusterCut } from './pageSelectionMath.ts';
 import type { ClusterStructureIndex } from './pageSelectionTypes.ts';
 
@@ -15,7 +17,7 @@ export interface PageRecord extends ClusterCut {
 }
 
 export interface SelectionState<T extends PageRecord> {
-  camera: THREE.PerspectiveCamera;
+  cam: EngineCamera;
   hold: boolean;
   rootFallback: boolean;
   wanted: T[];
@@ -28,7 +30,7 @@ export interface SelectionState<T extends PageRecord> {
   lodLevel: number;
   complete: boolean;
   cameraStretch: number;
-  flatWorld: THREE.Matrix4;
+  flatWorld: MatrixElements;
   flatElements: ArrayLike<number>;
   flatStretch: number;
   flatFocal: number;
@@ -128,17 +130,14 @@ export function residentUnder<T extends PageRecord>(
   return (s.isResident as (page: T) => boolean)(rec);
 }
 
-export const IDENTITY_WORLD = new THREE.Matrix4();
+export const IDENTITY_WORLD: MatrixElements = { elements: IDENTITY_ELEMENTS };
 /** Synchronous selection reuses these buffers between frames without allocating a new cut. */
 export const selectionScratch = {
-  /** Plans du tronc en repère monde, qui rejettent une racine entière par sa boîte monde. */
-  worldPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
-  matrix: new THREE.Matrix4(),
-  viewMatrix: new THREE.Matrix4(),
+  viewMatrix: new Float64Array(16),
   viewMin: [Infinity, Infinity, Infinity] as [number, number, number],
   viewMax: [-Infinity, -Infinity, -Infinity] as [number, number, number],
   pixelScale: [1, 1] as [number, number],
-  clip: new THREE.Matrix4(),
+  clip: new Float64Array(16),
   /** Plans du tronc dans le repère de la racine en cours, bruts : ceux de la descente exacte. */
   planes: new Float64Array(FRUSTUM_PLANE_VALUES),
   stack: new Int32Array(4096),
@@ -149,7 +148,7 @@ export const forceScratch: number[] = [];
 /** L'état d'une coupe, posé une seule fois. La sélection est synchrone et non réentrante, comme
  *  `selectionScratch` : réutiliser cet état retire la dernière allocation par image. */
 const reusedState: SelectionState<PageRecord> = {
-  camera: undefined as unknown as THREE.PerspectiveCamera,
+  cam: undefined as unknown as EngineCamera,
   hold: false,
   rootFallback: false,
   wanted: [],
@@ -162,7 +161,7 @@ const reusedState: SelectionState<PageRecord> = {
   complete: true,
   cameraStretch: 1,
   flatWorld: IDENTITY_WORLD,
-  flatElements: IDENTITY_WORLD.elements,
+  flatElements: IDENTITY_ELEMENTS,
   flatStretch: 1,
   flatFocal: 1,
   flatCone: createConeContext(),

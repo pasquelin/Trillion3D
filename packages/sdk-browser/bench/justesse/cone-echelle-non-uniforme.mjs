@@ -22,6 +22,7 @@ import { selectVisiblePages } from '../../pageSelectionCut.ts';
 import { cameraSelectionUniforms } from '../../gpuSelection.ts';
 import { evaluateDagSelectionKernel, packDagSelection } from '../../gpuDagSelection.ts';
 import { selectionGpu } from './noyauSelectionGpu.mjs';
+import { cameraMoteur } from '../../cameraFixture.ts';
 
 const positions = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0];
 const indices = [0, 1, 2, 3, 4, 5];
@@ -80,7 +81,7 @@ function coupeCpu(cones) {
     cones,
     worldBox: new Float64Array([...box.min.toArray(), ...box.max.toArray()]),
   };
-  return selectVisiblePages([root], camera, { pixelError: 0, viewport: VIEWPORT })
+  return selectVisiblePages([root], cameraMoteur(camera), { pixelError: 0, viewport: VIEWPORT })
     .displayedTriangles;
 }
 
@@ -95,8 +96,8 @@ function empaquete(coneDuCluster) {
   ]);
 }
 
-const uniforms = cameraSelectionUniforms(camera, 0, VIEWPORT);
-const context = coneContextFor(createConeContext(), world, camera);
+const uniforms = cameraSelectionUniforms(cameraMoteur(camera), 0, VIEWPORT);
+const context = coneContextFor(createConeContext(), world, cameraMoteur(camera));
 const avecCone = empaquete(cone),
   sansCone = empaquete(OPEN_CONE);
 const gpu = await selectionGpu([

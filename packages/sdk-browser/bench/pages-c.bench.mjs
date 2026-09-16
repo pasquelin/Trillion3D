@@ -13,6 +13,7 @@ import { compareC, deposeC } from './bancC.mjs';
 import { compteur, parcours } from './ecartsC.mjs';
 import { camera } from './scenes.mjs';
 import { dag, racine } from './dagC.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const cam = camera(9, 0.1, 16 / 9);
 const image = [1280, 720];
@@ -35,7 +36,7 @@ function scene({ feuilles, seed, pixelError }) {
 function anneauParSeconde(entree) {
   const ring = selectVisiblePages(
     entree.roots,
-    cam,
+    cameraMoteur(cam),
     {
       pixelError: entree.pixelError > 0 ? entree.pixelError * 0.5 : 0.5,
       viewport: image,
@@ -52,7 +53,7 @@ function anneauParSeconde(entree) {
 function anneauParLaCoupe(entree) {
   const cut = selectVisiblePages(
     entree.roots,
-    cam,
+    cameraMoteur(cam),
     {
       pixelError: entree.pixelError,
       viewport: image,

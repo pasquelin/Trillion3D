@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './bench/justesse/cameraRig.mjs';
 import { SITES } from './bench/justesse/cameraSites.mjs';
+import { cameraMoteur } from './cameraFixture.ts';
 
 type Pose = (typeof POSES_PARENT)[number];
 type Site = {
@@ -35,7 +36,7 @@ async function releve(site: Site, camera: (pose: Pose) => unknown) {
 
 /** Résidu de la vue appliquée à la position monde : nul à l'arrondi près si elles concordent. */
 function residu(camera: Parameters<typeof cameraSelectionUniforms>[0]) {
-  const u = cameraSelectionUniforms(camera, 1, [1280, 720]);
+  const u = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);
   const v = u.view,
     [x, y, z] = u.cameraWorld;
   return Math.hypot(

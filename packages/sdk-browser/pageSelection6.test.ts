@@ -7,6 +7,7 @@ import {
   type SelectionResult,
 } from './pageSelection.ts';
 import { blendFixture, camera } from './pageSelectionBlendFixture.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test("une image de coupe réutilise sa table plate, son résultat et ses tableaux : elle n'alloue rien", () => {
   const fixture = blendFixture();
@@ -39,8 +40,8 @@ test("une image de coupe réutilise sa table plate, son résultat et ses tableau
       wanted,
       result,
     };
-  const first = selectVisiblePages(roots, cam, ask, shown);
-  const second = selectVisiblePages(roots, cam, ask, shown);
+  const first = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
+  const second = selectVisiblePages(roots, cameraMoteur(cam), ask, shown);
   assert.equal(second, first, 'le résultat rendu est celui fourni, image après image');
   assert.equal(second, result);
   assert.equal(second.shown, shown);
@@ -88,14 +89,14 @@ test('deux appels successifs avec la même caméra sélectionnent le même ensem
   const shown1: PageRec[] = [];
   const first = selectVisiblePages(
     roots,
-    cam,
+    cameraMoteur(cam),
     { pixelError: 100, viewport: [960, 540], holdResident: true },
     shown1,
   );
   const shown2: PageRec[] = [];
   const second = selectVisiblePages(
     roots,
-    cam,
+    cameraMoteur(cam),
     { pixelError: 100, viewport: [960, 540], holdResident: true },
     shown2,
   );
@@ -130,8 +131,8 @@ test("les tableaux de travail de la sélection sont réutilisés d'une image à 
       holdResident: true,
     };
   const hint: PageRec[] = [];
-  const first = selectVisiblePages(roots, cam, ask, hint);
-  const second = selectVisiblePages(roots, cam, ask, hint);
+  const first = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
+  const second = selectVisiblePages(roots, cameraMoteur(cam), ask, hint);
   assert.deepEqual(
     first.shown.map((p) => p.url),
     second.shown.map((p) => p.url),

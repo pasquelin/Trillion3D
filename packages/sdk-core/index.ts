@@ -58,6 +58,24 @@ export type {
   PageDecodeRequest,
 } from './pageDecodeContracts.ts';
 export * from './oracles.ts';
+export { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './mathMatrix4.ts';
+export { invertMatrix4 } from './mathMatrix4Inverse.ts';
+export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
+export { normalMatrix3 } from './mathMatrix3.ts';
+export {
+  addScaledVector3,
+  applyMatrix3Vector3,
+  copyScaledVector3,
+  crossVector3,
+  dotVector3,
+  lengthSqVector3,
+  normalizeVector3,
+  scaleVector3,
+  transformAffinePoint,
+  transformDirectionVector3,
+  transformHomogeneousPoint,
+} from './mathVector.ts';
+export { hslToLinearRgb, linearToSrgb, srgbToLinear } from './mathColor.ts';
 export {
   BOX_VALUES,
   boxCornersInto,
@@ -76,47 +94,33 @@ export {
 } from './mathFrustum.ts';
 export { frustumClipBox, frustumExcludesBox } from './mathFrustumBox.ts';
 export { boxConeRejects } from './mathCone.ts';
-export function compareImages(a: Uint8Array, b: Uint8Array) {
-  if (!a.length || a.length !== b.length || a.length % 4 !== 0)
-    throw new Error('Invalid RGBA images');
-  let differentPixels = 0,
-    maxChannelError = 0,
-    squared = 0;
-  const isAlignedA = (a.byteOffset & 3) === 0;
-  const isAlignedB = (b.byteOffset & 3) === 0;
-  if (isAlignedA && isAlignedB) {
-    const u32A = new Uint32Array(a.buffer, a.byteOffset, a.length >>> 2);
-    const u32B = new Uint32Array(b.buffer, b.byteOffset, b.length >>> 2);
-    const pixelCount = u32A.length;
-    for (let p = 0; p < pixelCount; p++) {
-      if (u32A[p] !== u32B[p]) {
-        differentPixels++;
-        const i = p << 2;
-        const d0 = Math.abs(a[i] - b[i]);
-        const d1 = Math.abs(a[i + 1] - b[i + 1]);
-        const d2 = Math.abs(a[i + 2] - b[i + 2]);
-        const d3 = Math.abs(a[i + 3] - b[i + 3]);
-        squared += d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3;
-        const m01 = d0 > d1 ? d0 : d1;
-        const m23 = d2 > d3 ? d2 : d3;
-        const m = m01 > m23 ? m01 : m23;
-        if (m > maxChannelError) maxChannelError = m;
-      }
-    }
-  } else {
-    for (let i = 0; i < a.length; i += 4) {
-      let different = false;
-      for (let c = 0; c < 4; c++) {
-        const delta = Math.abs(a[i + c] - b[i + c]);
-        squared += delta * delta;
-        if (delta > maxChannelError) maxChannelError = delta;
-        different ||= delta !== 0;
-      }
-      if (different) differentPixels++;
-    }
-  }
-  return { differentPixels, maxChannelError, rmse: Math.sqrt(squared / a.length) };
-}
+export {
+  addTransformNode,
+  createTransformTree,
+  setNodeAutoUpdate,
+  setNodeLocalMatrix,
+  setNodePosition,
+  setNodeQuaternion,
+  setNodeScale,
+  type TransformTree,
+} from './mathTransformTree.ts';
+export { removeTransformNode, reparentTransformNode } from './mathTransformTreeStructure.ts';
+export { updateNodeMatrixWorld, updateNodeWorldMatrix } from './mathTransformTreeUpdate.ts';
+export {
+  nodeWorldDirection,
+  nodeWorldMirrorsFaces,
+  nodeWorldPosition,
+  nodeWorldQuaternion,
+  nodeWorldScale,
+} from './mathTransformTreeRead.ts';
+export { lookAtNode } from './mathTransformTreeLookAt.ts';
+export {
+  createCameraFrame,
+  perspectiveProjection,
+  updateCameraFrame,
+  type CameraFrame,
+} from './mathCamera.ts';
+export { compareImages } from './compareImages.ts';
 
 /** The pending operation must support abort through its owner (RAF, readback, etc.). */
 export { createJob } from './jobs.ts';

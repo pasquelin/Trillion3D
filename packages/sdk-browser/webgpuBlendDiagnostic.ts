@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { EngineCamera } from './cameraWorld.ts';
 import type { DiagnosticMode } from '../sdk-core/index.ts';
 import { projectedPageError, type PageRec } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
@@ -18,7 +18,7 @@ export function writeBlendDiagnostic(
   blendState: BlendState,
   packedPages: readonly PageRec[],
   diagnostic: DiagnosticMode,
-  lastCamera: THREE.PerspectiveCamera | undefined,
+  cam: EngineCamera | undefined,
   viewport: readonly [number, number],
   diagnosticPixelError: number,
 ) {
@@ -39,10 +39,9 @@ export function writeBlendDiagnostic(
     const rec = packedPages[page],
       hash = clusterHash(rec.clusterId) & 0x00ffffff;
     const ratio =
-      diagnostic === 'screen-error' && lastCamera
+      diagnostic === 'screen-error' && cam
         ? Math.round(
-            screenErrorRatio(projectedPageError(rec, lastCamera, viewport), diagnosticPixelError) *
-              127,
+            screenErrorRatio(projectedPageError(rec, cam, viewport), diagnosticPixelError) * 127,
           )
         : 0;
     identity[entry] = (hash | (ratio << 24) | (rec.role === 'coarse' ? 0x80000000 : 0)) >>> 0;

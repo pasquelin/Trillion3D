@@ -1,12 +1,12 @@
-import type * as THREE from 'three';
 import { copyDrawnFromShown } from './webgpuPagesHelpers.ts';
+import type { HostCamera } from './cameraWorld.ts';
 import { encodeDraws } from './webgpuPagesEncodeDraws.ts';
 import { resetHizHistory } from './webgpuPagesDrops.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Renders through the backend while the secondary camera is set, which `render` otherwise refuses. */
-export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function renderForCapture(rt: WebgpuPagesRuntime, camera: HostCamera) {
   rt.capture.surfaceRenderAllowed = true;
   // Une capture rend depuis une autre caméra et rétablit ensuite l'image : rien n'y est tenu.
   rt.run.gate.viewReplaced();
@@ -17,12 +17,15 @@ export function renderForCapture(rt: WebgpuPagesRuntime, camera: THREE.Perspecti
   }
 }
 
-/** Waits until every page the current cut shows is resident, then draws it for `camera`. The hooks
- *  let a capture refuse a cut the budget or the host aborted before any upload or draw. */
+/**
+ * Attend que chaque page de la coupe affichée soit résidente, puis la dessine pour la vue de
+ * l'image en cours. Aucune caméra n'entre ici : `renderForCapture` vient de faire entrer la sienne
+ * par le contrat, et l'encodage ne lit que la caméra du moteur. Les crochets laissent une capture
+ * refuser une coupe que le budget ou l'hôte a abandonnée, avant tout envoi et tout tirage.
+ */
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  camera: THREE.PerspectiveCamera,
   hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
 ) {
   const { run, gpu, services } = rt;
@@ -33,11 +36,11 @@ export async function drawResidentCut(
     throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
   copyDrawnFromShown(run);
   hooks.beforeEncode?.();
-  run.submittedTriangles = encodeDraws(rt, gpuDevice, camera);
+  run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
 }
 
 export type SavedView = {
-  main: THREE.PerspectiveCamera;
+  main: HostCamera;
   size: [number, number];
   diagnostic: WebgpuPagesRuntime['run']['diagnostic'];
   motion: WebgpuPagesRuntime['run']['motion'];
@@ -59,7 +62,7 @@ export async function restoreMainView(
   try {
     if (run.lost || context.signal?.aborted) return;
     renderForCapture(rt, saved.main);
-    await drawResidentCut(rt, gpuDevice, saved.main);
+    await drawResidentCut(rt, gpuDevice);
     if (gpu.presenter && gpu.colorTexture) {
       const encoder = gpuDevice.createCommandEncoder();
       gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);

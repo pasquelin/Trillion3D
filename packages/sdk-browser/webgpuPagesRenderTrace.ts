@@ -1,14 +1,13 @@
-import type * as THREE from 'three';
 import type { PageRec } from './pageSelection.ts';
 import { urlsOf } from './webgpuPagesHelpers.ts';
-import { cameraPose } from './cameraWorld.ts';
+import { enginePose, type EngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /** Every full frame snapshot starts from the same identity: backend, frame, submission, pose and
  *  the CPU sample; callers append only what their selection path knows. */
 export function frameTraceSnapshot<T extends object>(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   selection: { source: 'gpu' | 'cpu'; decision: string },
   rest: T,
 ) {
@@ -16,7 +15,7 @@ export function frameTraceSnapshot<T extends object>(
     backend: 'webgpu-page-raster',
     frame: rt.run.frame,
     submission: rt.run.imageRevision,
-    pose: cameraPose(camera),
+    pose: enginePose(cam),
     source: selection.source,
     selection,
     cpu: rt.timing.cpuSample,
@@ -65,13 +64,13 @@ export function traceCpuSelection(
 /** The frame snapshot of an image that could not draw: the bootstrap cover is not resident yet. */
 export function traceCpuFrameWaiting(
   rt: WebgpuPagesRuntime,
-  camera: THREE.PerspectiveCamera,
+  cam: EngineCamera,
   requested: Set<string>,
 ) {
   const { run, timing, diag } = rt,
     { tracking, bootstrap, slots } = rt.setup;
   diag.traceDiagnostic('frame', 'Snapshot de frame en attente de couverture GPU', () =>
-    frameTraceSnapshot(rt, camera, cpuSelectionDecision(rt), {
+    frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
         loaded: tracking.traceSet('frame.loaded', []),
         wanted: tracking.traceSet('frame.wanted', urlsOf(run.desired)),
@@ -90,12 +89,12 @@ export function traceCpuFrameWaiting(
 }
 
 /** The complete frame snapshot of a CPU-cut image, after its submission. */
-export function traceCpuFrame(rt: WebgpuPagesRuntime, camera: THREE.PerspectiveCamera) {
+export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, timing, diag, blendState } = rt,
     { tracking, bootstrap, bootstrapUrls, slots, frameBudget } = rt.setup;
   if (!diag.traceEnabled) return;
   diag.traceDiagnostic('frame', 'Snapshot complet de la frame WebGPU', () =>
-    frameTraceSnapshot(rt, camera, cpuSelectionDecision(rt), {
+    frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
         loaded: tracking.traceSet('frame.loaded', urlsOf(run.drawn)),
         wanted: tracking.traceSet('frame.wanted', urlsOf(run.desired)),

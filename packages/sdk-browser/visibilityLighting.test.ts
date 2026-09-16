@@ -9,6 +9,7 @@ import { shadeLit } from './visibilityLighting.ts';
 import { referenceShadeLit } from './bench/oracles/g-ombrage.mjs';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 function vertex(worldX: number, worldY: number, worldZ: number, invW = 1): Projected {
   return { x: 0, y: 0, z: 0, invW, worldX, worldY, worldZ };
@@ -88,10 +89,11 @@ function assertSameShading(cas: Cas, label: string) {
     cas.rgb ?? [0.2, 0.5, 0.9],
     cas.metalness ?? 0.3,
     cas.roughness ?? 0.5,
-    CAMERA,
   ] as const;
-  const optimisee = shadeLit(...a);
-  const reference = referenceShadeLit(...a);
+  // L'optimisée lit la caméra du moteur ; l'oracle garde la caméra de la bibliothèque hôte, qui est
+  // ce dont il prouve l'équivalence. Même œil, mêmes bits.
+  const optimisee = shadeLit(...a, cameraMoteur(CAMERA));
+  const reference = referenceShadeLit(...a, CAMERA);
   for (let c = 0; c < 3; c++)
     assert.ok(
       Object.is(optimisee[c], reference[c]),
@@ -136,6 +138,18 @@ test('normales de sommet portées par la page, avec et sans doubleSided', () => 
   const page = pageOf({ attributes: { normal } });
   for (const doubleSided of [false, true])
     assertSameShading({ page, mat: material({ doubleSided }) }, `normale ds${doubleSided}`);
+});
+
+test('visibilityLighting lit Nx/Ny/Nz depuis normal[0]/[1]/[2], pas permutés', () => {
+  // Normale de sommet aux trois composantes distinctes et non symétriques : toute permutation de
+  // Nx/Ny/Nz dans `shadeLit` s'écarterait de l'oracle, qui lit n.x/n.y/n.z dans cet ordre.
+  const valeurs = [0.15, 0.55, 0.82];
+  const normal = new THREE.BufferAttribute(
+    Float32Array.from([...valeurs, ...valeurs, ...valeurs]),
+    3,
+  );
+  const page = pageOf({ attributes: { normal } });
+  assertSameShading({ page }, 'Nx/Ny/Nz non permutés');
 });
 
 test('carte de normales avec tangente portée par la page', () => {

@@ -68,7 +68,7 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
         return active !== unlit;
       },
       update(
-        inverseViewProjection: readonly number[],
+        inverseViewProjection: ArrayLike<number>,
         camera: readonly number[],
         width: number,
         height: number,
@@ -76,7 +76,7 @@ export async function createDeferredLighting(device: GPUDevice, directLights: GP
         diagnostic: boolean,
         direct: ArrayLike<number> = ZERO_DIRECT,
       ) {
-        packed.set(inverseViewProjection, 0);
+        packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
         packed.set(camera, 16);
         packed.set([width, height, diagnostic || rawOutput ? 1 : 0, 0], 20);
         packed.set(

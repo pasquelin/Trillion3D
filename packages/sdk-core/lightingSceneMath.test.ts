@@ -6,10 +6,11 @@
 // le lot F, recopiée telle quelle dans `oracles/f-vecteurs.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { length } from './lightingSceneMath.ts';
+import { cross, length } from './lightingSceneMath.ts';
 import { validateScene } from './lightingTransportValidation.ts';
 import { sceneWithBlocker } from '../../test/fixtures/lightingTransportScene.ts';
 import { referenceLength } from './bench/oracles/f-vecteurs.mjs';
+import { referenceCross } from '../sdk-browser/bench/oracles/socle-math.mjs';
 import type { Vec3 } from './lightingSceneTypes.ts';
 
 test('length rend exactement Math.hypot(...v) sur des vecteurs hostiles', () => {
@@ -40,4 +41,29 @@ test('validateScene accepte toujours une normale de facette à la limite de tol�
       Object.is(length(patch.normal), referenceLength(patch.normal)),
       `norme de la normale du patch ${patch.id}`,
     );
+});
+
+// `cross` est passée d'un produit vectoriel écrit en ligne à `crossVector3` du socle mathématique.
+// La formule est identique terme à terme (pas de somme initialisée à zéro dans un cas comme dans
+// l'autre), donc aucune régression de zéro signé n'est attendue ici, à la différence des produits
+// matrice × matrice testés dans `sceneLightShadowMath.test.ts` et `streamingPriority.test.ts`.
+test('cross rend exactement le produit vectoriel d’avant, zéros signés compris', () => {
+  const vecteurs: Vec3[] = [
+    [1, 0, 0],
+    [0, -0, 1],
+    [-0, 0, -0],
+    [3, -4, 0],
+    [Infinity, -Infinity, 0],
+    [NaN, 1, 1],
+  ];
+  for (const a of vecteurs)
+    for (const b of vecteurs) {
+      const recu = cross(a, b),
+        attendu = referenceCross(a, b);
+      for (let i = 0; i < 3; i++)
+        assert.ok(
+          Object.is(recu[i], attendu[i]),
+          `cross(${a}, ${b})[${i}] = ${recu[i]} ≠ ${attendu[i]}`,
+        );
+    }
 });

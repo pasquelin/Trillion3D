@@ -1,3 +1,4 @@
+import { createEngineCamera, readCameraWorld } from './cameraWorld.ts';
 import * as THREE from 'three';
 import type { ClusterManifest } from '../sdk-core/index.ts';
 import { collectClusterPages, selectVisiblePages } from './pageSelection.ts';
@@ -138,6 +139,8 @@ export function wideCamera() {
   return cam;
 }
 
+const fixtureCam = createEngineCamera();
+
 export function urls(
   fixture: ReturnType<typeof dagFixture>,
   pixelError: number,
@@ -149,7 +152,7 @@ export function urls(
     fixture.indices,
     fixture.associations,
   );
-  return selectVisiblePages(roots, cam, {
+  return selectVisiblePages(roots, readCameraWorld(fixtureCam, cam), {
     pixelError,
     viewport: [1280, 720],
     holdResident: true,

@@ -1,17 +1,27 @@
-import * as THREE from 'three';
-import { matrixWindingCw } from '../sdk-core/index.ts';
+import {
+  addScaledVector3,
+  applyMatrix3Vector3,
+  copyScaledVector3,
+  crossVector3,
+  lengthSqVector3,
+  matrixWindingCw,
+  normalMatrix3,
+  normalizeVector3,
+  scaleVector3,
+  transformDirectionVector3,
+} from '../sdk-core/index.ts';
 import { attr2, sampleLinear, triangleAt } from './visibilityMath.ts';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 
-const normalScratch = new THREE.Matrix3();
-const frameNormals = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-const frameTangents = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-const frameBitangents = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-const frameN = new THREE.Vector3(),
-  frameT = new THREE.Vector3(),
-  frameB = new THREE.Vector3(),
-  frameQ = new THREE.Vector3(),
-  frameOut = new THREE.Vector3();
+const normalScratch = new Float64Array(9);
+const frameNormals = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
+const frameTangents = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
+const frameBitangents = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
+const frameN = new Float64Array(3),
+  frameT = new Float64Array(3),
+  frameB = new Float64Array(3),
+  frameQ = new Float64Array(3),
+  frameOut = new Float64Array(3);
 
 /**
  * La normale monde d'un pixel ombré : normale géométrique du triangle, remplacée par les normales
@@ -33,7 +43,7 @@ export function shadingNormal(
   uv: [number, number],
   mat: VisMaterial,
   screenFace: number,
-): THREE.Vector3 {
+): Float64Array {
   const nx = tri.b.worldX - tri.a.worldX,
     ny = tri.b.worldY - tri.a.worldY,
     nz = tri.b.worldZ - tri.a.worldZ;
@@ -43,30 +53,36 @@ export function shadingNormal(
   let Nx = ny * cz - nz * cy,
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
-  const face = screenFace * (matrixWindingCw(page.matrix.elements) ? -1 : 1),
+  const world = page.matrix.elements;
+  const face = screenFace * (matrixWindingCw(world) ? -1 : 1),
     side = mat.backSide ? -1 : 1;
   const normalAttr = page.attributes.normal,
     tangentAttr = page.attributes.tangent;
-  normalScratch.getNormalMatrix(page.matrix);
+  normalMatrix3(normalScratch, world);
   const vertexNormals = normalAttr ? frameNormals : null;
   if (normalAttr)
-    for (let j = 0; j < 3; j++)
-      frameNormals[j]
-        .fromBufferAttribute(normalAttr, j === 0 ? tri.i0 : j === 1 ? tri.i1 : tri.i2)
-        .applyMatrix3(normalScratch)
-        .normalize()
-        .multiplyScalar(side);
+    for (let j = 0; j < 3; j++) {
+      const i = j === 0 ? tri.i0 : j === 1 ? tri.i1 : tri.i2,
+        n = frameNormals[j];
+      applyMatrix3Vector3(
+        n,
+        normalScratch,
+        normalAttr.getX(i),
+        normalAttr.getY(i),
+        normalAttr.getZ(i),
+      );
+      normalizeVector3(n);
+      scaleVector3(n, side);
+    }
   if (vertexNormals) {
-    const n = frameN
-      .copy(vertexNormals[0])
-      .multiplyScalar(bary.w0)
-      .addScaledVector(vertexNormals[1], bary.w1)
-      .addScaledVector(vertexNormals[2], bary.w2)
-      .normalize();
-    if (mat.doubleSided) n.multiplyScalar(face);
-    Nx = n.x;
-    Ny = n.y;
-    Nz = n.z;
+    copyScaledVector3(frameN, vertexNormals[0], bary.w0);
+    addScaledVector3(frameN, vertexNormals[1], bary.w1);
+    addScaledVector3(frameN, vertexNormals[2], bary.w2);
+    normalizeVector3(frameN);
+    if (mat.doubleSided) scaleVector3(frameN, face);
+    Nx = frameN[0];
+    Ny = frameN[1];
+    Nz = frameN[2];
   } else {
     const length = Math.hypot(Nx, Ny, Nz) || 1;
     Nx *= screenFace / length;
@@ -80,33 +96,33 @@ export function shadingNormal(
       (nrm[1] * 2 - 1) * mat.normalScaleY,
       nrm[2] * 2 - 1,
     ];
-    let T: THREE.Vector3, B: THREE.Vector3;
+    const T = frameT,
+      B = frameB;
     if (tangentAttr && vertexNormals) {
-      const tangents = frameTangents,
-        bitangents = frameBitangents;
       for (let j = 0; j < 3; j++) {
         const i = j === 0 ? tri.i0 : j === 1 ? tri.i1 : tri.i2;
-        tangents[j]
-          .fromBufferAttribute(tangentAttr, i)
-          .transformDirection(page.matrix)
-          .multiplyScalar(side);
-        bitangents[j]
-          .crossVectors(vertexNormals[j], tangents[j])
-          .multiplyScalar(tangentAttr.getW(i))
-          .normalize();
+        const tangent = frameTangents[j],
+          bitangent = frameBitangents[j];
+        transformDirectionVector3(
+          tangent,
+          world,
+          tangentAttr.getX(i),
+          tangentAttr.getY(i),
+          tangentAttr.getZ(i),
+        );
+        scaleVector3(tangent, side);
+        crossVector3(bitangent, vertexNormals[j], tangent);
+        scaleVector3(bitangent, tangentAttr.getW(i));
+        normalizeVector3(bitangent);
       }
-      T = frameT
-        .copy(tangents[0])
-        .multiplyScalar(bary.w0)
-        .addScaledVector(tangents[1], bary.w1)
-        .addScaledVector(tangents[2], bary.w2)
-        .normalize();
-      B = frameB
-        .copy(bitangents[0])
-        .multiplyScalar(bary.w0)
-        .addScaledVector(bitangents[1], bary.w1)
-        .addScaledVector(bitangents[2], bary.w2)
-        .normalize();
+      copyScaledVector3(T, frameTangents[0], bary.w0);
+      addScaledVector3(T, frameTangents[1], bary.w1);
+      addScaledVector3(T, frameTangents[2], bary.w2);
+      normalizeVector3(T);
+      copyScaledVector3(B, frameBitangents[0], bary.w0);
+      addScaledVector3(B, frameBitangents[1], bary.w1);
+      addScaledVector3(B, frameBitangents[2], bary.w2);
+      normalizeVector3(B);
     } else {
       const uva = attr2(page.attributes.uv, tri.i0, tri.i1, tri.i2, 1, 0, 0),
         uvb = attr2(page.attributes.uv, tri.i0, tri.i1, tri.i2, 0, 1, 0),
@@ -115,25 +131,38 @@ export function shadingNormal(
         dv1 = uvb[1] - uva[1],
         du2 = uvc[0] - uva[0],
         dv2 = uvc[1] - uva[1];
-      const q1 = frameN.set(cy * Nz - cz * Ny, cz * Nx - cx * Nz, cx * Ny - cy * Nx);
-      const q0 = frameQ.set(Ny * nz - Nz * ny, Nz * nx - Nx * nz, Nx * ny - Ny * nx);
-      T = frameT.copy(q1).multiplyScalar(du1).addScaledVector(q0, du2);
-      B = frameB.copy(q1).multiplyScalar(dv1).addScaledVector(q0, dv2);
-      const scale = screenFace / Math.sqrt(Math.max(T.lengthSq(), B.lengthSq(), 1e-20));
-      T.multiplyScalar(scale);
-      B.multiplyScalar(scale);
+      // `q1` occupe `frameN`, comme le repère de l'hôte : sa valeur d'avant est déjà recopiée.
+      frameN[0] = cy * Nz - cz * Ny;
+      frameN[1] = cz * Nx - cx * Nz;
+      frameN[2] = cx * Ny - cy * Nx;
+      frameQ[0] = Ny * nz - Nz * ny;
+      frameQ[1] = Nz * nx - Nx * nz;
+      frameQ[2] = Nx * ny - Ny * nx;
+      copyScaledVector3(T, frameN, du1);
+      addScaledVector3(T, frameQ, du2);
+      copyScaledVector3(B, frameN, dv1);
+      addScaledVector3(B, frameQ, dv2);
+      const scale = screenFace / Math.sqrt(Math.max(lengthSqVector3(T), lengthSqVector3(B), 1e-20));
+      scaleVector3(T, scale);
+      scaleVector3(B, scale);
     }
     if (mat.doubleSided && normalAttr) {
-      T.multiplyScalar(face);
-      B.multiplyScalar(face);
+      scaleVector3(T, face);
+      scaleVector3(B, face);
     }
-    const n = T.multiplyScalar(mapN[0])
-      .addScaledVector(B, mapN[1])
-      .addScaledVector(frameN.set(Nx, Ny, Nz), mapN[2])
-      .normalize();
-    Nx = n.x;
-    Ny = n.y;
-    Nz = n.z;
+    scaleVector3(T, mapN[0]);
+    addScaledVector3(T, B, mapN[1]);
+    frameN[0] = Nx;
+    frameN[1] = Ny;
+    frameN[2] = Nz;
+    addScaledVector3(T, frameN, mapN[2]);
+    normalizeVector3(T);
+    Nx = T[0];
+    Ny = T[1];
+    Nz = T[2];
   }
-  return frameOut.set(Nx, Ny, Nz);
+  frameOut[0] = Nx;
+  frameOut[1] = Ny;
+  frameOut[2] = Nz;
+  return frameOut;
 }

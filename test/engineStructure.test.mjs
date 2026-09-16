@@ -34,7 +34,7 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 const RESOLVENT = {
   'cameraWorld.ts': 'le contrat lui-même : la seule résolution de pose caméra du paquet',
   'sceneLighting.ts': 'cible de lampe, pas de caméra',
-  'hostSceneLightState.ts': 'cible de lampe, pas de caméra',
+  'hostWorldMatrices.ts': 'la frontière de résolution du graphe hôte, pas de caméra (lot M4a)',
   'webgpuPagesTransform.ts': 'sous-arbre de scène déplacé par l’hôte, pas de caméra',
 };
 
@@ -53,28 +53,17 @@ const POSE_LOCALE = {
   'webgpuPagesTestScenes.ts': 'monteur de scène de test : il pose la caméra',
 };
 
-/** Qui LIT la pose monde résolue, et par où elle lui arrive. */
+/**
+ * Qui LIT la pose monde résolue, et par où elle lui arrive.
+ *
+ * Depuis le lot M3b, le chemin par image ne lit plus la pose sur une caméra de l'hôte : l'entrée
+ * d'image la recopie UNE FOIS dans la caméra du moteur (`readCameraWorld`), et tout l'aval lit cette
+ * structure — `test/engineNoThree.test.mjs` interdit à ces fichiers d'importer la bibliothèque hôte.
+ * Il ne reste donc ici que le contrat et l'oracle qui parcourt le graphe de l'hôte.
+ */
 const LISENT_LA_POSE = {
   'cameraWorld.ts': 'le contrat',
-  'gpuSelection.ts': 'sélection GPU — résout (appelable seule)',
-  'pageSelectionCut.ts': 'coupe CPU — résout (appelable seule)',
-  'pageSelectionDiagnostic.ts': 'erreur écran affichée — résout (appelable seule)',
-  'pageSelectionRequests.ts': 'seuil adaptatif — résout (appelable seule)',
-  'hizProjection.ts': 'rectangles Hi-Z — résout (appelable seule)',
-  'hizProjectionHold.ts': 'tenue des rectangles projetés — résout (appelable seule)',
-  'hizDepth.ts': 'profondeur Hi-Z — résout (appelable seule)',
-  'pageCone.ts': 'rejet de cône — résout (appelable seule)',
-  'pageRaster.ts': 'oracle raster — résout (appelable seule)',
-  'visibilityRaster.ts': 'raster de visibilité — résout (appelable seule)',
-  'visibilityShade.ts': 'ombrage du tampon de visibilité — résout (appelable seule)',
-  'visibilityLighting.ts': 'éclairage CPU — pose reçue de `visibilityShade`',
-  'viewFingerprint.ts': 'empreinte de vue — pose reçue de l’entrée d’image',
-  'streamingPriority.ts': 'priorité de streaming — pose reçue de l’entrée d’image',
-  'webgpuPagesEncodeDraws.ts': 'encodage des tirages — pose reçue de l’entrée d’image',
-  'webgpuPagesEncodeLights.ts': 'encodage des lumières — pose reçue de l’entrée d’image',
-  'webgpuPagesEncodeShadows.ts': 'encodage des ombres — pose reçue de l’entrée d’image',
-  'webgpuPagesEncodeBlend.ts': 'encodage des transparents — pose reçue de l’entrée d’image',
-  'webgpuBlendUniforms.ts': 'uniformes des transparents — pose reçue de l’entrée d’image',
+  'pageRaster.ts': 'oracle raster du graphe hôte — résout (appelable seule)',
 };
 
 const RESOUT = /\.updateWorldMatrix\s*\(/;

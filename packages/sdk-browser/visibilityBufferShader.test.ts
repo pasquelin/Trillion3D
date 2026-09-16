@@ -8,6 +8,7 @@ import {
   VIS_SHADER,
 } from './visibilityBuffer.ts';
 import { camera, quadPages, centerId } from './visibilityBufferFixture.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
   const metalMat = new THREE.MeshStandardMaterial({
@@ -18,8 +19,8 @@ test('MeshStandardMaterial pure metal retains the punctual specular highlight', 
   const { pages, geometry } = quadPages(metalMat);
   const cam = camera(),
     size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, cam, size);
-  const shaded = shadeVisibility(ids, pages, cam, size);
+  const ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
+  const shaded = shadeVisibility(ids, pages, cameraMoteur(cam), size);
   const o = (((16 / 2) | 0) * 16 + ((16 / 2) | 0)) * 4;
   // The directional source still contributes a tinted specular highlight.
   assert.ok(shaded[o] > 0);
@@ -86,7 +87,7 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
     clusterId: 'near',
   };
   const cam = camera(),
-    ids = rasterVisibilityIds([far, near], cam, [16, 16]);
+    ids = rasterVisibilityIds([far, near], cameraMoteur(cam), [16, 16]);
   const unpacked = unpackVisibilityId(centerId(ids, 16, 16));
   assert.ok(unpacked);
   assert.equal(unpacked.pageIndex, 0);
@@ -111,8 +112,8 @@ test('standard-material irradiance matches the Three.js linear capture without a
     cam.position.z = 3;
     cam.updateMatrixWorld();
     const size: [number, number] = [64, 64],
-      ids = rasterVisibilityIds(pages, cam, size);
-    const pixels = shadeVisibility(ids, pages, cam, size),
+      ids = rasterVisibilityIds(pages, cameraMoteur(cam), size);
+    const pixels = shadeVisibility(ids, pages, cameraMoteur(cam), size),
       offset = (32 * 64 + 32) * 4;
     for (let c = 0; c < 3; c++)
       assert.ok(

@@ -8,6 +8,7 @@ import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { assertOccluderImage, occluderScene } from './webgpuPagesTestOccluder.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals();
@@ -32,7 +33,11 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
     viewport,
   });
   const cam = camera();
-  const cpu = selectVisiblePages(collected.roots, cam, { pixelError: 0, viewport, frame: 1 });
+  const cpu = selectVisiblePages(collected.roots, cameraMoteur(cam), {
+    pixelError: 0,
+    viewport,
+    frame: 1,
+  });
   await backend.prepare();
   assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
   assert.ok(textures.some((texture) => texture.format === 'r32float'));

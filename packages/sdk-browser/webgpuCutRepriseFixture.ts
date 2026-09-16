@@ -1,10 +1,11 @@
 // Le dispositif du banc de reprise de coupe GPU, séparé de ses cas pour qu'aucun des deux fichiers
 // ne dépasse la limite de lignes. Les cas vivent dans `webgpuCutReprise.test.ts`.
 import * as THREE from 'three';
+import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
 import { createCutDelta } from './webgpuCutDelta.ts';
-import { renderGpuCut } from './webgpuPagesGpuCut.ts';
 import { cameraSelectionUniforms } from './gpuSelection.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -17,9 +18,11 @@ const VIEWPORT: [number, number] = [512, 512];
  * le décodage d'un transfert processeur.
  */
 export function banc(panne?: 'debordement' | 'envoi') {
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-  camera.position.z = 5;
-  camera.updateMatrixWorld(true);
+  const hote = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+  hote.position.z = 5;
+  hote.updateMatrixWorld(true);
+  // Le noyau ne lit plus la caméra de l'hôte : l'entrée d'image la recopie une fois au contrat.
+  const camera = cameraMoteur(hote);
   const uniforms: SelectionUniforms = {
     planes: new Float32Array(24),
     view: new Float32Array(16),

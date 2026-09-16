@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { rasterVisibility } from './visibilityRaster.ts';
 import { unpackVisibilityId, type VisPage } from './visibilityTypes.ts';
 import { matrixWindingCw } from '../sdk-core/index.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 const VUE: [number, number] = [96, 96];
 // Gauche : sens direct. Droite : sens inverse. Même aire, même hauteur, pas de recouvrement.
@@ -39,7 +40,7 @@ function camera() {
 
 /** Les triangles réellement écrits dans le tampon, et combien de pixels chacun couvre. */
 function trianglesDessines(matrix: THREE.Matrix4, side: THREE.Side) {
-  const { ids } = rasterVisibility([page(matrix, side)], camera(), VUE);
+  const { ids } = rasterVisibility([page(matrix, side)], cameraMoteur(camera()), VUE);
   const pixels = new Map<number, number>();
   for (const identifiant of ids) {
     const lu = unpackVisibilityId(identifiant);

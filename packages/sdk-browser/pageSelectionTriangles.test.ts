@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectClusterPages, selectVisiblePages, type PageRec } from './pageSelection.ts';
 import { dagFixture, wideCamera } from './pageSelectionDagFixture.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 /** La somme que les balayages d'avant ce lot calculaient : de gauche à droite, sans réassociation. */
 function sum(pages: readonly PageRec[]) {
@@ -30,7 +31,7 @@ test('les sommes de triangles rendues sont celles des tableaux rendus, repli com
     for (const pixelError of [0, 0.5, 4])
       for (const rootFallback of [false, true]) {
         const wanted: PageRec[] = [];
-        const result = selectVisiblePages(roots, cam, {
+        const result = selectVisiblePages(roots, cameraMoteur(cam), {
           pixelError,
           viewport: [1280, 720],
           holdResident: true,
@@ -67,7 +68,7 @@ test('le budget de pages ne fausse pas les sommes du passage retenu', () => {
   const cam = wideCamera();
   for (const pageBudget of [1, 2, 3, 5, 8]) {
     const wanted: PageRec[] = [];
-    const result = selectVisiblePages(roots, cam, {
+    const result = selectVisiblePages(roots, cameraMoteur(cam), {
       pixelError: 0,
       viewport: [1280, 720],
       holdResident: true,

@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { HostCamera } from './cameraWorld.ts';
 import type { RenderBackend } from './backendTypes.ts';
 
 type PageBackend = Pick<RenderBackend, 'render' | 'pendingUrls' | 'syncResident' | 'flush'>;
@@ -6,7 +6,7 @@ type PageBackend = Pick<RenderBackend, 'render' | 'pendingUrls' | 'syncResident'
 /** Explicit loading/capture preparation, outside the measured render loop. */
 export async function awaitBackendPages(
   backend: PageBackend,
-  camera: THREE.PerspectiveCamera,
+  camera: HostCamera,
   load: (urls: string[]) => Promise<void>,
 ) {
   backend.render(camera);

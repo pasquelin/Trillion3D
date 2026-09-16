@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { createWebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 test('history projection is inside the measured interval and never subtracted from an earlier endpoint', (t) => {
   const fixture = quadScene();
@@ -20,7 +21,7 @@ test('history projection is inside the measured interval and never subtracted fr
     clock += 7;
     return false;
   });
-  const result = partitionWebgpuVisibility(rt, camera());
+  const result = partitionWebgpuVisibility(rt, cameraMoteur(camera()));
   assert.equal(result.twoPass, true);
   assert.equal(rt.timing.lastProjectMs, 7);
   assert.equal(

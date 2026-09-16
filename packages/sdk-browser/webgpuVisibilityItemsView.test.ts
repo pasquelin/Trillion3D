@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { partitionWebgpuVisibility } from './webgpuVisibilityPartition.ts';
 import { createWebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
+import { cameraMoteur } from './cameraFixture.ts';
 
 /** La clé que la tenue des fiches de visibilité compare, champ par champ. */
 const cle = (partition: ReturnType<typeof partitionWebgpuVisibility>) =>
@@ -35,11 +36,11 @@ function moteur() {
 test('vue immobile : la clé de partition ne bouge pas d’une image à l’autre', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const premiere = partitionWebgpuVisibility(rt, vue);
+  const premiere = partitionWebgpuVisibility(rt, cameraMoteur(vue));
   assert.equal(premiere.twoPass, true, 'sans moitié testée, il n’y a aucune borne à tenir');
   for (let i = 0; i < 3; i++)
     assert.equal(
-      cle(partitionWebgpuVisibility(rt, vue)),
+      cle(partitionWebgpuVisibility(rt, cameraMoteur(vue))),
       cle(premiere),
       'la clé change sans que rien ne bouge : la tenue ne s’appliquerait jamais',
     );
@@ -49,11 +50,11 @@ test('vue immobile : la clé de partition ne bouge pas d’une image à l’autr
 test('caméra déplacée, partition des pages identique : la clé change avec les rectangles', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const avant = cle(partitionWebgpuVisibility(rt, vue));
+  const avant = cle(partitionWebgpuVisibility(rt, cameraMoteur(vue)));
   const partitionAvant = Array.from(rt.layout.hizRest.subarray(0, 2));
   vue.position.set(1.5, 0.5, vue.position.z);
   vue.updateMatrixWorld();
-  const apres = partitionWebgpuVisibility(rt, vue);
+  const apres = partitionWebgpuVisibility(rt, cameraMoteur(vue));
   assert.deepEqual(
     Array.from(rt.layout.hizRest.subarray(0, 2)),
     partitionAvant,
@@ -70,10 +71,10 @@ test('caméra déplacée, partition des pages identique : la clé change avec le
 test('cible redimensionnée, même caméra : la signature change aussi', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const avant = cle(partitionWebgpuVisibility(rt, vue));
+  const avant = cle(partitionWebgpuVisibility(rt, cameraMoteur(vue)));
   rt.gpu.targetSize[0] = 64;
   assert.notEqual(
-    cle(partitionWebgpuVisibility(rt, vue)),
+    cle(partitionWebgpuVisibility(rt, cameraMoteur(vue))),
     avant,
     'un rectangle d’écran dépend de la cible autant que de la caméra',
   );
@@ -83,8 +84,8 @@ test('cible redimensionnée, même caméra : la signature change aussi', () => {
 test('âge de table changé : la clé change, les boîtes ne décrivent plus les mêmes pages', () => {
   const { rt, dispose } = moteur();
   const vue = camera();
-  const avant = cle(partitionWebgpuVisibility(rt, vue));
+  const avant = cle(partitionWebgpuVisibility(rt, cameraMoteur(vue)));
   rt.layout.rows.tableEpoch++;
-  assert.notEqual(cle(partitionWebgpuVisibility(rt, vue)), avant);
+  assert.notEqual(cle(partitionWebgpuVisibility(rt, cameraMoteur(vue))), avant);
   dispose();
 });

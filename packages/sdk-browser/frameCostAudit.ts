@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { frustumExcludesBox, type FrameMetrics } from '../sdk-core/index.ts';
-import { cameraPose } from './cameraWorld.ts';
+import { enginePose, type EngineCamera } from './cameraWorld.ts';
 import { SDK_BUILD_PROVENANCE } from './buildProvenance.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
@@ -31,6 +31,14 @@ export function logFrameCostAudit(backend: string, context: Record<string, unkno
   });
 }
 
+/** La vue telle que l'audit la publie : la pose monde de la caméra du moteur, et son champ. */
+const poseDeLaVue = (cam: EngineCamera) => ({
+  ...enginePose(cam),
+  fov: cam.fov,
+  near: cam.near,
+  far: cam.far,
+});
+
 /** Compte une fois par relevé les commandes dont la boîte est entièrement hors champ.
  * Ce minorant n'invente pas les résultats du masque GPU et ne modifie aucune sélection. */
 export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
@@ -53,12 +61,9 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   }
   return {
     selection: run.gpuFrameActive ? 'gpu' : 'cpu',
-    camera: run.lastCamera && {
-      ...cameraPose(run.lastCamera),
-      fov: run.lastCamera.fov,
-      near: run.lastCamera.near,
-      far: run.lastCamera.far,
-    },
+    // La pose publiée est celle de la caméra du moteur, que l'entrée d'image vient de recopier :
+    // aucune caméra de l'hôte n'est relue ici, et rien n'est lu tant qu'aucune image n'a été rendue.
+    camera: run.lastCamera && poseDeLaVue(run.gate.cam),
     resolution: [...rt.gpu.targetSize],
     pixelError: run.diagnosticPixelError,
     transparentCandidates: blendState.blendGpu.length,
@@ -81,16 +86,18 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
   };
 }
 
+/** Les compteurs que le renderer de l'hôte tient. Lus par leur forme : aucun calcul n'en sort, et
+ *  l'audit n'a pas à nommer le type d'une bibliothèque qu'il ne fait que consulter. */
+type HostRenderer = {
+  info: { render: { calls: number; triangles: number } };
+  extensions: { has(name: string): boolean };
+};
+
 /** Vue hôte, avec vrais compteurs Three quand ce moteur possède le rendu WebGL.
  * Les percentiles CPU détaillés sont publiés séparément par les profils existants. */
 export function createHostFrameCostAudit() {
   let last = -Infinity;
-  return (
-    backend: string,
-    frame: number,
-    metrics: FrameMetrics,
-    renderer: THREE.WebGLRenderer | null,
-  ) => {
+  return (backend: string, frame: number, metrics: FrameMetrics, renderer: HostRenderer | null) => {
     if (!frameCostAuditEnabled()) return;
     const now = performance.now();
     if (now - last < 2000) return;

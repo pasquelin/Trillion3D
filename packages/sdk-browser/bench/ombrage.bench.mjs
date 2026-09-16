@@ -6,12 +6,13 @@ import { rasterVisibility } from '../visibilityRaster.ts';
 import { compare, verifieEtDepose } from '../../sdk-core/bench/banc.mjs';
 import { camera, coupe } from './scenes.mjs';
 import { referenceShadeVisibility } from './oracles/ombrage.mjs';
+import { cameraMoteur } from '../cameraFixture.ts';
 
 const image = (largeur, hauteur, material, pages_) => {
   const cam = camera(6, 0.1, largeur / hauteur),
     viewport = [largeur, hauteur];
   const pages = pages_ ?? coupe({ pages: 900, triangles: 48, material });
-  return { ids: rasterVisibility(pages, cam, viewport).ids, pages, cam, viewport };
+  return { ids: rasterVisibility(pages, cameraMoteur(cam), viewport).ids, pages, cam, viewport };
 };
 const basique = new THREE.MeshBasicMaterial({ color: 0x88aa44 });
 const standard = new THREE.MeshStandardMaterial({
@@ -38,7 +39,8 @@ const lignes = [
     cas,
     reference: ({ ids, pages, cam, viewport }) =>
       referenceShadeVisibility(ids, pages, cam, viewport),
-    optimisee: ({ ids, pages, cam, viewport }) => shadeVisibility(ids, pages, cam, viewport),
+    optimisee: ({ ids, pages, cam, viewport }) =>
+      shadeVisibility(ids, pages, cameraMoteur(cam), viewport),
     options: { tours: 60, budgetMs: 2000 },
   }),
 ];

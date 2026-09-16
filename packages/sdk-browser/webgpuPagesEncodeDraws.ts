@@ -1,6 +1,4 @@
-import { frustumPlanesFromMatrix } from '../sdk-core/index.ts';
-import { WebGPUCoordinateSystem } from 'three';
-import type * as THREE from 'three';
+import { multiplyMatrix4 } from '../sdk-core/index.ts';
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { projectedPageError } from './pageSelection.ts';
 import { screenErrorRatio } from './diagnosticColors.ts';
@@ -18,6 +16,7 @@ import { encodeBlend } from './webgpuPagesEncodeBlend.ts';
 import { encodeVis } from './webgpuPagesEncodeVis.ts';
 import { dropVis } from './webgpuPagesDrops.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+import type { EngineCamera } from './cameraWorld.ts';
 
 /** The row table spans every row a page can claim, so it is allocated once and never resized. */
 export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -58,11 +57,7 @@ export function uploadDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
-export function encodeDraws(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  camera: THREE.PerspectiveCamera,
-) {
+export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
   const { gpu, vis, run, timing, blendState, capture, context, diag } = rt,
     { rows } = rt.layout,
     { viewport } = rt.setup;
@@ -77,19 +72,16 @@ export function encodeDraws(
   timing.transparentSpanUploadBytes = 0;
   if (!gpu.bindGroupLayout || !gpu.cache || !gpu.colorView || !gpu.depthView) return 0;
   const [width, height] = gpu.targetSize;
-  viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-  frustumPlanesFromMatrix(
-    blendState.blendPlanes,
-    viewProj.elements,
-    camera.coordinateSystem === WebGPUCoordinateSystem,
-  );
+  // Les plans du tronc sont ceux que l'entrée d'image a posés, dans la convention de profondeur de
+  // l'hôte : un seul site la choisit, et elle vaut pour la projection comme pour les plans.
+  blendState.blendPlanes.set(cam.planes);
   const blendSelectStart = performance.now();
   run.blendFrustumRejected = selectWebgpuBlend(
     blendState,
     run.gpuFrameActive ? undefined : run.drawn,
   );
   timing.transparentSelectMs = performance.now() - blendSelectStart;
-  viewProj.premultiply(remap);
+  multiplyMatrix4(viewProj, remap, cam.viewProjection);
   ensurePageTable(rt, device);
   if (!run.gpuFrameActive) rt.services.syncRowsFromCut();
   else if (run.rowsSyncedFrame !== run.frame) {
@@ -102,7 +94,7 @@ export function encodeDraws(
       const rec = rows.packedRecs[row];
       if (!rec) continue;
       rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
-        projectedPageError(rec, camera, viewport),
+        projectedPageError(rec, cam, viewport),
         run.diagnosticPixelError,
       );
       rows.markRowDirty(row);
@@ -111,7 +103,7 @@ export function encodeDraws(
   const itemsDirty = rows.rowsChanged;
   if (vis.visEnabled && vis.visPipelineBack && vis.shadePipeline && vis.visView) {
     try {
-      return encodeVis(rt, device, camera, itemsDirty);
+      return encodeVis(rt, device, cam, itemsDirty);
     } catch (error) {
       abandonFrameEncoder(rt);
       timing.gpuTiming?.cancelUnsubmitted();

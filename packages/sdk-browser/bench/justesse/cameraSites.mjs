@@ -16,10 +16,14 @@ import { projectedPageError } from '../../pageSelectionDiagnostic.ts';
 import { resolvePixelError } from '../../pageSelectionRequests.ts';
 import { dagFixture } from '../../pageSelectionDagFixture.ts';
 import { sitesMoteurs } from './cameraSitesMoteurs.mjs';
+import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
 
 const VIEWPORT = [1280, 720],
   RASTER = [64, 36];
 const liste = (vue) => Array.from(vue);
+/** Ce que fait une entrée d'image : la caméra de l'hôte recopiée dans celle du moteur. Chaque site
+ *  la refait pour lui-même, comme un appelant seul. */
+const moteur = (camera) => readCameraWorld(createEngineCamera(), camera);
 
 /** Les pages du DAG de test, sous la forme que lisent la coupe, le Hi-Z et les rasters. */
 function pagesDag() {
@@ -54,7 +58,7 @@ const sitesPurs = [
   {
     nom: 'cameraSelectionUniforms (sélection GPU)',
     mesure: (_, camera) => {
-      const u = cameraSelectionUniforms(camera, 1, VIEWPORT);
+      const u = cameraSelectionUniforms(moteur(camera), 1, VIEWPORT);
       return {
         view: liste(u.view),
         planes: liste(u.planes),
@@ -68,7 +72,7 @@ const sitesPurs = [
     cree: pagesDag,
     mesure: ({ roots }, camera) =>
       [0, 3.5].map((pixelError) => {
-        const cut = selectVisiblePages(roots, camera, { pixelError, viewport: VIEWPORT });
+        const cut = selectVisiblePages(roots, moteur(camera), { pixelError, viewport: VIEWPORT });
         return { shown: cut.shown.map((p) => p.url).sort(), rejetes: cut.frustumRejected };
       }),
   },
@@ -77,7 +81,7 @@ const sitesPurs = [
     cree: pagesDag,
     mesure: ({ vis }, camera) => {
       const bounds = boundsFor(vis.length);
-      projectBoxesFlat(vis, vis.length, camera, VIEWPORT, bounds);
+      projectBoxesFlat(vis, vis.length, moteur(camera), VIEWPORT, bounds);
       return liste(bounds);
     },
   },
@@ -85,7 +89,7 @@ const sitesPurs = [
     nom: 'createProjectionHold.reframe (Hi-Z, tenue)',
     cree: () => ({ hold: createProjectionHold(4), index: new Int32Array([0, 1, 2, 3]) }),
     mesure: ({ hold, index }, camera) => {
-      hold.reframe(camera, VIEWPORT[0], VIEWPORT[1], 0);
+      hold.reframe(moteur(camera), VIEWPORT[0], VIEWPORT[1], 0);
       const reprojette = hold.select(4, undefined, index);
       hold.keep(4, index);
       return reprojette;
@@ -96,17 +100,19 @@ const sitesPurs = [
     nom: 'applyTemporalHiz + sameHizView (Hi-Z, historique)',
     cree: () => ({ ...pagesDag(), history: {} }),
     mesure: ({ vis, history }, camera) => {
-      const { shown } = applyTemporalHiz(vis, camera, RASTER, history);
-      return { shown: shown.length, historiqueEgal: sameHizView(history.camera, camera) };
+      const vue = moteur(camera);
+      const { shown } = applyTemporalHiz(vis, vue, RASTER, history);
+      return { shown: shown.length, historiqueEgal: sameHizView(history.camera, vue) };
     },
   },
   {
     nom: 'rasterVisibility + visibilityDepth + shadeVisibility (raster CPU éclairé)',
     cree: pagesDag,
     mesure: ({ vis }, camera) => {
-      const { ids } = rasterVisibility(vis, camera, RASTER);
-      const depth = visibilityDepth(ids, vis, camera, RASTER);
-      const rgba = shadeVisibility(ids, vis, camera, RASTER);
+      const vue = moteur(camera);
+      const { ids } = rasterVisibility(vis, vue, RASTER);
+      const depth = visibilityDepth(ids, vis, vue, RASTER);
+      const rgba = shadeVisibility(ids, vis, vue, RASTER);
       return { ids: liste(ids), depth: liste(depth), rgba: liste(rgba) };
     },
   },
@@ -120,7 +126,7 @@ const sitesPurs = [
     mesure: (_, camera) =>
       projectedPageError(
         { lodError: 0.05, sphere: [0.5, 0, 0, 0.6], matrix: new THREE.Matrix4() },
-        camera,
+        moteur(camera),
         VIEWPORT,
       ),
   },
@@ -129,9 +135,8 @@ const sitesPurs = [
     // Appelé par chaque moteur juste après la mise à jour de la caméra de l'image : même contrat ici.
     cree: () => ({ motion: {} }),
     mesure: ({ motion }, camera) => {
-      camera.updateWorldMatrix(true, false);
-      resolvePixelError({ pixelError: 1, lodAdaptive: true }, camera, motion);
-      return motion.last.toArray();
+      resolvePixelError({ pixelError: 1, lodAdaptive: true }, moteur(camera), motion);
+      return liste(motion.last);
     },
   },
 ];

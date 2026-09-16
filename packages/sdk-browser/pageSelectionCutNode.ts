@@ -50,7 +50,7 @@ export function nodeDecision<T extends PageRecord>(
     ownRadius,
     stretch,
     focal,
-    s.camera.near,
+    s.cam.near,
   );
   if (ownCeil > limit) return 0;
   // Tous sont assez fins ; la coupe les retient si aucun remplaçant ne les couvre encore.
