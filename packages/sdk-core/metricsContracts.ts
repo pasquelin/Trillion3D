@@ -159,6 +159,16 @@ export interface FrameMetrics
    *  tourné, donc si la ressource `.wasm` a bien été trouvée et instanciée par cet hôte. */
   pagesDecodedWasm?: number | null;
   pageDecodeMs?: number | null;
+  /**
+   * L'intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont
+   * le plan — la place de chaque cluster dans le paquet et les rangs de page qu'il remue — a été
+   * calculé par un worker, jamais celles que le repli a planifiées sur le fil principal.
+   * `pagePlanMs` est le temps cumulé de ces plans, mesuré par l'exécutant lui-même, quel que soit le
+   * fil : il n'est jamais additionné à un `cpu*` ni à un `gpu*` par image. Les deux valent `null`
+   * tant qu'aucune arrivée n'a été planifiée — non mesuré, et non pas zéro.
+   */
+  pagesPlannedOffThread?: number | null;
+  pagePlanMs?: number | null;
 }
 export interface BackendCapabilities {
   renderer: string;

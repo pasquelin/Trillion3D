@@ -1,3 +1,4 @@
+import { pageIntegrationStats } from './pageIntegrationHost.ts';
 import { pageDecodeStats } from './pageDecodeHost.ts';
 import { EngineProfiler } from './telemetry.ts';
 import type { FrameMetrics, ClusterManifest } from '../sdk-core/index.ts';
@@ -109,6 +110,9 @@ export function createExplorerMetrics(
     metricsScratch.pagesDecodedOffThread = decode.offThread;
     metricsScratch.pagesDecodedWasm = decode.wasm;
     metricsScratch.pageDecodeMs = decode.decodeMs;
+    const integration = pageIntegrationStats();
+    metricsScratch.pagesPlannedOffThread = integration.offThread;
+    metricsScratch.pagePlanMs = integration.planMs;
   };
   return { metricsScratch, profiler, fillMetrics };
 }
