@@ -21,6 +21,8 @@ pub(super) struct Out {
     pub(super) images: Vec<Value>,
     pub(super) samplers: Vec<Value>,
     pub(super) textures: Vec<Value>,
+    /// Les lampes déclarées par le fichier, dans l'ordre où les nœuds les instancient.
+    pub(super) lights: Vec<Value>,
     pub(super) bin: Bin,
     pub(super) report: Report,
     pub(super) counts: BTreeMap<&'static str, usize>,
@@ -40,6 +42,7 @@ impl Out {
             images: Vec::new(),
             samplers: Vec::new(),
             textures: Vec::new(),
+            lights: Vec::new(),
             bin: Bin {
                 bytes: Vec::new(),
                 views: Vec::new(),
@@ -126,6 +129,8 @@ impl Out {
             bin: &self.bin,
         }
         .document(plugin, &self.roots);
+        let mut document = document;
+        crate::import::attach_lights(&mut document, &self.lights);
         let gltf = serde_json::to_vec(&document)?;
         write_scene(
             directory,

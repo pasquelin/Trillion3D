@@ -8,6 +8,7 @@ use crate::tests::ngones::{rendered_area, U_RING};
 
 mod bornes;
 mod fidelite;
+mod lampes;
 mod matiere;
 mod normales;
 mod sortie;
