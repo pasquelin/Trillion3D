@@ -10,7 +10,9 @@
  * Le plan est ce que le fil principal ne calcule plus : pour chaque enregistrement du paquet, son
  * premier mot et son nombre de mots, et les rangs de page que l'arrivée remue, triés. Il part dès
  * l'empilement et revient avant le drain ; le destinataire n'a plus qu'à poser des vues et à écrire.
- * Aucun octet de page ne voyage pour cela — seulement la fiche d'entiers du catalogue.
+ * Aucun octet de page ne voyage pour cela — seulement la fiche d'entiers du catalogue. Quand il n'y
+ * a rien à faire planifier, ou pas de fil pour le faire, le plan est là dès l'empilement : l'arrivée
+ * est alors livrable dans le même tour, et aucune attente ne s'ajoute à ce que le lot a remplacé.
  *
  * Le plafond qui compte est celui du TEMPS. Une arrivée porte un paquet de streaming dont le nombre
  * de clusters n'est pas connu d'avance : ni les octets d'index, ni le nombre de pages ne bornent
@@ -82,12 +84,20 @@ export function createArrivalQueue(byteBudget: number, countBudget: number, msBu
         waits: 0,
       };
       items.push(item);
-      void planArrival(url, array.length, target.pageSpecs?.(url)).then((plan) => {
-        // Une arrivée déjà livrée — parce que l'image a cessé de l'attendre — ignore son plan tardif.
-        if (item.done) return;
-        item.plan = plan;
+      const planned = planArrival(url, array.length, target.pageSpecs?.(url));
+      // Un plan déjà là — rien à planifier, ou pas de file hors fil — n'est pas une attente : il
+      // rend l'arrivée livrable dès son empilement. Seul un message réellement parti fait attendre.
+      if (planned instanceof Promise)
+        void planned.then((plan) => {
+          // Une arrivée déjà livrée — l'image a cessé de l'attendre — ignore son plan tardif.
+          if (item.done) return;
+          item.plan = plan;
+          item.ready = true;
+        });
+      else {
+        item.plan = planned;
         item.ready = true;
-      });
+      }
       return true;
     },
     /**
