@@ -4,6 +4,16 @@ import type { MultiplyLot } from './mathBatchRuntime.ts';
 import { ENGINE_OWNED } from './hostSceneWatch.ts';
 import { hostWorldBounds } from './hostWorldBounds.ts';
 import { resolveHostSubtree } from './hostWorldMatrices.ts';
+import { copyElements, writeElements } from './matrixElements.ts';
+
+/**
+ * Les trois tampons possédés de la réplication : la pose du groupe, la pose posée d'une copie et
+ * leur produit. Le socle ne lit et n'écrit que des `Float64Array` (`mathMatrix4.ts`) ; les matrices
+ * de la bibliothèque hôte sont des tableaux ordinaires, recopiés à l'entrée et à la sortie.
+ */
+const groupWorld = new Float64Array(16),
+  placed = new Float64Array(16),
+  product = new Float64Array(16);
 
 /** Replicate transforms only. Geometry, materials and textures remain shared. */
 export function replicateInstances(
@@ -34,6 +44,8 @@ export function replicateInstances(
   // place, par le même `multiplyMatrix4` et sur les mêmes entrées : les mêmes bits.
   const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null;
   const copies: THREE.Mesh[] = [];
+  // La pose monde du groupe ne bouge pas d'une copie à l'autre : elle est recopiée une seule fois.
+  copyElements(groupWorld, group.matrixWorld.elements);
   for (let z = 0; z < rows; z++)
     for (let x = 0; x < columns; x++)
       for (const mesh of meshes) {
@@ -42,20 +54,20 @@ export function replicateInstances(
         // Ce qui relit le graphe à la recherche d'une écriture de l'hôte la saute donc entière.
         copy.userData[ENGINE_OWNED] = true;
         copy.matrixAutoUpdate = false;
-        const placed = copy.matrix.elements,
-          world = mesh.matrixWorld.elements;
-        for (let i = 0; i < 16; i++) placed[i] = world[i];
+        copyElements(placed, mesh.matrixWorld.elements);
         placed[12] += (x - (columns - 1) / 2) * sizeX;
         placed[14] += (z - (rows - 1) / 2) * sizeZ;
+        writeElements(copy.matrix.elements, placed);
         // Le groupe et ses copies appartiennent au moteur : la matrice monde d'une copie est le
         // produit de celle du groupe par sa matrice posée, celui-là même que la référence calculait
         // en remontant le groupe entier. Le socle l'écrit, terme à terme, sans seconde passe.
         if (enLot) {
           const at = copies.length * MATRIX_VALUES;
-          enLot.a.set(group.matrixWorld.elements, at);
+          enLot.a.set(groupWorld, at);
           enLot.b.set(placed, at);
           copies.push(copy);
-        } else multiplyMatrix4(copy.matrixWorld.elements, group.matrixWorld.elements, placed);
+        } else
+          writeElements(copy.matrixWorld.elements, multiplyMatrix4(product, groupWorld, placed));
         const association = associations.get(mesh);
         if (association) associations.set(copy, association);
         group.add(copy);

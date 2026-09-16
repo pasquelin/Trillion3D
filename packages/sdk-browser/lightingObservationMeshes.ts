@@ -3,6 +3,7 @@ import { invertMatrix4, multiplyMatrix4 } from '../sdk-core/index.ts';
 import type { LightingExperimentRenderState } from './lightingObservationContracts.ts';
 import type { ObservationResources } from './lightingObservationResources.ts';
 import { createObservationTransforms } from './lightingObservationTransforms.ts';
+import { copyElements, writeElements } from './matrixElements.ts';
 import { vertexShader, fragmentShader } from './lightingObservationShaders.ts';
 
 export function createObservationMeshes(
@@ -13,7 +14,13 @@ export function createObservationMeshes(
   const { surfaceCount, expectedIds, uniforms, scene } = resources;
   const shader = fragmentShader(surfaceCount);
   const materials: THREE.ShaderMaterial[] = [];
-  const copies: { mesh: THREE.Mesh; surface: number; restTransform: THREE.Matrix4 }[] = [];
+  // La pose de repos est un tampon POSSÉDÉ, comme les trois tampons de travail ci-dessous : le
+  // produit et l'inverse du socle ne lisent et n'écrivent que des `Float64Array` (`mathMatrix4.ts`),
+  // et les matrices de la bibliothèque hôte sont des tableaux ordinaires, recopiés aux frontières.
+  const copies: { mesh: THREE.Mesh; surface: number; restTransform: Float64Array }[] = [];
+  const hostWorld = new Float64Array(16),
+    basisWorld = new Float64Array(16),
+    composed = new Float64Array(16);
   const geometrySet = new Set<THREE.BufferGeometry>();
   const { basis, surfaceBasis, sphereBasis } = createObservationTransforms(state);
   let triangles = 0,
@@ -60,13 +67,13 @@ export function createObservationMeshes(
       mesh.renderOrder = meshIndex;
       scene.add(mesh);
       // La pose de repos relative à la base, `base⁻¹ · monde`, que chaque image recompose avec la base.
-      const restTransform = new THREE.Matrix4(),
-        rest = restTransform.elements;
+      const restTransform = new Float64Array(16);
       invertMatrix4(
-        rest,
+        restTransform,
         (surface >= 0 ? surfaceBasis(surface, basis) : sphereBasis(basis)).elements,
       );
-      multiplyMatrix4(rest, rest, original.matrixWorld.elements);
+      copyElements(hostWorld, original.matrixWorld.elements);
+      multiplyMatrix4(restTransform, restTransform, hostWorld);
       copies.push({ mesh, surface, restTransform });
       const index = geometry.getIndex(),
         position = geometry.getAttribute('position');
@@ -99,7 +106,11 @@ export function createObservationMeshes(
       for (const copy of copies) {
         if (copy.surface >= 0) surfaceBasis(copy.surface, basis);
         else sphereBasis(basis);
-        multiplyMatrix4(copy.mesh.matrix.elements, basis.elements, copy.restTransform.elements);
+        copyElements(basisWorld, basis.elements);
+        writeElements(
+          copy.mesh.matrix.elements,
+          multiplyMatrix4(composed, basisWorld, copy.restTransform),
+        );
         copy.mesh.matrixWorldNeedsUpdate = true;
       }
     },

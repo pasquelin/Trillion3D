@@ -20,7 +20,14 @@ export const PAGE_CONE_FLOATS = 12,
   SELECTION_UNIFORM_BYTES = UNIFORM_BYTES,
   SELECTION_WORKGROUP = WORKGROUP;
 
-/** `cameraStretch` is the camera half of the cut's object-to-view stretch. */
+/**
+ * `cameraStretch` is the camera half of the cut's object-to-view stretch.
+ *
+ * `view` et `planes` sont ceux du repère de rendu, et `cameraWorld` — la position monde de l'œil,
+ * ancêtres résolus — en est l'ORIGINE : c'est elle que les matrices monde du noyau ont déjà perdue.
+ * La caméra est donc à zéro dans le repère où le noyau travaille, et ce triplet ne sert plus qu'à
+ * nommer ce repère pour un relevé ou un oracle.
+ */
 export type SelectionUniforms = {
   planes: Float32Array;
   view: Float32Array;
@@ -134,11 +141,13 @@ export function cameraSelectionUniforms(
 ): SelectionUniforms {
   const planes = into?.planes ?? planeScratch;
   const view = into?.view ?? viewScratch;
-  // Vue, plans et position décrivent la même pose, ancêtres compris : l'entrée d'image les a posés
-  // une fois dans la caméra du moteur, et le noyau les lit tels quels. La simple précision
-  // n'arrondit qu'ici, comme avant : les plans sont calculés en double puis écrits une seule fois.
-  planes.set(cam.planes);
-  view.set(cam.view);
+  // Vue et plans sont ceux du REPÈRE DE RENDU (`cameraRenderOrigin.ts`) : le noyau compose
+  // `vue · monde` en simple précision, et les matrices monde qu'on lui donne sont ramenées à
+  // `cameraWorld`. Prendre ici la vue absolue mélangerait les deux repères dans la même formule.
+  // Ancêtres compris : l'entrée d'image a posé les deux moitiés une fois dans la caméra du moteur.
+  // La simple précision n'arrondit qu'ici, comme avant : tout est calculé en double au-dessus.
+  planes.set(cam.planesRelative);
+  view.set(cam.viewRelative);
   const pixelScale = pixelScaleOf(
     cam.projection,
     viewport,
@@ -154,7 +163,8 @@ export function cameraSelectionUniforms(
   cameraWorld[1] = position[1];
   cameraWorld[2] = position[2];
   // The flat cut multiplies this by each primitive's own stretch, exactly like `selectVisiblePages`.
-  const cameraStretch = maxStretch(cam.view);
+  // L'étirement ne lit que la partie linéaire, que le repère de rendu ne touche pas : mêmes bits.
+  const cameraStretch = maxStretch(cam.viewRelative);
   if (into) {
     into.pixelError = pixelError;
     into.near = cam.near;

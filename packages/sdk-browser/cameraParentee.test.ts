@@ -10,10 +10,8 @@
 // personne d'autre que lui.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cameraSelectionUniforms } from './gpuSelection.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './bench/justesse/cameraRig.mjs';
-import { SITES } from './bench/justesse/cameraSites.mjs';
-import { cameraMoteur } from './cameraFixture.ts';
+import { SITES, residuRepereDeRendu } from './bench/justesse/cameraSites.mjs';
 
 type Pose = (typeof POSES_PARENT)[number];
 type Site = {
@@ -34,18 +32,6 @@ async function releve(site: Site, camera: (pose: Pose) => unknown) {
   return images;
 }
 
-/** Résidu de la vue appliquée à la position monde : nul à l'arrondi près si elles concordent. */
-function residu(camera: Parameters<typeof cameraSelectionUniforms>[0]) {
-  const u = cameraSelectionUniforms(cameraMoteur(camera), 1, [1280, 720]);
-  const v = u.view,
-    [x, y, z] = u.cameraWorld;
-  return Math.hypot(
-    v[0]! * x! + v[4]! * y! + v[8]! * z! + v[12]!,
-    v[1]! * x! + v[5]! * y! + v[9]! * z! + v[13]!,
-    v[2]! * x! + v[6]! * y! + v[10]! * z! + v[14]!,
-  );
-}
-
 for (const hote of [false, true]) {
   const contrat = hote ? 'remonté par l’hôte' : 'laissé tel quel par l’hôte';
   for (const site of SITES as Site[])
@@ -57,12 +43,14 @@ for (const hote of [false, true]) {
         assert.equal(parentee[i], aplatie[i], `image ${i} : le rig ne donne pas la pose aplatie`);
     });
 
-  test(`uniformes de sélection : vue et position monde concordent, rig ${contrat}`, () => {
+  test(`uniformes de sélection : vue relative et origine de rendu concordent, rig ${contrat}`, () => {
     const rig = creeRig();
     for (const pose of POSES_PARENT)
       assert.ok(
-        residu(poseRig(rig, pose, hote) as Parameters<typeof cameraSelectionUniforms>[0]) <= 1e-6,
-        'la vue et la position monde décrivent deux caméras différentes',
+        // Le seuil est celui de l'arrondi simple précision d'une sonde à quelques dizaines de
+        // mètres ; une pose fausse, elle, se compte en mètres.
+        residuRepereDeRendu(poseRig(rig, pose, hote)) <= 1e-4,
+        'la vue relative et l’origine du repère de rendu décrivent deux caméras différentes',
       );
   });
 }

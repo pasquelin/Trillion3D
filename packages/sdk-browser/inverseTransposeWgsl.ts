@@ -1,3 +1,5 @@
+import { SINGULAR_DETERMINANT_WGSL } from '../sdk-core/index.ts';
+
 /**
  * Inverse-transposée 3×3 en WGSL, écrite une seule fois pour tout le moteur : le noyau de sélection
  * du DAG (`gpuDagShader.ts`, axe de cône) et la transformation des normales d'éclairage
@@ -10,7 +12,9 @@
  * tourné. La 3×3 est donc divisée par la somme de ses valeurs absolues — exactement la
  * normalisation de `isConformal` — avant le déterminant. Sous 1e-12, s³ lui-même devient dénormal
  * en f32 : seule cette normalisation franchit ce plancher. C'est LA garde de dégénérescence du
- * moteur, écrite ici et nulle part ailleurs ; rien de ce qui suit n'en ajoute une autre.
+ * moteur ; rien de ce qui suit n'en ajoute une autre. Le SEUIL, lui, n'est pas écrit ici : il vient
+ * de `SINGULAR_DETERMINANT` (`packages/sdk-core/mathSingular.ts`), rendu en texte et inséré dans le
+ * nuanceur, si bien que le processeur (`normalMatrix3`) et la carte lisent le même nombre.
  *
  * CE QU'UNE MATRICE SINGULIÈRE DEVIENT. Singulier ne veut pas dire disparu : une échelle (1, 1, 0)
  * suivie d'une rotation écrase une primitive sur un PLAN, et ses faces y gardent une aire non nulle
@@ -67,12 +71,14 @@ const PREP_LIVREE = ` let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
  let fini=(t>0.0)&&(bitcast<u32>(t)&0x7f800000u)!=0x7f800000u;
  let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let det=dot(a,cross(b,c));let z=vec3f(0.0);
- return InvT3(mat3x3f(select(z,cross(b,c),fini),select(z,cross(c,a),fini),select(z,cross(a,b),fini)),1.0/(det*t),fini&&abs(det)>1e-20);`;
+ return InvT3(mat3x3f(select(z,cross(b,c),fini),select(z,cross(c,a),fini),select(z,cross(a,b),fini)),1.0/(det*t),fini&&abs(det)>${SINGULAR_DETERMINANT_WGSL});`;
 
 /**
  * La préparation d'AVANT le défaut 6 : seuil absolu `abs(det)<1e-20` sur la 3×3 BRUTE, et facteur
  * `1/det` au lieu de `1/(det·t)`. `regulier` est la négation exacte de l'ancien garde, celui qui
- * rendait le vecteur tel quel — donc la même décision, cas pour cas, NaN compris.
+ * rendait le vecteur tel quel — donc la même décision, cas pour cas, NaN compris. Son nombre est
+ * écrit à la main et le reste : c'est une RÈGLE MORTE, sur le déterminant brut, que la constante
+ * partagée ne doit pas suivre si elle bouge — sinon la reproduction cesserait de reproduire.
  */
 const PREP_AVANT_DEFAUT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  let det=dot(a,cross(b,c));

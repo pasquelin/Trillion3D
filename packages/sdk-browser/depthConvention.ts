@@ -59,6 +59,7 @@ export function depthFromDistance(distance: number, near: number) {
 /**
  * Une vue-projection et rien d'autre : ce qu'un lecteur de profondeur a besoin de connaître d'une
  * caméra. Une `EngineCamera` en est une. Le type survit à la disparition des deux conventions parce
- * qu'un oracle peut monter une vue-projection sans monter une caméra entière.
+ * qu'un oracle peut monter une vue-projection sans monter une caméra entière ; c'est un tampon
+ * possédé, comme partout où le socle multiplie des matrices (`mathMatrix4.ts`).
  */
-export type DepthCamera = { viewProjection: ArrayLike<number> };
+export type DepthCamera = { viewProjection: Float64Array };

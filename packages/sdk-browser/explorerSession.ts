@@ -1,4 +1,4 @@
-import { DEFAULT_SCOPE } from '../sdk-core/index.ts';
+import { DEFAULT_SCOPE, setScreenErrorVariant } from '../sdk-core/index.ts';
 import type { AssetScope, ClusterManifest, RuntimeEvent } from '../sdk-core/index.ts';
 import type { ExplorerOptions } from './backendTypes.ts';
 import { createDiagnosticChannel } from './diagnosticChannel.ts';
@@ -20,6 +20,9 @@ export type ExplorerSession = ExplorerEmitters & {
 };
 
 export function createExplorerSession(options: ExplorerOptions) {
+  // La variante d'erreur écran de l'EXPÉRIENCE, posée avant toute sélection et avant que le
+  // nuanceur du DAG ne soit compilé. Une session sans l'option remet la nôtre : rien n'hérite.
+  setScreenErrorVariant(options.screenError);
   const diagnosticChannel = createDiagnosticChannel(options.onDiagnostic, {
     detail: options.diagnosticDetail ?? (options.onDiagnostic ? 'trace' : 'summary'),
   });

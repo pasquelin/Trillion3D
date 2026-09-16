@@ -2,6 +2,7 @@ import { evaluateDagSelectionKernel, type PackedDag } from './gpuDagSelection.ts
 import { DRAW_ITEM_U32, evaluateDrawCompact, indirectForDraw, type DrawItem } from './gpuDraw.ts';
 import { evaluateTransparentCompaction } from './webgpuTransparentCompactCpu.ts';
 import { compactDrawnPages } from './webgpuPagesTestGlobals.ts';
+import { residentFlags } from './gpuDagLayout.ts';
 
 export type ComputeBind = {
   entries: Array<{ binding: number; resource: { buffer: { data: Uint8Array } } }>;
@@ -40,8 +41,7 @@ function simulateBlendSelect(bind: ComputeBind) {
   const boxes = new Float32Array(boxBytes.buffer, boxBytes.byteOffset, boxBytes.byteLength / 4);
   const draws = words(byBinding.get(2)!.data),
     counts = words(byBinding.get(3)!.data),
-    args = words(byBinding.get(4)!.data),
-    stats = words(byBinding.get(5)!.data);
+    args = words(byBinding.get(4)!.data);
   for (let item = 0; item < itemCount; item++) {
     const lo = item * 8,
       hi = lo + 4;
@@ -65,10 +65,7 @@ function simulateBlendSelect(bind: ComputeBind) {
     }
     const d = item * 4;
     let instances = draws[d] !== 0xffffffff ? counts[draws[d] * 4 + 1] : 1;
-    if (rejected) {
-      instances = 0;
-      stats[0]++;
-    }
+    if (rejected) instances = 0;
     args[d] = draws[d + 1];
     args[d + 1] = instances;
     args[d + 2] = draws[d + 2];
@@ -169,11 +166,18 @@ export function simulateComputeDispatch(
     cameraStretch: f32[51],
   };
   const residentCut = !!uniInts[47];
-  const cones = new Float32Array(byBinding.get(8)!.data.buffer);
+  // La résidence vit en bits derrière les enregistrements froids : le double la relit par le
+  // décodeur partagé, dans le tampon que l'hôte écrit, là où le nuanceur la lit.
   const resident = residentCut
-    ? Uint32Array.from({ length: packed.pageCount }, (_, i) => cones[i * 12 + 11])
+    ? residentFlags(words(byBinding.get(8)!.data), packed.pageCount)
     : undefined;
-  const result = evaluateDagSelectionKernel(packed, uniforms, resident);
+  // Les matrices monde se lisent DANS LE TAMPON lié, là où le nuanceur les lit : l'entrée d'image
+  // les y écrit ramenées à l'œil, et la vue comme les plans du même bloc d'uniformes sont de ce
+  // repère-là. Une copie faite à l'empaquetage y mettrait des mondes absolus sous une vue sans
+  // translation — deux repères dans une même formule, et plus une seule page retenue.
+  const tampon = byBinding.get(6)!.data;
+  const worlds = new Float32Array(tampon.buffer, tampon.byteOffset, packed.worlds.length);
+  const result = evaluateDagSelectionKernel({ ...packed, worlds }, uniforms, resident);
   if (residentCut) {
     const flags = new Uint32Array(byBinding.get(3)!.data.buffer);
     flags.fill(0, packed.nodeCount);
