@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { linearToSrgb, srgbToLinear } from '../sdk-core/index.ts';
 import type { Projected } from './visibilityProjection.ts';
+import type { DepthCamera } from './depthConvention.ts';
 import { barycentricAt, projectVisibilityVertex, signedArea } from './visibilityProjection.ts';
 import { textureRgba, type VisPage } from './visibilityTypes.ts';
 
@@ -11,7 +12,7 @@ export function backgroundRgb(background: number) {
 export function triangleAt(
   page: VisPage,
   triangleIndex: number,
-  viewProj: ArrayLike<number>,
+  cam: DepthCamera,
   width: number,
   height: number,
 ) {
@@ -19,23 +20,9 @@ export function triangleAt(
     position = page.attributes.position,
     base = triangleIndex * 3;
   if (!position || base + 2 >= index.length) return null;
-  const a = projectVisibilityVertex(page.matrix, position, index[base], viewProj, width, height);
-  const b = projectVisibilityVertex(
-    page.matrix,
-    position,
-    index[base + 1],
-    viewProj,
-    width,
-    height,
-  );
-  const c = projectVisibilityVertex(
-    page.matrix,
-    position,
-    index[base + 2],
-    viewProj,
-    width,
-    height,
-  );
+  const a = projectVisibilityVertex(page.matrix, position, index[base], cam, width, height);
+  const b = projectVisibilityVertex(page.matrix, position, index[base + 1], cam, width, height);
+  const c = projectVisibilityVertex(page.matrix, position, index[base + 2], cam, width, height);
   if (!a || !b || !c) return null;
   return {
     a,
