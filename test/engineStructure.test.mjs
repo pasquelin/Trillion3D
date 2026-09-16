@@ -34,7 +34,6 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 const RESOLVENT = {
   'cameraWorld.ts': 'le contrat lui-même : la seule résolution de pose caméra du paquet',
   'sceneLighting.ts': 'cible de lampe, pas de caméra',
-  'hostWorldMatrices.ts': 'la frontière de résolution du graphe hôte, pas de caméra (lot M4a)',
   'webgpuPagesTransform.ts': 'sous-arbre de scène déplacé par l’hôte, pas de caméra',
 };
 
