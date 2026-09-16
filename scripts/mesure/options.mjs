@@ -106,7 +106,13 @@ export function readOptions(argv, root) {
     // `--instances` : le nombre de copies de l'objet posées en grille par le SDK. La mesure d'un
     // lot d'instances n'a de sens qu'à ce nombre-là ; il est consigné dans le rapport.
     instances: number('instances', 1),
+    // `--isolation on` pose COOP/COEP sur le serveur du harnais : la page devient isolée entre
+    // origines et le SDK prend son chemin de mémoire partagée. `off` par défaut.
+    isolation: (flags.get('isolation') ?? 'off') === 'on',
   };
+  const isolation = flags.get('isolation') ?? 'off';
+  if (isolation !== 'on' && isolation !== 'off')
+    throw new Error('--isolation doit valoir on ou off');
   if (![1, 4, 9, 12].includes(settings.instances))
     throw new Error('--instances doit valoir 1, 4, 9 ou 12');
   if (settings.lights < 0) throw new Error('--lampes doit être un entier positif ou nul');
