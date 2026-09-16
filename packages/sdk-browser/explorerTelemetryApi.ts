@@ -28,6 +28,15 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
     shadowAtlasDigest() {
       return active().shadowAtlasDigest?.() ?? Promise.resolve(null);
     },
+    /**
+     * Ce que la partition GPU du moteur actif a écrit pour la dernière image, avec les coins monde
+     * et les matrices d'où elle l'a tiré, ou `null` quand le moteur n'en tient pas. Refaire le
+     * calcul de référence sur ces entrées prouve, cluster par cluster, que le rectangle d'écran de
+     * la carte contient celui de la référence et que sa profondeur minore la sienne.
+     */
+    partitionAudit() {
+      return active().partitionAudit?.() ?? Promise.resolve(null);
+    },
     /** Vide la fenêtre du profil du moteur actif, pour ne mesurer que ce qui vient ensuite. */
     resetStageProfile() {
       active().resetStageProfile?.();
