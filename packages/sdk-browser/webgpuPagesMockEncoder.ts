@@ -106,8 +106,8 @@ export function createMockCommandEncoderFactory(inputs: {
       },
       // Les noyaux qui se répartissent sur la liste des grappes vivantes passent par ici : le double
       // rejoue le même noyau quel que soit le chemin par lequel la carte graphique le lance.
-      dispatchWorkgroupsIndirect() {
-        simulateComputeDispatch(computePipeline, computeBind, computes, packed);
+      dispatchWorkgroupsIndirect(this: { dispatchWorkgroups(): void }) {
+        this.dispatchWorkgroups();
       },
       dispatchWorkgroups() {
         simulateComputeDispatch(computePipeline, computeBind, computes, packed);
