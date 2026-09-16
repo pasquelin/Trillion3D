@@ -1,6 +1,6 @@
 import { PAGE_INFO_STRIDE } from './visibilityBuffer.ts';
 import { ROW_ID_BASE_WORD, ROW_HIZ_SLOT_WORD, packedRowBase } from './webgpuPageRow.ts';
-import { sortPages } from './webgpuRowJournal.ts';
+import { sortPages } from '../sdk-core/index.ts';
 import type { PageRec } from './pageSelection.ts';
 import type { createPageRowWriter } from './webgpuPageRow.ts';
 import type { createWebgpuRowState } from './webgpuRowState.ts';
@@ -109,7 +109,8 @@ export function createWebgpuRowSlots(
       return;
     }
     if (row >= 0) {
-      if (rows.rowOffsetWords[row] === offsetWords && rows.rowEpoch[row] === rows.tableEpoch) return;
+      if (rows.rowOffsetWords[row] === offsetWords && rows.rowEpoch[row] === rows.tableEpoch)
+        return;
       assign(row, page, offsetWords);
       return;
     }
