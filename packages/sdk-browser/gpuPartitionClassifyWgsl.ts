@@ -107,6 +107,8 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u){
   }
  }
  rowData[base+${ROW_FLAGS}u]=(held&~${FLAG_PREV_REST}u)|select(0u,${FLAG_PREV_REST}u,rest!=0u);
+ // Le verdict que le raster de calcul lit : la moitié d'une ligne, avant tout test d'occultation.
+ flags[i]=select(0u,2u,rest!=0u);
  if(rest!=0u){atomicOr(&restBits[i>>5u],1u<<(i&31u));}
  else{atomicAdd(&state[${ST_OCCLUDERS}u],1u);}
  let item=items[i];
