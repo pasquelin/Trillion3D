@@ -83,6 +83,6 @@ impl ImageDecoder for Dds {
     ) -> std::result::Result<ImageDecoded, &'static str> {
         let surface = header::parse(bytes)?;
         let image = blocks::decode(&surface, bytes, max_alloc)?;
-        Ok(ImageDecoded::srgb(image).with_transfer(surface.transfer))
+        Ok(ImageDecoded::new(image, surface.transfer))
     }
 }

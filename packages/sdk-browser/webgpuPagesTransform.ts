@@ -13,7 +13,7 @@ import {
 } from '../sdk-core/index.ts';
 import { assertFiniteTransform } from './hostWorldMatrices.ts';
 import { hostWorldChainInto } from './hostWorldChain.ts';
-import { sameElements } from './matrixElements.ts';
+import { copyElements, sameElements } from './matrixElements.ts';
 import { invalidateOccluderHistory } from './webgpuPagesDrops.ts';
 import { transformRootBoxes } from './mathBatchBoxes.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
@@ -61,7 +61,7 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // Une pose non finie est refusée ici, avant toute inversion : plus loin elle deviendrait une
   // matrice monde NaN, puis une normale nulle, puis une surface noire sans cause lisible.
   assertFiniteTransform(matrix, nodeName);
-  for (let i = 0; i < 16; i++) local[i] = matrix[i];
+  copyElements(local, matrix);
   if (node.parent) {
     // La pose demandée est une pose MONDE : la ramener dans le repère du parent demande la matrice
     // monde du parent, et l'hôte a le droit d'avoir écrit une pose locale au-dessus sans remonter

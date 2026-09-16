@@ -6,12 +6,12 @@ import { DAG_LEVEL_WGSL } from './gpuDagLevelWgsl.ts';
 import { DAG_RECORD_WGSL } from './gpuDagRecordWgsl.ts';
 import { ESCALATION_SLACK } from './pageSelectionTypes.ts';
 import { CLUSTER_LEVEL_SHIFT } from './gpuDagLayout.ts';
+import { CONE_LENGTH_RATIO_WGSL, CONE_ORTHO_EPS_WGSL, HALF_PI_WGSL } from '../sdk-core/index.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,worldIndex:u32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,}
-// \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que
-// le noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui
-// releve le bloc.
+// \`view\`, \`planes\` et \`worlds\` sont ceux du repere de rendu ; \`cameraWorld\` en est l'origine, que le
+// noyau n'a pas a lire puisque la camera y est posee a zero : elle voyage pour le nommer a qui releve le bloc.
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,pages:array<u32>,}
 @group(0) @binding(0) var<storage, read> clusters:array<Cluster>;
@@ -45,16 +45,16 @@ fn isConformal(m:mat3x3f)->bool{
  let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let lx2=dot(a,a);let ly2=dot(b,b);let lz2=dot(c,c);
  let maxl=max(lx2,max(ly2,lz2));let minl=min(lx2,min(ly2,lz2));
- if(maxl>minl*1.0001){return false;}
- let eps=maxl*1e-4;
+ if(maxl>minl*${CONE_LENGTH_RATIO_WGSL}){return false;}
+ let eps=maxl*${CONE_ORTHO_EPS_WGSL};
  return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
 }
-/** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances, memes operandes.
+/** Miroir GPU de \`coneCullsPageWith\` (pageCone.ts) : memes tolerances (mathCone.ts), memes operandes.
  *  \`world\` est une matrice monde du REPERE DE RENDU, ou la camera est l'origine : le vecteur qui va
  *  du centre de la boite vers l'oeil est l'oppose de ce centre, et la soustraction de deux positions
  *  lointaines n'existe plus. Meme geometrie que le miroir processeur, lui en monde absolu. */
 fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
- if(cone.w>=1.57079632679){return false;}
+ if(cone.w>=${HALF_PI_WGSL}){return false;}
  let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
  if(!isConformal(m)){return false;}
  let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
@@ -72,7 +72,7 @@ fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
  if(dist<=radius){return false;}
  let spread=asin(clamp(radius/dist,0.0,1.0));
  let d=dot(axisWorld,view);
- return d<-sin(cone.w+spread)&&(cone.w+spread)<1.57079632679;
+ return d<-sin(cone.w+spread)&&(cone.w+spread)<${HALF_PI_WGSL};
 }
 fn coneRejects(index:u32,cluster:Cluster)->bool{
  if(hasBox(index)==0.0){return false;}

@@ -1,4 +1,4 @@
-import { multiplyMatrix4 } from './mathMatrix4.ts';
+import { copyMatrix4, multiplyMatrix4 } from './mathMatrix4.ts';
 import { composeMatrix4 } from './mathMatrix4Trs.ts';
 import {
   NODE_AUTO_UPDATE,
@@ -63,11 +63,8 @@ function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean
     changed = compose || (flags & NODE_LOCAL_CHANGED) !== 0;
   if (parent < 0) {
     if (changed) {
-      const world = tree.world,
-        local = tree.local,
-        at = node * 16;
-      // Une boucle : `TypedArray.prototype.set` sur une vue coûte un appel natif.
-      for (let i = 0; i < 16; i++) world[at + i] = local[at + i];
+      const at = node * 16;
+      copyMatrix4(tree.world, tree.local, at, at);
       tree.seen[node] = 0;
       version[node] = (version[node] + 1) >>> 0;
     }

@@ -119,16 +119,11 @@ export function planArrival(
   });
 }
 
-/** Plans faits hors fil, temps cumulé des plans, présence d'un worker. `null` quand rien n'a été
- *  planifié : une métrique non mesurée n'est pas un zéro. */
+/** Plans faits hors fil et temps cumulé des plans. `null` quand rien n'a été planifié : une
+ *  métrique non mesurée n'est pas un zéro. */
 export function pageIntegrationStats() {
-  if (!counters.plans) return { plans: null, offThread: null, planMs: null, worker: null };
-  return {
-    plans: counters.plans,
-    offThread: counters.offThread,
-    planMs: counters.planMs,
-    worker: lane?.alive === true,
-  };
+  if (!counters.plans) return { offThread: null, planMs: null };
+  return { offThread: counters.offThread, planMs: counters.planMs };
 }
 
 /** Ferme la file et remet les compteurs à leur état non mesuré. */

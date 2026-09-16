@@ -116,14 +116,17 @@ export function createTexturePriority(inputs: () => PriorityInputs) {
   const order = (jobs: TextureJob[]) => {
     const started = performance.now();
     measure();
-    if (jobs.length > 1)
+    if (jobs.length > 1) {
+      // Le score une fois par travail, pas deux fois par comparaison du tri.
+      for (const job of jobs) job.score = scoreOf(job);
       jobs.sort(
         (a, b) =>
           a.stage - b.stage ||
           rank(a) - rank(b) ||
-          scoreOf(b) - scoreOf(a) ||
+          b.score - a.score ||
           (b.nextRow ? 1 : 0) - (a.nextRow ? 1 : 0),
       );
+    }
     lastMs = performance.now() - started;
   };
   return {

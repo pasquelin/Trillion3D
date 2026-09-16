@@ -15,7 +15,6 @@ import {
 } from './gpuDagLayout.ts';
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { dagScratch, projectedError } from './gpuDagOracleMath.ts';
-import { readCameraWorld } from './cameraWorld.ts';
 
 type PredicateContext = {
   packed: PackedDag;
@@ -29,27 +28,22 @@ type PredicateContext = {
   near: number;
 };
 
+/** L'œil du repère de rendu : l'origine, par construction. */
+const RENDER_ORIGIN_EYE = new Float64Array(3);
+
 export function createDagOraclePredicates(context: PredicateContext) {
   const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
   const { worlds } = packed;
   const coneRejects = (index: number, w: number) => {
     if (!hasBoxOf(records, index)) return false;
-    const { cone, cam, min, max } = dagScratch;
+    const { cone, min, max } = dagScratch;
     coneInto(records, index, cone);
     boxInto(records, index, min, max);
     // Les matrices monde du noyau sont celles du repère de rendu, dont `cameraWorld` des uniformes est
-    // l'origine : la caméra y est à zéro. L'oracle pose donc la sienne à zéro — mettre la position
+    // l'origine : la caméra y est à zéro. L'oracle pose donc l'œil à zéro — mettre la position
     // monde ici mêlerait un opérande absolu à des boîtes relatives, et le cône trancherait faux.
-    cam.position.set(0, 0, 0);
-    cam.updateMatrixWorld();
     dagScratch.world.fromArray(worlds.subarray(w * 16, w * 16 + 16));
-    return coneCullsPage(
-      cone,
-      dagScratch.world,
-      min,
-      max,
-      readCameraWorld(dagScratch.engineCam, cam),
-    );
+    return coneCullsPage(cone, dagScratch.world, min, max, RENDER_ORIGIN_EYE);
   };
   const visible = (index: number) => {
     // Le nœud propriétaire vit au froid, hors de ce que chaque passe de l'image relit.

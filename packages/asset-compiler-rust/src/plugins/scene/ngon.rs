@@ -109,10 +109,9 @@ impl Ngon {
         self.flat.clear();
         self.flat
             .extend(self.ring.iter().map(|point| [point[u], point[v]]));
-        let twice: f64 = (0..self.flat.len())
-            .map(|rank| cross(self.flat[rank], self.flat[(rank + 1) % self.flat.len()]))
-            .sum();
-        (twice.is_finite() && twice != 0.0).then(|| twice.signum())
+        // L'aire signée de la projection est la composante `axis` de la normale de Newell, déjà
+        // finie et non nulle : son signe est le sens de parcours.
+        Some(normal[axis].signum())
     }
 
     /// Les rangs qui encadrent un rang vivant.

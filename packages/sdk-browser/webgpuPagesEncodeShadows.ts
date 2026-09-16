@@ -4,6 +4,7 @@ import {
   SHADOW_CULL_FLOATS,
   SHADOW_PAGE,
   faceCountOf,
+  normalizeVector3,
   pageRowsOf,
   regionRect,
   writeFace,
@@ -48,13 +49,14 @@ function shadowViewpointOf(cam: EngineCamera) {
   viewpoint.position[0] = cam.eye[0];
   viewpoint.position[1] = cam.eye[1];
   viewpoint.position[2] = cam.eye[2];
-  const fx = world[8],
-    fy = world[9],
-    fz = world[10];
-  const inverse = 1 / (Math.sqrt(fx * fx + fy * fy + fz * fz) || 1);
-  viewpoint.forward[0] = -(fx * inverse);
-  viewpoint.forward[1] = -(fy * inverse);
-  viewpoint.forward[2] = -(fz * inverse);
+  const forward = viewpoint.forward;
+  forward[0] = world[8];
+  forward[1] = world[9];
+  forward[2] = world[10];
+  normalizeVector3(forward);
+  forward[0] = -forward[0];
+  forward[1] = -forward[1];
+  forward[2] = -forward[2];
   viewpoint.halfFovY = Math.max(1e-3, (cam.fov * Math.PI) / 360);
   viewpoint.aspect = Math.max(1e-3, cam.aspect);
   viewpoint.near = cam.near;

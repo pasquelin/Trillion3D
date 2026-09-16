@@ -1,7 +1,13 @@
 // Le point d'entrée public du calcul : matrices, vecteurs, couleurs, boîtes, troncs, arbres de
 // transformation et caméras. Regroupé ici pour que `index.ts` tienne dans la limite de lignes ;
 // aucun contrat ne change, `index.ts` réexporte ce fichier tel quel.
-export { determinantMatrix4, linearPartDeterminant, multiplyMatrix4 } from './mathMatrix4.ts';
+export {
+  IDENTITY_MATRIX4,
+  copyMatrix4,
+  determinantMatrix4,
+  linearPartDeterminant,
+  multiplyMatrix4,
+} from './mathMatrix4.ts';
 export { invertMatrix4 } from './mathMatrix4Inverse.ts';
 export { composeMatrix4, decomposeMatrix4 } from './mathMatrix4Trs.ts';
 export { normalMatrix3 } from './mathMatrix3.ts';
@@ -55,7 +61,15 @@ export {
   frustumPlanesToLocal,
 } from './mathFrustum.ts';
 export { frustumClipBox, frustumExcludesBox } from './mathFrustumBox.ts';
-export { boxConeRejects } from './mathCone.ts';
+export {
+  CONE_LENGTH_RATIO,
+  CONE_LENGTH_RATIO_WGSL,
+  CONE_ORTHO_EPS,
+  CONE_ORTHO_EPS_WGSL,
+  HALF_PI,
+  HALF_PI_WGSL,
+  boxConeRejects,
+} from './mathCone.ts';
 export {
   addTransformNode,
   createTransformTree,

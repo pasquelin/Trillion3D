@@ -1,4 +1,4 @@
-import type { NumberSink } from './mathMatrix4.ts';
+import { copyMatrix4, type NumberSink } from './mathMatrix4.ts';
 
 /**
  * LE REPÈRE DE RENDU. Une scène posée loin de l'origine du monde tremble : la carte graphique
@@ -34,7 +34,7 @@ export function worldToRenderOrigin<T extends NumberSink>(
   origin: ArrayLike<number>,
   at = 0,
 ) {
-  for (let i = 0; i < 16; i++) out[at + i] = world[i];
+  copyMatrix4(out, world, at);
   out[at + 12] = world[12] - origin[0];
   out[at + 13] = world[13] - origin[1];
   out[at + 14] = world[14] - origin[2];
@@ -47,7 +47,7 @@ export function worldToRenderOrigin<T extends NumberSink>(
  * est l'image de l'œil par la partie linéaire, et le monde relatif la porte déjà.
  */
 export function viewToRenderOrigin<T extends NumberSink>(out: T, view: ArrayLike<number>) {
-  for (let i = 0; i < 16; i++) out[i] = view[i];
+  copyMatrix4(out, view);
   out[12] = 0;
   out[13] = 0;
   out[14] = 0;

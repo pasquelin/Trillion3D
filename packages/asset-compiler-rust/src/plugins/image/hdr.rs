@@ -15,7 +15,7 @@
 //! compression par plages ancienne (marqueur `1,1,1,n`) comme nouvelle (entête `2,2,largeur`).
 //! Refusés et nommés : `32-bit_rle_xyze`, qui est un autre espace de couleur, et toute autre
 //! orientation que haut-en-bas gauche-à-droite, qui demanderait de retourner l'image.
-use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin};
+use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer};
 
 mod scanlines;
 
@@ -77,11 +77,14 @@ impl ImageDecoder for Hdr {
         let (width, height, body) = header(bytes)?;
         float_budget(width, height, max_alloc, TOO_LARGE)?;
         let data = scanlines::decode(body, width, height)?;
-        Ok(ImageDecoded::linear(DecodedImage::RgbaF32 {
-            width,
-            height,
-            data,
-        }))
+        Ok(ImageDecoded::new(
+            DecodedImage::RgbaF32 {
+                width,
+                height,
+                data,
+            },
+            Transfer::Linear,
+        ))
     }
 }
 

@@ -41,12 +41,25 @@ const centre = new Float64Array(4),
   // La pose de l'hôte recopiée dans un tampon possédé : le produit du socle ne lit et n'écrit que
   // des `Float64Array` (`mathMatrix4.ts`). Seize nombres par matrice DISTINCTE, pas par fiche.
   worldMirror = new Float64Array(16);
-function boundsSphere(record: PriorityRecord, out: Float64Array) {
-  out[0] = (record.min[0] + record.max[0]) / 2;
-  out[1] = (record.min[1] + record.max[1]) / 2;
-  out[2] = (record.min[2] + record.max[2]) / 2;
-  out[3] = Math.hypot(record.max[0] - out[0], record.max[1] - out[1], record.max[2] - out[2]);
+/** Sphère `[x, y, z, r]` d'une boîte à six bornes : centre au milieu, rayon jusqu'au coin `max`. */
+function boxSphere(
+  out: Float64Array,
+  x0: number,
+  y0: number,
+  z0: number,
+  x1: number,
+  y1: number,
+  z1: number,
+) {
+  out[0] = (x0 + x1) / 2;
+  out[1] = (y0 + y1) / 2;
+  out[2] = (z0 + z1) / 2;
+  out[3] = Math.hypot(x1 - out[0], y1 - out[1], z1 - out[2]);
   return out;
+}
+function boundsSphere(record: PriorityRecord, out: Float64Array) {
+  const { min, max } = record;
+  return boxSphere(out, min[0], min[1], min[2], max[0], max[1], max[2]);
 }
 
 interface Slot {
@@ -154,10 +167,7 @@ export function worldBoxScreenRadius(
   focal: number,
   near: number,
 ) {
-  bounds[0] = (box[0] + box[3]) / 2;
-  bounds[1] = (box[1] + box[4]) / 2;
-  bounds[2] = (box[2] + box[5]) / 2;
-  bounds[3] = Math.hypot(box[3] - bounds[0], box[4] - bounds[1], box[5] - bounds[2]);
+  boxSphere(bounds, box[0], box[1], box[2], box[3], box[4], box[5]);
   return sphereScreenRadius(bounds, view, stretch, focal, near);
 }
 
