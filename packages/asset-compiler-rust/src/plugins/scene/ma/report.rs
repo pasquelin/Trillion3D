@@ -28,9 +28,9 @@ pub(super) const TRANSFORM_INVALID: &str = "ma-transform-invalid";
 /// Une hiérarchie plus profonde que ce que ce pilote parcourt, une chaîne de pères circulaire
 /// comprise : la branche est coupée là, sans faire déborder la pile.
 pub(super) const HIERARCHY_TOO_DEEP: &str = "ma-hierarchy-too-deep";
-/// Un cisaillement (`.sh`) déclaré : glTF ne porte pas de cisaillement dans une matrice de nœud
-/// sans le mêler à la rotation, donc il n'est pas composé.
-pub(super) const SHEAR_UNSUPPORTED: &str = "ma-shear-unsupported";
+/// Une matrice écrite autrement que par ses seize nombres — la forme longue `xform` de `setAttr` :
+/// elle n'est pas devinée, et le nœud garde la pose que ses autres attributs lui donnent.
+pub(super) const MATRIX_UNSUPPORTED: &str = "ma-matrix-unsupported";
 /// Une forme intermédiaire : l'entrée d'un historique de construction, que Maya n'affiche jamais.
 pub(super) const SHAPE_INTERMEDIATE: &str = "ma-shape-intermediate";
 /// Un maillage dont les tableaux se contredisent : coin hors de la table des arêtes, arête hors de
