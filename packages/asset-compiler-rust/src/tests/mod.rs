@@ -40,6 +40,7 @@ mod psd_golden;
 mod unity_driver;
 mod unity_fidelite;
 mod unity_golden;
+mod unity_instances;
 mod unity_projet;
 mod unity_proprietes;
 mod unitypackage_golden;

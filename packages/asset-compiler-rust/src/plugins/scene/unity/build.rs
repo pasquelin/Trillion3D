@@ -40,9 +40,6 @@ pub(super) struct Builder<'a, 'w> {
     pub(super) rebound: HashSet<usize>,
 }
 
-/// Ce qu'une instance de prefab remplace dans la transformation de sa racine.
-pub(super) type Overrides = HashMap<String, f64>;
-
 impl Builder<'_, '_> {
     /// Les racines d'un fichier : les transformations sans père, et les instances de prefab qui ne
     /// sont accrochées à rien. Le reste est atteint par les enfants.
@@ -82,11 +79,11 @@ impl Builder<'_, '_> {
         self.world.check()?;
         let entry = document.get(id)?;
         if entry.class_id == PREFAB_INSTANCE {
-            return self.prefab_instance(document, id, depth);
+            return self.prefab_instance(document, id, changes, depth);
         }
         if entry.stripped {
             let instance = reference(&entry.body["m_PrefabInstance"]).file_id;
-            return self.prefab_instance(document, instance, depth);
+            return self.prefab_instance(document, instance, changes, depth);
         }
         let object_id = reference(&entry.body["m_GameObject"]).file_id;
         let object = document.get(object_id)?;
