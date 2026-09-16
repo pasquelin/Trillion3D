@@ -77,11 +77,23 @@ fn parts(world: &mut World<'_>, node: usize, faces: usize) -> Vec<Part> {
             faces: owned,
         });
     }
-    if let Some((shader, _)) = binds.iter().find(|(_, named)| named.is_none()) {
-        let material = shader.and_then(|shader| material::resolve(world, shader));
+    let rest: Vec<usize> = (0..faces).filter(|face| !taken[*face]).collect();
+    // Ce qu'aucune liaison par faces n'a pris revient à la liaison entière quand il y en a une,
+    // et sort sinon sans matériau : une face que le fichier écrit est une face de la scène.
+    let whole = binds.iter().find(|(_, named)| named.is_none());
+    if whole.is_none() {
+        world
+            .scene
+            .report
+            .add_count(report::FACE_MATERIAL_MISSING, rest.len());
+    }
+    let material = whole
+        .and_then(|(shader, _)| *shader)
+        .and_then(|shader| material::resolve(world, shader));
+    if whole.is_some() || !rest.is_empty() {
         out.push(Part {
             material,
-            faces: (0..faces).filter(|face| !taken[*face]).collect(),
+            faces: rest,
         });
     }
     out
