@@ -29,9 +29,11 @@ for (let i = 0; i < 400; i++) immobiles.push(vue(0.1, 500, 16 / 9, 0.6));
 const hostiles = [];
 for (const near of HOSTILES) for (const far of HOSTILES) hostiles.push(vue(near, far, 1, 0.7));
 
-/** Une image : les quatre cascades du soleil, toutes sur la même vue, comme `writeSunFace`. */
+/** Une image : les quatre cascades du soleil, toutes sur la même vue, comme `writeSunFace`. Seuls
+ *  les champs que la cascade publie encore : `boxRadius` a quitté `SunCascade` avec le lot des
+ *  ombres par pages, le rejet se calculant désormais à partir des demi-côtés de la boîte. */
 const faces = (cascadeDe) => (vues) => {
-  const sortie = new Float64Array(vues.length * LIGHT_SETTINGS.sunCascades * 8);
+  const sortie = new Float64Array(vues.length * LIGHT_SETTINGS.sunCascades * 7);
   let at = 0;
   for (const view of vues)
     for (let face = 0; face < LIGHT_SETTINGS.sunCascades; face++) {
@@ -43,7 +45,6 @@ const faces = (cascadeDe) => (vues) => {
       sortie[at++] = c.boxCenter[0];
       sortie[at++] = c.boxCenter[1];
       sortie[at++] = c.boxCenter[2];
-      sortie[at++] = c.boxRadius;
     }
   return sortie;
 };
