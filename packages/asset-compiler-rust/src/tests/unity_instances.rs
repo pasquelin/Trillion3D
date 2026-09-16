@@ -110,3 +110,27 @@ fn a_prefab_instance_removes_and_adds_objects_of_its_source() {
         manifest["unsupported"]
     );
 }
+
+// Constat 48 : un emplacement de matériau qu'une instance vide sort sans matériau. Garder celui du
+// prefab rendrait visible ce que l'auteur avait effacé ; un emplacement que l'instance ne nomme pas,
+// lui, garde bien celui du prefab.
+#[test]
+fn a_null_material_override_leaves_its_slot_without_a_material() {
+    let projet = Projet::new("materiau-nul");
+    projet.data("Materials/Uni.mat", MAT, &matiere("Uni"));
+    projet.data("Prefabs/Source.prefab", SOURCE, &cube(100, "Boite", MAT));
+    projet.scene(&instance(
+        5000,
+        SOURCE,
+        "    m_Modifications:\n    - target: {fileID: 103, guid: 000000000000000000000000000000a2, type: 3}\n      propertyPath: m_Materials.Array.data[0]\n      value: \n      objectReference: {fileID: 0}\n",
+    ));
+    let (_, gltf) = projet.compile("unity-materiau-nul").prepared("unity");
+    let mesh = node_named(&gltf, "Boite").expect("l'objet")["mesh"]
+        .as_u64()
+        .expect("son maillage") as usize;
+    assert_eq!(
+        gltf["meshes"][mesh]["primitives"][0]["material"],
+        Value::Null,
+        "l'emplacement vidé sort sans matériau"
+    );
+}

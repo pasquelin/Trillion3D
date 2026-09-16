@@ -19,7 +19,12 @@ impl Builder<'_, '_> {
         let materials: Vec<Vec<Option<usize>>> = aim
             .slots
             .iter()
-            .map(|slots| slots.iter().map(|slot| self.material(slot)).collect())
+            .map(|slots| {
+                slots
+                    .iter()
+                    .map(|slot| slot.as_ref().and_then(|named| self.material(named)))
+                    .collect()
+            })
             .collect();
         let children = self.attach_each(&parts, &materials);
         let name = changes.name.clone().or_else(|| {
@@ -46,7 +51,7 @@ impl Builder<'_, '_> {
 /// d'une seconde racine, que rien ne départage.
 struct Aim {
     root: Overrides,
-    slots: Vec<Vec<Ref>>,
+    slots: Vec<Vec<Option<Ref>>>,
     unplaced: usize,
 }
 
@@ -77,7 +82,7 @@ impl Aim {
         for (target, replaced) in changes.material_targets() {
             match part(target).or_else(sole) {
                 Some(rank) if aim.slots[rank].is_empty() => aim.slots[rank] = replaced.to_vec(),
-                _ => aim.unplaced += replaced.iter().filter(|slot| !slot.is_null()).count(),
+                _ => aim.unplaced += replaced.iter().filter(|slot| slot.is_some()).count(),
             }
         }
         aim
