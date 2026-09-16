@@ -20,10 +20,7 @@ export function projectBoxesFlat(
   // Vue, vue-projection et plan proche viennent de la caméra du moteur : une image les pose une fois.
   const view = cam.view,
     elements = cam.viewProjection,
-    near = cam.near,
-    // La convention de profondeur de l'hôte voyage avec la caméra du moteur : les bornes Hi-Z
-    // sortent en `[0, 1]` dans les deux, et se comparent donc à la même pyramide.
-    depthZeroToOne = cam.depthZeroToOne;
+    near = cam.near;
   for (let i = 0; i < count; i++) {
     if (only && !only[i]) continue;
     const page = pages[i];
@@ -38,7 +35,6 @@ export function projectBoxesFlat(
         near,
         width,
         height,
-        depthZeroToOne,
         into,
         base,
       );
@@ -52,7 +48,6 @@ export function projectBoxesFlat(
         near,
         width,
         height,
-        depthZeroToOne,
         into,
         base,
       );

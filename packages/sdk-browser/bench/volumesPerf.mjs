@@ -114,7 +114,7 @@ const sphereVerifie = (c) => memes(aPlat(c.spheres, true), c.spheresPlat);
 
 const plansThree = (c) =>
   c.tronc.setFromProjectionMatrix(vueProjection, THREE.WebGPUCoordinateSystem);
-const plansNous = (c) => frustumPlanesFromMatrix(c.plans, vueProjection.elements, true);
+const plansNous = (c) => frustumPlanesFromMatrix(c.plans, vueProjection.elements);
 const testeThree = (c, n) => {
   for (let i = 0; i < n; i++) c.verdictsThree[i] = c.tronc.intersectsBox(c.boitesMonde[i]) ? 1 : 0;
 };

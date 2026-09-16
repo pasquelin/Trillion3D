@@ -1,4 +1,5 @@
 import { SHADER } from './webgpuPagesShaders.ts';
+import { DEPTH_COMPARE } from './depthConvention.ts';
 
 export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: number) {
   const bindGroupLayout = device.createBindGroupLayout({
@@ -22,7 +23,7 @@ export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: num
   const depthStencil = {
     format: 'depth32float' as GPUTextureFormat,
     depthWriteEnabled: true,
-    depthCompare: 'less' as GPUCompareFunction,
+    depthCompare: DEPTH_COMPARE,
   };
   const vertex = { module, entryPoint: 'vs' };
   const pipelineBack = device.createRenderPipeline({
@@ -63,7 +64,7 @@ export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: num
       ],
     },
     primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
-    depthStencil: { format: 'depth32float', depthWriteEnabled: false, depthCompare: 'less' },
+    depthStencil: { format: 'depth32float', depthWriteEnabled: false, depthCompare: DEPTH_COMPARE },
   });
   return { bindGroupLayout, pipelineBack, pipelineBackCw, pipelineNone, pipelineBlend };
 }

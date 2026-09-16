@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { signedArea, type Projected } from './visibilityProjection.ts';
-import { HIZ_BACKGROUND, matrixWindingCw } from '../sdk-core/index.ts';
+import { matrixWindingCw } from '../sdk-core/index.ts';
+import { DEPTH_CLEAR, depthNearer } from './depthConvention.ts';
 import { triangleAt, perspectiveBary, wrapTexel } from './visibilityMath.ts';
 import {
   assertVisibilityPageTriangles,
@@ -57,19 +58,20 @@ function fillIds(
       if (keep && !keep(x, y, w0, w1, w2)) continue;
       const z = w0 * az + w1 * bz + w2 * cz,
         o = row + x;
-      if (z >= depth[o]) continue;
+      if (!depthNearer(z, depth[o])) continue;
       depth[o] = z;
       ids[o] = packed;
     }
   }
 }
 
-/** CPU visbuffer: packed IDs plus NDC z (background 1). Closest z wins; equal z keeps the first write. */
+/** CPU visbuffer: packed IDs plus NDC z (background at the far value). La profondeur du moteur est
+ *  inversée, donc la PLUS GRANDE gagne ; à profondeur égale, la première écriture reste. */
 export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: [number, number]) {
   const [width, height] = viewport,
     ids = new Uint32Array(width * height),
     depth = new Float32Array(width * height);
-  depth.fill(Infinity);
+  depth.fill(-Infinity);
   for (let pageIndex = 0; pageIndex < pages.length && pageIndex < VIS_MAX_PAGES; pageIndex++) {
     const page = pages[pageIndex],
       index = page.array;
@@ -122,7 +124,7 @@ export function rasterVisibility(pages: VisPage[], cam: EngineCamera, viewport: 
       fillIds(ids, depth, width, height, tri.a, tri.b, tri.c, packVisibilityId(pageIndex, t));
     }
   }
-  for (let i = 0; i < depth.length; i++) if (depth[i] === Infinity) depth[i] = HIZ_BACKGROUND;
+  for (let i = 0; i < depth.length; i++) if (depth[i] === -Infinity) depth[i] = DEPTH_CLEAR;
   return { ids, depth };
 }
 
