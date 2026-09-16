@@ -3,6 +3,7 @@
 // fois — deux copies dans un même texte seraient deux chances de le voir dériver, comme avant ce lot.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import {
   PAGE_INFO_STRUCT_WGSL,
   EDGE_WGSL,
@@ -11,7 +12,14 @@ import {
   WRAP_COORD_WGSL,
   MASK_KEEP_WGSL,
   BARY_WEIGHTS_WGSL,
+  wrapFlags,
 } from './visibilityPageWgsl.ts';
+import {
+  FLAG_WRAP_S_REPEAT,
+  FLAG_WRAP_T_REPEAT,
+  FLAG_WRAP_S_MIRROR,
+  FLAG_WRAP_T_MIRROR,
+} from './visibilityTypes.ts';
 import { rasterSource } from './gpuSmallTrianglesShader.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
 import { VIS_SHADER } from './visibilityShaderId.ts';
@@ -60,4 +68,32 @@ test('MASK_KEEP_WGSL déclare fn maskKeep une seule fois dans le raster et les d
 test('BARY_WEIGHTS_WGSL déclare fn baryWeights une seule fois dans le raster et l’ombrage', () => {
   assert.match(BARY_WEIGHTS_WGSL, /fn baryWeights\(/);
   eachOnce(BARY_WEIGHTS_WGSL, { SMALL_SHADER, SHADE_SHADER });
+});
+
+// Défaut 4 : `wrapFlags` pose un bit par axe, jamais les deux modes à la fois sur le même axe, et
+// aucun bit tant que l'axe est en serrage — le même drapeau que `webgpuPageRow.ts` et
+// `webgpuBlendPrepare.ts` écrivent dans la page, lu par `wrapUv` au-dessus.
+test('wrapFlags pose le bit de répétition ou de miroir par axe, aucun bit en serrage', () => {
+  const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) =>
+    ({ wrapS, wrapT }) as THREE.Texture;
+  assert.equal(wrapFlags(undefined), 0, 'aucune carte');
+  assert.equal(wrapFlags(carte(THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping)), 0);
+  assert.equal(
+    wrapFlags(carte(THREE.RepeatWrapping, THREE.RepeatWrapping)),
+    FLAG_WRAP_S_REPEAT | FLAG_WRAP_T_REPEAT,
+  );
+  assert.equal(
+    wrapFlags(carte(THREE.MirroredRepeatWrapping, THREE.MirroredRepeatWrapping)),
+    FLAG_WRAP_S_MIRROR | FLAG_WRAP_T_MIRROR,
+  );
+  assert.equal(
+    wrapFlags(carte(THREE.MirroredRepeatWrapping, THREE.RepeatWrapping)),
+    FLAG_WRAP_S_MIRROR | FLAG_WRAP_T_REPEAT,
+    'un mode différent par axe pose un bit différent par axe',
+  );
+  assert.equal(
+    wrapFlags(carte(THREE.ClampToEdgeWrapping, THREE.MirroredRepeatWrapping)),
+    FLAG_WRAP_T_MIRROR,
+    'S en serrage ne pose aucun bit S',
+  );
 });
