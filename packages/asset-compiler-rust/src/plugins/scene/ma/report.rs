@@ -56,10 +56,10 @@ pub(super) const FACE_INVALID: &str = "ma-face-record-invalid";
 pub(super) const UV_DROPPED: &str = "ma-uv-dropped";
 /// Des normales écartées : `.n` ne compte ni un vecteur par sommet ni un par coin de face.
 pub(super) const NORMALS_DROPPED: &str = "ma-normals-dropped";
-/// Aucune normale écrite : elles sont calculées **à plat**, une par face, par la somme de Newell.
-/// Maya ne stocke pas les groupes de lissage d'un maillage qu'il n'a pas encore évalué, et lisser
-/// sans eux inventerait une continuité que le fichier ne déclare pas.
-pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed-flat";
+/// Aucune normale écrite : elles sont calculées depuis la géométrie et le drapeau de dureté de
+/// chaque arête, la seule marque de lissage qu'un `.ma` porte — lisse d'un bout à l'autre d'une
+/// arête douce, coupé sur une arête dure.
+pub(super) const NORMALS_COMPUTED: &str = "ma-normals-computed";
 /// Un groupe de faces d'un `instObjGroups` dont la liste de composants ne désigne pas des faces.
 pub(super) const FACE_MATERIAL_INVALID: &str = "ma-face-material-invalid";
 /// Des faces qu'aucun `shadingGroup` ne réclame, alors que d'autres faces du même maillage sont
@@ -72,6 +72,19 @@ pub(super) const MATERIAL_UNSUPPORTED: &str = "ma-material-unsupported";
 pub(super) const TRANSPARENCY_COLOUR: &str = "ma-transparency-colour-unsupported";
 /// Une émission au-delà de un, que `emissiveFactor` ne porte pas : elle est ramenée et comptée.
 pub(super) const EMISSION_CLAMPED: &str = "ma-emission-clamped";
+/// Un `bump2d` en relief de hauteur (`bumpInterp` 0) : glTF ne porte pas de carte de hauteur, et la
+/// prendre pour une carte de normales éclairerait la surface par une image qui n'en dit pas
+/// l'orientation. Le relief est compté, la surface reste sans `normalTexture`.
+pub(super) const BUMP_HEIGHT: &str = "ma-bump-height-unsupported";
+/// Un `bump2d` en normales d'espace objet (`bumpInterp` 2) : `normalTexture` de glTF est lue en
+/// espace tangent, et convertir demanderait la pose de la surface au moment du rendu.
+pub(super) const BUMP_OBJECT: &str = "ma-bump-object-space-unsupported";
+/// Un `place2dTexture` qui déplace le placage — répétition, décalage, rotation : `KHR_texture_transform`
+/// le porterait, et l'écrivain glTF de ce dépôt ne déclare pas cette extension.
+pub(super) const TEXTURE_TRANSFORM: &str = "ma-texture-transform-unsupported";
+/// Un `place2dTexture` qui renvoie la texture en miroir (`mirrorU`, `mirrorV`) : aucun mode de
+/// répétition de glTF ne fait ce pliage.
+pub(super) const TEXTURE_MIRROR: &str = "ma-texture-mirror-unsupported";
 /// Une texture dont le fichier est absent, hors du dossier de la source, ou d'un format que le
 /// registre d'images ne lit pas.
 pub(super) const TEXTURE_MISSING: &str = "ma-texture-missing";

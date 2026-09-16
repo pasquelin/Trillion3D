@@ -19,6 +19,7 @@ mod fbx;
 mod gltf;
 mod ma;
 mod ngon;
+mod normals;
 mod obj;
 mod route;
 mod ufbx_driver;

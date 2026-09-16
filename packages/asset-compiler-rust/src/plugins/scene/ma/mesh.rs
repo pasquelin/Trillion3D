@@ -3,11 +3,13 @@
 //!
 //! Les polygones sont triangulés par oreilles dans le plan de leur normale, ce qui conserve l'aire
 //! et la silhouette d'une face concave comme d'une face convexe. Une face qui déclare un trou est
-//! laissée : le découpage le remplirait, et une silhouette ne se devine pas.
+//! laissée : le découpage le remplirait, et une silhouette ne se devine pas. D'où viennent les
+//! normales, `.n` ou les arêtes, c'est `shade` qui le dit.
 use super::*;
-use crate::plugins::scene::ngon;
 
+mod corner;
 mod part;
+mod shade;
 
 /// Les tableaux d'une surface, lus une fois pour toutes ses parties.
 pub(super) struct Surface {
@@ -18,10 +20,12 @@ pub(super) struct Surface {
     uv_slots: Vec<Vec<i64>>,
     uvs: Vec<[f64; 2]>,
     normals: Vec<[f64; 3]>,
+    /// Le groupe de lissage de chaque coin, quand ce pilote a calculé les normales : deux coins d'un
+    /// même groupe portent la même normale, donc ne font qu'un sommet. Vide quand `.n` les donne.
+    groups: Vec<u32>,
     /// Le rang du premier coin de chaque face dans le maillage entier, tel que `.fc` l'a écrit.
     bases: Vec<usize>,
-    /// Où lire la normale d'un coin : par sommet, par coin du maillage, ou par face quand ce pilote
-    /// les a calculées.
+    /// Où lire la normale d'un coin : par sommet, ou par coin du maillage.
     shading: Shading,
 }
 
@@ -30,7 +34,6 @@ pub(super) struct Surface {
 enum Shading {
     Vertex,
     Corner,
-    Face,
 }
 
 /// Construit le maillage de ce nœud, ou le retrouve quand un `parent -add` l'a déjà demandé.
@@ -74,16 +77,18 @@ fn read(world: &mut World<'_>, node: usize) -> Option<Surface> {
         return None;
     }
     let (loops, uv_slots) = resolve(world, polygons, &edges, positions.len());
-    let (normals, shading) = shade(world, mesh, &positions, &loops, corners);
-    Some(Surface {
+    let mut surface = Surface {
         positions,
         loops,
         uv_slots,
         uvs,
-        normals,
+        normals: Vec::new(),
+        groups: Vec::new(),
         bases,
-        shading,
-    })
+        shading: Shading::Corner,
+    };
+    shade::fill(world, &mut surface, mesh, polygons, &edges);
+    Some(surface)
 }
 
 /// La boucle de sommets de chaque face, et les rangs d'UV de ses coins. Une face dont une arête
@@ -147,42 +152,4 @@ pub(super) fn corner(edges: &[[f64; 3]], signed: i64, vertices: usize) -> Option
     (vertex < vertices)
         .then(|| u32::try_from(vertex).ok())
         .flatten()
-}
-
-/// Les normales de la surface et leur provenance. `.n` compte un vecteur par sommet ou un par coin ;
-/// hors de ces deux tailles, elle est écartée. Sans normale écrite, elles sont calculées **à plat**,
-/// une par face : Maya ne stocke pas les groupes de lissage d'une scène qu'il n'a pas évaluée, et
-/// lisser sans eux inventerait une continuité que le fichier ne déclare pas.
-fn shade(
-    world: &mut World<'_>,
-    mesh: &Node,
-    positions: &[[f64; 3]],
-    loops: &[Vec<u32>],
-    corners: usize,
-) -> (Vec<[f64; 3]>, Shading) {
-    let written: Vec<[f64; 3]> =
-        value::elements(mesh.attr(&["n", "normal"]).map_or(&[][..], Attr::numbers)).collect();
-    if written.len() == positions.len() {
-        return (written, Shading::Vertex);
-    }
-    if written.len() == corners {
-        return (written, Shading::Corner);
-    }
-    if !written.is_empty() {
-        world.refuse(report::NORMALS_DROPPED);
-    }
-    world.refuse(report::NORMALS_COMPUTED);
-    // La normale d'une face est la somme de Newell de son anneau, ramenée à la longueur un : la
-    // formule vaut pour une face quelconque, et c'est celle que la coupe par oreilles emploie déjà.
-    let mut points: Vec<[f64; 3]> = Vec::new();
-    let flat = loops
-        .iter()
-        .map(|ring| {
-            points.clear();
-            let read = |vertex: &u32| positions.get(*vertex as usize).copied().unwrap_or_default();
-            points.extend(ring.iter().map(read));
-            crate::shared_math::normalized_or(ngon::newell(&points), [0.0, 1.0, 0.0])
-        })
-        .collect::<Vec<[f64; 3]>>();
-    (flat, Shading::Face)
 }

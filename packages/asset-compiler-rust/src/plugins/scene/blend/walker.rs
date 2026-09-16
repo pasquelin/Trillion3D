@@ -79,7 +79,7 @@ impl Scene<'_> {
         }
         let name = short(mesh, "Mesh");
         let geometry = mesh::read(mesh, &name)?;
-        let normals = normals::corners(&geometry);
+        let normals = normals::corners(&geometry.surface()).normals;
         self.out.count("normalsComputed", 1);
         let slots = self.slots(mesh);
         let (json, triangles) = build::mesh_json(
