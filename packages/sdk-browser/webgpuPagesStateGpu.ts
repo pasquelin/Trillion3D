@@ -24,6 +24,12 @@ export interface WebgpuGpuState {
    *  aucune surface transmissive — la liaison existe alors sans rien coûter. */
   backdrop: TransmissionBackdrop | undefined;
   surfaces: SurfaceBuffer | undefined;
+  /** Le dernier relevé adopté déclarait une page voulue non encore arrivée : l'image attend cette
+   *  page, elle ne retombe pas sur la coupe processeur. */
+  cutIncomplete: boolean;
+  /** La sélection GPU a été abandonnée pour la session : ce qui est mesuré depuis est la coupe
+   *  processeur de secours. Publié dans les métriques sous `gpuSelectionFallback`. */
+  selectionFallback: boolean;
   targetSize: [number, number];
   positionBuffers: Map<THREE.BufferGeometry['attributes'], GPUBuffer>;
   /** Indices, UV et normales des transparents, tenus par la géométrie source : deux instances d'un
@@ -78,6 +84,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     hdrView: undefined,
     backdrop: undefined,
     surfaces: undefined,
+    cutIncomplete: false,
+    selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     positionBuffers: new Map(),
     blendIndexBuffers: new Map(),
