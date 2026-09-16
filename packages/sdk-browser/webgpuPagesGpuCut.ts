@@ -133,7 +133,8 @@ export function renderGpuCut(
   marks.cpuEnd = performance.now();
   // The cut's own triangles came back with the readback; the meshes outside the DAG are counted
   // where they are drawn.
-  if (run.gpuMetricsReady) run.submittedTriangles = run.drawnTriangles + run.blendUnpagedTriangles;
+  if (run.gpuMetricsReady)
+    run.submittedTriangles = run.selectedTriangles + run.blendUnpagedTriangles;
   recordGpuCutTiming(rt);
   traceGpuCutFrame(rt, cam);
   // L'image a été encodée et soumise en entier : elle seule autorise une tenue, et seulement si la

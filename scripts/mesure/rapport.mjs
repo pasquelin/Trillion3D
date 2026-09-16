@@ -22,14 +22,25 @@ const ms = (d, key) => (d ? d[key].toFixed(3) : '—');
 const num = (value) => (value == null ? '—' : String(value));
 /** Des octets en mégaoctets, ou un tiret : un zéro ne serait pas distinct d'un relevé absent. */
 const mo = (value) => (value == null ? '—' : (value / (1024 * 1024)).toFixed(1));
+/** Un témoin à trois états : `oui`, `non`, ou un tiret quand ce moteur ne le publie pas. */
+const oui = (value) => (value == null ? '—' : value ? 'oui' : 'non');
 const diffText = (d) =>
   !d ? '—' : d.erreur ? d.erreur : `${d.pixels} px, max canal ${d.maxCanal}`;
+/**
+ * La relation de couverture d'un relevé : `selected − drawn − uncovered`. Zéro dit que chaque
+ * triangle de la coupe est soit remis au dessin, soit compté comme trou ; autre chose dit qu'un des
+ * trois compteurs décrit une autre image. Un tiret quand l'un des trois manque — rien n'est déduit.
+ */
+const couverture = (r) =>
+  r.selectedTriangles == null || r.drawnTriangles == null || r.uncoveredTriangles == null
+    ? '—'
+    : String(r.selectedTriangles - r.drawnTriangles - r.uncoveredTriangles);
 
 /** Le tableau de la série : une ligne par vue, par seuil et par côté. */
 function rows(report) {
   const lines = [
-    '| vue | pixelError | côté | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | uncoveredTriangles | Hi-Z testés/rejetés/>16 | hash coupe | budget pages | géométrie (Mo) |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|',
+    '| vue | pixelError | côté | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | couverture | triangles soumis opaque/total | image tenue | uncoveredTriangles | repli sélection GPU | Hi-Z testés/rejetés/>16 (image) | hash coupe | budget pages | géométrie (Mo) |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const serie of report.series)
     for (const [side, r] of Object.entries(serie.sides)) {
@@ -38,8 +49,10 @@ function rows(report) {
         `| ${serie.view} | ${serie.pixelError} | ${side}${r.moteur ? ` · ${r.moteur}` : ''} ` +
           `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
           `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
-          `| ${num(r.selectedTriangles)} | ${num(r.uncoveredTriangles)} ` +
-          `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} ` +
+          `| ${num(r.selectedTriangles)} | ${num(r.drawnTriangles)} | ${couverture(r)} ` +
+          `| ${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)} | ${oui(r.imageTenue)} ` +
+          `| ${num(r.uncoveredTriangles)} | ${oui(r.repliSelectionGpu)} ` +
+          `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)}) ` +
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
           `| ${num(r.budgetPages.demande)} demandées, ${num(r.budgetPages.residentes)} résidentes ` +
           `| ${mo(r.geometrieOctets)} |`,

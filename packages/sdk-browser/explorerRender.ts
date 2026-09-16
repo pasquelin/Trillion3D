@@ -112,8 +112,12 @@ export function createExplorerRender(session: ExplorerSession, inputs: Inputs) {
     metricsScratch.cpuFrameMs = frameEnd - start;
     if (metricsScratch.drawCalls < 0)
       metricsScratch.drawCalls = ownedRenderer?.info.render.calls ?? 0;
+    // Les triangles soumis de cette image : ceux que le moteur a comptés, ou ceux que le renderer de
+    // l'hôte a dessinés quand c'est lui qui dessine. `null` quand aucun des deux ne les a comptés —
+    // un zéro publié ici se lirait comme une image vide, et c'est ce que le contrat interdit.
     metricsScratch.triangles =
-      metricsScratch.totalSubmittedTriangles ?? ownedRenderer?.info.render.triangles ?? 0;
+      metricsScratch.totalSubmittedTriangles ??
+      (directGpu ? null : (ownedRenderer?.info.render.triangles ?? null));
     auditFrame(state.active.id, frameNumber, metricsScratch, directGpu ? null : ownedRenderer);
     profiler.record(metricsScratch);
     emitExplorerFrameDiagnostic({

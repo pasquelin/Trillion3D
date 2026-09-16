@@ -60,7 +60,7 @@ export const sideReport = (side) => [
 
 /** La variante de diagnostic d'un côté : `--variante-<côté>`, sinon celle de la campagne. Deux
  *  côtés qui ne diffèrent que par elle sont deux variantes d'une seule campagne. */
-export function variantOf(flags, name) {
+function variantOf(flags, name) {
   return flags.get(`variante-${name}`) ?? flags.get('variante') ?? null;
 }
 

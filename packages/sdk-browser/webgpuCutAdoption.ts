@@ -49,6 +49,7 @@ export function createWebgpuCutAdopter(options: {
     visible: 0,
     selectedTriangles: 0,
     uncoveredTriangles: 0,
+    /** La part de la coupe qui part au dessin : `selectedTriangles` moins le trou. */
     drawnTriangles: 0,
     transparentTriangles: 0,
     frustumRejected: 0,
@@ -102,7 +103,7 @@ export function createWebgpuCutAdopter(options: {
       shownCut = cut;
     }
     metrics.ready = true;
-    metrics.selectedTriangles = counts.drawnTriangles;
+    metrics.selectedTriangles = counts.selectedTriangles;
     metrics.uncoveredTriangles = counts.uncoveredTriangles;
     metrics.drawnTriangles = counts.drawnTriangles;
     metrics.transparentTriangles = counts.transparentTriangles;

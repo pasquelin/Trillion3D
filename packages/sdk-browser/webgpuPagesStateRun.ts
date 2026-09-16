@@ -45,7 +45,9 @@ export interface WebgpuRunState {
   blendUnpagedTriangles: number;
   blendSubmittedTriangles: number;
   blendDrawCalls: number;
-  /** Triangles of the drawable cut the last adopted readback described. */
+  /** Triangles de la coupe que l'image courante remet au dessin : la coupe publiée moins les
+   *  grappes sans ligne de résidence. Compté sans attendre aucun retour de la carte, et tenu d'une
+   *  image à l'autre comme la coupe elle-même, image tenue comprise. */
   drawnTriangles: number;
   blendFrustumRejected: number;
   gpuDrawCalls: number;

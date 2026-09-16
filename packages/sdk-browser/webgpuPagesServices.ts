@@ -164,7 +164,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     run.visible = metrics.visible;
     run.selectedTriangles = metrics.selectedTriangles;
     run.uncoveredTriangles = metrics.uncoveredTriangles;
-    run.submittedTriangles = metrics.drawnTriangles;
+    run.submittedTriangles = metrics.selectedTriangles;
     run.drawnTriangles = metrics.drawnTriangles;
     run.blendPagedTriangles = metrics.transparentTriangles;
     run.frustumRejected = metrics.frustumRejected;
