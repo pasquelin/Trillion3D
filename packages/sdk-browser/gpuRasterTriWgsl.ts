@@ -11,10 +11,12 @@ import { FINE_SIDE, LARGE_SPAN, TILE } from './gpuRasterContract.ts';
  * - **La boîte est découpée au viewport au lieu d'être rejetée.** Un triangle qui déborde de l'écran
  *   n'est plus renvoyé au matériel : il garde la part de sa boîte qui tombe dans l'image, et c'est
  *   sur CETTE part que sa classe se lit. Un triangle entièrement hors champ n'a plus de boîte.
- * - **Le plan proche est découpé, pas rejeté.** Un triangle dont un sommet passe derrière l'œil n'a
- *   pas de projection : on le coupe en espace d'horloge sur `w >= W_EPS`, ce qui rend trois ou quatre
- *   sommets, donc un ou deux sous-triangles. Les coordonnées de texture suivent la coupe, sinon la
- *   découpe d'un matériau à masque ne serait pas la même des deux côtés du plan. L'identifiant écrit
+ * - **Le plan proche est découpé, pas rejeté.** Un triangle dont un sommet passe plus près que le
+ *   plan proche n'a pas de projection utilisable : on le coupe en espace d'horloge sur le plan
+ *   canonique `z <= w`, qui EST le plan proche puisque la projection pose `z_découpe = near` et
+ *   `w_découpe = distance`. La coupe rend trois ou quatre sommets, donc un ou deux sous-triangles.
+ *   Les coordonnées de texture suivent la coupe, sinon la découpe d'un matériau à masque ne serait
+ *   pas la même des deux côtés du plan. L'identifiant écrit
  *   reste celui du triangle d'origine : la résolution matérielle reconstruit ses attributs depuis ses
  *   sommets non coupés, exactement comme elle le faisait des pixels que le matériel posait.
  *
@@ -22,7 +24,6 @@ import { FINE_SIDE, LARGE_SPAN, TILE } from './gpuRasterContract.ts';
  * mêmes opérandes dans le même ordre donnent les mêmes bits qu'avant ce lot.
  */
 export const RASTER_TRI_WGSL = `
-const W_EPS:f32=1e-6;
 struct Clip{n:u32,p:array<vec4f,4>,u:array<vec2f,4>,}
 fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec2f,ub:vec2f,uc:vec2f)->Clip{
  var inP=array<vec4f,3>(pa,pb,pc);
@@ -31,11 +32,16 @@ fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec2f,ub:vec2f,uc:vec2f)->Clip{
  for(var i=0u;i<3u;i=i+1u){
   let j=(i+1u)%3u;
   let cur=inP[i];let nxt=inP[j];
-  let curIn=cur.w>=W_EPS;let nxtIn=nxt.w>=W_EPS;
+  // Distance signée au plan proche : positive devant, nulle sur le plan, négative derrière.
+  let dc=cur.w-cur.z;let dn=nxt.w-nxt.z;
+  let curIn=dc>=0.0;let nxtIn=dn>=0.0;
   if(curIn){res.p[res.n]=cur;res.u[res.n]=inU[i];res.n=res.n+1u;}
   if(curIn!=nxtIn){
-   let t=(W_EPS-cur.w)/(nxt.w-cur.w);
-   res.p[res.n]=mix(cur,nxt,t);res.u[res.n]=mix(inU[i],inU[j],t);res.n=res.n+1u;
+   let t=dc/(dc-dn);
+   // Le sommet coupé est reposé exactement sur le plan : son \`w\` vaut \`near\` au bit près, aucun
+   // arrondi ne peut le rendre plus proche que le plan proche.
+   var q=mix(cur,nxt,t);q.w=q.z;
+   res.p[res.n]=q;res.u[res.n]=mix(inU[i],inU[j],t);res.n=res.n+1u;
   }
  }
  return res;
