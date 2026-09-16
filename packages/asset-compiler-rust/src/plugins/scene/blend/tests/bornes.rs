@@ -104,3 +104,29 @@ fn the_size_ceiling_holds_whatever_the_envelope() {
     }
     BlendFile::open(&bare, bare.len()).expect("sous le plafond, le fichier nu s'ouvre");
 }
+
+// Constat 27 : l'annulation se relit à l'intérieur d'un maillage. Vérifiée entre objets seulement,
+// une scène d'un seul objet à un million de faces posait ce million avant de s'arrêter.
+#[test]
+fn a_raised_token_stops_a_mesh_before_its_last_face() {
+    let geometry = Geometry {
+        positions: vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        corners: vec![0, 1, 2],
+        offsets: vec![0, 3],
+        uv: Vec::new(),
+        material: vec![0],
+        sharp: vec![true],
+    };
+    let normals = normals::corners(&geometry);
+    let mut out = Out::new();
+    let refusal = build::mesh_json(
+        &geometry,
+        &normals,
+        &[None],
+        "M",
+        &mut out,
+        &AtomicBool::new(true),
+    )
+    .expect_err("le maillage devait être abandonné");
+    assert_eq!(refusal.code, "CANCELLED");
+}

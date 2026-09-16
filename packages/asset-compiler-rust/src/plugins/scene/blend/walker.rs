@@ -16,6 +16,7 @@ pub(super) struct Scene<'a> {
     /// Le rang glTF d'un maillage et ses triangles, par l'adresse de son bloc.
     pub(super) meshes: HashMap<u64, Option<(usize, usize)>>,
     pub(super) root: &'a Path,
+    pub(super) cancelled: &'a AtomicBool,
 }
 
 /// Le nom d'un bloc identifié, sans les deux lettres de genre que Blender lui préfixe.
@@ -81,7 +82,14 @@ impl Scene<'_> {
         let normals = normals::corners(&geometry);
         self.out.count("normalsComputed", 1);
         let slots = self.slots(mesh);
-        let (json, triangles) = build::mesh_json(&geometry, &normals, &slots, &name, &mut self.out);
+        let (json, triangles) = build::mesh_json(
+            &geometry,
+            &normals,
+            &slots,
+            &name,
+            &mut self.out,
+            self.cancelled,
+        )?;
         self.out.meshes.push(json);
         let built = Some((self.out.meshes.len() - 1, triangles));
         self.meshes.insert(mesh.old, built);

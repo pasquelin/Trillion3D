@@ -134,7 +134,7 @@ impl World<'_> {
             self.scene.report.add("alembic-normals-missing");
         }
         let facesets = self.facesets(children)?;
-        let (parts, counted) = parts(&geometry, &facesets)?;
+        let (parts, counted) = parts(&geometry, &facesets, self.cancelled)?;
         self.scene
             .report
             .add_count("alembic-face-in-two-facesets", counted.overlaps);
