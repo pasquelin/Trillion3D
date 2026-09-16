@@ -37,20 +37,28 @@ export async function createDagResources(
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     // Les drapeaux de coupe, puis les drapeaux de dessin, puis le rejet par cone retenu par
-    // `dagWanted` pour les quatre passes qui le relisent : une page de plus par page, jamais lue
-    // par le CPU, qui ne copie toujours que les drapeaux de dessin.
+    // `dagWanted` pour les quatre passes qui le relisent, puis la liste des grappes vivantes et son
+    // argument de repartition : jamais lus par le CPU, qui ne copie toujours que les drapeaux de
+    // dessin. L'argument vit ici faute d'un neuvieme tampon de stockage : il en est recopie vers
+    // `liveArgs`, car WebGPU interdit le meme tampon en ecriture et en argument de repartition.
     const flags = device.createBuffer({
-      size: Math.max(4, (nodeCount + pageCount * 2) * 4),
+      size: Math.max(16, (nodeCount + pageCount * 3 + 4) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
+    });
+    // Le seul tampon neuf du lot, et il n'est lie a aucune etape : trois mots d'argument.
+    const liveArgs = device.createBuffer({
+      size: 16,
+      usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
     const output = device.createBuffer({
       size: readbackBytes,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    // Les seuils et drapeaux de couverture par primitive, puis les comptes et décalages de bloc de
-    // la compaction : aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint.
+    // Les seuils et drapeaux de couverture par primitive, les comptes et décalages de bloc de la
+    // compaction, puis le compteur des grappes vivantes : aucun tampon de stockage de plus, le
+    // plafond d'une étape est déjà atteint.
     const work = device.createBuffer({
-      size: Math.max(8, (worldCount * 2 + blockCount * 2) * 4),
+      size: Math.max(8, (worldCount * 2 + blockCount * 2 + 1) * 4),
       usage: STORAGE,
     });
     const worlds = device.createBuffer({
@@ -80,6 +88,7 @@ export async function createDagResources(
       nodes,
       uniforms,
       flags,
+      liveArgs,
       output,
       work,
       worlds,
@@ -122,6 +131,7 @@ export async function createDagResources(
       worldCount,
       outputBytes,
       readbackBytes,
+      liveArgsOffset: (nodeCount + pageCount * 3) * 4,
       uniformData,
       frameData,
       buffers,
@@ -129,6 +139,7 @@ export async function createDagResources(
       nodes,
       uniforms,
       flags,
+      liveArgs,
       output,
       work,
       worlds,
