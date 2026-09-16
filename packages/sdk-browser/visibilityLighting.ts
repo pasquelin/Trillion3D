@@ -148,9 +148,11 @@ export function shadeLit(
     Ny = n.y;
     Nz = n.z;
   }
-  const vx = camera.position.x - world[0],
-    vy = camera.position.y - world[1],
-    vz = camera.position.z - world[2],
+  // L'œil en repère monde, pris dans la matrice que le raster vient de mettre à jour.
+  const eye = camera.matrixWorld.elements;
+  const vx = eye[12] - world[0],
+    vy = eye[13] - world[1],
+    vz = eye[14] - world[2],
     vLen = Math.hypot(vx, vy, vz) || 1;
   const Vx = vx / vLen,
     Vy = vy / vLen,

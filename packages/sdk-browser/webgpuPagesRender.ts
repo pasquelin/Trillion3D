@@ -3,6 +3,7 @@ import { boxTransform } from '../sdk-core/index.ts';
 import { resolvePixelError } from './pageSelection.ts';
 import { readThreeBox } from './threeBounds.ts';
 import { sameHizView } from './hiz.ts';
+import { holdCameraWorld } from './cameraWorld.ts';
 import {
   dropGpuSelection,
   invalidateOccluderHistory,
@@ -57,6 +58,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
   const marks = rt.timing.marks;
   marks.preStart = performance.now();
   run.lastCamera = camera;
+  // Une fois pour toute l'image, ancêtres compris : un rig d'hôte n'appartient pas à la scène
+  // préparée. Avant tout le reste, car la vitesse du seuil adaptatif, la révision de vue, la coupe,
+  // l'encodage, les ombres et les lumières lisent tous cette même pose.
+  camera.updateWorldMatrix(true, false);
   // La vitesse de la caméra se lit à chaque image, tenue ou non : la sauter fausserait le seuil
   // adaptatif de la première image qui bouge à nouveau.
   const pixelError = resolvePixelError(context, camera, run.motion);
@@ -103,10 +108,10 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: THREE.Perspect
     // image-ci reste seule juge de ce qui est retiré. La garder évite de projeter toutes les boîtes
     // et de les reclasser à chaque image de déplacement.
     invalidateTemporalPyramid(run);
-    // La pose est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
-    run.previousHizView = (run.previousHizView ?? new THREE.PerspectiveCamera()).copy(
+    // La pose monde est recopiée dans la caméra déjà gardée : même comparaison, sans clone par image.
+    run.previousHizView = holdCameraWorld(
+      run.previousHizView ?? new THREE.PerspectiveCamera(),
       camera,
-      false,
     );
   }
   marks.blendStart = performance.now();
