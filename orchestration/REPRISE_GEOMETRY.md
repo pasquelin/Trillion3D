@@ -51,7 +51,7 @@ L'opaque n'a pas d'ordre : la profondeur garde le plus proche. Un matériau en m
 | 14 | Eau en passe plein écran | moyen | moyen |
 | 15 | Noyaux Rust/Wasm M5 sur la coupe WebGL et les rangs | moyen | moyen |
 | 16 | Compilateur : `DAG_GROUP_MIN`, `CLUSTER_TRIANGLES` | propreté | très faible |
-| 17 | Hiérarchie moteur : `pageSelectionCollect` et `frameGateCore.updateWorlds` lisent l'index du moteur (demande du Calculateur) | fin de la migration hors Three | moyen |
+| 17 | Hiérarchie moteur : pris en charge par le Calculateur (`lot/calc-8-pages-hierarchie-moteur`) ; ne pas toucher `pageSelectionCollect`, `frameGateCore`, `sceneMeshes`, `webgpuPagesTransform` avant sa fusion | fin de la migration hors Three | — |
 
 Les lots 1 à 4 font disparaître le lag ; 5, 9, 11 rapprochent de la référence ; 10 passe avant 5.
 
@@ -73,6 +73,6 @@ Les lots 1 à 4 font disparaître le lag ; 5, 9, 11 rapprochent de la référenc
 14. **Eau en passe plein écran dédiée** (copie du fond déjà en place pour la transmission).
 15. **Noyaux Rust/Wasm M5 du Calculateur** sur la coupe WebGL, la coupe de secours, la reconstruction des rangs.
 16. **Compilateur** : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
-17. **Hiérarchie moteur** (demande du Calculateur, 16 sept. 23 h) : `pageSelectionCollect.ts` (`PageRec.matrix`, `ClusterRoot.world` encore en `THREE.Matrix4` vivants) et `frameGateCore.updateWorlds` (`updateMatrixWorld`) doivent lire l'index du moteur (`hostWorldChain.ts`/`hostWorldTree.ts`, fusionnés par le Calculateur). Périmètre `gpuDag*`/`webgpuPages*`, à coordonner avec le lot 7.
+17. **Hiérarchie moteur** : le Calculateur le code lui-même depuis develop 8250b86c sur `lot/calc-8-pages-hierarchie-moteur` (`pageSelectionCollect.ts`, `frameGateCore.updateWorlds`, `sceneMeshes.ts`, `webgpuPagesTransform.ts`, et ce qu'il faut dans `gpuDag*`/`webgpuPages*`). Interdit d'y toucher avant sa fusion ; il prévient. Le lot 1 devra repartir de develop après cette fusion.
 
 Ce que la référence a et qu'on ne fera pas : mesh shaders et atomique 64 bits, absents du web, remplacés par nos deux passes atomiques 32 bits. Relevés bruts sous `.mesure/out/` ; `stable.mjs` et `profil.mjs` dans le scratchpad de la session, à recréer s'ils sont perdus (80 lignes sur `scripts/mesure/{options,serveur,page,rapport}.mjs`).
