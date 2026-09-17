@@ -2,5 +2,6 @@
 //! mémoire, puis la lecture des réponses et ce qu'elles changent dans une scène.
 use super::*;
 
+mod feuille;
 mod forme;
 mod reponses;
