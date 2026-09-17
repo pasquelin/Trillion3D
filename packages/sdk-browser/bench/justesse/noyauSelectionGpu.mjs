@@ -10,10 +10,11 @@ import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
 
 const octets = (vue) => Array.from(new Uint8Array(vue.buffer, vue.byteOffset, vue.byteLength));
 
-/** Un cas empaqueté, prêt à traverser vers la page : octets bruts, les entiers des clusters compris. */
-function versPage(nom, packed, uniforms) {
+/** Un cas empaqueté, prêt à traverser vers la page : octets bruts, les entiers des clusters compris.
+ *  `residentCut` est celui du bloc d'uniformes ; les bits de résidence voyagent dans `pageCones`. */
+export function versPage(nom, packed, uniforms, residentCut = false) {
   const uni = new Float32Array(SELECTION_UNIFORM_BYTES / 4);
-  writeDagUniforms(uni, packed, uniforms, false);
+  writeDagUniforms(uni, packed, uniforms, residentCut);
   const frames = new Float32Array(Math.max(1, packed.worldCount) * FRAME_VEC4 * 4);
   const frameInts = new Uint32Array(frames.buffer);
   for (let w = 0; w < packed.worldCount; w++) {
@@ -75,8 +76,8 @@ async function executer({ shader, cas, workgroup }) {
     const sortieOctets = 16 + c.pageCount * 4;
     const blockCount = groupes(c.pageCount);
     // Les mêmes régions que le moteur (`gpuDagResources.ts`) : après les seuils par primitive et les
-    // compteurs de bloc viennent le compteur des vivantes, puis les trois files de la descente, la
-    // liste des candidates et le journal des dessinées — deux mots chacun (compteur, groupes).
+    // compteurs de bloc viennent le compteur des vivantes et son compte de groupes, les trois files
+    // de la descente — un compteur chacune —, puis les candidates et le journal des dessinées.
     const workBase = c.worldCount * 2 + blockCount * 2;
     const buffers = [
       tampon(64, c.clusters),
@@ -84,7 +85,7 @@ async function executer({ shader, cas, workgroup }) {
       tampon(256, c.uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
       tampon(Math.max(16, (c.nodeCount * 3 + c.pageCount * 4) * 4)),
       tampon(sortieOctets),
-      tampon(Math.max(8, (workBase + 12) * 4)),
+      tampon(Math.max(8, (workBase + 9) * 4)),
       tampon(64, c.worlds),
       tampon(16, c.frames),
       tampon(48, c.pageCones),
@@ -102,20 +103,16 @@ async function executer({ shader, cas, workgroup }) {
     tete.setBindGroup(0, group);
     tete.setPipeline(preparePipeline);
     tete.dispatchWorkgroups(groupes(Math.max(c.worldCount, blockCount)));
-    // Passe 0 : une racine par primitive, dispatché à plat comme la préparation.
+    // Toute la descente dans cette passe, comme le moteur l'encode : les lancements d'une même passe
+    // s'exécutent dans l'ordre et voient ce que les précédents ont écrit. Chacun est lancé à plat, sur
+    // un majorant du nombre de nœuds de son étage.
     tete.setPipeline(levelPipelines[0]);
     tete.dispatchWorkgroups(groupes(c.nodeCount));
-    tete.end();
-    // Chaque niveau suivant se répartit sur les seuls nœuds que le niveau précédent a retenus ; la
-    // file où il écrit a été remise à zéro par le niveau qui la précède de deux, dans le noyau même.
     for (let niveau = 1; niveau < c.levelCount; niveau++) {
-      const source = niveau % 3;
-      const passe = encoder.beginComputePass();
-      passe.setBindGroup(0, group);
-      passe.setPipeline(levelPipelines[source]);
-      passe.dispatchWorkgroups(groupes(c.nodeCount));
-      passe.end();
+      tete.setPipeline(levelPipelines[niveau % 3]);
+      tete.dispatchWorkgroups(groupes(c.nodeCount));
     }
+    tete.end();
     // Les pages des feuilles retenues, puis leur verdict : les deux passes finales visitent au plus
     // `pageCount` grappes, un majorant sûr de la liste des candidates et de celle des vivantes.
     const fin = encoder.beginComputePass();

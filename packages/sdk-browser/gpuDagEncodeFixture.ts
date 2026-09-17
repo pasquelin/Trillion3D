@@ -18,9 +18,10 @@ export type Copie = {
 };
 
 export const LIVE = 1234,
-  QUEUE = [2000, 2008, 2016],
   CAND = 3000,
   DRAWN = 4000;
+/** Les nœuds de chaque étage : le majorant sur lequel la passe de ce niveau est lancée à plat. */
+export const ETAGES = [2, 9, 40, 150, 600];
 
 /** Un encodeur qui ne fait que noter : quel noyau, lancé à plat ou sur quelle liste. */
 export function encodeurTemoin() {
@@ -86,8 +87,8 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     worldCount: 2,
     blockCount: 64,
     levelCount,
+    levelSizes: Uint32Array.from(ETAGES.slice(0, levelCount)),
     liveGroupsOffset: LIVE,
-    queueGroupsOffset: QUEUE,
     candGroupsOffset: CAND,
     drawnGroupsOffset: DRAWN,
     work: { nom: 'work' },

@@ -33,6 +33,8 @@ export type PackedDag = {
   rootNodes: Uint32Array;
   /** Profondeur de la hiérarchie la plus profonde : le nombre de passes de la descente. */
   levelCount: number;
+  /** Nœuds de chaque étage, toutes primitives confondues : le majorant de la file de chaque passe. */
+  levelSizes: Uint32Array;
   nodeCount: number;
   worldCount: number;
   pageCount: number;

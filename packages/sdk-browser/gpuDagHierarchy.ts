@@ -98,14 +98,24 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
   return emit(level[0], total);
 }
 
-/** Profondeur de la hiérarchie, soit le nombre de passes que la descente demande pour l'épuiser. */
-export function hierarchyDepth(nodes: Float64Array, stride: number) {
+/**
+ * Le nombre de nœuds de chaque étage de la hiérarchie, la racine à l'étage zéro. Sa longueur est la
+ * profondeur, soit le nombre de passes que la descente demande pour l'épuiser.
+ *
+ * L'étage `L` MAJORE la file de la passe `L` : cette file ne porte que des enfants de nœuds retenus à
+ * l'étage `L-1`, donc que des nœuds de l'étage `L`, et la descente les y écrit compactés à partir de
+ * zéro. C'est ce majorant, connu du rangement une fois pour toutes, qui permet de lancer chaque passe
+ * de niveau À PLAT : les fils au-delà de la file sortent sur la garde de compte, et le mot de tête de
+ * l'argument de répartition n'a plus à être recopié vers un tampon d'indirection avant chaque passe —
+ * dix-neuf microsecondes par copie sur apple metal-3, mesurées par `coupe-lancements-gpu.mjs`.
+ */
+export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
   const count = nodes.length / stride;
-  if (count < 1) return 0;
-  let frontier = [0],
-    depth = 0;
+  const sizes: number[] = [];
+  if (count < 1) return sizes;
+  let frontier = [0];
   while (frontier.length) {
-    depth++;
+    sizes.push(frontier.length);
     const next: number[] = [];
     for (const node of frontier) {
       const base = node * stride,
@@ -115,5 +125,5 @@ export function hierarchyDepth(nodes: Float64Array, stride: number) {
     if (next.length > count) throw new Error('Hierarchie de culling incoherente');
     frontier = next;
   }
-  return depth;
+  return sizes;
 }

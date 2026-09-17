@@ -20,13 +20,13 @@ export async function createDagResources(
     // Le même compte de blocs que `blockCount()` du noyau, au mot près : deux compteurs vivent
     // derrière eux dans `work` et le second est recopié vers l'argument de répartition.
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
-    // Derrière les seuils et les blocs : compteur et groupes de la liste vivante, puis ceux des TROIS
-    // files de la descente, de la liste des candidates et du journal des dessinées.
+    // Derrière les seuils et les blocs : compteur et groupes de la liste vivante, puis le compteur
+    // des TROIS files de la descente — lues à plat, donc sans compte de groupes —, puis ceux de la
+    // liste des candidates et du journal des dessinées.
     workBase = worldCount * 2 + blockCount * 2,
     liveGroupsOffset = (workBase + 1) * 4,
-    queueGroupsOffset = [(workBase + 3) * 4, (workBase + 5) * 4, (workBase + 7) * 4],
-    candGroupsOffset = (workBase + 9) * 4,
-    drawnGroupsOffset = (workBase + 11) * 4,
+    candGroupsOffset = (workBase + 6) * 4,
+    drawnGroupsOffset = (workBase + 8) * 4,
     readbackBytes = outputBytes + (residentCut ? drawnBytes : 0);
   const uniformData = new Float32Array(UNIFORM_BYTES / 4);
   const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
@@ -75,7 +75,7 @@ export async function createDagResources(
     // aucun tampon de stockage de plus, le plafond d'une étape est déjà atteint. Ce dernier mot part
     // vers l'argument de répartition, d'où la source de copie.
     const work = device.createBuffer({
-      size: Math.max(8, (workBase + 12) * 4),
+      size: Math.max(8, (workBase + 9) * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const worlds = device.createBuffer({
@@ -151,8 +151,8 @@ export async function createDagResources(
       outputBytes,
       readbackBytes,
       levelCount: packed.levelCount,
+      levelSizes: packed.levelSizes,
       liveGroupsOffset,
-      queueGroupsOffset,
       candGroupsOffset,
       drawnGroupsOffset,
       uniformData,
