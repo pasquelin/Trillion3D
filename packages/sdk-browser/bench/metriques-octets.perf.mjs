@@ -6,7 +6,7 @@ import { ensureWebgpuPositionBuffer } from '../webgpuPositions.ts';
 import { prepareWebgpuBlend } from '../webgpuBlendPrepare.ts';
 import { vertexBytesOf } from '../webgpuPagesMetrics.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceVertexBytes } from './oracles/g-octets.mjs';
+import { referenceVertexBytes } from './oracles/metriques-octets.mjs';
 
 Object.assign(globalThis, {
   GPUBufferUsage: { STORAGE: 128, COPY_DST: 8, COPY_SRC: 4, UNIFORM: 64, INDIRECT: 256 },

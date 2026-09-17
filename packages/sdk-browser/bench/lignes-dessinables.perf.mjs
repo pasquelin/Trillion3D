@@ -4,7 +4,7 @@ import { createWebgpuRowCommit } from '../webgpuRowCommit.ts';
 import { createWebgpuRowSync } from '../webgpuRowSync.ts';
 import { PAGE_INFO_STRIDE } from '../visibilityTypes.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceRowCommit, referenceRowState } from './oracles/f-lignes.mjs';
+import { referenceRowCommit, referenceRowState } from './oracles/lignes-dessinables.mjs';
 
 const MOTS = PAGE_INFO_STRIDE / 4;
 const alea = graine(509);

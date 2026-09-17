@@ -8,7 +8,7 @@ import {
   referenceAnneauFroid,
   referenceAttachments,
   referenceUpdateInstance,
-} from './oracles/f-cadre.mjs';
+} from './oracles/cadre-vue.mjs';
 
 const vues = (etiquette) => [0, 1, 2, 3].map((i) => ({ surface: `${etiquette}/${i}` }));
 const surfaces = (etiquette) => {
