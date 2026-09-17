@@ -10,7 +10,7 @@ import {
   multiplyMatrix4,
   normalMatrix3,
 } from '../../sdk-core/index.ts';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 import { f64, normaleReference, trs } from './socleLigne.mjs';
 
 /** Un nœud des deux côtés : l'objet de la référence et les tampons du socle. */

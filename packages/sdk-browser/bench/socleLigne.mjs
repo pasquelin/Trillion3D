@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { decomposeMatrix4 } from '../../sdk-core/index.ts';
 import { SINGULAR_DETERMINANT, normalizedLinearDeterminant } from '../../sdk-core/mathSingular.ts';
-import { compare } from '../../sdk-core/bench/banc.mjs';
+import { compare } from '../../sdk-core/bench/mesure.mjs';
 
 const options = { chauffe: 1, tours: 5, budgetMs: 200 };
 

@@ -70,7 +70,7 @@ export function referenceProjectVisibilityVertex(matrix, position, vi, viewProj,
   return {
     x: (ndcX * 0.5 + 0.5) * width,
     y: (1 - (ndcY * 0.5 + 0.5)) * height,
-    z: ndcZ * 0.5 + 0.5,
+    z: ndcZ,
     invW: 1 / cw,
     worldX: v.x,
     worldY: v.y,

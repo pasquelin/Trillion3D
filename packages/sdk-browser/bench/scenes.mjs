@@ -2,7 +2,7 @@
 // (triangles dégénérés, sommets derrière la caméra, NaN, Infinity, -0, boîtes vides ou inversées).
 // Tout vient d'un générateur à graine fixe : deux exécutions voient exactement les mêmes flottants.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
   const cam = new THREE.PerspectiveCamera(55, aspect, near, 200);

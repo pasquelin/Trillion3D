@@ -13,7 +13,7 @@ import {
   setNodeScale,
   updateNodeMatrixWorld,
 } from '../../sdk-core/index.ts';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 /** Au moins cent mille opérations par répétition : une durée lisible même pour mille nœuds. */
 const OPERATIONS_MIN = 100_000;

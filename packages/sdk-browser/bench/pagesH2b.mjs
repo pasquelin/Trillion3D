@@ -3,7 +3,7 @@
 // lectures d'une page réelle, pas deux lectures d'un tampon fabriqué pour l'occasion.
 import * as meshoptimizer from 'meshoptimizer';
 import { encodeGeometryPage } from '../../page-codec/geometryPage.mjs';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 const STRIDE = 72;
 const alea = graine(20260915);
@@ -46,37 +46,4 @@ export async function page(sommets, tousLesAttributs) {
   }
   const { data } = await encodeGeometryPage(indices, attributes);
   return data;
-}
-
-/**
- * Une page assemblée à la main, pour y glisser ce que l'encodeur refuse d'écrire : un indice hors
- * borne, un flottant non fini. Les deux décodeurs doivent la refuser pour la même raison.
- */
-export async function pageBrute(sommets, locaux, declare, flags) {
-  await meshoptimizer.MeshoptEncoder.ready;
-  const locale = new Uint16Array(locaux);
-  const index = meshoptimizer.MeshoptEncoder.encodeIndexBuffer(
-    new Uint8Array(locale.buffer),
-    locale.length,
-    2,
-  );
-  const vertex = meshoptimizer.MeshoptEncoder.encodeVertexBuffer(
-    sommets,
-    sommets.length / STRIDE,
-    STRIDE,
-  );
-  const data = new Uint8Array(32 + index.length + vertex.length),
-    head = new DataView(data.buffer);
-  const mots = [0x32504757, 2, declare, locale.length, flags, STRIDE, index.length, vertex.length];
-  for (let i = 0; i < mots.length; i++) head.setUint32(i * 4, mots[i], true);
-  data.set(index, 32);
-  data.set(vertex, 32 + index.length);
-  return data;
-}
-
-/** Trois sommets nuls, dont un porte `valeur` en deuxième flottant si on le demande. */
-export function sommetsPlats(valeur) {
-  const sommets = new Uint8Array(3 * STRIDE);
-  if (valeur !== undefined) new DataView(sommets.buffer).setFloat32(STRIDE + 4, valeur, true);
-  return sommets;
 }

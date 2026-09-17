@@ -1,7 +1,7 @@
 // Les entrées du banc d'équivalence des formules communes : tirées à graine fixe, et volontairement
 // hostiles. Une factorisation qui ne tiendrait que sur des nombres bien élevés se verrait ici — NaN,
 // −0, infinis, dénormaux, matrices singulières, boîtes inversées, triangles d'aire nulle.
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 const alea = graine(40961);
 /** Les valeurs qu'un flottant peut prendre et qu'une formule doit traverser sans les lisser. */

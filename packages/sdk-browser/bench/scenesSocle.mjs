@@ -2,7 +2,7 @@
 // formule qui ne tiendrait que sur des matrices bien élevées se verrait ici — échelles négatives et
 // non uniformes, matrices singulières, NaN, zéros signés, infinis, dénormaux.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 const alea = graine(0x50c1e);
 /** Les valeurs qu'un flottant peut prendre et qu'une formule doit traverser sans les lisser. */

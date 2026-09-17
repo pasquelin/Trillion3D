@@ -5,7 +5,7 @@ import { clipPlanesFromMatrix, frustumClipBox } from '../../sdk-core/index.ts';
 import { collectPendingUrls } from '../pageSelectionRequests.ts';
 import { createAutonomousResidency } from '../autonomousResidency.ts';
 import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 import { boites, camera } from './scenes.mjs';
 
 const cam = camera(6, 0.1, 16 / 9);

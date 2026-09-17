@@ -28,7 +28,7 @@ import {
 } from '../../webgpuBlendExpandWgsl.ts';
 import { DRAW_UNPAGED, planEntry } from '../../webgpuBlendPlan.ts';
 import { etalementGpu } from './noyauEtalementGpu.mjs';
-import { graine } from '../../../sdk-core/bench/banc.mjs';
+import { graine } from '../../../sdk-core/bench/mesure.mjs';
 
 const alea = graine(1789);
 const MOTS = 48,

@@ -2,7 +2,7 @@
 // générateur à graine fixe. Le chargement les lit une fois, donc la fixture doit être grande : des
 // centaines de primitives, des milliers de pages, et la couverture exacte que le collecteur vérifie.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 const materiau = (index) =>
   new THREE.MeshStandardMaterial({ color: 0x808080 + index * 7, roughness: 0.5 });

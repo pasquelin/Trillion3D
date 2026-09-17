@@ -4,7 +4,7 @@
 // perspective et orthographique dans les deux conventions de profondeur ; boîtes qui contiennent
 // l'œil, donc coupent le plan proche.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 const alea = graine(52021);
 /** Les valeurs qu'un flottant peut prendre et qu'un volume doit traverser sans les lisser. */
