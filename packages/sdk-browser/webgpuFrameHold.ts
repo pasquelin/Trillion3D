@@ -1,17 +1,6 @@
 import { sampleWebgpuFrame } from './webgpuFrameSignature.ts';
 import { CPU_STEP } from './webgpuPagesCpuSteps.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
-import type { WebgpuRunState } from './webgpuPagesStateRun.ts';
-
-/**
- * Vrai quand chaque page de la coupe demandée porte ses octets. Une page encore attendue peut encore
- * changer la coupe, donc l'image : tenir celle-ci ouvrirait un trou. La liste est celle de la coupe,
- * pas le catalogue.
- */
-function cutComplete(run: WebgpuRunState) {
-  for (let i = 0; i < run.desired.length; i++) if (!run.desired[i].array) return false;
-  return true;
-}
 
 /**
  * Vrai quand plus rien ne peut changer l'image en dehors d'une écriture de l'hôte : aucun chargement
@@ -46,10 +35,13 @@ function frameSettled(rt: WebgpuPagesRuntime) {
     !vis.textureJobs.length &&
     !rt.texturePump.inFlight &&
     !lights.plan.counts.pendingPages &&
+    // Chaque page de la coupe demandée porte ses octets. Une page encore attendue peut encore
+    // changer la coupe, donc l'image : tenir celle-ci ouvrirait un trou. Ce compte est tenu par la
+    // différence de la coupe, jamais relu sur la liste.
+    !services.cutPending.count &&
     // Les sondes de la lumière qui rebondit convergent d'image en image : leur état n'est écrit par
     // aucune révision, et une image tenue le figerait avant la convergence.
-    !bounce.probes &&
-    cutComplete(run)
+    !bounce.probes
   );
 }
 
