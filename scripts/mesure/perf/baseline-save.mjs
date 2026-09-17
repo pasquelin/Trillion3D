@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Sauvegarde les fragments de mesure perf comme baselines de référence.
-// Appelé par `npm run perf:baseline` après l'exécution de tous les `.perf.mjs`.
+// Appelé par `pnpm run perf:baseline` après l'exécution de tous les `.perf.mjs`.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

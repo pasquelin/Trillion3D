@@ -16,7 +16,7 @@ const FRAGMENTS = join(RACINE, '.mesure', 'calculs-h2b');
 // Node ne suit pas une URL de fichier avec `fetch` : l'hôte fournit les octets, comme prévu par le
 // chargeur. Sans module, la ligne mesurerait le décodeur JS contre lui-même : autant s'arrêter.
 const codec = await prepareSdkWasm(readFileSync(MODULE));
-if (!codec) throw new Error('H2B_WASM_ABSENT : lancer `npm run build:wasm`');
+if (!codec) throw new Error('H2B_WASM_ABSENT : lancer `pnpm run build:wasm`');
 
 const dense = await page(65535, true),
   moyenne = await page(2048, true),
