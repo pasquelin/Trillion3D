@@ -1,6 +1,6 @@
 import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { planItem } from './webgpuBlendPlan.ts';
-import { buildBlendRuns, RUN_WORDS } from './webgpuBlendRuns.ts';
+import { buildBlendRuns, RUN_SHARED, RUN_WORDS } from './webgpuBlendRuns.ts';
 import { itemKept } from './webgpuBlendExpandCpu.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './webgpuBlendState.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -102,31 +102,32 @@ function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
         break;
       order[j + 1] = order[j];
       j--;
-      shifted = true;
     }
     order[j + 1] = entry;
+    // Une seule question par entrée, et non une écriture par décalage : un saut de caméra décale
+    // des millions de fois, et le tri ne doit rien payer de plus qu'avant pour le dire.
+    if (j + 1 !== i) shifted = true;
   }
   return shifted;
 }
 
 /**
- * Les entrées que le tronc garde dans chaque tranche.
+ * Les tranches que l'image encode : UN test par tranche, jamais un par entrée.
  *
- * Une tranche dont il ne reste rien n'est pas encodée du tout : c'est la même règle qu'un appel par
- * item, qui sautait l'item entièrement hors champ. Un test de bit par entrée, sur le plan déjà
- * classé — ce que la boucle d'encodage payait en produit de matrice et en appel de pilote.
+ * Une tranche d'un seul item — une primitive non paginée, une surface transmissive — se décide sur
+ * le bit du tronc, et l'appel d'un item entièrement hors champ n'est pas encodé, comme avant. Une
+ * tranche partagée, elle, porte des milliers d'entrées : les interroger une à une rendrait à
+ * l'image le parcours que ce lot lui retire. C'est la carte qui met ses instances à zéro, et un
+ * appel sans instance ne pose aucun pixel — au pire une poignée d'appels vides quand plus rien de
+ * la scène n'est dans le champ.
  */
-function countKeptRuns(blendState: BlendState, slice: number, order: Uint32Array) {
+function keptRuns(blendState: BlendState, slice: number) {
   const runs = slice ? blendState.runsTransmission : blendState.runsBlend,
     kept = blendState.runKept[slice],
     keep = blendState.keepPacked;
   for (let run = 0; run < blendState.runCount[slice]; run++) {
-    const at = run * RUN_WORDS,
-      first = runs[at],
-      entries = runs[at + 1];
-    let held = 0;
-    for (let k = 0; k < entries; k++) if (itemKept(keep, planItem(order[first + k]))) held++;
-    kept[run] = held;
+    const owner = runs[run * RUN_WORDS + 3];
+    kept[run] = owner === RUN_SHARED || itemKept(keep, owner) ? 1 : 0;
   }
 }
 
@@ -146,9 +147,9 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
     blendState.orderMoved[pass] = true;
     // La passe de transmission garde une tranche par entrée : chacune décale encore son volume.
-    blendState.runCount[pass] = buildBlendRuns(orders[pass], items, pass === 0, runs[pass]);
+    blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, runs[pass]);
   }
-  for (let pass = 0; pass < orders.length; pass++) countKeptRuns(blendState, pass, orders[pass]);
+  for (let pass = 0; pass < orders.length; pass++) keptRuns(blendState, pass);
   return rejected;
 }
 

@@ -48,13 +48,13 @@ test('paged transparent commands disappear outside the view and return with both
         mock.writes.length = 0;
         backend.render(view);
         const blend = mock.draws.filter((d) => d.entryPoint === 'vs');
-        // Le plan d'encodage suit la scène, mais un item entièrement hors champ n'est pas encodé
-        // du tout : hors champ, aucun appel ; dans le champ, les quatre appels — deux items, deux
-        // faces — avec le compte d'instances que la coupe écrit. Rien n'y vient de la relecture de
-        // l'image précédente.
-        assert.equal(blend.length, x ? 0 : 4, 'encode only the current view, not the old readback');
+        // Les tranches suivent la scène, pas la caméra : deux items paginés à deux faces posent
+        // quatre pipelines d'affilée, donc quatre tranches, dans le champ comme hors de lui. Ce que
+        // la caméra décide, c'est le nombre d'INSTANCES que chacune étale : deux grappes dans le
+        // champ, aucune hors de lui. Rien n'y vient de la relecture de l'image précédente.
+        assert.equal(blend.length, 4, 'encode only the current view, not the old readback');
         assert.equal(backend.metrics().transparentDrawCalls, blend.length);
-        if (!x) assert.ok(blend.every((d) => d.instanceCount === 2));
+        assert.ok(blend.every((d) => d.instanceCount === (x ? 0 : 2)));
         assert.equal(
           mock.writes.filter((w) => w.label === 'WG transparent cluster spans').length,
           0,
