@@ -6,25 +6,24 @@ décisions dans Git.
 
 ## Géométrie
 
-Les lots 1 à 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la référence ; 10 passe avant 5.
+Les lots 1 à 3 font disparaître le lag ; 4, 8 et 10 rapprochent de la référence ; 9 passe avant 4.
 
-1. **Fait, moitié processeur** : la coupe est publiée comme une différence par les deux chemins sous un contrat unique, et les lecteurs se tiennent sur l'entrant/sortant ; `webgpuBudgetRanking`, `gpuDagRuntime` et `webgpuFrameHold` fondus dedans. **Reste la moitié GPU** : le noyau garde l'appartenance et n'écrit que l'entrant/sortant dans deux plages de `flags` réservées une fois. Demande d'abord un protocole de resynchronisation (relevé jeté sur changement de révision, deux relectures entre deux adoptions, copie sautée quand la fente est occupée), une plage de journal séparée de la liste des candidates, et l'oracle `gpuDagOracle*` au même contrat. Après le lot 10. Fichiers `gpuDag*`.
-2. Transparents en quelques ordres : le plan trié fond → avant reste, mais le GPU le lit seul, un ordre par tranche et par pipeline, les 12 placements d'un item en instances ; supprime les 68 608 octets d'arguments réécrits par image (`webgpuBlendArgs.ts:46`). Fichiers `webgpuBlend*`, `webgpuTransparent*`. Gain élevé (4 331 appels aujourd'hui, dont 4 288 transparents).
-3. Sélection GPU persistante, coupe en une passe : 1 959 792 grappes revisitées par image pour 21 955 utiles, en 42 lancements (`gpuDagEncode.ts:91`) ; garder la sélection d'avant et la corriger, puis passe unique à fils persistants. Fichiers `gpuDag*`.
-4. Pompe de textures : (a) note mise à jour seulement par grappe entrée/sortie, file par insertion ; (b) textures virtuelles — 1 pixel sur 16 incrémente un compteur par tuile dans la passe de résolution, lu par `mapAsync` une image en retard, texture d'indirection pour l'atlas ; en WebGL2 par une petite image relue. Deux lots.
-5. Une coupe par grappe, placements en index : 163 316 grappes × 12 placements = 1 959 792 fiches de 96 octets (`webgpuPagesLayout.ts:25`, `gpuDagPack.ts:153`) ; fiches uniques, placement en index dans la fiche de travail. Mémoire GPU ÷ 12. Après 1–4 et 10.
-6. Image tenue conservée à l'arrivée d'une page qui ne change rien à l'écran (`webgpuPagesPageApi.ts:37-44`).
-7. Surveillance de scène par version : `hostSceneWatch` compare 4 300 nœuds × 18 valeurs par image (`frameGateCore.ts:125`).
-8. Priorité par erreur d'écran sur WebGPU (`webgpuPagesHostApi.ts:123`), comme le chemin WebGL2 (`streamingPriority.ts:66`) : à cache froid le lointain arrive avant le proche.
-9. Hi-Z : choisir les occulteurs par visibilité passée au lieu de la médiane de profondeur (557 352 lignes classées pour 21 955 testées), puis deux passes — dessiner le visible, bâtir la pyramide, re-tester les rejetés dans la même image.
-10. Filets de sécurité (sur verdict « plus de lag », avant le lot 5) : preuve de navigation sur la scène réelle ; réécriture des tests caducs (`webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBlendPipelineBind`, `webgpuBindEntries`, `webgpuTransmissionPass`, `frameCostAudit`, `webgpuPages.11`, hôte de test de coupe du Calculateur, et les six `webgpuPages` rouges depuis b72278c6) en disant pour chacun si c'est le test ou le code qui est faux ; banc bit à bit du raster de calcul contre l'ancien raster matériel ; simplify puis tableau référence / nous mesuré.
-11. Compression des sommets hors ligne : positions quantifiées par grappe (14–16 bits/axe), normales 2 octets, UV entiers — ~3× moins que les ~48 octets par triangle actuels. Compilateur Rust, nouvelle version de format de page.
-12. Ombres par la même géométrie : même sélection, même raster, mêmes pages depuis la lumière.
-13. Matériaux par classes : une passe par matériau avec profondeur matérielle au lieu d'un branchement par pixel.
-14. Eau en passe plein écran dédiée (copie du fond déjà en place pour la transmission).
-15. Noyaux Rust/Wasm M5 sur la coupe WebGL, la coupe de secours et la reconstruction des rangs.
-16. Compilateur : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
-17. `dagWanted` : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection.
+1. **Fait, moitié processeur** : la coupe est publiée comme une différence par les deux chemins sous un contrat unique, et les lecteurs se tiennent sur l'entrant/sortant ; `webgpuBudgetRanking`, `gpuDagRuntime` et `webgpuFrameHold` fondus dedans. **Reste la moitié GPU** : le noyau garde l'appartenance et n'écrit que l'entrant/sortant dans deux plages de `flags` réservées une fois. Demande d'abord un protocole de resynchronisation (relevé jeté sur changement de révision, deux relectures entre deux adoptions, copie sautée quand la fente est occupée), une plage de journal séparée de la liste des candidates, et l'oracle `gpuDagOracle*` au même contrat. Après le lot 9. Fichiers `gpuDag*`.
+2. Sélection GPU persistante, coupe en une passe : 1 959 792 grappes revisitées par image pour 21 955 utiles, en 42 lancements (`gpuDagEncode.ts:91`) ; garder la sélection d'avant et la corriger, puis passe unique à fils persistants. Fichiers `gpuDag*`.
+3. Pompe de textures : (a) note mise à jour seulement par grappe entrée/sortie, file par insertion ; (b) textures virtuelles — 1 pixel sur 16 incrémente un compteur par tuile dans la passe de résolution, lu par `mapAsync` une image en retard, texture d'indirection pour l'atlas ; en WebGL2 par une petite image relue. Deux lots.
+4. Une coupe par grappe, placements en index : 163 316 grappes × 12 placements = 1 959 792 fiches de 96 octets (`webgpuPagesLayout.ts:25`, `gpuDagPack.ts:153`) ; fiches uniques, placement en index dans la fiche de travail. Mémoire GPU ÷ 12. Après 1–3 et 9.
+5. Image tenue conservée à l'arrivée d'une page qui ne change rien à l'écran (`webgpuPagesPageApi.ts:37-44`).
+6. Surveillance de scène par version : `hostSceneWatch` compare 4 300 nœuds × 18 valeurs par image (`frameGateCore.ts:125`).
+7. Priorité par erreur d'écran sur WebGPU (`webgpuPagesHostApi.ts:123`), comme le chemin WebGL2 (`streamingPriority.ts:66`) : à cache froid le lointain arrive avant le proche.
+8. Hi-Z : choisir les occulteurs par visibilité passée au lieu de la médiane de profondeur (557 352 lignes classées pour 21 955 testées), puis deux passes — dessiner le visible, bâtir la pyramide, re-tester les rejetés dans la même image.
+9. Filets de sécurité (sur verdict « plus de lag », avant le lot 4) : preuve de navigation sur la scène réelle ; réécriture des tests caducs (`webgpuRowCommit`, `gpuDagLive`, `gpuDagSelection*`, `webgpuBindEntries`, `frameCostAudit`, `webgpuPages.11`, hôte de test de coupe du Calculateur, et les six `webgpuPages` rouges depuis b72278c6) en disant pour chacun si c'est le test ou le code qui est faux ; banc bit à bit du raster de calcul contre l'ancien raster matériel ; simplify puis tableau référence / nous mesuré.
+10. Compression des sommets hors ligne : positions quantifiées par grappe (14–16 bits/axe), normales 2 octets, UV entiers — ~3× moins que les ~48 octets par triangle actuels. Compilateur Rust, nouvelle version de format de page.
+11. Ombres par la même géométrie : même sélection, même raster, mêmes pages depuis la lumière.
+12. Matériaux par classes : une passe par matériau avec profondeur matérielle au lieu d'un branchement par pixel.
+13. Eau en passe plein écran dédiée (copie du fond déjà en place pour la transmission).
+14. Noyaux Rust/Wasm M5 sur la coupe WebGL, la coupe de secours et la reconstruction des rangs.
+15. Compilateur : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
+16. `dagWanted` : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection.
 
 ## Lumière
 
@@ -51,7 +50,7 @@ Les lots 1 à 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la référe
 2. T1b — compteurs textures dans le Lab (octets résidents / budget, textures au bon niveau, niveaux manquants) : une ligne dans le panneau du banc 15, rien d'autre.
 3. T1c — vraie libération : les niveaux nets devenus inutiles rendus au budget (atlas alloué d'avance aujourd'hui) ; sans ça le budget ne tient pas sur petite machine, et le pool fixe de T4 en dépend.
 4. T2 — traversée à cache froid : temps par image plafonné pour les transferts, report à l'image suivante, aperçu dessiné tant que le niveau manque ; regarder p95 et pic, pas la médiane.
-5. T3 — priorité par lecture de l'image rendue au lieu de l'estimation par taille à l'écran : 1 pixel sur 16 incrémente un compteur par tuile demandée dans la passe de résolution, lu par `mapAsync` une image en retard. C'est le retour d'image de la référence, et le même mécanisme que le lot Géométrie 4b : un seul chemin pour les deux.
+5. T3 — priorité par lecture de l'image rendue au lieu de l'estimation par taille à l'écran : 1 pixel sur 16 incrémente un compteur par tuile demandée dans la passe de résolution, lu par `mapAsync` une image en retard. C'est le retour d'image de la référence, et le même mécanisme que le lot Géométrie 3b : un seul chemin pour les deux.
 6. T4 — tuiles de taille fixe dans un pool physique à budget constant, seules les tuiles vues résidentes, texture d'indirection pour dire où est chaque tuile (ou quel niveau grossier prendre en attendant). Remplace l'atlas dimensionné sur la plus grande texture et les classes de taille (`atlasClasses` 2 abandonné).
 7. T5 — compression GPU des blocs à la cuisson (BC sur ordinateur, ASTC sur mobile), perte acceptée et jugée à l'œil, tuiles comprises : c'est le seul moyen de tenir le budget mémoire de la référence (7,56 Go de RGBA brut sur Emerald aujourd'hui). À livrer avec les images avant/après et l'écart mesuré publié ; les seuils 0 px du banc ne s'appliquent pas à ce lot, ils restent entiers pour la géométrie et l'éclairage.
 
