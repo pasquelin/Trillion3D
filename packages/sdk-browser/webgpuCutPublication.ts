@@ -75,6 +75,10 @@ export function createWebgpuCutPublication(
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   cutDelta.adoptRecords(gpuWanted);
   publishCut();
+  const adoptCpuDrawn = (shown: readonly PageRec[]) => {
+    drawnDelta.adoptRecords(shown);
+    publishDrawn();
+  };
   /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
    *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
@@ -102,17 +106,17 @@ export function createWebgpuCutPublication(
     adoptGpuCut,
     /**
      * La coupe processeur publie la sienne par les mêmes différences : `wanted` écrit `run.desired`
-     * lui-même, et les mêmes lecteurs suivent. Le relevé de la carte est oublié — il ne décrit plus
-     * ces listes — sans que les ensembles soient jetés, puisqu'ils viennent d'être republiés.
+     * lui-même, et les mêmes lecteurs suivent. L'appelant a déjà oublié le relevé et fait vieillir
+     * les listes AVANT de choisir — c'est lui qui couvre la sortie par erreur de la coupe, comme il
+     * le fait pour la recopie de `drawn` —, donc rien de tout cela n'est refait ici.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
-      run.cutEpoch++;
       cutDelta.adoptRecords(wanted);
       publishCut();
-      drawnDelta.adoptRecords(shown);
-      publishDrawn();
-      cutAdopter.forgetReadback();
+      adoptCpuDrawn(shown);
     },
+    /** Seule la liste montrée a bougé : le repli épinglé l'a remplacée une fois la coupe publiée. */
+    adoptCpuDrawn,
     /** Le relevé tenu ne décrit plus les listes de l'image : la suivante le relira en entier. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),
   };
