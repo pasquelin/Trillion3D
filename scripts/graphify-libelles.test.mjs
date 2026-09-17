@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rendreLesNoms, reecrireRapport, apparier, grouper } from './graphify-libelles.mjs';
+import {
+  rendreLesNoms,
+  reecrireRapport,
+  apparier,
+  grouper,
+  renommerLesNoeuds,
+} from './graphify-libelles.mjs';
 
 /** Un graphe minuscule : deux communautés, des liens qui donnent un nœud dominant. */
 function graphe() {
@@ -74,4 +80,16 @@ test('le rapport ne voit réécrire que ses titres de communauté', () => {
   assert.match(apres, /### Community 7 - "Pyramide Hi-Z et occlusion"/);
   assert.match(apres, /### Community 9 - "autre"/);
   assert.match(apres, /Cohesion: 0\.12/);
+});
+
+test('le nom retourne dans chaque nœud, là où graphify query le lit', () => {
+  const g = graphe();
+  const libelles = new Map([
+    [7, 'Pyramide Hi-Z et occlusion'],
+    [3, 'Décodage PNG'],
+  ]);
+  assert.equal(renommerLesNoeuds(g, libelles), 5);
+  assert.equal(g.nodes.find((n) => n.id === 'a').community_name, 'Pyramide Hi-Z et occlusion');
+  assert.equal(g.nodes.find((n) => n.id === 'x').community_name, 'Décodage PNG');
+  assert.equal(renommerLesNoeuds(g, libelles), 0);
 });
