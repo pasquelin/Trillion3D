@@ -3,15 +3,9 @@ import { meshes as objects } from './sceneMeshes.ts';
 import { hostWorldTree } from './hostWorldTree.ts';
 import { primitiveFinder } from './primitiveLookup.ts';
 import { emptyWorldBox } from './hostWorldBounds.ts';
-import {
-  BOX_VALUES,
-  MATRIX_VALUES,
-  boxTransform,
-  boxUnion,
-  type ClusterManifest,
-} from '../sdk-core/index.ts';
+import { type ClusterManifest } from '../sdk-core/index.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
-import { lotBoxesReady, unionLotBoxes } from './mathBatchBoxes.ts';
+import { boxUnionCollector } from './mathBatchBoxes.ts';
 import type { BackendContext } from './backendTypes.ts';
 
 /**
@@ -24,9 +18,6 @@ import type { BackendContext } from './backendTypes.ts';
  * remontée pour cela, et une pose écrite sans composition est reprise telle quelle. La
  * transformation et l'union sont celles du socle, donc celles de la référence, terme à terme.
  */
-
-/** Une boîte à plat de travail, reprise d'une page à l'autre : rien n'est alloué par page. */
-const page = new Float64Array(BOX_VALUES);
 
 /** Une page du manifeste porte des bornes exactes, ou n'est qu'une approximation grossière. */
 type ManifestPage = ClusterManifest['primitives'][number]['pages'][number];
@@ -78,9 +69,8 @@ export function exactPagesBounds(
   lot?: BoxTransformLot | null,
 ) {
   const primitiveOf = primitiveFinder(metadata.primitives);
-  const enLot = lotBoxesReady(lot, exactPagesCount(source, associations, metadata));
+  const union = boxUnionCollector(into, lot, exactPagesCount(source, associations, metadata));
   const mondes = hostWorldTree(source);
-  let n = 0;
   for (const mesh of objects(source)) {
     const primitive = primitiveOf(associations.get(mesh));
     if (!primitive) {
@@ -91,18 +81,9 @@ export function exactPagesBounds(
     const world = mondes.world(mesh);
     for (const item of primitive.pages)
       if (exacte(item)) {
-        if (enLot) {
-          ecritPage(enLot.boxes, n * BOX_VALUES, item);
-          enLot.mats.set(world, n++ * MATRIX_VALUES);
-          continue;
-        }
-        ecritPage(page, 0, item);
-        boxTransform(page, 0, page, 0, world);
-        boxUnion(into, 0, page[0], page[1], page[2], page[3], page[4], page[5]);
+        ecritPage(union.boxes, union.at, item);
+        union.pose(world);
       }
   }
-  if (!enLot) return into;
-  enLot.run();
-  unionLotBoxes(into, enLot, n);
-  return into;
+  return union.ferme();
 }

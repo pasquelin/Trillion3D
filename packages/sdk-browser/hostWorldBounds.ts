@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
-import { BOX_VALUES, MATRIX_VALUES, boxEmpty, boxTransform, boxUnion } from '../sdk-core/index.ts';
-import { lotBoxesReady, unionLotBoxes } from './mathBatchBoxes.ts';
+import { BOX_VALUES, boxEmpty } from '../sdk-core/index.ts';
+import { boxUnionCollector } from './mathBatchBoxes.ts';
 import { createBoxTransformLot, type BoxTransformLot } from './mathBatchRuntime.ts';
 import { hostWorldTree } from './hostWorldTree.ts';
 import type { HierarchyLot } from './mathBatchHierarchy.ts';
@@ -46,8 +46,6 @@ function localBoxOf(object: Bounded) {
   return geometry.boundingBox ?? undefined;
 }
 
-const local = new Float64Array(BOX_VALUES);
-
 /** Objets bornés du sous-arbre : la taille EXACTE que le lot de boîtes doit porter. */
 function bornes(source: THREE.Object3D) {
   let n = 0;
@@ -77,29 +75,19 @@ export function hostWorldBounds(
   worlds?: HierarchyLot | null,
 ) {
   const mondes = hostWorldTree(source, worlds);
-  const enLot = lotBoxesReady(lot, bornes(source));
-  let n = 0;
+  const union = boxUnionCollector(into, lot, bornes(source));
   source.traverse((object) => {
     const box = localBoxOf(object as Bounded);
     if (!box) return;
-    const out = enLot ? enLot.boxes : local,
-      at = enLot ? n * BOX_VALUES : 0;
+    const out = union.boxes,
+      at = union.at;
     out[at] = box.min.x;
     out[at + 1] = box.min.y;
     out[at + 2] = box.min.z;
     out[at + 3] = box.max.x;
     out[at + 4] = box.max.y;
     out[at + 5] = box.max.z;
-    const world = mondes.world(object);
-    if (enLot) {
-      enLot.mats.set(world, n++ * MATRIX_VALUES);
-      return;
-    }
-    boxTransform(local, 0, local, 0, world);
-    boxUnion(into, 0, local[0], local[1], local[2], local[3], local[4], local[5]);
+    union.pose(mondes.world(object));
   });
-  if (!enLot) return into;
-  enLot.run();
-  unionLotBoxes(into, enLot, n);
-  return into;
+  return union.ferme();
 }

@@ -29,26 +29,21 @@ export interface HostWorldPlacements {
 export function hostWorldPlacements(source: THREE.Object3D): HostWorldPlacements {
   const tree = hostWorldTree(source);
   // Les nœuds demandés, et eux seuls : une scène dont douze nœuds portent des pages ne recopie que
-  // douze matrices par changement de scène. Deux listes parallèles plutôt qu'une table parcourue :
-  // le rafraîchissement est une boucle par indice, sans itérateur ni entrée allouée.
-  const rangs = new Map<THREE.Object3D, number>();
-  const nodes: THREE.Object3D[] = [],
-    matrices: THREE.Matrix4[] = [];
+  // douze matrices par changement de scène. Une seule table, nœud → matrice : le rang d'une liste
+  // parallèle serait une troisième façon de dire la même chose, et une de plus à tenir d'accord.
+  const matrices = new Map<THREE.Object3D, THREE.Matrix4>();
   return {
     of(node) {
-      const rang = rangs.get(node);
-      if (rang !== undefined) return matrices[rang];
+      const held = matrices.get(node);
+      if (held) return held;
       const matrix = new THREE.Matrix4();
       copyElements(matrix.elements, tree.world(node));
-      rangs.set(node, nodes.length);
-      nodes.push(node);
-      matrices.push(matrix);
+      matrices.set(node, matrix);
       return matrix;
     },
     refresh() {
       tree.refresh();
-      for (let rang = 0; rang < nodes.length; rang++)
-        copyElements(matrices[rang].elements, tree.world(nodes[rang]));
+      for (const [node, matrix] of matrices) copyElements(matrix.elements, tree.world(node));
     },
   };
 }
