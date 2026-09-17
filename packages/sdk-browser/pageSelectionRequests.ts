@@ -99,6 +99,20 @@ export class RequestStamps {
     return into;
   }
 }
+/**
+ * Le rang d'une page du catalogue, ou `undefined` : le rang voyage sur la page elle-même plutôt que
+ * dans une table de hachage relue par cluster et par image. Le catalogue a le dernier mot — un rang
+ * posé par un autre moteur ne survit pas à la vérification, exactement comme une page absente de la
+ * table ne rendait rien.
+ */
+export function catalogueIndexOf<T extends { packedIndex?: number }>(
+  catalogue: readonly (T | undefined)[],
+  rec: T,
+) {
+  const index = rec.packedIndex;
+  return index !== undefined && catalogue[index] === rec ? index : undefined;
+}
+
 export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   pages: readonly T[],
 ) {

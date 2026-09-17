@@ -5,7 +5,7 @@
 // (`delta.apply`, déjà là avant le lot et commune aux deux), puis l'un reparcourt la coupe et
 // l'autre lit ses compteurs. Ce qui est chronométré est donc l'étape entière que l'image paie, la
 // part commune comprise, et jamais le seul morceau qui change.
-import { RequestStamps } from '../pageSelection.ts';
+import { RequestStamps, collectPendingUrls } from '../pageSelection.ts';
 import { createCutDelta } from '../webgpuCutDelta.ts';
 import { createCutCounts } from '../webgpuCutCounts.ts';
 import { createCutPending } from '../webgpuCutPending.ts';
@@ -112,13 +112,8 @@ const lecteursOptimisee = (images) => {
     const totaux = { ...counts.apply() };
     pending.apply();
     const complete = pending.count === 0;
-    scratchOptimisee.length = 0;
-    stampsOptimisee.begin();
-    for (let i = 0; i < pending.count; i++) {
-      const rec = pages[pending.pages[i]];
-      if (rec && stampsOptimisee.first(rec.requestIndex)) scratchOptimisee.push(rec.url);
-    }
-    sortie.push({ totaux, complete, attendues: scratchOptimisee.length });
+    const attendues = collectPendingUrls(pending.records, scratchOptimisee, stampsOptimisee);
+    sortie.push({ totaux, complete, attendues: attendues.length });
   }
   return sortie;
 };

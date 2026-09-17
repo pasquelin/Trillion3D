@@ -49,13 +49,9 @@ export function createCutCounts(
     totals,
     /** La différence qui vient d'être appliquée : les sorties d'abord, les entrées ensuite. */
     apply() {
-      // Les bornes sont lues UNE fois : ce sont des accesseurs, et les relire à chaque tour de
-      // boucle coûtait plus que tout ce que la boucle fait.
-      const exited = delta.exitedCount,
-        entered = delta.enteredCount;
       const exits = delta.exited,
         entries = delta.entered;
-      for (let i = 0; i < exited; i++) {
+      for (let i = 0; i < delta.exitedCount; i++) {
         const id = exits[i],
           rec = packedPages[id];
         selected -= rec.triangles;
@@ -65,7 +61,7 @@ export function createCutCounts(
           holed[id] = 0;
         }
       }
-      for (let i = 0; i < entered; i++) {
+      for (let i = 0; i < delta.enteredCount; i++) {
         const id = entries[i],
           rec = packedPages[id];
         selected += rec.triangles;
