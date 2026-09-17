@@ -60,16 +60,27 @@ function rejectByFrustum(blendState: BlendState) {
   const items = blendState.blendGpu,
     keep = blendState.keepPacked,
     planes = blendState.blendPlanes;
-  keep.fill(0);
-  let rejected = 0;
+  let rejected = 0,
+    bouge = false,
+    mot = 0;
+  // Le masque se compose mot par mot, et un mot n'est écrit que s'il a changé : une pose immobile
+  // n'en change aucun, et c'est ce qui dispense l'image de le repousser sur la carte.
+  const pose = (rang: number) => {
+    if (keep[rang] !== mot >>> 0) {
+      keep[rang] = mot;
+      bouge = true;
+    }
+    mot = 0;
+  };
   for (let i = 0; i < items.length; i++) {
     const box = items[i].bounds;
-    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
+    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5]))
       rejected++;
-      continue;
-    }
-    keep[i >>> 5] |= 1 << (i & 31);
+    else mot |= 1 << (i & 31);
+    if ((i & 31) === 31) pose(i >>> 5);
   }
+  if (items.length & 31) pose(items.length >>> 5);
+  blendState.keepMoved = bouge;
   return rejected;
 }
 
@@ -129,14 +140,13 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   if (!eye || !blendState.blendGpu.length) return 0;
   refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
-  const items = blendState.blendGpu;
-  const orders = [blendState.orderBlend, blendState.orderTransmission];
-  const runs = [blendState.runsBlend, blendState.runsTransmission];
+  const items = blendState.blendGpu,
+    orders = blendState.orders;
   for (let pass = 0; pass < orders.length; pass++) {
     if (!sortPlanFarToNear(orders[pass], items) && !blendState.orderMoved[pass]) continue;
     blendState.orderMoved[pass] = true;
     // La passe de transmission garde une tranche par entrée : chacune décale encore son volume.
-    blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, runs[pass]);
+    blendState.runCount[pass] = buildBlendRuns(orders[pass], pass === 0, blendState.runs[pass]);
   }
   return rejected;
 }

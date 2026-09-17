@@ -27,8 +27,8 @@ export const appelsEncodes = () => comptes;
  * strictement identique. Un banc qui mesure autre chose que la forme livrée ne mesure rien.
  */
 function compteAppels(blendState) {
-  const runs = blendState.runsBlend,
-    order = blendState.orderBlend,
+  const runs = blendState.runs[0],
+    order = blendState.orders[0],
     keep = blendState.keepPacked,
     count = blendState.runCount[0];
   let encodes = 0;
@@ -44,8 +44,8 @@ function compteAppels(blendState) {
 function etale(blendState, miroir, sortie) {
   const items = blendState.blendGpu;
   const instances = expandBlendPlan({
-    order: blendState.orderBlend,
-    runs: blendState.runsBlend,
+    order: blendState.orders[0],
+    runs: blendState.runs[0],
     runCount: blendState.runCount[0],
     draws: blendState.drawsPacked,
     keep: blendState.keepPacked,

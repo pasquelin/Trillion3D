@@ -1,6 +1,40 @@
 import { DRAW_UNPAGED } from './webgpuBlendPlan.ts';
 import { EXPAND_GROUP, expandUniformWgsl, RUN_WORDS } from './webgpuBlendRuns.ts';
 
+/** Les huit tampons de stockage du noyau, dans l'ordre des rangs que le nuanceur déclare. */
+export const STORAGE_TYPES: GPUBufferBindingType[] = [
+  'read-only-storage',
+  'read-only-storage',
+  'read-only-storage',
+  'read-only-storage',
+  'read-only-storage',
+  'storage',
+  'storage',
+  'storage',
+];
+
+/**
+ * Les quatre lancements du noyau : un groupe de fils par paquet d'entrées, UN seul pour la somme
+ * courante sur les paquets, un fil par entrée, un fil par tranche. Écrits une fois pour l'encodage
+ * de production et pour la preuve « carte = modèle » qui rejoue le noyau.
+ */
+/** Les quatre points d'entrée du noyau, dans l'ordre où ils s'enchaînent. */
+export const BLEND_EXPAND_ENTRIES = [
+  'countBlendGroups',
+  'scanBlendGroups',
+  'placeBlendEntries',
+  'writeBlendRuns',
+];
+
+export function blendExpandDispatch(out: number[], entries: number, runs: number) {
+  const groups = Math.ceil(Math.max(1, entries) / EXPAND_GROUP);
+  out[0] = groups;
+  out[1] = 1;
+  out[2] = groups;
+  out[3] = Math.ceil(Math.max(1, runs) / EXPAND_GROUP);
+  return out;
+}
+
 /**
  * L'ÉTALEMENT DU PLAN TRIÉ, SUR LA CARTE.
  *

@@ -64,16 +64,18 @@ export function expandBlendPlan(x: BlendExpansion) {
       if (!itemKept(keep, item)) continue;
       const paged = draws[item * 4];
       if (paged === DRAW_UNPAGED) {
-        const words = draws[item * 4 + 3];
-        for (let j = 0; j < draws[item * 4 + 1]; j++) {
+        const words = draws[item * 4 + 3],
+          morceaux = draws[item * 4 + 1];
+        for (let j = 0; j < morceaux; j++) {
           expanded[cursor * 2] = item;
           expanded[cursor * 2 + 1] = j * words;
           cursor++;
         }
         continue;
       }
-      const tableBase = draws[item * 4 + 2];
-      for (let j = 0; j < itemCounts[paged]; j++) {
+      const tableBase = draws[item * 4 + 2],
+        tenues = itemCounts[paged];
+      for (let j = 0; j < tenues; j++) {
         expanded[cursor * 2] = item;
         expanded[cursor * 2 + 1] = instances[tableBase + j];
         cursor++;
@@ -108,13 +110,12 @@ export function writeBlendExpansionCpu(
   if (blendState.argsPacked.length < blendState.maxPlanEntries * 8)
     blendState.argsPacked = new Uint32Array(blendState.maxPlanEntries * 8);
   const { expandedPacked, argsPacked } = blendState;
-  const orders = [blendState.orderBlend, blendState.orderTransmission],
-    runs = [blendState.runsBlend, blendState.runsTransmission],
-    bases = [0, blendState.transmissionBase];
+  const orders = blendState.orders,
+    bases = blendState.instanceBase;
   for (let pass = 0; pass < orders.length; pass++) {
     const written = expandBlendPlan({
       order: orders[pass],
-      runs: runs[pass],
+      runs: blendState.runs[pass],
       runCount: blendState.runCount[pass],
       draws: blendState.drawsPacked,
       keep: blendState.keepPacked,
