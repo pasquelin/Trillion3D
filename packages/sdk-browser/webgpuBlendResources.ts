@@ -18,6 +18,10 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   const { blendState, vis } = rt,
     items = blendState.blendGpu;
   if (!items.length) return;
+  // `prepare()` est publique et peut être rappelée sans passer par la libération : tout ce que la
+  // préparation précédente a monté est rendu ici, l'étalement compris. Les groupes de liaison qui
+  // citaient ces tampons tombent avec eux.
+  disposeBlendResources(blendState);
   // Un item pagine lit la geometrie concatenee, celle-la meme que la passe opaque : son premier
   // sommet y est le bloc de sa geometrie source.
   for (const item of items)
@@ -66,6 +70,18 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
     { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
   );
   blendState.expand?.uploadDraws(blendState.drawsPacked);
+}
+
+/** Rend les tampons de scène de la passe transparente, et les groupes qui les citaient. */
+export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState']) {
+  blendState.expand?.dispose();
+  blendState.expand = undefined;
+  for (const tampon of ['expandedBuffer', 'argsBuffer', 'itemBuffer', 'viewBuffer'] as const) {
+    blendState[tampon]?.destroy();
+    blendState[tampon] = undefined;
+  }
+  blendState.pagedGroup = undefined;
+  for (const item of blendState.blendGpu) item.group = undefined;
 }
 
 /**
