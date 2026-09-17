@@ -46,10 +46,10 @@ test('la relation de couverture tient, trou compris, sur une coupe posée une fo
     page(7, false, false),
   ];
   const offsets = Int32Array.from([0, -1, 4, 8]);
-  const counts = createCutCounts(pages, offsets),
-    delta = createCutDelta(pages);
+  const delta = createCutDelta(pages),
+    counts = createCutCounts(pages, offsets, delta);
   delta.apply([0, 1, 2, 3]);
-  const totals = counts.apply(delta);
+  const totals = counts.apply();
   assert.deepEqual({ ...totals }, reference(pages, [0, 1, 2, 3], offsets));
   assert.equal(totals.uncoveredTriangles, 5 + 7, 'sans ligne de résidence (1), sans octets (3)');
   assert.equal(
@@ -62,23 +62,23 @@ test('la relation de couverture tient, trou compris, sur une coupe posée une fo
 test('une coupe relue à l’identique ne touche pas un compteur', () => {
   const pages = [page(10, false, true), page(4, true, true)];
   const offsets = Int32Array.from([0, 4]);
-  const counts = createCutCounts(pages, offsets),
-    delta = createCutDelta(pages);
+  const delta = createCutDelta(pages),
+    counts = createCutCounts(pages, offsets, delta);
   delta.apply([0, 1]);
-  counts.apply(delta);
+  counts.apply();
   const avant = { ...counts.totals };
   delta.apply([0, 1]);
   assert.equal(delta.enteredCount + delta.exitedCount, 0, 'aucune page entrée ni sortie');
-  assert.deepEqual({ ...counts.apply(delta) }, avant);
+  assert.deepEqual({ ...counts.apply() }, avant);
 });
 
 test('une couverture qui bascule sous la coupe est reprise par la seule page nommée', () => {
   const pages = [page(10, false, true), page(6, false, true)];
   const offsets = Int32Array.from([0, 4]);
-  const counts = createCutCounts(pages, offsets),
-    delta = createCutDelta(pages);
+  const delta = createCutDelta(pages),
+    counts = createCutCounts(pages, offsets, delta);
   delta.apply([0, 1]);
-  counts.apply(delta);
+  counts.apply();
   assert.equal(counts.totals.uncoveredTriangles, 0);
   // La page perd son emplacement de cache, puis ses octets, puis retrouve les deux.
   offsets[1] = -1;
@@ -92,8 +92,9 @@ test('une couverture qui bascule sous la coupe est reprise par la seule page nom
   counts.touch(1);
   assert.deepEqual({ ...counts.totals }, reference(pages, [0, 1], offsets));
   // Une page hors de la coupe ne pèse sur rien, quoi qu'il lui arrive.
+  delta.apply([]);
+  counts.apply();
   offsets[0] = -1;
-  counts.clear();
   counts.touch(0);
   assert.deepEqual({ ...counts.totals }, reference(pages, [], offsets));
 });
@@ -103,8 +104,8 @@ test('mille images de coupes et de couvertures tirées au sort donnent la passe 
   const pages: PageRec[] = [];
   for (let i = 0; i < 24; i++) pages.push(page(1 + Math.floor(next() * 40), next() < 0.3, true));
   const offsets = new Int32Array(pages.length);
-  const counts = createCutCounts(pages, offsets),
-    delta = createCutDelta(pages);
+  const delta = createCutDelta(pages),
+    counts = createCutCounts(pages, offsets, delta);
   let ids: number[] = [];
   for (let image = 0; image < 1000; image++) {
     if (next() < 0.5) {
@@ -112,7 +113,7 @@ test('mille images de coupes et de couvertures tirées au sort donnent la passe 
       ids = [];
       for (let id = 0; id < pages.length; id++) if (next() < 0.5) ids.push(id);
       delta.apply(ids);
-      counts.apply(delta);
+      counts.apply();
     } else {
       // La couverture d'une page bascule : le journal des rangs la nomme, et elle seule.
       const id = Math.floor(next() * pages.length);

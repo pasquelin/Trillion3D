@@ -25,7 +25,11 @@ export function createHeldKeys(options: {
       return held.count;
     },
     apply(delta: CutDelta) {
-      for (let i = 0; i < delta.exitedCount; i++) {
+      // Les bornes sont lues UNE fois : ce sont des accesseurs, et les relire à chaque tour de
+      // boucle coûtait plus que tout ce que la boucle fait.
+      const exited = delta.exitedCount,
+        entered = delta.enteredCount;
+      for (let i = 0; i < exited; i++) {
         const id = delta.exited[i],
           key = keyOfPageId[id];
         onExit?.(id);
@@ -33,7 +37,7 @@ export function createHeldKeys(options: {
         held.remove(key);
         release(key);
       }
-      for (let i = 0; i < delta.enteredCount; i++) {
+      for (let i = 0; i < entered; i++) {
         const id = delta.entered[i],
           key = keyOfPageId[id];
         onEnter?.(id);

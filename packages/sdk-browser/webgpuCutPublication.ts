@@ -1,5 +1,5 @@
 import type { PageRec } from './pageSelection.ts';
-import { createCutDelta, type CutDelta } from './webgpuCutDelta.ts';
+import { createCutDelta } from './webgpuCutDelta.ts';
 import { createCutCounts } from './webgpuCutCounts.ts';
 import { createCutPending } from './webgpuCutPending.ts';
 import { createWebgpuCutAdopter } from './webgpuCutAdoption.ts';
@@ -29,21 +29,21 @@ export function createWebgpuCutPublication(
   // La coupe dessinable ne sert que par sa différence : aucune liste d'enregistrements n'en est
   // tirée. L'adoption écrit `run.shown` à partir des mêmes identifiants, quand ils ont changé.
   const drawnDelta = createCutDelta(packedPages);
-  const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords);
-  const cutPending = createCutPending(packedPages);
+  const cutCounts = createCutCounts(packedPages, rows.residentOffsetWords, drawnDelta);
+  const cutPending = createCutPending(packedPages, cutDelta);
   // Les trois façons dont la couverture d'une grappe bascule — octets reçus, octets rendus, place de
   // cache prise ou rendue — passent toutes par le journal des rangs, qui les nomme une à une.
   rows.watchTouched((page) => {
     cutCounts.touch(page);
     cutPending.touch(page);
   });
-  const publishCut = (delta: CutDelta) => {
-    residencySets.applyCut(delta);
-    cutPending.apply(delta);
+  const publishCut = () => {
+    residencySets.applyCut(cutDelta);
+    cutPending.apply();
   };
-  const publishDrawn = (delta: CutDelta) => {
-    residencySets.applyDrawn(delta);
-    cutCounts.apply(delta);
+  const publishDrawn = () => {
+    residencySets.applyDrawn(drawnDelta);
+    cutCounts.apply();
   };
   // Readback describes submitted work and future streaming requests. It never
   // decides the cut drawn for a moving camera; the current GPU mask does that.
@@ -59,15 +59,15 @@ export function createWebgpuCutPublication(
     drawnDelta,
     onDrawnDelta: publishDrawn,
     onDrawnMirrored: () => markDrawnMirrored(run),
-    onCutDelta: (delta) => {
-      publishCut(delta);
-      run.pagesEntered = delta.enteredCount;
-      run.pagesExited = delta.exitedCount;
+    onCutDelta: () => {
+      publishCut();
+      run.pagesEntered = cutDelta.enteredCount;
+      run.pagesExited = cutDelta.exitedCount;
     },
   });
   // Before the first readback the image asks the cache for the pinned cover and nothing else.
   cutDelta.adoptRecords(gpuWanted);
-  publishCut(cutDelta);
+  publishCut();
   /** Adopte le relevé et dit si l'IMAGE en est changée : si les listes affichées ont été réécrites.
    *  Un relevé neuf republiant les mêmes identifiants dans le même ordre n'en réécrit aucune. */
   const adoptGpuCut = () => {
@@ -101,9 +101,9 @@ export function createWebgpuCutPublication(
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
       run.cutEpoch++;
       cutDelta.adoptRecords(wanted);
-      publishCut(cutDelta);
+      publishCut();
       drawnDelta.adoptRecords(shown);
-      publishDrawn(drawnDelta);
+      publishDrawn();
       cutAdopter.forgetReadback();
     },
     /** Le relevé tenu ne décrit plus les listes de l'image : la suivante le relira en entier. */
