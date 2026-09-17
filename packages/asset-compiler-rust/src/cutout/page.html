@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Découpes à trancher</title>
+    <style>
+      :root { color-scheme: light dark; --bord: color-mix(in srgb, currentColor 18%, transparent); }
+      body { margin: 0; padding: 24px; font: 15px/1.5 system-ui, sans-serif; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p { margin: 4px 0; max-width: 62ch; }
+      .barre { position: sticky; top: 0; padding: 12px 0; background: Canvas; border-bottom: 1px solid var(--bord); }
+      button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--bord); background: Canvas; color: inherit; cursor: pointer; }
+      button:hover { background: color-mix(in srgb, currentColor 8%, Canvas); }
+      .ligne { display: grid; grid-template-columns: 96px 96px 1fr auto; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--bord); }
+      canvas { width: 96px; height: 96px; image-rendering: pixelated; border: 1px solid var(--bord); border-radius: 6px; }
+      .nom { font-weight: 600; word-break: break-all; }
+      .mesure { opacity: 0.75; font-size: 13px; }
+      .choix { display: flex; gap: 8px; }
+      .choix label { padding: 8px 12px; border: 1px solid var(--bord); border-radius: 8px; cursor: pointer; white-space: nowrap; }
+      .choix input { margin-right: 6px; }
+      .choix label:has(input:checked) { background: color-mix(in srgb, currentColor 12%, Canvas); font-weight: 600; }
+      .neuf { font-size: 12px; opacity: 0.8; }
+    </style>
+  </head>
+  <body>
+    <h1>Découpes à trancher</h1>
+    <p>
+      Une <strong>découpe</strong> est présente ou absente en chaque point — feuille, grillage,
+      branche : dans l'image en noir et blanc, presque tout est blanc ou noir, et le gris ne suit
+      que le contour. Une <strong>vitre</strong> laisse passer la lumière partout : elle est grise
+      sur toute sa surface. Dans le doute, laissez sur vitre : rien ne change.
+    </p>
+    <div class="barre">
+      <button id="enregistrer">Enregistrer les réponses</button>
+      <span id="resume" class="neuf"></span>
+    </div>
+    <main id="liste"></main>
+    <script>
+      const DONNEES = "__DONNEES__";
+      const liste = document.getElementById('liste');
+      const textures = [...DONNEES.textures].sort((a, b) => b.weight - a.weight);
+      const reponses = new Map(textures.map((t) => [t.sha256, t.answer ?? t.proposal]));
+
+      function pixels(texture) {
+        const brut = atob(texture.pixels);
+        const octets = new Uint8ClampedArray(brut.length);
+        for (let at = 0; at < brut.length; at += 1) octets[at] = brut.charCodeAt(at);
+        return octets;
+      }
+
+      function toile(texture, octets, alphaSeul) {
+        const canvas = document.createElement('canvas');
+        canvas.width = texture.width;
+        canvas.height = texture.height;
+        const dessin = canvas.getContext('2d');
+        if (!alphaSeul) {
+          for (let y = 0; y < texture.height; y += 8) {
+            for (let x = 0; x < texture.width; x += 8) {
+              dessin.fillStyle = ((x + y) / 8) % 2 ? '#bbb' : '#eee';
+              dessin.fillRect(x, y, 8, 8);
+            }
+          }
+        }
+        const image = dessin.createImageData(texture.width, texture.height);
+        for (let at = 0; at < octets.length; at += 4) {
+          const alpha = octets[at + 3];
+          image.data[at] = alphaSeul ? alpha : octets[at];
+          image.data[at + 1] = alphaSeul ? alpha : octets[at + 1];
+          image.data[at + 2] = alphaSeul ? alpha : octets[at + 2];
+          image.data[at + 3] = alphaSeul ? 255 : alpha;
+        }
+        if (alphaSeul) dessin.putImageData(image, 0, 0);
+        else {
+          const dessus = document.createElement('canvas');
+          dessus.width = texture.width;
+          dessus.height = texture.height;
+          dessus.getContext('2d').putImageData(image, 0, 0);
+          dessin.drawImage(dessus, 0, 0);
+        }
+        return canvas;
+      }
+
+      function choix(texture) {
+        const boite = document.createElement('div');
+        boite.className = 'choix';
+        for (const [valeur, texte] of [[true, 'Découpe'], [false, 'Vitre']]) {
+          const label = document.createElement('label');
+          const bouton = document.createElement('input');
+          bouton.type = 'radio';
+          bouton.name = texture.sha256;
+          bouton.checked = reponses.get(texture.sha256) === valeur;
+          bouton.addEventListener('change', () => {
+            reponses.set(texture.sha256, valeur);
+            resume();
+          });
+          label.append(bouton, texte);
+          boite.append(label);
+        }
+        return boite;
+      }
+
+      function ligne(texture) {
+        const octets = pixels(texture);
+        const bloc = document.createElement('div');
+        bloc.className = 'ligne';
+        const texte = document.createElement('div');
+        const nom = document.createElement('div');
+        nom.className = 'nom';
+        nom.textContent = texture.image;
+        const mesure = document.createElement('div');
+        mesure.className = 'mesure';
+        const m = texture.measure;
+        mesure.textContent =
+          `${m.betweenPercent} % de pixels entre les deux, dont ${m.atContourPercent} % ` +
+          `collés au contour (à ${m.band} pixels ou moins) · ${m.absentPercent} % de vide · ` +
+          `proposition : ${texture.proposal ? 'découpe' : 'vitre'}` +
+          (texture.answer === null ? ' · jamais tranchée' : '');
+        texte.append(nom, mesure);
+        bloc.append(toile(texture, octets, false), toile(texture, octets, true), texte, choix(texture));
+        return bloc;
+      }
+
+      function feuille() {
+        const sortie = {};
+        for (const texture of textures) {
+          sortie[texture.sha256] = {
+            image: texture.image,
+            used: true,
+            measure: texture.measure,
+            proposal: texture.proposal ? 'cutout' : 'blend',
+            cutout: reponses.get(texture.sha256),
+          };
+        }
+        return { version: 1, textures: sortie };
+      }
+
+      function resume() {
+        const decoupes = [...reponses.values()].filter(Boolean).length;
+        document.getElementById('resume').textContent =
+          `${textures.length} texture(s) · ${decoupes} en découpe · modèle ${DONNEES.model}`;
+      }
+
+      document.getElementById('enregistrer').addEventListener('click', async () => {
+        const blob = new Blob([JSON.stringify(feuille(), null, 2)], { type: 'application/json' });
+        if (window.showSaveFilePicker) {
+          try {
+            const cible = await window.showSaveFilePicker({ suggestedName: 'decoupes.json' });
+            const flux = await cible.createWritable();
+            await flux.write(blob);
+            await flux.close();
+            return;
+          } catch (erreur) {
+            if (erreur.name === 'AbortError') return;
+          }
+        }
+        const lien = document.createElement('a');
+        lien.href = URL.createObjectURL(blob);
+        lien.download = 'decoupes.json';
+        lien.click();
+      });
+
+      for (const texture of textures) liste.append(ligne(texture));
+      resume();
+    </script>
+  </body>
+</html>
