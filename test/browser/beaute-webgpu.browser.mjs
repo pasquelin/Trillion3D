@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { routeBrowserFixtures } from '../appui/browserFixtureServer.mjs';
-const fixtureDirectory = resolve(dirname(fileURLToPath(import.meta.url)), 'browserFixtures');
 const labRoot = process.env.LAB_ROOT ?? resolve('../render-tech-lab');
 const { chromium } = createRequire(resolve(labRoot, 'package.json'))('playwright');
 const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -16,7 +14,7 @@ try {
   await page.goto(
     (process.env.LAB_URL ?? 'http://localhost:5174') + '/?test=15-virtualized-integration',
   );
-  await routeBrowserFixtures(page, fixtureDirectory);
+  await routeBrowserFixtures(page);
   const result = await page.evaluate(() =>
     import('/__wg-fixture/beautyRun.mjs').then((m) => m.run()),
   );

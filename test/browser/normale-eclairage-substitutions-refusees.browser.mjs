@@ -3,7 +3,7 @@
 // l'éclairage la lit, sur le vrai texte compilé et exécuté dans Chromium WebGPU : `opposee` rend la
 // normale retournée (N→−N, le défaut le plus courant d'une inverse-transposée), `nulle` rend la
 // normale perdue (N→0). Si `verdictNormale` laissait passer l'une des deux, il ne protégerait rien
-// dans `test/browser/normalTransformArithmetique.browser.mjs` — c'est exactement ce que l'ANCIEN critère
+// dans `test/browser/normal-transform-arithmetique.browser.mjs` — c'est exactement ce que l'ANCIEN critère
 // faisait : une valeur absolue sur le produit scalaire confondait N et −N, et `atan2(0, 0) = 0`
 // déclarait juste une normale perdue. `aucune` (le nuanceur intact) sert de témoin dans ce même
 // fichier : sans lui, un critère devenu trop strict passerait aussi inaperçu.
@@ -18,9 +18,9 @@
 // `EFFONDREES` reste HORS des trois boucles, et c'est une propriété du critère, pas une commodité :
 // sur une face sans aire monde le nuanceur intact rend DÉJÀ le vecteur nul, donc la mutation N→0 ne
 // change rien et N→−N non plus. Une mutation qu'on ne peut pas voir ne prouve rien ; ces cas-là
-// sont éprouvés par leur valeur exacte dans `test/browser/normalTransformArithmetique.browser.mjs`.
+// sont éprouvés par leur valeur exacte dans `test/browser/normal-transform-arithmetique.browser.mjs`.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/normaleEclairageSubstitutionsRefusees.browser.mjs
+// LAB_ROOT=… node --experimental-strip-types test/browser/normale-eclairage-substitutions-refusees.browser.mjs
 import assert from 'node:assert/strict';
 import { verdictNormale } from '../justesse/inverseTransposeF32.mjs';
 import {

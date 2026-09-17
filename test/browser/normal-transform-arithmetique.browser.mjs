@@ -8,7 +8,7 @@
 // mêmes cas (`test/justesse/normalTransformCas.mjs`), et sa sortie doit être celle du modèle. Un
 // nuanceur qui ne compile pas fait échouer ce test, et un modèle qui dérive aussi.
 //
-// LAB_ROOT=… node --experimental-strip-types test/browser/normalTransformArithmetique.browser.mjs
+// LAB_ROOT=… node --experimental-strip-types test/browser/normal-transform-arithmetique.browser.mjs
 import assert from 'node:assert/strict';
 import { angleEntre, verdictNormale, xformNormalModele } from '../justesse/inverseTransposeF32.mjs';
 import {

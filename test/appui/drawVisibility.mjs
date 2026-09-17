@@ -6,6 +6,7 @@ export function setupVisibility(
   instances,
   offsets,
   readUsage,
+  visBindings,
 ) {
   const pageCount = 147,
     columns = 16,
@@ -56,25 +57,33 @@ export function setupVisibility(
   });
   const mapsView = maps.createView({ dimension: '2d-array' }),
     sampler = device.createSampler();
+  // Les numéros ne sont pas recopiés : ils viennent de `VIS_BINDINGS` (`webgpuBindLayout.ts`), la
+  // source que le WGSL interpole déjà. Une classe d'atlas de plus décale les trois côtés ensemble —
+  // c'est ce décalage, manqué ici seul, qui rendait cette preuve rouge sur `colorSlots`.
+  const b = visBindings;
+  const lecture = (binding) => ({
+    binding,
+    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+    buffer: { type: 'read-only-storage' },
+  });
+  const colorSlots = makeBuffer(64 * 8);
   const visLayout = device.createBindGroupLayout({
     entries: [
-      ...[0, 1, 3, 5, 8, 9].map((binding) => ({
+      lecture(b.cache),
+      lecture(b.position),
+      lecture(b.pageTable),
+      lecture(b.flags),
+      lecture(b.uv),
+      lecture(b.instances),
+      lecture(b.slotOffsets),
+      lecture(b.colorSlots),
+      { binding: b.uniform, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
+      ...b.maps.map((binding) => ({
         binding,
-        visibility: GPUShaderStage.VERTEX,
-        buffer: { type: 'read-only-storage' },
-      })),
-      {
-        binding: 2,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
-      },
-      { binding: 4, visibility: GPUShaderStage.VERTEX, buffer: { type: 'uniform' } },
-      {
-        binding: 6,
         visibility: GPUShaderStage.FRAGMENT,
         texture: { sampleType: 'float', viewDimension: '2d-array' },
-      },
-      { binding: 7, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+      })),
+      { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     ],
   });
   const visPipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [visLayout] });
@@ -100,14 +109,17 @@ export function setupVisibility(
       device.createBindGroup({
         layout: visLayout,
         entries: [
-          ...[indices, positions, pageTable, flags, visUniform, uvs].map((buffer, binding) => ({
-            binding,
-            resource: { buffer },
-          })),
-          { binding: 6, resource: mapsView },
-          { binding: 7, resource: sampler },
-          { binding: 8, resource: { buffer: instances } },
-          { binding: 9, resource: { buffer: offsets } },
+          { binding: b.cache, resource: { buffer: indices } },
+          { binding: b.position, resource: { buffer: positions } },
+          { binding: b.pageTable, resource: { buffer: pageTable } },
+          { binding: b.flags, resource: { buffer: flags } },
+          { binding: b.uniform, resource: { buffer: visUniform } },
+          { binding: b.uv, resource: { buffer: uvs } },
+          ...b.maps.map((binding) => ({ binding, resource: mapsView })),
+          { binding: b.sampler, resource: sampler },
+          { binding: b.instances, resource: { buffer: instances } },
+          { binding: b.slotOffsets, resource: { buffer: offsets } },
+          { binding: b.colorSlots, resource: { buffer: colorSlots } },
         ],
       }),
     );

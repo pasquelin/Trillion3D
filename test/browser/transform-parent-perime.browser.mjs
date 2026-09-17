@@ -6,7 +6,7 @@
 // pourtant, doit rester tenue. Rendre le parent singulier (une échelle à zéro) doit refuser la
 // demande par `SINGULAR_PARENT_TRANSFORM` plutôt que de poser silencieusement seize zéros.
 //
-//   LAB_ROOT=… node --experimental-strip-types test/browser/setTransformParentPerime.browser.mjs
+//   LAB_ROOT=… node --experimental-strip-types test/browser/transform-parent-perime.browser.mjs
 import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../appui/preuvePageMoteur.mjs';
 
