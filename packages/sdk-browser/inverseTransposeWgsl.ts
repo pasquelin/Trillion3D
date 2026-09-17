@@ -94,11 +94,11 @@ export const INVERSE_TRANSPOSE_WGSL = NOYAU(PREP_LIVREE, 'porte');
  * contre le texte livré, plutôt que recopié dans un banc : deux formes voisines dans un fichier
  * bougent ensemble, tandis qu'une copie recollée ailleurs cesse de correspondre au premier
  * changement du noyau — sans que personne le voie. Le bloc entier se substitue au bloc livré,
- * structure comprise, et `bench/justesse/substitutionAvant.mjs` établit la substitution au lieu de
+ * structure comprise, et `test/justesse/substitutionAvant.mjs` établit la substitution au lieu de
  * l'espérer. Une reproduction ne vaut que tant qu'elle reproduit : GPU réellement exécuté, et
  * mesurée contre ce que le moteur DESSINE (rasterisation réelle, état de face compris), cette forme
  * supprime 656 clusters dessinés sur 6 916 cas là où la forme livrée n'en supprime aucun
- * (`bench/justesse/inverse-transposee-petite-echelle.mjs`). Les « 560 avant, 54 après » d'un relevé
+ * (`test/justesse/inverse-transposee-petite-echelle.mjs`). Les « 560 avant, 54 après » d'un relevé
  * antérieur lisaient l'orientation géométrique brute, qui ignore l'échange de face sous réflexion :
  * elle comptait 119 rejets légitimes comme des défauts et en manquait 215.
  */

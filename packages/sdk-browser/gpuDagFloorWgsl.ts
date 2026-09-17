@@ -61,7 +61,7 @@ fn pruneCrossed(w:u32)->bool{return bitcast<f32>(atomicLoad(&work[w]))>bitcast<f
  *  ordre. La plus petite erreur du sous-arbre vue à la profondeur la plus lointaine que sa sphère
  *  englobante autorise — jamais au-dessus de la valeur vraie d'une de ses grappes. Sans sphère,
  *  rayon négatif, il ne certifie rien et rend zéro. Preuve sur carte :
- *  \`bench/justesse/plancher-erreur-cpu-gpu.mjs\`. */
+ *  \`test/justesse/plancher-erreur-cpu-gpu.mjs\`. */
 fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
  if(error==0.0){return 0.0;}
  if(!(error>0.0)||!(radius>=0.0)){return 0.0;}

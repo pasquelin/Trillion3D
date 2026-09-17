@@ -1,11 +1,11 @@
 // G8 : `sunCascadeOf` ne refait les bornes de cascade (`sunCascadeSplits`, quatre `Math.pow`) que
 // si la vue ou la découpe ont changé depuis le dernier appel, au lieu de les refaire à chaque face.
 // Oracle : la version d'avant le lot G, qui les refaisait toujours, recopiée telle quelle dans
-// `bench/oracles/g-soleil.mjs`.
+// `bench/oracles/soleil-cascades.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { sunCascadeOf } from './sceneLightSunCascades.ts';
-import { referenceSunCascadeOf } from './bench/oracles/g-soleil.mjs';
+import { referenceSunCascadeOf } from './bench/oracles/soleil-cascades.mjs';
 import type { ShadowViewpoint } from './sceneLightContracts.ts';
 
 function view(overrides: Partial<ShadowViewpoint> = {}): ShadowViewpoint {

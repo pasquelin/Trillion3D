@@ -1,12 +1,12 @@
 // Lot F, F12 : `deplaceInstance` (autonomousInstances.ts) lit le couple page/page de base posé une
 // fois à la création (`instance.pages[i]` / `instance.bases[i]`) au lieu de reconstruire une table de
 // hachage page → page de base à chaque déplacement. L'oracle est la reconstruction d'avant le lot F,
-// recopiée telle quelle dans `oracles/f-cadre.mjs`.
+// recopiée telle quelle dans `oracles/cadre-vue.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { deplaceInstance } from './autonomousInstances.ts';
-import { referenceUpdateInstance } from './bench/oracles/f-cadre.mjs';
+import { referenceUpdateInstance } from './bench/oracles/cadre-vue.mjs';
 import type { PageRec, ClusterRoot } from './pageSelection.ts';
 
 function page(matrice: THREE.Matrix4): PageRec {

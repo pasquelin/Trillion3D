@@ -1,11 +1,11 @@
 // Lot F, F13 : `anneauFroid` (explorerDraw.ts) s'arrête dès que le lot est plein au lieu de filtrer
 // l'anneau entier avant d'en garder la tête (`.filter(...).slice(0, limite)`). L'oracle est le filtre
-// entier d'avant le lot F, recopié tel quel dans `oracles/f-cadre.mjs`.
+// entier d'avant le lot F, recopié tel quel dans `oracles/cadre-vue.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anneauFroid, empileEnAttente } from './explorerDraw.ts';
-import { referenceAnneauFroid } from './bench/oracles/f-cadre.mjs';
-import { referenceEmpileEnAttente } from './bench/oracles/g-file.mjs';
+import { referenceAnneauFroid } from './bench/oracles/cadre-vue.mjs';
+import { referenceEmpileEnAttente } from './bench/oracles/recherches-streaming.mjs';
 
 function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   return {
@@ -67,7 +67,7 @@ test('un grand anneau, un grand nombre de lots de tailles variées, reste identi
 
 // G6 : les adresses manquantes qu'une requête en cours fera repartir ensuite s'accumulent dans un
 // `Set` (`empileEnAttente`) au lieu d'un tableau testé par `includes` à chaque adresse ajoutée.
-// Oracle : le tableau dédoublonné à la main d'avant le lot G, recopié dans `bench/oracles/g-file.mjs`.
+// Oracle : le tableau dédoublonné à la main d'avant le lot G, recopié dans `bench/oracles/recherches-streaming.mjs`.
 test('un ensemble vide reçoit les mêmes adresses, dans le même ordre, qu’un tableau dédoublonné à la main', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];

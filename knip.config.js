@@ -16,12 +16,11 @@ export default {
     'scripts/mesure/pageExplorateur.mjs',
     'scripts/mesure/oracle.mjs',
     'scripts/mesure/fixtureLampes.mjs',
-    'packages/*/bench/*.bench.mjs',
-    // Reproductions de justesse lancées à la main, hors `pnpm test`.
-    'packages/*/bench/justesse/*.mjs',
-    'scripts/mesure/calculs/agrege*.mjs',
-    'test/*.test.mjs',
-    'test/*.browser.mjs',
+    'packages/*/bench/*.perf.mjs',
+    'test/justesse/*.mjs',
+    'scripts/mesure/perf/*.mjs',
+    'test/integration/*.test.mjs',
+    'test/browser/*.browser.mjs',
   ],
   project: [
     'packages/**/*.{ts,mts,mjs,js}',
