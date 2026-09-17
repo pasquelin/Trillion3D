@@ -6,9 +6,24 @@ décisions dans Git.
 
 ## Géométrie
 
-Les lots 1, 2 et 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la référence ; 10 passe avant 5.
+**Priorité, mesurée le 17 sept. 2026 sur `emerald-square` et non plus supposée** : le lag ne vient pas
+de la coupe. Le processeur y tient en 0,5 à 2,8 ms par image sur 10 millions de triangles, coupe,
+relevé et résidence compris. Il vient de ce que notre moteur ACCEPTE et que la référence REFUSE.
 
-Mesuré au lot 1 : sur apple metal-3, rétrécir le relevé rend de la mémoire, pas des millisecondes. Où sont les millisecondes d'une image réelle n'est pas encore mesuré — le moteur publie déjà un profil par étape (`webgpuPagesCpuSteps.ts`, diagnostic `cpu-timing`) et personne ne l'a lu sur la scène réelle.
+C'est l'écart à combler, et il n'est pas dans les algorithmes — le DAG de grappes, la sélection par
+la carte, le raster de calcul, le Hi-Z en deux passes et les demandes de diffusion priorisées sont
+livrés et alignés. Il est dans les CONTRAINTES :
+
+|                                   | La référence                        | Nous                        | Ligne           |
+| --------------------------------- | ----------------------------------- | --------------------------- | --------------- |
+| Matériaux du chemin virtualisé    | opaque et masqué seulement          | on accepte aussi le mélange | Compilateur 10  |
+| Grappes partagées entre instances | une fiche, l'instance en index      | douze copies                | Géométrie 5     |
+| Sommets                           | quantifiés                          | bruts, ~48 octets/triangle  | Géométrie 11    |
+| Textures                          | virtuelles, comprimées à la cuisson | atlas entier, RGBA brut     | Textures T4, T5 |
+
+Ordre pour l'effet : **Compilateur 10**, puis **Textures T5**, puis **Géométrie 5**, puis **11**.
+Les lots 1, 2 et 4 rendent de la mémoire et retirent du code ; la mesure dit qu'ils ne rendront pas
+de millisecondes.
 
 1. **Fait, moitié processeur** : coupe publiée comme une différence par les deux chemins sous un contrat unique, lecteurs tenus sur l'entrant/sortant ; `webgpuBudgetRanking`, `gpuDagRuntime` et `webgpuFrameHold` fondus dedans. **La moitié GPU ne vise plus la différence mais la RÉFÉRENCE** (décision du 17 sept. 2026) : le processeur doit cesser de connaître la coupe, la carte la garde et la dessine — le raster de calcul lit déjà son masque sur place —, et le relevé ne rapporte qu'une liste de demandes de diffusion de taille fixe. Appartenance persistante, journal séparé et protocole de resynchronisation tombent avec ce choix : il n'y a plus rien à resynchroniser. **Fait** : relevé borné par `SELECTION_LIST_CAP`, débordement dit et replié sur la coupe processeur ; totaux de triangles tenus par `dagMask` ; chaque rang est une demande portant sa priorité, classée à la relecture ; oracle au même contrat, prouvé sur la carte. **Reste** : la liste dessinable doit quitter le relevé (le noyau de compaction `gpuDagCompactWgsl` disparaît avec elle), un gestionnaire de diffusion doit consommer les demandes — dernière image demandée pour l'éviction, priorité pour la file —, et `webgpuCutDelta`, `webgpuCutCounts`, `webgpuCutPending`, `webgpuCutAdoption`, `webgpuHeldKeys`, `webgpuBudgetRanking`, `webgpuPinUpdater` partent alors. Fichiers `gpuDag*`, `webgpuCut*`.
 2. **Fait, scène simple face** : les transparents paginés d'un même pipeline tiennent en une tranche, le plan trié est lu par la carte seule, l'argument indirect par item a disparu — 3 008 appels → 9 au banc `transparents-ordres`. **Rien n'est gagné en double face** (6 016 → 6 016) : dos et face posent deux pipelines par item, aucune tranche ne fusionne ; porter le côté par instance sous un pipeline sans élimination matérielle coûte +42 % de passe transparente (11,0 → 15,4 ms, apple metal-3), refusé tant qu'une autre forme n'est pas trouvée. **Reste** : la transmission garde une tranche par entrée tant que le volume du matériau est un uniforme à décalage dynamique (le rapatrier porte `VSOut` à seize variables inter-étages, le plancher garanti) ; une primitive non paginée garde son appel tant que sa géométrie n'est pas concaténée. Fichiers `webgpuBlend*`.
@@ -74,7 +89,7 @@ Mesuré au lot 1 : sur apple metal-3, rétrécir le relevé rend de la mémoire,
 7. Accepter en entrée le glTF compressé Draco et meshopt.
 8. Map industrielle sur le banc 15.
 9. Vérification de licence FAB pour le corpus.
-10. Classer en masqué, à l'import, tout matériau dont l'alpha est réellement binaire et qui arrive déclaré en mélange, quand la donnée source le dit — sans jamais reclasser un vrai transparent. C'est ce qui remplace la conversion BLEND → MASK côté moteur (Lumière 10).
+10. **Le levier le plus court vers la performance de la référence.** Classer en masqué, à l'import, tout matériau dont l'alpha est réellement binaire et qui arrive déclaré en mélange, quand la donnée source le dit — sans jamais reclasser un vrai transparent. C'est ce qui remplace la conversion BLEND → MASK côté moteur (Lumière 10). MESURÉ sur `emerald-square` : 252 primitives sont en `exact-clusters` et passent par le raster de calcul en UN appel de dessin ; 29 sont en `clustered-blend` et en coûtent un par item et par face — 964 maillages transparents, jusqu'à 1 928 appels dès qu'ils entrent dans le champ. Observé dans le Lab : 1 appel et 107 FPS en regardant l'herbe de près, 271 appels et 8 FPS en balayant la pelouse. La référence n'a pas ce chemin : sa géométrie virtualisée n'accepte que l'opaque et le masqué, son feuillage est masqué, et il coûte ce que coûtent les murs. Reste à vérifier que l'alpha de ces 29 matériaux est bien binaire.
 
 ## Calculateur
 
