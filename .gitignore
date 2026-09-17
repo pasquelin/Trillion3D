@@ -7,9 +7,10 @@ benchmark-runs/
 .claude/
 .agents/
 
-# Graphe de connaissance graphify : seul le rapport est partagé (le reste est reconstructible)
-graphify-out/*
-!graphify-out/GRAPH_REPORT.md
+# Graphe de connaissance graphify : le dossier est commité pour que chaque poste démarre avec
+# la carte. Seuls le compteur local et le cache d'extraction restent dehors (recommandation amont).
+graphify-out/cost.json
+graphify-out/cache/
 
 # Jeu de modèles de test livré hors git (voir packages/asset-compiler-rust/FORMATS.md)
 test/assets/
