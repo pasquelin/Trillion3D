@@ -54,6 +54,7 @@ export function descenteComptee(
   // Le prologue par primitive et le verdict par nœud viennent de `gpuDagOracleMath.ts`, écrits une
   // seule fois pour l'oracle et pour ce comptage : ni l'un ni l'autre ne peut dériver du noyau seul.
   const frames = dagViewFrames(packed, uniforms);
+  if (bounds) verifieBornes(bounds, packed);
   const compte: Descente = {
     visites: 0,
     internes: 0,
@@ -77,7 +78,7 @@ export function descenteComptee(
       }
       // Le PLANCHER d'erreur du sous-arbre, que le nœud ne porte pas encore comme il porte son
       // plafond : aucune de ses grappes n'est assez fine, il n'en sortira pas une candidate.
-      if (bounds && plancherRejette(frames, bounds, ints, n)) {
+      if (bounds && plancherRejette(frames, bounds, packed, ints, n)) {
         compte.plancherCoupe++;
         compte.frontiereRejetees++;
         continue;
@@ -124,15 +125,22 @@ export function descenteComptee(
  * rejet PAR LE HAUT, celui que la coupe processeur pose déjà (`pageSelectionCutNode.ts`) et que la
  * descente de la carte ne pose pas. `cullingBounds` dérive ces bornes des pages à la préparation,
  * sans toucher au format du manifeste.
+ *
+ * `bounds` décrit UNE hiérarchie, celle que toutes les poses partagent ; le rangement, lui, numérote
+ * les nœuds d'un bout à l'autre des poses. L'indice local est donc `n` moins la racine de sa
+ * primitive. L'oublier ne lève rien et ne se voit pas : une lecture hors tableau rend `undefined`,
+ * `errorFloorAt` y répond zéro, et le rejet ne se produit simplement jamais au-delà de la première
+ * pose. `verifieBornes` transforme ce silence en erreur.
  */
 function plancherRejette(
   frames: ReturnType<typeof dagViewFrames>,
   bounds: Float64Array,
+  packed: PackedDag,
   ints: Uint32Array,
   n: number,
 ) {
-  const at = n * BOUND_STRIDE,
-    w = ints[n * DAG_NODE_FLOATS + 12];
+  const w = ints[n * DAG_NODE_FLOATS + 12];
+  const at = (n - packed.rootNodes[w]) * BOUND_STRIDE;
   const e = frames.views[w];
   return (
     errorFloorAt(
@@ -143,4 +151,15 @@ function plancherRejette(
       frames.focal,
     ) > frames.pixelError
   );
+}
+
+/** Le contrat de `bounds` : une hiérarchie, la même pour toutes les poses, et autant de nœuds que le
+ *  rangement en compte par pose. Vérifié une fois, avant la descente. */
+function verifieBornes(bounds: Float64Array, packed: PackedDag) {
+  const poses = Math.max(1, packed.worldCount);
+  if (bounds.length !== (packed.nodeCount / poses) * BOUND_STRIDE)
+    throw new Error('GPU_DAG_FRONTIER_BOUNDS_SHAPE');
+  for (let w = 0; w < poses; w++)
+    if (packed.rootNodes[w] !== (w * packed.nodeCount) / poses)
+      throw new Error('GPU_DAG_FRONTIER_BOUNDS_SHAPE');
 }
