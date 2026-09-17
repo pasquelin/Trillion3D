@@ -1,8 +1,9 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from './gpuSelection.ts';
 import { sameSelectionUniforms } from './gpuSelection.ts';
 import type { PageRec } from './pageSelection.ts';
-import { copyPages, shownFromGpu } from './webgpuPagesHelpers.ts';
+import { copyPages, writeCutPages } from './webgpuPagesHelpers.ts';
 import type { CutDelta } from './webgpuCutDelta.ts';
+import type { CutCounts } from './webgpuCutCounts.ts';
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -19,7 +20,8 @@ export function createWebgpuCutAdopter(options: {
   shown: PageRec[];
   drawn: PageRec[];
   uniforms: SelectionUniforms;
-  residentOffsetWords: Int32Array;
+  /** Les totaux de la coupe dessinable, tenus par la différence : ils sont lus, jamais resommés. */
+  counts: CutCounts;
   delta: CutDelta;
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
   drawnDelta: CutDelta;
@@ -88,28 +90,22 @@ export function createWebgpuCutAdopter(options: {
       metrics.incomplete = true;
       return false;
     }
-    // Le contenu de `shown` est une fonction du seul relevé : les mêmes identifiants, lus dans le
-    // même catalogue, rendent les mêmes enregistrements dans le même ordre. Un relevé dont ils sont
-    // déjà faits ne les refait donc pas — seuls les comptes sont relus, et eux seuls dépendent de la
-    // résidence. La liste est parcourue une fois au lieu d'être vidée puis repoussée trois fois.
     // `shown` est une fonction de la seule suite d'identifiants dessinables : un relevé neuf qui
     // republie la MÊME suite que celle dont `shown` est fait rend les mêmes fiches, aux mêmes rangs,
     // et ni `shown` ni sa recopie `drawn` ne sont refaits. La comparaison porte sur l'âge de la suite
     // adoptée, pas sur la dernière différence appliquée : un relevé appliqué puis rejeté a fait
     // avancer l'âge sans rien écrire. `shownCut` nul veut dire que ces listes viennent d'ailleurs.
     const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq);
-    const counts = shownFromGpu(
-      packedPages,
-      cut.result.drawablePageIds,
-      held ? undefined : shown,
-      options.residentOffsetWords,
-    );
     if (!held) {
+      writeCutPages(shown, cut.result.drawablePageIds, packedPages);
       copyPages(drawn, shown);
       options.onDrawnMirrored();
       shownCut = cut;
       shownSeq = drawnSeq;
     }
+    // Les totaux décrivent l'ensemble que la différence vient de poser, c'est-à-dire exactement les
+    // enregistrements de `shown` : ils se lisent, ils ne se recomptent pas.
+    const counts = options.counts.totals;
     metrics.ready = true;
     metrics.selectedTriangles = counts.selectedTriangles;
     metrics.uncoveredTriangles = counts.uncoveredTriangles;
