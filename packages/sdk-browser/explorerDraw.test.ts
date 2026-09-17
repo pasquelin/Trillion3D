@@ -67,7 +67,7 @@ test('un grand anneau, un grand nombre de lots de tailles variées, reste identi
 
 // G6 : les adresses manquantes qu'une requête en cours fera repartir ensuite s'accumulent dans un
 // `Set` (`empileEnAttente`) au lieu d'un tableau testé par `includes` à chaque adresse ajoutée.
-// Oracle : le tableau dédoublonné à la main d'avant le lot G, recopié dans `bench/oracles/file-streaming.mjs`.
+// Oracle : le tableau dédoublonné à la main d'avant le lot G, recopié dans `bench/oracles/recherches-streaming.mjs`.
 test('un ensemble vide reçoit les mêmes adresses, dans le même ordre, qu’un tableau dédoublonné à la main', () => {
   const ensemble = new Set<string>();
   const tableau: string[] = [];

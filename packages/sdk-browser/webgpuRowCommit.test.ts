@@ -2,7 +2,7 @@
 // inverse d'une ligne que `sourceRowOf` a rendue exacte ; F5 (webgpuRowState.ts) fait voyager le rang
 // d'une page du catalogue sur la page elle-même (`packedIndex`) au lieu d'une table de hachage. Les
 // oracles sont les implémentations d'avant le lot F, recopiées telles quelles dans
-// `oracles/f-lignes.mjs`. La comparaison porte sur l'état complet des tableaux après une suite
+// `oracles/lignes-dessinables.mjs`. La comparaison porte sur l'état complet des tableaux après une suite
 // d'images, pas sur une seule image : c'est là que les lignes réutilisées se voient.
 //
 // Ce que cette comparaison NE peut pas prouver : ce que le lot F n'a pas changé. `sourceRowOf` est
@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuRowState } from './webgpuRowState.ts';
 import { createWebgpuRowCommit } from './webgpuRowCommit.ts';
-import { referenceRowCommit, referenceRowState } from './bench/oracles/f-lignes.mjs';
+import { referenceRowCommit, referenceRowState } from './bench/oracles/lignes-dessinables.mjs';
 import type { PageRec } from './pageSelection.ts';
 import {
   catalogue,
