@@ -11,17 +11,15 @@
 //   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
+import { dansPageWebgpu, empaquetePage } from './pageWebgpu.mjs';
 import {
   SELECTION_HEADER_WORDS,
   SELECTION_LIST_CAP,
 } from '../../packages/sdk-browser/gpuDagLayout.ts';
 
 const ici = dirname(fileURLToPath(import.meta.url));
-const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
 
 /** Les tailles de scène balayées, en FEUILLES : la pyramide en rend à peu près le double en pages.
  *  La dernière vise l'ordre de grandeur de la scène à douze instances, 1 959 792 grappes. */
@@ -37,16 +35,7 @@ const PLAFOND = SELECTION_LIST_CAP;
 const ERREURS = [1, 4, 16, 64];
 
 test('le relevé livré tient sous son plafond quelle que soit la taille du catalogue', async () => {
-  const paquet = await esbuild.build({
-    entryPoints: [resolve(ici, 'releveCoupePage.mjs')],
-    bundle: true,
-    write: false,
-    format: 'iife',
-    globalName: 'releveCoupe',
-    platform: 'browser',
-    target: 'es2022',
-    logLevel: 'error',
-  });
+  const script = await empaquetePage(resolve(ici, 'releveCoupePage.mjs'), 'releveCoupe');
   const erreursPage = [];
   const releve = await dansPageWebgpu(
     (argument) => globalThis.releveCoupe.executer(argument),
@@ -58,7 +47,7 @@ test('le relevé livré tient sous son plafond quelle que soit la taille du cata
       plafond: PLAFOND,
       erreurs: ERREURS,
     },
-    { titre: 'Prix du relevé de coupe', script: paquet.outputFiles[0].text, erreursPage },
+    { titre: 'Prix du relevé de coupe', script, erreursPage },
   );
   assert.equal(releve.indisponible, undefined, 'WebGPU doit être disponible');
   assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);

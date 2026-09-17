@@ -4,3 +4,5 @@ dist/
 benchmark-runs/
 **/target/
 package-lock.json
+# Sorties de graphify : JSON et Markdown produits par l'outil, jamais écrits à la main.
+graphify-out/
