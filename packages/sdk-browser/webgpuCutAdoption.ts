@@ -44,6 +44,11 @@ export function createWebgpuCutAdopter(options: {
      *  dessiner n'est pas encore arrivée. L'image ATTEND cette page, elle ne jette pas la sélection
      *  GPU — le repli processeur est réservé à un échec réel de la sélection. */
     incomplete: false,
+    /** Vrai quand le relevé adopté est AMPUTÉ : la coupe ne tenait pas sous le plafond du relevé.
+     *  Aucune différence n'en est tirée — une liste amputée ferait sortir des pages qui sont dans la
+     *  coupe —, et l'image repasse par la coupe processeur, seule à savoir choisir un sous-ensemble
+     *  représentable. */
+    truncated: false,
     ready: false,
     visible: 0,
     selectedTriangles: 0,
@@ -67,8 +72,15 @@ export function createWebgpuCutAdopter(options: {
     metrics.cutHeld = false;
     metrics.listsRewritten = false;
     metrics.incomplete = false;
+    metrics.truncated = false;
     const cut = options.selection()?.peek();
     if (!cut?.result.drawablePageIds) return false;
+    // Avant toute différence : une liste amputée décrit moins que la coupe, et la différence qu'on
+    // en tirerait ferait SORTIR des pages que la coupe retient encore.
+    if (cut.result.truncated) {
+      metrics.truncated = true;
+      return false;
+    }
     const { desired, shown, drawn, delta, drawnDelta } = options;
     if (cut === lastCut) {
       delta.hold();

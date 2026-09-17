@@ -37,6 +37,26 @@ export function packClusterFlags(root: boolean, never: boolean, level: number) {
 }
 export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
 
+/**
+ * Le PLAFOND du relevé, en rangs, pour chacune de ses deux moitiés.
+ *
+ * Le tampon de relevé était taillé sur `pageCount` — le pire cas, une coupe qui retiendrait le
+ * catalogue entier —, et la copie d'image en emportait la totalité : 15,2 Mo par image à 1 992 187
+ * grappes, pour une coupe qui en retient de l'ordre du centième. Mesuré sur apple metal-3
+ * (`bench/justesse/releve-coupe-gpu.mjs`) : 1,17 ms par image pour le relevé complet contre 0,52 ms
+ * pour un relevé plafonné, quand les noyaux eux-mêmes en coûtent 0,99.
+ *
+ * Le plafond est LARGE devant une coupe réelle : le même banc retient 7 812 rangs de 1 992 187 à
+ * seuil 64, 31 250 à seuil 16. Un dépassement reste donc possible — une caméra posée dans la
+ * géométrie à seuil minuscule — et il est DIT : le noyau pose le bit de débordement, le relevé est
+ * déclaré tronqué et l'image repasse par la coupe processeur, qui sait choisir un sous-ensemble
+ * représentable. Jamais un relevé tronqué n'est adopté comme s'il était entier.
+ */
+export const SELECTION_LIST_CAP = 262144;
+/** Le plafond d'une scène : jamais plus que son catalogue, qu'aucune coupe ne peut dépasser. */
+export const selectionListCap = (pageCount: number) =>
+  Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP);
+
 /** Premier mot de la résidence, derrière l'enregistrement froid de toutes les grappes. */
 export const residentBase = (pageCount: number) => pageCount * COLD_WORDS;
 /** Mots de résidence : un bit par grappe, trente-deux grappes par mot. */

@@ -44,7 +44,7 @@ fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
   cursor=cursor+n;
  }
  // Le dernier fil a resommé tous les totaux, que sa propre tranche soit vide ou non : c'est le total.
- if(lane==63u){out.pages[uni.clusterCount]=cursor;}
+ if(lane==63u){out.pages[uni.listCap]=cursor;if(cursor>uni.listCap){atomicOr(&out.overflow,1u);}}
 }
 @compute @workgroup_size(64)
 fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
@@ -56,6 +56,7 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
  var rank=0u;
  for(var j=begin;j<i;j++){rank=rank+drawFlag(j);}
  let off=atomicLoad(&work[blockBase()+blockCount()+b]);
- out.pages[uni.clusterCount+4u+off+rank]=i;
+ let at=off+rank;if(at>=uni.listCap){atomicOr(&out.overflow,1u);return;}
+ out.pages[uni.listCap+4u+at]=i;
 }
 `;

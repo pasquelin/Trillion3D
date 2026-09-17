@@ -69,6 +69,10 @@ export function renderGpuCut(
   run.pagesExited = 0;
   services.adoptGpuCut();
   marks.adoptEnd = performance.now();
+  // Le relevé ne tenait pas sous son plafond : la liste rapportée est amputée, et seule la coupe
+  // processeur sait encore choisir un sous-ensemble représentable — comme pour le débordement des
+  // identifiants de visibilité.
+  if (gpu.cutTruncated) return withoutGpuSelection(rt, 'relevé de coupe tronqué');
   // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
   marks.transparentSelectEnd = marks.adoptEnd;
   if (run.gpuMetricsReady) run.visible = run.desired.length;

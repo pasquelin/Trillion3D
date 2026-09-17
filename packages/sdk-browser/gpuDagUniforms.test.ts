@@ -12,9 +12,15 @@ import type { SelectionResult } from './gpuSelection.ts';
  * masque existait ; le relevé réutilisé d'une image à l'autre la porte toujours, à `undefined` quand
  * il n'y a pas de masque, pour que la forme de l'objet ne change pas d'une relecture à l'autre.
  * C'est une différence de forme, jamais de valeur : les deux côtés restent comparés champ par champ.
+ *
+ * `truncated` est ÔTÉ de la comparaison : c'est le seul champ que l'oracle ne peut pas porter, le
+ * bit 0 ayant changé de sens avec le plafond du relevé. Il est asserté à part, juste en dessous.
  */
-const champs = (releve: SelectionResult | null) =>
-  releve && { ...releve, drawablePageIds: releve.drawablePageIds ?? undefined };
+const champs = (releve: SelectionResult | null) => {
+  if (!releve) return releve;
+  const { truncated: _truncated, ...reste } = releve;
+  return { ...reste, drawablePageIds: releve.drawablePageIds ?? undefined };
+};
 
 function buffer(header: number[], pageIds: number[]) {
   const ints = new Uint32Array(4 + pageIds.length);
@@ -34,10 +40,24 @@ function withDrawn(header: number[], pageIds: number[], drawn: number[], pageCou
   return { bytes: ints.buffer, drawnWordOffset: words };
 }
 
-test('the aborted flag (bit 0 of word 3) makes both implementations return null', () => {
+// Le bit 0 a changé de sens avec le plafond du relevé (`gpuDagLayout.ts`). Il disait « la coupe a
+// écrit plus de rangs qu'il n'existe de grappes », c'est-à-dire une panne, et l'oracle rendait
+// `null` : la sélection GPU était abandonnée pour la session. Il dit maintenant « la coupe ne tenait
+// pas sous le plafond », ce qui est une situation NORMALE d'une scène extrême : les noyaux ont
+// tourné, le masque de l'image est juste, seule la LISTE est amputée. Le relevé est donc rendu, et
+// marqué, pour que l'image repasse par la coupe processeur au lieu de mourir.
+test('le bit 0 du mot 3 déclare le relevé tronqué, sans le jeter', () => {
   const buf = buffer([5, 0, 0, 1], [1, 2, 3, 4, 5]);
-  assert.equal(parseDagOutput(buf, 0, buf.byteLength, 0), null);
-  assert.equal(referenceParseDagOutput(buf, 0, buf.byteLength, 0), null);
+  const releve = parseDagOutput(buf, 0, buf.byteLength, 0);
+  assert.ok(releve, 'un relevé tronqué reste un relevé');
+  assert.equal(releve.truncated, true);
+  assert.deepEqual(releve.pageIds, [1, 2, 3, 4, 5]);
+  assert.equal(referenceParseDagOutput(buf, 0, buf.byteLength, 0), null, 'ce que faisait l’oracle');
+});
+
+test('un relevé qui tient sous le plafond n’est jamais déclaré tronqué', () => {
+  const buf = buffer([3, 0, 0, 0], [10, 20, 30]);
+  assert.equal(parseDagOutput(buf, 0, buf.byteLength, 0)!.truncated, false);
 });
 
 test('a normal readback without a mask matches the reference field for field', () => {

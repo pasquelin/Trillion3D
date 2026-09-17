@@ -84,6 +84,7 @@ export function createWebgpuCutPublication(
       metrics = cutAdopter.metrics;
     run.cutHeld = metrics.cutHeld;
     gpu.cutIncomplete = metrics.incomplete;
+    gpu.cutTruncated = metrics.truncated;
     // Une adoption qui réécrit les listes les fait changer d'âge, au rendu comme dans la vidange.
     if (metrics.listsRewritten) run.cutEpoch++;
     if (!adopted) return metrics.listsRewritten;

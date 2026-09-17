@@ -43,6 +43,9 @@ export type SelectionResult = {
   lodLevel: number;
   complete?: boolean;
   drawablePageIds?: number[];
+  /** Vrai quand la coupe dépassait le plafond du relevé : les listes sont amputées, et l'image doit
+   *  repasser par la coupe processeur plutôt que de les adopter (`gpuDagLayout.ts`). */
+  truncated?: boolean;
 };
 export type GpuCut = { uniforms: SelectionUniforms; result: SelectionResult };
 /**
