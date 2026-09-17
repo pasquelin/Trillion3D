@@ -11,9 +11,9 @@ import { compare } from '../../../sdk-core/bench/socle.mjs';
 const options = { chauffe: 1, tours: 5, budgetMs: 200 };
 
 /** Une ligne : un seul jeu d'entrées, la référence contre le socle ou contre le code d'avant. */
-export const ligne = (calcul, fichier, nom, entree, reference, optimisee) =>
+export const ligne = (libelle, fichier, nom, entree, reference, optimisee) =>
   compare({
-    calcul,
+    nom: libelle,
     fichier,
     cas: [{ nom, entree, taille: entree.length }],
     reference,

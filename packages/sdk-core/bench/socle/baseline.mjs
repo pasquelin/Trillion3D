@@ -3,29 +3,31 @@
 // mesure/cas, jamais par son fichier source : plusieurs bancs mesurent le même fichier.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
-const BASELINES = join(RACINE, '.mesure', 'baselines');
+import { RACINE, cheminBaseline, dossierBaselines } from './chemins.mjs';
 
 /** La clé d'une ligne de baseline : le nom de la mesure et celui du cas. */
 export const cleDeLigne = (mesure, cas) => `${mesure} | ${cas}`;
 
-function commitCourant() {
-  try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: RACINE, encoding: 'utf8' }).trim();
-  } catch {
-    return null;
-  }
-}
+let commitMemoire;
 
-/** Assainit un nom de domaine pour l'employer comme nom de fichier. */
-const assainir = (domaine) => domaine.replace(/[/\\]/g, '-').replace(/^-+|-+$/g, '');
+/** Le commit courant, relevé une fois par processus : `baseline-save` en dépose trente-neuf. */
+export function commitCourant() {
+  if (commitMemoire === undefined) {
+    try {
+      commitMemoire = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: RACINE,
+        encoding: 'utf8',
+      }).trim();
+    } catch {
+      commitMemoire = null;
+    }
+  }
+  return commitMemoire;
+}
 
 /** Charge la baseline d'un domaine, ou `null` si la machine n'en a pas encore déposé. */
 export function chargeBaseline(domaine) {
-  const chemin = join(BASELINES, `${assainir(domaine)}.json`);
+  const chemin = cheminBaseline(domaine);
   if (!existsSync(chemin)) return null;
   try {
     const lue = JSON.parse(readFileSync(chemin, 'utf8'));
@@ -47,10 +49,9 @@ export function sauveBaseline(domaine, mesures) {
       nsParElement: r.nsParElement ?? null,
     })),
   );
-  const nom = assainir(domaine);
-  mkdirSync(BASELINES, { recursive: true });
+  mkdirSync(dossierBaselines, { recursive: true });
   writeFileSync(
-    join(BASELINES, `${nom}.json`),
+    cheminBaseline(domaine),
     JSON.stringify(
       {
         version: 2,

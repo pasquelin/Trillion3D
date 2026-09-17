@@ -7,6 +7,7 @@ import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..');
+const JUSTESSE = 'test/justesse';
 
 export const BROWSER_GPU_TESTS = [
   'test/browser/cisaillementTransform.browser.mjs',
@@ -29,18 +30,18 @@ export const BROWSER_GPU_TESTS = [
  * Les sondes exécutables de `test/justesse/` : celles dont le nom porte un tiret. Les autres
  * fichiers du dossier sont leurs modules d'appui, importés par elles et jamais lancés seuls.
  */
-export function listJustesseTests(dossier = 'test/justesse') {
-  return readdirSync(join(RACINE, dossier))
+export function listJustesseTests() {
+  return readdirSync(join(RACINE, JUSTESSE))
     .filter((fichier) => fichier.includes('-') && fichier.endsWith('.mjs'))
     .sort()
-    .map((fichier) => `${dossier}/${fichier}`);
+    .map((fichier) => `${JUSTESSE}/${fichier}`);
 }
 
 /** Les arguments de `node` : les drapeaux, puis la cible demandée ou la liste complète. */
-export function buildTestGpuArgs(cliArgs = [], dossier = 'test/justesse') {
+export function buildTestGpuArgs(cliArgs = []) {
   const flags = ['--experimental-strip-types', '--test', '--test-concurrency=1'];
   if (cliArgs.length > 0) return [...flags, ...cliArgs];
-  return [...flags, ...listJustesseTests(dossier), ...BROWSER_GPU_TESTS];
+  return [...flags, ...listJustesseTests(), ...BROWSER_GPU_TESTS];
 }
 
 export function runGpuTests(args = process.argv.slice(2)) {

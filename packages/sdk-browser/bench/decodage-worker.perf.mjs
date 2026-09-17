@@ -93,9 +93,7 @@ test('H2 : le worker rend exactement la page et les octets du fil principal', as
   const verifiee = await horsFil('verify', grande.slice().buffer);
   assert.equal(verifiee.ok, true, verifiee.message);
   assert.equal(verifiee.sha256, attendu);
-  const rendus = new Uint8Array(verifiee.source);
-  assert.equal(rendus.length, grande.length);
-  for (let i = 0; i < grande.length; i++) assert.ok(Object.is(rendus[i], grande[i]), `octet ${i}`);
+  assert.equal(ecart(grande, new Uint8Array(verifiee.source), 'octets rendus'), null);
   await worker.terminate();
 });
 
