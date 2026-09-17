@@ -112,4 +112,3 @@ export function compareBaseline(resultats, options = {}) {
         : 'ok';
   return { verdict, compares, regressions, avertissements, ...seuils };
 }
-

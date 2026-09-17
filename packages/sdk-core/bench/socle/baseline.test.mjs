@@ -7,12 +7,7 @@
 // conclusion de ce même tableau. Ce test tient la règle en un seul endroit.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  compareBaseline,
-  niveauEcart,
-  SEUIL_AVERTISSEMENT,
-  SEUIL_ECHEC,
-} from '../../packages/sdk-core/bench/baseline.mjs';
+import { compareBaseline, niveauEcart, SEUIL_AVERTISSEMENT, SEUIL_ECHEC } from './baseline.mjs';
 
 const cas = (nom, ecartBaseline) => ({ nom, ecartBaseline });
 

@@ -1,6 +1,6 @@
 // A12 : la file de transferts est triée une seule fois par passage du `while`, et `findAdmissible`
 // remplace le `queue.sort()` + `findIndex` répétés à chaque tour. Oracle : la version qui re-triait
-// systématiquement, d'avant le lot A, dans `bench/oracles/streaming.mjs`.
+// systématiquement, d'avant le lot A, dans `bench/oracles/admission-arrivees.mjs`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compacteFile, findAdmissible } from './streamingQueueOrder.ts';
@@ -113,7 +113,7 @@ test('an unknown url (no byte size) is treated as zero cost by both sides', () =
 // G5 : une demande annulée est marquée `dropped` puis la file est compactée en un seul passage
 // (`compacteFile`) au prochain `pump`, au lieu d'être retrouvée par `queue.indexOf` et retirée par
 // `splice` à chaque annulation. Oracle du retrait immédiat : `referenceRetireDeLaFile`, recopié tel
-// quel d'avant le lot G dans `bench/oracles/file-streaming.mjs`.
+// quel d'avant le lot G dans `bench/oracles/recherches-streaming.mjs`.
 {
   const { referenceRetireDeLaFile } = await import('./bench/oracles/recherches-streaming.mjs');
 

@@ -88,7 +88,7 @@ test('EngineProfiler diagnoses CPU bound state when cpuFrameMs exceeds budget', 
 
 // A14 : `record()` écrit dans un tampon circulaire au lieu de `push` puis `shift()` de tout le
 // tableau. Oracle : la version `push`/`shift`, d'avant le lot A, dans
-// `bench/oracles/chargement.mjs`.
+// `bench/oracles/attributs-telemetrie.mjs`.
 test('the circular interval buffer matches push+shift after wraparound and rejected deltas', () => {
   const max = 5;
   const profiler = new EngineProfiler(max);
