@@ -17,6 +17,10 @@ type DagCluster = {
   max?: number[];
   cone?: NormalCone;
   material?: THREE.Material | THREE.Material[];
+  /** Les triangles de la grappe et sa passe : la carte tient les totaux, le processeur ne les somme
+   *  plus (`gpuDagLayout.ts`, entête du relevé). */
+  triangles?: number;
+  transparent?: boolean;
 };
 export type DagRoot = {
   world: THREE.Matrix4;
