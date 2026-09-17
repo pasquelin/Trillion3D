@@ -1,10 +1,18 @@
-# Répertoire des tests d'intégration et sondes matérielles
+# Tests transverses
 
-Ce répertoire regroupe les tests transverses qui ne sont pas co-localisés avec un module source unitaire :
+Ce répertoire regroupe ce qui n'appartient à aucun paquet en particulier. Les tests unitaires, eux,
+vivent à côté de leur source, sous `packages/*/`.
 
-- **`justesse/`** : les 40 sondes de précision matérielle WebGPU et arithmétique flottante stricte, exécutées via `npm run test:gpu` (`scripts/test-gpu.mjs`).
-- **`*.browser.mjs`** : tests d'intégration de rendu exécutés dans une instance Chromium réelle (WebGPU / WebGL2).
-- **`*.test.mjs`** : tests de validation d'architecture (`engineStructure.test.mjs`, `engineNoThree.test.mjs`, `engineNoThreeMath.test.mjs`) et tests des contrats d'export.
-- **`fixtures/`** : scènes de test synthétiques et oracles pour l'éclairage et les transferts.
+- **`integration/`** — 10 tests d'architecture et de contrat (`engineStructure`, `engineNoThree`,
+  `public`, `dts-extensions`…), joués par `pnpm test`.
+- **`browser/`** — 24 tests de rendu exécutés dans un Chromium réel (WebGPU / WebGL2).
+- **`justesse/`** — 17 sondes de précision matérielle, plus leurs modules d'appui. Une sonde est un
+  fichier dont le nom porte un tiret ; les autres ne se lancent jamais seuls.
+- **`appui/`** — les modules partagés par les tests de rendu : serveur de fixtures, captures,
+  pages servies au navigateur.
+- **`fixtures/`** — scènes et données de test.
 
-Pour la documentation complète du système de test, voir [`docs/TESTS.md`](../docs/TESTS.md).
+`browser/` et `justesse/` se lancent ensemble par `pnpm run test:gpu`
+(`scripts/test-gpu.mjs`, dont `scripts/test-gpu.test.mjs` vérifie la liste).
+
+Documentation complète : [`docs/TESTS.md`](../docs/TESTS.md).

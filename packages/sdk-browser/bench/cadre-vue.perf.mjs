@@ -1,9 +1,9 @@
-// F10, F12 et F13 : ce qu'une image rebâtissait sans raison.
+// ce qu'une image rebâtissait sans raison.
 import * as THREE from 'three';
 import { surfaceColorAttachments } from '../webgpuPagesEncodeVisSetup.ts';
 import { anneauFroid } from '../explorerDraw.ts';
 import { deplaceInstance } from '../autonomousInstances.ts';
-import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
   referenceAnneauFroid,
   referenceAttachments,
@@ -83,7 +83,7 @@ const streamer = {
 };
 
 const resAttachments = await mesure({
-  nom: 'F10 pièces jointes des surfaces',
+  nom: 'pièces jointes des surfaces',
   fichier: 'packages/sdk-browser/webgpuPagesEncodeVisSetup.ts',
   cas: [
     { nom: '2 000 images sans redimensionnement', entree: imagesSurfaces, taille: 2000 },
@@ -95,7 +95,7 @@ const resAttachments = await mesure({
 });
 
 const resInstance = await mesure({
-  nom: 'F12 déplacement d’une instance',
+  nom: 'déplacement d’une instance',
   fichier: 'packages/sdk-browser/autonomousInstances.ts',
   cas: [
     { nom: '5 000 pages', entree: grosseInstance, taille: 5000 },
@@ -107,7 +107,7 @@ const resInstance = await mesure({
 });
 
 const resAnneau = await mesure({
-  nom: 'F13 anneau de préchargement',
+  nom: 'anneau du cadre de vue',
   fichier: 'packages/sdk-browser/explorerDraw.ts',
   cas: [
     {
@@ -124,11 +124,14 @@ const resAnneau = await mesure({
 await stress({
   nom: 'anneauFroid extremes',
   calcul: (lim) => anneauFroid([], streamer, lim),
-  extremes: [{ nom: '0 limite', entree: 0 }, { nom: 'negative limite', entree: -1 }],
+  extremes: [
+    { nom: '0 limite', entree: 0 },
+    { nom: 'negative limite', entree: -1 },
+  ],
 });
 
 rapport(
-  'f-cadre',
+  'cadre-vue',
   [resAttachments, resInstance, resAnneau],
   'F10, F12 et F13 rendent exactement les mêmes descripteurs, matrices et listes',
 );

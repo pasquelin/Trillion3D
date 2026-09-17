@@ -14,16 +14,14 @@
  */
 import { createDagResources } from '../../packages/sdk-browser/gpuDagResources.ts';
 import { encodeDagKernels } from '../../packages/sdk-browser/gpuDagEncode.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagPack.ts';
+import { packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagPack.ts';
 import * as THREE from 'three';
-import { cameraSelectionUniforms, SELECTION_UNIFORM_BYTES } from '../../packages/sdk-browser/gpuSelection.ts';
-import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
 import {
-  dagRecords,
-  residentBase,
-  residentWords,
-  SELECTION_HEADER_WORDS,
-} from '../../packages/sdk-browser/gpuDagLayout.ts';
+  cameraSelectionUniforms,
+  SELECTION_UNIFORM_BYTES,
+} from '../../packages/sdk-browser/gpuSelection.ts';
+import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
+import { SELECTION_HEADER_WORDS } from '../../packages/sdk-browser/gpuDagLayout.ts';
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { DAG_LEVEL_WGSL } from '../../packages/sdk-browser/gpuDagLevelWgsl.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
@@ -33,36 +31,9 @@ import {
   ressourcesAvant,
 } from '../../packages/sdk-browser/bench/oracles/coupe-lancements.mjs';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
-import { scenePages, sceneRoots } from '../../packages/sdk-browser/gpuDagCutFrontierScene.ts';
+import { commandes, mediane, scene } from './coupeLancementsDecor.mjs';
 
 const SHADER_AVANT = DAG_SELECTION_SHADER.replace(DAG_LEVEL_WGSL, DAG_LEVEL_WGSL_AVANT);
-
-/** La scène : une pyramide de niveaux, une pose, toutes les pages résidentes, vue de face. La
- *  hiérarchie est celle du compilateur, un nœud par étage de détail sous la racine. */
-function scene(feuilles, niveaux) {
-  const roots = sceneRoots(scenePages(feuilles, niveaux), [new THREE.Matrix4()], true);
-  const packed = packDagSelection(roots);
-  const debut = residentBase(packed.pageCount);
-  dagRecords(packed).coldInts.fill(0xffffffff, debut, debut + residentWords(packed.pageCount));
-  return { packed, roots };
-}
-
-const mediane = (valeurs) => [...valeurs].sort((a, b) => a - b)[valeurs.length >> 1];
-
-/**
- * Les commandes qu'un encodage ouvre vraiment, comptées sur un encodeur qui ne fait que noter.
- * Publiées, jamais asserties ici : le contrat du nombre de commandes est tenu par
- * `gpuDagEncode.test.ts`, qui compte le même encodeur sans monter d'appareil.
- */
-const RIEN = () => {};
-function commandes(encode) {
-  let passes = 0,
-    copies = 0;
-  const passe = { setBindGroup: RIEN, setPipeline: RIEN, end: RIEN };
-  passe.dispatchWorkgroups = passe.dispatchWorkgroupsIndirect = RIEN;
-  encode({ beginComputePass: () => (passes++, passe), copyBufferToBuffer: () => copies++ });
-  return { passes, copies };
-}
 
 export async function executer({ feuilles, niveaux, profondeurs, tours, rondes, bornes }) {
   const appareil = await ouvrirAppareil();

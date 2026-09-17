@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadeLit } from './visibilityLighting.ts';
-import { referenceShadeLit } from './bench/oracles/ombrage-pixels.mjs';
+import { referenceShadeLit } from './bench/oracles/eclairage-pixel.mjs';
 import type { VisPage, VisMaterial } from './visibilityTypes.ts';
 import type { Projected } from './visibilityProjection.ts';
 import { cameraMoteur } from './cameraFixture.ts';

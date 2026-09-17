@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { shadingNormal } from './visibilityShadingNormal.ts';
-import { referenceShadingNormal } from './bench/oracles/normale.mjs';
+import { referenceShadingNormal } from './bench/oracles/normale-ombrage.mjs';
 import type { VisMaterial, VisPage } from './visibilityTypes.ts';
 
 const attribut = (valeurs: number[], taille: number) =>

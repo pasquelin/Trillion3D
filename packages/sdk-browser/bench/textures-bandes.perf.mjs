@@ -1,6 +1,6 @@
-// H3-1 : transfert d'une bande de lignes vers une couche d'atlas.
+// Transfert d'une bande de lignes vers une couche d'atlas.
 import { textureJobFor, previewLevelJobs } from '../webgpuAtlasJobs.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
   bandes,
   pixels,
@@ -50,7 +50,7 @@ const casAtlas = [
 ];
 
 const resUpload = await mesure({
-  nom: 'H3-1 transfert atlas par bandes',
+  nom: 'transfert atlas par bandes',
   fichier: 'packages/sdk-browser/webgpuAtlasJobs.ts',
   cas: casAtlas,
   calcul: apres,
@@ -70,4 +70,8 @@ await stress({
   extremes: [{ nom: '64x64', entree: null }],
 });
 
-rapport('textures-h3', [resUpload], 'H3-1 : les bandes d’atlas émettent les mêmes commandes de copie');
+rapport(
+  'textures-bandes',
+  [resUpload],
+  'H3-1 : les bandes d’atlas émettent les mêmes commandes de copie',
+);

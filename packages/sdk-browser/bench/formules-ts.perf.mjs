@@ -7,7 +7,7 @@ import { barycentric } from '../visibilityMath.ts';
 import { barycentricAt, signedArea } from '../visibilityProjection.ts';
 import { packedRowBase } from '../webgpuPageRow.ts';
 import { plancherDuModele } from '../../../scripts/mesure/poses.mjs';
-import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
   referenceBarycentric,
   referenceBounceBatch,
@@ -19,7 +19,15 @@ import {
   referenceSignedArea,
   referenceWeights,
 } from './oracles/formules-ts.mjs';
-import { casPlans, durees, emprises, lots, rangs, tailles, triangles } from './scenesFormules.mjs';
+import {
+  casPlans,
+  durees,
+  emprises,
+  lots,
+  rangs,
+  tailles,
+  triangles,
+} from './appui/scenesFormules.mjs';
 
 const un = (nom, entree, taille) => [{ nom, entree, taille }];
 const options = { chauffe: 2, tours: 12, budgetMs: 500 };
@@ -129,7 +137,10 @@ const resFloor = await mesure({
 await stress({
   nom: 'devicePixels extremes',
   calcul: ([l, r]) => devicePixels(l, r),
-  extremes: [{ nom: 'zero', entree: [0, 1] }, { nom: 'ratio 0', entree: [100, 0] }],
+  extremes: [
+    { nom: 'zero', entree: [0, 1] },
+    { nom: 'ratio 0', entree: [100, 0] },
+  ],
 });
 
 rapport(

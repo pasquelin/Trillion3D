@@ -1,7 +1,7 @@
-// F20 : les vecteurs de sdk-core. Math.hypot(a, b, c) et validation de scène de transport.
+// les vecteurs de sdk-core. Math.hypot(a, b, c) et validation de scène de transport.
 import { length } from '../lightingSceneMath.ts';
 import { validateScene } from '../lightingTransportValidation.ts';
-import { graine, mesure, stress, rapport } from './mesure.mjs';
+import { graine, mesure, stress, rapport } from './socle.mjs';
 import { referenceLength, referenceValidateScene } from './oracles/vecteurs-transport.mjs';
 
 const alea = graine(97);
@@ -61,7 +61,7 @@ const passeScene = (fn) => (liste) =>
   });
 
 const resLongueur = await mesure({
-  nom: 'F20 longueur Vec3',
+  nom: 'longueur Vec3',
   fichier: 'packages/sdk-core/lightingSceneMath.ts',
   cas: casLongueur,
   calcul: (liste) => longueurs(liste, length),
@@ -70,7 +70,7 @@ const resLongueur = await mesure({
 });
 
 const resScene = await mesure({
-  nom: 'F20 normales scène transport',
+  nom: 'normales scène transport',
   fichier: 'packages/sdk-core/lightingTransportValidation.ts',
   cas: [
     { nom: '8 000 facettes', entree: scenes, taille: 8065 },
@@ -91,4 +91,4 @@ await stress({
   ],
 });
 
-rapport('f-vecteurs', [resLongueur, resScene], 'F20 rend les mêmes longueurs et refus');
+rapport('vecteurs-transport', [resLongueur, resScene], 'F20 rend les mêmes longueurs et refus');

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { toHex } from './sha256Hex.ts';
-import { referenceHex } from './bench/oracles/chargement.mjs';
+import { referenceHex } from './bench/oracles/attributs-telemetrie.mjs';
 
 test('an empty digest is the empty string on both sides', () => {
   assert.equal(toHex(new Uint8Array(0)), '');

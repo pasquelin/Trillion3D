@@ -186,18 +186,9 @@ millions de triangles sature une petite scène en travail inutile et en sature u
 résidence. Le relevé consigne le budget employé ; une comparaison n'a de sens qu'à budget égal des
 deux côtés.
 
-## Bancs de performance unifiés (`pnpm run perf:all`)
+## Bancs de performance
 
-Les 39 bancs de performance et leurs oracles vivent dans le paquet mesuré, sous `packages/<paquet>/bench/` : la
-vérité de test d'un paquet lui appartient, et un banc atteint les modules du paquet par chemin
-relatif au lieu d'importer ses internes depuis l'extérieur. Un banc va donc dans le paquet dont il
-mesure le code : `packages/sdk-core/bench/` pour `sdk-core`, `packages/sdk-browser/bench/` pour `sdk-browser`.
-Le socle unifié de mesure (`mesure.mjs`, `ecart.mjs`, `baseline.mjs`) réside dans `sdk-core/bench/`.
-
-Ils comparent, calcul par calcul, l'implémentation d'avant une optimisation à celle du paquet, sur
-les mêmes entrées avec validation stricte d'égalité bit-à-bit (`ecart.mjs` : `-0`, `NaN`, `Float32Array`, `Map`, `Set`),
-mesure statistique (warmup, médiane, p95, ops/sec) et suivi des régressions contre les baselines.
-La commande `pnpm run perf:all` joue les 39 bancs un par un (`--test-concurrency=1`) puis
-`scripts/mesure/perf/agrege.mjs` compile le tableau récapitulatif complet et l'écrit dans
-`.mesure/out/perf/perf-<date>.md` et `.json`.
-
+Ils vivent dans le paquet mesuré, sous `packages/<paquet>/bench/`, et se lancent par
+`pnpm run perf:all`. Leur fonctionnement, leurs oracles et leurs baselines sont décrits dans
+[`docs/TESTS.md`](../../docs/TESTS.md) ; ce README-ci ne couvre que le harnais de campagne
+ci-dessus, celui qui mesure une scène réelle dans un navigateur.

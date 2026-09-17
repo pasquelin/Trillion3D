@@ -5,7 +5,10 @@
 import { DAG_SELECTION_SHADER } from '../../packages/sdk-browser/gpuDagShader.ts';
 import { dansPageWebgpu } from './pageWebgpu.mjs';
 import { writeDagUniforms } from '../../packages/sdk-browser/gpuDagUniforms.ts';
-import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../packages/sdk-browser/gpuSelection.ts';
+import {
+  SELECTION_UNIFORM_BYTES,
+  SELECTION_WORKGROUP,
+} from '../../packages/sdk-browser/gpuSelection.ts';
 import { FRAME_VEC4 } from '../../packages/sdk-browser/gpuDagTypes.ts';
 import { dagWorkLayout } from '../../packages/sdk-browser/gpuDagFloorWgsl.ts';
 import { REQUEST_PAGE_MAX } from '../../packages/sdk-browser/gpuDagRequest.ts';

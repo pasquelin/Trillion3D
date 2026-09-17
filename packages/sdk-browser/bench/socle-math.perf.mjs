@@ -1,9 +1,9 @@
 // Banc de performance : socle mathématique (sdk-core contre Three.js).
-import { rapport } from '../../sdk-core/bench/mesure.mjs';
-import { lignesEquivalence, noeudsHierarchie } from './socleEquivalence.mjs';
-import { lignesConsommateursCore } from './socleConsommateursCore.mjs';
-import { lignesConsommateursBrowser } from './socleConsommateursBrowser.mjs';
-import './socleEcarts.mjs';
+import { rapport } from '../../sdk-core/bench/socle.mjs';
+import { lignesEquivalence, noeudsHierarchie } from './appui/socleEquivalence.mjs';
+import { lignesConsommateursCore } from './appui/socleConsommateursCore.mjs';
+import { lignesConsommateursBrowser } from './appui/socleConsommateursBrowser.mjs';
+import './appui/socleEcarts.mjs';
 
 const lignes = [
   ...(await lignesEquivalence()),

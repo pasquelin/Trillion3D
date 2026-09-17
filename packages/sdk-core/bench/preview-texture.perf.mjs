@@ -1,6 +1,6 @@
-// G11 : la géométrie d'une entrée de preview.
+// la géométrie d'une entrée de preview.
 import { previewGeometry } from '../texturePreviewLevels.ts';
-import { mesure, stress, rapport } from './mesure.mjs';
+import { mesure, stress, rapport } from './socle.mjs';
 import { referenceExpectedGeometry } from './oracles/preview-texture.mjs';
 
 const DIMENSIONS = [
@@ -30,7 +30,7 @@ const cas = [
 ];
 
 const res = await mesure({
-  nom: 'G11 géométrie preview',
+  nom: 'géométrie preview',
   fichier: 'packages/sdk-core/texturePreviewLevels.ts',
   cas,
   calcul: geometries(previewGeometry),
@@ -48,4 +48,4 @@ await stress({
   ],
 });
 
-rapport('g-preview', [res], 'G11 rend la même géométrie d’entrée, au bit près');
+rapport('preview-texture', [res], 'G11 rend la même géométrie d’entrée, au bit près');

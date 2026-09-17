@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodePageAttributes } from './geometryPage.ts';
-import { referenceDecode } from './bench/oracles/chargement.mjs';
+import { referenceDecode } from './bench/oracles/attributs-telemetrie.mjs';
 
 const FLAGS_NORMAL = 1,
   FLAGS_UV = 2;

@@ -21,7 +21,11 @@ import { ROW_WRAP_MODES_WORD } from './webgpuPageRow.ts';
 import { SHADE_SHADER } from './visibilityShaderShade.ts';
 import { BLEND_SHADER } from './webgpuBlendShader.ts';
 import { MASK_KEEP_WGSL } from './visibilityPageWgsl.ts';
-import { CARTES, ligneDePageMelangee, materielMelange } from '../../test/justesse/adressageCartes.mjs';
+import {
+  CARTES,
+  ligneDePageMelangee,
+  materielMelange,
+} from '../../test/justesse/adressageCartes.mjs';
 
 const carte = (wrapS: THREE.Wrapping, wrapT: THREE.Wrapping) => ({ wrapS, wrapT }) as THREE.Texture;
 /** Le quartet attendu d'une entrée de la fixture, recalculé depuis ses deux modes déclarés. */

@@ -2,7 +2,10 @@
 // ses tampons, son noyau et sa relecture), alimentée par les vrais `cameraSelectionUniforms`.
 // Empaqueté par esbuild puis exécuté dans Chromium : rien n'est rejoué hors du GPU.
 import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
-import { createGpuDagSelection, packDagSelection } from '../../packages/sdk-browser/gpuDagSelection.ts';
+import {
+  createGpuDagSelection,
+  packDagSelection,
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { collectClusterPages } from '../../packages/sdk-browser/pageSelection.ts';
 import { dagFixture } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.mjs';

@@ -12,7 +12,10 @@ import {
   createConeContext,
   triangleCone,
 } from '../../packages/sdk-browser/pageCone.ts';
-import { packDagSelection, packedWorldsToRenderOrigin } from '../../packages/sdk-browser/gpuDagSelection.ts';
+import {
+  packDagSelection,
+  packedWorldsToRenderOrigin,
+} from '../../packages/sdk-browser/gpuDagSelection.ts';
 import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
 import { poseMonde } from './normaleEclairageCas.mjs';
 import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';

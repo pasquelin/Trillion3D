@@ -1,6 +1,6 @@
-// F19 : l'écriture des empreintes d'un manifeste binaire.
+// l'écriture des empreintes d'un manifeste binaire.
 import { writeSha } from '../manifestBinaryLayout.ts';
-import { graine, mesure, stress, rapport } from './mesure.mjs';
+import { graine, mesure, stress, rapport } from './socle.mjs';
 import { referenceWriteSha } from './oracles/manifeste-binaire.mjs';
 
 const alea = graine(211);
@@ -52,7 +52,7 @@ const cas = [
 ];
 
 const res = await mesure({
-  nom: 'F19 empreintes du manifeste binaire',
+  nom: 'empreintes du manifeste binaire',
   fichier: 'packages/sdk-core/manifestBinaryLayout.ts',
   cas,
   calcul: passe(writeSha),
@@ -78,7 +78,7 @@ await stress({
 });
 
 rapport(
-  'f-manifeste',
+  'manifeste-binaire',
   [res],
   'F19 écrit exactement les mêmes octets et refuse exactement les mêmes empreintes',
 );

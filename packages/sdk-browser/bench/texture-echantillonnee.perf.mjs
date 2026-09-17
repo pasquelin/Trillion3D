@@ -1,6 +1,6 @@
-// F15 : les octets d'une texture échantillonnée.
+// les octets d'une texture échantillonnée.
 import { textureRgba } from '../visibilityTypes.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { referenceTextureRgba } from './oracles/texture-echantillonnee.mjs';
 
 const alea = graine(3313);
@@ -65,7 +65,7 @@ const casTexture = [
 ];
 
 const resTexture = await mesure({
-  nom: 'F15 textureRgba',
+  nom: 'textureRgba',
   fichier: 'packages/sdk-browser/visibilityTypes.ts',
   cas: casTexture,
   calcul: passeTexture(textureRgba),
@@ -82,4 +82,8 @@ await stress({
   ],
 });
 
-rapport('f-texture', [resTexture], 'F15 rend exactement les mêmes octets et dimensions');
+rapport(
+  'texture-echantillonnee',
+  [resTexture],
+  'F15 rend exactement les mêmes octets et dimensions',
+);

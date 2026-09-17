@@ -1,7 +1,7 @@
 // GEO-4a : la note que l'ordre des textures tient sur chaque couche d'atlas.
 import { createTextureDemand } from '../textureDemand.ts';
 import { createTextureMeasure } from '../texturePriorityMeasure.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import { createReferenceMeasure, releve } from './oracles/pompe-textures.mjs';
 
 const alea = graine(4127);
@@ -89,7 +89,7 @@ const resultats = [];
 for (const pages of [5000, 20000]) {
   resultats.push(
     await mesure({
-      nom: `GEO-4a note textures ${pages} placements`,
+      nom: `note des textures ${pages} placements`,
       fichier: 'packages/sdk-browser/texturePriorityMeasure.ts',
       cas: [
         {

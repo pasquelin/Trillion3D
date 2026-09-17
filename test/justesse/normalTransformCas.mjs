@@ -2,7 +2,7 @@
 // ordinaires d'un côté — une pose monde, une normale locale, la normale monde vraie en f64 —,
 // singuliers de l'autre, aplatis puis effondrés. La même liste sert au test d'arithmétique sans GPU
 // (`packages/sdk-browser/normalTransform.test.ts`) et à l'exécution du nuanceur livré dans Chromium
-// (`test/normalTransformArithmetique.browser.mjs`) : le modèle f32 et le shader réel répondent sur
+// (`test/browser/normalTransformArithmetique.browser.mjs`) : le modèle f32 et le shader réel répondent sur
 // les MÊMES entrées, sans quoi l'accord entre eux ne voudrait rien dire.
 import { construireCas } from './normaleEclairageCas.mjs';
 

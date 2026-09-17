@@ -1,7 +1,7 @@
-// G2 : coins monde de la coupe Hi-Z (évaluation avec/sans cache).
+// coins monde de la coupe Hi-Z (évaluation avec/sans cache).
 import { HIZ_BOUNDS_VALUES, createBoxCorners, projectBoxesFlat } from '../hiz.ts';
-import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { boites, camera } from './scenes.mjs';
+import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { boites, camera } from './appui/scenes.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
 const LARGEUR = 640,
@@ -37,8 +37,8 @@ const jeux = [
 ];
 
 const resCoins = await mesure({
-  nom: 'G2 coins monde de la coupe Hi-Z',
-  fichier: 'packages/sdk-browser/hizUnoccluded.ts, hizSplit.ts',
+  nom: 'coins monde de la coupe Hi-Z',
+  fichier: 'packages/sdk-browser/hizUnoccluded.ts, packages/sdk-browser/hizSplit.ts',
   cas: jeux,
   calcul: (e) => {
     projectBoxesFlat(e.pages, e.pages.length, cameraMoteur(cam), viewport, e.avecCache);
@@ -53,8 +53,9 @@ const resCoins = await mesure({
 
 await stress({
   nom: 'projectBoxesFlat extremes',
-  calcul: (b) => projectBoxesFlat(b, b.length, cameraMoteur(cam), viewport, new Float64Array(HIZ_BOUNDS_VALUES)),
+  calcul: (b) =>
+    projectBoxesFlat(b, b.length, cameraMoteur(cam), viewport, new Float64Array(HIZ_BOUNDS_VALUES)),
   extremes: [{ nom: 'vide', entree: [] }],
 });
 
-rapport('g-coins', [resCoins], 'G2 les deux projections calculent les mêmes rectangles');
+rapport('coins-hiz', [resCoins], 'G2 les deux projections calculent les mêmes rectangles');

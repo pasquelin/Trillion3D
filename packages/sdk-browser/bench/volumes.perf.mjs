@@ -1,25 +1,24 @@
-// Banc des volumes du lot M2 : sdk-core contre Three.js.
-import { mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { casBoites } from './volumesCasBoites.mjs';
-import { casTronc } from './volumesCasTronc.mjs';
+// Banc des volumes : sdk-core contre Three.js.
+import { mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { casBoites } from './appui/volumesCasBoites.mjs';
+import { casTronc } from './appui/volumesCasTronc.mjs';
 import { boxEmpty } from '../../sdk-core/index.ts';
 
 const options = { chauffe: 1, tours: 10, budgetMs: 500 };
 const tousLesCas = [...casBoites, ...casTronc];
 
+// Un cas dont le jeu de cas porte `oraclePerime` est mesuré sans oracle, et la ligne publie le
+// motif : la justesse reste tenue ailleurs, elle n'est jamais simplement tue.
 const resultats = [];
 for (const item of tousLesCas) {
-  const zInverse =
-    item.calcul === "plans normalisés du tronc d'une vue-projection" ||
-    item.calcul === "plans bruts d'une matrice de découpe" ||
-    item.calcul === 'boîte hors du tronc';
   resultats.push(
     await mesure({
       nom: item.calcul,
       fichier: item.fichier,
       cas: item.cas,
       calcul: item.optimisee,
-      attendu: zInverse ? null : item.reference,
+      attendu: item.oraclePerime ? null : item.reference,
+      motif: item.oraclePerime ?? null,
       options,
     }),
   );

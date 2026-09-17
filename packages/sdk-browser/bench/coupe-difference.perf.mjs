@@ -4,7 +4,7 @@ import { createCutDelta } from '../webgpuCutDelta.ts';
 import { createCutCounts } from '../webgpuCutCounts.ts';
 import { createCutPending } from '../webgpuCutPending.ts';
 import { createBudgetRanking } from '../webgpuBudgetRanking.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
 import {
   createReferenceRanking,
   levelHistogram,
@@ -122,7 +122,7 @@ const mesuresResultats = [];
 for (const [regime, images] of regimes) {
   mesuresResultats.push(
     await mesure({
-      nom: `GEO-1 lecteurs coupe ${regime}`,
+      nom: `lecteurs de coupe ${regime}`,
       fichier: 'packages/sdk-browser/webgpuCutCounts.ts',
       cas: [{ nom: `8 images ${regime}`, entree: images, taille: COUPE * 8 }],
       calcul: lecteursOptimisee,
@@ -132,7 +132,7 @@ for (const [regime, images] of regimes) {
   );
   mesuresResultats.push(
     await mesure({
-      nom: `GEO-1 classement budget ${regime}`,
+      nom: `classement par budget ${regime}`,
       fichier: 'packages/sdk-browser/webgpuBudgetRanking.ts',
       cas: [{ nom: `8 images budget ${regime}`, entree: images, taille: COUPE * 8 }],
       calcul: classementOptimisee,
@@ -145,9 +145,11 @@ for (const [regime, images] of regimes) {
 await stress({
   nom: 'createCutDelta extremes',
   calcul: (arr) => createCutDelta(arr).apply([]),
-  extremes: [
-    { nom: 'vide', entree: [] },
-  ],
+  extremes: [{ nom: 'vide', entree: [] }],
 });
 
-rapport('coupe-difference', mesuresResultats, 'GEO-1 : les lecteurs de la coupe rendent les mêmes verdicts');
+rapport(
+  'coupe-difference',
+  mesuresResultats,
+  'GEO-1 : les lecteurs de la coupe rendent les mêmes verdicts',
+);

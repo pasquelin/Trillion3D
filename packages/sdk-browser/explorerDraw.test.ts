@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { anneauFroid, empileEnAttente } from './explorerDraw.ts';
 import { referenceAnneauFroid } from './bench/oracles/cadre-vue.mjs';
-import { referenceEmpileEnAttente } from './bench/oracles/file-streaming.mjs';
+import { referenceEmpileEnAttente } from './bench/oracles/recherches-streaming.mjs';
 
 function streamer(has: Set<string>, loading: Set<string>, failed: Set<string>) {
   return {

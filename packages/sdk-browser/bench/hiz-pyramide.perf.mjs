@@ -1,10 +1,10 @@
-// C2 : la pyramide Hi-Z du chemin par image.
+// la pyramide Hi-Z du chemin par image.
 import { hizBuildPyramid, hizFootprintFar, hizOccluded } from '../../sdk-core/index.ts';
 import { buildHizPyramid } from '../hizDepth.ts';
 import { hizRejects, hizTestRect, HIZ_TEST_VALUES } from '../hizOcclusion.ts';
 import { rasterVisibility } from '../visibilityRaster.ts';
-import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { camera, coupe, rectangles } from './scenes.mjs';
+import { graine, mesure, stress, rapport } from '../../sdk-core/bench/socle.mjs';
+import { camera, coupe, rectangles } from './appui/scenes.mjs';
 import { cameraMoteur } from '../cameraFixture.ts';
 
 function referenceRowsOf(depth, width, height) {
@@ -108,7 +108,7 @@ const unique = cas(1, 1, petite, 107);
 const plein = (entree) => ({ ...entree, complet: true });
 
 const resHiz = await mesure({
-  nom: 'C2 pyramide Hi-Z',
+  nom: 'pyramide Hi-Z',
   fichier: 'packages/sdk-browser/hizDepth.ts',
   cas: [
     { nom: '1280×720, tous les niveaux', entree: plein(image), taille: 921600, mesure: false },
@@ -129,4 +129,4 @@ await stress({
   extremes: [{ nom: '1x1', entree: { depth: new Float32Array(1), width: 1, height: 1 } }],
 });
 
-rapport('hiz-c', [resHiz], 'C2 a été mesuré et son écart est décrit');
+rapport('hiz-pyramide', [resHiz], 'C2 a été mesuré et son écart est décrit');

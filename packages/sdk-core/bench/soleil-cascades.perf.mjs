@@ -1,7 +1,7 @@
-// G8 : les bornes de cascade du soleil.
+// les bornes de cascade du soleil.
 import { LIGHT_SETTINGS } from '../sceneLightContracts.ts';
 import { sunCascadeOf } from '../sceneLightSunCascades.ts';
-import { graine, mesure, stress, rapport } from './mesure.mjs';
+import { graine, mesure, stress, rapport } from './socle.mjs';
 import { referenceSunCascadeOf } from './oracles/soleil-cascades.mjs';
 
 const alea = graine(0x508);
@@ -51,7 +51,7 @@ const cas = [
 ];
 
 const res = await mesure({
-  nom: 'G8 bornes cascade soleil',
+  nom: 'bornes cascade soleil',
   fichier: 'packages/sdk-core/sceneLightSunCascades.ts',
   cas,
   calcul: faces(sunCascadeOf),
@@ -69,4 +69,4 @@ await stress({
   ],
 });
 
-rapport('g-soleil', [res], 'G8 rend exactement les mêmes bornes de cascade');
+rapport('soleil-cascades', [res], 'G8 rend exactement les mêmes bornes de cascade');
