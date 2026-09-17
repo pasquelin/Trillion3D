@@ -35,8 +35,7 @@ export function createBudgetRanking(options: {
   const lists: Int32Array[] = [];
   /** Placements holding each key, and where the key sits: a key counts once however many hold it. */
   const refs = new Int32Array(Math.max(1, keyCount));
-  const slotOf = new Int32Array(Math.max(1, keyCount)),
-    levelOfKey = new Int32Array(Math.max(1, keyCount));
+  const slotOf = new Int32Array(Math.max(1, keyCount));
   /** Le premier placement qui a nommé la clé : l'enregistrement par lequel elle sera cherchée. */
   const pageOfKey: (PageRec | undefined)[] = new Array(Math.max(1, keyCount));
   /** The ranked prefix, one entry per page, and the keys beside it. Sized to the budget once. */
@@ -78,7 +77,6 @@ export function createBudgetRanking(options: {
         list = grow(level);
       slotOf[key] = held[level];
       list[held[level]++] = key;
-      levelOfKey[key] = level;
       pageOfKey[key] = page;
       weighed++;
     },
@@ -86,7 +84,8 @@ export function createBudgetRanking(options: {
     remove(page: PageRec) {
       const key = keyOf(page);
       if (bootstrapKey[key] || refs[key] <= 0 || --refs[key] > 0) return;
-      const level = levelOfKey[key],
+      // Le niveau appartient à la page, pas au placement : celui qui sort est celui qui est entré.
+      const level = levelOf(page),
         list = lists[level];
       // La dernière clé du niveau prend la place libérée : la liste reste dense, sans être triée.
       const last = list[--held[level]];

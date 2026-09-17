@@ -8,8 +8,9 @@ export type CutDelta = ReturnType<typeof createCutDelta>;
  * instead of a list.
  *
  * `pages` — the record array the caller owns — is written in the order the cut published, which is
- * the order the host streams in. Un appelant qui ne veut que la différence l'omet : aucune liste
- * d'enregistrements n'est alors bâtie, et le relevé ne coûte plus que sa propre longueur.
+ * the order the host streams in, et cette différence en est le seul écrivain. Un appelant qui ne
+ * veut que la différence l'omet : aucune liste d'enregistrements n'est alors bâtie, et le relevé ne
+ * coûte plus que sa propre longueur.
  *
  * Rien n'est alloué une fois la scène connue, et rien n'est appelé par page : l'appartenance est une
  * marque d'époque lue à même un tableau typé — l'époque du relevé pour le dédoublonnage, celle du
@@ -47,10 +48,9 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     for (let i = 0; i < ids.length; i++) if (published[i] !== ids[i]) return false;
     return true;
   };
-  /** Le relevé tenu : le suffixe de l'appelant tombe, et aucune différence n'est publiée. */
+  /** Le relevé tenu : aucune différence n'est publiée, et la liste est déjà celle qu'il décrit. */
   const hold = () => {
-    changed = pages ? pages.length !== keptCount : false;
-    if (pages) pages.length = keptCount;
+    changed = false;
     enteredCount = 0;
     exitedCount = 0;
   };
@@ -119,7 +119,7 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     get changed() {
       return changed;
     },
-    /** Drops the caller's suffix and reports no difference: the cut is the one already held. */
+    /** Reports no difference: the cut is the one already held, records included. */
     hold,
     apply,
     /**

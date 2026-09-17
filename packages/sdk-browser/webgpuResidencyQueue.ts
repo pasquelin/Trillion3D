@@ -106,9 +106,12 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     /**
      * La coupe a déjà appliqué sa différence ; il ne reste que le budget de pages à faire respecter.
      * `limited` dit que la couverture demandée ne tient pas dans les fentes : le budget est alors
-     * nul, la file se vide, et l'image s'en tient à la couverture épinglée.
+     * nul, la file se vide, et l'image s'en tient à la couverture épinglée. Les deux chemins de
+     * coupe n'en disent pas la même chose et le disent chacun, sans valeur par défaut : la coupe de
+     * la carte, elle, grossit son erreur écran jusqu'à ce que la couverture tienne et continue donc
+     * de charger à plein budget.
      */
-    queueCutResidency(limited = false) {
+    queueCutResidency(limited: boolean) {
       sets.applyBudget(limited ? 0 : options.room);
       follow();
     },

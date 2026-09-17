@@ -55,25 +55,6 @@ test('a moved cut names only what entered and what left', () => {
   );
 });
 
-test('the suffix the caller appends is dropped, the cut is not', () => {
-  const packed = [0, 1].map((id) => pageOf(id));
-  const pages: PageRec[] = [];
-  const delta = createCutDelta(packed, pages);
-  delta.apply([0, 1]);
-  pages.push(pageOf(9, 'transparent'));
-  delta.hold();
-  assert.deepEqual(
-    pages.map((page) => page.id),
-    [0, 1],
-  );
-  pages.push(pageOf(9, 'transparent'));
-  delta.apply([0, 1]);
-  assert.deepEqual(
-    pages.map((page) => page.id),
-    [0, 1],
-  );
-});
-
 test('an unknown or repeated page id never enters the cut', () => {
   const packed = [pageOf(0), undefined as unknown as PageRec, pageOf(2)];
   const pages: PageRec[] = [];
