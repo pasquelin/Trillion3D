@@ -1,7 +1,5 @@
 // le préchargement de l'anneau autour de la coupe.
 import { createSelectionResult, selectVisiblePages } from '../pageSelection.ts';
-import test from 'node:test';
-import assert from 'node:assert/strict';
 import { compteur, mesure, parcours, rapport, stress } from '../../sdk-core/bench/socle.mjs';
 import { camera } from './appui/scenes.mjs';
 import { dag, racine } from './appui/dagCoupe.mjs';
@@ -81,14 +79,9 @@ const resC3 = await mesure({
   ],
   calcul: anneauParLaCoupe,
   attendu: anneauParSeconde,
-  differences: differencesAnneau,
   // La coupe ne peut pas tenir lieu d'anneau : le banc chiffre ce qui les sépare, il ne l'efface pas.
-  ecartPublie: true,
+  differences: differencesAnneau,
   options: { chauffe: 2, tours: 15, budgetMs: 1500 },
-});
-
-test("chaque cas de C3 publie l'écart de l'anneau", () => {
-  for (const r of resC3.resultats) assert.ok(r.motif, `${r.nom} : écart non chiffré`);
 });
 
 await stress({

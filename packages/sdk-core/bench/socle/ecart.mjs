@@ -11,7 +11,26 @@ const TYPES = [
   Uint8Array,
 ];
 
-const estTypedArray = (v) => TYPES.some((T) => v instanceof T);
+/** Sans `some` : ce test est sur le chemin chaud, une fermeture par nœud visité coûterait plus. */
+export function estTypedArray(v) {
+  for (let i = 0; i < TYPES.length; i++) if (v instanceof TYPES[i]) return true;
+  return false;
+}
+
+/**
+ * Les clés de deux objets, dans le même ordre, ou `null` si elles diffèrent. Les chaînes ne sont
+ * jointes que dans la branche de divergence : en régime nominal ce test ne construit rien.
+ */
+export function memesCles(a, b) {
+  const clesA = Object.keys(a).sort(),
+    clesB = Object.keys(b).sort();
+  if (clesA.length !== clesB.length) return null;
+  for (let i = 0; i < clesA.length; i++) if (clesA[i] !== clesB[i]) return null;
+  return clesA;
+}
+
+export const differenceDeCles = (a, b) =>
+  `champs ${Object.keys(a).sort().join(',')} ≠ ${Object.keys(b).sort().join(',')}`;
 
 /** Premier écart bit à bit entre deux valeurs, ou `null` si strictement identiques. */
 export function ecart(a, b, chemin = '', profondeur = 0) {
@@ -46,11 +65,9 @@ export function ecart(a, b, chemin = '', profondeur = 0) {
     if (!(a instanceof Map) || !(b instanceof Map)) return `${chemin}: Map attendu des deux côtés`;
     return ecart([...a], [...b], `${chemin}(Map)`, profondeur + 1);
   }
-  const clesA = Object.keys(a).sort();
-  const clesB = Object.keys(b).sort();
-  if (clesA.join(',') !== clesB.join(','))
-    return `${chemin}: champs ${clesA.join(',')} ≠ ${clesB.join(',')}`;
-  for (const cle of clesA) {
+  const cles = memesCles(a, b);
+  if (!cles) return `${chemin}: ${differenceDeCles(a, b)}`;
+  for (const cle of cles) {
     const e = ecart(a[cle], b[cle], `${chemin}.${cle}`, profondeur + 1);
     if (e) return e;
   }
