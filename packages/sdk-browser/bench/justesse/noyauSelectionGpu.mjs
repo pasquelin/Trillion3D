@@ -27,7 +27,7 @@ export function versPage(nom, packed, uniforms, residentCut = false) {
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
     worldCount: Math.max(1, packed.worldCount),
-    levelCount: packed.levelCount,
+    levelCount: packed.levelSizes.length,
     clusters: octets(packed.clusters),
     nodes: octets(packed.nodes),
     worlds: octets(packed.worlds),

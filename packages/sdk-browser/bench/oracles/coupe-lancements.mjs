@@ -1,13 +1,21 @@
 /**
- * Le noyau de descente d'AVANT le lot « sélection persistante », recopié tel quel : deux files en
- * bascule, dont le compteur ne peut repartir de zéro que par une copie du processeur, une par
- * niveau. Il sert d'ORACLE au banc `coupe-lancements-gpu.mjs` : les deux textes tournent sur la
- * même scène dans le même Chromium, et le banc n'est recevable que s'ils retiennent les mêmes
- * pages, au bit près. Aucun module du moteur ne l'importe.
+ * La coupe d'AVANT le lot « sélection persistante », recopiée entière : son noyau de descente, la
+ * disposition de son tampon de travail, ses tampons et son encodage. Deux files en bascule, dont le
+ * compteur ne peut repartir de zéro que par une copie du processeur, et un armement de l'argument
+ * indirect par niveau.
  *
- * Ses décalages dans `work` sont ceux d'avant : la liste des candidates au mot six derrière le
- * compteur des vivantes, le journal des dessinées au mot huit, et deux files seulement.
+ * C'est l'ORACLE de `coupe-lancements-gpu.mjs`. Il est recopié — et non importé — pour la raison qui
+ * fait un oracle : il doit rester ce que le dépôt faisait à `develop`, quoi qu'il advienne du code
+ * livré. Le côté livré, lui, n'est jamais recopié : le banc appelle `encodeDagKernels` et
+ * `createDagResources` pour de vrai, sans quoi il mesurerait une copie de la coupe au lieu d'elle.
+ *
+ * Ses décalages dans `work` sont ceux d'avant : chaque file porte un compteur ET un compte de
+ * groupes, puisqu'elle était lue indirectement, et tout ce qui les suit s'en trouve décalé.
  */
+import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
+import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
+import { ESCALATION_ROUNDS } from '../../pageSelectionTypes.ts';
+
 export const DAG_LEVEL_WGSL_AVANT = `fn queueBase(q:u32)->u32{return select(0u,uni.nodeCount+uni.clusterCount*4u,q==1u);}
 fn candBase()->u32{return uni.nodeCount+uni.clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+2u+q*2u;}
@@ -64,3 +72,122 @@ fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
 `;
+
+const NOYAUX_AVANT = [
+  'dagPrepare',
+  'dagClearDrawn',
+  'dagWanted',
+  'dagEscalate',
+  'dagCheck',
+  'dagMask',
+  'dagDrawPrefix',
+  'dagDrawScatter',
+];
+
+/** Les tampons, les étapes et les décalages de la coupe d'avant, montés sur le `packed` du banc. */
+export function ressourcesAvant(device, module, layout, packed, readbackBytes) {
+  const pageCount = packed.pageCount,
+    worldCount = Math.max(1, packed.worldCount);
+  const blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP);
+  const base = worldCount * 2 + blockCount * 2;
+  const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
+  const frameData = new Float32Array(worldCount * FRAME_VEC4 * 4),
+    frameInts = new Uint32Array(frameData.buffer);
+  for (let w = 0; w < packed.worldCount; w++) {
+    frameData[(w * FRAME_VEC4 + 6) * 4] = packed.worldStretch[w];
+    frameInts[(w * FRAME_VEC4 + 6) * 4 + 1] = packed.rootNodes[w];
+  }
+  const tampon = (taille, source, usage = STORAGE) => {
+    const buffer = device.createBuffer({ size: Math.max(taille, source?.byteLength ?? 0), usage });
+    if (source) device.queue.writeBuffer(buffer, 0, source);
+    return buffer;
+  };
+  const buffers = [
+    tampon(64, packed.clusters),
+    tampon(64, packed.nodes),
+    tampon(SELECTION_UNIFORM_BYTES, null, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
+    tampon(Math.max(16, (packed.nodeCount * 2 + pageCount * 4) * 4)),
+    tampon(readbackBytes),
+    tampon(Math.max(8, (base + 10) * 4)),
+    tampon(64, packed.worlds),
+    tampon(16, frameData),
+    tampon(48, packed.pageCones),
+  ];
+  const dispatchArgs = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+  });
+  device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
+  const zeros = device.createBuffer({ size: 16, usage: GPUBufferUsage.COPY_SRC });
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+  const etape = (entryPoint) =>
+    device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
+  return {
+    buffers,
+    uniforms: buffers[2],
+    output: buffers[4],
+    work: buffers[5],
+    dispatchArgs,
+    zeros,
+    worldCount,
+    blockCount,
+    levelCount: packed.levelSizes.length,
+    queueResetOffset: [(base + 2) * 4, (base + 4) * 4],
+    queueGroupsOffset: [(base + 3) * 4, (base + 5) * 4],
+    candGroupsOffset: (base + 7) * 4,
+    liveGroupsOffset: (base + 1) * 4,
+    drawnGroupsOffset: (base + 9) * 4,
+    noyaux: Object.fromEntries(NOYAUX_AVANT.map((nom) => [nom, etape(nom)])),
+    niveaux: [etape('dagLevel0'), etape('dagLevel1')],
+    bindGroup: device.createBindGroup({
+      layout,
+      entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+    }),
+  };
+}
+
+/** L'encodage d'une image tel que `gpuDagEncode.ts` l'écrivait à `develop`, coupe résidente. */
+export function encodeAvant(encoder, r, profondeur = r.levelCount) {
+  const { bindGroup, dispatchArgs, work, zeros, noyaux, niveaux } = r;
+  const groupes = (n) => Math.max(1, Math.ceil(n / SELECTION_WORKGROUP));
+  const arme = (octets) => encoder.copyBufferToBuffer(work, octets, dispatchArgs, 0, 4);
+  const seule = (pipeline) => {
+    const passe = encoder.beginComputePass();
+    passe.setBindGroup(0, bindGroup);
+    passe.setPipeline(pipeline);
+    passe.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+    passe.end();
+  };
+  arme(r.drawnGroupsOffset);
+  const tete = encoder.beginComputePass();
+  tete.setBindGroup(0, bindGroup);
+  tete.setPipeline(noyaux.dagClearDrawn);
+  tete.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+  tete.setPipeline(noyaux.dagPrepare);
+  tete.dispatchWorkgroups(groupes(Math.max(r.worldCount, r.blockCount)));
+  tete.setPipeline(niveaux[0]);
+  tete.dispatchWorkgroups(groupes(r.worldCount));
+  tete.end();
+  for (let niveau = 1; niveau < profondeur; niveau++) {
+    const source = niveau & 1;
+    encoder.copyBufferToBuffer(zeros, 0, work, r.queueResetOffset[1 - source], 8);
+    arme(r.queueGroupsOffset[source]);
+    seule(niveaux[source]);
+  }
+  arme(r.candGroupsOffset);
+  seule(noyaux.dagWanted);
+  arme(r.liveGroupsOffset);
+  const vif = encoder.beginComputePass();
+  vif.setBindGroup(0, bindGroup);
+  const surListe = (pipeline) => {
+    vif.setPipeline(pipeline);
+    vif.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+  };
+  for (let ronde = 0; ronde < ESCALATION_ROUNDS; ronde++) surListe(noyaux.dagEscalate);
+  surListe(noyaux.dagCheck);
+  surListe(noyaux.dagMask);
+  vif.setPipeline(noyaux.dagDrawPrefix);
+  vif.dispatchWorkgroups(1);
+  surListe(noyaux.dagDrawScatter);
+  vif.end();
+}

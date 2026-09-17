@@ -41,16 +41,24 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     nodeCount = 0;
   // Les étages de toutes les primitives, additionnés étage par étage : la file de la passe `L` ne
   // porte que des nœuds de l'étage `L`, ce total la majore donc, et la passe se lance à plat.
+  //
+  // Tous les placements d'une même primitive partagent le tableau de nœuds — la collecte en copie
+  // l'enveloppe, pas la donnée —, et le parcours ne dépend que de lui : il est fait une fois par
+  // tableau, retrouvé par identité pour les placements suivants.
   const levelTotals: number[] = [];
+  const parTableau = new Map<Float64Array, readonly number[]>();
   for (let w = 0; w < roots.length; w++) {
     clusterCount += roots[w].pages.length;
     nodeCount += cullings[w].nodes.length / cullings[w].stride;
-    const sizes = hierarchyLevelSizes(cullings[w].nodes, cullings[w].stride);
+    let sizes = parTableau.get(cullings[w].nodes);
+    if (!sizes) {
+      sizes = hierarchyLevelSizes(cullings[w].nodes, cullings[w].stride);
+      parTableau.set(cullings[w].nodes, sizes);
+    }
     for (let level = 0; level < sizes.length; level++)
       levelTotals[level] = (levelTotals[level] ?? 0) + sizes[level];
   }
-  const levelSizes = Uint32Array.from(levelTotals),
-    levelCount = levelSizes.length;
+  const levelSizes = Uint32Array.from(levelTotals);
   // L'enregistrement chaud ne porte que ce que les cinq passes d'une image relisent toutes ; le
   // nœud propriétaire et le cône partent au froid, que la seule passe d'ouverture lit.
   const clusters = new Float32Array(Math.max(1, clusterCount) * CLUSTER_WORDS),
@@ -153,7 +161,6 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     worlds,
     worldStretch,
     rootNodes,
-    levelCount,
     levelSizes,
     nodeCount,
     worldCount: roots.length,

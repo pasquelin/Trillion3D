@@ -24,8 +24,8 @@
  * que le rangement compte une fois pour toutes (`hierarchyLevelSizes`), la majore. Les fils au-delà
  * du compte de la file sortent sur la garde, comme ils le faisaient déjà. Ce majorant évite de
  * recopier le mot de tête de l'argument de répartition vers un tampon d'indirection avant chaque
- * passe : dix-sept à dix-neuf microsecondes par copie sur apple metal-3 selon le relevé, et douze
- * copies par image sur la hiérarchie du banc (`bench/justesse/coupe-lancements-gpu.mjs`).
+ * passe, ni rien d'autre : toute la descente tient dans la passe de tête. Ce que cela vaut est
+ * mesuré et écrit une seule fois, auprès de `hierarchyLevelSizes` (`gpuDagHierarchy.ts`).
  *
  * TROIS files en rotation, pas deux : le compteur de la file qu'un niveau va remplir doit valoir zéro
  * avant qu'il n'y écrive, et avec deux files cette remise à zéro ne pouvait venir que du processeur,
@@ -44,6 +44,11 @@
  * `dagWanted` la relit, et `dagMask` ne la réécrit comme journal qu'une passe plus tard, quand plus
  * personne n'en lit les candidates.
  */
+/** Les files de la descente, en rotation : le niveau `L` lit `L % LEVEL_QUEUES`, écrit `(L+1) % …`
+ *  et remet à zéro `(L+2) % …`, qu'il ne touche ni en lecture ni en écriture. Trois est le plus petit
+ *  compte qui rende ces trois indices distincts. */
+export const LEVEL_QUEUES = 3;
+
 export const DAG_LEVEL_WGSL = `fn queueBase(q:u32)->u32{return select(uni.nodeCount*q+uni.clusterCount*4u,0u,q==0u);}
 fn candBase()->u32{return uni.nodeCount+uni.clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+2u+q;}
@@ -86,10 +91,10 @@ fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
  flags[uni.nodeCount+flags[candBase()+s]]=0u;
 }
 /** Un nœud de la file \`src\` : rejeté, il n'engendre rien ; retenu, il dépose ses enfants dans la
- *  file opposée, ou ses pages dans la liste des candidates quand c'est une feuille. */
+ *  file SUIVANTE des trois, ou ses pages dans la liste des candidates quand c'est une feuille. */
 fn levelStep(src:u32,s:u32){
  // La file que le niveau suivant remplira repart de zéro ici : ce niveau ne la lit ni ne l'écrit.
- if(s==0u){atomicStore(&work[queueCounter((src+2u)%3u)],0u);}
+ if(s==0u){atomicStore(&work[queueCounter((src+2u)%${LEVEL_QUEUES}u)],0u);}
  if(s>=atomicLoad(&work[queueCounter(src)])){return;}
  let i=flags[queueBase(src)+s];
  if(i==0xffffffffu){return;}
@@ -99,7 +104,7 @@ fn levelStep(src:u32,s:u32){
   let e=uni.view*worlds[node.worldIndex];
   if(projected(node.maxParentError,node.sphere,e,stretchOf(node.worldIndex),focalPixels())<=uni.pixelError){atomicAdd(&out.frustumRejected,1u);return;}
  }
- if(node.childCount>0u){queueAppend((src+1u)%3u,node.firstChild,node.childCount);return;}
+ if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
 @compute @workgroup_size(64)

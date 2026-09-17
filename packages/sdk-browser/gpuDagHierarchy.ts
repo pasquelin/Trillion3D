@@ -105,9 +105,21 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
  * L'étage `L` MAJORE la file de la passe `L` : cette file ne porte que des enfants de nœuds retenus à
  * l'étage `L-1`, donc que des nœuds de l'étage `L`, et la descente les y écrit compactés à partir de
  * zéro. C'est ce majorant, connu du rangement une fois pour toutes, qui permet de lancer chaque passe
- * de niveau À PLAT : les fils au-delà de la file sortent sur la garde de compte, et le mot de tête de
- * l'argument de répartition n'a plus à être recopié vers un tampon d'indirection avant chaque passe —
- * dix-sept à dix-neuf microsecondes par copie sur apple metal-3 (`coupe-lancements-gpu.mjs`).
+ * de niveau À PLAT : les fils au-delà de la file sortent sur la garde de compte, le mot de tête de
+ * l'argument de répartition n'a plus à être recopié vers un tampon d'indirection, et plus rien ne
+ * coupe la descente — elle tient dans la passe de tête.
+ *
+ * LA MESURE QUI LE JUSTIFIE, publiée par `bench/justesse/coupe-lancements-gpu.mjs` et citée d'ici
+ * seulement : sur apple metal-3, un niveau de plus coûte environ 26 µs quand il ouvre sa propre
+ * passe derrière deux copies hors passe, et environ 1,5 µs quand il est un lancement à plat dans la
+ * passe de tête. Le banc republie la pente à chaque exécution ; ces deux valeurs en sont l'ordre.
+ * Le banc ne sépare pas la copie de la passe qu'elle coupe, et ne le prétend pas : retirer un
+ * armement changerait aussi la taille du lancement, donc le travail fait.
+ *
+ * Le prix de ces fils qui sortent aussitôt est borné, et le banc le balaie : un étage annoncé à
+ * 100 000 nœuds coûte autant qu'un étage de 657, et il faut l'annoncer à 1 000 000 pour retrouver le
+ * prix d'un niveau d'avant. L'étage le plus large vaut environ `clusterCount / CULLING_BRANCHING`, si
+ * bien que la marge tient jusqu'à des millions de grappes par primitive.
  */
 export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
   const count = nodes.length / stride;
