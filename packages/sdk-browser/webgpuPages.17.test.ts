@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
 import { coarseQuadScene } from './webgpuPagesTestOccluder.ts';
@@ -58,7 +58,8 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     fixture.indices,
     fixture.associations,
   );
-  const { device, draws } = mockGpu(undefined, packDagSelection(collected.roots));
+  const packed = packDagSelection(collected.roots);
+  const { device, draws, buffers } = mockGpu(undefined, packed);
   const backend = webgpuPagesBackend({
     ...fixture,
     indices: new Map(),
@@ -97,12 +98,9 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     render();
     await backend.flush();
     assert.deepEqual(backend.selectedPageIds(), ['2']);
-    assert.equal(
-      draws
-        .filter((draw) => draw.indirect)
-        .reduce((sum, draw) => sum + (draw.instanceCount ?? 0), 0),
-      1,
-    );
+    // Le repli grossier est la seule page dessinable : le masque de l'image le dit, là où
+    // l'ancienne commande indirecte disait son compte d'instances.
+    assert.equal(drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length, 1);
     backend.acceptPage!('1', fixture.indices.get('1')!);
     render();
     await backend.flush();
@@ -111,9 +109,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
     assert.equal(backend.metrics().submittedTriangles, 2);
     assert.equal(
-      draws
-        .filter((draw) => draw.indirect)
-        .reduce((sum, draw) => sum + (draw.instanceCount ?? 0), 0),
+      drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length,
       2,
       'coarse is absent once all fine pages are drawable',
     );

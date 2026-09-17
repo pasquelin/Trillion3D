@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webgpuPagesBackend } from './webgpuPages.ts';
 import { collectClusterPages } from './pageSelection.ts';
 import { packDagSelection } from './gpuDagSelection.ts';
-import { installGpuGlobals } from './webgpuPagesTestGlobals.ts';
+import { drawnPageIds, installGpuGlobals } from './webgpuPagesTestGlobals.ts';
 import { mockGpu } from './webgpuPagesMockGpu.ts';
 import { dagLevel } from './webgpuPagesTestDag.ts';
 import { quadScene, camera } from './webgpuPagesTestScenes.ts';
@@ -127,7 +127,8 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
     fixture.indices,
     fixture.associations,
   );
-  const { device, draws } = mockGpu(undefined, packDagSelection(collected.roots));
+  const packed = packDagSelection(collected.roots);
+  const { device, draws, buffers } = mockGpu(undefined, packed);
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = [];
   const backend = webgpuPagesBackend({
     ...fixture,
@@ -144,10 +145,10 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
       cam.updateMatrixWorld();
       draws.length = 0;
       backend.render(cam);
+      // La sélection de l'IMAGE EN COURS, lue dans son masque : c'est elle que le raster de calcul
+      // consomme sur place, là où l'ancienne commande indirecte portait le compte d'instances.
       assert.equal(
-        draws
-          .filter((draw) => draw.indirect)
-          .reduce((sum, draw) => sum + (draw.instanceCount ?? 0), 0),
+        drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length,
         target ? 0 : 2,
       );
       await backend.flush();
