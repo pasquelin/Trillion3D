@@ -3,6 +3,15 @@ export const SDK_VERSION = '0.1.0';
  *  decides which of two exactly coplanar opaque surfaces draws on top; formats 1 and 2 have no such
  *  column and are refused rather than half-read. */
 export const FORMAT_VERSION = 3;
+/**
+ * La feuille de réponses des découpes, miroir de `packages/asset-compiler-rust/src/cutout.rs`.
+ *
+ * Le compilateur écrit ce fichier et le relit ; un hôte le réécrit avec les réponses d'un humain.
+ * C'est donc le seul format que les deux langages ÉCRIVENT tous les deux, et sa version gouverne ce
+ * qu'un lecteur y répond, rien d'autre : un numéro inconnu est refusé plutôt que deviné.
+ */
+export const CUTOUT_SHEET_FILE = 'decoupes.json';
+export const CUTOUT_SHEET_VERSION = 1;
 /** Outer cache format required for clustered BLEND; source manifests keep their own format. */
 export const CLUSTERED_BLEND_FORMAT_VERSION = 4;
 /** Cache identity for per-cluster DAG errors: group QEM error projected through the group sphere. */

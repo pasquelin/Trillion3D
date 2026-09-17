@@ -1,5 +1,6 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
+import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../sdk-core/index.ts';
 
 /**
  * The cutout answer sheet a compile leaves beside every model, read and written.
@@ -9,8 +10,7 @@ import { join } from 'node:path';
  * one answer covers every model that shares that texture — which is why the sheets are read as a
  * batch and written as a batch.
  */
-export const SHEET_FILE = 'decoupes.json';
-const SHEET_VERSION = 1;
+export const SHEET_FILE = CUTOUT_SHEET_FILE;
 
 interface SheetTexture {
   image?: string;
@@ -48,7 +48,7 @@ export async function readSheet(cache: string): Promise<Sheet | null> {
   if (text === null) return null;
   const parsed: unknown = JSON.parse(text);
   if (!isSheet(parsed)) throw new Error(`${join(cache, SHEET_FILE)} is not an answer sheet`);
-  if (parsed.version !== SHEET_VERSION)
+  if (parsed.version !== CUTOUT_SHEET_VERSION)
     throw new Error(`${join(cache, SHEET_FILE)} declares version ${parsed.version}`);
   return parsed;
 }
@@ -58,15 +58,15 @@ export async function readSheet(cache: string): Promise<Sheet | null> {
  * models share it, heaviest first: what it costs to leave a texture in blend is the number of
  * primitives it still holds there, summed over the batch.
  */
-export function pendingOf(sheets: Map<string, Sheet>): PendingCutout[] {
+export function pendingOf(loaded: readonly { name: string; sheet: Sheet }[]): PendingCutout[] {
   const pending = new Map<string, PendingCutout>();
-  for (const [model, sheet] of sheets) {
+  for (const { name, sheet } of loaded) {
     for (const [sha256, texture] of Object.entries(sheet.textures)) {
       if (texture.used !== true || texture.cutout !== null) continue;
       const known = pending.get(sha256);
       if (known) {
         known.blendPrimitives += texture.blendPrimitives ?? 0;
-        known.models.push(model);
+        known.models.push(name);
         continue;
       }
       pending.set(sha256, {
@@ -75,7 +75,7 @@ export function pendingOf(sheets: Map<string, Sheet>): PendingCutout[] {
         proposal: texture.proposal === 'cutout',
         blendPrimitives: texture.blendPrimitives ?? 0,
         measure: texture.measure ?? {},
-        models: [model],
+        models: [name],
       });
     }
   }

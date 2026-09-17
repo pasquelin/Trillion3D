@@ -1,4 +1,4 @@
-import { encodePng } from './cutoutPng.mts';
+import { deflateSync, crc32 } from 'node:zlib';
 import { resize, type Thumbnail } from './cutoutThumb.mts';
 
 /**
@@ -95,6 +95,46 @@ export function drawFile(bytes: Buffer, kind: ImageKind): string[] | null {
   if (kind === 'iterm') return [iterm(bytes)];
   return null;
 }
+
+/**
+ * A PNG writer, in the few lines PNG actually needs: a header, one deflated image block, an end.
+ *
+ * Two callers want it — the terminals whose inline-image protocol takes a file format rather than
+ * raw texels, and the link the question offers to open the picture in the system's own viewer. Node
+ * carries the compression and the checksum, so this stays cheaper than a dependency.
+ */
+/** Un morceau PNG : longueur, type, charge, et le CRC que `node:zlib` sait déjà calculer. */
+function chunk(kind: string, body: Uint8Array): Buffer {
+  const head = Buffer.alloc(8);
+  head.writeUInt32BE(body.length, 0);
+  head.write(kind, 4, 'ascii');
+  const tail = Buffer.alloc(4);
+  tail.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), body])), 0);
+  return Buffer.concat([head, body, tail]);
+}
+
+/** Straight RGBA8 to PNG bytes, one filter byte per row and no interlacing. */
+function encodePng(width: number, height: number, rgba: Uint8Array): Buffer {
+  const stride = 1 + width * 4;
+  const raw = Buffer.alloc(height * stride);
+  for (let y = 0; y < height; y++) {
+    raw[y * stride] = 0;
+    raw.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), y * stride + 1);
+  }
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bits per channel
+  header[9] = 6; // truecolour with alpha
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', new Uint8Array(0)),
+  ]);
+}
+
+export { encodePng };
 
 /** A clickable link where a terminal supports one, its plain path where it does not. */
 export function link(label: string, path: string): string {

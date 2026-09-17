@@ -28,6 +28,9 @@ export type {
   CompilationResult,
   CompilationSummary,
   CompilerEvent,
+  CutoutModel,
+  CutoutReviewOptions,
+  CutoutReviewSummary,
   PrepareOptions,
   ProgressPointer,
   ProgressStream,
@@ -36,7 +39,6 @@ export type {
 } from './contracts.ts';
 export { createTerminalProgress, createBatchProgress } from './progress.mts';
 export { reviewCutouts } from './cutoutReview.mts';
-export type { CutoutReviewOptions, CutoutReviewSummary } from './cutoutReview.mts';
 /** Native is the production path. The host selects a bundled executable or one on PATH. */
 export async function prepare(
   input: string,
