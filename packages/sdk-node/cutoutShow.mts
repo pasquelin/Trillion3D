@@ -1,10 +1,10 @@
 import { writeFile, mkdir, access, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, basename } from 'node:path';
-import type { BatchJob } from './contracts.ts';
+import type { CutoutModel, CutoutReviewOptions } from './contracts.ts';
 import type { PendingCutout } from './cutoutSheet.mts';
 import { alphaOf, type Thumbnail } from './cutoutThumb.mts';
-import { drawFile, drawThumbnail, imageKind, link } from './cutoutDraw.mts';
-import { encodePng } from './cutoutPng.mts';
+import { drawFile, drawThumbnail, encodePng, link, type ImageKind } from './cutoutDraw.mts';
 
 /**
  * Ce que les deux mots veulent dire, rappelé avant la première question et à la demande.
@@ -32,14 +32,16 @@ export const LEGENDE = [
  * its own bytes drawn back out of the compiled scene when it embeds them instead, and only failing
  * both, the cache's 64-pixel thumbnail written out as an image. Whatever the source, the caller ends
  * up with one path — one to draw, one to open.
+ *
+ * What has to be written lands in a scratch directory, not in the compiled model: a picture shown
+ * to answer a question is not a product, and nothing in the cache's contract would ever sweep it.
  */
 export async function pictureOf(
-  job: BatchJob,
+  model: CutoutModel,
   pending: PendingCutout,
   thumbnail: Thumbnail | undefined,
-  embedded: (view: number) => Buffer | null,
 ): Promise<string | null> {
-  const source = join(dirname(job.source), pending.image);
+  const source = join(dirname(model.source), pending.image);
   if (
     await access(source).then(
       () => true,
@@ -47,14 +49,28 @@ export async function pictureOf(
     )
   )
     return source;
-  const own =
-    thumbnail?.sourceBufferView === undefined ? null : embedded(thumbnail.sourceBufferView);
-  if (!own && !thumbnail) return null;
-  const directory = join(job.cache, 'decoupes');
+  // Les octets de l'image ne sont ouverts que pour une texture EMBARQUÉE, donc jamais pour une
+  // scène qui lie ses fichiers : le `source.bin` d'un modèle pèse des dizaines de mégaoctets.
+  const own = thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail);
+  const bytes = own ?? (thumbnail && encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba));
+  if (!bytes) return null;
+  const directory = join(tmpdir(), 'web-geometry-decoupes');
   await mkdir(directory, { recursive: true });
   const target = join(directory, `${pending.sha256.slice(0, 16)}.png`);
-  await writeFile(target, own ?? encodePng(thumbnail!.width, thumbnail!.height, thumbnail!.rgba));
+  await writeFile(target, bytes);
   return target;
+}
+
+/** Les images embarquées d'un modèle, ouvertes à la première qui en demande et pas avant. */
+const EMBARQUEES = new Map<string, Promise<(view: number) => Buffer | null>>();
+async function embeddedOf(model: CutoutModel, thumbnail: Thumbnail) {
+  const { embeddedImages } = await import('./cutoutThumb.mts');
+  let images = EMBARQUEES.get(model.cache);
+  if (!images) {
+    images = embeddedImages(model.cache, model.scope);
+    EMBARQUEES.set(model.cache, images);
+  }
+  return (await images)(thumbnail.sourceBufferView ?? -1);
 }
 
 /**
@@ -65,13 +81,13 @@ export async function pictureOf(
  * the cache's thumbnail: it has to be computed from texels, and the file's are not decoded here.
  */
 export async function show(
-  stream: NodeJS.WriteStream,
-  pending: PendingCutout,
+  stream: NonNullable<CutoutReviewOptions['stream']>,
+  kind: ImageKind,
   rank: string,
-  thumbnail: Thumbnail | undefined,
-  picture: string | null,
+  pending: PendingCutout,
+  pictures: { thumbnail: Thumbnail | undefined; picture: string | null },
 ) {
-  const kind = imageKind();
+  const { thumbnail, picture } = pictures;
   const measure = pending.measure;
   const facts = [
     `${measure.betweenPercent ?? '?'} % de pixels entre les deux, dont ${measure.atContourPercent ?? '?'} % au bord`,
@@ -81,7 +97,8 @@ export async function show(
   ];
   stream.write(`\n  ${rank}  ${basename(pending.image)}\n`);
   if (thumbnail) {
-    const file = picture ? await readFile(picture).catch(() => null) : null;
+    // Un terminal sans protocole d'image ne saurait rien faire de ces octets : ils ne sont pas lus.
+    const file = picture && kind !== 'blocks' ? await readFile(picture).catch(() => null) : null;
     const colour = (file && drawFile(file, kind)) ?? drawThumbnail(thumbnail, kind);
     const alpha = drawThumbnail(alphaOf(thumbnail), kind);
     for (let row = 0; row < Math.max(colour.length, alpha.length); row++)
@@ -92,4 +109,54 @@ export async function show(
   stream.write(
     '    [Entrée] accepter   [d] découpe   [v] vitre   [t] tout accepter   [?] rappel   [q] arrêter\n',
   );
+}
+
+/**
+ * The keys that answer one cutout question, read one press at a time.
+ *
+ * Enter takes the compiler's proposal, which is what makes a long list short: a pass over sixteen
+ * textures is sixteen presses when the measure has them right, and a detour only where it does not.
+ */
+export type Answer = 'cutout' | 'blend' | 'rest' | 'help' | 'quit';
+
+/** One key, without an Enter to validate it, with the terminal left exactly as it was found. */
+async function keypress(input: NodeJS.ReadStream = process.stdin): Promise<string> {
+  const wasRaw = input.isRaw;
+  input.setRawMode?.(true);
+  input.resume();
+  try {
+    return await new Promise<string>((resolve) => {
+      const onData = (data: Buffer) => {
+        input.off('data', onData);
+        resolve(data.toString('utf8'));
+      };
+      input.on('data', onData);
+    });
+  } finally {
+    input.setRawMode?.(wasRaw ?? false);
+    input.pause();
+  }
+}
+
+/** What a key means. An unknown key means nothing, and the caller asks again. */
+export function answerOf(key: string, proposal: boolean): Answer | null {
+  if (key === '\r' || key === '\n' || key === ' ') return proposal ? 'cutout' : 'blend';
+  if (key === 'd' || key === 'D') return 'cutout';
+  if (key === 'v' || key === 'V') return 'blend';
+  if (key === 't' || key === 'T') return 'rest';
+  if (key === '?' || key === 'h' || key === 'H') return 'help';
+  // Ctrl-C and Escape stop the pass; what was already answered is kept.
+  if (key === 'q' || key === 'Q' || key === '' || key === '') return 'quit';
+  return null;
+}
+
+/** Asks until a key means something. */
+export async function askAnswer(
+  proposal: boolean,
+  input: NodeJS.ReadStream = process.stdin,
+): Promise<Answer> {
+  for (;;) {
+    const answer = answerOf(await keypress(input), proposal);
+    if (answer) return answer;
+  }
 }
