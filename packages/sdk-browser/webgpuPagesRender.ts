@@ -47,9 +47,11 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera) {
   // qui n'y passe pas — coupe processeur, capture de surface, image en attente — refait tout.
   run.cutHeld = false;
   setWindingEpoch(rows.tableEpoch);
-  void rt.texturePump
-    .pump()
-    .catch((error) => diag.diagnosticFailure('progressive-texture-mips-failed', error));
+  try {
+    rt.texturePump.pump();
+  } catch (error) {
+    diag.diagnosticFailure('progressive-texture-mips-failed', error);
+  }
   // Une matrice monde est fonction de la seule scène : une image que rien n'a touchée les
   // retrouverait toutes à l'identique. L'index du moteur n'est donc recalculé qu'à un changement de
   // révision de scène, et un nœud que `setWebgpuTransform` vient de déplacer l'a déjà recalculé.

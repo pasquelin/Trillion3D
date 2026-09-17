@@ -10,10 +10,10 @@ const MAX_FAILURES = 3;
 /** Les couches d'une classe dont la pleine résolution vient d'arriver. */
 type ClassLayers = Map<number, number[]>;
 
-async function regenerate(device: GPUDevice, atlas: WebgpuAtlas, byClass: ClassLayers) {
+function regenerate(device: GPUDevice, atlas: WebgpuAtlas, byClass: ClassLayers) {
   for (const [classIndex, layers] of byClass) {
     const entry = atlas.classes[classIndex];
-    if (entry) await regenerateClassMips(device, entry, layers);
+    if (entry) regenerateClassMips(device, entry, layers);
   }
 }
 
@@ -48,7 +48,6 @@ export function createWebgpuTexturePump(options: {
   /** Sortie définitive d'un niveau de la file, avec la raison et l'avancement atteint. */
   onAbandon: (context: Record<string, unknown>) => void;
 }) {
-  let pending: Promise<void> | undefined;
   let uploaded = 0,
     skipped = 0,
     slices = 0,
@@ -129,35 +128,33 @@ export function createWebgpuTexturePump(options: {
     }
     bytesLastPass = admitted;
   };
-  /** `unbounded` lève le budget d'octets engagés : seul `flush()` le demande, pour converger. */
+  /**
+   * Une passe de transfert. Tout y est synchrone : les tranches partent par `writeTexture`, les
+   * réductions par `submit`, et la file de l'appareil les exécute dans l'ordre où elles sont
+   * soumises — donc avant l'image qui lira la couche. Rien n'attend l'appareil, sans quoi la passe
+   * suivante ne partirait qu'un aller-retour GPU plus tard et le flux des textures se traînerait.
+   *
+   * `unbounded` lève le budget d'octets engagés : seul `flush()` le demande, pour converger.
+   */
   const pump = (unbounded = false) => {
     const { device, jobs } = options;
-    if (pending || !jobs.length || !device) return pending ?? Promise.resolve();
-    const run = async () => {
-      readySlots.length = 0;
-      colorClasses.clear();
-      dataClasses.clear();
-      options.order(jobs);
-      admit(unbounded);
-      const color = options.colorAtlas(),
-        data = options.dataAtlas();
-      if (color && colorClasses.size) {
-        await regenerate(device, color, colorClasses);
-        // Après la dernière tranche et ses mips seulement : avant, la couche n'est pas montrable.
-        options.onColorReady(readySlots);
-      }
-      if (data && dataClasses.size) await regenerate(device, data, dataClasses);
-    };
-    pending = run().finally(() => {
-      pending = undefined;
-    });
-    return pending;
+    if (!jobs.length || !device) return;
+    readySlots.length = 0;
+    colorClasses.clear();
+    dataClasses.clear();
+    options.order(jobs);
+    admit(unbounded);
+    const color = options.colorAtlas(),
+      data = options.dataAtlas();
+    if (color && colorClasses.size) {
+      regenerate(device, color, colorClasses);
+      // Après la dernière tranche et ses mips seulement : avant, la couche n'est pas montrable.
+      options.onColorReady(readySlots);
+    }
+    if (data && dataClasses.size) regenerate(device, data, dataClasses);
   };
   return {
     pump,
-    get pending() {
-      return pending;
-    },
     /** Textures transférées en entier, dernière tranche comprise. */
     get uploaded() {
       return uploaded;
