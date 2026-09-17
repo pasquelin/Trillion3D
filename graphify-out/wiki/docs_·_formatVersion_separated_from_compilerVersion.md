@@ -15,8 +15,8 @@
 - [CLAUDE.md — project entry rule](CLAUDE.md_—_project_entry_rule.md) (1 shared connections)
 - [Documentation et frontières](Documentation_et_frontières.md) (1 shared connections)
 - [docs · C5 — autonomous packets, quantized attributes](docs_·_C5_—_autonomous_packets,_quantized_attributes.md) (1 shared connections)
-- [docs · atlasClasses — one or two material-atlas size classes](docs_·_atlasClasses_—_one_or_two_material-atlas_size_classes.md) (1 shared connections)
-- [docs · Shadow maps invalidated page by page under a millisecond budget](docs_·_Shadow_maps_invalidated_page_by_page_under_a_millisecond_budget.md) (1 shared connections)
+- [docs · Ne jamais dégrader l'application](docs_·_Ne_jamais_dégrader_l'application.md) (1 shared connections)
+- [docs · A pixel cost is not a veto](docs_·_A_pixel_cost_is_not_a_veto.md) (1 shared connections)
 
 ## Source Files
 

@@ -1,12 +1,13 @@
 # Aperçus de textures et pyramide (2)
 
-> 17 nodes
+> 18 nodes
 
 ## Key Concepts
 
 - **rgba_from()** (11 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/mod.rs`
 - **level_bytes()** (9 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/mod.rs`
 - **each_level_is_the_exact_2x2_average_of_the_previous_one()** (6 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/levels.rs`
+- **mask_coverage_is_preserved_within_one_texel_at_every_level()** (5 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/mask_coverage.rs`
 - **odd_dimensions_reduce_without_panicking()** (4 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/box_reduce.rs`
 - **tests/levels.rs** (4 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/levels.rs`
 - **box_reduce.rs** (3 connections) — `packages/asset-compiler-rust/src/texture_preview/tests/box_reduce.rs`
@@ -24,8 +25,8 @@
 
 ## Relationships
 
-- [Aperçus de textures et pyramide](Aperçus_de_textures_et_pyramide.md) (7 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (5 shared connections)
+- [Aperçus de textures et pyramide (4)](Aperçus_de_textures_et_pyramide_4.md) (6 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (5 shared connections)
 - [Aperçus de textures (étage)](Aperçus_de_textures_étage.md) (3 shared connections)
 
 ## Source Files
@@ -39,8 +40,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 20 (53%)
-- INFERRED: 18 (47%)
+- EXTRACTED: 20 (50%)
+- INFERRED: 20 (50%)
 - AMBIGUOUS: 0 (0%)
 
 ---

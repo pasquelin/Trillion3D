@@ -30,18 +30,18 @@
 
 ## Relationships
 
+- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (8 shared connections)
 - [Sélection des pages visibles](Sélection_des_pages_visibles.md) (4 shared connections)
-- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (3 shared connections)
-- [Uniformes de sélection et justesse](Uniformes_de_sélection_et_justesse.md) (3 shared connections)
-- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (2 shared connections)
 - [Coupe projetée de la sélection (3)](Coupe_projetée_de_la_sélection_3.md) (2 shared connections)
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (2 shared connections)
-- [Banc de décodage wasm](Banc_de_décodage_wasm.md) (1 shared connections)
-- [Normale d'éclairage à petite échelle](Normale_d'éclairage_à_petite_échelle.md) (1 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
+- [sdk-browser · Decodeur](sdk-browser_·_Decodeur.md) (1 shared connections)
+- [sdk-browser · NOYAU](sdk-browser_·_NOYAU.md) (1 shared connections)
 - [Nuanceurs WGSL de visibilité](Nuanceurs_WGSL_de_visibilité.md) (1 shared connections)
-- [Tests navigateur Node](Tests_navigateur_Node.md) (1 shared connections)
+- [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (1 shared connections)
 - [test · steps](test_·_steps.md) (1 shared connections)
-- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (1 shared connections)
+- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (1 shared connections)
+- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (1 shared connections)
+- [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (1 shared connections)
 
 ## Source Files
 

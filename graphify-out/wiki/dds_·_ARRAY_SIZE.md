@@ -16,10 +16,10 @@
 
 ## Relationships
 
-- [tests · HEADER](tests_·_HEADER.md) (2 shared connections)
+- [tests · ALPHA](tests_·_ALPHA.md) (2 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [ktx2 · NAMES](ktx2_·_NAMES.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 
 ## Source Files
 

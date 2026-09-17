@@ -33,12 +33,10 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (4 shared connections)
-- [Exécution des tests dorés](Exécution_des_tests_dorés.md) (4 shared connections)
+- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (6 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (4 shared connections)
 - [Pilote USD et fidélité](Pilote_USD_et_fidélité.md) (4 shared connections)
-- [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (1 shared connections)
-- [Bacs à sable des pilotes (2)](Bacs_à_sable_des_pilotes_2.md) (1 shared connections)
-- [Verrou CLI et fixtures du compilateur (2)](Verrou_CLI_et_fixtures_du_compilateur_2.md) (1 shared connections)
+- [unity · Option](unity_·_Option.md) (1 shared connections)
 
 ## Source Files
 

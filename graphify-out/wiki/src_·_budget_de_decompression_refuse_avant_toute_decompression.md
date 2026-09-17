@@ -1,6 +1,6 @@
 # src · budget_de_decompression_refuse_avant_toute_decompression
 
-> 17 nodes
+> 18 nodes
 
 ## Key Concepts
 
@@ -10,6 +10,7 @@
 - **PageError** (4 connections) — `packages/page-codec-wasm/src/lib.rs`
 - **page()** (3 connections) — `packages/page-codec-wasm/src/lib.rs`
 - **Vertex** (3 connections) — `packages/page-codec-wasm/src/lib.rs`
+- **page_decode()** (3 connections) — `packages/page-codec-wasm/src/wasm.rs`
 - **en_tete_trop_court_puis_magie_puis_bornes()** (2 connections) — `packages/page-codec-wasm/src/lib.rs`
 - **mots()** (2 connections) — `packages/page-codec-wasm/src/lib.rs`
 - **Result** (2 connections)
@@ -25,17 +26,18 @@
 ## Relationships
 
 - [src · Debug](src_·_Debug.md) (3 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
 - [Décodage HDR](Décodage_HDR.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/page-codec-wasm/src/lib.rs`
+- `packages/page-codec-wasm/src/wasm.rs`
 
 ## Audit Trail
 
-- EXTRACTED: 26 (93%)
+- EXTRACTED: 28 (93%)
 - INFERRED: 2 (7%)
 - AMBIGUOUS: 0 (0%)
 

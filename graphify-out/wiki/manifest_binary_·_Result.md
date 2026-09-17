@@ -23,7 +23,7 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
 - [Manifeste binaire (Rust)](Manifeste_binaire_Rust.md) (1 shared connections)
 - [Encodage du manifeste binaire](Encodage_du_manifeste_binaire.md) (1 shared connections)
 

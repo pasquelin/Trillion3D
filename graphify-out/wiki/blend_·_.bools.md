@@ -25,8 +25,8 @@
 
 ## Relationships
 
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [Lecture du format Blender (4)](Lecture_du_format_Blender_4.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (1 shared connections)
 
 ## Source Files
 

@@ -12,7 +12,8 @@
 
 ## Relationships
 
-- [sdk-core · Slices](sdk-core_·_Slices.md) (3 shared connections)
+- [sdk-core · Slices](sdk-core_·_Slices.md) (2 shared connections)
+- [sdk-core · matrix](sdk-core_·_matrix.md) (1 shared connections)
 
 ## Source Files
 

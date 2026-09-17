@@ -20,15 +20,15 @@
 
 ## Relationships
 
-- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (13 shared connections)
+- [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (14 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (7 shared connections)
-- [Transport de lumière (2)](Transport_de_lumière_2.md) (3 shared connections)
+- [Transport de lumière](Transport_de_lumière.md) (2 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md) (1 shared connections)
+- [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md) (1 shared connections)
 - [sdk-browser · box](sdk-browser_·_box.md) (1 shared connections)
 - [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (1 shared connections)
-- [bench · catalogue](bench_·_catalogue.md) (1 shared connections)
-- [sdk-browser · camera](sdk-browser_·_camera.md) (1 shared connections)
+- [Lignes dessinables et validation (3)](Lignes_dessinables_et_validation_3.md) (1 shared connections)
+- [bench · blocs](bench_·_blocs.md) (1 shared connections)
 
 ## Source Files
 

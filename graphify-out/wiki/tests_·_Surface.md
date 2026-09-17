@@ -24,9 +24,9 @@
 - [Couches coplanaires](Couches_coplanaires.md) (2 shared connections)
 - [bench_calculs · Bits (2)](bench_calculs_·_Bits_2.md) (1 shared connections)
 - [coplanar · Option](coplanar_·_Option.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
-- [coplanar · BTreeMap](coplanar_·_BTreeMap.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [import · Option (2)](import_·_Option_2.md) (1 shared connections)
+- [coplanar · Default](coplanar_·_Default.md) (1 shared connections)
 
 ## Source Files
 

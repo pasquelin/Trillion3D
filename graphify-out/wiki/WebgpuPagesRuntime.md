@@ -2,7 +2,7 @@
 
 > God node · 96 connections · `packages/sdk-browser/webgpuPagesRuntime.ts`
 
-**Community:** [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md)
+**Community:** [Coût CPU et image tenue](Coût_CPU_et_image_tenue.md)
 
 ## Connections by Relation
 

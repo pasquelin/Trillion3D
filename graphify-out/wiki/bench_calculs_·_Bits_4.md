@@ -19,7 +19,7 @@
 
 ## Relationships
 
-- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (2 shared connections)
+- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (2 shared connections)
 - [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (1 shared connections)
 - [Encodage du manifeste binaire](Encodage_du_manifeste_binaire.md) (1 shared connections)

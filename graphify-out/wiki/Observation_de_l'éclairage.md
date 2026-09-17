@@ -33,18 +33,18 @@
 
 ## Relationships
 
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (5 shared connections)
-- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (5 shared connections)
-- [Transport de lumière (2)](Transport_de_lumière_2.md) (3 shared connections)
-- [Contrat backend et dessin](Contrat_backend_et_dessin.md) (3 shared connections)
-- [sdk-browser · graphe](sdk-browser_·_graphe.md) (3 shared connections)
-- [API et session de l'explorateur](API_et_session_de_l'explorateur.md) (2 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (7 shared connections)
+- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (4 shared connections)
+- [Transport de lumière](Transport_de_lumière.md) (3 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (3 shared connections)
+- [Matrices et origine de rendu](Matrices_et_origine_de_rendu.md) (2 shared connections)
 - [Scène d'expérience d'éclairage](Scène_d'expérience_d'éclairage.md) (2 shared connections)
-- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (1 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
-- [Socle des consommateurs](Socle_des_consommateurs.md) (1 shared connections)
+- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (2 shared connections)
+- [Backends de rendu exacts](Backends_de_rendu_exacts.md) (1 shared connections)
+- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (1 shared connections)
+- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [sdk-browser · CpuStepSummary](sdk-browser_·_CpuStepSummary.md) (1 shared connections)
+- [Convention de profondeur](Convention_de_profondeur.md) (1 shared connections)
 
 ## Source Files
 

@@ -17,8 +17,8 @@
 ## Relationships
 
 - [oracle · Into](oracle_·_Into.md) (1 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (1 shared connections)
-- [tests · Arc](tests_·_Arc.md) (1 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
 - [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
 
 ## Source Files

@@ -33,9 +33,8 @@
 
 ## Relationships
 
-- [tests · Arc](tests_·_Arc.md) (4 shared connections)
-- [tests · compiler_accessor_decode](tests_·_compiler_accessor_decode.md) (4 shared connections)
-- [Lecture et écriture glTF (2)](Lecture_et_écriture_glTF_2.md) (2 shared connections)
+- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (6 shared connections)
+- [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (4 shared connections)
 
 ## Source Files
 
