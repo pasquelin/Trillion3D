@@ -12,43 +12,42 @@ import { createDenseKeySet } from './webgpuDenseKeys.ts';
  *
  * L'ensemble ne bouge ici que de ce qui bouge : les pages que la différence de la coupe nomme, et
  * celles dont les octets viennent d'arriver ou de partir — que le journal des rangs nomme déjà.
- * `pages` est la liste de celles qui manquent, et elle seule est parcourue. L'appartenance à la
- * coupe est celle de la différence, à qui cet ensemble est attaché une fois pour toutes.
+ * `records` est la liste des fiches qui manquent, et elle seule est parcourue : la règle qui en tire
+ * des adresses est celle de tout le monde (`collectPendingUrls`), pas une recopie. L'appartenance à
+ * la coupe est celle de la différence, à qui cet ensemble est attaché une fois pour toutes.
  */
 export function createCutPending(packedPages: readonly PageRec[], delta: CutDelta) {
-  const missing = createDenseKeySet(packedPages.length);
+  /** Les fiches des pages qui manquent, tenues au rang de leur clé par l'ensemble lui-même. */
+  const records: PageRec[] = [];
+  const missing = createDenseKeySet(packedPages.length, records);
   /** Les rangs de l'ensemble : lus à même le tableau, l'appel est réservé à ce qui bouge. */
   const slots = missing.slots;
   return {
-    /** Les rangs de page encore attendus, et leur nombre : l'image tenue ne lit que ce nombre. */
+    /** Les fiches encore attendues, et leur nombre : l'image tenue ne lit que ce nombre. */
+    records,
     get count() {
       return missing.count;
     },
-    get pages() {
-      return missing.list;
-    },
     /** La différence qui vient d'être appliquée : les sorties d'abord, les entrées ensuite. */
     apply() {
-      // Les bornes sont lues UNE fois : ce sont des accesseurs, et les relire à chaque tour de
-      // boucle coûtait plus que tout ce que la boucle fait.
-      const exited = delta.exitedCount,
-        entered = delta.enteredCount;
       const exits = delta.exited,
         entries = delta.entered;
-      for (let i = 0; i < exited; i++) {
+      for (let i = 0; i < delta.exitedCount; i++) {
         const id = exits[i];
         if (slots[id] >= 0) missing.remove(id);
       }
-      for (let i = 0; i < entered; i++) {
+      for (let i = 0; i < delta.enteredCount; i++) {
         const id = entries[i];
-        if (!packedPages[id].array && slots[id] < 0) missing.add(id);
+        const rec = packedPages[id];
+        if (!rec.array && slots[id] < 0) missing.add(id, rec);
       }
     },
     /** Les octets d'une page viennent d'arriver ou de partir ; hors de la coupe, rien à en dire. */
     touch(id: number) {
       if (!delta.has(id)) return;
-      if (packedPages[id].array) missing.remove(id);
-      else missing.add(id);
+      const rec = packedPages[id];
+      if (rec.array) missing.remove(id);
+      else missing.add(id, rec);
     },
   };
 }
