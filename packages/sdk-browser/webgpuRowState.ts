@@ -1,5 +1,5 @@
 import { createWebgpuRowJournal } from './webgpuRowJournal.ts';
-import type { PageRec } from './pageSelection.ts';
+import { catalogueIndexOf, type PageRec } from './pageSelection.ts';
 
 /** Stable row and residency arrays shared by the cut, visibility pass, and cache journal. */
 export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) {
@@ -12,16 +12,7 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number) 
     else pageIndicesByUrl.set(page.url, [i]);
     page.packedIndex = i;
   }
-  /**
-   * Le rang d'une page du catalogue, ou `undefined` : le rang voyage sur la page elle-même plutôt que
-   * dans une table de hachage relue par cluster et par image. Le catalogue a le dernier mot — un rang
-   * posé par un autre moteur ne survit pas à la vérification, exactement comme une page absente de la
-   * table ne rendait rien.
-   */
-  const pageIndexOf = (rec: PageRec) => {
-    const index = rec.packedIndex;
-    return index !== undefined && packedPages[index] === rec ? index : undefined;
-  };
+  const pageIndexOf = (rec: PageRec) => catalogueIndexOf(packedPages, rec);
 
   /** Les pages nommées par le cache et celles dont le drapeau de résidence vient de basculer. */
   const journal = createWebgpuRowJournal(packedPages.length);

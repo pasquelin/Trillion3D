@@ -1,9 +1,12 @@
 import { createSynchronousCanvasCapture } from './gpuPresentation.ts';
-import { collectPendingUrls } from './pageSelection.ts';
+import { collectPendingUrls, type PageRec } from './pageSelection.ts';
 import { rasterVisibilityIds, shadeVisibility } from './visibilityBuffer.ts';
 import { renderWebgpuPages } from './webgpuPagesRender.ts';
 import { defaultEngineCamera } from './cameraWorld.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
+
+/** Ce que l'image attend quand le budget lui a retiré sa coupe : rien, et toujours le même rien. */
+const EMPTY_CUT: readonly PageRec[] = [];
 
 /**
  * Le magasin de lampes du contrat a changé. Rien n'est recalculé ici : l'image suivante relit le
@@ -121,23 +124,14 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   held.limited = run.coverageBudgetLimited;
   held.ready = ready;
   // Tant que la couverture épinglée n'est pas là, c'est elle qu'on attend. Ensuite, la coupe tient
-  // elle-même la liste de ses pages sans octets : ce sont les seules à parcourir, et une coupe
+  // elle-même la liste de ses fiches sans octets : ce sont les seules à parcourir, et une coupe
   // entièrement arrivée — le cas ordinaire — n'en fait parcourir aucune.
-  if (!ready)
-    return collectPendingUrls(rt.setup.bootstrap, run.hostPendingScratch, rt.setup.requestStamps);
-  const scratch = run.hostPendingScratch;
-  scratch.length = 0;
-  if (run.coverageBudgetLimited) return scratch;
-  const { packedPages } = rt.layout,
-    stamps = rt.setup.requestStamps;
-  const waiting = rt.services.cutPending.pages,
-    count = rt.services.cutPending.count;
-  stamps.begin();
-  for (let i = 0; i < count; i++) {
-    const rec = packedPages[waiting[i]];
-    if (rec && stamps.first(rec.requestIndex)) scratch.push(rec.streamUrl ?? rec.url);
-  }
-  return scratch;
+  const waiting = !ready
+    ? rt.setup.bootstrap
+    : run.coverageBudgetLimited
+      ? EMPTY_CUT
+      : rt.services.cutPending.records;
+  return collectPendingUrls(waiting, run.hostPendingScratch, rt.setup.requestStamps);
 }
 
 /**
