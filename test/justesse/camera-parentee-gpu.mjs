@@ -6,7 +6,7 @@
 // la caméra enfant d'un parent d'hôte déplacé puis tourné, puis pour la caméra sans parent de même
 // pose monde. Les pages sélectionnées doivent être identiques ; sinon le script échoue.
 //
-//   node packages/sdk-browser/bench/justesse/camera-parentee-gpu.mjs
+//   node test/justesse/camera-parentee-gpu.mjs
 //   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';

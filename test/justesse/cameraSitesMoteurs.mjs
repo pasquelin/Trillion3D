@@ -2,14 +2,14 @@
 // décidé. WebGPU tourne sur le faux périphérique des tests : chaque écriture de tampon est relevée
 // (uniformes de vue, de transparents, de lumière et d'ombre compris), sans aucune carte graphique.
 import { createHash } from 'node:crypto';
-import { webgpuPagesBackend } from '../../webgpuPages.ts';
-import { exactPagesBackend } from '../../exactPagesBackend.ts';
-import { threeLodBackend } from '../../threeLod.ts';
-import { installGpuGlobals } from '../../webgpuPagesTestGlobals.ts';
-import { mockGpu } from '../../webgpuPagesMockGpu.ts';
-import { camera as principale, quadScene } from '../../webgpuPagesTestScenes.ts';
-import { DAG, dagLevel } from '../../pagesBackendFixture.ts';
-import { fanScene, quadCluster, quadRootsContext } from '../../pagesBackendScenes.ts';
+import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
+import { exactPagesBackend } from '../../packages/sdk-browser/exactPagesBackend.ts';
+import { threeLodBackend } from '../../packages/sdk-browser/threeLod.ts';
+import { installGpuGlobals } from '../../packages/sdk-browser/webgpuPagesTestGlobals.ts';
+import { mockGpu } from '../../packages/sdk-browser/webgpuPagesMockGpu.ts';
+import { camera as principale, quadScene } from '../../packages/sdk-browser/webgpuPagesTestScenes.ts';
+import { DAG, dagLevel } from '../../packages/sdk-browser/pagesBackendFixture.ts';
+import { fanScene, quadCluster, quadRootsContext } from '../../packages/sdk-browser/pagesBackendScenes.ts';
 
 const COMPTES = ['clusters', 'selectedTriangles', 'frustumRejected', 'lodLevel', 'residentPages'];
 const comptes = (metrics) => Object.fromEntries(COMPTES.map((cle) => [cle, metrics[cle] ?? null]));

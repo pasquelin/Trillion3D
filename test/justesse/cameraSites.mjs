@@ -2,20 +2,20 @@
 // `{ nom, cree, mesure }` : `cree()` rend l'état d'une séquence d'images (tenue Hi-Z, coupe, moteur),
 // `mesure(état, caméra)` rend en JSON ce que le site a tiré de la caméra pour cette image.
 import * as THREE from 'three';
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { collectClusterPages } from '../../pageSelection.ts';
-import { selectVisiblePages } from '../../pageSelectionCut.ts';
-import { boundsFor, projectBoxesFlat } from '../../hizProjection.ts';
-import { applyTemporalHiz, sameHizView } from '../../hizTemporal.ts';
-import { visibilityDepth } from '../../hizDepth.ts';
-import { rasterPages } from '../../pageRaster.ts';
-import { rasterVisibility } from '../../visibilityRaster.ts';
-import { shadeVisibility } from '../../visibilityShade.ts';
-import { projectedPageError } from '../../pageSelectionDiagnostic.ts';
-import { resolvePixelError } from '../../pageSelectionRequests.ts';
-import { dagFixture } from '../../pageSelectionDagFixture.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
+import { collectClusterPages } from '../../packages/sdk-browser/pageSelection.ts';
+import { selectVisiblePages } from '../../packages/sdk-browser/pageSelectionCut.ts';
+import { boundsFor, projectBoxesFlat } from '../../packages/sdk-browser/hizProjection.ts';
+import { applyTemporalHiz, sameHizView } from '../../packages/sdk-browser/hizTemporal.ts';
+import { visibilityDepth } from '../../packages/sdk-browser/hizDepth.ts';
+import { rasterPages } from '../../packages/sdk-browser/pageRaster.ts';
+import { rasterVisibility } from '../../packages/sdk-browser/visibilityRaster.ts';
+import { shadeVisibility } from '../../packages/sdk-browser/visibilityShade.ts';
+import { projectedPageError } from '../../packages/sdk-browser/pageSelectionDiagnostic.ts';
+import { resolvePixelError } from '../../packages/sdk-browser/pageSelectionRequests.ts';
+import { dagFixture } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
 import { sitesMoteurs } from './cameraSitesMoteurs.mjs';
-import { createEngineCamera, readCameraWorld } from '../../cameraWorld.ts';
+import { createEngineCamera, readCameraWorld } from '../../packages/sdk-browser/cameraWorld.ts';
 
 const VIEWPORT = [1280, 720],
   RASTER = [64, 36];

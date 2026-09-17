@@ -1,13 +1,13 @@
 // Côté page de la reproduction GPU : la vraie sélection WebGPU du moteur (`createGpuDagSelection`,
 // ses tampons, son noyau et sa relecture), alimentée par les vrais `cameraSelectionUniforms`.
 // Empaqueté par esbuild puis exécuté dans Chromium : rien n'est rejoué hors du GPU.
-import { cameraSelectionUniforms } from '../../gpuSelection.ts';
-import { createGpuDagSelection, packDagSelection } from '../../gpuDagSelection.ts';
-import { collectClusterPages } from '../../pageSelection.ts';
-import { dagFixture } from '../../pageSelectionDagFixture.ts';
+import { cameraSelectionUniforms } from '../../packages/sdk-browser/gpuSelection.ts';
+import { createGpuDagSelection, packDagSelection } from '../../packages/sdk-browser/gpuDagSelection.ts';
+import { collectClusterPages } from '../../packages/sdk-browser/pageSelection.ts';
+import { dagFixture } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
 import { POSES_PARENT, cameraAplatie, creeRig, poseRig } from './cameraRig.mjs';
 import { ouvrirAppareil } from './appareilWebgpu.mjs';
-import { cameraMoteur } from '../../cameraFixture.ts';
+import { cameraMoteur } from '../../packages/sdk-browser/cameraFixture.ts';
 
 const VIEWPORT = [1280, 720];
 

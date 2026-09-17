@@ -6,7 +6,7 @@
 // coupe GPU choisit) et `gpuSelectionFallback` (faux tant qu'elle n'a pas été abandonnée) décident.
 import { webgpuPagesBackend } from '../../packages/sdk-browser/webgpuPages.ts';
 import { dagFixture, wideCamera } from '../../packages/sdk-browser/pageSelectionDagFixture.ts';
-import { ouvrirAppareil } from '../../packages/sdk-browser/bench/justesse/appareilWebgpu.mjs';
+import { ouvrirAppareil } from '../justesse/appareilWebgpu.mjs';
 
 const IMAGES = 30;
 

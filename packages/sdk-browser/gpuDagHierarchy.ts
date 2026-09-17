@@ -110,7 +110,7 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
  * l'argument de répartition n'a plus à être recopié vers un tampon d'indirection, et plus rien ne
  * coupe la descente — elle tient dans la passe de tête.
  *
- * LA MESURE QUI LE JUSTIFIE, publiée par `bench/justesse/coupe-lancements-gpu.mjs` et citée d'ici
+ * LA MESURE QUI LE JUSTIFIE, publiée par `test/justesse/coupe-lancements-gpu.mjs` et citée d'ici
  * seulement : sur apple metal-3, un niveau de plus coûte environ 26 µs quand il ouvre sa propre
  * passe derrière deux copies hors passe, et environ 1,5 µs quand il est un lancement à plat dans la
  * passe de tête. Le banc republie la pente à chaque exécution ; ces deux valeurs en sont l'ordre.

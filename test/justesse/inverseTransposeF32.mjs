@@ -9,7 +9,7 @@
 // `gpuDagInverseTranspose.test.ts` (sélection) et la preuve navigateur lisent tous les trois la même
 // arithmétique, au lieu d'en tenir chacun une copie.
 
-import { SINGULAR_DETERMINANT } from '../../../sdk-core/mathSingular.ts';
+import { SINGULAR_DETERMINANT } from '../../packages/sdk-core/mathSingular.ts';
 
 export const f = Math.fround;
 export const croix = (a, b) => [

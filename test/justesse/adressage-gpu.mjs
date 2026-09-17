@@ -3,7 +3,7 @@
 // sien (mode de la carte → `addressMode`). Deux filtrages : au plus proche (le texel choisi) et
 // linéaire (le filtrage réel de l'échantillonneur du moteur, comparé bit à bit).
 //   LAB_ROOT=…/render-tech-lab node --experimental-strip-types \
-//     packages/sdk-browser/bench/justesse/adressage-gpu.mjs [sortie.json]
+//     test/justesse/adressage-gpu.mjs [sortie.json]
 // Bloquant : tout écart au plus proche hors frontière ; tout écart linéaire bit à bit hors couture ;
 // et, sur la couture d'une période, toute lecture qui s'écarte de la règle exacte de plus d'un demi
 // niveau sur 255 — le mélange que le moteur écrit lui-même ne peut pas retrouver, bit pour bit, le
@@ -11,7 +11,7 @@
 // Pour mémoire seulement : au plus proche sur une frontière exacte, le texel dépend de l'arrondi
 // 32 bits de u·taille.
 import { writeFileSync } from 'node:fs';
-import { wrapNibble } from '../../visibilityWrapModes.ts';
+import { wrapNibble } from '../../packages/sdk-browser/visibilityWrapModes.ts';
 import {
   ADRESSE,
   bilan,
