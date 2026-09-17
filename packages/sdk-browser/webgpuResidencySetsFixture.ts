@@ -12,6 +12,8 @@ export function scene() {
   const opaque = Array.from({ length: 16 }, (_, id) => rec(`o${id >> 1}`, id >> 1));
   const transparent = Array.from({ length: 4 }, (_, id) => rec(`t${id}`, id));
   const packed = [...opaque, ...transparent];
+  // Le rang de la page voyage sur la page, comme le catalogue du moteur le pose.
+  packed.forEach((page, index) => (page.packedIndex = index));
   const cover = [rec('o0', 0), rec('t0', 0)];
   const tracking = createWebgpuPageTracking([...packed, ...cover]);
   const bootstrapKey = new Uint8Array(tracking.keyCount);
@@ -52,7 +54,6 @@ export function frame(world: ReturnType<typeof scene>, cutIds: readonly number[]
   const { delta, sets, pages } = world;
   delta.apply(cutIds);
   sets.applyCut(delta);
-  sets.releaseCpu();
   const requested = sets.requestedCount;
   sets.applyBudget(room, pages);
   return { requested, keep: sets.keepCount };

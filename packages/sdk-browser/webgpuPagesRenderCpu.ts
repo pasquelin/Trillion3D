@@ -96,9 +96,8 @@ export function renderCpuCut(
     cache = gpu.cache!;
   // La coupe processeur réécrit les listes elle-même : aucune image tenue ne s'appuie sur la sienne.
   run.gate.resourcesChanged();
-  // The CPU cut rewrites the cut arrays whole: the readback's difference no longer describes them,
-  // and the GPU cut re-seeds from nothing when it takes the image back.
-  services.invalidateCut();
+  // Le relevé de la carte ne décrit plus les tableaux de l'image : cette coupe-ci va les écrire.
+  services.forgetReadback();
   // Cette image écrit `shown` et `drawn` elle-même, et peut sortir par une erreur entre les deux :
   // le drapeau tombe avant la première écriture, jamais après.
   markDrawnDiverged(run);
@@ -108,8 +107,9 @@ export function renderCpuCut(
   const selected = selectCpuCut(rt, cam, pixelError, false);
   run.cpuSelectMs = performance.now() - cpuSelectionStarted;
   traceCpuSelection(rt, selected, run.cpuSelectMs);
-  run.desired.length = 0;
-  appendAll(run.desired, selected.wanted ?? run.shown);
+  // La coupe processeur publie la sienne par la même différence que le relevé de la carte : elle
+  // écrit `run.desired` elle-même, et les mêmes lecteurs la suivent sans reparcourir de liste.
+  services.adoptCpuCut(selected.wanted ?? run.shown, run.shown);
   run.overBudget = false;
   run.visible = selected.visible;
   run.selectedTriangles = selected.selectedTriangles;
@@ -158,6 +158,8 @@ export function renderCpuCut(
     run.shown.length = 0;
     appendAll(run.shown, fallback.shown);
     run.lodLevel = fallback.lodLevel;
+    // La couverture épinglée remplace ce qui était montré : la différence la reprend telle quelle.
+    services.adoptCpuCut(run.desired, run.shown);
   }
   traceTransition(rt, requested, transition, transitionStarted);
   if (run.shown.some((page) => !services.hasBytes(page)))
@@ -165,7 +167,7 @@ export function renderCpuCut(
   const culled = cullWithTemporalHiz(rt, cam);
   const selectionEnd = performance.now();
   const queueStarted = performance.now();
-  services.queueResident(run.coverageBudgetLimited ? [] : run.desired);
+  services.queueCutResidency(run.desired, run.coverageBudgetLimited);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
   const drawnVerifyStarted = performance.now();

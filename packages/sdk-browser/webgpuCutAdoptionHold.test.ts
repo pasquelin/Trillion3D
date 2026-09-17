@@ -114,8 +114,9 @@ test('un nouveau relevé refait la liste, et l’invalidation oublie celui qui �
   b.montre(b.cut);
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(b.shown, attendu);
-  b.adopter.invalidate();
-  b.counts.clear();
+  // Oublier le relevé ne jette pas la différence : celui qui a écrit ces listes l'a publiée par
+  // elle. Seule l'identité du relevé tombe, et la liste affichée est donc refaite en entier.
+  b.adopter.forgetReadback();
   b.shown.length = 0;
   assert.equal(b.adopter.adopt(), true);
   assert.deepEqual(b.shown, attendu, 'le relevé oublié est relu en entier');

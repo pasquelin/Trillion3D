@@ -120,11 +120,22 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   held.epoch = run.pageArrayEpoch;
   held.limited = run.coverageBudgetLimited;
   held.ready = ready;
-  return collectPendingUrls(
-    !ready ? rt.setup.bootstrap : run.coverageBudgetLimited ? [] : run.desired,
-    run.hostPendingScratch,
-    rt.setup.requestStamps,
-  );
+  // Tant que la couverture épinglée n'est pas là, c'est elle qu'on attend. Ensuite, la coupe tient
+  // elle-même la liste de ses pages sans octets : ce sont les seules à parcourir, et une coupe
+  // entièrement arrivée — le cas ordinaire — n'en fait parcourir aucune.
+  if (!ready)
+    return collectPendingUrls(rt.setup.bootstrap, run.hostPendingScratch, rt.setup.requestStamps);
+  const scratch = run.hostPendingScratch;
+  scratch.length = 0;
+  if (run.coverageBudgetLimited) return scratch;
+  const { cutPending } = rt.services,
+    stamps = rt.setup.requestStamps;
+  stamps.begin();
+  for (let i = 0; i < cutPending.count; i++) {
+    const rec = rt.layout.packedPages[cutPending.pages[i]];
+    if (rec && stamps.first(rec.requestIndex)) scratch.push(rec.streamUrl ?? rec.url);
+  }
+  return scratch;
 }
 
 /**

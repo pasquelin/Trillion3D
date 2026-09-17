@@ -104,14 +104,13 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
 
   return {
     items,
-    /** The CPU cut hands its wanted and drawn lists over whole; it owns no difference to give. */
-    queueResident(wanted: readonly PageRec[]) {
-      sets.refreshCpu(wanted, options.getShown());
-      follow();
-    },
-    /** The GPU cut already applied its difference; only the page budget is left to enforce. */
-    queueCutResidency(desired: readonly PageRec[]) {
-      sets.applyBudget(options.room, desired);
+    /**
+     * La coupe a déjà appliqué sa différence ; il ne reste que le budget de pages à faire respecter.
+     * `limited` dit que la couverture demandée ne tient pas dans les fentes : le budget est alors
+     * nul, la file se vide, et l'image s'en tient à la couverture épinglée.
+     */
+    queueCutResidency(desired: readonly PageRec[], limited = false) {
+      sets.applyBudget(limited ? 0 : options.room, desired);
       follow();
     },
     nextJobId: () => ++job,

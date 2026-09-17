@@ -115,13 +115,15 @@ export function createWebgpuCutAdopter(options: {
     metrics.lodLevel = cut.result.lodLevel;
     return true;
   };
-  /** Forgets the cut held: the CPU cut rewrote the arrays this adopter maintains. */
-  const invalidate = () => {
+  /**
+   * Oublie le relevé tenu : une autre coupe a écrit les tableaux que cet adopteur entretient. Les
+   * différences, elles, ne sont pas jetées — celui qui a écrit ces tableaux les a publiées par
+   * elles, et les jeter ferait redemander une coupe que le cache tient déjà.
+   */
+  const forgetReadback = () => {
     lastCut = null;
     shownCut = null;
     shownSeq = -1;
-    options.delta.invalidate();
-    options.drawnDelta.invalidate();
   };
-  return { adopt, metrics, invalidate };
+  return { adopt, metrics, forgetReadback };
 }

@@ -53,9 +53,53 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
     enteredCount = 0;
     exitedCount = 0;
   };
+  /** Les rangs de page d'une liste d'enregistrements, réécrits au lieu d'être rebâtis. */
+  const recordIds: number[] = [];
+  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
+  const apply = (ids: readonly number[]) => {
+    // Un relevé neuf qui republie la même suite décrit la coupe déjà tenue : elle est tenue, et
+    // pas une des quinze mille fiches n'est réécrite.
+    if (samePublished(ids)) return hold();
+    const previous = epoch;
+    epoch++;
+    enteredCount = 0;
+    exitedCount = 0;
+    // Une suite plus longue que le catalogue ne se garde pas : elle est déclarée changée.
+    let same = ids.length === publishedCount && ids.length <= capacity;
+    publishedCount = ids.length <= capacity ? ids.length : -1;
+    let count = 0;
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      if (i < capacity && published[i] !== id) {
+        published[i] = id;
+        same = false;
+      }
+      if (id < 0 || id >= capacity) continue;
+      const seen = mark[id];
+      if (seen === epoch) continue;
+      const rec = packedPages[id];
+      if (!rec) continue;
+      mark[id] = epoch;
+      if (pages) pages[count] = rec;
+      keptNext[count++] = id;
+      if (seen !== previous) entered[enteredCount++] = id;
+    }
+    if (pages) pages.length = count;
+    for (let i = 0; i < keptCount; i++) {
+      const id = kept[i];
+      if (mark[id] !== epoch) exited[exitedCount++] = id;
+    }
+    const swap = kept;
+    kept = keptNext;
+    keptNext = swap;
+    keptCount = count;
+    changed = !same;
+  };
   return {
     entered,
     exited,
+    /** Vrai quand l'identifiant appartient au relevé tenu. */
+    has: (id: number) => id >= 0 && id < capacity && mark[id] === epoch,
     get enteredCount() {
       return enteredCount;
     },
@@ -88,44 +132,22 @@ export function createCutDelta(packedPages: readonly PageRec[], pages?: PageRec[
       changed = true;
     },
     /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. */
-    apply(ids: readonly number[]) {
-      // Un relevé neuf qui republie la même suite décrit la coupe déjà tenue : elle est tenue, et
-      // pas une des quinze mille fiches n'est réécrite.
-      if (samePublished(ids)) return hold();
-      const previous = epoch;
-      epoch++;
-      enteredCount = 0;
-      exitedCount = 0;
-      // Une suite plus longue que le catalogue ne se garde pas : elle est déclarée changée.
-      let same = ids.length === publishedCount && ids.length <= capacity;
-      publishedCount = ids.length <= capacity ? ids.length : -1;
+    apply,
+    /**
+     * La même différence, publiée par une coupe qui nomme ses enregistrements au lieu de leurs rangs
+     * — la coupe processeur. Le catalogue a le dernier mot, exactement comme ailleurs : un rang posé
+     * par un autre moteur ne survit pas à la vérification. Rien n'est alloué passé la première coupe.
+     */
+    adoptRecords(records: readonly PageRec[]) {
+      recordIds.length = records.length;
       let count = 0;
-      for (let i = 0; i < ids.length; i++) {
-        const id = ids[i];
-        if (i < capacity && published[i] !== id) {
-          published[i] = id;
-          same = false;
-        }
-        if (id < 0 || id >= capacity) continue;
-        const seen = mark[id];
-        if (seen === epoch) continue;
-        const rec = packedPages[id];
-        if (!rec) continue;
-        mark[id] = epoch;
-        if (pages) pages[count] = rec;
-        keptNext[count++] = id;
-        if (seen !== previous) entered[enteredCount++] = id;
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i],
+          id = rec.packedIndex;
+        if (id !== undefined && packedPages[id] === rec) recordIds[count++] = id;
       }
-      if (pages) pages.length = count;
-      for (let i = 0; i < keptCount; i++) {
-        const id = kept[i];
-        if (mark[id] !== epoch) exited[exitedCount++] = id;
-      }
-      const swap = kept;
-      kept = keptNext;
-      keptNext = swap;
-      keptCount = count;
-      changed = !same;
+      recordIds.length = count;
+      apply(recordIds);
     },
   };
 }

@@ -74,7 +74,6 @@ function settledRt() {
     uncoveredTriangles: 0,
     noOccluderHistory: false,
     deferredDrops: new Set<string>(),
-    desired: [] as { array?: Uint32Array }[],
     frame: 0,
     frameHeld: false,
     imageRevision: 0,
@@ -112,7 +111,12 @@ function settledRt() {
     lights: { plan: { counts: { pendingPages: 0 } }, shadowsUpdated: 0, shadowFaces: 0 },
     bounce: { probes: undefined as unknown },
     capture: { secondaryCamera: false, capturePending: false },
-    services: { bootstrapState: { ready: true }, residency: { busy: false } },
+    services: {
+      bootstrapState: { ready: true },
+      residency: { busy: false },
+      // Le compte des pages de la coupe qui attendent encore leurs octets, tenu par la différence.
+      cutPending: { count: 0 },
+    },
     timing: {
       frameEncoder: undefined as unknown,
       partitionCounts: { occulteurs: 0, testees: 0, historiqueOcculteurs: 0 },
