@@ -1,7 +1,7 @@
 // Scénarios d'équivalence de la hiérarchie (lot M3a), rejoués des deux côtés par
 // `hierarchieRejeuThree.mjs` et `hierarchieRejeuNous.mjs`.
 // Tirés d'une graine fixe : deux exécutions jouent exactement les mêmes opérations.
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 
 const alea = graine(0x3a3a);
 const tire = (liste) => liste[Math.floor(alea() * liste.length)];

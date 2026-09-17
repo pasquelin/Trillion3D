@@ -1,23 +1,37 @@
-// Harnais de mesure absolue par composant moteur. Complète `banc.mjs` (comparaison oracle/optimisée)
-// en exposant les temps bruts, percentiles et throughput de chaque cas, avec comparaison optionnelle
-// à une baseline persistée et vérification de correction optionnelle.
+// Harnais unifié de mesure absolue par composant moteur.
+// Intègre : chronométrage précis, comparaison oracle bit-à-bit, tolérance ULP,
+// stress testing, gestion de baselines et isolation processus neuf.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { RACINE } from './banc.mjs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chargeBaseline } from './baseline.mjs';
+import { ecart } from './ecart.mjs';
+import { rejoueEnProcessusNeuf } from './processNeuf.mjs';
 
+export const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const FRAGMENTS = join(RACINE, '.mesure', 'perf');
 
-/** Chronométrage d'un tour en millisecondes via hrtime. */
+export { rejoueEnProcessusNeuf };
+
+/** Générateur pseudo-aléatoire à graine fixe (xorshift32 déterministe). */
+export function graine(depart) {
+  let etat = depart >>> 0 || 0x9e3779b9;
+  return () => {
+    etat = (etat ^ (etat << 13)) >>> 0;
+    etat = (etat ^ (etat >>> 17)) >>> 0;
+    etat = (etat ^ (etat << 5)) >>> 0;
+    return etat / 4294967296;
+  };
+}
+
 async function chrono(tour) {
   const t0 = process.hrtime.bigint();
   await tour();
   return Number(process.hrtime.bigint() - t0) / 1e6;
 }
 
-/** Statistiques d'une série triée de durées : médiane, p95, min. */
 function stats(durees) {
   const t = durees.slice().sort((a, b) => a - b);
   const n = t.length;
@@ -27,30 +41,82 @@ function stats(durees) {
   return { medianeMs, p95Ms: t[i95], minMs: t[0], tours: n };
 }
 
+/** Ligne descriptive pour points de banc rejetés ou informatifs sans code optimisé. */
+export function ligneDecrite({ calcul, nom, fichier, motif }) {
+  return {
+    nom: nom ?? calcul,
+    fichier,
+    resultats: [
+      {
+        nom: nom ?? calcul,
+        taille: null,
+        medianeMs: null,
+        p95Ms: null,
+        minMs: null,
+        tours: 0,
+        opsParSec: null,
+        ecartBaseline: null,
+        correct: null,
+        difference: motif ?? 'point documenté sans optimisation',
+      },
+    ],
+  };
+}
+
 /**
  * Mesure absolue d'un calcul sur un ensemble de cas nommés.
- * Retourne un tableau de résultats par cas avec temps, throughput et correction optionnelle.
+ * Valide l'exactitude contre un oracle `attendu` (bit à bit ou via `tolere`).
  */
-export async function mesure({ nom, fichier, cas, calcul, attendu, options = {} }) {
+export async function mesure({
+  nom,
+  fichier,
+  cas,
+  calcul,
+  attendu,
+  differences,
+  tolere,
+  options = {},
+}) {
   const { chauffe = 20, tours = 200, budgetMs = 1000 } = options;
   const baseline = chargeBaseline(fichier);
   const resultats = [];
 
   for (const item of cas) {
-    // Vérification de correction si une fonction `attendu` est fournie
-    let correct = null,
-      difference = null;
+    let correct = null;
+    let difference = null;
     if (attendu) {
       const ref = await attendu(item.entree);
       const obt = await calcul(item.entree);
-      correct = Object.is(ref, obt) || JSON.stringify(ref) === JSON.stringify(obt);
-      if (!correct) difference = `${item.nom}: résultat divergent`;
+      if (differences || tolere) {
+        const c = differences ? differences(ref, obt, item.nom) : null;
+        const acceptable = c ? !tolere || tolere(c) : true;
+        correct = acceptable;
+        if (!acceptable) difference = c?.premier ?? `${item.nom}: écart hors tolérance`;
+      } else {
+        const diff = ecart(ref, obt, item.nom);
+        correct = diff === null;
+        difference = diff;
+      }
     }
 
-    // Échauffement
+    if (item.mesure === false) {
+      resultats.push({
+        nom: item.nom,
+        taille: item.taille ?? null,
+        medianeMs: null,
+        p95Ms: null,
+        minMs: null,
+        tours: 0,
+        opsParSec: null,
+        ecartBaseline: null,
+        correct,
+        difference,
+      });
+      continue;
+    }
+
     for (let i = 0; i < chauffe; i++) await calcul(item.entree);
 
-    // Mesure
     const durees = [];
     const debut = process.hrtime.bigint();
     while (durees.length < tours) {
@@ -73,10 +139,7 @@ export async function mesure({ nom, fichier, cas, calcul, attendu, options = {} 
   return { nom, fichier, resultats };
 }
 
-/**
- * Stress testing : vérifie qu'un calcul ne plante pas sur des entrées extrêmes.
- * Pas de chronométrage — on vérifie l'absence de throw, hang ou NaN non géré.
- */
+/** Stress testing : vérifie qu'un calcul gère les extrêmes sans lever d'exception. */
 export async function stress({ nom, calcul, extremes }) {
   for (const cas of extremes) {
     try {
@@ -87,28 +150,43 @@ export async function stress({ nom, calcul, extremes }) {
   }
 }
 
-/** Ligne Markdown pour la console. */
 function ligneMd(r) {
-  const ecart =
+  const t = r.medianeMs !== null ? r.medianeMs.toFixed(3) : 'null';
+  const p = r.p95Ms !== null ? r.p95Ms.toFixed(3) : 'null';
+  const ecartTxt =
     r.ecartBaseline === null
       ? '—'
       : `${r.ecartBaseline >= 0 ? '+' : ''}${(r.ecartBaseline * 100).toFixed(1)} %`;
   const ok = r.correct === null ? '—' : r.correct ? '✓' : '✗';
-  return `| ${r.nom} | ${r.medianeMs.toFixed(3)} | ${r.p95Ms.toFixed(3)} | ${r.opsParSec ?? 'null'} | ${ecart} | ${ok} |`;
+  return `| ${r.nom} | ${t} | ${p} | ${r.opsParSec ?? 'null'} | ${ecartTxt} | ${ok} |`;
 }
 
-/** Dépose les résultats et enregistre un test d'assertion de correction. */
+/** Dépose les fragments dans .mesure/perf/ et valide l'assertion d'égalité dans node:test. */
 export function rapport(domaine, mesures, intitule) {
   const tous = Array.isArray(mesures) ? mesures : [mesures];
   const lignes = tous.flatMap((m) => m.resultats);
 
   if (intitule) {
     test(intitule, () => {
-      for (const r of lignes) if (r.correct === false) assert.fail(`${r.nom} : ${r.difference}`);
+      for (const r of lignes) {
+        if (r.correct === false) assert.fail(`${r.nom} : ${r.difference}`);
+      }
     });
   }
 
   mkdirSync(FRAGMENTS, { recursive: true });
-  writeFileSync(join(FRAGMENTS, `${domaine}.json`), JSON.stringify(tous, null, 2));
+  writeFileSync(join(FRAGMENTS, `${domaine}.json`), JSON.stringify(tous, null, 2) + '\n');
   for (const r of lignes) console.log(ligneMd(r));
 }
+
+export async function compare({ calcul, nom, fichier, cas, reference, optimisee, options }) {
+  return mesure({
+    nom: nom ?? calcul,
+    fichier,
+    cas,
+    calcul: optimisee,
+    attendu: reference,
+    options,
+  });
+}
+

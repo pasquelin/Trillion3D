@@ -7,7 +7,7 @@
 // charge, temps depuis le démarrage.
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
-import { RACINE } from '../../sdk-core/bench/banc.mjs';
+import { RACINE } from '../../sdk-core/bench/mesure.mjs';
 import { prepareMathBatch } from '../mathBatchState.ts';
 import { TAILLES } from './m5Cas.mjs';
 

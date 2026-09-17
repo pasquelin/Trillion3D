@@ -2,7 +2,7 @@
 // d'éclairage, couleurs. Tirées à graine fixe ; les directions alignées sur les axes portent des
 // zéros des deux signes, là où un produit commencé à zéro et un produit sans zéro initial divergent.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 import { POINT_FACE_AXES } from '../../sdk-core/sceneLightShadowFaces.ts';
 import { FULL_FACE } from '../../sdk-core/sceneLightShadowVolume.ts';
 import { BORDS, affines, matrices } from './scenesSocle.mjs';

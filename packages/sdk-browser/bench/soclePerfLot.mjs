@@ -1,7 +1,7 @@
 // Les lots du banc de performance du socle : `n` poses ordinaires du moteur tenues des deux façons —
 // objets de la référence et tampons du socle — avec leurs sorties déjà allouées de chaque côté.
 import * as THREE from 'three';
-import { graine } from '../../sdk-core/bench/banc.mjs';
+import { graine } from '../../sdk-core/bench/mesure.mjs';
 import { f64 } from './socleLigne.mjs';
 
 const alea = graine(0xbe5c);
