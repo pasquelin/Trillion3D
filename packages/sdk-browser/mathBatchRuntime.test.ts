@@ -1,5 +1,5 @@
 // Les deux noyaux de calcul en lot (`mathBatchRuntime.ts`), chemin JavaScript contre chemin
-// WebAssembly, sur de petits lots purement hostiles de `bench/m5Cas.mjs` (échelles négatives,
+// WebAssembly, sur de petits lots purement hostiles de `bench/casLotsWasm.mjs` (échelles négatives,
 // cisaillement, `w` nul, NaN, ±0, infinis, 1e308, 5e-324) : mêmes bits des deux côtés, `Object.is`
 // près — la même notion d'égalité que `bench/m5.bench.mjs` utilise pour la campagne complète, ici
 // sur un lot assez petit pour tourner dans `pnpm test`.
@@ -10,10 +10,10 @@ import { join } from 'node:path';
 import { prepareSdkWasm } from './geometryPageWasm.ts';
 import { prepareMathBatch } from './mathBatchState.ts';
 import { createBoxTransformLot, createMultiplyLot } from './mathBatchRuntime.ts';
-import { remplitBoites, remplitMatrices } from './bench/m5Cas.mjs';
+import { remplitBoites, remplitMatrices } from './bench/casLotsWasm.mjs';
 
 // Petit lot : exactement 9 matrices hostiles × 7 boîtes hostiles, le produit croisé complet de
-// `m5Cas.mjs` une fois chacun — pas un seul élément de pseudo-aléatoire ordinaire. Un lot plus court
+// `casLotsWasm.mjs` une fois chacun — pas un seul élément de pseudo-aléatoire ordinaire. Un lot plus court
 // couperait avant les boîtes NaN et ±0 (les cinquième et sixième familles listées dans `BOITES`).
 const N = 63;
 
@@ -46,7 +46,7 @@ test('boxTransformBatch : mêmes bits en JavaScript et en WebAssembly sur des bo
 });
 
 test('boxTransformBatch : le départage ±0 de Math.min/Math.max se joue au même bit', async () => {
-  // Aucune des neuf matrices hostiles de `m5Cas.mjs` ne porte de translation à `-0` : croisées avec
+  // Aucune des neuf matrices hostiles de `casLotsWasm.mjs` ne porte de translation à `-0` : croisées avec
   // la boîte `[0, -0, 0, -0, 0, -0]`, leurs huit coins s'additionnent toujours à `+0` avant la
   // réduction — l'addition IEEE-754 d'un `+0` et d'un `-0` rend `+0`, quel que soit l'ordre. Ce cas
   // est construit à la main pour que le signe survive jusqu'à `js_min`/`js_max` : translation en x à

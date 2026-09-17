@@ -2,7 +2,7 @@
 import { compacteFile } from '../streamingQueueOrder.ts';
 import { empileEnAttente } from '../explorerDraw.ts';
 import { graine, mesure, stress, rapport } from '../../sdk-core/bench/mesure.mjs';
-import { referenceEmpileEnAttente, referenceRetireDeLaFile } from './oracles/g-file.mjs';
+import { referenceEmpileEnAttente, referenceRetireDeLaFile } from './oracles/file-streaming.mjs';
 
 function rafale(total, annulations, depart) {
   const alea = graine(depart);

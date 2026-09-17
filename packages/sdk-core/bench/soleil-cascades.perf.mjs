@@ -2,7 +2,7 @@
 import { LIGHT_SETTINGS } from '../sceneLightContracts.ts';
 import { sunCascadeOf } from '../sceneLightSunCascades.ts';
 import { graine, mesure, stress, rapport } from './mesure.mjs';
-import { referenceSunCascadeOf } from './oracles/g-soleil.mjs';
+import { referenceSunCascadeOf } from './oracles/soleil-cascades.mjs';
 
 const alea = graine(0x508);
 const AXE = [0.3, -0.9, 0.31];
