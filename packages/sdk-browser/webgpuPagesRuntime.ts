@@ -89,6 +89,9 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     viewport: setup.viewport,
     colorTexels: vis.colorAtlas?.texels,
     dataTexels: vis.dataAtlas?.texels,
+    // Les grappes distinctes du catalogue : les lignes tenues d'une image à l'autre sont rangées par
+    // clé de grappe, un placement de plus n'en ajoutant aucune.
+    keyCount: setup.tracking.keyCount,
   }));
   const textureLedger = createTextureBudget({
     budget: setup.textureResidencyBudget,

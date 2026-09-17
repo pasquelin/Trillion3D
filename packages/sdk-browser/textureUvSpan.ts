@@ -62,3 +62,15 @@ export function uvSpanOf(attributes: THREE.BufferGeometry['attributes'] | undefi
   spans.set(uv as object, span);
   return span;
 }
+
+/**
+ * Vrai quand l'étendue de cette géométrie est mesurée et retenue — ou qu'il n'y a rien à mesurer.
+ *
+ * Une étendue vaut souvent `1`, que la mesure ait eu lieu ou non : le nombre seul ne dit donc pas si
+ * elle est arrêtée. C'est ce que ce verdict rend, pour qu'un lecteur qui la retient sache quand il
+ * peut cesser de la redemander.
+ */
+export function uvSpanSettled(attributes: THREE.BufferGeometry['attributes'] | undefined) {
+  const uv = attributes?.uv as UvAttribute | undefined;
+  return !uv?.array || spans.has(uv as object);
+}
