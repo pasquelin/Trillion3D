@@ -1,6 +1,6 @@
 # Décodage partagé des pages
 
-> 46 nodes
+> 43 nodes
 
 ## Key Concepts
 
@@ -10,7 +10,6 @@
 - **pageDecodePool.ts** (24 connections) — `packages/sdk-browser/pageDecodePool.ts`
 - **createPageDecodePool()** (13 connections) — `packages/sdk-browser/pageDecodePool.ts`
 - **slotField()** (11 connections) — `packages/sdk-browser/pageDecodeShared.ts`
-- **createPageArena()** (7 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **restorePageDecode()** (7 connections) — `packages/sdk-browser/pageDecodeTask.ts`
 - **readSharedPage()** (6 connections) — `packages/sdk-browser/pageDecodeSharedPage.ts`
 - **pageDecodeTransport()** (5 connections) — `packages/sdk-browser/pageDecodeShared.ts`
@@ -18,7 +17,6 @@
 - **sharedPagesAllowed()** (5 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **writeSharedPage()** (5 connections) — `packages/sdk-browser/pageDecodeSharedPage.ts`
 - **PageArena** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
-- **attachPageArena()** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **awaitSharedPage()** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **beginSharedPage()** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **freeSharedPage()** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
@@ -29,18 +27,19 @@
 - **SHARED_READY** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **STATE** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
 - **STATUS** (4 connections) — `packages/sdk-browser/pageDecodeShared.ts`
-- *... and 21 more nodes in this community*
+- **decodee()** (3 connections) — `packages/sdk-browser/pageDecodeShared.test.ts`
+- **ID** (3 connections) — `packages/sdk-browser/pageDecodeShared.ts`
+- *... and 18 more nodes in this community*
 
 ## Relationships
 
-- [sdk-browser · Decodeur](sdk-browser_·_Decodeur.md) (20 shared connections)
-- [sdk-browser · avecCoeurs](sdk-browser_·_avecCoeurs.md) (11 shared connections)
+- [sdk-browser · Decodeur](sdk-browser_·_Decodeur.md) (19 shared connections)
+- [sdk-browser · counters](sdk-browser_·_counters.md) (14 shared connections)
 - [oracles · .constructor](oracles_·_.constructor.md) (6 shared connections)
-- [Banc de décodage wasm](Banc_de_décodage_wasm.md) (5 shared connections)
-- [Backends de rendu exacts](Backends_de_rendu_exacts.md) (3 shared connections)
+- [Banc de décodage wasm](Banc_de_décodage_wasm.md) (6 shared connections)
+- [Erreurs moteur et cache (2)](Erreurs_moteur_et_cache_2.md) (3 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
 
 ## Source Files
 
@@ -52,7 +51,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 164 (99%)
+- EXTRACTED: 158 (99%)
 - INFERRED: 1 (1%)
 - AMBIGUOUS: 0 (0%)
 

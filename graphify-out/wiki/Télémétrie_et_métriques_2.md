@@ -27,14 +27,12 @@
 
 - [Banc de décodage wasm](Banc_de_décodage_wasm.md) (9 shared connections)
 - [Télémétrie et métriques](Télémétrie_et_métriques.md) (6 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (4 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (3 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
-- [bench · passe](bench_·_passe.md) (1 shared connections)
-- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Diffusion des pages en continu](Diffusion_des_pages_en_continu.md) (3 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (1 shared connections)
-- [Scène de l'explorateur et chargement (3)](Scène_de_l'explorateur_et_chargement_3.md) (1 shared connections)
+- [Erreurs moteur et cache (2)](Erreurs_moteur_et_cache_2.md) (1 shared connections)
 - [sdk-browser · Decodeur](sdk-browser_·_Decodeur.md) (1 shared connections)
 
 ## Source Files

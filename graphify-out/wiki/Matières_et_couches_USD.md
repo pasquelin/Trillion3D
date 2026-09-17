@@ -34,9 +34,9 @@
 ## Relationships
 
 - [Tests dorés du compilateur](Tests_dorés_du_compilateur.md) (6 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (4 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (4 shared connections)
 - [Pilote USD et fidélité](Pilote_USD_et_fidélité.md) (4 shared connections)
-- [unity · Option](unity_·_Option.md) (1 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
 
 ## Source Files
 

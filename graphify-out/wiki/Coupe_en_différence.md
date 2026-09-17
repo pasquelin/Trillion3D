@@ -33,11 +33,11 @@
 
 ## Relationships
 
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (12 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
-- [bench · passe](bench_·_passe.md) (1 shared connections)
-- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (6 shared connections)
+- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (4 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (4 shared connections)
+- [Résidence et amorçage GPU (2)](Résidence_et_amorçage_GPU_2.md) (2 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
 
 ## Source Files
 

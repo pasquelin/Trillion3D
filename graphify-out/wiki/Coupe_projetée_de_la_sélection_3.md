@@ -1,6 +1,6 @@
 # Coupe projetée de la sélection (3)
 
-> 28 nodes
+> 27 nodes
 
 ## Key Concepts
 
@@ -18,33 +18,33 @@
 - **nodeDecision()** (7 connections) — `packages/sdk-browser/pageSelectionCutNode.ts`
 - **ClusterCut** (6 connections) — `packages/sdk-browser/pageSelectionMath.ts`
 - **errorFloorAt()** (6 connections) — `packages/sdk-browser/pageSelectionProjection.ts`
-- **viewDepthOf()** (6 connections) — `packages/sdk-browser/pageSelectionProjection.ts`
 - **referenceNodeDecision()** (5 connections) — `packages/sdk-browser/bench/oracles/coupe-budget.mjs`
 - **referenceProjectedClusterError()** (5 connections) — `packages/sdk-browser/bench/oracles/coupe-budget.mjs`
 - **viewLateralOf()** (5 connections) — `packages/sdk-browser/pageSelectionProjection.ts`
 - **referenceProjectCentre()** (4 connections) — `packages/sdk-browser/bench/oracles/coupe-budget.mjs`
+- **cutSelectsAtZero()** (4 connections) — `packages/sdk-browser/pageSelectionProjection.ts`
 - **referenceCutSelects()** (3 connections) — `packages/sdk-browser/bench/oracles/coupe-budget.mjs`
 - **referenceErrorFloorPixels()** (3 connections) — `packages/sdk-browser/bench/oracles/coupe-budget.mjs`
-- **packages_sdk_core_index_clusterspherevalid** (2 connections)
 - **verdict()** (1 connections) — `packages/sdk-browser/pageSelectionProjection.test.ts`
 - **centre** (1 connections) — `packages/sdk-browser/bench/oracles/coupe-budget.mjs`
 - **cam** (1 connections) — `packages/sdk-browser/pageSelectionCutShared.test.ts`
-- *... and 3 more nodes in this community*
+- **camera** (1 connections) — `packages/sdk-browser/pageSelectionProjection.test.ts`
+- *... and 2 more nodes in this community*
 
 ## Relationships
 
-- [État de la coupe de sélection](État_de_la_coupe_de_sélection.md) (20 shared connections)
+- [État de la coupe de sélection](État_de_la_coupe_de_sélection.md) (21 shared connections)
 - [Coupe projetée de la sélection](Coupe_projetée_de_la_sélection.md) (11 shared connections)
 - [sdk-core · createSeededRandom](sdk-core_·_createSeededRandom.md) (9 shared connections)
 - [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (8 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (6 shared connections)
-- [justesse · pireMarge](justesse_·_pireMarge.md) (5 shared connections)
+- [Erreur d'écran CPU contre GPU](Erreur_d'écran_CPU_contre_GPU.md) (6 shared connections)
+- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (6 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (5 shared connections)
-- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (5 shared connections)
+- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (5 shared connections)
+- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (4 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
-- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (3 shared connections)
-- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (2 shared connections)
-- [oracles · referenceLinearToSrgb8](oracles_·_referenceLinearToSrgb8.md) (2 shared connections)
+- [oracles · record](oracles_·_record.md) (3 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (2 shared connections)
 
 ## Source Files
 
@@ -58,7 +58,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 150 (99%)
+- EXTRACTED: 148 (99%)
 - INFERRED: 2 (1%)
 - AMBIGUOUS: 0 (0%)
 

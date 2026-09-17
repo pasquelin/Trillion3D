@@ -21,8 +21,8 @@
 
 ## Relationships
 
-- [tests · ALPHA](tests_·_ALPHA.md) (4 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (4 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [Lots et annulation](Lots_et_annulation.md) (1 shared connections)
 - [Lecture du format Blender (2)](Lecture_du_format_Blender_2.md) (1 shared connections)
 

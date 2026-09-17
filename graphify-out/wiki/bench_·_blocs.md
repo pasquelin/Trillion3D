@@ -1,6 +1,6 @@
 # bench · blocs
 
-> 20 nodes
+> 19 nodes
 
 ## Key Concepts
 
@@ -11,7 +11,6 @@
 - **referencePrepareCones()** (6 connections) — `packages/sdk-browser/bench/oracles/cones-normaux.mjs`
 - **entreeCones()** (5 connections) — `packages/sdk-browser/bench/oracles/cones-normaux.mjs`
 - **memeCones()** (4 connections) — `packages/sdk-browser/webgpuPagesPrepare.test.ts`
-- **positions()** (4 connections) — `packages/sdk-browser/webgpuPagesPrepare.test.ts`
 - **referenceCompteMateriauxEtTangentes()** (3 connections) — `packages/sdk-browser/bench/oracles/cones-normaux.mjs`
 - **referenceIndexSourceBytes()** (3 connections) — `packages/sdk-browser/bench/oracles/cones-normaux.mjs`
 - **runtime()** (3 connections) — `packages/sdk-browser/webgpuPagesPrepare.test.ts`
@@ -27,18 +26,18 @@
 
 ## Relationships
 
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (6 shared connections)
-- [Justesse de l'inverse transposée](Justesse_de_l'inverse_transposée.md) (5 shared connections)
-- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (4 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
+- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (5 shared connections)
+- [sdk-browser · DeferredBindings](sdk-browser_·_DeferredBindings.md) (5 shared connections)
+- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (5 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (4 shared connections)
 - [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (3 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (3 shared connections)
-- [bench · passe](bench_·_passe.md) (3 shared connections)
-- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (2 shared connections)
-- [sdk-browser · GeometryBlock (2)](sdk-browser_·_GeometryBlock_2.md) (2 shared connections)
-- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (2 shared connections)
-- [fixtures · readLightingGltf](fixtures_·_readLightingGltf.md) (1 shared connections)
-- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (3 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (3 shared connections)
+- [Atlas de textures WebGPU](Atlas_de_textures_WebGPU.md) (2 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (2 shared connections)
+- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (2 shared connections)
+- [Caméra moteur et tampon](Caméra_moteur_et_tampon.md) (1 shared connections)
+- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (1 shared connections)
 
 ## Source Files
 
@@ -49,8 +48,8 @@
 
 ## Audit Trail
 
-- EXTRACTED: 65 (87%)
-- INFERRED: 10 (13%)
+- EXTRACTED: 65 (90%)
+- INFERRED: 7 (10%)
 - AMBIGUOUS: 0 (0%)
 
 ---

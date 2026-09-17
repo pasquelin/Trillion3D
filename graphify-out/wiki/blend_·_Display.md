@@ -25,11 +25,12 @@
 
 ## Relationships
 
-- [blend · POINTER](blend_·_POINTER.md) (3 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [dna · Option](dna_·_Option.md) (2 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [Erreurs du compilateur et USDZ](Erreurs_du_compilateur_et_USDZ.md) (1 shared connections)
 - [blend · HashMap](blend_·_HashMap.md) (1 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (1 shared connections)
+- [blend · POINTER](blend_·_POINTER.md) (1 shared connections)
 - [Extraction unitypackage](Extraction_unitypackage.md) (1 shared connections)
 
 ## Source Files

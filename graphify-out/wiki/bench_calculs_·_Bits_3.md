@@ -23,12 +23,12 @@
 
 ## Relationships
 
-- [Encodage du manifeste binaire](Encodage_du_manifeste_binaire.md) (3 shared connections)
-- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (2 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
-- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (1 shared connections)
+- [manifest_binary · .i32](manifest_binary_·_.i32.md) (3 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (2 shared connections)
+- [Jeux de bancs Rust](Jeux_de_bancs_Rust.md) (2 shared connections)
 - [Décodage d'images](Décodage_d'images.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 
 ## Source Files
 

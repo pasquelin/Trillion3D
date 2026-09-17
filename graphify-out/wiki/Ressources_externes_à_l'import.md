@@ -33,12 +33,11 @@
 
 ## Relationships
 
-- [unity · Option](unity_·_Option.md) (5 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (5 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
+- [Rapport et table des textures](Rapport_et_table_des_textures.md) (2 shared connections)
 - [Verrou CLI et fixtures du compilateur](Verrou_CLI_et_fixtures_du_compilateur.md) (1 shared connections)
 - [Tables de scène à l'import](Tables_de_scène_à_l'import.md) (1 shared connections)
-- [import · HashMap](import_·_HashMap.md) (1 shared connections)
-- [Rapport et table des textures](Rapport_et_table_des_textures.md) (1 shared connections)
 - [Écriture de la scène source](Écriture_de_la_scène_source.md) (1 shared connections)
 
 ## Source Files

@@ -31,7 +31,7 @@
 - [tests · each_prefab_override_names_its_own_object_and_ten_runs_agree](tests_·_each_prefab_override_names_its_own_object_and_ten_runs_agree.md) (8 shared connections)
 - [tests · MAT](tests_·_MAT.md) (4 shared connections)
 - [tests · MAT (2)](tests_·_MAT_2.md) (2 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
 - [tests · DELTA](tests_·_DELTA.md) (2 shared connections)
 - [tests · Value](tests_·_Value.md) (1 shared connections)
 - [tests · .drop](tests_·_.drop.md) (1 shared connections)

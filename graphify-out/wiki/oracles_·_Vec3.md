@@ -26,10 +26,8 @@
 
 ## Relationships
 
+- [Nuanceurs WGSL de visibilité](Nuanceurs_WGSL_de_visibilité.md) (4 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [Nuanceurs WGSL de visibilité](Nuanceurs_WGSL_de_visibilité.md) (2 shared connections)
-- [Raster de calcul](Raster_de_calcul.md) (1 shared connections)
-- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (1 shared connections)
 
 ## Source Files
 

@@ -37,8 +37,8 @@
 - [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (3 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [sdk-browser · flush](sdk-browser_·_flush.md) (1 shared connections)
-- [bench · passe](bench_·_passe.md) (1 shared connections)
-- [Socle du banc sdk-core](Socle_du_banc_sdk-core.md) (1 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (1 shared connections)
+- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (1 shared connections)
 
 ## Source Files
 

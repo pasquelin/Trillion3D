@@ -17,7 +17,7 @@
 
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (2 shared connections)
 - [test · steps](test_·_steps.md) (1 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (1 shared connections)
+- [Arbre monde et lots de maths (2)](Arbre_monde_et_lots_de_maths_2.md) (1 shared connections)
 - [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (1 shared connections)
 
 ## Source Files

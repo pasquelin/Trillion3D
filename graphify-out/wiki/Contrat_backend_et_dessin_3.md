@@ -1,43 +1,67 @@
 # Contrat backend et dessin (3)
 
-> 11 nodes
+> 55 nodes
 
 ## Key Concepts
 
-- **explorerHeldFrame.test.ts** (8 connections) — `packages/sdk-browser/explorerHeldFrame.test.ts`
+- **RenderBackend** (69 connections) — `packages/sdk-browser/backendTypes.ts`
+- **explorerDraw.ts** (36 connections) — `packages/sdk-browser/explorerDraw.ts`
+- **HostCamera** (17 connections) — `packages/sdk-browser/cameraWorld.ts`
+- **createExplorerDraw()** (13 connections) — `packages/sdk-browser/explorerDraw.ts`
+- **explorerDraw.test.ts** (10 connections) — `packages/sdk-browser/explorerDraw.test.ts`
 - **imageTenueCouleurPage.mjs** (8 connections) — `test/appui/imageTenueCouleurPage.mjs`
+- **HostCpuProfile** (7 connections) — `packages/sdk-browser/hostCpuProfile.ts`
+- **retainVisiblePages()** (7 connections) — `packages/sdk-browser/retainVisiblePages.ts`
 - **createHeldFrame()** (6 connections) — `packages/sdk-browser/explorerHeldFrame.ts`
+- **StageProfile** (5 connections) — `packages/sdk-core/stageProfile.ts`
+- **.render()** (5 connections) — `packages/sdk-browser/backendTypes.ts`
 - **cas()** (5 connections) — `test/appui/imageTenueCouleurPage.mjs`
 - **explorerHeldFrame.ts** (5 connections) — `packages/sdk-browser/explorerHeldFrame.ts`
-- **rendu()** (4 connections) — `packages/sdk-browser/explorerHeldFrame.test.ts`
-- **texture()** (3 connections) — `packages/sdk-browser/visibilityMath.test.ts`
-- **executer()** (2 connections) — `test/appui/imageTenueCouleurPage.mjs`
-- **lire()** (2 connections) — `test/appui/imageTenueCouleurPage.mjs`
-- **scene()** (2 connections) — `test/appui/imageTenueCouleurPage.mjs`
-- **POINTS** (1 connections) — `test/appui/imageTenueCouleurPage.mjs`
+- **anneauFroid()** (4 connections) — `packages/sdk-browser/explorerDraw.ts`
+- **empileEnAttente()** (4 connections) — `packages/sdk-browser/explorerDraw.ts`
+- **.captureSurfaceView()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.dispose()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.pageUrls()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.pendingUrls()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.prefetchUrls()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.retainedRanks()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.sceneLit()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.setDiagnostic()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.stageProfile()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- **.syncResident()** (2 connections) — `packages/sdk-browser/backendTypes.ts`
+- *... and 30 more nodes in this community*
 
 ## Relationships
 
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (3 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (3 shared connections)
-- [sdk-browser · flush](sdk-browser_·_flush.md) (3 shared connections)
-- [Scène de l'explorateur et chargement (3)](Scène_de_l'explorateur_et_chargement_3.md) (1 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (1 shared connections)
-- [oracles · attribut](oracles_·_attribut.md) (1 shared connections)
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (1 shared connections)
-- [Adressage et bouclage des textures (2)](Adressage_et_bouclage_des_textures_2.md) (1 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (30 shared connections)
+- [Télémétrie et métriques](Télémétrie_et_métriques.md) (12 shared connections)
+- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (6 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (6 shared connections)
+- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (5 shared connections)
+- [Diffusion des pages en continu](Diffusion_des_pages_en_continu.md) (5 shared connections)
+- [Pages autonomes (2)](Pages_autonomes_2.md) (4 shared connections)
+- [Garde zéro Three.js](Garde_zéro_Three.js.md) (4 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
+- [Erreurs moteur et cache (2)](Erreurs_moteur_et_cache_2.md) (3 shared connections)
+- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (3 shared connections)
+- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (3 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/explorerHeldFrame.test.ts`
+- `packages/sdk-browser/backendTypes.ts`
+- `packages/sdk-browser/cameraWorld.ts`
+- `packages/sdk-browser/explorerDraw.test.ts`
+- `packages/sdk-browser/explorerDraw.ts`
 - `packages/sdk-browser/explorerHeldFrame.ts`
-- `packages/sdk-browser/visibilityMath.test.ts`
+- `packages/sdk-browser/hostCpuProfile.ts`
+- `packages/sdk-browser/retainVisiblePages.ts`
+- `packages/sdk-core/stageProfile.ts`
 - `test/appui/imageTenueCouleurPage.mjs`
 
 ## Audit Trail
 
-- EXTRACTED: 25 (83%)
-- INFERRED: 5 (17%)
+- EXTRACTED: 173 (96%)
+- INFERRED: 8 (4%)
 - AMBIGUOUS: 0 (0%)
 
 ---

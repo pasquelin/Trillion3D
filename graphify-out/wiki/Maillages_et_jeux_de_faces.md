@@ -32,11 +32,11 @@
 
 - [Parcours des objets Alembic](Parcours_des_objets_Alembic.md) (2 shared connections)
 - [alembic · BTreeMap](alembic_·_BTreeMap.md) (2 shared connections)
-- [Descripteurs et n-gones Blender (3)](Descripteurs_et_n-gones_Blender_3.md) (2 shared connections)
-- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [Descripteurs et n-gones Blender](Descripteurs_et_n-gones_Blender.md) (2 shared connections)
+- [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
 - [bench_calculs · Bits](bench_calculs_·_Bits.md) (1 shared connections)
-- [import · Option (2)](import_·_Option_2.md) (1 shared connections)
-- [alembic · AtomicBool](alembic_·_AtomicBool.md) (1 shared connections)
+- [Import Unity et maillages](Import_Unity_et_maillages.md) (1 shared connections)
+- [mesh · AtomicBool](mesh_·_AtomicBool.md) (1 shared connections)
 
 ## Source Files
 

@@ -19,7 +19,7 @@
 ## Relationships
 
 - [Projet et propriétés Unity](Projet_et_propriétés_Unity.md) (8 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [Pilote Maya et matrices posées](Pilote_Maya_et_matrices_posées.md) (1 shared connections)
 - [tests · MAT](tests_·_MAT.md) (1 shared connections)
 - [tests · MAT (2)](tests_·_MAT_2.md) (1 shared connections)

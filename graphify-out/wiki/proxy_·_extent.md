@@ -16,10 +16,10 @@
 
 ## Relationships
 
-- [oracle · Into](oracle_·_Into.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
+- [Matrices monde du compilateur](Matrices_monde_du_compilateur.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
 - [Budget et ouvriers du compilateur (2)](Budget_et_ouvriers_du_compilateur_2.md) (1 shared connections)
-- [Construction du DAG](Construction_du_DAG.md) (1 shared connections)
+- [DAG et stratégie de coupe](DAG_et_stratégie_de_coupe.md) (1 shared connections)
 
 ## Source Files
 

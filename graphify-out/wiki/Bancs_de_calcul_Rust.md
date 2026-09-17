@@ -16,7 +16,7 @@
 
 ## Relationships
 
-- [bench_calculs · Bits (5)](bench_calculs_·_Bits_5.md) (2 shared connections)
+- [Bancs de calcul Rust (2)](Bancs_de_calcul_Rust_2.md) (2 shared connections)
 
 ## Source Files
 

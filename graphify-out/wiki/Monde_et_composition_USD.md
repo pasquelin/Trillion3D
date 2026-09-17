@@ -35,8 +35,8 @@
 
 - [scene · .accepts_head](scene_·_.accepts_head.md) (2 shared connections)
 - [scene · .accepts_head (2)](scene_·_.accepts_head_2.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [unity · Option](unity_·_Option.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
 
 ## Source Files
 

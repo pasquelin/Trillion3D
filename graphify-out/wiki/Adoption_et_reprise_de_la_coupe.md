@@ -1,78 +1,78 @@
 # Adoption et reprise de la coupe
 
-> 136 nodes
+> 70 nodes
 
 ## Key Concepts
 
-- **pageSelection.ts** (137 connections) — `packages/sdk-browser/pageSelection.ts`
 - **PageRec** (91 connections) — `packages/sdk-browser/pageSelectionTypes.ts`
-- **gpuSelection.ts** (77 connections) — `packages/sdk-browser/gpuSelection.ts`
 - **webgpuPagesStateRun.ts** (34 connections) — `packages/sdk-browser/webgpuPagesStateRun.ts`
-- **webgpuPagesSetup.ts** (30 connections) — `packages/sdk-browser/webgpuPagesSetup.ts`
-- **gpuDagTotals.test.ts** (27 connections) — `packages/sdk-browser/gpuDagTotals.test.ts`
-- **exactPagesRequests.ts** (25 connections) — `packages/sdk-browser/exactPagesRequests.ts`
-- **webgpuResidencySets.ts** (23 connections) — `packages/sdk-browser/webgpuResidencySets.ts`
 - **webgpuCutAdopterFixture.ts** (22 connections) — `packages/sdk-browser/webgpuCutAdopterFixture.ts`
 - **webgpuCutPublication.ts** (22 connections) — `packages/sdk-browser/webgpuCutPublication.ts`
-- **attendu()** (20 connections) — `packages/sdk-browser/visibilityWrapModes.test.ts`
 - **webgpuCutDelta.ts** (20 connections) — `packages/sdk-browser/webgpuCutDelta.ts`
 - **webgpuCutRepriseFixture.ts** (19 connections) — `packages/sdk-browser/webgpuCutRepriseFixture.ts`
-- **createSelectionResult()** (18 connections) — `packages/sdk-browser/pageSelectionCutState.ts`
-- **collectPendingUrls()** (18 connections) — `packages/sdk-browser/pageSelectionRequests.ts`
 - **webgpuPagesHostLists.test.ts** (18 connections) — `packages/sdk-browser/webgpuPagesHostLists.test.ts`
 - **webgpuDrawnMirror.test.ts** (17 connections) — `packages/sdk-browser/webgpuDrawnMirror.test.ts`
-- **webgpuPinUpdater.ts** (17 connections) — `packages/sdk-browser/webgpuPinUpdater.ts`
 - **webgpuResidencySetsFixture.ts** (17 connections) — `packages/sdk-browser/webgpuResidencySetsFixture.ts`
 - **webgpuCutAdoption.ts** (16 connections) — `packages/sdk-browser/webgpuCutAdoption.ts`
-- **webgpuRowWriters.ts** (16 connections) — `packages/sdk-browser/webgpuRowWriters.ts`
 - **WebgpuRunState** (15 connections) — `packages/sdk-browser/webgpuPagesStateRun.ts`
 - **createCutDelta()** (15 connections) — `packages/sdk-browser/webgpuCutDelta.ts`
 - **webgpuCutPublication.test.ts** (15 connections) — `packages/sdk-browser/webgpuCutPublication.test.ts`
-- **createWebgpuRunState()** (14 connections) — `packages/sdk-browser/webgpuPagesStateRun.ts`
-- *... and 111 more nodes in this community*
+- **webgpuCutAdoptionHold.test.ts** (14 connections) — `packages/sdk-browser/webgpuCutAdoptionHold.test.ts`
+- **createSelectionUniforms()** (13 connections) — `packages/sdk-browser/gpuSelection.ts`
+- **webgpuCutIncomplete.test.ts** (13 connections) — `packages/sdk-browser/webgpuCutIncomplete.test.ts`
+- **webgpuResidencySets2.test.ts** (13 connections) — `packages/sdk-browser/webgpuResidencySets2.test.ts`
+- **webgpuCutCounts.ts** (12 connections) — `packages/sdk-browser/webgpuCutCounts.ts`
+- **webgpuCutCounts.test.ts** (12 connections) — `packages/sdk-browser/webgpuCutCounts.test.ts`
+- **webgpuPagesWinding.test.ts** (12 connections) — `packages/sdk-browser/webgpuPagesWinding.test.ts`
+- **SelectionUniforms** (11 connections) — `packages/sdk-browser/gpuSelection.ts`
+- **mountCutAdopter()** (11 connections) — `packages/sdk-browser/webgpuCutAdopterFixture.ts`
+- **createWebgpuCutPublication()** (11 connections) — `packages/sdk-browser/webgpuCutPublication.ts`
+- **webgpuCutPending.ts** (11 connections) — `packages/sdk-browser/webgpuCutPending.ts`
+- **webgpuShadowBounds.test.ts** (11 connections) — `packages/sdk-browser/webgpuShadowBounds.test.ts`
+- *... and 45 more nodes in this community*
 
 ## Relationships
 
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (67 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (62 shared connections)
-- [Résidence et amorçage GPU (2)](Résidence_et_amorçage_GPU_2.md) (40 shared connections)
-- [Lancements de coupe et relevé](Lancements_de_coupe_et_relevé.md) (38 shared connections)
-- [Lignes dessinables et validation (3)](Lignes_dessinables_et_validation_3.md) (28 shared connections)
-- [sdk-browser · GeometryBlock](sdk-browser_·_GeometryBlock.md) (25 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (24 shared connections)
-- [Backends de rendu exacts](Backends_de_rendu_exacts.md) (18 shared connections)
-- [sdk-browser · DrawnMirror](sdk-browser_·_DrawnMirror.md) (18 shared connections)
-- [Oracle DAG et plancher de coupe](Oracle_DAG_et_plancher_de_coupe.md) (16 shared connections)
-- [Télémétrie et métriques](Télémétrie_et_métriques.md) (13 shared connections)
-- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (13 shared connections)
+- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (36 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (31 shared connections)
+- [Résidence et amorçage GPU (2)](Résidence_et_amorçage_GPU_2.md) (25 shared connections)
+- [Erreur d'écran hors axe](Erreur_d'écran_hors_axe.md) (21 shared connections)
+- [sdk-browser · DrawnMirror](sdk-browser_·_DrawnMirror.md) (17 shared connections)
+- [sdk-browser · BlendState](sdk-browser_·_BlendState.md) (17 shared connections)
+- [Backends de rendu exacts (2)](Backends_de_rendu_exacts_2.md) (14 shared connections)
+- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (12 shared connections)
+- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (8 shared connections)
+- [Runtime DAG sur GPU](Runtime_DAG_sur_GPU.md) (8 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (8 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (6 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/bench/pages-anneau.perf.mjs`
-- `packages/sdk-browser/bench/selection-relances.perf.mjs`
-- `packages/sdk-browser/blendCopyMesh.ts`
-- `packages/sdk-browser/clusterBatchRange.ts`
-- `packages/sdk-browser/exactPagesRequests.ts`
+- `packages/sdk-browser/cameraWorld.ts`
 - `packages/sdk-browser/frameGateCore.ts`
-- `packages/sdk-browser/gpuDagTotals.test.ts`
 - `packages/sdk-browser/gpuSelection.ts`
-- `packages/sdk-browser/pageArrivalSpecs.ts`
-- `packages/sdk-browser/pageSelection.ts`
 - `packages/sdk-browser/pageSelectionCutState.ts`
-- `packages/sdk-browser/pageSelectionRequests.ts`
 - `packages/sdk-browser/pageSelectionTypes.ts`
-- `packages/sdk-browser/textureBudget.ts`
-- `packages/sdk-browser/visibilityWrapModes.test.ts`
-- `packages/sdk-browser/webgpuBudgetRanking.test.ts`
-- `packages/sdk-browser/webgpuBudgetRanking.ts`
 - `packages/sdk-browser/webgpuCutAdopterFixture.ts`
 - `packages/sdk-browser/webgpuCutAdoption.ts`
 - `packages/sdk-browser/webgpuCutAdoptionHold.test.ts`
+- `packages/sdk-browser/webgpuCutCounts.test.ts`
+- `packages/sdk-browser/webgpuCutCounts.ts`
+- `packages/sdk-browser/webgpuCutDelta.test.ts`
+- `packages/sdk-browser/webgpuCutDelta.ts`
+- `packages/sdk-browser/webgpuCutIncomplete.test.ts`
+- `packages/sdk-browser/webgpuCutPending.ts`
+- `packages/sdk-browser/webgpuCutPublication.test.ts`
+- `packages/sdk-browser/webgpuCutPublication.ts`
+- `packages/sdk-browser/webgpuCutReprise.test.ts`
+- `packages/sdk-browser/webgpuCutRepriseFixture.ts`
+- `packages/sdk-browser/webgpuDrawnMirror.test.ts`
+- `packages/sdk-browser/webgpuPagesHelpers.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 920 (97%)
-- INFERRED: 31 (3%)
+- EXTRACTED: 457 (98%)
+- INFERRED: 10 (2%)
 - AMBIGUOUS: 0 (0%)
 
 ---

@@ -17,9 +17,10 @@
 
 ## Relationships
 
-- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (3 shared connections)
+- [Adoption et reprise de la coupe](Adoption_et_reprise_de_la_coupe.md) (2 shared connections)
 - [Options et poses du banc](Options_et_poses_du_banc.md) (2 shared connections)
 - [Tests navigateur Node](Tests_navigateur_Node.md) (2 shared connections)
+- [sdk-browser · rec](sdk-browser_·_rec.md) (1 shared connections)
 
 ## Source Files
 

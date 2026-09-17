@@ -30,7 +30,7 @@
 ## Relationships
 
 - [Tests navigateur Node](Tests_navigateur_Node.md) (7 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (3 shared connections)
+- [Arbre monde et lots de maths (2)](Arbre_monde_et_lots_de_maths_2.md) (3 shared connections)
 - [Oracle et serveur de mesure](Oracle_et_serveur_de_mesure.md) (3 shared connections)
 - [Options et poses du banc](Options_et_poses_du_banc.md) (2 shared connections)
 - [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (2 shared connections)

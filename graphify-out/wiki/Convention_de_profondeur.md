@@ -1,65 +1,56 @@
 # Convention de profondeur
 
-> 29 nodes
+> 19 nodes
 
 ## Key Concepts
 
+- **depthConvention.ts** (34 connections) — `packages/sdk-browser/depthConvention.ts`
 - **depthConventionCamera.test.ts** (29 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
-- **visibilityProjection.ts** (28 connections) — `packages/sdk-browser/visibilityProjection.ts`
-- **matrixElements.ts** (27 connections) — `packages/sdk-browser/matrixElements.ts`
+- **DEPTH_CLEAR** (21 connections) — `packages/sdk-browser/depthConvention.ts`
 - **hiz.mjs** (19 connections) — `packages/sdk-browser/bench/oracles/hiz.mjs`
-- **lignesConsommateursBrowser()** (14 connections) — `packages/sdk-browser/bench/appui/socleConsommateursBrowser.mjs`
-- **projectVisibilityVertex()** (10 connections) — `packages/sdk-browser/visibilityProjection.ts`
-- **viewFingerprint.ts** (8 connections) — `packages/sdk-browser/viewFingerprint.ts`
-- **createViewFingerprint()** (7 connections) — `packages/sdk-browser/viewFingerprint.ts`
-- **hizProjectionHold.ts** (6 connections) — `packages/sdk-browser/hizProjectionHold.ts`
-- **referenceVisibilityDepth()** (5 connections) — `packages/sdk-browser/bench/oracles/hiz.mjs`
-- **sameElements()** (5 connections) — `packages/sdk-browser/matrixElements.ts`
-- **Projected** (4 connections) — `packages/sdk-browser/visibilityProjection.ts`
-- **camera()** (3 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
-- **createProjectionHold()** (3 connections) — `packages/sdk-browser/hizProjectionHold.ts`
+- **DEPTH_COMPARE** (9 connections) — `packages/sdk-browser/depthConvention.ts`
+- **hizOcclusion.test.ts** (8 connections) — `packages/sdk-browser/hizOcclusion.test.ts`
+- **gpuRasterPixelWgsl.ts** (7 connections) — `packages/sdk-browser/gpuRasterPixelWgsl.ts`
+- **gpuRasterResolve.ts** (7 connections) — `packages/sdk-browser/gpuRasterResolve.ts`
+- **DEPTH_NEAR** (4 connections) — `packages/sdk-browser/depthConvention.ts`
+- **referenceHizTestRect()** (3 connections) — `packages/sdk-browser/bench/oracles/hiz.mjs`
+- **bothAgree()** (3 connections) — `packages/sdk-browser/hizOcclusion.test.ts`
 - **depthDistance()** (2 connections) — `packages/sdk-browser/depthConvention.ts`
-- **packages_sdk_browser_matrixelements_identity_elements** (2 connections)
-- **packages_sdk_core_index_identity_matrix4** (2 connections)
-- **ScreenPoint** (1 connections) — `packages/sdk-browser/visibilityProjection.ts`
-- **VertexReader** (1 connections) — `packages/sdk-browser/visibilityProjection.ts`
+- **borne()** (2 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
 - **depthCam** (1 connections) — `packages/sdk-browser/bench/oracles/hiz.mjs`
 - **projScratch** (1 connections) — `packages/sdk-browser/bench/oracles/hiz.mjs`
 - **viewProjScratch** (1 connections) — `packages/sdk-browser/bench/oracles/hiz.mjs`
 - **CORNERS** (1 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
 - **webGL** (1 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
 - **webGPU** (1 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
-- *... and 4 more nodes in this community*
 
 ## Relationships
 
-- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (21 shared connections)
-- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (12 shared connections)
-- [sdk-browser · parcoursDeVue](sdk-browser_·_parcoursDeVue.md) (11 shared connections)
-- [Équivalence du socle mesuré](Équivalence_du_socle_mesuré.md) (8 shared connections)
-- [Priorité de diffusion et textures (2)](Priorité_de_diffusion_et_textures_2.md) (6 shared connections)
-- [Arbre monde et lots de maths](Arbre_monde_et_lots_de_maths.md) (5 shared connections)
-- [État de la coupe de sélection](État_de_la_coupe_de_sélection.md) (5 shared connections)
-- [Socle des consommateurs](Socle_des_consommateurs.md) (4 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (15 shared connections)
+- [Mathématiques du tampon de visibilité](Mathématiques_du_tampon_de_visibilité.md) (11 shared connections)
+- [Caméra monde et contrat](Caméra_monde_et_contrat.md) (9 shared connections)
+- [Raster de calcul](Raster_de_calcul.md) (4 shared connections)
+- [Nuanceurs WGSL de visibilité](Nuanceurs_WGSL_de_visibilité.md) (4 shared connections)
+- [sdk-browser · AtlasResources](sdk-browser_·_AtlasResources.md) (4 shared connections)
+- [Encodage des dessins WebGPU](Encodage_des_dessins_WebGPU.md) (4 shared connections)
+- [Encodage des dessins WebGPU (2)](Encodage_des_dessins_WebGPU_2.md) (4 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (4 shared connections)
-- [Transformations et collecte des pages](Transformations_et_collecte_des_pages.md) (4 shared connections)
-- [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (4 shared connections)
-- [Sélection des pages visibles](Sélection_des_pages_visibles.md) (3 shared connections)
+- [sdk-browser · flush](sdk-browser_·_flush.md) (3 shared connections)
+- [Mathématiques du tampon de visibilité (2)](Mathématiques_du_tampon_de_visibilité_2.md) (3 shared connections)
+- [sdk-browser · POISSON_16](sdk-browser_·_POISSON_16.md) (3 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/bench/appui/socleConsommateursBrowser.mjs`
 - `packages/sdk-browser/bench/oracles/hiz.mjs`
 - `packages/sdk-browser/depthConvention.ts`
 - `packages/sdk-browser/depthConventionCamera.test.ts`
-- `packages/sdk-browser/hizProjectionHold.ts`
-- `packages/sdk-browser/matrixElements.ts`
-- `packages/sdk-browser/viewFingerprint.ts`
-- `packages/sdk-browser/visibilityProjection.ts`
+- `packages/sdk-browser/gpuRasterPixelWgsl.ts`
+- `packages/sdk-browser/gpuRasterResolve.ts`
+- `packages/sdk-browser/hizOcclusion.test.ts`
 
 ## Audit Trail
 
-- EXTRACTED: 149 (99%)
+- EXTRACTED: 124 (99%)
 - INFERRED: 1 (1%)
 - AMBIGUOUS: 0 (0%)
 

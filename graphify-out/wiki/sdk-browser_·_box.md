@@ -1,6 +1,6 @@
 # sdk-browser · box
 
-> 33 nodes
+> 32 nodes
 
 ## Key Concepts
 
@@ -9,7 +9,6 @@
 - **transparentOcclusionReference.mjs** (13 connections) — `test/appui/transparentOcclusionReference.mjs`
 - **hizProjectionIdentique.test.ts** (12 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - **hizProjectionAffine.test.ts** (10 connections) — `packages/sdk-browser/hizProjectionAffine.test.ts`
-- **hizRejectsFlat()** (9 connections) — `packages/sdk-browser/hizOcclusion.ts`
 - **partitionReference.mjs** (9 connections) — `test/appui/partitionReference.mjs`
 - **hizNearestBound.ts** (8 connections) — `packages/sdk-browser/hizNearestBound.ts`
 - **hizNearestBound()** (7 connections) — `packages/sdk-browser/hizNearestBound.ts`
@@ -20,7 +19,7 @@
 - **compare()** (3 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - **emptyTotals()** (3 connections) — `test/appui/partitionReference.mjs`
 - **emptyOcclusionTotals()** (3 connections) — `test/appui/transparentOcclusionReference.mjs`
-- **borne()** (2 connections) — `packages/sdk-browser/depthConventionCamera.test.ts`
+- **boxes()** (2 connections) — `packages/sdk-browser/bench/tronc-residence.perf.mjs`
 - **rectangle()** (2 connections) — `packages/sdk-browser/hizProjectionAffine.test.ts`
 - **boites()** (2 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - **graine()** (2 connections) — `packages/sdk-browser/hizProjectionIdentique.test.ts`
@@ -29,27 +28,26 @@
 - **patternOf()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
 - **pyramide()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
 - **voisins()** (1 connections) — `packages/sdk-browser/hizNearestBound.test.ts`
-- *... and 8 more nodes in this community*
+- **camera()** (1 connections) — `packages/sdk-browser/hizProjectionAffine.test.ts`
+- *... and 7 more nodes in this community*
 
 ## Relationships
 
-- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (22 shared connections)
-- [Oracles de projection](Oracles_de_projection.md) (7 shared connections)
+- [Pyramide Hi-Z et occlusion](Pyramide_Hi-Z_et_occlusion.md) (24 shared connections)
 - [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (6 shared connections)
-- [Manifeste binaire](Manifeste_binaire.md) (3 shared connections)
+- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (3 shared connections)
 - [Convention de profondeur](Convention_de_profondeur.md) (2 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (2 shared connections)
 - [sdk-browser · flush](sdk-browser_·_flush.md) (2 shared connections)
+- [Socle de mesure des bancs (2)](Socle_de_mesure_des_bancs_2.md) (1 shared connections)
 - [fixtures · readLightingGltf](fixtures_·_readLightingGltf.md) (1 shared connections)
-- [Socle de mesure des bancs](Socle_de_mesure_des_bancs.md) (1 shared connections)
 
 ## Source Files
 
-- `packages/sdk-browser/depthConventionCamera.test.ts`
+- `packages/sdk-browser/bench/tronc-residence.perf.mjs`
 - `packages/sdk-browser/hizCorners.ts`
 - `packages/sdk-browser/hizNearestBound.test.ts`
 - `packages/sdk-browser/hizNearestBound.ts`
-- `packages/sdk-browser/hizOcclusion.ts`
 - `packages/sdk-browser/hizProjectionAffine.test.ts`
 - `packages/sdk-browser/hizProjectionIdentique.test.ts`
 - `test/appui/partitionConservatricePage.mjs`
@@ -58,7 +56,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 98 (98%)
+- EXTRACTED: 91 (98%)
 - INFERRED: 2 (2%)
 - AMBIGUOUS: 0 (0%)
 

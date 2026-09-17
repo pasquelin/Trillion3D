@@ -17,10 +17,10 @@
 ## Relationships
 
 - [Tests du pilote GIF](Tests_du_pilote_GIF.md) (2 shared connections)
-- [tests · ALPHA](tests_·_ALPHA.md) (2 shared connections)
+- [tests · ALPHA (2)](tests_·_ALPHA_2.md) (2 shared connections)
 - [Registre des images de test](Registre_des_images_de_test.md) (1 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (1 shared connections)
-- [Clés et orientation KTX2](Clés_et_orientation_KTX2.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (1 shared connections)
+- [image · IntoIterator](image_·_IntoIterator.md) (1 shared connections)
 
 ## Source Files
 

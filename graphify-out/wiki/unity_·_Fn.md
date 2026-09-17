@@ -33,8 +33,8 @@
 
 ## Relationships
 
-- [unity · PathBuf](unity_·_PathBuf.md) (4 shared connections)
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (3 shared connections)
+- [unity · .scale](unity_·_.scale.md) (4 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (3 shared connections)
 - [Import Unity et maillages](Import_Unity_et_maillages.md) (2 shared connections)
 - [unity · Map](unity_·_Map.md) (2 shared connections)
 - [Monde et ombrage Maya](Monde_et_ombrage_Maya.md) (1 shared connections)

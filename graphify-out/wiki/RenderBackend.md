@@ -2,7 +2,7 @@
 
 > God node · 69 connections · `packages/sdk-browser/backendTypes.ts`
 
-**Community:** [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md)
+**Community:** [Contrat backend et dessin (3)](Contrat_backend_et_dessin_3.md)
 
 ## Connections by Relation
 

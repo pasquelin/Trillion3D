@@ -31,9 +31,9 @@
 
 ## Relationships
 
-- [Fixtures OBJ du compilateur](Fixtures_OBJ_du_compilateur.md) (2 shared connections)
-- [Greffons de scène du compilateur](Greffons_de_scène_du_compilateur.md) (1 shared connections)
-- [unity · Option](unity_·_Option.md) (1 shared connections)
+- [Aperçus de textures et pyramide (2)](Aperçus_de_textures_et_pyramide_2.md) (2 shared connections)
+- [plugins · AsRef](plugins_·_AsRef.md) (1 shared connections)
+- [unity · les_mesures_et_la_provenance_sortent_de_lidentite](unity_·_les_mesures_et_la_provenance_sortent_de_lidentite.md) (1 shared connections)
 - [scene · .accepts_head](scene_·_.accepts_head.md) (1 shared connections)
 - [unity · Fn](unity_·_Fn.md) (1 shared connections)
 

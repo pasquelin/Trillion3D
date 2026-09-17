@@ -1,6 +1,6 @@
 # SDK Node : contrats et progression
 
-> 58 nodes
+> 63 nodes
 
 ## Key Concepts
 
@@ -9,6 +9,7 @@
 - **progress.mts** (16 connections) — `packages/sdk-node/progress.mts`
 - **public.test.mjs** (14 connections) — `packages/sdk-node/public.test.mjs`
 - **compilerProcess.mts** (11 connections) — `packages/sdk-node/compilerProcess.mts`
+- **batch.test.mjs** (10 connections) — `packages/sdk-node/batch.test.mjs`
 - **TerminalProgress** (6 connections) — `packages/sdk-node/contracts.ts`
 - **runCompiler()** (6 connections) — `packages/sdk-node/compilerProcess.mts`
 - **prepare()** (6 connections) — `packages/sdk-node/index.mts`
@@ -28,22 +29,23 @@
 - **visit()** (4 connections) — `packages/sdk-node/provenance.mts`
 - **BatchJob** (3 connections) — `packages/sdk-node/contracts.ts`
 - **CompilationPointer** (3 connections) — `packages/sdk-node/contracts.ts`
-- **CompilationResult** (3 connections) — `packages/sdk-node/contracts.ts`
-- *... and 33 more nodes in this community*
+- *... and 38 more nodes in this community*
 
 ## Relationships
 
 - [Tests navigateur Node](Tests_navigateur_Node.md) (13 shared connections)
-- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (11 shared connections)
+- [API et session de l'explorateur (2)](API_et_session_de_l'explorateur_2.md) (10 shared connections)
+- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (7 shared connections)
 - [Intégration des pages arrivées](Intégration_des_pages_arrivées.md) (5 shared connections)
-- [Sélection DAG et pages WebGPU](Sélection_DAG_et_pages_WebGPU.md) (5 shared connections)
-- [Magasin des lumières de scène](Magasin_des_lumières_de_scène.md) (2 shared connections)
+- [Gabarits de sélection de pages](Gabarits_de_sélection_de_pages.md) (2 shared connections)
 - [Pages de justesse WebGPU](Pages_de_justesse_WebGPU.md) (1 shared connections)
 - [test · steps](test_·_steps.md) (1 shared connections)
+- [Télémétrie et métriques](Télémétrie_et_métriques.md) (1 shared connections)
 
 ## Source Files
 
 - `packages/sdk-core/jobs.ts`
+- `packages/sdk-node/batch.test.mjs`
 - `packages/sdk-node/cli.mts`
 - `packages/sdk-node/compilerProcess.mts`
 - `packages/sdk-node/contracts.ts`
@@ -55,7 +57,7 @@
 
 ## Audit Trail
 
-- EXTRACTED: 146 (99%)
+- EXTRACTED: 155 (99%)
 - INFERRED: 1 (1%)
 - AMBIGUOUS: 0 (0%)
 
