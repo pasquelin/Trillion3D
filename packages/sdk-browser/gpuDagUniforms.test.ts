@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDagOutput } from './gpuDagUniforms.ts';
 import { SELECTION_HEADER_WORDS } from './gpuDagLayout.ts';
-import { packRequest } from './gpuDagRequest.ts';
+import { REQUEST_PRIORITY_MAX, packRequest } from './gpuDagRequest.ts';
 import { referenceParseDagOutput } from './bench/oracles/residence.mjs';
 import type { SelectionResult } from './gpuSelection.ts';
 
@@ -100,6 +100,32 @@ test('le relevé est rendu classé : la demande la plus coûteuse d’abord', ()
   // Priorité décroissante ; à priorité égale, l'ordre d'émission est conservé — il est indifférent,
   // comme il l'est sur le chemin WebGL2, qui ne départage pas non plus deux erreurs égales.
   assert.deepEqual(releve.pageIds, [11, 5, 42, 70, 9]);
+});
+
+test('le classement reste stable sur un relevé massif où presque tout est à égalité', () => {
+  // Le classement est un TRI PAR COMPTAGE sur les mille vingt-quatre pas de priorité. Un tri par
+  // seaux se casse là où un tri par comparaison ne bronche pas : aux deux bouts de la plage, et
+  // quand presque tous les rangs tombent dans le même seau. Ce relevé pousse les deux à la fois.
+  const PAS = [0, 1, REQUEST_PRIORITY_MAX - 1, REQUEST_PRIORITY_MAX];
+  const demandes: number[] = [];
+  for (let i = 0; i < 4000; i++) demandes.push(packRequest(i, PAS[i % PAS.length]));
+  const { neuf } = paire([demandes.length, 0, 0, 0], demandes);
+  const pageIds = lire(neuf)!.pageIds;
+  assert.equal(pageIds.length, demandes.length);
+  // Priorité décroissante d'un bout à l'autre, et À PRIORITÉ ÉGALE l'ordre d'émission intact : les
+  // pages d'un même pas sortent croissantes, puisque c'est dans cet ordre qu'elles ont été émises.
+  let precedente = REQUEST_PRIORITY_MAX + 1,
+    dernierePage = -1;
+  for (const page of pageIds) {
+    const priorite = PAS[page % PAS.length];
+    assert.ok(priorite <= precedente, `page ${page} : priorité ${priorite} après ${precedente}`);
+    // La comparaison ne porte QUE sur deux pages du même pas ; au changement de pas elle ne se fait
+    // pas, et `dernierePage` recommence de la page suivante.
+    if (priorite === precedente)
+      assert.ok(page > dernierePage, `page ${page} après ${dernierePage}`);
+    precedente = priorite;
+    dernierePage = page;
+  }
 });
 
 test('les totaux de triangles sont relus tels que la carte les a posés', () => {
