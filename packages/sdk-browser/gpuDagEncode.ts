@@ -17,11 +17,11 @@ type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
  * comme argument dans une même portée de synchronisation. La coupure ne porte que la recopie de ce
  * mot ; les deux autres mots de l'argument valent un et ne changent jamais.
  *
- * Cette recopie est CHÈRE : dix-sept à dix-neuf microsecondes sur apple metal-3, mesurées par
- * `bench/justesse/coupe-lancements-gpu.mjs`, contre une microseconde pour la passe elle-même. Il n'en
- * reste donc que trois par image, là où aucun majorant n'est connu d'avance — le journal des
- * dessinées, les candidates et les vivantes. La descente, elle, se lance à plat : le rangement
- * compte les nœuds de chaque étage, et cet étage majore la file de sa passe.
+ * Cette recopie est CHÈRE — la mesure est auprès de `hierarchyLevelSizes` (`gpuDagHierarchy.ts`) —,
+ * et il n'en reste que trois par image. Ce n'est pas que les trois listes concernées n'aient aucun
+ * majorant : `pageCount` en est un pour toutes. C'est qu'il est GROSSIER, 1 959 792 pour 21 955
+ * utiles sur le banc à douze instances, quand l'étage d'un niveau colle à sa file. Un armement
+ * s'échange donc contre des fils, et le change ne vaut que si le majorant est serré.
  */
 export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResources) {
   // Une variante de DIAGNOSTIC seule réencode la coupe. La répétition PRÉCÈDE la coupe qui compte :
@@ -46,7 +46,6 @@ function encodeOnce(
     residentCut,
     worldCount,
     blockCount,
-    levelCount,
     levelSizes,
     liveGroupsOffset,
     candGroupsOffset,
@@ -90,14 +89,18 @@ function encodeOnce(
   // voient ce que les précédents ont écrit — la préparation et la passe 0 en dépendaient déjà. Rien
   // d'autre ne coupait la descente que l'argument de répartition, et il n'y en a plus.
   //
-  // La passe 0 part d'une racine par primitive. Chaque niveau suivant ne lit que les nœuds que le
-  // précédent a retenus, et remplit la file suivante des trois — celle qu'un niveau plus tôt a
-  // remise à zéro. Le compte lancé est celui des nœuds de son étage, majorant connu du rangement.
+  // La passe 0 part d'une racine par primitive. Son compte est `worldCount` et NON `levelSizes[0]`,
+  // qui ne la majorerait pas toujours : `dagPrepare` pose une entrée par primitive, racine absente
+  // comprise — la passe 0 l'y lit et la rejette —, là où l'étage zéro ne compte que les racines qui
+  // existent. Une primitive dont l'appelant fournit une hiérarchie vide en ferait diverger les deux.
   pass.setPipeline(levelPipelines[0]);
   pass.dispatchWorkgroups(groups(worldCount));
-  for (let level = 1; level < levelCount; level++) {
-    pass.setPipeline(levelPipelines[level % 3]);
-    pass.dispatchWorkgroups(groups(levelSizes[level] ?? 0));
+  // Chaque niveau suivant ne lit que les nœuds que le précédent a retenus, et remplit la file
+  // suivante des trois — celle qu'un niveau plus tôt a remise à zéro. Le compte lancé est celui des
+  // nœuds de son étage, majorant connu du rangement.
+  for (let level = 1; level < levelSizes.length; level++) {
+    pass.setPipeline(levelPipelines[level % levelPipelines.length]);
+    pass.dispatchWorkgroups(groups(levelSizes[level]));
   }
   pass.end();
   // Les pages des feuilles retenues, et elles seules : une page sous un nœud rejeté n'est pas lue.
