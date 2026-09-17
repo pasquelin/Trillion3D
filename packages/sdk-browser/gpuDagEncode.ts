@@ -17,8 +17,11 @@ type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
  * comme argument dans une même portée de synchronisation. La coupure ne porte que la recopie de ce
  * mot ; les deux autres mots de l'argument valent un et ne changent jamais.
  *
- * Une seule copie par niveau, et non deux : la remise à zéro de la file que le niveau suivant
- * remplira est faite par le noyau lui-même, les files tournant à trois (`gpuDagLevelWgsl.ts`).
+ * Cette recopie est CHÈRE : dix-neuf microsecondes sur apple metal-3, mesurées par
+ * `bench/justesse/coupe-lancements-gpu.mjs`, contre une microseconde pour la passe elle-même. Il n'en
+ * reste donc que trois par image, là où aucun majorant n'est connu d'avance — le journal des
+ * dessinées, les candidates et les vivantes. La descente, elle, se lance à plat : le rangement
+ * compte les nœuds de chaque étage, et cet étage majore la file de sa passe.
  */
 export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagResources) {
   // Une variante de DIAGNOSTIC seule réencode la coupe. La répétition PRÉCÈDE la coupe qui compte :
@@ -44,8 +47,8 @@ function encodeOnce(
     worldCount,
     blockCount,
     levelCount,
+    levelSizes,
     liveGroupsOffset,
-    queueGroupsOffset,
     candGroupsOffset,
     drawnGroupsOffset,
     work,
@@ -83,17 +86,20 @@ function encodeOnce(
   }
   pass.setPipeline(preparePipeline);
   pass.dispatchWorkgroups(groups(Math.max(worldCount, blockCount)));
-  // Passe 0 : une racine par primitive, un compte connu du rangement, donc aucune indirection.
+  // Toute la descente dans CETTE passe : les lancements d'une même passe s'exécutent dans l'ordre et
+  // voient ce que les précédents ont écrit — la préparation et la passe 0 en dépendaient déjà. Rien
+  // d'autre ne coupait la descente que l'argument de répartition, et il n'y en a plus.
+  //
+  // La passe 0 part d'une racine par primitive. Chaque niveau suivant ne lit que les nœuds que le
+  // précédent a retenus, et remplit la file suivante des trois — celle qu'un niveau plus tôt a
+  // remise à zéro. Le compte lancé est celui des nœuds de son étage, majorant connu du rangement.
   pass.setPipeline(levelPipelines[0]);
   pass.dispatchWorkgroups(groups(worldCount));
-  pass.end();
-  // Chaque niveau se répartit sur les seuls nœuds que le niveau précédent a retenus, et remplit la
-  // file suivante des trois — celle qu'un niveau plus tôt a déjà remise à zéro.
   for (let level = 1; level < levelCount; level++) {
-    const source = level % 3;
-    arm(queueGroupsOffset[source]);
-    alone(levelPipelines[source]);
+    pass.setPipeline(levelPipelines[level % 3]);
+    pass.dispatchWorkgroups(groups(levelSizes[level] ?? 0));
   }
+  pass.end();
   // Les pages des feuilles retenues, et elles seules : une page sous un nœud rejeté n'est pas lue.
   arm(candGroupsOffset);
   alone(wantedPipeline);

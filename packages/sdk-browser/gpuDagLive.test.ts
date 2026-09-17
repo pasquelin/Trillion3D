@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { encodeDagKernels } from './gpuDagEncode.ts';
 import { DAG_SELECTION_SHADER } from './gpuDagSelection.ts';
 import { ESCALATION_ROUNDS } from './pageSelectionTypes.ts';
-import { encodeurTemoin, ressources, LIVE, QUEUE, CAND } from './gpuDagEncodeFixture.ts';
+import { encodeurTemoin, ressources, ETAGES, LIVE, CAND } from './gpuDagEncodeFixture.ts';
 
 test('chaque noyau de la coupe se répartit sur la liste que le précédent a remplie', () => {
   const { encoder, lancements } = encodeurTemoin();
@@ -20,20 +20,21 @@ test('chaque noyau de la coupe se répartit sur la liste que le précédent a re
   }
   // Les pages candidates, et elles seules : une page sous un nœud rejeté n'est plus lue.
   assert.equal(parNoyau.get('dagWanted')?.liste, CAND);
-  // La descente : la passe 0 part des racines, d'un compte connu du rangement ; les suivantes de la
-  // file en bascule que la précédente a remplie. Aucune ne visite la hiérarchie entière.
+  // La descente : la passe 0 part des racines, d'un compte connu du rangement, et chaque niveau
+  // suivant du nombre de nœuds de son étage — connu du rangement lui aussi. Aucune indirection, donc
+  // aucune recopie d'argument, et aucun niveau ne visite la hiérarchie entière.
   assert.deepEqual(lancements.slice(2, 5), [
     { noyau: 'dagLevel0', groupes: 1 },
-    { noyau: 'dagLevel1', groupes: 'indirect', liste: QUEUE[1] },
-    { noyau: 'dagLevel2', groupes: 'indirect', liste: QUEUE[2] },
+    { noyau: 'dagLevel1', groupes: Math.ceil(ETAGES[1] / 64) },
+    { noyau: 'dagLevel2', groupes: Math.ceil(ETAGES[2] / 64) },
   ]);
   const ordre = lancements.map((l) => l.noyau);
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'));
   assert.ok(ordre.indexOf('dagEscalate') > ordre.indexOf('dagWanted'));
-  // Seules la préparation, la passe 0 et le préfixe restent à plat : leur compte est celui des
-  // primitives ou des blocs, jamais celui des grappes.
+  // Le compte lancé à plat est celui des primitives, des blocs ou d'un étage de la hiérarchie :
+  // jamais celui des grappes.
   const plats = lancements.filter((l) => l.groupes !== 'indirect').map((l) => l.noyau);
-  assert.deepEqual(plats, ['dagPrepare', 'dagLevel0', 'dagDrawPrefix']);
+  assert.deepEqual(plats, ['dagPrepare', 'dagLevel0', 'dagLevel1', 'dagLevel2', 'dagDrawPrefix']);
 });
 
 test("l'attente entre lancements ne dépend que de la profondeur, pas du nombre de grappes", () => {

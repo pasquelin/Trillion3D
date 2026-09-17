@@ -1,35 +1,23 @@
 // Le contrat d'encodage de la coupe : le NOMBRE de commandes qu'une image ouvre, seul responsable de
-// l'attente que les horodatages n'attribuent à aucun noyau. Il ne dépend que de la profondeur de la
-// hiérarchie, jamais du nombre de grappes.
+// l'attente que les horodatages n'attribuent à aucun noyau. Il ne dépend NI de la profondeur de la
+// hiérarchie NI du nombre de grappes : six, toujours.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeDagKernels } from './gpuDagEncode.ts';
-import { encodeurTemoin, ressources, LIVE, QUEUE, CAND, DRAWN } from './gpuDagEncodeFixture.ts';
+import { encodeurTemoin, ressources, LIVE, CAND, DRAWN } from './gpuDagEncodeFixture.ts';
 
-test("une image n'ouvre plus que deux fois la profondeur en commandes, et non trois", () => {
+test("une image n'ouvre que six commandes, quelle que soit la profondeur", () => {
   // Ce que la carte paie entre deux noyaux ne se compte pas en fils mais en COMMANDES : chaque passe
-  // de calcul et chaque copie hors passe vide la file et les caches. Sur la hiérarchie du banc, de
-  // profondeur treize, il y en avait 3·13+3 = 42 ; les files tournant à trois, la remise à zéro
-  // quitte le processeur et il en reste 2·13+4 = 30.
-  for (const levelCount of [3, 5, 13]) {
+  // de calcul et chaque copie hors passe ferment l'encodeur courant et en ouvrent un autre. Il y en
+  // avait 3·profondeur+3 — 42 sur la hiérarchie de profondeur treize du banc —, parce que chaque
+  // niveau se lançait indirectement et devait donc armer son argument. La descente se lance
+  // désormais à plat, dans la passe de tête : trois copies d'armement et trois passes, un point.
+  for (const levelCount of [1, 3, 5]) {
     const { encoder, copies, passes } = encodeurTemoin();
     encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true, levelCount));
-    assert.equal(
-      passes.length,
-      levelCount + 2,
-      'une passe par niveau, plus la tête et les deux fins',
-    );
-    assert.equal(
-      copies.length,
-      levelCount + 2,
-      'une copie par lancement indirect, et rien de plus',
-    );
-    assert.equal(passes.length + copies.length, 2 * levelCount + 4);
-    // Plus une seule copie vers `work` : ce qui y repart de zéro, le noyau s'en charge.
-    assert.deepEqual(
-      copies.filter((copie) => copie.vers !== 'dispatchArgs'),
-      [],
-    );
+    assert.equal(passes.length, 3, 'la tête, les candidates, les vivantes');
+    assert.equal(copies.length, 3, 'un armement par liste dont le rangement ne sait rien');
+    assert.equal(passes.length + copies.length, 6);
   }
 });
 
@@ -38,14 +26,12 @@ test("l'argument de répartition est recopié hors passe, entre deux passes de l
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
   // WebGPU refuse `work` à la fois en écriture et en argument dans une même portée : chaque armement
   // coupe donc la passe, et ne porte que le mot de tête, les deux autres valant un depuis la
-  // création. Une copie par lancement indirect, et RIEN d'autre : la remise à zéro de la file que le
-  // niveau suivant remplira est faite par le noyau lui-même, les files tournant à trois.
+  // création. Il n'en reste que trois, pour les trois listes dont le rangement ne connaît aucun
+  // majorant : le journal des dessinées de l'image d'avant, les candidates et les vivantes.
   assert.deepEqual(copies, [
     { de: 'work', decalage: DRAWN, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: QUEUE[1], vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: QUEUE[2], vers: 'dispatchArgs', octets: 4, enPasse: false },
     { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 4, enPasse: false },
     { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 4, enPasse: false },
   ]);
-  assert.deepEqual(passes, new Array(5).fill('WG DAG selection'));
+  assert.deepEqual(passes, new Array(3).fill('WG DAG selection'));
 });
