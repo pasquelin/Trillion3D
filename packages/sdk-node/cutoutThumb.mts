@@ -18,16 +18,24 @@ export interface Thumbnail {
   height: number;
   /** Straight RGBA8, the finest level the sidecar carries (64 px on its longest side at most). */
   rgba: Uint8Array;
+  /** The view of the published `source.bin` holding the image's own bytes, when the scene embedded
+   *  it rather than linking a file — those bytes are the texture at full resolution. */
+  sourceBufferView?: number;
 }
 
-/** The compiled manifest a scope points at, JSON head and binary columns. */
-async function manifestOf(cache: string, scope: string) {
+/** Where a scope's compiled product lives, or `null` when it points nowhere. */
+async function keyDirectory(cache: string, scope: string): Promise<string | null> {
   const pointer: unknown = JSON.parse(
     await readFile(join(cache, 'native', scope, 'manifest.json'), 'utf8'),
   );
   const key = (pointer as { key?: string }).key;
-  if (!key) return null;
-  const directory = join(cache, 'native', scope, key);
+  return key ? join(cache, 'native', scope, key) : null;
+}
+
+/** The compiled manifest a scope points at, JSON head and binary columns. */
+async function manifestOf(cache: string, scope: string) {
+  const directory = await keyDirectory(cache, scope);
+  if (!directory) return null;
   const slim: unknown = JSON.parse(await readFile(join(directory, 'clusters.json'), 'utf8'));
   const binary = await readFile(join(directory, 'clusters.bin'));
   const buffer = binary.buffer.slice(
@@ -54,7 +62,13 @@ export async function readThumbnails(
     const [width, height] = previewLevelSize(preview.width, preview.height, preview.firstLevel);
     const rgba = preview.levels[0];
     if (rgba && rgba.length >= width * height * 4)
-      thumbnails.set(preview.sha256, { sha256: preview.sha256, width, height, rgba });
+      thumbnails.set(preview.sha256, {
+        sha256: preview.sha256,
+        width,
+        height,
+        rgba,
+        sourceBufferView: preview.sourceKind === 1 ? preview.sourceBufferView : undefined,
+      });
   }
   return thumbnails;
 }
@@ -84,4 +98,32 @@ export function resize(thumbnail: Thumbnail, width: number, height: number): Thu
     }
   }
   return { sha256: thumbnail.sha256, width, height, rgba };
+}
+
+/**
+ * Reads the embedded images of one compiled model: the scene's own bytes, at full resolution, from
+ * the `source.bin` the compile published beside its manifest. A model that links its textures as
+ * files has none, and needs none — the file itself is sharper than anything we could rebuild.
+ */
+export async function embeddedImages(
+  cache: string,
+  scope = 'full',
+): Promise<(view: number) => Buffer | null> {
+  const directory = await keyDirectory(cache, scope).catch(() => null);
+  if (!directory) return () => null;
+  const [scene, bytes] = await Promise.all([
+    readFile(join(directory, 'source.gltf'), 'utf8').then(
+      (text) =>
+        JSON.parse(text) as { bufferViews?: { byteOffset?: number; byteLength?: number }[] },
+      () => null,
+    ),
+    readFile(join(directory, 'source.bin')).catch(() => null),
+  ]);
+  if (!scene?.bufferViews || !bytes) return () => null;
+  return (view: number) => {
+    const descriptor = scene.bufferViews?.[view];
+    if (!descriptor?.byteLength) return null;
+    const from = descriptor.byteOffset ?? 0;
+    return bytes.subarray(from, from + descriptor.byteLength);
+  };
 }
