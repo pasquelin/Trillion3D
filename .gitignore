@@ -7,5 +7,9 @@ benchmark-runs/
 .claude/
 .agents/
 
+# Graphe de connaissance graphify : seul le rapport est partagé (le reste est reconstructible)
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+
 # Jeu de modèles de test livré hors git (voir packages/asset-compiler-rust/FORMATS.md)
 test-assets/
