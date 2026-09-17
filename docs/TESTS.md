@@ -62,11 +62,12 @@ scripts/
 - **Rôle** : mesurent avec précision milliseconde/nanoseconde le temps d'exécution (médiane, p95, ops/s), valident l'égalité bit-à-bit avec l'oracle avant optimisation, comparent les déviations face aux baselines et produisent un rapport d'agrégation.
 - **Exécution** :
   ```bash
-  npm run perf:all      # Lance l'ensemble des 39 bancs et génère le rapport
-  npm run perf:core     # Bancs sdk-core uniquement
-  npm run perf:browser  # Bancs sdk-browser uniquement
+  npm run perf:all      # Lance l'ensemble des 49 bancs et génère le rapport
+  npm run perf:core     # Bancs sdk-core uniquement (9 bancs)
+  npm run perf:browser  # Bancs sdk-browser uniquement (40 bancs)
   ```
 - **Sorties** : les résultats agrégés sont écrits dans `.mesure/out/perf/perf-<date>.md` et `.json`.
+
 
 ---
 
