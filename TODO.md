@@ -24,8 +24,7 @@ Les lots 1 à 4 font disparaître le lag ; 5, 9 et 11 rapprochent de la référe
 14. Eau en passe plein écran dédiée (copie du fond déjà en place pour la transmission).
 15. Noyaux Rust/Wasm M5 sur la coupe WebGL, la coupe de secours et la reconstruction des rangs.
 16. Compilateur : `dag/groups.rs:20` n'applique pas `DAG_GROUP_MIN` ; `lib.rs:101` constante morte `CLUSTER_TRIANGLES = 256`.
-17. Hiérarchie moteur : pris en charge par le Calculateur (`lot/calc-8-pages-hierarchie-moteur`) ; ne pas toucher `pageSelectionCollect`, `frameGateCore`, `sceneMeshes`, `webgpuPagesTransform` avant sa fusion. Le lot 1 repart de develop après.
-18. `dagWanted` : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection.
+17. `dagWanted` : un mot compact par grappe (nœud, drapeaux, monde) pour ne plus enregistrer les 80 % de grappes rejetées, à mesurer contre les 0,6 ms de la tête de sélection.
 
 ## Lumière
 
