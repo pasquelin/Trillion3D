@@ -8,6 +8,7 @@ import { writeDagUniforms } from '../../gpuDagUniforms.ts';
 import { SELECTION_UNIFORM_BYTES, SELECTION_WORKGROUP } from '../../gpuSelection.ts';
 import { FRAME_VEC4 } from '../../gpuDagTypes.ts';
 import { dagWorkLayout } from '../../gpuDagFloorWgsl.ts';
+import { REQUEST_PAGE_MAX } from '../../gpuDagRequest.ts';
 import {
   OUT_DRAWN_TRIANGLES,
   OUT_SELECTED_TRIANGLES,
@@ -47,7 +48,7 @@ function versPage(nom, packed, uniforms) {
 }
 
 /** Exécuté dans la page : un pipeline, tous les cas, la sortie `Output` relue pour chacun. */
-async function executer({ shader, cas, workgroup, entete, totaux }) {
+async function executer({ shader, cas, workgroup, entete, totaux, bitsPage }) {
   const appareil = await globalThis.ouvrirAppareil();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
@@ -149,7 +150,12 @@ async function executer({ shader, cas, workgroup, entete, totaux }) {
     const count = Math.min(ints[0], c.pageCount);
     resultats.push({
       nom: c.nom,
-      pages: Array.from(ints.subarray(entete, entete + count)).sort((a, b) => a - b),
+      // Les mots de demande dans l'ORDRE OÙ LA CARTE LES A ÉCRITS : c'est lui que le classement
+      // relit. `pages` reste trié, pour les preuves qui comparent des ensembles.
+      demandes: Array.from(ints.subarray(entete, entete + count)),
+      pages: Array.from(ints.subarray(entete, entete + count))
+        .map((mot) => mot & (bitsPage - 1))
+        .sort((a, b) => a - b),
       frustumRejected: ints[1],
       overflow: ints[3],
       // Les totaux que la carte tient : c'est ici qu'ils se comparent à ceux de l'oracle.
@@ -179,6 +185,7 @@ export async function selectionGpu(cas, shader = DAG_SELECTION_SHADER) {
     cas: cas.map(({ nom, packed, uniforms }) => versPage(nom, packed, uniforms)),
     workgroup: SELECTION_WORKGROUP,
     entete: SELECTION_HEADER_WORDS,
+    bitsPage: REQUEST_PAGE_MAX,
     totaux: {
       selected: OUT_SELECTED_TRIANGLES,
       transparent: OUT_TRANSPARENT_TRIANGLES,

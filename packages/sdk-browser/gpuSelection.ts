@@ -40,6 +40,9 @@ export type SelectionUniforms = {
 };
 export type SelectionResult = {
   pageIds: number[];
+  /** La priorité de chaque demande, au même rang que `pageIds` : l'erreur d'écran du remplaçant,
+   *  quantifiée (`gpuDagRequest.ts`). La liste est rendue classée, priorité décroissante. */
+  requestPriorities?: number[];
   frustumRejected: number;
   lodLevel: number;
   complete?: boolean;

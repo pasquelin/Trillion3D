@@ -1,4 +1,5 @@
 import type { PackedDag } from './gpuDagTypes.ts';
+import { requestPage, requestPriority } from './gpuDagRequest.ts';
 import {
   OUT_COUNT,
   OUT_DRAWN_TRIANGLES,
@@ -18,10 +19,21 @@ import type { SelectionResult, SelectionUniforms } from './gpuSelection.ts';
  * relecture jetait des dizaines de milliers d'éléments au ramasse-miettes, pour y réécrire
  * exactement les mêmes rangs.
  */
-export type DagOutputScratch = { result: SelectionResult; drawable: number[] };
+export type DagOutputScratch = {
+  result: SelectionResult;
+  drawable: number[];
+  /** Les pages et priorités lues, et les rangs par lesquels le classement les traverse. Trois
+   *  tampons réutilisés : une relecture ne rend rien au ramasse-miettes. */
+  pages: number[];
+  priorities: number[];
+  rangs: number[];
+};
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: { pageIds: [], frustumRejected: 0, lodLevel: 0 },
   drawable: [],
+  pages: [],
+  priorities: [],
+  rangs: [],
 });
 
 export function writeDagUniforms(
@@ -70,10 +82,29 @@ export function parseDagOutput(
   );
   // Tableaux dimensionnés d'avance : la lecture d'une image ne fait pas croître un tableau vide
   // élément par élément, et l'itérateur d'un tableau typé n'est jamais déroulé.
-  const { result, drawable } = scratch,
+  const { result, drawable, pages, priorities, rangs } = scratch,
     pageIds = result.pageIds;
+  // Chaque rang est une DEMANDE : la page et sa priorité dans un mot (`gpuDagRequest.ts`). La liste
+  // est rendue CLASSÉE, priorité décroissante — c'est dans cet ordre que l'hôte téléverse, et c'est
+  // ce que le chemin WebGL2 fait depuis toujours (`orderPendingUrls`). Le tri porte sur des rangs,
+  // pas sur des objets, et les deux tampons sont réécrits sur place.
+  pages.length = count;
+  priorities.length = count;
+  rangs.length = count;
+  for (let i = 0; i < count; i++) {
+    const word = ints[head + i];
+    pages[i] = requestPage(word);
+    priorities[i] = requestPriority(word);
+    rangs[i] = i;
+  }
+  rangs.sort((a, b) => priorities[b] - priorities[a]);
   pageIds.length = count;
-  for (let i = 0; i < count; i++) pageIds[i] = ints[head + i];
+  const rangees = (result.requestPriorities ??= []);
+  rangees.length = count;
+  for (let i = 0; i < count; i++) {
+    pageIds[i] = pages[rangs[i]];
+    rangees[i] = priorities[rangs[i]];
+  }
   result.frustumRejected = ints[OUT_FRUSTUM_REJECTED] ?? 0;
   result.lodLevel = ints[OUT_LOD_LEVEL] ?? 0;
   result.complete = ((ints[OUT_FLAGS] ?? 0) & 2) === 0;

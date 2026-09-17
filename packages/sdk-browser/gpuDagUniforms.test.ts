@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDagOutput } from './gpuDagUniforms.ts';
 import { SELECTION_HEADER_WORDS } from './gpuDagLayout.ts';
+import { packRequest } from './gpuDagRequest.ts';
 import { referenceParseDagOutput } from './bench/oracles/residence.mjs';
 import type { SelectionResult } from './gpuSelection.ts';
 
@@ -26,6 +27,7 @@ const champs = (releve: SelectionResult | null) => {
   if (!releve) return releve;
   const {
     truncated: _t,
+    requestPriorities: _r,
     selectedTriangles: _s,
     drawnTriangles: _d,
     uncoveredTriangles: _u,
@@ -80,6 +82,23 @@ test('le bit 0 du mot 3 déclare le relevé tronqué, sans le jeter', () => {
 test('un relevé qui tient sous le plafond n’est jamais déclaré tronqué', () => {
   const { neuf } = paire([3, 0, 0, 0], [10, 20, 30]);
   assert.equal(lire(neuf)!.truncated, false);
+});
+
+test('le relevé est rendu classé : la demande la plus coûteuse d’abord', () => {
+  // Chaque rang est un mot de demande, page et priorité mêlées (`gpuDagRequest.ts`). La carte les
+  // écrit dans l'ordre d'un compteur atomique, donc dans aucun ; c'est la relecture qui classe.
+  const demandes = [
+    packRequest(70, 12),
+    packRequest(11, 900),
+    packRequest(42, 300),
+    packRequest(5, 900),
+    packRequest(9, 0),
+  ];
+  const { neuf } = paire([demandes.length, 0, 0, 0], demandes);
+  const releve = lire(neuf)!;
+  // Priorité décroissante ; à priorité égale, l'ordre d'émission est conservé — il est indifférent,
+  // comme il l'est sur le chemin WebGL2, qui ne départage pas non plus deux erreurs égales.
+  assert.deepEqual(releve.pageIds, [11, 5, 42, 70, 9]);
 });
 
 test('les totaux de triangles sont relus tels que la carte les a posés', () => {
