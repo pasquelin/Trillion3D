@@ -7,13 +7,12 @@
 //
 // `npm_config_user_agent` est posé par tout gestionnaire qui lance un script de cycle de vie ; il
 // commence par son nom. Absent, personne ne nous a lancés depuis une installation : on laisse faire.
-import { resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 //
 // Le garde-fou ne tourne QUE lorsque ce fichier est le programme lancé (`preinstall`) : les scripts
 // du dépôt l'importent pour `commandePnpm`, et un import ne doit pas décider de leur sort.
 const agent = process.env.npm_config_user_agent ?? '';
-const lance = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+const lance = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (lance && agent && !agent.startsWith('pnpm')) {
   const nom = agent.split('/')[0];
   console.error(

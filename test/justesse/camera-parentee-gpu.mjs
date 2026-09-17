@@ -8,29 +8,18 @@
 //
 //   node test/justesse/camera-parentee-gpu.mjs
 //   (LAB_ROOT désigne `render-tech-lab` si le dépôt n'est pas son voisin.)
-import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, requireDuLab } from './pageWebgpu.mjs';
+import { dansPageWebgpu, empaquetePage } from './pageWebgpu.mjs';
 
 const ici = dirname(fileURLToPath(import.meta.url));
-const esbuild = createRequire(requireDuLab().resolve('vite'))('esbuild');
 
-const paquet = await esbuild.build({
-  entryPoints: [resolve(ici, 'cameraParenteeGpuPage.mjs')],
-  bundle: true,
-  write: false,
-  format: 'iife',
-  globalName: 'cameraParentee',
-  platform: 'browser',
-  target: 'es2022',
-  logLevel: 'error',
-});
+const script = await empaquetePage(resolve(ici, 'cameraParenteeGpuPage.mjs'), 'cameraParentee');
 const erreursPage = [];
 const resultat = await dansPageWebgpu(
   (pixelErrors) => globalThis.cameraParentee.executer(pixelErrors),
   [0, 3.5],
-  { titre: 'Caméra parentée', script: paquet.outputFiles[0].text, erreursPage },
+  { titre: 'Caméra parentée', script, erreursPage },
 );
 resultat.erreurs = [...(resultat.erreurs ?? []), ...erreursPage];
 

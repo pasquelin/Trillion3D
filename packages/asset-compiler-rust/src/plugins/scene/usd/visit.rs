@@ -100,7 +100,7 @@ fn node(
         }
     }
     if is_light(type_name) {
-        if let Some(light) = light::build(world, prim, scale) {
+        if let Some(light) = light::build(world, prim, type_name, scale) {
             node["extensions"] = crate::import::light_extension(light);
         }
     }

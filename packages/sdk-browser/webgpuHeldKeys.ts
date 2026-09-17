@@ -1,5 +1,4 @@
 import type { CutDelta } from './webgpuCutDelta.ts';
-import { createDenseKeySet } from './webgpuDenseKeys.ts';
 
 /**
  * The keys one cut holds, counted per placement.
@@ -18,19 +17,17 @@ export function createHeldKeys(options: {
   onExit?: (id: number) => void;
 }) {
   const { keyCount, keyOfPageId, retain, release, onEnter, onExit } = options;
+  // Le compte de références EST l'appartenance : `refs[key] > 0` dit exactement « cette clé est
+  // tenue ». Une liste dense à côté ne dirait rien de plus, et se paierait sur chaque clé qui entre
+  // ou sort, à chaque image.
   const refs = new Int32Array(Math.max(1, keyCount));
-  const held = createDenseKeySet(keyCount);
   return {
-    get count() {
-      return held.count;
-    },
     apply(delta: CutDelta) {
       for (let i = 0; i < delta.exitedCount; i++) {
         const id = delta.exited[i],
           key = keyOfPageId[id];
         onExit?.(id);
         if (--refs[key] > 0) continue;
-        held.remove(key);
         release(key);
       }
       for (let i = 0; i < delta.enteredCount; i++) {
@@ -38,7 +35,6 @@ export function createHeldKeys(options: {
           key = keyOfPageId[id];
         onEnter?.(id);
         if (refs[key]++ > 0) continue;
-        held.add(key);
         retain(key, id);
       }
     },
