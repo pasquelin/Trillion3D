@@ -1,4 +1,3 @@
-import { frustumExcludesBox } from '../sdk-core/index.ts';
 import { BLEND_VIEW_SIZE } from './webgpuBlendUniforms.ts';
 import { blendBindEntries, type BlendLighting } from './webgpuBindEntries.ts';
 import { blendLightResources, sameLighting } from './webgpuBlendLighting.ts';
@@ -6,7 +5,8 @@ import { createBlendOverdraw } from './webgpuBlendOverdraw.ts';
 import { countsBlendOverdraw } from './diagnosticGpuVariant.ts';
 import { VOLUME_SIZE, VOLUME_STRIDE } from './webgpuTransmission.ts';
 import type { BlendGpuItem } from './webgpuBlendState.ts';
-import { PIPELINE_BACK, PIPELINE_FRONT, planItem, planPipeline } from './webgpuBlendPlan.ts';
+import { PIPELINE_BACK, PIPELINE_FRONT } from './webgpuBlendPlan.ts';
+import { RUN_SHARED, RUN_WORDS } from './webgpuBlendRuns.ts';
 import type { WebgpuPagesRuntime } from './webgpuPagesRuntime.ts';
 
 /**
@@ -40,7 +40,7 @@ function blendBindGroup(
       scales: vis.materialScales!,
       ...lighting,
       clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
-      clusterIds: compaction?.instanceBuffer ?? zero,
+      planInstances: blendState.expandedBuffer ?? zero,
       clusterSpans: compaction?.spanBuffer ?? zero,
       volume: gpu.volumeBuffer!,
       volumeSize: VOLUME_SIZE,
@@ -52,18 +52,21 @@ function blendBindGroup(
 }
 
 /**
- * Encode une passe transparente : un `drawIndirect` par entree du plan, rien d'autre.
+ * Encode une passe transparente : un `drawIndirect` par TRANCHE, et rien d'autre.
  *
- * Le plan est statique (`webgpuBlendPlan.ts`) : il porte le rang de l'item et le pipeline a poser,
- * faces arriere puis faces avant pour un item double face. La liste parcourue ici est ce meme plan
- * range du plus lointain au plus proche par `webgpuBlendOrder.ts`, puisqu'un melange n'ecrit pas la
- * profondeur et que seul l'ordre d'encodage le departage. La
- * boucle ne fait donc plus ni produit de matrice, ni lecture de materiau, ni allocation ; le
- * nombre d'instances de chaque appel est celui que la carte vient d'ecrire, zero pour un item que
- * le tronc a rejete.
+ * Une tranche est une suite d'entrées du plan trié qui pose le même pipeline et lit les mêmes
+ * tampons (`webgpuBlendRuns.ts`). Les primitives d'un appel sont rasterisées instance par instance,
+ * dans l'ordre : la liste étalée par la carte porte donc les instances de chaque entrée à la suite,
+ * du plus lointain au plus proche, et l'ordre de peinture est celui qu'un appel par item donnait —
+ * sans les appels. Une scène de primitives paginées qui partagent un pipeline tient en un appel ;
+ * un item non paginé, qui porte ses propres tampons, garde le sien.
  *
- * `transmissive` dit laquelle des deux passes on encode : les melanges d'abord, puis, une fois le
- * fond fige, les surfaces qui le relisent.
+ * La boucle ne fait ni produit de matrice, ni lecture de matériau, ni test de tronc : le verdict du
+ * tronc est posé avec les clés de classement (`webgpuBlendOrder.ts`), et il ne reste ici qu'à ne pas
+ * encoder l'appel d'un item entièrement hors champ.
+ *
+ * `transmissive` dit laquelle des deux passes on encode : les mélanges d'abord, puis, une fois le
+ * fond figé, les surfaces qui le relisent — une tranche par entrée, chacune décalant son volume.
  */
 /** Le tableau de decalages dynamiques, alloue une fois : `setBindGroup` le lit sur place. */
 const offsets = [0];
@@ -76,9 +79,11 @@ export function drawBlendPass(
 ) {
   const { gpu, vis, run, blendState } = rt,
     items = blendState.blendGpu,
-    plan = transmissive ? blendState.orderTransmission : blendState.orderBlend,
+    slice = transmissive ? 1 : 0,
+    runs = transmissive ? blendState.runsTransmission : blendState.runsBlend,
+    count = blendState.runCount[slice],
     args = blendState.argsBuffer;
-  if (!plan.length || !args) return;
+  if (!count || !args) return;
   // L'atlas d'ombres et la grille de sondes n'existent pas des la premiere image : un groupe bati
   // sur les remplacants doit etre refait le jour ou les vraies ressources arrivent.
   const lighting = blendLightResources(rt);
@@ -108,28 +113,17 @@ export function drawBlendPass(
   overdraw?.begin(pass, transmissive);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
-    encoded = 0,
-    rejete = -1;
-  const planes = blendState.blendPlanes;
-  for (let i = 0; i < plan.length; i++) {
-    const entry = plan[i],
-      index = planItem(entry),
-      item = items[index],
-      box = item.bounds;
-    // Le noyau met a zero les instances d'un item hors champ, mais un appel encode reste un appel
-    // soumis : le tronc est reteste ici, en double precision, et l'item entierement hors champ
-    // n'est pas encode du tout. Le noyau reste conservateur au-dela de ce test, donc ce verdict-ci
-    // est aussi LE compte de rejets de l'image : il est mesure la ou il retire l'appel. Les deux
-    // entrees d'un item double face se suivent, seule la premiere compte — comme le chemin de
-    // repli, le compteur compte des items.
-    if (box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) {
-      if (index !== rejete) run.blendFrustumRejected++;
-      rejete = index;
-      continue;
-    }
+    encoded = 0;
+  const base = blendState.planRegions[slice].args * 4;
+  for (let index = 0; index < count; index++) {
+    const at = index * RUN_WORDS,
+      owner = runs[at + 3];
+    // Une tranche dont le tronc n'a rien garde n'etale aucune instance : l'appel qui ne poserait
+    // aucun pixel n'est pas encode du tout, comme il ne l'etait pas par item.
+    if (!blendState.runKept[slice][index]) continue;
     encoded++;
-    if (boundPipeline !== planPipeline(entry)) {
-      boundPipeline = planPipeline(entry);
+    if (boundPipeline !== runs[at + 2]) {
+      boundPipeline = runs[at + 2];
       pass.setPipeline(
         boundPipeline === PIPELINE_FRONT
           ? vis.pipelineBlendFront!
@@ -138,20 +132,22 @@ export function drawBlendPass(
             : vis.pipelineBlendTextured!,
       );
     }
-    const group = item.paged
-      ? blendState.pagedGroup!
-      : (item.group ??= blendBindGroup(rt, device, item, lighting));
+    const item = owner === RUN_SHARED ? undefined : items[owner];
+    const group =
+      item && !item.paged
+        ? (item.group ??= blendBindGroup(rt, device, item, lighting))
+        : blendState.pagedGroup!;
     // Le volume du materiau est la SEULE chose qui reste a decaler par item, et seule la passe de
     // transmission le lit : la passe de melange pose son groupe une fois pour toute la liste.
     // Les decalages sont lus a l'appel : un seul tableau de module, reecrit, suffit.
     if (transmissive) {
-      offsets[0] = index * VOLUME_STRIDE;
+      offsets[0] = (owner === RUN_SHARED ? 0 : owner) * VOLUME_STRIDE;
       pass.setBindGroup(0, group, offsets);
     } else if (group !== boundGroup) {
       offsets[0] = 0;
       pass.setBindGroup(0, (boundGroup = group), offsets);
     }
-    pass.drawIndirect(args, index * 16);
+    pass.drawIndirect(args, base + index * 16);
   }
   overdraw?.end(pass);
   pass.end();

@@ -1,7 +1,7 @@
 import { invertMatrix4 } from '../sdk-core/index.ts';
 import { drawBlendPass } from './webgpuBlendDraw.ts';
 import { writeBlendView } from './webgpuBlendUniforms.ts';
-import { writeBlendArgsCpu } from './webgpuBlendArgs.ts';
+import { encodeBlendExpansion } from './webgpuBlendResources.ts';
 import { selectWebgpuBlend } from './webgpuBlendSelection.ts';
 import { orderBlendPasses, orderVisibleBlend } from './webgpuBlendOrder.ts';
 import { drawFallbackBlendPass, writeFallbackBlendUniforms } from './webgpuBlendFallback.ts';
@@ -48,7 +48,8 @@ export function encodeBlend(
     gpu.zeroUv &&
     blendState.itemBuffer &&
     blendState.viewBuffer &&
-    blendState.argsBuffer
+    blendState.argsBuffer &&
+    blendState.expandedBuffer
   );
   if (!textured && !gpu.bindGroupLayout) return;
   const cpuStart = performance.now();
@@ -73,16 +74,15 @@ export function encodeBlend(
     timing.transparentEncodeMs += performance.now() - cpuStart;
     return;
   }
-  // Le tronc passe par la carte : un noyau d'un fil par item ecrit les arguments indirects, compte
-  // d'instances a zero pour ce qu'il rejette. Sans etage de calcul, le processeur ecrit les memes
-  // arguments. Le compteur de rejets, lui, ne vient d'aucune relecture : `drawBlendPass` le tient
-  // en retestant le tronc en double precision, sur l'image qu'il encode.
   // Le classement du plus lointain au plus proche, repris ici et à chaque image : un mélange ne pose
-  // pas de profondeur, donc rien d'autre que cet ordre ne départage deux surfaces transparentes.
-  orderBlendPasses(blendState, eye);
+  // pas de profondeur, donc rien d'autre que cet ordre ne départage deux surfaces transparentes. Le
+  // tronc est testé dans le même parcours, en double précision, et son verdict part sur la carte en
+  // un bit par item — c'est aussi LE compte de rejets de l'image, mesuré là où il retire l'appel.
+  run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
-  if (blendState.select) blendState.select.encode(encoder, blendState.blendPlanes);
-  else writeBlendArgsCpu(blendState, device);
+  // La carte étale ensuite le plan trié : une liste d'instances, un argument indirect par tranche,
+  // et plus rien par item. Sans étage de calcul, le processeur écrit les mêmes mots.
+  encodeBlendExpansion(rt, device, encoder);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
