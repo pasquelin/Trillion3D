@@ -70,7 +70,8 @@ test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui q
     result: { pageIds: [2, 0], drawablePageIds: [2, 0], frustumRejected: 0, lodLevel: 0 },
   } as GpuCut;
   let peeked: GpuCut | null = premier;
-  const counts = createCutCounts(packedPages, new Int32Array(packedPages.length));
+  const drawnDelta = createCutDelta(packedPages, []);
+  const counts = createCutCounts(packedPages, new Int32Array(packedPages.length), drawnDelta);
   const adopter = createWebgpuCutAdopter({
     selection: () => ({ peek: () => peeked }) as unknown as GpuSelection,
     packedPages,
@@ -80,9 +81,9 @@ test('l’adoption annonce la recopie sur un relevé neuf, et jamais sur celui q
     uniforms: uniforms(),
     counts,
     delta: createCutDelta(packedPages, desired),
-    drawnDelta: createCutDelta(packedPages, []),
+    drawnDelta,
     onCutDelta: () => {},
-    onDrawnDelta: (delta) => counts.apply(delta),
+    onDrawnDelta: () => counts.apply(),
     onDrawnMirrored: () => annonces++,
   });
 
