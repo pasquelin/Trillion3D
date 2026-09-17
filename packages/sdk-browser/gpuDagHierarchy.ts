@@ -107,7 +107,7 @@ export function flatHierarchy(pages: ReadonlyArray<{ min?: number[]; max?: numbe
  * zéro. C'est ce majorant, connu du rangement une fois pour toutes, qui permet de lancer chaque passe
  * de niveau À PLAT : les fils au-delà de la file sortent sur la garde de compte, et le mot de tête de
  * l'argument de répartition n'a plus à être recopié vers un tampon d'indirection avant chaque passe —
- * dix-neuf microsecondes par copie sur apple metal-3, mesurées par `coupe-lancements-gpu.mjs`.
+ * dix-sept à dix-neuf microsecondes par copie sur apple metal-3 (`coupe-lancements-gpu.mjs`).
  */
 export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
   const count = nodes.length / stride;
